@@ -641,11 +641,15 @@ async fn same_native_session_can_bind_independent_resources() {
 #[tokio::test]
 async fn historical_multiple_receipts_ack_identical_retry_without_inventing_attribution() {
     use systemprompt_identifiers::{ConsumerInstallationId, InstallationSessionBindingId};
-    use systemprompt_marketplace::managed::consumer::host_key;
     use systemprompt_marketplace::managed::ManagedError;
+    use systemprompt_marketplace::managed::consumer::host_key;
     let mut f = fixture().await;
     let original = f.receipt_binding().await;
-    let original_bound = f.repo.bind_consumer_session(&f.credential.credential, &original).await.unwrap();
+    let original_bound = f
+        .repo
+        .bind_consumer_session(&f.credential.credential, &original)
+        .await
+        .unwrap();
     f.request.installation_id = ConsumerInstallationId::generate();
     let historical = f.receipt_binding().await;
     let historical_id = InstallationSessionBindingId::generate();
@@ -656,22 +660,51 @@ async fn historical_multiple_receipts_ack_identical_retry_without_inventing_attr
         .bind(original.session_id.as_str()).execute(&f.pool).await.unwrap();
     let mut evidence = f.invocation();
     evidence.installation_id = None;
-    let before = f.repo.record_consumer_invocation(&f.credential.credential, &evidence).await.unwrap();
+    let before = f
+        .repo
+        .record_consumer_invocation(&f.credential.credential, &evidence)
+        .await
+        .unwrap();
     assert!(before.receipt_id.is_none());
-    let retry = f.repo.bind_consumer_session(&f.credential.credential, &original).await.unwrap();
+    let retry = f
+        .repo
+        .bind_consumer_session(&f.credential.credential, &original)
+        .await
+        .unwrap();
     assert_eq!(retry.id, original_bound.id);
     assert_eq!(retry.bound_at, original_bound.bound_at);
-    assert_eq!(f.repo.bind_consumer_session(&f.credential.credential, &historical).await.unwrap().id, historical_id);
-    let after = f.repo.record_consumer_invocation(&f.credential.credential, &evidence).await.unwrap();
+    assert_eq!(
+        f.repo
+            .bind_consumer_session(&f.credential.credential, &historical)
+            .await
+            .unwrap()
+            .id,
+        historical_id
+    );
+    let after = f
+        .repo
+        .record_consumer_invocation(&f.credential.credential, &evidence)
+        .await
+        .unwrap();
     assert!(after.receipt_id.is_none());
     assert_eq!(after.version, before.version);
     f.request.installation_id = ConsumerInstallationId::generate();
     let third = f.receipt_binding().await;
-    assert!(matches!(f.repo.bind_consumer_session(&f.credential.credential, &third).await, Err(ManagedError::Conflict(_))));
+    assert!(matches!(
+        f.repo
+            .bind_consumer_session(&f.credential.credential, &third)
+            .await,
+        Err(ManagedError::Conflict(_))
+    ));
     let count: i64 = sqlx::query_scalar("SELECT count(*) FROM managed_consumer_session_bindings WHERE consumer_id=$1 AND device_id=$2 AND host=$3 AND native_session_id=$4")
         .bind(f.consumer.as_str()).bind(f.cert.as_str()).bind(host_key(f.request.host))
         .bind(original.session_id.as_str()).fetch_one(&f.pool).await.unwrap();
     assert_eq!(count, 2);
     f.grant(false).await;
-    assert!(f.repo.bind_consumer_session(&f.credential.credential, &original).await.is_err());
+    assert!(
+        f.repo
+            .bind_consumer_session(&f.credential.credential, &original)
+            .await
+            .is_err()
+    );
 }
