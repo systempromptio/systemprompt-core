@@ -34,6 +34,7 @@ use systemprompt_users::{UserRepository, UserService};
 
 mod context_loaders;
 mod debug_impls;
+mod repositories;
 mod shutdown;
 
 pub use shutdown::ShutdownRequest;
@@ -203,62 +204,6 @@ impl AppContext {
         Arc::new(systemprompt_agent::services::ContextProviderService::new(
             self.data.a2a_repositories.contexts.clone(),
         ))
-    }
-
-    pub const fn a2a_repositories(&self) -> &Arc<A2ARepositories> {
-        &self.data.a2a_repositories
-    }
-
-    pub const fn content_repositories(&self) -> &Arc<ContentRepositories> {
-        &self.data.content_repositories
-    }
-
-    pub const fn oauth_repositories(&self) -> &Arc<OAuthRepositories> {
-        &self.data.oauth_repositories
-    }
-
-    pub const fn user_repository(&self) -> &Arc<UserRepository> {
-        &self.data.user_repository
-    }
-
-    pub const fn service_repository(&self) -> &Arc<ServiceRepository> {
-        &self.data.service_repository
-    }
-
-    pub const fn ai_repositories(&self) -> &Arc<AiRepositories> {
-        &self.data.ai_repositories
-    }
-
-    pub const fn feedback_snapshots_repository(
-        &self,
-    ) -> &Arc<systemprompt_analytics::snapshots::FeedbackSnapshotsRepository> {
-        &self.data.feedback_snapshots_repository
-    }
-
-    pub const fn feedback_facts_repository(
-        &self,
-    ) -> &Arc<systemprompt_analytics::feedback::FeedbackFactsRepository> {
-        &self.data.feedback_facts_repository
-    }
-
-    pub const fn analytics_repositories(&self) -> &Arc<AnalyticsRepositories> {
-        &self.data.analytics_repositories
-    }
-
-    pub const fn file_repository(&self) -> &Arc<FileRepository> {
-        &self.data.file_repository
-    }
-
-    pub const fn mcp_session_repository(&self) -> &Arc<McpSessionRepository> {
-        &self.data.mcp_session_repository
-    }
-
-    pub const fn managed_repository(&self) -> &Arc<ManagedRepository> {
-        &self.data.managed_repository
-    }
-
-    pub const fn evaluation_repositories(&self) -> &Arc<EvaluationRepositories> {
-        &self.data.evaluation_repositories
     }
 
     pub const fn route_classifier(&self) -> &Arc<RouteClassifier> {
