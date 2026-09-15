@@ -74,7 +74,10 @@ pub fn verify(
         if bytes != expected.bytes {
             return Err(FeedbackError::Readback);
         }
+        #[cfg(unix)]
         let mode_check = verify_mode(&metadata, expected.executable)?;
+        #[cfg(not(unix))]
+        let mode_check = ReadbackStatus::Unavailable;
         runtime_files.push(RuntimeFileReadback {
             path: expected.path.clone(),
             digest: ContentDigest::of(&bytes),
@@ -177,9 +180,4 @@ fn verify_mode(metadata: &std::fs::Metadata, expected: bool) -> Result<ReadbackS
         return Err(FeedbackError::Readback);
     }
     Ok(ReadbackStatus::Verified)
-}
-
-#[cfg(not(unix))]
-fn verify_mode(_metadata: &std::fs::Metadata, _expected: bool) -> Result<ReadbackStatus> {
-    Ok(ReadbackStatus::Unavailable)
 }
