@@ -109,6 +109,19 @@ impl DurableOutbox {
             .await?;
         Ok(id)
     }
+}
+
+/// Claim-only side of the outbox: a consumer never appends, so it carries no
+/// emitting instance identity.
+#[derive(Debug, Clone)]
+pub struct OutboxConsumer {
+    pool: PgPool,
+}
+
+impl OutboxConsumer {
+    pub const fn new(pool: PgPool) -> Self {
+        Self { pool }
+    }
 
     pub async fn claim(&self, consumer: &str) -> Result<Option<Delivery>, sqlx::Error> {
         let mut tx = self.pool.begin().await?;

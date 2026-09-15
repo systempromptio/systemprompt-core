@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use serde_json::Value;
 use sqlx::PgPool;
-use systemprompt_events::services::durable::DurableOutbox;
+use systemprompt_events::services::durable::OutboxConsumer;
 use systemprompt_events::{
     A2A_BROADCASTER, AGUI_BROADCASTER, ANALYTICS_BROADCASTER, Broadcaster, CONTEXT_BROADCASTER,
     EventRouter, ToSse,
@@ -10,7 +10,7 @@ use systemprompt_events::{
 use systemprompt_identifiers::ConnectionId;
 use systemprompt_models::AnalyticsEventBuilder;
 
-pub(crate) async fn verify_capture(pool: &PgPool, outbox: &DurableOutbox) {
+pub(crate) async fn verify_capture(pool: &PgPool, outbox: &OutboxConsumer) {
     sqlx::raw_sql(include_str!(
         "../../../../infra/events/schema/reporting_capture.sql"
     ))
@@ -174,7 +174,7 @@ pub(crate) async fn verify_capture(pool: &PgPool, outbox: &DurableOutbox) {
     CONTEXT_BROADCASTER.unregister(&user, &connection).await;
 }
 
-async fn next_fact(outbox: &DurableOutbox) -> Value {
+async fn next_fact(outbox: &OutboxConsumer) -> Value {
     let delivery = outbox
         .claim("analytics_reporting")
         .await

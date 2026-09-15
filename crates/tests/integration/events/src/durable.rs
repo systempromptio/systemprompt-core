@@ -1,7 +1,9 @@
 use std::time::Duration;
 
 use sqlx::postgres::{PgListener, PgPoolOptions};
-use systemprompt_events::services::durable::{DurableOutbox, ReportingFact, SseEvent};
+use systemprompt_events::services::durable::{
+    DurableOutbox, OutboxConsumer, ReportingFact, SseEvent,
+};
 use systemprompt_events::{
     ANALYTICS_BROADCASTER, Broadcaster, EventRouter, OUTBOX_CHANNEL, PostgresEventBridge, ToSse,
 };
@@ -64,6 +66,7 @@ async fn transactional_delivery_preserves_sse_and_recovers_processing() {
 
     let instance = InstanceId::new("durable-test");
     let outbox = DurableOutbox::new(pool.clone(), instance.clone());
+    let consumer = OutboxConsumer::new(pool.clone());
     let user = UserId::new(format!("user_{suffix}"));
     let actor = Actor::user(user.clone());
     let event = AnalyticsEventBuilder::heartbeat();
@@ -81,9 +84,9 @@ async fn transactional_delivery_preserves_sse_and_recovers_processing() {
         .append(&mut tx, &actor, SseEvent::Analytics(&event), &fact)
         .await
         .unwrap();
-    assert!(outbox.claim("analytics").await.unwrap().is_none());
+    assert!(consumer.claim("analytics").await.unwrap().is_none());
     tx.rollback().await.unwrap();
-    assert!(outbox.claim("analytics").await.unwrap().is_none());
+    assert!(consumer.claim("analytics").await.unwrap().is_none());
     assert!(
         tokio::time::timeout(Duration::from_millis(100), listener.recv())
             .await
@@ -129,7 +132,7 @@ async fn transactional_delivery_preserves_sse_and_recovers_processing() {
             .await
             .is_err()
     );
-    assert!(outbox.claim("analytics").await.unwrap().is_none());
+    assert!(consumer.claim("analytics").await.unwrap().is_none());
     assert_eq!(
         outbox
             .prune_processed_before(chrono::Utc::now())
@@ -207,9 +210,9 @@ async fn transactional_delivery_preserves_sse_and_recovers_processing() {
             .unwrap(),
         0
     );
-    let mut delivery = outbox.claim("analytics").await.unwrap().unwrap();
+    let mut delivery = consumer.claim("analytics").await.unwrap().unwrap();
     assert_eq!(delivery.fact::<i64>().unwrap().data, 42);
-    assert!(outbox.claim("analytics").await.unwrap().is_none());
+    assert!(consumer.claim("analytics").await.unwrap().is_none());
     sqlx::query("INSERT INTO projection VALUES ($1)")
         .bind(id.as_str())
         .execute(delivery.connection())
@@ -221,14 +224,14 @@ async fn transactional_delivery_preserves_sse_and_recovers_processing() {
         .await
         .unwrap();
     assert_eq!(count, 0);
-    let mut delivery = outbox.claim("analytics").await.unwrap().unwrap();
+    let mut delivery = consumer.claim("analytics").await.unwrap().unwrap();
     sqlx::query("INSERT INTO projection VALUES ($1)")
         .bind(id.as_str())
         .execute(delivery.connection())
         .await
         .unwrap();
     delivery.acknowledge().await.unwrap();
-    assert!(outbox.claim("analytics").await.unwrap().is_none());
+    assert!(consumer.claim("analytics").await.unwrap().is_none());
     let count: i64 = sqlx::query_scalar("SELECT count(*) FROM projection")
         .fetch_one(&pool)
         .await
@@ -260,16 +263,16 @@ async fn transactional_delivery_preserves_sse_and_recovers_processing() {
         .await
         .unwrap();
     late.commit().await.unwrap();
-    let delivery = outbox.claim("analytics").await.unwrap().unwrap();
+    let delivery = consumer.claim("analytics").await.unwrap().unwrap();
     assert_eq!(delivery.id(), late_id);
     delivery.acknowledge().await.unwrap();
     early.commit().await.unwrap();
-    let delivery = outbox.claim("analytics").await.unwrap().unwrap();
+    let delivery = consumer.claim("analytics").await.unwrap().unwrap();
     assert_eq!(delivery.id(), early_id);
     delivery.acknowledge().await.unwrap();
 
     drop(listener);
-    crate::reporting::verify_capture(&pool, &outbox).await;
+    crate::reporting::verify_capture(&pool, &consumer).await;
     verify_all_channels(&pool, &outbox).await;
     bridge.shutdown().await;
     ANALYTICS_BROADCASTER.unregister(&user, &connection).await;

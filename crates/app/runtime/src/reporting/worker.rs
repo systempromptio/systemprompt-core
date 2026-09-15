@@ -11,8 +11,7 @@ use systemprompt_analytics::projection::{
     self, REPORTING_CONSUMER, REPORTING_KIND, REPORTING_VERSION, ReportingProjector, ReportingRow,
 };
 use systemprompt_database::DbPool;
-use systemprompt_events::services::durable::DurableOutbox;
-use systemprompt_identifiers::InstanceId;
+use systemprompt_events::services::durable::OutboxConsumer;
 use tokio::task::JoinHandle;
 
 use crate::RuntimeResult;
@@ -68,7 +67,7 @@ pub async fn process_pending(db: &DbPool, limit: usize) -> RuntimeResult<usize> 
 }
 
 async fn drain(pool: &PgPool, limit: usize) -> Result<usize, AnalyticsError> {
-    let outbox = DurableOutbox::new(pool.clone(), InstanceId::new("analytics-projector"));
+    let outbox = OutboxConsumer::new(pool.clone());
     let mut processed = 0;
     while processed < limit {
         let Some(mut delivery) = outbox.claim(REPORTING_CONSUMER).await? else {
