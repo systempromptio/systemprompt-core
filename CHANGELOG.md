@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.54.0] - Unreleased
+
+### Fixed
+
+- **CLI:** `--json` / `--yaml` (and `SYSTEMPROMPT_OUTPUT_FORMAT`) now emit the artifact for a command whose result was flagged terminal-skip — every empty-result path, 66 sites — instead of printing nothing. An MCP wrapper reading stdout saw `""` where it should have seen an empty table. `skip_render` suppresses terminal rendering only, as documented.
+
+### Added
+
+- **CLI:** `infra logs request list --until <time>` and `--before <cursor>`; every row carries a `cursor` (`<created_at RFC3339>@<request_id>`) in JSON output and `--before` returns strictly older rows, keyset on `(created_at, id)`. `RequestCursor` and `AiRequestFilter::{with_until, with_before}` in `systemprompt-runtime`.
+- **CLI:** `infra logs audit` is counts-only by default (`message_count`, `tool_call_count`) and takes `--messages` / `--tools` to include the rows, `--offset` / `--limit` (0 = all) to page them and `--max-content <chars>` to bound each body; the card reports `offset` and `has_more`. `TraceQueryService::{count_audit_messages, count_audit_tool_calls}` and an `AuditPage` on the two list queries.
+- **Analytics:** `analytics costs breakdown --by user` — spend, requests, tokens and distinct conversations per user, named `<user_id> (<display name>)`; `CostAnalyticsRepository::get_breakdown_by_user`. `analytics requests list --user <id> --offset <n>` (`RequestListFilter`). `analytics conversations list --source agent|gateway|all` (default `all`) and `--user <id>`: gateway sessions are listed beside agent contexts, with `source` and `user_id` columns.
+
+### Breaking
+
+- **Runtime:** `TraceQueryService::list_audit_messages` / `list_audit_tool_calls` take an `AuditPage` (`AuditPage::ALL` for the previous behaviour). **Analytics:** `RequestAnalyticsRepository::list_requests(start, end, &RequestListFilter)` replaces the `(limit, model)` arguments; `ConversationAnalyticsRepository::{list_agent_contexts, list_gateway_sessions}` take a trailing `user: Option<&str>`; `ConversationListRow` and `GatewaySessionListRow` gain `user_id`. **CLI:** `infra logs audit` no longer includes messages or tool calls unless asked.
+
 ## [0.53.0] - 2026-09-15
 
 Three streams land together. The feedback program: native evaluator adapters
