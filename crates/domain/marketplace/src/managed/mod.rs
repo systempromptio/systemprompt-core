@@ -12,7 +12,6 @@ mod diff;
 pub use diff::{ChangeKind, FileChange, diff_files};
 mod error;
 pub mod evaluation;
-#[path = "source_git_process.rs"]
 pub mod git_execution;
 mod import;
 mod installation;

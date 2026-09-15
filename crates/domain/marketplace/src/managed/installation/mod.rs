@@ -15,8 +15,7 @@ use systemprompt_identifiers::{
 
 use super::{AssetDigest, ManagedError, ManagedRepository, Result};
 
-#[path = "installation_repository.rs"]
-mod repository_impl;
+mod repository;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DistributionClaim {

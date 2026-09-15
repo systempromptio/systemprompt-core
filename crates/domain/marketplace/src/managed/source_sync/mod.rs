@@ -19,11 +19,9 @@ use super::{
 };
 use crate::inventory::IncomingRevision;
 
-#[path = "source_sync_git.rs"]
-mod git_import;
-use git_import::{GitCheckout, import_tree, resolve_ref};
+mod git;
+use git::{GitCheckout, import_tree, resolve_ref};
 
-#[path = "source_sync_capture.rs"]
 mod capture;
 use capture::NativeGitSourceCapture;
 pub use capture::{
@@ -32,7 +30,6 @@ pub use capture::{
 
 const IMPORTER_VERSION: &str = "managed-git-v1";
 
-#[path = "source_verification.rs"]
 mod verification;
 pub use verification::{
     GitContentVerification, GitSourceBinding, GitTreeRead, GitTreeReader, GitVerificationService,
@@ -164,7 +161,7 @@ impl ManagedRepository {
         })
         .await
         .map_err(super::error::integrity)??;
-        if !git_import::is_commit(&captured.commit) {
+        if !git::is_commit(&captured.commit) {
             return Err(ManagedError::Integrity);
         }
         if !captured.files.0.is_empty() {

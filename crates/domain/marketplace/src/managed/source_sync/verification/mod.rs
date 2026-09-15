@@ -10,10 +10,9 @@ use systemprompt_models::feedback::verification::{
     DependencyVerificationInput, DependencyVerificationManifest, DependencyVerificationRequest,
 };
 
-use super::git_import::{GitCheckout, import_tree};
+use super::git::{GitCheckout, import_tree};
 use crate::managed::{AssetDigest, ManagedError, ManagedRepository, Result, RevisionFiles};
 
-#[path = "source_verification_service.rs"]
 mod service;
 pub use service::GitVerificationService;
 
@@ -67,7 +66,6 @@ pub struct GitSourceBinding<'a> {
     pub relative_root: &'a str,
 }
 
-#[path = "source_verification_ca.rs"]
 mod certificate_authority;
 
 impl ManagedRepository {

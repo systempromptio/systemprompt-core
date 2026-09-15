@@ -8,7 +8,6 @@ use systemprompt_identifiers::{
     ManagedReconciliationId, ManagedResourceId, ResourceRevisionId, UserId,
 };
 
-#[path = "reconciliation_merge.rs"]
 mod merge;
 use super::{ManagedError, ManagedRepository, Result};
 use merge::{RecordedConflict, ThreeWay, same_file, verify_merge};

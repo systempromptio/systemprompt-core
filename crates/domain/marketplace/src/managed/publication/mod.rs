@@ -12,10 +12,8 @@ use systemprompt_identifiers::{
 use super::error::invalid;
 use super::{AssetDigest, ManagedError, ManagedRepository, ResourceKind, Result, RevisionBundle};
 
-#[path = "publication_history.rs"]
 mod history;
-#[path = "publication_repository.rs"]
-mod repository_impl;
+mod repository;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
