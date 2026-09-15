@@ -201,6 +201,11 @@ fn fixture_app_context_assembled(
     marketplace_filter: Arc<dyn MarketplaceFilter>,
     authz_hook: SharedAuthzHook,
 ) -> Result<Arc<AppContext>> {
+    let governance = Arc::new(
+        systemprompt_security::policy::GovernanceEngine::from_services_root(std::path::Path::new(
+            &paths.services,
+        ))?,
+    );
     let app_paths = Arc::new(AppPaths::from_profile(
         &paths,
         systemprompt_models::PathResolution::Canonicalize,
@@ -286,7 +291,7 @@ fn fixture_app_context_assembled(
         Subsystems {
             system_admin: Arc::new(fixture_system_admin("admin")),
             authz_hook,
-            governance: default_governance_engine(),
+            governance,
             schema_install: Arc::new(systemprompt_database::SchemaInstallReport::default()),
             event_bridge: Arc::new(OnceLock::new()),
             geoip_reader: None,

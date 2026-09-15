@@ -54,7 +54,7 @@ pub use oauth::{
     TEST_CLIENT_SECRET_HASH, TEST_REDIRECT_URI,
 };
 pub use paths::{repo_path, repo_root};
-pub use secrets::ensure_test_secrets_bootstrap;
+pub use secrets::{ensure_test_secrets_bootstrap, install_named_secret};
 pub use service_row::seed_running_service;
 pub use skip::{ci, skip_or_panic};
 pub use subprocess::{

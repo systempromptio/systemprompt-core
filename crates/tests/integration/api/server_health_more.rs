@@ -270,12 +270,49 @@ async fn body_json(app: Router, uri: &str) -> (StatusCode, serde_json::Value) {
 }
 
 #[tokio::test]
-async fn handle_health_reports_healthy() -> anyhow::Result<()> {
+async fn handle_health_is_degraded_until_the_event_relay_listens() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
     let app = Router::new()
         .route("/health", get(handle_health))
         .with_state((*ctx).clone());
     let (status, body) = body_json(app, "/health").await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["status"], "degraded");
+    assert_eq!(body["events"]["relay"], "not_started");
+    Ok(())
+}
+
+#[tokio::test]
+async fn handle_health_reports_healthy_with_a_listening_relay() -> anyhow::Result<()> {
+    let (_pool, ctx) = setup_ctx().await?;
+    let instance_id = systemprompt_identifiers::InstanceId::new(&ctx.config().instance_id);
+    let handle = systemprompt_events::PostgresEventBridge::new(
+        ctx.db_pool().write_pool().as_ref().clone(),
+        instance_id,
+    )
+    .start();
+    ctx.event_bridge()
+        .set(handle)
+        .expect("a fresh fixture context has no relay");
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(10);
+    while !ctx
+        .event_bridge()
+        .get()
+        .is_some_and(|handle| handle.status().is_listening())
+    {
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "the relay did not start listening"
+        );
+        tokio::time::sleep(Duration::from_millis(25)).await;
+    }
+    let app = Router::new()
+        .route("/health", get(handle_health))
+        .with_state((*ctx).clone());
+    let (status, body) = body_json(app, "/health").await;
+    if let Some(handle) = ctx.event_bridge().get() {
+        handle.shutdown().await;
+    }
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["status"], "healthy");
     Ok(())
