@@ -8,6 +8,7 @@
 
 ### Added
 
+- `admin evals promote` samples through the AI request trace seam (`SamplerService::new(Arc<AiRequestRepository>)`).
 - `admin config rate-limits` reads, sets, diffs, resets and validates `gateway_per_second`.
 - `runner::profile_routing::{BootstrapOutcome, RoutingDecision, decide_routing}` expose the routing decision the runner acts on.
 - `analytics projection status|sync --limit <n>|rebuild`; every other `analytics` report command refuses an uninitialised reporting baseline with a rebuild instruction instead of returning empty reports.

@@ -47,18 +47,36 @@ impl GatewayRepositories {
         let pool = db.write_pool_arc().map_err(|error| {
             systemprompt_ai::error::RepositoryError::PoolInitialization(error.to_string())
         })?;
+        let requests = Arc::new(AiRequestRepository::new(db)?);
+        let trace: systemprompt_traits::DynAiRequestTrace = Arc::new(requests.as_ref().clone());
+        let sessions: systemprompt_traits::DynAiSessionProvider =
+            Arc::new(systemprompt_users::UsersAiSessionProvider::from_repository(
+                systemprompt_users::SessionRepository::new(db).map_err(|error| {
+                    systemprompt_ai::error::RepositoryError::PoolInitialization(error.to_string())
+                })?,
+            ));
+        let budgets = systemprompt_evaluation::repository::experiments::BudgetRepository::new(
+            (*pool).clone(),
+            Arc::clone(&trace),
+        );
         Ok(Self {
             journal: Arc::new(journal),
             execution_capabilities:
                 systemprompt_evaluation::repository::experiments::ExecutionCapabilityRepository::new(
                     (*pool).clone(),
+                    Arc::clone(&sessions),
                 ),
             evaluations:
                 systemprompt_evaluation::repository::experiments::GatewayEvaluationRepository::new(
                     (*pool).clone(),
+                    budgets,
+                    systemprompt_evaluation::repository::experiments::GatewaySeams {
+                        trace,
+                        sessions,
+                    },
                 ),
             quota_buckets: AiQuotaBucketRepository::new(db)?,
-            requests: Arc::new(AiRequestRepository::new(db)?),
+            requests,
             payloads: Arc::new(AiRequestPayloadRepository::new(db)?),
             safety_findings: AiSafetyFindingRepository::new(db)?,
             gateway_policies: AiGatewayPolicyRepository::new(db)?,

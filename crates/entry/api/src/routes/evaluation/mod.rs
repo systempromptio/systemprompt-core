@@ -34,7 +34,7 @@ pub fn router(state: EvaluationWorkerState) -> Router {
 pub(crate) fn router_from_context(
     ctx: &systemprompt_runtime::AppContext,
 ) -> anyhow::Result<Router> {
-    let state = EvaluationWorkerState::builder((*ctx.db_pool().write_pool_arc()?).clone())
+    let state = EvaluationWorkerState::builder(ctx.evaluation_repositories().as_ref().clone())
         .environment(ctx.config().api_external_url.clone())
         .build()?;
     Ok(router(state))

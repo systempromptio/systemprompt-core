@@ -5,8 +5,9 @@
 
 use anyhow::{Context, Result};
 use clap::Args;
-use systemprompt_evaluation::{NewCaseParams, SampleFilter, SamplerService};
+use systemprompt_evaluation::{CanonicalPrompt, NewCaseParams};
 use systemprompt_identifiers::AiRequestId;
+use systemprompt_traits::TraceSampleFilter;
 
 use super::shared::eval_context;
 use crate::context::CommandContext;
@@ -30,8 +31,10 @@ pub struct PromoteArgs {
 pub async fn execute(args: PromoteArgs, ctx: &CommandContext) -> Result<CommandOutput> {
     let eval = eval_context(ctx).await?;
 
-    let filter = SampleFilter::with_limit(1).ids(vec![args.ai_request_id.clone()]);
-    let sampled = SamplerService::new(eval.repositories.sampling.clone())
+    let ai_request_id = AiRequestId::new(args.ai_request_id.clone());
+    let filter = TraceSampleFilter::with_limit(1).ids(vec![ai_request_id.clone()]);
+    let sampled = eval
+        .sampler
         .sample(&filter)
         .await?
         .into_iter()
@@ -43,14 +46,14 @@ pub async fn execute(args: PromoteArgs, ctx: &CommandContext) -> Result<CommandO
             )
         })?;
 
-    let prompt = sampled.canonical_prompt();
+    let prompt = CanonicalPrompt::from_sample(&sampled);
     let case_id = eval
         .repositories
         .cases
         .create(&NewCaseParams {
             name: args.name.unwrap_or_else(|| args.ai_request_id.clone()),
             prompt,
-            source_ai_request_id: Some(AiRequestId::new(args.ai_request_id)),
+            source_ai_request_id: Some(ai_request_id),
             expectation: args.expectation,
             tags: args.tags,
             created_by: eval.admin_id.clone(),

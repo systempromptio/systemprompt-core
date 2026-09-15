@@ -4,6 +4,10 @@
 
 ## [0.53.0] - 2026-09-15
 
+### Breaking
+
+- **Breaking:** `EvaluationWorkerState::builder(EvaluationRepositories)` takes the application's repository bundle instead of a `PgPool`. Migrate by passing `ctx.evaluation_repositories()`.
+
 ### Added
 
 - The feedback contract surface under `/api/v1` (`routes::evaluation`): campaigns (`/campaigns`, `/campaigns/{id}/{transitions,experiments,holdout-proposals}`, `/campaign-runs`, `/campaign-diagnostics`, `/source-changes`), budgets, sources (`/sources`, `/sources/{id}/verification-bindings`), evaluation revisions and workspaces, publications and publication history, source verifications, evaluation approvals and decisions, suggestions, experiment pages and cancellation, consumer devices (`/consumer-devices/{id}/credential`, `/revocation`, `/consumer-devices/enrollment`), consumer evidence (`/consumer/receipts`, `/consumer/session-bindings`, `/consumer/invocations`, `/consumer/resources/{resource}/publications/{publication}/bundle?host=`), consumer grants, inventory (`/inventory*`), snapshot analytics (`/analytics/snapshots[/portfolio|/{resource}]`, `/analytics/jobs`, `/analytics/live`, `/analytics/status`) and fenced operations (`/operations/{id}`). Worker routes stay at `/api/v1/evaluation/worker/*`.

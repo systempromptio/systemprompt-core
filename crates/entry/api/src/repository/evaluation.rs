@@ -3,11 +3,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use sqlx::PgPool;
 use systemprompt_evaluation::repository::experiments::{
-    AssignmentRepository, EvaluationLifecycleRepository, EvidenceRepository,
-    ExecutionCapabilityRepository, ExecutionEventRepository, ExperimentRepository,
-    WorkerRepository,
+    AssignmentRepository, EvaluationLifecycleRepository, EvaluationRepositories,
+    EvidenceRepository, ExecutionCapabilityRepository, ExecutionEventRepository,
+    ExperimentRepository, WorkerRepository,
 };
 
 #[derive(Clone, Debug)]
@@ -23,9 +22,9 @@ pub struct EvaluationWorkerState {
 }
 
 impl EvaluationWorkerState {
-    pub const fn builder(pool: PgPool) -> EvaluationWorkerStateBuilder {
+    pub const fn builder(repositories: EvaluationRepositories) -> EvaluationWorkerStateBuilder {
         EvaluationWorkerStateBuilder {
-            pool,
+            repositories,
             environment: None,
         }
     }
@@ -33,7 +32,7 @@ impl EvaluationWorkerState {
 
 #[derive(Debug)]
 pub struct EvaluationWorkerStateBuilder {
-    pool: PgPool,
+    repositories: EvaluationRepositories,
     environment: Option<String>,
 }
 
@@ -48,14 +47,24 @@ impl EvaluationWorkerStateBuilder {
             .environment
             .filter(|value| !value.trim().is_empty())
             .ok_or_else(|| anyhow::anyhow!("Evaluator environment is required"))?;
+        let EvaluationRepositories {
+            assignments,
+            events,
+            capabilities,
+            experiments,
+            evidence,
+            lifecycle,
+            workers,
+            ..
+        } = self.repositories;
         Ok(EvaluationWorkerState {
-            assignments: AssignmentRepository::new(self.pool.clone()),
-            events: ExecutionEventRepository::new(self.pool.clone()),
-            capabilities: ExecutionCapabilityRepository::new(self.pool.clone()),
-            experiments: ExperimentRepository::new(self.pool.clone()),
-            evidence: EvidenceRepository::new(self.pool.clone()),
-            lifecycle: EvaluationLifecycleRepository::new(self.pool.clone()),
-            workers: WorkerRepository::new(self.pool),
+            assignments,
+            events,
+            capabilities,
+            experiments,
+            evidence,
+            workers,
+            lifecycle,
             environment,
         })
     }
