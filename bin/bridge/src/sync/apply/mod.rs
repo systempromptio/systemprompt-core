@@ -148,7 +148,7 @@ pub(crate) async fn apply_manifest(req: &ApplyRequest<'_>) -> Result<ApplyOutcom
                 host_id: HostId::new(host_id),
                 emitter: emitter.emitter_id().to_owned(),
                 error: format!("{e:#}"),
-                needs_elevation: matches!(e, host_sync::ApplyError::ElevationRequired { .. }),
+                needs_elevation: matches!(e, ApplyError::ElevationRequired { .. }),
             });
         }
         host_sync::log_outcome(*emitter, enabled, outcome);

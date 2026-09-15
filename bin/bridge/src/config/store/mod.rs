@@ -6,6 +6,7 @@
 use std::collections::BTreeMap;
 
 pub mod document;
+pub mod hive_report;
 #[cfg(target_os = "macos")]
 mod macos_managed_prefs;
 #[cfg(target_os = "macos")]
@@ -19,6 +20,7 @@ mod windows_registry;
 mod windows_registry_write;
 
 pub use document::{PolicyDocument, PolicyDocumentValue, PolicyHive, PolicyTarget};
+pub use hive_report::{HiveReport, hive_report};
 #[cfg(target_os = "windows")]
 pub(crate) use windows_policy::{
     clear_managed_claude_policy, machine_claude_policy_keys, read_registry_string,

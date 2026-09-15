@@ -6,6 +6,8 @@
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 mod policy;
 mod report;
+#[cfg(target_os = "windows")]
+mod windows_account;
 
 use crate::auth::cache;
 use crate::config;
@@ -21,6 +23,10 @@ pub async fn run(http: &reqwest::Client) -> ValidationReport {
     check_org_plugins(&mut report);
     #[cfg(any(target_os = "macos", target_os = "windows"))]
     policy::check_managed_policy(&mut report);
+    #[cfg(target_os = "windows")]
+    windows_account::check_policy_hives(&mut report);
+    #[cfg(target_os = "windows")]
+    windows_account::check_config_dir_owner(&mut report);
     check_gateway(&mut report, http).await;
     check_cached_token(&mut report);
     check_pinned_pubkey(&mut report);

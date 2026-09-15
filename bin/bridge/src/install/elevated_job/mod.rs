@@ -15,7 +15,7 @@ use crate::winproc::{ElevationOutcome, run_elevated};
 
 pub(crate) use self::child::{perform_elevated_write, provision_org_plugins};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub(crate) struct ElevatedJob {
     pub reg_path: Option<String>,
     pub org_plugins: Option<OrgPluginsJob>,
@@ -27,6 +27,16 @@ pub(crate) struct ElevatedJob {
     pub managed_files: Vec<ManagedFileJob>,
     #[serde(default)]
     pub remove_files: Vec<PathBuf>,
+    #[serde(default)]
+    pub private_dirs: Vec<PrivateDirJob>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub(crate) struct PrivateDirJob {
+    pub path: PathBuf,
+    // Why: UAC can run the child as a different admin; the owner to assign is
+    // captured before elevation.
+    pub owner_sid: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -188,6 +198,16 @@ fn verify_completed(
     for file in &job.managed_files {
         crate::fsutil::verify_contents(&file.dest, &std::fs::read(&file.staged)?)?;
     }
+    for dir in &job.private_dirs {
+        let owner = crate::windows_acl::owner_sid(&dir.path)?;
+        if owner != dir.owner_sid {
+            return Err(std::io::Error::other(format!(
+                "{} is owned by {owner} after elevated repair, expected {}",
+                dir.path.display(),
+                dir.owner_sid
+            )));
+        }
+    }
     for path in &job.remove_files {
         if path.try_exists()? {
             return Err(std::io::Error::other(format!(
@@ -233,6 +253,11 @@ fn expected_steps(job: &ElevatedJob) -> Vec<CompletedStep> {
         job.remove_files
             .iter()
             .map(|path| step("remove", path.display())),
+    );
+    steps.extend(
+        job.private_dirs
+            .iter()
+            .map(|dir| step("own", dir.path.display())),
     );
     steps
 }

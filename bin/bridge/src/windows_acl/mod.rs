@@ -8,12 +8,15 @@
 mod access;
 mod describe;
 mod private;
+mod privilege;
 mod repair;
 
 pub(crate) use self::access::{elevation_summary, verify_modify_tree};
 pub(crate) use self::describe::describe;
 pub(crate) use self::private::{create_private, protect_directory, verify_private};
-pub(crate) use self::repair::repair_private;
+pub(crate) use self::repair::{
+    owner_sid, reassign_private_dir, repair_config_dir_elevated, repair_private,
+};
 
 use std::io;
 use std::os::windows::ffi::OsStrExt;

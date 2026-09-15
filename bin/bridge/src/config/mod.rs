@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod dir_owner;
 pub mod paths;
 mod profile;
 pub mod redaction;

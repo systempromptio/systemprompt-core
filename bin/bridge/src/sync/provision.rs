@@ -217,6 +217,7 @@ pub(super) async fn heal_org_plugins_scope(
         bridge_values: Vec::new(),
         managed_files: Vec::new(),
         remove_files: Vec::new(),
+        private_dirs: Vec::new(),
         reg_path: None,
         org_plugins: Some(org),
     };

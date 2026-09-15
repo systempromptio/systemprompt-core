@@ -92,6 +92,11 @@ fn run_job(job: &ElevatedJob, steps: &mut Vec<CompletedStep>) -> Result<(), Elev
         remove_verified(dest)?;
         steps.push(step("remove", dest.display()));
     }
+    for dir in &job.private_dirs {
+        crate::windows_acl::reassign_private_dir(&dir.path, &dir.owner_sid)
+            .map_err(io("reassign owner", dir.path.display()))?;
+        steps.push(step("own", dir.path.display()));
+    }
     Ok(())
 }
 

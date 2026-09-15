@@ -84,6 +84,7 @@ fn remove_machine_claude_policy(
         bridge_values: Vec::new(),
         managed_files: Vec::new(),
         remove_files: Vec::new(),
+        private_dirs: Vec::new(),
     };
     super::elevated_job::elevate_and_run(&stage_dir, &job)?.require(
         "clear_policy",

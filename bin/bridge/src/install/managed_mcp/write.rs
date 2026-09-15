@@ -85,6 +85,7 @@ pub(super) fn clear_elevated(
         } else {
             Vec::new()
         },
+        private_dirs: Vec::new(),
     };
     let stage_dir = staging
         .as_ref()

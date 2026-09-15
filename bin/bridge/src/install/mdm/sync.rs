@@ -72,6 +72,52 @@ async fn refresh_tool_catalog(ctx: &crate::host_sync::HostSyncCtx<'_>) {
     }
 }
 
+#[cfg(target_os = "windows")]
+fn elevation_needed(e: &super::MdmError) -> Option<String> {
+    use crate::config::store::ConfigStoreError;
+    let mut store = match e {
+        super::MdmError::Partial { source, .. } => match source.as_ref() {
+            super::MdmError::Store(store) => store,
+            _ => return None,
+        },
+        super::MdmError::Store(store) => store,
+        _ => return None,
+    };
+    while let ConfigStoreError::Partial { source, .. } = store {
+        store = source;
+    }
+    match store {
+        ConfigStoreError::HiveConflict { subkey, differing } => Some(format!(
+            "HKLM\\{subkey} holds different values for {}",
+            differing.join(", ")
+        )),
+        ConfigStoreError::AccessDenied { hive, subkey } => {
+            Some(format!("writing {subkey} under {hive} was denied"))
+        },
+        _ => None,
+    }
+}
+
+// Why: sync runs unattended, so a machine policy only an administrator can
+// replace is reported as such and left for a user-triggered repair; a UAC
+// prompt must never appear without a gesture.
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+fn classify_refresh_error(e: super::MdmError) -> crate::host_sync::ApplyError {
+    #[cfg(target_os = "windows")]
+    if let Some(detail) = elevation_needed(&e)
+        && !crate::winproc::is_elevated()
+    {
+        return crate::host_sync::ApplyError::ElevationRequired {
+            what: "the Claude Desktop machine policy",
+            detail,
+        };
+    }
+    crate::host_sync::ApplyError::Io {
+        context: format!("mdm refresh: {e}"),
+        source: std::io::Error::other(e),
+    }
+}
+
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 pub(crate) struct ClaudeDesktopMdmSync;
 
@@ -101,10 +147,7 @@ impl crate::host_sync::HostSync for ClaudeDesktopMdmSync {
                 );
                 Ok(())
             },
-            Err(e) => Err(crate::host_sync::ApplyError::Io {
-                context: format!("mdm refresh: {e}"),
-                source: std::io::Error::other(e),
-            }),
+            Err(e) => Err(classify_refresh_error(e)),
         }
     }
 

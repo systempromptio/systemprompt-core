@@ -34,6 +34,8 @@ pub enum ApplyError {
         started_for: String,
         current: String,
     },
+    #[error("{what} needs administrator approval: {detail}")]
+    ElevationRequired { what: &'static str, detail: String },
     #[error("io error in {context}: {source}")]
     Io {
         context: String,

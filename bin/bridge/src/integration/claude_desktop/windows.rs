@@ -160,6 +160,7 @@ fn install_profile_elevated(path: &str) -> std::io::Result<ProfileInstalled> {
         bridge_values: Vec::new(),
         managed_files: Vec::new(),
         remove_files: Vec::new(),
+        private_dirs: Vec::new(),
     };
     let receipt = crate::install::elevated_job::elevate_and_run(&stage_dir, &job)?;
     receipt.require("policy", std::path::Path::new(path))?;

@@ -109,6 +109,7 @@ fn write_elevated(path: &Path, bytes: &[u8], _prompt: &str) -> io::Result<()> {
             dest: path.to_path_buf(),
         }],
         remove_files: Vec::new(),
+        private_dirs: Vec::new(),
     };
     crate::install::elevated_job::elevate_and_run(staging.path(), &job)?.require("install", path)
 }
@@ -126,6 +127,7 @@ fn remove_elevated(path: &Path, _prompt: &str) -> io::Result<()> {
         bridge_values: Vec::new(),
         managed_files: Vec::new(),
         remove_files: vec![path.to_path_buf()],
+        private_dirs: Vec::new(),
     };
     crate::install::elevated_job::elevate_and_run(staging.path(), &job)?.require("remove", path)
 }
