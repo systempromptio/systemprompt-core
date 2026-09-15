@@ -16,13 +16,25 @@ pub struct CapturedGitSource {
     pub files: RevisionFiles,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy)]
 pub struct GitCaptureRequest<'a> {
     pub repository: &'a str,
     pub reference: &'a str,
     pub subdirectory: Option<&'a str>,
     pub root: &'a str,
     pub credential: Option<&'a str>,
+}
+
+impl std::fmt::Debug for GitCaptureRequest<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("GitCaptureRequest")
+            .field("repository", &self.repository)
+            .field("reference", &self.reference)
+            .field("subdirectory", &self.subdirectory)
+            .field("root", &self.root)
+            .field("credential", &self.credential.map(|_| "<redacted>"))
+            .finish()
+    }
 }
 
 pub trait GitSourceCapture: Send + Sync {

@@ -407,3 +407,53 @@ async fn dependency_credentials_cannot_be_swapped_or_reused_after_independent_ro
         );
     }
 }
+
+
+#[test]
+fn git_request_debug_redacts_credentials_in_normal_and_pretty_output() {
+    use systemprompt_marketplace::managed::GitCaptureRequest;
+    let credential = "fixture-private-git-token-not-for-logs";
+    let input = DependencyVerificationInput {
+        revision_id: ResourceRevisionId::new("revision"),
+        source_id: ManagedSourceId::new("source"),
+        exact_commit: "a".repeat(40),
+        relative_root: "skill".to_owned(),
+        dependencies: Vec::new(),
+    };
+    let capture = GitCaptureRequest {
+        repository: "https://example.invalid/repo.git",
+        reference: "refs/heads/next",
+        subdirectory: None,
+        root: "skill",
+        credential: Some(credential),
+    };
+    let read = GitTreeRead {
+        input: &input,
+        repository: capture.repository,
+        subdirectory: None,
+        credential: Some(credential),
+        deadline: std::time::Instant::now(),
+    };
+    for output in [
+        format!("{capture:?}"),
+        format!("{capture:#?}"),
+        format!("{read:?}"),
+        format!("{read:#?}"),
+    ] {
+        assert!(!output.contains(credential));
+        assert!(output.contains("<redacted>"));
+        assert!(output.contains("https://example.invalid/repo.git"));
+    }
+    assert_eq!(capture.credential, Some(credential));
+    assert_eq!(read.credential, Some(credential));
+    let anonymous = GitCaptureRequest {
+        credential: None,
+        ..capture
+    };
+    assert!(format!("{anonymous:?}").contains("credential: None"));
+    let public_read = GitTreeRead {
+        credential: None,
+        ..read
+    };
+    assert!(format!("{public_read:?}").contains("credential: None"));
+}
