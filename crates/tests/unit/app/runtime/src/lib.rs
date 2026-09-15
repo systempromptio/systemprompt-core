@@ -72,3 +72,8 @@ mod reporting;
 
 #[cfg(test)]
 mod git_credentials;
+
+#[cfg(test)]
+mod optimization_campaigns;
+#[cfg(test)]
+mod optimization_fixture;
