@@ -33,7 +33,9 @@ RETURNS BOOLEAN LANGUAGE plpgsql VOLATILE SECURITY INVOKER
 SET search_path = pg_catalog, public AS $$
 BEGIN
     PERFORM public.lock_user_deletion_for_retention();
-    IF current_setting('systemprompt.reporting_privacy', true) = txid_current()::text THEN RETURN TRUE; END IF;
+    IF current_setting('systemprompt.reporting_privacy', true) = txid_current()::text THEN
+        RETURN COALESCE((SELECT initialized FROM public.analytics_projection_state WHERE singleton), FALSE);
+    END IF;
     PERFORM public.lock_users_reporting_sources();
     PERFORM public.lock_agent_reporting_sources();
     PERFORM public.lock_ai_reporting_sources();
@@ -42,12 +44,9 @@ BEGIN
     PERFORM public.lock_logging_reporting_sources();
     INSERT INTO public.analytics_projection_state(singleton) VALUES(TRUE) ON CONFLICT DO NOTHING;
     PERFORM set_config('systemprompt.reporting_privacy_sources', txid_current()::text, true);
-    IF NOT COALESCE((SELECT initialized FROM public.analytics_projection_state WHERE singleton), FALSE) THEN
-        RETURN FALSE;
-    END IF;
     PERFORM pg_advisory_xact_lock(6003370107643648340);
     PERFORM public.begin_reporting_outbox_privacy();
-    RETURN TRUE;
+    RETURN COALESCE((SELECT initialized FROM public.analytics_projection_state WHERE singleton), FALSE);
 END
 $$;
 
@@ -106,13 +105,6 @@ BEGIN
     IF current_setting('systemprompt.reporting_privacy_sources', true) IS DISTINCT FROM txid_current()::text THEN
         RAISE EXCEPTION 'Reporting privacy sources were not fenced' USING ERRCODE = '55000';
     END IF;
-    IF NOT COALESCE((SELECT initialized FROM public.analytics_projection_state WHERE singleton), FALSE) THEN
-        IF retained_after > NOW() OR retained_after < (SELECT evidence_cutoff FROM public.analytics_projection_state WHERE singleton) THEN
-            RAISE EXCEPTION 'Invalid reporting privacy cutoff' USING ERRCODE = '22023';
-        END IF;
-        UPDATE public.analytics_projection_state SET evidence_cutoff = COALESCE(retained_after, evidence_cutoff) WHERE singleton;
-        RETURN 0;
-    END IF;
     IF current_setting('systemprompt.reporting_privacy', true) IS DISTINCT FROM txid_current()::text THEN
         RAISE EXCEPTION 'Reporting privacy was not prepared' USING ERRCODE = '55000';
     END IF;
@@ -145,8 +137,22 @@ BEGIN
     DELETE FROM public.analytics_report_analytics_events AS retained_row WHERE NOT public.reporting_row_retained('analytics_events', to_jsonb(retained_row));
     revision_cutoff := public.finish_reporting_outbox_privacy();
     UPDATE public.analytics_projection_state SET cutoff_revision = GREATEST(cutoff_revision, revision_cutoff),
-        generation = generation + 1 WHERE singleton;
+        generation = generation + CASE WHEN initialized THEN 1 ELSE 0 END WHERE singleton;
     DELETE FROM public.analytics_projection_revisions;
     RETURN count_processed;
+END
+$$;
+
+CREATE OR REPLACE FUNCTION public.finish_reporting_compaction(requested_after TIMESTAMPTZ)
+RETURNS BIGINT LANGUAGE plpgsql VOLATILE SECURITY INVOKER
+SET search_path = pg_catalog, public AS $$
+DECLARE effective_cutoff TIMESTAMPTZ;
+BEGIN
+    IF requested_after IS NULL OR requested_after > NOW() THEN
+        RAISE EXCEPTION 'Invalid reporting compaction cutoff' USING ERRCODE = '22023';
+    END IF;
+    SELECT GREATEST(evidence_cutoff, requested_after) INTO effective_cutoff
+        FROM public.analytics_projection_state WHERE singleton FOR UPDATE;
+    RETURN public.finish_reporting_privacy(effective_cutoff);
 END
 $$;
