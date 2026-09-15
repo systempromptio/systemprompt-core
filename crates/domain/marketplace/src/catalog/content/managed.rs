@@ -50,9 +50,7 @@ impl CatalogContent {
                     },
                 }
             }
-            if i64::try_from(page_len).unwrap_or(i64::MAX)
-                < ManagedRepository::PAGE_SIZE
-            {
+            if i64::try_from(page_len).unwrap_or(i64::MAX) < ManagedRepository::PAGE_SIZE {
                 break;
             }
             offset += ManagedRepository::PAGE_SIZE;
