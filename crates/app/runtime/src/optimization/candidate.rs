@@ -44,7 +44,7 @@ impl SkillOptimizationOrchestrator {
             .evidence
             .get_managed_workspace(owner, &previous.skill_bundle_digest)
             .await?;
-        let mut revision = ResourceRevisionId::new(workspace.managed_revision_id);
+        let mut revision = workspace.managed_revision_id;
         let previous_content = self
             .managed
             .get_revision_bundle(owner, &revision)

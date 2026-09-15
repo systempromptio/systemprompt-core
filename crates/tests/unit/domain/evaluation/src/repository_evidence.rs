@@ -20,7 +20,8 @@ use systemprompt_evaluation::repository::experiments::{
     EvidenceRepository, ExecutionLease, ManagedWorkspaceRegistration, RevisionRepository,
 };
 use systemprompt_identifiers::{
-    AiRequestId, EvalExecutionId, EvalRevisionId, EvalWorkerId, ModelId, ProviderId, UserId,
+    AiRequestId, EvalExecutionId, EvalRevisionId, EvalWorkerId, ModelId, ProviderId,
+    ResourceRevisionId, UserId,
 };
 use systemprompt_models::managed::RevisionBundle;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fixture_db_pool};
@@ -272,7 +273,7 @@ async fn managed_workspace_projections_are_stored_once_and_read_back_in_scope() 
         .register_managed_workspace(
             &owner,
             &ManagedWorkspaceRegistration {
-                managed_revision_id: "managed-revision-1",
+                managed_revision_id: &ResourceRevisionId::new("managed-revision-1"),
                 publication_generation: Some(1),
                 manifest: &manifest,
                 expected_digest: &digest,
@@ -286,7 +287,7 @@ async fn managed_workspace_projections_are_stored_once_and_read_back_in_scope() 
         .register_managed_workspace(
             &owner,
             &ManagedWorkspaceRegistration {
-                managed_revision_id: "managed-revision-1",
+                managed_revision_id: &ResourceRevisionId::new("managed-revision-1"),
                 publication_generation: Some(1),
                 manifest: &manifest,
                 expected_digest: &digest,
@@ -301,7 +302,7 @@ async fn managed_workspace_projections_are_stored_once_and_read_back_in_scope() 
         .get_managed_workspace(&owner, &digest)
         .await
         .expect("get workspace");
-    assert_eq!(loaded.managed_revision_id, "managed-revision-1");
+    assert_eq!(loaded.managed_revision_id.as_str(), "managed-revision-1");
     assert_eq!(loaded.manifest, manifest);
 
     assert!(matches!(

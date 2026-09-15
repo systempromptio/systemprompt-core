@@ -82,10 +82,7 @@ impl SkillOptimizationOrchestrator {
             .await?;
         if self
             .managed
-            .revision_resource(
-                owner,
-                &ResourceRevisionId::new(workspace.managed_revision_id),
-            )
+            .revision_resource(owner, &workspace.managed_revision_id)
             .await?
             != campaign.policy.resource_id
         {
@@ -258,7 +255,7 @@ impl SkillOptimizationOrchestrator {
             .register_managed_workspace(
                 owner,
                 &ManagedWorkspaceRegistration {
-                    managed_revision_id: revision.as_str(),
+                    managed_revision_id: revision,
                     publication_generation: None,
                     manifest: &bundle,
                     expected_digest: digest.as_str(),

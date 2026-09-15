@@ -10,7 +10,7 @@ use crate::experiments::{VariantSpec, conflict, content_digest, invalid, missing
 
 use sqlx::PgPool;
 use sqlx::types::Json;
-use systemprompt_identifiers::{AiRequestId, EvalExecutionId, UserId};
+use systemprompt_identifiers::{AiRequestId, EvalExecutionId, ResourceRevisionId, UserId};
 use systemprompt_models::managed::RevisionBundle;
 use systemprompt_traits::DynAiRequestTrace;
 
@@ -19,7 +19,7 @@ use validation::{ManagedAsset, managed_assets, validate_artifacts, validate_vari
 
 #[derive(Debug, Clone, Copy)]
 pub struct ManagedWorkspaceRegistration<'a> {
-    pub managed_revision_id: &'a str,
+    pub managed_revision_id: &'a ResourceRevisionId,
     pub publication_generation: Option<i64>,
     pub manifest: &'a RevisionBundle,
     pub expected_digest: &'a str,
@@ -84,13 +84,13 @@ impl EvidenceRepository {
             .map_err(|error| invalid(&format!("Managed byte count overflow: {error}")))?;
         let mut tx = self.pool.begin().await?;
         sqlx::query!("INSERT INTO eval_managed_workspace_projections(owner_id,digest,managed_revision_id,publication_generation,manifest,verified_file_count,verified_byte_count) VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(owner_id,digest) DO NOTHING",
-            owner.as_str(), expected_digest, managed_revision_id, publication_generation, manifest, file_count, byte_count).execute(&mut *tx).await?;
+            owner.as_str(), expected_digest, managed_revision_id.as_str(), publication_generation, manifest, file_count, byte_count).execute(&mut *tx).await?;
         for asset in assets {
             sqlx::query!("INSERT INTO eval_managed_workspace_assets(owner_id,workspace_digest,path,asset_digest,content,executable) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(owner_id,workspace_digest,path) DO NOTHING",
                 owner.as_str(), expected_digest, asset.path, asset.digest, asset.content, asset.executable).execute(&mut *tx).await?;
         }
         let verified = sqlx::query_scalar!("SELECT EXISTS(SELECT 1 FROM eval_managed_workspace_projections p WHERE p.owner_id=$1 AND p.digest=$2 AND p.managed_revision_id=$3 AND p.publication_generation IS NOT DISTINCT FROM $4 AND p.manifest=$5 AND p.verified_file_count=$6 AND p.verified_byte_count=$7 AND p.verified_file_count=(SELECT count(*) FROM eval_managed_workspace_assets a WHERE a.owner_id=p.owner_id AND a.workspace_digest=p.digest) AND p.verified_byte_count=(SELECT COALESCE(sum(octet_length(a.content)),0) FROM eval_managed_workspace_assets a WHERE a.owner_id=p.owner_id AND a.workspace_digest=p.digest) AND NOT EXISTS(SELECT 1 FROM eval_managed_workspace_assets a WHERE a.owner_id=p.owner_id AND a.workspace_digest=p.digest AND a.asset_digest<>encode(digest(a.content,'sha256'),'hex')))",
-            owner.as_str(), expected_digest, managed_revision_id, publication_generation, manifest, file_count, byte_count).fetch_one(&mut *tx).await?.unwrap_or(false);
+            owner.as_str(), expected_digest, managed_revision_id.as_str(), publication_generation, manifest, file_count, byte_count).fetch_one(&mut *tx).await?.unwrap_or(false);
         if !verified {
             return Err(conflict(
                 "Managed workspace registration conflicts with retained content",
@@ -150,7 +150,7 @@ impl EvidenceRepository {
             ));
         }
         Ok(super::ManagedWorkspaceReference {
-            managed_revision_id,
+            managed_revision_id: ResourceRevisionId::new(managed_revision_id),
             digest: digest.to_owned(),
             publication_generation: row.publication_generation,
             manifest,

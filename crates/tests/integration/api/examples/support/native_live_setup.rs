@@ -22,7 +22,7 @@ use systemprompt_evaluation::repository::experiments::{
     EvaluationRepositories, ExecutionLease, ExperimentRepository, ManagedWorkspaceRegistration,
     RevisionRepository, WorkerRecord, WorkerRepository,
 };
-use systemprompt_identifiers::{EvalExperimentId, ModelId, ProviderId, UserId};
+use systemprompt_identifiers::{EvalExperimentId, ModelId, ProviderId, ResourceRevisionId, UserId};
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, fixture_database_url, fixture_db_pool, seed_user_row, unique_user_id,
 };
@@ -134,7 +134,7 @@ impl Harness {
                 .register_managed_workspace(
                     &owner,
                     &ManagedWorkspaceRegistration {
-                        managed_revision_id: revision,
+                        managed_revision_id: &ResourceRevisionId::new(revision),
                         publication_generation: Some(1),
                         manifest,
                         expected_digest: digest,

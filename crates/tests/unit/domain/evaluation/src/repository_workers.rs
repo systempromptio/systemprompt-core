@@ -22,7 +22,8 @@ use systemprompt_evaluation::repository::experiments::{
     WorkerRecord, WorkerRepository,
 };
 use systemprompt_identifiers::{
-    EvalExecutionId, EvalExperimentId, EvalRevisionId, EvalWorkerId, ModelId, ProviderId, UserId,
+    EvalExecutionId, EvalExperimentId, EvalRevisionId, EvalWorkerId, ModelId, ProviderId,
+    ResourceRevisionId, UserId,
 };
 use systemprompt_models::managed::RevisionBundle;
 use systemprompt_test_fixtures::{
@@ -132,7 +133,7 @@ impl Harness {
                 .register_managed_workspace(
                     &owner,
                     &ManagedWorkspaceRegistration {
-                        managed_revision_id: revision,
+                        managed_revision_id: &ResourceRevisionId::new(revision),
                         publication_generation: Some(1),
                         manifest,
                         expected_digest: digest,
