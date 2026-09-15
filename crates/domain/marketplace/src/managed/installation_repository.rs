@@ -90,8 +90,16 @@ impl ManagedRepository {
     ) -> Result<()> {
         let mut tx = self.pool.begin().await?;
         let status = if delivered { "distributed" } else { "failed" };
-        let existing = sqlx::query!("SELECT status,error FROM managed_distribution_deliveries WHERE id=$1 AND owner_id=$2 AND claim_token=$3 FOR UPDATE",
+        let existing = sqlx::query!("SELECT status,error,outbox_id,publication_id,generation FROM managed_distribution_deliveries WHERE id=$1 AND owner_id=$2 AND claim_token=$3 FOR UPDATE",
             claim.id.as_str(), owner.as_str(), &claim.claim_token).fetch_optional(&mut *tx).await?.ok_or_else(|| ManagedError::Conflict("Distribution claim is stale or unavailable".to_owned()))?;
+        if existing.outbox_id != claim.outbox_id
+            || existing.publication_id != claim.publication_id.as_str()
+            || existing.generation != claim.generation
+        {
+            return Err(ManagedError::Conflict(
+                "Distribution claim does not match retained delivery".to_owned(),
+            ));
+        }
         if existing.status == status && existing.error.as_deref() == error {
             tx.commit().await?;
             return Ok(());

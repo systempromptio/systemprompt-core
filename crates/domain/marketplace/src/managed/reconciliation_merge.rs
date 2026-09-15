@@ -82,7 +82,7 @@ fn expected_file<'a>(
     }
 }
 
-fn same_file(left: Option<&AssetFile>, right: Option<&AssetFile>) -> bool {
+pub(super) fn same_file(left: Option<&AssetFile>, right: Option<&AssetFile>) -> bool {
     match (left, right) {
         (None, None) => true,
         (Some(left), Some(right)) => {

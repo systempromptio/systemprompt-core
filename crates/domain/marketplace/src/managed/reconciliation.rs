@@ -11,7 +11,7 @@ use systemprompt_identifiers::{
 #[path = "reconciliation_merge.rs"]
 mod merge;
 use super::{ManagedError, ManagedRepository, Result};
-use merge::{RecordedConflict, ThreeWay, verify_merge};
+use merge::{RecordedConflict, ThreeWay, same_file, verify_merge};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -111,7 +111,10 @@ impl ManagedRepository {
             let b = digest(&base);
             let c = digest(&candidate);
             let i = digest(&incoming);
-            if c != b && i != b && c != i {
+            if !same_file(candidate.0.get(&path), base.0.get(&path))
+                && !same_file(incoming.0.get(&path), base.0.get(&path))
+                && !same_file(candidate.0.get(&path), incoming.0.get(&path))
+            {
                 conflicts.push(ReconciliationConflict {
                     path,
                     base_digest: b,
@@ -125,18 +128,45 @@ impl ManagedRepository {
         let mut tx = self.pool.begin().await?;
         sqlx::query!("INSERT INTO managed_reconciliations(id,owner_id,resource_id,upstream_base_revision_id,managed_candidate_revision_id,incoming_revision_id) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(owner_id,resource_id,managed_candidate_revision_id,incoming_revision_id) DO NOTHING",
             id.as_str(), owner.as_str(), request.resource_id.as_str(), request.upstream_base_revision_id.as_str(), request.managed_candidate_revision_id.as_str(), request.incoming_revision_id.as_str()).execute(&mut *tx).await?;
-        let stored = sqlx::query_scalar!("SELECT id FROM managed_reconciliations WHERE owner_id=$1 AND resource_id=$2 AND managed_candidate_revision_id=$3 AND incoming_revision_id=$4",
+        let stored = sqlx::query!("SELECT id,upstream_base_revision_id,status,resolved_revision_id FROM managed_reconciliations WHERE owner_id=$1 AND resource_id=$2 AND managed_candidate_revision_id=$3 AND incoming_revision_id=$4 FOR UPDATE",
             owner.as_str(), request.resource_id.as_str(), request.managed_candidate_revision_id.as_str(), request.incoming_revision_id.as_str()).fetch_one(&mut *tx).await?;
+        if stored.upstream_base_revision_id != request.upstream_base_revision_id.as_str() {
+            return Err(ManagedError::Conflict(
+                "Reconciliation retry changes the retained upstream base".to_owned(),
+            ));
+        }
         for conflict in &conflicts {
             sqlx::query!("INSERT INTO managed_reconciliation_conflicts(reconciliation_id,path,base_digest,candidate_digest,incoming_digest) VALUES($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING",
-                &stored, &conflict.path, conflict.base_digest.as_deref(), conflict.candidate_digest.as_deref(), conflict.incoming_digest.as_deref()).execute(&mut *tx).await?;
+                &stored.id, &conflict.path, conflict.base_digest.as_deref(), conflict.candidate_digest.as_deref(), conflict.incoming_digest.as_deref()).execute(&mut *tx).await?;
         }
+        let retained = sqlx::query!("SELECT path,base_digest,candidate_digest,incoming_digest,resolution FROM managed_reconciliation_conflicts WHERE reconciliation_id=$1 ORDER BY path",
+            &stored.id).fetch_all(&mut *tx).await?;
+        let conflicts = retained
+            .into_iter()
+            .map(|row| {
+                let resolution = match row.resolution.as_deref() {
+                    None => None,
+                    Some("candidate") => Some(ConflictResolution::Candidate),
+                    Some("incoming") => Some(ConflictResolution::Incoming),
+                    Some("manual") => Some(ConflictResolution::Manual),
+                    Some("delete") => Some(ConflictResolution::Delete),
+                    Some(_) => return Err(ManagedError::Integrity),
+                };
+                Ok(ReconciliationConflict {
+                    path: row.path,
+                    base_digest: row.base_digest,
+                    candidate_digest: row.candidate_digest,
+                    incoming_digest: row.incoming_digest,
+                    resolution,
+                })
+            })
+            .collect::<Result<Vec<_>>>()?;
         tx.commit().await?;
         Ok(ReconciliationRecord {
-            id: ManagedReconciliationId::new(stored),
-            status: "open".to_owned(),
+            id: ManagedReconciliationId::new(stored.id),
+            status: stored.status,
             conflicts,
-            resolved_revision_id: None,
+            resolved_revision_id: stored.resolved_revision_id.map(ResourceRevisionId::new),
         })
     }
 

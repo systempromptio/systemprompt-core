@@ -192,3 +192,8 @@ mod api_consumer_status;
 
 #[cfg(test)]
 mod organization_resolution;
+
+#[cfg(test)]
+mod reconciliation_persistence;
+#[cfg(test)]
+mod retained_distribution;
