@@ -1,14 +1,5 @@
 # Changelog
 
-## [Unreleased]
-
-### Added
-
-- Opt-in transactional outbox facts with one durable consumer per event, row-lock claims and atomic projection acknowledgement. Cleanup retains pending facts. Existing SSE routes retain their payloads, local delivery and origin suppression; transactional append delivers through the listener after commit, including to its origin.
-
-### Migration
-
-- Apply migration 004 before starting the updated relay. Upgrade every relay instance before enabling durable producers: older relays prune by age without considering pending consumers.
 ## [0.53.0] - 2026-09-15
 
 ### Breaking
