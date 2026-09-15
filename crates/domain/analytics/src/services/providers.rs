@@ -33,7 +33,6 @@ impl FingerprintProvider for FingerprintRepository {
     async fn find_reusable_session(&self, fingerprint: &str) -> AnalyticsResult<Option<SessionId>> {
         self.find_reusable_session(fingerprint)
             .await
-            .map(|id| id.map(SessionId::new))
             .map_err(|e| AnalyticsProviderError::Internal(e.to_string()))
     }
 

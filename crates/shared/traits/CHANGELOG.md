@@ -14,7 +14,7 @@
 ### Added
 
 - `tool_executions::{ToolExecutionLookup, DynToolExecutionLookup}` — the cross-domain read seam over the MCP tool-execution ledger, implemented by the mcp domain and injected into agent.
-- `SessionProvider`, `SessionStore` (session persistence, usage counters and behavioural data, implemented by the users domain), `AnalyticsEventStore` (implemented by logging), `ContentCatalogStats` (implemented by content) and `OwnerReassignment` / `ReassignedRows` (implemented by agent, ai and mcp for cross-domain user merges), each with its `Dyn*` alias.
+- `SessionProvider`, `SessionStore` (session persistence, usage counters and behavioural data, implemented by the users domain), `AnalyticsEventStore` (implemented by logging), `ContentCatalogStats` (implemented by content) and `OwnerReassignment` / `ReassignedRows` (implemented by agent, ai and mcp for cross-domain user merges), each with its `Dyn*` alias. `SessionStore::find_reusable_fingerprint_session` answers a typed `SessionId`.
 - `AiRequestTrace` (`sample`, `find_usage`, `list_usage`) with `TraceSampleFilter`, `TraceSampleMode`, `TraceSample`, `TraceMessage`, `TraceRequestUsage` (`is_settled` covers a completed row or one whose accounting failed after the spend was recorded), `TraceRequestStatus` and `DynAiRequestTrace`: the read seam over the AI request trace for domains that do not own it.
 - **Breaking:** `AiSessionProvider::find_live_session` reports a session's owner only while it is neither revoked nor expired. Migrate by implementing it on every `AiSessionProvider`.
 - `ManagedRevisionOwnership` / `DynManagedRevisionOwnership`: owner-scoped lookup of the resource a managed revision belongs to.

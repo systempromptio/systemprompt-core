@@ -4,7 +4,7 @@ set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
 # Match sqlx::query( and sqlx::query_{as,scalar,file,file_as,file_scalar,with,...}(
-pattern='sqlx::query[a-z_]*\('
+pattern='sqlx::query[a-z_]*(::<[^>]*>)?\('
 
 allowlist=(
     '^crates/infra/database/src/admin/'

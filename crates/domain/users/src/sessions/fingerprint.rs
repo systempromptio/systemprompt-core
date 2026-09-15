@@ -5,15 +5,27 @@
 
 use super::SessionRepository;
 use crate::Result;
+use systemprompt_identifiers::SessionId;
+
 impl SessionRepository {
     pub async fn fingerprint_session_ids(
         &self,
         fingerprint: &str,
         window_days: i64,
-    ) -> Result<Vec<systemprompt_identifiers::SessionId>> {
-        Ok(sqlx::query_scalar::<_, systemprompt_identifiers::SessionId>(
-            "SELECT session_id FROM user_sessions WHERE fingerprint_hash = $1 AND started_at > CURRENT_TIMESTAMP - make_interval(days => $2)"
-        ).bind(fingerprint).bind(window_days as i32).fetch_all(&*self.write_pool).await?)
+    ) -> Result<Vec<SessionId>> {
+        let window_days = i32::try_from(window_days).unwrap_or(i32::MAX);
+        Ok(sqlx::query_scalar!(
+            r#"
+            SELECT session_id as "session_id!: SessionId"
+            FROM user_sessions
+            WHERE fingerprint_hash = $1
+              AND started_at > CURRENT_TIMESTAMP - make_interval(days => $2)
+            "#,
+            fingerprint,
+            window_days,
+        )
+        .fetch_all(&*self.write_pool)
+        .await?)
     }
     pub async fn count_active_fingerprint(&self, fingerprint_hash: &str) -> Result<i32> {
         let row = sqlx::query_scalar!(
@@ -34,10 +46,10 @@ impl SessionRepository {
     pub async fn find_reusable_fingerprint(
         &self,
         fingerprint_hash: &str,
-    ) -> Result<Option<String>> {
+    ) -> Result<Option<SessionId>> {
         let row = sqlx::query_scalar!(
             r#"
-            SELECT session_id as "session_id!"
+            SELECT session_id as "session_id!: SessionId"
             FROM user_sessions
             WHERE fingerprint_hash = $1
               AND ended_at IS NULL

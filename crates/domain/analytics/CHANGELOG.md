@@ -23,6 +23,7 @@
 - Every table the extension creates is declared by its own schema file (`analytics_report_*`, `analytics_fact_*`, `analytics_snapshot_*`, `analytics_projection_*`, `ingestion_producers`), so `infra db doctor` reports none as undeclared; `reporting_privacy.sql` installs the privacy functions declaratively.
 - Stream cursors are canonical digit-only strings; a padded or signed cursor is refused.
 - The rebuild snapshot cursor and the retention lock live in the `projection` module; snapshot delta batches and retention compaction are split into named helpers.
+- `FingerprintRepository::find_reusable_session` answers a typed `SessionId`; the fingerprint engagement count is a compile-time checked query.
 
 ## [0.48.0] - 2026-09-08
 

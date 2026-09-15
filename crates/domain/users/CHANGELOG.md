@@ -14,6 +14,7 @@
 ### Changed
 
 - `SessionRepository::find_active_by_id` (and the `SessionStore` / `SessionProvider` active-session lookups over it) no longer reports a session whose `expires_at` has passed.
+- `SessionRepository::find_reusable_fingerprint` and `fingerprint_session_ids` answer typed `SessionId`s through compile-time checked queries.
 
 ## [0.50.0] - 2026-09-10
 

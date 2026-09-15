@@ -198,7 +198,7 @@ impl systemprompt_traits::SessionStore for SessionRepository {
     async fn find_reusable_fingerprint_session(
         &self,
         fingerprint: &str,
-    ) -> AnalyticsResult<Option<String>> {
+    ) -> AnalyticsResult<Option<SessionId>> {
         self.find_reusable_fingerprint(fingerprint)
             .await
             .map_err(|e| AnalyticsProviderError::Internal(e.to_string()))

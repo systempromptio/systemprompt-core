@@ -11,6 +11,7 @@ use crate::Result;
 
 use super::FingerprintRepository;
 use crate::models::FingerprintReputation;
+use systemprompt_identifiers::SessionId;
 
 impl FingerprintRepository {
     pub async fn get_by_hash(
@@ -58,7 +59,7 @@ impl FingerprintRepository {
             .map_err(crate::AnalyticsError::from)
     }
 
-    pub async fn find_reusable_session(&self, fingerprint_hash: &str) -> Result<Option<String>> {
+    pub async fn find_reusable_session(&self, fingerprint_hash: &str) -> Result<Option<SessionId>> {
         self.sessions
             .find_reusable_fingerprint_session(fingerprint_hash)
             .await

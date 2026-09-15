@@ -15,7 +15,6 @@ use systemprompt_identifiers::{Actor, EventOutboxId, InstanceId, UserId};
 
 use super::routing::{OUTBOX_CHANNEL, OutboxChannel};
 
-#[derive(sqlx::FromRow)]
 pub(super) struct OutboxRow {
     pub channel: String,
     pub user_id: UserId,
@@ -73,11 +72,20 @@ impl EventOutboxRepository {
     }
 
     pub(super) async fn find(&self, id: &EventOutboxId) -> Result<Option<OutboxRow>, sqlx::Error> {
-        sqlx::query_as::<_, OutboxRow>(
-            "SELECT channel, user_id, payload, origin_instance_id, deliver_to_origin \
-             FROM event_outbox WHERE id = $1",
+        sqlx::query_as!(
+            OutboxRow,
+            r#"
+            SELECT
+                channel,
+                user_id as "user_id: UserId",
+                payload,
+                origin_instance_id as "origin_instance_id: InstanceId",
+                deliver_to_origin
+            FROM event_outbox
+            WHERE id = $1
+            "#,
+            id.as_str(),
         )
-        .bind(id.as_str())
         .fetch_optional(&self.pool)
         .await
     }

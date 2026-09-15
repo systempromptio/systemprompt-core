@@ -189,7 +189,7 @@ async fn session_queries_count_and_reuse_active_sessions() {
         .await
         .expect("reuse")
         .expect("present");
-    assert_eq!(reusable, sid.as_str());
+    assert_eq!(reusable, sid);
 
     cleanup(&pool, &fp).await;
 }

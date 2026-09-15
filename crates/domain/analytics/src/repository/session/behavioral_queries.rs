@@ -6,19 +6,18 @@
 use crate::Result;
 use sqlx::PgPool;
 
-
 pub(super) async fn count_engagement_events_for_sessions(
     pool: &PgPool,
     session_ids: &[String],
 ) -> Result<i64> {
-    let count = sqlx::query_scalar::<_, i64>(
-        r"
-        SELECT COUNT(e.id)::BIGINT
+    let count = sqlx::query_scalar!(
+        r#"
+        SELECT COUNT(e.id)::BIGINT as "count!"
         FROM engagement_events e
         WHERE e.session_id = ANY($1)
-        ",
+        "#,
+        session_ids,
     )
-    .bind(session_ids)
     .fetch_one(pool)
     .await?;
 

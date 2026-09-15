@@ -190,7 +190,7 @@ pub trait SessionStore: SessionProvider + SessionUsageCounters {
     async fn find_reusable_fingerprint_session(
         &self,
         fingerprint: &str,
-    ) -> AnalyticsResult<Option<String>>;
+    ) -> AnalyticsResult<Option<SessionId>>;
     async fn sessions_missing_geo(
         &self,
         after: Option<&SessionId>,
