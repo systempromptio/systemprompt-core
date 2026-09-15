@@ -98,6 +98,9 @@ impl FeedbackSnapshotsRepository {
         tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
         owner: &UserId,
     ) -> crate::Result<()> {
+        sqlx::query!("SELECT public.lock_user_deletion_for_retention() AS locked")
+            .execute(&mut **tx)
+            .await?;
         sqlx::query!("LOCK TABLE analytics_ingestion_producers,analytics_fact_checkpoints,analytics_fact_backfills,analytics_fact_changes,analytics_fact_consumers,analytics_fact_deltas IN EXCLUSIVE MODE").execute(&mut **tx).await?;
         let producers=sqlx::query!("SELECT producer,pending_count FROM analytics_ingestion_producers ORDER BY producer FOR UPDATE").fetch_all(&mut **tx).await?;
         if producers.iter().any(|row| row.pending_count != 0) {

@@ -16,6 +16,9 @@ impl FeedbackSnapshotsRepository {
         if now > Utc::now() {
             return Err(invalid("Retention clock cannot be in the future"));
         }
+        sqlx::query!("SELECT public.lock_user_deletion_for_retention() AS locked")
+            .execute(&mut **tx)
+            .await?;
         sqlx::query!("LOCK TABLE analytics_ingestion_producers,analytics_fact_checkpoints,analytics_fact_backfills,analytics_fact_changes,analytics_fact_consumers,analytics_fact_deltas IN EXCLUSIVE MODE").execute(&mut **tx).await?;
         let owners=sqlx::query_scalar!("SELECT owner_id FROM analytics_fact_checkpoints ORDER BY owner_id LIMIT 10001 FOR UPDATE").fetch_all(&mut **tx).await?;
         if owners.len() > 10000 {
