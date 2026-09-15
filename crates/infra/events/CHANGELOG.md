@@ -20,6 +20,7 @@
 ### Added
 
 - `services::durable::DurableOutbox`: opt-in transactional facts and durable consumer acknowledgement in the existing SSE outbox — `append` takes the source transaction, actor, typed SSE event and a `ReportingFact<T>`; a consumer `claim`s with a row lock (`SKIP LOCKED`), writes its projection on `Delivery::connection` and `acknowledge`s in the same transaction; dropping a delivery leaves it pending. Pending facts survive relay cleanup; the `reporting` channel (`OutboxChannel::Reporting`) is skipped by the SSE bridge. Migration 004 adds `consumer`, `fact` and `processed_at` to `event_outbox`; apply it and upgrade every relay before enabling durable producers.
+- `services::durable::OutboxConsumer`: the claim-only side of the outbox (`new(pool)`, `claim`); `DurableOutbox` keeps `append` and `prune_processed_before`. Migrate a consumer that only claimed through `DurableOutbox::claim` to `OutboxConsumer::new(pool).claim(..)`.
 - `reporting_capture.sql` / `reporting_privacy.sql` (migrations 005–006): `sp_capture_reporting_change` and the outbox privacy functions (`begin_reporting_outbox_privacy`, `reporting_privacy_changes`) that make a user-privacy mutation wait for pending committed evidence.
 
 ### Fixed

@@ -32,6 +32,10 @@
 
 ### Fixed
 
+- `GET /bridge/manifest` answers 500 and signs nothing when the revocation list or the enabled-host preferences cannot be read, instead of serving a manifest with no revocations and every instance host enabled.
+- The device-credential consumer routes answer 401 only for an unknown or revoked credential; a storage failure while checking it keeps its 5xx classification, and profile, services-config and catalogue failures are logged.
+- A campaign setup diagnostic records the code derived from the failure (`StorageUnavailable`, budget, template) instead of `InvalidInput` for every error.
+- The feedback snapshot stream owns its forwarder task, logs a generation read failure once per transition, and the `feedback_snapshots` listener relay is held by the `AppContext` and joined on shutdown instead of living in process statics.
 - An MCP request carrying an invalid, revoked or orphaned bearer is answered with the RFC 6750 §3.1 challenge (`WWW-Authenticate: Bearer … error="invalid_token"` plus the RFC 9728 `resource_metadata`) and an `invalid_token` body, instead of the generic 401 that dropped the error code.
 - The authorization endpoint attaches `redirect_uri` to an error response only after confirming it is registered for `client_id`; an unknown client or unregistered URI renders a 400 error page with no `Location` (RFC 6749 §4.1.2.1). A registered redirect that already carries a query is appended with `&`.
 - The MCP proxy stores and forwards the caller's roles on session-only follow-ups, so role-granted servers admit proxied calls.

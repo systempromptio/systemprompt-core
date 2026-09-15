@@ -5,7 +5,7 @@
 ### Added
 
 - `services::evaluator::adapters`: native adapters for Claude Code (`claude_code`), Codex (`codex-native-v1`, Codex 0.154.0), OpenCode (`opencode-native-v2`, OpenCode 1.18.29) and Hermes (`hermes-native-v1`, Hermes 0.21.3) under one container supervisor (`container_builder`, `container_verification`, `docker`, `network_process`, `supervisor_*`) that verifies retained image and executable digests, applies network and resource limits, runs each client behind an authenticated loopback relay with a per-run credential, counts every provider attempt before forwarding, captures raw evidence and confirms cleanup. Gateway requests remain the accounting authority; native token fields are advisory. Pinned client checks run without credentials, workspace mounts or networking; a workspace that cannot be established is a failed launch. See `adapters/README.md`.
-- `feedback_facts_processing` (every five seconds, bounded `drain`) and `feedback_snapshot_processing` jobs run the analytics facts and snapshot workers under the configured job owner; `managed_inventory_refresh` reconciles configured and managed inventory at startup and every minute after catalog changes.
+- `feedback_facts_processing` (every five seconds, bounded `drain`) and `feedback_snapshot_processing` jobs run the analytics facts and snapshot workers on the system admin's queues — the owner the analytics routes read under — whatever actor the schedule is configured with; `managed_inventory_refresh` reconciles configured and managed inventory at startup and every minute after catalog changes.
 
 ### Changed
 
@@ -19,6 +19,8 @@
 
 ### Fixed
 
+- `feedback_snapshot_processing` and `feedback_facts_processing` key their state by the system admin rather than the configured job actor, so a job with an `owner:` no longer fills a queue the analytics routes never read; a range job that fails is logged and the pass continues.
+- A judgment that cannot be scored is logged with its execution id before the run is recorded unscored; a managed skill bundle with a malformed `config.yaml` fails materialisation instead of being installed under its revision id; a lost-lease cleanup reports which of container, network and workspace removal failed.
 - A `JobLockGuard` dropped without `release` (cancelled job) closes its session so the job's advisory lock cannot survive in the pool.
 
 ## [0.52.0] - 2026-09-14

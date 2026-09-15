@@ -9,6 +9,7 @@
 
 ### Added
 
+- `Subsystems.publish_guard` / `AppContext::publish_guard()`: the inventory publish memo shared by the scheduled refresh and the manual route, previously a process static. `Subsystems.snapshot_wakeup` / `AppContext::snapshot_wakeup()` (`reporting::SnapshotWakeup`): the `feedback_snapshots` listener relay, spawned on first subscription and joined by `shutdown()`.
 - `RuntimeError::Evaluation`; the composition root builds `EvaluationSeams` from the AI request repository, the users session provider and the managed repository and constructs the evaluation repositories on the write pool.
 - `Plugins::marketplace_cache` / `AppContext::marketplace_cache()`: the owned marketplace catalogue and bundle cache, built once per context.
 - `AppContext::schema_install()` exposes the `SchemaInstallReport` of the boot's schema installation (`Subsystems.schema_install`), so `/health/detail` can surface declared foreign keys an established database could not create.
@@ -27,6 +28,8 @@
 
 ### Fixed
 
+- A configured-inventory load failure, an invalid dependency verification request and an unavailable secrets store carry their cause in the `OptimizationError::Source` message and are logged.
+- The reporting projection worker claims through `OutboxConsumer` instead of a `DurableOutbox` stamped with a fabricated instance id.
 - `AppContext` construction fails when the governance audit sink cannot obtain the write pool instead of silently installing a null audit sink.
 
 - Boot no longer fails with `Context … not found for user` after the system admin changes: the legacy context (`ContextId::legacy()`) is re-homed onto the current admin through `ensure_system_context` instead of the user-scoped `ensure_context`.
