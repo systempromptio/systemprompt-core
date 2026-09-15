@@ -26,6 +26,7 @@
 
 ### Fixed
 
+- An MCP request carrying an invalid, revoked or orphaned bearer is answered with the RFC 6750 §3.1 challenge (`WWW-Authenticate: Bearer … error="invalid_token"` plus the RFC 9728 `resource_metadata`) and an `invalid_token` body, instead of the generic 401 that dropped the error code.
 - The authorization endpoint attaches `redirect_uri` to an error response only after confirming it is registered for `client_id`; an unknown client or unregistered URI renders a 400 error page with no `Location` (RFC 6749 §4.1.2.1). A registered redirect that already carries a query is appended with `&`.
 
 ### Removed

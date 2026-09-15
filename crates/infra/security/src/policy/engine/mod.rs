@@ -127,7 +127,9 @@ impl GovernanceEngine {
                     source,
                 }
             })?;
-            reject_toothless_enforcement(cfg, instance.as_ref())?;
+            if config.enabled {
+                reject_toothless_enforcement(cfg, instance.as_ref())?;
+            }
             entries.push(ChainEntry {
                 config: cfg.clone(),
                 instance,
@@ -196,7 +198,8 @@ impl GovernanceEngine {
 
 // Why: the warn-only defaults rely on an empty pattern catalog being legal,
 // but an operator-authored `enforce` block that compiles to a scanner which
-// can never deny is a silent non-enforcement — refuse it at boot.
+// can never deny is a silent non-enforcement — refuse it at boot. A globally
+// disabled engine enforces nothing, so it is not silently non-enforcing.
 fn reject_toothless_enforcement(
     cfg: &PolicyConfig,
     instance: &dyn GovernancePolicy,

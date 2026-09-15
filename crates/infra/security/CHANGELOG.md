@@ -20,6 +20,10 @@
 - `ManifestSigningError::KeyMissing` and `TokenAuthorityError::PathMissing` are no longer returned by `signing_key()` / the authority accessors after a successful load; the first loaded key wins.
 - A credential token response whose body cannot be read is a retryable transport failure.
 
+### Fixed
+
+- A globally disabled governance engine (`governance.enabled: false`) no longer refuses to build over a toothless `secret_scan` block; the toothless-enforcement check applies only when the engine can enforce.
+
 ### Removed
 
 - `ClaimedAgent` and `PrincipalSnapshot::claimed`; nothing produced the claim and it never entered a decision.

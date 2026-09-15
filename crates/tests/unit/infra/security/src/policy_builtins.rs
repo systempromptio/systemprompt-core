@@ -1320,6 +1320,21 @@ governance:
     }
 
     #[test]
+    fn a_disabled_governance_engine_tolerates_a_toothless_secret_scan() {
+        const DISABLED: &str = r"
+governance:
+  enabled: false
+  policies:
+  - id: secret_scan
+    enabled: true
+    mode: enforce
+";
+        let engine = GovernanceEngine::from_config(&GovernanceConfig::parse(DISABLED).unwrap())
+            .expect("a disabled engine enforces nothing, so nothing is silently unenforced");
+        assert!(!engine.enforces_prompt_secrets());
+    }
+
+    #[test]
     fn a_warn_mode_secret_scan_with_no_patterns_still_builds() {
         GovernanceEngine::from_config(&GovernanceConfig::defaults())
             .expect("the documented warn-only defaults carry an empty catalog");

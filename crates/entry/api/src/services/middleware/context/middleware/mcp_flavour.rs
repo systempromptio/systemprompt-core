@@ -160,9 +160,47 @@ impl McpContextMiddleware {
                     session_context_required_error(&trace_id, &path, &method)
                 }
             },
-            Err(e) => log_error_response(&e, &trace_id, &path, &method),
+            Err(e) => {
+                let response = log_error_response(&e, &trace_id, &path, &method);
+                if response.status() == StatusCode::UNAUTHORIZED {
+                    invalid_token_challenge(&path)
+                } else {
+                    response
+                }
+            },
         }
     }
+}
+
+// Why: RFC 6750 §3.1 — a presented-but-invalid bearer is answered with
+// `error="invalid_token"`, and RFC 9728 keeps `resource_metadata` on the
+// challenge so the client can recover through OAuth discovery.
+fn invalid_token_challenge(path: &str) -> Response {
+    let service = path
+        .strip_prefix(systemprompt_models::ApiPaths::MCP_BASE)
+        .and_then(|rest| rest.trim_start_matches('/').split('/').next())
+        .filter(|service| !service.is_empty())
+        .unwrap_or("mcp");
+    let header = format!(
+        "Bearer realm=\"{service}\", \
+         resource_metadata=\"/.well-known/oauth-protected-resource{path}\", \
+         error=\"invalid_token\", \
+         error_description=\"The access token is missing or invalid\""
+    );
+    let body = serde_json::json!({
+        "error": "invalid_token",
+        "error_description": "The access token is missing or invalid",
+        "server": service,
+    });
+    (
+        StatusCode::UNAUTHORIZED,
+        [
+            (http::header::CONTENT_TYPE, "application/json".to_owned()),
+            (http::header::WWW_AUTHENTICATE, header),
+        ],
+        body.to_string(),
+    )
+        .into_response()
 }
 
 // Why: Axum strips the mount prefix from `req.uri()` inside a nested router.
