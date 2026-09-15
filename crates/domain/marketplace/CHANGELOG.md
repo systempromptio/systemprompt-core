@@ -10,6 +10,7 @@
 - `managed::evaluation`: publication attestations produced by application-level evaluation and source verification; repository publication verifies the retained binding. `managed::publication_history`: retained review history and distribution evidence.
 - `inventory` module: canonical configured-and-managed inventory with explicit adoption and observed membership, retained baselines and captures, Git bindings, reconciliation conflicts and per-host installation coverage (`InventoryEntryId`). Migrations 006 (`managed_inventory_*`) and 007 (`managed_installation_coverage*`). Explicit binding candidates are bounded by owner and key.
 - `managed::operations`: durable fenced administrative operations that retain typed input checkpoints (`managed_api_operations`, migration 008) — credential issuance and inventory capture are addressed by `Idempotency-Key`.
+- `ManagedRepository` implements `systemprompt_traits::ManagedRevisionOwnership`, the owner-scoped revision → resource lookup other domains verify against.
 
 ### Changed
 

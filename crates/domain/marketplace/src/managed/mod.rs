@@ -16,6 +16,7 @@ pub mod evaluation;
 pub mod git_execution;
 mod import;
 mod installation;
+mod ownership;
 mod provenance;
 mod publication;
 mod reconciliation;
