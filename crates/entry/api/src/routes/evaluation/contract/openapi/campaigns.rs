@@ -8,7 +8,7 @@ use crate::routes::evaluation::collections::{Cursor, Page};
 use crate::routes::evaluation::{campaign_completion as holdout, campaigns as api};
 use systemprompt_evaluation::campaigns::holdout::HoldoutProposal;
 use systemprompt_evaluation::campaigns::report::CampaignReport;
-use systemprompt_evaluation::campaigns::repository::CampaignRecord;
+use systemprompt_evaluation::campaigns::repository::{CampaignRecord, CampaignTransition};
 use systemprompt_evaluation::repository::experiments::CampaignExperiment;
 use systemprompt_identifiers::{EvalCampaignId, EvalExperimentId};
 use systemprompt_runtime::optimization::SourceAcceptance;
@@ -45,7 +45,7 @@ pub(super) fn register(d: &mut Document) {
     d.query::<api::Cursor>("/campaigns", "get");
     d.add::<api::Create, EvalCampaignId>("/campaigns", "post", 201, false);
     d.add::<(), CampaignRecord>("/campaigns/{id}", "get", 200, false);
-    d.add::<api::Transition, ()>("/campaigns/{id}/transitions", "post", 204, false);
+    d.add::<CampaignTransition, ()>("/campaigns/{id}/transitions", "post", 204, false);
     d.add::<(), Page<EvalExperimentId>>("/campaigns/{id}/experiments", "get", 200, false);
     d.query::<Cursor>("/campaigns/{id}/experiments", "get");
     d.add::<api::Attach, ()>("/campaigns/{id}/experiments", "post", 204, false);

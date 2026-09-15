@@ -196,7 +196,8 @@ impl SkillOptimizationOrchestrator {
     ) -> Result<ExperimentSpec, OptimizationError> {
         let mut development = Vec::new();
         for case in &spec.cases {
-            if let ResourceContent::Case(content) = self.revisions.get(owner, case).await?
+            if let ResourceContent::Case(content) =
+                self.evaluations.revisions.get(owner, case).await?
                 && content.partition == Partition::Development
             {
                 development.push(case.clone());

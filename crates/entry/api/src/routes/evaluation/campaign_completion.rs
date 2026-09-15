@@ -2,7 +2,7 @@
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
-use super::campaigns::orchestrator;
+use super::campaigns::OptimizationState;
 use super::optimization_error::OptimizationHttpError;
 use axum::extract::{Path, Query, State};
 use axum::routing::{get, post};
@@ -17,7 +17,7 @@ use systemprompt_runtime::optimization::holdout::{
     ConfirmHoldout, HoldoutConfirmationTarget, HoldoutReview, PrepareHoldout,
 };
 
-pub(super) fn router() -> Router<AppContext> {
+pub(super) fn router() -> Router<OptimizationState> {
     Router::new()
         .route("/campaign-diagnostics", get(diagnostics))
         .route("/campaigns/{id}/holdout-proposals", post(prepare))
@@ -65,14 +65,20 @@ async fn diagnostics(
     Ok(Json(DiagnosticPage { items, next_cursor }))
 }
 async fn prepare(
-    State(ctx): State<AppContext>,
+    State(state): State<OptimizationState>,
     Extension(actor): Extension<RequestContext>,
     Path(id): Path<EvalCampaignId>,
     Json(input): Json<PrepareHoldout>,
 ) -> Result<Json<HoldoutReview>, OptimizationHttpError> {
     Ok(Json(
-        orchestrator(&ctx)
-            .prepare_holdout(ctx.system_admin().id(), actor.user_id(), &id, &input)
+        state
+            .orchestrator()
+            .prepare_holdout(
+                state.ctx().system_admin().id(),
+                actor.user_id(),
+                &id,
+                &input,
+            )
             .await?,
     ))
 }
@@ -88,15 +94,16 @@ async fn show(
     ))
 }
 async fn confirm(
-    State(ctx): State<AppContext>,
+    State(state): State<OptimizationState>,
     Extension(actor): Extension<RequestContext>,
     Path((id, proposal)): Path<(EvalCampaignId, EvalHoldoutProposalId)>,
     Json(input): Json<ConfirmHoldout>,
 ) -> Result<Json<HoldoutProposal>, OptimizationHttpError> {
     Ok(Json(
-        orchestrator(&ctx)
+        state
+            .orchestrator()
             .confirm_holdout(
-                ctx.system_admin().id(),
+                state.ctx().system_admin().id(),
                 &HoldoutConfirmationTarget {
                     actor: actor.user_id(),
                     campaign: &id,

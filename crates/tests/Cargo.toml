@@ -164,6 +164,7 @@ rust_decimal = "1.43"
 serde = { version = "1.0", features = ["derive"] }
 serde_yaml = { package = "serde_yaml_ng", version = "0.10" }
 serde_json = { version = "1.0", features = ["preserve_order"] }
+serde_jcs = "0.2"
 chrono = { version = "0.4", features = ["serde"] }
 semver = "1"
 uuid = { version = "1.26", features = ["v4", "serde"] }

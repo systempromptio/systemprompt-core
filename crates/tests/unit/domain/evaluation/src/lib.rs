@@ -76,4 +76,6 @@ mod repository_approval_acceptance;
 mod repository_suggestion_operations;
 
 #[cfg(test)]
+mod campaigns;
+#[cfg(test)]
 mod repository_campaigns;

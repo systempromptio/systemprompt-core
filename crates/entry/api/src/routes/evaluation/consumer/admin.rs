@@ -12,9 +12,10 @@ use serde::Deserialize;
 use systemprompt_identifiers::{DeviceCertId, ManagedResourceId, UserId};
 use systemprompt_runtime::AppContext;
 
+use super::super::campaigns::OptimizationState;
 use super::error::ConsumerHttpError;
 
-pub(crate) fn router() -> Router<AppContext> {
+pub(crate) fn router() -> Router<OptimizationState> {
     Router::new()
         .route("/consumer-devices/{id}/credential", post(issue))
         .route("/consumer-devices/{id}/revocation", post(revoke))

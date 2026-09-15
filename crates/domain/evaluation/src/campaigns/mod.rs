@@ -12,6 +12,7 @@ use crate::{EvaluationError, Result};
 pub mod comparison;
 pub mod diagnostics;
 pub mod holdout;
+mod record;
 pub mod report;
 pub mod repository;
 pub mod suggestions;

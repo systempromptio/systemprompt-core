@@ -4,7 +4,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use axum::extract::{Path, Query, State};
+use std::sync::Arc;
+
+use axum::extract::{FromRef, Path, Query, State};
 use axum::http::StatusCode;
 use axum::routing::{get, post};
 use axum::{Extension, Json, Router};
@@ -12,15 +14,48 @@ use serde::{Deserialize, Serialize};
 use systemprompt_evaluation::campaigns::CampaignPolicy;
 use systemprompt_evaluation::campaigns::diagnostics::DiagnosticCode;
 use systemprompt_evaluation::campaigns::repository::{
-    CampaignAction, CampaignRecord, CampaignTransition,
+    CampaignRecord, CampaignRepository, CampaignTransition,
 };
 use systemprompt_identifiers::{EvalCampaignId, EvalExperimentId};
 use systemprompt_models::RequestContext;
 use systemprompt_runtime::AppContext;
+use systemprompt_runtime::optimization::SkillOptimizationOrchestrator;
 
 use super::optimization_error::OptimizationHttpError;
 
-pub fn router() -> Router<AppContext> {
+/// Router state for the evaluation admin surface: the application context plus
+/// the optimization orchestrator composed once from its repositories.
+#[derive(Debug, Clone)]
+pub struct OptimizationState {
+    ctx: AppContext,
+    orchestrator: Arc<SkillOptimizationOrchestrator>,
+}
+
+impl OptimizationState {
+    pub fn new(ctx: AppContext) -> Self {
+        let orchestrator = Arc::new(SkillOptimizationOrchestrator::new(
+            ctx.managed_repository().as_ref().clone(),
+            ctx.evaluation_repositories().as_ref().clone(),
+        ));
+        Self { ctx, orchestrator }
+    }
+
+    pub fn orchestrator(&self) -> &SkillOptimizationOrchestrator {
+        &self.orchestrator
+    }
+
+    pub const fn ctx(&self) -> &AppContext {
+        &self.ctx
+    }
+}
+
+impl FromRef<OptimizationState> for AppContext {
+    fn from_ref(state: &OptimizationState) -> Self {
+        state.ctx.clone()
+    }
+}
+
+pub fn router() -> Router<OptimizationState> {
     Router::new()
         .route("/openapi.json", get(super::contract::openapi::serve))
         .merge(super::optimization_resources::router())
@@ -137,8 +172,8 @@ async fn list(
         .campaigns
         .list(ctx.system_admin().id(), query.after.as_ref())
         .await?;
-    let next_cursor = if items.len() > 50 {
-        items.truncate(50);
+    let next_cursor = if items.len() > CampaignRepository::PAGE_SIZE {
+        items.truncate(CampaignRepository::PAGE_SIZE);
         items.last().map(|item| item.id.clone())
     } else {
         None
@@ -158,30 +193,15 @@ async fn show(
     ))
 }
 
-#[derive(Debug, Deserialize, schemars::JsonSchema)]
-#[serde(deny_unknown_fields)]
-pub(crate) struct Transition {
-    expected_generation: i64,
-    action: CampaignAction,
-}
-
 async fn transition(
     State(ctx): State<AppContext>,
     Extension(actor): Extension<RequestContext>,
     Path(id): Path<EvalCampaignId>,
-    Json(input): Json<Transition>,
+    Json(input): Json<CampaignTransition>,
 ) -> Result<StatusCode, OptimizationHttpError> {
     ctx.evaluation_repositories()
         .campaigns
-        .transition(
-            ctx.system_admin().id(),
-            actor.user_id(),
-            &id,
-            CampaignTransition {
-                expected_generation: input.expected_generation,
-                action: input.action,
-            },
-        )
+        .transition(ctx.system_admin().id(), actor.user_id(), &id, input)
         .await?;
     Ok(StatusCode::NO_CONTENT)
 }
@@ -193,14 +213,15 @@ pub(crate) struct Attach {
 }
 
 async fn attach(
-    State(ctx): State<AppContext>,
+    State(state): State<OptimizationState>,
     Extension(actor): Extension<RequestContext>,
     Path(id): Path<EvalCampaignId>,
     Json(input): Json<Attach>,
 ) -> Result<StatusCode, OptimizationHttpError> {
-    orchestrator(&ctx)
+    state
+        .orchestrator()
         .attach(
-            ctx.system_admin().id(),
+            state.ctx().system_admin().id(),
             actor.user_id(),
             &id,
             &input.experiment_id,
@@ -236,50 +257,43 @@ async fn experiments(
     Ok(Json(super::collections::Page { items, next_cursor }))
 }
 
-pub(super) fn orchestrator(
-    ctx: &AppContext,
-) -> systemprompt_runtime::optimization::SkillOptimizationOrchestrator {
-    systemprompt_runtime::optimization::SkillOptimizationOrchestrator::new(
-        ctx.managed_repository().as_ref().clone(),
-        ctx.evaluation_repositories().as_ref().clone(),
-        ctx.evaluation_repositories().revisions.clone(),
-    )
-}
-
 async fn report(
-    State(ctx): State<AppContext>,
+    State(state): State<OptimizationState>,
     Path((id, experiment)): Path<(EvalCampaignId, EvalExperimentId)>,
 ) -> Result<Json<systemprompt_evaluation::campaigns::report::CampaignReport>, OptimizationHttpError>
 {
     Ok(Json(
-        orchestrator(&ctx)
-            .report(ctx.system_admin().id(), &id, &experiment)
+        state
+            .orchestrator()
+            .report(state.ctx().system_admin().id(), &id, &experiment)
             .await?,
     ))
 }
 
 async fn accept_source(
-    State(ctx): State<AppContext>,
+    State(state): State<OptimizationState>,
     Extension(actor): Extension<RequestContext>,
     Json(input): Json<systemprompt_runtime::optimization::SourceAcceptance>,
 ) -> Result<impl axum::response::IntoResponse, OptimizationHttpError> {
     Ok((
         StatusCode::CREATED,
         Json(
-            orchestrator(&ctx)
-                .accept_source(ctx.system_admin().id(), actor.user_id(), &input)
+            state
+                .orchestrator()
+                .accept_source(state.ctx().system_admin().id(), actor.user_id(), &input)
                 .await?,
         ),
     ))
 }
 
 async fn launch(
-    State(ctx): State<AppContext>,
+    State(state): State<OptimizationState>,
     Extension(actor): Extension<RequestContext>,
     Json(input): Json<systemprompt_evaluation::repository::experiments::CampaignExperiment>,
 ) -> Result<impl axum::response::IntoResponse, OptimizationHttpError> {
-    let id = orchestrator(&ctx)
-        .launch(ctx.system_admin().id(), actor.user_id(), &input)
+    let id = state
+        .orchestrator()
+        .launch(state.ctx().system_admin().id(), actor.user_id(), &input)
         .await?;
     Ok((
         StatusCode::ACCEPTED,

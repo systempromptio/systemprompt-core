@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use super::campaigns::OptimizationState;
 use super::optimization_error::OptimizationHttpError;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
@@ -19,7 +20,7 @@ use systemprompt_marketplace::managed::{GitSourceBinding, RevisionBundle, Source
 use systemprompt_models::feedback::verification::DependencyVerificationManifest;
 use systemprompt_runtime::AppContext;
 
-pub(super) fn router() -> Router<AppContext> {
+pub(super) fn router() -> Router<OptimizationState> {
     Router::new()
         .route("/experiments", get(experiments))
         .route("/experiments/{id}", get(super::execution_pages::detail))
@@ -236,12 +237,13 @@ async fn bundle(
 }
 
 async fn workspace(
-    State(ctx): State<AppContext>,
+    State(state): State<OptimizationState>,
     Path(id): Path<ResourceRevisionId>,
 ) -> Result<Json<String>, OptimizationHttpError> {
     Ok(Json(
-        super::campaigns::orchestrator(&ctx)
-            .register_workspace(ctx.system_admin().id(), &id)
+        state
+            .orchestrator()
+            .register_workspace(state.ctx().system_admin().id(), &id)
             .await?,
     ))
 }

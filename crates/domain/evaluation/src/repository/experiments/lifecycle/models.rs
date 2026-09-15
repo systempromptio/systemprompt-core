@@ -16,7 +16,6 @@ use crate::models::{AccountingStatus, ApprovalStatus};
 #[serde(deny_unknown_fields)]
 pub struct DeterministicMeasurement {
     pub hard_failures: Vec<String>,
-    #[serde(alias = "deterministic_checks")]
     pub checks: BTreeMap<String, bool>,
     pub judgment: Option<crate::experiments::scoring::EvidenceJudgment>,
     pub quality_milli: Option<u32>,

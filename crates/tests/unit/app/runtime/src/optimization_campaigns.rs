@@ -129,11 +129,7 @@ async fn foreign_resource_candidate_and_canonical_unsupported_admission_leave_bu
     );
     let canonical = systemprompt_test_fixtures::fixture_evaluation_repositories(&f.db)
         .expect("evaluation repositories");
-    let runtime = SkillOptimizationOrchestrator::new(
-        f.managed.clone(),
-        canonical.clone(),
-        canonical.revisions.clone(),
-    );
+    let runtime = SkillOptimizationOrchestrator::new(f.managed.clone(), canonical.clone());
     input.spec = f.spec.clone();
     input.idempotency_key = "unverified-native".to_owned();
     assert!(
@@ -170,11 +166,7 @@ async fn automatic_missing_template_survives_restart_and_paused_campaign_does_no
             .unwrap()
             .is_none()
     );
-    let restarted = SkillOptimizationOrchestrator::new(
-        f.managed.clone(),
-        f.repositories.clone(),
-        f.repositories.revisions.clone(),
-    );
+    let restarted = SkillOptimizationOrchestrator::new(f.managed.clone(), f.repositories.clone());
     assert!(
         restarted
             .advance(&f.owner, &f.owner, &f.campaign)
@@ -300,11 +292,7 @@ async fn attach_revalidates_candidate_resource_and_iteration_limit_survives_rest
         .get(&f.owner, &f.policy.budget_id)
         .await
         .unwrap();
-    let restarted = SkillOptimizationOrchestrator::new(
-        f.managed.clone(),
-        f.repositories.clone(),
-        f.repositories.revisions.clone(),
-    );
+    let restarted = SkillOptimizationOrchestrator::new(f.managed.clone(), f.repositories.clone());
     assert!(
         restarted
             .advance(&f.owner, &f.owner, &f.campaign)

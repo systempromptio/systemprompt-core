@@ -44,7 +44,11 @@ async fn approval_http_requires_admin_origin_and_recovers_exact_decision_status(
             ctx.as_ref().clone(),
             systemprompt_api::routes::evaluation::optimization_origin::protect,
         ))
-        .with_state(ctx.as_ref().clone())
+        .with_state(
+            systemprompt_api::routes::evaluation::campaigns::OptimizationState::new(
+                ctx.as_ref().clone(),
+            ),
+        )
         .layer(middleware::from_fn(|request, next| {
             authz_gate(AuthzPolicy::admin(), request, next)
         }))

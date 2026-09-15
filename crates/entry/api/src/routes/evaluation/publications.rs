@@ -3,6 +3,7 @@
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
+use super::campaigns::OptimizationState;
 use super::collections::Page;
 use super::optimization_error::OptimizationHttpError;
 use axum::extract::{Path, Query, State};
@@ -21,7 +22,7 @@ pub(crate) struct HistoryQuery {
     #[schemars(range(min = 1, max = 100))]
     limit: Option<u32>,
 }
-pub(super) fn router() -> Router<AppContext> {
+pub(super) fn router() -> Router<OptimizationState> {
     Router::new()
         .route("/publications", post(review))
         .route("/resources/{id}/publications", get(history))

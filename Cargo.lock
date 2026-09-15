@@ -5146,6 +5146,7 @@ dependencies = [
  "metrics",
  "schemars",
  "serde",
+ "serde_jcs",
  "serde_json",
  "serde_yaml_ng",
  "sqlx",

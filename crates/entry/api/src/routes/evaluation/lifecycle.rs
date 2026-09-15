@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use super::campaigns::OptimizationState;
 use super::optimization_error::OptimizationHttpError;
 use axum::extract::{Path, State};
 use axum::http::{HeaderMap, StatusCode};
@@ -25,7 +26,7 @@ pub struct DecideApproval {
     pub observed_precondition_digest: String,
 }
 
-pub(super) fn router() -> Router<AppContext> {
+pub(super) fn router() -> Router<OptimizationState> {
     Router::new()
         .route("/evaluation-suggestions", post(create))
         .route("/evaluation-suggestions/{id}", get(suggestion))

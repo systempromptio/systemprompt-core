@@ -401,7 +401,11 @@ impl Harness {
              WHERE owner_id = $1)",
             "DELETE FROM eval_budget_reservations WHERE account_id IN (SELECT id FROM \
              eval_budget_accounts WHERE owner_id = $1)",
+            "DELETE FROM eval_campaign_events WHERE campaign_id IN (SELECT id FROM \
+             eval_campaigns WHERE owner_id = $1)",
+            "DELETE FROM eval_campaign_experiments WHERE owner_id = $1",
             "DELETE FROM eval_experiments WHERE owner_id = $1",
+            "DELETE FROM eval_campaigns WHERE owner_id = $1",
             "DELETE FROM eval_budget_accounts WHERE owner_id = $1",
             "DELETE FROM eval_resource_revisions WHERE owner_id = $1",
             "ALTER TABLE eval_managed_workspace_assets DISABLE TRIGGER \

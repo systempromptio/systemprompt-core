@@ -4,10 +4,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use serde::Serialize;
+use systemprompt_evaluation::campaigns::CampaignPolicy;
+use systemprompt_evaluation::campaigns::comparison::ComparisonDecision;
 use systemprompt_evaluation::campaigns::report::{self, CampaignReport};
-use systemprompt_evaluation::repository::experiments::{
-    EvaluationRepositories, RevisionRepository,
-};
+use systemprompt_evaluation::repository::experiments::EvaluationRepositories;
 use systemprompt_identifiers::{EvalCampaignId, EvalExperimentId, ResourceRevisionId, UserId};
 use systemprompt_marketplace::managed::evaluation::EvaluationAttestation;
 use systemprompt_marketplace::managed::{AssetDigest, ManagedRepository};
@@ -37,7 +38,37 @@ pub enum OptimizationError {
 pub struct SkillOptimizationOrchestrator {
     managed: ManagedRepository,
     evaluations: EvaluationRepositories,
-    revisions: RevisionRepository,
+}
+
+/// The facts an evaluation attestation commits to, hashed as canonical JSON
+/// (RFC 8785) so the digest does not depend on field order.
+#[derive(Debug, Serialize)]
+pub struct EvaluationEvidence<'a> {
+    pub policy: &'a CampaignPolicy,
+    pub experiment_id: &'a EvalExperimentId,
+    pub baseline_bundle_digest: &'a str,
+    pub candidate_bundle_digest: &'a str,
+    pub development: &'a ComparisonDecision,
+    pub holdout: &'a ComparisonDecision,
+}
+
+impl EvaluationEvidence<'_> {
+    pub fn digest(&self) -> Result<AssetDigest, OptimizationError> {
+        Ok(AssetDigest::of(&serde_jcs::to_vec(self)?))
+    }
+}
+
+impl<'a> From<&'a CampaignReport> for EvaluationEvidence<'a> {
+    fn from(report: &'a CampaignReport) -> Self {
+        Self {
+            policy: &report.campaign.policy,
+            experiment_id: &report.experiment_id,
+            baseline_bundle_digest: &report.baseline_bundle_digest,
+            candidate_bundle_digest: &report.candidate_bundle_digest,
+            development: &report.development,
+            holdout: &report.holdout,
+        }
+    }
 }
 
 #[derive(Debug, Clone, serde::Deserialize, schemars::JsonSchema)]
@@ -51,15 +82,10 @@ pub struct SourceAcceptance {
 }
 
 impl SkillOptimizationOrchestrator {
-    pub const fn new(
-        managed: ManagedRepository,
-        evaluations: EvaluationRepositories,
-        revisions: RevisionRepository,
-    ) -> Self {
+    pub const fn new(managed: ManagedRepository, evaluations: EvaluationRepositories) -> Self {
         Self {
             managed,
             evaluations,
-            revisions,
         }
     }
 
@@ -71,7 +97,7 @@ impl SkillOptimizationOrchestrator {
     ) -> Result<CampaignReport, OptimizationError> {
         let report = report::build(
             &self.evaluations,
-            &self.revisions,
+            &self.evaluations.revisions,
             owner,
             campaign,
             experiment,
@@ -134,14 +160,7 @@ impl SkillOptimizationOrchestrator {
             bundle_digest: committed.digest()?,
             experiment_id: input.experiment_id.clone(),
             campaign_id: input.campaign_id.clone(),
-            evidence_digest: AssetDigest::of(&serde_json::to_vec(&(
-                &report.campaign.policy,
-                &report.experiment_id,
-                &report.baseline_bundle_digest,
-                &report.candidate_bundle_digest,
-                &report.development,
-                &report.holdout,
-            ))?),
+            evidence_digest: EvaluationEvidence::from(&report).digest()?,
             source_commit,
         };
         self.managed

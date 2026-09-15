@@ -4,6 +4,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use super::campaigns::OptimizationState;
 use super::optimization_error::OptimizationHttpError;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
@@ -16,7 +17,7 @@ use systemprompt_analytics::snapshots::{
 use systemprompt_identifiers::{AnalyticsSnapshotJobId, ManagedResourceId};
 use systemprompt_runtime::AppContext;
 
-pub(super) fn router() -> Router<AppContext> {
+pub(super) fn router() -> Router<OptimizationState> {
     Router::new()
         .route("/analytics/live", get(super::snapshot_stream::stream))
         .route("/analytics/snapshots", get(list))

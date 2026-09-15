@@ -2,6 +2,7 @@
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
+use super::campaigns::OptimizationState;
 use super::operations::{self, OperationResponse};
 use super::optimization_error::OptimizationHttpError;
 use axum::Json;
@@ -94,11 +95,12 @@ pub(super) async fn refresh(
     ))
 }
 pub(super) async fn capture(
-    State(ctx): State<AppContext>,
+    State(state): State<OptimizationState>,
     headers: HeaderMap,
     Path(source): Path<ManagedSourceId>,
     Json(input): Json<CaptureSource>,
 ) -> Result<impl axum::response::IntoResponse, OptimizationHttpError> {
+    let ctx = state.ctx();
     if input.skill_ids.is_empty()
         || input.skill_ids.len() > 100
         || input
@@ -111,7 +113,7 @@ pub(super) async fn capture(
         )
         .into());
     }
-    let claim = operations::begin(&ctx, &headers, "source_capture", &(&source, &input)).await?;
+    let claim = operations::begin(ctx, &headers, "source_capture", &(&source, &input)).await?;
     let response: OperationResponse<ImportedSkills> = match claim {
         ApiOperationClaim::Retained(operation) => operations::response(&operation)?,
         ApiOperationClaim::Acquired(operation) => {
@@ -123,7 +125,8 @@ pub(super) async fn capture(
                 {
                     captured
                 } else {
-                    let captured = super::campaigns::orchestrator(&ctx)
+                    let captured = state
+                        .orchestrator()
                         .capture_authoring_input(
                             ctx.system_admin().id(),
                             &source,
@@ -141,7 +144,7 @@ pub(super) async fn capture(
                     .await?)
             }
             .await;
-            operations::finish(&ctx, &operation, result).await?
+            operations::finish(ctx, &operation, result).await?
         },
     };
     Ok((

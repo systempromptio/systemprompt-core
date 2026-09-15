@@ -75,11 +75,7 @@ impl Fixture {
             Arc::new(FixtureAdmission),
         )
         .expect("evaluation repositories");
-        let runtime = SkillOptimizationOrchestrator::new(
-            managed.clone(),
-            repositories.clone(),
-            repositories.revisions.clone(),
-        );
+        let runtime = SkillOptimizationOrchestrator::new(managed.clone(), repositories.clone());
         let baseline_digest = runtime
             .register_workspace(&owner, &baseline)
             .await

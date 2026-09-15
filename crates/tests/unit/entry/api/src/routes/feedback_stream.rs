@@ -24,7 +24,11 @@ async fn router() -> Router {
     );
     actor.auth.actor = Actor::user(UserId::new(format!("stream-{}", TraceId::generate())));
     systemprompt_api::routes::evaluation::campaigns::router()
-        .with_state(ctx.as_ref().clone())
+        .with_state(
+            systemprompt_api::routes::evaluation::campaigns::OptimizationState::new(
+                ctx.as_ref().clone(),
+            ),
+        )
         .layer(Extension(actor))
 }
 async fn call(router: &Router, after: Option<&str>) -> axum::response::Response {

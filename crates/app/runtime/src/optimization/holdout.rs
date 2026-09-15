@@ -160,14 +160,18 @@ impl SkillOptimizationOrchestrator {
         let mut development = Vec::new();
         let mut seen = std::collections::BTreeSet::new();
         for id in development_cases {
-            if let ResourceContent::Case(case) = self.revisions.get(owner, id).await?
+            if let ResourceContent::Case(case) = self.evaluations.revisions.get(owner, id).await?
                 && case.partition == Partition::Development
             {
                 seen.insert(case_digest(&case)?);
                 development.push(id.clone());
             }
         }
-        let ResourceContent::Dataset(ids) = self.revisions.get(owner, holdout_dataset).await?
+        let ResourceContent::Dataset(ids) = self
+            .evaluations
+            .revisions
+            .get(owner, holdout_dataset)
+            .await?
         else {
             return Err(OptimizationError::Source(
                 "Select a retained holdout dataset".to_owned(),
@@ -175,7 +179,8 @@ impl SkillOptimizationOrchestrator {
         };
         let mut holdout = Vec::new();
         for id in ids {
-            let ResourceContent::Case(case) = self.revisions.get(owner, &id).await? else {
+            let ResourceContent::Case(case) = self.evaluations.revisions.get(owner, &id).await?
+            else {
                 return Err(OptimizationError::Source(
                     "Holdout dataset must contain cases".to_owned(),
                 ));
@@ -209,6 +214,7 @@ impl SkillOptimizationOrchestrator {
         spec.cases = development;
         let dataset = ResourceContent::Dataset(spec.cases.clone());
         let dataset_id = self
+            .evaluations
             .revisions
             .create(
                 owner,

@@ -6,6 +6,7 @@
 use async_trait::async_trait;
 use std::sync::Arc;
 use systemprompt_config::ProfileBootstrap;
+use systemprompt_evaluation::campaigns::repository::CampaignRepository;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{Job, JobContext, JobResult, JobScope, ProviderResult};
 
@@ -57,7 +58,6 @@ impl Job for EvaluationSupervisorJob {
         let optimization = systemprompt_runtime::optimization::SkillOptimizationOrchestrator::new(
             app.managed_repository().as_ref().clone(),
             app.evaluation_repositories().as_ref().clone(),
-            app.evaluation_repositories().revisions.clone(),
         );
         let mut after = None;
         loop {
@@ -66,8 +66,8 @@ impl Job for EvaluationSupervisorJob {
                 .campaigns
                 .list(app.system_admin().id(), after.as_ref())
                 .await
-                .map_err(|error| SchedulerError::config_error(error.to_string()))?;
-            let more = campaigns.len() == 51;
+                .map_err(SchedulerError::Evaluation)?;
+            let more = campaigns.len() > CampaignRepository::PAGE_SIZE;
             for campaign in campaigns {
                 if let Err(error) = optimization
                     .advance(app.system_admin().id(), &ctx.actor().user_id, &campaign.id)

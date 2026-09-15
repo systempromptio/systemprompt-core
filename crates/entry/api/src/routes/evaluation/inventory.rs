@@ -4,6 +4,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use super::campaigns::OptimizationState;
 use super::optimization_error::OptimizationHttpError;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
@@ -19,7 +20,7 @@ use systemprompt_models::RequestContext;
 use systemprompt_runtime::AppContext;
 use systemprompt_runtime::optimization::inventory;
 
-pub(super) fn router() -> Router<AppContext> {
+pub(super) fn router() -> Router<OptimizationState> {
     Router::new()
         .route("/inventory", get(list))
         .route("/inventory/status", get(status))

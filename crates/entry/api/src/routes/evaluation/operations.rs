@@ -2,6 +2,7 @@
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
+use super::campaigns::OptimizationState;
 use super::optimization_error::OptimizationHttpError;
 use axum::extract::{Path, State};
 use axum::http::{HeaderMap, StatusCode};
@@ -50,7 +51,7 @@ pub enum OperationResult {
     SourceVerification(systemprompt_models::feedback::verification::DependencyVerificationManifest),
     CredentialIssue(super::consumer::CredentialIssueStatus),
 }
-pub(super) fn router() -> Router<AppContext> {
+pub(super) fn router() -> Router<OptimizationState> {
     Router::new().route("/operations/{id}", get(status))
 }
 pub(super) fn key(headers: &HeaderMap) -> Result<TaskId, OptimizationHttpError> {

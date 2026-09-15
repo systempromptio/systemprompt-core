@@ -9,17 +9,18 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use sqlx::types::Json;
 use systemprompt_identifiers::{EvalCampaignId, EvalExperimentId, UserId};
 use systemprompt_traits::DynManagedRevisionOwnership;
 
 use super::CampaignPolicy;
+use super::record::CampaignRow;
 use crate::Result;
 use crate::experiments::{conflict, content_digest, invalid, missing};
 use crate::models::CampaignStatus;
+
+pub use super::record::{CampaignAction, CampaignRecord, CampaignTransition};
 
 #[derive(Clone)]
 pub struct CampaignRepository {
@@ -33,45 +34,11 @@ impl std::fmt::Debug for CampaignRepository {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
-pub struct CampaignRecord {
-    pub id: EvalCampaignId,
-    pub owner_id: UserId,
-    pub created_by: UserId,
-    pub policy: CampaignPolicy,
-    pub status: CampaignStatus,
-    pub generation: i64,
-    pub created_at: DateTime<Utc>,
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum CampaignAction {
-    Pause,
-    Resume,
-    Complete,
-    Cancel,
-}
-
-impl CampaignAction {
-    const fn status(self) -> CampaignStatus {
-        match self {
-            Self::Pause => CampaignStatus::Paused,
-            Self::Resume => CampaignStatus::Active,
-            Self::Complete => CampaignStatus::Completed,
-            Self::Cancel => CampaignStatus::Cancelled,
-        }
-    }
-}
-
-/// A state transition guarded by the generation the caller last observed.
-#[derive(Debug, Clone, Copy)]
-pub struct CampaignTransition {
-    pub expected_generation: i64,
-    pub action: CampaignAction,
-}
-
 impl CampaignRepository {
+    // Why: `list` fetches one row past the page so callers can tell "more" from
+    // "exactly full" without a second count query.
+    pub const PAGE_SIZE: usize = 50;
+
     pub const fn new(pool: PgPool, revisions: DynManagedRevisionOwnership) -> Self {
         Self { pool, revisions }
     }
@@ -164,33 +131,15 @@ impl CampaignRepository {
         owner: &UserId,
         after: Option<&EvalCampaignId>,
     ) -> Result<Vec<CampaignRecord>> {
-        let rows = sqlx::query!("SELECT id,owner_id,created_by,policy,status,generation,created_at FROM eval_campaigns WHERE owner_id=$1 AND ($2::TEXT IS NULL OR id>$2) ORDER BY id LIMIT 51", owner.as_str(), after.map(EvalCampaignId::as_str)).fetch_all(&self.pool).await?;
-        rows.into_iter()
-            .map(|row| {
-                Ok(CampaignRecord {
-                    id: EvalCampaignId::new(row.id),
-                    owner_id: UserId::new(row.owner_id),
-                    created_by: UserId::new(row.created_by),
-                    policy: serde_json::from_value(row.policy)?,
-                    status: CampaignStatus::parse(&row.status)?,
-                    generation: row.generation,
-                    created_at: row.created_at,
-                })
-            })
-            .collect()
+        let limit =
+            i64::try_from(Self::PAGE_SIZE + 1).map_err(|_error| conflict("Page size overflow"))?;
+        let rows = sqlx::query_as!(CampaignRow, r#"SELECT id,owner_id,created_by,policy AS "policy: Json<CampaignPolicy>",status,generation,created_at FROM eval_campaigns WHERE owner_id=$1 AND ($2::TEXT IS NULL OR id>$2) ORDER BY id LIMIT $3"#, owner.as_str(), after.map(EvalCampaignId::as_str), limit).fetch_all(&self.pool).await?;
+        rows.into_iter().map(CampaignRecord::try_from).collect()
     }
 
     pub async fn get(&self, owner: &UserId, id: &EvalCampaignId) -> Result<CampaignRecord> {
-        let row = sqlx::query!("SELECT id,owner_id,created_by,policy,status,generation,created_at FROM eval_campaigns WHERE owner_id=$1 AND id=$2", owner.as_str(), id.as_str()).fetch_optional(&self.pool).await?.ok_or_else(|| missing("Campaign unavailable"))?;
-        Ok(CampaignRecord {
-            id: EvalCampaignId::new(row.id),
-            owner_id: UserId::new(row.owner_id),
-            created_by: UserId::new(row.created_by),
-            policy: serde_json::from_value(row.policy)?,
-            status: CampaignStatus::parse(&row.status)?,
-            generation: row.generation,
-            created_at: row.created_at,
-        })
+        let row = sqlx::query_as!(CampaignRow, r#"SELECT id,owner_id,created_by,policy AS "policy: Json<CampaignPolicy>",status,generation,created_at FROM eval_campaigns WHERE owner_id=$1 AND id=$2"#, owner.as_str(), id.as_str()).fetch_optional(&self.pool).await?.ok_or_else(|| missing("Campaign unavailable"))?;
+        CampaignRecord::try_from(row)
     }
 
     pub async fn transition(

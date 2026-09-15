@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id,owner_id,created_by,policy,status,generation,created_at FROM eval_campaigns WHERE owner_id=$1 AND ($2::TEXT IS NULL OR id>$2) ORDER BY id LIMIT 51",
+  "query": "SELECT id,owner_id,created_by,policy AS \"policy: Json<CampaignPolicy>\",status,generation,created_at FROM eval_campaigns WHERE owner_id=$1 AND id=$2",
   "describe": {
     "columns": [
       {
@@ -38,7 +38,7 @@
       },
       {
         "ordinal": 3,
-        "name": "policy",
+        "name": "policy: Json<CampaignPolicy>",
         "type_info": "Jsonb",
         "origin": {
           "Table": {
@@ -97,5 +97,5 @@
       false
     ]
   },
-  "hash": "00f7e44af464af0e1ccdf82a3ada6b7d5d361ebd697d73502c0a3da710b1ab2a"
+  "hash": "f3cbb41bb508afa1029a0f894211c60111090fd8fe2c25e583e3e87beb84b092"
 }
