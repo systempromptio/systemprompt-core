@@ -202,3 +202,8 @@ mod retained_distribution;
 mod authoring_capture;
 #[cfg(test)]
 mod source_sync_regressions;
+
+#[cfg(test)]
+mod managed_authoring_lifecycle;
+#[cfg(test)]
+mod managed_withdrawal_lifecycle;
