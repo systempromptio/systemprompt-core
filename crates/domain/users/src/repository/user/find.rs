@@ -151,3 +151,20 @@ impl UserRepository {
         Ok(row)
     }
 }
+
+impl UserRepository {
+    pub async fn missing_ids(&self, candidates: &[UserId]) -> Result<Vec<UserId>> {
+        let ids: Vec<String> = candidates.iter().map(ToString::to_string).collect();
+        let rows = sqlx::query_scalar!(
+            r#"
+            SELECT candidate AS "candidate!"
+            FROM UNNEST($1::text[]) AS candidate
+            WHERE NOT EXISTS (SELECT 1 FROM users WHERE users.id = candidate)
+            "#,
+            &ids[..]
+        )
+        .fetch_all(&*self.pool)
+        .await?;
+        Ok(rows.into_iter().map(UserId::new).collect())
+    }
+}

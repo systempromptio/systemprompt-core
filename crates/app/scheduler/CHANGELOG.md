@@ -4,6 +4,7 @@
 
 ### Changed
 
+- `database_cleanup` finds orphaned logs by asking the logging repository for the owner ids it has seen and the users repository which of them are gone, instead of one cross-owner `DELETE … NOT IN (SELECT id FROM users)`.
 - `database_cleanup` sweeps only `logs` (orphaned and aged-out rows) through `LoggingRepository`; expired OAuth artifacts are swept by the oauth domain's `oauth_cleanup` job.
 - A failed evaluator workspace cleanup is logged with the path; job-discovery, Vertex lifecycle and process-cleanup messages carry their values as structured fields.
 

@@ -9,6 +9,7 @@
 //! bounds and the definitive assertion is that the seeded row is gone.
 
 use chrono::{Duration, Utc};
+use systemprompt_identifiers::UserId;
 use systemprompt_logging::LoggingRepository;
 use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
 
@@ -98,14 +99,27 @@ async fn orphaned_logs_are_counted_then_removed_for_missing_users() {
     let ghost_user = unique("ghost_user");
     insert_log(&pg, &orphan_id, Some(&ghost_user), 0).await;
 
-    let count = repo.count_orphaned_logs().await.expect("count orphaned");
+    let ghost = UserId::new(&ghost_user);
+    let seen = repo.distinct_log_user_ids().await.expect("log owners");
+    assert!(
+        seen.contains(&ghost),
+        "the ghost owner is reported for the users domain to check"
+    );
+
+    let count = repo
+        .count_logs_for_users(std::slice::from_ref(&ghost))
+        .await
+        .expect("count orphaned");
     assert!(count >= 1);
     assert!(
         log_exists(&pg, &orphan_id).await,
         "counting must not delete"
     );
 
-    let deleted = repo.delete_orphaned_logs().await.expect("delete orphaned");
+    let deleted = repo
+        .delete_logs_for_users(std::slice::from_ref(&ghost))
+        .await
+        .expect("delete orphaned");
     assert!(deleted >= 1);
     assert!(!log_exists(&pg, &orphan_id).await);
 }

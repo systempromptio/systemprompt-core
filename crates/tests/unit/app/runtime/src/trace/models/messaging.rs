@@ -3,7 +3,7 @@
 
 use chrono::Utc;
 use serde_json::json;
-use systemprompt_logging::{ConversationMessage, TaskArtifact, ToolLogEntry};
+use systemprompt_runtime::{ConversationMessage, TaskArtifact, ToolLogEntry};
 
 #[test]
 fn test_conversation_message_creation() {

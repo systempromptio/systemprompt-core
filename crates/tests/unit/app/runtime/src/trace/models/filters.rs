@@ -4,7 +4,7 @@
 //! `LogSearchFilter` — each is a small const-fn builder over an `Option`-bag.
 
 use chrono::{TimeZone, Utc};
-use systemprompt_logging::{
+use systemprompt_runtime::{
     AiRequestFilter, LogSearchFilter, ToolExecutionFilter, TraceListFilter,
 };
 

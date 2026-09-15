@@ -8,10 +8,10 @@
 
 use chrono::{Duration as ChronoDuration, Utc};
 use systemprompt_identifiers::{AiRequestId, TraceId};
-use systemprompt_logging::trace::{
+use systemprompt_runtime::trace::{
     AiRequestFilter, LogSearchFilter, ToolExecutionFilter, TraceListFilter,
 };
-use systemprompt_logging::{AiTraceService, TraceQueryService};
+use systemprompt_runtime::{AiTraceService, TraceQueryService};
 use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
 
 async fn pool_arc_or_skip() -> Option<std::sync::Arc<sqlx::PgPool>> {

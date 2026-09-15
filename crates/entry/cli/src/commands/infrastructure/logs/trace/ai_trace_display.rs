@@ -5,7 +5,8 @@
 
 use anyhow::Result;
 use systemprompt_identifiers::{ContextId, TaskId};
-use systemprompt_logging::{AiTraceService, CliService, TraceEvent};
+use systemprompt_logging::CliService;
+use systemprompt_runtime::{AiTraceService, TraceEvent};
 
 use super::ai_artifacts::print_artifacts;
 use super::ai_display::{
@@ -79,7 +80,7 @@ pub(super) async fn execute_ai_trace(
     Ok(CommandOutput::card_value("AI Trace Details", &output).with_skip_render())
 }
 
-fn ai_summary(ai_requests: &[systemprompt_logging::AiRequestInfo]) -> AiSummaryRow {
+fn ai_summary(ai_requests: &[systemprompt_runtime::AiRequestInfo]) -> AiSummaryRow {
     let total_input_tokens: i64 = ai_requests
         .iter()
         .map(|r| i64::from(r.input_tokens.unwrap_or(0)))
@@ -106,10 +107,10 @@ fn ai_summary(ai_requests: &[systemprompt_logging::AiRequestInfo]) -> AiSummaryR
 
 fn build_trace_output(
     task_id: &TaskId,
-    task_info: &systemprompt_logging::TaskInfo,
-    ai_requests: &[systemprompt_logging::AiRequestInfo],
-    mcp_executions: &[systemprompt_logging::McpToolExecution],
-    steps: &[systemprompt_logging::ExecutionStep],
+    task_info: &systemprompt_runtime::TaskInfo,
+    ai_requests: &[systemprompt_runtime::AiRequestInfo],
+    mcp_executions: &[systemprompt_runtime::McpToolExecution],
+    steps: &[systemprompt_runtime::ExecutionStep],
 ) -> TraceViewOutput {
     let duration_ms = task_info
         .started_at

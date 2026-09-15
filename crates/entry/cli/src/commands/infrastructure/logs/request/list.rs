@@ -6,7 +6,7 @@
 use anyhow::Result;
 use clap::Args;
 use std::sync::Arc;
-use systemprompt_logging::{AiRequestFilter, TraceQueryService};
+use systemprompt_runtime::{AiRequestFilter, TraceQueryService};
 
 use super::{RequestListRow, build_request_list};
 use crate::commands::infrastructure::logs::duration::parse_since;

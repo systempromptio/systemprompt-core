@@ -3,7 +3,7 @@
 
 use chrono::Utc;
 use systemprompt_identifiers::ContextId;
-use systemprompt_logging::{
+use systemprompt_runtime::{
     AiRequestSummary, ExecutionStepSummary, McpExecutionSummary, TraceEvent,
 };
 

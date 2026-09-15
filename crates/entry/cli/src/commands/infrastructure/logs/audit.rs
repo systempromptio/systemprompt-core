@@ -10,7 +10,7 @@ use clap::Args;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{AiRequestId, TaskId, TraceId};
-use systemprompt_logging::TraceQueryService;
+use systemprompt_runtime::TraceQueryService;
 
 use super::types::MessageRow;
 use crate::CliConfig;

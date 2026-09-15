@@ -7,6 +7,7 @@ use async_trait::async_trait;
 use systemprompt_database::DbPool;
 use systemprompt_logging::LoggingRepository;
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderError, ProviderResult};
+use systemprompt_users::UserRepository;
 use tracing::{debug, info};
 
 use crate::error::SchedulerError;
@@ -47,15 +48,32 @@ impl Job for DatabaseCleanupJob {
 
         let logs = LoggingRepository::new(&db_pool)
             .map_err(|e| ProviderError::Configuration(e.to_string()))?;
+        let users = UserRepository::new(&db_pool)
+            .map_err(|e| ProviderError::Configuration(e.to_string()))?;
         let internal =
             |e: systemprompt_logging::models::LoggingError| ProviderError::Internal(e.to_string());
 
+        // Why: `logs` and `users` have different owners, so the orphan set is
+        // computed by asking each: the log owners seen, minus the users that
+        // still exist.
+        let seen = logs.distinct_log_user_ids().await.map_err(internal)?;
+        let orphans = users
+            .missing_ids(&seen)
+            .await
+            .map_err(|e| ProviderError::Internal(e.to_string()))?;
+
         let (orphaned_logs, old_logs) = if ctx.enforce() {
-            let orphaned = logs.delete_orphaned_logs().await.map_err(internal)?;
+            let orphaned = logs
+                .delete_logs_for_users(&orphans)
+                .await
+                .map_err(internal)?;
             let old = logs.cleanup_old_logs(cutoff).await.map_err(internal)?;
             (orphaned, old)
         } else {
-            let orphaned = logs.count_orphaned_logs().await.map_err(internal)?;
+            let orphaned = logs
+                .count_logs_for_users(&orphans)
+                .await
+                .map_err(internal)?;
             let old = logs.count_logs_before(cutoff).await.map_err(internal)?;
             info!(
                 would_delete_orphaned_logs = orphaned,

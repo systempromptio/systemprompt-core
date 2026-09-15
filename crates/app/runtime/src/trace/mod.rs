@@ -34,3 +34,13 @@ pub use models::{
     TraceListFilter, TraceListItem,
 };
 pub use service::TraceQueryService;
+
+/// Why a trace lookup could not be answered.
+#[derive(Debug, thiserror::Error)]
+pub enum TraceError {
+    #[error("Database operation failed")]
+    Database(#[from] sqlx::Error),
+
+    #[error("Task not found: {partial_id}")]
+    TaskNotFound { partial_id: String },
+}

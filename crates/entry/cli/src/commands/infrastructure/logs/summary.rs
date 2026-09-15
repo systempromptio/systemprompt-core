@@ -9,7 +9,7 @@ use clap::Args;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use systemprompt_logging::TraceQueryService;
+use systemprompt_runtime::TraceQueryService;
 
 use super::duration::parse_since;
 use crate::CliConfig;
@@ -123,7 +123,7 @@ pub fn build_logs_summary(output: &LogsSummaryOutput) -> CommandOutput {
     CommandOutput::card_value("Logs Summary", output)
 }
 
-fn build_level_counts(rows: &[systemprompt_logging::LevelCount]) -> LevelCounts {
+fn build_level_counts(rows: &[systemprompt_runtime::LevelCount]) -> LevelCounts {
     let mut counts = LevelCounts {
         error: 0,
         warn: 0,

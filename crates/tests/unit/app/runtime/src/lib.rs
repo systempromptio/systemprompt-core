@@ -59,6 +59,8 @@ mod shutdown_request;
 #[cfg(test)]
 mod startup_validation;
 #[cfg(test)]
+mod trace;
+#[cfg(test)]
 mod validate_database_path;
 #[cfg(test)]
 mod validation;

@@ -6,7 +6,7 @@
 
 use chrono::{Duration as ChronoDuration, Utc};
 use systemprompt_identifiers::{AiRequestId, ContextId, TaskId, TraceId};
-use systemprompt_logging::{AiRequestFilter, AiTraceService, TraceQueryService};
+use systemprompt_runtime::{AiRequestFilter, AiTraceService, TraceQueryService};
 use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
 
 struct AuditSeed {

@@ -16,9 +16,11 @@ use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_identifiers::{AiRequestId, TaskId, TraceId};
 
-use crate::models::{LogEntry, LoggingError};
+use systemprompt_logging::models::LogEntry;
 
-pub(super) type Result<T> = std::result::Result<T, LoggingError>;
+use super::TraceError;
+
+pub(super) type Result<T> = std::result::Result<T, TraceError>;
 
 use super::models::{
     AiRequestDetail, AiRequestFilter, AiRequestListItem, AiRequestStats, AiRequestSummary,

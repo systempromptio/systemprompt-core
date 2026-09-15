@@ -3,8 +3,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::models::LoggingError;
-pub(super) type Result<T> = std::result::Result<T, LoggingError>;
+use super::TraceError;
+pub(super) type Result<T> = std::result::Result<T, TraceError>;
 use serde_json::json;
 use sqlx::PgPool;
 use std::sync::Arc;

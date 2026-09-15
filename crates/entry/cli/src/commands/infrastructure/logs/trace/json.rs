@@ -5,7 +5,7 @@
 
 use crate::shared::CommandOutput;
 use serde_json::Value;
-use systemprompt_logging::{
+use systemprompt_runtime::{
     AiRequestSummary, ExecutionStepSummary, McpExecutionSummary, TraceEvent,
 };
 

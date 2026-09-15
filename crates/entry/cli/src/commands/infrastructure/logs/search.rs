@@ -11,7 +11,8 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use systemprompt_identifiers::TraceId;
-use systemprompt_logging::{CliService, LogSearchItem, ToolExecutionItem, TraceQueryService};
+use systemprompt_logging::CliService;
+use systemprompt_runtime::{LogSearchItem, ToolExecutionItem, TraceQueryService};
 
 use super::duration::parse_since;
 use super::shared::display_log_row;

@@ -4,6 +4,7 @@
 
 ### Added
 
+- `UserRepository::missing_ids(&[UserId])` — which of the given ids no user carries; the scheduler's log-orphan sweep composes it with the logging repository.
 - `UsersRoleDirectory` implements the security crate's `RoleDirectory` over `users.roles` and is registered at link time for authz ingestion's inert-rule report.
 
 ## [0.50.0] - 2026-09-10

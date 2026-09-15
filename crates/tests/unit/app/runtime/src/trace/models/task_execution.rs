@@ -2,7 +2,7 @@
 
 use chrono::Utc;
 use systemprompt_identifiers::ContextId;
-use systemprompt_logging::{AiRequestInfo, ExecutionStep, McpToolExecution, TaskInfo};
+use systemprompt_runtime::{AiRequestInfo, ExecutionStep, McpToolExecution, TaskInfo};
 
 const TEST_CTX: &str = "00000000-0000-4000-8000-000000000001";
 

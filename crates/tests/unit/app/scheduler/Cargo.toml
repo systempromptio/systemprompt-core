@@ -21,6 +21,7 @@ systemprompt-extension = { workspace = true }
 systemprompt-logging = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-oauth = { workspace = true }
+systemprompt-users = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-provider-contracts = { workspace = true }
 systemprompt-traits = { workspace = true }

@@ -9,7 +9,7 @@ use clap::Args;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use systemprompt_logging::TraceQueryService;
+use systemprompt_runtime::TraceQueryService;
 
 use crate::CliConfig;
 use crate::commands::infrastructure::logs::duration::parse_since;

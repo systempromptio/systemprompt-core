@@ -2,7 +2,7 @@
 //! LogTimeRange, LogSearchItem, and the audit/tool linkage rows.
 
 use chrono::Utc;
-use systemprompt_logging::trace::{
+use systemprompt_runtime::trace::{
     AuditLookupResult, AuditToolCallRow, LevelCount, LinkedMcpCall, LogSearchItem, LogTimeRange,
     ModuleCount, ToolExecutionItem,
 };

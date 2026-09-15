@@ -9,8 +9,8 @@
 
 use chrono::{Duration as ChronoDuration, Utc};
 use systemprompt_identifiers::{ContextId, TaskId, TraceId};
-use systemprompt_logging::trace::{ToolExecutionFilter, TraceListFilter};
-use systemprompt_logging::{AiTraceService, TraceQueryService};
+use systemprompt_runtime::trace::{ToolExecutionFilter, TraceListFilter};
+use systemprompt_runtime::{AiTraceService, TraceQueryService};
 use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
 
 struct Seed {

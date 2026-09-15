@@ -15,7 +15,7 @@ use systemprompt_cli::presentation::tables::{
 use systemprompt_identifiers::{
     AiRequestId, ArtifactId, ContextId, ExecutionStepId, McpExecutionId, TaskId,
 };
-use systemprompt_logging::{
+use systemprompt_runtime::{
     AiRequestInfo, ExecutionStep, McpToolExecution, TaskArtifact, TaskInfo, TraceEvent,
 };
 

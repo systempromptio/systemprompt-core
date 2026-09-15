@@ -7,14 +7,13 @@ use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_identifiers::{AiRequestId, ContextId, McpExecutionId, TaskId};
 
-use super::ai_trace_queries;
 use super::models::{
     AiRequestInfo, ConversationMessage, ExecutionStep, McpToolExecution, TaskArtifact, TaskInfo,
     ToolLogEntry,
 };
-use crate::models::LoggingError;
+use super::{TraceError, ai_trace_queries};
 
-pub(super) type Result<T> = std::result::Result<T, LoggingError>;
+pub(super) type Result<T> = std::result::Result<T, TraceError>;
 
 #[derive(Debug, Clone)]
 pub struct AiTraceService {
@@ -30,7 +29,7 @@ impl AiTraceService {
         ai_trace_queries::resolve_task_id(&self.pool, partial_id)
             .await?
             .map(TaskId::new)
-            .ok_or_else(|| LoggingError::TaskNotFound {
+            .ok_or_else(|| TraceError::TaskNotFound {
                 partial_id: partial_id.to_owned(),
             })
     }

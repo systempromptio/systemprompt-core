@@ -753,7 +753,15 @@ mod empty_context_audit_guards {
         repo.cleanup_empty_contexts(1).await.expect("context sweep");
 
         let logs = systemprompt_logging::LoggingRepository::new(&seed.pool).expect("logs repo");
-        logs.delete_orphaned_logs().await.expect("orphaned logs");
+        let seen = logs.distinct_log_user_ids().await.expect("log owners");
+        let orphans = systemprompt_users::UserRepository::new(&seed.pool)
+            .expect("users repo")
+            .missing_ids(&seen)
+            .await
+            .expect("missing owners");
+        logs.delete_logs_for_users(&orphans)
+            .await
+            .expect("orphaned logs");
         logs.cleanup_old_logs(chrono::Utc::now() - chrono::Duration::days(30))
             .await
             .expect("old logs");

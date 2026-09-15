@@ -4,6 +4,8 @@
 
 ### Breaking
 
+- **Breaking:** `LoggingRepository::delete_orphaned_logs`/`count_orphaned_logs` are replaced by `distinct_log_user_ids`, `delete_logs_for_users` and `count_logs_for_users`; the orphan set is computed by the caller against the users domain, so this crate no longer reads `users`.
+- **Breaking:** the `trace` module (`TraceQueryService`, `AiTraceService` and their result types) moves to `systemprompt_runtime::trace`; it compiled SQL over agent, AI and MCP tables that this crate does not own. `LoggingError::TaskNotFound` is no longer raised here.
 - **Breaking:** `LoggingRepository` persists only: `with_terminal`/`with_database` are removed and `log` always writes the `logs` row. The stdout echo that bypassed `tracing` is gone.
 
 ### Added

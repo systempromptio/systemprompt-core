@@ -1,7 +1,7 @@
 //! Tests for AiRequestStats, ProviderStatsRow, ModelStatsRow —
 //! aggregate AI cost/performance rollup types not covered elsewhere.
 
-use systemprompt_logging::trace::{AiRequestStats, ModelStatsRow, ProviderStatsRow};
+use systemprompt_runtime::trace::{AiRequestStats, ModelStatsRow, ProviderStatsRow};
 
 #[test]
 fn ai_request_stats_default_is_zero() {

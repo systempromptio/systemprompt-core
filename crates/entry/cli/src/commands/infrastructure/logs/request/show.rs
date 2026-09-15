@@ -9,7 +9,7 @@ use std::sync::Arc;
 use anyhow::Result;
 use clap::Args;
 use systemprompt_identifiers::AiRequestId;
-use systemprompt_logging::{AiTraceService, TraceQueryService};
+use systemprompt_runtime::{AiTraceService, TraceQueryService};
 
 use super::{
     MessageRow, RequestShowOutput, ToolCallRow, build_request_show, request_show_not_found,
