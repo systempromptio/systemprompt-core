@@ -13,6 +13,7 @@ use crate::services::validation::id_jag::IdJagClaims;
 pub struct IdJagGrant<'a> {
     pub sub: &'a str,
     pub email: Option<&'a str>,
+    pub email_verified: bool,
     pub aud: &'a str,
     pub client_id: &'a ClientId,
     pub resource: Option<&'a str>,
@@ -34,6 +35,7 @@ pub fn mint_id_jag(grant: &IdJagGrant<'_>) -> Result<String> {
         iat: now,
         scope: grant.scope.map(ToOwned::to_owned),
         email: grant.email.map(ToOwned::to_owned),
+        email_verified: grant.email_verified,
         resource: grant.resource.map(ToOwned::to_owned),
     };
     super::encode_id_jag_with_authority(&claims)

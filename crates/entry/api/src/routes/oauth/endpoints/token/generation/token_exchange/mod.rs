@@ -109,7 +109,7 @@ pub async fn handle_token_exchange(
     let config = JwtConfig {
         permissions: final_perms.clone(),
         audience: audience.clone(),
-        expires_in_hours: Some(global.jwt_access_token_expiration / 3600),
+        expires_in: chrono::Duration::seconds(global.jwt_access_token_expiration),
         resource,
         plugin_id: None,
         client_id: Some(client_id.clone()),

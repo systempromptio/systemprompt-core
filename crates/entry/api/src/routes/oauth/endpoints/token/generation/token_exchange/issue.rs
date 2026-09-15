@@ -53,6 +53,7 @@ pub async fn issue_id_jag(
     let id_jag = mint_id_jag(&IdJagGrant {
         sub: &subject.sub,
         email: subject.email.as_deref(),
+        email_verified: subject.email_verified,
         aud,
         client_id,
         resource,

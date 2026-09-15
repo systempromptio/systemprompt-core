@@ -62,7 +62,7 @@ pub(super) fn mint_a2a_token(
     let config = JwtConfig {
         permissions: authed.permissions.clone(),
         audience: vec![JwtAudience::A2a, JwtAudience::Mcp],
-        expires_in_hours: Some(1),
+        expires_in: chrono::Duration::hours(1),
         resource: None,
         plugin_id: None,
         client_id: None,

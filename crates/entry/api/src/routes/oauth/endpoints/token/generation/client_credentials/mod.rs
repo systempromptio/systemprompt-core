@@ -166,7 +166,7 @@ pub async fn generate_client_tokens(
     let config = JwtConfig {
         permissions: permissions.clone(),
         audience,
-        expires_in_hours: Some(global_config.jwt_access_token_expiration / 3600),
+        expires_in: chrono::Duration::seconds(global_config.jwt_access_token_expiration),
         plugin_id: options.plugin_id.map(str::to_owned),
         client_id: Some(client_id.clone()),
         ..Default::default()

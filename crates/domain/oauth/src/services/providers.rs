@@ -98,7 +98,10 @@ impl JwtValidationProvider for JwtValidationProviderImpl {
             } else {
                 audiences
             },
-            expires_in_hours: params.expires_in_hours.map(i64::from),
+            expires_in: params.expires_in_hours.map_or_else(
+                || JwtConfig::default().expires_in,
+                |hours| chrono::Duration::hours(i64::from(hours)),
+            ),
             resource: None,
             plugin_id: None,
             client_id: None,

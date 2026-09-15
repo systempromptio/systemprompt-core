@@ -1,0 +1,146 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT id, name, prompt_body AS \"prompt_body: Json<CanonicalPrompt>\",\n                   source_ai_request_id, expectation,\n                   tags, enabled, created_by, created_at, repair_hint,\n                   prepared_body_sha256\n            FROM eval_cases\n            WHERE enabled = TRUE\n            ORDER BY created_at DESC\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval_cases",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval_cases",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "prompt_body: Json<CanonicalPrompt>",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "eval_cases",
+            "name": "prompt_body"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "source_ai_request_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval_cases",
+            "name": "source_ai_request_id"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "expectation",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval_cases",
+            "name": "expectation"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "tags",
+        "type_info": "TextArray",
+        "origin": {
+          "Table": {
+            "table": "eval_cases",
+            "name": "tags"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "enabled",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "eval_cases",
+            "name": "enabled"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "created_by",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval_cases",
+            "name": "created_by"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "eval_cases",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "repair_hint",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval_cases",
+            "name": "repair_hint"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "prepared_body_sha256",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval_cases",
+            "name": "prepared_body_sha256"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "6912eec5065c750cc56dd2434693efb3713fcdbecf9ce5a468e490c02e47f6ca"
+}

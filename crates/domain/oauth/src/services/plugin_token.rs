@@ -57,7 +57,7 @@ impl PluginTokenService {
         let config = JwtConfig {
             permissions,
             audience: vec![JwtAudience::Hook],
-            expires_in_hours: Some(i64::from(duration_days) * 24),
+            expires_in: chrono::Duration::days(i64::from(duration_days)),
             resource: Some("plugin".to_owned()),
             plugin_id: Some(plugin_id),
             client_id: None,

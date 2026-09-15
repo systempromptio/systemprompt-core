@@ -3,6 +3,7 @@
 mod bridge;
 mod cimd;
 mod cimd_validator;
+mod ema_email_verified;
 mod generation;
 mod http;
 mod jwt;

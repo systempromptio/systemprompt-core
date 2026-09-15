@@ -120,8 +120,8 @@ pub async fn issue_bridge_access(
     let trace_id = TraceId::generate();
     let policy_version = PolicyVersion::unversioned();
 
-    let ttl_hours = i64::try_from((ttl_seconds / 3600).max(1)).unwrap_or(1);
-    let config = build_bridge_jwt_config(&auth_user, ttl_hours);
+    let ttl = ChronoDuration::seconds(i64::try_from(ttl_seconds).unwrap_or(i64::MAX));
+    let config = build_bridge_jwt_config(&auth_user, ttl);
     let signing = JwtSigningParams {
         issuer: &global_config.jwt_issuer,
     };
@@ -170,11 +170,11 @@ pub async fn issue_bridge_access(
     })
 }
 
-fn build_bridge_jwt_config(auth_user: &AuthenticatedUser, ttl_hours: i64) -> JwtConfig {
+fn build_bridge_jwt_config(auth_user: &AuthenticatedUser, ttl: ChronoDuration) -> JwtConfig {
     JwtConfig {
         permissions: auth_user.permissions().to_vec(),
         audience: vec![JwtAudience::Bridge, JwtAudience::Mcp],
-        expires_in_hours: Some(ttl_hours),
+        expires_in: ttl,
         resource: None,
         plugin_id: None,
         client_id: Some(ClientId::bridge()),
