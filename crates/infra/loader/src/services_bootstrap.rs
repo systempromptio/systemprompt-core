@@ -71,10 +71,6 @@ impl ServicesBootstrap {
         }
         let mut services = ConfigLoader::load()?;
         let report = augment(&mut services.providers).await;
-        // Why: the pricing gate in `GatewayConfig::validate` is the only thing
-        // standing between a freshly discovered model and an uncosted request,
-        // so it must run again over the augmented registry, not just over the
-        // YAML that `ConfigLoader::load` already checked.
         services
             .validate()
             .map_err(|e| ConfigLoadError::Validation(e.to_string()))?;

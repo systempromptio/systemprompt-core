@@ -6,6 +6,7 @@
 
 ### Changed
 
+- `/health` reports the relay as `not_started`, `reconnecting` or `stopped` from the bridge handle; shutdown cancels the relay instead of aborting it. Context and webhook routes read the local fan-out counts through `RouteOutcome::into_local_logged`, which warns when the cross-replica relay failed.
 - The gateway and the external-MCP proxy evaluate governance through the `AppContext` engine (`DispatchInputs.governance`) instead of a process global.
 - The cross-replica event bridge always starts (the write pool is no longer optional); request guards deny with `503` when the pool is closed.
 - `GET /bridge/profile` answers 503 and `POST /admin/services/refresh` answers 500 when the secrets store is not initialised, instead of treating every secret as absent.

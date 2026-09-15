@@ -49,6 +49,23 @@ async fn env_source_prefers_file_when_present() {
 }
 
 #[tokio::test]
+async fn env_source_does_not_fall_back_past_a_malformed_secrets_file() {
+    let fx = fixture::write_tree(fixture::ENV_SECRETS, Some("{ not json"));
+    ProfileBootstrap::init_from_path(&fx.profile_path).unwrap();
+    set_base_env();
+
+    let err = SecretsBootstrap::init().await.unwrap_err();
+
+    assert!(
+        matches!(
+            err,
+            ConfigError::Secrets(SecretsBootstrapError::InvalidSecretsFile { .. })
+        ),
+        "a corrupt secrets file must surface, not boot on the environment: {err}"
+    );
+}
+
+#[tokio::test]
 async fn env_source_missing_pepper_errors() {
     let fx = fixture::write_tree(fixture::ENV_SECRETS, None);
     ProfileBootstrap::init_from_path(&fx.profile_path).unwrap();

@@ -147,7 +147,7 @@ async fn test_broadcaster_total_connections_multiple_users() {
 #[tokio::test]
 async fn test_broadcaster_connected_users_empty() {
     let broadcaster: TestBroadcaster = GenericBroadcaster::new();
-    let users = broadcaster.connected_users().await;
+    let users = broadcaster.connected_users();
     assert!(users.is_empty());
 }
 
@@ -160,10 +160,10 @@ async fn test_broadcaster_connected_users_single() {
     broadcaster
         .register(&user_id, &ConnectionId::new("conn-1"), sender)
         .await;
-    let users = broadcaster.connected_users().await;
+    let users = broadcaster.connected_users();
 
     assert_eq!(users.len(), 1);
-    assert!(users.contains(&user_id.to_string()));
+    assert!(users.contains(&user_id));
 }
 
 #[tokio::test]
@@ -180,17 +180,17 @@ async fn test_broadcaster_connected_users_multiple() {
     broadcaster
         .register(&second_user, &ConnectionId::new("conn-2"), s2)
         .await;
-    let connected = broadcaster.connected_users().await;
+    let connected = broadcaster.connected_users();
 
     assert_eq!(connected.len(), 2);
-    assert!(connected.contains(&first_user.to_string()));
-    assert!(connected.contains(&second_user.to_string()));
+    assert!(connected.contains(&first_user));
+    assert!(connected.contains(&second_user));
 }
 
 #[tokio::test]
 async fn test_broadcaster_connection_info_empty() {
     let broadcaster: TestBroadcaster = GenericBroadcaster::new();
-    let (user_count, conn_count) = broadcaster.connection_info().await;
+    let (user_count, conn_count) = broadcaster.connection_info();
     assert_eq!(user_count, 0);
     assert_eq!(conn_count, 0);
 }
@@ -214,7 +214,7 @@ async fn test_broadcaster_connection_info_with_data() {
         .register(&user2, &ConnectionId::new("conn-3"), s3)
         .await;
 
-    let (user_count, conn_count) = broadcaster.connection_info().await;
+    let (user_count, conn_count) = broadcaster.connection_info();
     assert_eq!(user_count, 2);
     assert_eq!(conn_count, 3);
 }

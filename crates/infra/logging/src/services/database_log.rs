@@ -18,9 +18,7 @@ pub struct DatabaseLogService {
 impl DatabaseLogService {
     pub fn new(db_pool: &DbPool) -> Result<Self, LoggingError> {
         Ok(Self {
-            repository: LoggingRepository::new(db_pool)?
-                .with_terminal(false)
-                .with_database(true),
+            repository: LoggingRepository::new(db_pool)?,
         })
     }
 

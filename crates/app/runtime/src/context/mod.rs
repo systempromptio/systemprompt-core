@@ -9,7 +9,6 @@
 
 use std::sync::{Arc, OnceLock};
 
-use tokio::task::JoinHandle;
 
 use systemprompt_agent::repository::A2ARepositories;
 use systemprompt_ai::repository::AiRepositories;
@@ -19,6 +18,7 @@ use systemprompt_config::paths::AppPaths;
 use systemprompt_content::repository::ContentRepositories;
 use systemprompt_database::{DbPool, ServiceRepository};
 use systemprompt_evaluation::repository::experiments::EvaluationRepositories;
+use systemprompt_events::EventBridgeHandle;
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_files::FileRepository;
 use systemprompt_marketplace::MarketplaceFilter;
@@ -91,7 +91,7 @@ pub struct Subsystems {
     pub system_admin: Arc<SystemAdmin>,
     pub authz_hook: SharedAuthzHook,
     pub governance: Arc<GovernanceEngine>,
-    pub event_bridge: Arc<OnceLock<JoinHandle<()>>>,
+    pub event_bridge: Arc<OnceLock<EventBridgeHandle>>,
     pub geoip_reader: Option<GeoIpReader>,
     pub file_storage: Arc<dyn FileStorage>,
     pub shutdown: ShutdownRequest,
@@ -224,7 +224,7 @@ impl AppContext {
         &self.plugins.marketplace_filter
     }
 
-    pub const fn event_bridge(&self) -> &Arc<OnceLock<JoinHandle<()>>> {
+    pub const fn event_bridge(&self) -> &Arc<OnceLock<EventBridgeHandle>> {
         &self.subsystems.event_bridge
     }
 

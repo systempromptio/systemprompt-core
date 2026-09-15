@@ -9,6 +9,19 @@
 ### Migration
 
 - Apply migration 004 before starting the updated relay. Upgrade every relay instance before enabling durable producers: older relays prune by age without considering pending consumers.
+## [0.53.0] - 2026-09-14
+
+### Breaking
+
+- **Breaking:** `GenericBroadcaster::connected_users` returns `Vec<UserId>` and, with `connection_info`, is synchronous; the registry is keyed by `UserId`/`ConnectionId`.
+- **Breaking:** `EventRouter::route_*` return `RouteOutcome { local, relay }` where `relay` is `RelayOutcome::{NotInstalled, Relayed, Failed(RelayError)}`; `into_local_logged()` yields the previous counts and warns on a failed relay. Migrate by reading `.local` or calling `into_local_logged()`.
+- **Breaking:** `PostgresEventBridge::start` returns an `EventBridgeHandle` (`status()` → `RelayStatus::{NotStarted, Listening, Reconnecting, Stopped}`, `shutdown()` cancels and joins the task); the process-global `is_listening()` is removed. Migrate by keeping the handle and asking it.
+
+### Fixed
+
+- `/health` no longer reports a listening relay before the bridge has started.
+- `ConnectionGuard` unregisters synchronously on drop; it no longer spawns onto a runtime that may be gone at shutdown.
+- A slow SSE consumer whose channel is full has its stream closed (so the client reconnects) instead of being silently dropped from fan-out while still receiving heartbeats.
 
 ## [0.48.0] - 2026-09-08
 

@@ -2,6 +2,10 @@
 
 ## [0.53.0] - 2026-09-14
 
+### Breaking
+
+- **Breaking:** `Subsystems.event_bridge` holds an `EventBridgeHandle` instead of a `JoinHandle`; shutdown cancels and joins it.
+
 ### Added
 
 - `AppContext::governance()` / `governance_arc()`; `Subsystems.governance` carries the engine built once from the profile's services root.

@@ -41,12 +41,18 @@ pub(super) async fn load_from_profile_config() -> ConfigResult<Secrets> {
             tracing::debug!("Loading secrets from environment");
             env::load_from_env()
         },
+        // Why: only an absent file may fall through to the environment; a
+        // present-but-malformed or unreadable file is a defect the operator
+        // must see, not a reason to boot on whatever the host carries.
         ResolvedSource::LocalEnvWithFileFallback(path) => {
             tracing::debug!("Profile source is 'env' but running locally, trying file first");
-            file::resolve_and_load_file(path).or_else(|_e| {
-                tracing::debug!("File load failed, falling back to environment");
-                env::load_from_env()
-            })
+            match file::resolve_and_load_file(path) {
+                Err(ConfigError::Secrets(SecretsBootstrapError::FileNotFound { path })) => {
+                    tracing::debug!(path, "No secrets file; falling back to environment");
+                    env::load_from_env()
+                },
+                other => other,
+            }
         },
         ResolvedSource::File(path) => {
             tracing::debug!("Loading secrets from file (profile source: file)");

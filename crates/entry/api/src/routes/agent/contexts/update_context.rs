@@ -50,7 +50,9 @@ pub async fn update_context(
                 Ok(context) => {
                     let event =
                         SystemEventBuilder::context_updated(context_id.clone(), Some(request.name));
-                    EventRouter::route_system(user_id, event).await;
+                    EventRouter::route_system(user_id, event)
+                        .await
+                        .into_local_logged();
 
                     single_response(context)
                 },

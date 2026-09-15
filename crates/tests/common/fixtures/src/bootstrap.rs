@@ -9,7 +9,7 @@ use std::path::PathBuf;
 use std::sync::OnceLock;
 
 use systemprompt_config::paths::AppPaths;
-use systemprompt_config::{init_config_from_profile, ProfileBootstrap, SecretsBootstrap};
+use systemprompt_config::{try_init_config, ProfileBootstrap, SecretsBootstrap};
 use systemprompt_files::FilesConfig;
 use systemprompt_loader::{ConfigLoader, ServicesBootstrap};
 use systemprompt_models::profile::UNRESTRICTED_ACKNOWLEDGEMENT;
@@ -247,7 +247,7 @@ fn init_bootstrap_inner_expecting(
     }
 
     if !Config::is_initialized() {
-        let _ = init_config_from_profile(profile, None);
+        let _ = try_init_config(None);
     }
 
     let app_paths = AppPaths::from_profile(

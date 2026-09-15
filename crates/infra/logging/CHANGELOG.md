@@ -2,6 +2,10 @@
 
 ## [0.53.0] - 2026-09-14
 
+### Breaking
+
+- **Breaking:** `LoggingRepository` persists only: `with_terminal`/`with_database` are removed and `log` always writes the `logs` row. The stdout echo that bypassed `tracing` is gone.
+
 ### Added
 
 - `LoggingRepository::delete_orphaned_logs`/`count_orphaned_logs` (moved from the database crate's `CleanupRepository`).

@@ -130,7 +130,7 @@ async fn test_broadcaster_broadcast_all_failed_senders() {
     let count = broadcaster.broadcast(&user_id, test_event()).await;
     assert_eq!(count, 0);
     assert_eq!(broadcaster.connection_count(&user_id).await, 0);
-    let connected_users = broadcaster.connected_users().await;
+    let connected_users = broadcaster.connected_users();
     assert!(connected_users.is_empty());
 }
 
@@ -210,10 +210,10 @@ async fn test_broadcaster_many_users() {
         receivers.push((user_id, receiver));
     }
 
-    let (users, conns) = broadcaster.connection_info().await;
+    let (users, conns) = broadcaster.connection_info();
     assert_eq!(users, 5);
     assert_eq!(conns, 5);
 
-    let connected = broadcaster.connected_users().await;
+    let connected = broadcaster.connected_users();
     assert_eq!(connected.len(), 5);
 }

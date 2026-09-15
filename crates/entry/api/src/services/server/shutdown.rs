@@ -122,7 +122,7 @@ pub async fn join_within_drain_grace(
 
 pub async fn drain(ctx: &AppContext, scheduler: Option<SchedulerHandle>) {
     if let Some(handle) = ctx.event_bridge().get() {
-        handle.abort();
+        handle.shutdown().await;
     }
 
     if let Some(handle) = scheduler

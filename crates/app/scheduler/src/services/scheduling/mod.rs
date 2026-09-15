@@ -131,8 +131,7 @@ impl SchedulerService {
         let repository = SchedulerRepository::new(&db_pool)?;
         let user_repository = Arc::clone(app_context.user_repository());
         let logging_repository = systemprompt_logging::LoggingRepository::new(&db_pool)
-            .map_err(|e| SchedulerError::Internal(e.to_string()))?
-            .with_database(true);
+            .map_err(|e| SchedulerError::Internal(e.to_string()))?;
         Ok(Self {
             config,
             db_pool,

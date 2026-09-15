@@ -17,13 +17,15 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::time::Duration;
 
 use sqlx::PgPool;
 use sqlx::postgres::PgListener;
-use tokio::task::JoinHandle;
+use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, info, warn};
+
+use super::bridge_handle::{EventBridgeHandle, RelayStatus, StatusCell};
 
 use super::repository::EventOutboxRepository;
 use super::routing::{EventRouter, OUTBOX_CHANNEL, OutboxChannel};
@@ -37,13 +39,6 @@ const RETRY_MAX: Duration = Duration::from_secs(60);
 
 // Why: Postgres rejects LISTEN on a standby with SQLSTATE 25006.
 const READ_ONLY_SQL_TRANSACTION: &str = "25006";
-
-static LISTENING: AtomicBool = AtomicBool::new(true);
-
-#[must_use]
-pub fn is_listening() -> bool {
-    LISTENING.load(Ordering::Relaxed)
-}
 
 fn is_read_only_standby(err: &sqlx::Error) -> bool {
     match err {
@@ -67,11 +62,18 @@ impl PostgresEventBridge {
         }
     }
 
-    pub fn start(self) -> JoinHandle<()> {
+    pub fn start(self) -> EventBridgeHandle {
         EventRouter::install_relay(self.pool.clone(), self.outbox.instance_id().clone());
-        tokio::spawn(async move {
-            self.run().await;
-        })
+        let status = Arc::new(StatusCell::default());
+        let cancel = CancellationToken::new();
+        let task = tokio::spawn({
+            let status = Arc::clone(&status);
+            let cancel = cancel.clone();
+            async move {
+                self.run(&status, cancel).await;
+            }
+        });
+        EventBridgeHandle::new(task, status, cancel)
     }
 
     async fn open_listener(&self) -> Result<PgListener, sqlx::Error> {
@@ -101,44 +103,62 @@ impl PostgresEventBridge {
         }
     }
 
-    async fn run(self) {
+    async fn run(self, status: &StatusCell, cancel: CancellationToken) {
         let mut prune_tick = tokio::time::interval(PRUNE_INTERVAL);
         prune_tick.tick().await;
         let mut backoff = RETRY_MIN;
 
         loop {
+            status.set(RelayStatus::Reconnecting);
             let mut listener = match self.open_listener().await {
                 Ok(listener) => listener,
                 Err(e) => {
-                    LISTENING.store(false, Ordering::Relaxed);
                     Self::report_listener_failure(&e, backoff);
-                    tokio::time::sleep(backoff).await;
+                    tokio::select! {
+                        () = cancel.cancelled() => break,
+                        () = tokio::time::sleep(backoff) => {},
+                    }
                     backoff = (backoff * 2).min(RETRY_MAX);
                     continue;
                 },
             };
             backoff = RETRY_MIN;
-            LISTENING.store(true, Ordering::Relaxed);
+            status.set(RelayStatus::Listening);
             info!(
                 channel = OUTBOX_CHANNEL,
                 "event bridge: listening for cross-replica events"
             );
 
-            loop {
-                tokio::select! {
-                    notification = listener.recv() => match notification {
-                        Ok(notification) => {
-                            self.deliver(notification.payload()).await;
-                        },
-                        Err(e) => {
-                            warn!(error = %e, "event bridge: listener connection lost; reconnecting");
-                            break;
-                        },
+            let keep_going = self.serve(&mut listener, &mut prune_tick, &cancel).await;
+            if !keep_going {
+                break;
+            }
+        }
+        status.set(RelayStatus::Stopped);
+        info!("event bridge: stopped");
+    }
+
+    async fn serve(
+        &self,
+        listener: &mut PgListener,
+        prune_tick: &mut tokio::time::Interval,
+        cancel: &CancellationToken,
+    ) -> bool {
+        loop {
+            tokio::select! {
+                () = cancel.cancelled() => return false,
+                notification = listener.recv() => match notification {
+                    Ok(notification) => {
+                        self.deliver(notification.payload()).await;
                     },
-                    _ = prune_tick.tick() => {
-                        self.prune().await;
+                    Err(e) => {
+                        warn!(error = %e, "event bridge: listener connection lost; reconnecting");
+                        return true;
                     },
-                }
+                },
+                _ = prune_tick.tick() => {
+                    self.prune().await;
+                },
             }
         }
     }

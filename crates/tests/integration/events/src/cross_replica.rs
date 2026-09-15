@@ -17,7 +17,9 @@
 
 use std::time::Duration;
 
-use systemprompt_events::{A2A_BROADCASTER, Broadcaster, EventRouter, PostgresEventBridge};
+use systemprompt_events::{
+    A2A_BROADCASTER, Broadcaster, EventRouter, PostgresEventBridge, RelayOutcome,
+};
 use systemprompt_identifiers::{ConnectionId, ContextId, TaskId, UserId};
 use systemprompt_models::A2AEvent;
 use systemprompt_models::a2a::TaskState;
@@ -61,7 +63,12 @@ async fn event_routed_on_replica_a_reaches_subscriber_on_replica_b() {
     let received = {
         let mut delivered = None;
         for _ in 0..20 {
-            EventRouter::route_a2a(&user, sample_event()).await;
+            let outcome = EventRouter::route_a2a(&user, sample_event()).await;
+            assert!(
+                matches!(outcome.relay, RelayOutcome::Relayed),
+                "replica A must hand the event to the outbox: {:?}",
+                outcome.relay
+            );
 
             match tokio::time::timeout(Duration::from_millis(500), rx.recv()).await {
                 Ok(Some(item)) => {
@@ -76,7 +83,7 @@ async fn event_routed_on_replica_a_reaches_subscriber_on_replica_b() {
     };
 
     A2A_BROADCASTER.unregister(&user, &connection).await;
-    bridge_handle.abort();
+    bridge_handle.shutdown().await;
     let _ = sqlx::query("DELETE FROM event_outbox WHERE user_id = $1")
         .bind(user.as_str())
         .execute(pool.as_ref())
@@ -122,7 +129,12 @@ async fn relayed_event_reaches_only_the_addressed_user() {
 
     let mut delivered = false;
     for _ in 0..20 {
-        EventRouter::route_a2a(&target, sample_event()).await;
+        let outcome = EventRouter::route_a2a(&target, sample_event()).await;
+        assert!(
+            matches!(outcome.relay, RelayOutcome::Relayed),
+            "{:?}",
+            outcome.relay
+        );
         match tokio::time::timeout(Duration::from_millis(500), target_rx.recv()).await {
             Ok(Some(_)) => {
                 delivered = true;
@@ -139,7 +151,7 @@ async fn relayed_event_reaches_only_the_addressed_user() {
     A2A_BROADCASTER
         .unregister(&bystander, &bystander_conn)
         .await;
-    bridge_handle.abort();
+    bridge_handle.shutdown().await;
     let _ = sqlx::query("DELETE FROM event_outbox WHERE user_id = $1")
         .bind(target.as_str())
         .execute(pool.as_ref())

@@ -9,7 +9,7 @@
 # --- core ---
 crates/infra/config/src/bootstrap/profile.rs  # SYSTEMPROMPT_PROFILE boot variable
 crates/infra/config/src/bootstrap/secrets/mod.rs  # deployment-host detection for the secrets bootstrap (SYSTEMPROMPT_* subprocess vars)
-crates/infra/config/src/bootstrap/secrets/loader.rs  # deployment-host / SYSTEMPROMPT_SUBPROCESS detection; Vault credentials from the secrets `env` source
+crates/infra/config/src/bootstrap/secrets/loader.rs  # deployment-host / SYSTEMPROMPT_SUBPROCESS detection; OAUTH_AT_REST_PEPPER presence for `resolve_source`; Vault credentials from the secrets `env` source
 crates/infra/config/src/bootstrap/secrets/sources/env.rs  # the secrets `env` source itself
 crates/infra/config/src/config_loader.rs  # SYSTEMPROMPT_SYSTEM_ADMIN cloud-boot variable; HOSTNAME replica identity when server.instance_id is absent
 crates/infra/loader/src/config_loader/mod.rs  # SYSTEMPROMPT_SERVICES_PATH / SKILLS_PATH / CONFIG_PATH subprocess boot variables

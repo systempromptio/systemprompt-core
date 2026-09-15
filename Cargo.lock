@@ -4825,6 +4825,7 @@ dependencies = [
  "systemprompt-models",
  "thiserror 2.0.19",
  "tokio",
+ "tokio-util",
  "tracing",
 ]
 
@@ -5274,6 +5275,8 @@ dependencies = [
  "systemprompt-models",
  "systemprompt-traits",
  "tokio",
+ "tracing",
+ "uuid",
 ]
 
 [[package]]

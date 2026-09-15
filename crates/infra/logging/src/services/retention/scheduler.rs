@@ -21,9 +21,7 @@ impl RetentionScheduler {
     pub fn new(config: RetentionConfig, db_pool: &DbPool) -> Result<Self, LoggingError> {
         Ok(Self {
             config,
-            repo: LoggingRepository::new(db_pool)?
-                .with_database(true)
-                .with_terminal(false),
+            repo: LoggingRepository::new(db_pool)?,
         })
     }
 

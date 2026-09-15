@@ -166,10 +166,7 @@ async fn log_with_database_persists_then_fetch_by_id() {
     let Some(db) = pool_or_skip().await else {
         return;
     };
-    let repo = LoggingRepository::new(&db)
-        .unwrap()
-        .with_terminal(false)
-        .with_database(true);
+    let repo = LoggingRepository::new(&db).unwrap();
     let actor = make_actor("persist");
     let entry = make_entry("repo-test", "persisted row", &actor);
     let id = entry.id.clone();
@@ -186,30 +183,11 @@ async fn log_with_database_persists_then_fetch_by_id() {
 }
 
 #[tokio::test]
-async fn log_terminal_only_does_not_persist() {
-    let Some(db) = pool_or_skip().await else {
-        return;
-    };
-    let repo = LoggingRepository::new(&db)
-        .unwrap()
-        .with_terminal(false)
-        .with_database(false);
-    let actor = make_actor("terminal");
-    let entry = make_entry("term-only", "msg", &actor);
-    let id = entry.id.clone();
-    repo.log(entry).await.unwrap();
-    assert!(repo.get_by_id(&id).await.unwrap().is_none());
-}
-
-#[tokio::test]
 async fn log_rejects_invalid_entry() {
     let Some(db) = pool_or_skip().await else {
         return;
     };
-    let repo = LoggingRepository::new(&db)
-        .unwrap()
-        .with_terminal(false)
-        .with_database(true);
+    let repo = LoggingRepository::new(&db).unwrap();
     let actor = make_actor("invalid");
     let mut bad = make_entry("ok-mod", "ok-msg", &actor);
     bad.module = String::new();
@@ -222,10 +200,7 @@ async fn get_recent_logs_returns_inserted_rows() {
     let Some(db) = pool_or_skip().await else {
         return;
     };
-    let repo = LoggingRepository::new(&db)
-        .unwrap()
-        .with_terminal(false)
-        .with_database(true);
+    let repo = LoggingRepository::new(&db).unwrap();
 
     let actor = make_actor("recent");
     let mut ids = Vec::new();
@@ -248,10 +223,7 @@ async fn get_logs_paginated_with_filter() {
     let Some(db) = pool_or_skip().await else {
         return;
     };
-    let repo = LoggingRepository::new(&db)
-        .unwrap()
-        .with_terminal(false)
-        .with_database(true);
+    let repo = LoggingRepository::new(&db).unwrap();
 
     let actor = make_actor("paginated");
     let mut ids = Vec::new();
@@ -282,10 +254,7 @@ async fn get_logs_by_module_patterns() {
     let Some(db) = pool_or_skip().await else {
         return;
     };
-    let repo = LoggingRepository::new(&db)
-        .unwrap()
-        .with_terminal(false)
-        .with_database(true);
+    let repo = LoggingRepository::new(&db).unwrap();
 
     let actor = make_actor("by-mod");
     let e = make_entry("module-pattern-test", "pat", &actor);
@@ -306,10 +275,7 @@ async fn update_log_entry_updates_message() {
     let Some(db) = pool_or_skip().await else {
         return;
     };
-    let repo = LoggingRepository::new(&db)
-        .unwrap()
-        .with_terminal(false)
-        .with_database(true);
+    let repo = LoggingRepository::new(&db).unwrap();
 
     let actor = make_actor("update");
     let mut e = make_entry("update-mod", "old", &actor);
@@ -330,10 +296,7 @@ async fn cleanup_old_logs_removes_old_rows() {
     let Some(db) = pool_or_skip().await else {
         return;
     };
-    let repo = LoggingRepository::new(&db)
-        .unwrap()
-        .with_terminal(false)
-        .with_database(true);
+    let repo = LoggingRepository::new(&db).unwrap();
 
     let actor = make_actor("cleanup");
     let mut e = make_entry("cleanup-mod", "old-msg", &actor);

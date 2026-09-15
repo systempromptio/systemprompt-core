@@ -236,7 +236,7 @@ async fn try_init_is_idempotent() {
         err,
         ConfigError::Secrets(SecretsBootstrapError::AlreadyInitialized)
     ));
-    assert!(std::ptr::eq(SecretsBootstrap::require().unwrap(), first));
+    assert!(std::ptr::eq(SecretsBootstrap::get().unwrap(), first));
 }
 
 #[tokio::test]

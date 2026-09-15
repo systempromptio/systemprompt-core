@@ -49,7 +49,7 @@ pub type EventSender = Sender<Result<Event, std::convert::Infallible>>;
 
 pub const SSE_BUFFER: usize = 1024;
 
-pub use error::{EventError, EventResult};
+pub use error::{EventError, EventResult, RelayError, RelayOutcome, RouteOutcome};
 pub use sse::ToSse;
 
 pub trait Broadcaster: Send + Sync {
@@ -79,7 +79,7 @@ pub trait Broadcaster: Send + Sync {
 pub use extension::EventsExtension;
 pub use services::{
     A2A_BROADCASTER, A2ABroadcaster, AGUI_BROADCASTER, ANALYTICS_BROADCASTER, AgUiBroadcaster,
-    AnalyticsBroadcaster, CONTEXT_BROADCASTER, ConnectionGuard, ContextBroadcaster, EventRouter,
-    GenericBroadcaster, HEARTBEAT_INTERVAL, HEARTBEAT_JSON, OUTBOX_CHANNEL, OutboxChannel,
-    PostgresEventBridge, is_listening, standard_keep_alive,
+    AnalyticsBroadcaster, CONTEXT_BROADCASTER, ConnectionGuard, ContextBroadcaster,
+    EventBridgeHandle, EventRouter, GenericBroadcaster, HEARTBEAT_INTERVAL, HEARTBEAT_JSON,
+    OUTBOX_CHANNEL, OutboxChannel, PostgresEventBridge, RelayStatus, standard_keep_alive,
 };

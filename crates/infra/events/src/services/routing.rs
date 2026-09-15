@@ -26,11 +26,12 @@
 
 use std::sync::{LazyLock, OnceLock};
 use systemprompt_identifiers::{EventOutboxId, InstanceId, UserId};
-use tracing::{debug, error};
+use tracing::debug;
 
 use super::repository::EventOutboxRepository;
 use super::{A2ABroadcaster, AgUiBroadcaster, AnalyticsBroadcaster, ContextBroadcaster};
 use crate::Broadcaster;
+use crate::error::{RelayError, RelayOutcome, RouteOutcome};
 use systemprompt_identifiers::Actor;
 use systemprompt_models::{A2AEvent, AgUiEvent, AnalyticsEvent, ContextEvent, SystemEvent};
 
@@ -93,26 +94,35 @@ impl EventRouter {
         channel: OutboxChannel,
         user_id: &UserId,
         event: &T,
-    ) {
+    ) -> RelayOutcome {
         let Some(repo) = OUTBOX_REPO.get() else {
-            return;
+            return RelayOutcome::NotInstalled;
         };
-        let payload = match serde_json::to_value(event) {
-            Ok(value) => value,
-            Err(e) => {
-                error!(error = %e, channel = channel.as_str(), "failed to serialize event for outbox");
-                return;
-            },
-        };
+        match Self::relay(repo, channel, user_id, event).await {
+            Ok(()) => RelayOutcome::Relayed,
+            Err(error) => RelayOutcome::Failed(error),
+        }
+    }
+
+    async fn relay<T: serde::Serialize + Sync>(
+        repo: &EventOutboxRepository,
+        channel: OutboxChannel,
+        user_id: &UserId,
+        event: &T,
+    ) -> Result<(), RelayError> {
+        let payload = serde_json::to_value(event).map_err(|source| RelayError::Serialize {
+            channel: channel.as_str(),
+            source,
+        })?;
         let id = EventOutboxId::generate();
         let actor = Actor::user(user_id.clone());
-        if let Err(e) = repo.insert(&id, channel, &actor, &payload).await {
-            error!(error = %e, channel = channel.as_str(), "failed to persist outbox row");
-            return;
-        }
-        if let Err(e) = repo.notify(&id).await {
-            error!(error = %e, "failed to NOTIFY cross-replica relay");
-        }
+        repo.insert(&id, channel, &actor, &payload)
+            .await
+            .map_err(|source| RelayError::Persist {
+                channel: channel.as_str(),
+                source,
+            })?;
+        repo.notify(&id).await.map_err(RelayError::Notify)
     }
 
     pub async fn route_agui_local(user_id: &UserId, event: AgUiEvent) -> (usize, usize) {
@@ -147,23 +157,27 @@ impl EventRouter {
         ANALYTICS_BROADCASTER.broadcast(user_id, event).await
     }
 
-    pub async fn route_agui(user_id: &UserId, event: AgUiEvent) -> (usize, usize) {
-        Self::enqueue_outbox(OutboxChannel::AgUi, user_id, &event).await;
-        Self::route_agui_local(user_id, event).await
+    pub async fn route_agui(user_id: &UserId, event: AgUiEvent) -> RouteOutcome<(usize, usize)> {
+        let relay = Self::enqueue_outbox(OutboxChannel::AgUi, user_id, &event).await;
+        let local = Self::route_agui_local(user_id, event).await;
+        RouteOutcome { local, relay }
     }
 
-    pub async fn route_a2a(user_id: &UserId, event: A2AEvent) -> (usize, usize) {
-        Self::enqueue_outbox(OutboxChannel::A2A, user_id, &event).await;
-        Self::route_a2a_local(user_id, event).await
+    pub async fn route_a2a(user_id: &UserId, event: A2AEvent) -> RouteOutcome<(usize, usize)> {
+        let relay = Self::enqueue_outbox(OutboxChannel::A2A, user_id, &event).await;
+        let local = Self::route_a2a_local(user_id, event).await;
+        RouteOutcome { local, relay }
     }
 
-    pub async fn route_system(user_id: &UserId, event: SystemEvent) -> usize {
-        Self::enqueue_outbox(OutboxChannel::System, user_id, &event).await;
-        Self::route_system_local(user_id, event).await
+    pub async fn route_system(user_id: &UserId, event: SystemEvent) -> RouteOutcome<usize> {
+        let relay = Self::enqueue_outbox(OutboxChannel::System, user_id, &event).await;
+        let local = Self::route_system_local(user_id, event).await;
+        RouteOutcome { local, relay }
     }
 
-    pub async fn route_analytics(user_id: &UserId, event: AnalyticsEvent) -> usize {
-        Self::enqueue_outbox(OutboxChannel::Analytics, user_id, &event).await;
-        Self::route_analytics_local(user_id, event).await
+    pub async fn route_analytics(user_id: &UserId, event: AnalyticsEvent) -> RouteOutcome<usize> {
+        let relay = Self::enqueue_outbox(OutboxChannel::Analytics, user_id, &event).await;
+        let local = Self::route_analytics_local(user_id, event).await;
+        RouteOutcome { local, relay }
     }
 }

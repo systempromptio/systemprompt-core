@@ -46,7 +46,9 @@ async fn install_relay_second_call_is_ignored_and_routing_persists_one_row() {
         pool.clone(),
         systemprompt_identifiers::InstanceId::new("origin"),
     );
-    EventRouter::route_analytics(&user, AnalyticsEventBuilder::heartbeat()).await;
+    EventRouter::route_analytics(&user, AnalyticsEventBuilder::heartbeat())
+        .await
+        .into_local_logged();
 
     let count: (i64,) = sqlx::query_as("SELECT count(*) FROM event_outbox WHERE user_id = $1")
         .bind(user.as_str())
@@ -76,7 +78,9 @@ async fn outbox_insert_failure_does_not_block_local_delivery() {
     let (tx, mut rx) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
     ANALYTICS_BROADCASTER.register(&user, &conn, tx).await;
 
-    let count = EventRouter::route_analytics(&user, AnalyticsEventBuilder::heartbeat()).await;
+    let count = EventRouter::route_analytics(&user, AnalyticsEventBuilder::heartbeat())
+        .await
+        .into_local_logged();
 
     ANALYTICS_BROADCASTER.unregister(&user, &conn).await;
 

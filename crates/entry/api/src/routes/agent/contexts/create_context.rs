@@ -54,7 +54,9 @@ pub async fn create_context(
                         context.context_id.clone(),
                         context.name.clone(),
                     );
-                    EventRouter::route_system(user_id, event).await;
+                    EventRouter::route_system(user_id, event)
+                        .await
+                        .into_local_logged();
 
                     single_response_created(context)
                 },

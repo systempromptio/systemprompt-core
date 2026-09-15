@@ -46,27 +46,20 @@ pub fn resolve_source(
         };
     };
 
-    if matches!(config.source, SecretsSource::Vault) {
-        return config
+    match config.source {
+        SecretsSource::Vault => config
             .vault
             .as_ref()
             .map(ResolvedSource::Vault)
-            .ok_or(SecretsBootstrapError::VaultBlockMissing);
-    }
-
-    if is_deployment_host
-        && (has_valid_pepper_in_env || matches!(config.source, SecretsSource::Env))
-    {
-        return Ok(ResolvedSource::DeploymentHostEnv);
-    }
-
-    match config.source {
+            .ok_or(SecretsBootstrapError::VaultBlockMissing),
+        SecretsSource::Env if is_deployment_host => Ok(ResolvedSource::DeploymentHostEnv),
+        SecretsSource::File if is_deployment_host && has_valid_pepper_in_env => {
+            Ok(ResolvedSource::DeploymentHostEnv)
+        },
         SecretsSource::Env => Ok(ResolvedSource::LocalEnvWithFileFallback(configured_path(
             config,
         )?)),
-        SecretsSource::File | SecretsSource::Vault => {
-            Ok(ResolvedSource::File(configured_path(config)?))
-        },
+        SecretsSource::File => Ok(ResolvedSource::File(configured_path(config)?)),
     }
 }
 

@@ -90,7 +90,9 @@ pub(super) async fn broadcast_notification(
                 }),
             }));
 
-            let (agui, ctx) = EventRouter::route_agui(user_id, event).await;
+            let (agui, ctx) = EventRouter::route_agui(user_id, event)
+                .await
+                .into_local_logged();
             total_broadcasts += agui + ctx;
         },
         "notifications/artifactCreated" => {
@@ -103,7 +105,9 @@ pub(super) async fn broadcast_notification(
                 }),
             }));
 
-            let (agui, ctx) = EventRouter::route_agui(user_id, event).await;
+            let (agui, ctx) = EventRouter::route_agui(user_id, event)
+                .await
+                .into_local_logged();
             total_broadcasts += agui + ctx;
         },
         "notifications/messageAdded" => {
@@ -116,7 +120,9 @@ pub(super) async fn broadcast_notification(
                 }),
             }));
 
-            let (agui, ctx) = EventRouter::route_agui(user_id, event).await;
+            let (agui, ctx) = EventRouter::route_agui(user_id, event)
+                .await
+                .into_local_logged();
             total_broadcasts += agui + ctx;
         },
         _ => {},
