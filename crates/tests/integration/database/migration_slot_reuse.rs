@@ -291,3 +291,6 @@ async fn a_fresh_database_stamps_real_migrations_but_not_tombstones() {
         "a tombstone has no SQL, so a fresh database records nothing for its slot"
     );
 }
+
+#[path = "migration_checksum_transition.rs"]
+mod checksum_transition;

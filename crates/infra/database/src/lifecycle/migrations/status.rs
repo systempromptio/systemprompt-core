@@ -168,7 +168,7 @@ impl MigrationService<'_> {
                         stored_name: row.name.clone(),
                         current_name: m.name.clone(),
                     });
-                } else if row.checksum != current_checksum {
+                } else if !super::checksum_transition::matches_checksum(m, &row.checksum) {
                     drift.push(ChecksumDrift {
                         extension_id: ext_id.to_owned(),
                         version: m.version,
