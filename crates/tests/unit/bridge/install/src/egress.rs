@@ -96,7 +96,8 @@ fn macos_payloads_omit_egress_key_by_default() {
     unsafe {
         std::env::remove_var(ENV);
     }
-    let hosts = systemprompt_bridge::install::cowork_egress_allowed_hosts(None);
+    let hosts = systemprompt_bridge::install::cowork_egress_allowed_hosts(None)
+        .expect("the egress setting parses");
     let inputs = mdm_inputs(hosts.as_deref());
     let plist =
         systemprompt_bridge::install::build_macos_prefs_plist(&inputs, "https://gateway.example")
@@ -124,7 +125,8 @@ fn macos_payloads_render_array_when_opted_in() {
     unsafe {
         std::env::set_var(ENV, "loopback");
     }
-    let hosts = systemprompt_bridge::install::cowork_egress_allowed_hosts(None);
+    let hosts = systemprompt_bridge::install::cowork_egress_allowed_hosts(None)
+        .expect("the egress setting parses");
     let inputs = mdm_inputs(hosts.as_deref());
     let plist =
         systemprompt_bridge::install::build_macos_prefs_plist(&inputs, "https://gateway.example")
