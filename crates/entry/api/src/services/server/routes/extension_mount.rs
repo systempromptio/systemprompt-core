@@ -1,9 +1,14 @@
 //! Mounts extension-provided routers onto the server router.
 //!
+//! Every extension router receives the process's one governance engine as
+//! an axum extension: an extension that enforces policy (the MCP governance
+//! webhook, say) must charge the same rate-limiter budget as the gateway, and
+//! the only way it can reach that engine is to be handed it here.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use axum::Router;
+use axum::{Extension, Router};
 use systemprompt_extension::LoaderError;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{StartupEvent, StartupEventSender};
@@ -55,7 +60,8 @@ pub(super) fn mount_extension_routes(
                 .with_auth(user_middleware.clone(), AuthzPolicy::user())
         } else {
             ext_router_config.router
-        };
+        }
+        .layer(Extension(ctx.governance_arc()));
 
         if let Some(frame_options) = ext_router_config.frame_options {
             tracing::debug!(
