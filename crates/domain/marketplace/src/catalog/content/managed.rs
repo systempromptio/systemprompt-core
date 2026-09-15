@@ -11,7 +11,7 @@ use systemprompt_identifiers::UserId;
 impl CatalogContent {
     pub async fn with_managed_skills(
         mut self,
-        repository: crate::managed::ManagedRepository,
+        repository: ManagedRepository,
         owner: &UserId,
     ) -> Result<Self, MarketplaceError> {
         let resolver = crate::managed::ManagedResourceResolver::new(repository.clone());
@@ -51,11 +51,11 @@ impl CatalogContent {
                 }
             }
             if i64::try_from(page_len).unwrap_or(i64::MAX)
-                < crate::managed::ManagedRepository::PAGE_SIZE
+                < ManagedRepository::PAGE_SIZE
             {
                 break;
             }
-            offset += crate::managed::ManagedRepository::PAGE_SIZE;
+            offset += ManagedRepository::PAGE_SIZE;
         }
         self.skills
             .sort_by(|left, right| left.id.as_str().cmp(right.id.as_str()));
