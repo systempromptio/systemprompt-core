@@ -25,6 +25,7 @@ pub struct ResolvedManagedSkill {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum WithheldReason {
     NeverAdopted,
+    NotGranted,
     Withdrawn,
 }
 
@@ -32,6 +33,7 @@ impl WithheldReason {
     #[must_use]
     pub const fn as_str(self) -> &'static str {
         match self {
+            Self::NotGranted => "not granted",
             Self::NeverAdopted => "never adopted",
             Self::Withdrawn => "withdrawn",
         }

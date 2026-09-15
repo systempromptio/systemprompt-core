@@ -189,3 +189,5 @@ mod api_operations;
 
 #[cfg(test)]
 mod api_consumer_status;
+
+mod organization_resolution;

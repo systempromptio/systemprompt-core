@@ -62,3 +62,6 @@ pub(crate) use systemprompt_models::managed::validate_path as validate_inventory
 pub(crate) use tree::capture_inventory_files;
 
 pub mod operations;
+
+mod organization_resolver;
+pub use organization_resolver::OrganizationSkillResolver;
