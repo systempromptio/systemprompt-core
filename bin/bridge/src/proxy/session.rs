@@ -25,6 +25,7 @@ pub struct SessionContext {
     contexts: Mutex<HashMap<u64, CachedContext>>,
     tick: AtomicU64,
     last_activity_unix_ms: AtomicI64,
+    native_sessions: crate::feedback::sessions::NativeSessionLedger,
 }
 
 impl Default for SessionContext {
@@ -41,7 +42,13 @@ impl SessionContext {
             contexts: Mutex::new(HashMap::with_capacity(64)),
             tick: AtomicU64::new(0),
             last_activity_unix_ms: AtomicI64::new(0),
+            native_sessions: crate::feedback::sessions::NativeSessionLedger::default(),
         }
+    }
+
+    #[must_use]
+    pub const fn native_sessions(&self) -> &crate::feedback::sessions::NativeSessionLedger {
+        &self.native_sessions
     }
 
     #[must_use]

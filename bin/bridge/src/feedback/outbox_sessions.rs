@@ -16,12 +16,15 @@ impl Outbox {
         if session.is_empty() || session.len() > 512 {
             return Err(FeedbackError::Scope);
         }
+        let session_key = serde_json::to_string(&(host, session))?;
+        if self.read_locked(|state| Ok(state.sessions.contains_key(&session_key)))? {
+            return Ok(());
+        }
         self.mutate(|state| {
-            compact_completed(state)?;
-            let session_key = serde_json::to_string(&(host, session))?;
             if state.sessions.contains_key(&session_key) {
                 return Ok(());
             }
+            compact_completed(state)?;
             if state.sessions.len() >= 1024 {
                 let old = state
                     .completed_sessions
@@ -107,12 +110,23 @@ impl Outbox {
     ) -> Result<()> {
         self.mutate(|state| {
             let entry = state.entries.get_mut(key).ok_or(FeedbackError::Scope)?;
-            if !matches!(&entry.delivery,Delivery::Acknowledged(response) if &response.receipt_id == receipt && response.fully_verified) { return Err(FeedbackError::Scope); }
+            let verified = match &entry.delivery {
+                Delivery::Acknowledged(response) => {
+                    &response.receipt_id == receipt && response.fully_verified
+                },
+                _ => false,
+            };
+            if !verified {
+                return Err(FeedbackError::Scope);
+            }
             let session_key = serde_json::to_string(&(entry.request.host, session))?;
             if state.completed_sessions.contains(&session_key) {
                 return Ok(());
             }
-            let bound = entry.session_bindings.get_mut(session).ok_or(FeedbackError::Scope)?;
+            let bound = entry
+                .session_bindings
+                .get_mut(session)
+                .ok_or(FeedbackError::Scope)?;
             *bound = true;
             compact_completed(state)?;
             Ok(())

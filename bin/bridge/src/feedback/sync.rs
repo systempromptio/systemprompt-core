@@ -36,15 +36,12 @@ pub async fn deliver(enrollment: &Enrollment, outbox: &Outbox) -> Result<()> {
             Delivery::Acknowledged(response) => {
                 response.fully_verified && entry.session_bindings.values().any(|bound| !bound)
             },
-            Delivery::Conflict => false,
+            Delivery::Conflict | Delivery::Rejected(_) => false,
         })
         .take(64)
     {
         let response = match entry.delivery {
-            Delivery::Conflict => {
-                failure = Some(FeedbackError::Rejected(409));
-                continue;
-            },
+            Delivery::Conflict | Delivery::Rejected(_) => continue,
             Delivery::CredentialRejected | Delivery::Unacknowledged => {
                 if entry.next_attempt > chrono::Utc::now() {
                     continue;

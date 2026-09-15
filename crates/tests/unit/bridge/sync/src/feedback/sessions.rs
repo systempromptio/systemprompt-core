@@ -193,3 +193,128 @@ fn forwarded_hook_uses_protected_device_credential_and_strips_caller_credential(
         assert!(!headers.contains_key("x-systemprompt-device-credential"));
     });
 }
+
+fn snapshot(path: &std::path::Path) -> (Vec<u8>, std::time::SystemTime) {
+    (
+        std::fs::read(path).unwrap(),
+        std::fs::metadata(path).unwrap().modified().unwrap(),
+    )
+}
+
+#[test]
+fn a_repeated_session_and_every_read_leave_the_outbox_file_untouched() {
+    let (dir, receipt) = prepared(EvaluatorClient::Codex);
+    let path = dir.path().join("outbox.json");
+    let outbox = Outbox::new(path.clone(), scope("device"));
+    outbox.enqueue(receipt).unwrap();
+    outbox
+        .queue_session(EvaluatorClient::Codex, "session")
+        .unwrap();
+    let before = snapshot(&path);
+    std::thread::sleep(std::time::Duration::from_millis(20));
+    outbox
+        .queue_session(EvaluatorClient::Codex, "session")
+        .unwrap();
+    assert_eq!(
+        snapshot(&path),
+        before,
+        "a session already recorded is answered without a write"
+    );
+    outbox.entries().unwrap();
+    outbox.pending_installations().unwrap();
+    assert_eq!(snapshot(&path), before, "reads never rewrite the outbox");
+}
+
+#[test]
+fn observed_sessions_are_deduplicated_in_memory_and_written_only_by_flush() {
+    let dir = tempfile::tempdir().unwrap();
+    temp_env::with_var("XDG_STATE_HOME", Some(dir.path()), || {
+        let root = systemprompt_bridge::feedback::metadata_root().unwrap();
+        let enrollment = Enrollment::new(
+            "https://example.invalid",
+            DeviceId::try_new("device").expect("nonempty fixture device"),
+            UserId::new("consumer"),
+            systemprompt_bridge::ids::BearerToken::new("sp_device_private"),
+        )
+        .unwrap();
+        std::fs::create_dir_all(&root).unwrap();
+        enrollment.save(&root).unwrap();
+        let path = enrollment.outbox_path(&root);
+
+        let ledger = systemprompt_bridge::feedback::sessions::NativeSessionLedger::default();
+        let mut headers = http::HeaderMap::new();
+        headers.insert("user-agent", "codex_cli_rs/1.0".parse().unwrap());
+        headers.insert("session-id", "native-session".parse().unwrap());
+        ledger.observe(&headers, b"{}").unwrap();
+        ledger.observe(&headers, b"{}").unwrap();
+        assert_eq!(ledger.unflushed(), 1);
+        assert!(!path.exists(), "observation is not a write");
+
+        ledger.flush("https://example.invalid").unwrap();
+        assert_eq!(ledger.unflushed(), 0);
+        let before = snapshot(&path);
+        std::thread::sleep(std::time::Duration::from_millis(20));
+
+        ledger.observe(&headers, b"{}").unwrap();
+        ledger.flush("https://example.invalid").unwrap();
+        assert_eq!(
+            snapshot(&path),
+            before,
+            "a second observation of the same session does not rewrite the file"
+        );
+        assert!(matches!(
+            ledger.flush("https://other.invalid"),
+            Ok(()) | Err(FeedbackError::Scope)
+        ));
+    });
+}
+
+#[test]
+fn a_flush_that_cannot_reach_the_outbox_keeps_the_session_for_the_next_tick() {
+    let dir = tempfile::tempdir().unwrap();
+    temp_env::with_var("XDG_STATE_HOME", Some(dir.path()), || {
+        let ledger = systemprompt_bridge::feedback::sessions::NativeSessionLedger::default();
+        let mut headers = http::HeaderMap::new();
+        headers.insert("user-agent", "codex_cli_rs/1.0".parse().unwrap());
+        headers.insert("session-id", "native-session".parse().unwrap());
+        ledger.observe(&headers, b"{}").unwrap();
+        assert!(matches!(
+            ledger.flush("https://example.invalid"),
+            Err(FeedbackError::EnrollmentRequired)
+        ));
+        assert_eq!(ledger.unflushed(), 1);
+    });
+}
+
+#[test]
+fn a_non_retryable_rejection_is_terminal_and_evictable() {
+    let (dir, receipt) = prepared(EvaluatorClient::Codex);
+    let outbox = Outbox::new(dir.path().join("outbox.json"), scope("device"));
+    let key = outbox.enqueue(receipt.clone()).unwrap();
+    outbox.delivery(&key, Err(422)).unwrap();
+    let (_, entry) = outbox.entries().unwrap().into_iter().next().unwrap();
+    assert!(matches!(entry.delivery, Delivery::Rejected(422)));
+    outbox.delivery(&key, Err(500)).unwrap();
+    let (_, entry) = outbox.entries().unwrap().into_iter().next().unwrap();
+    assert!(matches!(entry.delivery, Delivery::Unacknowledged));
+    outbox.delivery(&key, Err(404)).unwrap();
+    for generation in 2..=512 {
+        let mut next = receipt.clone();
+        next.generation = generation;
+        next.publication_id = PublicationId::new(format!("p-{generation}"));
+        outbox.enqueue(next).unwrap();
+    }
+    let mut overflow = receipt;
+    overflow.generation = 513;
+    overflow.publication_id = PublicationId::new("overflow");
+    outbox
+        .enqueue(overflow)
+        .expect("a rejected receipt is evicted to make room");
+    assert!(
+        outbox
+            .entries()
+            .unwrap()
+            .iter()
+            .all(|(_, entry)| !matches!(entry.delivery, Delivery::Rejected(_)))
+    );
+}

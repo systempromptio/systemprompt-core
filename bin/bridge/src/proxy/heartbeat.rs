@@ -49,9 +49,7 @@ pub async fn run_loop(
     loop {
         interval.tick().await;
         let cfg = runtime_config.load_full();
-        if let Err(error) = crate::feedback::retry_pending(cfg.gateway_base.as_str()).await {
-            tracing::debug!(%error,"Installation feedback retry remains pending");
-        }
+        flush_feedback(cfg.gateway_base.as_str(), Arc::clone(&session)).await;
         if token_cache.sign_in_required() {
             if !waiting_for_sign_in {
                 tracing::warn!("bridge heartbeat paused until the user signs in");
@@ -71,6 +69,25 @@ pub async fn run_loop(
         {
             tracing::warn!(error = %err, "bridge heartbeat tick failed");
         }
+    }
+}
+
+async fn flush_feedback(gateway: &str, session: Arc<SessionContext>) {
+    let gateway_for_flush = gateway.to_owned();
+    let flushed =
+        tokio::task::spawn_blocking(move || session.native_sessions().flush(&gateway_for_flush))
+            .await
+            .map_err(|error| crate::feedback::FeedbackError::Io(std::io::Error::other(error)))
+            .and_then(|result| result);
+    report_feedback(flushed, "Native session bindings remain unqueued");
+    let retried = crate::feedback::retry_pending(gateway).await;
+    report_feedback(retried, "Installation feedback retry remains pending");
+}
+
+fn report_feedback(result: crate::feedback::Result<()>, message: &'static str) {
+    match result {
+        Ok(()) | Err(crate::feedback::FeedbackError::EnrollmentRequired) => {},
+        Err(error) => tracing::warn!(%error, "{message}"),
     }
 }
 

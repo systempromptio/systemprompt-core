@@ -27,6 +27,7 @@ pub enum Delivery {
     Acknowledged(ConsumerReceiptResponse),
     Conflict,
     CredentialRejected,
+    Rejected(u16),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -78,20 +79,35 @@ impl Outbox {
         Self { path, scope }
     }
 
-    fn mutate<T>(&self, apply: impl FnOnce(&mut State) -> Result<T>) -> Result<T> {
+    fn lock_file(&self) -> Result<std::fs::File> {
         let parent = self.path.parent().ok_or(FeedbackError::Scope)?;
         crate::fsutil::create_dir_all_mode_0700(parent)?;
         let lock_path = self.path.with_extension("lock");
-        let lock = std::fs::OpenOptions::new()
+        Ok(std::fs::OpenOptions::new()
             .create(true)
             .truncate(false)
             .read(true)
             .write(true)
-            .open(lock_path)?;
+            .open(lock_path)?)
+    }
+
+    fn read_locked<T>(&self, inspect: impl FnOnce(&State) -> Result<T>) -> Result<T> {
+        let lock = self.lock_file()?;
+        lock.lock_shared()?;
+        let state = read(&self.path, &self.scope)?;
+        inspect(&state)
+    }
+
+    fn mutate<T>(&self, apply: impl FnOnce(&mut State) -> Result<T>) -> Result<T> {
+        let lock = self.lock_file()?;
         lock.lock()?;
         let mut state = read(&self.path, &self.scope)?;
+        let before = serde_json::to_vec(&state)?;
         let result = apply(&mut state)?;
         let bytes = serde_json::to_vec(&state)?;
+        if bytes == before && self.path.exists() {
+            return Ok(result);
+        }
         if bytes.len() > MAX_BYTES {
             return Err(FeedbackError::Full);
         }
@@ -126,12 +142,13 @@ impl Outbox {
                     .entries
                     .iter()
                     .filter(|(_, entry)| {
-                        matches!(entry.delivery, Delivery::Acknowledged(_))
-                            && entry.session_bindings.values().all(|done| *done)
-                            && !state.sessions.iter().any(|(key, publications)| {
-                                !state.completed_sessions.contains(key)
-                                    && publications.contains(&entry.request.publication_id)
-                            })
+                        matches!(entry.delivery, Delivery::Rejected(_))
+                            || matches!(entry.delivery, Delivery::Acknowledged(_))
+                                && entry.session_bindings.values().all(|done| *done)
+                                && !state.sessions.iter().any(|(key, publications)| {
+                                    !state.completed_sessions.contains(key)
+                                        && publications.contains(&entry.request.publication_id)
+                                })
                     })
                     .min_by_key(|(_, entry)| entry.request.observed_at)
                     .map(|(key, _)| key.clone());
@@ -169,7 +186,7 @@ impl Outbox {
     }
 
     pub fn entries(&self) -> Result<Vec<(String, Entry)>> {
-        self.mutate(|state| {
+        self.read_locked(|state| {
             Ok(state
                 .entries
                 .iter()
@@ -193,6 +210,7 @@ impl Outbox {
                 Ok(response) => Delivery::Acknowledged(response),
                 Err(409) => Delivery::Conflict,
                 Err(401 | 403) => Delivery::CredentialRejected,
+                Err(status @ (400 | 404 | 422)) => Delivery::Rejected(status),
                 Err(_) => Delivery::Unacknowledged,
             };
             let backoff = 2i64.pow(entry.attempts.min(10)).min(3600);

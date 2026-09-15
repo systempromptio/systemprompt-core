@@ -32,7 +32,7 @@ pub async fn enroll(gateway: &str, credential: &str) -> Result<EnrollmentRespons
     if !credential.starts_with("sp_device_") || credential.len() > 256 {
         return Err(FeedbackError::EnrollmentRequired);
     }
-    let gateway = super::credentials::canonical_gateway(gateway)?;
+    let gateway = super::credentials::GatewayOrigin::parse(gateway)?;
     decode(
         client()?
             .post(format!("{gateway}/api/v1/consumer-devices/enrollment"))
@@ -52,6 +52,7 @@ pub async fn receipt(
 }
 
 pub async fn bind(enrollment: &Enrollment, request: &SessionBindingRequest) -> Result<()> {
+    // JSON: protocol boundary — the binding acknowledgement body is not consumed.
     let _: serde_json::Value =
         post(enrollment, "/api/v1/consumer/session-bindings", request).await?;
     Ok(())

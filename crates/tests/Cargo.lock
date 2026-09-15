@@ -7189,6 +7189,7 @@ dependencies = [
 name = "systemprompt-bridge-cli-tests"
 version = "0.0.11"
 dependencies = [
+ "hostname",
  "libc",
  "serde_json",
  "systemprompt-bridge",

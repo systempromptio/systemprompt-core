@@ -91,7 +91,7 @@ impl Outbox {
     }
 
     pub fn pending_installations(&self) -> Result<Vec<(String, PendingInstallation)>> {
-        self.mutate(|state| {
+        self.read_locked(|state| {
             Ok(state
                 .pending_installations
                 .iter()

@@ -133,10 +133,11 @@ pub(crate) async fn forward(
     let (buffered_body, gateway_conversation_id) =
         prepare_upstream_body(body, session_context, &parts.headers, &request_path).await?;
 
-    if let Err(error) =
-        crate::feedback::sessions::observe(gateway_base.as_str(), &parts.headers, &buffered_body)
+    if let Err(error) = session_context
+        .native_sessions()
+        .observe(&parts.headers, &buffered_body)
     {
-        tracing::debug!(%error,"Native session binding remains unacknowledged");
+        tracing::warn!(%error, "Native session could not be recorded for binding");
     }
     let mut upstream_headers = build_upstream_headers(
         &parts.headers,
@@ -245,6 +246,7 @@ fn authenticate_hook_track(
             "Device evidence authentication unavailable".to_owned(),
         ));
     }
+    // JSON: protocol boundary — the hook body is the host's own wire shape.
     if let Ok(value) = serde_json::from_slice::<serde_json::Value>(buffered_body)
         && let (Some(host), Some(session)) = (
             host.and_then(crate::feedback::client_kind),

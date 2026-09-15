@@ -3,9 +3,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::Result;
 use super::credentials::Enrollment;
 use super::outbox::Outbox;
+use super::{FeedbackError, Result};
+use parking_lot::Mutex;
+use std::collections::BTreeSet;
 use systemprompt_identifiers::{ClientSessionId, NativeSessionId};
 use systemprompt_models::feedback::EvaluatorClient;
 
@@ -18,6 +20,7 @@ pub struct NativeSession {
 }
 
 pub fn native_session(headers: &http::HeaderMap, body: &[u8]) -> Option<NativeSession> {
+    // JSON: protocol boundary — the inference body is any host's wire shape.
     let value: serde_json::Value = serde_json::from_slice(body).ok()?;
     let user_agent = headers
         .get(http::header::USER_AGENT)
@@ -54,6 +57,7 @@ pub fn native_session(headers: &http::HeaderMap, body: &[u8]) -> Option<NativeSe
                 .pointer("/client_metadata/x-codex-turn-metadata")
                 .and_then(serde_json::Value::as_str)
             {
+                // JSON: protocol boundary — Codex turn metadata is an opaque JSON string.
                 let metadata: serde_json::Value = serde_json::from_str(encoded).ok()?;
                 metadata.get("thread_id")?.as_str()?.to_owned()
             } else if let Some(thread) = value
@@ -97,15 +101,68 @@ pub fn native_session(headers: &http::HeaderMap, body: &[u8]) -> Option<NativeSe
     })
 }
 
-pub fn observe(gateway: &str, headers: &http::HeaderMap, body: &[u8]) -> Result<()> {
-    let Some(session) = native_session(headers, body) else {
-        return Ok(());
-    };
+/// Native sessions seen on the request path and not yet recorded in the outbox.
+///
+/// Observation is an in-memory insert; the outbox write happens when the
+/// heartbeat task calls [`NativeSessionLedger::flush`], so the proxy never
+/// carries a file transaction. Past `MAX_UNFLUSHED` a new session is refused.
+#[derive(Debug, Default)]
+pub struct NativeSessionLedger {
+    unflushed: Mutex<BTreeSet<(EvaluatorClient, NativeSessionId)>>,
+}
+
+const MAX_UNFLUSHED: usize = 1024;
+
+impl NativeSessionLedger {
+    pub fn observe(&self, headers: &http::HeaderMap, body: &[u8]) -> Result<()> {
+        let Some(session) = native_session(headers, body) else {
+            return Ok(());
+        };
+        let key = (session.host, session.id);
+        let mut unflushed = self.unflushed.lock();
+        if unflushed.contains(&key) {
+            return Ok(());
+        }
+        if unflushed.len() >= MAX_UNFLUSHED {
+            return Err(FeedbackError::Full);
+        }
+        unflushed.insert(key);
+        drop(unflushed);
+        Ok(())
+    }
+
+    pub fn unflushed(&self) -> usize {
+        self.unflushed.lock().len()
+    }
+
+    pub fn flush(&self, gateway: &str) -> Result<()> {
+        let pending = std::mem::take(&mut *self.unflushed.lock());
+        if pending.is_empty() {
+            return Ok(());
+        }
+        let outbox = match open_outbox(gateway) {
+            Ok(outbox) => outbox,
+            Err(error) => {
+                self.unflushed.lock().extend(pending);
+                return Err(error);
+            },
+        };
+        let mut failure = None;
+        for (host, session) in pending {
+            if let Err(error) = outbox.queue_session(host, session.as_str()) {
+                self.unflushed.lock().insert((host, session));
+                failure = Some(error);
+            }
+        }
+        failure.map_or(Ok(()), Err)
+    }
+}
+
+fn open_outbox(gateway: &str) -> Result<Outbox> {
     let root = super::metadata_root()?;
     let enrollment = Enrollment::load(&root, gateway)?;
-    Outbox::new(
+    Ok(Outbox::new(
         enrollment.outbox_path(&root),
         crate::feedback::outbox::OutboxScope::from_enrollment(&enrollment),
-    )
-    .queue_session(session.host, session.id.as_str())
+    ))
 }
