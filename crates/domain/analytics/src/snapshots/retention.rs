@@ -30,6 +30,36 @@ impl FeedbackSnapshotsRepository {
         if previous.is_some_and(|previous| cutoff < previous) {
             return Err(invalid("Retention cutoff cannot move backwards"));
         }
+        let outcome = Self::purge_expired(tx, owner, cutoff, oldest).await?;
+        let days: Vec<_> = (0..90)
+            .map(|offset| now.date_naive() - chrono::Duration::days(offset))
+            .collect();
+        let generation = sqlx::query_scalar!(
+            "SELECT fact_generation FROM analytics_snapshot_state WHERE owner_id=$1",
+            owner.as_str()
+        )
+        .fetch_one(&mut **tx)
+        .await?;
+        Self::rebuild_days(tx, owner, &days, generation).await?;
+        Self::refresh_in(tx, owner, &[], now).await?;
+        sqlx::query!(
+            "SELECT public.finish_reporting_compaction($1) AS processed",
+            now - chrono::Duration::days(90)
+        )
+        .fetch_one(&mut **tx)
+        .await?;
+        Ok(RetentionOutcome {
+            compacted_before: day,
+            ..outcome
+        })
+    }
+    async fn purge_expired(
+        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+        owner: &UserId,
+        cutoff: DateTime<Utc>,
+        oldest: chrono::NaiveDate,
+    ) -> crate::Result<RetentionOutcome> {
+        let day = cutoff.date_naive();
         sqlx::query!("INSERT INTO analytics_snapshot_dirty(owner_id,scope) SELECT owner_id,scope FROM analytics_feedback_snapshots WHERE owner_id=$1 ON CONFLICT DO NOTHING",owner.as_str()).execute(&mut **tx).await?;
         sqlx::query!("UPDATE analytics_snapshot_daily SET metrics='{}'::jsonb,spend='{}'::jsonb,histogram='{}'::jsonb,cohort=0,suppressed=true WHERE owner_id=$1 AND ((day<$2 AND cohort<5) OR day=$2)",owner.as_str(),day).execute(&mut **tx).await?;
         sqlx::query!(
@@ -77,23 +107,6 @@ impl FeedbackSnapshotsRepository {
         .await?;
         sqlx::query!("UPDATE analytics_snapshot_jobs SET state='pending',result=NULL,lease_worker=NULL,lease_until=NULL,lease_epoch=lease_epoch+1,last_error='Range invalidated by privacy retention' WHERE owner_id=$1",owner.as_str()).execute(&mut **tx).await?;
         sqlx::query!("UPDATE analytics_snapshot_state SET compacted_before=$2,evidence_cutoff=$3 WHERE owner_id=$1",owner.as_str(),day,cutoff).execute(&mut **tx).await?;
-        let days: Vec<_> = (0..90)
-            .map(|offset| now.date_naive() - chrono::Duration::days(offset))
-            .collect();
-        let generation = sqlx::query_scalar!(
-            "SELECT fact_generation FROM analytics_snapshot_state WHERE owner_id=$1",
-            owner.as_str()
-        )
-        .fetch_one(&mut **tx)
-        .await?;
-        Self::rebuild_days(tx, owner, &days, generation).await?;
-        Self::refresh_in(tx, owner, &[], now).await?;
-        sqlx::query!(
-            "SELECT public.finish_reporting_compaction($1) AS processed",
-            now - chrono::Duration::days(90)
-        )
-        .fetch_one(&mut **tx)
-        .await?;
         Ok(RetentionOutcome {
             compacted_before: day,
             removed_facts: removed,

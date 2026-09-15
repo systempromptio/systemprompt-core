@@ -139,8 +139,8 @@ impl FeedbackSnapshotsRepository {
    COALESCE((SELECT generation FROM analytics_fact_checkpoints WHERE owner_id=$1),0) AS "facts!",
    (SELECT COUNT(*) FROM analytics_snapshot_jobs WHERE owner_id=$1 AND state IN('pending','leased')) AS "jobs!"
    FROM analytics_snapshot_state s WHERE s.owner_id=$1"#,owner.as_str()).fetch_optional(&self.pool).await?;
-        Ok(row.map_or(
-            SnapshotHealth {
+        Ok(row.map_or_else(
+            || SnapshotHealth {
                 generation: 0,
                 fact_generation: 0,
                 generated_at: None,

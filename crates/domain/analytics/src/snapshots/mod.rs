@@ -17,7 +17,7 @@ pub use histogram::LatencyHistogram;
 pub use types::*;
 
 #[derive(Debug, Clone)]
-/// PostgreSQL persistence for retained snapshots, jobs, and coordinated
+/// `PostgreSQL` persistence for retained snapshots, jobs, and coordinated
 /// compaction.
 pub struct FeedbackSnapshotsRepository {
     pool: sqlx::PgPool,

@@ -7,9 +7,15 @@
 use super::daily::FactReference;
 use super::{FeedbackSnapshotsRepository, invalid};
 use crate::feedback::{DeltaClaim, DeltaLease, FeedbackFactsRepository};
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, NaiveDate, Utc};
 use std::collections::BTreeSet;
 use systemprompt_identifiers::{TaskId, UserId};
+
+#[derive(Debug, Clone, Copy)]
+struct ShadowWindow {
+    cutoff: NaiveDate,
+    generation: i64,
+}
 
 impl FeedbackSnapshotsRepository {
     pub async fn process(
@@ -73,71 +79,106 @@ impl FeedbackSnapshotsRepository {
             u64::try_from(rows.len()).map_err(|_error| invalid("Snapshot batch overflow"))?;
         let cutoff = state
             .compacted_before
-            .unwrap_or(now.date_naive() - chrono::Duration::days(365));
+            .unwrap_or_else(|| now.date_naive() - chrono::Duration::days(365));
         let mut days = BTreeSet::new();
         for row in rows {
             if state.compacted_before.is_some()
                 && row.before_fact.is_none()
                 && row.revision.is_some_and(|revision| revision > 1)
             {
-                sqlx::query!("INSERT INTO analytics_snapshot_dirty(owner_id,scope) SELECT owner_id,scope FROM analytics_snapshot_daily WHERE owner_id=$1 AND day<$2 ON CONFLICT DO NOTHING",owner.as_str(),cutoff).execute(&mut *tx).await?;
-                sqlx::query!("UPDATE analytics_snapshot_daily SET metrics='{}'::jsonb,spend='{}'::jsonb,histogram='{}'::jsonb,cohort=0,suppressed=true WHERE owner_id=$1 AND day<$2",owner.as_str(),cutoff).execute(&mut *tx).await?;
-                sqlx::query!("UPDATE analytics_snapshot_jobs SET state='pending',result=NULL,lease_worker=NULL,lease_until=NULL,lease_epoch=lease_epoch+1,last_error='Sealed history suppressed after a correction without retained provenance' WHERE owner_id=$1 AND from_day<$2",owner.as_str(),cutoff).execute(&mut *tx).await?;
+                Self::suppress_sealed_history(&mut tx, owner, cutoff).await?;
             }
             for fact in [&row.before_fact, &row.after_fact] {
-                days.extend(
-                    Self::affected_days(
-                        &mut tx,
-                        owner,
-                        &FactReference {
-                            kind: &row.fact_kind,
-                            source: &row.source,
-                            id: &row.fact_id,
-                            fact: fact.as_ref(),
-                        },
-                    )
-                    .await?,
-                );
+                let reference = FactReference {
+                    kind: &row.fact_kind,
+                    source: &row.source,
+                    id: &row.fact_id,
+                    fact: fact.as_ref(),
+                };
+                days.extend(Self::affected_days(&mut tx, owner, &reference).await?);
             }
             days.insert(row.occurred_at.date_naive());
             if row.occurred_at.date_naive() < cutoff {
-                sqlx::query!("INSERT INTO analytics_snapshot_dirty(owner_id,scope) SELECT owner_id,scope FROM analytics_snapshot_daily WHERE owner_id=$1 AND day=$2 ON CONFLICT DO NOTHING",owner.as_str(),row.occurred_at.date_naive()).execute(&mut *tx).await?;
-                sqlx::query!("UPDATE analytics_snapshot_daily SET metrics='{}'::jsonb,spend='{}'::jsonb,histogram='{}'::jsonb,cohort=0,suppressed=true,generation=$3 WHERE owner_id=$1 AND day=$2",owner.as_str(),row.occurred_at.date_naive(),row.generation).execute(&mut *tx).await?;
+                Self::suppress_day(&mut tx, owner, row.occurred_at.date_naive(), row.generation)
+                    .await?;
             }
-            sqlx::query!("DELETE FROM analytics_snapshot_shadow WHERE owner_id=$1 AND fact_kind=$2 AND source=$3 AND fact_id=$4",owner.as_str(),&row.fact_kind,&row.source,&row.fact_id).execute(&mut *tx).await?;
-            if let Some(fact) = &row.after_fact {
-                let occurred = fact
-                    .get("value")
-                    .and_then(|value| value.get("occurred_at"))
-                    .cloned()
-                    .ok_or_else(|| invalid("Missing event timestamp"))?;
-                let occurred: DateTime<Utc> = serde_json::from_value(occurred)?;
-                days.insert(occurred.date_naive());
-                if occurred.date_naive() >= cutoff {
-                    sqlx::query!("INSERT INTO analytics_snapshot_shadow(owner_id,fact_kind,source,fact_id,fact,occurred_at,generation) VALUES($1,$2,$3,$4,$5,$6,$7)",owner.as_str(),&row.fact_kind,&row.source,&row.fact_id,fact,occurred,row.generation).execute(&mut *tx).await?;
-                }
+            let reference = FactReference {
+                kind: &row.fact_kind,
+                source: &row.source,
+                id: &row.fact_id,
+                fact: row.after_fact.as_ref(),
+            };
+            let shadow = ShadowWindow {
+                cutoff,
+                generation: row.generation,
+            };
+            if let Some(day) = Self::replace_shadow(&mut tx, owner, &reference, shadow).await? {
+                days.insert(day);
             }
-            days.extend(
-                Self::affected_days(
-                    &mut tx,
-                    owner,
-                    &FactReference {
-                        kind: &row.fact_kind,
-                        source: &row.source,
-                        id: &row.fact_id,
-                        fact: row.after_fact.as_ref(),
-                    },
-                )
-                .await?,
-            );
+            days.extend(Self::affected_days(&mut tx, owner, &reference).await?);
         }
-        let all_days: Vec<_> = days.iter().copied().collect();
-        sqlx::query!("UPDATE analytics_snapshot_jobs SET state='pending',result=NULL,lease_worker=NULL,lease_until=NULL,lease_epoch=lease_epoch+1,last_error='Range invalidated by corrected evidence' WHERE owner_id=$1 AND EXISTS(SELECT 1 FROM unnest($2::date[]) d WHERE d>=from_day AND d<to_day)",owner.as_str(),&all_days).execute(&mut *tx).await?;
-        let days: Vec<_> = days.into_iter().filter(|day| *day >= cutoff).collect();
-        Self::rebuild_days(&mut tx, owner, &days, lease.through_generation).await?;
-        FeedbackFactsRepository::complete_delta_batch(&mut tx, owner, lease).await?;
-        sqlx::query!("UPDATE analytics_snapshot_state SET fact_generation=$2,last_error=NULL WHERE owner_id=$1",owner.as_str(),lease.through_generation).execute(&mut *tx).await?;
+        Self::finish_batch(&mut tx, owner, lease, &days, cutoff).await?;
         tx.commit().await?;
         Ok(count)
+    }
+
+    async fn suppress_sealed_history(
+        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+        owner: &UserId,
+        cutoff: NaiveDate,
+    ) -> crate::Result<()> {
+        sqlx::query!("INSERT INTO analytics_snapshot_dirty(owner_id,scope) SELECT owner_id,scope FROM analytics_snapshot_daily WHERE owner_id=$1 AND day<$2 ON CONFLICT DO NOTHING",owner.as_str(),cutoff).execute(&mut **tx).await?;
+        sqlx::query!("UPDATE analytics_snapshot_daily SET metrics='{}'::jsonb,spend='{}'::jsonb,histogram='{}'::jsonb,cohort=0,suppressed=true WHERE owner_id=$1 AND day<$2",owner.as_str(),cutoff).execute(&mut **tx).await?;
+        sqlx::query!("UPDATE analytics_snapshot_jobs SET state='pending',result=NULL,lease_worker=NULL,lease_until=NULL,lease_epoch=lease_epoch+1,last_error='Sealed history suppressed after a correction without retained provenance' WHERE owner_id=$1 AND from_day<$2",owner.as_str(),cutoff).execute(&mut **tx).await?;
+        Ok(())
+    }
+
+    async fn suppress_day(
+        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+        owner: &UserId,
+        day: NaiveDate,
+        generation: i64,
+    ) -> crate::Result<()> {
+        sqlx::query!("INSERT INTO analytics_snapshot_dirty(owner_id,scope) SELECT owner_id,scope FROM analytics_snapshot_daily WHERE owner_id=$1 AND day=$2 ON CONFLICT DO NOTHING",owner.as_str(),day).execute(&mut **tx).await?;
+        sqlx::query!("UPDATE analytics_snapshot_daily SET metrics='{}'::jsonb,spend='{}'::jsonb,histogram='{}'::jsonb,cohort=0,suppressed=true,generation=$3 WHERE owner_id=$1 AND day=$2",owner.as_str(),day,generation).execute(&mut **tx).await?;
+        Ok(())
+    }
+
+    async fn replace_shadow(
+        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+        owner: &UserId,
+        reference: &FactReference<'_>,
+        shadow: ShadowWindow,
+    ) -> crate::Result<Option<NaiveDate>> {
+        sqlx::query!("DELETE FROM analytics_snapshot_shadow WHERE owner_id=$1 AND fact_kind=$2 AND source=$3 AND fact_id=$4",owner.as_str(),reference.kind,reference.source,reference.id).execute(&mut **tx).await?;
+        let Some(fact) = reference.fact else {
+            return Ok(None);
+        };
+        let occurred = fact
+            .get("value")
+            .and_then(|value| value.get("occurred_at"))
+            .cloned()
+            .ok_or_else(|| invalid("Missing event timestamp"))?;
+        let occurred: DateTime<Utc> = serde_json::from_value(occurred)?;
+        if occurred.date_naive() >= shadow.cutoff {
+            sqlx::query!("INSERT INTO analytics_snapshot_shadow(owner_id,fact_kind,source,fact_id,fact,occurred_at,generation) VALUES($1,$2,$3,$4,$5,$6,$7)",owner.as_str(),reference.kind,reference.source,reference.id,fact,occurred,shadow.generation).execute(&mut **tx).await?;
+        }
+        Ok(Some(occurred.date_naive()))
+    }
+
+    async fn finish_batch(
+        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+        owner: &UserId,
+        lease: &DeltaLease,
+        days: &BTreeSet<NaiveDate>,
+        cutoff: NaiveDate,
+    ) -> crate::Result<()> {
+        let all_days: Vec<_> = days.iter().copied().collect();
+        sqlx::query!("UPDATE analytics_snapshot_jobs SET state='pending',result=NULL,lease_worker=NULL,lease_until=NULL,lease_epoch=lease_epoch+1,last_error='Range invalidated by corrected evidence' WHERE owner_id=$1 AND EXISTS(SELECT 1 FROM unnest($2::date[]) d WHERE d>=from_day AND d<to_day)",owner.as_str(),&all_days).execute(&mut **tx).await?;
+        let days: Vec<_> = days.iter().copied().filter(|day| *day >= cutoff).collect();
+        Self::rebuild_days(tx, owner, &days, lease.through_generation).await?;
+        FeedbackFactsRepository::complete_delta_batch(tx, owner, lease).await?;
+        sqlx::query!("UPDATE analytics_snapshot_state SET fact_generation=$2,last_error=NULL WHERE owner_id=$1",owner.as_str(),lease.through_generation).execute(&mut **tx).await?;
+        Ok(())
     }
 }
