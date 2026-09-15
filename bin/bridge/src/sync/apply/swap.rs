@@ -4,7 +4,9 @@
 //! place, and moved back if the promotion fails, so a rename that cannot
 //! complete (a cross-volume staging dir, an antivirus lock, a permission
 //! change) leaves the previously installed plugin in service rather than
-//! deleted.
+//! deleted. The displaced plugin's `node_modules` is carried into the
+//! promoted tree only once the promotion has landed, so a restored plugin
+//! keeps its packages.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -52,6 +54,7 @@ pub fn promote_staged(stage: &Path, target: &Path, plugin_id: &str) -> Result<bo
     }
 
     if was_present {
+        super::node_deps::carry_over(&displaced, target);
         fs::remove_dir_all(&displaced).map_err(|source| ApplyError::Io {
             context: format!("remove displaced {}", displaced.display()),
             source,

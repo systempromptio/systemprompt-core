@@ -192,3 +192,98 @@ fn binary_on_path_finds_only_files_in_path_entries() {
         assert_eq!(binary_on_path("absent"), None);
     });
 }
+
+#[cfg(unix)]
+#[test]
+fn an_npm_cmd_shim_is_bypassed_so_node_itself_is_the_bounded_child() {
+    let plugin = plugin_with(&[("package.json", "{}"), ("package-lock.json", "{}")]);
+    let bin = tempdir().unwrap();
+    std::fs::write(
+        bin.path().join("npm.cmd"),
+        "@ECHO OFF\r\nnode npm-cli.js %*\r\n",
+    )
+    .unwrap();
+    let cli = bin.path().join("node_modules/npm/bin");
+    std::fs::create_dir_all(&cli).unwrap();
+    std::fs::write(cli.join("npm-cli.js"), "").unwrap();
+    fake_tool(
+        bin.path(),
+        "node",
+        "mkdir -p node_modules && printf '%s\\n' \"$*\" > node_modules/args",
+    );
+    assert_eq!(
+        with_path(bin.path(), || install(plugin.path())),
+        NodeInstall::Installed { tool: "npm" }
+    );
+    let args = std::fs::read_to_string(plugin.path().join("node_modules/args")).unwrap();
+    assert_eq!(
+        args.trim(),
+        format!(
+            "{} ci --ignore-scripts --no-audit --no-fund",
+            cli.join("npm-cli.js").display()
+        )
+    );
+}
+
+#[cfg(unix)]
+fn installed_plugin(bin: &Path) -> TempDir {
+    let plugin = plugin_with(&[("package.json", "{}"), ("package-lock.json", "{}")]);
+    assert_eq!(
+        with_path(bin, || install(plugin.path())),
+        NodeInstall::Installed { tool: "npm" }
+    );
+    plugin
+}
+
+#[cfg(unix)]
+#[test]
+fn promotion_carries_node_modules_forward_only_after_the_staged_tree_has_landed() {
+    use systemprompt_bridge::sync::apply::swap::promote_staged;
+    let bin = tempdir().unwrap();
+    fake_tool(
+        bin.path(),
+        "npm",
+        "mkdir -p node_modules && touch node_modules/installed",
+    );
+    let root = tempdir().unwrap();
+    let target = root.path().join("plugin");
+    std::fs::rename(installed_plugin(bin.path()).keep(), &target).unwrap();
+    let staged = plugin_with(&[("package.json", "{}"), ("package-lock.json", "{}")]);
+    let stage = root.path().join("stage");
+    std::fs::rename(staged.keep(), &stage).unwrap();
+
+    assert!(promote_staged(&stage, &target, "plugin").unwrap());
+    assert!(target.join("node_modules/installed").exists());
+    assert!(!root.path().join("plugin.old").exists());
+    assert_eq!(
+        with_path(bin.path(), || install(&target)),
+        NodeInstall::Unchanged
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn a_failed_promotion_restores_the_installed_plugin_with_its_node_modules() {
+    use systemprompt_bridge::sync::apply::swap::promote_staged;
+    let bin = tempdir().unwrap();
+    fake_tool(
+        bin.path(),
+        "npm",
+        "mkdir -p node_modules && touch node_modules/installed",
+    );
+    let root = tempdir().unwrap();
+    let target = root.path().join("plugin");
+    std::fs::rename(installed_plugin(bin.path()).keep(), &target).unwrap();
+    let missing_stage = root.path().join("stage-that-never-landed");
+
+    promote_staged(&missing_stage, &target, "plugin").expect_err("promotion cannot complete");
+    assert!(target.join("package.json").exists());
+    assert!(
+        target.join("node_modules/installed").exists(),
+        "the restored plugin keeps its packages"
+    );
+    assert_eq!(
+        with_path(bin.path(), || install(&target)),
+        NodeInstall::Unchanged
+    );
+}

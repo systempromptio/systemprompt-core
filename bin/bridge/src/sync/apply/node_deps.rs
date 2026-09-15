@@ -13,7 +13,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::io::Read;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 pub use crate::sysproc::binary_on_path;
 use std::process::{Command, Stdio};
@@ -74,6 +74,35 @@ pub fn carry_over(installed: &Path, staged: &Path) {
     }
 }
 
+// Why: `npm.cmd` is a cmd.exe shim around `node npm-cli.js`; killing the shim
+// on deadline leaves the real `node` running with the plugin dir as its cwd,
+// which then blocks the next promotion rename of that plugin. Invoking the
+// script through `node` directly makes the child the process that is bounded.
+fn unshimmed(binary: PathBuf) -> (PathBuf, Option<PathBuf>) {
+    if !binary
+        .extension()
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("cmd"))
+    {
+        return (binary, None);
+    }
+    let Some(dir) = binary.parent() else {
+        return (binary, None);
+    };
+    let script = dir
+        .join("node_modules")
+        .join("npm")
+        .join("bin")
+        .join("npm-cli.js");
+    let node = ["node.exe", "node"]
+        .iter()
+        .map(|name| dir.join(name))
+        .find(|candidate| candidate.is_file());
+    match node {
+        Some(node) if script.is_file() => (node, Some(script)),
+        _ => (binary, None),
+    }
+}
+
 pub fn install(plugin_dir: &Path) -> NodeInstall {
     if !plugin_dir.join(NODE_PACKAGE_FILE).is_file() {
         return NodeInstall::NotApplicable;
@@ -104,8 +133,10 @@ pub fn install(plugin_dir: &Path) -> NodeInstall {
             reason: format!("{tool} is not on PATH, so {lockfile} was not installed"),
         };
     };
-    let mut command = Command::new(binary);
+    let (program, script) = unshimmed(binary);
+    let mut command = Command::new(program);
     command
+        .args(script)
         .args(args)
         .current_dir(plugin_dir)
         .stdin(Stdio::null())
@@ -130,42 +161,53 @@ pub fn install(plugin_dir: &Path) -> NodeInstall {
     }
 }
 
+fn stop(child: &mut std::process::Child, why: &str) -> String {
+    match child.kill().and_then(|()| child.wait()) {
+        Ok(_exit) => format!("{why} and was stopped"),
+        Err(error) => format!("{why} and could not be stopped ({error}); it may still be running"),
+    }
+}
+
 fn run_bounded(command: &mut Command, tool: &str) -> Result<(), String> {
     let mut child = command
         .spawn()
         .map_err(|error| format!("{tool} could not be started: {error}"))?;
     let Some(stderr) = child.stderr.take() else {
-        let _killed = child.kill();
-        let _reaped = child.wait();
-        return Err(format!("{tool} started without a readable stderr"));
+        return Err(stop(
+            &mut child,
+            &format!("{tool} started without a readable stderr"),
+        ));
     };
     let reader = std::thread::spawn(move || {
         let mut bytes = Vec::new();
-        let _read = stderr.take(STDERR_LIMIT).read_to_end(&mut bytes);
-        String::from_utf8_lossy(&bytes).into_owned()
+        let read = stderr.take(STDERR_LIMIT).read_to_end(&mut bytes);
+        (read.err(), String::from_utf8_lossy(&bytes).into_owned())
     });
     let started = Instant::now();
     let status = loop {
         match child.try_wait() {
             Ok(Some(status)) => break Ok(status),
             Ok(None) if started.elapsed() >= DEADLINE => {
-                let _killed = child.kill();
-                let _reaped = child.wait();
-                break Err(format!(
-                    "{tool} exceeded the {}s install deadline and was stopped",
-                    DEADLINE.as_secs()
+                break Err(stop(
+                    &mut child,
+                    &format!(
+                        "{tool} exceeded the {}s install deadline",
+                        DEADLINE.as_secs()
+                    ),
                 ));
             },
             Ok(None) => std::thread::sleep(Duration::from_millis(50)),
             Err(error) => {
-                let _killed = child.kill();
-                let _reaped = child.wait();
-                break Err(format!("{tool} could not be waited on: {error}"));
+                break Err(stop(
+                    &mut child,
+                    &format!("{tool} could not be waited on: {error}"),
+                ));
             },
         }
     };
     let stderr = match reader.join() {
-        Ok(stderr) => stderr,
+        Ok((None, stderr)) => stderr,
+        Ok((Some(error), stderr)) => format!("{stderr}\n(stderr truncated: {error})"),
         Err(_panicked) => String::from("(stderr could not be read)"),
     };
     let status = status?;

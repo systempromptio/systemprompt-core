@@ -216,9 +216,6 @@ async fn sync_one_plugin(
     fetch_plugin_into_staging(ctx.client, ctx.bearer, plugin, &stage).await?;
     super::check_not_superseded(ctx.client.base_url())?;
 
-    if target.is_dir() {
-        node_deps::carry_over(&target, &stage);
-    }
     let was_present = promote_staged(&stage, &target, plugin.id.as_str())?;
 
     let hooks_receipt = write_hooks_json(ctx.loopback, plugin, &target, hook_pool)?;
