@@ -30,6 +30,8 @@ pub struct ExecutionEvent {
     pub sequence: i64,
     pub stage: ExecutionStage,
     pub summary: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub native_readiness: Option<crate::capabilities::NativeReadiness>,
 }
 
 impl ExecutionEvent {
@@ -70,6 +72,7 @@ impl ExecutionEventBuilder {
     pub fn build(self) -> Result<ExecutionEvent> {
         let event = ExecutionEvent {
             sequence: self.sequence,
+            native_readiness: None,
             stage: self.stage,
             summary: self
                 .summary
@@ -90,11 +93,66 @@ impl ExecutionEventRepository {
         Self { pool }
     }
 
+    pub async fn native_readiness(
+        &self,
+        owner: &systemprompt_identifiers::UserId,
+        target: &crate::capabilities::VerifiedNativeTarget,
+    ) -> Result<crate::capabilities::NativeReadiness> {
+        use crate::capabilities::{NativeReadiness, NativeReadinessState};
+        let row = sqlx::query!(r#"SELECT ev.payload->'native_readiness' AS observation, ev.created_at FROM eval_execution_events ev JOIN eval_executions x ON x.id=ev.execution_id JOIN eval_experiments e ON e.id=x.experiment_id WHERE e.owner_id=$1 AND ev.payload->'native_readiness'->'target'=$2 ORDER BY ev.created_at DESC, ev.sequence DESC LIMIT 1"#, owner.as_str(), serde_json::to_value(target)?).fetch_optional(&self.pool).await?;
+        if let Some(row) = row {
+            let mut observation: NativeReadiness = serde_json::from_value(
+                row.observation
+                    .ok_or_else(|| invalid("Native observation is missing"))?,
+            )?;
+            observation.observed_at = Some(row.created_at);
+            return Ok(observation);
+        }
+        Ok(NativeReadiness {
+            target: target.clone(),
+            state: NativeReadinessState::Unknown,
+            observed_at: None,
+            diagnostic: None,
+        })
+    }
+
     pub async fn append(
         &self,
         worker: &WorkerRecord,
         lease: &ExecutionLease,
         event: &ExecutionEvent,
+    ) -> Result<()> {
+        if event.native_readiness.is_some() {
+            return Err(invalid("Runtime observations are supervisor-owned"));
+        }
+        self.append_inner(worker, lease, event.clone(), false).await
+    }
+
+    pub async fn observe_readiness(
+        &self,
+        worker: &WorkerRecord,
+        lease: &ExecutionLease,
+        observation: crate::capabilities::NativeReadiness,
+    ) -> Result<()> {
+        observation.target.validate()?;
+        if observation
+            .diagnostic
+            .as_ref()
+            .is_some_and(|text| text.len() > 4096)
+        {
+            return Err(invalid("Readiness diagnostic exceeds limit"));
+        }
+        let mut event = ExecutionEvent::builder(0, ExecutionStage::Verification).summary("Observed native runtime readiness; this is historical evidence, not a current health check".to_owned()).build()?;
+        event.native_readiness = Some(observation);
+        self.append_inner(worker, lease, event, true).await
+    }
+
+    async fn append_inner(
+        &self,
+        worker: &WorkerRecord,
+        lease: &ExecutionLease,
+        mut event: ExecutionEvent,
+        automatic_sequence: bool,
     ) -> Result<()> {
         event.validate()?;
         let mut tx = self.pool.begin().await?;
@@ -106,7 +164,11 @@ impl ExecutionEventRepository {
         if live.is_none() {
             return Err(conflict("Event requires a live, owned worker lease"));
         }
-        let digest = content_digest(event)?;
+        if automatic_sequence {
+            event.sequence = sqlx::query_scalar!("SELECT COALESCE(MAX(sequence)+1,0) FROM eval_execution_events WHERE execution_id=$1", lease.execution_id.as_str()).fetch_one(&mut *tx).await?.unwrap_or(0);
+            event.validate()?;
+        }
+        let digest = content_digest(&event)?;
         let existing = sqlx::query_scalar!(
             "SELECT digest FROM eval_execution_events WHERE execution_id=$1 AND sequence=$2",
             lease.execution_id.as_str(),
@@ -133,7 +195,7 @@ impl ExecutionEventRepository {
         }
         sqlx::query!(
             "INSERT INTO eval_execution_events(execution_id,sequence,payload,digest) VALUES($1,$2,$3,$4)",
-            lease.execution_id.as_str(), event.sequence, Json(event) as _, digest
+            lease.execution_id.as_str(), event.sequence, Json(&event) as _, digest
         ).execute(&mut *tx).await?;
         tx.commit().await?;
         Ok(())

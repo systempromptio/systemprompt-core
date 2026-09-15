@@ -4,7 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::super::adapters::{NativeCompletion, normalize_evidence};
-use super::terminal::{CleanupResources, ExecutionTerminal};
+use super::terminal::{CleanupResources, ExecutionTerminal, NativeStart};
 use super::{
     ArtifactFile, BTreeMap, ClientPurpose, ContainerExecution, ContainerLaunch, Duration,
     EvaluationTrafficClass, EvaluatorSupervisor, EvidenceJudgment, ExecutionStage, ExitStatus,
@@ -20,15 +20,34 @@ pub(super) struct ExecutionOutcome {
     pub last_heartbeat: Instant,
     pub artifacts: BTreeMap<String, ArtifactFile>,
     pub judgment: Option<EvidenceJudgment>,
+    pub blocked: Option<String>,
 }
 
 impl EvaluatorSupervisor {
     pub(super) async fn run_client(
         &self,
         run: &mut PreparedExecution,
-    ) -> SchedulerResult<ExecutionOutcome> {
+    ) -> SchedulerResult<Option<ExecutionOutcome>> {
         let prompt = execution_prompt(&run.case)?;
-        let mut execution = run.launch.start(&run.client, &prompt)?;
+        let target =
+            systemprompt_evaluation::capabilities::admit_variant(&run.variant).map_err(internal)?;
+        let Some(mut execution) = ExecutionTerminal::new(&self.repositories)
+            .start_client(
+                &run.worker.owner_id,
+                &run.lease,
+                NativeStart {
+                    launch: &run.launch,
+                    client: &run.client,
+                    purpose: ClientPurpose::Execution,
+                    prompt: &prompt,
+                    readiness: Some((&run.worker, target)),
+                },
+                || self.cleanup_failed_execution(&run.worker.owner_id, &run.lease),
+            )
+            .await?
+        else {
+            return Ok(None);
+        };
         run.network
             .verify(&[run.client_name.clone(), run.relay_name.clone()])?;
         self.append_event(
@@ -93,14 +112,15 @@ impl EvaluatorSupervisor {
                 executable: false,
             },
         );
-        Ok(ExecutionOutcome {
+        Ok(Some(ExecutionOutcome {
             status,
             native_completion,
             started,
             last_heartbeat,
             artifacts,
             judgment: None,
-        })
+            blocked: None,
+        }))
     }
 
     pub(super) async fn run_judgment(
@@ -136,6 +156,7 @@ impl EvaluatorSupervisor {
             .name(judge_name.clone())
             .output_stem("judge")
             .ownership(run.worker.owner_id.as_str(), run.record.id.as_str())
+            .lease(&run.lease)
             .build()?;
         let evidence = outcome.artifacts.keys().collect::<Vec<_>>();
         let prompt = judgment_prompt(&run.case, &run.rubric, &evidence)?;

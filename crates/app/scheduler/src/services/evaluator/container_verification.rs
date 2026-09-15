@@ -150,8 +150,16 @@ impl ContainerLaunch {
             "--env=HOME=/tmp",
             "--entrypoint",
             executable,
-            &self.image,
         ]);
+        if let Some(lease) = &self.lease {
+            command.args([
+                "--label",
+                &format!("systemprompt.evaluator.worker={}", lease.worker_id),
+                "--label",
+                &format!("systemprompt.evaluator.fence={}", lease.fencing_token),
+            ]);
+        }
+        command.arg(&self.image);
         command
             .args(arguments)
             .stdin(Stdio::null())

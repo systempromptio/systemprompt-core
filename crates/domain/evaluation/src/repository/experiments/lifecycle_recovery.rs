@@ -66,6 +66,25 @@ impl EvaluationLifecycleRepository {
             owner.as_str(), execution.as_str()).fetch_one(&self.pool).await?.unwrap_or(false))
     }
 
+    pub async fn with_cleanup_fence<T>(
+        &self,
+        owner: &UserId,
+        lease: &ExecutionLease,
+        operation: impl FnOnce() -> T,
+    ) -> Result<T> {
+        let mut tx = self.pool.begin().await?;
+        super::super::lock_owner(&mut tx, owner).await?;
+        let eligible = sqlx::query_scalar!("SELECT EXISTS(SELECT 1 FROM eval_executions x JOIN eval_experiments e ON e.id=x.experiment_id WHERE e.owner_id=$1 AND x.id=$2 AND x.lease_owner=$3 AND x.fencing_token=$4)", owner.as_str(), lease.execution_id.as_str(), lease.worker_id.as_str(), lease.fencing_token).fetch_one(&mut *tx).await?.unwrap_or(false);
+        if !eligible {
+            return Err(crate::experiments::conflict(
+                "Cleanup requires the current owned fence",
+            ));
+        }
+        let outcome = operation();
+        tx.commit().await?;
+        Ok(outcome)
+    }
+
     pub async fn record_cleanup(
         &self,
         owner: &UserId,
@@ -78,8 +97,10 @@ impl EvaluationLifecycleRepository {
             succeeded,
             error,
         } = *report;
+        let mut tx = self.pool.begin().await?;
+        super::super::lock_owner(&mut tx, owner).await?;
         let eligible = sqlx::query_scalar!("SELECT EXISTS(SELECT 1 FROM eval_executions x JOIN eval_experiments e ON e.id=x.experiment_id WHERE e.owner_id=$1 AND x.id=$2 AND x.lease_owner=$3 AND x.fencing_token=$4)",
-            owner.as_str(), lease.execution_id.as_str(), lease.worker_id.as_str(), lease.fencing_token).fetch_one(&self.pool).await?.unwrap_or(false);
+            owner.as_str(), lease.execution_id.as_str(), lease.worker_id.as_str(), lease.fencing_token).fetch_one(&mut *tx).await?.unwrap_or(false);
         if !eligible {
             return Err(crate::experiments::conflict(
                 "Cleanup status requires the current owned fence",
@@ -87,7 +108,8 @@ impl EvaluationLifecycleRepository {
         }
         let status = if succeeded { "verified" } else { "failed" };
         sqlx::query!("INSERT INTO eval_execution_cleanup(execution_id,container_id,network_id,status,attempts,last_error) VALUES($1,$2,$3,$4,1,$5) ON CONFLICT(execution_id) DO UPDATE SET container_id=EXCLUDED.container_id,network_id=EXCLUDED.network_id,status=EXCLUDED.status,attempts=eval_execution_cleanup.attempts+1,last_error=EXCLUDED.last_error,updated_at=NOW()",
-            lease.execution_id.as_str(), container_id, network_id, status, error).execute(&self.pool).await?;
+            lease.execution_id.as_str(), container_id, network_id, status, error).execute(&mut *tx).await?;
+        tx.commit().await?;
         Ok(())
     }
 }

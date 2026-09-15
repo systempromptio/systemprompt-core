@@ -33,6 +33,8 @@ use crate::{SchedulerError, SchedulerResult};
 
 #[path = "supervisor_execution.rs"]
 mod execution;
+#[path = "supervisor_failures.rs"]
+mod failures;
 #[path = "supervisor_finalize.rs"]
 mod finalize;
 #[path = "supervisor_prepare.rs"]
@@ -101,10 +103,33 @@ impl EvaluatorSupervisor {
         let Some(mut run) = self.prepare_execution(owner, worker_id).await? else {
             return Ok(false);
         };
-        let mut outcome = self.run_client(&mut run).await?;
-        outcome.judgment = self.run_judgment(&mut run, &mut outcome).await?;
-        self.generate_suggestion_if_needed(&mut run, &mut outcome)
-            .await?;
+        let mut outcome = match self.run_client(&mut run).await {
+            Ok(Some(outcome)) => outcome,
+            Ok(None) => return Ok(true),
+            Err(error) => {
+                self.block_execution(
+                    &run.worker.owner_id,
+                    &run.lease,
+                    run.record.variant_index,
+                    "client",
+                    &error,
+                )
+                .await?;
+                return Ok(true);
+            },
+        };
+        match self.run_judgment(&mut run, &mut outcome).await {
+            Ok(judgment) => outcome.judgment = judgment,
+            Err(error) => outcome.blocked = Some(failures::diagnostic("judge", &error)),
+        }
+        if outcome.blocked.is_none() {
+            if let Err(error) = self
+                .generate_suggestion_if_needed(&mut run, &mut outcome)
+                .await
+            {
+                outcome.blocked = Some(failures::diagnostic("suggestion", &error));
+            }
+        }
         self.finalize_execution(run, outcome).await?;
         Ok(true)
     }

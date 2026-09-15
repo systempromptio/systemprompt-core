@@ -63,6 +63,27 @@ impl EvaluatorSupervisor {
         let Some((record, lease)) = self.claim_lease(owner, worker_id).await? else {
             return Ok(None);
         };
+        let variant_index = record.variant_index;
+        match self
+            .prepare_claimed(owner, worker, record, lease.clone())
+            .await
+        {
+            Ok(run) => Ok(Some(run)),
+            Err(error) => {
+                self.block_execution(owner, &lease, variant_index, "preparation", &error)
+                    .await?;
+                Err(error)
+            },
+        }
+    }
+
+    async fn prepare_claimed(
+        &self,
+        owner: &UserId,
+        worker: WorkerRecord,
+        record: ExecutionRecord,
+        lease: ExecutionLease,
+    ) -> SchedulerResult<PreparedExecution> {
         let (assignment, access) = self.assignment_and_access(owner, &worker, &lease).await?;
         systemprompt_evaluation::capabilities::admit_experiment(&assignment.spec)
             .map_err(internal)?;
@@ -70,7 +91,7 @@ impl EvaluatorSupervisor {
         client
             .admitted_target(&self.config.client_image)
             .map_err(internal)?;
-        let suffix = safe_suffix(&record.id);
+        let suffix = format!("{}-f{}", safe_suffix(&record.id), lease.fencing_token);
         let workspace =
             self.provision_workspace(&assignment, &access, &record.id, &suffix, &client)?;
         self.heartbeat(owner, &lease).await?;
@@ -87,7 +108,7 @@ impl EvaluatorSupervisor {
         let network_name = format!("eval-net-{suffix}");
         let relay_name = format!("eval-relay-{suffix}");
         let client_name = format!("eval-client-{suffix}");
-        let network = self.provision_network(owner, &record.id, &network_name, &relay_name)?;
+        let network = self.provision_network(owner, &lease, &network_name, &relay_name)?;
         self.heartbeat(owner, &lease).await?;
         let launch =
             ContainerLaunch::builder(self.config.docker.clone(), workspace.directory.clone())
@@ -95,6 +116,7 @@ impl EvaluatorSupervisor {
                 .network(network.name().to_owned())
                 .name(client_name.clone())
                 .ownership(owner.as_str(), record.id.as_str())
+                .lease(&lease)
                 .build()?;
         let (case, rubric) = case_and_rubric(&assignment)?;
         install_case_fixtures(&case, &workspace.home.join("work"))?;
@@ -107,7 +129,7 @@ impl EvaluatorSupervisor {
         let skill_directory = workspace
             .home
             .join(client.adapter().map_err(internal)?.skill_directory());
-        Ok(Some(PreparedExecution {
+        Ok(PreparedExecution {
             worker,
             record,
             lease,
@@ -127,7 +149,7 @@ impl EvaluatorSupervisor {
             case,
             rubric,
             baseline,
-        }))
+        })
     }
 
     async fn claim_lease(
@@ -272,15 +294,15 @@ impl EvaluatorSupervisor {
     fn provision_network(
         &self,
         owner: &UserId,
-        execution_id: &EvalExecutionId,
+        lease: &ExecutionLease,
         network_name: &str,
         relay_name: &str,
     ) -> SchedulerResult<ExecutionNetwork> {
-        let mut network = ExecutionNetwork::create(
+        let mut network = ExecutionNetwork::create_fenced(
             self.config.docker.clone(),
             network_name.to_owned(),
             owner.as_str(),
-            execution_id.as_str(),
+            lease,
         )?;
         network.start_relay(
             &self.config.relay_image,
