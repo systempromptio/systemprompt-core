@@ -10,7 +10,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::io;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::ptr::null_mut;
 use windows_sys::Win32::Security::Authorization::{
     ConvertSidToStringSidW, ConvertStringSidToSidW, GetNamedSecurityInfoW, SE_FILE_OBJECT,
