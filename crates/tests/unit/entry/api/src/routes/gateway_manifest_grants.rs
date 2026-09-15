@@ -35,8 +35,8 @@ use systemprompt_traits::AppContext as _;
 // skill published under the system admin is plugin-owned and survives the
 // plugin gate in candidate assembly.
 const SERVICES_CONFIG: &str = r#"plugins:
-  grants_fixture_plugin:
-    id: grants_fixture_plugin
+  grants-fixture-plugin:
+    id: grants-fixture-plugin
     name: Grants fixture plugin
     description: Claims every instance skill for the manifest grant tests.
     version: "1.0.0"
