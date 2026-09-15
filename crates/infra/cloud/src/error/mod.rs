@@ -103,7 +103,7 @@ pub enum CloudError {
     Deploy {
         message: String,
         #[source]
-        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+        source: Option<DeploySource>,
     },
 
     #[error("{message}")]
@@ -113,7 +113,7 @@ pub enum CloudError {
     Docker {
         message: String,
         #[source]
-        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+        source: Option<std::io::Error>,
     },
 
     #[error("Authentication failed. Please run 'systemprompt cloud auth login' again.")]
@@ -140,10 +140,7 @@ impl CloudError {
         }
     }
 
-    pub fn deploy_with(
-        message: impl Into<String>,
-        source: impl Into<Box<dyn std::error::Error + Send + Sync>>,
-    ) -> Self {
+    pub fn deploy_with(message: impl Into<String>, source: impl Into<DeploySource>) -> Self {
         Self::Deploy {
             message: message.into(),
             source: Some(source.into()),
@@ -163,13 +160,10 @@ impl CloudError {
         }
     }
 
-    pub fn docker_with(
-        message: impl Into<String>,
-        source: impl Into<Box<dyn std::error::Error + Send + Sync>>,
-    ) -> Self {
+    pub fn docker_with(message: impl Into<String>, source: std::io::Error) -> Self {
         Self::Docker {
             message: message.into(),
-            source: Some(source.into()),
+            source: Some(source),
         }
     }
 
@@ -185,4 +179,13 @@ impl CloudError {
                 | Self::ApiValidationFailed { .. }
         )
     }
+}
+
+/// The underlying failure behind a `CloudError::Deploy`.
+#[derive(Debug, thiserror::Error)]
+pub enum DeploySource {
+    #[error(transparent)]
+    Io(#[from] std::io::Error),
+    #[error(transparent)]
+    Json(#[from] serde_json::Error),
 }

@@ -6,30 +6,16 @@
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU64, Ordering};
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::TenantId;
 
+use super::private_file::{ensure_private_dir, write_private_atomic};
 use super::{CliSession, LOCAL_SESSION_KEY, SessionKey};
 use crate::error::{CloudError, CloudResult};
 
 const STORE_VERSION: u32 = 1;
-
-static TEMP_NONCE: AtomicU64 = AtomicU64::new(0);
-
-fn write_private(path: &Path, content: &str) -> CloudResult<()> {
-    fs::write(path, content)?;
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        let mut perms = fs::metadata(path)?.permissions();
-        perms.set_mode(0o600);
-        fs::set_permissions(path, perms)?;
-    }
-    Ok(())
-}
 
 const fn default_store_version() -> u32 {
     STORE_VERSION
@@ -248,42 +234,9 @@ impl SessionStore {
         Ok(Self::load(sessions_dir)?.unwrap_or_else(Self::new))
     }
 
-    #[must_use]
-    pub fn load_or_reset(sessions_dir: &Path) -> Self {
-        match Self::load(sessions_dir) {
-            Ok(store) => store.unwrap_or_else(Self::new),
-            Err(e) => {
-                tracing::warn!(error = %e, "Resetting unreadable session store");
-                Self::new()
-            },
-        }
-    }
-
     pub fn save(&self, sessions_dir: &Path) -> CloudResult<()> {
-        fs::create_dir_all(sessions_dir)?;
-
-        let gitignore_path = sessions_dir.join(".gitignore");
-        if !gitignore_path.exists() {
-            fs::write(&gitignore_path, "*\n")?;
-        }
-
-        let index_path = sessions_dir.join("index.json");
+        ensure_private_dir(sessions_dir)?;
         let content = serde_json::to_string_pretty(self)?;
-        // Why: the sessions dir is shared by every CLI process of one user, and
-        // a fixed temp name let two concurrent saves truncate and rename each
-        // other's file, so one of them failed with a bare ENOENT.
-        let nonce = TEMP_NONCE.fetch_add(1, Ordering::Relaxed);
-        let temp_path = sessions_dir.join(format!("index.json.{}.{nonce}.tmp", std::process::id()));
-        let written = write_private(&temp_path, &content).and_then(|()| {
-            fs::rename(&temp_path, &index_path)?;
-            Ok(())
-        });
-        if written.is_err()
-            && let Err(cleanup) = fs::remove_file(&temp_path)
-            && cleanup.kind() != std::io::ErrorKind::NotFound
-        {
-            tracing::debug!(path = %temp_path.display(), error = %cleanup, "session index temp file not removed");
-        }
-        written
+        write_private_atomic(&sessions_dir.join("index.json"), &content)
     }
 }

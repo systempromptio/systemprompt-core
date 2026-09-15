@@ -4,7 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Context, Result};
-use systemprompt_cloud::{ProfilePath, SessionKey, SessionStore};
+use systemprompt_cloud::{ProfilePath, SessionKey};
 use systemprompt_loader::ProfileLoader;
 use systemprompt_models::Profile;
 
@@ -32,7 +32,7 @@ pub(super) fn execute(profile_name: &str) -> Result<CommandOutput> {
     let session_key = SessionKey::from_tenant_id(new_tenant_id.as_ref());
 
     let sessions_dir = paths.sessions_dir();
-    let mut store = SessionStore::load_or_reset(&sessions_dir);
+    let mut store = super::load_or_reset_corrupt(&sessions_dir)?;
 
     let previous_profile = store.active_profile_name.clone();
 

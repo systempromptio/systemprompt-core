@@ -1,9 +1,9 @@
 use chrono::{Duration, Utc};
 use std::path::PathBuf;
-use systemprompt_cloud::SessionBinding;
 use systemprompt_cloud::cli_session::{
     CliSession, CliSessionBuilder, LOCAL_SESSION_KEY, SessionIdentity, SessionKey, SessionStore,
 };
+use systemprompt_cloud::{CloudError, SessionBinding};
 use systemprompt_identifiers::{ContextId, Email, ProfileName, SessionId, SessionToken, TenantId};
 use systemprompt_models::auth::UserType;
 use systemprompt_test_fixtures::fixture_user_id;
@@ -659,15 +659,50 @@ fn load_errors_on_corrupt_store() {
 }
 
 #[test]
-fn load_or_reset_replaces_corrupt_store() {
+fn a_corrupt_store_is_surfaced_not_silently_replaced() {
     let temp_dir = TempDir::new().unwrap();
     let dir = temp_dir.path().join("sessions");
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(dir.join("index.json"), "garbage").unwrap();
 
-    let store = SessionStore::load_or_reset(&dir);
-    assert!(store.is_empty());
-    assert!(store.active_key.is_none());
+    let err = SessionStore::load_or_create(&dir).expect_err("corrupt index is an error");
+    assert!(
+        matches!(err, CloudError::SessionStoreCorrupted { .. }),
+        "{err}"
+    );
+    assert_eq!(
+        std::fs::read_to_string(dir.join("index.json")).unwrap(),
+        "garbage",
+        "the unreadable index is left for the operator to repair, never overwritten"
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn the_index_is_created_owner_only_from_the_first_byte() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let temp_dir = TempDir::new().unwrap();
+    let dir = temp_dir.path().join("sessions");
+    let store = SessionStore::new();
+    store.save(&dir).unwrap();
+
+    let mode = std::fs::metadata(dir.join("index.json"))
+        .unwrap()
+        .permissions()
+        .mode()
+        & 0o777;
+    assert_eq!(
+        mode, 0o600,
+        "session index must never be group/world readable"
+    );
+    assert!(
+        std::fs::read_dir(&dir)
+            .unwrap()
+            .filter_map(Result::ok)
+            .all(|e| !e.file_name().to_string_lossy().ends_with(".tmp")),
+        "no staging file survives a successful save"
+    );
 }
 
 #[test]

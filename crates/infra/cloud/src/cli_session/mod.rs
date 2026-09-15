@@ -7,7 +7,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod private_file;
 mod session;
+mod session_file;
 mod store;
 
 use serde::{Deserialize, Serialize};

@@ -33,8 +33,6 @@ async fn seed_log(pool: &DbPool, module: &str, message: &str) {
     let entry = LogEntry::new(LogLevel::Error, module, message, actor);
     LoggingRepository::new(pool)
         .unwrap()
-        .with_terminal(false)
-        .with_database(true)
         .log(entry)
         .await
         .unwrap();

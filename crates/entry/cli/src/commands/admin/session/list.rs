@@ -42,7 +42,7 @@ pub(super) fn execute(_config: &CliConfig) -> CommandOutput {
 
     let store = {
         let dir = ResolvedPaths::discover().sessions_dir();
-        Some(SessionStore::load_or_reset(&dir))
+        Some(super::load_for_display(&dir))
     };
 
     let profiles = discovered

@@ -8,6 +8,7 @@
 
 ### Changed
 
+- `admin session login` refuses to proceed on a corrupt session index (`SessionStoreCorrupted`, with the repair hint) instead of silently starting from an empty store; `admin session switch` remains the documented repair path and `show`/`list` render an unreadable store as empty with a warning.
 - `infra migrations history` prints `unstamped` for a migration recorded without a checksum; `infra jobs cleanup-logs` runs on `LoggingRepository`.
 - `infra db migrate*`, `admin bootstrap`, `admin config reconcile` and session creation connect through `Database::connect`; the profile `database_type` string is no longer consulted.
 - `cloud init` and `cloud profile` scaffolding fail when the embedded provider catalog is unreadable instead of writing empty default models; `admin config catalog discovery` fails when the embedded Vertex rate card is unreadable.

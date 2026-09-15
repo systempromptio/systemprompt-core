@@ -11,8 +11,12 @@ pub mod show;
 mod switch;
 pub mod types;
 
+use std::path::Path;
+
 use anyhow::Result;
 use clap::Subcommand;
+use systemprompt_cloud::{CloudError, SessionStore};
+use systemprompt_logging::CliService;
 
 use crate::context::CommandContext;
 use crate::descriptor::{CommandDescriptor, DescribeCommand};
@@ -73,6 +77,32 @@ pub async fn execute(cmd: SessionCommands, ctx: &CommandContext) -> Result<()> {
             let result = logout::execute(args, ctx.prompter(), &ctx.cli)?;
             render_result(&result, &ctx.cli);
             Ok(())
+        },
+    }
+}
+
+// Why: `switch` is the documented repair path for a corrupt index — the
+// error text sends the operator here — so it alone may start from an empty
+// store; every writer that is not a repair surfaces the corruption instead.
+pub(super) fn load_or_reset_corrupt(sessions_dir: &Path) -> Result<SessionStore> {
+    match SessionStore::load(sessions_dir) {
+        Ok(store) => Ok(store.unwrap_or_else(SessionStore::new)),
+        Err(CloudError::SessionStoreCorrupted { path, .. }) => {
+            CliService::warning(&format!(
+                "Session store at {path} is corrupt; starting fresh"
+            ));
+            Ok(SessionStore::new())
+        },
+        Err(error) => Err(error.into()),
+    }
+}
+
+pub(super) fn load_for_display(sessions_dir: &Path) -> SessionStore {
+    match SessionStore::load(sessions_dir) {
+        Ok(store) => store.unwrap_or_else(SessionStore::new),
+        Err(error) => {
+            CliService::warning(&format!("Session store unreadable: {error}"));
+            SessionStore::new()
         },
     }
 }

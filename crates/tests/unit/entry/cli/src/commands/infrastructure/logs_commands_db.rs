@@ -47,8 +47,6 @@ async fn seed_log(pool: &DbPool, message: &str) -> LogEntry {
     let entry = LogEntry::new(LogLevel::Error, "cli.tests", message, actor);
     LoggingRepository::new(pool)
         .unwrap()
-        .with_terminal(false)
-        .with_database(true)
         .log(entry.clone())
         .await
         .unwrap();

@@ -437,7 +437,7 @@ fn infra_db_migrate_status_full() {
 
 #[test]
 fn infra_db_migrate_plan_full() {
-    stderr_has_fmt(&["infra", "db", "migrate-plan"], "migrations");
+    stderr_has_fmt(&["infra", "db", "migrate-plan"], "migration");
 }
 
 #[test]

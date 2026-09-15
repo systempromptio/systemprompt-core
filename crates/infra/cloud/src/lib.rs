@@ -73,7 +73,7 @@ pub use credentials::CloudCredentials;
 pub use credentials_bootstrap::{CredentialsBootstrap, CredentialsBootstrapError};
 pub use deploy::DockerfileBuilder;
 pub use docker::{CommandRunner, CommandSpec, DockerCli, SystemCommandRunner};
-pub use error::{CloudError, CloudResult};
+pub use error::{CloudError, CloudResult, DeploySource};
 pub use logout::{ClearedCloudState, clear_cloud_state};
 pub use oauth::{OAuthTemplates, run_oauth_flow};
 pub use paths::{

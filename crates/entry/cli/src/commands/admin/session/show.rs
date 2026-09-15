@@ -3,7 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_cloud::{CliSession, LOCAL_SESSION_KEY, SessionKey, SessionStore, TenantStore};
+use systemprompt_cloud::{CliSession, LOCAL_SESSION_KEY, SessionKey, TenantStore};
 
 use super::types::{RoutingInfo, SessionInfo, SessionShowOutput};
 use crate::CliConfig;
@@ -24,7 +24,7 @@ pub(super) fn execute(_config: &CliConfig) -> CommandOutput {
 fn collect_sessions(paths: &ResolvedPaths) -> Vec<SessionInfo> {
     let sessions_dir = paths.sessions_dir();
 
-    let store = SessionStore::load_or_reset(&sessions_dir);
+    let store = super::load_for_display(&sessions_dir);
 
     let active_key = store.active_key.clone();
     let active_profile = store.active_profile_name.clone();
@@ -124,7 +124,7 @@ pub fn missing_active_session(
 
 fn collect_routing_info(paths: &ResolvedPaths) -> Option<RoutingInfo> {
     let sessions_dir = paths.sessions_dir();
-    let store = SessionStore::load_or_reset(&sessions_dir);
+    let store = super::load_for_display(&sessions_dir);
     let active_key = store.active_session_key()?;
 
     let session = store.sessions.get(&active_key.as_storage_key());
