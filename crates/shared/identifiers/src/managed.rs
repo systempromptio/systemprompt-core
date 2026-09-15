@@ -22,4 +22,6 @@ crate::define_id!(NativeSessionId, schema);
 crate::define_id!(InventoryEntryId, generate, schema);
 crate::define_id!(AnalyticsChangeId, generate, schema);
 crate::define_id!(AnalyticsFactId, schema);
+crate::define_id!(AnalyticsSnapshotJobId, generate, schema);
+crate::define_id!(AnalyticsWorkerId, generate, schema);
 crate::define_id!(DependencyVerificationId, generate, schema);

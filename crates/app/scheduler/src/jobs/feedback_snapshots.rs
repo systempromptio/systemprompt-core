@@ -6,7 +6,7 @@
 use crate::SchedulerError;
 use async_trait::async_trait;
 use std::sync::Arc;
-use systemprompt_identifiers::TaskId;
+use systemprompt_identifiers::AnalyticsWorkerId;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{Job, JobContext, JobResult, JobScope, ProviderResult};
 
@@ -34,7 +34,7 @@ impl Job for FeedbackSnapshotsJob {
             .ok_or_else(|| SchedulerError::missing_context("AppContext"))?;
         let owner = &ctx.actor().user_id;
         let repository = app.feedback_snapshots_repository();
-        let worker = TaskId::generate();
+        let worker = AnalyticsWorkerId::generate();
         let now = chrono::Utc::now();
         let mut processed = 0u64;
         for _ in 0..16 {

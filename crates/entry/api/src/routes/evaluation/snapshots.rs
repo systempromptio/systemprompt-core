@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use systemprompt_analytics::snapshots::{
     FeedbackSnapshot, SnapshotHealth, SnapshotRangeJob, SnapshotRangeRequest,
 };
-use systemprompt_identifiers::{ManagedResourceId, TaskId};
+use systemprompt_identifiers::{AnalyticsSnapshotJobId, ManagedResourceId};
 use systemprompt_runtime::AppContext;
 
 pub(super) fn router() -> Router<AppContext> {
@@ -114,7 +114,7 @@ async fn create_job(
 }
 async fn job(
     State(ctx): State<AppContext>,
-    Path(operation): Path<TaskId>,
+    Path(operation): Path<AnalyticsSnapshotJobId>,
 ) -> Result<Json<SnapshotRangeJob>, OptimizationHttpError> {
     Ok(Json(
         ctx.feedback_snapshots_repository()

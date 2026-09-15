@@ -15,6 +15,7 @@
 
 - The evaluator materialises `ExecutionAssignment` workspaces from the typed `RevisionBundle` carried on the assignment instead of re-decoding a JSON value per run.
 - `cleanup_inactive_sessions` runs on the users `SessionRepository`. Adapter diagnostics carry parse errors; the long normalisers and supervisor stages are named helpers behind `TerminalEvidence`, `ReadinessScope`, `WorkspaceRequest` and `NetworkOwnership`; semantic judging is its own supervisor module.
+- Feedback jobs identify their worker with `AnalyticsWorkerId`.
 
 ### Fixed
 

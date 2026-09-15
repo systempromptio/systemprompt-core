@@ -12,6 +12,7 @@
 
 - `AiToolCallId::generate()`.
 - `EvalCampaignId`, `ResourceInvocationId`, `ConsumerInstallationId`, `InstallationSessionBindingId`, `NativeSessionId`, `InventoryEntryId`, `AnalyticsChangeId`, `AnalyticsFactId` and `DependencyVerificationId`.
+- `headers::USER_ROLES`, `AnalyticsSnapshotJobId`, `AnalyticsWorkerId` and `EvalHoldoutProposalId`.
 
 ### Fixed
 

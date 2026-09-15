@@ -5,7 +5,7 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::{AnalyticsChangeId, TaskId};
+use systemprompt_identifiers::{AnalyticsChangeId, AnalyticsWorkerId, TaskId};
 use systemprompt_models::feedback::analytics::{AnalyticsFactKey, NormalizedAnalyticsFact};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -17,7 +17,7 @@ pub struct ChangeReceipt {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FactLease {
     pub change_id: AnalyticsChangeId,
-    pub worker_id: TaskId,
+    pub worker_id: AnalyticsWorkerId,
     pub epoch: i64,
     pub expires_at: DateTime<Utc>,
 }
@@ -95,7 +95,7 @@ pub struct DeltaClaim {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeltaLease {
     pub consumer: String,
-    pub worker_id: TaskId,
+    pub worker_id: AnalyticsWorkerId,
     pub epoch: i64,
     pub after_generation: i64,
     pub through_generation: i64,

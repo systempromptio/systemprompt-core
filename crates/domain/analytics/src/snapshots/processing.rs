@@ -9,7 +9,7 @@ use super::{FeedbackSnapshotsRepository, invalid};
 use crate::feedback::{DeltaClaim, DeltaLease, FeedbackFactsRepository};
 use chrono::{DateTime, NaiveDate, Utc};
 use std::collections::BTreeSet;
-use systemprompt_identifiers::{TaskId, UserId};
+use systemprompt_identifiers::{AnalyticsWorkerId, UserId};
 
 #[derive(Debug, Clone, Copy)]
 struct ShadowWindow {
@@ -21,7 +21,7 @@ impl FeedbackSnapshotsRepository {
     pub async fn process(
         &self,
         owner: &UserId,
-        worker: &TaskId,
+        worker: &AnalyticsWorkerId,
         now: DateTime<Utc>,
     ) -> crate::Result<u64> {
         let Some(lease) = self

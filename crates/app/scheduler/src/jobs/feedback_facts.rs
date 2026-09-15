@@ -7,7 +7,7 @@ use crate::SchedulerError;
 use async_trait::async_trait;
 use std::sync::Arc;
 use systemprompt_analytics::feedback::FactsProcessingService;
-use systemprompt_identifiers::TaskId;
+use systemprompt_identifiers::AnalyticsWorkerId;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{Job, JobContext, JobResult, JobScope, ProviderResult};
 
@@ -35,7 +35,7 @@ impl Job for FeedbackFactsJob {
             .ok_or_else(|| SchedulerError::missing_context("AppContext"))?;
         let service = FactsProcessingService::new(app.feedback_facts_repository().as_ref().clone());
         let processed = service
-            .drain(&ctx.actor().user_id, &TaskId::generate(), 64)
+            .drain(&ctx.actor().user_id, &AnalyticsWorkerId::generate(), 64)
             .await
             .map_err(SchedulerError::from)?;
         Ok(JobResult::success().with_stats(

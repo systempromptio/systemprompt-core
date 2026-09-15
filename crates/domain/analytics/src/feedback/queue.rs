@@ -6,13 +6,13 @@
 
 use super::{FactLease, FactsHealth, FeedbackFactsRepository, validation};
 use crate::Result;
-use systemprompt_identifiers::{AnalyticsChangeId, TaskId, UserId};
+use systemprompt_identifiers::{AnalyticsChangeId, AnalyticsWorkerId, UserId};
 
 impl FeedbackFactsRepository {
     pub async fn claim(
         &self,
         owner: &UserId,
-        worker: &TaskId,
+        worker: &AnalyticsWorkerId,
         limit: u32,
         lease_seconds: u32,
     ) -> Result<Vec<FactLease>> {

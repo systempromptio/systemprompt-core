@@ -5,7 +5,7 @@
 
 use super::FeedbackFactsRepository;
 use crate::Result;
-use systemprompt_identifiers::{TaskId, UserId};
+use systemprompt_identifiers::{AnalyticsWorkerId, UserId};
 
 #[derive(Debug, Clone)]
 pub struct FactsProcessingService {
@@ -17,7 +17,12 @@ impl FactsProcessingService {
         Self { repository }
     }
 
-    pub async fn drain(&self, owner: &UserId, worker: &TaskId, limit: u32) -> Result<usize> {
+    pub async fn drain(
+        &self,
+        owner: &UserId,
+        worker: &AnalyticsWorkerId,
+        limit: u32,
+    ) -> Result<usize> {
         let leases = self.repository.claim(owner, worker, limit, 60).await?;
         let mut completed = 0;
         for lease in leases {
@@ -36,7 +41,7 @@ impl FactsProcessingService {
     pub async fn run(
         &self,
         owner: &UserId,
-        worker: &TaskId,
+        worker: &AnalyticsWorkerId,
         mut shutdown: tokio::sync::watch::Receiver<bool>,
     ) -> Result<()> {
         let mut interval = tokio::time::interval(std::time::Duration::from_secs(1));

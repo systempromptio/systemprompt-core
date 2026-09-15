@@ -3,7 +3,7 @@ use systemprompt_analytics::feedback::{
     BackfillPage, FactsProcessingService, FeedbackFactsRepository,
 };
 use systemprompt_identifiers::{
-    AnalyticsChangeId, AnalyticsFactId, ManagedResourceId, ResourceInvocationId,
+    AnalyticsChangeId, AnalyticsFactId, AnalyticsWorkerId, ManagedResourceId, ResourceInvocationId,
     ResourceRevisionId, TaskId, UserId,
 };
 use systemprompt_models::feedback::analytics::*;
@@ -38,7 +38,7 @@ impl Fixture {
     }
 
     async fn drain(&self) {
-        let worker = TaskId::generate();
+        let worker = AnalyticsWorkerId::generate();
         let service = FactsProcessingService::new(self.repository.clone());
         while service
             .drain(&self.owner, &worker, 64)

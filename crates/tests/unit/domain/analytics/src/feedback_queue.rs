@@ -10,8 +10,8 @@ async fn concurrent_workers_claim_disjoint_rows_and_stale_worker_cannot_complete
             .await
             .expect("submit");
     }
-    let one = TaskId::generate();
-    let two = TaskId::generate();
+    let one = AnalyticsWorkerId::generate();
+    let two = AnalyticsWorkerId::generate();
     let (first, second) = tokio::join!(
         f.repository.claim(&f.owner, &one, 1, 1),
         f.repository.claim(&f.owner, &two, 1, 1)
@@ -24,7 +24,7 @@ async fn concurrent_workers_claim_disjoint_rows_and_stale_worker_cannot_complete
     tokio::time::sleep(std::time::Duration::from_millis(1100)).await;
     let recovered = f
         .repository
-        .claim(&f.owner, &TaskId::generate(), 2, 60)
+        .claim(&f.owner, &AnalyticsWorkerId::generate(), 2, 60)
         .await
         .expect("recover expired leases");
     assert_eq!(recovered.len(), 2);
@@ -118,7 +118,7 @@ async fn replacement_deltas_and_checkpoint_rollback_are_restart_safe() {
         .claim_deltas(
             &f.owner,
             "snapshot-v1",
-            &TaskId::generate(),
+            &AnalyticsWorkerId::generate(),
             DeltaClaim {
                 limit: 64,
                 lease_seconds: 1,
@@ -146,7 +146,7 @@ async fn replacement_deltas_and_checkpoint_rollback_are_restart_safe() {
         .claim_deltas(
             &f.owner,
             "snapshot-v1",
-            &TaskId::generate(),
+            &AnalyticsWorkerId::generate(),
             DeltaClaim {
                 limit: 64,
                 lease_seconds: 60,
@@ -172,7 +172,7 @@ async fn replacement_deltas_and_checkpoint_rollback_are_restart_safe() {
             .claim_deltas(
                 &f.owner,
                 "snapshot-v1",
-                &TaskId::generate(),
+                &AnalyticsWorkerId::generate(),
                 DeltaClaim {
                     limit: 64,
                     lease_seconds: 60
@@ -195,7 +195,7 @@ async fn retry_records_diagnostics_and_fresh_worker_resumes() {
         .expect("submit");
     let lease = f
         .repository
-        .claim(&f.owner, &TaskId::generate(), 1, 60)
+        .claim(&f.owner, &AnalyticsWorkerId::generate(), 1, 60)
         .await
         .expect("claim")
         .remove(0);

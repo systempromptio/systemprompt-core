@@ -1,5 +1,7 @@
 use super::*;
 use systemprompt_analytics::feedback::DeltaClaim;
+use systemprompt_analytics::snapshots::SnapshotJobState;
+use systemprompt_identifiers::{AnalyticsSnapshotJobId, AnalyticsWorkerId};
 
 #[tokio::test]
 async fn stale_delta_lease_is_fenced_and_restarted_worker_applies_once() {
@@ -15,7 +17,7 @@ async fn stale_delta_lease_is_fenced_and_restarted_worker_applies_once() {
         .claim_deltas(
             &f.owner,
             "snapshots-v1",
-            &TaskId::generate(),
+            &AnalyticsWorkerId::generate(),
             DeltaClaim {
                 limit: 256,
                 lease_seconds: 300,
@@ -30,7 +32,7 @@ async fn stale_delta_lease_is_fenced_and_restarted_worker_applies_once() {
         .claim_deltas(
             &f.owner,
             "snapshots-v1",
-            &TaskId::generate(),
+            &AnalyticsWorkerId::generate(),
             DeltaClaim {
                 limit: 256,
                 lease_seconds: 300,
@@ -71,8 +73,8 @@ async fn concurrent_workers_and_reordered_replacements_match_latest_revision() {
     f.drain().await;
     let a = repository(&f);
     let b = repository(&f);
-    let worker_a = TaskId::generate();
-    let worker_b = TaskId::generate();
+    let worker_a = AnalyticsWorkerId::generate();
+    let worker_b = AnalyticsWorkerId::generate();
     let (x, y) = tokio::join!(
         a.process(&f.owner, &worker_a, now),
         b.process(&f.owner, &worker_b, now)
@@ -94,7 +96,7 @@ async fn custom_jobs_are_idempotent_fenced_and_invalidated_by_corrections() {
         .unwrap();
     refresh(&f, now).await;
     let request = SnapshotRangeRequest {
-        operation_id: TaskId::generate(),
+        operation_id: AnalyticsSnapshotJobId::generate(),
         resource_id: None,
         from_day: now.date_naive(),
         to_day: now.date_naive() + Duration::days(1),
@@ -106,7 +108,7 @@ async fn custom_jobs_are_idempotent_fenced_and_invalidated_by_corrections() {
     conflict.from_day -= Duration::days(1);
     assert!(repo.request_range(&f.owner, &conflict, now).await.is_err());
     let lease = repo
-        .claim_range(&f.owner, &TaskId::generate())
+        .claim_range(&f.owner, &AnalyticsWorkerId::generate())
         .await
         .unwrap()
         .unwrap();
@@ -132,7 +134,7 @@ async fn custom_jobs_are_idempotent_fenced_and_invalidated_by_corrections() {
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(job.state, "pending");
+    assert_eq!(job.state, SnapshotJobState::Pending);
     assert!(job.result.is_none());
     assert!(repo.complete_range(&f.owner, &lease, now).await.is_err());
 }
@@ -153,4 +155,57 @@ async fn committed_evidence_to_snapshot_functional_freshness() {
         "functional freshness: one committed request, local PostgreSQL, direct worker drain, {:?}; no throughput or p95 claim",
         start.elapsed()
     );
+}
+
+#[tokio::test]
+async fn assembly_error_fails_the_job_and_it_is_not_reclaimed() {
+    let f = Fixture::new().await;
+    let now = Utc::now();
+    f.repository
+        .submit(&f.owner, &request("request", 1, now, 10))
+        .await
+        .unwrap();
+    refresh(&f, now).await;
+    sqlx::query!(
+        "UPDATE analytics_snapshot_daily SET spend='{\"USD\":\"not-a-number\"}'::jsonb WHERE owner_id=$1",
+        f.owner.as_str()
+    )
+    .execute(&f.pool)
+    .await
+    .unwrap();
+    let request = SnapshotRangeRequest {
+        operation_id: AnalyticsSnapshotJobId::generate(),
+        resource_id: None,
+        from_day: now.date_naive(),
+        to_day: now.date_naive() + Duration::days(1),
+    };
+    let repo = repository(&f);
+    repo.request_range(&f.owner, &request, now).await.unwrap();
+    let lease = repo
+        .claim_range(&f.owner, &AnalyticsWorkerId::generate())
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(repo.complete_range(&f.owner, &lease, now).await.is_err());
+    let job = repo
+        .range_job(&f.owner, &request.operation_id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(job.state, SnapshotJobState::Failed);
+    assert!(job.result.is_none());
+    assert!(
+        job.diagnostic
+            .as_deref()
+            .is_some_and(|d| d.contains("Invalid recorded spend")),
+        "got: {:?}",
+        job.diagnostic
+    );
+    assert!(
+        repo.claim_range(&f.owner, &AnalyticsWorkerId::generate())
+            .await
+            .unwrap()
+            .is_none()
+    );
+    assert!(repo.fail_range(&f.owner, &lease, "late").await.is_err());
 }

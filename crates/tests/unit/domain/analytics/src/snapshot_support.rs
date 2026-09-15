@@ -57,7 +57,7 @@ async fn refresh(f: &Fixture, now: chrono::DateTime<Utc>) -> FeedbackSnapshot {
     f.drain().await;
     let repo = repository(f);
     while repo
-        .process(&f.owner, &TaskId::generate(), now)
+        .process(&f.owner, &AnalyticsWorkerId::generate(), now)
         .await
         .expect("snapshot process")
         > 0

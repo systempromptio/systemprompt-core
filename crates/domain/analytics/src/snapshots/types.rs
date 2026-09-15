@@ -7,7 +7,7 @@
 use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-use systemprompt_identifiers::{ManagedResourceId, TaskId};
+use systemprompt_identifiers::{AnalyticsSnapshotJobId, AnalyticsWorkerId, ManagedResourceId};
 
 #[derive(
     Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq, schemars::JsonSchema,
@@ -65,7 +65,7 @@ pub struct SnapshotHealth {
 #[serde(deny_unknown_fields)]
 /// An idempotent bounded request for a UTC-day aggregate range.
 pub struct SnapshotRangeRequest {
-    pub operation_id: TaskId,
+    pub operation_id: AnalyticsSnapshotJobId,
     pub resource_id: Option<ManagedResourceId>,
     pub from_day: NaiveDate,
     pub to_day: NaiveDate,
@@ -73,17 +73,47 @@ pub struct SnapshotRangeRequest {
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 /// A durable custom-range operation and its current result or diagnostic.
 pub struct SnapshotRangeJob {
-    pub operation_id: TaskId,
-    pub state: String,
+    pub operation_id: AnalyticsSnapshotJobId,
+    pub state: SnapshotJobState,
     pub result: Option<FeedbackSnapshot>,
     pub diagnostic: Option<String>,
 }
 #[derive(Debug, Clone)]
 /// Worker identity and fencing epoch for a leased custom-range operation.
 pub struct SnapshotJobLease {
-    pub operation_id: TaskId,
-    pub worker_id: TaskId,
+    pub operation_id: AnalyticsSnapshotJobId,
+    pub worker_id: AnalyticsWorkerId,
     pub epoch: i64,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(rename_all = "snake_case")]
+/// Lifecycle of a custom-range operation; `failed` is terminal and carries the
+/// assembly diagnostic.
+pub enum SnapshotJobState {
+    Pending,
+    Leased,
+    Ready,
+    Failed,
+}
+impl SnapshotJobState {
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Pending => "pending",
+            Self::Leased => "leased",
+            Self::Ready => "ready",
+            Self::Failed => "failed",
+        }
+    }
+    pub fn parse(state: &str) -> crate::Result<Self> {
+        Ok(match state {
+            "pending" => Self::Pending,
+            "leased" => Self::Leased,
+            "ready" => Self::Ready,
+            "failed" => Self::Failed,
+            _ => return Err(super::invalid("Unknown range job state")),
+        })
+    }
 }
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, schemars::JsonSchema)]
 /// One organizational scope compacted behind drained evidence barriers.

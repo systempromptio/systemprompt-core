@@ -109,7 +109,7 @@ pub use context::ContextId;
 pub use email::Email;
 pub use evaluation::{
     EvalApprovalId, EvalBudgetId, EvalCampaignId, EvalCaseId, EvalExecutionId, EvalExperimentId,
-    EvalReservationId, EvalRevisionId, EvalSuggestionId, EvalWorkerId,
+    EvalHoldoutProposalId, EvalReservationId, EvalRevisionId, EvalSuggestionId, EvalWorkerId,
 };
 pub use events::EventOutboxId;
 pub use execution::{ArtifactId, ExecutionStepId, LogId, TokenId};
@@ -122,11 +122,11 @@ pub use jobs::{JobName, ScheduledJobId};
 pub use links::{CampaignId, LinkClickId, LinkId};
 pub use locale::LocaleCode;
 pub use managed::{
-    AnalyticsChangeId, AnalyticsFactId, ConsumerInstallationId, DependencyVerificationId,
-    DistributionId, InstallationReceiptId, InstallationSessionBindingId, InventoryEntryId,
-    InvocationAttributionId, ManagedReconciliationId, ManagedResourceId, ManagedSourceId,
-    NativeSessionId, PublicationId, PublicationReviewId, ResourceRevisionId, SourceSnapshotId,
-    WithdrawalProposalId,
+    AnalyticsChangeId, AnalyticsFactId, AnalyticsSnapshotJobId, AnalyticsWorkerId,
+    ConsumerInstallationId, DependencyVerificationId, DistributionId, InstallationReceiptId,
+    InstallationSessionBindingId, InventoryEntryId, InvocationAttributionId,
+    ManagedReconciliationId, ManagedResourceId, ManagedSourceId, NativeSessionId, PublicationId,
+    PublicationReviewId, ResourceRevisionId, SourceSnapshotId, WithdrawalProposalId,
 };
 pub use marketplace::MarketplaceId;
 pub use mcp::{AiToolCallId, McpExecutionId, McpServerId, McpToolName};

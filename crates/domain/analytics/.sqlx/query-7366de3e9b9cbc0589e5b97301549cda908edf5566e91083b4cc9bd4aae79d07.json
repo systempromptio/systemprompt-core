@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE analytics_snapshot_jobs SET state='failed',last_error=$5,completed_at=clock_timestamp(),lease_worker=NULL,lease_until=NULL WHERE owner_id=$1 AND job_id=$2 AND state='leased' AND lease_worker=$3 AND lease_epoch=$4 AND lease_until>clock_timestamp()",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "7366de3e9b9cbc0589e5b97301549cda908edf5566e91083b4cc9bd4aae79d07"
+}

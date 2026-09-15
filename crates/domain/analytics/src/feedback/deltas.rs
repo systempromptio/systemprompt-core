@@ -6,14 +6,14 @@
 
 use super::{DeltaClaim, DeltaLease, FactDelta, FeedbackFactsRepository, validation};
 use crate::Result;
-use systemprompt_identifiers::{TaskId, UserId};
+use systemprompt_identifiers::{AnalyticsWorkerId, UserId};
 
 impl FeedbackFactsRepository {
     pub async fn claim_deltas(
         &self,
         owner: &UserId,
         consumer: &str,
-        worker: &TaskId,
+        worker: &AnalyticsWorkerId,
         claim: DeltaClaim,
     ) -> Result<Option<DeltaLease>> {
         let DeltaClaim {
