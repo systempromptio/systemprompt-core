@@ -8,7 +8,7 @@ fn fixture() -> tempfile::TempDir {
     let root = tempfile::tempdir().expect("authoring fixture");
     let skill = root.path().join("skills/alpha");
     fs::create_dir_all(&skill).expect("skill directory");
-    fs::write(skill.join("config.yaml"), "id: alpha\nenabled: true\n").expect("config");
+    fs::write(skill.join("config.yaml"), "id: alpha\nname: Alpha\ndescription: Authoring fixture\nenabled: true\nfile: index.md\n").expect("config");
     fs::write(skill.join("index.md"), "# Original\n").expect("instructions");
     root
 }
@@ -57,15 +57,12 @@ fn authoring_capture_rejects_duplicate_traversal_and_invalid_configurations() {
         assert!(capture_skills(root.path(), &ids).is_err());
     }
     for config in [
-        "id: other\nenabled: true\n",
-        "id: alpha\nenabled: false\n",
+        "id: other\nname: Alpha\ndescription: Authoring fixture\nenabled: true\nfile: index.md\n",
+        "id: alpha\nname: Alpha\ndescription: Authoring fixture\nenabled: false\nfile: index.md\n",
         "[invalid yaml",
-        "id: alpha\nenabled: true\ncontent: missing.md\n",
+        "id: alpha\nname: Alpha\ndescription: Authoring fixture\nenabled: true\nfile: missing.md\n",
     ] {
         fs::write(root.path().join("skills/alpha/config.yaml"), config).unwrap();
-        if config.contains("content:") {
-            fs::remove_file(root.path().join("skills/alpha/index.md")).unwrap();
-        }
         assert!(
             capture_skills(root.path(), &["alpha".into()]).is_err(),
             "{config}"

@@ -527,7 +527,10 @@ async fn execution_accounting_refuses_a_negative_token_column() {
         return;
     };
     let (execution, lease) = harness.claimed_lease().await;
-    let gateway = GatewayEvaluationRepository::new(harness.pg.clone());
+    let gateway = GatewayEvaluationRepository::with_admission(
+        harness.pg.clone(),
+        crate::fixture_admission::fixture_admission(),
+    );
     let access = ExecutionCapabilityRepository::new(harness.pg.clone())
         .issue(&harness.owner, &lease)
         .await
