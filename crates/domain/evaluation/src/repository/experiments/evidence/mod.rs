@@ -13,7 +13,6 @@ use sqlx::types::Json;
 use systemprompt_identifiers::{AiRequestId, EvalExecutionId, UserId};
 use systemprompt_models::managed::RevisionBundle;
 
-#[path = "evidence_validation.rs"]
 mod validation;
 use validation::{ManagedAsset, managed_assets, validate_artifacts, validate_variant};
 

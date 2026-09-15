@@ -12,13 +12,9 @@ use systemprompt_identifiers::{
 
 use super::{BudgetRepository, ExecutionLease};
 
-#[path = "lifecycle_approvals.rs"]
 mod approvals;
-#[path = "lifecycle_models.rs"]
 mod models;
-#[path = "lifecycle_recovery.rs"]
 mod recovery;
-#[path = "lifecycle_suggestion_operations.rs"]
 mod suggestion_operations;
 use crate::Result;
 use crate::experiments::invalid;

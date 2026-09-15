@@ -7,7 +7,6 @@ use crate::experiments::{ClientKind, ExperimentSpec, VariantSpec, invalid};
 use serde::{Deserialize, Serialize};
 
 pub const CAPABILITY_REGISTRY_VERSION: u16 = 3;
-#[path = "native_proofs.rs"]
 pub mod proofs;
 pub use systemprompt_models::feedback::EvaluatorClient;
 

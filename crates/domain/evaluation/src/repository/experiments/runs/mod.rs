@@ -17,7 +17,6 @@ use systemprompt_identifiers::{
 use super::RevisionRepository;
 use crate::experiments::{ExperimentSpec, content_digest, invalid};
 
-#[path = "run_claims.rs"]
 mod claims;
 
 #[derive(Clone, Debug)]

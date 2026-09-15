@@ -4,7 +4,6 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::{ClientKind, content_digest, invalid};
-#[path = "execution_builders.rs"]
 mod builders;
 use crate::Result;
 pub use builders::*;

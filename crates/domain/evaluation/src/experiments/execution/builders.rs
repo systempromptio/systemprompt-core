@@ -6,7 +6,6 @@
 use super::{ArtifactEvidence, ClientCapabilities, ClientKind, ExecutionLimits};
 use crate::Result;
 use crate::experiments::invalid;
-#[path = "evidence_builder.rs"]
 mod evidence;
 pub use evidence::ExecutionEvidenceBuilder;
 
