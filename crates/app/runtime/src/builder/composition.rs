@@ -93,10 +93,20 @@ pub(super) fn build_repositories(
     let managed = Arc::new(systemprompt_marketplace::managed::ManagedRepository::new(
         pool.as_ref().clone(),
     ));
+    let ai = Arc::new(systemprompt_ai::repository::AiRepositories::new(database)?);
+    let managed_revisions: systemprompt_traits::DynManagedRevisionOwnership =
+        Arc::new(managed.as_ref().clone());
     let evaluation = Arc::new(
         systemprompt_evaluation::repository::experiments::EvaluationRepositories::new(
-            pool.as_ref(),
-        ),
+            database,
+            systemprompt_evaluation::repository::experiments::EvaluationSeams {
+                trace: Arc::new(ai.requests.clone()),
+                sessions: Arc::new(systemprompt_users::UsersAiSessionProvider::from_repository(
+                    systemprompt_users::SessionRepository::new(database)?,
+                )),
+                managed_revisions,
+            },
+        )?,
     );
     let feedback_facts = Arc::new(
         systemprompt_analytics::feedback::FeedbackFactsRepository::new(
@@ -130,7 +140,7 @@ pub(super) fn build_repositories(
             database,
             instance_id,
         )?),
-        ai: Arc::new(systemprompt_ai::repository::AiRepositories::new(database)?),
+        ai,
         analytics,
         feedback_snapshots: Arc::new(
             systemprompt_analytics::snapshots::FeedbackSnapshotsRepository::new(
