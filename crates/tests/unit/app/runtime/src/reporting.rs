@@ -7,6 +7,23 @@ use systemprompt_database::{Database, DbPool};
 use systemprompt_identifiers::ConnectionId;
 use systemprompt_runtime::reporting;
 
+pub(crate) fn analytics_schema_sql(select: impl Fn(&str) -> bool) -> String {
+    use systemprompt_extension::Extension;
+    systemprompt_analytics::AnalyticsExtension
+        .schemas()
+        .into_iter()
+        .filter(|schema| schema.table.as_deref().is_some_and(&select))
+        .map(|schema| schema.sql)
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn reporting_schema_sql() -> String {
+    analytics_schema_sql(|table| {
+        table.starts_with("analytics_projection_") || table.starts_with("analytics_report_")
+    })
+}
+
 async fn fixture() -> (PgPool, DbPool, String) {
     let url = crate::boot::database_url().expect("PostgreSQL test URL");
     let admin = PgPool::connect(&url).await.unwrap();
@@ -65,12 +82,10 @@ async fn fixture() -> (PgPool, DbPool, String) {
     .execute(&pool)
     .await
     .unwrap();
-    sqlx::raw_sql(include_str!(
-        "../../../../../domain/analytics/schema/reporting.sql"
-    ))
-    .execute(&pool)
-    .await
-    .unwrap();
+    sqlx::raw_sql(sqlx::AssertSqlSafe(reporting_schema_sql()))
+        .execute(&pool)
+        .await
+        .unwrap();
     // Owner schemas install capture on fresh and upgraded databases. This
     // isolated fixture bypasses the extension installer, so install the same
     // capture definitions explicitly before exercising reporting initialization.
@@ -281,10 +296,7 @@ async fn capture_rebuild_worker_preserve_source_reports_and_pending_failures() {
 #[test]
 fn reporting_sql_is_accepted_by_install_time_schema_linter() {
     for (name, sql) in [
-        (
-            "analytics reporting",
-            include_str!("../../../../../domain/analytics/schema/reporting.sql"),
-        ),
+        ("analytics reporting", reporting_schema_sql().as_str()),
         (
             "outbox capture",
             include_str!("../../../../../infra/events/schema/reporting_capture.sql"),

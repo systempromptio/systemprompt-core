@@ -18,9 +18,9 @@ async fn isolated_projection() -> Transaction<'static, Postgres> {
         .execute(&mut *tx)
         .await
         .unwrap();
-    sqlx::raw_sql(include_str!(
-        "../../../../../domain/analytics/schema/reporting.sql"
-    ))
+    sqlx::raw_sql(sqlx::AssertSqlSafe(analytics_schema_sql(|table| {
+        table.starts_with("analytics_projection_") || table.starts_with("analytics_report_")
+    })))
     .execute(&mut *tx)
     .await
     .unwrap();
@@ -178,4 +178,15 @@ async fn rebuild_failure_preserves_previous_projection_and_validates_contracts()
         assert_eq!(columns, definition.columns, "{} contract", definition.table);
     }
     tx.rollback().await.unwrap();
+}
+
+fn analytics_schema_sql(select: impl Fn(&str) -> bool) -> String {
+    use systemprompt_extension::Extension;
+    systemprompt_analytics::AnalyticsExtension
+        .schemas()
+        .into_iter()
+        .filter(|schema| schema.table.as_deref().is_some_and(&select))
+        .map(|schema| schema.sql)
+        .collect::<Vec<_>>()
+        .join("\n")
 }

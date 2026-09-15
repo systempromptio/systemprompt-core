@@ -1,32 +1,3 @@
-CREATE TABLE IF NOT EXISTS analytics_snapshot_dirty (
- owner_id TEXT NOT NULL REFERENCES users(id),scope TEXT NOT NULL,PRIMARY KEY(owner_id,scope)
-);
-CREATE TABLE IF NOT EXISTS analytics_snapshot_shadow (
- owner_id TEXT NOT NULL REFERENCES users(id), fact_kind TEXT NOT NULL, source TEXT NOT NULL, fact_id TEXT NOT NULL,
- fact JSONB NOT NULL, occurred_at TIMESTAMPTZ NOT NULL, generation BIGINT NOT NULL,
- PRIMARY KEY(owner_id,fact_kind,source,fact_id)
-);
-CREATE INDEX IF NOT EXISTS analytics_snapshot_shadow_time ON analytics_snapshot_shadow(owner_id,occurred_at);
-CREATE TABLE IF NOT EXISTS analytics_snapshot_daily (
- owner_id TEXT NOT NULL REFERENCES users(id), scope TEXT NOT NULL, day DATE NOT NULL,
- metrics JSONB NOT NULL, spend JSONB NOT NULL, histogram JSONB NOT NULL, histogram_version INTEGER NOT NULL DEFAULT 1,
- cohort BIGINT NOT NULL, suppressed BOOLEAN NOT NULL DEFAULT false, generation BIGINT NOT NULL,
- PRIMARY KEY(owner_id,scope,day)
-);
-CREATE TABLE IF NOT EXISTS analytics_snapshot_identities (
- owner_id TEXT NOT NULL REFERENCES users(id),scope TEXT NOT NULL,day DATE NOT NULL,kind TEXT NOT NULL,identity TEXT NOT NULL,
- PRIMARY KEY(owner_id,scope,day,kind,identity)
-);
-CREATE TABLE IF NOT EXISTS analytics_snapshot_state (
- owner_id TEXT PRIMARY KEY REFERENCES users(id), generation BIGINT NOT NULL DEFAULT 0, fact_generation BIGINT NOT NULL DEFAULT 0,
- generated_at TIMESTAMPTZ, day DATE, retained_from DATE, compacted_before DATE, evidence_cutoff TIMESTAMPTZ,
- last_error TEXT
-);
-CREATE TABLE IF NOT EXISTS analytics_feedback_snapshots (
- owner_id TEXT NOT NULL REFERENCES users(id),scope TEXT NOT NULL,window_days INTEGER NOT NULL,
- generation BIGINT NOT NULL,from_day DATE NOT NULL,to_day DATE NOT NULL,body JSONB NOT NULL,
- PRIMARY KEY(owner_id,scope,window_days)
-);
 CREATE TABLE IF NOT EXISTS analytics_snapshot_jobs (
  owner_id TEXT NOT NULL REFERENCES users(id),job_id TEXT NOT NULL,scope TEXT NOT NULL,from_day DATE NOT NULL,to_day DATE NOT NULL,
  state TEXT NOT NULL DEFAULT 'pending' CHECK(state IN('pending','leased','ready','failed')),

@@ -25,18 +25,114 @@ impl Extension for AnalyticsExtension {
                 include_str!("../schema/ingestion_producers.sql"),
             ),
             SchemaDefinition::new(
-                "analytics_feedback_facts",
-                include_str!("../schema/feedback_facts.sql"),
+                "analytics_fact_changes",
+                include_str!("../schema/analytics_fact_changes.sql"),
+            ),
+            SchemaDefinition::new(
+                "analytics_normalized_facts",
+                include_str!("../schema/analytics_normalized_facts.sql"),
+            ),
+            SchemaDefinition::new(
+                "analytics_fact_checkpoints",
+                include_str!("../schema/analytics_fact_checkpoints.sql"),
+            ),
+            SchemaDefinition::new(
+                "analytics_fact_deltas",
+                include_str!("../schema/analytics_fact_deltas.sql"),
+            ),
+            SchemaDefinition::new(
+                "analytics_fact_backfills",
+                include_str!("../schema/analytics_fact_backfills.sql"),
+            ),
+            SchemaDefinition::new(
+                "analytics_fact_backfill_pages",
+                include_str!("../schema/analytics_fact_backfill_pages.sql"),
+            ),
+            SchemaDefinition::new(
+                "analytics_fact_consumers",
+                include_str!("../schema/analytics_fact_consumers.sql"),
+            ),
+            SchemaDefinition::new(
+                "analytics_snapshot_dirty",
+                include_str!("../schema/analytics_snapshot_dirty.sql"),
+            ),
+            SchemaDefinition::new(
+                "analytics_snapshot_shadow",
+                include_str!("../schema/analytics_snapshot_shadow.sql"),
+            ),
+            SchemaDefinition::new(
+                "analytics_snapshot_daily",
+                include_str!("../schema/analytics_snapshot_daily.sql"),
+            ),
+            SchemaDefinition::new(
+                "analytics_snapshot_identities",
+                include_str!("../schema/analytics_snapshot_identities.sql"),
+            ),
+            SchemaDefinition::new(
+                "analytics_snapshot_state",
+                include_str!("../schema/analytics_snapshot_state.sql"),
             ),
             SchemaDefinition::new(
                 "analytics_feedback_snapshots",
-                include_str!("../schema/feedback_snapshots.sql"),
+                include_str!("../schema/analytics_feedback_snapshots.sql"),
+            ),
+            SchemaDefinition::new(
+                "analytics_snapshot_jobs",
+                include_str!("../schema/analytics_snapshot_jobs.sql"),
             ),
             SchemaDefinition::new(
                 "analytics_projection_state",
-                include_str!("../schema/reporting.sql"),
+                include_str!("../schema/analytics_projection_state.sql"),
             )
             .with_required_columns(vec!["generation".into(), "cutoff_revision".into()]),
+            SchemaDefinition::new(
+                "analytics_projection_revisions",
+                include_str!("../schema/analytics_projection_revisions.sql"),
+            ),
+            SchemaDefinition::new(
+                "analytics_report_users",
+                include_str!("../schema/analytics_report_users.sql"),
+            ),
+            SchemaDefinition::new(
+                "analytics_report_user_sessions",
+                include_str!("../schema/analytics_report_user_sessions.sql"),
+            ),
+            SchemaDefinition::new(
+                "analytics_report_agent_tasks",
+                include_str!("../schema/analytics_report_agent_tasks.sql"),
+            ),
+            SchemaDefinition::new(
+                "analytics_report_task_messages",
+                include_str!("../schema/analytics_report_task_messages.sql"),
+            ),
+            SchemaDefinition::new(
+                "analytics_report_user_contexts",
+                include_str!("../schema/analytics_report_user_contexts.sql"),
+            ),
+            SchemaDefinition::new(
+                "analytics_report_ai_requests",
+                include_str!("../schema/analytics_report_ai_requests.sql"),
+            ),
+            SchemaDefinition::new(
+                "analytics_report_ai_request_messages",
+                include_str!("../schema/analytics_report_ai_request_messages.sql"),
+            ),
+            SchemaDefinition::new(
+                "analytics_report_mcp_tool_executions",
+                include_str!("../schema/analytics_report_mcp_tool_executions.sql"),
+            ),
+            SchemaDefinition::new(
+                "analytics_report_markdown_content",
+                include_str!("../schema/analytics_report_markdown_content.sql"),
+            ),
+            SchemaDefinition::new(
+                "analytics_report_logs",
+                include_str!("../schema/analytics_report_logs.sql"),
+            ),
+            SchemaDefinition::new(
+                "analytics_report_analytics_events",
+                include_str!("../schema/analytics_report_analytics_events.sql"),
+            ),
             SchemaDefinition::sql_only(include_str!("../schema/reporting_privacy.sql")),
             SchemaDefinition::new(
                 "engagement_events",

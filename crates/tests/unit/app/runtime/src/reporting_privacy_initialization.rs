@@ -58,9 +58,12 @@ async fn owners_compacting_valid_clocks_out_of_order_preserve_global_privacy_and
     let (admin, db, database) = fixture().await;
     let pool = db.write_pool_arc().unwrap();
     for script in [
-        include_str!("../../../../../domain/analytics/schema/ingestion_producers.sql"),
-        include_str!("../../../../../domain/analytics/schema/feedback_facts.sql"),
-        include_str!("../../../../../domain/analytics/schema/feedback_snapshots.sql"),
+        include_str!("../../../../../domain/analytics/schema/ingestion_producers.sql").to_owned(),
+        crate::reporting::analytics_schema_sql(|table| {
+            table.starts_with("analytics_fact_")
+                || table.starts_with("analytics_normalized_")
+                || table.starts_with("analytics_snapshot")
+        }),
     ] {
         sqlx::raw_sql(sqlx::AssertSqlSafe(script))
             .execute(&*pool)

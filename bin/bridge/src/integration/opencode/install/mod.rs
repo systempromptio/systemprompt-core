@@ -71,6 +71,7 @@ pub(super) fn remove_profile() -> std::io::Result<ProfileRemoval> {
         None => false,
     };
     let removed_auth = remove_auth_key(&config::auth_json_path())?;
+    super::managed_resources::remove_hook_plugin().map_err(std::io::Error::other)?;
     Ok(if removed_config || removed_fallback || removed_auth {
         ProfileRemoval::Removed {
             path: Some(target.display().to_string()),

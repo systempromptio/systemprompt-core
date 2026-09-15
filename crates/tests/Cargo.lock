@@ -6836,6 +6836,7 @@ dependencies = [
  "sqlx",
  "systemprompt-analytics",
  "systemprompt-database",
+ "systemprompt-extension",
  "systemprompt-identifiers",
  "systemprompt-logging",
  "systemprompt-models",
