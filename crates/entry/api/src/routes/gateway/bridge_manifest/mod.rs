@@ -134,7 +134,7 @@ pub(crate) async fn assemble_candidate(
                 format!("manifest: {error}"),
             )
         })?;
-    ManifestService::assemble_candidate_from_catalog(
+    let candidate = ManifestService::assemble_candidate_from_catalog(
         catalog,
         &AssembleRequest {
             services: &services,
@@ -146,11 +146,44 @@ pub(crate) async fn assemble_candidate(
         &mut NoopTrace,
     )
     .await
-    .map(|candidate| (candidate, bridge_policy))
     .map_err(|e| {
         tracing::warn!(error = %e, "manifest: candidate assembly failed");
         (StatusCode::INTERNAL_SERVER_ERROR, format!("manifest: {e}"))
-    })
+    })?;
+    record_catalog_grants(ctx, user_id, &candidate).await;
+    Ok((candidate, bridge_policy))
+}
+
+/// Records a consumer grant for every published organisation skill that
+/// survived the marketplace filter, so the manifest's reach is the grant.
+///
+/// A failed insert is logged and skipped: the manifest must still serve.
+async fn record_catalog_grants(
+    ctx: &AppContext,
+    user_id: &UserId,
+    candidate: &MarketplaceCandidate,
+) {
+    let owner = ctx.system_admin().id();
+    if user_id == owner {
+        return;
+    }
+    let repository = ctx.managed_repository();
+    for publication in candidate
+        .skills
+        .iter()
+        .filter_map(|skill| skill.publication.as_ref())
+    {
+        if let Err(error) = repository
+            .retain_consumer_catalog_grant(owner, &publication.resource_id, user_id)
+            .await
+        {
+            tracing::warn!(
+                %error,
+                resource = %publication.resource_id,
+                "manifest: recording catalogue grant failed"
+            );
+        }
+    }
 }
 
 struct PerUserContext {

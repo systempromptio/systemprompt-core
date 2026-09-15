@@ -90,7 +90,7 @@ impl CatalogContent {
             {
                 catalog.remove_managed_key(&resource.resource_key);
                 if let ManagedSkillResolution::Published(skill) = resolver
-                    .resolve_skill(consumer, &resource.resource_key)
+                    .resolve_skill_for_catalog(consumer, &resource.resource_key)
                     .await
                     .map_err(MarketplaceError::Managed)?
                 {

@@ -217,3 +217,87 @@ async fn generic_catalog_reoverlay_removes_withdrawn_revision_files() {
     assert!(withdrawn.as_content().skills.is_empty());
     assert!(withdrawn.as_content().managed_files.is_empty());
 }
+
+#[tokio::test]
+async fn catalog_includes_published_skill_without_grant() {
+    let f = fixture().await.expect("database fixture");
+    let consumer = fixture().await.expect("consumer fixture");
+    publish(&f).await;
+    let resolver = OrganizationSkillResolver::new(f.repository.clone(), f.owner.clone());
+    let ManagedSkillResolution::Published(received) = resolver
+        .resolve_skill_for_catalog(&consumer.owner, &f.key)
+        .await
+        .expect("catalog resolution")
+    else {
+        panic!("published skill reaches the catalogue without a grant");
+    };
+    assert_eq!(received.resource_id, f.resource);
+    assert_eq!(received.revision_id, f.revision);
+    let (_dir, disk) = disk_catalog_with(&f.key);
+    let catalog = disk
+        .with_organization_skills(f.repository.clone(), &f.owner, &consumer.owner)
+        .await
+        .expect("catalog");
+    assert!(
+        catalog
+            .as_content()
+            .skills
+            .iter()
+            .any(|skill| skill.instructions.contains("managed instructions"))
+    );
+    assert_eq!(catalog.as_content().managed_files.len(), 1);
+    assert!(
+        matches!(resolver.resolve_skill(&consumer.owner, &f.key).await.expect("runtime"), ManagedSkillResolution::Withheld(reason) if *reason == WithheldReason::NotGranted)
+    );
+    let runtime: &dyn ManagedSkillResolver = &resolver;
+    assert_eq!(
+        runtime
+            .resolve_skill(&consumer.owner, &f.key)
+            .await
+            .expect("runtime trait"),
+        SkillResolution::Withheld(WithheldReason::NotGranted)
+    );
+}
+
+#[tokio::test]
+async fn explicit_revocation_withholds_from_catalog() {
+    let f = fixture().await.expect("database fixture");
+    let consumer = fixture().await.expect("consumer fixture");
+    publish(&f).await;
+    let resolver = OrganizationSkillResolver::new(f.repository.clone(), f.owner.clone());
+    f.repository
+        .set_consumer_grant(&f.owner, &f.resource, &consumer.owner, false)
+        .await
+        .expect("revoke");
+    assert!(
+        matches!(resolver.resolve_skill_for_catalog(&consumer.owner, &f.key).await.expect("revoked"), ManagedSkillResolution::Withheld(reason) if *reason == WithheldReason::NotGranted)
+    );
+    let (_dir, disk) = disk_catalog_with(&f.key);
+    let denied = disk
+        .clone()
+        .with_organization_skills(f.repository.clone(), &f.owner, &consumer.owner)
+        .await
+        .expect("catalog");
+    assert!(denied.as_content().skills.is_empty());
+    assert!(denied.as_content().managed_files.is_empty());
+    f.repository
+        .retain_consumer_catalog_grant(&f.owner, &f.resource, &consumer.owner)
+        .await
+        .expect("retention cannot regrant");
+    assert!(
+        matches!(resolver.resolve_skill_for_catalog(&consumer.owner, &f.key).await.expect("still revoked"), ManagedSkillResolution::Withheld(reason) if *reason == WithheldReason::NotGranted)
+    );
+    let still_denied = disk
+        .with_organization_skills(f.repository.clone(), &f.owner, &consumer.owner)
+        .await
+        .expect("catalog");
+    assert!(still_denied.as_content().skills.is_empty());
+    let ManagedSkillResolution::Published(owner) = resolver
+        .resolve_skill_for_catalog(&f.owner, &f.key)
+        .await
+        .expect("owner")
+    else {
+        panic!("owner is never withheld");
+    };
+    assert_eq!(owner.resource_id, f.resource);
+}
