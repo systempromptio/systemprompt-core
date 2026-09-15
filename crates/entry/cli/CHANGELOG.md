@@ -6,6 +6,10 @@
 
 - **Breaking:** `plugins capabilities llm-providers` and the LLM-provider counters in `plugins list|show` are removed with the unimplemented `LlmProvider` seam.
 
+### Added
+
+- `admin config rate-limits` reads, sets, diffs, resets and validates `gateway_per_second`.
+
 ### Changed
 
 - `infra db migrate` fails, after committing everything else, when a declared foreign key could not be created on an established database, naming each key and its cause.

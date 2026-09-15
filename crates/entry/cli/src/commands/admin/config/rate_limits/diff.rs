@@ -154,6 +154,11 @@ fn collect_rate_differences(
             current.content_per_second,
             compare_with.content_per_second,
         ),
+        (
+            "gateway_per_second",
+            current.gateway_per_second,
+            compare_with.gateway_per_second,
+        ),
     ];
 
     for (field, current_val, other_val) in rates {

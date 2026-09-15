@@ -58,6 +58,7 @@ fn check_endpoint_rates(limits: &RateLimitsConfig, errors: &mut Vec<String>) {
         ("mcp_per_second", limits.mcp_per_second),
         ("stream_per_second", limits.stream_per_second),
         ("content_per_second", limits.content_per_second),
+        ("gateway_per_second", limits.gateway_per_second),
     ];
 
     for (name, value) in rates {

@@ -82,6 +82,7 @@ impl Profile {
         Self::validate_rate_limit(errors, "mcp", self.rate_limits.mcp_per_second);
         Self::validate_rate_limit(errors, "stream", self.rate_limits.stream_per_second);
         Self::validate_rate_limit(errors, "content", self.rate_limits.content_per_second);
+        Self::validate_rate_limit(errors, "gateway", self.rate_limits.gateway_per_second);
     }
 
     fn validate_rate_limit(errors: &mut Vec<String>, name: &str, value: u64) {

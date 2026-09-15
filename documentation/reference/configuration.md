@@ -185,6 +185,7 @@ Audience validation requires a nonempty policy. The first-party session policy a
 | `mcp_per_second` | u64 | no | `200` | MCP server routes. |
 | `stream_per_second` | u64 | no | `100` | SSE stream routes. |
 | `content_per_second` | u64 | no | `50` | Content routes. |
+| `gateway_per_second` | u64 | no | `100` | Inference gateway routes (`/api/v1/gateway/*`, including OTLP ingest and bridge credential exchange). |
 | `burst_multiplier` | u64 | no | `3` | Burst allowance multiplier. |
 
 Limits are enforced per caller: a request carrying a signature-verified identity is bucketed by

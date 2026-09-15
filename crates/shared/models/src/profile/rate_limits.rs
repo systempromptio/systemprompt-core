@@ -44,6 +44,9 @@ pub struct RateLimitsConfig {
     #[serde(default = "default_content")]
     pub content_per_second: u64,
 
+    #[serde(default = "default_gateway")]
+    pub gateway_per_second: u64,
+
     #[serde(default = "default_burst")]
     pub burst_multiplier: u64,
 }
@@ -81,6 +84,9 @@ pub const fn default_stream() -> u64 {
 pub const fn default_content() -> u64 {
     50
 }
+pub const fn default_gateway() -> u64 {
+    100
+}
 pub const fn default_burst() -> u64 {
     3
 }
@@ -100,6 +106,7 @@ impl Default for RateLimitsConfig {
             mcp_per_second: default_mcp(),
             stream_per_second: default_stream(),
             content_per_second: default_content(),
+            gateway_per_second: default_gateway(),
             burst_multiplier: default_burst(),
         }
     }

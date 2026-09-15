@@ -23,9 +23,10 @@ pub(super) fn get_endpoint_rate(limits: &RateLimitsConfig, endpoint: &str) -> Re
         "mcp" => Ok(limits.mcp_per_second),
         "stream" => Ok(limits.stream_per_second),
         "content" => Ok(limits.content_per_second),
+        "gateway" => Ok(limits.gateway_per_second),
         _ => bail!(
             "Unknown endpoint: {}. Valid endpoints: oauth_public, oauth_auth, contexts, tasks, \
-             artifacts, agent_registry, agents, mcp_registry, mcp, stream, content",
+             artifacts, agent_registry, agents, mcp_registry, mcp, stream, content, gateway",
             endpoint
         ),
     }
@@ -48,9 +49,10 @@ pub(super) fn set_endpoint_rate(
         "mcp" => limits.mcp_per_second = value,
         "stream" => limits.stream_per_second = value,
         "content" => limits.content_per_second = value,
+        "gateway" => limits.gateway_per_second = value,
         _ => bail!(
             "Unknown endpoint: {}. Valid endpoints: oauth_public, oauth_auth, contexts, tasks, \
-             artifacts, agent_registry, agents, mcp_registry, mcp, stream, content",
+             artifacts, agent_registry, agents, mcp_registry, mcp, stream, content, gateway",
             endpoint
         ),
     }
@@ -131,6 +133,11 @@ pub(super) fn collect_endpoint_changes(
             "content_per_second",
             current.content_per_second,
             defaults.content_per_second,
+        ),
+        (
+            "gateway_per_second",
+            current.gateway_per_second,
+            defaults.gateway_per_second,
         ),
     ];
 

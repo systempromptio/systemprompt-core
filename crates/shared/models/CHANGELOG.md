@@ -15,6 +15,7 @@
 
 ### Added
 
+- `rate_limits.gateway_per_second` (default `100`) governs the `/v1` gateway route group; `RATE_LIMIT_GATEWAY_PER_SECOND` in the env profile source.
 - `RevisionFiles::same_content` compares two file sets by path, bytes and executable bit.
 
 - `managed` module: `RevisionBundle`, `RevisionManifest`, `FileEntry`, `DependencyRef`, `AssetDigest`, `AssetFile`, `RevisionFiles`, `RevisionBundleError` and the `validate_path` / `validate_key` validators — the verified managed-resource revision closure shared by the marketplace, evaluation and scheduler domains (previously `systemprompt_marketplace::managed`).

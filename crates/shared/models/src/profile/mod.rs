@@ -44,8 +44,8 @@ pub use oci_reference::{OciReference, OciReferenceError};
 pub use paths::{PathsConfig, expand_home, resolve_path, resolve_with_home};
 pub use rate_limits::{
     RateLimitsConfig, default_agent_registry, default_agents, default_artifacts, default_burst,
-    default_content, default_contexts, default_mcp, default_mcp_registry, default_oauth_auth,
-    default_oauth_public, default_stream, default_tasks,
+    default_content, default_contexts, default_gateway, default_mcp, default_mcp_registry,
+    default_oauth_auth, default_oauth_public, default_stream, default_tasks,
 };
 pub use runtime::{Environment, LogLevel, OutputFormat, RuntimeConfig};
 pub use secrets::{SecretsConfig, SecretsSource, SecretsValidationMode};

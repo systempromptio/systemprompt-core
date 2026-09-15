@@ -20,6 +20,7 @@ pub struct RateLimitsOutput {
     pub mcp_per_second: u64,
     pub stream_per_second: u64,
     pub content_per_second: u64,
+    pub gateway_per_second: u64,
     pub burst_multiplier: u64,
 }
 
