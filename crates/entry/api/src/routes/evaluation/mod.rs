@@ -5,6 +5,7 @@
 
 pub mod campaign_completion;
 pub mod campaigns;
+pub mod lifecycle;
 mod error;
 mod handlers;
 

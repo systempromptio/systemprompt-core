@@ -10,8 +10,10 @@ use systemprompt_identifiers::{
     AiRequestId, EvalApprovalId, EvalExecutionId, EvalExperimentId, EvalSuggestionId, UserId,
 };
 
-use super::{BudgetRepository, ExecutionLease, ReservationAdmission};
+use super::{BudgetRepository, ExecutionLease};
 
+#[path = "lifecycle_suggestion_operations.rs"]
+mod suggestion_operations;
 #[path = "lifecycle_approvals.rs"]
 mod approvals;
 #[path = "lifecycle_models.rs"]

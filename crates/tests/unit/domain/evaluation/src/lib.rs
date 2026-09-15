@@ -65,3 +65,6 @@ mod native_capabilities;
 
 #[cfg(test)]
 mod repository_approval_acceptance;
+
+#[cfg(test)]
+mod repository_suggestion_operations;

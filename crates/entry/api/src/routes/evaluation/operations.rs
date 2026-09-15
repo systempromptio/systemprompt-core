@@ -45,6 +45,7 @@ pub struct OperationResponse<T> {
 #[derive(Debug, Serialize, schemars::JsonSchema)]
 #[serde(tag = "kind", content = "value", rename_all = "snake_case")]
 pub enum OperationResult {
+    ApprovalDecision(systemprompt_evaluation::repository::experiments::ExecutionApproval),
     InventoryRefresh(systemprompt_marketplace::inventory::InventoryStatus),
     SourceCapture(systemprompt_marketplace::managed::ImportedSkills),
     SourceVerification(systemprompt_models::feedback::verification::DependencyVerificationManifest),
@@ -142,6 +143,9 @@ async fn status(
                     },
                     "source_verification" => {
                         OperationResult::SourceVerification(serde_json::from_value(value)?)
+                    },
+                    "approval_decision" => {
+                        OperationResult::ApprovalDecision(serde_json::from_value(value)?)
                     },
                     "credential_issue" => {
                         OperationResult::CredentialIssue(serde_json::from_value(value)?)

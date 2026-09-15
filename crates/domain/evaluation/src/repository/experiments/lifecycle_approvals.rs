@@ -4,9 +4,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::{
-    ApprovalAuthorization, ApprovalDecision, EvalApprovalId, EvalExecutionId, EvalSuggestionId,
-    EvaluationLifecycleRepository, ExecutionApproval, ExecutionLease, ReservationAdmission, Result,
-    SuggestionRequest, UserId, invalid,
+    ApprovalAuthorization, ApprovalDecision, EvalApprovalId, EvalExecutionId,
+    EvaluationLifecycleRepository, ExecutionApproval, ExecutionLease, Result, UserId, invalid,
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -94,11 +93,19 @@ impl EvaluationLifecycleRepository {
             decision,
             observed_precondition,
         } = *verdict;
+        if observed_precondition.len()!=64 || !observed_precondition.bytes().all(|byte|byte.is_ascii_hexdigit()) {
+            return Err(invalid("Approval requires a 64-character digest"));
+        }
         let mut tx = self.pool.begin().await?;
         let status = match decision {
             ApprovalDecision::Approve => "approved",
             ApprovalDecision::Deny => "denied",
         };
+        let previous=sqlx::query!("SELECT status,decided_by,precondition_digest FROM eval_execution_approvals WHERE id=$1 AND owner_id=$2 FOR UPDATE",approval.as_str(),owner.as_str()).fetch_optional(&mut *tx).await?.ok_or_else(||crate::experiments::conflict("Approval unavailable in this scope"))?;
+        if previous.status==status && previous.decided_by.as_deref()==Some(actor.as_str()) && previous.precondition_digest==observed_precondition {
+            tx.commit().await?;
+            return Ok(());
+        }
         let row = sqlx::query!("UPDATE eval_execution_approvals SET status=CASE WHEN expires_at<=NOW() THEN 'expired' ELSE $4 END,decided_by=$2,decided_at=NOW() WHERE id=$1 AND owner_id=$3 AND status='pending' AND precondition_digest=$5 RETURNING execution_id,status",
             approval.as_str(), actor.as_str(), owner.as_str(), status, observed_precondition).fetch_optional(&mut *tx).await?.ok_or_else(|| crate::experiments::conflict("Approval is stale, foreign, or precondition changed"))?;
         let final_status = row.status;
@@ -112,46 +119,4 @@ impl EvaluationLifecycleRepository {
         Ok(())
     }
 
-    pub async fn create_suggestion(
-        &self,
-        owner: &UserId,
-        request: &SuggestionRequest,
-    ) -> Result<EvalSuggestionId> {
-        if request.hypothesis.trim().is_empty()
-            || request.hypothesis.len() > 4000
-            || request.supporting_execution_ids.is_empty()
-        {
-            return Err(invalid(
-                "Suggestion requires development failures and a hypothesis",
-            ));
-        }
-        super::super::admission::experiment(
-            &self.pool,
-            owner,
-            &request.experiment_id,
-            self.admission.as_ref(),
-        )
-        .await?;
-        let valid = sqlx::query_scalar!("SELECT count(*) FROM eval_executions x JOIN eval_experiments e ON e.id=x.experiment_id JOIN eval_resource_revisions c ON c.id=x.case_revision_id WHERE e.owner_id=$1 AND e.id=$2 AND x.id=ANY($3) AND c.content->'content'->>'partition'='development'",
-            owner.as_str(), request.experiment_id.as_str(), &request.supporting_execution_ids.iter().map(|value| value.as_str().to_owned()).collect::<Vec<_>>()).fetch_one(&self.pool).await?.unwrap_or(0);
-        if usize::try_from(valid).ok() != Some(request.supporting_execution_ids.len()) {
-            return Err(invalid("Suggestions may use development evidence only"));
-        }
-        let reservation = match self
-            .budgets
-            .reserve(
-                owner,
-                &request.budget_id,
-                &format!("suggestion:{}", request.operation_key),
-                request.maximum_cost_microdollars,
-            )
-            .await?
-        {
-            ReservationAdmission::Admitted(id) | ReservationAdmission::AlreadyReserved(id) => id,
-        };
-        let id = EvalSuggestionId::generate();
-        sqlx::query!("INSERT INTO eval_suggestions(id,owner_id,experiment_id,supporting_execution_ids,proposed_changes,hypothesis,reservation_id,originating_evidence) VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT(owner_id,id) DO NOTHING",
-            id.as_str(), owner.as_str(), request.experiment_id.as_str(), &request.supporting_execution_ids.iter().map(|value| value.as_str().to_owned()).collect::<Vec<_>>(), &request.proposed_changes, &request.hypothesis, reservation.as_str(), &request.originating_evidence).execute(&self.pool).await?;
-        Ok(id)
-    }
 }
