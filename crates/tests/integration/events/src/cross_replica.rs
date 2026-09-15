@@ -23,8 +23,7 @@ use systemprompt_models::A2AEvent;
 use systemprompt_models::a2a::TaskState;
 use systemprompt_models::events::payloads::a2a::TaskStatusUpdatePayload;
 
-use crate::{ensure_event_outbox, setup_test_pool};
-use systemprompt_test_fixtures::unique_user_id;
+use crate::{ensure_event_outbox, setup_test_pool, unique_user_id};
 
 fn unique_user() -> UserId {
     unique_user_id("evt-relay")

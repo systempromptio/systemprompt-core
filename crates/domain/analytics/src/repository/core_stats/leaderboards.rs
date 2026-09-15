@@ -20,10 +20,10 @@ impl CoreStatsRepository {
                 COUNT(DISTINCT t.task_id) as "task_count!",
                 COUNT(DISTINCT a.request_id) as "ai_request_count!",
                 COALESCE(SUM(a.cost_microdollars)::float / 1000000.0, 0.0) as "total_cost!"
-            FROM users u
-            LEFT JOIN user_sessions s ON s.user_id = u.id
-            LEFT JOIN agent_tasks t ON t.user_id = u.id
-            LEFT JOIN ai_requests a ON a.user_id = u.id
+            FROM analytics_report_users u
+            LEFT JOIN analytics_report_user_sessions s ON s.user_id = u.id
+            LEFT JOIN analytics_report_agent_tasks t ON t.user_id = u.id
+            LEFT JOIN analytics_report_ai_requests a ON a.user_id = u.id
             WHERE u.status NOT IN ('deleted', 'temporary') AND NOT ('anonymous' = ANY(u.roles))
             GROUP BY u.id, u.name
             ORDER BY "ai_request_count!" DESC
@@ -48,7 +48,7 @@ impl CoreStatsRepository {
                     0.0
                 ) as "success_rate!",
                 COALESCE(AVG(EXTRACT(EPOCH FROM (updated_at - created_at)) * 1000)::bigint, 0) as "avg_duration_ms!"
-            FROM agent_tasks
+            FROM analytics_report_agent_tasks
             WHERE agent_name IS NOT NULL
             GROUP BY agent_name
             ORDER BY "task_count!" DESC
@@ -73,7 +73,7 @@ impl CoreStatsRepository {
                     0.0
                 ) as "success_rate!",
                 COALESCE(AVG(execution_time_ms), 0)::bigint as "avg_duration_ms!"
-            FROM mcp_tool_executions
+            FROM analytics_report_mcp_tool_executions
             GROUP BY tool_name
             ORDER BY "execution_count!" DESC
             LIMIT $1

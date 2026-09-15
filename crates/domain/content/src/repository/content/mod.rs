@@ -9,6 +9,7 @@
 
 mod mutations;
 mod queries;
+mod stats;
 
 use crate::error::ContentError;
 use crate::models::{Content, CreateContentParams, UpdateContentParams};

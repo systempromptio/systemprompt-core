@@ -6,6 +6,7 @@
 
 mod bridge;
 mod broadcaster;
+pub mod durable;
 mod repository;
 mod routing;
 

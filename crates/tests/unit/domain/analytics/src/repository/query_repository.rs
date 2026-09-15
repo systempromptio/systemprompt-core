@@ -80,6 +80,9 @@ async fn get_ai_provider_usage_aggregates_by_provider_and_model() {
     insert_ai_request(&pool, &user_a, &provider, "model-x").await;
     insert_ai_request(&pool, &user_b, &provider, "model-y").await;
 
+    systemprompt_test_fixtures::refresh_reporting(&pool)
+        .await
+        .expect("reporting snapshot");
     let usage = repo.get_ai_provider_usage(7, None).await.expect("usage");
     let mine: Vec<_> = usage.iter().filter(|u| u.provider == provider).collect();
     assert_eq!(mine.len(), 2);
@@ -110,6 +113,9 @@ async fn get_ai_provider_usage_filters_by_user() {
     insert_ai_request(&pool, &user_b, &provider, "model-y").await;
 
     let uid = UserId::new(user_a);
+    systemprompt_test_fixtures::refresh_reporting(&pool)
+        .await
+        .expect("reporting snapshot");
     let usage = repo
         .get_ai_provider_usage(7, Some(&uid))
         .await
@@ -139,6 +145,9 @@ async fn get_ai_provider_usage_excludes_requests_rejected_before_routing() {
     insert_rejected_ai_request(&pool, &user).await;
 
     let uid = UserId::new(user.clone());
+    systemprompt_test_fixtures::refresh_reporting(&pool)
+        .await
+        .expect("reporting snapshot");
     let usage = repo
         .get_ai_provider_usage(7, Some(&uid))
         .await

@@ -1,7 +1,6 @@
 //! Tests for analytics service types.
 
 mod ai_crawler;
-mod ai_provider;
 mod anomaly_detection;
 mod behavioral_detector;
 mod bot_keywords;

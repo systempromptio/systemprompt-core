@@ -21,6 +21,7 @@ use crate::auth::UserProvider;
 pub trait AppContext: Send + Sync {
     fn config(&self) -> Arc<dyn ConfigProvider>;
     fn database_handle(&self) -> Arc<dyn DatabaseHandle>;
+    fn session_provider(&self) -> Option<Arc<dyn crate::SessionProvider>>;
     fn analytics_provider(&self) -> Option<Arc<dyn AnalyticsProvider>>;
     fn fingerprint_provider(&self) -> Option<Arc<dyn FingerprintProvider>>;
     fn user_provider(&self) -> Option<Arc<dyn UserProvider>>;

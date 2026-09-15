@@ -104,6 +104,7 @@ async fn token_app() -> anyhow::Result<Router> {
     let state = OAuthState::new(
         ctx.oauth_repositories().oauth.clone(),
         ctx.analytics_provider().expect("analytics"),
+        ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
     );
     let router = public_router()

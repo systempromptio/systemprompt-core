@@ -56,6 +56,16 @@ Domain crates do not depend on other domain crates. A capability one domain need
 
 Cross-domain orchestration that would otherwise create a domain-to-domain edge is lifted up a layer. The runtime, scheduler and generator compose domain services through their dependencies and extension contracts. The wiring of all domains together happens in `entry/api`.
 
+Analytics follows the same ownership rule for database access. Users owns session
+persistence, logging owns analytics-event persistence, and content provides
+authoritative catalog counts through shared traits. Behavioral decisions use
+those primary owner interfaces. Reports read analytics-owned projections, fed
+by owner reporting contracts through the existing PostgreSQL outbox. The
+reporting channel is excluded from SSE broadcasts. Runtime installs capture,
+initializes the baseline and runs the durable consumer; see
+[analytics ownership and reporting](analytics-migration.md) for consistency and
+rebuild requirements.
+
 This is why the extension framework matters to the layering (see [extensions.md](extensions.md)): capabilities are discovered at link time through the `inventory` crate rather than wired through compile-time dependency edges, so a domain never needs to name another domain to reach it.
 
 ## Request data flow

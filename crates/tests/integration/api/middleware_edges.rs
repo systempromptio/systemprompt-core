@@ -13,7 +13,7 @@ use std::sync::{Arc, OnceLock};
 use axum::body::Body;
 use axum::extract::ConnectInfo;
 use axum::http::Request;
-use systemprompt_analytics::{AnalyticsService, FingerprintRepository};
+use systemprompt_analytics::AnalyticsService;
 use systemprompt_api::services::server::setup_api_server;
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_marketplace::AllowAllFilter;
@@ -56,16 +56,16 @@ async fn boot_server() -> anyhow::Result<axum::Router> {
     let ctx = Arc::new(AppContext::from_parts(
         {
             let analytics_repositories =
-                Arc::new(systemprompt_analytics::repository::AnalyticsRepositories::new(&pool)?);
+                Arc::new(systemprompt_test_fixtures::fixture_analytics_repositories(&pool)?);
             let analytics_service =
                 Arc::new(AnalyticsService::new(None, None, &analytics_repositories));
             let session_usage: systemprompt_traits::DynSessionUsageCounters =
-                Arc::new(analytics_service.session_repo().clone());
+                analytics_service.session_repo().owner();
             let sqlx_pool = pool.pool_arc()?.as_ref().clone();
             DataPlane {
                 database: Arc::clone(&pool),
                 analytics_service,
-                fingerprint_repo: Some(Arc::new(FingerprintRepository::new(&pool)?)),
+                fingerprint_repo: Some(Arc::new(systemprompt_test_fixtures::fixture_fingerprint_repository(&pool)?)),
                 user_service: Some(Arc::new(UserService::new(Arc::new(UserRepository::new(
                     &pool,
                 )?)))),

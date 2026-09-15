@@ -20,7 +20,7 @@ use systemprompt_identifiers::{
 };
 use systemprompt_models::Config;
 use systemprompt_models::auth::{AuthenticatedUser, JwtAudience};
-use systemprompt_traits::{AnalyticsProvider, CreateSessionInput, ExtractSignals};
+use systemprompt_traits::{AnalyticsProvider, CreateSessionInput, ExtractSignals, SessionProvider};
 
 use crate::repository::{CreateExchangeCodeParams, OAuthRepository};
 use crate::services::generation::{
@@ -51,6 +51,7 @@ pub struct BridgeAccessRequest<'a> {
 pub async fn issue_bridge_access(
     repo: &OAuthRepository,
     analytics: &dyn AnalyticsProvider,
+    sessions: &dyn SessionProvider,
     request_headers: &HeaderMap,
     caller_ip: Option<IpAddr>,
     user_id: &UserId,
@@ -58,6 +59,7 @@ pub async fn issue_bridge_access(
     issue_bridge_access_with(
         repo,
         analytics,
+        sessions,
         BridgeAccessRequest {
             request_headers,
             caller_ip,
@@ -71,7 +73,7 @@ pub async fn issue_bridge_access(
 }
 
 async fn adopt_or_mint_session(
-    analytics: &dyn AnalyticsProvider,
+    sessions: &dyn SessionProvider,
     request_headers: &HeaderMap,
     user_id: &UserId,
 ) -> SessionId {
@@ -82,7 +84,7 @@ async fn adopt_or_mint_session(
         .filter(|s| !s.is_empty())
         .map(SessionId::new);
     match requested_session {
-        Some(requested) => match analytics.find_session_by_id(&requested).await {
+        Some(requested) => match sessions.find_session_by_id(&requested).await {
             Ok(Some(existing)) if existing.user_id.as_ref() == Some(user_id) => requested,
             Ok(None) => requested,
             Ok(Some(_)) => {
@@ -105,6 +107,7 @@ async fn adopt_or_mint_session(
 pub async fn issue_bridge_access_with(
     repo: &OAuthRepository,
     analytics: &dyn AnalyticsProvider,
+    sessions: &dyn SessionProvider,
     request: BridgeAccessRequest<'_>,
 ) -> Result<BridgeAuthResult> {
     let BridgeAccessRequest {
@@ -120,7 +123,7 @@ pub async fn issue_bridge_access_with(
 
     let global_config = Config::get()?;
 
-    let session_id = adopt_or_mint_session(analytics, request_headers, user_id).await;
+    let session_id = adopt_or_mint_session(sessions, request_headers, user_id).await;
     let trace_id = TraceId::generate();
     let policy_version = PolicyVersion::unversioned();
 
@@ -145,7 +148,7 @@ pub async fn issue_bridge_access_with(
         },
     );
     let expires_at = Utc::now() + ChronoDuration::seconds(i64::try_from(ttl_seconds).unwrap_or(0));
-    analytics
+    sessions
         .create_session(CreateSessionInput {
             session_id: &session_id,
             user_id: Some(user_id),
@@ -241,6 +244,7 @@ pub async fn issue_bridge_exchange_code(
 pub async fn exchange_bridge_session_code(
     repo: &OAuthRepository,
     analytics: &dyn AnalyticsProvider,
+    sessions: &dyn SessionProvider,
     request_headers: &HeaderMap,
     caller_ip: Option<IpAddr>,
     code: &str,
@@ -249,7 +253,15 @@ pub async fn exchange_bridge_session_code(
     let Some(user_id) = repo.consume_bridge_exchange_code(&code_hash).await? else {
         return Ok(None);
     };
-    let result = issue_bridge_access(repo, analytics, request_headers, caller_ip, &user_id).await?;
+    let result = issue_bridge_access(
+        repo,
+        analytics,
+        sessions,
+        request_headers,
+        caller_ip,
+        &user_id,
+    )
+    .await?;
     Ok(Some(result))
 }
 

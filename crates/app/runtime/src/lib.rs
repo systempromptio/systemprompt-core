@@ -29,6 +29,7 @@ mod database_context;
 mod error;
 pub mod optimization;
 mod registry;
+pub mod reporting;
 pub mod services_reconcile;
 mod startup_validation;
 mod validation;

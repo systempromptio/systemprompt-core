@@ -6,8 +6,6 @@
 
 use async_trait::async_trait;
 use std::sync::Arc;
-use systemprompt_analytics::SessionRepository;
-use systemprompt_database::DbPool;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
 use tracing::info;
@@ -40,10 +38,6 @@ impl Job for BackfillSessionGeoJob {
     async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
         let start_time = std::time::Instant::now();
 
-        let db_pool = Arc::clone(
-            ctx.db_pool::<DbPool>()
-                .ok_or_else(|| SchedulerError::missing_context("DbPool"))?,
-        );
         let app_context = Arc::clone(
             ctx.app_context::<Arc<AppContext>>()
                 .ok_or_else(|| SchedulerError::missing_context("AppContext"))?,
@@ -53,7 +47,7 @@ impl Job for BackfillSessionGeoJob {
             .get_parameter_parsed::<i64>("batch_size")?
             .unwrap_or(DEFAULT_BATCH_SIZE);
 
-        let repository = SessionRepository::new(&db_pool).map_err(SchedulerError::from)?;
+        let repository = &app_context.analytics_repositories().sessions;
         let updated = if ctx.enforce() {
             repository
                 .backfill_session_geo(app_context.geoip_reader(), batch_size)

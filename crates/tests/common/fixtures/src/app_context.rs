@@ -25,6 +25,33 @@ use systemprompt_users::UserService;
 
 use crate::user::{fixture_system_admin, fixture_user_id};
 
+pub fn fixture_analytics_repositories(
+    db: &DbPool,
+) -> Result<systemprompt_analytics::repository::AnalyticsRepositories> {
+    Ok(
+        systemprompt_analytics::repository::AnalyticsRepositories::new(
+            db,
+            Arc::new(systemprompt_users::sessions::SessionRepository::new(db)?),
+            Arc::new(systemprompt_logging::AnalyticsRepository::new(db)?),
+            Arc::new(systemprompt_content::repository::ContentRepository::new(
+                db,
+            )?),
+        )?,
+    )
+}
+
+pub fn fixture_fingerprint_repository(db: &DbPool) -> Result<FingerprintRepository> {
+    Ok(FingerprintRepository::new(
+        db,
+        Arc::new(systemprompt_users::sessions::SessionRepository::new(db)?),
+    )?)
+}
+
+pub async fn refresh_reporting(db: &DbPool) -> Result<()> {
+    systemprompt_runtime::reporting::rebuild(db).await?;
+    Ok(())
+}
+
 pub fn fixture_config(database_url: &str) -> Config {
     Config {
         instance_id: "fixture".to_string(),
@@ -162,11 +189,10 @@ fn fixture_app_context_assembled(
         None,
     )?);
 
-    let analytics_repositories =
-        Arc::new(systemprompt_analytics::repository::AnalyticsRepositories::new(pool)?);
+    let analytics_repositories = Arc::new(fixture_analytics_repositories(pool)?);
     let analytics_service = Arc::new(AnalyticsService::new(None, None, &analytics_repositories));
     let session_usage: systemprompt_traits::DynSessionUsageCounters =
-        Arc::new(analytics_service.session_repo().clone());
+        analytics_service.session_repo().owner();
     let user_repository = Arc::new(systemprompt_users::UserRepository::new(pool)?);
     let file_storage = systemprompt_storage::build_file_storage(
         systemprompt_models::profile::StorageBackend::Local,
@@ -177,7 +203,7 @@ fn fixture_app_context_assembled(
         DataPlane {
             database: Arc::clone(pool),
             analytics_service,
-            fingerprint_repo: Some(Arc::new(FingerprintRepository::new(pool)?)),
+            fingerprint_repo: Some(Arc::new(fixture_fingerprint_repository(pool)?)),
             user_service: Some(Arc::new(UserService::new(Arc::clone(&user_repository)))),
             a2a_repositories: Arc::new(systemprompt_agent::repository::A2ARepositories::new(
                 pool,

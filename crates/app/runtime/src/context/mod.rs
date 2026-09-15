@@ -195,7 +195,7 @@ impl AppContext {
 
     #[must_use]
     pub fn session_usage(&self) -> systemprompt_traits::DynSessionUsageCounters {
-        Arc::new(self.data.analytics_service.session_repo().clone())
+        self.data.analytics_repositories.sessions.owner()
     }
 
     pub fn context_materializer(&self) -> systemprompt_traits::DynContextMaterializer {

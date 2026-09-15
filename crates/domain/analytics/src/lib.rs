@@ -20,6 +20,7 @@ pub mod error;
 pub mod extension;
 pub mod feedback;
 pub mod models;
+pub mod projection;
 pub mod repository;
 pub mod resource_metrics;
 pub mod services;
@@ -54,11 +55,10 @@ pub use repository::{
 };
 pub use services::bot_keywords::matches_bot_pattern;
 pub use services::{
-    AnalyticsAiSessionProvider, AnalyticsService, AnomalyCheckResult, AnomalyDetectionService,
-    AnomalyEvent, AnomalyLevel, AnomalyThresholdConfig, BEHAVIORAL_BOT_THRESHOLD,
-    BehavioralAnalysisInput, BehavioralAnalysisResult, BehavioralBotDetector, BehavioralSignal,
-    ProfileUsageService, SessionAnalytics, SessionAnalyticsBuilder, SessionCleanupService,
-    SignalType, detection,
+    AnalyticsService, AnomalyCheckResult, AnomalyDetectionService, AnomalyEvent, AnomalyLevel,
+    AnomalyThresholdConfig, BEHAVIORAL_BOT_THRESHOLD, BehavioralAnalysisInput,
+    BehavioralAnalysisResult, BehavioralBotDetector, BehavioralSignal, ProfileUsageService,
+    SessionAnalytics, SessionAnalyticsBuilder, SignalType, detection,
 };
 
 #[cfg(feature = "geolocation")]

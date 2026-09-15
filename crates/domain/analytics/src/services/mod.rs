@@ -8,7 +8,6 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod ai_crawler_keywords;
-mod ai_provider;
 mod anomaly_detection;
 mod behavioral_detector;
 pub mod bot_keywords;
@@ -17,10 +16,8 @@ pub(crate) mod extractor;
 mod profile_usage;
 mod providers;
 mod service;
-mod session_cleanup;
 mod user_agent;
 
-pub use ai_provider::AnalyticsAiSessionProvider;
 pub use anomaly_detection::{
     AnomalyCheckResult, AnomalyDetectionService, AnomalyEvent, AnomalyLevel, AnomalyThresholdConfig,
 };
@@ -31,4 +28,3 @@ pub use behavioral_detector::{
 pub use extractor::{SessionAnalytics, SessionAnalyticsBuilder};
 pub use profile_usage::ProfileUsageService;
 pub use service::AnalyticsService;
-pub use session_cleanup::SessionCleanupService;

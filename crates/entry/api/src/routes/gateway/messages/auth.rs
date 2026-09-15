@@ -173,7 +173,7 @@ async fn authenticate_api_key(
         ));
     };
 
-    let analytics = ctx.analytics_provider().ok_or_else(|| {
+    let analytics = ctx.session_provider().ok_or_else(|| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             "Analytics provider unavailable: cannot attest session".to_owned(),

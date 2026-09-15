@@ -182,7 +182,7 @@ async fn exchange_code_for_token(
     let permissions = parse_permissions(&validation_result.scope)?;
 
     let mut session_service = systemprompt_oauth::services::SessionCreationService::new(
-        Arc::clone(state.analytics_provider()),
+        Arc::clone(state.session_provider()),
         Arc::clone(state.user_provider()),
     );
     if let Some(publisher) = state.event_publisher() {

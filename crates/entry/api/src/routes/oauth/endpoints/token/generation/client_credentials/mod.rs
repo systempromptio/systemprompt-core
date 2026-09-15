@@ -107,7 +107,7 @@ async fn create_client_session(
     );
 
     state
-        .analytics_provider()
+        .session_provider()
         .create_session(CreateSessionInput {
             session_id: &session_id,
             user_id: Some(owner_user_id),

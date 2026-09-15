@@ -23,7 +23,7 @@ async fn harness() -> (Arc<JwtContextExtractor>, AppContext) {
         .expect("test database");
     let ctx = fixture_app_context(&pool, &boot.database_url).expect("fixture context");
     let extractor = Arc::new(JwtContextExtractor::new(
-        ctx.analytics_provider().expect("analytics provider"),
+        ctx.session_provider().expect("session provider"),
         ctx.user_provider().expect("user provider"),
         JtiRevocationChecker::from_repository(ctx.oauth_repositories().oauth.clone()),
     ));

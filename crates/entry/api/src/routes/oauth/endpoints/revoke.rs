@@ -60,7 +60,7 @@ pub async fn handle_revoke(
     revoke_token(&repo, &request.token, request.token_type_hint.as_deref()).await?;
 
     if let Some(session_id) = extract_session_id_unverified(&request.token)
-        && let Err(e) = state.analytics_provider().revoke_session(&session_id).await
+        && let Err(e) = state.session_provider().revoke_session(&session_id).await
     {
         tracing::warn!(
             session_id = %session_id,

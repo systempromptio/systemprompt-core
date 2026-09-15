@@ -5,8 +5,8 @@
 
 use anyhow::Result;
 use clap::Args;
-use systemprompt_analytics::{SessionCleanupService, SessionRepository};
 use systemprompt_database::DbPool;
+use systemprompt_users::SessionRepository;
 
 use super::types::SessionCleanupOutput;
 use crate::context::CommandContext;
@@ -55,10 +55,7 @@ pub async fn execute_with_pool(args: CleanupSessionsArgs, pool: &DbPool) -> Resu
         ));
     }
 
-    let cleanup_service = SessionCleanupService::new(repo);
-    let closed_count = cleanup_service
-        .cleanup_inactive_sessions(args.hours)
-        .await?;
+    let closed_count = repo.cleanup_inactive(args.hours).await?;
 
     let output = SessionCleanupOutput {
         job_name: "session_cleanup".to_owned(),

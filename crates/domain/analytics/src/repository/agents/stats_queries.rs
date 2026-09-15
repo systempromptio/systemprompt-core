@@ -30,7 +30,7 @@ impl AgentAnalyticsRepository {
                     COUNT(*) FILTER (WHERE status = 'TASK_STATE_COMPLETED')::bigint as "completed_tasks!",
                     COUNT(*) FILTER (WHERE status = 'TASK_STATE_FAILED')::bigint as "failed_tasks!",
                     COALESCE(AVG(execution_time_ms)::float8, 0) as "avg_execution_time_ms!"
-                FROM agent_tasks
+                FROM analytics_report_agent_tasks
                 WHERE started_at >= $1 AND started_at < $2
                   AND agent_name ILIKE $3
                 "#,
@@ -51,7 +51,7 @@ impl AgentAnalyticsRepository {
                     COUNT(*) FILTER (WHERE status = 'TASK_STATE_COMPLETED')::bigint as "completed_tasks!",
                     COUNT(*) FILTER (WHERE status = 'TASK_STATE_FAILED')::bigint as "failed_tasks!",
                     COALESCE(AVG(execution_time_ms)::float8, 0) as "avg_execution_time_ms!"
-                FROM agent_tasks
+                FROM analytics_report_agent_tasks
                 WHERE started_at >= $1 AND started_at < $2
                 "#,
                 start,
@@ -74,7 +74,7 @@ impl AgentAnalyticsRepository {
             SELECT
                 COUNT(*)::bigint as "total_ai_requests!",
                 COALESCE(SUM(cost_microdollars), 0)::bigint as "total_cost_microdollars!"
-            FROM ai_requests
+            FROM analytics_report_ai_requests
             WHERE created_at >= $1 AND created_at < $2
             "#,
             start,
@@ -100,7 +100,7 @@ impl AgentAnalyticsRepository {
                     started_at as "started_at!",
                     status,
                     execution_time_ms
-                FROM agent_tasks
+                FROM analytics_report_agent_tasks
                 WHERE started_at >= $1 AND started_at < $2
                   AND agent_name ILIKE $3
                 ORDER BY started_at
@@ -120,7 +120,7 @@ impl AgentAnalyticsRepository {
                     started_at as "started_at!",
                     status,
                     execution_time_ms
-                FROM agent_tasks
+                FROM analytics_report_agent_tasks
                 WHERE started_at >= $1 AND started_at < $2
                 ORDER BY started_at
                 "#,

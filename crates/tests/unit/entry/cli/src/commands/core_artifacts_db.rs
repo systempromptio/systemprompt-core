@@ -39,7 +39,7 @@ async fn seed_task(pool: &DbPool) -> (UserId, ContextId, TaskId) {
         .unwrap();
 
     let session_usage: systemprompt_traits::DynSessionUsageCounters =
-        std::sync::Arc::new(systemprompt_analytics::SessionRepository::new(pool).unwrap());
+        systemprompt_test_fixtures::fixture_analytics_repositories(pool).unwrap().sessions.owner();
     let repos = A2ARepositories::new(
         pool,
         session_usage,

@@ -29,7 +29,7 @@ impl SessionCreationService {
             .jwt_access_token_expiration;
         let expires_at = chrono::Utc::now() + chrono::Duration::seconds(jwt_expiration_seconds);
 
-        self.analytics_provider
+        self.session_provider
             .create_session(CreateSessionInput {
                 session_id: &session_id,
                 user_id: Some(&user_id),

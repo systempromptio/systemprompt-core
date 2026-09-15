@@ -297,9 +297,8 @@ fn jwt_extractor(
     ctx: &systemprompt_runtime::AppContext,
 ) -> Result<systemprompt_api::services::middleware::JwtContextExtractor> {
     use systemprompt_api::services::middleware::{JtiRevocationChecker, JwtContextExtractor};
-    use systemprompt_traits::{AnalyticsProvider, UserProvider};
-    let concrete = Arc::clone(ctx.analytics_service());
-    let analytics: Arc<dyn AnalyticsProvider> = concrete;
+    use systemprompt_traits::UserProvider;
+    let analytics = ctx.analytics_repositories().sessions.owner();
     let user_provider: Arc<dyn UserProvider> = Arc::new(systemprompt_users::UserService::new(
         Arc::clone(ctx.user_repository()),
     ));

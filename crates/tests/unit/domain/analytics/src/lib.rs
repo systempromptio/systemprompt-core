@@ -17,4 +17,7 @@ mod services;
 mod repository;
 
 #[cfg(test)]
+mod projection;
+
+#[cfg(test)]
 mod feedback_facts;

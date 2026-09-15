@@ -127,7 +127,7 @@ async fn migrate_session_user(state: &OAuthState, session_id_str: &str, new_user
     use systemprompt_identifiers::SessionId;
 
     let session_id = SessionId::new(session_id_str.to_owned());
-    let analytics_provider = state.analytics_provider();
+    let analytics_provider = state.session_provider();
 
     match analytics_provider
         .find_active_session_by_id(&session_id)

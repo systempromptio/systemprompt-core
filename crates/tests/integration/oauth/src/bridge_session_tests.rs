@@ -19,7 +19,6 @@ use systemprompt_security::keys::authority;
 fn oauth_repo(db: &systemprompt_database::DbPool) -> systemprompt_oauth::OAuthRepository {
     systemprompt_oauth::OAuthRepository::new(db).expect("oauth repo")
 }
-use systemprompt_traits::AnalyticsProvider;
 
 static AUTHORITY: Once = Once::new();
 
@@ -108,12 +107,13 @@ async fn fresh_bridge_jwt_has_active_session_for_profile_discovery() {
     let analytics = AnalyticsService::new(
         None,
         None,
-        &systemprompt_analytics::repository::AnalyticsRepositories::new(&db).expect("repositories"),
+        &systemprompt_test_fixtures::fixture_analytics_repositories(&db).expect("repositories"),
     );
 
     let result = issue_bridge_access(
         &oauth_repo(&db),
         &analytics,
+        &*analytics.session_repo().owner(),
         &exchange_request_headers(),
         None,
         &user_id,
@@ -129,7 +129,8 @@ async fn fresh_bridge_jwt_has_active_session_for_profile_discovery() {
     );
 
     let session = analytics
-        .find_active_session_by_id(&session_id)
+        .session_repo()
+        .find_active_by_id(&session_id)
         .await
         .expect("session lookup ok")
         .expect("freshly minted bridge JWT must have an active session row");
@@ -149,13 +150,14 @@ async fn bridge_session_captures_request_analytics() {
     let analytics = AnalyticsService::new(
         None,
         None,
-        &systemprompt_analytics::repository::AnalyticsRepositories::new(&db).expect("repositories"),
+        &systemprompt_test_fixtures::fixture_analytics_repositories(&db).expect("repositories"),
     );
 
     let caller_ip = "203.0.113.7".parse().ok();
     let result = issue_bridge_access(
         &oauth_repo(&db),
         &analytics,
+        &*analytics.session_repo().owner(),
         &exchange_request_headers(),
         caller_ip,
         &user_id,
@@ -197,13 +199,14 @@ async fn bridge_jwt_binds_supplied_session_id() {
     let analytics = AnalyticsService::new(
         None,
         None,
-        &systemprompt_analytics::repository::AnalyticsRepositories::new(&db).expect("repositories"),
+        &systemprompt_test_fixtures::fixture_analytics_repositories(&db).expect("repositories"),
     );
 
     let supplied = SessionId::generate();
     let result = issue_bridge_access(
         &oauth_repo(&db),
         &analytics,
+        &*analytics.session_repo().owner(),
         &exchange_headers_with_session(&supplied),
         None,
         &user_id,
@@ -221,7 +224,8 @@ async fn bridge_jwt_binds_supplied_session_id() {
     );
 
     let session = analytics
-        .find_active_session_by_id(&supplied)
+        .session_repo()
+        .find_active_by_id(&supplied)
         .await
         .expect("session lookup ok")
         .expect("supplied session id must back an active row");
@@ -239,7 +243,7 @@ async fn repeated_mint_with_same_session_id_is_idempotent() {
     let analytics = AnalyticsService::new(
         None,
         None,
-        &systemprompt_analytics::repository::AnalyticsRepositories::new(&db).expect("repositories"),
+        &systemprompt_test_fixtures::fixture_analytics_repositories(&db).expect("repositories"),
     );
 
     let supplied = SessionId::generate();
@@ -247,12 +251,26 @@ async fn repeated_mint_with_same_session_id_is_idempotent() {
 
     // The bridge re-mints hourly with its stable session id; both mints must
     // succeed (idempotent upsert), not fail on the existing primary key.
-    issue_bridge_access(&oauth_repo(&db), &analytics, &headers, None, &user_id)
-        .await
-        .expect("first mint");
-    issue_bridge_access(&oauth_repo(&db), &analytics, &headers, None, &user_id)
-        .await
-        .expect("re-mint with the same session id must not fail");
+    issue_bridge_access(
+        &oauth_repo(&db),
+        &analytics,
+        &*analytics.session_repo().owner(),
+        &headers,
+        None,
+        &user_id,
+    )
+    .await
+    .expect("first mint");
+    issue_bridge_access(
+        &oauth_repo(&db),
+        &analytics,
+        &*analytics.session_repo().owner(),
+        &headers,
+        None,
+        &user_id,
+    )
+    .await
+    .expect("re-mint with the same session id must not fail");
 
     let pool = db.pool_arc().expect("read pool");
     let count = sqlx::query_scalar!(

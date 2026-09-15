@@ -6,13 +6,15 @@
 use crate::repository::OAuthRepository;
 use std::sync::Arc;
 use systemprompt_traits::{
-    AnalyticsProvider, FingerprintProvider, McpRegistryProvider, UserEventPublisher, UserProvider,
+    AnalyticsProvider, FingerprintProvider, McpRegistryProvider, SessionProvider,
+    UserEventPublisher, UserProvider,
 };
 
 #[derive(Clone)]
 pub struct OAuthState {
     oauth_repository: OAuthRepository,
     analytics_provider: Arc<dyn AnalyticsProvider>,
+    session_provider: Arc<dyn SessionProvider>,
     user_provider: Arc<dyn UserProvider>,
     fingerprint_provider: Option<Arc<dyn FingerprintProvider>>,
     event_publisher: Option<Arc<dyn UserEventPublisher>>,
@@ -46,11 +48,13 @@ impl OAuthState {
     pub fn new(
         oauth_repository: OAuthRepository,
         analytics_provider: Arc<dyn AnalyticsProvider>,
+        session_provider: Arc<dyn SessionProvider>,
         user_provider: Arc<dyn UserProvider>,
     ) -> Self {
         Self {
             oauth_repository,
             analytics_provider,
+            session_provider,
             user_provider,
             fingerprint_provider: None,
             event_publisher: None,
@@ -86,6 +90,10 @@ impl OAuthState {
 
     pub fn analytics_provider(&self) -> &Arc<dyn AnalyticsProvider> {
         &self.analytics_provider
+    }
+
+    pub fn session_provider(&self) -> &Arc<dyn SessionProvider> {
+        &self.session_provider
     }
 
     pub fn user_provider(&self) -> &Arc<dyn UserProvider> {

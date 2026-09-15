@@ -151,7 +151,7 @@ pub(super) async fn ensure_session(
         },
     );
     state
-        .analytics_provider()
+        .session_provider()
         .create_session(CreateSessionInput {
             session_id: &session_id,
             user_id: Some(user_id),

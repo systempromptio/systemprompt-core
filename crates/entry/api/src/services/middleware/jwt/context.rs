@@ -19,7 +19,7 @@ use crate::services::middleware::context::ContextExtractor;
 use systemprompt_identifiers::ContextId;
 use systemprompt_models::execution::context::{ContextExtractionError, RequestContext};
 use systemprompt_security::{JwtUserContext, TokenExtractor, extract_user_context};
-use systemprompt_traits::{AnalyticsProvider, UserProvider};
+use systemprompt_traits::{SessionProvider, UserProvider};
 
 use super::params::{BuildContextParams, build_context, extract_common_headers};
 use super::revocation::JtiRevocationChecker;
@@ -28,7 +28,7 @@ use super::validation::{UserCache, user_is_admin, validate_session_exists, valid
 #[derive(Clone)]
 pub struct JwtContextExtractor {
     token_extractor: TokenExtractor,
-    analytics_provider: Arc<dyn AnalyticsProvider>,
+    session_provider: Arc<dyn SessionProvider>,
     user_provider: Arc<dyn UserProvider>,
     user_cache: Arc<UserCache>,
     jti_revocation: JtiRevocationChecker,
@@ -44,13 +44,13 @@ impl std::fmt::Debug for JwtContextExtractor {
 
 impl JwtContextExtractor {
     pub fn new(
-        analytics_provider: Arc<dyn AnalyticsProvider>,
+        session_provider: Arc<dyn SessionProvider>,
         user_provider: Arc<dyn UserProvider>,
         jti_revocation: JtiRevocationChecker,
     ) -> Self {
         Self {
             token_extractor: TokenExtractor::browser_only(),
-            analytics_provider,
+            session_provider,
             user_provider,
             user_cache: UserCache::new(),
             jti_revocation,
@@ -87,7 +87,7 @@ impl JwtContextExtractor {
             route_context,
         )
         .await?;
-        validate_session_exists(&self.analytics_provider, jwt_context, route_context).await?;
+        validate_session_exists(&self.session_provider, jwt_context, route_context).await?;
         self.jti_revocation
             .ensure_not_revoked(&jwt_context.jti)
             .await?;

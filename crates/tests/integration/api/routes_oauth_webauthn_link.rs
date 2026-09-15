@@ -52,6 +52,7 @@ async fn app() -> anyhow::Result<Router> {
     let state = OAuthState::new(
         ctx.oauth_repositories().oauth.clone(),
         ctx.analytics_provider().expect("analytics"),
+        ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
     );
     Ok(public_router().with_state(state))
@@ -211,6 +212,7 @@ async fn the_assembled_oauth_router_serves_both_halves() -> anyhow::Result<()> {
     let state = OAuthState::new(
         ctx.oauth_repositories().oauth.clone(),
         ctx.analytics_provider().expect("analytics"),
+        ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
     );
 
@@ -257,6 +259,7 @@ async fn linked_app() -> anyhow::Result<(Router, Arc<systemprompt_runtime::AppCo
     let state = OAuthState::new(
         ctx.oauth_repositories().oauth.clone(),
         ctx.analytics_provider().expect("analytics"),
+        ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
     );
     Ok((public_router().with_state(state), ctx))

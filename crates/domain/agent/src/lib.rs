@@ -54,3 +54,5 @@ pub use services::{
 };
 
 pub use repository::content::ArtifactRepository;
+
+pub const REPORTING_CAPTURE_SQL: &str = include_str!("../schema/reporting_capture.sql");

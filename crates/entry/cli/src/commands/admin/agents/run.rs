@@ -10,11 +10,11 @@ use std::sync::Arc;
 use systemprompt_agent::AgentState;
 use systemprompt_agent::services::a2a_server::run_standalone;
 use systemprompt_ai::{AiService, AiServiceProviders};
-use systemprompt_analytics::AnalyticsAiSessionProvider;
 use systemprompt_loader::ConfigLoader;
 use systemprompt_mcp::McpToolProvider;
 use systemprompt_oauth::JwtValidationProviderImpl;
 use systemprompt_runtime::AppContext;
+use systemprompt_users::UsersAiSessionProvider;
 
 #[derive(Debug, Clone, Args)]
 pub struct RunArgs {
@@ -49,8 +49,8 @@ pub(super) async fn execute(args: RunArgs) -> Result<()> {
         ctx.mcp_registry().clone(),
         &services_config.ai.mcp.resilience,
     ));
-    let session_provider = Arc::new(AnalyticsAiSessionProvider::from_repository(
-        ctx.analytics_repositories().sessions.clone(),
+    let session_provider = Arc::new(UsersAiSessionProvider::from_repository(
+        systemprompt_users::SessionRepository::new(&db_pool)?,
     ));
     let ai_service = Arc::new(
         AiService::new(

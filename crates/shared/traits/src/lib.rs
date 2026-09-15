@@ -43,8 +43,10 @@
 
 pub mod ai_providers;
 pub mod analytics;
+pub mod analytics_events;
 pub mod auth;
 pub mod content;
+pub use content::{ContentCatalogStats, DynContentCatalogStats};
 pub mod context;
 pub mod context_provider;
 pub mod domain_config;
@@ -150,3 +152,8 @@ pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + S
 
 mod startup_events;
 pub use startup_events::*;
+
+pub mod session_store;
+pub use analytics::{DynSessionProvider, SessionProvider};
+pub use analytics_events::{AnalyticsEventRecord, AnalyticsEventStore, DynAnalyticsEventStore};
+pub use session_store::{DynSessionStore, SessionStore};

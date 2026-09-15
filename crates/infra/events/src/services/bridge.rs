@@ -157,7 +157,10 @@ impl PostgresEventBridge {
             },
         };
 
-        if &row.origin_instance_id == self.outbox.instance_id() {
+        if row.channel == "reporting" {
+            return;
+        }
+        if !row.deliver_to_origin && &row.origin_instance_id == self.outbox.instance_id() {
             debug!(
                 row_id,
                 "event bridge: own event already routed locally; skipping"

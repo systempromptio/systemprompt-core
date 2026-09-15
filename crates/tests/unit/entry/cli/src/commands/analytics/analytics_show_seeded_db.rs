@@ -154,6 +154,9 @@ async fn tools_show_renders_seeded_activity() {
     let pool = pool().await;
     let ctx = ctx(&pool);
     let tool = seed_tool_fixture(&pool).await;
+    systemprompt_test_fixtures::refresh_reporting(&pool)
+        .await
+        .unwrap();
 
     analytics::execute(parse(&["tools", "show", &tool]), &ctx)
         .await
@@ -168,6 +171,9 @@ async fn tools_show_exports_csv() {
     let pool = pool().await;
     let ctx = ctx(&pool);
     let tool = seed_tool_fixture(&pool).await;
+    systemprompt_test_fixtures::refresh_reporting(&pool)
+        .await
+        .unwrap();
     let dir = tempfile::tempdir().unwrap();
     let export = dir.path().join("tools.csv");
 
@@ -197,6 +203,9 @@ async fn agents_show_renders_seeded_activity() {
     let pool = pool().await;
     let ctx = ctx(&pool);
     let agent = seed_agent_fixture(&pool).await;
+    systemprompt_test_fixtures::refresh_reporting(&pool)
+        .await
+        .unwrap();
 
     analytics::execute(parse(&["agents", "show", &agent]), &ctx)
         .await
@@ -208,6 +217,9 @@ async fn agents_show_exports_csv() {
     let pool = pool().await;
     let ctx = ctx(&pool);
     let agent = seed_agent_fixture(&pool).await;
+    systemprompt_test_fixtures::refresh_reporting(&pool)
+        .await
+        .unwrap();
     let dir = tempfile::tempdir().unwrap();
     let export = dir.path().join("agents.csv");
 

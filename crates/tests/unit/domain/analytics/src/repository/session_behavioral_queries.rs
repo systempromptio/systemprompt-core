@@ -4,7 +4,6 @@
 //! sequence/timestamp readers are asserted against known expected values.
 
 use chrono::{Duration, Utc};
-use systemprompt_analytics::SessionRepository;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fixture_db_pool};
 use uuid::Uuid;
 
@@ -20,7 +19,7 @@ async fn count_sessions_by_fingerprint_counts_within_window() {
     };
     ensure_test_bootstrap();
     let pool = fixture_db_pool(&url).await.expect("pool");
-    let repo = SessionRepository::new(&pool).expect("repo");
+    let repo = systemprompt_test_fixtures::fixture_analytics_repositories(&pool).map(|repositories| repositories.sessions).expect("repo");
 
     let fp = format!("fp-{}", Uuid::new_v4());
     let s1 = unique_session_id();
@@ -52,7 +51,7 @@ async fn endpoint_sequence_and_timestamps_ordered() {
     };
     ensure_test_bootstrap();
     let pool = fixture_db_pool(&url).await.expect("pool");
-    let repo = SessionRepository::new(&pool).expect("repo");
+    let repo = systemprompt_test_fixtures::fixture_analytics_repositories(&pool).map(|repositories| repositories.sessions).expect("repo");
 
     let sid = unique_session_id();
     seed_session(&repo, &sid, &format!("fp-{}", Uuid::new_v4())).await;
@@ -104,7 +103,7 @@ async fn has_analytics_events_false_without_events() {
     };
     ensure_test_bootstrap();
     let pool = fixture_db_pool(&url).await.expect("pool");
-    let repo = SessionRepository::new(&pool).expect("repo");
+    let repo = systemprompt_test_fixtures::fixture_analytics_repositories(&pool).map(|repositories| repositories.sessions).expect("repo");
 
     let sid = unique_session_id();
     seed_session(&repo, &sid, &format!("fp-{}", Uuid::new_v4())).await;
@@ -123,7 +122,7 @@ async fn session_for_behavioral_analysis_round_trip() {
     };
     ensure_test_bootstrap();
     let pool = fixture_db_pool(&url).await.expect("pool");
-    let repo = SessionRepository::new(&pool).expect("repo");
+    let repo = systemprompt_test_fixtures::fixture_analytics_repositories(&pool).map(|repositories| repositories.sessions).expect("repo");
 
     let sid = unique_session_id();
     let fp = format!("fp-{}", Uuid::new_v4());
@@ -158,7 +157,7 @@ async fn count_unique_ips_by_fingerprint() {
     };
     ensure_test_bootstrap();
     let pool = fixture_db_pool(&url).await.expect("pool");
-    let repo = SessionRepository::new(&pool).expect("repo");
+    let repo = systemprompt_test_fixtures::fixture_analytics_repositories(&pool).map(|repositories| repositories.sessions).expect("repo");
 
     let fp = format!("fp-{}", Uuid::new_v4());
     for ip in ["1.1.1.1", "2.2.2.2", "1.1.1.1"] {
@@ -189,7 +188,7 @@ async fn count_engagement_events_by_fingerprint() {
     };
     ensure_test_bootstrap();
     let pool = fixture_db_pool(&url).await.expect("pool");
-    let repo = SessionRepository::new(&pool).expect("repo");
+    let repo = systemprompt_test_fixtures::fixture_analytics_repositories(&pool).map(|repositories| repositories.sessions).expect("repo");
 
     let fp = format!("fp-{}", Uuid::new_v4());
     let sid = unique_session_id();
@@ -213,7 +212,7 @@ async fn session_starts_by_fingerprint_ordered() {
     };
     ensure_test_bootstrap();
     let pool = fixture_db_pool(&url).await.expect("pool");
-    let repo = SessionRepository::new(&pool).expect("repo");
+    let repo = systemprompt_test_fixtures::fixture_analytics_repositories(&pool).map(|repositories| repositories.sessions).expect("repo");
 
     let fp = format!("fp-{}", Uuid::new_v4());
     let s1 = unique_session_id();
@@ -239,7 +238,7 @@ async fn session_velocity_returns_count_and_duration() {
     };
     ensure_test_bootstrap();
     let pool = fixture_db_pool(&url).await.expect("pool");
-    let repo = SessionRepository::new(&pool).expect("repo");
+    let repo = systemprompt_test_fixtures::fixture_analytics_repositories(&pool).map(|repositories| repositories.sessions).expect("repo");
 
     let sid = unique_session_id();
     seed_session(&repo, &sid, &format!("fp-{}", Uuid::new_v4())).await;
@@ -265,7 +264,7 @@ async fn update_behavioral_detection_and_mark_bot() {
     };
     ensure_test_bootstrap();
     let pool = fixture_db_pool(&url).await.expect("pool");
-    let repo = SessionRepository::new(&pool).expect("repo");
+    let repo = systemprompt_test_fixtures::fixture_analytics_repositories(&pool).map(|repositories| repositories.sessions).expect("repo");
 
     let sid = unique_session_id();
     seed_session(&repo, &sid, &format!("fp-{}", Uuid::new_v4())).await;
@@ -292,7 +291,7 @@ async fn check_and_mark_behavioral_bot_threshold() {
     };
     ensure_test_bootstrap();
     let pool = fixture_db_pool(&url).await.expect("pool");
-    let repo = SessionRepository::new(&pool).expect("repo");
+    let repo = systemprompt_test_fixtures::fixture_analytics_repositories(&pool).map(|repositories| repositories.sessions).expect("repo");
 
     let sid = unique_session_id();
     seed_session(&repo, &sid, &format!("fp-{}", Uuid::new_v4())).await;
@@ -327,7 +326,7 @@ async fn get_total_content_pages_is_non_negative() {
     };
     ensure_test_bootstrap();
     let pool = fixture_db_pool(&url).await.expect("pool");
-    let repo = SessionRepository::new(&pool).expect("repo");
+    let repo = systemprompt_test_fixtures::fixture_analytics_repositories(&pool).map(|repositories| repositories.sessions).expect("repo");
 
     let total = repo.get_total_content_pages().await.expect("total");
     assert!(total >= 0);

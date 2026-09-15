@@ -104,6 +104,7 @@ async fn authorize_app() -> anyhow::Result<Router> {
     let state = OAuthState::new(
         ctx.oauth_repositories().oauth.clone(),
         ctx.analytics_provider().expect("analytics"),
+        ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
     );
     Ok(public_router()
@@ -322,6 +323,7 @@ async fn authorize_app_with_mcp_registry() -> anyhow::Result<Router> {
     let state = OAuthState::new(
         ctx.oauth_repositories().oauth.clone(),
         ctx.analytics_provider().expect("analytics"),
+        ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
     )
     .with_mcp_registry(std::sync::Arc::new(ctx.mcp_registry().clone()));

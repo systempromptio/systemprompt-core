@@ -192,7 +192,7 @@ async fn mtls_with_unenrolled_cert_is_unauthorized() -> Result<()> {
 async fn provision_oauth_client_without_bearer_is_unauthorized() -> Result<()> {
     let (_db, ctx) = setup_ctx().await?;
     let extractor = Arc::new(JwtContextExtractor::new(
-        ctx.analytics_provider().expect("analytics provider"),
+        ctx.session_provider().expect("session provider"),
         ctx.user_provider().expect("user provider"),
         JtiRevocationChecker::from_repository(ctx.oauth_repositories().oauth.clone()),
     ));
@@ -207,7 +207,7 @@ fn jwt_extractor(
     ctx: &systemprompt_runtime::AppContext,
 ) -> anyhow::Result<Arc<JwtContextExtractor>> {
     Ok(Arc::new(JwtContextExtractor::new(
-        ctx.analytics_provider().expect("analytics provider"),
+        ctx.session_provider().expect("session provider"),
         ctx.user_provider().expect("user provider"),
         JtiRevocationChecker::from_repository(ctx.oauth_repositories().oauth.clone()),
     )))

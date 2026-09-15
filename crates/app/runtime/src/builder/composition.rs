@@ -106,8 +106,7 @@ pub(super) fn build_repositories(
     analytics: Arc<systemprompt_analytics::repository::AnalyticsRepositories>,
     instance_id: systemprompt_identifiers::InstanceId,
 ) -> RuntimeResult<RepositoryBundles> {
-    let session_usage: systemprompt_traits::DynSessionUsageCounters =
-        Arc::new(analytics.sessions.clone());
+    let session_usage: systemprompt_traits::DynSessionUsageCounters = analytics.sessions.owner();
     let pool = database
         .pool_arc()
         .map_err(|error| crate::error::RuntimeError::Internal(error.to_string()))?;

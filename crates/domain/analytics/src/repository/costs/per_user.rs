@@ -34,7 +34,7 @@ impl CostAnalyticsRepository {
                 SUM(reasoning_tokens)::bigint as "reasoning_tokens",
                 SUM(cache_read_tokens)::bigint as "cache_read_tokens",
                 SUM(cache_creation_tokens)::bigint as "cache_creation_tokens"
-            FROM ai_requests
+            FROM analytics_report_ai_requests
             WHERE created_at >= $1 AND created_at < $2
               AND NOT synthetic AND user_id = $3
             "#,
@@ -57,7 +57,7 @@ impl CostAnalyticsRepository {
             PreviousCostRow,
             r#"
             SELECT SUM(cost_microdollars)::bigint as "cost"
-            FROM ai_requests
+            FROM analytics_report_ai_requests
             WHERE created_at >= $1 AND created_at < $2
               AND NOT synthetic AND user_id = $3
             "#,
@@ -85,7 +85,7 @@ impl CostAnalyticsRepository {
                 COALESCE(SUM(cost_microdollars), 0)::bigint as "cost!",
                 COUNT(*)::bigint as "requests!",
                 COALESCE(SUM(tokens_used), 0)::bigint as "tokens!"
-            FROM ai_requests
+            FROM analytics_report_ai_requests
             WHERE created_at >= $1 AND created_at < $2
               AND NOT synthetic AND user_id = $4
               AND model IS NOT NULL
@@ -115,7 +115,7 @@ impl CostAnalyticsRepository {
             SELECT
                 COUNT(DISTINCT context_id)::bigint as "conversations!",
                 COUNT(*)::bigint as "ai_requests!"
-            FROM ai_requests
+            FROM analytics_report_ai_requests
             WHERE created_at >= $1 AND created_at < $2
               AND NOT synthetic
               AND user_id = $3
@@ -144,7 +144,7 @@ impl CostAnalyticsRepository {
                 model as "name!",
                 COUNT(DISTINCT context_id)::bigint as "conversations!",
                 COUNT(*)::bigint as "ai_requests!"
-            FROM ai_requests
+            FROM analytics_report_ai_requests
             WHERE created_at >= $1 AND created_at < $2
               AND NOT synthetic
               AND user_id = $3
@@ -178,8 +178,8 @@ impl CostAnalyticsRepository {
                 COALESCE(at.agent_name, 'unattributed') as "name!",
                 COUNT(DISTINCT r.context_id)::bigint as "conversations!",
                 COUNT(*)::bigint as "ai_requests!"
-            FROM ai_requests r
-            LEFT JOIN agent_tasks at ON at.task_id = r.task_id
+            FROM analytics_report_ai_requests r
+            LEFT JOIN analytics_report_agent_tasks at ON at.task_id = r.task_id
             WHERE r.created_at >= $1 AND r.created_at < $2
                   AND NOT r.synthetic
               AND r.user_id = $3
@@ -219,7 +219,7 @@ impl CostAnalyticsRepository {
                     r.context_id,
                     MAX(r.created_at) AS last_activity,
                     COUNT(*) AS ai_requests
-                FROM ai_requests r
+                FROM analytics_report_ai_requests r
                 WHERE r.user_id = $1
                   AND r.created_at < $2
                   AND NOT r.synthetic
@@ -229,13 +229,13 @@ impl CostAnalyticsRepository {
                 LIMIT $3
             ) ctx
             LEFT JOIN LATERAL (
-                SELECT model, task_id FROM ai_requests
+                SELECT model, task_id FROM analytics_report_ai_requests
                 WHERE context_id = ctx.context_id
                 ORDER BY created_at DESC
                 LIMIT 1
             ) last_req ON TRUE
-            LEFT JOIN agent_tasks last_task ON last_task.task_id = last_req.task_id
-            LEFT JOIN user_contexts uc ON uc.context_id = ctx.context_id
+            LEFT JOIN analytics_report_agent_tasks last_task ON last_task.task_id = last_req.task_id
+            LEFT JOIN analytics_report_user_contexts uc ON uc.context_id = ctx.context_id
             ORDER BY ctx.last_activity DESC
             "#,
             user_id.as_str(),

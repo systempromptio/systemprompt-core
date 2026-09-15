@@ -25,7 +25,7 @@ impl TrafficAnalyticsRepository {
                     landing_page as "page",
                     COALESCE(referrer_source, 'direct') as "source",
                     COUNT(*)::bigint as "count!"
-                FROM v_engaged_traffic
+                FROM analytics_report_v_engaged_traffic
                 WHERE started_at >= $1 AND started_at < $2
                   AND ($3::text IS NULL OR COALESCE(referrer_source, 'direct') = $3)
                   AND ($4::text IS NULL OR landing_page LIKE $4 || '%')
@@ -50,7 +50,7 @@ impl TrafficAnalyticsRepository {
                     landing_page as "page",
                     COALESCE(referrer_source, 'direct') as "source",
                     COUNT(*)::bigint as "count!"
-                FROM v_clean_traffic
+                FROM analytics_report_v_clean_traffic
                 WHERE started_at >= $1 AND started_at < $2
                   AND landing_page IS NOT NULL
                   AND ($3::text IS NULL OR COALESCE(referrer_source, 'direct') = $3)
@@ -90,7 +90,7 @@ impl TrafficAnalyticsRepository {
                     endpoint as "from_path",
                     event_data->>'target_url' as "to_path",
                     COUNT(*)::bigint as "count!"
-                FROM analytics_events
+                FROM analytics_report_analytics_events
                 WHERE event_type = 'link_click'
                   AND timestamp >= $1 AND timestamp < $2
                   AND ($3::text IS NULL OR event_data->>'target_url' LIKE $3 || '%')
@@ -115,7 +115,7 @@ impl TrafficAnalyticsRepository {
                     endpoint as "from_path",
                     event_data->>'target_url' as "to_path",
                     COUNT(*)::bigint as "count!"
-                FROM analytics_events
+                FROM analytics_report_analytics_events
                 WHERE event_type = 'link_click'
                   AND timestamp >= $1 AND timestamp < $2
                   AND ($3::text IS NULL OR event_data->>'target_url' LIKE $3 || '%')

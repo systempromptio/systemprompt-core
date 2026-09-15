@@ -1,85 +1,118 @@
-//! Behavioral-signal persistence for sessions.
+//! Behavioral analysis across typed owner contracts.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use super::{SessionBehavioralData, SessionRepository, behavioral_queries};
 use crate::Result;
-use sqlx::PgPool;
+use chrono::{DateTime, Utc};
 use systemprompt_identifiers::SessionId;
+impl SessionRepository {
+    pub async fn count_sessions_by_fingerprint(
+        &self,
+        fingerprint_hash: &str,
+        window_hours: i64,
+    ) -> Result<i64> {
+        systemprompt_traits::SessionStore::count_sessions_by_fingerprint(
+            &*self.owner,
+            fingerprint_hash,
+            window_hours,
+        )
+        .await
+        .map_err(crate::AnalyticsError::from)
+    }
 
-pub(super) async fn mark_as_behavioral_bot(
-    pool: &PgPool,
-    session_id: &SessionId,
-    reason: &str,
-) -> Result<()> {
-    let id = session_id.as_str();
-    sqlx::query!(
-        r#"
-        UPDATE user_sessions
-        SET is_behavioral_bot = true,
-            behavioral_bot_reason = $1
-        WHERE session_id = $2
-        "#,
-        reason,
-        id
-    )
-    .execute(pool)
-    .await?;
-    Ok(())
-}
+    pub async fn get_endpoint_sequence(&self, session_id: &SessionId) -> Result<Vec<String>> {
+        self.events
+            .get_endpoint_sequence(session_id)
+            .await
+            .map_err(crate::AnalyticsError::from)
+    }
 
-pub(super) async fn check_and_mark_behavioral_bot(
-    pool: &PgPool,
-    session_id: &SessionId,
-    request_count_threshold: i32,
-) -> Result<bool> {
-    let id = session_id.as_str();
-    let result = sqlx::query!(
-        r#"
-        UPDATE user_sessions
-        SET is_behavioral_bot = true,
-            behavioral_bot_reason = 'request_count_exceeded'
-        WHERE session_id = $1
-          AND request_count > $2
-          AND is_bot = false
-          AND is_ai_crawler = false
-          AND is_scanner = false
-          AND is_behavioral_bot = false
-        RETURNING session_id
-        "#,
-        id,
-        request_count_threshold
-    )
-    .fetch_optional(pool)
-    .await?;
-    Ok(result.is_some())
-}
+    pub async fn get_request_timestamps(
+        &self,
+        session_id: &SessionId,
+    ) -> Result<Vec<DateTime<Utc>>> {
+        self.events
+            .get_request_timestamps(session_id)
+            .await
+            .map_err(crate::AnalyticsError::from)
+    }
 
-pub(super) async fn update_behavioral_detection(
-    pool: &PgPool,
-    session_id: &SessionId,
-    score: i32,
-    is_behavioral_bot: bool,
-    reason: Option<&str>,
-) -> Result<()> {
-    let id = session_id.as_str();
+    pub async fn get_total_content_pages(&self) -> Result<i64> {
+        self.content.count_public_pages().await.map_err(Into::into)
+    }
 
-    sqlx::query!(
-        r#"
-        UPDATE user_sessions
-        SET behavioral_bot_score = $1,
-            is_behavioral_bot = $2,
-            behavioral_bot_reason = $3,
-            last_activity_at = CURRENT_TIMESTAMP
-        WHERE session_id = $4
-        "#,
-        score,
-        is_behavioral_bot,
-        reason,
-        id
-    )
-    .execute(pool)
-    .await?;
+    pub async fn get_session_for_behavioral_analysis(
+        &self,
+        session_id: &SessionId,
+    ) -> Result<Option<SessionBehavioralData>> {
+        systemprompt_traits::SessionStore::get_session_for_behavioral_analysis(
+            &*self.owner,
+            session_id,
+        )
+        .await
+        .map_err(crate::AnalyticsError::from)
+    }
 
-    Ok(())
+    pub async fn has_analytics_events(&self, session_id: &SessionId) -> Result<bool> {
+        self.events
+            .has_analytics_events(session_id)
+            .await
+            .map_err(crate::AnalyticsError::from)
+    }
+
+    pub async fn count_unique_ips_by_fingerprint(
+        &self,
+        fingerprint_hash: &str,
+        window_days: i64,
+    ) -> Result<i64> {
+        systemprompt_traits::SessionStore::count_unique_ips_by_fingerprint(
+            &*self.owner,
+            fingerprint_hash,
+            window_days,
+        )
+        .await
+        .map_err(crate::AnalyticsError::from)
+    }
+
+    pub async fn count_engagement_events_by_fingerprint(
+        &self,
+        fingerprint_hash: &str,
+        window_days: i64,
+    ) -> Result<i64> {
+        let session_ids = self
+            .owner
+            .fingerprint_session_ids(fingerprint_hash, window_days)
+            .await
+            .map_err(crate::AnalyticsError::from)?
+            .into_iter()
+            .map(|id| id.to_string())
+            .collect::<Vec<_>>();
+        behavioral_queries::count_engagement_events_for_sessions(&self.write_pool, &session_ids)
+            .await
+    }
+
+    pub async fn get_session_starts_by_fingerprint(
+        &self,
+        fingerprint_hash: &str,
+        window_days: i64,
+    ) -> Result<Vec<DateTime<Utc>>> {
+        systemprompt_traits::SessionStore::get_session_starts_by_fingerprint(
+            &*self.owner,
+            fingerprint_hash,
+            window_days,
+        )
+        .await
+        .map_err(crate::AnalyticsError::from)
+    }
+
+    pub async fn get_session_velocity(
+        &self,
+        session_id: &SessionId,
+    ) -> Result<(Option<i64>, Option<i64>)> {
+        systemprompt_traits::SessionStore::get_session_velocity(&*self.owner, session_id)
+            .await
+            .map_err(crate::AnalyticsError::from)
+    }
 }

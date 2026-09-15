@@ -1,4 +1,5 @@
-//! Session analytics and fingerprinting provider traits.
+//! Request analytics extraction, session lifecycle, and fingerprint provider
+//! traits.
 //!
 //! These traits are dispatched as trait objects (`dyn _`), so they use
 //! `#[async_trait]`; native `async fn` in traits is not yet `dyn`-compatible.
@@ -111,14 +112,16 @@ pub struct ExtractSignals<'a> {
     pub caller_ip: Option<IpAddr>,
 }
 
-#[async_trait]
 pub trait AnalyticsProvider: Send + Sync {
     fn extract_analytics(
         &self,
         headers: &HeaderMap,
         signals: ExtractSignals<'_>,
     ) -> SessionAnalytics;
+}
 
+#[async_trait]
+pub trait SessionProvider: Send + Sync {
     async fn create_session(&self, input: CreateSessionInput<'_>) -> AnalyticsResult<()>;
 
     async fn find_recent_session_by_fingerprint(
@@ -180,3 +183,5 @@ pub type DynAnalyticsProvider = Arc<dyn AnalyticsProvider>;
 pub type DynFingerprintProvider = Arc<dyn FingerprintProvider>;
 
 pub type DynSessionUsageCounters = Arc<dyn SessionUsageCounters>;
+
+pub type DynSessionProvider = Arc<dyn SessionProvider>;

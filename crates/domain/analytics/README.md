@@ -5,7 +5,7 @@
 [![License: BSL-1.1](https://img.shields.io/badge/license-BSL--1.1-2b6cb0?style=flat-square)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
 [![codecov](https://img.shields.io/codecov/c/github/systempromptio/systemprompt-core/main?style=flat-square&logo=codecov)](https://codecov.io/gh/systempromptio/systemprompt-core)
 
-Queries session, request, tool and cost records for usage analysis and operational reporting.
+Queries analytics-owned session, request, tool and cost projections for usage analysis and operational reporting.
 
 **Layer**: Domain — business-logic modules that implement systemprompt.io features. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
 
@@ -15,7 +15,7 @@ Queries session, request, tool and cost records for usage analysis and operation
 
 This crate provides:
 
-- **Session Management** - Create, track, and manage user sessions with fingerprint-based identification
+- **Session Analysis** - Extract request signals and analyze sessions through users-owned persistence contracts
 - **Behavioral Bot Detection** - Server-side detection of automated traffic using 7-signal analysis
 - **Engagement Tracking** - Client-side engagement metrics (scroll depth, time on page, clicks)
 - **Funnel Analytics** - Track user progression through defined conversion funnels
@@ -40,8 +40,9 @@ systemprompt-analytics = { version = "0.52", features = ["geolocation"] }
 | Module | Purpose |
 |--------|---------|
 | `models/` | Analytics models: sessions, events, engagement, fingerprints, funnels, plus CLI row types. |
-| `repository/` | Compile-time-verified queries for sessions, agents, tools, requests, costs, traffic, content, funnels, fingerprints, and aggregate stats. |
-| `services/` | `AnalyticsService` session lifecycle, `AnomalyDetectionService`, the `behavioral_detector/` 7-signal bot detection, session cleanup, and the request/GeoIP `extractor/`. |
+| `repository/` | Reporting queries over analytics projections, local engagement/funnel/fingerprint persistence, and injected owner interfaces. |
+| `services/` | `AnalyticsService` request extraction, `AnomalyDetectionService`, behavioral detection, session-cleanup orchestration, and request/GeoIP enrichment. |
+| `projection/` | Versioned reporting contracts and transactional projection updates. |
 
 Schema DDL lives in `schema/*.sql` (`anomaly_thresholds`, `engagement_events`, `fingerprint_reputation`, `funnels`, `funnel_progress`) with migrations in `schema/migrations/`:
 
@@ -55,20 +56,19 @@ Schema DDL lives in `schema/*.sql` (`anomaly_thresholds`, `engagement_events`, `
 
 | Service | Purpose |
 |---------|---------|
-| `AnalyticsService` | Session lifecycle management and analytics extraction |
+| `AnalyticsService` | Request analytics extraction |
 | `AnomalyDetectionService` | Threshold-based and trend anomaly detection |
 | `BehavioralBotDetector` | 7-signal server-side bot detection |
-| `SessionCleanupService` | Cleanup of inactive sessions |
 
 ### Repositories
 
 | Repository | Purpose |
 |------------|---------|
-| `SessionRepository` | Session CRUD and behavioral data queries |
+| `SessionRepository` | Delegates session operations to users and behavioral event/content reads to their owners |
 | `EngagementRepository` | Engagement event operations |
 | `FingerprintRepository` | Fingerprint reputation tracking |
 | `FunnelRepository` | Funnel progress and statistics |
-| `AnalyticsEventsRepository` | Analytics event storage |
+| `AnalyticsEventsRepository` | Logging-owned ingestion and analytics projection reads |
 | `CoreStatsRepository` | Platform statistics and trends |
 | `AgentAnalyticsRepository` | Agent task analytics |
 | `ToolAnalyticsRepository` | MCP tool execution analytics |
@@ -100,10 +100,17 @@ Schema DDL lives in `schema/*.sql` (`anomaly_thresholds`, `engagement_events`, `
 | `systemprompt-extension` | Extension trait and schema registration |
 | `systemprompt-models` | Shared types including `ContentRouting` |
 | `systemprompt-identifiers` | `SessionId`, `UserId`, `FunnelId`, and other typed IDs |
-| `systemprompt-traits` | Repository trait |
+| `systemprompt-traits` | Injected session, event-store and content-count contracts |
 | `maxminddb` (optional) | GeoIP database reader behind `geolocation` feature |
 
 ## Behavioral Bot Detection
+
+Behavioral decisions read authoritative primary stores. Cross-domain reports
+read eventually consistent analytics projections populated through the existing
+PostgreSQL event outbox. Runtime composition supplies the users session store,
+logging event store and content catalog statistics; analytics does not depend on
+those owner crates. See the workspace [ownership and reporting guide](../../../documentation/concepts/analytics-migration.md)
+for initialization, rebuild and operational requirements.
 
 The `BehavioralBotDetector` analyzes sessions using 7 signals:
 

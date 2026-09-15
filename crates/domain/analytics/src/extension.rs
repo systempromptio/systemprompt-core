@@ -1,6 +1,5 @@
-//! Extension registration — wires analytics schemas (sessions, funnels,
-//! engagement events, fingerprint reputation, anomaly thresholds) and
-//! schema-evolution migrations into the extension framework.
+//! Registers analytics-owned reporting, engagement, reputation, funnel and
+//! feedback schemas, seeds and migrations.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -33,6 +32,11 @@ impl Extension for AnalyticsExtension {
                 "analytics_feedback_snapshots",
                 include_str!("../schema/feedback_snapshots.sql"),
             ),
+            SchemaDefinition::new(
+                "analytics_projection_state",
+                include_str!("../schema/reporting.sql"),
+            )
+            .with_required_columns(vec!["generation".into(), "cutoff_revision".into()]),
             SchemaDefinition::new(
                 "engagement_events",
                 include_str!("../schema/engagement_events.sql"),
@@ -74,6 +78,13 @@ impl Extension for AnalyticsExtension {
 
     fn migrations(&self) -> Vec<Migration> {
         extension_migrations!()
+    }
+
+    fn seeds(&self) -> Vec<Seed> {
+        vec![Seed::new(
+            "analytics_projection_state",
+            crate::projection::REPORTING_STATE_SEED,
+        )]
     }
 }
 

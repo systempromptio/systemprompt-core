@@ -2,6 +2,12 @@
 
 Command reference for analytics. Use the installed command’s `--help` output for its complete arguments and defaults.
 
+Reports read asynchronously maintained analytics projections. Use `analytics projection status`
+to inspect generation and backlog, `analytics projection sync --limit 10000` to process a
+bounded backlog without a server, and `analytics projection rebuild` to atomically rebuild
+from source-owner snapshots. Rebuild requires schema-owner privileges and blocks source
+writes during its snapshot; failed rebuilds retain the previous committed reports.
+
 ---
 
 ## Prerequisites

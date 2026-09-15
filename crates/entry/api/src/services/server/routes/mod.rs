@@ -114,10 +114,10 @@ pub(super) fn configure_routes(
 
 fn build_jwt_extractor(ctx: &AppContext) -> Result<JwtContextExtractor, LoaderError> {
     let analytics = ctx
-        .analytics_provider()
+        .session_provider()
         .ok_or_else(|| LoaderError::InitializationFailed {
             extension: "jwt".to_owned(),
-            message: "AnalyticsProvider is required for JWT session enforcement".to_owned(),
+            message: "SessionProvider is required for JWT session enforcement".to_owned(),
         })?;
     let user_provider = ctx
         .user_provider()

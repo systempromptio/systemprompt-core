@@ -14,8 +14,8 @@ use systemprompt_oauth::{AnonymousSessionInfo, SessionCreationError, SessionCrea
 use systemprompt_test_fixtures::fixture_user_id;
 use systemprompt_traits::{
     AnalyticsProvider, AnalyticsResult, AnalyticsSession, AuthResult, AuthUser, CreateSessionInput,
-    ExtractSignals, FingerprintProvider, SessionAnalytics, UserEvent, UserEventPublisher,
-    UserProvider,
+    ExtractSignals, FingerprintProvider, SessionAnalytics, SessionProvider, UserEvent,
+    UserEventPublisher, UserProvider,
 };
 
 const TEST_CLIENT_SECRET: &str = "secret_TestClientSecretValue12345";
@@ -26,7 +26,6 @@ const TEST_FINGERPRINT_HASH: &str = "fp_abc123def456";
 
 struct MockAnalyticsProvider;
 
-#[async_trait]
 impl AnalyticsProvider for MockAnalyticsProvider {
     fn extract_analytics(
         &self,
@@ -35,7 +34,10 @@ impl AnalyticsProvider for MockAnalyticsProvider {
     ) -> SessionAnalytics {
         SessionAnalytics::default()
     }
+}
 
+#[async_trait]
+impl SessionProvider for MockAnalyticsProvider {
     async fn create_session(&self, _input: CreateSessionInput<'_>) -> AnalyticsResult<()> {
         Ok(())
     }
@@ -270,7 +272,7 @@ fn test_session_creation_error_is_std_error() {
 
 #[test]
 fn test_session_creation_service_new() {
-    let analytics: Arc<dyn AnalyticsProvider> = Arc::new(MockAnalyticsProvider);
+    let analytics: Arc<dyn SessionProvider> = Arc::new(MockAnalyticsProvider);
     let user: Arc<dyn UserProvider> = Arc::new(MockUserProvider);
 
     let service = SessionCreationService::new(analytics, user);
@@ -282,7 +284,7 @@ fn test_session_creation_service_new() {
 
 #[test]
 fn test_session_creation_service_with_event_publisher() {
-    let analytics: Arc<dyn AnalyticsProvider> = Arc::new(MockAnalyticsProvider);
+    let analytics: Arc<dyn SessionProvider> = Arc::new(MockAnalyticsProvider);
     let user: Arc<dyn UserProvider> = Arc::new(MockUserProvider);
     let publisher: Arc<dyn UserEventPublisher> = Arc::new(MockEventPublisher::new());
 
@@ -294,7 +296,7 @@ fn test_session_creation_service_with_event_publisher() {
 
 #[test]
 fn test_session_creation_service_with_fingerprint_provider() {
-    let analytics: Arc<dyn AnalyticsProvider> = Arc::new(MockAnalyticsProvider);
+    let analytics: Arc<dyn SessionProvider> = Arc::new(MockAnalyticsProvider);
     let user: Arc<dyn UserProvider> = Arc::new(MockUserProvider);
     let fingerprint: Arc<dyn FingerprintProvider> = Arc::new(MockFingerprintProvider);
 

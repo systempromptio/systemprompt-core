@@ -47,11 +47,13 @@ use crate::services::middleware::{JtiRevocationChecker, JwtContextExtractor};
 pub(crate) use self::access_log::{GatewayLogIdentity, TerminalOutcome, log_gateway_terminal};
 
 pub fn gateway_enabled(ctx: &AppContext) -> bool {
-    ctx.analytics_provider().is_some() && ctx.user_provider().is_some()
+    ctx.analytics_provider().is_some()
+        && ctx.session_provider().is_some()
+        && ctx.user_provider().is_some()
 }
 
 fn build_jwt_extractor(ctx: &AppContext) -> Option<Arc<JwtContextExtractor>> {
-    let Some(analytics) = ctx.analytics_provider() else {
+    let Some(analytics) = ctx.session_provider() else {
         tracing::warn!("Gateway router: analytics provider unavailable — gateway disabled");
         return None;
     };

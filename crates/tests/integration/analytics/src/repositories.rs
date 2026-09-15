@@ -12,7 +12,7 @@ use systemprompt_analytics::models::{
 };
 use systemprompt_analytics::{
     AnalyticsEventsRepository, ConversationAnalyticsRepository, EngagementRepository,
-    FingerprintRepository, OverviewAnalyticsRepository, RequestAnalyticsRepository,
+    OverviewAnalyticsRepository, RequestAnalyticsRepository,
     TrafficAnalyticsRepository,
 };
 use systemprompt_database::DbPool;
@@ -211,6 +211,7 @@ async fn traffic_repository_smoke() -> Result<()> {
     )
     .await?;
 
+    systemprompt_test_fixtures::refresh_reporting(&fx.db).await?;
     let repo = TrafficAnalyticsRepository::new(&fx.db)?;
     let sources = repo
         .get_sources(fx.window_start, fx.window_end, 50, false)
@@ -274,6 +275,7 @@ async fn overview_repository_smoke() -> Result<()> {
     )
     .await?;
 
+    systemprompt_test_fixtures::refresh_reporting(&fx.db).await?;
     let repo = OverviewAnalyticsRepository::new(&fx.db)?;
     let conv_count = repo
         .get_conversation_count(fx.window_start, fx.window_end)
@@ -347,7 +349,7 @@ async fn engagement_repository_lifecycle() -> Result<()> {
 #[tokio::test]
 async fn fingerprint_repository_lifecycle() -> Result<()> {
     let fx = Fixture::new().await?;
-    let repo = FingerprintRepository::new(&fx.db)?;
+    let repo = systemprompt_test_fixtures::fixture_fingerprint_repository(&fx.db)?;
     let fp_hash = format!("fp_{}", fx.tag);
 
     let rep = repo
@@ -391,6 +393,7 @@ async fn request_analytics_repository_smoke() -> Result<()> {
     fx.insert_ai_request("m1", 100, 10).await?;
     fx.insert_ai_request("m2", 200, 20).await?;
 
+    systemprompt_test_fixtures::refresh_reporting(&fx.db).await?;
     let repo = RequestAnalyticsRepository::new(&fx.db)?;
     let stats = repo.get_stats(fx.window_start, fx.window_end, None).await?;
     assert!(stats.total >= 2);
@@ -423,6 +426,7 @@ async fn rejected_requests_are_excluded_from_model_mix_but_listed() -> Result<()
     fx.insert_ai_request("m1", 100, 10).await?;
     fx.insert_rejected_ai_request().await?;
 
+    systemprompt_test_fixtures::refresh_reporting(&fx.db).await?;
     let repo = RequestAnalyticsRepository::new(&fx.db)?;
 
     let models = repo.list_models(fx.window_start, fx.window_end, 10).await?;
@@ -448,6 +452,7 @@ async fn rejected_requests_are_excluded_from_model_mix_but_listed() -> Result<()
 #[tokio::test]
 async fn conversation_repository_smoke() -> Result<()> {
     let fx = Fixture::new().await?;
+    systemprompt_test_fixtures::refresh_reporting(&fx.db).await?;
     let repo = ConversationAnalyticsRepository::new(&fx.db)?;
     let _agent = repo
         .list_agent_contexts(fx.window_start, fx.window_end, 50)
@@ -470,6 +475,7 @@ async fn conversation_repository_smoke() -> Result<()> {
     .bind(fx.window_start + Duration::minutes(1))
     .execute(&fx.pool)
     .await?;
+    systemprompt_test_fixtures::refresh_reporting(&fx.db).await?;
     let ctx_ct_after = repo
         .get_context_count(fx.window_start, fx.window_end)
         .await?;
@@ -509,7 +515,10 @@ async fn conversation_repository_smoke() -> Result<()> {
 #[tokio::test]
 async fn events_repository_smoke() -> Result<()> {
     let fx = Fixture::new().await?;
-    let repo = AnalyticsEventsRepository::new(&fx.db)?;
+    let repo = AnalyticsEventsRepository::new(
+        &fx.db,
+        std::sync::Arc::new(systemprompt_logging::AnalyticsRepository::new(&fx.db)?),
+    )?;
 
     let session_id = SessionId::new(format!("ev_s_{}", fx.tag));
     sqlx::query(
@@ -563,6 +572,7 @@ async fn events_repository_smoke() -> Result<()> {
         .await?;
     assert!(empty_batch.is_empty());
 
+    systemprompt_test_fixtures::refresh_reporting(&fx.db).await?;
     let count = repo
         .count_events_by_type(&session_id, &AnalyticsEventType::PageView)
         .await?;

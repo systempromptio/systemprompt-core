@@ -40,6 +40,7 @@ async fn oauth_state() -> anyhow::Result<OAuthState> {
     Ok(OAuthState::new(
         ctx.oauth_repositories().oauth.clone(),
         ctx.analytics_provider().expect("analytics"),
+        ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
     ))
 }
@@ -79,6 +80,7 @@ async fn userinfo_missing_authorization_returns_invalid_request() -> anyhow::Res
     let state = OAuthState::new(
         ctx.oauth_repositories().oauth.clone(),
         ctx.analytics_provider().expect("analytics"),
+        ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
     );
     let app = systemprompt_api::routes::oauth::authenticated_router().with_state(state);

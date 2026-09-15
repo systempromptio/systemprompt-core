@@ -6819,6 +6819,7 @@ dependencies = [
  "systemprompt-analytics",
  "systemprompt-database",
  "systemprompt-identifiers",
+ "systemprompt-logging",
  "systemprompt-models",
  "systemprompt-test-fixtures",
  "systemprompt-traits",
@@ -6838,6 +6839,7 @@ dependencies = [
  "systemprompt-analytics",
  "systemprompt-database",
  "systemprompt-identifiers",
+ "systemprompt-logging",
  "systemprompt-models",
  "systemprompt-test-fixtures",
  "systemprompt-traits",
@@ -7981,12 +7983,11 @@ name = "systemprompt-events-integration-tests"
 version = "0.0.11"
 dependencies = [
  "chrono",
+ "serde_json",
  "sqlx",
- "systemprompt-database",
  "systemprompt-events",
  "systemprompt-identifiers",
  "systemprompt-models",
- "systemprompt-test-fixtures",
  "tokio",
 ]
 
@@ -8676,13 +8677,16 @@ name = "systemprompt-runtime"
 version = "0.52.0"
 dependencies = [
  "axum",
+ "chrono",
  "indicatif",
  "inventory",
  "maxminddb",
+ "metrics",
  "schemars",
  "serde",
  "serde_json",
  "serde_yaml_ng",
+ "sqlx",
  "systemprompt-agent",
  "systemprompt-ai",
  "systemprompt-analytics",
@@ -8690,6 +8694,7 @@ dependencies = [
  "systemprompt-content",
  "systemprompt-database",
  "systemprompt-evaluation",
+ "systemprompt-events",
  "systemprompt-extension",
  "systemprompt-files",
  "systemprompt-identifiers",
@@ -9132,6 +9137,7 @@ dependencies = [
  "systemprompt-files",
  "systemprompt-identifiers",
  "systemprompt-loader",
+ "systemprompt-logging",
  "systemprompt-marketplace",
  "systemprompt-mcp",
  "systemprompt-models",

@@ -29,7 +29,7 @@ impl CostAnalyticsRepository {
                 SUM(reasoning_tokens)::bigint as "reasoning_tokens",
                 SUM(cache_read_tokens)::bigint as "cache_read_tokens",
                 SUM(cache_creation_tokens)::bigint as "cache_creation_tokens"
-            FROM ai_requests
+            FROM analytics_report_ai_requests
             WHERE created_at >= $1 AND created_at < $2
               AND NOT synthetic
             "#,
@@ -50,7 +50,7 @@ impl CostAnalyticsRepository {
             PreviousCostRow,
             r#"
             SELECT SUM(cost_microdollars)::bigint as "cost"
-            FROM ai_requests
+            FROM analytics_report_ai_requests
             WHERE created_at >= $1 AND created_at < $2
               AND NOT synthetic
             "#,
@@ -76,7 +76,7 @@ impl CostAnalyticsRepository {
                 COALESCE(SUM(cost_microdollars), 0)::bigint as "cost!",
                 COUNT(*)::bigint as "requests!",
                 COALESCE(SUM(tokens_used), 0)::bigint as "tokens!"
-            FROM ai_requests
+            FROM analytics_report_ai_requests
             WHERE created_at >= $1 AND created_at < $2
               AND NOT synthetic
               AND model IS NOT NULL
@@ -107,7 +107,7 @@ impl CostAnalyticsRepository {
                 COALESCE(SUM(cost_microdollars), 0)::bigint as "cost!",
                 COUNT(*)::bigint as "requests!",
                 COALESCE(SUM(tokens_used), 0)::bigint as "tokens!"
-            FROM ai_requests
+            FROM analytics_report_ai_requests
             WHERE created_at >= $1 AND created_at < $2
               AND NOT synthetic
               AND provider IS NOT NULL
@@ -139,8 +139,8 @@ impl CostAnalyticsRepository {
                     COALESCE(SUM(r.cost_microdollars), 0)::bigint as "cost!",
                     COUNT(*)::bigint as "requests!",
                     COALESCE(SUM(r.tokens_used), 0)::bigint as "tokens!"
-                FROM ai_requests r
-                INNER JOIN agent_tasks at ON at.task_id = r.task_id
+                FROM analytics_report_ai_requests r
+                INNER JOIN analytics_report_agent_tasks at ON at.task_id = r.task_id
                 WHERE r.created_at >= $1 AND r.created_at < $2
                   AND NOT r.synthetic
                   AND at.agent_name IS NOT NULL
@@ -155,8 +155,8 @@ impl CostAnalyticsRepository {
                     COALESCE(SUM(r.cost_microdollars), 0)::bigint as "cost!",
                     COUNT(*)::bigint as "requests!",
                     COALESCE(SUM(r.tokens_used), 0)::bigint as "tokens!"
-                FROM ai_requests r
-                LEFT JOIN agent_tasks at ON at.task_id = r.task_id
+                FROM analytics_report_ai_requests r
+                LEFT JOIN analytics_report_agent_tasks at ON at.task_id = r.task_id
                 WHERE r.created_at >= $1 AND r.created_at < $2
                   AND NOT r.synthetic
                   AND (r.task_id IS NULL OR at.agent_name IS NULL)
@@ -184,7 +184,7 @@ impl CostAnalyticsRepository {
                 created_at as "created_at!",
                 cost_microdollars,
                 tokens_used
-            FROM ai_requests
+            FROM analytics_report_ai_requests
             WHERE created_at >= $1 AND created_at < $2
               AND NOT synthetic
             ORDER BY created_at

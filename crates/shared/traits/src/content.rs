@@ -11,6 +11,14 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{ContentId, SourceId};
 
+/// Authoritative content counts used by behavioral classification.
+#[async_trait]
+pub trait ContentCatalogStats: Send + Sync + std::fmt::Debug {
+    async fn count_public_pages(&self) -> Result<i64, crate::RepositoryError>;
+}
+
+pub type DynContentCatalogStats = std::sync::Arc<dyn ContentCatalogStats>;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContentSummary {
     pub id: ContentId,

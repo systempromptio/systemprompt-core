@@ -96,6 +96,9 @@ pub async fn pat(ctx: AppContext, request: Request) -> Result<Json<AuthResponse>
     let result = issue_bridge_access(
         &ctx.oauth_repositories().oauth,
         analytics.as_ref(),
+        ctx.session_provider()
+            .ok_or_else(|| ApiHttpError::internal_error("Session provider unavailable"))?
+            .as_ref(),
         request.headers(),
         caller_ip,
         &record.user_id,
@@ -119,6 +122,9 @@ pub async fn session(
     let result = exchange_bridge_session_code(
         &ctx.oauth_repositories().oauth,
         analytics.as_ref(),
+        ctx.session_provider()
+            .ok_or_else(|| ApiHttpError::internal_error("Session provider unavailable"))?
+            .as_ref(),
         &headers,
         caller_ip,
         body.code.trim(),
@@ -235,6 +241,9 @@ pub async fn mtls(
     let result = issue_bridge_access(
         &ctx.oauth_repositories().oauth,
         analytics.as_ref(),
+        ctx.session_provider()
+            .ok_or_else(|| ApiHttpError::internal_error("Session provider unavailable"))?
+            .as_ref(),
         &headers,
         caller_ip,
         &record.user_id,

@@ -92,6 +92,9 @@ async fn seed_conversation(pool: &DbPool) -> String {
 async fn the_conversation_listing_projects_seeded_contexts() {
     let pool = pool().await;
     seed_conversation(&pool).await;
+    systemprompt_test_fixtures::refresh_reporting(&pool)
+        .await
+        .unwrap();
     let ctx = ctx(&pool);
 
     let dir = tempfile::tempdir().unwrap();
@@ -119,6 +122,9 @@ async fn the_conversation_listing_projects_seeded_contexts() {
 async fn conversation_stats_and_trends_render_with_seeded_tasks() {
     let pool = pool().await;
     seed_conversation(&pool).await;
+    systemprompt_test_fixtures::refresh_reporting(&pool)
+        .await
+        .unwrap();
     let ctx = ctx(&pool);
 
     analytics::execute(parse(&["conversations", "stats"]), &ctx)
@@ -133,6 +139,9 @@ async fn conversation_stats_and_trends_render_with_seeded_tasks() {
 async fn a_limit_of_one_still_renders_a_row() {
     let pool = pool().await;
     seed_conversation(&pool).await;
+    systemprompt_test_fixtures::refresh_reporting(&pool)
+        .await
+        .unwrap();
     let ctx = ctx(&pool);
 
     let dir = tempfile::tempdir().unwrap();

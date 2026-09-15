@@ -109,3 +109,10 @@ if violations or cycles:
 
 print(f"lint-layers: OK — {len(local)} crates, no upward dependencies, no cycles, domain isolation holds")
 '
+
+if rg --line-number --ignore-case --multiline \
+    '\b(FROM|JOIN|UPDATE|INSERT\s+INTO|DELETE\s+FROM)\s+(public\.)?(users|user_sessions|agent_tasks|task_messages|user_contexts|ai_requests|ai_request_messages|mcp_tool_executions|markdown_content|logs|analytics_events)\b' \
+    crates/domain/analytics/src; then
+    echo 'lint-layers: FAIL — analytics SQL must use its reporting tables or owner traits'
+    exit 1
+fi

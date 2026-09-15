@@ -10,13 +10,12 @@ use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fixture_db_pool};
 use systemprompt_traits::{
     AnalyticsProvider, AnalyticsResult, AnalyticsSession, AuthResult, AuthUser, CreateSessionInput,
-    ExtractSignals, FingerprintProvider, McpRegistryProvider, SessionAnalytics, UserEvent,
-    UserEventPublisher, UserProvider,
+    ExtractSignals, FingerprintProvider, McpRegistryProvider, SessionAnalytics, SessionProvider,
+    UserEvent, UserEventPublisher, UserProvider,
 };
 
 struct NullAnalytics;
 
-#[async_trait]
 impl AnalyticsProvider for NullAnalytics {
     fn extract_analytics(
         &self,
@@ -25,6 +24,10 @@ impl AnalyticsProvider for NullAnalytics {
     ) -> SessionAnalytics {
         SessionAnalytics::default()
     }
+}
+
+#[async_trait]
+impl SessionProvider for NullAnalytics {
     async fn create_session(&self, _input: CreateSessionInput<'_>) -> AnalyticsResult<()> {
         Ok(())
     }
@@ -171,6 +174,7 @@ async fn base_state_or_skip() -> Option<OAuthState> {
     let repo = OAuthRepository::new(&pool).expect("oauth repo");
     Some(OAuthState::new(
         repo,
+        Arc::new(NullAnalytics),
         Arc::new(NullAnalytics),
         Arc::new(NullUsers),
     ))

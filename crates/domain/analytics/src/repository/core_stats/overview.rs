@@ -19,14 +19,14 @@ impl CoreStatsRepository {
             PlatformOverview,
             r#"
             SELECT
-                (SELECT COUNT(*) FROM users WHERE status != 'deleted') as "total_users!",
-                (SELECT COUNT(DISTINCT user_id) FROM v_clean_traffic WHERE last_activity_at > $1) as "active_users_24h!",
-                (SELECT COUNT(DISTINCT user_id) FROM v_clean_traffic WHERE last_activity_at > $2) as "active_users_7d!",
-                (SELECT COUNT(*) FROM v_clean_traffic) as "total_sessions!",
-                (SELECT COUNT(*) FROM v_clean_traffic WHERE ended_at IS NULL) as "active_sessions!",
-                (SELECT COUNT(*) FROM user_contexts WHERE kind = $3) as "total_contexts!",
-                (SELECT COUNT(*) FROM agent_tasks) as "total_tasks!",
-                (SELECT COUNT(*) FROM ai_requests) as "total_ai_requests!"
+                (SELECT COUNT(*) FROM analytics_report_users WHERE status != 'deleted') as "total_users!",
+                (SELECT COUNT(DISTINCT user_id) FROM analytics_report_v_clean_traffic WHERE last_activity_at > $1) as "active_users_24h!",
+                (SELECT COUNT(DISTINCT user_id) FROM analytics_report_v_clean_traffic WHERE last_activity_at > $2) as "active_users_7d!",
+                (SELECT COUNT(*) FROM analytics_report_v_clean_traffic) as "total_sessions!",
+                (SELECT COUNT(*) FROM analytics_report_v_clean_traffic WHERE ended_at IS NULL) as "active_sessions!",
+                (SELECT COUNT(*) FROM analytics_report_user_contexts WHERE kind = $3) as "total_contexts!",
+                (SELECT COUNT(*) FROM analytics_report_agent_tasks) as "total_tasks!",
+                (SELECT COUNT(*) FROM analytics_report_ai_requests) as "total_ai_requests!"
             "#,
             cutoff_24h,
             cutoff_7d,
@@ -51,7 +51,7 @@ impl CoreStatsRepository {
                 COALESCE(SUM(cost_microdollars) FILTER (WHERE created_at > $2)::float / 1000000.0, 0.0) as "cost_7d!",
                 COALESCE(SUM(cost_microdollars) FILTER (WHERE created_at > $3)::float / 1000000.0, 0.0) as "cost_30d!",
                 COALESCE(AVG(cost_microdollars)::float / 1000000.0, 0.0) as "avg_cost_per_request!"
-            FROM ai_requests
+            FROM analytics_report_ai_requests
             "#,
             since_hours_24,
             since_days_7,
@@ -81,7 +81,7 @@ impl CoreStatsRepository {
                 COUNT(DISTINCT fingerprint_hash) FILTER (WHERE last_activity_at > $4 AND last_activity_at <= $1) as "prev_24h!",
                 COUNT(DISTINCT fingerprint_hash) FILTER (WHERE last_activity_at > $5 AND last_activity_at <= $2) as "prev_7d!",
                 COUNT(DISTINCT fingerprint_hash) FILTER (WHERE last_activity_at > $6 AND last_activity_at <= $3) as "prev_30d!"
-            FROM v_clean_traffic
+            FROM analytics_report_v_clean_traffic
             "#,
             since_hours_24,
             since_days_7,

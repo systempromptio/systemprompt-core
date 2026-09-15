@@ -15,7 +15,7 @@ use uuid::Uuid;
 use systemprompt_identifiers::{ClientId, SessionId, SessionSource, UserId};
 use systemprompt_models::Config;
 use systemprompt_traits::{
-    AnalyticsProvider, CreateSessionInput, FingerprintProvider, SessionAnalytics, UserEvent,
+    CreateSessionInput, FingerprintProvider, SessionAnalytics, SessionProvider, UserEvent,
     UserEventPublisher, UserProvider,
 };
 
@@ -60,7 +60,7 @@ pub struct CreateAnonymousSessionInput<'a> {
 
 #[derive(Clone)]
 pub struct SessionCreationService {
-    analytics_provider: Arc<dyn AnalyticsProvider>,
+    session_provider: Arc<dyn SessionProvider>,
     user_provider: Arc<dyn UserProvider>,
     fingerprint_locks: Arc<RwLock<HashMap<String, Arc<tokio::sync::Mutex<()>>>>>,
     event_publisher: Option<Arc<dyn UserEventPublisher>>,
@@ -70,7 +70,7 @@ pub struct SessionCreationService {
 impl std::fmt::Debug for SessionCreationService {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("SessionCreationService")
-            .field("analytics_provider", &"<provider>")
+            .field("session_provider", &"<provider>")
             .field(
                 "event_publisher",
                 &self.event_publisher.as_ref().map(|_| "<publisher>"),
@@ -81,11 +81,11 @@ impl std::fmt::Debug for SessionCreationService {
 
 impl SessionCreationService {
     pub fn new(
-        analytics_provider: Arc<dyn AnalyticsProvider>,
+        session_provider: Arc<dyn SessionProvider>,
         user_provider: Arc<dyn UserProvider>,
     ) -> Self {
         Self {
-            analytics_provider,
+            session_provider,
             user_provider,
             fingerprint_locks: Arc::new(RwLock::new(HashMap::new())),
             event_publisher: None,
@@ -174,7 +174,7 @@ impl SessionCreationService {
         let session_id = SessionId::new(format!("sess_{}", Uuid::new_v4()));
         let expires_at = chrono::Utc::now() + ttl;
 
-        self.analytics_provider
+        self.session_provider
             .create_session(CreateSessionInput {
                 session_id: &session_id,
                 user_id: Some(user_id),

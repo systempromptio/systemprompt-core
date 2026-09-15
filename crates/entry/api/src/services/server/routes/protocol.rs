@@ -28,8 +28,13 @@ fn create_oauth_state(ctx: &AppContext) -> Option<OAuthState> {
     let users = ctx.user_provider()?;
     let mcp_registry: Arc<dyn systemprompt_traits::McpRegistryProvider> =
         Arc::new(ctx.mcp_registry().clone());
-    let state = OAuthState::new(ctx.oauth_repositories().oauth.clone(), analytics, users)
-        .with_mcp_registry(mcp_registry);
+    let state = OAuthState::new(
+        ctx.oauth_repositories().oauth.clone(),
+        analytics,
+        ctx.session_provider()?,
+        users,
+    )
+    .with_mcp_registry(mcp_registry);
     Some(state)
 }
 

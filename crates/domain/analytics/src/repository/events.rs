@@ -1,10 +1,4 @@
-//! Persistence for raw analytics events.
-//!
-//! [`AnalyticsEventsRepository`] writes individual and batched
-//! `analytics_events` rows (the batch path uses `UNNEST` for a single
-//! round-trip) and reads them back per session or content as
-//! [`StoredAnalyticsEvent`]. Writes target the write pool; reads the read
-//! pool.
+//! Raw analytics ingestion through the logging sink and event lookups.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -15,20 +9,20 @@ use crate::Result;
 use sqlx::PgPool;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContentId, SessionId, UserId};
+use systemprompt_traits::analytics_events::{AnalyticsEventRecord, DynAnalyticsEventStore};
 
 use crate::models::{AnalyticsEventCreated, AnalyticsEventType, CreateAnalyticsEventInput};
 
 #[derive(Clone, Debug)]
 pub struct AnalyticsEventsRepository {
     pool: Arc<PgPool>,
-    write_pool: Arc<PgPool>,
+    event_sink: DynAnalyticsEventStore,
 }
 
 impl AnalyticsEventsRepository {
-    pub fn new(db: &DbPool) -> Result<Self> {
+    pub fn new(db: &DbPool, event_sink: DynAnalyticsEventStore) -> Result<Self> {
         let pool = db.pool_arc()?;
-        let write_pool = db.write_pool_arc()?;
-        Ok(Self { pool, write_pool })
+        Ok(Self { pool, event_sink })
     }
 
     pub async fn create_event(
@@ -37,35 +31,13 @@ impl AnalyticsEventsRepository {
         user_id: &UserId,
         input: &CreateAnalyticsEventInput,
     ) -> Result<AnalyticsEventCreated> {
-        let id = format!("evt_{}", uuid::Uuid::new_v4());
-        let event_type = input.event_type.as_str();
-        let event_category = input.event_type.category();
-
-        let event_data = Self::build_event_data(input);
-
-        sqlx::query!(
-            r#"
-            INSERT INTO analytics_events (
-                id, user_id, session_id, event_type, event_category,
-                severity, endpoint, event_data
-            )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-            "#,
-            id,
-            user_id.as_str(),
-            session_id.as_str(),
-            event_type,
-            event_category,
-            "info",
-            input.page_url,
-            event_data
-        )
-        .execute(&*self.write_pool)
-        .await?;
-
+        let event = Self::build_record(session_id, user_id, input);
+        self.event_sink
+            .persist_events(std::slice::from_ref(&event))
+            .await?;
         Ok(AnalyticsEventCreated {
-            id,
-            event_type: event_type.to_owned(),
+            id: event.id,
+            event_type: event.event_type,
         })
     }
 
@@ -79,49 +51,34 @@ impl AnalyticsEventsRepository {
             return Ok(Vec::new());
         }
 
-        let mut ids = Vec::with_capacity(inputs.len());
-        let mut user_ids = Vec::with_capacity(inputs.len());
-        let mut session_ids = Vec::with_capacity(inputs.len());
-        let mut event_types = Vec::with_capacity(inputs.len());
-        let mut event_categories = Vec::with_capacity(inputs.len());
-        let mut severities = Vec::with_capacity(inputs.len());
-        let mut endpoints: Vec<String> = Vec::with_capacity(inputs.len());
-        let mut event_datas = Vec::with_capacity(inputs.len());
-
-        for input in inputs {
-            let id = format!("evt_{}", uuid::Uuid::new_v4());
-            ids.push(id);
-            user_ids.push(user_id.as_str().to_owned());
-            session_ids.push(session_id.as_str().to_owned());
-            event_types.push(input.event_type.as_str().to_owned());
-            event_categories.push(input.event_type.category().to_owned());
-            severities.push("info".to_owned());
-            endpoints.push(input.page_url.clone());
-            event_datas.push(Self::build_event_data(input));
-        }
-
-        sqlx::query!(
-            r#"
-            INSERT INTO analytics_events (id, user_id, session_id, event_type, event_category, severity, endpoint, event_data)
-            SELECT * FROM UNNEST($1::text[], $2::text[], $3::text[], $4::text[], $5::text[], $6::text[], $7::text[], $8::jsonb[])
-            "#,
-            &ids,
-            &user_ids,
-            &session_ids,
-            &event_types,
-            &event_categories,
-            &severities,
-            &endpoints,
-            &event_datas
-        )
-        .execute(&*self.write_pool)
-        .await?;
-
-        Ok(ids
+        let events: Vec<_> = inputs
+            .iter()
+            .map(|input| Self::build_record(session_id, user_id, input))
+            .collect();
+        self.event_sink.persist_events(&events).await?;
+        Ok(events
             .into_iter()
-            .zip(event_types)
-            .map(|(id, event_type)| AnalyticsEventCreated { id, event_type })
+            .map(|event| AnalyticsEventCreated {
+                id: event.id,
+                event_type: event.event_type,
+            })
             .collect())
+    }
+
+    fn build_record(
+        session_id: &SessionId,
+        user_id: &UserId,
+        input: &CreateAnalyticsEventInput,
+    ) -> AnalyticsEventRecord {
+        AnalyticsEventRecord {
+            id: format!("evt_{}", uuid::Uuid::new_v4()),
+            user_id: user_id.clone(),
+            session_id: session_id.clone(),
+            event_type: input.event_type.as_str().to_owned(),
+            event_category: input.event_type.category().to_owned(),
+            page_url: input.page_url.clone(),
+            event_data: Self::build_event_data(input),
+        }
     }
 
     pub async fn count_events_by_type(
@@ -132,7 +89,7 @@ impl AnalyticsEventsRepository {
         let count = sqlx::query_scalar!(
             r#"
             SELECT COUNT(*) as "count!"
-            FROM analytics_events
+            FROM analytics_report_analytics_events
             WHERE session_id = $1 AND event_type = $2
             "#,
             session_id.as_str(),
@@ -161,7 +118,7 @@ impl AnalyticsEventsRepository {
                 endpoint as page_url,
                 event_data,
                 timestamp
-            FROM analytics_events
+            FROM analytics_report_analytics_events
             WHERE session_id = $1
             ORDER BY timestamp DESC
             LIMIT $2
@@ -192,7 +149,7 @@ impl AnalyticsEventsRepository {
                 endpoint as page_url,
                 event_data,
                 timestamp
-            FROM analytics_events
+            FROM analytics_report_analytics_events
             WHERE event_data->>'content_id' = $1
             ORDER BY timestamp DESC
             LIMIT $2

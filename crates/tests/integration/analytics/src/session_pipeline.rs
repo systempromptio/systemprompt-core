@@ -60,8 +60,7 @@ impl Fixture {
     }
 
     fn service(&self) -> Result<AnalyticsService> {
-        let repositories =
-            systemprompt_analytics::repository::AnalyticsRepositories::new(&self.db)?;
+        let repositories = systemprompt_test_fixtures::fixture_analytics_repositories(&self.db)?;
         Ok(AnalyticsService::new(
             None,
             Some(Arc::new(HtmlRouting)),
@@ -93,8 +92,9 @@ impl Fixture {
         expires_at: DateTime<Utc>,
     ) -> Result<SessionId> {
         let session_id = SessionId::generate();
-        service
-            .create_analytics_session(CreateSessionInput {
+        systemprompt_traits::SessionProvider::create_session(
+            &*service.session_repo().owner(),
+            CreateSessionInput {
                 session_id: &session_id,
                 user_id: None,
                 analytics,
@@ -102,8 +102,9 @@ impl Fixture {
                 is_bot: analytics.is_bot,
                 is_ai_crawler: false,
                 expires_at,
-            })
-            .await?;
+            },
+        )
+        .await?;
         self.session_ids.push(session_id.clone());
         Ok(session_id)
     }
@@ -224,7 +225,8 @@ async fn recent_fingerprint_lookup_deduplicates_sessions() -> Result<()> {
         .await?;
 
     let found = service
-        .find_recent_session_by_fingerprint(&fingerprint, 3600)
+        .session_repo()
+        .find_recent_by_fingerprint(&fingerprint, 3600)
         .await?;
     assert_eq!(found.map(|record| record.session_id), Some(session_id));
 
@@ -240,7 +242,8 @@ async fn recent_fingerprint_lookup_deduplicates_sessions() -> Result<()> {
     assert_ne!(fingerprint, other_fingerprint);
     assert!(
         service
-            .find_recent_session_by_fingerprint(&other_fingerprint, 3600)
+            .session_repo()
+            .find_recent_by_fingerprint(&other_fingerprint, 3600)
             .await?
             .is_none()
     );
@@ -271,7 +274,8 @@ async fn ended_session_excluded_from_fingerprint_dedup() -> Result<()> {
 
     assert!(
         service
-            .find_recent_session_by_fingerprint(&fingerprint, 3600)
+            .session_repo()
+            .find_recent_by_fingerprint(&fingerprint, 3600)
             .await?
             .is_none()
     );
@@ -366,8 +370,9 @@ async fn create_session_upserts_on_duplicate_id() -> Result<()> {
         .await?;
 
     let later = Utc::now() + Duration::hours(2);
-    service
-        .create_analytics_session(CreateSessionInput {
+    systemprompt_traits::SessionProvider::create_session(
+        &*service.session_repo().owner(),
+        CreateSessionInput {
             session_id: &session_id,
             user_id: None,
             analytics: &analytics,
@@ -375,8 +380,9 @@ async fn create_session_upserts_on_duplicate_id() -> Result<()> {
             is_bot: false,
             is_ai_crawler: false,
             expires_at: later,
-        })
-        .await?;
+        },
+    )
+    .await?;
 
     let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM user_sessions WHERE session_id = $1")
         .bind(session_id.as_str())

@@ -40,7 +40,7 @@ impl AnalyticsQueryRepository {
                 AVG(latency_ms)::float8 AS "avg_latency_ms",
                 COUNT(DISTINCT user_id)::int AS "unique_users!",
                 COUNT(DISTINCT session_id)::int AS "unique_sessions!"
-            FROM ai_requests
+            FROM analytics_report_ai_requests
             WHERE created_at >= NOW() - INTERVAL '1 day' * $1::int
               AND ($2::text IS NULL OR user_id = $2)
               AND provider IS NOT NULL AND model IS NOT NULL

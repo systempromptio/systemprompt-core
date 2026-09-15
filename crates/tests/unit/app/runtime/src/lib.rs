@@ -68,4 +68,7 @@ mod validation_report_extended;
 mod wellknown;
 
 #[cfg(test)]
+mod reporting;
+
+#[cfg(test)]
 mod git_credentials;

@@ -1,6 +1,5 @@
 use anyhow::{Context, Result};
 use systemprompt_agent::repository::task::{RepoCreateTaskParams, TaskRepository};
-use systemprompt_analytics::SessionRepository;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContextId, SessionId, TaskId, TraceId, UserId};
 use systemprompt_models::a2a::{Task, TaskState, TaskStatus};
@@ -138,5 +137,5 @@ impl Fixture {
 }
 
 pub fn session_usage(db: &DbPool) -> Result<DynSessionUsageCounters> {
-    Ok(std::sync::Arc::new(SessionRepository::new(db)?))
+    Ok(systemprompt_test_fixtures::fixture_analytics_repositories(db)?.sessions.owner())
 }

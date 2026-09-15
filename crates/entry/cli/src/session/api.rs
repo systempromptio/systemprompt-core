@@ -6,12 +6,10 @@
 use anyhow::{Context, Result};
 use chrono::Duration;
 use std::sync::Arc;
-use systemprompt_analytics::AnalyticsService;
-use systemprompt_analytics::repository::AnalyticsRepositories;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{SessionId, SessionSource, UserId};
 use systemprompt_oauth::services::SessionCreationService;
-use systemprompt_traits::{AnalyticsProvider, SessionAnalytics, UserProvider};
+use systemprompt_traits::{SessionAnalytics, SessionProvider, UserProvider};
 use systemprompt_users::{UserRepository, UserService};
 
 pub const DEFAULT_CLI_SESSION_HOURS: i64 = 24;
@@ -21,15 +19,13 @@ pub async fn create_local_session_row(
     user: &UserId,
     ttl: Duration,
 ) -> Result<SessionId> {
-    let repositories = AnalyticsRepositories::new(db_pool)
-        .context("Failed to construct analytics repositories")?;
-    let analytics: Arc<dyn AnalyticsProvider> =
-        Arc::new(AnalyticsService::new(None, None, &repositories));
+    let sessions: Arc<dyn SessionProvider> =
+        Arc::new(systemprompt_users::SessionRepository::new(db_pool)?);
     let user_repository =
         Arc::new(UserRepository::new(db_pool).context("Failed to construct user repository")?);
     let users: Arc<dyn UserProvider> = Arc::new(UserService::new(user_repository));
 
-    SessionCreationService::new(analytics, users)
+    SessionCreationService::new(sessions, users)
         .create_authenticated_session_with_ttl(
             user,
             &SessionAnalytics::default(),

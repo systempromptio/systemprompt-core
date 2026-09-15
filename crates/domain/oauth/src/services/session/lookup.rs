@@ -41,7 +41,7 @@ impl SessionCreationService {
             .flatten()?;
 
         let existing_session = self
-            .analytics_provider
+            .session_provider
             .find_recent_session_by_fingerprint(fingerprint, MAX_SESSION_AGE_SECONDS)
             .await
             .map_err(|e| {
@@ -93,7 +93,7 @@ impl SessionCreationService {
     ) -> Option<AnonymousSessionInfo> {
         let lookup_result = tokio::time::timeout(
             tokio::time::Duration::from_millis(SESSION_LOOKUP_TIMEOUT_MS),
-            self.analytics_provider
+            self.session_provider
                 .find_recent_session_by_fingerprint(fingerprint, MAX_SESSION_AGE_SECONDS),
         )
         .await;

@@ -14,13 +14,14 @@ pub mod content;
 pub mod conversations;
 pub mod costs;
 pub mod overview;
+pub mod projection;
 pub mod requests;
 pub mod sessions;
 pub mod shared;
 pub mod tools;
 pub mod traffic;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use clap::Subcommand;
 
 use crate::context::CommandContext;
@@ -28,6 +29,8 @@ use crate::shared::render_result;
 
 #[derive(Debug, Subcommand)]
 pub enum AnalyticsCommands {
+    #[command(subcommand, about = "Reporting projection status and recovery")]
+    Projection(projection::ProjectionCommands),
     #[command(about = "Dashboard overview of all analytics")]
     Overview(overview::OverviewArgs),
 
@@ -57,7 +60,18 @@ pub enum AnalyticsCommands {
 }
 
 pub async fn execute(command: AnalyticsCommands, ctx: &CommandContext) -> Result<()> {
+    if !matches!(&command, AnalyticsCommands::Projection(_)) {
+        let database = ctx.database().await?;
+        let status = systemprompt_runtime::reporting::status(database.db_pool())
+            .await
+            .context("Reporting schema unavailable; apply database migrations first")?;
+        anyhow::ensure!(
+            status.initialized,
+            "Reporting baseline is not initialized; run analytics projection rebuild"
+        );
+    }
     match command {
+        AnalyticsCommands::Projection(command) => projection::execute(command, ctx).await,
         AnalyticsCommands::Overview(args) => {
             let result =
                 overview::execute_with_pool(args, &ctx.database().await?, &ctx.cli).await?;

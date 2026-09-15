@@ -26,27 +26,27 @@ impl CoreStatsRepository {
             FROM generate_series($1::timestamptz, NOW(), '1 day') gs(date)
             LEFT JOIN (
                 SELECT date_trunc('day', started_at) as day, COUNT(*) as sessions
-                FROM v_clean_traffic WHERE started_at > $1
+                FROM analytics_report_v_clean_traffic WHERE started_at > $1
                 GROUP BY 1
             ) s ON s.day = date_trunc('day', gs.date)
             LEFT JOIN (
                 SELECT date_trunc('day', created_at) as day, COUNT(*) as contexts
-                FROM user_contexts WHERE created_at > $1 AND kind = $2
+                FROM analytics_report_user_contexts WHERE created_at > $1 AND kind = $2
                 GROUP BY 1
             ) c ON c.day = date_trunc('day', gs.date)
             LEFT JOIN (
                 SELECT date_trunc('day', created_at) as day, COUNT(*) as tasks
-                FROM agent_tasks WHERE created_at > $1
+                FROM analytics_report_agent_tasks WHERE created_at > $1
                 GROUP BY 1
             ) t ON t.day = date_trunc('day', gs.date)
             LEFT JOIN (
                 SELECT date_trunc('day', created_at) as day, COUNT(*) as ai_requests
-                FROM ai_requests WHERE created_at > $1
+                FROM analytics_report_ai_requests WHERE created_at > $1
                 GROUP BY 1
             ) a ON a.day = date_trunc('day', gs.date)
             LEFT JOIN (
                 SELECT date_trunc('day', created_at) as day, COUNT(*) as tool_executions
-                FROM mcp_tool_executions WHERE created_at > $1
+                FROM analytics_report_mcp_tool_executions WHERE created_at > $1
                 GROUP BY 1
             ) e ON e.day = date_trunc('day', gs.date)
             ORDER BY date ASC
@@ -70,14 +70,14 @@ impl CoreStatsRepository {
                 COALESCE(at.status, 'unknown') as "status!",
                 COALESCE((
                     SELECT COUNT(*)
-                    FROM task_messages tm
-                    JOIN agent_tasks at2 ON tm.task_id = at2.task_id
+                    FROM analytics_report_task_messages tm
+                    JOIN analytics_report_agent_tasks at2 ON tm.task_id = at2.task_id
                     WHERE at2.context_id = uc.context_id
                 ), 0) as "message_count!",
                 uc.created_at as "started_at!"
-            FROM user_contexts uc
-            LEFT JOIN agent_tasks at ON at.context_id = uc.context_id
-            LEFT JOIN users u ON u.id = uc.user_id
+            FROM analytics_report_user_contexts uc
+            LEFT JOIN analytics_report_agent_tasks at ON at.context_id = uc.context_id
+            LEFT JOIN analytics_report_users u ON u.id = uc.user_id
             WHERE uc.kind = $2
             ORDER BY uc.created_at DESC
             LIMIT $1
@@ -102,8 +102,8 @@ impl CoreStatsRepository {
                 COUNT(ae.id) FILTER (WHERE ae.timestamp >= NOW() - INTERVAL '1 day') as "views_1d!",
                 COUNT(ae.id) FILTER (WHERE ae.timestamp >= NOW() - INTERVAL '7 days') as "views_7d!",
                 COUNT(ae.id) FILTER (WHERE ae.timestamp >= NOW() - INTERVAL '30 days') as "views_30d!"
-            FROM markdown_content mc
-            LEFT JOIN analytics_events ae ON ae.endpoint = 'GET /' || mc.source_id || '/' || mc.slug
+            FROM analytics_report_markdown_content mc
+            LEFT JOIN analytics_report_analytics_events ae ON ae.endpoint = 'GET /' || mc.source_id || '/' || mc.slug
                 AND ae.event_type = 'page_view'
             GROUP BY mc.id, mc.title, mc.slug
             ORDER BY "views_7d!" DESC NULLS LAST

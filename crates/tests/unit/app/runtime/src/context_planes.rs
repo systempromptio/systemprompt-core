@@ -39,11 +39,10 @@ async fn plane_debug_impls_flag_optional_members() {
     let analytics_service = Arc::new(AnalyticsService::new(
         None,
         None,
-        &systemprompt_analytics::repository::AnalyticsRepositories::new(&pool)
-            .expect("repositories"),
+        &systemprompt_test_fixtures::fixture_analytics_repositories(&pool).expect("repositories"),
     ));
     let session_usage: systemprompt_traits::DynSessionUsageCounters =
-        Arc::new(analytics_service.session_repo().clone());
+        analytics_service.session_repo().owner();
     let sqlx_pool = pool.pool_arc().expect("SQLx pool").as_ref().clone();
     let data = DataPlane {
         database: Arc::clone(&pool),
@@ -80,7 +79,7 @@ async fn plane_debug_impls_flag_optional_members() {
             systemprompt_ai::repository::AiRepositories::new(&pool).expect("ai repositories"),
         ),
         analytics_repositories: Arc::new(
-            systemprompt_analytics::repository::AnalyticsRepositories::new(&pool)
+            systemprompt_test_fixtures::fixture_analytics_repositories(&pool)
                 .expect("analytics repositories"),
         ),
         file_repository: Arc::new(
