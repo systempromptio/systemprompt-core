@@ -31,6 +31,8 @@
 
 ### Fixed
 
+- The importer refuses a `marketplace.json` plugin `source` that escapes the marketplace tree (`..`, absolute or drive-qualified paths) with `MarketplaceError::Import` instead of reading outside it.
+- A skill or artifact that fails to build, a skill whose content file is missing, a skill aux file or plugin script that cannot be read, or an artifact record that does not serialise fails the catalogue (`MarketplaceError::Catalog`) instead of being logged and dropped from the signed manifest or bundle.
 - A managed MCP server declared without `tool_policy` is withheld from the signed bridge manifest instead of being published as allow-all; startup validation reports `mcp_servers.<name>.tool_policy` for it.
 - Every table the extension creates is declared by its own `SchemaDefinition` (one schema file per table), so `infra db doctor` no longer reports the managed tables as undeclared.
 

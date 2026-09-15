@@ -36,7 +36,7 @@ fn write_skill_foo(services_root: &std::path::Path) {
     let skills_dir = services_root.join("skills");
     fs::create_dir_all(skills_dir.join("foo")).expect("create skills/foo");
     fs::write(skills_dir.join("foo/config.yaml"), SKILL_FOO_CONFIG).expect("write skill config");
-    fs::write(skills_dir.join("foo/SKILL.md"), SKILL_FOO_INSTRUCTIONS).expect("write skill md");
+    fs::write(skills_dir.join("foo/index.md"), SKILL_FOO_INSTRUCTIONS).expect("write skill md");
 }
 
 fn empty_card() -> AgentCardConfig {
@@ -139,7 +139,7 @@ fn write_skill(services_root: &std::path::Path, id: &str) {
         format!("id: {id}\nname: {id}\ndescription: scoping fixture.\nenabled: true\ntags: []\n"),
     )
     .expect("write skill config");
-    std::fs::write(dir.join("SKILL.md"), format!("{id} body.\n")).expect("write skill md");
+    std::fs::write(dir.join("index.md"), format!("{id} body.\n")).expect("write skill md");
 }
 
 #[test]

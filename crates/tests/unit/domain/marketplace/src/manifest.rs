@@ -483,6 +483,7 @@ async fn assemble_candidate_keeps_artifact_owned_by_enabled_plugin() {
         "id: owned_skill\nname: Owned\ndescription: d\nenabled: true\n",
     )
     .expect("write skill config");
+    std::fs::write(skill_dir.join("index.md"), "owned body").expect("write skill content");
 
     write_artifact_on_disk(dir.path(), "kept-art");
     write_artifact_on_disk(dir.path(), "dropped-art");

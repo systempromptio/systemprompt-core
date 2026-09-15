@@ -75,10 +75,10 @@ pub fn load_skills_traced(
                 });
             },
             Err(e) => {
-                tracing::warn!(
+                tracing::error!(
                     skill_dir = %skill_dir.display(),
                     error = %e,
-                    "manifest: failed to build skill entry; skipping"
+                    "manifest: failed to build skill entry"
                 );
                 trace.record(TraceEvent {
                     kind: TraceKind::Skill,
@@ -86,6 +86,7 @@ pub fn load_skills_traced(
                     stage: TraceStage::Parse,
                     reason: e.to_string(),
                 });
+                return Err(e);
             },
         }
     }
@@ -122,13 +123,9 @@ fn build_skill_entry(
         SkillName::try_new(display_name).map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
 
     let content_path = skill_dir.join(config.content_file());
-    let instructions = if content_path.exists() {
-        let raw = std::fs::read_to_string(&content_path)
-            .map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
-        strip_frontmatter(&raw)
-    } else {
-        String::new()
-    };
+    let raw = std::fs::read_to_string(&content_path)
+        .map_err(|e| MarketplaceError::Catalog(format!("read {}: {e}", content_path.display())))?;
+    let instructions = strip_frontmatter(&raw);
 
     let mut hasher = Sha256::new();
     hasher.update(instructions.as_bytes());

@@ -82,11 +82,10 @@ pub fn build_plugin_bundle(
     let mut bundle = PluginBundle::new();
 
     let agent_ids = resolve_agents(config, content.agents);
-    skills::append_skill_files(config, content, &agent_ids, &mut bundle);
+    skills::append_skill_files(config, content, &agent_ids, &mut bundle)?;
     rules::append_rule_files(config, content, &mut bundle);
     agents::append_agent_files(content.agents, &agent_ids, &mut bundle);
-    artifacts::append_artifact_files(config, content, &mut bundle);
-    rules::append_rule_files(config, content, &mut bundle);
+    artifacts::append_artifact_files(config, content, &mut bundle)?;
     mcp::append_mcp_file(
         config,
         content.mcp_servers,
@@ -157,7 +156,13 @@ fn append_script_files(
         if !source.is_file() {
             continue;
         }
-        let bytes = std::fs::read(&source).map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
+        let bytes = std::fs::read(&source).map_err(|e| {
+            MarketplaceError::Catalog(format!(
+                "plugin '{}' script {}: {e}",
+                config.id,
+                source.display()
+            ))
+        })?;
         bundle.insert(
             format!("scripts/{}", script.name),
             BundleFile {

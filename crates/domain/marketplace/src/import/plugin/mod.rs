@@ -4,25 +4,28 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod metadata;
+
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
 use systemprompt_identifiers::PluginId;
 use systemprompt_models::bridge::plugin_bundle::{PLUGIN_MANIFEST_RELPATH, PluginManifest};
 use systemprompt_models::services::plugin::{
-    ComponentSource, PluginAuthor, PluginComponentRef, PluginConfig, PluginConfigFile,
+    ComponentSource, PluginComponentRef, PluginConfig, PluginConfigFile,
 };
 
 use crate::error::MarketplaceError;
 
 use super::anthropic::MarketplacePluginEntry;
-use super::marketplace::{DEFAULT_LICENSE, DEFAULT_VERSION};
+use super::marketplace::DEFAULT_LICENSE;
 use super::rules::import_rules_dir;
 use super::sidecar::{PluginSidecar, SIDECAR_RELPATH, load_plugin_sidecar};
 use super::skill::{discover_skill_dirs, import_skill};
 use super::warning::ImportWarning;
 use super::writer::Sink;
 use super::{hooks, scripts};
+use metadata::{author, description, keywords, resolve_category, version};
 
 pub(super) const FALLBACK_CATEGORY: &str = "general";
 
@@ -43,14 +46,24 @@ pub(super) fn plugin_dir(
     from: &Path,
     entry: &MarketplacePluginEntry,
     plugin_root: Option<&str>,
-) -> PathBuf {
-    entry.local_path().map_or_else(
+) -> Result<PathBuf, MarketplaceError> {
+    let relative = entry.local_path().map_or_else(
         || {
             let root = plugin_root.unwrap_or("./plugins");
-            from.join(strip_dot(root)).join(&entry.name)
+            format!("{}/{}", strip_dot(root).trim_end_matches('/'), entry.name)
         },
-        |path| from.join(strip_dot(path)),
-    )
+        |path| strip_dot(path).to_owned(),
+    );
+    systemprompt_models::managed::validate_path(&relative).map_err(|error| {
+        MarketplaceError::Import {
+            path: from.join(&relative).display().to_string(),
+            message: format!(
+                "plugin `{}` source must stay inside the marketplace tree: {error}",
+                entry.name
+            ),
+        }
+    })?;
+    Ok(from.join(relative))
 }
 
 fn strip_dot(path: &str) -> &str {
@@ -227,70 +240,4 @@ fn count_agent_files(dir: &Path) -> usize {
             })
             .count()
     })
-}
-
-fn resolve_category(
-    id: &str,
-    sidecar: &PluginSidecar,
-    entry: &MarketplacePluginEntry,
-    warnings: &mut Vec<ImportWarning>,
-) -> String {
-    sidecar
-        .plugin
-        .category
-        .clone()
-        .or_else(|| entry.category.clone())
-        .filter(|c| !c.trim().is_empty())
-        .unwrap_or_else(|| {
-            warnings.push(ImportWarning::MissingCategory {
-                plugin: id.to_owned(),
-                applied: FALLBACK_CATEGORY.to_owned(),
-            });
-            FALLBACK_CATEGORY.to_owned()
-        })
-}
-
-fn description(manifest: &PluginManifest, entry: &MarketplacePluginEntry) -> String {
-    if manifest.description.trim().is_empty() {
-        entry.description.clone().unwrap_or_default()
-    } else {
-        manifest.description.clone()
-    }
-}
-
-fn version(manifest: &PluginManifest, entry: &MarketplacePluginEntry) -> String {
-    if manifest.version.trim().is_empty() {
-        entry
-            .version
-            .clone()
-            .filter(|v| !v.trim().is_empty())
-            .unwrap_or_else(|| DEFAULT_VERSION.to_owned())
-    } else {
-        manifest.version.clone()
-    }
-}
-
-fn author(manifest: &PluginManifest, entry: &MarketplacePluginEntry) -> PluginAuthor {
-    manifest.author.as_ref().map_or_else(
-        || PluginAuthor {
-            name: entry.author_name().unwrap_or_default(),
-            email: entry.author_email().unwrap_or_default(),
-        },
-        |a| PluginAuthor {
-            name: a.name.clone(),
-            email: a.email.clone(),
-        },
-    )
-}
-
-fn keywords(manifest: &PluginManifest, entry: &MarketplacePluginEntry) -> Vec<String> {
-    if manifest.keywords.is_empty() {
-        let mut out = entry.keywords.clone();
-        out.extend(entry.tags.iter().cloned());
-        out.sort();
-        out.dedup();
-        out
-    } else {
-        manifest.keywords.clone()
-    }
 }

@@ -98,6 +98,8 @@ pub fn write_skill_on_disk(root: &std::path::Path, id: &str) {
         format!("id: {id}\nname: {id}\ndescription: d\nenabled: true\n"),
     )
     .expect("write skill config");
+    std::fs::write(dir.join("index.md"), format!("{id} instructions\n"))
+        .expect("write skill content");
 }
 
 #[must_use]

@@ -17,6 +17,7 @@ use systemprompt_models::bridge::cowork_artifact::{
 use systemprompt_models::services::PluginConfig;
 
 use crate::catalog::selects_artifact;
+use crate::error::MarketplaceError;
 
 use super::{BundleContent, BundleFile, PluginBundle};
 
@@ -24,7 +25,7 @@ pub(super) fn append_artifact_files(
     config: &PluginConfig,
     content: &BundleContent<'_>,
     bundle: &mut PluginBundle,
-) {
+) -> Result<(), MarketplaceError> {
     let mut records = Vec::new();
     for artifact in content
         .artifacts
@@ -33,41 +34,29 @@ pub(super) fn append_artifact_files(
     {
         let id = artifact.id.as_str();
         let record = CoworkLibraryArtifactRecord::from(artifact);
-        match serde_json::to_vec_pretty(&record) {
-            Ok(bytes) => {
-                bundle.insert(format!("artifacts/{id}.json"), plain(bytes));
-                bundle.insert(
-                    format!("artifacts/{id}.html"),
-                    plain(artifact.content.as_bytes().to_vec()),
-                );
-                records.push(CoworkArtifactBundleRecord::from(artifact));
-            },
-            Err(e) => {
-                tracing::warn!(
-                    artifact_id = %id,
-                    error = %e,
-                    "bundle: failed to serialise artifact record; skipping"
-                );
-            },
-        }
+        let bytes = serde_json::to_vec_pretty(&record).map_err(|e| {
+            MarketplaceError::Catalog(format!("artifact '{id}' record does not serialise: {e}"))
+        })?;
+        bundle.insert(format!("artifacts/{id}.json"), plain(bytes));
+        bundle.insert(
+            format!("artifacts/{id}.html"),
+            plain(artifact.content.as_bytes().to_vec()),
+        );
+        records.push(CoworkArtifactBundleRecord::from(artifact));
     }
     if records.is_empty() {
-        return;
+        return Ok(());
     }
     records.sort_by(|a, b| a.id.cmp(&b.id));
     let manifest = CoworkArtifactBundleManifest { artifacts: records };
-    match serde_json::to_vec_pretty(&manifest) {
-        Ok(bytes) => {
-            bundle.insert("artifacts/manifest.json".to_owned(), plain(bytes));
-        },
-        Err(e) => {
-            tracing::warn!(
-                plugin_id = %config.id,
-                error = %e,
-                "bundle: failed to serialise artifact manifest; skipping"
-            );
-        },
-    }
+    let bytes = serde_json::to_vec_pretty(&manifest).map_err(|e| {
+        MarketplaceError::Catalog(format!(
+            "plugin '{}' artifact manifest does not serialise: {e}",
+            config.id
+        ))
+    })?;
+    bundle.insert("artifacts/manifest.json".to_owned(), plain(bytes));
+    Ok(())
 }
 
 const fn plain(bytes: Vec<u8>) -> BundleFile {

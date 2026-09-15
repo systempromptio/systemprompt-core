@@ -43,17 +43,7 @@ pub fn plugin_bundles(
 ) -> Result<BTreeMap<PluginId, PluginBundle>, MarketplaceError> {
     let mut out = BTreeMap::new();
     for config in selected_configs(services) {
-        let bundle = match build_plugin_bundle(config, content) {
-            Ok(bundle) => bundle,
-            Err(e) => {
-                tracing::warn!(
-                    plugin_id = %config.id,
-                    error = %e,
-                    "marketplace: failed to assemble plugin bundle; skipping"
-                );
-                continue;
-            },
-        };
+        let bundle = build_plugin_bundle(config, content)?;
         if !bundle_has_content(&bundle) {
             tracing::warn!(
                 plugin_id = %config.id,

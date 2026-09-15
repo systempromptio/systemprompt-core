@@ -940,27 +940,22 @@ fn skill_with_pathless_file_path_still_bundles_without_aux() {
 
 #[cfg(unix)]
 #[test]
-fn aux_collection_skips_unreadable_files_and_directories() {
+fn an_unreadable_aux_file_fails_the_bundle_instead_of_silently_omitting_it() {
     use std::os::unix::fs::PermissionsExt;
 
     let dir = tempfile::tempdir().expect("temp dir");
     let skill_dir = dir.path().join("skills").join("locked-skill");
     let scripts_dir = skill_dir.join("scripts");
-    let locked_subdir = scripts_dir.join("locked-subdir");
-    std::fs::create_dir_all(&locked_subdir).expect("create dirs");
+    std::fs::create_dir_all(&scripts_dir).expect("create dirs");
     std::fs::write(scripts_dir.join("readable.txt"), b"visible").expect("write readable");
     std::fs::write(scripts_dir.join("unreadable.txt"), b"secret").expect("write unreadable");
-    std::fs::write(locked_subdir.join("inside.txt"), b"buried").expect("write buried");
     let skill_md_path = skill_dir.join("SKILL.md");
     std::fs::write(&skill_md_path, b"body").expect("write skill md");
-
     std::fs::set_permissions(
         scripts_dir.join("unreadable.txt"),
         std::fs::Permissions::from_mode(0o000),
     )
     .expect("lock file");
-    std::fs::set_permissions(&locked_subdir, std::fs::Permissions::from_mode(0o000))
-        .expect("lock subdir");
 
     let skills = vec![skill_entry_at(
         "locked_skill",
@@ -984,34 +979,24 @@ fn aux_collection_skips_unreadable_files_and_directories() {
         PluginComponentRef::default(),
     );
 
-    let bundle = build_plugin_bundle(&config, &content).expect("build");
+    let result = build_plugin_bundle(&config, &content);
 
-    // Restore perms so the tempdir can be cleaned up.
-    std::fs::set_permissions(&locked_subdir, std::fs::Permissions::from_mode(0o755))
-        .expect("unlock subdir");
     std::fs::set_permissions(
         scripts_dir.join("unreadable.txt"),
         std::fs::Permissions::from_mode(0o644),
     )
     .expect("unlock file");
 
+    let error = result.expect_err("an aux file the bundle cannot read is not silently omitted");
     assert!(
-        bundle.contains_key("skills/locked-skill/scripts/readable.txt"),
-        "a readable aux file is collected",
-    );
-    assert!(
-        !bundle.contains_key("skills/locked-skill/scripts/unreadable.txt"),
-        "an unreadable aux file is skipped rather than aborting the bundle",
-    );
-    assert!(
-        !bundle.keys().any(|k| k.contains("locked-subdir")),
-        "an unreadable subdirectory is skipped rather than aborting the bundle",
+        error.to_string().contains("unreadable.txt"),
+        "the error names the file: {error}"
     );
 }
 
 #[cfg(unix)]
 #[test]
-fn plugin_with_unreadable_script_is_skipped_while_siblings_survive() {
+fn a_plugin_whose_script_cannot_be_read_fails_the_catalogue() {
     use std::os::unix::fs::PermissionsExt;
 
     let dir = tempfile::tempdir().expect("temp dir");
@@ -1052,18 +1037,14 @@ fn plugin_with_unreadable_script_is_skipped_while_siblings_survive() {
         ),
     );
 
-    let bundles = plugin_bundles(&services, &content).expect("plugin bundles");
+    let result = plugin_bundles(&services, &content);
 
     std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o644)).expect("unlock");
 
-    let ids: Vec<&str> = bundles
-        .keys()
-        .map(systemprompt_models::bridge::ids::PluginId::as_str)
-        .collect();
-    assert_eq!(
-        ids,
-        vec!["good-plugin"],
-        "a plugin whose script cannot be read is skipped fail-closed while valid siblings survive",
+    let error = result.expect_err("a plugin whose script cannot be read fails the catalogue");
+    assert!(
+        error.to_string().contains("setup.sh"),
+        "the error names the script: {error}"
     );
 }
 

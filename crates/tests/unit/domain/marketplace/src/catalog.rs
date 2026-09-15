@@ -158,6 +158,7 @@ fn load_skills_dir_with_valid_skill() {
         "id: my_skill\nname: My Skill\ndescription: test\nenabled: true\n",
     )
     .expect("write config");
+    fs::write(skill_dir.join("index.md"), "body").expect("write content");
 
     let skills = load_skills(dir.path()).expect("load skills");
     assert_eq!(skills.len(), 1);
@@ -190,6 +191,7 @@ fn load_skills_sorted_alphabetically() {
             format!("id: {name}\nname: {name}\ndescription: test\nenabled: true\n"),
         )
         .expect("write config");
+        fs::write(skill_dir.join("index.md"), "body").expect("write content");
     }
     let skills = load_skills(dir.path()).expect("load skills");
     assert_eq!(skills[0].id.as_str(), "apple");
@@ -245,6 +247,7 @@ fn load_skills_empty_name_derives_display_from_dir() {
         "id: my_named_skill\nname: \"\"\ndescription: d\nenabled: true\n",
     )
     .expect("write config");
+    fs::write(skill_dir.join("index.md"), "body").expect("write content");
 
     let skills = load_skills(dir.path()).expect("load skills");
     assert_eq!(skills.len(), 1);
@@ -256,7 +259,7 @@ fn load_skills_empty_name_derives_display_from_dir() {
 }
 
 #[test]
-fn load_skills_missing_content_file_yields_empty_instructions() {
+fn load_skills_missing_content_file_fails_the_catalogue() {
     let dir = tempfile::tempdir().expect("temp dir");
     let skill_dir = dir.path().join("skills").join("bare_skill");
     fs::create_dir_all(&skill_dir).expect("create skill dir");
@@ -266,17 +269,13 @@ fn load_skills_missing_content_file_yields_empty_instructions() {
     )
     .expect("write config");
 
-    let skills = load_skills(dir.path()).expect("load skills");
-    assert_eq!(skills.len(), 1);
-    assert_eq!(
-        skills[0].instructions, "",
-        "absent content file yields empty instructions",
-    );
+    let error = load_skills(dir.path())
+        .expect_err("a skill without its content file is never signed with empty instructions");
+    assert!(error.to_string().contains("index.md"), "{error}");
 }
 
 #[test]
-fn load_skills_invalid_config_is_skipped_not_fatal() {
-    let _guard = warn_subscriber_guard();
+fn load_skills_invalid_config_fails_the_catalogue() {
     let dir = tempfile::tempdir().expect("temp dir");
     let good = dir.path().join("skills").join("good");
     let bad = dir.path().join("skills").join("bad");
@@ -288,10 +287,10 @@ fn load_skills_invalid_config_is_skipped_not_fatal() {
     )
     .expect("write good config");
     fs::write(bad.join("config.yaml"), "this: [is, not, valid").expect("write bad config");
+    fs::write(good.join("index.md"), "body").expect("write good content");
 
-    let skills = load_skills(dir.path()).expect("an unparseable skill is skipped, not fatal");
-    assert_eq!(skills.len(), 1);
-    assert_eq!(skills[0].id.as_str(), "good");
+    let error = load_skills(dir.path()).expect_err("an unparseable skill fails the catalogue");
+    assert!(error.to_string().contains("bad"), "{error}");
 }
 
 #[test]
@@ -729,6 +728,7 @@ fn load_skills_stray_file_and_config_less_dir_are_ignored() {
         "id: real\nname: Real\ndescription: d\nenabled: true\n",
     )
     .expect("write config");
+    fs::write(skills_root.join("real").join("index.md"), "body").expect("write content");
 
     let skills = load_skills(dir.path()).expect("load skills");
     assert_eq!(
@@ -748,6 +748,7 @@ fn load_skills_empty_id_derives_id_from_dir_name() {
         "id: \"\"\nname: Derive\ndescription: d\nenabled: true\n",
     )
     .expect("write config");
+    fs::write(skill_dir.join("index.md"), "body").expect("write content");
 
     let skills = load_skills(dir.path()).expect("load skills");
     assert_eq!(
@@ -842,8 +843,7 @@ fn load_artifacts_stray_file_and_config_less_dir_are_ignored() {
 }
 
 #[test]
-fn load_artifacts_unparseable_config_is_skipped_not_fatal() {
-    let _guard = warn_subscriber_guard();
+fn load_artifacts_unparseable_config_fails_the_catalogue() {
     let dir = tempfile::tempdir().expect("temp dir");
     write_artifact(
         dir.path(),
@@ -858,13 +858,9 @@ fn load_artifacts_unparseable_config_is_skipped_not_fatal() {
         Some("<table>data</table>"),
     );
 
-    let artifacts =
-        load_artifacts(dir.path()).expect("an unparseable artifact is skipped, not fatal");
-    assert_eq!(
-        artifacts.iter().map(|a| a.id.as_str()).collect::<Vec<_>>(),
-        vec!["good"],
-        "the parseable artifact still loads alongside the dropped one",
-    );
+    let error = load_artifacts(dir.path())
+        .expect_err("an unparseable artifact fails the catalogue instead of being dropped");
+    assert!(error.to_string().contains("bad"), "{error}");
 }
 
 // Only Linux: APFS validates filenames as UTF-8 and refuses this one with
@@ -898,6 +894,7 @@ fn load_skills_non_utf8_dir_name_is_skipped() {
         "id: good\nname: Good\ndescription: d\nenabled: true\n",
     )
     .expect("write good config");
+    fs::write(good.join("index.md"), "body").expect("write good content");
 
     let skills = load_skills(dir.path()).expect("load skills");
     assert_eq!(
