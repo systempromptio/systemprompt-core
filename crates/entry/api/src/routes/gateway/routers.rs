@@ -17,8 +17,8 @@ use crate::services::gateway::protocol::inbound::openai_responses::OpenAiRespons
 use crate::services::middleware::JwtContextExtractor;
 
 use super::{
-    auth, bridge, bridge_heartbeat, bridge_manifest, bridge_plugin_file, bridge_profile_usage,
-    bridge_release, bridge_stream, bridge_whoami, messages, otel,
+    auth, bridge, bridge_device, bridge_heartbeat, bridge_manifest, bridge_plugin_file,
+    bridge_profile_usage, bridge_release, bridge_stream, bridge_whoami, messages, otel,
 };
 
 pub(super) fn otel_routes(
@@ -183,7 +183,9 @@ pub(super) fn bridge_profile_routes(
     let ctx_enabled_hosts = ctx.clone();
     let ctx_host_model_filter = ctx.clone();
     let ctx_plugin_file = ctx.clone();
+    let ctx_device = ctx.clone();
     let jwt_plugin_file = Arc::clone(jwt_extractor);
+    let jwt_device = Arc::clone(jwt_extractor);
     let jwt_whoami = Arc::clone(jwt_extractor);
     let jwt_manifest = Arc::clone(jwt_extractor);
     let jwt_enabled_hosts = Arc::clone(jwt_extractor);
@@ -213,6 +215,14 @@ pub(super) fn bridge_profile_routes(
                 let extractor = Arc::clone(&jwt_plugin_file);
                 let context = ctx_plugin_file.clone();
                 async move { bridge_plugin_file::handle(extractor, context, headers, path).await }
+            }),
+        )
+        .route(
+            "/bridge/device",
+            post(move |headers, body| {
+                let extractor = Arc::clone(&jwt_device);
+                let context = ctx_device.clone();
+                async move { bridge_device::enroll_self(extractor, context, headers, body).await }
             }),
         )
         .route(
