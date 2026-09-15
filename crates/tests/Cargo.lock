@@ -6751,6 +6751,7 @@ dependencies = [
  "systemprompt-traits",
  "thiserror 2.0.19",
  "tokio",
+ "tokio-util",
  "tracing",
  "uuid",
 ]

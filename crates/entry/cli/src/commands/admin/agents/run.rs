@@ -69,7 +69,11 @@ pub(super) async fn execute(args: RunArgs) -> Result<()> {
         .with_context_materializer(ctx.context_materializer()),
     );
 
-    run_standalone(agent_state, ai_service, &args.agent_name, args.port)
+    let provider: Arc<dyn systemprompt_models::AiProvider> = Arc::<AiService>::clone(&ai_service);
+    let served = run_standalone(agent_state, provider, &args.agent_name, args.port)
         .await
-        .context("Failed to run agent server")
+        .context("Failed to run agent server");
+    ai_service.audit_tasks().close();
+    ai_service.audit_tasks().wait().await;
+    served
 }

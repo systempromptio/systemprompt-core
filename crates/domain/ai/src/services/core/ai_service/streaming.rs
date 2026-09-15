@@ -48,6 +48,7 @@ impl AiService {
         let wrapped_stream = StreamStorageWrapper::new(StreamStorageParams {
             inner: inner_stream,
             storage: self.storage.clone(),
+            audit_tasks: self.audit_tasks.clone(),
             request: request.clone(),
             request_id,
             start,
@@ -91,6 +92,7 @@ impl AiService {
         let wrapped_stream = StreamStorageWrapper::new(StreamStorageParams {
             inner: inner_stream,
             storage: self.storage.clone(),
+            audit_tasks: self.audit_tasks.clone(),
             request: request.clone(),
             request_id,
             start,

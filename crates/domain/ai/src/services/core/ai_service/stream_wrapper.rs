@@ -11,6 +11,7 @@
 use futures::Stream;
 use std::pin::Pin;
 use std::task::{Context, Poll};
+use tokio_util::task::TaskTracker;
 use uuid::Uuid;
 
 use crate::models::RequestStatus;
@@ -23,6 +24,7 @@ use systemprompt_models::wire::canonical::{CanonicalUsage, CanonicalUsageUpdate}
 pub(super) struct StreamStorageParams {
     pub inner: Pin<Box<dyn Stream<Item = crate::error::Result<StreamChunk>> + Send>>,
     pub storage: RequestStorage,
+    pub audit_tasks: TaskTracker,
     pub request: AiRequest,
     pub request_id: Uuid,
     pub start: std::time::Instant,
@@ -34,6 +36,7 @@ pub(super) struct StreamStorageParams {
 pub(super) struct StreamStorageWrapper {
     inner: Pin<Box<dyn Stream<Item = crate::error::Result<StreamChunk>> + Send>>,
     storage: RequestStorage,
+    audit_tasks: TaskTracker,
     request: AiRequest,
     request_id: Uuid,
     start: std::time::Instant,
@@ -52,6 +55,7 @@ impl StreamStorageWrapper {
         Self {
             inner: params.inner,
             storage: params.storage,
+            audit_tasks: params.audit_tasks,
             request: params.request,
             request_id: params.request_id,
             start: params.start,
@@ -167,27 +171,30 @@ impl StreamStorageWrapper {
             );
             return;
         };
-        runtime.spawn(async move {
-            let result = storage
-                .store(&StoreParams {
-                    request: &request,
-                    response: &response,
-                    context: &request.context,
-                    status,
-                    error_message: error_message.as_deref(),
-                    cost_microdollars,
-                })
-                .await;
-            if let Err(e) = result {
-                tracing::error!(
-                    error = %e,
-                    provider = %request.provider(),
-                    model = %request.model(),
-                    status = ?status,
-                    "audit write failed (streaming)"
-                );
-            }
-        });
+        self.audit_tasks.spawn_on(
+            async move {
+                let result = storage
+                    .store(&StoreParams {
+                        request: &request,
+                        response: &response,
+                        context: &request.context,
+                        status,
+                        error_message: error_message.as_deref(),
+                        cost_microdollars,
+                    })
+                    .await;
+                if let Err(e) = result {
+                    tracing::error!(
+                        error = %e,
+                        provider = %request.provider(),
+                        model = %request.model(),
+                        status = ?status,
+                        "audit write failed (streaming)"
+                    );
+                }
+            },
+            &runtime,
+        );
     }
 }
 

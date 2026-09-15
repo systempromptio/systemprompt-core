@@ -90,6 +90,8 @@ lifetimes, ID-JAG `email_verified`, reusable approvals, CLI double execution,
 - **Bridge:** the whoami peer probe reads to the declared `Content-Length` and retries once; bracketed IPv6 loopback is loopback; a bare invocation opens the GUI only when launched without a console; `--allow-unsigned` is refused under a pin; uninstall removes only what the bridge's sidecars record; a staged plugin whose promotion fails is rolled back; a user's scalar at a merged key is refused as `ForeignShape`; external opens go through `opener` and only `https://` leaves the webview; receipt recovery is preserved across canonical sync state and pending verification recovers on an unchanged signed manifest; acknowledged bridge sessions are compacted while preserving binding identity; contract violations in installation evidence are host failures.
 - **Dependencies:** `rustls` takes the RUSTSEC-2026-0285 fix; `rmcp` 3.3.0, `jsonwebtoken` 11, `base64` 0.23, `validator` 0.21, `chacha20poly1305` 0.11, `dirs` 7, `maxminddb` 0.32, `comrak` 0.55, `quick-xml` 0.42, `tabled` 0.22, `uuid` 1.26, `pg_query` 6.2; `pkcs8` dropped; `systemprompt-client` no longer depends on `reqwest-eventsource`; `systemprompt-extension` no longer depends on `reqwest` or `sqlx`; `systemprompt-traits` drops `axum` and `inventory`; `template-provider` narrows its optional `tokio` to `fs` + `sync`.
 - **Docs:** `documentation/concepts/analytics-migration.md` (ownership, capture, rebuild and operations), `documentation/concepts/architecture.md` (analytics ownership), `documentation/reference/http-api.md` and `configuration.md` follow the gateway changes; per-crate READMEs for analytics, marketplace, events, the evaluator adapters and the bridge describe the feedback surfaces.
+- Snapshot range jobs and analytics workers use `AnalyticsSnapshotJobId` / `AnalyticsWorkerId`; holdout proposals use `EvalHoldoutProposalId`; `SnapshotRangeJob::state` is a `SnapshotJobState` enum.
+- Streaming AI audit writes run on a tracker owned by `AiService` and are drained before the agent process exits.
 
 ### Fixed
 
@@ -116,6 +118,9 @@ lifetimes, ID-JAG `email_verified`, reusable approvals, CLI double execution,
 - **Client:** `ClientError::from_response` no longer stores the response body twice.
 - **Identifiers:** `EntityRef::from_kind_and_id` refuses an empty id.
 - **Analytics / tests:** reports drain the projection after seeding and own their rows, so the reporting shards no longer read before the projector ran.
+- Proxy-verified MCP requests now carry the caller's roles (`x-user-roles`) from the gateway to the server, so role-granted MCP servers admit proxied callers instead of denying every gateway hop.
+- A feedback snapshot range job whose assembly fails is marked `failed` with a diagnostic and is no longer re-leased on every run.
+- Attaching a holdout run to a proposal that is unconfirmed or already bound to another experiment now returns a conflict instead of reporting success.
 
 ### Removed
 

@@ -19,6 +19,7 @@
 - `AiError::ToolDiscovery` — `ToolDiscovery::discover_tools` fails when the tool inventory is incomplete (a server could not be listed) instead of planning against a partial tool set.
 - Migration 024 adds `ai_requests.accounting_failed_at` / `accounting_error`; `AiRequestRepository::mark_accounting_failed` retains a bounded diagnostic and a later completion settles the row `failed` instead of `completed`, so an accounting failure never replaces settled spend.
 - The extension installs `reporting_capture.sql` / `reporting_privacy.sql` (migration 025): the `reporting_source_ai_requests` / `reporting_source_ai_request_messages` views and transactional capture triggers feeding the analytics projections.
+- `AiService::audit_tasks` exposes the tracker that owns streaming audit writes so the process can drain them before exit.
 
 ### Changed
 

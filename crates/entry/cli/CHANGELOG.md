@@ -33,6 +33,7 @@
 
 - A command routed to a remote tenant runs exactly once; the runner no longer dispatches it a second time locally after the remote run succeeds.
 - `admin config catalog|gateway` leave `services/config/config.yaml` untouched and report the error when the file cannot be read (permissions, a directory, invalid UTF-8) instead of overwriting it with a bare `includes:` block.
+- `admin agents run` drains pending streaming audit writes after the A2A server stops.
 
 ## [0.52.0] - 2026-09-14
 
