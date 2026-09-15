@@ -1,21 +1,5 @@
 # Changelog
 
-## [0.54.0] - Unreleased
-
-### Fixed
-
-- **CLI:** `--json` / `--yaml` (and `SYSTEMPROMPT_OUTPUT_FORMAT`) now emit the artifact for a command whose result was flagged terminal-skip — every empty-result path, 66 sites — instead of printing nothing. An MCP wrapper reading stdout saw `""` where it should have seen an empty table. `skip_render` suppresses terminal rendering only, as documented.
-
-### Added
-
-- **CLI:** `infra logs request list --until <time>` and `--before <cursor>`; every row carries a `cursor` (`<created_at RFC3339>@<request_id>`) in JSON output and `--before` returns strictly older rows, keyset on `(created_at, id)`. `RequestCursor` and `AiRequestFilter::{with_until, with_before}` in `systemprompt-runtime`.
-- **CLI:** `infra logs audit` is counts-only by default (`message_count`, `tool_call_count`) and takes `--messages` / `--tools` to include the rows, `--offset` / `--limit` (0 = all) to page them and `--max-content <chars>` to bound each body; the card reports `offset` and `has_more`. `TraceQueryService::{count_audit_messages, count_audit_tool_calls}` and an `AuditPage` on the two list queries.
-- **Analytics:** `analytics costs breakdown --by user` — spend, requests, tokens and distinct conversations per user, named `<user_id> (<display name>)`; `CostAnalyticsRepository::get_breakdown_by_user`. `analytics requests list --user <id> --offset <n>` (`RequestListFilter`). `analytics conversations list --source agent|gateway|all` (default `all`) and `--user <id>`: gateway sessions are listed beside agent contexts, with `source` and `user_id` columns.
-
-### Breaking
-
-- **Runtime:** `TraceQueryService::list_audit_messages` / `list_audit_tool_calls` take an `AuditPage` (`AuditPage::ALL` for the previous behaviour). **Analytics:** `RequestAnalyticsRepository::list_requests(start, end, &RequestListFilter)` replaces the `(limit, model)` arguments; `ConversationAnalyticsRepository::{list_agent_contexts, list_gateway_sessions}` take a trailing `user: Option<&str>`; `ConversationListRow` and `GatewaySessionListRow` gain `user_id`. **CLI:** `infra logs audit` no longer includes messages or tool calls unless asked.
-
 ## [0.53.0] - 2026-09-15
 
 Three streams land together. The feedback program: native evaluator adapters
@@ -56,6 +40,7 @@ lifetimes, ID-JAG `email_verified`, reusable approvals, CLI double execution,
 - **Client:** `RemoteCliRequest` carries `&SessionToken` / `Option<&ContextId>`; `list_artifacts` returns `a2a::Artifact`; `EventStreamSetup` is removed and the stream runs on `sse-stream`.
 - **Runtime / Scheduler:** `Subsystems.event_bridge` is an `EventBridgeHandle`; `database_cleanup` sweeps only `logs`; the evaluator materialises workspaces from the typed `RevisionBundle`.
 - **CLI:** `plugins capabilities llm-providers` and the LLM-provider counters in `plugins list|show` are removed.
+- **Runtime:** `TraceQueryService::list_audit_messages` / `list_audit_tool_calls` take an `AuditPage` (`AuditPage::ALL` for the previous behaviour). **Analytics:** `RequestAnalyticsRepository::list_requests(start, end, &RequestListFilter)` replaces the `(limit, model)` arguments; `ConversationAnalyticsRepository::{list_agent_contexts, list_gateway_sessions}` take a trailing `user: Option<&str>`; `ConversationListRow` and `GatewaySessionListRow` gain `user_id`. **CLI:** `infra logs audit` no longer includes messages or tool calls unless asked.
 
 ### Added
 
@@ -80,6 +65,9 @@ lifetimes, ID-JAG `email_verified`, reusable approvals, CLI double execution,
 - **OAuth:** `OauthCleanupRepository` and the nightly `oauth_cleanup` job.
 - **CLI:** `analytics projection status|sync --limit|rebuild`; `admin config rate-limits`; `runner::profile_routing::{BootstrapOutcome, RoutingDecision, decide_routing}`.
 - **Gates:** `just check-gates` is the single list the local `just check` and CI share; new gates `lint-discarded-results` and `lint-fail-open` scan every production root, `lint-silent-skips`, `lint-async-trait`, `lint-json-value`, `lint-tracing-messages` and `lint-table-ownership` (infra never queries domain tables; a domain never queries another domain's); the comment, raw-id, seam, env-var, layer and file-size gates are tightened.
+- **CLI:** `infra logs request list --until <time>` and `--before <cursor>`; every row carries a `cursor` (`<created_at RFC3339>@<request_id>`) in JSON output and `--before` returns strictly older rows, keyset on `(created_at, id)`. `RequestCursor` and `AiRequestFilter::{with_until, with_before}` in `systemprompt-runtime`.
+- **CLI:** `infra logs audit` is counts-only by default (`message_count`, `tool_call_count`) and takes `--messages` / `--tools` to include the rows, `--offset` / `--limit` (0 = all) to page them and `--max-content <chars>` to bound each body; the card reports `offset` and `has_more`. `TraceQueryService::{count_audit_messages, count_audit_tool_calls}` and an `AuditPage` on the two list queries.
+- **Analytics:** `analytics costs breakdown --by user` — spend, requests, tokens and distinct conversations per user, named `<user_id> (<display name>)`; `CostAnalyticsRepository::get_breakdown_by_user`. `analytics requests list --user <id> --offset <n>` (`RequestListFilter`). `analytics conversations list --source agent|gateway|all` (default `all`) and `--user <id>`: gateway sessions are listed beside agent contexts, with `source` and `user_id` columns.
 
 ### Changed
 
@@ -141,6 +129,7 @@ lifetimes, ID-JAG `email_verified`, reusable approvals, CLI double execution,
 - Proxy-verified MCP requests now carry the caller's roles (`x-user-roles`) from the gateway to the server, so role-granted MCP servers admit proxied callers instead of denying every gateway hop.
 - A feedback snapshot range job whose assembly fails is marked `failed` with a diagnostic and is no longer re-leased on every run.
 - Attaching a holdout run to a proposal that is unconfirmed or already bound to another experiment now returns a conflict instead of reporting success.
+- **CLI:** `--json` / `--yaml` (and `SYSTEMPROMPT_OUTPUT_FORMAT`) now emit the artifact for a command whose result was flagged terminal-skip — every empty-result path, 66 sites — instead of printing nothing. An MCP wrapper reading stdout saw `""` where it should have seen an empty table. `skip_render` suppresses terminal rendering only, as documented.
 
 ### Removed
 

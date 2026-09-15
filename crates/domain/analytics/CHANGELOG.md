@@ -9,6 +9,7 @@
 - **Breaking:** reporting repositories (agents, tools, requests, costs, conversations, traffic, content, core stats, overview, CLI sessions) read the analytics-owned `analytics_report_*` projections instead of the source tables; reports are eventually consistent and a report against an uninitialised baseline is refused with a rebuild instruction.
 - **Breaking:** `FeedbackSnapshotsRepository::new(pool, facts: FeedbackFactsRepository)` takes the facts repository (`AppContext::feedback_snapshots_repository()`).
 - **Breaking:** `SnapshotRangeRequest::operation_id`, `SnapshotRangeJob::operation_id` and `SnapshotJobLease::operation_id` are `AnalyticsSnapshotJobId`; every worker argument and `worker_id` field is `AnalyticsWorkerId`; `SnapshotRangeJob::state` is `SnapshotJobState`. Migrate by constructing the typed ids with `generate()`/`new()` and matching on the enum.
+- **Breaking:** `RequestAnalyticsRepository::list_requests(start, end, &RequestListFilter)` replaces the `(limit, model)` arguments; `ConversationAnalyticsRepository::{list_agent_contexts, list_gateway_sessions}` take a trailing `user: Option<&str>`; `ConversationListRow` and `GatewaySessionListRow` gain `user_id`.
 
 ### Added
 
@@ -19,6 +20,7 @@
 - Privacy coordination: `lock_user_deletion`, `next_cutoff_revision` and the `evidence_cutoff` on `analytics_projection_state`; the SQL functions installed by migrations 008–010 (`prepare_reporting_privacy`, `begin_user_privacy` counterparts) make a user deletion or merge wait for pending committed evidence and deliver it atomically before identity is removed.
 - `models::reporting` row types for the CLI report commands.
 - `FeedbackSnapshotsRepository::fail_range` records a lease-fenced terminal failure with its diagnostic.
+- `CostAnalyticsRepository::get_breakdown_by_user` (spend, requests, tokens and distinct conversations per user); `RequestListFilter` (`user`, `offset`); `ConversationAnalyticsRepository::list_gateway_sessions` beside `list_agent_contexts`, both filterable by user.
 
 ### Changed
 

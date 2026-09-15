@@ -6,6 +6,7 @@
 
 - **Breaking:** `Subsystems.event_bridge` holds an `EventBridgeHandle` instead of a `JoinHandle`; shutdown cancels and joins it.
 - **Breaking:** `HoldoutConfirmationTarget::id` is `EvalHoldoutProposalId`. Migrate by constructing it with `EvalHoldoutProposalId::try_new`.
+- **Breaking:** `TraceQueryService::list_audit_messages` / `list_audit_tool_calls` take an `AuditPage` (`AuditPage::ALL` for the previous behaviour).
 
 ### Added
 
@@ -19,6 +20,7 @@
 - `reporting` module: `spawn` (the owned projection worker: 256 deliveries per pass, once per second, a full pass reschedules immediately), `initialize` (installs owner capture contracts and builds the baseline when none exists), `rebuild`, `process_pending` and `status`; the builder initialises reporting at boot.
 - `optimization` module: cross-domain source verification and evaluation attestation (`candidate`, `capture`, `diagnostics`, `holdout`, `inventory`, `iteration`) and `GitSourceOrchestrator` (`git_sources`), the application-owned credential resolution for Git import, sync and verification.
 - `AppContext::feedback_facts_repository()` and `feedback_snapshots_repository()`; the repository accessors live in `context::repositories`; `AppContext::analytics_repositories()` is built with the users session store, the logging event store and the content catalog stats.
+- `trace::RequestCursor` and `AiRequestFilter::{with_until, with_before}` for keyset paging of request logs; `TraceQueryService::{count_audit_messages, count_audit_tool_calls}` and `AuditPage` on the two audit list queries.
 
 ### Changed
 
