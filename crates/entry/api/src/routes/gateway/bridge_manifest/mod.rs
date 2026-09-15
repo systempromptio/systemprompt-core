@@ -76,7 +76,7 @@ pub async fn manifest(
         revocations,
         enabled_hosts,
         host_model_protocols,
-    } = load_per_user_context(&ctx, &claims.user_id, instance_hosts).await;
+    } = load_per_user_context(&ctx, &claims.user_id, instance_hosts).await?;
 
     let manifest = SignedManifest {
         min_schema_version: MANIFEST_SCHEMA_VERSION,

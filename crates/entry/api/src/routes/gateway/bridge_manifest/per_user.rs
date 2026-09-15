@@ -55,11 +55,14 @@ pub(super) struct PerUserContext {
     pub host_model_protocols: std::collections::BTreeMap<String, Vec<String>>,
 }
 
+// Why: `revocations` and `enabled_hosts` are the policy half of the signed
+// manifest — a failed read must not be served as "nothing revoked" / "every
+// host enabled". Only the display and preference inputs may degrade.
 pub(super) async fn load_per_user_context(
     ctx: &AppContext,
     user_id: &UserId,
     instance_hosts: Vec<String>,
-) -> PerUserContext {
+) -> Result<PerUserContext, (StatusCode, String)> {
     let user = match bridge_data::load_user(ctx, user_id).await {
         Ok(u) => u,
         Err(e) => {
@@ -68,13 +71,15 @@ pub(super) async fn load_per_user_context(
         },
     };
 
-    let revocations = match bridge_data::load_revocations(ctx, user_id).await {
-        Ok(r) => r,
-        Err(e) => {
-            tracing::warn!(error = %e, "manifest: revocation load failed; continuing empty");
-            Vec::new()
-        },
-    };
+    let revocations = bridge_data::load_revocations(ctx, user_id)
+        .await
+        .map_err(|error| {
+            tracing::error!(%error, "manifest: revocation load failed");
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("manifest: revocations unavailable: {error}"),
+            )
+        })?;
 
     let enabled_hosts = match bridge_data::load_enabled_hosts(ctx, user_id).await {
         Ok(rows) if rows.is_empty() => instance_hosts,
@@ -82,12 +87,12 @@ pub(super) async fn load_per_user_context(
             .into_iter()
             .filter(|h| rows.iter().any(|r| r == h))
             .collect(),
-        Err(e) => {
-            tracing::warn!(
-                error = %e,
-                "manifest: enabled_hosts load failed; defaulting to instance-enabled hosts"
-            );
-            instance_hosts
+        Err(error) => {
+            tracing::error!(%error, "manifest: enabled_hosts load failed");
+            return Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("manifest: enabled hosts unavailable: {error}"),
+            ));
         },
     };
 
@@ -102,10 +107,10 @@ pub(super) async fn load_per_user_context(
         },
     };
 
-    PerUserContext {
+    Ok(PerUserContext {
         user,
         revocations,
         enabled_hosts,
         host_model_protocols,
-    }
+    })
 }
