@@ -64,6 +64,7 @@ async fn owners_compacting_valid_clocks_out_of_order_preserve_global_privacy_and
                 || table.starts_with("analytics_normalized_")
                 || table.starts_with("analytics_feedback_")
                 || table.starts_with("analytics_snapshot")
+                || table == "analytics_feedback_snapshots"
         }),
     ] {
         sqlx::raw_sql(sqlx::AssertSqlSafe(script))
