@@ -216,7 +216,8 @@ async fn publish_organisation_skill(
                 revision_id: Some(revision),
                 action: PublicationAction::InitialAdoption,
                 expected_generation: 0,
-                comparison_evidence: serde_json::json!({}),
+                comparison_evidence: systemprompt_marketplace::managed::ComparisonEvidence::default(
+                ),
                 limitations: String::new(),
                 operation_key: format!("adopt-{key}"),
             },

@@ -2,11 +2,11 @@ use systemprompt_bridge::context::{BridgeContext, ProxyMode};
 use systemprompt_bridge::gui::state::{
     AppState, AppStateSnapshot, GatewayProbeOutcome, GatewayStatus, VerifiedIdentity,
 };
+use systemprompt_bridge::ids::HostId;
 use systemprompt_bridge::obs::StartupFault;
+use systemprompt_bridge::sync::{HostFailure, SyncSummary};
 use systemprompt_bridge::verdict::Tone;
 use systemprompt_bridge::wire::DeviceAction;
-use systemprompt_bridge::ids::HostId;
-use systemprompt_bridge::sync::{HostFailure, SyncSummary};
 use systemprompt_bridge::wire::codes::{HealthCode, IdentityCode, OverallCode};
 
 fn reachable() -> AppStateSnapshot {

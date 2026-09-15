@@ -55,7 +55,11 @@ fn a_missing_installer_is_a_warning_not_an_error() {
 fn fake_tool(bin_dir: &Path, name: &str, script: &str) {
     use std::os::unix::fs::PermissionsExt;
     let path = bin_dir.join(name);
-    std::fs::write(&path, format!("#!/bin/sh\nPATH=/usr/bin:/bin:$PATH\n{script}\n")).unwrap();
+    std::fs::write(
+        &path,
+        format!("#!/bin/sh\nPATH=/usr/bin:/bin:$PATH\n{script}\n"),
+    )
+    .unwrap();
     std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
 }
 

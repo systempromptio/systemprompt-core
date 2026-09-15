@@ -36,7 +36,7 @@ pub(super) fn upsert_installed_plugins(
             installed_entry(
                 &cache_install_dir(plugins, marketplace, id),
                 manifest.manifest_version.as_str(),
-                manifest.issued_at.as_str(),
+                &manifest.issued_at.to_rfc3339(),
             ),
         );
     }

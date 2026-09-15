@@ -15,6 +15,7 @@ use systemprompt_test_fixtures::{
     AuthedFixture, ensure_test_bootstrap, fixture_app_context, fixture_database_url,
     fixture_db_pool, seed_bridge_credential,
 };
+use systemprompt_traits::AppContext as _;
 
 struct Harness {
     ctx: Arc<AppContext>,

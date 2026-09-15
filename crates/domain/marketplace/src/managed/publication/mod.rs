@@ -182,6 +182,7 @@ fn validate_admission(request: &PublicationRequest, admission: PublicationAdmiss
     }
     let source = request
         .comparison_evidence
+        .recorded
         .get("source")
         .and_then(serde_json::Value::as_str);
     if source != Some(INVENTORY_REFRESH_SOURCE) {

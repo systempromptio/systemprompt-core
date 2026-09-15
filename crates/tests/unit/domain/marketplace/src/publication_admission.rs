@@ -57,7 +57,7 @@ fn request(
         action,
         expected_generation: 1,
         operation_key: format!("admission-{}", uuid::Uuid::new_v4()),
-        comparison_evidence: evidence,
+        comparison_evidence: serde_json::from_value(evidence).expect("evidence object"),
         limitations: String::new(),
     }
 }

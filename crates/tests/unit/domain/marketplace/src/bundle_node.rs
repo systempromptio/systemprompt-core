@@ -122,7 +122,7 @@ fn lockfile_priority_matches_claude_code() {
 #[test]
 fn manifest_carries_dependencies_in_claude_code_shape() {
     let root = plugin_root(&[]);
-    let config = config(
+    let app = config(
         "app",
         vec![
             PluginDependency {
@@ -137,7 +137,7 @@ fn manifest_carries_dependencies_in_claude_code_shape() {
             },
         ],
     );
-    let bundle = build(&root, &config);
+    let bundle = build(&root, &app);
     let raw: serde_json::Value = serde_json::from_slice(&bundle[PLUGIN_MANIFEST_RELPATH]).unwrap();
     assert_eq!(
         raw["dependencies"],

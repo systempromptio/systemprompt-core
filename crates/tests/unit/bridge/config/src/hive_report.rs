@@ -84,7 +84,11 @@ fn a_machine_key_with_other_values_shadows_the_user_copy() {
     let report = report(Some("https://a"), Some("https://b"), false);
     assert_eq!(report, HiveReport::Shadowed);
     assert!(report.is_failure());
-    assert!(report.detail().contains("administrator"), "{}", report.detail());
+    assert!(
+        report.detail().contains("administrator"),
+        "{}",
+        report.detail()
+    );
 }
 
 #[test]

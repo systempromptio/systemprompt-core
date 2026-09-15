@@ -77,7 +77,7 @@ async fn fresh_configured_skill_is_adopted_and_served() {
         PublicationAction::InitialAdoption
     );
     assert_eq!(
-        history[0].comparison_evidence["source"],
+        history[0].comparison_evidence.recorded["source"],
         serde_json::json!("inventory_refresh")
     );
     let entry = f
@@ -126,6 +126,7 @@ async fn unchanged_tree_publishes_nothing_on_repeat() {
             .list_revisions(&f.owner, &resource_id, 0)
             .await
             .expect("revisions")
+            .items
             .len(),
         1
     );
@@ -173,7 +174,7 @@ async fn edited_skill_publishes_next_generation_and_retains_previous() {
         PublicationAction::PublishImprovement
     );
     assert_eq!(
-        history[0].comparison_evidence["previous_revision"],
+        history[0].comparison_evidence.recorded["previous_revision"],
         serde_json::json!(first.revision_id),
     );
     assert_eq!(history[1].decision.generation, 1);
@@ -206,7 +207,8 @@ async fn withdrawn_resource_stays_withheld() {
                 action: PublicationAction::Withdraw,
                 expected_generation: 1,
                 operation_key: "withdraw-local".to_owned(),
-                comparison_evidence: serde_json::json!({}),
+                comparison_evidence: systemprompt_marketplace::managed::ComparisonEvidence::default(
+                ),
                 limitations: String::new(),
             },
         )

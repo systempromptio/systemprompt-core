@@ -8,11 +8,11 @@
 use super::baseline::configured_files;
 use super::{BaselineScope, InventoryEntry, InventoryService};
 use crate::managed::{
-    AssetDigest, INVENTORY_REFRESH_SOURCE, ManagedResolution, PublicationAction,
-    PublicationAdmission, PublicationRequest, ResourceKind, Result,
+    AssetDigest, ComparisonEvidence, INVENTORY_REFRESH_SOURCE, ManagedResolution,
+    PublicationAction, PublicationAdmission, PublicationRequest, ResourceKind, Result,
 };
 use serde::Serialize;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use systemprompt_identifiers::{InventoryEntryId, ManagedResourceId, ResourceRevisionId};
 use systemprompt_models::feedback::inventory::{InventoryAvailability, InventoryOrigin};
 
@@ -168,11 +168,20 @@ impl InventoryService {
             },
             expected_generation: managed.generation,
             operation_key: format!("inventory-sync:{}:{revision}", entry.resource_key),
-            comparison_evidence: serde_json::json!({
-                "source": INVENTORY_REFRESH_SOURCE,
-                "previous_revision": managed.published,
-                "digest": tree,
-            }),
+            comparison_evidence: ComparisonEvidence {
+                experiment_id: None,
+                recorded: BTreeMap::from([
+                    (
+                        "source".to_owned(),
+                        serde_json::json!(INVENTORY_REFRESH_SOURCE),
+                    ),
+                    (
+                        "previous_revision".to_owned(),
+                        serde_json::json!(managed.published),
+                    ),
+                    ("digest".to_owned(), serde_json::json!(tree)),
+                ]),
+            },
             limitations: "Published automatically from the configured services tree".to_owned(),
         };
         let decision = self
