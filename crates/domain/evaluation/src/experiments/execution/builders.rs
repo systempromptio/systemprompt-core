@@ -6,8 +6,6 @@
 use super::{ArtifactEvidence, ClientCapabilities, ClientKind, ExecutionLimits};
 use crate::Result;
 use crate::experiments::invalid;
-mod evidence;
-pub use evidence::ExecutionEvidenceBuilder;
 
 #[derive(Debug, Default, Clone, Copy)]
 pub struct ExecutionLimitsBuilder {

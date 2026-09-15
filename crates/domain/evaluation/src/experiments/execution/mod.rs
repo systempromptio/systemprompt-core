@@ -5,8 +5,10 @@
 
 use super::{ClientKind, content_digest, invalid};
 mod builders;
+mod evidence;
 use crate::Result;
 pub use builders::*;
+pub use evidence::ExecutionEvidenceBuilder;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use systemprompt_identifiers::{AiRequestId, EvalExecutionId};
