@@ -210,7 +210,6 @@ pub(super) async fn execute(
 
 async fn mcp_service_statuses(ctx: &Arc<AppContext>) -> Result<Vec<McpServiceStatus>> {
     let manager = McpOrchestrator::new(
-        Arc::clone(ctx.db_pool()),
         (**ctx.service_repository()).clone(),
         Arc::clone(ctx.app_paths_arc()),
         ctx.mcp_registry().clone(),

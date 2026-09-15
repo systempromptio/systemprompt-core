@@ -8,7 +8,7 @@ use std::process::Command;
 use std::time::{Duration, Instant};
 
 use systemprompt_mcp::services::client::validate_connection_by_url;
-use systemprompt_mcp::services::network::port::{find_available_port, is_port_in_use};
+use systemprompt_mcp::services::network::port::is_port_in_use;
 use systemprompt_mcp::services::process::cleanup::{
     cleanup_port_processes, force_kill, terminate_gracefully, terminate_gracefully_verified,
 };
@@ -68,38 +68,13 @@ fn unique_service(prefix: &str) -> String {
     format!("{prefix}_{}", uuid::Uuid::new_v4().simple())
 }
 
-#[test]
-fn find_available_port_skips_a_port_this_test_is_holding() {
+#[tokio::test]
+async fn is_port_in_use_tracks_a_listener_opening_and_closing() {
     let (listener, port) = held_port();
-
-    let found = find_available_port(port, port.saturating_add(20)).expect("a free port exists");
-    drop(listener);
-
-    assert_ne!(found, port, "the held port is not offered as available");
-    assert!(found > port, "the search walks forward from the start port");
-}
-
-#[test]
-fn find_available_port_reports_a_range_with_nothing_free() {
-    let (listener, port) = held_port();
-
-    let result = find_available_port(port, port);
-    drop(listener);
-
-    let err = result.expect_err("a single-port range that is occupied has no answer");
-    assert!(
-        err.to_string().contains(&format!("{port}-{port}")),
-        "the failure names the exhausted range: {err}"
-    );
-}
-
-#[test]
-fn is_port_in_use_tracks_a_listener_opening_and_closing() {
-    let (listener, port) = held_port();
-    assert!(is_port_in_use(port), "a bound port probes as in use");
+    assert!(is_port_in_use(port).await, "a bound port probes as in use");
 
     drop(listener);
-    assert!(!is_port_in_use(port), "a closed port probes as free");
+    assert!(!is_port_in_use(port).await, "a closed port probes as free");
 }
 
 #[test]

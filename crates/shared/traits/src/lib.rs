@@ -60,9 +60,9 @@ pub mod validation;
 pub mod validation_report;
 
 pub use systemprompt_provider_contracts::{
-    Job, JobContext, JobResult, JobScope, ProviderError, ProviderResult, ToolCallRequest,
-    ToolCallResult, ToolContent, ToolContext, ToolDefinition, ToolProvider, ToolProviderError,
-    ToolProviderResult, submit_job,
+    Job, JobContext, JobResult, JobScope, ProviderError, ProviderResult, ServerListingFailure,
+    ToolCallRequest, ToolCallResult, ToolContent, ToolContext, ToolDefinition, ToolInventory,
+    ToolProvider, ToolProviderError, ToolProviderResult, submit_job,
 };
 
 pub use context::{

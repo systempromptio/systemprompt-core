@@ -3,6 +3,7 @@
 
 use std::sync::Arc;
 use systemprompt_config::paths::AppPaths;
+use systemprompt_mcp::services::ServiceLifecycleStatus;
 use systemprompt_mcp::services::database::DatabaseService;
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::profile::PathsConfig;
@@ -137,7 +138,7 @@ async fn update_service_status_missing_no_panic() {
     };
     svc.update_service_status(
         &format!("missing-{}", uuid::Uuid::new_v4().simple()),
-        "stopped",
+        ServiceLifecycleStatus::Stopped,
     )
     .await
     .unwrap();

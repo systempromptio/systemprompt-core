@@ -131,8 +131,8 @@ mod noop_error_details_tests {
             .await
             .unwrap();
 
-        assert!(tools_a.is_empty());
-        assert!(tools_b.is_empty());
+        assert!(tools_a.tools.is_empty());
+        assert!(tools_b.tools.is_empty());
     }
 
     #[tokio::test]

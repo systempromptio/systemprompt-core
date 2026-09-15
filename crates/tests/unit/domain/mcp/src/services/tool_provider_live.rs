@@ -77,8 +77,9 @@ async fn list_tools_resolves_agent_servers() {
         )
         .await
         .expect("tools listed");
-    assert_eq!(tools.len(), 2);
-    assert!(tools.iter().any(|t| t.name == "echo"));
+    assert!(tools.is_complete());
+    assert_eq!(tools.tools.len(), 2);
+    assert!(tools.tools.iter().any(|t| t.name == "echo"));
     let _ = provider.db_pool();
 }
 
@@ -227,6 +228,11 @@ async fn list_tools_tolerates_unreachable_server() {
             &tool_context(),
         )
         .await
-        .expect("unreachable server is skipped");
-    assert!(tools.is_empty());
+        .expect("an unreachable server is reported, not silently skipped");
+    assert!(tools.tools.is_empty());
+    assert_eq!(
+        tools.failed_servers.len(),
+        1,
+        "the failed server is named in the inventory: {tools:?}"
+    );
 }

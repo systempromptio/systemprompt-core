@@ -7,11 +7,12 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::html::{HtmlBuilder, base_styles, html_escape, mcp_app_bridge_script};
+use super::html::{
+    HtmlBuilder, base_styles, html_escape, mcp_app_bridge_script, safe_url, unsafe_url_error,
+};
 use super::typed::artifact_payload;
 use crate::error::McpDomainResult;
 use crate::services::ui_renderer::{CspBuilder, CspPolicy, UiRenderer, UiResource};
-use async_trait::async_trait;
 use systemprompt_models::a2a::Artifact;
 use systemprompt_models::artifacts::{ArtifactType, AudioArtifact, VideoArtifact};
 
@@ -24,14 +25,21 @@ impl AudioRenderer {
     }
 }
 
-#[async_trait]
 impl UiRenderer for AudioRenderer {
     fn artifact_type(&self) -> ArtifactType {
         ArtifactType::Audio
     }
 
-    async fn render(&self, artifact: &Artifact) -> McpDomainResult<UiResource> {
+    fn render(&self, artifact: &Artifact) -> McpDomainResult<UiResource> {
         let audio: AudioArtifact = artifact_payload(artifact)?;
+        let src = safe_url(&audio.src).ok_or_else(|| unsafe_url_error("audio src", &audio.src))?;
+        let artwork = match audio.artwork.as_deref() {
+            Some(url) => {
+                let url = safe_url(url).ok_or_else(|| unsafe_url_error("audio artwork", url))?;
+                format!(r#"<img class="media-artwork" src="{url}" alt="">"#)
+            },
+            None => String::new(),
+        };
         let title = audio
             .title
             .as_deref()
@@ -52,11 +60,8 @@ impl UiRenderer for AudioRenderer {
                 r#"<p class="mcp-app-description">{}</p>"#,
                 html_escape(a)
             )),
-            artwork_html = audio.artwork.as_ref().map_or_else(String::new, |a| format!(
-                r#"<img class="media-artwork" src="{}" alt="">"#,
-                html_escape(a)
-            )),
-            src = html_escape(&audio.src),
+            artwork_html = artwork,
+            src = src,
             type_attr = mime_attr(audio.mime_type.as_deref()),
             flags = Playback {
                 controls: audio.controls,
@@ -84,14 +89,21 @@ impl VideoRenderer {
     }
 }
 
-#[async_trait]
 impl UiRenderer for VideoRenderer {
     fn artifact_type(&self) -> ArtifactType {
         ArtifactType::Video
     }
 
-    async fn render(&self, artifact: &Artifact) -> McpDomainResult<UiResource> {
+    fn render(&self, artifact: &Artifact) -> McpDomainResult<UiResource> {
         let video: VideoArtifact = artifact_payload(artifact)?;
+        let src = safe_url(&video.src).ok_or_else(|| unsafe_url_error("video src", &video.src))?;
+        let poster = match video.poster.as_deref() {
+            Some(url) => {
+                let url = safe_url(url).ok_or_else(|| unsafe_url_error("video poster", url))?;
+                format!(r#" poster="{url}""#)
+            },
+            None => String::new(),
+        };
         let title = artifact.title.as_deref().unwrap_or("Video");
 
         let body = format!(
@@ -103,12 +115,9 @@ impl UiRenderer for VideoRenderer {
     {caption_html}
 </div>"#,
             title = html_escape(title),
-            src = html_escape(&video.src),
+            src = src,
             type_attr = mime_attr(video.mime_type.as_deref()),
-            poster = video
-                .poster
-                .as_ref()
-                .map_or_else(String::new, |p| format!(r#" poster="{}""#, html_escape(p))),
+            poster = poster,
             flags = Playback {
                 controls: video.controls,
                 autoplay: video.autoplay,

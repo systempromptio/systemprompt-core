@@ -10,7 +10,7 @@ use async_trait::async_trait;
 use std::collections::HashMap;
 use systemprompt_identifiers::{AgentName, McpServerId};
 use systemprompt_traits::{
-    ToolCallRequest, ToolCallResult, ToolContext, ToolDefinition, ToolProvider, ToolProviderError,
+    ToolCallRequest, ToolCallResult, ToolContext, ToolInventory, ToolProvider, ToolProviderError,
     ToolProviderResult,
 };
 
@@ -29,8 +29,8 @@ impl ToolProvider for NoopToolProvider {
         &self,
         _agent_name: &AgentName,
         _context: &ToolContext,
-    ) -> ToolProviderResult<Vec<ToolDefinition>> {
-        Ok(Vec::new())
+    ) -> ToolProviderResult<ToolInventory> {
+        Ok(ToolInventory::default())
     }
 
     async fn call_tool(

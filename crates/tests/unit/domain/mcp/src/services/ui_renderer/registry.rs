@@ -103,10 +103,7 @@ async fn registry_renders_enveloped_table_artifact() {
             "data": [{"name": "Alice"}]
         }))],
     );
-    let resource = registry
-        .render(&artifact)
-        .await
-        .expect("enveloped table renders");
+    let resource = registry.render(&artifact).expect("enveloped table renders");
     assert!(resource.html.contains("data-table"));
 }
 
@@ -114,6 +111,6 @@ async fn registry_renders_enveloped_table_artifact() {
 async fn registry_render_unresolved_envelope_errors() {
     let registry = create_default_registry();
     let artifact = make_artifact("cli", vec![]);
-    let result = registry.render(&artifact).await;
+    let result = registry.render(&artifact);
     assert!(result.is_err());
 }

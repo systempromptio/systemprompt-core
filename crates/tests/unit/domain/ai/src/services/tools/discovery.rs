@@ -6,7 +6,8 @@ use systemprompt_ai::services::tools::ToolDiscovery;
 use systemprompt_identifiers::{AgentName, McpServerId};
 use systemprompt_test_fixtures::fixture_actor;
 use systemprompt_traits::{
-    ToolCallRequest, ToolCallResult, ToolContext, ToolDefinition, ToolProvider, ToolProviderResult,
+    ToolCallRequest, ToolCallResult, ToolContext, ToolDefinition, ToolInventory, ToolProvider,
+    ToolProviderResult,
 };
 
 struct MockToolProvider {
@@ -34,8 +35,8 @@ impl ToolProvider for MockToolProvider {
         &self,
         _agent_name: &AgentName,
         _context: &ToolContext,
-    ) -> ToolProviderResult<Vec<ToolDefinition>> {
-        Ok(self.tools.clone())
+    ) -> ToolProviderResult<ToolInventory> {
+        Ok(ToolInventory::complete(self.tools.clone()))
     }
 
     async fn call_tool(

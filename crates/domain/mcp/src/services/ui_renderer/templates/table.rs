@@ -13,7 +13,6 @@ use super::html::{
 };
 use crate::error::McpDomainResult;
 use crate::services::ui_renderer::{CspPolicy, UiRenderer, UiResource};
-use async_trait::async_trait;
 use serde_json::Value as JsonValue;
 use systemprompt_models::a2a::Artifact;
 use systemprompt_models::artifacts::ArtifactType;
@@ -179,13 +178,12 @@ struct TableHints {
     page_size: usize,
 }
 
-#[async_trait]
 impl UiRenderer for TableRenderer {
     fn artifact_type(&self) -> ArtifactType {
         ArtifactType::Table
     }
 
-    async fn render(&self, artifact: &Artifact) -> McpDomainResult<UiResource> {
+    fn render(&self, artifact: &Artifact) -> McpDomainResult<UiResource> {
         let (columns, rows) = Self::extract_table_data(artifact);
         let hints = Self::extract_hints(artifact);
         let title = artifact.title.as_deref().unwrap_or("Table");

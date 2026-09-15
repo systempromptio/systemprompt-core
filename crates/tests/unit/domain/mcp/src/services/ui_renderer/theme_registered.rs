@@ -66,7 +66,6 @@ fn active_theme_resolves_the_theme_registered_by_this_binary() {
 async fn a_registered_theme_is_injected_into_every_rendered_artifact() {
     let html = TableRenderer::new()
         .render(&table_artifact())
-        .await
         .expect("render")
         .html;
 

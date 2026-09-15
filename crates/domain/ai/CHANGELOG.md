@@ -2,6 +2,10 @@
 
 ## [0.53.0] - 2026-09-14
 
+### Added
+
+- `AiError::ToolDiscovery` — `ToolDiscovery::discover_tools` fails when the tool inventory is incomplete (a server could not be listed) instead of planning against a partial tool set.
+
 ### Changed
 
 - `ResilientProvider` settles the breaker through the RAII `Probe` returned by `ResilienceGuard::admit`, so a cancelled stream open no longer leaks a half-open probe slot.

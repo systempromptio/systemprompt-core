@@ -4,9 +4,10 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::error::McpDomainResult;
-use std::net::TcpStream;
+use crate::{ERROR, STOPPED};
 use std::time::Duration;
 use systemprompt_database::ServiceRepository;
+use tokio::net::TcpStream;
 
 #[derive(Debug)]
 pub struct ProxyHealthCheck {
@@ -27,16 +28,16 @@ impl ProxyHealthCheck {
             return Ok(false);
         }
 
-        if !Self::is_port_responsive(port) {
+        if !Self::is_port_responsive(port).await {
             self.service_repo
-                .update_service_status(service_name, "stopped")
+                .update_service_status(service_name, STOPPED)
                 .await?;
             return Ok(false);
         }
 
         if !Self::can_connect_mcp(port).await {
             self.service_repo
-                .update_service_status(service_name, "error")
+                .update_service_status(service_name, ERROR)
                 .await?;
             return Ok(false);
         }
@@ -44,12 +45,11 @@ impl ProxyHealthCheck {
         Ok(true)
     }
 
-    fn is_port_responsive(port: u16) -> bool {
-        TcpStream::connect_timeout(
-            &std::net::SocketAddr::from(([127, 0, 0, 1], port)),
-            Duration::from_millis(100),
-        )
-        .is_ok()
+    async fn is_port_responsive(port: u16) -> bool {
+        let addr = std::net::SocketAddr::from(([127, 0, 0, 1], port));
+        tokio::time::timeout(Duration::from_millis(100), TcpStream::connect(addr))
+            .await
+            .is_ok_and(|connected| connected.is_ok())
     }
 
     async fn can_connect_mcp(port: u16) -> bool {
@@ -73,7 +73,7 @@ impl ProxyHealthCheck {
 
         for service in running_services {
             let port = Self::parse_port_from_service(&service);
-            if Self::is_port_responsive(port) {
+            if Self::is_port_responsive(port).await {
                 routable.push(RoutableService {
                     name: service.name.clone(),
                     port,
@@ -82,7 +82,7 @@ impl ProxyHealthCheck {
                 });
             } else {
                 self.service_repo
-                    .update_service_status(&service.name, "stopped")
+                    .update_service_status(&service.name, STOPPED)
                     .await?;
             }
         }

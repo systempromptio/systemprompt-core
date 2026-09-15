@@ -40,7 +40,7 @@ async fn make_orchestrator_or_skip() -> Option<McpOrchestrator> {
         systemprompt_identifiers::InstanceId::new("test-instance"),
     )
     .ok()?;
-    McpOrchestrator::new(db, service_repo, app_paths, registry).ok()
+    McpOrchestrator::new(service_repo, app_paths, registry).ok()
 }
 
 #[tokio::test]

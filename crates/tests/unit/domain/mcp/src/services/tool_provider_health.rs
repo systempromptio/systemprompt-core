@@ -28,6 +28,7 @@ fn tool_context() -> ToolContext {
     let mut headers = HashMap::new();
     headers.insert("x-context-id".to_owned(), ContextId::generate().to_string());
     headers.insert("x-agent-name".to_owned(), "harness-agent".to_owned());
+    headers.insert("x-user-id".to_owned(), "harness-user".to_owned());
 
     let mut context = ToolContext::new(Actor::user(UserId::new("user-tph")), "token-tph");
     context.session_id = Some(SessionId::new("s-tph"));

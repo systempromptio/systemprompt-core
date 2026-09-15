@@ -66,7 +66,7 @@ async fn presentation_card_renders_sections_not_json() {
         "theme": "gradient"
     }));
 
-    let resource = registry.render(&artifact).await.expect("card renders");
+    let resource = registry.render(&artifact).expect("card renders");
 
     assert!(resource.html.contains("Platform Overview"));
     assert!(resource.html.contains("Total users"));
@@ -87,7 +87,7 @@ async fn presentation_card_renders_ctas_and_subtitle() {
         ]
     }));
 
-    let resource = registry.render(&artifact).await.expect("card renders");
+    let resource = registry.render(&artifact).expect("card renders");
 
     assert!(resource.html.contains("v1.2.3 rollout"));
     assert!(resource.html.contains("card-section-icon"));
@@ -106,7 +106,7 @@ async fn table_renders_items_rows() {
         "items": [{"email": "ed@example.com"}]
     }));
 
-    let resource = registry.render(&artifact).await.expect("table renders");
+    let resource = registry.render(&artifact).expect("table renders");
 
     assert!(resource.html.contains("data-table"));
     assert!(resource.html.contains("ed@example.com"));
@@ -120,7 +120,7 @@ async fn message_renders_severity_lines() {
         "messages": [{"level": "warning", "text": "Nothing to do"}]
     }));
 
-    let resource = registry.render(&artifact).await.expect("message renders");
+    let resource = registry.render(&artifact).expect("message renders");
 
     assert!(resource.html.contains("notice-warning"));
     assert!(resource.html.contains("Nothing to do"));
@@ -135,10 +135,7 @@ async fn copy_paste_text_renders_preformatted() {
         "content": "systemprompt admin users list"
     }));
 
-    let resource = registry
-        .render(&artifact)
-        .await
-        .expect("copy paste text renders");
+    let resource = registry.render(&artifact).expect("copy paste text renders");
 
     assert!(resource.html.contains("<pre><code>"));
     assert!(resource.html.contains("systemprompt admin users list"));
@@ -152,7 +149,7 @@ async fn every_rendered_document_negotiates_its_height() {
         "content": "hello"
     }));
 
-    let resource = registry.render(&artifact).await.expect("text renders");
+    let resource = registry.render(&artifact).expect("text renders");
 
     assert!(resource.html.contains("ui/notifications/size-changed"));
 }

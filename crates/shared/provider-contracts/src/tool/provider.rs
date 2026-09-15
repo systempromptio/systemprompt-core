@@ -16,6 +16,7 @@ use super::call::{ToolCallRequest, ToolCallResult};
 use super::context::ToolContext;
 use super::definition::ToolDefinition;
 use super::error::ToolProviderResult;
+use super::inventory::ToolInventory;
 
 #[async_trait]
 pub trait ToolProvider: Send + Sync {
@@ -23,7 +24,7 @@ pub trait ToolProvider: Send + Sync {
         &self,
         agent_name: &AgentName,
         context: &ToolContext,
-    ) -> ToolProviderResult<Vec<ToolDefinition>>;
+    ) -> ToolProviderResult<ToolInventory>;
 
     async fn call_tool(
         &self,
@@ -42,7 +43,7 @@ pub trait ToolProvider: Send + Sync {
         tool_name: &str,
         context: &ToolContext,
     ) -> ToolProviderResult<Option<ToolDefinition>> {
-        let tools = self.list_tools(agent_name, context).await?;
-        Ok(tools.into_iter().find(|t| t.name == tool_name))
+        let inventory = self.list_tools(agent_name, context).await?;
+        Ok(inventory.tools.into_iter().find(|t| t.name == tool_name))
     }
 }

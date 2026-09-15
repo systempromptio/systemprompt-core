@@ -70,8 +70,9 @@ pub use sitemap::{
 };
 pub use template::{TemplateDefinition, TemplateProvider, TemplateSource};
 pub use tool::{
-    ToolCallRequest, ToolCallResult, ToolContent, ToolContext, ToolDefinition, ToolModelConfig,
-    ToolProvider, ToolProviderError, ToolProviderResult,
+    ServerListingFailure, ToolCallRequest, ToolCallResult, ToolContent, ToolContext,
+    ToolDefinition, ToolInventory, ToolModelConfig, ToolProvider, ToolProviderError,
+    ToolProviderResult,
 };
 pub use web_config::{
     AnimationConfig, BrandingConfig, CardConfig, ColorsConfig, FontsConfig, LayoutConfig,

@@ -26,7 +26,7 @@ mod noop_provider_tests {
             .await
             .unwrap();
 
-        assert!(tools.is_empty());
+        assert!(tools.tools.is_empty());
     }
 
     #[tokio::test]

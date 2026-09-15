@@ -3,8 +3,8 @@
 
 use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId};
 use systemprompt_mcp::OAuthRequirement;
+use systemprompt_mcp::middleware::AuthenticatedRequestContext;
 use systemprompt_mcp::middleware::rbac::try_proxy_verified_auth;
-use systemprompt_mcp::middleware::{AuthResult, AuthenticatedRequestContext};
 use systemprompt_models::RequestContext;
 use systemprompt_models::auth::{JwtAudience, Permission};
 
@@ -139,10 +139,7 @@ fn verified_request_authenticates() {
             .expect("auth ok")
             .expect("short-circuits");
 
-    let auth: AuthenticatedRequestContext = match result {
-        AuthResult::Authenticated(auth) => auth,
-        AuthResult::Anonymous(_) => panic!("expected authenticated result"),
-    };
+    let auth: AuthenticatedRequestContext = result;
     assert_eq!(auth.token(), "proxied-token");
     assert_eq!(auth.context.user_id().to_string(), USER_ID);
 }

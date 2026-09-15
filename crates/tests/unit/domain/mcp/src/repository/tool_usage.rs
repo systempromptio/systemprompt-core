@@ -7,6 +7,7 @@
 use systemprompt_identifiers::{AiToolCallId, ContextId, McpExecutionId};
 use systemprompt_mcp::repository::ToolUsageRepository;
 use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use systemprompt_traits::ToolExecutionLookup;
 
 async fn db_or_skip() -> Option<systemprompt_database::DbPool> {
     let url = fixture_database_url().ok()?;
@@ -38,16 +39,7 @@ async fn find_by_ai_call_id_random_returns_none() {
 }
 
 #[tokio::test]
-async fn find_context_id_random_returns_none() {
-    let Some(db) = db_or_skip().await else { return };
-    let repo = ToolUsageRepository::new(&db).unwrap();
-    let id = McpExecutionId::new(format!("none-{}", uuid::Uuid::new_v4().simple()));
-    let r = repo.find_context_id(&id).await.unwrap();
-    assert!(r.is_none());
-}
-
-#[tokio::test]
-async fn list_tool_stats_aggregates_a_seeded_execution() {
+async fn execution_exists_answers_through_the_shared_lookup_seam() {
     use chrono::Utc;
     use serde_json::json;
     use systemprompt_identifiers::{AgentName, SessionId, TraceId, UserId};
@@ -88,23 +80,15 @@ async fn list_tool_stats_aggregates_a_seeded_execution() {
         started_at,
         completed_at: Utc::now(),
     };
-    repo.log_execution_sync(&request, &result).await.unwrap();
+    let execution_id = repo.log_execution_sync(&request, &result).await.unwrap();
 
-    let stats = repo.list_tool_stats(10_000).await.unwrap();
-    let row = stats
-        .iter()
-        .find(|s| s.tool_name == tool_name && s.server_name == server_name)
-        .expect("seeded tool execution surfaces in list_tool_stats");
-    assert!(row.total_executions >= 1);
-    assert!(row.success_count >= 1);
-}
-
-#[tokio::test]
-async fn update_context_timestamp_on_missing_context_does_not_panic() {
-    let Some(db) = db_or_skip().await else { return };
-    let repo = ToolUsageRepository::new(&db).unwrap();
-    let ctx = ContextId::generate();
-    repo.update_context_timestamp(&ctx).await.unwrap();
+    let lookup: &dyn ToolExecutionLookup = &repo;
+    assert!(
+        lookup.execution_exists(&execution_id).await.unwrap(),
+        "a logged execution is visible through the seam"
+    );
+    let unknown = McpExecutionId::new(format!("none-{}", uuid::Uuid::new_v4().simple()));
+    assert!(!lookup.execution_exists(&unknown).await.unwrap());
 }
 
 #[tokio::test]

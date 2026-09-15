@@ -31,9 +31,9 @@ fn default_registry() -> Arc<UiRendererRegistry> {
     Arc::clone(REGISTRY.get_or_init(|| Arc::new(create_default_registry())))
 }
 
-pub async fn artifact_ui_resource(target: &RenderTarget<'_>) -> McpDomainResult<UiResource> {
+pub fn artifact_ui_resource(target: &RenderTarget<'_>) -> McpDomainResult<UiResource> {
     let artifact = to_a2a_artifact(target)?;
-    default_registry().render(&artifact).await
+    default_registry().render(&artifact)
 }
 
 pub fn artifact_resource_uri(server_name: &str, artifact_id: &ArtifactId) -> String {

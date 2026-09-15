@@ -4,6 +4,8 @@
 
 ### Breaking
 
+- **Breaking:** `ToolProvider::list_tools` returns `ToolInventory { tools, failed_servers }` — a typed partial outcome — instead of a bare `Vec<ToolDefinition>` that silently omitted servers that failed to list. Migrate by reading `.tools` and treating a non-empty `failed_servers` as a failure where the full inventory matters; `ToolInventory::complete(tools)` builds a full one.
+
 - **Breaking:** `ToolDefinition::model_config` is `Option<ToolModelConfig>` (the type moved here from `systemprompt_models::ai`, which re-exports it); `ToolDefinition::new` takes a `McpServerId`; `ToolDefinition::service_id` is a `McpServerId`.
 - **Breaking:** `ToolProvider::refresh_connections` takes `&AgentName`.
 - **Breaking:** `ToolProviderError::Config` is removed; `web_config::WebConfigError::Io { path }` carries a `PathBuf`.

@@ -21,14 +21,14 @@ fn spawn_listener_child(port: u16) -> Child {
         .expect("spawn python listener")
 }
 
-fn await_port_state(port: u16, in_use: bool) {
+async fn await_port_state(port: u16, in_use: bool) {
     let deadline = Instant::now() + Duration::from_secs(10);
-    while is_port_in_use(port) != in_use {
+    while is_port_in_use(port).await != in_use {
         assert!(
             Instant::now() < deadline,
             "port {port} never reached in_use={in_use}"
         );
-        std::thread::sleep(Duration::from_millis(50));
+        tokio::time::sleep(Duration::from_millis(50)).await;
     }
 }
 
@@ -36,7 +36,7 @@ fn await_port_state(port: u16, in_use: bool) {
 async fn cleanup_port_processes_refuses_to_kill_a_foreign_listener() {
     let port = free_port();
     let mut child = spawn_listener_child(port);
-    await_port_state(port, true);
+    await_port_state(port, true).await;
 
     let err = cleanup_port_processes(port, "systemprompt")
         .await
@@ -44,7 +44,7 @@ async fn cleanup_port_processes_refuses_to_kill_a_foreign_listener() {
 
     assert!(err.to_string().contains(&port.to_string()));
     assert!(
-        is_port_in_use(port),
+        is_port_in_use(port).await,
         "the foreign listener must still be running"
     );
 
@@ -68,13 +68,13 @@ async fn prepare_port_skips_self_held_listener() {
 async fn wait_for_port_release_with_retry_leaves_a_foreign_listener_alone() {
     let port = free_port();
     let mut child = spawn_listener_child(port);
-    await_port_state(port, true);
+    await_port_state(port, true).await;
 
     wait_for_port_release_with_retry(port, "systemprompt", 3)
         .await
         .expect_err("a foreign listener must not be reclaimed");
 
-    assert!(is_port_in_use(port));
+    assert!(is_port_in_use(port).await);
 
     child.kill().expect("kill test child");
     child.wait().expect("child reaped");

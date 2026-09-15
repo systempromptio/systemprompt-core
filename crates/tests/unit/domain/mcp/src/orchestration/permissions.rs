@@ -40,10 +40,17 @@ fn config_with(name: &str, dep: Deployment) -> ServicesConfig {
     config
 }
 
+// Why: a server the registry does not know has no scopes to check against;
+// withholding it is the only answer that cannot over-grant.
 #[test]
-fn unknown_server_is_allowed() {
+fn unknown_server_is_withheld() {
     let config = ServicesConfig::default();
-    assert!(has_server_permission(&config, "ghost", &[]));
+    assert!(!has_server_permission(&config, "ghost", &[]));
+    assert!(!has_server_permission(
+        &config,
+        "ghost",
+        &[systemprompt_models::auth::Permission::Admin]
+    ));
 }
 
 #[test]

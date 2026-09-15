@@ -125,6 +125,9 @@ pub enum AiError {
     #[error(transparent)]
     ToolProvider(#[from] systemprompt_traits::ToolProviderError),
 
+    #[error("tool discovery incomplete: {0}")]
+    ToolDiscovery(String),
+
     #[error(transparent)]
     Secrets(#[from] systemprompt_config::SecretsBootstrapError),
 
@@ -167,6 +170,7 @@ impl From<AiError> for systemprompt_models::errors::AiInferenceError {
             | AiError::McpServiceNotFound { .. }
             | AiError::McpAuthenticationMissing { .. }
             | AiError::ServiceAuthCheckFailed { .. }
+            | AiError::ToolDiscovery(_)
             | AiError::ToolProvider(_) => Self::Tool(err.to_string()),
             AiError::AuthenticationRequired { .. }
             | AiError::ConfigurationError { .. }

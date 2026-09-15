@@ -51,11 +51,21 @@ pub(super) fn create_request_context(
     let mut request_ctx = RequestContext::new(session_id, trace_id, context_id, agent_name)
         .with_auth_token(ctx.auth_token.clone());
 
+    // Why: the caller's identity is what every downstream policy and audit
+    // row is keyed on; without it the call would run as the server's owner,
+    // so a missing identity is refused rather than defaulted.
     let actor_user_id = ctx
         .headers
         .get("x-user-id")
         .filter(|s| !s.is_empty())
-        .map_or_else(|| server_config.owner.clone(), |s| UserId::new(s.clone()));
+        .map(|s| UserId::new(s.clone()))
+        .ok_or_else(|| {
+            ToolProviderError::AuthorizationFailed(
+            "Missing x-user-id header - the caller identity must be propagated from the parent \
+             request"
+                .into(),
+        )
+        })?;
     request_ctx = request_ctx.with_actor(Actor::mcp(actor_user_id, server_config.name.clone()));
 
     if let Some(task_id) = ctx.headers.get("x-task-id").filter(|s| !s.is_empty()) {

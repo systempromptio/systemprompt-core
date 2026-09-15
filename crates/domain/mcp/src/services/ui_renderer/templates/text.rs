@@ -27,7 +27,6 @@
 use super::html::{HtmlBuilder, base_styles, html_escape, mcp_app_bridge_script};
 use crate::error::McpDomainResult;
 use crate::services::ui_renderer::{CspPolicy, UiRenderer, UiResource};
-use async_trait::async_trait;
 use systemprompt_models::a2a::Artifact;
 use systemprompt_models::artifacts::ArtifactType;
 
@@ -40,13 +39,12 @@ impl TextRenderer {
     }
 }
 
-#[async_trait]
 impl UiRenderer for TextRenderer {
     fn artifact_type(&self) -> ArtifactType {
         ArtifactType::Text
     }
 
-    async fn render(&self, artifact: &Artifact) -> McpDomainResult<UiResource> {
+    fn render(&self, artifact: &Artifact) -> McpDomainResult<UiResource> {
         Ok(render_text(
             artifact,
             Presentation::Prose,
@@ -68,13 +66,12 @@ impl CopyPasteTextRenderer {
     }
 }
 
-#[async_trait]
 impl UiRenderer for CopyPasteTextRenderer {
     fn artifact_type(&self) -> ArtifactType {
         ArtifactType::CopyPasteText
     }
 
-    async fn render(&self, artifact: &Artifact) -> McpDomainResult<UiResource> {
+    fn render(&self, artifact: &Artifact) -> McpDomainResult<UiResource> {
         Ok(render_text(
             artifact,
             Presentation::Preformatted,

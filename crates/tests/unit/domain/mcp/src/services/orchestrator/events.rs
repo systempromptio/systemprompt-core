@@ -27,7 +27,7 @@ fn test_mcp_event_service_start_completed_service_name() {
 fn test_mcp_event_service_started_service_name() {
     let event = McpEvent::ServiceStarted {
         service_name: "test-service".to_string(),
-        process_id: 1234,
+        process_id: Some(1234),
         port: 8080,
     };
     assert_eq!(event.service_name(), "test-service");
@@ -119,7 +119,7 @@ fn test_mcp_event_service_start_completed_event_type() {
 fn test_mcp_event_service_started_event_type() {
     let event = McpEvent::ServiceStarted {
         service_name: "test".to_string(),
-        process_id: 1234,
+        process_id: Some(1234),
         port: 8080,
     };
     assert_eq!(event.event_type(), "service_started");
@@ -242,7 +242,7 @@ fn test_mcp_event_start_completed_failure() {
 fn test_mcp_event_debug() {
     let event = McpEvent::ServiceStarted {
         service_name: "test-service".to_string(),
-        process_id: 1234,
+        process_id: Some(1234),
         port: 8080,
     };
 
@@ -255,7 +255,7 @@ fn test_mcp_event_debug() {
 fn test_mcp_event_serialize_service_started() {
     let event = McpEvent::ServiceStarted {
         service_name: "test-service".to_string(),
-        process_id: 1234,
+        process_id: Some(1234),
         port: 8080,
     };
 

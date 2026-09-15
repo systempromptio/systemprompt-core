@@ -245,3 +245,38 @@ async fn deny_hook_blocks_authenticated_request() {
     .await;
     assert!(outcome.contains("authz denied"), "got: {outcome}");
 }
+
+// Why: proxy verification replaces JWT parsing, never policy. A gateway that
+// vouches for an identity still has that identity evaluated by the per-server
+// authz hook, so a deny policy reaches proxied callers too.
+#[tokio::test]
+async fn deny_hook_blocks_a_proxy_verified_request() {
+    let name = unique("rbl_proxy_deny");
+    let _bootstrap = bootstrap_with_services(&server_yaml(&name, true, "user"));
+
+    let proxied = vec![
+        ("x-proxy-verified".to_owned(), "true".to_owned()),
+        ("x-user-id".to_owned(), uuid::Uuid::new_v4().to_string()),
+        ("x-user-permissions".to_owned(), "user".to_owned()),
+        (
+            "authorization".to_owned(),
+            "Bearer proxied-token".to_owned(),
+        ),
+    ];
+
+    let denied = probe_outcome(RbacProbe {
+        server: name.clone(),
+        headers: proxied.clone(),
+        hook: Arc::new(DenyAllHook::null()),
+    })
+    .await;
+    assert!(denied.contains("authz denied"), "got: {denied}");
+
+    let allowed = probe_outcome(RbacProbe {
+        server: name,
+        headers: proxied,
+        hook: Arc::new(AllowAllHook::null()),
+    })
+    .await;
+    assert!(allowed.starts_with("authenticated:"), "got: {allowed}");
+}

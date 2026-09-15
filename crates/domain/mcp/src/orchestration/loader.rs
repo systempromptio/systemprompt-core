@@ -217,8 +217,10 @@ pub fn has_server_permission(
     server_name: &str,
     user_permissions: &[systemprompt_models::auth::Permission],
 ) -> bool {
+    // Why: a server the registry does not know cannot have its scopes
+    // checked, so it is withheld rather than granted.
     let Some(deployment) = config.mcp_servers.get(server_name) else {
-        return true;
+        return false;
     };
 
     if !deployment.oauth.required || deployment.oauth.scopes.is_empty() {

@@ -15,7 +15,6 @@ use super::html::{HtmlBuilder, base_styles, html_escape, mcp_app_bridge_script};
 use super::typed;
 use crate::error::McpDomainResult;
 use crate::services::ui_renderer::{CspPolicy, UiRenderer, UiResource};
-use async_trait::async_trait;
 use systemprompt_models::a2a::Artifact;
 use systemprompt_models::artifacts::ArtifactType;
 use systemprompt_models::artifacts::dashboard::{DashboardArtifact, DashboardSection, LayoutMode};
@@ -103,13 +102,12 @@ impl DashboardRenderer {
     }
 }
 
-#[async_trait]
 impl UiRenderer for DashboardRenderer {
     fn artifact_type(&self) -> ArtifactType {
         ArtifactType::Dashboard
     }
 
-    async fn render(&self, artifact: &Artifact) -> McpDomainResult<UiResource> {
+    fn render(&self, artifact: &Artifact) -> McpDomainResult<UiResource> {
         let dashboard: DashboardArtifact = typed::artifact_payload(artifact)?;
 
         let mut sections: Vec<&DashboardSection> = dashboard.sections.iter().collect();

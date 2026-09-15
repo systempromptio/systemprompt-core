@@ -25,7 +25,6 @@ fn orchestrator(
 ) -> std::sync::Arc<systemprompt_mcp::services::McpOrchestrator> {
     std::sync::Arc::new(
         systemprompt_mcp::services::McpOrchestrator::new(
-            std::sync::Arc::clone(ctx.db_pool()),
             (**ctx.service_repository()).clone(),
             std::sync::Arc::clone(ctx.app_paths_arc()),
             ctx.mcp_registry().clone(),

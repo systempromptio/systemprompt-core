@@ -159,7 +159,6 @@ pub async fn get_artifact_ui(
 
     let ui_resource: systemprompt_mcp::services::ui_renderer::UiResource = registry
         .render(&artifact)
-        .await
         .map_err(|e| ApiHttpError::internal_error(format!("Failed to render artifact UI: {e}")))?;
 
     tracing::debug!(artifact_id = %artifact_id, "Artifact UI rendered successfully");

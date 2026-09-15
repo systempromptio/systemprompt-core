@@ -129,7 +129,6 @@ pub async fn read_artifact_resource(
     };
 
     let resource = artifact_ui_resource(&target)
-        .await
         .map_err(|e| McpError::internal_error(format!("Failed to render artifact: {e}"), None))?;
 
     let ui_meta = McpResourceUiMeta::new()

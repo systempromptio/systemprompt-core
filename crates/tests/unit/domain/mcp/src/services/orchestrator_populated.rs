@@ -56,7 +56,7 @@ async fn orchestrator_with_config_or_skip(
         systemprompt_identifiers::InstanceId::new("test-instance"),
     )
     .ok()?;
-    McpOrchestrator::new(db, service_repo, app_paths, registry).ok()
+    McpOrchestrator::new(service_repo, app_paths, registry).ok()
 }
 
 // Internal MCP servers are validated against the 5000-5999 range, so a port

@@ -17,7 +17,7 @@ pub mod schema;
 pub mod tool_provider;
 pub mod ui_renderer;
 
-pub use database::{DatabaseService, ServiceInfo};
+pub use database::{DatabaseService, ServiceInfo, ServiceLifecycleStatus};
 pub use deployment::DeploymentService;
 pub use lifecycle::LifecycleOrchestrator;
 pub use monitoring::MonitoringService;

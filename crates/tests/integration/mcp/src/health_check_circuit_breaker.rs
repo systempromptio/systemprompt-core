@@ -145,7 +145,7 @@ async fn service_started_event_resets_failure_counter() {
 
     bus.publish(McpEvent::ServiceStarted {
         service_name: "delta".to_owned(),
-        process_id: 1,
+        process_id: Some(1),
         port: 1,
     })
     .await

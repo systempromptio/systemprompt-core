@@ -10,6 +10,7 @@ use systemprompt_traits::StartupEventSender;
 use super::super::process::ProcessService;
 use super::McpOrchestrator;
 use super::events::McpEvent;
+use crate::services::database::stored_pid;
 
 impl McpOrchestrator {
     pub async fn start_services(&self, service_name: Option<String>) -> McpDomainResult<()> {
@@ -39,17 +40,23 @@ impl McpOrchestrator {
                 .await
             {
                 Ok(()) => {
-                    if let Ok(Some(service_info)) =
-                        self.database().get_service_by_name(&server.name).await
-                    {
-                        self.event_bus()
-                            .publish(McpEvent::ServiceStarted {
-                                service_name: server.name.clone(),
-                                process_id: service_info.pid.unwrap_or(0) as u32,
-                                port: server.port,
-                            })
-                            .await?;
-                    }
+                    let service_info = self
+                        .database()
+                        .get_service_by_name(&server.name)
+                        .await?
+                        .ok_or_else(|| {
+                            McpDomainError::Internal(format!(
+                                "service {} started but has no registry row",
+                                server.name
+                            ))
+                        })?;
+                    self.event_bus()
+                        .publish(McpEvent::ServiceStarted {
+                            service_name: server.name.clone(),
+                            process_id: stored_pid(service_info.pid),
+                            port: server.port,
+                        })
+                        .await?;
                 },
                 Err(e) => {
                     let error_msg = e.to_string();

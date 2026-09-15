@@ -48,7 +48,7 @@ impl UiRendererRegistry {
         self.renderers.keys().map(String::as_str).collect()
     }
 
-    pub async fn render(&self, artifact: &Artifact) -> McpDomainResult<UiResource> {
+    pub fn render(&self, artifact: &Artifact) -> McpDomainResult<UiResource> {
         let artifact_type = resolve_artifact_type(artifact);
 
         let renderer = self.get(artifact_type).ok_or_else(|| {
@@ -57,7 +57,7 @@ impl UiRendererRegistry {
             ))
         })?;
 
-        renderer.render(artifact).await
+        renderer.render(artifact)
     }
 }
 

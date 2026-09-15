@@ -11,7 +11,6 @@ use super::html::{HtmlBuilder, base_styles, html_escape, mcp_app_bridge_script};
 use super::typed::artifact_payload;
 use crate::error::McpDomainResult;
 use crate::services::ui_renderer::{CspPolicy, UiRenderer, UiResource};
-use async_trait::async_trait;
 use systemprompt_models::a2a::Artifact;
 use systemprompt_models::artifacts::{ArtifactType, MessageArtifact, NoticeLine};
 
@@ -24,13 +23,12 @@ impl MessageRenderer {
     }
 }
 
-#[async_trait]
 impl UiRenderer for MessageRenderer {
     fn artifact_type(&self) -> ArtifactType {
         ArtifactType::Message
     }
 
-    async fn render(&self, artifact: &Artifact) -> McpDomainResult<UiResource> {
+    fn render(&self, artifact: &Artifact) -> McpDomainResult<UiResource> {
         let message: MessageArtifact = artifact_payload(artifact)?;
         let title = artifact.title.as_deref().unwrap_or("Result");
 

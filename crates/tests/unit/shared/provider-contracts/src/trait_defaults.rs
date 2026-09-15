@@ -12,7 +12,7 @@ use serde_json::Value;
 use systemprompt_provider_contracts::{
     ContentDataContext, ContentDataProvider, FrontmatterContext, FrontmatterProcessor, PathsConfig,
     ProviderResult, RssFeedContext, RssFeedItem, RssFeedMetadata, RssFeedProvider, RssFeedSpec,
-    TemplateDefinition, TemplateProvider, ToolContext, ToolDefinition, ToolProvider,
+    TemplateDefinition, TemplateProvider, ToolContext, ToolDefinition, ToolInventory, ToolProvider,
     ToolProviderResult,
 };
 
@@ -106,8 +106,8 @@ impl ToolProvider for TwoToolProvider {
         &self,
         _agent_name: &AgentName,
         _context: &ToolContext,
-    ) -> ToolProviderResult<Vec<ToolDefinition>> {
-        Ok(vec![
+    ) -> ToolProviderResult<ToolInventory> {
+        Ok(ToolInventory::complete(vec![
             ToolDefinition::new(
                 "alpha",
                 McpServerId::try_new("svc").expect("valid McpServerId"),
@@ -116,7 +116,7 @@ impl ToolProvider for TwoToolProvider {
                 "beta",
                 McpServerId::try_new("svc").expect("valid McpServerId"),
             ),
-        ])
+        ]))
     }
 
     async fn refresh_connections(&self, _agent_name: &AgentName) -> ToolProviderResult<()> {

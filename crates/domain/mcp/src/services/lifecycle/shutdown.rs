@@ -6,7 +6,7 @@
 use super::LifecycleOrchestrator;
 use crate::McpServerConfig;
 use crate::error::McpDomainResult;
-use crate::services::network::NetworkService;
+use crate::services::database::ServiceLifecycleStatus;
 use crate::services::process::ProcessService;
 
 pub async fn stop_server(
@@ -23,7 +23,7 @@ pub async fn stop_server(
 
     manager
         .database()
-        .update_service_status(&config.name, "stopping")
+        .update_service_status(&config.name, ServiceLifecycleStatus::Stopping)
         .await?;
 
     perform_graceful_shutdown(manager, config, pid).await?;
@@ -68,11 +68,9 @@ async fn finalize_shutdown(
 ) -> McpDomainResult<()> {
     manager
         .database()
-        .update_service_status(&config.name, "stopped")
+        .update_service_status(&config.name, ServiceLifecycleStatus::Stopped)
         .await?;
     manager.database().clear_service_pid(&config.name).await?;
-
-    NetworkService::cleanup_port_resources(config.port);
 
     Ok(())
 }

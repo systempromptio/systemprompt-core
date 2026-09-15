@@ -111,8 +111,8 @@ mod tooled_executor_tests {
     use systemprompt_identifiers::{AgentName, ContextId, McpServerId, SessionId, TraceId};
     use systemprompt_models::execution::context::RequestContext;
     use systemprompt_traits::{
-        ToolCallRequest, ToolCallResult, ToolContent, ToolContext, ToolDefinition, ToolProvider,
-        ToolProviderError, ToolProviderResult,
+        ToolCallRequest, ToolCallResult, ToolContent, ToolContext, ToolDefinition, ToolInventory,
+        ToolProvider, ToolProviderError, ToolProviderResult,
     };
 
     struct ScriptedToolProvider {
@@ -135,8 +135,8 @@ mod tooled_executor_tests {
             &self,
             _agent_name: &AgentName,
             _context: &ToolContext,
-        ) -> ToolProviderResult<Vec<ToolDefinition>> {
-            Ok(vec![])
+        ) -> ToolProviderResult<ToolInventory> {
+            Ok(ToolInventory::default())
         }
 
         async fn call_tool(

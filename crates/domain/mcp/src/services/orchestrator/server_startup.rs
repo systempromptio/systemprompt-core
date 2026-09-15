@@ -8,7 +8,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::error::McpDomainResult;
+use crate::error::{McpDomainError, McpDomainResult};
 use std::collections::HashSet;
 use std::sync::Arc;
 use systemprompt_traits::StartupEventSender;
@@ -16,7 +16,7 @@ use systemprompt_traits::StartupEventSender;
 use super::event_bus::EventBus;
 use super::events::McpEvent;
 use crate::McpServerConfig;
-use crate::services::database::DatabaseService;
+use crate::services::database::{DatabaseService, stored_pid};
 use crate::services::lifecycle::LifecycleOrchestrator;
 
 pub(super) struct StartPendingServersParams<'a> {
@@ -57,7 +57,7 @@ pub(super) async fn start_pending_servers(
     notify_reconciliation_complete(events, started_count, servers.len());
 
     if !failed.is_empty() {
-        return Err(crate::error::McpDomainError::Internal(format!(
+        return Err(McpDomainError::Internal(format!(
             "Failed to start {} MCP service(s): {}",
             failed.len(),
             failed
@@ -114,26 +114,34 @@ async fn publish_start_success(
     event_bus: &Arc<EventBus>,
     duration_ms: u64,
 ) -> McpDomainResult<()> {
-    if let Ok(Some(service_info)) = database.get_service_by_name(&server.name).await {
-        event_bus
-            .publish(McpEvent::ServiceStartCompleted {
-                service_name: server.name.clone(),
-                success: true,
-                pid: service_info.pid.map(|p| p as u32),
-                port: Some(server.port),
-                error: None,
-                duration_ms,
-            })
-            .await?;
+    let service_info = database
+        .get_service_by_name(&server.name)
+        .await?
+        .ok_or_else(|| {
+            McpDomainError::Internal(format!(
+                "service {} started but has no registry row",
+                server.name
+            ))
+        })?;
+    let pid = stored_pid(service_info.pid);
+    event_bus
+        .publish(McpEvent::ServiceStartCompleted {
+            service_name: server.name.clone(),
+            success: true,
+            pid,
+            port: Some(server.port),
+            error: None,
+            duration_ms,
+        })
+        .await?;
 
-        event_bus
-            .publish(McpEvent::ServiceStarted {
-                service_name: server.name.clone(),
-                process_id: service_info.pid.unwrap_or(0) as u32,
-                port: server.port,
-            })
-            .await?;
-    }
+    event_bus
+        .publish(McpEvent::ServiceStarted {
+            service_name: server.name.clone(),
+            process_id: pid,
+            port: server.port,
+        })
+        .await?;
     Ok(())
 }
 
