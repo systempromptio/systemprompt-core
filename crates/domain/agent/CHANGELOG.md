@@ -15,6 +15,7 @@
 - **Breaking:** `process::command::build_agent_environment(&AgentEnvironmentParams, lookup)`; `registry::load_agent_skills_from_dir` returns `AgentResult` and `to_agent_card` fails when an advertised skill cannot be loaded; `ConfigAuthoringError::{NoDefaultProvider, NoDefaultModel, ServicesConfig}` replace the hard-coded provider/model defaults on `create`.
 - **Breaking:** `handlers::request::handle_agent_request(State, Option<Extension<RequestContext>>, HeaderMap, Bytes)` and the POST router carries `DefaultBodyLimit::max(A2A_MAX_REQUEST_BODY_BYTES)` (8 MiB, 413 when exceeded). `validation::validate_message_context(message, &UserId, ..)` / `validate_task_owner` return `ContextValidationError`.
 - **Breaking:** `WebhookService::new` returns `IntegrationResult<Self>` and `WebhookService` no longer implements `Default`; a guarded client that cannot be built is an error at construction rather than a disabled delivery path. Migrate by propagating the error.
+- **Breaking:** `StreamEvent::ToolResult { ai_tool_call_id: AiToolCallId, result }` names the LLM tool-call id it broadcasts instead of a `call_id: String`. Migrate by matching the typed field.
 
 ### Added
 

@@ -41,6 +41,7 @@ lifetimes, ID-JAG `email_verified`, reusable approvals, CLI double execution,
 - **Runtime / Scheduler:** `Subsystems.event_bridge` is an `EventBridgeHandle`; `database_cleanup` sweeps only `logs`; the evaluator materialises workspaces from the typed `RevisionBundle`.
 - **CLI:** `plugins capabilities llm-providers` and the LLM-provider counters in `plugins list|show` are removed.
 - **Runtime:** `TraceQueryService::list_audit_messages` / `list_audit_tool_calls` take an `AuditPage` (`AuditPage::ALL` for the previous behaviour). **Analytics:** `RequestAnalyticsRepository::list_requests(start, end, &RequestListFilter)` replaces the `(limit, model)` arguments; `ConversationAnalyticsRepository::{list_agent_contexts, list_gateway_sessions}` take a trailing `user: Option<&str>`; `ConversationListRow` and `GatewaySessionListRow` gain `user_id`. **CLI:** `infra logs audit` no longer includes messages or tool calls unless asked.
+- **Security:** `ApprovalRequest::{call_id, requested_by, approver_id}` and `DecisionAudit::call_id` are typed (`CallId` / `UserId`); `build_authz_hook` takes `Arc<PgPool>`. **Agent:** `StreamEvent::ToolResult` carries `ai_tool_call_id: AiToolCallId`. **Evaluation:** `DeterministicMeasurement` accepts only `checks` on the wire. **Runtime:** `SkillOptimizationOrchestrator::new(managed, evaluations)`.
 
 ### Added
 
@@ -68,6 +69,7 @@ lifetimes, ID-JAG `email_verified`, reusable approvals, CLI double execution,
 - **CLI:** `infra logs request list --until <time>` and `--before <cursor>`; every row carries a `cursor` (`<created_at RFC3339>@<request_id>`) in JSON output and `--before` returns strictly older rows, keyset on `(created_at, id)`. `RequestCursor` and `AiRequestFilter::{with_until, with_before}` in `systemprompt-runtime`.
 - **CLI:** `infra logs audit` is counts-only by default (`message_count`, `tool_call_count`) and takes `--messages` / `--tools` to include the rows, `--offset` / `--limit` (0 = all) to page them and `--max-content <chars>` to bound each body; the card reports `offset` and `has_more`. `TraceQueryService::{count_audit_messages, count_audit_tool_calls}` and an `AuditPage` on the two list queries.
 - **Analytics:** `analytics costs breakdown --by user` — spend, requests, tokens and distinct conversations per user, named `<user_id> (<display name>)`; `CostAnalyticsRepository::get_breakdown_by_user`. `analytics requests list --user <id> --offset <n>` (`RequestListFilter`). `analytics conversations list --source agent|gateway|all` (default `all`) and `--user <id>`: gateway sessions are listed beside agent contexts, with `source` and `user_id` columns.
+- **Evaluation / Marketplace / Runtime / Scheduler:** `CampaignRepository::PAGE_SIZE`; migration 009 persists `managed_publication_reviews.experiment_id`; `optimization::EvaluationEvidence` hashes attestation evidence as canonical JSON; `SchedulerError::Evaluation`.
 
 ### Changed
 
@@ -130,6 +132,7 @@ lifetimes, ID-JAG `email_verified`, reusable approvals, CLI double execution,
 - A feedback snapshot range job whose assembly fails is marked `failed` with a diagnostic and is no longer re-leased on every run.
 - Attaching a holdout run to a proposal that is unconfirmed or already bound to another experiment now returns a conflict instead of reporting success.
 - **CLI:** `--json` / `--yaml` (and `SYSTEMPROMPT_OUTPUT_FORMAT`) now emit the artifact for a command whose result was flagged terminal-skip — every empty-result path, 66 sites — instead of printing nothing. An MCP wrapper reading stdout saw `""` where it should have seen an empty table. `skip_render` suppresses terminal rendering only, as documented.
+- **Secrets (fail closed):** core initialisation, `core services refresh`, the bridge release feed (503) and the Teams inbound route (503) fail when the secrets store is unavailable instead of resolving every credential to `None`, calling GitHub anonymously, or acknowledging and dropping the activity.
 
 ### Removed
 

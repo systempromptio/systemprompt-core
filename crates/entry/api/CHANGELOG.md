@@ -29,6 +29,7 @@
 - A gateway accounting failure is retained on the `ai_requests` row (`mark_accounting_failed`) and never replaces a settled provider receipt; the receipt journal records the failure alongside the completion.
 - Consumer problems are aligned across authentication, extraction and domain failures; retry status is isolated per operation; the problem-JSON normalisation guard is one match.
 - `GET /analytics/jobs/{operation}` and the holdout proposal routes parse typed `AnalyticsSnapshotJobId` / `EvalHoldoutProposalId` path segments.
+- `routes::evaluation::campaigns::OptimizationState` is the evaluation admin router state: the `SkillOptimizationOrchestrator` is built once at mount time instead of per request; `AppContext` is reachable through `FromRef`.
 
 ### Fixed
 
@@ -39,6 +40,7 @@
 - An MCP request carrying an invalid, revoked or orphaned bearer is answered with the RFC 6750 §3.1 challenge (`WWW-Authenticate: Bearer … error="invalid_token"` plus the RFC 9728 `resource_metadata`) and an `invalid_token` body, instead of the generic 401 that dropped the error code.
 - The authorization endpoint attaches `redirect_uri` to an error response only after confirming it is registered for `client_id`; an unknown client or unregistered URI renders a 400 error page with no `Location` (RFC 6749 §4.1.2.1). A registered redirect that already carries a query is appended with `&`.
 - The MCP proxy stores and forwards the caller's roles on session-only follow-ups, so role-granted servers admit proxied calls.
+- The bridge release feed answers 503 when its configured GitHub token secret cannot be resolved instead of calling GitHub anonymously; the Teams inbound route answers 503 when the app password or services config is unavailable instead of acknowledging and dropping the activity.
 
 ### Removed
 

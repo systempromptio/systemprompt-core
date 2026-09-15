@@ -30,6 +30,7 @@
 - `cloud profile show` prints a warning when the profile or services config cannot be loaded; a failed container cleanup after a failed `cloud tenant create` start is reported.
 
 - `core files upload --context` and `core artifacts list --context` validate the id and report an error instead of aborting the process on a malformed value.
+- `core services refresh` requires the secrets store up front and fails before contacting any source when it is unavailable, instead of resolving every credential to `None`.
 
 ### Fixed
 

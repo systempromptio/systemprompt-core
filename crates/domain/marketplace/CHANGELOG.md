@@ -21,6 +21,7 @@
 - `inventory` module: canonical configured-and-managed inventory with explicit adoption and observed membership, retained baselines and captures, Git bindings, reconciliation conflicts and per-host installation coverage (`InventoryEntryId`). Migrations 006 (`managed_inventory_*`) and 007 (`managed_installation_coverage*`). Explicit binding candidates are bounded by owner and key.
 - `managed::operations`: durable fenced administrative operations that retain typed input checkpoints (`managed_api_operations`, migration 008) — credential issuance and inventory capture are addressed by `Idempotency-Key`.
 - `ManagedRepository` implements `systemprompt_traits::ManagedRevisionOwnership`, the owner-scoped revision → resource lookup other domains verify against.
+- Migration 009 adds `managed_publication_reviews.experiment_id`; an improvement review persists the attested experiment in that column and history reads it back from there.
 
 ### Changed
 
@@ -30,6 +31,7 @@
 - Organisation publications enforce consumer grants; delivery identity is fenced and reconciliation state retained; managed skills resolve for the requesting user; Git credentials are redacted in diagnostic request types; the fetched commit is resolved with `git rev-list --max-count=1 FETCH_HEAD`. Host aliases keep `codex-cli`/`codex` and `opencode`/`open-code` compatible; the retained resource owner supplies grant ownership.
 - The six-argument inventory, capture, verification and binding signatures are grouped behind `BaselineScope`, `GitCaptureRequest`, `GitTreeRead` and `GitSourceBinding`; `catalog/content.rs` is `catalog/content/mod.rs` with `managed.rs` beside it; `managed/assets.rs` and `managed/manifest.rs` are gone (the types live in `systemprompt_models::managed`).
 - Plugin script import and consumer attribution correction take `PluginId` / `InvocationAttributionId` instead of raw strings.
+- A publication request that names an `experiment_id` on any action other than `publish_improvement` is `Invalid`.
 
 ### Fixed
 

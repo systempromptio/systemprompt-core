@@ -6,6 +6,8 @@
 
 - `services::evaluator::adapters`: native adapters for Claude Code (`claude_code`), Codex (`codex-native-v1`, Codex 0.154.0), OpenCode (`opencode-native-v2`, OpenCode 1.18.29) and Hermes (`hermes-native-v1`, Hermes 0.21.3) under one container supervisor (`container_builder`, `container_verification`, `docker`, `network_process`, `supervisor_*`) that verifies retained image and executable digests, applies network and resource limits, runs each client behind an authenticated loopback relay with a per-run credential, counts every provider attempt before forwarding, captures raw evidence and confirms cleanup. Gateway requests remain the accounting authority; native token fields are advisory. Pinned client checks run without credentials, workspace mounts or networking; a workspace that cannot be established is a failed launch. See `adapters/README.md`.
 - `feedback_facts_processing` (every five seconds, bounded `drain`) and `feedback_snapshot_processing` jobs run the analytics facts and snapshot workers on the system admin's queues — the owner the analytics routes read under — whatever actor the schedule is configured with; `managed_inventory_refresh` reconciles configured and managed inventory at startup and every minute after catalog changes.
+- `feedback_facts_processing` (every five seconds, bounded `drain`) and `feedback_snapshot_processing` jobs run the analytics facts and snapshot workers under the configured job owner; `managed_inventory_refresh` reconciles configured and managed inventory at startup and every minute after catalog changes.
+- `SchedulerError::Evaluation(EvaluationError)`; the evaluation supervisor pages campaigns by `CampaignRepository::PAGE_SIZE`.
 
 ### Changed
 

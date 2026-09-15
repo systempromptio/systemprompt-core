@@ -7,6 +7,8 @@
 - **Breaking:** `ApprovalRepository`, `GovernanceAuditRepository::insert`, `insert_governance_decision`, `record_decision` and the governance warning queries return `systemprompt_database::RepositoryError` instead of `sqlx::Error`.
 - **Breaking:** `GovernanceEngine::global()` is removed. The engine is built once at the composition root with `GovernanceEngine::from_services_root(&profile.paths.services)` and reached through `AppContext::governance()`; a missing `governance/config.yaml` still yields the warn-only defaults, a rejected one refuses the boot. Migrate by taking the engine from `AppContext`.
 - **Breaking:** `DecisionAudit::context_id` is `Option<ContextId>` and `ApprovalRequest::session_id` is `Option<SessionId>`. Migrate by passing the typed ids.
+- **Breaking:** `ApprovalRequest::call_id` is a `CallId`, `requested_by` a `UserId` and `approver_id` an `Option<UserId>`; `DecisionAudit::call_id` is a `CallId`; `ApprovalRepository::{find, resolve}` and `wait_for_decision` take `&CallId`. Migrate by passing the typed ids.
+- **Breaking:** `build_authz_hook` takes `Arc<PgPool>` instead of `Option<Arc<PgPool>>`; the rule-based hook and the database audit sink are always composed. Migrate by passing the write pool.
 
 ### Added
 

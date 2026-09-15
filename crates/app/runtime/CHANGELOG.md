@@ -7,6 +7,7 @@
 - **Breaking:** `Subsystems.event_bridge` holds an `EventBridgeHandle` instead of a `JoinHandle`; shutdown cancels and joins it.
 - **Breaking:** `HoldoutConfirmationTarget::id` is `EvalHoldoutProposalId`. Migrate by constructing it with `EvalHoldoutProposalId::try_new`.
 - **Breaking:** `TraceQueryService::list_audit_messages` / `list_audit_tool_calls` take an `AuditPage` (`AuditPage::ALL` for the previous behaviour).
+- **Breaking:** `SkillOptimizationOrchestrator::new(managed, evaluations)` drops the separate `RevisionRepository` argument and reads revisions from `EvaluationRepositories::revisions`. Migrate by removing the third argument.
 
 ### Added
 
@@ -21,6 +22,7 @@
 - `optimization` module: cross-domain source verification and evaluation attestation (`candidate`, `capture`, `diagnostics`, `holdout`, `inventory`, `iteration`) and `GitSourceOrchestrator` (`git_sources`), the application-owned credential resolution for Git import, sync and verification.
 - `AppContext::feedback_facts_repository()` and `feedback_snapshots_repository()`; the repository accessors live in `context::repositories`; `AppContext::analytics_repositories()` is built with the users session store, the logging event store and the content catalog stats.
 - `trace::RequestCursor` and `AiRequestFilter::{with_until, with_before}` for keyset paging of request logs; `TraceQueryService::{count_audit_messages, count_audit_tool_calls}` and `AuditPage` on the two audit list queries.
+- `optimization::EvaluationEvidence`: the facts an evaluation attestation commits to, with `digest()` hashing them as canonical JSON (RFC 8785) so field order never changes the attested digest.
 
 ### Changed
 
@@ -35,6 +37,7 @@
 - `AppContext` construction fails when the governance audit sink cannot obtain the write pool instead of silently installing a null audit sink.
 
 - Boot no longer fails with `Context … not found for user` after the system admin changes: the legacy context (`ContextId::legacy()`) is re-homed onto the current admin through `ensure_system_context` instead of the user-scoped `ensure_context`.
+- Core initialisation resolves the secrets store once and fails when it is unavailable, instead of resolving every services-bundle source credential to `None`.
 
 ## [0.52.0] - 2026-09-14
 
