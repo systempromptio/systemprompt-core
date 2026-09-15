@@ -23,7 +23,6 @@ use super::types::{ConfigFileInfo, ConfigSection, ConfigValidateOutput, read_yam
 use crate::CliConfig;
 use crate::shared::CommandOutput;
 use systemprompt_loader::ConfigLoader;
-use systemprompt_logging::CliService;
 use systemprompt_models::profile::Profile;
 use systemprompt_scheduler::SchedulerConfig;
 
@@ -133,20 +132,7 @@ fn print_profile_schema() -> Result<(CommandOutput, bool)> {
     let schema = schemars::schema_for!(Profile);
     let json = serde_json::to_string_pretty(&schema)
         .map_err(|e| anyhow!("failed to serialize Profile JSON schema: {e}"))?;
-    CliService::output(&json);
-
-    let output = ConfigValidateOutput {
-        files: Vec::new(),
-        all_valid: true,
-    };
-    Ok((
-        CommandOutput::table_of(
-            vec!["path", "section", "exists", "valid", "error"],
-            &output.files,
-        )
-        .with_skip_render(),
-        true,
-    ))
+    Ok((CommandOutput::text(json), true))
 }
 
 fn validate_profile_file(path: &std::path::Path) -> Result<(CommandOutput, bool)> {

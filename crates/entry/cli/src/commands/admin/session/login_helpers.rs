@@ -66,10 +66,7 @@ pub(super) async fn try_use_existing_session(
     };
 
     if args.token_only {
-        CliService::output(session_token.as_str());
-        return Ok(Some(
-            CommandOutput::card_value("Admin Session", &output).with_skip_render(),
-        ));
+        return Ok(Some(CommandOutput::text(session_token.as_str())));
     }
 
     CliService::success("Using existing valid session");
