@@ -21,6 +21,7 @@ fn summary() -> SyncSummary {
             host_id: HostId::new("claude-desktop"),
             emitter: "claude-desktop".to_owned(),
             error: "profile write denied by policy".into(),
+            needs_elevation: false,
         }],
         host_warnings: Vec::new(),
         diagnostics: vec!["a skill is missing from every plugin's skills.include".into()],
@@ -41,6 +42,17 @@ fn host_failures_survive_as_structured_rows() {
         value["host_failures"][0]["error"],
         json!("profile write denied by policy")
     );
+    assert_eq!(value["host_failures"][0]["needs_elevation"], json!(false));
+}
+
+// Why: the front end offers "Repair as administrator" only for a failure the
+// sync classified as elevation-required; the flag must reach it as a field.
+#[test]
+fn an_elevation_required_failure_carries_its_flag_on_the_wire() {
+    let mut s = summary();
+    s.host_failures[0].needs_elevation = true;
+    let value = serde_json::to_value(s).expect("summary serialises");
+    assert_eq!(value["host_failures"][0]["needs_elevation"], json!(true));
 }
 
 #[test]

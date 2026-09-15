@@ -29,6 +29,7 @@ fn payload<'a>(proxy: &'a ProxyHealth, update: &'a UpdateUiState) -> StatePayloa
         credential_error: None,
         startup_faults: Vec::new(),
         sync_in_flight: false,
+        elevated: false,
         cached_token: Some(CachedTokenPayload {
             ttl_seconds: 300,
             length: 123,

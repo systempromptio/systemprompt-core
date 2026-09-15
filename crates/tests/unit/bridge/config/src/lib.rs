@@ -2,6 +2,8 @@
 
 #[cfg(test)]
 mod access_denied;
+
+mod hive_report;
 #[cfg(test)]
 mod policy_store;
 #[cfg(test)]

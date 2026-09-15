@@ -5,7 +5,9 @@ use systemprompt_bridge::gui::state::{
 use systemprompt_bridge::obs::StartupFault;
 use systemprompt_bridge::verdict::Tone;
 use systemprompt_bridge::wire::DeviceAction;
-use systemprompt_bridge::wire::codes::{HealthCode, IdentityCode};
+use systemprompt_bridge::ids::HostId;
+use systemprompt_bridge::sync::{HostFailure, SyncSummary};
+use systemprompt_bridge::wire::codes::{HealthCode, IdentityCode, OverallCode};
 
 fn reachable() -> AppStateSnapshot {
     AppStateSnapshot {
@@ -157,4 +159,87 @@ fn a_later_clean_probe_clears_the_credential_error() {
         "a stale rejection must not outlive the probe that resolved it"
     );
     assert_eq!(snap.identity_verdict().code, IdentityCode::SignedIn);
+}
+
+fn signed_in_after_sync() -> AppStateSnapshot {
+    let mut snap = reachable();
+    snap.verified_identity = Some(identity());
+    snap.last_sync_summary = Some("sync ok (user@example.com)".to_owned());
+    snap
+}
+
+fn report(host_failures: Vec<HostFailure>) -> SyncSummary {
+    SyncSummary {
+        identity: "user@example.com".into(),
+        manifest_version: "2026-09-15T00:00:00Z-deadbeef".into(),
+        plugin_count: 3,
+        skill_count: 8,
+        rule_count: 0,
+        agent_count: 0,
+        hook_count: 0,
+        mcp_count: 2,
+        artifact_count: 1,
+        installed: vec![],
+        updated: vec!["a".into(), "b".into(), "c".into()],
+        removed: vec![],
+        malformed: vec![],
+        host_failures,
+        host_warnings: Vec::new(),
+        diagnostics: vec![],
+    }
+}
+
+#[test]
+fn a_clean_sync_report_reads_as_synced() {
+    let mut snap = signed_in_after_sync();
+    snap.last_sync_report = Some(report(vec![]));
+    let verdict = snap.overall_verdict();
+    assert_eq!(verdict.code, OverallCode::Synced);
+    assert_eq!(verdict.tone, Tone::Ok);
+    assert!(!snap.last_sync_degraded());
+}
+
+// Why: the header pill said "synced" beside a toast naming a host that had
+// failed; the run's own report, not the presence of a summary line, decides.
+#[test]
+fn a_host_failure_in_the_last_report_reads_as_degraded_even_with_a_summary() {
+    let mut snap = signed_in_after_sync();
+    snap.last_sync_report = Some(report(vec![HostFailure {
+        host_id: HostId::new("claude-desktop"),
+        emitter: "claude-desktop".to_owned(),
+        error: "mdm refresh: HKLM shadows HKCU".into(),
+        needs_elevation: true,
+    }]));
+    let verdict = snap.overall_verdict();
+    assert_eq!(verdict.code, OverallCode::Degraded);
+    assert_eq!(verdict.tone, Tone::Warn);
+    assert!(snap.last_sync_degraded());
+}
+
+#[test]
+fn a_partial_run_that_left_no_summary_line_is_still_degraded_not_ready() {
+    let mut snap = signed_in_after_sync();
+    snap.last_sync_summary = None;
+    let mut summary = report(vec![]);
+    summary.malformed = vec!["broken-plugin".into()];
+    snap.last_sync_report = Some(summary);
+    assert_eq!(snap.overall_verdict().code, OverallCode::Degraded);
+}
+
+#[test]
+fn syncing_and_offline_outrank_a_degraded_report() {
+    let mut snap = signed_in_after_sync();
+    snap.last_sync_report = Some(report(vec![HostFailure {
+        host_id: HostId::new("codex-cli"),
+        emitter: "codex-cli".to_owned(),
+        error: "permission denied".into(),
+        needs_elevation: false,
+    }]));
+    snap.sync_in_flight = true;
+    assert_eq!(snap.overall_verdict().code, OverallCode::Syncing);
+    snap.sync_in_flight = false;
+    snap.gateway_status = GatewayStatus::Unreachable {
+        reason: "timeout".into(),
+    };
+    assert_eq!(snap.overall_verdict().code, OverallCode::Offline);
 }

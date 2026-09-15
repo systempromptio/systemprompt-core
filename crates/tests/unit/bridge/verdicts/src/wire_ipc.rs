@@ -23,6 +23,11 @@ fn error_scopes_and_codes_serialise_as_snake_case_the_catalogue_keys_on() {
     assert_eq!(json_of(&ErrorCode::InvalidFormat), json!("invalid_format"));
     assert_eq!(json_of(&ErrorCode::NotFound), json!("not_found"));
     assert_eq!(json_of(&ErrorCode::Unauthorized), json!("unauthorized"));
+    assert_eq!(
+        json_of(&ErrorCode::ElevationRequired),
+        json!("elevation_required")
+    );
+    assert_eq!(json_of(&ErrorCode::Partial), json!("partial"));
 }
 
 #[test]
