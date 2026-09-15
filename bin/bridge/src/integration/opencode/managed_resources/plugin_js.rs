@@ -54,12 +54,11 @@ pub(super) fn write_hook_plugin(
             context: format!("loopback hook token for OpenCode plugin ({})", plugin.id),
             source,
         })?;
-    let map = serde_json::to_string(&skill_map(manifest)).map_err(|source| {
-        ApplyError::Serialize {
+    let map =
+        serde_json::to_string(&skill_map(manifest)).map_err(|source| ApplyError::Serialize {
             what: "OpenCode skill map".to_owned(),
             source,
-        }
-    })?;
+        })?;
     let body = TEMPLATE
         .replace(
             "__TRACK_URL__",
