@@ -108,7 +108,7 @@ impl Outbox {
                 .ok_or(FeedbackError::Scope)?;
             pending.attempts = pending.attempts.saturating_add(1);
             pending.next_attempt = Utc::now()
-                + chrono::Duration::seconds(2_i64.pow(pending.attempts.min(10)).min(3600));
+                + chrono::Duration::seconds(2i64.pow(pending.attempts.min(10)).min(3600));
             Ok(())
         })
     }

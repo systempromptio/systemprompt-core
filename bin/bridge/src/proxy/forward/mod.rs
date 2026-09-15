@@ -147,41 +147,12 @@ pub(crate) async fn forward(
 
     headers::ensure_ingestion_delivery_id(&request_path, &mut upstream_headers)?;
     if hook_plugin.is_some() && request_path == "/api/public/hooks/track" {
-        let host = parts
-            .headers
-            .get("x-systemprompt-host")
-            .and_then(|value| value.to_str().ok());
-        if let Err(error) = crate::feedback::hooks::authenticate_forwarded_hook(
-            gateway_base.as_str(),
-            host,
+        authenticate_hook_track(
+            gateway_base,
+            &parts.headers,
+            &buffered_body,
             &mut upstream_headers,
-        ) {
-            if !matches!(error, crate::feedback::FeedbackError::EnrollmentRequired) {
-                return Err(ForwardError::Auth(
-                    "Device evidence authentication unavailable".to_owned(),
-                ));
-            }
-        }
-        if let Ok(value) = serde_json::from_slice::<serde_json::Value>(&buffered_body) {
-            if let (Some(host), Some(session)) = (
-                host.and_then(crate::feedback::client_kind),
-                value.get("session_id").and_then(serde_json::Value::as_str),
-            ) {
-                if let Ok(root) = crate::feedback::metadata_root() {
-                    if let Ok(enrollment) =
-                        crate::feedback::credentials::Enrollment::load(&root, gateway_base.as_str())
-                    {
-                        let outbox = crate::feedback::outbox::Outbox::new(
-                            enrollment.outbox_path(&root),
-                            crate::feedback::outbox::OutboxScope::from_enrollment(&enrollment),
-                        );
-                        if let Err(error) = outbox.queue_session(host, session) {
-                            tracing::debug!(%error,"Hook native session awaits binding");
-                        }
-                    }
-                }
-            }
-        }
+        )?;
     }
 
     let upstream_response = send_with_replay(UpstreamRequest {
@@ -252,6 +223,45 @@ pub(crate) async fn forward(
     };
 
     Ok(response_builder.body(body)?)
+}
+
+fn authenticate_hook_track(
+    gateway_base: &ValidatedUrl,
+    request_headers: &http::HeaderMap,
+    buffered_body: &[u8],
+    upstream_headers: &mut http::HeaderMap,
+) -> ForwardResult<()> {
+    let host = request_headers
+        .get("x-systemprompt-host")
+        .and_then(|value| value.to_str().ok());
+    if let Err(error) = crate::feedback::hooks::authenticate_forwarded_hook(
+        gateway_base.as_str(),
+        host,
+        upstream_headers,
+    ) && !matches!(error, crate::feedback::FeedbackError::EnrollmentRequired)
+    {
+        return Err(ForwardError::Auth(
+            "Device evidence authentication unavailable".to_owned(),
+        ));
+    }
+    if let Ok(value) = serde_json::from_slice::<serde_json::Value>(buffered_body)
+        && let (Some(host), Some(session)) = (
+            host.and_then(crate::feedback::client_kind),
+            value.get("session_id").and_then(serde_json::Value::as_str),
+        )
+        && let Ok(root) = crate::feedback::metadata_root()
+        && let Ok(enrollment) =
+            crate::feedback::credentials::Enrollment::load(&root, gateway_base.as_str())
+    {
+        let outbox = crate::feedback::outbox::Outbox::new(
+            enrollment.outbox_path(&root),
+            crate::feedback::outbox::OutboxScope::from_enrollment(&enrollment),
+        );
+        if let Err(error) = outbox.queue_session(host, session) {
+            tracing::debug!(%error, "Hook native session awaits binding");
+        }
+    }
+    Ok(())
 }
 
 fn require_hook_credential(credential: &LoopbackCredential, plugin_id: &str) -> ForwardResult<()> {

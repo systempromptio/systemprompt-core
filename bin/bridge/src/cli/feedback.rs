@@ -20,7 +20,7 @@ pub(super) fn enroll(ctx: &crate::context::BridgeContext, args: &[String]) -> Ex
             return Err(FeedbackError::EnrollmentRequired);
         }
         let secret = zeroize::Zeroizing::new(std::fs::read_to_string(path)?);
-        let config = crate::config::load().map_err(|_| FeedbackError::Scope)?;
+        let config = crate::config::load()?;
         let gateway = crate::config::gateway_url_or_default(&config);
         let response = ctx.block_on(crate::feedback::transport::enroll(
             gateway.as_str(),
@@ -28,17 +28,16 @@ pub(super) fn enroll(ctx: &crate::context::BridgeContext, args: &[String]) -> Ex
         ))?;
         let root = crate::feedback::metadata_root()?;
         let mut enrollment = Enrollment::new(
-            gateway.to_string(),
+            gateway.as_str(),
             response.device_id,
             response.consumer_id,
             crate::ids::BearerToken::new(secret.trim().to_owned()),
         )?;
-        if let Ok(previous) = Enrollment::load(&root, gateway.as_str()) {
-            if previous.consumer_id == enrollment.consumer_id
-                && previous.device_id == enrollment.device_id
-            {
-                enrollment.installation_id = previous.installation_id;
-            }
+        if let Ok(previous) = Enrollment::load(&root, gateway.as_str())
+            && previous.consumer_id == enrollment.consumer_id
+            && previous.device_id == enrollment.device_id
+        {
+            enrollment.installation_id = previous.installation_id;
         }
         enrollment.save(&root)?;
         crate::stdio::print_line(&format!(
@@ -60,7 +59,7 @@ pub(super) fn enroll(ctx: &crate::context::BridgeContext, args: &[String]) -> Ex
 
 pub(super) fn status() -> ExitCode {
     let result = (|| -> Result<()> {
-        let config = crate::config::load().map_err(|_| FeedbackError::Scope)?;
+        let config = crate::config::load()?;
         let root = crate::feedback::metadata_root()?;
         let enrollment = Enrollment::load(
             &root,

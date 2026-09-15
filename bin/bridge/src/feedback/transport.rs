@@ -25,7 +25,7 @@ fn client() -> Result<reqwest::Client> {
         .connect_timeout(std::time::Duration::from_secs(5))
         .timeout(std::time::Duration::from_secs(20))
         .build()
-        .map_err(|_| FeedbackError::Transport)
+        .map_err(FeedbackError::Http)
 }
 
 pub async fn enroll(gateway: &str, credential: &str) -> Result<EnrollmentResponse> {
@@ -38,8 +38,7 @@ pub async fn enroll(gateway: &str, credential: &str) -> Result<EnrollmentRespons
             .post(format!("{gateway}/api/v1/consumer-devices/enrollment"))
             .bearer_auth(credential)
             .send()
-            .await
-            .map_err(|_| FeedbackError::Transport)?,
+            .await?,
         4096,
     )
     .await
@@ -81,8 +80,7 @@ pub async fn plan(
             .get(url)
             .bearer_auth(enrollment.credential())
             .send()
-            .await
-            .map_err(|_| FeedbackError::Transport)?,
+            .await?,
         64 * 1024 * 1024,
     )
     .await?;
@@ -98,7 +96,7 @@ pub async fn plan(
     Ok(plan)
 }
 
-async fn post<T: Serialize, R: DeserializeOwned>(
+async fn post<T: Serialize + Sync, R: DeserializeOwned>(
     enrollment: &Enrollment,
     path: &str,
     body: &T,
@@ -109,8 +107,7 @@ async fn post<T: Serialize, R: DeserializeOwned>(
             .bearer_auth(enrollment.credential())
             .json(body)
             .send()
-            .await
-            .map_err(|_| FeedbackError::Transport)?,
+            .await?,
         1024 * 1024,
     )
     .await
@@ -127,11 +124,7 @@ async fn decode<T: DeserializeOwned>(mut response: reqwest::Response, maximum: u
         return Err(FeedbackError::Transport);
     }
     let mut bytes = Vec::new();
-    while let Some(chunk) = response
-        .chunk()
-        .await
-        .map_err(|_| FeedbackError::Transport)?
-    {
+    while let Some(chunk) = response.chunk().await? {
         if bytes.len().saturating_add(chunk.len()) > maximum {
             return Err(FeedbackError::Transport);
         }

@@ -74,7 +74,7 @@ pub struct Outbox {
 }
 
 impl Outbox {
-    pub fn new(path: PathBuf, scope: OutboxScope) -> Self {
+    pub const fn new(path: PathBuf, scope: OutboxScope) -> Self {
         Self { path, scope }
     }
 
@@ -107,7 +107,7 @@ impl Outbox {
     }
 
     pub fn enqueue(&self, mut request: ConsumerReceiptRequest) -> Result<String> {
-        request.validate().map_err(|_| FeedbackError::Readback)?;
+        request.validate()?;
         request
             .files
             .sort_by(|a, b| (&a.revision_id, &a.path).cmp(&(&b.revision_id, &b.path)));
@@ -195,7 +195,7 @@ impl Outbox {
                 Err(401 | 403) => Delivery::CredentialRejected,
                 Err(_) => Delivery::Unacknowledged,
             };
-            let backoff = 2_i64.pow(entry.attempts.min(10)).min(3600);
+            let backoff = 2i64.pow(entry.attempts.min(10)).min(3600);
             entry.next_attempt = Utc::now() + chrono::Duration::seconds(backoff);
             Ok(())
         })

@@ -127,7 +127,7 @@ fn validate_plan(plan: &ConsumerInstallationPlan) -> Result<()> {
     let mut seen = BTreeSet::new();
     let mut bytes = 0usize;
     for file in &plan.runtime_files {
-        validate_relative_path(&file.path).map_err(|_| FeedbackError::Readback)?;
+        validate_relative_path(&file.path)?;
         bytes = bytes.saturating_add(file.bytes.len());
         if !seen.insert(&file.path) || bytes > 24 * 1024 * 1024 {
             return Err(FeedbackError::Readback);
@@ -140,7 +140,7 @@ fn validate_plan(plan: &ConsumerInstallationPlan) -> Result<()> {
 }
 
 fn safe_target(root: &Path, relative: &str) -> Result<PathBuf> {
-    validate_relative_path(relative).map_err(|_| FeedbackError::Readback)?;
+    validate_relative_path(relative)?;
     let mut path = root.to_path_buf();
     reject_link(&path)?;
     for component in relative.split('/') {

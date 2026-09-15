@@ -112,14 +112,14 @@ fn device_or_account_change_cannot_replay_pending_evidence_but_rotation_can() {
     let rotated = Outbox::new(path, scope("original-device"));
     assert_eq!(rotated.entries().unwrap().len(), 1);
     let old = Enrollment::new(
-        "https://example.invalid".to_owned(),
+        "https://example.invalid",
         DeviceId::try_new("device").expect("nonempty fixture device"),
         UserId::new("consumer"),
         systemprompt_bridge::ids::BearerToken::new("sp_device_old"),
     )
     .unwrap();
     let new = Enrollment::new(
-        "https://example.invalid".to_owned(),
+        "https://example.invalid",
         DeviceId::try_new("device").expect("nonempty fixture device"),
         UserId::new("consumer"),
         systemprompt_bridge::ids::BearerToken::new("sp_device_rotated"),

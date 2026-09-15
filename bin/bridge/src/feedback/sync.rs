@@ -20,8 +20,7 @@ pub async fn retry_pending(gateway: &str) -> Result<()> {
         std::time::Duration::from_secs(10),
         deliver(&enrollment, &outbox),
     )
-    .await
-    .map_err(|_| FeedbackError::Transport)?
+    .await?
 }
 
 pub async fn deliver(enrollment: &Enrollment, outbox: &Outbox) -> Result<()> {
@@ -89,11 +88,7 @@ pub async fn deliver(enrollment: &Enrollment, outbox: &Outbox) -> Result<()> {
             }
         }
     }
-    if let Some(error) = failure {
-        Err(error)
-    } else {
-        Ok(())
-    }
+    failure.map_or(Ok(()), Err)
 }
 
 async fn recover_installation(
@@ -142,11 +137,7 @@ pub async fn recover_pending(
             },
         }
     }
-    if let Some(error) = failure {
-        Err(error)
-    } else {
-        Ok(())
-    }
+    failure.map_or(Ok(()), Err)
 }
 
 fn current_installation(
@@ -204,6 +195,5 @@ pub async fn recover_manifest_installations(
         }
         Ok(())
     })
-    .await
-    .map_err(|_| FeedbackError::Transport)?
+    .await?
 }

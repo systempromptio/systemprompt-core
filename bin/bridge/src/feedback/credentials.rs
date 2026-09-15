@@ -29,7 +29,7 @@ impl std::fmt::Debug for Enrollment {
 
 impl Enrollment {
     pub fn new(
-        gateway: String,
+        gateway: &str,
         device_id: DeviceId,
         consumer_id: UserId,
         credential: BearerToken,
@@ -37,7 +37,7 @@ impl Enrollment {
         if !credential.as_str().starts_with("sp_device_") || credential.as_str().len() > 256 {
             return Err(FeedbackError::EnrollmentRequired);
         }
-        let gateway = canonical_gateway(&gateway)?;
+        let gateway = canonical_gateway(gateway)?;
         Ok(Self {
             gateway,
             device_id,
@@ -82,7 +82,7 @@ impl Enrollment {
 }
 
 pub fn canonical_gateway(gateway: &str) -> Result<String> {
-    let url = url::Url::parse(gateway).map_err(|_| FeedbackError::Scope)?;
+    let url = url::Url::parse(gateway)?;
     let local = matches!(url.host_str(), Some("localhost" | "127.0.0.1" | "[::1]"));
     if (url.scheme() != "https" && !(url.scheme() == "http" && local))
         || !url.username().is_empty()

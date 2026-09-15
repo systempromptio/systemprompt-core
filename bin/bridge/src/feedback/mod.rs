@@ -34,6 +34,18 @@ pub enum FeedbackError {
     Readback,
     #[error("feedback transport is unavailable")]
     Transport,
+    #[error("feedback transport failed: {0}")]
+    Http(#[from] reqwest::Error),
+    #[error("feedback operation timed out: {0}")]
+    Timeout(#[from] tokio::time::error::Elapsed),
+    #[error("bridge configuration is unreadable: {0}")]
+    Config(#[from] crate::config::ConfigReadError),
+    #[error("feedback gateway url is invalid: {0}")]
+    InvalidGateway(#[from] url::ParseError),
+    #[error("feedback header value is invalid: {0}")]
+    Header(#[from] http::header::InvalidHeaderValue),
+    #[error("feedback contract violation: {0}")]
+    Contract(#[from] systemprompt_models::feedback::FeedbackContractError),
     #[error("feedback request rejected with status {0}")]
     Rejected(u16),
 }

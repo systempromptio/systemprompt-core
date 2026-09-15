@@ -73,17 +73,13 @@ pub fn authenticate_forwarded_hook(
         return Ok(());
     };
     let enrollment = Enrollment::load(&super::metadata_root()?, gateway)?;
-    let mut credential =
-        http::HeaderValue::from_str(enrollment.credential()).map_err(|_| FeedbackError::Scope)?;
+    let mut credential = http::HeaderValue::from_str(enrollment.credential())?;
     credential.set_sensitive(true);
     let host = serde_json::to_value(host)?
         .as_str()
         .ok_or(FeedbackError::Scope)?
         .to_owned();
     headers.insert("x-systemprompt-device-credential", credential);
-    headers.insert(
-        "x-systemprompt-host",
-        http::HeaderValue::from_str(&host).map_err(|_| FeedbackError::Scope)?,
-    );
+    headers.insert("x-systemprompt-host", http::HeaderValue::from_str(&host)?);
     Ok(())
 }

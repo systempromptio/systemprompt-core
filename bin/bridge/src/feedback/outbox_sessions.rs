@@ -51,7 +51,7 @@ impl Outbox {
                 newest
                     .entry(pending.publication.resource_id.clone())
                     .and_modify(|generation| {
-                        *generation = (*generation).max(pending.publication.generation)
+                        *generation = (*generation).max(pending.publication.generation);
                     })
                     .or_insert(pending.publication.generation);
             }

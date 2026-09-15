@@ -54,12 +54,10 @@ pub async fn capture_host(host: &str, ctx: &HostSyncCtx<'_>) -> Result<()> {
         std::time::Duration::from_secs(30),
         crate::feedback::recover_pending(&enrollment, &outbox, kind, ctx.manifest),
     )
-    .await
-    .map_err(|_| FeedbackError::Transport)??;
+    .await??;
     tokio::time::timeout(
         std::time::Duration::from_secs(10),
         crate::feedback::deliver(&enrollment, &outbox),
     )
-    .await
-    .map_err(|_| FeedbackError::Transport)?
+    .await?
 }
