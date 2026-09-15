@@ -1,5 +1,9 @@
 //! Device authentication stays in protected enrollment storage, never authored
 //! hooks.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use super::credentials::Enrollment;
 use super::{FeedbackError, Result};
 use std::path::Path;

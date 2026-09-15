@@ -82,4 +82,3 @@ pub use models::{LinkType, TrackClickParams, UtmParams};
 
 pub use jobs::execute_content_ingestion;
 
-pub const REPORTING_CAPTURE_SQL: &str = include_str!("../schema/reporting_capture.sql");

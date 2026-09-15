@@ -235,17 +235,29 @@ fn reporting_sql_is_accepted_by_install_time_schema_linter() {
             "outbox capture",
             include_str!("../../../../../infra/events/schema/reporting_capture.sql"),
         ),
-        ("users capture", systemprompt_users::REPORTING_CAPTURE_SQL),
-        ("agent capture", systemprompt_agent::REPORTING_CAPTURE_SQL),
-        ("AI capture", systemprompt_ai::REPORTING_CAPTURE_SQL),
-        ("MCP capture", systemprompt_mcp::REPORTING_CAPTURE_SQL),
+        (
+            "users capture",
+            include_str!("../../../../../domain/users/schema/reporting_capture.sql"),
+        ),
+        (
+            "agent capture",
+            include_str!("../../../../../domain/agent/schema/reporting_capture.sql"),
+        ),
+        (
+            "AI capture",
+            include_str!("../../../../../domain/ai/schema/reporting_capture.sql"),
+        ),
+        (
+            "MCP capture",
+            include_str!("../../../../../domain/mcp/schema/reporting_capture.sql"),
+        ),
         (
             "content capture",
-            systemprompt_content::REPORTING_CAPTURE_SQL,
+            include_str!("../../../../../domain/content/schema/reporting_capture.sql"),
         ),
         (
             "logging capture",
-            systemprompt_logging::REPORTING_CAPTURE_SQL,
+            include_str!("../../../../../infra/logging/schema/reporting_capture.sql"),
         ),
     ] {
         systemprompt_database::services::lint_declarative_schema(sql, name)

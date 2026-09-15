@@ -5,6 +5,7 @@
 
 use super::SessionRepository;
 use crate::{AnalyticsError, GeoIpReader, Result};
+use systemprompt_identifiers::SessionId;
 
 impl SessionRepository {
     pub(super) async fn backfill_geo(
@@ -18,17 +19,17 @@ impl SessionRepository {
             ));
         }
         let mut updated = 0;
-        let mut after = String::new();
+        let mut after: Option<SessionId> = None;
         loop {
             let rows = self
                 .owner
-                .sessions_missing_geo(&after, batch_size)
+                .sessions_missing_geo(after.as_ref(), batch_size)
                 .await
                 .map_err(AnalyticsError::from)?;
             let Some(last) = rows.last() else {
                 break;
             };
-            after.clone_from(&last.0);
+            after = Some(last.0.clone());
             for (session_id, ip) in rows {
                 if let Some((country, region, city)) =
                     crate::services::extractor::geoip::lookup_geoip(&ip, reader)

@@ -8,6 +8,7 @@ use std::time::Duration;
 use sqlx::PgPool;
 use systemprompt_analytics::AnalyticsError;
 use systemprompt_analytics::projection::{
+    self,
     REPORTING_CONSUMER, REPORTING_KIND, REPORTING_VERSION, ReportingProjector, ReportingRow,
 };
 use systemprompt_database::DbPool;
@@ -84,7 +85,7 @@ async fn drain(pool: &PgPool, limit: usize) -> Result<usize, AnalyticsError> {
                 delivery.id(),
             )));
         }
-        super::lock(delivery.connection()).await?;
+        projection::lock_projector(delivery.connection()).await?;
         ReportingProjector::apply_fact(delivery.connection(), &fact.data).await?;
         delivery.acknowledge().await?;
         metrics::counter!("analytics_projection_processed_total").increment(1);

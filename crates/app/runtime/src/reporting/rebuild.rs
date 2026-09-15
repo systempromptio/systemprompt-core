@@ -5,7 +5,9 @@
 
 use sqlx::PgConnection;
 use systemprompt_analytics::AnalyticsError;
-use systemprompt_analytics::projection::{ReportingProjector, ReportingRow, SOURCE_DEFINITIONS};
+use systemprompt_analytics::projection::{
+    self, ReportingProjector, ReportingRow, SOURCE_DEFINITIONS, SnapshotCursor,
+};
 use systemprompt_database::DbPool;
 
 use crate::RuntimeResult;
@@ -21,62 +23,22 @@ pub async fn rebuild(db: &DbPool) -> RuntimeResult<()> {
 async fn configure(db: &DbPool, force_rebuild: bool) -> RuntimeResult<()> {
     let pool = db.write_pool_arc()?;
     let mut transaction = pool.begin().await.map_err(AnalyticsError::from)?;
-    super::lock(&mut transaction).await?;
-    let initialized: bool =
-        sqlx::query_scalar("SELECT initialized FROM analytics_projection_state WHERE singleton")
-            .fetch_one(&mut *transaction)
-            .await
-            .map_err(AnalyticsError::from)?;
-    if force_rebuild || !initialized {
-        install_capture(&mut transaction).await?;
+    projection::lock_projector(&mut transaction).await?;
+    if force_rebuild || !projection::is_initialized(&mut transaction).await? {
         rebuild_locked(&mut transaction).await?;
     }
     transaction.commit().await.map_err(AnalyticsError::from)?;
     Ok(())
 }
 
-async fn install_capture(connection: &mut PgConnection) -> Result<(), AnalyticsError> {
-    for script in [
-        systemprompt_events::REPORTING_CAPTURE_SQL,
-        systemprompt_users::REPORTING_CAPTURE_SQL,
-        systemprompt_agent::REPORTING_CAPTURE_SQL,
-        systemprompt_ai::REPORTING_CAPTURE_SQL,
-        systemprompt_mcp::REPORTING_CAPTURE_SQL,
-        systemprompt_content::REPORTING_CAPTURE_SQL,
-        systemprompt_logging::REPORTING_CAPTURE_SQL,
-    ] {
-        sqlx::raw_sql(script).execute(&mut *connection).await?;
-    }
-    Ok(())
-}
-
 async fn rebuild_locked(connection: &mut PgConnection) -> Result<(), AnalyticsError> {
-    let tables = SOURCE_DEFINITIONS
-        .iter()
-        .map(|definition| definition.table)
-        .collect::<Vec<_>>()
-        .join(", ");
-    sqlx::query(sqlx::AssertSqlSafe(format!(
-        "LOCK TABLE {tables} IN SHARE MODE"
-    )))
-    .execute(&mut *connection)
-    .await?;
-    let cutoff: i64 = sqlx::query_scalar("SELECT nextval('event_outbox_reporting_revision')")
-        .fetch_one(&mut *connection)
-        .await?;
+    SnapshotCursor::lock_sources(&mut *connection).await?;
+    let cutoff = projection::next_cutoff_revision(&mut *connection).await?;
     let generation = ReportingProjector::begin_rebuild(connection).await?;
     for definition in SOURCE_DEFINITIONS {
-        sqlx::query(sqlx::AssertSqlSafe(format!(
-            "DECLARE reporting_snapshot NO SCROLL CURSOR FOR SELECT entity_key, row FROM {}",
-            definition.view,
-        )))
-        .execute(&mut *connection)
-        .await?;
+        let cursor = SnapshotCursor::open(&mut *connection, definition).await?;
         loop {
-            let rows: Vec<SnapshotRow> =
-                sqlx::query_as("FETCH FORWARD 1000 FROM reporting_snapshot")
-                    .fetch_all(&mut *connection)
-                    .await?;
+            let rows = cursor.fetch(&mut *connection).await?;
             if rows.is_empty() {
                 break;
             }
@@ -94,17 +56,8 @@ async fn rebuild_locked(connection: &mut PgConnection) -> Result<(), AnalyticsEr
                 .await?;
             }
         }
-        sqlx::query("CLOSE reporting_snapshot")
-            .execute(&mut *connection)
-            .await?;
+        cursor.close(&mut *connection).await?;
     }
     ReportingProjector::finish_rebuild(connection, generation, cutoff).await?;
     Ok(())
-}
-
-#[derive(sqlx::FromRow)]
-struct SnapshotRow {
-    entity_key: String,
-    // JSON: owner-published reporting views provide the versioned row payload.
-    row: serde_json::Value,
 }

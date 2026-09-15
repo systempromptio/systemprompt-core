@@ -25,6 +25,7 @@ proxy_probe
 proxy
 context
 host_sync
+feedback
 install
 integration
 sync diagnostics_state

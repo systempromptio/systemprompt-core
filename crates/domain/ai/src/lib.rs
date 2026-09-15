@@ -102,4 +102,3 @@ pub use services::tooled::ToolResultFormatter;
 
 pub use systemprompt_models::ai::{AiProvider, DynAiProvider};
 
-pub const REPORTING_CAPTURE_SQL: &str = include_str!("../schema/reporting_capture.sql");

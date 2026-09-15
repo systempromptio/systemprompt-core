@@ -193,12 +193,12 @@ pub trait SessionStore: SessionProvider + SessionUsageCounters {
     ) -> AnalyticsResult<Option<String>>;
     async fn sessions_missing_geo(
         &self,
-        after: &str,
+        after: Option<&SessionId>,
         limit: i64,
-    ) -> AnalyticsResult<Vec<(String, String)>>;
+    ) -> AnalyticsResult<Vec<(SessionId, String)>>;
     async fn set_session_geo(
         &self,
-        session_id: &str,
+        session_id: &SessionId,
         country: Option<&str>,
         region: Option<&str>,
         city: Option<&str>,

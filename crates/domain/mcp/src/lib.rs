@@ -269,4 +269,3 @@ where
         ))
 }
 
-pub const REPORTING_CAPTURE_SQL: &str = include_str!("../schema/reporting_capture.sql");

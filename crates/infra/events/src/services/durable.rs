@@ -87,39 +87,38 @@ impl DurableOutbox {
         let encoded_fact = serde_json::to_value(fact)?;
         let id = EventOutboxId::generate();
         let (actor_kind, actor_id) = actor.audit_columns();
-        sqlx::query(
+        sqlx::query!(
             "INSERT INTO event_outbox \
              (id, channel, user_id, payload, actor_kind, actor_id, origin_instance_id, \
               consumer, fact, deliver_to_origin) \
              VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,TRUE)",
+            id.as_str(),
+            channel.as_str(),
+            actor.user_id.as_str(),
+            payload,
+            actor_kind,
+            actor_id,
+            self.instance_id.as_str(),
+            &fact.consumer,
+            encoded_fact
         )
-        .bind(id.as_str())
-        .bind(channel.as_str())
-        .bind(actor.user_id.as_str())
-        .bind(payload)
-        .bind(actor_kind)
-        .bind(actor_id)
-        .bind(self.instance_id.as_str())
-        .bind(&fact.consumer)
-        .bind(encoded_fact)
         .execute(&mut **tx)
         .await?;
-        sqlx::query("SELECT pg_notify($1, $2)")
-            .bind(OUTBOX_CHANNEL)
-            .bind(id.as_str())
-            .execute(&mut **tx)
+        sqlx::query!("SELECT pg_notify($1, $2)", OUTBOX_CHANNEL, id.as_str())
+            .fetch_one(&mut **tx)
             .await?;
         Ok(id)
     }
 
     pub async fn claim(&self, consumer: &str) -> Result<Option<Delivery>, sqlx::Error> {
         let mut tx = self.pool.begin().await?;
-        let row = sqlx::query_as::<_, FactRow>(
-            "SELECT id, fact FROM event_outbox \
-             WHERE consumer = $1 AND processed_at IS NULL \
-             ORDER BY created_at, id LIMIT 1 FOR UPDATE SKIP LOCKED",
+        let row = sqlx::query_as!(
+            FactRow,
+            r#"SELECT id AS "id: EventOutboxId", fact AS "fact!" FROM event_outbox
+             WHERE consumer = $1 AND processed_at IS NULL
+             ORDER BY created_at, id LIMIT 1 FOR UPDATE SKIP LOCKED"#,
+            consumer
         )
-        .bind(consumer)
         .fetch_optional(&mut *tx)
         .await?;
         if let Some(row) = row {
@@ -135,14 +134,16 @@ pub(super) async fn prune_processed(
     pool: &PgPool,
     cutoff: chrono::DateTime<chrono::Utc>,
 ) -> Result<u64, sqlx::Error> {
-    sqlx::query("DELETE FROM event_outbox WHERE created_at < $1 AND (consumer IS NULL OR processed_at IS NOT NULL)")
-        .bind(cutoff)
+    sqlx::query!(
+        "DELETE FROM event_outbox WHERE created_at < $1 AND (consumer IS NULL OR processed_at IS NOT NULL)",
+        cutoff
+    )
         .execute(pool)
         .await
         .map(|result| result.rows_affected())
 }
 
-#[derive(Debug, sqlx::FromRow)]
+#[derive(Debug)]
 struct FactRow {
     id: EventOutboxId,
     // JSON: versioned reporting facts are decoded by the registered consumer.
@@ -170,8 +171,10 @@ impl Delivery {
     }
 
     pub async fn acknowledge(mut self) -> Result<(), sqlx::Error> {
-        sqlx::query("UPDATE event_outbox SET processed_at = now() WHERE id = $1")
-            .bind(self.row.id.as_str())
+        sqlx::query!(
+            "UPDATE event_outbox SET processed_at = now() WHERE id = $1",
+            self.row.id.as_str()
+        )
             .execute(&mut *self.tx)
             .await?;
         self.tx.commit().await

@@ -50,7 +50,6 @@ pub type EventSender = Sender<Result<Event, std::convert::Infallible>>;
 pub const SSE_BUFFER: usize = 1024;
 
 pub use error::{EventError, EventResult};
-pub const REPORTING_CAPTURE_SQL: &str = include_str!("../schema/reporting_capture.sql");
 pub use sse::ToSse;
 
 pub trait Broadcaster: Send + Sync {

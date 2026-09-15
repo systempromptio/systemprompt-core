@@ -205,16 +205,16 @@ impl systemprompt_traits::SessionStore for SessionRepository {
     }
     async fn sessions_missing_geo(
         &self,
-        after: &str,
+        after: Option<&SessionId>,
         limit: i64,
-    ) -> AnalyticsResult<Vec<(String, String)>> {
+    ) -> AnalyticsResult<Vec<(SessionId, String)>> {
         self.missing_geo(after, limit)
             .await
             .map_err(|e| AnalyticsProviderError::Internal(e.to_string()))
     }
     async fn set_session_geo(
         &self,
-        session_id: &str,
+        session_id: &SessionId,
         country: Option<&str>,
         region: Option<&str>,
         city: Option<&str>,
