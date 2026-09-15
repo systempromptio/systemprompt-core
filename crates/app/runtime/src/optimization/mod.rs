@@ -17,6 +17,7 @@ mod capture;
 mod diagnostics;
 pub mod git_sources;
 pub mod holdout;
+mod holdout_partition;
 pub mod inventory;
 mod iteration;
 

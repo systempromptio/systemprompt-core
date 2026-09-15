@@ -45,7 +45,7 @@ async fn approval_http_requires_admin_origin_and_recovers_exact_decision_status(
             systemprompt_api::routes::evaluation::optimization_origin::protect,
         ))
         .with_state(
-            systemprompt_api::routes::evaluation::campaigns::OptimizationState::new(
+            systemprompt_api::routes::evaluation::optimization_state::OptimizationState::new(
                 ctx.as_ref().clone(),
             ),
         )

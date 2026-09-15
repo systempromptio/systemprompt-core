@@ -43,6 +43,7 @@ mod inventory;
 mod optimization_error;
 pub mod optimization_origin;
 mod optimization_resources;
+pub mod optimization_state;
 
 pub mod consumer;
 

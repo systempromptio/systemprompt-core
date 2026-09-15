@@ -36,7 +36,7 @@ async fn routers() -> (Router, Router, String) {
         ));
     let admin = systemprompt_api::routes::evaluation::campaigns::router()
         .with_state(
-            systemprompt_api::routes::evaluation::campaigns::OptimizationState::new(
+            systemprompt_api::routes::evaluation::optimization_state::OptimizationState::new(
                 ctx.as_ref().clone(),
             ),
         )
@@ -185,7 +185,7 @@ async fn failed_capture_has_durable_status_and_conflicting_http_retry_is_rejecte
     .unwrap();
     let router = systemprompt_api::routes::evaluation::campaigns::router()
         .with_state(
-            systemprompt_api::routes::evaluation::campaigns::OptimizationState::new(
+            systemprompt_api::routes::evaluation::optimization_state::OptimizationState::new(
                 ctx.as_ref().clone(),
             ),
         )

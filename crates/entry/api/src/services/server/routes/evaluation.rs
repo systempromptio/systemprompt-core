@@ -19,7 +19,9 @@ pub(super) fn mount(router: Router, mount: &MountCtx<'_>) -> Result<Router, Load
                 crate::routes::evaluation::optimization_origin::protect,
             ))
             .with_state(
-                crate::routes::evaluation::campaigns::OptimizationState::new(mount.ctx.clone()),
+                crate::routes::evaluation::optimization_state::OptimizationState::new(
+                    mount.ctx.clone(),
+                ),
             )
             .with_rate_limit(mount.limits, 10, "admin")?
             .with_auth(mount.user_middleware.clone(), AuthzPolicy::admin())

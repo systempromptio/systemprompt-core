@@ -12,7 +12,7 @@ use serde::Deserialize;
 use systemprompt_identifiers::{DeviceCertId, ManagedResourceId, UserId};
 use systemprompt_runtime::AppContext;
 
-use super::super::campaigns::OptimizationState;
+use super::super::optimization_state::OptimizationState;
 use super::error::ConsumerHttpError;
 
 pub(crate) fn router() -> Router<OptimizationState> {

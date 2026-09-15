@@ -25,7 +25,7 @@ async fn router() -> Router {
     actor.auth.actor = Actor::user(UserId::new(format!("stream-{}", TraceId::generate())));
     systemprompt_api::routes::evaluation::campaigns::router()
         .with_state(
-            systemprompt_api::routes::evaluation::campaigns::OptimizationState::new(
+            systemprompt_api::routes::evaluation::optimization_state::OptimizationState::new(
                 ctx.as_ref().clone(),
             ),
         )

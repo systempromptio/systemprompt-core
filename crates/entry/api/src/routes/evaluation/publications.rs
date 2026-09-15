@@ -3,9 +3,9 @@
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
-use super::campaigns::OptimizationState;
 use super::collections::Page;
 use super::optimization_error::OptimizationHttpError;
+use super::optimization_state::OptimizationState;
 use axum::extract::{Path, Query, State};
 use axum::routing::{get, post};
 use axum::{Extension, Json, Router};

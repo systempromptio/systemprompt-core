@@ -2,9 +2,9 @@
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
-use super::campaigns::OptimizationState;
 use super::operations::{self, OperationResponse};
 use super::optimization_error::OptimizationHttpError;
+use super::optimization_state::OptimizationState;
 use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::HeaderMap;

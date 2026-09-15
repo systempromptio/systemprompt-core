@@ -45,7 +45,7 @@ async fn issued_credential_enrolls_once_retry_omits_token_and_deliberate_rotatio
     sqlx::query("INSERT INTO user_device_certs(id,user_id,fingerprint,label) VALUES($1,$2,$3,'HTTP issuance')").bind(cert.as_str()).bind(consumer.as_str()).bind(cert.as_str()).execute(pool.as_ref()).await.unwrap();
     let router = systemprompt_api::routes::evaluation::campaigns::router()
         .with_state(
-            systemprompt_api::routes::evaluation::campaigns::OptimizationState::new(
+            systemprompt_api::routes::evaluation::optimization_state::OptimizationState::new(
                 ctx.as_ref().clone(),
             ),
         )

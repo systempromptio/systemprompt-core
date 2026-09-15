@@ -4,9 +4,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::Arc;
-
-use axum::extract::{FromRef, Path, Query, State};
+use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::routing::{get, post};
 use axum::{Extension, Json, Router};
@@ -19,41 +17,9 @@ use systemprompt_evaluation::campaigns::repository::{
 use systemprompt_identifiers::{EvalCampaignId, EvalExperimentId};
 use systemprompt_models::RequestContext;
 use systemprompt_runtime::AppContext;
-use systemprompt_runtime::optimization::SkillOptimizationOrchestrator;
 
 use super::optimization_error::OptimizationHttpError;
-
-/// Router state for the evaluation admin surface: the application context plus
-/// the optimization orchestrator composed once from its repositories.
-#[derive(Debug, Clone)]
-pub struct OptimizationState {
-    ctx: AppContext,
-    orchestrator: Arc<SkillOptimizationOrchestrator>,
-}
-
-impl OptimizationState {
-    pub fn new(ctx: AppContext) -> Self {
-        let orchestrator = Arc::new(SkillOptimizationOrchestrator::new(
-            ctx.managed_repository().as_ref().clone(),
-            ctx.evaluation_repositories().as_ref().clone(),
-        ));
-        Self { ctx, orchestrator }
-    }
-
-    pub fn orchestrator(&self) -> &SkillOptimizationOrchestrator {
-        &self.orchestrator
-    }
-
-    pub const fn ctx(&self) -> &AppContext {
-        &self.ctx
-    }
-}
-
-impl FromRef<OptimizationState> for AppContext {
-    fn from_ref(state: &OptimizationState) -> Self {
-        state.ctx.clone()
-    }
-}
+use super::optimization_state::OptimizationState;
 
 pub fn router() -> Router<OptimizationState> {
     Router::new()
