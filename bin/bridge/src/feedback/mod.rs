@@ -35,11 +35,11 @@ pub enum FeedbackError {
     #[error("feedback transport is unavailable")]
     Transport,
     #[error("feedback transport failed: {0}")]
-    Http(#[from] reqwest::Error),
+    Http(#[source] reqwest::Error),
     #[error("feedback operation timed out: {0}")]
     Timeout(#[from] tokio::time::error::Elapsed),
     #[error("bridge configuration is unreadable: {0}")]
-    Config(#[from] crate::config::ConfigReadError),
+    Config(#[source] ConfigurationFailure),
     #[error("feedback gateway url is invalid: {0}")]
     InvalidGateway(#[from] url::ParseError),
     #[error("feedback header value is invalid: {0}")]
@@ -48,6 +48,39 @@ pub enum FeedbackError {
     Contract(#[from] systemprompt_models::feedback::FeedbackContractError),
     #[error("feedback request rejected with status {0}")]
     Rejected(u16),
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum ConfigurationFailure {
+    #[error("configuration path is unavailable")]
+    PathUnavailable,
+    #[error("configuration could not be read ({0:?})")]
+    Read(std::io::ErrorKind),
+    #[error("configuration syntax is invalid at byte range {0:?}")]
+    Malformed(Option<std::ops::Range<usize>>),
+}
+
+impl From<crate::config::ConfigReadError> for FeedbackError {
+    fn from(error: crate::config::ConfigReadError) -> Self {
+        let safe = match error {
+            crate::config::ConfigReadError::PathUnresolvable => {
+                ConfigurationFailure::PathUnavailable
+            },
+            crate::config::ConfigReadError::Read { source, .. } => {
+                ConfigurationFailure::Read(source.kind())
+            },
+            crate::config::ConfigReadError::Malformed { source, .. } => {
+                ConfigurationFailure::Malformed(source.span())
+            },
+        };
+        Self::Config(safe)
+    }
+}
+
+impl From<reqwest::Error> for FeedbackError {
+    fn from(error: reqwest::Error) -> Self {
+        Self::Http(error.without_url())
+    }
 }
 
 pub type Result<T> = std::result::Result<T, FeedbackError>;

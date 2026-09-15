@@ -25,7 +25,7 @@ fn client() -> Result<reqwest::Client> {
         .connect_timeout(std::time::Duration::from_secs(5))
         .timeout(std::time::Duration::from_secs(20))
         .build()
-        .map_err(FeedbackError::Http)
+        .map_err(FeedbackError::from)
 }
 
 pub async fn enroll(gateway: &str, credential: &str) -> Result<EnrollmentResponse> {

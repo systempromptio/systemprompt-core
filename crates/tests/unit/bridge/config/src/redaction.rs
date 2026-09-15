@@ -84,3 +84,43 @@ fn redact_scalar_value_is_noop() {
     redact(&mut value);
     assert_eq!(value.as_str(), Some("x"));
 }
+
+
+#[test]
+fn feedback_config_errors_redact_parser_input_paths_and_custom_io_messages() {
+    use systemprompt_bridge::config::ConfigReadError;
+    use systemprompt_bridge::feedback::FeedbackError;
+    let secret = "private-config-token";
+    let parser = toml::from_str::<toml::Value>(&format!("token = \"{secret}\" unexpected"))
+        .expect_err("invalid TOML retains the original input");
+    assert!(parser.to_string().contains(secret));
+    let failures = [
+        FeedbackError::from(ConfigReadError::Malformed {
+            path: std::path::PathBuf::from("/private-user/config.toml"),
+            source: Box::new(parser),
+        }),
+        FeedbackError::from(ConfigReadError::Read {
+            path: std::path::PathBuf::from("/private-user/config.toml"),
+            source: std::io::Error::other(secret),
+        }),
+        FeedbackError::from(ConfigReadError::PathUnresolvable),
+    ];
+    for error in failures {
+        let mut messages = vec![error.to_string(), format!("{error:?}")];
+        let mut source = std::error::Error::source(&error);
+        while let Some(cause) = source {
+            messages.push(cause.to_string());
+            messages.push(format!("{cause:?}"));
+            source = cause.source();
+        }
+        assert!(
+            messages
+                .iter()
+                .all(|message| !message.contains(secret) && !message.contains("private-user"))
+        );
+        assert!(
+            std::error::Error::source(&error).is_some(),
+            "a sanitized typed cause remains available"
+        );
+    }
+}

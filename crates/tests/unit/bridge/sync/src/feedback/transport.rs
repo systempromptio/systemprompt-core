@@ -192,3 +192,31 @@ fn unchanged_manifest_recovers_pending_plan_but_disabled_or_withdrawn_does_not()
         });
     });
 }
+
+
+#[test]
+fn feedback_http_errors_remove_request_urls_from_entire_error_chain() {
+    let url = "https://example.invalid/private-person?token=private-query-token";
+    let raw = reqwest::Client::new()
+        .get(url)
+        .header("x-invalid", "bad\nvalue")
+        .build()
+        .expect_err("invalid header fails locally without a network request");
+    let raw = raw.with_url(reqwest::Url::parse(url).unwrap());
+    assert!(format!("{raw:?}").contains("private-query-token"));
+    let error = FeedbackError::from(raw);
+    let mut messages = vec![error.to_string(), format!("{error:?}")];
+    let mut source = std::error::Error::source(&error);
+    while let Some(cause) = source {
+        messages.push(cause.to_string());
+        messages.push(format!("{cause:?}"));
+        source = cause.source();
+    }
+    assert!(
+        messages
+            .iter()
+            .all(|message| !message.contains("private-query-token")
+                && !message.contains("private-person"))
+    );
+    assert!(std::error::Error::source(&error).is_some());
+}
