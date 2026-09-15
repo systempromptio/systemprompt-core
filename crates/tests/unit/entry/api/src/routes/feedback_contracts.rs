@@ -117,10 +117,10 @@ fn openapi_references_resolve_and_consumer_admin_contracts_are_distinct() {
     fn references(value: &serde_json::Value, root: &serde_json::Value) {
         match value {
             serde_json::Value::Object(map) => {
-                if let Some(reference) = map.get("$ref").and_then(serde_json::Value::as_str) {
-                    if let Some(pointer) = reference.strip_prefix('#') {
-                        assert!(root.pointer(pointer).is_some(), "unresolved {reference}");
-                    }
+                if let Some(reference) = map.get("$ref").and_then(serde_json::Value::as_str)
+                    && let Some(pointer) = reference.strip_prefix('#')
+                {
+                    assert!(root.pointer(pointer).is_some(), "unresolved {reference}");
                 }
                 for value in map.values() {
                     references(value, root);

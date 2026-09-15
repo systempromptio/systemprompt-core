@@ -155,8 +155,8 @@ async fn settled(db: &DbPool, id: &AiRequestId, expected: Option<&str>) -> Resul
                 .bind(id.as_str())
                 .fetch_optional(pg.as_ref())
                 .await?;
-        if let Some(row) = row {
-            if expected.map_or_else(
+        if let Some(row) = row
+            && expected.map_or_else(
                 || {
                     matches!(
                         row["status"].as_str(),
@@ -164,9 +164,9 @@ async fn settled(db: &DbPool, id: &AiRequestId, expected: Option<&str>) -> Resul
                     )
                 },
                 |status| row["status"] == status,
-            ) {
-                return Ok(row);
-            }
+            )
+        {
+            return Ok(row);
         }
         tokio::time::sleep(Duration::from_millis(50)).await;
     }
@@ -471,14 +471,14 @@ async fn replay() -> Result<()> {
             .as_i64()
             .zip(normalized["reported_output_tokens"].as_i64())
             .map(|(input, output)| input + output);
-        if normalized["completion"] == "completed" {
-            if let Some(tokens) = advisory {
-                ensure!(
-                    tokens == counted,
-                    "Native advisory usage differs from persisted provider usage for {}: native{tokens},gateway{counted}",
-                    directory.display()
-                );
-            }
+        if normalized["completion"] == "completed"
+            && let Some(tokens) = advisory
+        {
+            ensure!(
+                tokens == counted,
+                "Native advisory usage differs from persisted provider usage for {}: native{tokens},gateway{counted}",
+                directory.display()
+            );
         }
         if case_incomplete {
             incomplete_cases += 1;
