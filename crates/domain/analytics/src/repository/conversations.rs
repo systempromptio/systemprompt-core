@@ -32,12 +32,14 @@ impl ConversationAnalyticsRepository {
         start: DateTime<Utc>,
         end: DateTime<Utc>,
         limit: i64,
+        user: Option<&str>,
     ) -> Result<Vec<ConversationListRow>> {
         sqlx::query_as!(
             ConversationListRow,
             r#"
             SELECT
                 uc.context_id as "context_id!: systemprompt_identifiers::ContextId",
+                uc.user_id as "user_id!: systemprompt_identifiers::UserId",
                 uc.name as "name?",
                 (SELECT COUNT(*) FROM analytics_report_agent_tasks at WHERE at.context_id = uc.context_id)::bigint as "task_count!",
                 (SELECT COUNT(*) FROM analytics_report_task_messages tm
@@ -47,13 +49,15 @@ impl ConversationAnalyticsRepository {
                 uc.updated_at as "updated_at!"
             FROM analytics_report_user_contexts uc
             WHERE uc.created_at >= $1 AND uc.created_at < $2 AND uc.kind = $4
+              AND ($5::text IS NULL OR uc.user_id = $5)
             ORDER BY uc.updated_at DESC
             LIMIT $3
             "#,
             start,
             end,
             limit,
-            ContextKind::User.as_str()
+            ContextKind::User.as_str(),
+            user
         )
         .fetch_all(&*self.pool)
         .await
@@ -65,12 +69,14 @@ impl ConversationAnalyticsRepository {
         start: DateTime<Utc>,
         end: DateTime<Utc>,
         limit: i64,
+        user: Option<&str>,
     ) -> Result<Vec<GatewaySessionListRow>> {
         sqlx::query_as!(
             GatewaySessionListRow,
             r#"
             SELECT
                 ar.session_id as "session_id!: systemprompt_identifiers::SessionId",
+                MIN(ar.user_id) as "user_id!: systemprompt_identifiers::UserId",
                 COUNT(arm.id)::bigint as "message_count!",
                 MIN(ar.created_at) as "created_at!",
                 MAX(ar.created_at) as "updated_at!"
@@ -79,6 +85,7 @@ impl ConversationAnalyticsRepository {
             WHERE ar.task_id IS NULL
               AND ar.session_id IS NOT NULL
               AND ar.created_at >= $1 AND ar.created_at < $2
+              AND ($4::text IS NULL OR ar.user_id = $4)
               AND NOT EXISTS (
                   SELECT 1 FROM analytics_report_user_contexts uc2 WHERE uc2.context_id::text = ar.session_id
               )
@@ -88,7 +95,8 @@ impl ConversationAnalyticsRepository {
             "#,
             start,
             end,
-            limit
+            limit,
+            user
         )
         .fetch_all(&*self.pool)
         .await

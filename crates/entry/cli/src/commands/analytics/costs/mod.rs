@@ -82,6 +82,9 @@ pub struct CostBreakdownItem {
     pub cost_microdollars: i64,
     pub request_count: i64,
     pub tokens: i64,
+    /// Distinct contexts; only the `--by user` breakdown carries it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub conversations: Option<i64>,
     pub percentage: f64,
 }
 

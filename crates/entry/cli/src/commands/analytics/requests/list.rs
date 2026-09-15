@@ -9,7 +9,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use systemprompt_analytics::RequestAnalyticsRepository;
-use systemprompt_analytics::models::reporting::RequestListRow;
+use systemprompt_analytics::models::reporting::{RequestListFilter, RequestListRow};
 use systemprompt_identifiers::{AiRequestId, UserId};
 use systemprompt_logging::CliService;
 use systemprompt_runtime::DatabaseContext;
@@ -39,8 +39,15 @@ pub struct ListArgs {
     )]
     pub limit: i64,
 
+    #[arg(long, help = "Skip this many rows before the page")]
+    #[arg(default_value = "0")]
+    pub offset: i64,
+
     #[arg(long, help = "Filter by model name")]
     pub model: Option<String>,
+
+    #[arg(long, help = "Filter by user id (exact match)")]
+    pub user: Option<String>,
 
     #[arg(long, help = "Export results to CSV file")]
     pub export: Option<PathBuf>,
@@ -82,9 +89,14 @@ async fn execute_internal(
     repo: &RequestAnalyticsRepository,
 ) -> Result<CommandOutput> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
-    let rows = repo
-        .list_requests(start, end, args.limit, args.model.as_deref())
-        .await?;
+    let mut filter = RequestListFilter::new(args.limit).with_offset(args.offset);
+    if let Some(model) = args.model.as_deref() {
+        filter = filter.with_model(model);
+    }
+    if let Some(user) = args.user.as_deref() {
+        filter = filter.with_user(UserId::new(user));
+    }
+    let rows = repo.list_requests(start, end, &filter).await?;
 
     let requests: Vec<RequestListRowOutput> = rows.into_iter().map(build_row_output).collect();
 

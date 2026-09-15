@@ -7,7 +7,7 @@ use anyhow::Result;
 use clap::{Args, ValueEnum};
 use std::path::PathBuf;
 use systemprompt_analytics::CostAnalyticsRepository;
-use systemprompt_analytics::models::reporting::CostBreakdownRow;
+use systemprompt_analytics::models::reporting::{CostBreakdownRow, CostUserBreakdownRow};
 use systemprompt_logging::CliService;
 use systemprompt_runtime::DatabaseContext;
 
@@ -21,6 +21,7 @@ pub enum BreakdownType {
     Model,
     Agent,
     Provider,
+    User,
 }
 
 #[derive(Debug, Args)]
@@ -40,7 +41,7 @@ pub struct BreakdownArgs {
         long,
         value_enum,
         default_value = "model",
-        help = "Breakdown by (model, agent, provider)"
+        help = "Breakdown by (model, agent, provider, user)"
     )]
     pub by: BreakdownType,
 
@@ -66,13 +67,31 @@ async fn execute_internal(
 ) -> Result<CommandOutput> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
 
-    let rows = match args.by {
-        BreakdownType::Model => repo.get_breakdown_by_model(start, end, args.limit).await?,
-        BreakdownType::Provider => {
-            repo.get_breakdown_by_provider(start, end, args.limit)
-                .await?
-        },
-        BreakdownType::Agent => repo.get_breakdown_by_agent(start, end, args.limit).await?,
+    let rows: Vec<Share> = match args.by {
+        BreakdownType::Model => repo
+            .get_breakdown_by_model(start, end, args.limit)
+            .await?
+            .into_iter()
+            .map(Share::from)
+            .collect(),
+        BreakdownType::Provider => repo
+            .get_breakdown_by_provider(start, end, args.limit)
+            .await?
+            .into_iter()
+            .map(Share::from)
+            .collect(),
+        BreakdownType::Agent => repo
+            .get_breakdown_by_agent(start, end, args.limit)
+            .await?
+            .into_iter()
+            .map(Share::from)
+            .collect(),
+        BreakdownType::User => repo
+            .get_breakdown_by_user(start, end, args.limit)
+            .await?
+            .into_iter()
+            .map(Share::from)
+            .collect(),
     };
 
     let total_cost: i64 = rows.iter().map(|r| r.cost).sum();
@@ -103,7 +122,46 @@ async fn execute_internal(
     Ok(breakdown_table(&output.items).with_title("Cost Breakdown"))
 }
 
-fn build_items(rows: Vec<CostBreakdownRow>, total_cost: i64) -> Vec<CostBreakdownItem> {
+/// One dimension value's share, whichever repository row it came from.
+struct Share {
+    name: String,
+    cost: i64,
+    requests: i64,
+    tokens: i64,
+    conversations: Option<i64>,
+}
+
+impl From<CostBreakdownRow> for Share {
+    fn from(row: CostBreakdownRow) -> Self {
+        Self {
+            name: row.name,
+            cost: row.cost,
+            requests: row.requests,
+            tokens: row.tokens,
+            conversations: None,
+        }
+    }
+}
+
+/// A user row keeps its id first so it can be handed straight to
+/// `infra logs request list --user`; the display name follows in parentheses.
+impl From<CostUserBreakdownRow> for Share {
+    fn from(row: CostUserBreakdownRow) -> Self {
+        let name = match row.name {
+            Some(display) if !display.is_empty() => format!("{} ({display})", row.user_id),
+            _ => row.user_id,
+        };
+        Self {
+            name,
+            cost: row.cost,
+            requests: row.requests,
+            tokens: row.tokens,
+            conversations: Some(row.conversations),
+        }
+    }
+}
+
+fn build_items(rows: Vec<Share>, total_cost: i64) -> Vec<CostBreakdownItem> {
     rows.into_iter()
         .map(|row| {
             let percentage = if total_cost > 0 {
@@ -117,6 +175,7 @@ fn build_items(rows: Vec<CostBreakdownRow>, total_cost: i64) -> Vec<CostBreakdow
                 cost_microdollars: row.cost,
                 request_count: row.requests,
                 tokens: row.tokens,
+                conversations: row.conversations,
                 percentage,
             }
         })
@@ -124,14 +183,10 @@ fn build_items(rows: Vec<CostBreakdownRow>, total_cost: i64) -> Vec<CostBreakdow
 }
 
 fn breakdown_table(items: &[CostBreakdownItem]) -> CommandOutput {
-    CommandOutput::table_of(
-        vec![
-            "name",
-            "cost_microdollars",
-            "request_count",
-            "tokens",
-            "percentage",
-        ],
-        items,
-    )
+    let mut columns = vec!["name", "cost_microdollars", "request_count", "tokens"];
+    if items.iter().any(|item| item.conversations.is_some()) {
+        columns.push("conversations");
+    }
+    columns.push("percentage");
+    CommandOutput::table_of(columns, items)
 }

@@ -5,7 +5,7 @@ use systemprompt_analytics::models::{
     AgentAiStatsRow, AgentErrorRow, AgentHourlyRow, AgentListRow, AgentStatsRow,
     AgentStatusBreakdownRow, AgentSummaryRow, AgentTaskRow, ConversationListRow, TimestampRow,
 };
-use systemprompt_identifiers::ContextId;
+use systemprompt_identifiers::{ContextId, UserId};
 
 const TEST_CONTEXT_ID_A: &str = "00000000-0000-4000-8000-000000000001";
 
@@ -136,6 +136,7 @@ mod agent_row_tests {
         let now = Utc::now();
         let row = ConversationListRow {
             context_id: ContextId::try_new(TEST_CONTEXT_ID_A.to_string()).expect("valid ContextId"),
+            user_id: UserId::new("user_a"),
             name: Some("Support Chat".to_string()),
             task_count: 5,
             message_count: 25,
@@ -144,6 +145,7 @@ mod agent_row_tests {
         };
 
         assert_eq!(row.context_id.as_str(), TEST_CONTEXT_ID_A);
+        assert_eq!(row.user_id.as_str(), "user_a");
         assert_eq!(row.name, Some("Support Chat".to_string()));
         assert_eq!(row.task_count, 5);
         assert_eq!(row.message_count, 25);

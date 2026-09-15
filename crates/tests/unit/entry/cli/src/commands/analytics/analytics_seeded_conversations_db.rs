@@ -164,3 +164,31 @@ async fn a_limit_of_one_still_renders_a_row() {
     let rows = csv.lines().skip(1).filter(|l| !l.trim().is_empty()).count();
     assert_eq!(rows, 1, "{csv}");
 }
+
+// An instance without A2A agents holds every conversation as a gateway
+// session; the listing must be able to show those, alone or beside agent
+// contexts, and narrow to one user.
+#[tokio::test]
+async fn the_conversation_listing_accepts_source_and_user_filters() {
+    let pool = pool().await;
+    seed_conversation(&pool).await;
+    systemprompt_test_fixtures::refresh_reporting(&pool)
+        .await
+        .unwrap();
+    let ctx = ctx(&pool);
+
+    for source in ["agent", "gateway", "all"] {
+        analytics::execute(
+            parse(&["conversations", "list", "--source", source, "--limit", "5"]),
+            &ctx,
+        )
+        .await
+        .unwrap_or_else(|e| panic!("--source {source} must list: {e}"));
+    }
+    analytics::execute(
+        parse(&["conversations", "list", "--user", "nobody_here", "--since", "7d"]),
+        &ctx,
+    )
+    .await
+    .expect("an unknown user is an empty listing, not an error");
+}

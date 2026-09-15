@@ -7,6 +7,7 @@
 use anyhow::Result;
 use chrono::{Duration, TimeZone, Utc};
 use sqlx::PgPool;
+use systemprompt_analytics::models::reporting::RequestListFilter;
 use systemprompt_analytics::models::{
     AnalyticsEventType, CreateAnalyticsEventInput, CreateEngagementEventInput, FlagReason,
 };
@@ -407,13 +408,34 @@ async fn request_analytics_repository_smoke() -> Result<()> {
         .await?;
     assert!(trends.len() >= 2);
     let listed = repo
-        .list_requests(fx.window_start, fx.window_end, 100, None)
+        .list_requests(fx.window_start, fx.window_end, &RequestListFilter::new(100))
         .await?;
     assert!(!listed.is_empty());
     let listed_filtered = repo
-        .list_requests(fx.window_start, fx.window_end, 100, Some("m2"))
+        .list_requests(
+            fx.window_start,
+            fx.window_end,
+            &RequestListFilter::new(100).with_model("m2"),
+        )
         .await?;
     assert!(!listed_filtered.is_empty());
+    let mine = repo
+        .list_requests(
+            fx.window_start,
+            fx.window_end,
+            &RequestListFilter::new(100).with_user(UserId::new(&fx.user_id)),
+        )
+        .await?;
+    assert_eq!(mine.len(), listed.len(), "every fixture row belongs to the fixture user");
+    let second_page = repo
+        .list_requests(
+            fx.window_start,
+            fx.window_end,
+            &RequestListFilter::new(1).with_offset(1),
+        )
+        .await?;
+    assert_eq!(second_page.len(), 1);
+    assert_eq!(second_page[0].id, listed[1].id, "offset 1 starts at the second row");
 
     fx.cleanup().await?;
     Ok(())
@@ -435,7 +457,7 @@ async fn rejected_requests_are_excluded_from_model_mix_but_listed() -> Result<()
     );
 
     let listed = repo
-        .list_requests(fx.window_start, fx.window_end, 100, None)
+        .list_requests(fx.window_start, fx.window_end, &RequestListFilter::new(100))
         .await?;
     assert!(
         listed
@@ -454,10 +476,10 @@ async fn conversation_repository_smoke() -> Result<()> {
     systemprompt_test_fixtures::refresh_reporting(&fx.db).await?;
     let repo = ConversationAnalyticsRepository::new(&fx.db)?;
     let _agent = repo
-        .list_agent_contexts(fx.window_start, fx.window_end, 50)
+        .list_agent_contexts(fx.window_start, fx.window_end, 50, None)
         .await?;
     let _gw = repo
-        .list_gateway_sessions(fx.window_start, fx.window_end, 50)
+        .list_gateway_sessions(fx.window_start, fx.window_end, 50, None)
         .await?;
     let ctx_ct = repo
         .get_context_count(fx.window_start, fx.window_end)
@@ -483,7 +505,7 @@ async fn conversation_repository_smoke() -> Result<()> {
         "cli_session contexts must be excluded from conversation counts"
     );
     let agent_after = repo
-        .list_agent_contexts(fx.window_start, fx.window_end, 50)
+        .list_agent_contexts(fx.window_start, fx.window_end, 50, None)
         .await?;
     assert!(
         agent_after

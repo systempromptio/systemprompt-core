@@ -321,6 +321,43 @@ async fn insert_request_with_context(
 }
 
 #[tokio::test]
+async fn breakdown_by_user_ranks_users_and_counts_their_conversations() -> Result<()> {
+    let fx = Fixture::new().await?;
+    let other = make_other_user(&fx).await?;
+    fx.insert_ai_request(None, 1_000, 100, 0).await?;
+    fx.insert_ai_request(None, 2_500, 250, 1).await?;
+
+    let repo = fx.repo().await?;
+    let rows = repo
+        .get_breakdown_by_user(fx.window_start, fx.window_end, 50)
+        .await?;
+
+    let mine = rows
+        .iter()
+        .find(|r| r.user_id == fx.user_id)
+        .expect("the fixture user has spend in the window");
+    assert_eq!(mine.requests, 2);
+    assert_eq!(mine.cost, 3_500);
+    assert_eq!(mine.conversations, 1, "both requests share one context");
+    assert!(mine.name.is_some(), "the reporting projection carries the display name");
+
+    let theirs = rows
+        .iter()
+        .find(|r| r.user_id == other)
+        .expect("the other user has spend in the window");
+    assert_eq!(theirs.requests, 1);
+    assert_eq!(theirs.cost, 99_999_999);
+
+    let my_rank = rows.iter().position(|r| r.user_id == fx.user_id);
+    let their_rank = rows.iter().position(|r| r.user_id == other);
+    assert!(their_rank < my_rank, "rows are ordered by spend, highest first");
+
+    cleanup_other(&fx, &other).await?;
+    fx.cleanup().await?;
+    Ok(())
+}
+
+#[tokio::test]
 async fn summary_for_user_isolates_by_user_id() -> Result<()> {
     let fx = Fixture::new().await?;
     let other = make_other_user(&fx).await?;

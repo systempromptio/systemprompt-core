@@ -6,7 +6,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
-use systemprompt_identifiers::{ContextId, SessionId};
+use systemprompt_identifiers::{ContextId, SessionId, UserId};
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct AgentListRow {
@@ -69,6 +69,7 @@ pub struct AgentSummaryRow {
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct ConversationListRow {
     pub context_id: ContextId,
+    pub user_id: UserId,
     pub name: Option<String>,
     pub task_count: i64,
     pub message_count: i64,
@@ -79,6 +80,7 @@ pub struct ConversationListRow {
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct GatewaySessionListRow {
     pub session_id: SessionId,
+    pub user_id: UserId,
     pub message_count: i64,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,

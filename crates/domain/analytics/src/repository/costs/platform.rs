@@ -1,7 +1,7 @@
 //! Platform-wide cost queries for `CostAnalyticsRepository`.
 //!
 //! Aggregates spend, tokens, and request counts across all users from
-//! `ai_requests`, with breakdowns by model, provider, and agent and a trend
+//! `ai_requests`, with breakdowns by model, provider, agent, and user and a trend
 //! series for the platform cost dashboard.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -11,7 +11,9 @@ use super::CostAnalyticsRepository;
 use crate::Result;
 use chrono::{DateTime, Utc};
 
-use crate::models::reporting::{CostBreakdownRow, CostSummaryRow, CostTrendRow, PreviousCostRow};
+use crate::models::reporting::{
+    CostBreakdownRow, CostSummaryRow, CostTrendRow, CostUserBreakdownRow, PreviousCostRow,
+};
 
 impl CostAnalyticsRepository {
     pub async fn get_summary(
@@ -113,6 +115,39 @@ impl CostAnalyticsRepository {
               AND provider IS NOT NULL
             GROUP BY provider
             ORDER BY SUM(cost_microdollars) DESC NULLS LAST
+            LIMIT $3
+            "#,
+            start,
+            end,
+            limit
+        )
+        .fetch_all(&*self.pool)
+        .await
+        .map_err(Into::into)
+    }
+
+    pub async fn get_breakdown_by_user(
+        &self,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+        limit: i64,
+    ) -> Result<Vec<CostUserBreakdownRow>> {
+        sqlx::query_as!(
+            CostUserBreakdownRow,
+            r#"
+            SELECT
+                r.user_id as "user_id!",
+                u.name as "name?",
+                COALESCE(SUM(r.cost_microdollars), 0)::bigint as "cost!",
+                COUNT(*)::bigint as "requests!",
+                COALESCE(SUM(r.tokens_used), 0)::bigint as "tokens!",
+                COUNT(DISTINCT r.context_id)::bigint as "conversations!"
+            FROM analytics_report_ai_requests r
+            LEFT JOIN analytics_report_users u ON u.id = r.user_id
+            WHERE r.created_at >= $1 AND r.created_at < $2
+              AND NOT r.synthetic
+            GROUP BY r.user_id, u.name
+            ORDER BY SUM(r.cost_microdollars) DESC NULLS LAST
             LIMIT $3
             "#,
             start,

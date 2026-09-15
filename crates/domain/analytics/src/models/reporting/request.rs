@@ -40,6 +40,47 @@ pub struct RequestTrendRow {
     pub latency_ms: Option<i32>,
 }
 
+/// Selection for `RequestAnalyticsRepository::list_requests`: a page of
+/// newest-first rows inside a window, optionally narrowed to one model
+/// substring and one user.
+#[derive(Debug, Clone, Default)]
+pub struct RequestListFilter {
+    pub limit: i64,
+    pub offset: i64,
+    pub model: Option<String>,
+    pub user: Option<UserId>,
+}
+
+impl RequestListFilter {
+    #[must_use]
+    pub const fn new(limit: i64) -> Self {
+        Self {
+            limit,
+            offset: 0,
+            model: None,
+            user: None,
+        }
+    }
+
+    #[must_use]
+    pub const fn with_offset(mut self, offset: i64) -> Self {
+        self.offset = offset;
+        self
+    }
+
+    #[must_use]
+    pub fn with_model(mut self, model: impl Into<String>) -> Self {
+        self.model = Some(model.into());
+        self
+    }
+
+    #[must_use]
+    pub fn with_user(mut self, user: UserId) -> Self {
+        self.user = Some(user);
+        self
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct RequestListRow {
     pub id: AiRequestId,
@@ -77,6 +118,21 @@ pub struct CostBreakdownRow {
     pub cost: i64,
     pub requests: i64,
     pub tokens: i64,
+}
+
+/// Spend grouped by the user who made the requests. `name` is the display
+/// name from the reporting projection (no email — that never leaves the
+/// source table) and `conversations` counts distinct contexts, which is the
+/// number that separates a user working through tasks from one sending many
+/// one-line requests.
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct CostUserBreakdownRow {
+    pub user_id: String,
+    pub name: Option<String>,
+    pub cost: i64,
+    pub requests: i64,
+    pub tokens: i64,
+    pub conversations: i64,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, FromRow)]
