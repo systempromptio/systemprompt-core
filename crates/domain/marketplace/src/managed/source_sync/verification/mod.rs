@@ -266,7 +266,7 @@ fn import_source(
     } = *request;
     let temp = std::env::temp_dir().join(format!(
         "systemprompt-verification-{}",
-        ManagedSourceId::generate()
+        uuid::Uuid::new_v4()
     ));
     crate::managed::git_execution::create_private_directory(&temp)?;
     let imported = import_tree(&GitCheckout {

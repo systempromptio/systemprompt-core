@@ -148,6 +148,8 @@ fn validate_request(request: &PublicationRequest) -> Result<()> {
         || serde_jcs::to_vec(&request.comparison_evidence)?.len() > 65_536
         || (request.action == PublicationAction::PublishImprovement
             && request.comparison_evidence.is_empty())
+        || (request.action != PublicationAction::PublishImprovement
+            && request.comparison_evidence.experiment_id.is_some())
     {
         return Err(invalid("Invalid publication review input"));
     }
