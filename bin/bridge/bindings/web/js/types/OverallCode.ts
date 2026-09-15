@@ -3,4 +3,4 @@
 /**
  * The single dot the footer and sync pill show.
  */
-export type OverallCode = "syncing" | "offline" | "synced" | "ready" | "needs-sign-in";
+export type OverallCode = "syncing" | "offline" | "synced" | "degraded" | "ready" | "needs-sign-in";

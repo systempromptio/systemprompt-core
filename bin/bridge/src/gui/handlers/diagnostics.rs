@@ -11,8 +11,12 @@ use serde_json::json;
 use zip::ZipWriter;
 use zip::write::SimpleFileOptions;
 
+use std::sync::Arc;
+
+use crate::gui::error::GuiError;
 use crate::gui::events::ReplyId;
 use crate::gui::{GuiApp, emit};
+use crate::i18n;
 use crate::wire::ipc::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload};
 
 #[tracing::instrument(level = "info", skip(app))]
@@ -99,6 +103,63 @@ pub(crate) fn on_reset_proxy_secret(app: &GuiApp, reply_to: ReplyId) {
         app.proxy
             .send_event(crate::gui::events::UiEvent::UpdateRestartRequested);
     }
+}
+
+// Why: the UAC prompt blocks until the user answers it, so the repair runs off
+// the event loop and reports back the way a profile install does.
+#[tracing::instrument(level = "info", skip(app))]
+pub(crate) fn on_config_dir_repair_requested(app: &GuiApp, reply_to: ReplyId) {
+    app.append_log(i18n::t("config-dir-repair-started"));
+    let proxy = app.proxy.clone();
+    app.ctx.spawn(async move {
+        let result = match tokio::task::spawn_blocking(repair_config_dir).await {
+            Ok(r) => r.map_err(|e| Arc::new(GuiError::Io(e))),
+            Err(join_err) => Err(Arc::new(GuiError::Io(io::Error::other(format!(
+                "config dir repair task join: {join_err}"
+            ))))),
+        };
+        proxy.send_event(crate::gui::events::UiEvent::ConfigDirRepairFinished { result, reply_to });
+    });
+}
+
+pub(crate) fn on_config_dir_repair_finished(
+    app: &mut GuiApp,
+    result: Result<String, Arc<GuiError>>,
+    reply_to: ReplyId,
+) {
+    let result = match result {
+        Ok(path) => {
+            app.append_log(i18n::t_args("config-dir-repaired", &[("path", &path)]));
+            Ok(json!({ "path": path }))
+        },
+        Err(e) => {
+            let msg = i18n::t_args("config-dir-repair-failed", &[("error", &e.to_string())]);
+            app.append_log_error(&msg);
+            let code = match e.as_ref() {
+                GuiError::Io(io) if io.kind() == io::ErrorKind::PermissionDenied => {
+                    ErrorCode::Unauthorized
+                },
+                _ => ErrorCode::Internal,
+            };
+            Err(BridgeError::new(ErrorScope::Identity, code, msg))
+        },
+    };
+    app.state.reload();
+    app.refresh_ui();
+    finish(app, result, reply_to);
+}
+
+#[cfg(target_os = "windows")]
+fn repair_config_dir() -> io::Result<String> {
+    crate::windows_acl::repair_config_dir_elevated().map(|dir| dir.display().to_string())
+}
+
+#[cfg(not(target_os = "windows"))]
+fn repair_config_dir() -> io::Result<String> {
+    Err(io::Error::new(
+        io::ErrorKind::Unsupported,
+        "the configuration directory carries no Windows access control list to repair",
+    ))
 }
 
 fn build_bundle(ctx: &crate::context::BridgeContext) -> io::Result<PathBuf> {

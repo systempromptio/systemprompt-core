@@ -32,6 +32,8 @@ pub enum ErrorCode {
     NotFound,
     Conflict,
     Timeout,
+    ElevationRequired,
+    Partial,
     Internal,
 }
 

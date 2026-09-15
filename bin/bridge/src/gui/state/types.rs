@@ -88,6 +88,7 @@ pub struct AppStateSnapshot {
     pub provider_health: Vec<crate::gateway::types::ProviderHealth>,
     pub credential_error: Option<String>,
     pub startup_faults: Vec<crate::obs::StartupFault>,
+    pub elevated: bool,
 
     pub hosts: HostsState,
 

@@ -73,6 +73,7 @@ pub fn state_payload<'a>(
             health: snap.health_verdict(),
             provider_health: &snap.provider_health,
             credential_error: snap.credential_error.as_deref(),
+            elevated: snap.elevated,
             startup_faults: snap
                 .startup_faults
                 .iter()

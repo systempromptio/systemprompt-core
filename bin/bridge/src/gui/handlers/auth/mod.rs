@@ -101,16 +101,11 @@ pub(crate) fn on_login_finished(
             Ok(())
         },
         Err(e) => {
-            let raw = e.to_string();
-            let line = i18n::t_args("login-failure", &[("error", &raw)]);
+            let (line, code) = login_failure_line(&e);
             app.append_log_error(&line);
             app.state.reload();
             app.refresh_ui();
-            Err(BridgeError::new(
-                ErrorScope::Identity,
-                ErrorCode::Unauthorized,
-                line,
-            ))
+            Err(BridgeError::new(ErrorScope::Identity, code, line))
         },
     };
     finish_unit(app, bridge_result, reply_to);
@@ -280,4 +275,23 @@ pub(crate) fn watch_credential_state(app: &GuiApp) {
             }
         }
     });
+}
+
+fn login_failure_line(e: &GuiError) -> (String, ErrorCode) {
+    use crate::auth::setup::SetupError;
+    use crate::config::ConfigWriteError;
+    match e {
+        GuiError::Auth(SetupError::ConfigWrite(ConfigWriteError::ForeignOwner { path, owner }))
+        | GuiError::Config(ConfigWriteError::ForeignOwner { path, owner }) => (
+            i18n::t_args(
+                "login-config-foreign-owner",
+                &[("path", &path.display().to_string()), ("owner", owner)],
+            ),
+            ErrorCode::ElevationRequired,
+        ),
+        _ => (
+            i18n::t_args("login-failure", &[("error", &e.to_string())]),
+            ErrorCode::Unauthorized,
+        ),
+    }
 }

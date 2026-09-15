@@ -39,6 +39,7 @@ pub(super) fn reload_into(snap: &mut AppStateSnapshot) {
         snap.pat_present = false;
     }
 
+    snap.elevated = process_elevated();
     let loc = paths::org_plugins_effective();
     snap.plugins_dir = loc.as_ref().map(|l| l.path.display().to_string());
     snap.last_sync_summary = None;
@@ -93,4 +94,14 @@ pub(super) fn reload_into(snap: &mut AppStateSnapshot) {
         snap.skill_count = super::counters::count_skills_across_plugins(&loc.path);
         snap.agent_count = super::counters::count_agents_across_plugins(&loc.path);
     }
+}
+
+#[cfg(target_os = "windows")]
+fn process_elevated() -> bool {
+    crate::winproc::is_elevated()
+}
+
+#[cfg(not(target_os = "windows"))]
+const fn process_elevated() -> bool {
+    false
 }

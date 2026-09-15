@@ -56,6 +56,13 @@ pub enum UiEvent {
     ProxySecretResetRequested {
         reply_to: ReplyId,
     },
+    ConfigDirRepairRequested {
+        reply_to: ReplyId,
+    },
+    ConfigDirRepairFinished {
+        result: Result<String, Arc<GuiError>>,
+        reply_to: ReplyId,
+    },
     ExportDiagnosticBundle {
         reply_to: ReplyId,
     },

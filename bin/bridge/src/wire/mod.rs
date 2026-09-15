@@ -72,6 +72,7 @@ pub struct StatePayload<'a> {
     #[cfg_attr(feature = "ts-export", ts(optional))]
     pub credential_error: Option<&'a str>,
     pub startup_faults: Vec<StartupFaultPayload<'a>>,
+    pub elevated: bool,
     pub sync_in_flight: bool,
     pub cached_token: Option<CachedTokenPayload>,
     pub token: Verdict<TokenCode>,

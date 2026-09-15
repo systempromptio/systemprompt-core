@@ -19,6 +19,8 @@ const fn event_kind(event: &UiEvent) -> &'static str {
         UiEvent::OpenLogDirectory { .. } => "OpenLogDirectory",
         UiEvent::ExportDiagnosticBundle { .. } => "ExportDiagnosticBundle",
         UiEvent::ProxySecretResetRequested { .. } => "ProxySecretResetRequested",
+        UiEvent::ConfigDirRepairRequested { .. } => "ConfigDirRepairRequested",
+        UiEvent::ConfigDirRepairFinished { .. } => "ConfigDirRepairFinished",
         UiEvent::LoginRequested { .. } => "LoginRequested",
         UiEvent::SessionLoginRequested { .. } => "SessionLoginRequested",
         UiEvent::LogoutRequested { .. } => "LogoutRequested",
@@ -140,6 +142,12 @@ fn dispatch_request(
         },
         UiEvent::ProxySecretResetRequested { reply_to } => {
             handlers::diagnostics::on_reset_proxy_secret(app, reply_to);
+        },
+        UiEvent::ConfigDirRepairRequested { reply_to } => {
+            handlers::diagnostics::on_config_dir_repair_requested(app, reply_to);
+        },
+        UiEvent::ConfigDirRepairFinished { result, reply_to } => {
+            handlers::diagnostics::on_config_dir_repair_finished(app, result, reply_to);
         },
         UiEvent::LoginRequested {
             token,
