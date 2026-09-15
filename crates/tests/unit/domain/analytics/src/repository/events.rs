@@ -2,7 +2,7 @@
 //! fold `content_id` / `slug` / `referrer` into `event_data`, and the
 //! `find_by_content` reader that pivots on the JSON `content_id`.
 
-use systemprompt_analytics::{AnalyticsEventsRepository};
+use systemprompt_analytics::AnalyticsEventsRepository;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContentId, SessionId, SessionSource, UserId};
 use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fixture_db_pool};

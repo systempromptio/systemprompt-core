@@ -10,6 +10,7 @@ use super::{
 };
 use std::sync::Arc;
 
+#[derive(Debug)]
 pub struct CapturedGitSource {
     pub commit: String,
     pub files: RevisionFiles,
@@ -29,6 +30,14 @@ pub trait GitSourceCapture: Send + Sync {
 pub struct GitSynchronizationService {
     repository: ManagedRepository,
     capture: Arc<dyn GitSourceCapture>,
+}
+
+impl std::fmt::Debug for GitSynchronizationService {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("GitSynchronizationService")
+            .field("repository", &self.repository)
+            .finish_non_exhaustive()
+    }
 }
 
 impl GitSynchronizationService {

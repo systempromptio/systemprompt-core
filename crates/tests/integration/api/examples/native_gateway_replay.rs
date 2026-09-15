@@ -300,8 +300,13 @@ async fn replay() -> Result<()> {
                 .mount(&upstream)
                 .await;
             let configured = config();
-            let unknown_registry =
-                registry(&upstream.uri(), &request.model, outbound, surface, false);
+            let unknown_registry = registry(
+                &upstream.uri(),
+                request.model.as_str(),
+                outbound,
+                surface,
+                false,
+            );
             ensure!(
                 systemprompt_api::services::gateway::pricing::resolve(
                     "native-fixture",
@@ -312,7 +317,12 @@ async fn replay() -> Result<()> {
                 .is_err(),
                 "Unknown pricing was invented as measured zero"
             );
-            let unknown_ctx = context(&cred, &request.model, request.stream, inbound.as_ref());
+            let unknown_ctx = context(
+                &cred,
+                request.model.as_str(),
+                request.stream,
+                inbound.as_ref(),
+            );
             let unknown_id = unknown_ctx.ai_request_id.clone();
             let unknown_dispatch = tokio::time::timeout(
                 Duration::from_secs(15),
@@ -355,8 +365,19 @@ async fn replay() -> Result<()> {
                 unknown_row.is_none(),
                 "Unpriced preflight must not create a measured-zero completion"
             );
-            let providers = registry(&upstream.uri(), &request.model, outbound, surface, true);
-            let ctx = context(&cred, &request.model, request.stream, inbound.as_ref());
+            let providers = registry(
+                &upstream.uri(),
+                request.model.as_str(),
+                outbound,
+                surface,
+                true,
+            );
+            let ctx = context(
+                &cred,
+                request.model.as_str(),
+                request.stream,
+                inbound.as_ref(),
+            );
             let id = ctx.ai_request_id.clone();
             let fault_ctx = ctx.clone();
             let dispatch = tokio::time::timeout(

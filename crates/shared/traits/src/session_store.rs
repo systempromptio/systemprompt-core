@@ -105,6 +105,8 @@ pub struct SessionSnapshot {
 use crate::{AnalyticsResult, SessionProvider, SessionUsageCounters};
 use async_trait::async_trait;
 
+/// Users-owned session persistence injected into analytics as
+/// `dyn SessionStore`, hence `#[async_trait]`.
 #[async_trait]
 pub trait SessionStore: SessionProvider + SessionUsageCounters {
     async fn fingerprint_session_ids(

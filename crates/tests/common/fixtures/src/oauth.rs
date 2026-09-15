@@ -6,8 +6,8 @@
 //! recommended for OAuth 2.1.
 
 use anyhow::Result;
-use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+use base64::Engine;
 use sha2::{Digest, Sha256};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ClientId, UserId};

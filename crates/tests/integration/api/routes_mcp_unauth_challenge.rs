@@ -65,8 +65,9 @@ async fn boot_full_router() -> anyhow::Result<axum::Router> {
 
     let ctx = Arc::new(AppContext::from_parts(
         {
-            let analytics_repositories =
-                Arc::new(systemprompt_test_fixtures::fixture_analytics_repositories(&pool)?);
+            let analytics_repositories = Arc::new(
+                systemprompt_test_fixtures::fixture_analytics_repositories(&pool)?,
+            );
             let analytics_service =
                 Arc::new(AnalyticsService::new(None, None, &analytics_repositories));
             let session_usage: systemprompt_traits::DynSessionUsageCounters =
@@ -75,7 +76,9 @@ async fn boot_full_router() -> anyhow::Result<axum::Router> {
             DataPlane {
                 database: Arc::clone(&pool),
                 analytics_service,
-                fingerprint_repo: Some(Arc::new(systemprompt_test_fixtures::fixture_fingerprint_repository(&pool)?)),
+                fingerprint_repo: Some(Arc::new(
+                    systemprompt_test_fixtures::fixture_fingerprint_repository(&pool)?,
+                )),
                 user_service: Some(Arc::new(UserService::new(Arc::new(UserRepository::new(
                     &pool,
                 )?)))),

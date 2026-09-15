@@ -12,8 +12,7 @@ use systemprompt_analytics::models::{
 };
 use systemprompt_analytics::{
     AnalyticsEventsRepository, ConversationAnalyticsRepository, EngagementRepository,
-    OverviewAnalyticsRepository, RequestAnalyticsRepository,
-    TrafficAnalyticsRepository,
+    OverviewAnalyticsRepository, RequestAnalyticsRepository, TrafficAnalyticsRepository,
 };
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{SessionId, UserId};

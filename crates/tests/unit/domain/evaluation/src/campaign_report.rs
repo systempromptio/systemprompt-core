@@ -137,7 +137,7 @@ async fn retained_report_never_infers_missing_tokens_quality_or_latency() {
         let statement = format!(
             "UPDATE eval_execution_measurements SET {column}=NULL WHERE execution_id=(SELECT id FROM eval_executions WHERE experiment_id=$1 AND variant_index=1 ORDER BY id LIMIT 1)"
         );
-        sqlx::query(&statement)
+        sqlx::query(sqlx::AssertSqlSafe(statement))
             .bind(f.experiment.as_str())
             .execute(&f.pool)
             .await

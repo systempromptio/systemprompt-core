@@ -8313,6 +8313,7 @@ dependencies = [
 name = "systemprompt-logging"
 version = "0.52.0"
 dependencies = [
+ "async-trait",
  "chrono",
  "console",
  "indicatif",

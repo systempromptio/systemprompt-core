@@ -25,7 +25,9 @@ pub(crate) fn session_usage(
     db: &systemprompt_database::DbPool,
 ) -> systemprompt_traits::DynSessionUsageCounters {
     systemprompt_test_fixtures::fixture_analytics_repositories(db)
-        .expect("session repository").sessions.owner()
+        .expect("session repository")
+        .sessions
+        .owner()
 }
 
 #[cfg(test)]
