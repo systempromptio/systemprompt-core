@@ -55,6 +55,9 @@ for path in glob.glob(os.path.join(crate, "src", "**", "*.rs"), recursive=True):
     with open(path, encoding="utf-8", errors="ignore") as fh:
         text = fh.read()
     text = re.sub(r"\\\n\s*", "", text)
+    # A plain string literal escapes its inner quotes; sqlx records the
+    # unescaped SQL, so `\"user_id!\"` in source is `"user_id!"` in the cache.
+    text = text.replace('\\"', '"')
     corpus.append(norm(text))
 corpus = "\n".join(corpus)
 
