@@ -1,6 +1,11 @@
 //! Owner-scoped campaign persistence with optimistic concurrency and an audit
 //! event for every state transition.
 //!
+//! The baseline revision and resource a campaign optimises are marketplace
+//! rows; `create` verifies both belong to the owner through
+//! `ManagedRevisionOwnership` before persisting the policy, so a foreign id
+//! can never be adopted by way of this repository.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -9,14 +14,22 @@ use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use sqlx::types::Json;
 use systemprompt_identifiers::{EvalCampaignId, EvalExperimentId, UserId};
+use systemprompt_traits::DynManagedRevisionOwnership;
 
 use super::CampaignPolicy;
 use crate::Result;
-use crate::experiments::{conflict, content_digest, missing};
+use crate::experiments::{conflict, content_digest, invalid, missing};
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct CampaignRepository {
     pub(super) pool: PgPool,
+    revisions: DynManagedRevisionOwnership,
+}
+
+impl std::fmt::Debug for CampaignRepository {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CampaignRepository").finish_non_exhaustive()
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
@@ -51,8 +64,8 @@ impl CampaignAction {
 }
 
 impl CampaignRepository {
-    pub const fn new(pool: PgPool) -> Self {
-        Self { pool }
+    pub const fn new(pool: PgPool, revisions: DynManagedRevisionOwnership) -> Self {
+        Self { pool, revisions }
     }
 
     pub async fn create(
@@ -88,9 +101,15 @@ impl CampaignRepository {
     ) -> Result<EvalCampaignId> {
         policy.validate()?;
         if key.trim().is_empty() || key.len() > 200 {
-            return Err(crate::experiments::invalid(
-                "Campaign operation key is required",
-            ));
+            return Err(invalid("Campaign operation key is required"));
+        }
+        let resource = self
+            .revisions
+            .revision_resource(owner, &policy.baseline_revision_id)
+            .await?
+            .ok_or_else(|| missing("Baseline revision unavailable in this scope"))?;
+        if resource != policy.resource_id {
+            return Err(invalid("Baseline must belong to the campaign resource"));
         }
         let digest = content_digest(policy)?;
         let mut tx = self.pool.begin().await?;

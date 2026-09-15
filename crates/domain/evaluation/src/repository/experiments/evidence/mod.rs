@@ -12,6 +12,7 @@ use sqlx::PgPool;
 use sqlx::types::Json;
 use systemprompt_identifiers::{AiRequestId, EvalExecutionId, UserId};
 use systemprompt_models::managed::RevisionBundle;
+use systemprompt_traits::DynAiRequestTrace;
 
 mod validation;
 use validation::{ManagedAsset, managed_assets, validate_artifacts, validate_variant};
@@ -26,14 +27,21 @@ pub struct ManagedWorkspaceRegistration<'a> {
     pub byte_count: usize,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct EvidenceRepository {
     pool: PgPool,
+    trace: DynAiRequestTrace,
+}
+
+impl std::fmt::Debug for EvidenceRepository {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("EvidenceRepository").finish_non_exhaustive()
+    }
 }
 
 impl EvidenceRepository {
-    pub const fn new(pool: PgPool) -> Self {
-        Self { pool }
+    pub const fn new(pool: PgPool, trace: DynAiRequestTrace) -> Self {
+        Self { pool, trace }
     }
 
     pub async fn register_managed_workspace(
@@ -174,15 +182,23 @@ impl EvidenceRepository {
             return Err(conflict("Expired execution lease"));
         }
         validate_variant(evidence, &execution.variant.0)?;
-        let mut recorded = sqlx::query_scalar!(
-            "SELECT m.request_id FROM eval_request_reservations m JOIN ai_requests r ON r.id=m.request_id WHERE m.execution_id=$1 AND r.user_id=$2",
-            lease.execution_id.as_str(), owner.as_str()
-        ).fetch_all(&mut *tx).await?;
-        let mut submitted: Vec<_> = evidence
-            .requests
-            .iter()
-            .map(|id| id.as_str().to_owned())
+        let reserved: Vec<AiRequestId> = sqlx::query_scalar!(
+            "SELECT request_id FROM eval_request_reservations WHERE execution_id=$1",
+            lease.execution_id.as_str()
+        )
+        .fetch_all(&mut *tx)
+        .await?
+        .into_iter()
+        .map(AiRequestId::new)
+        .collect();
+        let mut recorded: Vec<AiRequestId> = self
+            .trace
+            .list_usage(owner, &reserved)
+            .await?
+            .into_iter()
+            .map(|usage| usage.request_id)
             .collect();
+        let mut submitted: Vec<AiRequestId> = evidence.requests.clone();
         recorded.sort();
         submitted.sort();
         if recorded != submitted {

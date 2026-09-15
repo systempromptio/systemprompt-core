@@ -41,11 +41,8 @@ pub struct AssignmentRepository {
 }
 
 impl AssignmentRepository {
-    pub fn new(pool: PgPool) -> Self {
-        Self {
-            evidence: EvidenceRepository::new(pool.clone()),
-            pool,
-        }
+    pub const fn new(pool: PgPool, evidence: EvidenceRepository) -> Self {
+        Self { pool, evidence }
     }
 
     pub async fn get(

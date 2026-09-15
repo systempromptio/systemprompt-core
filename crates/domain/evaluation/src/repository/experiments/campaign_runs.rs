@@ -51,10 +51,7 @@ impl ExperimentRepository {
             .preflight(owner, &policy.budget_id, &input.spec)
             .await?;
         if !preflight.affordable {
-            return Err(crate::EvaluationError::BudgetExhausted {
-                spent: preflight.maximum_cost_microdollars,
-                budget: preflight.available_microdollars,
-            });
+            return Err(crate::EvaluationError::budget_exhausted(&preflight));
         }
         self.insert_campaign_run(owner, actor, input).await
     }

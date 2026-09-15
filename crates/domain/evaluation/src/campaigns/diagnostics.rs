@@ -68,7 +68,9 @@ impl DiagnosticCode {
         match error {
             EvaluationError::BudgetExhausted { .. } => Self::BudgetUnavailable,
             EvaluationError::ResourceNotFound(_) => Self::MissingTemplate,
-            EvaluationError::Repository(_) => Self::StorageUnavailable,
+            EvaluationError::Repository(_)
+            | EvaluationError::Trace(_)
+            | EvaluationError::ManagedRevisions(_) => Self::StorageUnavailable,
             EvaluationError::InvalidSpec(message) if message.contains("unsupported") => {
                 Self::UnsupportedCapability
             },

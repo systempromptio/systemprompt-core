@@ -1,5 +1,9 @@
 //! Gateway request accounting bound to server-attested execution sessions.
 //!
+//! Session liveness and request audit state belong to other domains and are
+//! read through `AiSessionProvider` and `AiRequestTrace`; the reservation
+//! bookkeeping itself stays transactional under the owner lock.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -8,58 +12,72 @@ use crate::Result;
 use crate::experiments::{conflict, missing};
 use sqlx::PgPool;
 use systemprompt_identifiers::{
-    Actor, AiRequestId, EvalBudgetId, EvalReservationId, ModelId, ProviderId, SessionId, UserId,
+    Actor, AiRequestId, EvalBudgetId, EvalReservationId, SessionId, UserId,
 };
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum RequestAdmission {
-    Ordinary,
-    Reserved(EvalReservationId),
+mod request;
+pub use request::{
+    AdmissionRequest, AdmissionRequestBuilder, EvaluationTrafficClass, RequestAdmission,
+};
+use systemprompt_traits::{DynAiRequestTrace, DynAiSessionProvider, TraceRequestStatus};
+
+/// The foreign-domain reads the gateway repository performs.
+#[derive(Clone)]
+pub struct GatewaySeams {
+    pub trace: DynAiRequestTrace,
+    pub sessions: DynAiSessionProvider,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum EvaluationTrafficClass {
-    Fixture,
-    LiveEvaluation,
-    Suggestion,
-    Judge,
-}
-
-impl EvaluationTrafficClass {
-    const fn as_str(self) -> &'static str {
-        match self {
-            Self::Fixture => "fixture",
-            Self::LiveEvaluation => "live_evaluation",
-            Self::Suggestion => "suggestion",
-            Self::Judge => "judge",
-        }
+impl std::fmt::Debug for GatewaySeams {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("GatewaySeams").finish_non_exhaustive()
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct GatewayEvaluationRepository {
     pool: PgPool,
     budgets: BudgetRepository,
+    trace: DynAiRequestTrace,
+    sessions: DynAiSessionProvider,
     admission: std::sync::Arc<dyn crate::capabilities::ExecutionAdmission>,
 }
 
+impl std::fmt::Debug for GatewayEvaluationRepository {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("GatewayEvaluationRepository")
+            .finish_non_exhaustive()
+    }
+}
+
 impl GatewayEvaluationRepository {
-    pub fn new(pool: PgPool) -> Self {
+    pub fn new(pool: PgPool, budgets: BudgetRepository, seams: GatewaySeams) -> Self {
         Self::with_admission(
             pool,
+            budgets,
+            seams,
             std::sync::Arc::new(crate::capabilities::VerifiedExecutionAdmission),
         )
     }
 
     pub fn with_admission(
         pool: PgPool,
+        budgets: BudgetRepository,
+        seams: GatewaySeams,
         admission: std::sync::Arc<dyn crate::capabilities::ExecutionAdmission>,
     ) -> Self {
         Self {
-            admission,
-            budgets: BudgetRepository::new(pool.clone()),
             pool,
+            budgets,
+            trace: seams.trace,
+            sessions: seams.sessions,
+            admission,
         }
+    }
+
+    async fn session_is_owned(&self, owner: &UserId, session: &SessionId) -> Result<bool> {
+        let live = self.sessions.find_live_session(session).await?;
+        Ok(live.is_some_and(|session| session.user_id.as_ref() == Some(owner)))
     }
 
     pub async fn execution_actor(
@@ -79,12 +97,11 @@ impl GatewayEvaluationRepository {
 
     pub async fn is_evaluation_session(&self, session: &SessionId) -> Result<bool> {
         Ok(sqlx::query_scalar!(
-            "SELECT EXISTS(SELECT 1 FROM eval_session_bindings WHERE session_id=$1)",
+            r#"SELECT EXISTS(SELECT 1 FROM eval_session_bindings WHERE session_id=$1) AS "exists!""#,
             session.as_str()
         )
         .fetch_one(&self.pool)
-        .await?
-        .unwrap_or(false))
+        .await?)
     }
 
     pub async fn set_traffic_class(
@@ -109,11 +126,14 @@ impl GatewayEvaluationRepository {
         lease: &ExecutionLease,
         session: &SessionId,
     ) -> Result<()> {
+        if !self.session_is_owned(owner, session).await? {
+            return Err(conflict("Session or execution lease is unavailable"));
+        }
         let mut tx = self.pool.begin().await?;
         super::lock_owner(&mut tx, owner).await?;
         let eligible = sqlx::query_scalar!(
-            "SELECT x.id FROM eval_executions x JOIN eval_experiments e ON e.id=x.experiment_id JOIN user_sessions s ON s.user_id=e.owner_id WHERE s.session_id=$1 AND e.owner_id=$2 AND e.status='running' AND x.id=$3 AND x.lease_owner=$4 AND x.fencing_token=$5 AND x.status='running' AND x.lease_expires_at>NOW() AND x.deadline_at>NOW()",
-            session.as_str(), owner.as_str(), lease.execution_id.as_str(), lease.worker_id.as_str(), lease.fencing_token
+            "SELECT x.id FROM eval_executions x JOIN eval_experiments e ON e.id=x.experiment_id WHERE e.owner_id=$1 AND e.status='running' AND x.id=$2 AND x.lease_owner=$3 AND x.fencing_token=$4 AND x.status='running' AND x.lease_expires_at>NOW() AND x.deadline_at>NOW()",
+            owner.as_str(), lease.execution_id.as_str(), lease.worker_id.as_str(), lease.fencing_token
         ).fetch_optional(&mut *tx).await?;
         if eligible.is_none() {
             return Err(conflict("Session or execution lease is unavailable"));
@@ -159,10 +179,14 @@ impl GatewayEvaluationRepository {
             self.admission.as_ref(),
         )
         .await?;
-        let audited = sqlx::query_scalar!(
-            "SELECT EXISTS(SELECT 1 FROM ai_requests WHERE id=$1 AND user_id=$2 AND session_id=$3 AND status='pending')",
-            input.request.as_str(), input.owner.as_str(), input.session.as_str()
-        ).fetch_one(&mut *tx).await?.unwrap_or(false);
+        let audited = self
+            .trace
+            .find_usage(input.owner, input.request)
+            .await?
+            .is_some_and(|usage| {
+                usage.status == TraceRequestStatus::Pending
+                    && usage.session_id.as_ref() == Some(input.session)
+            });
         if !audited {
             return Err(conflict(
                 "Evaluation requires a pending audit record owned by its session",
@@ -190,17 +214,17 @@ impl GatewayEvaluationRepository {
     }
 
     pub async fn settle_recorded(&self, owner: &UserId, request: &AiRequestId) -> Result<bool> {
-        let reservation = sqlx::query!(
-            "SELECT m.reservation_id,r.cost_microdollars,r.status,r.accounting_failed_at,r.completed_at,r.tokens_used FROM eval_request_reservations m JOIN eval_executions x ON x.id=m.execution_id JOIN eval_experiments e ON e.id=x.experiment_id JOIN ai_requests r ON r.id=m.request_id WHERE m.request_id=$1 AND e.owner_id=$2 AND r.user_id=$2",
+        let reservation = sqlx::query_scalar!(
+            "SELECT m.reservation_id FROM eval_request_reservations m JOIN eval_executions x ON x.id=m.execution_id JOIN eval_experiments e ON e.id=x.experiment_id WHERE m.request_id=$1 AND e.owner_id=$2",
             request.as_str(), owner.as_str()
         ).fetch_optional(&self.pool).await?;
-        let Some(record) = reservation else {
+        let Some(reservation_id) = reservation else {
             return Ok(false);
         };
-        if (record.status != "completed" && record.accounting_failed_at.is_none())
-            || record.completed_at.is_none()
-            || record.tokens_used.unwrap_or(0) <= 0
-        {
+        let Some(record) = self.trace.find_usage(owner, request).await? else {
+            return Ok(false);
+        };
+        if !record.is_settled() || record.tokens_used.unwrap_or(0) <= 0 {
             return Err(missing(
                 "Provider usage is not yet complete; reservation remains held",
             ));
@@ -208,83 +232,11 @@ impl GatewayEvaluationRepository {
         self.budgets
             .settle(
                 owner,
-                &EvalReservationId::new(record.reservation_id),
+                &EvalReservationId::new(reservation_id),
                 request,
                 record.cost_microdollars,
             )
             .await?;
         Ok(true)
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct AdmissionRequest<'a> {
-    pub owner: &'a UserId,
-    pub session: &'a SessionId,
-    pub request: &'a AiRequestId,
-    pub model: &'a ModelId,
-    pub provider: &'a ProviderId,
-    pub bound_microdollars: i64,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct AdmissionRequestBuilder<'a> {
-    owner: &'a UserId,
-    session: &'a SessionId,
-    request: Option<&'a AiRequestId>,
-    model: Option<&'a ModelId>,
-    provider: Option<&'a ProviderId>,
-    bound_microdollars: Option<i64>,
-}
-
-impl<'a> AdmissionRequest<'a> {
-    pub const fn builder(owner: &'a UserId, session: &'a SessionId) -> AdmissionRequestBuilder<'a> {
-        AdmissionRequestBuilder {
-            owner,
-            session,
-            request: None,
-            model: None,
-            provider: None,
-            bound_microdollars: None,
-        }
-    }
-}
-
-impl<'a> AdmissionRequestBuilder<'a> {
-    pub const fn request(mut self, request: &'a AiRequestId) -> Self {
-        self.request = Some(request);
-        self
-    }
-    pub const fn model(mut self, model: &'a ModelId) -> Self {
-        self.model = Some(model);
-        self
-    }
-    pub const fn provider(mut self, provider: &'a ProviderId) -> Self {
-        self.provider = Some(provider);
-        self
-    }
-    pub const fn bound_microdollars(mut self, amount: i64) -> Self {
-        self.bound_microdollars = Some(amount);
-        self
-    }
-    pub fn build(self) -> Result<AdmissionRequest<'a>> {
-        let bound_microdollars = self
-            .bound_microdollars
-            .filter(|amount| *amount > 0)
-            .ok_or_else(|| crate::experiments::invalid("Positive reservation bound required"))?;
-        Ok(AdmissionRequest {
-            owner: self.owner,
-            session: self.session,
-            request: self
-                .request
-                .ok_or_else(|| crate::experiments::invalid("Request ID required"))?,
-            model: self
-                .model
-                .ok_or_else(|| crate::experiments::invalid("Model required"))?,
-            provider: self
-                .provider
-                .ok_or_else(|| crate::experiments::invalid("Provider required"))?,
-            bound_microdollars,
-        })
     }
 }

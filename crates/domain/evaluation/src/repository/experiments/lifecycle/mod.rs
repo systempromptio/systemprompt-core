@@ -1,5 +1,8 @@
 //! Approval, measurement, suggestion, cleanup and restart reconciliation state.
 //!
+//! Recorded request usage belongs to the AI domain and is read through
+//! `AiRequestTrace`; every other row here is owned by this crate.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -11,7 +14,9 @@ use systemprompt_identifiers::{
 };
 
 use super::{BudgetRepository, ExecutionLease};
+use systemprompt_traits::DynAiRequestTrace;
 
+mod accounting;
 mod approvals;
 mod models;
 mod recovery;
@@ -25,29 +30,42 @@ pub use models::{
 };
 pub use recovery::CleanupReport;
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct EvaluationLifecycleRepository {
     pub(crate) pool: PgPool,
     budgets: BudgetRepository,
+    trace: DynAiRequestTrace,
     admission: std::sync::Arc<dyn crate::capabilities::ExecutionAdmission>,
 }
 
+impl std::fmt::Debug for EvaluationLifecycleRepository {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("EvaluationLifecycleRepository")
+            .finish_non_exhaustive()
+    }
+}
+
 impl EvaluationLifecycleRepository {
-    pub fn new(pool: PgPool) -> Self {
+    pub fn new(pool: PgPool, budgets: BudgetRepository, trace: DynAiRequestTrace) -> Self {
         Self::with_admission(
             pool,
+            budgets,
+            trace,
             std::sync::Arc::new(crate::capabilities::VerifiedExecutionAdmission),
         )
     }
 
-    pub fn with_admission(
+    pub const fn with_admission(
         pool: PgPool,
+        budgets: BudgetRepository,
+        trace: DynAiRequestTrace,
         admission: std::sync::Arc<dyn crate::capabilities::ExecutionAdmission>,
     ) -> Self {
         Self {
-            admission,
-            budgets: BudgetRepository::new(pool.clone()),
             pool,
+            budgets,
+            trace,
+            admission,
         }
     }
 
@@ -73,34 +91,6 @@ impl EvaluationLifecycleRepository {
                      AND (ranked.case_revision_id,ranked.id)<=(target.case_revision_id,target.id)) <= $3
               AND NOT EXISTS(SELECT 1 FROM eval_suggestions s WHERE s.owner_id=e.owner_id AND target.id=ANY(s.supporting_execution_ids))
         )"#, owner.as_str(), execution.as_str(), i64::from(limit)).fetch_one(&self.pool).await?.unwrap_or(false))
-    }
-
-    pub async fn execution_accounting(
-        &self,
-        owner: &UserId,
-        execution: &EvalExecutionId,
-    ) -> Result<ExecutionAccounting> {
-        let row = sqlx::query!(r#"SELECT count(m.request_id) AS "requests!",count(*) FILTER(WHERE q.status='completed' AND q.completed_at IS NOT NULL AND q.input_tokens IS NOT NULL AND q.output_tokens IS NOT NULL AND r.actual IS NOT NULL) AS "complete!",COALESCE(sum(q.input_tokens),0)::BIGINT AS "input_tokens!",COALESCE(sum(q.output_tokens),0)::BIGINT AS "output_tokens!",COALESCE(sum(q.cost_microdollars),0)::BIGINT AS "cost!",(SELECT count(*) FROM ai_request_tool_calls t WHERE t.request_id IN (SELECT request_id FROM eval_request_reservations WHERE execution_id=$2)) AS "tool_calls!" FROM eval_executions x JOIN eval_experiments e ON e.id=x.experiment_id LEFT JOIN eval_request_reservations m ON m.execution_id=x.id LEFT JOIN ai_requests q ON q.id=m.request_id AND q.user_id=e.owner_id LEFT JOIN eval_budget_reservations r ON r.id=m.reservation_id WHERE e.owner_id=$1 AND x.id=$2 GROUP BY x.id"#,
-            owner.as_str(), execution.as_str()).fetch_optional(&self.pool).await?.ok_or_else(|| crate::experiments::missing("Execution accounting unavailable in this scope"))?;
-        let requests = row.requests;
-        let complete = row.complete;
-        let status = if requests == 0 {
-            "unknown"
-        } else if complete == requests {
-            "complete"
-        } else {
-            "partial"
-        };
-        let input = counted("input_tokens", row.input_tokens)?;
-        let output = counted("output_tokens", row.output_tokens)?;
-        let tool_calls = counted("tool_calls", row.tool_calls)?;
-        Ok(ExecutionAccounting {
-            input_tokens: (requests > 0).then_some(input),
-            output_tokens: (requests > 0).then_some(output),
-            tool_calls,
-            attempted_cost_microdollars: row.cost,
-            status: status.to_owned(),
-        })
     }
 
     pub async fn record_measurement(
@@ -182,9 +172,4 @@ impl EvaluationLifecycleRepository {
             variants: row.variants,
         })
     }
-}
-
-fn counted(column: &str, value: i64) -> Result<u64> {
-    u64::try_from(value)
-        .map_err(|_e| invalid(&format!("Execution accounting column {column} is negative")))
 }

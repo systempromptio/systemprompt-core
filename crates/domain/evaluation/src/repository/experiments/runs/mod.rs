@@ -14,7 +14,7 @@ use systemprompt_identifiers::{
     EvalBudgetId, EvalExecutionId, EvalExperimentId, EvalWorkerId, UserId,
 };
 
-use super::RevisionRepository;
+use super::{BudgetRepository, RevisionRepository};
 use crate::experiments::{ExperimentSpec, content_digest, invalid};
 
 mod claims;
@@ -23,24 +23,28 @@ mod claims;
 pub struct ExperimentRepository {
     pub(super) pool: PgPool,
     revisions: RevisionRepository,
+    budgets: BudgetRepository,
     pub(super) admission: std::sync::Arc<dyn crate::capabilities::ExecutionAdmission>,
 }
 
 impl ExperimentRepository {
-    pub fn new(pool: PgPool) -> Self {
+    pub fn new(pool: PgPool, budgets: BudgetRepository) -> Self {
         Self::with_admission(
             pool,
+            budgets,
             std::sync::Arc::new(crate::capabilities::VerifiedExecutionAdmission),
         )
     }
 
     pub fn with_admission(
         pool: PgPool,
+        budgets: BudgetRepository,
         admission: std::sync::Arc<dyn crate::capabilities::ExecutionAdmission>,
     ) -> Self {
         Self {
             admission,
             revisions: RevisionRepository::new(pool.clone()),
+            budgets,
             pool,
         }
     }
@@ -65,10 +69,7 @@ impl ExperimentRepository {
     ) -> Result<EvalExperimentId> {
         let preflight = self.preflight(owner, budget, spec).await?;
         if !preflight.affordable {
-            return Err(crate::EvaluationError::BudgetExhausted {
-                spent: preflight.available_microdollars,
-                budget: preflight.maximum_cost_microdollars,
-            });
+            return Err(crate::EvaluationError::budget_exhausted(&preflight));
         }
         if key.trim().is_empty() || key.len() > 255 {
             return Err(invalid("An idempotency key is required"));
@@ -177,9 +178,7 @@ impl ExperimentRepository {
             ],
         )
         .await?;
-        let account = super::BudgetRepository::new(self.pool.clone())
-            .get(owner, budget)
-            .await?;
+        let account = self.budgets.get(owner, budget).await?;
         if spec.claim_independent_improvement {
             self.require_fresh_holdout(owner, spec).await?;
         }

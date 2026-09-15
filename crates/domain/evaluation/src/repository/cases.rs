@@ -4,12 +4,13 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use sqlx::PgPool;
+use sqlx::types::Json;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{AiRequestId, EvalCaseId, UserId};
 
 use crate::error::Result;
-use crate::models::{EvalCase, NewCaseParams};
+use crate::models::{CanonicalPrompt, EvalCase, NewCaseParams};
 
 #[derive(Debug, Clone)]
 pub struct EvalCaseRepository {
@@ -25,8 +26,8 @@ impl EvalCaseRepository {
 
     pub async fn create(&self, params: &NewCaseParams) -> Result<EvalCaseId> {
         let id = EvalCaseId::generate();
-        let prompt_body = serde_json::to_value(&params.prompt)?;
-        let canonical_messages = serde_json::to_value(&params.prompt.messages)?;
+        let prompt_body = Json(&params.prompt);
+        let canonical_messages = Json(&params.prompt.messages);
         sqlx::query!(
             r#"
             INSERT INTO eval_cases (
@@ -38,7 +39,7 @@ impl EvalCaseRepository {
             "#,
             id.as_str(),
             params.name,
-            prompt_body,
+            prompt_body as _,
             params
                 .source_ai_request_id
                 .as_ref()
@@ -46,11 +47,11 @@ impl EvalCaseRepository {
             params.expectation.as_deref(),
             &params.tags,
             params.created_by.as_str(),
-            canonical_messages,
+            canonical_messages as _,
             params.prompt.system_prompt.as_deref(),
             params.prompt.offered_tools.as_ref(),
-            params.prompt.provider,
-            params.prompt.model,
+            params.prompt.provider.as_str(),
+            params.prompt.model.as_str(),
             params.prepared_body_sha256.as_deref()
         )
         .execute(self.pool.as_ref())
@@ -61,10 +62,10 @@ impl EvalCaseRepository {
     pub async fn list_enabled(&self) -> Result<Vec<EvalCase>> {
         let rows = sqlx::query!(
             r#"
-            SELECT id, name, prompt_body, source_ai_request_id, expectation,
+            SELECT id, name, prompt_body AS "prompt_body: Json<CanonicalPrompt>",
+                   source_ai_request_id, expectation,
                    tags, enabled, created_by, created_at, repair_hint,
-                   canonical_messages, system_prompt, offered_tools,
-                   provider, model, prepared_body_sha256
+                   prepared_body_sha256
             FROM eval_cases
             WHERE enabled = TRUE
             ORDER BY created_at DESC
@@ -78,7 +79,7 @@ impl EvalCaseRepository {
             .map(|row| EvalCase {
                 id: EvalCaseId::new(row.id),
                 name: row.name,
-                prompt_body: row.prompt_body,
+                prompt: row.prompt_body.0,
                 source_ai_request_id: row.source_ai_request_id.map(AiRequestId::new),
                 expectation: row.expectation,
                 tags: row.tags,
@@ -86,11 +87,6 @@ impl EvalCaseRepository {
                 created_by: UserId::new(row.created_by),
                 created_at: row.created_at,
                 repair_hint: row.repair_hint,
-                canonical_messages: row.canonical_messages,
-                system_prompt: row.system_prompt,
-                offered_tools: row.offered_tools,
-                provider: row.provider,
-                model: row.model,
                 prepared_body_sha256: row.prepared_body_sha256,
             })
             .collect())

@@ -5,6 +5,9 @@
 ### Breaking
 
 - **Breaking:** `ManagedWorkspaceReference::manifest` is a `systemprompt_models::managed::RevisionBundle` and `ManagedWorkspaceRegistration::manifest` is `&RevisionBundle`; a stored projection that does not decode as a bundle is `InvalidSpec` on read. Migrate by passing the bundle instead of `serde_json::to_value(&bundle)`.
+- **Breaking:** `EvaluationRepositories::new(&DbPool, EvaluationSeams) -> Result<Self>` (and `with_admission(&DbPool, EvaluationSeams, admission)`) build every repository on the application write pool over the shared-layer seams (`AiRequestTrace`, `AiSessionProvider`, `ManagedRevisionOwnership`); `BudgetRepository`, `EvidenceRepository`, `ExecutionCapabilityRepository`, `EvaluationLifecycleRepository`, `GatewayEvaluationRepository` (`GatewaySeams`), `ExperimentRepository`, `AssignmentRepository` and `CampaignRepository` take their collaborators in `new`. Migrate by composing the seams once at the root and passing the bundle down.
+- **Breaking:** `SamplingRepository`, `SampleFilter`, `SampleMode`, `SampledRequest`, `CanonicalMessage` and `EvalRepositories::sampling` are removed; `SamplerService::new(DynAiRequestTrace)` samples through `systemprompt_traits::TraceSampleFilter` and returns `TraceSample`s, `CanonicalPrompt::from_sample` builds a prompt from one, and `CanonicalPrompt`/`EvalCase` carry `ProviderId`/`ModelId` with `EvalCase::prompt` typed (`prompt_body`, `canonical_messages`, `system_prompt`, `offered_tools`, `provider`, `model` fields are gone).
+- **Breaking:** `EvaluationError::BudgetExhausted { required, available }` replaces `{ spent, budget }` and is built by `EvaluationError::budget_exhausted(&ExperimentPreflight)`; `EvaluationError::Trace(AiProviderError)` and `ManagedRevisions(ManagedSkillResolverError)` replace the unused `Ai`, `RunNotFound`, `RubricNotFound`, `JudgeParse` and `ReplaySource` variants.
 - **Breaking:** the unreleased migration slots are renumbered contiguously — `013_campaigns`, `014_campaign_completion`, `015_suggestion_operations` (they were 013/015/016 with 014 skipped). A database that applied the unreleased 015/016 slots must be reset or re-stamped; released databases are unaffected.
 
 ### Added
@@ -23,9 +26,16 @@
 
 ### Fixed
 
+- `CampaignRepository::create` verifies through `ManagedRevisionOwnership` that the baseline revision is held by the owner (`ResourceNotFound`) and belongs to the campaign's resource (`InvalidSpec`) before persisting the policy.
+- `BudgetRepository::retain_orphaned` treats an execution `awaiting_approval` as live; its reservations stay held instead of being settled as orphans.
+- The crate no longer queries `ai_requests*` or `user_sessions`: sampling, evidence audit, budget settlement and execution accounting read recorded usage through `AiRequestTrace`, and execution sessions are created and re-verified (unrevoked, unexpired, owned) through `AiSessionProvider`.
 - An approved privileged operation is consumed the first time it is authorised (`status='consumed'`); a second `authorize_operation` on the same approval is a conflict instead of a silent re-authorisation.
 - Execution claims order by `variant_index` and `repetition` within a creation instant, so a worker takes an experiment's baseline before its candidates instead of an arbitrary row.
 - Every table the extension creates is declared by its own `SchemaDefinition` (one schema file per table), so `infra db doctor` no longer reports the evaluation tables as undeclared.
+
+### Removed
+
+- The never-written `eval_campaign_source_changes` table (migration 016 drops it).
 
 ## [0.52.0] - 2026-09-14
 

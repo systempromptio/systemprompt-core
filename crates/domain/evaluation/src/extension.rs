@@ -49,10 +49,6 @@ fn campaign_schemas() -> Vec<SchemaDefinition> {
             include_str!("../schema/eval_campaign_experiments.sql"),
         ),
         SchemaDefinition::new(
-            "eval_campaign_source_changes",
-            include_str!("../schema/eval_campaign_source_changes.sql"),
-        ),
-        SchemaDefinition::new(
             "eval_campaign_events",
             include_str!("../schema/eval_campaign_events.sql"),
         ),

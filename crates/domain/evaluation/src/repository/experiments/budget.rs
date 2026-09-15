@@ -1,13 +1,19 @@
 //! Transactional reservations retain uncertain spend and settle each request
 //! once.
 //!
+//! Orphan retention reads the recorded usage of each unsettled request through
+//! `AiRequestTrace`; an execution paused for approval is live and its
+//! reservations stay held.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::experiments::records::BudgetRecord;
 use crate::{EvaluationError, Result};
 use sqlx::PgPool;
+use std::collections::BTreeMap;
 use systemprompt_identifiers::{AiRequestId, EvalBudgetId, EvalReservationId, UserId};
+use systemprompt_traits::{DynAiRequestTrace, TraceRequestUsage};
 
 use crate::experiments::invalid;
 
@@ -17,14 +23,21 @@ pub enum ReservationAdmission {
     AlreadyReserved(EvalReservationId),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct BudgetRepository {
     pool: PgPool,
+    trace: DynAiRequestTrace,
+}
+
+impl std::fmt::Debug for BudgetRepository {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("BudgetRepository").finish_non_exhaustive()
+    }
 }
 
 impl BudgetRepository {
-    pub const fn new(pool: PgPool) -> Self {
-        Self { pool }
+    pub const fn new(pool: PgPool, trace: DynAiRequestTrace) -> Self {
+        Self { pool, trace }
     }
 
     pub async fn create_shared(
@@ -124,8 +137,8 @@ impl BudgetRepository {
         let total = i128::from(reserved) + i128::from(settled) + i128::from(amount);
         if row.frozen || total > i128::from(cap) {
             return Err(EvaluationError::BudgetExhausted {
-                spent: settled,
-                budget: cap,
+                required: amount,
+                available: cap.saturating_sub(reserved).saturating_sub(settled),
             });
         }
         let id = EvalReservationId::generate();
@@ -144,32 +157,61 @@ impl BudgetRepository {
     pub async fn retain_orphaned(&self, owner: &UserId) -> Result<u64> {
         let mut tx = self.pool.begin().await?;
         super::lock_owner(&mut tx, owner).await?;
-        let retained = sqlx::query_scalar!(
-            r#"WITH orphaned AS (
-                SELECT r.id,r.account_id,r.reserved,m.request_id,
-                    CASE WHEN q.status='completed' AND q.completed_at IS NOT NULL THEN q.cost_microdollars ELSE r.reserved END AS actual
+        let orphaned = sqlx::query!(
+            r#"SELECT r.id,r.account_id,r.reserved,m.request_id
                 FROM eval_budget_reservations r
                 JOIN eval_budget_accounts a ON a.id=r.account_id AND a.owner_id=$1
                 JOIN eval_request_reservations m ON m.reservation_id=r.id
                 JOIN eval_executions x ON x.id=m.execution_id
-                LEFT JOIN ai_requests q ON q.id=m.request_id AND q.user_id=$1
-                WHERE r.actual IS NULL AND x.status NOT IN ('queued','running')
-            ), settled AS (
-                UPDATE eval_budget_reservations r SET actual=o.actual,request_id=o.request_id,settled_at=NOW()
-                FROM orphaned o WHERE r.id=o.id
-                RETURNING o.account_id,o.reserved,o.actual
-            ), accounts AS (
-                UPDATE eval_budget_accounts a SET reserved=a.reserved-t.reserved,settled=a.settled+t.actual,frozen=a.frozen OR t.overrun
-                FROM (SELECT account_id,SUM(reserved) AS reserved,SUM(actual) AS actual,BOOL_OR(actual>reserved) AS overrun FROM settled GROUP BY account_id) t
-                WHERE a.id=t.account_id
-            )
-            SELECT COUNT(*) AS "retained!" FROM settled"#,
+                WHERE r.actual IS NULL AND x.status NOT IN ('queued','running','awaiting_approval')
+                FOR UPDATE OF r,a"#,
             owner.as_str()
         )
-        .fetch_one(&mut *tx)
+        .fetch_all(&mut *tx)
         .await?;
+        let request_ids: Vec<AiRequestId> = orphaned
+            .iter()
+            .map(|row| AiRequestId::new(row.request_id.clone()))
+            .collect();
+        let recorded: BTreeMap<String, i64> = self
+            .trace
+            .list_usage(owner, &request_ids)
+            .await?
+            .into_iter()
+            .filter(TraceRequestUsage::is_settled)
+            .map(|usage| {
+                (
+                    usage.request_id.as_str().to_owned(),
+                    usage.cost_microdollars,
+                )
+            })
+            .collect();
+        let mut retained = 0u64;
+        for row in orphaned {
+            let actual = recorded
+                .get(&row.request_id)
+                .copied()
+                .unwrap_or(row.reserved);
+            sqlx::query!(
+                "UPDATE eval_budget_reservations SET actual=$2,request_id=$3,settled_at=NOW() WHERE id=$1",
+                row.id,
+                actual,
+                row.request_id
+            )
+            .execute(&mut *tx)
+            .await?;
+            sqlx::query!(
+                "UPDATE eval_budget_accounts SET reserved=reserved-$2,settled=settled+$3,frozen=frozen OR $3>$2 WHERE id=$1",
+                row.account_id,
+                row.reserved,
+                actual
+            )
+            .execute(&mut *tx)
+            .await?;
+            retained += 1;
+        }
         tx.commit().await?;
-        Ok(retained.try_into().unwrap_or(0))
+        Ok(retained)
     }
 
     pub async fn settle(

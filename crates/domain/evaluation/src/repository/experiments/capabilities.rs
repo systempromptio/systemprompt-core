@@ -4,6 +4,10 @@
 //! administrator cannot act as one; the owner id still scopes every read and
 //! write the run performs.
 //!
+//! The session an execution token binds to is a `user_sessions` row owned by
+//! the users domain; it is created and re-verified through
+//! `AiSessionProvider`, never written here.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -14,7 +18,8 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use sqlx::PgPool;
 use sqlx::types::Json;
-use systemprompt_identifiers::{EvalExecutionId, EvalWorkerId, SessionId, UserId};
+use systemprompt_identifiers::{EvalExecutionId, EvalWorkerId, SessionId, SessionSource, UserId};
+use systemprompt_traits::{CreateAiSessionParams, DynAiSessionProvider};
 
 pub const EXECUTION_TOKEN_PREFIX: &str = "spexec_";
 
@@ -51,14 +56,22 @@ pub struct ExecutionPrincipal {
     pub session_id: SessionId,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct ExecutionCapabilityRepository {
     pool: PgPool,
+    sessions: DynAiSessionProvider,
+}
+
+impl std::fmt::Debug for ExecutionCapabilityRepository {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ExecutionCapabilityRepository")
+            .finish_non_exhaustive()
+    }
 }
 
 impl ExecutionCapabilityRepository {
-    pub const fn new(pool: PgPool) -> Self {
-        Self { pool }
+    pub const fn new(pool: PgPool, sessions: DynAiSessionProvider) -> Self {
+        Self { pool, sessions }
     }
 
     pub async fn issue(&self, owner: &UserId, lease: &ExecutionLease) -> Result<ExecutionAccess> {
@@ -77,8 +90,14 @@ impl ExecutionCapabilityRepository {
             SessionId::new(id)
         } else {
             let id = SessionId::generate();
-            sqlx::query!("INSERT INTO user_sessions(session_id,user_id,client_id,client_type,session_source) VALUES($1,$2,'systemprompt-evaluator','system','api')",
-                id.as_str(), owner.as_str()).execute(&mut *tx).await?;
+            self.sessions
+                .create_session(CreateAiSessionParams {
+                    session_id: &id,
+                    user_id: Some(owner),
+                    session_source: SessionSource::Api,
+                    expires_at: chrono::Utc::now() + chrono::Duration::minutes(31),
+                })
+                .await?;
             sqlx::query!("INSERT INTO eval_session_bindings(session_id,execution_id,owner_id,fencing_token) VALUES($1,$2,$3,$4)",
                 id.as_str(), lease.execution_id.as_str(), owner.as_str(), lease.fencing_token).execute(&mut *tx).await?;
             id
@@ -102,10 +121,20 @@ impl ExecutionCapabilityRepository {
             return Err(missing("Execution credential unavailable"));
         }
         let digest = hex::encode(Sha256::digest(token.as_bytes()));
-        Ok(sqlx::query_scalar!(
-            r#"SELECT jsonb_build_object('identity',jsonb_build_object('owner_id',e.owner_id,'execution_id',x.id,'roles',jsonb_build_array('user')),'session_id',c.session_id) AS "principal!: Json<ExecutionPrincipal>" FROM eval_execution_capabilities c JOIN eval_executions x ON x.id=c.execution_id JOIN eval_experiments e ON e.id=x.experiment_id JOIN eval_workers w ON w.id=c.worker_id JOIN user_sessions s ON s.session_id=c.session_id WHERE c.token_hash=$1 AND w.environment=$2 AND w.owner_id=e.owner_id AND w.enabled AND w.expires_at>NOW() AND c.revoked_at IS NULL AND c.expires_at>NOW() AND x.lease_owner=c.worker_id AND x.fencing_token=c.fencing_token AND x.status='running' AND e.status='running' AND x.lease_expires_at>NOW() AND x.deadline_at>NOW() AND s.revoked_at IS NULL AND s.user_id=e.owner_id AND s.expires_at>NOW()"#,
+        let principal = sqlx::query_scalar!(
+            r#"SELECT jsonb_build_object('identity',jsonb_build_object('owner_id',e.owner_id,'execution_id',x.id,'roles',jsonb_build_array('user')),'session_id',c.session_id) AS "principal!: Json<ExecutionPrincipal>" FROM eval_execution_capabilities c JOIN eval_executions x ON x.id=c.execution_id JOIN eval_experiments e ON e.id=x.experiment_id JOIN eval_workers w ON w.id=c.worker_id WHERE c.token_hash=$1 AND w.environment=$2 AND w.owner_id=e.owner_id AND w.enabled AND w.expires_at>NOW() AND c.revoked_at IS NULL AND c.expires_at>NOW() AND x.lease_owner=c.worker_id AND x.fencing_token=c.fencing_token AND x.status='running' AND e.status='running' AND x.lease_expires_at>NOW() AND x.deadline_at>NOW()"#,
             digest,environment
-        ).fetch_optional(&self.pool).await?.ok_or_else(|| missing("Execution credential unavailable"))?.0)
+        ).fetch_optional(&self.pool).await?.ok_or_else(|| missing("Execution credential unavailable"))?.0;
+        let session = self
+            .sessions
+            .find_live_session(&principal.session_id)
+            .await?;
+        match session {
+            Some(live) if live.user_id.as_ref() == Some(&principal.identity.owner_id) => {
+                Ok(principal)
+            },
+            _ => Err(missing("Execution credential unavailable")),
+        }
     }
 }
 

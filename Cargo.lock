@@ -4806,6 +4806,7 @@ dependencies = [
  "systemprompt-extension",
  "systemprompt-identifiers",
  "systemprompt-models",
+ "systemprompt-traits",
  "thiserror 2.0.19",
  "tracing",
 ]

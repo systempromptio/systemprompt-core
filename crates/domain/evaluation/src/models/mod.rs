@@ -1,10 +1,8 @@
-//! Data model for golden cases and traffic sampling.
+//! Data model for golden cases captured from the AI request trace.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 mod case;
-mod sampling;
 
-pub use case::{CanonicalMessage, CanonicalPrompt, EvalCase, NewCaseParams};
-pub use sampling::{SampleFilter, SampleMode, SampledRequest};
+pub use case::{CanonicalPrompt, EvalCase, NewCaseParams};

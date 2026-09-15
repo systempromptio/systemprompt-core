@@ -41,6 +41,7 @@ systemprompt-database = { workspace = true }
 systemprompt-extension = { workspace = true }
 systemprompt-identifiers = { workspace = true, features = ["sqlx"] }
 systemprompt-models = { workspace = true }
+systemprompt-traits = { workspace = true }
 
 inventory = { workspace = true }
 
