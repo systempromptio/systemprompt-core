@@ -16,6 +16,7 @@ use systemprompt_cli::env_overrides::EnvOverrides;
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_loader::bundle::{BundleCache, cache_root};
 use systemprompt_models::services::bundle::{BundleSourceState, ServicesBundleState};
+use systemprompt_test_fixtures::ensure_test_secrets_bootstrap;
 use wiremock::matchers::method;
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -74,6 +75,7 @@ fn install_profile(url: &str) -> fx::ProfileTree {
     );
     fx::set_env("SYSTEMPROMPT_TRUSTED_HTTP_HOSTS", "127.0.0.1,localhost");
     ProfileBootstrap::init_from_path(&tree.profile_path).expect("profile installs");
+    ensure_test_secrets_bootstrap();
     tree
 }
 
@@ -115,6 +117,7 @@ async fn a_profile_with_no_sources_reports_nothing_to_do() {
         "secrets:\n  secrets_path: secrets.json\n  source: env\n",
     );
     ProfileBootstrap::init_from_path(&tree.profile_path).expect("profile installs");
+    ensure_test_secrets_bootstrap();
 
     execute(&RefreshArgs { check: true }, &ctx())
         .await
@@ -167,6 +170,7 @@ async fn a_swapped_composition_refuses_to_finish_without_a_database() {
     );
     fx::set_env("SYSTEMPROMPT_TRUSTED_HTTP_HOSTS", "127.0.0.1,localhost");
     ProfileBootstrap::init_from_path(&profile_tree.profile_path).expect("profile installs");
+    ensure_test_secrets_bootstrap();
 
     let error = execute(&RefreshArgs { check: false }, &ctx())
         .await
@@ -175,5 +179,33 @@ async fn a_swapped_composition_refuses_to_finish_without_a_database() {
     assert!(
         rendered.contains("services refresh needs a database to project access rules"),
         "the swap did not reach the reconcile step: {rendered}"
+    );
+}
+
+#[tokio::test]
+async fn a_refresh_without_a_secrets_store_fails_instead_of_resolving_no_credentials() {
+    let server = origin(200, Some(ETAG)).await;
+    let tree = fx::write_tree(
+        &fx::https_sources_block(&[("base", &format!("{}/bundle.tar.gz", server.uri()))]),
+        "secrets:\n  secrets_path: secrets.json\n  source: env\n",
+    );
+    fx::set_env("SYSTEMPROMPT_TRUSTED_HTTP_HOSTS", "127.0.0.1,localhost");
+    ProfileBootstrap::init_from_path(&tree.profile_path).expect("profile installs");
+    prime_state(ETAG);
+
+    let error = execute(&RefreshArgs { check: true }, &ctx())
+        .await
+        .expect_err("a missing secrets store is an error, not an anonymous origin check");
+    let rendered = format!("{error:#}");
+    assert!(
+        rendered.contains("Secrets required"),
+        "the secrets store is not named as the failure: {rendered}"
+    );
+    assert!(
+        server
+            .received_requests()
+            .await
+            .is_none_or(|r| r.is_empty()),
+        "the origin must not be contacted without the secrets store"
     );
 }
