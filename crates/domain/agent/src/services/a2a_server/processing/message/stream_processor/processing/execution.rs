@@ -1,27 +1,23 @@
 //! Strategy execution and artifact assembly for one pipeline run; a failure
-//! marks in-progress steps failed and reports through the stream instead of
-//! propagating.
+//! marks in-progress steps failed before propagating.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
 
-use tokio::sync::mpsc;
-
 use super::super::helpers::build_artifacts_from_results;
-use super::report_stream_error;
 use crate::models::a2a::Artifact;
-use crate::services::a2a_server::processing::message::StreamEvent;
 use crate::services::a2a_server::processing::strategies::{
     ExecutionContext, ExecutionResult, ExecutionStrategySelector,
 };
+use crate::services::shared::Result;
 use systemprompt_models::AiMessage;
 
 pub(super) async fn run_strategy(
     execution_context: ExecutionContext,
     ai_messages: Vec<AiMessage>,
-) -> Option<ExecutionResult> {
+) -> Result<ExecutionResult> {
     let has_tools = !execution_context
         .agent_runtime
         .mcp_servers
@@ -35,7 +31,6 @@ pub(super) async fn run_strategy(
 
     let strategy = ExecutionStrategySelector::select_strategy(has_tools);
     let task_id = execution_context.task_id.clone();
-    let tx = execution_context.tx.clone();
     let execution_step_repo = Arc::clone(&execution_context.execution_step_repo);
 
     match strategy.execute(execution_context, ai_messages).await {
@@ -46,7 +41,7 @@ pub(super) async fn run_strategy(
                 tool_result_count = result.tool_results.len(),
                 "Processing complete"
             );
-            Some(result)
+            Ok(result)
         },
         Err(e) => {
             tracing::error!(error = %e, "Execution failed");
@@ -57,30 +52,25 @@ pub(super) async fn run_strategy(
             {
                 tracing::error!(error = %fail_err, "Failed to mark steps as failed");
             }
-            report_stream_error(&tx, format!("Execution failed: {e}"));
-            None
+            Err(e)
         },
     }
 }
 
-pub(super) fn build_artifacts_or_report(
+pub(super) fn build_artifacts(
     execution_result: &ExecutionResult,
     context_id: &systemprompt_identifiers::ContextId,
     task_id: &systemprompt_identifiers::TaskId,
-    tx: &mpsc::Sender<StreamEvent>,
-) -> Option<Vec<Artifact>> {
-    match build_artifacts_from_results(
+) -> Result<Vec<Artifact>> {
+    build_artifacts_from_results(
         &execution_result.tool_results,
         &execution_result.tool_calls,
         &execution_result.tools,
         context_id,
         task_id,
-    ) {
-        Ok(artifacts) => Some(artifacts),
-        Err(e) => {
-            tracing::error!(error = %e, "Failed to build artifacts from tool results");
-            report_stream_error(tx, format!("Artifact building failed: {e}"));
-            None
-        },
-    }
+    )
+    .map_err(|e| {
+        tracing::error!(error = %e, "Failed to build artifacts from tool results");
+        e
+    })
 }

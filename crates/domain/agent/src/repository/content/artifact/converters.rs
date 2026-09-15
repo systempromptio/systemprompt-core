@@ -4,9 +4,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::models::ArtifactRow;
-use crate::models::a2a::{
-    Artifact, ArtifactMetadata, DataPart, FileContent, FilePart, Part, TextPart,
-};
+use crate::models::a2a::{Artifact, ArtifactMetadata, Part};
+use crate::repository::parts::part_from_row;
 use crate::repository::task::constructor::batch_queries;
 use sqlx::PgPool;
 use std::collections::HashMap;
@@ -28,7 +27,7 @@ pub(super) async fn rows_to_artifacts_batch(
     let parts_by_artifact: HashMap<ArtifactId, Vec<Part>> = {
         let mut map: HashMap<ArtifactId, Vec<Part>> = HashMap::new();
         for part_row in all_parts {
-            let part = convert_artifact_part_row(part_row.part_kind.as_str(), &part_row)?;
+            let part = part_from_row(&part_row)?;
             map.entry(part_row.artifact_id).or_default().push(part);
         }
         map
@@ -39,61 +38,32 @@ pub(super) async fn rows_to_artifacts_batch(
         let parts = parts_by_artifact
             .get(&row.artifact_id)
             .map_or_else(Vec::new, Clone::clone);
-        artifacts.push(row_to_artifact_with_parts(row, parts));
+        artifacts.push(artifact_from_row(row, parts));
     }
 
     Ok(artifacts)
 }
 
-fn convert_artifact_part_row(
-    part_kind: &str,
-    row: &crate::models::ArtifactPartRow,
-) -> Result<Part, RepositoryError> {
-    match part_kind {
-        "text" => {
-            let text = row
-                .text_content
-                .clone()
-                .ok_or_else(|| RepositoryError::InvalidData("Missing text_content".into()))?;
-            Ok(Part::Text(TextPart { text }))
-        },
-        "file" => Ok(Part::File(FilePart {
-            file: FileContent {
-                name: row.file_name.clone(),
-                mime_type: row.file_mime_type.clone(),
-                bytes: row.file_bytes.clone(),
-                url: row.file_uri.clone(),
-            },
-        })),
-        "data" => {
-            let data_value = row
-                .data_content
-                .clone()
-                .ok_or_else(|| RepositoryError::InvalidData("Missing data_content".into()))?;
-            let serde_json::Value::Object(data) = data_value else {
-                return Err(RepositoryError::InvalidData(
-                    "Data content must be a JSON object".into(),
-                ));
-            };
-            Ok(Part::Data(DataPart { data }))
-        },
-        _ => Err(RepositoryError::InvalidData(format!(
-            "Unknown part kind: {part_kind}"
-        ))),
-    }
-}
-
-pub(super) fn row_to_artifact_with_parts(row: ArtifactRow, parts: Vec<Part>) -> Artifact {
+pub(crate) fn artifact_from_row(row: ArtifactRow, parts: Vec<Part>) -> Artifact {
     let context_id = row.context_id.clone();
-    let (rendering_hints, mcp_schema, is_internal, execution_index) =
-        extract_metadata_fields(row.metadata.as_ref());
+    let StoredArtifactMetadata {
+        rendering_hints,
+        mcp_schema,
+        is_internal,
+        execution_index,
+        artifact_extensions,
+    } = row
+        .metadata
+        .as_ref()
+        .map(stored_metadata)
+        .unwrap_or_default();
 
     Artifact {
         id: row.artifact_id,
         title: row.name,
         description: row.description,
         parts,
-        extensions: vec![],
+        extensions: artifact_extensions,
         metadata: ArtifactMetadata {
             artifact_type: row.artifact_type,
             context_id,
@@ -113,34 +83,36 @@ pub(super) fn row_to_artifact_with_parts(row: ArtifactRow, parts: Vec<Part>) -> 
     }
 }
 
-fn extract_metadata_fields(
-    metadata: Option<&serde_json::Value>,
-) -> (
-    Option<serde_json::Value>,
-    Option<serde_json::Value>,
-    Option<bool>,
-    Option<usize>,
-) {
-    let Some(metadata) = metadata else {
-        return (None, None, None, None);
+#[derive(Default)]
+struct StoredArtifactMetadata {
+    rendering_hints: Option<serde_json::Value>,
+    mcp_schema: Option<serde_json::Value>,
+    is_internal: Option<bool>,
+    execution_index: Option<usize>,
+    artifact_extensions: Vec<serde_json::Value>,
+}
+
+fn stored_metadata(metadata: &serde_json::Value) -> StoredArtifactMetadata {
+    let non_null = |key: &str| {
+        metadata
+            .get(key)
+            .and_then(|v| if v.is_null() { None } else { Some(v.clone()) })
     };
 
-    let rendering_hints = metadata
-        .get("rendering_hints")
-        .and_then(|v| if v.is_null() { None } else { Some(v.clone()) });
-
-    let mcp_schema = metadata
-        .get("mcp_schema")
-        .and_then(|v| if v.is_null() { None } else { Some(v.clone()) });
-
-    let is_internal = metadata
-        .get("is_internal")
-        .and_then(serde_json::Value::as_bool);
-
-    let execution_index = metadata
-        .get("execution_index")
-        .and_then(serde_json::Value::as_u64)
-        .map(|v| v as usize);
-
-    (rendering_hints, mcp_schema, is_internal, execution_index)
+    StoredArtifactMetadata {
+        rendering_hints: non_null("rendering_hints"),
+        mcp_schema: non_null("mcp_schema"),
+        is_internal: metadata
+            .get("is_internal")
+            .and_then(serde_json::Value::as_bool),
+        execution_index: metadata
+            .get("execution_index")
+            .and_then(serde_json::Value::as_u64)
+            .and_then(|v| usize::try_from(v).ok()),
+        artifact_extensions: metadata
+            .get("artifact_extensions")
+            .and_then(serde_json::Value::as_array)
+            .cloned()
+            .unwrap_or_default(),
+    }
 }

@@ -53,6 +53,18 @@ impl std::fmt::Debug for ExecutionContext {
     }
 }
 
+impl ExecutionContext {
+    // Why: the event channel is bounded for backpressure; a closed receiver
+    // means the run has no consumer and must stop rather than complete a task
+    // nobody will receive.
+    pub async fn emit(&self, event: StreamEvent) -> Result<()> {
+        self.tx
+            .send(event)
+            .await
+            .map_err(|_closed| crate::services::shared::AgentServiceError::StreamClosed)
+    }
+}
+
 #[derive(Debug)]
 pub struct ExecutionResult {
     pub accumulated_text: String,
@@ -95,8 +107,8 @@ pub mod standard;
 pub mod tool_executor;
 
 pub use plan_executor::{
-    ToolExecutorTrait, convert_to_call_tool_results, convert_to_tool_calls,
-    execute_tools_sequentially, execute_tools_with_templates, format_results_for_response,
+    ToolExecutorTrait, convert_to_call_tool_results, convert_to_tool_calls, execute_tools,
+    format_results_for_response,
 };
 pub use planned::PlannedAgenticStrategy;
 pub use selector::ExecutionStrategySelector;

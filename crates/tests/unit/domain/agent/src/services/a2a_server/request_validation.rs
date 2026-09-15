@@ -10,9 +10,9 @@ use systemprompt_agent::models::a2a::jsonrpc::RequestId;
 use systemprompt_agent::models::a2a::protocol::A2aRequestParams;
 use systemprompt_agent::services::a2a_server::handlers::request::helpers::parse_a2a_request;
 use systemprompt_agent::services::a2a_server::handlers::request::validation::{
-    should_require_oauth, validate_message_context,
+    ContextValidationError, should_require_oauth, validate_message_context, validate_task_owner,
 };
-use systemprompt_identifiers::{ContextId, MessageId, UserId};
+use systemprompt_identifiers::{ContextId, MessageId, TaskId, UserId};
 
 use super::a2a_helpers::{StubAiProvider, make_handler_state};
 use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try_pool_or_skip};
@@ -97,32 +97,19 @@ fn user_message(ctx: &ContextId) -> systemprompt_agent::models::a2a::Message {
 }
 
 #[tokio::test]
-async fn validate_message_context_requires_user_id() {
+async fn validate_message_context_rejects_an_empty_user_id() {
     let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let ctx = ContextId::generate();
-    let err = validate_message_context(&user_message(&ctx), None, &repos(&pool).contexts)
+    let anonymous = UserId::new("");
+    let err = validate_message_context(&user_message(&ctx), &anonymous, &repos(&pool).contexts)
         .await
-        .expect_err("missing user must be rejected");
-    assert!(err.contains("authentication required"), "got: {err}");
-}
-
-#[tokio::test]
-async fn validate_message_context_rejects_placeholder_user_id() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
-    let ctx = ContextId::generate();
-    let placeholder = UserId::new("missing-user-id");
-    let err = validate_message_context(
-        &user_message(&ctx),
-        Some(&placeholder),
-        &repos(&pool).contexts,
-    )
-    .await
-    .expect_err("placeholder user must be rejected");
-    assert!(err.contains("Authentication required"), "got: {err}");
+        .expect_err("an empty identity must be rejected");
+    assert!(
+        matches!(err, ContextValidationError::Unauthenticated),
+        "got: {err}"
+    );
 }
 
 #[tokio::test]
@@ -132,11 +119,48 @@ async fn validate_message_context_rejects_foreign_context() {
     };
     let stranger = UserId::new("u-stranger");
     let ctx = ContextId::generate();
-    let err =
-        validate_message_context(&user_message(&ctx), Some(&stranger), &repos(&pool).contexts)
-            .await
-            .expect_err("unowned context must be rejected");
-    assert!(err.contains("Context validation failed"), "got: {err}");
+    let err = validate_message_context(&user_message(&ctx), &stranger, &repos(&pool).contexts)
+        .await
+        .expect_err("unowned context must be rejected");
+    assert!(
+        matches!(err, ContextValidationError::Context(_)),
+        "got: {err}"
+    );
+    assert!(
+        err.to_string().contains("Context validation failed"),
+        "got: {err}"
+    );
+}
+
+#[tokio::test]
+async fn validate_task_owner_answers_not_found_for_another_users_task() {
+    let Some(pool) = try_pool_or_skip().await else {
+        return;
+    };
+    let repos = repos(&pool);
+    let (owner, session) = seed_user_and_session(&pool).await;
+    let (_, task_id) = seed_context_and_task(&repos, &owner, &session).await;
+
+    validate_task_owner(&repos.tasks, &task_id, &owner)
+        .await
+        .expect("the owner passes");
+
+    let stranger = UserId::new("u-stranger");
+    let err = validate_task_owner(&repos.tasks, &task_id, &stranger)
+        .await
+        .expect_err("another user must not see the task");
+    assert!(
+        matches!(err, ContextValidationError::TaskNotFound(ref id) if *id == task_id),
+        "a foreign task reads as absent, never as forbidden: {err}"
+    );
+
+    let err = validate_task_owner(&repos.tasks, &TaskId::generate(), &owner)
+        .await
+        .expect_err("an unknown task is not found");
+    assert!(
+        matches!(err, ContextValidationError::TaskNotFound(_)),
+        "{err}"
+    );
 }
 
 #[tokio::test]
@@ -148,7 +172,7 @@ async fn validate_message_context_accepts_owned_context() {
     let (user, session) = seed_user_and_session(&pool).await;
     let (ctx, _) = seed_context_and_task(&repos, &user, &session).await;
 
-    validate_message_context(&user_message(&ctx), Some(&user), &repos.contexts)
+    validate_message_context(&user_message(&ctx), &user, &repos.contexts)
         .await
         .expect("owned context must validate");
 }

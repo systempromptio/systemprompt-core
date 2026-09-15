@@ -59,6 +59,7 @@ pub(crate) struct StubAiProvider {
     responses: Mutex<Vec<ProviderResult<String>>>,
     tool_results: Mutex<HashMap<String, CallToolResult>>,
     fail_stream: bool,
+    stall_stream: bool,
     provider: String,
     model: String,
     max_tokens: u32,
@@ -79,6 +80,7 @@ impl StubAiProvider {
             responses: Mutex::new(Vec::new()),
             tool_results: Mutex::new(HashMap::new()),
             fail_stream: false,
+            stall_stream: false,
             provider: "mock-provider".to_owned(),
             model: "mock-model".to_owned(),
             max_tokens: 4096,
@@ -119,6 +121,11 @@ impl StubAiProvider {
 
     pub(crate) fn failing_stream(mut self) -> Self {
         self.fail_stream = true;
+        self
+    }
+
+    pub(crate) fn with_stalled_stream(mut self) -> Self {
+        self.stall_stream = true;
         self
     }
 
@@ -192,6 +199,9 @@ impl AiProvider for StubAiProvider {
     {
         if self.fail_stream {
             return Err(AiInferenceError::Internal("stub stream failure".to_owned()));
+        }
+        if self.stall_stream {
+            return Ok(Box::pin(futures::stream::pending()));
         }
         let batch = self
             .stream_chunks
@@ -292,21 +302,30 @@ impl AiProvider for StubAiProvider {
     }
 }
 
+pub(crate) fn skill_service(pool: &DbPool) -> systemprompt_agent::services::SkillService {
+    let steps = Arc::new(
+        systemprompt_agent::repository::execution::ExecutionStepRepository::new(pool)
+            .expect("step repo"),
+    );
+    systemprompt_agent::services::SkillService::new(
+        systemprompt_test_fixtures::not_managed_skills(),
+        steps,
+        systemprompt_test_mocks::recording_webhooks(),
+    )
+    .expect("skill service")
+}
+
 pub(crate) fn make_agent_state(pool: &DbPool) -> Arc<AgentState> {
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let url = systemprompt_test_fixtures::fixture_database_url().expect("url");
     let config = Arc::new(systemprompt_test_fixtures::fixture_config(&url));
-    let repos = systemprompt_agent::repository::A2ARepositories::new(
-        pool,
-        crate::session_usage(pool),
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    )
-    .expect("repositories");
+    let repos = crate::repository::repos(pool);
     Arc::new(AgentState::new(
         Arc::clone(pool),
         config,
         stub_jwt(),
         Arc::new(repos),
+        systemprompt_test_mocks::recording_webhooks(),
     ))
 }
 
@@ -335,6 +354,7 @@ pub(crate) fn make_handler_state(
         agent_state,
         ai_service,
         stream_semaphore: Arc::new(Semaphore::new(stream_permits)),
+        active_tasks: systemprompt_agent::services::a2a_server::ActiveTasks::default(),
     })
 }
 

@@ -40,12 +40,7 @@ pub(super) async fn ensure_legacy_context(
     repositories
         .a2a
         .contexts
-        .ensure_system_context(
-            &systemprompt_identifiers::ContextId::legacy(),
-            system_admin.id(),
-            "Legacy (pre-context)",
-            systemprompt_models::ContextKind::Legacy,
-        )
+        .ensure_legacy_context(system_admin.id())
         .await
         .map_err(|e| crate::error::RuntimeError::Internal(e.to_string()))
 }
@@ -108,11 +103,18 @@ pub(super) fn build_repositories(
             database.write_pool_arc()?.as_ref().clone(),
         ),
     );
+    let tool_executions: systemprompt_traits::DynToolExecutionLookup = Arc::new(
+        systemprompt_mcp::repository::ToolUsageRepository::new(database)?,
+    );
     Ok(RepositoryBundles {
         a2a: Arc::new(systemprompt_agent::repository::A2ARepositories::new(
             database,
-            session_usage,
-            instance_id.clone(),
+            systemprompt_agent::repository::A2aDependencies {
+                session_usage,
+                instance_id: instance_id.clone(),
+                managed_skills: managed_resolver,
+                tool_executions,
+            },
         )?),
         content: Arc::new(systemprompt_content::repository::ContentRepositories::new(
             database,

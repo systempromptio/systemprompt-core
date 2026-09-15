@@ -18,8 +18,10 @@
 //!
 //! ## Layer
 //!
-//! Domain layer. Depends only on `shared/*` and `infra/*` crates plus a small
-//! number of sibling domain crates (declared in `Cargo.toml`).
+//! Domain layer. Depends only on `shared/*` and `infra/*` crates; the
+//! cross-domain seams it needs (managed skills, the MCP tool-execution ledger,
+//! webhook delivery) arrive as shared-layer traits injected at the
+//! composition root.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

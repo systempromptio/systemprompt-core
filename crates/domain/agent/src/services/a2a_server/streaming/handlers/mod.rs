@@ -11,6 +11,7 @@ mod completion;
 mod text;
 
 pub(super) use completion::{
-    HandleCompleteParams, HandleErrorParams, handle_complete, handle_error,
+    AnnounceFailureParams, HandleCompleteParams, announce_cancelled, announce_failure,
+    handle_complete, record_failure,
 };
 pub(super) use text::TextStreamState;

@@ -1,22 +1,10 @@
-// The affirmative arms of the standalone monitor probes. The existing
-// monitor_functions suite only drives their failure paths, so the branch that
-// accepts a live listener and the branch that accepts a well-formed agent card
-// are never taken.
+// The affirmative arms of the A2A agent-card probe. The existing
+// monitor_functions suite only drives its failure path, so the branch that
+// accepts a well-formed agent card is never taken there.
 
-use systemprompt_agent::services::agent_orchestration::monitor::{
-    check_a2a_agent_health, check_agent_health, check_agent_responsiveness,
-};
+use systemprompt_agent::services::agent_orchestration::monitor::check_a2a_agent_health;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
-
-// `check_agent_responsiveness` derives the port from the digits in the agent
-// name as 8000 + (digits % 1000), so reaching a real listener means binding a
-// port in that window and naming the agent after its offset.
-fn listener_in_derived_range() -> Option<(std::net::TcpListener, String)> {
-    let listener = systemprompt_test_fixtures::bind_in_range(8000..9000)?;
-    let offset = listener.local_addr().ok()?.port() - 8000;
-    Some((listener, format!("agent{offset}")))
-}
 
 async fn card_server(body: serde_json::Value) -> MockServer {
     let server = MockServer::start().await;
@@ -28,47 +16,50 @@ async fn card_server(body: serde_json::Value) -> MockServer {
     server
 }
 
+// Why: the probe must accept what the server actually serialises — an
+// `AgentCard` carries `supportedInterfaces`, never a top-level `url`.
 #[tokio::test]
-async fn check_agent_responsiveness_is_true_when_the_derived_port_has_a_listener() {
-    // skip-ok: no spawnable child process on this host
-    let Some((_listener, agent_name)) = listener_in_derived_range() else {
-        return;
+async fn check_a2a_agent_health_accepts_a_serialised_agent_card() {
+    let card = systemprompt_agent::models::a2a::AgentCard {
+        name: "harness-agent".to_owned(),
+        description: "harness".to_owned(),
+        supported_interfaces: vec![systemprompt_models::a2a::AgentInterface {
+            url: "http://127.0.0.1/a2a".to_owned(),
+            protocol_binding: systemprompt_models::a2a::ProtocolBinding::JsonRpc,
+            protocol_version: "0.3.0".to_owned(),
+        }],
+        version: "1.0.0".to_owned(),
+        ..Default::default()
     };
-
-    assert!(
-        check_agent_responsiveness(&agent_name, 2)
-            .await
-            .expect("probe runs"),
-        "a listener on the derived port makes {agent_name} responsive"
-    );
-}
-
-#[tokio::test]
-async fn check_a2a_agent_health_accepts_a_card_carrying_name_and_url() {
-    let server = card_server(serde_json::json!({
-        "name": "harness-agent",
-        "url": "http://127.0.0.1/a2a",
-        "version": "1.0.0"
-    }))
-    .await;
+    let server = card_server(serde_json::to_value(card).expect("card json")).await;
 
     assert!(
         check_a2a_agent_health(server.address().port(), 5)
             .await
             .expect("probe runs"),
-        "a card with both name and url is a healthy agent"
+        "a card advertising an interface is a healthy agent"
     );
 }
 
 #[tokio::test]
-async fn check_a2a_agent_health_rejects_a_card_missing_the_url_field() {
-    let server = card_server(serde_json::json!({"name": "harness-agent"})).await;
+async fn check_a2a_agent_health_rejects_a_card_with_no_interfaces() {
+    let server = card_server(serde_json::json!({
+        "name": "harness-agent",
+        "description": "harness",
+        "supportedInterfaces": [],
+        "version": "1.0.0",
+        "capabilities": {},
+        "defaultInputModes": [],
+        "defaultOutputModes": [],
+        "skills": []
+    }))
+    .await;
 
     assert!(
         !check_a2a_agent_health(server.address().port(), 5)
             .await
             .expect("probe runs"),
-        "a 200 response is not enough — the card must name both fields"
+        "a 200 response is not enough — the card must advertise an interface"
     );
 }
 
@@ -108,23 +99,5 @@ async fn check_a2a_agent_health_rejects_a_reachable_server_that_answers_with_an_
     assert!(
         !healthy,
         "a card endpoint answering 500 must not count as a healthy agent"
-    );
-}
-
-// Why: the derived port is `8000 + digits % 1000`, so a name whose digits
-// overflow `u16` cannot be parsed. The fallback must land on the same default
-// a name carrying no digits at all gets, rather than propagating a parse error.
-#[tokio::test]
-async fn an_agent_name_whose_digits_overflow_a_port_falls_back_to_the_digitless_default() {
-    let overflowed = check_agent_health("agent99999999")
-        .await
-        .expect("an unparseable digit run must still yield a health result");
-    let digitless = check_agent_health("agent-with-no-digits")
-        .await
-        .expect("a digitless name must yield a health result");
-
-    assert_eq!(
-        overflowed.healthy, digitless.healthy,
-        "an overflowing digit run must probe the same default port as a digitless name"
     );
 }

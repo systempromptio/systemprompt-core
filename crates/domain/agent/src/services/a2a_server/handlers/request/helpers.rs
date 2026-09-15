@@ -93,7 +93,7 @@ pub async fn handle_streaming_path(
         return (
             StatusCode::SERVICE_UNAVAILABLE,
             [(
-                axum::http::header::RETRY_AFTER,
+                http::header::RETRY_AFTER,
                 STREAM_RETRY_AFTER_SECONDS.to_string(),
             )],
             Json(error_response),

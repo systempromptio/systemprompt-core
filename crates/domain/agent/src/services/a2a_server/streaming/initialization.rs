@@ -23,6 +23,7 @@ use super::agent_loader::{LoadAgentRuntimeParams, load_agent_runtime};
 use super::broadcast::{BroadcastTaskCreatedParams, broadcast_task_created};
 use super::initialization_steps::{persist_initial_task, validate_context};
 use super::types::{PersistTaskInput, StreamInput, StreamSetupResult};
+use super::webhook_client::WebhookContext;
 
 pub(super) fn create_jsonrpc_error_event(
     code: i32,
@@ -83,6 +84,7 @@ fn create_processor(
     MessageProcessor::new(
         Arc::clone(state.agent_state.repositories()),
         Arc::clone(&state.ai_service),
+        state.agent_state.webhooks(),
     )
     .map_err(|e| {
         tracing::error!(error = %e, "Failed to create MessageProcessor");
@@ -138,13 +140,13 @@ pub(super) async fn setup_stream(
     };
     let task_repo = persist_initial_task(persist_input).await?;
 
+    let webhooks = WebhookContext::for_request(state.agent_state.webhooks(), &context);
     broadcast_task_created(BroadcastTaskCreatedParams {
+        webhooks: &webhooks,
         task_id: &task_id,
         context_id: &context_id,
-        user_id: context.user_id().as_str(),
         user_message: &message,
         agent_name: &agent_name,
-        token: context.auth.auth_token.as_str(),
     })
     .await;
 

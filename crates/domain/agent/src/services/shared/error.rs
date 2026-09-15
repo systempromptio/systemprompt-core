@@ -53,6 +53,12 @@ pub enum AgentServiceError {
     #[error("capacity exceeded: {0}")]
     Capacity(String),
 
+    #[error("stream consumer closed before the task finished")]
+    StreamClosed,
+
+    #[error("task was cancelled before it finished")]
+    TaskCancelled,
+
     #[error("skill {skill_id} is managed but withheld ({reason})")]
     SkillWithheld {
         skill_id: systemprompt_identifiers::SkillId,

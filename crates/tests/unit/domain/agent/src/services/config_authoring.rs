@@ -20,6 +20,8 @@ fn create_request(name: &str, port: u16) -> AgentCreateRequest {
         description: "A test agent".to_owned(),
         system_prompt: "You are Test Agent.".to_owned(),
         enabled: true,
+        provider: Some("anthropic".to_owned()),
+        model: Some("claude-sonnet-4-6".to_owned()),
         ..Default::default()
     }
 }
@@ -188,7 +190,7 @@ fn create_writes_agent_yaml_with_defaults() {
     assert!(agent.card.capabilities.streaming);
     assert!(!agent.card.capabilities.push_notifications);
     assert_eq!(agent.metadata.provider.as_deref(), Some("anthropic"));
-    assert!(agent.metadata.model.is_some());
+    assert_eq!(agent.metadata.model.as_deref(), Some("claude-sonnet-4-6"));
     assert_eq!(
         agent.metadata.system_prompt.as_deref(),
         Some("You are Test Agent.")
@@ -215,6 +217,64 @@ fn create_respects_explicit_overrides() {
     assert_eq!(agent.metadata.model.as_deref(), Some("gpt-test"));
     assert!(!agent.card.capabilities.streaming);
     assert_eq!(agent.metadata.mcp_servers.include, vec!["tools".to_owned()]);
+}
+
+// Why: the create defaults come from the services config, never from a
+// constant baked into the crate; without a profile to read them from, an
+// omitted provider is an error rather than a silent vendor choice.
+#[test]
+fn create_without_a_provider_and_without_a_profile_is_refused() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let service = AgentConfigAuthoringService::new(dir.path());
+    let mut request = create_request("no_provider_agent", 8107);
+    request.provider = None;
+    request.model = None;
+
+    let err = service
+        .create(request)
+        .expect_err("no provider and no services config to default from");
+    assert!(
+        matches!(err, ConfigAuthoringError::ServicesConfig(_)),
+        "{err}"
+    );
+    assert!(
+        !dir.path().join("agents").exists()
+            || std::fs::read_dir(dir.path().join("agents"))
+                .map(|d| d.count() == 0)
+                .unwrap_or(true),
+        "nothing is written when the request cannot be completed"
+    );
+}
+
+#[test]
+fn a_model_default_comes_from_the_provider_catalogue() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let service = AgentConfigAuthoringService::new(dir.path());
+    let mut request = create_request("catalogue_model_agent", 8108);
+    request.model = None;
+
+    let path = service.create(request).expect("create agent");
+    let agent = load_agent(&path, "catalogue_model_agent");
+    assert_eq!(agent.metadata.provider.as_deref(), Some("anthropic"));
+    assert!(
+        agent
+            .metadata
+            .model
+            .as_deref()
+            .is_some_and(|m| !m.is_empty()),
+        "the first catalogue model for the provider is used"
+    );
+
+    let mut unknown = create_request("unknown_provider_agent", 8109);
+    unknown.provider = Some("no-such-provider".to_owned());
+    unknown.model = None;
+    let err = service
+        .create(unknown)
+        .expect_err("a provider the catalogue does not list has no default model");
+    assert!(
+        matches!(err, ConfigAuthoringError::NoDefaultModel(_)),
+        "{err}"
+    );
 }
 
 #[test]

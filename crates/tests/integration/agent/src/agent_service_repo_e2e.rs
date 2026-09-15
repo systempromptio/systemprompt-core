@@ -24,8 +24,7 @@ async fn register_and_get_agent_status_running() -> Result<()> {
     )?;
     let name = unique_agent_name("reg");
 
-    let stored = repo.register_agent(&name, 12345, 9001).await?;
-    assert_eq!(stored, name);
+    repo.register_agent(&name, 12345, 9001).await?;
 
     let row = repo.get_agent_status(&name).await?.expect("row");
     assert_eq!(row.status, "running");
@@ -67,24 +66,6 @@ async fn mark_running_transitions_status() -> Result<()> {
     repo.mark_running(&name).await?;
     let row = repo.get_agent_status(&name).await?.unwrap();
     assert_eq!(row.status, "running");
-    cleanup_agent(&fx.pool, &name).await;
-    fx.cleanup().await?;
-    Ok(())
-}
-
-#[tokio::test]
-async fn mark_crashed_clears_pid_and_sets_error() -> Result<()> {
-    let fx = Fixture::new().await?;
-    let repo = AgentServiceRepository::new(
-        &fx.db,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    )?;
-    let name = unique_agent_name("crash");
-    repo.register_agent(&name, 33, 9004).await?;
-    repo.mark_crashed(&name).await?;
-    let row = repo.get_agent_status(&name).await?.unwrap();
-    assert_eq!(row.status, "error");
-    assert!(row.pid.is_none());
     cleanup_agent(&fx.pool, &name).await;
     fx.cleanup().await?;
     Ok(())

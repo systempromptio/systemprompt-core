@@ -59,7 +59,7 @@ impl TaskConstructor {
     pub async fn construct_task_from_task_id(
         &self,
         task_id: &TaskId,
-    ) -> Result<Task, RepositoryError> {
+    ) -> Result<Option<Task>, RepositoryError> {
         single::construct_task_from_task_id(self, task_id).await
     }
 

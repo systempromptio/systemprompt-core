@@ -27,6 +27,7 @@ impl ArtifactRepository {
             "mcp_schema": artifact.metadata.mcp_schema,
             "is_internal": artifact.metadata.is_internal,
             "execution_index": artifact.metadata.execution_index,
+            "artifact_extensions": artifact.extensions,
         });
 
         sqlx::query!(

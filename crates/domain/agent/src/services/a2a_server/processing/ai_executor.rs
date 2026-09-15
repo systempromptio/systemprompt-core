@@ -22,6 +22,13 @@ use systemprompt_models::{
 
 use super::message::StreamEvent;
 use crate::models::AgentRuntimeInfo;
+use crate::services::shared::{AgentServiceError, Result};
+
+async fn emit(tx: &mpsc::Sender<StreamEvent>, event: StreamEvent) -> Result<()> {
+    tx.send(event)
+        .await
+        .map_err(|_closed| AgentServiceError::StreamClosed)
+}
 
 pub fn resolve_provider_config(
     request_context: &RequestContext,
@@ -76,7 +83,7 @@ pub struct SynthesizeToolResultsParams<'a> {
 
 pub async fn synthesize_tool_results_with_artifacts(
     params: SynthesizeToolResultsParams<'_>,
-) -> Result<String, ()> {
+) -> Result<String> {
     let SynthesizeToolResultsParams {
         ai_service,
         agent_runtime,
@@ -127,26 +134,14 @@ pub async fn synthesize_tool_results_with_artifacts(
     )
     .build();
 
-    match ai_service.generate(&synthesis_request).await {
-        Ok(response) => {
-            let synthesized_text = response.content;
+    let response = ai_service.generate(&synthesis_request).await?;
+    let synthesized_text = response.content;
 
-            tracing::info!(text_len = synthesized_text.len(), "Synthesis complete");
+    tracing::info!(text_len = synthesized_text.len(), "Synthesis complete");
 
-            if tx
-                .try_send(StreamEvent::Text(synthesized_text.clone()))
-                .is_err()
-            {
-                tracing::debug!("Stream receiver dropped during synthesis");
-            }
+    emit(&tx, StreamEvent::Text(synthesized_text.clone())).await?;
 
-            Ok(synthesized_text)
-        },
-        Err(e) => {
-            tracing::error!(error = %e, "Synthesis failed");
-            Err(())
-        },
-    }
+    Ok(synthesized_text)
 }
 
 pub async fn process_without_tools(
@@ -155,7 +150,7 @@ pub async fn process_without_tools(
     ai_messages: Vec<AiMessage>,
     tx: mpsc::Sender<StreamEvent>,
     request_context: RequestContext,
-) -> Result<(String, Vec<ToolCall>, Vec<CallToolResult>), ()> {
+) -> Result<(String, Vec<ToolCall>, Vec<CallToolResult>)> {
     let (provider, model, max_output_tokens) =
         resolve_provider_config(&request_context, agent_runtime, ai_service.as_ref());
 
@@ -168,35 +163,18 @@ pub async fn process_without_tools(
     )
     .build();
 
-    match ai_service.generate_stream(&generate_request).await {
-        Ok(mut stream) => {
-            let mut accumulated_text = String::new();
-            while let Some(chunk) = stream.next().await {
-                match chunk {
-                    Ok(StreamChunk::Text(text)) => {
-                        accumulated_text.push_str(&text);
-                        if tx.try_send(StreamEvent::Text(text)).is_err() {
-                            tracing::debug!("Stream receiver dropped during generation");
-                        }
-                    },
-                    Ok(StreamChunk::Usage { .. }) => {},
-                    Err(e) => {
-                        if tx.try_send(StreamEvent::Error(e.to_string())).is_err() {
-                            tracing::debug!("Stream receiver dropped while sending error");
-                        }
-                        return Err(());
-                    },
-                }
-            }
-            Ok((accumulated_text, Vec::new(), Vec::new()))
-        },
-        Err(e) => {
-            if tx.try_send(StreamEvent::Error(e.to_string())).is_err() {
-                tracing::debug!("Stream receiver dropped while sending error");
-            }
-            Err(())
-        },
+    let mut stream = ai_service.generate_stream(&generate_request).await?;
+    let mut accumulated_text = String::new();
+    while let Some(chunk) = stream.next().await {
+        match chunk? {
+            StreamChunk::Text(text) => {
+                accumulated_text.push_str(&text);
+                emit(&tx, StreamEvent::Text(text)).await?;
+            },
+            StreamChunk::Usage { .. } => {},
+        }
     }
+    Ok((accumulated_text, Vec::new(), Vec::new()))
 }
 
 fn build_synthesis_prompt(

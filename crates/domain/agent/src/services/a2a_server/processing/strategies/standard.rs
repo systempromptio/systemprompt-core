@@ -5,7 +5,7 @@
 
 use std::sync::Arc;
 
-use crate::services::shared::{AgentServiceError, Result};
+use crate::services::shared::Result;
 use async_trait::async_trait;
 use systemprompt_identifiers::TaskId;
 use systemprompt_models::AiMessage;
@@ -42,14 +42,10 @@ impl ExecutionStrategy for StandardExecutionStrategy {
         let tracking = ExecutionTrackingService::new(Arc::clone(&context.execution_step_repo));
         let task_id = TaskId::new(context.task_id.as_str());
 
-        if let Ok(step) = tracking.track_understanding(task_id.clone()).await
-            && context
-                .tx
-                .try_send(StreamEvent::ExecutionStepUpdate { step })
-                .is_err()
-        {
-            tracing::debug!("Stream receiver dropped during execution");
-        }
+        let step = tracking.track_understanding(task_id.clone()).await?;
+        context
+            .emit(StreamEvent::ExecutionStepUpdate { step })
+            .await?;
 
         let (accumulated_text, tool_calls, tool_results) = process_without_tools(
             Arc::clone(&context.ai_service),
@@ -58,21 +54,12 @@ impl ExecutionStrategy for StandardExecutionStrategy {
             context.tx.clone(),
             context.request_ctx.clone(),
         )
-        .await
-        .map_err(|()| {
-            AgentServiceError::Internal(
-                "Standard execution failed - see stream errors for details".to_owned(),
-            )
-        })?;
+        .await?;
 
-        if let Ok(step) = tracking.track_completion(task_id).await
-            && context
-                .tx
-                .try_send(StreamEvent::ExecutionStepUpdate { step })
-                .is_err()
-        {
-            tracing::debug!("Stream receiver dropped during completion");
-        }
+        let step = tracking.track_completion(task_id).await?;
+        context
+            .emit(StreamEvent::ExecutionStepUpdate { step })
+            .await?;
 
         Ok(ExecutionResult {
             accumulated_text,

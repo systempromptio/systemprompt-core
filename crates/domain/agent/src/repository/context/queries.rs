@@ -7,7 +7,6 @@ use chrono::{DateTime, Utc};
 
 use super::ContextRepository;
 use crate::models::context::{ContextKind, ContextStateEvent, UserContext, UserContextWithStats};
-use crate::repository::task::constructor::TaskConstructor;
 use systemprompt_identifiers::{ContextId, SessionId, TaskId, UserId};
 use systemprompt_traits::RepositoryError;
 
@@ -196,15 +195,15 @@ impl ContextRepository {
         .map_err(RepositoryError::database)?;
 
         if !task_ids.is_empty() {
-            let constructor = TaskConstructor::new(&self.db_pool)?;
             let task_ids_typed: Vec<TaskId> = task_ids.iter().map(TaskId::new).collect();
-            let tasks = constructor.construct_tasks_batch(&task_ids_typed).await?;
+            let tasks = self.tasks.construct_tasks_batch(&task_ids_typed).await?;
 
             for task in tasks {
+                let timestamp = task.last_modified.unwrap_or(last_seen);
                 events.push(ContextStateEvent::TaskStatusChanged {
                     task,
                     context_id: context_id.clone(),
-                    timestamp: Utc::now(),
+                    timestamp,
                 });
             }
         }

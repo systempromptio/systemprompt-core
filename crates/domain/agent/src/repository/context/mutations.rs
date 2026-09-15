@@ -40,11 +40,9 @@ impl ContextRepository {
         Ok(context_id)
     }
 
-    // Why: a second call is a sign of life, not a rename — `updated_at` moves
-    // and a missing session is filled, while `name` and `kind` stay whatever
-    // the row already says. The context id derives from caller-supplied
-    // metadata, so the update is scoped to the owning user: another user's
-    // call on the same id is a no-op rather than a write into their row.
+    // Why: the context id derives from caller-supplied metadata, so the
+    // conflict update is scoped to the owning user — another user's call on
+    // the same id must be a no-op rather than a write into their row.
     pub async fn ensure_context(
         &self,
         params: &systemprompt_traits::EnsureContextParams<'_>,
@@ -84,14 +82,16 @@ impl ContextRepository {
         Ok(())
     }
 
-    pub async fn ensure_system_context(
+    // Why: the legacy context is the one row whose owner may be rebound — it is
+    // system-owned and adopted by whichever admin the current profile names.
+    // The id is fixed here so no caller can use this path to reassign another
+    // user's context.
+    pub async fn ensure_legacy_context(
         &self,
-        context_id: &ContextId,
         system_admin: &UserId,
-        name: &str,
-        kind: ContextKind,
     ) -> Result<(), RepositoryError> {
         let now = Utc::now();
+        let legacy = ContextId::legacy();
         sqlx::query!(
             "INSERT INTO user_contexts (context_id, user_id, session_id, name, kind, created_at, \
              updated_at)
@@ -99,10 +99,10 @@ impl ContextRepository {
              ON CONFLICT (context_id) DO UPDATE
              SET user_id = EXCLUDED.user_id,
                  updated_at = EXCLUDED.updated_at",
-            context_id.as_str(),
+            legacy.as_str(),
             system_admin.as_str(),
-            name,
-            kind.as_str(),
+            "Legacy (pre-context)",
+            ContextKind::Legacy.as_str(),
             now
         )
         .execute(&*self.write_pool)

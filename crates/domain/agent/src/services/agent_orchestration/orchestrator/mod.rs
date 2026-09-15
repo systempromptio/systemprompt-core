@@ -201,7 +201,7 @@ impl AgentOrchestrator {
         agent_name: &str,
         pid: u32,
         port: u16,
-    ) -> OrchestrationResult<String> {
+    ) -> OrchestrationResult<()> {
         self.db_service
             .update_agent_running(agent_name, pid, port)
             .await

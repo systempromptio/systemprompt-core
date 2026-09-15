@@ -15,6 +15,7 @@ use crate::context::CommandContext;
 use crate::interactive::{Prompter, require_confirmation, resolve_required};
 use crate::shared::CommandOutput;
 use systemprompt_agent::AgentState;
+use systemprompt_agent::services::a2a_server::streaming::webhook_client::HttpWebhookBroadcaster;
 use systemprompt_agent::services::agent_orchestration::AgentOrchestrator;
 use systemprompt_agent::services::config_authoring::AgentConfigAuthoringService;
 use systemprompt_config::ProfileBootstrap;
@@ -185,6 +186,10 @@ async fn build_orchestrator(ctx: &CommandContext) -> Result<Option<AgentOrchestr
         Arc::new(app.config().clone()),
         jwt_provider,
         Arc::clone(app.a2a_repositories()),
+        Arc::new(
+            HttpWebhookBroadcaster::from_config(app.config())
+                .map_err(|e| format!("Failed to initialize: {e}"))?,
+        ),
     ));
 
     Ok(

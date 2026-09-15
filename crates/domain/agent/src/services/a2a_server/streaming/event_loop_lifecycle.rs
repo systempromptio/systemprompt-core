@@ -1,6 +1,7 @@
 //! Lifecycle helpers for the streaming event loop:
 //! - emit the A2A `working` status update when streaming begins,
-//! - emit a status frame on the SSE channel,
+//! - the single emitter for A2A `TaskStatusUpdate` frames on the SSE channel
+//!   (exactly one frame per task carries `final: true`),
 //! - record stream-creation failures.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -8,51 +9,28 @@
 
 use crate::services::shared::AgentServiceError;
 use axum::response::sse::Event;
-use serde_json::json;
 use systemprompt_identifiers::{ContextId, TaskId};
 use systemprompt_models::{A2AEventBuilder, AgUiEventBuilder};
 use tokio::sync::mpsc::Sender;
 
-use crate::models::a2a::TaskState;
-use crate::models::a2a::jsonrpc::NumberOrString;
+use crate::models::a2a::protocol::TaskStatusUpdateEvent;
+use crate::models::a2a::{TaskState, TaskStatus};
 use crate::repository::task::TaskRepository;
 
 use super::webhook_client::WebhookContext;
 
-pub(super) struct SendA2aStatusEventParams<'a> {
-    pub tx: &'a Sender<Event>,
-    pub task_id: &'a TaskId,
-    pub context_id: &'a ContextId,
-    pub state: &'a str,
-    pub is_final: bool,
-    pub request_id: &'a NumberOrString,
-}
-
-pub(super) fn send_a2a_status_event(params: &SendA2aStatusEventParams<'_>) {
-    let SendA2aStatusEventParams {
-        tx,
-        task_id,
-        context_id,
-        state,
-        is_final,
-        request_id,
-    } = params;
-    let event = json!({
-        "jsonrpc": "2.0",
-        "id": request_id,
-        "result": {
-            "kind": "status-update",
-            "taskId": task_id.as_str(),
-            "contextId": context_id.as_str(),
-            "status": {
-                "state": state,
-                "timestamp": chrono::Utc::now().to_rfc3339()
-            },
-            "final": is_final
-        }
-    });
+pub(super) async fn send_a2a_status_event(
+    tx: &Sender<Event>,
+    task_id: &TaskId,
+    context_id: &ContextId,
+    status: TaskStatus,
+    is_final: bool,
+) {
+    let event = TaskStatusUpdateEvent::new(task_id.clone(), context_id.clone(), status, is_final);
+    let jsonrpc = event.to_jsonrpc_response();
     if tx
-        .try_send(Event::default().data(event.to_string()))
+        .send(Event::default().data(jsonrpc.to_string()))
+        .await
         .is_err()
     {
         tracing::trace!("Failed to send status event, channel closed");
@@ -69,7 +47,6 @@ pub struct EmitRunStartedParams<'a> {
     pub context_id: &'a ContextId,
     pub task_id: &'a TaskId,
     pub task_repo: &'a TaskRepository,
-    pub request_id: &'a NumberOrString,
 }
 
 pub async fn emit_run_started(params: EmitRunStartedParams<'_>) {
@@ -79,7 +56,6 @@ pub async fn emit_run_started(params: EmitRunStartedParams<'_>) {
         context_id,
         task_id,
         task_repo,
-        request_id,
     } = params;
     let working_timestamp = chrono::Utc::now();
     if let Err(e) = task_repo
@@ -90,14 +66,18 @@ pub async fn emit_run_started(params: EmitRunStartedParams<'_>) {
         return;
     }
 
-    send_a2a_status_event(&SendA2aStatusEventParams {
+    send_a2a_status_event(
         tx,
         task_id,
         context_id,
-        state: "working",
-        is_final: false,
-        request_id,
-    });
+        TaskStatus {
+            state: TaskState::Working,
+            message: None,
+            timestamp: Some(working_timestamp),
+        },
+        false,
+    )
+    .await;
 
     let a2a_event = A2AEventBuilder::task_status_update(
         task_id.clone(),
@@ -123,7 +103,7 @@ pub async fn handle_stream_creation_error(
     _context_id: &ContextId,
     task_repo: &TaskRepository,
 ) {
-    let error_msg = format!("Failed to create stream: {}", error);
+    let error_msg = format!("Failed to create stream: {error}");
     tracing::error!(task_id = %task_id, error = %error, "Failed to create stream");
 
     let failed_timestamp = chrono::Utc::now();

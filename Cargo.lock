@@ -4449,6 +4449,7 @@ dependencies = [
  "futures",
  "hex",
  "hmac 0.13.0",
+ "http",
  "inventory",
  "nix",
  "reqwest",
@@ -4473,6 +4474,7 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tokio-test",
+ "tokio-util",
  "tower-http 0.7.0",
  "tracing",
  "uuid",
@@ -5608,6 +5610,7 @@ dependencies = [
  "bytes",
  "futures-core",
  "futures-sink",
+ "futures-util",
  "pin-project-lite",
  "tokio",
 ]

@@ -16,6 +16,7 @@
 ### Changed
 
 - `AppContext` and `DatabaseContext` connect through `Database::connect`; the profile `database_type` string is no longer consulted.
+- The composition root builds `A2ARepositories` with `A2aDependencies` (managed-skill resolver and the mcp `ToolUsageRepository` as the tool-execution lookup) and adopts the legacy context through `ensure_legacy_context`.
 
 ### Fixed
 

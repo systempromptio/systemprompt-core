@@ -12,8 +12,8 @@ mod non_streaming;
 mod streaming;
 pub mod validation;
 
-use axum::body::Body;
-use axum::extract::{Json, Request, State};
+use axum::body::Bytes;
+use axum::extract::{Extension, Json, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::IntoResponse;
 use serde_json::json;
@@ -30,13 +30,18 @@ use helpers::{handle_streaming_path, parse_a2a_request};
 use non_streaming::handle_non_streaming_request;
 use validation::should_require_oauth;
 
+// Why: the body is read through the `Bytes` extractor so the router's
+// `DefaultBodyLimit` applies and an oversized A2A payload is refused with 413
+// before it is buffered.
 pub async fn handle_agent_request(
     State(state): State<Arc<AgentHandlerState>>,
-    request: Request,
+    context: Option<Extension<RequestContext>>,
+    headers: HeaderMap,
+    body: Bytes,
 ) -> impl IntoResponse {
     let start_time = std::time::Instant::now();
 
-    let Some(context) = request.extensions().get::<RequestContext>().cloned() else {
+    let Some(Extension(context)) = context else {
         tracing::error!(
             "RequestContext missing from request extensions - middleware configuration error"
         );
@@ -53,12 +58,9 @@ pub async fn handle_agent_request(
 
     tracing::info!("Agent request handler invoked");
 
-    let (parts, body) = request.into_parts();
-    let headers = parts.headers.clone();
-
-    let jsonrpc_request = match parse_json_rpc_body(body).await {
+    let jsonrpc_request = match parse_json_rpc_body(&body) {
         Ok(req) => req,
-        Err(response) => return response,
+        Err(response) => return *response,
     };
 
     let request_id = jsonrpc_request.id.clone();
@@ -77,7 +79,7 @@ pub async fn handle_agent_request(
         Err(response) => return response,
     };
 
-    let mut enriched_context = context.clone();
+    let mut enriched_context = context;
     match &a2a_request {
         A2aRequestParams::SendMessage(params) | A2aRequestParams::SendStreamingMessage(params) => {
             enriched_context = enriched_context.with_context_id(params.message.context_id.clone());
@@ -102,33 +104,23 @@ pub async fn handle_agent_request(
     (StatusCode::OK, Json(json_rpc_response)).into_response()
 }
 
-async fn parse_json_rpc_body(
-    body: Body,
-) -> Result<crate::models::a2a::A2aJsonRpcRequest, axum::response::Response> {
-    let Ok(body_bytes) = axum::body::to_bytes(body, usize::MAX).await else {
-        return Err((
-            StatusCode::BAD_REQUEST,
-            Json(json!({
-                "jsonrpc": "2.0",
-                "error": {"code": -32700, "message": "Failed to read request body"},
-                "id": null
-            })),
-        )
-            .into_response());
-    };
-
-    let payload: serde_json::Value = match serde_json::from_slice(&body_bytes) {
+fn parse_json_rpc_body(
+    body_bytes: &[u8],
+) -> Result<crate::models::a2a::A2aJsonRpcRequest, Box<axum::response::Response>> {
+    let payload: serde_json::Value = match serde_json::from_slice(body_bytes) {
         Ok(p) => p,
         Err(_) => {
-            return Err((
-                StatusCode::BAD_REQUEST,
-                Json(json!({
-                    "jsonrpc": "2.0",
-                    "error": {"code": -32700, "message": "Invalid JSON"},
-                    "id": null
-                })),
-            )
-                .into_response());
+            return Err(Box::new(
+                (
+                    StatusCode::BAD_REQUEST,
+                    Json(json!({
+                        "jsonrpc": "2.0",
+                        "error": {"code": -32700, "message": "Invalid JSON"},
+                        "id": null
+                    })),
+                )
+                    .into_response(),
+            ));
         },
     };
 
@@ -139,7 +131,7 @@ async fn parse_json_rpc_body(
             ))
             .log_error(format!("Invalid JSON-RPC request: {e}"))
             .build(&crate::models::a2a::jsonrpc::NumberOrString::Number(0));
-        (StatusCode::BAD_REQUEST, Json(error_response)).into_response()
+        Box::new((StatusCode::BAD_REQUEST, Json(error_response)).into_response())
     })
 }
 
@@ -167,7 +159,7 @@ async fn enforce_oauth(
 }
 
 fn build_json_rpc_response(
-    response_result: Result<crate::models::a2a::Task, Box<dyn std::error::Error + Send + Sync>>,
+    response_result: Result<crate::models::a2a::Task, non_streaming::RequestFailure>,
     request_id: &crate::models::a2a::jsonrpc::NumberOrString,
 ) -> serde_json::Value {
     match response_result {
@@ -182,9 +174,6 @@ fn build_json_rpc_response(
                 .log_error(format!("Failed to serialize task response: {e}"))
                 .build(request_id),
         },
-        Err(e) => JsonRpcErrorBuilder::internal_error()
-            .with_data(json!(format!("Request handling failed: {e}")))
-            .log_error(format!("A2A request handling failed: {e}"))
-            .build(request_id),
+        Err(failure) => failure.into_jsonrpc(request_id),
     }
 }

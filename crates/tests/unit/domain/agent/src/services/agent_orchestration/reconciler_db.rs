@@ -19,7 +19,7 @@ use uuid::Uuid;
 use super::super::a2a_server::a2a_helpers::agent_config;
 use crate::repository::try_pool_or_skip;
 
-const DEAD_PID: u32 = 4_000_000_001;
+const DEAD_PID: u32 = 2_000_000_001;
 
 fn unique_name(prefix: &str) -> String {
     format!("{prefix}_{}", Uuid::new_v4().simple())
@@ -137,9 +137,4 @@ async fn fix_inconsistencies_marks_reported_agents_failed() {
 
     svc.remove_agent_service(&stale).await.ok();
     svc.remove_agent_service(&orphan).await.ok();
-}
-
-#[test]
-fn reconcile_starting_services_reports_zero() {
-    assert_eq!(AgentReconciler::reconcile_starting_services(), 0);
 }

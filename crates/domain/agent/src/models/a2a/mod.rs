@@ -10,7 +10,6 @@
 
 pub mod jsonrpc;
 pub mod protocol;
-mod service_status;
 
 pub use systemprompt_models::a2a::{
     AgentCapabilities, AgentCard, AgentCardBuilder, AgentCardSignature, AgentExtension,
@@ -24,4 +23,3 @@ pub use protocol::{
     A2aJsonRpcRequest, A2aParseError, A2aRequest, A2aRequestParams, A2aResponse, MessageSendParams,
     TaskIdParams, TaskQueryParams,
 };
-pub use service_status::ServiceStatusParams;

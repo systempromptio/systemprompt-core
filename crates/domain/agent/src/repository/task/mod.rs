@@ -26,7 +26,7 @@ pub use queries::{
     TaskContextInfo, get_task, get_task_context_info, get_tasks_by_user_id, list_tasks_by_context,
 };
 pub use state::{apply_notification_status, update_task_failed_with_error, update_task_state};
-pub use task_updates::UpdateTaskAndSaveMessagesParams;
+pub use task_updates::{PersistMessagesTxParams, UpdateTaskAndSaveMessagesParams};
 
 use crate::models::a2a::{Task, TaskState};
 use sqlx::PgPool;
@@ -51,7 +51,7 @@ pub struct RepoCreateTaskParams<'a> {
 pub struct TaskRepository {
     pool: Arc<PgPool>,
     write_pool: Arc<PgPool>,
-    db_pool: DbPool,
+    constructor: TaskConstructor,
     pub(crate) sessions: DynSessionUsageCounters,
 }
 
@@ -60,8 +60,7 @@ impl std::fmt::Debug for TaskRepository {
         f.debug_struct("TaskRepository")
             .field("pool", &"<PgPool>")
             .field("write_pool", &"<PgPool>")
-            .field("db_pool", &"<DbPool>")
-            .finish()
+            .finish_non_exhaustive()
     }
 }
 
@@ -79,13 +78,9 @@ impl TaskRepository {
         Ok(Self {
             pool,
             write_pool,
-            db_pool: Arc::clone(db),
+            constructor: TaskConstructor::new(db)?,
             sessions,
         })
-    }
-
-    pub(crate) const fn db_pool(&self) -> &DbPool {
-        &self.db_pool
     }
 
     pub async fn create_task(
@@ -113,14 +108,14 @@ impl TaskRepository {
         &self,
         task_id: &systemprompt_identifiers::TaskId,
     ) -> Result<Option<Task>, RepositoryError> {
-        get_task(&self.pool, &self.db_pool, task_id).await
+        get_task(&self.constructor, task_id).await
     }
 
     pub async fn list_tasks_by_context(
         &self,
         context_id: &systemprompt_identifiers::ContextId,
     ) -> Result<Vec<Task>, RepositoryError> {
-        list_tasks_by_context(&self.pool, &self.db_pool, context_id).await
+        list_tasks_by_context(&self.pool, &self.constructor, context_id).await
     }
 
     pub async fn get_tasks_by_user_id(
@@ -129,7 +124,7 @@ impl TaskRepository {
         limit: Option<i32>,
         offset: Option<i32>,
     ) -> Result<Vec<Task>, RepositoryError> {
-        get_tasks_by_user_id(&self.pool, &self.db_pool, user_id, limit, offset).await
+        get_tasks_by_user_id(&self.pool, &self.constructor, user_id, limit, offset).await
     }
 
     pub async fn track_agent_in_context(

@@ -16,7 +16,9 @@ use uuid::Uuid;
 use crate::repository::try_pool_or_skip;
 
 // A PID that can never name a live, signalable process (> i32::MAX).
-const DEAD_PID: u32 = 4_000_000_000;
+// Why: `services.pid` is an `INTEGER` column, so a dead pid must fit i32 while
+// still lying far above any pid_max a kernel will hand out.
+const DEAD_PID: u32 = 2_000_000_000;
 
 fn unique_name(prefix: &str) -> String {
     format!("{prefix}-{}", Uuid::new_v4())
@@ -209,7 +211,7 @@ async fn lifecycle_register_starting_mark_running_then_stopped() {
 }
 
 #[tokio::test]
-async fn mark_error_and_mark_crashed() {
+async fn mark_failed_writes_the_error_state_once() {
     let Some(pool) = try_pool_or_skip().await else {
         return;
     };
@@ -218,8 +220,7 @@ async fn mark_error_and_mark_crashed() {
     svc.register_agent(&name, DEAD_PID, 9308)
         .await
         .expect("register");
-    svc.mark_error(&name).await.expect("mark error");
-    svc.mark_crashed(&name).await.expect("mark crashed");
+    svc.mark_failed(&name).await.expect("mark failed");
 
     let status = svc.get_status(&name).await.expect("status");
     assert!(matches!(status, AgentStatus::Failed { .. }));

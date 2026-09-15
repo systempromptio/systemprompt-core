@@ -3,11 +3,10 @@
 //! Tests cover:
 //! - TaskStatusUpdateEvent construction and serialization
 //! - TaskArtifactUpdateEvent construction and serialization
-//! - ServiceStatusParams serialization
 
 use systemprompt_agent::models::a2a::protocol::{TaskArtifactUpdateEvent, TaskStatusUpdateEvent};
 use systemprompt_agent::models::a2a::{
-    Artifact, ArtifactMetadata, Part, ServiceStatusParams, TaskState, TaskStatus, TextPart,
+    Artifact, ArtifactMetadata, Part, TaskState, TaskStatus, TextPart,
 };
 use systemprompt_identifiers::{ArtifactId, ContextId, TaskId};
 
@@ -171,32 +170,4 @@ fn test_task_artifact_update_event_to_jsonrpc_response() {
 
     assert_eq!(response["jsonrpc"], "2.0");
     assert!(response["result"].is_object());
-}
-
-#[test]
-fn test_service_status_params_serialize() {
-    let params = ServiceStatusParams {
-        status: "running".to_string(),
-        default: true,
-        port: Some(8080),
-        pid: Some(12345),
-    };
-
-    let json = serde_json::to_string(&params).unwrap();
-    assert!(json.contains("running"));
-    assert!(json.contains("8080"));
-    assert!(json.contains("12345"));
-}
-
-#[test]
-fn test_service_status_params_optional_fields() {
-    let json = r#"{
-        "status": "starting"
-    }"#;
-
-    let params: ServiceStatusParams = serde_json::from_str(json).unwrap();
-    assert_eq!(params.status, "starting");
-    assert!(!params.default);
-    assert!(params.port.is_none());
-    assert!(params.pid.is_none());
 }

@@ -1,133 +1,63 @@
-//! Webhook broadcasts for task and artifact lifecycle events.
+//! Task and artifact lifecycle broadcasts to the internal webhook.
 //!
-//! Posts `task_created`, `task_completed`, and `artifact_created` events to the
-//! internal broadcast webhook so other surfaces (SSE, AG-UI) can observe agent
-//! progress. The task-event broadcasts log and swallow transport failures;
-//! [`broadcast_artifact_created`] surfaces them as an
-//! [`AgentError`](crate::error::AgentError).
+//! The task-event broadcasts are best-effort side channels: a delivery
+//! failure is logged and never fails the task. [`broadcast_artifact_created`]
+//! returns the failure so the caller can record it as a typed partial outcome.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use serde_json::json;
-use systemprompt_identifiers::{ContextId, TaskId, UserId};
-use systemprompt_models::{Config, TaskMetadata};
+use systemprompt_identifiers::{ContextId, TaskId};
+use systemprompt_models::TaskMetadata;
 
-use crate::models::a2a::{Message, Task, TaskState, TaskStatus};
+use super::webhook_client::{LifecycleEvent, WebhookContext, WebhookError};
+use crate::models::a2a::{Artifact, Message, Task, TaskState, TaskStatus};
 
 #[derive(Debug)]
 pub struct BroadcastTaskCreatedParams<'a> {
+    pub webhooks: &'a WebhookContext,
     pub task_id: &'a TaskId,
     pub context_id: &'a ContextId,
-    pub user_id: &'a str,
     pub user_message: &'a Message,
     pub agent_name: &'a str,
-    pub token: &'a str,
 }
 
 pub async fn broadcast_task_created(params: BroadcastTaskCreatedParams<'_>) {
     let BroadcastTaskCreatedParams {
+        webhooks,
         task_id,
         context_id,
-        user_id,
         user_message,
         agent_name,
-        token,
     } = params;
     let event_task = build_event_task(task_id, context_id, user_message, agent_name);
 
-    let api_url = match Config::get() {
-        Ok(c) => c.api_internal_url.clone(),
+    let event = match LifecycleEvent::task_created(&event_task, webhooks.user_id()) {
+        Ok(event) => event,
         Err(e) => {
-            tracing::warn!(error = %e, "Cannot broadcast task_created: config unavailable");
+            tracing::warn!(task_id = %task_id, error = %e, "Failed to serialize task for broadcast");
             return;
         },
     };
-    let webhook_url = format!("{}/api/v1/webhook/broadcast", api_url);
 
-    let payload = json!({
-        "event_type": "task_created",
-        "entity_id": task_id.as_str(),
-        "context_id": context_id.as_str(),
-        "user_id": user_id,
-        "task_data": json!({ "task": event_task })
-    });
-
-    let client = reqwest::Client::new();
-    match client
-        .post(&webhook_url)
-        .header("Authorization", format!("Bearer {token}"))
-        .header("Content-Type", "application/json")
-        .json(&payload)
-        .send()
-        .await
-    {
-        Ok(response) => {
-            if response.status().is_success() {
-                tracing::info!(task_id = %task_id, "Broadcast task_created via webhook");
-            } else {
-                tracing::warn!(
-                    task_id = %task_id,
-                    status = %response.status(),
-                    "Webhook broadcast failed"
-                );
-            }
-        },
-        Err(e) => {
-            tracing::warn!(task_id = %task_id, error = %e, "Webhook broadcast error");
-        },
+    match webhooks.broadcast_lifecycle(event).await {
+        Ok(()) => tracing::info!(task_id = %task_id, "Broadcast task_created via webhook"),
+        Err(e) => tracing::warn!(task_id = %task_id, error = %e, "Webhook broadcast failed"),
     }
 }
 
-pub async fn broadcast_task_completed(task: &Task, user_id: &UserId, token: &str) {
-    let api_url = match Config::get() {
-        Ok(c) => c.api_internal_url.clone(),
+pub async fn broadcast_task_completed(webhooks: &WebhookContext, task: &Task) {
+    let event = match LifecycleEvent::task_completed(task, webhooks.user_id()) {
+        Ok(event) => event,
         Err(e) => {
-            tracing::warn!(error = %e, "Cannot broadcast task_completed: config unavailable");
+            tracing::warn!(task_id = %task.id, error = %e, "Failed to serialize task for broadcast");
             return;
         },
     };
-    let webhook_url = format!("{}/api/v1/webhook/broadcast", api_url);
 
-    let task_data = match serde_json::to_value(task) {
-        Ok(v) => v,
-        Err(e) => {
-            tracing::warn!(error = %e, task_id = %task.id, "Failed to serialize task for broadcast");
-            serde_json::json!(null)
-        },
-    };
-
-    let payload = json!({
-        "event_type": "task_completed",
-        "entity_id": task.id.as_str(),
-        "context_id": task.context_id.as_str(),
-        "user_id": user_id.as_str(),
-        "task_data": task_data
-    });
-
-    let client = reqwest::Client::new();
-    match client
-        .post(&webhook_url)
-        .header("Authorization", format!("Bearer {token}"))
-        .header("Content-Type", "application/json")
-        .json(&payload)
-        .send()
-        .await
-    {
-        Ok(response) => {
-            if response.status().is_success() {
-                tracing::info!(task_id = %task.id, "Broadcast task_completed");
-            } else {
-                tracing::warn!(
-                    task_id = %task.id,
-                    status = %response.status(),
-                    "Webhook failed"
-                );
-            }
-        },
-        Err(e) => {
-            tracing::warn!(task_id = %task.id, error = %e, "Webhook error");
-        },
+    match webhooks.broadcast_lifecycle(event).await {
+        Ok(()) => tracing::info!(task_id = %task.id, "Broadcast task_completed"),
+        Err(e) => tracing::warn!(task_id = %task.id, error = %e, "Webhook broadcast failed"),
     }
 }
 
@@ -154,47 +84,17 @@ fn build_event_task(
 }
 
 pub async fn broadcast_artifact_created(
-    artifact: &crate::models::a2a::Artifact,
+    webhooks: &WebhookContext,
+    artifact: &Artifact,
     task_id: &TaskId,
     context_id: &ContextId,
-    user_id: &UserId,
-    token: &str,
-) -> Result<(), crate::error::AgentError> {
-    let api_url = Config::get()
-        .map_err(|e| crate::error::AgentError::Config(e.to_string()))?
-        .api_internal_url
-        .clone();
-    let webhook_url = format!("{}/api/v1/webhook/broadcast", api_url);
-
-    let payload = json!({
-        "event_type": "artifact_created",
-        "entity_id": artifact.id.clone(),
-        "context_id": context_id.as_str(),
-        "user_id": user_id.as_str(),
-    });
-
-    let client = reqwest::Client::new();
-    let response = client
-        .post(&webhook_url)
-        .header("Authorization", format!("Bearer {token}"))
-        .header("Content-Type", "application/json")
-        .json(&payload)
-        .send()
-        .await?;
-
-    if response.status().is_success() {
-        tracing::info!(
-            artifact_id = %artifact.id,
-            task_id = %task_id,
-            "Broadcast artifact_created via webhook"
-        );
-
-        Ok(())
-    } else {
-        Err(crate::error::AgentError::Webhook(format!(
-            "broadcast failed: status={}, artifact_id={}",
-            response.status(),
-            artifact.id
-        )))
-    }
+) -> Result<(), WebhookError> {
+    let event = LifecycleEvent::artifact_created(&artifact.id, context_id, webhooks.user_id());
+    webhooks.broadcast_lifecycle(event).await?;
+    tracing::info!(
+        artifact_id = %artifact.id,
+        task_id = %task_id,
+        "Broadcast artifact_created via webhook"
+    );
+    Ok(())
 }

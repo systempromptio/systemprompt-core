@@ -6645,6 +6645,7 @@ dependencies = [
  "futures",
  "hex",
  "hmac 0.13.0",
+ "http",
  "inventory",
  "nix",
  "reqwest",
@@ -6667,6 +6668,7 @@ dependencies = [
  "thiserror 2.0.19",
  "tokio",
  "tokio-stream",
+ "tokio-util",
  "tower-http 0.7.0",
  "tracing",
  "uuid",
@@ -6718,6 +6720,7 @@ dependencies = [
  "systemprompt-traits",
  "tempfile",
  "tokio",
+ "tokio-util",
  "tower",
  "uuid",
  "wiremock",
@@ -9136,6 +9139,7 @@ name = "systemprompt-test-fixtures"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "base64 0.23.0",
  "chrono",
  "dotenvy",
@@ -9631,6 +9635,7 @@ dependencies = [
  "bytes",
  "futures-core",
  "futures-sink",
+ "futures-util",
  "pin-project-lite",
  "tokio",
 ]

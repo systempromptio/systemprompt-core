@@ -13,7 +13,6 @@ use systemprompt_agent::services::a2a_server::processing::message::StreamEvent;
 use systemprompt_agent::services::a2a_server::processing::strategies::{
     ExecutionContext, ExecutionStrategy, PlannedAgenticStrategy,
 };
-use systemprompt_agent::services::skills::SkillService;
 use systemprompt_identifiers::AgentName;
 use systemprompt_models::ai::{PlannedToolCall, PlanningResult};
 use tokio::sync::mpsc;
@@ -39,7 +38,7 @@ async fn harness_or_skip(provider: StubAiProvider) -> Option<Harness> {
     let request_ctx = request_context(&ctx, &session, &user, AGENT);
     let context = ExecutionContext {
         ai_service: Arc::new(provider),
-        skill_service: Arc::new(SkillService::new().expect("skill service")),
+        skill_service: Arc::new(super::a2a_helpers::skill_service(&pool)),
         agent_runtime: runtime_info(AGENT),
         agent_name: AgentName::try_new(AGENT).expect("valid AgentName"),
         task_id,

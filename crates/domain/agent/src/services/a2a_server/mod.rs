@@ -8,6 +8,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod active_tasks;
 pub mod auth;
 pub mod errors;
 pub mod handlers;
@@ -16,6 +17,7 @@ pub mod server;
 pub mod standalone;
 pub mod streaming;
 
+pub use active_tasks::{ActiveTaskGuard, ActiveTasks};
 pub use handlers::AgentHandlerState;
 pub use server::Server;
 pub use standalone::run_standalone;

@@ -1,9 +1,9 @@
 //! The spawned streaming pipeline run.
 //!
-//! Implements [`StreamProcessor::process_message_stream`] and the background
-//! task it spawns: it assembles AI messages, selects an execution strategy,
-//! runs it, builds artifacts, synthesizes a final response, and emits a
-//! `Complete` event.
+//! Implements [`StreamProcessor::process_message_stream`] and the worker it
+//! spawns: it assembles AI messages, selects an execution strategy, runs it,
+//! builds artifacts, synthesizes a final response, and emits exactly one
+//! terminal event (`Complete`, `Error`, or `Cancelled`).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -15,15 +15,18 @@ use std::sync::Arc;
 
 use tokio::sync::mpsc;
 
-use self::execution::{build_artifacts_or_report, run_strategy};
+use self::execution::{build_artifacts, run_strategy};
 use self::messages::{BuildAiMessagesParams, build_ai_messages};
 use super::StreamProcessor;
 use super::helpers::{SynthesizeFinalResponseParams, synthesize_final_response};
 use crate::models::AgentRuntimeInfo;
 use crate::models::a2a::Artifact;
-use crate::services::a2a_server::processing::message::{ProcessMessageStreamParams, StreamEvent};
+use crate::services::a2a_server::processing::message::content::extract_message_content;
+use crate::services::a2a_server::processing::message::{
+    MessageStream, ProcessMessageStreamParams, StreamEvent,
+};
 use crate::services::a2a_server::processing::strategies::ExecutionContext;
-use crate::services::shared::Result;
+use crate::services::shared::{AgentServiceError, Result};
 use systemprompt_identifiers::AgentName;
 use systemprompt_models::{AiMessage, RequestContext};
 
@@ -31,36 +34,29 @@ impl StreamProcessor {
     pub async fn process_message_stream(
         &self,
         params: ProcessMessageStreamParams<'_>,
-    ) -> Result<mpsc::Receiver<StreamEvent>> {
+    ) -> Result<MessageStream> {
         let ProcessMessageStreamParams {
             a2a_message,
             agent_runtime,
             agent_name,
             context,
             task_id,
+            cancel,
         } = params;
         let (tx, rx) = mpsc::channel(1024);
 
         let ai_service = Arc::clone(&self.ai_service);
         let agent_runtime = agent_runtime.clone();
         let agent_name_string = agent_name.to_owned();
-        let agent_name_typed = AgentName::try_new(agent_name).map_err(|e| {
-            crate::services::shared::AgentServiceError::Validation(
-                "agent_name".to_owned(),
-                e.to_string(),
-            )
-        })?;
-        let (user_text, user_parts) = Self::extract_message_content(a2a_message);
+        let agent_name_typed = AgentName::try_new(agent_name)
+            .map_err(|e| AgentServiceError::Validation("agent_name".to_owned(), e.to_string()))?;
+        let (user_text, user_parts) = extract_message_content(a2a_message);
 
         let context_id = &a2a_message.context_id;
         let conversation_history = self
             .context_service
             .load_conversation_history(context_id)
-            .await
-            .unwrap_or_else(|e| {
-                tracing::warn!(error = %e, context_id = %context_id, "Failed to load conversation history");
-                vec![]
-            });
+            .await?;
 
         tracing::info!(
             context_id = %context_id,
@@ -68,36 +64,43 @@ impl StreamProcessor {
             "Loaded historical messages for context"
         );
 
-        let context_id_for_artifacts = context_id.clone();
-        let context_id_owned = context_id.clone();
-        let task_id_for_artifacts = task_id.clone();
-
         let request_ctx = context
             .clone()
             .with_task_id(task_id.clone())
             .with_context_id(context_id.clone());
-        let skill_service = Arc::clone(&self.skill_service);
-        let execution_step_repo = Arc::clone(&self.execution_step_repo);
-
-        tokio::spawn(run_stream_pipeline(RunStreamPipelineParams {
+        let pipeline = RunStreamPipelineParams {
             agent_runtime,
             agent_name_string,
             agent_name_typed,
             ai_service,
-            skill_service,
-            execution_step_repo,
+            skill_service: Arc::clone(&self.skill_service),
+            execution_step_repo: Arc::clone(&self.execution_step_repo),
             task_id,
-            context_id_owned,
-            context_id_for_artifacts,
-            task_id_for_artifacts,
+            context_id: context_id.clone(),
             request_ctx,
             conversation_history,
             user_text,
             user_parts,
-            tx,
-        }));
+            tx: tx.clone(),
+        };
 
-        Ok(rx)
+        let worker_cancel = cancel.clone();
+        let worker = tokio::spawn(async move {
+            tokio::select! {
+                () = worker_cancel.cancelled() => {
+                    if tx.send(StreamEvent::Cancelled).await.is_err() {
+                        tracing::debug!("Stream receiver dropped before cancellation was reported");
+                    }
+                },
+                () = run_stream_pipeline(pipeline) => {},
+            }
+        });
+
+        Ok(MessageStream {
+            events: rx,
+            worker,
+            cancel,
+        })
     }
 }
 
@@ -109,9 +112,7 @@ struct RunStreamPipelineParams {
     skill_service: Arc<crate::services::SkillService>,
     execution_step_repo: Arc<crate::repository::execution::ExecutionStepRepository>,
     task_id: systemprompt_identifiers::TaskId,
-    context_id_owned: systemprompt_identifiers::ContextId,
-    context_id_for_artifacts: systemprompt_identifiers::ContextId,
-    task_id_for_artifacts: systemprompt_identifiers::TaskId,
+    context_id: systemprompt_identifiers::ContextId,
     request_ctx: RequestContext,
     conversation_history: Vec<AiMessage>,
     user_text: String,
@@ -120,6 +121,17 @@ struct RunStreamPipelineParams {
 }
 
 async fn run_stream_pipeline(params: RunStreamPipelineParams) {
+    let tx = params.tx.clone();
+    match run_pipeline(params).await {
+        Ok((final_text, artifacts)) => send_complete_event(&tx, final_text, artifacts).await,
+        Err(AgentServiceError::StreamClosed) => {
+            tracing::debug!("Stream receiver dropped; pipeline stopped");
+        },
+        Err(e) => report_stream_error(&tx, e.to_string()).await,
+    }
+}
+
+async fn run_pipeline(params: RunStreamPipelineParams) -> Result<(String, Vec<Artifact>)> {
     let RunStreamPipelineParams {
         agent_runtime,
         agent_name_string,
@@ -128,9 +140,7 @@ async fn run_stream_pipeline(params: RunStreamPipelineParams) {
         skill_service,
         execution_step_repo,
         task_id,
-        context_id_owned,
-        context_id_for_artifacts,
-        task_id_for_artifacts,
+        context_id,
         request_ctx,
         conversation_history,
         user_text,
@@ -152,7 +162,7 @@ async fn run_stream_pipeline(params: RunStreamPipelineParams) {
         skill_service: &skill_service,
         request_ctx: &request_ctx,
     })
-    .await;
+    .await?;
 
     let ai_messages_for_synthesis = ai_messages.clone();
     let ai_service_for_builder = Arc::clone(&ai_service);
@@ -163,24 +173,14 @@ async fn run_stream_pipeline(params: RunStreamPipelineParams) {
         agent_runtime: agent_runtime.clone(),
         agent_name: agent_name_typed,
         task_id: task_id.clone(),
-        context_id: context_id_owned,
+        context_id: context_id.clone(),
         tx: tx.clone(),
         request_ctx: request_ctx.clone(),
         execution_step_repo: Arc::clone(&execution_step_repo),
     };
 
-    let Some(execution_result) = run_strategy(execution_context, ai_messages).await else {
-        return;
-    };
-
-    let Some(artifacts) = build_artifacts_or_report(
-        &execution_result,
-        &context_id_for_artifacts,
-        &task_id_for_artifacts,
-        &tx,
-    ) else {
-        return;
-    };
+    let execution_result = run_strategy(execution_context, ai_messages).await?;
+    let artifacts = build_artifacts(&execution_result, &context_id, &task_id)?;
 
     let final_text = synthesize_final_response(SynthesizeFinalResponseParams {
         tool_calls: &execution_result.tool_calls,
@@ -194,40 +194,33 @@ async fn run_stream_pipeline(params: RunStreamPipelineParams) {
         request_ctx,
         skill_service: Arc::clone(&skill_service),
     })
-    .await;
+    .await?;
 
-    send_complete_event(&tx, final_text, artifacts);
+    Ok((final_text, artifacts))
 }
 
-fn report_stream_error(tx: &mpsc::Sender<StreamEvent>, message: String) {
-    if let Err(send_err) = tx.try_send(StreamEvent::Error(message)) {
-        tracing::trace!(error = %send_err, "Failed to send error event, channel closed");
+async fn report_stream_error(tx: &mpsc::Sender<StreamEvent>, message: String) {
+    if tx.send(StreamEvent::Error(message)).await.is_err() {
+        tracing::trace!("Failed to send error event, channel closed");
     }
 }
 
-fn send_complete_event(
+async fn send_complete_event(
     tx: &mpsc::Sender<StreamEvent>,
     final_text: String,
     artifacts: Vec<Artifact>,
 ) {
-    tracing::info!(artifact_count = artifacts.len(), "Sending Complete event");
-    for (idx, artifact) in artifacts.iter().enumerate() {
-        tracing::info!(
-            artifact_index = idx + 1,
-            total_artifacts = artifacts.len(),
-            artifact_id = %artifact.id,
-            "Complete artifact"
-        );
-    }
-
     let artifact_count = artifacts.len();
-    let send_result = tx.try_send(StreamEvent::Complete {
-        full_text: final_text,
-        artifacts,
-    });
-    if send_result.is_err() {
+    tracing::info!(artifact_count, "Sending Complete event");
+
+    if tx
+        .send(StreamEvent::Complete {
+            full_text: final_text,
+            artifacts,
+        })
+        .await
+        .is_err()
+    {
         tracing::error!("Failed to send Complete event, channel closed");
-    } else {
-        tracing::info!(artifact_count = artifact_count, "Sent Complete event");
     }
 }

@@ -1,6 +1,5 @@
 use systemprompt_agent::services::agent_orchestration::monitor::{
-    HealthCheckResult, MonitoringReport, check_a2a_agent_health, check_agent_health,
-    check_agent_responsiveness,
+    MonitoringReport, check_a2a_agent_health,
 };
 
 #[test]
@@ -57,34 +56,9 @@ fn monitoring_report_debug() {
 }
 
 #[tokio::test]
-async fn check_agent_health_returns_unhealthy_for_unreachable_port() {
-    // get_agent_port_simple("monitorless-test") yields a port unlikely to
-    // have a listener; either way the TCP connect should yield an
-    // unhealthy/timeout result, not an error.
-    let res = check_agent_health("monitorless-test").await;
-    assert!(res.is_ok());
-    let r: HealthCheckResult = res.unwrap();
-    assert!(!r.healthy);
-}
-
-#[tokio::test]
-async fn check_agent_responsiveness_returns_false_for_no_listener() {
-    let res = check_agent_responsiveness("nothing-listening", 1).await;
-    assert!(res.is_ok());
-    assert!(!res.unwrap());
-}
-
-#[tokio::test]
 async fn check_a2a_agent_health_returns_false_for_no_listener() {
     // Choose a port that definitely has nothing listening.
     let res = check_a2a_agent_health(1, 1).await;
     assert!(res.is_ok());
     assert!(!res.unwrap());
-}
-
-#[tokio::test]
-async fn check_agent_health_handles_numeric_name() {
-    let res = check_agent_health("agent42").await;
-    let r: HealthCheckResult = res.expect("numeric name must resolve to a health result");
-    assert!(!r.healthy);
 }

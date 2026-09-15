@@ -1,10 +1,9 @@
 //! Sequential tool-execution primitives shared by the strategies.
 //!
-//! [`ToolExecutorTrait`] abstracts a single tool call;
-//! [`execute_tools_sequentially`] and [`execute_tools_with_templates`] run a
-//! planned batch (the latter resolving inter-tool argument templates), and the
-//! conversion helpers turn the resulting [`ExecutionState`] into A2A tool calls
-//! and results.
+//! [`ToolExecutorTrait`] abstracts a single tool call; [`execute_tools`] runs a
+//! planned batch, resolving inter-tool argument templates against the results
+//! gathered so far, and the conversion helpers turn the resulting
+//! [`ExecutionState`] into A2A tool calls and results.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -21,7 +20,7 @@ use systemprompt_models::{McpTool, RequestContext, ToolCall};
 
 pub type CallToolResult = rmcp::model::CallToolResult;
 
-/// `#[async_trait]` is required: `execute_tools_sequentially` takes the
+/// `#[async_trait]` is required: `execute_tools` takes the
 /// executor as `&dyn ToolExecutorTrait`, so the trait must be `dyn`-compatible.
 #[async_trait]
 pub trait ToolExecutorTrait: Send + Sync {
@@ -42,7 +41,7 @@ pub struct ToolOutcome {
     pub meta: Option<Value>,
 }
 
-pub async fn execute_tools_sequentially(
+pub async fn execute_tools(
     calls: &[PlannedToolCall],
     tools: &[McpTool],
     ctx: &RequestContext,
@@ -51,68 +50,7 @@ pub async fn execute_tools_sequentially(
     let mut state = ExecutionState::new();
     let total = calls.len();
 
-    tracing::info!(
-        tool_count = total,
-        "Starting sequential execution of tool calls"
-    );
-
-    for (index, call) in calls.iter().enumerate() {
-        let start = Instant::now();
-
-        tracing::info!(
-            index = index + 1,
-            total = total,
-            tool_name = %call.tool_name,
-            "Executing tool"
-        );
-
-        let result = tool_executor
-            .execute_tool(&call.tool_name, call.arguments.clone(), tools, ctx)
-            .await;
-
-        let duration_ms = start.elapsed().as_millis() as u64;
-
-        state.add_result(finish_tool_call(
-            &call.tool_name,
-            call.arguments.clone(),
-            result,
-            duration_ms,
-        ));
-
-        if state.halted {
-            tracing::warn!(
-                index = index + 1,
-                total = total,
-                reason = state.halt_reason.as_deref().unwrap_or("Unknown"),
-                "Execution halted"
-            );
-            break;
-        }
-    }
-
-    tracing::info!(
-        successful = state.successful_results().len(),
-        failed = state.failed_results().len(),
-        total_duration_ms = state.total_duration_ms(),
-        "Execution complete"
-    );
-
-    Ok(state)
-}
-
-pub async fn execute_tools_with_templates(
-    calls: &[PlannedToolCall],
-    tools: &[McpTool],
-    ctx: &RequestContext,
-    tool_executor: &dyn ToolExecutorTrait,
-) -> Result<ExecutionState> {
-    let mut state = ExecutionState::new();
-    let total = calls.len();
-
-    tracing::info!(
-        tool_count = total,
-        "Starting template-aware execution of tool calls"
-    );
+    tracing::info!(tool_count = total, "Starting execution of tool calls");
 
     for (index, call) in calls.iter().enumerate() {
         let start = Instant::now();
@@ -154,7 +92,7 @@ pub async fn execute_tools_with_templates(
         successful = state.successful_results().len(),
         failed = state.failed_results().len(),
         total_duration_ms = state.total_duration_ms(),
-        "Template execution complete"
+        "Execution complete"
     );
 
     Ok(state)
@@ -235,9 +173,8 @@ pub fn format_results_for_response(state: &ExecutionState) -> String {
 pub fn convert_to_tool_calls(calls: &[PlannedToolCall]) -> Vec<ToolCall> {
     calls
         .iter()
-        .enumerate()
-        .map(|(i, c)| ToolCall {
-            ai_tool_call_id: AiToolCallId::new(format!("plan_call_{i}")),
+        .map(|c| ToolCall {
+            ai_tool_call_id: AiToolCallId::generate(),
             name: c.tool_name.clone(),
             arguments: c.arguments.clone(),
         })

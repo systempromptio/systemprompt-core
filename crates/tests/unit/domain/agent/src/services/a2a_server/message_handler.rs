@@ -7,8 +7,12 @@
 use std::sync::Arc;
 
 use systemprompt_agent::models::a2a::{Message, MessageRole, Part, TaskState, TextPart};
-use systemprompt_agent::services::a2a_server::processing::message::MessageProcessor;
+use systemprompt_agent::services::a2a_server::ActiveTasks;
+use systemprompt_agent::services::a2a_server::processing::message::{
+    HandleMessageParams, MessageProcessor,
+};
 use systemprompt_identifiers::{ContextId, MessageId, TaskId};
+use systemprompt_test_mocks::recording_webhooks;
 
 use super::a2a_helpers::{StubAiProvider, request_context, runtime_info};
 use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try_pool_or_skip};
@@ -40,14 +44,21 @@ async fn handle_message_with_runtime_completes_task_end_to_end() {
     let (ctx, _) = seed_context_and_task(&repos, &user, &session).await;
 
     let provider = Arc::new(StubAiProvider::new().with_text_stream(&["It is ", "42."]));
-    let processor = MessageProcessor::new(Arc::new(repos.clone()), provider).expect("processor");
+    let processor = MessageProcessor::new(Arc::new(repos.clone()), provider, recording_webhooks())
+        .expect("processor");
 
     let runtime = runtime_info("nonstream-agent");
     let request = request_context(&ctx, &session, &user, "nonstream-agent");
     let msg = user_message(&ctx, None, "what is the answer?");
 
     let task = processor
-        .handle_message_with_runtime(msg, &runtime, "nonstream-agent", &request)
+        .handle_message_with_runtime(HandleMessageParams {
+            message: msg,
+            agent_runtime: &runtime,
+            agent_name: "nonstream-agent",
+            context: &request,
+            active_tasks: &ActiveTasks::default(),
+        })
         .await
         .expect("handled");
 
@@ -81,14 +92,21 @@ async fn handle_message_with_runtime_reuses_inbound_task_id() {
     let client_task_id = TaskId::generate();
 
     let provider = Arc::new(StubAiProvider::new().with_text_stream(&["continuing"]));
-    let processor = MessageProcessor::new(Arc::new(repos.clone()), provider).expect("processor");
+    let processor = MessageProcessor::new(Arc::new(repos.clone()), provider, recording_webhooks())
+        .expect("processor");
 
     let runtime = runtime_info("nonstream-agent");
     let request = request_context(&ctx, &session, &user, "nonstream-agent");
     let msg = user_message(&ctx, Some(client_task_id.clone()), "more");
 
     let task = processor
-        .handle_message_with_runtime(msg, &runtime, "nonstream-agent", &request)
+        .handle_message_with_runtime(HandleMessageParams {
+            message: msg,
+            agent_runtime: &runtime,
+            agent_name: "nonstream-agent",
+            context: &request,
+            active_tasks: &ActiveTasks::default(),
+        })
         .await
         .expect("handled");
 
@@ -108,14 +126,21 @@ async fn handle_message_with_runtime_surfaces_model_stream_failure() {
     let client_task_id = TaskId::generate();
 
     let provider = Arc::new(StubAiProvider::new().failing_stream());
-    let processor = MessageProcessor::new(Arc::new(repos.clone()), provider).expect("processor");
+    let processor = MessageProcessor::new(Arc::new(repos.clone()), provider, recording_webhooks())
+        .expect("processor");
 
     let runtime = runtime_info("nonstream-agent");
     let request = request_context(&ctx, &session, &user, "nonstream-agent");
     let msg = user_message(&ctx, Some(client_task_id.clone()), "boom");
 
     processor
-        .handle_message_with_runtime(msg, &runtime, "nonstream-agent", &request)
+        .handle_message_with_runtime(HandleMessageParams {
+            message: msg,
+            agent_runtime: &runtime,
+            agent_name: "nonstream-agent",
+            context: &request,
+            active_tasks: &ActiveTasks::default(),
+        })
         .await
         .expect_err("failing model stream must propagate as an error");
 
@@ -139,7 +164,8 @@ async fn handle_message_with_runtime_rejects_unowned_context() {
 
     let repos = repos(&pool);
     let provider = Arc::new(StubAiProvider::new());
-    let processor = MessageProcessor::new(Arc::new(repos.clone()), provider).expect("processor");
+    let processor = MessageProcessor::new(Arc::new(repos.clone()), provider, recording_webhooks())
+        .expect("processor");
 
     let foreign_ctx = ContextId::generate();
     let runtime = runtime_info("nonstream-agent");
@@ -147,7 +173,13 @@ async fn handle_message_with_runtime_rejects_unowned_context() {
     let msg = user_message(&foreign_ctx, None, "hi");
 
     let err = processor
-        .handle_message_with_runtime(msg, &runtime, "nonstream-agent", &request)
+        .handle_message_with_runtime(HandleMessageParams {
+            message: msg,
+            agent_runtime: &runtime,
+            agent_name: "nonstream-agent",
+            context: &request,
+            active_tasks: &ActiveTasks::default(),
+        })
         .await
         .expect_err("unowned context must fail");
     assert!(err.to_string().contains("Context validation failed"));

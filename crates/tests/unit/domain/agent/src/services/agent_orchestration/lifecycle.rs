@@ -13,7 +13,9 @@ use uuid::Uuid;
 
 use crate::repository::try_pool_or_skip;
 
-const DEAD_PID: u32 = 4_000_000_000;
+// Why: `services.pid` is an `INTEGER` column, so a dead pid must fit i32 while
+// still lying far above any pid_max a kernel will hand out.
+const DEAD_PID: u32 = 2_000_000_000;
 
 fn unique_name(prefix: &str) -> String {
     format!("{prefix}_{}", Uuid::new_v4().simple())

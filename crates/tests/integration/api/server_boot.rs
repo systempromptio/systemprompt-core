@@ -70,8 +70,14 @@ async fn setup_api_server_assembles_full_router() -> anyhow::Result<()> {
                 )?)))),
                 a2a_repositories: Arc::new(systemprompt_agent::repository::A2ARepositories::new(
                     &pool,
-                    session_usage,
-                    systemprompt_identifiers::InstanceId::new("test-instance"),
+                    systemprompt_agent::repository::A2aDependencies {
+                        session_usage,
+                        instance_id: systemprompt_identifiers::InstanceId::new("test-instance"),
+                        managed_skills: systemprompt_test_fixtures::not_managed_skills(),
+                        tool_executions: systemprompt_test_fixtures::tool_execution_ledger(
+                            systemprompt_test_fixtures::ToolExecutionLedger::Exists,
+                        ),
+                    },
                 )?),
                 content_repositories: Arc::new(
                     systemprompt_content::repository::ContentRepositories::new(&pool)?,

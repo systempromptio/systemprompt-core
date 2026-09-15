@@ -196,17 +196,3 @@ async fn complete_planning_step_records_reasoning_and_tools() -> Result<()> {
     fx.cleanup().await?;
     Ok(())
 }
-
-#[tokio::test]
-async fn mcp_execution_id_exists_false_for_random_id() -> Result<()> {
-    let fx = Fixture::new().await?;
-    let repo = ExecutionStepRepository::new(&fx.db)?;
-    let exists = repo
-        .mcp_execution_id_exists(&systemprompt_identifiers::McpExecutionId::new(
-            "nonexistent-mcp-exec-id-zzzzz",
-        ))
-        .await?;
-    assert!(!exists);
-    fx.cleanup().await?;
-    Ok(())
-}

@@ -13,7 +13,7 @@ mod parse;
 use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{McpExecutionId, TaskId};
+use systemprompt_identifiers::TaskId;
 use systemprompt_models::{ExecutionStep, StepId};
 use systemprompt_traits::RepositoryError;
 
@@ -95,20 +95,5 @@ impl ExecutionStepRepository {
                 })
             })
             .collect()
-    }
-
-    pub async fn mcp_execution_id_exists(
-        &self,
-        mcp_execution_id: &McpExecutionId,
-    ) -> Result<bool, RepositoryError> {
-        let exists = sqlx::query_scalar!(
-            r#"SELECT EXISTS(SELECT 1 FROM mcp_tool_executions WHERE mcp_execution_id = $1) as "exists!""#,
-            mcp_execution_id.as_str()
-        )
-        .fetch_one(&*self.pool)
-        .await
-        .map_err(|e| RepositoryError::Internal(format!("Failed to check mcp_execution_id existence: {e}")))?;
-
-        Ok(exists)
     }
 }

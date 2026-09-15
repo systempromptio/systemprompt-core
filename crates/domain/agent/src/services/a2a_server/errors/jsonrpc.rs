@@ -2,8 +2,7 @@
 //!
 //! [`JsonRpcErrorBuilder`] assembles spec-coded error responses with optional
 //! data payloads and structured logging; [`unauthorized_response`] and
-//! [`forbidden_response`] are the auth-failure shortcuts, and
-//! [`classify_database_error`] maps repository errors to user-facing messages.
+//! [`forbidden_response`] are the auth-failure shortcuts.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -12,27 +11,6 @@ use crate::models::a2a::jsonrpc::NumberOrString;
 use axum::http::StatusCode;
 use serde_json::{Value, json};
 use systemprompt_logging::LogLevel;
-use systemprompt_traits::RepositoryError;
-
-pub fn classify_database_error(error: &RepositoryError) -> String {
-    let error_str = error.to_string();
-
-    if error_str.contains("FOREIGN KEY constraint failed") {
-        format!(
-            "Database constraint error: Referenced entity does not exist - {}",
-            error
-        )
-    } else if error_str.contains("UNIQUE constraint failed") {
-        format!("Database constraint error: Duplicate entry - {error}")
-    } else if error_str.contains("NOT NULL constraint failed") {
-        format!(
-            "Database constraint error: Required field missing - {}",
-            error
-        )
-    } else {
-        format!("Database error: {error}")
-    }
-}
 
 #[derive(Debug)]
 pub struct JsonRpcErrorBuilder {

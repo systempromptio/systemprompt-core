@@ -6,9 +6,17 @@
 
 - **Breaking:** `HttpClientWithContext::{new, forwarding, external}` return `Result<Self, McpTransportError>`; the guarded client is built once and a failure is reported at construction. `McpTransportError::ClientUnavailable` is removed. Migrate by propagating the constructor error.
 
+### Added
+
+- `ToolUsageRepository` implements `systemprompt_traits::ToolExecutionLookup`.
+
 ### Changed
 
 - The registry and tool-provider seams return `McpRegistryError`; `McpServerState` carries a `McpServerId` and a `McpServerStatus`.
+
+### Removed
+
+- `ToolUsageRepository::{update_context_timestamp, find_context_id, list_tool_stats}` and `models::ToolStats`; the repository no longer writes the agent-owned `user_contexts` table.
 
 ## [0.52.0] - 2026-09-14
 

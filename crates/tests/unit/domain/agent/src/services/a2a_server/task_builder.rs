@@ -1,6 +1,6 @@
 use systemprompt_agent::models::a2a::{Message, MessageRole, Part, TaskState, TextPart};
 use systemprompt_agent::services::a2a_server::processing::task_builder::{
-    TaskBuilder, build_canceled_task, build_completed_task, build_mock_task, build_submitted_task,
+    TaskBuilder, build_canceled_task, build_completed_task,
 };
 use systemprompt_identifiers::{ContextId, MessageId, TaskId};
 use systemprompt_models::a2a::TaskMetadata;
@@ -249,60 +249,6 @@ fn build_canceled_task_has_no_history() {
     let ctx = ContextId::generate();
     let task = build_canceled_task(tid, ctx);
     assert!(task.history.is_none());
-}
-
-#[test]
-fn build_mock_task_sets_completed_state() {
-    let tid = TaskId::generate();
-    let task = build_mock_task(tid.clone());
-    assert_eq!(task.status.state, TaskState::Completed);
-    assert_eq!(task.id, tid);
-}
-
-#[test]
-fn build_mock_task_has_success_message() {
-    let tid = TaskId::generate();
-    let task = build_mock_task(tid);
-    let msg = task.status.message.unwrap();
-    let text = extract_text_from_message(&msg);
-    assert_eq!(text, "Task completed successfully.");
-}
-
-#[test]
-fn build_mock_task_generates_context_id() {
-    let tid = TaskId::generate();
-    let task = build_mock_task(tid);
-    assert!(!task.context_id.to_string().is_empty());
-}
-
-#[test]
-fn build_submitted_task_sets_state_and_metadata() {
-    let ctx = ContextId::generate();
-    let tid = TaskId::generate();
-    let user_msg = make_user_message(&ctx, &tid);
-
-    let task = build_submitted_task(tid.clone(), ctx.clone(), user_msg, "my-agent");
-
-    assert_eq!(task.id, tid);
-    assert_eq!(task.context_id, ctx);
-    assert_eq!(task.status.state, TaskState::Submitted);
-    assert!(task.status.message.is_none());
-    let history = task.history.unwrap();
-    assert_eq!(history.len(), 1);
-    assert_eq!(history[0].role, MessageRole::User);
-    assert!(task.created_at.is_some());
-    assert!(task.last_modified.is_some());
-    assert_eq!(task.metadata.expect("metadata").agent_name, "my-agent");
-}
-
-#[test]
-fn build_submitted_task_has_no_artifacts() {
-    let ctx = ContextId::generate();
-    let tid = TaskId::generate();
-    let user_msg = make_user_message(&ctx, &tid);
-
-    let task = build_submitted_task(tid, ctx, user_msg, "agent");
-    assert!(task.artifacts.is_none());
 }
 
 fn extract_text_from_message(msg: &Message) -> String {

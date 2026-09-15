@@ -58,40 +58,6 @@ async fn agent_database_service_mark_failed_persists() -> Result<()> {
 }
 
 #[tokio::test]
-async fn agent_database_service_mark_crashed_persists() -> Result<()> {
-    ensure_test_bootstrap();
-    let fx = Fixture::new().await?;
-    let repo = AgentServiceRepository::new(
-        &fx.db,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    )?;
-    let svc = AgentDatabaseService::new(repo).expect("svc");
-    let name = unique_name("crash");
-    svc.register_agent(&name, 444, 9102).await?;
-    svc.mark_crashed(&name).await?;
-    cleanup_agent(&fx.pool, &name).await;
-    fx.cleanup().await?;
-    Ok(())
-}
-
-#[tokio::test]
-async fn agent_database_service_mark_error_persists() -> Result<()> {
-    ensure_test_bootstrap();
-    let fx = Fixture::new().await?;
-    let repo = AgentServiceRepository::new(
-        &fx.db,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    )?;
-    let svc = AgentDatabaseService::new(repo).expect("svc");
-    let name = unique_name("err");
-    svc.register_agent(&name, 555, 9103).await?;
-    svc.mark_error(&name).await?;
-    cleanup_agent(&fx.pool, &name).await;
-    fx.cleanup().await?;
-    Ok(())
-}
-
-#[tokio::test]
 async fn agent_database_service_get_error_message_empty_for_no_error() -> Result<()> {
     ensure_test_bootstrap();
     let fx = Fixture::new().await?;

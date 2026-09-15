@@ -6,7 +6,6 @@
 use crate::models::TaskRow;
 use sqlx::PgPool;
 use std::sync::Arc;
-use systemprompt_database::DbPool;
 use systemprompt_identifiers::{AgentName, ContextId, SessionId, TaskId, TraceId, UserId};
 use systemprompt_traits::RepositoryError;
 
@@ -14,49 +13,15 @@ use super::constructor::TaskConstructor;
 use crate::models::a2a::Task;
 
 pub async fn get_task(
-    pool: &Arc<PgPool>,
-    db_pool: &DbPool,
+    constructor: &TaskConstructor,
     task_id: &TaskId,
 ) -> Result<Option<Task>, RepositoryError> {
-    let task_id_str = task_id.as_str();
-    let row = sqlx::query_as!(
-        TaskRow,
-        r#"SELECT
-            task_id as "task_id!: TaskId",
-            context_id as "context_id!: ContextId",
-            status as "status!",
-            status_timestamp,
-            user_id as "user_id?: UserId",
-            session_id as "session_id?: SessionId",
-            trace_id as "trace_id?: TraceId",
-            agent_name as "agent_name?: AgentName",
-            started_at,
-            completed_at,
-            execution_time_ms,
-            error_message,
-            metadata,
-            created_at as "created_at!",
-            updated_at as "updated_at!"
-        FROM agent_tasks WHERE task_id = $1"#,
-        task_id_str
-    )
-    .fetch_optional(pool.as_ref())
-    .await
-    .map_err(RepositoryError::database)?;
-
-    let Some(_row) = row else {
-        return Ok(None);
-    };
-
-    let constructor = TaskConstructor::new(db_pool)?;
-    let task = constructor.construct_task_from_task_id(task_id).await?;
-
-    Ok(Some(task))
+    constructor.construct_task_from_task_id(task_id).await
 }
 
 pub async fn list_tasks_by_context(
     pool: &Arc<PgPool>,
-    db_pool: &DbPool,
+    constructor: &TaskConstructor,
     context_id: &ContextId,
 ) -> Result<Vec<Task>, RepositoryError> {
     let context_id_str = context_id.as_str();
@@ -85,7 +50,6 @@ pub async fn list_tasks_by_context(
     .await
     .map_err(RepositoryError::database)?;
 
-    let constructor = TaskConstructor::new(db_pool)?;
     let task_ids: Vec<TaskId> = rows.iter().map(|r| r.task_id.clone()).collect();
     let tasks = constructor.construct_tasks_batch(&task_ids).await?;
 
@@ -94,7 +58,7 @@ pub async fn list_tasks_by_context(
 
 pub async fn get_tasks_by_user_id(
     pool: &Arc<PgPool>,
-    db_pool: &DbPool,
+    constructor: &TaskConstructor,
     user_id: &UserId,
     limit: Option<i32>,
     offset: Option<i32>,
@@ -130,7 +94,6 @@ pub async fn get_tasks_by_user_id(
     .await
     .map_err(RepositoryError::database)?;
 
-    let constructor = TaskConstructor::new(db_pool)?;
     let task_ids: Vec<TaskId> = rows.iter().map(|r| r.task_id.clone()).collect();
     let tasks = constructor.construct_tasks_batch(&task_ids).await?;
 

@@ -60,12 +60,6 @@ impl AgentReconciler {
         Ok(reconciled)
     }
 
-    pub fn reconcile_starting_services() -> u32 {
-        tracing::debug!("Checking for services stuck in 'starting' state");
-
-        0
-    }
-
     pub async fn perform_consistency_check(&self) -> OrchestrationResult<ConsistencyReport> {
         tracing::debug!("Performing database consistency check");
 

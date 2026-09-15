@@ -28,7 +28,11 @@ pub async fn run_standalone(
     .map_err(|e| AgentServiceError::Internal(format!("Failed to create agent server: {e}")))?;
 
     server
-        .run()
+        .run(async {
+            if let Err(e) = tokio::signal::ctrl_c().await {
+                tracing::error!(error = %e, "Failed to listen for shutdown signal");
+            }
+        })
         .await
         .map_err(|e| AgentServiceError::Internal(format!("Agent server failed: {e}")))?;
 

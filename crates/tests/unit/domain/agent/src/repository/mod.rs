@@ -12,8 +12,6 @@ mod context_notifications;
 mod execution;
 mod execution_mutation_faults;
 mod message;
-mod message_sequence_lock;
-mod message_tx;
 mod task;
 
 use systemprompt_agent::models::context::ContextKind;
@@ -28,12 +26,7 @@ pub(crate) async fn try_pool_or_skip() -> Option<DbPool> {
 }
 
 pub(crate) fn repos(pool: &DbPool) -> A2ARepositories {
-    A2ARepositories::new(
-        pool,
-        crate::session_usage(pool),
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    )
-    .expect("repositories")
+    systemprompt_test_fixtures::a2a_repositories(pool)
 }
 
 // Seeds a user + session and returns their ids.

@@ -1,13 +1,13 @@
 //! Recording fake for `systemprompt_agent::services::a2a_server::streaming::
-//! webhook_client::WebhookBroadcaster`. Captures every AGUI / A2A broadcast
-//! into an `Arc<Mutex<Vec<…>>>` so tests can assert on emitted events without
-//! standing up an HTTP receiver.
+//! webhook_client::WebhookBroadcaster`. Captures every AGUI / A2A / lifecycle
+//! broadcast into an `Arc<Mutex<Vec<…>>>` so tests can assert on emitted
+//! events without standing up an HTTP receiver.
 
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
 use systemprompt_agent::services::a2a_server::streaming::webhook_client::{
-    WebhookBroadcaster, WebhookError,
+    DynWebhookBroadcaster, LifecycleEvent, WebhookBroadcaster, WebhookError,
 };
 use systemprompt_identifiers::UserId;
 use systemprompt_models::{A2AEvent, AgUiEvent};
@@ -24,12 +24,17 @@ pub enum RecordedBroadcast {
         auth_token: String,
         event: A2AEvent,
     },
+    Lifecycle {
+        auth_token: String,
+        event: LifecycleEvent,
+    },
 }
 
 #[derive(Debug, Default)]
 pub struct RecordingWebhookBroadcaster {
     records: Mutex<Vec<RecordedBroadcast>>,
     connection_count: usize,
+    lifecycle_down: bool,
 }
 
 impl RecordingWebhookBroadcaster {
@@ -38,6 +43,7 @@ impl RecordingWebhookBroadcaster {
         Self {
             records: Mutex::new(Vec::new()),
             connection_count: 1,
+            lifecycle_down: false,
         }
     }
 
@@ -46,7 +52,27 @@ impl RecordingWebhookBroadcaster {
         Self {
             records: Mutex::new(Vec::new()),
             connection_count: count,
+            lifecycle_down: false,
         }
+    }
+
+    #[must_use]
+    pub fn with_lifecycle_down() -> Self {
+        Self {
+            records: Mutex::new(Vec::new()),
+            connection_count: 1,
+            lifecycle_down: true,
+        }
+    }
+
+    pub fn lifecycle_events(&self) -> Vec<LifecycleEvent> {
+        self.records()
+            .into_iter()
+            .filter_map(|r| match r {
+                RecordedBroadcast::Lifecycle { event, .. } => Some(event),
+                _ => None,
+            })
+            .collect()
     }
 
     pub fn records(&self) -> Vec<RecordedBroadcast> {
@@ -93,14 +119,37 @@ impl WebhookBroadcaster for RecordingWebhookBroadcaster {
             });
         Ok(self.connection_count)
     }
+
+    async fn broadcast_lifecycle(
+        &self,
+        event: LifecycleEvent,
+        auth_token: &str,
+    ) -> Result<(), WebhookError> {
+        self.records
+            .lock()
+            .expect("lock poisoned")
+            .push(RecordedBroadcast::Lifecycle {
+                auth_token: auth_token.to_owned(),
+                event,
+            });
+        if self.lifecycle_down {
+            return Err(WebhookError::StatusError {
+                status: 503,
+                message: "broadcast webhook down".to_owned(),
+            });
+        }
+        Ok(())
+    }
 }
 
 #[must_use]
-pub fn arc_recording_broadcaster() -> (
-    Arc<dyn WebhookBroadcaster>,
-    Arc<RecordingWebhookBroadcaster>,
-) {
+pub fn arc_recording_broadcaster() -> (DynWebhookBroadcaster, Arc<RecordingWebhookBroadcaster>) {
     let inner = Arc::new(RecordingWebhookBroadcaster::new());
-    let dyn_arc: Arc<dyn WebhookBroadcaster> = inner.clone();
+    let dyn_arc: DynWebhookBroadcaster = inner.clone();
     (dyn_arc, inner)
+}
+
+#[must_use]
+pub fn recording_webhooks() -> DynWebhookBroadcaster {
+    arc_recording_broadcaster().0
 }

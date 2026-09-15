@@ -111,7 +111,7 @@ pub fn fixture_config(database_url: &str) -> Config {
             disabled: true,
             ..RateLimitConfig::default()
         },
-        cors_allowed_origins: vec![],
+        cors_allowed_origins: vec!["http://localhost:3000".to_string()],
         trusted_proxies: vec![],
         is_cloud: false,
         system_admin_username: "admin".to_string(),
@@ -225,8 +225,14 @@ fn fixture_app_context_assembled(
             user_service: Some(Arc::new(UserService::new(Arc::clone(&user_repository)))),
             a2a_repositories: Arc::new(systemprompt_agent::repository::A2ARepositories::new(
                 pool,
-                session_usage,
-                systemprompt_identifiers::InstanceId::new("test-instance"),
+                systemprompt_agent::repository::A2aDependencies {
+                    session_usage,
+                    instance_id: systemprompt_identifiers::InstanceId::new("test-instance"),
+                    managed_skills: crate::agent::not_managed_skills(),
+                    tool_executions: crate::agent::tool_execution_ledger(
+                        crate::agent::ToolExecutionLedger::Exists,
+                    ),
+                },
             )?),
             content_repositories: Arc::new(
                 systemprompt_content::repository::ContentRepositories::new(pool)?,

@@ -9,6 +9,7 @@ use std::sync::Arc;
 
 use systemprompt_agent::AgentState;
 use systemprompt_agent::services::a2a_server::run_standalone;
+use systemprompt_agent::services::a2a_server::streaming::webhook_client::HttpWebhookBroadcaster;
 use systemprompt_ai::{AiService, AiServiceProviders};
 use systemprompt_loader::ConfigLoader;
 use systemprompt_mcp::McpToolProvider;
@@ -42,6 +43,7 @@ pub(super) async fn execute(args: RunArgs) -> Result<()> {
         Arc::new(ctx.config().clone()),
         jwt_provider,
         Arc::clone(ctx.a2a_repositories()),
+        Arc::new(HttpWebhookBroadcaster::from_config(ctx.config())?),
     ));
 
     let tool_provider = Arc::new(McpToolProvider::new(

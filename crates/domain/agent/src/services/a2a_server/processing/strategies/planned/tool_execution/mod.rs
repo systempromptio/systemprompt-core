@@ -15,11 +15,10 @@ use systemprompt_identifiers::TaskId;
 use systemprompt_models::ai::{
     ExecutionState, GenerateResponseParams, PlanValidationError, PlannedToolCall, TemplateValidator,
 };
-use systemprompt_models::{AiMessage, ExecutionStep, McpTool, PlannedTool, TrackedStep};
+use systemprompt_models::{AiMessage, McpTool, PlannedTool, TrackedStep};
 
 use super::super::plan_executor::{
-    convert_to_call_tool_results, convert_to_tool_calls, execute_tools_with_templates,
-    format_results_for_response,
+    convert_to_call_tool_results, convert_to_tool_calls, execute_tools, format_results_for_response,
 };
 use super::super::tool_executor::ContextToolExecutor;
 use super::super::{ExecutionContext, ExecutionResult};
@@ -32,7 +31,7 @@ pub(super) struct HandleToolCallsParams<'a> {
     pub calls: Vec<PlannedToolCall>,
     pub context: &'a ExecutionContext,
     pub tracking: &'a ExecutionTrackingService,
-    pub planning_tracked: std::result::Result<(TrackedStep, ExecutionStep), AgentServiceError>,
+    pub planning_tracked: TrackedStep,
     pub task_id: TaskId,
     pub messages: Vec<AiMessage>,
     pub tools: Vec<McpTool>,
@@ -57,7 +56,7 @@ pub(super) async fn handle_tool_calls(
         "Tool calls planned"
     );
 
-    emit_planning_complete(tracking, planning_tracked, reasoning, &calls, context).await;
+    emit_planning_complete(tracking, planning_tracked, reasoning, &calls, context).await?;
 
     let tool_output_schemas = TemplateValidator::get_tool_output_schemas(&calls, &tools);
     if let Err(validation_errors) = TemplateValidator::validate_plan(&calls, &tool_output_schemas) {
@@ -69,13 +68,14 @@ pub(super) async fn handle_tool_calls(
     let (tracked, step) = tracking
         .track_tool_execution(task_id.clone(), tool_name, tool_arguments)
         .await?;
-    emit(context, StreamEvent::ExecutionStepUpdate { step });
+    context
+        .emit(StreamEvent::ExecutionStepUpdate { step })
+        .await?;
 
     let tool_executor = ContextToolExecutor {
         context: context.clone(),
     };
-    let state =
-        execute_tools_with_templates(&calls, &tools, &context.request_ctx, &tool_executor).await?;
+    let state = execute_tools(&calls, &tools, &context.request_ctx, &tool_executor).await?;
     let execution_summary = format_results_for_response(&state);
     let has_failures = !state.failed_results().is_empty();
     record_execution_status(tracking, &tracked, &state, has_failures).await;
@@ -86,15 +86,16 @@ pub(super) async fn handle_tool_calls(
         "Execution complete"
     );
 
-    if let Ok(step) = tracking.track_completion(task_id).await {
-        emit(context, StreamEvent::ExecutionStepUpdate { step });
-    }
+    let step = tracking.track_completion(task_id).await?;
+    context
+        .emit(StreamEvent::ExecutionStepUpdate { step })
+        .await?;
 
     let tool_error_message = join_failure_errors(&state, has_failures);
 
     let response =
         synthesize_response(context, messages, &execution_summary, tool_error_message).await?;
-    emit(context, StreamEvent::Text(response.clone()));
+    context.emit(StreamEvent::Text(response.clone())).await?;
 
     let tool_calls = convert_to_tool_calls(&calls);
     let tool_results = convert_to_call_tool_results(&state);
@@ -106,12 +107,6 @@ pub(super) async fn handle_tool_calls(
         tools,
         iterations: 1,
     })
-}
-
-fn emit(context: &ExecutionContext, event: StreamEvent) {
-    if context.tx.try_send(event).is_err() {
-        tracing::debug!("Stream receiver dropped");
-    }
 }
 
 fn join_failure_errors(state: &ExecutionState, has_failures: bool) -> Option<String> {
@@ -128,11 +123,11 @@ fn join_failure_errors(state: &ExecutionState, has_failures: bool) -> Option<Str
 
 async fn emit_planning_complete(
     tracking: &ExecutionTrackingService,
-    planning_tracked: std::result::Result<(TrackedStep, ExecutionStep), AgentServiceError>,
+    planning_tracked: TrackedStep,
     reasoning: String,
     calls: &[PlannedToolCall],
     context: &ExecutionContext,
-) {
+) -> Result<()> {
     let planned_tools: Vec<PlannedTool> = calls
         .iter()
         .map(|c| PlannedTool {
@@ -141,13 +136,12 @@ async fn emit_planning_complete(
         })
         .collect();
 
-    if let Ok((tracked, _)) = planning_tracked
-        && let Ok(step) = tracking
-            .complete_planning(tracked, Some(reasoning), Some(planned_tools))
-            .await
-    {
-        emit(context, StreamEvent::ExecutionStepUpdate { step });
-    }
+    let step = tracking
+        .complete_planning(planning_tracked, Some(reasoning), Some(planned_tools))
+        .await?;
+    context
+        .emit(StreamEvent::ExecutionStepUpdate { step })
+        .await
 }
 
 async fn synthesize_response(
@@ -218,7 +212,7 @@ async fn handle_validation_failure(
         })
         .await?;
 
-    emit(context, StreamEvent::Text(response.clone()));
+    context.emit(StreamEvent::Text(response.clone())).await?;
 
     Ok(ExecutionResult {
         accumulated_text: response,

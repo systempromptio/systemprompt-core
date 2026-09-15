@@ -1,7 +1,3 @@
-//! Unit tests for shared agent services
+//! Unit tests for the shared agent service error type.
 
-mod auth;
-mod config;
 mod error;
-mod resilience;
-mod slug;

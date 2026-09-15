@@ -11,6 +11,7 @@
 use anyhow::{Context, Result};
 use std::sync::Arc;
 use systemprompt_agent::AgentState;
+use systemprompt_agent::services::a2a_server::streaming::webhook_client::HttpWebhookBroadcaster;
 use systemprompt_agent::services::agent_orchestration::AgentOrchestrator;
 use systemprompt_agent::services::registry::AgentRegistry;
 use systemprompt_mcp::services::McpOrchestrator;
@@ -40,6 +41,7 @@ pub(crate) async fn agent_orchestrator(ctx: &Arc<AppContext>) -> Result<AgentOrc
         Arc::new(ctx.config().clone()),
         jwt_provider,
         Arc::clone(ctx.a2a_repositories()),
+        Arc::new(HttpWebhookBroadcaster::from_config(ctx.config())?),
     ));
     AgentOrchestrator::new(agent_state, Arc::clone(ctx.app_paths_arc()), None)
         .await

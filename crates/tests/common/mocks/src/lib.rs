@@ -9,5 +9,5 @@ pub use broadcaster::MockBroadcaster;
 pub use database::{MockDatabaseProvider, MockDatabaseProviderBuilder, MockDbResponse};
 pub use file_storage::MockFileStorage;
 pub use webhook_broadcaster::{
-    arc_recording_broadcaster, RecordedBroadcast, RecordingWebhookBroadcaster,
+    arc_recording_broadcaster, recording_webhooks, RecordedBroadcast, RecordingWebhookBroadcaster,
 };

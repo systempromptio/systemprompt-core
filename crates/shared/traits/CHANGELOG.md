@@ -11,6 +11,10 @@
 - **Breaking:** `AnalyticsProvider::find_reusable_session` returns `Option<SessionId>`; `AgentJwtClaims.subject` is a `UserId`; `AiGeneratedFile.id` is a `FileId` (the separate `id()` accessor is gone); `InsertAiFileParams`, `CreateSessionInput` and `ContextWithStats` are built through `new` / `with_*` (fields are no longer constructed by literal).
 - **Breaking:** `OptionalStartupEventExt` is removed; `StartupEventExt` is implemented for `Option<&StartupEventSender>` and exposes `sender()` / `emit()` defaults, so the same method names work on both.
 
+### Added
+
+- `tool_executions::{ToolExecutionLookup, DynToolExecutionLookup}` — the cross-domain read seam over the MCP tool-execution ledger, implemented by the mcp domain and injected into agent.
+
 ### Removed
 
 - The unimplemented seams `Module`, `ApiModule`, `ModuleRegistry`, `register_module!`, `Service`, `AsyncService`, `traits::scheduler` (`JobTrigger`, `SchedulerLifecycle`, `JobInfo`, `JobStatus`, `SchedulerError`), the `traits::Result` alias, `LogEventPublisher` / `UserEventPublisher` / `AnalyticsEventPublisher`, `LogEventLevel` / `LogEventData`, and the `web` feature (with its `axum` and `inventory` dependencies).

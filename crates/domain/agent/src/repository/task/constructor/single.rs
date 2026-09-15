@@ -3,8 +3,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::models::a2a::{Artifact, Message, MessageRole, Part, Task, TaskStatus};
+use crate::models::a2a::{Artifact, Message, Part, Task, TaskStatus};
 use crate::models::{MessagePart, TaskMessage, TaskRow};
+use crate::repository::parts::parts_from_rows;
 use systemprompt_identifiers::{
     AgentName, ContextId, MessageId, SessionId, TaskId, TraceId, UserId,
 };
@@ -16,15 +17,17 @@ use super::{TaskConstructor, converters};
 pub(super) async fn construct_task_from_task_id(
     constructor: &TaskConstructor,
     task_id: &TaskId,
-) -> Result<Task, RepositoryError> {
-    let row = fetch_task_row(constructor, task_id).await?;
-    construct_task_from_row(constructor, &row).await
+) -> Result<Option<Task>, RepositoryError> {
+    match fetch_task_row(constructor, task_id).await? {
+        Some(row) => Ok(Some(construct_task_from_row(constructor, &row).await?)),
+        None => Ok(None),
+    }
 }
 
 async fn fetch_task_row(
     constructor: &TaskConstructor,
     task_id: &TaskId,
-) -> Result<TaskRow, RepositoryError> {
+) -> Result<Option<TaskRow>, RepositoryError> {
     let pool = constructor.pool();
     let task_id_str = task_id.as_str();
 
@@ -49,14 +52,9 @@ async fn fetch_task_row(
         FROM agent_tasks WHERE task_id = $1"#,
         task_id_str
     )
-    .fetch_one(pool.as_ref())
+    .fetch_optional(pool.as_ref())
     .await
-    .map_err(|e| match e {
-        sqlx::Error::RowNotFound => {
-            RepositoryError::NotFound(format!("Task {} not found", task_id))
-        },
-        _ => RepositoryError::database(e),
-    })
+    .map_err(RepositoryError::database)
 }
 
 async fn construct_task_from_row(
@@ -74,8 +72,7 @@ async fn construct_task_from_row(
         metadata.execution_steps = Some(steps);
     }
 
-    let task_state = converters::parse_task_state(&row.status)
-        .map_err(|e| RepositoryError::InvalidData(e.to_string()))?;
+    let task_state = converters::parse_task_state(row)?;
 
     Ok(Task {
         id: task_id,
@@ -131,8 +128,7 @@ async fn load_task_messages(
     let mut messages = Vec::new();
     for msg_row in message_rows {
         let parts = load_message_parts(constructor, &msg_row.message_id, task_id).await?;
-        let message = build_message_from_row(msg_row, parts);
-        messages.push(message);
+        messages.push(converters::message_from_row(msg_row, parts));
     }
 
     Ok(Some(messages))
@@ -170,7 +166,7 @@ async fn load_message_parts(
     .await
     .map_err(RepositoryError::database)?;
 
-    converters::build_parts_from_rows(&part_rows)
+    parts_from_rows(&part_rows)
 }
 
 async fn load_task_artifacts(
@@ -204,41 +200,5 @@ async fn load_execution_steps(
         Ok(None)
     } else {
         Ok(Some(steps))
-    }
-}
-
-fn build_message_from_row(msg_row: TaskMessage, parts: Vec<Part>) -> Message {
-    let reference_task_ids = msg_row
-        .reference_task_ids
-        .map(|ids| ids.into_iter().map(Into::into).collect());
-
-    let mut final_metadata = msg_row.metadata.unwrap_or_else(|| serde_json::json!({}));
-    if let Some(client_id) = &msg_row.client_message_id
-        && let Some(obj) = final_metadata.as_object_mut()
-    {
-        obj.insert(
-            "clientMessageId".to_owned(),
-            serde_json::Value::String(client_id.clone()),
-        );
-    }
-
-    let role = match msg_row.role.as_str() {
-        "user" | "ROLE_USER" => MessageRole::User,
-        _ => MessageRole::Agent,
-    };
-
-    Message {
-        role,
-        parts,
-        message_id: msg_row.message_id,
-        task_id: Some(msg_row.task_id),
-        context_id: msg_row.context_id,
-        metadata: if final_metadata == serde_json::json!({}) {
-            None
-        } else {
-            Some(final_metadata)
-        },
-        extensions: None,
-        reference_task_ids,
     }
 }

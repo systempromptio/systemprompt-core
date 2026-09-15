@@ -1,36 +1,69 @@
 //! Message persistence during A2A processing.
 //!
+//! Persisting the task and its messages is the operation; the webhook
+//! broadcasts that follow are a side channel whose failures are reported in
+//! the [`PersistOutcome`] rather than turned into a persistence error.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::services::shared::{AgentServiceError, Result};
+use systemprompt_identifiers::ArtifactId;
 use systemprompt_models::RequestContext;
 
 use crate::models::a2a::{Message, Task};
 use crate::repository::A2ARepositories;
 use crate::repository::task::UpdateTaskAndSaveMessagesParams;
 use crate::services::ArtifactPublishingService;
-use crate::services::a2a_server::streaming::{
+use crate::services::a2a_server::streaming::broadcast::{
     broadcast_artifact_created, broadcast_task_completed,
 };
+use crate::services::a2a_server::streaming::webhook_client::{
+    DynWebhookBroadcaster, WebhookContext, WebhookError,
+};
 
+/// The persisted task plus the artifact broadcasts that could not be
+/// delivered. The task is committed whether or not the list is empty.
 #[derive(Debug)]
+pub struct PersistOutcome {
+    pub task: Task,
+    pub undelivered_broadcasts: Vec<(ArtifactId, WebhookError)>,
+}
+
 pub struct PersistCompletedTaskParams<'a> {
     pub task: &'a Task,
     pub user_message: &'a Message,
     pub agent_message: &'a Message,
     pub context: &'a RequestContext,
     pub repositories: &'a A2ARepositories,
+    pub publishing: &'a ArtifactPublishingService,
+    pub webhooks: DynWebhookBroadcaster,
     pub artifacts_already_published: bool,
 }
 
-pub async fn persist_completed_task(params: PersistCompletedTaskParams<'_>) -> Result<Task> {
+impl std::fmt::Debug for PersistCompletedTaskParams<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PersistCompletedTaskParams")
+            .field("task", &self.task.id)
+            .field(
+                "artifacts_already_published",
+                &self.artifacts_already_published,
+            )
+            .finish_non_exhaustive()
+    }
+}
+
+pub async fn persist_completed_task(
+    params: PersistCompletedTaskParams<'_>,
+) -> Result<PersistOutcome> {
     let PersistCompletedTaskParams {
         task,
         user_message,
         agent_message,
         context,
         repositories,
+        publishing,
+        webhooks,
         artifacts_already_published,
     } = params;
     let updated_task = repositories
@@ -45,41 +78,35 @@ pub async fn persist_completed_task(params: PersistCompletedTaskParams<'_>) -> R
         })
         .await
         .map_err(|e| {
-            AgentServiceError::Internal(format!("Failed to update task and save messages: {}", e))
+            AgentServiceError::Internal(format!("Failed to update task and save messages: {e}"))
         })?;
 
+    let mut undelivered_broadcasts = Vec::new();
     if !artifacts_already_published && let Some(artifacts) = &task.artifacts {
         let context_id = &task.context_id;
-        let publishing_service = ArtifactPublishingService::new(
-            repositories.artifacts.clone(),
-            repositories.execution_steps.clone(),
-            repositories.tasks.clone(),
-        )?;
+        let webhooks = WebhookContext::for_request(webhooks, context);
         for artifact in artifacts {
-            publishing_service
-                .publish_from_a2a(artifact, &task.id, context_id)
+            publishing
+                .publish_from_a2a(artifact, &task.id, context_id, context.user_id())
                 .await
                 .map_err(|e| {
                     AgentServiceError::Internal(format!(
-                        "Failed to publish artifact {}: {}",
-                        artifact.id, e
+                        "Failed to publish artifact {}: {e}",
+                        artifact.id
                     ))
                 })?;
 
-            broadcast_artifact_created(
-                artifact,
-                &task.id,
-                context_id,
-                context.user_id(),
-                context.auth_token().as_str(),
-            )
-            .await
-            .map_err(|e| {
-                AgentServiceError::Internal(format!(
-                    "Failed to broadcast artifact {}: {}",
-                    artifact.id, e
-                ))
-            })?;
+            if let Err(e) =
+                broadcast_artifact_created(&webhooks, artifact, &task.id, context_id).await
+            {
+                tracing::warn!(
+                    artifact_id = %artifact.id,
+                    task_id = %task.id,
+                    error = %e,
+                    "artifact persisted but its broadcast was not delivered"
+                );
+                undelivered_broadcasts.push((artifact.id.clone(), e));
+            }
         }
 
         tracing::info!(
@@ -96,9 +123,17 @@ pub async fn persist_completed_task(params: PersistCompletedTaskParams<'_>) -> R
         "Persisted task"
     );
 
-    Ok(updated_task)
+    Ok(PersistOutcome {
+        task: updated_task,
+        undelivered_broadcasts,
+    })
 }
 
-pub async fn broadcast_completion(task: &Task, context: &RequestContext) {
-    broadcast_task_completed(task, context.user_id(), context.auth_token().as_str()).await;
+pub async fn broadcast_completion(
+    webhooks: DynWebhookBroadcaster,
+    task: &Task,
+    context: &RequestContext,
+) {
+    let webhooks = WebhookContext::for_request(webhooks, context);
+    broadcast_task_completed(&webhooks, task).await;
 }

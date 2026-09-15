@@ -1,51 +1,25 @@
-//! Persisting A2A conversation messages, including transactional writes and
-//! synthetic messages for MCP tool executions.
+//! Persisting A2A conversation messages, including synthetic messages for
+//! MCP tool executions.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::services::shared::{AgentServiceError, Result};
+use crate::services::shared::Result;
 use serde_json::json;
-use uuid::Uuid;
 
 use crate::models::a2a::{Message, MessageRole, Part, TextPart};
-use crate::repository::context::message::PersistMessageWithTxParams;
-use crate::repository::task::TaskRepository;
-use systemprompt_database::{DatabaseProvider, DatabaseTransaction};
-use systemprompt_identifiers::{ContextId, MessageId, TaskId};
+use crate::repository::task::{PersistMessagesTxParams, TaskRepository};
+use systemprompt_identifiers::{ContextId, MessageId, SessionId, TaskId, TraceId, UserId};
 use systemprompt_models::RequestContext;
-
-pub struct PersistMessageInTxParams<'a> {
-    pub tx: &'a mut dyn DatabaseTransaction,
-    pub message: &'a Message,
-    pub task_id: &'a TaskId,
-    pub context_id: &'a ContextId,
-    pub user_id: Option<&'a systemprompt_identifiers::UserId>,
-    pub session_id: &'a systemprompt_identifiers::SessionId,
-    pub trace_id: &'a systemprompt_identifiers::TraceId,
-}
-
-impl std::fmt::Debug for PersistMessageInTxParams<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("PersistMessageInTxParams")
-            .field("message", &self.message)
-            .field("task_id", &self.task_id)
-            .field("context_id", &self.context_id)
-            .field("user_id", &self.user_id)
-            .field("session_id", &self.session_id)
-            .field("trace_id", &self.trace_id)
-            .finish_non_exhaustive()
-    }
-}
 
 #[derive(Debug)]
 pub struct PersistMessagesParams<'a> {
     pub task_id: &'a TaskId,
     pub context_id: &'a ContextId,
     pub messages: Vec<Message>,
-    pub user_id: Option<&'a systemprompt_identifiers::UserId>,
-    pub session_id: &'a systemprompt_identifiers::SessionId,
-    pub trace_id: &'a systemprompt_identifiers::TraceId,
+    pub user_id: Option<&'a UserId>,
+    pub session_id: &'a SessionId,
+    pub trace_id: &'a TraceId,
 }
 
 #[derive(Debug)]
@@ -73,47 +47,6 @@ impl MessageService {
         Self { task_repo }
     }
 
-    pub async fn persist_message_in_tx(&self, params: PersistMessageInTxParams<'_>) -> Result<i32> {
-        let PersistMessageInTxParams {
-            tx,
-            message,
-            task_id,
-            context_id,
-            user_id,
-            session_id,
-            trace_id,
-        } = params;
-        let sequence_number = self
-            .task_repo
-            .get_next_sequence_number_in_tx(tx, task_id)
-            .await?;
-
-        self.task_repo
-            .persist_message_with_tx(PersistMessageWithTxParams {
-                tx,
-                message,
-                task_id,
-                context_id,
-                sequence_number,
-                user_id,
-                session_id,
-                trace_id,
-            })
-            .await
-            .map_err(|e| {
-                AgentServiceError::Internal(format!("Failed to persist message: {}", e))
-            })?;
-
-        tracing::info!(
-            message_id = %message.message_id,
-            task_id = %task_id,
-            sequence_number = sequence_number,
-            "Message persisted"
-        );
-
-        Ok(sequence_number)
-    }
-
     pub async fn persist_messages(&self, params: PersistMessagesParams<'_>) -> Result<Vec<i32>> {
         let PersistMessagesParams {
             task_id,
@@ -128,41 +61,22 @@ impl MessageService {
             return Ok(Vec::new());
         }
 
-        let mut tx = self
+        let sequence_numbers = self
             .task_repo
-            .db_pool()
-            .as_ref()
-            .begin_transaction()
+            .persist_messages(PersistMessagesTxParams {
+                task_id,
+                context_id,
+                messages: &messages,
+                user_id,
+                session_id,
+                trace_id,
+            })
             .await?;
-        let mut sequence_numbers = Vec::new();
-
-        tracing::info!(
-            task_id = %task_id,
-            message_count = messages.len(),
-            "Persisting multiple messages"
-        );
-
-        for message in messages {
-            let seq = self
-                .persist_message_in_tx(PersistMessageInTxParams {
-                    tx: &mut *tx,
-                    message: &message,
-                    task_id,
-                    context_id,
-                    user_id,
-                    session_id,
-                    trace_id,
-                })
-                .await?;
-            sequence_numbers.push(seq);
-        }
-
-        tx.commit().await?;
 
         tracing::info!(
             task_id = %task_id,
             sequence_numbers = ?sequence_numbers,
-            "Messages persisted successfully"
+            "Messages persisted"
         );
 
         Ok(sequence_numbers)
@@ -171,7 +85,7 @@ impl MessageService {
     pub async fn create_tool_execution_message(
         &self,
         params: CreateToolExecutionMessageParams<'_>,
-    ) -> Result<(String, i32)> {
+    ) -> Result<(MessageId, i32)> {
         let CreateToolExecutionMessageParams {
             task_id,
             context_id,
@@ -179,7 +93,7 @@ impl MessageService {
             tool_args,
             request_context,
         } = params;
-        let message_id = Uuid::new_v4().to_string();
+        let message_id = MessageId::generate();
 
         let tool_args_display =
             serde_json::to_string_pretty(tool_args).unwrap_or_else(|_| tool_args.to_string());
@@ -188,7 +102,7 @@ impl MessageService {
 
         let message = Message {
             role: MessageRole::User,
-            message_id: MessageId::new(message_id.clone()),
+            message_id: message_id.clone(),
             task_id: Some(task_id.clone()),
             context_id: context_id.clone(),
             parts: vec![Part::Text(TextPart {
@@ -211,26 +125,18 @@ impl MessageService {
             reference_task_ids: None,
         };
 
-        let mut tx = self
+        let sequence_numbers = self
             .task_repo
-            .db_pool()
-            .as_ref()
-            .begin_transaction()
-            .await?;
-
-        let sequence_number = self
-            .persist_message_in_tx(PersistMessageInTxParams {
-                tx: &mut *tx,
-                message: &message,
+            .persist_messages(PersistMessagesTxParams {
                 task_id,
                 context_id,
+                messages: std::slice::from_ref(&message),
                 user_id: Some(request_context.user_id()),
                 session_id: request_context.session_id(),
                 trace_id: request_context.trace_id(),
             })
             .await?;
-
-        tx.commit().await?;
+        let sequence_number = sequence_numbers.first().copied().unwrap_or(0);
 
         tracing::info!(
             message_id = %message_id,

@@ -55,6 +55,7 @@ pub mod ownership;
 pub mod registry;
 pub mod repository;
 pub mod storage;
+pub mod tool_executions;
 pub mod validation;
 pub mod validation_report;
 
@@ -76,6 +77,7 @@ pub use systemprompt_identifiers::{
 pub use repository::RepositoryError;
 
 pub use ownership::{DynOwnerReassignment, OwnerReassignment, ReassignedRows};
+pub use tool_executions::{DynToolExecutionLookup, ToolExecutionLookup};
 
 pub use log_service::LogService;
 

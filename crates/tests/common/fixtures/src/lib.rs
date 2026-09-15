@@ -1,5 +1,6 @@
 //! Shared test fixtures for systemprompt-core test crates.
 
+pub mod agent;
 pub mod app_context;
 pub mod bootstrap;
 pub mod credential;
@@ -19,6 +20,10 @@ pub mod usage;
 pub mod user;
 pub mod web_config;
 
+pub use agent::{
+    a2a_dependencies, a2a_repositories, not_managed_skills, scripted_skills, tool_execution_ledger,
+    NotManagedSkills, ScriptedSkills, ToolExecutionLedger,
+};
 pub use app_context::{
     default_governance_engine, drain_reporting, fixture_analytics_repositories, fixture_app_context,
     fixture_app_context_with, fixture_app_context_with_config, fixture_app_context_with_hook,

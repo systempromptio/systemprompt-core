@@ -145,15 +145,3 @@ pub struct ToolExecution {
     pub started_at: DateTime<Utc>,
     pub completed_at: Option<DateTime<Utc>>,
 }
-
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
-pub struct ToolStats {
-    pub tool_name: String,
-    pub server_name: String,
-    pub total_executions: i64,
-    pub success_count: i64,
-    pub error_count: i64,
-    pub avg_duration_ms: Option<i64>,
-    pub min_duration_ms: Option<i64>,
-    pub max_duration_ms: Option<i64>,
-}

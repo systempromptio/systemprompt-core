@@ -1,9 +1,9 @@
 use anyhow::Result;
 use chrono::Utc;
 use std::sync::Arc;
+use systemprompt_agent::repository::ContextRepository;
 use systemprompt_agent::repository::execution::ExecutionStepRepository;
 use systemprompt_agent::repository::task::{RepoCreateTaskParams, TaskRepository};
-use systemprompt_agent::repository::{A2ARepositories, ContextRepository};
 use systemprompt_agent::services::context::ContextService;
 use systemprompt_agent::services::context_provider::ContextProviderService;
 use systemprompt_agent::services::execution_tracking::ExecutionTrackingService;
@@ -77,11 +77,7 @@ impl ServicesFixture {
     }
 
     async fn insert_task(&self) -> Result<TaskId> {
-        let repos = A2ARepositories::new(
-            &self.db,
-            crate::common::session_usage(&self.db)?,
-            systemprompt_identifiers::InstanceId::new("test-instance"),
-        )?;
+        let repos = systemprompt_test_fixtures::a2a_repositories(&self.db);
         let task_id = TaskId::new(format!("svc_task_{}_{}", self.tag, Uuid::new_v4().simple()));
         let task = Task {
             id: task_id.clone(),
@@ -310,7 +306,7 @@ async fn message_service_creates_tool_execution_message() -> Result<()> {
             request_context: &request_context,
         })
         .await?;
-    assert!(!msg_id.is_empty());
+    assert!(!msg_id.as_str().is_empty());
     assert!(seq >= 0);
 
     fx.cleanup().await?;

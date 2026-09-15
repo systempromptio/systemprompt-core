@@ -1,22 +1,19 @@
-//! Tool-usage repository — persists each MCP tool execution and aggregates
-//! stats.
+//! Tool-usage repository — persists each MCP tool execution and answers the
+//! cross-domain [`ToolExecutionLookup`] seam over the same ledger.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-mod stats;
-
 use crate::error::McpDomainResult;
-use chrono::Utc;
+use async_trait::async_trait;
 use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{AiToolCallId, ContextId, McpExecutionId, UserId};
+use systemprompt_traits::{RepositoryError, ToolExecutionLookup};
 use uuid::Uuid;
 
-use crate::models::{
-    ExecutionStatus, ToolExecution, ToolExecutionRequest, ToolExecutionResult, ToolStats,
-};
+use crate::models::{ExecutionStatus, ToolExecution, ToolExecutionRequest, ToolExecutionResult};
 use systemprompt_models::RequestContext;
 
 fn extract_trace_id(ctx: &RequestContext) -> Option<String> {
@@ -259,41 +256,17 @@ impl ToolUsageRepository {
         };
         self.find_by_ai_call_id(ai_call_id).await
     }
+}
 
-    pub async fn find_context_id(
-        &self,
-        execution_id: &McpExecutionId,
-    ) -> McpDomainResult<Option<ContextId>> {
-        let id_str = execution_id.as_str();
-        let result = sqlx::query_scalar!(
-            "SELECT context_id FROM mcp_tool_executions WHERE mcp_execution_id = $1",
-            id_str
+#[async_trait]
+impl ToolExecutionLookup for ToolUsageRepository {
+    async fn execution_exists(&self, id: &McpExecutionId) -> Result<bool, RepositoryError> {
+        sqlx::query_scalar!(
+            r#"SELECT EXISTS(SELECT 1 FROM mcp_tool_executions WHERE mcp_execution_id = $1) as "exists!""#,
+            id.as_str()
         )
-        .fetch_optional(&*self.pool)
-        .await?;
-        Ok(result.flatten().and_then(|c| match ContextId::try_new(c) {
-            Ok(id) => Some(id),
-            Err(e) => {
-                tracing::warn!(error = %e, "stored context_id is malformed; dropping");
-                None
-            },
-        }))
-    }
-
-    pub async fn list_tool_stats(&self, limit: i64) -> McpDomainResult<Vec<ToolStats>> {
-        stats::list_tool_stats(&self.pool, limit).await
-    }
-
-    pub async fn update_context_timestamp(&self, context_id: &ContextId) -> McpDomainResult<()> {
-        let now = Utc::now();
-        let context_id_str = context_id.to_string();
-        sqlx::query!(
-            "UPDATE user_contexts SET updated_at = $1 WHERE context_id = $2",
-            now,
-            context_id_str
-        )
-        .execute(&*self.write_pool)
-        .await?;
-        Ok(())
+        .fetch_one(&*self.pool)
+        .await
+        .map_err(RepositoryError::database)
     }
 }
