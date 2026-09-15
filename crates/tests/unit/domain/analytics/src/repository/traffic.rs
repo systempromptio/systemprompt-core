@@ -24,6 +24,14 @@ struct SeededSession<'a> {
 
 async fn seed_session(pool: &DbPool, spec: &SeededSession<'_>) -> SessionId {
     let sid = SessionId::new(format!("sess-traffic-{}", Uuid::new_v4()));
+    let user = UserId::new(format!("traffic-user-{}", sid.as_str()));
+    systemprompt_test_fixtures::seed_user_row(
+        pool,
+        &user,
+        &format!("{}@traffic-test.invalid", user.as_str()),
+    )
+    .await
+    .expect("retained traffic user");
     let repo = systemprompt_test_fixtures::fixture_analytics_repositories(pool)
         .map(|repositories| repositories.sessions)
         .expect("session repo");
@@ -301,7 +309,11 @@ async fn seed_link_click(
         data: Some(data),
     };
     events
-        .create_event(sid, &UserId::new("anon".to_owned()), &input)
+        .create_event(
+            sid,
+            &UserId::new(format!("traffic-user-{}", sid.as_str())),
+            &input,
+        )
         .await
         .expect("seed link click");
 }

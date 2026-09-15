@@ -9,6 +9,13 @@ use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fi
 use uuid::Uuid;
 
 async fn insert_ai_request(pool: &DbPool, user_id: &str, provider: &str, model: &str) {
+    systemprompt_test_fixtures::seed_user_row(
+        pool,
+        &UserId::new(user_id),
+        &format!("{user_id}@request-test.invalid"),
+    )
+    .await
+    .expect("retained request user");
     let p = pool.write_pool_arc().expect("write pool");
     sqlx::query(
         r"
@@ -29,6 +36,13 @@ async fn insert_ai_request(pool: &DbPool, user_id: &str, provider: &str, model: 
 }
 
 async fn insert_rejected_ai_request(pool: &DbPool, user_id: &str) {
+    systemprompt_test_fixtures::seed_user_row(
+        pool,
+        &UserId::new(user_id),
+        &format!("{user_id}@request-test.invalid"),
+    )
+    .await
+    .expect("retained request user");
     let p = pool.write_pool_arc().expect("write pool");
     sqlx::query(
         r"

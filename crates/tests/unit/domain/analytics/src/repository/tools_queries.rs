@@ -19,13 +19,21 @@ struct ExecutionSeed<'a> {
 }
 
 async fn insert_execution(pool: &DbPool, seed: ExecutionSeed<'_>) {
+    let user = systemprompt_identifiers::UserId::new(format!("tool-user-{}", seed.tool_name));
+    systemprompt_test_fixtures::seed_user_row(
+        pool,
+        &user,
+        &format!("{}@tool-test.invalid", user.as_str()),
+    )
+    .await
+    .expect("retained tool user");
     let p = pool.write_pool_arc().expect("write pool");
     sqlx::query(
         r"
         INSERT INTO mcp_tool_executions
             (mcp_execution_id, tool_name, server_name, started_at, completed_at,
              execution_time_ms, input, status, error_message, user_id)
-        VALUES ($1, $2, $3, NOW(), NOW(), $4, '{}', $5, $6, 'anon')
+        VALUES ($1, $2, $3, NOW(), NOW(), $4, '{}', $5, $6, $7)
         ",
     )
     .bind(Uuid::new_v4().to_string())
@@ -34,6 +42,7 @@ async fn insert_execution(pool: &DbPool, seed: ExecutionSeed<'_>) {
     .bind(seed.execution_time_ms)
     .bind(seed.status)
     .bind(seed.error_message)
+    .bind(user.as_str())
     .execute(p.as_ref())
     .await
     .expect("insert mcp_tool_execution");
