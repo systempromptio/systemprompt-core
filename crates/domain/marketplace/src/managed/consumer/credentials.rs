@@ -10,6 +10,7 @@ use systemprompt_identifiers::{DeviceCertId, DeviceId, InstallationReceiptId, Us
 use systemprompt_models::feedback::ContentDigest;
 use systemprompt_models::feedback::receipts::AuthenticatedConsumerDevice;
 
+use crate::managed::error::integrity;
 use crate::managed::{ManagedError, ManagedRepository, Result};
 
 #[derive(Serialize, schemars::JsonSchema)]
@@ -51,7 +52,7 @@ impl ManagedRepository {
             .execute(&mut *tx).await?;
         tx.commit().await?;
         Ok(IssuedConsumerCredential {
-            device_id: DeviceId::try_new(cert.as_str()).map_err(|_| ManagedError::Integrity)?,
+            device_id: DeviceId::try_new(cert.as_str()).map_err(integrity)?,
             consumer_id: UserId::new(record.user_id),
             credential,
         })
@@ -99,7 +100,7 @@ pub(super) async fn authenticate(
         .fetch_optional(&mut **tx).await?.ok_or(ManagedError::Unavailable)?;
     Ok(AuthenticatedConsumerDevice {
         consumer_id: UserId::new(row.user_id),
-        device_id: DeviceId::try_new(row.device_id).map_err(|_| ManagedError::Integrity)?,
+        device_id: DeviceId::try_new(row.device_id).map_err(integrity)?,
     })
 }
 

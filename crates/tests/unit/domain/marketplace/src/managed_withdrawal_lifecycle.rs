@@ -1,9 +1,7 @@
 //! Approval records intent; only an explicit reviewed publication changes
 //! selection.
 
-#[path = "source_sync_fixture.rs"]
-mod fixture;
-use fixture::Fixture;
+use crate::source_sync_fixture::{Fixture, files};
 use systemprompt_marketplace::managed::{
     GitSyncResult, ManagedResolution, PublicationAction, PublicationRequest, ResourceKind,
     RevisionFiles,
@@ -73,7 +71,7 @@ async fn approved_removal_keeps_content_until_explicit_withdrawal_and_retains_bo
             .get_revision_files(&f.owner, &revision_id)
             .await
             .unwrap()
-            .same_content(&fixture::files("base"))
+            .same_content(&files("base"))
     );
     let inventory = f.repo.list_resources(&f.owner, 0).await.unwrap();
     assert_eq!(inventory.len(), 1);

@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use systemprompt_identifiers::{ManagedResourceId, ResourceRevisionId, TaskId, UserId};
 use systemprompt_marketplace::inventory::{
-    BaselinePreparation, InventoryService, ObservedMembership, configured_identity,
+    BaselinePreparation, BaselineScope, InventoryService, ObservedMembership, configured_identity,
     scan_configured_inventory,
 };
 use systemprompt_marketplace::managed::{
@@ -121,15 +121,17 @@ impl Fixture {
     async fn baselines(&self) -> Vec<systemprompt_marketplace::inventory::BaselineCapture> {
         InventoryService::new(self.repository.clone())
             .prepare_baselines(
-                &self.owner,
-                &self.owner,
+                &BaselineScope {
+                    owner: &self.owner,
+                    actor: &self.owner,
+                    root: self.root.path(),
+                    services: &ServicesConfig::default(),
+                },
                 &BaselinePreparation {
                     operation_id: TaskId::generate(),
                     after: None,
                     limit: 100,
                 },
-                self.root.path(),
-                &ServicesConfig::default(),
             )
             .await
             .expect("baselines")

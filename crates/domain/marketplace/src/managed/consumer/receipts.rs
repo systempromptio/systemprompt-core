@@ -4,8 +4,9 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_identifiers::{InstallationReceiptId, UserId};
+use systemprompt_models::feedback::ContentDigest;
 use systemprompt_models::feedback::receipts::{
-    ConsumerReceiptRequest, ConsumerReceiptResponse, ReceiptAcknowledgement,
+    ConsumerReceiptRequest, ConsumerReceiptResponse, InstallationPlanFile, ReceiptAcknowledgement,
 };
 
 use super::{credentials, host_key};
@@ -47,6 +48,48 @@ pub fn verify_readback(bundle: &RevisionBundle, request: &ConsumerReceiptRequest
     Ok(())
 }
 
+fn verify_runtime_files(
+    request: &ConsumerReceiptRequest,
+    expected_runtime: &[InstallationPlanFile],
+) -> Result<()> {
+    if request.runtime_files.is_empty() {
+        return Ok(());
+    }
+    if request.runtime_files.len() != expected_runtime.len() {
+        return Err(ManagedError::Integrity);
+    }
+    for expected in expected_runtime {
+        let actual = request
+            .runtime_files
+            .iter()
+            .find(|file| file.path == expected.path)
+            .ok_or(ManagedError::Integrity)?;
+        if actual.digest != ContentDigest::of(&expected.bytes)
+            || actual.bytes != expected.bytes.len() as u64
+            || actual.executable != expected.executable
+        {
+            return Err(ManagedError::Integrity);
+        }
+    }
+    Ok(())
+}
+
+fn installed_files(request: &ConsumerReceiptRequest) -> Result<Vec<InstalledFile>> {
+    request
+        .files
+        .iter()
+        .map(|file| {
+            Ok(InstalledFile {
+                revision_id: file.revision_id.clone(),
+                path: file.path.clone(),
+                digest: AssetDigest::try_from(file.digest.as_str().to_owned())?,
+                bytes: file.bytes,
+                executable: file.executable,
+            })
+        })
+        .collect()
+}
+
 impl ManagedRepository {
     pub async fn record_consumer_receipt(
         &self,
@@ -75,26 +118,7 @@ impl ManagedRepository {
         .fetch_one(&self.pool)
         .await?;
         let expected_runtime = super::plan::runtime_files(&bundle, request.host, &key)?;
-        if !request.runtime_files.is_empty() {
-            if request.runtime_files.len() != expected_runtime.len() {
-                return Err(ManagedError::Integrity);
-            }
-            for expected in expected_runtime {
-                let actual = request
-                    .runtime_files
-                    .iter()
-                    .find(|file| file.path == expected.path)
-                    .ok_or(ManagedError::Integrity)?;
-                if actual.digest
-                    != systemprompt_models::feedback::ContentDigest::of(&expected.bytes)
-                    || actual.bytes != expected.bytes.len() as u64
-                    || actual.executable != expected.executable
-                {
-                    return Err(ManagedError::Integrity);
-                }
-            }
-        }
-
+        verify_runtime_files(request, &expected_runtime)?;
         let mut tx = self.pool.begin().await?;
         let identity = credentials::authenticate(&mut tx, credential).await?;
         credentials::require_grant(&mut tx, &owner, &request.resource_id, &identity.consumer_id)
@@ -105,20 +129,7 @@ impl ManagedRepository {
             .files
             .sort_by(|a, b| (&a.revision_id, &a.path).cmp(&(&b.revision_id, &b.path)));
         let evidence = serde_json::to_value(&normalized)?;
-        let files = normalized
-            .files
-            .iter()
-            .map(|file| {
-                Ok(InstalledFile {
-                    revision_id: file.revision_id.clone(),
-                    path: file.path.clone(),
-                    digest: AssetDigest::try_from(file.digest.as_str().to_owned())?,
-                    bytes: file.bytes,
-                    executable: file.executable,
-                })
-            })
-            .collect::<Result<Vec<_>>>()?;
-        let manifest = serde_json::to_value(files)?;
+        let manifest = serde_json::to_value(installed_files(&normalized)?)?;
         let id = InstallationReceiptId::generate();
         let host = host_key(request.host);
         let verified = request.fully_verified();

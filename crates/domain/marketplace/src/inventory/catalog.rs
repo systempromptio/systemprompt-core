@@ -26,72 +26,7 @@ pub fn scan_configured_inventory(
         ("hooks", "hook"),
         ("artifacts", "artifact"),
     ] {
-        let path = root.join(directory);
-        let listing = match std::fs::read_dir(&path) {
-            Ok(listing) => listing,
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
-            Err(error) => return Err(error.into()),
-        };
-        if std::fs::symlink_metadata(&path)?.is_symlink() {
-            return Err(invalid("Configured catalog is a symlink"));
-        }
-        for entry in listing {
-            let entry = entry?;
-            if entries.len() >= 10_000 {
-                return Err(invalid("Inventory exceeds 10000 configured entries"));
-            }
-            let name = entry
-                .file_name()
-                .into_string()
-                .map_err(|_error| invalid("Inventory names must be UTF-8"))?;
-            if name.starts_with('.') {
-                continue;
-            }
-            let metadata = entry.file_type()?;
-            if !metadata.is_dir()
-                && !metadata.is_symlink()
-                && !matches!(
-                    entry.path().extension().and_then(|value| value.to_str()),
-                    Some("yaml" | "yml" | "md" | "json")
-                )
-            {
-                continue;
-            }
-            let key = if metadata.is_dir() || metadata.is_symlink() {
-                name.clone()
-            } else {
-                entry
-                    .path()
-                    .file_stem()
-                    .and_then(|value| value.to_str())
-                    .ok_or_else(|| invalid("Invalid catalog filename"))?
-                    .to_owned()
-            };
-            let relative_root = format!("{directory}/{name}");
-            let config = if metadata.is_dir() {
-                entry.path().join("config.yaml")
-            } else {
-                entry.path()
-            };
-            let diagnostic = if metadata.is_symlink() {
-                Some("Catalog entry is a symlink".to_owned())
-            } else {
-                inspect(&config, kind, &key)
-                    .err()
-                    .map(|error| error.to_string())
-            };
-            entries.push(ConfiguredInventoryEntry {
-                kind: kind.to_owned(),
-                resource_key: key,
-                relative_root,
-                availability: if diagnostic.is_some() {
-                    InventoryAvailability::Unavailable
-                } else {
-                    InventoryAvailability::Available
-                },
-                diagnostic,
-            });
-        }
+        scan_catalog_directory(root, directory, kind, &mut entries)?;
     }
     for (key, agent) in &services.agents {
         entries.push(ConfiguredInventoryEntry {
@@ -125,6 +60,83 @@ pub fn scan_configured_inventory(
     Ok(entries)
 }
 
+fn scan_catalog_directory(
+    root: &Path,
+    directory: &str,
+    kind: &str,
+    entries: &mut Vec<ConfiguredInventoryEntry>,
+) -> Result<()> {
+    let path = root.join(directory);
+    let listing = match std::fs::read_dir(&path) {
+        Ok(listing) => listing,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(error) => return Err(error.into()),
+    };
+    if std::fs::symlink_metadata(&path)?.is_symlink() {
+        return Err(invalid("Configured catalog is a symlink"));
+    }
+    for entry in listing {
+        let entry = entry?;
+        if entries.len() >= 10_000 {
+            return Err(invalid("Inventory exceeds 10000 configured entries"));
+        }
+        let name = entry.file_name().into_string().map_err(|name| {
+            invalid(&format!(
+                "Inventory names must be UTF-8: {}",
+                name.to_string_lossy()
+            ))
+        })?;
+        if name.starts_with('.') {
+            continue;
+        }
+        let metadata = entry.file_type()?;
+        if !metadata.is_dir()
+            && !metadata.is_symlink()
+            && !matches!(
+                entry.path().extension().and_then(|value| value.to_str()),
+                Some("yaml" | "yml" | "md" | "json")
+            )
+        {
+            continue;
+        }
+        let key = if metadata.is_dir() || metadata.is_symlink() {
+            name.clone()
+        } else {
+            entry
+                .path()
+                .file_stem()
+                .and_then(|value| value.to_str())
+                .ok_or_else(|| invalid("Invalid catalog filename"))?
+                .to_owned()
+        };
+        let relative_root = format!("{directory}/{name}");
+        let config = if metadata.is_dir() {
+            entry.path().join("config.yaml")
+        } else {
+            entry.path()
+        };
+        let diagnostic = if metadata.is_symlink() {
+            Some("Catalog entry is a symlink".to_owned())
+        } else {
+            inspect(&config, kind, &key)
+                .err()
+                .map(|error| error.to_string())
+        };
+        entries.push(ConfiguredInventoryEntry {
+            kind: kind.to_owned(),
+            resource_key: key,
+            relative_root,
+            availability: if diagnostic.is_some() {
+                InventoryAvailability::Unavailable
+            } else {
+                InventoryAvailability::Available
+            },
+            diagnostic,
+        });
+    }
+    Ok(())
+}
+
 fn inspect(path: &Path, kind: &str, key: &str) -> Result<()> {
     if std::fs::symlink_metadata(path)?.is_symlink() {
         return Err(invalid("Catalog configuration is a symlink"));
@@ -143,7 +155,7 @@ fn inspect(path: &Path, kind: &str, key: &str) -> Result<()> {
         return Err(invalid("Catalog configuration exceeds 64 KiB"));
     }
     let config: serde_yaml::Value = serde_yaml::from_slice(&bytes)
-        .map_err(|_error| invalid("Catalog configuration is invalid"))?;
+        .map_err(|error| invalid(&format!("Catalog configuration is invalid: {error}")))?;
     if config.get("enabled").and_then(serde_yaml::Value::as_bool) == Some(false) {
         return Err(invalid("Configured entry is disabled"));
     }

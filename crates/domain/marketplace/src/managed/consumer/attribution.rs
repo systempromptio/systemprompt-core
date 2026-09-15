@@ -4,7 +4,10 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use sqlx::{Postgres, Transaction};
-use systemprompt_identifiers::{InstallationReceiptId, InvocationAttributionId, UserId};
+use systemprompt_identifiers::{
+    ConsumerInstallationId, InstallationReceiptId, InvocationAttributionId, ResourceRevisionId,
+    UserId,
+};
 use systemprompt_models::feedback::receipts::AuthenticatedConsumerDevice;
 
 use super::{ConsumerAttribution, ConsumerInvocationRequest, credentials, host_key};
@@ -47,7 +50,7 @@ impl ManagedRepository {
         lock_session(&mut tx, &identity, host, request.session_id.as_str()).await?;
         let evidence = serde_json::to_value(request)?;
         let id = InvocationAttributionId::generate();
-        sqlx::query!("INSERT INTO managed_consumer_invocation_evidence(id,consumer_id,device_id,host,native_session_id,invocation_id,resource_id,installation_id,revision_id,generation,evidence,occurred_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) ON CONFLICT DO NOTHING", id.as_str(), identity.consumer_id.as_str(), identity.device_id.as_str(), host, request.session_id.as_str(), request.invocation_id.as_str(), request.resource_id.as_str(), request.installation_id.as_ref().map(|id| id.as_str()), request.revision_id.as_ref().map(|id| id.as_str()), request.generation, evidence, request.occurred_at)
+        sqlx::query!("INSERT INTO managed_consumer_invocation_evidence(id,consumer_id,device_id,host,native_session_id,invocation_id,resource_id,installation_id,revision_id,generation,evidence,occurred_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) ON CONFLICT DO NOTHING", id.as_str(), identity.consumer_id.as_str(), identity.device_id.as_str(), host, request.session_id.as_str(), request.invocation_id.as_str(), request.resource_id.as_str(), request.installation_id.as_ref().map(ConsumerInstallationId::as_str), request.revision_id.as_ref().map(ResourceRevisionId::as_str), request.generation, evidence, request.occurred_at)
             .execute(&mut *tx).await?;
         let stored = sqlx::query!("SELECT id,evidence FROM managed_consumer_invocation_evidence WHERE consumer_id=$1 AND device_id=$2 AND host=$3 AND invocation_id=$4", identity.consumer_id.as_str(), identity.device_id.as_str(), host, request.invocation_id.as_str())
             .fetch_one(&mut *tx).await?;

@@ -7,7 +7,7 @@
 use super::catalog::invalid;
 use super::types::managed_identity;
 use super::{ConfiguredInventoryEntry, InventoryEntry, InventoryStatus, configured_identity};
-use crate::managed::{ManagedRepository, Result};
+use crate::managed::{ManagedError, ManagedRepository, Result};
 use std::collections::BTreeMap;
 use systemprompt_identifiers::{InventoryEntryId, UserId};
 use systemprompt_models::feedback::inventory::{
@@ -67,14 +67,14 @@ impl ManagedRepository {
         let observed = chrono::Utc::now();
         let mut entries = configured_entries(owner, configured)?;
         for resource in self.inventory_resources(&mut tx, owner).await? {
-            merge_resource(owner, &mut entries, resource)?;
+            merge_resource(owner, &mut entries, resource);
         }
         Self::retire_missing_inventory(&mut tx, owner, &mut entries).await?;
         for entry in entries.values() {
             Self::store_inventory_entry(&mut tx, owner, entry, generation, observed).await?;
         }
-        let count =
-            i64::try_from(entries.len()).map_err(|_error| invalid("Inventory count overflow"))?;
+        let count = i64::try_from(entries.len())
+            .map_err(|error| ManagedError::Invalid(format!("Inventory count overflow: {error}")))?;
         sqlx::query!("UPDATE managed_inventory_state SET generation=$2,observed_at=$3,entries=$4,last_error=NULL WHERE owner_id=$1",owner.as_str(),generation,observed,count).execute(&mut *tx).await?;
         sqlx::query!("INSERT INTO managed_inventory_observations(owner_id,generation,observed_at,entries) VALUES($1,$2,$3,$4)",owner.as_str(),generation,observed,count).execute(&mut *tx).await?;
         let result = InventoryStatus {
@@ -132,7 +132,7 @@ fn merge_resource(
     owner: &UserId,
     entries: &mut BTreeMap<InventoryEntryId, InventoryEntry>,
     resource: super::types::InventoryResource,
-) -> Result<()> {
+) {
     let resource_id = resource.id;
     let canonical = resource
         .bound_entry
@@ -186,16 +186,14 @@ fn merge_resource(
             Some("Incoming source changes require three-way reconciliation".to_owned());
     }
     let configured_id = configured_identity(owner, &entry.kind, &entry.resource_key);
-    if canonical != configured_id {
-        if let Some(conflicting) = entries.get_mut(&configured_id) {
-            conflicting.availability = Availability::Conflicting;
-            conflicting.diagnostic = Some(
-                "A managed resource shares this name; explicit binding is required".to_owned(),
-            );
-            entry.availability = Availability::Conflicting;
-            entry.diagnostic = conflicting.diagnostic.clone();
-        }
+    if canonical != configured_id
+        && let Some(conflicting) = entries.get_mut(&configured_id)
+    {
+        conflicting.availability = Availability::Conflicting;
+        conflicting.diagnostic =
+            Some("A managed resource shares this name; explicit binding is required".to_owned());
+        entry.availability = Availability::Conflicting;
+        entry.diagnostic.clone_from(&conflicting.diagnostic);
     }
     entries.insert(canonical, entry);
-    Ok(())
 }

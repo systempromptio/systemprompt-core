@@ -102,10 +102,10 @@ fn collect(
             }
         }
         if disk_check.elapsed() >= Duration::from_millis(100) {
-            if let Some(directory) = &working_directory {
-                if !bounded_disk(directory) {
-                    return Err(failed());
-                }
+            if let Some(directory) = &working_directory
+                && !bounded_disk(directory)
+            {
+                return Err(failed());
             }
             disk_check = Instant::now();
         }
@@ -142,8 +142,8 @@ fn failed() -> ManagedError {
 
 fn bounded_disk(root: &std::path::Path) -> bool {
     let mut pending = vec![root.to_path_buf()];
-    let mut total = 0_u64;
-    let mut entries = 0_usize;
+    let mut total = 0u64;
+    let mut entries = 0usize;
     while let Some(directory) = pending.pop() {
         let Ok(children) = std::fs::read_dir(directory) else {
             return false;

@@ -72,7 +72,7 @@ pub(super) fn key(headers: &HeaderMap) -> Result<TaskId, OptimizationHttpError> 
         })?;
     Ok(TaskId::new(key))
 }
-pub(super) async fn begin<T: Serialize>(
+pub(super) async fn begin<T: Serialize + Sync>(
     ctx: &AppContext,
     headers: &HeaderMap,
     kind: &str,
@@ -97,7 +97,7 @@ pub(super) fn response<T: serde::de::DeserializeOwned>(
         result,
     })
 }
-pub(super) async fn finish<T: Serialize + serde::de::DeserializeOwned>(
+pub(super) async fn finish<T: Serialize + serde::de::DeserializeOwned + Sync>(
     ctx: &AppContext,
     operation: &ApiOperation,
     result: Result<T, OptimizationHttpError>,

@@ -9,6 +9,7 @@ use super::catalog::invalid;
 use super::types::InventoryResource;
 use crate::managed::{ManagedRepository, Result};
 use std::collections::BTreeMap;
+use std::collections::btree_map::Entry;
 use systemprompt_identifiers::{
     InventoryEntryId, ManagedResourceId, ManagedSourceId, ResourceRevisionId, UserId,
 };
@@ -58,15 +59,14 @@ impl ManagedRepository {
     ) -> Result<()> {
         let previous=sqlx::query!("SELECT entry_id,record FROM managed_inventory_membership WHERE owner_id=$1 AND effective_until IS NULL",owner.as_str()).fetch_all(&mut **tx).await?;
         for row in previous {
-            let id = InventoryEntryId::new(row.entry_id);
-            if !entries.contains_key(&id) {
-                let mut entry: InventoryEntry = serde_json::from_value(row.record)?;
-                entry.availability = Availability::Withdrawn;
-                entry.diagnostic = Some(
-                    "Entry is absent from the latest complete inventory observation".to_owned(),
-                );
-                entries.insert(id, entry);
-            }
+            let Entry::Vacant(slot) = entries.entry(InventoryEntryId::new(row.entry_id)) else {
+                continue;
+            };
+            let mut entry: InventoryEntry = serde_json::from_value(row.record)?;
+            entry.availability = Availability::Withdrawn;
+            entry.diagnostic =
+                Some("Entry is absent from the latest complete inventory observation".to_owned());
+            slot.insert(entry);
         }
         Ok(())
     }

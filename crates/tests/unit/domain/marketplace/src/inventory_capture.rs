@@ -15,11 +15,13 @@ async fn general_rule_capture_is_idempotent_and_preserves_membership_intervals()
     let service = InventoryService::new(f.repository.clone());
     let first = service
         .prepare_baselines(
-            &f.owner,
-            &f.owner,
+            &BaselineScope {
+                owner: &f.owner,
+                actor: &f.owner,
+                root: f.root.path(),
+                services: &ServicesConfig::default(),
+            },
             &request,
-            f.root.path(),
-            &ServicesConfig::default(),
         )
         .await
         .expect("capture")
@@ -39,11 +41,13 @@ async fn general_rule_capture_is_idempotent_and_preserves_membership_intervals()
         .expect("membership");
     let repeated = service
         .prepare_baselines(
-            &f.owner,
-            &f.owner,
+            &BaselineScope {
+                owner: &f.owner,
+                actor: &f.owner,
+                root: f.root.path(),
+                services: &ServicesConfig::default(),
+            },
             &request,
-            f.root.path(),
-            &ServicesConfig::default(),
         )
         .await
         .expect("retry")

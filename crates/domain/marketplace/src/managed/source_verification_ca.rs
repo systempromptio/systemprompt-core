@@ -4,7 +4,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::{GitTreeReader, NativeGitTreeReader, import_source};
+use super::{GitTreeRead, GitTreeReader, NativeGitTreeReader, import_source};
 use crate::managed::{ManagedError, Result, RevisionFiles};
 
 struct CertificateGitTreeReader {
@@ -49,21 +49,7 @@ fn read_certificate(_path: &std::path::Path) -> Result<Vec<u8>> {
 }
 
 impl GitTreeReader for CertificateGitTreeReader {
-    fn read(
-        &self,
-        input: &systemprompt_models::feedback::verification::DependencyVerificationInput,
-        repository: &str,
-        subdirectory: Option<&str>,
-        credential: Option<&str>,
-        deadline: std::time::Instant,
-    ) -> Result<RevisionFiles> {
-        import_source(
-            input,
-            repository,
-            subdirectory,
-            credential,
-            Some(&self.certificate),
-            deadline,
-        )
+    fn read(&self, request: &GitTreeRead<'_>) -> Result<RevisionFiles> {
+        import_source(request, Some(&self.certificate))
     }
 }

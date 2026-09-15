@@ -17,6 +17,7 @@ use super::{
     AssetDigest, AssetFile, ManagedError, ManagedRepository, NewRevision, Result, RevisionFiles,
     SnapshotProvenance, SourceSpec,
 };
+use crate::inventory::IncomingRevision;
 
 #[path = "source_sync_git.rs"]
 mod git_import;
@@ -25,14 +26,17 @@ use git_import::{GitCheckout, import_tree, resolve_ref};
 #[path = "source_sync_capture.rs"]
 mod capture;
 use capture::NativeGitSourceCapture;
-pub use capture::{CapturedGitSource, GitSourceCapture, GitSynchronizationService};
+pub use capture::{
+    CapturedGitSource, GitCaptureRequest, GitSourceCapture, GitSynchronizationService,
+};
 
 const IMPORTER_VERSION: &str = "managed-git-v1";
 
 #[path = "source_verification.rs"]
 mod verification;
 pub use verification::{
-    GitContentVerification, GitTreeReader, GitVerificationService, NativeGitTreeReader,
+    GitContentVerification, GitSourceBinding, GitTreeRead, GitTreeReader, GitVerificationService,
+    NativeGitTreeReader,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -150,50 +154,57 @@ impl ManagedRepository {
         let credential = credential.map(str::to_owned);
         let root = request.upstream_root.clone();
         let captured = tokio::task::spawn_blocking(move || {
-            capture.capture(
-                &repository,
-                &reference,
-                subdirectory.as_deref(),
-                &root,
-                credential.as_deref(),
-            )
+            capture.capture(&GitCaptureRequest {
+                repository: &repository,
+                reference: &reference,
+                subdirectory: subdirectory.as_deref(),
+                root: &root,
+                credential: credential.as_deref(),
+            })
         })
         .await
-        .map_err(|_error| ManagedError::Integrity)??;
-        let CapturedGitSource { commit, files } = captured;
-        if !matches!(commit.len(), 40 | 64)
-            || !commit
-                .bytes()
-                .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
-        {
+        .map_err(super::error::integrity)??;
+        if !git_import::is_commit(&captured.commit) {
             return Err(ManagedError::Integrity);
         }
-        if !files.0.is_empty() {
-            files.validate()?;
+        if !captured.files.0.is_empty() {
+            captured.files.validate()?;
         }
-        let tree_digest = AssetDigest::of(&serde_jcs::to_vec(&files)?);
+        let tree_digest = AssetDigest::of(&serde_jcs::to_vec(&captured.files)?);
         let snapshot_id = self
             .capture_snapshot(
                 owner,
                 &request.source_id,
                 &SnapshotProvenance {
                     source_kind: "git".to_owned(),
-                    commit: Some(commit.clone()),
+                    commit: Some(captured.commit.clone()),
                     tree_digest,
                     importer_version: IMPORTER_VERSION.to_owned(),
                 },
             )
             .await?;
-        if files.0.is_empty() {
+        if captured.files.0.is_empty() {
             let proposal_id = self
                 .propose_withdrawal(owner, &request.resource_id, &snapshot_id)
                 .await?;
             return Ok(GitSyncResult::WithdrawalProposed {
                 snapshot_id,
                 proposal_id,
-                commit,
+                commit: captured.commit,
             });
         }
+        self.record_incoming_revision(owner, request, snapshot_id, captured)
+            .await
+    }
+
+    async fn record_incoming_revision(
+        &self,
+        owner: &UserId,
+        request: &GitSyncRequest,
+        snapshot_id: SourceSnapshotId,
+        captured: CapturedGitSource,
+    ) -> Result<GitSyncResult> {
+        let CapturedGitSource { commit, files } = captured;
         let candidate = self
             .latest_inventory_revision(owner, &request.resource_id)
             .await?;
@@ -218,10 +229,12 @@ impl ManagedRepository {
         let reconciliation_id = self
             .reconcile_inventory_incoming(
                 owner,
-                &request.resource_id,
-                request.upstream_base_revision_id.as_ref(),
-                candidate.as_ref(),
-                &revision_id,
+                &IncomingRevision {
+                    resource: &request.resource_id,
+                    base: request.upstream_base_revision_id.as_ref(),
+                    candidate: candidate.as_ref(),
+                    incoming: &revision_id,
+                },
             )
             .await?;
         Ok(GitSyncResult::Incoming {

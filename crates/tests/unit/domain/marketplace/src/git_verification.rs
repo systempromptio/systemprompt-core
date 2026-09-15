@@ -2,9 +2,9 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 use systemprompt_identifiers::{ManagedSourceId, ResourceRevisionId, UserId};
 use systemprompt_marketplace::managed::{
-    AssetDigest, AssetFile, DependencyRef, GitTreeReader, GitVerificationService, ManagedError,
-    ManagedRepository, NewResource, NewRevision, ResourceKind, RevisionFiles, SnapshotProvenance,
-    SourceSpec,
+    AssetDigest, AssetFile, DependencyRef, GitSourceBinding, GitTreeRead, GitTreeReader,
+    GitVerificationService, ManagedError, ManagedRepository, NewResource, NewRevision,
+    ResourceKind, RevisionFiles, SnapshotProvenance, SourceSpec,
 };
 use systemprompt_models::feedback::verification::{
     DependencyVerificationInput, DependencyVerificationRequest,
@@ -19,14 +19,14 @@ struct Reader {
 }
 
 impl GitTreeReader for Reader {
-    fn read(
-        &self,
-        input: &DependencyVerificationInput,
-        repository: &str,
-        _subdirectory: Option<&str>,
-        credential: Option<&str>,
-        deadline: std::time::Instant,
-    ) -> Result<RevisionFiles, ManagedError> {
+    fn read(&self, request: &GitTreeRead<'_>) -> Result<RevisionFiles, ManagedError> {
+        let GitTreeRead {
+            input,
+            repository,
+            credential,
+            deadline,
+            ..
+        } = *request;
         assert!(repository.starts_with("https://git.example.com/"));
         assert!(deadline > std::time::Instant::now());
         if credential != self.credentials.get(&input.source_id).map(String::as_str) {
@@ -298,9 +298,11 @@ async fn local_authored_root_requires_retained_source_binding_then_verifies_comm
         .bind_git_verification_source(
             &f.owner,
             &f.owner,
-            &resource,
-            &root.source_id,
-            &root.relative_root,
+            &GitSourceBinding {
+                resource: &resource,
+                source: &root.source_id,
+                relative_root: &root.relative_root,
+            },
         )
         .await
         .expect("explicit source binding");
@@ -309,9 +311,11 @@ async fn local_authored_root_requires_retained_source_binding_then_verifies_comm
             .bind_git_verification_source(
                 &f.owner,
                 &f.owner,
-                &resource,
-                &root.source_id,
-                "conflicting-root"
+                &GitSourceBinding {
+                    resource: &resource,
+                    source: &root.source_id,
+                    relative_root: "conflicting-root",
+                },
             )
             .await
             .is_err()

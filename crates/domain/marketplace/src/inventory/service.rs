@@ -4,8 +4,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::catalog::invalid;
-use super::{BaselineCapture, InventoryStatus, scan_configured_inventory};
-use crate::managed::{ManagedRepository, Result};
+use super::{BaselineCapture, BaselineScope, InventoryStatus, scan_configured_inventory};
+use crate::managed::{ManagedError, ManagedRepository, Result};
 use std::path::Path;
 use systemprompt_identifiers::UserId;
 use systemprompt_models::services::ServicesConfig;
@@ -31,7 +31,9 @@ impl InventoryService {
         let configured =
             tokio::task::spawn_blocking(move || scan_configured_inventory(&root, &services))
                 .await
-                .map_err(|_error| invalid("Inventory scan task failed"))
+                .map_err(|error| {
+                    ManagedError::Invalid(format!("Inventory scan task failed: {error}"))
+                })
                 .and_then(std::convert::identity);
         let result = match configured {
             Ok(configured) => {
@@ -49,12 +51,10 @@ impl InventoryService {
 
     pub async fn prepare_baselines(
         &self,
-        owner: &UserId,
-        actor: &UserId,
+        scope: &BaselineScope<'_>,
         request: &super::BaselinePreparation,
-        root: &Path,
-        services: &ServicesConfig,
     ) -> Result<Vec<BaselineCapture>> {
+        let owner = scope.owner;
         let entries = self
             .repository
             .inventory(owner, request.after.as_ref(), request.limit)
@@ -69,10 +69,7 @@ impl InventoryService {
                 outcomes.push(previous);
                 continue;
             }
-            let capture = match self
-                .capture_entry(owner, actor, &entry, root, services)
-                .await
-            {
+            let capture = match self.capture_entry(scope, &entry).await {
                 Ok((revision, reconciliation)) => BaselineCapture {
                     entry_id: entry.entry_id,
                     operation_id: request.operation_id.clone(),
@@ -105,7 +102,7 @@ impl InventoryService {
                     .ok_or_else(|| invalid("Recorded baseline outcome disappeared"))?,
             );
         }
-        self.refresh(owner, root, services).await?;
+        self.refresh(owner, scope.root, scope.services).await?;
         Ok(outcomes)
     }
 }

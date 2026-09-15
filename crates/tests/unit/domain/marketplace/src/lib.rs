@@ -201,6 +201,8 @@ mod retained_distribution;
 #[cfg(test)]
 mod authoring_capture;
 #[cfg(test)]
+mod source_sync_fixture;
+#[cfg(test)]
 mod source_sync_regressions;
 
 #[cfg(test)]

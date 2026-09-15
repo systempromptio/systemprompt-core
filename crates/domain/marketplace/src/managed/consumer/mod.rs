@@ -42,7 +42,7 @@ pub struct ConsumerAttribution {
     pub version: i64,
 }
 
-pub fn host_key(host: EvaluatorClient) -> &'static str {
+pub const fn host_key(host: EvaluatorClient) -> &'static str {
     match host {
         EvaluatorClient::ClaudeCode => "claude-code",
         EvaluatorClient::OpenCode => "opencode",

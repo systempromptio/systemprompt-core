@@ -45,6 +45,17 @@ pub enum ConflictResolution {
 }
 
 impl ConflictResolution {
+    fn parse(value: Option<&str>) -> Result<Option<Self>> {
+        Ok(match value {
+            None => None,
+            Some("candidate") => Some(Self::Candidate),
+            Some("incoming") => Some(Self::Incoming),
+            Some("manual") => Some(Self::Manual),
+            Some("delete") => Some(Self::Delete),
+            Some(_) => return Err(ManagedError::Integrity),
+        })
+    }
+
     const fn as_str(self) -> &'static str {
         match self {
             Self::Candidate => "candidate",
@@ -61,6 +72,38 @@ pub struct ReconciliationRecord {
     pub status: String,
     pub conflicts: Vec<ReconciliationConflict>,
     pub resolved_revision_id: Option<ResourceRevisionId>,
+}
+
+fn detect_conflicts(
+    base: &super::RevisionFiles,
+    candidate: &super::RevisionFiles,
+    incoming: &super::RevisionFiles,
+) -> Vec<ReconciliationConflict> {
+    let mut paths = std::collections::BTreeSet::new();
+    paths.extend(base.0.keys().cloned());
+    paths.extend(candidate.0.keys().cloned());
+    paths.extend(incoming.0.keys().cloned());
+    let digest = |files: &super::RevisionFiles, path: &str| {
+        files
+            .0
+            .get(path)
+            .map(|file| super::AssetDigest::of(&file.bytes).as_str().to_owned())
+    };
+    paths
+        .into_iter()
+        .filter(|path| {
+            !same_file(candidate.0.get(path), base.0.get(path))
+                && !same_file(incoming.0.get(path), base.0.get(path))
+                && !same_file(candidate.0.get(path), incoming.0.get(path))
+        })
+        .map(|path| ReconciliationConflict {
+            base_digest: digest(base, &path),
+            candidate_digest: digest(candidate, &path),
+            incoming_digest: digest(incoming, &path),
+            path,
+            resolution: None,
+        })
+        .collect()
 }
 
 impl ManagedRepository {
@@ -96,34 +139,7 @@ impl ManagedRepository {
         let incoming = self
             .get_revision_files(owner, &request.incoming_revision_id)
             .await?;
-        let mut paths = std::collections::BTreeSet::new();
-        paths.extend(base.0.keys().cloned());
-        paths.extend(candidate.0.keys().cloned());
-        paths.extend(incoming.0.keys().cloned());
-        let mut conflicts = Vec::new();
-        for path in paths {
-            let digest = |files: &super::RevisionFiles| {
-                files
-                    .0
-                    .get(&path)
-                    .map(|file| super::AssetDigest::of(&file.bytes).as_str().to_owned())
-            };
-            let b = digest(&base);
-            let c = digest(&candidate);
-            let i = digest(&incoming);
-            if !same_file(candidate.0.get(&path), base.0.get(&path))
-                && !same_file(incoming.0.get(&path), base.0.get(&path))
-                && !same_file(candidate.0.get(&path), incoming.0.get(&path))
-            {
-                conflicts.push(ReconciliationConflict {
-                    path,
-                    base_digest: b,
-                    candidate_digest: c,
-                    incoming_digest: i,
-                    resolution: None,
-                });
-            }
-        }
+        let conflicts = detect_conflicts(&base, &candidate, &incoming);
         let id = ManagedReconciliationId::generate();
         let mut tx = self.pool.begin().await?;
         sqlx::query!("INSERT INTO managed_reconciliations(id,owner_id,resource_id,upstream_base_revision_id,managed_candidate_revision_id,incoming_revision_id) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(owner_id,resource_id,managed_candidate_revision_id,incoming_revision_id) DO NOTHING",
@@ -144,20 +160,12 @@ impl ManagedRepository {
         let conflicts = retained
             .into_iter()
             .map(|row| {
-                let resolution = match row.resolution.as_deref() {
-                    None => None,
-                    Some("candidate") => Some(ConflictResolution::Candidate),
-                    Some("incoming") => Some(ConflictResolution::Incoming),
-                    Some("manual") => Some(ConflictResolution::Manual),
-                    Some("delete") => Some(ConflictResolution::Delete),
-                    Some(_) => return Err(ManagedError::Integrity),
-                };
                 Ok(ReconciliationConflict {
                     path: row.path,
                     base_digest: row.base_digest,
                     candidate_digest: row.candidate_digest,
                     incoming_digest: row.incoming_digest,
-                    resolution,
+                    resolution: ConflictResolution::parse(row.resolution.as_deref())?,
                 })
             })
             .collect::<Result<Vec<_>>>()?;

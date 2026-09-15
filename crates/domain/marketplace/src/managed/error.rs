@@ -45,3 +45,10 @@ pub type Result<T> = std::result::Result<T, ManagedError>;
 pub(super) fn invalid(message: &str) -> ManagedError {
     ManagedError::Invalid(message.to_owned())
 }
+
+// Why: `Integrity` carries no payload by contract, so the cause is retained in
+// the log at the one place it is still known.
+pub(crate) fn integrity(error: impl std::fmt::Display) -> ManagedError {
+    tracing::warn!(error = %error, "Retained managed data failed an integrity check");
+    ManagedError::Integrity
+}

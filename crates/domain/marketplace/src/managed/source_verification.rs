@@ -5,9 +5,9 @@
 
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-use systemprompt_identifiers::{ManagedSourceId, ResourceRevisionId, UserId};
+use systemprompt_identifiers::{ManagedResourceId, ManagedSourceId, ResourceRevisionId, UserId};
 use systemprompt_models::feedback::verification::{
-    DependencyVerificationManifest, DependencyVerificationRequest,
+    DependencyVerificationInput, DependencyVerificationManifest, DependencyVerificationRequest,
 };
 
 use super::git_import::{GitCheckout, import_tree};
@@ -26,31 +26,33 @@ pub struct GitContentVerification {
     pub commit: String,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct GitTreeRead<'a> {
+    pub input: &'a DependencyVerificationInput,
+    pub repository: &'a str,
+    pub subdirectory: Option<&'a str>,
+    pub credential: Option<&'a str>,
+    pub deadline: std::time::Instant,
+}
+
 pub trait GitTreeReader: Send + Sync {
-    fn read(
-        &self,
-        input: &systemprompt_models::feedback::verification::DependencyVerificationInput,
-        repository: &str,
-        subdirectory: Option<&str>,
-        credential: Option<&str>,
-        deadline: std::time::Instant,
-    ) -> Result<RevisionFiles>;
+    fn read(&self, request: &GitTreeRead<'_>) -> Result<RevisionFiles>;
 }
 
 #[derive(Debug, Clone, Copy)]
 pub struct NativeGitTreeReader;
 
 impl GitTreeReader for NativeGitTreeReader {
-    fn read(
-        &self,
-        input: &systemprompt_models::feedback::verification::DependencyVerificationInput,
-        repository: &str,
-        subdirectory: Option<&str>,
-        credential: Option<&str>,
-        deadline: std::time::Instant,
-    ) -> Result<RevisionFiles> {
-        import_source(input, repository, subdirectory, credential, None, deadline)
+    fn read(&self, request: &GitTreeRead<'_>) -> Result<RevisionFiles> {
+        import_source(request, None)
     }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct GitSourceBinding<'a> {
+    pub resource: &'a ManagedResourceId,
+    pub source: &'a ManagedSourceId,
+    pub relative_root: &'a str,
 }
 
 #[path = "source_verification_ca.rs"]
@@ -67,7 +69,7 @@ impl ManagedRepository {
             .iter()
             .find(|entry| entry.provenance.revision_id == manifest.root_revision_id)
             .ok_or(ManagedError::Integrity)?;
-        let encoded = serde_json::to_value(&manifest)?;
+        let encoded = serde_json::to_value(manifest)?;
         sqlx::query!("INSERT INTO managed_dependency_verifications(id,owner_id,revision_id,commit_sha,bundle_digest,manifest) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(owner_id,revision_id,commit_sha,bundle_digest) DO NOTHING", manifest.id.as_str(), owner.as_str(), manifest.root_revision_id.as_str(), &root.provenance.exact_commit, manifest.bundle_digest.as_str(), encoded).execute(&self.pool).await?;
         self.verified_git_manifest(
             owner,
@@ -80,7 +82,7 @@ impl ManagedRepository {
     pub(super) async fn require_git_verification_binding(
         &self,
         owner: &UserId,
-        capture: &systemprompt_models::feedback::verification::DependencyVerificationInput,
+        capture: &DependencyVerificationInput,
         root: &ResourceRevisionId,
         retained_manifest: &crate::managed::RevisionManifest,
     ) -> Result<()> {
@@ -113,15 +115,13 @@ impl ManagedRepository {
     ) -> Result<AssetDigest> {
         let request = DependencyVerificationRequest {
             root_revision_id: input.revision_id.clone(),
-            revisions: vec![
-                systemprompt_models::feedback::verification::DependencyVerificationInput {
-                    revision_id: input.revision_id.clone(),
-                    source_id: input.source_id.clone(),
-                    relative_root: input.upstream_root.clone(),
-                    exact_commit: input.commit.clone(),
-                    dependencies: Vec::new(),
-                },
-            ],
+            revisions: vec![DependencyVerificationInput {
+                revision_id: input.revision_id.clone(),
+                source_id: input.source_id.clone(),
+                relative_root: input.upstream_root.clone(),
+                exact_commit: input.commit.clone(),
+                dependencies: Vec::new(),
+            }],
         };
         let manifest = self
             .verify_git_dependencies(owner, &request, &BTreeMap::new())
@@ -146,10 +146,13 @@ impl ManagedRepository {
         &self,
         owner: &UserId,
         actor: &UserId,
-        resource: &systemprompt_identifiers::ManagedResourceId,
-        source: &ManagedSourceId,
-        relative_root: &str,
+        binding: &GitSourceBinding<'_>,
     ) -> Result<()> {
+        let GitSourceBinding {
+            resource,
+            source,
+            relative_root,
+        } = *binding;
         systemprompt_models::managed::validate_path(relative_root)?;
         if !matches!(
             self.get_source(owner, source).await?,
@@ -241,13 +244,16 @@ pub(super) fn require_matching_files(
 }
 
 fn import_source(
-    input: &systemprompt_models::feedback::verification::DependencyVerificationInput,
-    repository: &str,
-    subdirectory: Option<&str>,
-    credential: Option<&str>,
+    request: &GitTreeRead<'_>,
     certificate_authority: Option<&[u8]>,
-    deadline: std::time::Instant,
 ) -> Result<RevisionFiles> {
+    let GitTreeRead {
+        input,
+        repository,
+        subdirectory,
+        credential,
+        deadline,
+    } = *request;
     let temp = std::env::temp_dir().join(format!(
         "systemprompt-verification-{}",
         ManagedSourceId::generate()

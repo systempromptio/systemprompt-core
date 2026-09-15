@@ -242,13 +242,19 @@ impl Fixture {
 
 #[test]
 fn native_https_fetch_reads_exact_commit_relative_root_bytes_and_executable_modes() {
-    use systemprompt_marketplace::managed::GitTreeReader;
+    use systemprompt_marketplace::managed::{GitTreeRead, GitTreeReader};
     let f = Fixture::start();
     let input = f.input(f.commit_tree(None));
     let reader = f.tree_reader();
     let deadline = || std::time::Instant::now() + std::time::Duration::from_secs(20);
     let files = reader
-        .read(&input, &f.tree_url(), None, Some("first-token"), deadline())
+        .read(&GitTreeRead {
+            input: &input,
+            repository: &f.tree_url(),
+            subdirectory: None,
+            credential: Some("first-token"),
+            deadline: deadline(),
+        })
         .expect("real authenticated fetch and retained tree read");
     assert_eq!(files.0.len(), 2);
     assert_eq!(files.0["run.sh"].bytes, b"#!/bin/sh\necho verified\n");
@@ -257,71 +263,83 @@ fn native_https_fetch_reads_exact_commit_relative_root_bytes_and_executable_mode
     assert!(!files.0["SKILL.md"].executable);
     assert!(
         reader
-            .read(&input, &f.tree_url(), None, Some("wrong-token"), deadline())
+            .read(&GitTreeRead {
+                input: &input,
+                repository: &f.tree_url(),
+                subdirectory: None,
+                credential: Some("wrong-token"),
+                deadline: deadline(),
+            })
             .is_err()
     );
     let mut wrong_commit = input.clone();
     wrong_commit.exact_commit = "b".repeat(40);
     assert!(
         reader
-            .read(
-                &wrong_commit,
-                &f.tree_url(),
-                None,
-                Some("first-token"),
-                deadline()
-            )
+            .read(&GitTreeRead {
+                input: &wrong_commit,
+                repository: &f.tree_url(),
+                subdirectory: None,
+                credential: Some("first-token"),
+                deadline: deadline(),
+            })
             .is_err()
     );
     let mut absent_root = input.clone();
     absent_root.relative_root = "absent".to_owned();
     assert!(
         reader
-            .read(
-                &absent_root,
-                &f.tree_url(),
-                None,
-                Some("first-token"),
-                deadline()
-            )
+            .read(&GitTreeRead {
+                input: &absent_root,
+                repository: &f.tree_url(),
+                subdirectory: None,
+                credential: Some("first-token"),
+                deadline: deadline(),
+            })
             .expect("absent root is empty and cannot match retained revision")
             .0
             .is_empty()
     );
     assert!(
         reader
-            .read(
-                &input,
-                &f.tree_url(),
-                Some("wrong-prefix"),
-                Some("first-token"),
-                deadline()
-            )
+            .read(&GitTreeRead {
+                input: &input,
+                repository: &f.tree_url(),
+                subdirectory: Some("wrong-prefix"),
+                credential: Some("first-token"),
+                deadline: deadline(),
+            })
             .expect("wrong registered subdirectory cannot expose repository root")
             .0
             .is_empty()
     );
     assert!(
         reader
-            .read(
-                &input,
-                &f.tree_url(),
-                None,
-                Some("first-token"),
-                std::time::Instant::now()
-            )
+            .read(&GitTreeRead {
+                input: &input,
+                repository: &f.tree_url(),
+                subdirectory: None,
+                credential: Some("first-token"),
+                deadline: std::time::Instant::now(),
+            })
             .is_err()
     );
     // Failed fetch and expired deadline clean up before the following valid
     // operation.
     reader
-        .read(&input, &f.tree_url(), None, Some("first-token"), deadline())
+        .read(&GitTreeRead {
+            input: &input,
+            repository: &f.tree_url(),
+            subdirectory: None,
+            credential: Some("first-token"),
+            deadline: deadline(),
+        })
         .expect("recovery after rejected fetches");
 }
 
 #[test]
 fn native_fetch_rejects_submodules_gitmodules_and_nested_git_metadata_outside_selected_root() {
-    use systemprompt_marketplace::managed::GitTreeReader;
+    use systemprompt_marketplace::managed::{GitTreeRead, GitTreeReader};
     let f = Fixture::start();
     let valid_commit = f.commit_tree(None);
     let metadata = f.git_object(
@@ -340,13 +358,13 @@ fn native_fetch_rejects_submodules_gitmodules_and_nested_git_metadata_outside_se
         let input = f.input(f.commit_tree(Some((kind, &object))));
         let error = f
             .tree_reader()
-            .read(
-                &input,
-                &f.tree_url(),
-                None,
-                Some("first-token"),
-                std::time::Instant::now() + std::time::Duration::from_secs(20),
-            )
+            .read(&GitTreeRead {
+                input: &input,
+                repository: &f.tree_url(),
+                subdirectory: None,
+                credential: Some("first-token"),
+                deadline: std::time::Instant::now() + std::time::Duration::from_secs(20),
+            })
             .expect_err("undeclared repository metadata denied across entire fetched tree");
         assert!(!error.to_string().contains("first-token"));
     }
@@ -355,7 +373,7 @@ fn native_fetch_rejects_submodules_gitmodules_and_nested_git_metadata_outside_se
 #[test]
 fn explicit_certificate_authority_is_bounded_regular_and_copied_without_ambient_trust_changes() {
     use std::os::unix::fs::symlink;
-    use systemprompt_marketplace::managed::{GitTreeReader, NativeGitTreeReader};
+    use systemprompt_marketplace::managed::{GitTreeRead, GitTreeReader, NativeGitTreeReader};
     let f = Fixture::start();
     let input = f.input(f.commit_tree(None));
     let certificate = f.directory.path().join("cert.pem");
@@ -389,23 +407,23 @@ fn explicit_certificate_authority_is_bounded_regular_and_copied_without_ambient_
     let reader = NativeGitTreeReader::with_certificate_authority(&certificate).unwrap();
     std::fs::write(&certificate, "changed after construction").unwrap();
     reader
-        .read(
-            &input,
-            &f.tree_url(),
-            None,
-            Some("first-token"),
-            std::time::Instant::now() + std::time::Duration::from_secs(20),
-        )
+        .read(&GitTreeRead {
+            input: &input,
+            repository: &f.tree_url(),
+            subdirectory: None,
+            credential: Some("first-token"),
+            deadline: std::time::Instant::now() + std::time::Duration::from_secs(20),
+        })
         .expect("reader retains its own CA bytes");
     assert!(
         NativeGitTreeReader
-            .read(
-                &input,
-                &f.tree_url(),
-                None,
-                Some("first-token"),
-                std::time::Instant::now() + std::time::Duration::from_secs(20)
-            )
+            .read(&GitTreeRead {
+                input: &input,
+                repository: &f.tree_url(),
+                subdirectory: None,
+                credential: Some("first-token"),
+                deadline: std::time::Instant::now() + std::time::Duration::from_secs(20),
+            })
             .is_err()
     );
 }

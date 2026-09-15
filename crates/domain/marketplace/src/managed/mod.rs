@@ -48,8 +48,8 @@ pub use resolver::{
     ManagedResourceResolver, ManagedSkill, ManagedSkillResolution, ResolvedManagedResource,
 };
 pub use source_sync::{
-    GitContentVerification, GitSyncRequest, GitSyncResult, GitTreeReader, GitVerificationService,
-    NativeGitTreeReader, WithdrawalProposal,
+    GitContentVerification, GitSourceBinding, GitSyncRequest, GitSyncResult, GitTreeRead,
+    GitTreeReader, GitVerificationService, NativeGitTreeReader, WithdrawalProposal,
 };
 pub use systemprompt_models::managed::{
     ASSEMBLER_VERSION, AssetDigest, AssetFile, DependencyRef, FileEntry, RevisionBundle,
@@ -66,4 +66,6 @@ pub mod operations;
 mod organization_resolver;
 pub use organization_resolver::OrganizationSkillResolver;
 
-pub use source_sync::{CapturedGitSource, GitSourceCapture, GitSynchronizationService};
+pub use source_sync::{
+    CapturedGitSource, GitCaptureRequest, GitSourceCapture, GitSynchronizationService,
+};

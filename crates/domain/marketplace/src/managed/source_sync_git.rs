@@ -48,7 +48,7 @@ pub(super) fn resolve_ref(
     Ok(commit.to_owned())
 }
 
-fn is_commit(value: &str) -> bool {
+pub(super) fn is_commit(value: &str) -> bool {
     matches!(value.len(), 40 | 64)
         && value
             .bytes()
@@ -69,22 +69,13 @@ pub(super) struct GitCheckout<'a> {
 pub(super) fn import_tree(checkout: &GitCheckout<'_>) -> Result<RevisionFiles> {
     let GitCheckout {
         temp,
-        repository,
         commit,
         subdirectory,
         root,
-        credential,
-        certificate_authority,
         deadline,
+        ..
     } = *checkout;
-    fetch_commit(
-        temp,
-        repository,
-        commit,
-        credential,
-        certificate_authority,
-        deadline,
-    )?;
+    fetch_commit(checkout)?;
     let prefix = [subdirectory, Some(root)]
         .into_iter()
         .flatten()
@@ -142,14 +133,16 @@ pub(super) fn import_tree(checkout: &GitCheckout<'_>) -> Result<RevisionFiles> {
     Ok(files)
 }
 
-fn fetch_commit(
-    temp: &Path,
-    repository: &str,
-    commit: &str,
-    credential: Option<&str>,
-    certificate_authority: Option<&[u8]>,
-    deadline: std::time::Instant,
-) -> Result<()> {
+fn fetch_commit(checkout: &GitCheckout<'_>) -> Result<()> {
+    let GitCheckout {
+        temp,
+        repository,
+        commit,
+        credential,
+        certificate_authority,
+        deadline,
+        ..
+    } = *checkout;
     git(
         Command::new("git")
             .args(["-c", "core.hooksPath=/dev/null", "init", "--bare"])
@@ -189,7 +182,7 @@ fn fetch_commit(
     let fetched = git(
         Command::new("git")
             .current_dir(temp)
-            .args(["rev-parse", "FETCH_HEAD^{commit}"]),
+            .args(["rev-list", "--max-count=1", "FETCH_HEAD"]),
         None,
         deadline,
     )?;
@@ -200,6 +193,10 @@ fn fetch_commit(
     {
         return Err(ManagedError::Integrity);
     }
+    require_plain_tree(temp, commit, deadline)
+}
+
+fn require_plain_tree(temp: &Path, commit: &str, deadline: std::time::Instant) -> Result<()> {
     let tree = git(
         Command::new("git")
             .current_dir(temp)

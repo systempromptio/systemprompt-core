@@ -5,11 +5,13 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use std::path::Path;
 use systemprompt_identifiers::{
     InventoryEntryId, ManagedReconciliationId, ManagedResourceId, ManagedSourceId,
     ResourceRevisionId, TaskId, UserId,
 };
 use systemprompt_models::feedback::inventory::{InventoryAvailability, InventoryOrigin};
+use systemprompt_models::services::ServicesConfig;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, schemars::JsonSchema)]
 pub struct InventoryEntry {
@@ -50,7 +52,7 @@ pub enum ObservedMembership {
     Known {
         effective_from: DateTime<Utc>,
         effective_until: Option<DateTime<Utc>>,
-        entry: InventoryEntry,
+        entry: Box<InventoryEntry>,
     },
 }
 
@@ -82,6 +84,14 @@ pub struct InventoryCoverage {
     pub known_available: i64,
     pub unknown_membership: i64,
     pub as_of: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct BaselineScope<'a> {
+    pub owner: &'a UserId,
+    pub actor: &'a UserId,
+    pub root: &'a Path,
+    pub services: &'a ServicesConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]

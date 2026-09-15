@@ -24,7 +24,7 @@ impl ManagedRepository {
             Ok(ObservedMembership::Known {
                 effective_from: row.effective_from,
                 effective_until: row.effective_until,
-                entry: serde_json::from_value(row.record)?,
+                entry: Box::new(serde_json::from_value(row.record)?),
             })
         })
     }
@@ -50,10 +50,9 @@ impl ManagedRepository {
         .fetch_optional(&self.pool)
         .await?
         .ok_or(ManagedError::Unavailable)?;
-        if kind != configured.kind
-            && !(kind == "supporting"
-                && !matches!(configured.kind.as_str(), "skill" | "plugin" | "marketplace"))
-        {
+        let supporting_binding = kind == "supporting"
+            && !matches!(configured.kind.as_str(), "skill" | "plugin" | "marketplace");
+        if kind != configured.kind && !supporting_binding {
             return Err(invalid("Inventory and managed resource kinds differ"));
         }
         sqlx::query!("INSERT INTO managed_inventory_bindings(owner_id,entry_id,resource_id,bound_by) VALUES($1,$2,$3,$4) ON CONFLICT DO NOTHING",owner.as_str(),entry.as_str(),resource.as_str(),actor.as_str()).execute(&self.pool).await?;

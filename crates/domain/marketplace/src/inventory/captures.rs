@@ -7,44 +7,50 @@ use super::BaselineCapture;
 use super::catalog::invalid;
 use crate::managed::{ManagedRepository, Result};
 use systemprompt_identifiers::{
-    InventoryEntryId, ManagedReconciliationId, ResourceRevisionId, TaskId, UserId,
+    InventoryEntryId, ManagedReconciliationId, ManagedResourceId, ManagedSourceId,
+    ResourceRevisionId, TaskId, UserId,
 };
+
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct IncomingRevision<'a> {
+    pub(crate) resource: &'a ManagedResourceId,
+    pub(crate) base: Option<&'a ResourceRevisionId>,
+    pub(crate) candidate: Option<&'a ResourceRevisionId>,
+    pub(crate) incoming: &'a ResourceRevisionId,
+}
 
 impl ManagedRepository {
     pub(crate) async fn latest_inventory_revision(
         &self,
         owner: &UserId,
-        resource: &systemprompt_identifiers::ManagedResourceId,
+        resource: &ManagedResourceId,
     ) -> Result<Option<ResourceRevisionId>> {
         Ok(sqlx::query_scalar!("SELECT id FROM managed_revisions WHERE owner_id=$1 AND resource_id=$2 ORDER BY created_at DESC,id DESC LIMIT 1",owner.as_str(),resource.as_str()).fetch_optional(&self.pool).await?.map(ResourceRevisionId::new))
     }
 
-    pub async fn reconcile_inventory_incoming(
+    pub(crate) async fn reconcile_inventory_incoming(
         &self,
         owner: &UserId,
-        resource: &systemprompt_identifiers::ManagedResourceId,
-        base: Option<&ResourceRevisionId>,
-        candidate: Option<&ResourceRevisionId>,
-        incoming: &ResourceRevisionId,
+        revision: &IncomingRevision<'_>,
     ) -> Result<Option<ManagedReconciliationId>> {
-        if let (Some(base), Some(candidate)) = (base, candidate) {
-            if base != candidate && candidate != incoming {
-                return Ok(Some(
-                    self.begin_reconciliation(
-                        owner,
-                        &crate::managed::ReconciliationRequest {
-                            resource_id: resource.clone(),
-                            upstream_base_revision_id: base.clone(),
-                            managed_candidate_revision_id: candidate.clone(),
-                            incoming_revision_id: incoming.clone(),
-                        },
-                    )
-                    .await?
-                    .id,
-                ));
-            }
+        let (Some(base), Some(candidate)) = (revision.base, revision.candidate) else {
+            return Ok(None);
+        };
+        if base == candidate || candidate == revision.incoming {
+            return Ok(None);
         }
-        Ok(None)
+        let reconciliation = self
+            .begin_reconciliation(
+                owner,
+                &crate::managed::ReconciliationRequest {
+                    resource_id: revision.resource.clone(),
+                    upstream_base_revision_id: base.clone(),
+                    managed_candidate_revision_id: candidate.clone(),
+                    incoming_revision_id: revision.incoming.clone(),
+                },
+            )
+            .await?;
+        Ok(Some(reconciliation.id))
     }
 
     pub async fn inventory_capture(
@@ -69,7 +75,7 @@ impl ManagedRepository {
         owner: &UserId,
         capture: &BaselineCapture,
     ) -> Result<()> {
-        sqlx::query!("INSERT INTO managed_inventory_captures(owner_id,entry_id,operation_id,status,revision_id,reconciliation_id,diagnostic) VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT DO NOTHING",owner.as_str(),capture.entry_id.as_str(),capture.operation_id.as_str(),&capture.status,capture.revision_id.as_ref().map(|id|id.as_str()),capture.reconciliation_id.as_ref().map(|id|id.as_str()),capture.diagnostic.as_deref()).execute(&self.pool).await?;
+        sqlx::query!("INSERT INTO managed_inventory_captures(owner_id,entry_id,operation_id,status,revision_id,reconciliation_id,diagnostic) VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT DO NOTHING",owner.as_str(),capture.entry_id.as_str(),capture.operation_id.as_str(),&capture.status,capture.revision_id.as_ref().map(ResourceRevisionId::as_str),capture.reconciliation_id.as_ref().map(ManagedReconciliationId::as_str),capture.diagnostic.as_deref()).execute(&self.pool).await?;
         Ok(())
     }
 
@@ -111,7 +117,7 @@ impl ManagedRepository {
         after: Option<&ManagedReconciliationId>,
     ) -> Result<Vec<super::InventoryReconciliation>> {
         let resource = self.inventory_entry(owner, entry).await?.resource_id;
-        let resource = resource.as_ref().map(|id| id.as_str());
+        let resource = resource.as_ref().map(ManagedResourceId::as_str);
         let after = after.map(ManagedReconciliationId::as_str);
         let rows=sqlx::query!("SELECT id,status,upstream_base_revision_id,managed_candidate_revision_id,incoming_revision_id,resolved_revision_id FROM managed_reconciliations WHERE owner_id=$1 AND resource_id=$2 AND ($3::text IS NULL OR id>$3) ORDER BY id LIMIT 50",owner.as_str(),resource,after).fetch_all(&self.pool).await?;
         Ok(rows
@@ -135,10 +141,10 @@ impl ManagedRepository {
         entry: &InventoryEntryId,
     ) -> Result<Option<super::InventoryGitBinding>> {
         let resource = self.inventory_entry(owner, entry).await?.resource_id;
-        let resource = resource.as_ref().map(|id| id.as_str());
+        let resource = resource.as_ref().map(ManagedResourceId::as_str);
         let row=sqlx::query!("SELECT source_id,relative_root,bound_by FROM managed_resource_git_bindings WHERE owner_id=$1 AND resource_id=$2",owner.as_str(),resource).fetch_optional(&self.pool).await?;
         Ok(row.map(|row| super::InventoryGitBinding {
-            source_id: systemprompt_identifiers::ManagedSourceId::new(row.source_id),
+            source_id: ManagedSourceId::new(row.source_id),
             relative_root: row.relative_root,
             bound_by: UserId::new(row.bound_by),
         }))

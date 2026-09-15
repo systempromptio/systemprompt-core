@@ -4,11 +4,12 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use super::captures::IncomingRevision;
 use super::catalog::invalid;
-use super::{InventoryEntry, InventoryService};
+use super::{BaselineScope, InventoryEntry, InventoryService};
 use crate::managed::{
-    AssetDigest, AssetFile, NewResource, NewRevision, ResourceKind, Result, RevisionFiles,
-    SnapshotProvenance, SourceSpec, capture_inventory_files,
+    AssetDigest, AssetFile, ManagedError, NewResource, NewRevision, ResourceKind, Result,
+    RevisionFiles, SnapshotProvenance, SourceSpec, capture_inventory_files,
 };
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -16,20 +17,23 @@ use systemprompt_identifiers::{ManagedReconciliationId, ResourceRevisionId, User
 use systemprompt_models::feedback::inventory::InventoryAvailability;
 use systemprompt_models::services::ServicesConfig;
 
+struct AuthoringCapture {
+    files: RevisionFiles,
+    previous: Option<ResourceRevisionId>,
+}
+
 impl InventoryService {
     pub(super) async fn capture_entry(
         &self,
-        owner: &UserId,
-        actor: &UserId,
+        scope: &BaselineScope<'_>,
         entry: &InventoryEntry,
-        root: &Path,
-        services: &ServicesConfig,
     ) -> Result<(ResourceRevisionId, Option<ManagedReconciliationId>)> {
         if entry.availability != InventoryAvailability::Available {
             return Err(invalid(
                 "Inventory entry is unavailable, withdrawn or conflicting; resolve its diagnostic before baseline capture",
             ));
         }
+        let owner = scope.owner;
         let source_spec = if let Some(source) = &entry.source_id {
             Some(self.repository.get_source(owner, source).await?)
         } else {
@@ -41,23 +45,17 @@ impl InventoryService {
                 Some(SourceSpec::Git { .. } | SourceSpec::Managed)
             )
         {
-            let revision = entry
-                .published_revision_id
-                .as_ref()
-                .or(entry.latest_revision_id.as_ref())
-                .ok_or_else(|| invalid("No retained revision is available for baseline"))?;
-            self.repository.get_revision_bundle(owner, revision).await?;
-            return Ok((revision.clone(), None));
+            return self.retained_baseline(owner, entry).await;
         }
-        let canonical = std::fs::canonicalize(root)?;
-        if let Some(SourceSpec::LocalTree { root: bound }) = source_spec {
-            if std::fs::canonicalize(bound)? != canonical {
-                return Err(invalid(
-                    "Configured source binding does not match the active services root",
-                ));
-            }
+        let canonical = std::fs::canonicalize(scope.root)?;
+        if let Some(SourceSpec::LocalTree { root: bound }) = source_spec
+            && std::fs::canonicalize(bound)? != canonical
+        {
+            return Err(invalid(
+                "Configured source binding does not match the active services root",
+            ));
         }
-        let files = configured_files(&canonical, entry, services)?;
+        let files = configured_files(&canonical, entry, scope.services)?;
         let previous = self
             .repository
             .inventory_authoring_head(owner, &entry.entry_id)
@@ -82,8 +80,40 @@ impl InventoryService {
                 ));
             }
         }
+        self.capture_incoming(
+            scope,
+            entry,
+            &canonical,
+            AuthoringCapture { files, previous },
+        )
+        .await
+    }
+
+    async fn retained_baseline(
+        &self,
+        owner: &UserId,
+        entry: &InventoryEntry,
+    ) -> Result<(ResourceRevisionId, Option<ManagedReconciliationId>)> {
+        let revision = entry
+            .published_revision_id
+            .as_ref()
+            .or(entry.latest_revision_id.as_ref())
+            .ok_or_else(|| invalid("No retained revision is available for baseline"))?;
+        self.repository.get_revision_bundle(owner, revision).await?;
+        Ok((revision.clone(), None))
+    }
+
+    async fn capture_incoming(
+        &self,
+        scope: &BaselineScope<'_>,
+        entry: &InventoryEntry,
+        canonical: &Path,
+        capture: AuthoringCapture,
+    ) -> Result<(ResourceRevisionId, Option<ManagedReconciliationId>)> {
+        let AuthoringCapture { files, previous } = capture;
+        let owner = scope.owner;
         let (source, resource) = self
-            .bind_authoring_resource(owner, actor, entry, &canonical)
+            .bind_authoring_resource(owner, scope.actor, entry, canonical)
             .await?;
         let snapshot = self
             .repository
@@ -125,10 +155,12 @@ impl InventoryService {
             .repository
             .reconcile_inventory_incoming(
                 owner,
-                &resource,
-                previous.as_ref(),
-                entry.latest_revision_id.as_ref(),
-                &incoming,
+                &IncomingRevision {
+                    resource: &resource,
+                    base: previous.as_ref(),
+                    candidate: entry.latest_revision_id.as_ref(),
+                    incoming: &incoming,
+                },
             )
             .await?;
         self.repository
@@ -217,7 +249,9 @@ fn configured_files(
                     .get(&entry.resource_key)
                     .ok_or_else(|| invalid("Configured agent disappeared"))?,
             )
-            .map_err(|_error| invalid("Agent configuration cannot be captured"))?,
+            .map_err(|error| {
+                ManagedError::Invalid(format!("Agent configuration cannot be captured: {error}"))
+            })?,
         ),
         "mcp" => Some(
             serde_yaml::to_string(
@@ -226,7 +260,9 @@ fn configured_files(
                     .get(&entry.resource_key)
                     .ok_or_else(|| invalid("Configured MCP server disappeared"))?,
             )
-            .map_err(|_error| invalid("MCP configuration cannot be captured"))?,
+            .map_err(|error| {
+                ManagedError::Invalid(format!("MCP configuration cannot be captured: {error}"))
+            })?,
         ),
         _ => None,
     };

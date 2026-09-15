@@ -1,9 +1,7 @@
 //! Retained sync contracts use a trusted capture fixture, not network
 //! acceptance.
 
-#[path = "source_sync_fixture.rs"]
-mod fixture;
-use fixture::{Fixture, files};
+use crate::source_sync_fixture::{Fixture, files};
 use std::collections::BTreeMap;
 use std::sync::atomic::Ordering;
 use systemprompt_marketplace::managed::{

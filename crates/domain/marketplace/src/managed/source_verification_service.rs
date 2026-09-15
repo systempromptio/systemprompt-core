@@ -5,18 +5,27 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::super::git_spec;
-use super::{GitTreeReader, require_matching_files};
+use super::{GitTreeRead, GitTreeReader, require_matching_files};
 use crate::managed::{ManagedError, ManagedRepository, Result};
 use std::collections::{BTreeMap, BTreeSet};
 use systemprompt_identifiers::{DependencyVerificationId, ManagedSourceId, UserId};
 use systemprompt_models::feedback::ContentDigest;
 use systemprompt_models::feedback::verification::{
-    DependencyVerificationManifest, DependencyVerificationRequest, VerifiedRevisionManifest,
+    DependencyVerificationInput, DependencyVerificationManifest, DependencyVerificationRequest,
+    VerifiedRevisionManifest,
 };
 
 pub struct GitVerificationService {
     managed: ManagedRepository,
     reader: std::sync::Arc<dyn GitTreeReader>,
+}
+
+#[derive(Clone, Copy)]
+struct VerificationScope<'a> {
+    owner: &'a UserId,
+    bundle: &'a crate::managed::RevisionBundle,
+    credentials: &'a BTreeMap<ManagedSourceId, String>,
+    deadline: std::time::Instant,
 }
 
 impl GitVerificationService {
@@ -38,12 +47,14 @@ impl GitVerificationService {
             return Err(ManagedError::Integrity);
         }
         let mut verified = Vec::new();
-        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(120);
+        let scope = VerificationScope {
+            owner,
+            bundle: &bundle,
+            credentials,
+            deadline: std::time::Instant::now() + std::time::Duration::from_secs(120),
+        };
         for capture in &input.revisions {
-            verified.push(
-                self.verify_revision(owner, capture, &bundle, credentials, deadline)
-                    .await?,
-            );
+            verified.push(self.verify_revision(&scope, capture).await?);
         }
         let manifest = DependencyVerificationManifest {
             id: DependencyVerificationId::generate(),
@@ -79,12 +90,15 @@ impl GitVerificationService {
 
     async fn verify_revision(
         &self,
-        owner: &UserId,
-        capture: &systemprompt_models::feedback::verification::DependencyVerificationInput,
-        bundle: &crate::managed::RevisionBundle,
-        credentials: &BTreeMap<ManagedSourceId, String>,
-        deadline: std::time::Instant,
+        scope: &VerificationScope<'_>,
+        capture: &DependencyVerificationInput,
     ) -> Result<VerifiedRevisionManifest> {
+        let VerificationScope {
+            owner,
+            bundle,
+            credentials,
+            deadline,
+        } = *scope;
         let retained_manifest = bundle
             .revisions
             .get(&capture.revision_id)
@@ -117,15 +131,15 @@ impl GitVerificationService {
         })?;
         let credential = credentials.get(&capture.source_id).cloned();
         let imported_capture = capture.clone();
-        let reader = self.reader.clone();
+        let reader = std::sync::Arc::clone(&self.reader);
         let files = tokio::task::spawn_blocking(move || {
-            reader.read(
-                &imported_capture,
-                &repository,
-                subdirectory.as_deref(),
-                credential.as_deref(),
+            reader.read(&GitTreeRead {
+                input: &imported_capture,
+                repository: &repository,
+                subdirectory: subdirectory.as_deref(),
+                credential: credential.as_deref(),
                 deadline,
-            )
+            })
         })
         .await
         .map_err(|_error| ManagedError::Integrity)??;

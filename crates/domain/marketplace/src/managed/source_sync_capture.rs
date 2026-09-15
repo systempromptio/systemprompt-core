@@ -16,15 +16,17 @@ pub struct CapturedGitSource {
     pub files: RevisionFiles,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct GitCaptureRequest<'a> {
+    pub repository: &'a str,
+    pub reference: &'a str,
+    pub subdirectory: Option<&'a str>,
+    pub root: &'a str,
+    pub credential: Option<&'a str>,
+}
+
 pub trait GitSourceCapture: Send + Sync {
-    fn capture(
-        &self,
-        repository: &str,
-        reference: &str,
-        subdirectory: Option<&str>,
-        root: &str,
-        credential: Option<&str>,
-    ) -> Result<CapturedGitSource>;
+    fn capture(&self, request: &GitCaptureRequest<'_>) -> Result<CapturedGitSource>;
 }
 
 pub struct GitSynchronizationService {
@@ -64,14 +66,14 @@ impl GitSynchronizationService {
 pub(super) struct NativeGitSourceCapture;
 
 impl GitSourceCapture for NativeGitSourceCapture {
-    fn capture(
-        &self,
-        repository: &str,
-        reference: &str,
-        subdirectory: Option<&str>,
-        root: &str,
-        credential: Option<&str>,
-    ) -> Result<CapturedGitSource> {
+    fn capture(&self, request: &GitCaptureRequest<'_>) -> Result<CapturedGitSource> {
+        let GitCaptureRequest {
+            repository,
+            reference,
+            subdirectory,
+            root,
+            credential,
+        } = *request;
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(120);
         let commit = resolve_ref(repository, reference, credential, deadline)?;
         let temp = std::env::temp_dir().join(format!(

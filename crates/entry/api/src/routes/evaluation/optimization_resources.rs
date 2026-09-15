@@ -15,7 +15,7 @@ use systemprompt_evaluation::experiments::resources::ResourceContent;
 use systemprompt_identifiers::{
     EvalBudgetId, EvalExperimentId, EvalRevisionId, ManagedSourceId, ResourceRevisionId,
 };
-use systemprompt_marketplace::managed::{RevisionBundle, SourceSpec};
+use systemprompt_marketplace::managed::{GitSourceBinding, RevisionBundle, SourceSpec};
 use systemprompt_models::feedback::verification::DependencyVerificationManifest;
 use systemprompt_runtime::AppContext;
 
@@ -274,9 +274,11 @@ async fn bind_verification_source(
         .bind_git_verification_source(
             ctx.system_admin().id(),
             actor.user_id(),
-            &input.resource_id,
-            &id,
-            &input.relative_root,
+            &GitSourceBinding {
+                resource: &input.resource_id,
+                source: &id,
+                relative_root: &input.relative_root,
+            },
         )
         .await?;
     Ok(StatusCode::NO_CONTENT)

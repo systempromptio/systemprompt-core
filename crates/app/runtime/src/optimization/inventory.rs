@@ -8,7 +8,7 @@ use super::OptimizationError;
 use crate::AppContext;
 use systemprompt_identifiers::UserId;
 use systemprompt_marketplace::inventory::{
-    BaselineCapture, BaselinePreparation, InventoryService, InventoryStatus,
+    BaselineCapture, BaselinePreparation, BaselineScope, InventoryService, InventoryStatus,
 };
 
 pub async fn refresh(
@@ -36,11 +36,13 @@ pub async fn prepare_baselines(
         .await?;
     Ok(service
         .prepare_baselines(
-            owner,
-            actor,
+            &BaselineScope {
+                owner,
+                actor,
+                root: ctx.app_paths().system().services(),
+                services: &services,
+            },
             request,
-            ctx.app_paths().system().services(),
-            &services,
         )
         .await?)
 }

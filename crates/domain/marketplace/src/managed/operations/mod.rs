@@ -31,7 +31,7 @@ pub enum ApiOperationClaim {
     Retained(ApiOperation),
 }
 impl ManagedRepository {
-    pub async fn begin_api_operation<T: Serialize>(
+    pub async fn begin_api_operation<T: Serialize + Sync>(
         &self,
         owner: &UserId,
         id: &TaskId,
@@ -75,7 +75,7 @@ impl ManagedRepository {
     pub async fn api_operation(&self, owner: &UserId, id: &TaskId) -> Result<ApiOperation> {
         Ok(sqlx::query_scalar!(r#"SELECT to_jsonb(o) AS "record!: sqlx::types::Json<ApiOperation>" FROM managed_api_operations o WHERE owner_id=$1 AND id=$2"#,owner.as_str(),id.as_str()).fetch_optional(&self.pool).await?.ok_or(ManagedError::Unavailable)?.0)
     }
-    pub async fn checkpoint_api_input<T: Serialize + serde::de::DeserializeOwned>(
+    pub async fn checkpoint_api_input<T: Serialize + serde::de::DeserializeOwned + Sync>(
         &self,
         owner: &UserId,
         operation: &ApiOperation,
@@ -95,7 +95,7 @@ impl ManagedRepository {
             .transpose()
             .map_err(Into::into)
     }
-    pub async fn finish_api_operation<T: Serialize>(
+    pub async fn finish_api_operation<T: Serialize + Sync>(
         &self,
         owner: &UserId,
         operation: &ApiOperation,

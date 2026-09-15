@@ -13,6 +13,7 @@ mod repository;
 mod service;
 mod sources;
 mod types;
+pub(crate) use captures::IncomingRevision;
 pub use catalog::scan_configured_inventory;
 pub use service::InventoryService;
 pub use types::*;

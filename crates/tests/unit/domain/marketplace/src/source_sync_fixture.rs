@@ -5,9 +5,9 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use systemprompt_identifiers::UserId;
 use systemprompt_marketplace::managed::{
-    AssetFile, CapturedGitSource, GitSourceCapture, GitSyncRequest, GitSyncResult,
-    GitSynchronizationService, ManagedError, ManagedRepository, NewResource, PublicationAction,
-    PublicationRequest, ResourceKind, Result, RevisionFiles, SourceSpec,
+    AssetFile, CapturedGitSource, GitCaptureRequest, GitSourceCapture, GitSyncRequest,
+    GitSyncResult, GitSynchronizationService, ManagedError, ManagedRepository, NewResource,
+    PublicationAction, PublicationRequest, ResourceKind, Result, RevisionFiles, SourceSpec,
 };
 use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_db_pool, seed_user_row};
 
@@ -16,14 +16,14 @@ pub(super) struct Capture {
     pub calls: AtomicUsize,
 }
 impl GitSourceCapture for Capture {
-    fn capture(
-        &self,
-        repository: &str,
-        reference: &str,
-        subdirectory: Option<&str>,
-        root: &str,
-        credential: Option<&str>,
-    ) -> Result<CapturedGitSource> {
+    fn capture(&self, request: &GitCaptureRequest<'_>) -> Result<CapturedGitSource> {
+        let GitCaptureRequest {
+            repository,
+            reference,
+            subdirectory,
+            root,
+            credential,
+        } = *request;
         self.calls.fetch_add(1, Ordering::SeqCst);
         assert_eq!(repository, "https://git.example.com/organization.git");
         assert_eq!(reference, "refs/heads/main");
