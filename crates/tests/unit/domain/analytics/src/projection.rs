@@ -31,7 +31,10 @@ async fn isolated_projection() -> Transaction<'static, Postgres> {
         let script = script
             .replace("public.", &format!("{schema}."))
             .replace("pg_catalog, public", &format!("pg_catalog, {schema}"));
-        sqlx::raw_sql(&script).execute(&mut *tx).await.unwrap();
+        sqlx::raw_sql(sqlx::AssertSqlSafe(script))
+            .execute(&mut *tx)
+            .await
+            .unwrap();
     }
     sqlx::query("INSERT INTO users(id,name,email) VALUES ('u','u','u@example.test'), ('replacement','replacement','replacement@example.test')")
         .execute(&mut *tx).await.unwrap();

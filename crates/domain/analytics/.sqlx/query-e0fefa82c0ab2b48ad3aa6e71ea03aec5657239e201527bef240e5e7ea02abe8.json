@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE analytics_projection_state SET generation = $1::BIGINT, cutoff_revision = $2,\n             initialized = TRUE, rebuilt_at = NOW() WHERE singleton AND generation = $1::BIGINT - 1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "e0fefa82c0ab2b48ad3aa6e71ea03aec5657239e201527bef240e5e7ea02abe8"
+}

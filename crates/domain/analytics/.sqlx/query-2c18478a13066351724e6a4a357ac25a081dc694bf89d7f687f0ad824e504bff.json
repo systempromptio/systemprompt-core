@@ -1,0 +1,30 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO analytics_projection_revisions(source, entity_key, revision)\n             VALUES ($1, $2, $3)\n             ON CONFLICT(source, entity_key) DO UPDATE SET revision = EXCLUDED.revision\n             WHERE analytics_projection_revisions.revision < EXCLUDED.revision\n             RETURNING revision",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "revision",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "analytics_projection_revisions",
+            "name": "revision"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "2c18478a13066351724e6a4a357ac25a081dc694bf89d7f687f0ad824e504bff"
+}

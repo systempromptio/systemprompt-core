@@ -287,7 +287,7 @@ async fn children_arriving_before_parent_projections_survive_and_orphans_do_not_
 #[tokio::test]
 async fn nullable_log_owner_cannot_retain_a_deleted_principals_session_identity() {
     use systemprompt_identifiers::UserId;
-    use systemprompt_users::repository::UserRepository;
+    use systemprompt_users::UserRepository;
     let (admin, db, database) = fixture().await;
     let pool = db.write_pool_arc().unwrap();
     sqlx::query(
