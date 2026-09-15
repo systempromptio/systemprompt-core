@@ -38,6 +38,7 @@ fn server_yaml(name: &str, oauth_required: bool, scopes: &str) -> String {
     port: 0
     endpoint: http://127.0.0.1:1/mcp
     enabled: true
+    tool_policy: allow
     display_in_web: true
     oauth:
       required: {oauth_required}

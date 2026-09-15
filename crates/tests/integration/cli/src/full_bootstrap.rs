@@ -370,6 +370,7 @@ mcp_servers:
     package: fixture
     port: @MCP_PORT@
     enabled: true
+    tool_policy: allow
     display_in_web: true
     oauth:
       required: false

@@ -527,6 +527,7 @@ mcp_servers:
     package: fixture
     port: 5100
     enabled: true
+    tool_policy: allow
     display_in_web: true
     oauth:
       required: false
@@ -798,6 +799,7 @@ mcp_servers:
     port: 5100
     endpoint: http://localhost:8080/api/v1/mcp/fixture/mcp
     enabled: true
+    tool_policy: allow
     display_in_web: false
     oauth:
       required: false

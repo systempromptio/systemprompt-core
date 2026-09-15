@@ -19,7 +19,7 @@ fn metadata_basics() {
 fn schemas_contain_all_tables() {
     let schemas = AgentExtension.schemas();
     let table_names: Vec<String> = schemas.iter().filter_map(|s| s.table.clone()).collect();
-    assert_eq!(table_names.len(), 10);
+    assert_eq!(table_names.len(), 9);
 
     assert!(table_names.iter().any(|n| n == "user_contexts"));
     assert!(table_names.iter().any(|n| n == "agent_tasks"));
@@ -30,7 +30,12 @@ fn schemas_contain_all_tables() {
     assert!(table_names.iter().any(|n| n == "context_agents"));
     assert!(table_names.iter().any(|n| n == "context_notifications"));
     assert!(table_names.iter().any(|n| n == "task_execution_steps"));
-    assert!(table_names.iter().any(|n| n == "services"));
+    assert!(!table_names.iter().any(|n| n == "services"));
+    assert!(
+        AgentExtension
+            .cross_extension_tables()
+            .contains(&"services")
+    );
 }
 
 #[test]
