@@ -17,6 +17,7 @@
 - `ToolUsageRepository` implements `systemprompt_traits::ToolExecutionLookup`.
 - `repository::McpOwnerReassignment` implements `systemprompt_traits::OwnerReassignment` over tool executions, artifacts and MCP sessions in one transaction; session-scoped identity caches minted for the old user are deleted rather than rebound.
 - The extension installs `reporting_capture.sql` / `reporting_privacy.sql` (migration 006): the `reporting_source_mcp_tool_executions` view and transactional capture trigger feeding the analytics projections.
+- `ProxyIdentityRow::roles` persists the caller's roles with the session identity (`mcp_proxy_identities.roles`, migration 007).
 
 ### Changed
 
@@ -26,6 +27,10 @@
 - Reconciliation and start-up propagate registry-row read errors instead of treating them as "not found"; `ServiceFailed` writes the shared `error` status so crashed services are reaped.
 - Form renderers JSON-encode `submit_tool` into the page script; media, image and list renderers only render `http(s)` and `data:` media URLs (a `javascript:` source is a render error, a `javascript:` list link is dropped).
 - The registry and tool-provider seams return `McpRegistryError`; `McpServerState` carries a `McpServerId` and a `McpServerStatus`.
+
+### Fixed
+
+- Proxy-verified requests read `x-user-roles` and evaluate the authz hook with the caller's roles, client id and act chain instead of an empty subject.
 
 ### Removed
 

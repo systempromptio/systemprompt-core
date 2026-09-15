@@ -94,6 +94,8 @@ impl InjectContextHeaders for RequestContext {
             insert_header(hdrs, headers::PROXY_VERIFIED, "true");
             let perms = crate::auth::permissions_to_string(&user.permissions);
             insert_header(hdrs, headers::USER_PERMISSIONS, &perms);
+            let roles = crate::auth::roles_to_string(&user.roles);
+            insert_header(hdrs, headers::USER_ROLES, &roles);
         }
     }
 }
@@ -164,11 +166,15 @@ fn apply_proxy_verified_user(
         .as_str()
         .parse::<uuid::Uuid>()
         .map_err(|e| invalid_header(headers::USER_ID, format!("invalid UUID: {e}")))?;
-    let user = crate::auth::AuthenticatedUser::new(
+    let roles = header_str(hdrs, headers::USER_ROLES)
+        .map(crate::auth::parse_roles)
+        .unwrap_or_default();
+    let user = crate::auth::AuthenticatedUser::new_with_roles(
         user_id_uuid,
         String::new(),
         String::new(),
         permissions,
+        roles,
     );
     ctx = ctx.with_user(user);
     Ok(ctx)

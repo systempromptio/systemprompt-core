@@ -169,3 +169,11 @@ pub fn permissions_to_string(permissions: &[Permission]) -> String {
 pub fn parse_permissions(s: &str) -> Result<Vec<Permission>, ParseEnumError> {
     s.split_whitespace().map(Permission::from_str).collect()
 }
+
+pub fn roles_to_string(roles: &[String]) -> String {
+    roles.join(" ")
+}
+
+pub fn parse_roles(s: &str) -> Vec<String> {
+    s.split_whitespace().map(str::to_owned).collect()
+}

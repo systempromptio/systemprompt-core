@@ -22,6 +22,7 @@ pub struct ProxyIdentityRow {
     pub user_id: UserId,
     pub user_type: UserType,
     pub permissions: Vec<Permission>,
+    pub roles: Vec<String>,
     pub auth_token: JwtToken,
 }
 
@@ -44,15 +45,17 @@ impl McpProxyIdentityRepository {
         identity: &ProxyIdentityRow,
     ) -> McpDomainResult<()> {
         let permissions = serde_json::to_value(&identity.permissions)?;
+        let roles = serde_json::to_value(&identity.roles)?;
         sqlx::query!(
             r#"
             INSERT INTO mcp_proxy_identities
-                (session_id, user_id, user_type, permissions, auth_token)
-            VALUES ($1, $2, $3, $4, $5)
+                (session_id, user_id, user_type, permissions, roles, auth_token)
+            VALUES ($1, $2, $3, $4, $5, $6)
             ON CONFLICT (session_id) DO UPDATE SET
                 user_id = EXCLUDED.user_id,
                 user_type = EXCLUDED.user_type,
                 permissions = EXCLUDED.permissions,
+                roles = EXCLUDED.roles,
                 auth_token = EXCLUDED.auth_token,
                 expires_at = NOW() + INTERVAL '24 hours'
             "#,
@@ -60,6 +63,7 @@ impl McpProxyIdentityRepository {
             identity.user_id.as_str(),
             identity.user_type.as_str(),
             permissions,
+            roles,
             identity.auth_token.as_str(),
         )
         .execute(&*self.write_pool)
@@ -74,6 +78,7 @@ impl McpProxyIdentityRepository {
                 user_id as "user_id!: UserId",
                 user_type,
                 permissions,
+                roles,
                 auth_token
             FROM mcp_proxy_identities
             WHERE session_id = $1
@@ -88,10 +93,12 @@ impl McpProxyIdentityRepository {
             let user_type = UserType::from_str(&r.user_type)
                 .map_err(|e| McpDomainError::Validation(e.to_string()))?;
             let permissions: Vec<Permission> = serde_json::from_value(r.permissions)?;
+            let roles: Vec<String> = serde_json::from_value(r.roles)?;
             Ok(ProxyIdentityRow {
                 user_id: r.user_id,
                 user_type,
                 permissions,
+                roles,
                 auth_token: JwtToken::new(r.auth_token),
             })
         })

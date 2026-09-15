@@ -89,11 +89,12 @@ fn blank_context_id_header_mints_a_fresh_context() {
 
 #[test]
 fn proxy_verified_user_round_trips_permissions() {
-    let user = AuthenticatedUser::new(
+    let user = AuthenticatedUser::new_with_roles(
         uuid::Uuid::new_v4(),
         "u".to_owned(),
         "u@example.com".to_owned(),
         vec![Permission::Admin, Permission::Mcp],
+        vec!["admin".to_owned(), "analyst".to_owned()],
     );
     let user_id = user.id;
     let ctx = base_context().with_user(user);
@@ -110,6 +111,10 @@ fn proxy_verified_user_round_trips_permissions() {
             .unwrap(),
         "admin mcp"
     );
+    assert_eq!(
+        hdrs.get(headers::USER_ROLES).unwrap().to_str().unwrap(),
+        "admin analyst"
+    );
 
     let restored = RequestContext::from_headers(&hdrs).unwrap();
     assert!(restored.is_authenticated());
@@ -119,6 +124,23 @@ fn proxy_verified_user_round_trips_permissions() {
         restored_user.permissions,
         vec![Permission::Admin, Permission::Mcp]
     );
+    assert_eq!(restored_user.roles, vec!["admin", "analyst"]);
+}
+
+#[test]
+fn proxy_verified_without_a_roles_header_carries_no_roles() {
+    let user = AuthenticatedUser::new_with_roles(
+        uuid::Uuid::new_v4(),
+        "u".to_owned(),
+        "u@example.com".to_owned(),
+        vec![Permission::Mcp],
+        vec!["admin".to_owned()],
+    );
+    let mut hdrs = base_context().with_user(user).to_headers();
+    hdrs.remove(headers::USER_ROLES);
+    let restored = RequestContext::from_headers(&hdrs).unwrap();
+    let restored_user = restored.user.expect("proxy-verified user reconstructed");
+    assert!(restored_user.roles.is_empty());
 }
 
 #[test]

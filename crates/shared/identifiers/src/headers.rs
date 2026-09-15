@@ -21,3 +21,4 @@ pub const INFERENCE_PROTOCOL: &str = "x-inference-protocol";
 pub const AUTHORIZATION: &str = "authorization";
 pub const PROXY_VERIFIED: &str = "x-proxy-verified";
 pub const USER_PERMISSIONS: &str = "x-user-permissions";
+pub const USER_ROLES: &str = "x-user-roles";

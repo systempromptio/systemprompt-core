@@ -19,6 +19,7 @@ fn row(token: &str) -> ProxyIdentityRow {
         user_id: UserId::new(uuid::Uuid::new_v4().to_string()),
         user_type: UserType::Admin,
         permissions: vec![Permission::Admin, Permission::HookGovern],
+        roles: vec!["admin".to_owned()],
         auth_token: JwtToken::new(token),
     }
 }
@@ -45,6 +46,7 @@ async fn upsert_then_find_round_trips_the_identity() {
     assert_eq!(found.user_id, identity.user_id);
     assert_eq!(found.user_type, UserType::Admin);
     assert_eq!(found.permissions, identity.permissions);
+    assert_eq!(found.roles, identity.roles);
     assert_eq!(found.auth_token.as_str(), "tok-1");
 }
 

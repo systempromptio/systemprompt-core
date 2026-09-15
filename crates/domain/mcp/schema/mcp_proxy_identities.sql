@@ -3,6 +3,7 @@ CREATE TABLE IF NOT EXISTS mcp_proxy_identities (
     user_id VARCHAR(255) NOT NULL,
     user_type TEXT NOT NULL,
     permissions JSONB NOT NULL,
+    roles JSONB NOT NULL DEFAULT '[]'::jsonb,
     auth_token TEXT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     expires_at TIMESTAMPTZ NOT NULL DEFAULT (CURRENT_TIMESTAMP + INTERVAL '24 hours')
