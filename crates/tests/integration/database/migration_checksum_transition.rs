@@ -169,8 +169,13 @@ async fn concurrent_history_replacement_rolls_back_earlier_conversions() {
     historical_row(&f, 7, first.sql).await;
     historical_row(&f, 8, second.sql).await;
     let mut writer = f.pool.begin().await.unwrap();
-    query("UPDATE extension_migrations SET checksum='concurrent-edit' WHERE extension_id=$1 AND version=8")
-        .bind(f.ext_id).execute(&mut *writer).await.unwrap();
+    query(
+        "SELECT version FROM extension_migrations WHERE extension_id=$1 AND version=8 FOR UPDATE",
+    )
+    .bind(f.ext_id)
+    .fetch_one(&mut *writer)
+    .await
+    .unwrap();
     let db = f.db.clone();
     let mut runner = tokio::spawn(async move {
         MigrationService::new(db.write())
@@ -192,6 +197,8 @@ async fn concurrent_history_replacement_rolls_back_earlier_conversions() {
             tokio::time::sleep(std::time::Duration::from_millis(10)).await;
         }
     }).await.expect("runner must reach the fenced transition");
+    query("UPDATE extension_migrations SET checksum='concurrent-edit' WHERE extension_id=$1 AND version=8")
+        .bind(f.ext_id).execute(&mut *writer).await.unwrap();
     writer.commit().await.unwrap();
     let error = tokio::time::timeout(std::time::Duration::from_secs(10), &mut runner)
         .await
