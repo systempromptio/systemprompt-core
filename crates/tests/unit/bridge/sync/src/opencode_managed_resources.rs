@@ -3,8 +3,8 @@ use std::path::{Path, PathBuf};
 
 use systemprompt_bridge::gateway::GatewayClient;
 use systemprompt_bridge::gateway::manifest::{
-    MANIFEST_SCHEMA_VERSION, ManagedMcpServer, ManifestMarketplace, SignedManifest, SkillEntry,
-    ValidatedUrl,
+    MANIFEST_SCHEMA_VERSION, ManagedMcpServer, ManifestMarketplace, PluginEntry, SignedManifest,
+    SkillEntry, ValidatedUrl,
 };
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
 use systemprompt_bridge::host_sync::{ApplyError, HostSync, HostSyncCtx};
@@ -16,6 +16,7 @@ use systemprompt_test_fixtures::fixture_user_id;
 struct Sandbox {
     config: PathBuf,
     skills: PathBuf,
+    hook_plugin: PathBuf,
 }
 
 fn with_sandbox<R>(body: impl FnOnce(&Sandbox) -> R) -> R {
@@ -24,6 +25,10 @@ fn with_sandbox<R>(body: impl FnOnce(&Sandbox) -> R) -> R {
     let sb = Sandbox {
         config: config_home.join("opencode").join("opencode.json"),
         skills: config_home.join("opencode").join("skills"),
+        hook_plugin: config_home
+            .join("opencode")
+            .join("plugin")
+            .join("systemprompt-hooks.js"),
     };
     let bridge_dir = config_home.join("systemprompt");
     std::fs::create_dir_all(&bridge_dir).expect("bridge config dir");
@@ -381,5 +386,64 @@ fn the_managed_sidecar_records_which_marketplaces_the_skills_came_from() {
             "{sidecar}"
         );
         assert_eq!(sidecar["ids"], serde_json::json!(["review"]), "{sidecar}");
+    });
+}
+
+fn governance_plugin(id: &str) -> PluginEntry {
+    PluginEntry {
+        id: systemprompt_bridge::ids::PluginId::try_new(id).unwrap(),
+        version: "1.0.0".into(),
+        sha256: Sha256Digest::try_new("0".repeat(64)).unwrap(),
+        files: vec![],
+        hooks: systemprompt_models::services::PluginHooksRef {
+            governance: true,
+            comms: false,
+            include: vec![],
+        },
+    }
+}
+
+#[test]
+fn the_governance_owner_gets_an_opencode_hook_plugin_with_a_scoped_token() {
+    with_sandbox(|sb| {
+        let mut owned = skill("code_review", "review\n");
+        owned.plugins = vec![systemprompt_bridge::ids::PluginId::try_new("astound-dev").unwrap()];
+        let mut m = manifest_with(vec![owned, skill("who_am_i", "who\n")], vec![]);
+        m.plugins = vec![governance_plugin("astound-commons")];
+        apply(&m, &sb.skills).unwrap();
+        let body = fs::read_to_string(&sb.hook_plugin).unwrap();
+        let expected_token = LOOPBACK
+            .hook_bearer(&systemprompt_bridge::ids::PluginId::try_new("astound-commons").unwrap())
+            .unwrap();
+        assert!(body.contains(&format!(
+            "{}/api/public/hooks/track?plugin_id=astound-commons",
+            LOOPBACK.origin()
+        )));
+        assert!(body.contains(&expected_token));
+        assert!(
+            !body.contains("loopback-secret-value"),
+            "the raw loopback secret must never reach the plugin file"
+        );
+        assert!(body.contains("\"code-review\":\"astound-dev:code-review\""));
+        assert!(body.contains("\"who-am-i\":\"opencode:who-am-i\""));
+        assert!(body.contains("\"tool.execute.after\""));
+        let first = fs::read(&sb.hook_plugin).unwrap();
+        apply(&m, &sb.skills).unwrap();
+        assert_eq!(fs::read(&sb.hook_plugin).unwrap(), first);
+    });
+}
+
+#[test]
+fn no_governance_owner_means_no_hook_plugin_and_clear_removes_it() {
+    with_sandbox(|sb| {
+        let mut m = manifest_with(vec![skill("one", "1\n")], vec![]);
+        m.plugins = vec![governance_plugin("astound-commons")];
+        apply(&m, &sb.skills).unwrap();
+        assert!(sb.hook_plugin.exists());
+        clear(&sb.skills).unwrap();
+        assert!(!sb.hook_plugin.exists());
+        let without_owner = manifest_with(vec![skill("one", "1\n")], vec![]);
+        apply(&without_owner, &sb.skills).unwrap();
+        assert!(!sb.hook_plugin.exists());
     });
 }
