@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT path,base_digest,candidate_digest,incoming_digest,resolution FROM managed_reconciliation_conflicts WHERE reconciliation_id=$1 ORDER BY path",
+  "query": "SELECT path,base_digest,candidate_digest,incoming_digest,resolution AS \"resolution?: ConflictResolution\" FROM managed_reconciliation_conflicts WHERE reconciliation_id=$1 ORDER BY path",
   "describe": {
     "columns": [
       {
@@ -49,7 +49,7 @@
       },
       {
         "ordinal": 4,
-        "name": "resolution",
+        "name": "resolution?: ConflictResolution",
         "type_info": "Text",
         "origin": {
           "Table": {
@@ -72,5 +72,5 @@
       true
     ]
   },
-  "hash": "f4ad2234a29378331bb908291c693f5439d279f7891a3813aaf6232a6ac326bb"
+  "hash": "dbccf7aaf87bf7540b6181c21cbd4fa12e1b03ffd3fed7d4bdf54e8bd5f8bd20"
 }

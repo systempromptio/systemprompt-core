@@ -1,11 +1,11 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT status,error,outbox_id,publication_id,generation FROM managed_distribution_deliveries WHERE id=$1 AND owner_id=$2 AND claim_token=$3 FOR UPDATE",
+  "query": "SELECT status AS \"status: DistributionState\",error,outbox_id,publication_id,generation FROM managed_distribution_deliveries WHERE id=$1 AND owner_id=$2 AND claim_token=$3 FOR UPDATE",
   "describe": {
     "columns": [
       {
         "ordinal": 0,
-        "name": "status",
+        "name": "status: DistributionState",
         "type_info": "Text",
         "origin": {
           "Table": {
@@ -74,5 +74,5 @@
       false
     ]
   },
-  "hash": "82ce7873f51728d5313f75826fc5e5615b6466a8efd41ffe854555e7fdadcea6"
+  "hash": "a66e6b3b84f6e17643fdd76d588958f08adb893e2b8a3e89e4970e6e733ce71e"
 }

@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id,upstream_base_revision_id,status,resolved_revision_id FROM managed_reconciliations WHERE owner_id=$1 AND resource_id=$2 AND managed_candidate_revision_id=$3 AND incoming_revision_id=$4 FOR UPDATE",
+  "query": "SELECT id,upstream_base_revision_id,status AS \"status: ReconciliationStatus\",resolved_revision_id FROM managed_reconciliations WHERE owner_id=$1 AND resource_id=$2 AND managed_candidate_revision_id=$3 AND incoming_revision_id=$4 FOR UPDATE",
   "describe": {
     "columns": [
       {
@@ -27,7 +27,7 @@
       },
       {
         "ordinal": 2,
-        "name": "status",
+        "name": "status: ReconciliationStatus",
         "type_info": "Text",
         "origin": {
           "Table": {
@@ -63,5 +63,5 @@
       true
     ]
   },
-  "hash": "a649c25832c96289cc8c002fb8e592828a19311b1bc2a370235f5525af8046d6"
+  "hash": "e83f857bba5c78eaa98d5572f586d0f4d764cff17855c838d3174b294b52a75e"
 }

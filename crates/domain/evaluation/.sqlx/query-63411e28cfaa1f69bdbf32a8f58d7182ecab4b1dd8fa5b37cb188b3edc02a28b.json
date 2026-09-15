@@ -1,19 +1,17 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT EXISTS(SELECT 1 FROM ai_requests WHERE id=$1 AND user_id=$2 AND session_id=$3 AND status='pending')",
+  "query": "SELECT EXISTS(SELECT 1 FROM eval_session_bindings WHERE session_id=$1) AS \"exists!\"",
   "describe": {
     "columns": [
       {
         "ordinal": 0,
-        "name": "exists",
+        "name": "exists!",
         "type_info": "Bool",
         "origin": "Expression"
       }
     ],
     "parameters": {
       "Left": [
-        "Text",
-        "Text",
         "Text"
       ]
     },
@@ -21,5 +19,5 @@
       null
     ]
   },
-  "hash": "fe18d84e514fb56616a36b2b839d3ce964291006642f0e7d8e1ef7f4986b9f9d"
+  "hash": "63411e28cfaa1f69bdbf32a8f58d7182ecab4b1dd8fa5b37cb188b3edc02a28b"
 }

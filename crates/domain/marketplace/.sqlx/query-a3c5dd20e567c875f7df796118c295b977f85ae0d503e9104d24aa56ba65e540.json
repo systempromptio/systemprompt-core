@@ -1,11 +1,11 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id,resource_id,snapshot_id,reason,status,created_at,decided_by,decided_at FROM managed_withdrawal_proposals WHERE owner_id=$1 ORDER BY created_at DESC LIMIT 100",
+  "query": "SELECT id AS \"id: WithdrawalProposalId\",resource_id AS \"resource_id: ManagedResourceId\",snapshot_id AS \"snapshot_id: SourceSnapshotId\",reason,status AS \"status: WithdrawalStatus\",created_at,decided_by AS \"decided_by?: UserId\",decided_at FROM managed_withdrawal_proposals WHERE owner_id=$1 ORDER BY created_at DESC LIMIT 100",
   "describe": {
     "columns": [
       {
         "ordinal": 0,
-        "name": "id",
+        "name": "id: WithdrawalProposalId",
         "type_info": "Text",
         "origin": {
           "Table": {
@@ -16,7 +16,7 @@
       },
       {
         "ordinal": 1,
-        "name": "resource_id",
+        "name": "resource_id: ManagedResourceId",
         "type_info": "Text",
         "origin": {
           "Table": {
@@ -27,7 +27,7 @@
       },
       {
         "ordinal": 2,
-        "name": "snapshot_id",
+        "name": "snapshot_id: SourceSnapshotId",
         "type_info": "Text",
         "origin": {
           "Table": {
@@ -49,7 +49,7 @@
       },
       {
         "ordinal": 4,
-        "name": "status",
+        "name": "status: WithdrawalStatus",
         "type_info": "Text",
         "origin": {
           "Table": {
@@ -71,7 +71,7 @@
       },
       {
         "ordinal": 6,
-        "name": "decided_by",
+        "name": "decided_by?: UserId",
         "type_info": "Text",
         "origin": {
           "Table": {
@@ -108,5 +108,5 @@
       true
     ]
   },
-  "hash": "9c9cfaa86b4b1be0af33fd356eb234fc242f30c466e8e26d545bc3a8ce05ff84"
+  "hash": "a3c5dd20e567c875f7df796118c295b977f85ae0d503e9104d24aa56ba65e540"
 }

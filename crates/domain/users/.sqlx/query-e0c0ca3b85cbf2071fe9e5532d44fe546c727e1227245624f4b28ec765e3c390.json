@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT user_id as \"user_id?: UserId\"\n        FROM user_sessions\n        WHERE session_id = $1 AND revoked_at IS NULL\n        ",
+  "query": "\n        SELECT user_id as \"user_id?: UserId\"\n        FROM user_sessions\n        WHERE session_id = $1 AND revoked_at IS NULL AND expires_at > CURRENT_TIMESTAMP\n        ",
   "describe": {
     "columns": [
       {
@@ -24,5 +24,5 @@
       true
     ]
   },
-  "hash": "3a34d464ec7a99eb39432590c8ed0fb36b454476e144f81fda2e1cbb1c057899"
+  "hash": "e0c0ca3b85cbf2071fe9e5532d44fe546c727e1227245624f4b28ec765e3c390"
 }
