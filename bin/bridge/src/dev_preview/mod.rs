@@ -118,11 +118,14 @@ fn route(path: &str, query: &str, opts: &Options) -> (&'static str, &'static str
                 |json| ("200 OK", "application/json", json.into_bytes()),
             )
         },
-        "/dev/fixtures" => (
-            "200 OK",
-            "application/json",
-            serde_json::to_vec(&fixtures::names(&opts.web_root)).unwrap_or_default(),
-        ),
+        "/dev/fixtures" => match serde_json::to_vec(&fixtures::names(&opts.web_root)) {
+            Ok(body) => ("200 OK", "application/json", body),
+            Err(e) => (
+                "500 Internal Server Error",
+                "text/plain",
+                format!("fixture index encode failed: {e}").into_bytes(),
+            ),
+        },
         _ => serve_file(path, opts),
     }
 }

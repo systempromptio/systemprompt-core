@@ -36,7 +36,7 @@ pub async fn execute_with_pool(
     _config: &CliConfig,
 ) -> Result<CommandOutput> {
     let repo = ContentRepository::new(pool)?;
-    let locale = LocaleCode::new("en");
+    let locale = LocaleCode::english();
 
     let content = resolve_content(&repo, &args, &locale).await?;
 

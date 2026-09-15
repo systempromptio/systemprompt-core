@@ -1,8 +1,5 @@
 use systemprompt_bridge::ids::PinnedPubKey;
-use systemprompt_bridge::install::{
-    CredentialsOutcome, InstallOptions, InstallOptionsBuilder, ManagedProfileOutcome,
-    ScheduleRemoval, UninstallSummaryBuilder,
-};
+use systemprompt_bridge::install::{InstallOptions, InstallOptionsBuilder};
 use systemprompt_bridge::schedule::Os;
 use systemprompt_identifiers::ValidatedUrl;
 
@@ -46,7 +43,7 @@ fn emit_schedule_template_setter_sets_field() {
 
 #[test]
 fn gateway_url_setter_sets_field() {
-    let url = ValidatedUrl::new("https://gw.example.com");
+    let url = ValidatedUrl::try_new("https://gw.example.com").expect("valid ValidatedUrl");
     let opts = InstallOptions::builder().gateway_url(url).build();
     assert_eq!(
         opts.gateway_url.as_ref().map(ValidatedUrl::as_str),
@@ -82,7 +79,7 @@ fn all_setters_chain_together() {
     let opts = InstallOptions::builder()
         .print_mdm(Os::Windows)
         .emit_schedule_template(Os::Mac)
-        .gateway_url(ValidatedUrl::new("https://gw.example.com"))
+        .gateway_url(ValidatedUrl::try_new("https://gw.example.com").expect("valid ValidatedUrl"))
         .pubkey(PinnedPubKey::new("base64data"))
         .apply(true)
         .apply_mobileconfig(true)
@@ -107,43 +104,4 @@ fn all_setters_chain_together() {
 fn apply_schedule_setter_sets_field() {
     let opts = InstallOptions::builder().apply_schedule(true).build();
     assert!(opts.apply_schedule);
-}
-
-#[test]
-fn uninstall_summary_builder_defaults() {
-    let summary = UninstallSummaryBuilder::new().build();
-    assert!(summary.metadata_removed.is_none());
-    assert!(summary.metadata_already_clean.is_none());
-    assert!(matches!(
-        summary.managed_profile,
-        ManagedProfileOutcome::NotApplicable
-    ));
-    assert!(matches!(summary.credentials, CredentialsOutcome::Kept));
-}
-
-#[test]
-fn uninstall_summary_builder_chains_setters() {
-    let summary = UninstallSummaryBuilder::new()
-        .metadata_removed(std::path::PathBuf::from("/x"))
-        .metadata_already_clean(std::path::PathBuf::from("/y"))
-        .managed_profile(ManagedProfileOutcome::Removed("profile-id"))
-        .credentials(CredentialsOutcome::Purged(std::path::PathBuf::from(
-            "/creds",
-        )))
-        .schedule(ScheduleRemoval::Removed("job".into()))
-        .build();
-    assert_eq!(
-        summary.metadata_removed,
-        Some(std::path::PathBuf::from("/x"))
-    );
-    assert_eq!(
-        summary.metadata_already_clean,
-        Some(std::path::PathBuf::from("/y"))
-    );
-    assert!(matches!(
-        summary.managed_profile,
-        ManagedProfileOutcome::Removed("profile-id")
-    ));
-    assert!(matches!(summary.credentials, CredentialsOutcome::Purged(_)));
-    assert!(matches!(summary.schedule, ScheduleRemoval::Removed(_)));
 }

@@ -108,6 +108,7 @@ impl A2AEventBuilder {
         task_id: TaskId,
         context_id: ContextId,
         agent_name: String,
+        // JSON: A2A `Message` input as sent by the client.
         input: Option<serde_json::Value>,
     ) -> A2AEvent {
         A2AEvent::TaskSubmitted {
@@ -192,6 +193,7 @@ impl A2AEventBuilder {
         }
     }
 
+    // JSON: A2A JSON-RPC 2.0 envelope (`id` may be a string or a number).
     pub fn json_rpc_response(id: serde_json::Value, result: serde_json::Value) -> A2AEvent {
         A2AEvent::JsonRpcResponse {
             timestamp: Utc::now(),

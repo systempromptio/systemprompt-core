@@ -5,9 +5,8 @@
 //! or IPv4-mapped IPv6).
 
 use proptest::prelude::*;
-use systemprompt_models::net::{
-    GuardedClientConfig, OutboundUrlError, is_blocked_ip, validate_outbound_url,
-};
+use systemprompt_client::GuardedClientConfig;
+use systemprompt_models::net::{OutboundUrlError, is_blocked_ip, validate_outbound_url};
 
 fn blocked_ipv4() -> impl Strategy<Value = (u8, u8, u8, u8)> {
     prop_oneof![

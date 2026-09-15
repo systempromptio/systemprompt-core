@@ -13,8 +13,8 @@ fn ctx() -> RequestContext {
     RequestContext::new(
         SessionId::new("sess-1"),
         TraceId::new("trace-1"),
-        ContextId::new_unchecked(CTX),
-        AgentName::new("agent_one"),
+        ContextId::try_new(CTX).expect("valid ContextId"),
+        AgentName::try_new("agent_one").expect("valid AgentName"),
     )
 }
 

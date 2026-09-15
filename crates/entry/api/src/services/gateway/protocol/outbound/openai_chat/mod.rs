@@ -60,7 +60,8 @@ impl OutboundAdapter for OpenAiChatOutbound {
 
         if ctx.request.stream {
             let stream = upstream_response.bytes_stream();
-            let event_stream = codec::sse_to_canonical_events(stream, ctx.request.model.clone());
+            let event_stream =
+                codec::sse_to_canonical_events(stream, ctx.request.model.to_string());
             return Ok(OutboundOutcome::Streaming(event_stream));
         }
 
@@ -78,7 +79,7 @@ impl OutboundAdapter for OpenAiChatOutbound {
                 &bytes,
             ));
         }
-        let canon = codec::parse_response(&value, &ctx.request.model).map_err(|e| {
+        let canon = codec::parse_response(&value, ctx.request.model.as_str()).map_err(|e| {
             super::reject_unparsable_body(ctx.route.provider.as_str(), "openai-chat", &e, &bytes)
         })?;
         Ok(OutboundOutcome::Buffered(Box::new(canon)))

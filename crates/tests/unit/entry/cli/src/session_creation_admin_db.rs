@@ -218,7 +218,7 @@ mod tenant_fallback {
         CloudCredentials::new(
             CloudAuthToken::new("tok"),
             "https://cloud.invalid".to_owned(),
-            Email::new(email),
+            Email::try_new(email).expect("valid Email"),
         )
     }
 

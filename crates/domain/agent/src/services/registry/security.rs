@@ -15,34 +15,6 @@ type SecurityConfig = (
     Option<Vec<HashMap<String, Vec<String>>>>,
 );
 
-pub fn convert_json_security_to_struct(
-    security_schemes: Option<&serde_json::Value>,
-    security: Option<&Vec<serde_json::Value>>,
-) -> SecurityConfig {
-    let schemes = security_schemes.and_then(|schemes_json| {
-        serde_json::from_value::<HashMap<String, SecurityScheme>>(schemes_json.clone())
-            .map_err(|e| {
-                tracing::warn!(error = %e, "Failed to parse security schemes JSON");
-                e
-            })
-            .ok()
-    });
-
-    let security_reqs = security.and_then(|sec_vec| {
-        let reqs: Result<Vec<HashMap<String, Vec<String>>>, _> = sec_vec
-            .iter()
-            .map(|v| serde_json::from_value::<HashMap<String, Vec<String>>>(v.clone()))
-            .collect();
-        reqs.map_err(|e| {
-            tracing::warn!(error = %e, "Failed to parse security requirements JSON");
-            e
-        })
-        .ok()
-    });
-
-    (schemes, security_reqs)
-}
-
 pub fn oauth_to_security_config(
     oauth: &AgentOAuthConfig,
     api_external_url: &str,

@@ -71,7 +71,7 @@ struct StagedJob {
 }
 
 #[derive(Debug, thiserror::Error)]
-pub(crate) enum ElevateError {
+pub enum ElevateError {
     #[error("{action} {path}: {source}")]
     Io {
         action: &'static str,
@@ -81,6 +81,8 @@ pub(crate) enum ElevateError {
     },
     #[error("staged registry profile contained no policy values")]
     NoPolicyValues,
+    #[error(transparent)]
+    RegLine(crate::install::reg_values::RegLineError),
     #[error("policy: {0}")]
     Policy(#[source] crate::config::store::ConfigStoreError),
     #[error("spawn icacls: {0}")]

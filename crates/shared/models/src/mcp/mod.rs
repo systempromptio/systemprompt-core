@@ -36,7 +36,7 @@ pub use deployment::{
 pub use registry::RegistryConfig;
 pub use registry_trait::{
     DynMcpDeploymentProvider, DynMcpRegistry, DynMcpToolProvider, McpDeploymentProvider,
-    McpProvider, McpRegistry, McpServerState, McpToolProvider,
+    McpRegistry, McpServerState, McpServerStatus, McpToolProvider,
 };
 pub use server::{ERROR, McpAuthState, McpServerConfig, RUNNING, STARTING, STOPPED};
 pub use tool_result_metadata::McpToolResultMetadata;

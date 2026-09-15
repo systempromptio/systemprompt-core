@@ -10,13 +10,14 @@ use std::sync::{Arc, OnceLock};
 
 use anyhow::Result;
 use systemprompt_analytics::{AnalyticsService, FingerprintRepository};
+use systemprompt_config::paths::AppPaths;
 use systemprompt_database::DbPool;
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_marketplace::{AllowAllFilter, MarketplaceFilter};
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::config::RateLimitConfig;
 use systemprompt_models::profile::{ContentNegotiationConfig, PathsConfig, SecurityHeadersConfig};
-use systemprompt_models::{AppPaths, Config, RouteClassifier};
+use systemprompt_models::{Config, RouteClassifier};
 use systemprompt_runtime::{
     AppContext, ConfigPlane, DataPlane, ModuleApiRegistry, Plugins, Subsystems,
 };
@@ -95,9 +96,7 @@ pub fn fixture_config(database_url: &str) -> Config {
         trusted_proxies: vec![],
         is_cloud: false,
         system_admin_username: "admin".to_string(),
-        system_admin_email: Some(systemprompt_identifiers::Email::new(
-            "admin@localhost.localdomain",
-        )),
+        system_admin_email: Some(systemprompt_identifiers::Email::local_admin()),
         content_negotiation: ContentNegotiationConfig::default(),
         security_headers: SecurityHeadersConfig::default(),
         allow_registration: false,

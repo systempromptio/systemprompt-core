@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::path::Path;
 
+use systemprompt_bridge::ids::LoopbackSecret;
 use systemprompt_bridge::integration::host_app::{
     AppInstallState, ConfigFormat, HostApp, HostKind, ProbeEnv, ProfileGenInputs, ProfileState,
     StaleReason,
@@ -11,9 +12,19 @@ use tempfile::TempDir;
 fn probe_env() -> ProbeEnv {
     ProbeEnv {
         proxy_port: systemprompt_bridge::proxy::DEFAULT_PROXY_PORT,
-        loopback_secret_fingerprint: None,
+        loopback_secret: None,
         start_menu: std::sync::Arc::default(),
     }
+}
+
+fn write_bridge_config(config_home: &Path, managed_dir: &Path) {
+    let dir = config_home.join("systemprompt");
+    std::fs::create_dir_all(&dir).expect("bridge config dir");
+    std::fs::write(
+        dir.join("systemprompt-bridge.toml"),
+        format!("[opencode]\nmanaged_dir = '{}'\n", managed_dir.display()),
+    )
+    .expect("bridge config");
 }
 
 fn sandbox<R>(managed_json: Option<&str>, f: impl FnOnce(&Path) -> R) -> R {
@@ -23,6 +34,7 @@ fn sandbox<R>(managed_json: Option<&str>, f: impl FnOnce(&Path) -> R) -> R {
     if let Some(body) = managed_json {
         std::fs::write(managed.join("opencode.json"), body).expect("seed managed config");
     }
+    write_bridge_config(&root.path().join("config"), &managed);
     let vars: Vec<(&str, Option<String>)> = vec![
         ("HOME", Some(root.path().display().to_string())),
         (
@@ -33,10 +45,7 @@ fn sandbox<R>(managed_json: Option<&str>, f: impl FnOnce(&Path) -> R) -> R {
             "XDG_DATA_HOME",
             Some(root.path().join("data").display().to_string()),
         ),
-        (
-            "SP_BRIDGE_OPENCODE_MANAGED_DIR",
-            Some(managed.display().to_string()),
-        ),
+        ("SP_BRIDGE_CONFIG", None),
         ("PATH", Some(root.path().join("bin").display().to_string())),
     ];
     let out = temp_env::with_vars(vars, || f(root.path()));
@@ -152,12 +161,17 @@ fn a_stale_loopback_port_is_reported_as_stale() {
 }
 
 #[test]
-fn a_malformed_managed_config_falls_back_to_an_empty_read() {
+fn a_malformed_managed_config_is_unverifiable_not_absent() {
     let snapshot = sandbox(Some("{ this is [not json"), |_| {
         OPENCODE_HOST.probe(&probe_env())
     });
-    assert!(matches!(snapshot.profile_state, ProfileState::Absent));
+    assert!(
+        matches!(&snapshot.profile_state, ProfileState::Unverifiable { reason } if reason.contains("opencode.json")),
+        "a file the probe cannot read is not an absent profile: {:?}",
+        snapshot.profile_state
+    );
     assert!(snapshot.profile_keys.is_empty());
+    assert!(snapshot.probe_error.is_some());
 }
 
 #[test]
@@ -171,7 +185,11 @@ fn a_jsonc_only_managed_dir_is_reported_as_the_source_but_never_read() {
         .expect("seed jsonc");
         OPENCODE_HOST.probe(&probe_env())
     });
-    assert!(matches!(snapshot.profile_state, ProfileState::Absent));
+    assert!(
+        matches!(snapshot.profile_state, ProfileState::Unverifiable { .. }),
+        "a jsonc tier the bridge cannot parse is reported, not read as absent: {:?}",
+        snapshot.profile_state
+    );
     assert!(
         snapshot
             .profile_source
@@ -285,12 +303,12 @@ fn generating_a_profile_carries_the_provider_block_and_the_key_marker() {
         OPENCODE_HOST
             .generate_profile(&ProfileGenInputs {
                 gateway_base_url: "http://127.0.0.1:48217/".to_owned(),
-                api_key: "loopback-secret-value".to_owned(),
+                api_key: LoopbackSecret::new("loopback-secret-value"),
                 models: vec!["claude-sonnet-5".to_owned(), "gpt-4.1".to_owned()],
                 default_model: None,
                 organization_uuid: None,
                 headers,
-                mcp_servers: Vec::new(),
+                mcp_servers: Some(Vec::new()),
             })
             .expect("profile generated")
     });

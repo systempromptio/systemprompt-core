@@ -23,6 +23,7 @@ use systemprompt_evaluation::repository::experiments::{
 use systemprompt_identifiers::{
     AiRequestId, EvalExecutionId, EvalRevisionId, EvalWorkerId, ModelId, ProviderId, UserId,
 };
+use systemprompt_models::managed::RevisionBundle;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fixture_db_pool};
 use uuid::Uuid;
 
@@ -67,14 +68,15 @@ fn workspace(files: &[(&str, &str)]) -> EvidenceArchive {
     }
 }
 
-fn managed_projection() -> serde_json::Value {
+fn managed_projection() -> RevisionBundle {
     let digest = "d59386e0ae435e292fbe0ebcdb954b75ed5fb3922091277cb19f798fc5d50718";
-    serde_json::json!({
+    serde_json::from_value(serde_json::json!({
         "schema_version":1,"assembler_version":"managed-bundle-v1","root":"managed-revision-1",
         "revisions":{"managed-revision-1":{"schema_version":1,"snapshot_id":"snapshot-1","parent_id":null,
             "files":{"asset.bin":{"digest":digest,"bytes":5,"media_type":"application/octet-stream","executable":true}},"dependencies":{}}},
         "assets":{(digest):b"asset"}
-    })
+    }))
+    .expect("projection is a well-formed bundle")
 }
 
 fn capabilities() -> ClientCapabilities {

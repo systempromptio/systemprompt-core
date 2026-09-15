@@ -14,13 +14,16 @@ const CONTEXT_ID: &str = "00000000-0000-4000-8000-000000000001";
 
 fn session_minted_under(issuer: &str) -> CliSession {
     CliSessionBuilder::new(
-        SessionBinding::new(ProfileName::new("local"), issuer.to_owned()),
+        SessionBinding::new(
+            ProfileName::try_new("local").expect("valid ProfileName"),
+            issuer.to_owned(),
+        ),
         SessionToken::new("token-abc"),
         SessionId::new("sid-001"),
-        ContextId::new_unchecked(CONTEXT_ID),
+        ContextId::try_new(CONTEXT_ID).expect("valid ContextId"),
         SessionIdentity::new(
             fixture_user_id(),
-            Email::new("test@example.com"),
+            Email::try_new("test@example.com").expect("valid Email"),
             UserType::Admin,
         ),
     )
@@ -167,13 +170,16 @@ fn profile_discovery_ignores_the_issuer() {
 #[test]
 fn a_builder_ttl_pins_the_entry_to_the_tokens_own_lifetime() {
     let session = CliSessionBuilder::new(
-        SessionBinding::new(ProfileName::new("local"), ISSUER.to_owned()),
+        SessionBinding::new(
+            ProfileName::try_new("local").expect("valid ProfileName"),
+            ISSUER.to_owned(),
+        ),
         SessionToken::new("token-abc"),
         SessionId::new("sid-001"),
-        ContextId::new_unchecked(CONTEXT_ID),
+        ContextId::try_new(CONTEXT_ID).expect("valid ContextId"),
         SessionIdentity::new(
             fixture_user_id(),
-            Email::new("test@example.com"),
+            Email::try_new("test@example.com").expect("valid Email"),
             UserType::Admin,
         ),
     )

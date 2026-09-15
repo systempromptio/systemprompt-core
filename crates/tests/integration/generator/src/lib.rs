@@ -7,6 +7,11 @@
 //! singleton and on-disk web/content YAML — they are not yet covered by
 //! this crate; see the track report for the gap.
 
+// Why: registry discovery validates the whole extension inventory, so the
+// binary must link the same set of extensions the runtime does.
+#[cfg(test)]
+use systemprompt_runtime as _;
+
 #[cfg(test)]
 #[path = "../build_orchestrator_e2e.rs"]
 mod build_orchestrator_e2e;

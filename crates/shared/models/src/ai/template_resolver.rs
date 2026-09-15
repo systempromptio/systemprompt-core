@@ -12,10 +12,12 @@ use super::execution_plan::{TemplateRef, ToolCallResult};
 pub struct TemplateResolver;
 
 impl TemplateResolver {
+    // JSON: MCP tool-call arguments walked for `$N.output.path` templates.
     pub fn resolve_arguments(arguments: &Value, results: &[ToolCallResult]) -> Value {
         Self::resolve_value(arguments, results)
     }
 
+    // JSON: MCP tool-call arguments walked for `$N.output.path` templates.
     fn resolve_value(value: &Value, results: &[ToolCallResult]) -> Value {
         match value {
             Value::String(s) if s.starts_with('$') && s.contains(".output.") => {
@@ -35,6 +37,7 @@ impl TemplateResolver {
         }
     }
 
+    // JSON: MCP tool-call arguments walked for `$N.output.path` templates.
     fn resolve_template(template: &str, results: &[ToolCallResult]) -> Value {
         let Some(template_ref) = TemplateRef::parse(template) else {
             return Value::String(template.to_owned());
@@ -47,6 +50,7 @@ impl TemplateResolver {
         Self::get_nested_value(&result.output, &template_ref.field_path)
     }
 
+    // JSON: MCP tool-call arguments walked for `$N.output.path` templates.
     fn get_nested_value(value: &Value, path: &[String]) -> Value {
         let mut current = value;
         for segment in path {

@@ -25,7 +25,7 @@ fn version(s: &str) -> ManifestVersion {
 
 fn last(v: &str) -> LastSyncState {
     LastSyncState {
-        last_applied_manifest_version: Some(version(v)),
+        manifest_version: Some(version(v)),
         ..LastSyncState::default()
     }
 }
@@ -141,12 +141,12 @@ fn read_last_sync_reads_new_field() {
     let path = dir.join("last-sync.json");
     fs::write(
         &path,
-        r#"{"last_applied_manifest_version":"2026-04-22T10:00:00Z-abcdef01"}"#,
+        r#"{"manifest_version":"2026-04-22T10:00:00Z-abcdef01"}"#,
     )
     .unwrap();
     let s = read_last_sync(&path).expect("valid file").expect("found");
     assert_eq!(
-        s.last_applied_manifest_version
+        s.manifest_version
             .as_ref()
             .map(ToString::to_string)
             .as_deref(),
@@ -174,11 +174,7 @@ fn read_last_sync_corrupt_file_propagates() {
 fn read_last_sync_invalid_version_format_propagates() {
     let dir = tempdir();
     let path = dir.join("bad-version.json");
-    fs::write(
-        &path,
-        r#"{"last_applied_manifest_version":"not-a-valid-version"}"#,
-    )
-    .unwrap();
+    fs::write(&path, r#"{"manifest_version":"not-a-valid-version"}"#).unwrap();
     let err = read_last_sync(&path).expect_err("invalid version must fail");
     assert!(matches!(err, ReplayStateError::Parse { .. }));
 }
@@ -187,8 +183,10 @@ fn read_last_sync_invalid_version_format_propagates() {
 // not make the new gateway's first manifest look like a replay.
 #[test]
 fn a_sentinel_from_another_gateway_does_not_belong_to_this_one() {
-    let this = systemprompt_identifiers::ValidatedUrl::new("https://gw.example.com");
-    let other = systemprompt_identifiers::ValidatedUrl::new("http://localhost:8080");
+    let this = systemprompt_identifiers::ValidatedUrl::try_new("https://gw.example.com")
+        .expect("valid ValidatedUrl");
+    let other = systemprompt_identifiers::ValidatedUrl::try_new("http://localhost:8080")
+        .expect("valid ValidatedUrl");
     let stamped = LastSyncState {
         gateway: Some(other),
         ..last("2026-04-22T10:00:00Z-abcdef01")

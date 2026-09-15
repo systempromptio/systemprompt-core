@@ -17,7 +17,7 @@ fn endpoint(active: bool, secret: Option<&str>, events: &[&str]) -> WebhookEndpo
 
 #[tokio::test]
 async fn register_get_list_remove_endpoint() -> Result<()> {
-    let svc = WebhookService::new();
+    let svc = WebhookService::new()?;
     let ep = endpoint(true, None, &["push"]);
     let id = svc.register_endpoint(ep.clone()).await?;
     let got = svc.get_endpoint(&id).await?;
@@ -43,7 +43,7 @@ async fn register_get_list_remove_endpoint() -> Result<()> {
 
 #[tokio::test]
 async fn handle_webhook_inactive_endpoint_returns_404() -> Result<()> {
-    let svc = WebhookService::new();
+    let svc = WebhookService::new()?;
     let id = svc
         .register_endpoint(endpoint(false, None, &["push"]))
         .await?;
@@ -59,7 +59,7 @@ async fn handle_webhook_inactive_endpoint_returns_404() -> Result<()> {
 
 #[tokio::test]
 async fn handle_webhook_unsubscribed_event_is_acknowledged() -> Result<()> {
-    let svc = WebhookService::new();
+    let svc = WebhookService::new()?;
     let id = svc
         .register_endpoint(endpoint(true, None, &["push"]))
         .await?;
@@ -77,7 +77,7 @@ async fn handle_webhook_unsubscribed_event_is_acknowledged() -> Result<()> {
 
 #[tokio::test]
 async fn handle_webhook_wildcard_subscription_passes() -> Result<()> {
-    let svc = WebhookService::new();
+    let svc = WebhookService::new()?;
     let id = svc.register_endpoint(endpoint(true, None, &["*"])).await?;
     let req = WebhookRequest {
         headers: HashMap::new(),
@@ -91,7 +91,7 @@ async fn handle_webhook_wildcard_subscription_passes() -> Result<()> {
 
 #[tokio::test]
 async fn handle_webhook_missing_endpoint_errors() -> Result<()> {
-    let svc = WebhookService::new();
+    let svc = WebhookService::new()?;
     let id = WebhookEndpointId::generate();
     let req = WebhookRequest {
         headers: HashMap::new(),
@@ -105,7 +105,7 @@ async fn handle_webhook_missing_endpoint_errors() -> Result<()> {
 
 #[tokio::test]
 async fn handle_webhook_invalid_signature_returns_401() -> Result<()> {
-    let svc = WebhookService::new();
+    let svc = WebhookService::new()?;
     let id = svc
         .register_endpoint(endpoint(true, Some("sekret"), &["*"]))
         .await?;

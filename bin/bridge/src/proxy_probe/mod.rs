@@ -179,7 +179,7 @@ pub fn classify_configured_port(configured_url: &str, actual: u16) -> PortMatch 
     let Ok((host, port)) = parse_host_port(configured_url) else {
         return PortMatch::Unparseable;
     };
-    if host != "127.0.0.1" && host != "localhost" && host != "::1" {
+    if !host_is_loopback(&host) {
         return PortMatch::NotLoopback;
     }
     if port == actual {
@@ -187,4 +187,17 @@ pub fn classify_configured_port(configured_url: &str, actual: u16) -> PortMatch 
     } else {
         PortMatch::Mismatch { configured: port }
     }
+}
+
+#[must_use]
+pub fn host_is_loopback(host: &str) -> bool {
+    let Ok(authority) = host.parse::<::http::uri::Authority>() else {
+        return false;
+    };
+    let name = authority.host().trim_matches(|c| c == '[' || c == ']');
+    if name.eq_ignore_ascii_case("localhost") {
+        return true;
+    }
+    name.parse::<std::net::IpAddr>()
+        .is_ok_and(|ip| ip.is_loopback())
 }

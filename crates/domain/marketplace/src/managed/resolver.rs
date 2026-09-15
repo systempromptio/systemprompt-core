@@ -40,13 +40,7 @@ impl ManagedSkillResolver for ManagedResourceResolver {
         owner: &UserId,
         key: &str,
     ) -> std::result::Result<SkillResolution, ManagedSkillResolverError> {
-        match Self::resolve_skill(
-            self,
-            self.organizational_owner.as_ref().unwrap_or(owner),
-            key,
-        )
-        .await
-        {
+        match Self::resolve_skill(self, owner, key).await {
             Ok(ManagedSkillResolution::NotManaged) => Ok(SkillResolution::NotManaged),
             Ok(ManagedSkillResolution::Withheld(reason)) => Ok(SkillResolution::Withheld(*reason)),
             Ok(ManagedSkillResolution::Published(skill)) => {
@@ -68,7 +62,6 @@ impl ManagedSkillResolver for ManagedResourceResolver {
 #[derive(Debug, Clone)]
 pub struct ManagedResourceResolver {
     repository: ManagedRepository,
-    organizational_owner: Option<UserId>,
 }
 
 #[derive(Debug, Clone)]
@@ -89,16 +82,7 @@ pub struct ManagedSkill {
 
 impl ManagedResourceResolver {
     pub const fn new(repository: ManagedRepository) -> Self {
-        Self {
-            repository,
-            organizational_owner: None,
-        }
-    }
-
-    #[must_use]
-    pub fn with_organizational_owner(mut self, owner: UserId) -> Self {
-        self.organizational_owner = Some(owner);
-        self
+        Self { repository }
     }
 
     pub const fn repository(&self) -> &ManagedRepository {

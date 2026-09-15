@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 use systemprompt_bridge::context::{BridgeContext, ProxyMode};
 use systemprompt_bridge::gateway::manifest::{MANIFEST_SCHEMA_VERSION, SignedManifest};
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
-use systemprompt_bridge::sync::run_once;
+use systemprompt_bridge::sync::{SyncOptions, run_once};
 use systemprompt_test_fixtures::fixture_user_id;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -153,7 +153,15 @@ fn run_gated(sandbox: &Sandbox) -> Result<systemprompt_bridge::sync::SyncSummary
                 .enable_all()
                 .build()
                 .unwrap()
-                .block_on(run_once(&bridge(), true, false, true))
+                .block_on(run_once(
+                    &bridge(),
+                    &SyncOptions {
+                        allow_unsigned: true,
+                        force_replay: false,
+                        allow_tofu: true,
+                        ..SyncOptions::default()
+                    },
+                ))
                 .map_err(|e| e.to_string())
         },
     )
@@ -192,7 +200,7 @@ fn a_manifest_version_not_newer_than_the_last_applied_one_is_rejected() {
         &sandbox,
         &serde_json::json!({
             "gateway": sandbox.gateway_uri,
-            "last_applied_manifest_version": m.manifest_version.to_string(),
+            "manifest_version": m.manifest_version.to_string(),
         })
         .to_string(),
     );
@@ -244,12 +252,9 @@ fn a_successful_non_forced_apply_persists_the_replay_sentinel() {
     assert_eq!(summary.manifest_version, m.manifest_version.to_string());
 
     let sentinel = sentinel_json(&sandbox.metadata.join("last-sync.json"));
-    assert_eq!(
-        sentinel["last_applied_manifest_version"],
-        m.manifest_version.to_string()
-    );
+    assert_eq!(sentinel["manifest_version"], m.manifest_version.to_string());
     assert!(
-        sentinel["last_applied_at"].as_str().is_some(),
+        sentinel["synced_at"].as_str().is_some(),
         "sentinel records when the manifest was applied: {sentinel}"
     );
 

@@ -2,6 +2,7 @@ use axum::http::{HeaderMap, HeaderValue};
 use std::sync::Arc;
 use systemprompt_agent::models::a2a::jsonrpc::NumberOrString;
 use systemprompt_agent::services::a2a_server::auth::validate_oauth_for_request;
+use systemprompt_identifiers::UserId;
 use systemprompt_models::auth::Permission;
 use systemprompt_traits::{
     AgentJwtClaims, GenerateTokenParams, JwtProviderError, JwtResult, JwtValidationProvider,
@@ -50,7 +51,7 @@ fn bearer(token: &str) -> HeaderMap {
 
 fn claims_admin() -> AgentJwtClaims {
     AgentJwtClaims {
-        subject: "user-1".to_string(),
+        subject: UserId::new("user-1"),
         username: "admin".to_string(),
         user_type: "admin".to_string(),
         audiences: vec!["a2a".to_string()],
@@ -63,7 +64,7 @@ fn claims_admin() -> AgentJwtClaims {
 
 fn claims_user(perms: &[&str]) -> AgentJwtClaims {
     AgentJwtClaims {
-        subject: "user-2".to_string(),
+        subject: UserId::new("user-2"),
         username: "alice".to_string(),
         user_type: "user".to_string(),
         audiences: vec!["a2a".to_string()],

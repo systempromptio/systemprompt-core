@@ -1,4 +1,4 @@
-//! `AuthProvider` chain: PAT, session, and mTLS credential sources.
+//! `AuthProvider` chain: session and PAT credential sources.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -9,7 +9,6 @@ use async_trait::async_trait;
 use systemprompt_identifiers::SessionId;
 use thiserror::Error;
 
-pub mod mtls;
 pub mod pat;
 pub mod session;
 
@@ -28,8 +27,6 @@ pub enum AuthError {
 #[derive(Debug, Error)]
 pub enum AuthFailedSource {
     #[error(transparent)]
-    Keystore(#[from] crate::auth::keystore::KeystoreError),
-    #[error(transparent)]
     Loopback(#[from] crate::auth::loopback::LoopbackError),
     #[error(transparent)]
     Gateway(#[from] crate::gateway::GatewayError),
@@ -43,7 +40,7 @@ impl AuthFailedSource {
     #[must_use]
     pub const fn is_terminal(&self) -> bool {
         match self {
-            Self::Keystore(_) | Self::Loopback(_) | Self::Custom(_) | Self::SignInRequired => true,
+            Self::Loopback(_) | Self::Custom(_) | Self::SignInRequired => true,
             Self::Gateway(g) => {
                 use crate::gateway::GatewayError as G;
                 match g {
@@ -67,7 +64,8 @@ impl AuthFailedSource {
     }
 }
 
-// Why: native async trait methods cannot be used through dyn AuthProvider.
+/// One credential source in the auth chain. `#[async_trait]` because the
+/// registry hands providers around as `Box<dyn AuthProvider>`.
 #[async_trait]
 pub trait AuthProvider: Send + Sync {
     fn name(&self) -> &'static str;
@@ -98,7 +96,6 @@ macro_rules! register_auth_provider {
     };
 }
 
-register_auth_provider!(|cfg| Box::new(mtls::MtlsProvider::new(cfg)), priority = 30);
 register_auth_provider!(
     |cfg| Box::new(session::SessionProvider::new(cfg)),
     priority = 20

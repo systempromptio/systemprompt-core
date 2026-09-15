@@ -1,0 +1,21 @@
+CREATE TABLE IF NOT EXISTS managed_inventory_entries (
+    owner_id TEXT NOT NULL REFERENCES users(id),
+    entry_id TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    resource_key TEXT NOT NULL,
+    origin TEXT NOT NULL,
+    configured_key TEXT,
+    resource_id TEXT,
+    source_id TEXT,
+    availability TEXT NOT NULL,
+    latest_revision_id TEXT,
+    published_revision_id TEXT,
+    diagnostic TEXT,
+    first_observed_at TIMESTAMPTZ NOT NULL,
+    last_observed_at TIMESTAMPTZ NOT NULL,
+    generation BIGINT NOT NULL,
+    PRIMARY KEY(owner_id,entry_id),
+    FOREIGN KEY(owner_id,resource_id) REFERENCES managed_resources(owner_id,id),
+    FOREIGN KEY(owner_id,source_id) REFERENCES managed_sources(owner_id,id)
+);
+CREATE INDEX IF NOT EXISTS managed_inventory_list ON managed_inventory_entries(owner_id,entry_id);

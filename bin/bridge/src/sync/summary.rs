@@ -40,7 +40,7 @@ impl SyncSummary {
             String::new()
         } else {
             format!(
-                " — WARNING: {} malformed plugin(s) missing claude-plugin/plugin.json: {}",
+                " — WARNING: {} malformed plugin(s) with no readable claude-plugin/plugin.json: {}",
                 self.malformed.len(),
                 self.malformed.join(", "),
             )
@@ -51,7 +51,7 @@ impl SyncSummary {
             let detail = self
                 .host_failures
                 .iter()
-                .map(|f| format!("{} ({})", f.host_id, first_line(&f.error)))
+                .map(|f| format!("{} ({})", f.emitter, first_line(&f.error)))
                 .collect::<Vec<_>>()
                 .join("; ");
             format!(

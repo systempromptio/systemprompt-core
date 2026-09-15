@@ -9,7 +9,7 @@ use systemprompt_models::ServicesConfig;
 use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::mcp::{Deployment, McpServerType, OAuthRequirement};
 use systemprompt_runtime::{collect_manifest_errors, merge_mcp_errors};
-use systemprompt_traits::validation_report::ValidationError;
+use systemprompt_traits::validation_report::ValidationIssue;
 use systemprompt_traits::{StartupValidationReport, ValidationReport};
 
 fn deployment(
@@ -124,7 +124,7 @@ fn merge_into_empty_report_creates_mcp_domain() {
     let mut report = StartupValidationReport::new();
     merge_mcp_errors(
         &mut report,
-        vec![ValidationError::new("mcp_servers.x.binary", "missing")],
+        vec![ValidationIssue::new("mcp_servers.x.binary", "missing")],
     );
 
     let mcp = report
@@ -139,12 +139,12 @@ fn merge_into_empty_report_creates_mcp_domain() {
 fn merge_appends_to_existing_mcp_domain() {
     let mut report = StartupValidationReport::new();
     let mut existing = ValidationReport::new("mcp");
-    existing.add_error(ValidationError::new("mcp.pre", "pre-existing"));
+    existing.add_error(ValidationIssue::new("mcp.pre", "pre-existing"));
     report.add_domain(existing);
 
     merge_mcp_errors(
         &mut report,
-        vec![ValidationError::new("mcp_servers.y.binary", "missing")],
+        vec![ValidationIssue::new("mcp_servers.y.binary", "missing")],
     );
 
     let mcp_domains: Vec<_> = report

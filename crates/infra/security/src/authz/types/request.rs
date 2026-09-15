@@ -98,7 +98,7 @@ impl AuthzContext {
         self.payload
             .get("tool")
             .and_then(|v| v.as_str())
-            .map(McpToolName::new)
+            .and_then(|tool| McpToolName::try_new(tool).ok())
     }
 
     #[must_use]

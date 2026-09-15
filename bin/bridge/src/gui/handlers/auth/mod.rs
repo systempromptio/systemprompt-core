@@ -43,22 +43,23 @@ pub(crate) fn on_login_requested(
     let proxy = app.proxy.clone();
     let token = app.state.install_cancel(CancelScope::Login);
     app.ctx.spawn(async move {
-        let task = tokio::task::spawn_blocking(move || {
+        let mut task = tokio::task::spawn_blocking(move || {
             setup::login(trimmed.expose(), gateway.as_deref())
                 .map(|_| ())
                 .map_err(GuiError::from)
                 .map_err(Arc::new)
         });
-        // Why: the blocking login runs to completion on its own thread; the
-        // select is what lets the user's cancel interrupt the wait instead
-        // of only refusing a login that has not started yet.
+        // Why: the blocking login cannot be interrupted once it is writing;
+        // a cancel waits for it and reports what actually landed on disk, so
+        // "cancelled" never hides a PAT that was written after the click.
         let result = tokio::select! {
-            () = token.cancelled() => Err(Arc::new(GuiError::Cancelled)),
-            joined = task => match joined {
+            () = token.cancelled() => match (&mut task).await {
+                Ok(Ok(())) => Ok(()),
+                Ok(Err(_)) | Err(_) => Err(Arc::new(GuiError::Cancelled)),
+            },
+            joined = &mut task => match joined {
                 Ok(r) => r,
-                Err(join_err) => Err(Arc::new(GuiError::from(setup::SetupError::Io(format!(
-                    "login task join: {join_err}"
-                ))))),
+                Err(join_err) => Err(Arc::new(GuiError::from(setup::SetupError::Join(join_err)))),
             },
         };
         proxy.send_event(UiEvent::LoginFinished { result, reply_to });
@@ -141,9 +142,7 @@ pub(crate) fn on_set_gateway_requested(app: &GuiApp, gateway: &str, reply_to: Re
         });
         let result = match task.await {
             Ok(r) => r,
-            Err(join_err) => Err(Arc::new(GuiError::from(setup::SetupError::Io(format!(
-                "set-gateway task join: {join_err}"
-            ))))),
+            Err(join_err) => Err(Arc::new(GuiError::from(setup::SetupError::Join(join_err)))),
         };
         proxy.send_event(UiEvent::SetGatewayFinished { result, reply_to });
     });
@@ -204,9 +203,7 @@ pub(crate) fn on_logout_requested(app: &GuiApp, reply_to: ReplyId) {
         .await
         {
             Ok(r) => r,
-            Err(join_err) => Err(Arc::new(GuiError::from(setup::SetupError::Io(format!(
-                "logout task join: {join_err}"
-            ))))),
+            Err(join_err) => Err(Arc::new(GuiError::from(setup::SetupError::Join(join_err)))),
         };
         proxy.send_event(UiEvent::LogoutFinished { result, reply_to });
     });

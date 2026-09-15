@@ -1,5 +1,5 @@
-//! Type-union schemas, the non-string `type` fallthrough, and the
-//! wrong-JSON-kind rejection each validator arm opens with.
+//! Type-union schemas, the rejection of a `type` keyword the validator cannot
+//! interpret, and the wrong-JSON-kind rejection each validator arm opens with.
 
 use serde_json::json;
 use systemprompt_ai::services::structured_output::validator::SchemaValidator;
@@ -21,21 +21,34 @@ fn a_union_type_accepts_any_listed_member_and_rejects_the_rest() {
 }
 
 #[test]
-fn a_type_keyword_that_is_neither_a_string_nor_an_array_constrains_nothing() {
+fn a_type_keyword_that_is_neither_a_string_nor_an_array_is_rejected() {
     let schema = json!({"type": {"unexpected": "shape"}});
 
-    SchemaValidator::validate(&json!("anything"), &schema, false)
-        .expect("an uninterpretable type keyword must not reject a value");
-    SchemaValidator::validate(&json!([1, 2, 3]), &schema, false)
-        .expect("an uninterpretable type keyword must not reject a value");
+    let err = SchemaValidator::validate(&json!("anything"), &schema, false)
+        .expect_err("an uninterpretable type keyword cannot validate anything");
+    let message = err.to_string();
+    assert!(
+        message.contains("Unsupported schema type") && message.contains("root"),
+        "the rejection must name the keyword and the path, got {message}"
+    );
 }
 
 #[test]
-fn an_unrecognised_type_name_is_treated_as_unconstrained() {
+fn an_unrecognised_type_name_is_rejected() {
     let schema = json!({"type": "geometry"});
 
-    SchemaValidator::validate(&json!({"x": 1}), &schema, false)
-        .expect("an unknown type name must not be enforced as a mismatch");
+    let err = SchemaValidator::validate(&json!({"x": 1}), &schema, false)
+        .expect_err("an unknown type name cannot be enforced, so it is refused");
+    assert!(err.to_string().contains("geometry"));
+}
+
+#[test]
+fn a_union_with_an_unrecognised_member_is_rejected() {
+    let schema = json!({"type": ["string", "geometry"]});
+
+    let err = SchemaValidator::validate(&json!("text"), &schema, false)
+        .expect_err("a union member that cannot be interpreted is refused");
+    assert!(err.to_string().contains("geometry"));
 }
 
 #[test]

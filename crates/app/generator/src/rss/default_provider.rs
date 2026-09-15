@@ -5,9 +5,10 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use async_trait::async_trait;
+use systemprompt_config::paths::AppPaths;
 use systemprompt_content::ContentRepository;
 use systemprompt_identifiers::{LocaleCode, SourceId};
-use systemprompt_models::{AppPaths, Config, ContentConfigRaw, WebConfig};
+use systemprompt_models::{Config, ContentConfigRaw, WebConfig};
 use systemprompt_provider_contracts::{
     ProviderError, ProviderResult, RssFeedContext, RssFeedItem, RssFeedMetadata, RssFeedProvider,
     RssFeedSpec,
@@ -147,7 +148,7 @@ impl RssFeedProvider for DefaultRssFeedProvider {
 
         let source_id = SourceId::new(ctx.source_name);
         let content_items = repo
-            .list_by_source_limited(&source_id, &LocaleCode::new("en"), limit)
+            .list_by_source_limited(&source_id, &LocaleCode::english(), limit)
             .await
             .map_err(|e| {
                 ProviderError::RenderFailed(format!("Failed to fetch content for RSS feed: {e}"))

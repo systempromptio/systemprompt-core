@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.53.0] - 2026-09-14
+
+### Changed
+
+- Git verification compares the imported tree with the retained revision through `RevisionFiles::same_content`.
+
+- `managed::{RevisionBundle, RevisionManifest, FileEntry, DependencyRef, AssetDigest, AssetFile, RevisionFiles}` are re-exports of `systemprompt_models::managed`; `ManagedError` implements `From<RevisionBundleError>` so `?` on bundle verification keeps returning the same variants (`Invalid`, `Integrity`, `Unavailable`).
+
+### Fixed
+
+- Every table the extension creates is declared by its own `SchemaDefinition` (one schema file per table), so `infra db doctor` no longer reports the managed tables as undeclared.
+
 ## [0.52.0] - 2026-09-14
 
 ### Added

@@ -138,10 +138,11 @@ async fn thought_signature_cleanup_drops_expired_rows_and_keeps_live_ones() {
         .await
         .expect("seed owner");
     let repo = AiThoughtSignatureRepository::new(&pool).expect("repo");
-    let conv = GatewayConversationId::new_unchecked(&format!(
+    let conv = GatewayConversationId::try_new(&format!(
         "ctx_{:016x}",
         u64::from(Uuid::new_v4().as_u128() as u32)
-    ));
+    ))
+    .expect("valid GatewayConversationId");
 
     repo.upsert(&ThoughtSignatureWrite {
         user_id: &user_id,

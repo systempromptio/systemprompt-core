@@ -13,7 +13,7 @@ use std::path::Path;
 
 use systemprompt_models::profile::Profile;
 use systemprompt_traits::validation_report::{
-    ValidationError, ValidationReport, ValidationWarning,
+    ValidationIssue, ValidationReport, ValidationWarning,
 };
 
 #[must_use]
@@ -50,7 +50,7 @@ pub fn validate_profile_paths(
 pub fn validate_required_path(report: &mut ValidationReport, field: &str, path: &str) {
     if path.is_empty() {
         report.add_error(
-            ValidationError::new(format!("paths.{field}"), "Required path not configured")
+            ValidationIssue::new(format!("paths.{field}"), "Required path not configured")
                 .with_suggestion(format!(
                     "Add paths.{field} to your profile or run 'systemprompt cloud config'"
                 )),
@@ -60,7 +60,7 @@ pub fn validate_required_path(report: &mut ValidationReport, field: &str, path: 
 
     if !Path::new(path).exists() {
         report.add_error(
-            ValidationError::new(format!("paths.{field}"), "Path does not exist")
+            ValidationIssue::new(format!("paths.{field}"), "Path does not exist")
                 .with_path(path)
                 .with_suggestion("Create the directory/file or update the path in your profile"),
         );

@@ -58,7 +58,7 @@ impl CreateContentParams {
     ) -> Self {
         Self {
             slug,
-            locale: LocaleCode::new("en"),
+            locale: LocaleCode::english(),
             title,
             description,
             body,

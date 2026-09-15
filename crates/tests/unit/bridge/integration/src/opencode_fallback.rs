@@ -12,7 +12,7 @@ use tempfile::TempDir;
 fn probe_env() -> ProbeEnv {
     ProbeEnv {
         proxy_port: systemprompt_bridge::proxy::DEFAULT_PROXY_PORT,
-        loopback_secret_fingerprint: None,
+        loopback_secret: None,
         start_menu: std::sync::Arc::default(),
     }
 }
@@ -25,6 +25,16 @@ const PROVIDER_BLOCK: &str = r#"{
     }
   }
 }"#;
+
+fn write_bridge_config(config_home: &Path, managed_dir: &Path) {
+    let dir = config_home.join("systemprompt");
+    std::fs::create_dir_all(&dir).expect("bridge config dir");
+    std::fs::write(
+        dir.join("systemprompt-bridge.toml"),
+        format!("[opencode]\nmanaged_dir = '{}'\n", managed_dir.display()),
+    )
+    .expect("bridge config");
+}
 
 // Seeds the managed tier and/or the user tier, then probes.
 fn sandbox<R>(managed: Option<&str>, user: Option<&str>, f: impl FnOnce(&Path) -> R) -> R {
@@ -40,6 +50,7 @@ fn sandbox<R>(managed: Option<&str>, user: Option<&str>, f: impl FnOnce(&Path) -
         std::fs::create_dir_all(&dir).expect("user dir");
         std::fs::write(dir.join("opencode.json"), body).expect("seed user config");
     }
+    write_bridge_config(&config_home, &managed_dir);
     let vars: Vec<(&str, Option<String>)> = vec![
         ("HOME", Some(root.path().display().to_string())),
         ("XDG_CONFIG_HOME", Some(config_home.display().to_string())),
@@ -47,10 +58,7 @@ fn sandbox<R>(managed: Option<&str>, user: Option<&str>, f: impl FnOnce(&Path) -
             "XDG_DATA_HOME",
             Some(root.path().join("data").display().to_string()),
         ),
-        (
-            "SP_BRIDGE_OPENCODE_MANAGED_DIR",
-            Some(managed_dir.display().to_string()),
-        ),
+        ("SP_BRIDGE_CONFIG", None),
         ("PATH", Some(root.path().join("bin").display().to_string())),
     ];
     let out = temp_env::with_vars(vars, || f(root.path()));

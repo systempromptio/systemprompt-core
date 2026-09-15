@@ -86,7 +86,12 @@ fn to_db_value_is_string() {
 
 #[test]
 fn new_succeeds_on_valid() {
-    assert_eq!(LocaleCode::new("es").as_str(), "es");
+    assert_eq!(
+        LocaleCode::try_new("es")
+            .expect("valid LocaleCode")
+            .as_str(),
+        "es"
+    );
 }
 
 #[test]

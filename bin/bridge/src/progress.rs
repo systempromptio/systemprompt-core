@@ -1,17 +1,8 @@
 //! Live progress for a sync in flight.
 //!
-//! `Sync now` did the whole job — fetch the signed manifest, download every
-//! file of every plugin one at a time, stage, swap, then run each host
-//! emitter — and reported exactly two things to the user: `syncing`, and some
-//! tens of seconds later, `synced`. There was no way to tell a slow sync from a
-//! stuck one, which is the only question anyone is asking while they wait.
-//!
-//! The sync internals are deep (`run_once` → `apply_manifest` → `apply_plugins`
-//! → per-file fetch) and threading a callback down every signature would touch
-//! every one of them, including the CLI's caller which has no UI. Instead the
-//! sink is held by the bridge context, which is already passed the whole way
-//! down: the GUI installs one for the duration of a sync, and the CLI leaves it
-//! unset, where every report is a cheap no-op.
+//! The sink is held by the bridge context rather than threaded through every
+//! sync signature: the GUI installs one for the duration of a sync, and the
+//! CLI leaves it unset, where every report is a cheap no-op.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

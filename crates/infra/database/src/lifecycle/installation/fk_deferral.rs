@@ -19,36 +19,6 @@
 //! `MAX_IDENTIFIER_BYTES`: Postgres truncates identifiers to `NAMEDATALEN - 1`
 //! bytes.
 //!
-//! `table`: The constrained table as a `to_regclass` argument
-//! (`"schema"."table"`).
-//!
-//! `source_table`: The constrained table as written, for diagnostics.
-//!
-//! `referenced_table`: The referenced table as a `to_regclass` argument.
-//!
-//! `referenced_columns`: Empty when the declaration was `REFERENCES t` — the
-//! referenced primary key.
-//!
-//! `sql`: `ALTER TABLE … ADD CONSTRAINT …` without a validation clause.
-//!
-//! `split_foreign_keys`: Split the foreign keys out of one parsed `CREATE
-//! TABLE`.
-//!
-//! `original_sql` is returned untouched when the statement declares none.
-//!
-//! `split_create_table_foreign_keys`: Split the foreign keys out of a single
-//! `CREATE TABLE` given as text — the seam the unit tests and diagnostics use;
-//! the installer works on the already-parsed statement.
-//!
-//! `strip_column_references`: Remove a column-level `REFERENCES` from a column
-//! definition, folding the `DEFERRABLE` / `INITIALLY …` attributes the grammar
-//! emits as sibling nodes into the key itself, and naming the constrained
-//! column in `fk_attrs`.
-//!
-//! `default_name`: The name Postgres itself would pick:
-//! `<table>_<col>[_<col>…]_fkey`, cut to the identifier limit on a character
-//! boundary.
-//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

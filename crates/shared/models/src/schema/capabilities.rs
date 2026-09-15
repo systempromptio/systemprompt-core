@@ -112,6 +112,7 @@ impl ProviderCapabilities {
         }
     }
 
+    // JSON: JSON Schema document (the tool's `inputSchema`).
     pub fn requires_transformation(&self, schema: &Value) -> bool {
         if let Some(obj) = schema.as_object() {
             if obj.contains_key("allOf") && !self.composition.allof {

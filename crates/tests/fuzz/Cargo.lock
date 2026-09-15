@@ -3078,6 +3078,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "sse-stream"
+version = "0.2.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c25ac7aff0abd1dbc474536e40416e1102c7dd9bfba0b9861c6d357f835dcfb4"
+dependencies = [
+ "bytes",
+ "futures-util",
+ "http-body",
+ "http-body-util",
+ "pin-project-lite",
+]
+
+[[package]]
 name = "stable_deref_trait"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3189,6 +3202,7 @@ dependencies = [
  "serde_yaml_ng",
  "sha2 0.11.0",
  "sqlx",
+ "systemprompt-client",
  "systemprompt-config",
  "systemprompt-database",
  "systemprompt-extension",
@@ -3207,6 +3221,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-client"
+version = "0.52.0"
+dependencies = [
+ "chrono",
+ "futures",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "sse-stream",
+ "systemprompt-identifiers",
+ "systemprompt-models",
+ "thiserror 2.0.19",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "systemprompt-config"
 version = "0.52.0"
 dependencies = [
@@ -3218,6 +3249,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml_ng",
+ "systemprompt-extension",
  "systemprompt-identifiers",
  "systemprompt-logging",
  "systemprompt-models",
@@ -3261,15 +3293,14 @@ dependencies = [
  "async-trait",
  "axum",
  "inventory",
- "reqwest",
  "serde",
  "serde_json",
- "sqlx",
  "systemprompt-identifiers",
  "systemprompt-provider-contracts",
  "systemprompt-traits",
  "thiserror 2.0.19",
  "tracing",
+ "xxhash-rust",
 ]
 
 [[package]]
@@ -3306,6 +3337,7 @@ dependencies = [
  "chrono",
  "flate2",
  "hex",
+ "libc",
  "reqwest",
  "serde",
  "serde_json",
@@ -3364,13 +3396,12 @@ dependencies = [
  "http",
  "indexmap",
  "ipnet",
- "libc",
  "regex",
- "reqwest",
  "rmcp",
  "schemars",
  "semver",
  "serde",
+ "serde_jcs",
  "serde_json",
  "serde_yaml_ng",
  "sha2 0.11.0",
@@ -3380,7 +3411,6 @@ dependencies = [
  "systemprompt-provider-contracts",
  "systemprompt-traits",
  "thiserror 2.0.19",
- "tokio",
  "tracing",
  "url",
  "uuid",
@@ -3426,6 +3456,7 @@ dependencies = [
  "serde_yaml_ng",
  "sha2 0.11.0",
  "sqlx",
+ "systemprompt-client",
  "systemprompt-config",
  "systemprompt-database",
  "systemprompt-extension",
@@ -3443,11 +3474,9 @@ name = "systemprompt-traits"
 version = "0.52.0"
 dependencies = [
  "async-trait",
- "axum",
  "chrono",
  "futures",
  "http",
- "inventory",
  "serde",
  "serde_json",
  "systemprompt-identifiers",

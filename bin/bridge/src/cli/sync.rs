@@ -12,20 +12,38 @@ use crate::{stdio, sync};
 
 pub fn cmd_sync(ctx: &BridgeContext, args: &[String]) -> ExitCode {
     let watch = has_flag(args, "--watch");
-    let interval = parse_opt_flag(args, "--interval").and_then(|s| s.parse().ok());
-    let allow_unsigned = has_flag(args, "--allow-unsigned");
-    let force_replay = has_flag(args, "--force-replay");
-    let allow_tofu = has_flag(args, "--allow-tofu");
+    let interval = match parse_opt_flag(args, "--interval") {
+        None => None,
+        Some(raw) => match raw.parse::<u64>() {
+            Ok(secs) => Some(secs),
+            Err(e) => {
+                stdio::eprint_line(&format!(
+                    "--interval: {raw:?} is not a number of seconds ({e})"
+                ));
+                return ExitCode::from(64);
+            },
+        },
+    };
+    let options = sync::SyncOptions {
+        allow_unsigned: has_flag(args, "--allow-unsigned"),
+        force_replay: has_flag(args, "--force-replay"),
+        allow_tofu: has_flag(args, "--allow-tofu"),
+        cancel: tokio_util::sync::CancellationToken::new(),
+    };
 
-    sync::warn_unsafe_flags(allow_unsigned, force_replay, allow_tofu);
+    sync::warn_unsafe_flags(
+        options.allow_unsigned,
+        options.force_replay,
+        options.allow_tofu,
+    );
 
     if !watch {
-        return run_once_print(ctx, allow_unsigned, force_replay, allow_tofu);
+        return run_once_print(ctx, &options);
     }
 
     let secs = interval.unwrap_or(1800).max(sync::WATCH_FLOOR_SECS);
     loop {
-        let code = run_once_print(ctx, allow_unsigned, force_replay, allow_tofu);
+        let code = run_once_print(ctx, &options);
         if code != ExitCode::SUCCESS {
             tracing::warn!(retry_in_secs = secs, "sync: non-zero exit; retrying");
         }
@@ -33,18 +51,8 @@ pub fn cmd_sync(ctx: &BridgeContext, args: &[String]) -> ExitCode {
     }
 }
 
-fn run_once_print(
-    ctx: &BridgeContext,
-    allow_unsigned: bool,
-    force_replay: bool,
-    allow_tofu: bool,
-) -> ExitCode {
-    let result = ctx.block_on(sync::run_once(
-        ctx,
-        allow_unsigned,
-        force_replay,
-        allow_tofu,
-    ));
+fn run_once_print(ctx: &BridgeContext, options: &sync::SyncOptions) -> ExitCode {
+    let result = ctx.block_on(sync::run_once(ctx, options));
     match result {
         Ok(summary) => {
             stdio::print_line(&summary.one_line());

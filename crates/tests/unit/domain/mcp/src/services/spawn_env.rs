@@ -4,11 +4,11 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use systemprompt_config::paths::AppPaths;
 use systemprompt_mcp::services::process::spawner::{
     SpawnEnvSpec, build_environment, open_server_log, rotate_log_if_needed,
     serialize_server_configs,
 };
-use systemprompt_models::AppPaths;
 use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::mcp::deployment::{McpServerType, OAuthRequirement};
 use systemprompt_models::mcp::server::McpServerConfig;

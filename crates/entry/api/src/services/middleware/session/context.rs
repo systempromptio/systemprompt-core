@@ -15,7 +15,9 @@ use systemprompt_identifiers::{AgentName, ContextId, SessionId, UserId};
 use systemprompt_models::api::ApiError;
 use systemprompt_models::auth::UserType;
 use systemprompt_models::execution::context::RequestContext;
-use systemprompt_security::{HeaderExtractor, TokenExtractor, extract_user_context};
+use systemprompt_security::{
+    HeaderExtractor, TokenExtractionError, TokenExtractor, extract_user_context,
+};
 use systemprompt_traits::SessionProvider;
 use uuid::Uuid;
 
@@ -120,7 +122,14 @@ impl SessionMiddleware {
             return Ok((self.anonymous_context("bot", trace_id, meta).await?, None));
         }
 
-        let token_result = TokenExtractor::browser_only().extract(meta.headers).ok();
+        let token_result = match TokenExtractor::browser_only().extract(meta.headers) {
+            Ok(token) => Some(token),
+            Err(TokenExtractionError::NoTokenFound) => None,
+            Err(error) => {
+                tracing::debug!(error = %error, "Browser token rejected; starting a new session");
+                None
+            },
+        };
 
         let (session_id, user_id, jwt_token, jwt_cookie, fingerprint_hash) =
             self.resolve_session(token_result, meta).await?;

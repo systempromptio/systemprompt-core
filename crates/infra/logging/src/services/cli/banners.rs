@@ -6,14 +6,12 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::io::Write;
 use std::time::Duration;
 
 use indicatif::{ProgressBar, ProgressStyle};
-use systemprompt_traits::LogEventLevel;
 
-use super::output::publish_log;
 use super::service::CliService;
+use super::sink::stderr_writeln;
 use super::startup::{
     render_phase_header, render_phase_info, render_phase_success, render_phase_warning,
     render_startup_banner,
@@ -27,22 +25,18 @@ impl CliService {
     }
 
     pub fn phase(name: &str) {
-        publish_log(LogEventLevel::Info, "cli", &format!("Phase: {}", name));
         render_phase_header(name);
     }
 
     pub fn phase_success(message: &str, detail: Option<&str>) {
-        publish_log(LogEventLevel::Info, "cli", message);
         render_phase_success(message, detail);
     }
 
     pub fn phase_info(message: &str, detail: Option<&str>) {
-        publish_log(LogEventLevel::Info, "cli", message);
         render_phase_info(message, detail);
     }
 
     pub fn phase_warning(message: &str, detail: Option<&str>) {
-        publish_log(LogEventLevel::Warn, "cli", message);
         render_phase_warning(message, detail);
     }
 
@@ -64,11 +58,6 @@ impl CliService {
     }
 
     pub fn startup_complete(duration: Duration, api_url: &str) {
-        publish_log(
-            LogEventLevel::Info,
-            "cli",
-            &format!("Startup complete in {:.1}s", duration.as_secs_f64()),
-        );
         render_startup_complete(duration, api_url);
     }
 
@@ -100,8 +89,7 @@ impl CliService {
             profile, truncated_session, tenant_info, url_info
         );
 
-        let mut stderr = std::io::stderr();
-        writeln!(stderr, "{}", Theme::color(&banner, EmphasisType::Dim)).ok();
+        stderr_writeln(format_args!("{}", Theme::color(&banner, EmphasisType::Dim)));
     }
 
     pub fn profile_banner(profile_name: &str, is_cloud: bool, tenant: Option<&str>) {
@@ -111,7 +99,6 @@ impl CliService {
             "[profile: {} ({}){}]",
             profile_name, target_label, tenant_info
         );
-        let mut stderr = std::io::stderr();
-        writeln!(stderr, "{}", Theme::color(&banner, EmphasisType::Dim)).ok();
+        stderr_writeln(format_args!("{}", Theme::color(&banner, EmphasisType::Dim)));
     }
 }

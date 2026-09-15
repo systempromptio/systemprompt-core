@@ -14,7 +14,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::collections::BTreeMap;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::OnceLock;
 
 use serde::{Deserialize, Serialize};
@@ -52,8 +52,7 @@ pub struct ServicesRootBootstrap;
 
 impl ServicesRootBootstrap {
     pub fn install(root: ActiveServicesRoot) -> &'static ActiveServicesRoot {
-        drop(ACTIVE_ROOT.set(root));
-        ACTIVE_ROOT.get().unwrap_or_else(|| unreachable_root())
+        ACTIVE_ROOT.get_or_init(|| root)
     }
 
     #[must_use]
@@ -77,12 +76,4 @@ impl ServicesRootBootstrap {
     pub fn active_path_or(fallback: &str, relative: &str) -> PathBuf {
         Self::active_root_or(fallback).join(relative)
     }
-}
-
-fn unreachable_root() -> &'static ActiveServicesRoot {
-    static EMPTY: OnceLock<ActiveServicesRoot> = OnceLock::new();
-    EMPTY.get_or_init(|| ActiveServicesRoot {
-        path: Path::new(".").to_path_buf(),
-        provenance: ServicesProvenance::Bundled,
-    })
 }

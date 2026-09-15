@@ -78,4 +78,8 @@ mod secrets_io;
 mod secrets_logging;
 
 #[cfg(test)]
+mod paths;
+#[cfg(test)]
+mod paths_build;
+#[cfg(test)]
 mod skill_validator;

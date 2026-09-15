@@ -13,8 +13,20 @@ pub enum MdmError {
         #[source]
         source: Box<Self>,
     },
-    #[error("invalid policy configuration: {0}")]
-    InvalidConfig(String),
+    #[error("invalid policy configuration: {key}: {detail}")]
+    InvalidConfig { key: &'static str, detail: String },
+    #[error(transparent)]
+    Egress(#[from] super::egress::EgressParseError),
+    #[error("gateway url: {0}")]
+    GatewayUrl(#[from] url::ParseError),
+    #[error("{path}: expected mode 0700")]
+    HelperMode { path: PathBuf },
+    #[error("forced login method conflicts with the managed settings: {0}")]
+    ForcedLoginConflict(String),
+    #[error("{what} remains after policy removal: {detail}")]
+    RemovalIncomplete { what: &'static str, detail: String },
+    #[error("USER cannot identify a managed-preferences directory: {detail}")]
+    ManagedPrefsUser { detail: String },
     #[error(transparent)]
     Config(#[from] crate::config::ConfigReadError),
     #[error(transparent)]

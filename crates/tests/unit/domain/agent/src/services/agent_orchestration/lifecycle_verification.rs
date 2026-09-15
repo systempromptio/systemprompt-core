@@ -9,7 +9,7 @@ use std::sync::Arc;
 use systemprompt_agent::repository::agent_service::AgentServiceRepository;
 use systemprompt_agent::services::agent_orchestration::database::AgentDatabaseService;
 use systemprompt_agent::services::agent_orchestration::lifecycle::AgentLifecycle;
-use systemprompt_models::AppPaths;
+use systemprompt_config::paths::AppPaths;
 use tokio::net::TcpListener;
 use uuid::Uuid;
 

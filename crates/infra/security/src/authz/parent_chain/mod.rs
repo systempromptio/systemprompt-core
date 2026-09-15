@@ -26,11 +26,11 @@ use std::sync::Arc;
 
 use systemprompt_identifiers::{MarketplaceId, PluginId, UserId};
 
-use super::error::AuthzResult;
+use super::error::{AuthzError, AuthzResult};
 use super::repository::AccessControlRepository;
 use super::resolver::{ResolveInput, ResolveParent, resolve};
 use super::subject::{SubjectAttributes, SubjectDimension};
-use super::types::{AccessRule, Decision, EntityKind, EntityRef};
+use super::types::{AccessRule, Decision, DenyReason, EntityKind, EntityRef};
 
 pub use cache::ChainIndexCache;
 pub use sources::{ChainSources, MarketplaceSource};
@@ -97,17 +97,17 @@ impl ParentChainIndex {
         let entities = repo
             .list_entities_bulk(EntityKind::Plugin, &plugin_ids)
             .await?;
-        let plugins = plugin_ids
-            .into_iter()
-            .map(|id| {
-                let parent = LoadedParent {
-                    entity: EntityRef::from_kind_and_id(EntityKind::Plugin, &id),
-                    rules: rules.remove(&id).unwrap_or_default(),
-                    default_included: entities.get(&id).map(|row| row.default_included),
-                };
-                (PluginId::new(id), parent)
-            })
-            .collect();
+        let mut plugins = BTreeMap::new();
+        for id in plugin_ids {
+            let entity = EntityRef::from_kind_and_id(EntityKind::Plugin, &id)
+                .map_err(|e| AuthzError::Validation(e.to_string()))?;
+            let parent = LoadedParent {
+                entity,
+                rules: rules.remove(&id).unwrap_or_default(),
+                default_included: entities.get(&id).map(|row| row.default_included),
+            };
+            plugins.insert(PluginId::new(id), parent);
+        }
 
         Ok(Self {
             marketplaces,
@@ -118,7 +118,18 @@ impl ParentChainIndex {
 
     #[must_use]
     pub fn resolve(&self, kind: EntityKind, id: &str, base: ResolveBase<'_>) -> Decision {
-        let entity = EntityRef::from_kind_and_id(kind, id);
+        let entity = match EntityRef::from_kind_and_id(kind, id) {
+            Ok(entity) => entity,
+            Err(e) => {
+                return Decision::Deny {
+                    reason: DenyReason::InvalidEntity {
+                        entity_kind: kind,
+                        id: id.to_owned(),
+                        detail: e.to_string(),
+                    },
+                };
+            },
+        };
         let resolve_with = |parents: &[ResolveParent<'_>]| {
             resolve(ResolveInput {
                 entity: &entity,

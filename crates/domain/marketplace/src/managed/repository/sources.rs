@@ -8,8 +8,8 @@ use systemprompt_identifiers::{ManagedResourceId, ManagedSourceId, SourceSnapsho
 
 use super::{ManagedRepository, NewResource};
 use crate::managed::error::invalid;
-use crate::managed::provenance::validate_key;
 use crate::managed::{AssetDigest, ManagedError, Result, SnapshotProvenance, SourceSpec};
+use systemprompt_models::managed::validate_key;
 
 impl ManagedRepository {
     pub async fn snapshot_provenance(

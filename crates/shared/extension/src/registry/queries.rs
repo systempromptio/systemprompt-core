@@ -7,9 +7,9 @@
 use super::ExtensionRegistry;
 use crate::Extension;
 use crate::asset::{AssetDefinition, AssetPaths};
+use crate::error::LoaderError;
 use std::sync::Arc;
 use systemprompt_provider_contracts::Job;
-use tracing::warn;
 
 impl ExtensionRegistry {
     #[must_use]
@@ -41,41 +41,59 @@ impl ExtensionRegistry {
             .collect()
     }
 
-    #[must_use]
-    pub fn enabled_extensions(&self, disabled_ids: &[String]) -> Vec<Arc<dyn Extension>> {
-        self.sorted_extensions
+    // Why: a disabled set is a policy over the loaded inventory; disabling a
+    // dependency of an enabled extension would leave that extension booting
+    // against tables its dependency never created, so the whole set is
+    // refused rather than partially applied.
+    pub fn enabled_extensions(
+        &self,
+        disabled_ids: &[String],
+    ) -> Result<Vec<Arc<dyn Extension>>, LoaderError> {
+        let is_disabled = |id: &str| disabled_ids.iter().any(|d| d == id);
+        for ext in &self.sorted_extensions {
+            if ext.is_required() && is_disabled(ext.id()) {
+                return Err(LoaderError::RequiredExtensionDisabled(ext.id().to_owned()));
+            }
+        }
+        for ext in &self.sorted_extensions {
+            if is_disabled(ext.id()) {
+                continue;
+            }
+            if let Some(dep) = ext.dependencies().into_iter().find(|d| is_disabled(d)) {
+                return Err(LoaderError::DisabledDependency {
+                    extension: ext.id().to_owned(),
+                    dependency: dep.to_owned(),
+                });
+            }
+        }
+        Ok(self
+            .sorted_extensions
             .iter()
-            .filter(|ext| {
-                let id = ext.id();
-                if ext.is_required() {
-                    if disabled_ids.iter().any(|d| d == id) {
-                        warn!(
-                            extension = %id,
-                            "Cannot disable required extension - ignoring disabled flag"
-                        );
-                    }
-                    return true;
-                }
-                !disabled_ids.iter().any(|d| d == id)
-            })
+            .filter(|ext| !is_disabled(ext.id()))
             .cloned()
-            .collect()
+            .collect())
     }
 
-    #[must_use]
-    pub fn enabled_schema_extensions(&self, disabled_ids: &[String]) -> Vec<Arc<dyn Extension>> {
-        self.enabled_extensions(disabled_ids)
+    pub fn enabled_schema_extensions(
+        &self,
+        disabled_ids: &[String],
+    ) -> Result<Vec<Arc<dyn Extension>>, LoaderError> {
+        Ok(self
+            .enabled_extensions(disabled_ids)?
             .into_iter()
             .filter(|e| e.has_schemas() || e.has_migrations())
-            .collect()
+            .collect())
     }
 
-    #[must_use]
-    pub fn enabled_job_extensions(&self, disabled_ids: &[String]) -> Vec<Arc<dyn Extension>> {
-        self.enabled_extensions(disabled_ids)
+    pub fn enabled_job_extensions(
+        &self,
+        disabled_ids: &[String],
+    ) -> Result<Vec<Arc<dyn Extension>>, LoaderError> {
+        Ok(self
+            .enabled_extensions(disabled_ids)?
             .into_iter()
             .filter(|e| e.has_jobs())
-            .collect()
+            .collect())
     }
 
     #[must_use]
@@ -103,24 +121,6 @@ impl ExtensionRegistry {
         self.sorted_extensions
             .iter()
             .filter(|e| e.has_config())
-            .cloned()
-            .collect()
-    }
-
-    #[must_use]
-    pub fn llm_provider_extensions(&self) -> Vec<Arc<dyn Extension>> {
-        self.sorted_extensions
-            .iter()
-            .filter(|e| e.has_llm_providers())
-            .cloned()
-            .collect()
-    }
-
-    #[must_use]
-    pub fn tool_provider_extensions(&self) -> Vec<Arc<dyn Extension>> {
-        self.sorted_extensions
-            .iter()
-            .filter(|e| e.has_tool_providers())
             .cloned()
             .collect()
     }

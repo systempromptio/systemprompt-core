@@ -11,7 +11,7 @@ use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fi
 use systemprompt_traits::{
     AnalyticsProvider, AnalyticsResult, AnalyticsSession, AuthResult, AuthUser, CreateSessionInput,
     ExtractSignals, FingerprintProvider, McpRegistryProvider, SessionAnalytics, SessionProvider,
-    UserEvent, UserEventPublisher, UserProvider,
+    UserProvider,
 };
 
 struct NullAnalytics;
@@ -128,7 +128,10 @@ impl FingerprintProvider for NullFingerprints {
     async fn count_active_sessions(&self, _fingerprint: &str) -> AnalyticsResult<i64> {
         Ok(0)
     }
-    async fn find_reusable_session(&self, _fingerprint: &str) -> AnalyticsResult<Option<String>> {
+    async fn find_reusable_session(
+        &self,
+        _fingerprint: &str,
+    ) -> AnalyticsResult<Option<SessionId>> {
         Ok(None)
     }
     async fn upsert_fingerprint(
@@ -140,12 +143,6 @@ impl FingerprintProvider for NullFingerprints {
     ) -> AnalyticsResult<()> {
         Ok(())
     }
-}
-
-struct NullPublisher;
-
-impl UserEventPublisher for NullPublisher {
-    fn publish_user_event(&self, _event: UserEvent) {}
 }
 
 struct NullRegistry;
@@ -187,7 +184,6 @@ async fn new_state_has_no_optional_providers() {
     };
 
     assert!(state.fingerprint_provider().is_none());
-    assert!(state.event_publisher().is_none());
     assert!(state.mcp_registry().is_none());
 
     let debug = format!("{state:?}");
@@ -203,11 +199,9 @@ async fn builder_methods_attach_optional_providers() {
 
     let state = state
         .with_fingerprint_provider(Arc::new(NullFingerprints))
-        .with_event_publisher(Arc::new(NullPublisher))
         .with_mcp_registry(Arc::new(NullRegistry));
 
     assert!(state.fingerprint_provider().is_some());
-    assert!(state.event_publisher().is_some());
     assert!(state.mcp_registry().is_some());
     let _analytics = state.analytics_provider();
     let _users = state.user_provider();

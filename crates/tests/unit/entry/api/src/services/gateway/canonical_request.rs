@@ -5,10 +5,11 @@ use serde_json::json;
 use systemprompt_api::services::gateway::protocol::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, Role,
 };
+use systemprompt_identifiers::ModelId;
 
 fn req_with(messages: Vec<CanonicalMessage>, system: Option<&str>) -> CanonicalRequest {
     CanonicalRequest {
-        model: "m".into(),
+        model: ModelId::new("m"),
         system: system.map(str::to_owned),
         messages,
         max_tokens: 10,

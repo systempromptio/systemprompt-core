@@ -148,7 +148,7 @@ impl ManagedRepository {
         source: &ManagedSourceId,
         relative_root: &str,
     ) -> Result<()> {
-        crate::managed::assets::validate_path(relative_root)?;
+        systemprompt_models::managed::validate_path(relative_root)?;
         if !matches!(
             self.get_source(owner, source).await?,
             crate::managed::SourceSpec::Git { .. }

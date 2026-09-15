@@ -10,7 +10,10 @@ mod prune;
 pub(crate) mod settings;
 mod upsert;
 
-pub use emit::{CoworkTarget, EmitReport, apply_enable, clear_all, pick_target, resolve_target};
+pub use emit::{
+    CoworkTarget, EmitReport, ResolveTargetError, apply_enable, clear_all, pick_target,
+    resolve_target,
+};
 
 pub use settings::{
     SettingsReport, disable_plugin, enable_plugin, enabled_plugins_key, parse_settings,
@@ -34,12 +37,20 @@ impl HostSync for CoworkSync {
         "claude-desktop"
     }
 
+    fn emitter_id(&self) -> &'static str {
+        "cowork-plugins"
+    }
+
     async fn apply(&self, ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
-        let Some(target) = resolve_target() else {
+        let Some(target) = resolve_target().map_err(|e| ApplyError::Io {
+            context: "resolve the Cowork session directory".to_owned(),
+            source: std::io::Error::other(e),
+        })?
+        else {
             // Why: Cowork lists a plugin only once `cowork_settings.json` in
             // its session dir enables it, and that dir exists only after
             // Cowork has been opened once.
-            if crate::integration::claude_desktop::is_app_installed() {
+            if crate::integration::claude_desktop::is_app_installed(ctx.start_menu) {
                 ctx.warnings.push(
                     self.host_id(),
                     "Claude Desktop is installed but has not opened Cowork on this machine yet, \
@@ -68,7 +79,11 @@ impl HostSync for CoworkSync {
     }
 
     fn clear(&self, _ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
-        let Some(target) = resolve_target() else {
+        let Some(target) = resolve_target().map_err(|e| ApplyError::Io {
+            context: "resolve the Cowork session directory".to_owned(),
+            source: std::io::Error::other(e),
+        })?
+        else {
             return Ok(());
         };
         clear_all(&target).map_err(|e| ApplyError::Io {

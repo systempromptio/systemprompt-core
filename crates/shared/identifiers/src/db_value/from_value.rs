@@ -1,4 +1,4 @@
-//! `FromDbValue`: fallible decoding of `DbValue`s into typed values.
+//! Fallible decoding of database values into typed Rust values.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

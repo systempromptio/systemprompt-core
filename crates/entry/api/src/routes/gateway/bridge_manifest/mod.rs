@@ -13,7 +13,7 @@ use axum::Json;
 use axum::http::{HeaderMap, StatusCode};
 use chrono::{Duration, Utc};
 use systemprompt_config::ProfileBootstrap;
-use systemprompt_identifiers::{JwtToken, UserId};
+use systemprompt_identifiers::{ApiKeyId, JwtToken, UserId};
 use systemprompt_marketplace::{CatalogContent, ManifestService, MarketplaceCandidate, NoopTrace};
 use systemprompt_models::bridge::manifest::{
     MANIFEST_SCHEMA_VERSION, MIN_BRIDGE_VERSION, SignedManifest, SignedManifestEnvelope, UserInfo,
@@ -116,10 +116,7 @@ pub(crate) async fn assemble_candidate(
             })?;
     let catalog = (*disk_catalog)
         .clone()
-        .with_managed_skills(
-            ctx.managed_repository().as_ref().clone(),
-            ctx.system_admin().id(),
-        )
+        .with_managed_skills(ctx.managed_repository().as_ref().clone(), user_id)
         .await
         .map_err(|error| {
             tracing::warn!(%error, "manifest: managed catalogue resolution failed");
@@ -146,7 +143,7 @@ pub(crate) async fn assemble_candidate(
 
 struct PerUserContext {
     user: Option<UserInfo>,
-    revocations: Vec<String>,
+    revocations: Vec<ApiKeyId>,
     enabled_hosts: Vec<String>,
     host_model_protocols: std::collections::BTreeMap<String, Vec<String>>,
 }

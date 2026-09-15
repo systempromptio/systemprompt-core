@@ -213,6 +213,8 @@ bridge_define_token!(PatToken);
 bridge_define_token!(BearerToken);
 bridge_define_token!(LoopbackSecret);
 bridge_define_token!(ProxySecret);
+bridge_define_token!(HookToken);
+bridge_define_token!(HostToken);
 bridge_define_token!(PinnedPubKey);
 
 bridge_define_id!(HostId);
@@ -222,9 +224,20 @@ bridge_define_id!(CommsMessageId);
 bridge_define_id!(PrefsDomain, non_empty);
 bridge_define_id!(PrefsKey, non_empty);
 bridge_define_id!(ModelId, non_empty);
-bridge_define_id!(KeystoreRef, non_empty);
-bridge_define_id!(CertFingerprint, non_empty);
 bridge_define_id!(QueryKey, non_empty);
+bridge_define_id!(DeploymentOrganizationUuid, validated, |s| {
+    if s.len() == 36
+        && s.bytes().filter(|&b| b == b'-').count() == 4
+        && uuid::Uuid::try_parse(s).is_ok()
+    {
+        Ok(())
+    } else {
+        Err(IdValidationError::invalid(
+            "DeploymentOrganizationUuid",
+            "expected a hyphenated UUID",
+        ))
+    }
+});
 
 bridge_define_id!(PrefsValue);
 bridge_define_id!(QueryValue);

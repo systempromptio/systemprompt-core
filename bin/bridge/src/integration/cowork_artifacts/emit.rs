@@ -26,10 +26,9 @@ pub fn active_sinks() -> &'static [&'static dyn ArtifactSink] {
     &[&FileSink, &SeedStaging]
 }
 
-#[must_use]
-pub fn resolve_artifacts_dir() -> Option<PathBuf> {
-    let target = resolve_target()?;
-    Some(target.session_org_dir.join(paths::COWORK_ARTIFACTS_SUBDIR))
+pub fn resolve_artifacts_dir()
+-> Result<Option<PathBuf>, crate::integration::cowork_plugins::ResolveTargetError> {
+    Ok(resolve_target()?.map(|target| target.session_org_dir.join(paths::COWORK_ARTIFACTS_SUBDIR)))
 }
 
 #[must_use]

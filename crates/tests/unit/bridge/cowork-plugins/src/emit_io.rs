@@ -1,9 +1,6 @@
 //! IO tests for the Cowork emit layer: `resolve_target` against a sandboxed
-//! `XDG_CONFIG_HOME` session tree, and `apply_enable`/`clear_all` including the
-//! legacy session-marketplace purge.
-
-// `PLUGIN` doubles as a synced plugin id and, being the legacy aggregate name,
-// as the target of the legacy-state purge.
+//! `XDG_CONFIG_HOME` session tree, and `apply_enable`/`clear_all` against the
+//! session's `cowork_settings.json` and materialised marketplace state.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -14,8 +11,8 @@ use systemprompt_bridge::integration::cowork_plugins::{
 };
 use tempfile::tempdir;
 
-const PLUGIN: &str = "systemprompt-managed";
-const LEGACY_MP: &str = "systemprompt-bridge-managed";
+const PLUGIN: &str = "acme-plugin";
+const FOREIGN_MP: &str = "someones-mp";
 
 fn session_tree(config_home: &Path, account: &str, org: &str) -> PathBuf {
     let dir = config_home
@@ -43,7 +40,11 @@ fn settings(session_org_dir: &Path) -> serde_json::Value {
 fn resolve_target_none_when_sessions_root_missing() {
     let temp = tempdir().unwrap();
     temp_env::with_var("XDG_CONFIG_HOME", Some(temp.path().as_os_str()), || {
-        assert!(resolve_target().is_none());
+        assert!(
+            resolve_target()
+                .expect("a missing root is not an error")
+                .is_none()
+        );
     });
 }
 
@@ -58,7 +59,9 @@ fn resolve_target_prefers_personal_session_dir() {
     );
 
     temp_env::with_var("XDG_CONFIG_HOME", Some(temp.path().as_os_str()), || {
-        let target = resolve_target().expect("personal session should resolve");
+        let target = resolve_target()
+            .expect("resolution succeeds")
+            .expect("personal session should resolve");
         assert_eq!(target.session_org_dir, personal);
         assert_eq!(target.cowork_plugins_dir, personal.join("cowork_plugins"));
     });
@@ -74,27 +77,28 @@ fn resolve_target_falls_back_to_mtime_without_personal_dir() {
     );
 
     temp_env::with_var("XDG_CONFIG_HOME", Some(temp.path().as_os_str()), || {
-        let target = resolve_target().expect("fallback should resolve");
+        let target = resolve_target()
+            .expect("resolution succeeds")
+            .expect("fallback should resolve");
         assert_eq!(target.session_org_dir, only);
     });
 }
 
 #[test]
-fn apply_enable_writes_enabled_key_and_purges_legacy_state() {
+fn apply_enable_writes_the_enable_key_and_touches_no_marketplace_it_does_not_own() {
     let temp = tempdir().unwrap();
     let org = temp.path().join("org");
     fs::create_dir_all(org.join("cowork_plugins")).unwrap();
     let target = target_for(&org);
 
     let plugins = &target.cowork_plugins_dir;
-    fs::create_dir_all(plugins.join("marketplaces").join(LEGACY_MP)).unwrap();
-    fs::create_dir_all(plugins.join("cache").join(LEGACY_MP)).unwrap();
+    fs::create_dir_all(plugins.join("marketplaces").join(FOREIGN_MP)).unwrap();
+    fs::create_dir_all(plugins.join("cache").join(FOREIGN_MP)).unwrap();
     fs::write(
         plugins.join("installed_plugins.json"),
         serde_json::to_vec(&serde_json::json!({
             "plugins": {
-                (format!("{PLUGIN}@{LEGACY_MP}")): [{ "scope": "user" }],
-                "user-plugin@user-mp": [{ "scope": "user" }],
+                (format!("user-plugin@{FOREIGN_MP}")): [{ "scope": "user" }],
             }
         }))
         .unwrap(),
@@ -103,8 +107,7 @@ fn apply_enable_writes_enabled_key_and_purges_legacy_state() {
     fs::write(
         plugins.join("known_marketplaces.json"),
         serde_json::to_vec(&serde_json::json!({
-            (LEGACY_MP): { "source": "legacy" },
-            "user-mp": { "source": "keep" },
+            (FOREIGN_MP): { "source": "keep" },
         }))
         .unwrap(),
     )
@@ -120,24 +123,22 @@ fn apply_enable_writes_enabled_key_and_purges_legacy_state() {
         true
     );
 
-    assert!(!plugins.join("marketplaces").join(LEGACY_MP).exists());
-    assert!(!plugins.join("cache").join(LEGACY_MP).exists());
+    assert!(plugins.join("marketplaces").join(FOREIGN_MP).is_dir());
+    assert!(plugins.join("cache").join(FOREIGN_MP).is_dir());
 
     let installed: serde_json::Value =
         serde_json::from_str(&fs::read_to_string(plugins.join("installed_plugins.json")).unwrap())
             .unwrap();
-    assert!(installed["plugins"][format!("{PLUGIN}@{LEGACY_MP}")].is_null());
-    assert!(!installed["plugins"]["user-plugin@user-mp"].is_null());
+    assert!(!installed["plugins"][format!("user-plugin@{FOREIGN_MP}")].is_null());
 
     let known: serde_json::Value =
         serde_json::from_str(&fs::read_to_string(plugins.join("known_marketplaces.json")).unwrap())
             .unwrap();
-    assert!(known[LEGACY_MP].is_null());
-    assert_eq!(known["user-mp"]["source"], "keep");
+    assert_eq!(known[FOREIGN_MP]["source"], "keep");
 }
 
 #[test]
-fn apply_enable_without_legacy_state_is_clean() {
+fn apply_enable_on_a_fresh_session_writes_only_the_enable_key() {
     let temp = tempdir().unwrap();
     let org = temp.path().join("org");
     fs::create_dir_all(org.join("cowork_plugins")).unwrap();
@@ -215,34 +216,40 @@ fn set_mode(path: &Path, mode: u32) {
 
 #[cfg(unix)]
 #[test]
-fn an_unremovable_legacy_marketplace_dir_fails_the_purge_with_its_path() {
+fn an_unremovable_orphan_fails_the_apply_with_its_path() {
     let temp = tempdir().unwrap();
     let org = temp.path().join("org");
     let marketplaces = org.join("cowork_plugins").join("marketplaces");
-    let legacy = marketplaces.join(LEGACY_MP);
-    fs::create_dir_all(&legacy).unwrap();
-    set_mode(&marketplaces, 0o555);
+    let orphan = marketplaces.join("org-provisioned").join("dropped-plugin");
+    fs::create_dir_all(&orphan).unwrap();
+    set_mode(&marketplaces.join("org-provisioned"), 0o555);
 
     let err = apply_enable(&target_for(&org), &[PLUGIN])
-        .expect_err("an unremovable legacy dir must fail the apply");
-    set_mode(&marketplaces, 0o755);
+        .expect_err("an orphan the bridge cannot remove must fail the apply");
+    set_mode(&marketplaces.join("org-provisioned"), 0o755);
 
     let msg = err.to_string();
     assert!(msg.contains("remove_dir_all"), "{msg}");
-    assert!(msg.contains(LEGACY_MP), "{msg}");
-    assert!(legacy.is_dir(), "the legacy dir survives the failed purge");
+    assert!(msg.contains("dropped-plugin"), "{msg}");
+    assert!(orphan.is_dir(), "the orphan survives the failed prune");
 }
 
 #[cfg(unix)]
 #[test]
-fn an_unwritable_known_marketplaces_file_fails_the_purge_at_the_atomic_write() {
+fn an_unwritable_installed_plugins_file_fails_the_prune_at_the_atomic_write() {
     let temp = tempdir().unwrap();
     let org = temp.path().join("org");
     let plugins_dir = org.join("cowork_plugins");
-    fs::create_dir_all(&plugins_dir).unwrap();
+    fs::create_dir_all(
+        plugins_dir
+            .join("marketplaces")
+            .join("org-provisioned")
+            .join("dropped"),
+    )
+    .unwrap();
     fs::write(
-        plugins_dir.join("known_marketplaces.json"),
-        format!(r#"{{"{LEGACY_MP}": {{"source": "legacy"}}}}"#),
+        plugins_dir.join("installed_plugins.json"),
+        r#"{"plugins": {"dropped@org-provisioned": [{"scope": "user"}]}}"#,
     )
     .unwrap();
     set_mode(&plugins_dir, 0o555);
@@ -253,13 +260,13 @@ fn an_unwritable_known_marketplaces_file_fails_the_purge_at_the_atomic_write() {
 
     let msg = err.to_string();
     assert!(msg.contains("atomic_write"), "{msg}");
-    assert!(msg.contains("known_marketplaces.json"), "{msg}");
+    assert!(msg.contains("installed_plugins.json"), "{msg}");
     let kept: serde_json::Value = serde_json::from_str(
-        &fs::read_to_string(plugins_dir.join("known_marketplaces.json")).unwrap(),
+        &fs::read_to_string(plugins_dir.join("installed_plugins.json")).unwrap(),
     )
     .unwrap();
     assert!(
-        kept.get(LEGACY_MP).is_some(),
-        "the legacy entry survives the failed write: {kept}"
+        kept["plugins"].get("dropped@org-provisioned").is_some(),
+        "the entry survives the failed write: {kept}"
     );
 }

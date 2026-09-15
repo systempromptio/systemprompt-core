@@ -1,5 +1,5 @@
-//! Auth-mutating gateway endpoints: mTLS attestation, session swap, PAT
-//! exchange, OAuth client provisioning, and per-plugin hook token minting.
+//! Auth-mutating gateway endpoints: session swap, PAT exchange, OAuth client
+//! provisioning, and per-plugin hook token minting.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -10,22 +10,13 @@ use systemprompt_identifiers::{ClientId, PluginId, SessionId, headers as sp_head
 
 use crate::gateway::errors::GatewayError;
 use crate::gateway::types::{
-    AuthResponse, BridgeOAuthClientResponse, DevicePatResponse, HookTokenResponse, MtlsRequest,
+    AuthResponse, BridgeOAuthClientResponse, DevicePatResponse, HookTokenResponse,
     SessionExchangeRequest, SessionPatRequest,
 };
 use crate::gateway::{GatewayClient, record_span};
 use crate::ids::{BearerToken, PatToken};
 
 impl GatewayClient {
-    pub async fn mtls_exchange(
-        &self,
-        req: &MtlsRequest,
-        session_id: &SessionId,
-    ) -> Result<AuthResponse, GatewayError> {
-        self.post_json("/v1/auth/bridge/mtls", req, "mtls", session_id)
-            .await
-    }
-
     pub async fn session_exchange(
         &self,
         req: &SessionExchangeRequest,

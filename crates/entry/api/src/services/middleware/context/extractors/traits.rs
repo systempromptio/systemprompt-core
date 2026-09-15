@@ -9,6 +9,8 @@ use axum::extract::Request;
 use axum::http::HeaderMap;
 use systemprompt_models::execution::{ContextExtractionError, RequestContext};
 
+/// Shared by every context middleware as `Arc<dyn ContextExtractor>`;
+/// `#[async_trait]` keeps the trait object-safe.
 #[async_trait]
 pub trait ContextExtractor: Send + Sync {
     async fn extract_from_headers(

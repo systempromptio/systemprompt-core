@@ -4,6 +4,7 @@ use systemprompt_bridge::install::{ScheduleRemoval, remove_schedule};
 use systemprompt_bridge::schedule::Os;
 use tempfile::TempDir;
 
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
 fn home_sandbox<R>(f: impl FnOnce(&std::path::Path) -> R) -> R {
     let home = TempDir::new().expect("home tempdir");
     let path = home.path().to_path_buf();
@@ -25,6 +26,7 @@ fn home_sandbox<R>(f: impl FnOnce(&std::path::Path) -> R) -> R {
     out
 }
 
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
 fn units_dir(home: &std::path::Path) -> std::path::PathBuf {
     home.join(".config").join("systemd").join("user")
 }

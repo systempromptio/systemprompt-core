@@ -7,6 +7,7 @@ mod builder;
 mod cancel;
 mod counters;
 mod first_run;
+mod hosts;
 mod jwt;
 mod reload;
 mod types;
@@ -25,7 +26,6 @@ use std::time::SystemTime;
 
 use parking_lot::RwLock;
 
-use crate::integration::{HostAppSnapshot, ProxyHealth};
 use crate::proxy::mcp_probe::McpServerAuth;
 use crate::validate::ValidationReport;
 use cancel::CancelTokens;
@@ -141,62 +141,6 @@ impl AppState {
         self.snap_mut().agents_onboarded = flag;
     }
 
-    pub fn apply_host_snapshot(&self, host_id: &str, snap: HostAppSnapshot) {
-        let mut guard = self.snap_mut();
-        let entry = guard.hosts.entry(host_id);
-        entry.snapshot = Some(snap);
-        entry.probe_in_flight = false;
-        drop(guard);
-    }
-
-
-    pub fn finish_failed_probe(&self, host_id: Option<&str>) {
-        let mut guard = self.snap_mut();
-        match host_id {
-            Some(id) => guard.hosts.entry(id).probe_in_flight = false,
-            None => guard.hosts.proxy_probe_in_flight = false,
-        }
-    }
-
-    pub fn mark_host_probing(&self, host_id: &str) -> bool {
-        let mut guard = self.snap_mut();
-        let entry = guard.hosts.entry(host_id);
-        if entry.probe_in_flight {
-            return false;
-        }
-        entry.probe_in_flight = true;
-        drop(guard);
-        true
-    }
-
-
-    pub fn set_last_generated_profile(
-        &self,
-        host_id: &str,
-        profile: crate::integration::GeneratedProfile,
-    ) {
-        let mut guard = self.snap_mut();
-        guard.hosts.entry(host_id).last_generated_profile = Some(profile);
-    }
-
-
-    pub fn mark_proxy_probing(&self) -> bool {
-        let mut guard = self.snap_mut();
-        if guard.hosts.proxy_probe_in_flight {
-            return false;
-        }
-        guard.hosts.proxy_probe_in_flight = true;
-        true
-    }
-
-
-    pub fn apply_proxy_health(&self, health: ProxyHealth) {
-        let mut guard = self.snap_mut();
-        guard.hosts.local_proxy = health;
-        guard.hosts.proxy_probe_in_flight = false;
-    }
-
-
     pub fn mark_mcp_auth_probing(&self) -> bool {
         let mut guard = self.snap_mut();
         if guard.mcp_auth_probe_in_flight {
@@ -225,6 +169,10 @@ impl AppState {
             .collect();
         guard.mcp_auth = merged;
         guard.mcp_auth_probe_in_flight = false;
+    }
+
+    pub fn finish_mcp_auth_probe(&self) {
+        self.snap_mut().mcp_auth_probe_in_flight = false;
     }
 
     pub fn apply_mcp_auth_one(&self, fresh: McpServerAuth) {

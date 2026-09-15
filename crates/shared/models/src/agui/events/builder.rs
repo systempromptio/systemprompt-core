@@ -23,6 +23,7 @@ use crate::execution::ExecutionStep;
 pub struct AgUiEventBuilder;
 
 impl AgUiEventBuilder {
+    // JSON: AG-UI event payload; the protocol defines these fields as free-form.
     pub fn run_started(context_id: ContextId, task_id: TaskId, input: Option<Value>) -> AgUiEvent {
         AgUiEvent::RunStarted {
             timestamp: Utc::now(),
@@ -37,6 +38,7 @@ impl AgUiEventBuilder {
     pub fn run_finished(
         context_id: ContextId,
         task_id: TaskId,
+        // JSON: AG-UI event payload; the protocol defines these fields as free-form.
         result: Option<Value>,
     ) -> AgUiEvent {
         AgUiEvent::RunFinished {
@@ -143,6 +145,7 @@ impl AgUiEventBuilder {
     pub fn tool_call_result(
         message_id: impl Into<String>,
         tool_call_id: impl Into<String>,
+        // JSON: AG-UI event payload; the protocol defines these fields as free-form.
         content: Value,
     ) -> AgUiEvent {
         AgUiEvent::ToolCallResult {
@@ -156,6 +159,7 @@ impl AgUiEventBuilder {
         }
     }
 
+    // JSON: AG-UI event payload; the protocol defines these fields as free-form.
     pub fn state_snapshot(snapshot: Value) -> AgUiEvent {
         AgUiEvent::StateSnapshot {
             timestamp: Utc::now(),
@@ -170,6 +174,7 @@ impl AgUiEventBuilder {
         }
     }
 
+    // JSON: AG-UI event payload; the protocol defines these fields as free-form.
     pub fn messages_snapshot(messages: Vec<Value>) -> AgUiEvent {
         AgUiEvent::MessagesSnapshot {
             timestamp: Utc::now(),

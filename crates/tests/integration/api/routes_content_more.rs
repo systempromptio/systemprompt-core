@@ -156,7 +156,7 @@ fn bot_context() -> RequestContext {
         SessionId::new(format!("bot_{}", uuid::Uuid::new_v4())),
         TraceId::generate(),
         ContextId::generate(),
-        AgentName::new("test-agent"),
+        AgentName::try_new("test-agent").expect("valid AgentName"),
     )
     .with_actor(Actor::user(UserId::new("user_bot")))
 }

@@ -137,7 +137,7 @@ fn caller_context(user: &str) -> RequestContext {
         SessionId::generate(),
         TraceId::generate(),
         ContextId::generate(),
-        AgentName::new("proxy-test-agent"),
+        AgentName::try_new("proxy-test-agent").expect("valid AgentName"),
     )
     .with_actor(systemprompt_identifiers::Actor::user(UserId::new(user)))
     .with_auth_token(CALLER_JWT)
@@ -359,7 +359,7 @@ async fn external_with_anonymous_context_is_unauthorized() -> anyhow::Result<()>
         SessionId::generate(),
         TraceId::generate(),
         ContextId::generate(),
-        AgentName::new("proxy-test-agent"),
+        AgentName::try_new("proxy-test-agent").expect("valid AgentName"),
     );
     let resp = h
         .app

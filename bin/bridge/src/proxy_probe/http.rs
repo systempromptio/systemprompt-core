@@ -27,6 +27,12 @@ pub(crate) enum ProbeError {
         #[source]
         source: std::num::ParseIntError,
     },
+    #[error("port '{raw}' is not a number: {source}")]
+    BadPort {
+        raw: String,
+        #[source]
+        source: std::num::ParseIntError,
+    },
     #[error("missing scheme in {0}")]
     MissingScheme(String),
     #[error("unsupported scheme: {0}")]
@@ -55,9 +61,16 @@ pub(crate) fn http_get_body(
         .write_all(req.as_bytes())
         .map_err(ProbeError::Write)?;
 
+    // Why: the read stops as soon as the declared body has arrived rather
+    // than waiting for EOF; a peer that keeps the connection open after
+    // `Connection: close` would otherwise burn the whole read timeout and be
+    // misread as an unidentified listener.
     let mut raw = Vec::new();
     let mut chunk = [0u8; 1024];
     while raw.len() < 8192 {
+        if body_complete(&raw) {
+            break;
+        }
         match stream.read(&mut chunk) {
             Ok(0) => break,
             Ok(n) => raw.extend_from_slice(&chunk[..n]),
@@ -76,6 +89,20 @@ pub(crate) fn http_get_body(
     text.split_once("\r\n\r\n")
         .map(|(_, body)| body.trim().to_owned())
         .ok_or(ProbeError::NoBody)
+}
+
+fn body_complete(raw: &[u8]) -> bool {
+    let Some(header_end) = raw.windows(4).position(|w| w == b"\r\n\r\n") else {
+        return false;
+    };
+    let headers = String::from_utf8_lossy(&raw[..header_end]);
+    let declared = headers.lines().find_map(|line| {
+        let (name, value) = line.split_once(':')?;
+        name.trim()
+            .eq_ignore_ascii_case("content-length")
+            .then(|| value.trim().parse::<usize>().ok())?
+    });
+    declared.is_some_and(|len| raw.len() - (header_end + 4) >= len)
 }
 
 pub(super) fn http_head_status(
@@ -134,8 +161,14 @@ pub(super) fn parse_host_port(raw: &str) -> Result<(String, u16), ProbeError> {
         return Err(ProbeError::MissingHost);
     }
     let (host, port) = match authority.rsplit_once(':') {
-        Some((h, p)) => (h.to_owned(), p.parse::<u16>().unwrap_or(default_port)),
-        None => (authority.to_owned(), default_port),
+        Some((h, p)) if !h.ends_with(']') || h.starts_with('[') => (
+            h.to_owned(),
+            p.parse::<u16>().map_err(|source| ProbeError::BadPort {
+                raw: p.to_owned(),
+                source,
+            })?,
+        ),
+        Some(_) | None => (authority.to_owned(), default_port),
     };
     Ok((host, port))
 }

@@ -15,7 +15,7 @@ pub(super) fn merge_bridge_keys(
 ) -> Result<(), MdmError> {
     let conflicts = forced_login_conflicts(root);
     if !conflicts.is_empty() {
-        return Err(MdmError::InvalidConfig(conflicts.join("; ")));
+        return Err(MdmError::ForcedLoginConflict(conflicts.join("; ")));
     }
     let env = root
         .entry("env".to_owned())

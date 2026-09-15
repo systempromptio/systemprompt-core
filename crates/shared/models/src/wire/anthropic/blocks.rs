@@ -16,10 +16,12 @@ pub(super) enum BlockAudience {
 }
 
 #[must_use]
+// JSON: Anthropic Messages API content block; upstream JSON is the contract.
 pub fn content_to_anthropic_block(part: &CanonicalContent) -> Value {
     block_for_audience(part, BlockAudience::Client)
 }
 
+// JSON: Anthropic Messages API content block; upstream JSON is the contract.
 pub(super) fn block_for_audience(part: &CanonicalContent, audience: BlockAudience) -> Value {
     match part {
         CanonicalContent::Text(t) => json!({ "type": "text", "text": t }),
@@ -96,6 +98,7 @@ pub(super) fn block_for_audience(part: &CanonicalContent, audience: BlockAudienc
 pub(super) fn canonical_message_to_anthropic(
     msg: &CanonicalMessage,
     audience: BlockAudience,
+    // JSON: Anthropic Messages API content block; the upstream JSON is the contract.
 ) -> Option<Value> {
     let role = match msg.role {
         Role::Assistant => "assistant",

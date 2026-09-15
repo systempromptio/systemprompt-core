@@ -15,6 +15,7 @@ pub struct Artifact {
     pub title: Option<String>,
     pub description: Option<String>,
     pub parts: Vec<Part>,
+    // JSON: A2A `Artifact.extensions` entries are spec-defined as free-form.
     pub extensions: Vec<serde_json::Value>,
     pub metadata: ArtifactMetadata,
 }

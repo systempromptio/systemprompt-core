@@ -48,12 +48,15 @@ pub struct PluginManifest {
     pub installation_preference: Option<String>,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    // JSON: Claude plugin manifest importer keys; Claude Code owns the schema.
     pub skills: Option<serde_json::Value>,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    // JSON: Claude plugin manifest importer keys; Claude Code owns the schema.
     pub agents: Option<serde_json::Value>,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    // JSON: Claude plugin manifest importer keys; Claude Code owns the schema.
     pub commands: Option<serde_json::Value>,
 
     #[serde(
@@ -62,6 +65,7 @@ pub struct PluginManifest {
         alias = "mcp_servers",
         skip_serializing_if = "Option::is_none"
     )]
+    // JSON: Claude plugin manifest importer keys; Claude Code owns the schema.
     pub mcp_servers: Option<serde_json::Value>,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]

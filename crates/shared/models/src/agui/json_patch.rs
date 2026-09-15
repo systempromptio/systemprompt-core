@@ -9,15 +9,19 @@ use serde_json::Value;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "op", rename_all = "lowercase")]
 pub enum JsonPatchOperation {
+    // JSON: RFC 6902 JSON Patch operation value.
     Add { path: String, value: Value },
     Remove { path: String },
+    // JSON: RFC 6902 JSON Patch operation value.
     Replace { path: String, value: Value },
     Move { from: String, path: String },
     Copy { from: String, path: String },
+    // JSON: RFC 6902 JSON Patch operation value.
     Test { path: String, value: Value },
 }
 
 impl JsonPatchOperation {
+    // JSON: RFC 6902 JSON Patch operation value.
     pub fn add(path: impl Into<String>, value: Value) -> Self {
         Self::Add {
             path: path.into(),
@@ -29,6 +33,7 @@ impl JsonPatchOperation {
         Self::Remove { path: path.into() }
     }
 
+    // JSON: RFC 6902 JSON Patch operation value.
     pub fn replace(path: impl Into<String>, value: Value) -> Self {
         Self::Replace {
             path: path.into(),
@@ -50,6 +55,7 @@ impl JsonPatchOperation {
         }
     }
 
+    // JSON: RFC 6902 JSON Patch operation value.
     pub fn test(path: impl Into<String>, value: Value) -> Self {
         Self::Test {
             path: path.into(),
@@ -70,11 +76,13 @@ impl StateDeltaBuilder {
         }
     }
 
+    // JSON: RFC 6902 JSON Patch operation value.
     pub fn add(mut self, path: &str, value: Value) -> Self {
         self.operations.push(JsonPatchOperation::add(path, value));
         self
     }
 
+    // JSON: RFC 6902 JSON Patch operation value.
     pub fn replace(mut self, path: &str, value: Value) -> Self {
         self.operations
             .push(JsonPatchOperation::replace(path, value));

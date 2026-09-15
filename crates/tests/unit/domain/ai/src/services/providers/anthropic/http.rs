@@ -72,9 +72,12 @@ async fn generate_with_tools_extracts_tool_calls() {
     let p = provider(server.uri());
     let messages = msgs();
     let tools = vec![
-        McpTool::new("lookup", McpServerId::new("svc"))
-            .with_description("lookup")
-            .with_input_schema(json!({"type": "object"})),
+        McpTool::new(
+            "lookup",
+            McpServerId::try_new("svc").expect("valid McpServerId"),
+        )
+        .with_description("lookup")
+        .with_input_schema(json!({"type": "object"})),
     ];
     let params = ToolGenerationParams::new(
         GenerationParams::new(&messages, "claude-sonnet-4-6", 64),

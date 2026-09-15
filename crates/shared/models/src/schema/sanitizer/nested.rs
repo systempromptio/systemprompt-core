@@ -8,6 +8,7 @@ use super::SchemaSanitizer;
 use serde_json::{Map, Value};
 
 impl SchemaSanitizer {
+    // JSON: JSON Schema document rewritten in place for the provider's subset.
     pub(super) fn sanitize_nested_schemas(&self, obj: &mut Map<String, Value>) {
         self.sanitize_properties(obj);
         self.sanitize_items(obj);
@@ -16,6 +17,7 @@ impl SchemaSanitizer {
         self.sanitize_additional_properties(obj);
     }
 
+    // JSON: JSON Schema document rewritten in place for the provider's subset.
     pub(super) fn sanitize_properties(&self, obj: &mut Map<String, Value>) {
         if let Some(properties) = obj.get_mut("properties")
             && let Some(props_obj) = properties.as_object_mut()
@@ -26,6 +28,7 @@ impl SchemaSanitizer {
         }
     }
 
+    // JSON: JSON Schema document rewritten in place for the provider's subset.
     pub(super) fn sanitize_prefix_items(&self, obj: &mut Map<String, Value>) {
         if let Some(Value::Array(prefix)) = obj.get_mut("prefixItems") {
             for item in prefix.iter_mut() {
@@ -34,12 +37,14 @@ impl SchemaSanitizer {
         }
     }
 
+    // JSON: JSON Schema document rewritten in place for the provider's subset.
     pub(super) fn sanitize_items(&self, obj: &mut Map<String, Value>) {
         if let Some(items) = obj.get_mut("items") {
             *items = self.sanitize(items.clone());
         }
     }
 
+    // JSON: JSON Schema document rewritten in place for the provider's subset.
     pub(super) fn sanitize_composition_keywords(&self, obj: &mut Map<String, Value>) {
         for keyword in ["anyOf", "oneOf", "allOf"] {
             if let Some(arr_val) = obj.get_mut(keyword)
@@ -52,6 +57,7 @@ impl SchemaSanitizer {
         }
     }
 
+    // JSON: JSON Schema document rewritten in place for the provider's subset.
     pub(super) fn sanitize_additional_properties(&self, obj: &mut Map<String, Value>) {
         if let Some(additional_props) = obj.get_mut("additionalProperties")
             && additional_props.is_object()

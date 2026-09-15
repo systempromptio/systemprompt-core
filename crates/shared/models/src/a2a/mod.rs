@@ -26,7 +26,7 @@ pub use artifact_metadata::ArtifactMetadata;
 pub use artifact_summary::ArtifactSummary;
 pub use mcp_extension::{McpServerMetadata, McpToolsParams, MessageMetadata};
 pub use message::{DataPart, FileContent, FilePart, Message, MessageRole, Part, TextPart};
-pub use security::{AgentAuthentication, ApiKeyLocation, OAuth2Flow, OAuth2Flows, SecurityScheme};
+pub use security::{ApiKeyLocation, OAuth2Flow, OAuth2Flows, SecurityScheme};
 pub use task::{Task, TaskState, TaskStatus};
 pub use task_metadata::{TaskMetadata, TaskType, agent_names};
 pub use transport::{ProtocolBinding, TransportProtocol};

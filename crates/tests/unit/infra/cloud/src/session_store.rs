@@ -15,15 +15,15 @@ const TEST_CONTEXT_ID_B: &str = "00000000-0000-4000-8000-000000000002";
 fn test_builder(profile: &str) -> CliSessionBuilder {
     CliSessionBuilder::new(
         SessionBinding::new(
-            ProfileName::new(profile),
+            ProfileName::try_new(profile).expect("valid ProfileName"),
             "http://localhost:8080".to_owned(),
         ),
         SessionToken::new("token-abc"),
         SessionId::new("sid-001"),
-        ContextId::new_unchecked(TEST_CONTEXT_ID_A),
+        ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
         SessionIdentity::new(
             fixture_user_id(),
-            Email::new("test@example.com"),
+            Email::try_new("test@example.com").expect("valid Email"),
             UserType::User,
         ),
     )
@@ -141,15 +141,15 @@ fn get_valid_session_returns_none_for_empty_token() {
     let key = SessionKey::Local;
     let session = CliSessionBuilder::new(
         SessionBinding::new(
-            ProfileName::new("no-creds"),
+            ProfileName::try_new("no-creds").expect("valid ProfileName"),
             "http://localhost:8080".to_owned(),
         ),
         SessionToken::new(""),
         SessionId::new("sid"),
-        ContextId::new_unchecked(TEST_CONTEXT_ID_A),
+        ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
         SessionIdentity::new(
             fixture_user_id(),
-            Email::new("test@example.com"),
+            Email::try_new("test@example.com").expect("valid Email"),
             UserType::User,
         ),
     )
@@ -172,7 +172,7 @@ fn get_valid_session_mut_returns_mutable_ref() {
     let session = store
         .get_valid_session_mut(&key, "http://localhost:8080")
         .unwrap();
-    session.set_context_id(ContextId::new_unchecked(TEST_CONTEXT_ID_B));
+    session.set_context_id(ContextId::try_new(TEST_CONTEXT_ID_B).expect("valid ContextId"));
 
     let retrieved = store.get_session(&key).unwrap();
     assert_eq!(retrieved.context_id.as_str(), TEST_CONTEXT_ID_B);
@@ -524,15 +524,15 @@ fn serde_roundtrip_preserves_all_fields() {
     let key = SessionKey::Tenant(TenantId::new("serde-test"));
     let session = CliSessionBuilder::new(
         SessionBinding::new(
-            ProfileName::new("serde-prof"),
+            ProfileName::try_new("serde-prof").expect("valid ProfileName"),
             "http://localhost:8080".to_owned(),
         ),
         SessionToken::new("token-abc"),
         SessionId::new("sid-001"),
-        ContextId::new_unchecked(TEST_CONTEXT_ID_A),
+        ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
         SessionIdentity::new(
             fixture_user_id(),
-            Email::new("serde@test.com"),
+            Email::try_new("serde@test.com").expect("valid Email"),
             UserType::User,
         ),
     )

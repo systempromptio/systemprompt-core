@@ -1,34 +1,31 @@
-//! Credential-helper mode: emits Claude/Codex credentials on stdout for host
-//! apps.
+//! Credential-helper mode: the Codex `auth.command` / Claude Code
+//! `apiKeyHelper` contract.
+//!
+//! The credential is the only line on stdout; diagnostics are a JSON object
+//! on stderr. A CLI host receives the token derived for it from the loopback
+//! secret, never the secret itself.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
-
-#![allow(
-    clippy::print_stdout,
-    clippy::print_stderr,
-    reason = "git/anthropic credential-helper protocol: secrets are emitted on stdout, \
-              diagnostics on stderr"
-)]
 
 use std::process::ExitCode;
 
 use systemprompt_identifiers::SessionId;
 
 use crate::context::BridgeContext;
-use crate::{auth, config};
+use crate::{auth, config, stdio};
 
 pub(super) fn cmd_credential_helper(ctx: &BridgeContext, args: &[String]) -> ExitCode {
     let Some(host) = parse_host(args) else {
-        eprintln!("{}", error_json("missing required --host <id>"));
+        stdio::eprint_line(&error_json("missing required --host <id>"));
         return ExitCode::from(64);
     };
 
     match host.as_str() {
-        "codex-cli" | "claude-code" => emit_loopback(ctx),
+        "codex-cli" | "claude-code" => emit_host_token(ctx, &crate::ids::HostId::new(host)),
         "claude-desktop" => emit_claude_via_chain(ctx),
         other => {
-            eprintln!("{}", error_json(&format!("unknown host id: {other}")));
+            stdio::eprint_line(&error_json(&format!("unknown host id: {other}")));
             ExitCode::from(64)
         },
     }
@@ -38,7 +35,7 @@ fn emit_claude_via_chain(ctx: &BridgeContext) -> ExitCode {
     let cfg = match config::load() {
         Ok(cfg) => cfg,
         Err(e) => {
-            crate::stdio::diag(&e.to_string());
+            stdio::diag(&e.to_string());
             return ExitCode::FAILURE;
         },
     };
@@ -51,42 +48,38 @@ fn emit_claude_via_chain(ctx: &BridgeContext) -> ExitCode {
         Ok(out) => out,
         Err(e) => {
             let (code, message) = e.exit_report();
-
-            eprintln!("{}", error_json(&message));
-
+            stdio::eprint_line(&error_json(&message));
             return code;
         },
     };
     emit_claude(&out)
 }
 
-fn emit_loopback(ctx: &BridgeContext) -> ExitCode {
+fn emit_host_token(ctx: &BridgeContext, host: &crate::ids::HostId) -> ExitCode {
     let secret = match ctx.proxy.loopback().secret() {
         Ok(s) => s,
         Err(e) => {
-            eprintln!(
-                "{}",
-                error_json(&format!(
-                    "loopback secret unavailable: {e}; start the bridge once to mint it"
-                ))
-            );
+            stdio::eprint_line(&error_json(&format!(
+                "loopback secret unavailable: {e}; start the bridge once to mint it"
+            )));
             return ExitCode::from(70);
         },
     };
     // Why: CLI clients forward helper stdout as the bearer credential, so it must
-    // be a bare secret.
-    println!("{}", secret.as_str());
+    // be a bare token.
+    let token = crate::proxy::scoped_token::host_token(&secret, host);
+    stdio::print_line(token.as_str());
     ExitCode::SUCCESS
 }
 
 fn emit_claude(out: &crate::gateway::types::HelperOutput) -> ExitCode {
     match serde_json::to_string(out) {
         Ok(s) => {
-            println!("{s}");
+            stdio::print_line(&s);
             ExitCode::SUCCESS
         },
         Err(e) => {
-            eprintln!("{}", error_json(&format!("serialize failed: {e}")));
+            stdio::eprint_line(&error_json(&format!("serialize failed: {e}")));
             ExitCode::from(3)
         },
     }
@@ -105,6 +98,7 @@ pub fn parse_host(args: &[String]) -> Option<String> {
     None
 }
 
+// JSON: helper stderr contract — one object with an `error` string.
 pub fn error_json(msg: &str) -> String {
     serde_json::json!({ "error": msg }).to_string()
 }

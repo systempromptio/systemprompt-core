@@ -22,12 +22,13 @@ pub(super) fn register(
         source: e,
     })?;
 
-    let status = crate::winproc::no_window(&mut Command::new("schtasks"))
-        .args(["/Create", "/TN", task, "/XML"])
-        .arg(&path)
-        .arg("/F")
-        .status()
-        .map_err(|e| InstallError::ScheduleApply(format!("schtasks /Create: {e}")))?;
+    let status =
+        crate::winproc::no_window(&mut Command::new(crate::winproc::system32("schtasks.exe")))
+            .args(["/Create", "/TN", task, "/XML"])
+            .arg(&path)
+            .arg("/F")
+            .status()
+            .map_err(|e| InstallError::ScheduleApply(format!("schtasks /Create: {e}")))?;
     crate::fsutil::remove_leftover_file(&path);
     if !status.success() {
         return Err(InstallError::ScheduleApply(format!(
@@ -56,12 +57,13 @@ pub(super) fn register_autostart(rendered: &str) -> Result<Vec<String>, InstallE
         path: path.display().to_string(),
         source: e,
     })?;
-    let status = crate::winproc::no_window(&mut Command::new("schtasks"))
-        .args(["/Create", "/TN", task, "/XML"])
-        .arg(&path)
-        .arg("/F")
-        .status()
-        .map_err(|e| InstallError::ScheduleApply(format!("schtasks /Create: {e}")))?;
+    let status =
+        crate::winproc::no_window(&mut Command::new(crate::winproc::system32("schtasks.exe")))
+            .args(["/Create", "/TN", task, "/XML"])
+            .arg(&path)
+            .arg("/F")
+            .status()
+            .map_err(|e| InstallError::ScheduleApply(format!("schtasks /Create: {e}")))?;
     crate::fsutil::remove_leftover_file(&path);
     if !status.success() {
         return Err(InstallError::ScheduleApply(format!(
@@ -74,7 +76,7 @@ pub(super) fn register_autostart(rendered: &str) -> Result<Vec<String>, InstallE
 
 pub(super) fn remove_autostart() -> ScheduleRemoval {
     let task = schedule::autostart_label(Os::Windows);
-    match crate::winproc::no_window(&mut Command::new("schtasks"))
+    match crate::winproc::no_window(&mut Command::new(crate::winproc::system32("schtasks.exe")))
         .args(["/Delete", "/TN", task, "/F"])
         .status()
     {
@@ -86,7 +88,7 @@ pub(super) fn remove_autostart() -> ScheduleRemoval {
 
 pub(super) fn autostart_status() -> super::ScheduleStatus {
     let task = schedule::autostart_label(Os::Windows);
-    match crate::winproc::no_window(&mut Command::new("schtasks"))
+    match crate::winproc::no_window(&mut Command::new(crate::winproc::system32("schtasks.exe")))
         .args(["/Query", "/TN", task])
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
@@ -100,7 +102,7 @@ pub(super) fn autostart_status() -> super::ScheduleStatus {
 
 pub(super) fn schedule_registered() -> super::ScheduleStatus {
     let task = schedule::schedule_label(Os::Windows);
-    match crate::winproc::no_window(&mut Command::new("schtasks"))
+    match crate::winproc::no_window(&mut Command::new(crate::winproc::system32("schtasks.exe")))
         .args(["/Query", "/TN", task])
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
@@ -114,7 +116,7 @@ pub(super) fn schedule_registered() -> super::ScheduleStatus {
 
 pub(super) fn remove_current() -> ScheduleRemoval {
     let task = schedule::schedule_label(Os::Windows);
-    match crate::winproc::no_window(&mut Command::new("schtasks"))
+    match crate::winproc::no_window(&mut Command::new(crate::winproc::system32("schtasks.exe")))
         .args(["/Delete", "/TN", task, "/F"])
         .status()
     {

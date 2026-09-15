@@ -22,7 +22,7 @@ use systemprompt_models::services::bundle::{
     BUNDLE_MANIFEST_FILE, MARKETPLACE_BUNDLE_DIRS, ServicesBundleManifest,
 };
 
-use super::cache::BundleCache;
+use super::cache::{BundleCache, discard_staging};
 use super::error::{BundleError, BundleResult};
 use super::verify::require_marketplace_only;
 
@@ -69,12 +69,12 @@ pub fn compose(
     match fs::rename(&staging, &target) {
         Ok(()) => Ok((target, hash)),
         Err(e) if target.is_dir() => {
-            drop(fs::remove_dir_all(&staging));
+            discard_staging(&staging);
             tracing::debug!(error = %e, hash = %hash, "Composed root already published");
             Ok((target, hash))
         },
         Err(e) => {
-            drop(fs::remove_dir_all(&staging));
+            discard_staging(&staging);
             Err(BundleError::extract(&target, e))
         },
     }

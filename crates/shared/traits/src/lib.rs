@@ -4,8 +4,8 @@
 //!
 //! This crate defines the abstractions every other layer (infra, domain,
 //! app, entry) implements or consumes: configuration, database handle,
-//! analytics, authentication, JWT, file storage, repositories, schedulers,
-//! and the cross-cutting [`ExtensionError`] contract.
+//! analytics, authentication, JWT, file storage, repositories, and the
+//! cross-cutting [`ExtensionError`] contract.
 //!
 //! ## Layering
 //!
@@ -33,10 +33,7 @@
 //!
 //! ## Feature flags
 //!
-//! | Feature | Effect |
-//! |---------|--------|
-//! | `default` | No optional features. |
-//! | `web`     | Enables the `ApiModule` trait and pulls in `axum` for HTTP routing. |
+//! This crate exposes no Cargo features.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -50,43 +47,32 @@ pub use content::{ContentCatalogStats, DynContentCatalogStats};
 pub mod context;
 pub mod context_provider;
 pub mod domain_config;
-pub mod events;
 pub mod extension_error;
 pub mod jwt;
 pub mod log_service;
 pub mod managed_resources;
-pub mod module;
 pub mod registry;
 pub mod repository;
-pub mod scheduler;
-pub mod service;
 pub mod storage;
 pub mod validation;
 pub mod validation_report;
 
 pub use systemprompt_provider_contracts::{
-    ChatMessage, ChatRequest, ChatResponse, ChatRole, ChatStream, Job, JobContext, JobResult,
-    JobScope, LlmProvider, LlmProviderError, LlmProviderResult, ProviderError, ProviderResult,
-    SamplingParameters, TokenUsage, ToolCallRequest, ToolCallResult, ToolContent, ToolContext,
-    ToolDefinition, ToolExecutionContext, ToolExecutor, ToolProvider, ToolProviderError,
+    Job, JobContext, JobResult, JobScope, ProviderError, ProviderResult, ToolCallRequest,
+    ToolCallResult, ToolContent, ToolContext, ToolDefinition, ToolProvider, ToolProviderError,
     ToolProviderResult, submit_job,
 };
 
 pub use context::{
     AppContext, ConfigProvider, ContextPropagation, ContextPropagationError,
-    ContextPropagationResult, DatabaseHandle, InjectContextHeaders, Module, ModuleRegistry,
+    ContextPropagationResult, DatabaseHandle, InjectContextHeaders,
 };
-
-#[cfg(feature = "web")]
-pub use context::ApiModule;
 
 pub use systemprompt_identifiers::{
     DbValue, FromDbValue, JsonRow, ToDbValue, parse_database_datetime,
 };
 
 pub use repository::RepositoryError;
-
-pub use service::{AsyncService, Service};
 
 pub use log_service::LogService;
 
@@ -96,16 +82,11 @@ pub use managed_resources::{
 };
 
 pub use context_provider::{
-    ContextMaterializer, ContextProvider, ContextProviderError, ContextWithStats,
+    ContextMaterializer, ContextProvider, ContextProviderError, ContextStats, ContextWithStats,
     DynContextMaterializer, DynContextProvider, EnsureContextParams,
 };
 
-pub use validation::{MetadataValidation, Validate, ValidationError, ValidationResult};
-
-pub use events::{
-    AnalyticsEvent, AnalyticsEventPublisher, LogEventData, LogEventLevel, LogEventPublisher,
-    UserEvent, UserEventPublisher,
-};
+pub use validation::{MetadataValidation, MetadataValidationError, Validate, ValidationResult};
 
 pub use analytics::{
     ActiveSession, AnalyticsProvider, AnalyticsProviderError, AnalyticsResult, AnalyticsSession,
@@ -128,14 +109,12 @@ pub use ai_providers::{
     ImageGenerationInfo, ImageMetadata, ImageStorageConfig, InsertAiFileParams,
 };
 
-pub use scheduler::JobStatus;
-
 pub use registry::{
     AgentInfo, AgentRegistryProvider, DynAgentRegistryProvider, DynMcpRegistryProvider,
     McpRegistryProvider, McpServerInfo, RegistryError, ServiceOAuthConfig,
 };
 
-pub use extension_error::{ApiError, ExtensionError, McpErrorData};
+pub use extension_error::{ExtensionApiError, ExtensionError, McpErrorData};
 
 pub use domain_config::{DomainConfig, DomainConfigError, DomainConfigRegistry};
 
@@ -147,8 +126,6 @@ pub use jwt::{
     AgentJwtClaims, DynJwtValidationProvider, GenerateTokenParams, JwtProviderError, JwtResult,
     JwtValidationProvider,
 };
-
-pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
 mod startup_events;
 pub use startup_events::*;

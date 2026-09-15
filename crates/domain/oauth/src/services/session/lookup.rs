@@ -30,7 +30,7 @@ impl SessionCreationService {
             return None;
         }
 
-        let session_id_str = fp_provider
+        let session_id = fp_provider
             .find_reusable_session(fingerprint)
             .await
             .map_err(|e| {
@@ -53,7 +53,6 @@ impl SessionCreationService {
 
         let user_id_str = existing_session.user_id.as_ref()?;
         let user_id = UserId::new(user_id_str.clone());
-        let session_id = SessionId::new(session_id_str);
 
         let config = systemprompt_models::Config::get()
             .inspect_err(|e| {

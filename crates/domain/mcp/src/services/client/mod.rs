@@ -57,7 +57,9 @@ impl McpClient {
         server_config: &systemprompt_models::mcp::McpServerConfig,
         context: &systemprompt_models::RequestContext,
     ) -> McpDomainResult<Vec<McpTool>> {
-        let service_id = server_config.name.as_str();
+        let service_id = McpServerId::try_new(server_config.name.as_str()).map_err(|e| {
+            crate::McpDomainError::Configuration(format!("invalid MCP server name: {e}"))
+        })?;
         let transport = build_transport(server_config, context, false).await?;
 
         let client_info = ClientInfo::new(
@@ -102,7 +104,7 @@ impl McpClient {
                 description: tool.description.map(|d| d.to_string()),
                 input_schema: Some(input_schema),
                 output_schema,
-                service_id: McpServerId::new(service_id),
+                service_id: service_id.clone(),
                 terminal_on_success,
                 model_config,
             });
@@ -134,6 +136,13 @@ impl McpClient {
     }
 }
 
+fn transport_unavailable(server: &str, error: &McpTransportError) -> crate::McpDomainError {
+    crate::McpDomainError::ConnectionFailed {
+        server: server.to_owned(),
+        message: error.to_string(),
+    }
+}
+
 async fn build_transport(
     server_config: &systemprompt_models::mcp::McpServerConfig,
     context: &systemprompt_models::RequestContext,
@@ -158,6 +167,7 @@ async fn build_transport(
             &server_config.name,
         )?;
         HttpClientWithContext::external(context.clone(), outbound)
+            .map_err(|e| transport_unavailable(&server_config.name, &e))?
             .with_client_capabilities(capabilities::client_capabilities(with_elicitation))
     } else {
         if server_config.oauth.required {
@@ -174,6 +184,7 @@ async fn build_transport(
         let outbound =
             external_auth::static_outbound_headers(&server_config.headers, &server_config.name)?;
         HttpClientWithContext::forwarding(context.clone(), outbound)
+            .map_err(|e| transport_unavailable(&server_config.name, &e))?
             .with_client_capabilities(capabilities::client_capabilities(with_elicitation))
     };
 

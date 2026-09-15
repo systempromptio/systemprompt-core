@@ -34,7 +34,7 @@ async fn test_put_request_success() {
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
     let result = client
         .update_context_name(
-            &ContextId::new_unchecked("00000000-0000-4000-8000-000000000123"),
+            &ContextId::try_new("00000000-0000-4000-8000-000000000123").expect("valid ContextId"),
             "New Name",
         )
         .await;
@@ -62,7 +62,7 @@ async fn test_put_request_with_json_body() {
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
     let result = client
         .update_context_name(
-            &ContextId::new_unchecked("00000000-0000-4000-8000-000000000123"),
+            &ContextId::try_new("00000000-0000-4000-8000-000000000123").expect("valid ContextId"),
             "Updated Context",
         )
         .await;
@@ -85,7 +85,7 @@ async fn test_put_request_404_not_found() {
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
     let result = client
         .update_context_name(
-            &ContextId::new_unchecked("00000000-0000-4000-8000-0000000000ff"),
+            &ContextId::try_new("00000000-0000-4000-8000-0000000000ff").expect("valid ContextId"),
             "Name",
         )
         .await;
@@ -107,9 +107,9 @@ async fn test_delete_request_success() {
 
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
     let result = client
-        .delete_context(&ContextId::new_unchecked(
-            "00000000-0000-4000-8000-000000000de1",
-        ))
+        .delete_context(
+            &ContextId::try_new("00000000-0000-4000-8000-000000000de1").expect("valid ContextId"),
+        )
         .await;
 
     result.expect("DELETE request should succeed");
@@ -134,9 +134,9 @@ async fn test_delete_request_with_auth() {
         .with_token(token);
 
     client
-        .delete_context(&ContextId::new_unchecked(
-            "00000000-0000-4000-8000-000000000123",
-        ))
+        .delete_context(
+            &ContextId::try_new("00000000-0000-4000-8000-000000000123").expect("valid ContextId"),
+        )
         .await
         .expect("DELETE with auth should succeed");
 }
@@ -155,9 +155,9 @@ async fn test_delete_request_403_forbidden() {
 
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
     let result = client
-        .delete_context(&ContextId::new_unchecked(
-            "00000000-0000-4000-8000-0000000000aa",
-        ))
+        .delete_context(
+            &ContextId::try_new("00000000-0000-4000-8000-0000000000aa").expect("valid ContextId"),
+        )
         .await;
 
     let err = result.unwrap_err();

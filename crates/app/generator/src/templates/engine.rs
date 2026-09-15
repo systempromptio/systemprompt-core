@@ -5,7 +5,8 @@
 
 use std::path::{Path, PathBuf};
 
-use systemprompt_models::{AppPaths, Config, WebConfig, WebConfigError};
+use systemprompt_config::paths::AppPaths;
+use systemprompt_models::{Config, WebConfig, WebConfigError};
 use tokio::fs;
 
 pub async fn load_web_config(paths: &AppPaths) -> Result<WebConfig, WebConfigError> {
@@ -17,7 +18,7 @@ pub async fn load_web_config(paths: &AppPaths) -> Result<WebConfig, WebConfigErr
     let content = fs::read_to_string(&config.web_config_path)
         .await
         .map_err(|e| WebConfigError::Io {
-            path: config.web_config_path.clone(),
+            path: PathBuf::from(&config.web_config_path),
             source: e,
         })?;
 

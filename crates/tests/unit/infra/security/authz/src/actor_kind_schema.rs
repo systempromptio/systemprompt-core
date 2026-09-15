@@ -5,7 +5,7 @@
 //! without extending the constraint fails this test instead of silently
 //! rejecting rows at runtime.
 
-use systemprompt_identifiers::{ActorKind, UserId};
+use systemprompt_identifiers::{ActorKind, AgentId, UserId};
 
 const SCHEMA_SQL: &str =
     include_str!("../../../../../../infra/security/schema/governance_decisions.sql");
@@ -25,7 +25,7 @@ fn all_variants() -> Vec<ActorKind> {
             server_name: "m".into(),
         },
         ActorKind::Agent {
-            agent_id: "a".into(),
+            agent_id: AgentId::new("a"),
         },
     ]
     .into_iter()

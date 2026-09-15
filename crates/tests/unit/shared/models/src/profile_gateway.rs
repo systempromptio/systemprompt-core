@@ -16,7 +16,7 @@ use systemprompt_models::wire::canonical::{
 
 fn req(model: &str) -> CanonicalRequest {
     CanonicalRequest {
-        model: model.to_owned(),
+        model: ModelId::new(model),
         system: None,
         messages: Vec::new(),
         max_tokens: 0,

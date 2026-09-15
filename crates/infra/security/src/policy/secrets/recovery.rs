@@ -8,7 +8,7 @@ use std::ops::Range;
 use systemprompt_identifiers::SecretPatternId;
 
 use super::super::GovernedInput;
-use super::patterns::{HIGH_ENTROPY_PATTERN_ID, field_matches};
+use super::patterns::field_matches;
 use super::{SecretScanner, SignatureExemptions, selected_match};
 
 pub const REDACTION_MARKER: &str = "[REDACTED_BY_GOVERNANCE]";
@@ -68,7 +68,7 @@ pub(super) fn secret_findings(
                         move |(span, _)| SecretFinding {
                             source,
                             span,
-                            pattern_id: SecretPatternId::new(HIGH_ENTROPY_PATTERN_ID),
+                            pattern_id: SecretPatternId::high_entropy(),
                         },
                     )
                 })

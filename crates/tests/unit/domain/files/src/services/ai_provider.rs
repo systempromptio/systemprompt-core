@@ -24,7 +24,7 @@ fn new_uuid() -> uuid::Uuid {
 
 fn insert_params(id: uuid::Uuid, user: &UserId) -> InsertAiFileParams {
     InsertAiFileParams {
-        id,
+        id: FileId::new(id.to_string()),
         path: format!("/storage/generated/{id}.png"),
         public_url: format!("/files/images/generated/{id}.png"),
         mime_type: "image/png".to_owned(),
@@ -67,7 +67,7 @@ async fn insert_then_find_by_id_round_trips_all_fields() {
         .expect("find")
         .expect("present");
 
-    assert_eq!(found.id, id);
+    assert_eq!(found.id, FileId::new(id.to_string()));
     assert_eq!(found.mime_type, "image/png");
     assert_eq!(found.size_bytes, Some(2048));
     assert!(found.ai_content, "ai_content flag persisted as true");
@@ -92,7 +92,7 @@ async fn insert_without_optional_fields_persists() {
     let id = new_uuid();
     let file_id = FileId::new(id.to_string());
     let params = InsertAiFileParams {
-        id,
+        id: file_id.clone(),
         path: format!("/storage/generated/{id}.png"),
         public_url: format!("/files/images/generated/{id}.png"),
         mime_type: "image/png".to_owned(),
@@ -155,8 +155,8 @@ async fn list_by_user_returns_inserted_files() {
         .expect("list by user");
     assert_eq!(files.len(), 2);
     assert!(files.iter().all(|f| f.ai_content));
-    assert!(files.iter().any(|f| f.id == id_a));
-    assert!(files.iter().any(|f| f.id == id_b));
+    assert!(files.iter().any(|f| f.id == FileId::new(id_a.to_string())));
+    assert!(files.iter().any(|f| f.id == FileId::new(id_b.to_string())));
 
     cleanup(&provider, &fid_a).await;
     cleanup(&provider, &fid_b).await;

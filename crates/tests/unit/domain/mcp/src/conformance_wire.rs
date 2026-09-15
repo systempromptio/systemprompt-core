@@ -71,7 +71,7 @@ fn ctx() -> RequestContext {
         SessionId::new(format!("s-{}", uuid::Uuid::new_v4().simple())),
         TraceId::new("t"),
         ContextId::generate(),
-        AgentName::new("a"),
+        AgentName::try_new("a").expect("valid AgentName"),
     )
 }
 

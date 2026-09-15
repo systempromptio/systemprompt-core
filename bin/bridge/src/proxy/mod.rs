@@ -5,6 +5,7 @@
 
 mod bind;
 pub mod comms;
+pub mod credential;
 pub mod dispatch;
 pub mod forward;
 pub mod handle;
@@ -16,6 +17,8 @@ pub mod mcp_probe;
 pub mod peer;
 pub mod portfile;
 mod refresh;
+pub mod role;
+pub mod scoped_token;
 pub mod secret;
 pub mod server;
 pub mod session;
@@ -27,8 +30,10 @@ use std::time::Duration;
 
 use identity::InstallId;
 
-pub use handle::{ProxyDeps, ProxyHandle, ProxyRole};
+pub use credential::LoopbackCredential;
+pub use handle::ProxyHandle;
 pub use loopback::LoopbackEndpoint;
+pub use role::{ProxyDeps, ProxyFailure, ProxyRole};
 pub use server::{DRAIN_DEADLINE, ProxyContext, ProxyStats, ServedProxy};
 
 pub const DEFAULT_PROXY_PORT: u16 = 48217;

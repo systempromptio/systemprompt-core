@@ -5,7 +5,7 @@
 
 use std::collections::HashMap;
 
-use systemprompt_identifiers::{Actor, ContextId, SessionId, UserId};
+use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, UserId};
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_mcp::services::tool_provider::McpToolProvider;
 use systemprompt_models::services::ResilienceSettings;
@@ -142,7 +142,7 @@ async fn health_check_failures_open_the_per_server_circuit_breaker() {
     let err = provider
         .call_tool(
             &request,
-            &systemprompt_identifiers::McpServerId::new(&down),
+            &systemprompt_identifiers::McpServerId::try_new(&down).expect("valid McpServerId"),
             &context,
         )
         .await
@@ -169,7 +169,7 @@ async fn refresh_connections_tolerates_a_managed_server_that_is_not_listening() 
     register_internal_extension(bootstrap, &down);
 
     provider
-        .refresh_connections("tph_refresh")
+        .refresh_connections(&AgentName::try_new("tph_refresh").expect("valid AgentName"))
         .await
         .expect("an unreachable managed server is logged, not fatal");
 }

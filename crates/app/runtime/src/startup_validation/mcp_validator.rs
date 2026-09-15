@@ -7,7 +7,7 @@ use std::path::Path;
 use systemprompt_loader::ExtensionRegistry as McpExtensionRegistry;
 use systemprompt_models::mcp::McpServerType;
 use systemprompt_models::{Config, ServicesConfig};
-use systemprompt_traits::validation_report::ValidationError;
+use systemprompt_traits::validation_report::ValidationIssue;
 use systemprompt_traits::{StartupValidationReport, ValidationReport};
 
 pub(super) fn validate_mcp_manifests(
@@ -35,11 +35,11 @@ pub fn collect_manifest_errors<F>(
     services_config: &ServicesConfig,
     is_cloud: bool,
     resolve: F,
-) -> Vec<ValidationError>
+) -> Vec<ValidationIssue>
 where
     F: Fn(&str) -> Result<(), String>,
 {
-    let mut mcp_errors: Vec<ValidationError> = Vec::new();
+    let mut mcp_errors: Vec<ValidationIssue> = Vec::new();
 
     for (name, deployment) in &services_config.mcp_servers {
         if !deployment.enabled {
@@ -54,7 +54,7 @@ where
 
         if let Err(e) = resolve(&deployment.binary) {
             mcp_errors.push(
-                ValidationError::new(
+                ValidationIssue::new(
                     format!("mcp_servers.{}.binary", name),
                     format!(
                         "Manifest not found for binary '{}': {}",
@@ -72,7 +72,7 @@ where
     mcp_errors
 }
 
-pub fn merge_mcp_errors(report: &mut StartupValidationReport, mcp_errors: Vec<ValidationError>) {
+pub fn merge_mcp_errors(report: &mut StartupValidationReport, mcp_errors: Vec<ValidationIssue>) {
     if mcp_errors.is_empty() {
         return;
     }

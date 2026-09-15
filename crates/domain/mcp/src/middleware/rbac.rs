@@ -156,8 +156,14 @@ pub async fn enforce_rbac_from_registry(
     let act_chain = extract_act_chain(&claims);
 
     let floor = member_attribute_floor(&services_config, EntityKind::McpServer, server_name);
+    let server_id = McpServerId::try_new(server_name).map_err(|e| {
+        McpError::invalid_request(
+            format!("invalid MCP server name '{server_name}': {e}"),
+            None,
+        )
+    })?;
     let authz_request = build_mcp_authz_request(
-        server_name,
+        &server_id,
         &claims,
         act_chain.clone(),
         &request_context.execution,
@@ -180,7 +186,7 @@ fn extract_act_chain(claims: &JwtClaims) -> Vec<Actor> {
 
 #[must_use]
 pub fn build_mcp_authz_request(
-    server_name: &str,
+    server_id: &McpServerId,
     claims: &JwtClaims,
     act_chain: Vec<Actor>,
     execution: &ExecutionContext,
@@ -191,9 +197,9 @@ pub fn build_mcp_authz_request(
     });
     let user_id = UserId::new(claims.sub.clone());
     AuthzRequest {
-        entity: EntityRef::McpServer(McpServerId::new(server_name)),
+        entity: EntityRef::McpServer(server_id.clone()),
         user_id: user_id.clone(),
-        actor: Some(Actor::mcp(user_id, server_name)),
+        actor: Some(Actor::mcp(user_id, server_id.as_str())),
         client_id: claims.client_id.clone(),
         access_scope: None,
         roles: claims.roles.clone(),

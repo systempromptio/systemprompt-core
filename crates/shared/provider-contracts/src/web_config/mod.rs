@@ -53,7 +53,10 @@ pub struct WebConfig {
     pub nav: NavConfig,
     #[serde(default)]
     pub social_action_bar: SocialActionBarConfig,
+    // JSON: per-page template data is free-form YAML owned by the site's
+    // templates; the engine passes it through to Tera untouched.
     #[serde(default)]
+    // JSON: Per-page template variables from the profile YAML; the page data model is dynamic.
     pub pages: HashMap<String, serde_json::Value>,
     #[serde(default)]
     pub i18n: SiteI18nConfig,

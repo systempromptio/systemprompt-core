@@ -42,7 +42,7 @@ fn request_context(ctx: &ContextId, session: &SessionId, user: &UserId) -> Reque
         session.clone(),
         TraceId::generate(),
         ctx.clone(),
-        AgentName::new("persist-agent"),
+        AgentName::try_new("persist-agent").expect("valid AgentName"),
     );
     rc.auth.actor = Actor::user(user.clone());
     rc

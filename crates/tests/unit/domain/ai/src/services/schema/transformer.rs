@@ -11,7 +11,7 @@ fn create_test_tool(name: &str, description: &str, schema: serde_json::Value) ->
         description: Some(description.to_string()),
         input_schema: Some(schema),
         output_schema: None,
-        service_id: McpServerId::new("test-service"),
+        service_id: McpServerId::try_new("test-service").expect("valid McpServerId"),
         terminal_on_success: false,
         model_config: None,
     }
@@ -80,7 +80,7 @@ mod error_handling_tests {
             description: Some("No schema".to_string()),
             input_schema: None,
             output_schema: None,
-            service_id: McpServerId::new("test"),
+            service_id: McpServerId::try_new("test").expect("valid McpServerId"),
             terminal_on_success: false,
             model_config: None,
         };
@@ -98,7 +98,7 @@ mod error_handling_tests {
             description: Some("".to_string()),
             input_schema: Some(json!({"type": "object"})),
             output_schema: None,
-            service_id: McpServerId::new("test"),
+            service_id: McpServerId::try_new("test").expect("valid McpServerId"),
             terminal_on_success: false,
             model_config: None,
         };
@@ -116,7 +116,7 @@ mod error_handling_tests {
             description: None,
             input_schema: Some(json!({"type": "object"})),
             output_schema: None,
-            service_id: McpServerId::new("test"),
+            service_id: McpServerId::try_new("test").expect("valid McpServerId"),
             terminal_on_success: false,
             model_config: None,
         };

@@ -1,15 +1,11 @@
 //! One replay of an upstream request whose socket turned out to be dead.
 //!
-//! Why the replay exists: the upstream client keeps idle keep-alive sockets,
-//! and on Windows the WSL localhost relay drops an idle one without a FIN or
-//! RST. The next request written to it is retransmitted for ~30 s and then
-//! aborted by the TCP stack — reqwest reports "error sending request", the
-//! gateway never saw a byte, and the caller (Claude desktop reading a
-//! dashboard's `ui://` resource) shows the server as unreachable. The request
-//! body is buffered anyway, so a request that failed at the connection level
-//! is replayed once on a fresh socket. A `tools/call` is the one exception:
-//! if the failure came after the bytes left, the server may have executed it,
-//! and a tool is not guaranteed idempotent.
+//! The Windows WSL localhost relay drops an idle keep-alive socket without a
+//! FIN or RST, so the next request written to it aborts before the gateway
+//! sees a byte; such a request is replayed once on a fresh socket. Only
+//! managed-MCP traffic is replayed: inference could bill twice and the
+//! gateway routes carry their own retry semantics. Within MCP a `tools/call`
+//! is replayed only when the connection never opened.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -32,10 +28,6 @@ pub(crate) struct UpstreamRequest<'a> {
     pub policy: Replay,
 }
 
-// Why: only managed-MCP traffic is replayed. `/v1/messages` is inference —
-// a replay could bill twice — and the gateway routes carry their own retry
-// semantics. Within MCP, a `tools/call` is replayed only when the connection
-// never opened, because nothing can have executed then.
 #[must_use]
 pub fn replay_policy(request_path: &str, body: &Bytes) -> Replay {
     if !request_path.starts_with("/mcp/") {
@@ -47,9 +39,14 @@ pub fn replay_policy(request_path: &str, body: &Bytes) -> Replay {
     }
 }
 
+#[derive(serde::Deserialize)]
+struct JsonRpcMethod {
+    #[serde(default)]
+    method: Option<String>,
+}
+
 fn jsonrpc_method(body: &Bytes) -> Option<String> {
-    let value: serde_json::Value = serde_json::from_slice(body).ok()?;
-    value.get("method")?.as_str().map(str::to_owned)
+    serde_json::from_slice::<JsonRpcMethod>(body).ok()?.method
 }
 
 #[must_use]

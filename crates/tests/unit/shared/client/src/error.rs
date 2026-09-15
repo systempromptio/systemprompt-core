@@ -2,7 +2,8 @@
 //!
 //! Tests cover:
 //! - Error creation and variants
-//! - from_response constructor
+//! - from_response constructor (the body is the message once; details stay
+//!   empty)
 //! - is_retryable method
 //! - Display implementations
 
@@ -21,7 +22,7 @@ fn test_from_response_creates_api_error() {
         } => {
             assert_eq!(status, 404);
             assert_eq!(message, "Not found");
-            assert_eq!(details, Some("Not found".to_string()));
+            assert_eq!(details, None);
         },
         _ => panic!("Expected ApiError variant"),
     }
@@ -39,7 +40,7 @@ fn test_from_response_with_empty_body() {
         } => {
             assert_eq!(status, 500);
             assert!(message.is_empty());
-            assert_eq!(details, Some(String::new()));
+            assert_eq!(details, None);
         },
         _ => panic!("Expected ApiError variant"),
     }
@@ -58,7 +59,7 @@ fn test_from_response_with_json_error_body() {
         } => {
             assert_eq!(status, 400);
             assert_eq!(message, body);
-            assert_eq!(details, Some(body));
+            assert_eq!(details, None);
         },
         _ => panic!("Expected ApiError variant"),
     }

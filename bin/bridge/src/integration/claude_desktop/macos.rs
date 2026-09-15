@@ -5,13 +5,11 @@
 
 #![cfg(target_os = "macos")]
 
-use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use super::shared::{
-    API_KEY_KEY, DomainRead, KEYS_OF_INTEREST, ProfileGenInputs, make_uuids, redact_if_sensitive,
-    unique_stem,
+    API_KEY_KEY, DomainRead, KEYS_OF_INTEREST, ProfileGenInputs, redact_if_sensitive,
 };
 use crate::install::xml::escape;
 use crate::integration::host_app::{GeneratedProfile, ProfileInstalled};
@@ -46,8 +44,8 @@ pub(super) fn read_domain(domain: &str) -> DomainRead {
     out
 }
 
-pub(super) fn list_claude_processes() -> Vec<String> {
-    let mut hits: Vec<String> = crate::sysproc::list_processes()
+pub(super) fn list_claude_processes() -> Result<Vec<String>, crate::sysproc::SysprocError> {
+    let mut hits: Vec<String> = crate::sysproc::list_processes()?
         .into_iter()
         .filter_map(|p| {
             let name_lower = p.name.to_ascii_lowercase();
@@ -74,23 +72,23 @@ pub(super) fn list_claude_processes() -> Vec<String> {
         .collect();
     hits.sort();
     hits.dedup();
-    hits
+    Ok(hits)
 }
 
 pub(super) fn write_profile(inputs: &ProfileGenInputs) -> std::io::Result<GeneratedProfile> {
-    let dir = std::env::temp_dir().join(crate::brand::brand().working_dir_name);
-    std::fs::create_dir_all(&dir)?;
-    let (payload_uuid, profile_uuid) = make_uuids();
-    let path = dir.join(format!("claude-bridge-{}.mobileconfig", unique_stem()));
-
-    let xml = render_profile(inputs, &payload_uuid, &profile_uuid);
-    std::fs::File::create(&path)?.write_all(xml.as_bytes())?;
+    let uuids = crate::integration::generated_profile::profile_uuids();
+    let xml = render_profile(inputs, &uuids.payload, &uuids.profile)?;
+    let path = crate::integration::generated_profile::write(
+        "claude-bridge",
+        ".mobileconfig",
+        xml.as_bytes(),
+    )?;
 
     Ok(GeneratedProfile {
         path: path.display().to_string(),
         bytes: xml.len(),
-        payload_uuid,
-        profile_uuid,
+        payload_uuid: uuids.payload,
+        profile_uuid: uuids.profile,
     })
 }
 
@@ -161,31 +159,39 @@ fn format_plist_value(value: &serde_json::Value) -> String {
     clippy::literal_string_with_formatting_args,
     reason = "these braces are template placeholders substituted with str::replace, not format args"
 )]
-fn render_profile(inputs: &ProfileGenInputs, payload_uuid: &str, profile_uuid: &str) -> String {
+fn render_profile(
+    inputs: &ProfileGenInputs,
+    payload_uuid: &str,
+    profile_uuid: &str,
+) -> std::io::Result<String> {
     let models = if inputs.models.is_empty() {
         super::shared::default_models()
     } else {
         inputs.models.clone()
     };
+    let host_token = crate::install::mdm::policy::desktop_host_token(&inputs.api_key);
+    let models_json = serde_json::to_string(&models)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
     let policy = crate::install::mdm::policy::claude_desktop_policy(
         &crate::install::mdm::policy::PolicyInputs {
             base_url: &inputs.gateway_base_url,
-            api_key: &inputs.api_key,
-            models: serde_json::to_string(&models).ok(),
+            host_token: &host_token,
+            models: Some(models_json),
             headers: &inputs.headers,
             egress_allowed_hosts: None,
             org_uuid: inputs.organization_uuid.as_deref(),
-            mcp_servers: &inputs.mcp_servers,
+            mcp_servers: inputs.mcp_servers.as_deref(),
         },
-    );
+    )
+    .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
 
-    PROFILE_TMPL
+    Ok(PROFILE_TMPL
         .replace("{profile_uuid}", &escape(profile_uuid))
         .replace("{payload_uuid}", &escape(payload_uuid))
         .replace(
             "{policy_body}",
             &crate::install::mdm::policy::plist_body(&policy, "        "),
-        )
+        ))
 }
 
 #[expect(

@@ -3,7 +3,7 @@
 //! [`ProcessCleanup`] primitive.
 //!
 //! Stored PIDs are signalled only after
-//! [`systemprompt_models::subprocess::live_pid_is_subprocess`] confirms the
+//! [`systemprompt_loader::subprocess::live_pid_is_subprocess`] confirms the
 //! live process still carries this installation's spawn markers — registry
 //! PIDs outlive the processes that minted them and are recycled by the
 //! kernel, so an unverified PID is cleared without signalling. Port-derived
@@ -15,7 +15,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_database::{ServiceConfig, ServiceRepository};
-use systemprompt_models::subprocess::{AGENT_NAME_ENV, MCP_SERVICE_ID_ENV, live_pid_is_subprocess};
+use systemprompt_loader::subprocess::live_pid_is_subprocess;
+use systemprompt_models::subprocess::{AGENT_NAME_ENV, MCP_SERVICE_ID_ENV};
 use tracing::warn;
 
 use super::orchestration::ProcessCleanup;

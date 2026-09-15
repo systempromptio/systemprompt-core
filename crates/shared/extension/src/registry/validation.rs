@@ -1,11 +1,17 @@
 //! Registry validation for extension dependencies and reserved API path
 //! collisions.
 //!
+//! An extension router is either nested under `/api/` or merged at the web
+//! root `/` (the site extension that serves pages); any other base would
+//! shadow core routes without the reserved-path table seeing it.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use super::{ExtensionRegistry, topo_sort};
 use crate::error::LoaderError;
+
+pub const WEB_ROOT_BASE_PATH: &str = "/";
 
 pub const RESERVED_PATHS: &[&str] = &[
     "/api/v1/oauth",
@@ -44,7 +50,7 @@ impl ExtensionRegistry {
             if let Some(router_config) = ext.router(ctx) {
                 let base_path = router_config.base_path;
 
-                if !base_path.starts_with("/api/") {
+                if base_path != WEB_ROOT_BASE_PATH && !base_path.starts_with("/api/") {
                     return Err(LoaderError::InvalidBasePath {
                         extension: ext.id().to_owned(),
                         path: base_path.to_owned(),

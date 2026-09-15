@@ -295,6 +295,21 @@ fn openai_responses_parse_extracts_text_tool_and_usage() {
 }
 
 #[test]
+fn openai_responses_function_call_without_any_id_is_a_parse_error() {
+    let value: Value = json!({
+        "id": "resp_x",
+        "model": "gpt-5.4",
+        "output": [
+            {"type": "function_call", "name": "lookup", "arguments": "{}"}
+        ],
+        "usage": {"input_tokens": 1, "output_tokens": 1, "total_tokens": 2}
+    });
+    let err = openai_responses::parse_response_object(&value, "fallback")
+        .expect_err("a tool call that cannot be replayed must not become ToolUse{id: \"\"}");
+    assert!(err.to_string().contains("lookup"), "{err}");
+}
+
+#[test]
 fn openai_responses_parse_text_only_is_end_turn() {
     let value: Value = json!({
         "id": "resp_2",

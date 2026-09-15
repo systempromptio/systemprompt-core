@@ -169,7 +169,7 @@ fn rss_feed_structs_are_constructible() {
 #[test]
 fn sitemap_structs_are_constructible() {
     let alt = SitemapAlternate {
-        hreflang: systemprompt_identifiers::LocaleCode::new("en"),
+        hreflang: systemprompt_identifiers::LocaleCode::english(),
         href: "https://example.com/en".to_owned(),
     };
     let entry = SitemapUrlEntry {

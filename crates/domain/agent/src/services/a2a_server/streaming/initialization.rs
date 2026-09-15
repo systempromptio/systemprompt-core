@@ -37,16 +37,35 @@ pub(super) fn create_jsonrpc_error_event(
     Event::default().data(error_event.to_string())
 }
 
-pub(super) fn align_context_agent_name(agent_name: &str, context: &mut RequestContext) {
-    if context.agent_name().as_str() != agent_name {
-        tracing::warn!(
-            context_agent = %context.agent_name().as_str(),
-            service_agent = %agent_name,
-            "Agent mismatch, using service name"
-        );
-
-        context.execution.agent_name = AgentName::new(agent_name.to_owned());
+pub(super) fn align_context_agent_name(
+    agent_name: &str,
+    context: &mut RequestContext,
+    tx: &Sender<Event>,
+    request_id: &NumberOrString,
+) -> Result<(), ()> {
+    if context.agent_name().as_str() == agent_name {
+        return Ok(());
     }
+    tracing::warn!(
+        context_agent = %context.agent_name().as_str(),
+        service_agent = %agent_name,
+        "Agent mismatch, using service name"
+    );
+    let service_agent = AgentName::try_new(agent_name.to_owned()).map_err(|e| {
+        tracing::error!(service_agent = %agent_name, error = %e, "Invalid service agent name");
+        if tx
+            .try_send(create_jsonrpc_error_event(
+                -32602,
+                &format!("Invalid agent name: {e}"),
+                request_id,
+            ))
+            .is_err()
+        {
+            tracing::trace!("Failed to send error event, channel closed");
+        }
+    })?;
+    context.execution.agent_name = service_agent;
+    Ok(())
 }
 
 pub(super) fn resolve_task_id(message: &Message) -> TaskId {
@@ -93,7 +112,7 @@ pub(super) async fn setup_stream(
         registry,
     } = input;
 
-    align_context_agent_name(&agent_name, &mut context);
+    align_context_agent_name(&agent_name, &mut context, tx, &request_id)?;
 
     let task_id = resolve_task_id(&message);
     let context_id = message.context_id.clone();

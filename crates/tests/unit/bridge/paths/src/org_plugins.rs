@@ -1,12 +1,10 @@
 use std::path::PathBuf;
 
-#[cfg(not(target_os = "windows"))]
-use systemprompt_bridge::config::paths::legacy_org_plugins_roots;
-use systemprompt_bridge::config::paths::{
-    LEGACY_ORG_PLUGINS_METADATA, all_known_org_plugins_roots, org_plugins_system, org_plugins_user,
-};
 #[cfg(target_os = "macos")]
 use systemprompt_bridge::config::paths::{Scope, org_plugins_effective};
+use systemprompt_bridge::config::paths::{
+    all_known_org_plugins_roots, org_plugins_system, org_plugins_user,
+};
 
 #[test]
 fn all_known_roots_include_the_system_root() {
@@ -14,20 +12,6 @@ fn all_known_roots_include_the_system_root() {
     assert!(!roots.is_empty());
     if let Some(sys) = org_plugins_system() {
         assert!(roots.contains(&sys), "system root must be a known root");
-    }
-}
-
-#[cfg(not(target_os = "windows"))]
-#[test]
-fn legacy_roots_are_empty_off_windows() {
-    assert!(legacy_org_plugins_roots().is_empty());
-}
-
-#[test]
-fn legacy_metadata_markers_are_dotfiles() {
-    assert!(!LEGACY_ORG_PLUGINS_METADATA.is_empty());
-    for marker in LEGACY_ORG_PLUGINS_METADATA {
-        assert!(marker.starts_with('.'), "{marker} should be a dotfile");
     }
 }
 
@@ -108,7 +92,7 @@ fn clear_xdg() {
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
 #[test]
 fn an_unwritable_system_root_falls_back_to_the_user_scope() {
-    use systemprompt_bridge::config::paths::{Scope, org_plugins_install_target};
+    use systemprompt_bridge::config::paths::{Scope, org_plugins_effective};
 
     let _guard = env_lock();
     let data = tempfile::TempDir::new().expect("data dir");
@@ -129,7 +113,7 @@ fn an_unwritable_system_root_falls_back_to_the_user_scope() {
         );
     }
 
-    let target = org_plugins_install_target().expect("a target always resolves");
+    let target = org_plugins_effective().expect("a target always resolves");
 
     match prev_xdg {
         Some(v) => set_xdg_os(&v),
@@ -156,9 +140,7 @@ fn an_unwritable_system_root_falls_back_to_the_user_scope() {
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
 #[test]
 fn a_writable_system_root_is_preferred() {
-    use systemprompt_bridge::config::paths::{
-        FallbackReason, Scope, org_plugins_effective, org_plugins_install_target,
-    };
+    use systemprompt_bridge::config::paths::{FallbackReason, Scope, org_plugins_effective};
 
     let _guard = env_lock();
     let data = tempfile::TempDir::new().expect("data dir");
@@ -173,7 +155,6 @@ fn a_writable_system_root_is_preferred() {
         std::env::set_var("SP_BRIDGE_ORG_PLUGINS_SYSTEM", &system_root);
     }
 
-    let target = org_plugins_install_target().expect("a target always resolves");
     let effective = org_plugins_effective().expect("a location always resolves");
 
     match prev_xdg {
@@ -185,11 +166,12 @@ fn a_writable_system_root_is_preferred() {
         None => unsafe { std::env::remove_var("SP_BRIDGE_ORG_PLUGINS_SYSTEM") },
     }
 
-    for loc in [&target, &effective] {
-        assert!(matches!(loc.scope, Scope::System), "{loc:?}");
-        assert_eq!(loc.path, system_root);
-        assert!(matches!(loc.reason, FallbackReason::Preferred), "{loc:?}");
-    }
+    assert!(matches!(effective.scope, Scope::System), "{effective:?}");
+    assert_eq!(effective.path, system_root);
+    assert!(
+        matches!(effective.reason, FallbackReason::Preferred),
+        "{effective:?}"
+    );
 }
 
 #[cfg(target_os = "macos")]

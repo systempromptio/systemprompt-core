@@ -27,7 +27,13 @@ pub struct ListArgs {
 
 pub(super) fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
-    let project_root = ProjectRoot::discover().ok();
+    let project_root = match ProjectRoot::discover() {
+        Ok(root) => Some(root),
+        Err(e) => {
+            tracing::debug!(error = %e, "No project root; binary details omitted");
+            None
+        },
+    };
 
     let mut servers: Vec<McpServerSummary> = services_config
         .mcp_servers

@@ -1,5 +1,63 @@
 # Changelog
 
+## [0.53.0] - 2026-09-14
+
+### Breaking
+
+- **Breaking:** the `mtls` credential source is removed: `[mtls] cert_keystore_ref`, `AuthProvider` `mtls`, `GatewayClient::mtls_exchange`, `MtlsRequest`, the `KeystoreRef`/`CertFingerprint` ids and the `<PREFIX>_DEVICE_CERT*` variables. Migrate by signing in with `login` (session or PAT); the chain is session → PAT.
+- **Breaking:** `[sync] pinned_pubkey` / `pinned_pubkey_gateway` and `<PREFIX>_POLICY_PUBKEY` are no longer read; a bare key is never adopted as trust. Migrate by writing a gateway-bound `[sync.trust]` record (`gateway`, `key`, `source = "operator"`) or provisioning `<PREFIX>_POLICY_TRUST` / the managed `manifestTrust` key.
+- **Breaking:** `hooks/hooks.json` and the Claude Desktop managed preferences no longer carry the loopback secret. Hooks carry a per-plugin `hook:<plugin_id>` token accepted only on that plugin's `/api/public/hooks/*` routes; Claude Desktop's `inferenceGatewayApiKey` and `managedMcpServers[].headers.Authorization` carry a `host:claude-desktop` token accepted on inference and `/mcp/*` only. Re-run `sync` (and re-apply the desktop profile) after upgrading so every surface holds a current token.
+- **Breaking:** `/otel*` is forwarded only for callers presenting the loopback secret; a host or hook token is answered `401 scope-mismatch`.
+- **Breaking:** the `SP_BRIDGE_OPENCODE_MANAGED_DIR` variable is removed. Migrate by setting `[opencode] managed_dir` in the bridge config.
+- **Breaking:** every pre-0.49 on-disk layout is no longer migrated: the pre-stamp `mcp-servers.json`, `LegacyCreds` plaintext OAuth secrets, the `systemprompt-bridge-managed` Cowork marketplace, the aggregate `systemprompt-managed` plugin dir and `.systemprompt-bridge` marker, the legacy org-plugins roots, `agents.json`, and the unbound legacy pin. A bridge older than 0.49 must upgrade through 0.52 first.
+- **Breaking:** `ProfileState::classify` takes a `ProfileProbe`; `ProfileState::endpoint_freshness` returns `Freshness` (`Fresh` / `Stale` / `Unchecked` / `Unverifiable { reason }`) and a new `ProfileState::Unverifiable` variant (wire code `unverifiable`) reports a profile fact the probe could not evaluate instead of assuming it fresh.
+- **Breaking:** `sync::run_once(bridge, &SyncOptions { allow_unsigned, force_replay, allow_tofu, cancel })` replaces the three boolean arguments; `SyncError::Cancelled { applied }` reports a run stopped by its token.
+- **Breaking:** `GatewayClient::{fetch_manifest, fetch_plugin_file, fetch_latest_release, fetch_whoami, fetch_profile_usage, set_host_model_filter}`, `update::{check, apply, download_verified, run_automatic}` and `HostSyncCtx::bearer` take `&BearerToken` instead of `&str`.
+- **Breaking:** `HostSyncCtx` gains `start_menu: &StartMenuCache`; `claude_desktop::is_app_installed` takes the cache instead of building one per sync.
+- **Breaking:** `HostFailure` and `HostWarning` carry `host_id: HostId`; `HostFailure` gains `emitter`, and `HostSync::emitter_id` distinguishes the Cowork plugin (`cowork-plugins`) and artifacts (`cowork-artifacts`) emitters that share the `claude-desktop` host id.
+- **Breaking:** `install::UninstallSummary` gains `foreign_plugins` and `host_warnings`; `UninstallSummaryBuilder` is removed and `integration::uninstall::uninstall` performs the host cleanup that `install::uninstall` no longer does. `PurgeReport::warnings` is folded into `uninstall.host_warnings`.
+- **Breaking:** `mdm::policy::PolicyInputs` takes `host_token: &HostToken` and `mcp_servers: Option<&[McpServerEntry]>`; `claude_desktop_policy` returns `Result<_, MdmError>` and refuses a malformed `deployment_organization_uuid` (`MdmError::InvalidConfig { key, detail }`). `cowork_egress_allowed_hosts` returns `Result<Option<_>, EgressParseError>`; an empty allow-list is a config error, not "unrestricted".
+- **Breaking:** `auth::ChainError::PreferredTransient` is removed; `ChainError::Providers { failures, terminal }` carries whether any provider's failure was retryable (exit `10`) or every one was terminal.
+- **Breaking:** `SetupError::Io { action, path, source }` and `SetupError::Token(TokenRejection)` replace the string variants; `SetupError::EmptyGateway` replaces `SetupError::Path` for a blank `set_gateway_url`.
+- **Breaking:** `cli::run` takes a `Launch`; `cli::run_launch(args, launch)` is the argument-driven entry and `cli::run_with_args` never defaults to the GUI.
+- **Breaking:** `wire::ipc::reply_script` takes a `ReplyTarget { mount, id }` so a reply produced for a previous webview mount is dropped instead of delivered.
+- **Breaking:** `update::hex_lower` is removed; use `hash::hex_encode`. `gui::server_marketplace::{ChangeKind, ChildKind, ItemSource, MarketplaceExtra, PluginManifest, FrontmatterExtra, McpServerEntry}` are public.
+
+### Added
+
+- `login --stdin` reads the PAT from standard input; `sync --watch --interval <secs>` exits `64` on a value that is not a number.
+- `install::uninstall` records the host-cleanup warnings in the printed summary (`Warning: …` lines) and in the GUI disconnect result.
+- **Windows:** `remove_profile` run unelevated reports `ManualStepRequired` naming the HKLM values that still route Claude Desktop through the proxy instead of `NothingToRemove`.
+- `proxy::credential` classifies every inbound route (`Hook` / `Inference` / `Mcp` / `Otel` / `Other`) and judges the presented credential per class; `proxy::scoped_token` derives the hook and host tokens.
+- `ProxyRole::Failed(ProxyFailure)` names why a process is not serving (`Config`, `LoopbackSecret`, `Bind { tried }`, `Server`); a malformed config file refuses to serve and records a `config` start-up fault instead of binding against defaults.
+- `update::AutoUpdateDecision` (`Delivered` / `NeverSynced` / `Withheld`) replaces the boolean: an unreadable, corrupt or foreign-gateway last-sync sentinel withholds staging.
+- `integration::mcp_sidecar` records which MCP connector entries the bridge wrote into a host config, so a proxy port move replaces the old-origin entries rather than leaving them as foreign.
+- `integration::generated_profile` writes generated host profiles 0600 under the brand's private temp dir and consumes them after install; `profile_uuids()` mints real v4 UUIDs.
+- `proxy::comms::sweep_draining` folds a `.draining` inbox file left by an interrupted `comms-drain` back into the live inbox; the inbox lives under the brand config dir and its files are 0600.
+- Host probe results carry a per-host `ProbeSeq`; a result from a probe that a later probe of the same host superseded is discarded instead of overwriting the newer snapshot.
+- `wire::first_run::{FirstRunPhase, StepStatus}` are serialised enums; `HostFailure`, `HostWarning` and `FirstRunPayload` serialise them directly.
+
+### Changed
+
+- The whoami peer probe stops reading at the declared `Content-Length` and retries once, so a sibling that keeps the socket open after answering is identified within the budget instead of read as an unidentified listener (the cause of the intermittent `the_proxy_command_stands_down_when_a_sibling_already_serves` failure).
+- `classify_configured_port` and the `Host` header check share one loopback test: a bracketed IPv6 loopback (`[::1]:48217`) is loopback; a URL whose port is not a number is `Unparseable`.
+- A bare invocation opens the GUI only when the process was launched without a console of its own (Windows: no parent console to attach; macOS: `__CFBundleIdentifier` set by LaunchServices); a pipe or scheduler with no subcommand gets the credential helper.
+- `AuthProvider` and `HostSync` document why they are `#[async_trait]`; every `.ok()` / `unwrap_or_default()` on a fallible side effect in the bridge is replaced by a typed outcome or a named error.
+- Test-only seams (`#[doc(hidden)]` items, `dev-stub-host`, `UninstallSummaryBuilder`, `unique_stem`) are removed; the remaining conveniences live in `crates/tests/`.
+
+### Fixed
+
+- A user's scalar at a key the bridge merges a table into (Codex `config.toml`, Hermes `config.yaml`, Claude Code `settings.json`) is refused as `ForeignShape` naming the key; the file is never rewritten around the conflict.
+- `plugin_oauth::store_creds` writes the secret to the keystore before the metadata names it, so a keystore failure keeps the previous, still-usable pair; a stored gateway spelled with a trailing slash is recognised as the same gateway, and a malformed recorded gateway is an error rather than a silent re-provision.
+- Uninstall removes only the plugin directories, policy values and marketplace entries the bridge's sidecars record; a marketplace the bridge has no record of writing is never removed.
+- A staged plugin whose promotion rename fails is rolled back so the previously installed plugin stays in service.
+- `resolve_target` for Cowork returns `Err(Ambiguous)` when several usable org sessions exist and none is the personal session, and `Err(ConfiguredUnusable)` for a configured dir without a plugins subdir, instead of guessing or reading as absent.
+- **Windows:** `open_target` no longer runs `cmd /C start` with an untrusted URL; every external open goes through `opener`.
+
+### Removed
+
+- `auth/keystore`, `auth/providers/mtls`, `config/trust/legacy`, `install/proxy_service`, `integration/claude_desktop/gateway_probe`, `integration/stub_host` and the `dev-stub-host` feature.
+
 ## [0.52.0] - 2026-09-14
 
 ### Changed

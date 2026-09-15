@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.53.0] - 2026-09-14
+
+### Changed
+
+- A failed write to a CLI display sink (stdout/stderr) is reported through `tracing::warn!` with the sink name; a closed downstream pipe is ignored.
+
 ## [0.48.0] - 2026-09-08
 
 ### Changed

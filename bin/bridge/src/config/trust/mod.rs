@@ -1,170 +1,26 @@
-//! Gateway-bound signing trust, including explicit migration of legacy pins.
+//! Gateway-bound signing trust.
 //!
 //! Trust is a [`TrustRecord`]: the normalized gateway identity, a validated
 //! Ed25519 key and where it came from. A managed policy supplies it as
-//! `manifestTrust`; an operator pin lives under `[sync.trust]` in the config
-//! file. A legacy `[sync] pinned_pubkey` written by a pre-0.48 bridge was
-//! trust-on-first-use for the gateway configured at the time, so it is adopted
-//! as operator trust for the configured gateway (or refused when it names
-//! another) and rewritten as `[sync.trust]` by the first sync that verifies
-//! against it.
-//!
-//! A bare policy `manifestPubkey` with no gateway binding is the one legacy
-//! form that is adopted rather than refused: older bridges wrote it
-//! themselves, and trust resolves at the top of a sync, before the host-sync
-//! step that would rewrite it as a bound record, so refusing it stranded those
-//! installs with an error no administrator could act on. It is bound to the
-//! configured gateway only when nothing else pins at all, which is strictly
-//! narrower than the trust it carried when written.
+//! `manifestTrust` (or the `<PREFIX>_POLICY_TRUST` environment override); an
+//! operator pin lives under `[sync.trust]` in the config file. A key that is
+//! not bound to a gateway never pins: a record for another gateway is stale
+//! when it came from policy and simply not in effect when it is an operator
+//! pin.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use base64::Engine;
-use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::ValidatedUrl;
 
 use super::{Config, ConfigReadError, ConfigWriteError, gateway_url_or_default, store, write};
 use crate::ids::PinnedPubKey;
 
-mod legacy;
 mod policy;
+mod record;
 
-pub use legacy::LegacyPin;
-use legacy::adopt_legacy_pin;
-use policy::{legacy_unbound_pubkey, policy_trust};
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(try_from = "String", into = "String")]
-pub struct GatewayIdentity(String);
-
-impl TryFrom<String> for GatewayIdentity {
-    type Error = TrustError;
-
-    fn try_from(value: String) -> Result<Self, Self::Error> {
-        let mut url = url::Url::parse(&value)?;
-        if !matches!(url.scheme(), "http" | "https")
-            || url.host_str().is_none()
-            || !url.username().is_empty()
-            || url.password().is_some()
-            || url.query().is_some()
-            || url.fragment().is_some()
-        {
-            return Err(TrustError::GatewayShape);
-        }
-        let path = url.path().trim_end_matches('/').to_owned();
-        url.set_path(&path);
-        Ok(Self(url.to_string().trim_end_matches('/').to_owned()))
-    }
-}
-
-impl From<GatewayIdentity> for String {
-    fn from(value: GatewayIdentity) -> Self {
-        value.0
-    }
-}
-
-impl GatewayIdentity {
-    pub fn new(url: &ValidatedUrl) -> Result<Self, TrustError> {
-        Self::try_from(url.as_str().to_owned())
-    }
-
-    #[must_use]
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum PinSource {
-    Policy,
-    Operator,
-}
-
-impl PinSource {
-    #[must_use]
-    pub const fn label(self) -> &'static str {
-        match self {
-            Self::Policy => "policy (env or managed policy)",
-            Self::Operator => "config file",
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct TrustRecord {
-    pub gateway: GatewayIdentity,
-    pub key: PinnedPubKey,
-    pub source: PinSource,
-}
-
-impl TrustRecord {
-    pub fn new(gateway: &ValidatedUrl, key: &str, source: PinSource) -> Result<Self, TrustError> {
-        let bytes = base64::engine::general_purpose::STANDARD.decode(key)?;
-        let bytes: [u8; 32] = bytes
-            .try_into()
-            .map_err(|bytes: Vec<u8>| TrustError::KeyLength {
-                actual: bytes.len(),
-            })?;
-        ed25519_dalek::VerifyingKey::from_bytes(&bytes)?;
-        Ok(Self {
-            gateway: GatewayIdentity::new(gateway)?,
-            key: PinnedPubKey::new(key),
-            source,
-        })
-    }
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct SyncConfig {
-    pub trust: Option<TrustRecord>,
-    pub legacy: Option<LegacyPin>,
-}
-
-impl SyncConfig {
-    #[must_use]
-    pub const fn needs_legacy_migration(&self) -> bool {
-        self.trust.is_none() && self.legacy.is_some()
-    }
-}
-
-impl<'de> Deserialize<'de> for SyncConfig {
-    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        #[derive(Deserialize)]
-        struct StoredSync {
-            trust: Option<TrustRecord>,
-            pinned_pubkey: Option<String>,
-            pinned_pubkey_gateway: Option<String>,
-        }
-        let stored = StoredSync::deserialize(deserializer)?;
-        let legacy = stored
-            .pinned_pubkey
-            .map(|key| key.trim().to_owned())
-            .filter(|key| !key.is_empty())
-            .map(|key| LegacyPin {
-                key: PinnedPubKey::new(key),
-                gateway: stored.pinned_pubkey_gateway,
-            });
-        Ok(Self {
-            trust: stored.trust,
-            legacy,
-        })
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum PinnedPubkeyState {
-    Pinned {
-        key: PinnedPubKey,
-        source: PinSource,
-    },
-    StaleForGateway {
-        pinned_for: String,
-        current: String,
-    },
-    Unpinned,
-}
+use policy::policy_trust;
+pub use record::{GatewayIdentity, PinSource, PinnedPubkeyState, SyncConfig, TrustRecord};
 
 #[derive(Debug, thiserror::Error)]
 pub enum TrustError {
@@ -203,30 +59,8 @@ pub fn pinned_pubkey_state_for(
 ) -> Result<PinnedPubkeyState, TrustError> {
     let current = GatewayIdentity::new(gateway)?;
     let policy = policy_trust()?;
-    let sync = cfg.sync.as_ref();
-    if policy.is_none()
-        && let Some(legacy) = sync
-            .filter(|s| s.needs_legacy_migration())
-            .and_then(|s| s.legacy.as_ref())
-    {
-        return adopt_legacy_pin(legacy, gateway, &current);
-    }
-    let Some(record) = policy
-        .as_ref()
-        .or_else(|| sync.and_then(|s| s.trust.as_ref()))
-    else {
-        if let Some(key) = legacy_unbound_pubkey()? {
-            tracing::warn!(
-                target: "bridge::config::trust",
-                gateway = %current.0,
-                "adopting legacy unbound manifestPubkey for the configured gateway; \
-                 the next managed-policy write records it as manifestTrust"
-            );
-            return Ok(PinnedPubkeyState::Pinned {
-                key: TrustRecord::new(gateway, &key, PinSource::Policy)?.key,
-                source: PinSource::Policy,
-            });
-        }
+    let operator = cfg.sync.as_ref().and_then(|s| s.trust.as_ref());
+    let Some(record) = policy.as_ref().or(operator) else {
         return Ok(PinnedPubkeyState::Unpinned);
     };
     // Why: a record for another gateway is stale whatever its key looks
@@ -240,10 +74,16 @@ pub fn pinned_pubkey_state_for(
         // legitimate gateway switch with no remedy short of an admin command.
         if policy.is_some() {
             return Ok(PinnedPubkeyState::StaleForGateway {
-                pinned_for: record.gateway.0.clone(),
-                current: current.0,
+                pinned_for: record.gateway.clone(),
+                current,
             });
         }
+        tracing::warn!(
+            target: "bridge::config::trust",
+            pinned_for = %record.gateway,
+            current = %current,
+            "operator pin names another gateway; it is not in effect for the configured gateway"
+        );
         return Ok(PinnedPubkeyState::Unpinned);
     }
     let validated = TrustRecord::new(gateway, record.key.as_str(), record.source)?;
@@ -281,17 +121,14 @@ pub fn persist_pinned_pubkey(gateway: &ValidatedUrl, pubkey: &str) -> Result<(),
             || crate::brand::brand().default_gateway_url,
             |item| item.as_str().unwrap_or(""),
         );
-        let configured = GatewayIdentity::try_from(configured.to_owned())
+        let configured = GatewayIdentity::parse(configured)
             .map_err(|e| ConfigWriteError::GatewayChanged(e.to_string()))?;
         if configured != record.gateway {
             return Err(ConfigWriteError::GatewayChanged(format!(
                 "expected {}, configured {}",
-                record.gateway.as_str(),
-                configured.as_str()
+                record.gateway, configured
             )));
         }
-        write::remove(doc, &["sync", "pinned_pubkey"])?;
-        write::remove(doc, &["sync", "pinned_pubkey_gateway"])?;
         write::set(doc, &["sync", "trust", "gateway"], record.gateway.as_str())?;
         write::set(doc, &["sync", "trust", "key"], record.key.as_str())?;
         write::set(doc, &["sync", "trust", "source"], "operator")

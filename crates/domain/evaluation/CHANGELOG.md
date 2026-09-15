@@ -1,7 +1,23 @@
 # Changelog
 
-- Add a versioned, fail-closed evaluator capability registry covering Claude Code,
-  OpenCode, Codex, Hermes and Claude Desktop.
+## [0.53.0] - 2026-09-14
+
+### Breaking
+
+- **Breaking:** `ManagedWorkspaceReference::manifest` is a `systemprompt_models::managed::RevisionBundle` and `ManagedWorkspaceRegistration::manifest` is `&RevisionBundle`; a stored projection that does not decode as a bundle is `InvalidSpec` on read. Migrate by passing the bundle instead of `serde_json::to_value(&bundle)`.
+
+### Added
+
+- A versioned, fail-closed evaluator capability registry covering Claude Code, OpenCode, Codex, Hermes and Claude Desktop.
+
+### Changed
+
+- `execution_accounting` returns `InvalidSpec` when a token or tool-call count is negative instead of reporting zero.
+
+### Fixed
+
+- Execution claims order by `variant_index` and `repetition` within a creation instant, so a worker takes an experiment's baseline before its candidates instead of an arbitrary row.
+- Every table the extension creates is declared by its own `SchemaDefinition` (one schema file per table), so `infra db doctor` no longer reports the evaluation tables as undeclared.
 
 ## [0.52.0] - 2026-09-14
 

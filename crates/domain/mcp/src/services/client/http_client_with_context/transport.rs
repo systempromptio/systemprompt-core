@@ -55,7 +55,6 @@ impl StreamableHttpClient for HttpClientWithContext {
     ) -> Result<BoxStream<'static, Result<Sse, SseError>>, StreamableHttpError<Self::Error>> {
         let mut request_builder = self
             .client()
-            .map_err(StreamableHttpError::Client)?
             .get(uri.as_ref())
             .header(ACCEPT, EVENT_STREAM_MIME_TYPE);
 
@@ -111,10 +110,7 @@ impl StreamableHttpClient for HttpClientWithContext {
         auth_token: Option<String>,
         custom_headers: HashMap<HeaderName, HeaderValue>,
     ) -> Result<(), StreamableHttpError<Self::Error>> {
-        let mut request_builder = self
-            .client()
-            .map_err(StreamableHttpError::Client)?
-            .delete(uri.as_ref());
+        let mut request_builder = self.client().delete(uri.as_ref());
 
         request_builder = self.add_context_headers(request_builder);
 
@@ -172,7 +168,6 @@ impl StreamableHttpClient for HttpClientWithContext {
 
         let mut request = self
             .client()
-            .map_err(StreamableHttpError::Client)?
             .post(uri.as_ref())
             .header(ACCEPT, [EVENT_STREAM_MIME_TYPE, JSON_MIME_TYPE].join(", "));
 

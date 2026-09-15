@@ -73,7 +73,7 @@ async fn push_model_filter(
             ),
         })?;
     GatewayClient::new(gateway_base, http)
-        .set_host_model_filter(bearer.token.expose(), host_id.as_str(), protocols)
+        .set_host_model_filter(&bearer.token, host_id.as_str(), protocols)
         .await
         .map_err(|e| GuiError::Profile {
             context: "host model filter".into(),

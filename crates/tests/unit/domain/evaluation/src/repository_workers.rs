@@ -24,6 +24,7 @@ use systemprompt_evaluation::repository::experiments::{
 use systemprompt_identifiers::{
     EvalExecutionId, EvalExperimentId, EvalRevisionId, EvalWorkerId, ModelId, ProviderId, UserId,
 };
+use systemprompt_models::managed::RevisionBundle;
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, fixture_database_url, fixture_db_pool, seed_user_row, unique_user_id,
 };
@@ -68,7 +69,7 @@ pub fn case_content() -> CaseContent {
     }
 }
 
-fn workspace(marker: &str) -> (serde_json::Value, String, usize) {
+fn workspace(marker: &str) -> (RevisionBundle, String, usize) {
     let asset_digest = match marker {
         "bundle" => "1e6ed65d77d6364eeaed5a745ba5c4985ae2b700dd85d7cf7f027bdf294a33fc",
         "candidate" => "dda18a0e21ae47c53b4309434cbc02ae8bf764fa83a6defbb719431242722aa7",
@@ -87,6 +88,8 @@ fn workspace(marker: &str) -> (serde_json::Value, String, usize) {
         }},
         "assets":{(asset_digest):marker.as_bytes()}
     });
+    let files: RevisionBundle =
+        serde_json::from_value(files).expect("workspace is a well-formed bundle");
     let digest = content_digest(&files).expect("workspace digest");
     (files, digest, marker.len())
 }

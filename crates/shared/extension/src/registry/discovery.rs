@@ -6,7 +6,6 @@
 
 use super::{ExtensionRegistration, ExtensionRegistry};
 use crate::error::LoaderError;
-use std::sync::Arc;
 use tracing::{debug, warn};
 
 impl ExtensionRegistry {
@@ -25,8 +24,7 @@ impl ExtensionRegistry {
                 priority = ext_arc.priority(),
                 "Discovered extension via inventory"
             );
-            registry.extensions.insert(ext_id, Arc::clone(&ext_arc));
-            registry.sorted_extensions.push(ext_arc);
+            registry.insert(ext_arc)?;
         }
 
         let injected = crate::runtime_config::get_injected_extensions();
@@ -50,8 +48,7 @@ impl ExtensionRegistry {
                     priority = ext.priority(),
                     "Including injected extension"
                 );
-                registry.extensions.insert(ext_id, Arc::clone(&ext));
-                registry.sorted_extensions.push(ext);
+                registry.insert(ext)?;
             }
         }
 
@@ -78,15 +75,6 @@ impl ExtensionRegistry {
             );
         }
 
-        Ok(registry)
-    }
-
-    pub fn discover_and_merge(
-        injected: Vec<Arc<dyn crate::Extension>>,
-    ) -> Result<Self, LoaderError> {
-        let mut registry = Self::discover()?;
-        registry.merge(injected)?;
-        registry.validate()?;
         Ok(registry)
     }
 }

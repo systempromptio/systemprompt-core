@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.53.0] - 2026-09-14
+
+### Added
+
+- `VaultError::Body` — a Vault response whose body could not be read is reported instead of being treated as an empty response.
+- `paths` module: `AppPaths` and the build / system / storage / web path resolvers (previously `systemprompt_models::paths`).
+
 ## [0.52.0] - 2026-09-14
 
 ### Changed

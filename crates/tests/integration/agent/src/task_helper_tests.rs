@@ -26,7 +26,7 @@ fn request_context_with_ids(f: &Fixture) -> RequestContext {
         f.session_id.clone(),
         f.trace_id.clone(),
         f.context_id.clone(),
-        AgentName::new("test-agent"),
+        AgentName::try_new("test-agent").expect("valid AgentName"),
     )
     .with_actor(systemprompt_identifiers::Actor::user(f.user_id.clone()))
 }
@@ -81,7 +81,7 @@ async fn ensure_task_exists_falls_back_to_new_context_when_ownership_invalid() -
         f.session_id.clone(),
         f.trace_id.clone(),
         bogus.clone(),
-        AgentName::new("test-agent"),
+        AgentName::try_new("test-agent").expect("valid AgentName"),
     )
     .with_actor(systemprompt_identifiers::Actor::user(f.user_id.clone()));
 

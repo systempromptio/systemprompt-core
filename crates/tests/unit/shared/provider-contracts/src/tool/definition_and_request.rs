@@ -1,89 +1,136 @@
 //! Tests for ToolDefinition and ToolCallRequest.
 
-use systemprompt_provider_contracts::{ToolCallRequest, ToolDefinition};
+use systemprompt_identifiers::McpServerId;
+use systemprompt_provider_contracts::{ToolCallRequest, ToolDefinition, ToolModelConfig};
 
 mod tool_definition_tests {
     use super::*;
 
     #[test]
     fn new_sets_name_and_service_id() {
-        let def = ToolDefinition::new("my_tool", "service-1");
+        let def = ToolDefinition::new(
+            "my_tool",
+            McpServerId::try_new("service-1").expect("valid McpServerId"),
+        );
         assert_eq!(def.name, "my_tool");
         assert_eq!(def.service_id, "service-1");
     }
 
     #[test]
     fn new_defaults_description_to_none() {
-        let def = ToolDefinition::new("tool", "svc");
+        let def = ToolDefinition::new(
+            "tool",
+            McpServerId::try_new("svc").expect("valid McpServerId"),
+        );
         assert!(def.description.is_none());
     }
 
     #[test]
     fn new_defaults_input_schema_to_none() {
-        let def = ToolDefinition::new("tool", "svc");
+        let def = ToolDefinition::new(
+            "tool",
+            McpServerId::try_new("svc").expect("valid McpServerId"),
+        );
         assert!(def.input_schema.is_none());
     }
 
     #[test]
     fn new_defaults_output_schema_to_none() {
-        let def = ToolDefinition::new("tool", "svc");
+        let def = ToolDefinition::new(
+            "tool",
+            McpServerId::try_new("svc").expect("valid McpServerId"),
+        );
         assert!(def.output_schema.is_none());
     }
 
     #[test]
     fn new_defaults_terminal_on_success_to_false() {
-        let def = ToolDefinition::new("tool", "svc");
+        let def = ToolDefinition::new(
+            "tool",
+            McpServerId::try_new("svc").expect("valid McpServerId"),
+        );
         assert!(!def.terminal_on_success);
     }
 
     #[test]
     fn new_defaults_model_config_to_none() {
-        let def = ToolDefinition::new("tool", "svc");
+        let def = ToolDefinition::new(
+            "tool",
+            McpServerId::try_new("svc").expect("valid McpServerId"),
+        );
         assert!(def.model_config.is_none());
     }
 
     #[test]
     fn with_description() {
-        let def = ToolDefinition::new("tool", "svc").with_description("A test tool");
+        let def = ToolDefinition::new(
+            "tool",
+            McpServerId::try_new("svc").expect("valid McpServerId"),
+        )
+        .with_description("A test tool");
         assert_eq!(def.description, Some("A test tool".to_string()));
     }
 
     #[test]
     fn with_input_schema() {
         let schema = serde_json::json!({"type": "object"});
-        let def = ToolDefinition::new("tool", "svc").with_input_schema(schema.clone());
+        let def = ToolDefinition::new(
+            "tool",
+            McpServerId::try_new("svc").expect("valid McpServerId"),
+        )
+        .with_input_schema(schema.clone());
         assert_eq!(def.input_schema, Some(schema));
     }
 
     #[test]
     fn with_output_schema() {
         let schema = serde_json::json!({"type": "string"});
-        let def = ToolDefinition::new("tool", "svc").with_output_schema(schema.clone());
+        let def = ToolDefinition::new(
+            "tool",
+            McpServerId::try_new("svc").expect("valid McpServerId"),
+        )
+        .with_output_schema(schema.clone());
         assert_eq!(def.output_schema, Some(schema));
     }
 
     #[test]
     fn with_terminal_on_success_true() {
-        let def = ToolDefinition::new("tool", "svc").with_terminal_on_success(true);
+        let def = ToolDefinition::new(
+            "tool",
+            McpServerId::try_new("svc").expect("valid McpServerId"),
+        )
+        .with_terminal_on_success(true);
         assert!(def.terminal_on_success);
     }
 
     #[test]
     fn with_terminal_on_success_false() {
-        let def = ToolDefinition::new("tool", "svc").with_terminal_on_success(false);
+        let def = ToolDefinition::new(
+            "tool",
+            McpServerId::try_new("svc").expect("valid McpServerId"),
+        )
+        .with_terminal_on_success(false);
         assert!(!def.terminal_on_success);
     }
 
     #[test]
     fn with_model_config() {
-        let config = serde_json::json!({"temperature": 0.7});
-        let def = ToolDefinition::new("tool", "svc").with_model_config(config.clone());
+        let config =
+            ToolModelConfig::new("anthropic", "claude-sonnet-5").with_max_output_tokens(512);
+        let def = ToolDefinition::new(
+            "tool",
+            McpServerId::try_new("svc").expect("valid McpServerId"),
+        )
+        .with_model_config(config.clone());
         assert_eq!(def.model_config, Some(config));
     }
 
     #[test]
     fn is_serializable() {
-        let def = ToolDefinition::new("test", "svc");
+        let def = ToolDefinition::new(
+            "test",
+            McpServerId::try_new("svc").expect("valid McpServerId"),
+        );
         let json = serde_json::to_string(&def).unwrap();
         assert!(json.contains("test"));
         assert!(json.contains("svc"));

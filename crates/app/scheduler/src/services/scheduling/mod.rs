@@ -155,9 +155,9 @@ impl SchedulerService {
         self.validate_configured_jobs(&registered_jobs)?;
 
         debug!(
-            "Discovered {} jobs via inventory, {} configured",
-            registered_jobs.len(),
-            self.config.jobs.len()
+            discovered = registered_jobs.len(),
+            configured = self.config.jobs.len(),
+            "Discovered jobs via inventory"
         );
         self.warn_unscheduled_jobs(&registered_jobs);
 

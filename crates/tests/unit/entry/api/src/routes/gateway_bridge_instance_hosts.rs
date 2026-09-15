@@ -9,7 +9,7 @@ use systemprompt_models::services::ServicesConfig;
 use systemprompt_models::services::external_agent::{ExternalAgentConfig, ExternalAgentKind};
 
 fn catalog_entry(id: &str, enabled: bool) -> (ExternalAgentId, ExternalAgentConfig) {
-    let agent_id = ExternalAgentId::new(id);
+    let agent_id = ExternalAgentId::try_new(id).expect("valid ExternalAgentId");
     (
         agent_id.clone(),
         ExternalAgentConfig {

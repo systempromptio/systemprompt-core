@@ -99,9 +99,6 @@ fn build_session_service(state: &OAuthState) -> SessionCreationService {
     if let Some(fp_provider) = state.fingerprint_provider() {
         session_service = session_service.with_fingerprint_provider(Arc::clone(fp_provider));
     }
-    if let Some(event_publisher) = state.event_publisher() {
-        session_service = session_service.with_event_publisher(Arc::clone(event_publisher));
-    }
     session_service
 }
 

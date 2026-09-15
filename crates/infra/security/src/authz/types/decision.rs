@@ -11,7 +11,7 @@ use systemprompt_identifiers::{McpToolName, PolicyId, SecretPatternId, UserId};
 use thiserror::Error;
 
 use super::entity_ref::EntityRef;
-use super::kinds::RuleType;
+use super::kinds::{EntityKind, RuleType};
 use crate::policy::types::{AccessScope, RateLimitWindow, SecretLocation};
 
 /// Why an [`super::request::AuthzRequest`] was allowed. Carries enough
@@ -82,6 +82,12 @@ pub enum DenyReason {
          roles.yaml."
     )]
     UnknownEntity { entity: EntityRef },
+    #[error("{entity_kind:?} id {id:?} is not a valid entity identifier: {detail}")]
+    InvalidEntity {
+        entity_kind: EntityKind,
+        id: String,
+        detail: String,
+    },
     #[error("authz hook unavailable for policy {policy}: {detail}")]
     HookUnavailable {
         policy: String,

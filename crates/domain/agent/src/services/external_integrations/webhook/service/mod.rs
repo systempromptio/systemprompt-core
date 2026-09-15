@@ -19,8 +19,8 @@ use reqwest::Client;
 use serde_json::Value;
 use sha2::Sha256;
 use std::collections::HashMap;
+use systemprompt_client::{GuardedClientConfig, guarded_client};
 use systemprompt_identifiers::WebhookEndpointId;
-use systemprompt_models::net::{GuardedClientConfig, guarded_client};
 use tokio::sync::RwLock;
 
 use crate::models::external_integrations::{
@@ -32,22 +32,19 @@ type HmacSha256 = Hmac<Sha256>;
 #[derive(Debug)]
 pub struct WebhookService {
     pub(super) endpoints: RwLock<HashMap<WebhookEndpointId, WebhookEndpoint>>,
-    pub(super) http_client: Option<Client>,
+    pub(super) http_client: Client,
 }
 
 impl WebhookService {
-    pub fn new() -> Self {
+    pub fn new() -> IntegrationResult<Self> {
         let http_client = guarded_client(
             &GuardedClientConfig::default().with_timeout(std::time::Duration::from_secs(10)),
         )
-        .inspect_err(
-            |e| tracing::error!(error = %e, "Guarded webhook client unavailable; delivery disabled"),
-        )
-        .ok();
-        Self {
+        .map_err(|e| IntegrationError::Webhook(format!("outbound http client unavailable: {e}")))?;
+        Ok(Self {
             endpoints: RwLock::new(HashMap::new()),
             http_client,
-        }
+        })
     }
 
     pub async fn register_endpoint(
@@ -207,11 +204,5 @@ impl WebhookService {
         }
 
         result == 0
-    }
-}
-
-impl Default for WebhookService {
-    fn default() -> Self {
-        Self::new()
     }
 }

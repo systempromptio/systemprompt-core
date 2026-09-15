@@ -41,7 +41,7 @@ async fn harness_or_skip(provider: StubAiProvider) -> Option<Harness> {
         ai_service: Arc::new(provider),
         skill_service: Arc::new(SkillService::new().expect("skill service")),
         agent_runtime: runtime_info(AGENT),
-        agent_name: AgentName::new(AGENT),
+        agent_name: AgentName::try_new(AGENT).expect("valid AgentName"),
         task_id,
         context_id: ctx,
         tx,

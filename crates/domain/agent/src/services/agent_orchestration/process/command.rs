@@ -133,7 +133,7 @@ pub fn build_agent_command(params: BuildAgentCommandParams<'_>) -> Command {
         .stderr(std::process::Stdio::from(log_file))
         .stdin(std::process::Stdio::null());
 
-    systemprompt_models::subprocess::place_in_own_process_group(&mut command);
+    systemprompt_loader::subprocess::place_in_own_process_group(&mut command);
 
     command
 }

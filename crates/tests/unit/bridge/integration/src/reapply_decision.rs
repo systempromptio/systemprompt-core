@@ -113,7 +113,7 @@ fn profile_body(models: &[&str]) -> serde_json::Value {
 fn probe_state_of_codex() -> ProfileState {
     let env = ProbeEnv {
         proxy_port: systemprompt_bridge::proxy::DEFAULT_PROXY_PORT,
-        loopback_secret_fingerprint: None,
+        loopback_secret: None,
         start_menu: Arc::default(),
     };
     CODEX_CLI_HOST.probe(&env).profile_state
@@ -247,7 +247,8 @@ fn the_profile_inputs_carry_the_live_secret_port_and_the_hosts_own_surface() {
         "the profile points at the loopback proxy, never at the gateway itself"
     );
     assert_eq!(
-        inputs.api_key, "seeded-loopback-secret",
+        inputs.api_key.as_str(),
+        "seeded-loopback-secret",
         "the profile carries the loopback secret the proxy will actually check"
     );
     assert_eq!(inputs.organization_uuid, Some("org-1234".to_owned()));

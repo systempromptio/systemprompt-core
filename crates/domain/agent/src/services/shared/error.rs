@@ -97,8 +97,14 @@ impl From<crate::error::AgentError> for AgentServiceError {
     }
 }
 
-impl From<systemprompt_models::errors::ProviderError> for AgentServiceError {
-    fn from(err: systemprompt_models::errors::ProviderError) -> Self {
+impl From<systemprompt_models::errors::AiInferenceError> for AgentServiceError {
+    fn from(err: systemprompt_models::errors::AiInferenceError) -> Self {
+        Self::Internal(err.to_string())
+    }
+}
+
+impl From<systemprompt_models::errors::McpRegistryError> for AgentServiceError {
+    fn from(err: systemprompt_models::errors::McpRegistryError) -> Self {
         Self::Internal(err.to_string())
     }
 }

@@ -81,7 +81,14 @@ pub fn render(ctx: &BridgeContext) -> String {
     out.push(String::new());
     out.push("bridge processes:".to_owned());
     let mut any = false;
-    for proc_info in crate::sysproc::list_processes() {
+    let processes = match crate::sysproc::list_processes() {
+        Ok(processes) => processes,
+        Err(e) => {
+            out.push(format!("  <process enumeration failed: {e}>"));
+            Vec::new()
+        },
+    };
+    for proc_info in processes {
         if !proc_info
             .name
             .to_ascii_lowercase()
@@ -111,9 +118,7 @@ fn describe_role(role: &ProxyRole) -> String {
             pid,
             config_dir,
         } => format!("sibling pid {pid} serves 127.0.0.1:{port} from {config_dir}"),
-        ProxyRole::Failed { tried, last_error } => {
-            format!("FAILED (tried ports {tried:?}): {last_error}")
-        },
+        ProxyRole::Failed(failure) => format!("FAILED: {failure}"),
     }
 }
 

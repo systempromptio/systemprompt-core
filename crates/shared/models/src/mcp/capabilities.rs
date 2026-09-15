@@ -68,6 +68,7 @@ impl McpAppsUiConfig {
         Self::default()
     }
 
+    // JSON: MCP `_meta` / `capabilities` wire objects built for the client.
     pub fn to_json(&self) -> serde_json::Value {
         serde_json::json!({
             "mimeTypes": self.mime_types
@@ -104,6 +105,7 @@ pub fn model_only_visibility() -> Vec<ToolVisibility> {
     vec![ToolVisibility::Model]
 }
 
+// JSON: MCP `_meta` / `capabilities` wire objects built for the client.
 pub fn visibility_to_json(visibility: &[ToolVisibility]) -> serde_json::Value {
     serde_json::json!(visibility)
 }
@@ -239,6 +241,7 @@ impl McpResourceUiMeta {
         self
     }
 
+    // JSON: MCP `_meta` / `capabilities` wire objects built for the client.
     pub fn to_json(&self) -> serde_json::Value {
         let mut obj = serde_json::json!({});
         if let Some(csp) = &self.csp {
@@ -253,6 +256,7 @@ impl McpResourceUiMeta {
         obj
     }
 
+    // JSON: MCP `_meta` / `capabilities` wire objects built for the client.
     pub fn to_meta_map(&self) -> serde_json::Map<String, serde_json::Value> {
         let mut meta = serde_json::Map::new();
         meta.insert("ui".to_owned(), self.to_json());

@@ -41,10 +41,19 @@ pub fn check_marketplace() -> Check {
         );
     };
 
-    let owned = match sidecar::owned_marketplaces(&plugins, sidecar::Legacy::WhenUnrecorded) {
+    let owned = match sidecar::owned_marketplaces(&plugins) {
         Ok(owned) => owned,
         Err(e) => return Check::fail(NAME, format!("cannot read the marketplace sidecar: {e}")),
     };
+    if owned.is_empty() {
+        return Check::warn(
+            NAME,
+            format!(
+                "no marketplace recorded under {} — run `{bin} sync`",
+                plugins.display()
+            ),
+        );
+    }
     let checks: Vec<Check> = owned
         .iter()
         .map(|marketplace| check_one(&plugins, marketplace, bin))

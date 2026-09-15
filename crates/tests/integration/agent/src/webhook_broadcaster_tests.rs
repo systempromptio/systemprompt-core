@@ -21,7 +21,8 @@ fn install_shared_recorder() -> std::sync::Arc<RecordingWebhookBroadcaster> {
     SHARED_RECORDER
         .get_or_init(|| {
             let (dyn_arc, inner) = arc_recording_broadcaster();
-            install_for_test(dyn_arc);
+            install_for_test(dyn_arc)
+                .unwrap_or_else(|_| panic!("a webhook broadcaster was already installed"));
             inner
         })
         .clone()

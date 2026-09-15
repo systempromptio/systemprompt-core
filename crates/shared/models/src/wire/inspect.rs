@@ -143,6 +143,7 @@ fn data_payload(frame: &[u8]) -> Option<Vec<u8>> {
 fn walk(
     surface: &mut ForwardedSurface,
     total: &mut usize,
+    // JSON: Provider request body under inspection; vendor JSON is the contract.
     root: &Value,
     budget: SurfaceBudget,
 ) -> bool {

@@ -52,12 +52,18 @@ impl SchemaValidator {
 
     fn validate_type(value: &JsonValue, type_schema: &JsonValue, path: &str) -> Result<()> {
         let valid_type = match type_schema {
-            JsonValue::String(type_str) => Self::check_single_type(value, type_str),
-            JsonValue::Array(types) => types.iter().any(|t| {
-                t.as_str()
-                    .is_some_and(|type_str| Self::check_single_type(value, type_str))
-            }),
-            _ => true,
+            JsonValue::String(type_str) => Self::check_single_type(value, type_str, path)?,
+            JsonValue::Array(types) => {
+                let mut matched = false;
+                for member in types {
+                    let Some(type_str) = member.as_str() else {
+                        return Err(unsupported_type(member, path));
+                    };
+                    matched |= Self::check_single_type(value, type_str, path)?;
+                }
+                matched
+            },
+            other => return Err(unsupported_type(other, path)),
         };
 
         if !valid_type {
@@ -72,8 +78,8 @@ impl SchemaValidator {
         Ok(())
     }
 
-    fn check_single_type(value: &JsonValue, type_str: &str) -> bool {
-        match type_str {
+    fn check_single_type(value: &JsonValue, type_str: &str, path: &str) -> Result<bool> {
+        Ok(match type_str {
             "null" => value.is_null(),
             "boolean" => value.is_boolean(),
             "object" => value.is_object(),
@@ -81,8 +87,8 @@ impl SchemaValidator {
             "number" => value.is_number(),
             "integer" => value.is_i64() || value.is_u64(),
             "string" => value.is_string(),
-            _ => true,
-        }
+            other => return Err(unsupported_type(&JsonValue::from(other), path)),
+        })
     }
 
     fn validate_object(
@@ -251,4 +257,8 @@ impl SchemaValidator {
             JsonValue::Object(_) => "object",
         }
     }
+}
+
+fn unsupported_type(type_keyword: &JsonValue, path: &str) -> crate::error::AiError {
+    crate::error::AiError::InvalidInput(format!("Unsupported schema type {type_keyword} at {path}"))
 }

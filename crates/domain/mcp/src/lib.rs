@@ -94,7 +94,7 @@ pub use orchestration::{
 
 pub use systemprompt_models::mcp::{
     DynMcpDeploymentProvider, DynMcpRegistry, DynMcpToolProvider, McpDeploymentProvider,
-    McpProvider, McpRegistry, McpServerState,
+    McpRegistry, McpServerState, McpServerStatus,
 };
 
 pub fn mcp_protocol_version() -> String {

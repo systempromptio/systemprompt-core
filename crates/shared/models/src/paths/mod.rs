@@ -1,31 +1,15 @@
-//! Well-known directory layout helpers.
+//! Path vocabulary shared by every layer: well-known directory and file names
+//! and the [`PathResolution`] mode a profile selects.
 //!
-//! [`AppPaths`] resolves the system, web, build, and storage path trees
-//! from a profile's [`crate::profile::PathsConfig`]. Submodules expose
-//! each tree plus shared directory/file-name constants.
-//! Resolution returns [`PathError`].
+//! The filesystem projection of a profile (`AppPaths` and its parts) lives in
+//! `systemprompt_config::paths`; this module holds only data.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-pub(crate) mod build;
 pub mod constants;
-mod error;
-mod storage;
-mod system;
-mod web;
 
-pub use build::BuildPaths;
 pub use constants::{cloud_container, dir_names, file_names};
-pub use error::PathError;
-pub use storage::StoragePaths;
-pub use system::SystemPaths;
-pub use web::WebPaths;
-
-use std::path::Path;
-
-use crate::profile::PathsConfig;
-use systemprompt_extension::AssetPaths;
 
 /// How profile paths are resolved against the local filesystem. Derive the
 /// right mode for a profile with [`crate::profile::Profile::path_resolution`].
@@ -33,55 +17,4 @@ use systemprompt_extension::AssetPaths;
 pub enum PathResolution {
     Canonicalize,
     Lexical,
-}
-
-#[derive(Debug, Clone)]
-pub struct AppPaths {
-    system: SystemPaths,
-    web: WebPaths,
-    build: BuildPaths,
-    storage: StoragePaths,
-}
-
-impl AppPaths {
-    pub fn from_profile(
-        paths: &PathsConfig,
-        resolution: PathResolution,
-        services_root_override: Option<&Path>,
-    ) -> Result<Self, PathError> {
-        let overridden = services_root_override.map(|root| paths.with_services_root(root));
-        let paths = overridden.as_ref().unwrap_or(paths);
-        Ok(Self {
-            system: SystemPaths::from_profile(paths, resolution)?,
-            web: WebPaths::from_profile(paths),
-            build: BuildPaths::from_profile(paths),
-            storage: StoragePaths::from_profile(paths)?,
-        })
-    }
-
-    pub const fn system(&self) -> &SystemPaths {
-        &self.system
-    }
-
-    pub const fn web(&self) -> &WebPaths {
-        &self.web
-    }
-
-    pub const fn build(&self) -> &BuildPaths {
-        &self.build
-    }
-
-    pub const fn storage(&self) -> &StoragePaths {
-        &self.storage
-    }
-}
-
-impl AssetPaths for AppPaths {
-    fn storage_files(&self) -> &Path {
-        self.storage.files()
-    }
-
-    fn web_dist(&self) -> &Path {
-        self.web.dist()
-    }
 }

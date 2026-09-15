@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.53.0] - 2026-09-14
+
+### Breaking
+
+- **Breaking:** `plugins capabilities llm-providers` and the LLM-provider counters in `plugins list|show` are removed with the unimplemented `LlmProvider` seam.
+
+### Changed
+
+- `cloud init` and `cloud profile` scaffolding fail when the embedded provider catalog is unreadable instead of writing empty default models; `admin config catalog discovery` fails when the embedded Vertex rate card is unreadable.
+- `admin agents validate` fails when secrets are not initialised instead of reporting every provider key as missing.
+- `cloud profile show` prints a warning when the profile or services config cannot be loaded; a failed container cleanup after a failed `cloud tenant create` start is reported.
+
+- `core files upload --context` and `core artifacts list --context` validate the id and report an error instead of aborting the process on a malformed value.
+
 ## [0.52.0] - 2026-09-14
 
 ### Changed

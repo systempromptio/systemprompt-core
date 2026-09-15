@@ -42,6 +42,7 @@ pub mod bootstrap;
 pub(crate) mod config_loader;
 pub mod error;
 pub mod path_validation;
+pub mod paths;
 pub(crate) mod services;
 pub(crate) mod skill_validator;
 
@@ -57,6 +58,7 @@ pub use config_loader::{
     try_init_config, validate_database_config,
 };
 pub use error::{ConfigError, ConfigResult};
+pub use paths::{AppPaths, BuildPaths, PathError, StoragePaths, SystemPaths, WebPaths};
 pub use services::{
     ConfigService, ConfigValidationError, ConfigValidator, DeployEnvironment, DeploymentConfig,
     EnvironmentConfig, ModelSpec, ProviderCatalogService, ProviderSpec, SecurityChange,

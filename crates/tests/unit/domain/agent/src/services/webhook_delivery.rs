@@ -25,7 +25,7 @@ async fn send_webhook_success_2xx() {
         .mount(&server)
         .await;
 
-    let service = WebhookService::new();
+    let service = WebhookService::new().expect("guarded client");
     let url = format!("{}/hook", server.uri());
     let result = service
         .send_webhook(&url, serde_json::json!({"event": "ping"}), None)
@@ -46,7 +46,7 @@ async fn send_webhook_non_2xx_marks_failure() {
         .mount(&server)
         .await;
 
-    let service = WebhookService::new();
+    let service = WebhookService::new().expect("guarded client");
     let result = service
         .send_webhook(&server.uri(), serde_json::json!({}), None)
         .await
@@ -77,7 +77,7 @@ async fn send_webhook_forwards_custom_header_and_signature() {
         timeout: Some(std::time::Duration::from_secs(5)),
     };
 
-    let service = WebhookService::new();
+    let service = WebhookService::new().expect("guarded client");
     let result = service
         .send_webhook(&server.uri(), serde_json::json!({"a": 1}), Some(config))
         .await
@@ -90,7 +90,7 @@ async fn send_webhook_forwards_custom_header_and_signature() {
 #[tokio::test]
 async fn send_webhook_transport_error_is_captured() {
     // Loopback port 1 passes the outbound-URL guard but refuses connections.
-    let service = WebhookService::new();
+    let service = WebhookService::new().expect("guarded client");
     let result = service
         .send_webhook("http://127.0.0.1:1/hook", serde_json::json!({}), None)
         .await
@@ -103,7 +103,7 @@ async fn send_webhook_transport_error_is_captured() {
 
 #[tokio::test]
 async fn send_webhook_rejects_non_loopback_http() {
-    let service = WebhookService::new();
+    let service = WebhookService::new().expect("guarded client");
     let result = service
         .send_webhook("http://example.com/hook", serde_json::json!({}), None)
         .await;
@@ -119,7 +119,7 @@ async fn test_endpoint_drives_delivery_against_server() {
         .mount(&server)
         .await;
 
-    let service = WebhookService::new();
+    let service = WebhookService::new().expect("guarded client");
     let endpoint = WebhookEndpoint {
         id: WebhookEndpointId::new("wh-delivery-1"),
         url: server.uri(),

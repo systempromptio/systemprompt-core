@@ -9,7 +9,7 @@ mod builders;
 #[cfg(target_os = "macos")]
 pub(crate) mod elevate;
 #[cfg(target_os = "windows")]
-pub(crate) mod elevated_job;
+pub mod elevated_job;
 pub mod elevated_protocol;
 pub mod elevation_script;
 mod error;
@@ -24,7 +24,7 @@ mod summary;
 pub(crate) mod xml;
 
 pub use apply::install;
-pub use builders::{InstallOptionsBuilder, UninstallSummaryBuilder};
+pub use builders::InstallOptionsBuilder;
 pub use error::InstallError;
 pub use mdm::{
     MdmError, MdmPayloadInputs, bridge_policy_values, cowork_egress_allowed_hosts,
@@ -40,7 +40,6 @@ pub use summary::{render_install_summary, render_uninstall_summary};
 use crate::config::paths;
 use crate::ids::PinnedPubKey;
 use crate::schedule::Os;
-use crate::stdio::diag;
 #[cfg(target_os = "macos")]
 pub use mdm::macos::{
     build_bridge_prefs_plist as build_macos_bridge_prefs_plist,
@@ -127,19 +126,15 @@ pub enum ScheduleRemoval {
 
 #[derive(Debug)]
 pub struct UninstallSummary {
+    pub foreign_plugins: Vec<String>,
     pub metadata_removed: Option<PathBuf>,
     pub metadata_already_clean: Option<PathBuf>,
     pub managed_profile: ManagedProfileOutcome,
     pub credentials: CredentialsOutcome,
     pub schedule: ScheduleRemoval,
+    pub host_warnings: Vec<String>,
 }
 
-impl UninstallSummary {
-    #[must_use]
-    pub const fn builder() -> UninstallSummaryBuilder {
-        UninstallSummaryBuilder::new()
-    }
-}
 
 #[derive(Debug)]
 pub enum ManagedProfileOutcome {
@@ -167,16 +162,19 @@ pub fn uninstall(
 ) -> Result<UninstallSummary, InstallError> {
     let location = paths::org_plugins_effective().ok_or(InstallError::OrgPluginsUnresolvable)?;
     #[cfg(target_os = "windows")]
-    mdm::claude_code_settings::remove_all().map_err(|e| InstallError::Bootstrap(e.to_string()))?;
+    mdm::claude_code_settings::remove_all().map_err(InstallError::MdmRemove)?;
 
-    let metadata = paths::bridge_metadata_dir()
-        .ok_or_else(|| InstallError::Bootstrap("bridge metadata dir unresolvable".into()))?;
+    let metadata = paths::bridge_metadata_dir().ok_or(InstallError::MetadataUnresolvable)?;
+    // Why: the sentinel names the plugin directories the bridge wrote; it is
+    // read before the metadata directory that holds it is removed.
+    let owned_plugins = crate::last_sync::read_last_sync(&metadata.join(paths::LAST_SYNC_SENTINEL))
+        .map_err(InstallError::LastSync)?
+        .map(|state| state.present_plugins)
+        .unwrap_or_default();
     let (metadata_removed, metadata_already_clean) = if metadata.exists() {
-        fs::remove_dir_all(&metadata).map_err(|e| {
-            InstallError::Bootstrap(format!(
-                "failed to remove metadata dir {}: {e}",
-                metadata.display()
-            ))
+        fs::remove_dir_all(&metadata).map_err(|source| InstallError::Remove {
+            path: metadata.clone(),
+            source,
         })?;
         (Some(metadata), None)
     } else {
@@ -187,70 +185,88 @@ pub fn uninstall(
         match fs::remove_dir_all(&staging) {
             Ok(()) => {},
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {},
-            Err(e) => {
-                return Err(InstallError::Bootstrap(format!(
-                    "remove {}: {e}",
-                    staging.display()
-                )));
+            Err(source) => {
+                return Err(InstallError::Remove {
+                    path: staging,
+                    source,
+                });
             },
         }
     }
-    purge_plugin_dirs(&location.path)?;
+    let foreign_plugins = purge_plugin_dirs(&location.path, &owned_plugins)?;
 
     let schedule = remove_schedule(&bridge.schedule);
     if let ScheduleRemoval::Failed(e) = &schedule {
         return Err(InstallError::ScheduleApply(e.clone()));
     }
 
-    let managed_profile = managed_profile::remove();
+    let managed_profile = managed_profile::remove(&bridge.policy_store);
     if let ManagedProfileOutcome::RemoveFailed(e) = &managed_profile {
-        return Err(InstallError::Bootstrap(e.clone()));
+        return Err(InstallError::ManagedProfileRemove(e.clone()));
     }
 
     let credentials = if purge {
         match crate::auth::setup::logout() {
             Ok(p) => CredentialsOutcome::Purged(p.pat_file),
-            Err(e) => {
-                let msg = format!("credential purge failed: {e}");
-                diag(&msg);
-                return Err(InstallError::Bootstrap(msg));
-            },
+            Err(e) => return Err(InstallError::CredentialPurge(e)),
         }
     } else {
         CredentialsOutcome::Kept
     };
 
     Ok(UninstallSummary {
+        foreign_plugins,
         metadata_removed,
         metadata_already_clean,
         managed_profile,
         credentials,
         schedule,
+        host_warnings: Vec::new(),
     })
 }
 
-fn purge_plugin_dirs(root: &std::path::Path) -> Result<(), InstallError> {
+// Why: only the plugin directories the last sync recorded are the bridge's to
+// remove; anything else under org-plugins was put there by someone else and
+// is reported, not deleted.
+fn purge_plugin_dirs(
+    root: &std::path::Path,
+    owned: &[String],
+) -> Result<Vec<String>, InstallError> {
     let entries = match fs::read_dir(root) {
         Ok(entries) => entries,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(()),
-        Err(e) => {
-            return Err(InstallError::Bootstrap(format!(
-                "enumerate {}: {e}",
-                root.display()
-            )));
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(source) => {
+            return Err(InstallError::Enumerate {
+                path: root.to_path_buf(),
+                source,
+            });
         },
     };
+    let mut foreign = Vec::new();
     for entry in entries {
-        let entry = entry
-            .map_err(|e| InstallError::Bootstrap(format!("enumerate {}: {e}", root.display())))?;
-        let kind = entry.file_type().map_err(|e| {
-            InstallError::Bootstrap(format!("inspect {}: {e}", entry.path().display()))
+        let entry = entry.map_err(|source| InstallError::Enumerate {
+            path: root.to_path_buf(),
+            source,
         })?;
-        if kind.is_dir() && !entry.file_name().to_string_lossy().starts_with('.') {
-            fs::remove_dir_all(entry.path()).map_err(|e| {
-                InstallError::Bootstrap(format!("remove {}: {e}", entry.path().display()))
+        let kind = entry
+            .file_type()
+            .map_err(|source| InstallError::Enumerate {
+                path: entry.path(),
+                source,
             })?;
+        let name = entry.file_name().to_string_lossy().into_owned();
+        if !kind.is_dir() || name.starts_with('.') {
+            continue;
+        }
+        if owned.contains(&name) {
+            fs::remove_dir_all(entry.path()).map_err(|source| InstallError::Remove {
+                path: entry.path(),
+                source,
+            })?;
+        } else {
+            foreign.push(name);
         }
     }
-    Ok(())
+    foreign.sort();
+    Ok(foreign)
 }

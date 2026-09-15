@@ -38,6 +38,7 @@ serde_yaml = { package = "serde_yaml_ng", version = "0.10" }
 chrono = { version = "0.4", default-features = false, features = ["clock", "std", "serde"] }
 dirs = "7"
 sha2 = "0.11"
+hmac = "0.13"
 # Release-version ordering for the self-updater. A lexical compare would place
 # 0.1.10 before 0.1.9; already in the lockfile transitively, so this is free.
 semver = "1"
@@ -90,7 +91,6 @@ keyring-core = "1"
 
 [features]
 default = []
-dev-stub-host = []
 # Compiles the `dev-web` HTTP preview of the GUI web tree. Dev only; never in
 # a shipped build, which is why it is not in `default`.
 dev-preview = []

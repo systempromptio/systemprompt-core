@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use systemprompt_identifiers::UserId;
 use systemprompt_models::auth::{AuthenticatedUser, JwtAudience, Permission};
 use systemprompt_traits::{
     AgentJwtClaims, GenerateTokenParams, JwtProviderError, JwtResult, JwtValidationProvider,
@@ -50,7 +51,7 @@ impl JwtValidationProvider for JwtValidationProviderImpl {
 
         let is_admin = claims.is_admin();
         Ok(AgentJwtClaims {
-            subject: claims.sub,
+            subject: UserId::new(claims.sub),
             username: claims.username,
             user_type: claims.user_type.to_string(),
             audiences: claims.aud.iter().map(ToString::to_string).collect(),

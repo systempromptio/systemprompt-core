@@ -13,7 +13,7 @@ use systemprompt_identifiers::ValidatedUrl;
 
 fn runtime_config(uri: &str) -> SharedRuntimeConfig {
     Arc::new(ArcSwap::from_pointee(RuntimeConfig {
-        gateway_base: Arc::new(ValidatedUrl::new(uri)),
+        gateway_base: Arc::new(ValidatedUrl::try_new(uri).expect("valid ValidatedUrl")),
     }))
 }
 

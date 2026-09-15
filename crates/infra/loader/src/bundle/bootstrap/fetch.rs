@@ -16,7 +16,7 @@ use systemprompt_models::services::bundle::{
     BUNDLE_ALLOWED_DIRS, BundleSourceState, ServicesBundleState, SignedBundleManifest,
 };
 
-use crate::bundle::cache::BundleCache;
+use crate::bundle::cache::{BundleCache, discard_staging};
 use crate::bundle::error::{BundleError, BundleResult};
 use crate::bundle::extract::{ExtractOptions, TarLayout, extract_tarball};
 use crate::bundle::source::{AnyFetcher, BundleFetcher, MAX_BUNDLE_BYTES};
@@ -66,7 +66,7 @@ pub(super) async fn resolve_source(
     let archive = staging_dir.join(format!("{}.tar.gz", source.name));
 
     let outcome = download_and_install(source, ctx, &fetcher, &archive).await;
-    drop(fs::remove_dir_all(&staging_dir));
+    discard_staging(&staging_dir);
     let (signed, digest) = outcome?;
 
     let content_hash = signed.manifest.content_hash.clone();

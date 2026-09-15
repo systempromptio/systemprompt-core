@@ -1,13 +1,12 @@
 //! Gateway endpoints describing *who this bridge is* and what its plan allows:
 //! whoami, the bridge profile, token usage, governance decisions, and the
-//! per-host model filter.
-//!
-//! Split from `fetch.rs`, which keeps the artefact endpoints — pubkey, signed
-//! manifest, plugin files and releases.
+//! per-host model filter. The artefact endpoints — pubkey, signed manifest,
+//! plugin files and releases — live in `fetch.rs`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::ids::BearerToken;
 use std::time::Instant;
 
 use systemprompt_models::api::cloud::BridgeProfileUsage;
@@ -23,13 +22,13 @@ impl GatewayClient {
         skip(self, bearer),
         fields(endpoint = "whoami", status, latency_ms)
     )]
-    pub async fn fetch_whoami(&self, bearer: &str) -> Result<WhoamiResponse, GatewayError> {
+    pub async fn fetch_whoami(&self, bearer: &BearerToken) -> Result<WhoamiResponse, GatewayError> {
         let url = self.url(whoami_path());
         let started = Instant::now();
         let resp = self
             .http()
             .get(&url)
-            .bearer_auth(bearer)
+            .bearer_auth(bearer.expose())
             .send()
             .await
             .map_err(|e| GatewayError::WhoamiFetch(Box::new(e)))?;
@@ -52,7 +51,7 @@ impl GatewayClient {
     )]
     pub async fn set_host_model_filter(
         &self,
-        bearer: &str,
+        bearer: &BearerToken,
         host_id: &str,
         protocols: Option<&[String]>,
     ) -> Result<(), GatewayError> {
@@ -65,7 +64,7 @@ impl GatewayClient {
         let resp = self
             .http()
             .post(&url)
-            .bearer_auth(bearer)
+            .bearer_auth(bearer.expose())
             .json(&body)
             .send()
             .await
@@ -113,14 +112,14 @@ impl GatewayClient {
     )]
     pub async fn fetch_profile_usage(
         &self,
-        bearer: &str,
+        bearer: &BearerToken,
     ) -> Result<BridgeProfileUsage, GatewayError> {
         let url = self.url("/v1/bridge/profile/usage");
         let started = Instant::now();
         let resp = self
             .http()
             .get(&url)
-            .bearer_auth(bearer)
+            .bearer_auth(bearer.expose())
             .send()
             .await
             .map_err(|e| GatewayError::ProfileUsageFetch(Box::new(e)))?;

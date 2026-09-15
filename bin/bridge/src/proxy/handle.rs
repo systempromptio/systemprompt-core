@@ -12,36 +12,14 @@ use super::bind::{Bind, bind_candidate, persist_and_announce, portfile_port};
 use super::identity::InstallId;
 use super::peer::{self, PeerIdentity};
 use super::refresh::refresh_loop;
+use super::role::{ProxyDeps, ProxyFailure, ProxyRole};
 use super::session::SessionContext;
 use super::token_cache::{AuthState, TokenCache};
 use super::{DEFAULT_PROXY_PORT, LoopbackEndpoint, ServedProxy, portfile, secret, server};
 use systemprompt_identifiers::SessionId;
 
-use crate::activity::ActivityLog;
 use crate::config::{self, RuntimeConfig, SharedRuntimeConfig};
-use crate::mcp_registry::McpRegistrySlot;
 use crate::obs::StartupFault;
-
-/// What this process's relationship to the loopback port turned out to be.
-///
-/// `Option<&ServedProxy>` could not express the middle cases: a sibling window
-/// of this same install already serving the port is a success for the caller
-/// even though this process bound nothing, and a process that never tried to
-/// bind (`install`, `sync`, `doctor`) is not a failure either.
-#[derive(Debug)]
-pub enum ProxyRole {
-    Serving(ServedProxy),
-    Attached,
-    AlreadyRunning {
-        port: u16,
-        pid: u32,
-        config_dir: String,
-    },
-    Failed {
-        tried: Vec<u16>,
-        last_error: String,
-    },
-}
 
 /// The proxy as owned by one process: its role, the loopback endpoint every
 /// writer is handed, and the hot-swappable runtime config.
@@ -57,25 +35,6 @@ pub struct ProxyHandle {
     session_id: Option<SessionId>,
 }
 
-/// The services a proxy shares with the rest of the process: who this install
-/// is, the managed-MCP routes, and the activity log its requests write to.
-#[derive(Clone)]
-pub struct ProxyDeps {
-    pub install_id: InstallId,
-    pub mcp_registry: Arc<McpRegistrySlot>,
-    pub activity: ActivityLog,
-    pub http: reqwest::Client,
-    pub plugin_tokens: Arc<crate::auth::plugin_oauth::PluginTokenCache>,
-}
-
-impl std::fmt::Debug for ProxyDeps {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ProxyDeps")
-            .field("install_id", &self.install_id)
-            .finish_non_exhaustive()
-    }
-}
-
 impl std::fmt::Debug for ProxyHandle {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ProxyHandle")
@@ -87,7 +46,20 @@ impl std::fmt::Debug for ProxyHandle {
 
 impl ProxyHandle {
     pub fn serve(rt: &Handle, deps: ProxyDeps, faults: &mut Vec<StartupFault>) -> Self {
-        let runtime_config = runtime_config_or_default(faults);
+        // Why: a proxy that cannot read its config would serve inference
+        // against the brand default gateway with whatever credential is on
+        // disk; refusing to bind is the only safe answer.
+        let runtime_config = match config::shared_from_loaded() {
+            Ok(cfg) => cfg,
+            Err(e) => {
+                faults.push(StartupFault::new("config", &e));
+                return Self::failed(
+                    deps,
+                    config::shared_from_config(&config::Config::default()),
+                    ProxyFailure::Config(e),
+                );
+            },
+        };
         let mut tried = Vec::new();
         let mut last_error = "no candidate port could be bound".to_owned();
 
@@ -98,7 +70,7 @@ impl ProxyHandle {
             Ok(s) => s,
             Err(e) => {
                 faults.push(StartupFault::new("loopback secret", &e));
-                return Self::failed(deps, runtime_config, tried, e.to_string());
+                return Self::failed(deps, runtime_config, ProxyFailure::LoopbackSecret(e));
             },
         };
 
@@ -122,7 +94,11 @@ impl ProxyHandle {
                     );
                 },
                 Bind::Exhausted => {
-                    return Self::failed(deps, runtime_config, tried, last_error);
+                    return Self::failed(
+                        deps,
+                        runtime_config,
+                        ProxyFailure::Bind { tried, last_error },
+                    );
                 },
             };
 
@@ -141,7 +117,7 @@ impl ProxyHandle {
         };
         let served = match server::start_with_listener(rt, listener, parts) {
             Ok(s) => s,
-            Err(e) => return Self::failed(deps, runtime_config, tried, e.to_string()),
+            Err(e) => return Self::failed(deps, runtime_config, ProxyFailure::Server(e)),
         };
 
         // Why: the listener is already serving. An unwritable port file
@@ -178,15 +154,13 @@ impl ProxyHandle {
     const fn failed(
         deps: ProxyDeps,
         runtime_config: SharedRuntimeConfig,
-        tried: Vec<u16>,
-        last_error: String,
+        failure: ProxyFailure,
     ) -> Self {
-        let port = DEFAULT_PROXY_PORT;
         Self::not_serving(
             deps,
             runtime_config,
-            port,
-            ProxyRole::Failed { tried, last_error },
+            DEFAULT_PROXY_PORT,
+            ProxyRole::Failed(failure),
         )
     }
 
@@ -229,9 +203,7 @@ impl ProxyHandle {
     pub const fn served(&self) -> Option<&ServedProxy> {
         match &self.role {
             ProxyRole::Serving(s) => Some(s),
-            ProxyRole::Attached | ProxyRole::AlreadyRunning { .. } | ProxyRole::Failed { .. } => {
-                None
-            },
+            ProxyRole::Attached | ProxyRole::AlreadyRunning { .. } | ProxyRole::Failed(_) => None,
         }
     }
 

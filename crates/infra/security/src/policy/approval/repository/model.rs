@@ -53,7 +53,7 @@ pub struct ApprovalRequest {
     pub arguments: serde_json::Value,
     pub args_digest: String,
     pub requested_by: String,
-    pub session_id: Option<String>,
+    pub session_id: Option<SessionId>,
     pub trace_id: Option<String>,
     pub rule: String,
     pub status: ApprovalStatus,

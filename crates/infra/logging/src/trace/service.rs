@@ -28,7 +28,7 @@ use super::models::{
 };
 use super::{
     audit_queries, list_queries, log_lookup_queries, log_search_queries, log_summary_queries,
-    queries, request_queries, tool_queries,
+    queries, request_queries, request_stats_queries, tool_queries,
 };
 
 #[derive(Debug, Clone)]
@@ -147,7 +147,7 @@ impl TraceQueryService {
         &self,
         since: Option<DateTime<Utc>>,
     ) -> Result<AiRequestStats> {
-        request_queries::get_ai_request_stats(&self.pool, since).await
+        request_stats_queries::get_ai_request_stats(&self.pool, since).await
     }
 
     pub async fn find_ai_request_detail(&self, id: &str) -> Result<Option<AiRequestDetail>> {

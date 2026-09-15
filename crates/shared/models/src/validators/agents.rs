@@ -7,7 +7,7 @@ use super::ValidationConfigProvider;
 use crate::ServicesConfig;
 use std::collections::HashMap;
 use std::path::Path;
-use systemprompt_traits::validation_report::{ValidationError, ValidationReport};
+use systemprompt_traits::validation_report::{ValidationIssue, ValidationReport};
 use systemprompt_traits::{ConfigProvider, DomainConfig, DomainConfigError};
 
 #[derive(Debug, Default)]
@@ -68,7 +68,7 @@ impl DomainConfig for AgentConfigValidator {
 
         if !Path::new(skills_path).exists() {
             report.add_error(
-                ValidationError::new("skills_path", "Skills directory does not exist")
+                ValidationIssue::new("skills_path", "Skills directory does not exist")
                     .with_path(skills_path)
                     .with_suggestion("Create the skills directory"),
             );
@@ -89,7 +89,7 @@ impl AgentConfigValidator {
         for (name, agent) in &config.agents {
             if let Some(existing) = used_ports.get(&agent.port) {
                 report.add_error(
-                    ValidationError::new(
+                    ValidationIssue::new(
                         format!("agents.{}.port", name),
                         format!("Port {} already used by agent '{}'", agent.port, existing),
                     )
@@ -109,7 +109,7 @@ impl AgentConfigValidator {
         report: &mut ValidationReport,
     ) {
         if agent.name.is_empty() {
-            report.add_error(ValidationError::new(
+            report.add_error(ValidationIssue::new(
                 format!("agents.{}.name", name),
                 "Agent name cannot be empty",
             ));
@@ -119,7 +119,7 @@ impl AgentConfigValidator {
             let skill_path = Path::new(skills_path).join(skill_id);
             if !skill_path.exists() {
                 report.add_error(
-                    ValidationError::new(
+                    ValidationIssue::new(
                         format!("agents.{}.metadata.skills", name),
                         format!("Skill '{}' directory not found", skill_id),
                     )
@@ -143,7 +143,7 @@ impl AgentConfigValidator {
     ) {
         let Some(mcp_config) = config.mcp_servers.get(mcp_server) else {
             report.add_error(
-                ValidationError::new(
+                ValidationIssue::new(
                     format!("agents.{}.metadata.mcp_servers", name),
                     format!("MCP server '{}' is not defined", mcp_server),
                 )
@@ -156,7 +156,7 @@ impl AgentConfigValidator {
 
         if mcp_config.dev_only && !agent.dev_only {
             report.add_error(
-                ValidationError::new(
+                ValidationIssue::new(
                     format!("agents.{}.metadata.mcp_servers", name),
                     format!(
                         "Production agent '{}' references dev-only MCP server '{}'",

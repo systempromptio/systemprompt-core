@@ -11,6 +11,7 @@ publish = false
 workspace = true
 
 [dependencies]
+xxhash-rust = { workspace = true }
 systemprompt-extension = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-traits = { workspace = true }
@@ -22,7 +23,6 @@ tempfile = { workspace = true }
 async-trait = { workspace = true }
 axum = { workspace = true }
 inventory = { workspace = true }
-sqlx = { workspace = true }
 tokio = { workspace = true }
 tower = { workspace = true }
 tracing = { workspace = true }

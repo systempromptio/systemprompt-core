@@ -215,9 +215,6 @@ pub type AgentResult<T> = Result<T, AgentError>;
 
 impl From<AgentError> for systemprompt_traits::RepositoryError {
     fn from(err: AgentError) -> Self {
-        match err {
-            AgentError::Sqlx(e) => Self::Database(Box::new(e)),
-            other => Self::Database(other.to_string().into()),
-        }
+        Self::database(err)
     }
 }

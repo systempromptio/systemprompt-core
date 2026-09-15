@@ -38,7 +38,7 @@ fn drain_with_stdin(payload: &str) -> String {
 }
 
 fn seed_inbox(root: &std::path::Path, session: &str, lines: &[(&str, &str)]) -> std::path::PathBuf {
-    let inbox = root.join("inbox");
+    let inbox = root.join("systemprompt").join("inbox");
     std::fs::create_dir_all(&inbox).expect("inbox dir");
     let path = inbox.join(format!("{session}.jsonl"));
     let body = lines
@@ -76,7 +76,7 @@ fn draining_a_seeded_inbox_clears_it() {
         !path.exists(),
         "a drained inbox is removed, not re-delivered"
     );
-    let leftovers: Vec<String> = std::fs::read_dir(temp.path().join("inbox"))
+    let leftovers: Vec<String> = std::fs::read_dir(temp.path().join("systemprompt").join("inbox"))
         .expect("inbox dir")
         .map(|e| e.expect("entry").file_name().to_string_lossy().into_owned())
         .collect();
@@ -99,7 +99,12 @@ fn a_second_drain_of_the_same_session_finds_nothing() {
     assert_eq!(first, success());
     assert_eq!(second, success(), "an empty inbox is not an error");
     assert!(
-        !temp.path().join("inbox").join("sess-a.jsonl").exists(),
+        !temp
+            .path()
+            .join("systemprompt")
+            .join("inbox")
+            .join("sess-a.jsonl")
+            .exists(),
         "nothing is recreated by the second drain"
     );
 }
@@ -182,7 +187,7 @@ fn a_malformed_hook_payload_is_not_an_error() {
 #[test]
 fn unparsable_inbox_lines_are_skipped_and_the_file_is_still_cleared() {
     let temp = tempfile::tempdir().expect("config tempdir");
-    let inbox = temp.path().join("inbox");
+    let inbox = temp.path().join("systemprompt").join("inbox");
     std::fs::create_dir_all(&inbox).expect("inbox dir");
     let path = inbox.join("sess-a.jsonl");
     std::fs::write(

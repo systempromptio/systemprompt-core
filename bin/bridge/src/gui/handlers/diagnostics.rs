@@ -96,7 +96,8 @@ pub(crate) fn on_reset_proxy_secret(app: &GuiApp, reply_to: ReplyId) {
     let reset_ok = result.is_ok();
     finish(app, result, reply_to);
     if reset_ok {
-        crate::gui::handlers::update::on_update_restart_requested(app);
+        app.proxy
+            .send_event(crate::gui::events::UiEvent::UpdateRestartRequested);
     }
 }
 

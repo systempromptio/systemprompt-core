@@ -63,8 +63,8 @@ pub async fn fetch_external_bearer(
     broker_secret: Option<&str>,
     server: &str,
 ) -> McpDomainResult<String> {
-    let client = systemprompt_models::net::guarded_client(
-        &systemprompt_models::net::GuardedClientConfig::default().with_max_redirects(0),
+    let client = systemprompt_client::guarded_client(
+        &systemprompt_client::GuardedClientConfig::default().with_max_redirects(0),
     )
     .map_err(|error| {
         McpDomainError::Transport(format!(

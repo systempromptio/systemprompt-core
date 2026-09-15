@@ -1,8 +1,10 @@
 //! Request analytics extraction, session lifecycle, and fingerprint provider
 //! traits.
 //!
-//! These traits are dispatched as trait objects (`dyn _`), so they use
-//! `#[async_trait]`; native `async fn` in traits is not yet `dyn`-compatible.
+//! [`AnalyticsProvider`], [`FingerprintProvider`] and [`SessionUsageCounters`]
+//! are held as `Arc<dyn _>` (see the `Dyn*` aliases) by the runtime context
+//! and by domain services, so they use `#[async_trait]`; native `async fn`
+//! in traits is not `dyn`-compatible.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -103,6 +105,39 @@ pub struct CreateSessionInput<'a> {
     pub expires_at: DateTime<Utc>,
 }
 
+impl<'a> CreateSessionInput<'a> {
+    #[must_use]
+    pub const fn new(
+        session_id: &'a SessionId,
+        analytics: &'a SessionAnalytics,
+        session_source: SessionSource,
+        expires_at: DateTime<Utc>,
+    ) -> Self {
+        Self {
+            session_id,
+            user_id: None,
+            analytics,
+            session_source,
+            is_bot: false,
+            is_ai_crawler: false,
+            expires_at,
+        }
+    }
+
+    #[must_use]
+    pub const fn with_user_id(mut self, user_id: &'a UserId) -> Self {
+        self.user_id = Some(user_id);
+        self
+    }
+
+    #[must_use]
+    pub const fn with_classification(mut self, is_bot: bool, is_ai_crawler: bool) -> Self {
+        self.is_bot = is_bot;
+        self.is_ai_crawler = is_ai_crawler;
+        self
+    }
+}
+
 /// Optional request signals for analytics extraction that vary per call site.
 /// `GeoIP` and content-routing are supplied by the provider itself, so only the
 /// request-scoped inputs live here.
@@ -153,9 +188,11 @@ pub trait SessionProvider: Send + Sync {
     async fn mark_session_converted(&self, session_id: &SessionId) -> AnalyticsResult<()>;
 }
 
-/// Session-scoped usage counters bumped by domain workflows (task and message
-/// creation). Fire-and-forget at the call sites: failures are logged, never
-/// propagated into the owning workflow.
+/// Session-scoped usage counters bumped by domain workflows.
+///
+/// Fire-and-forget at the call sites (task and message creation): failures
+/// are logged, never propagated into the owning workflow. Held as
+/// `Arc<dyn SessionUsageCounters>`, hence `#[async_trait]`.
 #[async_trait]
 pub trait SessionUsageCounters: Send + Sync {
     async fn increment_task_count(&self, session_id: &SessionId) -> AnalyticsResult<()>;
@@ -167,7 +204,7 @@ pub trait SessionUsageCounters: Send + Sync {
 pub trait FingerprintProvider: Send + Sync {
     async fn count_active_sessions(&self, fingerprint: &str) -> AnalyticsResult<i64>;
 
-    async fn find_reusable_session(&self, fingerprint: &str) -> AnalyticsResult<Option<String>>;
+    async fn find_reusable_session(&self, fingerprint: &str) -> AnalyticsResult<Option<SessionId>>;
 
     async fn upsert_fingerprint(
         &self,

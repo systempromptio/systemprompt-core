@@ -80,7 +80,7 @@ fn check_with_endpoint(
             })
             .expect("store creds");
 
-            let gateway = GatewayClient::new(ValidatedUrl::new(server.uri()), reqwest::Client::new());
+            let gateway = GatewayClient::new(ValidatedUrl::try_new(server.uri()).expect("valid ValidatedUrl"), reqwest::Client::new());
             check_hook_token_mint(&gateway).await
         })
     })

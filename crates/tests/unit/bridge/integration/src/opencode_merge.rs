@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
+use systemprompt_bridge::ids::LoopbackSecret;
 use systemprompt_bridge::integration::host_app::{HostApp, ProfileGenInputs, ProfileRemoval};
 use systemprompt_bridge::integration::opencode::OPENCODE_HOST;
 use tempfile::TempDir;
@@ -8,6 +9,16 @@ use tempfile::TempDir;
 struct Paths {
     managed: PathBuf,
     auth: PathBuf,
+}
+
+fn write_bridge_config(config_home: &Path, managed_dir: &Path) {
+    let dir = config_home.join("systemprompt");
+    std::fs::create_dir_all(&dir).expect("bridge config dir");
+    std::fs::write(
+        dir.join("systemprompt-bridge.toml"),
+        format!("[opencode]\nmanaged_dir = '{}'\n", managed_dir.display()),
+    )
+    .expect("bridge config");
 }
 
 fn sandbox<R>(f: impl FnOnce(&Paths) -> R) -> R {
@@ -19,6 +30,7 @@ fn sandbox<R>(f: impl FnOnce(&Paths) -> R) -> R {
         managed: managed_dir.join("opencode.json"),
         auth: data.join("opencode").join("auth.json"),
     };
+    write_bridge_config(&root.path().join("config"), &managed_dir);
     let vars: Vec<(&str, Option<String>)> = vec![
         ("HOME", Some(root.path().display().to_string())),
         (
@@ -26,10 +38,7 @@ fn sandbox<R>(f: impl FnOnce(&Paths) -> R) -> R {
             Some(root.path().join("config").display().to_string()),
         ),
         ("XDG_DATA_HOME", Some(data.display().to_string())),
-        (
-            "SP_BRIDGE_OPENCODE_MANAGED_DIR",
-            Some(managed_dir.display().to_string()),
-        ),
+        ("SP_BRIDGE_CONFIG", None),
     ];
     let out = temp_env::with_vars(vars, || f(&paths));
     drop(root);
@@ -41,12 +50,12 @@ fn inputs(models: &[&str]) -> ProfileGenInputs {
     headers.insert("x-inference-protocol".to_owned(), "openai".to_owned());
     ProfileGenInputs {
         gateway_base_url: "http://127.0.0.1:48217".to_owned(),
-        api_key: "loopback-secret-value".to_owned(),
+        api_key: LoopbackSecret::new("loopback-secret-value"),
         models: models.iter().map(|m| (*m).to_owned()).collect(),
         default_model: None,
         organization_uuid: Some("org-abc".to_owned()),
         headers,
-        mcp_servers: Vec::new(),
+        mcp_servers: Some(Vec::new()),
     }
 }
 

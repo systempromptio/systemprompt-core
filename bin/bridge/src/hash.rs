@@ -4,7 +4,6 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use sha2::{Digest, Sha256};
-use std::path::PathBuf;
 
 pub(super) fn safe_plugin_id(id: &str) -> bool {
     !id.is_empty()
@@ -24,17 +23,13 @@ pub(crate) fn safe_id_segment(s: &str) -> bool {
             .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_'))
 }
 
-pub(super) fn normalise_relative(p: &str) -> PathBuf {
-    PathBuf::from(p.replace('\\', "/"))
-}
-
 pub(crate) fn sha256_hex(bytes: &[u8]) -> String {
     let mut h = Sha256::new();
     h.update(bytes);
     hex_encode(&h.finalize())
 }
 
-pub(super) fn hex_encode(bytes: &[u8]) -> String {
+pub fn hex_encode(bytes: &[u8]) -> String {
     const HEX: &[u8] = b"0123456789abcdef";
     let mut s = String::with_capacity(bytes.len() * 2);
     for b in bytes {

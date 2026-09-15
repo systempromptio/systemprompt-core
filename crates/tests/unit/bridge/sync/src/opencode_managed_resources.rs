@@ -25,6 +25,16 @@ fn with_sandbox<R>(body: impl FnOnce(&Sandbox) -> R) -> R {
         config: config_home.join("opencode").join("opencode.json"),
         skills: config_home.join("opencode").join("skills"),
     };
+    let bridge_dir = config_home.join("systemprompt");
+    std::fs::create_dir_all(&bridge_dir).expect("bridge config dir");
+    std::fs::write(
+        bridge_dir.join("systemprompt-bridge.toml"),
+        format!(
+            "[opencode]\nmanaged_dir = '{}'\n",
+            temp.path().join("managed").display()
+        ),
+    )
+    .expect("bridge config");
     let vars: Vec<(&str, Option<String>)> = vec![
         ("HOME", Some(temp.path().display().to_string())),
         ("XDG_CONFIG_HOME", Some(config_home.display().to_string())),
@@ -32,10 +42,7 @@ fn with_sandbox<R>(body: impl FnOnce(&Sandbox) -> R) -> R {
             "XDG_DATA_HOME",
             Some(temp.path().join("data").display().to_string()),
         ),
-        (
-            "SP_BRIDGE_OPENCODE_MANAGED_DIR",
-            Some(temp.path().join("managed").display().to_string()),
-        ),
+        ("SP_BRIDGE_CONFIG", None),
     ];
     temp_env::with_vars(vars, || body(&sb))
 }
@@ -84,7 +91,7 @@ fn skill(id: &str, body: &str) -> SkillEntry {
 
 fn mcp(name: &str) -> ManagedMcpServer {
     ManagedMcpServer {
-        id: systemprompt_identifiers::McpServerId::new(name),
+        id: systemprompt_identifiers::McpServerId::try_new(name).expect("valid McpServerId"),
         name: ManagedMcpServerName::try_new(name).unwrap(),
         url: ValidatedUrl::try_new("https://mcp.example.invalid/api").unwrap(),
         transport: Some("http".into()),
@@ -104,11 +111,20 @@ static POLICY_STORE: std::sync::LazyLock<systemprompt_bridge::config::store::Pol
         )
     });
 
+static EMPTY_BEARER: std::sync::LazyLock<systemprompt_bridge::ids::BearerToken> =
+    std::sync::LazyLock::new(systemprompt_bridge::ids::BearerToken::default);
+static START_MENU: std::sync::LazyLock<systemprompt_bridge::probe_cache::StartMenuCache> =
+    std::sync::LazyLock::new(systemprompt_bridge::probe_cache::StartMenuCache::default);
 static EMPTY_REGISTRY: std::sync::LazyLock<systemprompt_bridge::mcp_registry::McpRegistry> =
     std::sync::LazyLock::new(std::collections::HashMap::new);
 
 static LOOPBACK: std::sync::LazyLock<LoopbackEndpoint> = std::sync::LazyLock::new(|| {
-    LoopbackEndpoint::new(systemprompt_bridge::proxy::DEFAULT_PROXY_PORT, None)
+    LoopbackEndpoint::new(
+        systemprompt_bridge::proxy::DEFAULT_PROXY_PORT,
+        Some(systemprompt_bridge::ids::LoopbackSecret::new(
+            "loopback-secret-value",
+        )),
+    )
 });
 
 fn clear(root: &Path) -> Result<(), ApplyError> {
@@ -125,9 +141,10 @@ fn clear(root: &Path) -> Result<(), ApplyError> {
         org_plugins_root: root,
         plugin_mcp_servers: &plugin_mcp_servers,
         client: &client,
-        bearer: "",
+        bearer: &EMPTY_BEARER,
         loopback: &LOOPBACK,
         mcp_registry: &EMPTY_REGISTRY,
+        start_menu: &START_MENU,
     };
     OpenCodeSync.clear(&ctx)
 }
@@ -145,9 +162,10 @@ fn apply(m: &SignedManifest, root: &Path) -> Result<(), ApplyError> {
         org_plugins_root: root,
         plugin_mcp_servers: &plugin_mcp_servers,
         client: &client,
-        bearer: "",
+        bearer: &EMPTY_BEARER,
         loopback: &LOOPBACK,
         mcp_registry: &EMPTY_REGISTRY,
+        start_menu: &START_MENU,
     };
     tokio::runtime::Builder::new_current_thread()
         .enable_all()

@@ -20,16 +20,11 @@ rustdoc-args = ["--cfg", "docsrs"]
 [lints]
 workspace = true
 
-[features]
-default = []
-web = ["dep:axum"]
-
 [dependencies]
 systemprompt-provider-contracts = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 
 async-trait = { workspace = true }
-inventory = { workspace = true }
 
 thiserror = { workspace = true }
 serde_json = { workspace = true }
@@ -39,10 +34,7 @@ tracing = { workspace = true }
 serde = { workspace = true }
 futures = { workspace = true }
 http = { workspace = true }
-uuid = { workspace = true }
 xxhash-rust = { workspace = true }
-
-axum = { workspace = true, optional = true }
 
 [dev-dependencies]
 tokio = { workspace = true }

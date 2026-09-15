@@ -11,6 +11,7 @@ use crate::experiments::{ExperimentSpec, conflict, content_digest, invalid};
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use sqlx::types::Json;
+use systemprompt_models::managed::RevisionBundle;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExecutionAssignment {
@@ -30,7 +31,7 @@ pub struct ManagedWorkspaceReference {
     pub managed_revision_id: String,
     pub digest: String,
     pub publication_generation: Option<i64>,
-    pub manifest: serde_json::Value,
+    pub manifest: RevisionBundle,
 }
 
 #[derive(Debug, Clone)]

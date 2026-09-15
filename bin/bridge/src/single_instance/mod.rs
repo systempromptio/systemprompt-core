@@ -175,11 +175,22 @@ fn sidecar_path() -> PathBuf {
     }
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+struct RunningSidecar {
+    pid: u32,
+    port: u16,
+    token: String,
+}
+
 pub(crate) fn write_running_port(port: u16, csrf_token: &str) -> std::io::Result<()> {
     let path = sidecar_path();
-    let payload =
-        serde_json::json!({ "pid": std::process::id(), "port": port, "token": csrf_token });
-    crate::fsutil::atomic_write_0600(&path, payload.to_string().as_bytes())
+    let payload = RunningSidecar {
+        pid: std::process::id(),
+        port,
+        token: csrf_token.to_owned(),
+    };
+    let bytes = serde_json::to_vec(&payload)?;
+    crate::fsutil::atomic_write_0600(&path, &bytes)
 }
 
 pub(crate) fn clear_running_port() -> std::io::Result<()> {
@@ -198,20 +209,23 @@ pub(crate) fn clear_running_port() -> std::io::Result<()> {
     Ok(())
 }
 
-#[derive(Debug, Clone)]
-struct RunningInstance {
-    port: u16,
-    token: String,
-}
-
-#[must_use]
-fn read_running_instance() -> Option<RunningInstance> {
+fn read_running_instance() -> Option<RunningSidecar> {
     let path = sidecar_path();
-    let raw = fs::read_to_string(path).ok()?;
-    let v: serde_json::Value = serde_json::from_str(&raw).ok()?;
-    let port = u16::try_from(v.get("port")?.as_u64()?).ok()?;
-    let token = v.get("token")?.as_str()?.to_owned();
-    Some(RunningInstance { port, token })
+    let raw = match fs::read_to_string(&path) {
+        Ok(raw) => raw,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return None,
+        Err(e) => {
+            tracing::warn!(path = %path.display(), error = %e, "running-instance sidecar unreadable");
+            return None;
+        },
+    };
+    match serde_json::from_str::<RunningSidecar>(&raw) {
+        Ok(sidecar) => Some(sidecar),
+        Err(e) => {
+            tracing::warn!(path = %path.display(), error = %e, "running-instance sidecar malformed");
+            None
+        },
+    }
 }
 
 pub(crate) fn ping_focus_running_instance() -> bool {
@@ -227,7 +241,7 @@ pub(crate) fn ping_focus_running_instance() -> bool {
     false
 }
 
-fn focus_handshake(instance: &RunningInstance) -> bool {
+fn focus_handshake(instance: &RunningSidecar) -> bool {
     let Ok(parsed) = format!("127.0.0.1:{}", instance.port).parse() else {
         return false;
     };

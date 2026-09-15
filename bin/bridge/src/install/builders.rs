@@ -1,14 +1,11 @@
-//! Builders for install options and uninstall summaries.
+//! Builder for install options.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::{
-    CredentialsOutcome, InstallOptions, ManagedProfileOutcome, ScheduleRemoval, UninstallSummary,
-};
+use super::InstallOptions;
 use crate::ids::PinnedPubKey;
 use crate::schedule::Os;
-use std::path::PathBuf;
 use systemprompt_identifiers::ValidatedUrl;
 
 #[derive(Debug, Default)]
@@ -89,74 +86,5 @@ impl InstallOptionsBuilder {
     pub fn egress_allowed_hosts(mut self, hosts: Option<Vec<String>>) -> Self {
         self.egress_allowed_hosts = hosts;
         self
-    }
-}
-
-#[derive(Debug)]
-pub struct UninstallSummaryBuilder {
-    metadata_removed: Option<PathBuf>,
-    metadata_already_clean: Option<PathBuf>,
-    managed_profile: ManagedProfileOutcome,
-    credentials: CredentialsOutcome,
-    schedule: ScheduleRemoval,
-}
-
-impl UninstallSummaryBuilder {
-    #[must_use]
-    pub const fn new() -> Self {
-        Self {
-            metadata_removed: None,
-            metadata_already_clean: None,
-            managed_profile: ManagedProfileOutcome::NotApplicable,
-            credentials: CredentialsOutcome::Kept,
-            schedule: ScheduleRemoval::NotInstalled(String::new()),
-        }
-    }
-
-    #[must_use]
-    pub fn metadata_removed(mut self, path: PathBuf) -> Self {
-        self.metadata_removed = Some(path);
-        self
-    }
-
-    #[must_use]
-    pub fn metadata_already_clean(mut self, path: PathBuf) -> Self {
-        self.metadata_already_clean = Some(path);
-        self
-    }
-
-    #[must_use]
-    pub fn managed_profile(mut self, outcome: ManagedProfileOutcome) -> Self {
-        self.managed_profile = outcome;
-        self
-    }
-
-    #[must_use]
-    pub fn credentials(mut self, outcome: CredentialsOutcome) -> Self {
-        self.credentials = outcome;
-        self
-    }
-
-    #[must_use]
-    pub fn schedule(mut self, outcome: ScheduleRemoval) -> Self {
-        self.schedule = outcome;
-        self
-    }
-
-    #[must_use]
-    pub fn build(self) -> UninstallSummary {
-        UninstallSummary {
-            metadata_removed: self.metadata_removed,
-            metadata_already_clean: self.metadata_already_clean,
-            managed_profile: self.managed_profile,
-            credentials: self.credentials,
-            schedule: self.schedule,
-        }
-    }
-}
-
-impl Default for UninstallSummaryBuilder {
-    fn default() -> Self {
-        Self::new()
     }
 }

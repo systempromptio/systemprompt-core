@@ -26,10 +26,8 @@ pub fn cmd_proxy(ctx: &BridgeContext) -> ExitCode {
             ));
             return ExitCode::SUCCESS;
         },
-        ProxyRole::Failed { tried, last_error } => {
-            diag(&format!(
-                "proxy: failed to start; tried ports {tried:?}: {last_error}"
-            ));
+        ProxyRole::Failed(failure) => {
+            diag(&format!("proxy: failed to start: {failure}"));
             return ExitCode::from(1);
         },
         ProxyRole::Attached => {

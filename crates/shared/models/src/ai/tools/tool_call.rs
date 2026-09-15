@@ -21,6 +21,7 @@ use crate::errors::RowParseError;
 pub struct ToolCall {
     pub ai_tool_call_id: AiToolCallId,
     pub name: String,
+    // JSON: MCP tool-call arguments / result are the tool's own JSON.
     pub arguments: JsonValue,
 }
 
@@ -33,7 +34,9 @@ pub struct ToolExecution {
     pub sequence: i32,
     pub tool_name: String,
     pub service_id: McpServerId,
+    // JSON: MCP tool-call arguments / result are the tool's own JSON.
     pub input: JsonValue,
+    // JSON: MCP tool-call arguments / result are the tool's own JSON.
     pub output: Option<JsonValue>,
     pub status: String,
     pub execution_time_ms: Option<i32>,
@@ -41,6 +44,7 @@ pub struct ToolExecution {
     pub created_at: DateTime<Utc>,
 }
 
+// JSON: `mcp_tool_executions` JSONB columns decoded from a dynamic row.
 fn parse_json_column(row: &HashMap<String, JsonValue>, key: &str) -> Option<JsonValue> {
     row.get(key).and_then(|v| v.as_str()).and_then(|s| {
         serde_json::from_str(s)
@@ -53,6 +57,7 @@ fn parse_json_column(row: &HashMap<String, JsonValue>, key: &str) -> Option<Json
 }
 
 impl ToolExecution {
+    // JSON: `mcp_tool_executions` JSONB columns decoded from a dynamic row.
     pub fn from_json_row(row: &HashMap<String, JsonValue>) -> Result<Self, RowParseError> {
         let id = row
             .get("id")
@@ -82,7 +87,12 @@ impl ToolExecution {
             .get("service_id")
             .and_then(|v| v.as_str())
             .ok_or(RowParseError::Missing("service_id"))
-            .map(McpServerId::new)?;
+            .and_then(|s| {
+                McpServerId::try_new(s).map_err(|source| RowParseError::InvalidId {
+                    field: "service_id",
+                    source,
+                })
+            })?;
 
         let input = parse_json_column(row, "input").unwrap_or(JsonValue::Null);
         let output = parse_json_column(row, "output");

@@ -1,4 +1,5 @@
-//! `rate_limit`: per-`{session,user}` sliding-window limiter.
+//! Per-`{session,user}` sliding-window limiter, registered as the `rate_limit`
+//! policy.
 //!
 //! State is instance-scoped: each engine built by
 //! [`super::super::GovernanceEngine::from_config`] gets its own window, so

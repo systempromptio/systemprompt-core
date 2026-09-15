@@ -56,11 +56,30 @@ impl LoopbackEndpoint {
             .map_or_else(secret::for_profile, |s| Ok(s.clone()))
     }
 
-    pub fn bearer(&self) -> std::io::Result<String> {
+    // Why: a profile writer runs before the proxy on a fresh install (`sync`
+    // then `proxy`), so the credential it writes mints the bridge-owned
+    // secret when none exists; a probe only reads it.
+    pub fn secret_or_mint(&self) -> std::io::Result<LoopbackSecret> {
         self.secret
             .as_ref()
             .map_or_else(secret::proxy_init, |s| Ok(s.clone()))
+    }
+
+    pub fn bearer(&self) -> std::io::Result<String> {
+        self.secret_or_mint()
             .map(|s| format!("Bearer {}", s.as_str()))
+    }
+
+    pub fn host_bearer(&self, host: &crate::ids::HostId) -> std::io::Result<String> {
+        self.secret_or_mint()
+            .map(|s| super::scoped_token::host_token(&s, host))
+            .map(|t| format!("Bearer {}", t.as_str()))
+    }
+
+    pub fn hook_bearer(&self, plugin: &crate::ids::PluginId) -> std::io::Result<String> {
+        self.secret_or_mint()
+            .map(|s| super::scoped_token::hook_token(&s, plugin))
+            .map(|t| format!("Bearer {}", t.as_str()))
     }
 
     #[must_use]

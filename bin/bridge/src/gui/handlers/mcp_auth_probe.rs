@@ -17,9 +17,7 @@ pub(crate) fn on_mcp_auth_probe_requested(
     reply_to: ReplyId,
 ) {
     if !app.state.mark_mcp_auth_probing() {
-        if let Some(id) = reply_to {
-            emit::send_reply(app, id, json!({ "inFlight": true }), true);
-        }
+        emit::finish(app, reply_to, Ok(json!({ "inFlight": true })));
         return;
     }
     app.refresh_ui();
@@ -56,7 +54,22 @@ pub(crate) fn on_mcp_auth_probe_finished(
             remember_tools(app, std::slice::from_ref(&result));
             app.state.apply_mcp_auth_one(result);
         },
-        McpProbeResults::One(None) => app.state.apply_mcp_auth(Vec::new()),
+        // Why: a probe for a server the registry does not know says nothing
+        // about the servers it does; the state is left as it was and the
+        // caller learns the id is unknown.
+        McpProbeResults::One(None) => {
+            app.state.finish_mcp_auth_probe();
+            app.refresh_ui();
+            emit::emit_mcp_changed(app);
+            emit::finish::<serde_json::Value>(
+                app,
+                reply_to,
+                Err(crate::wire::ipc::BridgeError::not_found(
+                    "no managed MCP server with that id",
+                )),
+            );
+            return;
+        },
     }
     let broken: Vec<String> = app
         .state
@@ -81,9 +94,7 @@ pub(crate) fn on_mcp_auth_probe_finished(
     app.refresh_ui();
     emit::emit_mcp_changed(app);
     emit::emit_state(app);
-    if let Some(id) = reply_to {
-        emit::send_reply(app, id, json!({}), true);
-    }
+    emit::finish(app, reply_to, Ok(json!({})));
 }
 
 // Why: the desktop tool policy is written from this same tool list; every

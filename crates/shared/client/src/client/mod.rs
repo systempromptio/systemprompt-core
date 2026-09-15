@@ -16,8 +16,8 @@ mod http;
 use chrono::Utc;
 use reqwest::Client;
 use std::time::Duration;
-use systemprompt_identifiers::{ContextId, JwtToken, TaskId};
-use systemprompt_models::a2a::{Task, methods};
+use systemprompt_identifiers::{AgentName, ContextId, JwtToken, TaskId};
+use systemprompt_models::a2a::{Artifact, Message, Task, methods};
 use systemprompt_models::admin::{AnalyticsData, LogEntry, UserInfo};
 use systemprompt_models::net::{
     HTTP_AUTH_VERIFY_TIMEOUT, HTTP_DEFAULT_TIMEOUT, HTTP_HEALTH_CHECK_TIMEOUT,
@@ -185,13 +185,7 @@ impl SystempromptClient {
         http::delete(&self.client, &url, self.token.as_ref()).await
     }
 
-    // JSON: HTTP boundary. The shared client does not depend on the agent
-    // crate, so artifact rows are surfaced as raw JSON; callers that need
-    // typed access deserialize into `systemprompt_models::a2a::Artifact`.
-    pub async fn list_artifacts(
-        &self,
-        context_id: &ContextId,
-    ) -> ClientResult<Vec<serde_json::Value>> {
+    pub async fn list_artifacts(&self, context_id: &ContextId) -> ClientResult<Vec<Artifact>> {
         let url = format!(
             "{}{}/{}/artifacts",
             self.base_url,
@@ -225,16 +219,19 @@ impl SystempromptClient {
         Ok(response.status().is_success())
     }
 
-    // JSON: A2A JSON-RPC 2.0 envelope. Both the inbound `message` and the
-    // returned response object are passed through as raw JSON so the shared
-    // client stays free of the agent-domain dependency.
     pub async fn send_message(
         &self,
-        agent_name: &str,
+        agent_name: &AgentName,
         context_id: &ContextId,
-        message: serde_json::Value,
+        message: &Message,
+        // JSON: A2A JSON-RPC envelope; `result` (Task or Message) is typed by the agent domain.
     ) -> ClientResult<serde_json::Value> {
-        let url = format!("{}{}/{}/", self.base_url, ApiPaths::AGENTS_BASE, agent_name);
+        let url = format!(
+            "{}{}/{}/",
+            self.base_url,
+            ApiPaths::AGENTS_BASE,
+            agent_name.as_str()
+        );
         let request = serde_json::json!({
             "jsonrpc": "2.0",
             "method": methods::SEND_MESSAGE,
@@ -266,11 +263,7 @@ impl SystempromptClient {
         http::get(&self.client, &url, self.token.as_ref()).await
     }
 
-    // JSON: HTTP boundary, see `list_artifacts`.
-    pub async fn list_all_artifacts(
-        &self,
-        limit: Option<u32>,
-    ) -> ClientResult<Vec<serde_json::Value>> {
+    pub async fn list_all_artifacts(&self, limit: Option<u32>) -> ClientResult<Vec<Artifact>> {
         let url = self.limited_url(ApiPaths::CORE_ARTIFACTS, limit);
         http::get(&self.client, &url, self.token.as_ref()).await
     }

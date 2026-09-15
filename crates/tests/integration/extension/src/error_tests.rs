@@ -1,6 +1,6 @@
 //! Tests for extension error types.
 
-use systemprompt_extension::error::{ConfigError, LoaderError};
+use systemprompt_extension::error::{ExtensionConfigError, LoaderError};
 
 #[test]
 fn test_loader_error_missing_dependency_display() {
@@ -81,7 +81,7 @@ fn test_loader_error_invalid_base_path_display() {
     let msg = err.to_string();
     assert!(msg.contains("my-ext"));
     assert!(msg.contains("/invalid/path"));
-    assert!(msg.contains("must start with /api/"));
+    assert!(msg.contains("must be / or start with /api/"));
 }
 
 #[test]
@@ -96,7 +96,7 @@ fn test_loader_error_circular_dependency_display() {
 
 #[test]
 fn test_config_error_not_found_display() {
-    let err = ConfigError::NotFound("database.host".to_string());
+    let err = ExtensionConfigError::NotFound("database.host".to_string());
     let msg = err.to_string();
     assert!(msg.contains("database.host"));
     assert!(msg.contains("not found"));
@@ -105,7 +105,7 @@ fn test_config_error_not_found_display() {
 
 #[test]
 fn test_config_error_invalid_value_display() {
-    let err = ConfigError::InvalidValue {
+    let err = ExtensionConfigError::InvalidValue {
         key: "port".to_string(),
         message: "must be a positive integer".to_string(),
     };
@@ -117,7 +117,7 @@ fn test_config_error_invalid_value_display() {
 
 #[test]
 fn test_config_error_parse_error_display() {
-    let err = ConfigError::ParseError {
+    let err = ExtensionConfigError::ParseError {
         message: "invalid JSON at line 5".to_string(),
     };
     let msg = err.to_string();
@@ -127,7 +127,8 @@ fn test_config_error_parse_error_display() {
 
 #[test]
 fn test_config_error_schema_validation_display() {
-    let err = ConfigError::SchemaValidation("missing required property 'name'".to_string());
+    let err =
+        ExtensionConfigError::SchemaValidation("missing required property 'name'".to_string());
     let msg = err.to_string();
     assert!(msg.contains("missing required property"));
     assert!(msg.contains("Schema validation"));
@@ -185,8 +186,15 @@ fn test_loader_error_variant_matching() {
                 assert!(!extension.is_empty());
                 assert!(!dependency.is_empty());
             },
-            LoaderError::DuplicateExtension(id) => {
+            LoaderError::DuplicateExtension(id) | LoaderError::RequiredExtensionDisabled(id) => {
                 assert!(!id.is_empty());
+            },
+            LoaderError::DisabledDependency {
+                extension,
+                dependency,
+            } => {
+                assert!(!extension.is_empty());
+                assert!(!dependency.is_empty());
             },
             LoaderError::InitializationFailed { extension, message } => {
                 assert!(!extension.is_empty());
@@ -279,30 +287,30 @@ fn test_loader_error_variant_matching() {
 #[test]
 fn test_config_error_variant_matching() {
     let errors = vec![
-        ConfigError::NotFound("key".to_string()),
-        ConfigError::InvalidValue {
+        ExtensionConfigError::NotFound("key".to_string()),
+        ExtensionConfigError::InvalidValue {
             key: "key".to_string(),
             message: "msg".to_string(),
         },
-        ConfigError::ParseError {
+        ExtensionConfigError::ParseError {
             message: "parse error".to_string(),
         },
-        ConfigError::SchemaValidation("schema error".to_string()),
+        ExtensionConfigError::SchemaValidation("schema error".to_string()),
     ];
 
     for err in errors {
         match &err {
-            ConfigError::NotFound(key) => {
+            ExtensionConfigError::NotFound(key) => {
                 assert!(!key.is_empty());
             },
-            ConfigError::InvalidValue { key, message } => {
+            ExtensionConfigError::InvalidValue { key, message } => {
                 assert!(!key.is_empty());
                 assert!(!message.is_empty());
             },
-            ConfigError::ParseError { message: msg } => {
+            ExtensionConfigError::ParseError { message: msg } => {
                 assert!(!msg.is_empty());
             },
-            ConfigError::SchemaValidation(msg) => {
+            ExtensionConfigError::SchemaValidation(msg) => {
                 assert!(!msg.is_empty());
             },
         }

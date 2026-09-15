@@ -81,7 +81,7 @@ fn skill(id: &str, body: &str) -> SkillEntry {
 
 fn mcp(name: &str, url: &str) -> ManagedMcpServer {
     ManagedMcpServer {
-        id: systemprompt_identifiers::McpServerId::new(name),
+        id: systemprompt_identifiers::McpServerId::try_new(name).expect("valid McpServerId"),
         name: ManagedMcpServerName::try_new(name).unwrap(),
         url: ValidatedUrl::try_new(url).unwrap(),
         transport: Some("http".into()),
@@ -95,7 +95,7 @@ fn ctx<'a>(
     manifest: &'a SignedManifest,
     root: &'a Path,
     client: &'a GatewayClient,
-    bearer: &'a str,
+    bearer: &'a systemprompt_bridge::ids::BearerToken,
     plugin_mcp_servers: &'a std::collections::BTreeMap<String, Vec<String>>,
 ) -> HostSyncCtx<'a> {
     HostSyncCtx {
@@ -108,6 +108,7 @@ fn ctx<'a>(
         bearer,
         loopback: &LOOPBACK,
         mcp_registry: &EMPTY_REGISTRY,
+        start_menu: &START_MENU,
     }
 }
 
@@ -121,11 +122,20 @@ static POLICY_STORE: std::sync::LazyLock<systemprompt_bridge::config::store::Pol
         )
     });
 
+static EMPTY_BEARER: std::sync::LazyLock<systemprompt_bridge::ids::BearerToken> =
+    std::sync::LazyLock::new(systemprompt_bridge::ids::BearerToken::default);
+static START_MENU: std::sync::LazyLock<systemprompt_bridge::probe_cache::StartMenuCache> =
+    std::sync::LazyLock::new(systemprompt_bridge::probe_cache::StartMenuCache::default);
 static EMPTY_REGISTRY: std::sync::LazyLock<systemprompt_bridge::mcp_registry::McpRegistry> =
     std::sync::LazyLock::new(std::collections::HashMap::new);
 
 static LOOPBACK: std::sync::LazyLock<LoopbackEndpoint> = std::sync::LazyLock::new(|| {
-    LoopbackEndpoint::new(systemprompt_bridge::proxy::DEFAULT_PROXY_PORT, None)
+    LoopbackEndpoint::new(
+        systemprompt_bridge::proxy::DEFAULT_PROXY_PORT,
+        Some(systemprompt_bridge::ids::LoopbackSecret::new(
+            "loopback-secret-value",
+        )),
+    )
 });
 
 fn clear(home: &Path) {
@@ -133,7 +143,7 @@ fn clear(home: &Path) {
     let plugin_mcp_servers = std::collections::BTreeMap::new();
     let m = full_manifest();
     HermesSync
-        .clear(&ctx(&m, home, &client, "", &plugin_mcp_servers))
+        .clear(&ctx(&m, home, &client, &EMPTY_BEARER, &plugin_mcp_servers))
         .unwrap();
 }
 
@@ -155,7 +165,7 @@ fn block_on<F: std::future::Future>(f: F) -> F::Output {
 fn apply(m: &SignedManifest, home: &Path) {
     let client = stub_client();
     let plugin_mcp_servers = std::collections::BTreeMap::new();
-    block_on(HermesSync.apply(&ctx(m, home, &client, "", &plugin_mcp_servers))).unwrap();
+    block_on(HermesSync.apply(&ctx(m, home, &client, &EMPTY_BEARER, &plugin_mcp_servers))).unwrap();
 }
 
 fn skills_dir(home: &Path) -> PathBuf {

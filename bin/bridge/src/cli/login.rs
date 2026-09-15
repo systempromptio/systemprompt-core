@@ -1,10 +1,10 @@
-//! `login` command: stores a PAT obtained by single sign-on, pasted directly,
-//! or redeemed from an admin-issued one-shot exchange code.
+//! `login` command: stores a PAT obtained by single sign-on, read from stdin
+//! (`--stdin`), passed as an argument, or redeemed from an admin-issued
+//! one-shot exchange code.
 //!
 //! Device-link *authentication* (as opposed to this one-time bootstrap) is
-//! interactive per request, which is why it cannot back the proxy; a device
-//! certificate (`admin bridge enroll-cert`) is the only credential that renews
-//! unattended.
+//! interactive per request, which is why it cannot back the proxy; the stored
+//! PAT is the credential that renews unattended.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -28,7 +28,15 @@ pub fn cmd_login(ctx: &BridgeContext, args: &[String]) -> ExitCode {
     let device_name = parse_opt_flag(args, "--device-name");
     let pasted_pat = args.get(2).filter(|t| !t.is_empty() && !t.starts_with('-'));
 
-    let code = if let Some(code) = parse_opt_flag(args, "--code") {
+    let code = if has_flag(args, "--stdin") {
+        return match pat_from_stdin() {
+            Ok(token) => finish_login(ctx, &token, gateway.as_deref(), args),
+            Err(e) => {
+                diag(&format!("login --stdin: {e}"));
+                ExitCode::from(64)
+            },
+        };
+    } else if let Some(code) = parse_opt_flag(args, "--code") {
         code
     } else if let Some(t) = pasted_pat {
         let token = crate::ids::PatToken::new(t.clone());
@@ -52,6 +60,18 @@ pub fn cmd_login(ctx: &BridgeContext, args: &[String]) -> ExitCode {
     };
 
     finish_login(ctx, &token, gateway.as_deref(), args)
+}
+
+fn pat_from_stdin() -> Result<crate::ids::PatToken, String> {
+    let mut line = String::new();
+    std::io::stdin()
+        .read_line(&mut line)
+        .map_err(|e| format!("could not read the PAT from stdin: {e}"))?;
+    let token = line.trim();
+    if token.is_empty() {
+        return Err("stdin carried no PAT".to_owned());
+    }
+    Ok(crate::ids::PatToken::new(token))
 }
 
 fn finish_login(
@@ -86,8 +106,7 @@ fn sso_code(
         return Err(format!(
             "signing in interactively needs a terminal. Unattended, redeem an \
              administrator-issued code with `{bin} login --code <exchange-code>`, or \
-             enrol a device certificate, which is the only credential that renews \
-             without a person present",
+             pipe a PAT into `{bin} login --stdin`",
             bin = crate::brand::brand().binary_name
         ));
     }

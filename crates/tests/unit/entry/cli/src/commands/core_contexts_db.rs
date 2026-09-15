@@ -35,7 +35,7 @@ async fn seeded_identity(pool: &DbPool, prefix: &str) -> (UserId, SessionId) {
 fn session_for(user_id: &UserId, session_id: SessionId, context_id: ContextId) -> CliSession {
     CliSession::builder(
         SessionBinding::new(
-            ProfileName::new("ctxcmd"),
+            ProfileName::try_new("ctxcmd").expect("valid ProfileName"),
             "http://localhost:8080".to_owned(),
         ),
         SessionToken::new("token"),
@@ -43,7 +43,7 @@ fn session_for(user_id: &UserId, session_id: SessionId, context_id: ContextId) -
         context_id,
         SessionIdentity::new(
             user_id.clone(),
-            Email::new("ctxcmd@test.local"),
+            Email::try_new("ctxcmd@test.local").expect("valid Email"),
             UserType::Admin,
         ),
     )

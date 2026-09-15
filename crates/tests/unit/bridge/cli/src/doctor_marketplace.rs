@@ -24,6 +24,7 @@ fn with_home<R>(prepare: impl FnOnce(&Path), f: impl FnOnce() -> R) -> R {
 }
 
 fn write_manifest(home: &Path, body: &str) {
+    write_sidecar(home, &["org-provisioned"]);
     write_manifest_for(home, "org-provisioned", body);
 }
 
@@ -69,8 +70,8 @@ fn with_the_cli_present_but_no_manifest_yet_the_check_warns_and_points_at_sync()
     );
     assert_eq!(check.status, Status::Warn, "{}", check.detail);
     assert!(
-        check.detail.contains("marketplace.json"),
-        "{}",
+        check.detail.contains("no marketplace recorded"),
+        "with no sidecar nothing was ever synced: {}",
         check.detail
     );
     assert!(check.detail.contains("sync"), "{}", check.detail);
@@ -141,7 +142,7 @@ fn a_plugins_key_that_is_not_an_array_is_treated_as_no_plugins_rather_than_crash
 }
 
 #[test]
-fn with_a_sidecar_every_owned_marketplace_is_checked_and_the_legacy_one_is_not() {
+fn with_a_sidecar_every_owned_marketplace_is_checked_and_an_unrecorded_one_is_not() {
     let check = with_home(
         |home| {
             write_sidecar(home, &["core", "commerce"]);

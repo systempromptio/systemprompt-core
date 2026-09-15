@@ -51,12 +51,19 @@ pub(crate) fn on_sync_requested(app: &mut GuiApp, reply_to: ReplyId) {
             config::pinned_pubkey_state(),
             Ok(config::PinnedPubkeyState::Unpinned)
         );
-        let result = tokio::select! {
-            () = token.cancelled() => Err(Arc::new(GuiError::Cancelled)),
-            outcome = sync::run_once(&bridge, false, false, allow_tofu) => {
-                outcome.map_err(GuiError::from).map_err(Arc::new)
-            }
+        let options = sync::SyncOptions {
+            allow_unsigned: false,
+            force_replay: false,
+            allow_tofu,
+            cancel: token,
         };
+        let result = sync::run_once(&bridge, &options)
+            .await
+            .map_err(|e| match e {
+                sync::SyncError::Cancelled { .. } => GuiError::Cancelled,
+                other => GuiError::from(other),
+            })
+            .map_err(Arc::new);
         bridge.sync_progress.clear();
         proxy.send_event(UiEvent::SyncFinished { result, reply_to });
     });
@@ -84,13 +91,10 @@ pub(crate) fn on_sync_finished(
             tracing::info!(summary = %line, "sync completed");
             app.append_log(&line);
             if !summary.host_failures.is_empty() {
-                // Why: a host id alone ("claude-desktop") told the user nothing
-                // about a registry write that did not land; the failure text
-                // names the hive, key and value.
                 let failures: Vec<String> = summary
                     .host_failures
                     .iter()
-                    .map(|f| format!("{}: {}", f.host_id, f.error.lines().next().unwrap_or("")))
+                    .map(|f| format!("{}: {}", f.emitter, f.error.lines().next().unwrap_or("")))
                     .collect();
                 crate::gui::window::notify_user(
                     &format!("{} synced with failures", crate::brand::brand().app_name),

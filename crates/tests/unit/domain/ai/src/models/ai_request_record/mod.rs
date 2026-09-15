@@ -4,7 +4,7 @@ use systemprompt_ai::models::{
     AiRequestRecord, AiRequestRecordBuilder, CacheInfo, RequestStatus, TokenInfo,
 };
 use systemprompt_identifiers::{
-    Actor, ActorKind, AiRequestId, ContextId, GatewayConversationId, McpExecutionId,
+    Actor, ActorKind, AgentId, AiRequestId, ContextId, GatewayConversationId, McpExecutionId,
     ProviderRequestId, SessionId, TaskId, TraceId, UserId,
 };
 use systemprompt_test_fixtures::{fixture_user_id, usage};
@@ -100,7 +100,7 @@ mod ai_request_record_builder_tests {
         let record = AiRequestRecordBuilder::new(
             AiRequestId::new("req-123"),
             test_user_id(),
-            ContextId::new_unchecked(TEST_CONTEXT_ID_A),
+            ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
         )
         .model("gpt-4")
         .build();
@@ -114,7 +114,7 @@ mod ai_request_record_builder_tests {
         let record = AiRequestRecordBuilder::new(
             AiRequestId::new("req-123"),
             test_user_id(),
-            ContextId::new_unchecked(TEST_CONTEXT_ID_A),
+            ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
         )
         .provider("openai")
         .build();
@@ -130,7 +130,7 @@ mod ai_request_record_builder_tests {
         let record = AiRequestRecordBuilder::new(
             AiRequestId::new("req-123"),
             test_user_id(),
-            ContextId::new_unchecked(TEST_CONTEXT_ID_A),
+            ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
         )
         .rejected()
         .build();
@@ -146,7 +146,7 @@ mod ai_request_record_builder_tests {
         let record = AiRequestRecordBuilder::new(
             AiRequestId::new("req-123"),
             test_user_id(),
-            ContextId::new_unchecked(TEST_CONTEXT_ID_A),
+            ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
         )
         .provider("openai")
         .model("gpt-4")
@@ -164,7 +164,7 @@ mod ai_request_record_builder_tests {
         let record = AiRequestRecordBuilder::new(
             AiRequestId::new("req-123"),
             test_user_id(),
-            ContextId::new_unchecked(TEST_CONTEXT_ID_A),
+            ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
         )
         .provider("anthropic")
         .model("claude-3")
@@ -180,7 +180,7 @@ mod ai_request_record_builder_tests {
         let record = AiRequestRecordBuilder::new(
             AiRequestId::new("req-123"),
             test_user_id(),
-            ContextId::new_unchecked(TEST_CONTEXT_ID_A),
+            ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
         )
         .provider("gemini")
         .model("gemini-pro")
@@ -192,11 +192,11 @@ mod ai_request_record_builder_tests {
 
     #[test]
     fn builder_sets_context_id() {
-        let context_id = ContextId::new_unchecked(TEST_CONTEXT_ID_A);
+        let context_id = ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId");
         let record = AiRequestRecordBuilder::new(
             AiRequestId::new("req-123"),
             test_user_id(),
-            ContextId::new_unchecked(TEST_CONTEXT_ID_A),
+            ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
         )
         .provider("openai")
         .model("gpt-4")
@@ -211,7 +211,7 @@ mod ai_request_record_builder_tests {
         let record = AiRequestRecordBuilder::new(
             AiRequestId::new("req-123"),
             test_user_id(),
-            ContextId::new_unchecked(TEST_CONTEXT_ID_A),
+            ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
         )
         .provider("openai")
         .model("gpt-4")
@@ -226,7 +226,7 @@ mod ai_request_record_builder_tests {
         let record = AiRequestRecordBuilder::new(
             AiRequestId::new("req-123"),
             test_user_id(),
-            ContextId::new_unchecked(TEST_CONTEXT_ID_A),
+            ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
         )
         .provider("openai")
         .model("gpt-4")
@@ -241,7 +241,7 @@ mod ai_request_record_builder_tests {
         let record = AiRequestRecordBuilder::new(
             AiRequestId::new("req-123"),
             test_user_id(),
-            ContextId::new_unchecked(TEST_CONTEXT_ID_A),
+            ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
         )
         .provider("openai")
         .model("gpt-4")
@@ -258,7 +258,7 @@ mod ai_request_record_builder_tests {
         let record = AiRequestRecordBuilder::new(
             AiRequestId::new("req-123"),
             test_user_id(),
-            ContextId::new_unchecked(TEST_CONTEXT_ID_A),
+            ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
         )
         .provider("openai")
         .model("gpt-4")
@@ -275,7 +275,7 @@ mod ai_request_record_builder_tests {
         let record = AiRequestRecordBuilder::new(
             AiRequestId::new("req-123"),
             test_user_id(),
-            ContextId::new_unchecked(TEST_CONTEXT_ID_A),
+            ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
         )
         .provider("openai")
         .model("gpt-4")
@@ -292,7 +292,7 @@ mod ai_request_record_builder_tests {
         let record = AiRequestRecordBuilder::new(
             AiRequestId::new("req-123"),
             test_user_id(),
-            ContextId::new_unchecked(TEST_CONTEXT_ID_A),
+            ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
         )
         .provider("anthropic")
         .model("claude-3")
@@ -309,7 +309,7 @@ mod ai_request_record_builder_tests {
         let record = AiRequestRecordBuilder::new(
             AiRequestId::new("req-123"),
             test_user_id(),
-            ContextId::new_unchecked(TEST_CONTEXT_ID_A),
+            ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
         )
         .provider("openai")
         .model("gpt-4")
@@ -324,7 +324,7 @@ mod ai_request_record_builder_tests {
         let record = AiRequestRecordBuilder::new(
             AiRequestId::new("req-123"),
             test_user_id(),
-            ContextId::new_unchecked(TEST_CONTEXT_ID_A),
+            ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
         )
         .provider("openai")
         .model("gpt-4")
@@ -339,7 +339,7 @@ mod ai_request_record_builder_tests {
         let record = AiRequestRecordBuilder::new(
             AiRequestId::new("req-123"),
             test_user_id(),
-            ContextId::new_unchecked(TEST_CONTEXT_ID_A),
+            ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
         )
         .provider("openai")
         .model("gpt-4")
@@ -354,7 +354,7 @@ mod ai_request_record_builder_tests {
         let record = AiRequestRecordBuilder::new(
             AiRequestId::new("req-123"),
             test_user_id(),
-            ContextId::new_unchecked(TEST_CONTEXT_ID_A),
+            ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
         )
         .provider("openai")
         .model("gpt-4")
@@ -370,7 +370,7 @@ mod ai_request_record_builder_tests {
         let record = AiRequestRecordBuilder::new(
             AiRequestId::new("req-123"),
             test_user_id(),
-            ContextId::new_unchecked(TEST_CONTEXT_ID_A),
+            ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
         )
         .provider("openai")
         .model("gpt-4")
@@ -388,7 +388,7 @@ mod ai_request_record_builder_tests {
     fn builder_chain_all_methods() {
         let session_id = SessionId::new("session");
         let task_id = TaskId::new("task");
-        let context_id = ContextId::new_unchecked(TEST_CONTEXT_ID_A);
+        let context_id = ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId");
         let trace_id = TraceId::new("trace");
 
         let record = AiRequestRecordBuilder::new(
@@ -437,11 +437,11 @@ mod builder_optional_ids_tests {
         let record = AiRequestRecordBuilder::new(
             AiRequestId::new("req-actor"),
             user.clone(),
-            ContextId::new_unchecked(TEST_CONTEXT_ID_A),
+            ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
         )
         .provider("openai")
         .model("gpt-4")
-        .actor(Actor::agent(user, "claude-code"))
+        .actor(Actor::agent(user, AgentId::new("claude-code")))
         .build();
         assert!(matches!(record.actor.kind, ActorKind::Agent { .. }));
     }
@@ -451,7 +451,7 @@ mod builder_optional_ids_tests {
         let record = AiRequestRecordBuilder::new(
             AiRequestId::new("req-d"),
             fixture_user_id(),
-            ContextId::new_unchecked(TEST_CONTEXT_ID_A),
+            ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
         )
         .provider("openai")
         .model("gpt-4")
@@ -461,11 +461,12 @@ mod builder_optional_ids_tests {
 
     #[test]
     fn builder_sets_gateway_conversation_id() {
-        let gw = GatewayConversationId::new_unchecked("ctx_0123456789abcdef");
+        let gw = GatewayConversationId::try_new("ctx_0123456789abcdef")
+            .expect("valid GatewayConversationId");
         let record = AiRequestRecordBuilder::new(
             AiRequestId::new("req-g"),
             fixture_user_id(),
-            ContextId::new_unchecked(TEST_CONTEXT_ID_A),
+            ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
         )
         .provider("openai")
         .model("gpt-4")
@@ -476,11 +477,11 @@ mod builder_optional_ids_tests {
 
     #[test]
     fn builder_sets_provider_request_id() {
-        let prid = ProviderRequestId::new_unchecked("prov-1");
+        let prid = ProviderRequestId::try_new("prov-1").expect("valid ProviderRequestId");
         let record = AiRequestRecordBuilder::new(
             AiRequestId::new("req-p"),
             fixture_user_id(),
-            ContextId::new_unchecked(TEST_CONTEXT_ID_A),
+            ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
         )
         .provider("openai")
         .model("gpt-4")
@@ -495,7 +496,7 @@ mod builder_optional_ids_tests {
         let record = AiRequestRecordBuilder::new(
             AiRequestId::new("req-m"),
             fixture_user_id(),
-            ContextId::new_unchecked(TEST_CONTEXT_ID_A),
+            ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
         )
         .provider("openai")
         .model("gpt-4")
@@ -509,7 +510,7 @@ mod builder_optional_ids_tests {
         let record = AiRequestRecordBuilder::new(
             AiRequestId::new("req-n"),
             fixture_user_id(),
-            ContextId::new_unchecked(TEST_CONTEXT_ID_A),
+            ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
         )
         .provider("openai")
         .model("gpt-4")
@@ -528,7 +529,7 @@ mod ai_request_record_tests {
         let builder = AiRequestRecord::builder(
             AiRequestId::new("req-456"),
             user_id,
-            ContextId::new_unchecked(TEST_CONTEXT_ID_A),
+            ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
         );
 
         let record = builder.provider("test").model("test-model").build();

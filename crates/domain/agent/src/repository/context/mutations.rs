@@ -138,7 +138,8 @@ impl ContextRepository {
         .map_err(RepositoryError::database)?;
 
         match adopted {
-            Some(context_id) => Ok(ContextId::new_unchecked(context_id)),
+            Some(context_id) => ContextId::try_new(context_id)
+                .map_err(|e| RepositoryError::InvalidData(e.to_string())),
             None => {
                 self.create_context(user_id, Some(session_id), name, ContextKind::CliSession)
                     .await

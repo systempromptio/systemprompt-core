@@ -13,8 +13,9 @@ pub trait DatabaseCliDisplay {
 }
 
 fn stdout_writeln(args: std::fmt::Arguments<'_>) {
-    let mut stdout = std::io::stdout();
-    writeln!(stdout, "{args}").ok();
+    if let Err(error) = writeln!(std::io::stdout(), "{args}") {
+        tracing::warn!(error = %error, "Display sink write failed");
+    }
 }
 
 impl DatabaseCliDisplay for Vec<TableInfo> {

@@ -10,6 +10,7 @@
 use std::net::TcpListener;
 use std::sync::Arc;
 
+use systemprompt_config::paths::AppPaths;
 use systemprompt_database::{CreateServiceInput, ServiceRepository};
 use systemprompt_mcp::services::database::DatabaseService;
 use systemprompt_mcp::services::orchestrator::process_cleanup::{
@@ -17,7 +18,6 @@ use systemprompt_mcp::services::orchestrator::process_cleanup::{
 };
 use systemprompt_mcp::services::process::pid::get_process_name_by_pid;
 use systemprompt_mcp::services::registry::RegistryService;
-use systemprompt_models::AppPaths;
 use systemprompt_models::mcp::McpServerConfig;
 use systemprompt_models::profile::PathsConfig;
 use systemprompt_test_fixtures::{

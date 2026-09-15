@@ -32,6 +32,7 @@ serde_json = { workspace = true }
 chrono = { workspace = true }
 inventory = { workspace = true }
 systemprompt-models = { workspace = true, features = ["web"] }
+systemprompt-client = { workspace = true }
 systemprompt-config = { workspace = true }
 
 # Database

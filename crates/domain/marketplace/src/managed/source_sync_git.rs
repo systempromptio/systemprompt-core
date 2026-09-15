@@ -281,7 +281,7 @@ fn parse_tree_entry<'a>(entry: &'a [u8], prefix_text: &str) -> Result<(&'a str, 
         .strip_prefix(prefix_text)
         .and_then(|value| value.strip_prefix('/'))
         .ok_or(ManagedError::Integrity)?;
-    super::super::assets::validate_path(relative)?;
+    systemprompt_models::managed::validate_path(relative)?;
     Ok((relative, mode, path))
 }
 

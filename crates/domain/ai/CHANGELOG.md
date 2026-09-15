@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.53.0] - 2026-09-14
+
+### Changed
+
+- `SchemaValidator` rejects a `type` keyword it cannot interpret (an unknown type name, a non-string union member, or a non-string/non-array keyword) with `AiError::InvalidInput` instead of accepting any value.
+- `AiError::HttpStatus.body` carries an `<unreadable body: …>` marker when the error response body could not be read.
+
+- `AiProvider` implementations return `AiInferenceError` (`From<AiError>`) instead of a boxed error; tool definitions carry `ToolModelConfig` directly, so a model override is no longer round-tripped through JSON.
+
 ## [0.52.0] - 2026-09-14
 
 ### Breaking

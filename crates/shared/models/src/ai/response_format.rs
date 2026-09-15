@@ -18,6 +18,7 @@ pub enum ResponseFormat {
 
     #[serde(rename = "json_schema")]
     JsonSchema {
+        // JSON: JSON Schema document for structured output.
         schema: JsonValue,
         name: Option<String>,
         strict: Option<bool>,
@@ -29,6 +30,7 @@ impl ResponseFormat {
         Self::JsonObject
     }
 
+    // JSON: JSON Schema document for structured output.
     pub const fn json_schema(schema: JsonValue) -> Self {
         Self::JsonSchema {
             schema,
@@ -37,6 +39,7 @@ impl ResponseFormat {
         }
     }
 
+    // JSON: JSON Schema document for structured output.
     pub const fn json_schema_named(schema: JsonValue, name: String) -> Self {
         Self::JsonSchema {
             schema,
@@ -49,6 +52,7 @@ impl ResponseFormat {
         !matches!(self, Self::Text)
     }
 
+    // JSON: JSON Schema document for structured output.
     pub const fn schema(&self) -> Option<&JsonValue> {
         match self {
             Self::JsonSchema { schema, .. } => Some(schema),
@@ -80,6 +84,7 @@ impl StructuredOutputOptions {
         }
     }
 
+    // JSON: JSON Schema document for structured output.
     pub fn with_schema(schema: JsonValue) -> Self {
         Self {
             response_format: Some(ResponseFormat::JsonSchema {

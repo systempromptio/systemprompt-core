@@ -102,6 +102,7 @@ pub struct MarketplaceAccess {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub rules: Vec<MarketplaceAccessRule>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    // JSON: ABAC attribute values are declared per deployment in the authz policy YAML.
     pub attributes: BTreeMap<String, serde_json::Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub justification: Option<String>,

@@ -1,5 +1,9 @@
 //! [`ComponentRenderer`] contract for emitting one named template component.
 //!
+//! Renderers are held as `Arc<dyn ComponentRenderer>` by the content
+//! extension, so the trait uses `#[async_trait]`; native `async fn` in traits
+//! is not `dyn`-compatible.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -44,7 +48,9 @@ impl PartialTemplate {
 #[derive(Debug)]
 pub struct ComponentContext<'a> {
     pub web_config: &'a WebConfig,
+    // JSON: Tera template context item; the page data model is dynamic.
     pub item: Option<&'a Value>,
+    // JSON: Tera template context item; the page data model is dynamic.
     pub all_items: Option<&'a [Value]>,
     pub popular_ids: Option<&'a [String]>,
 }

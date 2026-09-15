@@ -1,16 +1,17 @@
 //! Content ingestion job.
 //!
 //! [`execute_content_ingestion`] walks every enabled content source, resolves
-//! each source path against [`systemprompt_models::AppPaths`], and drives the
-//! [`IngestionService`] over it, aggregating processed-file and error counts
-//! into a [`systemprompt_traits::JobResult`].
+//! each source path against [`systemprompt_config::paths::AppPaths`], and
+//! drives the [`IngestionService`] over it, aggregating processed-file and
+//! error counts into a [`systemprompt_traits::JobResult`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::path::{Path, PathBuf};
+use systemprompt_config::paths::AppPaths;
 use systemprompt_database::DbPool;
-use systemprompt_models::{AppPaths, ContentConfigRaw, ContentSourceConfigRaw};
+use systemprompt_models::{ContentConfigRaw, ContentSourceConfigRaw};
 use systemprompt_traits::JobResult;
 
 use crate::error::{ContentError, ContentResult};

@@ -55,7 +55,7 @@ async fn resolve_content_id(
     };
 
     content_repo
-        .get_by_slug(slug_to_use, &LocaleCode::new("en"))
+        .get_by_slug(slug_to_use, &LocaleCode::english())
         .await
         .map_err(|e| {
             tracing::warn!(error = %e, slug = %slug_to_use, "Failed to lookup content by slug");

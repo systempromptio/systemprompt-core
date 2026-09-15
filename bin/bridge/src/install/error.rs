@@ -23,8 +23,43 @@ pub enum InstallError {
     BinaryPath(std::io::Error),
     #[error("cannot resolve org-plugins directory for this OS")]
     OrgPluginsUnresolvable,
-    #[error("{0}")]
-    Bootstrap(String),
+    #[error("directory bootstrap failed: {0}")]
+    Bootstrap(#[source] std::io::Error),
+    #[error(
+        "permission denied creating {path} — Claude Desktop only reads org plugins from the \
+         system path. Re-run as root: `sudo {bin} install --apply` (or use the install \
+         script). Underlying error: {source}"
+    )]
+    SystemOrgPluginsDenied {
+        path: std::path::PathBuf,
+        bin: String,
+        #[source]
+        source: std::io::Error,
+    },
+    #[error("clean local state: {0}")]
+    CleanLocalState(#[source] crate::auth::setup::SetupError),
+    #[error("bridge metadata directory unresolvable")]
+    MetadataUnresolvable,
+    #[error("enumerate {path}: {source}")]
+    Enumerate {
+        path: std::path::PathBuf,
+        #[source]
+        source: std::io::Error,
+    },
+    #[error("remove {path}: {source}")]
+    Remove {
+        path: std::path::PathBuf,
+        #[source]
+        source: std::io::Error,
+    },
+    #[error("last-sync sentinel: {0}")]
+    LastSync(#[source] crate::last_sync::ReplayStateError),
+    #[error("managed settings removal failed: {0}")]
+    MdmRemove(#[source] crate::install::mdm::MdmError),
+    #[error("managed profile removal failed: {0}")]
+    ManagedProfileRemove(String),
+    #[error("credential purge failed: {0}")]
+    CredentialPurge(#[source] crate::auth::setup::SetupError),
     #[error("version sentinel write failed: {0}")]
     Sentinel(std::io::Error),
     #[error("apply failed: {0}")]

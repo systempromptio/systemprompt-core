@@ -18,9 +18,8 @@ pub(super) fn cmd_uninstall(ctx: &BridgeContext, args: &[String]) -> ExitCode {
         return remove_hosts(&Selection::Ids(hosts));
     }
     let purge = has_flag(args, "--purge");
-    match install::uninstall(purge, ctx) {
+    match crate::integration::uninstall::uninstall(purge, ctx) {
         Ok(summary) => {
-            let _warnings = crate::integration::uninstall::clear_hosts();
             stdio::print_str(&install::render_uninstall_summary(&summary));
             ExitCode::SUCCESS
         },

@@ -13,9 +13,9 @@
 pub mod command;
 mod signals;
 
+use systemprompt_config::paths::{AppPaths, BuildPaths};
 use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
-use systemprompt_models::paths::BuildPaths;
-use systemprompt_models::{AppPaths, Config};
+use systemprompt_models::Config;
 
 use crate::services::agent_orchestration::{OrchestrationError, OrchestrationResult};
 
@@ -53,7 +53,7 @@ pub fn spawn_detached(paths: &AppPaths, agent_name: &str, port: u16) -> Orchestr
         log_file,
     });
 
-    let pid = systemprompt_models::subprocess::spawn_supervised(cmd).map_err(|e| {
+    let pid = systemprompt_loader::subprocess::spawn_supervised(cmd).map_err(|e| {
         OrchestrationError::ProcessSpawnFailed(format!("Failed to spawn {agent_name}: {e}"))
     })?;
 

@@ -15,7 +15,6 @@ pub struct CapabilitySummary {
     pub routes: usize,
     pub tools: usize,
     pub roles: usize,
-    pub llm_providers: usize,
     pub storage_paths: usize,
 }
 
@@ -71,17 +70,6 @@ impl CapabilitySummary {
                 "{} {}",
                 self.roles,
                 if self.roles == 1 { "role" } else { "roles" }
-            ));
-        }
-        if self.llm_providers > 0 {
-            parts.push(format!(
-                "{} {}",
-                self.llm_providers,
-                if self.llm_providers == 1 {
-                    "LLM"
-                } else {
-                    "LLMs"
-                }
             ));
         }
 
@@ -165,19 +153,6 @@ pub struct RolesListOutput {
     pub total: usize,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct LlmProviderWithExtension {
-    pub extension_id: PluginId,
-    pub extension_name: String,
-    pub provider_name: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct LlmProvidersListOutput {
-    pub providers: Vec<LlmProviderWithExtension>,
-    pub total: usize,
-}
-
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]
 pub struct CapabilitiesSummaryOutput {
     pub jobs: usize,
@@ -185,6 +160,5 @@ pub struct CapabilitiesSummaryOutput {
     pub schemas: usize,
     pub tools: usize,
     pub roles: usize,
-    pub llm_providers: usize,
     pub extension_count: usize,
 }

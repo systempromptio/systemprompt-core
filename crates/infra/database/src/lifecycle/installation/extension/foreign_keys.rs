@@ -103,8 +103,9 @@ pub(super) async fn apply_foreign_keys(
             extension = extension_id,
             table = %key.source_table,
             constraint = %key.constraint_name,
+            detail = %explanation,
             "Declared foreign key is absent on this established database and cannot be \
-             created; add the referenced unique index with a migration. {explanation}"
+             created; add the referenced unique index with a migration"
         );
     }
 
