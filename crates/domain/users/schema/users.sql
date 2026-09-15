@@ -39,7 +39,9 @@ RETURNS BOOLEAN LANGUAGE plpgsql VOLATILE SECURITY INVOKER
 SET search_path = pg_catalog, public AS $$
 BEGIN
     PERFORM public.lock_user_deletion_for_retention();
-    IF to_regprocedure('public.prepare_reporting_privacy()') IS NOT NULL THEN
+    IF to_regprocedure('public.prepare_user_reporting_privacy()') IS NOT NULL THEN
+        PERFORM public.prepare_user_reporting_privacy();
+    ELSIF to_regprocedure('public.prepare_reporting_privacy()') IS NOT NULL THEN
         PERFORM public.prepare_reporting_privacy();
     END IF;
     RETURN TRUE;
@@ -74,7 +76,7 @@ BEGIN
     IF retained_after IS NULL OR retained_after > NOW() THEN
         RAISE EXCEPTION 'Invalid session retention cutoff' USING ERRCODE = '22023';
     END IF;
-    PERFORM public.prepare_reporting_privacy();
+    PERFORM public.prepare_user_reporting_privacy();
     DELETE FROM public.user_sessions WHERE last_activity_at < retained_after
         AND (ended_at IS NOT NULL OR revoked_at IS NOT NULL OR expires_at IS NULL OR expires_at <= NOW());
     GET DIAGNOSTICS removed = ROW_COUNT;

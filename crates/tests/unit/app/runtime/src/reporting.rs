@@ -87,6 +87,7 @@ async fn fixture() -> (PgPool, DbPool, String) {
     }
     for script in [
         include_str!("../../../../../domain/users/schema/migrations/014_reporting_privacy.sql"),
+        include_str!("../../../../../domain/users/schema/migrations/015_user_privacy_delivery.sql"),
         include_str!("../../../../../infra/events/schema/reporting_privacy.sql"),
         include_str!("../../../../../domain/analytics/schema/reporting_privacy.sql"),
         include_str!("../../../../../domain/agent/schema/reporting_privacy.sql"),
@@ -320,3 +321,6 @@ fn reporting_sql_is_accepted_by_install_time_schema_linter() {
 
 #[path = "reporting_privacy.rs"]
 mod privacy;
+
+#[path = "reporting_user_privacy.rs"]
+mod user_privacy;
