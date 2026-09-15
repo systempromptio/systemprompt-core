@@ -222,3 +222,59 @@ async fn concurrent_approve_and_deny_have_one_durable_winner() {
     assert_eq!(h.budget().await, (0, 0));
     h.cleanup().await;
 }
+
+#[tokio::test]
+async fn cancelled_approval_wait_never_regains_execution_credentials_or_requeues_on_restart() {
+    use systemprompt_evaluation::repository::experiments::ExecutionCapabilityRepository;
+    let h = Harness::start()
+        .await
+        .expect("approval acceptance requires PostgreSQL");
+    let (_, lease) = h.claimed_lease().await;
+    let repository = lifecycle(&h);
+    let digest = "a".repeat(64);
+    let operation = serde_json::json!({"operation":"fixture-write"});
+    let approval = repository
+        .request_approval(&h.owner, &lease, operation.clone(), &digest)
+        .await
+        .unwrap();
+    h.experiments()
+        .cancel(&h.owner, &h.experiment)
+        .await
+        .unwrap();
+    assert_eq!(h.execution_status(&lease.execution_id).await, "cancelled");
+    assert!(
+        repository
+            .request_approval(&h.owner, &lease, operation, &digest)
+            .await
+            .is_err()
+    );
+    assert!(
+        ExecutionCapabilityRepository::new(h.pg.clone())
+            .issue(&h.owner, &lease)
+            .await
+            .is_err()
+    );
+    for _ in 0..2 {
+        repository.reconcile_restart(&h.owner).await.unwrap();
+        assert!(
+            h.experiments()
+                .claim(&h.owner, &h.worker.id)
+                .await
+                .unwrap()
+                .is_none()
+        );
+        assert_eq!(h.execution_status(&lease.execution_id).await, "cancelled");
+    }
+    let retained: String =
+        sqlx::query_scalar("SELECT status FROM eval_execution_approvals WHERE id=$1")
+            .bind(approval.id.as_str())
+            .fetch_one(&h.pg)
+            .await
+            .unwrap();
+    assert_eq!(
+        retained, "pending",
+        "cancellation must not invent an approval decision"
+    );
+    assert_eq!(h.budget().await, (0, 0));
+    h.cleanup().await;
+}
