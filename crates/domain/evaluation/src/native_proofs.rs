@@ -127,32 +127,12 @@ impl EmbeddedNativeProof {
         }
         let manifest: NativeProofManifest = serde_json::from_str(self.manifest)?;
         manifest.target.validate()?;
-        let binding = &manifest.binding;
-        let target = &manifest.target;
-        if manifest.schema_version != VERSION
-            || binding.client != target.client
-            || binding.platform != target.platform
-            || binding.architecture != target.architecture
-            || binding.client_version != target.client_version
-            || binding.adapter_version != target.adapter_version
-            || binding.executable_digest != target.executable_digest
-            || !digest(&binding.image_config_digest)
-            || !digest(&binding.core_source_digest)
-            || !digest(&binding.astound_source_digest)
-            || manifest
-                .repository_manifest_digest
-                .as_ref()
-                .is_some_and(|value| !digest(value))
-            || target.image_digest
-                != *manifest
-                    .repository_manifest_digest
-                    .as_ref()
-                    .unwrap_or(&binding.image_config_digest)
-        {
+        if !binding_matches_target(&manifest) {
             return Err(invalid(
                 "Native proof identity or image provenance mismatch",
             ));
         }
+        let target = &manifest.target;
         for (document, expected, contracts) in [
             (
                 self.isolation,
@@ -169,24 +149,7 @@ impl EmbeddedNativeProof {
                 return Err(invalid("Native acceptance report digest mismatch"));
             }
             let report: NativeProofReport = serde_json::from_str(document)?;
-            if report.schema_version != VERSION
-                || report.binding != *binding
-                || contracts
-                    .iter()
-                    .any(|contract| report.contracts.get(*contract) != Some(&true))
-                || report.contracts.values().any(|passed| !passed)
-                || report.contracts.len() > 64
-                || report.artifacts.is_empty()
-                || report.artifacts.len() > 256
-                || report.artifacts.iter().any(|(name, hash)| {
-                    name.is_empty()
-                        || name.len() > 256
-                        || name.starts_with('/')
-                        || name.split('/').any(|part| part == ".." || part.is_empty())
-                        || name.chars().any(char::is_control)
-                        || !digest(hash)
-                })
-            {
+            if !report_is_complete(&report, &manifest.binding, contracts) {
                 return Err(invalid(
                     "Native acceptance report is incomplete or mismatched",
                 ));
@@ -194,6 +157,54 @@ impl EmbeddedNativeProof {
         }
         Ok(manifest)
     }
+}
+
+fn binding_matches_target(manifest: &NativeProofManifest) -> bool {
+    let binding = &manifest.binding;
+    let target = &manifest.target;
+    manifest.schema_version == VERSION
+        && binding.client == target.client
+        && binding.platform == target.platform
+        && binding.architecture == target.architecture
+        && binding.client_version == target.client_version
+        && binding.adapter_version == target.adapter_version
+        && binding.executable_digest == target.executable_digest
+        && digest(&binding.image_config_digest)
+        && digest(&binding.core_source_digest)
+        && digest(&binding.astound_source_digest)
+        && manifest
+            .repository_manifest_digest
+            .as_ref()
+            .is_none_or(|value| digest(value))
+        && target.image_digest
+            == *manifest
+                .repository_manifest_digest
+                .as_ref()
+                .unwrap_or(&binding.image_config_digest)
+}
+
+fn report_is_complete(
+    report: &NativeProofReport,
+    binding: &ProofBinding,
+    contracts: &[&str],
+) -> bool {
+    report.schema_version == VERSION
+        && report.binding == *binding
+        && contracts
+            .iter()
+            .all(|contract| report.contracts.get(*contract) == Some(&true))
+        && report.contracts.values().all(|passed| *passed)
+        && report.contracts.len() <= 64
+        && !report.artifacts.is_empty()
+        && report.artifacts.len() <= 256
+        && report.artifacts.iter().all(|(name, hash)| {
+            !name.is_empty()
+                && name.len() <= 256
+                && !name.starts_with('/')
+                && name.split('/').all(|part| part != ".." && !part.is_empty())
+                && !name.chars().any(char::is_control)
+                && digest(hash)
+        })
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

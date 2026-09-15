@@ -14,7 +14,7 @@ use super::comparison::{self, ComparisonDecision, Outcome, PairedOutcome};
 use super::repository::CampaignRecord;
 use crate::Result;
 use crate::experiments::conflict;
-use crate::experiments::records::ExperimentStatus;
+use crate::experiments::records::{ExperimentRecord, ExperimentStatus};
 use crate::experiments::resources::{Partition, ResourceContent};
 use crate::repository::experiments::{EvaluationRepositories, RevisionRepository};
 
@@ -99,15 +99,7 @@ pub async fn build(
             Partition::Holdout => holdout.push(pair),
         }
     }
-    if experiment.experiment.status != ExperimentStatus::Completed {
-        limitations.push("Experiment is not completed".to_owned());
-    }
-    if !experiment.experiment.spec.claim_independent_improvement {
-        limitations.push("A fresh independent holdout was not reserved".to_owned());
-    }
-    if experiment.experiment.accounting.reserved != 0 || experiment.experiment.accounting.frozen {
-        limitations.push("Accounting has unsettled reservations or is frozen".to_owned());
-    }
+    limitations.extend(experiment_limitations(&experiment.experiment));
     let development = comparison::compare(&campaign.policy, &development)?;
     let holdout = comparison::compare(&campaign.policy, &holdout)?;
     Ok(CampaignReport {
@@ -137,6 +129,20 @@ pub async fn build(
         holdout,
         limitations,
     })
+}
+
+fn experiment_limitations(experiment: &ExperimentRecord) -> Vec<String> {
+    let mut limitations = Vec::new();
+    if experiment.status != ExperimentStatus::Completed {
+        limitations.push("Experiment is not completed".to_owned());
+    }
+    if !experiment.spec.claim_independent_improvement {
+        limitations.push("A fresh independent holdout was not reserved".to_owned());
+    }
+    if experiment.accounting.reserved != 0 || experiment.accounting.frozen {
+        limitations.push("Accounting has unsettled reservations or is frozen".to_owned());
+    }
+    limitations
 }
 
 struct RetainedPairs {
