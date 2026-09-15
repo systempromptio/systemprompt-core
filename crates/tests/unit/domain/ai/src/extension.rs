@@ -29,7 +29,20 @@ mod ai_extension_tests {
     fn schemas_returns_expected_tables() {
         let ext = AiExtension;
         let schemas = Extension::schemas(&ext);
-        assert_eq!(schemas.len(), 8);
+        let names: Vec<&str> = schemas.iter().filter_map(|s| s.table.as_deref()).collect();
+        assert_eq!(
+            names,
+            vec![
+                "ai_requests",
+                "ai_request_messages",
+                "ai_request_tool_calls",
+                "ai_request_payloads",
+                "ai_safety_findings",
+                "ai_quota_buckets",
+                "ai_gateway_policies",
+                "ai_gateway_thought_signatures",
+            ]
+        );
     }
 
     #[test]
@@ -85,4 +98,47 @@ mod ai_extension_tests {
         let ext = AiExtension::default();
         assert_eq!(Extension::metadata(&ext).id, "ai");
     }
+}
+
+#[test]
+fn owner_capture_and_privacy_contracts_are_registered() {
+    let schemas = AiExtension.schemas();
+    let capture: Vec<_> = schemas
+        .iter()
+        .filter(|schema| {
+            schema.table.is_none()
+                && schema
+                    .sql
+                    .contains("EXECUTE FUNCTION sp_capture_reporting_change")
+        })
+        .collect();
+    assert_eq!(
+        capture.len(),
+        1,
+        "owner capture SQL must be registered exactly once"
+    );
+    for view in [
+        "reporting_source_ai_requests",
+        "reporting_source_ai_request_messages",
+    ] {
+        assert!(
+            capture[0].sql.contains(view),
+            "missing reporting view: {view}"
+        );
+    }
+    let privacy: Vec<_> = schemas
+        .iter()
+        .filter(|schema| {
+            schema.table.is_none()
+                && schema
+                    .sql
+                    .contains("CREATE OR REPLACE FUNCTION public.lock_ai_reporting_sources")
+        })
+        .collect();
+    assert_eq!(
+        privacy.len(),
+        1,
+        "owner privacy SQL must survive capture registration"
+    );
+    assert!(privacy[0].sql.contains("reporting_request_is_retained"));
 }
