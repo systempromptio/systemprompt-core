@@ -282,3 +282,38 @@ fn fallback_skill_bundle_rejects_linked_installation_parent() {
         "reject before creating outside directories"
     );
 }
+
+#[test]
+fn paired_workspaces_match_except_for_the_installed_skill_and_detect_configuration_drift() {
+    let root = tempfile::tempdir().unwrap();
+    let configuration = bundle("configuration", &[("project.txt", b"same project", false)]);
+    let fixtures = case(BTreeMap::from([(
+        "cases/input.txt".to_owned(),
+        "same fixture".to_owned(),
+    )]));
+    let baseline = root.path().join("baseline");
+    let candidate = root.path().join("candidate");
+    for directory in [&baseline, &candidate] {
+        materialize_root(&configuration, directory).unwrap();
+        install_case_fixtures(&fixtures, directory).unwrap();
+    }
+    let before = workspace_state(&baseline).unwrap();
+    assert_eq!(before, workspace_state(&candidate).unwrap());
+    let baseline_skill = bundle("skill", &[("SKILL.md", b"# baseline", false)]);
+    let candidate_skill = bundle("skill", &[("SKILL.md", b"# candidate", false)]);
+    let baseline_skills = root.path().join("baseline-skills");
+    let candidate_skills = root.path().join("candidate-skills");
+    materialize_skills(&baseline_skill, &baseline_skills).unwrap();
+    materialize_skills(&candidate_skill, &candidate_skills).unwrap();
+    assert_ne!(
+        workspace_state(&baseline_skills).unwrap(),
+        workspace_state(&candidate_skills).unwrap()
+    );
+    assert_eq!(
+        workspace_state(&baseline).unwrap(),
+        workspace_state(&candidate).unwrap()
+    );
+    std::fs::write(candidate.join("project.txt"), b"changed configuration").unwrap();
+    assert_ne!(before, workspace_state(&candidate).unwrap());
+    assert_eq!(workspace_state(&baseline).unwrap(), before);
+}
