@@ -106,6 +106,12 @@ async fn fixture() -> (PgPool, DbPool, String) {
     (admin, db, schema)
 }
 
+async fn initialize_and_drain(db: &DbPool, expected_seed_facts: usize) {
+    reporting::initialize(db).await.unwrap();
+    assert_eq!(reporting::process_pending(db, 100).await.unwrap(), expected_seed_facts);
+    assert_eq!(reporting::status(db).await.unwrap().pending_count, 0);
+}
+
 #[tokio::test]
 async fn capture_rebuild_worker_preserve_source_reports_and_pending_failures() {
     let (admin, db, schema) = fixture().await;
@@ -116,7 +122,7 @@ async fn capture_rebuild_worker_preserve_source_reports_and_pending_failures() {
         .unwrap();
     sqlx::query("INSERT INTO user_sessions (session_id, user_id, landing_page, request_count, is_ai_crawler) VALUES ('human', 'u', '/', 1, false), ('crawler', 'u', '/', 1, true)")
         .execute(&*pool).await.unwrap();
-    reporting::initialize(&db).await.unwrap();
+    initialize_and_drain(&db, 3).await;
     assert_eq!(reporting::status(&db).await.unwrap().generation, 1);
     reporting::initialize(&db).await.unwrap();
     assert_eq!(reporting::status(&db).await.unwrap().generation, 1);

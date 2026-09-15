@@ -89,7 +89,7 @@ impl FeedbackSnapshotsRepository {
         Self::rebuild_days(tx, owner, &days, generation).await?;
         Self::refresh_in(tx, owner, &[], now).await?;
         sqlx::query!(
-            "SELECT public.finish_reporting_privacy($1) AS processed",
+            "SELECT public.finish_reporting_compaction($1) AS processed",
             now - chrono::Duration::days(90)
         )
         .fetch_one(&mut **tx)

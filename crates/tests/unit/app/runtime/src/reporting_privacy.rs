@@ -1,4 +1,4 @@
-use super::fixture;
+use super::{fixture, initialize_and_drain};
 use chrono::{Duration, Utc};
 use sqlx::PgPool;
 use std::time::Duration as Timeout;
@@ -38,7 +38,7 @@ async fn claimed_reporting_evidence_blocks_privacy_without_waiting_for_its_row_l
     .execute(&*pool)
     .await
     .unwrap();
-    reporting::initialize(&db).await.unwrap();
+    initialize_and_drain(&db, 1).await;
     sqlx::query("UPDATE users SET name='committed' WHERE id='privacy'")
         .execute(&*pool)
         .await
@@ -107,7 +107,7 @@ async fn privacy_source_barrier_allows_a_preexisting_writer_to_finish_its_user_f
         .execute(&*pool)
         .await
         .unwrap();
-    reporting::initialize(&db).await.unwrap();
+    initialize_and_drain(&db, 1).await;
     let mut writer = pool.begin().await.unwrap();
     sqlx::query("LOCK TABLE user_sessions IN ROW EXCLUSIVE MODE")
         .execute(&mut *writer)
@@ -153,12 +153,6 @@ async fn privacy_source_barrier_allows_a_preexisting_writer_to_finish_its_user_f
 async fn uninitialized_retention_records_a_monotonic_cutoff_before_the_first_rebuild() {
     let (admin, db, database) = fixture().await;
     let pool = db.write_pool_arc().unwrap();
-    sqlx::query("INSERT INTO users(id,name,email) VALUES('old','old','old@example.test')")
-        .execute(&*pool)
-        .await
-        .unwrap();
-    sqlx::query("INSERT INTO user_sessions(session_id,user_id,started_at,last_activity_at,ended_at,expires_at,ip_address) VALUES('old-session','old','2020-01-01','2020-01-01','2020-01-02','2020-01-02','192.0.2.42')")
-        .execute(&*pool).await.unwrap();
     let cutoff = Utc::now() - Duration::days(90);
     let mut tx = pool.begin().await.unwrap();
     let initialized: bool = sqlx::query_scalar("SELECT public.prepare_reporting_privacy()")
@@ -166,6 +160,12 @@ async fn uninitialized_retention_records_a_monotonic_cutoff_before_the_first_reb
         .await
         .unwrap();
     assert!(!initialized);
+    sqlx::query("INSERT INTO users(id,name,email) VALUES('old','old','old@example.test')")
+        .execute(&mut *tx)
+        .await
+        .unwrap();
+    sqlx::query("INSERT INTO user_sessions(session_id,user_id,started_at,last_activity_at,ended_at,expires_at,ip_address) VALUES('old-session','old','2020-01-01','2020-01-01','2020-01-02','2020-01-02','192.0.2.42')")
+        .execute(&mut *tx).await.unwrap();
     let expired: i64 = sqlx::query_scalar("SELECT public.expire_reporting_sessions($1)")
         .bind(cutoff)
         .fetch_one(&mut *tx)
@@ -178,7 +178,10 @@ async fn uninitialized_retention_records_a_monotonic_cutoff_before_the_first_reb
         .await
         .unwrap();
     tx.commit().await.unwrap();
-    reporting::initialize(&db).await.unwrap();
+    let state: (bool, i64, i64) = sqlx::query_as("SELECT initialized,generation,(SELECT count(*) FROM event_outbox WHERE consumer='analytics_reporting') FROM analytics_projection_state WHERE singleton")
+        .fetch_one(&*pool).await.unwrap();
+    assert_eq!(state, (false, 0, 0), "privacy must consume its own changes without claiming a complete baseline");
+    initialize_and_drain(&db, 0).await;
     let count: i64 = sqlx::query_scalar("SELECT (SELECT count(*) FROM user_sessions) + (SELECT count(*) FROM analytics_report_user_sessions)")
         .fetch_one(&*pool).await.unwrap();
     assert_eq!(count, 0);
@@ -209,7 +212,7 @@ async fn children_arriving_before_parent_projections_survive_and_orphans_do_not_
         .execute(&*pool)
         .await
         .unwrap();
-    reporting::initialize(&db).await.unwrap();
+    initialize_and_drain(&db, 1).await;
     sqlx::query(
         "INSERT INTO user_contexts(context_id,user_id,name) VALUES('ctx','parent','context')",
     )
@@ -300,7 +303,7 @@ async fn nullable_log_owner_cannot_retain_a_deleted_principals_session_identity(
         .execute(&*pool).await.unwrap();
     sqlx::query("INSERT INTO logs(id,level,module,message,user_id,session_id) VALUES('nullable-log','INFO','test','request',NULL,'principal-session')")
         .execute(&*pool).await.unwrap();
-    reporting::initialize(&db).await.unwrap();
+    initialize_and_drain(&db, 3).await;
     let before: i64 = sqlx::query_scalar("SELECT count(*) FROM analytics_report_logs")
         .fetch_one(&*pool)
         .await
@@ -325,7 +328,7 @@ async fn correction_outside_retention_removes_previous_row_and_fences_older_repl
     let pool = db.write_pool_arc().unwrap();
     sqlx::query("INSERT INTO users(id,name,email) VALUES('correction','correction','correction@example.test')")
         .execute(&*pool).await.unwrap();
-    reporting::initialize(&db).await.unwrap();
+    initialize_and_drain(&db, 1).await;
     let mut tx = pool.begin().await.unwrap();
     sqlx::query("SELECT public.prepare_reporting_privacy()")
         .execute(&mut *tx)
@@ -403,3 +406,6 @@ async fn correction_outside_retention_removes_previous_row_and_fences_older_repl
     tx.rollback().await.unwrap();
     cleanup(&admin, &pool, &database).await;
 }
+
+#[path = "reporting_privacy_initialization.rs"]
+mod initialization;
