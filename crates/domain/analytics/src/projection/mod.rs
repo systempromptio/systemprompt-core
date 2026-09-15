@@ -222,11 +222,13 @@ impl ReportingProjector {
     }
 
     async fn retained(connection: &mut PgConnection, fact: &ReportingRow) -> Result<bool> {
-        Ok(sqlx::query_scalar("SELECT reporting_row_retained($1, $2)")
-            .bind(fact.source.definition().table)
-            .bind(&fact.row)
-            .fetch_one(connection)
-            .await?)
+        Ok(sqlx::query_scalar!(
+            r#"SELECT reporting_row_retained($1, $2) AS "retained!""#,
+            fact.source.definition().table,
+            &fact.row
+        )
+        .fetch_one(connection)
+        .await?)
     }
 
     async fn write_row(connection: &mut PgConnection, fact: &ReportingRow) -> Result<()> {

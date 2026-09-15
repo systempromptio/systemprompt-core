@@ -8,6 +8,7 @@
 - **Breaking:** session lifecycle moves to `systemprompt_users` (`SessionRepository`, `UsersAiSessionProvider`, the session mutations, geo and fingerprint queries) and `SessionCleanupService` is removed; `AnalyticsService` extracts request signals only. Event ingestion runs through the logging-owned `AnalyticsEventStore`; the authoritative public-page count comes from `ContentCatalogStats`.
 - **Breaking:** reporting repositories (agents, tools, requests, costs, conversations, traffic, content, core stats, overview, CLI sessions) read the analytics-owned `analytics_report_*` projections instead of the source tables; reports are eventually consistent and a report against an uninitialised baseline is refused with a rebuild instruction.
 - **Breaking:** `FeedbackSnapshotsRepository::new(pool, facts: FeedbackFactsRepository)` takes the facts repository (`AppContext::feedback_snapshots_repository()`).
+- **Breaking:** `SnapshotRangeRequest::operation_id`, `SnapshotRangeJob::operation_id` and `SnapshotJobLease::operation_id` are `AnalyticsSnapshotJobId`; every worker argument and `worker_id` field is `AnalyticsWorkerId`; `SnapshotRangeJob::state` is `SnapshotJobState`. Migrate by constructing the typed ids with `generate()`/`new()` and matching on the enum.
 
 ### Added
 
@@ -17,6 +18,7 @@
 - `resource_metrics`: each request and assessed conversation counts once within a cohort; related conversation spend is non-additive across cohorts.
 - Privacy coordination: `lock_user_deletion`, `next_cutoff_revision` and the `evidence_cutoff` on `analytics_projection_state`; the SQL functions installed by migrations 008–010 (`prepare_reporting_privacy`, `begin_user_privacy` counterparts) make a user deletion or merge wait for pending committed evidence and deliver it atomically before identity is removed.
 - `models::reporting` row types for the CLI report commands.
+- `FeedbackSnapshotsRepository::fail_range` records a lease-fenced terminal failure with its diagnostic.
 
 ### Changed
 
@@ -24,6 +26,11 @@
 - Stream cursors are canonical digit-only strings; a padded or signed cursor is refused.
 - The rebuild snapshot cursor and the retention lock live in the `projection` module; snapshot delta batches and retention compaction are split into named helpers.
 - `FingerprintRepository::find_reusable_session` answers a typed `SessionId`; the fingerprint engagement count is a compile-time checked query.
+
+### Fixed
+
+- `complete_range` routes an assembly or serialisation error through `fail_range`, so a deterministic failure is no longer re-claimed on every run.
+- The reporting projector's retention check uses the compile-time query macro.
 
 ## [0.48.0] - 2026-09-08
 
