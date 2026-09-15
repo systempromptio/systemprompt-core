@@ -64,13 +64,22 @@ impl BootstrapLockGuard {
             .fetch_one(conn.as_mut())
             .await
         {
-            Ok(_) => drop(conn),
+            Ok(Some(true)) => drop(conn),
+            Ok(released) => {
+                warn!(
+                    key = BOOTSTRAP_ADVISORY_LOCK_KEY,
+                    ?released,
+                    "Bootstrap advisory lock was not held by this session at release"
+                );
+                drop(conn);
+            },
             Err(e) => {
                 warn!(
                     error = %e,
                     "Failed to release bootstrap advisory lock; closing its session instead of pooling it"
                 );
-                drop(conn.detach());
+                let session = conn.detach();
+                drop(session);
             },
         }
     }
