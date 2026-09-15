@@ -82,8 +82,9 @@ pub use tool_executions::{DynToolExecutionLookup, ToolExecutionLookup};
 pub use log_service::LogService;
 
 pub use managed_resources::{
-    DynManagedSkillResolver, ManagedSkillResolver, ManagedSkillResolverError, ResolvedManagedSkill,
-    SkillResolution, WithheldReason,
+    DynManagedRevisionOwnership, DynManagedSkillResolver, ManagedRevisionOwnership,
+    ManagedSkillResolver, ManagedSkillResolverError, ResolvedManagedSkill, SkillResolution,
+    WithheldReason,
 };
 
 pub use context_provider::{
@@ -109,9 +110,11 @@ pub use storage::{
 };
 
 pub use ai_providers::{
-    AiFilePersistenceProvider, AiGeneratedFile, AiProviderError, AiProviderResult,
-    AiSessionProvider, CreateAiSessionParams, DynAiFilePersistenceProvider, DynAiSessionProvider,
-    ImageGenerationInfo, ImageMetadata, ImageStorageConfig, InsertAiFileParams,
+    AiFilePersistenceProvider, AiGeneratedFile, AiProviderError, AiProviderResult, AiRequestTrace,
+    AiSessionProvider, CreateAiSessionParams, DynAiFilePersistenceProvider, DynAiRequestTrace,
+    DynAiSessionProvider, ImageGenerationInfo, ImageMetadata, ImageStorageConfig,
+    InsertAiFileParams, TraceMessage, TraceRequestStatus, TraceRequestUsage, TraceSample,
+    TraceSampleFilter, TraceSampleMode,
 };
 
 pub use registry::{
