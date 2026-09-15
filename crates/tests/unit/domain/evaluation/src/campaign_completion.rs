@@ -7,7 +7,7 @@ use systemprompt_evaluation::campaigns::diagnostics::{
 use systemprompt_evaluation::campaigns::holdout::{HoldoutConfirmation, HoldoutProposalRequest};
 use systemprompt_evaluation::campaigns::{CampaignPolicy, OptimizationObjective};
 use systemprompt_evaluation::repository::experiments::CampaignExperiment;
-use systemprompt_identifiers::EvalCampaignId;
+use systemprompt_identifiers::{EvalCampaignId, EvalExperimentId, EvalHoldoutProposalId};
 
 fn proposal<'a>(
     campaign: &'a EvalCampaignId,
@@ -27,7 +27,7 @@ fn proposal<'a>(
 fn confirmation<'a>(
     actor: &'a UserId,
     campaign: &'a EvalCampaignId,
-    id: &'a str,
+    id: &'a EvalHoldoutProposalId,
     digest: &'a str,
 ) -> HoldoutConfirmation<'a> {
     HoldoutConfirmation {
@@ -139,7 +139,7 @@ async fn holdout_proposal_retries_preserve_digest_and_confirmation_identity() {
         sqlx::query(
             "UPDATE eval_campaign_holdout_proposals SET spec_digest='tampered' WHERE id=$1"
         )
-        .bind(&first.id)
+        .bind(first.id.as_str())
         .execute(&pool)
         .await
         .is_err(),
@@ -154,6 +154,41 @@ async fn holdout_proposal_retries_preserve_digest_and_confirmation_identity() {
         .unwrap();
     assert_eq!(confirmed.confirmed_by, Some(f.owner.clone()));
     assert!(confirmed.confirmed_at.is_some());
+    let unconfirmed = repo
+        .propose_holdout(
+            &f.owner,
+            proposal(&campaign, &experiment, "unconfirmed", &spec),
+        )
+        .await
+        .unwrap();
+    assert!(
+        repo.attach_holdout_run(&f.owner, &campaign, &unconfirmed.id, &experiment)
+            .await
+            .is_err(),
+        "an unconfirmed proposal does not attach a run"
+    );
+    let attached = repo
+        .attach_holdout_run(&f.owner, &campaign, &first.id, &experiment)
+        .await
+        .unwrap();
+    assert_eq!(attached.experiment_id, Some(experiment.clone()));
+    assert!(
+        repo.attach_holdout_run(&f.owner, &campaign, &first.id, &experiment)
+            .await
+            .is_ok(),
+        "re-attaching the same run is idempotent"
+    );
+    assert!(
+        repo.attach_holdout_run(
+            &f.owner,
+            &campaign,
+            &first.id,
+            &EvalExperimentId::generate()
+        )
+        .await
+        .is_err(),
+        "a proposal bound to one run refuses another"
+    );
     repo.record_diagnostic(
         &f.owner,
         DiagnosticRecord {

@@ -5,6 +5,7 @@
 ### Breaking
 
 - **Breaking:** `Subsystems.event_bridge` holds an `EventBridgeHandle` instead of a `JoinHandle`; shutdown cancels and joins it.
+- **Breaking:** `HoldoutConfirmationTarget::id` is `EvalHoldoutProposalId`. Migrate by constructing it with `EvalHoldoutProposalId::try_new`.
 
 ### Added
 

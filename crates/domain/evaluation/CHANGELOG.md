@@ -12,6 +12,7 @@
 - **Breaking:** `CampaignRecord::status` is `models::CampaignStatus`, `ExecutionAccounting::status` and `DeterministicMeasurement::accounting_status` are `models::AccountingStatus`, `ExecutionApproval::status` is `models::ApprovalStatus`, `RetainedSuggestion::status` is `models::SuggestionStatus`, and `ComparisonReport::variants` is `Vec<MeasurementRow>` (`MeasurementRow` / `RetainedMeasurement` are exported from `repository::experiments`). Migrate by matching the enums instead of comparing strings; the JSON wire form is unchanged.
 - **Breaking:** `CampaignRepository::transition` takes a `CampaignTransition { expected_generation, action }` instead of an `(i64, CampaignAction)` tuple. Migrate by constructing the struct.
 - **Breaking:** the unreleased migration slots are renumbered contiguously — `013_campaigns`, `014_campaign_completion`, `015_suggestion_operations` (they were 013/015/016 with 014 skipped). A database that applied the unreleased 015/016 slots must be reset or re-stamped; released databases are unaffected.
+- **Breaking:** `HoldoutProposal::id`, `HoldoutConfirmation::id`, `holdout_proposal` and `attach_holdout_run` use `EvalHoldoutProposalId`. Migrate by constructing the id with `EvalHoldoutProposalId::try_new`.
 
 ### Added
 
@@ -37,6 +38,7 @@
 - An approved privileged operation is consumed the first time it is authorised (`status='consumed'`); a second `authorize_operation` on the same approval is a conflict instead of a silent re-authorisation.
 - Execution claims order by `variant_index` and `repetition` within a creation instant, so a worker takes an experiment's baseline before its candidates instead of an arbitrary row.
 - Every table the extension creates is declared by its own `SchemaDefinition` (one schema file per table), so `infra db doctor` no longer reports the evaluation tables as undeclared.
+- `attach_holdout_run` returns a conflict when the proposal is unconfirmed or already bound to a different experiment.
 
 ### Removed
 

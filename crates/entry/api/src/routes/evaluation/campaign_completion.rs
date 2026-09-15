@@ -10,7 +10,7 @@ use axum::{Extension, Json, Router};
 use serde::{Deserialize, Serialize};
 use systemprompt_evaluation::campaigns::diagnostics::CampaignDiagnostic;
 use systemprompt_evaluation::campaigns::holdout::HoldoutProposal;
-use systemprompt_identifiers::EvalCampaignId;
+use systemprompt_identifiers::{EvalCampaignId, EvalHoldoutProposalId};
 use systemprompt_models::RequestContext;
 use systemprompt_runtime::AppContext;
 use systemprompt_runtime::optimization::holdout::{
@@ -78,7 +78,7 @@ async fn prepare(
 }
 async fn show(
     State(ctx): State<AppContext>,
-    Path((id, proposal)): Path<(EvalCampaignId, String)>,
+    Path((id, proposal)): Path<(EvalCampaignId, EvalHoldoutProposalId)>,
 ) -> Result<Json<HoldoutProposal>, OptimizationHttpError> {
     Ok(Json(
         ctx.evaluation_repositories()
@@ -90,7 +90,7 @@ async fn show(
 async fn confirm(
     State(ctx): State<AppContext>,
     Extension(actor): Extension<RequestContext>,
-    Path((id, proposal)): Path<(EvalCampaignId, String)>,
+    Path((id, proposal)): Path<(EvalCampaignId, EvalHoldoutProposalId)>,
     Json(input): Json<ConfirmHoldout>,
 ) -> Result<Json<HoldoutProposal>, OptimizationHttpError> {
     Ok(Json(

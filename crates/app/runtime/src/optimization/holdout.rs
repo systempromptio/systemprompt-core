@@ -11,7 +11,9 @@ use systemprompt_evaluation::experiments::records::ExperimentStatus;
 use systemprompt_evaluation::experiments::resources::{CaseContent, Partition, ResourceContent};
 use systemprompt_evaluation::experiments::{ExperimentSpec, content_digest};
 use systemprompt_evaluation::repository::experiments::{CampaignAvailability, CampaignExperiment};
-use systemprompt_identifiers::{EvalCampaignId, EvalExperimentId, EvalRevisionId, UserId};
+use systemprompt_identifiers::{
+    EvalCampaignId, EvalExperimentId, EvalHoldoutProposalId, EvalRevisionId, UserId,
+};
 
 /// Select a completed development run and a separately authored holdout
 /// dataset.
@@ -34,7 +36,7 @@ pub struct ConfirmHoldout {
 pub struct HoldoutConfirmationTarget<'a> {
     pub actor: &'a UserId,
     pub campaign: &'a EvalCampaignId,
-    pub id: &'a str,
+    pub id: &'a EvalHoldoutProposalId,
 }
 /// Reviewable proposal and current actual execution admission, without reserved
 /// spend.
@@ -238,10 +240,10 @@ impl SkillOptimizationOrchestrator {
             owner,
             actor: target.actor,
             campaign: target.campaign,
-            key: target.id,
+            key: target.id.as_str(),
             stage: DiagnosticStage::Holdout,
         };
-        let result = self.confirm_holdout_inner(&ctx, input).await;
+        let result = self.confirm_holdout_inner(&ctx, target.id, input).await;
         if let Err(error) = &result {
             self.retain_failure(&ctx, error).await?;
         }
@@ -250,6 +252,7 @@ impl SkillOptimizationOrchestrator {
     async fn confirm_holdout_inner(
         &self,
         ctx: &DiagnosticContext<'_>,
+        id: &EvalHoldoutProposalId,
         input: &ConfirmHoldout,
     ) -> Result<HoldoutProposal, OptimizationError> {
         if !input.confirm_independent_holdout {
@@ -266,7 +269,7 @@ impl SkillOptimizationOrchestrator {
                 systemprompt_evaluation::campaigns::holdout::HoldoutConfirmation {
                     actor: ctx.actor,
                     campaign: ctx.campaign,
-                    id: ctx.key,
+                    id,
                     digest: &input.spec_digest,
                 },
             )
@@ -288,7 +291,7 @@ impl SkillOptimizationOrchestrator {
         Ok(self
             .evaluations
             .campaigns
-            .attach_holdout_run(ctx.owner, ctx.campaign, ctx.key, &experiment)
+            .attach_holdout_run(ctx.owner, ctx.campaign, id, &experiment)
             .await?)
     }
 }

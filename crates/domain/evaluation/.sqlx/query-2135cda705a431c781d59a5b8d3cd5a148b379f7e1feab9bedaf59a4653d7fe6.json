@@ -1,11 +1,11 @@
 {
   "db_name": "PostgreSQL",
-  "query": "INSERT INTO eval_campaign_holdout_proposals(id,owner_id,campaign_id,development_experiment_id,operation_key,spec,spec_digest,development_cases,holdout_cases) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT(owner_id,campaign_id,operation_key) DO UPDATE SET operation_key=EXCLUDED.operation_key RETURNING id,spec_digest,development_experiment_id",
+  "query": "INSERT INTO eval_campaign_holdout_proposals(id,owner_id,campaign_id,development_experiment_id,operation_key,spec,spec_digest,development_cases,holdout_cases) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT(owner_id,campaign_id,operation_key) DO UPDATE SET operation_key=EXCLUDED.operation_key RETURNING id AS \"id!: EvalHoldoutProposalId\",spec_digest,development_experiment_id",
   "describe": {
     "columns": [
       {
         "ordinal": 0,
-        "name": "id",
+        "name": "id!: EvalHoldoutProposalId",
         "type_info": "Text",
         "origin": {
           "Table": {
@@ -56,5 +56,5 @@
       false
     ]
   },
-  "hash": "f35fe998eae4be057cd84927e2d06a1578e08a07a26283809c19a5bb64ade77c"
+  "hash": "2135cda705a431c781d59a5b8d3cd5a148b379f7e1feab9bedaf59a4653d7fe6"
 }

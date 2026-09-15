@@ -8,12 +8,12 @@ use crate::Result;
 use crate::experiments::{ExperimentSpec, conflict, content_digest, invalid, missing};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::{EvalCampaignId, EvalExperimentId, UserId};
+use systemprompt_identifiers::{EvalCampaignId, EvalExperimentId, EvalHoldoutProposalId, UserId};
 
 /// Frozen paired confirmation matrix retained before human authorization.
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct HoldoutProposal {
-    pub id: String,
+    pub id: EvalHoldoutProposalId,
     pub campaign_id: EvalCampaignId,
     pub development_experiment_id: EvalExperimentId,
     pub operation_key: String,
@@ -41,7 +41,7 @@ pub struct HoldoutProposalRequest<'a> {
 pub struct HoldoutConfirmation<'a> {
     pub actor: &'a UserId,
     pub campaign: &'a EvalCampaignId,
-    pub id: &'a str,
+    pub id: &'a EvalHoldoutProposalId,
     pub digest: &'a str,
 }
 
@@ -72,8 +72,8 @@ impl CampaignRepository {
             return Err(missing("Development experiment is outside this campaign"));
         }
         let digest = content_digest(spec)?;
-        let id = EvalCampaignId::generate().to_string();
-        let stored=sqlx::query!("INSERT INTO eval_campaign_holdout_proposals(id,owner_id,campaign_id,development_experiment_id,operation_key,spec,spec_digest,development_cases,holdout_cases) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT(owner_id,campaign_id,operation_key) DO UPDATE SET operation_key=EXCLUDED.operation_key RETURNING id,spec_digest,development_experiment_id",id,owner.as_str(),campaign.as_str(),development.as_str(),key,sqlx::types::Json(spec) as _,digest,counts.0,counts.1).fetch_one(&self.pool).await?;
+        let id = EvalHoldoutProposalId::generate();
+        let stored=sqlx::query!("INSERT INTO eval_campaign_holdout_proposals(id,owner_id,campaign_id,development_experiment_id,operation_key,spec,spec_digest,development_cases,holdout_cases) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT(owner_id,campaign_id,operation_key) DO UPDATE SET operation_key=EXCLUDED.operation_key RETURNING id AS \"id!: EvalHoldoutProposalId\",spec_digest,development_experiment_id",id.as_str(),owner.as_str(),campaign.as_str(),development.as_str(),key,sqlx::types::Json(spec) as _,digest,counts.0,counts.1).fetch_one(&self.pool).await?;
         if stored.spec_digest != digest || stored.development_experiment_id != development.as_str()
         {
             return Err(conflict(
@@ -86,9 +86,9 @@ impl CampaignRepository {
         &self,
         owner: &UserId,
         campaign: &EvalCampaignId,
-        id: &str,
+        id: &EvalHoldoutProposalId,
     ) -> Result<HoldoutProposal> {
-        Ok(sqlx::query_scalar!(r#"SELECT to_jsonb(p) AS "proposal!: sqlx::types::Json<HoldoutProposal>" FROM eval_campaign_holdout_proposals p WHERE owner_id=$1 AND campaign_id=$2 AND id=$3"#,owner.as_str(),campaign.as_str(),id).fetch_optional(&self.pool).await?.ok_or_else(||missing("Holdout proposal unavailable"))?.0)
+        Ok(sqlx::query_scalar!(r#"SELECT to_jsonb(p) AS "proposal!: sqlx::types::Json<HoldoutProposal>" FROM eval_campaign_holdout_proposals p WHERE owner_id=$1 AND campaign_id=$2 AND id=$3"#,owner.as_str(),campaign.as_str(),id.as_str()).fetch_optional(&self.pool).await?.ok_or_else(||missing("Holdout proposal unavailable"))?.0)
     }
     pub async fn confirm_holdout(
         &self,
@@ -101,7 +101,7 @@ impl CampaignRepository {
             id,
             digest,
         } = confirmation;
-        let updated=sqlx::query!("UPDATE eval_campaign_holdout_proposals SET confirmed_by=COALESCE(confirmed_by,$4),confirmed_at=COALESCE(confirmed_at,clock_timestamp()) WHERE owner_id=$1 AND campaign_id=$2 AND id=$3 AND spec_digest=$5 RETURNING id",owner.as_str(),campaign.as_str(),id,actor.as_str(),digest).fetch_optional(&self.pool).await?;
+        let updated=sqlx::query!("UPDATE eval_campaign_holdout_proposals SET confirmed_by=COALESCE(confirmed_by,$4),confirmed_at=COALESCE(confirmed_at,clock_timestamp()) WHERE owner_id=$1 AND campaign_id=$2 AND id=$3 AND spec_digest=$5 RETURNING id",owner.as_str(),campaign.as_str(),id.as_str(),actor.as_str(),digest).fetch_optional(&self.pool).await?;
         if updated.is_none() {
             return Err(conflict(
                 "Confirmation must match the retained proposal digest",
@@ -113,10 +113,15 @@ impl CampaignRepository {
         &self,
         owner: &UserId,
         campaign: &EvalCampaignId,
-        id: &str,
+        id: &EvalHoldoutProposalId,
         experiment: &EvalExperimentId,
     ) -> Result<HoldoutProposal> {
-        sqlx::query!("UPDATE eval_campaign_holdout_proposals SET experiment_id=$4 WHERE owner_id=$1 AND campaign_id=$2 AND id=$3 AND confirmed_at IS NOT NULL AND (experiment_id IS NULL OR experiment_id=$4)",owner.as_str(),campaign.as_str(),id,experiment.as_str()).execute(&self.pool).await?;
+        let attached=sqlx::query!("UPDATE eval_campaign_holdout_proposals SET experiment_id=$4 WHERE owner_id=$1 AND campaign_id=$2 AND id=$3 AND confirmed_at IS NOT NULL AND (experiment_id IS NULL OR experiment_id=$4)",owner.as_str(),campaign.as_str(),id.as_str(),experiment.as_str()).execute(&self.pool).await?;
+        if attached.rows_affected() != 1 {
+            return Err(conflict(
+                "Holdout run attaches only to a confirmed proposal without another experiment",
+            ));
+        }
         self.holdout_proposal(owner, campaign, id).await
     }
 }
