@@ -61,7 +61,7 @@ impl LoggingRepository {
         if self.terminal_output
             && let Err(error) = writeln!(std::io::stdout(), "{entry}")
         {
-            tracing::warn!(error = %error, "Terminal log sink write failed");
+            systemprompt_database::services::display::report_write_failure("stdout", &error);
         }
 
         if self.db_output {
