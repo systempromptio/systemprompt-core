@@ -53,6 +53,25 @@ pub async fn refresh_reporting(db: &DbPool) -> Result<()> {
     Ok(())
 }
 
+/// Deliver captured reporting evidence through the production projector.
+/// Call only for an owned fixture database, with its source writers quiescent.
+pub async fn drain_reporting(db: &DbPool) -> Result<usize> {
+    systemprompt_runtime::reporting::initialize(db).await?;
+    let mut total = 0;
+    for _ in 0..100 {
+        let processed = systemprompt_runtime::reporting::process_pending(db, 100).await?;
+        total += processed;
+        if systemprompt_runtime::reporting::status(db)
+            .await?
+            .pending_count
+            == 0
+        {
+            return Ok(total);
+        }
+    }
+    anyhow::bail!("Reporting fixture evidence did not drain within 100 bounded batches")
+}
+
 pub fn fixture_config(database_url: &str) -> Config {
     Config {
         instance_id: "fixture".to_string(),

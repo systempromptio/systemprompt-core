@@ -1,5 +1,18 @@
 use super::*;
-static RETENTION_TEST: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+use systemprompt_test_fixtures::{DisposableDb, drain_reporting};
+
+async fn isolated() -> (DisposableDb, systemprompt_database::DbPool, Fixture) {
+    let database = DisposableDb::installed("feedback_retention").await.unwrap();
+    let db = database.pool().await.unwrap();
+    let fixture = Fixture::in_db(&db).await;
+    drain_reporting(&db).await.unwrap();
+    (database, db, fixture)
+}
+
+async fn cleanup(database: DisposableDb, db: systemprompt_database::DbPool) {
+    db.write_pool_arc().unwrap().close().await;
+    database.drop_now().await;
+}
 
 async fn compact(
     f: &Fixture,
@@ -13,8 +26,7 @@ async fn compact(
 
 #[tokio::test]
 async fn pending_producer_or_fact_changes_prevent_retention() {
-    let _guard = RETENTION_TEST.lock().await;
-    let f = Fixture::new().await;
+    let (database, db, f) = isolated().await;
     let now = Utc::now();
     f.repository
         .submit(&f.owner, &request("ready", 1, now, 1))
@@ -38,13 +50,13 @@ async fn pending_producer_or_fact_changes_prevent_retention() {
     assert!(compact(&f, now).await.is_err());
     refresh(&f, now).await;
     assert!(compact(&f, now).await.is_ok());
+    cleanup(database, db).await;
 }
 
 #[tokio::test]
 async fn retention_erases_evidence_and_preserves_only_safe_daily_totals_then_suppresses_late_correction()
  {
-    let _guard = RETENTION_TEST.lock().await;
-    let f = Fixture::new().await;
+    let (database, db, f) = isolated().await;
     let now = Utc::now();
     let old = now - Duration::days(100);
     let unsafe_day = now - Duration::days(110);
@@ -97,12 +109,12 @@ async fn retention_erases_evidence_and_preserves_only_safe_daily_totals_then_sup
     assert_eq!(corrected.metrics.requests, 0);
     assert_eq!(corrected.suppressed_days, 2);
     assert!(corrected.generation > retained.generation);
+    cleanup(database, db).await;
 }
 
 #[tokio::test]
 async fn retention_blocks_new_producer_registration_until_transaction_finishes() {
-    let _guard = RETENTION_TEST.lock().await;
-    let f = Fixture::new().await;
+    let (database, db, f) = isolated().await;
     let now = Utc::now();
     f.repository
         .submit(&f.owner, &request("ready", 1, now, 1))
@@ -135,12 +147,12 @@ async fn retention_blocks_new_producer_registration_until_transaction_finishes()
     .execute(&f.pool)
     .await
     .unwrap();
+    cleanup(database, db).await;
 }
 
 #[tokio::test]
 async fn midday_cutoff_preserves_younger_evidence_and_rejects_clock_regression() {
-    let _guard = RETENTION_TEST.lock().await;
-    let f = Fixture::new().await;
+    let (database, db, f) = isolated().await;
     let now = (Utc::now().date_naive() - Duration::days(1))
         .and_hms_opt(12, 0, 0)
         .unwrap()
@@ -178,12 +190,12 @@ async fn midday_cutoff_preserves_younger_evidence_and_rejects_clock_regression()
     );
     assert!(compact(&f, now - Duration::seconds(1)).await.is_err());
     assert!(compact(&f, Utc::now() + Duration::days(1)).await.is_err());
+    cleanup(database, db).await;
 }
 
 #[tokio::test]
 async fn recent_association_cannot_retain_an_expired_request_identity() {
-    let _guard = RETENTION_TEST.lock().await;
-    let f = Fixture::new().await;
+    let (database, db, f) = isolated().await;
     let now = Utc::now();
     let resource = ManagedResourceId::generate();
     f.repository
@@ -221,13 +233,14 @@ async fn recent_association_cannot_retain_an_expired_request_identity() {
     .await
     .unwrap();
     assert_eq!(count, 0);
+    cleanup(database, db).await;
 }
 
 #[tokio::test]
 async fn all_owner_compaction_advances_both_cutoffs_before_global_expiry() {
-    let _guard = RETENTION_TEST.lock().await;
-    let a = Fixture::new().await;
-    let b = Fixture::new().await;
+    let (database, db, a) = isolated().await;
+    let b = Fixture::in_db(&db).await;
+    drain_reporting(&db).await.unwrap();
     let now = Utc::now();
     for f in [&a, &b] {
         f.repository
@@ -237,9 +250,7 @@ async fn all_owner_compaction_advances_both_cutoffs_before_global_expiry() {
         refresh(f, now).await;
     }
     let mut tx = a.pool.begin().await.unwrap();
-    sqlx::query!("CREATE TEMP TABLE analytics_fact_checkpoints (LIKE public.analytics_fact_checkpoints INCLUDING ALL) ON COMMIT DROP").execute(&mut *tx).await.unwrap();
     let owners = vec![a.owner.as_str().to_owned(), b.owner.as_str().to_owned()];
-    sqlx::query!("INSERT INTO analytics_fact_checkpoints SELECT * FROM public.analytics_fact_checkpoints WHERE owner_id=ANY($1)",&owners).execute(&mut *tx).await.unwrap();
     let summary = FeedbackSnapshotsRepository::compact_all_in(&mut tx, now)
         .await
         .unwrap();
@@ -248,6 +259,7 @@ async fn all_owner_compaction_advances_both_cutoffs_before_global_expiry() {
     let prepared=sqlx::query_scalar!(r#"SELECT COUNT(*) AS "count!" FROM analytics_snapshot_state WHERE owner_id=ANY($1) AND evidence_cutoff>=$2"#,&owners,now-Duration::days(90)).fetch_one(&mut *tx).await.unwrap();
     assert_eq!(prepared, 2);
     tx.commit().await.unwrap();
+    cleanup(database, db).await;
 }
 
 #[path = "snapshot_retention_lock_order.rs"]

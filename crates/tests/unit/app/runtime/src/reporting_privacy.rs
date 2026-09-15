@@ -365,7 +365,7 @@ async fn correction_outside_retention_removes_previous_row_and_fences_older_repl
         .execute(&*pool)
         .await
         .unwrap();
-    let correction: i64 = sqlx::query_scalar("SELECT (fact->'data'->>'revision')::bigint FROM event_outbox WHERE fact->'data'->>'key'='corrected'")
+    let correction: i64 = sqlx::query_scalar("SELECT (fact->'data'->>'revision')::bigint FROM event_outbox WHERE fact->'data'->>'key'='corrected' AND processed_at IS NULL")
         .fetch_one(&*pool).await.unwrap();
     assert_eq!(reporting::process_pending(&db, 10).await.unwrap(), 1);
     let mut tx = pool.begin().await.unwrap();

@@ -3,7 +3,7 @@ use super::*;
 #[tokio::test]
 async fn owner_deletion_precedes_both_retention_entry_points_without_child_lock_inversion() {
     for all_owners in [false, true] {
-        let f = Fixture::new().await;
+        let (database, db, f) = isolated().await;
         let victim = format!("retention-delete-{}", f.owner);
         sqlx::query("INSERT INTO users(id,name,email) VALUES($1,$1,$2)")
             .bind(&victim)
@@ -11,6 +11,13 @@ async fn owner_deletion_precedes_both_retention_entry_points_without_child_lock_
             .execute(&f.pool)
             .await
             .unwrap();
+        drain_reporting(&db).await.unwrap();
+        let now = Utc::now();
+        f.repository
+            .submit(&f.owner, &request("ready", 1, now, 1))
+            .await
+            .unwrap();
+        refresh(&f, now).await;
         let mut deletion = f.pool.begin().await.unwrap();
         sqlx::query("LOCK TABLE users IN ROW EXCLUSIVE MODE")
             .execute(&mut *deletion)
@@ -73,11 +80,32 @@ async fn owner_deletion_precedes_both_retention_entry_points_without_child_lock_
             .await
             .expect("retention must leave the owner barrier after deletion commits")
             .unwrap();
-        match result {
-            Ok(()) | Err(systemprompt_analytics::AnalyticsError::InvalidArgument(_)) => {},
-            Err(error) => panic!(
-                "retention may reject an undrained fixture scope, but may not deadlock or fail in PostgreSQL: {error}"
-            ),
+        let error = result.expect_err("the committed deletion must remain pending evidence");
+        assert!(
+            error
+                .to_string()
+                .contains("Reporting privacy waits for pending committed evidence")
+        );
+        let error = sqlx::query("SELECT public.prepare_reporting_privacy()")
+            .execute(&f.pool)
+            .await
+            .unwrap_err();
+        assert_eq!(
+            error.as_database_error().unwrap().code().as_deref(),
+            Some("55000")
+        );
+        assert_eq!(drain_reporting(&db).await.unwrap(), 1);
+        let mut retry = f.pool.begin().await.unwrap();
+        if all_owners {
+            FeedbackSnapshotsRepository::compact_all_in(&mut retry, Utc::now())
+                .await
+                .unwrap();
+        } else {
+            FeedbackSnapshotsRepository::compact_in(&mut retry, &f.owner, Utc::now())
+                .await
+                .unwrap();
         }
+        retry.commit().await.unwrap();
+        cleanup(database, db).await;
     }
 }
