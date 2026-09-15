@@ -1,5 +1,6 @@
 //! Configured-owner inventory refresh runs at startup and on every node after
-//! catalog changes.
+//! catalog changes, then publishes the latest configured revision of every
+//! available skill.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -8,6 +9,7 @@ use crate::SchedulerError;
 use async_trait::async_trait;
 use std::sync::Arc;
 use systemprompt_runtime::AppContext;
+use systemprompt_runtime::optimization::inventory::LatestPublicationStatus;
 use systemprompt_traits::{Job, JobContext, JobResult, JobScope, ProviderResult};
 
 #[derive(Debug, Clone, Copy)]
@@ -19,7 +21,7 @@ impl Job for InventoryRefreshJob {
         "managed_inventory_refresh"
     }
     fn description(&self) -> &'static str {
-        "Reconciles configured and managed inventory with retained membership history"
+        "Reconciles configured and managed inventory and publishes the latest configured skills"
     }
     fn schedule(&self) -> &'static str {
         "0 * * * * *"
@@ -31,12 +33,21 @@ impl Job for InventoryRefreshJob {
         let app = ctx
             .app_context::<Arc<AppContext>>()
             .ok_or_else(|| SchedulerError::missing_context("AppContext"))?;
-        let status =
-            systemprompt_runtime::optimization::inventory::refresh(app, &ctx.actor().user_id)
-                .await
-                .map_err(|error| SchedulerError::config_error(error.to_string()))?;
+        // Why: the wrapper refreshes before publishing; the owner is the
+        // system admin because that is who owns the configured inventory.
+        let outcomes = systemprompt_runtime::optimization::inventory::publish_latest(
+            app,
+            app.system_admin().id(),
+            &ctx.actor().user_id,
+        )
+        .await
+        .map_err(|error| SchedulerError::config_error(error.to_string()))?;
+        let published = outcomes
+            .iter()
+            .filter(|outcome| outcome.status == LatestPublicationStatus::Published)
+            .count();
         Ok(JobResult::success().with_stats(
-            u64::try_from(status.entries)
+            u64::try_from(published)
                 .map_err(|error| SchedulerError::config_error(error.to_string()))?,
             0,
         ))

@@ -12,7 +12,8 @@ use axum::{Extension, Json, Router};
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{InventoryEntryId, ManagedResourceId, TaskId};
 use systemprompt_marketplace::inventory::{
-    BaselineCapture, BaselinePreparation, InventoryEntry, InventoryStatus, ObservedMembership,
+    BaselineCapture, BaselinePreparation, InventoryEntry, InventoryStatus, LatestPublication,
+    ObservedMembership,
 };
 use systemprompt_models::RequestContext;
 use systemprompt_runtime::AppContext;
@@ -32,6 +33,7 @@ pub(super) fn router() -> Router<AppContext> {
             post(super::operation_handlers::refresh),
         )
         .route("/inventory/baselines", post(baselines))
+        .route("/inventory/publications/latest", post(publish_latest))
         .route("/inventory/{id}", get(entry))
         .route("/inventory/{id}/bindings", post(bind))
         .route("/inventory/{id}/membership", get(membership))
@@ -102,6 +104,15 @@ async fn baselines(
         None
     };
     Ok(Json(super::collections::Page { items, next_cursor }))
+}
+
+async fn publish_latest(
+    State(ctx): State<AppContext>,
+    Extension(actor): Extension<RequestContext>,
+) -> Result<Json<Vec<LatestPublication>>, OptimizationHttpError> {
+    Ok(Json(
+        inventory::publish_latest(&ctx, ctx.system_admin().id(), actor.user_id()).await?,
+    ))
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]

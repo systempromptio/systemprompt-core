@@ -9,7 +9,7 @@ use crate::routes::evaluation::operations::OperationResponse;
 use systemprompt_marketplace::inventory::{
     BaselineCapture, BaselinePreparation, InstallationCoverage, InstallationCoverageStatus,
     InventoryEntry, InventoryGitBinding, InventoryReconciliation, InventoryStatus,
-    ObservedMembership,
+    LatestPublication, ObservedMembership,
 };
 pub(super) fn register(d: &mut Document) {
     d.add::<(), api::Page>("/inventory", "get", 200, false);
@@ -30,6 +30,7 @@ pub(super) fn register(d: &mut Document) {
     );
     d.idempotent("/inventory/reconciliations");
     d.add::<BaselinePreparation, Page<BaselineCapture>>("/inventory/baselines", "post", 200, false);
+    d.add::<(), Vec<LatestPublication>>("/inventory/publications/latest", "post", 200, false);
     d.add::<(), InventoryEntry>("/inventory/{id}", "get", 200, false);
     d.add::<api::Binding, ()>("/inventory/{id}/bindings", "post", 204, false);
     d.add::<(), ObservedMembership>("/inventory/{id}/membership", "get", 200, false);

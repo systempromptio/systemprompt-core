@@ -6,10 +6,18 @@
 
 use super::OptimizationError;
 use crate::AppContext;
+use std::sync::OnceLock;
 use systemprompt_identifiers::UserId;
 use systemprompt_marketplace::inventory::{
     BaselineCapture, BaselinePreparation, BaselineScope, InventoryService, InventoryStatus,
+    PublishGuard,
 };
+pub use systemprompt_marketplace::inventory::{LatestPublication, LatestPublicationStatus};
+
+// Why: the guard memoises per-entry tree digests across passes; one per
+// process keeps the scheduled job and the manual route from re-capturing
+// the same unchanged tree.
+static PUBLISH_GUARD: OnceLock<tokio::sync::Mutex<PublishGuard>> = OnceLock::new();
 
 pub async fn refresh(
     ctx: &AppContext,
@@ -43,6 +51,35 @@ pub async fn prepare_baselines(
                 services: &services,
             },
             request,
+        )
+        .await?)
+}
+
+/// Refreshes the inventory, then publishes the latest configured revision of
+/// every available skill as a new generation; earlier generations are retained.
+pub async fn publish_latest(
+    ctx: &AppContext,
+    owner: &UserId,
+    actor: &UserId,
+) -> Result<Vec<LatestPublication>, OptimizationError> {
+    let services = load_services(ctx, owner).await?;
+    let service = InventoryService::new(ctx.managed_repository().as_ref().clone());
+    service
+        .refresh(owner, ctx.app_paths().system().services(), &services)
+        .await?;
+    let mut guard = PUBLISH_GUARD
+        .get_or_init(|| tokio::sync::Mutex::new(PublishGuard::default()))
+        .lock()
+        .await;
+    Ok(service
+        .publish_latest(
+            &BaselineScope {
+                owner,
+                actor,
+                root: ctx.app_paths().system().services(),
+                services: &services,
+            },
+            &mut guard,
         )
         .await?)
 }
