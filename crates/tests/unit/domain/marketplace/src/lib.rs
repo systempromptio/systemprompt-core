@@ -197,3 +197,8 @@ mod organization_resolution;
 mod reconciliation_persistence;
 #[cfg(test)]
 mod retained_distribution;
+
+#[cfg(test)]
+mod authoring_capture;
+#[cfg(test)]
+mod source_sync_regressions;

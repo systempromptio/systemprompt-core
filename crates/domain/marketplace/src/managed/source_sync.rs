@@ -22,6 +22,11 @@ use super::{
 mod git_import;
 use git_import::{GitCheckout, import_tree, resolve_ref};
 
+#[path = "source_sync_capture.rs"]
+mod capture;
+use capture::NativeGitSourceCapture;
+pub use capture::{CapturedGitSource, GitSourceCapture, GitSynchronizationService};
+
 const IMPORTER_VERSION: &str = "managed-git-v1";
 
 #[path = "source_verification.rs"]
@@ -109,6 +114,18 @@ impl ManagedRepository {
         request: &GitSyncRequest,
         credential: Option<&str>,
     ) -> Result<GitSyncResult> {
+        GitSynchronizationService::new(self.clone(), std::sync::Arc::new(NativeGitSourceCapture))
+            .sync(owner, request, credential)
+            .await
+    }
+
+    async fn sync_git_source_captured(
+        &self,
+        owner: &UserId,
+        request: &GitSyncRequest,
+        credential: Option<&str>,
+        capture: std::sync::Arc<dyn GitSourceCapture>,
+    ) -> Result<GitSyncResult> {
         systemprompt_models::managed::validate_path(&request.upstream_root)?;
         let source = self.get_source(owner, &request.source_id).await?;
         if matches!(
@@ -132,32 +149,28 @@ impl ManagedRepository {
         })?;
         let credential = credential.map(str::to_owned);
         let root = request.upstream_root.clone();
-        let (commit, files) = tokio::task::spawn_blocking(move || {
-            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(120);
-            let commit = resolve_ref(&repository, &reference, credential.as_deref(), deadline)?;
-            let temp = std::env::temp_dir().join(format!(
-                "systemprompt-managed-{}",
-                ManagedSourceId::generate()
-            ));
-            super::git_execution::create_private_directory(&temp)?;
-            let imported = import_tree(&GitCheckout {
-                temp: &temp,
-                repository: &repository,
-                commit: &commit,
-                subdirectory: subdirectory.as_deref(),
-                root: &root,
-                credential: credential.as_deref(),
-                certificate_authority: None,
-                deadline,
-            });
-            std::fs::remove_dir_all(&temp)?;
-            if temp.exists() {
-                return Err(ManagedError::Integrity);
-            }
-            Ok::<_, ManagedError>((commit, imported?))
+        let captured = tokio::task::spawn_blocking(move || {
+            capture.capture(
+                &repository,
+                &reference,
+                subdirectory.as_deref(),
+                &root,
+                credential.as_deref(),
+            )
         })
         .await
         .map_err(|_error| ManagedError::Integrity)??;
+        let CapturedGitSource { commit, files } = captured;
+        if !matches!(commit.len(), 40 | 64)
+            || !commit
+                .bytes()
+                .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+        {
+            return Err(ManagedError::Integrity);
+        }
+        if !files.0.is_empty() {
+            files.validate()?;
+        }
         let tree_digest = AssetDigest::of(&serde_jcs::to_vec(&files)?);
         let snapshot_id = self
             .capture_snapshot(

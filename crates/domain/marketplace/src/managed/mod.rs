@@ -65,3 +65,5 @@ pub mod operations;
 
 mod organization_resolver;
 pub use organization_resolver::OrganizationSkillResolver;
+
+pub use source_sync::{CapturedGitSource, GitSourceCapture, GitSynchronizationService};
