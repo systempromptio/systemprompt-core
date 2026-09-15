@@ -3,8 +3,7 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
 use systemprompt_runtime::reporting;
 use systemprompt_test_fixtures::DisposableDb;
-use systemprompt_users::UserRepository;
-use systemprompt_users::models::UserStatus;
+use systemprompt_users::{UserRepository, UserStatus};
 
 async fn fixture() -> (DisposableDb, DbPool, UserRepository) {
     let database = DisposableDb::installed("user_privacy_delivery")
