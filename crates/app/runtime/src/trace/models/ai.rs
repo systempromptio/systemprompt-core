@@ -173,6 +173,25 @@ pub struct AiRequestInfo {
     pub latency_ms: Option<i32>,
 }
 
+/// A slice of a request's audit rows: `offset` rows in, at most `limit` rows,
+/// in sequence order. A `limit` of zero means "all".
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct AuditPage {
+    pub offset: i64,
+    pub limit: i64,
+}
+
+impl AuditPage {
+    pub const ALL: Self = Self {
+        offset: 0,
+        limit: 0,
+    };
+
+    pub const fn sql_limit(self) -> Option<i64> {
+        if self.limit > 0 { Some(self.limit) } else { None }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConversationMessage {
     pub role: String,

@@ -6,7 +6,7 @@
 
 use chrono::{Duration as ChronoDuration, Utc};
 use systemprompt_identifiers::{AiRequestId, ContextId, TaskId, TraceId};
-use systemprompt_runtime::{AiRequestFilter, AiTraceService, TraceQueryService};
+use systemprompt_runtime::{AiRequestFilter, AiTraceService, AuditPage, TraceQueryService};
 use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
 
 struct AuditSeed {
@@ -363,11 +363,26 @@ async fn audit_and_request_queries_map_seeded_rows() {
     assert_eq!(by_trace.id.as_str(), seed.request_id);
 
     let request_id = AiRequestId::new(seed.request_id.clone());
-    let audit_messages = svc.list_audit_messages(&request_id).await.unwrap();
+    let audit_messages = svc
+        .list_audit_messages(&request_id, AuditPage::ALL)
+        .await
+        .unwrap();
     assert_eq!(audit_messages.len(), 1);
     assert_eq!(audit_messages[0].content, "audit me");
+    assert_eq!(svc.count_audit_messages(&request_id).await.unwrap(), 1);
+    assert_eq!(svc.count_audit_tool_calls(&request_id).await.unwrap(), 1);
+    assert!(
+        svc.list_audit_messages(&request_id, AuditPage { offset: 1, limit: 20 })
+            .await
+            .unwrap()
+            .is_empty(),
+        "an offset past the last row yields an empty page"
+    );
 
-    let tool_calls = svc.list_audit_tool_calls(&request_id).await.unwrap();
+    let tool_calls = svc
+        .list_audit_tool_calls(&request_id, AuditPage::ALL)
+        .await
+        .unwrap();
     assert_eq!(tool_calls.len(), 1);
     assert_eq!(tool_calls[0].tool_name, "linked_tool");
     assert_eq!(tool_calls[0].tool_input, "{\"q\":1}");

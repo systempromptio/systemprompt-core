@@ -11,7 +11,7 @@ use systemprompt_identifiers::{AiRequestId, TraceId};
 use systemprompt_runtime::trace::{
     AiRequestFilter, LogSearchFilter, ToolExecutionFilter, TraceListFilter,
 };
-use systemprompt_runtime::{AiTraceService, TraceQueryService};
+use systemprompt_runtime::{AiTraceService, AuditPage, TraceQueryService};
 use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
 
 async fn pool_arc_or_skip() -> Option<std::sync::Arc<sqlx::PgPool>> {
@@ -208,13 +208,13 @@ async fn trace_service_ai_request_lookups_on_random_ids() {
     );
     let request_id = AiRequestId::new(missing.as_str());
     assert!(
-        svc.list_audit_messages(&request_id)
+        svc.list_audit_messages(&request_id, AuditPage::ALL)
             .await
             .unwrap()
             .is_empty()
     );
     assert!(
-        svc.list_audit_tool_calls(&request_id)
+        svc.list_audit_tool_calls(&request_id, AuditPage::ALL)
             .await
             .unwrap()
             .is_empty()

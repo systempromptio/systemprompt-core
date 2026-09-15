@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT tool_name as \"tool_name!\", tool_input as \"tool_input!\",\n            sequence_number as \"sequence_number!\"\n        FROM ai_request_tool_calls WHERE request_id = $1 ORDER BY sequence_number\n        ",
+  "query": "\n        SELECT tool_name as \"tool_name!\", tool_input as \"tool_input!\",\n            sequence_number as \"sequence_number!\"\n        FROM ai_request_tool_calls WHERE request_id = $1 ORDER BY sequence_number\n        OFFSET $2 LIMIT $3\n        ",
   "describe": {
     "columns": [
       {
@@ -39,7 +39,9 @@
     ],
     "parameters": {
       "Left": [
-        "Text"
+        "Text",
+        "Int8",
+        "Int8"
       ]
     },
     "nullable": [
@@ -48,5 +50,5 @@
       false
     ]
   },
-  "hash": "05ea54c3132e1e530c2490b31ce1ceb1294217305cc81171ff13a961bb4de391"
+  "hash": "4a2cfc153b66fd26bdcf1d62f996407a91662dd6aff9d037e2a5690a266b2263"
 }

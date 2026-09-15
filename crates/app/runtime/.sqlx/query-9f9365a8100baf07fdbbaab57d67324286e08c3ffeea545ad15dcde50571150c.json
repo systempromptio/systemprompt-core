@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT role as \"role!\", content as \"content!\", sequence_number as \"sequence_number!\"\n        FROM ai_request_messages WHERE request_id = $1 ORDER BY sequence_number\n        ",
+  "query": "\n        SELECT role as \"role!\", content as \"content!\", sequence_number as \"sequence_number!\"\n        FROM ai_request_messages WHERE request_id = $1 ORDER BY sequence_number\n        OFFSET $2 LIMIT $3\n        ",
   "describe": {
     "columns": [
       {
@@ -39,7 +39,9 @@
     ],
     "parameters": {
       "Left": [
-        "Text"
+        "Text",
+        "Int8",
+        "Int8"
       ]
     },
     "nullable": [
@@ -48,5 +50,5 @@
       false
     ]
   },
-  "hash": "e616922872999ea89cbe3abcb315a150519533b7597b55f18b43abb38c2e703b"
+  "hash": "9f9365a8100baf07fdbbaab57d67324286e08c3ffeea545ad15dcde50571150c"
 }

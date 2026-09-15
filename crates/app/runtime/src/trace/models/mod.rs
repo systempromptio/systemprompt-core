@@ -11,7 +11,7 @@ mod trace;
 
 pub use ai::{
     AiRequestDetail, AiRequestFilter, AiRequestInfo, AiRequestListItem, AiRequestStats,
-    ConversationMessage, ModelStatsRow, ProviderStatsRow, RequestCursor,
+    AuditPage, ConversationMessage, ModelStatsRow, ProviderStatsRow, RequestCursor,
 };
 pub use log::{LevelCount, LogSearchFilter, LogSearchItem, LogTimeRange, ModuleCount};
 pub use tool::{

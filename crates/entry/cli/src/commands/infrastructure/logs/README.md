@@ -668,18 +668,28 @@ sp infra logs tools list --status error -n 100
 
 ### logs audit
 
-Reconstruct the full chain for one AI request, task, or trace id: identity, model served versus requested, prompt and response messages, tool calls, tokens, and cost. This is the single command that turns a task id into the complete audited record of what the model was sent and what it did.
+Reconstruct the chain for one AI request, task, or trace id: identity, model served versus requested, tokens, cost, and — on request — the prompt and response messages and tool calls. By default the card carries the counts only (`message_count`, `tool_call_count`); a full transcript can run to hundreds of kilobytes, so the body is paged and opt-in.
 
 ```bash
-sp infra logs audit abc123
-sp --json infra logs audit task-xyz
+sp infra logs audit abc123                                    # header + counts
+sp infra logs audit abc123 --messages                         # first 20 messages
+sp infra logs audit abc123 --messages --offset 20 --limit 20  # next page
+sp infra logs audit abc123 --messages --tools --max-content 400
+sp --json infra logs audit task-xyz -m -n 0                   # every message, unbounded
 sp infra logs audit trace_def456
 ```
 
-**Required Arguments:**
-| Argument | Required | Description |
-|----------|----------|-------------|
-| `<id>` | Yes | AI request ID, task ID, or trace ID |
+**Arguments and flags:**
+| Argument / flag | Default | Description |
+|-----------------|---------|-------------|
+| `<id>` | required | AI request ID, task ID, or trace ID |
+| `--messages`, `-m` | off | Include conversation messages |
+| `--tools`, `-t` | off | Include tool calls |
+| `--offset` | `0` | Rows to skip before the page (applies to messages and tool calls alike) |
+| `--limit`, `-n` | `20` | Rows per page; `0` = all |
+| `--max-content` | `0` | Truncate each message body / tool input to this many characters; `0` = full |
+
+`has_more` is true when a later page exists for the included section(s).
 
 **Output Structure:**
 ```json
@@ -694,6 +704,10 @@ sp infra logs audit trace_def456
   "latency_ms": 850,
   "task_id": "task_xyz789",
   "trace_id": "trace_def456",
+  "message_count": 2,
+  "tool_call_count": 1,
+  "offset": 0,
+  "has_more": false,
   "messages": [
     {"sequence": 0, "role": "system", "content": "You are..."},
     {"sequence": 1, "role": "user", "content": "Hello"}

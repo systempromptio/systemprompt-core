@@ -27,11 +27,11 @@ mod tool_queries;
 pub use ai_trace_service::AiTraceService;
 pub use models::{
     AiRequestDetail, AiRequestFilter, AiRequestInfo, AiRequestListItem, AiRequestStats,
-    AiRequestSummary, AuditLookupResult, AuditToolCallRow, ConversationMessage, ExecutionStep,
-    ExecutionStepSummary, LevelCount, LinkedMcpCall, LogSearchFilter, LogSearchItem, LogTimeRange,
-    McpExecutionSummary, McpToolExecution, ModelStatsRow, ModuleCount, ProviderStatsRow,
-    RequestCursor, TaskArtifact, TaskInfo, ToolExecutionFilter, ToolExecutionItem, ToolLogEntry,
-    TraceEvent, TraceListFilter, TraceListItem,
+    AiRequestSummary, AuditLookupResult, AuditPage, AuditToolCallRow, ConversationMessage,
+    ExecutionStep, ExecutionStepSummary, LevelCount, LinkedMcpCall, LogSearchFilter, LogSearchItem,
+    LogTimeRange, McpExecutionSummary, McpToolExecution, ModelStatsRow, ModuleCount,
+    ProviderStatsRow, RequestCursor, TaskArtifact, TaskInfo, ToolExecutionFilter,
+    ToolExecutionItem, ToolLogEntry, TraceEvent, TraceListFilter, TraceListItem,
 };
 pub use service::TraceQueryService;
 

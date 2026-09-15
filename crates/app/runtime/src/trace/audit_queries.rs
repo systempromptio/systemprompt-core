@@ -10,7 +10,9 @@ use std::sync::Arc;
 
 use systemprompt_identifiers::{AiRequestId, TaskId, TraceId};
 
-use super::models::{AuditLookupResult, AuditToolCallRow, ConversationMessage, LinkedMcpCall};
+use super::models::{
+    AuditLookupResult, AuditPage, AuditToolCallRow, ConversationMessage, LinkedMcpCall,
+};
 
 struct AuditRow {
     id: AiRequestId,
@@ -173,17 +175,47 @@ fn audit_row_to_result(r: AuditRow) -> AuditLookupResult {
     }
 }
 
+pub(super) async fn count_audit_messages(
+    pool: &Arc<PgPool>,
+    request_id: &AiRequestId,
+) -> Result<i64> {
+    let count = sqlx::query_scalar!(
+        r#"SELECT COUNT(*) as "count!" FROM ai_request_messages WHERE request_id = $1"#,
+        request_id.as_str()
+    )
+    .fetch_one(&**pool)
+    .await?;
+    Ok(count)
+}
+
+pub(super) async fn count_audit_tool_calls(
+    pool: &Arc<PgPool>,
+    request_id: &AiRequestId,
+) -> Result<i64> {
+    let count = sqlx::query_scalar!(
+        r#"SELECT COUNT(*) as "count!" FROM ai_request_tool_calls WHERE request_id = $1"#,
+        request_id.as_str()
+    )
+    .fetch_one(&**pool)
+    .await?;
+    Ok(count)
+}
+
 pub(super) async fn list_audit_messages(
     pool: &Arc<PgPool>,
     request_id: &AiRequestId,
+    page: AuditPage,
 ) -> Result<Vec<ConversationMessage>> {
     let rows = sqlx::query_as!(
         MsgRow,
         r#"
         SELECT role as "role!", content as "content!", sequence_number as "sequence_number!"
         FROM ai_request_messages WHERE request_id = $1 ORDER BY sequence_number
+        OFFSET $2 LIMIT $3
         "#,
-        request_id.as_str()
+        request_id.as_str(),
+        page.offset,
+        page.sql_limit()
     )
     .fetch_all(&**pool)
     .await?;
@@ -201,6 +233,7 @@ pub(super) async fn list_audit_messages(
 pub(super) async fn list_audit_tool_calls(
     pool: &Arc<PgPool>,
     request_id: &AiRequestId,
+    page: AuditPage,
 ) -> Result<Vec<AuditToolCallRow>> {
     let rows = sqlx::query_as!(
         ToolCallDbRow,
@@ -208,8 +241,11 @@ pub(super) async fn list_audit_tool_calls(
         SELECT tool_name as "tool_name!", tool_input as "tool_input!",
             sequence_number as "sequence_number!"
         FROM ai_request_tool_calls WHERE request_id = $1 ORDER BY sequence_number
+        OFFSET $2 LIMIT $3
         "#,
-        request_id.as_str()
+        request_id.as_str(),
+        page.offset,
+        page.sql_limit()
     )
     .fetch_all(&**pool)
     .await?;

@@ -24,8 +24,8 @@ pub(super) type Result<T> = std::result::Result<T, TraceError>;
 
 use super::models::{
     AiRequestDetail, AiRequestFilter, AiRequestListItem, AiRequestStats, AiRequestSummary,
-    AuditLookupResult, AuditToolCallRow, ConversationMessage, ExecutionStepSummary, LevelCount,
-    LinkedMcpCall, LogSearchItem, LogTimeRange, McpExecutionSummary, ModuleCount,
+    AuditLookupResult, AuditPage, AuditToolCallRow, ConversationMessage, ExecutionStepSummary,
+    LevelCount, LinkedMcpCall, LogSearchItem, LogTimeRange, McpExecutionSummary, ModuleCount,
     ToolExecutionFilter, ToolExecutionItem, TraceEvent, TraceListFilter, TraceListItem,
 };
 use super::{
@@ -160,18 +160,28 @@ impl TraceQueryService {
         audit_queries::find_ai_request_for_audit(&self.pool, id).await
     }
 
+    pub async fn count_audit_messages(&self, request_id: &AiRequestId) -> Result<i64> {
+        audit_queries::count_audit_messages(&self.pool, request_id).await
+    }
+
+    pub async fn count_audit_tool_calls(&self, request_id: &AiRequestId) -> Result<i64> {
+        audit_queries::count_audit_tool_calls(&self.pool, request_id).await
+    }
+
     pub async fn list_audit_messages(
         &self,
         request_id: &AiRequestId,
+        page: AuditPage,
     ) -> Result<Vec<ConversationMessage>> {
-        audit_queries::list_audit_messages(&self.pool, request_id).await
+        audit_queries::list_audit_messages(&self.pool, request_id, page).await
     }
 
     pub async fn list_audit_tool_calls(
         &self,
         request_id: &AiRequestId,
+        page: AuditPage,
     ) -> Result<Vec<AuditToolCallRow>> {
-        audit_queries::list_audit_tool_calls(&self.pool, request_id).await
+        audit_queries::list_audit_tool_calls(&self.pool, request_id, page).await
     }
 
     pub async fn list_linked_mcp_calls(

@@ -80,6 +80,10 @@ fn audit_output(status: &str) -> AuditOutput {
         latency_ms: 0,
         task_id: None,
         trace_id: None,
+        message_count: 0,
+        tool_call_count: 0,
+        offset: 0,
+        has_more: false,
         messages: vec![],
         tool_calls: vec![],
     }
@@ -93,6 +97,30 @@ async fn auditing_a_seeded_request_renders_its_card() {
     logs::execute(parse(&["audit", id.as_str()]), &ctx(&pool))
         .await
         .expect("a request that exists must render an audit");
+}
+
+#[tokio::test]
+async fn audit_accepts_the_opt_in_payload_flags() {
+    let pool = pool().await;
+    let id = seed_request(&pool).await;
+
+    logs::execute(
+        parse(&[
+            "audit",
+            id.as_str(),
+            "--messages",
+            "--tools",
+            "--offset",
+            "0",
+            "--limit",
+            "5",
+            "--max-content",
+            "300",
+        ]),
+        &ctx(&pool),
+    )
+    .await
+    .expect("a paged, truncated audit renders");
 }
 
 #[tokio::test]
