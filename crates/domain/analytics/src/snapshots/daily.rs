@@ -7,8 +7,6 @@ use super::FeedbackSnapshotsRepository;
 use chrono::NaiveDate;
 use systemprompt_identifiers::UserId;
 
-// A normalized fact by key plus its retained payload, used to find the days
-/// whose daily snapshot the fact touches.
 #[derive(Debug, Clone, Copy)]
 pub(super) struct FactReference<'a> {
     pub kind: &'a str,

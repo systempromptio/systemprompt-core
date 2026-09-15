@@ -3936,7 +3936,6 @@ dependencies = [
  "systemprompt-extension",
  "systemprompt-identifiers",
  "systemprompt-models",
- "systemprompt-provider-contracts",
  "systemprompt-traits",
  "thiserror 2.0.19",
  "tokio",
@@ -4394,7 +4393,6 @@ version = "0.52.0"
 dependencies = [
  "async-trait",
  "chrono",
- "futures",
  "inventory",
  "serde",
  "serde_json",
@@ -4408,12 +4406,15 @@ name = "systemprompt-runtime"
 version = "0.52.0"
 dependencies = [
  "axum",
+ "chrono",
  "indicatif",
  "inventory",
+ "metrics",
  "schemars",
  "serde",
  "serde_json",
  "serde_yaml_ng",
+ "sqlx",
  "systemprompt-agent",
  "systemprompt-ai",
  "systemprompt-analytics",
@@ -4421,6 +4422,7 @@ dependencies = [
  "systemprompt-content",
  "systemprompt-database",
  "systemprompt-evaluation",
+ "systemprompt-events",
  "systemprompt-extension",
  "systemprompt-files",
  "systemprompt-identifiers",
@@ -4512,6 +4514,7 @@ dependencies = [
  "systemprompt-files",
  "systemprompt-identifiers",
  "systemprompt-loader",
+ "systemprompt-logging",
  "systemprompt-marketplace",
  "systemprompt-mcp",
  "systemprompt-models",
@@ -4542,7 +4545,6 @@ dependencies = [
  "systemprompt-provider-contracts",
  "thiserror 2.0.19",
  "tracing",
- "uuid",
  "xxhash-rust",
 ]
 

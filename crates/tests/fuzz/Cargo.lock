@@ -3423,7 +3423,6 @@ version = "0.52.0"
 dependencies = [
  "async-trait",
  "chrono",
- "futures",
  "inventory",
  "serde",
  "serde_json",
@@ -3483,7 +3482,6 @@ dependencies = [
  "systemprompt-provider-contracts",
  "thiserror 2.0.19",
  "tracing",
- "uuid",
  "xxhash-rust",
 ]
 

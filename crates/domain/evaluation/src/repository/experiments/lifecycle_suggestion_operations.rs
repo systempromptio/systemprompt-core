@@ -1,5 +1,9 @@
 //! Atomic suggestion operations retain exact retry identity and experiment
 //! budget.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use super::{EvaluationLifecycleRepository, SuggestionRequest};
 use crate::Result;
 use crate::experiments::{conflict, content_digest, invalid, missing};
