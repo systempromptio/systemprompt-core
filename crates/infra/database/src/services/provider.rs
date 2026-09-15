@@ -9,8 +9,8 @@
 
 use crate::error::DatabaseResult;
 use crate::models::{
-    DatabaseInfo, DatabaseTransaction, DbValue, FromDatabaseRow, JsonRow, QueryResult,
-    QuerySelector, ToDbValue,
+    DatabaseInfo, DatabaseTransaction, FromDatabaseRow, JsonRow, QueryResult, QuerySelector,
+    ToDbValue,
 };
 use async_trait::async_trait;
 use std::sync::Arc;
@@ -45,11 +45,6 @@ pub trait DatabaseProvider: Send + Sync + std::fmt::Debug {
         params: &[&dyn ToDbValue],
     ) -> DatabaseResult<Option<JsonRow>>;
 
-    async fn fetch_scalar_value(
-        &self,
-        query: &dyn QuerySelector,
-        params: &[&dyn ToDbValue],
-    ) -> DatabaseResult<DbValue>;
 
     async fn begin_transaction(&self) -> DatabaseResult<Box<dyn DatabaseTransaction>>;
 

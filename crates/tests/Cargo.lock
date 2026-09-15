@@ -7925,6 +7925,7 @@ dependencies = [
  "systemprompt-database",
  "systemprompt-extension",
  "systemprompt-identifiers",
+ "systemprompt-logging",
  "systemprompt-test-fixtures",
  "tempfile",
  "thiserror 2.0.19",
@@ -8561,6 +8562,7 @@ dependencies = [
 name = "systemprompt-oauth"
 version = "0.52.0"
 dependencies = [
+ "async-trait",
  "base64 0.23.0",
  "bcrypt",
  "chrono",
@@ -8582,6 +8584,7 @@ dependencies = [
  "systemprompt-extension",
  "systemprompt-identifiers",
  "systemprompt-models",
+ "systemprompt-provider-contracts",
  "systemprompt-security",
  "systemprompt-traits",
  "thiserror 2.0.19",
@@ -8863,6 +8866,7 @@ dependencies = [
  "systemprompt-logging",
  "systemprompt-marketplace",
  "systemprompt-models",
+ "systemprompt-oauth",
  "systemprompt-provider-contracts",
  "systemprompt-runtime",
  "systemprompt-scheduler",

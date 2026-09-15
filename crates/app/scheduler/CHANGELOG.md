@@ -4,6 +4,7 @@
 
 ### Changed
 
+- `database_cleanup` sweeps only `logs` (orphaned and aged-out rows) through `LoggingRepository`; expired OAuth artifacts are swept by the oauth domain's `oauth_cleanup` job.
 - A failed evaluator workspace cleanup is logged with the path; job-discovery, Vertex lifecycle and process-cleanup messages carry their values as structured fields.
 
 - The evaluator materialises `ExecutionAssignment` workspaces from the typed `RevisionBundle` carried on the assignment instead of re-decoding a JSON value per run.

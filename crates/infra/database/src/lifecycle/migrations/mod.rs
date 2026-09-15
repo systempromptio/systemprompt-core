@@ -93,23 +93,11 @@ impl<'a> MigrationService<'a> {
                 message: format!("Failed to query applied migrations: {e}"),
             })?;
 
-        let migrations = result
+        result
             .rows
             .iter()
-            .filter_map(|row| {
-                Some(AppliedMigration {
-                    extension_id: row.get("extension_id")?.as_str()?.to_owned(),
-                    version: row.get("version")?.as_i64()? as u32,
-                    name: row.get("name")?.as_str()?.to_owned(),
-                    checksum: row.get("checksum")?.as_str()?.to_owned(),
-                    applied_at: row
-                        .get("applied_at")
-                        .and_then(|v| v.as_str().map(String::from)),
-                })
-            })
-            .collect();
-
-        Ok(migrations)
+            .map(|row| decode_applied_row(extension_id, row))
+            .collect()
     }
 
     pub async fn run_pending_migrations(
@@ -152,7 +140,10 @@ impl<'a> MigrationService<'a> {
 
             if let Some(row) = row {
                 self.verify_slot_identity(ext_id, migration, Some(row))?;
-                self.verify_checksum(ext_id, migration, Some(row.checksum.as_str()))?;
+                match row.checksum.as_deref() {
+                    Some(stored) => self.verify_checksum(ext_id, migration, stored)?,
+                    None => self.stamp_checksum(ext_id, migration).await?,
+                }
                 migrations_skipped += 1;
                 debug!(
                     extension = %ext_id,
@@ -267,4 +258,40 @@ fn warn_orphaned_versions(ext_id: &str, applied: &[AppliedMigration], defined: &
         "Applied migrations are no longer declared by the extension; their files were deleted \
          without leaving a tombstone, so the numbers look free but are spent"
     );
+}
+
+fn decode_applied_row(
+    extension_id: &str,
+    row: &crate::models::JsonRow,
+) -> Result<AppliedMigration, LoaderError> {
+    let malformed = |column: &str| LoaderError::MigrationFailed {
+        extension: extension_id.to_owned(),
+        message: format!("extension_migrations row has a malformed `{column}` column"),
+    };
+    let text = |column: &str| -> Result<String, LoaderError> {
+        row.get(column)
+            .and_then(serde_json::Value::as_str)
+            .map(str::to_owned)
+            .ok_or_else(|| malformed(column))
+    };
+    let version = row
+        .get("version")
+        .and_then(serde_json::Value::as_i64)
+        .and_then(|v| u32::try_from(v).ok())
+        .ok_or_else(|| malformed("version"))?;
+    let checksum = match row.get("checksum") {
+        None | Some(serde_json::Value::Null) => None,
+        Some(serde_json::Value::String(s)) => Some(s.clone()),
+        Some(_) => return Err(malformed("checksum")),
+    };
+    Ok(AppliedMigration {
+        extension_id: text("extension_id")?,
+        version,
+        name: text("name")?,
+        checksum,
+        applied_at: row
+            .get("applied_at")
+            .and_then(serde_json::Value::as_str)
+            .map(str::to_owned),
+    })
 }

@@ -26,7 +26,6 @@ impl Extension for AgentExtension {
         schemas.extend(artifact_schemas());
         schemas.extend(context_schemas());
         schemas.extend(task_tracking_schemas());
-        schemas.extend(service_schemas());
         schemas
     }
 
@@ -39,7 +38,7 @@ impl Extension for AgentExtension {
     }
 
     fn cross_extension_tables(&self) -> Vec<&'static str> {
-        vec!["ai_requests"]
+        vec!["ai_requests", "services"]
     }
 }
 
@@ -116,13 +115,6 @@ fn artifact_schemas() -> Vec<SchemaDefinition> {
             include_str!("../schema/artifact_parts.sql"),
         )
         .with_required_columns(vec!["id".into(), "artifact_id".into(), "part_kind".into()]),
-    ]
-}
-
-fn service_schemas() -> Vec<SchemaDefinition> {
-    vec![
-        SchemaDefinition::new("services", include_str!("../schema/services.sql"))
-            .with_required_columns(vec!["name".into(), "module_name".into(), "status".into()]),
     ]
 }
 

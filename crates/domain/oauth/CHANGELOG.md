@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.53.0] - 2026-09-14
+
+### Added
+
+- `OauthCleanupRepository` (expired refresh tokens, authorization codes, state bindings, JTI revocations, ID-JAG replay markers) and the nightly `oauth_cleanup` job that runs it — moved out of the database crate's `CleanupRepository` and the `database_cleanup` job.
+
 ## [0.50.0] - 2026-09-10
 
 ### Fixed

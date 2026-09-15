@@ -2,8 +2,8 @@ use async_trait::async_trait;
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
 use systemprompt_database::{
-    DatabaseInfo, DatabaseProvider, DatabaseResult, DatabaseTransaction, DbValue, JsonRow,
-    QueryResult, QuerySelector, RepositoryError, ToDbValue,
+    DatabaseInfo, DatabaseProvider, DatabaseResult, DatabaseTransaction, JsonRow, QueryResult,
+    QuerySelector, RepositoryError, ToDbValue,
 };
 
 #[derive(Debug, Clone)]
@@ -11,7 +11,6 @@ pub enum MockDbResponse {
     FetchAll(Result<Vec<JsonRow>, String>),
     FetchOne(Result<JsonRow, String>),
     FetchOptional(Result<Option<JsonRow>, String>),
-    FetchScalar(Result<DbValue, String>),
     Execute(Result<u64, String>),
     ExecuteRaw(Result<(), String>),
     ExecuteBatch(Result<(), String>),
@@ -92,12 +91,6 @@ impl MockDatabaseProviderBuilder {
     pub fn with_fetch_optional_result(mut self, result: Result<Option<JsonRow>, String>) -> Self {
         self.responses
             .push_back(MockDbResponse::FetchOptional(result));
-        self
-    }
-
-    pub fn with_fetch_scalar_result(mut self, result: Result<DbValue, String>) -> Self {
-        self.responses
-            .push_back(MockDbResponse::FetchScalar(result));
         self
     }
 
@@ -210,19 +203,6 @@ impl DatabaseProvider for MockDatabaseProvider {
             Some(MockDbResponse::FetchOptional(result)) => convert_result(result),
             Some(_) => Ok(None),
             None => Ok(None),
-        }
-    }
-
-    async fn fetch_scalar_value(
-        &self,
-        _query: &dyn QuerySelector,
-        _params: &[&dyn ToDbValue],
-    ) -> DatabaseResult<DbValue> {
-        self.record_call("fetch_scalar_value");
-        match self.next_response() {
-            Some(MockDbResponse::FetchScalar(result)) => convert_result(result),
-            Some(_) => Ok(DbValue::NullString),
-            None => Ok(DbValue::NullString),
         }
     }
 

@@ -14,7 +14,9 @@ pub use extension::{
     install_extension_schemas, install_extension_schemas_full,
     install_extension_schemas_with_config,
 };
-pub use fk_deferral::{DeferredForeignKey, SplitCreateTable, split_create_table_foreign_keys};
+pub use fk_deferral::{
+    DeferredForeignKey, FkDeferralError, SplitCreateTable, split_create_table_foreign_keys,
+};
 pub use report::{ForeignKeyDrift, SchemaInstallReport};
 
 pub use extension::lock::{BOOTSTRAP_ADVISORY_LOCK_KEY, BootstrapLockGuard};

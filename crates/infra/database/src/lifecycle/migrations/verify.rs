@@ -15,9 +15,13 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_extension::{LoaderError, Migration};
-use tracing::warn;
+use systemprompt_identifiers::ToDbValue;
+use tracing::{info, warn};
 
 use super::{AppliedMigration, MigrationService};
+
+const STAMP_CHECKSUM_SQL: &str =
+    "UPDATE extension_migrations SET checksum = $3 WHERE extension_id = $1 AND version = $2";
 
 impl MigrationService<'_> {
     pub(super) fn verify_slot_identity(
@@ -50,15 +54,42 @@ impl MigrationService<'_> {
         })
     }
 
+    // Why: a row whose checksum was cleared by the database extension's
+    // migration 001 (checksum algorithm change) carries no verifiable value;
+    // the current checksum is written once so the next run verifies it.
+    pub(super) async fn stamp_checksum(
+        &self,
+        ext_id: &str,
+        migration: &Migration,
+    ) -> Result<(), LoaderError> {
+        let checksum = migration.checksum();
+        let params: [&dyn ToDbValue; 3] = [&ext_id, &migration.version, &checksum];
+        self.db
+            .execute(&STAMP_CHECKSUM_SQL, &params)
+            .await
+            .map_err(|e| LoaderError::MigrationFailed {
+                extension: ext_id.to_owned(),
+                message: format!(
+                    "Failed to stamp checksum for migration {} ('{}'): {e}",
+                    migration.version, migration.name
+                ),
+            })?;
+        info!(
+            extension = %ext_id,
+            version = migration.version,
+            name = %migration.name,
+            checksum = %checksum,
+            "Stamped the current checksum on a migration recorded without one"
+        );
+        Ok(())
+    }
+
     pub(super) fn verify_checksum(
         &self,
         ext_id: &str,
         migration: &Migration,
-        stored: Option<&str>,
+        stored_checksum: &str,
     ) -> Result<(), LoaderError> {
-        let Some(stored_checksum) = stored else {
-            return Ok(());
-        };
         let current_checksum = migration.checksum();
         if super::checksum_transition::matches_checksum(migration, stored_checksum) {
             return Ok(());

@@ -65,6 +65,12 @@
 //! that input's own line numbers; table definitions accumulate across inputs
 //! so a foreign key in one file resolves the table another file declares.
 //!
+//! Both lint entry points return `Ok(warnings)` when no error was found and
+//! `Err(findings)` — every warning and error — otherwise, so a caller never
+//! has to drop the advisory findings to learn the verdict. Table names from
+//! [`created_table_names`] are schema-qualified (`kb.docs`) when the
+//! `CREATE TABLE` names a schema and bare otherwise.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -116,27 +122,24 @@ impl fmt::Display for LintError {
     }
 }
 
-#[must_use]
-pub fn created_table_names(sql: &str) -> Vec<String> {
-    let Ok(parsed) = pg_query::parse(sql) else {
-        return Vec::new();
-    };
-    parsed
+pub fn created_table_names(sql: &str) -> Result<Vec<String>, pg_query::Error> {
+    let parsed = pg_query::parse(sql)?;
+    Ok(parsed
         .protobuf
         .stmts
         .iter()
         .filter_map(|raw| match raw.stmt.as_ref()?.node.as_ref()? {
-            Node::CreateStmt(create) => collect_create_stmt(create).map(|t| t.name().to_owned()),
+            Node::CreateStmt(create) => collect_create_stmt(create).map(|t| t.qualified_name()),
             _ => None,
         })
-        .collect()
+        .collect())
 }
 
-pub fn lint_declarative_schema(sql: &str, source: &str) -> Result<(), Vec<LintError>> {
+pub fn lint_declarative_schema(sql: &str, source: &str) -> Result<Vec<LintError>, Vec<LintError>> {
     lint_declarative_schemas(&[(source, sql)])
 }
 
-pub fn lint_declarative_schemas(inputs: &[(&str, &str)]) -> Result<(), Vec<LintError>> {
+pub fn lint_declarative_schemas(inputs: &[(&str, &str)]) -> Result<Vec<LintError>, Vec<LintError>> {
     let mut errors: Vec<LintError> = Vec::new();
     let mut parsed_inputs = Vec::with_capacity(inputs.len());
     let mut tables: Vec<TableDef> = Vec::new();
@@ -183,5 +186,5 @@ pub fn lint_declarative_schemas(inputs: &[(&str, &str)]) -> Result<(), Vec<LintE
     if errors.iter().any(|e| e.severity == LintSeverity::Error) {
         return Err(errors);
     }
-    Ok(())
+    Ok(errors)
 }

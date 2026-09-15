@@ -359,7 +359,7 @@ async fn a_failing_catalog_probe_fails_the_install_on_an_established_database() 
 mod probe_failing {
     use async_trait::async_trait;
     use systemprompt_database::{
-        DatabaseInfo, DatabaseProvider, DatabaseResult, DatabaseTransaction, DbValue, JsonRow,
+        DatabaseInfo, DatabaseProvider, DatabaseResult, DatabaseTransaction, JsonRow,
         PostgresProvider, QueryResult, QuerySelector, RepositoryError, ToDbValue,
     };
 
@@ -464,14 +464,6 @@ mod probe_failing {
             params: &[&dyn ToDbValue],
         ) -> DatabaseResult<Option<JsonRow>> {
             self.inner.fetch_optional(query, params).await
-        }
-
-        async fn fetch_scalar_value(
-            &self,
-            query: &dyn QuerySelector,
-            params: &[&dyn ToDbValue],
-        ) -> DatabaseResult<DbValue> {
-            self.inner.fetch_scalar_value(query, params).await
         }
 
         async fn begin_transaction(&self) -> DatabaseResult<Box<dyn DatabaseTransaction>> {

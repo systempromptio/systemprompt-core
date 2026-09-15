@@ -92,12 +92,9 @@ async fn provider_impl_delegates_reads_and_writes() {
     let all = db.fetch_all(&select_ids, &[]).await.expect("all");
     assert_eq!(all.len(), 2);
 
-    let count_sql = format!("SELECT COUNT(*) FROM \"{table}\" WHERE id > $1");
-    let scalar = db
-        .fetch_scalar_value(&count_sql, &[&0_i64])
-        .await
-        .expect("scalar");
-    assert!(format!("{scalar:?}").contains('2'));
+    let count_sql = format!("SELECT COUNT(*) AS n FROM \"{table}\" WHERE id > $1");
+    let counted = db.fetch_one(&count_sql, &[&0_i64]).await.expect("count");
+    assert_eq!(counted["n"], serde_json::json!(2));
 
     let ordered = format!("SELECT id, name FROM \"{table}\" ORDER BY id");
     let raw = db.query_raw(&ordered).await.expect("raw");

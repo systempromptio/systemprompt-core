@@ -5,8 +5,8 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Mutex;
 use systemprompt_database::{
-    DatabaseInfo, DatabaseProvider, DatabaseResult, DatabaseTransaction, DbValue, JsonRow,
-    QueryResult, QuerySelector, RepositoryError, ToDbValue,
+    DatabaseInfo, DatabaseProvider, DatabaseResult, DatabaseTransaction, JsonRow, QueryResult,
+    QuerySelector, RepositoryError, ToDbValue,
 };
 use systemprompt_mcp::services::schema::{SchemaValidationMode, SchemaValidator};
 use systemprompt_models::mcp::deployment::SchemaDefinition;
@@ -124,14 +124,6 @@ impl DatabaseProvider for ScriptedProvider {
             return Ok(Some(row));
         }
         Ok(None)
-    }
-
-    async fn fetch_scalar_value(
-        &self,
-        _q: &dyn QuerySelector,
-        _p: &[&dyn ToDbValue],
-    ) -> DatabaseResult<DbValue> {
-        Ok(DbValue::NullString)
     }
 
     async fn begin_transaction(&self) -> DatabaseResult<Box<dyn DatabaseTransaction>> {

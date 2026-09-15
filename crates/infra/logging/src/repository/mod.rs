@@ -91,6 +91,14 @@ impl LoggingRepository {
         operations::count_logs_before(&self.pool, cutoff).await
     }
 
+    pub async fn delete_orphaned_logs(&self) -> Result<u64, LoggingError> {
+        operations::delete_orphaned_logs(&self.write_pool).await
+    }
+
+    pub async fn count_orphaned_logs(&self) -> Result<u64, LoggingError> {
+        operations::count_orphaned_logs(&self.pool).await
+    }
+
     pub async fn clear_all_logs(&self) -> Result<u64, LoggingError> {
         operations::clear_all_logs(&self.write_pool).await
     }

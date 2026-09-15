@@ -36,7 +36,7 @@ pub(super) fn check_foreign_keys(
         let Some(pktable) = key.pktable.as_ref() else {
             continue;
         };
-        let Some(referenced) = find_table(tables, &pktable.relname) else {
+        let Some(referenced) = find_table(tables, &pktable.schemaname, &pktable.relname) else {
             continue;
         };
         let referenced_columns = if key.pk_attrs.is_empty() {
@@ -66,9 +66,9 @@ pub(super) fn check_foreign_keys(
             loc,
             format!(
                 "foreign key on `{}`({}) references `{}`({}) but `{}` declares no PRIMARY KEY \
-                 or UNIQUE constraint on exactly those columns — declare it in the referenced \
-                 CREATE TABLE (a CREATE UNIQUE INDEX or a migration alone does not satisfy a \
-                 fresh install)",
+                 or UNIQUE constraint on exactly those columns — declare it on the referenced \
+                 CREATE TABLE (project rule: a CREATE UNIQUE INDEX installs but is not accepted \
+                 by the linter, and a migration alone does not satisfy a fresh install)",
                 relation.relname,
                 columns.join(", "),
                 referenced.name(),

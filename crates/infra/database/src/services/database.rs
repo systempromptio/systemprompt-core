@@ -8,7 +8,7 @@
 use super::postgres::PostgresProvider;
 use super::postgres::connection::PoolConfig;
 use super::provider::DatabaseProvider;
-use crate::error::{DatabaseResult, RepositoryError};
+use crate::error::DatabaseResult;
 use crate::models::{DatabaseInfo, QueryResult};
 use std::sync::Arc;
 
@@ -81,8 +81,13 @@ impl Database {
         self.read().get_postgres_pool()
     }
 
+    #[expect(
+        clippy::unnecessary_wraps,
+        reason = "every layer threads `?` through this accessor; collapsing its callers onto \
+                  `pool()` is a workspace-wide mechanical change scheduled after 0.53.0"
+    )]
     pub fn pool_arc(&self) -> DatabaseResult<Arc<sqlx::PgPool>> {
-        open_pool(self.pool())
+        Ok(self.pool())
     }
 
     #[must_use]
@@ -90,8 +95,13 @@ impl Database {
         self.write().get_postgres_pool()
     }
 
+    #[expect(
+        clippy::unnecessary_wraps,
+        reason = "every layer threads `?` through this accessor; collapsing its callers onto \
+                  `write_pool()` is a workspace-wide mechanical change scheduled after 0.53.0"
+    )]
     pub fn write_pool_arc(&self) -> DatabaseResult<Arc<sqlx::PgPool>> {
-        open_pool(self.write_pool())
+        Ok(self.write_pool())
     }
 
     #[must_use]
@@ -131,13 +141,6 @@ pub type DbPool = Arc<Database>;
 
 pub trait DatabaseExt {
     fn database(&self) -> Arc<Database>;
-}
-
-fn open_pool(pool: Arc<sqlx::PgPool>) -> DatabaseResult<Arc<sqlx::PgPool>> {
-    if pool.is_closed() {
-        return Err(RepositoryError::invalid_state("database pool is closed"));
-    }
-    Ok(pool)
 }
 
 impl DatabaseExt for Arc<Database> {
@@ -186,14 +189,6 @@ impl DatabaseProvider for Database {
         params: &[&dyn crate::models::ToDbValue],
     ) -> DatabaseResult<Option<crate::models::JsonRow>> {
         self.read().fetch_optional(query, params).await
-    }
-
-    async fn fetch_scalar_value(
-        &self,
-        query: &dyn crate::models::QuerySelector,
-        params: &[&dyn crate::models::ToDbValue],
-    ) -> DatabaseResult<crate::models::DbValue> {
-        self.read().fetch_scalar_value(query, params).await
     }
 
     async fn begin_transaction(

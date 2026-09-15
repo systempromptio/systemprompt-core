@@ -1,6 +1,6 @@
 //! Splitting `FOREIGN KEY` constraints out of a declarative `CREATE TABLE`.
 
-use systemprompt_database::{SplitCreateTable, split_create_table_foreign_keys};
+use systemprompt_database::{FkDeferralError, SplitCreateTable, split_create_table_foreign_keys};
 
 fn split(sql: &str) -> SplitCreateTable {
     split_create_table_foreign_keys(sql).expect("split")
@@ -157,5 +157,28 @@ fn a_default_name_is_cut_to_the_identifier_limit() {
 #[test]
 fn a_non_create_statement_is_refused() {
     let err = split_create_table_foreign_keys("SELECT 1").expect_err("refused");
-    assert!(err.contains("not a CREATE TABLE"), "{err}");
+    assert!(matches!(err, FkDeferralError::NotCreateTable), "{err}");
+}
+
+#[test]
+fn unparseable_sql_is_a_typed_parse_error() {
+    let err = split_create_table_foreign_keys("CREATE TABLE (((").expect_err("refused");
+    assert!(matches!(err, FkDeferralError::Parse(_)), "{err}");
+}
+
+#[test]
+fn a_deferrable_after_a_unique_between_it_and_the_key_stays_on_the_unique() {
+    // Postgres attaches DEFERRABLE to the last key-like constraint on the
+    // column; here that is UNIQUE, not the REFERENCES before it.
+    let out = split("CREATE TABLE t (r_id TEXT REFERENCES r (id) UNIQUE DEFERRABLE)");
+    assert!(
+        out.create_table_sql.contains("UNIQUE DEFERRABLE"),
+        "{}",
+        out.create_table_sql
+    );
+    assert!(
+        !out.foreign_keys[0].sql.contains("DEFERRABLE"),
+        "{}",
+        out.foreign_keys[0].sql
+    );
 }

@@ -36,6 +36,26 @@ pub enum RepositoryError {
 
     #[error("Failed to execute query")]
     QueryExecution(#[source] Box<Self>),
+
+    #[error("SQL could not be split into statements: {0}")]
+    SqlSplit(#[source] pg_query::Error),
+
+    #[error("Failed to execute SQL statement: {statement}")]
+    Statement {
+        statement: String,
+        #[source]
+        source: Box<Self>,
+    },
+
+    #[error("Failed to establish database connection")]
+    Connection(#[source] Box<Self>),
+
+    #[error("Failed to read SQL file {path}")]
+    SqlFile {
+        path: String,
+        #[source]
+        source: std::io::Error,
+    },
 }
 
 pub type DatabaseResult<T> = Result<T, RepositoryError>;

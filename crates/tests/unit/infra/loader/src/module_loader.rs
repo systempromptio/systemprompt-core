@@ -41,7 +41,7 @@ fn every_declared_table_is_created_by_its_own_sql() {
         let Some(declared) = schema.table.as_deref() else {
             continue;
         };
-        let created = created_table_names(&schema.sql);
+        let created = created_table_names(&schema.sql).expect("schema parses");
         assert!(
             created.iter().any(|t| t == declared),
             "declared table '{declared}' is not created by its own SQL, which creates {created:?}"
@@ -57,7 +57,7 @@ fn every_created_table_is_declared_by_some_extension() {
     let declared: Vec<&str> = schemas.iter().filter_map(|s| s.table.as_deref()).collect();
 
     for schema in &schemas {
-        for created in created_table_names(&schema.sql) {
+        for created in created_table_names(&schema.sql).expect("schema parses") {
             assert!(
                 declared.contains(&created.as_str()),
                 "table '{created}' is created by declarative schema but no extension declares it, \

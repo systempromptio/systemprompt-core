@@ -149,3 +149,23 @@ pub(in crate::repository) async fn count_logs_before(
 
     Ok(count as u64)
 }
+
+pub(in crate::repository) async fn delete_orphaned_logs(
+    pool: &PgPool,
+) -> Result<u64, LoggingError> {
+    let result = sqlx::query!(
+        "DELETE FROM logs WHERE user_id IS NOT NULL AND user_id NOT IN (SELECT id FROM users)"
+    )
+    .execute(pool)
+    .await?;
+    Ok(result.rows_affected())
+}
+
+pub(in crate::repository) async fn count_orphaned_logs(pool: &PgPool) -> Result<u64, LoggingError> {
+    let count = sqlx::query_scalar!(
+        r#"SELECT COUNT(*) as "count!" FROM logs WHERE user_id IS NOT NULL AND user_id NOT IN (SELECT id FROM users)"#
+    )
+    .fetch_one(pool)
+    .await?;
+    Ok(u64::try_from(count).unwrap_or(0))
+}

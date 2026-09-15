@@ -2,6 +2,10 @@
 
 ## [0.53.0] - 2026-09-14
 
+### Added
+
+- `LoggingRepository::delete_orphaned_logs`/`count_orphaned_logs` (moved from the database crate's `CleanupRepository`).
+
 ### Changed
 
 - A failed write to a CLI display sink (stdout/stderr) is reported through `tracing::warn!` with the sink name; a closed downstream pipe is ignored.

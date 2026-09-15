@@ -1,5 +1,5 @@
-use systemprompt_database::services::{
-    LintError, lint_declarative_schema, lint_declarative_schemas,
+use systemprompt_database::services::schema_linter::{
+    LintError, LintSeverity, created_table_names, lint_declarative_schema, lint_declarative_schemas,
 };
 
 fn lint_ok(sql: &str) {
@@ -16,7 +16,7 @@ fn lint_ok(sql: &str) {
 
 fn lint_err(sql: &str) -> Vec<LintError> {
     match lint_declarative_schema(sql, "test") {
-        Ok(()) => panic!("expected lint failure, got Ok"),
+        Ok(warnings) => panic!("expected lint failure, got Ok with {warnings:?}"),
         Err(errs) => errs,
     }
 }
@@ -369,11 +369,43 @@ fn error_position_skips_inline_block_comment_on_same_line() {
 
 #[test]
 fn a_create_extension_without_if_not_exists_is_a_warning_not_a_rejection() {
-    lint_declarative_schema("CREATE EXTENSION pg_trgm;", "warn_ext")
+    let warnings = lint_declarative_schema("CREATE EXTENSION pg_trgm;", "warn_ext")
         .expect("a missing IF NOT EXISTS is advisory — only errors reject the schema");
+    assert_eq!(warnings.len(), 1, "the warning is surfaced, not dropped");
+    assert_eq!(warnings[0].severity, LintSeverity::Warning);
+    assert_eq!(warnings[0].source, "warn_ext");
 
-    lint_declarative_schema("CREATE EXTENSION IF NOT EXISTS pg_trgm;", "ok_ext")
+    let clean = lint_declarative_schema("CREATE EXTENSION IF NOT EXISTS pg_trgm;", "ok_ext")
         .expect("the guarded form is clean");
+    assert!(clean.is_empty());
+}
+
+#[test]
+fn a_create_table_without_if_not_exists_is_surfaced_as_a_warning() {
+    let warnings = lint_declarative_schema("CREATE TABLE t (id INT PRIMARY KEY);", "t.sql")
+        .expect("advisory only");
+    assert_eq!(warnings.len(), 1);
+    assert_eq!(warnings[0].line, 1);
+    assert!(
+        warnings[0].message.contains("IF NOT EXISTS"),
+        "{}",
+        warnings[0]
+    );
+}
+
+#[test]
+fn created_table_names_keeps_the_schema_qualifier() {
+    let names = created_table_names(
+        "CREATE TABLE IF NOT EXISTS s.t (id INT PRIMARY KEY); CREATE TABLE IF NOT EXISTS u (id \
+         INT PRIMARY KEY);",
+    )
+    .expect("parses");
+    assert_eq!(names, vec!["s.t".to_owned(), "u".to_owned()]);
+}
+
+#[test]
+fn created_table_names_reports_a_parse_failure_instead_of_owning_nothing() {
+    created_table_names("CREATE TABLE (((").expect_err("unparseable SQL is not an empty schema");
 }
 
 #[test]
@@ -544,5 +576,43 @@ fn a_parse_failure_in_one_file_still_lints_the_others() {
     assert!(
         errs.iter()
             .any(|e| e.source == "ok.sql" && e.message.contains("imperative SQL"))
+    );
+}
+
+#[test]
+fn a_quoted_mixed_case_unique_column_does_not_satisfy_a_lowercase_reference() {
+    let errs = lint_err(
+        "CREATE TABLE IF NOT EXISTS p (\"Id\" INT UNIQUE);\nCREATE TABLE IF NOT EXISTS c (p_id \
+         INT REFERENCES p(id));",
+    );
+    assert!(
+        errs.iter()
+            .any(|e| e.message.contains("declares no PRIMARY KEY")),
+        "{errs:?}"
+    );
+}
+
+#[test]
+fn a_duplicated_referenced_column_does_not_match_a_two_column_unique() {
+    let errs = lint_err(
+        "CREATE TABLE IF NOT EXISTS p (a INT, b INT, UNIQUE (a, b));\nCREATE TABLE IF NOT \
+         EXISTS c (x INT, y INT, FOREIGN KEY (x, y) REFERENCES p(a, a));",
+    );
+    assert!(
+        errs.iter()
+            .any(|e| e.message.contains("declares no PRIMARY KEY")),
+        "{errs:?}"
+    );
+}
+
+#[test]
+fn same_named_tables_in_different_schemas_do_not_alias_each_other() {
+    let errs = lint_err(
+        "CREATE TABLE IF NOT EXISTS a.p (id INT PRIMARY KEY);\nCREATE TABLE IF NOT EXISTS b.p \
+         (id INT);\nCREATE INDEX IF NOT EXISTS i ON b.p (missing);",
+    );
+    assert!(
+        errs.iter().any(|e| e.message.contains("unknown column")),
+        "{errs:?}"
     );
 }

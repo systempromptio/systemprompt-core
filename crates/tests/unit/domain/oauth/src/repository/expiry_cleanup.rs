@@ -1,108 +1,19 @@
-//! DB-backed tests for `CleanupRepository`.
-//!
-//! Each test seeds uniquely-keyed rows and asserts only on those rows — the
-//! cleanup DELETEs are table-wide, so returned counts are checked as lower
-//! bounds and the definitive assertion is that the seeded row is gone.
+//! DB-backed tests for `OauthCleanupRepository`: every expiry sweep removes
+//! the seeded expired row and keeps the live one.
 
 use chrono::{Duration, Utc};
-use systemprompt_database::CleanupRepository;
+use systemprompt_oauth::repository::OauthCleanupRepository;
+use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
 
-use crate::services::db_helper::pool_or_skip;
-
-async fn repo_and_pool_or_skip() -> Option<(CleanupRepository, sqlx::PgPool)> {
-    let db = pool_or_skip().await?;
-    let pg = db.write_pool_arc().ok()?;
-    Some((CleanupRepository::new((*pg).clone()), (*pg).clone()))
+async fn repo_and_pool_or_skip() -> Option<(OauthCleanupRepository, sqlx::PgPool)> {
+    let url = fixture_database_url().ok()?;
+    let db = fixture_db_pool(&url).await.ok()?;
+    let pg = db.write_pool();
+    Some((OauthCleanupRepository::new(&db).ok()?, (*pg).clone()))
 }
 
 fn unique(prefix: &str) -> String {
     format!("{prefix}_{}", uuid::Uuid::new_v4().simple())
-}
-
-async fn insert_log(pool: &sqlx::PgPool, id: &str, user_id: Option<&str>, age_days: i64) {
-    sqlx::query(
-        "INSERT INTO logs (id, timestamp, level, module, message, user_id) VALUES ($1, $2, \
-         'INFO', 'cleanup-test', 'cleanup fixture', $3)",
-    )
-    .bind(id)
-    .bind(Utc::now() - Duration::days(age_days))
-    .bind(user_id)
-    .execute(pool)
-    .await
-    .expect("insert log fixture");
-}
-
-async fn log_exists(pool: &sqlx::PgPool, id: &str) -> bool {
-    sqlx::query_scalar::<_, bool>("SELECT EXISTS(SELECT 1 FROM logs WHERE id = $1)")
-        .bind(id)
-        .fetch_one(pool)
-        .await
-        .expect("log existence probe")
-}
-
-#[tokio::test]
-async fn delete_old_logs_removes_rows_past_cutoff_and_keeps_recent() {
-    let Some((repo, pg)) = repo_and_pool_or_skip().await else {
-        return;
-    };
-    // A `logs` row must never carry a NULL user_id: every global read of the
-    // table decodes that column as non-Option, so one leaked NULL row breaks
-    // unrelated suites (`infra logs export`, the logging maintenance service).
-    // A real user also keeps the fresh row out of the table-wide orphan sweep
-    // the sibling test runs.
-    let owner = unique("cleanup_log_owner");
-    sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2)")
-        .bind(&owner)
-        .bind(format!("{owner}@cleanup.test"))
-        .execute(&pg)
-        .await
-        .expect("insert log owner fixture");
-
-    let old_id = unique("old_log");
-    let fresh_id = unique("fresh_log");
-    insert_log(&pg, &old_id, Some(&owner), 4000).await;
-    insert_log(&pg, &fresh_id, Some(&owner), 0).await;
-
-    let counted = repo.count_old_logs(3650).await.expect("count old");
-    assert!(counted >= 1);
-
-    let deleted = repo.delete_old_logs(3650).await.expect("delete old");
-    assert!(deleted >= 1);
-
-    assert!(!log_exists(&pg, &old_id).await);
-    assert!(log_exists(&pg, &fresh_id).await);
-
-    let _ = sqlx::query("DELETE FROM logs WHERE id = $1")
-        .bind(&fresh_id)
-        .execute(&pg)
-        .await;
-    let _ = sqlx::query("DELETE FROM users WHERE id = $1")
-        .bind(&owner)
-        .execute(&pg)
-        .await;
-}
-
-// One test covers count + delete: the orphan sweep is table-wide, so two
-// tests each seeding an orphan race each other's DELETE.
-#[tokio::test]
-async fn orphaned_logs_are_counted_then_removed_for_missing_users() {
-    let Some((repo, pg)) = repo_and_pool_or_skip().await else {
-        return;
-    };
-    let orphan_id = unique("orphan_log");
-    let ghost_user = unique("ghost_user");
-    insert_log(&pg, &orphan_id, Some(&ghost_user), 0).await;
-
-    let count = repo.count_orphaned_logs().await.expect("count orphaned");
-    assert!(count >= 1);
-    assert!(
-        log_exists(&pg, &orphan_id).await,
-        "counting must not delete"
-    );
-
-    let deleted = repo.delete_orphaned_logs().await.expect("delete orphaned");
-    assert!(deleted >= 1);
-    assert!(!log_exists(&pg, &orphan_id).await);
 }
 
 async fn seed_user_and_client(pool: &sqlx::PgPool) -> (String, String) {
@@ -159,7 +70,7 @@ async fn delete_expired_oauth_tokens_removes_expired_and_keeps_live() {
     }
 
     let deleted = repo
-        .delete_expired_oauth_tokens()
+        .delete_expired_refresh_tokens()
         .await
         .expect("delete expired tokens");
     assert!(deleted >= 1);
@@ -200,7 +111,7 @@ async fn delete_expired_oauth_codes_removes_used_and_expired_codes() {
     }
 
     let deleted = repo
-        .delete_expired_oauth_codes()
+        .delete_expired_auth_codes()
         .await
         .expect("delete expired codes");
     assert!(deleted >= 1);
@@ -234,7 +145,7 @@ async fn delete_expired_oauth_state_bindings_removes_expired_rows() {
     .expect("insert state binding fixture");
 
     let deleted = repo
-        .delete_expired_oauth_state_bindings()
+        .delete_expired_state_bindings()
         .await
         .expect("delete expired bindings");
     assert!(deleted >= 1);
@@ -266,7 +177,7 @@ async fn delete_expired_oauth_jti_revocations_removes_expired_rows() {
     .expect("insert revocation fixture");
 
     let deleted = repo
-        .delete_expired_oauth_jti_revocations()
+        .delete_expired_jti_revocations()
         .await
         .expect("delete expired revocations");
     assert!(deleted >= 1);
@@ -308,4 +219,23 @@ async fn delete_expired_id_jag_replays_removes_expired_rows() {
             .await
             .expect("replay existence probe");
     assert!(!exists);
+}
+
+#[tokio::test]
+async fn delete_expired_sweeps_every_table_and_totals_the_counts() {
+    let Some((repo, pg)) = repo_and_pool_or_skip().await else {
+        return;
+    };
+    let jti = unique("sweep_replay");
+    sqlx::query(
+        "INSERT INTO id_jag_replay (jti, expires_at) VALUES ($1, NOW() - INTERVAL '1 hour')",
+    )
+    .bind(&jti)
+    .execute(&pg)
+    .await
+    .expect("insert replay fixture");
+
+    let counts = repo.delete_expired().await.expect("sweep");
+    assert!(counts.id_jag_replays >= 1);
+    assert!(counts.total() >= counts.id_jag_replays);
 }

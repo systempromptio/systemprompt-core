@@ -55,7 +55,7 @@ pub(super) async fn get_database_info(pool: &PgPool) -> DatabaseResult<DatabaseI
 
         let column_rows = sqlx::query(
             "SELECT column_name, data_type, is_nullable FROM information_schema.columns WHERE \
-             table_name = $1 ORDER BY ordinal_position",
+             table_schema = 'public' AND table_name = $1 ORDER BY ordinal_position",
         )
         .bind(&table_name)
         .fetch_all(pool)

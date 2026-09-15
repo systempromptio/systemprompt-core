@@ -454,7 +454,7 @@ async fn failed_reapply_keeps_tracking_row() {
         1,
         "the tracking row must survive a failed re-apply"
     );
-    assert_eq!(after.applied[0].checksum, "tampered");
+    assert_eq!(after.applied[0].checksum.as_deref(), Some("tampered"));
     assert_eq!(after.drift.len(), 1, "drift is still reported, not lost");
     assert!(
         after.pending.is_empty(),

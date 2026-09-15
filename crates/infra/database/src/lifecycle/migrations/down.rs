@@ -36,11 +36,20 @@ impl MigrationService<'_> {
                 message: format!("Failed to query applied migrations for revert: {e}"),
             })?;
 
-        let versions: Vec<u32> = result
+        let versions = result
             .rows
             .iter()
-            .filter_map(|row| row.get("version")?.as_i64().map(|v| v as u32))
-            .collect();
+            .map(|row| {
+                row.get("version")
+                    .and_then(serde_json::Value::as_i64)
+                    .and_then(|v| u32::try_from(v).ok())
+                    .ok_or_else(|| LoaderError::MigrationFailed {
+                        extension: ext_id.to_owned(),
+                        message: "extension_migrations row has a malformed `version` column"
+                            .to_owned(),
+                    })
+            })
+            .collect::<Result<Vec<u32>, LoaderError>>()?;
 
         if versions.is_empty() {
             return Ok(MigrationResult::default());

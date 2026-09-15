@@ -7,9 +7,7 @@
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use super::db_helper::pool_or_skip;
-use systemprompt_database::{
-    DbPool, PgDbPool, with_transaction, with_transaction_raw, with_transaction_retry,
-};
+use systemprompt_database::{DbPool, PgDbPool, with_transaction, with_transaction_retry};
 
 fn pg(db: &DbPool) -> PgDbPool {
     db.write_pool_arc().expect("write pool")
@@ -105,7 +103,7 @@ async fn with_transaction_rolls_back_on_closure_error() {
 }
 
 #[tokio::test]
-async fn with_transaction_raw_commits_against_pgpool() {
+async fn with_transaction_commits_against_a_borrowed_pgpool() {
     let Some(db) = pool_or_skip().await else {
         return;
     };
@@ -114,7 +112,7 @@ async fn with_transaction_raw_commits_against_pgpool() {
     create_table(&pool, &table).await;
 
     let table_for_closure = table.clone();
-    let result: Result<(), sqlx::Error> = with_transaction_raw(&pool, move |tx| {
+    let result: Result<(), sqlx::Error> = with_transaction(&pool, move |tx| {
         let table = table_for_closure.clone();
         Box::pin(async move {
             let stmt = format!("INSERT INTO \"{table}\" (id) VALUES (10)");

@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS extension_migrations (
     extension_id TEXT NOT NULL,
     version INTEGER NOT NULL,
     name TEXT NOT NULL,
-    checksum TEXT NOT NULL,
+    checksum TEXT,
     applied_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(extension_id, version)
 );

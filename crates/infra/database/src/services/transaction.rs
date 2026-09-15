@@ -16,18 +16,7 @@ use std::time::Duration;
 
 pub type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
 
-pub async fn with_transaction<F, T, E>(pool: &PgDbPool, f: F) -> Result<T, E>
-where
-    F: for<'c> FnOnce(&'c mut Transaction<'_, Postgres>) -> BoxFuture<'c, Result<T, E>>,
-    E: From<sqlx::Error>,
-{
-    let mut tx = pool.begin().await?;
-    let result = f(&mut tx).await?;
-    tx.commit().await?;
-    Ok(result)
-}
-
-pub async fn with_transaction_raw<F, T, E>(pool: &PgPool, f: F) -> Result<T, E>
+pub async fn with_transaction<F, T, E>(pool: &PgPool, f: F) -> Result<T, E>
 where
     F: for<'c> FnOnce(&'c mut Transaction<'_, Postgres>) -> BoxFuture<'c, Result<T, E>>,
     E: From<sqlx::Error>,
@@ -94,6 +83,10 @@ fn is_retriable_error(error: &RepositoryError) -> bool {
         | RepositoryError::InvalidArgument(_)
         | RepositoryError::InvalidState(_)
         | RepositoryError::Internal(_)
-        | RepositoryError::QueryExecution(_) => false,
+        | RepositoryError::QueryExecution(_)
+        | RepositoryError::SqlSplit(_)
+        | RepositoryError::Statement { .. }
+        | RepositoryError::Connection(_)
+        | RepositoryError::SqlFile { .. } => false,
     }
 }

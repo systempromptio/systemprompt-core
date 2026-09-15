@@ -21,9 +21,9 @@ use sqlx::postgres::PgPool;
 use std::sync::Arc;
 
 use super::provider::DatabaseProvider;
-use crate::error::{DatabaseResult, RepositoryError};
+use crate::error::DatabaseResult;
 use crate::models::{
-    DatabaseInfo, DatabaseTransaction, DbValue, JsonRow, QueryResult, QuerySelector, ToDbValue,
+    DatabaseInfo, DatabaseTransaction, JsonRow, QueryResult, QuerySelector, ToDbValue,
 };
 use conversion::{bind_params, row_to_json, rows_to_result};
 use transaction::PostgresTransaction;
@@ -134,35 +134,6 @@ impl DatabaseProvider for PostgresProvider {
         let row = query_obj.fetch_optional(&*self.pool).await?;
 
         Ok(row.map(|r| row_to_json(&r)))
-    }
-
-    async fn fetch_scalar_value(
-        &self,
-        query: &dyn QuerySelector,
-        params: &[&dyn ToDbValue],
-    ) -> DatabaseResult<DbValue> {
-        let row = self.fetch_one(query, params).await?;
-
-        let first_value = row
-            .values()
-            .next()
-            .ok_or_else(|| RepositoryError::invalid_state("No columns in result"))?;
-
-        let db_value = match first_value {
-            serde_json::Value::String(s) => DbValue::String(s.clone()),
-            serde_json::Value::Number(n) => n
-                .as_i64()
-                .map(DbValue::Int)
-                .or_else(|| n.as_f64().map(DbValue::Float))
-                .unwrap_or(DbValue::NullFloat),
-            serde_json::Value::Bool(b) => DbValue::Bool(*b),
-            serde_json::Value::Null => DbValue::NullString,
-            serde_json::Value::Array(_) | serde_json::Value::Object(_) => {
-                return Err(RepositoryError::invalid_state("Unsupported value type"));
-            },
-        };
-
-        Ok(db_value)
     }
 
     async fn begin_transaction(&self) -> DatabaseResult<Box<dyn DatabaseTransaction>> {

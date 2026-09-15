@@ -58,14 +58,6 @@ impl systemprompt_database::DatabaseProvider for NoopProvider {
         Ok(None)
     }
 
-    async fn fetch_scalar_value(
-        &self,
-        _q: &dyn systemprompt_database::QuerySelector,
-        _p: &[&dyn systemprompt_database::ToDbValue],
-    ) -> systemprompt_database::DatabaseResult<systemprompt_database::DbValue> {
-        Ok(systemprompt_database::DbValue::NullString)
-    }
-
     async fn begin_transaction(
         &self,
     ) -> systemprompt_database::DatabaseResult<Box<dyn systemprompt_database::DatabaseTransaction>>

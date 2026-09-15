@@ -8,7 +8,7 @@ use systemprompt_database::scope::{
     ConnectionScopeProvider, ScopeError, ScopeSetting, SharedScopeProvider,
 };
 use systemprompt_database::{
-    RequestScope, register_scope_provider, with_scoped_transaction_raw, with_transaction_raw,
+    RequestScope, register_scope_provider, with_scoped_transaction, with_transaction,
 };
 
 struct OrgScopeProvider;
@@ -56,7 +56,7 @@ async fn a_scoped_transaction_sees_its_guc_and_the_pool_is_clean_afterwards() {
     };
 
     let seen =
-        with_scoped_transaction_raw::<_, _, anyhow::Error>(&pool, &org_scope("org_alpha"), |tx| {
+        with_scoped_transaction::<_, _, anyhow::Error>(&pool, &org_scope("org_alpha"), |tx| {
             Box::pin(async move { Ok(current_org(&mut **tx).await) })
         })
         .await
@@ -82,7 +82,7 @@ async fn concurrent_scopes_stay_isolated_on_a_shared_pool() {
         let org = if i % 2 == 0 { "org_even" } else { "org_odd" };
         handles.push(tokio::spawn(async move {
             let seen =
-                with_scoped_transaction_raw::<_, _, anyhow::Error>(&pool, &org_scope(org), |tx| {
+                with_scoped_transaction::<_, _, anyhow::Error>(&pool, &org_scope(org), |tx| {
                     Box::pin(async move { Ok(current_org(&mut **tx).await) })
                 })
                 .await
@@ -101,10 +101,8 @@ async fn a_rolled_back_scoped_transaction_leaves_no_guc_behind() {
         return;
     };
 
-    let result = with_scoped_transaction_raw::<_, (), anyhow::Error>(
-        &pool,
-        &org_scope("org_rollback"),
-        |tx| {
+    let result =
+        with_scoped_transaction::<_, (), anyhow::Error>(&pool, &org_scope("org_rollback"), |tx| {
             Box::pin(async move {
                 assert_eq!(
                     current_org(&mut **tx).await.as_deref(),
@@ -112,9 +110,8 @@ async fn a_rolled_back_scoped_transaction_leaves_no_guc_behind() {
                 );
                 Err(anyhow::anyhow!("force rollback"))
             })
-        },
-    )
-    .await;
+        })
+        .await;
     assert!(result.is_err());
 
     let mut conn = pool.acquire().await.expect("acquire");
@@ -129,7 +126,7 @@ async fn plain_transactions_ignore_registered_providers() {
 
     // A provider IS registered in this binary; the unscoped API must not
     // consult it.
-    let seen = with_transaction_raw::<_, _, anyhow::Error>(&pool, |tx| {
+    let seen = with_transaction::<_, _, anyhow::Error>(&pool, |tx| {
         Box::pin(async move { Ok(current_org(&mut **tx).await) })
     })
     .await
@@ -143,11 +140,10 @@ async fn an_empty_scope_applies_nothing() {
         return;
     };
 
-    let seen =
-        with_scoped_transaction_raw::<_, _, anyhow::Error>(&pool, &RequestScope::new(), |tx| {
-            Box::pin(async move { Ok(current_org(&mut **tx).await) })
-        })
-        .await
-        .expect("scoped tx");
+    let seen = with_scoped_transaction::<_, _, anyhow::Error>(&pool, &RequestScope::new(), |tx| {
+        Box::pin(async move { Ok(current_org(&mut **tx).await) })
+    })
+    .await
+    .expect("scoped tx");
     assert_eq!(seen, None);
 }

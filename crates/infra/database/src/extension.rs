@@ -28,8 +28,14 @@ impl Extension for DatabaseExtension {
                 "extension_migrations",
                 include_str!("../schema/extension_migrations.sql"),
             ),
+            SchemaDefinition::new("services", include_str!("../schema/services.sql"))
+                .with_required_columns(vec!["name".into(), "module_name".into(), "status".into()]),
             SchemaDefinition::sql_only(include_str!("../schema/functions.sql")),
         ]
+    }
+
+    fn migrations(&self) -> Vec<Migration> {
+        extension_migrations!()
     }
 
     fn dependencies(&self) -> Vec<&'static str> {

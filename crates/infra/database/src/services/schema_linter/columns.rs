@@ -12,6 +12,7 @@ use super::{LintError, LintSeverity};
 
 #[derive(Debug, Clone)]
 pub(super) struct TableDef {
+    schema: Option<String>,
     name: String,
     columns: Vec<String>,
     unique_key_sets: Vec<Vec<String>>,
@@ -23,17 +24,25 @@ impl TableDef {
         &self.name
     }
 
+    pub(super) fn qualified_name(&self) -> String {
+        self.schema.as_ref().map_or_else(
+            || self.name.clone(),
+            |schema| format!("{schema}.{}", self.name),
+        )
+    }
+
     pub(super) fn primary_key(&self) -> Option<&[String]> {
         self.primary_key.as_deref()
     }
 
+    // Why: identifiers arrive from pg_query already case-folded unless they
+    // were quoted, so an exact comparison is the Postgres comparison; a
+    // quoted `"Id"` must not satisfy a reference to `id`.
     pub(super) fn has_unique_key(&self, columns: &[String]) -> bool {
-        self.unique_key_sets.iter().any(|set| {
-            set.len() == columns.len()
-                && columns
-                    .iter()
-                    .all(|c| set.iter().any(|k| k.eq_ignore_ascii_case(c)))
-        })
+        let wanted = sorted_unique(columns);
+        self.unique_key_sets
+            .iter()
+            .any(|set| sorted_unique(set) == wanted)
     }
 }
 
@@ -43,7 +52,9 @@ pub(super) fn collect_create_stmt(create: &CreateStmt) -> Option<TableDef> {
     if name.is_empty() {
         return None;
     }
+    let schema = (!relation.schemaname.is_empty()).then(|| relation.schemaname.clone());
     let mut table = TableDef {
+        schema,
         name,
         columns: Vec::new(),
         unique_key_sets: Vec::new(),
@@ -95,8 +106,22 @@ fn push_column(columns: &mut Vec<String>, cd: &ColumnDef) {
     }
 }
 
-pub(super) fn find_table<'a>(tables: &'a [TableDef], name: &str) -> Option<&'a TableDef> {
-    tables.iter().find(|t| t.name.eq_ignore_ascii_case(name))
+fn sorted_unique(columns: &[String]) -> Vec<&str> {
+    let mut sorted: Vec<&str> = columns.iter().map(String::as_str).collect();
+    sorted.sort_unstable();
+    sorted.dedup();
+    sorted
+}
+
+pub(super) fn find_table<'a>(
+    tables: &'a [TableDef],
+    schema: &str,
+    name: &str,
+) -> Option<&'a TableDef> {
+    let schema = (!schema.is_empty()).then_some(schema);
+    tables
+        .iter()
+        .find(|t| t.name == name && t.schema.as_deref() == schema)
 }
 
 pub(super) fn check_index_columns(
@@ -108,7 +133,7 @@ pub(super) fn check_index_columns(
     let Some(rel) = idx.relation.as_ref() else {
         return;
     };
-    let Some(table) = find_table(tables, &rel.relname) else {
+    let Some(table) = find_table(tables, &rel.schemaname, &rel.relname) else {
         return;
     };
     for param in &idx.index_params {
@@ -122,11 +147,7 @@ pub(super) fn check_index_columns(
         if column_name.is_empty() {
             continue;
         }
-        if !table
-            .columns
-            .iter()
-            .any(|c| c.eq_ignore_ascii_case(column_name))
-        {
+        if !table.columns.contains(column_name) {
             errors.push(LintError {
                 line: loc.line,
                 column: loc.col,
@@ -239,17 +260,13 @@ fn check_view_targets(
         let resolved_table = view_from
             .alias_map
             .iter()
-            .find(|(a, _)| a.eq_ignore_ascii_case(&table_ref))
+            .find(|(a, _)| *a == table_ref)
             .map_or(table_ref.as_str(), |(_, t)| t.as_str());
 
-        let Some(table) = find_table(tables, resolved_table) else {
+        let Some(table) = find_table(tables, "", resolved_table) else {
             continue;
         };
-        if !table
-            .columns
-            .iter()
-            .any(|c| c.eq_ignore_ascii_case(&column_name))
-        {
+        if !table.columns.contains(&column_name) {
             errors.push(LintError {
                 line: loc.line,
                 column: loc.col,

@@ -123,30 +123,70 @@ async fn execute_readonly_maps_bad_sql_to_execution_failure() {
     assert!(matches!(err, QueryExecutorError::ExecutionFailed(_)));
 }
 
-#[test]
-fn test_write_query_not_allowed_display() {
-    let error = QueryExecutorError::WriteQueryNotAllowed;
-    let display = error.to_string();
 
-    assert!(display.contains("Write query not allowed"));
-    assert!(display.contains("read-only mode"));
-    assert!(display.contains("SELECT"));
+#[tokio::test]
+async fn execute_readonly_decodes_uuid_numeric_and_bytea_columns() {
+    let Some(exec) = executor_or_skip().await else {
+        return;
+    };
+
+    let result = exec
+        .execute_readonly(
+            "SELECT gen_random_uuid() AS u, 1.5::numeric AS n, '\\xdead'::bytea AS b",
+            None,
+        )
+        .await
+        .expect("query runs");
+    let row = result.rows.first().expect("one row");
+
+    assert!(
+        row["u"].as_str().is_some_and(|u| u.len() == 36),
+        "uuid must decode to its text form, got {:?}",
+        row["u"]
+    );
+    assert_eq!(
+        row["n"].as_f64(),
+        Some(1.5),
+        "numeric must not read as NULL"
+    );
+    assert!(
+        row["b"].as_str().is_some(),
+        "bytea must decode to base64 text, got {:?}",
+        row["b"]
+    );
 }
 
-#[test]
-fn test_write_query_not_allowed_mentions_with() {
-    let error = QueryExecutorError::WriteQueryNotAllowed;
-    assert!(error.to_string().contains("WITH"));
-}
+#[tokio::test]
+async fn execute_readonly_refuses_a_write_hidden_in_a_volatile_function() {
+    let Some(exec) = executor_or_skip().await else {
+        return;
+    };
+    let table = format!("ro_probe_{}", uuid::Uuid::new_v4().simple());
+    exec.execute_write(&format!("CREATE TABLE \"{table}\" (id INT)"))
+        .await
+        .expect("create");
+    let fn_name = format!("{table}_write");
+    exec.execute_write(&format!(
+        "CREATE FUNCTION \"{fn_name}\"() RETURNS INT LANGUAGE sql AS $$ INSERT INTO \"{table}\" \
+         VALUES (1) RETURNING id $$"
+    ))
+    .await
+    .expect("create fn");
 
-#[test]
-fn test_write_query_not_allowed_mentions_explain() {
-    let error = QueryExecutorError::WriteQueryNotAllowed;
-    assert!(error.to_string().contains("EXPLAIN"));
-}
+    let err = exec
+        .execute_readonly(&format!("SELECT \"{fn_name}\"()"), None)
+        .await
+        .expect_err("a READ ONLY transaction refuses the insert");
+    assert!(matches!(err, QueryExecutorError::ExecutionFailed(_)));
 
-#[test]
-fn test_write_query_not_allowed_mentions_show() {
-    let error = QueryExecutorError::WriteQueryNotAllowed;
-    assert!(error.to_string().contains("SHOW"));
+    let count = exec
+        .execute_readonly(&format!("SELECT count(*) AS c FROM \"{table}\""), None)
+        .await
+        .expect("count");
+    assert_eq!(count.rows[0]["c"].as_i64(), Some(0));
+
+    let _ = exec
+        .execute_write(&format!("DROP FUNCTION \"{fn_name}\"()"))
+        .await;
+    let _ = exec.execute_write(&format!("DROP TABLE \"{table}\"")).await;
 }

@@ -533,8 +533,8 @@ async fn a_schema_that_does_not_parse_is_rejected_before_any_statement_runs() {
 mod transaction_failures {
     use async_trait::async_trait;
     use systemprompt_database::{
-        DatabaseInfo, DatabaseProvider, DatabaseResult, DatabaseTransaction, DbValue, JsonRow,
-        QueryResult, QuerySelector, RepositoryError, ToDbValue,
+        DatabaseInfo, DatabaseProvider, DatabaseResult, DatabaseTransaction, JsonRow, QueryResult,
+        QuerySelector, RepositoryError, ToDbValue,
     };
 
     use super::*;
@@ -592,14 +592,6 @@ mod transaction_failures {
             _params: &[&dyn ToDbValue],
         ) -> DatabaseResult<Option<JsonRow>> {
             Ok(None)
-        }
-
-        async fn fetch_scalar_value(
-            &self,
-            _query: &dyn QuerySelector,
-            _params: &[&dyn ToDbValue],
-        ) -> DatabaseResult<DbValue> {
-            Ok(DbValue::NullString)
         }
 
         async fn begin_transaction(&self) -> DatabaseResult<Box<dyn DatabaseTransaction>> {

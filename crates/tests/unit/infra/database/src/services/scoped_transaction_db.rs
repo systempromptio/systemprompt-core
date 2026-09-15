@@ -7,7 +7,6 @@
 
 use systemprompt_database::{
     Database, RepositoryError, RequestScope, begin_scoped, with_scoped_transaction,
-    with_scoped_transaction_raw,
 };
 
 use crate::services::db_helper::pool_or_skip;
@@ -98,7 +97,7 @@ async fn the_raw_form_behaves_identically_to_the_wrapper() {
     let id = unique("scoped_raw");
     let scope = RequestScope::new();
 
-    let count: i64 = with_scoped_transaction_raw(&pg, &scope, |tx| {
+    let count: i64 = with_scoped_transaction(&pg, &scope, |tx| {
         let id = id.clone();
         Box::pin(async move {
             sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2)")

@@ -5078,6 +5078,7 @@ dependencies = [
 name = "systemprompt-oauth"
 version = "0.52.0"
 dependencies = [
+ "async-trait",
  "base64 0.23.0",
  "bcrypt",
  "chrono",
@@ -5099,6 +5100,7 @@ dependencies = [
  "systemprompt-extension",
  "systemprompt-identifiers",
  "systemprompt-models",
+ "systemprompt-provider-contracts",
  "systemprompt-security",
  "systemprompt-traits",
  "tempfile",

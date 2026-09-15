@@ -122,9 +122,14 @@ pub(super) fn check_cross_extension_alters(
 
     let mut allowed: HashSet<String> = HashSet::new();
     for schema in extension.schemas() {
-        for t in crate::services::schema_linter::created_table_names(&schema.sql) {
-            allowed.insert(t);
-        }
+        let created =
+            crate::services::schema_linter::created_table_names(&schema.sql).map_err(|e| {
+                LoaderError::MigrationFailed {
+                    extension: ext_id.to_owned(),
+                    message: format!("Failed to parse declarative schema for ownership check: {e}"),
+                }
+            })?;
+        allowed.extend(created);
     }
     for t in extension.cross_extension_tables() {
         allowed.insert(t.to_owned());
