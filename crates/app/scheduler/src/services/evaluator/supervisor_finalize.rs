@@ -164,9 +164,17 @@ impl EvaluatorSupervisor {
         }
         let references = evidence_references(evidence);
         let scored = outcome.judgment.as_ref().and_then(|value| {
-            scoring::score(&run.rubric, value, &references)
-                .ok()
-                .map(|score| (value.clone(), score))
+            match scoring::score(&run.rubric, value, &references) {
+                Ok(score) => Some((value.clone(), score)),
+                Err(error) => {
+                    tracing::warn!(
+                        %error,
+                        execution_id = %run.record.id,
+                        "Judgment could not be scored; execution recorded unscored"
+                    );
+                    None
+                },
+            }
         });
         let accounting = self
             .repositories

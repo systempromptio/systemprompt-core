@@ -135,10 +135,21 @@ impl EvaluatorSupervisor {
                     let cancel = execution.cancel();
                     let isolated = run.network.cleanup();
                     let cleaned = std::fs::remove_dir_all(&run.directory);
-                    if cancel.is_ok() && isolated.is_ok() && cleaned.is_ok() {
+                    let causes: Vec<String> = [
+                        ("container", cancel.err().map(|error| error.to_string())),
+                        ("network", isolated.err().map(|error| error.to_string())),
+                        ("workspace", cleaned.err().map(|error| error.to_string())),
+                    ]
+                    .into_iter()
+                    .filter_map(|(step, error)| error.map(|error| format!("{step}: {error}")))
+                    .collect();
+                    if causes.is_empty() {
                         Ok(())
                     } else {
-                        Err(SchedulerError::config_error(failure))
+                        Err(SchedulerError::config_error(format!(
+                            "{failure}: {}",
+                            causes.join("; ")
+                        )))
                     }
                 },
             )

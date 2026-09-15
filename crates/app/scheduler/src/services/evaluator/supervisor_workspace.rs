@@ -105,9 +105,17 @@ pub fn materialize_skills(bundle: &RevisionBundle, destination: &Path) -> Schedu
     bundle.verify().map_err(internal)?;
     for revision in bundle.revisions.keys() {
         let files = bundle.revision_files(revision).map_err(internal)?;
-        let config = files.0.get("config.yaml").and_then(|file| {
-            serde_yaml::from_slice::<systemprompt_models::DiskSkillConfig>(&file.bytes).ok()
-        });
+        let config = files
+            .0
+            .get("config.yaml")
+            .map(|file| serde_yaml::from_slice::<systemprompt_models::DiskSkillConfig>(&file.bytes))
+            .transpose()
+            .map_err(|error| {
+                SchedulerError::config_error(format!(
+                    "Managed skill {} carries a malformed config.yaml: {error}",
+                    revision.as_str()
+                ))
+            })?;
         if let Some(config) = config {
             let id = if config.id.as_str().is_empty() {
                 revision.as_str()
