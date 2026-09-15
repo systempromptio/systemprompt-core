@@ -186,9 +186,29 @@ async fn the_conversation_listing_accepts_source_and_user_filters() {
         .unwrap_or_else(|e| panic!("--source {source} must list: {e}"));
     }
     analytics::execute(
-        parse(&["conversations", "list", "--user", "nobody_here", "--since", "7d"]),
+        parse(&[
+            "conversations",
+            "list",
+            "--user",
+            "nobody_here",
+            "--since",
+            "7d",
+        ]),
         &ctx,
     )
     .await
     .expect("an unknown user is an empty listing, not an error");
+}
+
+#[test]
+fn the_conversation_listing_refuses_a_non_positive_limit() {
+    for limit in ["0", "-3"] {
+        let err = Harness::try_parse_from(["analytics", "conversations", "list", "--limit", limit])
+            .expect_err("a non-positive limit is a usage error");
+        assert_eq!(
+            err.kind(),
+            clap::error::ErrorKind::ValueValidation,
+            "--limit {limit}"
+        );
+    }
 }

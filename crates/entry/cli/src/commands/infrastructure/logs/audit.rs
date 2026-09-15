@@ -29,12 +29,18 @@ pub struct AuditArgs {
     )]
     pub messages: bool,
 
-    #[arg(long, short = 't', help = "Include the tool calls (default: counts only)")]
+    #[arg(
+        long,
+        short = 't',
+        help = "Include the tool calls (default: counts only)"
+    )]
     pub tools: bool,
 
     #[arg(
         long,
         default_value = "0",
+        allow_negative_numbers = true,
+        value_parser = clap::value_parser!(i64).range(0..),
         help = "Skip this many messages / tool calls before the page"
     )]
     pub offset: i64,
@@ -43,6 +49,8 @@ pub struct AuditArgs {
         long,
         short = 'n',
         default_value = "20",
+        allow_negative_numbers = true,
+        value_parser = clap::value_parser!(i64).range(0..),
         help = "Maximum messages / tool calls per page (0 = all)"
     )]
     pub limit: i64,
@@ -59,8 +67,8 @@ pub struct AuditArgs {
 impl AuditArgs {
     const fn page(&self) -> AuditPage {
         AuditPage {
-            offset: self.offset.max(0),
-            limit: self.limit.max(0),
+            offset: self.offset,
+            limit: self.limit,
         }
     }
 
@@ -73,6 +81,11 @@ impl AuditArgs {
     }
 }
 
+/// One audit page of a request.
+///
+/// `message_count` / `tool_call_count` are the request's totals whatever the
+/// page; `messages` / `tool_calls` are the opted-in slice from `offset`, and
+/// `has_more` says whether a later slice exists.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct AuditOutput {
     pub request_id: AiRequestId,
@@ -92,10 +105,8 @@ pub struct AuditOutput {
     pub latency_ms: i64,
     pub task_id: Option<TaskId>,
     pub trace_id: Option<TraceId>,
-    /// Total rows on the request, independent of what this page carries.
     pub message_count: i64,
     pub tool_call_count: i64,
-    /// Where `messages` / `tool_calls` start and whether a later page exists.
     pub offset: i64,
     pub has_more: bool,
     pub messages: Vec<MessageRow>,
@@ -141,9 +152,10 @@ async fn execute_with_pool_inner(
     } else {
         Vec::new()
     };
+    let page_end = page.offset.saturating_add(page.limit);
     let has_more = page.limit > 0
-        && ((args.messages && page.offset + page.limit < message_count)
-            || (args.tools && page.offset + page.limit < tool_call_count));
+        && ((args.messages && page_end < message_count)
+            || (args.tools && page_end < tool_call_count));
 
     let output = AuditOutput {
         request_id,

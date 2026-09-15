@@ -37,6 +37,10 @@ fn audit_returns_card() {
         "latency_ms": 42,
         "task_id": null,
         "trace_id": null,
+        "message_count": 0,
+        "tool_call_count": 0,
+        "offset": 0,
+        "has_more": false,
         "messages": [],
         "tool_calls": []
     }))
@@ -70,6 +74,10 @@ fn audit_card_carries_the_reasoning_token_count() {
         "latency_ms": 42,
         "task_id": null,
         "trace_id": null,
+        "message_count": 0,
+        "tool_call_count": 0,
+        "offset": 0,
+        "has_more": false,
         "messages": [],
         "tool_calls": []
     }))
@@ -100,6 +108,10 @@ fn audit_output_predating_the_reasoning_column_still_deserialises() {
         "latency_ms": 42,
         "task_id": null,
         "trace_id": null,
+        "message_count": 0,
+        "tool_call_count": 0,
+        "offset": 0,
+        "has_more": false,
         "messages": [],
         "tool_calls": []
     }))

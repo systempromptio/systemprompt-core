@@ -39,8 +39,13 @@ pub struct ListArgs {
     )]
     pub limit: i64,
 
-    #[arg(long, help = "Skip this many rows before the page")]
-    #[arg(default_value = "0")]
+    #[arg(
+        long,
+        default_value = "0",
+        allow_negative_numbers = true,
+        value_parser = clap::value_parser!(i64).range(0..),
+        help = "Skip this many rows before the page"
+    )]
     pub offset: i64,
 
     #[arg(long, help = "Filter by model name")]

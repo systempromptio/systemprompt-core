@@ -151,3 +151,19 @@ fn a_request_that_did_not_complete_says_so_in_the_title() {
         "AI Request Audit — FAILED"
     );
 }
+
+#[test]
+fn audit_refuses_negative_paging_bounds() {
+    for args in [
+        ["audit", "req_x", "--offset", "-1"],
+        ["audit", "req_x", "--limit", "-1"],
+    ] {
+        let err = Harness::try_parse_from(std::iter::once("logs").chain(args.iter().copied()))
+            .expect_err("a negative bound is a usage error, not a silent clamp");
+        assert_eq!(
+            err.kind(),
+            clap::error::ErrorKind::ValueValidation,
+            "{args:?}"
+        );
+    }
+}
