@@ -8,7 +8,11 @@ fn fixture() -> tempfile::TempDir {
     let root = tempfile::tempdir().expect("authoring fixture");
     let skill = root.path().join("skills/alpha");
     fs::create_dir_all(&skill).expect("skill directory");
-    fs::write(skill.join("config.yaml"), "id: alpha\nname: Alpha\ndescription: Authoring fixture\nenabled: true\nfile: index.md\n").expect("config");
+    fs::write(
+        skill.join("config.yaml"),
+        "id: alpha\nname: Alpha\ndescription: Authoring fixture\nenabled: true\nfile: index.md\n",
+    )
+    .expect("config");
     fs::write(skill.join("index.md"), "# Original\n").expect("instructions");
     root
 }
