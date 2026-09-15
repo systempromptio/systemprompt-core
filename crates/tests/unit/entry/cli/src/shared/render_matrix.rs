@@ -98,8 +98,8 @@ fn message_artifacts_render_each_severity() {
 }
 
 #[test]
-fn a_skip_render_output_produces_nothing_in_any_format() {
-    let skipped = CommandOutput::text("never shown").with_skip_render();
+fn a_skip_render_output_still_emits_its_artifact_in_structured_formats() {
+    let skipped = CommandOutput::text("terminal-only suppression").with_skip_render();
     assert!(skipped.should_skip_render());
     render_in_every_format(&skipped);
 }
