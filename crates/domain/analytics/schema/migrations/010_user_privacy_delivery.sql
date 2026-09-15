@@ -1,55 +1,3 @@
-CREATE OR REPLACE FUNCTION public.reporting_row_retained(source_name TEXT, source_row JSONB)
-RETURNS BOOLEAN LANGUAGE plpgsql STABLE SECURITY INVOKER
-SET search_path = pg_catalog, public AS $$
-DECLARE cutoff TIMESTAMPTZ; occurred TIMESTAMPTZ;
-BEGIN
-    IF source_name = 'markdown_content' THEN RETURN TRUE; END IF;
-    IF source_name = 'users' THEN
-        RETURN source_row->>'status' <> 'deleted'
-            AND public.reporting_user_is_retained(source_row->>'id');
-    END IF;
-    IF NOT public.reporting_user_is_retained(source_row->>'user_id') THEN RETURN FALSE; END IF;
-    SELECT evidence_cutoff INTO cutoff FROM public.analytics_projection_state WHERE singleton;
-    occurred := CASE source_name
-        WHEN 'user_sessions' THEN (source_row->>'last_activity_at')::timestamptz
-        WHEN 'logs' THEN (source_row->>'timestamp')::timestamptz
-        WHEN 'analytics_events' THEN (source_row->>'timestamp')::timestamptz
-        ELSE (source_row->>'created_at')::timestamptz END;
-    IF cutoff IS NOT NULL AND (occurred IS NULL OR occurred < cutoff) THEN RETURN FALSE; END IF;
-    IF source_name IN ('agent_tasks', 'task_messages') THEN
-        RETURN public.reporting_task_is_retained(source_row->>'task_id', cutoff);
-    ELSIF source_name = 'ai_request_messages' THEN
-        RETURN public.reporting_request_is_retained(source_row->>'request_id', cutoff);
-    END IF;
-    IF source_name = 'logs' AND source_row->>'user_id' IS NULL THEN
-        RETURN public.reporting_session_is_retained(source_row->>'session_id');
-    END IF;
-    RETURN TRUE;
-END
-$$;
-
-CREATE OR REPLACE FUNCTION public.prepare_reporting_privacy()
-RETURNS BOOLEAN LANGUAGE plpgsql VOLATILE SECURITY INVOKER
-SET search_path = pg_catalog, public AS $$
-BEGIN
-    PERFORM public.lock_user_deletion_for_retention();
-    IF current_setting('systemprompt.reporting_privacy', true) = txid_current()::text THEN
-        RETURN COALESCE((SELECT initialized FROM public.analytics_projection_state WHERE singleton), FALSE);
-    END IF;
-    PERFORM public.lock_users_reporting_sources();
-    PERFORM public.lock_agent_reporting_sources();
-    PERFORM public.lock_ai_reporting_sources();
-    PERFORM public.lock_mcp_reporting_sources();
-    PERFORM public.lock_content_reporting_sources();
-    PERFORM public.lock_logging_reporting_sources();
-    INSERT INTO public.analytics_projection_state(singleton) VALUES(TRUE) ON CONFLICT DO NOTHING;
-    PERFORM set_config('systemprompt.reporting_privacy_sources', txid_current()::text, true);
-    PERFORM pg_advisory_xact_lock(6003370107643648340);
-    PERFORM public.begin_reporting_outbox_privacy();
-    RETURN COALESCE((SELECT initialized FROM public.analytics_projection_state WHERE singleton), FALSE);
-END
-$$;
-
 CREATE OR REPLACE FUNCTION public.apply_reporting_privacy_row(fact JSONB)
 RETURNS BOOLEAN LANGUAGE plpgsql VOLATILE SECURITY INVOKER
 SET search_path = pg_catalog, public AS $$
@@ -181,20 +129,6 @@ BEGIN
 END
 $$;
 
-CREATE OR REPLACE FUNCTION public.finish_reporting_compaction(requested_after TIMESTAMPTZ)
-RETURNS BIGINT LANGUAGE plpgsql VOLATILE SECURITY INVOKER
-SET search_path = pg_catalog, public AS $$
-DECLARE effective_cutoff TIMESTAMPTZ;
-BEGIN
-    IF requested_after IS NULL OR requested_after > NOW() THEN
-        RAISE EXCEPTION 'Invalid reporting compaction cutoff' USING ERRCODE = '22023';
-    END IF;
-    SELECT GREATEST(evidence_cutoff, requested_after) INTO effective_cutoff
-        FROM public.analytics_projection_state WHERE singleton FOR UPDATE;
-    RETURN public.finish_reporting_privacy(effective_cutoff);
-END
-$$;
-
 CREATE OR REPLACE FUNCTION public.prepare_user_reporting_privacy()
 RETURNS BOOLEAN LANGUAGE plpgsql VOLATILE SECURITY INVOKER
 SET search_path = pg_catalog, public AS $$
@@ -221,3 +155,4 @@ BEGIN
     RETURN COALESCE((SELECT initialized FROM public.analytics_projection_state WHERE singleton), FALSE);
 END
 $$;
+
