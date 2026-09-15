@@ -51,7 +51,6 @@ impl Fixture {
         let db = fixture_db_pool(&bootstrap.database_url)
             .await
             .expect("database");
-        let pool = db.write_pool_arc().expect("write pool").as_ref().clone();
         let owner = UserId::new(format!("optimization-{}", TraceId::generate()));
         seed_user_row(&db, &owner, &format!("{owner}@optimization.invalid"))
             .await

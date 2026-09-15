@@ -87,9 +87,6 @@ pub(super) fn build_repositories(
     instance_id: systemprompt_identifiers::InstanceId,
 ) -> RuntimeResult<RepositoryBundles> {
     let session_usage: systemprompt_traits::DynSessionUsageCounters = analytics.sessions.owner();
-    let pool = database
-        .pool_arc()
-        .map_err(|error| crate::error::RuntimeError::Internal(error.to_string()))?;
     let managed = Arc::new(systemprompt_marketplace::managed::ManagedRepository::new(
         database,
     )?);

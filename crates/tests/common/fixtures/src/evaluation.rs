@@ -9,15 +9,14 @@ use systemprompt_database::DbPool;
 use systemprompt_evaluation::repository::experiments::{EvaluationRepositories, EvaluationSeams};
 
 pub fn fixture_evaluation_seams(pool: &DbPool) -> Result<EvaluationSeams> {
-    let sqlx_pool = pool.write_pool_arc()?.as_ref().clone();
     Ok(EvaluationSeams {
         trace: Arc::new(systemprompt_ai::repository::AiRequestRepository::new(pool)?),
         sessions: Arc::new(systemprompt_users::UsersAiSessionProvider::from_repository(
             systemprompt_users::SessionRepository::new(pool)?,
         )),
         managed_revisions: Arc::new(systemprompt_marketplace::managed::ManagedRepository::new(
-            sqlx_pool,
-        )),
+            pool,
+        )?),
     })
 }
 
@@ -42,7 +41,7 @@ pub async fn seed_managed_baseline(
         AssetDigest, AssetFile, ManagedRepository, NewResource, NewRevision, ResourceKind,
         RevisionFiles, SnapshotProvenance, SourceSpec,
     };
-    let managed = ManagedRepository::new(pool.write_pool_arc()?.as_ref().clone());
+    let managed = ManagedRepository::new(pool)?;
     let source = managed
         .register_source(owner, key, &SourceSpec::Managed)
         .await?;

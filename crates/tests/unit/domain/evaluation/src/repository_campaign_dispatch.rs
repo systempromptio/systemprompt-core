@@ -1,9 +1,7 @@
 //! Concurrent campaign dispatch retains one linked matrix and bounded
 //! iterations.
 use super::*;
-use systemprompt_evaluation::campaigns::repository::{
-    CampaignAction, CampaignRepository, CampaignTransition,
-};
+use systemprompt_evaluation::campaigns::repository::{CampaignAction, CampaignTransition};
 use systemprompt_evaluation::campaigns::{CampaignPolicy, OptimizationObjective};
 use systemprompt_evaluation::repository::experiments::CampaignExperiment;
 
