@@ -524,3 +524,6 @@ async fn stale_cleanup_fence_never_executes_resource_removal() {
 
 #[path = "evaluator_terminal_acceptance.rs"]
 mod acceptance;
+
+#[path = "evaluator_supervisor_lease_recovery.rs"]
+mod supervisor_lease_recovery;
