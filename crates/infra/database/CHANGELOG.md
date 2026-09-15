@@ -28,6 +28,7 @@
 - `SqlExecutor::execute_file` reads asynchronously.
 - The schema linter compares identifiers exactly (pg_query already case-folds unquoted names), keys tables by schema, and compares unique-key column sets as deduplicated sets; the referenced-uniqueness message states the project rule.
 - Column introspection is scoped to `table_schema = 'public'`.
+- Serving-pool connections disable sqlx's prepared-statement cache (`statement_cache_capacity(0)`) so DDL applied by migrations on the same pool cannot leave a connection with a stale cached plan (SQLSTATE 0A000); every query is prepared per execution.
 - `DatabaseHandle::is_connected` reports whether both pools are open instead of a constant `true`.
 - Migration checksums are xxh64: an applied row whose stored checksum is the historical `DefaultHasher` digest of the SQL now in its slot is rewritten to the xxh64 digest in one verified transaction (`checksum_transition`) — never executed, never a drift repair — and any other mismatch is still checksum drift.
 - Repeated schema installation is idempotent; the schema linter skips dollar-quoted function bodies.
@@ -36,7 +37,8 @@
 
 - A database URL carrying `sslmode=verify-full`/`verify-ca` (and `sslrootcert`) is honoured; the provider no longer downgrades every mode other than `require`/`disable` to `prefer`.
 - On an established database only the `ADD CONSTRAINT` of a declared foreign key may be recorded as drift; a failing catalog probe, savepoint or release now fails the install instead of aborting the transaction silently and reporting success.
-- A `BootstrapLockGuard` dropped without `release` (cancelled or panicking install) closes its session so the advisory lock cannot survive in the pool for up to `max_lifetime`.
+- A `BootstrapLockGuard` dropped without `release` (cancelled or panicking install) closes its session so the advisory lock cannot survive in the pool for up to `max_lifetime`; an explicit `release` whose `pg_advisory_unlock` fails closes the session too instead of returning the lock-holding connection to the pool.
+- A deferred foreign key whose `VALIDATE CONSTRAINT` fails is reported with the failure cause; the warning no longer asserts that existing rows violate the key when the validation timed out or lost its lock.
 - A circuit-breaker probe whose future is cancelled releases its half-open slot; previously the leaked probes left the breaker open forever.
 - `AdminSql::parse_readonly` parses with `pg_query` and refuses a data-modifying CTE (`WITH d AS (DELETE …) SELECT …`), DDL or utility statement anywhere in the tree; the keyword heuristic let them through. Read-only admin queries also run inside a `READ ONLY` transaction.
 - `infra db query` decodes `uuid`, `numeric` and `bytea` columns instead of returning `null` for them.
