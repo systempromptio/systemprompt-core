@@ -7,4 +7,4 @@ mod case;
 mod status;
 
 pub use case::{CanonicalPrompt, EvalCase, NewCaseParams};
-pub use status::{AccountingStatus, ApprovalStatus, CampaignStatus};
+pub use status::{AccountingStatus, ApprovalStatus, CampaignStatus, SuggestionStatus};

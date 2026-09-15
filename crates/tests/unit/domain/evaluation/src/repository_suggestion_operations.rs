@@ -1,5 +1,6 @@
 //! Suggestion retry identity and reservations commit as one bounded operation.
 use super::repository_workers::Harness;
+use systemprompt_evaluation::models::SuggestionStatus;
 use systemprompt_evaluation::repository::experiments::{
     EvaluationLifecycleRepository, SuggestionRequest,
 };
@@ -45,7 +46,7 @@ async fn concurrent_identical_suggestion_retries_create_one_row_and_one_reservat
     assert_eq!(count, 1);
     assert_eq!(
         repo.suggestion(&h.owner, &id).await.unwrap().status,
-        "draft"
+        SuggestionStatus::Draft
     );
     let canonical = crate::seams::lifecycle(&h.pg, crate::seams::verified_admission());
     assert_eq!(
@@ -140,7 +141,7 @@ async fn historical_suggestions_remain_readable_without_invented_retry_identity(
         .unwrap();
     assert_eq!(
         repo.suggestion(&h.owner, &retained).await.unwrap().status,
-        "draft"
+        SuggestionStatus::Draft
     );
     assert!(
         repo.create_suggestion(&h.owner, &request).await.is_err(),

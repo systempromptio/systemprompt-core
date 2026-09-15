@@ -92,3 +92,31 @@ impl ApprovalStatus {
         })
     }
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum SuggestionStatus {
+    Draft,
+    Accepted,
+    Rejected,
+}
+
+impl SuggestionStatus {
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Draft => "draft",
+            Self::Accepted => "accepted",
+            Self::Rejected => "rejected",
+        }
+    }
+
+    pub fn parse(status: &str) -> Result<Self> {
+        Ok(match status {
+            "draft" => Self::Draft,
+            "accepted" => Self::Accepted,
+            "rejected" => Self::Rejected,
+            _ => return Err(invalid("Unknown suggestion status")),
+        })
+    }
+}

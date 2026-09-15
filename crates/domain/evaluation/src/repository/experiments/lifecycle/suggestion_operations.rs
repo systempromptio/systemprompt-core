@@ -88,7 +88,7 @@ impl EvaluationLifecycleRepository {
         Ok(crate::campaigns::suggestions::RetainedSuggestion {
             id: EvalSuggestionId::new(row.id),
             hypothesis: row.hypothesis,
-            status: row.status,
+            status: crate::models::SuggestionStatus::parse(&row.status)?,
             proposed_changes: row.proposed_changes,
             originating_evidence: row.originating_evidence,
         })

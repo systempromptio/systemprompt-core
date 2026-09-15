@@ -10,7 +10,7 @@ use systemprompt_evaluation::campaigns::{CampaignPolicy, OptimizationObjective};
 use systemprompt_evaluation::experiments::records::{ExperimentDetail, ExperimentStatus};
 use systemprompt_evaluation::experiments::resources::{Partition, ResourceContent};
 use systemprompt_evaluation::experiments::{ExperimentSpec, Objective};
-use systemprompt_evaluation::models::CampaignStatus;
+use systemprompt_evaluation::models::{CampaignStatus, SuggestionStatus};
 use systemprompt_evaluation::repository::experiments::{
     CampaignExperiment, ManagedWorkspaceRegistration,
 };
@@ -169,7 +169,7 @@ impl SkillOptimizationOrchestrator {
             .await?;
         let Some(suggestion) = suggestions
             .into_iter()
-            .find(|suggestion| suggestion.status == "draft")
+            .find(|suggestion| suggestion.status == SuggestionStatus::Draft)
         else {
             self.blocked(ctx, DiagnosticCode::MissingSuggestion).await?;
             return Ok(None);
