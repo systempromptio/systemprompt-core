@@ -157,8 +157,8 @@ fn signed_reasoning_is_preserved_while_other_text_is_repaired() {
 #[test]
 fn disabled_and_warn_modes_leave_requests_unchanged() {
     for config in [
-        "governance:\n  enabled: false\n  policies:\n    - id: secret_scan\n",
-        "governance:\n  policies:\n    - id: secret_scan\n      enabled: false\n",
+        "governance:\n  enabled: false\n  policies:\n    - id: secret_scan\n      patterns:\n        - id: recovery-key\n          name: Recovery Key\n          regex: 'XRECOVERY-[0-9]+'\n",
+        "governance:\n  policies:\n    - id: secret_scan\n      enabled: false\n      patterns:\n        - id: recovery-key\n          name: Recovery Key\n          regex: 'XRECOVERY-[0-9]+'\n",
         "governance:\n  policies:\n    - id: secret_scan\n      mode: warn\n      patterns:\n        - id: recovery-key\n          name: Recovery Key\n          regex: 'XRECOVERY-[0-9]+'\n",
     ] {
         let mut wire = body(json!({"system":KEY}));

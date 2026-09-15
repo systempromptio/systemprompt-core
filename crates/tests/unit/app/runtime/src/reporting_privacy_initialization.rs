@@ -62,6 +62,7 @@ async fn owners_compacting_valid_clocks_out_of_order_preserve_global_privacy_and
         crate::reporting::analytics_schema_sql(|table| {
             table.starts_with("analytics_fact_")
                 || table.starts_with("analytics_normalized_")
+                || table.starts_with("analytics_feedback_")
                 || table.starts_with("analytics_snapshot")
         }),
     ] {
