@@ -48,28 +48,21 @@ pub struct BridgeAccessRequest<'a> {
     pub ttl_seconds: u64,
 }
 
-pub async fn issue_bridge_access(
-    repo: &OAuthRepository,
-    analytics: &dyn AnalyticsProvider,
-    sessions: &dyn SessionProvider,
-    request_headers: &HeaderMap,
-    caller_ip: Option<IpAddr>,
-    user_id: &UserId,
-) -> Result<BridgeAuthResult> {
-    issue_bridge_access_with(
-        repo,
-        analytics,
-        sessions,
-        BridgeAccessRequest {
+impl<'a> BridgeAccessRequest<'a> {
+    pub fn bridge(
+        request_headers: &'a HeaderMap,
+        caller_ip: Option<IpAddr>,
+        user_id: &'a UserId,
+    ) -> Self {
+        Self {
             request_headers,
             caller_ip,
             user_id,
             client_id: ClientId::bridge(),
             session_source: SessionSource::Bridge,
             ttl_seconds: DEFAULT_ACCESS_TTL_SECONDS,
-        },
-    )
-    .await
+        }
+    }
 }
 
 async fn adopt_or_mint_session(
@@ -104,7 +97,7 @@ async fn adopt_or_mint_session(
     }
 }
 
-pub async fn issue_bridge_access_with(
+pub async fn issue_bridge_access(
     repo: &OAuthRepository,
     analytics: &dyn AnalyticsProvider,
     sessions: &dyn SessionProvider,
@@ -241,14 +234,25 @@ pub async fn issue_bridge_exchange_code(
     Ok(BridgeExchangeCode { code, expires_at })
 }
 
+/// One-shot exchange of a bridge session code presented by a caller.
+#[derive(Debug, Clone, Copy)]
+pub struct BridgeExchangeRequest<'a> {
+    pub request_headers: &'a HeaderMap,
+    pub caller_ip: Option<IpAddr>,
+    pub code: &'a str,
+}
+
 pub async fn exchange_bridge_session_code(
     repo: &OAuthRepository,
     analytics: &dyn AnalyticsProvider,
     sessions: &dyn SessionProvider,
-    request_headers: &HeaderMap,
-    caller_ip: Option<IpAddr>,
-    code: &str,
+    exchange: BridgeExchangeRequest<'_>,
 ) -> Result<Option<BridgeAuthResult>> {
+    let BridgeExchangeRequest {
+        request_headers,
+        caller_ip,
+        code,
+    } = exchange;
     let code_hash = hash_exchange_code(code);
     let Some(user_id) = repo.consume_bridge_exchange_code(&code_hash).await? else {
         return Ok(None);
@@ -257,9 +261,7 @@ pub async fn exchange_bridge_session_code(
         repo,
         analytics,
         sessions,
-        request_headers,
-        caller_ip,
-        &user_id,
+        BridgeAccessRequest::bridge(request_headers, caller_ip, &user_id),
     )
     .await?;
     Ok(Some(result))

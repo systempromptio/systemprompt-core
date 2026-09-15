@@ -4,7 +4,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::{DeltaLease, FactDelta, FeedbackFactsRepository, validation};
+use super::{DeltaClaim, DeltaLease, FactDelta, FeedbackFactsRepository, validation};
 use crate::Result;
 use systemprompt_identifiers::{TaskId, UserId};
 
@@ -14,9 +14,12 @@ impl FeedbackFactsRepository {
         owner: &UserId,
         consumer: &str,
         worker: &TaskId,
-        limit: u32,
-        lease_seconds: u32,
+        claim: DeltaClaim,
     ) -> Result<Option<DeltaLease>> {
+        let DeltaClaim {
+            limit,
+            lease_seconds,
+        } = claim;
         if consumer.is_empty()
             || consumer.len() > 128
             || consumer.chars().any(char::is_control)

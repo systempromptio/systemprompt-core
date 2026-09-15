@@ -1,11 +1,43 @@
 //! Persistence, semantic holdout independence, and actual admission
 //! regressions.
 use super::*;
-use systemprompt_evaluation::campaigns::diagnostics::{DiagnosticCode, DiagnosticStage};
+use systemprompt_evaluation::campaigns::diagnostics::{
+    DiagnosticCode, DiagnosticRecord, DiagnosticStage,
+};
+use systemprompt_evaluation::campaigns::holdout::{HoldoutConfirmation, HoldoutProposalRequest};
 use systemprompt_evaluation::campaigns::repository::CampaignRepository;
 use systemprompt_evaluation::campaigns::{CampaignPolicy, OptimizationObjective};
 use systemprompt_evaluation::repository::experiments::CampaignExperiment;
-use systemprompt_identifiers::{ManagedResourceId, ResourceRevisionId};
+use systemprompt_identifiers::{EvalCampaignId, ManagedResourceId, ResourceRevisionId};
+
+fn proposal<'a>(
+    campaign: &'a EvalCampaignId,
+    development: &'a EvalExperimentId,
+    key: &'a str,
+    spec: &'a ExperimentSpec,
+) -> HoldoutProposalRequest<'a> {
+    HoldoutProposalRequest {
+        campaign,
+        development,
+        key,
+        spec,
+        counts: (10, 10),
+    }
+}
+
+fn confirmation<'a>(
+    actor: &'a UserId,
+    campaign: &'a EvalCampaignId,
+    id: &'a str,
+    digest: &'a str,
+) -> HoldoutConfirmation<'a> {
+    HoldoutConfirmation {
+        actor,
+        campaign,
+        id,
+        digest,
+    }
+}
 
 fn policy(f: &Fixture) -> CampaignPolicy {
     CampaignPolicy {
@@ -77,11 +109,11 @@ async fn holdout_proposal_retries_preserve_digest_and_confirmation_identity() {
         .await
         .unwrap();
     let first = repo
-        .propose_holdout(&f.owner, &campaign, &experiment, "review", &spec, (10, 10))
+        .propose_holdout(&f.owner, proposal(&campaign, &experiment, "review", &spec))
         .await
         .unwrap();
     let retry = repo
-        .propose_holdout(&f.owner, &campaign, &experiment, "review", &spec, (10, 10))
+        .propose_holdout(&f.owner, proposal(&campaign, &experiment, "review", &spec))
         .await
         .unwrap();
     assert_eq!(first.id, retry.id);
@@ -91,19 +123,18 @@ async fn holdout_proposal_retries_preserve_digest_and_confirmation_identity() {
     assert!(
         repo.propose_holdout(
             &f.owner,
-            &campaign,
-            &experiment,
-            "review",
-            &conflict,
-            (10, 10)
+            proposal(&campaign, &experiment, "review", &conflict)
         )
         .await
         .is_err()
     );
     assert!(
-        repo.confirm_holdout(&f.owner, &f.owner, &campaign, &first.id, "wrong")
-            .await
-            .is_err()
+        repo.confirm_holdout(
+            &f.owner,
+            confirmation(&f.owner, &campaign, &first.id, "wrong")
+        )
+        .await
+        .is_err()
     );
     assert!(
         sqlx::query(
@@ -116,18 +147,23 @@ async fn holdout_proposal_retries_preserve_digest_and_confirmation_identity() {
         "retained proposal cannot be rewritten after review"
     );
     let confirmed = repo
-        .confirm_holdout(&f.owner, &f.owner, &campaign, &first.id, &first.spec_digest)
+        .confirm_holdout(
+            &f.owner,
+            confirmation(&f.owner, &campaign, &first.id, &first.spec_digest),
+        )
         .await
         .unwrap();
     assert_eq!(confirmed.confirmed_by, Some(f.owner.clone()));
     assert!(confirmed.confirmed_at.is_some());
     repo.record_diagnostic(
         &f.owner,
-        &f.owner,
-        Some(&campaign),
-        "blocked",
-        DiagnosticStage::Holdout,
-        DiagnosticCode::UnsupportedCapability,
+        DiagnosticRecord {
+            actor: &f.owner,
+            campaign: Some(&campaign),
+            operation: "blocked",
+            stage: DiagnosticStage::Holdout,
+            code: DiagnosticCode::UnsupportedCapability,
+        },
     )
     .await
     .unwrap();

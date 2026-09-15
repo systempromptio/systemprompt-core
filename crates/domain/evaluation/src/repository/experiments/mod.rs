@@ -77,10 +77,13 @@ impl EvaluationRepositories {
             capabilities: ExecutionCapabilityRepository::new(pool.clone()),
             evidence: EvidenceRepository::new(pool.clone()),
             events: ExecutionEventRepository::new(pool.clone()),
-            experiments: ExperimentRepository::with_admission(pool.clone(), admission.clone()),
+            experiments: ExperimentRepository::with_admission(
+                pool.clone(),
+                std::sync::Arc::clone(&admission),
+            ),
             lifecycle: EvaluationLifecycleRepository::with_admission(
                 pool.clone(),
-                admission.clone(),
+                std::sync::Arc::clone(&admission),
             ),
             gateway: GatewayEvaluationRepository::with_admission(pool.clone(), admission),
             workers: WorkerRepository::new(pool.clone()),

@@ -23,6 +23,7 @@ pub struct AnalyticsEventRecord {
 }
 
 /// Logging-owned ingestion and authoritative reads for behavioral checks.
+///
 /// Batch persistence is atomic and preserves caller-assigned event IDs.
 /// Injected as `dyn AnalyticsEventStore`, hence `#[async_trait]`.
 #[async_trait]

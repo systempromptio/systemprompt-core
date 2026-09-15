@@ -7,8 +7,16 @@
 use super::columns::Columns;
 use super::{ApplyOutcome, FactLease, FeedbackFactsRepository, validation};
 use crate::Result;
-use systemprompt_identifiers::UserId;
+use systemprompt_identifiers::{
+    AnalyticsFactId, DeviceId, ManagedResourceId, NativeSessionId, ResourceRevisionId, UserId,
+};
 use systemprompt_models::feedback::analytics::{AnalyticsChange, AnalyticsChangeOperation};
+
+struct Replacement {
+    generation: i64,
+    // JSON: the prior fact row is retained verbatim for delta history.
+    before: Option<serde_json::Value>,
+}
 
 impl FeedbackFactsRepository {
     pub async fn apply(&self, owner: &UserId, lease: &FactLease) -> Result<ApplyOutcome> {
@@ -43,8 +51,16 @@ impl FeedbackFactsRepository {
         };
         if replaced {
             let before_fact = before.and_then(|row| row.fact);
-            self.replace_in(&mut tx, owner, &change, generation, before_fact)
-                .await?;
+            self.replace_in(
+                &mut tx,
+                owner,
+                &change,
+                Replacement {
+                    generation,
+                    before: before_fact,
+                },
+            )
+            .await?;
         }
         let state = if replaced { "applied" } else { "superseded" };
         let updated = sqlx::query!("UPDATE analytics_fact_changes SET state=$5,applied_at=clock_timestamp(),lease_worker=NULL,lease_until=NULL,last_error=NULL WHERE owner_id=$1 AND change_id=$2 AND state='leased' AND lease_worker=$3 AND lease_epoch=$4 AND lease_until>clock_timestamp()", owner.as_str(), lease.change_id.as_str(), lease.worker_id.as_str(), lease.epoch, state).execute(&mut *tx).await?;
@@ -65,9 +81,9 @@ impl FeedbackFactsRepository {
         tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
         owner: &UserId,
         change: &AnalyticsChange,
-        generation: i64,
-        before: Option<serde_json::Value>,
+        replacement: Replacement,
     ) -> Result<()> {
+        let Replacement { generation, before } = replacement;
         let fact = match &change.operation {
             AnalyticsChangeOperation::Replace { fact } => Some(fact),
             AnalyticsChangeOperation::Tombstone => None,
@@ -76,7 +92,7 @@ impl FeedbackFactsRepository {
         let after = fact.map(serde_json::to_value).transpose()?;
         let kind = validation::kind(change.key.kind);
         let revision = i64::try_from(change.revision).map_err(|_error| validation::invalid())?;
-        sqlx::query!("INSERT INTO analytics_normalized_facts(owner_id,fact_kind,source,fact_id,revision,occurred_at,deleted,fact,consumer_id,device_id,host,session_id,resource_id,resource_revision_id,invocation_source,invocation_id,request_source,request_id,succeeded,currency,amount_micros,input_tokens,output_tokens,latency_micros,assessment_status,score_millionths,generation,conversation_source,conversation_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29) ON CONFLICT(owner_id,fact_kind,source,fact_id) DO UPDATE SET revision=EXCLUDED.revision,occurred_at=EXCLUDED.occurred_at,deleted=EXCLUDED.deleted,fact=EXCLUDED.fact,consumer_id=EXCLUDED.consumer_id,device_id=EXCLUDED.device_id,host=EXCLUDED.host,session_id=EXCLUDED.session_id,resource_id=EXCLUDED.resource_id,resource_revision_id=EXCLUDED.resource_revision_id,invocation_source=EXCLUDED.invocation_source,invocation_id=EXCLUDED.invocation_id,request_source=EXCLUDED.request_source,request_id=EXCLUDED.request_id,succeeded=EXCLUDED.succeeded,currency=EXCLUDED.currency,amount_micros=EXCLUDED.amount_micros,input_tokens=EXCLUDED.input_tokens,output_tokens=EXCLUDED.output_tokens,latency_micros=EXCLUDED.latency_micros,assessment_status=EXCLUDED.assessment_status,score_millionths=EXCLUDED.score_millionths,generation=EXCLUDED.generation,conversation_source=EXCLUDED.conversation_source,conversation_id=EXCLUDED.conversation_id,updated_at=clock_timestamp()", owner.as_str(), kind, &change.key.source, change.key.id.as_str(), revision, change.occurred_at, fact.is_none(), after, columns.consumer.as_ref().map(|id| id.as_str()), columns.device.as_ref().map(|id| id.as_str()), columns.host, columns.session.as_ref().map(|id| id.as_str()), columns.resource.as_ref().map(|id| id.as_str()), columns.resource_revision.as_ref().map(|id| id.as_str()), columns.invocation_source, columns.invocation.as_ref().map(|id| id.as_str()), columns.request_source, columns.request.as_ref().map(|id| id.as_str()), columns.succeeded, columns.currency, columns.amount, columns.input, columns.output, columns.latency, columns.assessment, columns.score, generation, columns.conversation_source, columns.conversation.as_ref().map(|id| id.as_str())).execute(&mut **tx).await?;
+        sqlx::query!("INSERT INTO analytics_normalized_facts(owner_id,fact_kind,source,fact_id,revision,occurred_at,deleted,fact,consumer_id,device_id,host,session_id,resource_id,resource_revision_id,invocation_source,invocation_id,request_source,request_id,succeeded,currency,amount_micros,input_tokens,output_tokens,latency_micros,assessment_status,score_millionths,generation,conversation_source,conversation_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29) ON CONFLICT(owner_id,fact_kind,source,fact_id) DO UPDATE SET revision=EXCLUDED.revision,occurred_at=EXCLUDED.occurred_at,deleted=EXCLUDED.deleted,fact=EXCLUDED.fact,consumer_id=EXCLUDED.consumer_id,device_id=EXCLUDED.device_id,host=EXCLUDED.host,session_id=EXCLUDED.session_id,resource_id=EXCLUDED.resource_id,resource_revision_id=EXCLUDED.resource_revision_id,invocation_source=EXCLUDED.invocation_source,invocation_id=EXCLUDED.invocation_id,request_source=EXCLUDED.request_source,request_id=EXCLUDED.request_id,succeeded=EXCLUDED.succeeded,currency=EXCLUDED.currency,amount_micros=EXCLUDED.amount_micros,input_tokens=EXCLUDED.input_tokens,output_tokens=EXCLUDED.output_tokens,latency_micros=EXCLUDED.latency_micros,assessment_status=EXCLUDED.assessment_status,score_millionths=EXCLUDED.score_millionths,generation=EXCLUDED.generation,conversation_source=EXCLUDED.conversation_source,conversation_id=EXCLUDED.conversation_id,updated_at=clock_timestamp()", owner.as_str(), kind, &change.key.source, change.key.id.as_str(), revision, change.occurred_at, fact.is_none(), after, columns.consumer.as_ref().map(UserId::as_str), columns.device.as_ref().map(DeviceId::as_str), columns.host, columns.session.as_ref().map(NativeSessionId::as_str), columns.resource.as_ref().map(ManagedResourceId::as_str), columns.resource_revision.as_ref().map(ResourceRevisionId::as_str), columns.invocation_source, columns.invocation.as_ref().map(AnalyticsFactId::as_str), columns.request_source, columns.request.as_ref().map(AnalyticsFactId::as_str), columns.succeeded, columns.currency, columns.amount, columns.input, columns.output, columns.latency, columns.assessment, columns.score, generation, columns.conversation_source, columns.conversation.as_ref().map(AnalyticsFactId::as_str)).execute(&mut **tx).await?;
         sqlx::query!("INSERT INTO analytics_fact_deltas(owner_id,generation,fact_kind,source,fact_id,before_fact,after_fact,occurred_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8)", owner.as_str(), generation, kind, &change.key.source, change.key.id.as_str(), before, after,change.occurred_at).execute(&mut **tx).await?;
         Ok(())
     }

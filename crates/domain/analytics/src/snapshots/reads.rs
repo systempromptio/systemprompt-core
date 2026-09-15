@@ -63,7 +63,7 @@ impl FeedbackSnapshotsRepository {
             .succ_opt()
             .ok_or_else(|| invalid("Invalid snapshot date"))?;
         for scope in scopes {
-            for window in [1_i32, 7, 30, 90, 365] {
+            for window in [1i32, 7, 30, 90, 365] {
                 let from = to - chrono::Duration::days(i64::from(window));
                 let snapshot = Self::assemble(
                     tx,

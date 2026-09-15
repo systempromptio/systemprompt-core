@@ -92,16 +92,29 @@ pub struct CampaignDiagnostic {
     pub resolved_at: Option<DateTime<Utc>>,
 }
 
+/// One retained operator-facing diagnostic: who hit it, where and what.
+#[derive(Debug, Clone, Copy)]
+pub struct DiagnosticRecord<'a> {
+    pub actor: &'a UserId,
+    pub campaign: Option<&'a EvalCampaignId>,
+    pub operation: &'a str,
+    pub stage: DiagnosticStage,
+    pub code: DiagnosticCode,
+}
+
 impl CampaignRepository {
     pub async fn record_diagnostic(
         &self,
         owner: &UserId,
-        actor: &UserId,
-        campaign: Option<&EvalCampaignId>,
-        operation: &str,
-        stage: DiagnosticStage,
-        code: DiagnosticCode,
+        record: DiagnosticRecord<'_>,
     ) -> Result<String> {
+        let DiagnosticRecord {
+            actor,
+            campaign,
+            operation,
+            stage,
+            code,
+        } = record;
         if operation.is_empty() || operation.len() > 200 {
             return Err(crate::experiments::invalid(
                 "Diagnostic operation key must contain 1–200 bytes",

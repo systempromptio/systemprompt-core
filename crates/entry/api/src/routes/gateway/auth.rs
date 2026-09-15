@@ -19,8 +19,9 @@ use systemprompt_identifiers::{JwtToken, headers};
 use systemprompt_models::Config;
 use systemprompt_models::auth::BEARER_PREFIX;
 use systemprompt_oauth::services::{
-    BridgeAuthResult, BridgeOAuthClient, exchange_bridge_session_code, hash_exchange_code,
-    issue_bridge_access, provision_bridge_oauth_client,
+    BridgeAccessRequest, BridgeAuthResult, BridgeExchangeRequest, BridgeOAuthClient,
+    exchange_bridge_session_code, hash_exchange_code, issue_bridge_access,
+    provision_bridge_oauth_client,
 };
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{AnalyticsProvider, AppContext as _};
@@ -99,9 +100,7 @@ pub async fn pat(ctx: AppContext, request: Request) -> Result<Json<AuthResponse>
         ctx.session_provider()
             .ok_or_else(|| ApiHttpError::internal_error("Session provider unavailable"))?
             .as_ref(),
-        request.headers(),
-        caller_ip,
-        &record.user_id,
+        BridgeAccessRequest::bridge(request.headers(), caller_ip, &record.user_id),
     )
     .await?;
 
@@ -125,9 +124,11 @@ pub async fn session(
         ctx.session_provider()
             .ok_or_else(|| ApiHttpError::internal_error("Session provider unavailable"))?
             .as_ref(),
-        &headers,
-        caller_ip,
-        body.code.trim(),
+        BridgeExchangeRequest {
+            request_headers: &headers,
+            caller_ip: caller_ip,
+            code: body.code.trim(),
+        },
     )
     .await?
     .ok_or_else(|| {
@@ -244,9 +245,7 @@ pub async fn mtls(
         ctx.session_provider()
             .ok_or_else(|| ApiHttpError::internal_error("Session provider unavailable"))?
             .as_ref(),
-        &headers,
-        caller_ip,
-        &record.user_id,
+        BridgeAccessRequest::bridge(&headers, caller_ip, &record.user_id),
     )
     .await?;
 

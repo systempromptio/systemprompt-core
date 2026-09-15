@@ -51,7 +51,7 @@ impl FeedbackSnapshotsRepository {
         let mut metrics = SnapshotMetrics::default();
         let mut spend: BTreeMap<String, i128> = BTreeMap::new();
         let mut histogram = LatencyHistogram::default();
-        let mut suppressed = 0_i64;
+        let mut suppressed = 0i64;
         for row in rows {
             if row.suppressed {
                 suppressed += 1;

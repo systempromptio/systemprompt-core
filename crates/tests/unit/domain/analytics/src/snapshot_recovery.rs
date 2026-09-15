@@ -1,4 +1,5 @@
 use super::*;
+use systemprompt_analytics::feedback::DeltaClaim;
 
 #[tokio::test]
 async fn stale_delta_lease_is_fenced_and_restarted_worker_applies_once() {
@@ -11,14 +12,30 @@ async fn stale_delta_lease_is_fenced_and_restarted_worker_applies_once() {
     f.drain().await;
     let stale = f
         .repository
-        .claim_deltas(&f.owner, "snapshots-v1", &TaskId::generate(), 256, 300)
+        .claim_deltas(
+            &f.owner,
+            "snapshots-v1",
+            &TaskId::generate(),
+            DeltaClaim {
+                limit: 256,
+                lease_seconds: 300,
+            },
+        )
         .await
         .unwrap()
         .unwrap();
     sqlx::query!("UPDATE analytics_fact_consumers SET lease_until=clock_timestamp()-interval '1 second' WHERE owner_id=$1",f.owner.as_str()).execute(&f.pool).await.unwrap();
     let fresh = f
         .repository
-        .claim_deltas(&f.owner, "snapshots-v1", &TaskId::generate(), 256, 300)
+        .claim_deltas(
+            &f.owner,
+            "snapshots-v1",
+            &TaskId::generate(),
+            DeltaClaim {
+                limit: 256,
+                lease_seconds: 300,
+            },
+        )
         .await
         .unwrap()
         .unwrap();

@@ -13,7 +13,7 @@ use systemprompt_identifiers::SessionId;
 use systemprompt_models::Config;
 use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::config::RateLimitConfig;
-use systemprompt_oauth::services::issue_bridge_access;
+use systemprompt_oauth::services::{BridgeAccessRequest, issue_bridge_access};
 use systemprompt_security::keys::authority;
 
 fn oauth_repo(db: &systemprompt_database::DbPool) -> systemprompt_oauth::OAuthRepository {
@@ -114,9 +114,7 @@ async fn fresh_bridge_jwt_has_active_session_for_profile_discovery() {
         &oauth_repo(&db),
         &analytics,
         &*analytics.session_repo().owner(),
-        &exchange_request_headers(),
-        None,
-        &user_id,
+        BridgeAccessRequest::bridge(&exchange_request_headers(), None, &user_id),
     )
     .await
     .expect("mint bridge access");
@@ -158,9 +156,7 @@ async fn bridge_session_captures_request_analytics() {
         &oauth_repo(&db),
         &analytics,
         &*analytics.session_repo().owner(),
-        &exchange_request_headers(),
-        caller_ip,
-        &user_id,
+        BridgeAccessRequest::bridge(&exchange_request_headers(), caller_ip, &user_id),
     )
     .await
     .expect("mint bridge access");
@@ -207,9 +203,7 @@ async fn bridge_jwt_binds_supplied_session_id() {
         &oauth_repo(&db),
         &analytics,
         &*analytics.session_repo().owner(),
-        &exchange_headers_with_session(&supplied),
-        None,
-        &user_id,
+        BridgeAccessRequest::bridge(&exchange_headers_with_session(&supplied), None, &user_id),
     )
     .await
     .expect("mint bridge access");
@@ -255,9 +249,7 @@ async fn repeated_mint_with_same_session_id_is_idempotent() {
         &oauth_repo(&db),
         &analytics,
         &*analytics.session_repo().owner(),
-        &headers,
-        None,
-        &user_id,
+        BridgeAccessRequest::bridge(&headers, None, &user_id),
     )
     .await
     .expect("first mint");
@@ -265,9 +257,7 @@ async fn repeated_mint_with_same_session_id_is_idempotent() {
         &oauth_repo(&db),
         &analytics,
         &*analytics.session_repo().owner(),
-        &headers,
-        None,
-        &user_id,
+        BridgeAccessRequest::bridge(&headers, None, &user_id),
     )
     .await
     .expect("re-mint with the same session id must not fail");

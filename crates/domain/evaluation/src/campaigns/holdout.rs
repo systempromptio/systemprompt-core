@@ -26,16 +26,38 @@ pub struct HoldoutProposal {
     pub confirmed_at: Option<DateTime<Utc>>,
     pub experiment_id: Option<EvalExperimentId>,
 }
+/// A holdout proposal keyed by the development experiment it derives from.
+#[derive(Debug, Clone, Copy)]
+pub struct HoldoutProposalRequest<'a> {
+    pub campaign: &'a EvalCampaignId,
+    pub development: &'a EvalExperimentId,
+    pub key: &'a str,
+    pub spec: &'a ExperimentSpec,
+    pub counts: (i32, i32),
+}
+
+/// Confirms a proposal only when the caller has seen its exact spec digest.
+#[derive(Debug, Clone, Copy)]
+pub struct HoldoutConfirmation<'a> {
+    pub actor: &'a UserId,
+    pub campaign: &'a EvalCampaignId,
+    pub id: &'a str,
+    pub digest: &'a str,
+}
+
 impl CampaignRepository {
     pub async fn propose_holdout(
         &self,
         owner: &UserId,
-        campaign: &EvalCampaignId,
-        development: &EvalExperimentId,
-        key: &str,
-        spec: &ExperimentSpec,
-        counts: (i32, i32),
+        request: HoldoutProposalRequest<'_>,
     ) -> Result<HoldoutProposal> {
+        let HoldoutProposalRequest {
+            campaign,
+            development,
+            key,
+            spec,
+            counts,
+        } = request;
         self.get(owner, campaign).await?;
         if key.trim().is_empty() || key.len() > 100 || counts.0 < 2 || counts.1 < 2 {
             return Err(invalid(
@@ -71,11 +93,14 @@ impl CampaignRepository {
     pub async fn confirm_holdout(
         &self,
         owner: &UserId,
-        actor: &UserId,
-        campaign: &EvalCampaignId,
-        id: &str,
-        digest: &str,
+        confirmation: HoldoutConfirmation<'_>,
     ) -> Result<HoldoutProposal> {
+        let HoldoutConfirmation {
+            actor,
+            campaign,
+            id,
+            digest,
+        } = confirmation;
         let updated=sqlx::query!("UPDATE eval_campaign_holdout_proposals SET confirmed_by=COALESCE(confirmed_by,$4),confirmed_at=COALESCE(confirmed_at,clock_timestamp()) WHERE owner_id=$1 AND campaign_id=$2 AND id=$3 AND spec_digest=$5 RETURNING id",owner.as_str(),campaign.as_str(),id,actor.as_str(),digest).fetch_optional(&self.pool).await?;
         if updated.is_none() {
             return Err(conflict(

@@ -82,10 +82,16 @@ const REVIEWED: &[EmbeddedNativeProof] = &[];
 static MANIFESTS: LazyLock<Vec<NativeProofManifest>> = LazyLock::new(|| {
     REVIEWED
         .iter()
-        .map(|proof| {
-            proof
-                .validate()
-                .expect("Invalid embedded native acceptance provenance")
+        .filter_map(|proof| match proof.validate() {
+            Ok(manifest) => Some(manifest),
+            Err(error) => {
+                tracing::error!(
+                    error = %error,
+                    manifest_sha256 = proof.manifest_sha256,
+                    "Embedded native acceptance proof rejected; it is not a verified target"
+                );
+                None
+            },
         })
         .collect()
 });
@@ -202,17 +208,16 @@ impl<'a> ImmutableImage<'a> {
             if digest(hash) {
                 return Ok(Self::LocalConfig(hash));
             }
-        } else if let Some((repository, hash)) = value.rsplit_once("@sha256:") {
-            if !repository.is_empty()
-                && repository.len() <= 255
-                && !repository.starts_with('-')
-                && repository
-                    .bytes()
-                    .all(|byte| byte.is_ascii_alphanumeric() || b"._-/:".contains(&byte))
-                && digest(hash)
-            {
-                return Ok(Self::RepositoryManifest(hash));
-            }
+        } else if let Some((repository, hash)) = value.rsplit_once("@sha256:")
+            && !repository.is_empty()
+            && repository.len() <= 255
+            && !repository.starts_with('-')
+            && repository
+                .bytes()
+                .all(|byte| byte.is_ascii_alphanumeric() || b"._-/:".contains(&byte))
+            && digest(hash)
+        {
+            return Ok(Self::RepositoryManifest(hash));
         }
         Err(invalid(
             "Expected exact local image config ID or repository manifest digest",

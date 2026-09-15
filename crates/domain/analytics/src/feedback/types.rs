@@ -85,6 +85,13 @@ pub struct BackfillPage {
     pub changes: Vec<systemprompt_models::feedback::analytics::AnalyticsChange>,
 }
 
+/// How much delta work one consumer worker claims and for how long.
+#[derive(Debug, Clone, Copy)]
+pub struct DeltaClaim {
+    pub limit: u32,
+    pub lease_seconds: u32,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeltaLease {
     pub consumer: String,

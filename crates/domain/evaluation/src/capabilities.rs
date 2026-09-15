@@ -118,8 +118,8 @@ impl VerifiedNativeTarget {
         self.validate().is_ok()
             && self.client == variant.client
             && self.client_version == variant.client_version
-            && self.image_digest == variant.worker_image_digest
             && self.supports_platform(platform, architecture)
+            && self.image_digest == variant.worker_image_digest
     }
 }
 

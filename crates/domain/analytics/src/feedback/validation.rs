@@ -4,13 +4,13 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::{AnalyticsError, Result};
-use chrono::Datelike;
+use chrono::{DateTime, Datelike, Utc};
 use systemprompt_models::feedback::analytics::{
-    AnalyticsChange, AnalyticsChangeOperation, AnalyticsFactKind, NormalizedAnalyticsFact,
-    RecordedSpend,
+    AnalyticsChange, AnalyticsChangeOperation, AnalyticsFactKey, AnalyticsFactKind,
+    NormalizedAnalyticsFact, RecordedSpend,
 };
 
-pub(super) fn kind(value: AnalyticsFactKind) -> &'static str {
+pub(super) const fn kind(value: AnalyticsFactKind) -> &'static str {
     match value {
         AnalyticsFactKind::Invocation => "invocation",
         AnalyticsFactKind::Request => "request",
@@ -36,62 +36,7 @@ pub(super) fn validate(change: &AnalyticsChange) -> Result<()> {
     let AnalyticsChangeOperation::Replace { fact } = &change.operation else {
         return Ok(());
     };
-    let occurred_at = match fact {
-        NormalizedAnalyticsFact::Invocation(value) => {
-            if value.invocation_id.as_str() != change.key.id.as_str() {
-                return Err(invalid());
-            }
-            bounded(value.latency_micros)?;
-            value.occurred_at
-        },
-        NormalizedAnalyticsFact::Request(value) => {
-            if value.request_key != change.key {
-                return Err(invalid());
-            }
-            bounded(value.input_tokens)?;
-            bounded(value.output_tokens)?;
-            bounded(value.latency_micros)?;
-            if let RecordedSpend::Known {
-                currency,
-                amount_micros,
-            } = &value.spend
-            {
-                if currency.len() != 3 || !currency.bytes().all(|byte| byte.is_ascii_uppercase()) {
-                    return Err(invalid());
-                }
-                bounded(Some(*amount_micros))?;
-            }
-            value.occurred_at
-        },
-        NormalizedAnalyticsFact::Assessment(value) => {
-            if value.conversation_key.id.as_str().is_empty()
-                || value.conversation_key.id.as_str().len() > 512
-                || value.conversation_key.source.is_empty()
-                || value.conversation_key.source.len() > 128
-                || value.conversation_key.source.chars().any(char::is_control)
-            {
-                return Err(invalid());
-            }
-            reference(&value.invocation_key)?;
-            if value.assessment_key != change.key
-                || value.invocation_key.kind != AnalyticsFactKind::Invocation
-            {
-                return Err(invalid());
-            }
-            value.occurred_at
-        },
-        NormalizedAnalyticsFact::ResourceAssociation(value) => {
-            reference(&value.invocation_key)?;
-            reference(&value.request_key)?;
-            if value.association_key != change.key
-                || value.invocation_key.kind != AnalyticsFactKind::Invocation
-                || value.request_key.kind != AnalyticsFactKind::Request
-            {
-                return Err(invalid());
-            }
-            value.occurred_at
-        },
-    };
+    let occurred_at = fact_occurred_at(fact, &change.key)?;
     if occurred_at != change.occurred_at {
         return Err(invalid());
     }
@@ -139,4 +84,66 @@ pub(super) fn parse_state(value: &str) -> Result<super::FactChangeState> {
         "superseded" => Ok(FactChangeState::Superseded),
         _ => Err(invalid()),
     }
+}
+
+fn fact_occurred_at(
+    fact: &NormalizedAnalyticsFact,
+    key: &AnalyticsFactKey,
+) -> Result<DateTime<Utc>> {
+    Ok(match fact {
+        NormalizedAnalyticsFact::Invocation(value) => {
+            if value.invocation_id.as_str() != key.id.as_str() {
+                return Err(invalid());
+            }
+            bounded(value.latency_micros)?;
+            value.occurred_at
+        },
+        NormalizedAnalyticsFact::Request(value) => {
+            if value.request_key != *key {
+                return Err(invalid());
+            }
+            bounded(value.input_tokens)?;
+            bounded(value.output_tokens)?;
+            bounded(value.latency_micros)?;
+            if let RecordedSpend::Known {
+                currency,
+                amount_micros,
+            } = &value.spend
+            {
+                if currency.len() != 3 || !currency.bytes().all(|byte| byte.is_ascii_uppercase()) {
+                    return Err(invalid());
+                }
+                bounded(Some(*amount_micros))?;
+            }
+            value.occurred_at
+        },
+        NormalizedAnalyticsFact::Assessment(value) => {
+            if value.conversation_key.id.as_str().is_empty()
+                || value.conversation_key.id.as_str().len() > 512
+                || value.conversation_key.source.is_empty()
+                || value.conversation_key.source.len() > 128
+                || value.conversation_key.source.chars().any(char::is_control)
+            {
+                return Err(invalid());
+            }
+            reference(&value.invocation_key)?;
+            if value.assessment_key != *key
+                || value.invocation_key.kind != AnalyticsFactKind::Invocation
+            {
+                return Err(invalid());
+            }
+            value.occurred_at
+        },
+        NormalizedAnalyticsFact::ResourceAssociation(value) => {
+            reference(&value.invocation_key)?;
+            reference(&value.request_key)?;
+            if value.association_key != *key
+                || value.invocation_key.kind != AnalyticsFactKind::Invocation
+                || value.request_key.kind != AnalyticsFactKind::Request
+            {
+                return Err(invalid());
+            }
+            value.occurred_at
+        },
+    })
 }

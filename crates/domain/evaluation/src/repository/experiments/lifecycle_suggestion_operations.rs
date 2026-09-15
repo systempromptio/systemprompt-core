@@ -18,7 +18,7 @@ impl EvaluationLifecycleRepository {
             || request.operation_key.len() > 200
             || request.supporting_execution_ids.is_empty()
             || request.supporting_execution_ids.len() > 1000
-            || serde_jcs::to_vec(request)?.len() > 262144
+            || serde_jcs::to_vec(request)?.len() > 262_144
         {
             return Err(invalid(
                 "Suggestion requires bounded evidence, hypothesis and operation key",

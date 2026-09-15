@@ -66,11 +66,13 @@ impl CampaignRepository {
         if let Err(error) = &result {
             self.record_diagnostic(
                 owner,
-                actor,
-                None,
-                &format!("setup:{}", content_digest(&key)?),
-                super::diagnostics::DiagnosticStage::Setup,
-                super::diagnostics::DiagnosticCode::from_error(error),
+                super::diagnostics::DiagnosticRecord {
+                    actor,
+                    campaign: None,
+                    operation: &format!("setup:{}", content_digest(&key)?),
+                    stage: super::diagnostics::DiagnosticStage::Setup,
+                    code: super::diagnostics::DiagnosticCode::from_error(error),
+                },
             )
             .await?;
         }

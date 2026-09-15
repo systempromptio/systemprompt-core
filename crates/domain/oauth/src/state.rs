@@ -24,6 +24,7 @@ impl std::fmt::Debug for OAuthState {
         f.debug_struct("OAuthState")
             .field("oauth_repository", &"OAuthRepository")
             .field("analytics_provider", &"<provider>")
+            .field("session_provider", &"<provider>")
             .field("user_provider", &"<provider>")
             .field(
                 "fingerprint_provider",

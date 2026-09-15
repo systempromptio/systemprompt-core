@@ -53,7 +53,7 @@ impl SnapshotCursor {
         Ok(Self { definition })
     }
 
-    pub fn definition(&self) -> &'static SourceDefinition {
+    pub const fn definition(&self) -> &'static SourceDefinition {
         self.definition
     }
 

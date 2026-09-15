@@ -4,8 +4,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use super::daily::FactReference;
 use super::{FeedbackSnapshotsRepository, invalid};
-use crate::feedback::{DeltaLease, FeedbackFactsRepository};
+use crate::feedback::{DeltaClaim, DeltaLease, FeedbackFactsRepository};
 use chrono::{DateTime, Utc};
 use std::collections::BTreeSet;
 use systemprompt_identifiers::{TaskId, UserId};
@@ -19,7 +20,15 @@ impl FeedbackSnapshotsRepository {
     ) -> crate::Result<u64> {
         let Some(lease) = self
             .facts
-            .claim_deltas(owner, "snapshots-v1", worker, 256, 300)
+            .claim_deltas(
+                owner,
+                "snapshots-v1",
+                worker,
+                DeltaClaim {
+                    limit: 256,
+                    lease_seconds: 300,
+                },
+            )
             .await?
         else {
             return Ok(0);
@@ -80,10 +89,12 @@ impl FeedbackSnapshotsRepository {
                     Self::affected_days(
                         &mut tx,
                         owner,
-                        &row.fact_kind,
-                        &row.source,
-                        &row.fact_id,
-                        fact,
+                        &FactReference {
+                            kind: &row.fact_kind,
+                            source: &row.source,
+                            id: &row.fact_id,
+                            fact: fact.as_ref(),
+                        },
                     )
                     .await?,
                 );
@@ -110,10 +121,12 @@ impl FeedbackSnapshotsRepository {
                 Self::affected_days(
                     &mut tx,
                     owner,
-                    &row.fact_kind,
-                    &row.source,
-                    &row.fact_id,
-                    &row.after_fact,
+                    &FactReference {
+                        kind: &row.fact_kind,
+                        source: &row.source,
+                        id: &row.fact_id,
+                        fact: row.after_fact.as_ref(),
+                    },
                 )
                 .await?,
             );

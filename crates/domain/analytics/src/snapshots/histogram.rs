@@ -56,13 +56,13 @@ impl LatencyHistogram {
         let count = self
             .buckets
             .values()
-            .try_fold(0_i64, |sum, value| sum.checked_add(*value))
+            .try_fold(0i64, |sum, value| sum.checked_add(*value))
             .ok_or_else(|| super::invalid("Histogram overflow"))?;
         if count == 0 {
             return Ok(None);
         }
         let target = (i128::from(count) * i128::from(percentile) + 99) / 100;
-        let mut running = 0_i128;
+        let mut running = 0i128;
         for (bucket, count) in &self.buckets {
             if *count < 0 || *bucket > 64 {
                 return Err(super::invalid("Invalid histogram"));
@@ -72,8 +72,7 @@ impl LatencyHistogram {
                 return Ok(Some(if *bucket == 0 {
                     0
                 } else {
-                    1_u64
-                        .checked_shl(*bucket)
+                    1u64.checked_shl(*bucket)
                         .map_or(u64::MAX, |value| value - 1)
                 }));
             }

@@ -152,8 +152,8 @@ fn pair_measurements(
     if expected_cases.is_empty() || expected_cases.len() > 100 || !(1..=10).contains(&repetitions) {
         return Err(conflict("Invalid frozen execution matrix bounds"));
     }
-    let repetitions =
-        i32::try_from(repetitions).map_err(|_| conflict("Invalid repetition count"))?;
+    let repetitions = i32::try_from(repetitions)
+        .map_err(|error| conflict(&format!("Invalid repetition count: {error}")))?;
     let mut pairs: BTreeMap<(EvalRevisionId, i32), [Option<Outcome>; 2]> = expected_cases
         .iter()
         .flat_map(|case| {

@@ -7,6 +7,17 @@ use super::FeedbackSnapshotsRepository;
 use chrono::NaiveDate;
 use systemprompt_identifiers::UserId;
 
+/// A normalized fact by key plus its retained payload, used to find the days
+/// whose daily snapshot the fact touches.
+#[derive(Debug, Clone, Copy)]
+pub(super) struct FactReference<'a> {
+    pub kind: &'a str,
+    pub source: &'a str,
+    pub id: &'a str,
+    // JSON: retained fact payload; the query reads its keys with jsonb operators.
+    pub fact: Option<&'a serde_json::Value>,
+}
+
 impl FeedbackSnapshotsRepository {
     pub(super) async fn rebuild_days(
         tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
@@ -50,15 +61,18 @@ impl FeedbackSnapshotsRepository {
     pub(super) async fn affected_days(
         tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
         owner: &UserId,
-        kind: &str,
-        source: &str,
-        id: &str,
-        fact: &Option<serde_json::Value>,
+        fact: &FactReference<'_>,
     ) -> crate::Result<Vec<NaiveDate>> {
+        let FactReference {
+            kind,
+            source,
+            id,
+            fact,
+        } = *fact;
         Ok(sqlx::query_scalar!(r#"SELECT DISTINCT day AS "day!" FROM analytics_snapshot_dimensions d WHERE owner_id=$1 AND (
    (fact_kind=$2 AND source=$3 AND fact_id=$4) OR
    ($2='invocation' AND fact_kind='assessment' AND invocation_source=$3 AND invocation_id=$4) OR
    ($2='resource_association' AND fact_kind='request' AND source=$5::jsonb->'value'->'request_key'->>'source' AND fact_id=$5::jsonb->'value'->'request_key'->>'id') OR
-   ($2='assessment' AND fact_kind='assessment' AND conversation_source=$5::jsonb->'value'->'conversation_key'->>'source' AND conversation_id=$5::jsonb->'value'->'conversation_key'->>'id'))"#,owner.as_str(),kind,source,id,fact.as_ref()).fetch_all(&mut **tx).await?)
+   ($2='assessment' AND fact_kind='assessment' AND conversation_source=$5::jsonb->'value'->'conversation_key'->>'source' AND conversation_id=$5::jsonb->'value'->'conversation_key'->>'id'))"#,owner.as_str(),kind,source,id,fact).fetch_all(&mut **tx).await?)
     }
 }

@@ -10,8 +10,8 @@ use systemprompt_models::Config;
 use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::config::RateLimitConfig;
 use systemprompt_oauth::services::{
-    exchange_bridge_session_code, hash_exchange_code, issue_bridge_exchange_code,
-    provision_bridge_oauth_client,
+    BridgeExchangeRequest, exchange_bridge_session_code, hash_exchange_code,
+    issue_bridge_exchange_code, provision_bridge_oauth_client,
 };
 use systemprompt_security::keys::authority;
 
@@ -101,9 +101,11 @@ async fn exchange_code_issued_and_consumed_once() {
         &oauth_repo(&db),
         &analytics,
         &*analytics.session_repo().owner(),
-        &headers,
-        None,
-        &issued.code,
+        BridgeExchangeRequest {
+            request_headers: &headers,
+            caller_ip: None,
+            code: &issued.code,
+        },
     )
     .await
     .expect("consume code");
@@ -116,9 +118,11 @@ async fn exchange_code_issued_and_consumed_once() {
         &oauth_repo(&db),
         &analytics,
         &*analytics.session_repo().owner(),
-        &headers,
-        None,
-        &issued.code,
+        BridgeExchangeRequest {
+            request_headers: &headers,
+            caller_ip: None,
+            code: &issued.code,
+        },
     )
     .await
     .expect("replay returns None, not Err");
@@ -139,9 +143,11 @@ async fn exchange_unknown_code_returns_none() {
         &oauth_repo(&db),
         &analytics,
         &*analytics.session_repo().owner(),
-        &headers,
-        None,
-        "deadbeef",
+        BridgeExchangeRequest {
+            request_headers: &headers,
+            caller_ip: None,
+            code: "deadbeef",
+        },
     )
     .await
     .expect("not an error");

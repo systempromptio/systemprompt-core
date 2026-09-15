@@ -131,7 +131,7 @@ pub enum NormalizedAnalyticsFact {
 }
 
 impl NormalizedAnalyticsFact {
-    pub fn kind(&self) -> AnalyticsFactKind {
+    pub const fn kind(&self) -> AnalyticsFactKind {
         match self {
             Self::Invocation(_) => AnalyticsFactKind::Invocation,
             Self::Request(_) => AnalyticsFactKind::Request,
@@ -143,6 +143,10 @@ impl NormalizedAnalyticsFact {
 
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(tag = "operation", rename_all = "snake_case")]
+#[expect(
+    clippy::large_enum_variant,
+    reason = "wire contract: a tombstone carries nothing by definition and the fact is matched by value"
+)]
 pub enum AnalyticsChangeOperation {
     Replace { fact: NormalizedAnalyticsFact },
     Tombstone,
@@ -164,10 +168,10 @@ impl AnalyticsChange {
         if self.revision == 0 || self.key.source.is_empty() || self.key.source.len() > 128 {
             return Err(super::FeedbackContractError::Bounds);
         }
-        if let AnalyticsChangeOperation::Replace { fact } = &self.operation {
-            if fact.kind() != self.key.kind {
-                return Err(super::FeedbackContractError::IncompleteManifest);
-            }
+        if let AnalyticsChangeOperation::Replace { fact } = &self.operation
+            && fact.kind() != self.key.kind
+        {
+            return Err(super::FeedbackContractError::IncompleteManifest);
         }
         Ok(())
     }

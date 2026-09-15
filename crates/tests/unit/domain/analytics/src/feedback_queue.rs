@@ -1,4 +1,5 @@
 use super::*;
+use systemprompt_analytics::feedback::DeltaClaim;
 
 #[tokio::test]
 async fn concurrent_workers_claim_disjoint_rows_and_stale_worker_cannot_complete() {
@@ -114,7 +115,15 @@ async fn replacement_deltas_and_checkpoint_rollback_are_restart_safe() {
     f.drain().await;
     let lease = f
         .repository
-        .claim_deltas(&f.owner, "snapshot-v1", &TaskId::generate(), 64, 1)
+        .claim_deltas(
+            &f.owner,
+            "snapshot-v1",
+            &TaskId::generate(),
+            DeltaClaim {
+                limit: 64,
+                lease_seconds: 1,
+            },
+        )
         .await
         .expect("claim")
         .expect("batch");
@@ -134,7 +143,15 @@ async fn replacement_deltas_and_checkpoint_rollback_are_restart_safe() {
     tokio::time::sleep(std::time::Duration::from_millis(1100)).await;
     let replacement = f
         .repository
-        .claim_deltas(&f.owner, "snapshot-v1", &TaskId::generate(), 64, 60)
+        .claim_deltas(
+            &f.owner,
+            "snapshot-v1",
+            &TaskId::generate(),
+            DeltaClaim {
+                limit: 64,
+                lease_seconds: 60,
+            },
+        )
         .await
         .expect("reclaim")
         .expect("batch");
@@ -152,7 +169,15 @@ async fn replacement_deltas_and_checkpoint_rollback_are_restart_safe() {
     tx.commit().await.expect("commit");
     assert!(
         f.repository
-            .claim_deltas(&f.owner, "snapshot-v1", &TaskId::generate(), 64, 60)
+            .claim_deltas(
+                &f.owner,
+                "snapshot-v1",
+                &TaskId::generate(),
+                DeltaClaim {
+                    limit: 64,
+                    lease_seconds: 60
+                }
+            )
             .await
             .expect("empty")
             .is_none()

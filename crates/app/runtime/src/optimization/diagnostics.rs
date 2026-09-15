@@ -26,7 +26,16 @@ impl SkillOptimizationOrchestrator {
         );
         self.evaluations
             .campaigns
-            .record_diagnostic(owner, actor, Some(campaign), &operation, stage, code)
+            .record_diagnostic(
+                owner,
+                systemprompt_evaluation::campaigns::diagnostics::DiagnosticRecord {
+                    actor,
+                    campaign: Some(campaign),
+                    operation: &operation,
+                    stage,
+                    code,
+                },
+            )
             .await?;
         Ok(())
     }

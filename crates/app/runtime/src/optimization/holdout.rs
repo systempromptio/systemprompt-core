@@ -181,11 +181,13 @@ impl SkillOptimizationOrchestrator {
             .campaigns
             .propose_holdout(
                 owner,
-                campaign,
-                &input.development_experiment_id,
-                &input.idempotency_key,
-                &spec,
-                counts,
+                systemprompt_evaluation::campaigns::holdout::HoldoutProposalRequest {
+                    campaign,
+                    development: &input.development_experiment_id,
+                    key: &input.idempotency_key,
+                    spec: &spec,
+                    counts,
+                },
             )
             .await?;
         Ok(HoldoutReview {
@@ -238,7 +240,15 @@ impl SkillOptimizationOrchestrator {
         let proposal = self
             .evaluations
             .campaigns
-            .confirm_holdout(owner, actor, campaign, id, &input.spec_digest)
+            .confirm_holdout(
+                owner,
+                systemprompt_evaluation::campaigns::holdout::HoldoutConfirmation {
+                    actor,
+                    campaign,
+                    id,
+                    digest: &input.spec_digest,
+                },
+            )
             .await?;
         if proposal.experiment_id.is_some() {
             return Ok(proposal);
