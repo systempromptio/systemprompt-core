@@ -23,10 +23,7 @@ pub async fn rebuild(db: &DbPool) -> RuntimeResult<()> {
 async fn configure(db: &DbPool, force_rebuild: bool) -> RuntimeResult<()> {
     let pool = db.write_pool_arc()?;
     let mut transaction = pool.begin().await.map_err(AnalyticsError::from)?;
-    sqlx::query("SELECT public.lock_user_deletion_for_retention()")
-        .execute(&mut *transaction)
-        .await
-        .map_err(AnalyticsError::from)?;
+    projection::lock_user_deletion(&mut transaction).await?;
     SnapshotCursor::lock_sources(&mut transaction).await?;
     projection::lock_projector(&mut transaction).await?;
     if force_rebuild || !projection::is_initialized(&mut transaction).await? {

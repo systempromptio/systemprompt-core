@@ -24,7 +24,7 @@ allowlist=(
     # tables, key columns and the rebuild cursor over each owner's reporting
     # view are resolved at runtime and interpolated under AssertSqlSafe. Every
     # static statement in the module uses the compile-time macros.
-    '^crates/domain/analytics/src/projection/mod\.rs:'
+    '^crates/domain/analytics/src/projection/(mod|snapshot)\.rs:'
     '^crates/entry/cli/src/commands/admin/setup/'
     '^crates/entry/cli/src/commands/infrastructure/jobs/cleanup_logs\.rs:'
 )

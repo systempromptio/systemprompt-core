@@ -30,6 +30,13 @@ pub async fn lock_projector(connection: &mut PgConnection) -> Result<()> {
     Ok(())
 }
 
+pub async fn lock_user_deletion(connection: &mut PgConnection) -> Result<()> {
+    sqlx::query_scalar!(r#"SELECT public.lock_user_deletion_for_retention() AS "locked!""#)
+        .fetch_one(connection)
+        .await?;
+    Ok(())
+}
+
 pub async fn is_initialized(connection: &mut PgConnection) -> Result<bool> {
     Ok(sqlx::query_scalar!(
         r#"SELECT initialized AS "initialized!" FROM analytics_projection_state WHERE singleton"#

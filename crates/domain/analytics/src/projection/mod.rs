@@ -9,10 +9,15 @@ use sqlx::PgConnection;
 
 use crate::{AnalyticsError, Result};
 
+mod snapshot;
 mod sources;
 mod state;
+pub use snapshot::{SnapshotCursor, SnapshotRow};
 pub use sources::SOURCE_DEFINITIONS;
-pub use state::{ProjectionStatus, is_initialized, lock_projector, next_cutoff_revision, status};
+pub use state::{
+    ProjectionStatus, is_initialized, lock_projector, lock_user_deletion, next_cutoff_revision,
+    status,
+};
 
 pub const REPORTING_CONSUMER: &str = "analytics_reporting";
 pub const REPORTING_KIND: &str = "reporting.row";
@@ -251,67 +256,6 @@ impl ReportingProjector {
             .execute(connection)
             .await?;
         }
-        Ok(())
-    }
-}
-
-/// One owner-published reporting row read from a rebuild snapshot cursor.
-#[derive(Debug, sqlx::FromRow)]
-pub struct SnapshotRow {
-    pub entity_key: String,
-    // JSON: owner-published reporting views provide the versioned row payload.
-    pub row: Value,
-}
-
-/// Server-side cursor over one source's reporting view, held open for the
-/// rebuild transaction so the snapshot is read in bounded batches.
-#[derive(Debug, Clone, Copy)]
-pub struct SnapshotCursor {
-    definition: &'static SourceDefinition,
-}
-
-impl SnapshotCursor {
-    pub async fn lock_sources(connection: &mut PgConnection) -> Result<()> {
-        let tables = SOURCE_DEFINITIONS
-            .iter()
-            .map(|definition| definition.table)
-            .collect::<Vec<_>>()
-            .join(", ");
-        sqlx::query(sqlx::AssertSqlSafe(format!(
-            "LOCK TABLE {tables} IN SHARE MODE"
-        )))
-        .execute(connection)
-        .await?;
-        Ok(())
-    }
-
-    pub async fn open(
-        connection: &mut PgConnection,
-        definition: &'static SourceDefinition,
-    ) -> Result<Self> {
-        sqlx::query(sqlx::AssertSqlSafe(format!(
-            "DECLARE reporting_snapshot NO SCROLL CURSOR FOR SELECT entity_key, row FROM {}",
-            definition.view,
-        )))
-        .execute(connection)
-        .await?;
-        Ok(Self { definition })
-    }
-
-    pub fn definition(&self) -> &'static SourceDefinition {
-        self.definition
-    }
-
-    pub async fn fetch(&self, connection: &mut PgConnection) -> Result<Vec<SnapshotRow>> {
-        Ok(sqlx::query_as("FETCH FORWARD 1000 FROM reporting_snapshot")
-            .fetch_all(connection)
-            .await?)
-    }
-
-    pub async fn close(self, connection: &mut PgConnection) -> Result<()> {
-        sqlx::query("CLOSE reporting_snapshot")
-            .execute(connection)
-            .await?;
         Ok(())
     }
 }
