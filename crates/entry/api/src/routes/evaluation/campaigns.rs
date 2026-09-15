@@ -25,6 +25,7 @@ pub fn router() -> Router<AppContext> {
         .merge(super::operations::router())
         .merge(super::publications::router())
         .merge(super::campaign_completion::router())
+        .merge(super::lifecycle::router())
         .merge(super::snapshots::router())
         .merge(super::consumer::admin_router())
         .route("/campaigns", get(list).post(create))

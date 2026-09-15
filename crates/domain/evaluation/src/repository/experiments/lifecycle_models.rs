@@ -87,7 +87,7 @@ pub struct ExecutionAccounting {
     pub status: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct ExecutionApproval {
     pub id: EvalApprovalId,
     pub execution_id: EvalExecutionId,
@@ -108,7 +108,7 @@ pub enum ApprovalAuthorization {
     Pending(EvalApprovalId),
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct SuggestionRequest {
     pub experiment_id: EvalExperimentId,

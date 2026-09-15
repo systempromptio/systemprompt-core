@@ -48,3 +48,6 @@ mod feedback_stream;
 mod feedback_contracts;
 
 mod feedback_boundaries;
+
+#[cfg(test)]
+mod feedback_lifecycle;

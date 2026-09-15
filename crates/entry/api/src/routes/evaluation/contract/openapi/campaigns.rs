@@ -14,6 +14,12 @@ use systemprompt_identifiers::{EvalCampaignId, EvalExperimentId};
 use systemprompt_runtime::optimization::SourceAcceptance;
 use systemprompt_runtime::optimization::holdout::{ConfirmHoldout, HoldoutReview, PrepareHoldout};
 pub(super) fn register(d: &mut Document) {
+    d.add::<systemprompt_evaluation::repository::experiments::SuggestionRequest,systemprompt_evaluation::campaigns::suggestions::RetainedSuggestion>("/evaluation-suggestions","post",201,false);
+    d.add::<(),systemprompt_evaluation::campaigns::suggestions::RetainedSuggestion>("/evaluation-suggestions/{id}","get",200,false);
+    d.add::<(),systemprompt_evaluation::repository::experiments::ExecutionApproval>("/evaluation-approvals/{id}","get",200,false);
+    d.add::<crate::routes::evaluation::lifecycle::DecideApproval,crate::routes::evaluation::operations::OperationResponse<systemprompt_evaluation::repository::experiments::ExecutionApproval>>("/evaluation-approvals/{id}/decisions","post",200,false);
+    d.idempotent("/evaluation-approvals/{id}/decisions");
+
     d.add::<systemprompt_marketplace::managed::PublicationRequest,systemprompt_marketplace::managed::PublicationDecision>("/publications","post",200,false);
     d.add::<(), Page<systemprompt_marketplace::managed::PublicationHistoryEntry>>(
         "/resources/{id}/publications",
