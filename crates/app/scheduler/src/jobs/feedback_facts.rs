@@ -1,4 +1,5 @@
-//! Restart-safe normalized analytics processing under the configured job owner.
+//! Restart-safe normalized analytics processing of the system admin's evidence
+//! queue.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -35,7 +36,7 @@ impl Job for FeedbackFactsJob {
             .ok_or_else(|| SchedulerError::missing_context("AppContext"))?;
         let service = FactsProcessingService::new(app.feedback_facts_repository().as_ref().clone());
         let processed = service
-            .drain(&ctx.actor().user_id, &AnalyticsWorkerId::generate(), 64)
+            .drain(app.system_admin().id(), &AnalyticsWorkerId::generate(), 64)
             .await
             .map_err(SchedulerError::from)?;
         Ok(JobResult::success().with_stats(

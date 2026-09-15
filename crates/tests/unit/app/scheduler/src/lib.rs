@@ -30,6 +30,8 @@ mod evaluator_container;
 #[cfg(test)]
 mod extended_jobs;
 #[cfg(test)]
+mod feedback_jobs_owner_db;
+#[cfg(test)]
 mod job_config;
 #[cfg(test)]
 mod job_execution_db;

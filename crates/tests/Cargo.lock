@@ -8877,6 +8877,7 @@ dependencies = [
  "serde_json",
  "sqlx",
  "systemprompt-ai",
+ "systemprompt-analytics",
  "systemprompt-database",
  "systemprompt-evaluation",
  "systemprompt-extension",

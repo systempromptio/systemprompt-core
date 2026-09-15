@@ -1,4 +1,8 @@
-//! Configured-owner aggregate processing and bounded custom-range jobs.
+//! System-admin aggregate processing and bounded custom-range jobs.
+//!
+//! Every snapshot table is keyed by the owner that the analytics routes read
+//! under — the system admin — so the job processes that queue whatever actor
+//! the schedule was configured with.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -11,9 +15,8 @@ use systemprompt_runtime::AppContext;
 use systemprompt_traits::{Job, JobContext, JobResult, JobScope, ProviderResult};
 
 #[derive(Debug, Clone, Copy)]
-/// Processes snapshots and range operations under the explicitly configured
-/// owner.
 pub struct FeedbackSnapshotsJob;
+
 #[async_trait]
 impl Job for FeedbackSnapshotsJob {
     fn name(&self) -> &'static str {
@@ -32,7 +35,7 @@ impl Job for FeedbackSnapshotsJob {
         let app = ctx
             .app_context::<Arc<AppContext>>()
             .ok_or_else(|| SchedulerError::missing_context("AppContext"))?;
-        let owner = &ctx.actor().user_id;
+        let owner = app.system_admin().id();
         let repository = app.feedback_snapshots_repository();
         let worker = AnalyticsWorkerId::generate();
         let now = chrono::Utc::now();
@@ -78,10 +81,13 @@ impl Job for FeedbackSnapshotsJob {
             else {
                 break;
             };
-            repository
-                .complete_range(owner, &lease, now)
-                .await
-                .map_err(SchedulerError::from)?;
+            if let Err(error) = repository.complete_range(owner, &lease, now).await {
+                tracing::warn!(
+                    %error,
+                    operation_id = %lease.operation_id,
+                    "Range snapshot job failed; lease left to expire"
+                );
+            }
         }
         Ok(JobResult::success().with_stats(processed, 0))
     }
