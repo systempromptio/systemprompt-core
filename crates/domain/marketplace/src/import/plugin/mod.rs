@@ -101,8 +101,8 @@ pub(super) fn import_plugin(
     let imported_hooks = hooks::import_plugin_hooks(id.as_str(), dir, sink)?;
     warnings.extend(imported_hooks.warnings);
 
-    scripts::copy_plugin_scripts(id.as_str(), dir, &sidecar.plugin.scripts, sink)?;
-    scripts::copy_node_package_files(id.as_str(), dir, sink)?;
+    scripts::copy_plugin_scripts(&id, dir, &sidecar.plugin.scripts, sink)?;
+    scripts::copy_node_package_files(&id, dir, sink)?;
 
     let config = PluginConfig {
         id: id.clone(),

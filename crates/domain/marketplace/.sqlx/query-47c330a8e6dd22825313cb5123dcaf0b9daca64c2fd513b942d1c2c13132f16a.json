@@ -1,11 +1,11 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id,evidence FROM managed_consumer_invocation_evidence WHERE consumer_id=$1 AND device_id=$2 AND host=$3 AND invocation_id=$4",
+  "query": "SELECT id AS \"id!: InvocationAttributionId\",evidence FROM managed_consumer_invocation_evidence WHERE consumer_id=$1 AND device_id=$2 AND host=$3 AND invocation_id=$4",
   "describe": {
     "columns": [
       {
         "ordinal": 0,
-        "name": "id",
+        "name": "id!: InvocationAttributionId",
         "type_info": "Text",
         "origin": {
           "Table": {
@@ -39,5 +39,5 @@
       false
     ]
   },
-  "hash": "7655547eb758becebce9b1b77318b718460bbf92a4870548b2e28e09d1faad77"
+  "hash": "47c330a8e6dd22825313cb5123dcaf0b9daca64c2fd513b942d1c2c13132f16a"
 }

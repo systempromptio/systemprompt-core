@@ -29,6 +29,7 @@
 - `managed::{RevisionBundle, RevisionManifest, FileEntry, DependencyRef, AssetDigest, AssetFile, RevisionFiles}` are re-exports of `systemprompt_models::managed`; `ManagedError` implements `From<RevisionBundleError>` so `?` on bundle verification keeps returning the same variants (`Invalid`, `Integrity`, `Unavailable`).
 - Organisation publications enforce consumer grants; delivery identity is fenced and reconciliation state retained; managed skills resolve for the requesting user; Git credentials are redacted in diagnostic request types; the fetched commit is resolved with `git rev-list --max-count=1 FETCH_HEAD`. Host aliases keep `codex-cli`/`codex` and `opencode`/`open-code` compatible; the retained resource owner supplies grant ownership.
 - The six-argument inventory, capture, verification and binding signatures are grouped behind `BaselineScope`, `GitCaptureRequest`, `GitTreeRead` and `GitSourceBinding`; `catalog/content.rs` is `catalog/content/mod.rs` with `managed.rs` beside it; `managed/assets.rs` and `managed/manifest.rs` are gone (the types live in `systemprompt_models::managed`).
+- Plugin script import and consumer attribution correction take `PluginId` / `InvocationAttributionId` instead of raw strings.
 
 ### Fixed
 
