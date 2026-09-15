@@ -2,7 +2,7 @@
 //! budgets.
 use super::optimization_fixture::{Fixture, resource};
 use systemprompt_evaluation::campaigns::diagnostics::{DiagnosticCode, DiagnosticStage};
-use systemprompt_evaluation::campaigns::repository::CampaignAction;
+use systemprompt_evaluation::campaigns::repository::{CampaignAction, CampaignTransition};
 use systemprompt_evaluation::repository::experiments::CampaignExperiment;
 use systemprompt_runtime::optimization::SkillOptimizationOrchestrator;
 
@@ -210,7 +210,10 @@ async fn automatic_missing_template_survives_restart_and_paused_campaign_does_no
             &f.owner,
             &f.owner,
             &f.campaign,
-            (campaign.generation, CampaignAction::Pause),
+            CampaignTransition {
+                expected_generation: campaign.generation,
+                action: CampaignAction::Pause,
+            },
         )
         .await
         .unwrap();

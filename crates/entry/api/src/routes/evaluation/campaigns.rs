@@ -10,7 +10,9 @@ use axum::routing::{get, post};
 use axum::{Extension, Json, Router};
 use serde::{Deserialize, Serialize};
 use systemprompt_evaluation::campaigns::CampaignPolicy;
-use systemprompt_evaluation::campaigns::repository::{CampaignAction, CampaignRecord};
+use systemprompt_evaluation::campaigns::repository::{
+    CampaignAction, CampaignRecord, CampaignTransition,
+};
 use systemprompt_identifiers::{EvalCampaignId, EvalExperimentId};
 use systemprompt_models::RequestContext;
 use systemprompt_runtime::AppContext;
@@ -165,7 +167,10 @@ async fn transition(
             ctx.system_admin().id(),
             actor.user_id(),
             &id,
-            (input.expected_generation, input.action),
+            CampaignTransition {
+                expected_generation: input.expected_generation,
+                action: input.action,
+            },
         )
         .await?;
     Ok(StatusCode::NO_CONTENT)

@@ -21,6 +21,7 @@
 - The cross-replica event bridge always starts (the write pool is no longer optional); request guards deny with `503` when the pool is closed.
 - Manifest and plugin-file routes read the catalogue and bundles through the context-owned `MarketplaceCache`; the manifest's `issued_at` / `not_before` / `min_bridge_version` are typed.
 - The gateway's evaluation repositories read request usage and session liveness through the shared-layer seams.
+- `POST /api/v1/campaigns/{id}/transitions` forwards a typed `CampaignTransition`; campaign, approval and comparison responses serialise the typed statuses (wire form unchanged).
 - The gateway route group (`/v1/*`) is rate-limited by `rate_limits.gateway_per_second`, keyed by identity or client IP like every other group.
 - `POST /v1/otel` and `/v1/otel/{rest}` require a gateway credential (bridge JWT, API key or execution capability) and an attested `x-session-id`; an anonymous OTLP write answers 401 instead of being stored. `otel::handle` takes the JWT extractor, `AppContext` and `GatewayRepositories`; the credential-free decode path is `otel::ingest_envelope`.
 - An MCP request carrying an invalid, revoked or orphaned bearer is refused with 401; only a request with no `Authorization` header falls through to the session context for the RFC 9728 challenge.
