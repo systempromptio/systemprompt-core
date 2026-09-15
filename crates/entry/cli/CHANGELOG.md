@@ -13,7 +13,7 @@
 - `admin config rate-limits` reads, sets, diffs, resets and validates `gateway_per_second`.
 - `runner::profile_routing::{BootstrapOutcome, RoutingDecision, decide_routing}` expose the routing decision the runner acts on.
 - `analytics projection status|sync --limit <n>|rebuild`; every other `analytics` report command refuses an uninitialised reporting baseline with a rebuild instruction instead of returning empty reports.
-- `infra logs request list --until <time>` / `--before <cursor>` (keyset on `(created_at, id)`; each JSON row carries `cursor`); `infra logs audit` is counts-only by default with `--messages` / `--tools`, `--offset` / `--limit` and `--max-content <chars>`; `analytics costs breakdown --by user`, `analytics requests list --user <id> --offset <n>`, `analytics conversations list --source agent|gateway|all --user <id>`.
+- `infra logs request list --until <time>` / `--before <cursor>` (keyset on `(created_at, id)`; each JSON row carries `cursor`); `infra logs audit` is counts-only by default with `--messages` / `--tools`, `--offset` / `--limit` and `--max-content <chars>`; `analytics costs breakdown --by user`, `analytics requests list --user <id> --offset <n>`, `analytics conversations list --source agent|gateway|all --user <id>`. A malformed `--before` cursor is a usage error naming the reason; a negative `infra logs audit --offset` / `--limit`, a non-positive `analytics conversations list --limit` and a negative `analytics requests list --offset` are refused at parse time.
 
 ### Changed
 
@@ -37,7 +37,7 @@
 - A command routed to a remote tenant runs exactly once; the runner no longer dispatches it a second time locally after the remote run succeeds.
 - `admin config catalog|gateway` leave `services/config/config.yaml` untouched and report the error when the file cannot be read (permissions, a directory, invalid UTF-8) instead of overwriting it with a bare `includes:` block.
 - `admin agents run` drains pending streaming audit writes after the A2A server stops.
-- `--json` / `--yaml` (and `SYSTEMPROMPT_OUTPUT_FORMAT`) emit the artifact for a command whose result was flagged terminal-skip — every empty-result path — instead of printing nothing; `skip_render` suppresses terminal rendering only.
+- `--json` / `--yaml` (and `SYSTEMPROMPT_OUTPUT_FORMAT`) emit the artifact for a command whose result was flagged terminal-skip — every empty-result path — instead of printing nothing; `skip_render` suppresses terminal rendering only. `admin config validate --schema`, `admin session login --token-only` and `admin keys issue --token-only` return their payload as the text artifact, so `--json` carries one document and the terminal output is unchanged.
 
 
 ## [0.52.0] - 2026-09-14

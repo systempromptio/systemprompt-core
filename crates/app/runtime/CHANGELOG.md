@@ -23,6 +23,7 @@
 - `AppContext::feedback_facts_repository()` and `feedback_snapshots_repository()`; the repository accessors live in `context::repositories`; `AppContext::analytics_repositories()` is built with the users session store, the logging event store and the content catalog stats.
 - `trace::RequestCursor` and `AiRequestFilter::{with_until, with_before}` for keyset paging of request logs; `TraceQueryService::{count_audit_messages, count_audit_tool_calls}` and `AuditPage` on the two audit list queries.
 - `optimization::EvaluationEvidence`: the facts an evaluation attestation commits to, with `digest()` hashing them as canonical JSON (RFC 8785) so field order never changes the attested digest.
+- `trace::RequestCursor` (`FromStr`; a malformed value is a `RequestCursorError`) and `AiRequestFilter::{with_until, with_before}` for keyset paging of request logs; `TraceQueryService::{count_audit_messages, count_audit_tool_calls}` and `AuditPage` on the two audit list queries.
 
 ### Changed
 

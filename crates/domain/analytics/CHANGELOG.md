@@ -20,7 +20,7 @@
 - Privacy coordination: `lock_user_deletion`, `next_cutoff_revision` and the `evidence_cutoff` on `analytics_projection_state`; the SQL functions installed by migrations 008–010 (`prepare_reporting_privacy`, `begin_user_privacy` counterparts) make a user deletion or merge wait for pending committed evidence and deliver it atomically before identity is removed.
 - `models::reporting` row types for the CLI report commands.
 - `FeedbackSnapshotsRepository::fail_range` records a lease-fenced terminal failure with its diagnostic.
-- `CostAnalyticsRepository::get_breakdown_by_user` (spend, requests, tokens and distinct conversations per user); `RequestListFilter` (`user`, `offset`); `ConversationAnalyticsRepository::list_gateway_sessions` beside `list_agent_contexts`, both filterable by user.
+- `CostAnalyticsRepository::get_breakdown_by_user` (spend, requests, tokens and distinct conversations per user); `RequestListFilter` (`user`, `offset`); `ConversationAnalyticsRepository::list_gateway_sessions` beside `list_agent_contexts`, both filterable by `Option<&UserId>`; `CostUserBreakdownRow::user_id` is a `UserId`.
 
 ### Changed
 
