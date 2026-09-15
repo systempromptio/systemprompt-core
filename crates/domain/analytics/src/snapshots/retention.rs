@@ -88,6 +88,12 @@ impl FeedbackSnapshotsRepository {
         .await?;
         Self::rebuild_days(tx, owner, &days, generation).await?;
         Self::refresh_in(tx, owner, &[], now).await?;
+        sqlx::query!(
+            "SELECT public.finish_reporting_privacy($1) AS processed",
+            now - chrono::Duration::days(90)
+        )
+        .fetch_one(&mut **tx)
+        .await?;
         Ok(RetentionOutcome {
             compacted_before: day,
             removed_facts: removed,
@@ -98,8 +104,8 @@ impl FeedbackSnapshotsRepository {
         tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
         owner: &UserId,
     ) -> crate::Result<()> {
-        sqlx::query!("SELECT public.lock_user_deletion_for_retention() AS locked")
-            .execute(&mut **tx)
+        sqlx::query!("SELECT public.prepare_reporting_privacy() AS locked")
+            .fetch_one(&mut **tx)
             .await?;
         sqlx::query!("LOCK TABLE analytics_ingestion_producers,analytics_fact_checkpoints,analytics_fact_backfills,analytics_fact_changes,analytics_fact_consumers,analytics_fact_deltas IN EXCLUSIVE MODE").execute(&mut **tx).await?;
         let producers=sqlx::query!("SELECT producer,pending_count FROM analytics_ingestion_producers ORDER BY producer FOR UPDATE").fetch_all(&mut **tx).await?;

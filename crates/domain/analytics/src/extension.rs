@@ -37,6 +37,7 @@ impl Extension for AnalyticsExtension {
                 include_str!("../schema/reporting.sql"),
             )
             .with_required_columns(vec!["generation".into(), "cutoff_revision".into()]),
+            SchemaDefinition::sql_only(include_str!("../schema/reporting_privacy.sql")),
             SchemaDefinition::new(
                 "engagement_events",
                 include_str!("../schema/engagement_events.sql"),

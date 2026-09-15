@@ -42,6 +42,7 @@ impl Extension for AgentExtension {
 
 fn conversation_schemas() -> Vec<SchemaDefinition> {
     vec![
+        SchemaDefinition::sql_only(include_str!("../schema/reporting_privacy.sql")),
         SchemaDefinition::new("user_contexts", include_str!("../schema/user_contexts.sql"))
             .with_required_columns(vec![
                 "context_id".into(),
