@@ -43,6 +43,7 @@ fn pubkey_derives_from_seed_not_jwt_secret() {
     let actual = match manifest_signing::pubkey_b64() {
         Ok(k) => k,
         Err(e) => {
+            // skip-ok: secrets bootstrap is process-global and another suite may own it
             eprintln!("skipping: secrets bootstrap unavailable in this env: {e}");
             return;
         },
@@ -60,6 +61,7 @@ fn pubkey_stable_across_jwt_secret_rotation() {
     let before = match manifest_signing::pubkey_b64() {
         Ok(k) => k,
         Err(e) => {
+            // skip-ok: secrets bootstrap is process-global and another suite may own it
             eprintln!("skipping: secrets bootstrap unavailable in this env: {e}");
             return;
         },
@@ -85,6 +87,7 @@ fn seed_accessor_returns_dedicated_value() {
     let seed = match SecretsBootstrap::manifest_signing_secret_seed() {
         Ok(s) => s,
         Err(e) => {
+            // skip-ok: secrets bootstrap is process-global and another suite may own it
             eprintln!("skipping: secrets bootstrap unavailable in this env: {e}");
             return;
         },

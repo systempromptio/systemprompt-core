@@ -328,6 +328,7 @@ mod ssrf_live_dns_tests {
 
     #[tokio::test]
     async fn ssrf_nip_io_name_for_the_metadata_address_is_refused() {
+        // skip-ok: needs outbound DNS (SP_SSRF_NET_TESTS=1)
         if !gated() {
             return;
         }
@@ -345,6 +346,7 @@ mod ssrf_live_dns_tests {
 
     #[tokio::test]
     async fn ssrf_gcp_metadata_hostname_is_refused_or_unresolvable() {
+        // skip-ok: needs outbound DNS (SP_SSRF_NET_TESTS=1)
         if !gated() {
             return;
         }
