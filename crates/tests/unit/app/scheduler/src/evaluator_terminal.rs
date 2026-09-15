@@ -521,3 +521,6 @@ async fn stale_cleanup_fence_never_executes_resource_removal() {
     assert!(f.root.path().join("workspace").exists());
     f.cleanup_rows().await;
 }
+
+#[path = "evaluator_terminal_acceptance.rs"]
+mod acceptance;

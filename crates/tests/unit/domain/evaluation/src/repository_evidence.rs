@@ -253,7 +253,7 @@ fn evidence_for(lease: &ExecutionLease, elapsed: u64) -> ExecutionEvidence {
         capabilities: capabilities(),
         installed_bundle_digest: BUNDLE_DIGEST.to_owned(),
         candidate_bundle_digest: BUNDLE_DIGEST.to_owned(),
-        workspace_digest: workspace(&[]).digest().expect("digest"),
+        workspace_digest: "b".repeat(64),
         requests: Vec::new(),
         artifacts: Vec::new(),
         exit_code: Some(0),
@@ -364,7 +364,6 @@ async fn submitted_evidence_is_readable_and_immutable() {
     };
     let mut evidence = evidence_for(&f.lease, 1_200);
     evidence.artifacts = vec![manifest];
-    evidence.workspace_digest = artifacts.digest().expect("digest");
 
     f.evidence
         .submit(&f.owner, &f.lease, &evidence, &artifacts)

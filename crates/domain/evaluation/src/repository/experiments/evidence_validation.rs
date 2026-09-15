@@ -64,7 +64,8 @@ pub(super) fn validate_artifacts(
 }
 
 pub(super) fn validate_variant(evidence: &ExecutionEvidence, variant: &VariantSpec) -> Result<()> {
-    if evidence.candidate_bundle_digest != variant.skill_bundle_digest
+    if evidence.workspace_digest != variant.configuration_digest
+        || evidence.candidate_bundle_digest != variant.skill_bundle_digest
         || evidence.installed_bundle_digest != variant.skill_bundle_digest
         || evidence.capabilities.image_digest != variant.worker_image_digest
         || evidence.capabilities.client != variant.client
