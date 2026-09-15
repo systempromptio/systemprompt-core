@@ -23,12 +23,6 @@ impl EvaluatorSupervisor {
             .list_request_ids(&run.worker.owner_id, &run.record.id)
             .await
             .map_err(internal)?;
-        let references = outcome
-            .artifacts
-            .keys()
-            .cloned()
-            .chain(retained.iter().map(|request| request.as_str().to_owned()))
-            .collect::<BTreeSet<_>>();
         let deterministic = verification::evaluate(VerificationInput {
             case: &run.case,
             evidence: &EvidenceArchive {
@@ -37,24 +31,8 @@ impl EvaluatorSupervisor {
         });
         let failed = !deterministic.hard_failures.is_empty()
             || deterministic.checks.values().any(|passed| !passed)
-            || !semantic_passed(run, outcome, &references);
-        let suggestion_limit = run
-            .assignment
-            .spec
-            .frozen
-            .as_ref()
-            .map_or(0, |frozen| frozen.cost_envelope.suggestion_calls);
-        let allowed = outcome.status.success()
-            && outcome.native_completion == NativeCompletion::Completed
-            && failed
-            && suggestion_limit > 0
-            && self
-                .repositories
-                .lifecycle
-                .should_generate_suggestion(&run.worker.owner_id, &run.record.id, suggestion_limit)
-                .await
-                .map_err(internal)?;
-        if !allowed {
+            || !semantic_passed(run, outcome, &retained);
+        if !failed || !self.suggestion_allowed(run, outcome).await? {
             return Ok(());
         }
         self.repositories
@@ -99,6 +77,30 @@ impl EvaluatorSupervisor {
             },
         )
         .await
+    }
+
+    async fn suggestion_allowed(
+        &self,
+        run: &PreparedExecution,
+        outcome: &ExecutionOutcome,
+    ) -> SchedulerResult<bool> {
+        let suggestion_limit = run
+            .assignment
+            .spec
+            .frozen
+            .as_ref()
+            .map_or(0, |frozen| frozen.cost_envelope.suggestion_calls);
+        if !outcome.status.success()
+            || outcome.native_completion != NativeCompletion::Completed
+            || suggestion_limit == 0
+        {
+            return Ok(false);
+        }
+        self.repositories
+            .lifecycle
+            .should_generate_suggestion(&run.worker.owner_id, &run.record.id, suggestion_limit)
+            .await
+            .map_err(internal)
     }
 
     fn start_suggestion_client(
@@ -157,12 +159,18 @@ impl EvaluatorSupervisor {
 fn semantic_passed(
     run: &PreparedExecution,
     outcome: &ExecutionOutcome,
-    references: &BTreeSet<String>,
+    retained: &[systemprompt_identifiers::AiRequestId],
 ) -> bool {
     let Some(judgment) = outcome.judgment.as_ref() else {
         return false;
     };
-    match scoring::score(&run.rubric, judgment, references) {
+    let references = outcome
+        .artifacts
+        .keys()
+        .cloned()
+        .chain(retained.iter().map(|request| request.as_str().to_owned()))
+        .collect::<BTreeSet<_>>();
+    match scoring::score(&run.rubric, judgment, &references) {
         Ok(score) => score.passed,
         Err(error) => {
             tracing::warn!(

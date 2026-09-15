@@ -4,6 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::{Path, SchedulerError, SchedulerResult, internal};
+use std::io::Read;
 
 pub(super) fn visit_workspace(
     root: &Path,
@@ -66,8 +67,7 @@ fn visit_workspace_bounded(
             };
             #[cfg(not(unix))]
             let executable = false;
-            use std::io::Read;
-            let remaining = (64 * 1024 * 1024_u64).saturating_sub(budget.1);
+            let remaining = (64 * 1024 * 1024u64).saturating_sub(budget.1);
             if metadata.len() > remaining {
                 return Err(SchedulerError::config_error(
                     "Workspace byte limit exceeded",

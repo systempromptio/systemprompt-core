@@ -4,8 +4,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::super::{NativeCompletion, NormalizedClientOutput};
-use super::invalid;
+use super::super::{NativeCompletion, NormalizedClientOutput, invalid, malformed};
 use serde_json::Value;
 use std::collections::BTreeMap;
 use systemprompt_evaluation::Result;
@@ -14,7 +13,8 @@ pub(super) fn normalize(bytes: &[u8]) -> Result<NormalizedClientOutput> {
     if bytes.len() > 16 * 1024 * 1024 {
         return Err(invalid("Hermes evidence exceeds 16 MiB"));
     }
-    let body = std::str::from_utf8(bytes).map_err(|_| invalid("Hermes evidence is not UTF-8"))?;
+    let body = std::str::from_utf8(bytes)
+        .map_err(|error| malformed("Hermes evidence is not UTF-8", error))?;
     let mut events = BTreeMap::new();
     let mut terminal: Option<Value> = None;
     let mut text = String::new();
@@ -28,8 +28,8 @@ pub(super) fn normalize(bytes: &[u8]) -> Result<NormalizedClientOutput> {
         }
         // JSON: the pinned wrapper retains native stdout/stderr and the native
         // usage-file payload.
-        let event: Value =
-            serde_json::from_str(line).map_err(|_| invalid("Malformed Hermes wrapper event"))?;
+        let event: Value = serde_json::from_str(line)
+            .map_err(|error| malformed("Malformed Hermes wrapper event", error))?;
         let kind = event
             .get("type")
             .and_then(Value::as_str)
@@ -75,72 +75,79 @@ pub(super) fn normalize(bytes: &[u8]) -> Result<NormalizedClientOutput> {
         tool_calls: Vec::new(),
     };
     if let Some(result) = terminal {
-        let exit = result.get("process_exit_code").and_then(Value::as_i64);
-        if exit.is_some_and(|code| code != 0)
-            || !result.get("signal").is_some_and(Value::is_null)
-            || result.get("output_limit_reached").and_then(Value::as_bool) == Some(true)
-        {
-            failed = true;
-        }
-        if result
-            .get("usage_independently_verified")
-            .and_then(Value::as_bool)
-            != Some(false)
-        {
-            return Err(invalid(
-                "Hermes usage must not claim independent verification",
-            ));
-        }
-        if let Some(usage) = result.get("usage").filter(|value| !value.is_null()) {
-            if !usage.is_object() {
-                return Err(invalid("Invalid Hermes usage evidence"));
-            }
-            output.reported_input_tokens = usage_field(usage, "input_tokens")?;
-            output.reported_output_tokens = usage_field(usage, "output_tokens")?;
-            if usage.get("failed").and_then(Value::as_bool) == Some(true) {
-                failed = true;
-            }
-            if !failed
-                && exit == Some(0)
-                && usage.get("completed").and_then(Value::as_bool) == Some(true)
-                && usage.get("failed").and_then(Value::as_bool) == Some(false)
-                && result
-                    .get("usage_identity_matches")
-                    .and_then(Value::as_bool)
-                    == Some(true)
-                && result.get("output_limit_reached").and_then(Value::as_bool) == Some(false)
-            {
-                output.completion = NativeCompletion::Completed;
-            }
-        }
-        if let Some(tools) = result.get("tool_calls") {
-            let tools = tools
-                .as_array()
-                .ok_or_else(|| invalid("Invalid Hermes tool evidence"))?;
-            for tool in tools {
-                let name = tool
-                    .as_str()
-                    .ok_or_else(|| invalid("Invalid Hermes tool name"))?;
-                if ![
-                    "read_file",
-                    "write_file",
-                    "patch",
-                    "search_files",
-                    "mcp__evaluation_fixture__evaluation_fixture",
-                ]
-                .contains(&name)
-                {
-                    return Err(invalid("Hermes emitted forbidden tool evidence"));
-                }
-                output.tool_calls.push(name.to_owned());
-            }
-        }
+        failed |= apply_result(&result, &mut output)?;
     }
     if failed {
         output.completion = NativeCompletion::Failed;
     }
     output.validate()?;
     Ok(output)
+}
+
+fn apply_result(result: &Value, output: &mut NormalizedClientOutput) -> Result<bool> {
+    let exit = result.get("process_exit_code").and_then(Value::as_i64);
+    let mut failed = exit.is_some_and(|code| code != 0)
+        || !result.get("signal").is_some_and(Value::is_null)
+        || result.get("output_limit_reached").and_then(Value::as_bool) == Some(true);
+    if result
+        .get("usage_independently_verified")
+        .and_then(Value::as_bool)
+        != Some(false)
+    {
+        return Err(invalid(
+            "Hermes usage must not claim independent verification",
+        ));
+    }
+    if let Some(usage) = result.get("usage").filter(|value| !value.is_null()) {
+        if !usage.is_object() {
+            return Err(invalid("Invalid Hermes usage evidence"));
+        }
+        output.reported_input_tokens = usage_field(usage, "input_tokens")?;
+        output.reported_output_tokens = usage_field(usage, "output_tokens")?;
+        if usage.get("failed").and_then(Value::as_bool) == Some(true) {
+            failed = true;
+        }
+        if !failed
+            && exit == Some(0)
+            && usage.get("completed").and_then(Value::as_bool) == Some(true)
+            && usage.get("failed").and_then(Value::as_bool) == Some(false)
+            && result
+                .get("usage_identity_matches")
+                .and_then(Value::as_bool)
+                == Some(true)
+            && result.get("output_limit_reached").and_then(Value::as_bool) == Some(false)
+        {
+            output.completion = NativeCompletion::Completed;
+        }
+    }
+    if let Some(tools) = result.get("tool_calls") {
+        collect_tools(tools, &mut output.tool_calls)?;
+    }
+    Ok(failed)
+}
+
+fn collect_tools(tools: &Value, tool_calls: &mut Vec<String>) -> Result<()> {
+    let tools = tools
+        .as_array()
+        .ok_or_else(|| invalid("Invalid Hermes tool evidence"))?;
+    for tool in tools {
+        let name = tool
+            .as_str()
+            .ok_or_else(|| invalid("Invalid Hermes tool name"))?;
+        if ![
+            "read_file",
+            "write_file",
+            "patch",
+            "search_files",
+            "mcp__evaluation_fixture__evaluation_fixture",
+        ]
+        .contains(&name)
+        {
+            return Err(invalid("Hermes emitted forbidden tool evidence"));
+        }
+        tool_calls.push(name.to_owned());
+    }
+    Ok(())
 }
 fn usage_field(usage: &Value, key: &str) -> Result<Option<u64>> {
     usage

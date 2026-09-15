@@ -11,6 +11,14 @@ mod process;
 use serde::Deserialize;
 use std::collections::BTreeMap;
 
+#[derive(Clone, Copy)]
+struct NetworkOwnership<'a> {
+    owner: &'a str,
+    execution: &'a str,
+    worker: &'a str,
+    fence: i64,
+}
+
 #[derive(Debug)]
 pub struct ExecutionNetwork {
     docker: PathBuf,
@@ -30,7 +38,16 @@ impl ExecutionNetwork {
         owner: &str,
         execution: &str,
     ) -> SchedulerResult<Self> {
-        Self::create_owned(docker, name, owner, execution, "", 0)
+        Self::create_owned(
+            docker,
+            name,
+            NetworkOwnership {
+                owner,
+                execution,
+                worker: "",
+                fence: 0,
+            },
+        )
     }
 
     pub fn create_fenced(
@@ -42,21 +59,26 @@ impl ExecutionNetwork {
         Self::create_owned(
             docker,
             name,
-            owner,
-            lease.execution_id.as_str(),
-            lease.worker_id.as_str(),
-            lease.fencing_token,
+            NetworkOwnership {
+                owner,
+                execution: lease.execution_id.as_str(),
+                worker: lease.worker_id.as_str(),
+                fence: lease.fencing_token,
+            },
         )
     }
 
     fn create_owned(
         docker: PathBuf,
         name: String,
-        owner: &str,
-        execution: &str,
-        worker: &str,
-        fence: i64,
+        ownership: NetworkOwnership<'_>,
     ) -> SchedulerResult<Self> {
+        let NetworkOwnership {
+            owner,
+            execution,
+            worker,
+            fence,
+        } = ownership;
         if !docker.is_absolute()
             || !safe_name(&name)
             || !safe_label(owner)

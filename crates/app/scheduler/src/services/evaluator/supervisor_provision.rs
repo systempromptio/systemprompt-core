@@ -19,15 +19,27 @@ pub(super) struct ProvisionedWorkspace {
     pub installed_skill_state: BTreeMap<String, String>,
 }
 
+#[derive(Clone, Copy)]
+pub(super) struct WorkspaceRequest<'a> {
+    pub assignment: &'a ExecutionAssignment,
+    pub access: &'a ExecutionAccess,
+    pub execution_id: &'a EvalExecutionId,
+    pub suffix: &'a str,
+    pub client: &'a NativeClient,
+}
+
 impl EvaluatorSupervisor {
     pub(super) fn provision_workspace(
         &self,
-        assignment: &ExecutionAssignment,
-        access: &ExecutionAccess,
-        execution_id: &EvalExecutionId,
-        suffix: &str,
-        client: &NativeClient,
+        request: WorkspaceRequest<'_>,
     ) -> SchedulerResult<ProvisionedWorkspace> {
+        let WorkspaceRequest {
+            assignment,
+            access,
+            execution_id,
+            suffix,
+            client,
+        } = request;
         let directory = self.config.workspace_root.join(suffix);
         let guard = WorkspaceDirectory::create(directory.clone())?;
         let home = directory.join("home");
@@ -73,34 +85,7 @@ impl EvaluatorSupervisor {
         )?;
         let configuration = adapter.configuration(&context).map_err(internal)?;
         configuration.validate().map_err(internal)?;
-        for (relative, file) in &configuration.files {
-            if file.executable
-                || (relative != "client.env" && !relative.starts_with("home/"))
-                || relative == "home/work"
-                || relative.starts_with("home/work/")
-                || relative == &format!("home/{}", adapter.skill_directory())
-                || relative.starts_with(&format!("home/{}/", adapter.skill_directory()))
-            {
-                return Err(SchedulerError::config_error(
-                    "Adapter configuration must not overwrite work or skills",
-                ));
-            }
-            let path = directory.join(relative);
-            if let Some(parent) = path.parent() {
-                std::fs::create_dir_all(parent)?;
-            }
-            write_private(&path, &file.bytes)?;
-            if std::fs::read(&path)? != file.bytes {
-                return Err(SchedulerError::config_error(
-                    "Adapter configuration readback failed",
-                ));
-            }
-        }
-        if !configuration.files.contains_key("client.env") {
-            return Err(SchedulerError::config_error(
-                "Adapter must provide an isolated environment",
-            ));
-        }
+        write_adapter_configuration(&directory, skill_relative, &configuration)?;
         Ok(ProvisionedWorkspace {
             directory,
             guard,
@@ -130,6 +115,42 @@ impl EvaluatorSupervisor {
         )?;
         Ok(network)
     }
+}
+
+fn write_adapter_configuration(
+    directory: &std::path::Path,
+    skill_relative: &str,
+    configuration: &systemprompt_evaluation::experiments::execution::EvidenceArchive,
+) -> SchedulerResult<()> {
+    for (relative, file) in &configuration.files {
+        if file.executable
+            || (relative != "client.env" && !relative.starts_with("home/"))
+            || relative == "home/work"
+            || relative.starts_with("home/work/")
+            || relative == &format!("home/{skill_relative}")
+            || relative.starts_with(&format!("home/{skill_relative}/"))
+        {
+            return Err(SchedulerError::config_error(
+                "Adapter configuration must not overwrite work or skills",
+            ));
+        }
+        let path = directory.join(relative);
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        write_private(&path, &file.bytes)?;
+        if std::fs::read(&path)? != file.bytes {
+            return Err(SchedulerError::config_error(
+                "Adapter configuration readback failed",
+            ));
+        }
+    }
+    if !configuration.files.contains_key("client.env") {
+        return Err(SchedulerError::config_error(
+            "Adapter must provide an isolated environment",
+        ));
+    }
+    Ok(())
 }
 
 pub(super) fn variant_client(

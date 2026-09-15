@@ -3,7 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::provision::{case_and_rubric, traffic_class, variant_client};
+use super::provision::{WorkspaceRequest, case_and_rubric, traffic_class, variant_client};
 use super::{
     BTreeMap, CaseContent, ContainerLaunch, EvalWorkerId, EvaluatorSupervisor, ExecutionAssignment,
     ExecutionLease, ExecutionNetwork, ExecutionRecord, ExecutionStage, NativeClient, PathBuf,
@@ -62,8 +62,13 @@ impl EvaluatorSupervisor {
         {
             Ok(run) => Ok(Some(run)),
             Err(error) => {
-                self.block_execution(owner, &lease, variant_index, "preparation", &error)
-                    .await?;
+                self.block_execution(
+                    owner,
+                    &lease,
+                    variant_index,
+                    &super::failures::diagnostic("preparation", &error),
+                )
+                .await?;
                 Err(error)
             },
         }
@@ -84,8 +89,13 @@ impl EvaluatorSupervisor {
             .admitted_target(&self.config.client_image)
             .map_err(internal)?;
         let suffix = format!("{}-f{}", safe_suffix(&record.id), lease.fencing_token);
-        let workspace =
-            self.provision_workspace(&assignment, &access, &record.id, &suffix, &client)?;
+        let workspace = self.provision_workspace(WorkspaceRequest {
+            assignment: &assignment,
+            access: &access,
+            execution_id: &record.id,
+            suffix: &suffix,
+            client: &client,
+        })?;
         self.heartbeat(owner, &lease).await?;
         self.append_event(
             &worker,

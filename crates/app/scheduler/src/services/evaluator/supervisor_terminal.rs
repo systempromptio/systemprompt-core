@@ -24,6 +24,13 @@ pub struct NativeStart<'a> {
 }
 
 #[derive(Debug, Clone, Copy)]
+pub struct TerminalEvidence<'a> {
+    pub evidence: &'a ExecutionEvidence,
+    pub archive: &'a EvidenceArchive,
+    pub cleanup: &'a CleanupOutcome,
+}
+
+#[derive(Debug, Clone, Copy)]
 pub struct CleanupResources<'a> {
     pub container_id: Option<&'a str>,
     pub network_id: Option<&'a str>,
@@ -68,13 +75,23 @@ impl ExecutionTerminal {
         {
             Ok(execution) => Ok(Some(execution)),
             Err(error) => {
-                if let Some((worker, target)) = start.readiness {
-                    if let Err(observation_error) = self.repositories.events.observe_readiness(worker, lease, systemprompt_evaluation::capabilities::NativeReadiness {
-                        target: target.clone(), state: systemprompt_evaluation::capabilities::NativeReadinessState::Unavailable,
-                        observed_at: None, diagnostic: Some(super::failures::diagnostic("client", &error)),
-                    }).await {
-                        tracing::warn!(execution_id = %lease.execution_id, %observation_error, "Startup readiness observation failed; blocked completion still required");
-                    }
+                if let Some((worker, target)) = start.readiness
+                    && let Err(observation_error) = self
+                        .repositories
+                        .events
+                        .observe_readiness(
+                            worker,
+                            lease,
+                            systemprompt_evaluation::capabilities::NativeReadiness {
+                                target: target.clone(),
+                                state: systemprompt_evaluation::capabilities::NativeReadinessState::Unavailable,
+                                observed_at: None,
+                                diagnostic: Some(super::failures::diagnostic("client", &error)),
+                            },
+                        )
+                        .await
+                {
+                    tracing::warn!(execution_id = %lease.execution_id, %observation_error, "Startup readiness observation failed; blocked completion still required");
                 }
                 let witness = self
                     .cleanup(
@@ -164,11 +181,14 @@ impl ExecutionTerminal {
         &self,
         owner: &UserId,
         lease: &ExecutionLease,
-        evidence: &ExecutionEvidence,
-        archive: &EvidenceArchive,
-        cleanup: &CleanupOutcome,
+        terminal: TerminalEvidence<'_>,
         reason: &str,
     ) -> SchedulerResult<TerminalOutcome> {
+        let TerminalEvidence {
+            evidence,
+            archive,
+            cleanup,
+        } = terminal;
         validate_cleanup(owner, lease, cleanup)?;
         if cleanup.verified() != evidence.cleanup_confirmed {
             return Err(SchedulerError::config_error(
@@ -187,11 +207,14 @@ impl ExecutionTerminal {
         &self,
         owner: &UserId,
         lease: &ExecutionLease,
-        evidence: &ExecutionEvidence,
-        archive: &EvidenceArchive,
+        terminal: TerminalEvidence<'_>,
         completion: NativeCompletion,
-        cleanup: &CleanupOutcome,
     ) -> SchedulerResult<TerminalOutcome> {
+        let TerminalEvidence {
+            evidence,
+            archive,
+            cleanup,
+        } = terminal;
         if cleanup.owner != *owner
             || cleanup.execution != lease.execution_id
             || cleanup.worker != lease.worker_id

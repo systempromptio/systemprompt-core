@@ -4,8 +4,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::super::{NativeCompletion, NormalizedClientOutput};
-use super::invalid;
+use super::super::{NativeCompletion, NormalizedClientOutput, invalid, malformed};
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
 use systemprompt_evaluation::Result;
@@ -14,7 +13,8 @@ pub(super) fn normalize(bytes: &[u8]) -> Result<NormalizedClientOutput> {
     if bytes.len() > 16 * 1024 * 1024 {
         return Err(invalid("Claude evidence exceeds 16 MiB"));
     }
-    let body = std::str::from_utf8(bytes).map_err(|_| invalid("Claude evidence is not UTF-8"))?;
+    let body = std::str::from_utf8(bytes)
+        .map_err(|error| malformed("Claude evidence is not UTF-8", error))?;
     let mut terminal: Option<Value> = None;
     let mut tools = BTreeMap::new();
     let mut texts = BTreeSet::new();
@@ -29,7 +29,7 @@ pub(super) fn normalize(bytes: &[u8]) -> Result<NormalizedClientOutput> {
         // JSON: Claude stream-json emits one protocol event per line, including
         // client-version-specific fields.
         let event: Value = serde_json::from_str(line)
-            .map_err(|_| invalid("Malformed Claude stream-json event"))?;
+            .map_err(|error| malformed("Malformed Claude stream-json event", error))?;
         let kind = event
             .get("type")
             .and_then(Value::as_str)
@@ -156,22 +156,22 @@ fn normalize_terminal(event: &Value, normalized: &mut NormalizedClientOutput) ->
         NativeCompletion::Incomplete
     };
     if let Some(result) = event.get("result") {
-        normalized.text = result
+        result
             .as_str()
             .ok_or_else(|| invalid("Claude terminal result is malformed"))?
-            .to_owned();
-    } else if normalized.completion == NativeCompletion::Failed {
-        if let Some(errors) = event.get("errors").and_then(Value::as_array) {
-            let errors = errors
-                .iter()
-                .map(|error| {
-                    error
-                        .as_str()
-                        .ok_or_else(|| invalid("Claude terminal errors are malformed"))
-                })
-                .collect::<Result<Vec<_>>>()?;
-            normalized.text = errors.join("\n");
-        }
+            .clone_into(&mut normalized.text);
+    } else if normalized.completion == NativeCompletion::Failed
+        && let Some(errors) = event.get("errors").and_then(Value::as_array)
+    {
+        let errors = errors
+            .iter()
+            .map(|error| {
+                error
+                    .as_str()
+                    .ok_or_else(|| invalid("Claude terminal errors are malformed"))
+            })
+            .collect::<Result<Vec<_>>>()?;
+        normalized.text = errors.join("\n");
     }
     if let Some(usage) = event.get("usage") {
         if !usage.is_object() {

@@ -37,6 +37,8 @@ mod execution;
 mod failures;
 #[path = "supervisor_finalize.rs"]
 mod finalize;
+#[path = "supervisor_judgment.rs"]
+mod judgment;
 #[path = "supervisor_prepare.rs"]
 mod prepare;
 #[path = "supervisor_prompts.rs"]
@@ -113,8 +115,7 @@ impl EvaluatorSupervisor {
                     &run.worker.owner_id,
                     &run.lease,
                     run.record.variant_index,
-                    "client",
-                    &error,
+                    &failures::diagnostic("client", &error),
                 )
                 .await?;
                 return Ok(true);
@@ -124,13 +125,12 @@ impl EvaluatorSupervisor {
             Ok(judgment) => outcome.judgment = judgment,
             Err(error) => outcome.blocked = Some(failures::diagnostic("judge", &error)),
         }
-        if outcome.blocked.is_none() {
-            if let Err(error) = self
+        if outcome.blocked.is_none()
+            && let Err(error) = self
                 .generate_suggestion_if_needed(&mut run, &mut outcome)
                 .await
-            {
-                outcome.blocked = Some(failures::diagnostic("suggestion", &error));
-            }
+        {
+            outcome.blocked = Some(failures::diagnostic("suggestion", &error));
         }
         self.finalize_execution(run, outcome).await?;
         Ok(true)

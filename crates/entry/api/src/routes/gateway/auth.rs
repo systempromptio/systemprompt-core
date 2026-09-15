@@ -126,7 +126,7 @@ pub async fn session(
             .as_ref(),
         BridgeExchangeRequest {
             request_headers: &headers,
-            caller_ip: caller_ip,
+            caller_ip,
             code: body.code.trim(),
         },
     )

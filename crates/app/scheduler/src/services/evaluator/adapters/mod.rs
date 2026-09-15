@@ -11,8 +11,11 @@ pub mod opencode;
 
 use super::client::ClientPurpose;
 use std::ffi::OsString;
+use systemprompt_evaluation::EvaluationError;
 use systemprompt_evaluation::experiments::ClientKind;
-use systemprompt_evaluation::experiments::execution::{EvidenceArchive, ExecutionLimits};
+use systemprompt_evaluation::experiments::execution::{
+    ArtifactFile, EvidenceArchive, ExecutionLimits,
+};
 use systemprompt_identifiers::{EvalExecutionId, ModelId, SessionId};
 
 #[derive(Debug)]
@@ -68,7 +71,7 @@ impl NormalizedClientOutput {
                 .iter()
                 .any(|name| name.len() > 256 || name.chars().any(char::is_control))
         {
-            return Err(systemprompt_evaluation::EvaluationError::InvalidSpec(
+            return Err(EvaluationError::InvalidSpec(
                 "Native output exceeds normalized evidence bounds".to_owned(),
             ));
         }
@@ -111,9 +114,7 @@ pub fn adapter(kind: ClientKind) -> systemprompt_evaluation::Result<&'static dyn
         .copied()
         .find(|adapter| adapter.client() == kind)
         .ok_or_else(|| {
-            systemprompt_evaluation::EvaluationError::InvalidSpec(
-                "Native client adapter is unavailable".to_owned(),
-            )
+            EvaluationError::InvalidSpec("Native client adapter is unavailable".to_owned())
         })
 }
 
@@ -144,4 +145,32 @@ pub fn normalize_evidence(adapter: &dyn NativeAdapter, bytes: &[u8]) -> Normaliz
             diagnostic: Some(error.to_string().chars().take(1024).collect()),
         },
     }
+}
+
+pub(super) fn invalid(message: &str) -> EvaluationError {
+    EvaluationError::InvalidSpec(message.to_owned())
+}
+
+pub(super) fn malformed(message: &str, source: impl std::fmt::Display) -> EvaluationError {
+    EvaluationError::InvalidSpec(format!("{message}: {source}"))
+}
+
+pub(super) const fn file(bytes: Vec<u8>) -> ArtifactFile {
+    ArtifactFile {
+        bytes,
+        executable: false,
+    }
+}
+
+pub(super) fn exact_version(value: &str) -> bool {
+    let parts: Vec<_> = value.split('.').collect();
+    parts.len() == 3 && parts.iter().all(|part| exact_component(part))
+}
+
+fn exact_component(part: &str) -> bool {
+    let leading_zero = part.len() > 1 && part.starts_with('0');
+    !part.is_empty()
+        && !leading_zero
+        && part.bytes().all(|byte| byte.is_ascii_digit())
+        && part.parse::<u32>().is_ok()
 }

@@ -17,7 +17,7 @@ use systemprompt_identifiers::{
 use systemprompt_scheduler::SchedulerError;
 use systemprompt_scheduler::services::evaluator::adapters::NativeCompletion;
 use systemprompt_scheduler::services::evaluator::supervisor::terminal::{
-    CleanupResources, ExecutionTerminal,
+    CleanupResources, ExecutionTerminal, TerminalEvidence,
 };
 use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_db_pool, seed_user_row};
 
@@ -215,10 +215,12 @@ async fn cancellation_cleanup_cannot_export_success_or_release_uncertain_spend()
             .persist(
                 &f.owner,
                 &f.lease,
-                &f.evidence(true),
-                &archive(),
-                NativeCompletion::Completed,
-                &cleanup
+                TerminalEvidence {
+                    evidence: &f.evidence(true),
+                    archive: &archive(),
+                    cleanup: &cleanup
+                },
+                NativeCompletion::Completed
             )
             .await
             .is_err()
@@ -271,10 +273,12 @@ async fn stale_fence_cannot_overwrite_cleanup_or_persist_terminal_evidence() {
             .persist(
                 &f.owner,
                 &f.lease,
-                &f.evidence(true),
-                &archive(),
-                NativeCompletion::Completed,
-                &cleanup
+                TerminalEvidence {
+                    evidence: &f.evidence(true),
+                    archive: &archive(),
+                    cleanup: &cleanup
+                },
+                NativeCompletion::Completed
             )
             .await
             .is_err()
@@ -303,10 +307,12 @@ async fn failed_cleanup_witness_prevents_success_and_preserves_restart_bound() {
             .persist(
                 &f.owner,
                 &f.lease,
-                &f.evidence(true),
-                &archive(),
-                NativeCompletion::Completed,
-                &cleanup
+                TerminalEvidence {
+                    evidence: &f.evidence(true),
+                    archive: &archive(),
+                    cleanup: &cleanup
+                },
+                NativeCompletion::Completed
             )
             .await
             .is_err(),
@@ -317,10 +323,12 @@ async fn failed_cleanup_witness_prevents_success_and_preserves_restart_bound() {
             .persist(
                 &f.owner,
                 &f.lease,
-                &f.evidence(false),
-                &archive(),
-                NativeCompletion::Completed,
-                &cleanup
+                TerminalEvidence {
+                    evidence: &f.evidence(false),
+                    archive: &archive(),
+                    cleanup: &cleanup
+                },
+                NativeCompletion::Completed
             )
             .await
             .unwrap(),
@@ -397,9 +405,11 @@ async fn judge_start_failure_keeps_native_evidence_and_prior_spend() {
             .persist_blocked(
                 &f.owner,
                 &f.lease,
-                &f.evidence(true),
-                &archive(),
-                &cleanup,
+                TerminalEvidence {
+                    evidence: &f.evidence(true),
+                    archive: &archive(),
+                    cleanup: &cleanup
+                },
                 "Native judge blocked: Pinned executable bytes do not match native admission"
             )
             .await

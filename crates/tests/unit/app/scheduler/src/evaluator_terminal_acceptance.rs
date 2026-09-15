@@ -32,10 +32,12 @@ async fn successful_terminal_disables_execution_credentials_and_retains_immutabl
             .persist(
                 &f.owner,
                 &f.lease,
-                &evidence,
-                &archive(),
-                NativeCompletion::Completed,
-                &cleanup
+                TerminalEvidence {
+                    evidence: &evidence,
+                    archive: &archive(),
+                    cleanup: &cleanup
+                },
+                NativeCompletion::Completed
             )
             .await
             .unwrap(),
@@ -64,10 +66,12 @@ async fn successful_terminal_disables_execution_credentials_and_retains_immutabl
             .persist(
                 &f.owner,
                 &f.lease,
-                &replacement,
-                &archive(),
-                NativeCompletion::Completed,
-                &cleanup
+                TerminalEvidence {
+                    evidence: &replacement,
+                    archive: &archive(),
+                    cleanup: &cleanup
+                },
+                NativeCompletion::Completed
             )
             .await
             .is_err()
@@ -118,10 +122,12 @@ async fn zero_exit_without_native_completion_and_nonzero_exit_cannot_export_succ
                 .persist(
                     &f.owner,
                     &f.lease,
-                    &evidence,
-                    &archive(),
-                    completion,
-                    &cleanup
+                    TerminalEvidence {
+                        evidence: &evidence,
+                        archive: &archive(),
+                        cleanup: &cleanup
+                    },
+                    completion
                 )
                 .await
                 .unwrap(),
@@ -165,10 +171,12 @@ async fn mismatched_frozen_workspace_or_missing_audit_request_rejects_before_ter
                 .persist(
                     &f.owner,
                     &f.lease,
-                    &evidence,
-                    &archive(),
-                    NativeCompletion::Completed,
-                    &cleanup
+                    TerminalEvidence {
+                        evidence: &evidence,
+                        archive: &archive(),
+                        cleanup: &cleanup
+                    },
+                    NativeCompletion::Completed
                 )
                 .await
                 .is_err(),
@@ -196,10 +204,12 @@ async fn cleanup_witness_cannot_cross_execution_owner_boundaries() {
             .persist(
                 &second.owner,
                 &second.lease,
-                &second.evidence(true),
-                &archive(),
-                NativeCompletion::Completed,
-                &witness
+                TerminalEvidence {
+                    evidence: &second.evidence(true),
+                    archive: &archive(),
+                    cleanup: &witness
+                },
+                NativeCompletion::Completed
             )
             .await
             .is_err()
@@ -210,9 +220,11 @@ async fn cleanup_witness_cannot_cross_execution_owner_boundaries() {
             .persist_blocked(
                 &second.owner,
                 &second.lease,
-                &second.evidence(true),
-                &archive(),
-                &witness,
+                TerminalEvidence {
+                    evidence: &second.evidence(true),
+                    archive: &archive(),
+                    cleanup: &witness
+                },
                 "foreign cleanup claim"
             )
             .await

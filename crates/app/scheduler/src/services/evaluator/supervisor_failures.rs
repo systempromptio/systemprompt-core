@@ -12,14 +12,20 @@ use std::io::{Read, Seek, SeekFrom};
 use std::process::Stdio;
 use systemprompt_loader::subprocess::{place_in_own_process_group, spawn_owned_supervised};
 
+pub(super) struct ReadinessScope<'a> {
+    pub worker: &'a super::WorkerRecord,
+    pub lease: &'a ExecutionLease,
+    pub assignment: &'a super::ExecutionAssignment,
+    pub variant_index: i32,
+}
+
 impl EvaluatorSupervisor {
     pub(super) async fn block_execution(
         &self,
         owner: &UserId,
         lease: &ExecutionLease,
         variant_index: i32,
-        stage: &str,
-        error: &SchedulerError,
+        reason: &str,
     ) -> SchedulerResult<()> {
         match self
             .repositories
@@ -31,11 +37,13 @@ impl EvaluatorSupervisor {
                 Ok(assignment) => {
                     if let Err(observation_error) = self
                         .observe_targets(
-                            &worker,
-                            lease,
-                            &assignment,
-                            variant_index,
-                            Some(diagnostic(stage, error)),
+                            ReadinessScope {
+                                worker: &worker,
+                                lease,
+                                assignment: &assignment,
+                                variant_index,
+                            },
+                            Some(reason.to_owned()),
                         )
                         .await
                     {
@@ -43,11 +51,11 @@ impl EvaluatorSupervisor {
                     }
                 },
                 Err(assignment_error) => {
-                    tracing::warn!(execution_id = %lease.execution_id, %assignment_error, "Readiness target unavailable; retaining preparation failure")
+                    tracing::warn!(execution_id = %lease.execution_id, %assignment_error, "Readiness target unavailable; retaining preparation failure");
                 },
             },
             Err(worker_error) => {
-                tracing::warn!(execution_id = %lease.execution_id, %worker_error, "Worker unavailable for readiness observation; cleanup remains fenced")
+                tracing::warn!(execution_id = %lease.execution_id, %worker_error, "Worker unavailable for readiness observation; cleanup remains fenced");
             },
         }
         let terminal = ExecutionTerminal::new(&self.repositories);
@@ -62,18 +70,13 @@ impl EvaluatorSupervisor {
                 || self.cleanup_failed_execution(owner, lease),
             )
             .await?;
-        terminal
-            .block(owner, lease, &cleanup, &diagnostic(stage, error))
-            .await?;
+        terminal.block(owner, lease, &cleanup, reason).await?;
         Ok(())
     }
 
     pub(super) async fn observe_targets(
         &self,
-        worker: &super::WorkerRecord,
-        lease: &ExecutionLease,
-        assignment: &super::ExecutionAssignment,
-        variant_index: i32,
+        scope: ReadinessScope<'_>,
         failure: Option<String>,
     ) -> SchedulerResult<()> {
         use systemprompt_evaluation::capabilities::{
@@ -81,9 +84,9 @@ impl EvaluatorSupervisor {
         };
         let target = verified_native_targets().iter().find(|target| {
             target.supports_platform(std::env::consts::OS, std::env::consts::ARCH)
-                && usize::try_from(variant_index)
+                && usize::try_from(scope.variant_index)
                     .ok()
-                    .and_then(|index| assignment.spec.variants.get(index))
+                    .and_then(|index| scope.assignment.spec.variants.get(index))
                     .is_some_and(|variant| {
                         target.matches(variant, std::env::consts::OS, std::env::consts::ARCH)
                     })
@@ -92,8 +95,8 @@ impl EvaluatorSupervisor {
             self.repositories
                 .events
                 .observe_readiness(
-                    worker,
-                    lease,
+                    scope.worker,
+                    scope.lease,
                     NativeReadiness {
                         target: target.clone(),
                         state: if failure.is_some() {
@@ -117,43 +120,18 @@ impl EvaluatorSupervisor {
         lease: &ExecutionLease,
     ) -> SchedulerResult<()> {
         let cleanup_started = std::time::Instant::now();
-        let worker_filter = format!("label=systemprompt.evaluator.worker={}", lease.worker_id);
-        let fence_filter = format!("label=systemprompt.evaluator.fence={}", lease.fencing_token);
         let mut count = 0usize;
-        let owner_filter = format!("label=systemprompt.evaluator.owner={}", owner.as_str());
-        let execution_filter = format!(
-            "label=systemprompt.evaluator.execution={}",
-            lease.execution_id.as_str()
-        );
+        let filters = [
+            format!("label=systemprompt.evaluator.owner={}", owner.as_str()),
+            format!(
+                "label=systemprompt.evaluator.execution={}",
+                lease.execution_id.as_str()
+            ),
+            format!("label=systemprompt.evaluator.worker={}", lease.worker_id),
+            format!("label=systemprompt.evaluator.fence={}", lease.fencing_token),
+        ];
         for kind in ["container", "network"] {
-            let list = if kind == "container" {
-                vec![
-                    "ps",
-                    "-aq",
-                    "--filter",
-                    &owner_filter,
-                    "--filter",
-                    &execution_filter,
-                    "--filter",
-                    &worker_filter,
-                    "--filter",
-                    &fence_filter,
-                ]
-            } else {
-                vec![
-                    "network",
-                    "ls",
-                    "-q",
-                    "--filter",
-                    &owner_filter,
-                    "--filter",
-                    &execution_filter,
-                    "--filter",
-                    &worker_filter,
-                    "--filter",
-                    &fence_filter,
-                ]
-            };
+            let list = list_arguments(kind, &filters);
             let objects = self.failure_cleanup_command(&list, cleanup_started)?;
             for id in objects.lines().filter(|id| !id.is_empty()) {
                 count += 1;
@@ -241,6 +219,18 @@ impl EvaluatorSupervisor {
             std::thread::sleep(std::time::Duration::from_millis(25));
         }
     }
+}
+
+fn list_arguments<'a>(kind: &str, filters: &'a [String; 4]) -> Vec<&'a str> {
+    let mut arguments = if kind == "container" {
+        vec!["ps", "-aq"]
+    } else {
+        vec!["network", "ls", "-q"]
+    };
+    for filter in filters {
+        arguments.extend(["--filter", filter.as_str()]);
+    }
+    arguments
 }
 
 pub(super) fn diagnostic(stage: &str, error: &SchedulerError) -> String {

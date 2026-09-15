@@ -6,11 +6,9 @@
 use super::super::adapters::{NativeCompletion, normalize_evidence};
 use super::terminal::{CleanupResources, ExecutionTerminal, NativeStart};
 use super::{
-    ArtifactFile, BTreeMap, ClientPurpose, ContainerExecution, ContainerLaunch, Duration,
-    EvaluationTrafficClass, EvaluatorSupervisor, EvidenceJudgment, ExecutionStage, ExitStatus,
-    Instant, PreparedExecution, SchedulerError, SchedulerResult, StageEvent, changed_workspace,
-    execution_prompt, internal, judgment_prompt, parse_judgment, safe_suffix, workspace_state,
-    write_private,
+    ArtifactFile, BTreeMap, ClientPurpose, ContainerExecution, Duration, EvaluatorSupervisor,
+    EvidenceJudgment, ExecutionStage, ExitStatus, Instant, PreparedExecution, SchedulerError,
+    SchedulerResult, StageEvent, changed_workspace, execution_prompt, internal, workspace_state,
 };
 
 pub(super) struct ExecutionOutcome {
@@ -80,38 +78,7 @@ impl EvaluatorSupervisor {
             },
         )
         .await?;
-        let mut artifacts = BTreeMap::new();
-        artifacts.insert(
-            "native-environment.json".to_owned(),
-            ArtifactFile {
-                bytes: std::fs::read(run.directory.join("native-environment.json"))?,
-                executable: false,
-            },
-        );
-        let stdout = capture_outputs(&execution, "client", &mut artifacts)?;
-        let normalized = normalize_evidence(run.client.adapter().map_err(internal)?, &stdout);
-        let native_completion = normalized.output.completion;
-        artifacts.insert(
-            "client-normalized.json".to_owned(),
-            ArtifactFile {
-                bytes: serde_json::to_vec(&normalized).map_err(internal)?,
-                executable: false,
-            },
-        );
-        artifacts.extend(changed_workspace(&run.home.join("work"), &run.baseline)?);
-        let observed = workspace_state(&run.skill_directory)?;
-        artifacts.insert(
-            "installation-integrity.json".to_owned(),
-            ArtifactFile {
-                bytes: serde_jcs::to_vec(&serde_json::json!({
-                    "expected": &run.installed_skill_state,
-                    "observed": &observed,
-                    "matches": run.installed_skill_state == observed,
-                }))
-                .map_err(internal)?,
-                executable: false,
-            },
-        );
+        let (artifacts, native_completion) = collect_client_artifacts(run, &execution)?;
         Ok(Some(ExecutionOutcome {
             status,
             native_completion,
@@ -121,91 +88,6 @@ impl EvaluatorSupervisor {
             judgment: None,
             blocked: None,
         }))
-    }
-
-    pub(super) async fn run_judgment(
-        &self,
-        run: &mut PreparedExecution,
-        outcome: &mut ExecutionOutcome,
-    ) -> SchedulerResult<Option<EvidenceJudgment>> {
-        if !outcome.status.success() || outcome.native_completion != NativeCompletion::Completed {
-            return Ok(None);
-        }
-        let stdout = outcome
-            .artifacts
-            .get("client-events.jsonl")
-            .ok_or_else(|| SchedulerError::Internal("client evidence missing".to_owned()))?
-            .bytes
-            .clone();
-        let evidence_dir = run.home.join("work/evidence");
-        std::fs::create_dir_all(&evidence_dir)?;
-        write_private(&evidence_dir.join("client-events.jsonl"), &stdout)?;
-        self.repositories
-            .gateway
-            .set_traffic_class(
-                &run.worker.owner_id,
-                &run.lease,
-                EvaluationTrafficClass::Judge,
-            )
-            .await
-            .map_err(internal)?;
-        let judge_name = format!("eval-judge-{}", safe_suffix(&run.record.id));
-        let launch = ContainerLaunch::builder(self.config.docker.clone(), run.directory.clone())
-            .image(self.config.client_image.clone())
-            .network(run.network.name().to_owned())
-            .name(judge_name.clone())
-            .output_stem("judge")
-            .ownership(run.worker.owner_id.as_str(), run.record.id.as_str())
-            .lease(&run.lease)
-            .build()?;
-        let evidence = outcome.artifacts.keys().collect::<Vec<_>>();
-        let prompt = judgment_prompt(&run.case, &run.rubric, &evidence)?;
-        let mut judge = launch.start_for(&run.client, ClientPurpose::Judge, &prompt)?;
-        run.network.verify(&[judge_name, run.relay_name.clone()])?;
-        let status = self
-            .await_exit(
-                run,
-                &mut judge,
-                &mut outcome.last_heartbeat,
-                "Judge cancellation cleanup was not fully acknowledged",
-            )
-            .await?;
-        let bytes = capture_outputs(&judge, "judge", &mut outcome.artifacts)?;
-        self.append_event(
-            &run.worker,
-            &run.lease,
-            StageEvent {
-                sequence: 3,
-                stage: ExecutionStage::Verification,
-                summary: "Completed separately metered bounded semantic judgment",
-            },
-        )
-        .await?;
-        if !status.success() {
-            return Ok(None);
-        }
-        let normalized = normalize_evidence(run.client.adapter().map_err(internal)?, &bytes);
-        outcome.artifacts.insert(
-            "judge-normalized.json".to_owned(),
-            ArtifactFile {
-                bytes: serde_json::to_vec(&normalized).map_err(internal)?,
-                executable: false,
-            },
-        );
-        if normalized.output.completion != NativeCompletion::Completed {
-            return Ok(None);
-        }
-        match parse_judgment(normalized.output.text.as_bytes()) {
-            Ok(judgment) => Ok(Some(judgment)),
-            Err(error) => {
-                tracing::warn!(
-                    execution_id = %run.lease.execution_id,
-                    %error,
-                    "semantic judge output rejected; execution stays unscored"
-                );
-                Ok(None)
-            },
-        }
     }
 
     pub(super) async fn await_exit(
@@ -263,6 +145,45 @@ impl EvaluatorSupervisor {
             .await
             .map(|_| ())
     }
+}
+
+fn collect_client_artifacts(
+    run: &PreparedExecution,
+    execution: &ContainerExecution,
+) -> SchedulerResult<(BTreeMap<String, ArtifactFile>, NativeCompletion)> {
+    let mut artifacts = BTreeMap::new();
+    artifacts.insert(
+        "native-environment.json".to_owned(),
+        ArtifactFile {
+            bytes: std::fs::read(run.directory.join("native-environment.json"))?,
+            executable: false,
+        },
+    );
+    let stdout = capture_outputs(execution, "client", &mut artifacts)?;
+    let normalized = normalize_evidence(run.client.adapter().map_err(internal)?, &stdout);
+    let native_completion = normalized.output.completion;
+    artifacts.insert(
+        "client-normalized.json".to_owned(),
+        ArtifactFile {
+            bytes: serde_json::to_vec(&normalized).map_err(internal)?,
+            executable: false,
+        },
+    );
+    artifacts.extend(changed_workspace(&run.home.join("work"), &run.baseline)?);
+    let observed = workspace_state(&run.skill_directory)?;
+    artifacts.insert(
+        "installation-integrity.json".to_owned(),
+        ArtifactFile {
+            bytes: serde_jcs::to_vec(&serde_json::json!({
+                "expected": &run.installed_skill_state,
+                "observed": &observed,
+                "matches": run.installed_skill_state == observed,
+            }))
+            .map_err(internal)?,
+            executable: false,
+        },
+    );
+    Ok((artifacts, native_completion))
 }
 
 pub(super) fn capture_outputs(

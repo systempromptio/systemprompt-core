@@ -10,6 +10,7 @@ use super::{
 };
 use std::ffi::OsString;
 use std::io::Write;
+use std::path::Path;
 use std::process::{Child, Stdio};
 use std::time::{Duration, Instant};
 use systemprompt_loader::subprocess::{place_in_own_process_group, spawn_owned_supervised};
@@ -39,7 +40,7 @@ impl ContainerLaunch {
         self.verify_image_config(expected_config)?;
         let adapter = client.adapter().map_err(failure)?;
         if adapter.adapter_version() != target.adapter_version
-            || !std::path::Path::new(adapter.executable()).is_absolute()
+            || !Path::new(adapter.executable()).is_absolute()
         {
             return Err(failure(
                 "Adapter version or absolute executable path does not match native admission",
@@ -108,7 +109,7 @@ impl ContainerLaunch {
     ) -> SchedulerResult<Vec<u8>> {
         if !safe_name(label)
             || label.len() > 32
-            || !std::path::Path::new(executable).is_absolute()
+            || !Path::new(executable).is_absolute()
             || arguments.len() > 64
             || arguments
                 .iter()
@@ -167,26 +168,7 @@ impl ContainerLaunch {
             .stderr(Stdio::from(private_log(&errors)?));
         place_in_own_process_group(&mut command);
         let mut child = spawn_owned_supervised(command)?;
-        let result = (|| -> SchedulerResult<Vec<u8>> {
-            let started = Instant::now();
-            loop {
-                let size = std::fs::metadata(&output)?
-                    .len()
-                    .saturating_add(std::fs::metadata(&errors)?.len());
-                if size > 65_536 || started.elapsed() > Duration::from_secs(10) {
-                    return Err(failure(
-                        "Native pin verification exceeded time or output bounds",
-                    ));
-                }
-                if let Some(status) = child.try_wait()? {
-                    if !status.success() {
-                        return Err(failure("Native pin verification command failed"));
-                    }
-                    return Ok(std::fs::read(&output)?);
-                }
-                std::thread::sleep(Duration::from_millis(10));
-            }
-        })();
+        let result = await_probe(&mut child, &output, &errors);
         let cleanup = self.cleanup_probe(&name, &mut child);
         match (result, cleanup) {
             (Ok(output), Ok(())) => Ok(output),
@@ -213,25 +195,45 @@ impl ContainerLaunch {
             }
             Ok(())
         })();
-        let reaped = match child.try_wait() {
-            Ok(Some(_)) => Ok(()),
-            Ok(None) | Err(_) => {
-                let killed = child.kill();
-                let waited = wait_bounded(child);
-                match (killed, waited) {
-                    (_, Ok(_)) => Ok(()),
-                    (Ok(()), Err(error)) => Err(failure(error)),
-                    (Err(kill), Err(wait)) => {
-                        Err(failure(format!("Probe termination: {kill}; reap: {wait}")))
-                    },
-                }
-            },
+        let reaped = if let Ok(Some(_)) = child.try_wait() {
+            Ok(())
+        } else {
+            let killed = child.kill();
+            let waited = wait_bounded(child);
+            match (killed, waited) {
+                (_, Ok(_)) => Ok(()),
+                (Ok(()), Err(error)) => Err(failure(error)),
+                (Err(kill), Err(wait)) => {
+                    Err(failure(format!("Probe termination: {kill}; reap: {wait}")))
+                },
+            }
         };
         match (removed, reaped) {
             (Ok(()), Ok(())) => Ok(()),
             (Err(error), Ok(())) | (Ok(()), Err(error)) => Err(error),
             (Err(container), Err(process)) => Err(failure(format!("{container}; {process}"))),
         }
+    }
+}
+
+fn await_probe(child: &mut Child, output: &Path, errors: &Path) -> SchedulerResult<Vec<u8>> {
+    let started = Instant::now();
+    loop {
+        let size = std::fs::metadata(output)?
+            .len()
+            .saturating_add(std::fs::metadata(errors)?.len());
+        if size > 65_536 || started.elapsed() > Duration::from_secs(10) {
+            return Err(failure(
+                "Native pin verification exceeded time or output bounds",
+            ));
+        }
+        if let Some(status) = child.try_wait()? {
+            if !status.success() {
+                return Err(failure("Native pin verification command failed"));
+            }
+            return Ok(std::fs::read(output)?);
+        }
+        std::thread::sleep(Duration::from_millis(10));
     }
 }
 

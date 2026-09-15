@@ -36,7 +36,7 @@ impl Job for FeedbackSnapshotsJob {
         let repository = app.feedback_snapshots_repository();
         let worker = TaskId::generate();
         let now = chrono::Utc::now();
-        let mut processed = 0_u64;
+        let mut processed = 0u64;
         for _ in 0..16 {
             let count = repository
                 .process(owner, &worker, now)

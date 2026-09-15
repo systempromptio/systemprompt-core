@@ -3,29 +3,21 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::terminal::{CleanupOutcome, CleanupResources, ExecutionTerminal};
+use super::failures::ReadinessScope;
+use super::terminal::{CleanupOutcome, CleanupResources, ExecutionTerminal, TerminalEvidence};
 use super::{
     ArtifactEvidence, ClientCapabilities, DeterministicMeasurement, EvaluatorSupervisor,
-    EvidenceArchive, EvidenceJudgment, ExecutionEvidence, ExecutionOutcome, Instant,
-    PreparedExecution, SchedulerResult, TerminalOutcome, VerificationInput, evidence_references,
-    image_digest, internal, scoring, verification,
+    EvidenceArchive, ExecutionEvidence, ExecutionOutcome, PreparedExecution, SchedulerResult,
+    TerminalOutcome, VerificationInput, evidence_references, image_digest, internal, scoring,
+    verification,
 };
 use sha2::{Digest, Sha256};
 impl EvaluatorSupervisor {
     pub(super) async fn finalize_execution(
         &self,
         mut run: PreparedExecution,
-        outcome: ExecutionOutcome,
+        mut outcome: ExecutionOutcome,
     ) -> SchedulerResult<()> {
-        let artifact_evidence = outcome
-            .artifacts
-            .iter()
-            .map(|(relative_path, file)| ArtifactEvidence {
-                relative_path: relative_path.clone(),
-                sha256: hex::encode(Sha256::digest(&file.bytes)),
-                bytes: file.bytes.len() as u64,
-            })
-            .collect();
         let cleanup = self.tear_down(&mut run).await?;
         let cleanup_confirmed = cleanup.verified();
         let readiness_failure = if cleanup_confirmed {
@@ -37,23 +29,75 @@ impl EvaluatorSupervisor {
         };
         if let Err(error) = self
             .observe_targets(
-                &run.worker,
-                &run.lease,
-                &run.assignment,
-                run.record.variant_index,
+                ReadinessScope {
+                    worker: &run.worker,
+                    lease: &run.lease,
+                    assignment: &run.assignment,
+                    variant_index: run.record.variant_index,
+                },
                 readiness_failure,
             )
             .await
         {
             tracing::warn!(execution_id = %run.lease.execution_id, %error, "Readiness observation failed; terminal evidence still required");
         }
+        let evidence = self
+            .build_evidence(&run, &outcome, cleanup_confirmed)
+            .await?;
+        let terminal_service = ExecutionTerminal::new(&self.repositories);
+        let archive = EvidenceArchive {
+            files: std::mem::take(&mut outcome.artifacts),
+        };
+        let terminal_evidence = TerminalEvidence {
+            evidence: &evidence,
+            archive: &archive,
+            cleanup: &cleanup,
+        };
+        let terminal = if let Some(reason) = &outcome.blocked {
+            terminal_service
+                .persist_blocked(&run.worker.owner_id, &run.lease, terminal_evidence, reason)
+                .await?
+        } else {
+            terminal_service
+                .persist(
+                    &run.worker.owner_id,
+                    &run.lease,
+                    terminal_evidence,
+                    outcome.native_completion,
+                )
+                .await?
+        };
+        if matches!(
+            terminal,
+            TerminalOutcome::Completed | TerminalOutcome::Blocked
+        ) {
+            self.record_measurement(&run, &evidence, outcome).await?;
+        }
+        Ok(())
+    }
+
+    async fn build_evidence(
+        &self,
+        run: &PreparedExecution,
+        outcome: &ExecutionOutcome,
+        cleanup_confirmed: bool,
+    ) -> SchedulerResult<ExecutionEvidence> {
+        let artifact_evidence = outcome
+            .artifacts
+            .iter()
+            .map(|(relative_path, file)| ArtifactEvidence {
+                relative_path: relative_path.clone(),
+                sha256: hex::encode(Sha256::digest(&file.bytes)),
+                bytes: file.bytes.len() as u64,
+            })
+            .collect();
         let requests = self
             .repositories
             .evidence
             .list_request_ids(&run.worker.owner_id, &run.record.id)
             .await
             .map_err(internal)?;
-        let evidence = ExecutionEvidence::builder()
+        ExecutionEvidence::builder()
             .execution_id(run.record.id.clone())
             .fencing_token(run.record.fencing_token)
             .capabilities(ClientCapabilities {
@@ -77,48 +121,7 @@ impl EvaluatorSupervisor {
             .elapsed_milliseconds(outcome.started.elapsed().as_millis() as u64)
             .cleanup_confirmed(cleanup_confirmed)
             .build()
-            .map_err(internal)?;
-        let terminal_service = ExecutionTerminal::new(&self.repositories);
-        let archive = EvidenceArchive {
-            files: outcome.artifacts,
-        };
-        let terminal = if let Some(reason) = &outcome.blocked {
-            terminal_service
-                .persist_blocked(
-                    &run.worker.owner_id,
-                    &run.lease,
-                    &evidence,
-                    &archive,
-                    &cleanup,
-                    reason,
-                )
-                .await?
-        } else {
-            terminal_service
-                .persist(
-                    &run.worker.owner_id,
-                    &run.lease,
-                    &evidence,
-                    &archive,
-                    outcome.native_completion,
-                    &cleanup,
-                )
-                .await?
-        };
-        if matches!(
-            terminal,
-            TerminalOutcome::Completed | TerminalOutcome::Blocked
-        ) {
-            self.record_measurement(
-                &run,
-                &evidence,
-                outcome.judgment,
-                outcome.started,
-                outcome.blocked,
-            )
-            .await?;
-        }
-        Ok(())
+            .map_err(internal)
     }
 
     async fn tear_down(&self, run: &mut PreparedExecution) -> SchedulerResult<CleanupOutcome> {
@@ -144,9 +147,7 @@ impl EvaluatorSupervisor {
         &self,
         run: &PreparedExecution,
         evidence: &ExecutionEvidence,
-        judgment: Option<EvidenceJudgment>,
-        started: Instant,
-        blocked: Option<String>,
+        outcome: ExecutionOutcome,
     ) -> SchedulerResult<()> {
         let archive = self
             .repositories
@@ -158,11 +159,11 @@ impl EvaluatorSupervisor {
             case: &run.case,
             evidence: &archive,
         });
-        if let Some(reason) = blocked {
+        if let Some(reason) = outcome.blocked {
             deterministic.hard_failures.push(reason);
         }
         let references = evidence_references(evidence);
-        let scored = judgment.as_ref().and_then(|value| {
+        let scored = outcome.judgment.as_ref().and_then(|value| {
             scoring::score(&run.rubric, value, &references)
                 .ok()
                 .map(|score| (value.clone(), score))
@@ -180,7 +181,7 @@ impl EvaluatorSupervisor {
             checks: deterministic.checks,
             judgment: scored.as_ref().map(|(value, _)| value.clone()),
             quality_milli: scored.as_ref().map(|(_, score)| score.score_milli),
-            latency_ms: started.elapsed().as_millis() as u64,
+            latency_ms: outcome.started.elapsed().as_millis() as u64,
             input_tokens: accounting.input_tokens,
             output_tokens: accounting.output_tokens,
             tool_calls: accounting.tool_calls,

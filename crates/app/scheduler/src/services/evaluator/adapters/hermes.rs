@@ -5,12 +5,15 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::super::client::ClientPurpose;
-use super::{AdapterContext, AdapterInvocation, NativeAdapter, NormalizedClientOutput};
+use super::{
+    AdapterContext, AdapterInvocation, NativeAdapter, NormalizedClientOutput, exact_version, file,
+    invalid, malformed,
+};
 use std::collections::BTreeMap;
 use std::ffi::OsString;
+use systemprompt_evaluation::Result;
 use systemprompt_evaluation::experiments::ClientKind;
-use systemprompt_evaluation::experiments::execution::{ArtifactFile, EvidenceArchive};
-use systemprompt_evaluation::{EvaluationError, Result};
+use systemprompt_evaluation::experiments::execution::EvidenceArchive;
 
 #[path = "hermes_output.rs"]
 mod output;
@@ -124,8 +127,8 @@ impl NativeAdapter for HermesAdapter {
         if bytes.len() > 4096 {
             return Err(invalid("Hermes version output exceeds its bound"));
         }
-        let text =
-            std::str::from_utf8(bytes).map_err(|_| invalid("Hermes version is not UTF-8"))?;
+        let text = std::str::from_utf8(bytes)
+            .map_err(|error| malformed("Hermes version is not UTF-8", error))?;
         let mut lines = text.lines();
         let version = lines
             .next()
@@ -196,25 +199,4 @@ fn validate_context(context: &AdapterContext<'_>) -> Result<()> {
         ));
     }
     Ok(())
-}
-
-fn exact_version(value: &str) -> bool {
-    let parts: Vec<_> = value.split('.').collect();
-    parts.len() == 3
-        && parts.iter().all(|part| {
-            !part.is_empty()
-                && !(part.len() > 1 && part.starts_with('0'))
-                && part.bytes().all(|byte| byte.is_ascii_digit())
-                && part.parse::<u32>().is_ok()
-        })
-}
-
-fn file(bytes: Vec<u8>) -> ArtifactFile {
-    ArtifactFile {
-        bytes,
-        executable: false,
-    }
-}
-fn invalid(message: &str) -> EvaluationError {
-    EvaluationError::InvalidSpec(message.to_owned())
 }

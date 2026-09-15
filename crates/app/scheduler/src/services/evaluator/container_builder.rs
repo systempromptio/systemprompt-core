@@ -78,7 +78,11 @@ impl ContainerLaunchBuilder {
         };
         let image = self.image.ok_or_else(invalid)?;
         let digest = systemprompt_evaluation::capabilities::proofs::ImmutableImage::parse(&image)
-            .map_err(|_| invalid())?
+            .map_err(|error| {
+                SchedulerError::config_error(format!(
+                    "Evaluator requires a pinned immutable image: {error}"
+                ))
+            })?
             .digest();
         let network = self.network.ok_or_else(invalid)?;
         let name = self.name.ok_or_else(invalid)?;

@@ -5,12 +5,15 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::super::client::ClientPurpose;
-use super::{AdapterContext, AdapterInvocation, NativeAdapter, NormalizedClientOutput};
+use super::{
+    AdapterContext, AdapterInvocation, NativeAdapter, NormalizedClientOutput, exact_version, file,
+    invalid, malformed,
+};
 use std::collections::BTreeMap;
 use std::ffi::OsString;
+use systemprompt_evaluation::Result;
 use systemprompt_evaluation::experiments::ClientKind;
-use systemprompt_evaluation::experiments::execution::{ArtifactFile, EvidenceArchive};
-use systemprompt_evaluation::{EvaluationError, Result};
+use systemprompt_evaluation::experiments::execution::EvidenceArchive;
 
 #[path = "codex_output.rs"]
 mod output;
@@ -21,6 +24,54 @@ pub static ADAPTER: CodexAdapter = CodexAdapter;
 const ADAPTER_VERSION: &str = "codex-native-v1";
 const EXECUTABLE: &str = "/opt/systemprompt/codex/bin/codex";
 const PINNED_VERSION: &str = "0.154.0";
+const BASE_SETTINGS: &[&str] = &[
+    "approval_policy=\"never\"",
+    "allow_login_shell=false",
+    "default_permissions=\"evaluation\"",
+    "permissions.evaluation.network.enabled=false",
+    "shell_environment_policy.inherit=\"none\"",
+    "shell_environment_policy.set.PATH=\"/usr/local/bin:/usr/bin:/bin\"",
+    "shell_environment_policy.set.HOME=\"/home/tester\"",
+    "shell_environment_policy.experimental_use_profile=false",
+    "model_provider=\"systemprompt\"",
+    "model_providers.systemprompt.name=\"Evaluation gateway\"",
+    "model_providers.systemprompt.base_url=\"http://127.0.0.1:8091/v1\"",
+    "model_providers.systemprompt.env_key=\"CODEX_LOCAL_PROXY_TOKEN\"",
+    "model_providers.systemprompt.wire_api=\"responses\"",
+    "model_providers.systemprompt.requires_openai_auth=false",
+    "model_providers.systemprompt.supports_websockets=false",
+    "model_providers.systemprompt.supports_standalone_web_search=false",
+    "model_providers.systemprompt.request_max_retries=0",
+    "model_providers.systemprompt.stream_max_retries=0",
+    "model_providers.systemprompt.stream_idle_timeout_ms=30000",
+    "mcp_servers.evaluation_fixture.url=\"http://127.0.0.1:8091/mcp/evaluation_fixture\"",
+    "mcp_servers.evaluation_fixture.bearer_token_env_var=\"CODEX_LOCAL_PROXY_TOKEN\"",
+    "mcp_servers.evaluation_fixture.enabled_tools=[\"evaluation_fixture\"]",
+    "mcp_servers.evaluation_fixture.tools.evaluation_fixture.approval_mode=\"approve\"",
+    "mcp_servers.evaluation_fixture.startup_timeout_sec=5",
+    "mcp_servers.evaluation_fixture.tool_timeout_sec=10",
+    "features.apps=false",
+    "features.plugins=false",
+    "features.remote_plugin=false",
+    "features.recommended_plugins=false",
+    "features.hooks=false",
+    "features.memories=false",
+    "features.multi_agent=false",
+    "features.multi_agent_v2=false",
+    "features.computer_use=false",
+    "features.in_app_browser=false",
+    "features.shell_snapshot=false",
+    "features.skill_mcp_dependency_install=false",
+    "features.skill_search=false",
+    "web_search=\"disabled\"",
+    "features.view_image=false",
+    "features.image_generation=false",
+    "project_doc_max_bytes=0",
+    "projects={\"/home/tester/work\"={trust_level=\"untrusted\"}}",
+    "history.persistence=\"none\"",
+    "check_for_update_on_startup=false",
+    "analytics.enabled=false",
+];
 
 impl NativeAdapter for CodexAdapter {
     fn client(&self) -> ClientKind {
@@ -81,90 +132,10 @@ impl NativeAdapter for CodexAdapter {
         .into_iter()
         .map(OsString::from)
         .collect();
-        for setting in [
-            "approval_policy=\"never\"",
-            "allow_login_shell=false",
-            "default_permissions=\"evaluation\"",
-            "permissions.evaluation.network.enabled=false",
-            "shell_environment_policy.inherit=\"none\"",
-            "shell_environment_policy.set.PATH=\"/usr/local/bin:/usr/bin:/bin\"",
-            "shell_environment_policy.set.HOME=\"/home/tester\"",
-            "shell_environment_policy.experimental_use_profile=false",
-            "model_provider=\"systemprompt\"",
-            "model_providers.systemprompt.name=\"Evaluation gateway\"",
-            "model_providers.systemprompt.base_url=\"http://127.0.0.1:8091/v1\"",
-            "model_providers.systemprompt.env_key=\"CODEX_LOCAL_PROXY_TOKEN\"",
-            "model_providers.systemprompt.wire_api=\"responses\"",
-            "model_providers.systemprompt.requires_openai_auth=false",
-            "model_providers.systemprompt.supports_websockets=false",
-            "model_providers.systemprompt.supports_standalone_web_search=false",
-            "model_providers.systemprompt.request_max_retries=0",
-            "model_providers.systemprompt.stream_max_retries=0",
-            "model_providers.systemprompt.stream_idle_timeout_ms=30000",
-            "mcp_servers.evaluation_fixture.url=\"http://127.0.0.1:8091/mcp/evaluation_fixture\"",
-            "mcp_servers.evaluation_fixture.bearer_token_env_var=\"CODEX_LOCAL_PROXY_TOKEN\"",
-            "mcp_servers.evaluation_fixture.enabled_tools=[\"evaluation_fixture\"]",
-            "mcp_servers.evaluation_fixture.tools.evaluation_fixture.approval_mode=\"approve\"",
-            "mcp_servers.evaluation_fixture.startup_timeout_sec=5",
-            "mcp_servers.evaluation_fixture.tool_timeout_sec=10",
-            "features.apps=false",
-            "features.plugins=false",
-            "features.remote_plugin=false",
-            "features.recommended_plugins=false",
-            "features.hooks=false",
-            "features.memories=false",
-            "features.multi_agent=false",
-            "features.multi_agent_v2=false",
-            "features.computer_use=false",
-            "features.in_app_browser=false",
-            "features.shell_snapshot=false",
-            "features.skill_mcp_dependency_install=false",
-            "features.skill_search=false",
-            "web_search=\"disabled\"",
-            "features.view_image=false",
-            "features.image_generation=false",
-            "project_doc_max_bytes=0",
-            "projects={\"/home/tester/work\"={trust_level=\"untrusted\"}}",
-            "history.persistence=\"none\"",
-            "check_for_update_on_startup=false",
-            "analytics.enabled=false",
-        ] {
+        for setting in BASE_SETTINGS {
             config(&mut arguments, setting);
         }
-        // Why: CLI overrides split dotted keys without TOML quoting; path keys belong
-        // in a table value.
-        let workspace_access = if execution { "write" } else { "read" };
-        let skill_access = if execution { "read" } else { "deny" };
-        config(
-            &mut arguments,
-            &format!(
-                r#"permissions.evaluation.filesystem={{":minimal"="read","/proc"="deny","/opt/systemprompt/codex"="read","/home/tester/.codex"="deny","/home/tester/work/.codex"="deny","/home/tester/work"="{workspace_access}","/home/tester/.agents/skills"="{skill_access}"}}"#
-            ),
-        );
-        config(
-            &mut arguments,
-            if execution {
-                "mcp_servers.evaluation_fixture.enabled=true"
-            } else {
-                "mcp_servers.evaluation_fixture.enabled=false"
-            },
-        );
-        config(
-            &mut arguments,
-            &format!("tool_output_token_limit={}", input.limits.max_output_tokens),
-        );
-        let instruction = if execution {
-            "Read applicable SKILL.md instructions from /home/tester/.agents/skills before executing the case. Use only the sandboxed workspace and evaluation fixture."
-        } else {
-            "Evaluate retained evidence and respond directly. Do not execute skills or modify files."
-        };
-        config(
-            &mut arguments,
-            &format!(
-                "developer_instructions={}",
-                serde_json::to_string(instruction)?
-            ),
-        );
+        purpose_settings(&mut arguments, execution, input.limits.max_output_tokens)?;
         arguments.extend([OsString::from("--"), OsString::from(input.prompt)]);
         Ok(arguments)
     }
@@ -196,7 +167,7 @@ impl NativeAdapter for CodexAdapter {
             return Err(invalid("Codex version output exceeds its bound"));
         }
         let text = std::str::from_utf8(bytes)
-            .map_err(|_| invalid("Codex version is not UTF-8"))?
+            .map_err(|error| malformed("Codex version is not UTF-8", error))?
             .trim();
         let version = text
             .strip_prefix("codex-cli ")
@@ -212,6 +183,48 @@ impl NativeAdapter for CodexAdapter {
 }
 fn config(arguments: &mut Vec<OsString>, setting: &str) {
     arguments.extend([OsString::from("-c"), OsString::from(setting)]);
+}
+
+fn purpose_settings(
+    arguments: &mut Vec<OsString>,
+    execution: bool,
+    max_output_tokens: u32,
+) -> Result<()> {
+    // Why: CLI overrides split dotted keys without TOML quoting; path keys belong
+    // in a table value.
+    let workspace_access = if execution { "write" } else { "read" };
+    let skill_access = if execution { "read" } else { "deny" };
+    config(
+        arguments,
+        &format!(
+            r#"permissions.evaluation.filesystem={{":minimal"="read","/proc"="deny","/opt/systemprompt/codex"="read","/home/tester/.codex"="deny","/home/tester/work/.codex"="deny","/home/tester/work"="{workspace_access}","/home/tester/.agents/skills"="{skill_access}"}}"#
+        ),
+    );
+    config(
+        arguments,
+        if execution {
+            "mcp_servers.evaluation_fixture.enabled=true"
+        } else {
+            "mcp_servers.evaluation_fixture.enabled=false"
+        },
+    );
+    config(
+        arguments,
+        &format!("tool_output_token_limit={max_output_tokens}"),
+    );
+    let instruction = if execution {
+        "Read applicable SKILL.md instructions from /home/tester/.agents/skills before executing the case. Use only the sandboxed workspace and evaluation fixture."
+    } else {
+        "Evaluate retained evidence and respond directly. Do not execute skills or modify files."
+    };
+    config(
+        arguments,
+        &format!(
+            "developer_instructions={}",
+            serde_json::to_string(instruction)?
+        ),
+    );
+    Ok(())
 }
 
 fn validate_context(context: &AdapterContext<'_>) -> Result<()> {
@@ -254,25 +267,4 @@ fn validate_context(context: &AdapterContext<'_>) -> Result<()> {
         ));
     }
     Ok(())
-}
-
-fn exact_version(value: &str) -> bool {
-    let parts: Vec<_> = value.split('.').collect();
-    parts.len() == 3
-        && parts.iter().all(|part| {
-            !part.is_empty()
-                && !(part.len() > 1 && part.starts_with('0'))
-                && part.bytes().all(|byte| byte.is_ascii_digit())
-                && part.parse::<u32>().is_ok()
-        })
-}
-
-fn file(bytes: Vec<u8>) -> ArtifactFile {
-    ArtifactFile {
-        bytes,
-        executable: false,
-    }
-}
-fn invalid(message: &str) -> EvaluationError {
-    EvaluationError::InvalidSpec(message.to_owned())
 }
