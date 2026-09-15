@@ -29,6 +29,7 @@ use systemprompt_models::services::SystemAdmin;
 use systemprompt_models::{Config, ContentConfigRaw, ContentRouting, RouteClassifier};
 use systemprompt_oauth::repository::OAuthRepositories;
 use systemprompt_security::authz::SharedAuthzHook;
+use systemprompt_security::policy::GovernanceEngine;
 use systemprompt_traits::FileStorage;
 use systemprompt_users::{UserRepository, UserService};
 
@@ -89,6 +90,7 @@ pub struct Plugins {
 pub struct Subsystems {
     pub system_admin: Arc<SystemAdmin>,
     pub authz_hook: SharedAuthzHook,
+    pub governance: Arc<GovernanceEngine>,
     pub event_bridge: Arc<OnceLock<JoinHandle<()>>>,
     pub geoip_reader: Option<GeoIpReader>,
     pub file_storage: Arc<dyn FileStorage>,
@@ -236,6 +238,16 @@ impl AppContext {
 
     pub const fn authz_hook(&self) -> &SharedAuthzHook {
         &self.subsystems.authz_hook
+    }
+
+    #[must_use]
+    pub fn governance(&self) -> &GovernanceEngine {
+        &self.subsystems.governance
+    }
+
+    #[must_use]
+    pub fn governance_arc(&self) -> Arc<GovernanceEngine> {
+        Arc::clone(&self.subsystems.governance)
     }
 
     pub const fn shutdown_request(&self) -> &ShutdownRequest {

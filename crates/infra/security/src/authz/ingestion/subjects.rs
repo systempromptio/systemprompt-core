@@ -5,12 +5,13 @@
 //! cleanly and grants nobody anything — an inert rule that reads, in the access
 //! matrix, exactly like a live one.
 //!
-//! Only the `role` dimension is checkable in core: roles live in the
-//! `users.roles` array, so a role is real when some user holds it. Group and
-//! project dimensions have no core table — they are extension-owned subject
-//! dimensions registered through `SubjectAttributeProvider` — so a value in
-//! those bands is reported as unverifiable rather than unknown, and no warning
-//! is emitted for it.
+//! Only the `role` dimension is checkable, and only through a registered
+//! [`RoleDirectory`]: roles live in the users domain, so a role is real when
+//! that domain says some user holds it. Group and project dimensions have no
+//! core table — they are extension-owned subject dimensions registered
+//! through `SubjectAttributeProvider` — so a value in those bands, or any
+//! role when no directory is registered, is unverifiable rather than unknown,
+//! and no warning is emitted for it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -18,6 +19,7 @@
 use std::collections::BTreeSet;
 
 use super::super::error::AuthzResult;
+use super::super::subject_directory::RoleDirectory;
 use super::super::types::RuleType;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -35,9 +37,12 @@ pub(super) struct SubjectMention {
 }
 
 pub(super) async fn find_unknown_subjects(
-    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    directory: Option<&dyn RoleDirectory>,
     mentions: &BTreeSet<SubjectMention>,
 ) -> AuthzResult<Vec<UnknownSubject>> {
+    let Some(directory) = directory else {
+        return Ok(Vec::new());
+    };
     let roles: Vec<String> = mentions
         .iter()
         .filter(|m| m.rule_type == RuleType::ROLE.to_string())
@@ -47,20 +52,7 @@ pub(super) async fn find_unknown_subjects(
         return Ok(Vec::new());
     }
 
-    let rows = sqlx::query!(
-        r#"
-        SELECT candidate AS "candidate!"
-        FROM UNNEST($1::text[]) AS candidate
-        WHERE NOT EXISTS (
-            SELECT 1 FROM users WHERE candidate = ANY(users.roles)
-        )
-        "#,
-        &roles,
-    )
-    .fetch_all(&mut **tx)
-    .await?;
-
-    let missing: BTreeSet<String> = rows.into_iter().map(|row| row.candidate).collect();
+    let missing: BTreeSet<String> = directory.unknown_roles(&roles).await?.into_iter().collect();
     let mut out = Vec::new();
     for mention in mentions {
         if mention.rule_type != RuleType::ROLE.to_string() || !missing.contains(&mention.value) {

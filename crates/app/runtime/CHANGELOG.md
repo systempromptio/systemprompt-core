@@ -4,6 +4,7 @@
 
 ### Added
 
+- `AppContext::governance()` / `governance_arc()`; `Subsystems.governance` carries the engine built once from the profile's services root.
 - `OptimizationError::Bundle(RevisionBundleError)` for a candidate bundle that fails verification.
 
 ### Changed

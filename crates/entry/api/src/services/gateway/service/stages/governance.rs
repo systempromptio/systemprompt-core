@@ -10,8 +10,8 @@ use systemprompt_identifiers::{CallId, PolicyId, SessionId};
 use systemprompt_security::authz::types::{Decision, DenyReason};
 use systemprompt_security::policy::{
     AgentScope, AuditOrigin, AuditTarget, ChainEntryOutcome, ChainEntryResult, DecisionAudit,
-    Evaluation, GovernanceEngine, GovernanceEngineError, GovernedInput, GovernedTarget,
-    PolicyContext, PrincipalSnapshot, record_decision,
+    Evaluation, GovernanceEngine, GovernedInput, GovernedTarget, PolicyContext, PrincipalSnapshot,
+    record_decision,
 };
 
 pub(in crate::services::gateway::service) const QUOTA_POLICY_LABEL: &str = "quota";
@@ -88,10 +88,11 @@ pub(super) struct PromptEvaluation {
 }
 
 pub(super) fn evaluate_prompt(
+    governance: &GovernanceEngine,
     ctx: &GatewayRequestContext,
     request: &mut CanonicalRequest,
     body: &mut PreparedBody,
-) -> Result<PromptEvaluation, GovernanceEngineError> {
+) -> PromptEvaluation {
     let session_id = ctx.session_id.clone().unwrap_or_else(SessionId::system);
     let call_id = CallId::new(ctx.ai_request_id.as_str());
     let input = GovernedInput::prompt_parts([]);
@@ -110,13 +111,13 @@ pub(super) fn evaluate_prompt(
         evaluation,
         recovery_count,
         recovery_locations,
-    } = govern_prompt(GovernanceEngine::global()?, &policy_ctx, request, body);
+    } = govern_prompt(governance, &policy_ctx, request, body);
 
-    Ok(PromptEvaluation {
+    PromptEvaluation {
         evaluation,
         call_id,
         session_id,
         recovery_count,
         recovery_locations,
-    })
+    }
 }

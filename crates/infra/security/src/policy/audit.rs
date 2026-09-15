@@ -13,6 +13,7 @@
 
 use serde::Serialize;
 use sqlx::PgPool;
+use systemprompt_database::RepositoryError;
 use systemprompt_identifiers::{
     Actor, AgentId, ClientId, ContextId, PluginId, PolicyId, SessionId, UserId,
 };
@@ -155,7 +156,7 @@ fn decision_fields(audit: &DecisionAudit) -> (DecisionTag, String, String) {
     }
 }
 
-pub async fn record_decision(pool: &PgPool, audit: &DecisionAudit) -> Result<(), sqlx::Error> {
+pub async fn record_decision(pool: &PgPool, audit: &DecisionAudit) -> Result<(), RepositoryError> {
     let actor = Actor::from_tool_name(
         audit.principal.user_id.clone(),
         audit.principal.agent_id.as_ref(),

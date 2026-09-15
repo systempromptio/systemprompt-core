@@ -29,6 +29,7 @@ use systemprompt_database::{
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_models::Config;
 use systemprompt_security::authz::SharedAuthzHook;
+use systemprompt_security::policy::GovernanceEngine;
 use systemprompt_traits::FileStorage;
 
 use crate::error::{RuntimeError, RuntimeResult};
@@ -38,6 +39,7 @@ pub(super) struct CoreLayer {
     pub(super) app_paths: Arc<AppPaths>,
     pub(super) database: Arc<Database>,
     pub(super) authz_hook: SharedAuthzHook,
+    pub(super) governance: Arc<GovernanceEngine>,
     pub(super) file_storage: Arc<dyn FileStorage>,
 }
 
@@ -106,6 +108,10 @@ pub(super) async fn init_core(
     )
     .map_err(|err| RuntimeError::Internal(format!("authz bootstrap: {err}")))?;
 
+    let governance = Arc::new(GovernanceEngine::from_services_root(std::path::Path::new(
+        &profile.paths.services,
+    ))?);
+
     systemprompt_logging::init_logging(Arc::clone(&database));
 
     if config.database_write_url.is_some() {
@@ -119,6 +125,7 @@ pub(super) async fn init_core(
         app_paths,
         database,
         authz_hook,
+        governance,
         file_storage,
     })
 }

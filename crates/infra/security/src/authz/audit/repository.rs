@@ -10,6 +10,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use sqlx::PgPool;
+use systemprompt_database::RepositoryError;
 use systemprompt_identifiers::Actor;
 
 use crate::authz::types::DecisionTag;
@@ -53,7 +54,10 @@ impl GovernanceDecisionRepository {
         &self.pool
     }
 
-    pub async fn insert(&self, record: &GovernanceDecisionRecord<'_>) -> Result<(), sqlx::Error> {
+    pub async fn insert(
+        &self,
+        record: &GovernanceDecisionRecord<'_>,
+    ) -> Result<(), RepositoryError> {
         insert_governance_decision(&self.pool, record).await
     }
 }
@@ -61,7 +65,7 @@ impl GovernanceDecisionRepository {
 pub async fn insert_governance_decision(
     pool: &PgPool,
     record: &GovernanceDecisionRecord<'_>,
-) -> Result<(), sqlx::Error> {
+) -> Result<(), RepositoryError> {
     let actor_kind = record.actor.kind.tag();
     let actor_id = record.actor.kind.actor_id(&record.actor.user_id);
     let act_chain =
@@ -110,7 +114,7 @@ pub async fn insert_governance_decision(
         )
         .increment(1);
     }
-    result.map(|_| ())
+    result.map(|_| ()).map_err(RepositoryError::from)
 }
 
 /// One row of the warn-mode rollup: a policy that fired in `mode: warn` for
@@ -130,7 +134,7 @@ pub async fn list_governance_warnings(
     pool: &PgPool,
     since: Option<chrono::DateTime<chrono::Utc>>,
     limit: i64,
-) -> Result<Vec<GovernanceWarningRow>, sqlx::Error> {
+) -> Result<Vec<GovernanceWarningRow>, RepositoryError> {
     sqlx::query_as!(
         GovernanceWarningRow,
         r#"
@@ -149,13 +153,14 @@ pub async fn list_governance_warnings(
     )
     .fetch_all(pool)
     .await
+    .map_err(RepositoryError::from)
 }
 
 pub async fn list_trace_ids_with_decision(
     pool: &PgPool,
     decision: &str,
     since: Option<chrono::DateTime<chrono::Utc>>,
-) -> Result<Vec<String>, sqlx::Error> {
+) -> Result<Vec<String>, RepositoryError> {
     sqlx::query_scalar!(
         r#"
         SELECT DISTINCT trace_id AS "trace_id!"
@@ -168,4 +173,5 @@ pub async fn list_trace_ids_with_decision(
     )
     .fetch_all(pool)
     .await
+    .map_err(RepositoryError::from)
 }

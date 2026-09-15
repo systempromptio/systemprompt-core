@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT COUNT(*) as \"count!\" FROM logs\n            WHERE user_id IS NOT NULL\n              AND user_id NOT IN (SELECT id FROM users)\n            ",
+  "query": "SELECT COUNT(*) as \"count!\" FROM logs WHERE user_id IS NOT NULL AND user_id NOT IN (SELECT id FROM users)",
   "describe": {
     "columns": [
       {
@@ -17,5 +17,5 @@
       null
     ]
   },
-  "hash": "cab48219f4ebca3c1405a2f0d442019ea6caa493d93033041456c426427cb829"
+  "hash": "0cb4a44efccf35e39c23f59d9f132a749618a331803b209d20d58ff619d5a2f7"
 }

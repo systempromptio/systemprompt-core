@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.53.0] - 2026-09-14
+
+### Added
+
+- `UsersRoleDirectory` implements the security crate's `RoleDirectory` over `users.roles` and is registered at link time for authz ingestion's inert-rule report.
+
 ## [0.50.0] - 2026-09-10
 
 ### Changed

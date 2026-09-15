@@ -128,6 +128,7 @@ async fn setup_api_server_assembles_full_router() -> anyhow::Result<()> {
         Subsystems {
             system_admin: Arc::new(fixture_system_admin("admin")),
             authz_hook: Arc::new(AllowAllHook::new(Arc::new(NullAuditSink))),
+            governance: systemprompt_test_fixtures::default_governance_engine(),
             event_bridge: Arc::new(OnceLock::new()),
             geoip_reader: None,
             file_storage: systemprompt_storage::build_file_storage(

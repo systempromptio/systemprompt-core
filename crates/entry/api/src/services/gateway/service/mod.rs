@@ -42,6 +42,7 @@ use super::audit::{GatewayAudit, GatewayRequestContext};
 use super::policy::{GatewayPolicySpec, PolicyResolver};
 use super::protocol::canonical::CanonicalRequest;
 use super::protocol::inbound::InboundAdapter;
+use systemprompt_security::policy::GovernanceEngine;
 
 pub const REQUEST_ID_HEADER: &str = "x-systemprompt-request-id";
 pub const RECOVERY_COUNT_HEADER: &str = "x-systemprompt-recovery-count";
@@ -57,6 +58,7 @@ pub struct DispatchInputs {
     pub inbound: Arc<dyn InboundAdapter>,
     pub forward_headers: Vec<(String, String)>,
     pub identity_headers: Vec<(String, String)>,
+    pub governance: Arc<GovernanceEngine>,
 }
 
 impl GatewayService {
@@ -74,6 +76,7 @@ impl GatewayService {
             inbound,
             forward_headers,
             identity_headers,
+            governance,
         } = inputs;
         let (policy, evaluation_session) =
             dispatch_policy(repos, &ctx, config.quota_fault_mode).await?;
@@ -100,6 +103,7 @@ impl GatewayService {
             ctx,
             inbound,
             forward_headers,
+            governance,
         })
         .await;
         // Why: every `Err` from the opened dispatch has already recorded itself
@@ -126,6 +130,7 @@ struct OpenedDispatch<'a> {
     ctx: GatewayRequestContext,
     inbound: Arc<dyn InboundAdapter>,
     forward_headers: Vec<(String, String)>,
+    governance: Arc<GovernanceEngine>,
 }
 
 async fn dispatch_opened(opened: OpenedDispatch<'_>) -> Result<Response<Body>, DispatchError> {
@@ -144,6 +149,7 @@ async fn dispatch_opened(opened: OpenedDispatch<'_>) -> Result<Response<Body>, D
         ctx,
         inbound,
         forward_headers,
+        governance,
     } = opened;
     audit
         .pin_pricing(pricing)
@@ -167,7 +173,7 @@ async fn dispatch_opened(opened: OpenedDispatch<'_>) -> Result<Response<Body>, D
         },
     )
     .await?;
-    let governed = GovernedDispatch::enforce(prepared, db, &ctx, &audit).await?;
+    let governed = GovernedDispatch::enforce(prepared, db, &ctx, &audit, &governance).await?;
     let scanned =
         ScannedDispatch::enforce(governed, repos, &ai_request_id, &policy.safety, &audit).await?;
 

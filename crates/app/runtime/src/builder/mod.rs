@@ -12,7 +12,7 @@ mod assembly;
 mod composition;
 mod core_layer;
 
-use composition::{build_data_plane, build_repositories, build_subsystems, ensure_legacy_context};
+use composition::{build_data_plane, build_repositories, ensure_legacy_context};
 
 use std::sync::{Arc, OnceLock};
 
@@ -21,7 +21,6 @@ use systemprompt_extension::ExtensionRegistry;
 use systemprompt_marketplace::MarketplaceFilter;
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_security::authz::{AuthzDecisionHook, SharedAuthzHook};
-use systemprompt_security::policy::GovernanceEngine;
 use systemprompt_users::UserService;
 
 use crate::context::{AppContext, ConfigPlane, DataPlane, Plugins, ShutdownRequest, Subsystems};
@@ -127,6 +126,7 @@ impl AppContextBuilder {
             app_paths,
             database,
             authz_hook,
+            governance,
             file_storage,
         } = init_core(self.authz_hook).await?;
 
@@ -138,8 +138,6 @@ impl AppContextBuilder {
             &database,
         )
         .await?;
-
-        GovernanceEngine::global()?;
 
         crate::reporting::initialize(&database).await?;
 
@@ -173,13 +171,15 @@ impl AppContextBuilder {
             .marketplace_filter
             .unwrap_or_else(|| assembly::build_marketplace_filter(&database));
 
-        let subsystems = build_subsystems(
+        let subsystems = Subsystems {
             system_admin,
             authz_hook,
+            governance,
+            event_bridge: Arc::new(OnceLock::new()),
             geoip_reader,
             file_storage,
             shutdown,
-        );
+        };
 
         Ok(AppContext::from_parts(
             build_data_plane(

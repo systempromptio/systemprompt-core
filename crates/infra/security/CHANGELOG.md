@@ -4,10 +4,19 @@
 
 ### Breaking
 
+- **Breaking:** `ApprovalRepository`, `GovernanceAuditRepository::insert`, `insert_governance_decision`, `record_decision` and the governance warning queries return `systemprompt_database::RepositoryError` instead of `sqlx::Error`.
+- **Breaking:** `GovernanceEngine::global()` is removed. The engine is built once at the composition root with `GovernanceEngine::from_services_root(&profile.paths.services)` and reached through `AppContext::governance()`; a missing `governance/config.yaml` still yields the warn-only defaults, a rejected one refuses the boot. Migrate by taking the engine from `AppContext`.
 - **Breaking:** `DecisionAudit::context_id` is `Option<ContextId>` and `ApprovalRequest::session_id` is `Option<SessionId>`. Migrate by passing the typed ids.
+
+### Added
+
+- `RoleDirectory` / `register_role_directory!`: the users domain answers which roles nobody holds, so the ingestion service no longer queries the `users` table itself; without a registered directory role mentions are unverifiable and not reported.
 
 ### Changed
 
+- Authz ingestion reads the roles YAML and probes its presence through `tokio::fs`; an unreadable path fails the reconcile instead of reading as absent.
+- A `secret_scan` policy that is enabled in `enforce` mode but compiles no patterns is `ConfigRejected`; the warn-only defaults keep their empty catalog.
+- `require_approval` rejects its configuration (and so the boot) on a malformed `patterns` entry, a condition without an operand its operator can use, or an unknown `exempt_scopes` value, instead of dropping the rule — a typo no longer silently removes an approval gate.
 - `ManifestSigningError::KeyMissing` and `TokenAuthorityError::PathMissing` are no longer returned by `signing_key()` / the authority accessors after a successful load; the first loaded key wins.
 - A credential token response whose body cannot be read is a retryable transport failure.
 

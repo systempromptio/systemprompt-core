@@ -64,7 +64,10 @@ async fn insert_through_closed_pool_propagates_sqlx_error() {
         .await
         .expect_err("a closed pool must surface the failure, not drop the audit row");
     assert!(
-        matches!(err, sqlx::Error::PoolClosed),
+        matches!(
+            err,
+            systemprompt_database::RepositoryError::Database(sqlx::Error::PoolClosed)
+        ),
         "expected PoolClosed, got {err:?}"
     );
 }

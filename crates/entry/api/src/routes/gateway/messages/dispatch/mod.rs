@@ -90,6 +90,7 @@ pub(super) async fn dispatch_to_provider(
             inbound,
             forward_headers: client_headers.forward,
             identity_headers: client_headers.identity,
+            governance: rc.ctx.governance_arc(),
         },
     ))
     .await

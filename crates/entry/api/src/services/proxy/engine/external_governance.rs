@@ -13,8 +13,8 @@ use systemprompt_security::authz::Decision;
 use systemprompt_security::policy::governed::McpToolInput;
 use systemprompt_security::policy::types::AccessScope;
 use systemprompt_security::policy::{
-    AgentScope, AuditOrigin, AuditTarget, DecisionAudit, GovernanceEngine, GovernedInput,
-    GovernedTarget, PolicyContext, PrincipalSnapshot, record_decision,
+    AgentScope, AuditOrigin, AuditTarget, DecisionAudit, GovernedInput, GovernedTarget,
+    PolicyContext, PrincipalSnapshot, record_decision,
 };
 
 pub(super) async fn enforce(
@@ -44,27 +44,22 @@ pub(super) async fn enforce(
         .cloned()
         .unwrap_or_else(|| serde_json::json!({}));
     let input = GovernedInput::tool_arguments(McpToolInput::new(arguments));
-    let evaluation = GovernanceEngine::global()
-        .map_err(|error| {
-            tracing::warn!(%error, service, "External MCP governance failed");
-            denied()
-        })?
-        .evaluate(&PolicyContext {
-            target: GovernedTarget::Tool {
-                tool: McpToolName::try_new(&target).map_err(|error| {
-                    tracing::warn!(%error, service, "External MCP tool name rejected");
-                    denied()
-                })?,
-            },
-            agent_scope: AgentScope::User {
-                user_id: request.user_id().clone(),
-            },
-            access_scope: scope,
-            session_id: request.session_id(),
-            user_id: request.user_id(),
-            input: &input,
-            call_id: &call_id,
-        });
+    let evaluation = ctx.governance().evaluate(&PolicyContext {
+        target: GovernedTarget::Tool {
+            tool: McpToolName::try_new(&target).map_err(|error| {
+                tracing::warn!(%error, service, "External MCP tool name rejected");
+                denied()
+            })?,
+        },
+        agent_scope: AgentScope::User {
+            user_id: request.user_id().clone(),
+        },
+        access_scope: scope,
+        session_id: request.session_id(),
+        user_id: request.user_id(),
+        input: &input,
+        call_id: &call_id,
+    });
     let allowed = matches!(
         evaluation.decision,
         Decision::Allow { .. } | Decision::Warn { .. }

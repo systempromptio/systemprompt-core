@@ -5354,6 +5354,7 @@ dependencies = [
  "systemprompt-identifiers",
  "systemprompt-models",
  "systemprompt-provider-contracts",
+ "systemprompt-security",
  "systemprompt-traits",
  "thiserror 2.0.19",
  "tracing",

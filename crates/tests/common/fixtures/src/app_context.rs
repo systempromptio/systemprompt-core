@@ -280,6 +280,7 @@ fn fixture_app_context_assembled(
         Subsystems {
             system_admin: Arc::new(fixture_system_admin("admin")),
             authz_hook,
+            governance: default_governance_engine(),
             event_bridge: Arc::new(OnceLock::new()),
             geoip_reader: None,
             file_storage,
@@ -288,4 +289,15 @@ fn fixture_app_context_assembled(
     );
 
     Ok(Arc::new(ctx))
+}
+
+// The vendor-neutral warn-only chain: what a deployment without a
+// `<services>/governance/config.yaml` boots with.
+pub fn default_governance_engine() -> Arc<systemprompt_security::policy::GovernanceEngine> {
+    Arc::new(
+        systemprompt_security::policy::GovernanceEngine::from_config(
+            &systemprompt_security::policy::GovernanceConfig::defaults(),
+        )
+        .expect("the default governance chain always builds"),
+    )
 }

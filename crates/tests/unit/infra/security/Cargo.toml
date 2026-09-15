@@ -11,6 +11,7 @@ publish = false
 workspace = true
 
 [dependencies]
+tempfile = { workspace = true }
 systemprompt-test-fixtures = { workspace = true }
 systemprompt-security = { workspace = true }
 systemprompt-database = { workspace = true }

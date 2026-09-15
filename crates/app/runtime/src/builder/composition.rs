@@ -3,10 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::{
-    Arc, DataPlane, OnceLock, RuntimeResult, SharedAuthzHook, ShutdownRequest, Subsystems,
-    UserService,
-};
+use super::{Arc, DataPlane, RuntimeResult, UserService};
 
 pub(super) fn build_data_plane(
     database: Arc<systemprompt_database::Database>,
@@ -33,23 +30,6 @@ pub(super) fn build_data_plane(
         mcp_session_repository: repositories.mcp_sessions,
         managed_repository: repositories.managed,
         evaluation_repositories: repositories.evaluation,
-    }
-}
-
-pub(super) fn build_subsystems(
-    system_admin: Arc<systemprompt_models::services::SystemAdmin>,
-    authz_hook: SharedAuthzHook,
-    geoip_reader: Option<systemprompt_analytics::GeoIpReader>,
-    file_storage: Arc<dyn systemprompt_traits::FileStorage>,
-    shutdown: ShutdownRequest,
-) -> Subsystems {
-    Subsystems {
-        system_admin,
-        authz_hook,
-        event_bridge: Arc::new(OnceLock::new()),
-        geoip_reader,
-        file_storage,
-        shutdown,
     }
 }
 

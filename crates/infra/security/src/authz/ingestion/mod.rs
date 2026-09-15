@@ -58,6 +58,7 @@ use systemprompt_database::DbPool;
 
 use super::config::AccessControlConfig;
 use super::error::{AuthzError, AuthzResult};
+use super::subject_directory::{RoleDirectory, SharedRoleDirectory, discover_role_directory};
 use super::types::RuleType;
 
 pub use catalog::RegisteredEntities;
@@ -109,6 +110,7 @@ const fn tally(report: &mut IngestReport, outcome: UpsertOutcome) {
 #[derive(Debug, Clone)]
 pub struct AccessControlIngestionService {
     write_pool: Arc<PgPool>,
+    role_directory: Option<SharedRoleDirectory>,
 }
 
 impl AccessControlIngestionService {
@@ -116,11 +118,19 @@ impl AccessControlIngestionService {
         let write_pool = db
             .write_pool_arc()
             .map_err(|err| AuthzError::Validation(err.to_string()))?;
-        Ok(Self { write_pool })
+        Ok(Self::from_pool(write_pool))
     }
 
-    pub const fn from_pool(pool: Arc<PgPool>) -> Self {
-        Self { write_pool: pool }
+    pub fn from_pool(pool: Arc<PgPool>) -> Self {
+        let role_directory = discover_role_directory(&pool);
+        Self {
+            write_pool: pool,
+            role_directory,
+        }
+    }
+
+    fn role_directory(&self) -> Option<&dyn RoleDirectory> {
+        self.role_directory.as_deref()
     }
 
     pub async fn ingest_config_from_yaml_path(
@@ -129,7 +139,7 @@ impl AccessControlIngestionService {
         options: IngestOptions,
         registered: &RegisteredEntities,
     ) -> AuthzResult<IngestReport> {
-        let raw = std::fs::read_to_string(yaml_path).map_err(|err| {
+        let raw = tokio::fs::read_to_string(yaml_path).await.map_err(|err| {
             AuthzError::Validation(format!("failed to read {}: {err}", yaml_path.display()))
         })?;
         let cfg: AccessControlConfig = serde_yaml::from_str(&raw).map_err(|err| {
@@ -191,7 +201,7 @@ impl AccessControlIngestionService {
             }
         }
 
-        report.unknown_subjects = find_unknown_subjects(&mut tx, &mentions).await?;
+        report.unknown_subjects = find_unknown_subjects(self.role_directory(), &mentions).await?;
 
         tx.commit().await?;
 

@@ -187,7 +187,7 @@ impl AccessControlIngestionService {
             report.protected += one.protected;
         }
 
-        report.unknown_subjects = find_unknown_subjects(&mut tx, &mentions).await?;
+        report.unknown_subjects = find_unknown_subjects(self.role_directory(), &mentions).await?;
 
         tx.commit().await?;
 
