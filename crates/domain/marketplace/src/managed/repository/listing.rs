@@ -56,6 +56,44 @@ impl ManagedRepository {
             .collect())
     }
 
+    pub async fn list_resources_for_key(
+        &self,
+        owner: &UserId,
+        kind: &str,
+        key: &str,
+        limit: u32,
+    ) -> Result<Vec<ResourceSummary>> {
+        if kind.is_empty()
+            || kind.len() > 32
+            || key.is_empty()
+            || key.len() > 200
+            || kind.chars().any(char::is_control)
+            || key.chars().any(char::is_control)
+            || !(1..=51).contains(&limit)
+        {
+            return Err(invalid("Invalid resource candidate page"));
+        }
+        let limit = i64::from(limit);
+        let rows = sqlx::query!(r#"SELECT r.id,r.source_id,s.name AS source_name,r.kind,r.resource_key,
+            (SELECT count(*) FROM managed_revisions v WHERE v.resource_id=r.id) AS "revision_count!",
+            (SELECT v.id FROM managed_revisions v WHERE v.resource_id=r.id ORDER BY v.created_at DESC,v.id DESC LIMIT 1) AS "latest_revision?"
+            FROM managed_resources r JOIN managed_sources s ON s.id=r.source_id AND s.owner_id=r.owner_id
+            WHERE r.owner_id=$1 AND r.kind=$2 AND r.resource_key=$3 ORDER BY r.id LIMIT $4"#,
+            owner.as_str(), kind, key, limit).fetch_all(&self.pool).await?;
+        Ok(rows
+            .into_iter()
+            .map(|row| ResourceSummary {
+                id: ManagedResourceId::new(row.id),
+                source_id: ManagedSourceId::new(row.source_id),
+                source_name: row.source_name,
+                kind: row.kind,
+                resource_key: row.resource_key,
+                revision_count: row.revision_count,
+                latest_revision: row.latest_revision.map(ResourceRevisionId::new),
+            })
+            .collect())
+    }
+
     pub async fn list_revisions(
         &self,
         owner: &UserId,
