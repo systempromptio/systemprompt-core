@@ -3,7 +3,7 @@ use chrono::{Duration, TimeZone, Utc};
 use systemprompt_analytics::CostAnalyticsRepository;
 use systemprompt_database::DbPool;
 use systemprompt_models::UserId;
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::{drain_reporting, fixture_database_url, fixture_db_pool};
 use tokio::sync::{Mutex, MutexGuard, OnceCell};
 use uuid::Uuid;
 
@@ -119,7 +119,8 @@ impl Fixture {
         Ok(())
     }
 
-    fn repo(&self) -> Result<CostAnalyticsRepository> {
+    async fn repo(&self) -> Result<CostAnalyticsRepository> {
+        drain_reporting(&self.db).await?;
         Ok(CostAnalyticsRepository::new(&self.db)?)
     }
 
@@ -150,7 +151,7 @@ async fn breakdown_reconciles_with_summary_when_all_attributed() -> Result<()> {
             .await?;
     }
 
-    let repo = fx.repo()?;
+    let repo = fx.repo().await?;
     let summary = repo.get_summary(fx.window_start, fx.window_end).await?;
     let breakdown = repo
         .get_breakdown_by_agent(fx.window_start, fx.window_end, 20)
@@ -182,7 +183,7 @@ async fn breakdown_reconciles_with_summary_with_null_task_ids() -> Result<()> {
         fx.insert_ai_request(None, 1_500, 75, i + 5).await?;
     }
 
-    let repo = fx.repo()?;
+    let repo = fx.repo().await?;
     let summary = repo.get_summary(fx.window_start, fx.window_end).await?;
     let breakdown = repo
         .get_breakdown_by_agent(fx.window_start, fx.window_end, 20)
@@ -221,7 +222,7 @@ async fn unattributed_row_survives_limit() -> Result<()> {
     }
     fx.insert_ai_request(None, 50, 1, 20).await?;
 
-    let repo = fx.repo()?;
+    let repo = fx.repo().await?;
     let breakdown = repo
         .get_breakdown_by_agent(fx.window_start, fx.window_end, 2)
         .await?;
@@ -326,7 +327,7 @@ async fn summary_for_user_isolates_by_user_id() -> Result<()> {
     fx.insert_ai_request(None, 1_000, 100, 0).await?;
     fx.insert_ai_request(None, 2_500, 250, 1).await?;
 
-    let repo = fx.repo()?;
+    let repo = fx.repo().await?;
     let summary = repo
         .get_summary_for_user(&UserId::new(&fx.user_id), fx.window_start, fx.window_end)
         .await?;
@@ -351,7 +352,7 @@ async fn breakdown_by_model_for_user_only_includes_self() -> Result<()> {
     insert_request_with_context(&fx, &fx.context_id, None, "model-x", 1_000, 100, 0).await?;
     insert_request_with_context(&fx, &fx.context_id, None, "model-y", 5_000, 500, 1).await?;
 
-    let repo = fx.repo()?;
+    let repo = fx.repo().await?;
     let rows = repo
         .get_breakdown_by_model_for_user(
             &UserId::new(&fx.user_id),
@@ -387,7 +388,7 @@ async fn context_summary_counts_distinct_contexts() -> Result<()> {
     insert_request_with_context(&fx, &fx.context_id, None, "model-a", 100, 10, 1).await?;
     insert_request_with_context(&fx, &ctx2, None, "model-a", 100, 10, 2).await?;
 
-    let repo = fx.repo()?;
+    let repo = fx.repo().await?;
     let summary = repo
         .get_context_summary_for_user(&UserId::new(&fx.user_id), fx.window_start, fx.window_end)
         .await?;
@@ -413,7 +414,7 @@ async fn contexts_by_agent_groups_by_agent_name() -> Result<()> {
     insert_request_with_context(&fx, &fx.context_id, Some(&task_a), "m", 100, 10, 1).await?;
     insert_request_with_context(&fx, &fx.context_id, Some(&task_b), "m", 100, 10, 2).await?;
 
-    let repo = fx.repo()?;
+    let repo = fx.repo().await?;
     let rows = repo
         .get_contexts_by_agent_for_user(
             &UserId::new(&fx.user_id),
@@ -435,7 +436,7 @@ async fn contexts_by_agent_groups_by_agent_name() -> Result<()> {
 async fn empty_window_returns_no_rows() -> Result<()> {
     let fx = Fixture::new().await?;
 
-    let repo = fx.repo()?;
+    let repo = fx.repo().await?;
     let breakdown = repo
         .get_breakdown_by_agent(fx.window_start, fx.window_end, 20)
         .await?;
