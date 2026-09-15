@@ -132,6 +132,8 @@ impl HooksFile {
     /// a cached copy of this file and Cowork reads it in place. Device
     /// credentials never travel in authored hooks: the proxy attaches them
     /// from the enrollment on the way upstream.
+    // Why: stamped per host copy at emit time — Claude Code runs hooks from a
+    // cached copy of this file while Cowork reads it in place.
     pub(crate) fn stamp_host(&mut self, host: &str) {
         for entry in self
             .hooks

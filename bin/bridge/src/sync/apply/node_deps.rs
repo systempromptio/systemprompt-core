@@ -13,7 +13,9 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::io::Read;
-use std::path::{Path, PathBuf};
+use std::path::Path;
+
+pub use crate::sysproc::binary_on_path;
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
@@ -37,16 +39,6 @@ pub enum NodeInstall {
 }
 
 #[must_use]
-pub fn binary_on_path(binary: &str) -> Option<PathBuf> {
-    let paths = std::env::var_os("PATH")?;
-    std::env::split_paths(&paths).find_map(|dir| {
-        ["", ".exe", ".cmd"]
-            .iter()
-            .map(|ext| dir.join(format!("{binary}{ext}")))
-            .find(|candidate| candidate.is_file())
-    })
-}
-
 fn fingerprint(plugin_dir: &Path, lockfile: &str) -> Option<String> {
     let mut bytes = Vec::new();
     for name in [NODE_PACKAGE_FILE, lockfile] {

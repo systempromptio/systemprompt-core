@@ -2,7 +2,7 @@
 
 use std::path::Path;
 
-use systemprompt_bridge::sync::apply::stamp_hooks_file;
+use systemprompt_bridge::host_sync::stamp_hooks_file;
 
 const HOOKS: &str = r#"{
   "hooks": {

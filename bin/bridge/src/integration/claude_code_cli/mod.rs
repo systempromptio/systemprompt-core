@@ -80,7 +80,7 @@ pub(crate) fn claude_cli_installed() -> bool {
     if paths::claude_cli_home().is_some_and(|h| h.exists()) {
         return true;
     }
-    crate::sync::apply::node_deps::binary_on_path("claude").is_some()
+    crate::sysproc::binary_on_path("claude").is_some()
 }
 
 fn apply_install(ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {

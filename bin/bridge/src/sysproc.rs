@@ -4,6 +4,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::path::PathBuf;
+
 #[derive(Debug, Clone)]
 pub(crate) struct ProcInfo {
     pub name: String,
@@ -263,4 +265,31 @@ pub(crate) fn find_processes(binary: &str) -> Result<Vec<String>, SysprocError> 
     hits.sort();
     hits.dedup();
     Ok(hits)
+}
+
+pub fn binary_on_path(binary: &str) -> Option<PathBuf> {
+    let paths = std::env::var_os("PATH")?;
+    std::env::split_paths(&paths).find_map(|dir| {
+        ["", ".exe", ".cmd"]
+            .iter()
+            .map(|ext| dir.join(format!("{binary}{ext}")))
+            .find(|candidate| candidate.is_file())
+    })
+}
+
+// Why: the OS host name is the only device label available before the
+// user names the device; COMPUTERNAME is the Windows spelling, HOSTNAME the
+// Unix one, and /etc/hostname the fallback on hosts that export neither.
+pub(crate) fn host_name() -> Option<String> {
+    ["COMPUTERNAME", "HOSTNAME"]
+        .iter()
+        .find_map(|var| std::env::var(var).ok())
+        .map(|h| h.trim().to_owned())
+        .filter(|h| !h.is_empty())
+        .or_else(|| {
+            std::fs::read_to_string("/etc/hostname")
+                .ok()
+                .map(|h| h.trim().to_owned())
+                .filter(|h| !h.is_empty())
+        })
 }

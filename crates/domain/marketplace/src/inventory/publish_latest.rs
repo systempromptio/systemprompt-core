@@ -97,22 +97,8 @@ impl InventoryService {
         entry: &InventoryEntry,
     ) -> Result<LatestPublication> {
         let owner = scope.owner;
-        match entry.availability {
-            InventoryAvailability::Available => {},
-            InventoryAvailability::Withdrawn => {
-                return Ok(outcome(entry, LatestPublicationStatus::Withdrawn));
-            },
-            InventoryAvailability::Conflicting => {
-                let status = if self.has_open_reconciliation(scope, entry).await? {
-                    LatestPublicationStatus::ReconciliationRequired
-                } else {
-                    LatestPublicationStatus::Blocked
-                };
-                return Ok(outcome(entry, status));
-            },
-            InventoryAvailability::Unavailable => {
-                return Ok(outcome(entry, LatestPublicationStatus::Blocked));
-            },
+        if let Some(status) = self.unavailable_status(scope, entry).await? {
+            return Ok(outcome(entry, status));
         }
         let canonical = std::fs::canonicalize(scope.root)?;
         let tree = match configured_files(&canonical, entry, scope.services) {
@@ -158,32 +144,7 @@ impl InventoryService {
                 ..outcome(entry, LatestPublicationStatus::Unchanged)
             });
         }
-        let request = PublicationRequest {
-            resource_id: managed.resource_id,
-            revision_id: Some(revision.clone()),
-            action: if managed.generation == 0 {
-                PublicationAction::InitialAdoption
-            } else {
-                PublicationAction::PublishImprovement
-            },
-            expected_generation: managed.generation,
-            operation_key: format!("inventory-sync:{}:{revision}", entry.resource_key),
-            comparison_evidence: ComparisonEvidence {
-                experiment_id: None,
-                recorded: BTreeMap::from([
-                    (
-                        "source".to_owned(),
-                        serde_json::json!(INVENTORY_REFRESH_SOURCE),
-                    ),
-                    (
-                        "previous_revision".to_owned(),
-                        serde_json::json!(managed.published),
-                    ),
-                    ("digest".to_owned(), serde_json::json!(tree)),
-                ]),
-            },
-            limitations: "Published automatically from the configured services tree".to_owned(),
-        };
+        let request = inventory_request(entry, &managed, &revision, &tree);
         let decision = self
             .repository
             .publish_with_admission(
@@ -198,6 +159,25 @@ impl InventoryService {
             revision_id: Some(revision),
             generation: Some(decision.generation),
             ..outcome(entry, LatestPublicationStatus::Published)
+        })
+    }
+
+    async fn unavailable_status(
+        &self,
+        scope: &BaselineScope<'_>,
+        entry: &InventoryEntry,
+    ) -> Result<Option<LatestPublicationStatus>> {
+        Ok(match entry.availability {
+            InventoryAvailability::Available => None,
+            InventoryAvailability::Withdrawn => Some(LatestPublicationStatus::Withdrawn),
+            InventoryAvailability::Conflicting => {
+                Some(if self.has_open_reconciliation(scope, entry).await? {
+                    LatestPublicationStatus::ReconciliationRequired
+                } else {
+                    LatestPublicationStatus::Blocked
+                })
+            },
+            InventoryAvailability::Unavailable => Some(LatestPublicationStatus::Blocked),
         })
     }
 
@@ -262,5 +242,39 @@ fn blocked(entry: &InventoryEntry, error: &crate::managed::ManagedError) -> Late
     LatestPublication {
         diagnostic: Some(error.to_string().chars().take(2000).collect()),
         ..outcome(entry, LatestPublicationStatus::Blocked)
+    }
+}
+
+fn inventory_request(
+    entry: &InventoryEntry,
+    managed: &Managed,
+    revision: &ResourceRevisionId,
+    tree: &AssetDigest,
+) -> PublicationRequest {
+    PublicationRequest {
+        resource_id: managed.resource_id.clone(),
+        revision_id: Some(revision.clone()),
+        action: if managed.generation == 0 {
+            PublicationAction::InitialAdoption
+        } else {
+            PublicationAction::PublishImprovement
+        },
+        expected_generation: managed.generation,
+        operation_key: format!("inventory-sync:{}:{revision}", entry.resource_key),
+        comparison_evidence: ComparisonEvidence {
+            experiment_id: None,
+            recorded: BTreeMap::from([
+                (
+                    "source".to_owned(),
+                    serde_json::json!(INVENTORY_REFRESH_SOURCE),
+                ),
+                (
+                    "previous_revision".to_owned(),
+                    serde_json::json!(managed.published),
+                ),
+                ("digest".to_owned(), serde_json::json!(tree)),
+            ]),
+        },
+        limitations: "Published automatically from the configured services tree".to_owned(),
     }
 }

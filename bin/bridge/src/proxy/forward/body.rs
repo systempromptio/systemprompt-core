@@ -1,8 +1,8 @@
-//! Buffering the caller's body before it goes upstream: the size cap, the
-//! `OpenCode` session stamp, and the conversation-id derivation that reads the
-//! buffered bytes.
+//! Buffers the caller's body before it goes upstream.
 //!
-//! `OpenCode` speaks the OpenAI chat-completions wire and cannot set
+//! Covers the size cap, the `OpenCode` session stamp, and the conversation-id
+//! derivation that reads the buffered bytes. `OpenCode` speaks the `OpenAI`
+//! chat-completions wire and cannot set
 //! `metadata.user_id` itself, so its plugin sends the session UUID in
 //! `x-opencode-session` and the proxy moves it into the body the gateway keys
 //! contexts on. Every other request passes through byte-identical.
@@ -21,6 +21,8 @@ use crate::feedback::sessions::OPENCODE_SESSION_HEADER;
 use crate::proxy::session::{self, SessionContext};
 
 /// The OpenAI-compatible chat path the gateway serves `OpenCode` on.
+// Why: the OpenAI-compatible path OpenCode calls; the session stamp applies
+// only to bodies bound for it.
 pub const CHAT_COMPLETIONS_PATH: &str = "/v1/chat/completions";
 
 pub(super) async fn prepare_upstream_body(
@@ -49,10 +51,6 @@ async fn collect_body(body: Incoming) -> ForwardResult<Bytes> {
     }
 }
 
-/// Moves a valid `x-opencode-session` UUID into `metadata.user_id` on a
-/// chat-completions body. Returns the input unchanged when the path is not the
-/// chat path, the header is absent or invalid, the body is not a JSON object,
-/// or `metadata.user_id` is already set.
 pub fn stamp_opencode_session(
     buffered: Bytes,
     request_headers: &http::HeaderMap,

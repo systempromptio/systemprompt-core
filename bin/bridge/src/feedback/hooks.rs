@@ -1,4 +1,6 @@
-//! Device authentication stays in protected enrollment storage, never authored
+//! Device authentication for forwarded hooks.
+//!
+//! The credential stays in protected enrollment storage, never in authored
 //! hooks: the proxy strips whatever a hook sent and re-attaches the enrolled
 //! credential and host on the way upstream. The `x-systemprompt-host` stamp in
 //! authored hooks is applied per host copy by the sync emitters.

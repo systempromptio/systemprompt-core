@@ -1,10 +1,7 @@
 import { SpElement, reactive } from "/assets/js/components/sp-element.js";
 import { escapeHtml } from "/assets/js/utils/escape.js";
 import { onBridgeEvent } from "/assets/js/events/bridge-events.js";
-import { bridge } from "/assets/js/bridge.js";
-import { repairHost } from "/assets/js/utils/host-actions.js";
-import { notifyErr, notifyOk } from "/assets/js/utils/notify.js";
-import { t } from "/assets/js/i18n.js";
+import { actionFor } from "/assets/js/components/toast-actions.js";
 
 // Every failing handler on the Rust side emits on the `error` channel *and*
 // rejects the request (`finish()` in src/gui/handlers/*). The front end now
@@ -12,38 +9,6 @@ import { t } from "/assets/js/i18n.js";
 // would say the same thing twice.
 const DEDUPE_MS = 2000;
 
-// The one action an error toast offers, decided from the error's code and
-// scope. `elevation_required` names a state only an administrator can change,
-// so the button runs the UAC-backed repair for that scope; `partial` means the
-// sync finished with agents left behind, so the button opens the health table
-// that lists them; `unauthorized` is answered by signing in again.
-function actionFor(err) {
-  if (!err) { return null; }
-  if (err.code === "unauthorized") {
-    return { kind: "reauth", label: t("sync-reauthenticate") || "Sign in again" };
-  }
-  if (err.code === "elevation_required") {
-    const failures = (err.detail && err.detail.host_failures) || [];
-    const host = failures.find((f) => f.needs_elevation);
-    if (err.scope === "identity") {
-      return { kind: "repair-config-dir", label: t("toast-action-repair-admin") || "Repair as administrator" };
-    }
-    if (host) {
-      return { kind: "repair-host", hostId: host.host_id, label: t("toast-action-repair-admin") || "Repair as administrator" };
-    }
-  }
-  if (err.code === "partial") {
-    return { kind: "details", label: t("toast-action-details") || "Details" };
-  }
-  return null;
-}
-
-function gotoStatus() {
-  const rail = document.querySelector("sp-rail");
-  if (rail && typeof rail.activateTab === "function") {
-    rail.activateTab("status");
-  }
-}
 
 export class SpToast extends SpElement {
   constructor() {
@@ -81,8 +46,8 @@ export class SpToast extends SpElement {
     // arrived and the prompt is stale.
     this.useSnapshot((snap) => {
       const identity = (snap && snap.verified_identity) || null;
-      const reauth = this.action && this.action.kind === "reauth";
-      if (this.visible && reauth && identity && identity.user_id) { this.hide(); }
+      const clears = Boolean(this.action && this.action.clearsOnSignIn);
+      if (this.visible && clears && identity && identity.user_id) { this.hide(); }
       const gateway = (snap && snap.gateway_status) || null;
       if (this.visible && this.gatewayError && gateway && gateway.tone === "ok") { this.hide(); }
     });
@@ -103,32 +68,7 @@ export class SpToast extends SpElement {
     const action = this.action;
     this.hide();
     if (!action) { return; }
-    switch (action.kind) {
-      case "reauth":
-        document.body.classList.add("is-setup-mode");
-        return;
-      case "details":
-        gotoStatus();
-        return;
-      case "repair-config-dir":
-        try {
-          await bridge.configRepairDir();
-          notifyOk(t("toast-config-dir-repaired") || "Configuration folder repaired. Sign in again.");
-        } catch (e) {
-          notifyErr(e, t("toast-action-repair-admin") || "Repair as administrator");
-        }
-        return;
-      case "repair-host":
-        try {
-          await repairHost(action.hostId);
-          notifyOk(t("toast-agent-repaired-short", { name: action.hostId }) || `${action.hostId} repaired.`);
-        } catch (e) {
-          notifyErr(e, t("toast-action-repair-admin") || "Repair as administrator");
-        }
-        return;
-      default:
-        return;
-    }
+    await action.run();
   }
 
   show(message, kind = "info", durationMs = 6000, key = message) {

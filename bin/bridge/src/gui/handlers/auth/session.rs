@@ -93,10 +93,6 @@ async fn run_session_login(
 }
 
 fn default_device_name() -> String {
-    let host = std::env::var("COMPUTERNAME")
-        .ok()
-        .or_else(|| std::env::var("HOSTNAME").ok())
-        .filter(|s| !s.trim().is_empty())
-        .unwrap_or_else(|| "device".to_owned());
+    let host = crate::sysproc::host_name().unwrap_or_else(|| "device".to_owned());
     format!("{} — {host}", crate::brand::brand().app_name)
 }

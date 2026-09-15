@@ -4,11 +4,25 @@
 
 use super::transport::mock_server;
 use systemprompt_bridge::feedback::credentials::Enrollment;
-use systemprompt_bridge::feedback::enrol::{device_fingerprint, enroll_into};
+use systemprompt_bridge::feedback::enrol::{SelfEnrolment, device_fingerprint, enroll_into};
 use systemprompt_bridge::gateway::GatewayClient;
 use systemprompt_bridge::ids::BearerToken;
-use systemprompt_bridge::proxy::identity::InstallId;
 use systemprompt_identifiers::{UserId, ValidatedUrl};
+
+fn ephemeral_install() -> String {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static NEXT: AtomicU64 = AtomicU64::new(1);
+    format!("install-{}", NEXT.fetch_add(1, Ordering::Relaxed))
+}
+
+fn enrolment<'a>(install: &'a str, user: &'a UserId, force_rotate: bool) -> SelfEnrolment<'a> {
+    SelfEnrolment {
+        install_id: install,
+        user_id: user,
+        label: Some("test-device".to_owned()),
+        force_rotate,
+    }
+}
 
 fn is_lower_hex_64(value: &str) -> bool {
     value.len() == 64
@@ -35,7 +49,7 @@ fn client_for(gateway: &str) -> GatewayClient {
 
 #[test]
 fn fingerprint_is_stable_lowercase_sha256_and_differs_per_user() {
-    let install = InstallId::ephemeral();
+    let install = ephemeral_install();
     let alice = UserId::new("alice");
     let bob = UserId::new("bob");
 
@@ -43,13 +57,13 @@ fn fingerprint_is_stable_lowercase_sha256_and_differs_per_user() {
     assert!(is_lower_hex_64(&first), "{first}");
     assert_eq!(first, device_fingerprint(&install, &alice));
     assert_ne!(first, device_fingerprint(&install, &bob));
-    assert_ne!(first, device_fingerprint(&InstallId::ephemeral(), &alice));
+    assert_ne!(first, device_fingerprint(&ephemeral_install(), &alice));
 }
 
 #[tokio::test]
 async fn enrolment_saves_device_json_and_sends_the_fingerprint() {
     let dir = tempfile::tempdir().unwrap();
-    let install = InstallId::ephemeral();
+    let install = ephemeral_install();
     let user = UserId::new("consumer");
     let (gateway, server) = mock_server(vec![(
         200,
@@ -59,9 +73,14 @@ async fn enrolment_saves_device_json_and_sends_the_fingerprint() {
     let client = client_for(&gateway);
     let bearer = BearerToken::new("per-user-bridge-secret");
 
-    let enrollment = enroll_into(dir.path(), &client, &bearer, &install, &user, false)
-        .await
-        .expect("self enrolment");
+    let enrollment = enroll_into(
+        dir.path(),
+        &client,
+        &bearer,
+        &enrolment(&install, &user, false),
+    )
+    .await
+    .expect("self enrolment");
     assert_eq!(enrollment.consumer_id, user);
     assert_eq!(enrollment.device_id.as_str(), "device-1");
     assert_eq!(enrollment.credential(), "sp_device_first");
@@ -85,7 +104,7 @@ async fn enrolment_saves_device_json_and_sends_the_fingerprint() {
 #[tokio::test]
 async fn existing_enrolment_for_the_user_is_reused_without_a_request() {
     let dir = tempfile::tempdir().unwrap();
-    let install = InstallId::ephemeral();
+    let install = ephemeral_install();
     let user = UserId::new("consumer");
     let (gateway, server) = mock_server(vec![(
         200,
@@ -95,12 +114,22 @@ async fn existing_enrolment_for_the_user_is_reused_without_a_request() {
     let client = client_for(&gateway);
     let bearer = BearerToken::new("per-user-bridge-secret");
 
-    let first = enroll_into(dir.path(), &client, &bearer, &install, &user, false)
-        .await
-        .expect("first enrolment");
-    let again = enroll_into(dir.path(), &client, &bearer, &install, &user, false)
-        .await
-        .expect("reuse must not need the gateway");
+    let first = enroll_into(
+        dir.path(),
+        &client,
+        &bearer,
+        &enrolment(&install, &user, false),
+    )
+    .await
+    .expect("first enrolment");
+    let again = enroll_into(
+        dir.path(),
+        &client,
+        &bearer,
+        &enrolment(&install, &user, false),
+    )
+    .await
+    .expect("reuse must not need the gateway");
     assert_eq!(again.installation_id, first.installation_id);
     assert_eq!(again.credential(), first.credential());
     assert_eq!(server.join().unwrap().len(), 1);
@@ -109,7 +138,7 @@ async fn existing_enrolment_for_the_user_is_reused_without_a_request() {
 #[tokio::test]
 async fn forced_rotation_keeps_the_installation_id_for_the_same_device() {
     let dir = tempfile::tempdir().unwrap();
-    let install = InstallId::ephemeral();
+    let install = ephemeral_install();
     let user = UserId::new("consumer");
     let (gateway, server) = mock_server(vec![
         (
@@ -126,12 +155,22 @@ async fn forced_rotation_keeps_the_installation_id_for_the_same_device() {
     let client = client_for(&gateway);
     let bearer = BearerToken::new("per-user-bridge-secret");
 
-    let first = enroll_into(dir.path(), &client, &bearer, &install, &user, true)
-        .await
-        .expect("first enrolment");
-    let rotated = enroll_into(dir.path(), &client, &bearer, &install, &user, true)
-        .await
-        .expect("rotation");
+    let first = enroll_into(
+        dir.path(),
+        &client,
+        &bearer,
+        &enrolment(&install, &user, true),
+    )
+    .await
+    .expect("first enrolment");
+    let rotated = enroll_into(
+        dir.path(),
+        &client,
+        &bearer,
+        &enrolment(&install, &user, true),
+    )
+    .await
+    .expect("rotation");
     assert_eq!(rotated.installation_id, first.installation_id);
     assert_eq!(rotated.credential(), "sp_device_second");
     assert_eq!(
@@ -144,7 +183,7 @@ async fn forced_rotation_keeps_the_installation_id_for_the_same_device() {
 #[tokio::test]
 async fn a_different_user_re_enrols_with_a_fresh_installation_id() {
     let dir = tempfile::tempdir().unwrap();
-    let install = InstallId::ephemeral();
+    let install = ephemeral_install();
     let (gateway, server) = mock_server(vec![
         (
             200,
@@ -164,9 +203,7 @@ async fn a_different_user_re_enrols_with_a_fresh_installation_id() {
         dir.path(),
         &client,
         &bearer,
-        &install,
-        &UserId::new("alice"),
-        false,
+        &enrolment(&install, &UserId::new("alice"), false),
     )
     .await
     .expect("alice");
@@ -174,9 +211,7 @@ async fn a_different_user_re_enrols_with_a_fresh_installation_id() {
         dir.path(),
         &client,
         &bearer,
-        &install,
-        &UserId::new("bob"),
-        false,
+        &enrolment(&install, &UserId::new("bob"), false),
     )
     .await
     .expect("bob replaces alice's enrolment");

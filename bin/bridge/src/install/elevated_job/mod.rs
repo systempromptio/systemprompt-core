@@ -5,6 +5,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod child;
+#[cfg(target_os = "windows")]
+mod config_repair;
 
 use std::path::{Path, PathBuf};
 
@@ -14,6 +16,8 @@ use super::elevated_protocol::{CompletedStep, ElevatedResult, PROTOCOL_VERSION};
 use crate::winproc::{ElevationOutcome, run_elevated};
 
 pub(crate) use self::child::{perform_elevated_write, provision_org_plugins};
+#[cfg(target_os = "windows")]
+pub(crate) use self::config_repair::repair_config_dir_elevated;
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub(crate) struct ElevatedJob {

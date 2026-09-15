@@ -150,7 +150,7 @@ pub fn plugin_children(plugin_dir: &Path) -> std::io::Result<Vec<PluginChild>> {
         }
     }
     if let Some(body) = super::read_optional_text(&plugin_dir.join("hooks").join("hooks.json"))? {
-        let file: crate::sync::apply::hooks_schema::HooksFile =
+        let file: crate::host_sync::hooks_schema::HooksFile =
             serde_json::from_str(&body).map_err(std::io::Error::other)?;
         for event in file.hooks.keys() {
             out.push(PluginChild {

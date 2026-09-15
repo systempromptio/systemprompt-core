@@ -14,8 +14,11 @@ use crate::gateway::GatewayClient;
 use crate::gateway::manifest::SignedManifest;
 
 mod error;
+mod hooks;
+pub(crate) mod hooks_schema;
 
 pub use error::{ApplyError, ForeignShape, TomlError};
+pub use hooks::stamp_hooks_file;
 
 /// A host sync that completed but could not do everything it exists to do —
 /// the run is not partial, yet the operator has something to act on.

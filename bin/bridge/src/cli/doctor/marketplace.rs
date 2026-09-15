@@ -65,7 +65,7 @@ pub fn check_marketplace() -> Check {
 // Why: a plugin that ships a lockfile loads without its packages when the
 // installer is missing, and sync only records that as a warning.
 fn check_node_tooling(plugins: &Path, marketplace: &MarketplaceId) -> Option<Check> {
-    use crate::sync::apply::node_deps::binary_on_path;
+    use crate::sysproc::binary_on_path;
     use systemprompt_models::bridge::plugin_bundle::{NODE_PACKAGE_FILE, node_lockfile};
     let root = marketplace_dir(plugins, marketplace).join("plugins");
     let mut missing = Vec::new();

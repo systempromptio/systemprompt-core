@@ -73,14 +73,14 @@ async fn ensure_device_enrolled(
     if crate::feedback::credentials::Enrollment::load(&root, fetch.client.base_url_str()).is_ok() {
         return;
     }
-    if let Err(error) = crate::feedback::enrol::ensure_self_enrolled(
-        &fetch.client,
-        &fetch.bearer,
-        bridge.install_id(),
+    let enrolment = crate::feedback::enrol::SelfEnrolment {
+        install_id: bridge.install_id().as_str(),
         user_id,
-        false,
-    )
-    .await
+        label: crate::sysproc::host_name(),
+        force_rotate: false,
+    };
+    if let Err(error) =
+        crate::feedback::enrol::ensure_self_enrolled(&fetch.client, &fetch.bearer, &enrolment).await
     {
         tracing::warn!(%error, "device self-enrolment failed; installation feedback stays unattributed");
     }

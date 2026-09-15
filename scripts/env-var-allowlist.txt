@@ -35,13 +35,12 @@ bin/bridge/src/auth/mod.rs  # <PREFIX>_PAT inline PAT presence probe for the cre
 bin/bridge/src/auth/providers/pat.rs  # <PREFIX>_PAT inline PAT
 bin/bridge/src/basedirs.rs  # HOME and XDG_CONFIG_HOME / XDG_CACHE_HOME / XDG_DATA_HOME / XDG_STATE_HOME base-directory probes
 bin/bridge/src/cli/args.rs  # __CFBundleIdentifier LaunchServices app-bundle launch probe (macOS GUI-by-default)
-bin/bridge/src/cli/login.rs  # HOSTNAME for the device display name at login
 bin/bridge/src/config/mod.rs  # <PREFIX>_CONFIG config-file path
+bin/bridge/src/sysproc.rs  # PATH lookup for host tool binaries; COMPUTERNAME / HOSTNAME for the device display name
 bin/bridge/src/config/paths/dirs.rs  # LOCALAPPDATA / USERPROFILE Windows folder probes
 bin/bridge/src/config/paths/mod.rs  # <PREFIX>_ORG_PLUGINS_SYSTEM system org-plugins root; ProgramFiles / ProgramData / LOCALAPPDATA Windows folder probes
 bin/bridge/src/config/store/macos_plist_store.rs  # USER for the per-user managed-preferences plist path (macOS)
 bin/bridge/src/config/trust/policy.rs  # <PREFIX>_POLICY_TRUST managed trust record and <PREFIX>_POLICY_PUBKEY pinned pubkey overrides
-bin/bridge/src/gui/handlers/auth/session.rs  # COMPUTERNAME / HOSTNAME for the device display name in the GUI sign-in
 bin/bridge/src/i18n.rs  # LANG locale probe for GUI language selection
 bin/bridge/src/install/bootstrap/unix.rs  # SUDO_USER to resolve the invoking user under sudo
 bin/bridge/src/install/mdm/egress.rs  # <PREFIX>_EGRESS_ALLOWED_HOSTS Cowork egress allowlist when --egress-allowed-hosts is absent
@@ -49,7 +48,6 @@ bin/bridge/src/install/mdm/macos.rs  # USER for the per-user managed-preferences
 bin/bridge/src/install/mdm/macos_remove.rs  # USER for the per-user managed-preferences plist (macOS MDM remove)
 bin/bridge/src/install/mdm/windows.rs  # USERPROFILE Windows home probe for the MDM payload
 bin/bridge/src/integration/app_launch/mod.rs  # PATH lookup for the host app binary
-bin/bridge/src/sync/apply/node_deps.rs  # PATH lookup for `claude`, `npm` and `bun`
 bin/bridge/src/integration/claude_desktop/macos.rs  # USER for the Claude Desktop per-user managed preferences (macOS)
 bin/bridge/src/integration/claude_desktop/mod.rs  # LOCALAPPDATA Claude Desktop install probe (Windows)
 bin/bridge/src/integration/codex_cli/config.rs  # CODEX_HOME / CODEX_SYSTEM_CONFIG (Codex-defined home overrides); USER for the per-user config path

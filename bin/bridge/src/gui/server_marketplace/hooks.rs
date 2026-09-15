@@ -17,7 +17,7 @@ pub fn list_hooks(dir: &Path) -> Vec<MarketplaceItem> {
 }
 
 pub fn hook_items(bytes: &[u8], path: &Path) -> Vec<MarketplaceItem> {
-    use crate::sync::apply::hooks_schema::{HookEntry as WireHookEntry, HooksFile};
+    use crate::host_sync::hooks_schema::{HookEntry as WireHookEntry, HooksFile};
 
     let Ok(file) = serde_json::from_slice::<HooksFile>(bytes) else {
         return Vec::new();

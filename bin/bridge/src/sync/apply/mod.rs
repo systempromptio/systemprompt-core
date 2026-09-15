@@ -11,7 +11,6 @@
 
 mod fetch;
 mod hooks;
-pub(crate) mod hooks_schema;
 mod loopback;
 pub mod node_deps;
 mod plugin;
@@ -20,7 +19,6 @@ pub mod swap;
 
 pub(crate) use crate::host_sync::ApplyError;
 pub use crate::host_sync::HostWarning;
-pub use hooks::stamp_hooks_file;
 pub use plugin::HostFailure;
 
 pub const PLUGIN_INSTALLATION_PREFERENCE: &str = "required";

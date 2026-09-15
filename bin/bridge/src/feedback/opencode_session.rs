@@ -15,6 +15,8 @@ use systemprompt_identifiers::error::IdValidationError;
 
 /// Fixed namespace for v5 session UUIDs. Mirrored verbatim into the emitted
 /// `OpenCode` plugin, so it must never change.
+// Why: mirrored verbatim into the emitted OpenCode plugin, which derives the
+// same v5 UUID; changing it would split every existing session.
 pub const OPENCODE_SESSION_NAMESPACE: uuid::Uuid =
     uuid::uuid!("7c1f5b6e-3a2d-4e8f-9b0c-2d6a1e4f8c73");
 

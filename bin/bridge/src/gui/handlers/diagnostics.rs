@@ -151,7 +151,7 @@ pub(crate) fn on_config_dir_repair_finished(
 
 #[cfg(target_os = "windows")]
 fn repair_config_dir() -> io::Result<String> {
-    crate::windows_acl::repair_config_dir_elevated().map(|dir| dir.display().to_string())
+    crate::install::elevated_job::repair_config_dir_elevated().map(|dir| dir.display().to_string())
 }
 
 #[cfg(not(target_os = "windows"))]

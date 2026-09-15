@@ -147,27 +147,6 @@ pub(crate) fn reassign_private_dir(path: &Path, owner: &str) -> io::Result<()> {
     Ok(())
 }
 
-pub(crate) fn repair_config_dir_elevated() -> io::Result<PathBuf> {
-    let config = crate::config::config_path()
-        .ok_or_else(|| io::Error::other("config path unresolvable on this platform"))?;
-    let dir = config
-        .parent()
-        .map(Path::to_owned)
-        .ok_or_else(|| io::Error::other("config path has no parent directory"))?;
-    let owner_sid = super::current_sid()?;
-    let stage_dir = std::env::temp_dir().join(crate::brand::brand().working_dir_name);
-    std::fs::create_dir_all(&stage_dir)?;
-    let job = crate::install::elevated_job::ElevatedJob {
-        private_dirs: vec![crate::install::elevated_job::PrivateDirJob {
-            path: dir.clone(),
-            owner_sid,
-        }],
-        ..Default::default()
-    };
-    crate::install::elevated_job::elevate_and_run(&stage_dir, &job)?.require("own", &dir)?;
-    Ok(dir)
-}
-
 fn owner_sid_w(path_w: &[u16]) -> io::Result<String> {
     let mut descriptor = null_mut();
     let mut owner: PSID = null_mut();

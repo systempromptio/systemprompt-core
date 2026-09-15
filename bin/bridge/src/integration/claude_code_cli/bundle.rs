@@ -15,9 +15,8 @@ use std::path::Path;
 use serde_json::json;
 
 use super::io_err;
-use crate::host_sync::ApplyError;
+use crate::host_sync::{ApplyError, stamp_hooks_file};
 use crate::proxy::LoopbackEndpoint;
-use crate::sync::apply::stamp_hooks_file;
 
 pub(super) fn mirror_plugin(
     loopback: &LoopbackEndpoint,

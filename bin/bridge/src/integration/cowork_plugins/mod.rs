@@ -30,8 +30,7 @@ use thiserror::Error;
 
 use async_trait::async_trait;
 
-use crate::host_sync::{ApplyError, HostSync, HostSyncCtx};
-use crate::sync::apply::stamp_hooks_file;
+use crate::host_sync::{ApplyError, HostSync, HostSyncCtx, stamp_hooks_file};
 
 #[derive(Clone, Copy, Debug)]
 pub struct CoworkSync;

@@ -7,16 +7,18 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod per_user;
+
 use std::sync::Arc;
 
 use axum::Json;
 use axum::http::{HeaderMap, StatusCode};
 use chrono::{DateTime, Duration, Utc};
 use systemprompt_config::ProfileBootstrap;
-use systemprompt_identifiers::{ApiKeyId, JwtToken, UserId};
+use systemprompt_identifiers::{JwtToken, UserId};
 use systemprompt_marketplace::{AssembleRequest, ManifestService, MarketplaceCandidate, NoopTrace};
 use systemprompt_models::bridge::manifest::{
-    MANIFEST_SCHEMA_VERSION, SignedManifest, SignedManifestEnvelope, UserInfo, min_bridge_version,
+    MANIFEST_SCHEMA_VERSION, SignedManifest, SignedManifestEnvelope, min_bridge_version,
 };
 use systemprompt_models::bridge::manifest_version::ManifestVersion;
 use systemprompt_models::services::BridgePolicyConfig;
@@ -26,6 +28,7 @@ use super::bridge::instance_enabled_hosts;
 use super::bridge_data;
 use super::messages::extract_credential;
 use crate::services::middleware::JwtContextExtractor;
+use per_user::{PerUserContext, load_per_user_context, record_catalog_grants};
 
 pub async fn manifest(
     jwt_extractor: Arc<JwtContextExtractor>,
@@ -150,102 +153,8 @@ pub(crate) async fn assemble_candidate(
         tracing::warn!(error = %e, "manifest: candidate assembly failed");
         (StatusCode::INTERNAL_SERVER_ERROR, format!("manifest: {e}"))
     })?;
-    record_catalog_grants(ctx, user_id, &candidate).await;
+    record_catalog_grants(ctx, user_id, &candidate).await?;
     Ok((candidate, bridge_policy))
-}
-
-/// Records a consumer grant for every published organisation skill that
-/// survived the marketplace filter, so the manifest's reach is the grant.
-///
-/// A failed insert is logged and skipped: the manifest must still serve.
-async fn record_catalog_grants(
-    ctx: &AppContext,
-    user_id: &UserId,
-    candidate: &MarketplaceCandidate,
-) {
-    let owner = ctx.system_admin().id();
-    if user_id == owner {
-        return;
-    }
-    let repository = ctx.managed_repository();
-    for publication in candidate
-        .skills
-        .iter()
-        .filter_map(|skill| skill.publication.as_ref())
-    {
-        if let Err(error) = repository
-            .retain_consumer_catalog_grant(owner, &publication.resource_id, user_id)
-            .await
-        {
-            tracing::warn!(
-                %error,
-                resource = %publication.resource_id,
-                "manifest: recording catalogue grant failed"
-            );
-        }
-    }
-}
-
-struct PerUserContext {
-    user: Option<UserInfo>,
-    revocations: Vec<ApiKeyId>,
-    enabled_hosts: Vec<String>,
-    host_model_protocols: std::collections::BTreeMap<String, Vec<String>>,
-}
-
-async fn load_per_user_context(
-    ctx: &AppContext,
-    user_id: &UserId,
-    instance_hosts: Vec<String>,
-) -> PerUserContext {
-    let user = match bridge_data::load_user(ctx, user_id).await {
-        Ok(u) => u,
-        Err(e) => {
-            tracing::warn!(error = %e, "manifest: user load failed; continuing without user");
-            None
-        },
-    };
-
-    let revocations = match bridge_data::load_revocations(ctx, user_id).await {
-        Ok(r) => r,
-        Err(e) => {
-            tracing::warn!(error = %e, "manifest: revocation load failed; continuing empty");
-            Vec::new()
-        },
-    };
-
-    let enabled_hosts = match bridge_data::load_enabled_hosts(ctx, user_id).await {
-        Ok(rows) if rows.is_empty() => instance_hosts,
-        Ok(rows) => instance_hosts
-            .into_iter()
-            .filter(|h| rows.iter().any(|r| r == h))
-            .collect(),
-        Err(e) => {
-            tracing::warn!(
-                error = %e,
-                "manifest: enabled_hosts load failed; defaulting to instance-enabled hosts"
-            );
-            instance_hosts
-        },
-    };
-
-    let host_model_protocols = match bridge_data::load_host_model_protocols(ctx, user_id).await {
-        Ok(rows) => rows.into_iter().collect(),
-        Err(e) => {
-            tracing::warn!(
-                error = %e,
-                "manifest: host model-protocol prefs load failed; continuing with defaults"
-            );
-            std::collections::BTreeMap::new()
-        },
-    };
-
-    PerUserContext {
-        user,
-        revocations,
-        enabled_hosts,
-        host_model_protocols,
-    }
 }
 
 fn seal_manifest(
