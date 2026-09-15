@@ -122,7 +122,6 @@ async fn execute_internal(
     Ok(breakdown_table(&output.items).with_title("Cost Breakdown"))
 }
 
-/// One dimension value's share, whichever repository row it came from.
 struct Share {
     name: String,
     cost: i64,
@@ -143,13 +142,11 @@ impl From<CostBreakdownRow> for Share {
     }
 }
 
-/// A user row keeps its id first so it can be handed straight to
-/// `infra logs request list --user`; the display name follows in parentheses.
 impl From<CostUserBreakdownRow> for Share {
     fn from(row: CostUserBreakdownRow) -> Self {
         let name = match row.name {
             Some(display) if !display.is_empty() => format!("{} ({display})", row.user_id),
-            _ => row.user_id,
+            _ => row.user_id.to_string(),
         };
         Self {
             name,

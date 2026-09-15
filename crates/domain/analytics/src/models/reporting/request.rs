@@ -40,9 +40,6 @@ pub struct RequestTrendRow {
     pub latency_ms: Option<i32>,
 }
 
-/// Selection for `RequestAnalyticsRepository::list_requests`: a page of
-/// newest-first rows inside a window, optionally narrowed to one model
-/// substring and one user.
 #[derive(Debug, Clone, Default)]
 pub struct RequestListFilter {
     pub limit: i64,
@@ -120,14 +117,13 @@ pub struct CostBreakdownRow {
     pub tokens: i64,
 }
 
-/// Spend grouped by the user who made the requests. `name` is the display
-/// name from the reporting projection (no email — that never leaves the
-/// source table) and `conversations` counts distinct contexts, which is the
-/// number that separates a user working through tasks from one sending many
-/// one-line requests.
+/// Spend grouped by requesting user.
+///
+/// `name` comes from the reporting projection, which carries no email —
+/// the address never leaves the source table.
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct CostUserBreakdownRow {
-    pub user_id: String,
+    pub user_id: UserId,
     pub name: Option<String>,
     pub cost: i64,
     pub requests: i64,

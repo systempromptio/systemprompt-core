@@ -334,23 +334,29 @@ async fn breakdown_by_user_ranks_users_and_counts_their_conversations() -> Resul
 
     let mine = rows
         .iter()
-        .find(|r| r.user_id == fx.user_id)
+        .find(|r| r.user_id.as_str() == fx.user_id)
         .expect("the fixture user has spend in the window");
     assert_eq!(mine.requests, 2);
     assert_eq!(mine.cost, 3_500);
     assert_eq!(mine.conversations, 1, "both requests share one context");
-    assert!(mine.name.is_some(), "the reporting projection carries the display name");
+    assert!(
+        mine.name.is_some(),
+        "the reporting projection carries the display name"
+    );
 
     let theirs = rows
         .iter()
-        .find(|r| r.user_id == other)
+        .find(|r| r.user_id.as_str() == other)
         .expect("the other user has spend in the window");
     assert_eq!(theirs.requests, 1);
     assert_eq!(theirs.cost, 99_999_999);
 
-    let my_rank = rows.iter().position(|r| r.user_id == fx.user_id);
-    let their_rank = rows.iter().position(|r| r.user_id == other);
-    assert!(their_rank < my_rank, "rows are ordered by spend, highest first");
+    let my_rank = rows.iter().position(|r| r.user_id.as_str() == fx.user_id);
+    let their_rank = rows.iter().position(|r| r.user_id.as_str() == other);
+    assert!(
+        their_rank < my_rank,
+        "rows are ordered by spend, highest first"
+    );
 
     cleanup_other(&fx, &other).await?;
     fx.cleanup().await?;

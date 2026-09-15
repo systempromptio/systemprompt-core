@@ -10,6 +10,7 @@ use systemprompt_analytics::ConversationAnalyticsRepository;
 use systemprompt_analytics::models::reporting::{
     ConversationListRow as AgentRow, GatewaySessionListRow,
 };
+use systemprompt_identifiers::UserId;
 use systemprompt_logging::CliService;
 use systemprompt_runtime::DatabaseContext;
 
@@ -40,6 +41,8 @@ pub struct ListArgs {
         long,
         short = 'n',
         default_value = "20",
+        allow_negative_numbers = true,
+        value_parser = clap::value_parser!(i64).range(1..),
         help = "Maximum conversations"
     )]
     pub limit: i64,
@@ -109,7 +112,8 @@ async fn execute_internal(
     repo: &ConversationAnalyticsRepository,
 ) -> Result<CommandOutput> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
-    let user = args.user.as_deref();
+    let user = args.user.as_deref().map(UserId::new);
+    let user = user.as_ref();
 
     let mut rows: Vec<(chrono::DateTime<chrono::Utc>, ConversationListRow)> = Vec::new();
     if args.source != ConversationSource::Gateway {
@@ -128,10 +132,10 @@ async fn execute_internal(
                 .map(|row| (row.updated_at, gateway_row(row))),
         );
     }
-    rows.sort_by(|a, b| b.0.cmp(&a.0));
+    rows.sort_by_key(|row| std::cmp::Reverse(row.0));
     let conversations: Vec<ConversationListRow> = rows
         .into_iter()
-        .take(args.limit.max(0) as usize)
+        .take(usize::try_from(args.limit).unwrap_or(usize::MAX))
         .map(|(_, row)| row)
         .collect();
 
@@ -144,25 +148,22 @@ async fn execute_internal(
         let resolved_path = resolve_export_path(path)?;
         export_to_csv(&output.conversations, &resolved_path)?;
         CliService::success(&format!("Exported to {}", resolved_path.display()));
-        return Ok(CommandOutput::table_of(
-            LIST_COLUMNS.to_vec(),
-            &output.conversations,
-        )
-        .with_skip_render());
+        return Ok(
+            CommandOutput::table_of(LIST_COLUMNS.to_vec(), &output.conversations)
+                .with_skip_render(),
+        );
     }
 
     if output.conversations.is_empty() {
         CliService::warning("No conversations found");
-        return Ok(CommandOutput::table_of(
-            LIST_COLUMNS.to_vec(),
-            &output.conversations,
-        )
-        .with_skip_render());
+        return Ok(
+            CommandOutput::table_of(LIST_COLUMNS.to_vec(), &output.conversations)
+                .with_skip_render(),
+        );
     }
 
-    Ok(CommandOutput::table_of(
-        LIST_COLUMNS.to_vec(),
-        &output.conversations,
+    Ok(
+        CommandOutput::table_of(LIST_COLUMNS.to_vec(), &output.conversations)
+            .with_title("Conversations"),
     )
-    .with_title("Conversations"))
 }

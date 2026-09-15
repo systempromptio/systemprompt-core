@@ -1,8 +1,8 @@
 //! Platform-wide cost queries for `CostAnalyticsRepository`.
 //!
 //! Aggregates spend, tokens, and request counts across all users from
-//! `ai_requests`, with breakdowns by model, provider, agent, and user and a trend
-//! series for the platform cost dashboard.
+//! `ai_requests`, with breakdowns by model, provider, agent, and user and a
+//! trend series for the platform cost dashboard.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -10,6 +10,7 @@
 use super::CostAnalyticsRepository;
 use crate::Result;
 use chrono::{DateTime, Utc};
+use systemprompt_identifiers::UserId;
 
 use crate::models::reporting::{
     CostBreakdownRow, CostSummaryRow, CostTrendRow, CostUserBreakdownRow, PreviousCostRow,
@@ -136,7 +137,7 @@ impl CostAnalyticsRepository {
             CostUserBreakdownRow,
             r#"
             SELECT
-                r.user_id as "user_id!",
+                r.user_id as "user_id!: UserId",
                 u.name as "name?",
                 COALESCE(SUM(r.cost_microdollars), 0)::bigint as "cost!",
                 COUNT(*)::bigint as "requests!",

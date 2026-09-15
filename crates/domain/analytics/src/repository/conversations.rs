@@ -12,6 +12,7 @@ use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
+use systemprompt_identifiers::UserId;
 use systemprompt_models::ContextKind;
 
 use crate::models::reporting::{ConversationListRow, GatewaySessionListRow, TimestampRow};
@@ -32,8 +33,9 @@ impl ConversationAnalyticsRepository {
         start: DateTime<Utc>,
         end: DateTime<Utc>,
         limit: i64,
-        user: Option<&str>,
+        user: Option<&UserId>,
     ) -> Result<Vec<ConversationListRow>> {
+        let user = user.map(UserId::as_str);
         sqlx::query_as!(
             ConversationListRow,
             r#"
@@ -69,8 +71,9 @@ impl ConversationAnalyticsRepository {
         start: DateTime<Utc>,
         end: DateTime<Utc>,
         limit: i64,
-        user: Option<&str>,
+        user: Option<&UserId>,
     ) -> Result<Vec<GatewaySessionListRow>> {
+        let user = user.map(UserId::as_str);
         sqlx::query_as!(
             GatewaySessionListRow,
             r#"

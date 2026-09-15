@@ -426,7 +426,11 @@ async fn request_analytics_repository_smoke() -> Result<()> {
             &RequestListFilter::new(100).with_user(UserId::new(&fx.user_id)),
         )
         .await?;
-    assert_eq!(mine.len(), listed.len(), "every fixture row belongs to the fixture user");
+    assert_eq!(
+        mine.len(),
+        listed.len(),
+        "every fixture row belongs to the fixture user"
+    );
     let second_page = repo
         .list_requests(
             fx.window_start,
@@ -435,7 +439,10 @@ async fn request_analytics_repository_smoke() -> Result<()> {
         )
         .await?;
     assert_eq!(second_page.len(), 1);
-    assert_eq!(second_page[0].id, listed[1].id, "offset 1 starts at the second row");
+    assert_eq!(
+        second_page[0].id, listed[1].id,
+        "offset 1 starts at the second row"
+    );
 
     fx.cleanup().await?;
     Ok(())
