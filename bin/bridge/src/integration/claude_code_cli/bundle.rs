@@ -130,6 +130,16 @@ fn copy_dir_all(src: &Path, dst: &Path) -> Result<(), ApplyError> {
             .map_err(|e| io_err(format!("stat {}", from.display()), e))?;
         if file_type.is_dir() {
             copy_dir_all(&from, &to)?;
+        } else if file_type.is_symlink() && !from.exists() {
+            // Why: npm leaves dangling `.bin` links behind optional packages;
+            // Claude Code ignores them and so does the mirror.
+            tracing::debug!(
+                target: "bridge::claude-code-cli",
+                path = %from.display(),
+                "skipped a dangling symlink while mirroring"
+            );
+        } else if from.is_dir() {
+            copy_dir_all(&from, &to)?;
         } else {
             fs::copy(&from, &to)
                 .map_err(|e| io_err(format!("copy {} -> {}", from.display(), to.display()), e))?;

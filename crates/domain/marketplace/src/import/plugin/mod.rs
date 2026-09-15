@@ -12,9 +12,11 @@ use std::path::{Path, PathBuf};
 use systemprompt_identifiers::PluginId;
 use systemprompt_models::bridge::plugin_bundle::{PLUGIN_MANIFEST_RELPATH, PluginManifest};
 use systemprompt_models::services::plugin::{
-    ComponentSource, PluginComponentRef, PluginConfig, PluginConfigFile,
+    ComponentSource, PluginComponentRef, PluginConfig, PluginConfigFile, PluginDependency,
+    PluginHooksRef,
 };
 
+use crate::bundle::{NODE_PACKAGE_FILE, node_lockfile};
 use crate::error::MarketplaceError;
 
 use super::anthropic::MarketplacePluginEntry;
@@ -100,13 +102,7 @@ pub(super) fn import_plugin(
     warnings.extend(imported_hooks.warnings);
 
     scripts::copy_plugin_scripts(id.as_str(), dir, &sidecar.plugin.scripts, sink)?;
-
-    let mut hooks_ref = sidecar.plugin.hooks.clone();
-    for hook_id in &imported_hooks.ids {
-        if !hooks_ref.include.contains(hook_id) {
-            hooks_ref.include.push(hook_id.clone());
-        }
-    }
+    scripts::copy_node_package_files(id.as_str(), dir, sink)?;
 
     let config = PluginConfig {
         id: id.clone(),
@@ -138,8 +134,13 @@ pub(super) fn import_plugin(
         mcp_servers: sidecar.plugin.mcp_servers.clone(),
         content_sources: sidecar.plugin.content_sources.clone(),
         artifacts: sidecar.plugin.artifacts.clone(),
-        hooks: hooks_ref,
+        hooks: hooks_ref(&sidecar, &imported_hooks.ids),
         scripts: sidecar.plugin.scripts.clone(),
+        dependencies: manifest
+            .dependencies
+            .iter()
+            .map(PluginDependency::from)
+            .collect(),
     };
 
     config
@@ -182,6 +183,16 @@ fn import_skills(
         skills.push(skill_id);
     }
     Ok(skills)
+}
+
+fn hooks_ref(sidecar: &PluginSidecar, imported: &[String]) -> PluginHooksRef {
+    let mut out = sidecar.plugin.hooks.clone();
+    for hook_id in imported {
+        if !out.include.contains(hook_id) {
+            out.include.push(hook_id.clone());
+        }
+    }
+    out
 }
 
 fn rules_ref(sidecar: &PluginSidecar, imported: &[String]) -> PluginComponentRef {
@@ -227,6 +238,11 @@ fn collect_manifest_warnings(
         warnings.push(ImportWarning::AgentsDirectory {
             plugin: id.to_owned(),
             count: agents,
+        });
+    }
+    if dir.join(NODE_PACKAGE_FILE).is_file() && node_lockfile(dir).is_none() {
+        warnings.push(ImportWarning::NodePackageWithoutLockfile {
+            plugin: id.to_owned(),
         });
     }
 }

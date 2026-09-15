@@ -3,6 +3,8 @@
 #[cfg(test)]
 mod claude_code_cli;
 #[cfg(test)]
+mod claude_code_cli_dependencies;
+#[cfg(test)]
 mod codex_foreign_shape;
 #[cfg(test)]
 mod codex_host;
@@ -32,6 +34,8 @@ mod hermes_merge;
 mod host_app_contract;
 #[cfg(test)]
 mod managed_skills;
+#[cfg(test)]
+mod node_deps;
 #[cfg(test)]
 mod opencode_default_model;
 #[cfg(test)]

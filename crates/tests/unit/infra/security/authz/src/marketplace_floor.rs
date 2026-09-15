@@ -66,6 +66,8 @@ mod resolution {
             agents: PluginComponentRef::default(),
             artifacts: PluginComponentRef::default(),
             access: Default::default(),
+            allow_cross_marketplace_dependencies_on: vec![],
+            external_marketplaces: vec![],
         }
     }
 
@@ -142,6 +144,7 @@ mod resolution {
                 artifacts: PluginComponentRef::default(),
                 hooks: Default::default(),
                 scripts: vec![],
+                dependencies: vec![],
             },
         );
 

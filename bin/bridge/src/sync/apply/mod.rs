@@ -13,6 +13,7 @@ mod fetch;
 mod hooks;
 pub(crate) mod hooks_schema;
 mod loopback;
+pub mod node_deps;
 mod plugin;
 pub mod safe_path;
 pub mod swap;
@@ -185,7 +186,7 @@ pub(crate) async fn apply_manifest(req: &ApplyRequest<'_>) -> Result<ApplyOutcom
             }
         }
     }
-    report.host_warnings = warnings.drain();
+    report.host_warnings.extend(warnings.drain());
 
     Ok(ApplyOutcome::Applied(report))
 }

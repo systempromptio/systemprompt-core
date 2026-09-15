@@ -97,6 +97,56 @@ pub struct PluginConfig {
     pub hooks: PluginHooksRef,
     #[serde(default)]
     pub scripts: Vec<PluginScript>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub dependencies: Vec<PluginDependency>,
+}
+
+/// One plugin this plugin requires, in Claude Code's `plugin.json`
+/// `dependencies` vocabulary.
+///
+/// A bare `name` resolves inside the marketplace that carries the dependant;
+/// `marketplace` points at another marketplace, which the carrying
+/// [`MarketplaceConfig`](super::marketplace::MarketplaceConfig) must list in
+/// `allow_cross_marketplace_dependencies_on` and, when it is not one of this
+/// instance's own marketplaces, declare under `external_marketplaces`.
+/// `version` is a semver range Claude Code checks at install time.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PluginDependency {
+    pub name: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub marketplace: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub version: Option<String>,
+}
+
+impl PluginDependency {
+    fn validate(&self, key: &str) -> Result<(), ConfigValidationError> {
+        if self.name.trim().is_empty() {
+            return Err(ConfigValidationError::required(format!(
+                "Plugin '{key}': dependencies entries must name a plugin"
+            )));
+        }
+        if self
+            .marketplace
+            .as_deref()
+            .is_some_and(|m| m.trim().is_empty())
+        {
+            return Err(ConfigValidationError::invalid_field(format!(
+                "Plugin '{key}': dependency '{}' sets an empty marketplace",
+                self.name
+            )));
+        }
+        if let Some(range) = &self.version
+            && semver::VersionReq::parse(range).is_err()
+        {
+            return Err(ConfigValidationError::invalid_field(format!(
+                "Plugin '{key}': dependency '{}' version '{range}' is not a semver range",
+                self.name
+            )));
+        }
+        Ok(())
+    }
 }
 
 /// Selects which hooks a plugin materialises into its `hooks/hooks.json`.
@@ -203,6 +253,19 @@ impl PluginConfig {
         Self::validate_component_ref(&self.agents, key, "agents")?;
         Self::validate_component_ref(&self.artifacts, key, "artifacts")?;
         Self::validate_component_ref(&self.rules, key, "rules")?;
+
+        for dependency in &self.dependencies {
+            dependency.validate(key)?;
+        }
+        let mut seen = std::collections::BTreeSet::new();
+        for dependency in &self.dependencies {
+            if !seen.insert((dependency.name.as_str(), dependency.marketplace.as_deref())) {
+                return Err(ConfigValidationError::invalid_field(format!(
+                    "Plugin '{key}': dependency '{}' is listed twice",
+                    dependency.name
+                )));
+            }
+        }
 
         Ok(())
     }

@@ -14,6 +14,7 @@ pub mod gateway;
 pub mod hooks;
 mod includable;
 pub mod marketplace;
+pub mod marketplace_external;
 pub mod mcp;
 pub mod plugin;
 pub mod providers;
@@ -58,13 +59,15 @@ pub use hooks::{
     HookMatcher, HookType,
 };
 pub use marketplace::{
-    MarketplaceAccess, MarketplaceAccessRule, MarketplaceConfig, MarketplaceConfigFile,
-    MarketplaceMemberKind, MarketplaceRuleAccess, MarketplaceVisibility,
+    ExternalMarketplace, ExternalMarketplaceSource, MarketplaceAccess, MarketplaceAccessRule,
+    MarketplaceConfig, MarketplaceConfigFile, MarketplaceMemberKind, MarketplaceRuleAccess,
+    MarketplaceVisibility,
 };
 pub use mcp::McpServerSummary;
 pub use plugin::{
     ComponentFilter, ComponentSource, PluginAuthor, PluginComponentRef, PluginConfig,
-    PluginConfigFile, PluginHooksRef, PluginScript, PluginSummary, PluginVariableDef,
+    PluginConfigFile, PluginDependency, PluginHooksRef, PluginScript, PluginSummary,
+    PluginVariableDef,
 };
 pub use providers::{
     ApiSurface, DiscoveryReport, DocumentedLaunchStage, ProviderEntry, ProviderModel,
@@ -188,6 +191,7 @@ impl ServicesConfig {
         for (id, marketplace) in &self.marketplaces {
             marketplace.validate(id.as_str())?;
             self.validate_marketplace_bindings(id.as_str(), marketplace)?;
+            self.validate_marketplace_dependencies(id.as_str(), marketplace)?;
         }
 
         self.validate_marketplace_selector()?;

@@ -28,6 +28,8 @@ fn marketplace(id: &str, refs: PluginComponentRef) -> MarketplaceConfig {
         agents: PluginComponentRef::default(),
         artifacts: PluginComponentRef::default(),
         access: Default::default(),
+        allow_cross_marketplace_dependencies_on: vec![],
+        external_marketplaces: vec![],
     }
 }
 
@@ -81,6 +83,7 @@ fn services_config_validates_marketplace_with_known_plugin() {
             artifacts: PluginComponentRef::default(),
             hooks: Default::default(),
             scripts: vec![],
+            dependencies: vec![],
         },
     );
 

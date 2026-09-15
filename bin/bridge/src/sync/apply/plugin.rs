@@ -12,12 +12,13 @@
 
 use super::fetch::fetch_plugin_into_staging;
 use super::hooks::{PluginJsonShape, ensure_plugin_json_managed_fields, write_hooks_json};
+use super::node_deps::{self, NodeInstall};
 use super::swap::promote_staged;
 use crate::auth::plugin_oauth::PluginTokenCache;
 use crate::gateway::GatewayClient;
 use crate::gateway::manifest::{HookEntry, PluginEntry, SignedManifest};
 use crate::hash::safe_plugin_id;
-use crate::host_sync::HostWarning;
+use crate::host_sync::{HostWarning, HostWarnings};
 use crate::ids::{BearerToken, HostId};
 use crate::proxy::LoopbackEndpoint;
 use std::collections::{BTreeMap, HashSet};
@@ -49,6 +50,7 @@ pub struct HostFailure {
     pub host_id: HostId,
     pub emitter: String,
     pub error: String,
+    pub needs_elevation: bool,
 }
 
 #[tracing::instrument(level = "debug", skip(ctx, manifest))]
@@ -61,6 +63,7 @@ pub(super) async fn apply_plugins(
     let mut malformed = Vec::new();
     let mut mcp_servers_by_plugin = BTreeMap::new();
     let mut receipts = Vec::new();
+    let warnings = HostWarnings::new();
     let total = manifest.plugins.len();
     for (index, plugin) in manifest.plugins.iter().enumerate() {
         if ctx.cancel.is_cancelled() {
@@ -77,6 +80,15 @@ pub(super) async fn apply_plugins(
         ));
         let applied = sync_one_plugin(ctx, plugin, &manifest.hooks).await?;
         receipts.push(applied.hooks_receipt);
+        if let NodeInstall::Skipped { reason } = &applied.node_install {
+            warnings.push(
+                NODE_WARNING_HOST,
+                format!(
+                    "plugin {}: Node packages not installed — {reason}",
+                    plugin.id
+                ),
+            );
+        }
         match applied.change {
             PluginChange::Installed(id) => installed.push(id),
             PluginChange::Updated(id) => updated.push(id),
@@ -122,7 +134,7 @@ pub(super) async fn apply_plugins(
         removed,
         malformed,
         host_failures: Vec::new(),
-        host_warnings: Vec::new(),
+        host_warnings: warnings.drain(),
         mcp_servers_by_plugin,
         receipts,
     }))
@@ -164,6 +176,10 @@ fn extract_mcp_servers(plugin_dir: &Path) -> Result<Vec<String>, super::ApplyErr
     Ok(names)
 }
 
+// Why: a Node install serves every host that reads the org-plugins tree, so
+// its warning is filed under the tree rather than under one host.
+const NODE_WARNING_HOST: &str = "org-plugins";
+
 enum PluginChange {
     Installed(String),
     Updated(String),
@@ -173,6 +189,7 @@ struct PluginApplied {
     change: PluginChange,
     hooks_receipt: crate::fsutil::FileReceipt,
     manifest_shape: PluginJsonShape,
+    node_install: NodeInstall,
 }
 
 pub(super) struct PluginSyncCtx<'a> {
@@ -199,10 +216,28 @@ async fn sync_one_plugin(
     fetch_plugin_into_staging(ctx.client, ctx.bearer, plugin, &stage).await?;
     super::check_not_superseded(ctx.client.base_url())?;
 
+    if target.is_dir() {
+        node_deps::carry_over(&target, &stage);
+    }
     let was_present = promote_staged(&stage, &target, plugin.id.as_str())?;
 
     let hooks_receipt = write_hooks_json(ctx.loopback, plugin, &target, hook_pool)?;
     let manifest_shape = ensure_plugin_json_managed_fields(&target)?;
+    let install_dir = target.clone();
+    let node_install = tokio::task::spawn_blocking(move || node_deps::install(&install_dir))
+        .await
+        .map_err(|error| super::ApplyError::Io {
+            context: format!("run the Node install for {}", plugin.id),
+            source: std::io::Error::other(error),
+        })?;
+    if let NodeInstall::Installed { tool } = &node_install {
+        tracing::info!(
+            target: "bridge::sync::node",
+            plugin_id = %plugin.id,
+            tool,
+            "installed the plugin's Node packages from its lockfile"
+        );
+    }
 
     let change = if was_present {
         PluginChange::Updated(plugin.id.to_string())
@@ -213,6 +248,7 @@ async fn sync_one_plugin(
         change,
         hooks_receipt,
         manifest_shape,
+        node_install,
     })
 }
 

@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 use systemprompt_identifiers::MarketplaceId;
 
+pub use super::marketplace_external::{ExternalMarketplace, ExternalMarketplaceSource};
 use super::plugin::{PluginAuthor, PluginComponentRef};
 use crate::errors::ConfigValidationError;
 
@@ -199,6 +200,11 @@ pub struct MarketplaceConfig {
 
     #[serde(default)]
     pub access: MarketplaceAccess,
+
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub allow_cross_marketplace_dependencies_on: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub external_marketplaces: Vec<ExternalMarketplace>,
 }
 
 impl MarketplaceConfig {
@@ -237,7 +243,49 @@ impl MarketplaceConfig {
         }
 
         self.access.validate(key)?;
+        self.validate_external_marketplaces(key)?;
 
         Ok(())
+    }
+
+    fn validate_external_marketplaces(&self, key: &str) -> Result<(), ConfigValidationError> {
+        let mut names = BTreeSet::new();
+        for external in &self.external_marketplaces {
+            external.validate(key)?;
+            let name = external.name.trim();
+            if name == self.id.as_str() {
+                return Err(ConfigValidationError::invalid_field(format!(
+                    "Marketplace '{key}': external_marketplaces may not reuse this \
+                     marketplace's own id"
+                )));
+            }
+            if !names.insert(name) {
+                return Err(ConfigValidationError::invalid_field(format!(
+                    "Marketplace '{key}': external marketplace '{name}' is declared twice"
+                )));
+            }
+        }
+        for allowed in &self.allow_cross_marketplace_dependencies_on {
+            if allowed.trim().is_empty() {
+                return Err(ConfigValidationError::invalid_field(format!(
+                    "Marketplace '{key}': allow_cross_marketplace_dependencies_on must not \
+                     contain blank entries"
+                )));
+            }
+            if allowed == self.id.as_str() {
+                return Err(ConfigValidationError::invalid_field(format!(
+                    "Marketplace '{key}': allow_cross_marketplace_dependencies_on names this \
+                     marketplace itself"
+                )));
+            }
+        }
+        Ok(())
+    }
+
+    #[must_use]
+    pub fn external_marketplace(&self, name: &str) -> Option<&ExternalMarketplace> {
+        self.external_marketplaces
+            .iter()
+            .find(|m| m.name.trim() == name)
     }
 }

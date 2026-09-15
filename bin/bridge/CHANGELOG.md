@@ -26,6 +26,13 @@
 
 ### Added
 
+- `sync::apply::node_deps`: after a plugin is promoted, a root `package.json` with a lockfile Claude Code accepts (`bun.lock`, `bun.lockb`, `npm-shrinkwrap.json`, `package-lock.json`) is installed with `npm ci --ignore-scripts --no-audit --no-fund` or `bun install --frozen-lockfile --ignore-scripts`, bounded to 60 s. A missing installer, timeout or non-zero exit is a host warning (`org-plugins`), never a failed sync. The install is stamped with the package-file digest and carried over to the next sync when unchanged. `doctor` warns when a mirrored plugin needs an installer that is not on `PATH`.
+- `integration::claude_code_cli::foreign`: the `dependencies` in each mirrored plugin's `plugin.json` that leave the mirrored marketplaces are enabled at user scope as `<plugin>@<marketplace>`, the gateway's external marketplaces are registered in `extraKnownMarketplaces`, and `marketplace.json` carries `allowCrossMarketplaceDependenciesOn`. The sidecar (`sidecar::Owned`) records the dependency keys and external marketplace names so a later sync or uninstall removes exactly those; the pre-0.53 sidecar shape still reads. Claude Desktop reports a host warning for a plugin that declares dependencies, which it cannot resolve.
+- `sync::apply::node_deps::binary_on_path` is the one `PATH` probe (`claude`, `npm`, `bun`; `.exe` / `.cmd` on Windows); the mirror skips a dangling symlink (npm's optional `.bin` links) instead of failing the host.
+- `ErrorCode::{ElevationRequired, Partial}`; a partial sync's toast names the agents that did not update and carries `host_failures` / `host_warnings` in `BridgeError.detail`; the `config.repairDir` command and `StatePayload.elevated`.
+- `ElevatedJob.private_dirs` (`PrivateDirJob { path, owner_sid }`) reassigns a private directory and its files to the requesting account from the elevated child (`own` step).
+- `config::store::hive_report` / `HiveReport` classify which registry hive holds the Claude policy; `doctor` and the GUI health table both report it, and `doctor` gains a `config dir owner` check and covers the config lock file in `private files`.
+
 - `login --stdin` reads the PAT from standard input; `sync --watch --interval <secs>` exits `64` on a value that is not a number.
 - `install::uninstall` records the host-cleanup warnings in the printed summary (`Warning: …` lines) and in the GUI disconnect result.
 - **Windows:** `remove_profile` run unelevated reports `ManualStepRequired` naming the HKLM values that still route Claude Desktop through the proxy instead of `NothingToRemove`.
@@ -53,6 +60,12 @@
 - Test-only seams (`#[doc(hidden)]` items, `dev-stub-host`, `UninstallSummaryBuilder`, `unique_stem`) are removed; the remaining conveniences live in `crates/tests/`.
 
 ### Fixed
+
+- **Windows:** an unelevated sync that meets a machine Claude policy holding other values (`HKLM\SOFTWARE\Policies\Claude`) reports the host as `ApplyError::ElevationRequired` instead of an io error; `HostFailure.needs_elevation` carries the classification and the GUI offers *Repair as administrator*, which runs the existing UAC-backed profile install.
+- **Windows:** signing in with a configuration folder another account created (`%APPDATA%\<brand>` owned by a different SID) reports `ConfigWriteError::ForeignOwner { path, owner }` instead of `write …\<brand>-bridge.toml.lock: Access is denied`; the GUI names the owning account and offers *Repair as administrator*, which reassigns the folder and its files through the elevated job.
+- Claude Code permission rules with no bridge-managed settings file to carry them are a host warning naming the file `install --apply` creates, not a host failure; `apply_permissions` returns `PermissionOutcome::{Written, NoCarrier}`.
+- A zero-byte or whitespace-only `managed-settings.json` no longer aborts managed MCP policy removal with `EOF while parsing a value`; a malformed file's error names its path.
+- The header pill and the Marketplace badge read a partial sync as `degraded` (`OverallCode::Degraded`, "synced with failures") instead of `synced` or `never synced`.
 
 - A user's scalar at a key the bridge merges a table into (Codex `config.toml`, Hermes `config.yaml`, Claude Code `settings.json`) is refused as `ForeignShape` naming the key; the file is never rewritten around the conflict.
 - `plugin_oauth::store_creds` writes the secret to the keystore before the metadata names it, so a keystore failure keeps the previous, still-usable pair; a stored gateway spelled with a trailing slash is recognised as the same gateway, and a malformed recorded gateway is an error rather than a silent re-provision.

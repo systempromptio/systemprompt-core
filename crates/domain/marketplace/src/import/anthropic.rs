@@ -45,6 +45,12 @@ pub struct MarketplaceJson {
     pub metadata: MarketplaceMetadata,
     #[serde(default)]
     pub plugins: Vec<MarketplacePluginEntry>,
+    #[serde(
+        default,
+        rename = "allowCrossMarketplaceDependenciesOn",
+        alias = "allow_cross_marketplace_dependencies_on"
+    )]
+    pub allow_cross_marketplace_dependencies_on: Vec<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]

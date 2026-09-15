@@ -19,6 +19,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod bundle;
+pub mod foreign;
+pub mod installed;
 pub mod layout;
 pub mod marketplace;
 mod mcp;
@@ -29,16 +31,17 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use async_trait::async_trait;
+use foreign::ForeignRefs;
 use systemprompt_identifiers::MarketplaceId;
 
 pub use bundle::filter_skills_for_host;
 use bundle::{mirror_plugin, remove_dir, remove_stale_children};
+use installed::{strip_installed_plugins, upsert_installed_plugins};
 pub(crate) use layout::marketplace_dir;
 use layout::{cache_dir, cache_install_dir, source_plugin_dir};
 pub use marketplace::{HostMarketplace, Mirrored, host_marketplaces};
 use marketplace::{
-    set_enabled, strip_installed_plugins, strip_known_marketplace, upsert_installed_plugins,
-    upsert_known_marketplace, write_marketplace_json,
+    set_enabled, strip_known_marketplace, upsert_known_marketplace, write_marketplace_json,
 };
 
 use crate::config::paths;
@@ -77,17 +80,7 @@ pub(crate) fn claude_cli_installed() -> bool {
     if paths::claude_cli_home().is_some_and(|h| h.exists()) {
         return true;
     }
-    binary_on_path("claude")
-}
-
-fn binary_on_path(binary: &str) -> bool {
-    let Some(paths) = std::env::var_os("PATH") else {
-        return false;
-    };
-    std::env::split_paths(&paths).any(|dir| {
-        let candidate = dir.join(binary);
-        candidate.is_file() || candidate.with_extension("exe").is_file()
-    })
+    crate::sync::apply::node_deps::binary_on_path("claude").is_some()
 }
 
 fn apply_install(ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
@@ -127,26 +120,39 @@ fn apply_install(ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
         source,
     })?;
 
+    let current: Vec<MarketplaceId> = marketplaces.iter().map(|m| m.id.clone()).collect();
     let mut mirrored = Vec::with_capacity(marketplaces.len());
+    let mut foreign = ForeignRefs::default();
     for marketplace in &marketplaces {
-        mirrored.push(mirror_marketplace(ctx, &plugins, marketplace)?);
+        let (done, refs) = mirror_marketplace(ctx, &plugins, marketplace, &current)?;
+        mirrored.push(done);
+        foreign.extend(refs);
     }
 
-    let current: Vec<MarketplaceId> = mirrored.iter().map(|m| m.id.clone()).collect();
-    let stale: Vec<MarketplaceId> = sidecar::owned_marketplaces(&plugins)?
-        .into_iter()
+    let previous = sidecar::read(&plugins)?;
+    let stale: Vec<MarketplaceId> = previous
+        .marketplaces
+        .iter()
         .filter(|id| !current.contains(id))
+        .cloned()
         .collect();
     for id in &stale {
         purge_marketplace(&plugins, id)?;
     }
-    set_enabled(&mirrored, &stale)?;
-    sidecar::write(&plugins, &current)?;
+    set_enabled(&mirrored, &stale, &previous, &foreign)?;
+    sidecar::write(
+        &plugins,
+        &sidecar::Owned {
+            marketplaces: current,
+            dependency_keys: foreign.dependency_keys.iter().cloned().collect(),
+            external_marketplaces: foreign.external_names(),
+        },
+    )?;
     permissions::apply_tool_permissions(ctx)?;
 
     tracing::info!(
         target: "bridge::claude-code-cli",
-        marketplaces = ?current.iter().map(MarketplaceId::as_str).collect::<Vec<_>>(),
+        marketplaces = ?marketplaces.iter().map(|m| m.id.as_str()).collect::<Vec<_>>(),
         plugins = mirrored.iter().map(|m| m.plugin_ids.len()).sum::<usize>(),
         "installed and enabled org plugins for the standalone Claude Code CLI"
     );
@@ -157,7 +163,8 @@ fn mirror_marketplace(
     ctx: &HostSyncCtx<'_>,
     plugins: &Path,
     marketplace: &HostMarketplace,
-) -> Result<Mirrored, ApplyError> {
+    all_mirrored: &[MarketplaceId],
+) -> Result<(Mirrored, ForeignRefs), ApplyError> {
     let manifest = ctx.manifest;
     let versions: BTreeMap<&str, &str> = manifest
         .plugins
@@ -214,10 +221,19 @@ fn mirror_marketplace(
     )?;
     upsert_known_marketplace(plugins, &marketplace.id, &manifest.issued_at.to_rfc3339())?;
     upsert_installed_plugins(plugins, manifest, &marketplace.id, &ids)?;
-    Ok(Mirrored {
-        id: marketplace.id.clone(),
-        plugin_ids: ids.into_iter().cloned().collect(),
-    })
+    let sources: Vec<PathBuf> = ids
+        .iter()
+        .map(|id| ctx.org_plugins_root.join(id.as_str()))
+        .collect();
+    let source_refs: Vec<&Path> = sources.iter().map(PathBuf::as_path).collect();
+    let foreign = foreign::collect(marketplace, &source_refs, all_mirrored);
+    Ok((
+        Mirrored {
+            id: marketplace.id.clone(),
+            plugin_ids: ids.into_iter().cloned().collect(),
+        },
+        foreign,
+    ))
 }
 
 fn purge_marketplace(plugins: &Path, marketplace: &MarketplaceId) -> Result<(), ApplyError> {
@@ -243,11 +259,11 @@ pub(crate) fn clear_install() -> Result<(), ApplyError> {
     if !paths::claude_cli_home().is_some_and(|h| h.exists()) {
         return Ok(());
     }
-    let owned = sidecar::owned_marketplaces(&plugins)?;
-    for id in &owned {
+    let owned = sidecar::read(&plugins)?;
+    for id in &owned.marketplaces {
         purge_marketplace(&plugins, id)?;
     }
-    set_enabled(&[], &owned)?;
+    set_enabled(&[], &owned.marketplaces, &owned, &ForeignRefs::default())?;
     permissions::clear_tool_permissions()?;
     sidecar::remove(&plugins)
 }

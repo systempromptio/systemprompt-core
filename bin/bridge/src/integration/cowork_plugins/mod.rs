@@ -70,6 +70,22 @@ impl HostSync for CoworkSync {
             return Ok(());
         };
         let plugin_ids: Vec<&str> = ctx.manifest.plugins.iter().map(|p| p.id.as_str()).collect();
+        for id in &plugin_ids {
+            let declares_dependencies =
+                crate::integration::claude_code_cli::foreign::read_plugin_manifest(
+                    &ctx.org_plugins_root.join(id),
+                )
+                .is_some_and(|manifest| !manifest.dependencies.is_empty());
+            if declares_dependencies {
+                ctx.warnings.push(
+                    self.host_id(),
+                    format!(
+                        "plugin {id} declares plugin dependencies; Claude Desktop does not \
+                         resolve them, so only the Claude Code CLI receives them"
+                    ),
+                );
+            }
+        }
         let report = apply_enable(&target, &plugin_ids).map_err(|e| ApplyError::Io {
             context: format!("cowork enable: {e}"),
             source: std::io::Error::other(e.to_string()),

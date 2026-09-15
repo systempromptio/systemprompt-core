@@ -1,6 +1,8 @@
 #[cfg(test)]
 mod bundle;
 #[cfg(test)]
+mod bundle_node;
+#[cfg(test)]
 mod bundle_rules;
 #[cfg(test)]
 mod candidate;

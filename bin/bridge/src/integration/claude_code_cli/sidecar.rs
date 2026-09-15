@@ -25,42 +25,46 @@ use crate::host_sync::ApplyError;
 
 pub const SIDECAR: &str = ".systemprompt-marketplaces.json";
 
-#[derive(Debug, Default, Serialize, Deserialize)]
-struct OwnedMarketplaces {
-    marketplaces: Vec<MarketplaceId>,
+/// Everything this emitter wrote that a later run must be able to take back.
+///
+/// The mirrored marketplaces, the dependency keys enabled on their behalf in
+/// `settings.json`, and the foreign marketplaces registered for those
+/// dependencies.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Owned {
+    pub marketplaces: Vec<MarketplaceId>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub dependency_keys: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub external_marketplaces: Vec<String>,
 }
 
-fn read(plugins: &Path) -> Result<Vec<MarketplaceId>, ApplyError> {
+pub fn read(plugins: &Path) -> Result<Owned, ApplyError> {
     let path = plugins.join(SIDECAR);
     let Some(text) =
         fsutil::read_optional(&path).map_err(|e| io_err(format!("read {}", path.display()), e))?
     else {
-        return Ok(Vec::new());
+        return Ok(Owned::default());
     };
-    serde_json::from_str::<OwnedMarketplaces>(&text)
-        .map(|s| s.marketplaces)
-        .map_err(|e| {
-            io_err(
-                format!(
-                    "parse {}; refusing to treat a corrupt sidecar as absent",
-                    path.display()
-                ),
-                std::io::Error::other(e),
-            )
-        })
+    serde_json::from_str::<Owned>(&text).map_err(|e| {
+        io_err(
+            format!(
+                "parse {}; refusing to treat a corrupt sidecar as absent",
+                path.display()
+            ),
+            std::io::Error::other(e),
+        )
+    })
 }
 
 pub fn owned_marketplaces(plugins: &Path) -> Result<Vec<MarketplaceId>, ApplyError> {
-    read(plugins)
+    read(plugins).map(|owned| owned.marketplaces)
 }
 
-pub fn write(plugins: &Path, marketplaces: &[MarketplaceId]) -> Result<(), ApplyError> {
-    let state = OwnedMarketplaces {
-        marketplaces: marketplaces.to_vec(),
-    };
+pub fn write(plugins: &Path, owned: &Owned) -> Result<(), ApplyError> {
     crate::integration::json_io::write_json(
         &plugins.join(SIDECAR),
-        &serde_json::to_value(state).map_err(|e| ApplyError::Serialize {
+        &serde_json::to_value(owned).map_err(|e| ApplyError::Serialize {
             what: "claude-code marketplaces sidecar".into(),
             source: e,
         })?,

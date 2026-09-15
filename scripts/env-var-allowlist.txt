@@ -49,7 +49,7 @@ bin/bridge/src/install/mdm/macos.rs  # USER for the per-user managed-preferences
 bin/bridge/src/install/mdm/macos_remove.rs  # USER for the per-user managed-preferences plist (macOS MDM remove)
 bin/bridge/src/install/mdm/windows.rs  # USERPROFILE Windows home probe for the MDM payload
 bin/bridge/src/integration/app_launch/mod.rs  # PATH lookup for the host app binary
-bin/bridge/src/integration/claude_code_cli/mod.rs  # PATH lookup for the `claude` CLI
+bin/bridge/src/sync/apply/node_deps.rs  # PATH lookup for `claude`, `npm` and `bun`
 bin/bridge/src/integration/claude_desktop/macos.rs  # USER for the Claude Desktop per-user managed preferences (macOS)
 bin/bridge/src/integration/claude_desktop/mod.rs  # LOCALAPPDATA Claude Desktop install probe (Windows)
 bin/bridge/src/integration/codex_cli/config.rs  # CODEX_HOME / CODEX_SYSTEM_CONFIG (Codex-defined home overrides); USER for the per-user config path

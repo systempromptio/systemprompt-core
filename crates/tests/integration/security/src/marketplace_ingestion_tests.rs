@@ -69,6 +69,8 @@ fn marketplace(id: &MarketplaceId, access: MarketplaceAccess) -> MarketplaceConf
         agents: PluginComponentRef::default(),
         artifacts: PluginComponentRef::default(),
         access,
+        allow_cross_marketplace_dependencies_on: vec![],
+        external_marketplaces: vec![],
     }
 }
 

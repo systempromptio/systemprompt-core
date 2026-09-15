@@ -12,9 +12,9 @@ use systemprompt_bridge::gateway::manifest::{
 };
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
 use systemprompt_bridge::ids::{PluginId, Sha256Digest};
+use systemprompt_bridge::integration::claude_code_cli::installed::installed_entry;
 use systemprompt_bridge::integration::claude_code_cli::marketplace::{
-    MarketplaceEntry, installed_entry, marketplace_value, strip_known_marketplace,
-    upsert_known_marketplace,
+    MarketplaceEntry, marketplace_value, strip_known_marketplace, upsert_known_marketplace,
 };
 use systemprompt_bridge::integration::claude_code_cli::{host_marketplaces, sidecar};
 use systemprompt_bridge::integration::json_io::{object_entry, read_optional_object};
@@ -48,7 +48,7 @@ fn marketplace_value_has_required_owner_object() {
             version: "1.0.0".into(),
         },
     ];
-    let v = marketplace_value("acme", "Acme tooling", "v1", &entries);
+    let v = marketplace_value("acme", "Acme tooling", "v1", &entries, &[]);
     assert!(v["owner"].is_object(), "owner must be an object");
     assert_eq!(v["name"], json!("acme"), "name is the marketplace id");
     assert_eq!(v["description"], json!("Acme tooling"));
@@ -222,6 +222,8 @@ fn manifest_marketplace(id: &str, name: &str, plugin_ids: &[&str]) -> ManifestMa
             .iter()
             .map(|p| PluginId::try_new(*p).unwrap())
             .collect(),
+        allow_cross_marketplace_dependencies_on: vec![],
+        external_marketplaces: vec![],
     }
 }
 
@@ -265,7 +267,11 @@ fn sidecar_round_trips_and_an_absent_sidecar_owns_nothing() {
 
     sidecar::write(
         d.path(),
-        &[MarketplaceId::new("core"), MarketplaceId::new("commerce")],
+        &sidecar::Owned {
+            marketplaces: vec![MarketplaceId::new("core"), MarketplaceId::new("commerce")],
+            dependency_keys: vec![],
+            external_marketplaces: vec![],
+        },
     )
     .unwrap();
     assert_eq!(

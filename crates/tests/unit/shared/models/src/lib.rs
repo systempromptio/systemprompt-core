@@ -158,6 +158,8 @@ mod content_config;
 
 #[cfg(test)]
 mod services_plugin;
+#[cfg(test)]
+mod services_plugin_dependencies;
 
 #[cfg(test)]
 mod auth_enums;

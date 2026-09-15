@@ -32,6 +32,7 @@ pub use crate::bridge::ids::ManifestSignature;
 use crate::bridge::ids::PluginId;
 use crate::bridge::manifest_version::ManifestVersion;
 use crate::services::bridge_policy::AutoUpdatePolicy;
+pub use crate::services::marketplace::{ExternalMarketplace, ExternalMarketplaceSource};
 use systemprompt_identifiers::{ApiKeyId, MarketplaceId, TenantId, UserId};
 
 pub use entries::{
@@ -107,6 +108,10 @@ pub struct ManifestMarketplace {
     pub id: MarketplaceId,
     pub name: String,
     pub plugin_ids: Vec<PluginId>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub allow_cross_marketplace_dependencies_on: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub external_marketplaces: Vec<ExternalMarketplace>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

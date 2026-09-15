@@ -16,6 +16,7 @@
 
 ### Added
 
+- `services::PluginDependency` and `PluginConfig::dependencies` (validated: non-empty name, semver-range `version`, no duplicates); `services::{ExternalMarketplace, ExternalMarketplaceSource}` and `MarketplaceConfig::{allow_cross_marketplace_dependencies_on, external_marketplaces}` (validated: `owner/repo` GitHub repos, https git URLs through the outbound-URL guard, no self-reference, unique names); `ServicesConfig::validate` refuses a plugin dependency on a marketplace the carrying marketplace does not allowlist and declare (or configure locally). `bridge::plugin_bundle::ManifestDependency` is Claude Code's `dependencies` wire shape on `PluginManifest`; `NODE_PACKAGE_FILE`, `NODE_LOCKFILES` and `node_lockfile` are the shared Node-install contract. `ManifestMarketplace` carries both marketplace fields.
 - `rate_limits.gateway_per_second` (default `100`) governs the `/v1` gateway route group; `RATE_LIMIT_GATEWAY_PER_SECOND` in the env profile source.
 - `RevisionFiles::same_content` compares two file sets by path, bytes and executable bit.
 

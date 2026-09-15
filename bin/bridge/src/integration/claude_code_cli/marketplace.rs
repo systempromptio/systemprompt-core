@@ -12,10 +12,12 @@ use std::path::Path;
 
 use serde_json::{Value, json};
 use systemprompt_identifiers::MarketplaceId;
-use systemprompt_models::bridge::plugin_bundle::PluginManifest;
+use systemprompt_models::bridge::manifest::ExternalMarketplace;
 
+use super::foreign::{self, ForeignRefs};
 use super::io_err;
-use super::layout::{cache_install_dir, marketplace_dir, plugin_key};
+use super::layout::{marketplace_dir, plugin_key};
+use super::sidecar::Owned;
 use crate::config::paths;
 use crate::gateway::manifest::SignedManifest;
 use crate::host_sync::ApplyError;
@@ -31,6 +33,8 @@ pub struct HostMarketplace {
     pub id: MarketplaceId,
     pub name: String,
     pub plugin_ids: Vec<PluginId>,
+    pub allow_cross_marketplace_dependencies_on: Vec<String>,
+    pub external_marketplaces: Vec<ExternalMarketplace>,
 }
 
 /// The plugins mirrored under one marketplace, as written to `settings.json`.
@@ -52,6 +56,10 @@ pub fn host_marketplaces(manifest: &SignedManifest) -> Vec<HostMarketplace> {
             id: m.id.clone(),
             name: m.name.clone(),
             plugin_ids: m.plugin_ids.clone(),
+            allow_cross_marketplace_dependencies_on: m
+                .allow_cross_marketplace_dependencies_on
+                .clone(),
+            external_marketplaces: m.external_marketplaces.clone(),
         })
         .collect()
 }
@@ -72,15 +80,7 @@ pub(super) fn entry_for(src: &Path, plugin_id: &PluginId, version: &str) -> Mark
 }
 
 fn read_plugin_description(plugin_dir: &Path) -> Option<String> {
-    use systemprompt_models::bridge::plugin_bundle::{PLUGIN_MANIFEST_DIRS, PLUGIN_MANIFEST_FILE};
-    let path = PLUGIN_MANIFEST_DIRS
-        .iter()
-        .map(|dir| plugin_dir.join(dir).join(PLUGIN_MANIFEST_FILE))
-        .find(|p| p.is_file())?;
-    let bytes = std::fs::read(path).ok()?;
-    serde_json::from_slice::<PluginManifest>(&bytes)
-        .ok()
-        .map(|m| m.description)
+    foreign::read_plugin_manifest(plugin_dir).map(|m| m.description)
 }
 
 pub(super) fn write_marketplace_json(
@@ -93,18 +93,26 @@ pub(super) fn write_marketplace_json(
     fs_create(&dir)?;
     write_json(
         &dir.join("marketplace.json"),
-        &marketplace_value(marketplace.id.as_str(), &marketplace.name, version, entries),
+        &marketplace_value(
+            marketplace.id.as_str(),
+            &marketplace.name,
+            version,
+            entries,
+            &marketplace.allow_cross_marketplace_dependencies_on,
+        ),
     )
 }
 
 // Why: Claude Code requires an object owner and a manifest name matching the
-// marketplace key.
+// marketplace key, and refuses a cross-marketplace dependency unless this
+// root marketplace allowlists the target here.
 #[must_use]
 pub fn marketplace_value(
     marketplace: &str,
     description: &str,
     version: &str,
     entries: &[MarketplaceEntry],
+    allow_cross_marketplace_dependencies_on: &[String],
 ) -> Value {
     let plugins: Vec<Value> = entries
         .iter()
@@ -117,14 +125,19 @@ pub fn marketplace_value(
             })
         })
         .collect();
-    json!({
+    let mut value = json!({
         "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
         "name": marketplace,
         "description": description,
         "owner": { "name": "systemprompt.io", "email": "support@systemprompt.io" },
         "metadata": { "version": version, "pluginRoot": "./plugins" },
         "plugins": plugins,
-    })
+    });
+    if !allow_cross_marketplace_dependencies_on.is_empty() {
+        value["allowCrossMarketplaceDependenciesOn"] =
+            json!(allow_cross_marketplace_dependencies_on);
+    }
+    value
 }
 
 pub fn upsert_known_marketplace(
@@ -162,64 +175,17 @@ pub fn strip_known_marketplace(
     Ok(())
 }
 
-pub(super) fn upsert_installed_plugins(
-    plugins: &Path,
-    manifest: &SignedManifest,
-    marketplace: &MarketplaceId,
-    ids: &[&PluginId],
+pub(super) fn set_enabled(
+    current: &[Mirrored],
+    stale: &[MarketplaceId],
+    previous: &Owned,
+    foreign: &ForeignRefs,
 ) -> Result<(), ApplyError> {
-    let path = plugins.join("installed_plugins.json");
-    let mut root = read_json_object(&path)?;
-    root.entry("version").or_insert(json!(2));
-    let map = object_entry(&mut root, &path, "plugins")?;
-    strip_marketplace_keys(map, marketplace, ids);
-    for id in ids {
-        map.insert(
-            plugin_key(id, marketplace),
-            installed_entry(
-                &cache_install_dir(plugins, marketplace, id),
-                manifest.manifest_version.as_str(),
-                &manifest.issued_at.to_rfc3339(),
-            ),
-        );
-    }
-    write_json(&path, &Value::Object(root))
-}
-
-#[must_use]
-pub fn installed_entry(cache: &Path, version: &str, issued_at: &str) -> Value {
-    json!([{
-        "scope": "user",
-        "installPath": cache.to_string_lossy().into_owned(),
-        "version": version,
-        "installedAt": issued_at,
-        "lastUpdated": issued_at,
-    }])
-}
-
-pub fn strip_installed_plugins(
-    plugins: &Path,
-    marketplace: &MarketplaceId,
-) -> Result<(), ApplyError> {
-    let path = plugins.join("installed_plugins.json");
-    let Some(mut root) = read_optional_object(&path)? else {
-        return Ok(());
-    };
-    let removed = root
-        .get_mut("plugins")
-        .and_then(Value::as_object_mut)
-        .is_some_and(|m| strip_marketplace_keys(m, marketplace, &[]));
-    if removed {
-        write_json(&path, &Value::Object(root))?;
-    }
-    Ok(())
-}
-
-pub(super) fn set_enabled(current: &[Mirrored], stale: &[MarketplaceId]) -> Result<(), ApplyError> {
     let Some(path) = paths::claude_cli_settings_path() else {
         return Ok(());
     };
     let mut root = read_json_object(&path)?;
+    foreign::apply_settings(&mut root, &path, previous, foreign)?;
 
     let enabled_map = object_entry(&mut root, &path, "enabledPlugins")?;
     for marketplace in stale {
@@ -258,7 +224,7 @@ pub(super) fn set_enabled(current: &[Mirrored], stale: &[MarketplaceId]) -> Resu
     write_json(&path, &Value::Object(root))
 }
 
-fn strip_marketplace_keys(
+pub(super) fn strip_marketplace_keys(
     map: &mut serde_json::Map<String, Value>,
     marketplace: &MarketplaceId,
     keep: &[&PluginId],

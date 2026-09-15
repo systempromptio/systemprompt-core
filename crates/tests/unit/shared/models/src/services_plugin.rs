@@ -31,6 +31,7 @@ fn valid_plugin(id: &str) -> PluginConfig {
         artifacts: PluginComponentRef::default(),
         hooks: Default::default(),
         scripts: vec![],
+        dependencies: vec![],
     }
 }
 
@@ -183,6 +184,8 @@ fn valid_marketplace(id: &str) -> MarketplaceConfig {
         agents: PluginComponentRef::default(),
         artifacts: PluginComponentRef::default(),
         access: Default::default(),
+        allow_cross_marketplace_dependencies_on: vec![],
+        external_marketplaces: vec![],
     }
 }
 

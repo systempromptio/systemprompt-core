@@ -521,6 +521,7 @@ async fn assemble_candidate_keeps_artifact_owned_by_enabled_plugin() {
             },
             hooks: Default::default(),
             scripts: vec![],
+            dependencies: vec![],
         },
     );
 

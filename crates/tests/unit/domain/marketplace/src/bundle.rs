@@ -111,6 +111,7 @@ fn plugin_config(id: &str, skills: PluginComponentRef, agents: PluginComponentRe
         artifacts: PluginComponentRef::default(),
         hooks: Default::default(),
         scripts: vec![],
+        dependencies: vec![],
     }
 }
 

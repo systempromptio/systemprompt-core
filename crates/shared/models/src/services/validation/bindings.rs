@@ -82,6 +82,60 @@ impl ServicesConfig {
         Ok(())
     }
 
+    // Why: Claude Code refuses a cross-marketplace dependency unless the
+    // carrying marketplace allowlists the target and the target is already
+    // registered on the host, so an undeclared target would surface only as
+    // an install error on every user's machine.
+    pub(crate) fn validate_marketplace_dependencies(
+        &self,
+        name: &str,
+        marketplace: &MarketplaceConfig,
+    ) -> Result<(), ConfigValidationError> {
+        let members = self.marketplace_plugin_configs(marketplace);
+        for plugin in &members {
+            for dependency in &plugin.dependencies {
+                let Some(target) = dependency.marketplace.as_deref() else {
+                    if !members.iter().any(|p| p.id.as_str() == dependency.name) {
+                        return Err(ConfigValidationError::unknown_reference(format!(
+                            "Marketplace '{name}': plugin '{}' depends on '{}', which this \
+                             marketplace does not carry — name its marketplace or add it to \
+                             plugins.include",
+                            plugin.id.as_str(),
+                            dependency.name
+                        )));
+                    }
+                    continue;
+                };
+                if target == marketplace.id.as_str() {
+                    continue;
+                }
+                if !marketplace
+                    .allow_cross_marketplace_dependencies_on
+                    .iter()
+                    .any(|allowed| allowed == target)
+                {
+                    return Err(ConfigValidationError::business_rule(format!(
+                        "Marketplace '{name}': plugin '{}' depends on '{}@{target}' but \
+                         '{target}' is not in allow_cross_marketplace_dependencies_on",
+                        plugin.id.as_str(),
+                        dependency.name
+                    )));
+                }
+                let local = self.marketplaces.keys().any(|id| id.as_str() == target);
+                if !local && marketplace.external_marketplace(target).is_none() {
+                    return Err(ConfigValidationError::unknown_reference(format!(
+                        "Marketplace '{name}': plugin '{}' depends on '{}@{target}' but \
+                         '{target}' is neither a configured marketplace nor declared under \
+                         external_marketplaces",
+                        plugin.id.as_str(),
+                        dependency.name
+                    )));
+                }
+            }
+        }
+        Ok(())
+    }
+
     pub(crate) fn validate_plugin_bindings(
         &self,
         plugin_name: &str,

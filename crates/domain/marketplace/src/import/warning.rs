@@ -23,6 +23,7 @@ pub enum ImportWarning {
     RemotePluginSource { plugin: String },
     NoSkills { plugin: String },
     UnattachedRootRules { rules: Vec<String> },
+    NodePackageWithoutLockfile { plugin: String },
 }
 
 impl ImportWarning {
@@ -85,6 +86,12 @@ impl fmt::Display for ImportWarning {
                 "repository-root rules ({}) belong to no plugin; a rule only reaches a host \
                  through a plugin that lists it, so move them under a plugin's rules/ directory",
                 rules.join(", ")
+            ),
+            Self::NodePackageWithoutLockfile { plugin } => write!(
+                f,
+                "plugin '{plugin}' ships package.json without a package-lock.json, \
+                 npm-shrinkwrap.json or bun.lock, so its Node dependencies will not be installed \
+                 on any host"
             ),
         }
     }

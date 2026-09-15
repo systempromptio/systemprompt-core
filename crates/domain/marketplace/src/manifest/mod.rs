@@ -191,6 +191,10 @@ fn listed_marketplaces(
                 id: marketplace.id.clone(),
                 name: marketplace.name.clone(),
                 plugin_ids,
+                allow_cross_marketplace_dependencies_on: marketplace
+                    .allow_cross_marketplace_dependencies_on
+                    .clone(),
+                external_marketplaces: marketplace.external_marketplaces.clone(),
             })
         })
         .collect()

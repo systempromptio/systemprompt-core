@@ -54,6 +54,7 @@ fn original_plugin() -> PluginConfig {
         artifacts: PluginComponentRef::default(),
         hooks: systemprompt_models::services::plugin::PluginHooksRef::default(),
         scripts: Vec::new(),
+        dependencies: vec![],
     }
 }
 
@@ -84,6 +85,8 @@ fn original_marketplace() -> MarketplaceConfig {
             attributes: Default::default(),
             justification: None,
         },
+        allow_cross_marketplace_dependencies_on: vec![],
+        external_marketplaces: vec![],
     }
 }
 
