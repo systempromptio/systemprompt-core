@@ -374,11 +374,15 @@ fn the_managed_sidecar_records_which_marketplaces_the_skills_came_from() {
                 id: systemprompt_identifiers::MarketplaceId::new("core"),
                 name: "Core".into(),
                 plugin_ids: vec![],
+                allow_cross_marketplace_dependencies_on: vec![],
+                external_marketplaces: vec![],
             },
             ManifestMarketplace {
                 id: systemprompt_identifiers::MarketplaceId::new("commerce"),
                 name: "Commerce".into(),
                 plugin_ids: vec![],
+                allow_cross_marketplace_dependencies_on: vec![],
+                external_marketplaces: vec![],
             },
         ];
         apply(&m, &sb.skills).unwrap();
@@ -431,6 +435,23 @@ fn the_governance_owner_gets_an_opencode_hook_plugin_with_a_scoped_token() {
         assert!(body.contains("\"code-review\":\"astound-dev:code-review\""));
         assert!(body.contains("\"who-am-i\":\"opencode:who-am-i\""));
         assert!(body.contains("\"tool.execute.after\""));
+        assert!(
+            body.contains("\"chat.headers\"") && body.contains("\"chat.params\""),
+            "the plugin stamps chat requests with the session header: {body}"
+        );
+        assert!(body.contains("\"x-opencode-session\""));
+        assert!(
+            body.contains(&format!(
+                "const SESSION_NAMESPACE = \"{}\";",
+                systemprompt_bridge::feedback::opencode_session::OPENCODE_SESSION_NAMESPACE
+                    .hyphenated()
+            )),
+            "the v5 namespace is substituted from the bridge constant: {body}"
+        );
+        assert!(
+            !body.contains("__SESSION_NAMESPACE__"),
+            "the namespace placeholder is substituted: {body}"
+        );
         let first = fs::read(&sb.hook_plugin).unwrap();
         apply(&m, &sb.skills).unwrap();
         assert_eq!(fs::read(&sb.hook_plugin).unwrap(), first);

@@ -9,6 +9,10 @@ use super::outbox::Outbox;
 use systemprompt_identifiers::{ClientSessionId, NativeSessionId};
 use systemprompt_models::feedback::EvaluatorClient;
 
+/// Header the `OpenCode` plugin stamps on every chat request with the
+/// gateway-facing session UUID.
+pub const OPENCODE_SESSION_HEADER: &str = "x-opencode-session";
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NativeSession {
     pub host: EvaluatorClient,
@@ -72,7 +76,18 @@ pub fn native_session(headers: &http::HeaderMap, body: &[u8]) -> Option<NativeSe
                 dash.or(underscore)?.to_owned()
             }
         },
-        EvaluatorClient::OpenCode => headers.get("x-opencode-session")?.to_str().ok()?.to_owned(),
+        EvaluatorClient::OpenCode => {
+            let raw = headers.get(OPENCODE_SESSION_HEADER)?.to_str().ok()?;
+            // Why: the current plugin sends the v5 UUID; a plugin from before
+            // the mapping sends the raw `ses_…` id, which maps to the same UUID.
+            match ClientSessionId::try_new(raw) {
+                Ok(id) => id.as_str().to_owned(),
+                Err(_) => super::opencode_session::session_uuid(raw)
+                    .ok()?
+                    .as_str()
+                    .to_owned(),
+            }
+        },
         EvaluatorClient::Hermes => value.get("session_id")?.as_str()?.to_owned(),
     };
     if session.is_empty() || session.len() > 512 || session.chars().any(char::is_control) {

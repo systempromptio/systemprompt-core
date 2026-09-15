@@ -6,7 +6,10 @@
 //! route; the proxy mints the gateway JWT and stamps device identity exactly as
 //! it does for Claude Code hooks, so nothing server-side distinguishes the
 //! two hosts except the `skill_ref`, which resolves the `OpenCode` skill
-//! directory back to its `plugin:skill` identity.
+//! directory back to its `plugin:skill` identity. The plugin also stamps
+//! every chat request with a v5 session UUID derived under the namespace
+//! substituted from [`crate::feedback::opencode_session`], so the proxy can
+//! bind the request to the same context as the hook events.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -72,7 +75,13 @@ pub(super) fn write_hook_plugin(
             ),
         )
         .replace("__AUTHORIZATION__", &authorization)
-        .replace("__SKILL_MAP__", &map);
+        .replace("__SKILL_MAP__", &map)
+        .replace(
+            "__SESSION_NAMESPACE__",
+            &crate::feedback::opencode_session::OPENCODE_SESSION_NAMESPACE
+                .hyphenated()
+                .to_string(),
+        );
     let path = plugin_path();
     if std::fs::read(&path).is_ok_and(|current| current == body.as_bytes()) {
         return Ok(());

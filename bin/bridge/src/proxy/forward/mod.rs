@@ -29,6 +29,7 @@ pub mod replay;
 mod route;
 
 use body::prepare_upstream_body;
+pub use body::{CHAT_COMPLETIONS_PATH, stamp_opencode_session};
 pub use error::{ForwardError, ForwardResult, is_client_disconnect};
 use headers::{build_upstream_headers, copy_response_headers};
 pub use replay::{Replay, describe, replay_policy, should_replay};
@@ -130,7 +131,7 @@ pub(crate) async fn forward(
     })?;
 
     let (buffered_body, gateway_conversation_id) =
-        prepare_upstream_body(body, session_context).await?;
+        prepare_upstream_body(body, session_context, &parts.headers, &request_path).await?;
 
     if let Err(error) =
         crate::feedback::sessions::observe(gateway_base.as_str(), &parts.headers, &buffered_body)

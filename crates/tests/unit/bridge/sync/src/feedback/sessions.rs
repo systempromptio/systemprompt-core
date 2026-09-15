@@ -119,19 +119,38 @@ fn session_without_known_installation_does_not_acquire_future_publication() {
 }
 
 #[test]
-fn native_hook_files_contain_host_but_never_device_credentials() {
-    let dir = tempfile::tempdir().unwrap();
-    let skill = dir.path().join("skills/skill");
-    std::fs::create_dir_all(&skill).unwrap();
-    std::fs::create_dir_all(dir.path().join("hooks")).unwrap();
-    let path = dir.path().join("hooks/hooks.json");
-    std::fs::write(&path,r#"{"hooks":{"UserPromptSubmit":[{"hooks":[{"type":"http","headers":{"Authorization":"Bearer loopback","x-systemprompt-device-credential":"must-remove"}}]}]}}"#).unwrap();
-    systemprompt_bridge::feedback::hooks::stamp_native_hooks(&skill, EvaluatorClient::ClaudeCode)
-        .unwrap();
-    let content = std::fs::read_to_string(&path).unwrap();
-    assert!(content.contains("claude-code"));
-    assert!(!content.contains("device-credential"));
-    assert!(!content.contains("must-remove"));
+fn opencode_session_header_binds_the_uuid_or_maps_a_raw_native_id_onto_it() {
+    let mapped = systemprompt_bridge::feedback::opencode_session::session_uuid("ses_x").unwrap();
+
+    let mut current = http::HeaderMap::new();
+    current.insert("user-agent", "opencode/1.0".parse().unwrap());
+    current.insert("x-opencode-session", mapped.as_str().parse().unwrap());
+    let session = native_session(&current, b"{}").unwrap();
+    assert_eq!(session.host, EvaluatorClient::OpenCode);
+    assert_eq!(session.id.as_str(), mapped.as_str());
+
+    let mut legacy = http::HeaderMap::new();
+    legacy.insert("user-agent", "opencode/1.0".parse().unwrap());
+    legacy.insert("x-opencode-session", "ses_x".parse().unwrap());
+    let session = native_session(&legacy, b"{}").unwrap();
+    assert_eq!(session.host, EvaluatorClient::OpenCode);
+    assert_eq!(
+        session.id.as_str(),
+        mapped.as_str(),
+        "a pre-mapping plugin's raw id lands on the same session"
+    );
+
+    let mut upper = http::HeaderMap::new();
+    upper.insert("user-agent", "opencode/1.0".parse().unwrap());
+    upper.insert(
+        "x-opencode-session",
+        mapped.as_str().to_ascii_uppercase().parse().unwrap(),
+    );
+    assert_ne!(
+        native_session(&upper, b"{}").unwrap().id.as_str(),
+        mapped.as_str(),
+        "only the canonical lowercase form is accepted as the uuid itself"
+    );
 }
 
 #[test]

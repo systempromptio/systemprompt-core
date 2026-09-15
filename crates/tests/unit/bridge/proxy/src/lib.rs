@@ -15,6 +15,8 @@ mod identity;
 #[cfg(test)]
 mod loopback_host;
 #[cfg(test)]
+mod opencode_body;
+#[cfg(test)]
 mod peer_probe_body_complete;
 #[cfg(test)]
 mod portfile;
