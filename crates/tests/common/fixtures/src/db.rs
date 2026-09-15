@@ -65,6 +65,15 @@ const FIXTURE_POOL_MAX_CONNECTIONS: u32 = 8;
 // server mid-run.
 const FIXTURE_POOL_IDLE_TIMEOUT: Duration = Duration::from_secs(5);
 
+// A pool handle that never opens a socket: the connection is lazy and no
+// query ever runs through it. Fake `DatabaseProvider`s that script every call
+// use it to satisfy `get_postgres_pool` while staying DB-free.
+pub fn lazy_pg_pool() -> Arc<sqlx::PgPool> {
+    let pool = sqlx::PgPool::connect_lazy("postgres://fake:fake@127.0.0.1:1/fake")
+        .expect("lazy pool construction is infallible for a well-formed URL");
+    Arc::new(pool)
+}
+
 // A `DbPool` whose every acquire fails deterministically.
 //
 // The sqlx pool is created lazily (no connection is ever established) and
@@ -89,7 +98,7 @@ pub async fn fixture_db_pool(url: &str) -> Result<DbPool> {
         idle_timeout: FIXTURE_POOL_IDLE_TIMEOUT,
         ..PoolConfig::default()
     };
-    Database::from_config_with_write("postgres", url, None, &cfg)
+    Database::connect(url, None, &cfg)
         .await
         .map(Arc::new)
         .context("failed to connect to the integration-test Postgres instance")

@@ -17,8 +17,7 @@ pub mod transaction;
 
 use async_trait::async_trait;
 use sqlx::Executor;
-use sqlx::postgres::{PgConnectOptions, PgPool, PgSslMode};
-use std::str::FromStr;
+use sqlx::postgres::PgPool;
 use std::sync::Arc;
 
 use super::provider::DatabaseProvider;
@@ -43,21 +42,7 @@ impl PostgresProvider {
         database_url: &str,
         pool_config: &connection::PoolConfig,
     ) -> DatabaseResult<Self> {
-        let mut connect_options = PgConnectOptions::from_str(database_url)?;
-
-        let ssl_mode = if database_url.contains("sslmode=require") {
-            PgSslMode::Require
-        } else if database_url.contains("sslmode=disable") {
-            PgSslMode::Disable
-        } else {
-            PgSslMode::Prefer
-        };
-
-        connect_options = connect_options
-            .application_name("systemprompt")
-            .statement_cache_capacity(0)
-            .ssl_mode(ssl_mode)
-            .options([("client_min_messages", "warning")]);
+        let connect_options = connection::connect_options(database_url)?;
 
         let pool = connection::connect_with_retry(
             connection::build_pool_options(pool_config),
@@ -83,8 +68,8 @@ impl PostgresProvider {
 
 #[async_trait]
 impl DatabaseProvider for PostgresProvider {
-    fn get_postgres_pool(&self) -> Option<Arc<PgPool>> {
-        Some(Arc::clone(&self.pool))
+    fn get_postgres_pool(&self) -> Arc<PgPool> {
+        Arc::clone(&self.pool)
     }
 
     async fn execute(

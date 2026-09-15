@@ -30,15 +30,15 @@ fn readonly_strips_trailing_semicolon() {
 }
 
 #[test]
-fn readonly_strips_line_comments() {
+fn readonly_ignores_line_comments() {
     let sql = AdminSql::parse_readonly("-- drop everything\nSELECT 1").expect("must parse");
     assert!(sql.as_str().contains("SELECT 1"));
 }
 
 #[test]
-fn readonly_strips_block_comments() {
+fn readonly_ignores_write_keywords_inside_block_comments() {
     let sql = AdminSql::parse_readonly("/* DELETE FROM users */ SELECT 1").expect("must parse");
-    assert_eq!(sql.as_str().trim(), "SELECT 1");
+    assert!(sql.as_str().ends_with("SELECT 1"));
 }
 
 #[test]
@@ -92,7 +92,41 @@ fn readonly_rejects_multi_statement() {
 #[test]
 fn readonly_rejects_smuggled_drop_in_cte() {
     let result = AdminSql::parse_readonly("WITH t AS (SELECT 1) DROP TABLE users");
-    assert!(matches!(result, Err(AdminSqlError::ForbiddenKeyword)));
+    assert!(matches!(result, Err(AdminSqlError::Parse(_))), "{result:?}");
+}
+
+#[test]
+fn readonly_rejects_a_data_modifying_cte() {
+    for smuggled in [
+        "WITH d AS (DELETE FROM users RETURNING *) SELECT * FROM d",
+        "WITH u AS (UPDATE users SET name = 'x' RETURNING id) SELECT count(*) FROM u",
+        "WITH i AS (INSERT INTO users (id) VALUES (1) RETURNING id) SELECT * FROM i",
+        "SELECT * FROM (WITH d AS (DELETE FROM users RETURNING *) SELECT * FROM d) AS s",
+    ] {
+        let result = AdminSql::parse_readonly(smuggled);
+        assert!(
+            matches!(result, Err(AdminSqlError::WriteInReadOnly)),
+            "{smuggled}: {result:?}"
+        );
+    }
+}
+
+#[test]
+fn readonly_rejects_dml_hidden_behind_whitespace_and_parentheses() {
+    for raw in [
+        "(DELETE FROM users)",
+        "\n\tDELETE FROM users",
+        "EXPLAIN DELETE FROM users",
+    ] {
+        let result = AdminSql::parse_readonly(raw);
+        assert!(result.is_err(), "{raw}: {result:?}");
+    }
+}
+
+#[test]
+fn readonly_accepts_a_select_with_a_trailing_comment() {
+    let sql = AdminSql::parse_readonly("select 1;\n-- x").expect("comment after terminator");
+    assert_eq!(sql.as_str(), "select 1");
 }
 
 #[test]
@@ -116,17 +150,9 @@ fn unrestricted_rejects_multi_statement() {
     ));
 }
 
-// The forbidden-keyword list only does work for statements that open with an
-// allowed prefix and smuggle a destructive keyword later: a leading `DELETE`
-// is already refused by the prefix check, so a test using one proves nothing
-// about the list. Every case below opens with `WITH`, which the prefix check
-// accepts, leaving the keyword list as the only thing that can refuse it.
-//
-// The keywords are duplicated here rather than read from the source. That is
-// the mechanism — a test reading the constant would shrink along with it and
-// detect nothing when an entry is dropped.
+// Every case opens with `WITH`, so only the statement-node walk can refuse it.
 #[test]
-fn every_forbidden_keyword_is_refused_behind_an_allowed_prefix() {
+fn every_forbidden_statement_is_refused_behind_an_allowed_prefix() {
     for keyword in [
         "DROP TABLE users",
         "DELETE FROM users",
@@ -158,12 +184,14 @@ fn every_forbidden_keyword_is_refused_behind_an_allowed_prefix() {
 // identifier or a string literal is not a statement, and refusing those would
 // make the console unusable for the tables it exists to inspect.
 #[test]
-fn ordinary_reads_are_not_refused_by_the_keyword_scan() {
+fn ordinary_reads_are_not_refused_by_the_statement_walk() {
     for benign in [
         "SELECT * FROM dropped_sessions",
         "SELECT created_at FROM users",
         "SELECT * FROM update_log",
         "WITH t AS (SELECT 1) SELECT * FROM t",
+        "SELECT 'DELETE FROM users' AS literal",
+        "SELECT * FROM users WHERE name = 'drop'",
     ] {
         assert!(
             AdminSql::parse_readonly(benign).is_ok(),

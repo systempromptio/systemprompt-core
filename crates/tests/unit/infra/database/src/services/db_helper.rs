@@ -12,7 +12,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use systemprompt_database::{Database, DbPool, PoolConfig};
-use systemprompt_test_fixtures::fixture_database_url;
+use systemprompt_test_fixtures::{fixture_database_url, lazy_pg_pool};
 
 pub async fn pool_or_skip() -> Option<DbPool> {
     let url = fixture_database_url().ok()?;
@@ -23,8 +23,10 @@ pub async fn pool_or_skip() -> Option<DbPool> {
         idle_timeout: Duration::from_secs(30),
         max_lifetime: Duration::from_secs(300),
     };
-    let db = Database::from_config_with_write("postgres", &url, None, &cfg)
-        .await
-        .ok()?;
+    let db = Database::connect(&url, None, &cfg).await.ok()?;
     Some(Arc::new(db))
+}
+
+pub fn lazy_pool() -> Arc<sqlx::PgPool> {
+    lazy_pg_pool()
 }

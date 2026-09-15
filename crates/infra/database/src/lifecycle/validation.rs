@@ -13,10 +13,6 @@ pub async fn validate_database_connection(db: &dyn DatabaseProvider) -> Database
 }
 
 pub async fn validate_write_pool_is_primary(db: &Database) -> DatabaseResult<()> {
-    if !db.write().is_postgres() {
-        return Ok(());
-    }
-
     let result = db
         .write()
         .query_raw(&"SELECT pg_is_in_recovery() as in_recovery")

@@ -10,26 +10,35 @@ use tracing::{debug, warn};
 
 use crate::services::DatabaseProvider;
 
-const BOOTSTRAP_ADVISORY_LOCK_KEY: i64 = 0x73_70_72_6F_6D_70_74_01;
+pub const BOOTSTRAP_ADVISORY_LOCK_KEY: i64 = 0x73_70_72_6F_6D_70_74_01;
 
-// Why: only the acquiring Postgres session can release its advisory locks.
-pub(crate) struct BootstrapLockGuard {
+/// Session-pinned advisory lock serialising concurrent bootstraps.
+///
+/// Only the acquiring Postgres session can release its advisory lock, so the
+/// guard pins that connection. Dropping the guard without `release` closes
+/// the session instead of returning it to the pool, so the lock never
+/// outlives a cancelled or panicking holder.
+pub struct BootstrapLockGuard {
     conn: Option<PoolConnection<Postgres>>,
 }
 
-impl BootstrapLockGuard {
-    pub(crate) async fn acquire(db: &dyn DatabaseProvider) -> Result<Self, LoaderError> {
-        let Some(pool) = db.get_postgres_pool() else {
-            return Ok(Self { conn: None });
-        };
+impl std::fmt::Debug for BootstrapLockGuard {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("BootstrapLockGuard")
+            .field("key", &BOOTSTRAP_ADVISORY_LOCK_KEY)
+            .field("held", &self.conn.is_some())
+            .finish()
+    }
+}
 
-        let mut conn = pool
-            .acquire()
-            .await
-            .map_err(|e| LoaderError::SchemaInstallationFailed {
+impl BootstrapLockGuard {
+    pub async fn acquire(db: &dyn DatabaseProvider) -> Result<Self, LoaderError> {
+        let mut conn = db.get_postgres_pool().acquire().await.map_err(|e| {
+            LoaderError::SchemaInstallationFailed {
                 extension: "database".to_owned(),
                 message: format!("Failed to acquire bootstrap lock connection: {e}"),
-            })?;
+            }
+        })?;
 
         sqlx::query!("SELECT pg_advisory_lock($1)", BOOTSTRAP_ADVISORY_LOCK_KEY)
             .execute(conn.as_mut())
@@ -47,7 +56,7 @@ impl BootstrapLockGuard {
         Ok(Self { conn: Some(conn) })
     }
 
-    pub(crate) async fn release(mut self) {
+    pub async fn release(mut self) {
         if let Some(mut conn) = self.conn.take()
             && let Err(e) =
                 sqlx::query_scalar!("SELECT pg_advisory_unlock($1)", BOOTSTRAP_ADVISORY_LOCK_KEY)
@@ -64,12 +73,16 @@ impl BootstrapLockGuard {
 
 impl Drop for BootstrapLockGuard {
     fn drop(&mut self) {
-        if self.conn.is_some() {
+        // Why: a connection returned to the pool keeps its session, and with it
+        // the advisory lock; detaching closes the session so a cancelled or
+        // panicking install cannot leave every other replica blocked.
+        if let Some(conn) = self.conn.take() {
             warn!(
                 key = BOOTSTRAP_ADVISORY_LOCK_KEY,
-                "BootstrapLockGuard dropped without explicit release; lock will clear when the \
-                 pooled connection recycles"
+                "BootstrapLockGuard dropped without explicit release; closing its session"
             );
+            let session = conn.detach();
+            drop(session);
         }
     }
 }

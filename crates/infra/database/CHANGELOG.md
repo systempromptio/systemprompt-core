@@ -2,9 +2,31 @@
 
 ## [0.53.0] - 2026-09-14
 
+### Breaking
+
+- **Breaking:** `DatabaseProvider::get_postgres_pool` returns `Arc<PgPool>` and `is_postgres` is removed; only Postgres exists. `Database::pool`/`write_pool` are infallible. Migrate by dropping the `Option` handling.
+- **Breaking:** `Database::from_config`/`from_config_with_write` are replaced by `Database::connect(read_url, write_url, &pool_config)`; the `db_type` string is gone. Migrate by removing the first argument.
+- **Breaking:** `CircuitBreaker::acquire` returns an RAII `Probe` that must be settled with `success()`/`failure()`; `ResilienceGuard::acquire_permit` is replaced by `admit()`, which returns `Admission { permit, probe }`. Migrate by settling the probe instead of calling `record_success`/`record_failure` on the breaker.
+- **Breaking:** `install_extension_schemas*` return a `SchemaInstallReport` whose `foreign_key_drift` lists every declared foreign key an established database could not create, for `/health/detail` and `infra db migrate` to surface.
+- **Breaking:** `AdminSqlError::ForbiddenKeyword` is replaced by `WriteInReadOnly` and a `Parse(pg_query::Error)` variant.
+
+### Added
+
+- `BootstrapLockGuard` and `BOOTSTRAP_ADVISORY_LOCK_KEY` are public; `PostgresProvider` exposes `connection::connect_options`.
+
 ### Changed
 
 - A failed write to the CLI display sink is reported through `tracing::warn!`.
+- `DatabaseHandle::is_connected` reports whether both pools are open instead of a constant `true`.
+- `Database::pool_arc`/`write_pool_arc` fail only when the pool is closed.
+
+### Fixed
+
+- A database URL carrying `sslmode=verify-full`/`verify-ca` (and `sslrootcert`) is honoured; the provider no longer downgrades every mode other than `require`/`disable` to `prefer`.
+- On an established database only the `ADD CONSTRAINT` of a declared foreign key may be recorded as drift; a failing catalog probe, savepoint or release now fails the install instead of aborting the transaction silently and reporting success.
+- A `BootstrapLockGuard` dropped without `release` (cancelled or panicking install) closes its session so the advisory lock cannot survive in the pool for up to `max_lifetime`.
+- A circuit-breaker probe whose future is cancelled releases its half-open slot; previously the leaked probes left the breaker open forever.
+- `AdminSql::parse_readonly` parses with `pg_query` and refuses a data-modifying CTE (`WITH d AS (DELETE …) SELECT …`), DDL or utility statement anywhere in the tree; the keyword heuristic let them through.
 
 ## [0.52.0] - 2026-09-14
 

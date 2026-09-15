@@ -28,6 +28,7 @@ use self::foreign_keys::apply_foreign_keys;
 use self::lock::BootstrapLockGuard;
 use self::validation::{validate_extension_columns, validate_table_ownership};
 use super::prepare::{PreparedSchema, prepare_extension_schema};
+use super::report::SchemaInstallReport;
 use super::seeds::apply_seeds;
 use crate::lifecycle::migrations::{
     BaselineStamp, MigrationConfig, MigrationService, RECORD_MIGRATION_SQL,
@@ -37,7 +38,7 @@ use crate::services::DatabaseProvider;
 pub async fn install_extension_schemas(
     registry: &ExtensionRegistry,
     db: &dyn DatabaseProvider,
-) -> Result<(), LoaderError> {
+) -> Result<SchemaInstallReport, LoaderError> {
     install_extension_schemas_with_config(registry, db, &[]).await
 }
 
@@ -45,7 +46,7 @@ pub async fn install_extension_schemas_with_config(
     registry: &ExtensionRegistry,
     db: &dyn DatabaseProvider,
     disabled_extensions: &[String],
-) -> Result<(), LoaderError> {
+) -> Result<SchemaInstallReport, LoaderError> {
     install_extension_schemas_full(
         registry,
         db,
@@ -60,12 +61,12 @@ pub async fn install_extension_schemas_full(
     db: &dyn DatabaseProvider,
     disabled_extensions: &[String],
     migration_config: MigrationConfig,
-) -> Result<(), LoaderError> {
+) -> Result<SchemaInstallReport, LoaderError> {
     let schema_extensions = registry.enabled_schema_extensions(disabled_extensions)?;
 
     if schema_extensions.is_empty() {
         info!("No extension schemas to install");
-        return Ok(());
+        return Ok(SchemaInstallReport::default());
     }
 
     info!(
@@ -79,17 +80,20 @@ pub async fn install_extension_schemas_full(
 
     guard.release().await;
 
-    result?;
+    let report = result?;
 
-    info!("Extension schema installation complete");
-    Ok(())
+    info!(
+        foreign_key_drift = report.foreign_key_drift.len(),
+        "Extension schema installation complete"
+    );
+    Ok(report)
 }
 
 async fn run_install(
     db: &dyn DatabaseProvider,
     schema_extensions: &[std::sync::Arc<dyn Extension>],
     migration_config: MigrationConfig,
-) -> Result<(), LoaderError> {
+) -> Result<SchemaInstallReport, LoaderError> {
     let migration_service = MigrationService::new(db).with_config(migration_config);
 
     let mut prepared: Vec<PreparedSchema> = Vec::with_capacity(schema_extensions.len());
@@ -145,19 +149,21 @@ async fn run_install(
 
     // Why: after every extension's dependent phase, not inside it — a key may
     // reference a unique index another extension's dependent phase creates.
+    let mut report = SchemaInstallReport::default();
     for (ext, p) in schema_extensions.iter().zip(&prepared) {
         // Why: only an established extension with a migration chain can carry
         // pre-existing drift; anywhere else a key that cannot be created is a
         // schema bug and must fail the install.
         let established = ext.has_migrations() && !fresh_extensions.contains(&p.extension_id);
-        apply_foreign_keys(db, &p.foreign_keys, &p.extension_id, !established).await?;
+        let drift = apply_foreign_keys(db, &p.foreign_keys, &p.extension_id, !established).await?;
+        report.foreign_key_drift.extend(drift);
     }
 
     for ext in schema_extensions {
         apply_seeds(ext.as_ref(), db).await?;
     }
 
-    Ok(())
+    Ok(report)
 }
 
 async fn execute_phase(

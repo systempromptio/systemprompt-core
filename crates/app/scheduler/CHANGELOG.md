@@ -8,6 +8,10 @@
 
 - The evaluator materialises `ExecutionAssignment` workspaces from the typed `RevisionBundle` carried on the assignment instead of re-decoding a JSON value per run.
 
+### Fixed
+
+- A `JobLockGuard` dropped without `release` (cancelled job) closes its session so the job's advisory lock cannot survive in the pool.
+
 ## [0.52.0] - 2026-09-14
 
 ### Breaking

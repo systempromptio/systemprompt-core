@@ -55,6 +55,10 @@ impl std::fmt::Debug for ScriptedProvider {
 
 #[async_trait::async_trait]
 impl DatabaseProvider for ScriptedProvider {
+    fn get_postgres_pool(&self) -> std::sync::Arc<sqlx::PgPool> {
+        systemprompt_test_fixtures::lazy_pg_pool()
+    }
+
     async fn execute(&self, q: &dyn QuerySelector, _p: &[&dyn ToDbValue]) -> DatabaseResult<u64> {
         self.executed
             .lock()

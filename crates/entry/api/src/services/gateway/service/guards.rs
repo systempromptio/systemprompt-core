@@ -81,12 +81,12 @@ pub(super) async fn enforce_request_guards(
         provider: &upstream.route.provider,
         streaming: request.stream,
     };
-    let outcome = if db.pool().is_some() {
-        systemprompt_extension::run_gateway_guards(db.as_ref(), &guard_request).await
-    } else {
+    let outcome = if db.pool().is_closed() {
         Err(systemprompt_extension::GatewayDenyReason::unavailable(
             "Request guards require a database connection",
         ))
+    } else {
+        systemprompt_extension::run_gateway_guards(db.as_ref(), &guard_request).await
     };
     let Err(deny) = outcome else {
         return Ok(());

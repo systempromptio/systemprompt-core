@@ -18,6 +18,10 @@ impl std::fmt::Debug for NoopProvider {
 
 #[async_trait::async_trait]
 impl systemprompt_database::DatabaseProvider for NoopProvider {
+    fn get_postgres_pool(&self) -> std::sync::Arc<sqlx::PgPool> {
+        systemprompt_test_fixtures::lazy_pg_pool()
+    }
+
     async fn execute(
         &self,
         _q: &dyn systemprompt_database::QuerySelector,

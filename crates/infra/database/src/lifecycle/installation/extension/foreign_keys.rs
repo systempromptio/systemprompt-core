@@ -18,14 +18,11 @@
 //! missing — is a schema bug on a fresh database, where the declarative
 //! schema alone ran, and installation fails naming the table. On an
 //! established database it is pre-existing drift: the inline declaration
-//! never took effect there either, so the key is reported at error level and
-//! the boot continues; the fix is a migration that adds the referenced
-//! unique index, and the upgrade gate downstream diffs the two shapes.
-//!
-//! `FOREIGN_KEY_EXISTS_SQL`: A foreign key with the same constrained and
-//! referenced columns, by name rather than attnum so it holds across databases
-//! whose column numbering differs. An empty `$4` stands for the referenced
-//! primary key.
+//! never took effect there either, so the key is recorded as a
+//! [`ForeignKeyDrift`] in the install report and the boot continues; the
+//! fix is a migration that adds the referenced unique index. Only the
+//! `ADD CONSTRAINT` itself may fail that way — a failing catalog probe or
+//! savepoint aborts the transaction and fails the install on any database.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -35,9 +32,22 @@ use systemprompt_identifiers::ToDbValue;
 use tracing::{debug, error, warn};
 
 use super::super::fk_deferral::DeferredForeignKey;
+use super::super::report::ForeignKeyDrift;
+use crate::error::RepositoryError;
 use crate::models::DatabaseTransaction;
 use crate::services::DatabaseProvider;
 
+#[derive(Debug)]
+enum FkOutcome {
+    Present,
+    Added,
+    AddedNotValid,
+    CannotCreate(RepositoryError),
+}
+
+// Why: matched by column name rather than attnum so the probe holds across
+// databases whose column numbering differs; an empty `$4` stands for the
+// referenced primary key.
 const FOREIGN_KEY_EXISTS_SQL: &str = "SELECT 1
 FROM pg_constraint c
 WHERE c.contype = 'f'
@@ -61,9 +71,9 @@ pub(super) async fn apply_foreign_keys(
     keys: &[DeferredForeignKey],
     extension_id: &str,
     fresh: bool,
-) -> Result<(), LoaderError> {
+) -> Result<Vec<ForeignKeyDrift>, LoaderError> {
     if keys.is_empty() {
-        return Ok(());
+        return Ok(Vec::new());
     }
 
     let failed = |message: String| LoaderError::SchemaInstallationFailed {
@@ -77,49 +87,117 @@ pub(super) async fn apply_foreign_keys(
         .map_err(|e| failed(format!("Failed to begin transaction: {e}")))?;
 
     let total = keys.len();
+    let mut drift = Vec::new();
     for (idx, key) in keys.iter().enumerate() {
-        let Err(e) = apply_one(tx.as_mut(), key, extension_id).await else {
-            continue;
+        let position = KeyPosition { n: idx + 1, total };
+        let step = match apply_one(tx.as_mut(), key).await {
+            Ok(outcome) => settle_outcome(outcome, key, extension_id, position, fresh),
+            Err(e) => Err(format!(
+                "Foreign key {n}/{total} could not be probed or savepointed: {e}",
+                n = position.n,
+            )),
         };
-        let explanation = format!(
-            "Foreign key {n}/{total} failed: {e}\n\
-             This FOREIGN KEY was declared inline on CREATE TABLE {table} and is applied \
-             after migrations; the referenced table must expose a PRIMARY KEY or UNIQUE \
-             constraint on ({referenced}) — declare it in the referenced CREATE TABLE and \
-             converge existing databases with a migration.\nSQL:\n{sql}",
-            n = idx + 1,
-            table = key.source_table,
-            referenced = key.referenced_columns.join(", "),
-            sql = key.sql,
-        );
-        if fresh {
-            let rollback_note = match tx.rollback().await {
-                Ok(()) => String::new(),
-                Err(rb) => format!(" (rollback also failed: {rb})"),
-            };
-            return Err(failed(format!("{explanation}{rollback_note}")));
+        match step {
+            Ok(Some(found)) => drift.push(found),
+            Ok(None) => {},
+            Err(explanation) => {
+                let rollback_note = match tx.rollback().await {
+                    Ok(()) => String::new(),
+                    Err(rb) => format!(" (rollback also failed: {rb})"),
+                };
+                return Err(failed(format!("{explanation}{rollback_note}")));
+            },
         }
-        error!(
-            extension = extension_id,
-            table = %key.source_table,
-            constraint = %key.constraint_name,
-            detail = %explanation,
-            "Declared foreign key is absent on this established database and cannot be \
-             created; add the referenced unique index with a migration"
-        );
     }
 
     tx.commit()
         .await
         .map_err(|e| failed(format!("Failed to commit transaction: {e}")))?;
-    Ok(())
+    Ok(drift)
+}
+
+#[derive(Debug, Clone, Copy)]
+struct KeyPosition {
+    n: usize,
+    total: usize,
+}
+
+fn settle_outcome(
+    outcome: FkOutcome,
+    key: &DeferredForeignKey,
+    extension_id: &str,
+    position: KeyPosition,
+    fresh: bool,
+) -> Result<Option<ForeignKeyDrift>, String> {
+    match outcome {
+        FkOutcome::Present => {
+            debug!(
+                extension = extension_id,
+                table = %key.source_table,
+                constraint = %key.constraint_name,
+                "Foreign key already present; skipping"
+            );
+            Ok(None)
+        },
+        FkOutcome::Added => Ok(None),
+        FkOutcome::AddedNotValid => {
+            warn!(
+                extension = extension_id,
+                table = %key.source_table,
+                constraint = %key.constraint_name,
+                "Existing rows violate a foreign key the declarative schema declares; the key \
+                 is left NOT VALID (enforced for new rows). Repair the rows, then run \
+                 ALTER TABLE … VALIDATE CONSTRAINT."
+            );
+            Ok(None)
+        },
+        FkOutcome::CannotCreate(cause) => {
+            if fresh {
+                return Err(cannot_create_explanation(key, position, &cause));
+            }
+            error!(
+                extension = extension_id,
+                table = %key.source_table,
+                constraint = %key.constraint_name,
+                sql = %key.sql,
+                cause = %cause,
+                "Declared foreign key is absent on this established database and cannot be \
+                 created; add the referenced unique index with a migration"
+            );
+            Ok(Some(ForeignKeyDrift {
+                extension: extension_id.to_owned(),
+                table: key.source_table.clone(),
+                constraint: key.constraint_name.clone(),
+                sql: key.sql.clone(),
+                cause: cause.to_string(),
+            }))
+        },
+    }
+}
+
+fn cannot_create_explanation(
+    key: &DeferredForeignKey,
+    position: KeyPosition,
+    cause: &RepositoryError,
+) -> String {
+    format!(
+        "Foreign key {n}/{total} failed: {cause}\n\
+         This FOREIGN KEY was declared inline on CREATE TABLE {table} and is applied \
+         after migrations; the referenced table must expose a PRIMARY KEY or UNIQUE \
+         constraint on ({referenced}) — declare it in the referenced CREATE TABLE and \
+         converge existing databases with a migration.\nSQL:\n{sql}",
+        n = position.n,
+        total = position.total,
+        table = key.source_table,
+        referenced = key.referenced_columns.join(", "),
+        sql = key.sql,
+    )
 }
 
 async fn apply_one(
     tx: &mut dyn DatabaseTransaction,
     key: &DeferredForeignKey,
-    extension_id: &str,
-) -> Result<(), crate::error::RepositoryError> {
+) -> Result<FkOutcome, RepositoryError> {
     let params: [&dyn ToDbValue; 4] = [
         &key.table,
         &key.referenced_table,
@@ -131,13 +209,7 @@ async fn apply_one(
         .await?
         .is_some()
     {
-        debug!(
-            extension = extension_id,
-            table = %key.source_table,
-            constraint = %key.constraint_name,
-            "Foreign key already present; skipping"
-        );
-        return Ok(());
+        return Ok(FkOutcome::Present);
     }
 
     // Why: a failed statement aborts the transaction; the savepoints keep the
@@ -147,7 +219,7 @@ async fn apply_one(
     if let Err(e) = tx.execute(&add.as_str(), &[]).await {
         tx.execute(&"ROLLBACK TO SAVEPOINT deferred_fk_add", &[])
             .await?;
-        return Err(e);
+        return Ok(FkOutcome::CannotCreate(e));
     }
     tx.execute(&"RELEASE SAVEPOINT deferred_fk_add", &[])
         .await?;
@@ -162,22 +234,15 @@ async fn apply_one(
         Ok(_) => {
             tx.execute(&"RELEASE SAVEPOINT deferred_fk_validate", &[])
                 .await?;
+            Ok(FkOutcome::Added)
         },
         Err(e) => {
             tx.execute(&"ROLLBACK TO SAVEPOINT deferred_fk_validate", &[])
                 .await?;
-            warn!(
-                extension = extension_id,
-                table = %key.source_table,
-                constraint = %key.constraint_name,
-                error = %e,
-                "Existing rows violate a foreign key the declarative schema declares; the key \
-                 is left NOT VALID (enforced for new rows). Repair the rows, then run \
-                 ALTER TABLE … VALIDATE CONSTRAINT."
-            );
+            debug!(error = %e, constraint = %key.constraint_name, "Foreign key validation failed");
+            Ok(FkOutcome::AddedNotValid)
         },
     }
-    Ok(())
 }
 
 fn quote_identifier(ident: &str) -> String {

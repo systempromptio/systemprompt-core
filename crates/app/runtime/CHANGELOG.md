@@ -6,6 +6,10 @@
 
 - `OptimizationError::Bundle(RevisionBundleError)` for a candidate bundle that fails verification.
 
+### Changed
+
+- `AppContext` and `DatabaseContext` connect through `Database::connect`; the profile `database_type` string is no longer consulted.
+
 ### Fixed
 
 - `AppContext` construction fails when the governance audit sink cannot obtain the write pool instead of silently installing a null audit sink.

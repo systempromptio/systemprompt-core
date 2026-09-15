@@ -4,7 +4,10 @@
 
 use std::sync::Arc;
 
-use systemprompt_database::{DbPool, PostgresProvider, install_extension_schemas_with_config};
+use systemprompt_database::{
+    BOOTSTRAP_ADVISORY_LOCK_KEY, BootstrapLockGuard, DbPool, PostgresProvider,
+    install_extension_schemas_with_config,
+};
 use systemprompt_extension::{
     Extension, ExtensionMetadata, ExtensionRegistry, LoaderError, Migration, SchemaDefinition, Seed,
 };
@@ -546,10 +549,15 @@ mod transaction_failures {
     #[derive(Debug)]
     struct FailingProvider {
         fail_at: FailAt,
+        pool: Arc<sqlx::PgPool>,
     }
 
     #[async_trait]
     impl DatabaseProvider for FailingProvider {
+        fn get_postgres_pool(&self) -> Arc<sqlx::PgPool> {
+            Arc::clone(&self.pool)
+        }
+
         async fn execute(
             &self,
             _query: &dyn QuerySelector,
@@ -708,16 +716,26 @@ mod transaction_failures {
         })
     }
 
-    async fn install_against(fail_at: FailAt) -> LoaderError {
-        let provider = FailingProvider { fail_at };
-        install_extension_schemas_with_config(&seeded_registry(), &provider, &[])
-            .await
-            .expect_err("a provider that fails must fail the install")
+    // Why: the bootstrap advisory lock needs a live session even when every
+    // statement is faked, so the provider borrows the fixture pool for it.
+    async fn install_against(fail_at: FailAt) -> Option<LoaderError> {
+        let db = pool_or_skip().await?;
+        let provider = FailingProvider {
+            fail_at,
+            pool: db.pool(),
+        };
+        Some(
+            install_extension_schemas_with_config(&seeded_registry(), &provider, &[])
+                .await
+                .expect_err("a provider that fails must fail the install"),
+        )
     }
 
     #[tokio::test]
     async fn a_transaction_that_cannot_be_opened_names_the_begin_step() {
-        let err = install_against(FailAt::Begin).await;
+        let Some(err) = install_against(FailAt::Begin).await else {
+            return;
+        };
         let message = err.to_string();
         assert!(
             message.contains("begin transaction") || message.contains("Failed to begin"),
@@ -727,7 +745,9 @@ mod transaction_failures {
 
     #[tokio::test]
     async fn a_transaction_that_cannot_be_committed_names_the_commit_step() {
-        let err = install_against(FailAt::Commit).await;
+        let Some(err) = install_against(FailAt::Commit).await else {
+            return;
+        };
         let message = err.to_string();
         assert!(
             message.contains("commit"),
@@ -737,7 +757,9 @@ mod transaction_failures {
 
     #[tokio::test]
     async fn a_rejected_statement_is_reported_with_its_position_and_sql() {
-        let err = install_against(FailAt::Statement).await;
+        let Some(err) = install_against(FailAt::Statement).await else {
+            return;
+        };
         let message = err.to_string();
         assert!(
             message.contains("statement rejected"),
@@ -866,5 +888,55 @@ async fn an_unguarded_drop_is_rejected_as_imperative() {
     assert!(
         !table_exists(&db, table).await,
         "linting happens before execution"
+    );
+}
+
+async fn bootstrap_lock_is_free(db: &DbPool) -> bool {
+    let pg = db.write_pool_arc().expect("write pool");
+    let mut probe = pg.acquire().await.expect("probe connection");
+    let acquired: bool = sqlx::query_scalar("SELECT pg_try_advisory_lock($1)")
+        .bind(BOOTSTRAP_ADVISORY_LOCK_KEY)
+        .fetch_one(probe.as_mut())
+        .await
+        .expect("try lock");
+    if acquired {
+        sqlx::query_scalar::<_, bool>("SELECT pg_advisory_unlock($1)")
+            .bind(BOOTSTRAP_ADVISORY_LOCK_KEY)
+            .fetch_one(probe.as_mut())
+            .await
+            .expect("unlock");
+    }
+    acquired
+}
+
+#[tokio::test]
+async fn a_dropped_bootstrap_lock_guard_releases_the_advisory_lock() {
+    let Some((provider, db)) = provider_and_db_or_skip().await else {
+        return;
+    };
+
+    let guard = BootstrapLockGuard::acquire(&provider)
+        .await
+        .expect("acquire bootstrap lock");
+    assert!(
+        !bootstrap_lock_is_free(&db).await,
+        "held while the guard lives"
+    );
+
+    drop(guard);
+
+    // Why: the lock key is process-wide, so a concurrent install test may hold
+    // it for a while after our session closed; poll generously.
+    let mut free = false;
+    for _ in 0..500 {
+        if bootstrap_lock_is_free(&db).await {
+            free = true;
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    }
+    assert!(
+        free,
+        "dropping the guard must close its session and free the lock"
     );
 }

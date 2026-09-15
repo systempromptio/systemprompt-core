@@ -67,8 +67,7 @@ async fn try_reconcile(
 ) -> anyhow::Result<()> {
     let cfg = Config::get()?;
     let database: DbPool = Arc::new(
-        Database::from_config_with_write(
-            &cfg.database_type,
+        Database::connect(
             &cfg.database_url,
             cfg.database_write_url.as_deref(),
             &systemprompt_database::PoolConfig::default(),

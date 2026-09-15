@@ -17,13 +17,7 @@ use std::sync::Arc;
 
 #[async_trait]
 pub trait DatabaseProvider: Send + Sync + std::fmt::Debug {
-    fn get_postgres_pool(&self) -> Option<Arc<sqlx::PgPool>> {
-        None
-    }
-
-    fn is_postgres(&self) -> bool {
-        true
-    }
+    fn get_postgres_pool(&self) -> Arc<sqlx::PgPool>;
 
     async fn execute(
         &self,

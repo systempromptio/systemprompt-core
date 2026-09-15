@@ -198,8 +198,7 @@ async fn test_connection_succeeds_and_pool_accessors_expose_postgres() {
         return;
     };
     provider.test_connection().await.expect("connection probe");
-    assert!(provider.is_postgres());
-    assert!(provider.get_postgres_pool().is_some());
+    assert!(!provider.get_postgres_pool().is_closed());
 }
 
 #[tokio::test]

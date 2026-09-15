@@ -78,9 +78,10 @@ pub use systemprompt_models::RequestScope;
 
 pub use error::{DatabaseResult, RepositoryError};
 pub use lifecycle::{
-    AppliedMigration, BaselineStamp, ChecksumDrift, DeferredForeignKey, ExtensionMigrationStatus,
-    FreshnessCheck, MarkAppliedOutcome, MigrationConfig, MigrationResult, MigrationService,
-    MigrationStatus, OrphanedMigration, PendingMigration, RepairResult, ReplicaStatus,
+    AppliedMigration, BOOTSTRAP_ADVISORY_LOCK_KEY, BaselineStamp, BootstrapLockGuard,
+    ChecksumDrift, DeferredForeignKey, ExtensionMigrationStatus, ForeignKeyDrift, FreshnessCheck,
+    MarkAppliedOutcome, MigrationConfig, MigrationResult, MigrationService, MigrationStatus,
+    OrphanedMigration, PendingMigration, RepairResult, ReplicaStatus, SchemaInstallReport,
     SlotCollision, SplitCreateTable, TombstonedSlot, install_extension_schemas,
     install_extension_schemas_full, install_extension_schemas_with_config, replica_status,
     split_create_table_foreign_keys, validate_column_exists, validate_database_connection,
@@ -101,7 +102,7 @@ use systemprompt_traits::DatabaseHandle;
 
 impl DatabaseHandle for Database {
     fn is_connected(&self) -> bool {
-        true
+        !self.pool().is_closed() && !self.write_pool().is_closed()
     }
 
     fn as_any(&self) -> &dyn std::any::Any {

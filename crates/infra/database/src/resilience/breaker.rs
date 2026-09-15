@@ -1,5 +1,11 @@
 //! A circuit breaker that fast-fails calls to an unhealthy dependency.
 //!
+//! Admission is a [`Probe`] token: while it lives it occupies one of the
+//! half-open probe slots, and it must be settled with `success`/`failure`.
+//! A probe dropped unsettled — a cancelled future — frees its slot without
+//! changing the breaker's mode, so a client disconnect can never exhaust the
+//! probe budget and leave the breaker open forever.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -26,6 +32,37 @@ struct State {
 #[derive(Debug, Clone, Copy)]
 pub struct Tripped;
 
+/// One admitted call. Settle it with [`Probe::success`] or
+/// [`Probe::failure`]; dropping it unsettled releases the probe slot only.
+#[derive(Debug)]
+#[must_use = "an unsettled probe neither closes nor reopens the breaker"]
+pub struct Probe<'a> {
+    breaker: &'a CircuitBreaker,
+    counted: bool,
+    settled: bool,
+}
+
+impl Probe<'_> {
+    pub fn success(mut self) {
+        self.settled = true;
+        self.breaker.settle(self.counted, true);
+    }
+
+    pub fn failure(mut self) {
+        self.settled = true;
+        self.breaker.settle(self.counted, false);
+    }
+}
+
+impl Drop for Probe<'_> {
+    fn drop(&mut self) {
+        if !self.settled && self.counted {
+            let mut state = self.breaker.lock();
+            state.probes_in_flight = state.probes_in_flight.saturating_sub(1);
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct CircuitBreaker {
     key: String,
@@ -47,48 +84,58 @@ impl CircuitBreaker {
         }
     }
 
-    pub fn acquire(&self) -> Result<(), Tripped> {
+    pub fn acquire(&self) -> Result<Probe<'_>, Tripped> {
         let mut state = self.lock();
-        let result = match state.mode {
-            Mode::Closed => Ok(()),
+        let counted = match state.mode {
+            Mode::Closed => false,
             Mode::Open => {
                 let cooled_down = state
                     .open_until
                     .is_some_and(|until| Instant::now() >= until);
-                if cooled_down {
-                    self.transition(&mut state, Mode::HalfOpen);
-                    state.probes_in_flight = 1;
-                    Ok(())
-                } else {
-                    Err(Tripped)
+                if !cooled_down {
+                    return Err(Tripped);
                 }
+                self.transition(&mut state, Mode::HalfOpen);
+                state.probes_in_flight = 1;
+                true
             },
             Mode::HalfOpen => {
-                if state.probes_in_flight < self.cfg.half_open_max_probes {
-                    state.probes_in_flight += 1;
-                    Ok(())
-                } else {
-                    Err(Tripped)
+                if state.probes_in_flight >= self.cfg.half_open_max_probes {
+                    return Err(Tripped);
                 }
+                state.probes_in_flight += 1;
+                true
             },
         };
         drop(state);
-        result
+        Ok(Probe {
+            breaker: self,
+            counted,
+            settled: false,
+        })
     }
 
     pub fn record_success(&self) {
-        let mut state = self.lock();
-        state.consecutive_failures = 0;
-        state.probes_in_flight = state.probes_in_flight.saturating_sub(1);
-        if state.mode != Mode::Closed {
-            self.transition(&mut state, Mode::Closed);
-            state.open_until = None;
-        }
+        self.settle(false, true);
     }
 
     pub fn record_failure(&self) {
+        self.settle(false, false);
+    }
+
+    fn settle(&self, counted: bool, success: bool) {
         let mut state = self.lock();
-        state.probes_in_flight = state.probes_in_flight.saturating_sub(1);
+        if counted {
+            state.probes_in_flight = state.probes_in_flight.saturating_sub(1);
+        }
+        if success {
+            state.consecutive_failures = 0;
+            if state.mode != Mode::Closed {
+                self.transition(&mut state, Mode::Closed);
+                state.open_until = None;
+            }
+            return;
+        }
         state.consecutive_failures = state.consecutive_failures.saturating_add(1);
 
         let should_open = state.mode == Mode::HalfOpen

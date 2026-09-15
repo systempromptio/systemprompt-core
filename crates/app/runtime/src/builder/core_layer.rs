@@ -79,8 +79,7 @@ pub(super) async fn init_core(
 
     let pool_config = pool_config_from_profile(profile.database.pool.as_ref());
     let database = Arc::new(
-        Database::from_config_with_write(
-            &config.database_type,
+        Database::connect(
             &config.database_url,
             config.database_write_url.as_deref(),
             &pool_config,

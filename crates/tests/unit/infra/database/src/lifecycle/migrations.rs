@@ -7,6 +7,8 @@
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
+
+use crate::services::db_helper::{lazy_pool, pool_or_skip};
 use systemprompt_database::{
     AppliedMigration, ChecksumDrift, DatabaseInfo, DatabaseProvider, DatabaseResult,
     DatabaseTransaction, DbValue, ExtensionMigrationStatus, JsonRow, MarkAppliedOutcome,
@@ -223,6 +225,10 @@ impl RecordingProvider {
 
 #[async_trait]
 impl DatabaseProvider for RecordingProvider {
+    fn get_postgres_pool(&self) -> Arc<sqlx::PgPool> {
+        lazy_pool()
+    }
+
     async fn execute(
         &self,
         _query: &dyn QuerySelector,
@@ -875,6 +881,10 @@ impl AppliedVersionsProvider {
 
 #[async_trait]
 impl DatabaseProvider for AppliedVersionsProvider {
+    fn get_postgres_pool(&self) -> Arc<sqlx::PgPool> {
+        lazy_pool()
+    }
+
     async fn execute(
         &self,
         _query: &dyn QuerySelector,
@@ -1140,6 +1150,10 @@ impl AppliedRowsProvider {
 
 #[async_trait]
 impl DatabaseProvider for AppliedRowsProvider {
+    fn get_postgres_pool(&self) -> Arc<sqlx::PgPool> {
+        lazy_pool()
+    }
+
     async fn execute(
         &self,
         _query: &dyn QuerySelector,
@@ -1441,10 +1455,15 @@ impl AppliedRows {
 struct HealingRowsProvider {
     log: Arc<CallLog>,
     state: Arc<AppliedRows>,
+    pool: Arc<sqlx::PgPool>,
 }
 
 #[async_trait]
 impl DatabaseProvider for HealingRowsProvider {
+    fn get_postgres_pool(&self) -> Arc<sqlx::PgPool> {
+        Arc::clone(&self.pool)
+    }
+
     async fn execute(
         &self,
         _query: &dyn QuerySelector,
@@ -1600,9 +1619,11 @@ fn drifted_provider(
     log: &Arc<CallLog>,
     stored_name: &str,
     file_name: &'static str,
+    pool: Arc<sqlx::PgPool>,
 ) -> HealingRowsProvider {
     HealingRowsProvider {
         log: Arc::clone(log),
+        pool,
         state: Arc::new(AppliedRows {
             rows: Mutex::new(vec![(
                 34,
@@ -1617,7 +1638,12 @@ fn drifted_provider(
 #[tokio::test]
 async fn status_reports_a_renamed_slot_as_a_collision_not_as_drift() {
     let log = Arc::new(CallLog::default());
-    let provider = drifted_provider(&log, "034_knowledge_bank", "034_project_activity");
+    let provider = drifted_provider(
+        &log,
+        "034_knowledge_bank",
+        "034_project_activity",
+        lazy_pool(),
+    );
     let service = MigrationService::new(&provider);
 
     let status = service
@@ -1641,7 +1667,12 @@ async fn status_reports_a_renamed_slot_as_a_collision_not_as_drift() {
 #[tokio::test]
 async fn repair_drift_refuses_a_reused_slot() {
     let log = Arc::new(CallLog::default());
-    let provider = drifted_provider(&log, "034_knowledge_bank", "034_project_activity");
+    let provider = drifted_provider(
+        &log,
+        "034_knowledge_bank",
+        "034_project_activity",
+        lazy_pool(),
+    );
     let service = MigrationService::new(&provider);
 
     let err = service
@@ -1663,7 +1694,12 @@ async fn repair_drift_refuses_a_reused_slot() {
 #[tokio::test]
 async fn reconcile_drift_refuses_a_reused_slot() {
     let log = Arc::new(CallLog::default());
-    let provider = drifted_provider(&log, "034_knowledge_bank", "034_project_activity");
+    let provider = drifted_provider(
+        &log,
+        "034_knowledge_bank",
+        "034_project_activity",
+        lazy_pool(),
+    );
     let service = MigrationService::new(&provider);
 
     service
@@ -1678,8 +1714,13 @@ async fn reconcile_drift_refuses_a_reused_slot() {
 
 #[tokio::test]
 async fn repair_drift_reapplies_when_the_name_matches() {
+    // Why: repair takes the bootstrap advisory lock on a live session before
+    // touching the faked rows, so the fake borrows the fixture pool for it.
+    let Some(db) = pool_or_skip().await else {
+        return;
+    };
     let log = Arc::new(CallLog::default());
-    let provider = drifted_provider(&log, "034_knowledge_bank", "034_knowledge_bank");
+    let provider = drifted_provider(&log, "034_knowledge_bank", "034_knowledge_bank", db.pool());
     let service = MigrationService::new(&provider);
 
     let result = service
@@ -1698,8 +1739,11 @@ async fn repair_drift_reapplies_when_the_name_matches() {
 
 #[tokio::test]
 async fn reconcile_drift_rewrites_bookkeeping_without_executing_sql() {
+    let Some(db) = pool_or_skip().await else {
+        return;
+    };
     let log = Arc::new(CallLog::default());
-    let provider = drifted_provider(&log, "034_knowledge_bank", "034_knowledge_bank");
+    let provider = drifted_provider(&log, "034_knowledge_bank", "034_knowledge_bank", db.pool());
     let service = MigrationService::new(&provider);
 
     let result = service

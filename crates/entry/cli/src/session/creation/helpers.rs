@@ -44,8 +44,7 @@ pub(super) fn load_secrets() -> Result<ResolvedSecrets> {
 }
 
 pub(super) async fn connect_database(secrets: &ResolvedSecrets) -> Result<DbPool> {
-    let db = Database::from_config_with_write(
-        "postgres",
+    let db = Database::connect(
         &secrets.database_url,
         secrets.database_write_url.as_deref(),
         &PoolConfig::default(),

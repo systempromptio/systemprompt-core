@@ -34,31 +34,13 @@ impl Database {
         })
     }
 
-    pub async fn from_config(db_type: &str, url: &str) -> DatabaseResult<Self> {
-        match db_type.to_lowercase().as_str() {
-            "postgres" | "postgresql" | "" => Self::new_postgres(url).await,
-            other => Err(RepositoryError::invalid_argument(format!(
-                "Unsupported database type: {other}. Only PostgreSQL is supported."
-            ))),
-        }
-    }
-
-    pub async fn from_config_with_write(
-        db_type: &str,
+    pub async fn connect(
         read_url: &str,
         write_url: Option<&str>,
         pool: &PoolConfig,
     ) -> DatabaseResult<Self> {
-        let provider: Arc<dyn DatabaseProvider> = match db_type.to_lowercase().as_str() {
-            "postgres" | "postgresql" | "" => {
-                Arc::new(PostgresProvider::new_with_pool(read_url, pool).await?)
-            },
-            other => {
-                return Err(RepositoryError::invalid_argument(format!(
-                    "Unsupported database type: {other}. Only PostgreSQL is supported."
-                )));
-            },
-        };
+        let provider: Arc<dyn DatabaseProvider> =
+            Arc::new(PostgresProvider::new_with_pool(read_url, pool).await?);
 
         let write_provider: Option<Arc<dyn DatabaseProvider>> = match write_url {
             Some(url) => Some(Arc::new(PostgresProvider::new_with_pool(url, pool).await?)),
@@ -82,10 +64,6 @@ impl Database {
         }
     }
 
-    fn require_postgres(pool: Option<Arc<sqlx::PgPool>>) -> DatabaseResult<Arc<sqlx::PgPool>> {
-        pool.ok_or_else(|| RepositoryError::invalid_state("Database is not PostgreSQL"))
-    }
-
     #[must_use]
     pub fn read(&self) -> &dyn DatabaseProvider {
         self.provider.as_ref()
@@ -99,21 +77,21 @@ impl Database {
     }
 
     #[must_use]
-    pub fn pool(&self) -> Option<Arc<sqlx::PgPool>> {
+    pub fn pool(&self) -> Arc<sqlx::PgPool> {
         self.read().get_postgres_pool()
     }
 
     pub fn pool_arc(&self) -> DatabaseResult<Arc<sqlx::PgPool>> {
-        Self::require_postgres(self.read().get_postgres_pool())
+        open_pool(self.pool())
     }
 
     #[must_use]
-    pub fn write_pool(&self) -> Option<Arc<sqlx::PgPool>> {
+    pub fn write_pool(&self) -> Arc<sqlx::PgPool> {
         self.write().get_postgres_pool()
     }
 
     pub fn write_pool_arc(&self) -> DatabaseResult<Arc<sqlx::PgPool>> {
-        Self::require_postgres(self.write().get_postgres_pool())
+        open_pool(self.write_pool())
     }
 
     #[must_use]
@@ -138,16 +116,14 @@ impl Database {
     }
 
     pub async fn begin(&self) -> DatabaseResult<sqlx::Transaction<'_, sqlx::Postgres>> {
-        let pool = self.write_pool_arc()?;
-        pool.begin().await.map_err(Into::into)
+        self.write_pool().begin().await.map_err(Into::into)
     }
 
     pub async fn begin_scoped(
         &self,
         scope: &systemprompt_models::RequestScope,
     ) -> DatabaseResult<sqlx::Transaction<'static, sqlx::Postgres>> {
-        let pool = self.write_pool_arc()?;
-        super::scoped_transaction::begin_scoped(&pool, scope).await
+        super::scoped_transaction::begin_scoped(&self.write_pool(), scope).await
     }
 }
 
@@ -155,6 +131,13 @@ pub type DbPool = Arc<Database>;
 
 pub trait DatabaseExt {
     fn database(&self) -> Arc<Database>;
+}
+
+fn open_pool(pool: Arc<sqlx::PgPool>) -> DatabaseResult<Arc<sqlx::PgPool>> {
+    if pool.is_closed() {
+        return Err(RepositoryError::invalid_state("database pool is closed"));
+    }
+    Ok(pool)
 }
 
 impl DatabaseExt for Arc<Database> {
@@ -165,7 +148,7 @@ impl DatabaseExt for Arc<Database> {
 
 #[async_trait::async_trait]
 impl DatabaseProvider for Database {
-    fn get_postgres_pool(&self) -> Option<Arc<sqlx::PgPool>> {
+    fn get_postgres_pool(&self) -> Arc<sqlx::PgPool> {
         self.read().get_postgres_pool()
     }
 

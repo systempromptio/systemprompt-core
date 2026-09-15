@@ -108,7 +108,7 @@ async fn full_bulkhead_rejects_with_bulkhead_full() {
     cfg.bulkhead = BulkheadConfig { max_concurrent: 1 };
     let guard = ResilienceGuard::new("dep", cfg);
 
-    let held = guard.acquire_permit::<Error>().expect("first permit");
+    let held = guard.admit::<Error>().expect("first admission");
 
     let result: Result<(), ResilienceError<Error>> =
         guard.execute(classify, || async { Ok(()) }).await;

@@ -35,7 +35,9 @@ pub use credential::{
     seed_admin_credential, seed_bridge_credential, seed_user_row, seed_user_row_with_roles,
     seed_user_session, AuthedFixture,
 };
-pub use db::{closed_db_pool, fixture_database_url, fixture_database_url_opt, fixture_db_pool};
+pub use db::{
+    closed_db_pool, fixture_database_url, fixture_database_url_opt, fixture_db_pool, lazy_pg_pool,
+};
 pub use disposable_db::DisposableDb;
 pub use jwt::{install_test_signing_key, mint_admin_jwt, mint_bridge_jwt};
 pub use keys::{next_test_key, test_key, AUTHORITY_KEY_INDEX, ROTATING_KEY_COUNT};

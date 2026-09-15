@@ -2,8 +2,10 @@ use std::str::FromStr;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicU32, Ordering};
 
-use sqlx::postgres::PgConnectOptions;
-use systemprompt_database::services::postgres::connection::connect_with_retry_using;
+use sqlx::postgres::{PgConnectOptions, PgSslMode};
+use systemprompt_database::services::postgres::connection::{
+    connect_options, connect_with_retry_using,
+};
 
 fn opts() -> PgConnectOptions {
     PgConnectOptions::from_str("postgres://u:p@127.0.0.1:5432/x").expect("parse url")
@@ -120,4 +122,25 @@ async fn non_retryable_error_fails_immediately() {
 
     assert!(result.is_err());
     assert_eq!(calls.load(Ordering::SeqCst), 1);
+}
+
+#[test]
+fn connect_options_preserves_verify_full_ssl_mode() {
+    let options = connect_options(
+        "postgres://u:p@db.example:5432/x?sslmode=verify-full&sslrootcert=/etc/ca.pem",
+    )
+    .expect("parse url");
+
+    assert!(matches!(options.get_ssl_mode(), PgSslMode::VerifyFull));
+}
+
+#[test]
+fn connect_options_preserves_verify_ca_and_disable_ssl_modes() {
+    let verify_ca =
+        connect_options("postgres://u:p@db.example:5432/x?sslmode=verify-ca").expect("parse url");
+    let disable =
+        connect_options("postgres://u:p@db.example:5432/x?sslmode=disable").expect("parse url");
+
+    assert!(matches!(verify_ca.get_ssl_mode(), PgSslMode::VerifyCa));
+    assert!(matches!(disable.get_ssl_mode(), PgSslMode::Disable));
 }

@@ -22,9 +22,7 @@ async fn db_pool() -> DbPool {
         idle_timeout: Duration::from_secs(30),
         max_lifetime: Duration::from_secs(300),
     };
-    let db = Database::from_config_with_write("postgres", &url, None, &cfg)
-        .await
-        .expect("database");
+    let db = Database::connect(&url, None, &cfg).await.expect("database");
     Arc::new(db)
 }
 

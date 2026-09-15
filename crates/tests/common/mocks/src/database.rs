@@ -25,6 +25,16 @@ pub enum MockDbResponse {
 pub struct MockDatabaseProvider {
     responses: Arc<Mutex<VecDeque<MockDbResponse>>>,
     calls: Arc<Mutex<Vec<String>>>,
+    pool: Arc<sqlx::PgPool>,
+}
+
+// Why: a lazily connected pool never opens a socket until a query runs, so
+// the mock stays DB-free while still owning a pool handle.
+fn lazy_pool() -> Arc<sqlx::PgPool> {
+    let pool = sqlx::postgres::PgPoolOptions::new()
+        .connect_lazy("postgres://mock:mock@127.0.0.1:1/mock")
+        .expect("static mock url parses");
+    Arc::new(pool)
 }
 
 impl MockDatabaseProvider {
@@ -59,6 +69,7 @@ impl Default for MockDatabaseProvider {
         Self {
             responses: Arc::new(Mutex::new(VecDeque::new())),
             calls: Arc::new(Mutex::new(Vec::new())),
+            pool: lazy_pool(),
         }
     }
 }
@@ -126,6 +137,7 @@ impl MockDatabaseProviderBuilder {
         MockDatabaseProvider {
             responses: Arc::new(Mutex::new(self.responses)),
             calls: Arc::new(Mutex::new(Vec::new())),
+            pool: lazy_pool(),
         }
     }
 }
@@ -136,12 +148,8 @@ fn convert_result<T>(result: std::result::Result<T, String>) -> DatabaseResult<T
 
 #[async_trait]
 impl DatabaseProvider for MockDatabaseProvider {
-    fn get_postgres_pool(&self) -> Option<Arc<sqlx::PgPool>> {
-        None
-    }
-
-    fn is_postgres(&self) -> bool {
-        true
+    fn get_postgres_pool(&self) -> Arc<sqlx::PgPool> {
+        Arc::clone(&self.pool)
     }
 
     async fn execute(

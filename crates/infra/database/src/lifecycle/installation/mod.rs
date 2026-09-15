@@ -7,6 +7,7 @@
 mod extension;
 mod fk_deferral;
 mod prepare;
+mod report;
 mod seeds;
 
 pub use extension::{
@@ -14,5 +15,6 @@ pub use extension::{
     install_extension_schemas_with_config,
 };
 pub use fk_deferral::{DeferredForeignKey, SplitCreateTable, split_create_table_foreign_keys};
+pub use report::{ForeignKeyDrift, SchemaInstallReport};
 
-pub(crate) use extension::lock::BootstrapLockGuard;
+pub use extension::lock::{BOOTSTRAP_ADVISORY_LOCK_KEY, BootstrapLockGuard};

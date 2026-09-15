@@ -6,6 +6,7 @@
 
 ### Changed
 
+- The cross-replica event bridge always starts (the write pool is no longer optional); request guards deny with `503` when the pool is closed.
 - `GET /bridge/profile` answers 503 and `POST /admin/services/refresh` answers 500 when the secrets store is not initialised, instead of treating every secret as absent.
 - An upstream error body that cannot be read is recorded as `<unreadable body: …>` in the gateway error.
 - A gateway deployment that registers request guards but has no database pool denies the request with `503` (`GatewayDenyKind::Unavailable`) instead of skipping the guards.
