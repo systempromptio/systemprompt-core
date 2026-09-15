@@ -6,7 +6,7 @@
 use super::{FeedbackError, Result};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use systemprompt_identifiers::{DeviceId, UserId};
 use systemprompt_models::feedback::receipts::{ConsumerReceiptRequest, ConsumerReceiptResponse};
@@ -63,6 +63,8 @@ struct State {
     pending_installations: BTreeMap<String, PendingInstallation>,
     #[serde(default)]
     sessions: BTreeMap<String, Vec<systemprompt_identifiers::PublicationId>>,
+    #[serde(default)]
+    completed_sessions: BTreeSet<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -126,6 +128,10 @@ impl Outbox {
                     .filter(|(_, entry)| {
                         matches!(entry.delivery, Delivery::Acknowledged(_))
                             && entry.session_bindings.values().all(|done| *done)
+                            && !state.sessions.iter().any(|(key, publications)| {
+                                !state.completed_sessions.contains(key)
+                                    && publications.contains(&entry.request.publication_id)
+                            })
                     })
                     .min_by_key(|(_, entry)| entry.request.observed_at)
                     .map(|(key, _)| key.clone());
@@ -137,7 +143,8 @@ impl Outbox {
             }
             let mut session_bindings = BTreeMap::new();
             for (session_key, publications) in &state.sessions {
-                if !publications.contains(&request.publication_id) {
+                if state.completed_sessions.contains(session_key)
+                    || !publications.contains(&request.publication_id) {
                     continue;
                 }
                 let (host, session): (systemprompt_models::feedback::EvaluatorClient, String) =
@@ -210,6 +217,7 @@ fn read(path: &Path, scope: &OutboxScope) -> Result<State> {
             entries: BTreeMap::new(),
             pending_installations: BTreeMap::new(),
             sessions: BTreeMap::new(),
+            completed_sessions: BTreeSet::new(),
         });
     }
     if std::fs::metadata(path)?.len() > MAX_BYTES as u64 {

@@ -95,3 +95,5 @@ mod pending;
 mod readback_outbox;
 mod sessions;
 mod transport;
+
+mod session_compaction;

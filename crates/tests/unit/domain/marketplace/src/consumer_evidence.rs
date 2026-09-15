@@ -379,7 +379,7 @@ async fn historical_receipts_keep_unknown_consumer_and_device_without_session_bi
 }
 
 #[tokio::test]
-async fn rollback_generations_remain_distinct_even_when_revision_and_session_match() {
+async fn rollback_requires_new_session_and_preserves_original_attribution_after_history_loss() {
     use systemprompt_marketplace::managed::{PublicationAction, PublicationRequest};
     let mut f = fixture().await;
     let original = f.receipt_binding().await;
@@ -416,7 +416,14 @@ async fn rollback_generations_remain_distinct_even_when_revision_and_session_mat
         .unwrap();
     f.request.publication_id = rollback.publication_id;
     f.request.generation = rollback.generation;
-    let rebound = f.receipt_binding().await;
+    let mut rebound = f.receipt_binding().await;
+    // A client that has compacted its completed local history may retry this
+    // original native session against the newly installed publication.
+    assert!(matches!(f.repo.bind_consumer_session(&f.credential.credential, &rebound).await,
+        Err(systemprompt_marketplace::managed::ManagedError::Conflict(_))));
+    assert_eq!(f.repo.bind_consumer_session(&f.credential.credential, &original).await.unwrap().id,
+        f.repo.bind_consumer_session(&f.credential.credential, &original).await.unwrap().id);
+    rebound.session_id = NativeSessionId::new("new-session-after-rollback");
     f.repo
         .bind_consumer_session(&f.credential.credential, &rebound)
         .await
@@ -425,6 +432,7 @@ async fn rollback_generations_remain_distinct_even_when_revision_and_session_mat
     let mut new_input = f.invocation();
     new_input.invocation_id =
         systemprompt_identifiers::ResourceInvocationId::new("rollback-invocation");
+    new_input.session_id = rebound.session_id.clone();
     assert_eq!(
         f.repo
             .record_consumer_invocation(&f.credential.credential, &new_input)
@@ -566,4 +574,22 @@ async fn users_device_interface_retains_shared_lock_until_caller_commit() {
             .await
             .unwrap();
     assert_eq!(devices, 0);
+}
+
+
+#[tokio::test]
+async fn same_native_session_can_bind_independent_resources() {
+    let first = fixture().await;
+    let second = fixture().await;
+    let binding = first.receipt_binding().await;
+    first.repo.bind_consumer_session(&first.credential.credential, &binding).await.unwrap();
+    second.repo.set_consumer_grant(&second.owner, &second.request.resource_id, &first.consumer, true).await.unwrap();
+    let receipt = second.repo.record_consumer_receipt(&first.credential.credential, &second.request).await.unwrap();
+    let other = systemprompt_models::feedback::receipts::SessionBindingRequest {
+        receipt_id: receipt.receipt_id,
+        host: binding.host,
+        session_id: binding.session_id,
+    };
+    let bound = first.repo.bind_consumer_session(&first.credential.credential, &other).await.unwrap();
+    assert_eq!(bound.id, first.repo.bind_consumer_session(&first.credential.credential, &other).await.unwrap().id);
 }
