@@ -39,6 +39,17 @@ impl ManagedRepository {
         )
         .await?;
         attribution::lock_session(&mut tx, &identity, host, request.session_id.as_str()).await?;
+        // Older sessions can retain more than one receipt from before the
+        // first-binding guard. An exact immutable retry is still admissible.
+        if let Some(row) = sqlx::query!("SELECT id,bound_at FROM managed_consumer_session_bindings WHERE receipt_id=$1 AND consumer_id=$2 AND device_id=$3 AND host=$4 AND native_session_id=$5", request.receipt_id.as_str(), identity.consumer_id.as_str(), identity.device_id.as_str(), host, request.session_id.as_str())
+            .fetch_optional(&mut *tx).await? {
+            attribution::correct_session(&mut tx, &identity, host, request.session_id.as_str()).await?;
+            tx.commit().await?;
+            return Ok(ConsumerSessionBinding {
+                id: InstallationSessionBindingId::new(row.id),
+                bound_at: row.bound_at,
+            });
+        }
         let conflicting = sqlx::query_scalar!(
             "SELECT EXISTS(SELECT 1 FROM managed_consumer_session_bindings b JOIN managed_installation_receipts r ON r.id=b.receipt_id WHERE b.consumer_id=$1 AND b.device_id=$2 AND b.host=$3 AND b.native_session_id=$4 AND r.resource_id=$5 AND b.receipt_id<>$6)",
             identity.consumer_id.as_str(), identity.device_id.as_str(), host,
