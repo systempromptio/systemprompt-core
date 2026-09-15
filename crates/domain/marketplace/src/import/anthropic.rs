@@ -51,6 +51,7 @@ pub struct MarketplaceJson {
 pub struct MarketplacePluginEntry {
     pub name: String,
     #[serde(default)]
+    // JSON: Anthropic marketplace.json permits a string or an object here
     pub source: Option<serde_json::Value>,
     #[serde(default)]
     pub description: Option<String>,
@@ -61,6 +62,7 @@ pub struct MarketplacePluginEntry {
     #[serde(default)]
     pub keywords: Vec<String>,
     #[serde(default)]
+    // JSON: Anthropic marketplace.json permits a string or an object here
     pub author: Option<serde_json::Value>,
     #[serde(default)]
     pub license: Option<String>,

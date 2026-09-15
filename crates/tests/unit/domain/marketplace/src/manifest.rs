@@ -141,7 +141,7 @@ async fn listed_marketplaces(
         &AssembleRequest {
             services: &config,
             services_root: dir,
-            filter: filter,
+            filter,
             user_id: &fixture_user_id(),
             cache: &MarketplaceCache::default(),
         },

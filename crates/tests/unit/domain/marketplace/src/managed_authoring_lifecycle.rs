@@ -495,9 +495,9 @@ async fn withdrawal_and_rollback_keep_bounded_review_history_and_generation_pinn
 
 #[tokio::test]
 async fn resource_listing_reports_has_more_across_the_page_boundary() {
-    let Some(f) = fixture().await else {
-        return;
-    };
+    let f = fixture()
+        .await
+        .expect("managed authoring fixture requires the test database");
     let source = f
         .repository
         .list_resources(&f.owner, 0)

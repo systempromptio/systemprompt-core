@@ -49,12 +49,9 @@ pub const fn min_bridge_version() -> semver::Version {
 
 #[must_use]
 pub fn bridge_version_is_supported(reported: &str, floor: &semver::Version) -> bool {
-    match semver::Version::parse(reported) {
-        Ok(reported) => reported >= *floor,
-        // Why: a version that cannot be parsed cannot be shown to meet the
-        // floor, so it is refused rather than admitted.
-        Err(_) => false,
-    }
+    // Why: a version that cannot be parsed cannot be shown to meet the
+    // floor, so it is refused rather than admitted.
+    semver::Version::parse(reported).is_ok_and(|reported| reported >= *floor)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

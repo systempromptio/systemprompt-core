@@ -10,6 +10,7 @@ use systemprompt_identifiers::MarketplaceId;
 use systemprompt_models::services::MarketplaceConfig;
 
 #[must_use]
+// JSON: outgoing marketplace listing with a fixed, client-facing shape
 pub fn render_marketplace_json(id: &str, marketplace: &MarketplaceConfig) -> serde_json::Value {
     let plugin_entries: Vec<serde_json::Value> = marketplace
         .plugins
@@ -35,6 +36,7 @@ pub fn render_marketplace_json(id: &str, marketplace: &MarketplaceConfig) -> ser
 }
 
 #[must_use]
+// JSON: outgoing marketplace listing with a fixed, client-facing shape
 pub fn render_marketplace_list<'a, I>(marketplaces: I) -> serde_json::Value
 where
     I: IntoIterator<Item = (&'a MarketplaceId, &'a MarketplaceConfig)>,
