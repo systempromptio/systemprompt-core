@@ -60,12 +60,13 @@ pub(crate) async fn apply_manifest(req: &ApplyRequest<'_>) -> Result<ApplyOutcom
         location,
         cancel,
     } = *req;
-    let _installation_lock = crate::feedback::installation_lock()
-        .await
-        .map_err(|error| ApplyError::Io {
+    let _installation_lock = tokio::select! {
+        () = cancel.cancelled() => return Ok(ApplyOutcome::Cancelled { applied: 0 }),
+        lock = crate::feedback::installation_lock() => lock.map_err(|error| ApplyError::Io {
             context: "serialize native host installation".to_owned(),
             source: std::io::Error::other(error),
-        })?;
+        })?,
+    };
     let loopback = bridge.proxy.loopback();
     let root = &location.path;
     let (meta_dir, staging_root) = prepare_dirs(root)?;
@@ -135,25 +136,11 @@ pub(crate) async fn apply_manifest(req: &ApplyRequest<'_>) -> Result<ApplyOutcom
             .enabled_hosts
             .iter()
             .any(|h| h == host_id);
-        let mut outcome = if enabled {
+        let outcome = if enabled {
             emitter.apply(&ctx).await
         } else {
             emitter.clear(&ctx)
         };
-        if enabled && outcome.is_ok() {
-            if let Err(error) = crate::feedback::capture_host(host_id, &ctx).await {
-                warnings.push(
-                    host_id,
-                    format!("Installation evidence unacknowledged: {error}"),
-                );
-                if matches!(error, crate::feedback::FeedbackError::Readback) {
-                    outcome = Err(ApplyError::Io {
-                        context: "verify installed skill evidence".to_owned(),
-                        source: std::io::Error::other(error),
-                    });
-                }
-            }
-        }
         if let Err(e) = &outcome {
             report.host_failures.push(HostFailure {
                 host_id: HostId::new(host_id),
@@ -162,6 +149,34 @@ pub(crate) async fn apply_manifest(req: &ApplyRequest<'_>) -> Result<ApplyOutcom
             });
         }
         host_sync::log_outcome(*emitter, enabled, outcome);
+    }
+    let hosts: std::collections::BTreeSet<_> =
+        emitters.iter().map(|emitter| emitter.host_id()).collect();
+    for host_id in hosts {
+        if !manifest_for_write
+            .enabled_hosts
+            .iter()
+            .any(|host| host == host_id)
+            || report
+                .host_failures
+                .iter()
+                .any(|failure| failure.host_id.as_str() == host_id)
+        {
+            continue;
+        }
+        if let Err(error) = crate::feedback::capture_host(host_id, &ctx).await {
+            warnings.push(
+                host_id,
+                format!("Installation evidence unacknowledged: {error}"),
+            );
+            if matches!(error, crate::feedback::FeedbackError::Readback) {
+                report.host_failures.push(HostFailure {
+                    host_id: HostId::new(host_id),
+                    emitter: "installation-evidence".to_owned(),
+                    error: format!("verify installed skill evidence: {error}"),
+                });
+            }
+        }
     }
     report.host_warnings = warnings.drain();
 

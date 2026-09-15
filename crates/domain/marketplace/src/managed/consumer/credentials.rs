@@ -35,7 +35,7 @@ impl ManagedRepository {
     ) -> Result<IssuedConsumerCredential> {
         let mut tx = self.pool.begin().await?;
         let record = sqlx::query!(
-            "SELECT user_id FROM user_device_certs WHERE id=$1 AND revoked_at IS NULL FOR SHARE",
+            "SELECT consumer_id AS \"user_id!\" FROM public.active_device_identity($1)",
             cert.as_str()
         )
         .fetch_optional(&mut *tx)
@@ -51,7 +51,7 @@ impl ManagedRepository {
             .execute(&mut *tx).await?;
         tx.commit().await?;
         Ok(IssuedConsumerCredential {
-            device_id: DeviceId::new(cert.as_str()),
+            device_id: DeviceId::try_new(cert.as_str()).map_err(|_| ManagedError::Integrity)?,
             consumer_id: UserId::new(record.user_id),
             credential,
         })
@@ -95,11 +95,11 @@ pub(super) async fn authenticate(
         return Err(ManagedError::Unavailable);
     }
     let digest = ContentDigest::of(token.as_bytes());
-    let row = sqlx::query!("SELECT c.device_id,d.user_id FROM managed_consumer_credentials c JOIN user_device_certs d ON d.id=c.device_id WHERE c.credential_digest=$1 AND c.revoked_at IS NULL AND d.revoked_at IS NULL FOR SHARE OF c,d", digest.as_str())
+    let row = sqlx::query!("SELECT c.device_id,d.consumer_id AS \"user_id!\" FROM managed_consumer_credentials c CROSS JOIN LATERAL public.active_device_identity(c.device_id) d WHERE c.credential_digest=$1 AND c.revoked_at IS NULL FOR SHARE OF c", digest.as_str())
         .fetch_optional(&mut **tx).await?.ok_or(ManagedError::Unavailable)?;
     Ok(AuthenticatedConsumerDevice {
         consumer_id: UserId::new(row.user_id),
-        device_id: DeviceId::new(row.device_id),
+        device_id: DeviceId::try_new(row.device_id).map_err(|_| ManagedError::Integrity)?,
     })
 }
 

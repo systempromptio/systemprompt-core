@@ -44,6 +44,23 @@ pub struct EvaluatorCapability {
     pub automated_evaluation: CapabilityAvailability,
     pub reason: Option<UnsupportedCapabilityReason>,
     pub verified_targets: Vec<VerifiedNativeTarget>,
+    pub observed_readiness: Vec<NativeReadiness>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum NativeReadinessState {
+    Unknown,
+    LastVerified,
+    Unavailable,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct NativeReadiness {
+    pub target: VerifiedNativeTarget,
+    pub state: NativeReadinessState,
+    pub observed_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub diagnostic: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
@@ -145,6 +162,16 @@ pub fn evaluator_capabilities() -> Vec<EvaluatorCapability> {
             } else {
                 Some(UnsupportedCapabilityReason::AdapterNotVerified)
             },
+            observed_readiness: verified_targets
+                .iter()
+                .cloned()
+                .map(|target| NativeReadiness {
+                    target,
+                    state: NativeReadinessState::Unknown,
+                    observed_at: None,
+                    diagnostic: None,
+                })
+                .collect(),
             verified_targets,
         }
     })

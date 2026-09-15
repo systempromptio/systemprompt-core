@@ -18,6 +18,8 @@ pub struct ExecutionNetwork {
     removed: bool,
     owner_label: String,
     execution_label: String,
+    worker_label: String,
+    fence_label: i64,
 }
 
 impl ExecutionNetwork {
@@ -26,6 +28,33 @@ impl ExecutionNetwork {
         name: String,
         owner: &str,
         execution: &str,
+    ) -> SchedulerResult<Self> {
+        Self::create_owned(docker, name, owner, execution, "", 0)
+    }
+
+    pub fn create_fenced(
+        docker: PathBuf,
+        name: String,
+        owner: &str,
+        lease: &systemprompt_evaluation::repository::experiments::ExecutionLease,
+    ) -> SchedulerResult<Self> {
+        Self::create_owned(
+            docker,
+            name,
+            owner,
+            lease.execution_id.as_str(),
+            lease.worker_id.as_str(),
+            lease.fencing_token,
+        )
+    }
+
+    fn create_owned(
+        docker: PathBuf,
+        name: String,
+        owner: &str,
+        execution: &str,
+        worker: &str,
+        fence: i64,
     ) -> SchedulerResult<Self> {
         if !docker.is_absolute()
             || !safe_name(&name)
@@ -49,6 +78,10 @@ impl ExecutionNetwork {
                 &format!("systemprompt.evaluator.owner={owner}"),
                 "--label",
                 &format!("systemprompt.evaluator.execution={execution}"),
+                "--label",
+                &format!("systemprompt.evaluator.worker={worker}"),
+                "--label",
+                &format!("systemprompt.evaluator.fence={fence}"),
                 &name,
             ],
         )?;
@@ -59,6 +92,8 @@ impl ExecutionNetwork {
             removed: false,
             owner_label: owner.to_owned(),
             execution_label: execution.to_owned(),
+            worker_label: worker.to_owned(),
+            fence_label: fence,
         };
         network.verify(&[])?;
         Ok(network)
@@ -97,6 +132,10 @@ impl ExecutionNetwork {
                 &format!("systemprompt.evaluator.owner={}", self.owner_label),
                 "--label",
                 &format!("systemprompt.evaluator.execution={}", self.execution_label),
+                "--label",
+                &format!("systemprompt.evaluator.worker={}", self.worker_label),
+                "--label",
+                &format!("systemprompt.evaluator.fence={}", self.fence_label),
                 "--network",
                 &self.name,
                 "--read-only",

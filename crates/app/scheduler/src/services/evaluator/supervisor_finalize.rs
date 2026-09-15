@@ -28,6 +28,25 @@ impl EvaluatorSupervisor {
             .collect();
         let cleanup = self.tear_down(&mut run).await?;
         let cleanup_confirmed = cleanup.verified();
+        let readiness_failure = if cleanup_confirmed {
+            outcome.blocked.clone()
+        } else {
+            Some(
+                "Native owned cleanup could not be verified; reconciliation is required".to_owned(),
+            )
+        };
+        if let Err(error) = self
+            .observe_targets(
+                &run.worker,
+                &run.lease,
+                &run.assignment,
+                run.record.variant_index,
+                readiness_failure,
+            )
+            .await
+        {
+            tracing::warn!(execution_id = %run.lease.execution_id, %error, "Readiness observation failed; terminal evidence still required");
+        }
         let requests = self
             .repositories
             .evidence
@@ -59,21 +78,45 @@ impl EvaluatorSupervisor {
             .cleanup_confirmed(cleanup_confirmed)
             .build()
             .map_err(internal)?;
-        let terminal = ExecutionTerminal::new(&self.repositories)
-            .persist(
-                &run.worker.owner_id,
-                &run.lease,
+        let terminal_service = ExecutionTerminal::new(&self.repositories);
+        let archive = EvidenceArchive {
+            files: outcome.artifacts,
+        };
+        let terminal = if let Some(reason) = &outcome.blocked {
+            terminal_service
+                .persist_blocked(
+                    &run.worker.owner_id,
+                    &run.lease,
+                    &evidence,
+                    &archive,
+                    &cleanup,
+                    reason,
+                )
+                .await?
+        } else {
+            terminal_service
+                .persist(
+                    &run.worker.owner_id,
+                    &run.lease,
+                    &evidence,
+                    &archive,
+                    outcome.native_completion,
+                    &cleanup,
+                )
+                .await?
+        };
+        if matches!(
+            terminal,
+            TerminalOutcome::Completed | TerminalOutcome::Blocked
+        ) {
+            self.record_measurement(
+                &run,
                 &evidence,
-                &EvidenceArchive {
-                    files: outcome.artifacts,
-                },
-                outcome.native_completion,
-                &cleanup,
+                outcome.judgment,
+                outcome.started,
+                outcome.blocked,
             )
             .await?;
-        if terminal == TerminalOutcome::Completed {
-            self.record_measurement(&run, &evidence, outcome.judgment, outcome.started)
-                .await?;
         }
         Ok(())
     }
@@ -103,6 +146,7 @@ impl EvaluatorSupervisor {
         evidence: &ExecutionEvidence,
         judgment: Option<EvidenceJudgment>,
         started: Instant,
+        blocked: Option<String>,
     ) -> SchedulerResult<()> {
         let archive = self
             .repositories
@@ -110,10 +154,13 @@ impl EvaluatorSupervisor {
             .get_artifacts(&run.worker.owner_id, &run.record.id)
             .await
             .map_err(internal)?;
-        let deterministic = verification::evaluate(VerificationInput {
+        let mut deterministic = verification::evaluate(VerificationInput {
             case: &run.case,
             evidence: &archive,
         });
+        if let Some(reason) = blocked {
+            deterministic.hard_failures.push(reason);
+        }
         let references = evidence_references(evidence);
         let scored = judgment.as_ref().and_then(|value| {
             scoring::score(&run.rubric, value, &references)

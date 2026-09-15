@@ -140,7 +140,7 @@ fn forwarded_hook_uses_protected_device_credential_and_strips_caller_credential(
     temp_env::with_var("XDG_STATE_HOME", Some(dir.path()), || {
         let enrollment = Enrollment::new(
             "https://example.invalid".to_owned(),
-            DeviceId::new("device"),
+            DeviceId::try_new("device").expect("nonempty fixture device"),
             UserId::new("consumer"),
             systemprompt_bridge::ids::BearerToken::new("sp_device_private"),
         )

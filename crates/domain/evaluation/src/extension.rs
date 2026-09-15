@@ -24,6 +24,10 @@ impl Extension for EvaluationExtension {
         schemas.extend(experiment_schemas());
         schemas.extend(measurement_schemas());
         schemas.extend(evidence_schemas());
+        schemas.push(SchemaDefinition::new(
+            "eval_campaign_completion",
+            include_str!("../schema/campaign_completion.sql"),
+        ));
         schemas
     }
 

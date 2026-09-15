@@ -347,3 +347,177 @@ async fn failed_cleanup_witness_prevents_success_and_preserves_restart_bound() {
     assert_eq!(f.budget().await, (0, 400));
     f.cleanup_rows().await;
 }
+
+#[tokio::test]
+async fn native_start_failure_is_retained_without_waiting_for_lease_expiry() {
+    let f = Fixture::new().await;
+    let terminal = ExecutionTerminal::new(&f.repositories);
+    let before = f.budget().await;
+    let cleanup = terminal
+        .cleanup(&f.owner, &f.lease, resources(), || {
+            std::fs::remove_dir_all(f.root.path().join("workspace"))?;
+            Ok(())
+        })
+        .await
+        .unwrap();
+    let reason = "Native client blocked: Pinned image configuration could not be established";
+    assert_eq!(
+        terminal
+            .block(&f.owner, &f.lease, &cleanup, reason)
+            .await
+            .unwrap(),
+        TerminalOutcome::Blocked
+    );
+    let state = f.state().await;
+    assert_eq!(state["status"], "blocked");
+    assert_eq!(state["evidence"], 0);
+    assert_eq!(state["cleanup"]["status"], "verified");
+    let retained: String =
+        sqlx::query_scalar("SELECT result->>'summary' FROM eval_executions WHERE id=$1")
+            .bind(f.lease.execution_id.as_str())
+            .fetch_one(&f.pg)
+            .await
+            .unwrap();
+    assert_eq!(retained, reason);
+    assert_eq!(f.budget().await, before);
+    f.cleanup_rows().await;
+}
+
+#[tokio::test]
+async fn judge_start_failure_keeps_native_evidence_and_prior_spend() {
+    let f = Fixture::new().await;
+    let terminal = ExecutionTerminal::new(&f.repositories);
+    let before = f.budget().await;
+    let cleanup = terminal
+        .cleanup(&f.owner, &f.lease, resources(), || Ok(()))
+        .await
+        .unwrap();
+    assert_eq!(
+        terminal
+            .persist_blocked(
+                &f.owner,
+                &f.lease,
+                &f.evidence(true),
+                &archive(),
+                &cleanup,
+                "Native judge blocked: Pinned executable bytes do not match native admission"
+            )
+            .await
+            .unwrap(),
+        TerminalOutcome::Blocked
+    );
+    let state = f.state().await;
+    assert_eq!(state["status"], "blocked");
+    assert_eq!(state["evidence"], 1);
+    assert_eq!(state["measurements"], 0);
+    assert_eq!(f.budget().await, before);
+    let mut stale = f.lease.clone();
+    stale.fencing_token += 1;
+    assert!(
+        terminal
+            .block(&f.owner, &stale, &cleanup, "replacement failure")
+            .await
+            .is_err()
+    );
+    f.cleanup_rows().await;
+}
+
+#[derive(Debug)]
+struct RejectNativePin(&'static str);
+impl systemprompt_scheduler::services::evaluator::container::ClientVerifier for RejectNativePin {
+    fn verify(
+        &self,
+        _launch: &systemprompt_scheduler::services::evaluator::container::ContainerLaunch,
+        _client: &systemprompt_scheduler::services::evaluator::client::NativeClient,
+    ) -> systemprompt_scheduler::SchedulerResult<()> {
+        Err(SchedulerError::config_error(self.0))
+    }
+}
+
+#[tokio::test]
+async fn supervisor_start_boundary_blocks_missing_image_wrong_config_and_executable() {
+    use systemprompt_scheduler::services::evaluator::client::{ClientPurpose, NativeClient};
+    use systemprompt_scheduler::services::evaluator::container::ContainerLaunch;
+    use systemprompt_scheduler::services::evaluator::supervisor::terminal::NativeStart;
+    for reason in [
+        "Pinned image configuration could not be established",
+        "Image manifest resolved to a different retained config identity",
+        "Pinned executable bytes do not match native admission",
+    ] {
+        let f = Fixture::new().await;
+        let before = f.budget().await;
+        let launch = ContainerLaunch::builder(
+            f.root.path().join("must-not-be-executed"),
+            f.root.path().to_owned(),
+        )
+        .image(format!("sha256:{}", "c".repeat(64)))
+        .network("fixture-network".to_owned())
+        .name("eval-fixture-client".to_owned())
+        .ownership(f.owner.as_str(), f.lease.execution_id.as_str())
+        .lease(&f.lease)
+        .verifier(std::sync::Arc::new(RejectNativePin(reason)))
+        .build()
+        .unwrap();
+        let client = NativeClient::builder(
+            systemprompt_evaluation::experiments::ClientKind::ClaudeCode,
+            ModelId::new("fixture-model"),
+        )
+        .build()
+        .unwrap();
+        let terminal = ExecutionTerminal::new(&f.repositories);
+        let cleanup_called = std::cell::Cell::new(false);
+        let started = terminal
+            .start_client(
+                &f.owner,
+                &f.lease,
+                NativeStart {
+                    launch: &launch,
+                    client: &client,
+                    purpose: ClientPurpose::Execution,
+                    prompt: "fixture",
+                    readiness: None,
+                },
+                || {
+                    cleanup_called.set(true);
+                    std::fs::remove_dir_all(f.root.path().join("workspace"))?;
+                    Ok(())
+                },
+            )
+            .await
+            .unwrap();
+        assert!(started.is_none());
+        assert!(cleanup_called.get());
+        assert!(!f.root.path().join("client-events.jsonl").exists());
+        assert_eq!(f.state().await["status"], "blocked");
+        let retained: String =
+            sqlx::query_scalar("SELECT result->>'summary' FROM eval_executions WHERE id=$1")
+                .bind(f.lease.execution_id.as_str())
+                .fetch_one(&f.pg)
+                .await
+                .unwrap();
+        assert!(retained.contains(reason));
+        assert_eq!(f.budget().await, before);
+        f.cleanup_rows().await;
+    }
+}
+
+#[tokio::test]
+async fn stale_cleanup_fence_never_executes_resource_removal() {
+    let f = Fixture::new().await;
+    let terminal = ExecutionTerminal::new(&f.repositories);
+    let mut stale = f.lease.clone();
+    stale.fencing_token += 1;
+    let called = std::cell::Cell::new(false);
+    assert!(
+        terminal
+            .cleanup(&f.owner, &stale, resources(), || {
+                called.set(true);
+                Ok(())
+            })
+            .await
+            .is_err()
+    );
+    assert!(!called.get());
+    assert!(f.root.path().join("workspace").exists());
+    f.cleanup_rows().await;
+}

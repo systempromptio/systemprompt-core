@@ -81,7 +81,11 @@ pub async fn build(
         .comparison(owner, experiment_id)
         .await?;
     let rows: Vec<MeasurementRow> = serde_json::from_value(report.variants)?;
-    let retained = pair_measurements(rows)?;
+    let retained = pair_measurements(
+        rows,
+        &experiment.experiment.spec.cases,
+        experiment.experiment.spec.repetitions,
+    )?;
     let mut limitations = retained.limitations;
     let mut development = Vec::new();
     let mut holdout = Vec::new();
@@ -140,19 +144,34 @@ struct RetainedPairs {
     limitations: Vec<String>,
 }
 
-fn pair_measurements(rows: Vec<MeasurementRow>) -> Result<RetainedPairs> {
-    let mut pairs: BTreeMap<(EvalRevisionId, i32), [Option<Outcome>; 2]> = BTreeMap::new();
+fn pair_measurements(
+    rows: Vec<MeasurementRow>,
+    expected_cases: &[EvalRevisionId],
+    repetitions: u32,
+) -> Result<RetainedPairs> {
+    if expected_cases.is_empty() || expected_cases.len() > 100 || !(1..=10).contains(&repetitions) {
+        return Err(conflict("Invalid frozen execution matrix bounds"));
+    }
+    let repetitions =
+        i32::try_from(repetitions).map_err(|_| conflict("Invalid repetition count"))?;
+    let mut pairs: BTreeMap<(EvalRevisionId, i32), [Option<Outcome>; 2]> = expected_cases
+        .iter()
+        .flat_map(|case| {
+            (0..repetitions).map(move |repetition| ((case.clone(), repetition), [None, None]))
+        })
+        .collect();
+    let mut observed = std::collections::BTreeSet::new();
     let mut limitations = Vec::new();
     for row in rows {
         if row.variant > 1 {
             return Err(conflict("Unexpected experiment variant"));
         }
-        let pair = pairs
-            .entry((row.case_revision_id, row.repetition))
-            .or_insert([None, None]);
-        if pair[row.variant].is_some() {
+        if !observed.insert((row.case_revision_id.clone(), row.repetition, row.variant)) {
             return Err(conflict("Duplicate paired measurement"));
         }
+        let pair = pairs
+            .get_mut(&(row.case_revision_id, row.repetition))
+            .ok_or_else(|| conflict("Measurement is outside the frozen execution matrix"))?;
         if let Some(measurement) = row.measurement.filter(|_| row.status == "completed") {
             pair[row.variant] = outcome(&measurement);
         }
@@ -164,12 +183,16 @@ fn pair_measurements(rows: Vec<MeasurementRow>) -> Result<RetainedPairs> {
         }
     }
     let mut cases: BTreeMap<EvalRevisionId, Vec<PairedOutcome>> = BTreeMap::new();
-    for ((case, _), pair) in pairs {
+    for ((case, repetition), pair) in pairs {
         if let [Some(baseline), Some(candidate)] = pair {
             cases.entry(case).or_default().push(PairedOutcome {
                 baseline,
                 candidate,
             });
+        } else {
+            limitations.push(format!(
+                "Case {case}, repetition {repetition} has an incomplete baseline/candidate pair"
+            ));
         }
     }
     Ok(RetainedPairs { cases, limitations })

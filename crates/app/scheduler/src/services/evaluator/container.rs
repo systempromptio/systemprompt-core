@@ -43,6 +43,7 @@ pub struct ContainerLaunch {
     output_stem: String,
     owner_label: String,
     execution_label: String,
+    lease: Option<systemprompt_evaluation::repository::experiments::ExecutionLease>,
     runtime_user: String,
     verifier: std::sync::Arc<dyn ClientVerifier>,
 }
@@ -58,6 +59,7 @@ impl ContainerLaunch {
             output_stem: "client".to_owned(),
             owner_label: String::new(),
             execution_label: String::new(),
+            lease: None,
             verifier: std::sync::Arc::new(PinnedClientVerifier),
         }
     }
@@ -109,6 +111,14 @@ impl ContainerLaunch {
             "--tmpfs=/tmp:rw,nosuid,nodev,size=256m",
             "--workdir=/home/tester/work",
         ]);
+        if let Some(lease) = &self.lease {
+            command.args([
+                "--label",
+                &format!("systemprompt.evaluator.worker={}", lease.worker_id),
+                "--label",
+                &format!("systemprompt.evaluator.fence={}", lease.fencing_token),
+            ]);
+        }
         command.arg("--mount").arg(format!(
             "type=bind,src={},dst=/home/tester",
             self.directory.join("home").display()
@@ -228,6 +238,7 @@ pub struct ContainerLaunchBuilder {
     output_stem: String,
     owner_label: String,
     execution_label: String,
+    lease: Option<systemprompt_evaluation::repository::experiments::ExecutionLease>,
     verifier: std::sync::Arc<dyn ClientVerifier>,
 }
 
@@ -253,6 +264,14 @@ impl ContainerLaunchBuilder {
         self.output_stem = output_stem.into();
         self
     }
+    pub fn lease(
+        mut self,
+        lease: &systemprompt_evaluation::repository::experiments::ExecutionLease,
+    ) -> Self {
+        self.lease = Some(lease.clone());
+        self
+    }
+
     pub fn ownership(mut self, owner: impl Into<String>, execution: impl Into<String>) -> Self {
         self.owner_label = owner.into();
         self.execution_label = execution.into();
@@ -293,6 +312,11 @@ impl ContainerLaunchBuilder {
             || !safe_name(&self.output_stem)
             || !safe_label(&self.owner_label)
             || !safe_label(&self.execution_label)
+            || self.lease.as_ref().is_some_and(|lease| {
+                lease.execution_id.as_str() != self.execution_label
+                    || lease.fencing_token <= 0
+                    || !safe_label(lease.worker_id.as_str())
+            })
         {
             return Err(invalid());
         }
@@ -305,6 +329,7 @@ impl ContainerLaunchBuilder {
             output_stem: self.output_stem,
             owner_label: self.owner_label,
             execution_label: self.execution_label,
+            lease: self.lease,
             runtime_user,
             verifier: self.verifier,
         })

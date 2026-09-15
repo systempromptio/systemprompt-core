@@ -249,3 +249,6 @@ async fn all_owner_compaction_advances_both_cutoffs_before_global_expiry() {
     assert_eq!(prepared, 2);
     tx.commit().await.unwrap();
 }
+
+#[path = "snapshot_retention_lock_order.rs"]
+mod lock_order;

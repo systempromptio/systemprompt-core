@@ -114,6 +114,7 @@ impl EvaluatorSupervisor {
             .name(name.clone())
             .output_stem("suggestion")
             .ownership(run.worker.owner_id.as_str(), run.record.id.as_str())
+            .lease(&run.lease)
             .build()?;
         let evidence = outcome.artifacts.keys().collect::<Vec<_>>();
         let prompt = suggestion_prompt(&run.case, hard_failures, &evidence)?;

@@ -93,7 +93,7 @@ pub(super) fn evidence_references(evidence: &ExecutionEvidence) -> BTreeSet<Stri
     references
 }
 
-pub(super) fn materialize_root(bundle: &RevisionBundle, destination: &Path) -> SchedulerResult<()> {
+pub fn materialize_root(bundle: &RevisionBundle, destination: &Path) -> SchedulerResult<()> {
     bundle.verify().map_err(internal)?;
     install_files(
         &bundle.revision_files(&bundle.root).map_err(internal)?.0,
@@ -101,10 +101,7 @@ pub(super) fn materialize_root(bundle: &RevisionBundle, destination: &Path) -> S
     )
 }
 
-pub(super) fn materialize_skills(
-    bundle: &RevisionBundle,
-    destination: &Path,
-) -> SchedulerResult<()> {
+pub fn materialize_skills(bundle: &RevisionBundle, destination: &Path) -> SchedulerResult<()> {
     bundle.verify().map_err(internal)?;
     for revision in bundle.revisions.keys() {
         let files = bundle.revision_files(revision).map_err(internal)?;
@@ -275,12 +272,6 @@ impl WorkspaceDirectory {
 
 impl Drop for WorkspaceDirectory {
     fn drop(&mut self) {
-        if let Err(error) = std::fs::remove_dir_all(&self.0) {
-            tracing::warn!(
-                path = %self.0.display(),
-                error = %error,
-                "Failed to remove evaluator workspace directory"
-            );
-        }
+        drop(std::fs::remove_dir_all(&self.0));
     }
 }

@@ -36,7 +36,7 @@ fn request(id: &str, revision: u64, at: chrono::DateTime<Utc>, micros: u64) -> A
 fn identify(change: &mut AnalyticsChange, user: &str) {
     let identity = InvocationConsumerIdentity::Authenticated {
         consumer_id: UserId::new(user),
-        device_id: DeviceId::new("device"),
+        device_id: DeviceId::try_new("device").expect("nonempty fixture device"),
         host: EvaluatorClient::ClaudeCode,
         session_id: NativeSessionId::new("session"),
     };

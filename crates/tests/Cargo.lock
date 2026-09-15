@@ -7959,7 +7959,9 @@ name = "systemprompt-evaluation-tests"
 version = "0.0.11"
 dependencies = [
  "chrono",
+ "hex",
  "serde_json",
+ "sha2 0.11.0",
  "sqlx",
  "systemprompt-database",
  "systemprompt-evaluation",

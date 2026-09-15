@@ -147,7 +147,7 @@ pub async fn run_once(
             },
         };
         check_skew(&synced.not_before, now)?;
-        if last_state.last_applied_manifest_version.as_ref() == Some(&synced.manifest_version) {
+        if last_state.manifest_version.as_ref() == Some(&synced.manifest_version) {
             ensure_not_superseded(&run_gateway)?;
             if let Err(error) =
                 crate::feedback::recover_current_manifest(fetch.client.base_url_str(), &synced)

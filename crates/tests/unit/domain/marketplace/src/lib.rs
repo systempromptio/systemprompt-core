@@ -189,3 +189,16 @@ mod api_operations;
 
 #[cfg(test)]
 mod api_consumer_status;
+
+#[cfg(test)]
+mod organization_resolution;
+
+#[cfg(test)]
+mod reconciliation_persistence;
+#[cfg(test)]
+mod retained_distribution;
+
+#[cfg(test)]
+mod authoring_capture;
+#[cfg(test)]
+mod source_sync_regressions;

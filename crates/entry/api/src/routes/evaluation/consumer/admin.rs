@@ -21,8 +21,6 @@ pub(crate) fn router() -> Router<AppContext> {
         .route("/resources/{id}/consumer-grants", post(grant))
 }
 
-/// The token exists only in the first successful response; retry status never
-/// rotates it.
 #[derive(serde::Serialize, schemars::JsonSchema)]
 pub(crate) struct CredentialIssueResponse {
     pub operation: super::super::operations::OperationStatus,

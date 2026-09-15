@@ -9,8 +9,6 @@ use axum::extract::{Path, Query, State};
 use systemprompt_evaluation::experiments::records::{ExecutionRecord, ExperimentRecord};
 use systemprompt_identifiers::EvalExperimentId;
 use systemprompt_runtime::AppContext;
-/// Experiment status includes only the first bounded page of execution
-/// evidence.
 #[derive(Debug, serde::Serialize, schemars::JsonSchema)]
 pub(crate) struct ExperimentPage {
     pub experiment: ExperimentRecord,

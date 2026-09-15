@@ -491,3 +491,79 @@ async fn active_script_and_entrypoint_checks_cannot_be_replaced_by_source_cache_
         .unwrap();
     assert!(!receipt.fully_verified);
 }
+
+#[tokio::test]
+async fn pending_certificate_revocation_fences_credential_issuance() {
+    let f = fixture().await;
+    let mut tx = f.pool.begin().await.unwrap();
+    sqlx::query("UPDATE user_device_certs SET revoked_at=now() WHERE id=$1")
+        .bind(f.cert.as_str())
+        .execute(&mut *tx)
+        .await
+        .unwrap();
+    let repo = f.repo.clone();
+    let cert = f.cert.clone();
+    let mut issue = tokio::spawn(async move { repo.issue_consumer_credential(&cert).await });
+    assert!(
+        tokio::time::timeout(std::time::Duration::from_millis(100), &mut issue)
+            .await
+            .is_err()
+    );
+    tx.commit().await.unwrap();
+    assert!(
+        tokio::time::timeout(std::time::Duration::from_secs(5), issue)
+            .await
+            .unwrap()
+            .unwrap()
+            .is_err()
+    );
+    assert!(
+        f.repo
+            .authenticate_consumer_device(&f.credential.credential)
+            .await
+            .is_err()
+    );
+}
+
+#[tokio::test]
+async fn users_device_interface_retains_shared_lock_until_caller_commit() {
+    let f = fixture().await;
+    let mut tx = f.pool.begin().await.unwrap();
+    let identity: String =
+        sqlx::query_scalar("SELECT consumer_id FROM public.active_device_identity($1)")
+            .bind(f.cert.as_str())
+            .fetch_one(&mut *tx)
+            .await
+            .unwrap();
+    assert_eq!(identity, f.consumer.as_str());
+    let pool = f.pool.clone();
+    let cert = f.cert.clone();
+    let mut revoke = tokio::spawn(async move {
+        sqlx::query("UPDATE user_device_certs SET revoked_at=now() WHERE id=$1")
+            .bind(cert.as_str())
+            .execute(&pool)
+            .await
+    });
+    assert!(
+        tokio::time::timeout(std::time::Duration::from_millis(100), &mut revoke)
+            .await
+            .is_err()
+    );
+    tx.commit().await.unwrap();
+    assert_eq!(
+        tokio::time::timeout(std::time::Duration::from_secs(5), revoke)
+            .await
+            .unwrap()
+            .unwrap()
+            .unwrap()
+            .rows_affected(),
+        1
+    );
+    let devices: i64 =
+        sqlx::query_scalar("SELECT count(*) FROM public.active_devices_for_consumer($1)")
+            .bind(f.consumer.as_str())
+            .fetch_one(&f.pool)
+            .await
+            .unwrap();
+    assert_eq!(devices, 0);
+}

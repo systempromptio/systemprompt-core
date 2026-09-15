@@ -20,7 +20,7 @@ async fn router() -> Router {
         SessionId::generate(),
         TraceId::generate(),
         ContextId::generate(),
-        AgentName::new("feedback-test"),
+        AgentName::try_new("feedback-test").expect("valid fixture agent name"),
     );
     actor.auth.actor = Actor::user(UserId::new(format!("stream-{}", TraceId::generate())));
     systemprompt_api::routes::evaluation::campaigns::router()

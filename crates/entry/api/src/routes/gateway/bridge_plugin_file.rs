@@ -60,7 +60,11 @@ pub async fn handle(
     .map_err(|e| internal("catalog", &e))?;
     let catalog = (*disk_catalog)
         .clone()
-        .with_managed_skills(ctx.managed_repository().as_ref().clone(), &user.id)
+        .with_organization_skills(
+            ctx.managed_repository().as_ref().clone(),
+            ctx.system_admin().id(),
+            &user.id,
+        )
         .await
         .map_err(|error| internal("managed-catalog", &error))?;
 

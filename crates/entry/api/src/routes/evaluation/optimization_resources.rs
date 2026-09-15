@@ -56,6 +56,7 @@ pub(super) fn router() -> Router<AppContext> {
 }
 
 async fn evaluator_capability_registry(
+    State(ctx): State<AppContext>,
     axum::extract::Query(query): axum::extract::Query<super::collections::Cursor>,
 ) -> Result<Json<super::collections::Page<EvaluatorCapability>>, OptimizationHttpError> {
     let limit = query.limit()?;
@@ -67,6 +68,15 @@ async fn evaluator_capability_registry(
         })
     });
     items.truncate(limit as usize);
+    for item in &mut items {
+        for observation in &mut item.observed_readiness {
+            *observation = ctx
+                .evaluation_repositories()
+                .events
+                .native_readiness(ctx.system_admin().id(), &observation.target)
+                .await?;
+        }
+    }
     let next_cursor = if items.len() == limit as usize {
         items.last().map(|item| {
             systemprompt_marketplace::managed::consumer::host_key(item.client).to_owned()

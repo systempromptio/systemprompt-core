@@ -40,22 +40,7 @@ impl ManagedSkillResolver for ManagedResourceResolver {
         owner: &UserId,
         key: &str,
     ) -> std::result::Result<SkillResolution, ManagedSkillResolverError> {
-        match Self::resolve_skill(self, owner, key).await {
-            Ok(ManagedSkillResolution::NotManaged) => Ok(SkillResolution::NotManaged),
-            Ok(ManagedSkillResolution::Withheld(reason)) => Ok(SkillResolution::Withheld(*reason)),
-            Ok(ManagedSkillResolution::Published(skill)) => {
-                Ok(SkillResolution::Published(ResolvedManagedSkill {
-                    id: skill.id,
-                    name: skill.name,
-                    description: skill.description,
-                    instructions: skill.instructions,
-                }))
-            },
-            Err(ManagedError::Integrity) => Err(ManagedSkillResolverError::Integrity {
-                key: key.to_owned(),
-            }),
-            Err(error) => Err(ManagedSkillResolverError::Unavailable(error.to_string())),
-        }
+        runtime_resolution(Self::resolve_skill(self, owner, key).await, key)
     }
 }
 
@@ -209,5 +194,27 @@ impl ManagedResourceResolver {
                 })))
             },
         }
+    }
+}
+
+pub(super) fn runtime_resolution(
+    result: Result<ManagedSkillResolution>,
+    key: &str,
+) -> std::result::Result<SkillResolution, ManagedSkillResolverError> {
+    match result {
+        Ok(ManagedSkillResolution::NotManaged) => Ok(SkillResolution::NotManaged),
+        Ok(ManagedSkillResolution::Withheld(reason)) => Ok(SkillResolution::Withheld(*reason)),
+        Ok(ManagedSkillResolution::Published(skill)) => {
+            Ok(SkillResolution::Published(ResolvedManagedSkill {
+                id: skill.id,
+                name: skill.name,
+                description: skill.description,
+                instructions: skill.instructions,
+            }))
+        },
+        Err(ManagedError::Integrity) => Err(ManagedSkillResolverError::Integrity {
+            key: key.to_owned(),
+        }),
+        Err(error) => Err(ManagedSkillResolverError::Unavailable(error.to_string())),
     }
 }

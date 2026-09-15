@@ -171,7 +171,7 @@ async fn serve_plugin_file(
         .map_err(|e| ApiHttpError::internal_error(e.to_string()))?;
     let catalog = (*disk_catalog)
         .clone()
-        .with_managed_skills(
+        .without_organization_skills(
             ctx.managed_repository().as_ref().clone(),
             ctx.system_admin().id(),
         )

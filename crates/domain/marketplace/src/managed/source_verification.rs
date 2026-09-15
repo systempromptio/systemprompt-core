@@ -126,7 +126,9 @@ impl ManagedRepository {
         let manifest = self
             .verify_git_dependencies(owner, &request, &BTreeMap::new())
             .await?;
-        AssetDigest::try_from(manifest.bundle_digest.as_str().to_owned())
+        Ok(AssetDigest::try_from(
+            manifest.bundle_digest.as_str().to_owned(),
+        )?)
     }
 
     pub async fn verify_git_dependencies(

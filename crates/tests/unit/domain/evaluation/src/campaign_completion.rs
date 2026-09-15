@@ -217,3 +217,8 @@ async fn transition_retries_acknowledge_retained_actions_without_new_generations
     assert_eq!(final_state.generation, 2);
     assert_eq!(final_state.status, "active");
 }
+
+#[path = "campaign_comparison.rs"]
+mod comparison;
+#[path = "campaign_report.rs"]
+mod report;

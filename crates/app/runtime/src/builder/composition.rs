@@ -86,6 +86,26 @@ pub(super) struct RepositoryBundles {
     evaluation: Arc<systemprompt_evaluation::repository::experiments::EvaluationRepositories>,
 }
 
+impl RepositoryBundles {
+    pub(super) fn install_organization_resolver(
+        &mut self,
+        owner: &systemprompt_identifiers::UserId,
+    ) {
+        let resolver = Arc::new(
+            systemprompt_marketplace::managed::OrganizationSkillResolver::new(
+                self.managed.as_ref().clone(),
+                owner.clone(),
+            ),
+        );
+        self.a2a = Arc::new(
+            self.a2a
+                .as_ref()
+                .clone()
+                .with_managed_skill_resolver(resolver),
+        );
+    }
+}
+
 pub(super) fn build_repositories(
     database: &systemprompt_database::DbPool,
     analytics: Arc<systemprompt_analytics::repository::AnalyticsRepositories>,
@@ -103,18 +123,12 @@ pub(super) fn build_repositories(
             pool.as_ref(),
         ),
     );
-    let managed_resolver: systemprompt_traits::DynManagedSkillResolver = Arc::new(
-        systemprompt_marketplace::managed::ManagedResourceResolver::new(managed.as_ref().clone()),
-    );
     Ok(RepositoryBundles {
-        a2a: Arc::new(
-            systemprompt_agent::repository::A2ARepositories::new(
-                database,
-                session_usage,
-                instance_id.clone(),
-            )?
-            .with_managed_skill_resolver(managed_resolver),
-        ),
+        a2a: Arc::new(systemprompt_agent::repository::A2ARepositories::new(
+            database,
+            session_usage,
+            instance_id.clone(),
+        )?),
         content: Arc::new(systemprompt_content::repository::ContentRepositories::new(
             database,
         )?),
