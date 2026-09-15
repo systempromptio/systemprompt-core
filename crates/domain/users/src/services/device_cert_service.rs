@@ -12,6 +12,9 @@ use crate::repository::{EnrollDeviceCertParams, UserRepository};
 
 const FINGERPRINT_LEN: usize = 64;
 
+/// Validation message for a fingerprint already enrolled to a different user.
+pub const DEVICE_FINGERPRINT_FOREIGN_USER: &str = "device fingerprint is enrolled to another user";
+
 #[derive(Debug, Clone)]
 pub struct EnrollParams<'a> {
     pub user_id: &'a UserId,
@@ -46,6 +49,25 @@ impl DeviceCertService {
                 label,
             })
             .await
+    }
+
+    /// Enroll a fingerprint, or return the active cert already holding it.
+    ///
+    /// Self-issued bridge fingerprints embed the user id, so a hit for a
+    /// different user is a collision that must never be silently reassigned.
+    pub async fn enroll_or_reuse(&self, params: EnrollParams<'_>) -> Result<UserDeviceCert> {
+        let fingerprint = normalize_fingerprint(params.fingerprint)?;
+        match self
+            .repository
+            .find_active_device_cert_by_fingerprint(&fingerprint)
+            .await?
+        {
+            Some(existing) if existing.user_id == *params.user_id => Ok(existing),
+            Some(_) => Err(UserError::Validation(
+                DEVICE_FINGERPRINT_FOREIGN_USER.into(),
+            )),
+            None => self.enroll(params).await,
+        }
     }
 
     pub async fn verify(&self, fingerprint: &str) -> Result<Option<UserDeviceCert>> {

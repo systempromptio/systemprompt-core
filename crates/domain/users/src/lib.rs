@@ -57,8 +57,9 @@ pub use repository::{
     UserRateLimitBucketRepository, UserRepository, UsersRoleDirectory,
 };
 pub use services::{
-    API_KEY_PREFIX, ApiKeyService, DemoteResult, DeviceCertService, EnrollDeviceCertServiceParams,
-    IssueApiKeyParams, PromoteResult, UpdateUserParams, UserAdminService, UserService,
+    API_KEY_PREFIX, ApiKeyService, DEVICE_FINGERPRINT_FOREIGN_USER, DemoteResult,
+    DeviceCertService, EnrollDeviceCertServiceParams, IssueApiKeyParams, PromoteResult,
+    UpdateUserParams, UserAdminService, UserService,
 };
 
 pub use systemprompt_traits::auth::{RoleProvider, UserProvider};

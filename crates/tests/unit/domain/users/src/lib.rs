@@ -36,6 +36,9 @@ mod repository;
 mod services;
 
 #[cfg(test)]
+mod device_cert_reuse;
+
+#[cfg(test)]
 mod authoritative_reads_db;
 #[cfg(test)]
 mod session_mutations;
