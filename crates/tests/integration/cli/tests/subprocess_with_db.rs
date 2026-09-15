@@ -395,7 +395,7 @@ fn db_query_reject_write() {
             "query",
             "INSERT INTO users (id) VALUES ('nope')",
         ],
-        "must begin with SELECT",
+        "must be a SELECT, an EXPLAIN of a SELECT, or SHOW",
     );
 }
 
