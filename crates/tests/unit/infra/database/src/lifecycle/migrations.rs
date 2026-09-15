@@ -1777,3 +1777,63 @@ fn refuse_slot_collisions_reports_the_first_collision_when_several_exist() {
     assert!(message.contains("034_knowledge_bank"), "{message}");
     assert!(!message.contains("035_files"), "{message}");
 }
+
+#[tokio::test]
+async fn historical_checksum_status_requires_exact_sql_and_slot_identity_without_writing() {
+    use std::hash::{Hash, Hasher};
+    const ORIGINAL: &str = "SELECT 'retained café';\n";
+    let mut hash = std::collections::hash_map::DefaultHasher::new();
+    ORIGINAL.hash(&mut hash);
+    let historical: &'static str = Box::leak(format!("{:x}", hash.finish()).into_boxed_str());
+    let log = Arc::new(CallLog::default());
+    let provider = AppliedRowsProvider {
+        log: Arc::clone(&log),
+        rows: vec![(1, "first", historical, None)],
+    };
+    let service = MigrationService::new(&provider);
+    for (name, sql, expected_drift, expected_collision) in [
+        ("first", ORIGINAL, 0, 0),
+        ("first", "SELECT 'retained café';", 1, 0),
+        ("first", "SELECT 'retained cafe';\n", 1, 0),
+        ("reused", ORIGINAL, 0, 1),
+    ] {
+        let extension = StubExtension {
+            id: "rows_ext",
+            migrations: vec![Migration::new(1, name, sql)],
+        };
+        let status = service.status(&extension).await.unwrap();
+        assert_eq!(status.drift.len(), expected_drift);
+        assert_eq!(status.slot_collisions.len(), expected_collision);
+        assert_eq!(status.applied[0].checksum, historical);
+    }
+    assert!(!log.snapshot().iter().any(|entry| entry == "begin"));
+}
+
+#[tokio::test]
+async fn persisted_users001_checksum_matches_exact_historical_release_bytes() {
+    const SQL: &str = include_str!(
+        "../../../../../../domain/users/schema/migrations/001_add_user_sessions_utm_content_term.sql"
+    );
+    const HISTORICAL: &str = "c0a14059cd93c06b";
+    let log = Arc::new(CallLog::default());
+    let provider = AppliedRowsProvider {
+        log: Arc::clone(&log),
+        rows: vec![(1, "users001", HISTORICAL, None)],
+    };
+    let extension = StubExtension {
+        id: "rows_ext",
+        migrations: vec![Migration::new(1, "users001", SQL)],
+    };
+    let status = MigrationService::new(&provider)
+        .status(&extension)
+        .await
+        .unwrap();
+    assert!(
+        status.drift.is_empty(),
+        "persisted pre-8374d3210 checksum must match exact users001 bytes"
+    );
+    assert!(status.slot_collisions.is_empty());
+    assert_eq!(status.applied[0].checksum, HISTORICAL);
+    assert_ne!(extension.migrations[0].checksum(), HISTORICAL);
+    assert!(!log.snapshot().iter().any(|entry| entry == "begin"));
+}

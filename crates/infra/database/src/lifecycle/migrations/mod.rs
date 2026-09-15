@@ -7,6 +7,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod checksum_transition;
 mod down;
 mod exec;
 mod mark_applied;
@@ -125,6 +126,8 @@ impl<'a> MigrationService<'a> {
         self.ensure_migrations_table_exists().await?;
 
         let applied = self.get_applied_migrations(ext_id).await?;
+        self.transition_checksums(ext_id, &migrations, &applied)
+            .await?;
         let applied_rows: std::collections::HashMap<u32, &AppliedMigration> =
             applied.iter().map(|m| (m.version, m)).collect();
 
