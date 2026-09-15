@@ -34,6 +34,7 @@ struct UsageRow {
     session_id: Option<SessionId>,
     status: String,
     completed_at: Option<DateTime<Utc>>,
+    accounting_failed_at: Option<DateTime<Utc>>,
     cost_microdollars: i64,
     tokens_used: Option<i32>,
     input_tokens: Option<i32>,
@@ -170,6 +171,7 @@ fn usage_from_row(row: UsageRow) -> AiProviderResult<TraceRequestUsage> {
         session_id: row.session_id,
         status: TraceRequestStatus::parse(&row.status),
         completed_at: row.completed_at,
+        accounting_failed_at: row.accounting_failed_at,
         cost_microdollars: row.cost_microdollars,
         tokens_used: row.tokens_used,
         input_tokens: row.input_tokens,
@@ -229,7 +231,7 @@ impl AiRequestTrace for AiRequestRepository {
         let rows = sqlx::query_as!(
             UsageRow,
             r#"
-            SELECT r.id, r.session_id AS "session_id?: SessionId", r.status, r.completed_at, r.cost_microdollars,
+            SELECT r.id, r.session_id AS "session_id?: SessionId", r.status, r.completed_at, r.accounting_failed_at, r.cost_microdollars,
                    r.tokens_used, r.input_tokens, r.output_tokens,
                    (SELECT count(*) FROM ai_request_tool_calls t WHERE t.request_id = r.id) AS "tool_calls!"
             FROM ai_requests r

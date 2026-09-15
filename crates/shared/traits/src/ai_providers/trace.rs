@@ -144,12 +144,18 @@ impl TraceRequestStatus {
 }
 
 /// Recorded usage of one request, scoped to the owner that asked.
+///
+/// A request is settled once the provider call finished and its spend was
+/// recorded: `completed_at` is set and the row is either `Completed` or
+/// carries `accounting_failed_at` (the spend was recorded but a later
+/// accounting step failed, which never replaces the settled cost).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TraceRequestUsage {
     pub request_id: AiRequestId,
     pub session_id: Option<SessionId>,
     pub status: TraceRequestStatus,
     pub completed_at: Option<DateTime<Utc>>,
+    pub accounting_failed_at: Option<DateTime<Utc>>,
     pub cost_microdollars: i64,
     pub tokens_used: Option<i32>,
     pub input_tokens: Option<i32>,
@@ -160,7 +166,8 @@ pub struct TraceRequestUsage {
 impl TraceRequestUsage {
     #[must_use]
     pub fn is_settled(&self) -> bool {
-        self.status == TraceRequestStatus::Completed && self.completed_at.is_some()
+        self.completed_at.is_some()
+            && (self.status == TraceRequestStatus::Completed || self.accounting_failed_at.is_some())
     }
 }
 
