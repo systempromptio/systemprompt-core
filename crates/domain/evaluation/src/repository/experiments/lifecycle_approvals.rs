@@ -93,7 +93,11 @@ impl EvaluationLifecycleRepository {
             decision,
             observed_precondition,
         } = *verdict;
-        if observed_precondition.len()!=64 || !observed_precondition.bytes().all(|byte|byte.is_ascii_hexdigit()) {
+        if observed_precondition.len() != 64
+            || !observed_precondition
+                .bytes()
+                .all(|byte| byte.is_ascii_hexdigit())
+        {
             return Err(invalid("Approval requires a 64-character digest"));
         }
         let mut tx = self.pool.begin().await?;
@@ -102,7 +106,10 @@ impl EvaluationLifecycleRepository {
             ApprovalDecision::Deny => "denied",
         };
         let previous=sqlx::query!("SELECT status,decided_by,precondition_digest FROM eval_execution_approvals WHERE id=$1 AND owner_id=$2 FOR UPDATE",approval.as_str(),owner.as_str()).fetch_optional(&mut *tx).await?.ok_or_else(||crate::experiments::conflict("Approval unavailable in this scope"))?;
-        if previous.status==status && previous.decided_by.as_deref()==Some(actor.as_str()) && previous.precondition_digest==observed_precondition {
+        if previous.status == status
+            && previous.decided_by.as_deref() == Some(actor.as_str())
+            && previous.precondition_digest == observed_precondition
+        {
             tx.commit().await?;
             return Ok(());
         }
@@ -118,5 +125,4 @@ impl EvaluationLifecycleRepository {
         }
         Ok(())
     }
-
 }

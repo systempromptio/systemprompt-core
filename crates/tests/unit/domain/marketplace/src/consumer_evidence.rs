@@ -419,10 +419,24 @@ async fn rollback_requires_new_session_and_preserves_original_attribution_after_
     let mut rebound = f.receipt_binding().await;
     // A client that has compacted its completed local history may retry this
     // original native session against the newly installed publication.
-    assert!(matches!(f.repo.bind_consumer_session(&f.credential.credential, &rebound).await,
-        Err(systemprompt_marketplace::managed::ManagedError::Conflict(_))));
-    assert_eq!(f.repo.bind_consumer_session(&f.credential.credential, &original).await.unwrap().id,
-        f.repo.bind_consumer_session(&f.credential.credential, &original).await.unwrap().id);
+    assert!(matches!(
+        f.repo
+            .bind_consumer_session(&f.credential.credential, &rebound)
+            .await,
+        Err(systemprompt_marketplace::managed::ManagedError::Conflict(_))
+    ));
+    assert_eq!(
+        f.repo
+            .bind_consumer_session(&f.credential.credential, &original)
+            .await
+            .unwrap()
+            .id,
+        f.repo
+            .bind_consumer_session(&f.credential.credential, &original)
+            .await
+            .unwrap()
+            .id
+    );
     rebound.session_id = NativeSessionId::new("new-session-after-rollback");
     f.repo
         .bind_consumer_session(&f.credential.credential, &rebound)
@@ -582,14 +596,43 @@ async fn same_native_session_can_bind_independent_resources() {
     let first = fixture().await;
     let second = fixture().await;
     let binding = first.receipt_binding().await;
-    first.repo.bind_consumer_session(&first.credential.credential, &binding).await.unwrap();
-    second.repo.set_consumer_grant(&second.owner, &second.request.resource_id, &first.consumer, true).await.unwrap();
-    let receipt = second.repo.record_consumer_receipt(&first.credential.credential, &second.request).await.unwrap();
+    first
+        .repo
+        .bind_consumer_session(&first.credential.credential, &binding)
+        .await
+        .unwrap();
+    second
+        .repo
+        .set_consumer_grant(
+            &second.owner,
+            &second.request.resource_id,
+            &first.consumer,
+            true,
+        )
+        .await
+        .unwrap();
+    let receipt = second
+        .repo
+        .record_consumer_receipt(&first.credential.credential, &second.request)
+        .await
+        .unwrap();
     let other = systemprompt_models::feedback::receipts::SessionBindingRequest {
         receipt_id: receipt.receipt_id,
         host: binding.host,
         session_id: binding.session_id,
     };
-    let bound = first.repo.bind_consumer_session(&first.credential.credential, &other).await.unwrap();
-    assert_eq!(bound.id, first.repo.bind_consumer_session(&first.credential.credential, &other).await.unwrap().id);
+    let bound = first
+        .repo
+        .bind_consumer_session(&first.credential.credential, &other)
+        .await
+        .unwrap();
+    assert_eq!(
+        bound.id,
+        first
+            .repo
+            .bind_consumer_session(&first.credential.credential, &other)
+            .await
+            .unwrap()
+            .id
+    );
 }

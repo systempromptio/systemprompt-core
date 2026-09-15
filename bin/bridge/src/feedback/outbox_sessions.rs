@@ -23,7 +23,11 @@ impl Outbox {
                 return Ok(());
             }
             if state.sessions.len() >= 1024 {
-                let old = state.completed_sessions.iter().next().cloned()
+                let old = state
+                    .completed_sessions
+                    .iter()
+                    .next()
+                    .cloned()
                     .ok_or(FeedbackError::Full)?;
                 state.completed_sessions.remove(&old);
                 state.sessions.remove(&old);
@@ -71,7 +75,12 @@ impl Outbox {
                 if newest.get(&entry.request.resource_id) != Some(&entry.request.generation) {
                     continue;
                 }
-                if entry.session_bindings.values().filter(|bound| !**bound).count() >= 256
+                if entry
+                    .session_bindings
+                    .values()
+                    .filter(|bound| !**bound)
+                    .count()
+                    >= 256
                     && !entry.session_bindings.contains_key(session)
                 {
                     return Err(FeedbackError::Full);

@@ -180,7 +180,11 @@ async fn uninitialized_retention_records_a_monotonic_cutoff_before_the_first_reb
     tx.commit().await.unwrap();
     let state: (bool, i64, i64) = sqlx::query_as("SELECT initialized,generation,(SELECT count(*) FROM event_outbox WHERE consumer='analytics_reporting') FROM analytics_projection_state WHERE singleton")
         .fetch_one(&*pool).await.unwrap();
-    assert_eq!(state, (false, 0, 0), "privacy must consume its own changes without claiming a complete baseline");
+    assert_eq!(
+        state,
+        (false, 0, 0),
+        "privacy must consume its own changes without claiming a complete baseline"
+    );
     initialize_and_drain(&db, 0).await;
     let count: i64 = sqlx::query_scalar("SELECT (SELECT count(*) FROM user_sessions) + (SELECT count(*) FROM analytics_report_user_sessions)")
         .fetch_one(&*pool).await.unwrap();

@@ -108,7 +108,10 @@ async fn fixture() -> (PgPool, DbPool, String) {
 
 async fn initialize_and_drain(db: &DbPool, expected_seed_facts: usize) {
     reporting::initialize(db).await.unwrap();
-    assert_eq!(reporting::process_pending(db, 100).await.unwrap(), expected_seed_facts);
+    assert_eq!(
+        reporting::process_pending(db, 100).await.unwrap(),
+        expected_seed_facts
+    );
     assert_eq!(reporting::status(db).await.unwrap().pending_count, 0);
 }
 

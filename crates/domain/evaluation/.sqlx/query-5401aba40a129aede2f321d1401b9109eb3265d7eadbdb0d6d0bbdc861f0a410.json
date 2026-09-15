@@ -1,0 +1,25 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT count(*) FROM eval_executions x JOIN eval_experiments e ON e.id=x.experiment_id JOIN eval_resource_revisions c ON c.id=x.case_revision_id AND c.owner_id=e.owner_id WHERE e.owner_id=$1 AND e.id=$2 AND x.id=ANY($3) AND c.content->'content'->>'partition'='development'",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "TextArray"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "5401aba40a129aede2f321d1401b9109eb3265d7eadbdb0d6d0bbdc861f0a410"
+}

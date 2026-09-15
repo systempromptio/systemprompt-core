@@ -103,11 +103,13 @@ async fn create(
             .campaigns
             .record_diagnostic(
                 owner,
-                actor.user_id(),
-                None,
-                &operation,
-                systemprompt_evaluation::campaigns::diagnostics::DiagnosticStage::Setup,
-                systemprompt_evaluation::campaigns::diagnostics::DiagnosticCode::InvalidInput,
+                systemprompt_evaluation::campaigns::diagnostics::DiagnosticRecord {
+                    actor: actor.user_id(),
+                    campaign: None,
+                    operation: &operation,
+                    stage: systemprompt_evaluation::campaigns::diagnostics::DiagnosticStage::Setup,
+                    code: systemprompt_evaluation::campaigns::diagnostics::DiagnosticCode::InvalidInput,
+                },
             )
             .await?;
     }

@@ -144,7 +144,8 @@ impl Outbox {
             let mut session_bindings = BTreeMap::new();
             for (session_key, publications) in &state.sessions {
                 if state.completed_sessions.contains(session_key)
-                    || !publications.contains(&request.publication_id) {
+                    || !publications.contains(&request.publication_id)
+                {
                     continue;
                 }
                 let (host, session): (systemprompt_models::feedback::EvaluatorClient, String) =
