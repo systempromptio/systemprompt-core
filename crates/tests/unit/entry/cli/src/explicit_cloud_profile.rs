@@ -193,10 +193,18 @@ fn every_mutating_database_command_demands_an_explicit_cloud_profile() {
         vec!["infra", "db", "execute", "DELETE FROM users"],
         vec!["infra", "db", "assign-admin", "u"],
         vec!["infra", "jobs", "run", "publish_pipeline"],
+        vec!["infra", "logs", "delete", "--yes"],
+        vec!["infra", "logs", "cleanup", "--yes"],
     ] {
+        let desc = descriptor(&args);
         assert!(
-            descriptor(&args).requires_explicit_cloud_profile(),
+            desc.requires_explicit_cloud_profile(),
             "{args:?} mutates the resolved database and must carry the flag"
+        );
+        assert_eq!(
+            desc.routing_class(),
+            systemprompt_cli::descriptor::RoutingClass::Mutating,
+            "{args:?} deletes rows; a failed remote route must never fall back to a local run"
         );
     }
 

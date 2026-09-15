@@ -206,41 +206,48 @@ impl DescribeCommand for Commands {
                     core::skills::SkillsCommands::List(_) | core::skills::SkillsCommands::Show(_),
                 ),
             ) => CommandDescriptor::PROFILE_SECRETS_AND_PATHS,
-            // Why: the registry lives in a OnceLock, so whoever installs it
-            // first decides whether discovered models are served. The server
-            // must be that installer, with discovery; a plain `try_init` here
-            // made `try_init_with_discovery` a silent no-op on every boot.
-            Self::Infra(infrastructure::InfraCommands::Services(
-                infrastructure::services::ServicesCommands::Serve { .. }
-                | infrastructure::services::ServicesCommands::Start { .. },
-            )) => CommandDescriptor::PROFILE_SECRETS_AND_PATHS.with_model_discovery(),
-            Self::Infra(infrastructure::InfraCommands::Services(_)) => {
-                CommandDescriptor::PROFILE_SECRETS_AND_PATHS
-            },
-            Self::Infra(infrastructure::InfraCommands::Jobs(
-                infrastructure::jobs::JobsCommands::Run(_),
-            )) => CommandDescriptor::FULL
-                .with_skip_validation()
-                .with_explicit_cloud_profile(),
-            Self::Infra(infrastructure::InfraCommands::Jobs(
-                infrastructure::jobs::JobsCommands::List,
-            )) => CommandDescriptor::FULL.with_skip_validation(),
-            Self::Infra(infrastructure::InfraCommands::Db(
-                infrastructure::db::DbCommands::Migrate { .. }
-                | infrastructure::db::DbCommands::MigrateDown { .. }
-                | infrastructure::db::DbCommands::MigrateRepair { .. }
-                | infrastructure::db::DbCommands::MigrateMarkApplied { .. }
-                | infrastructure::db::DbCommands::Execute { .. }
-                | infrastructure::db::DbCommands::AssignAdmin { .. },
-            )) => CommandDescriptor::FULL.with_explicit_cloud_profile(),
+            Self::Infra(cmd) => infra_descriptor(cmd),
             Self::Analytics(_) => CommandDescriptor::FULL
                 .with_skip_validation()
                 .with_read_only(),
-            Self::Infra(infrastructure::InfraCommands::Logs(_)) => {
-                CommandDescriptor::FULL.with_read_only()
-            },
             _ => CommandDescriptor::FULL,
         }
+    }
+}
+
+// Why: the registry lives in a OnceLock, so whoever installs it first decides
+// whether discovered models are served. The server must be that installer,
+// with discovery; a plain `try_init` here made `try_init_with_discovery` a
+// silent no-op on every boot.
+const fn infra_descriptor(cmd: &infrastructure::InfraCommands) -> CommandDescriptor {
+    use infrastructure::InfraCommands;
+    use infrastructure::db::DbCommands;
+    use infrastructure::jobs::JobsCommands;
+    use infrastructure::logs::LogsCommands;
+    use infrastructure::services::ServicesCommands;
+
+    match cmd {
+        InfraCommands::Services(
+            ServicesCommands::Serve { .. } | ServicesCommands::Start { .. },
+        ) => CommandDescriptor::PROFILE_SECRETS_AND_PATHS.with_model_discovery(),
+        InfraCommands::Services(_) => CommandDescriptor::PROFILE_SECRETS_AND_PATHS,
+        InfraCommands::Jobs(JobsCommands::Run(_)) => CommandDescriptor::FULL
+            .with_skip_validation()
+            .with_explicit_cloud_profile(),
+        InfraCommands::Jobs(JobsCommands::List) => CommandDescriptor::FULL.with_skip_validation(),
+        InfraCommands::Db(
+            DbCommands::Migrate { .. }
+            | DbCommands::MigrateDown { .. }
+            | DbCommands::MigrateRepair { .. }
+            | DbCommands::MigrateMarkApplied { .. }
+            | DbCommands::Execute { .. }
+            | DbCommands::AssignAdmin { .. },
+        )
+        | InfraCommands::Logs(LogsCommands::Delete(_) | LogsCommands::Cleanup(_)) => {
+            CommandDescriptor::FULL.with_explicit_cloud_profile()
+        },
+        InfraCommands::Logs(_) => CommandDescriptor::FULL.with_read_only(),
+        _ => CommandDescriptor::FULL,
     }
 }
 

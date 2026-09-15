@@ -11,7 +11,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use schemars::JsonSchema;
@@ -139,9 +139,13 @@ impl ConfigSection {
     pub fn all_files(self) -> Result<Vec<PathBuf>> {
         let profile = ProfileBootstrap::get()?;
         let services_path = PathBuf::from(&profile.paths.services);
+        let profile_path = PathBuf::from(ProfileBootstrap::get_path()?);
+        self.files_under(&services_path, &profile_path)
+    }
 
+    pub fn files_under(self, services_path: &Path, profile_path: &Path) -> Result<Vec<PathBuf>> {
         match self {
-            Self::Profile => Ok(vec![PathBuf::from(ProfileBootstrap::get_path()?)]),
+            Self::Profile => Ok(vec![profile_path.to_path_buf()]),
             Self::Services => Ok(vec![services_path.join("config/config.yaml")]),
             Self::Ai => Ok(Self::collect_yaml_files(&services_path.join("ai"))?
                 .into_iter()
@@ -161,7 +165,7 @@ impl ConfigSection {
         }
     }
 
-    fn collect_yaml_files(dir: &PathBuf) -> Result<Vec<PathBuf>> {
+    fn collect_yaml_files(dir: &Path) -> Result<Vec<PathBuf>> {
         let mut files = Vec::new();
         if dir.exists() {
             Self::collect_yaml_recursive(dir, &mut files)?;
@@ -169,12 +173,14 @@ impl ConfigSection {
         Ok(files)
     }
 
-    fn collect_yaml_recursive(dir: &PathBuf, files: &mut Vec<PathBuf>) -> Result<()> {
+    fn collect_yaml_recursive(dir: &Path, files: &mut Vec<PathBuf>) -> Result<()> {
         if !dir.is_dir() {
             return Ok(());
         }
 
-        for entry in std::fs::read_dir(dir)? {
+        let entries = std::fs::read_dir(dir)
+            .with_context(|| format!("Failed to read config directory {}", dir.display()))?;
+        for entry in entries {
             let entry = entry?;
             let path = entry.path();
 
@@ -229,7 +235,7 @@ impl std::str::FromStr for ConfigSection {
     }
 }
 
-pub fn read_yaml_file(path: &std::path::Path) -> Result<serde_yaml::Value> {
+pub fn read_yaml_file(path: &Path) -> Result<serde_yaml::Value> {
     // JSON: an untyped document preserves unknown keys in operator-authored
     // config so a single field can be mutated and written back losslessly.
     let content = std::fs::read_to_string(path)
@@ -238,7 +244,7 @@ pub fn read_yaml_file(path: &std::path::Path) -> Result<serde_yaml::Value> {
         .with_context(|| format!("Failed to parse YAML from: {}", path.display()))
 }
 
-pub fn write_yaml_file(path: &std::path::Path, content: &serde_yaml::Value) -> Result<()> {
+pub fn write_yaml_file(path: &Path, content: &serde_yaml::Value) -> Result<()> {
     // JSON: writes back the untyped document read by `read_yaml_file`, keeping
     // operator-authored keys this tooling does not model.
     let yaml_str = serde_yaml::to_string(content).with_context(|| "Failed to serialize YAML")?;

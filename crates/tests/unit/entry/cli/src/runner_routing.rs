@@ -12,7 +12,8 @@ use clap::Parser;
 use systemprompt_cli::args::Cli;
 use systemprompt_cli::descriptor::RoutingClass;
 use systemprompt_cli::runner::profile_routing::{
-    allow_local_execution, confirm_remote_job_run, is_cloud_bypass_command, remediation_for,
+    BootstrapOutcome, RoutingDecision, allow_local_execution, confirm_remote_job_run,
+    decide_routing, is_cloud_bypass_command, remediation_for,
 };
 use systemprompt_cli::runner::routing::{
     ExecutionTarget, determine_execution_target, execute_remote, load_session_for_key,
@@ -223,4 +224,77 @@ async fn an_unreachable_host_is_a_connection_error_not_an_exit_code() {
     .expect_err("a refused connection is not a remote exit code");
 
     assert!(!err.to_string().is_empty());
+}
+
+fn cloud_profile() -> Profile {
+    let mut profile = fixture_profile();
+    profile.target = systemprompt_models::profile::ProfileType::Cloud;
+    profile.database.external_db_access = false;
+    profile
+}
+
+// Why: a remote target must resolve to *one* execution. Reporting the remote
+// run as "continue locally" made the runner dispatch the same mutating
+// command a second time against whatever database the cloud profile resolves.
+#[test]
+fn a_remote_target_is_executed_remotely_and_nowhere_else() {
+    let decision = decide_routing(
+        Ok(ExecutionTarget::Remote {
+            hostname: "tenant.example".to_owned(),
+            token: SessionToken::new("tok"),
+            context: ContextId::generate(),
+        }),
+        &cloud_profile(),
+        RoutingClass::Mutating,
+    )
+    .expect("a resolved remote target is a decision, not an error");
+
+    assert!(
+        matches!(decision, RoutingDecision::ExecuteRemote { ref hostname, .. } if hostname == "tenant.example"),
+        "{decision:?}"
+    );
+    assert_ne!(
+        BootstrapOutcome::RemoteExecuted,
+        BootstrapOutcome::ContinueLocal,
+        "the runner must be able to tell a finished remote run from a local continuation"
+    );
+}
+
+#[test]
+fn a_cloud_profile_with_no_tenant_lets_a_read_only_command_continue_locally() {
+    let decision = decide_routing(
+        Ok(ExecutionTarget::Local),
+        &cloud_profile(),
+        RoutingClass::ReadOnly,
+    )
+    .expect("read-only work may fall back to local data");
+
+    assert_eq!(decision, RoutingDecision::ContinueLocal);
+}
+
+#[test]
+fn a_cloud_profile_that_cannot_route_refuses_a_mutating_command() {
+    let err = decide_routing(
+        Err(anyhow::anyhow!("no session")),
+        &cloud_profile(),
+        RoutingClass::Mutating,
+    )
+    .expect_err("a mutating command must not run against an unknown database");
+
+    assert!(
+        message(&err).contains("requires remote execution"),
+        "{err:#}"
+    );
+}
+
+#[test]
+fn a_local_profile_continues_locally_whatever_the_target_says() {
+    let decision = decide_routing(
+        Err(anyhow::anyhow!("irrelevant")),
+        &fixture_profile(),
+        RoutingClass::Mutating,
+    )
+    .expect("a local profile never routes");
+
+    assert_eq!(decision, RoutingDecision::ContinueLocal);
 }

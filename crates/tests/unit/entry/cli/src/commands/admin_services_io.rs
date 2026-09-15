@@ -130,3 +130,39 @@ fn an_unmodelled_key_in_the_gateway_file_is_rejected_and_an_empty_file_defaults(
     let empty: GatewayFile = serde_yaml::from_str("{}\n").unwrap();
     assert!(empty.gateway.is_none());
 }
+
+// Why: the root aggregator is operator-authored. Treating *any* read failure
+// as "empty" and then writing back replaced the whole file with a bare
+// `includes:` block — a permissions hiccup or one stray byte lost the config.
+#[test]
+fn a_root_that_cannot_be_read_is_left_untouched_and_the_error_surfaces() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().join("config.yaml");
+    let original: &[u8] = b"includes:\n  - ../ai/agents.yaml\n\xff\xfe not utf-8\n";
+    std::fs::write(&root, original).unwrap();
+
+    let err = append_include(&root, "../ai/providers.yaml")
+        .expect_err("an unreadable root must not be rewritten");
+
+    assert!(
+        format!("{err:#}").contains("Failed to read"),
+        "the failure must name the read, got: {err:#}"
+    );
+    assert_eq!(
+        std::fs::read(&root).unwrap(),
+        original,
+        "the operator's file must be byte-for-byte untouched"
+    );
+}
+
+#[test]
+fn a_root_that_is_a_directory_is_reported_not_replaced() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().join("config.yaml");
+    std::fs::create_dir(&root).unwrap();
+
+    append_include(&root, "../ai/providers.yaml")
+        .expect_err("a directory in place of the root cannot be spliced into");
+
+    assert!(root.is_dir(), "the directory must still be there");
+}

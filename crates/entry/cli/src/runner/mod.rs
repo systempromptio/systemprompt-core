@@ -73,17 +73,20 @@ async fn run_inner() -> Result<()> {
         systemprompt_logging::init_console_logging_with_level(effective_level.as_deref());
     }
 
-    if desc.profile()
-        && let Some(external_db_url) =
-            profile_routing::bootstrap_profile(&cli, &desc, &cli_config, &env).await?
-    {
-        return Box::pin(run_with_database_url(
-            cli.command,
-            cli_config,
-            env,
-            &external_db_url,
-        ))
-        .await;
+    if desc.profile() {
+        match profile_routing::bootstrap_profile(&cli, &desc, &cli_config, &env).await? {
+            profile_routing::BootstrapOutcome::RemoteExecuted => return Ok(()),
+            profile_routing::BootstrapOutcome::ExternalDbUrl(external_db_url) => {
+                return Box::pin(run_with_database_url(
+                    cli.command,
+                    cli_config,
+                    env,
+                    &external_db_url,
+                ))
+                .await;
+            },
+            profile_routing::BootstrapOutcome::ContinueLocal => {},
+        }
     }
 
     let ctx = CommandContext::new(cli_config, env);

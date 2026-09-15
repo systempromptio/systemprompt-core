@@ -64,9 +64,7 @@ pub fn execute(args: &ValidateArgs, _config: &CliConfig) -> Result<(CommandOutpu
     } else {
         let mut all_files = Vec::new();
         for section in ConfigSection::all() {
-            if let Ok(files) = section.all_files() {
-                all_files.extend(files);
-            }
+            all_files.extend(section.all_files()?);
         }
         all_files
     };

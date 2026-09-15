@@ -9,6 +9,7 @@
 ### Added
 
 - `admin config rate-limits` reads, sets, diffs, resets and validates `gateway_per_second`.
+- `runner::profile_routing::{BootstrapOutcome, RoutingDecision, decide_routing}` expose the routing decision the runner acts on.
 
 ### Changed
 
@@ -17,11 +18,19 @@
 - `admin session login` refuses to proceed on a corrupt session index (`SessionStoreCorrupted`, with the repair hint) instead of silently starting from an empty store; `admin session switch` remains the documented repair path and `show`/`list` render an unreadable store as empty with a warning.
 - `infra migrations history` prints `unstamped` for a migration recorded without a checksum; `infra jobs cleanup-logs` runs on `LoggingRepository`.
 - `infra db migrate*`, `admin bootstrap`, `admin config reconcile` and session creation connect through `Database::connect`; the profile `database_type` string is no longer consulted.
+- `admin evals promote` samples the request through the AI request trace seam; `skills list` pages managed resources by `has_more`.
+- `infra logs delete` and `infra logs cleanup` are classed as mutating: they refuse an implicitly selected cloud profile and never fall back to a local run when remote routing fails.
+- `admin config validate` fails when a section directory cannot be enumerated instead of silently omitting the section and reporting success.
 - `cloud init` and `cloud profile` scaffolding fail when the embedded provider catalog is unreadable instead of writing empty default models; `admin config catalog discovery` fails when the embedded Vertex rate card is unreadable.
 - `admin agents validate` fails when secrets are not initialised instead of reporting every provider key as missing.
 - `cloud profile show` prints a warning when the profile or services config cannot be loaded; a failed container cleanup after a failed `cloud tenant create` start is reported.
 
 - `core files upload --context` and `core artifacts list --context` validate the id and report an error instead of aborting the process on a malformed value.
+
+### Fixed
+
+- A command routed to a remote tenant runs exactly once; the runner no longer dispatches it a second time locally after the remote run succeeds.
+- `admin config catalog|gateway` leave `services/config/config.yaml` untouched and report the error when the file cannot be read (permissions, a directory, invalid UTF-8) instead of overwriting it with a bare `includes:` block.
 
 ## [0.52.0] - 2026-09-14
 
