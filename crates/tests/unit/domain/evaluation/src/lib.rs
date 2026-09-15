@@ -62,3 +62,6 @@ mod fixture_admission;
 
 #[cfg(test)]
 mod native_capabilities;
+
+#[cfg(test)]
+mod repository_approval_acceptance;
