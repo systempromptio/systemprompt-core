@@ -53,7 +53,7 @@ pub(super) fn invalid() -> AnalyticsError {
     AnalyticsError::invalid_argument("Invalid or conflicting analytics evidence")
 }
 
-fn reference(key: &systemprompt_models::feedback::analytics::AnalyticsFactKey) -> Result<()> {
+fn reference(key: &AnalyticsFactKey) -> Result<()> {
     if key.id.as_str().is_empty()
         || key.id.as_str().len() > 512
         || key.source.is_empty()

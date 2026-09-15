@@ -18,4 +18,4 @@ CREATE TABLE IF NOT EXISTS eval_suggestions (
 DROP TRIGGER IF EXISTS eval_suggestion_owner_scope ON eval_suggestions;
 CREATE TRIGGER eval_suggestion_owner_scope BEFORE INSERT OR UPDATE ON eval_suggestions FOR EACH ROW EXECUTE FUNCTION enforce_eval_lifecycle_owner();
 
-CREATE UNIQUE INDEX eval_suggestion_operation_unique ON eval_suggestions(owner_id,operation_key) WHERE operation_key IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS eval_suggestion_operation_unique ON eval_suggestions(owner_id,operation_key) WHERE operation_key IS NOT NULL;
