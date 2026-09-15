@@ -43,6 +43,13 @@ impl AiSessionProvider for RecordingSessionProvider {
         ));
         Ok(())
     }
+
+    async fn find_live_session(
+        &self,
+        _session_id: &SessionId,
+    ) -> AiProviderResult<Option<systemprompt_traits::ActiveSession>> {
+        Ok(None)
+    }
 }
 
 fn request(ctx: systemprompt_models::RequestContext) -> AiRequest {
@@ -185,6 +192,15 @@ impl AiSessionProvider for FailingSessionProvider {
     ) -> AiProviderResult<()> {
         Err(systemprompt_traits::AiProviderError::ConfigurationError {
             message: "usage counter unavailable".to_owned(),
+        })
+    }
+
+    async fn find_live_session(
+        &self,
+        _session_id: &SessionId,
+    ) -> AiProviderResult<Option<systemprompt_traits::ActiveSession>> {
+        Err(systemprompt_traits::AiProviderError::ConfigurationError {
+            message: "session store unavailable".to_owned(),
         })
     }
 }

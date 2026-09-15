@@ -42,6 +42,13 @@ impl AiSessionProvider for NoopSessionProvider {
     ) -> AiProviderResult<()> {
         Ok(())
     }
+
+    async fn find_live_session(
+        &self,
+        _session_id: &systemprompt_identifiers::SessionId,
+    ) -> AiProviderResult<Option<systemprompt_traits::ActiveSession>> {
+        Ok(None)
+    }
 }
 
 pub(crate) fn noop_session_provider() -> DynAiSessionProvider {

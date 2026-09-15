@@ -12,6 +12,7 @@
 
 ### Added
 
+- `AiRequestRepository` implements `systemprompt_traits::AiRequestTrace`, the owner-scoped read seam (sampling and recorded usage) other domains use instead of querying `ai_requests*` directly.
 - `repository::AiOwnerReassignment` implements `systemprompt_traits::OwnerReassignment` over `ai_requests`, `ai_quota_buckets` (merged buckets are dropped) and `ai_gateway_thought_signatures`.
 - `services::providers::AiProvider::is_available` — `ResilientProvider` reports its circuit-breaker state, and `AiService::health_check` reports it instead of `true` for every registered provider.
 - `AiError::UnknownModel`.
