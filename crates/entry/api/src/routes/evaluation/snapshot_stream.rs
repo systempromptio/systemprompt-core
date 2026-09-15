@@ -11,8 +11,10 @@ use axum::extract::{Query, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::IntoResponse;
 use axum::response::sse::{Event, Sse};
+use futures_util::FutureExt;
 use serde::{Deserialize, Serialize};
 use std::convert::Infallible;
+use std::panic::AssertUnwindSafe;
 use std::sync::LazyLock;
 use systemprompt_events::{
     Broadcaster, ConnectionGuard, GenericBroadcaster, ToSse, standard_keep_alive,
@@ -21,6 +23,7 @@ use systemprompt_identifiers::ConnectionId;
 use systemprompt_models::RequestContext;
 use systemprompt_runtime::AppContext;
 use tokio::sync::mpsc;
+use tokio::task::JoinHandle;
 use tokio_stream::wrappers::ReceiverStream;
 
 #[derive(Debug, Clone, Serialize, schemars::JsonSchema)]
@@ -69,12 +72,47 @@ pub(super) async fn stream(
     if !CONNECTIONS.register(&user, &id, tx.clone()).await {
         return StatusCode::TOO_MANY_REQUESTS.into_response();
     }
-    let guard = ConnectionGuard::new(&CONNECTIONS, user, id);
-    let notifications = super::snapshot_wakeup::subscribe(&ctx).await;
-    tokio::spawn(forward(ctx, tx, resume, notifications));
-    Sse::new(StreamWithGuard::new(ReceiverStream::new(rx), guard))
-        .keep_alive(standard_keep_alive())
-        .into_response()
+    let guard = ConnectionGuard::new(&CONNECTIONS, user, id.clone());
+    let notifications = ctx.snapshot_wakeup().subscribe(ctx.db_pool()).await;
+    let forwarder = tokio::spawn(async move {
+        if AssertUnwindSafe(forward(ctx, tx, resume, notifications))
+            .catch_unwind()
+            .await
+            .is_err()
+        {
+            tracing::error!(connection_id = %id, "Snapshot stream forwarder panicked");
+        }
+    });
+    Sse::new(OwnedStream {
+        inner: StreamWithGuard::new(ReceiverStream::new(rx), guard),
+        forwarder,
+    })
+    .keep_alive(standard_keep_alive())
+    .into_response()
+}
+
+// Why: the forwarder is bounded by the receiver's lifetime, but a stream that
+// is dropped mid-poll must not leave it running until its next tick notices.
+struct OwnedStream {
+    inner: StreamWithGuard<FeedbackWake>,
+    forwarder: JoinHandle<()>,
+}
+
+impl Drop for OwnedStream {
+    fn drop(&mut self) {
+        self.forwarder.abort();
+    }
+}
+
+impl futures_util::Stream for OwnedStream {
+    type Item = Result<Event, Infallible>;
+
+    fn poll_next(
+        mut self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Option<Self::Item>> {
+        std::pin::Pin::new(&mut self.inner).poll_next(cx)
+    }
 }
 async fn forward(
     ctx: AppContext,
@@ -85,20 +123,25 @@ async fn forward(
     let mut interval = tokio::time::interval(std::time::Duration::from_secs(5));
     interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
     let mut initial = true;
+    let mut failing = false;
     loop {
         tokio::select! {()=tx.closed()=>break,_tick=interval.tick()=>{},changed=notifications.changed()=>{if changed.is_err(){break;}}}
-        let health = tokio::select! {()=tx.closed()=>break,result=ctx.feedback_snapshots_repository().health(ctx.system_admin().id())=>result};
-        let Ok(health) = health else {
-            continue;
-        };
-        let coverage = tokio::select! {()=tx.closed()=>break,result=async{let inventory=ctx.managed_repository().inventory_status(ctx.system_admin().id()).await?;let installations=ctx.managed_repository().installation_coverage_status(ctx.system_admin().id()).await?;Ok::<_,systemprompt_marketplace::managed::ManagedError>((inventory,installations))}=>result};
-        let Ok((inventory, installations)) = coverage else {
-            continue;
-        };
-        let generation = Generation {
-            snapshots: health.generation,
-            inventory: inventory.generation,
-            installations: installations.generation,
+        let read = tokio::select! {()=tx.closed()=>break,result=read_generation(&ctx)=>result};
+        let generation = match read {
+            Ok(generation) => {
+                if failing {
+                    tracing::info!("Snapshot stream generation reads recovered");
+                    failing = false;
+                }
+                generation
+            },
+            Err(error) => {
+                if !failing {
+                    tracing::warn!(%error, "Snapshot stream generation read failed; retrying");
+                    failing = true;
+                }
+                continue;
+            },
         };
         if initial || previous != Some(generation) {
             let event = FeedbackWake {
@@ -114,4 +157,27 @@ async fn forward(
             initial = false;
         }
     }
+}
+
+#[derive(Debug, thiserror::Error)]
+enum GenerationReadError {
+    #[error(transparent)]
+    Snapshots(#[from] systemprompt_analytics::AnalyticsError),
+    #[error(transparent)]
+    Managed(#[from] systemprompt_marketplace::managed::ManagedError),
+}
+
+async fn read_generation(ctx: &AppContext) -> Result<Generation, GenerationReadError> {
+    let owner = ctx.system_admin().id();
+    let health = ctx.feedback_snapshots_repository().health(owner).await?;
+    let inventory = ctx.managed_repository().inventory_status(owner).await?;
+    let installations = ctx
+        .managed_repository()
+        .installation_coverage_status(owner)
+        .await?;
+    Ok(Generation {
+        snapshots: health.generation,
+        inventory: inventory.generation,
+        installations: installations.generation,
+    })
 }

@@ -171,6 +171,10 @@ impl AppContextBuilder {
             geoip_reader,
             file_storage,
             shutdown,
+            publish_guard: Arc::new(tokio::sync::Mutex::new(
+                systemprompt_marketplace::inventory::PublishGuard::default(),
+            )),
+            snapshot_wakeup: Arc::new(crate::reporting::SnapshotWakeup::default()),
         };
 
         Ok(AppContext::from_parts(

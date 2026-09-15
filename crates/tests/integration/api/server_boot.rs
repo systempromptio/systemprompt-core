@@ -142,6 +142,10 @@ async fn setup_api_server_assembles_full_router() -> anyhow::Result<()> {
                 &std::env::temp_dir(),
             ),
             shutdown: Default::default(),
+            publish_guard: Arc::new(tokio::sync::Mutex::new(
+                systemprompt_marketplace::inventory::PublishGuard::default(),
+            )),
+            snapshot_wakeup: Arc::new(systemprompt_runtime::reporting::SnapshotWakeup::default()),
         },
     ));
 

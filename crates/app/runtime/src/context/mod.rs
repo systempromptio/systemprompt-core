@@ -21,6 +21,7 @@ use systemprompt_evaluation::repository::experiments::EvaluationRepositories;
 use systemprompt_events::EventBridgeHandle;
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_files::FileRepository;
+use systemprompt_marketplace::inventory::PublishGuard;
 use systemprompt_marketplace::managed::ManagedRepository;
 use systemprompt_marketplace::{MarketplaceCache, MarketplaceFilter};
 use systemprompt_mcp::repository::McpSessionRepository;
@@ -97,6 +98,8 @@ pub struct Subsystems {
     pub geoip_reader: Option<GeoIpReader>,
     pub file_storage: Arc<dyn FileStorage>,
     pub shutdown: ShutdownRequest,
+    pub publish_guard: Arc<tokio::sync::Mutex<PublishGuard>>,
+    pub snapshot_wakeup: Arc<crate::reporting::SnapshotWakeup>,
 }
 
 /// Application-wide runtime container shared across the HTTP server, the
@@ -232,6 +235,17 @@ impl AppContext {
 
     pub const fn event_bridge(&self) -> &Arc<OnceLock<EventBridgeHandle>> {
         &self.subsystems.event_bridge
+    }
+
+    // Why: the guard memoises per-entry tree digests across passes; the
+    // scheduled job and the manual route share it so neither re-captures a
+    // tree the other already published.
+    pub const fn publish_guard(&self) -> &Arc<tokio::sync::Mutex<PublishGuard>> {
+        &self.subsystems.publish_guard
+    }
+
+    pub const fn snapshot_wakeup(&self) -> &Arc<crate::reporting::SnapshotWakeup> {
+        &self.subsystems.snapshot_wakeup
     }
 
     pub fn system_admin(&self) -> &SystemAdmin {

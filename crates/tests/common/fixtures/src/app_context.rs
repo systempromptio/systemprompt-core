@@ -158,7 +158,48 @@ pub fn fixture_app_context_with(
 
 pub fn fixture_app_context_with_config(pool: &DbPool, config: Config) -> Result<Arc<AppContext>> {
     let hook = Arc::new(AllowAllHook::new(Arc::new(NullAuditSink)));
-    fixture_app_context_assembled(pool, config, tmp_paths(), Arc::new(AllowAllFilter), hook)
+    let user_repository = Arc::new(systemprompt_users::UserRepository::new(pool)?);
+    fixture_app_context_assembled(
+        pool,
+        config,
+        tmp_paths(),
+        FixtureSeams {
+            marketplace_filter: Arc::new(AllowAllFilter),
+            authz_hook: hook,
+            user_repository,
+        },
+    )
+}
+
+// The collaborators a test may swap out; everything else is built from the
+// pool.
+struct FixtureSeams {
+    marketplace_filter: Arc<dyn MarketplaceFilter>,
+    authz_hook: SharedAuthzHook,
+    user_repository: Arc<systemprompt_users::UserRepository>,
+}
+
+// Build a fixture context whose user repository is supplied by the test —
+// used to drive the user-data read failures of a route while every other
+// repository stays healthy.
+pub fn fixture_app_context_with_user_repository(
+    pool: &DbPool,
+    database_url: &str,
+    paths: PathsConfig,
+    marketplace_filter: Arc<dyn MarketplaceFilter>,
+    user_repository: Arc<systemprompt_users::UserRepository>,
+) -> Result<Arc<AppContext>> {
+    let hook = Arc::new(AllowAllHook::new(Arc::new(NullAuditSink)));
+    fixture_app_context_assembled(
+        pool,
+        fixture_config(database_url),
+        paths,
+        FixtureSeams {
+            marketplace_filter,
+            authz_hook: hook,
+            user_repository,
+        },
+    )
 }
 
 // Build a fixture context with an explicit authorization hook — used by tests
@@ -185,12 +226,16 @@ fn fixture_app_context_full(
     marketplace_filter: Arc<dyn MarketplaceFilter>,
     authz_hook: SharedAuthzHook,
 ) -> Result<Arc<AppContext>> {
+    let user_repository = Arc::new(systemprompt_users::UserRepository::new(pool)?);
     fixture_app_context_assembled(
         pool,
         fixture_config(database_url),
         paths,
-        marketplace_filter,
-        authz_hook,
+        FixtureSeams {
+            marketplace_filter,
+            authz_hook,
+            user_repository,
+        },
     )
 }
 
@@ -198,9 +243,13 @@ fn fixture_app_context_assembled(
     pool: &DbPool,
     config: Config,
     paths: PathsConfig,
-    marketplace_filter: Arc<dyn MarketplaceFilter>,
-    authz_hook: SharedAuthzHook,
+    seams: FixtureSeams,
 ) -> Result<Arc<AppContext>> {
+    let FixtureSeams {
+        marketplace_filter,
+        authz_hook,
+        user_repository,
+    } = seams;
     let governance = Arc::new(
         systemprompt_security::policy::GovernanceEngine::from_services_root(std::path::Path::new(
             &paths.services,
@@ -216,7 +265,6 @@ fn fixture_app_context_assembled(
     let analytics_service = Arc::new(AnalyticsService::new(None, None, &analytics_repositories));
     let session_usage: systemprompt_traits::DynSessionUsageCounters =
         analytics_service.session_repo().owner();
-    let user_repository = Arc::new(systemprompt_users::UserRepository::new(pool)?);
     let file_storage = systemprompt_storage::build_file_storage(
         systemprompt_models::profile::StorageBackend::Local,
         app_paths.storage().root(),
@@ -300,6 +348,10 @@ fn fixture_app_context_assembled(
             geoip_reader: None,
             file_storage,
             shutdown: Default::default(),
+            publish_guard: Arc::new(tokio::sync::Mutex::new(
+                systemprompt_marketplace::inventory::PublishGuard::default(),
+            )),
+            snapshot_wakeup: Arc::new(systemprompt_runtime::reporting::SnapshotWakeup::default()),
         },
     );
 

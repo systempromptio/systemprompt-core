@@ -161,6 +161,10 @@ async fn plane_debug_impls_flag_optional_members() {
             &std::env::temp_dir(),
         ),
         shutdown: Default::default(),
+        publish_guard: Arc::new(tokio::sync::Mutex::new(
+            systemprompt_marketplace::inventory::PublishGuard::default(),
+        )),
+        snapshot_wakeup: Arc::new(systemprompt_runtime::reporting::SnapshotWakeup::default()),
     };
     let dbg = format!("{subsystems:?}");
     assert!(dbg.contains("Subsystems"), "got: {dbg}");

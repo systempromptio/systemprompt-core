@@ -6,18 +6,11 @@
 
 use super::OptimizationError;
 use crate::AppContext;
-use std::sync::OnceLock;
 use systemprompt_identifiers::UserId;
 use systemprompt_marketplace::inventory::{
     BaselineCapture, BaselinePreparation, BaselineScope, InventoryService, InventoryStatus,
-    PublishGuard,
 };
 pub use systemprompt_marketplace::inventory::{LatestPublication, LatestPublicationStatus};
-
-// Why: the guard memoises per-entry tree digests across passes; one per
-// process keeps the scheduled job and the manual route from re-capturing
-// the same unchanged tree.
-static PUBLISH_GUARD: OnceLock<tokio::sync::Mutex<PublishGuard>> = OnceLock::new();
 
 pub async fn refresh(
     ctx: &AppContext,
@@ -65,10 +58,7 @@ pub async fn publish_latest(
     service
         .refresh(owner, ctx.app_paths().system().services(), &services)
         .await?;
-    let mut guard = PUBLISH_GUARD
-        .get_or_init(|| tokio::sync::Mutex::new(PublishGuard::default()))
-        .lock()
-        .await;
+    let mut guard = ctx.publish_guard().lock().await;
     Ok(service
         .publish_latest(
             &BaselineScope {
@@ -88,13 +78,14 @@ async fn load_services(
 ) -> Result<systemprompt_models::services::ServicesConfig, OptimizationError> {
     match systemprompt_loader::ConfigLoader::load() {
         Ok(services) => Ok(services),
-        Err(_error) => {
+        Err(error) => {
+            tracing::warn!(%error, "Configured inventory could not be loaded; previous inventory retained");
             ctx.managed_repository()
                 .record_inventory_failure(owner)
                 .await?;
-            Err(OptimizationError::Source(
-                "Configured inventory could not be loaded; previous inventory retained".to_owned(),
-            ))
+            Err(OptimizationError::Source(format!(
+                "Configured inventory could not be loaded; previous inventory retained: {error}"
+            )))
         },
     }
 }

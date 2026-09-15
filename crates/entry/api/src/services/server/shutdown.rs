@@ -124,6 +124,7 @@ pub async fn drain(ctx: &AppContext, scheduler: Option<SchedulerHandle>) {
     if let Some(handle) = ctx.event_bridge().get() {
         handle.shutdown().await;
     }
+    ctx.snapshot_wakeup().shutdown().await;
 
     if let Some(handle) = scheduler
         && let Err(e) = handle.shutdown().await
