@@ -11,7 +11,6 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, OnceLock, RwLock};
 
 use sha2::{Digest, Sha256};
 use systemprompt_models::bridge::ids::SkillId;
@@ -90,36 +89,6 @@ impl CatalogContent {
         })
     }
 
-    pub fn load_cached(
-        services: &ServicesConfig,
-        services_root: &Path,
-        api_external_url: &str,
-    ) -> Result<Arc<Self>, MarketplaceError> {
-        let fingerprint = catalog_fingerprint(services, services_root, api_external_url)?;
-        let cache = CATALOG_CACHE.get_or_init(|| RwLock::new(None));
-
-        let hit = {
-            let guard = cache
-                .read()
-                .unwrap_or_else(std::sync::PoisonError::into_inner);
-            guard
-                .as_ref()
-                .filter(|(cached_fp, _)| *cached_fp == fingerprint)
-                .map(|(_, catalog)| Arc::clone(catalog))
-        };
-        if let Some(catalog) = hit {
-            return Ok(catalog);
-        }
-
-        let catalog = Arc::new(Self::load(services, services_root, api_external_url)?);
-        let mut guard = cache
-            .write()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        *guard = Some((fingerprint, Arc::clone(&catalog)));
-        drop(guard);
-        Ok(catalog)
-    }
-
     #[must_use]
     pub fn as_content(&self) -> BundleContent<'_> {
         BundleContent {
@@ -146,11 +115,7 @@ impl CatalogContent {
     }
 }
 
-type CatalogCache = OnceLock<RwLock<Option<([u8; 32], Arc<CatalogContent>)>>>;
-
-static CATALOG_CACHE: CatalogCache = OnceLock::new();
-
-fn catalog_fingerprint(
+pub(super) fn catalog_fingerprint(
     services: &ServicesConfig,
     services_root: &Path,
     api_external_url: &str,

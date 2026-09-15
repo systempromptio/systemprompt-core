@@ -14,7 +14,7 @@ use axum::http::{HeaderMap, StatusCode};
 use chrono::{Duration, Utc};
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::{ApiKeyId, JwtToken, UserId};
-use systemprompt_marketplace::{CatalogContent, ManifestService, MarketplaceCandidate, NoopTrace};
+use systemprompt_marketplace::{AssembleRequest, ManifestService, MarketplaceCandidate, NoopTrace};
 use systemprompt_models::bridge::manifest::{
     MANIFEST_SCHEMA_VERSION, MIN_BRIDGE_VERSION, SignedManifest, SignedManifestEnvelope, UserInfo,
 };
@@ -108,12 +108,13 @@ pub(crate) async fn assemble_candidate(
     let bridge_policy = services.bridge_policy.unwrap_or_default();
 
     let services_root = ctx.app_paths().system().services();
-    let disk_catalog =
-        CatalogContent::load_cached(&services, services_root, &profile.server.api_external_url)
-            .map_err(|e| {
-                tracing::warn!(error = %e, "manifest: catalog load failed");
-                (StatusCode::INTERNAL_SERVER_ERROR, format!("manifest: {e}"))
-            })?;
+    let disk_catalog = ctx
+        .marketplace_cache()
+        .catalog(&services, services_root, &profile.server.api_external_url)
+        .map_err(|e| {
+            tracing::warn!(error = %e, "manifest: catalog load failed");
+            (StatusCode::INTERNAL_SERVER_ERROR, format!("manifest: {e}"))
+        })?;
     let catalog = (*disk_catalog)
         .clone()
         .with_organization_skills(
@@ -131,10 +132,13 @@ pub(crate) async fn assemble_candidate(
         })?;
     ManifestService::assemble_candidate_from_catalog(
         catalog,
-        &services,
-        services_root,
-        ctx.marketplace_filter().as_ref(),
-        user_id,
+        &AssembleRequest {
+            services: &services,
+            services_root,
+            filter: ctx.marketplace_filter().as_ref(),
+            user_id,
+            cache: ctx.marketplace_cache(),
+        },
         &mut NoopTrace,
     )
     .await

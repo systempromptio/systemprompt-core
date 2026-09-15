@@ -21,8 +21,8 @@ use systemprompt_evaluation::repository::experiments::EvaluationRepositories;
 use systemprompt_events::EventBridgeHandle;
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_files::FileRepository;
-use systemprompt_marketplace::MarketplaceFilter;
 use systemprompt_marketplace::managed::ManagedRepository;
+use systemprompt_marketplace::{MarketplaceCache, MarketplaceFilter};
 use systemprompt_mcp::repository::McpSessionRepository;
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::services::SystemAdmin;
@@ -84,6 +84,7 @@ pub struct Plugins {
     pub api_registry: Arc<ModuleApiRegistry>,
     pub mcp_registry: RegistryService,
     pub marketplace_filter: Arc<dyn MarketplaceFilter>,
+    pub marketplace_cache: Arc<MarketplaceCache>,
 }
 
 #[derive(Clone)]
@@ -223,6 +224,10 @@ impl AppContext {
 
     pub fn marketplace_filter(&self) -> &Arc<dyn MarketplaceFilter> {
         &self.plugins.marketplace_filter
+    }
+
+    pub const fn marketplace_cache(&self) -> &Arc<MarketplaceCache> {
+        &self.plugins.marketplace_cache
     }
 
     pub const fn event_bridge(&self) -> &Arc<OnceLock<EventBridgeHandle>> {

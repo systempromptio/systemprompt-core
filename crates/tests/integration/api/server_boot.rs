@@ -128,6 +128,7 @@ async fn setup_api_server_assembles_full_router() -> anyhow::Result<()> {
             api_registry: Arc::new(ModuleApiRegistry::new()),
             mcp_registry: RegistryService::new(fixture_user_id()),
             marketplace_filter: Arc::new(AllowAllFilter),
+            marketplace_cache: Arc::new(systemprompt_marketplace::MarketplaceCache::default()),
         },
         Subsystems {
             system_admin: Arc::new(fixture_system_admin("admin")),

@@ -21,8 +21,7 @@ use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::MarketplaceId;
 use systemprompt_loader::ConfigLoader;
 use systemprompt_marketplace::{
-    CatalogContent, MarketplaceService, plugin_bundles_cached, render_marketplace_json,
-    render_marketplace_list,
+    MarketplaceService, render_marketplace_json, render_marketplace_list,
 };
 use systemprompt_models::bridge::ids::PluginId;
 use systemprompt_models::services::ServicesConfig;
@@ -167,7 +166,9 @@ async fn serve_plugin_file(
     let api_external_url = &profile.server.api_external_url;
     let services_root = ctx.app_paths().system().services();
 
-    let disk_catalog = CatalogContent::load_cached(&services, services_root, api_external_url)
+    let disk_catalog = ctx
+        .marketplace_cache()
+        .catalog(&services, services_root, api_external_url)
         .map_err(|e| ApiHttpError::internal_error(e.to_string()))?;
     let catalog = (*disk_catalog)
         .clone()
@@ -177,7 +178,9 @@ async fn serve_plugin_file(
         )
         .await
         .map_err(|error| ApiHttpError::internal_error(error.to_string()))?;
-    let bundles = plugin_bundles_cached(&services, &catalog.as_content())
+    let bundles = ctx
+        .marketplace_cache()
+        .bundles(&services, &catalog.as_content())
         .map_err(|e| ApiHttpError::internal_error(e.to_string()))?;
 
     let id = PluginId::try_new(&plugin_id)

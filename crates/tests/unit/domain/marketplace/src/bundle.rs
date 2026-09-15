@@ -2,10 +2,11 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 use systemprompt_identifiers::{AgentId, AgentName, PluginId, ValidatedUrl};
+use systemprompt_marketplace::MarketplaceCache;
 use systemprompt_marketplace::bundle::{
     BundleContent, PluginBundle, build_plugin_bundle, bundle_has_content,
 };
-use systemprompt_marketplace::catalog::{load_plugins, plugin_bundles, plugin_bundles_cached};
+use systemprompt_marketplace::catalog::{load_plugins, plugin_bundles};
 use systemprompt_models::bridge::ids::{
     LibraryArtifactId, ManagedMcpServerName, RuleId, RuleName, Sha256Digest, SkillId, SkillName,
 };
@@ -229,7 +230,8 @@ fn load_plugins_builds_entry_from_spec_without_prebuilt_dir() {
         ),
     );
 
-    let entries = load_plugins(&services, &content).expect("load plugins");
+    let entries =
+        load_plugins(&services, &content, &MarketplaceCache::default()).expect("load plugins");
     assert_eq!(entries.len(), 1);
     assert_eq!(entries[0].id.as_str(), "demo-plugin");
     assert!(!entries[0].files.is_empty());
@@ -263,7 +265,8 @@ fn load_plugins_skips_spec_with_no_resolvable_content() {
         ),
     );
 
-    let entries = load_plugins(&services, &content).expect("load plugins");
+    let entries =
+        load_plugins(&services, &content, &MarketplaceCache::default()).expect("load plugins");
     assert!(
         entries.is_empty(),
         "a spec resolving to no content must be skipped, not shipped as a shell"
@@ -431,7 +434,8 @@ fn manifest_entries_hash_the_served_bytes() {
         ),
     );
 
-    let entries = load_plugins(&services, &content).expect("load plugins");
+    let entries =
+        load_plugins(&services, &content, &MarketplaceCache::default()).expect("load plugins");
     let bundles = plugin_bundles(&services, &content).expect("plugin bundles");
     assert_eq!(entries.len(), 1);
 
@@ -488,13 +492,16 @@ fn cached_bundles_match_the_uncached_build_and_track_input_changes() {
     );
 
     let uncached = comparable(&plugin_bundles(&services, &content).expect("uncached bundles"));
+    let cache = MarketplaceCache::default();
     let first = comparable(
-        plugin_bundles_cached(&services, &content)
+        cache
+            .bundles(&services, &content)
             .expect("first cached")
             .as_ref(),
     );
     let second = comparable(
-        plugin_bundles_cached(&services, &content)
+        cache
+            .bundles(&services, &content)
             .expect("second cached")
             .as_ref(),
     );
@@ -512,7 +519,8 @@ fn cached_bundles_match_the_uncached_build_and_track_input_changes() {
         plugin_config("extra-plugin", explicit(&[]), explicit(&["cache_agent"])),
     );
     let rebuilt = comparable(
-        plugin_bundles_cached(&services, &content)
+        cache
+            .bundles(&services, &content)
             .expect("rebuilt cached")
             .as_ref(),
     );
@@ -1090,8 +1098,10 @@ fn fingerprint_tolerates_a_dangling_symlink_under_plugins_root() {
         ),
     );
 
-    let bundles =
-        plugin_bundles_cached(&services, &content).expect("fingerprint ignores a dangling symlink");
+    let cache = MarketplaceCache::default();
+    let bundles = cache
+        .bundles(&services, &content)
+        .expect("fingerprint ignores a dangling symlink");
     assert_eq!(
         bundles.len(),
         1,
@@ -1182,6 +1192,7 @@ fn editing_an_artifact_body_reships_the_bundle() {
     let mut after = before.clone();
     after[0].content = "<html>edited dashboard</html>".to_owned();
 
+    let cache = MarketplaceCache::default();
     let served = |artifacts: &[ArtifactEntry]| {
         let content = BundleContent {
             skills: &[],
@@ -1193,7 +1204,7 @@ fn editing_an_artifact_body_reships_the_bundle() {
             plugins_root: Path::new("/nonexistent/plugins"),
             managed_files: &BTreeMap::new(),
         };
-        let bundles = plugin_bundles_cached(&services, &content).expect("bundles");
+        let bundles = cache.bundles(&services, &content).expect("bundles");
         bundles
             .iter()
             .next()

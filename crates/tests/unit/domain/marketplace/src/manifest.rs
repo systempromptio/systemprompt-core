@@ -5,8 +5,8 @@ use base64::Engine;
 use ed25519_dalek::{Signature, VerifyingKey};
 use systemprompt_identifiers::{MarketplaceId, UserId};
 use systemprompt_marketplace::{
-    AllowAllFilter, EntryKeepSets, ManifestService, MarketplaceCandidate, MarketplaceFilter,
-    MarketplaceFilterError,
+    AllowAllFilter, AssembleRequest, EntryKeepSets, ManifestService, MarketplaceCache,
+    MarketplaceCandidate, MarketplaceFilter, MarketplaceFilterError,
 };
 use systemprompt_models::bridge::ids::LibraryArtifactId;
 use systemprompt_models::bridge::manifest::{MANIFEST_SCHEMA_VERSION, SignedManifest};
@@ -50,11 +50,14 @@ async fn assemble_candidate_records_marketplace_membership() {
     let config = config_with(vec![mp]);
 
     let candidate = ManifestService::assemble_candidate(
-        &config,
-        dir.path(),
+        &AssembleRequest {
+            services: &config,
+            services_root: dir.path(),
+            filter: &AllowAllFilter,
+            user_id: &fixture_user_id(),
+            cache: &MarketplaceCache::default(),
+        },
         "https://api.example.com",
-        &AllowAllFilter,
-        &fixture_user_id(),
     )
     .await
     .expect("assemble candidate over empty services root");
@@ -135,11 +138,14 @@ async fn listed_marketplaces(
 ) -> Vec<(String, Vec<String>)> {
     let config = two_marketplace_config(dir);
     let candidate = ManifestService::assemble_candidate(
-        &config,
-        dir,
+        &AssembleRequest {
+            services: &config,
+            services_root: dir,
+            filter: filter,
+            user_id: &fixture_user_id(),
+            cache: &MarketplaceCache::default(),
+        },
         "https://api.example.com",
-        filter,
-        &fixture_user_id(),
     )
     .await
     .expect("assemble candidate");
@@ -203,11 +209,14 @@ async fn a_marketplace_denied_at_its_own_level_is_not_listed_even_if_a_plugin_su
 
     let config = two_marketplace_config(dir.path());
     let candidate = ManifestService::assemble_candidate(
-        &config,
-        dir.path(),
+        &AssembleRequest {
+            services: &config,
+            services_root: dir.path(),
+            filter: &deny_beta,
+            user_id: &fixture_user_id(),
+            cache: &MarketplaceCache::default(),
+        },
         "https://api.example.com",
-        &deny_beta,
-        &fixture_user_id(),
     )
     .await
     .expect("assemble candidate");
@@ -233,11 +242,14 @@ async fn assembly_unions_two_enabled_marketplaces() {
     let config = config_with(vec![marketplace("alpha"), marketplace("beta")]);
 
     let candidate = ManifestService::assemble_candidate(
-        &config,
-        dir.path(),
+        &AssembleRequest {
+            services: &config,
+            services_root: dir.path(),
+            filter: &AllowAllFilter,
+            user_id: &fixture_user_id(),
+            cache: &MarketplaceCache::default(),
+        },
         "https://api.example.com",
-        &AllowAllFilter,
-        &fixture_user_id(),
     )
     .await
     .expect("two enabled marketplaces union rather than fail closed");
@@ -254,11 +266,14 @@ async fn assemble_candidate_unscoped_without_marketplace() {
     let config = config_with(vec![]);
 
     let candidate = ManifestService::assemble_candidate(
-        &config,
-        dir.path(),
+        &AssembleRequest {
+            services: &config,
+            services_root: dir.path(),
+            filter: &AllowAllFilter,
+            user_id: &fixture_user_id(),
+            cache: &MarketplaceCache::default(),
+        },
         "https://api.example.com",
-        &AllowAllFilter,
-        &fixture_user_id(),
     )
     .await
     .expect("assemble candidate without any marketplace");
@@ -296,11 +311,14 @@ async fn assemble_candidate_drops_artifacts_no_plugin_selects() {
     register_artifact_mcp_server(&mut config);
 
     let candidate = ManifestService::assemble_candidate(
-        &config,
-        dir.path(),
+        &AssembleRequest {
+            services: &config,
+            services_root: dir.path(),
+            filter: &AllowAllFilter,
+            user_id: &fixture_user_id(),
+            cache: &MarketplaceCache::default(),
+        },
         "https://api.example.com",
-        &AllowAllFilter,
-        &fixture_user_id(),
     )
     .await
     .expect("assemble candidate");
@@ -326,11 +344,14 @@ async fn assemble_candidate_keeps_artifacts_a_plugin_includes() {
     register_artifact_mcp_server(&mut config);
 
     let candidate = ManifestService::assemble_candidate(
-        &config,
-        dir.path(),
+        &AssembleRequest {
+            services: &config,
+            services_root: dir.path(),
+            filter: &AllowAllFilter,
+            user_id: &fixture_user_id(),
+            cache: &MarketplaceCache::default(),
+        },
         "https://api.example.com",
-        &AllowAllFilter,
-        &fixture_user_id(),
     )
     .await
     .expect("assemble candidate");
@@ -352,11 +373,14 @@ async fn assemble_candidate_lets_several_plugins_ship_one_artifact() {
     register_artifact_mcp_server(&mut config);
 
     let candidate = ManifestService::assemble_candidate(
-        &config,
-        dir.path(),
+        &AssembleRequest {
+            services: &config,
+            services_root: dir.path(),
+            filter: &AllowAllFilter,
+            user_id: &fixture_user_id(),
+            cache: &MarketplaceCache::default(),
+        },
         "https://api.example.com",
-        &AllowAllFilter,
-        &fixture_user_id(),
     )
     .await
     .expect("assemble candidate");
@@ -419,11 +443,14 @@ async fn assemble_candidate_scopes_managed_mcp_servers_to_marketplace_include() 
     );
 
     let candidate = ManifestService::assemble_candidate(
-        &config,
-        dir.path(),
+        &AssembleRequest {
+            services: &config,
+            services_root: dir.path(),
+            filter: &AllowAllFilter,
+            user_id: &fixture_user_id(),
+            cache: &MarketplaceCache::default(),
+        },
         "https://api.example.com",
-        &AllowAllFilter,
-        &fixture_user_id(),
     )
     .await
     .expect("assemble candidate");
@@ -497,11 +524,14 @@ async fn assemble_candidate_keeps_artifact_owned_by_enabled_plugin() {
     );
 
     let candidate = ManifestService::assemble_candidate(
-        &config,
-        dir.path(),
+        &AssembleRequest {
+            services: &config,
+            services_root: dir.path(),
+            filter: &AllowAllFilter,
+            user_id: &fixture_user_id(),
+            cache: &MarketplaceCache::default(),
+        },
         "https://api.example.com",
-        &AllowAllFilter,
-        &fixture_user_id(),
     )
     .await
     .expect("assemble candidate");
@@ -621,11 +651,14 @@ async fn manifest_skills_are_derived_from_plugin_selection() {
         )]);
 
     let candidate = ManifestService::assemble_candidate(
-        &config,
-        dir.path(),
+        &AssembleRequest {
+            services: &config,
+            services_root: dir.path(),
+            filter: &AllowAllFilter,
+            user_id: &fixture_user_id(),
+            cache: &MarketplaceCache::default(),
+        },
         "https://api.example.com",
-        &AllowAllFilter,
-        &fixture_user_id(),
     )
     .await
     .expect("assemble candidate");
@@ -652,11 +685,14 @@ async fn orphan_skill_drop_is_traced_at_plugin_selection() {
 
     let mut trace = ManifestTrace::default();
     let candidate = ManifestService::assemble_candidate_traced(
-        &config,
-        dir.path(),
+        &AssembleRequest {
+            services: &config,
+            services_root: dir.path(),
+            filter: &AllowAllFilter,
+            user_id: &fixture_user_id(),
+            cache: &MarketplaceCache::default(),
+        },
         "https://api.example.com",
-        &AllowAllFilter,
-        &fixture_user_id(),
         &mut trace,
     )
     .await
@@ -688,11 +724,14 @@ async fn disabled_skill_skip_is_traced() {
 
     let mut trace = ManifestTrace::default();
     ManifestService::assemble_candidate_traced(
-        &config,
-        dir.path(),
+        &AssembleRequest {
+            services: &config,
+            services_root: dir.path(),
+            filter: &AllowAllFilter,
+            user_id: &fixture_user_id(),
+            cache: &MarketplaceCache::default(),
+        },
         "https://api.example.com",
-        &AllowAllFilter,
-        &fixture_user_id(),
         &mut trace,
     )
     .await
@@ -713,11 +752,14 @@ async fn disabled_marketplaces_are_not_members() {
     let mut off = marketplace("off-market");
     off.enabled = false;
     let candidate = ManifestService::assemble_candidate(
-        &config_with(vec![marketplace("on-market"), off]),
-        dir.path(),
+        &AssembleRequest {
+            services: &config_with(vec![marketplace("on-market"), off]),
+            services_root: dir.path(),
+            filter: &AllowAllFilter,
+            user_id: &fixture_user_id(),
+            cache: &MarketplaceCache::default(),
+        },
         "https://api.example.com",
-        &AllowAllFilter,
-        &fixture_user_id(),
     )
     .await
     .expect("a disabled marketplace is simply absent");
@@ -738,11 +780,14 @@ async fn assemble_candidate_records_which_plugins_own_each_skill() {
     ]);
 
     let candidate = ManifestService::assemble_candidate(
-        &config,
-        dir.path(),
+        &AssembleRequest {
+            services: &config,
+            services_root: dir.path(),
+            filter: &AllowAllFilter,
+            user_id: &fixture_user_id(),
+            cache: &MarketplaceCache::default(),
+        },
         "https://api.example.com",
-        &AllowAllFilter,
-        &fixture_user_id(),
     )
     .await
     .expect("assemble candidate");

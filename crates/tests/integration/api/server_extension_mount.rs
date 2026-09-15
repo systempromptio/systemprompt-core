@@ -220,6 +220,7 @@ async fn app_with_extensions(injected: Vec<Arc<dyn Extension>>) -> anyhow::Resul
             api_registry: Arc::new(ModuleApiRegistry::new()),
             mcp_registry: RegistryService::new(fixture_user_id()),
             marketplace_filter: Arc::new(AllowAllFilter),
+            marketplace_cache: Arc::new(systemprompt_marketplace::MarketplaceCache::default()),
         },
         Subsystems {
             system_admin: Arc::new(fixture_system_admin("admin")),

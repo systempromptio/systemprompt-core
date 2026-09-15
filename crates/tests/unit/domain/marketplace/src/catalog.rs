@@ -460,7 +460,12 @@ fn load_plugins_empty_config_returns_empty() {
         plugins_root: &plugins_root,
         managed_files: &BTreeMap::new(),
     };
-    let plugins = load_plugins(&config, &content).expect("load plugins");
+    let plugins = load_plugins(
+        &config,
+        &content,
+        &systemprompt_marketplace::MarketplaceCache::default(),
+    )
+    .expect("load plugins");
     assert!(plugins.is_empty());
 }
 
@@ -494,8 +499,13 @@ fn load_cached_reuses_until_the_skills_tree_changes() {
     let services = ServicesConfig::default();
     let url = "https://api.example.com";
 
-    let first = CatalogContent::load_cached(&services, dir.path(), url).expect("first load");
-    let second = CatalogContent::load_cached(&services, dir.path(), url).expect("second load");
+    let cache = systemprompt_marketplace::MarketplaceCache::default();
+    let first = cache
+        .catalog(&services, dir.path(), url)
+        .expect("first load");
+    let second = cache
+        .catalog(&services, dir.path(), url)
+        .expect("second load");
     assert!(
         std::sync::Arc::ptr_eq(&first, &second),
         "an unchanged skills tree must return the cached catalogue"
@@ -504,7 +514,9 @@ fn load_cached_reuses_until_the_skills_tree_changes() {
     assert_eq!(first.as_content().skills[0].instructions, "first body");
 
     fs::write(skill_dir.join("index.md"), "a longer second body").expect("rewrite content");
-    let third = CatalogContent::load_cached(&services, dir.path(), url).expect("third load");
+    let third = cache
+        .catalog(&services, dir.path(), url)
+        .expect("third load");
     assert!(
         !std::sync::Arc::ptr_eq(&first, &third),
         "a changed skill file must invalidate the cache"
@@ -538,8 +550,13 @@ fn load_cached_tolerates_a_dangling_symlink_in_the_skills_tree() {
 
     let services = ServicesConfig::default();
     let url = "https://api.example.com";
-    let first = CatalogContent::load_cached(&services, dir.path(), url).expect("first load");
-    let second = CatalogContent::load_cached(&services, dir.path(), url).expect("second load");
+    let cache = systemprompt_marketplace::MarketplaceCache::default();
+    let first = cache
+        .catalog(&services, dir.path(), url)
+        .expect("first load");
+    let second = cache
+        .catalog(&services, dir.path(), url)
+        .expect("second load");
     assert!(
         std::sync::Arc::ptr_eq(&first, &second),
         "a stable tree (dangling link included) must reuse the cached catalogue"

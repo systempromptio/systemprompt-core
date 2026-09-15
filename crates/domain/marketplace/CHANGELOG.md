@@ -2,6 +2,11 @@
 
 ## [0.53.0] - 2026-09-15
 
+### Breaking
+
+- **Breaking:** `CatalogContent::load_cached` and `plugin_bundles_cached` are replaced by `MarketplaceCache::{catalog, bundles}`, an owned fingerprint-keyed memo held by the application context; the process-wide caches are gone. Migrate by building one `MarketplaceCache` per context and calling it where the free functions were used.
+- **Breaking:** `ManifestService::{assemble_candidate, assemble_candidate_traced, assemble_candidate_from_catalog}` and `catalog::load_plugins` take an `AssembleRequest { services, services_root, filter, user_id, cache }`. Migrate by building the request struct at the call site.
+
 ### Added
 
 - `managed::consumer`: device-authenticated consumer evidence — administrator-issued device credentials stored as a SHA-256 digest and replaced on reissue (`credentials`), installation receipts compared file-by-file against the retained publication bundle with identical retries acknowledged (`receipts`), session bindings and immutable invocation evidence with a versioned, correctable resource-attribution projection (`sessions`, `attribution`), deterministic host installation plans derived from the exact retained publication (`plan`), and receipt / binding / invocation status reads. Migration 004 (`managed_consumer_credentials`, `managed_consumer_grants`, `managed_consumer_session_bindings`, `managed_consumer_invocation_evidence`, `managed_invocation_attributions`).

@@ -18,7 +18,7 @@ use std::sync::{Arc, OnceLock};
 
 use systemprompt_database::MigrationConfig;
 use systemprompt_extension::ExtensionRegistry;
-use systemprompt_marketplace::MarketplaceFilter;
+use systemprompt_marketplace::{MarketplaceCache, MarketplaceFilter};
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_security::authz::{AuthzDecisionHook, SharedAuthzHook};
 use systemprompt_users::UserService;
@@ -192,6 +192,7 @@ impl AppContextBuilder {
                 api_registry,
                 mcp_registry,
                 marketplace_filter,
+                marketplace_cache: Arc::new(MarketplaceCache::default()),
             },
             subsystems,
         ))

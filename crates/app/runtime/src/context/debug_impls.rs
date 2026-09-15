@@ -77,6 +77,7 @@ impl std::fmt::Debug for Plugins {
             .field("api_registry", &"ModuleApiRegistry")
             .field("mcp_registry", &"RegistryService")
             .field("marketplace_filter", &self.marketplace_filter)
+            .field("marketplace_cache", &self.marketplace_cache)
             .finish()
     }
 }

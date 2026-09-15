@@ -9,6 +9,7 @@
 ### Added
 
 - `RuntimeError::Evaluation`; the composition root builds `EvaluationSeams` from the AI request repository, the users session provider and the managed repository and constructs the evaluation repositories on the write pool.
+- `Plugins::marketplace_cache` / `AppContext::marketplace_cache()`: the owned marketplace catalogue and bundle cache, built once per context.
 - `AppContext::schema_install()` exposes the `SchemaInstallReport` of the boot's schema installation (`Subsystems.schema_install`), so `/health/detail` can surface declared foreign keys an established database could not create.
 - `trace` module: `TraceQueryService`, `AiTraceService`, their result types and `TraceError` (moved from `systemprompt_logging::trace`); the crate now carries its own `.sqlx` cache.
 - `AppContext::governance()` / `governance_arc()`; `Subsystems.governance` carries the engine built once from the profile's services root.

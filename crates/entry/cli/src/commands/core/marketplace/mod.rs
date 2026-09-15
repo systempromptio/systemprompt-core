@@ -16,7 +16,9 @@ use clap::{Args, Subcommand};
 use serde::Serialize;
 use systemprompt_identifiers::UserId;
 use systemprompt_loader::ServicesRootBootstrap;
-use systemprompt_marketplace::{AllowAllFilter, ManifestService, ManifestTrace};
+use systemprompt_marketplace::{
+    AllowAllFilter, AssembleRequest, ManifestService, ManifestTrace, MarketplaceCache,
+};
 
 use crate::context::CommandContext;
 use crate::shared::{CommandOutput, render_result};
@@ -79,11 +81,14 @@ pub async fn explain(args: &ExplainArgs) -> Result<CommandOutput> {
 
     let mut trace = ManifestTrace::default();
     let candidate = ManifestService::assemble_candidate_traced(
-        &services,
-        &services_root,
+        &AssembleRequest {
+            services: &services,
+            services_root: &services_root,
+            filter: &AllowAllFilter,
+            user_id: &user_id,
+            cache: &MarketplaceCache::default(),
+        },
         &profile.server.api_external_url,
-        &AllowAllFilter,
-        &user_id,
         &mut trace,
     )
     .await

@@ -34,7 +34,8 @@ use systemprompt_security::manifest_signing;
 
 use crate::candidate::MarketplaceCandidate;
 use crate::catalog::{
-    CatalogContent, artifact_owners, load_hooks, load_plugins, rule_owners, skill_owners,
+    CatalogContent, MarketplaceCache, artifact_owners, load_hooks, load_plugins, rule_owners,
+    skill_owners,
 };
 use crate::error::MarketplaceError;
 use crate::filter::MarketplaceFilter;
@@ -43,69 +44,66 @@ use crate::trace::{NoopTrace, TraceSink, TraceStage};
 use diagnostics::{plugin_inclusion_diagnostics, record_removed, snapshot};
 use scoping::{gate_artifacts_by_plugin, gate_skills_by_plugin, prune_traced, scope_all};
 
+/// The inputs every manifest assembly shares: the services tree, the filter
+/// that scopes it, the user it is assembled for and the cache that memoizes
+/// the loaded catalogue and assembled bundles.
+#[derive(Clone, Copy)]
+pub struct AssembleRequest<'a> {
+    pub services: &'a ServicesConfig,
+    pub services_root: &'a Path,
+    pub filter: &'a dyn MarketplaceFilter,
+    pub user_id: &'a UserId,
+    pub cache: &'a MarketplaceCache,
+}
+
+impl std::fmt::Debug for AssembleRequest<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AssembleRequest")
+            .field("services_root", &self.services_root)
+            .field("user_id", &self.user_id)
+            .finish_non_exhaustive()
+    }
+}
+
 #[derive(Debug, Default, Clone, Copy)]
 pub struct ManifestService;
 
 impl ManifestService {
     pub async fn assemble_candidate(
-        services: &ServicesConfig,
-        services_root: &Path,
+        request: &AssembleRequest<'_>,
         api_external_url: &str,
-        filter: &dyn MarketplaceFilter,
-        user_id: &UserId,
     ) -> Result<MarketplaceCandidate, MarketplaceError> {
-        Self::assemble_candidate_traced(
-            services,
-            services_root,
-            api_external_url,
-            filter,
-            user_id,
-            &mut NoopTrace,
-        )
-        .await
+        Self::assemble_candidate_traced(request, api_external_url, &mut NoopTrace).await
     }
 
-    #[expect(
-        clippy::too_many_arguments,
-        reason = "assemble_candidate's parameter list plus the trace sink; a wrapper struct \
-                  would only relocate the same fan-in"
-    )]
     pub async fn assemble_candidate_traced(
-        services: &ServicesConfig,
-        services_root: &Path,
+        request: &AssembleRequest<'_>,
         api_external_url: &str,
-        filter: &dyn MarketplaceFilter,
-        user_id: &UserId,
         trace: &mut dyn TraceSink,
     ) -> Result<MarketplaceCandidate, MarketplaceError> {
-        let catalog =
-            CatalogContent::load_traced(services, services_root, api_external_url, trace)?;
-        Self::assemble_candidate_from_catalog(
-            catalog,
-            services,
-            services_root,
-            filter,
-            user_id,
+        let catalog = CatalogContent::load_traced(
+            request.services,
+            request.services_root,
+            api_external_url,
             trace,
-        )
-        .await
+        )?;
+        Self::assemble_candidate_from_catalog(catalog, request, trace).await
     }
 
-    #[expect(
-        clippy::too_many_arguments,
-        reason = "the catalogue replaces assemble_candidate's load inputs one-for-one; a wrapper \
-                  struct would only relocate the same fan-in"
-    )]
     pub async fn assemble_candidate_from_catalog(
         catalog: CatalogContent,
-        services: &ServicesConfig,
-        services_root: &Path,
-        filter: &dyn MarketplaceFilter,
-        user_id: &UserId,
+        request: &AssembleRequest<'_>,
         trace: &mut dyn TraceSink,
     ) -> Result<MarketplaceCandidate, MarketplaceError> {
+        let AssembleRequest {
+            services,
+            services_root,
+            filter,
+            user_id,
+            cache,
+        } = *request;
         let hooks = load_hooks(services_root)?;
-        let plugins = load_plugins(services, &catalog.as_content())?;
+        let plugins = load_plugins(services, &catalog.as_content(), cache)?;
         let skill_owners = skill_owners(services, &catalog.as_content())?;
         let rule_owners = rule_owners(services, &catalog.as_content())?;
         let selected_skills: BTreeSet<SkillId> = skill_owners.keys().cloned().collect();

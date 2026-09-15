@@ -13,7 +13,7 @@ use systemprompt_analytics::{AnalyticsService, FingerprintRepository};
 use systemprompt_config::paths::AppPaths;
 use systemprompt_database::DbPool;
 use systemprompt_extension::ExtensionRegistry;
-use systemprompt_marketplace::{AllowAllFilter, MarketplaceFilter};
+use systemprompt_marketplace::{AllowAllFilter, MarketplaceCache, MarketplaceFilter};
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::config::RateLimitConfig;
 use systemprompt_models::profile::{ContentNegotiationConfig, PathsConfig, SecurityHeadersConfig};
@@ -289,6 +289,7 @@ fn fixture_app_context_assembled(
             api_registry: Arc::new(ModuleApiRegistry::new()),
             mcp_registry: RegistryService::new(fixture_user_id()),
             marketplace_filter,
+            marketplace_cache: Arc::new(MarketplaceCache::default()),
         },
         Subsystems {
             system_admin: Arc::new(fixture_system_admin("admin")),
