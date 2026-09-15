@@ -3,7 +3,7 @@
 
 use std::sync::Arc;
 use systemprompt_identifiers::UserId;
-use systemprompt_test_fixtures::closed_db_pool;
+use systemprompt_test_fixtures::{closed_db_pool, ensure_test_bootstrap};
 use systemprompt_traits::FederatedIdentityClaims;
 use systemprompt_traits::auth::AuthProviderError;
 use systemprompt_users::{RoleProvider, UserProvider, UserRepository, UserService};
