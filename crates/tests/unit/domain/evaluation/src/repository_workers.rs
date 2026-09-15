@@ -544,6 +544,33 @@ async fn worker_authentication_rejects_malformed_tokens() {
     harness.cleanup().await;
 }
 
+#[tokio::test]
+async fn claims_within_one_creation_instant_hand_out_the_baseline_before_the_candidate() {
+    // skip-ok: DB-backed; runs only where the fixture database is reachable
+    let Some(harness) = Harness::start().await else {
+        return;
+    };
+    let first = harness.claim().await;
+    let second = harness.claim().await;
+    assert_eq!(
+        first.created_at, second.created_at,
+        "both variants of an experiment are created in one transaction"
+    );
+    assert_eq!(first.variant_index, 0, "the baseline is claimed first");
+    assert_eq!(second.variant_index, 1, "then the candidate");
+    assert!(
+        harness
+            .experiments()
+            .claim(&harness.owner, &harness.worker.id)
+            .await
+            .expect("claim")
+            .is_none(),
+        "nothing else is queued"
+    );
+
+    harness.cleanup().await;
+}
+
 #[test]
 fn worker_record_builder_requires_environment_and_name() {
     let expiry = Utc::now() + chrono::Duration::days(1);

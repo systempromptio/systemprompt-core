@@ -519,3 +519,58 @@ async fn restart_retains_the_full_bound_of_an_unsettled_request_on_an_expired_le
 
     harness.cleanup().await;
 }
+
+#[tokio::test]
+async fn execution_accounting_refuses_a_negative_token_column() {
+    // skip-ok: DB-backed; runs only where the fixture database is reachable
+    let Some(harness) = Harness::start().await else {
+        return;
+    };
+    let (execution, lease) = harness.claimed_lease().await;
+    let gateway = GatewayEvaluationRepository::new(harness.pg.clone());
+    let access = ExecutionCapabilityRepository::new(harness.pg.clone())
+        .issue(&harness.owner, &lease)
+        .await
+        .expect("issue");
+    let model = ModelId::new(MODEL);
+    let provider = ProviderId::new(PROVIDER);
+    let request = harness
+        .seed_pending_request(access.session_id.as_str())
+        .await;
+    let RequestAdmission::Reserved(_) = gateway
+        .admit(&admission(
+            &harness,
+            &access.session_id,
+            &request,
+            &model,
+            &provider,
+        ))
+        .await
+        .expect("admit")
+    else {
+        panic!("an evaluation session must be admitted against its budget");
+    };
+    harness.complete_request(&request, 1_000).await;
+    let lifecycle = EvaluationLifecycleRepository::new(harness.pg.clone());
+    let sound = lifecycle
+        .execution_accounting(&harness.owner, &execution.id)
+        .await
+        .expect("a completed request with no token counts is still accountable");
+    assert_eq!(sound.input_tokens, Some(0));
+
+    sqlx::query("UPDATE ai_requests SET input_tokens = -7 WHERE id = $1")
+        .bind(request.as_str())
+        .execute(&harness.pg)
+        .await
+        .expect("corrupt the token count");
+    let err = lifecycle
+        .execution_accounting(&harness.owner, &execution.id)
+        .await
+        .expect_err("a negative token sum must not be reported as a count");
+    assert!(
+        err.to_string().contains("input_tokens is negative"),
+        "the error names the offending column: {err}"
+    );
+
+    harness.cleanup().await;
+}
