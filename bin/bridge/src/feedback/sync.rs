@@ -100,7 +100,6 @@ async fn recover_installation(
     let mut receipt = None;
     for root in &pending.roots {
         super::readback::materialize(root, &plan)?;
-        super::hooks::stamp_native_hooks(root, pending.host)?;
         receipt = Some(super::readback::verify(
             root,
             &plan,

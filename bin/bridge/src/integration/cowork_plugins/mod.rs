@@ -2,6 +2,10 @@
 //! org-provisioned plugin enables in `cowork_settings.json` to the manifest's
 //! plugin list. Pure data in `settings`; IO in `emit`.
 //!
+//! Cowork consumes each plugin's `hooks.json` in place from the org-plugins
+//! tree rather than from a copy, so that file carries the `claude-desktop`
+//! host stamp — stamped here after the enable, not by the sync that wrote it.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -27,6 +31,7 @@ use thiserror::Error;
 use async_trait::async_trait;
 
 use crate::host_sync::{ApplyError, HostSync, HostSyncCtx};
+use crate::sync::apply::stamp_hooks_file;
 
 #[derive(Clone, Copy, Debug)]
 pub struct CoworkSync;
@@ -69,6 +74,15 @@ impl HostSync for CoworkSync {
             context: format!("cowork enable: {e}"),
             source: std::io::Error::other(e.to_string()),
         })?;
+        for id in &plugin_ids {
+            stamp_hooks_file(
+                &ctx.org_plugins_root
+                    .join(id)
+                    .join("hooks")
+                    .join("hooks.json"),
+                self.host_id(),
+            )?;
+        }
         tracing::info!(
             target: "bridge::cowork",
             session_org = ?report.target,

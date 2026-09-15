@@ -60,6 +60,36 @@ pub(super) fn write_hooks_json(
     })
 }
 
+/// Re-stamps an emitted `hooks.json` with the host that will run it. The
+/// org-plugins source written by [`write_hooks_json`] is unstamped; each host
+/// emitter stamps the copy (or, for Cowork, the in-place file) it hands over.
+/// A missing file is not an error: plugins without hooks have nothing to stamp.
+pub fn stamp_hooks_file(path: &Path, host: &str) -> Result<(), ApplyError> {
+    let bytes = match fs::read(path) {
+        Ok(bytes) => bytes,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(e) => {
+            return Err(ApplyError::Io {
+                context: format!("read {}", path.display()),
+                source: e,
+            });
+        },
+    };
+    let mut file: HooksFile = serde_json::from_slice(&bytes).map_err(|e| ApplyError::Io {
+        context: format!("parse {}", path.display()),
+        source: std::io::Error::new(std::io::ErrorKind::InvalidData, e),
+    })?;
+    file.stamp_host(host);
+    let stamped = serde_json::to_vec_pretty(&file).map_err(|e| ApplyError::Serialize {
+        what: format!("stamped {}", path.display()),
+        source: e,
+    })?;
+    atomic_write_0644(path, &stamped).map_err(|e| ApplyError::Io {
+        context: format!("write {}", path.display()),
+        source: e,
+    })
+}
+
 fn comms_drain_command() -> Option<String> {
     let exe = std::env::current_exe().ok()?;
     Some(format!("\"{}\" comms-drain", exe.display()))

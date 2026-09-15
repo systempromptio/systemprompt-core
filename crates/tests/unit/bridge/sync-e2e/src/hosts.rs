@@ -180,6 +180,8 @@ fn org_provisioned_marketplace() -> ManifestMarketplace {
         id: systemprompt_identifiers::MarketplaceId::new("org-provisioned"),
         name: "Org provisioned".into(),
         plugin_ids: vec![PluginId::try_new(PLUGIN_ID).unwrap()],
+        allow_cross_marketplace_dependencies_on: vec![],
+        external_marketplaces: vec![],
     }
 }
 
@@ -396,6 +398,110 @@ fn run_once_with_enabled_hosts_materialises_all_host_state() {
         serde_json::from_slice(&fs::read(artifacts_dir.join("library.json")).unwrap()).unwrap();
     assert_eq!(library["welcome-doc"]["content"], "<h1>Welcome</h1>");
     assert!(artifacts_dir.join("version.json").is_file());
+}
+
+fn http_hook_hosts(hooks_json: &serde_json::Value) -> Vec<String> {
+    hooks_json["hooks"]
+        .as_object()
+        .expect("hooks map")
+        .values()
+        .flat_map(|groups| groups.as_array().expect("matcher groups"))
+        .flat_map(|group| group["hooks"].as_array().expect("hook entries"))
+        .filter(|hook| hook["type"] == "http")
+        .map(|hook| {
+            assert!(
+                hook["headers"]
+                    .get("x-systemprompt-device-credential")
+                    .is_none(),
+                "authored hooks never carry a device credential: {hook}"
+            );
+            hook["headers"]["x-systemprompt-host"]
+                .as_str()
+                .unwrap_or_else(|| panic!("http hook without a host stamp: {hook}"))
+                .to_owned()
+        })
+        .collect()
+}
+
+// Why: Claude Code runs hooks from its own copy of the plugin and Cowork reads
+// the org-plugins file in place, so each copy is stamped with the host that
+// runs it at emit time — stamping the source once could only ever name one.
+#[test]
+fn each_host_copy_of_hooks_json_is_stamped_with_the_host_that_runs_it() {
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .unwrap();
+
+    let mut m = manifest(
+        vec!["claude-code".into(), "claude-desktop".into()],
+        true,
+        "dddd0001",
+    );
+    m.plugins[0].hooks = systemprompt_models::services::PluginHooksRef {
+        governance: true,
+        comms: false,
+        include: vec![],
+    };
+    let (server, dirs) = rt.block_on(async {
+        let server = MockServer::start().await;
+        crate::mount_profile(&server).await;
+        mount_gateway(&server, &m).await;
+        let dirs = sandbox(&server.uri());
+        (server, dirs)
+    });
+    let _ = &server;
+
+    let summary = run_sync(&dirs).expect("run_once should succeed");
+    assert!(
+        summary.host_failures.is_empty(),
+        "host emitters must succeed: {:?}",
+        summary.host_failures
+    );
+
+    let org_hooks: serde_json::Value = serde_json::from_slice(
+        &fs::read(
+            PathBuf::from(&dirs.data_home)
+                .join("Claude")
+                .join("org-plugins")
+                .join(PLUGIN_ID)
+                .join("hooks")
+                .join("hooks.json"),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    let hosts = http_hook_hosts(&org_hooks);
+    assert!(!hosts.is_empty(), "the governance owner carries http hooks");
+    assert!(
+        hosts.iter().all(|h| h == "claude-desktop"),
+        "Cowork consumes the org-plugins copy in place: {hosts:?}"
+    );
+
+    let plugins = dirs.claude_home.join("plugins");
+    for bundle in [
+        plugins
+            .join("marketplaces")
+            .join("org-provisioned")
+            .join("plugins")
+            .join(PLUGIN_ID),
+        plugins
+            .join("cache")
+            .join("org-provisioned")
+            .join(PLUGIN_ID)
+            .join("current"),
+    ] {
+        let mirrored: serde_json::Value =
+            serde_json::from_slice(&fs::read(bundle.join("hooks").join("hooks.json")).unwrap())
+                .unwrap();
+        let hosts = http_hook_hosts(&mirrored);
+        assert!(!hosts.is_empty(), "{bundle:?}");
+        assert!(
+            hosts.iter().all(|h| h == "claude-code"),
+            "the Claude Code CLI copy is stamped for Claude Code: {hosts:?}"
+        );
+    }
 }
 
 // Why: a fresh install has never opened a Cowork session, so
@@ -618,6 +724,8 @@ fn a_manifest_naming_marketplaces_mirrors_each_and_spares_every_marketplace_it_d
             id: systemprompt_identifiers::MarketplaceId::new(id),
             name: format!("{id} marketplace"),
             plugin_ids: vec![PluginId::try_new(PLUGIN_ID).unwrap()],
+            allow_cross_marketplace_dependencies_on: vec![],
+            external_marketplaces: vec![],
         })
         .collect();
     let (server, dirs) = rt.block_on(async {

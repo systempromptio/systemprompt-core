@@ -19,6 +19,7 @@ pub mod swap;
 
 pub(crate) use crate::host_sync::ApplyError;
 pub use crate::host_sync::HostWarning;
+pub use hooks::stamp_hooks_file;
 pub use plugin::HostFailure;
 
 pub const PLUGIN_INSTALLATION_PREFERENCE: &str = "required";
@@ -146,6 +147,7 @@ pub(crate) async fn apply_manifest(req: &ApplyRequest<'_>) -> Result<ApplyOutcom
                 host_id: HostId::new(host_id),
                 emitter: emitter.emitter_id().to_owned(),
                 error: format!("{e:#}"),
+                needs_elevation: matches!(e, host_sync::ApplyError::ElevationRequired { .. }),
             });
         }
         host_sync::log_outcome(*emitter, enabled, outcome);
@@ -178,6 +180,7 @@ pub(crate) async fn apply_manifest(req: &ApplyRequest<'_>) -> Result<ApplyOutcom
                     host_id: HostId::new(host_id),
                     emitter: "installation-evidence".to_owned(),
                     error: format!("verify installed skill evidence: {error}"),
+                    needs_elevation: false,
                 });
             }
         }

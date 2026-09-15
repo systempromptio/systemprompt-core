@@ -17,6 +17,7 @@ use serde_json::json;
 use super::io_err;
 use crate::host_sync::ApplyError;
 use crate::proxy::LoopbackEndpoint;
+use crate::sync::apply::stamp_hooks_file;
 
 pub(super) fn mirror_plugin(
     loopback: &LoopbackEndpoint,
@@ -31,6 +32,9 @@ pub(super) fn mirror_plugin(
     copy_dir_all(src, dst)?;
     filter_skills_for_host(dst, skills, "claude-code")?;
     drop_standard_hooks_pointer(dst)?;
+    // Why: Claude Code runs hooks from this copy, so the host stamp has to
+    // land here — the org-plugins source stays unstamped.
+    stamp_hooks_file(&dst.join("hooks").join("hooks.json"), super::HOST_ID)?;
     write_mcp_json(loopback, dst, mcp_servers)?;
     Ok(())
 }
