@@ -97,6 +97,13 @@ async fn pending_operation_retries_share_one_approval_and_changed_preconditions_
     assert!(
         matches!(repository.authorize_operation(&h.owner, &lease.execution_id, &operation, &digest).await.unwrap(), ApprovalAuthorization::Authorized(approved) if approved == id)
     );
+    let replay = repository
+        .authorize_operation(&h.owner, &lease.execution_id, &operation, &digest)
+        .await;
+    assert!(
+        replay.is_err(),
+        "an approval authorises exactly one operation; the second authorisation used to succeed: {replay:?}"
+    );
     assert_eq!(h.budget().await, before);
     h.cleanup().await;
 }

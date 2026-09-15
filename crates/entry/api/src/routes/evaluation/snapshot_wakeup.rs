@@ -16,8 +16,8 @@ pub(super) async fn subscribe(ctx: &AppContext) -> watch::Receiver<u64> {
         if relay
             .as_ref()
             .is_none_or(tokio::task::JoinHandle::is_finished)
-            && let Some(pool) = ctx.db_pool().write_pool()
         {
+            let pool = ctx.db_pool().write_pool();
             *relay = Some(tokio::spawn(run(pool.as_ref().clone())));
         }
     }
@@ -28,12 +28,7 @@ async fn run(pool: sqlx::PgPool) {
     let mut listener = None;
     loop {
         tokio::select! {_tick=interval.tick()=>{},()=notification(&mut listener)=>{HINTS.send_modify(|generation|*generation=generation.wrapping_add(1));}}
-        if super::snapshot_stream::CONNECTIONS
-            .connection_info()
-            .await
-            .1
-            == 0
-        {
+        if super::snapshot_stream::CONNECTIONS.connection_info().1 == 0 {
             break;
         }
         if listener.is_none()

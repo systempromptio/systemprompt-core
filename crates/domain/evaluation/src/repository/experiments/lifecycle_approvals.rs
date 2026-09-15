@@ -67,7 +67,11 @@ impl EvaluationLifecycleRepository {
             let id = EvalApprovalId::new(row.id); let stored = row.operation;
             if &stored != operation { return Err(crate::experiments::conflict("Approval operation changed")); }
             match row.status.as_str() {
-                "approved" | "consumed" => { tx.commit().await?; return Ok(ApprovalAuthorization::Authorized(id)); },
+                "approved" => {
+                    sqlx::query!("UPDATE eval_execution_approvals SET status='consumed' WHERE id=$1 AND status='approved'", id.as_str()).execute(&mut *tx).await?;
+                    tx.commit().await?;
+                    return Ok(ApprovalAuthorization::Authorized(id));
+                },
                 "pending" => { tx.commit().await?; return Ok(ApprovalAuthorization::Pending(id)); },
                 _ => return Err(crate::experiments::conflict("Approval was denied, expired, or consumed")),
             }

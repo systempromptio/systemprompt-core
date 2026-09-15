@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT m.request_id FROM eval_request_reservations m WHERE m.execution_id=$1",
+  "query": "SELECT m.request_id FROM eval_request_reservations m JOIN ai_requests r ON r.id=m.request_id WHERE m.execution_id=$1 AND r.user_id=$2",
   "describe": {
     "columns": [
       {
@@ -17,6 +17,7 @@
     ],
     "parameters": {
       "Left": [
+        "Text",
         "Text"
       ]
     },
@@ -24,5 +25,5 @@
       false
     ]
   },
-  "hash": "1e968520710a8e72a004c849fd52c5cd9b64d8d28aeead477df5063086112931"
+  "hash": "66ba2d34642172e301715bb3c19630ee1c61dabfd743f74feb2bff2a9bceae02"
 }

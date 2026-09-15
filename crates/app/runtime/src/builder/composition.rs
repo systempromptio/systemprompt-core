@@ -106,6 +106,9 @@ pub(super) fn build_repositories(
     let tool_executions: systemprompt_traits::DynToolExecutionLookup = Arc::new(
         systemprompt_mcp::repository::ToolUsageRepository::new(database)?,
     );
+    let managed_resolver: systemprompt_traits::DynManagedSkillResolver = Arc::new(
+        systemprompt_marketplace::managed::ManagedResourceResolver::new(managed.as_ref().clone()),
+    );
     Ok(RepositoryBundles {
         a2a: Arc::new(systemprompt_agent::repository::A2ARepositories::new(
             database,

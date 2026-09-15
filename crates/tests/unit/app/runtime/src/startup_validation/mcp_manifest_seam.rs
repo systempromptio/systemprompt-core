@@ -41,7 +41,7 @@ fn deployment(
         env_vars: vec![],
         external_auth: None,
         headers: HashMap::new(),
-        tool_policy: None,
+        tool_policy: Some(systemprompt_models::bridge::ids::ToolPolicy::Allow),
     }
 }
 
@@ -165,4 +165,18 @@ fn merge_empty_errors_is_noop() {
     let mut report = StartupValidationReport::new();
     merge_mcp_errors(&mut report, vec![]);
     assert!(report.domains.is_empty(), "empty error set adds no domain");
+}
+
+#[test]
+fn a_server_without_a_tool_policy_is_a_validation_error() {
+    let cfg = services_with(vec![(
+        "unpoliced",
+        Deployment {
+            tool_policy: None,
+            ..deployment(McpServerType::Internal, true, false, "present")
+        },
+    )]);
+    let errors = collect_manifest_errors(&cfg, false, |_| Ok(()));
+    assert_eq!(errors.len(), 1, "{errors:?}");
+    assert_eq!(errors[0].field, "mcp_servers.unpoliced.tool_policy");
 }

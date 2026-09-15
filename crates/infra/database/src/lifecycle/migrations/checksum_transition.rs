@@ -35,7 +35,7 @@ impl MigrationService<'_> {
                 continue;
             };
             self.verify_slot_identity(extension, migration, Some(row))?;
-            self.verify_checksum(extension, migration, Some(&row.checksum))?;
+            self.verify_checksum(extension, migration, &row.checksum)?;
             if row.name == migration.name
                 && row.checksum != migration.checksum()
                 && row.checksum == historical_checksum(migration.sql)

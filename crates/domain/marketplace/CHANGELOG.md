@@ -10,6 +10,7 @@
 
 ### Fixed
 
+- A managed MCP server declared without `tool_policy` is withheld from the signed bridge manifest instead of being published as allow-all; startup validation reports `mcp_servers.<name>.tool_policy` for it.
 - Every table the extension creates is declared by its own `SchemaDefinition` (one schema file per table), so `infra db doctor` no longer reports the managed tables as undeclared.
 
 ## [0.52.0] - 2026-09-14

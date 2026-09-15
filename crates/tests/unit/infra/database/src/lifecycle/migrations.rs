@@ -25,14 +25,14 @@ fn test_applied_migration_creation() {
         extension_id: "users".to_string(),
         version: 1,
         name: "create_users_table".to_string(),
-        checksum: Some("abc123".to_string()),
+        checksum: "abc123".to_string(),
         applied_at: None,
     };
 
     assert_eq!(migration.extension_id, "users");
     assert_eq!(migration.version, 1);
     assert_eq!(migration.name, "create_users_table");
-    assert_eq!(migration.checksum.as_deref(), Some("abc123"));
+    assert_eq!(migration.checksum, "abc123");
 }
 
 
@@ -42,7 +42,7 @@ fn test_applied_migration_with_high_version() {
         extension_id: "ext".to_string(),
         version: u32::MAX,
         name: "max_version".to_string(),
-        checksum: Some("hash".to_string()),
+        checksum: "hash".to_string(),
         applied_at: None,
     };
 
@@ -55,13 +55,13 @@ fn test_applied_migration_with_empty_strings() {
         extension_id: String::new(),
         version: 0,
         name: String::new(),
-        checksum: None,
+        checksum: String::new(),
         applied_at: None,
     };
 
     assert!(migration.extension_id.is_empty());
     assert!(migration.name.is_empty());
-    assert!(migration.checksum.is_none());
+    assert!(migration.checksum.is_empty());
 }
 
 #[test]
@@ -145,14 +145,14 @@ fn test_migration_status_with_applied_migrations() {
             extension_id: "test".to_string(),
             version: 1,
             name: "v1".to_string(),
-            checksum: Some("hash1".to_string()),
+            checksum: "hash1".to_string(),
             applied_at: None,
         },
         AppliedMigration {
             extension_id: "test".to_string(),
             version: 2,
             name: "v2".to_string(),
-            checksum: Some("hash2".to_string()),
+            checksum: "hash2".to_string(),
             applied_at: None,
         },
     ];
@@ -810,7 +810,7 @@ fn test_extension_migration_status_with_drift_and_pending() {
             extension_id: "users".to_string(),
             version: 1,
             name: "v1".to_string(),
-            checksum: Some("old".to_string()),
+            checksum: "old".to_string(),
             applied_at: Some("2026-05-15T10:00:00+00:00".to_string()),
         }],
         pending: vec![PendingMigration {
@@ -1096,12 +1096,7 @@ async fn run_down_migrations_rejects_unparseable_down_sql_before_deleting_the_re
 #[derive(Debug)]
 struct AppliedRowsProvider {
     log: Arc<CallLog>,
-    rows: Vec<(
-        i64,
-        &'static str,
-        Option<&'static str>,
-        Option<&'static str>,
-    )>,
+    rows: Vec<(i64, &'static str, &'static str, Option<&'static str>)>,
 }
 
 impl AppliedRowsProvider {
@@ -1114,10 +1109,7 @@ impl AppliedRowsProvider {
                 row.insert("extension_id".to_owned(), serde_json::json!("rows_ext"));
                 row.insert("version".to_owned(), serde_json::json!(version));
                 row.insert("name".to_owned(), serde_json::json!(name));
-                row.insert(
-                    "checksum".to_owned(),
-                    checksum.map_or(serde_json::Value::Null, |v| serde_json::json!(v)),
-                );
+                row.insert("checksum".to_owned(), serde_json::json!(checksum));
                 row.insert(
                     "applied_at".to_owned(),
                     applied_at.map_or(serde_json::Value::Null, |v| serde_json::json!(v)),
@@ -1229,13 +1221,8 @@ async fn an_applied_migration_row_maps_every_column_including_a_null_timestamp()
     let provider = AppliedRowsProvider {
         log: Arc::clone(&log),
         rows: vec![
-            (
-                1,
-                "first",
-                Some("checksum_one"),
-                Some("2026-01-01T00:00:00Z"),
-            ),
-            (2, "second", Some("checksum_two"), None),
+            (1, "first", "checksum_one", Some("2026-01-01T00:00:00Z")),
+            (2, "second", "checksum_two", None),
         ],
     };
     let service = MigrationService::new(&provider);
@@ -1248,7 +1235,7 @@ async fn an_applied_migration_row_maps_every_column_including_a_null_timestamp()
     assert_eq!(applied.len(), 2, "both rows must map, got {applied:?}");
     assert_eq!(applied[0].version, 1);
     assert_eq!(applied[0].name, "first");
-    assert_eq!(applied[0].checksum.as_deref(), Some("checksum_one"));
+    assert_eq!(applied[0].checksum, "checksum_one");
     assert_eq!(
         applied[0].applied_at.as_deref(),
         Some("2026-01-01T00:00:00Z")
@@ -1267,7 +1254,7 @@ async fn a_migration_already_recorded_with_a_matching_checksum_is_skipped_not_re
 
     let provider = AppliedRowsProvider {
         log: Arc::clone(&log),
-        rows: vec![(1, "first", Some(checksum), Some("2026-01-01T00:00:00Z"))],
+        rows: vec![(1, "first", checksum, Some("2026-01-01T00:00:00Z"))],
     };
     let service = MigrationService::new(&provider);
     let extension = StubExtension {
@@ -1292,43 +1279,11 @@ async fn a_migration_already_recorded_with_a_matching_checksum_is_skipped_not_re
 }
 
 #[tokio::test]
-async fn a_recorded_migration_without_a_checksum_is_stamped_once_instead_of_refused() {
-    let log = Arc::new(CallLog::default());
-    let migration = Migration::new(1, "first", "CREATE TABLE m (id TEXT);");
-    let provider = AppliedRowsProvider {
-        log: Arc::clone(&log),
-        rows: vec![(1, "first", None, Some("2026-01-01T00:00:00Z"))],
-    };
-    let service = MigrationService::new(&provider);
-    let extension = StubExtension {
-        id: "rows_ext",
-        migrations: vec![migration],
-    };
-
-    let result = service
-        .run_pending_migrations(&extension)
-        .await
-        .expect("a cleared checksum is stamped, not treated as drift");
-
-    assert_eq!(result.migrations_run, 0, "the migration is not re-executed");
-    assert_eq!(result.migrations_skipped, 1);
-    let events = log.snapshot();
-    assert!(
-        events.iter().any(|e| e == "execute"),
-        "the current checksum is written back: {events:?}"
-    );
-    assert!(
-        !events.iter().any(|e| e == "begin"),
-        "no SQL is re-run, so no transaction opens: {events:?}"
-    );
-}
-
-#[tokio::test]
 async fn a_row_with_a_malformed_version_fails_the_query_instead_of_reading_as_pending() {
     let log = Arc::new(CallLog::default());
     let provider = AppliedRowsProvider {
         log: Arc::clone(&log),
-        rows: vec![(-1, "negative", Some("c"), None)],
+        rows: vec![(-1, "negative", "c", None)],
     };
     let service = MigrationService::new(&provider);
 

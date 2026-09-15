@@ -11,7 +11,6 @@
 - **Breaking:** `AdminSqlError::ForbiddenKeyword` is replaced by `WriteInReadOnly` and a `Parse(pg_query::Error)` variant; `QueryExecutorError::WriteQueryNotAllowed` (never constructed) is removed.
 - **Breaking:** `lint_declarative_schema(s)` return `Result<Vec<LintError>, Vec<LintError>>` — `Ok` carries the warnings that were previously discarded; `created_table_names` returns `Result<Vec<String>, pg_query::Error>` with schema-qualified names, instead of an empty list on a parse failure.
 - **Breaking:** `split_create_table_foreign_keys` returns `FkDeferralError` instead of `String`.
-- **Breaking:** `AppliedMigration.checksum` is `Option<String>`; a `None` is a row cleared by migration 001 and is stamped on the next run.
 - **Breaking:** `CleanupRepository` is removed. Log retention lives on `systemprompt_logging::LoggingRepository` (`delete_orphaned_logs`, `count_orphaned_logs`); OAuth expiry sweeps live on `systemprompt_oauth::repository::OauthCleanupRepository`.
 - **Breaking:** `SqlExecutor::table_exists`/`column_exists` are removed; use `validate_table_exists`/`validate_column_exists`. `with_transaction`/`with_scoped_transaction` take `&PgPool` and the `_raw` variants are removed.
 - **Breaking:** `DatabaseProvider::fetch_scalar_value` is removed (no caller; it conflated NULL with an unrepresentable number).
@@ -20,7 +19,6 @@
 ### Added
 
 - `BootstrapLockGuard` and `BOOTSTRAP_ADVISORY_LOCK_KEY` are public; `PostgresProvider` exposes `connection::connect_options`.
-- Migration `001_null_migration_checksums`: the checksum algorithm changed to xxh64, so every stored `extension_migrations.checksum` is cleared (column now nullable) and the runner stamps the current checksum once on its next pass instead of refusing to boot on drift.
 - The database extension now declares the `services` process-registry table (moved from the agent extension, whose migrations declare it as a cross-extension table).
 
 ### Changed

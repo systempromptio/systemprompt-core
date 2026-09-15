@@ -7,7 +7,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use systemprompt_identifiers::{McpServerId, ValidatedUrl};
-use systemprompt_models::bridge::ids::{ManagedMcpServerName, ToolName, ToolPolicy};
+use systemprompt_models::bridge::ids::{ManagedMcpServerName, ToolName};
 use systemprompt_models::bridge::manifest::ManagedMcpServer;
 use systemprompt_models::mcp::Deployment;
 use systemprompt_models::services::ServicesConfig;
@@ -28,6 +28,13 @@ pub fn load_managed_mcp_servers(
 
     let mut out = Vec::with_capacity(entries.len());
     for (name, deployment) in entries {
+        // Why: a server with no declared tool policy has no decision the bridge
+        // can enforce; it is withheld from the signed manifest rather than
+        // published as allow-all, and boot validation names it.
+        let Some(tool_policy) = deployment.tool_policy else {
+            tracing::warn!(server = %name, "MCP server has no tool_policy and is withheld from the bridge manifest");
+            continue;
+        };
         let url_str = if deployment.external_auth.is_some() {
             format!("{base}/api/v1/mcp/{name}/mcp")
         } else {
@@ -54,7 +61,7 @@ pub fn load_managed_mcp_servers(
             tool_policy: Some(BTreeMap::from([(
                 ToolName::try_new(ManagedMcpServer::TOOL_POLICY_WILDCARD)
                     .map_err(|e| MarketplaceError::Catalog(e.to_string()))?,
-                deployment.tool_policy.unwrap_or(ToolPolicy::Allow),
+                tool_policy,
             )])),
         });
     }

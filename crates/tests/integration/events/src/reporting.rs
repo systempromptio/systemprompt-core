@@ -151,7 +151,9 @@ pub(crate) async fn verify_capture(pool: &PgPool, outbox: &DurableOutbox) {
     assert!(outbox.claim("analytics_reporting").await.unwrap().is_none());
 
     let heartbeat = AnalyticsEventBuilder::heartbeat();
-    EventRouter::route_analytics(&user, heartbeat.clone()).await;
+    EventRouter::route_analytics(&user, heartbeat.clone())
+        .await
+        .into_local_logged();
     let delivered = tokio::time::timeout(Duration::from_secs(2), receiver.recv())
         .await
         .unwrap()

@@ -372,6 +372,7 @@ async fn dispatch(
             inbound,
             forward_headers: vec![],
             identity_headers: vec![],
+            governance: systemprompt_test_fixtures::default_governance_engine(),
         },
     )
     .await

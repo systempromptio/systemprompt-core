@@ -140,10 +140,7 @@ impl<'a> MigrationService<'a> {
 
             if let Some(row) = row {
                 self.verify_slot_identity(ext_id, migration, Some(row))?;
-                match row.checksum.as_deref() {
-                    Some(stored) => self.verify_checksum(ext_id, migration, stored)?,
-                    None => self.stamp_checksum(ext_id, migration).await?,
-                }
+                self.verify_checksum(ext_id, migration, &row.checksum)?;
                 migrations_skipped += 1;
                 debug!(
                     extension = %ext_id,
@@ -279,11 +276,7 @@ fn decode_applied_row(
         .and_then(serde_json::Value::as_i64)
         .and_then(|v| u32::try_from(v).ok())
         .ok_or_else(|| malformed("version"))?;
-    let checksum = match row.get("checksum") {
-        None | Some(serde_json::Value::Null) => None,
-        Some(serde_json::Value::String(s)) => Some(s.clone()),
-        Some(_) => return Err(malformed("checksum")),
-    };
+    let checksum = text("checksum")?;
     Ok(AppliedMigration {
         extension_id: text("extension_id")?,
         version,

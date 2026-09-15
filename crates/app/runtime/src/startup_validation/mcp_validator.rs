@@ -48,6 +48,19 @@ where
         if deployment.dev_only && is_cloud {
             continue;
         }
+        if deployment.tool_policy.is_none() {
+            mcp_errors.push(
+                ValidationIssue::new(
+                    format!("mcp_servers.{}.tool_policy", name),
+                    "No tool_policy declared; the server is withheld from the bridge manifest"
+                        .to_owned(),
+                )
+                .with_suggestion(format!(
+                    "Set tool_policy: allow | deny | prompt in services/mcp/{}.yaml",
+                    name
+                )),
+            );
+        }
         if !matches!(deployment.server_type, McpServerType::Internal) {
             continue;
         }

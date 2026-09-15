@@ -338,6 +338,7 @@ async fn replay() -> Result<()> {
                         inbound: Arc::clone(&inbound),
                         forward_headers: vec![],
                         identity_headers: vec![],
+                        governance: systemprompt_test_fixtures::default_governance_engine(),
                     },
                 ),
             )
@@ -394,6 +395,7 @@ async fn replay() -> Result<()> {
                         inbound,
                         forward_headers: vec![],
                         identity_headers: vec![],
+                        governance: systemprompt_test_fixtures::default_governance_engine(),
                     },
                 ),
             )

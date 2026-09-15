@@ -7,17 +7,13 @@ use super::MigrationService;
 use std::collections::HashSet;
 use systemprompt_extension::{Extension, LoaderError, Migration};
 
-#[derive(Debug, Clone)]
 /// A recorded migration.
-///
-/// `checksum` is `None` for a row recorded under the previous checksum
-/// algorithm and cleared by the database extension's migration 001; the
-/// runner stamps the current checksum on its next pass.
+#[derive(Debug, Clone)]
 pub struct AppliedMigration {
     pub extension_id: String,
     pub version: u32,
     pub name: String,
-    pub checksum: Option<String>,
+    pub checksum: String,
     pub applied_at: Option<String>,
 }
 

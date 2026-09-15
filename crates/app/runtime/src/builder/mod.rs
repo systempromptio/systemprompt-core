@@ -155,17 +155,8 @@ impl AppContextBuilder {
             self.show_startup_warnings,
         )?;
 
-        let instance_id = systemprompt_identifiers::InstanceId::new(&config.instance_id);
-        let mut repositories = build_repositories(&database, analytics_repositories, instance_id)?;
-
-        let user_service = Arc::new(UserService::new(Arc::clone(&repositories.users)));
-
-        let system_admin =
-            assembly::resolve_and_install_system_admin(&config, &user_service).await?;
-        repositories.install_organization_resolver(system_admin.id());
-        let mcp_registry = RegistryService::new(system_admin.id().clone());
-
-        ensure_legacy_context(&repositories, &system_admin).await?;
+        let (repositories, user_service, system_admin, mcp_registry) =
+            build_domain_layer(&config, &database, analytics_repositories).await?;
 
         let marketplace_filter = self
             .marketplace_filter
@@ -205,4 +196,27 @@ impl AppContextBuilder {
             subsystems,
         ))
     }
+}
+
+async fn build_domain_layer(
+    config: &systemprompt_models::Config,
+    database: &systemprompt_database::DbPool,
+    analytics_repositories: Arc<systemprompt_analytics::repository::AnalyticsRepositories>,
+) -> RuntimeResult<(
+    composition::RepositoryBundles,
+    Arc<UserService>,
+    Arc<systemprompt_models::SystemAdmin>,
+    RegistryService,
+)> {
+    let mut repositories = build_repositories(
+        database,
+        analytics_repositories,
+        systemprompt_identifiers::InstanceId::new(&config.instance_id),
+    )?;
+    let user_service = Arc::new(UserService::new(Arc::clone(&repositories.users)));
+    let system_admin = assembly::resolve_and_install_system_admin(config, &user_service).await?;
+    repositories.install_organization_resolver(system_admin.id());
+    let mcp_registry = RegistryService::new(system_admin.id().clone());
+    ensure_legacy_context(&repositories, &system_admin).await?;
+    Ok((repositories, user_service, system_admin, mcp_registry))
 }

@@ -177,10 +177,7 @@ async fn execute_migrations_history(
             CliService::info("  No migrations applied yet");
         } else {
             for m in &output.migrations {
-                let checksum = m
-                    .checksum
-                    .as_deref()
-                    .map_or("unstamped", |c| &c[..c.len().min(8)]);
+                let checksum = &m.checksum[..m.checksum.len().min(8)];
                 CliService::info(&format!(
                     "  v{:03} {} (checksum: {checksum})",
                     m.version, m.name

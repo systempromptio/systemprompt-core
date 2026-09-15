@@ -159,7 +159,7 @@ pub struct MigrationHistoryOutput {
 pub struct AppliedMigrationInfo {
     pub version: u32,
     pub name: String,
-    pub checksum: Option<String>,
+    pub checksum: String,
     pub applied_at: Option<String>,
 }
 

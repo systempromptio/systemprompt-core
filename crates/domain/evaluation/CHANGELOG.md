@@ -16,6 +16,7 @@
 
 ### Fixed
 
+- An approved privileged operation is consumed the first time it is authorised (`status='consumed'`); a second `authorize_operation` on the same approval is a conflict instead of a silent re-authorisation.
 - Execution claims order by `variant_index` and `repetition` within a creation instant, so a worker takes an experiment's baseline before its candidates instead of an arbitrary row.
 - Every table the extension creates is declared by its own `SchemaDefinition` (one schema file per table), so `infra db doctor` no longer reports the evaluation tables as undeclared.
 

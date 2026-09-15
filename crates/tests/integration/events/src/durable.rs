@@ -109,7 +109,12 @@ async fn transactional_delivery_preserves_sse_and_recovers_processing() {
         assert!(attempt < 99, "bridge did not establish its listener");
         tokio::time::sleep(Duration::from_millis(20)).await;
     }
-    assert_eq!(EventRouter::route_analytics(&user, event.clone()).await, 1);
+    assert_eq!(
+        EventRouter::route_analytics(&user, event.clone())
+            .await
+            .into_local_logged(),
+        1
+    );
     let legacy = rx.recv().await.unwrap().unwrap();
     assert_eq!(
         format!("{legacy:?}"),
@@ -266,8 +271,7 @@ async fn transactional_delivery_preserves_sse_and_recovers_processing() {
     drop(listener);
     crate::reporting::verify_capture(&pool, &outbox).await;
     verify_all_channels(&pool, &outbox).await;
-    bridge.abort();
-    let _ = bridge.await;
+    bridge.shutdown().await;
     ANALYTICS_BROADCASTER.unregister(&user, &connection).await;
     pool.close().await;
     sqlx::query(sqlx::AssertSqlSafe(format!(
@@ -365,13 +369,19 @@ async fn verify_all_channels(pool: &sqlx::PgPool, outbox: &DurableOutbox) {
     ] {
         match &event {
             SseEvent::AgUi(value) => {
-                EventRouter::route_agui(&actor.user_id, (*value).clone()).await;
+                EventRouter::route_agui(&actor.user_id, (*value).clone())
+                    .await
+                    .into_local_logged();
             },
             SseEvent::A2A(value) => {
-                EventRouter::route_a2a(&actor.user_id, (*value).clone()).await;
+                EventRouter::route_a2a(&actor.user_id, (*value).clone())
+                    .await
+                    .into_local_logged();
             },
             SseEvent::Analytics(value) => {
-                EventRouter::route_analytics(&actor.user_id, (*value).clone()).await;
+                EventRouter::route_analytics(&actor.user_id, (*value).clone())
+                    .await
+                    .into_local_logged();
             },
             SseEvent::System(_) => unreachable!(),
         }
@@ -409,7 +419,9 @@ async fn verify_all_channels(pool: &sqlx::PgPool, outbox: &DurableOutbox) {
     assert_eq!(context_events[0], context_events[1]);
     assert_eq!(context_events[2], context_events[3]);
     assert!(context_rx.try_recv().is_err());
-    EventRouter::route_system(&actor.user_id, system.clone()).await;
+    EventRouter::route_system(&actor.user_id, system.clone())
+        .await
+        .into_local_logged();
     let expected = context_rx.recv().await.unwrap().unwrap();
     let mut tx = pool.begin().await.unwrap();
     outbox
