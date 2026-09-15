@@ -160,10 +160,7 @@ fn i64_saturating(value: u64) -> i64 {
 }
 
 fn hostname_or_unknown() -> String {
-    hostname::get()
-        .ok()
-        .and_then(|os| os.into_string().ok())
-        .unwrap_or_else(|| "unknown".to_owned())
+    crate::sysproc::host_name().unwrap_or_else(|| "unknown".to_owned())
 }
 
 #[derive(Debug, thiserror::Error)]

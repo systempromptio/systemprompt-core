@@ -9,9 +9,57 @@ use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use systemprompt_identifiers::{ConsumerInstallationId, DeviceId, UserId};
 
+/// The origin a device credential is scoped to.
+///
+/// Distinct from [`crate::config::trust::GatewayIdentity`] on purpose: a
+/// device credential travels only over TLS (loopback excepted) and the
+/// consumer API is origin-rooted, so the path is not part of the scope.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(try_from = "String", into = "String")]
+pub struct GatewayOrigin(String);
+
+impl GatewayOrigin {
+    pub fn parse(gateway: &str) -> Result<Self> {
+        let url = url::Url::parse(gateway)?;
+        let local = matches!(url.host_str(), Some("localhost" | "127.0.0.1" | "[::1]"));
+        if (url.scheme() != "https" && !(url.scheme() == "http" && local))
+            || !url.username().is_empty()
+            || url.password().is_some()
+        {
+            return Err(FeedbackError::Scope);
+        }
+        Ok(Self(url.origin().ascii_serialization()))
+    }
+
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl TryFrom<String> for GatewayOrigin {
+    type Error = FeedbackError;
+
+    fn try_from(value: String) -> Result<Self> {
+        Self::parse(&value)
+    }
+}
+
+impl From<GatewayOrigin> for String {
+    fn from(value: GatewayOrigin) -> Self {
+        value.0
+    }
+}
+
+impl std::fmt::Display for GatewayOrigin {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Enrollment {
-    pub gateway: String,
+    pub gateway: GatewayOrigin,
     pub device_id: DeviceId,
     pub consumer_id: UserId,
     pub installation_id: ConsumerInstallationId,
@@ -37,7 +85,7 @@ impl Enrollment {
         if !credential.as_str().starts_with("sp_device_") || credential.as_str().len() > 256 {
             return Err(FeedbackError::EnrollmentRequired);
         }
-        let gateway = canonical_gateway(gateway)?;
+        let gateway = GatewayOrigin::parse(gateway)?;
         Ok(Self {
             gateway,
             device_id,
@@ -66,7 +114,7 @@ impl Enrollment {
         }
         let bytes = std::fs::read(&path)?;
         let enrollment: Self = serde_json::from_slice(&bytes)?;
-        if enrollment.gateway != canonical_gateway(gateway)? {
+        if enrollment.gateway != GatewayOrigin::parse(gateway)? {
             return Err(FeedbackError::Scope);
         }
         Ok(enrollment)
@@ -79,16 +127,4 @@ impl Enrollment {
             crate::hash::sha256_hex(scope.as_bytes())
         ))
     }
-}
-
-pub fn canonical_gateway(gateway: &str) -> Result<String> {
-    let url = url::Url::parse(gateway)?;
-    let local = matches!(url.host_str(), Some("localhost" | "127.0.0.1" | "[::1]"));
-    if (url.scheme() != "https" && !(url.scheme() == "http" && local))
-        || !url.username().is_empty()
-        || url.password().is_some()
-    {
-        return Err(FeedbackError::Scope);
-    }
-    Ok(url.origin().ascii_serialization())
 }

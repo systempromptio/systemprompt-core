@@ -93,6 +93,7 @@ lifetimes, ID-JAG `email_verified`, reusable approvals, CLI double execution,
 
 ### Fixed
 
+- **Bridge:** native session observation is an in-memory record flushed by the heartbeat task, and the feedback outbox writes only on change, so a proxied request never carries a file transaction; non-retryable receipt rejections (400/404/422) are terminal; a failed plugin promotion restores the installed plugin with its `node_modules`; a deadline-killed Node install reports whether the child stopped and `npm.cmd` is bypassed for `node npm-cli.js`; `device-enroll` refuses a corrupt `device.json`; the device name uses the OS host-name lookup.
 - **Bridge (Windows):** an unelevated sync that meets a machine Claude policy with other values reports the host as elevation-required and the GUI offers *Repair as administrator*; a configuration folder another account created is diagnosed by owner and repaired through the elevated job instead of failing sign-in with `Access is denied`; missing Claude Code permission carriers are a warning, an empty `managed-settings.json` no longer aborts policy removal, and a partial sync reads as `degraded` rather than `synced`.
 
 - **Security (OAuth):** the authorization endpoint attaches `redirect_uri` to an error response only after confirming it is registered for `client_id`; an unknown client or unregistered URI renders a 400 error page with no `Location` (RFC 6749 §4.1.2.1). A registered redirect that already carries a query is appended with `&`.

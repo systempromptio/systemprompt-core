@@ -1,5 +1,5 @@
 use chrono::Utc;
-use systemprompt_bridge::feedback::credentials::Enrollment;
+use systemprompt_bridge::feedback::credentials::{Enrollment, GatewayOrigin};
 use systemprompt_bridge::feedback::outbox::{Delivery, Outbox, OutboxScope};
 use systemprompt_bridge::feedback::sessions::native_session;
 use systemprompt_bridge::feedback::{FeedbackError, readback};
@@ -53,7 +53,7 @@ fn plan(host: EvaluatorClient) -> ConsumerInstallationPlan {
 
 fn scope(device: &str) -> OutboxScope {
     OutboxScope {
-        gateway: "https://example.invalid".to_owned(),
+        gateway: GatewayOrigin::parse("https://example.invalid").unwrap(),
         consumer_id: UserId::new("consumer"),
         device_id: DeviceId::try_new(device).expect("nonempty fixture device"),
     }

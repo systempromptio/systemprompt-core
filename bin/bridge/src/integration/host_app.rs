@@ -63,9 +63,16 @@ impl ProbeEnv {
         loopback: &crate::proxy::LoopbackEndpoint,
         start_menu: std::sync::Arc<crate::probe_cache::StartMenuCache>,
     ) -> Self {
+        let loopback_secret = match loopback.secret() {
+            Ok(secret) => Some(secret),
+            Err(error) => {
+                tracing::warn!(error = %error, "loopback secret is unreadable; host probes report it as unverifiable");
+                None
+            },
+        };
         Self {
             proxy_port: loopback.port(),
-            loopback_secret: loopback.secret().ok(),
+            loopback_secret,
             start_menu,
         }
     }

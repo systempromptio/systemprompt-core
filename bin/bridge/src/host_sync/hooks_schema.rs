@@ -1,7 +1,8 @@
 //! Typed wire schema for the per-plugin Cowork `hooks.json` file.
 //!
 //! `allowedEnvVars` is empty: Cowork's agent VM does not reliably propagate
-//! plugin env vars.
+//! plugin env vars. Device credentials never travel in authored hooks; the
+//! proxy attaches them from the enrollment on the way upstream.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -127,11 +128,6 @@ impl HooksFile {
         }
     }
 
-    /// Attributes every HTTP hook to the host that will run it. The stamp is
-    /// applied at emit time, per host copy, because Claude Code runs hooks from
-    /// a cached copy of this file and Cowork reads it in place. Device
-    /// credentials never travel in authored hooks: the proxy attaches them
-    /// from the enrollment on the way upstream.
     // Why: stamped per host copy at emit time — Claude Code runs hooks from a
     // cached copy of this file while Cowork reads it in place.
     pub(crate) fn stamp_host(&mut self, host: &str) {

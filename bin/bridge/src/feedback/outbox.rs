@@ -41,7 +41,7 @@ pub struct Entry {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct OutboxScope {
-    pub gateway: String,
+    pub gateway: super::credentials::GatewayOrigin,
     pub consumer_id: UserId,
     pub device_id: DeviceId,
 }

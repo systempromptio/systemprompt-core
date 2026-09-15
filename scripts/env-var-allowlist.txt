@@ -36,7 +36,7 @@ bin/bridge/src/auth/providers/pat.rs  # <PREFIX>_PAT inline PAT
 bin/bridge/src/basedirs.rs  # HOME and XDG_CONFIG_HOME / XDG_CACHE_HOME / XDG_DATA_HOME / XDG_STATE_HOME base-directory probes
 bin/bridge/src/cli/args.rs  # __CFBundleIdentifier LaunchServices app-bundle launch probe (macOS GUI-by-default)
 bin/bridge/src/config/mod.rs  # <PREFIX>_CONFIG config-file path
-bin/bridge/src/sysproc.rs  # PATH lookup for host tool binaries; COMPUTERNAME / HOSTNAME for the device display name
+bin/bridge/src/sysproc.rs  # PATH lookup for host tool binaries
 bin/bridge/src/config/paths/dirs.rs  # LOCALAPPDATA / USERPROFILE Windows folder probes
 bin/bridge/src/config/paths/mod.rs  # <PREFIX>_ORG_PLUGINS_SYSTEM system org-plugins root; ProgramFiles / ProgramData / LOCALAPPDATA Windows folder probes
 bin/bridge/src/config/store/macos_plist_store.rs  # USER for the per-user managed-preferences plist path (macOS)

@@ -20,7 +20,6 @@ use super::error::{ForwardError, ForwardResult};
 use crate::feedback::sessions::OPENCODE_SESSION_HEADER;
 use crate::proxy::session::{self, SessionContext};
 
-/// The OpenAI-compatible chat path the gateway serves `OpenCode` on.
 // Why: the OpenAI-compatible path OpenCode calls; the session stamp applies
 // only to bodies bound for it.
 pub const CHAT_COMPLETIONS_PATH: &str = "/v1/chat/completions";

@@ -33,7 +33,7 @@ pub(super) fn enroll(ctx: &crate::context::BridgeContext, args: &[String]) -> Ex
             response.consumer_id,
             crate::ids::BearerToken::new(secret.trim().to_owned()),
         )?;
-        if let Ok(previous) = Enrollment::load(&root, gateway.as_str())
+        if let Some(previous) = crate::feedback::enrol::previous_enrolment(&root, gateway.as_str())?
             && previous.consumer_id == enrollment.consumer_id
             && previous.device_id == enrollment.device_id
         {
@@ -86,7 +86,13 @@ pub(super) fn status() -> ExitCode {
             .iter()
             .filter(|(_, entry)| matches!(entry.delivery, Delivery::Acknowledged(_)))
             .count();
-        let verified=entries.iter().filter(|(_,entry)| matches!(&entry.delivery,Delivery::Acknowledged(receipt) if receipt.fully_verified)).count();
+        let verified = entries
+            .iter()
+            .filter(|(_, entry)| match &entry.delivery {
+                Delivery::Acknowledged(receipt) => receipt.fully_verified,
+                _ => false,
+            })
+            .count();
         crate::stdio::print_line(&format!(
             "installation receipts: {acknowledged} acknowledged, {} unacknowledged, {verified} fully verified",
             entries.len() - acknowledged

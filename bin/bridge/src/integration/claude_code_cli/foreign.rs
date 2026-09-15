@@ -67,8 +67,20 @@ pub fn read_plugin_manifest(plugin_dir: &Path) -> Option<PluginManifest> {
         .iter()
         .map(|dir| plugin_dir.join(dir).join(PLUGIN_MANIFEST_FILE))
         .find(|p| p.is_file())?;
-    let bytes = std::fs::read(path).ok()?;
-    serde_json::from_slice(&bytes).ok()
+    let bytes = match std::fs::read(&path) {
+        Ok(bytes) => bytes,
+        Err(error) => {
+            tracing::warn!(path = %path.display(), error = %error, "plugin manifest is unreadable; its dependencies are not collected");
+            return None;
+        },
+    };
+    match serde_json::from_slice(&bytes) {
+        Ok(manifest) => Some(manifest),
+        Err(error) => {
+            tracing::warn!(path = %path.display(), error = %error, "plugin manifest does not parse; its dependencies are not collected");
+            None
+        },
+    }
 }
 
 // Why: a dependency on a marketplace this run mirrors is already enabled by

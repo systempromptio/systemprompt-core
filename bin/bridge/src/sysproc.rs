@@ -277,19 +277,10 @@ pub fn binary_on_path(binary: &str) -> Option<PathBuf> {
     })
 }
 
-// Why: the OS host name is the only device label available before the
-// user names the device; COMPUTERNAME is the Windows spelling, HOSTNAME the
-// Unix one, and /etc/hostname the fallback on hosts that export neither.
 pub(crate) fn host_name() -> Option<String> {
-    ["COMPUTERNAME", "HOSTNAME"]
-        .iter()
-        .find_map(|var| std::env::var(var).ok())
-        .map(|h| h.trim().to_owned())
-        .filter(|h| !h.is_empty())
-        .or_else(|| {
-            std::fs::read_to_string("/etc/hostname")
-                .ok()
-                .map(|h| h.trim().to_owned())
-                .filter(|h| !h.is_empty())
-        })
+    hostname::get()
+        .ok()
+        .and_then(|name| name.into_string().ok())
+        .map(|name| name.trim().to_owned())
+        .filter(|name| !name.is_empty())
 }

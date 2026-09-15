@@ -91,7 +91,7 @@ pub async fn enroll_into(
 
 // Why: no stored enrolment, or one for another gateway, means "enrol afresh";
 // an unreadable or corrupt store is surfaced rather than silently replaced.
-fn previous_enrolment(root: &Path, gateway: &str) -> Result<Option<Enrollment>> {
+pub fn previous_enrolment(root: &Path, gateway: &str) -> Result<Option<Enrollment>> {
     match Enrollment::load(root, gateway) {
         Ok(enrollment) => Ok(Some(enrollment)),
         Err(FeedbackError::EnrollmentRequired | FeedbackError::Scope) => Ok(None),

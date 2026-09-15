@@ -70,7 +70,14 @@
 - A user's scalar at a key the bridge merges a table into (Codex `config.toml`, Hermes `config.yaml`, Claude Code `settings.json`) is refused as `ForeignShape` naming the key; the file is never rewritten around the conflict.
 - `plugin_oauth::store_creds` writes the secret to the keystore before the metadata names it, so a keystore failure keeps the previous, still-usable pair; a stored gateway spelled with a trailing slash is recognised as the same gateway, and a malformed recorded gateway is an error rather than a silent re-provision.
 - Uninstall removes only the plugin directories, policy values and marketplace entries the bridge's sidecars record; a marketplace the bridge has no record of writing is never removed.
-- A staged plugin whose promotion rename fails is rolled back so the previously installed plugin stays in service.
+- A staged plugin whose promotion rename fails is rolled back so the previously installed plugin stays in service, with its `node_modules`: the carried-over install moves from the displaced tree into the promoted one only after the promotion has landed.
+- Native session observation no longer writes on the request path: the proxy records a session in memory and the heartbeat task queues it into the feedback outbox; `Outbox::{entries, pending_installations}` are shared-lock reads and a mutation writes only when the state changed, so a session already recorded and every read leave the file untouched.
+- A receipt the gateway rejects with 400, 404 or 422 is stored as `Delivery::Rejected(status)` and never retried; the outbox evicts it before an acknowledged receipt.
+- A Node install that exceeds its deadline reports whether the child was actually stopped; `npm.cmd` is bypassed for `node npm-cli.js` so the bounded child is the installer itself, not a cmd shim.
+- `device-enroll` refuses an unreadable or corrupt `device.json` instead of overwriting it, matching self-enrolment.
+- The device name and the heartbeat host name come from one OS host-name lookup; `COMPUTERNAME` / `HOSTNAME` and `/etc/hostname` are no longer consulted, so a launchd-started GUI reports the same name as its heartbeat.
+- A mirrored plugin whose `plugin.json` is unreadable or does not parse is logged with its path instead of silently losing its `dependencies`; an unreadable loopback secret is logged before a host probe reports it unverifiable.
+- `Enrollment.gateway` and `OutboxScope.gateway` are the typed `GatewayOrigin` (https, or http on loopback; origin only).
 - `resolve_target` for Cowork returns `Err(Ambiguous)` when several usable org sessions exist and none is the personal session, and `Err(ConfiguredUnusable)` for a configured dir without a plugins subdir, instead of guessing or reading as absent.
 - **Windows:** `open_target` no longer runs `cmd /C start` with an untrusted URL; every external open goes through `opener`.
 - The proxy binds only on its advertised loopback address; an occupied advertised port refuses to start instead of binding elsewhere.
