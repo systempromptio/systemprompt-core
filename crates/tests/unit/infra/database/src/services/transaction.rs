@@ -7,7 +7,9 @@
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use super::db_helper::pool_or_skip;
-use systemprompt_database::{DbPool, PgDbPool, with_transaction, with_transaction_retry};
+use systemprompt_database::{
+    DbPool, PgDbPool, RepositoryError, with_transaction, with_transaction_retry,
+};
 
 fn pg(db: &DbPool) -> PgDbPool {
     db.write_pool_arc().expect("write pool")
@@ -197,4 +199,63 @@ async fn with_transaction_retry_does_not_retry_permanent_error() {
     assert_eq!(row_count(&pool, &table).await, 0);
 
     drop_table(&pool, &table).await;
+}
+
+#[tokio::test]
+async fn a_real_deadlock_classifies_as_a_serialization_failure() {
+    let Some(db) = pool_or_skip().await else {
+        return;
+    };
+    let pool = pg(&db);
+    let key_a = i64::from(uuid::Uuid::new_v4().as_u128() as u32) + 1;
+    let key_b = key_a + 1;
+
+    let mut first = pool.begin().await.expect("first transaction");
+    let mut second = pool.begin().await.expect("second transaction");
+    sqlx::query("SELECT pg_advisory_xact_lock($1)")
+        .bind(key_a)
+        .execute(&mut *first)
+        .await
+        .expect("first holds a");
+    sqlx::query("SELECT pg_advisory_xact_lock($1)")
+        .bind(key_b)
+        .execute(&mut *second)
+        .await
+        .expect("second holds b");
+
+    let first_waits = tokio::spawn(async move {
+        let outcome = sqlx::query("SELECT pg_advisory_xact_lock($1)")
+            .bind(key_b)
+            .execute(&mut *first)
+            .await;
+        (first, outcome)
+    });
+    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+    let second_outcome = sqlx::query("SELECT pg_advisory_xact_lock($1)")
+        .bind(key_a)
+        .execute(&mut *second)
+        .await;
+    let (first, first_outcome) = first_waits.await.expect("join");
+
+    let errors = [first_outcome, second_outcome]
+        .into_iter()
+        .filter_map(Result::err)
+        .map(RepositoryError::from)
+        .collect::<Vec<_>>();
+    assert_eq!(
+        errors.len(),
+        1,
+        "postgres aborts exactly one side of a deadlock"
+    );
+    assert!(
+        errors[0].is_serialization_failure(),
+        "a deadlock (40P01) is a retriable serialization failure, got {}",
+        errors[0]
+    );
+    assert!(
+        !RepositoryError::from(sqlx::Error::RowNotFound).is_serialization_failure(),
+        "a non-database error is never a serialization failure"
+    );
+    drop(first);
+    drop(second);
 }

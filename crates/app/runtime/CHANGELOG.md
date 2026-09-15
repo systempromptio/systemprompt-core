@@ -39,6 +39,8 @@
 
 - Boot no longer fails with `Context … not found for user` after the system admin changes: the legacy context (`ContextId::legacy()`) is re-homed onto the current admin through `ensure_system_context` instead of the user-scoped `ensure_context`.
 - Core initialisation resolves the secrets store once and fails when it is unavailable, instead of resolving every services-bundle source credential to `None`.
+- `reporting::rebuild` / `initialize` retry a transaction Postgres aborted as a deadlock or serialization failure (SQLSTATE 40P01 / 40001) up to four times with backoff; the rebuild holds `SHARE` locks on every source table and a concurrent writer could otherwise abort it.
+
 
 ## [0.52.0] - 2026-09-14
 

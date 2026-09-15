@@ -3,12 +3,16 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use sqlx::PgConnection;
+use std::sync::Arc;
+use std::time::Duration;
+
+use sqlx::{PgConnection, PgPool};
 use systemprompt_analytics::AnalyticsError;
 use systemprompt_analytics::projection::{
     self, ReportingProjector, ReportingRow, SOURCE_DEFINITIONS, SnapshotCursor,
 };
 use systemprompt_database::DbPool;
+use systemprompt_database::resilience::{Outcome, RetryConfig, retry_async};
 
 use crate::RuntimeResult;
 
@@ -22,6 +26,26 @@ pub async fn rebuild(db: &DbPool) -> RuntimeResult<()> {
 
 async fn configure(db: &DbPool, force_rebuild: bool) -> RuntimeResult<()> {
     let pool = db.write_pool_arc()?;
+    let retry = RetryConfig {
+        max_attempts: 4,
+        base_delay: Duration::from_millis(50),
+        max_delay: Duration::from_millis(800),
+        jitter: true,
+    };
+    let classify = |error: &AnalyticsError| match error {
+        AnalyticsError::Repository(repository) if repository.is_serialization_failure() => {
+            Outcome::Transient { retry_after: None }
+        },
+        _ => Outcome::Permanent,
+    };
+    retry_async(&retry, "reporting-rebuild", classify, || {
+        configure_once(&pool, force_rebuild)
+    })
+    .await?;
+    Ok(())
+}
+
+async fn configure_once(pool: &Arc<PgPool>, force_rebuild: bool) -> Result<(), AnalyticsError> {
     let mut transaction = pool.begin().await.map_err(AnalyticsError::from)?;
     projection::lock_user_deletion(&mut transaction).await?;
     SnapshotCursor::lock_sources(&mut transaction).await?;

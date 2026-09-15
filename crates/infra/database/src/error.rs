@@ -65,6 +65,18 @@ impl RepositoryError {
         Self::NotFound(id.to_string())
     }
 
+    pub fn is_serialization_failure(&self) -> bool {
+        // Why: Postgres aborts one side of a serialization conflict (40001) or a
+        // deadlock (40P01) and documents both as "retry the transaction".
+        match self {
+            Self::Database(sqlx_error) => sqlx_error.as_database_error().is_some_and(|db_error| {
+                let code = db_error.code().map(|c| c.to_string());
+                matches!(code.as_deref(), Some("40001" | "40P01"))
+            }),
+            _ => false,
+        }
+    }
+
     pub fn constraint<T: Into<String>>(message: T) -> Self {
         Self::Constraint(message.into())
     }

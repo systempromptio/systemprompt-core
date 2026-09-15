@@ -20,6 +20,7 @@
 
 - `BootstrapLockGuard` and `BOOTSTRAP_ADVISORY_LOCK_KEY` are public; `PostgresProvider` exposes `connection::connect_options`.
 - The database extension now declares the `services` process-registry table (moved from the agent extension, whose migrations declare it as a cross-extension table).
+- `RepositoryError::is_serialization_failure` — the retry classifier `with_transaction_retry` uses, exposed for callers that run their own retry loop.
 
 ### Changed
 
