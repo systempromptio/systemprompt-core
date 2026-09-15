@@ -281,6 +281,7 @@ fn fixture_app_context_assembled(
             system_admin: Arc::new(fixture_system_admin("admin")),
             authz_hook,
             governance: default_governance_engine(),
+            schema_install: Arc::new(systemprompt_database::SchemaInstallReport::default()),
             event_bridge: Arc::new(OnceLock::new()),
             geoip_reader: None,
             file_storage,

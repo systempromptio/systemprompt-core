@@ -8,6 +8,7 @@
 
 ### Changed
 
+- `infra db migrate` fails, after committing everything else, when a declared foreign key could not be created on an established database, naming each key and its cause.
 - `infra logs` commands read trace data through `systemprompt_runtime::trace`.
 - `admin session login` refuses to proceed on a corrupt session index (`SessionStoreCorrupted`, with the repair hint) instead of silently starting from an empty store; `admin session switch` remains the documented repair path and `show`/`list` render an unreadable store as empty with a warning.
 - `infra migrations history` prints `unstamped` for a migration recorded without a checksum; `infra jobs cleanup-logs` runs on `LoggingRepository`.

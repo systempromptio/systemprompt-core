@@ -131,7 +131,7 @@ impl AppContextBuilder {
         } = init_core(self.authz_hook).await?;
 
         let api_registry = Arc::new(ModuleApiRegistry::new());
-        let extension_registry = init_extensions(
+        let (extension_registry, schema_install) = init_extensions(
             self.extension_registry,
             self.install_schemas,
             self.migration_config,
@@ -175,6 +175,7 @@ impl AppContextBuilder {
             system_admin,
             authz_hook,
             governance,
+            schema_install: Arc::new(schema_install),
             event_bridge: Arc::new(OnceLock::new()),
             geoip_reader,
             file_storage,

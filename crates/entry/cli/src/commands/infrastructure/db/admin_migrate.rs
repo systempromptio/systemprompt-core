@@ -79,9 +79,27 @@ async fn run_install(
         allow_checksum_drift,
     };
 
-    install_extension_schemas_full(registry, write_provider, &[], migration_config)
+    let report = install_extension_schemas_full(registry, write_provider, &[], migration_config)
         .await
         .map_err(|e| anyhow!("Schema installation failed: {}", e))?;
+    if !report.is_clean() {
+        let drift: Vec<String> = report
+            .foreign_key_drift
+            .iter()
+            .map(|d| {
+                format!(
+                    "{}.{} ({}): {}",
+                    d.extension, d.table, d.constraint, d.cause
+                )
+            })
+            .collect();
+        return Err(anyhow!(
+            "Schema installation committed but {} declared foreign key(s) could not be created \
+             on this established database; add the referenced unique index with a migration:\n{}",
+            drift.len(),
+            drift.join("\n")
+        ));
+    }
 
     let installed_extensions: Vec<String> = registry
         .schema_extensions()

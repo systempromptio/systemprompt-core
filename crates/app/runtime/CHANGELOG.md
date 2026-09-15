@@ -8,6 +8,7 @@
 
 ### Added
 
+- `AppContext::schema_install()` exposes the `SchemaInstallReport` of the boot's schema installation (`Subsystems.schema_install`), so `/health/detail` can surface declared foreign keys an established database could not create.
 - `trace` module: `TraceQueryService`, `AiTraceService`, their result types and `TraceError` (moved from `systemprompt_logging::trace`); the crate now carries its own `.sqlx` cache.
 - `AppContext::governance()` / `governance_arc()`; `Subsystems.governance` carries the engine built once from the profile's services root.
 - `OptimizationError::Bundle(RevisionBundleError)` for a candidate bundle that fails verification.

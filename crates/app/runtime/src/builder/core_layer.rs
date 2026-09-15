@@ -23,7 +23,7 @@ use std::sync::Arc;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
 use systemprompt_database::{
-    Database, MigrationConfig, PoolConfig, install_extension_schemas_full,
+    Database, MigrationConfig, PoolConfig, SchemaInstallReport, install_extension_schemas_full,
     validate_write_pool_is_primary,
 };
 use systemprompt_extension::ExtensionRegistry;
@@ -222,16 +222,18 @@ pub(super) async fn init_extensions(
     install_schemas: bool,
     migration_config: MigrationConfig,
     database: &Arc<Database>,
-) -> RuntimeResult<Arc<ExtensionRegistry>> {
+) -> RuntimeResult<(Arc<ExtensionRegistry>, SchemaInstallReport)> {
     let registry = match extension_registry {
         Some(registry) => registry,
         None => ExtensionRegistry::discover()?,
     };
     registry.validate()?;
 
-    if install_schemas {
-        install_extension_schemas_full(&registry, database.write(), &[], migration_config).await?;
-    }
+    let report = if install_schemas {
+        install_extension_schemas_full(&registry, database.write(), &[], migration_config).await?
+    } else {
+        SchemaInstallReport::default()
+    };
 
-    Ok(Arc::new(registry))
+    Ok((Arc::new(registry), report))
 }

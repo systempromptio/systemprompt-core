@@ -16,7 +16,7 @@ use systemprompt_analytics::repository::AnalyticsRepositories;
 use systemprompt_analytics::{AnalyticsService, FingerprintRepository, GeoIpReader};
 use systemprompt_config::paths::AppPaths;
 use systemprompt_content::repository::ContentRepositories;
-use systemprompt_database::{DbPool, ServiceRepository};
+use systemprompt_database::{DbPool, SchemaInstallReport, ServiceRepository};
 use systemprompt_evaluation::repository::experiments::EvaluationRepositories;
 use systemprompt_events::EventBridgeHandle;
 use systemprompt_extension::ExtensionRegistry;
@@ -91,6 +91,7 @@ pub struct Subsystems {
     pub system_admin: Arc<SystemAdmin>,
     pub authz_hook: SharedAuthzHook,
     pub governance: Arc<GovernanceEngine>,
+    pub schema_install: Arc<SchemaInstallReport>,
     pub event_bridge: Arc<OnceLock<EventBridgeHandle>>,
     pub geoip_reader: Option<GeoIpReader>,
     pub file_storage: Arc<dyn FileStorage>,
@@ -248,6 +249,11 @@ impl AppContext {
     #[must_use]
     pub fn governance_arc(&self) -> Arc<GovernanceEngine> {
         Arc::clone(&self.subsystems.governance)
+    }
+
+    #[must_use]
+    pub fn schema_install(&self) -> &SchemaInstallReport {
+        &self.subsystems.schema_install
     }
 
     pub const fn shutdown_request(&self) -> &ShutdownRequest {
