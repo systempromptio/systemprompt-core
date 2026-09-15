@@ -56,13 +56,10 @@ impl PublicationAction {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[doc(hidden)]
 pub enum PublicationAdmission {
-    /// Reviewed publication backed by an evaluation attestation.
     Attested,
-    /// Automatic publication of the configured services tree.
     InventorySync,
 }
 
-/// Evidence `source` value an inventory-sync publication must carry.
 pub const INVENTORY_REFRESH_SOURCE: &str = "inventory_refresh";
 
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]

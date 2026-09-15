@@ -55,8 +55,6 @@ pub async fn prepare_baselines(
         .await?)
 }
 
-/// Refreshes the inventory, then publishes the latest configured revision of
-/// every available skill as a new generation; earlier generations are retained.
 pub async fn publish_latest(
     ctx: &AppContext,
     owner: &UserId,

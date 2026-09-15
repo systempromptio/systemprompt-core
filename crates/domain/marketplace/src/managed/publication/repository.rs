@@ -22,11 +22,6 @@ impl ManagedRepository {
             .await
     }
 
-    /// Reviews and publishes under an explicit admission path.
-    ///
-    /// Hidden from the public API: callers outside the crate use
-    /// [`Self::review_and_publish`], which always attests. The tests
-    /// workspace reaches this seam directly.
     #[doc(hidden)]
     pub async fn publish_with_admission(
         &self,

@@ -9,8 +9,6 @@ use super::outbox::Outbox;
 use systemprompt_identifiers::{ClientSessionId, NativeSessionId};
 use systemprompt_models::feedback::EvaluatorClient;
 
-/// Header the `OpenCode` plugin stamps on every chat request with the
-/// gateway-facing session UUID.
 pub const OPENCODE_SESSION_HEADER: &str = "x-opencode-session";
 
 #[derive(Debug, Clone, PartialEq, Eq)]

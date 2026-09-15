@@ -53,11 +53,9 @@ impl OrganizationSkillResolver {
         Ok(resolved)
     }
 
-    /// Resolves a skill for catalogue inclusion: every published organisation
-    /// skill reaches the consumer unless a grant was explicitly revoked.
-    ///
-    /// The manifest records the grant it hands out, so this is the only path
-    /// that may run without one; runtime resolution stays grant-gated.
+    // Why: the manifest records the grant it hands out, so catalogue inclusion is
+    // the only path allowed to run without one; runtime resolution stays
+    // grant-gated.
     pub async fn resolve_skill_for_catalog(
         &self,
         consumer: &UserId,

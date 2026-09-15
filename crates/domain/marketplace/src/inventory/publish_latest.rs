@@ -54,10 +54,6 @@ struct Managed {
 }
 
 impl InventoryService {
-    /// Publishes the latest configured revision of every available skill,
-    /// then refreshes the inventory so published-revision projections are
-    /// current. Withdrawn resources stay withdrawn; open reconciliations are
-    /// reported and never published over.
     pub async fn publish_latest(
         &self,
         scope: &BaselineScope<'_>,

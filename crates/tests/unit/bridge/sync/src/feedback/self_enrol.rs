@@ -231,9 +231,7 @@ async fn gateway_refusal_leaves_no_enrolment_behind() {
         dir.path(),
         &client,
         &bearer,
-        &InstallId::ephemeral(),
-        &UserId::new("consumer"),
-        false,
+        &enrolment(&ephemeral_install(), &UserId::new("consumer"), false),
     )
     .await
     .expect_err("409 must surface");
