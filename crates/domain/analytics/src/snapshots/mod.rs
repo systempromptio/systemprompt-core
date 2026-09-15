@@ -21,10 +21,14 @@ pub use types::*;
 /// compaction.
 pub struct FeedbackSnapshotsRepository {
     pool: sqlx::PgPool,
+    facts: crate::feedback::FeedbackFactsRepository,
 }
 impl FeedbackSnapshotsRepository {
-    pub const fn new(pool: sqlx::PgPool) -> Self {
-        Self { pool }
+    pub fn new(pool: sqlx::PgPool) -> Self {
+        Self {
+            facts: crate::feedback::FeedbackFactsRepository::new(pool.clone()),
+            pool,
+        }
     }
 }
 fn invalid(message: &str) -> crate::AnalyticsError {

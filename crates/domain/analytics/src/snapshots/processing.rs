@@ -17,8 +17,8 @@ impl FeedbackSnapshotsRepository {
         worker: &TaskId,
         now: DateTime<Utc>,
     ) -> crate::Result<u64> {
-        let facts = FeedbackFactsRepository::new(self.pool.clone());
-        let Some(lease) = facts
+        let Some(lease) = self
+            .facts
             .claim_deltas(owner, "snapshots-v1", worker, 256, 300)
             .await?
         else {

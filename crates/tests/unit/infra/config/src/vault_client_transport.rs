@@ -146,7 +146,7 @@ async fn a_body_cut_short_of_its_content_length_is_a_body_error() {
         use tokio::io::{AsyncReadExt, AsyncWriteExt};
         let (mut socket, _) = listener.accept().await.unwrap();
         let mut request = [0u8; 4096];
-        let _ = socket.read(&mut request).await.unwrap();
+        let _ = socket.read(&mut request).await.unwrap(); // lint-ok: no-assert drains the request before the reply
         socket
             .write_all(
                 b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 4096\r\n\r\n{\"data\":{",

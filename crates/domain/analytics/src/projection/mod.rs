@@ -10,7 +10,9 @@ use sqlx::PgConnection;
 use crate::{AnalyticsError, Result};
 
 mod sources;
+mod state;
 pub use sources::SOURCE_DEFINITIONS;
+pub use state::{ProjectionStatus, is_initialized, lock_projector, next_cutoff_revision, status};
 
 pub const REPORTING_CONSUMER: &str = "analytics_reporting";
 pub const REPORTING_KIND: &str = "reporting.row";
@@ -121,8 +123,8 @@ pub struct ReportingProjector;
 
 impl ReportingProjector {
     pub async fn begin_rebuild(connection: &mut PgConnection) -> Result<i64> {
-        let generation: i64 = sqlx::query_scalar(
-            "SELECT generation + 1 FROM analytics_projection_state WHERE singleton FOR UPDATE",
+        let generation = sqlx::query_scalar!(
+            r#"SELECT generation + 1 AS "generation!" FROM analytics_projection_state WHERE singleton FOR UPDATE"#
         )
         .fetch_one(&mut *connection)
         .await?;
@@ -134,7 +136,7 @@ impl ReportingProjector {
             .execute(&mut *connection)
             .await?;
         }
-        sqlx::query("DELETE FROM analytics_projection_revisions")
+        sqlx::query!("DELETE FROM analytics_projection_revisions")
             .execute(&mut *connection)
             .await?;
         Ok(generation)
@@ -163,12 +165,12 @@ impl ReportingProjector {
                 "invalid projection generation or cutoff",
             ));
         }
-        let result = sqlx::query(
+        let result = sqlx::query!(
             "UPDATE analytics_projection_state SET generation = $1, cutoff_revision = $2,
              initialized = TRUE, rebuilt_at = NOW() WHERE singleton AND generation = $1 - 1",
+            i64::from(generation),
+            cutoff_revision
         )
-        .bind(generation)
-        .bind(cutoff_revision)
         .execute(&mut *connection)
         .await?;
         if result.rows_affected() != 1 {
@@ -181,12 +183,13 @@ impl ReportingProjector {
 
     pub async fn apply_fact(connection: &mut PgConnection, fact: &ReportingRow) -> Result<bool> {
         fact.validate()?;
-        let (initialized, cutoff): (bool, i64) = sqlx::query_as(
-            "SELECT initialized, cutoff_revision FROM analytics_projection_state WHERE singleton FOR UPDATE",
+        let state = sqlx::query!(
+            "SELECT initialized, cutoff_revision FROM analytics_projection_state WHERE singleton FOR UPDATE"
         )
         .fetch_one(&mut *connection)
         .await?;
-        if !initialized {
+        let cutoff = state.cutoff_revision;
+        if !state.initialized {
             return Err(AnalyticsError::invalid_argument(
                 "analytics projection requires a baseline snapshot",
             ));
@@ -194,16 +197,16 @@ impl ReportingProjector {
         if fact.revision <= cutoff {
             return Ok(false);
         }
-        let accepted: Option<i64> = sqlx::query_scalar(
+        let accepted = sqlx::query_scalar!(
             "INSERT INTO analytics_projection_revisions(source, entity_key, revision)
              VALUES ($1, $2, $3)
              ON CONFLICT(source, entity_key) DO UPDATE SET revision = EXCLUDED.revision
              WHERE analytics_projection_revisions.revision < EXCLUDED.revision
              RETURNING revision",
+            fact.source.definition().table,
+            &fact.key,
+            fact.revision
         )
-        .bind(fact.source.definition().table)
-        .bind(&fact.key)
-        .bind(fact.revision)
         .fetch_optional(&mut *connection)
         .await?;
         if accepted.is_none() {
@@ -248,6 +251,67 @@ impl ReportingProjector {
             .execute(connection)
             .await?;
         }
+        Ok(())
+    }
+}
+
+/// One owner-published reporting row read from a rebuild snapshot cursor.
+#[derive(Debug, sqlx::FromRow)]
+pub struct SnapshotRow {
+    pub entity_key: String,
+    // JSON: owner-published reporting views provide the versioned row payload.
+    pub row: Value,
+}
+
+/// Server-side cursor over one source's reporting view, held open for the
+/// rebuild transaction so the snapshot is read in bounded batches.
+#[derive(Debug)]
+pub struct SnapshotCursor {
+    definition: &'static SourceDefinition,
+}
+
+impl SnapshotCursor {
+    pub async fn lock_sources(connection: &mut PgConnection) -> Result<()> {
+        let tables = SOURCE_DEFINITIONS
+            .iter()
+            .map(|definition| definition.table)
+            .collect::<Vec<_>>()
+            .join(", ");
+        sqlx::query(sqlx::AssertSqlSafe(format!(
+            "LOCK TABLE {tables} IN SHARE MODE"
+        )))
+        .execute(connection)
+        .await?;
+        Ok(())
+    }
+
+    pub async fn open(
+        connection: &mut PgConnection,
+        definition: &'static SourceDefinition,
+    ) -> Result<Self> {
+        sqlx::query(sqlx::AssertSqlSafe(format!(
+            "DECLARE reporting_snapshot NO SCROLL CURSOR FOR SELECT entity_key, row FROM {}",
+            definition.view,
+        )))
+        .execute(connection)
+        .await?;
+        Ok(Self { definition })
+    }
+
+    pub fn definition(&self) -> &'static SourceDefinition {
+        self.definition
+    }
+
+    pub async fn fetch(&self, connection: &mut PgConnection) -> Result<Vec<SnapshotRow>> {
+        Ok(sqlx::query_as("FETCH FORWARD 1000 FROM reporting_snapshot")
+            .fetch_all(connection)
+            .await?)
+    }
+
+    pub async fn close(self, connection: &mut PgConnection) -> Result<()> {
+        sqlx::query("CLOSE reporting_snapshot")
+            .execute(connection)
+            .await?;
         Ok(())
     }
 }
