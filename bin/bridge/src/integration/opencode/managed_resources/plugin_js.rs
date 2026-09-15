@@ -7,6 +7,9 @@
 //! it does for Claude Code hooks, so nothing server-side distinguishes the
 //! two hosts except the `skill_ref`, which resolves the `OpenCode` skill
 //! directory back to its `plugin:skill` identity.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::collections::BTreeMap;
 use std::path::PathBuf;
