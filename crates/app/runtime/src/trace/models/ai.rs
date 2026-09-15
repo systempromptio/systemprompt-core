@@ -12,6 +12,8 @@ use systemprompt_identifiers::{AiRequestId, TraceId, UserId};
 pub struct AiRequestFilter {
     pub limit: i64,
     pub since: Option<DateTime<Utc>>,
+    pub until: Option<DateTime<Utc>>,
+    pub before: Option<RequestCursor>,
     pub model: Option<String>,
     pub provider: Option<String>,
     pub user: Option<String>,
@@ -22,6 +24,8 @@ impl AiRequestFilter {
         Self {
             limit,
             since: None,
+            until: None,
+            before: None,
             model: None,
             provider: None,
             user: None,
@@ -33,10 +37,61 @@ impl AiRequestFilter {
         self
     }
 
+    pub const fn with_until(mut self, until: DateTime<Utc>) -> Self {
+        self.until = Some(until);
+        self
+    }
+
+    pub fn with_before(mut self, before: RequestCursor) -> Self {
+        self.before = Some(before);
+        self
+    }
+
     systemprompt_models::builder_methods! {
         with_model(model) -> String,
         with_provider(provider) -> String,
         with_user(user) -> String,
+    }
+}
+
+/// Keyset position for paging `list_ai_requests` past its newest-first page:
+/// rows strictly older than `(created_at, id)` in the list's own sort order.
+///
+/// The wire form is `<created_at RFC3339>@<request_id>`, which a caller
+/// derives from the last row of the page it just received. `@` because the
+/// remote CLI gateway refuses shell metacharacters (`|`, `;`, `&`, …) in
+/// arguments, and a cursor has to survive that path.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RequestCursor {
+    pub created_at: DateTime<Utc>,
+    pub id: AiRequestId,
+}
+
+impl RequestCursor {
+    pub const SEPARATOR: char = '@';
+
+    pub fn parse(raw: &str) -> Option<Self> {
+        let (stamp, id) = raw.trim().split_once(Self::SEPARATOR)?;
+        if id.is_empty() {
+            return None;
+        }
+        let created_at = DateTime::parse_from_rfc3339(stamp).ok()?.with_timezone(&Utc);
+        Some(Self {
+            created_at,
+            id: AiRequestId::new(id),
+        })
+    }
+}
+
+impl std::fmt::Display for RequestCursor {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}{}{}",
+            self.created_at.to_rfc3339_opts(chrono::SecondsFormat::Micros, true),
+            Self::SEPARATOR,
+            self.id.as_str()
+        )
     }
 }
 

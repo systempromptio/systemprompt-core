@@ -4,8 +4,9 @@
 //! `LogSearchFilter` — each is a small const-fn builder over an `Option`-bag.
 
 use chrono::{TimeZone, Utc};
+use systemprompt_identifiers::AiRequestId;
 use systemprompt_runtime::{
-    AiRequestFilter, LogSearchFilter, ToolExecutionFilter, TraceListFilter,
+    AiRequestFilter, LogSearchFilter, RequestCursor, ToolExecutionFilter, TraceListFilter,
 };
 
 mod ai_request_filter {
@@ -28,6 +29,46 @@ mod ai_request_filter {
             .expect("date");
         let f = AiRequestFilter::new(10).with_since(ts);
         assert_eq!(f.since, Some(ts));
+    }
+
+    #[test]
+    fn with_until_and_before_set_the_upper_bounds() {
+        let ts = Utc
+            .with_ymd_and_hms(2026, 9, 12, 0, 0, 0)
+            .single()
+            .expect("date");
+        let cursor = RequestCursor {
+            created_at: ts,
+            id: AiRequestId::new("req_last"),
+        };
+        let f = AiRequestFilter::new(10)
+            .with_until(ts)
+            .with_before(cursor.clone());
+        assert_eq!(f.until, Some(ts));
+        assert_eq!(f.before, Some(cursor));
+    }
+
+    #[test]
+    fn request_cursor_round_trips_through_its_wire_form() {
+        let ts = Utc
+            .with_ymd_and_hms(2026, 9, 12, 13, 14, 15)
+            .single()
+            .expect("date");
+        let cursor = RequestCursor {
+            created_at: ts,
+            id: AiRequestId::new("req_last"),
+        };
+        let wire = cursor.to_string();
+        assert_eq!(wire, "2026-09-12T13:14:15.000000Z@req_last");
+        assert_eq!(RequestCursor::parse(&wire), Some(cursor));
+    }
+
+    #[test]
+    fn request_cursor_rejects_malformed_input() {
+        assert!(RequestCursor::parse("").is_none());
+        assert!(RequestCursor::parse("not-a-date@req").is_none());
+        assert!(RequestCursor::parse("2026-09-12T13:14:15Z|").is_none());
+        assert!(RequestCursor::parse("2026-09-12T13:14:15Z").is_none());
     }
 
     #[test]

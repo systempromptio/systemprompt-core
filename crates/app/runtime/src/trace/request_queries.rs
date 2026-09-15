@@ -52,6 +52,9 @@ pub(super) async fn list_ai_requests(
     filter: &AiRequestFilter,
 ) -> Result<Vec<AiRequestListItem>> {
     let since = filter.since;
+    let until = filter.until;
+    let before_at = filter.before.as_ref().map(|c| c.created_at);
+    let before_id = filter.before.as_ref().map(|c| c.id.as_str());
     let model = filter.model.as_deref();
     let provider = filter.provider.as_deref();
     let user = filter.user.as_deref();
@@ -77,14 +80,19 @@ pub(super) async fn list_ai_requests(
           AND ($2::text IS NULL OR model ILIKE $2)
           AND ($3::text IS NULL OR provider ILIKE $3)
           AND ($4::text IS NULL OR user_id = $4)
-        ORDER BY created_at DESC
+          AND ($6::timestamptz IS NULL OR created_at < $6)
+          AND ($7::timestamptz IS NULL OR (created_at, id) < ($7, $8))
+        ORDER BY created_at DESC, id DESC
         LIMIT $5
         "#,
         since,
         model,
         provider,
         user,
-        limit
+        limit,
+        until,
+        before_at,
+        before_id
     )
     .fetch_all(&**pool)
     .await?;

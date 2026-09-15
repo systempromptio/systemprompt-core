@@ -604,3 +604,74 @@ async fn log_lookup_search_and_summaries_map_seeded_rows() {
 
     seed.cleanup().await;
 }
+
+// Newest-first paging must be able to walk past the first page without
+// overlap or gaps: `--before` takes the cursor of the last row seen and the
+// next page holds strictly older rows, with `--until` as the plain time bound.
+#[tokio::test]
+async fn request_list_pages_backwards_with_until_and_before_cursor() {
+    let Some(seed) = AuditSeed::new_or_skip().await else {
+        return;
+    };
+    let mut ids = Vec::new();
+    for offset in 1..=3 {
+        let id = format!("{}_page{offset}", seed.request_id);
+        sqlx::query(
+            "INSERT INTO ai_requests \
+             (id, request_id, user_id, context_id, trace_id, actor_kind, actor_id, status, \
+              cost_microdollars, created_at) \
+             VALUES ($1, $1, $2, '00000000-0000-0000-0000-00000000c0de', $3, 'user', $2, \
+                     'completed', 0, now() - make_interval(mins => $4))",
+        )
+        .bind(&id)
+        .bind(&seed.user_id)
+        .bind(&seed.trace_id)
+        .bind(offset)
+        .execute(&seed.pool)
+        .await
+        .unwrap();
+        ids.push(id);
+    }
+    let svc = TraceQueryService::new(std::sync::Arc::new(seed.pool.clone()));
+    let user = seed.user_id.clone();
+
+    let first = svc
+        .list_ai_requests(&AiRequestFilter::new(2).with_user(user.clone()))
+        .await
+        .unwrap();
+    assert_eq!(first.len(), 2);
+    let cursor = systemprompt_runtime::RequestCursor {
+        created_at: first[1].created_at,
+        id: first[1].id.clone(),
+    };
+
+    let second = svc
+        .list_ai_requests(
+            &AiRequestFilter::new(50)
+                .with_user(user.clone())
+                .with_before(cursor),
+        )
+        .await
+        .unwrap();
+    assert!(
+        second.iter().all(|r| r.created_at <= first[1].created_at),
+        "the page after the cursor holds only older rows"
+    );
+    assert!(
+        second.iter().all(|r| first.iter().all(|f| f.id != r.id)),
+        "no row appears on both pages"
+    );
+    assert_eq!(first.len() + second.len(), 4, "seed + 3 pages, no gaps");
+
+    let bounded = svc
+        .list_ai_requests(
+            &AiRequestFilter::new(50)
+                .with_user(user)
+                .with_until(Utc::now() - ChronoDuration::minutes(2)),
+        )
+        .await
+        .unwrap();
+    let bounded_ids: Vec<&str> = bounded.iter().map(|r| r.id.as_str()).collect();
+    assert!(bounded_ids.contains(&ids[2].as_str()), "3 minutes old is before --until");
+    assert!(!bounded_ids.contains(&ids[0].as_str()), "1 minute old is after --until");
+}

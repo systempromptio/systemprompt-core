@@ -12,6 +12,7 @@ fn sample_row() -> RequestListRow {
     RequestListRow {
         request_id: "req_abc123".to_owned(),
         timestamp: "2026-06-03 10:00:00".to_owned(),
+        cursor: "2026-06-03T10:00:00.000000Z@req_abc123".to_owned(),
         user_id: UserId::new("user_abc123"),
         actor: "user:user_abc123".to_owned(),
         provider: "anthropic".to_owned(),
@@ -28,6 +29,23 @@ fn request_list_returns_table() {
     let output = build_request_list(&[sample_row()]);
     assert!(matches!(output.artifact(), CliArtifact::Table { .. }));
     assert!(!output.should_skip_render());
+}
+
+#[test]
+fn request_list_rows_carry_their_cursor_for_paging() {
+    let output = build_request_list(&[sample_row()]);
+    let CliArtifact::Table { artifact } = output.artifact() else {
+        panic!("expected a table");
+    };
+    let row = artifact.items.first().expect("one row");
+    assert_eq!(
+        row["cursor"].as_str(),
+        Some("2026-06-03T10:00:00.000000Z@req_abc123")
+    );
+    assert!(
+        !artifact.columns.iter().any(|c| c.name() == "cursor"),
+        "cursor is for machine readers, not a terminal column"
+    );
 }
 
 #[test]
