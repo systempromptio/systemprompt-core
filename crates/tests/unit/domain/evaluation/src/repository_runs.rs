@@ -656,3 +656,6 @@ mod admission;
 
 #[path = "campaign_completion.rs"]
 mod campaign_completion;
+
+#[path = "repository_campaign_dispatch.rs"]
+mod campaign_dispatch;
