@@ -29,26 +29,10 @@ async fn configure(db: &DbPool, force_rebuild: bool) -> RuntimeResult<()> {
         .map_err(AnalyticsError::from)?;
     SnapshotCursor::lock_sources(&mut transaction).await?;
     projection::lock_projector(&mut transaction).await?;
-    install_capture(&mut transaction).await?;
     if force_rebuild || !projection::is_initialized(&mut transaction).await? {
         rebuild_locked(&mut transaction).await?;
     }
     transaction.commit().await.map_err(AnalyticsError::from)?;
-    Ok(())
-}
-
-async fn install_capture(connection: &mut PgConnection) -> Result<(), AnalyticsError> {
-    for script in [
-        systemprompt_events::REPORTING_CAPTURE_SQL,
-        systemprompt_users::REPORTING_CAPTURE_SQL,
-        systemprompt_agent::REPORTING_CAPTURE_SQL,
-        systemprompt_ai::REPORTING_CAPTURE_SQL,
-        systemprompt_mcp::REPORTING_CAPTURE_SQL,
-        systemprompt_content::REPORTING_CAPTURE_SQL,
-        systemprompt_logging::REPORTING_CAPTURE_SQL,
-    ] {
-        sqlx::raw_sql(script).execute(&mut *connection).await?;
-    }
     Ok(())
 }
 

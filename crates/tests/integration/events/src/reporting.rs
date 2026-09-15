@@ -11,10 +11,12 @@ use systemprompt_identifiers::ConnectionId;
 use systemprompt_models::AnalyticsEventBuilder;
 
 pub(crate) async fn verify_capture(pool: &PgPool, outbox: &DurableOutbox) {
-    sqlx::raw_sql(systemprompt_events::REPORTING_CAPTURE_SQL)
-        .execute(pool)
-        .await
-        .unwrap();
+    sqlx::raw_sql(include_str!(
+        "../../../../infra/events/schema/reporting_capture.sql"
+    ))
+    .execute(pool)
+    .await
+    .unwrap();
     sqlx::raw_sql("CREATE TABLE user_sessions (session_id TEXT PRIMARY KEY)")
         .execute(pool)
         .await

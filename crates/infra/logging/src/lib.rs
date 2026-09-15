@@ -150,5 +150,3 @@ pub fn init_console_logging() {
 pub fn init_console_logging_with_level(level: Option<&str>) {
     ensure_subscriber(level);
 }
-
-pub const REPORTING_CAPTURE_SQL: &str = include_str!("../schema/reporting_capture.sql");

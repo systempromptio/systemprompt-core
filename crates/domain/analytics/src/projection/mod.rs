@@ -166,9 +166,9 @@ impl ReportingProjector {
             ));
         }
         let result = sqlx::query!(
-            "UPDATE analytics_projection_state SET generation = $1, cutoff_revision = $2,
-             initialized = TRUE, rebuilt_at = NOW() WHERE singleton AND generation = $1 - 1",
-            i64::from(generation),
+            "UPDATE analytics_projection_state SET generation = $1::BIGINT, cutoff_revision = $2,
+             initialized = TRUE, rebuilt_at = NOW() WHERE singleton AND generation = $1::BIGINT - 1",
+            generation,
             cutoff_revision
         )
         .execute(&mut *connection)
@@ -265,7 +265,7 @@ pub struct SnapshotRow {
 
 /// Server-side cursor over one source's reporting view, held open for the
 /// rebuild transaction so the snapshot is read in bounded batches.
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct SnapshotCursor {
     definition: &'static SourceDefinition,
 }

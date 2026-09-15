@@ -65,5 +65,3 @@ pub use systemprompt_traits::auth::{RoleProvider, UserProvider};
 
 pub mod sessions;
 pub use sessions::{SessionRepository, UsersAiSessionProvider};
-
-pub const REPORTING_CAPTURE_SQL: &str = include_str!("../schema/reporting_capture.sql");
