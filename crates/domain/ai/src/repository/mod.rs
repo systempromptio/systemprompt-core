@@ -16,6 +16,7 @@ pub mod ai_quota_buckets;
 pub mod ai_request_payloads;
 pub mod ai_requests;
 pub mod ai_safety_findings;
+pub mod ownership;
 pub mod thought_signatures;
 
 use crate::error::RepositoryError;
@@ -30,6 +31,7 @@ pub use ai_requests::{AiRequestRepository, InsertToolCallParams};
 pub use ai_safety_findings::{
     AiSafetyFindingRepository, InsertSafetyFinding, SafetyFindingRollupRow,
 };
+pub use ownership::AiOwnerReassignment;
 pub use thought_signatures::AiThoughtSignatureRepository;
 
 #[derive(Debug, Clone)]

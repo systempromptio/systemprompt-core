@@ -57,9 +57,14 @@ impl ConfigValidator {
         }
 
         if !providers.contains_key(default) {
+            let withheld = missing_env_vars
+                .iter()
+                .find(|m| m.contains(&format!("Provider '{default}'")))
+                .map_or_else(String::new, |m| format!("\nWithheld: {m}"));
             return Err(crate::error::AiError::Internal(format!(
                 "Default provider '{}' has no connectivity in the profile registry.\nProviders \
-                 with connectivity: {:?}\nFix: add a `providers` registry entry named '{}'",
+                 with connectivity: {:?}\nFix: add a `providers` registry entry named '{}' and \
+                 its api_key secret{withheld}",
                 default,
                 providers.keys().collect::<Vec<_>>(),
                 default

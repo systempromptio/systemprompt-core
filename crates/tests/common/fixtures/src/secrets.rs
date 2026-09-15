@@ -34,6 +34,25 @@ pub fn block_on_secrets_init() -> Result<(), String> {
     })
 }
 
+// A provider without its api_key secret is withheld from the AI registry;
+// the harness mocks every provider endpoint, so placeholder credentials let
+// the mocked providers register.
+pub fn install_test_provider_keys() {
+    for (name, value) in [
+        ("ANTHROPIC_API_KEY", "test-anthropic-key"),
+        ("OPENAI_API_KEY", "test-openai-key"),
+        ("GEMINI_API_KEY", "test-gemini-key"),
+    ] {
+        if env::var(name).is_err() {
+            // SAFETY: called from single-threaded fixture init, before any
+            // thread that reads the environment is spawned.
+            unsafe {
+                env::set_var(name, value);
+            }
+        }
+    }
+}
+
 pub fn ensure_test_secrets_bootstrap() {
     static INIT: Once = Once::new();
     INIT.call_once(|| {
@@ -46,6 +65,7 @@ pub fn ensure_test_secrets_bootstrap() {
             if env::var("MANIFEST_SIGNING_SECRET_SEED").is_err() {
                 env::set_var("MANIFEST_SIGNING_SECRET_SEED", TEST_MANIFEST_SIGNING_SEED);
             }
+            install_test_provider_keys();
         }
         block_on_secrets_init().expect("SecretsBootstrap::try_init should succeed in tests");
     });

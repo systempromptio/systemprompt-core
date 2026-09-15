@@ -32,12 +32,10 @@ pub fn catalog_supports_model(models: &[ProviderModel], model: &str) -> bool {
 }
 
 #[must_use]
-pub fn catalog_pricing(models: &[ProviderModel], model: &str) -> ModelPricing {
-    models
-        .iter()
-        .find(|m| m.matches(model))
-        .map(|m| m.pricing)
-        .unwrap_or_default()
+// Why: a model the catalogue does not price cannot be billed; `None` is
+// withheld so the caller refuses the request instead of settling it at zero.
+pub fn catalog_pricing(models: &[ProviderModel], model: &str) -> Option<ModelPricing> {
+    models.iter().find(|m| m.matches(model)).map(|m| m.pricing)
 }
 
 #[must_use]
@@ -182,7 +180,15 @@ pub trait AiProvider: Send + Sync {
 
     fn default_model(&self) -> &str;
 
-    fn get_pricing(&self, model: &str) -> ModelPricing;
+    fn get_pricing(&self, model: &str) -> Option<ModelPricing>;
+
+    // Why: health is what the resilience layer has observed — an open circuit
+    // means recent calls failed — not an assumption that a registered
+    // provider is reachable; a bare provider has no observation and reports
+    // itself available.
+    fn is_available(&self) -> bool {
+        true
+    }
 
     async fn generate(&self, params: GenerationParams<'_>) -> Result<AiResponse>;
 

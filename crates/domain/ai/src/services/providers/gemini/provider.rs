@@ -5,12 +5,9 @@
 
 use crate::error::Result;
 use reqwest::Client;
-use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_models::services::ProviderModel;
-use tokio::sync::Mutex;
 
-use crate::services::schema::ToolNameMapper;
 
 use super::constants::defaults;
 use super::transport;
@@ -20,7 +17,6 @@ pub struct GeminiProvider {
     pub(crate) client: Client,
     pub(crate) api_key: String,
     pub(crate) endpoint: String,
-    pub(crate) tool_mapper: Arc<Mutex<ToolNameMapper>>,
     pub(crate) db_pool: Option<DbPool>,
     pub(crate) google_search_enabled: bool,
     pub(crate) models: Vec<ProviderModel>,
@@ -34,7 +30,6 @@ impl GeminiProvider {
             client,
             api_key,
             endpoint: defaults::ENDPOINT.to_owned(),
-            tool_mapper: Arc::new(Mutex::new(ToolNameMapper::new())),
             db_pool: None,
             google_search_enabled: false,
             models: Vec::new(),
@@ -48,7 +43,6 @@ impl GeminiProvider {
             client,
             api_key,
             endpoint,
-            tool_mapper: Arc::new(Mutex::new(ToolNameMapper::new())),
             db_pool: None,
             google_search_enabled: false,
             models: Vec::new(),

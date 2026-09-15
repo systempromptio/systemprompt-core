@@ -84,7 +84,7 @@ impl AiService {
             Ok(mut response) => {
                 response.request_id = request_id;
                 response.latency_ms = latency_ms;
-                let cost = self.estimate_cost(&response);
+                let cost = self.estimate_cost(&response)?;
                 self.audit(&StoreParams {
                     request,
                     response: &response,

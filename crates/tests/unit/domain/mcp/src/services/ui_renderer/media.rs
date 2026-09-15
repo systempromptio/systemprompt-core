@@ -97,7 +97,11 @@ async fn audio_render_minimal_payload_falls_back_to_artifact_title() {
 
 #[tokio::test]
 async fn audio_render_without_any_title_uses_default() {
-    let artifact = media_artifact("audio", None, serde_json::json!({"src": "https://cdn.example.com/a.mp3"}));
+    let artifact = media_artifact(
+        "audio",
+        None,
+        serde_json::json!({"src": "https://cdn.example.com/a.mp3"}),
+    );
     let resource = AudioRenderer::new().render(&artifact).expect("render");
     assert!(
         resource
@@ -150,7 +154,11 @@ async fn video_render_full_payload_includes_poster_caption_and_muted() {
 
 #[tokio::test]
 async fn video_render_minimal_payload_uses_default_title_and_omits_extras() {
-    let artifact = media_artifact("video", None, serde_json::json!({"src": "https://cdn.example.com/v.webm"}));
+    let artifact = media_artifact(
+        "video",
+        None,
+        serde_json::json!({"src": "https://cdn.example.com/v.webm"}),
+    );
 
     let resource = VideoRenderer::new().render(&artifact).expect("render");
 

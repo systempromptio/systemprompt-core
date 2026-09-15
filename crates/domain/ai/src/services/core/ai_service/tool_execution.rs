@@ -109,9 +109,9 @@ impl AiService {
                 request,
                 model,
             })
-            .await;
+            .await?;
 
-        let cost = self.estimate_cost(&response);
+        let cost = self.estimate_cost(&response)?;
         let mut storage_response = response.clone();
         storage_response.request_id = request_id;
         storage_response.latency_ms = latency_ms;
@@ -141,7 +141,7 @@ impl AiService {
         Ok(final_response)
     }
 
-    async fn synthesize_if_needed(&self, params: SynthesizeIfNeededParams<'_>) -> String {
+    async fn synthesize_if_needed(&self, params: SynthesizeIfNeededParams<'_>) -> Result<String> {
         let SynthesizeIfNeededParams {
             response,
             tool_calls,
@@ -158,13 +158,14 @@ impl AiService {
         );
 
         match strategy {
-            ResponseStrategy::ContentProvided { content, .. } => content,
-            ResponseStrategy::ArtifactsProvided { .. } => String::new(),
+            ResponseStrategy::ContentProvided { content, .. } => Ok(content),
+            ResponseStrategy::ArtifactsProvided { .. } => Ok(String::new()),
             ResponseStrategy::ToolsOnly {
                 tool_calls,
                 tool_results,
             } => {
-                self.synthesizer
+                let outcome = self
+                    .synthesizer
                     .synthesize_or_fallback(SynthesisParams {
                         provider,
                         original_messages: &[],
@@ -174,7 +175,20 @@ impl AiService {
                         max_output_tokens: request.max_output_tokens(),
                         model,
                     })
-                    .await
+                    .await;
+                for call in &outcome.provider_calls {
+                    let cost = self.estimate_cost(call)?;
+                    self.audit(&StoreParams {
+                        request,
+                        response: call,
+                        context: &request.context,
+                        status: RequestStatus::Completed,
+                        error_message: None,
+                        cost_microdollars: cost,
+                    })
+                    .await;
+                }
+                Ok(outcome.content)
             },
         }
     }
@@ -205,7 +219,7 @@ impl AiService {
                 response.request_id = request_id;
                 response.latency_ms = latency_ms;
                 response.tool_calls.clone_from(&tool_calls);
-                let cost = self.estimate_cost(&response);
+                let cost = self.estimate_cost(&response)?;
                 self.audit(&StoreParams {
                     request,
                     response: &response,

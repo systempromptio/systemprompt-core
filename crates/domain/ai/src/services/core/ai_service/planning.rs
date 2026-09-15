@@ -3,13 +3,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::error::Result;
+use crate::error::{AiError, Result};
 use uuid::Uuid;
 
 use crate::models::RequestStatus;
 use crate::models::ai::{AiMessage, AiRequest, AiResponse, GenerateResponseParams};
 use crate::models::tools::McpTool;
-use crate::services::providers::{GenerationParams, ModelPricing, ToolGenerationParams};
+use crate::services::providers::{GenerationParams, ToolGenerationParams};
 use systemprompt_models::wire::canonical::CanonicalUsage;
 
 use super::super::request_storage::StoreParams;
@@ -42,7 +42,7 @@ impl AiService {
                 response.request_id = request_id;
                 response.latency_ms = latency_ms;
                 response.tool_calls.clone_from(&tool_calls);
-                let cost = self.estimate_cost(&response);
+                let cost = self.estimate_cost(&response)?;
                 self.audit(&StoreParams {
                     request,
                     response: &response,
@@ -126,18 +126,15 @@ impl AiService {
         Ok(response.content)
     }
 
-    pub(super) fn estimate_cost(&self, response: &AiResponse) -> i64 {
-        let pricing = self.providers.get(&response.provider).map_or_else(
-            || {
-                tracing::warn!(
-                    provider = %response.provider,
-                    model = %response.model,
-                    "no provider pricing registered; cost_microdollars will be 0"
-                );
-                ModelPricing::default()
-            },
-            |p| p.get_pricing(&response.model),
-        );
+    pub(super) fn estimate_cost(&self, response: &AiResponse) -> Result<i64> {
+        let pricing = self
+            .providers
+            .get(&response.provider)
+            .and_then(|p| p.get_pricing(&response.model))
+            .ok_or_else(|| AiError::UnknownModel {
+                provider: response.provider.clone(),
+                model: response.model.clone(),
+            })?;
 
         let usage = CanonicalUsage {
             input_tokens: response.input_tokens.unwrap_or(0),
@@ -147,6 +144,6 @@ impl AiService {
             reasoning_tokens: response.reasoning_tokens.unwrap_or(0),
             total_tokens: response.tokens_used.unwrap_or(0),
         };
-        pricing.cost_microdollars(&usage)
+        Ok(pricing.cost_microdollars(&usage))
     }
 }

@@ -9,7 +9,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::models::ai::{AiMessage, MessageRole, SamplingParams};
+use crate::models::ai::{AiMessage, AiResponse, MessageRole, SamplingParams};
 use crate::models::tools::{CallToolResult, ToolCall};
 use crate::services::providers::{AiProvider, GenerationParams, ToolResultsParams};
 use crate::services::tooled::ToolResultFormatter;
@@ -83,6 +83,15 @@ pub enum SynthesisResult {
     NeedsFallback { reason: FallbackReason },
 }
 
+/// The synthesised text plus every provider response the synthesis made, so
+/// the caller can audit and bill each call — the synthesizer itself never
+/// writes an audit row.
+#[derive(Debug)]
+pub struct SynthesisOutcome {
+    pub content: String,
+    pub provider_calls: Vec<AiResponse>,
+}
+
 pub struct SynthesisParams<'a> {
     pub provider: &'a dyn AiProvider,
     pub original_messages: &'a [AiMessage],
@@ -115,7 +124,7 @@ impl ResponseSynthesizer {
         Self
     }
 
-    pub async fn synthesize_or_fallback(&self, params: SynthesisParams<'_>) -> String {
+    pub async fn synthesize_or_fallback(&self, params: SynthesisParams<'_>) -> SynthesisOutcome {
         Self::log_synthesis_start(
             params.tool_calls.len(),
             params.tool_results.len(),
@@ -123,9 +132,10 @@ impl ResponseSynthesizer {
             params.original_messages.len(),
         );
 
-        let synthesis_result = self.attempt_synthesis(&params).await;
+        let mut provider_calls = Vec::new();
+        let synthesis_result = self.attempt_synthesis(&params, &mut provider_calls).await;
 
-        match synthesis_result {
+        let content = match synthesis_result {
             SynthesisResult::Success(content) => {
                 Self::log_synthesis_success(&content);
                 content
@@ -134,6 +144,10 @@ impl ResponseSynthesizer {
                 Self::log_fallback_reason(&reason, params.tool_calls.len());
                 FallbackGenerator::generate(params.tool_calls, params.tool_results, reason)
             },
+        };
+        SynthesisOutcome {
+            content,
+            provider_calls,
         }
     }
 
@@ -172,7 +186,11 @@ impl ResponseSynthesizer {
         );
     }
 
-    async fn attempt_synthesis(&self, params: &SynthesisParams<'_>) -> SynthesisResult {
+    async fn attempt_synthesis(
+        &self,
+        params: &SynthesisParams<'_>,
+        provider_calls: &mut Vec<AiResponse>,
+    ) -> SynthesisResult {
         let base = GenerationParams {
             messages: params.original_messages,
             model: params.model,
@@ -188,9 +206,17 @@ impl ResponseSynthesizer {
             .await
         {
             Ok(response) if !response.content.is_empty() => {
-                return SynthesisResult::Success(response.content);
+                let content = response.content.clone();
+                provider_calls.push(response);
+                return SynthesisResult::Success(content);
             },
-            _ => {},
+            Ok(response) => {
+                warn!("tool-results synthesis returned empty content; retrying with guidance");
+                provider_calls.push(response);
+            },
+            Err(e) => {
+                warn!(error = %e, "tool-results synthesis failed; retrying with guidance");
+            },
         }
 
         let mut enhanced_messages = params.original_messages.to_vec();
@@ -208,10 +234,15 @@ impl ResponseSynthesizer {
 
         match params.provider.generate(gen_params).await {
             Ok(response) if !response.content.is_empty() => {
-                SynthesisResult::Success(response.content)
+                let content = response.content.clone();
+                provider_calls.push(response);
+                SynthesisResult::Success(content)
             },
-            Ok(_) => SynthesisResult::NeedsFallback {
-                reason: FallbackReason::EmptyContent,
+            Ok(response) => {
+                provider_calls.push(response);
+                SynthesisResult::NeedsFallback {
+                    reason: FallbackReason::EmptyContent,
+                }
             },
             Err(e) => SynthesisResult::NeedsFallback {
                 reason: FallbackReason::SynthesisFailed(e.to_string()),

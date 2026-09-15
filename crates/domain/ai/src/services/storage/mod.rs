@@ -6,4 +6,4 @@
 
 pub mod image_storage;
 
-pub use image_storage::{ImageStorage, StorageConfig};
+pub use image_storage::{ImageStorage, StorageConfig, StoredImage};

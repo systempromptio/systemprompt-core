@@ -167,6 +167,10 @@ impl ImageProvider for GeminiImageProvider {
         }
     }
 
+    fn cost_per_image_cents(&self, model: &str) -> f32 {
+        registry_per_image_cents(&self.model_definitions, model, DEFAULT_IMAGE_CENTS)
+    }
+
     fn supported_models(&self) -> Vec<String> {
         let models = registry_image_models(&self.model_definitions);
         if models.is_empty() {

@@ -166,14 +166,18 @@ mod image_storage_tests {
     async fn save_base64_image_decodes_and_saves() {
         let (dir, storage) = create_temp_storage();
 
-        let (id, _) = storage
+        let stored = storage
             .save_base64_image("dGVzdA==", "image/png")
             .await
             .unwrap();
 
         assert_eq!(
-            std::fs::read(dir.path().join(id.as_str())).unwrap(),
+            std::fs::read(dir.path().join(stored.id.as_str())).unwrap(),
             b"test"
+        );
+        assert_eq!(
+            stored.size_bytes, 4,
+            "the stored size is the decoded length"
         );
     }
 

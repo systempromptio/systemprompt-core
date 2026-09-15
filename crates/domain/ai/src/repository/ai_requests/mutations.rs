@@ -124,7 +124,7 @@ impl AiRequestRepository {
 
         let (actor_kind, actor_id) = record.actor.audit_columns();
 
-        sqlx::query!(
+        let inserted = sqlx::query!(
             r#"
             INSERT INTO ai_requests (
                 id, request_id, user_id, session_id, task_id, context_id,
@@ -144,6 +144,7 @@ impl AiRequestRepository {
                 CASE WHEN $30 THEN CURRENT_TIMESTAMP ELSE NULL END
             )
             ON CONFLICT (id) DO NOTHING
+            RETURNING id
             "#,
             id.as_str(),
             record.request_id.as_str(),
@@ -178,8 +179,11 @@ impl AiRequestRepository {
             record.client_session_id.as_ref().map(ClientSessionId::as_str),
             record.request_kind.as_str()
         )
-        .execute(self.write_pool())
+        .fetch_optional(self.write_pool())
         .await?;
-        Ok(id.clone())
+        match inserted {
+            Some(_) => Ok(id.clone()),
+            None => Err(RepositoryError::AlreadyExists(id.clone())),
+        }
     }
 }

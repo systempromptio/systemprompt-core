@@ -686,7 +686,9 @@ async fn form_renderer_json_encodes_the_submit_tool_into_the_script() {
         .unwrap()
         .replace("</", "<\\/");
     assert!(
-        result.html.contains(&format!("window.FORM_SUBMIT_TOOL = {expected};")),
+        result
+            .html
+            .contains(&format!("window.FORM_SUBMIT_TOOL = {expected};")),
         "the tool name is a JSON literal with `</` escaped: {}",
         result.html
     );

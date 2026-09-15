@@ -115,6 +115,49 @@ async fn insert_with_id_uses_supplied_id() {
     assert!(repo.get_by_id(&id).await.expect("get").is_some());
 }
 
+// Why: `ON CONFLICT DO NOTHING` used to answer `Ok(id)` whether or not a row
+// was written; a caller that then updates the row would be touching someone
+// else's request. A duplicate id is a typed conflict.
+#[tokio::test]
+async fn insert_with_id_reports_a_duplicate_id_instead_of_claiming_success() {
+    let Some((repo, pool)) = repo_or_skip().await else {
+        return;
+    };
+    let uid = user();
+    let email = format!("{}@ai.invalid", uid.as_str());
+    systemprompt_test_fixtures::seed_user_row(&pool, &uid, &email)
+        .await
+        .expect("seed");
+    let id = AiRequestId::generate();
+    repo.insert_with_id(&id, &completed_record(&uid))
+        .await
+        .expect("first insert");
+
+    let err = repo
+        .insert_with_id(&id, &completed_record(&uid))
+        .await
+        .expect_err("the second insert of the same id is a conflict");
+    assert!(
+        matches!(err, systemprompt_ai::error::RepositoryError::AlreadyExists(ref dup) if *dup == id),
+        "{err}"
+    );
+}
+
+// Why: a user with no requests has zero usage, not a missing row.
+#[tokio::test]
+async fn get_user_usage_for_a_user_with_no_requests_is_zero() {
+    let Some((repo, _pool)) = repo_or_skip().await else {
+        return;
+    };
+    let uid = user();
+
+    let usage = repo.get_user_usage(&uid).await.expect("zero usage, not RowNotFound");
+    assert_eq!(usage.user_id, uid);
+    assert_eq!(usage.request_count, 0);
+    assert_eq!(usage.total_tokens, 0);
+    assert!(usage.avg_tokens_per_request.is_none());
+}
+
 #[tokio::test]
 async fn insert_persists_the_reasoning_share_of_output_tokens() {
     let Some((repo, pool)) = repo_or_skip().await else {

@@ -63,6 +63,8 @@ pub trait ImageProvider: Send + Sync {
 
     fn capabilities(&self) -> ImageProviderCapabilities;
 
+    fn cost_per_image_cents(&self, model: &str) -> f32;
+
     fn supported_models(&self) -> Vec<String>;
 
     fn supports_model(&self, model: &str) -> bool {

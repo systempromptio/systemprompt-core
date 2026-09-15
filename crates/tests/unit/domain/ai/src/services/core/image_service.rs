@@ -152,6 +152,10 @@ impl ImageProvider for StubImageProvider {
         }
     }
 
+    fn cost_per_image_cents(&self, _model: &str) -> f32 {
+        4.0
+    }
+
     fn supported_models(&self) -> Vec<String> {
         vec![self.model.clone()]
     }

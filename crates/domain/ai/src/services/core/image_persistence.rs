@@ -53,7 +53,7 @@ async fn persist_ai_request(
     )
     .provider(&response.provider)
     .model(&response.model)
-    .cost(response.cost_estimate.map_or(0, |c| c.round() as i64))
+    .cost(response.cost_estimate.map_or(0, cents_to_microdollars))
     .latency(response.generation_time_ms as i32)
     .completed();
 
@@ -178,4 +178,10 @@ pub(super) async fn delete_image(
     }
 
     Ok(())
+}
+
+// Why: `cost_estimate` is priced in cents while `ai_requests.cost_microdollars`
+// is billed in microdollars; one cent is ten thousand microdollars.
+fn cents_to_microdollars(cents: f32) -> i64 {
+    (f64::from(cents) * 10_000.0).round() as i64
 }

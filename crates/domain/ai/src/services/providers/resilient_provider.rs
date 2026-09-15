@@ -131,7 +131,11 @@ impl AiProvider for ResilientProvider {
         self.inner.default_model()
     }
 
-    fn get_pricing(&self, model: &str) -> ModelPricing {
+    fn is_available(&self) -> bool {
+        !self.guard.breaker().is_open()
+    }
+
+    fn get_pricing(&self, model: &str) -> Option<ModelPricing> {
         self.inner.get_pricing(model)
     }
 

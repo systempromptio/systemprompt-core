@@ -135,6 +135,20 @@ impl StreamStorageWrapper {
         self.spawn_audit(response, RequestStatus::Failed, Some(error.to_string()), 0);
     }
 
+    // Why: a consumer that drops the stream mid-flight has still consumed the
+    // provider's tokens; the audit row records what was streamed and bills
+    // the usage seen so far instead of leaving no trace of the request.
+    fn store_abandoned(&self) {
+        let response = self.build_response();
+        let cost = self.calculate_cost();
+        self.spawn_audit(
+            response,
+            RequestStatus::Failed,
+            Some("stream dropped by the consumer before it completed".to_owned()),
+            cost,
+        );
+    }
+
     fn spawn_audit(
         &self,
         response: AiResponse,
@@ -144,7 +158,16 @@ impl StreamStorageWrapper {
     ) {
         let storage = self.storage.clone();
         let request = self.request.clone();
-        tokio::spawn(async move {
+        let Ok(runtime) = tokio::runtime::Handle::try_current() else {
+            tracing::error!(
+                provider = %request.provider(),
+                model = %request.model(),
+                status = ?status,
+                "audit write skipped: no async runtime on the dropping thread"
+            );
+            return;
+        };
+        runtime.spawn(async move {
             let result = storage
                 .store(&StoreParams {
                     request: &request,
@@ -165,6 +188,15 @@ impl StreamStorageWrapper {
                 );
             }
         });
+    }
+}
+
+impl Drop for StreamStorageWrapper {
+    fn drop(&mut self) {
+        if !self.completed {
+            self.completed = true;
+            self.store_abandoned();
+        }
     }
 }
 

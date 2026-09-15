@@ -140,22 +140,21 @@ impl AiService {
                 continue;
             };
 
+            // Why: a provider without its credential cannot serve a request;
+            // registering it with an empty key would fail every call at the
+            // wire instead of at boot, so it is withheld and reported.
             let secret_name = entry.api_key_secret.as_str();
-            let api_key = secrets.get(secret_name).map_or_else(
-                || {
-                    tracing::warn!(
-                        provider = %name,
-                        secret = %secret_name,
-                        "api_key secret not found — keeping provider enabled with an empty key \
-                         (registry endpoint may be an internal mock)"
-                    );
-                    missing_env_vars.push(format!(
-                        "Provider '{name}': secret '{secret_name}' not found"
-                    ));
-                    String::new()
-                },
-                Clone::clone,
-            );
+            let Some(api_key) = secrets.get(secret_name).cloned() else {
+                tracing::warn!(
+                    provider = %name,
+                    secret = %secret_name,
+                    "api_key secret not found — provider withheld from the registry"
+                );
+                missing_env_vars.push(format!(
+                    "Provider '{name}': secret '{secret_name}' not found"
+                ));
+                continue;
+            };
 
             let provider = Self::build_one(entry, policy, api_key, db_pool)?;
             providers.insert(name.clone(), provider);

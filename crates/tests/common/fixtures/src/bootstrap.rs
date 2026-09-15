@@ -284,6 +284,7 @@ fn install_subprocess_env(database_url: &str) {
         if env::var("MANIFEST_SIGNING_SECRET_SEED").is_err() {
             env::set_var("MANIFEST_SIGNING_SECRET_SEED", TEST_MANIFEST_SIGNING_SEED);
         }
+        crate::secrets::install_test_provider_keys();
         // Named secrets the messaging apps reference. The fixture runs in
         // subprocess mode, so the secrets singleton loads from the environment;
         // `SYSTEMPROMPT_CUSTOM_SECRETS` lists the extra keys to pull through.

@@ -128,6 +128,9 @@ pub enum AiError {
     #[error("tool discovery incomplete: {0}")]
     ToolDiscovery(String),
 
+    #[error("provider {provider} has no pricing for model {model}; refusing to bill it")]
+    UnknownModel { provider: String, model: String },
+
     #[error(transparent)]
     Secrets(#[from] systemprompt_config::SecretsBootstrapError),
 
@@ -172,7 +175,8 @@ impl From<AiError> for systemprompt_models::errors::AiInferenceError {
             | AiError::ServiceAuthCheckFailed { .. }
             | AiError::ToolDiscovery(_)
             | AiError::ToolProvider(_) => Self::Tool(err.to_string()),
-            AiError::AuthenticationRequired { .. }
+            AiError::UnknownModel { .. }
+            | AiError::AuthenticationRequired { .. }
             | AiError::ConfigurationError { .. }
             | AiError::Secrets(_) => Self::Configuration(err.to_string()),
             AiError::DatabaseError { .. } | AiError::StorageError { .. } => {
@@ -206,6 +210,9 @@ pub enum RepositoryError {
         request_id: AiRequestId,
         reason: String,
     },
+
+    #[error("AI request {0} already exists")]
+    AlreadyExists(AiRequestId),
 }
 
 impl AiError {

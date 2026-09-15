@@ -14,7 +14,7 @@ use systemprompt_models::wire::anthropic;
 use systemprompt_models::wire::canonical::{CanonicalContent, ResponseFormat};
 use uuid::Uuid;
 
-use crate::error::Result;
+use crate::error::{AiError, Result};
 use crate::models::ai::AiResponse;
 use crate::models::tools::ToolCall;
 use crate::services::providers::canonical_bridge::{
@@ -116,18 +116,25 @@ pub(super) async fn generate_with_schema(
         start,
         &parsed,
     );
-    ai_response.content = parsed
+    // Why: the structured answer travels as the forced tool's input; a reply
+    // without that block has no structured output at all, and an empty
+    // string would be mistaken for a (malformed) answer downstream.
+    let structured = parsed
         .content
         .iter()
         .find_map(|block| match block {
-            CanonicalContent::ToolUse { input, .. } => serde_json::to_string(input)
-                .map_err(|e| {
-                    tracing::warn!(error = %e, "Failed to serialize tool-use input from Anthropic response");
-                })
-                .ok(),
+            CanonicalContent::ToolUse { input, .. } => Some(serde_json::to_string(input)),
             _ => None,
         })
-        .unwrap_or_default();
+        .ok_or_else(|| AiError::ProviderError {
+            provider: "anthropic".to_owned(),
+            message: "structured-output response carried no tool_use block".to_owned(),
+        })?
+        .map_err(|e| AiError::ProviderError {
+            provider: "anthropic".to_owned(),
+            message: format!("structured-output tool input is not serialisable: {e}"),
+        })?;
+    ai_response.content = structured;
     ai_response.tool_calls = Vec::new();
     Ok(ai_response)
 }
