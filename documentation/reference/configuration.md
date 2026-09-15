@@ -288,6 +288,17 @@ Naming both `https` and `oci`, or neither, is a profile error. `auth_secret` nam
 
 Only the first source may be a base bundle. Every later source must own nothing but `marketplaces`, `plugins`, `skills`, `rules`, `hooks` and `artifacts`. Two sources claiming the same id, or the same base directory, is a boot error naming both.
 
+### Managed MCP servers (`services/mcp/*.yaml`)
+
+`crates/shared/models/src/mcp/deployment.rs`. Each file declares `mcp_servers.<name>` entries; the keys the bridge and boot validation depend on:
+
+| Key | Type | Required | Default | Meaning |
+|-----|------|----------|---------|---------|
+| `enabled` | bool | yes | — | Whether the server is served, validated and published to bridges. |
+| `tool_policy` | enum `allow` \| `deny` \| `prompt` | yes, for every enabled server | — | The decision a bridge-managed client (Claude Code, Claude Desktop) applies to every tool the server exposes. `allow` skips the per-call prompt; `prompt` asks; `deny` blocks. A server without it is withheld from the signed bridge manifest and `admin config validate` / startup report `mcp_servers.<name>.tool_policy` as an error. |
+| `endpoint` | string | for `external` servers | — | Absolute URL, or a path relative to the gateway. |
+| `external_auth` | object | no | absent | Per-user bearer resolution for an `external` server (`token_endpoint`, `header`, `scheme`). |
+
 ## `extensions`
 
 `crates/shared/models/src/profile/mod.rs:58`

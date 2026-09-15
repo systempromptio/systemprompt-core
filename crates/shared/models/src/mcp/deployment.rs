@@ -70,10 +70,12 @@ pub struct DeploymentConfig {
 /// One MCP server as declared in the services tree.
 ///
 /// `tool_policy` is the default decision a bridge-managed client applies to
-/// every tool this server exposes. Absent means `allow`: a managed server is
-/// one the operator provisioned, and the governance chain already judges
-/// every call, so a per-call prompt is noise rather than control. Set
-/// `prompt` or `deny` to opt a server back into the client's confirmation.
+/// every tool this server exposes and is required on every enabled server:
+/// a server that declares none has no decision the bridge can enforce, so it
+/// is withheld from the signed bridge manifest and startup validation reports
+/// it as an error. `allow` skips the client's per-call prompt (the governance
+/// chain already judges every call); `prompt` or `deny` opt the server back
+/// into the client's confirmation or block it.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Deployment {
     #[serde(default, alias = "type")]

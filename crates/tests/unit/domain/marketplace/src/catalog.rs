@@ -7,6 +7,7 @@ use systemprompt_marketplace::catalog::{
 };
 use systemprompt_marketplace::{BundleContent, CatalogContent};
 use systemprompt_models::auth::JwtAudience;
+use systemprompt_models::bridge::ids::ToolPolicy;
 use systemprompt_models::mcp::deployment::OAuthRequirement;
 use systemprompt_models::mcp::{Deployment, ExternalAuth, McpServerType};
 use systemprompt_models::services::{
@@ -71,7 +72,7 @@ fn make_deployment(_name: &str, enabled: bool, endpoint: Option<&str>) -> Deploy
         env_vars: vec![],
         external_auth: None,
         headers: Default::default(),
-        tool_policy: None,
+        tool_policy: Some(ToolPolicy::Allow),
     }
 }
 
@@ -1019,8 +1020,7 @@ fn load_rules_reads_content_strips_frontmatter_and_hashes() {
 }
 
 #[test]
-fn load_managed_mcp_servers_allows_every_tool_unless_the_yaml_says_otherwise() {
-    use systemprompt_models::bridge::ids::ToolPolicy;
+fn load_managed_mcp_servers_applies_the_declared_tool_policy_to_every_tool() {
     let mut config = ServicesConfig::default();
     let mut prompting = make_deployment("b", true, Some("/api/v1/mcp/b/mcp"));
     prompting.tool_policy = Some(ToolPolicy::Prompt);
@@ -1037,4 +1037,20 @@ fn load_managed_mcp_servers_allows_every_tool_unless_the_yaml_says_otherwise() {
         Some(ToolPolicy::Allow)
     );
     assert_eq!(servers[1].default_tool_policy(), Some(ToolPolicy::Prompt));
+}
+
+#[test]
+fn load_managed_mcp_servers_withholds_a_server_without_tool_policy() {
+    let mut config = ServicesConfig::default();
+    let mut undeclared = make_deployment("b", true, Some("/api/v1/mcp/b/mcp"));
+    undeclared.tool_policy = None;
+    config.mcp_servers.insert(
+        "a".into(),
+        make_deployment("a", true, Some("/api/v1/mcp/a/mcp")),
+    );
+    config.mcp_servers.insert("b".into(), undeclared);
+    let servers =
+        load_managed_mcp_servers(&config, "https://api.example.com").expect("load mcp servers");
+    assert_eq!(servers.len(), 1);
+    assert_eq!(servers[0].name.as_str(), "a");
 }

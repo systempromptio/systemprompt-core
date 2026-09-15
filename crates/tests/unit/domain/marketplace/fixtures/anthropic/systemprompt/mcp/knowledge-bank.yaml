@@ -5,6 +5,7 @@ mcp_servers:
     package: knowledge-bank
     port: 5030
     enabled: true
+    tool_policy: allow
     display_in_web: false
     removable: true
     description: Shared project knowledge bank
