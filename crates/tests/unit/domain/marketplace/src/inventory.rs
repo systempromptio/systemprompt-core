@@ -138,9 +138,13 @@ impl Fixture {
 }
 
 
+#[path = "publication_admission.rs"]
+mod admission;
 #[path = "inventory_capture.rs"]
 mod capture;
 #[path = "inventory_projection.rs"]
 mod projection;
+#[path = "inventory_publish_latest.rs"]
+mod publish_latest;
 #[path = "inventory_scanner.rs"]
 mod scanner;

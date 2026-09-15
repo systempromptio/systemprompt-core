@@ -5,9 +5,10 @@
 
 use super::{
     AssetDigest, EventOutboxId, ManagedError, ManagedRepository, ManagedResolution,
-    ManagedResourceId, PublicationAction, PublicationDecision, PublicationId, PublicationRequest,
-    PublicationReviewId, PublicationRow, ResourceKind, ResourceRevisionId, Result, RevisionBundle,
-    SelectionRow, UserId, decision_from_row, request_digest, resolution_from_row, validate_request,
+    ManagedResourceId, PublicationAction, PublicationAdmission, PublicationDecision, PublicationId,
+    PublicationRequest, PublicationReviewId, PublicationRow, ResourceKind, ResourceRevisionId,
+    Result, RevisionBundle, SelectionRow, UserId, decision_from_row, request_digest,
+    resolution_from_row, validate_admission, validate_request,
 };
 
 impl ManagedRepository {
@@ -17,7 +18,25 @@ impl ManagedRepository {
         reviewer: &UserId,
         request: &PublicationRequest,
     ) -> Result<PublicationDecision> {
+        self.publish_with_admission(owner, reviewer, request, PublicationAdmission::Attested)
+            .await
+    }
+
+    /// Reviews and publishes under an explicit admission path.
+    ///
+    /// Hidden from the public API: callers outside the crate use
+    /// [`Self::review_and_publish`], which always attests. The tests
+    /// workspace reaches this seam directly.
+    #[doc(hidden)]
+    pub async fn publish_with_admission(
+        &self,
+        owner: &UserId,
+        reviewer: &UserId,
+        request: &PublicationRequest,
+        admission: PublicationAdmission,
+    ) -> Result<PublicationDecision> {
         validate_request(request)?;
+        validate_admission(request, admission)?;
         let bundle_digest = if let Some(revision) = &request.revision_id {
             Some(self.get_revision_bundle(owner, revision).await?.digest()?)
         } else {
@@ -41,13 +60,15 @@ impl ManagedRepository {
             return Ok(decision);
         }
         let generation = admit_generation(&mut tx, owner, request, bundle_digest.as_ref()).await?;
-        crate::managed::evaluation::admit_improvement(
-            &mut tx,
-            owner,
-            request,
-            bundle_digest.as_ref(),
-        )
-        .await?;
+        if admission == PublicationAdmission::Attested {
+            crate::managed::evaluation::admit_improvement(
+                &mut tx,
+                owner,
+                request,
+                bundle_digest.as_ref(),
+            )
+            .await?;
+        }
         let decision = record_publication(
             &mut tx,
             &Publication {

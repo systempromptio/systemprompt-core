@@ -236,7 +236,7 @@ impl InventoryService {
     }
 }
 
-fn configured_files(
+pub(super) fn configured_files(
     root: &Path,
     entry: &InventoryEntry,
     services: &ServicesConfig,

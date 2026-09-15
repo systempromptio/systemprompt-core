@@ -47,6 +47,24 @@ impl PublicationAction {
     }
 }
 
+/// How a publication request earned its way past review.
+///
+/// `Attested` is the reviewed path: an improvement must carry an evaluation
+/// attestation. `InventorySync` is the configured-tree path: the services tree
+/// on disk is the reviewed artefact, so evidence names `inventory_refresh` as
+/// its source instead of an experiment, and only forward actions are admitted.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[doc(hidden)]
+pub enum PublicationAdmission {
+    /// Reviewed publication backed by an evaluation attestation.
+    Attested,
+    /// Automatic publication of the configured services tree.
+    InventorySync,
+}
+
+/// Evidence `source` value an inventory-sync publication must carry.
+pub const INVENTORY_REFRESH_SOURCE: &str = "inventory_refresh";
+
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PublicationRequest {
@@ -145,6 +163,30 @@ fn validate_request(request: &PublicationRequest) -> Result<()> {
     {
         return Err(invalid(
             "Publication action does not match its generation or revision",
+        ));
+    }
+    Ok(())
+}
+
+fn validate_admission(request: &PublicationRequest, admission: PublicationAdmission) -> Result<()> {
+    if admission != PublicationAdmission::InventorySync {
+        return Ok(());
+    }
+    if !matches!(
+        request.action,
+        PublicationAction::InitialAdoption | PublicationAction::PublishImprovement
+    ) {
+        return Err(ManagedError::Conflict(
+            "Inventory synchronisation only adopts or advances configured content".to_owned(),
+        ));
+    }
+    let source = request
+        .comparison_evidence
+        .get("source")
+        .and_then(serde_json::Value::as_str);
+    if source != Some(INVENTORY_REFRESH_SOURCE) {
+        return Err(invalid(
+            "Inventory synchronisation evidence must name the inventory refresh as its source",
         ));
     }
     Ok(())

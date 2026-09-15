@@ -9,12 +9,14 @@ mod captures;
 mod catalog;
 mod membership;
 mod projection;
+mod publish_latest;
 mod repository;
 mod service;
 mod sources;
 mod types;
 pub(crate) use captures::IncomingRevision;
 pub use catalog::scan_configured_inventory;
+pub use publish_latest::{LatestPublication, LatestPublicationStatus, PublishGuard};
 pub use service::InventoryService;
 pub use types::*;
 

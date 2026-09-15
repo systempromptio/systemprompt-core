@@ -34,8 +34,8 @@ pub use installation::{
 };
 pub use provenance::{SnapshotProvenance, SourceSpec};
 pub use publication::{
-    ComparisonEvidence, ManagedResolution, PublicationAction, PublicationDecision,
-    PublicationHistoryEntry, PublicationRequest,
+    ComparisonEvidence, INVENTORY_REFRESH_SOURCE, ManagedResolution, PublicationAction,
+    PublicationAdmission, PublicationDecision, PublicationHistoryEntry, PublicationRequest,
 };
 pub use reconciliation::{
     ConflictDecision, ConflictResolution, ReconciliationConflict, ReconciliationRecord,
