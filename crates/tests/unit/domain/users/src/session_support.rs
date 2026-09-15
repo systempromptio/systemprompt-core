@@ -61,8 +61,6 @@ pub async fn seed_session(repo: &SessionRepository, session_id: &SessionId, fing
 // exist.
 
 
-
-
 pub async fn delete_session(pool: &DbPool, session_id: &SessionId) {
     let p = pool.pool_arc().expect("read pool");
     sqlx::query("DELETE FROM analytics_events WHERE session_id = $1")

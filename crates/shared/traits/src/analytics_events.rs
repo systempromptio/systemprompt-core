@@ -24,6 +24,7 @@ pub struct AnalyticsEventRecord {
 
 /// Logging-owned ingestion and authoritative reads for behavioral checks.
 /// Batch persistence is atomic and preserves caller-assigned event IDs.
+/// Injected as `dyn AnalyticsEventStore`, hence `#[async_trait]`.
 #[async_trait]
 pub trait AnalyticsEventStore: Send + Sync + std::fmt::Debug {
     async fn persist_events(&self, events: &[AnalyticsEventRecord]) -> Result<(), RepositoryError>;

@@ -57,7 +57,11 @@ pub async fn run_server(
     super::shutdown::arm_forced_exit();
     heartbeat.abort();
     reporting.abort();
-    let _ = reporting.await;
+    if let Err(error) = reporting.await
+        && !error.is_cancelled()
+    {
+        tracing::warn!(error = %error, "Analytics projection worker ended abnormally");
+    }
     if let Some(recovery) = accounting_recovery {
         recovery.abort();
     }

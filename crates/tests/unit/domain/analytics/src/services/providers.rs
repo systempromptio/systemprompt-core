@@ -1,66 +1,13 @@
-//! Tests for the `systemprompt_traits` provider bridges implemented in
-//! `services/providers.rs`: `AnalyticsProvider for AnalyticsService`,
-//! and `FingerprintProvider for FingerprintRepository`. Happy paths run against
-//! the migrated DB and assert the translated return values; every error arm
-//! is driven through a closed pool to exercise the `Internal(e.to_string())`
-//! mapping.
+//! Tests for the `FingerprintProvider for FingerprintRepository` bridge in
+//! `services/providers.rs`. Happy paths run against the migrated DB and
+//! assert the translated return values; every error arm is driven through a
+//! closed pool to exercise the `Internal(e.to_string())` mapping.
 
-use chrono::{Duration, Utc};
-use systemprompt_analytics::CreateSessionParams;
-use systemprompt_database::DbPool;
-use systemprompt_identifiers::{SessionId, SessionSource};
 use systemprompt_test_fixtures::{
     closed_db_pool, ensure_test_bootstrap, fixture_database_url, fixture_db_pool,
 };
 use systemprompt_traits::{AnalyticsProviderError, FingerprintProvider};
 use uuid::Uuid;
-
-fn unique_session_id() -> SessionId {
-    SessionId::new(format!("sess-prov-{}", Uuid::new_v4()))
-}
-
-async fn cleanup(pool: &DbPool, session_id: &SessionId) {
-    let p = pool.write_pool_arc().expect("write pool");
-    sqlx::query("DELETE FROM user_sessions WHERE session_id = $1")
-        .bind(session_id.as_str())
-        .execute(p.as_ref())
-        .await
-        .ok();
-}
-
-async fn seed(pool: &DbPool, session_id: &SessionId, fingerprint: &str) {
-    let repo = systemprompt_test_fixtures::fixture_analytics_repositories(pool)
-        .map(|r| r.sessions)
-        .expect("repo");
-    let params = CreateSessionParams {
-        session_id,
-        user_id: None,
-        session_source: SessionSource::Web,
-        fingerprint_hash: Some(fingerprint),
-        ip_address: None,
-        user_agent: None,
-        device_type: None,
-        browser: None,
-        os: None,
-        country: None,
-        region: None,
-        city: None,
-        preferred_locale: None,
-        referrer_source: None,
-        referrer_url: None,
-        landing_page: None,
-        entry_url: None,
-        utm_source: None,
-        utm_medium: None,
-        utm_campaign: None,
-        utm_content: None,
-        utm_term: None,
-        is_bot: false,
-        is_ai_crawler: false,
-        expires_at: Utc::now() + Duration::hours(1),
-    };
-    repo.create_session(&params).await.expect("seed");
-}
 
 mod fingerprint_provider {
     use super::*;

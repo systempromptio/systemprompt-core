@@ -3,7 +3,7 @@
 //! tables, so assertions are lower-bound invariants against seeded data
 //! rather than exact counts.
 
-use systemprompt_analytics::{CoreStatsRepository};
+use systemprompt_analytics::CoreStatsRepository;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fixture_db_pool};
 use uuid::Uuid;
 

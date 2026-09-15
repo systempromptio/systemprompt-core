@@ -3,7 +3,7 @@
 //! reputation-score adjustment, and the read queries over
 //! `fingerprint_reputation` and `user_sessions`.
 
-use systemprompt_analytics::{FlagReason};
+use systemprompt_analytics::FlagReason;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fixture_db_pool};
@@ -164,7 +164,9 @@ async fn session_queries_count_and_reuse_active_sessions() {
     ensure_test_bootstrap();
     let pool = fixture_db_pool(&url).await.expect("pool");
     let repo = systemprompt_test_fixtures::fixture_fingerprint_repository(&pool).expect("repo");
-    let sessions = systemprompt_test_fixtures::fixture_analytics_repositories(&pool).map(|repositories| repositories.sessions).expect("session repo");
+    let sessions = systemprompt_test_fixtures::fixture_analytics_repositories(&pool)
+        .map(|repositories| repositories.sessions)
+        .expect("session repo");
 
     let fp = unique_fingerprint();
     assert_eq!(

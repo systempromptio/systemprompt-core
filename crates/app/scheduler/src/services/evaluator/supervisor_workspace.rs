@@ -272,6 +272,12 @@ impl WorkspaceDirectory {
 
 impl Drop for WorkspaceDirectory {
     fn drop(&mut self) {
-        drop(std::fs::remove_dir_all(&self.0));
+        if let Err(error) = std::fs::remove_dir_all(&self.0) {
+            tracing::warn!(
+                path = %self.0.display(),
+                error = %error,
+                "Evaluator workspace cleanup failed"
+            );
+        }
     }
 }

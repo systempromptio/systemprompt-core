@@ -8,7 +8,7 @@
 //! the exact A2A JSON-RPC bodies `dispatch_messaging` parses.
 
 use anyhow::Result;
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 use systemprompt_database::DbPool;
 use wiremock::MockServer;
 
