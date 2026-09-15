@@ -5,6 +5,10 @@
 //! trait. Concrete type aliases (`A2ABroadcaster`, `AgUiBroadcaster`, etc.)
 //! pick the event kind so that callers never need to spell out the generic.
 //!
+//! The registry is guarded by a `std::sync::RwLock`: every critical section
+//! is a map lookup with no await inside, so `ConnectionGuard::drop` can
+//! unregister without a runtime and the async trait methods resolve eagerly.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -30,9 +34,6 @@ pub fn standard_keep_alive() -> KeepAlive {
 
 type Registry = HashMap<UserId, HashMap<ConnectionId, EventSender>>;
 
-// Why: every critical section is a map lookup with no await inside, so a
-// std lock suffices and lets `ConnectionGuard::drop` unregister without a
-// runtime — a guard dropped during shutdown must not spawn.
 pub struct GenericBroadcaster<E: ToSse + Clone + Send + Sync> {
     connections: Arc<RwLock<Registry>>,
     _phantom: PhantomData<E>,
@@ -101,9 +102,6 @@ impl<E: ToSse + Clone + Send + Sync> Default for GenericBroadcaster<E> {
 impl<E: ToSse + Clone + Send + Sync + 'static> Broadcaster for GenericBroadcaster<E> {
     type Event = E;
 
-    // Why: the trait is async for implementations that must await, but this
-    // registry never does, so each method resolves its value eagerly and
-    // returns a ready future.
     fn register(
         &self,
         user_id: &UserId,

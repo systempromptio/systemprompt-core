@@ -52,6 +52,7 @@ pub enum OutboxChannel {
     A2A,
     System,
     Analytics,
+    Reporting,
 }
 
 impl OutboxChannel {
@@ -62,6 +63,7 @@ impl OutboxChannel {
             Self::A2A => "a2a",
             Self::System => "system",
             Self::Analytics => "analytics",
+            Self::Reporting => "reporting",
         }
     }
 
@@ -72,6 +74,7 @@ impl OutboxChannel {
             "a2a" => Some(Self::A2A),
             "system" => Some(Self::System),
             "analytics" => Some(Self::Analytics),
+            "reporting" => Some(Self::Reporting),
             _ => None,
         }
     }

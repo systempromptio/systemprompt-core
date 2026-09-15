@@ -1,5 +1,5 @@
-//! Skill feedback contracts shared across ingestion, marketplace, evaluators
-//! and clients.
+//! Normalised invocation facts: the fact key, consumer and resource
+//! attribution, and the spend a consumer recorded for one skill invocation.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

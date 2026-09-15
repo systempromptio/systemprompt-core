@@ -1,5 +1,5 @@
-//! Skill feedback contracts shared across ingestion, marketplace, evaluators
-//! and clients.
+//! Dependency verification: the request a consumer submits and the manifest of
+//! verified revisions the gateway answers with.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

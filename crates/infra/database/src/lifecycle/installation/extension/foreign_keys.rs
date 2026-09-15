@@ -41,7 +41,7 @@ use crate::services::DatabaseProvider;
 enum FkOutcome {
     Present,
     Added,
-    AddedNotValid,
+    AddedNotValid(RepositoryError),
     CannotCreate(RepositoryError),
 }
 
@@ -140,13 +140,14 @@ fn settle_outcome(
             Ok(None)
         },
         FkOutcome::Added => Ok(None),
-        FkOutcome::AddedNotValid => {
+        FkOutcome::AddedNotValid(cause) => {
             warn!(
                 extension = extension_id,
                 table = %key.source_table,
                 constraint = %key.constraint_name,
-                "Existing rows violate a foreign key the declarative schema declares; the key \
-                 is left NOT VALID (enforced for new rows). Repair the rows, then run \
+                cause = %cause,
+                "Validating a foreign key the declarative schema declares failed; the key is \
+                 left NOT VALID (enforced for new rows). Repair the cause, then run \
                  ALTER TABLE … VALIDATE CONSTRAINT."
             );
             Ok(None)
@@ -239,8 +240,7 @@ async fn apply_one(
         Err(e) => {
             tx.execute(&"ROLLBACK TO SAVEPOINT deferred_fk_validate", &[])
                 .await?;
-            debug!(error = %e, constraint = %key.constraint_name, "Foreign key validation failed");
-            Ok(FkOutcome::AddedNotValid)
+            Ok(FkOutcome::AddedNotValid(e))
         },
     }
 }

@@ -91,8 +91,6 @@ impl std::fmt::Debug for GovernanceEngine {
 }
 
 impl GovernanceEngine {
-    // Why: a missing `<services>/governance/config.yaml` is the documented
-    // warn-only default chain; a present-but-rejected file refuses the boot.
     pub fn from_services_root(services_root: &Path) -> Result<Self, GovernanceEngineError> {
         let path = services_root.join("governance/config.yaml");
         let config = GovernanceConfig::load(&path).map_err(|error| {
