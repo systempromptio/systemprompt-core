@@ -26,13 +26,25 @@ pub struct GitContentVerification {
     pub commit: String,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy)]
 pub struct GitTreeRead<'a> {
     pub input: &'a DependencyVerificationInput,
     pub repository: &'a str,
     pub subdirectory: Option<&'a str>,
     pub credential: Option<&'a str>,
     pub deadline: std::time::Instant,
+}
+
+impl std::fmt::Debug for GitTreeRead<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("GitTreeRead")
+            .field("input", &self.input)
+            .field("repository", &self.repository)
+            .field("subdirectory", &self.subdirectory)
+            .field("deadline", &self.deadline)
+            .field("credential", &self.credential.map(|_| "<redacted>"))
+            .finish()
+    }
 }
 
 pub trait GitTreeReader: Send + Sync {
