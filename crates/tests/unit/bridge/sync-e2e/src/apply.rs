@@ -1039,6 +1039,44 @@ fn a_plugin_without_its_manifest_file_is_reported_as_malformed() {
 }
 
 #[test]
+fn a_plugin_manifest_that_is_not_a_json_object_is_delivered_verbatim_and_reported() {
+    const ARRAY_BODY: &[u8] = br#"["not","an","object"]"#;
+    let m = manifest_of(
+        vec![plugin(
+            "acme-plugin",
+            vec![(".claude-plugin/plugin.json", ARRAY_BODY)],
+        )],
+        vec![],
+    );
+    let b = serve_plugins(
+        &m,
+        &[("acme-plugin", ".claude-plugin/plugin.json", ARRAY_BODY)],
+        "pat-malformed-shape",
+    );
+    let error = run_sync(&b.dirs).expect_err("a malformed manifest is a partial outcome");
+    assert!(
+        error.contains("sync PARTIAL") && error.contains("acme-plugin"),
+        "{error}"
+    );
+    let manifest = b
+        .dirs
+        .org_plugins
+        .join("acme-plugin")
+        .join(".claude-plugin")
+        .join("plugin.json");
+    assert_eq!(
+        fs::read(&manifest).expect("the plugin is promoted despite its manifest"),
+        ARRAY_BODY,
+        "a manifest that cannot be stamped is delivered verbatim"
+    );
+    assert!(
+        !b.dirs.metadata.join("last-sync.json").exists(),
+        "partial application must not advance replay state"
+    );
+    let _ = (&b.server, &b.pat_dir);
+}
+
+#[test]
 fn a_bundled_mcp_file_is_recorded_then_stripped_from_the_plugin_dir() {
     const MCP_BODY: &[u8] = br#"{"mcpServers":{"salesforce":{"url":"http://x"},"jira":{}}}"#;
     let m = manifest_of(

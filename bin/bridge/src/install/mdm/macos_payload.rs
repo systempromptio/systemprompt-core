@@ -23,7 +23,7 @@ fn policy_body(
 ) -> Result<String, super::MdmError> {
     let secret = mcp
         .loopback
-        .secret()
+        .secret_or_mint()
         .map_err(|source| super::MdmError::Io {
             action: "read loopback secret",
             path: crate::proxy::secret::secret_path().unwrap_or_default(),
