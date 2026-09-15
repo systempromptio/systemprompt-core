@@ -129,11 +129,7 @@ async fn enroll(
     headers: HeaderMap,
 ) -> Result<impl axum::response::IntoResponse, ConsumerHttpError> {
     let credential = authorization::credential(&headers)?;
-    let identity = ctx
-        .managed_repository()
-        .authenticate_consumer_device(credential)
-        .await
-        .map_err(|_error| ConsumerHttpError(StatusCode::UNAUTHORIZED))?;
+    let identity = authorization::authenticate_device(&ctx, credential).await?;
     Ok(Json(Enrollment {
         device_id: identity.device_id,
         consumer_id: identity.consumer_id,

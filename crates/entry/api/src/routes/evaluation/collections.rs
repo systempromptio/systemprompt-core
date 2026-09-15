@@ -4,7 +4,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 use serde::{Deserialize, Serialize};
-/// A bounded result page with an opaque continuation identifier.
 #[derive(Debug, Clone, Serialize, schemars::JsonSchema)]
 pub struct Page<T> {
     pub items: Vec<T>,

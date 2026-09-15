@@ -38,10 +38,10 @@ pub(super) async fn refresh(
                 {
                     configured
                 } else {
-                    let services = systemprompt_loader::ConfigLoader::load().map_err(|_error| {
-                        systemprompt_evaluation::EvaluationError::InvalidSpec(
-                            "Configured inventory unavailable".to_owned(),
-                        )
+                    let services = systemprompt_loader::ConfigLoader::load().map_err(|error| {
+                        systemprompt_evaluation::EvaluationError::InvalidSpec(format!(
+                            "Configured inventory unavailable: {error}"
+                        ))
                     })?;
                     let root = ctx.app_paths().system().services().to_path_buf();
                     let configured = tokio::task::spawn_blocking(move || {
@@ -50,10 +50,10 @@ pub(super) async fn refresh(
                         )
                     })
                     .await
-                    .map_err(|_error| {
-                        systemprompt_evaluation::EvaluationError::InvalidSpec(
-                            "Inventory scan unavailable".to_owned(),
-                        )
+                    .map_err(|error| {
+                        systemprompt_evaluation::EvaluationError::InvalidSpec(format!(
+                            "Inventory scan unavailable: {error}"
+                        ))
                     })??;
                     ctx.managed_repository()
                         .checkpoint_api_input(ctx.system_admin().id(), &operation, &configured)
@@ -158,10 +158,10 @@ pub(super) async fn verify(
     headers: HeaderMap,
     Json(input): Json<DependencyVerificationRequest>,
 ) -> Result<impl axum::response::IntoResponse, OptimizationHttpError> {
-    input.validate().map_err(|_error| {
-        systemprompt_evaluation::EvaluationError::InvalidSpec(
-            "Dependency verification manifest is incomplete".to_owned(),
-        )
+    input.validate().map_err(|error| {
+        systemprompt_evaluation::EvaluationError::InvalidSpec(format!(
+            "Dependency verification manifest is incomplete: {error}"
+        ))
     })?;
     let claim = operations::begin(&ctx, &headers, "source_verification", &input).await?;
     let response: OperationResponse<DependencyVerificationManifest> = match claim {

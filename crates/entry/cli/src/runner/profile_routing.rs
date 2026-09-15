@@ -217,7 +217,11 @@ pub fn decide_routing(
             allow_local_execution(profile, class, &format!("routing failed: {}", e))?;
             Ok(RoutingDecision::ContinueLocal)
         },
-        Ok(ExecutionTarget::Local) | Err(_) => Ok(RoutingDecision::ContinueLocal),
+        Ok(ExecutionTarget::Local) => Ok(RoutingDecision::ContinueLocal),
+        Err(e) => {
+            tracing::debug!(error = %e, "Routing failed on a local profile; continuing locally");
+            Ok(RoutingDecision::ContinueLocal)
+        },
     }
 }
 

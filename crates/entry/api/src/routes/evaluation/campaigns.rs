@@ -10,6 +10,7 @@ use axum::routing::{get, post};
 use axum::{Extension, Json, Router};
 use serde::{Deserialize, Serialize};
 use systemprompt_evaluation::campaigns::CampaignPolicy;
+use systemprompt_evaluation::campaigns::diagnostics::DiagnosticCode;
 use systemprompt_evaluation::campaigns::repository::{
     CampaignAction, CampaignRecord, CampaignTransition,
 };
@@ -100,7 +101,16 @@ async fn create(
         ))
     }
     .await;
-    if result.is_err() {
+    if let Err(error) = &result {
+        let code = match error {
+            OptimizationHttpError::Evaluation(error) => DiagnosticCode::from_error(error),
+            OptimizationHttpError::Managed(_) | OptimizationHttpError::Analytics(_) => {
+                DiagnosticCode::StorageUnavailable
+            },
+            OptimizationHttpError::NotFound(_) | OptimizationHttpError::Optimization(_) => {
+                DiagnosticCode::InvalidInput
+            },
+        };
         ctx.evaluation_repositories()
             .campaigns
             .record_diagnostic(
@@ -110,7 +120,7 @@ async fn create(
                     campaign: None,
                     operation: &operation,
                     stage: systemprompt_evaluation::campaigns::diagnostics::DiagnosticStage::Setup,
-                    code: systemprompt_evaluation::campaigns::diagnostics::DiagnosticCode::InvalidInput,
+                    code,
                 },
             )
             .await?;

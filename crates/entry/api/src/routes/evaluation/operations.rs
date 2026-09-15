@@ -35,7 +35,6 @@ impl From<&ApiOperation> for OperationStatus {
         }
     }
 }
-/// Result and resolvable operation status for a retried mutation.
 #[derive(Debug, Serialize, schemars::JsonSchema)]
 pub struct OperationResponse<T> {
     pub operation: OperationStatus,

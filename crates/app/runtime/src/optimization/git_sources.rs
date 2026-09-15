@@ -42,8 +42,8 @@ impl GitSourceOrchestrator {
         owner: &UserId,
         request: &DependencyVerificationRequest,
     ) -> Result<DependencyVerificationManifest, OptimizationError> {
-        request.validate().map_err(|_error| {
-            OptimizationError::Source("Invalid dependency verification request".to_owned())
+        request.validate().map_err(|error| {
+            OptimizationError::Source(format!("Invalid dependency verification request: {error}"))
         })?;
         let mut credentials = BTreeMap::new();
         for revision in &request.revisions {
@@ -69,8 +69,8 @@ impl GitSourceOrchestrator {
                 credential_reference: Some(reference),
                 ..
             } => {
-                let secrets = SecretsBootstrap::get().map_err(|_error| {
-                    OptimizationError::Source("Git credentials are unavailable".to_owned())
+                let secrets = SecretsBootstrap::get().map_err(|error| {
+                    OptimizationError::Source(format!("Git credentials are unavailable: {error}"))
                 })?;
                 let credential = secrets
                     .get(&reference)

@@ -6,7 +6,9 @@
 
 use axum::http::{HeaderMap, StatusCode, header};
 use systemprompt_identifiers::ManagedResourceId;
+use systemprompt_marketplace::managed::ManagedError;
 use systemprompt_models::feedback::EvaluatorClient;
+use systemprompt_models::feedback::receipts::AuthenticatedConsumerDevice;
 use systemprompt_runtime::AppContext;
 
 use super::error::ConsumerHttpError;
@@ -20,21 +22,39 @@ pub(super) fn credential(headers: &HeaderMap) -> Result<&str, ConsumerHttpError>
         .ok_or(ConsumerHttpError(StatusCode::UNAUTHORIZED))
 }
 
+// Why: an unknown or revoked credential is the caller's 401; a storage
+// failure while checking it is not and keeps its 5xx classification.
+pub(super) async fn authenticate_device(
+    ctx: &AppContext,
+    credential: &str,
+) -> Result<AuthenticatedConsumerDevice, ConsumerHttpError> {
+    match ctx
+        .managed_repository()
+        .authenticate_consumer_device(credential)
+        .await
+    {
+        Ok(identity) => Ok(identity),
+        Err(ManagedError::Unavailable) => Err(ConsumerHttpError(StatusCode::UNAUTHORIZED)),
+        Err(error) => Err(ConsumerHttpError::from(error)),
+    }
+}
+
 pub(super) async fn resource(
     ctx: &AppContext,
     credential: &str,
     resource: &ManagedResourceId,
     host: EvaluatorClient,
 ) -> Result<(), ConsumerHttpError> {
-    let identity = ctx
-        .managed_repository()
-        .authenticate_consumer_device(credential)
-        .await
-        .map_err(|_error| ConsumerHttpError(StatusCode::UNAUTHORIZED))?;
-    let profile = systemprompt_config::ProfileBootstrap::get()
-        .map_err(|_error| ConsumerHttpError(StatusCode::SERVICE_UNAVAILABLE))?;
-    let services = crate::routes::gateway::bridge_data::load_services_config()
-        .map_err(|_error| ConsumerHttpError(StatusCode::SERVICE_UNAVAILABLE))?;
+    let identity = authenticate_device(ctx, credential).await?;
+    let profile = systemprompt_config::ProfileBootstrap::get().map_err(|error| {
+        tracing::warn!(%error, "consumer: profile unavailable");
+        ConsumerHttpError(StatusCode::SERVICE_UNAVAILABLE)
+    })?;
+    let services =
+        crate::routes::gateway::bridge_data::load_services_config().map_err(|error| {
+            tracing::warn!(%error, "consumer: services config load failed");
+            ConsumerHttpError(StatusCode::SERVICE_UNAVAILABLE)
+        })?;
     if !crate::routes::gateway::bridge::instance_enabled_hosts(&services)
         .iter()
         .any(|value| host.accepts_host_name(value))
@@ -48,7 +68,10 @@ pub(super) async fn resource(
         services,
     )
     .await
-    .map_err(|_error| ConsumerHttpError(StatusCode::SERVICE_UNAVAILABLE))?;
+    .map_err(|(status, detail)| {
+        tracing::warn!(%status, detail, "consumer: candidate assembly failed");
+        ConsumerHttpError(StatusCode::SERVICE_UNAVAILABLE)
+    })?;
     let (entries, _) = candidate.into_manifest_parts();
     if !entries.skills.iter().any(|skill| {
         skill
