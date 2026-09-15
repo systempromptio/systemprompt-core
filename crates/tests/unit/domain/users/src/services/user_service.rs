@@ -2,26 +2,29 @@
 
 use std::sync::Arc;
 use systemprompt_identifiers::UserId;
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fixture_db_pool};
 use systemprompt_users::{UpdateUserParams, UserRepository, UserService, UserStatus};
 use uuid::Uuid;
 
 struct Ctx {
+    fixture: crate::privacy_fixture::PrivacyFixture,
     service: UserService,
 }
 
 async fn setup_or_skip() -> Option<Ctx> {
-    let url = fixture_database_url().ok()?;
-    ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let fixture = crate::privacy_fixture::PrivacyFixture::new().await?;
+    let pool = fixture.pool.clone();
     let service = UserService::new(Arc::new(
         UserRepository::new(&pool).expect("user repository"),
     ));
-    Some(Ctx { service })
+    Some(Ctx { service, fixture })
 }
 
 async fn delete_user(ctx: &Ctx, id: &UserId) {
-    let _ = ctx.service.delete(id).await;
+    ctx.fixture.drain().await;
+    ctx.service
+        .delete(id)
+        .await
+        .expect("cleanup user after reporting drain");
 }
 
 fn unique(prefix: &str) -> (String, String) {
@@ -72,6 +75,7 @@ async fn create_then_find_by_id_email_name() {
     assert_eq!(by_name.id, created.id);
 
     delete_user(&ctx, &created.id).await;
+    ctx.fixture.finish().await;
 }
 
 #[tokio::test]
@@ -82,6 +86,7 @@ async fn find_by_id_unknown_returns_none() {
     let missing = UserId::new(format!("missing-{}", Uuid::new_v4()));
     let found = ctx.service.find_by_id(&missing).await.expect("find_by_id");
     assert!(found.is_none());
+    ctx.fixture.finish().await;
 }
 
 #[tokio::test]
@@ -118,6 +123,7 @@ async fn update_fields_persist() {
         .expect("update_email_verified");
     assert_eq!(verified.email_verified, Some(true));
 
+    ctx.fixture.drain().await;
     let suspended = ctx
         .service
         .update_status(&created.id, UserStatus::Suspended)
@@ -129,6 +135,7 @@ async fn update_fields_persist() {
     );
 
     delete_user(&ctx, &created.id).await;
+    ctx.fixture.finish().await;
 }
 
 #[tokio::test]
@@ -144,6 +151,7 @@ async fn update_all_fields_replaces_state() {
         .expect("create");
 
     let new_email = format!("all-{}@svc.invalid", Uuid::new_v4().simple());
+    ctx.fixture.drain().await;
     let updated = ctx
         .service
         .update_all_fields(
@@ -162,6 +170,7 @@ async fn update_all_fields_replaces_state() {
     assert_eq!(updated.display_name.as_deref(), Some("AllDisp"));
 
     delete_user(&ctx, &created.id).await;
+    ctx.fixture.finish().await;
 }
 
 #[tokio::test]
@@ -185,6 +194,7 @@ async fn assign_roles_persists() {
     assert!(updated.roles.contains(&"admin".to_owned()));
 
     delete_user(&ctx, &created.id).await;
+    ctx.fixture.finish().await;
 }
 
 #[tokio::test]
@@ -199,6 +209,7 @@ async fn delete_removes_user() {
         .await
         .expect("create");
 
+    ctx.fixture.drain().await;
     ctx.service.delete(&created.id).await.expect("delete");
     assert!(
         ctx.service
@@ -207,6 +218,7 @@ async fn delete_removes_user() {
             .expect("find_by_id")
             .is_none()
     );
+    ctx.fixture.finish().await;
 }
 
 #[tokio::test]
@@ -229,4 +241,5 @@ async fn create_anonymous_then_flagged_temporary() {
     assert!(is_temp);
 
     delete_user(&ctx, &anon.id).await;
+    ctx.fixture.finish().await;
 }

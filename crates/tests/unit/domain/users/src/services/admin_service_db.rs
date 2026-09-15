@@ -1,25 +1,25 @@
 //! DB-backed tests for `UserAdminService` lookup, promotion, and demotion.
 
 use std::sync::Arc;
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fixture_db_pool};
 use systemprompt_users::{
     DemoteResult, PromoteResult, UserAdminService, UserRepository, UserService,
 };
 use uuid::Uuid;
 
 struct Ctx {
+    fixture: crate::privacy_fixture::PrivacyFixture,
     admin: UserAdminService,
     users: UserService,
 }
 
 async fn setup_or_skip() -> Option<Ctx> {
-    let url = fixture_database_url().ok()?;
-    ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let fixture = crate::privacy_fixture::PrivacyFixture::new().await?;
+    let pool = fixture.pool.clone();
     let users = UserService::new(Arc::new(
         UserRepository::new(&pool).expect("user repository"),
     ));
     Some(Ctx {
+        fixture,
         admin: UserAdminService::new(users.clone()),
         users,
     })
@@ -77,7 +77,9 @@ async fn find_user_resolves_id_email_and_name() {
             .is_none()
     );
 
+    ctx.fixture.drain().await;
     ctx.users.delete(&created.id).await.expect("cleanup");
+    ctx.fixture.finish().await;
 }
 
 #[tokio::test]
@@ -110,7 +112,9 @@ async fn promote_grants_admin_then_reports_already_admin() {
         .expect("re-promote");
     assert!(matches!(again, PromoteResult::AlreadyAdmin(_)));
 
+    ctx.fixture.drain().await;
     ctx.users.delete(&created.id).await.expect("cleanup");
+    ctx.fixture.finish().await;
 }
 
 #[tokio::test]
@@ -139,7 +143,9 @@ async fn demote_removes_admin_and_keeps_user_role() {
         other => panic!("expected Demoted, got {other:?}"),
     }
 
+    ctx.fixture.drain().await;
     ctx.users.delete(&created.id).await.expect("cleanup");
+    ctx.fixture.finish().await;
 }
 
 #[tokio::test]
@@ -156,4 +162,5 @@ async fn promote_and_demote_report_missing_users() {
         ctx.admin.demote_from_admin(&ghost).await.expect("demote"),
         DemoteResult::UserNotFound
     ));
+    ctx.fixture.finish().await;
 }

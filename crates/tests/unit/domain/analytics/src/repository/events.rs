@@ -75,7 +75,14 @@ async fn create_event_folds_content_metadata_and_find_by_content_reads_it() {
 
     let sid = SessionId::new(format!("sess-evt-{}", Uuid::new_v4()));
     seed_session(&pool, &sid).await;
-    let user = UserId::new("anon".to_owned());
+    let user = UserId::new(format!("event-user-{}", sid.as_str()));
+    systemprompt_test_fixtures::seed_user_row(
+        &pool,
+        &user,
+        &format!("{}@event-test.invalid", user.as_str()),
+    )
+    .await
+    .expect("retained event user");
     let content = ContentId::new(format!("content-{}", Uuid::new_v4()));
 
     let input = systemprompt_analytics::CreateAnalyticsEventInput {

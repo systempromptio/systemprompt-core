@@ -48,3 +48,6 @@ mod session_support;
 mod ai_session_provider;
 #[cfg(test)]
 mod session_provider;
+
+#[cfg(test)]
+mod privacy_fixture;

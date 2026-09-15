@@ -25,6 +25,13 @@ async fn summary_and_stats_report_reasoning_and_keep_tokens_used_intact() {
 
     let nonce = Uuid::new_v4().simple().to_string();
     let user_id = UserId::new(format!("user-{nonce}"));
+    systemprompt_test_fixtures::seed_user_row(
+        &db,
+        &user_id,
+        &format!("{}@reasoning-test.invalid", user_id.as_str()),
+    )
+    .await
+    .expect("retained request user");
     let created_at = Utc::now();
 
     sqlx::query(
