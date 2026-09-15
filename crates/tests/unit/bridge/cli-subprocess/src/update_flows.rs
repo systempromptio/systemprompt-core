@@ -299,7 +299,16 @@ async fn coverage_login_pasted_pat_is_saved_without_an_exchange_or_reapply() {
     ]);
     assert_exit(&out, 0);
     assert!(String::from_utf8_lossy(&out.stdout).contains("Stored PAT"));
-    assert!(server.received_requests().await.unwrap().is_empty());
+    let exchanged = server
+        .received_requests()
+        .await
+        .unwrap()
+        .iter()
+        .any(|request| request.url.path() == "/v1/auth/bridge/session-pat");
+    assert!(
+        !exchanged,
+        "a pasted PAT is stored as-is; only the best-effort device enrolment may reach the gateway"
+    );
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
