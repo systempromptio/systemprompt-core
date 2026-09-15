@@ -263,6 +263,14 @@ async fn an_unresolvable_app_password_is_service_unavailable_not_acked() -> anyh
         StatusCode::SERVICE_UNAVAILABLE,
         "a secret the store cannot resolve is a 503, never an ack that drops the activity"
     );
+    let verified = connector
+        .received_requests()
+        .await
+        .is_some_and(|reqs| reqs.iter().any(|r| r.url.path() == "/jwks"));
+    assert!(
+        verified,
+        "the 503 must come from the secrets arm behind bearer verification, not before it"
+    );
     Ok(())
 }
 
