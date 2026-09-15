@@ -1,7 +1,9 @@
 //! Concurrent campaign dispatch retains one linked matrix and bounded
 //! iterations.
 use super::*;
-use systemprompt_evaluation::campaigns::repository::CampaignAction;
+use systemprompt_evaluation::campaigns::repository::{
+    CampaignAction, CampaignRepository, CampaignTransition,
+};
 use systemprompt_evaluation::campaigns::{CampaignPolicy, OptimizationObjective};
 use systemprompt_evaluation::repository::experiments::CampaignExperiment;
 
@@ -71,7 +73,10 @@ async fn concurrent_same_key_dispatch_is_linked_once_and_retry_survives_pause() 
             &f.owner,
             &f.owner,
             &campaign,
-            (current.generation, CampaignAction::Pause),
+            CampaignTransition {
+                expected_generation: current.generation,
+                action: CampaignAction::Pause,
+            },
         )
         .await
         .unwrap();

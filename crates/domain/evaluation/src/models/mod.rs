@@ -4,5 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod case;
+mod status;
 
 pub use case::{CanonicalPrompt, EvalCase, NewCaseParams};
+pub use status::{AccountingStatus, ApprovalStatus, CampaignStatus};

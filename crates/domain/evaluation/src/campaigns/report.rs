@@ -4,19 +4,20 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use std::collections::BTreeMap;
-use systemprompt_identifiers::{
-    EvalCampaignId, EvalExecutionId, EvalExperimentId, EvalRevisionId, UserId,
-};
+use systemprompt_identifiers::{EvalCampaignId, EvalExperimentId, EvalRevisionId, UserId};
 
 use super::comparison::{self, ComparisonDecision, Outcome, PairedOutcome};
 use super::repository::CampaignRecord;
 use crate::Result;
 use crate::experiments::conflict;
-use crate::experiments::records::{ExperimentRecord, ExperimentStatus};
+use crate::experiments::records::{ExecutionStatus, ExperimentRecord, ExperimentStatus};
 use crate::experiments::resources::{Partition, ResourceContent};
-use crate::repository::experiments::{EvaluationRepositories, RevisionRepository};
+use crate::models::AccountingStatus;
+use crate::repository::experiments::{
+    EvaluationRepositories, MeasurementRow, RetainedMeasurement, RevisionRepository,
+};
 
 #[derive(Debug, Clone, Serialize, schemars::JsonSchema)]
 pub struct CampaignReport {
@@ -31,28 +32,6 @@ pub struct CampaignReport {
     pub holdout: ComparisonDecision,
     pub eligible_for_publication: bool,
     pub limitations: Vec<String>,
-}
-
-#[derive(Debug, Deserialize, schemars::JsonSchema)]
-struct MeasurementRow {
-    execution_id: EvalExecutionId,
-    variant: usize,
-    case_revision_id: EvalRevisionId,
-    repetition: i32,
-    status: String,
-    measurement: Option<RetainedMeasurement>,
-}
-
-#[derive(Debug, Deserialize, schemars::JsonSchema)]
-struct RetainedMeasurement {
-    hard_failures: Vec<String>,
-    quality_milli: Option<u32>,
-    latency_ms: Option<u64>,
-    input_tokens: Option<u64>,
-    output_tokens: Option<u64>,
-    attempted_cost_microdollars: i64,
-    accounting_status: String,
-    verified_success: bool,
 }
 
 pub async fn build(
@@ -80,7 +59,7 @@ pub async fn build(
         .lifecycle
         .comparison(owner, experiment_id)
         .await?;
-    let rows: Vec<MeasurementRow> = serde_json::from_value(report.variants)?;
+    let rows = report.variants;
     let retained = pair_measurements(
         rows,
         &experiment.experiment.spec.cases,
@@ -178,7 +157,10 @@ fn pair_measurements(
         let pair = pairs
             .get_mut(&(row.case_revision_id, row.repetition))
             .ok_or_else(|| conflict("Measurement is outside the frozen execution matrix"))?;
-        if let Some(measurement) = row.measurement.filter(|_| row.status == "completed") {
+        if let Some(measurement) = row
+            .measurement
+            .filter(|_| row.status == ExecutionStatus::Completed)
+        {
             pair[row.variant] = outcome(&measurement);
         }
         if pair[row.variant].is_none() {
@@ -214,6 +196,6 @@ fn outcome(measurement: &RetainedMeasurement) -> Option<Outcome> {
         latency_ms: measurement.latency_ms?,
         verified_success: measurement.verified_success,
         hard_failures: u32::try_from(measurement.hard_failures.len()).ok()?,
-        accounting_complete: measurement.accounting_status == "complete",
+        accounting_complete: measurement.accounting_status == AccountingStatus::Complete,
     })
 }

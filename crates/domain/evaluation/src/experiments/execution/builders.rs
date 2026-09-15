@@ -3,7 +3,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-pub use super::evidence::ExecutionEvidenceBuilder;
 use super::{ArtifactEvidence, ClientCapabilities, ClientKind, ExecutionLimits};
 use crate::Result;
 use crate::experiments::invalid;

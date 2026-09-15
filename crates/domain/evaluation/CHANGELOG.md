@@ -8,6 +8,8 @@
 - **Breaking:** `EvaluationRepositories::new(&DbPool, EvaluationSeams) -> Result<Self>` (and `with_admission(&DbPool, EvaluationSeams, admission)`) build every repository on the application write pool over the shared-layer seams (`AiRequestTrace`, `AiSessionProvider`, `ManagedRevisionOwnership`); `BudgetRepository`, `EvidenceRepository`, `ExecutionCapabilityRepository`, `EvaluationLifecycleRepository`, `GatewayEvaluationRepository` (`GatewaySeams`), `ExperimentRepository`, `AssignmentRepository` and `CampaignRepository` take their collaborators in `new`. Migrate by composing the seams once at the root and passing the bundle down.
 - **Breaking:** `SamplingRepository`, `SampleFilter`, `SampleMode`, `SampledRequest`, `CanonicalMessage` and `EvalRepositories::sampling` are removed; `SamplerService::new(DynAiRequestTrace)` samples through `systemprompt_traits::TraceSampleFilter` and returns `TraceSample`s, `CanonicalPrompt::from_sample` builds a prompt from one, and `CanonicalPrompt`/`EvalCase` carry `ProviderId`/`ModelId` with `EvalCase::prompt` typed (`prompt_body`, `canonical_messages`, `system_prompt`, `offered_tools`, `provider`, `model` fields are gone).
 - **Breaking:** `EvaluationError::BudgetExhausted { required, available }` replaces `{ spent, budget }` and is built by `EvaluationError::budget_exhausted(&ExperimentPreflight)`; `EvaluationError::Trace(AiProviderError)` and `ManagedRevisions(ManagedSkillResolverError)` replace the unused `Ai`, `RunNotFound`, `RubricNotFound`, `JudgeParse` and `ReplaySource` variants.
+- **Breaking:** `CampaignRecord::status` is `models::CampaignStatus`, `ExecutionAccounting::status` and `DeterministicMeasurement::accounting_status` are `models::AccountingStatus`, `ExecutionApproval::status` is `models::ApprovalStatus`, and `ComparisonReport::variants` is `Vec<MeasurementRow>` (`MeasurementRow` / `RetainedMeasurement` are exported from `repository::experiments`). Migrate by matching the enums instead of comparing strings; the JSON wire form is unchanged.
+- **Breaking:** `CampaignRepository::transition` takes a `CampaignTransition { expected_generation, action }` instead of an `(i64, CampaignAction)` tuple. Migrate by constructing the struct.
 - **Breaking:** the unreleased migration slots are renumbered contiguously — `013_campaigns`, `014_campaign_completion`, `015_suggestion_operations` (they were 013/015/016 with 014 skipped). A database that applied the unreleased 015/016 slots must be reset or re-stamped; released databases are unaffected.
 
 ### Added
@@ -21,6 +23,8 @@
 ### Changed
 
 - `execution_accounting` returns `InvalidSpec` when a token or tool-call count is negative instead of reporting zero.
+- A stored campaign or approval status outside the declared set is `InvalidSpec` on read instead of being passed through as text.
+- `capabilities`, `experiments::execution`, `repository::experiments::{evidence,lifecycle,runs}` are directory modules; `native_proofs` is `capabilities::proofs`.
 - Campaign eligibility requires every frozen execution pair; terminal evidence is bound to the frozen workspace configuration; workspace inspection is bounded and unsafe materialisation paths are rejected; startup diagnostics are retained behind cleanup fences.
 - Native execution and judging replay through gateway accounting: a request the gateway settles as failed spend remains authoritative over any native usage report.
 

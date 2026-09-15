@@ -13,6 +13,9 @@ mod seams;
 mod models;
 
 #[cfg(test)]
+mod models_status;
+
+#[cfg(test)]
 mod repository;
 
 #[cfg(test)]

@@ -1,5 +1,7 @@
 use super::*;
 use systemprompt_evaluation::campaigns::report::{CampaignReport, build};
+use systemprompt_evaluation::experiments::records::ExecutionStatus;
+use systemprompt_evaluation::models::AccountingStatus;
 use systemprompt_evaluation::repository::experiments::{
     EvaluationRepositories, ReservationAdmission,
 };
@@ -156,6 +158,25 @@ async fn retained_report_never_infers_missing_tokens_quality_or_latency() {
         sqlx::query("UPDATE eval_execution_measurements m SET input_tokens=100,output_tokens=10,quality_milli=4500,latency_ms=100 FROM eval_executions x WHERE x.id=m.execution_id AND x.experiment_id=$1 AND x.variant_index=1").bind(f.experiment.as_str()).execute(&f.pool).await.unwrap();
     }
     sqlx::query("UPDATE eval_execution_measurements m SET accounting_status='partial' FROM eval_executions x WHERE x.id=m.execution_id AND x.experiment_id=$1 AND x.variant_index=1").bind(f.experiment.as_str()).execute(&f.pool).await.unwrap();
+    let comparison = f
+        .repositories
+        .lifecycle
+        .comparison(&f.input.owner, &f.experiment)
+        .await
+        .unwrap();
+    assert!(!comparison.variants.is_empty());
+    for row in &comparison.variants {
+        assert_eq!(row.status, ExecutionStatus::Completed);
+        let expected = if row.variant == 0 {
+            AccountingStatus::Complete
+        } else {
+            AccountingStatus::Partial
+        };
+        assert_eq!(
+            row.measurement.as_ref().unwrap().accounting_status,
+            expected
+        );
+    }
     let report = f.report().await;
     assert!(!report.eligible_for_publication);
     assert!(

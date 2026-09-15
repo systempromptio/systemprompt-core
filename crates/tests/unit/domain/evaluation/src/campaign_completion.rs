@@ -222,7 +222,12 @@ async fn relabelled_development_content_cannot_be_consumed_as_fresh_holdout() {
 
 #[tokio::test]
 async fn transition_retries_acknowledge_retained_actions_without_new_generations() {
-    use systemprompt_evaluation::campaigns::repository::CampaignAction;
+    use systemprompt_evaluation::campaigns::repository::{CampaignAction, CampaignTransition};
+    use systemprompt_evaluation::models::CampaignStatus;
+    let step = |expected_generation: i64, action: CampaignAction| CampaignTransition {
+        expected_generation,
+        action,
+    };
     let pool = runs_pool().await.expect("fixture database");
     let f = fixture(&pool).await;
     let repo = crate::seams::campaigns(&pool);
@@ -231,26 +236,51 @@ async fn transition_retries_acknowledge_retained_actions_without_new_generations
         .await
         .unwrap();
     let (first, retry) = tokio::join!(
-        repo.transition(&f.owner, &f.owner, &campaign, (0, CampaignAction::Pause)),
-        repo.transition(&f.owner, &f.owner, &campaign, (0, CampaignAction::Pause))
+        repo.transition(
+            &f.owner,
+            &f.owner,
+            &campaign,
+            step(0, CampaignAction::Pause)
+        ),
+        repo.transition(
+            &f.owner,
+            &f.owner,
+            &campaign,
+            step(0, CampaignAction::Pause)
+        )
     );
     first.unwrap();
     retry.unwrap();
     assert_eq!(repo.get(&f.owner, &campaign).await.unwrap().generation, 1);
     assert!(
-        repo.transition(&f.owner, &f.owner, &campaign, (0, CampaignAction::Cancel))
-            .await
-            .is_err()
+        repo.transition(
+            &f.owner,
+            &f.owner,
+            &campaign,
+            step(0, CampaignAction::Cancel)
+        )
+        .await
+        .is_err()
     );
-    repo.transition(&f.owner, &f.owner, &campaign, (1, CampaignAction::Resume))
-        .await
-        .unwrap();
-    repo.transition(&f.owner, &f.owner, &campaign, (0, CampaignAction::Pause))
-        .await
-        .unwrap();
+    repo.transition(
+        &f.owner,
+        &f.owner,
+        &campaign,
+        step(1, CampaignAction::Resume),
+    )
+    .await
+    .unwrap();
+    repo.transition(
+        &f.owner,
+        &f.owner,
+        &campaign,
+        step(0, CampaignAction::Pause),
+    )
+    .await
+    .unwrap();
     let final_state = repo.get(&f.owner, &campaign).await.unwrap();
     assert_eq!(final_state.generation, 2);
-    assert_eq!(final_state.status, "active");
+    assert_eq!(final_state.status, CampaignStatus::Active);
 }
 
 #[path = "campaign_comparison.rs"]

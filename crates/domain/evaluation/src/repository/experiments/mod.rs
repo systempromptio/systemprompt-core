@@ -42,7 +42,7 @@ pub use leases::{ExecutionCompletion, ExecutionLease, ExecutionLeaseBuilder, Ter
 pub use lifecycle::{
     ApprovalAuthorization, ApprovalDecision, ApprovalVerdict, CleanupReport, ComparisonReport,
     DeterministicMeasurement, EvaluationLifecycleRepository, ExecutionAccounting,
-    ExecutionApproval, GeneratedSuggestion, SuggestionRequest,
+    ExecutionApproval, GeneratedSuggestion, MeasurementRow, RetainedMeasurement, SuggestionRequest,
 };
 pub use revisions::RevisionRepository;
 pub use runs::ExperimentRepository;

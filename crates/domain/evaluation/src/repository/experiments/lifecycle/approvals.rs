@@ -7,6 +7,7 @@ use super::{
     ApprovalAuthorization, ApprovalDecision, EvalApprovalId, EvalExecutionId,
     EvaluationLifecycleRepository, ExecutionApproval, ExecutionLease, Result, UserId, invalid,
 };
+use crate::models::ApprovalStatus;
 
 #[derive(Debug, Clone, Copy)]
 pub struct ApprovalVerdict<'a> {
@@ -45,7 +46,7 @@ impl EvaluationLifecycleRepository {
             execution_id: lease.execution_id.clone(),
             operation,
             precondition_digest: precondition_digest.to_owned(),
-            status: "pending".to_owned(),
+            status: ApprovalStatus::Pending,
         })
     }
 
@@ -66,13 +67,13 @@ impl EvaluationLifecycleRepository {
             owner.as_str(), execution.as_str(), &operation_digest, precondition_digest).fetch_optional(&mut *tx).await? {
             let id = EvalApprovalId::new(row.id); let stored = row.operation;
             if &stored != operation { return Err(crate::experiments::conflict("Approval operation changed")); }
-            match row.status.as_str() {
-                "approved" => {
+            match ApprovalStatus::parse(&row.status)? {
+                ApprovalStatus::Approved => {
                     sqlx::query!("UPDATE eval_execution_approvals SET status='consumed' WHERE id=$1 AND status='approved'", id.as_str()).execute(&mut *tx).await?;
                     tx.commit().await?;
                     return Ok(ApprovalAuthorization::Authorized(id));
                 },
-                "pending" => { tx.commit().await?; return Ok(ApprovalAuthorization::Pending(id)); },
+                ApprovalStatus::Pending => { tx.commit().await?; return Ok(ApprovalAuthorization::Pending(id)); },
                 _ => return Err(crate::experiments::conflict("Approval was denied, expired, or consumed")),
             }
         }
@@ -106,9 +107,10 @@ impl EvaluationLifecycleRepository {
         }
         let mut tx = self.pool.begin().await?;
         let status = match decision {
-            ApprovalDecision::Approve => "approved",
-            ApprovalDecision::Deny => "denied",
-        };
+            ApprovalDecision::Approve => ApprovalStatus::Approved,
+            ApprovalDecision::Deny => ApprovalStatus::Denied,
+        }
+        .as_str();
         let previous=sqlx::query!("SELECT status,decided_by,precondition_digest FROM eval_execution_approvals WHERE id=$1 AND owner_id=$2 FOR UPDATE",approval.as_str(),owner.as_str()).fetch_optional(&mut *tx).await?.ok_or_else(||crate::experiments::conflict("Approval unavailable in this scope"))?;
         if previous.status == status
             && previous.decided_by.as_deref() == Some(actor.as_str())
@@ -119,12 +121,12 @@ impl EvaluationLifecycleRepository {
         }
         let row = sqlx::query!("UPDATE eval_execution_approvals SET status=CASE WHEN expires_at<=NOW() THEN 'expired' ELSE $4 END,decided_by=$2,decided_at=NOW() WHERE id=$1 AND owner_id=$3 AND status='pending' AND precondition_digest=$5 RETURNING execution_id,status",
             approval.as_str(), actor.as_str(), owner.as_str(), status, observed_precondition).fetch_optional(&mut *tx).await?.ok_or_else(|| crate::experiments::conflict("Approval is stale, foreign, or precondition changed"))?;
-        let final_status = row.status;
-        if final_status == "approved" {
+        let final_status = ApprovalStatus::parse(&row.status)?;
+        if final_status == ApprovalStatus::Approved {
             sqlx::query!("UPDATE eval_executions SET status='queued',lease_owner=NULL WHERE id=$1 AND status='awaiting_approval'", row.execution_id).execute(&mut *tx).await?;
         }
         tx.commit().await?;
-        if final_status == "expired" {
+        if final_status == ApprovalStatus::Expired {
             return Err(crate::experiments::conflict("Approval expired"));
         }
         Ok(())

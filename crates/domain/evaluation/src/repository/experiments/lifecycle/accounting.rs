@@ -11,6 +11,7 @@ use systemprompt_identifiers::{AiRequestId, EvalExecutionId, UserId};
 use super::{EvaluationLifecycleRepository, ExecutionAccounting};
 use crate::Result;
 use crate::experiments::{invalid, missing};
+use crate::models::AccountingStatus;
 
 impl EvaluationLifecycleRepository {
     pub async fn execution_accounting(
@@ -60,18 +61,18 @@ impl EvaluationLifecycleRepository {
             cost += record.cost_microdollars;
         }
         let status = if requests == 0 {
-            "unknown"
+            AccountingStatus::Unknown
         } else if complete == requests {
-            "complete"
+            AccountingStatus::Complete
         } else {
-            "partial"
+            AccountingStatus::Partial
         };
         Ok(ExecutionAccounting {
             input_tokens: (requests > 0).then_some(input),
             output_tokens: (requests > 0).then_some(output),
             tool_calls,
             attempted_cost_microdollars: cost,
-            status: status.to_owned(),
+            status,
         })
     }
 }

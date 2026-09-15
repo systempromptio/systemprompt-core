@@ -10,6 +10,7 @@ use systemprompt_identifiers::{EvalApprovalId, EvalBudgetId, EvalExecutionId, Ev
 
 use crate::Result;
 use crate::experiments::invalid;
+use crate::models::{AccountingStatus, ApprovalStatus};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -24,7 +25,7 @@ pub struct DeterministicMeasurement {
     pub output_tokens: Option<u64>,
     pub tool_calls: u64,
     pub attempted_cost_microdollars: i64,
-    pub accounting_status: String,
+    pub accounting_status: AccountingStatus,
     pub verified_success: bool,
 }
 
@@ -38,10 +39,6 @@ impl DeterministicMeasurement {
             "write_readbacks",
         ];
         if self.attempted_cost_microdollars < 0
-            || !matches!(
-                self.accounting_status.as_str(),
-                "complete" | "partial" | "unknown"
-            )
             || self.checks.len() != CHECKS.len()
             || CHECKS.iter().any(|name| !self.checks.contains_key(*name))
             || self.quality_milli.is_some_and(|score| score > 5000)
@@ -63,28 +60,13 @@ impl DeterministicMeasurement {
     }
 }
 
-#[derive(Debug, Clone, Serialize)]
-pub struct ComparisonReport {
-    pub experiment_id: EvalExperimentId,
-    pub attempted: i64,
-    pub completed: i64,
-    pub hard_failures: i64,
-    pub unscored: i64,
-    pub verified_successes: i64,
-    pub attempted_cost_microdollars: i64,
-    pub cost_per_verified_success_microdollars: Option<i64>,
-    pub accounting_complete: i64,
-    pub accounting_total: i64,
-    pub variants: serde_json::Value,
-}
-
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Copy, Serialize)]
 pub struct ExecutionAccounting {
     pub input_tokens: Option<u64>,
     pub output_tokens: Option<u64>,
     pub tool_calls: u64,
     pub attempted_cost_microdollars: i64,
-    pub status: String,
+    pub status: AccountingStatus,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
@@ -93,7 +75,7 @@ pub struct ExecutionApproval {
     pub execution_id: EvalExecutionId,
     pub operation: serde_json::Value,
     pub precondition_digest: String,
-    pub status: String,
+    pub status: ApprovalStatus,
 }
 
 #[derive(Debug, Clone, Copy)]

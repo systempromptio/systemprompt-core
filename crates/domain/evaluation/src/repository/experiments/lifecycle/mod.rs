@@ -10,7 +10,7 @@ use std::collections::BTreeSet;
 
 use sqlx::PgPool;
 use systemprompt_identifiers::{
-    AiRequestId, EvalApprovalId, EvalExecutionId, EvalExperimentId, EvalSuggestionId, UserId,
+    AiRequestId, EvalApprovalId, EvalExecutionId, EvalSuggestionId, UserId,
 };
 
 use super::{BudgetRepository, ExecutionLease};
@@ -18,15 +18,17 @@ use systemprompt_traits::DynAiRequestTrace;
 
 mod accounting;
 mod approvals;
+mod comparison;
 mod models;
 mod recovery;
 mod suggestion_operations;
 use crate::Result;
 use crate::experiments::invalid;
 pub use approvals::ApprovalVerdict;
+pub use comparison::{ComparisonReport, MeasurementRow, RetainedMeasurement};
 pub use models::{
-    ApprovalAuthorization, ApprovalDecision, ComparisonReport, DeterministicMeasurement,
-    ExecutionAccounting, ExecutionApproval, GeneratedSuggestion, SuggestionRequest,
+    ApprovalAuthorization, ApprovalDecision, DeterministicMeasurement, ExecutionAccounting,
+    ExecutionApproval, GeneratedSuggestion, SuggestionRequest,
 };
 pub use recovery::CleanupReport;
 
@@ -140,36 +142,12 @@ impl EvaluationLifecycleRepository {
             },
         }
         let changed = sqlx::query!("INSERT INTO eval_execution_measurements(execution_id,hard_failures,deterministic_checks,judgment,quality_milli,latency_ms,input_tokens,output_tokens,tool_calls,attempted_cost_microdollars,accounting_status,verified_success) SELECT x.id,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15 FROM eval_executions x JOIN eval_experiments e ON e.id=x.experiment_id WHERE x.id=$1 AND e.owner_id=$2 AND x.lease_owner=$3 AND x.fencing_token=$4 AND x.status IN ('completed','blocked') ON CONFLICT(execution_id) DO NOTHING",
-            lease.execution_id.as_str(), owner.as_str(), lease.worker_id.as_str(), lease.fencing_token, &measurement.hard_failures, serde_json::to_value(&measurement.checks)?, serde_json::to_value(&measurement.judgment)?, measurement.quality_milli.map(i32::try_from).transpose().map_err(|error| invalid(&format!("Quality overflow: {error}")))?, i64::try_from(measurement.latency_ms).map_err(|error| invalid(&format!("Latency overflow: {error}")))?, measurement.input_tokens.map(i64::try_from).transpose().map_err(|error| invalid(&format!("Token overflow: {error}")))?, measurement.output_tokens.map(i64::try_from).transpose().map_err(|error| invalid(&format!("Token overflow: {error}")))?, i64::try_from(measurement.tool_calls).map_err(|error| invalid(&format!("Tool count overflow: {error}")))?, measurement.attempted_cost_microdollars, &measurement.accounting_status, measurement.verified_success).execute(&self.pool).await?;
+            lease.execution_id.as_str(), owner.as_str(), lease.worker_id.as_str(), lease.fencing_token, &measurement.hard_failures, serde_json::to_value(&measurement.checks)?, serde_json::to_value(&measurement.judgment)?, measurement.quality_milli.map(i32::try_from).transpose().map_err(|error| invalid(&format!("Quality overflow: {error}")))?, i64::try_from(measurement.latency_ms).map_err(|error| invalid(&format!("Latency overflow: {error}")))?, measurement.input_tokens.map(i64::try_from).transpose().map_err(|error| invalid(&format!("Token overflow: {error}")))?, measurement.output_tokens.map(i64::try_from).transpose().map_err(|error| invalid(&format!("Token overflow: {error}")))?, i64::try_from(measurement.tool_calls).map_err(|error| invalid(&format!("Tool count overflow: {error}")))?, measurement.attempted_cost_microdollars, measurement.accounting_status.as_str(), measurement.verified_success).execute(&self.pool).await?;
         if changed.rows_affected() != 1 {
             return Err(crate::experiments::conflict(
                 "Measurement is immutable or execution is unavailable",
             ));
         }
         Ok(())
-    }
-
-    pub async fn comparison(
-        &self,
-        owner: &UserId,
-        experiment: &EvalExperimentId,
-    ) -> Result<ComparisonReport> {
-        let row = sqlx::query!(r#"SELECT count(*) AS "attempted!",count(*) FILTER(WHERE x.status='completed') AS "completed!",count(*) FILTER(WHERE cardinality(COALESCE(m.hard_failures,ARRAY[]::TEXT[]))>0) AS "hard_failures!",count(*) FILTER(WHERE m.quality_milli IS NULL) AS "unscored!",count(*) FILTER(WHERE m.verified_success) AS "successes!",COALESCE(sum(m.attempted_cost_microdollars),0)::BIGINT AS "cost!",count(*) FILTER(WHERE m.accounting_status='complete') AS "accounting_complete!",count(m.execution_id) AS "accounting_total!",jsonb_agg(jsonb_build_object('execution_id',x.id,'variant',x.variant_index,'case_revision_id',x.case_revision_id,'repetition',x.repetition,'status',x.status,'measurement',to_jsonb(m)) ORDER BY x.variant_index,x.case_revision_id,x.repetition) AS "variants!" FROM eval_experiments e JOIN eval_executions x ON x.experiment_id=e.id LEFT JOIN eval_execution_measurements m ON m.execution_id=x.id WHERE e.owner_id=$1 AND e.id=$2 GROUP BY e.id"#,
-            owner.as_str(), experiment.as_str()).fetch_optional(&self.pool).await?.ok_or_else(|| crate::experiments::missing("Experiment unavailable in this scope"))?;
-        let successes = row.successes;
-        let cost = row.cost;
-        Ok(ComparisonReport {
-            experiment_id: experiment.clone(),
-            attempted: row.attempted,
-            completed: row.completed,
-            hard_failures: row.hard_failures,
-            unscored: row.unscored,
-            verified_successes: successes,
-            attempted_cost_microdollars: cost,
-            cost_per_verified_success_microdollars: (successes > 0).then(|| cost / successes),
-            accounting_complete: row.accounting_complete,
-            accounting_total: row.accounting_total,
-            variants: row.variants,
-        })
     }
 }

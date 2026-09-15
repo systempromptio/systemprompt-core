@@ -104,7 +104,7 @@ impl EvaluationLifecycleRepository {
             execution_id: systemprompt_identifiers::EvalExecutionId::new(row.execution_id),
             operation: row.operation,
             precondition_digest: row.precondition_digest,
-            status: row.status,
+            status: crate::models::ApprovalStatus::parse(&row.status)?,
         })
     }
 }

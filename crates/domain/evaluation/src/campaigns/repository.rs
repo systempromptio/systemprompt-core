@@ -19,6 +19,7 @@ use systemprompt_traits::DynManagedRevisionOwnership;
 use super::CampaignPolicy;
 use crate::Result;
 use crate::experiments::{conflict, content_digest, invalid, missing};
+use crate::models::CampaignStatus;
 
 #[derive(Clone)]
 pub struct CampaignRepository {
@@ -38,7 +39,7 @@ pub struct CampaignRecord {
     pub owner_id: UserId,
     pub created_by: UserId,
     pub policy: CampaignPolicy,
-    pub status: String,
+    pub status: CampaignStatus,
     pub generation: i64,
     pub created_at: DateTime<Utc>,
 }
@@ -53,14 +54,21 @@ pub enum CampaignAction {
 }
 
 impl CampaignAction {
-    const fn status(self) -> &'static str {
+    const fn status(self) -> CampaignStatus {
         match self {
-            Self::Pause => "paused",
-            Self::Resume => "active",
-            Self::Complete => "completed",
-            Self::Cancel => "cancelled",
+            Self::Pause => CampaignStatus::Paused,
+            Self::Resume => CampaignStatus::Active,
+            Self::Complete => CampaignStatus::Completed,
+            Self::Cancel => CampaignStatus::Cancelled,
         }
     }
+}
+
+/// A state transition guarded by the generation the caller last observed.
+#[derive(Debug, Clone, Copy)]
+pub struct CampaignTransition {
+    pub expected_generation: i64,
+    pub action: CampaignAction,
 }
 
 impl CampaignRepository {
@@ -164,7 +172,7 @@ impl CampaignRepository {
                     owner_id: UserId::new(row.owner_id),
                     created_by: UserId::new(row.created_by),
                     policy: serde_json::from_value(row.policy)?,
-                    status: row.status,
+                    status: CampaignStatus::parse(&row.status)?,
                     generation: row.generation,
                     created_at: row.created_at,
                 })
@@ -179,7 +187,7 @@ impl CampaignRepository {
             owner_id: UserId::new(row.owner_id),
             created_by: UserId::new(row.created_by),
             policy: serde_json::from_value(row.policy)?,
-            status: row.status,
+            status: CampaignStatus::parse(&row.status)?,
             generation: row.generation,
             created_at: row.created_at,
         })
@@ -190,9 +198,13 @@ impl CampaignRepository {
         owner: &UserId,
         actor: &UserId,
         id: &EvalCampaignId,
-        command: (i64, CampaignAction),
+        transition: CampaignTransition,
     ) -> Result<()> {
-        let (generation, action) = command;
+        let CampaignTransition {
+            expected_generation: generation,
+            action,
+        } = transition;
+        let status = action.status().as_str();
         let mut tx = self.pool.begin().await?;
         sqlx::query!(
             "SELECT id FROM eval_campaigns WHERE owner_id=$1 AND id=$2 FOR UPDATE",
@@ -205,12 +217,12 @@ impl CampaignRepository {
         if generation < 0 || generation == i64::MAX {
             return Err(conflict("Invalid campaign generation"));
         }
-        let already=sqlx::query_scalar!("SELECT EXISTS(SELECT 1 FROM eval_campaign_events e JOIN eval_campaigns c ON c.id=e.campaign_id WHERE c.owner_id=$1 AND c.id=$2 AND e.generation=$3 AND e.action=$4)",owner.as_str(),id.as_str(),generation+1,action.status()).fetch_one(&mut *tx).await?.unwrap_or(false);
+        let already=sqlx::query_scalar!("SELECT EXISTS(SELECT 1 FROM eval_campaign_events e JOIN eval_campaigns c ON c.id=e.campaign_id WHERE c.owner_id=$1 AND c.id=$2 AND e.generation=$3 AND e.action=$4)",owner.as_str(),id.as_str(),generation+1,status).fetch_one(&mut *tx).await?.unwrap_or(false);
         if already {
             return Ok(());
         }
-        let changed = sqlx::query!("UPDATE eval_campaigns SET status=$4,generation=generation+1,updated_at=NOW() WHERE owner_id=$1 AND id=$2 AND generation=$3 AND status IN ('active','paused') AND status<>$4 RETURNING generation", owner.as_str(), id.as_str(), generation, action.status()).fetch_optional(&mut *tx).await?.ok_or_else(|| conflict("Campaign state or generation changed"))?;
-        sqlx::query!("INSERT INTO eval_campaign_events(campaign_id,generation,actor_id,action) VALUES($1,$2,$3,$4)", id.as_str(), changed.generation, actor.as_str(), action.status()).execute(&mut *tx).await?;
+        let changed = sqlx::query!("UPDATE eval_campaigns SET status=$4,generation=generation+1,updated_at=NOW() WHERE owner_id=$1 AND id=$2 AND generation=$3 AND status IN ('active','paused') AND status<>$4 RETURNING generation", owner.as_str(), id.as_str(), generation, status).fetch_optional(&mut *tx).await?.ok_or_else(|| conflict("Campaign state or generation changed"))?;
+        sqlx::query!("INSERT INTO eval_campaign_events(campaign_id,generation,actor_id,action) VALUES($1,$2,$3,$4)", id.as_str(), changed.generation, actor.as_str(), status).execute(&mut *tx).await?;
         tx.commit().await?;
         Ok(())
     }
@@ -233,7 +245,9 @@ impl CampaignRepository {
         .fetch_one(&mut *tx)
         .await?
         .unwrap_or(0);
-        if campaign.status != "active" || count >= i64::from(policy.maximum_iterations) {
+        if CampaignStatus::parse(&campaign.status)? != CampaignStatus::Active
+            || count >= i64::from(policy.maximum_iterations)
+        {
             return Err(conflict(
                 "Campaign is inactive or its iteration limit is exhausted",
             ));
