@@ -34,6 +34,12 @@ impl From<RevisionBundleError> for ManagedError {
     }
 }
 
+impl From<systemprompt_identifiers::error::IdValidationError> for ManagedError {
+    fn from(error: systemprompt_identifiers::error::IdValidationError) -> Self {
+        Self::Invalid(error.to_string())
+    }
+}
+
 pub type Result<T> = std::result::Result<T, ManagedError>;
 
 pub(super) fn invalid(message: &str) -> ManagedError {

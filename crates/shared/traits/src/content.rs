@@ -8,11 +8,13 @@
 
 use std::future::Future;
 
+use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{CategoryId, ContentId, SourceId};
 
-/// Authoritative content counts used by behavioral classification.
+/// Authoritative content counts used by behavioral classification; `dyn`
+/// dispatched, hence `#[async_trait]`.
 #[async_trait]
 pub trait ContentCatalogStats: Send + Sync + std::fmt::Debug {
     async fn count_public_pages(&self) -> Result<i64, crate::RepositoryError>;

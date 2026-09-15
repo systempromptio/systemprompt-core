@@ -7,6 +7,7 @@ use super::service::AnalyticsService;
 use crate::repository::FingerprintRepository;
 use async_trait::async_trait;
 use http::HeaderMap;
+use systemprompt_identifiers::SessionId;
 use systemprompt_traits::{
     AnalyticsProvider, AnalyticsProviderError, AnalyticsResult, ExtractSignals,
     FingerprintProvider, SessionAnalytics,
