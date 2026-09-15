@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.53.0] - 2026-09-14
+## [0.53.0] - 2026-09-15
 
 ### Breaking
 
@@ -36,6 +36,12 @@
 - `proxy::comms::sweep_draining` folds a `.draining` inbox file left by an interrupted `comms-drain` back into the live inbox; the inbox lives under the brand config dir and its files are 0600.
 - Host probe results carry a per-host `ProbeSeq`; a result from a probe that a later probe of the same host superseded is discarded instead of overwriting the newer snapshot.
 - `wire::first_run::{FirstRunPhase, StepStatus}` are serialised enums; `HostFailure`, `HostWarning` and `FirstRunPayload` serialise them directly.
+- `device-enroll --token-file <file>` verifies an administrator-issued device credential against `POST /api/v1/consumer-devices/enrollment` and stores it atomically (0600 on Unix, a verified private ACL on Windows) with the authenticated consumer, enrolled device and gateway identity; the per-user bridge token or a certificate fingerprint cannot substitute for it. `feedback-status` reports acknowledged, unacknowledged, fully verified and superseded evidence.
+- `feedback` module: after every host emitter succeeds, installed managed skills are read back (native `SKILL.md`, every active supporting and dependency file, retained source, Unix 0644/0755 modes; Windows executable-mode verification is reported as unavailable) against the device-authorised installation plan, and receipts, session bindings and invocation evidence are retained in a bounded per-identity outbox (512 receipts, 512 pending plans, 16 MiB) that survives restarts, acknowledges identical retries, never evicts pending evidence and exposes conflicts and rejected credentials. Pending plans are retained before network access; a newer generation supersedes an unresolved plan. Retries run during `sync` and on the owned heartbeat task under a cross-process installation lock.
+- Session observation binds native client metadata on authenticated loopback requests (Claude session UUIDs in `metadata.user_id`, Codex thread metadata, OpenCode's per-session header, Hermes's `session_id`), never the bridge-generated `x-session-id`; bindings freeze the observed generation.
+- Native hook evidence is authenticated with the enrolled device; the governance owner's OpenCode install gets a hook plugin (`integration/opencode/managed_resources/plugin_js`) carrying its scoped hook token, removed when no plugin owns governance.
+- `sync::seed_model` seeds the Claude Code model picker and default model from the bridge profile after a sync.
+- `[opencode] managed_dir` config key.
 
 ### Changed
 
@@ -53,6 +59,8 @@
 - A staged plugin whose promotion rename fails is rolled back so the previously installed plugin stays in service.
 - `resolve_target` for Cowork returns `Err(Ambiguous)` when several usable org sessions exist and none is the personal session, and `Err(ConfiguredUnusable)` for a configured dir without a plugins subdir, instead of guessing or reading as absent.
 - **Windows:** `open_target` no longer runs `cmd /C start` with an untrusted URL; every external open goes through `opener`.
+- The proxy binds only on its advertised loopback address; an occupied advertised port refuses to start instead of binding elsewhere.
+- Receipt recovery is preserved across canonical sync state and pending verification recovers on an unchanged signed manifest; acknowledged bridge sessions are compacted while preserving binding identity; contract violations in installation evidence escalate to host failures; retained error sources are sanitised and Windows readback is explicit. `FeedbackError` carries `Http`, `Timeout`, `Config`, `InvalidGateway`, `Header` and `Contract` sources.
 
 ### Removed
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.53.0] - 2026-09-15
+
+### Changed
+
+- `validate_config` returns `systemprompt_extension::ExtensionConfigError` (the renamed `ConfigError`). No behavioural change.
+
 ## [0.48.0] - 2026-09-08
 
 ### Added

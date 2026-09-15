@@ -1,18 +1,25 @@
 # Changelog
 
-## [0.53.0] - 2026-09-14
+## [0.53.0] - 2026-09-15
 
 ### Breaking
 
 - **Breaking:** `ManagedWorkspaceReference::manifest` is a `systemprompt_models::managed::RevisionBundle` and `ManagedWorkspaceRegistration::manifest` is `&RevisionBundle`; a stored projection that does not decode as a bundle is `InvalidSpec` on read. Migrate by passing the bundle instead of `serde_json::to_value(&bundle)`.
+- **Breaking:** the unreleased migration slots are renumbered contiguously — `013_campaigns`, `014_campaign_completion`, `015_suggestion_operations` (they were 013/015/016 with 014 skipped). A database that applied the unreleased 015/016 slots must be reset or re-stamped; released databases are unaffected.
 
 ### Added
 
 - A versioned, fail-closed evaluator capability registry covering Claude Code, OpenCode, Codex, Hermes and Claude Desktop.
+- `campaigns` module: organisational optimisation campaigns — durable policy with immutable attached experiments, source-change provenance, campaign runs, holdout proposals reviewed independently of execution admission (`holdout`), retained diagnostics for blocked work (`diagnostics`), campaign reports and comparisons, and development-only suggestions with atomic reservations (`suggestions`). Migrations 013 (`eval_campaigns`, `eval_campaign_experiments`, `eval_campaign_source_changes`), 014 (`eval_campaign_diagnostics`, `eval_campaign_holdout_proposals`, `eval_holdout_content_consumption`) and 015 (suggestion `operation_key` / `operation_digest`).
+- `native_proofs`: reviewed native acceptance provenance and immutable image identities; a native target stays unavailable until both the isolation and the gateway-metering proof are retained. Embedded proofs fail closed instead of panicking.
+- `repository::experiments::admission` rechecks retained execution admission before every claim and spend reservation; `collections` traverses experiments by owner-scoped cursor independent of mutable timestamps; `campaign_runs`, `holdout`, `lifecycle_models` and `lifecycle_suggestion_operations` back the campaign lifecycle; `EvalCampaignId`.
+- `eval_approved_operation_receipts`, `eval_execution_capabilities`, `eval_fixture_*`, `eval_session_bindings` and `eval_workers` join the declared schema.
 
 ### Changed
 
 - `execution_accounting` returns `InvalidSpec` when a token or tool-call count is negative instead of reporting zero.
+- Campaign eligibility requires every frozen execution pair; terminal evidence is bound to the frozen workspace configuration; workspace inspection is bounded and unsafe materialisation paths are rejected; startup diagnostics are retained behind cleanup fences.
+- Native execution and judging replay through gateway accounting: a request the gateway settles as failed spend remains authoritative over any native usage report.
 
 ### Fixed
 

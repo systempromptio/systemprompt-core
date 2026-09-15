@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.53.0] - 2026-09-14
+## [0.53.0] - 2026-09-15
 
 ### Breaking
 
@@ -11,6 +11,7 @@
 ### Added
 
 - `LoggingRepository::delete_orphaned_logs`/`count_orphaned_logs` (moved from the database crate's `CleanupRepository`).
+- `LoggingRepository` implements `systemprompt_traits::AnalyticsEventStore` (analytics-event ingestion and behavioural event lookups moved from the analytics domain); the extension installs `reporting_capture.sql` / `reporting_privacy.sql` (migration 006) for the `logs` and `analytics_events` reporting sources.
 
 ### Changed
 

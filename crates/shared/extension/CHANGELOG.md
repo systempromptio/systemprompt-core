@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.53.0] - 2026-09-14
+## [0.53.0] - 2026-09-15
 
 ### Breaking
 
@@ -8,6 +8,7 @@
 - **Breaking:** `ExtensionRegistry::enabled_extensions` / `enabled_schema_extensions` / `enabled_job_extensions` return `Result` and refuse to disable a required extension (`RequiredExtensionDisabled`) or a dependency of an enabled extension (`DisabledDependency`); `discover()` fails with `MissingDependency` instead of treating the dependency as optional, and a duplicate `register_extension!` id is `DuplicateExtension`.
 - **Breaking:** `error::ConfigError` is `ExtensionConfigError`; `Migration::checksum` is xxh64.
 - **Breaking:** `Extension::llm_providers` / `has_llm_providers`, `llm_provider_extensions`, `tool_provider_extensions`, `discover_and_merge`, `HasHttpClient`, `CapabilityContext` and `FullContext` are removed. The crate no longer depends on `reqwest` or `sqlx`.
+- **Breaking:** `ExtensionContext::system_owner_id() -> UserId` is a required method; the analytics, inventory and feedback jobs run under it.
 
 ### Fixed
 

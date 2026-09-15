@@ -9,13 +9,18 @@
 ### Migration
 
 - Apply migration 004 before starting the updated relay. Upgrade every relay instance before enabling durable producers: older relays prune by age without considering pending consumers.
-## [0.53.0] - 2026-09-14
+## [0.53.0] - 2026-09-15
 
 ### Breaking
 
 - **Breaking:** `GenericBroadcaster::connected_users` returns `Vec<UserId>` and, with `connection_info`, is synchronous; the registry is keyed by `UserId`/`ConnectionId`.
 - **Breaking:** `EventRouter::route_*` return `RouteOutcome { local, relay }` where `relay` is `RelayOutcome::{NotInstalled, Relayed, Failed(RelayError)}`; `into_local_logged()` yields the previous counts and warns on a failed relay. Migrate by reading `.local` or calling `into_local_logged()`.
 - **Breaking:** `PostgresEventBridge::start` returns an `EventBridgeHandle` (`status()` → `RelayStatus::{NotStarted, Listening, Reconnecting, Stopped}`, `shutdown()` cancels and joins the task); the process-global `is_listening()` is removed. Migrate by keeping the handle and asking it.
+
+### Added
+
+- `services::durable::DurableOutbox`: opt-in transactional facts and durable consumer acknowledgement in the existing SSE outbox — `append` takes the source transaction, actor, typed SSE event and a `ReportingFact<T>`; a consumer `claim`s with a row lock (`SKIP LOCKED`), writes its projection on `Delivery::connection` and `acknowledge`s in the same transaction; dropping a delivery leaves it pending. Pending facts survive relay cleanup; the `reporting` channel is skipped by the SSE bridge. Migration 004 adds `consumer`, `fact` and `processed_at` to `event_outbox`; apply it and upgrade every relay before enabling durable producers.
+- `reporting_capture.sql` / `reporting_privacy.sql` (migrations 005–006): `sp_capture_reporting_change` and the outbox privacy functions (`begin_reporting_outbox_privacy`, `reporting_privacy_changes`) that make a user-privacy mutation wait for pending committed evidence.
 
 ### Fixed
 

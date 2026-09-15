@@ -1,12 +1,23 @@
 # Changelog
 
-## [0.53.0] - 2026-09-14
+## [0.53.0] - 2026-09-15
+
+### Added
+
+- `managed::consumer`: device-authenticated consumer evidence — administrator-issued device credentials stored as a SHA-256 digest and replaced on reissue (`credentials`), installation receipts compared file-by-file against the retained publication bundle with identical retries acknowledged (`receipts`), session bindings and immutable invocation evidence with a versioned, correctable resource-attribution projection (`sessions`, `attribution`), deterministic host installation plans derived from the exact retained publication (`plan`), and receipt / binding / invocation status reads. Migration 004 (`managed_consumer_credentials`, `managed_consumer_grants`, `managed_consumer_session_bindings`, `managed_consumer_invocation_evidence`, `managed_invocation_attributions`).
+- `managed::organization_resolver`: explicit organisation authority with consumer-scoped grants — a filtered managed publication with the requested canonical identity and an enabled host is eligible, a successful catalog authorisation retains a grant, and an administrative revocation is never reset by later catalog reads.
+- `managed::source_verification*`: complete server-side Git verification of immutable dependency closures over HTTPS with source-scoped bearer credentials (cleared environment and credential helpers, no redirects or submodule recursion, 60 s subprocess / 120 s aggregate deadlines, 8 MiB output, 256 files / 8 MiB retained trees, 64 MiB temporary storage, private temp dirs, reaped process groups); cycles, missing or extra revisions, incorrect bindings and nested Git metadata prevent attestation; immutable administrative source bindings for local-authored roots; retained `DependencyVerificationManifest`s (`DependencyVerificationId`). Migrations 003 (`managed_evaluation_attestations`, `managed_git_verifications`) and 005 (`managed_dependency_verifications`, `managed_resource_git_bindings`).
+- `managed::evaluation`: publication attestations produced by application-level evaluation and source verification; repository publication verifies the retained binding. `managed::publication_history`: retained review history and distribution evidence.
+- `inventory` module: canonical configured-and-managed inventory with explicit adoption and observed membership, retained baselines and captures, Git bindings, reconciliation conflicts and per-host installation coverage (`InventoryEntryId`). Migrations 006 (`managed_inventory_*`) and 007 (`managed_installation_coverage*`). Explicit binding candidates are bounded by owner and key.
+- `managed::operations`: durable fenced administrative operations that retain typed input checkpoints (`managed_api_operations`, migration 008) — credential issuance and inventory capture are addressed by `Idempotency-Key`.
 
 ### Changed
 
 - Git verification compares the imported tree with the retained revision through `RevisionFiles::same_content`.
 
 - `managed::{RevisionBundle, RevisionManifest, FileEntry, DependencyRef, AssetDigest, AssetFile, RevisionFiles}` are re-exports of `systemprompt_models::managed`; `ManagedError` implements `From<RevisionBundleError>` so `?` on bundle verification keeps returning the same variants (`Invalid`, `Integrity`, `Unavailable`).
+- Organisation publications enforce consumer grants; delivery identity is fenced and reconciliation state retained; managed skills resolve for the requesting user; Git credentials are redacted in diagnostic request types; the fetched commit is resolved with `git rev-list --max-count=1 FETCH_HEAD`. Host aliases keep `codex-cli`/`codex` and `opencode`/`open-code` compatible; the retained resource owner supplies grant ownership.
+- The six-argument inventory, capture, verification and binding signatures are grouped behind `BaselineScope`, `GitCaptureRequest`, `GitTreeRead` and `GitSourceBinding`; `catalog/content.rs` is `catalog/content/mod.rs` with `managed.rs` beside it; `managed/assets.rs` and `managed/manifest.rs` are gone (the types live in `systemprompt_models::managed`).
 
 ### Fixed
 

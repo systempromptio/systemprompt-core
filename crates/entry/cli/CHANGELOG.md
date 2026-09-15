@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.53.0] - 2026-09-14
+## [0.53.0] - 2026-09-15
 
 ### Breaking
 
@@ -10,6 +10,7 @@
 
 - `admin config rate-limits` reads, sets, diffs, resets and validates `gateway_per_second`.
 - `runner::profile_routing::{BootstrapOutcome, RoutingDecision, decide_routing}` expose the routing decision the runner acts on.
+- `analytics projection status|sync --limit <n>|rebuild`; every other `analytics` report command refuses an uninitialised reporting baseline with a rebuild instruction instead of returning empty reports.
 
 ### Changed
 

@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.53.0] - 2026-09-14
+## [0.53.0] - 2026-09-15
 
 ### Breaking
 
@@ -16,6 +16,16 @@
 - `services::providers::AiProvider::is_available` — `ResilientProvider` reports its circuit-breaker state, and `AiService::health_check` reports it instead of `true` for every registered provider.
 - `AiError::UnknownModel`.
 - `AiError::ToolDiscovery` — `ToolDiscovery::discover_tools` fails when the tool inventory is incomplete (a server could not be listed) instead of planning against a partial tool set.
+- Migration 024 adds `ai_requests.accounting_failed_at` / `accounting_error`; `AiRequestRepository::mark_accounting_failed` retains a bounded diagnostic and a later completion settles the row `failed` instead of `completed`, so an accounting failure never replaces settled spend.
+- The extension installs `reporting_capture.sql` / `reporting_privacy.sql` (migration 025): the `reporting_source_ai_requests` / `reporting_source_ai_request_messages` views and transactional capture triggers feeding the analytics projections.
+
+### Changed
+
+- `ResilientProvider` settles the breaker through the RAII `Probe` returned by `ResilienceGuard::admit`, so a cancelled stream open no longer leaks a half-open probe slot.
+- `SchemaValidator` rejects a `type` keyword it cannot interpret (an unknown type name, a non-string union member, or a non-string/non-array keyword) with `AiError::InvalidInput` instead of accepting any value.
+- `AiError::HttpStatus.body` carries an `<unreadable body: …>` marker when the error response body could not be read.
+
+- `AiProvider` implementations return `AiInferenceError` (`From<AiError>`) instead of a boxed error; tool definitions carry `ToolModelConfig` directly, so a model override is no longer round-tripped through JSON.
 
 ### Fixed
 
@@ -25,14 +35,6 @@
 - Anthropic `generate_with_schema` fails when the response carries no `tool_use` block instead of returning an empty string.
 - Image generation stores `cost_microdollars` converted from the per-image cents (×10 000), records the decoded byte size, and prices by the generated model.
 - Tool-results synthesis logs the first failure before retrying instead of discarding it.
-
-### Changed
-
-- `ResilientProvider` settles the breaker through the RAII `Probe` returned by `ResilienceGuard::admit`, so a cancelled stream open no longer leaks a half-open probe slot.
-- `SchemaValidator` rejects a `type` keyword it cannot interpret (an unknown type name, a non-string union member, or a non-string/non-array keyword) with `AiError::InvalidInput` instead of accepting any value.
-- `AiError::HttpStatus.body` carries an `<unreadable body: …>` marker when the error response body could not be read.
-
-- `AiProvider` implementations return `AiInferenceError` (`From<AiError>`) instead of a boxed error; tool definitions carry `ToolModelConfig` directly, so a model override is no longer round-tripped through JSON.
 
 ### Removed
 

@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.53.0] - 2026-09-14
+## [0.53.0] - 2026-09-15
 
 ### Breaking
 
@@ -29,6 +29,8 @@
 - The schema linter compares identifiers exactly (pg_query already case-folds unquoted names), keys tables by schema, and compares unique-key column sets as deduplicated sets; the referenced-uniqueness message states the project rule.
 - Column introspection is scoped to `table_schema = 'public'`.
 - `DatabaseHandle::is_connected` reports whether both pools are open instead of a constant `true`.
+- Migration checksums are xxh64: an applied row whose stored checksum is the historical `DefaultHasher` digest of the SQL now in its slot is rewritten to the xxh64 digest in one verified transaction (`checksum_transition`) — never executed, never a drift repair — and any other mismatch is still checksum drift.
+- Repeated schema installation is idempotent; the schema linter skips dollar-quoted function bodies.
 
 ### Fixed
 

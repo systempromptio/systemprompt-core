@@ -2,7 +2,13 @@
 
 - Expose the evaluator capability registry at `GET /api/v1/evaluator-capabilities`.
 
-## [0.53.0] - 2026-09-14
+## [0.53.0] - 2026-09-15
+
+### Added
+
+- The feedback contract surface under `/api/v1` (`routes::evaluation`): campaigns (`/campaigns`, `/campaigns/{id}/{transitions,experiments,holdout-proposals}`, `/campaign-runs`, `/campaign-diagnostics`, `/source-changes`), budgets, sources (`/sources`, `/sources/{id}/verification-bindings`), evaluation revisions and workspaces, publications and publication history, source verifications, evaluation approvals and decisions, suggestions, experiment pages and cancellation, consumer devices (`/consumer-devices/{id}/credential`, `/revocation`, `/consumer-devices/enrollment`), consumer evidence (`/consumer/receipts`, `/consumer/session-bindings`, `/consumer/invocations`, `/consumer/resources/{resource}/publications/{publication}/bundle?host=`), consumer grants, inventory (`/inventory*`), snapshot analytics (`/analytics/snapshots[/portfolio|/{resource}]`, `/analytics/jobs`, `/analytics/live`, `/analytics/status`) and fenced operations (`/operations/{id}`). Worker routes stay at `/api/v1/evaluation/worker/*`.
+- `GET /api/v1/openapi.json` serves the generated OpenAPI 3.1 contract; every feedback route answers `application/problem+json` (`contract::Problem`), bounds path identifiers (512 bytes), query parameters (8 KiB, 128/512-byte keys and values), JSON bodies (1 MiB, 32 levels) and requires a 1–200-byte `Idempotency-Key` on idempotent operations; a cookie-authenticated mutation whose `Origin` does not match `api_external_url` is refused (`optimization_origin::protect`).
+- The reporting worker is spawned with the server (`systemprompt_runtime::reporting::spawn`) and joined on shutdown.
 
 ### Changed
 
@@ -15,6 +21,8 @@
 - `POST /v1/otel` and `/v1/otel/{rest}` require a gateway credential (bridge JWT, API key or execution capability) and an attested `x-session-id`; an anonymous OTLP write answers 401 instead of being stored. `otel::handle` takes the JWT extractor, `AppContext` and `GatewayRepositories`; the credential-free decode path is `otel::ingest_envelope`.
 - An MCP request carrying an invalid, revoked or orphaned bearer is refused with 401; only a request with no `Authorization` header falls through to the session context for the RFC 9728 challenge.
 - An execution capability (`spexec_`) is scoped against the original request path, so the nested `/api/v1/mcp/evaluation_fixture/mcp` route admits it; the scope check runs before the capability is verified.
+- A gateway accounting failure is retained on the `ai_requests` row (`mark_accounting_failed`) and never replaces a settled provider receipt; the receipt journal records the failure alongside the completion.
+- Consumer problems are aligned across authentication, extraction and domain failures; retry status is isolated per operation; the problem-JSON normalisation guard is one match.
 
 ### Fixed
 

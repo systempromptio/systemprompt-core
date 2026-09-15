@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.53.0] - 2026-09-14
+## [0.53.0] - 2026-09-15
 
 ### Breaking
 
@@ -12,6 +12,9 @@
 - `trace` module: `TraceQueryService`, `AiTraceService`, their result types and `TraceError` (moved from `systemprompt_logging::trace`); the crate now carries its own `.sqlx` cache.
 - `AppContext::governance()` / `governance_arc()`; `Subsystems.governance` carries the engine built once from the profile's services root.
 - `OptimizationError::Bundle(RevisionBundleError)` for a candidate bundle that fails verification.
+- `reporting` module: `spawn` (the owned projection worker: 256 deliveries per pass, once per second, a full pass reschedules immediately), `initialize` (installs owner capture contracts and builds the baseline when none exists), `rebuild`, `process_pending` and `status`; the builder initialises reporting at boot.
+- `optimization` module: cross-domain source verification and evaluation attestation (`candidate`, `capture`, `diagnostics`, `holdout`, `inventory`, `iteration`) and `GitSourceOrchestrator` (`git_sources`), the application-owned credential resolution for Git import, sync and verification.
+- `AppContext::feedback_facts_repository()` and `feedback_snapshots_repository()`; the repository accessors live in `context::repositories`; `AppContext::analytics_repositories()` is built with the users session store, the logging event store and the content catalog stats.
 
 ### Changed
 

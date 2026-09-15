@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.53.0] - 2026-09-14
+## [0.53.0] - 2026-09-15
 
 ### Breaking
 
@@ -21,6 +21,7 @@
 - `repository::AgentOwnerReassignment` implements `systemprompt_traits::OwnerReassignment` over `user_contexts`, `agent_tasks` and `task_messages` in one transaction.
 - `services::a2a_server::ActiveTasks` — the per-server registry of running message pipelines (`register`, `cancel`, `is_running`, `wait_until_finished`, `tracker`).
 - `services::a2a_server::processing::message::extract_message_content` — the single message→model-content converter.
+- The extension installs `reporting_capture.sql` / `reporting_privacy.sql` (migration 012): `reporting_source_agent_tasks`, `reporting_source_task_messages` and `reporting_source_user_contexts` views with transactional capture triggers feeding the analytics projections.
 
 ### Changed
 

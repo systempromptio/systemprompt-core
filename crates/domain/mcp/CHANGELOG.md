@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.53.0] - 2026-09-14
+## [0.53.0] - 2026-09-15
 
 ### Breaking
 
@@ -15,6 +15,8 @@
 ### Added
 
 - `ToolUsageRepository` implements `systemprompt_traits::ToolExecutionLookup`.
+- `repository::McpOwnerReassignment` implements `systemprompt_traits::OwnerReassignment` over tool executions, artifacts and MCP sessions in one transaction; session-scoped identity caches minted for the old user are deleted rather than rebound.
+- The extension installs `reporting_capture.sql` / `reporting_privacy.sql` (migration 006): the `reporting_source_mcp_tool_executions` view and transactional capture trigger feeding the analytics projections.
 
 ### Changed
 

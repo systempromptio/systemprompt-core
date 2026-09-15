@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.53.0] - 2026-09-15
+
+### Changed
+
+- `AppPaths` is imported from `systemprompt_config::paths` (it left `systemprompt_models` with the shared-layer I/O move); content listings use `LocaleCode::english()`; the web-config error carries a `PathBuf`. No behavioural change.
+
 ## [0.48.0] - 2026-09-08
 
 ### Changed

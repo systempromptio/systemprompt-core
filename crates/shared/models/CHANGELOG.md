@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.53.0] - 2026-09-14
+## [0.53.0] - 2026-09-15
 
 ### Breaking
 
@@ -22,6 +22,7 @@
 - `bridge::manifest` is a directory module (`entries`, `managed_mcp`); `wire::canonical::request` likewise (`content`, `options`). Re-exports are unchanged.
 - `Config` implements `Debug` by hand, redacting `database_url`, `database_write_url` and `github_token`.
 - `extension_migrations!` checksums are xxh64 of the SQL, a specified digest that is stable across toolchains.
+- `feedback` module: the consumer-evidence, inventory, verification and analytics contracts shared by the API, the bridge and the evaluator — `ConsumerReceiptRequest` / `ConsumerReceiptResponse`, `ConsumerInstallationPlan`, `FileReadback` / `RuntimeFileReadback`, `ReadbackStatus`, `ReceiptAcknowledgement`, `SessionBindingRequest`, `InvocationConsumerIdentity` / `InvocationResourceAttribution`, `AuthenticatedConsumerDevice`, `InventoryInput` / `InventoryOrigin` / `InventoryMembership` / `InventoryAvailability`, `DependencyVerificationRequest` / `DependencyVerificationManifest` / `VerifiedRevisionManifest`, `NormalizedAnalyticsFact` and its kinds, `RecordedSpend`, `AssessmentOutcome`, `EvaluatorClient` (with host aliases) and `FeedbackContractError`; every request type carries `validate()`.
 
 ### Changed
 

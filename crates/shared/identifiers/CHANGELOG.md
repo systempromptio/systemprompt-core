@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.53.0] - 2026-09-14
+## [0.53.0] - 2026-09-15
 
 ### Breaking
 
@@ -11,6 +11,7 @@
 ### Added
 
 - `AiToolCallId::generate()`.
+- `EvalCampaignId`, `ResourceInvocationId`, `ConsumerInstallationId`, `InstallationSessionBindingId`, `NativeSessionId`, `InventoryEntryId`, `AnalyticsChangeId`, `AnalyticsFactId` and `DependencyVerificationId`.
 
 ### Fixed
 

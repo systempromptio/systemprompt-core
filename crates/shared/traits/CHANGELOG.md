@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.53.0] - 2026-09-14
+## [0.53.0] - 2026-09-15
 
 ### Breaking
 
@@ -14,6 +14,7 @@
 ### Added
 
 - `tool_executions::{ToolExecutionLookup, DynToolExecutionLookup}` — the cross-domain read seam over the MCP tool-execution ledger, implemented by the mcp domain and injected into agent.
+- `SessionProvider`, `SessionStore` (session persistence, usage counters and behavioural data, implemented by the users domain), `AnalyticsEventStore` (implemented by logging), `ContentCatalogStats` (implemented by content) and `OwnerReassignment` / `ReassignedRows` (implemented by agent, ai and mcp for cross-domain user merges), each with its `Dyn*` alias.
 
 ### Removed
 
