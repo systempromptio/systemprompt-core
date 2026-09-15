@@ -154,39 +154,6 @@ async fn session_pat_with_unknown_code_is_unauthorized() -> Result<()> {
     Ok(())
 }
 
-#[tokio::test]
-async fn mtls_with_blank_fingerprint_is_bad_request() -> Result<()> {
-    let (_db, ctx) = setup_ctx().await?;
-    let err = auth::mtls(
-        (*ctx).clone(),
-        ClientIp(None),
-        HeaderMap::new(),
-        Json(auth::MtlsRequestBody {
-            device_cert_fingerprint: "  ".to_owned(),
-        }),
-    )
-    .await
-    .expect_err("blank fingerprint must error");
-    assert_eq!(err.into_response().status(), StatusCode::BAD_REQUEST);
-    Ok(())
-}
-
-#[tokio::test]
-async fn mtls_with_unenrolled_cert_is_unauthorized() -> Result<()> {
-    let (_db, ctx) = setup_ctx().await?;
-    let err = auth::mtls(
-        (*ctx).clone(),
-        ClientIp(None),
-        HeaderMap::new(),
-        Json(auth::MtlsRequestBody {
-            device_cert_fingerprint: "a".repeat(64),
-        }),
-    )
-    .await
-    .expect_err("unenrolled cert must error");
-    assert_eq!(err.into_response().status(), StatusCode::UNAUTHORIZED);
-    Ok(())
-}
 
 #[tokio::test]
 async fn provision_oauth_client_without_bearer_is_unauthorized() -> Result<()> {

@@ -18,8 +18,41 @@ use crate::services::middleware::JwtContextExtractor;
 
 use super::{
     auth, bridge, bridge_heartbeat, bridge_manifest, bridge_plugin_file, bridge_profile_usage,
-    bridge_release, bridge_stream, bridge_whoami, messages,
+    bridge_release, bridge_stream, bridge_whoami, messages, otel,
 };
+
+pub(super) fn otel_routes(
+    ctx: &AppContext,
+    jwt_extractor: &Arc<JwtContextExtractor>,
+    repos: &Arc<crate::services::gateway::GatewayRepositories>,
+) -> Router {
+    let ctx_root = ctx.clone();
+    let ctx_rest = ctx.clone();
+    let repos_root = Arc::clone(repos);
+    let repos_rest = Arc::clone(repos);
+    let jwt_root = Arc::clone(jwt_extractor);
+    let jwt_rest = Arc::clone(jwt_extractor);
+
+    Router::new()
+        .route(
+            "/otel",
+            post(move |request| {
+                let extractor = Arc::clone(&jwt_root);
+                let context = ctx_root.clone();
+                let repos = Arc::clone(&repos_root);
+                async move { otel::handle(extractor, context, repos, request).await }
+            }),
+        )
+        .route(
+            "/otel/{*rest}",
+            post(move |request| {
+                let extractor = Arc::clone(&jwt_rest);
+                let context = ctx_rest.clone();
+                let repos = Arc::clone(&repos_rest);
+                async move { otel::handle(extractor, context, repos, request).await }
+            }),
+        )
+}
 
 pub(super) fn inference_routes(
     ctx: &AppContext,
@@ -79,7 +112,6 @@ pub(super) fn bridge_auth_routes(
     let ctx_pat = ctx.clone();
     let ctx_session = ctx.clone();
     let ctx_session_pat = ctx.clone();
-    let ctx_mtls = ctx.clone();
     let ctx_oauth_client = ctx.clone();
     let jwt_oauth_client = Arc::clone(jwt_extractor);
 
@@ -103,13 +135,6 @@ pub(super) fn bridge_auth_routes(
             post(move |body| {
                 let context = ctx_session_pat.clone();
                 async move { auth::session_pat(context, body).await }
-            }),
-        )
-        .route(
-            "/auth/bridge/mtls",
-            post(move |caller_ip, headers, body| {
-                let context = ctx_mtls.clone();
-                async move { auth::mtls(context, caller_ip, headers, body).await }
             }),
         )
         .route(

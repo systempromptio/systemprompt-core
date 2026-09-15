@@ -359,36 +359,3 @@ async fn bridge_session_pat_bad_code_is_unauthorized() -> Result<()> {
     assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
     Ok(())
 }
-
-#[tokio::test]
-async fn bridge_mtls_missing_fingerprint_is_bad_request() -> Result<()> {
-    let (app, _pool) = router_and_pool().await?;
-    let resp = app
-        .oneshot(json_post(
-            "/auth/bridge/mtls",
-            serde_json::json!({ "device_cert_fingerprint": "" }),
-        ))
-        .await?;
-    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
-    Ok(())
-}
-
-#[tokio::test]
-async fn bridge_mtls_unenrolled_fingerprint_is_unauthorized() -> Result<()> {
-    let (app, _pool) = router_and_pool().await?;
-    let resp = app
-        .oneshot(json_post(
-            "/auth/bridge/mtls",
-            serde_json::json!({
-                "device_cert_fingerprint":
-                    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-            }),
-        ))
-        .await?;
-    assert!(
-        resp.status().is_client_error(),
-        "unenrolled fingerprint must be a client error, got {}",
-        resp.status()
-    );
-    Ok(())
-}

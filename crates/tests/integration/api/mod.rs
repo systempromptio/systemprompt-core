@@ -13,6 +13,10 @@ mod routes_marketplace_success;
 mod routes_gateway_auth;
 
 #[cfg(test)]
+#[path = "server_mount_gateway_and_mcp_scope.rs"]
+mod server_mount_gateway_and_mcp_scope;
+
+#[cfg(test)]
 #[path = "routes_mcp_registry.rs"]
 mod routes_mcp_registry;
 

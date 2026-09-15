@@ -15,9 +15,12 @@ async fn capabilities_handler_advertises_all_modes() {
     let modes = &json.0.modes;
     assert!(modes.contains(&"pat"));
     assert!(modes.contains(&"session"));
-    assert!(modes.contains(&"mtls"));
     assert!(modes.contains(&"oauth-client"));
-    assert_eq!(modes.len(), 4);
+    assert!(
+        !modes.contains(&"mtls"),
+        "the mTLS exchange was removed; advertising it would send the bridge to a dead route"
+    );
+    assert_eq!(modes.len(), 3);
 }
 
 #[test]

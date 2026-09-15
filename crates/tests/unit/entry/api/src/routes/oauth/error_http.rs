@@ -126,6 +126,28 @@ async fn with_redirect_emits_302_with_error_query() {
     assert!(location.contains("state=xyz"));
 }
 
+// Why: a registered redirect URI may already carry a query
+// (`https://app.example/cb?app=x`); appending a second `?` would hand the
+// client a URL whose `error` lives inside the value of `app`.
+#[tokio::test]
+async fn with_redirect_appends_to_an_existing_query_with_an_ampersand() {
+    let e = OAuthHttpError::invalid_request("bad")
+        .with_redirect("https://app.example/cb?app=x", Some("xyz".into()));
+    let resp = e.into_response();
+    let location = resp
+        .headers()
+        .get(header::LOCATION)
+        .expect("Location header")
+        .to_str()
+        .unwrap()
+        .to_owned();
+    assert!(
+        location.starts_with("https://app.example/cb?app=x&error=invalid_request"),
+        "{location}"
+    );
+    assert_eq!(location.matches('?').count(), 1, "{location}");
+}
+
 #[tokio::test]
 async fn with_redirect_without_state_skips_state_param() {
     let e = OAuthHttpError::invalid_request("missing client_id")

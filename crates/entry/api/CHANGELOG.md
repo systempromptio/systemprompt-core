@@ -9,6 +9,21 @@
 - `/health` reports the relay as `not_started`, `reconnecting` or `stopped` from the bridge handle; shutdown cancels the relay instead of aborting it. Context and webhook routes read the local fan-out counts through `RouteOutcome::into_local_logged`, which warns when the cross-replica relay failed.
 - The gateway and the external-MCP proxy evaluate governance through the `AppContext` engine (`DispatchInputs.governance`) instead of a process global.
 - The cross-replica event bridge always starts (the write pool is no longer optional); request guards deny with `503` when the pool is closed.
+- Manifest and plugin-file routes read the catalogue and bundles through the context-owned `MarketplaceCache`; the manifest's `issued_at` / `not_before` / `min_bridge_version` are typed.
+- The gateway's evaluation repositories read request usage and session liveness through the shared-layer seams.
+- The gateway route group (`/v1/*`) is rate-limited by `rate_limits.gateway_per_second`, keyed by identity or client IP like every other group.
+- `POST /v1/otel` and `/v1/otel/{rest}` require a gateway credential (bridge JWT, API key or execution capability) and an attested `x-session-id`; an anonymous OTLP write answers 401 instead of being stored. `otel::handle` takes the JWT extractor, `AppContext` and `GatewayRepositories`; the credential-free decode path is `otel::ingest_envelope`.
+- An MCP request carrying an invalid, revoked or orphaned bearer is refused with 401; only a request with no `Authorization` header falls through to the session context for the RFC 9728 challenge.
+- An execution capability (`spexec_`) is scoped against the original request path, so the nested `/api/v1/mcp/evaluation_fixture/mcp` route admits it; the scope check runs before the capability is verified.
+
+### Fixed
+
+- The authorization endpoint attaches `redirect_uri` to an error response only after confirming it is registered for `client_id`; an unknown client or unregistered URI renders a 400 error page with no `Location` (RFC 6749 §4.1.2.1). A registered redirect that already carries a query is appended with `&`.
+
+### Removed
+
+- `POST /v1/auth/bridge/mtls`, `auth::mtls`, `auth::MtlsRequestBody` and the `mtls` entry in `GET /v1/auth/bridge/capabilities`; the bridge no longer has a device-certificate provider.
+
 - `GET /bridge/profile` answers 503 and `POST /admin/services/refresh` answers 500 when the secrets store is not initialised, instead of treating every secret as absent.
 - An upstream error body that cannot be read is recorded as `<unreadable body: …>` in the gateway error.
 - A gateway deployment that registers request guards but has no database pool denies the request with `503` (`GatewayDenyKind::Unavailable`) instead of skipping the guards.

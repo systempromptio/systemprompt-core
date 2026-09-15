@@ -236,7 +236,7 @@ curl -N -H "Authorization: Bearer $TOKEN" \
 
 ## Gateway (provider-facing)
 
-Base `/v1` (`crates/entry/api/src/routes/gateway/mod.rs`). The gateway mounts only when analytics and user providers are available. Authentication is resolved per request by the gateway handlers (bearer JWT, bridge PAT, session, or mTLS).
+Base `/v1` (`crates/entry/api/src/routes/gateway/mod.rs`). The gateway mounts only when analytics and user providers are available. Authentication is resolved per request by the gateway handlers (bearer JWT, API key, bridge PAT or session exchange). The whole group is rate-limited by `rate_limits.gateway_per_second`.
 
 | Method | Path | Purpose |
 |--------|------|---------|
@@ -244,11 +244,10 @@ Base `/v1` (`crates/entry/api/src/routes/gateway/mod.rs`). The gateway mounts on
 | GET | `/v1/models` | List available models. |
 | POST | `/v1/messages` | Anthropic Messages-shaped inbound request. |
 | POST | `/v1/responses` | OpenAI Responses-shaped inbound request. |
-| POST | `/v1/otel` | OTLP telemetry ingest. |
-| POST | `/v1/otel/{rest}` | OTLP telemetry ingest (sub-path). |
+| POST | `/v1/otel` | OTLP telemetry ingest (requires a gateway credential and `x-session-id`). |
+| POST | `/v1/otel/{rest}` | OTLP telemetry ingest (sub-path; same credential rule). |
 | POST | `/v1/auth/bridge/pat` | Exchange a personal access token. |
 | POST | `/v1/auth/bridge/session` | Exchange a session credential. |
-| POST | `/v1/auth/bridge/mtls` | Exchange an mTLS client certificate. |
 | POST | `/v1/auth/bridge/oauth-client` | Provision a bridge OAuth client. |
 | GET | `/v1/auth/bridge/capabilities` | List supported bridge auth methods. |
 | GET | `/v1/bridge/pubkey` | Server signing public key. |

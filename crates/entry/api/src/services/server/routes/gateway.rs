@@ -24,7 +24,14 @@ pub(super) fn mount_gateway(
         }
     })?;
     if let Some(gateway) = gateway {
-        router = router.nest(ApiPaths::GATEWAY_BASE, gateway);
+        router = router.nest(
+            ApiPaths::GATEWAY_BASE,
+            gateway.with_rate_limit(
+                mount.limits,
+                ctx.config().rate_limits.gateway_per_second,
+                "gateway",
+            )?,
+        );
         router = router.nest(
             ApiPaths::GATEWAY_PUBLIC_BASE,
             crate::routes::gateway::sessions::public_router(ctx)

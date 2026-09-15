@@ -39,7 +39,7 @@ fn a_minted_bridge_credential_becomes_the_wire_body_intact() {
 async fn the_advertised_auth_modes_are_the_ones_the_bridge_can_use() {
     let modes = capabilities().await.0.modes;
 
-    for expected in ["pat", "session", "mtls", "oauth-client"] {
+    for expected in ["pat", "session", "oauth-client"] {
         assert!(
             modes.contains(&expected),
             "the bridge negotiates against this list; {expected} is missing: {modes:?}"

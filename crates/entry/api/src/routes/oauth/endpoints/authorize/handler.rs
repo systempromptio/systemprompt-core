@@ -11,7 +11,10 @@
 use super::response_builder::{
     convert_form_to_query, generate_webauthn_form, is_user_consent_granted,
 };
-use super::validation::{SelfOrigins, validate_authorize_request, validate_oauth_parameters};
+use super::validation::{
+    RegisteredRedirect, SelfOrigins, resolve_registered_redirect, validate_authorize_request,
+    validate_oauth_parameters,
+};
 use super::{AuthorizeQuery, AuthorizeRequest};
 use crate::routes::oauth::OAuthHttpError;
 use crate::routes::oauth::extractors::OAuthRepo;
@@ -55,14 +58,6 @@ async fn issue_server_state(
         OAuthHttpError::server_error("Failed to persist authorization state")
     })?;
     Ok(server_state)
-}
-
-fn with_redirect_if_set(err: OAuthHttpError, query: &AuthorizeQuery) -> OAuthHttpError {
-    if let Some(uri) = query.redirect_uri.as_deref() {
-        err.with_redirect(uri, query.state.clone())
-    } else {
-        err
-    }
 }
 
 fn require_csrf_token(params: &AuthorizeQuery) -> Result<CsrfToken, OAuthHttpError> {
@@ -193,23 +188,19 @@ pub async fn handle_authorize_get(
     );
 
     let csrf_token = require_csrf_token(&params)?;
+    let redirect = resolve_registered_redirect(&repo, &params).await?;
+    let attach = |err| RegisteredRedirect::attach_if_registered(redirect.as_ref(), err);
 
     if params.response_type.is_empty() || params.client_id.as_str().is_empty() {
-        let mut redirect_query = params.clone();
-        redirect_query.state = Some(csrf_token.as_str().to_owned());
-        return Err(with_redirect_if_set(
-            OAuthHttpError::invalid_request("Validation error: Missing required parameters"),
-            &redirect_query,
-        ));
+        return Err(attach(OAuthHttpError::invalid_request(
+            "Validation error: Missing required parameters",
+        )));
     }
 
     let self_origins = resolve_self_origins(&base)?;
 
     if let Err(validation_error) = validate_oauth_parameters(&params, &self_origins) {
-        return Err(with_redirect_if_set(
-            OAuthHttpError::invalid_request(validation_error),
-            &params,
-        ));
+        return Err(attach(OAuthHttpError::invalid_request(validation_error)));
     }
 
     match validate_authorize_request(&state, &params, &repo).await {
@@ -236,10 +227,7 @@ pub async fn handle_authorize_get(
                 redirect_uri = ?params.redirect_uri,
                 "Authorization request denied"
             );
-            Err(with_redirect_if_set(
-                OAuthHttpError::invalid_request(error.to_string()),
-                &params,
-            ))
+            Err(attach(OAuthHttpError::invalid_request(error.to_string())))
         },
     }
 }
@@ -262,11 +250,11 @@ pub async fn handle_authorize_post(
         "Authorization form submission received"
     );
 
+    let redirect = resolve_registered_redirect(&repo, &query).await?;
+    let attach = |err| RegisteredRedirect::attach_if_registered(redirect.as_ref(), err);
+
     if let Err(error) = validate_authorize_request(&state, &query, &repo).await {
-        return Err(with_redirect_if_set(
-            OAuthHttpError::invalid_request(error.to_string()),
-            &query,
-        ));
+        return Err(attach(OAuthHttpError::invalid_request(error.to_string())));
     }
 
     if !is_user_consent_granted(&form) {
@@ -276,10 +264,9 @@ pub async fn handle_authorize_post(
             requested_scopes = ?form.scope,
             "User consent denied"
         );
-        return Err(with_redirect_if_set(
-            OAuthHttpError::access_denied("User denied the request"),
-            &query,
-        ));
+        return Err(attach(OAuthHttpError::access_denied(
+            "User denied the request",
+        )));
     }
 
     tracing::info!(
@@ -289,10 +276,7 @@ pub async fn handle_authorize_post(
         "Unsupported authentication method attempted"
     );
 
-    Err(with_redirect_if_set(
-        OAuthHttpError::unsupported_grant_type(
-            "Password authentication not supported. Use WebAuthn flow instead.",
-        ),
-        &query,
-    ))
+    Err(attach(OAuthHttpError::unsupported_grant_type(
+        "Password authentication not supported. Use WebAuthn flow instead.",
+    )))
 }

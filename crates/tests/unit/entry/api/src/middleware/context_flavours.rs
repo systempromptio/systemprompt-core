@@ -286,6 +286,46 @@ async fn mcp_falls_back_to_session_context_on_extractor_failure() {
     );
 }
 
+struct RevokedExtractor;
+
+#[async_trait]
+impl ContextExtractor for RevokedExtractor {
+    async fn extract_from_headers(
+        &self,
+        _headers: &HeaderMap,
+    ) -> Result<RequestContext, ContextExtractionError> {
+        Err(ContextExtractionError::Revoked)
+    }
+}
+
+// Why: only a *missing* header may fall through to the anonymous session —
+// a revoked or forged bearer degrading to "anonymous with session" would let
+// `mcp_session_fallback` admit a caller whose credential was just refused.
+#[tokio::test]
+async fn mcp_refuses_a_revoked_bearer_instead_of_falling_back_to_the_session() {
+    let mw = McpContextMiddleware::new(RevokedExtractor);
+    let app = pipeline_with_session(
+        move |r| {
+            r.layer(from_fn(move |req, next| {
+                let mw = mw.clone();
+                async move { mw.handle(req, next).await }
+            }))
+        },
+        Some(anon_session_context()),
+    );
+    let (status, body) = drive(
+        app,
+        Method::POST,
+        &[("authorization", "Bearer revoked-token")],
+    )
+    .await;
+    assert_eq!(status, StatusCode::UNAUTHORIZED, "{body}");
+    assert!(
+        !body.contains("agent=session;"),
+        "a refused bearer must never reach the handler with the session context: {body}"
+    );
+}
+
 #[tokio::test]
 async fn mcp_500s_when_extractor_fails_and_no_session_context_present() {
     let mw = McpContextMiddleware::new(FailExtractor);

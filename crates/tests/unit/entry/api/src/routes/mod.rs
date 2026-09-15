@@ -39,8 +39,6 @@ mod mcp_registry_handler;
 
 mod content_blog;
 mod content_links_redirect;
-mod gateway_auth_mtls;
-mod gateway_auth_mtls_enrolled;
 mod wellknown_agent_cards;
 
 mod feedback_stream;
