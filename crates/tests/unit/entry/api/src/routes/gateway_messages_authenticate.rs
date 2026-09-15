@@ -35,8 +35,9 @@ async fn harness() -> Harness {
         ctx.user_provider().expect("user provider"),
         JtiRevocationChecker::from_repository(ctx.oauth_repositories().oauth.clone()),
     );
-    let capabilities =
-        ExecutionCapabilityRepository::new((*pool.write_pool_arc().expect("write pool")).clone());
+    let capabilities = systemprompt_test_fixtures::fixture_evaluation_repositories(&pool)
+        .expect("evaluation repositories")
+        .capabilities;
     Harness {
         ctx,
         extractor,

@@ -109,9 +109,8 @@ async fn plane_debug_impls_flag_optional_members() {
             sqlx_pool.clone(),
         )),
         evaluation_repositories: Arc::new(
-            systemprompt_evaluation::repository::experiments::EvaluationRepositories::new(
-                &sqlx_pool,
-            ),
+            systemprompt_test_fixtures::fixture_evaluation_repositories(&pool)
+                .expect("evaluation repositories"),
         ),
     };
     let dbg = format!("{data:?}");

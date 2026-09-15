@@ -1,16 +1,15 @@
 //! Concurrent campaign dispatch retains one linked matrix and bounded
 //! iterations.
 use super::*;
-use systemprompt_evaluation::campaigns::repository::{CampaignAction, CampaignRepository};
+use systemprompt_evaluation::campaigns::repository::CampaignAction;
 use systemprompt_evaluation::campaigns::{CampaignPolicy, OptimizationObjective};
 use systemprompt_evaluation::repository::experiments::CampaignExperiment;
-use systemprompt_identifiers::{ManagedResourceId, ResourceRevisionId};
 
 fn policy(f: &Fixture) -> CampaignPolicy {
     CampaignPolicy {
         name: "dispatch acceptance".to_owned(),
-        resource_id: ManagedResourceId::generate(),
-        baseline_revision_id: ResourceRevisionId::generate(),
+        resource_id: f.resource.clone(),
+        baseline_revision_id: f.baseline.clone(),
         budget_id: f.budget.clone(),
         objective: OptimizationObjective::Quality,
         minimum_quality_milli: 4000,
@@ -26,7 +25,7 @@ async fn concurrent_same_key_dispatch_is_linked_once_and_retry_survives_pause() 
         .await
         .expect("campaign dispatch requires PostgreSQL");
     let f = fixture(&pool).await;
-    let campaigns = CampaignRepository::new(pool.clone());
+    let campaigns = crate::seams::campaigns(&pool);
     let campaign = campaigns
         .create(&f.owner, &f.owner, "campaign", &policy(&f))
         .await
@@ -111,7 +110,7 @@ async fn concurrent_same_key_dispatch_is_linked_once_and_retry_survives_pause() 
             .unwrap(),
         vec![id]
     );
-    let budget = BudgetRepository::new(pool)
+    let budget = crate::seams::budgets(&pool)
         .get(&f.owner, &f.budget)
         .await
         .unwrap();
@@ -124,7 +123,7 @@ async fn different_keys_cannot_race_past_the_authorized_iteration_limit() {
         .await
         .expect("campaign dispatch requires PostgreSQL");
     let f = fixture(&pool).await;
-    let campaigns = CampaignRepository::new(pool.clone());
+    let campaigns = crate::seams::campaigns(&pool);
     let campaign = campaigns
         .create(&f.owner, &f.owner, "campaign", &policy(&f))
         .await

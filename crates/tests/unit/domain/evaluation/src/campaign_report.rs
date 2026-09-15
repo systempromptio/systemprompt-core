@@ -18,7 +18,7 @@ impl ReportFixture {
             .await
             .expect("report contracts require PostgreSQL");
         let input = fixture(&pool).await;
-        let repositories = EvaluationRepositories::with_admission(
+        let repositories = crate::seams::repositories_with_admission(
             &pool,
             crate::fixture_admission::fixture_admission(),
         );

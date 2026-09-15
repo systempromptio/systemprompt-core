@@ -3,9 +3,7 @@
 use super::optimization_fixture::{Fixture, resource};
 use systemprompt_evaluation::campaigns::diagnostics::{DiagnosticCode, DiagnosticStage};
 use systemprompt_evaluation::campaigns::repository::CampaignAction;
-use systemprompt_evaluation::repository::experiments::{
-    CampaignExperiment, EvaluationRepositories,
-};
+use systemprompt_evaluation::repository::experiments::CampaignExperiment;
 use systemprompt_runtime::optimization::SkillOptimizationOrchestrator;
 
 #[tokio::test]
@@ -129,7 +127,8 @@ async fn foreign_resource_candidate_and_canonical_unsupported_admission_leave_bu
             .to_string()
             .contains("campaign resource")
     );
-    let canonical = EvaluationRepositories::new(&f.pool);
+    let canonical = systemprompt_test_fixtures::fixture_evaluation_repositories(&f.db)
+        .expect("evaluation repositories");
     let runtime = SkillOptimizationOrchestrator::new(
         f.managed.clone(),
         canonical.clone(),

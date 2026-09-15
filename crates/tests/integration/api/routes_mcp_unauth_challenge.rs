@@ -127,9 +127,7 @@ async fn boot_full_router() -> anyhow::Result<axum::Router> {
                     systemprompt_marketplace::managed::ManagedRepository::new(sqlx_pool.clone()),
                 ),
                 evaluation_repositories: Arc::new(
-                    systemprompt_evaluation::repository::experiments::EvaluationRepositories::new(
-                        &sqlx_pool,
-                    ),
+                    systemprompt_test_fixtures::fixture_evaluation_repositories(&pool)?,
                 ),
             }
         },

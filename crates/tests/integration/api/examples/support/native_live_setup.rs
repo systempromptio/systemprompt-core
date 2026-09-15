@@ -8,6 +8,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::collections::BTreeMap;
+use std::sync::Arc;
 
 use sqlx::PgPool;
 use systemprompt_evaluation::experiments::records::ExecutionRecord;
@@ -18,8 +19,8 @@ use systemprompt_evaluation::experiments::{
     ClientKind, ExecutionMode, ExperimentSpec, Objective, VariantSpec, content_digest,
 };
 use systemprompt_evaluation::repository::experiments::{
-    BudgetRepository, EvidenceRepository, ExecutionLease, ExperimentRepository,
-    ManagedWorkspaceRegistration, RevisionRepository, WorkerRecord, WorkerRepository,
+    EvaluationRepositories, ExecutionLease, ExperimentRepository, ManagedWorkspaceRegistration,
+    RevisionRepository, WorkerRecord, WorkerRepository,
 };
 use systemprompt_identifiers::{EvalExperimentId, ModelId, ProviderId, UserId};
 use systemprompt_test_fixtures::{
@@ -110,7 +111,7 @@ impl Harness {
             .await
             .expect("seed owner");
 
-        let evidence = EvidenceRepository::new(pg.clone());
+        let evidence = repositories(&pool, fixture_admission())?.evidence;
         let (bundle, bundle_digest, bundle_bytes) = workspace("bundle");
         let (candidate, candidate_digest, candidate_bytes) = workspace("candidate");
         let (configuration, configuration_digest, configuration_bytes) = workspace("configuration");
@@ -199,11 +200,13 @@ impl Harness {
             frozen: Some(frozen),
             claim_independent_improvement: false,
         };
-        let budget = BudgetRepository::new(pg.clone())
+        let budget = repositories(&pool, fixture_admission())?
+            .budgets
             .create_shared(&owner, &format!("budget-{}", Uuid::new_v4()), 5_000_000)
             .await
             .expect("shared budget");
-        let experiment = ExperimentRepository::with_admission(pg.clone(), fixture_admission())
+        let experiment = repositories(&pool, fixture_admission())?
+            .experiments
             .create_with_budget(&owner, &format!("key-{}", Uuid::new_v4()), &budget, &spec)
             .await
             .expect("create experiment");
@@ -231,8 +234,17 @@ impl Harness {
         })
     }
 
+    pub fn repositories(
+        &self,
+        admission: Arc<dyn systemprompt_evaluation::capabilities::ExecutionAdmission>,
+    ) -> anyhow::Result<EvaluationRepositories> {
+        repositories(&self.pool, admission)
+    }
+
     pub fn experiments(&self) -> ExperimentRepository {
-        ExperimentRepository::with_admission(self.pg.clone(), fixture_admission())
+        self.repositories(fixture_admission())
+            .expect("evaluation repositories")
+            .experiments
     }
 
     pub fn workers(&self) -> WorkerRepository {
@@ -269,4 +281,15 @@ impl systemprompt_evaluation::capabilities::ExecutionAdmission for NativeFixture
 pub fn fixture_admission()
 -> std::sync::Arc<dyn systemprompt_evaluation::capabilities::ExecutionAdmission> {
     std::sync::Arc::new(NativeFixtureAdmission)
+}
+
+fn repositories(
+    pool: &systemprompt_database::DbPool,
+    admission: Arc<dyn systemprompt_evaluation::capabilities::ExecutionAdmission>,
+) -> anyhow::Result<EvaluationRepositories> {
+    Ok(EvaluationRepositories::with_admission(
+        pool,
+        systemprompt_test_fixtures::fixture_evaluation_seams(pool)?,
+        admission,
+    )?)
 }

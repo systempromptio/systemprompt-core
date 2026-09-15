@@ -36,7 +36,7 @@ impl ExecutionAdmission for FixtureAdmission {
 }
 
 pub(super) struct Fixture {
-    pub(super) pool: sqlx::PgPool,
+    pub(super) db: systemprompt_database::DbPool,
     pub(super) owner: UserId,
     pub(super) managed: ManagedRepository,
     pub(super) repositories: EvaluationRepositories,
@@ -70,8 +70,12 @@ impl Fixture {
             )
             .await
             .expect("candidate");
-        let repositories =
-            EvaluationRepositories::with_admission(&pool, Arc::new(FixtureAdmission));
+        let repositories = EvaluationRepositories::with_admission(
+            &db,
+            systemprompt_test_fixtures::fixture_evaluation_seams(&db).expect("evaluation seams"),
+            Arc::new(FixtureAdmission),
+        )
+        .expect("evaluation repositories");
         let runtime = SkillOptimizationOrchestrator::new(
             managed.clone(),
             repositories.clone(),
@@ -178,7 +182,7 @@ impl Fixture {
             variant.configuration_digest = configuration.clone();
         }
         Self {
-            pool,
+            db,
             owner,
             managed,
             repositories,

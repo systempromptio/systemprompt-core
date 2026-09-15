@@ -34,9 +34,7 @@ use wiremock::{Mock, MockServer, ResponseTemplate};
 
 #[path = "support/native_live_setup.rs"]
 mod native_live_setup;
-use systemprompt_evaluation::repository::experiments::{
-    ExecutionCapabilityRepository, GatewayEvaluationRepository,
-};
+use systemprompt_evaluation::repository::experiments::ExecutionCapabilityRepository;
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt};
 fn wire(
     route: &str,
@@ -158,7 +156,9 @@ async fn main() -> Result<()> {
 }
 async fn serve(harness: &native_live_setup::Harness) -> Result<()> {
     let (_, lease) = harness.claimed_lease().await?;
-    let capabilities = ExecutionCapabilityRepository::new(harness.pg.clone());
+    let capabilities = harness
+        .repositories(native_live_setup::fixture_admission())?
+        .capabilities;
     let access = capabilities.issue(&harness.owner, &lease).await?;
     let bootstrap = ensure_test_bootstrap();
     let _ctx = fixture_app_context(&harness.pool, &bootstrap.database_url)?;
@@ -173,10 +173,9 @@ async fn serve(harness: &native_live_setup::Harness) -> Result<()> {
             systemprompt_agent::repository::ContextRepository::new(&harness.pool)?,
         )),
     )?;
-    repos.evaluations = GatewayEvaluationRepository::with_admission(
-        harness.pg.clone(),
-        native_live_setup::fixture_admission(),
-    );
+    repos.evaluations = harness
+        .repositories(native_live_setup::fixture_admission())?
+        .gateway;
     let mut output = tokio::io::stdout();
     output.write_all(format!("{}\n",json!({"kind":"ready","execution_token":access.expose_token(),"session_id":access.session_id,"execution_id":lease.execution_id,"initial":summary(harness).await?,"fixture_only":true,"automated_target_enabled":false})).as_bytes()).await?;
     output.flush().await?;

@@ -28,7 +28,8 @@ impl Fixture {
         seed_user_row(&db, &owner, &format!("{owner}@supervisor.test"))
             .await
             .expect("owner");
-        let repositories = EvaluationRepositories::new(&pg);
+        let repositories = systemprompt_test_fixtures::fixture_evaluation_repositories(&db)
+            .expect("evaluation repositories");
         let credential = repositories
             .workers
             .create(&owner, "fixture", "supervisor")

@@ -1,12 +1,12 @@
-//! DB-backed tests for the golden-case repository and the sampling reader.
-//! Seeded `ai_requests` rows are namespaced per test with fresh UUIDs and
-//! deleted afterwards, so assertions never depend on shared-table state.
+//! DB-backed tests for the golden-case repository and the sampling seam
+//! (`AiRequestTrace`, served by the AI domain's request repository). Seeded
+//! `ai_requests` rows are namespaced per test with fresh UUIDs and deleted
+//! afterwards, so assertions never depend on shared-table state.
 
-use systemprompt_evaluation::{
-    EvalCaseRepository, NewCaseParams, SampleFilter, SampleMode, SamplingRepository,
-};
+use systemprompt_evaluation::{CanonicalPrompt, EvalCaseRepository, NewCaseParams};
 use systemprompt_identifiers::{AiRequestId, UserId};
 use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fixture_db_pool};
+use systemprompt_traits::{TraceSampleFilter, TraceSampleMode};
 use uuid::Uuid;
 
 async fn seed_ai_request(pool: &systemprompt_database::DbPool, actor_kind: &str) -> AiRequestId {
@@ -57,15 +57,13 @@ async fn sampling_excludes_job_actor_requests() {
     };
     ensure_test_bootstrap();
     let pool = fixture_db_pool(&url).await.expect("pool");
-    let sampling = SamplingRepository::new(&pool).expect("repo");
+    let sampling = crate::seams::trace(&pool);
 
     let user_request = seed_ai_request(&pool, "user").await;
     let job_request = seed_ai_request(&pool, "job").await;
 
-    let filter = SampleFilter::with_limit(10).ids(vec![
-        user_request.as_str().to_owned(),
-        job_request.as_str().to_owned(),
-    ]);
+    let filter =
+        TraceSampleFilter::with_limit(10).ids(vec![user_request.clone(), job_request.clone()]);
     let sampled = sampling.sample(&filter).await.expect("sample");
 
     assert!(sampled.iter().any(|r| r.ai_request_id == user_request));
@@ -92,12 +90,12 @@ async fn cases_promote_and_toggle() {
     ensure_test_bootstrap();
     let pool = fixture_db_pool(&url).await.expect("pool");
     let cases = EvalCaseRepository::new(&pool).expect("repo");
-    let sampling = SamplingRepository::new(&pool).expect("sampling");
+    let sampling = crate::seams::trace(&pool);
 
     let request = seed_ai_request(&pool, "user").await;
-    let filter = SampleFilter::with_limit(1).ids(vec![request.as_str().to_owned()]);
+    let filter = TraceSampleFilter::with_limit(1).ids(vec![request.clone()]);
     let sampled = sampling.sample(&filter).await.expect("sample");
-    let prompt = sampled.first().expect("sampled").canonical_prompt();
+    let prompt = CanonicalPrompt::from_sample(sampled.first().expect("sampled"));
 
     let name = format!("case-{}", Uuid::new_v4());
     let case_id = cases
@@ -116,7 +114,8 @@ async fn cases_promote_and_toggle() {
     let listed = cases.list_enabled().await.expect("list");
     let case = listed.iter().find(|c| c.id == case_id).expect("case");
     assert_eq!(case.name, name);
-    assert_eq!(case.provider.as_deref(), Some("anthropic"));
+    assert_eq!(case.prompt.provider.as_str(), "anthropic");
+    assert_eq!(case.prompt.messages.len(), 1);
 
     cases
         .set_repair_hint(&case_id, "cite the source")
@@ -162,7 +161,7 @@ async fn conversation_sampling_returns_latest_row_per_context() {
     };
     ensure_test_bootstrap();
     let pool = fixture_db_pool(&url).await.expect("pool");
-    let sampling = SamplingRepository::new(&pool).expect("repo");
+    let sampling = crate::seams::trace(&pool);
 
     let ctx_a = Uuid::new_v4().to_string();
     let ctx_b = Uuid::new_v4().to_string();
@@ -210,10 +209,9 @@ async fn conversation_sampling_returns_latest_row_per_context() {
         b_latest.clone(),
     ]);
 
-    let ids: Vec<String> = seeded.iter().map(|r| r.as_str().to_owned()).collect();
-    let filter = SampleFilter::with_limit(10)
-        .ids(ids)
-        .mode(SampleMode::Conversation);
+    let filter = TraceSampleFilter::with_limit(10)
+        .ids(seeded.clone())
+        .mode(TraceSampleMode::Conversation);
     let sampled = sampling.sample(&filter).await.expect("sample");
 
     assert_eq!(sampled.len(), 2, "one row per context: {sampled:?}");
@@ -232,12 +230,12 @@ async fn conversation_sampling_returns_latest_row_per_context() {
 
     let scoped = sampling
         .sample(
-            &SampleFilter::with_limit(10)
+            &TraceSampleFilter::with_limit(10)
                 .context_id(
                     systemprompt_identifiers::ContextId::try_new(ctx_a.clone())
                         .expect("valid ContextId"),
                 )
-                .mode(SampleMode::Conversation),
+                .mode(TraceSampleMode::Conversation),
         )
         .await
         .expect("scoped sample");

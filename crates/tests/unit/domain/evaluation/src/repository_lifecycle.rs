@@ -1,12 +1,12 @@
 //! DB-backed failure scenarios for approvals, restart recovery and cleanup
 //! evidence.
 
-use super::repository_workers::Harness;
+use super::repository_workers::{Harness, MODEL, PROVIDER};
 use systemprompt_evaluation::EvaluationError;
 use systemprompt_evaluation::repository::experiments::{
-    ApprovalDecision, ApprovalVerdict, CleanupReport, EvaluationLifecycleRepository,
+    AdmissionRequest, ApprovalDecision, ApprovalVerdict, CleanupReport, RequestAdmission,
 };
-use systemprompt_identifiers::UserId;
+use systemprompt_identifiers::{ModelId, ProviderId, UserId};
 
 #[tokio::test]
 async fn expired_and_foreign_approval_decisions_fail_closed() {
@@ -14,10 +14,8 @@ async fn expired_and_foreign_approval_decisions_fail_closed() {
         return;
     };
     let (_, lease) = harness.claimed_lease().await;
-    let lifecycle = EvaluationLifecycleRepository::with_admission(
-        harness.pg.clone(),
-        crate::fixture_admission::fixture_admission(),
-    );
+    let lifecycle =
+        crate::seams::lifecycle(&harness.pg, crate::fixture_admission::fixture_admission());
     let digest = "a".repeat(64);
     let approval = lifecycle
         .request_approval(
@@ -83,10 +81,8 @@ async fn restart_marks_expired_work_uncertain_and_never_requeues_it() {
     };
     let (execution, lease) = harness.claimed_lease().await;
     harness.set_lease_expiry(&execution.id, -1.0).await;
-    let lifecycle = EvaluationLifecycleRepository::with_admission(
-        harness.pg.clone(),
-        crate::fixture_admission::fixture_admission(),
-    );
+    let lifecycle =
+        crate::seams::lifecycle(&harness.pg, crate::fixture_admission::fixture_admission());
     assert_eq!(
         lifecycle
             .reconcile_restart(&harness.owner)
@@ -140,10 +136,8 @@ async fn failed_cleanup_is_durable_and_owner_fenced() {
         return;
     };
     let (_, lease) = harness.claimed_lease().await;
-    let lifecycle = EvaluationLifecycleRepository::with_admission(
-        harness.pg.clone(),
-        crate::fixture_admission::fixture_admission(),
-    );
+    let lifecycle =
+        crate::seams::lifecycle(&harness.pg, crate::fixture_admission::fixture_admission());
     lifecycle
         .record_cleanup(
             &harness.owner,
@@ -182,5 +176,68 @@ async fn failed_cleanup_is_durable_and_owner_fenced() {
             .await,
         Err(EvaluationError::ExperimentConflict(_))
     ));
+    harness.cleanup().await;
+}
+
+#[tokio::test]
+async fn an_execution_awaiting_approval_keeps_its_reservations_held() {
+    let Some(harness) = Harness::start().await else {
+        return;
+    };
+    let (_, lease) = harness.claimed_lease().await;
+    let gateway = crate::seams::gateway(&harness.pg, crate::fixture_admission::fixture_admission());
+    let access = crate::seams::capabilities(&harness.pg)
+        .issue(&harness.owner, &lease)
+        .await
+        .expect("issue");
+    let request = harness
+        .seed_pending_request(access.session_id.as_str())
+        .await;
+    let admitted = gateway
+        .admit(
+            &AdmissionRequest::builder(&harness.owner, &access.session_id)
+                .request(&request)
+                .model(&ModelId::new(MODEL))
+                .provider(&ProviderId::new(PROVIDER))
+                .bound_microdollars(50_000)
+                .build()
+                .expect("admission request"),
+        )
+        .await
+        .expect("admit");
+    assert!(matches!(admitted, RequestAdmission::Reserved(_)));
+    assert_eq!(harness.budget().await, (50_000, 0));
+
+    let lifecycle =
+        crate::seams::lifecycle(&harness.pg, crate::fixture_admission::fixture_admission());
+    lifecycle
+        .request_approval(
+            &harness.owner,
+            &lease,
+            serde_json::json!({"operation":"pause"}),
+            &"c".repeat(64),
+        )
+        .await
+        .expect("approval wait");
+
+    let budgets = crate::seams::budgets(&harness.pg);
+    assert_eq!(
+        budgets
+            .retain_orphaned(&harness.owner)
+            .await
+            .expect("retain"),
+        0,
+        "a paused execution is live: its pending reservation is not an orphan"
+    );
+    assert_eq!(harness.budget().await, (50_000, 0));
+
+    harness.complete_request(&request, 12_500).await;
+    assert!(
+        gateway
+            .settle_recorded(&harness.owner, &request)
+            .await
+            .expect("settle")
+    );
+    assert_eq!(harness.budget().await, (0, 12_500));
     harness.cleanup().await;
 }

@@ -8,8 +8,8 @@ async fn unsupported_native_targets_leave_budget_and_campaign_state_unchanged() 
         .await
         .expect("admission regression requires the fixture database");
     let f = fixture(&pool).await;
-    let budgets = BudgetRepository::new(pool.clone());
-    let production = ExperimentRepository::new(pool.clone());
+    let budgets = crate::seams::budgets(&pool);
+    let production = crate::seams::experiments(&pool, crate::seams::verified_admission());
     let before = budgets
         .get(&f.owner, &f.budget)
         .await
@@ -82,7 +82,7 @@ async fn production_claim_rejects_a_retained_unverified_fixture_without_advancin
         .create_with_budget(&f.owner, "retained", &f.budget, &spec)
         .await
         .expect("trusted fixture composition");
-    let production = ExperimentRepository::new(pool.clone());
+    let production = crate::seams::experiments(&pool, crate::seams::verified_admission());
     assert!(matches!(
         production.claim(&f.owner, &EvalWorkerId::generate()).await,
         Err(EvaluationError::InvalidSpec(_))
@@ -141,11 +141,9 @@ async fn wrong_platform_target_rejection_precedes_any_budget_reservation() {
         "unsupported-fixture-platform",
         std::env::consts::ARCH
     ));
-    let repository = ExperimentRepository::with_admission(
-        pool.clone(),
-        std::sync::Arc::new(WrongPlatformAdmission(target)),
-    );
-    let budgets = BudgetRepository::new(pool.clone());
+    let repository =
+        crate::seams::experiments(&pool, std::sync::Arc::new(WrongPlatformAdmission(target)));
+    let budgets = crate::seams::budgets(&pool);
     let before = budgets.get(&f.owner, &f.budget).await.unwrap();
     let error = repository
         .create_with_budget(&f.owner, "wrong-platform", &f.budget, &spec)

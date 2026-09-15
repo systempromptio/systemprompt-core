@@ -309,12 +309,7 @@ fn jwt_extractor(
 fn execution_capabilities(
     pool: &DbPool,
 ) -> Result<systemprompt_evaluation::repository::experiments::ExecutionCapabilityRepository> {
-    let write = pool.write_pool_arc()?;
-    Ok(
-        systemprompt_evaluation::repository::experiments::ExecutionCapabilityRepository::new(
-            (*write).clone(),
-        ),
-    )
+    Ok(systemprompt_test_fixtures::fixture_evaluation_repositories(pool)?.capabilities)
 }
 
 #[tokio::test]

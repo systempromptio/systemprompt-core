@@ -4,9 +4,7 @@
 
 use crate::repository_workers::{Harness, MODEL, PROVIDER};
 use systemprompt_evaluation::repository::experiments::{
-    AdmissionRequest, EvaluationLifecycleRepository, ExecutionCapabilityRepository,
-    ExecutionCompletion, ExecutionLease, GatewayEvaluationRepository, RequestAdmission,
-    TerminalOutcome,
+    AdmissionRequest, ExecutionCompletion, ExecutionLease, RequestAdmission, TerminalOutcome,
 };
 use systemprompt_identifiers::{ActorKind, AiRequestId, ModelId, ProviderId, SessionId, UserId};
 use systemprompt_test_fixtures::seed_user_session;
@@ -34,10 +32,7 @@ async fn bound_sessions_expose_an_evaluation_job_actor() {
         return;
     };
     let (execution, lease) = harness.claimed_lease().await;
-    let gateway = GatewayEvaluationRepository::with_admission(
-        harness.pg.clone(),
-        crate::fixture_admission::fixture_admission(),
-    );
+    let gateway = crate::seams::gateway(&harness.pg, crate::fixture_admission::fixture_admission());
 
     let unbound = SessionId::generate();
     assert!(
@@ -54,7 +49,7 @@ async fn bound_sessions_expose_an_evaluation_job_actor() {
             .expect("lookup")
     );
 
-    let access = ExecutionCapabilityRepository::new(harness.pg.clone())
+    let access = crate::seams::capabilities(&harness.pg)
         .issue(&harness.owner, &lease)
         .await
         .expect("issue");
@@ -97,10 +92,7 @@ async fn binding_a_session_requires_a_live_lease_and_is_single_flight() {
         return;
     };
     let (execution, lease) = harness.claimed_lease().await;
-    let gateway = GatewayEvaluationRepository::with_admission(
-        harness.pg.clone(),
-        crate::fixture_admission::fixture_admission(),
-    );
+    let gateway = crate::seams::gateway(&harness.pg, crate::fixture_admission::fixture_admission());
 
     let session = SessionId::generate();
     seed_user_session(&harness.pool, &harness.owner, &session)
@@ -148,11 +140,8 @@ async fn admission_reserves_bounded_spend_and_settles_once_usage_lands() {
         return;
     };
     let (_, lease) = harness.claimed_lease().await;
-    let gateway = GatewayEvaluationRepository::with_admission(
-        harness.pg.clone(),
-        crate::fixture_admission::fixture_admission(),
-    );
-    let access = ExecutionCapabilityRepository::new(harness.pg.clone())
+    let gateway = crate::seams::gateway(&harness.pg, crate::fixture_admission::fixture_admission());
+    let access = crate::seams::capabilities(&harness.pg)
         .issue(&harness.owner, &lease)
         .await
         .expect("issue");
@@ -226,10 +215,7 @@ async fn ordinary_traffic_and_foreign_requests_are_not_reserved() {
     let Some(harness) = Harness::start().await else {
         return;
     };
-    let gateway = GatewayEvaluationRepository::with_admission(
-        harness.pg.clone(),
-        crate::fixture_admission::fixture_admission(),
-    );
+    let gateway = crate::seams::gateway(&harness.pg, crate::fixture_admission::fixture_admission());
     let model = ModelId::new(MODEL);
     let provider = ProviderId::new(PROVIDER);
 
@@ -270,11 +256,8 @@ async fn admission_rejects_a_mismatched_model_and_an_unaudited_request() {
         return;
     };
     let (_, lease) = harness.claimed_lease().await;
-    let gateway = GatewayEvaluationRepository::with_admission(
-        harness.pg.clone(),
-        crate::fixture_admission::fixture_admission(),
-    );
-    let access = ExecutionCapabilityRepository::new(harness.pg.clone())
+    let gateway = crate::seams::gateway(&harness.pg, crate::fixture_admission::fixture_admission());
+    let access = crate::seams::capabilities(&harness.pg)
         .issue(&harness.owner, &lease)
         .await
         .expect("issue");
@@ -336,11 +319,8 @@ async fn admission_rejects_a_session_whose_execution_has_finished() {
         return;
     };
     let (_, lease) = harness.claimed_lease().await;
-    let gateway = GatewayEvaluationRepository::with_admission(
-        harness.pg.clone(),
-        crate::fixture_admission::fixture_admission(),
-    );
-    let access = ExecutionCapabilityRepository::new(harness.pg.clone())
+    let gateway = crate::seams::gateway(&harness.pg, crate::fixture_admission::fixture_admission());
+    let access = crate::seams::capabilities(&harness.pg)
         .issue(&harness.owner, &lease)
         .await
         .expect("issue");
@@ -446,11 +426,8 @@ async fn restart_retains_the_full_bound_of_an_unsettled_request_on_an_expired_le
         return;
     };
     let (execution, lease) = harness.claimed_lease().await;
-    let gateway = GatewayEvaluationRepository::with_admission(
-        harness.pg.clone(),
-        crate::fixture_admission::fixture_admission(),
-    );
-    let access = ExecutionCapabilityRepository::new(harness.pg.clone())
+    let gateway = crate::seams::gateway(&harness.pg, crate::fixture_admission::fixture_admission());
+    let access = crate::seams::capabilities(&harness.pg)
         .issue(&harness.owner, &lease)
         .await
         .expect("issue");
@@ -475,10 +452,8 @@ async fn restart_retains_the_full_bound_of_an_unsettled_request_on_an_expired_le
     assert_eq!(harness.budget().await, (50_000, 0));
 
     harness.set_lease_expiry(&execution.id, -1.0).await;
-    let lifecycle = EvaluationLifecycleRepository::with_admission(
-        harness.pg.clone(),
-        crate::fixture_admission::fixture_admission(),
-    );
+    let lifecycle =
+        crate::seams::lifecycle(&harness.pg, crate::fixture_admission::fixture_admission());
     assert_eq!(
         lifecycle
             .reconcile_restart(&harness.owner)
@@ -527,11 +502,8 @@ async fn execution_accounting_refuses_a_negative_token_column() {
         return;
     };
     let (execution, lease) = harness.claimed_lease().await;
-    let gateway = GatewayEvaluationRepository::with_admission(
-        harness.pg.clone(),
-        crate::fixture_admission::fixture_admission(),
-    );
-    let access = ExecutionCapabilityRepository::new(harness.pg.clone())
+    let gateway = crate::seams::gateway(&harness.pg, crate::fixture_admission::fixture_admission());
+    let access = crate::seams::capabilities(&harness.pg)
         .issue(&harness.owner, &lease)
         .await
         .expect("issue");
@@ -554,7 +526,7 @@ async fn execution_accounting_refuses_a_negative_token_column() {
         panic!("an evaluation session must be admitted against its budget");
     };
     harness.complete_request(&request, 1_000).await;
-    let lifecycle = EvaluationLifecycleRepository::new(harness.pg.clone());
+    let lifecycle = crate::seams::lifecycle(&harness.pg, crate::seams::verified_admission());
     let sound = lifecycle
         .execution_accounting(&harness.owner, &execution.id)
         .await

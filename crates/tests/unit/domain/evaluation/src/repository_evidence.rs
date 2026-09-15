@@ -17,8 +17,7 @@ use systemprompt_evaluation::experiments::{
     VariantSpec,
 };
 use systemprompt_evaluation::repository::experiments::{
-    BudgetRepository, EvidenceRepository, ExecutionLease, ExperimentRepository,
-    ManagedWorkspaceRegistration, RevisionRepository,
+    EvidenceRepository, ExecutionLease, ManagedWorkspaceRegistration, RevisionRepository,
 };
 use systemprompt_identifiers::{
     AiRequestId, EvalExecutionId, EvalRevisionId, EvalWorkerId, ModelId, ProviderId, UserId,
@@ -195,14 +194,12 @@ async fn fixture(pool: &PgPool) -> Fixture {
     ] {
         sqlx::query!("INSERT INTO eval_managed_workspace_projections(owner_id,digest,managed_revision_id,manifest,verified_file_count,verified_byte_count) VALUES($1,$2,$3,$4,0,0)", owner.as_str(), &digest, revision, serde_json::json!({"projection": revision})).execute(pool).await.expect("managed projection");
     }
-    let budget = BudgetRepository::new(pool.clone())
+    let budget = crate::seams::budgets(&pool)
         .create_shared(&owner, &format!("budget-{}", Uuid::new_v4()), 100)
         .await
         .expect("budget");
-    let experiments = ExperimentRepository::with_admission(
-        pool.clone(),
-        crate::fixture_admission::fixture_admission(),
-    );
+    let experiments =
+        crate::seams::experiments(&pool, crate::fixture_admission::fixture_admission());
     let rubric_content = ResourceContent::Rubric(RubricContent {
         dimensions: vec![WeightedDimension {
             name: "grounding".to_owned(),
@@ -240,7 +237,7 @@ async fn fixture(pool: &PgPool) -> Fixture {
         .build()
         .expect("lease");
     Fixture {
-        evidence: EvidenceRepository::new(pool.clone()),
+        evidence: crate::seams::evidence(&pool),
         owner,
         lease,
     }
@@ -267,7 +264,7 @@ async fn managed_workspace_projections_are_stored_once_and_read_back_in_scope() 
     let Some(pool) = evidence_pool().await else {
         return;
     };
-    let evidence = EvidenceRepository::new(pool.clone());
+    let evidence = crate::seams::evidence(&pool);
     let owner = new_owner(&pool).await;
     let manifest = managed_projection();
     let digest = systemprompt_evaluation::experiments::content_digest(&manifest).expect("digest");
@@ -329,7 +326,7 @@ async fn a_managed_workspace_stored_under_the_wrong_digest_is_refused_on_read() 
     let Some(pool) = evidence_pool().await else {
         return;
     };
-    let evidence = EvidenceRepository::new(pool.clone());
+    let evidence = crate::seams::evidence(&pool);
     let owner = new_owner(&pool).await;
     let claimed = "d".repeat(64);
 

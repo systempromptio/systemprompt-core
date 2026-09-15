@@ -1,7 +1,7 @@
 //! Suggestion retry identity and reservations commit as one bounded operation.
 use super::repository_workers::Harness;
 use systemprompt_evaluation::repository::experiments::{
-    BudgetRepository, EvaluationLifecycleRepository, SuggestionRequest,
+    EvaluationLifecycleRepository, SuggestionRequest,
 };
 
 async fn input(h: &Harness) -> SuggestionRequest {
@@ -19,10 +19,7 @@ async fn input(h: &Harness) -> SuggestionRequest {
     }
 }
 fn repository(h: &Harness) -> EvaluationLifecycleRepository {
-    EvaluationLifecycleRepository::with_admission(
-        h.pg.clone(),
-        crate::fixture_admission::fixture_admission(),
-    )
+    crate::seams::lifecycle(&h.pg, crate::fixture_admission::fixture_admission())
 }
 #[tokio::test]
 async fn concurrent_identical_suggestion_retries_create_one_row_and_one_reservation() {
@@ -50,7 +47,7 @@ async fn concurrent_identical_suggestion_retries_create_one_row_and_one_reservat
         repo.suggestion(&h.owner, &id).await.unwrap().status,
         "draft"
     );
-    let canonical = EvaluationLifecycleRepository::new(h.pg.clone());
+    let canonical = crate::seams::lifecycle(&h.pg, crate::seams::verified_admission());
     assert_eq!(
         canonical
             .create_suggestion(&h.owner, &request)
@@ -74,14 +71,14 @@ async fn different_budget_and_unsupported_admission_leave_no_suggestion_or_reser
     let mut request = input(&h).await;
     let repo = repository(&h);
     let original = request.budget_id.clone();
-    let other = BudgetRepository::new(h.pg.clone())
+    let other = crate::seams::budgets(&h.pg)
         .create_shared(&h.owner, "other-budget", 100)
         .await
         .unwrap();
     request.budget_id = other.clone();
     assert!(repo.create_suggestion(&h.owner, &request).await.is_err());
     assert_eq!(
-        BudgetRepository::new(h.pg.clone())
+        crate::seams::budgets(&h.pg)
             .get(&h.owner, &other)
             .await
             .unwrap()
@@ -90,7 +87,7 @@ async fn different_budget_and_unsupported_admission_leave_no_suggestion_or_reser
     );
     request.budget_id = original;
     assert!(
-        EvaluationLifecycleRepository::new(h.pg.clone())
+        crate::seams::lifecycle(&h.pg, crate::seams::verified_admission())
             .create_suggestion(&h.owner, &request)
             .await
             .is_err()

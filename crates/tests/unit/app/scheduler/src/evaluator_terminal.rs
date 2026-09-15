@@ -43,7 +43,8 @@ impl Fixture {
         seed_user_row(&pool, &owner, &format!("{owner}@terminal.test"))
             .await
             .unwrap();
-        let repositories = EvaluationRepositories::new(&pg);
+        let repositories = systemprompt_test_fixtures::fixture_evaluation_repositories(&pool)
+            .expect("evaluation repositories");
         let budget = repositories
             .budgets
             .create_shared(&owner, "terminal-fixture", 10000)

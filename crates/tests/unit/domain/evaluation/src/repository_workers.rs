@@ -18,8 +18,8 @@ use systemprompt_evaluation::experiments::{
     content_digest,
 };
 use systemprompt_evaluation::repository::experiments::{
-    BudgetRepository, EvidenceRepository, ExecutionLease, ExperimentRepository,
-    ManagedWorkspaceRegistration, RevisionRepository, WorkerRecord, WorkerRepository,
+    ExecutionLease, ExperimentRepository, ManagedWorkspaceRegistration, RevisionRepository,
+    WorkerRecord, WorkerRepository,
 };
 use systemprompt_identifiers::{
     EvalExecutionId, EvalExperimentId, EvalRevisionId, EvalWorkerId, ModelId, ProviderId, UserId,
@@ -109,7 +109,7 @@ impl Harness {
             .await
             .expect("seed owner");
 
-        let evidence = EvidenceRepository::new(pg.clone());
+        let evidence = crate::seams::evidence(&pg);
         let (bundle, bundle_digest, bundle_bytes) = workspace("bundle");
         let (candidate, candidate_digest, candidate_bytes) = workspace("candidate");
         let (configuration, configuration_digest, configuration_bytes) = workspace("configuration");
@@ -211,17 +211,15 @@ impl Harness {
             }),
             claim_independent_improvement: false,
         };
-        let budget = BudgetRepository::new(pg.clone())
+        let budget = crate::seams::budgets(&pg)
             .create_shared(&owner, &format!("budget-{}", Uuid::new_v4()), 5_000_000)
             .await
             .expect("shared budget");
-        let experiment = ExperimentRepository::with_admission(
-            pg.clone(),
-            crate::fixture_admission::fixture_admission(),
-        )
-        .create_with_budget(&owner, &format!("key-{}", Uuid::new_v4()), &budget, &spec)
-        .await
-        .expect("create experiment");
+        let experiment =
+            crate::seams::experiments(&pg, crate::fixture_admission::fixture_admission())
+                .create_with_budget(&owner, &format!("key-{}", Uuid::new_v4()), &budget, &spec)
+                .await
+                .expect("create experiment");
 
         let environment = format!("env-{}", Uuid::new_v4());
         let workers = WorkerRepository::new(pg.clone());
@@ -251,10 +249,7 @@ impl Harness {
     }
 
     pub fn experiments(&self) -> ExperimentRepository {
-        ExperimentRepository::with_admission(
-            self.pg.clone(),
-            crate::fixture_admission::fixture_admission(),
-        )
+        crate::seams::experiments(&self.pg, crate::fixture_admission::fixture_admission())
     }
 
     pub fn workers(&self) -> WorkerRepository {

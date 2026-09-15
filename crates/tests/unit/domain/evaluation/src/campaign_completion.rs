@@ -5,10 +5,9 @@ use systemprompt_evaluation::campaigns::diagnostics::{
     DiagnosticCode, DiagnosticRecord, DiagnosticStage,
 };
 use systemprompt_evaluation::campaigns::holdout::{HoldoutConfirmation, HoldoutProposalRequest};
-use systemprompt_evaluation::campaigns::repository::CampaignRepository;
 use systemprompt_evaluation::campaigns::{CampaignPolicy, OptimizationObjective};
 use systemprompt_evaluation::repository::experiments::CampaignExperiment;
-use systemprompt_identifiers::{EvalCampaignId, ManagedResourceId, ResourceRevisionId};
+use systemprompt_identifiers::EvalCampaignId;
 
 fn proposal<'a>(
     campaign: &'a EvalCampaignId,
@@ -42,8 +41,8 @@ fn confirmation<'a>(
 fn policy(f: &Fixture) -> CampaignPolicy {
     CampaignPolicy {
         name: "completion".to_owned(),
-        resource_id: ManagedResourceId::generate(),
-        baseline_revision_id: ResourceRevisionId::generate(),
+        resource_id: f.resource.clone(),
+        baseline_revision_id: f.baseline.clone(),
         budget_id: f.budget.clone(),
         objective: OptimizationObjective::Quality,
         minimum_quality_milli: 4000,
@@ -56,7 +55,7 @@ fn policy(f: &Fixture) -> CampaignPolicy {
 async fn blocked_setup_is_retained_idempotently_and_owner_scoped() {
     let pool = runs_pool().await.expect("fixture database");
     let f = fixture(&pool).await;
-    let repo = CampaignRepository::new(pool.clone());
+    let repo = crate::seams::campaigns(&pool);
     let mut invalid = policy(&f);
     invalid.minimum_pairs = 1;
     for _ in 0..2 {
@@ -89,7 +88,7 @@ async fn blocked_setup_is_retained_idempotently_and_owner_scoped() {
 async fn holdout_proposal_retries_preserve_digest_and_confirmation_identity() {
     let pool = runs_pool().await.expect("fixture database");
     let f = fixture(&pool).await;
-    let repo = CampaignRepository::new(pool.clone());
+    let repo = crate::seams::campaigns(&pool);
     let campaign = repo
         .create(&f.owner, &f.owner, "campaign", &policy(&f))
         .await
@@ -176,7 +175,7 @@ async fn holdout_proposal_retries_preserve_digest_and_confirmation_identity() {
     );
     assert!(f.experiments.execution_availability(&spec).admitted);
     assert!(
-        !ExperimentRepository::new(pool)
+        !crate::seams::experiments(&pool, crate::seams::verified_admission())
             .execution_availability(&spec)
             .admitted
     );
@@ -226,7 +225,7 @@ async fn transition_retries_acknowledge_retained_actions_without_new_generations
     use systemprompt_evaluation::campaigns::repository::CampaignAction;
     let pool = runs_pool().await.expect("fixture database");
     let f = fixture(&pool).await;
-    let repo = CampaignRepository::new(pool.clone());
+    let repo = crate::seams::campaigns(&pool);
     let campaign = repo
         .create(&f.owner, &f.owner, "transitions", &policy(&f))
         .await

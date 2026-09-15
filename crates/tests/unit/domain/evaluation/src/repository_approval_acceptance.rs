@@ -6,10 +6,7 @@ use systemprompt_evaluation::repository::experiments::{
 };
 
 fn lifecycle(harness: &Harness) -> EvaluationLifecycleRepository {
-    EvaluationLifecycleRepository::with_admission(
-        harness.pg.clone(),
-        crate::fixture_admission::fixture_admission(),
-    )
+    crate::seams::lifecycle(&harness.pg, crate::fixture_admission::fixture_admission())
 }
 
 #[tokio::test]
@@ -232,7 +229,6 @@ async fn concurrent_approve_and_deny_have_one_durable_winner() {
 
 #[tokio::test]
 async fn cancelled_approval_wait_never_regains_execution_credentials_or_requeues_on_restart() {
-    use systemprompt_evaluation::repository::experiments::ExecutionCapabilityRepository;
     let h = Harness::start()
         .await
         .expect("approval acceptance requires PostgreSQL");
@@ -256,7 +252,7 @@ async fn cancelled_approval_wait_never_regains_execution_credentials_or_requeues
             .is_err()
     );
     assert!(
-        ExecutionCapabilityRepository::new(h.pg.clone())
+        crate::seams::capabilities(&h.pg)
             .issue(&h.owner, &lease)
             .await
             .is_err()

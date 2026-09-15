@@ -7950,6 +7950,7 @@ dependencies = [
  "systemprompt-extension",
  "systemprompt-identifiers",
  "systemprompt-models",
+ "systemprompt-traits",
  "thiserror 2.0.19",
  "tracing",
 ]
@@ -7958,16 +7959,21 @@ dependencies = [
 name = "systemprompt-evaluation-tests"
 version = "0.0.11"
 dependencies = [
+ "async-trait",
  "chrono",
  "hex",
  "serde_json",
  "sha2 0.11.0",
  "sqlx",
+ "systemprompt-ai",
  "systemprompt-database",
  "systemprompt-evaluation",
  "systemprompt-identifiers",
+ "systemprompt-marketplace",
  "systemprompt-models",
  "systemprompt-test-fixtures",
+ "systemprompt-traits",
+ "systemprompt-users",
  "tokio",
  "uuid",
 ]
