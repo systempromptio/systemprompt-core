@@ -7,10 +7,10 @@ use super::client::{ClientPurpose, NativeClient};
 use super::docker::command as docker_command;
 use crate::{SchedulerError, SchedulerResult};
 
-#[path = "network.rs"]
-mod network;
 #[path = "container_builder.rs"]
 mod builder;
+#[path = "network.rs"]
+mod network;
 #[path = "container_verification.rs"]
 mod verification;
 pub use builder::ContainerLaunchBuilder;

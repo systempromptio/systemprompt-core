@@ -39,10 +39,10 @@ mod failures;
 mod finalize;
 #[path = "supervisor_prepare.rs"]
 mod prepare;
-#[path = "supervisor_provision.rs"]
-mod provision;
 #[path = "supervisor_prompts.rs"]
 mod prompts;
+#[path = "supervisor_provision.rs"]
+mod provision;
 #[path = "supervisor_suggestion.rs"]
 mod suggestion;
 #[path = "supervisor_terminal.rs"]

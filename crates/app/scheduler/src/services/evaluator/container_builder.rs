@@ -4,7 +4,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::{
-    ClientVerifier, ContainerLaunch, PathBuf, PinnedClientVerifier, SchedulerError, SchedulerResult, safe_label, safe_name,
+    ClientVerifier, ContainerLaunch, PathBuf, PinnedClientVerifier, SchedulerError,
+    SchedulerResult, safe_label, safe_name,
 };
 
 #[derive(Debug)]

@@ -5,11 +5,10 @@
 
 use super::provision::{case_and_rubric, traffic_class, variant_client};
 use super::{
-    BTreeMap, CaseContent, ContainerLaunch, EvalWorkerId, EvaluatorSupervisor,
-    ExecutionAssignment, ExecutionLease, ExecutionNetwork, ExecutionRecord, ExecutionStage,
-    NativeClient, PathBuf, RubricContent, SchedulerResult, StageEvent, UserId, VariantSpec,
-    WorkerRecord, WorkspaceDirectory, install_case_fixtures, internal, safe_suffix,
-    workspace_state,
+    BTreeMap, CaseContent, ContainerLaunch, EvalWorkerId, EvaluatorSupervisor, ExecutionAssignment,
+    ExecutionLease, ExecutionNetwork, ExecutionRecord, ExecutionStage, NativeClient, PathBuf,
+    RubricContent, SchedulerResult, StageEvent, UserId, VariantSpec, WorkerRecord,
+    WorkspaceDirectory, install_case_fixtures, internal, safe_suffix, workspace_state,
 };
 use systemprompt_evaluation::repository::experiments::ExecutionAccess;
 
