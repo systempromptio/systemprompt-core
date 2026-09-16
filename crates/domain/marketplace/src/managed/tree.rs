@@ -50,7 +50,7 @@ fn capture_once(services_root: &Path, skill_ids: &[String]) -> Result<CapturedSk
     if skill_ids.is_empty() || skill_ids.len() > 100 {
         return Err(invalid("Expected 1–100 skill IDs"));
     }
-    reject_link(services_root)?;
+    let services_root = crate::inventory::catalog::resolve_services_root(services_root)?;
     let root = services_root.join("skills");
     reject_link(&root)?;
     let mut skills = BTreeMap::new();
@@ -229,8 +229,7 @@ pub(crate) fn capture_inventory_files(
     relative: &str,
 ) -> Result<RevisionFiles> {
     systemprompt_models::managed::validate_path(relative)?;
-    reject_link(services_root)?;
-    let mut path = services_root.to_path_buf();
+    let mut path = crate::inventory::catalog::resolve_services_root(services_root)?;
     for component in Path::new(relative).components() {
         path.push(component);
         reject_link(&path)?;

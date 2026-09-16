@@ -6,7 +6,7 @@
 
 mod baseline;
 mod captures;
-mod catalog;
+pub(crate) mod catalog;
 mod membership;
 mod projection;
 mod publish_latest;
