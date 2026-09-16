@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT sources->>'composed_hash' FROM managed_inventory_observations WHERE owner_id=$1 ORDER BY generation DESC LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "?column?",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "f9d0d74f0d8e15b1d01ad0d4936cd50f8d50e3a423ad4a7d82376bc0d4fbb11b"
+}

@@ -119,8 +119,13 @@ impl CampaignRepository {
         if budget.is_none() {
             return Err(missing("Campaign budget unavailable"));
         }
+        // Why: a campaign measures one published generation of one skill. Pinning
+        // the served generation and the composed services hash at creation is what
+        // later tells a reader the baseline has since moved underneath the result.
+        let published=sqlx::query_scalar!("SELECT generation FROM managed_publication_selections WHERE owner_id=$1 AND resource_id=$2 AND state='published'",owner.as_str(),policy.resource_id.as_str()).fetch_optional(&mut *tx).await?;
+        let composed=sqlx::query_scalar!("SELECT sources->>'composed_hash' FROM managed_inventory_observations WHERE owner_id=$1 ORDER BY generation DESC LIMIT 1",owner.as_str()).fetch_optional(&mut *tx).await?.flatten();
         let id = EvalCampaignId::generate();
-        sqlx::query!("INSERT INTO eval_campaigns(id,owner_id,created_by,resource_id,baseline_revision_id,budget_id,policy,policy_digest,operation_key) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)", id.as_str(), owner.as_str(), actor.as_str(), policy.resource_id.as_str(), policy.baseline_revision_id.as_str(), policy.budget_id.as_str(), Json(policy) as _, digest, key).execute(&mut *tx).await?;
+        sqlx::query!("INSERT INTO eval_campaigns(id,owner_id,created_by,resource_id,baseline_revision_id,budget_id,policy,policy_digest,operation_key,publication_generation,composed_hash) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)", id.as_str(), owner.as_str(), actor.as_str(), policy.resource_id.as_str(), policy.baseline_revision_id.as_str(), policy.budget_id.as_str(), Json(policy) as _, digest, key, published, composed).execute(&mut *tx).await?;
         sqlx::query!("INSERT INTO eval_campaign_events(campaign_id,generation,actor_id,action) VALUES($1,0,$2,'created')", id.as_str(), actor.as_str()).execute(&mut *tx).await?;
         tx.commit().await?;
         Ok(id)
@@ -133,12 +138,12 @@ impl CampaignRepository {
     ) -> Result<Vec<CampaignRecord>> {
         let limit =
             i64::try_from(Self::PAGE_SIZE + 1).map_err(|_error| conflict("Page size overflow"))?;
-        let rows = sqlx::query_as!(CampaignRow, r#"SELECT id,owner_id,created_by,policy AS "policy: Json<CampaignPolicy>",status,generation,created_at FROM eval_campaigns WHERE owner_id=$1 AND ($2::TEXT IS NULL OR id>$2) ORDER BY id LIMIT $3"#, owner.as_str(), after.map(EvalCampaignId::as_str), limit).fetch_all(&self.pool).await?;
+        let rows = sqlx::query_as!(CampaignRow, r#"SELECT id,owner_id,created_by,policy AS "policy: Json<CampaignPolicy>",status,generation,publication_generation,composed_hash,created_at FROM eval_campaigns WHERE owner_id=$1 AND ($2::TEXT IS NULL OR id>$2) ORDER BY id LIMIT $3"#, owner.as_str(), after.map(EvalCampaignId::as_str), limit).fetch_all(&self.pool).await?;
         rows.into_iter().map(CampaignRecord::try_from).collect()
     }
 
     pub async fn get(&self, owner: &UserId, id: &EvalCampaignId) -> Result<CampaignRecord> {
-        let row = sqlx::query_as!(CampaignRow, r#"SELECT id,owner_id,created_by,policy AS "policy: Json<CampaignPolicy>",status,generation,created_at FROM eval_campaigns WHERE owner_id=$1 AND id=$2"#, owner.as_str(), id.as_str()).fetch_optional(&self.pool).await?.ok_or_else(|| missing("Campaign unavailable"))?;
+        let row = sqlx::query_as!(CampaignRow, r#"SELECT id,owner_id,created_by,policy AS "policy: Json<CampaignPolicy>",status,generation,publication_generation,composed_hash,created_at FROM eval_campaigns WHERE owner_id=$1 AND id=$2"#, owner.as_str(), id.as_str()).fetch_optional(&self.pool).await?.ok_or_else(|| missing("Campaign unavailable"))?;
         CampaignRecord::try_from(row)
     }
 

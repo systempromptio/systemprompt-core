@@ -21,6 +21,8 @@ pub struct CampaignRecord {
     pub policy: CampaignPolicy,
     pub status: CampaignStatus,
     pub generation: i64,
+    pub publication_generation: Option<i64>,
+    pub composed_hash: Option<String>,
     pub created_at: DateTime<Utc>,
 }
 
@@ -60,6 +62,8 @@ pub(super) struct CampaignRow {
     pub(super) policy: Json<CampaignPolicy>,
     pub(super) status: String,
     pub(super) generation: i64,
+    pub(super) publication_generation: Option<i64>,
+    pub(super) composed_hash: Option<String>,
     pub(super) created_at: DateTime<Utc>,
 }
 
@@ -74,6 +78,8 @@ impl TryFrom<CampaignRow> for CampaignRecord {
             policy: row.policy.0,
             status: CampaignStatus::parse(&row.status)?,
             generation: row.generation,
+            publication_generation: row.publication_generation,
+            composed_hash: row.composed_hash,
             created_at: row.created_at,
         })
     }

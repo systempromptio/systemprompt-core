@@ -3,5 +3,6 @@ CREATE TABLE IF NOT EXISTS managed_inventory_state (
     generation BIGINT NOT NULL DEFAULT 0,
     observed_at TIMESTAMPTZ,
     entries BIGINT NOT NULL DEFAULT 0,
-    last_error TEXT
+    last_error TEXT,
+    sources JSONB NOT NULL DEFAULT '{}'::JSONB
 );

@@ -43,6 +43,7 @@ systemprompt-models = { workspace = true }
 systemprompt-traits = { workspace = true }
 systemprompt-identifiers = { workspace = true, features = ["sqlx"] }
 systemprompt-database = { workspace = true }
+systemprompt-loader = { workspace = true }
 systemprompt-security = { workspace = true }
 
 [target.'cfg(unix)'.dependencies]

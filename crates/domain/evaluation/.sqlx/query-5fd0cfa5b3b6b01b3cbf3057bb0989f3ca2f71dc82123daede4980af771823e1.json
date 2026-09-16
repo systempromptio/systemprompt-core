@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id,owner_id,created_by,policy AS \"policy: Json<CampaignPolicy>\",status,generation,created_at FROM eval_campaigns WHERE owner_id=$1 AND id=$2",
+  "query": "SELECT id,owner_id,created_by,policy AS \"policy: Json<CampaignPolicy>\",status,generation,publication_generation,composed_hash,created_at FROM eval_campaigns WHERE owner_id=$1 AND id=$2",
   "describe": {
     "columns": [
       {
@@ -71,6 +71,28 @@
       },
       {
         "ordinal": 6,
+        "name": "publication_generation",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "eval_campaigns",
+            "name": "publication_generation"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "composed_hash",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval_campaigns",
+            "name": "composed_hash"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
         "name": "created_at",
         "type_info": "Timestamptz",
         "origin": {
@@ -94,8 +116,10 @@
       false,
       false,
       false,
+      true,
+      true,
       false
     ]
   },
-  "hash": "f3cbb41bb508afa1029a0f894211c60111090fd8fe2c25e583e3e87beb84b092"
+  "hash": "5fd0cfa5b3b6b01b3cbf3057bb0989f3ca2f71dc82123daede4980af771823e1"
 }

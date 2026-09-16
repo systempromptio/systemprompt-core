@@ -4,7 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::{
-    AssetDigest, AttributionStatus, BTreeMap, ConsumerInstallationId, DistributionClaim,
+    AssetDigest, AttributionStatus, BTreeMap, ConsumerInstallationId, DeviceId, DistributionClaim,
     DistributionId, DistributionState, DistributionStatus, EventOutboxId, InstallationReceipt,
     InstallationReceiptId, InstallationReceiptRequest, InvocationAttribution,
     InvocationAttributionId, InvocationAttributionRequest, ManagedError, ManagedRepository,
@@ -25,7 +25,7 @@ impl ManagedRepository {
         owner: &UserId,
         resource: Option<&ManagedResourceId>,
     ) -> Result<Vec<InstallationReceipt>> {
-        let rows = sqlx::query!("SELECT id,installation_id,publication_id,resource_id,generation,bundle_digest,installed_manifest,client_evidence,verified_at FROM managed_installation_receipts WHERE owner_id=$1 AND ($2::TEXT IS NULL OR resource_id=$2) ORDER BY verified_at DESC LIMIT 100",
+        let rows = sqlx::query!("SELECT id,installation_id,publication_id,resource_id,generation,bundle_digest,installed_manifest,client_evidence,consumer_id,device_id,host,consumer_evidence,fully_verified,verified_at FROM managed_installation_receipts WHERE owner_id=$1 AND ($2::TEXT IS NULL OR resource_id=$2) ORDER BY verified_at DESC LIMIT 100",
             owner.as_str(), resource.map(ManagedResourceId::as_str)).fetch_all(&self.pool).await?;
         rows.into_iter()
             .map(|row| {
@@ -37,7 +37,14 @@ impl ManagedRepository {
                     generation: row.generation,
                     bundle_digest: AssetDigest::try_from(row.bundle_digest)?,
                     installed_manifest: serde_json::from_value(row.installed_manifest)?,
-                    client_evidence: serde_json::from_value(row.client_evidence)?,
+                    client_evidence: serde_json::from_value(row.client_evidence).ok(),
+                    consumer_id: row.consumer_id.map(UserId::new),
+                    device_id: row.device_id.and_then(|id| DeviceId::try_new(id).ok()),
+                    host: row.host,
+                    consumer_evidence: row
+                        .consumer_evidence
+                        .and_then(|evidence| serde_json::from_value(evidence).ok()),
+                    fully_verified: row.fully_verified.unwrap_or(false),
                     verified_at: row.verified_at,
                 })
             })
@@ -190,7 +197,12 @@ impl ManagedRepository {
             generation: request.generation,
             bundle_digest: request.bundle_digest.clone(),
             installed_manifest: request.files.clone(),
-            client_evidence: request.client_evidence.clone(),
+            client_evidence: Some(request.client_evidence.clone()),
+            consumer_id: None,
+            device_id: None,
+            host: None,
+            consumer_evidence: None,
+            fully_verified: false,
             verified_at: row.verified_at,
         })
     }

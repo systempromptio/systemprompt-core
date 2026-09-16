@@ -15,6 +15,8 @@
 //! - [`verify`] — the trust chain, in order.
 //! - [`extract`] — hardened tar extraction shared with the backup path.
 //! - [`cache`] — content-addressed on-disk layout and the `current` swap.
+//! - [`provenance`] — the composed, base and per-bundle hashes behind the
+//!   active tree, for projections that record where declarations came from.
 //! - [`mod@compose`] — overlaying several bundles with an ownership check.
 //! - [`bootstrap`] — the boot path and its failure policy.
 //! - [`error`] — [`error::BundleError`] and [`error::VerifyFailure`].
@@ -28,6 +30,7 @@ pub mod compose;
 pub mod error;
 pub mod extract;
 pub mod pack;
+pub mod provenance;
 pub mod source;
 pub mod verify;
 
@@ -36,5 +39,8 @@ pub use cache::BundleCache;
 pub use compose::{BundleMember, compose, composed_hash};
 pub use error::{BundleError, BundleResult, VerifyFailure};
 pub use extract::{BUNDLE_TREE_PREFIX, ExtractOptions, TarLayout, extract_bytes, extract_tarball};
+pub use provenance::{
+    BundleProvenance, SourcesProvenance, owning_bundle_hashes, sources_provenance,
+};
 pub use source::{AnyFetcher, BundleFetcher, FetchedBundle, RemoteRef};
 pub use verify::{verify_bundle, verify_extracted};

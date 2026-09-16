@@ -10,6 +10,8 @@ CREATE TABLE IF NOT EXISTS eval_campaigns (
     operation_key TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active','paused','completed','cancelled')),
     generation BIGINT NOT NULL DEFAULT 0,
+    publication_generation BIGINT,
+    composed_hash TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     UNIQUE(owner_id,operation_key),
