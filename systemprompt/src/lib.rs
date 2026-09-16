@@ -28,7 +28,7 @@
 //! | `full` | `api`, `mcp`, `cloud`, `cli`, `config`, `logging`, `loader`, `events`, `storage`, `client`, `security`, `analytics`, and the domain crates (`agent`, `ai`, `mcp`, `oauth`, `users`, `content`, `marketplace`, `scheduler`, `generator`, `files`) | Building a product binary. `slack` and `teams` stay opt-in. |
 //!
 //! ```toml
-//! systemprompt = { version = "0.53.0", features = ["full"] }
+//! systemprompt = { version = "0.54.0", features = ["full"] }
 //! ```
 //!
 //! Every crate is reachable as a module of the same name
