@@ -22,7 +22,7 @@ impl UiRenderer for CustomRenderer {
         ArtifactType::Custom(CUSTOM_TYPE.to_owned())
     }
 
-    async fn render(&self, artifact: &Artifact) -> McpDomainResult<UiResource> {
+    fn render(&self, artifact: &Artifact) -> McpDomainResult<UiResource> {
         Ok(UiResource::new(format!(
             "<p data-marker=\"{}\">{}</p>",
             self.marker, artifact.metadata.artifact_type
@@ -89,7 +89,6 @@ async fn a_registered_renderer_is_the_one_that_renders_its_type() {
 
     let resource = registry
         .render(&artifact(CUSTOM_TYPE))
-        .await
         .expect("the registered renderer handles its own type");
 
     assert!(
@@ -107,7 +106,6 @@ async fn register_arc_shares_one_renderer_instance() {
 
     let resource = registry
         .render(&artifact(CUSTOM_TYPE))
-        .await
         .expect("the shared renderer handles its type");
 
     assert!(resource.html.contains("data-marker=\"shared\""));
@@ -137,10 +135,7 @@ async fn re_registering_makes_the_later_renderer_win() {
     registry.register(CustomRenderer { marker: "first" });
     registry.register(CustomRenderer { marker: "second" });
 
-    let resource = registry
-        .render(&artifact(CUSTOM_TYPE))
-        .await
-        .expect("render");
+    let resource = registry.render(&artifact(CUSTOM_TYPE)).expect("render");
 
     assert!(
         resource.html.contains("data-marker=\"second\""),

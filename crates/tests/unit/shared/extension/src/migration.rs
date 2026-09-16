@@ -24,6 +24,16 @@ fn migration_different_sql_different_checksum() {
 }
 
 #[test]
+fn migration_checksum_is_the_specified_xxh64_digest() {
+    let migration = Migration::new(1, "test", "SELECT 1");
+    assert_eq!(
+        migration.checksum(),
+        format!("{:016x}", xxhash_rust::xxh64::xxh64(b"SELECT 1", 0))
+    );
+    assert_eq!(migration.checksum().len(), 16);
+}
+
+#[test]
 fn migration_checksum_is_hex_string() {
     let migration = Migration::new(1, "test", "CREATE TABLE t (id INT)");
     let checksum = migration.checksum();

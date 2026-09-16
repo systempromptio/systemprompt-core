@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 use systemprompt_bridge::context::{BridgeContext, ProxyMode};
 use systemprompt_bridge::gateway::manifest::{MANIFEST_SCHEMA_VERSION, SignedManifest};
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
-use systemprompt_bridge::sync::run_once;
+use systemprompt_bridge::sync::{SyncOptions, run_once};
 use systemprompt_test_fixtures::fixture_user_id;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -34,13 +34,16 @@ fn fresh_version(now: chrono::DateTime<chrono::Utc>) -> ManifestVersion {
     ManifestVersion::try_new(format!("{stamp}-0123abcd")).unwrap()
 }
 
-fn manifest(now: chrono::DateTime<chrono::Utc>, not_before: &str) -> SignedManifest {
+fn manifest(
+    now: chrono::DateTime<chrono::Utc>,
+    not_before: chrono::DateTime<chrono::Utc>,
+) -> SignedManifest {
     SignedManifest {
         min_schema_version: MANIFEST_SCHEMA_VERSION,
         min_bridge_version: None,
         manifest_version: fresh_version(now),
-        issued_at: not_before.to_owned(),
-        not_before: not_before.to_owned(),
+        issued_at: not_before,
+        not_before,
         user_id: fixture_user_id(),
         tenant_id: None,
         user: None,
@@ -153,7 +156,15 @@ fn run_gated(sandbox: &Sandbox) -> Result<systemprompt_bridge::sync::SyncSummary
                 .enable_all()
                 .build()
                 .unwrap()
-                .block_on(run_once(&bridge(), true, false, true))
+                .block_on(run_once(
+                    &bridge(),
+                    &SyncOptions {
+                        allow_unsigned: true,
+                        force_replay: false,
+                        allow_tofu: true,
+                        ..SyncOptions::default()
+                    },
+                ))
                 .map_err(|e| e.to_string())
         },
     )
@@ -169,7 +180,7 @@ fn write_sentinel(sandbox: &Sandbox, body: &str) -> PathBuf {
 #[test]
 fn a_corrupt_replay_sentinel_refuses_to_apply() {
     let now = chrono::Utc::now();
-    let (_server, sandbox) = serve(&manifest(now, &now.to_rfc3339()));
+    let (_server, sandbox) = serve(&manifest(now, now));
     write_sentinel(&sandbox, "{ this is not json");
 
     let err = run_gated(&sandbox).expect_err("corrupt state must refuse");
@@ -186,13 +197,13 @@ fn a_corrupt_replay_sentinel_refuses_to_apply() {
 #[test]
 fn a_manifest_version_not_newer_than_the_last_applied_one_is_rejected() {
     let now = chrono::Utc::now();
-    let m = manifest(now, &now.to_rfc3339());
+    let m = manifest(now, now);
     let (_server, sandbox) = serve(&m);
     write_sentinel(
         &sandbox,
         &serde_json::json!({
             "gateway": sandbox.gateway_uri,
-            "last_applied_manifest_version": m.manifest_version.to_string(),
+            "manifest_version": m.manifest_version.to_string(),
         })
         .to_string(),
     );
@@ -207,8 +218,8 @@ fn a_manifest_version_not_newer_than_the_last_applied_one_is_rejected() {
 #[test]
 fn a_not_before_outside_the_skew_window_is_rejected() {
     let now = chrono::Utc::now();
-    let stale = (now - chrono::Duration::hours(2)).to_rfc3339();
-    let (_server, sandbox) = serve(&manifest(now, &stale));
+    let stale = now - chrono::Duration::hours(2);
+    let (_server, sandbox) = serve(&manifest(now, stale));
 
     let err = run_gated(&sandbox).expect_err("stale not_before must be rejected");
     assert!(
@@ -220,7 +231,7 @@ fn a_not_before_outside_the_skew_window_is_rejected() {
 #[test]
 fn a_missing_per_user_org_plugins_directory_is_provisioned_on_sync() {
     let now = chrono::Utc::now();
-    let (_server, sandbox) = serve(&manifest(now, &now.to_rfc3339()));
+    let (_server, sandbox) = serve(&manifest(now, now));
     fs::remove_dir_all(&sandbox.org_plugins).unwrap();
 
     run_gated(&sandbox).expect("a missing per-user plugin dir is provisioned, not fatal");
@@ -237,19 +248,16 @@ fn sentinel_json(path: &Path) -> serde_json::Value {
 #[test]
 fn a_successful_non_forced_apply_persists_the_replay_sentinel() {
     let now = chrono::Utc::now();
-    let m = manifest(now, &now.to_rfc3339());
+    let m = manifest(now, now);
     let (_server, sandbox) = serve(&m);
 
     let summary = run_gated(&sandbox).expect("gated sync applies");
     assert_eq!(summary.manifest_version, m.manifest_version.to_string());
 
     let sentinel = sentinel_json(&sandbox.metadata.join("last-sync.json"));
-    assert_eq!(
-        sentinel["last_applied_manifest_version"],
-        m.manifest_version.to_string()
-    );
+    assert_eq!(sentinel["manifest_version"], m.manifest_version.to_string());
     assert!(
-        sentinel["last_applied_at"].as_str().is_some(),
+        sentinel["synced_at"].as_str().is_some(),
         "sentinel records when the manifest was applied: {sentinel}"
     );
 

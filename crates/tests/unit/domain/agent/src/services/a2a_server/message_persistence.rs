@@ -4,19 +4,39 @@
 //! the agent's reply are written together, and any artifacts the turn produced
 //! are published exactly once. Getting the `artifacts_already_published` flag
 //! wrong duplicates a user's artifacts on every completion; losing the update
-//! error silently leaves a task reading as in-flight forever.
+//! error silently leaves a task reading as in-flight forever. The artifact
+//! broadcast is a side channel: its failure is reported in the outcome, never
+//! as a persistence error.
+
+use std::sync::Arc;
 
 use systemprompt_agent::models::a2a::{
     Artifact, ArtifactMetadata, Message, MessageRole, Part, TaskState, TextPart,
 };
+use systemprompt_agent::repository::A2ARepositories;
+use systemprompt_agent::repository::execution::ExecutionStepRepository;
 use systemprompt_agent::services::a2a_server::processing::message::persistence::{
     PersistCompletedTaskParams, persist_completed_task,
 };
+use systemprompt_agent::services::a2a_server::streaming::webhook_client::DynWebhookBroadcaster;
+use systemprompt_agent::services::{ArtifactPublishingService, SkillService};
 use systemprompt_identifiers::{
     Actor, AgentName, ArtifactId, ContextId, MessageId, SessionId, TaskId, TraceId, UserId,
 };
 use systemprompt_models::execution::context::RequestContext;
-use systemprompt_test_fixtures::ensure_test_bootstrap;
+use systemprompt_test_fixtures::{ensure_test_bootstrap, not_managed_skills};
+use systemprompt_test_mocks::{RecordingWebhookBroadcaster, recording_webhooks};
+
+fn publishing(
+    pool: &systemprompt_database::DbPool,
+    repositories: &A2ARepositories,
+    webhooks: DynWebhookBroadcaster,
+) -> ArtifactPublishingService {
+    let steps = Arc::new(ExecutionStepRepository::new(pool).expect("step repo"));
+    let skills =
+        Arc::new(SkillService::new(not_managed_skills(), steps, webhooks).expect("skills"));
+    ArtifactPublishingService::new(repositories, skills)
+}
 
 use crate::repository::{
     make_task, repos, seed_context_and_task, seed_user_and_session, try_pool_or_skip,
@@ -42,7 +62,7 @@ fn request_context(ctx: &ContextId, session: &SessionId, user: &UserId) -> Reque
         session.clone(),
         TraceId::generate(),
         ctx.clone(),
-        AgentName::new("persist-agent"),
+        AgentName::try_new("persist-agent").expect("valid AgentName"),
     );
     rc.auth.actor = Actor::user(user.clone());
     rc
@@ -79,18 +99,22 @@ async fn a_completed_turn_persists_the_task_and_both_messages() {
     let user_message = message(MessageRole::User, &ctx, &task_id, "ask");
     let agent_message = message(MessageRole::Agent, &ctx, &task_id, "answer");
     let context = request_context(&ctx, &session_id, &user_id);
+    let webhooks = recording_webhooks();
 
-    let updated = persist_completed_task(PersistCompletedTaskParams {
+    let outcome = persist_completed_task(PersistCompletedTaskParams {
         task: &task,
         user_message: &user_message,
         agent_message: &agent_message,
         context: &context,
         repositories: &repositories,
+        publishing: &publishing(&pool, &repositories, Arc::clone(&webhooks)),
+        webhooks,
         artifacts_already_published: true,
     })
     .await
     .expect("a completed turn must persist");
 
+    let updated = outcome.task;
     assert_eq!(updated.id, task_id);
     assert_eq!(
         updated.status.state,
@@ -126,12 +150,15 @@ async fn artifacts_already_published_are_not_published_a_second_time() {
     let artifact_id = published.id.clone();
     task.artifacts = Some(vec![published]);
 
+    let webhooks = recording_webhooks();
     persist_completed_task(PersistCompletedTaskParams {
         task: &task,
         user_message: &message(MessageRole::User, &ctx, &task_id, "ask"),
         agent_message: &message(MessageRole::Agent, &ctx, &task_id, "answer"),
         context: &request_context(&ctx, &session_id, &user_id),
         repositories: &repositories,
+        publishing: &publishing(&pool, &repositories, Arc::clone(&webhooks)),
+        webhooks,
         artifacts_already_published: true,
     })
     .await
@@ -164,12 +191,15 @@ async fn a_task_that_does_not_exist_fails_loudly_rather_than_reporting_success()
     let mut task = make_task(&ghost, &ctx);
     task.status.state = TaskState::Completed;
 
+    let webhooks = recording_webhooks();
     let err = persist_completed_task(PersistCompletedTaskParams {
         task: &task,
         user_message: &message(MessageRole::User, &ctx, &ghost, "ask"),
         agent_message: &message(MessageRole::Agent, &ctx, &ghost, "answer"),
         context: &request_context(&ctx, &session_id, &user_id),
         repositories: &repositories,
+        publishing: &publishing(&pool, &repositories, Arc::clone(&webhooks)),
+        webhooks,
         artifacts_already_published: true,
     })
     .await
@@ -186,19 +216,13 @@ async fn persist_artifacts(broadcast_ok: bool) {
     let pool = try_pool_or_skip()
         .await
         .expect("persistence coverage requires PostgreSQL");
-    let server = wiremock::MockServer::start().await;
-    wiremock::Mock::given(wiremock::matchers::method("POST"))
-        .and(wiremock::matchers::path("/api/v1/webhook/broadcast"))
-        .respond_with(wiremock::ResponseTemplate::new(if broadcast_ok {
-            200
-        } else {
-            503
-        }))
-        .expect(if broadcast_ok { 2 } else { 1 })
-        .mount(&server)
-        .await;
-    let _boot =
-        systemprompt_test_fixtures::init_isolated_bootstrap(&server.uri(), "mcp_servers: {}\n");
+    ensure_test_bootstrap();
+    let rec: Arc<RecordingWebhookBroadcaster> = if broadcast_ok {
+        Arc::new(RecordingWebhookBroadcaster::new())
+    } else {
+        Arc::new(RecordingWebhookBroadcaster::with_lifecycle_down())
+    };
+    let webhooks: DynWebhookBroadcaster = rec.clone();
     let repositories = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let (ctx, task_id) = seed_context_and_task(&repositories, &user_id, &session_id).await;
@@ -208,31 +232,40 @@ async fn persist_artifacts(broadcast_ok: bool) {
     let second = artifact(&ctx, &task_id);
     let ids = [first.id.clone(), second.id.clone()];
     task.artifacts = Some(vec![first, second]);
-    let updated = persist_completed_task(PersistCompletedTaskParams {
+    let outcome = persist_completed_task(PersistCompletedTaskParams {
         task: &task,
         user_message: &message(MessageRole::User, &ctx, &task_id, "publish these"),
         agent_message: &message(MessageRole::Agent, &ctx, &task_id, "published"),
         context: &request_context(&ctx, &session_id, &user_id),
         repositories: &repositories,
+        publishing: &publishing(&pool, &repositories, Arc::clone(&webhooks)),
+        webhooks,
         artifacts_already_published: false,
     })
-    .await;
+    .await
+    .expect("the task and its artifacts commit whether or not the webhook is up");
+
+    assert_eq!(outcome.task.status.state, TaskState::Completed);
+    assert_eq!(
+        rec.lifecycle_events().len(),
+        2,
+        "one broadcast per artifact"
+    );
     if broadcast_ok {
-        assert_eq!(updated.unwrap().status.state, TaskState::Completed);
+        assert!(outcome.undelivered_broadcasts.is_empty());
     } else {
-        let err = updated.unwrap_err().to_string();
-        assert!(err.contains("Failed to broadcast artifact"), "{err}");
-        assert!(err.contains(ids[0].as_str()), "{err}");
-        assert!(
-            repositories
-                .artifacts
-                .get_artifact_by_id(&ids[1])
-                .await
-                .unwrap()
-                .is_none()
+        let undelivered: Vec<_> = outcome
+            .undelivered_broadcasts
+            .iter()
+            .map(|(id, _)| id.clone())
+            .collect();
+        assert_eq!(
+            undelivered,
+            ids.to_vec(),
+            "every failed broadcast is reported"
         );
     }
-    for id in ids.into_iter().take(if broadcast_ok { 2 } else { 1 }) {
+    for id in ids {
         let stored = repositories
             .artifacts
             .get_artifact_by_id(&id)
@@ -240,6 +273,17 @@ async fn persist_artifacts(broadcast_ok: bool) {
             .unwrap();
         assert!(stored.is_some(), "artifact {id} must be persisted");
     }
+    let stored = repositories
+        .tasks
+        .get_task(&task_id)
+        .await
+        .expect("task readable")
+        .expect("task present");
+    assert_eq!(
+        stored.status.state,
+        TaskState::Completed,
+        "a webhook outage never fails a committed task"
+    );
 }
 
 #[tokio::test]
@@ -248,6 +292,6 @@ async fn coverage_unpublished_artifacts_are_saved_with_the_completed_task() {
 }
 
 #[tokio::test]
-async fn coverage_failed_artifact_broadcast_is_reported_and_stops_further_publication() {
+async fn a_failed_artifact_broadcast_is_reported_but_the_task_stays_completed() {
     persist_artifacts(false).await;
 }

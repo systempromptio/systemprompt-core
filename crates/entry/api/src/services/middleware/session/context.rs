@@ -11,13 +11,14 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use systemprompt_analytics::AnalyticsService;
 use systemprompt_identifiers::{AgentName, ContextId, SessionId, UserId};
 use systemprompt_models::api::ApiError;
 use systemprompt_models::auth::UserType;
 use systemprompt_models::execution::context::RequestContext;
-use systemprompt_security::{HeaderExtractor, TokenExtractor, extract_user_context};
-use systemprompt_traits::AnalyticsProvider;
+use systemprompt_security::{
+    HeaderExtractor, TokenExtractionError, TokenExtractor, extract_user_context,
+};
+use systemprompt_traits::SessionProvider;
 use uuid::Uuid;
 
 use super::{RequestMeta, SessionMiddleware, attest_session, lifecycle};
@@ -121,7 +122,14 @@ impl SessionMiddleware {
             return Ok((self.anonymous_context("bot", trace_id, meta).await?, None));
         }
 
-        let token_result = TokenExtractor::browser_only().extract(meta.headers).ok();
+        let token_result = match TokenExtractor::browser_only().extract(meta.headers) {
+            Ok(token) => Some(token),
+            Err(TokenExtractionError::NoTokenFound) => None,
+            Err(error) => {
+                tracing::debug!(error = %error, "Browser token rejected; starting a new session");
+                None
+            },
+        };
 
         let (session_id, user_id, jwt_token, jwt_cookie, fingerprint_hash) =
             self.resolve_session(token_result, meta).await?;
@@ -159,8 +167,8 @@ impl SessionMiddleware {
             return Ok((sid, uid, token, jwt_cookie, Some(fp)));
         };
 
-        let analytics_provider: Arc<dyn AnalyticsProvider> =
-            Arc::<AnalyticsService>::clone(&self.analytics_service);
+        let analytics_provider: Arc<dyn SessionProvider> =
+            self.analytics_service.session_repo().owner();
 
         match attest_session(
             &analytics_provider,

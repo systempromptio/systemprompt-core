@@ -7,8 +7,9 @@
 use super::xml::{RssChannel, RssItem, build_rss_xml};
 use std::path::Path;
 use std::sync::Arc;
+use systemprompt_config::paths::AppPaths;
 use systemprompt_content::ContentRepository;
-use systemprompt_models::{AppPaths, Config};
+use systemprompt_models::Config;
 use systemprompt_provider_contracts::{RssFeedContext, RssFeedProvider};
 use tokio::fs;
 

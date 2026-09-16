@@ -37,6 +37,7 @@ serde_yaml = { workspace = true }
 sqlx = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
+tokio-util = { workspace = true }
 tracing = { workspace = true }
 uuid = { workspace = true }
 
@@ -49,6 +50,5 @@ systemprompt-extension = { workspace = true }
 systemprompt-identifiers = { workspace = true, features = ["sqlx"] }
 systemprompt-models = { workspace = true }
 systemprompt-config = { workspace = true }
-systemprompt-provider-contracts = { workspace = true }
 systemprompt-traits = { workspace = true }
 

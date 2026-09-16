@@ -50,14 +50,14 @@ pub async fn handle_request(
         "req in"
     );
 
-    if !host_hdr.is_empty() && !host_is_loopback(&host_hdr) {
-        let log = auth::RequestLog {
-            req_id: &req_id,
-            method: &method,
-            path: &path,
-            user_agent: &user_agent,
-            peer,
-        };
+    let log = auth::RequestLog {
+        req_id: &req_id,
+        method: &method,
+        path: &path,
+        user_agent: &user_agent,
+        peer,
+    };
+    if !host_hdr.is_empty() && !crate::proxy_probe::host_is_loopback(&host_hdr) {
         return Ok(auth::reject_non_loopback(&ctx, &log, &host_hdr));
     }
 
@@ -72,31 +72,13 @@ pub async fn handle_request(
         if path == "/healthz" {
             return Ok(health_response(&method));
         }
-        if path == WHOAMI_PATH {
-            return Ok(whoami_response(&ctx));
-        }
-        return forward_to_gateway(
-            req,
-            ctx,
-            RequestMeta {
-                req_id,
-                method,
-                path,
-            },
-        )
-        .await;
+        return Ok(whoami_response(&ctx));
     }
 
-    let log = auth::RequestLog {
-        req_id: &req_id,
-        method: &method,
-        path: &path,
-        user_agent: &user_agent,
-        peer,
+    let credential = match auth::verify_loopback_credential(&req, &ctx, &log) {
+        Ok(credential) => credential,
+        Err(rejection) => return Ok(*rejection),
     };
-    if let Some(rejection) = auth::verify_loopback_secret(&req, &ctx, &log) {
-        return Ok(rejection);
-    }
 
     forward_to_gateway(
         req,
@@ -105,6 +87,7 @@ pub async fn handle_request(
             req_id,
             method,
             path,
+            credential,
         },
     )
     .await
@@ -121,11 +104,10 @@ fn header_str(req: &Request<Incoming>, name: http::header::HeaderName) -> String
 pub const WHOAMI_PATH: &str = "/__bridge/whoami";
 
 fn is_unauthenticated_path(method: &Method, path: &str) -> bool {
-    match (method, path) {
-        (&Method::GET | &Method::HEAD, "/healthz") | (&Method::GET, WHOAMI_PATH) => true,
-        (&Method::POST, p) if p == "/otel" || p.starts_with("/otel/") => true,
-        _ => false,
-    }
+    matches!(
+        (method, path),
+        (&Method::GET | &Method::HEAD, "/healthz") | (&Method::GET, WHOAMI_PATH)
+    )
 }
 
 fn health_response(method: &Method) -> Response<ProxyBody> {
@@ -156,9 +138,4 @@ fn mint_req_id() -> String {
         "{:02x}{:02x}{:02x}{:02x}",
         bytes[0], bytes[1], bytes[2], bytes[3]
     )
-}
-
-fn host_is_loopback(host: &str) -> bool {
-    let host_only = host.split(':').next().unwrap_or("");
-    matches!(host_only, "127.0.0.1" | "localhost" | "::1" | "[::1]")
 }

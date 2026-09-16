@@ -1,5 +1,41 @@
 # Changelog
 
+## [0.53.0] - 2026-09-15
+
+### Breaking
+
+- **Breaking:** `McpOrchestrator::new(service_repo, app_paths, registry)` no longer takes a `DbPool`; the SQLite-flavoured `services::schema::SchemaValidator` / `SchemaValidationMode` / `SchemaValidationReport` and the orchestrator's `validate_schemas` step are removed (they could never succeed on Postgres and downgraded to warnings). Managed-service schemas are applied by the database migrations.
+- **Breaking:** `DatabaseService::update_service_status(name, ServiceLifecycleStatus)` takes the typed lifecycle status; `McpEvent::ServiceStarted.process_id` is `Option<u32>`.
+- **Breaking:** `services::network::port::{is_port_in_use, is_port_responsive}` and `NetworkService::is_port_responsive` are `async` (tokio probes with a timeout, no blocking connect on the runtime); `find_available_port` and `cleanup_port_resources` are removed.
+- **Breaking:** `fetch_external_bearer(.., broker_secret: &str, ..)` — the credential-broker secret is required; a missing `mcp_credential_broker_secret` is `McpDomainError::Configuration` before any accessor call.
+- **Breaking:** `UiRenderer::render` is synchronous (no `#[async_trait]`); `UiRendererRegistry::render` and `artifact_ui_resource` are plain functions.
+- **Breaking:** `middleware::rbac::try_proxy_verified_auth` returns `Option<AuthenticatedRequestContext>`; the proxy-verified path now runs the per-server authz hook like the JWT path.
+- **Breaking:** `HttpClientWithContext::{new, forwarding, external}` return `Result<Self, McpTransportError>`; the guarded client is built once and a failure is reported at construction. `McpTransportError::ClientUnavailable` is removed. Migrate by propagating the constructor error.
+
+### Added
+
+- `ToolUsageRepository` implements `systemprompt_traits::ToolExecutionLookup`.
+- `repository::McpOwnerReassignment` implements `systemprompt_traits::OwnerReassignment` over tool executions, artifacts and MCP sessions in one transaction; session-scoped identity caches minted for the old user are deleted rather than rebound.
+- The extension installs `reporting_capture.sql` / `reporting_privacy.sql` (migration 006): the `reporting_source_mcp_tool_executions` view and transactional capture trigger feeding the analytics projections.
+- `ProxyIdentityRow::roles` persists the caller's roles with the session identity (`mcp_proxy_identities.roles`, migration 007).
+
+### Changed
+
+- Failed-auth diagnostics no longer log the `authorization` header value.
+- `McpToolProvider::list_tools` reports servers that could not be listed in `ToolInventory::failed_servers` instead of returning fewer tools; `health_check` propagates a registry error instead of reporting an empty fleet; a tool call without `x-user-id` is `ToolProviderError::AuthorizationFailed` rather than running as the server owner.
+- `has_server_permission` withholds a server the registry does not know.
+- Reconciliation and start-up propagate registry-row read errors instead of treating them as "not found"; `ServiceFailed` writes the shared `error` status so crashed services are reaped.
+- Form renderers JSON-encode `submit_tool` into the page script; media, image and list renderers only render `http(s)` and `data:` media URLs (a `javascript:` source is a render error, a `javascript:` list link is dropped).
+- The registry and tool-provider seams return `McpRegistryError`; `McpServerState` carries a `McpServerId` and a `McpServerStatus`.
+
+### Fixed
+
+- Proxy-verified requests read `x-user-roles` and evaluate the authz hook with the caller's roles, client id and act chain instead of an empty subject.
+
+### Removed
+
+- `ToolUsageRepository::{update_context_timestamp, find_context_id, list_tool_stats}` and `models::ToolStats`; the repository no longer writes the agent-owned `user_contexts` table.
+
 ## [0.52.0] - 2026-09-14
 
 ### Breaking

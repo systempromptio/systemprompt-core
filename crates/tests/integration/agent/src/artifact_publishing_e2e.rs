@@ -1,8 +1,9 @@
+use std::sync::Arc;
+
 use anyhow::Result;
 use systemprompt_agent::models::a2a::{Artifact, Part, TextPart};
-use systemprompt_agent::repository::content::ArtifactRepository;
 use systemprompt_agent::repository::execution::ExecutionStepRepository;
-use systemprompt_agent::repository::task::TaskRepository;
+use systemprompt_agent::services::SkillService;
 use systemprompt_agent::services::artifact_publishing::{
     ArtifactPublishingService, PublishFromMcpParams,
 };
@@ -13,6 +14,17 @@ use systemprompt_models::execution::context::RequestContext;
 use systemprompt_test_fixtures::ensure_test_bootstrap;
 
 use crate::common::Fixture;
+
+fn publishing_service(fx: &Fixture) -> Result<ArtifactPublishingService> {
+    let repositories = systemprompt_test_fixtures::a2a_repositories(&fx.db);
+    let steps = Arc::new(ExecutionStepRepository::new(&fx.db)?);
+    let skills = Arc::new(SkillService::new(
+        systemprompt_test_fixtures::not_managed_skills(),
+        steps,
+        systemprompt_test_mocks::recording_webhooks(),
+    )?);
+    Ok(ArtifactPublishingService::new(&repositories, skills))
+}
 
 fn make_artifact(
     ctx_id: &systemprompt_identifiers::ContextId,
@@ -35,14 +47,10 @@ async fn artifact_publishing_publish_from_a2a_succeeds() -> Result<()> {
     ensure_test_bootstrap();
     let fx = Fixture::new().await?;
     let task_id = fx.insert_task(TaskState::Working).await?;
-    let svc = ArtifactPublishingService::new(
-        ArtifactRepository::new(&fx.db)?,
-        ExecutionStepRepository::new(&fx.db)?,
-        TaskRepository::new(&fx.db, crate::common::session_usage(&fx.db)?)?,
-    )?;
+    let svc = publishing_service(&fx)?;
 
     let artifact = make_artifact(&fx.context_id, &task_id);
-    svc.publish_from_a2a(&artifact, &task_id, &fx.context_id)
+    svc.publish_from_a2a(&artifact, &task_id, &fx.context_id, &fx.user_id)
         .await?;
 
     fx.cleanup().await?;
@@ -54,18 +62,14 @@ async fn artifact_publishing_publish_from_mcp_agentic_skips_messages() -> Result
     ensure_test_bootstrap();
     let fx = Fixture::new().await?;
     let task_id = fx.insert_task(TaskState::Working).await?;
-    let svc = ArtifactPublishingService::new(
-        ArtifactRepository::new(&fx.db)?,
-        ExecutionStepRepository::new(&fx.db)?,
-        TaskRepository::new(&fx.db, crate::common::session_usage(&fx.db)?)?,
-    )?;
+    let svc = publishing_service(&fx)?;
 
     let artifact = make_artifact(&fx.context_id, &task_id);
     let mut ctx = RequestContext::new(
         SessionId::new("art-pub-session"),
         TraceId::new("art-pub-trace"),
         fx.context_id.clone(),
-        AgentName::new("test-agent"),
+        AgentName::try_new("test-agent").expect("valid AgentName"),
     );
     ctx.auth.actor = Actor::user(fx.user_id.clone());
 
@@ -90,18 +94,14 @@ async fn artifact_publishing_publish_from_mcp_direct_creates_messages() -> Resul
     ensure_test_bootstrap();
     let fx = Fixture::new().await?;
     let task_id = fx.insert_task(TaskState::Working).await?;
-    let svc = ArtifactPublishingService::new(
-        ArtifactRepository::new(&fx.db)?,
-        ExecutionStepRepository::new(&fx.db)?,
-        TaskRepository::new(&fx.db, crate::common::session_usage(&fx.db)?)?,
-    )?;
+    let svc = publishing_service(&fx)?;
 
     let artifact = make_artifact(&fx.context_id, &task_id);
     let mut ctx = RequestContext::new(
         SessionId::new("art-pub-direct"),
         TraceId::new("art-pub-direct-trace"),
         fx.context_id.clone(),
-        AgentName::new("test-agent"),
+        AgentName::try_new("test-agent").expect("valid AgentName"),
     );
     ctx.auth.actor = Actor::user(fx.user_id.clone());
 

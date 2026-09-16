@@ -6,7 +6,6 @@ use systemprompt_mcp::services::monitoring::status::ServiceStatus;
 use systemprompt_mcp::services::network::port::{
     MAX_PORT_CLEANUP_ATTEMPTS, PORT_BACKOFF_BASE_MS, POST_KILL_DELAY_MS,
 };
-use systemprompt_mcp::services::schema::{SchemaValidationMode, SchemaValidationReport};
 use systemprompt_test_fixtures::fixture_user_id;
 
 #[test]
@@ -91,104 +90,6 @@ fn health_check_result_unhealthy_constructor() {
         result.details.error_message.as_deref(),
         Some("port blocked")
     );
-}
-
-#[test]
-fn schema_validation_mode_from_auto_migrate() {
-    let mode = SchemaValidationMode::from_string("auto_migrate");
-    assert_eq!(mode, SchemaValidationMode::AutoMigrate);
-}
-
-#[test]
-fn schema_validation_mode_from_strict() {
-    let mode = SchemaValidationMode::from_string("strict");
-    assert_eq!(mode, SchemaValidationMode::Strict);
-}
-
-#[test]
-fn schema_validation_mode_from_skip() {
-    let mode = SchemaValidationMode::from_string("skip");
-    assert_eq!(mode, SchemaValidationMode::Skip);
-}
-
-#[test]
-fn schema_validation_mode_from_unknown_defaults_auto() {
-    let mode = SchemaValidationMode::from_string("something_else");
-    assert_eq!(mode, SchemaValidationMode::AutoMigrate);
-}
-
-#[test]
-fn schema_validation_mode_case_insensitive() {
-    assert_eq!(
-        SchemaValidationMode::from_string("STRICT"),
-        SchemaValidationMode::Strict
-    );
-    assert_eq!(
-        SchemaValidationMode::from_string("Skip"),
-        SchemaValidationMode::Skip
-    );
-}
-
-#[test]
-fn schema_validation_report_new() {
-    let report = SchemaValidationReport::new("test-service".to_string());
-    assert_eq!(report.service_name, "test-service");
-    assert_eq!(report.validated, 0);
-    assert_eq!(report.created, 0);
-    assert!(report.errors.is_empty());
-    assert!(report.warnings.is_empty());
-}
-
-#[test]
-fn schema_validation_report_merge_accumulates() {
-    let mut report = SchemaValidationReport::new("combined".to_string());
-    report.validated = 2;
-    report.created = 1;
-
-    let other = SchemaValidationReport {
-        service_name: "other".to_string(),
-        validated: 3,
-        created: 2,
-        errors: vec!["err1".to_string()],
-        warnings: vec!["warn1".to_string()],
-    };
-
-    report.merge(other);
-    assert_eq!(report.validated, 5);
-    assert_eq!(report.created, 3);
-    assert_eq!(report.errors.len(), 1);
-    assert_eq!(report.warnings.len(), 1);
-}
-
-#[test]
-fn schema_validation_report_merge_empty() {
-    let mut report = SchemaValidationReport::new("base".to_string());
-    report.validated = 10;
-
-    let empty = SchemaValidationReport::new("empty".to_string());
-    report.merge(empty);
-
-    assert_eq!(report.validated, 10);
-    assert_eq!(report.created, 0);
-    assert!(report.errors.is_empty());
-}
-
-#[test]
-fn schema_validation_report_serde_roundtrip() {
-    let report = SchemaValidationReport {
-        service_name: "serde-test".to_string(),
-        validated: 4,
-        created: 1,
-        errors: vec!["an error".to_string()],
-        warnings: vec!["a warning".to_string()],
-    };
-    let json = serde_json::to_string(&report).unwrap();
-    let deserialized: SchemaValidationReport = serde_json::from_str(&json).unwrap();
-    assert_eq!(deserialized.service_name, "serde-test");
-    assert_eq!(deserialized.validated, 4);
-    assert_eq!(deserialized.created, 1);
-    assert_eq!(deserialized.errors.len(), 1);
-    assert_eq!(deserialized.warnings.len(), 1);
 }
 
 #[test]

@@ -20,6 +20,8 @@ pub use postgres::PostgresProvider;
 pub use postgres::connection::PoolConfig;
 pub use postgres::transaction::PostgresTransaction;
 pub use provider::{DatabaseProvider, DatabaseProviderExt};
-pub use schema_linter::{LintError, lint_declarative_schema};
-pub use scoped_transaction::{begin_scoped, with_scoped_transaction, with_scoped_transaction_raw};
-pub use transaction::{BoxFuture, with_transaction, with_transaction_raw, with_transaction_retry};
+pub use schema_linter::{
+    LintError, LintSeverity, created_table_names, lint_declarative_schema, lint_declarative_schemas,
+};
+pub use scoped_transaction::{begin_scoped, with_scoped_transaction};
+pub use transaction::{BoxFuture, with_transaction, with_transaction_retry};

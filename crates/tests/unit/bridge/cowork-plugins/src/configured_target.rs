@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 use systemprompt_bridge::integration::cowork_plugins::{
-    CoworkTarget, apply_enable, clear_all, resolve_target,
+    CoworkTarget, ResolveTargetError, apply_enable, clear_all, resolve_target,
 };
 use tempfile::TempDir;
 
@@ -56,6 +56,7 @@ fn a_configured_session_dir_overrides_the_filesystem_scan() {
     let chosen = sb.org_dir("chosen-org", true);
     let target = sb
         .with_config(&chosen, resolve_target)
+        .expect("resolution succeeds")
         .expect("the configured dir is used");
     assert_eq!(target.session_org_dir, chosen);
     assert_eq!(target.cowork_plugins_dir, chosen.join("cowork_plugins"));
@@ -66,8 +67,14 @@ fn a_configured_session_dir_without_a_plugins_subdir_is_refused() {
     let sb = Sandbox::new();
     let half = sb.org_dir("half-initialised", false);
     assert!(
-        sb.with_config(&half, resolve_target).is_none(),
-        "a configured dir with no cowork_plugins subdir must not fall back to guessing"
+        matches!(
+            sb.with_config(&half, resolve_target),
+            Err(ResolveTargetError::ConfiguredUnusable {
+                subdir: "cowork_plugins",
+                ..
+            })
+        ),
+        "a configured dir with no cowork_plugins subdir is a config error, not a fallback to guessing"
     );
 }
 
@@ -79,7 +86,7 @@ fn target_at(dir: &Path) -> CoworkTarget {
 }
 
 #[test]
-fn legacy_state_files_of_the_wrong_shape_are_left_untouched() {
+fn state_files_of_a_foreign_shape_are_left_untouched() {
     let sb = Sandbox::new();
     let dir = sb.org_dir("org", true);
     let plugins = dir.join("cowork_plugins");
@@ -103,7 +110,7 @@ fn legacy_state_files_of_the_wrong_shape_are_left_untouched() {
 }
 
 #[test]
-fn legacy_state_without_the_purged_keys_is_left_unchanged() {
+fn state_files_without_bridge_owned_keys_are_left_unchanged() {
     let sb = Sandbox::new();
     let dir = sb.org_dir("org", true);
     let plugins = dir.join("cowork_plugins");
@@ -119,13 +126,13 @@ fn legacy_state_without_the_purged_keys_is_left_unchanged() {
             .expect("json");
     assert!(
         installed_json["plugins"]["other@elsewhere"].is_object(),
-        "an unrelated installed plugin survives the legacy purge: {installed_json}"
+        "an unrelated installed plugin survives a clear: {installed_json}"
     );
     let known_json: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(&known).expect("known")).expect("json");
     assert!(
         known_json["other-marketplace"].is_object(),
-        "an unrelated marketplace survives the legacy purge: {known_json}"
+        "an unrelated marketplace survives a clear: {known_json}"
     );
 }
 

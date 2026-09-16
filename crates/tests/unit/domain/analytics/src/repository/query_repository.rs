@@ -9,6 +9,13 @@ use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fi
 use uuid::Uuid;
 
 async fn insert_ai_request(pool: &DbPool, user_id: &str, provider: &str, model: &str) {
+    systemprompt_test_fixtures::seed_user_row(
+        pool,
+        &UserId::new(user_id),
+        &format!("{user_id}@request-test.invalid"),
+    )
+    .await
+    .expect("retained request user");
     let p = pool.write_pool_arc().expect("write pool");
     sqlx::query(
         r"
@@ -29,6 +36,13 @@ async fn insert_ai_request(pool: &DbPool, user_id: &str, provider: &str, model: 
 }
 
 async fn insert_rejected_ai_request(pool: &DbPool, user_id: &str) {
+    systemprompt_test_fixtures::seed_user_row(
+        pool,
+        &UserId::new(user_id),
+        &format!("{user_id}@request-test.invalid"),
+    )
+    .await
+    .expect("retained request user");
     let p = pool.write_pool_arc().expect("write pool");
     sqlx::query(
         r"
@@ -80,6 +94,9 @@ async fn get_ai_provider_usage_aggregates_by_provider_and_model() {
     insert_ai_request(&pool, &user_a, &provider, "model-x").await;
     insert_ai_request(&pool, &user_b, &provider, "model-y").await;
 
+    systemprompt_test_fixtures::refresh_reporting(&pool)
+        .await
+        .expect("reporting snapshot");
     let usage = repo.get_ai_provider_usage(7, None).await.expect("usage");
     let mine: Vec<_> = usage.iter().filter(|u| u.provider == provider).collect();
     assert_eq!(mine.len(), 2);
@@ -110,6 +127,9 @@ async fn get_ai_provider_usage_filters_by_user() {
     insert_ai_request(&pool, &user_b, &provider, "model-y").await;
 
     let uid = UserId::new(user_a);
+    systemprompt_test_fixtures::refresh_reporting(&pool)
+        .await
+        .expect("reporting snapshot");
     let usage = repo
         .get_ai_provider_usage(7, Some(&uid))
         .await
@@ -139,6 +159,9 @@ async fn get_ai_provider_usage_excludes_requests_rejected_before_routing() {
     insert_rejected_ai_request(&pool, &user).await;
 
     let uid = UserId::new(user.clone());
+    systemprompt_test_fixtures::refresh_reporting(&pool)
+        .await
+        .expect("reporting snapshot");
     let usage = repo
         .get_ai_provider_usage(7, Some(&uid))
         .await

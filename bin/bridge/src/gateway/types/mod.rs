@@ -9,7 +9,7 @@ pub use auth::*;
 
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-use systemprompt_identifiers::{ClientId, TenantId, UserId};
+use systemprompt_identifiers::{ClientId, DeviceId, TenantId, UserId};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BridgeOAuthClientResponse {
@@ -46,6 +46,23 @@ pub struct WhoamiResponse {
     pub roles: Vec<String>,
     #[serde(flatten)]
     pub extra: BTreeMap<String, serde_json::Value>,
+}
+
+/// Body of `POST /v1/bridge/device`: the self-issued device fingerprint the
+/// bridge wants enrolled under the authenticated user, plus a display label.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SelfEnrollRequest {
+    pub fingerprint: String,
+    pub label: String,
+}
+
+/// Reply to `POST /v1/bridge/device`: the enrolled device and the
+/// `sp_device_` credential that attributes installation feedback to it.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SelfEnrollResponse {
+    pub device_id: DeviceId,
+    pub consumer_id: UserId,
+    pub credential: String,
 }
 
 /// One platform's newest published build, as advertised by

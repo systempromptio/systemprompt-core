@@ -104,6 +104,7 @@ export const bridge = {
   openExternalUrl:      (url)               => invoke("openExternalUrl", { url }),
   diagnosticsExportBundle: ()               => invoke("diagnostics.exportBundle"),
   proxyResetSecret:     ()                  => invoke("proxy.resetSecret"),
+  configRepairDir:      ()                  => invoke("config.repairDir"),
   diagnosticsInfo:      ()                  => invoke("diagnostics.info"),
   settingsGet:          ()                  => invoke("settings.get"),
   updateCheck:          ()                  => invoke("update.check"),

@@ -12,7 +12,7 @@ use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{ContextId, SkillId, TaskId};
 use systemprompt_traits::validation::{
-    MetadataValidation, Validate, ValidationError, ValidationResult,
+    MetadataValidation, MetadataValidationError, Validate, ValidationResult,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -22,12 +22,14 @@ pub struct ArtifactMetadata {
     pub created_at: String,
     pub task_id: TaskId,
     #[serde(skip_serializing_if = "Option::is_none")]
+    // JSON: Rendering hints are the free-form `_meta.hints` object the tool emitted.
     pub rendering_hints: Option<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mcp_execution_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    // JSON: MCP `outputSchema` is a JSON Schema document owned by the server.
     pub mcp_schema: Option<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub is_internal: Option<bool>,
@@ -63,6 +65,7 @@ impl ArtifactMetadata {
         }
     }
 
+    // JSON: Free-form `_meta.hints` object the tool emitted.
     pub fn with_rendering_hints(mut self, hints: serde_json::Value) -> Self {
         self.rendering_hints = Some(hints);
         self
@@ -78,6 +81,7 @@ impl ArtifactMetadata {
         self
     }
 
+    // JSON: MCP `outputSchema` is a JSON Schema document owned by the server.
     pub fn with_mcp_schema(mut self, schema: serde_json::Value) -> Self {
         self.mcp_schema = Some(schema);
         self
@@ -125,7 +129,7 @@ impl ArtifactMetadata {
         task_id: TaskId,
     ) -> ValidationResult<Self> {
         if artifact_type.is_empty() {
-            return Err(ValidationError::new(
+            return Err(MetadataValidationError::new(
                 "artifact_type",
                 "Cannot create ArtifactMetadata: artifact_type is empty",
             )

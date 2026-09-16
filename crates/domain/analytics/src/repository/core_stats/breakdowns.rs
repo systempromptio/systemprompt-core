@@ -17,7 +17,7 @@ impl CoreStatsRepository {
                 SELECT
                     COALESCE(browser, 'Unknown') as browser,
                     COUNT(*) as count
-                FROM v_clean_traffic
+                FROM analytics_report_v_clean_traffic
                 WHERE started_at >= NOW() - INTERVAL '7 days'
                 GROUP BY browser
             ),
@@ -50,7 +50,7 @@ impl CoreStatsRepository {
                 SELECT
                     COALESCE(device_type, 'Unknown') as device_type,
                     COUNT(*) as count
-                FROM v_clean_traffic
+                FROM analytics_report_v_clean_traffic
                 WHERE started_at >= NOW() - INTERVAL '7 days'
                 GROUP BY device_type
             ),
@@ -83,7 +83,7 @@ impl CoreStatsRepository {
                 SELECT
                     COALESCE(country, 'Unknown') as country,
                     COUNT(*) as count
-                FROM v_clean_traffic
+                FROM analytics_report_v_clean_traffic
                 WHERE started_at >= NOW() - INTERVAL '7 days'
                 GROUP BY country
             ),
@@ -120,7 +120,7 @@ impl CoreStatsRepository {
                     THEN (COUNT(*) FILTER (WHERE is_bot = true OR is_ai_crawler = true OR is_scanner = true OR is_behavioral_bot = true)::float / COUNT(*)::float * 100.0)
                     ELSE 0.0
                 END as "bot_percentage!"
-            FROM user_sessions
+            FROM analytics_report_user_sessions
             WHERE started_at >= NOW() - INTERVAL '7 days'
             "#
         )

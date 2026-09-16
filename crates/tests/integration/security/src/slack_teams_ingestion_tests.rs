@@ -59,7 +59,7 @@ fn slack_app(workspace: &str, roles: &[&str], enabled: bool) -> SlackAppConfig {
         signing_secret_ref: SecretName::new("slack_signing_secret"),
         bot_token_ref: SecretName::new("slack_bot_token"),
         enabled,
-        default_agent: Some(AgentName::new("test_agent")),
+        default_agent: Some(AgentName::try_new("test_agent").expect("valid AgentName")),
         routing: BTreeMap::new(),
         authz: SlackAuthzConfig {
             allowed_roles: roles.iter().map(|r| (*r).to_owned()).collect(),
@@ -74,7 +74,7 @@ fn teams_app(tenant: &str, roles: &[&str], enabled: bool) -> TeamsAppConfig {
         app_id: "app-test".to_owned(),
         app_password_ref: SecretName::new("teams_app_password"),
         enabled,
-        default_agent: Some(AgentName::new("test_agent")),
+        default_agent: Some(AgentName::try_new("test_agent").expect("valid AgentName")),
         routing: BTreeMap::new(),
         authz: TeamsAuthzConfig {
             allowed_roles: roles.iter().map(|r| (*r).to_owned()).collect(),

@@ -15,10 +15,13 @@ mod gateway_auth_provision_client;
 mod gateway_auth_responses;
 mod gateway_auth_shapes;
 mod gateway_authz_request;
+mod gateway_bridge_device;
 mod gateway_bridge_instance_hosts;
 mod gateway_bridge_release_feed;
 mod gateway_bridge_release_sums;
 mod gateway_extract_credential;
+mod gateway_manifest_grants;
+mod gateway_manifest_policy_reads;
 mod gateway_messages_auth;
 mod gateway_messages_auth_execution;
 mod gateway_messages_authenticate;
@@ -39,6 +42,13 @@ mod mcp_registry_handler;
 
 mod content_blog;
 mod content_links_redirect;
-mod gateway_auth_mtls;
-mod gateway_auth_mtls_enrolled;
 mod wellknown_agent_cards;
+
+mod feedback_stream;
+
+mod feedback_contracts;
+
+mod feedback_boundaries;
+
+#[cfg(test)]
+mod feedback_lifecycle;

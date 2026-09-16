@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO managed_source_snapshots(id,owner_id,source_id,digest,provenance) VALUES($1,$2,$3,$4,$5) ON CONFLICT(id) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Jsonb"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "55e5fccf25c2c3801a774c2b8f0fde9b0f6d12b678cfebca27077b644351dca3"
+}

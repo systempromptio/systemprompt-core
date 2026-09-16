@@ -31,7 +31,7 @@ pub(super) fn apply(staged: &Path) -> Result<PathBuf, UpdateError> {
 }
 
 fn unpack(archive: &Path, into: &Path) -> Result<PathBuf, UpdateError> {
-    let out = Command::new("tar")
+    let out = Command::new("/usr/bin/tar")
         .arg("-xzf")
         .arg(archive)
         .arg("-C")

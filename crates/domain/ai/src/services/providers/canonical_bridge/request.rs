@@ -7,6 +7,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use serde_json::json;
+use systemprompt_identifiers::ModelId;
 use systemprompt_models::wire::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalTool, CanonicalToolChoice,
     ImageSource, ReasoningEffort, ResponseFormat, Role, SearchConfig, ThinkingConfig,
@@ -117,7 +118,7 @@ impl<'a> CanonicalBuild<'a> {
             temperature = Some(OPENAI_STREAM_DEFAULT_TEMPERATURE);
         }
         CanonicalRequest {
-            model: self.model.to_owned(),
+            model: ModelId::new(self.model),
             system,
             messages,
             max_tokens: self.max_output_tokens,

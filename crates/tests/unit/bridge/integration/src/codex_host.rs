@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use systemprompt_bridge::ids::LoopbackSecret;
 use systemprompt_bridge::integration::codex_cli::CODEX_CLI_HOST;
 use systemprompt_bridge::integration::host_app::{
     HostApp, ProbeEnv, ProfileGenInputs, ProfileState,
@@ -8,7 +9,7 @@ use tempfile::TempDir;
 fn probe_env() -> ProbeEnv {
     ProbeEnv {
         proxy_port: systemprompt_bridge::proxy::DEFAULT_PROXY_PORT,
-        loopback_secret_fingerprint: None,
+        loopback_secret: None,
         start_menu: std::sync::Arc::default(),
     }
 }
@@ -132,15 +133,16 @@ fn a_partial_codex_config_lists_the_missing_required_keys() {
 }
 
 #[test]
-fn a_malformed_codex_config_falls_back_to_an_empty_read() {
+fn a_malformed_codex_config_is_unverifiable_not_absent() {
     let snapshot = codex_sandbox(Some("this is [not toml"), || {
         CODEX_CLI_HOST.probe(&probe_env())
     });
     assert!(
-        matches!(snapshot.profile_state, ProfileState::Absent),
-        "a TOML parse failure degrades to Absent, not a panic"
+        matches!(snapshot.profile_state, ProfileState::Unverifiable { .. }),
+        "a TOML parse failure is reported, never read as an absent profile: {:?}",
+        snapshot.profile_state
     );
-    assert!(snapshot.profile_source.is_none());
+    assert!(snapshot.probe_error.is_some());
 }
 
 #[test]
@@ -174,12 +176,12 @@ fn inputs() -> ProfileGenInputs {
     headers.insert("x-inference-protocol".to_owned(), "responses".to_owned());
     ProfileGenInputs {
         gateway_base_url: "http://127.0.0.1:48217".to_owned(),
-        api_key: "loopback-secret-value".to_owned(),
+        api_key: LoopbackSecret::new("loopback-secret-value"),
         models: vec!["gpt-5".to_owned()],
         default_model: None,
         organization_uuid: Some("00000000-0000-4000-8000-000000000009".to_owned()),
         headers,
-        mcp_servers: Vec::new(),
+        mcp_servers: Some(Vec::new()),
     }
 }
 

@@ -58,6 +58,8 @@ pub struct Finding {
     pub scanner: &'static str,
 }
 
+/// Built by the scanner registry as `Arc<dyn SafetyScanner>` and fanned out
+/// per request; `#[async_trait]` keeps it object-safe.
 #[async_trait]
 pub trait SafetyScanner: Send + Sync {
     fn name(&self) -> &'static str;

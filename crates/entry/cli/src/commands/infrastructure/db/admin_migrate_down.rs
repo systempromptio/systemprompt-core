@@ -25,8 +25,7 @@ pub(super) async fn execute_migrate_down(
     let sys_config = Config::get()?;
 
     let database = Arc::new(
-        Database::from_config_with_write(
-            &sys_config.database_type,
+        Database::connect(
             &sys_config.database_url,
             sys_config.database_write_url.as_deref(),
             &systemprompt_database::PoolConfig::default(),

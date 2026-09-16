@@ -28,7 +28,7 @@ use systemprompt_bridge::gateway::manifest::{
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
 use systemprompt_bridge::ids::{ManagedMcpServerName, Sha256Digest, SkillId, SkillName};
 use systemprompt_bridge::mcp_registry::normalize_key;
-use systemprompt_bridge::sync::run_once;
+use systemprompt_bridge::sync::{SyncOptions, run_once};
 use systemprompt_identifiers::HookId;
 use systemprompt_models::services::PluginHooksRef;
 use systemprompt_models::services::hooks::{HookCategory, HookEvent};
@@ -49,6 +49,7 @@ fn version() -> ManifestVersion {
 
 fn skill(id: &str, body: &str) -> SkillEntry {
     SkillEntry {
+        publication: None,
         id: SkillId::try_new(id).unwrap(),
         name: SkillName::try_new(id).unwrap(),
         description: format!("desc for {id}"),
@@ -64,7 +65,7 @@ fn skill(id: &str, body: &str) -> SkillEntry {
 fn agent(name: &str) -> AgentEntry {
     AgentEntry {
         id: AgentId::new(format!("a-{name}")),
-        name: AgentName::new(name),
+        name: AgentName::try_new(name).expect("valid AgentName"),
         display_name: format!("Display {name}"),
         description: format!("agent {name}"),
         version: "1.0.0".into(),
@@ -99,7 +100,7 @@ fn hook() -> HookEntry {
 
 fn mcp(name: &str, url: &str) -> ManagedMcpServer {
     ManagedMcpServer {
-        id: systemprompt_identifiers::McpServerId::new(name),
+        id: systemprompt_identifiers::McpServerId::try_new(name).expect("valid McpServerId"),
         name: ManagedMcpServerName::try_new(name).unwrap(),
         url: ValidatedUrl::try_new(url).unwrap(),
         transport: Some("http".into()),
@@ -276,7 +277,15 @@ fn run_sync(dirs: &SandboxDirs) -> Result<systemprompt_bridge::sync::SyncSummary
             .enable_all()
             .build()
             .unwrap()
-            .block_on(run_once(&bridge(), true, true, true))
+            .block_on(run_once(
+                &bridge(),
+                &SyncOptions {
+                    allow_unsigned: true,
+                    force_replay: true,
+                    allow_tofu: true,
+                    ..SyncOptions::default()
+                },
+            ))
             .map_err(|e| e.to_string())
     })
 }
@@ -301,8 +310,12 @@ fn run_once_applies_full_manifest_end_to_end() {
             min_schema_version: MANIFEST_SCHEMA_VERSION,
             min_bridge_version: None,
             manifest_version: version(),
-            issued_at: "2026-05-01T12:00:00+00:00".into(),
-            not_before: "2026-05-01T12:00:00+00:00".into(),
+            issued_at: chrono::DateTime::parse_from_rfc3339("2026-05-01T12:00:00+00:00")
+                .expect("rfc3339")
+                .with_timezone(&chrono::Utc),
+            not_before: chrono::DateTime::parse_from_rfc3339("2026-05-01T12:00:00+00:00")
+                .expect("rfc3339")
+                .with_timezone(&chrono::Utc),
             user_id: fixture_user_id(),
             tenant_id: None,
             user: Some(UserInfo {
@@ -478,8 +491,12 @@ fn run_once_empty_manifest_writes_no_plugins() {
             min_schema_version: MANIFEST_SCHEMA_VERSION,
             min_bridge_version: None,
             manifest_version: version(),
-            issued_at: "2026-05-01T12:00:00+00:00".into(),
-            not_before: "2026-05-01T12:00:00+00:00".into(),
+            issued_at: chrono::DateTime::parse_from_rfc3339("2026-05-01T12:00:00+00:00")
+                .expect("rfc3339")
+                .with_timezone(&chrono::Utc),
+            not_before: chrono::DateTime::parse_from_rfc3339("2026-05-01T12:00:00+00:00")
+                .expect("rfc3339")
+                .with_timezone(&chrono::Utc),
             user_id: fixture_user_id(),
             tenant_id: None,
             user: None,
@@ -538,8 +555,12 @@ fn run_once_surfaces_plugin_file_404_as_apply_failure() {
             min_schema_version: MANIFEST_SCHEMA_VERSION,
             min_bridge_version: None,
             manifest_version: version(),
-            issued_at: "2026-05-01T12:00:00+00:00".into(),
-            not_before: "2026-05-01T12:00:00+00:00".into(),
+            issued_at: chrono::DateTime::parse_from_rfc3339("2026-05-01T12:00:00+00:00")
+                .expect("rfc3339")
+                .with_timezone(&chrono::Utc),
+            not_before: chrono::DateTime::parse_from_rfc3339("2026-05-01T12:00:00+00:00")
+                .expect("rfc3339")
+                .with_timezone(&chrono::Utc),
             user_id: fixture_user_id(),
             tenant_id: None,
             user: None,
@@ -595,8 +616,12 @@ fn manifest_with(servers: Vec<ManagedMcpServer>, enabled_hosts: Vec<String>) -> 
         min_schema_version: MANIFEST_SCHEMA_VERSION,
         min_bridge_version: None,
         manifest_version: version(),
-        issued_at: "2026-05-01T12:00:00+00:00".into(),
-        not_before: "2026-05-01T12:00:00+00:00".into(),
+        issued_at: chrono::DateTime::parse_from_rfc3339("2026-05-01T12:00:00+00:00")
+            .expect("rfc3339")
+            .with_timezone(&chrono::Utc),
+        not_before: chrono::DateTime::parse_from_rfc3339("2026-05-01T12:00:00+00:00")
+            .expect("rfc3339")
+            .with_timezone(&chrono::Utc),
         user_id: fixture_user_id(),
         tenant_id: None,
         user: None,
@@ -678,30 +703,6 @@ fn a_loopback_mcp_url_is_rewritten_to_the_gateway_host() {
         remote["url"].as_str(),
         Some("https://remote.invalid/mcp"),
         "a non-loopback URL is left alone"
-    );
-    let _ = (&server, &pat_dir);
-}
-
-#[test]
-fn applying_a_manifest_prunes_legacy_bridge_state() {
-    let m = manifest_with(vec![], vec![]);
-    let (server, dirs, pat_dir) = serve(&m, "pat-prune");
-
-    let legacy_plugin = dirs.org_plugins.join("systemprompt-managed");
-    let legacy_meta = dirs.org_plugins.join(".systemprompt-bridge");
-    fs::create_dir_all(&legacy_plugin).unwrap();
-    fs::create_dir_all(&legacy_meta).unwrap();
-    fs::write(legacy_plugin.join("stale.json"), "{}").unwrap();
-
-    run_sync(&dirs).expect("sync applies");
-
-    assert!(
-        !legacy_plugin.exists(),
-        "the legacy aggregate plugin dir is pruned"
-    );
-    assert!(
-        !legacy_meta.exists(),
-        "the legacy bridge metadata marker dir is pruned"
     );
     let _ = (&server, &pat_dir);
 }
@@ -791,8 +792,12 @@ fn manifest_of(plugins: Vec<PluginEntry>, hooks: Vec<HookEntry>) -> SignedManife
         min_schema_version: MANIFEST_SCHEMA_VERSION,
         min_bridge_version: None,
         manifest_version: version(),
-        issued_at: "2026-05-01T12:00:00+00:00".into(),
-        not_before: "2026-05-01T12:00:00+00:00".into(),
+        issued_at: chrono::DateTime::parse_from_rfc3339("2026-05-01T12:00:00+00:00")
+            .expect("rfc3339")
+            .with_timezone(&chrono::Utc),
+        not_before: chrono::DateTime::parse_from_rfc3339("2026-05-01T12:00:00+00:00")
+            .expect("rfc3339")
+            .with_timezone(&chrono::Utc),
         user_id: fixture_user_id(),
         tenant_id: None,
         user: None,
@@ -1054,6 +1059,44 @@ fn a_plugin_without_its_manifest_file_is_reported_as_malformed() {
 }
 
 #[test]
+fn a_plugin_manifest_that_is_not_a_json_object_is_delivered_verbatim_and_reported() {
+    const ARRAY_BODY: &[u8] = br#"["not","an","object"]"#;
+    let m = manifest_of(
+        vec![plugin(
+            "acme-plugin",
+            vec![(".claude-plugin/plugin.json", ARRAY_BODY)],
+        )],
+        vec![],
+    );
+    let b = serve_plugins(
+        &m,
+        &[("acme-plugin", ".claude-plugin/plugin.json", ARRAY_BODY)],
+        "pat-malformed-shape",
+    );
+    let error = run_sync(&b.dirs).expect_err("a malformed manifest is a partial outcome");
+    assert!(
+        error.contains("sync PARTIAL") && error.contains("acme-plugin"),
+        "{error}"
+    );
+    let manifest = b
+        .dirs
+        .org_plugins
+        .join("acme-plugin")
+        .join(".claude-plugin")
+        .join("plugin.json");
+    assert_eq!(
+        fs::read(&manifest).expect("the plugin is promoted despite its manifest"),
+        ARRAY_BODY,
+        "a manifest that cannot be stamped is delivered verbatim"
+    );
+    assert!(
+        !b.dirs.metadata.join("last-sync.json").exists(),
+        "partial application must not advance replay state"
+    );
+    let _ = (&b.server, &b.pat_dir);
+}
+
+#[test]
 fn a_bundled_mcp_file_is_recorded_then_stripped_from_the_plugin_dir() {
     const MCP_BODY: &[u8] = br#"{"mcpServers":{"salesforce":{"url":"http://x"},"jira":{}}}"#;
     let m = manifest_of(
@@ -1202,7 +1245,7 @@ fn an_already_managed_plugin_json_is_left_byte_identical() {
 }
 
 #[test]
-fn a_plugin_json_that_is_not_an_object_is_left_alone() {
+fn a_plugin_json_that_is_not_an_object_is_left_alone_and_reported_as_malformed() {
     const ARRAY: &[u8] = br#"["not","an","object"]"#;
     const BROKEN: &[u8] = b"{not json at all";
     let m = manifest_of(
@@ -1220,7 +1263,14 @@ fn a_plugin_json_that_is_not_an_object_is_left_alone() {
         ],
         "pat-shape",
     );
-    run_sync(&b.dirs).expect("sync applies");
+    let err = run_sync(&b.dirs).expect_err("an unreadable bundle manifest makes the sync partial");
+    assert!(
+        err.contains("PARTIAL")
+            && err.contains("malformed")
+            && err.contains("acme-plugin")
+            && err.contains("acme-commons"),
+        "both bundles are named as malformed rather than failing the whole apply: {err}"
+    );
     for (id, expected) in [("acme-plugin", ARRAY), ("acme-commons", BROKEN)] {
         let on_disk = fs::read(
             b.dirs
@@ -1243,8 +1293,12 @@ fn empty_manifest() -> SignedManifest {
         min_schema_version: MANIFEST_SCHEMA_VERSION,
         min_bridge_version: None,
         manifest_version: version(),
-        issued_at: "2026-05-01T12:00:00+00:00".into(),
-        not_before: "2026-05-01T12:00:00+00:00".into(),
+        issued_at: chrono::DateTime::parse_from_rfc3339("2026-05-01T12:00:00+00:00")
+            .expect("rfc3339")
+            .with_timezone(&chrono::Utc),
+        not_before: chrono::DateTime::parse_from_rfc3339("2026-05-01T12:00:00+00:00")
+            .expect("rfc3339")
+            .with_timezone(&chrono::Utc),
         user_id: fixture_user_id(),
         tenant_id: None,
         user: None,

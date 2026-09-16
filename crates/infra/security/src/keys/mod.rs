@@ -14,8 +14,7 @@ use std::path::Path;
 
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
-use pkcs8::LineEnding;
-use rsa::pkcs8::{DecodePrivateKey, EncodePrivateKey, EncodePublicKey};
+use rsa::pkcs8::{DecodePrivateKey, EncodePrivateKey, EncodePublicKey, LineEnding};
 use rsa::rand_core::OsRng;
 use rsa::{RsaPrivateKey, RsaPublicKey};
 use sha2::{Digest, Sha256};
@@ -35,11 +34,11 @@ pub enum KeyError {
     #[error("RSA key generation failed: {0}")]
     Generation(#[source] rsa::Error),
     #[error("PKCS#8 encoding failed: {0}")]
-    Encode(#[source] pkcs8::Error),
+    Encode(#[source] rsa::pkcs8::Error),
     #[error("SPKI encoding failed: {0}")]
-    EncodeSpki(#[source] pkcs8::spki::Error),
+    EncodeSpki(#[source] rsa::pkcs8::spki::Error),
     #[error("PKCS#8 decoding failed: {0}")]
-    Decode(#[source] pkcs8::Error),
+    Decode(#[source] rsa::pkcs8::Error),
     #[error("I/O error for {path}: {source}")]
     Io {
         path: String,

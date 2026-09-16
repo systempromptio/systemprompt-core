@@ -9,7 +9,6 @@
 
 use std::sync::Arc;
 
-use systemprompt_analytics::SessionRepository;
 use systemprompt_api::services::middleware::analytics::detection::collect_analysis_input;
 use systemprompt_identifiers::{SessionId, UserId};
 use systemprompt_test_fixtures::{seed_user_row, seed_user_session};
@@ -19,7 +18,10 @@ use super::common::setup_ctx;
 #[tokio::test]
 async fn collect_input_with_seeded_session_and_fingerprint() -> anyhow::Result<()> {
     let (db, ctx) = setup_ctx().await?;
-    let repo = Arc::new(SessionRepository::new(ctx.db_pool())?);
+    let repo = Arc::new(
+        systemprompt_test_fixtures::fixture_analytics_repositories(ctx.db_pool())
+            .map(|repositories| repositories.sessions)?,
+    );
 
     let user = UserId::new(format!("bd-{}", uuid::Uuid::new_v4()));
     let session = SessionId::generate();
@@ -43,7 +45,10 @@ async fn collect_input_with_seeded_session_and_fingerprint() -> anyhow::Result<(
 #[tokio::test]
 async fn collect_input_unknown_session_no_fingerprint_uses_fallbacks() -> anyhow::Result<()> {
     let (_db, ctx) = setup_ctx().await?;
-    let repo = Arc::new(SessionRepository::new(ctx.db_pool())?);
+    let repo = Arc::new(
+        systemprompt_test_fixtures::fixture_analytics_repositories(ctx.db_pool())
+            .map(|repositories| repositories.sessions)?,
+    );
 
     let session = SessionId::generate();
     let input = collect_analysis_input(&repo, session.clone(), None, None, 3).await;

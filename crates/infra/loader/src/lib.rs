@@ -28,12 +28,6 @@
 //! - [`error`] — public error types ([`ConfigLoadError`], [`ConfigWriteError`],
 //!   [`ExtensionLoadError`]).
 //!
-//! # Feature flags
-//!
-//! - `expose-internals` — exposes test-only entry points (notably
-//!   `ConfigLoader::load_from_content`) to dependent crates that exercise the
-//!   loader from outside `cfg(test)`. Off by default.
-//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -47,6 +41,7 @@ pub mod module_loader;
 pub mod profile_loader;
 pub mod services_bootstrap;
 pub mod services_root;
+pub mod subprocess;
 pub mod vertex_discovery;
 
 pub use bundle::{BundleError, BundleResult, ServicesSourceBootstrap};

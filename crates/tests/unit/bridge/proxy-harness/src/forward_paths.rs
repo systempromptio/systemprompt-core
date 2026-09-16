@@ -45,7 +45,7 @@ fn counting_refresh(mints: &Arc<AtomicUsize>) -> RefreshFn {
 
 fn shared_runtime_config(gateway_uri: &str) -> SharedRuntimeConfig {
     let cfg = Config {
-        gateway_url: Some(ValidatedUrl::new(gateway_uri)),
+        gateway_url: Some(ValidatedUrl::try_new(gateway_uri).expect("valid ValidatedUrl")),
         ..Default::default()
     };
     Arc::new(ArcSwap::from_pointee(RuntimeConfig::from_config(&cfg)))
@@ -114,9 +114,13 @@ impl Harness {
     }
 
     async fn authed_post(&self, p: &str, body: &'static str) -> reqwest::Response {
+        self.post_with(p, SECRET, body).await
+    }
+
+    async fn post_with(&self, p: &str, bearer: &str, body: &'static str) -> reqwest::Response {
         Self::client()
             .post(self.url(p))
-            .header("authorization", format!("Bearer {SECRET}"))
+            .header("authorization", format!("Bearer {bearer}"))
             .header("content-type", "application/json")
             .body(body)
             .send()
@@ -142,6 +146,7 @@ fn with_credentials<F: std::future::Future>(fut: F) -> F::Output {
     temp_env::with_vars(
         [
             ("XDG_CONFIG_HOME", Some(temp.path().as_os_str().to_owned())),
+            ("XDG_STATE_HOME", Some(temp.path().as_os_str().to_owned())),
             ("SP_BRIDGE_PAT", Some("sp-live-a.b".into())),
         ],
         || {
@@ -244,8 +249,9 @@ fn a_401_from_a_non_gateway_mcp_upstream_does_not_latch_sign_in() {
             );
             assert_eq!(
                 h.mints.load(Ordering::Relaxed),
-                2,
-                "the rejected token is dropped and a fresh one minted for the gateway"
+                1,
+                "only the gateway can declare its token bad; a foreign 401 neither signs out nor \
+                 re-mints, so a broken upstream cannot cause a mint storm"
             );
         });
     });
@@ -584,7 +590,7 @@ fn a_rejection_says_it_is_a_local_port_problem_not_a_gateway_key_problem() {
 }
 
 #[test]
-fn otel_posts_are_unauthenticated_and_rewritten_under_v1() {
+fn otel_posts_require_the_loopback_secret_and_are_rewritten_under_v1() {
     with_credentials(async {
         let h = spawn_harness().await;
         Mock::given(method("POST"))
@@ -595,16 +601,42 @@ fn otel_posts_are_unauthenticated_and_rewritten_under_v1() {
             .mount(&h.gateway)
             .await;
 
-        let resp = Harness::client()
+        let anonymous = Harness::client()
             .post(h.url("/otel/v1/traces?compression=gzip"))
             .body("payload")
             .send()
             .await
             .expect("otel post");
         assert_eq!(
+            anonymous.status().as_u16(),
+            403,
+            "telemetry forwarded with the user's gateway JWT is not an anonymous surface"
+        );
+        assert!(
+            h.upstream_requests().await.is_empty(),
+            "a rejected OTLP post never reaches the gateway"
+        );
+
+        let host_token = systemprompt_bridge::proxy::scoped_token::host_token(
+            &systemprompt_bridge::ids::LoopbackSecret::new(SECRET),
+            &systemprompt_bridge::ids::HostId::new("claude-desktop"),
+        );
+        let with_host_token = h
+            .post_with("/otel/v1/traces", host_token.as_str(), "payload")
+            .await;
+        assert_eq!(
+            with_host_token.status().as_u16(),
+            401,
+            "a host token read from managed preferences does not open the OTLP path"
+        );
+
+        let resp = h
+            .post_with("/otel/v1/traces?compression=gzip", SECRET, "payload")
+            .await;
+        assert_eq!(
             resp.status().as_u16(),
             200,
-            "no loopback secret is required on the OTLP path"
+            "the raw loopback secret opens the OTLP path"
         );
 
         let requests = h.upstream_requests().await;
@@ -627,12 +659,7 @@ fn a_bare_otel_post_is_rewritten_to_v1_otel() {
             .mount(&h.gateway)
             .await;
 
-        let resp = Harness::client()
-            .post(h.url("/otel"))
-            .body("payload")
-            .send()
-            .await
-            .expect("otel post");
+        let resp = h.post_with("/otel", SECRET, "payload").await;
         assert_eq!(resp.status().as_u16(), 202);
         assert_eq!(h.upstream_requests().await[0].url.path(), "/v1/otel");
     });
@@ -814,7 +841,7 @@ fn a_registered_mcp_server_is_routed_to_with_its_own_headers() {
             .expect("mcp fragment");
             systemprompt_bridge::mcp_registry::rehydrate_from_disk(
                 &REGISTRY,
-                &ValidatedUrl::new(SEED_GATEWAY),
+                &ValidatedUrl::try_new(SEED_GATEWAY).expect("valid ValidatedUrl"),
             )
             .expect("the seeded fragment rehydrates");
 
@@ -879,8 +906,29 @@ fn a_hook_route_mints_a_plugin_scoped_token_and_a_401_spares_the_shared_jwt() {
                 .await;
 
             let h = spawn_with_base(gateway, None).await;
-            let resp = h
+            let with_secret = h
                 .authed_post("/api/public/hooks/govern?plugin_id=acme-plugin", "{}")
+                .await;
+            assert_eq!(
+                with_secret.status().as_u16(),
+                401,
+                "the raw secret never appears on a hook path; only the plugin's hook token does"
+            );
+            assert!(
+                h.upstream_requests().await.is_empty(),
+                "a hook call with the wrong credential never reaches the gateway"
+            );
+
+            let hook_token = systemprompt_bridge::proxy::scoped_token::hook_token(
+                &systemprompt_bridge::ids::LoopbackSecret::new(SECRET),
+                &systemprompt_bridge::ids::PluginId::try_new("acme-plugin").expect("plugin id"),
+            );
+            let resp = h
+                .post_with(
+                    "/api/public/hooks/govern?plugin_id=acme-plugin",
+                    hook_token.as_str(),
+                    "{}",
+                )
                 .await;
             assert_eq!(resp.status().as_u16(), 401);
 
@@ -978,7 +1026,7 @@ fn seed_mcp_fragment(state: &tempfile::TempDir, name: &str, url: &str) {
     .expect("mcp fragment");
     systemprompt_bridge::mcp_registry::rehydrate_from_disk(
         &REGISTRY,
-        &ValidatedUrl::new(SEED_GATEWAY),
+        &ValidatedUrl::try_new(SEED_GATEWAY).expect("valid ValidatedUrl"),
     )
     .expect("the seeded fragment rehydrates");
 }

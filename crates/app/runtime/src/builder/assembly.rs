@@ -8,11 +8,12 @@
 use std::sync::Arc;
 
 use systemprompt_analytics::{AnalyticsService, FingerprintRepository, GeoIpReader};
+use systemprompt_config::paths::AppPaths;
 use systemprompt_database::{Database, DbPool};
 use systemprompt_marketplace::{AllowAllFilter, MarketplaceFilter, discover_filters};
 use systemprompt_models::auth::UserRole;
 use systemprompt_models::services::{SystemAdmin, SystemAdminConfig};
-use systemprompt_models::{AppPaths, Config, ContentConfigRaw, ContentRouting};
+use systemprompt_models::{Config, ContentConfigRaw, ContentRouting};
 use systemprompt_users::UserService;
 
 use crate::context::AppContext;
@@ -40,15 +41,28 @@ pub(super) fn assemble_content_analytics(
     let route_classifier = Arc::new(systemprompt_models::RouteClassifier::new(
         content_routing.clone(),
     ));
-    let analytics_repositories =
-        Arc::new(systemprompt_analytics::repository::AnalyticsRepositories::new(database)?);
+    let sessions: systemprompt_traits::DynSessionStore =
+        Arc::new(systemprompt_users::SessionRepository::new(database)?);
+    let event_store = Arc::new(
+        systemprompt_logging::AnalyticsRepository::new(database)
+            .map_err(|error| RuntimeError::Internal(error.to_string()))?,
+    );
+    let content_stats = Arc::new(systemprompt_content::ContentRepository::new(database)?);
+    let analytics_repositories = Arc::new(
+        systemprompt_analytics::repository::AnalyticsRepositories::new(
+            database,
+            Arc::clone(&sessions),
+            event_store,
+            content_stats,
+        )?,
+    );
     let analytics_service = Arc::new(AnalyticsService::new(
         geoip_reader.clone(),
         content_routing,
         &analytics_repositories,
     ));
 
-    let fingerprint_repo = match FingerprintRepository::new(database) {
+    let fingerprint_repo = match FingerprintRepository::new(database, sessions) {
         Ok(repo) => Some(Arc::new(repo)),
         Err(e) => {
             tracing::warn!(error = %e, "Failed to initialize fingerprint repository");

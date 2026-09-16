@@ -24,7 +24,7 @@ mod mcp_tool_to_definition_tests {
                 }
             })),
             output_schema: Some(json!({"type": "string"})),
-            service_id: McpServerId::new("test-service"),
+            service_id: McpServerId::try_new("test-service").expect("valid McpServerId"),
             terminal_on_success: true,
             model_config: None,
         }
@@ -74,7 +74,7 @@ mod mcp_tool_to_definition_tests {
             description: None,
             input_schema: None,
             output_schema: None,
-            service_id: McpServerId::new("service"),
+            service_id: McpServerId::try_new("service").expect("valid McpServerId"),
             terminal_on_success: false,
             model_config: None,
         };
@@ -96,7 +96,7 @@ mod definition_to_mcp_tool_tests {
             description: Some("A defined tool".to_string()),
             input_schema: Some(json!({"type": "object"})),
             output_schema: None,
-            service_id: "def-service".to_string(),
+            service_id: McpServerId::try_new("def-service").expect("valid McpServerId"),
             terminal_on_success: false,
             model_config: None,
         }
@@ -132,7 +132,7 @@ mod definition_to_mcp_tool_tests {
             description: Some("Test roundtrip".to_string()),
             input_schema: Some(json!({"type": "object", "properties": {}})),
             output_schema: Some(json!({"type": "array"})),
-            service_id: McpServerId::new("roundtrip-service"),
+            service_id: McpServerId::try_new("roundtrip-service").expect("valid McpServerId"),
             terminal_on_success: true,
             model_config: None,
         };

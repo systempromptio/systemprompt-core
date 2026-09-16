@@ -370,7 +370,7 @@ async fn link_rows(pool: &DbPool, user_id: &UserId) -> i64 {
         "SELECT count(*) FROM webauthn_challenges WHERE user_id = $1 AND challenge_type = 'link'",
     )
     .bind(user_id.as_str())
-    .fetch_one(&*pool.pool().expect("pool"))
+    .fetch_one(&*pool.pool())
     .await
     .expect("count link rows")
 }

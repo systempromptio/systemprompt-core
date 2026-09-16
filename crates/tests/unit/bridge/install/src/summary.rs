@@ -124,6 +124,8 @@ fn install_summary_system_scope_renders_system_wide() {
 #[test]
 fn uninstall_summary_removed_and_kept() {
     let s = UninstallSummary {
+        foreign_plugins: Vec::new(),
+        host_warnings: vec!["Cowork enable-key cleanup failed: locked".to_owned()],
         metadata_removed: Some("/x".into()),
         metadata_already_clean: None,
         managed_profile: ManagedProfileOutcome::Removed("profile-id"),
@@ -135,11 +137,17 @@ fn uninstall_summary_removed_and_kept() {
     assert!(out.contains("Removed managed profile profile-id"));
     assert!(out.contains("left intact"));
     assert!(out.contains("Removed scheduled sync job io.systemprompt.bridge-sync"));
+    assert!(
+        out.contains("Warning: Cowork enable-key cleanup failed: locked"),
+        "host-cleanup warnings are part of the printed summary: {out}"
+    );
 }
 
 #[test]
 fn uninstall_summary_purged_and_not_installed() {
     let s = UninstallSummary {
+        foreign_plugins: Vec::new(),
+        host_warnings: Vec::new(),
         metadata_removed: None,
         metadata_already_clean: None,
         managed_profile: ManagedProfileOutcome::NotInstalled("pid"),

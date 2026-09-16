@@ -46,13 +46,13 @@ pub(super) async fn handle_streaming_request(
 
         if let Err(err) = validate_message_context(
             &params.message,
-            Some(context.user_id()),
+            context.user_id(),
             &state.agent_state.repositories().contexts,
         )
         .await
         {
             tracing::error!(error = %err, "Context validation failed for streaming request");
-            return Ok(invalid_params_stream(&request_id, &err).map(Ok));
+            return Ok(invalid_params_stream(&request_id, &err.to_string()).map(Ok));
         }
 
         Ok(create_sse_stream(CreateSseStreamParams {

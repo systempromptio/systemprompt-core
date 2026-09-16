@@ -3,63 +3,57 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::models::a2a::{
-    Artifact, DataPart, FileContent, FilePart, Message, MessageRole, Part, TextPart,
-};
+use crate::models::a2a::{Artifact, Message, Part};
 use crate::models::{
     ArtifactPartRow, ArtifactRow, ExecutionStepBatchRow, MessagePart, TaskMessage,
 };
+use crate::repository::content::artifact::artifact_from_row;
+use crate::repository::parts::part_from_row;
 use std::collections::HashMap;
-use systemprompt_identifiers::{ArtifactId, MessageId, TaskId};
-use systemprompt_models::a2a::ArtifactMetadata;
+use systemprompt_identifiers::{ArtifactId, MessageId};
 use systemprompt_models::{ExecutionStep, StepContent, StepId, StepStatus};
+use systemprompt_traits::RepositoryError;
 
 use super::converters;
 
 pub fn build_execution_steps(
     steps: Option<&Vec<&ExecutionStepBatchRow>>,
-) -> Option<Vec<ExecutionStep>> {
-    let steps = steps?;
+) -> Result<Option<Vec<ExecutionStep>>, RepositoryError> {
+    let Some(steps) = steps else {
+        return Ok(None);
+    };
     if steps.is_empty() {
-        return None;
+        return Ok(None);
     }
 
-    let result: Vec<ExecutionStep> = steps
-        .iter()
-        .filter_map(|row| {
-            let status = row
-                .status
-                .parse::<StepStatus>()
-                .map_err(|e| {
-                    tracing::debug!(step_id = %row.step_id, error = %e, "Invalid step status, skipping");
-                    e
-                })
-                .ok()?;
-            let content: StepContent = serde_json::from_value(row.content.clone())
-                .map_err(|e| {
-                    tracing::debug!(step_id = %row.step_id, error = %e, "Invalid step content, skipping");
-                    e
-                })
-                .ok()?;
+    let mut result = Vec::with_capacity(steps.len());
+    for row in steps {
+        let status = row.status.parse::<StepStatus>().map_err(|e| {
+            RepositoryError::InvalidData(format!(
+                "execution step {} has an invalid status: {e}",
+                row.step_id
+            ))
+        })?;
+        let content: StepContent = serde_json::from_value(row.content.clone()).map_err(|e| {
+            RepositoryError::InvalidData(format!(
+                "execution step {} has invalid content: {e}",
+                row.step_id
+            ))
+        })?;
 
-            Some(ExecutionStep {
-                step_id: StepId(row.step_id.to_string()),
-                task_id: row.task_id.clone(),
-                status,
-                started_at: row.started_at,
-                completed_at: row.completed_at,
-                duration_ms: row.duration_ms,
-                error_message: row.error_message.clone(),
-                content,
-            })
-        })
-        .collect();
-
-    if result.is_empty() {
-        None
-    } else {
-        Some(result)
+        result.push(ExecutionStep {
+            step_id: StepId(row.step_id.to_string()),
+            task_id: row.task_id.clone(),
+            status,
+            started_at: row.started_at,
+            completed_at: row.completed_at,
+            duration_ms: row.duration_ms,
+            error_message: row.error_message.clone(),
+            content,
+        });
     }
+
+    Ok(Some(result))
 }
 
 #[expect(
@@ -69,67 +63,21 @@ pub fn build_execution_steps(
 pub fn build_messages(
     messages: Option<&Vec<&TaskMessage>>,
     parts_by_message: &HashMap<MessageId, Vec<&MessagePart>>,
-) -> Option<Vec<Message>> {
-    let messages = messages?;
-    if messages.is_empty() {
-        return None;
-    }
-
-    let mut result = Vec::new();
-    for msg_row in messages {
-        let parts = build_message_parts(parts_by_message.get(&msg_row.message_id));
-
-        let reference_task_ids = msg_row
-            .reference_task_ids
-            .as_ref()
-            .map(|ids| ids.iter().map(|id| TaskId::new(id.clone())).collect());
-
-        let mut final_metadata = msg_row
-            .metadata
-            .clone()
-            .unwrap_or_else(|| serde_json::json!({}));
-        if let Some(client_id) = &msg_row.client_message_id
-            && let Some(obj) = final_metadata.as_object_mut()
-        {
-            obj.insert(
-                "clientMessageId".to_owned(),
-                serde_json::Value::String(client_id.clone()),
-            );
-        }
-
-        let role = match msg_row.role.as_str() {
-            "user" | "ROLE_USER" => MessageRole::User,
-            _ => MessageRole::Agent,
-        };
-
-        result.push(Message {
-            role,
-            parts,
-            message_id: msg_row.message_id.clone(),
-            task_id: Some(msg_row.task_id.clone()),
-            context_id: msg_row.context_id.clone(),
-            metadata: if final_metadata == serde_json::json!({}) {
-                None
-            } else {
-                Some(final_metadata)
-            },
-            extensions: None,
-            reference_task_ids,
-        });
-    }
-
-    Some(result)
-}
-
-fn build_message_parts(parts: Option<&Vec<&MessagePart>>) -> Vec<Part> {
-    let Some(parts) = parts else {
-        return Vec::new();
+) -> Result<Option<Vec<Message>>, RepositoryError> {
+    let Some(messages) = messages else {
+        return Ok(None);
     };
+    if messages.is_empty() {
+        return Ok(None);
+    }
 
-    parts
-        .iter()
-        .filter_map(|p| converters::build_part_from_row(p))
-        .collect()
+    let mut result = Vec::with_capacity(messages.len());
+    for msg_row in messages {
+        let parts = build_parts(parts_by_message.get(&msg_row.message_id))?;
+        result.push(converters::message_from_row((*msg_row).clone(), parts));
+    }
+
+    Ok(Some(result))
 }
 
 #[expect(
@@ -139,107 +87,28 @@ fn build_message_parts(parts: Option<&Vec<&MessagePart>>) -> Vec<Part> {
 pub fn build_artifacts(
     artifacts: Option<&Vec<&ArtifactRow>>,
     artifact_parts_by_id: &HashMap<ArtifactId, Vec<&ArtifactPartRow>>,
-) -> Option<Vec<Artifact>> {
-    let artifacts = artifacts?;
+) -> Result<Option<Vec<Artifact>>, RepositoryError> {
+    let Some(artifacts) = artifacts else {
+        return Ok(None);
+    };
     if artifacts.is_empty() {
-        return None;
+        return Ok(None);
     }
 
-    let mut result = Vec::new();
+    let mut result = Vec::with_capacity(artifacts.len());
     for row in artifacts {
-        let artifact = build_artifact(row, artifact_parts_by_id);
-        result.push(artifact);
+        let parts = build_parts(artifact_parts_by_id.get(&row.artifact_id))?;
+        result.push(artifact_from_row((*row).clone(), parts));
     }
 
-    Some(result)
+    Ok(Some(result))
 }
 
-fn build_artifact(
-    row: &ArtifactRow,
-    artifact_parts_by_id: &HashMap<ArtifactId, Vec<&ArtifactPartRow>>,
-) -> Artifact {
-    let metadata_value = row
-        .metadata
-        .clone()
-        .unwrap_or_else(|| serde_json::json!({}));
-
-    let metadata = ArtifactMetadata {
-        artifact_type: row.artifact_type.clone(),
-        context_id: row.context_id.clone(),
-        created_at: row.created_at.to_rfc3339(),
-        task_id: row.task_id.clone(),
-        rendering_hints: metadata_value.get("rendering_hints").cloned(),
-        source: row.source.clone(),
-        mcp_execution_id: row.mcp_execution_id.clone().map(|id| id.to_string()),
-        mcp_schema: metadata_value.get("mcp_schema").cloned(),
-        is_internal: metadata_value
-            .get("is_internal")
-            .and_then(serde_json::Value::as_bool),
-        fingerprint: row.fingerprint.clone(),
-        tool_name: row.tool_name.clone(),
-        execution_index: metadata_value
-            .get("execution_index")
-            .and_then(serde_json::Value::as_u64)
-            .map(|v| v as usize),
-        skill_id: row.skill_id.clone(),
-        skill_name: row.skill_name.clone(),
-    };
-
-    let extensions = metadata_value
-        .get("artifact_extensions")
-        .and_then(|v| v.as_array())
-        .cloned()
-        .unwrap_or_else(|| {
-            vec![serde_json::json!(
-                systemprompt_models::a2a::ARTIFACT_RENDERING_URI
-            )]
-        });
-
-    let parts = build_artifact_parts(artifact_parts_by_id.get(&row.artifact_id));
-
-    Artifact {
-        id: row.artifact_id.clone(),
-        title: row.name.clone(),
-        description: row.description.clone(),
-        parts,
-        extensions,
-        metadata,
-    }
-}
-
-fn build_artifact_parts(parts: Option<&Vec<&ArtifactPartRow>>) -> Vec<Part> {
+fn build_parts<R: crate::repository::parts::PartColumns>(
+    parts: Option<&Vec<&R>>,
+) -> Result<Vec<Part>, RepositoryError> {
     let Some(parts) = parts else {
-        return Vec::new();
+        return Ok(Vec::new());
     };
-
-    let mut result = Vec::new();
-    for row in parts {
-        let part = match row.part_kind.as_str() {
-            "text" => {
-                let text = row.text_content.clone().unwrap_or_else(String::new);
-                Part::Text(TextPart { text })
-            },
-            "file" => Part::File(FilePart {
-                file: FileContent {
-                    name: row.file_name.clone(),
-                    mime_type: row.file_mime_type.clone(),
-                    bytes: row.file_bytes.clone(),
-                    url: row.file_uri.clone(),
-                },
-            }),
-            "data" => {
-                let Some(data_value) = &row.data_content else {
-                    continue;
-                };
-                let Some(data) = data_value.as_object() else {
-                    continue;
-                };
-                Part::Data(DataPart { data: data.clone() })
-            },
-            _ => continue,
-        };
-        result.push(part);
-    }
-
-    result
+    parts.iter().map(|row| part_from_row(*row)).collect()
 }

@@ -18,17 +18,23 @@ use crate::error::{OauthError, OauthResult};
 use crate::state::OAuthState;
 
 /// Enterprise identity asserted by an ID-JAG.
+///
+/// `email_verified` is carried verbatim from the issuer's claim and defaults
+/// to `false`; an email is never treated as verified by its presence, because
+/// verified-email linking binds the principal to an existing local account.
 #[derive(Debug, Clone)]
 pub struct EnterprisePrincipal {
     pub issuer: String,
     pub sub: String,
     pub email: Option<String>,
+    pub email_verified: bool,
 }
 
 impl EnterprisePrincipal {
-    fn verified_claims(&self) -> FederatedIdentityClaims {
+    #[must_use]
+    pub fn verified_claims(&self) -> FederatedIdentityClaims {
         FederatedIdentityClaims {
-            email_verified: self.email.is_some(),
+            email_verified: self.email_verified && self.email.is_some(),
             email: self.email.clone(),
             ..Default::default()
         }

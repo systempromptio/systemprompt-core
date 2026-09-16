@@ -6,8 +6,8 @@
 use std::path::Path;
 
 use crate::error::McpDomainResult;
+use systemprompt_config::paths::AppPaths;
 use systemprompt_database::{CreateServiceInput, ServiceRepository};
-use systemprompt_models::AppPaths;
 
 use super::ServiceInfo;
 use crate::McpServerConfig;

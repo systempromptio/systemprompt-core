@@ -93,7 +93,8 @@ fn recovery_is_explicit_reverified_and_never_applied_to_tools() {
     assert_eq!(evaluation.chain[0].result, ChainEntryResult::Warn);
     assert!(!format!("{evaluation:?}").contains(KEY));
     ctx.target = GovernedTarget::Tool {
-        tool: systemprompt_identifiers::McpToolName::new("send_email"),
+        tool: systemprompt_identifiers::McpToolName::try_new("send_email")
+            .expect("valid McpToolName"),
     };
     assert!(matches!(
         engine
@@ -174,7 +175,8 @@ impl systemprompt_security::policy::GovernancePolicy for LeaksWithoutFindings {
     fn evaluate(&self, _: &PolicyContext<'_>) -> Decision {
         Decision::Deny {
             reason: systemprompt_security::authz::types::DenyReason::SecretLeak {
-                pattern_id: systemprompt_identifiers::SecretPatternId::new("opaque"),
+                pattern_id: systemprompt_identifiers::SecretPatternId::try_new("opaque")
+                    .expect("valid SecretPatternId"),
                 pattern_name: std::borrow::Cow::Borrowed("opaque"),
                 location: systemprompt_security::policy::SecretLocation::new(
                     "prompt",

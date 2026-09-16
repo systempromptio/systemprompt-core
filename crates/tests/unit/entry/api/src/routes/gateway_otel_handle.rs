@@ -1,9 +1,9 @@
 //! Tests for the OTLP ingest entry point.
 //!
-//! `handle` is a best-effort sink: an exporter that gets anything other than a
-//! 2xx will retry forever and eventually wedge, so every input — empty body,
-//! garbage bytes, oversized payload, valid traces or logs — must be accepted.
-//! The only observable difference is whether the payload is ingested.
+//! `ingest_envelope` is a best-effort sink: an exporter that gets anything
+//! other than a 2xx will retry forever and eventually wedge, so every input —
+//! empty body, garbage bytes, oversized payload, valid traces or logs — must be
+//! accepted. The only observable difference is whether the payload is ingested.
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
@@ -14,7 +14,7 @@ use opentelemetry_proto::tonic::collector::trace::v1::ExportTraceServiceRequest;
 use opentelemetry_proto::tonic::logs::v1::{LogRecord, ResourceLogs, ScopeLogs};
 use opentelemetry_proto::tonic::trace::v1::{ResourceSpans, ScopeSpans, Span};
 use prost::Message;
-use systemprompt_api::routes::gateway::otel::handle;
+use systemprompt_api::routes::gateway::otel::ingest_envelope;
 
 fn request(body: Vec<u8>) -> Request<Body> {
     Request::builder()
@@ -58,7 +58,7 @@ fn log_payload() -> Vec<u8> {
 }
 
 async fn status_of(body: Vec<u8>) -> StatusCode {
-    handle(request(body)).await.status()
+    ingest_envelope(request(body)).await.status()
 }
 
 #[tokio::test]

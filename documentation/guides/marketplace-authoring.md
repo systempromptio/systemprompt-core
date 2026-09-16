@@ -152,6 +152,38 @@ These nine keys are rejected in either sidecar, by name, with an error saying wh
 
 This is why a sidecar carries no version of its own: the content version lives in the manifest, and the sidecar is versioned with its plugin by living in the same commit.
 
+### Plugin dependencies and Node packages
+
+A plugin may depend on other plugins, in Claude Code's own `plugin.json` vocabulary. The importer keeps the list as `plugin.dependencies` in the plugin's `config.yaml`, and the generated bundle writes it back out unchanged:
+
+```json
+{
+  "name": "storefront-migration",
+  "dependencies": [
+    "audit-logger",
+    { "name": "b2c-cli", "marketplace": "salesforce", "version": "^2.0" }
+  ]
+}
+```
+
+A bare name resolves inside the same marketplace, so that plugin must be one the marketplace carries. A dependency that names another marketplace is accepted only when the marketplace allowlists the target in `allowCrossMarketplaceDependenciesOn` (in `marketplace.json`, exactly as Claude Code reads it) **and** the target is either another marketplace in the same services tree or declared in the marketplace sidecar:
+
+```yaml
+schema: 1
+marketplace:
+  external_marketplaces:
+    - name: salesforce
+      source: { source: github, repo: SalesforceCommerceCloud/claude-plugins }
+    - name: partner-tools
+      source: { source: git, url: https://git.example.com/partner/claude-plugins.git }
+```
+
+`version`, when present, must be a semver range. A dependency on an undeclared or unallowlisted marketplace fails validation: the gateway never emits a manifest that Claude Code would refuse to install on every user's machine.
+
+The gateway never fetches an external marketplace. The bridge registers it with Claude Code (`extraKnownMarketplaces` in the user's `settings.json`), enables each foreign dependency at user scope, and writes the allowlist into the mirrored `marketplace.json`; Claude Code then clones and installs the dependency plugins itself at its next session start. Claude Desktop has no dependency model, so a plugin that declares dependencies raises a host warning there rather than installing them silently.
+
+A plugin whose skills ship Node scripts keeps `package.json` and its lockfile at the plugin root. The importer copies both, the bundle ships them, and the bridge runs the same frozen, script-less install Claude Code would (`npm ci --ignore-scripts`, or `bun install --frozen-lockfile --ignore-scripts` for `bun.lock`) into the synced plugin, bounded to 60 seconds. The lockfile must be one Claude Code accepts — `bun.lock`, `bun.lockb`, `npm-shrinkwrap.json` or `package-lock.json`, in that priority order; `yarn.lock` and `pnpm-lock.yaml` are not used because their installers cannot skip lifecycle scripts, and a `package.json` with no accepted lockfile is reported at import and shipped without one. A failed or impossible install is a sync warning, never a failed sync, and an unchanged plugin is not reinstalled on the next sync.
+
 ## 4. Skills
 
 Each `skills/<id>/SKILL.md` becomes `skills/<id>/config.yaml`, and every file and subdirectory beside it is copied unchanged.

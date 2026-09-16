@@ -12,7 +12,7 @@ use systemprompt_identifiers::{
 
 use super::ExperimentSpec;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecutionStatus {
     Queued,
@@ -25,7 +25,7 @@ pub enum ExecutionStatus {
     BudgetExhausted,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExperimentStatus {
     Queued,
@@ -35,7 +35,7 @@ pub enum ExperimentStatus {
     Blocked,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct BudgetRecord {
     pub id: EvalBudgetId,
     pub cap: i64,
@@ -44,7 +44,7 @@ pub struct BudgetRecord {
     pub frozen: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct ExperimentRecord {
     pub id: EvalExperimentId,
     pub owner_id: UserId,
@@ -56,7 +56,7 @@ pub struct ExperimentRecord {
     pub accounting: BudgetRecord,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct ExecutionRecord {
     pub id: EvalExecutionId,
     pub experiment_id: EvalExperimentId,
@@ -72,13 +72,13 @@ pub struct ExecutionRecord {
     pub result: Option<crate::repository::experiments::ExecutionCompletion>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, schemars::JsonSchema)]
 pub struct ExperimentDetail {
     pub experiment: ExperimentRecord,
     pub executions: Vec<ExecutionRecord>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, schemars::JsonSchema)]
 pub struct ExperimentPreflight {
     pub execution_count: u64,
     pub maximum_cost_microdollars: i64,

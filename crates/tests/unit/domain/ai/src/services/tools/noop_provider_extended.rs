@@ -1,6 +1,6 @@
 use serde_json::json;
 use systemprompt_ai::services::tools::NoopToolProvider;
-use systemprompt_identifiers::McpServerId;
+use systemprompt_identifiers::{AgentName, McpServerId};
 use systemprompt_test_fixtures::fixture_actor;
 use systemprompt_traits::{ToolCallRequest, ToolContext, ToolProvider, ToolProviderError};
 
@@ -41,7 +41,11 @@ mod noop_error_details_tests {
         };
 
         let err = provider
-            .call_tool(&request, &McpServerId::new("svc"), &context)
+            .call_tool(
+                &request,
+                &McpServerId::try_new("svc").expect("valid McpServerId"),
+                &context,
+            )
             .await
             .unwrap_err();
 
@@ -59,7 +63,11 @@ mod noop_error_details_tests {
         };
 
         let err = provider
-            .call_tool(&request, &McpServerId::new("svc"), &context)
+            .call_tool(
+                &request,
+                &McpServerId::try_new("svc").expect("valid McpServerId"),
+                &context,
+            )
             .await
             .unwrap_err();
 
@@ -83,11 +91,19 @@ mod noop_error_details_tests {
         };
 
         let err1 = provider
-            .call_tool(&request, &McpServerId::new("service-a"), &context)
+            .call_tool(
+                &request,
+                &McpServerId::try_new("service-a").expect("valid McpServerId"),
+                &context,
+            )
             .await
             .unwrap_err();
         let err2 = provider
-            .call_tool(&request, &McpServerId::new("service-b"), &context)
+            .call_tool(
+                &request,
+                &McpServerId::try_new("service-b").expect("valid McpServerId"),
+                &context,
+            )
             .await
             .unwrap_err();
 
@@ -100,11 +116,23 @@ mod noop_error_details_tests {
         let provider = NoopToolProvider::new();
         let context = ToolContext::new(fixture_actor(), "token");
 
-        let tools_a = provider.list_tools("agent-a", &context).await.unwrap();
-        let tools_b = provider.list_tools("agent-b", &context).await.unwrap();
+        let tools_a = provider
+            .list_tools(
+                &AgentName::try_new("agent-a").expect("valid AgentName"),
+                &context,
+            )
+            .await
+            .unwrap();
+        let tools_b = provider
+            .list_tools(
+                &AgentName::try_new("agent-b").expect("valid AgentName"),
+                &context,
+            )
+            .await
+            .unwrap();
 
-        assert!(tools_a.is_empty());
-        assert!(tools_b.is_empty());
+        assert!(tools_a.tools.is_empty());
+        assert!(tools_b.tools.is_empty());
     }
 
     #[tokio::test]
@@ -112,11 +140,11 @@ mod noop_error_details_tests {
         let provider = NoopToolProvider::new();
 
         provider
-            .refresh_connections("agent-x")
+            .refresh_connections(&AgentName::try_new("agent-x").expect("valid AgentName"))
             .await
             .expect("refresh a");
         provider
-            .refresh_connections("agent-y")
+            .refresh_connections(&AgentName::try_new("agent-y").expect("valid AgentName"))
             .await
             .expect("refresh b");
     }

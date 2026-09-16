@@ -1,5 +1,9 @@
 //! [`PageDataProvider`] contract for supplying per-page template data.
 //!
+//! Providers are held as `Arc<dyn PageDataProvider>` by the content
+//! extension, so the trait uses `#[async_trait]`; native `async fn` in traits
+//! is not `dyn`-compatible.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -18,7 +22,9 @@ pub struct PageContext<'a> {
     pub locale: &'a LocaleCode,
     content_config: &'a (dyn Any + Send + Sync),
     db_pool: &'a (dyn Any + Send + Sync),
+    // JSON: Tera template context item; the page data model is dynamic.
     content_item: Option<&'a Value>,
+    // JSON: Tera template context item; the page data model is dynamic.
     all_items: Option<&'a [Value]>,
 }
 
@@ -83,11 +89,13 @@ impl<'a> PageContext<'a> {
     }
 
     #[must_use]
+    // JSON: Tera template context item; the page data model is dynamic.
     pub const fn content_item(&self) -> Option<&Value> {
         self.content_item
     }
 
     #[must_use]
+    // JSON: Tera template context item; the page data model is dynamic.
     pub const fn all_items(&self) -> Option<&[Value]> {
         self.all_items
     }

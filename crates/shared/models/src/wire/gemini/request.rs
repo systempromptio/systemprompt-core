@@ -21,6 +21,7 @@ use crate::wire::canonical::{
 };
 
 #[must_use]
+// JSON: Gemini `generateContent` request body; upstream JSON is the contract.
 pub fn build_request_body(request: &CanonicalRequest, limits: Option<ModelLimits>) -> Value {
     let body = GeminiRequest {
         contents: contents(request),

@@ -78,7 +78,7 @@ fn test_ctx() -> RequestContext {
         SessionId::new("s-tool"),
         TraceId::new("t-tool"),
         ContextId::generate(),
-        AgentName::new("agent-tool"),
+        AgentName::try_new("agent-tool").expect("valid AgentName"),
     )
     .with_actor(systemprompt_identifiers::Actor::user(UserId::new(
         "user-tool",

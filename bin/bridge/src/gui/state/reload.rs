@@ -3,27 +3,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use serde::Deserialize;
-
 use super::{AppStateSnapshot, CachedToken};
 use crate::auth::{cache, setup};
 use crate::config::{self, paths};
 
 use super::counters::{count_malformed_plugin_dirs, count_plugin_dirs};
-
-#[derive(Debug, Deserialize)]
-struct LastSyncRecord {
-    #[serde(default)]
-    gateway: Option<systemprompt_identifiers::ValidatedUrl>,
-    #[serde(default)]
-    synced_at: Option<String>,
-    #[serde(default)]
-    manifest_version: Option<String>,
-    #[serde(default)]
-    enabled_hosts: Vec<String>,
-    #[serde(default)]
-    host_model_protocols: std::collections::BTreeMap<String, Vec<String>>,
-}
 
 pub(super) fn reload_into(snap: &mut AppStateSnapshot) {
     let cfg = match config::load() {
@@ -55,6 +39,7 @@ pub(super) fn reload_into(snap: &mut AppStateSnapshot) {
         snap.pat_present = false;
     }
 
+    snap.elevated = process_elevated();
     let loc = paths::org_plugins_effective();
     snap.plugins_dir = loc.as_ref().map(|l| l.path.display().to_string());
     snap.last_sync_summary = None;
@@ -89,19 +74,18 @@ pub(super) fn reload_into(snap: &mut AppStateSnapshot) {
     }
 
     let gateway = config::gateway_url_or_default(&cfg);
-    if let Some(meta) = paths::bridge_metadata_dir()
-        && let Ok(bytes) = std::fs::read(meta.join(paths::LAST_SYNC_SENTINEL))
-        && let Ok(record) = serde_json::from_slice::<LastSyncRecord>(&bytes)
-        && record
-            .gateway
-            .as_ref()
-            .is_some_and(|g| crate::mcp_registry::same_origin(g, &gateway))
-    {
-        let when = record.synced_at.as_deref().unwrap_or("unknown");
-        let manifest_version = record.manifest_version.as_deref().unwrap_or("?");
-        snap.last_sync_summary = Some(format!("{when} (manifest {manifest_version})"));
-        snap.enabled_hosts = record.enabled_hosts;
-        snap.host_model_protocols = record.host_model_protocols;
+    if let Some(meta) = paths::bridge_metadata_dir() {
+        match crate::last_sync::read_last_sync(&meta.join(paths::LAST_SYNC_SENTINEL)) {
+            Ok(Some(record)) if record.belongs_to(&gateway) => {
+                snap.last_sync_summary = Some(record.summary_line());
+                snap.enabled_hosts = record.enabled_hosts;
+                snap.host_model_protocols = record.host_model_protocols;
+            },
+            Ok(_) => {},
+            Err(e) => {
+                snap.last_sync_summary = Some(format!("unreadable: {e}"));
+            },
+        }
     }
 
     if let Some(loc) = loc {
@@ -110,4 +94,14 @@ pub(super) fn reload_into(snap: &mut AppStateSnapshot) {
         snap.skill_count = super::counters::count_skills_across_plugins(&loc.path);
         snap.agent_count = super::counters::count_agents_across_plugins(&loc.path);
     }
+}
+
+#[cfg(target_os = "windows")]
+fn process_elevated() -> bool {
+    crate::winproc::is_elevated()
+}
+
+#[cfg(not(target_os = "windows"))]
+const fn process_elevated() -> bool {
+    false
 }

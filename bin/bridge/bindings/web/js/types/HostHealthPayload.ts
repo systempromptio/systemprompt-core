@@ -3,4 +3,4 @@ import type { AppInstallState } from "./AppInstallState";
 import type { ProfileCode } from "./ProfileCode";
 import type { Verdict } from "./Verdict";
 
-export type HostHealthPayload = { profile: Verdict<ProfileCode>, missing_required: Array<string>, app: Verdict<AppInstallState>, host_running: boolean, host_processes: Array<string>, inference_models: Array<string>, probed_at_unix: bigint, };
+export type HostHealthPayload = { profile: Verdict<ProfileCode>, missing_required: Array<string>, app: Verdict<AppInstallState>, host_running: boolean | null, probe_error: string | null, host_processes: Array<string>, inference_models: Array<string>, probed_at_unix: bigint, };

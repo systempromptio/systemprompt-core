@@ -4,8 +4,8 @@
 //! bootstrap fixture (nextest runs one process per test).
 
 use systemprompt_config::ProfileBootstrap;
+use systemprompt_config::paths::AppPaths;
 use systemprompt_files::FilesConfig;
-use systemprompt_models::AppPaths;
 use systemprompt_models::profile::UNRESTRICTED_ACKNOWLEDGEMENT;
 
 fn profile_yaml(system: &std::path::Path, storage: &std::path::Path) -> String {

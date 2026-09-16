@@ -16,7 +16,7 @@ use systemprompt_api::services::gateway::protocol::outbound::openai_responses::O
 use systemprompt_api::services::gateway::protocol::outbound::{
     OutboundAdapter, OutboundCtx, OutboundOutcome, UpstreamError,
 };
-use systemprompt_identifiers::{ProviderId, RouteId};
+use systemprompt_identifiers::{ModelId, ProviderId, RouteId};
 use systemprompt_models::services::GatewayRoute;
 use wiremock::matchers::{header, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -59,7 +59,7 @@ fn route(provider: &str) -> GatewayRoute {
 
 fn rich_request() -> CanonicalRequest {
     CanonicalRequest {
-        model: "m".into(),
+        model: ModelId::new("m"),
         system: Some("be helpful".into()),
         messages: vec![
             CanonicalMessage {
@@ -301,7 +301,7 @@ async fn anthropic_outbound_no_system_no_tools() {
         .await;
     let r = route("anthropic");
     let req = CanonicalRequest {
-        model: "m".into(),
+        model: ModelId::new("m"),
         system: None,
         messages: vec![CanonicalMessage {
             role: Role::User,

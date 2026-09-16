@@ -10,7 +10,8 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use systemprompt_identifiers::{ContextId, LogId, SessionId, TaskId, TraceId, UserId};
-use systemprompt_logging::{CliService, LogEntry, TraceQueryService};
+use systemprompt_logging::{CliService, LogEntry};
+use systemprompt_runtime::TraceQueryService;
 
 use crate::CliConfig;
 use crate::shared::{CommandOutput, render_result};

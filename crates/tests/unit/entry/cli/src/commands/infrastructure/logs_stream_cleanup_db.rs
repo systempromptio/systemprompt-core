@@ -50,8 +50,6 @@ async fn seed_log(pool: &DbPool, level: LogLevel, module: &str, message: &str) {
     entry.metadata = Some(serde_json::json!({ "probe": message }));
     LoggingRepository::new(pool)
         .unwrap()
-        .with_terminal(false)
-        .with_database(true)
         .log(entry)
         .await
         .unwrap();
@@ -99,8 +97,6 @@ async fn stream_renders_all_levels_and_plain_entries() {
     let plain = LogEntry::new(LogLevel::Info, &module, "no metadata line", actor);
     LoggingRepository::new(&pool)
         .unwrap()
-        .with_terminal(false)
-        .with_database(true)
         .log(plain)
         .await
         .unwrap();

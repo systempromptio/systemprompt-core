@@ -17,15 +17,15 @@ const TEST_CONTEXT_ID_B: &str = "00000000-0000-4000-8000-000000000002";
 fn create_test_builder() -> CliSessionBuilder {
     CliSessionBuilder::new(
         SessionBinding::new(
-            ProfileName::new("test-profile"),
+            ProfileName::try_new("test-profile").expect("valid ProfileName"),
             "http://localhost:8080".to_owned(),
         ),
         SessionToken::new("test-token"),
         SessionId::new("session-123"),
-        ContextId::new_unchecked(TEST_CONTEXT_ID_A),
+        ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
         SessionIdentity::new(
             fixture_user_id(),
-            Email::new("test@example.com"),
+            Email::try_new("test@example.com").expect("valid Email"),
             UserType::User,
         ),
     )
@@ -135,7 +135,7 @@ fn test_cli_session_set_context_id() {
     let original_last_used = session.last_used;
 
     std::thread::sleep(std::time::Duration::from_millis(10));
-    session.set_context_id(ContextId::new_unchecked(TEST_CONTEXT_ID_B));
+    session.set_context_id(ContextId::try_new(TEST_CONTEXT_ID_B).expect("valid ContextId"));
 
     assert_eq!(session.context_id.as_str(), TEST_CONTEXT_ID_B);
     assert!(session.last_used > original_last_used);
@@ -183,15 +183,15 @@ fn test_cli_session_has_valid_credentials_true() {
 fn test_cli_session_has_valid_credentials_false_empty_token() {
     let session = CliSessionBuilder::new(
         SessionBinding::new(
-            ProfileName::new("profile"),
+            ProfileName::try_new("profile").expect("valid ProfileName"),
             "http://localhost:8080".to_owned(),
         ),
         SessionToken::new(""),
         SessionId::new("session"),
-        ContextId::new_unchecked(TEST_CONTEXT_ID_A),
+        ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
         SessionIdentity::new(
             fixture_user_id(),
-            Email::new("test@example.com"),
+            Email::try_new("test@example.com").expect("valid Email"),
             UserType::User,
         ),
     )
@@ -375,13 +375,16 @@ fn test_cli_session_load_from_path_invalid_json() {
 #[test]
 fn test_cli_session_builder_method() {
     let builder = CliSession::builder(
-        SessionBinding::new(ProfileName::new("p"), "http://localhost:8080".to_owned()),
+        SessionBinding::new(
+            ProfileName::try_new("p").expect("valid ProfileName"),
+            "http://localhost:8080".to_owned(),
+        ),
         SessionToken::new("t"),
         SessionId::new("s"),
-        ContextId::new_unchecked(TEST_CONTEXT_ID_A),
+        ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
         SessionIdentity::new(
             fixture_user_id(),
-            Email::new("test@example.com"),
+            Email::try_new("test@example.com").expect("valid Email"),
             UserType::User,
         ),
     );

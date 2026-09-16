@@ -13,7 +13,7 @@ use std::time::Duration;
 use systemprompt_database::DbPool;
 use systemprompt_events::{
     A2A_BROADCASTER, AGUI_BROADCASTER, ANALYTICS_BROADCASTER, Broadcaster, CONTEXT_BROADCASTER,
-    EventRouter, OUTBOX_CHANNEL, PostgresEventBridge,
+    EventRouter, OUTBOX_CHANNEL, PostgresEventBridge, RelayStatus,
 };
 use systemprompt_identifiers::{
     ConnectionId, ContextId, EventOutboxId, InstanceId, TaskId, UserId,
@@ -110,7 +110,9 @@ async fn agui_event_relays_through_bridge_to_local_subscriber() {
         move || {
             let user = user_for_route.clone();
             Box::pin(async move {
-                EventRouter::route_agui(&user, agui_event()).await;
+                EventRouter::route_agui(&user, agui_event())
+                    .await
+                    .into_local_logged();
             })
         },
         &mut rx,
@@ -118,15 +120,17 @@ async fn agui_event_relays_through_bridge_to_local_subscriber() {
     .await;
 
     AGUI_BROADCASTER.unregister(&user, &conn).await;
-    handle.abort();
+    let status_seen = handle.status();
+    handle.shutdown().await;
     cleanup(&pool, &user).await;
 
     assert!(
         delivered,
         "AG-UI event routed on one replica must reach the local subscriber via the bridge"
     );
-    assert!(
-        systemprompt_events::is_listening(),
+    assert_eq!(
+        status_seen,
+        RelayStatus::Listening,
         "a bridge that established its listener must report itself as listening"
     );
 }
@@ -150,7 +154,9 @@ async fn a2a_event_relays_through_bridge_to_local_subscriber() {
         move || {
             let user = user_for_route.clone();
             Box::pin(async move {
-                EventRouter::route_a2a(&user, a2a_event()).await;
+                EventRouter::route_a2a(&user, a2a_event())
+                    .await
+                    .into_local_logged();
             })
         },
         &mut rx,
@@ -158,7 +164,7 @@ async fn a2a_event_relays_through_bridge_to_local_subscriber() {
     .await;
 
     A2A_BROADCASTER.unregister(&user, &conn).await;
-    handle.abort();
+    handle.shutdown().await;
     cleanup(&pool, &user).await;
 
     assert!(
@@ -186,7 +192,9 @@ async fn system_event_relays_through_bridge_to_context_subscriber() {
         move || {
             let user = user_for_route.clone();
             Box::pin(async move {
-                EventRouter::route_system(&user, system_event()).await;
+                EventRouter::route_system(&user, system_event())
+                    .await
+                    .into_local_logged();
             })
         },
         &mut rx,
@@ -194,7 +202,7 @@ async fn system_event_relays_through_bridge_to_context_subscriber() {
     .await;
 
     CONTEXT_BROADCASTER.unregister(&user, &conn).await;
-    handle.abort();
+    handle.shutdown().await;
     cleanup(&pool, &user).await;
 
     assert!(
@@ -222,7 +230,9 @@ async fn analytics_event_relays_through_bridge_to_local_subscriber() {
         move || {
             let user = user_for_route.clone();
             Box::pin(async move {
-                EventRouter::route_analytics(&user, analytics_event()).await;
+                EventRouter::route_analytics(&user, analytics_event())
+                    .await
+                    .into_local_logged();
             })
         },
         &mut rx,
@@ -230,7 +240,7 @@ async fn analytics_event_relays_through_bridge_to_local_subscriber() {
     .await;
 
     ANALYTICS_BROADCASTER.unregister(&user, &conn).await;
-    handle.abort();
+    handle.shutdown().await;
     cleanup(&pool, &user).await;
 
     assert!(
@@ -252,8 +262,12 @@ async fn route_persists_queryable_outbox_row() {
     let user = unique_user_id("bridge-persist");
 
     EventRouter::install_relay(pool.clone(), InstanceId::new("origin"));
-    EventRouter::route_analytics(&user, analytics_event()).await;
-    EventRouter::route_system(&user, system_event()).await;
+    EventRouter::route_analytics(&user, analytics_event())
+        .await
+        .into_local_logged();
+    EventRouter::route_system(&user, system_event())
+        .await
+        .into_local_logged();
 
     let channels: Vec<(String,)> =
         sqlx::query_as("SELECT channel FROM event_outbox WHERE user_id = $1 ORDER BY channel")
@@ -329,7 +343,9 @@ where
 {
     for _ in 0..20 {
         poison().await;
-        EventRouter::route_analytics(user, analytics_event()).await;
+        EventRouter::route_analytics(user, analytics_event())
+            .await
+            .into_local_logged();
         if let Ok(Some(_)) = tokio::time::timeout(Duration::from_millis(500), rx.recv()).await {
             return true;
         }
@@ -365,7 +381,7 @@ async fn bridge_survives_missing_outbox_row_notification() {
     .await;
 
     ANALYTICS_BROADCASTER.unregister(&user, &conn).await;
-    handle.abort();
+    handle.shutdown().await;
     cleanup(&pool, &user).await;
 
     assert!(
@@ -407,7 +423,7 @@ async fn bridge_survives_unknown_channel_row() {
     .await;
 
     ANALYTICS_BROADCASTER.unregister(&user, &conn).await;
-    handle.abort();
+    handle.shutdown().await;
     cleanup(&pool, &user).await;
 
     assert!(
@@ -449,7 +465,7 @@ async fn bridge_survives_undecodable_payload() {
     .await;
 
     ANALYTICS_BROADCASTER.unregister(&user, &conn).await;
-    handle.abort();
+    handle.shutdown().await;
     cleanup(&pool, &user).await;
 
     assert!(
@@ -497,7 +513,7 @@ async fn bridge_survives_undecodable_payloads_on_every_channel() {
     .await;
 
     ANALYTICS_BROADCASTER.unregister(&user, &conn).await;
-    handle.abort();
+    handle.shutdown().await;
     cleanup(&pool, &user).await;
 
     assert!(
@@ -535,7 +551,9 @@ async fn bridge_reconnects_after_listener_connection_is_terminated() {
         move || {
             let user = user_for_route.clone();
             Box::pin(async move {
-                EventRouter::route_analytics(&user, analytics_event()).await;
+                EventRouter::route_analytics(&user, analytics_event())
+                    .await
+                    .into_local_logged();
             })
         },
         &mut rx,
@@ -551,7 +569,9 @@ async fn bridge_reconnects_after_listener_connection_is_terminated() {
         move || {
             let user = user_for_route.clone();
             Box::pin(async move {
-                EventRouter::route_analytics(&user, analytics_event()).await;
+                EventRouter::route_analytics(&user, analytics_event())
+                    .await
+                    .into_local_logged();
             })
         },
         &mut rx,
@@ -559,7 +579,7 @@ async fn bridge_reconnects_after_listener_connection_is_terminated() {
     .await;
 
     ANALYTICS_BROADCASTER.unregister(&user, &conn).await;
-    handle.abort();
+    handle.shutdown().await;
     cleanup(&pool, &user).await;
 
     assert!(
@@ -570,9 +590,7 @@ async fn bridge_reconnects_after_listener_connection_is_terminated() {
 
 // Paused time makes the retry back-off instantaneous, so several
 // connect-fail/sleep iterations run without any wall-clock cost. 30s covers
-// the 1s/2s/4s/8s/16s ramp toward the cap. The bridge lock is held because
-// `is_listening` is process-global: a concurrently succeeding bridge would set
-// it back to true.
+// the 1s/2s/4s/8s/16s ramp toward the cap.
 #[tokio::test(start_paused = true)]
 async fn bridge_survives_listener_connect_failure_and_keeps_retrying() {
     let _guard = BRIDGE_LOCK.lock().await;
@@ -586,23 +604,24 @@ async fn bridge_survives_listener_connect_failure_and_keeps_retrying() {
     let handle = PostgresEventBridge::new(pool, InstanceId::new("peer")).start();
     tokio::time::sleep(Duration::from_secs(30)).await;
 
-    assert!(
-        !handle.is_finished(),
-        "the bridge must keep retrying when the listener cannot connect, not exit"
-    );
-    assert!(
-        !systemprompt_events::is_listening(),
-        "a bridge that cannot establish its listener must report itself as not listening so the \
+    assert_eq!(
+        handle.status(),
+        RelayStatus::Reconnecting,
+        "a bridge that cannot establish its listener must report itself as reconnecting so the \
          health endpoint can surface the fault"
     );
-    handle.abort();
-    let err = handle
-        .await
-        .expect_err("an aborted bridge task must resolve to a JoinError");
-    assert!(
-        err.is_cancelled(),
-        "the bridge task must be cancelled by abort, not have panicked"
+    handle.shutdown().await;
+    assert_eq!(
+        handle.status(),
+        RelayStatus::Stopped,
+        "a cancelled bridge exits its retry loop instead of being aborted mid-sleep"
     );
+}
+
+#[test]
+fn a_bridge_that_never_started_is_not_listening() {
+    assert!(!RelayStatus::NotStarted.is_listening());
+    assert!(RelayStatus::Listening.is_listening());
 }
 
 async fn insert_outbox_with_age(pool: &sqlx::PgPool, id: &str, user: &UserId, age: &str) {
@@ -659,7 +678,7 @@ async fn bridge_prune_deletes_expired_rows_and_keeps_fresh_ones() {
     }
     let fresh_survived = outbox_row_exists(&pool, &fresh_id).await;
 
-    handle.abort();
+    handle.shutdown().await;
     cleanup(&pool, &user).await;
 
     assert!(
@@ -708,7 +727,7 @@ async fn bridge_skips_rows_it_originated_and_delivers_peer_rows() {
     let own_delivered = notified_row_delivers(&pool, &user, "self-node", &mut rx).await;
 
     ANALYTICS_BROADCASTER.unregister(&user, &conn).await;
-    handle.abort();
+    handle.shutdown().await;
     cleanup(&pool, &user).await;
 
     assert!(

@@ -16,11 +16,12 @@ use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
 
 use systemprompt_cloud::{CredentialsBootstrap, SessionStore};
+use systemprompt_config::paths::AppPaths;
 use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
 use systemprompt_files::FilesConfig;
 use systemprompt_logging::CliService;
 use systemprompt_models::profile::LogLevel;
-use systemprompt_models::{AppPaths, Config, Profile};
+use systemprompt_models::{Config, Profile};
 use systemprompt_runtime::{
     StartupValidator, display_validation_report, display_validation_warnings,
 };
@@ -177,13 +178,11 @@ pub(super) async fn init_secrets() -> Result<()> {
 
 pub(super) async fn init_paths(discover_models: bool) -> Result<()> {
     let profile = ProfileBootstrap::get()?;
+    let secrets = SecretsBootstrap::get()
+        .context("Secrets required to resolve the services bundle sources")?;
     let active_root = systemprompt_loader::ServicesSourceBootstrap::try_run(
         profile,
-        |name| {
-            SecretsBootstrap::get()
-                .ok()
-                .and_then(|s| s.get(name).cloned())
-        },
+        |name| secrets.get(name).cloned(),
         env!("CARGO_PKG_VERSION"),
     )
     .await

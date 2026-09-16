@@ -219,7 +219,13 @@ pub async fn handle_health(
     );
 
     let degraded_jobs = scheduler_health::degraded();
-    let relay_listening = systemprompt_events::is_listening();
+    let relay_status = ctx
+        .event_bridge()
+        .get()
+        .map_or(systemprompt_events::RelayStatus::NotStarted, |handle| {
+            handle.status()
+        });
+    let relay_listening = relay_status.is_listening();
 
     let (status, http_status) = if !db_healthy {
         ("unhealthy", StatusCode::SERVICE_UNAVAILABLE)
@@ -234,8 +240,17 @@ pub async fn handle_health(
         body["scheduler"] = json!({ "degraded_jobs": degraded_jobs });
     }
     if !relay_listening {
-        body["events"] = json!({ "relay": "not_listening" });
+        body["events"] = json!({ "relay": relay_label(relay_status) });
     }
 
     (http_status, Json(body))
+}
+
+const fn relay_label(status: systemprompt_events::RelayStatus) -> &'static str {
+    match status {
+        systemprompt_events::RelayStatus::NotStarted => "not_started",
+        systemprompt_events::RelayStatus::Listening => "listening",
+        systemprompt_events::RelayStatus::Reconnecting => "reconnecting",
+        systemprompt_events::RelayStatus::Stopped => "stopped",
+    }
 }

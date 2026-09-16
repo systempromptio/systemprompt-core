@@ -12,7 +12,6 @@ workspace = true
 
 [dependencies]
 systemprompt-agent = { workspace = true }
-systemprompt-analytics = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-models = { workspace = true }
@@ -21,7 +20,6 @@ systemprompt-test-fixtures = { workspace = true }
 systemprompt-test-mocks = { workspace = true }
 anyhow = { workspace = true }
 chrono = { workspace = true }
-rmcp = { workspace = true }
 serde_json = { workspace = true }
 sqlx = { workspace = true }
 tokio = { workspace = true }

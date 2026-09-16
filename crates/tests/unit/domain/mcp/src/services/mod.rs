@@ -41,8 +41,6 @@ mod registry_validator;
 mod schema;
 mod schema_loader;
 mod schema_loader_faults;
-mod schema_validator;
-mod schema_validator_scripted;
 mod spawn_env;
 mod spawner_env;
 mod startup_delay;

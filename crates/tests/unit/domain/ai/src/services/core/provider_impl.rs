@@ -167,7 +167,10 @@ async fn tool_discovery_and_execution_go_through_the_trait() {
     let (_user, context) = seeded_context(&pool).await;
 
     let tools = svc
-        .list_available_tools_for_agent(&AgentName::new("ai-core-test"), &context)
+        .list_available_tools_for_agent(
+            &AgentName::try_new("ai-core-test").expect("valid AgentName"),
+            &context,
+        )
         .await
         .expect("tool listing");
     assert!(
@@ -175,7 +178,10 @@ async fn tool_discovery_and_execution_go_through_the_trait() {
         "the noop tool provider advertises nothing, got {tools:?}"
     );
 
-    let declared = vec![McpTool::new("noop_tool", McpServerId::new("svc"))];
+    let declared = vec![McpTool::new(
+        "noop_tool",
+        McpServerId::try_new("svc").expect("valid McpServerId"),
+    )];
     let (calls, results) = svc.execute_tools(vec![], &declared, &context, None).await;
     assert!(
         calls.is_empty() && results.is_empty(),

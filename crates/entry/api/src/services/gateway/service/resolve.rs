@@ -33,7 +33,7 @@ pub(super) async fn resolve_upstream<'a>(
     request: &CanonicalRequest,
     ai_request_id: &AiRequestId,
 ) -> Result<ResolvedUpstream<'a>, DispatchError> {
-    if !config.is_model_exposed(registry, &request.model) {
+    if !config.is_model_exposed(registry, request.model.as_str()) {
         tracing::warn!(
             ai_request_id = %ai_request_id,
             model = %request.model,
@@ -79,7 +79,7 @@ pub(super) async fn resolve_upstream<'a>(
         ))
     })?;
 
-    enforce_route_requirements(&route, provider, &request.model, ai_request_id)?;
+    enforce_route_requirements(&route, provider, request.model.as_str(), ai_request_id)?;
 
     let credential = super::credentials::resolve(provider).await?;
     let endpoint =

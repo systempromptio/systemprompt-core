@@ -185,6 +185,7 @@ Audience validation requires a nonempty policy. The first-party session policy a
 | `mcp_per_second` | u64 | no | `200` | MCP server routes. |
 | `stream_per_second` | u64 | no | `100` | SSE stream routes. |
 | `content_per_second` | u64 | no | `50` | Content routes. |
+| `gateway_per_second` | u64 | no | `100` | Inference gateway routes (`/api/v1/gateway/*`, including OTLP ingest and bridge credential exchange). |
 | `burst_multiplier` | u64 | no | `3` | Burst allowance multiplier. |
 
 Limits are enforced per caller: a request carrying a signature-verified identity is bucketed by
@@ -286,6 +287,17 @@ Naming both `https` and `oci`, or neither, is a profile error. `auth_secret` nam
 `verify` takes `sha256` (a 64-hex archive digest) and `ed25519_public_keys` (base64 32-byte keys). At least one is required for every source; an empty `verify` is refused. Verification is fatal at every step and runs in order: archive digest, manifest signature, per-file checksums, content hash.
 
 Only the first source may be a base bundle. Every later source must own nothing but `marketplaces`, `plugins`, `skills`, `rules`, `hooks` and `artifacts`. Two sources claiming the same id, or the same base directory, is a boot error naming both.
+
+### Managed MCP servers (`services/mcp/*.yaml`)
+
+`crates/shared/models/src/mcp/deployment.rs`. Each file declares `mcp_servers.<name>` entries; the keys the bridge and boot validation depend on:
+
+| Key | Type | Required | Default | Meaning |
+|-----|------|----------|---------|---------|
+| `enabled` | bool | yes | — | Whether the server is served, validated and published to bridges. |
+| `tool_policy` | enum `allow` \| `deny` \| `prompt` | yes, for every enabled server | — | The decision a bridge-managed client (Claude Code, Claude Desktop) applies to every tool the server exposes. `allow` skips the per-call prompt; `prompt` asks; `deny` blocks. A server without it is withheld from the signed bridge manifest and `admin config validate` / startup report `mcp_servers.<name>.tool_policy` as an error. |
+| `endpoint` | string | for `external` servers | — | Absolute URL, or a path relative to the gateway. |
+| `external_auth` | object | no | absent | Per-user bearer resolution for an `external` server (`token_endpoint`, `header`, `scheme`). |
 
 ## `extensions`
 

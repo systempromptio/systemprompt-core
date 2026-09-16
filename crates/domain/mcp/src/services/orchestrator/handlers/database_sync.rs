@@ -6,7 +6,7 @@
 use crate::error::McpDomainResult;
 use async_trait::async_trait;
 
-use crate::services::database::DatabaseService;
+use crate::services::database::{DatabaseService, ServiceLifecycleStatus};
 
 use super::{EventHandler, McpEvent};
 
@@ -27,17 +27,17 @@ impl EventHandler for DatabaseSyncHandler {
         match event {
             McpEvent::ServiceStarted { service_name, .. } => {
                 self.database
-                    .update_service_status(service_name, "running")
+                    .update_service_status(service_name, ServiceLifecycleStatus::Running)
                     .await?;
             },
             McpEvent::ServiceFailed { service_name, .. } => {
                 self.database
-                    .update_service_status(service_name, "failed")
+                    .update_service_status(service_name, ServiceLifecycleStatus::Error)
                     .await?;
             },
             McpEvent::ServiceStopped { service_name, .. } => {
                 self.database
-                    .update_service_status(service_name, "stopped")
+                    .update_service_status(service_name, ServiceLifecycleStatus::Stopped)
                     .await?;
             },
             _ => {},

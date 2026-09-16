@@ -8,7 +8,7 @@ use std::future::Future;
 
 use tokio::sync::OwnedSemaphorePermit;
 
-use super::breaker::CircuitBreaker;
+use super::breaker::{CircuitBreaker, Probe};
 use super::bulkhead::Bulkhead;
 use super::classify::Outcome;
 use super::config::ResilienceConfig;
@@ -27,6 +27,15 @@ impl<E: fmt::Display> fmt::Display for AttemptError<E> {
             Self::Timeout(after) => write!(f, "attempt timed out after {after:?}"),
         }
     }
+}
+
+/// A bulkhead permit plus the breaker probe admitted alongside it. Settle
+/// the probe once the outcome is known; the permit lives as long as the
+/// dependency is in use (a stream keeps it until it ends).
+#[derive(Debug)]
+pub struct Admission<'a> {
+    pub permit: OwnedSemaphorePermit,
+    pub probe: Probe<'a>,
 }
 
 #[derive(Debug)]
@@ -76,7 +85,7 @@ impl ResilienceGuard {
         F: Fn() -> Fut + Send + Sync,
         Fut: Future<Output = Result<T, E>> + Send,
     {
-        let _permit = self.acquire_permit::<E>()?;
+        let Admission { permit, probe } = self.admit::<E>()?;
         let timeout = self.cfg.request_timeout;
 
         let classify_attempt = |err: &AttemptError<E>| match err {
@@ -91,23 +100,26 @@ impl ResilienceGuard {
             }
         };
 
-        match retry_async(&self.cfg.retry, &self.key, classify_attempt, attempt).await {
+        let outcome = retry_async(&self.cfg.retry, &self.key, classify_attempt, attempt).await;
+        let result = match outcome {
             Ok(value) => {
-                self.breaker.record_success();
+                probe.success();
                 Ok(value)
             },
             Err(AttemptError::Inner(err)) => {
-                self.breaker.record_failure();
+                probe.failure();
                 Err(ResilienceError::Inner(err))
             },
             Err(AttemptError::Timeout(after)) => {
-                self.breaker.record_failure();
+                probe.failure();
                 Err(ResilienceError::Timeout { after })
             },
-        }
+        };
+        drop(permit);
+        result
     }
 
-    pub fn acquire_permit<E>(&self) -> Result<OwnedSemaphorePermit, ResilienceError<E>>
+    pub fn admit<E>(&self) -> Result<Admission<'_>, ResilienceError<E>>
     where
         E: std::error::Error,
     {
@@ -118,11 +130,12 @@ impl ResilienceGuard {
                 key: self.key.clone(),
                 limit: self.bulkhead.limit(),
             })?;
-        self.breaker
+        let probe = self
+            .breaker
             .acquire()
             .map_err(|_e| ResilienceError::CircuitOpen {
                 key: self.key.clone(),
             })?;
-        Ok(permit)
+        Ok(Admission { permit, probe })
     }
 }

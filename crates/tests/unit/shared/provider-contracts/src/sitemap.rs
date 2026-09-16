@@ -76,7 +76,7 @@ fn url_entry_and_alternate_construct() {
         changefreq: "daily".to_string(),
         priority: 0.8,
         alternates: vec![SitemapAlternate {
-            hreflang: LocaleCode::new("de"),
+            hreflang: LocaleCode::try_new("de").expect("valid LocaleCode"),
             href: "https://example.com/de/x".to_string(),
         }],
     };

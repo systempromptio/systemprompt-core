@@ -12,6 +12,7 @@ mod banners;
 pub mod display;
 mod macros;
 mod service;
+mod sink;
 pub mod startup;
 pub mod table;
 pub mod theme;

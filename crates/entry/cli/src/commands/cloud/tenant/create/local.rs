@@ -55,7 +55,11 @@ pub async fn create_local_tenant(prompter: &dyn Prompter) -> Result<StoredTenant
     spinner.finish_and_clear();
 
     if let Err(e) = started {
-        remove_project(&docker, &project).ok();
+        if let Err(cleanup) = remove_project(&docker, &project) {
+            CliService::warning(&format!(
+                "Container '{project}' could not be removed after a failed start: {cleanup}"
+            ));
+        }
         return Err(e);
     }
     CliService::success(&format!("PostgreSQL container '{project}' is ready"));

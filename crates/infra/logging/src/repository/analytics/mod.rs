@@ -17,6 +17,8 @@ use systemprompt_identifiers::{AgentId, ContextId, SessionId, TaskId, UserId};
 
 use crate::models::LoggingError;
 
+mod ingestion;
+
 #[derive(Debug, Clone)]
 pub struct AnalyticsRepository {
     write_pool: Arc<PgPool>,

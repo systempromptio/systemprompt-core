@@ -1,4 +1,5 @@
-//! Claude Code picker wire shape and migration of older bridge-owned rows.
+//! Claude Code picker wire shape: the bridge-owned rows merged into the
+//! user's `modelPicker.options`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -29,15 +30,11 @@ pub fn merged_picker(
     let mut options: Vec<Value> = previous
         .into_iter()
         .filter(|row| {
-            row.get("model")
-                .or_else(|| row.get("id"))
-                .and_then(Value::as_str)
-                .is_none_or(|id| {
-                    !previously_ours.iter().any(|ours| ours == id)
-                        && !rows.iter().any(|replacement| replacement.id == id)
-                })
+            row.get("model").and_then(Value::as_str).is_none_or(|id| {
+                !previously_ours.iter().any(|ours| ours == id)
+                    && !rows.iter().any(|replacement| replacement.id == id)
+            })
         })
-        .map(normalize_legacy_row)
         .collect();
     options.extend(
         rows.iter()
@@ -48,14 +45,4 @@ pub fn merged_picker(
     }
     picker.insert("options".to_owned(), Value::Array(options));
     Some(Value::Object(picker))
-}
-
-fn normalize_legacy_row(mut row: Value) -> Value {
-    if let Some(fields) = row.as_object_mut()
-        && !fields.contains_key("model")
-        && let Some(id) = fields.remove("id")
-    {
-        fields.insert("model".to_owned(), id);
-    }
-    row
 }

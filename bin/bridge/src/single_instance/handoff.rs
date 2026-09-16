@@ -17,10 +17,8 @@ const HANDOFF_FRESH: Duration = Duration::from_secs(60);
 
 const HANDOFF_WAIT: Duration = Duration::from_secs(20);
 
-// Why: a restarting bridge spawns its successor and then exits, so for a moment
-// both are alive and the successor would lose the race for the singleton lock
-// and the default proxy port. The note tells it to wait instead. Written on a
-// best-effort basis: without it the successor simply starts as it does today.
+// Why: a restarting bridge and its successor are briefly both alive; without
+// the note the successor loses the race for the singleton lock and the port.
 pub(crate) fn record_handoff() {
     let path = handoff_path();
     if let Some(parent) = path.parent()
@@ -34,9 +32,6 @@ pub(crate) fn record_handoff() {
     }
 }
 
-// Why: runs before anything binds a port or acquires the lock. A note older
-// than HANDOFF_FRESH is a leftover from a crash, not a handoff, and is
-// discarded without waiting.
 pub(crate) fn await_predecessor_exit() {
     let path = handoff_path();
     let Ok(meta) = fs::metadata(&path) else {

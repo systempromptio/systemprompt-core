@@ -1,9 +1,11 @@
 //! The task-completion stream handler.
 //!
-//! [`handle_complete`] marks the task completed, builds and validates the final
-//! [`Task`], persists it with its messages, and broadcasts the A2A, AG-UI, and
-//! webhook success events; failures along the way are recorded and reported as
-//! AG-UI `RUN_ERROR` events.
+//! [`handle_complete`] builds and validates the final [`Task`], persists it
+//! with its messages — the guarded `Completed` transition commits in the same
+//! transaction as the messages — and then broadcasts the A2A, AG-UI and
+//! webhook success events. A failure before the commit leaves the task in its
+//! `Working` state and is returned as a [`CompletionFailure`] for the event
+//! loop to record and announce.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -12,7 +14,7 @@ use std::sync::Arc;
 
 use axum::response::sse::Event;
 use systemprompt_identifiers::{ContextId, MessageId, TaskId};
-use systemprompt_models::{AgUiEventBuilder, RequestContext, TaskMetadata};
+use systemprompt_models::{RequestContext, TaskMetadata};
 use systemprompt_traits::validation::Validate;
 use tokio::sync::mpsc::Sender;
 
@@ -20,12 +22,10 @@ use super::success::{BroadcastTaskSuccessParams, broadcast_task_success};
 use crate::models::a2a::{
     Artifact, Message, MessageRole, Part, Task, TaskState, TaskStatus, TextPart,
 };
-use crate::repository::task::TaskRepository;
 use crate::services::a2a_server::processing::message::{
     MessageProcessor, PersistCompletedTaskOnProcessorParams,
 };
 use crate::services::a2a_server::streaming::webhook_client::WebhookContext;
-use crate::services::shared::AgentServiceError;
 
 pub(in crate::services::a2a_server::streaming) struct HandleCompleteParams<'a> {
     pub tx: &'a Sender<Event>,
@@ -38,14 +38,18 @@ pub(in crate::services::a2a_server::streaming) struct HandleCompleteParams<'a> {
     pub original_message: &'a Message,
     pub agent_name: &'a str,
     pub context: &'a RequestContext,
-    pub auth_token: &'a str,
-    pub task_repo: &'a TaskRepository,
     pub processor: &'a Arc<MessageProcessor>,
+}
+
+#[derive(Debug)]
+pub(in crate::services::a2a_server::streaming) struct CompletionFailure {
+    pub code: &'static str,
+    pub message: String,
 }
 
 pub(in crate::services::a2a_server::streaming) async fn handle_complete(
     params: HandleCompleteParams<'_>,
-) {
+) -> Result<(), CompletionFailure> {
     let HandleCompleteParams {
         tx,
         webhook_context,
@@ -57,17 +61,11 @@ pub(in crate::services::a2a_server::streaming) async fn handle_complete(
         original_message,
         agent_name,
         context,
-        auth_token,
-        task_repo,
         processor,
     } = params;
-    mark_task_completed(task_repo, task_id).await;
 
     let artifacts_for_task = (!artifacts.is_empty()).then(|| artifacts.clone());
-
-    let Some(task_metadata) = resolve_validated_metadata(agent_name, webhook_context).await else {
-        return;
-    };
+    let task_metadata = validated_metadata(agent_name)?;
 
     let complete_task = build_complete_task(BuildCompleteTaskParams {
         task_id,
@@ -80,17 +78,13 @@ pub(in crate::services::a2a_server::streaming) async fn handle_complete(
     });
 
     let Some(agent_message) = complete_task.status.message.clone() else {
-        tracing::error!("Task status message is None");
-        report_run_error(
-            webhook_context,
-            "Task status message cannot be None".to_owned(),
-            "INTERNAL_ERROR",
-        )
-        .await;
-        return;
+        return Err(CompletionFailure {
+            code: "INTERNAL_ERROR",
+            message: "Task status message cannot be None".to_owned(),
+        });
     };
 
-    match processor
+    let outcome = processor
         .persist_completed_task(PersistCompletedTaskOnProcessorParams {
             task: &complete_task,
             user_message: original_message,
@@ -100,100 +94,41 @@ pub(in crate::services::a2a_server::streaming) async fn handle_complete(
             artifacts_already_published: true,
         })
         .await
-    {
-        Err(e) => {
-            handle_persistence_failure(task_repo, task_id, webhook_context, &e).await;
-        },
-        Ok(task_with_timing) => {
-            broadcast_task_success(BroadcastTaskSuccessParams {
-                tx,
-                webhook_context,
-                task_id,
-                context_id,
-                message_id,
-                full_text: &full_text,
-                artifact_count: artifacts.len(),
-                task_with_timing: &task_with_timing,
-                context,
-                auth_token,
-            })
-            .await;
-        },
-    }
-}
+        .map_err(|e| CompletionFailure {
+            code: "PERSISTENCE_ERROR",
+            message: format!("Failed to complete task and persist messages: {e}"),
+        })?;
+    outcome.record_undelivered_broadcasts();
 
-async fn mark_task_completed(task_repo: &TaskRepository, task_id: &TaskId) {
-    let completed_timestamp = chrono::Utc::now();
-    if let Err(e) = task_repo
-        .update_task_state(task_id, TaskState::Completed, &completed_timestamp)
-        .await
-    {
-        tracing::error!(task_id = %task_id, error = %e, "Failed to update task state");
-    }
-}
-
-async fn resolve_validated_metadata(
-    agent_name: &str,
-    webhook_context: &WebhookContext,
-) -> Option<TaskMetadata> {
-    let task_metadata = match TaskMetadata::new_validated_agent_message(agent_name.to_owned()) {
-        Ok(metadata) => metadata,
-        Err(e) => {
-            tracing::error!(error = %e, "Failed to create TaskMetadata");
-            report_run_error(
-                webhook_context,
-                format!("Internal error: {e}"),
-                "METADATA_ERROR",
-            )
-            .await;
-            return None;
-        },
-    };
-
-    if let Err(e) = task_metadata.validate() {
-        tracing::error!(error = %e, "Task metadata validation failed");
-        report_run_error(
-            webhook_context,
-            format!("Validation failed: {e}"),
-            "VALIDATION_ERROR",
-        )
-        .await;
-        return None;
-    }
-
-    Some(task_metadata)
-}
-
-async fn report_run_error(webhook_context: &WebhookContext, message: String, code: &str) {
-    let error_event = AgUiEventBuilder::run_error(message, Some(code.to_owned()));
-    if let Err(broadcast_err) = webhook_context.broadcast_agui(error_event).await {
-        tracing::error!(error = %broadcast_err, "Failed to broadcast RUN_ERROR");
-    }
-}
-
-async fn handle_persistence_failure(
-    task_repo: &TaskRepository,
-    task_id: &TaskId,
-    webhook_context: &WebhookContext,
-    e: &AgentServiceError,
-) {
-    let error_msg = format!("Failed to complete task and persist messages: {}", e);
-    tracing::error!(task_id = %task_id, error = %e, "Failed to complete task and persist messages");
-
-    let failed_timestamp = chrono::Utc::now();
-    if let Err(update_err) = task_repo
-        .update_task_failed_with_error(task_id, &error_msg, &failed_timestamp)
-        .await
-    {
-        tracing::error!(task_id = %task_id, error = %update_err, "Failed to update task to failed state");
-    }
-
-    report_run_error(
+    broadcast_task_success(BroadcastTaskSuccessParams {
+        tx,
         webhook_context,
-        format!("Failed to persist task: {e}"),
-        "PERSISTENCE_ERROR",
-    )
+        task_id,
+        context_id,
+        message_id,
+        full_text: &full_text,
+        artifact_count: artifacts.len(),
+        task_with_timing: &outcome.task,
+    })
     .await;
+    Ok(())
+}
+
+fn validated_metadata(agent_name: &str) -> Result<TaskMetadata, CompletionFailure> {
+    let task_metadata =
+        TaskMetadata::new_validated_agent_message(agent_name.to_owned()).map_err(|e| {
+            CompletionFailure {
+                code: "METADATA_ERROR",
+                message: format!("Internal error: {e}"),
+            }
+        })?;
+
+    task_metadata.validate().map_err(|e| CompletionFailure {
+        code: "VALIDATION_ERROR",
+        message: format!("Validation failed: {e}"),
+    })?;
+
+    Ok(task_metadata)
 }
 
 struct BuildCompleteTaskParams<'a> {
@@ -208,40 +143,27 @@ struct BuildCompleteTaskParams<'a> {
 
 fn build_complete_task(params: BuildCompleteTaskParams<'_>) -> Task {
     let now = chrono::Utc::now();
+    let agent_message = Message {
+        role: MessageRole::Agent,
+        parts: vec![Part::Text(TextPart {
+            text: params.full_text.to_owned(),
+        })],
+        message_id: MessageId::new(params.message_id.to_owned()),
+        task_id: Some(params.task_id.clone()),
+        context_id: params.context_id.clone(),
+        metadata: None,
+        extensions: None,
+        reference_task_ids: None,
+    };
     Task {
         id: params.task_id.clone(),
         context_id: params.context_id.clone(),
         status: TaskStatus {
             state: TaskState::Completed,
-            message: Some(Message {
-                role: MessageRole::Agent,
-                parts: vec![Part::Text(TextPart {
-                    text: params.full_text.to_owned(),
-                })],
-                message_id: MessageId::new(params.message_id.to_owned()),
-                task_id: Some(params.task_id.clone()),
-                context_id: params.context_id.clone(),
-                metadata: None,
-                extensions: None,
-                reference_task_ids: None,
-            }),
+            message: Some(agent_message.clone()),
             timestamp: Some(now),
         },
-        history: Some(vec![
-            params.original_message.clone(),
-            Message {
-                role: MessageRole::Agent,
-                parts: vec![Part::Text(TextPart {
-                    text: params.full_text.to_owned(),
-                })],
-                message_id: MessageId::generate(),
-                task_id: Some(params.task_id.clone()),
-                context_id: params.context_id.clone(),
-                metadata: None,
-                extensions: None,
-                reference_task_ids: None,
-            },
-        ]),
+        history: Some(vec![params.original_message.clone(), agent_message]),
         artifacts: params.artifacts_for_task,
         metadata: Some(params.task_metadata),
         created_at: Some(now),

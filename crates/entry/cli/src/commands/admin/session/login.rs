@@ -147,8 +147,7 @@ pub async fn login_for_profile(
     };
 
     if args.token_only {
-        CliService::output(session_token.as_str());
-        return Ok(CommandOutput::card_value("Admin Session", &output).with_skip_render());
+        return Ok(CommandOutput::text(session_token.as_str()));
     }
 
     CliService::success(&format!(

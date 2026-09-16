@@ -91,6 +91,7 @@ enum AnthropicBlock {
         #[serde(default)]
         name: String,
         #[serde(default)]
+        // JSON: Anthropic `tool_use.input` is the tool's own JSON argument object.
         input: Value,
         #[serde(default)]
         signature: Option<String>,
@@ -142,6 +143,7 @@ enum AnthropicImageSource {
 }
 
 pub fn parse_response(
+    // JSON: Anthropic Messages API response body; upstream JSON is the contract.
     value: &Value,
     fallback_model: &str,
 ) -> Result<CanonicalResponse, WireParseError> {
@@ -259,6 +261,7 @@ fn canonical_image(source: AnthropicImageSource) -> Option<CanonicalContent> {
 }
 
 #[must_use]
+// JSON: Anthropic Messages API response body; upstream JSON is the contract.
 pub fn buffered_defect(value: &Value) -> Option<BodyDefect> {
     buffered_body_defect(value, "content", "usage")
 }

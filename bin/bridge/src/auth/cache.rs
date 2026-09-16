@@ -24,15 +24,6 @@ impl CredentialBinding {
             .as_str()
             .to_owned();
         let mut sources = Vec::new();
-        for suffix in ["DEVICE_CERT", "DEVICE_CERT_LABEL", "DEVICE_CERT_SHA256"] {
-            match std::env::var(crate::brand::brand().env(suffix)) {
-                Ok(value) if value.trim().is_empty() => {
-                    return Err(io::Error::other(format!("configured {suffix} is empty")));
-                },
-                Ok(_) | Err(std::env::VarError::NotPresent) => {},
-                Err(e) => return Err(io::Error::other(format!("{suffix}: {e}"))),
-            }
-        }
         if let Some(pat) = super::providers::pat::read_source(cfg)? {
             sources.push(("pat", crate::hash::sha256_hex(pat.as_str().as_bytes())));
         }
@@ -43,14 +34,6 @@ impl CredentialBinding {
                 io::Error::other("legacy session has no credential identity; sign in again")
             })?;
             sources.push(("session", generation.to_string()));
-        }
-        if cfg.cert_keystore_ref().is_some() || super::device_cert_env_configured() {
-            let cert = super::keystore::platform_source(
-                cfg.cert_keystore_ref().map(crate::ids::KeystoreRef::as_str),
-            )
-            .load()
-            .map_err(io::Error::other)?;
-            sources.push(("mtls", cert.fingerprint.as_str().to_owned()));
         }
         if sources.is_empty() {
             return Err(io::Error::other("no credential identity configured"));

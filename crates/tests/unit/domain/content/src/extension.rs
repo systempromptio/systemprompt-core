@@ -24,7 +24,13 @@ fn test_dependencies_includes_users_and_analytics() {
 fn test_schemas_count_six() {
     let ext = ContentExtension;
     let schemas = ext.schemas();
-    assert_eq!(schemas.len(), 6);
+    assert_eq!(
+        schemas
+            .iter()
+            .filter(|schema| schema.table.is_some())
+            .count(),
+        6
+    );
 }
 
 #[test]
@@ -66,4 +72,41 @@ fn test_component_renderers_one_renderer() {
     let ext = ContentExtension;
     let renderers = ext.component_renderers();
     assert_eq!(renderers.len(), 1);
+}
+
+#[test]
+fn owner_capture_and_privacy_contracts_are_registered() {
+    let schemas = ContentExtension.schemas();
+    let capture: Vec<_> = schemas
+        .iter()
+        .filter(|schema| {
+            schema.table.is_none()
+                && schema
+                    .sql
+                    .contains("EXECUTE FUNCTION sp_capture_reporting_change")
+        })
+        .collect();
+    assert_eq!(
+        capture.len(),
+        1,
+        "owner capture SQL must be registered exactly once"
+    );
+    assert!(
+        capture[0].sql.contains("reporting_source_markdown_content"),
+        "missing reporting view: reporting_source_markdown_content"
+    );
+    let privacy: Vec<_> = schemas
+        .iter()
+        .filter(|schema| {
+            schema.table.is_none()
+                && schema
+                    .sql
+                    .contains("CREATE OR REPLACE FUNCTION public.lock_content_reporting_sources")
+        })
+        .collect();
+    assert_eq!(
+        privacy.len(),
+        1,
+        "owner privacy SQL must survive capture registration"
+    );
 }

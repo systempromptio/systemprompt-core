@@ -22,6 +22,10 @@ static POLICY_STORE: std::sync::LazyLock<systemprompt_bridge::config::store::Pol
         )
     });
 
+static EMPTY_BEARER: std::sync::LazyLock<systemprompt_bridge::ids::BearerToken> =
+    std::sync::LazyLock::new(systemprompt_bridge::ids::BearerToken::default);
+static START_MENU: std::sync::LazyLock<systemprompt_bridge::probe_cache::StartMenuCache> =
+    std::sync::LazyLock::new(systemprompt_bridge::probe_cache::StartMenuCache::default);
 static EMPTY_REGISTRY: std::sync::LazyLock<systemprompt_bridge::mcp_registry::McpRegistry> =
     std::sync::LazyLock::new(std::collections::HashMap::new);
 
@@ -70,6 +74,7 @@ fn with_sandbox<R>(body: impl FnOnce(&Sandbox) -> R) -> R {
 
 fn skill(id: &str, hosts: &[&str], instructions: &str) -> SkillEntry {
     SkillEntry {
+        publication: None,
         id: SkillId::try_new(id).expect("skill id"),
         name: SkillName::try_new(id).expect("skill name"),
         description: format!("desc for {id}"),
@@ -88,8 +93,12 @@ fn manifest(skills: Vec<SkillEntry>) -> SignedManifest {
         min_bridge_version: None,
         manifest_version: ManifestVersion::try_new("2026-04-30T12:00:00Z-deadbeef")
             .expect("manifest version"),
-        issued_at: "2026-04-30T12:00:00+00:00".into(),
-        not_before: "2026-04-30T12:00:00+00:00".into(),
+        issued_at: chrono::DateTime::parse_from_rfc3339("2026-04-30T12:00:00+00:00")
+            .expect("rfc3339")
+            .with_timezone(&chrono::Utc),
+        not_before: chrono::DateTime::parse_from_rfc3339("2026-04-30T12:00:00+00:00")
+            .expect("rfc3339")
+            .with_timezone(&chrono::Utc),
         user_id: systemprompt_identifiers::UserId::new("test-user"),
         tenant_id: None,
         user: None,
@@ -135,9 +144,10 @@ fn apply<H: HostSync>(host: &H, m: &SignedManifest, sb: &Sandbox) -> Result<(), 
         org_plugins_root: sb.org_plugins.as_path(),
         plugin_mcp_servers: &plugin_mcp_servers,
         client: &client,
-        bearer: "",
+        bearer: &EMPTY_BEARER,
         loopback: &LOOPBACK,
         mcp_registry: &EMPTY_REGISTRY,
+        start_menu: &START_MENU,
     };
     block_on(host.apply(&ctx))
 }
@@ -370,9 +380,10 @@ fn clearing_a_host_removes_the_managed_dirs_and_the_sidecar() {
             org_plugins_root: sb.org_plugins.as_path(),
             plugin_mcp_servers: &plugin_mcp_servers,
             client: &client,
-            bearer: "",
+            bearer: &EMPTY_BEARER,
             loopback: &LOOPBACK,
             mcp_registry: &EMPTY_REGISTRY,
+            start_menu: &START_MENU,
         };
         HermesSync.clear(&ctx).expect("clear");
         assert!(

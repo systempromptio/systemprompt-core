@@ -22,7 +22,7 @@ pub async fn revoke_all_mine(
     State(ctx): State<AppContext>,
 ) -> impl IntoResponse {
     let user_id = &req_ctx.auth.actor.user_id;
-    let Some(provider) = ctx.analytics_provider() else {
+    let Some(provider) = ctx.session_provider() else {
         return (
             StatusCode::INTERNAL_SERVER_ERROR,
             "analytics provider unavailable",

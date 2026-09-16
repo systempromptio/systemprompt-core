@@ -1,15 +1,16 @@
 //! Health monitoring of running agents via process and TCP probes.
 //!
 //! [`AgentMonitor`] performs per-agent and fleet-wide health checks, confirming
-//! the process exists and the agent's port accepts connections, and cleans up
+//! the agent's registered port accepts connections, and cleans up
 //! unresponsive agents. Results are reported through [`HealthCheckResult`] and
-//! [`MonitoringReport`]; the free `check_*` functions offer standalone TCP and
-//! A2A agent-card probes.
+//! [`MonitoringReport`]; [`check_a2a_agent_health`] is the A2A agent-card
+//! probe.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::services::shared::Result;
+use crate::models::a2a::AgentCard;
+use crate::services::shared::{AgentServiceError, Result};
 use std::time::Duration;
 use systemprompt_models::net::AGENT_MONITOR_TCP_TIMEOUT;
 use tokio::net::TcpStream;
@@ -56,7 +57,7 @@ impl AgentMonitor {
             crate::services::agent_orchestration::AgentStatus::Failed { .. } => {
                 Ok(HealthCheckResult {
                     healthy: false,
-                    message: format!("Agent {} not in running state", agent_name),
+                    message: format!("Agent {agent_name} not in running state"),
                     response_time_ms: 0,
                 })
             },
@@ -97,7 +98,7 @@ impl AgentMonitor {
                 tracing::warn!(agent_id = %agent_id, pid = %pid, "Killing unresponsive agent");
 
                 if process::kill_process_verified(pid, &agent_id) {
-                    self.db_service.mark_crashed(&agent_id).await?;
+                    self.db_service.mark_failed(&agent_id).await?;
                     cleaned_up += 1;
                     tracing::info!(agent_id = %agent_id, "Cleaned up agent");
                 } else {
@@ -159,11 +160,6 @@ impl MonitoringReport {
     }
 }
 
-pub async fn check_agent_health(agent_name: &str) -> Result<HealthCheckResult> {
-    let port = get_agent_port_simple(agent_name);
-    perform_tcp_health_check("127.0.0.1", port).await
-}
-
 async fn perform_tcp_health_check(host: &str, port: u16) -> Result<HealthCheckResult> {
     let start = std::time::Instant::now();
     let address = format!("{host}:{port}");
@@ -199,64 +195,26 @@ async fn perform_tcp_health_check(host: &str, port: u16) -> Result<HealthCheckRe
     }
 }
 
-fn get_agent_port_simple(agent_name: &str) -> u16 {
-    let port_str = agent_name
-        .chars()
-        .filter(char::is_ascii_digit)
-        .collect::<String>();
-
-    if port_str.is_empty() {
-        return 8000;
-    }
-
-    let port_num: u16 = port_str.parse().unwrap_or(8000);
-    8000 + (port_num % 1000)
-}
-
-pub async fn check_agent_responsiveness(agent_name: &str, timeout_secs: u64) -> Result<bool> {
-    let port = get_agent_port_simple(agent_name);
-    let address = format!("127.0.0.1:{port}");
-
-    match timeout(
-        Duration::from_secs(timeout_secs),
-        TcpStream::connect(&address),
-    )
-    .await
-    {
-        Ok(Ok(_)) => {
-            tracing::trace!(agent_name = %agent_name, "Agent is responsive");
-            Ok(true)
-        },
-        Ok(Err(e)) => {
-            tracing::debug!(agent_name = %agent_name, error = %e, "Agent connection failed");
-            Ok(false)
-        },
-        Err(_) => {
-            tracing::debug!(agent_name = %agent_name, timeout_secs = %timeout_secs, "Agent connection timeout");
-            Ok(false)
-        },
-    }
-}
-
+// Why: the A2A agent card is the liveness contract — a listener that does
+// not answer `/.well-known/agent-card.json` with a card advertising at least
+// one interface is not a working agent, whatever accepts the TCP connection.
 pub async fn check_a2a_agent_health(port: u16, timeout_secs: u64) -> Result<bool> {
-    let url = format!("http://localhost:{}/.well-known/agent-card.json", port);
+    let url = format!("http://localhost:{port}/.well-known/agent-card.json");
 
-    let client = reqwest::Client::new();
-    let response = client
-        .get(&url)
+    let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(timeout_secs))
-        .send()
-        .await;
+        .build()
+        .map_err(|e| AgentServiceError::Network(e.to_string()))?;
 
-    match response {
-        Ok(resp) if resp.status().is_success() => {
-            resp.json::<serde_json::Value>()
-                .await
-                .map_or(Ok(false), |json| {
-                    let is_valid_card = json.get("name").is_some() && json.get("url").is_some();
-                    Ok(is_valid_card)
-                })
-        },
-        Ok(_) | Err(_) => Ok(false),
+    let Ok(response) = client.get(&url).send().await else {
+        return Ok(false);
+    };
+    if !response.status().is_success() {
+        return Ok(false);
     }
+
+    Ok(response
+        .json::<AgentCard>()
+        .await
+        .is_ok_and(|card| !card.name.is_empty() && !card.supported_interfaces.is_empty()))
 }

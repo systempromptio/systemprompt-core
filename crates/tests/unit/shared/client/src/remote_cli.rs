@@ -3,7 +3,8 @@
 
 use std::io;
 
-use systemprompt_client::{OutputSink, RemoteCliExecutor, RemoteCliRequest};
+use systemprompt_client::{ClientError, OutputSink, RemoteCliExecutor, RemoteCliRequest};
+use systemprompt_identifiers::{ContextId, SessionToken};
 use wiremock::matchers::{body_json, header, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -66,8 +67,8 @@ async fn execute_streams_output_and_returns_exit_code() {
     let exit_code = executor
         .execute(
             RemoteCliRequest {
-                token: "test-token",
-                context: "",
+                token: &SessionToken::new("test-token"),
+                context: None,
                 args: &args,
             },
             &mut sink,
@@ -111,8 +112,10 @@ async fn execute_sends_context_header_and_body() {
     let exit_code = executor
         .execute(
             RemoteCliRequest {
-                token: "test-token",
-                context: "6f7d9a40-1f2b-4c3d-8e5f-0a1b2c3d4e5f",
+                token: &SessionToken::new("test-token"),
+                context: Some(
+                    &ContextId::try_new("6f7d9a40-1f2b-4c3d-8e5f-0a1b2c3d4e5f").expect("uuid"),
+                ),
                 args: &args,
             },
             &mut sink,
@@ -144,8 +147,8 @@ async fn execute_forwards_error_events_and_keeps_exit_code() {
     let exit_code = executor
         .execute(
             RemoteCliRequest {
-                token: "test-token",
-                context: "",
+                token: &SessionToken::new("test-token"),
+                context: None,
                 args: &args,
             },
             &mut sink,
@@ -158,11 +161,14 @@ async fn execute_forwards_error_events_and_keeps_exit_code() {
 }
 
 #[tokio::test]
-async fn execute_skips_unparseable_and_non_cli_events() {
+async fn execute_skips_non_cli_events() {
     let server = MockServer::start().await;
     let body = format!(
-        "event: other\ndata: ignored\n\n{}",
-        sse_body(&["not-json", r#"{"type":"exit_code","code":7}"#])
+        "event: other
+data: ignored
+
+{}",
+        sse_body(&[r#"{"type":"exit_code","code":7}"#])
     );
 
     Mock::given(method("POST"))
@@ -178,8 +184,8 @@ async fn execute_skips_unparseable_and_non_cli_events() {
     let exit_code = executor
         .execute(
             RemoteCliRequest {
-                token: "test-token",
-                context: "",
+                token: &SessionToken::new("test-token"),
+                context: None,
                 args: &args,
             },
             &mut sink,
@@ -193,12 +199,13 @@ async fn execute_skips_unparseable_and_non_cli_events() {
 }
 
 #[tokio::test]
-async fn execute_reports_connection_error_as_exit_code_one() {
+async fn an_undecodable_cli_event_is_a_failure_not_a_zero_exit() {
     let server = MockServer::start().await;
+    let body = sse_body(&[r#"{"type":"stdout","data":"partial"}"#, "not-json"]);
 
     Mock::given(method("POST"))
         .and(path("/api/v1/admin/cli"))
-        .respond_with(ResponseTemplate::new(500))
+        .respond_with(sse_response(body))
         .mount(&server)
         .await;
 
@@ -206,19 +213,82 @@ async fn execute_reports_connection_error_as_exit_code_one() {
     let mut sink = CapturingSink::default();
     let args = vec!["status".to_owned()];
 
-    let exit_code = executor
+    let err = executor
         .execute(
             RemoteCliRequest {
-                token: "test-token",
-                context: "",
+                token: &SessionToken::new("test-token"),
+                context: None,
                 args: &args,
             },
             &mut sink,
         )
         .await
-        .expect("execute");
+        .expect_err("a corrupted frame may have been the exit code");
 
-    assert_eq!(exit_code, 1);
-    assert_eq!(sink.errors.len(), 1);
-    assert!(sink.errors[0].starts_with("Connection error: "));
+    assert!(matches!(err, ClientError::ServerUnavailable(_)), "{err}");
+    assert_eq!(sink.stdout, "partial");
+}
+
+#[tokio::test]
+async fn a_stream_that_ends_before_the_exit_code_is_not_success() {
+    let server = MockServer::start().await;
+    let body = sse_body(&[r#"{"type":"stdout","data":"still running"}"#]);
+
+    Mock::given(method("POST"))
+        .and(path("/api/v1/admin/cli"))
+        .respond_with(sse_response(body))
+        .mount(&server)
+        .await;
+
+    let executor = RemoteCliExecutor::new(&server.uri(), 30).expect("build executor");
+    let mut sink = CapturingSink::default();
+    let args = vec!["status".to_owned()];
+
+    let err = executor
+        .execute(
+            RemoteCliRequest {
+                token: &SessionToken::new("test-token"),
+                context: None,
+                args: &args,
+            },
+            &mut sink,
+        )
+        .await
+        .expect_err("the server died before reporting an exit code");
+
+    assert!(matches!(err, ClientError::ServerUnavailable(_)), "{err}");
+    assert_eq!(sink.stdout, "still running");
+}
+
+#[tokio::test]
+async fn a_non_success_status_is_an_api_error() {
+    let server = MockServer::start().await;
+
+    Mock::given(method("POST"))
+        .and(path("/api/v1/admin/cli"))
+        .respond_with(ResponseTemplate::new(500).set_body_string("boom"))
+        .mount(&server)
+        .await;
+
+    let executor = RemoteCliExecutor::new(&server.uri(), 30).expect("build executor");
+    let mut sink = CapturingSink::default();
+    let args = vec!["status".to_owned()];
+
+    let err = executor
+        .execute(
+            RemoteCliRequest {
+                token: &SessionToken::new("test-token"),
+                context: None,
+                args: &args,
+            },
+            &mut sink,
+        )
+        .await
+        .expect_err("a 500 is not a stream");
+
+    assert!(
+        matches!(err, ClientError::ApiError { status: 500, .. }),
+        "{err}"
+    );
+    assert!(sink.errors.is_empty());
 }

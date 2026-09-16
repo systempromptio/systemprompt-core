@@ -6,6 +6,7 @@
 //! keyword handling, thought signatures). Shared request fixtures live here.
 
 use serde_json::json;
+use systemprompt_identifiers::ModelId;
 use systemprompt_models::wire::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalTool, ImageSource, Role,
 };
@@ -107,7 +108,7 @@ fn user_message(content: Vec<CanonicalContent>) -> CanonicalMessage {
 
 fn base_request() -> CanonicalRequest {
     CanonicalRequest {
-        model: "m".to_owned(),
+        model: ModelId::new("m"),
         system: None,
         messages: vec![user_message(vec![CanonicalContent::Text("hi".to_owned())])],
         max_tokens: 32,

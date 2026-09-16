@@ -199,9 +199,10 @@ fn managed_server_tool_policy_resolves_named_then_wildcard() {
     policies.insert(ToolName::try_new("*").unwrap(), ToolPolicy::Allow);
     policies.insert(ToolName::try_new("drop_table").unwrap(), ToolPolicy::Deny);
     let server = ManagedMcpServer {
-        id: systemprompt_identifiers::McpServerId::new("db"),
+        id: systemprompt_identifiers::McpServerId::try_new("db").expect("valid McpServerId"),
         name: ManagedMcpServerName::try_new("db").unwrap(),
-        url: systemprompt_identifiers::ValidatedUrl::new("https://mcp.example.com/db"),
+        url: systemprompt_identifiers::ValidatedUrl::try_new("https://mcp.example.com/db")
+            .expect("valid ValidatedUrl"),
         transport: None,
         headers: None,
         oauth: None,

@@ -51,6 +51,7 @@ pub fn check_host_profile_secrets(env: &crate::integration::host_app::ProbeEnv) 
     let mut stale: Vec<&'static str> = Vec::new();
     let mut wrong_port: Vec<&'static str> = Vec::new();
     let mut any_installed = false;
+    let mut unverifiable: Vec<(&'static str, String)> = Vec::new();
     for host in crate::integration::host_apps() {
         match host.probe(env).profile_state {
             ProfileState::Stale {
@@ -60,8 +61,22 @@ pub fn check_host_profile_secrets(env: &crate::integration::host_app::ProbeEnv) 
                 reason: StaleReason::ProxyPort,
             } => wrong_port.push(host.display_name()),
             ProfileState::Installed => any_installed = true,
+            ProfileState::Unverifiable { reason } => {
+                unverifiable.push((host.display_name(), reason));
+            },
             ProfileState::Partial { .. } | ProfileState::Absent => {},
         }
+    }
+    if !unverifiable.is_empty() {
+        let detail = unverifiable
+            .iter()
+            .map(|(host, reason)| format!("{host}: {reason}"))
+            .collect::<Vec<_>>()
+            .join("; ");
+        return Some(Check::warn(
+            "host profile secret",
+            format!("could not verify the installed profile — {detail}"),
+        ));
     }
     if !wrong_port.is_empty() {
         return Some(Check::fail(

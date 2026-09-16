@@ -40,6 +40,7 @@ pub fn build_request_body(
     request: &CanonicalRequest,
     upstream_model: &str,
     limits: Option<ModelLimits>,
+    // JSON: Anthropic Messages API request body; upstream JSON is the contract.
 ) -> Value {
     let messages: Vec<Value> = request
         .messages
@@ -110,6 +111,7 @@ pub fn build_request_body(
     Value::Object(obj)
 }
 
+// JSON: Anthropic Messages API request body; upstream JSON is the contract.
 fn insert_sampling_params(obj: &mut Map<String, Value>, request: &CanonicalRequest) {
     if let Some(t) = request.temperature {
         obj.insert("temperature".into(), json!(t));
@@ -126,6 +128,7 @@ fn insert_sampling_params(obj: &mut Map<String, Value>, request: &CanonicalReque
 }
 
 fn insert_thinking(
+    // JSON: Anthropic Messages API request body; upstream JSON is the contract.
     obj: &mut Map<String, Value>,
     thinking: &crate::wire::canonical::ThinkingConfig,
 ) {
@@ -142,6 +145,7 @@ fn insert_thinking(
 
 // Why: Anthropic's `strict` mode compiles the tool schema into a grammar that
 // accepts a narrower dialect than JSON Schema.
+// JSON: Anthropic Messages API request body; upstream JSON is the contract.
 fn structured_output_tool(name: &str, schema: &Value, strict: bool) -> Value {
     let input_schema = if strict {
         strict::strict_input_schema(schema)
@@ -156,6 +160,7 @@ fn structured_output_tool(name: &str, schema: &Value, strict: bool) -> Value {
     })
 }
 
+// JSON: Anthropic Messages API request body; upstream JSON is the contract.
 fn web_search_tool(search: &SearchConfig) -> Value {
     let mut t = Map::new();
     t.insert("type".into(), Value::String("web_search_20250305".into()));
@@ -166,6 +171,7 @@ fn web_search_tool(search: &SearchConfig) -> Value {
     Value::Object(t)
 }
 
+// JSON: Anthropic Messages API request body; upstream JSON is the contract.
 fn tool_to_anthropic(tool: &CanonicalTool) -> Value {
     let sanitizer = SchemaSanitizer::new(WireProtocol::Anthropic.schema_capabilities());
     let mut tobj = Map::new();
@@ -180,6 +186,7 @@ fn tool_to_anthropic(tool: &CanonicalTool) -> Value {
     Value::Object(tobj)
 }
 
+// JSON: Anthropic Messages API request body; upstream JSON is the contract.
 fn tool_choice_to_anthropic(tc: &CanonicalToolChoice) -> Value {
     match tc {
         CanonicalToolChoice::Auto => json!({ "type": "auto" }),

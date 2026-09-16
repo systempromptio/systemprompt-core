@@ -62,7 +62,10 @@ impl UpstreamError {
         };
         let retry_after = header("retry-after");
         let request_id = header("request-id").or_else(|| header("x-request-id"));
-        let body = response.bytes().await.unwrap_or_default();
+        let body = response
+            .bytes()
+            .await
+            .unwrap_or_else(|e| bytes::Bytes::from(format!("<unreadable body: {e}>")));
         Self::Status {
             provider: provider.to_owned(),
             status,
@@ -136,6 +139,8 @@ pub struct PreparedBody {
     pub raw_lane: bool,
 }
 
+/// Adapters are looked up by wire name as `Arc<dyn OutboundAdapter>`;
+/// `#[async_trait]` keeps the trait object-safe.
 #[async_trait]
 pub trait OutboundAdapter: Send + Sync {
     fn build_body(&self, ctx: &OutboundCtx<'_>) -> Result<PreparedBody>;

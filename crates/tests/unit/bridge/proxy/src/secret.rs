@@ -105,6 +105,37 @@ fn proxy_init_mints_a_private_secret_that_for_profile_then_serves() {
     });
 }
 
+#[cfg(unix)]
+#[test]
+fn secret_or_mint_mints_on_a_fresh_state_dir_where_secret_only_reads() {
+    use systemprompt_bridge::proxy::LoopbackEndpoint;
+    config_sandbox(|root| {
+        let endpoint = LoopbackEndpoint::new(48217, None);
+        let path = root.join("systemprompt").join("bridge-loopback.key");
+        let err = endpoint
+            .secret()
+            .expect_err("a probe must not mint on a fresh state dir");
+        assert_eq!(err.kind(), std::io::ErrorKind::NotFound);
+        assert!(
+            !path.exists(),
+            "the read-only accessor leaves no file behind"
+        );
+
+        let minted = endpoint
+            .secret_or_mint()
+            .expect("a writer mints before the proxy has ever run");
+        assert!(path.is_file(), "the minted secret is persisted at {path:?}");
+        let served = endpoint
+            .secret()
+            .expect("the read-only accessor now serves the minted secret");
+        assert_eq!(served.as_str(), minted.as_str());
+        assert_eq!(
+            endpoint.bearer().unwrap(),
+            format!("Bearer {}", minted.as_str())
+        );
+    });
+}
+
 #[test]
 fn verify_is_exact_match_only() {
     let expected = ProxySecret::new("loopback-secret-value");

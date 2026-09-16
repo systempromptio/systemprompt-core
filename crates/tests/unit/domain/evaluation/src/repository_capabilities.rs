@@ -4,8 +4,7 @@
 
 use crate::repository_workers::Harness;
 use systemprompt_evaluation::repository::experiments::{
-    EXECUTION_TOKEN_PREFIX, ExecutionCapabilityRepository, ExecutionCompletion, ExecutionIdentity,
-    ExecutionLease, TerminalOutcome,
+    EXECUTION_TOKEN_PREFIX, ExecutionCompletion, ExecutionIdentity, ExecutionLease, TerminalOutcome,
 };
 use systemprompt_identifiers::{EvalExecutionId, EvalWorkerId, UserId};
 use uuid::Uuid;
@@ -16,7 +15,7 @@ async fn issued_capability_authenticates_as_a_scoped_execution_principal() {
         return;
     };
     let (execution, lease) = harness.claimed_lease().await;
-    let capabilities = ExecutionCapabilityRepository::new(harness.pg.clone());
+    let capabilities = crate::seams::capabilities(&harness.pg);
 
     let access = capabilities
         .issue(&harness.owner, &lease)
@@ -54,7 +53,7 @@ async fn reissue_reuses_the_session_and_revokes_the_prior_token() {
         return;
     };
     let (_, lease) = harness.claimed_lease().await;
-    let capabilities = ExecutionCapabilityRepository::new(harness.pg.clone());
+    let capabilities = crate::seams::capabilities(&harness.pg);
 
     let first = capabilities
         .issue(&harness.owner, &lease)
@@ -93,7 +92,7 @@ async fn issuance_requires_an_eligible_running_execution() {
         return;
     };
     let (execution, lease) = harness.claimed_lease().await;
-    let capabilities = ExecutionCapabilityRepository::new(harness.pg.clone());
+    let capabilities = crate::seams::capabilities(&harness.pg);
 
     let stale = ExecutionLease::builder(execution.id.clone(), harness.worker.id.clone())
         .fencing_token(lease.fencing_token + 1)
@@ -141,7 +140,7 @@ async fn a_capability_stops_authenticating_once_its_execution_finishes() {
         return;
     };
     let (_, lease) = harness.claimed_lease().await;
-    let capabilities = ExecutionCapabilityRepository::new(harness.pg.clone());
+    let capabilities = crate::seams::capabilities(&harness.pg);
     let access = capabilities
         .issue(&harness.owner, &lease)
         .await
@@ -176,7 +175,7 @@ async fn malformed_and_unknown_capabilities_are_rejected() {
     let Some(harness) = Harness::start().await else {
         return;
     };
-    let capabilities = ExecutionCapabilityRepository::new(harness.pg.clone());
+    let capabilities = crate::seams::capabilities(&harness.pg);
 
     for token in [
         "speval_worker-token".to_owned(),

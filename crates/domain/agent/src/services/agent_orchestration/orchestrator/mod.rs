@@ -29,8 +29,8 @@ use crate::services::agent_orchestration::monitor::AgentMonitor;
 use crate::services::agent_orchestration::reconciler::AgentReconciler;
 use crate::services::agent_orchestration::{AgentStatus, OrchestrationResult, monitor};
 use crate::state::AgentState;
+use systemprompt_config::paths::AppPaths;
 use systemprompt_identifiers::AgentId;
-use systemprompt_models::AppPaths;
 
 #[derive(Debug, Clone)]
 pub struct AgentInfo {
@@ -201,7 +201,7 @@ impl AgentOrchestrator {
         agent_name: &str,
         pid: u32,
         port: u16,
-    ) -> OrchestrationResult<String> {
+    ) -> OrchestrationResult<()> {
         self.db_service
             .update_agent_running(agent_name, pid, port)
             .await

@@ -8,10 +8,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::html::{HtmlBuilder, base_styles, html_escape, mcp_app_bridge_script};
+use super::html::{
+    HtmlBuilder, base_styles, html_escape, mcp_app_bridge_script, safe_url, unsafe_url_error,
+};
 use crate::error::McpDomainResult;
 use crate::services::ui_renderer::{CspPolicy, UiRenderer, UiResource};
-use async_trait::async_trait;
 use serde_json::Value as JsonValue;
 use systemprompt_models::a2a::Artifact;
 use systemprompt_models::artifacts::ArtifactType;
@@ -106,13 +107,12 @@ struct ImageData {
     height: Option<u32>,
 }
 
-#[async_trait]
 impl UiRenderer for ImageRenderer {
     fn artifact_type(&self) -> ArtifactType {
         ArtifactType::Image
     }
 
-    async fn render(&self, artifact: &Artifact) -> McpDomainResult<UiResource> {
+    fn render(&self, artifact: &Artifact) -> McpDomainResult<UiResource> {
         let image_data = Self::extract_image_data(artifact);
         let title = artifact.title.as_deref().unwrap_or("Image");
 
@@ -128,6 +128,8 @@ impl UiRenderer for ImageRenderer {
         if image_data.src.is_empty() {
             return Ok(self.render_empty(title));
         }
+        let src = safe_url(&image_data.src)
+            .ok_or_else(|| unsafe_url_error("image src", &image_data.src))?;
 
         let body = format!(
             r#"<div class="container">
@@ -158,7 +160,7 @@ impl UiRenderer for ImageRenderer {
                     r#"<p class="mcp-app-description">{}</p>"#,
                     html_escape(d)
                 )),
-            src = html_escape(&image_data.src),
+            src = src,
             alt = html_escape(alt_text),
             size_attrs = size_attrs,
             caption_html = image_data

@@ -6,17 +6,27 @@
 #[cfg(test)]
 mod cross_replica;
 
+use sqlx::PgPool;
 use std::sync::Arc;
-use systemprompt_database::PgPool;
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+
+pub fn fixture_database_url() -> String {
+    std::env::var("DATABASE_URL").expect("DATABASE_URL required for PostgreSQL integration tests")
+}
+
+pub fn unique_user_id(prefix: &str) -> systemprompt_identifiers::UserId {
+    systemprompt_identifiers::UserId::new(format!(
+        "{prefix}_{}",
+        systemprompt_identifiers::ConnectionId::generate()
+    ))
+}
 
 pub async fn setup_test_pool() -> Arc<PgPool> {
-    let url = fixture_database_url().expect("DATABASE_URL environment variable required");
-    let db = fixture_db_pool(&url)
+    let url = fixture_database_url();
+    let pool = PgPool::connect(&url)
         .await
         .expect("failed to connect to test database");
 
-    db.pool_arc().expect("test database is not Postgres-backed")
+    Arc::new(pool)
 }
 
 pub async fn ensure_event_outbox(pool: &PgPool) {

@@ -22,14 +22,22 @@ pub async fn update_task_state(
     state: TaskState,
     timestamp: &chrono::DateTime<chrono::Utc>,
 ) -> Result<(), RepositoryError> {
-    let task_id_str = task_id.as_str();
-
     let mut tx = pool.begin().await.map_err(RepositoryError::database)?;
+    transition_in_tx(&mut tx, task_id, state, timestamp).await?;
+    tx.commit().await.map_err(RepositoryError::database)?;
+    Ok(())
+}
 
-    let (current_state, expected_version) = lock_task_state(&mut tx, task_id_str).await?;
+pub(super) async fn transition_in_tx(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    task_id: &TaskId,
+    state: TaskState,
+    timestamp: &chrono::DateTime<chrono::Utc>,
+) -> Result<(), RepositoryError> {
+    let task_id_str = task_id.as_str();
+    let (current_state, expected_version) = lock_task_state(tx, task_id_str).await?;
 
     if current_state == state {
-        tx.commit().await.map_err(RepositoryError::database)?;
         return Ok(());
     }
 
@@ -40,7 +48,7 @@ pub async fn update_task_state(
     }
 
     let rows_affected =
-        execute_state_update(&mut tx, state, timestamp, task_id_str, expected_version).await?;
+        execute_state_update(tx, state, timestamp, task_id_str, expected_version).await?;
 
     if rows_affected == 0 {
         return Err(RepositoryError::ConstraintViolation(format!(
@@ -48,7 +56,6 @@ pub async fn update_task_state(
         )));
     }
 
-    tx.commit().await.map_err(RepositoryError::database)?;
     Ok(())
 }
 

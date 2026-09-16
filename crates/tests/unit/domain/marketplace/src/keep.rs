@@ -110,6 +110,7 @@ const ZERO_DIGEST: &str = "00000000000000000000000000000000000000000000000000000
 fn skill(id: &str) -> SkillEntry {
     use systemprompt_models::bridge::ids::{Sha256Digest, SkillName};
     SkillEntry {
+        publication: None,
         id: SkillId::try_new(id).expect("valid skill id"),
         name: SkillName::try_new(id).expect("valid skill name"),
         description: String::new(),

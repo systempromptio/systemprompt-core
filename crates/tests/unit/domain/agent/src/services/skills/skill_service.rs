@@ -1,22 +1,33 @@
 use std::fs;
 use std::path::Path;
+use std::sync::Arc;
+use systemprompt_agent::repository::execution::ExecutionStepRepository;
 use systemprompt_agent::services::skills::SkillService;
 use systemprompt_config::ProfileBootstrap;
+use systemprompt_database::DbPool;
 use systemprompt_identifiers::{
     Actor, AgentName, ContextId, SessionId, SkillId, TaskId, TraceId, UserId,
 };
 use systemprompt_models::execution::context::RequestContext;
-use systemprompt_test_fixtures::ensure_test_bootstrap;
+use systemprompt_test_fixtures::{
+    ScriptedSkills, ensure_test_bootstrap, not_managed_skills, scripted_skills,
+};
+use systemprompt_test_mocks::recording_webhooks;
+use systemprompt_traits::{DynManagedSkillResolver, ResolvedManagedSkill, WithheldReason};
 
 fn make_ctx() -> RequestContext {
     let mut ctx = RequestContext::new(
         SessionId::new("skill-svc-session"),
         TraceId::new("skill-svc-trace"),
         ContextId::generate(),
-        AgentName::new("test-agent"),
+        AgentName::try_new("test-agent").expect("valid AgentName"),
     );
     ctx.auth.actor = Actor::user(UserId::new("skill-test-user"));
     ctx
+}
+
+fn owner() -> UserId {
+    UserId::new("skill-test-user")
 }
 
 fn write_skill(skills_root: &Path, id: &str, config_yaml: &str, content: Option<&str>) {
@@ -34,9 +45,23 @@ fn skills_root() -> std::path::PathBuf {
     std::path::PathBuf::from(profile.paths.skills())
 }
 
+fn service_with(pool: &DbPool, managed: DynManagedSkillResolver) -> SkillService {
+    ensure_test_bootstrap();
+    let repo = Arc::new(ExecutionStepRepository::new(pool).expect("step repo"));
+    SkillService::new(managed, repo, recording_webhooks()).expect("skill service")
+}
+
+async fn disk_service() -> Option<(DbPool, SkillService)> {
+    let pool = crate::repository::try_pool_or_skip().await?;
+    let svc = service_with(&pool, not_managed_skills());
+    Some((pool, svc))
+}
 
 #[tokio::test]
 async fn skill_service_load_skill_metadata_with_name_field() {
+    let Some((_pool, svc)) = disk_service().await else {
+        return;
+    };
     let root = skills_root();
     write_skill(
         &root,
@@ -44,24 +69,34 @@ async fn skill_service_load_skill_metadata_with_name_field() {
         "id: meta_skill_1\nname: Pretty Skill\ndescription: nice\n",
         Some("body"),
     );
-    let svc = SkillService::new().expect("svc");
     let id = SkillId::new("meta_skill_1");
-    let meta = svc.load_skill_metadata(&id).await.expect("load metadata");
+    let meta = svc
+        .load_skill_metadata(&id, &owner())
+        .await
+        .expect("load metadata");
     assert_eq!(meta.skill_id.as_str(), "meta_skill_1");
     assert_eq!(meta.name, "Pretty Skill");
 }
 
 #[tokio::test]
 async fn skill_service_load_skill_metadata_missing_returns_err() {
+    let Some((_pool, svc)) = disk_service().await else {
+        return;
+    };
     let _root = skills_root();
-    let svc = SkillService::new().expect("svc");
     let id = SkillId::new("__does_not_exist_xyz__");
-    let err = svc.load_skill_metadata(&id).await.expect_err("should fail");
+    let err = svc
+        .load_skill_metadata(&id, &owner())
+        .await
+        .expect_err("should fail");
     assert!(format!("{err}").contains("Skill not found"));
 }
 
 #[tokio::test]
 async fn skill_service_load_skill_returns_instructions_without_frontmatter() {
+    let Some((_pool, svc)) = disk_service().await else {
+        return;
+    };
     let root = skills_root();
     write_skill(
         &root,
@@ -69,7 +104,6 @@ async fn skill_service_load_skill_returns_instructions_without_frontmatter() {
         "id: load_skill_a\nname: Test\ndescription: testing\n",
         Some("---\ntitle: My\n---\nActual body text"),
     );
-    let svc = SkillService::new().expect("svc");
     let id = SkillId::new("load_skill_a");
     let ctx = make_ctx();
     let instructions = svc.load_skill(&id, &ctx).await.expect("load skill");
@@ -78,6 +112,9 @@ async fn skill_service_load_skill_returns_instructions_without_frontmatter() {
 
 #[tokio::test]
 async fn skill_service_load_skill_empty_body_when_content_missing() {
+    let Some((_pool, svc)) = disk_service().await else {
+        return;
+    };
     let root = skills_root();
     write_skill(
         &root,
@@ -85,7 +122,6 @@ async fn skill_service_load_skill_empty_body_when_content_missing() {
         "id: no_body_skill\nname: Test\ndescription: testing\n",
         None,
     );
-    let svc = SkillService::new().expect("svc");
     let id = SkillId::new("no_body_skill");
     let ctx = make_ctx();
     let instructions = svc.load_skill(&id, &ctx).await.expect("load");
@@ -94,6 +130,9 @@ async fn skill_service_load_skill_empty_body_when_content_missing() {
 
 #[tokio::test]
 async fn skill_service_load_skill_resolves_id_from_config_when_set() {
+    let Some((_pool, svc)) = disk_service().await else {
+        return;
+    };
     let root = skills_root();
     write_skill(
         &root,
@@ -101,10 +140,9 @@ async fn skill_service_load_skill_resolves_id_from_config_when_set() {
         "id: config_id_beta\nname: Override\ndescription: x\n",
         Some("payload"),
     );
-    let svc = SkillService::new().expect("svc");
     let id = SkillId::new("dir_name_alpha");
     let ctx = make_ctx();
-    let meta = svc.load_skill_metadata(&id).await.expect("meta");
+    let meta = svc.load_skill_metadata(&id, &owner()).await.expect("meta");
     assert_eq!(meta.skill_id.as_str(), "config_id_beta");
     assert_eq!(meta.name, "Override");
     let body = svc.load_skill(&id, &ctx).await.expect("body");
@@ -113,6 +151,9 @@ async fn skill_service_load_skill_resolves_id_from_config_when_set() {
 
 #[tokio::test]
 async fn skill_service_load_skill_uses_dir_name_when_empty_name() {
+    let Some((_pool, svc)) = disk_service().await else {
+        return;
+    };
     let root = skills_root();
     write_skill(
         &root,
@@ -120,14 +161,16 @@ async fn skill_service_load_skill_uses_dir_name_when_empty_name() {
         "id: fallback_named\nname: \"\"\ndescription: x\n",
         Some("hi"),
     );
-    let svc = SkillService::new().expect("svc");
     let id = SkillId::new("fallback_named");
-    let meta = svc.load_skill_metadata(&id).await.expect("meta");
+    let meta = svc.load_skill_metadata(&id, &owner()).await.expect("meta");
     assert_eq!(meta.name, "fallback_named");
 }
 
 #[tokio::test]
 async fn skill_service_load_skill_custom_content_file() {
+    let Some((_pool, svc)) = disk_service().await else {
+        return;
+    };
     let root = skills_root();
     let dir = root.join("custom_file_skill");
     fs::create_dir_all(&dir).expect("dir");
@@ -138,7 +181,6 @@ async fn skill_service_load_skill_custom_content_file() {
     .expect("config");
     fs::write(dir.join("alt.md"), "alt content").expect("alt md");
 
-    let svc = SkillService::new().expect("svc");
     let id = SkillId::new("custom_file_skill");
     let ctx = make_ctx();
     let body = svc.load_skill(&id, &ctx).await.expect("body");
@@ -147,6 +189,9 @@ async fn skill_service_load_skill_custom_content_file() {
 
 #[tokio::test]
 async fn skill_service_load_skill_invalid_yaml_errors() {
+    let Some((_pool, svc)) = disk_service().await else {
+        return;
+    };
     let _skills_fixture_write = crate::SKILLS_FIXTURE_LOCK.write().await;
     let root = skills_root();
     let dir = root.join("invalid_yaml_skill");
@@ -154,9 +199,8 @@ async fn skill_service_load_skill_invalid_yaml_errors() {
     fs::write(dir.join("config.yaml"), "{{{not yaml").expect("config");
     fs::write(dir.join("index.md"), "x").expect("md");
 
-    let svc = SkillService::new().expect("svc");
     let id = SkillId::new("invalid_yaml_skill");
-    let result = svc.load_skill_metadata(&id).await;
+    let result = svc.load_skill_metadata(&id, &owner()).await;
     // Drop the malformed stub before yielding: sibling `registry_service`
     // tests load this shared dir in full via the strict `ConfigLoader`, which
     // (unlike a targeted `load_skill_metadata`) rejects an unparseable stub.
@@ -166,104 +210,13 @@ async fn skill_service_load_skill_invalid_yaml_errors() {
 }
 
 #[tokio::test]
-async fn skill_service_list_skill_ids_returns_enabled_only_sorted() {
-    let root = skills_root();
-    write_skill(
-        &root,
-        "list_a_skill",
-        "id: list_a_skill\nname: A\ndescription: a\nenabled: true\n",
-        Some("a"),
-    );
-    write_skill(
-        &root,
-        "list_b_skill",
-        "id: list_b_skill\nname: B\ndescription: b\nenabled: true\n",
-        Some("b"),
-    );
-    write_skill(
-        &root,
-        "list_c_disabled",
-        "id: list_c_disabled\nname: C\ndescription: c\nenabled: false\n",
-        Some("c"),
-    );
-
-    let svc = SkillService::new().expect("svc");
-    let ids = svc.list_skill_ids().await.expect("list");
-    assert!(ids.contains(&"list_a_skill".to_owned()));
-    assert!(ids.contains(&"list_b_skill".to_owned()));
-    assert!(!ids.contains(&"list_c_disabled".to_owned()));
-}
-
-#[tokio::test]
-async fn skill_service_list_skill_ids_skips_dirs_without_config() {
-    let root = skills_root();
-    let dir = root.join("no_config_dir_marker");
-    fs::create_dir_all(&dir).expect("dir");
-
-    let svc = SkillService::new().expect("svc");
-    let ids = svc.list_skill_ids().await.expect("list");
-    assert!(!ids.contains(&"no_config_dir_marker".to_owned()));
-}
-
-#[tokio::test]
-async fn skill_service_list_skill_ids_uses_config_id_when_set() {
-    let root = skills_root();
-    write_skill(
-        &root,
-        "list_dir_x",
-        "id: list_real_id_y\nname: X\ndescription: x\nenabled: true\n",
-        Some("x"),
-    );
-
-    let svc = SkillService::new().expect("svc");
-    let ids = svc.list_skill_ids().await.expect("list");
-    assert!(ids.contains(&"list_real_id_y".to_owned()));
-    assert!(!ids.contains(&"list_dir_x".to_owned()));
-}
-
-#[tokio::test]
-async fn skill_service_list_skill_ids_handles_invalid_yaml_gracefully() {
-    let _skills_fixture_write = crate::SKILLS_FIXTURE_LOCK.write().await;
-    let root = skills_root();
-    let dir = root.join("list_bad_yaml");
-    fs::create_dir_all(&dir).expect("dir");
-    fs::write(dir.join("config.yaml"), "[[not yaml").expect("config");
-
-    let svc = SkillService::new().expect("svc");
-    let ids = svc.list_skill_ids().await;
-    // The bootstrap skills dir is shared with sibling tests that load it in
-    // full via `ServicesConfig` discovery, which (unlike the lenient
-    // `list_skill_ids`) rejects an unparseable skill stub. Drop the fixture as
-    // soon as it has served this assertion so a concurrent full-config load
-    // cannot trip over it.
-    fs::remove_dir_all(&dir).ok();
-    let ids = ids.expect("should not error");
-    assert!(!ids.contains(&"list_bad_yaml".to_owned()));
-}
-
-#[tokio::test]
-async fn skill_service_load_skill_with_task_id_does_not_panic_without_repo() {
-    let root = skills_root();
-    write_skill(
-        &root,
-        "with_task_skill",
-        "id: with_task_skill\nname: T\ndescription: t\n",
-        Some("hi"),
-    );
-    let svc = SkillService::new().expect("svc");
-    let id = SkillId::new("with_task_skill");
-    let mut ctx = make_ctx();
-    ctx.execution.task_id = Some(TaskId::generate());
-    let body = svc.load_skill(&id, &ctx).await.expect("load");
-    assert_eq!(body, "hi");
-}
-
-#[tokio::test]
 async fn skill_service_load_skill_id_field_empty_uses_supplied_id() {
+    let Some((_pool, svc)) = disk_service().await else {
+        return;
+    };
     let root = skills_root();
     let dir = root.join("empty_id_skill");
     std::fs::create_dir_all(&dir).expect("dir");
-    // YAML id: "" – serde_yaml may not deserialize empty quoted, use minimal config
     std::fs::write(
         dir.join("config.yaml"),
         "id: \"\"\nname: NamedOne\ndescription: x\n",
@@ -271,49 +224,18 @@ async fn skill_service_load_skill_id_field_empty_uses_supplied_id() {
     .expect("config");
     std::fs::write(dir.join("index.md"), "body").expect("md");
 
-    let svc = SkillService::new().expect("svc");
     let id = SkillId::new("empty_id_skill");
-    let meta = svc.load_skill_metadata(&id).await.expect("meta");
-    // When config id is empty string, supplied id is used
+    let meta = svc.load_skill_metadata(&id, &owner()).await.expect("meta");
     assert_eq!(meta.skill_id.as_str(), "empty_id_skill");
     assert_eq!(meta.name, "NamedOne");
 }
 
-#[tokio::test]
-async fn skill_service_with_execution_step_repo_returns_self() {
-    use std::sync::Arc;
-    use systemprompt_agent::repository::execution::ExecutionStepRepository;
-    use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
-
-    ensure_test_bootstrap();
-    let url = match fixture_database_url() {
-        Ok(u) => u,
-        Err(_) => return,
-    };
-    let db = match fixture_db_pool(&url).await {
-        Ok(d) => d,
-        Err(_) => return,
-    };
-    let repo = match ExecutionStepRepository::new(&db) {
-        Ok(r) => Arc::new(r),
-        Err(_) => return,
-    };
-    let svc = SkillService::new()
-        .expect("svc")
-        .with_execution_step_repo(repo);
-    let dbg = format!("{:?}", svc);
-    assert!(dbg.contains("ExecutionStepRepository"));
-}
-
-// The tests above never inject an ExecutionStepRepository and never put a
-// task_id in the context, so `track_skill_usage` always took one of its two
-// early returns and the tracking + execution_step broadcast path never ran.
 fn ctx_with_task(context_id: &ContextId, task_id: &TaskId) -> RequestContext {
     let mut ctx = RequestContext::new(
         SessionId::new("skill-track-session"),
         TraceId::new("skill-track-trace"),
         context_id.clone(),
-        AgentName::new("test-agent"),
+        AgentName::try_new("test-agent").expect("valid AgentName"),
     );
     ctx.auth.actor = Actor::user(UserId::new("skill-track-user"));
     ctx.with_task_id(task_id.clone())
@@ -321,6 +243,9 @@ fn ctx_with_task(context_id: &ContextId, task_id: &TaskId) -> RequestContext {
 
 #[tokio::test]
 async fn load_skill_without_a_task_id_still_returns_instructions() {
+    let Some((_pool, svc)) = disk_service().await else {
+        return;
+    };
     let root = skills_root();
     let id = format!("notrack{}", uuid::Uuid::new_v4().simple());
     write_skill(
@@ -330,7 +255,6 @@ async fn load_skill_without_a_task_id_still_returns_instructions() {
         Some("Do the thing.\n"),
     );
 
-    let svc = SkillService::new().expect("service");
     let instructions = svc
         .load_skill(&SkillId::new(&id), &make_ctx())
         .await
@@ -343,37 +267,7 @@ async fn load_skill_without_a_task_id_still_returns_instructions() {
 }
 
 #[tokio::test]
-async fn load_skill_with_a_task_but_no_repository_still_returns_instructions() {
-    let Some(pool) = crate::repository::try_pool_or_skip().await else {
-        return;
-    };
-    let repos = crate::repository::repos(&pool);
-    let (user, session) = crate::repository::seed_user_and_session(&pool).await;
-    let (context_id, task_id) =
-        crate::repository::seed_context_and_task(&repos, &user, &session).await;
-
-    let root = skills_root();
-    let id = format!("norepo{}", uuid::Uuid::new_v4().simple());
-    write_skill(
-        &root,
-        &id,
-        &format!("id: {id}\nname: No Repo\ndescription: d\n"),
-        Some("Body.\n"),
-    );
-
-    // No with_execution_step_repo: usage tracking is skipped, but loading must
-    // not fail because of it.
-    let svc = SkillService::new().expect("service");
-    let instructions = svc
-        .load_skill(&SkillId::new(&id), &ctx_with_task(&context_id, &task_id))
-        .await
-        .expect("missing repository must not fail the load");
-
-    assert!(instructions.contains("Body."));
-}
-
-#[tokio::test]
-async fn load_skill_records_an_execution_step_when_tracking_is_wired() {
+async fn load_skill_records_an_execution_step_for_the_task() {
     let Some(pool) = crate::repository::try_pool_or_skip().await else {
         return;
     };
@@ -391,13 +285,13 @@ async fn load_skill_records_an_execution_step_when_tracking_is_wired() {
         Some("Tracked body.\n"),
     );
 
-    let step_repo = std::sync::Arc::new(
-        systemprompt_agent::repository::execution::ExecutionStepRepository::new(&pool)
-            .expect("step repo"),
-    );
-    let svc = SkillService::new()
-        .expect("service")
-        .with_execution_step_repo(std::sync::Arc::clone(&step_repo));
+    let step_repo = Arc::new(ExecutionStepRepository::new(&pool).expect("step repo"));
+    let svc = SkillService::new(
+        not_managed_skills(),
+        Arc::clone(&step_repo),
+        recording_webhooks(),
+    )
+    .expect("service");
 
     let instructions = svc
         .load_skill(&SkillId::new(&id), &ctx_with_task(&context_id, &task_id))
@@ -411,30 +305,124 @@ async fn load_skill_records_an_execution_step_when_tracking_is_wired() {
         .expect("steps should be readable");
     assert!(
         steps.iter().any(|s| format!("{s:?}").contains(&id)),
-        "loading a skill with tracking wired must record a step naming it: {steps:?}"
+        "loading a skill must record a step naming it: {steps:?}"
     );
+}
+
+#[tokio::test]
+async fn a_published_managed_skill_is_served_without_touching_the_disk_catalogue() {
+    let Some(pool) = crate::repository::try_pool_or_skip().await else {
+        return;
+    };
+    let _root = skills_root();
+    let published = ResolvedManagedSkill {
+        id: SkillId::new("managed-only"),
+        name: "Managed Only".to_owned(),
+        description: "served by the authority".to_owned(),
+        instructions: "Managed instructions.".to_owned(),
+    };
+    let svc = service_with(&pool, scripted_skills(ScriptedSkills::Published(published)));
+
+    let instructions = svc
+        .load_skill(&SkillId::new("managed-only"), &make_ctx())
+        .await
+        .expect("published skill loads");
+    assert_eq!(instructions, "Managed instructions.");
+
+    let meta = svc
+        .load_skill_metadata(&SkillId::new("managed-only"), &owner())
+        .await
+        .expect("metadata comes from the authority");
+    assert_eq!(meta.name, "Managed Only");
+}
+
+#[tokio::test]
+async fn a_withheld_managed_skill_is_an_error_even_when_a_disk_copy_exists() {
+    let Some(pool) = crate::repository::try_pool_or_skip().await else {
+        return;
+    };
+    let root = skills_root();
+    write_skill(
+        &root,
+        "withheld_skill",
+        "id: withheld_skill\nname: Withheld\ndescription: d\n",
+        Some("disk copy"),
+    );
+    let svc = service_with(
+        &pool,
+        scripted_skills(ScriptedSkills::Withheld(WithheldReason::Withdrawn)),
+    );
+
+    let err = svc
+        .load_skill(&SkillId::new("withheld_skill"), &make_ctx())
+        .await
+        .expect_err("withheld must not fall back to disk");
+    assert!(err.to_string().contains("withheld"), "{err}");
+    assert!(err.to_string().contains("withdrawn"), "{err}");
+
+    let meta_err = svc
+        .load_skill_metadata(&SkillId::new("withheld_skill"), &owner())
+        .await
+        .expect_err("metadata goes through the same authority");
+    assert!(meta_err.to_string().contains("withheld"), "{meta_err}");
+}
+
+#[tokio::test]
+async fn an_unavailable_authority_fails_the_load() {
+    let Some(pool) = crate::repository::try_pool_or_skip().await else {
+        return;
+    };
+    let root = skills_root();
+    write_skill(
+        &root,
+        "outage_skill",
+        "id: outage_skill\nname: Outage\ndescription: d\n",
+        Some("disk copy"),
+    );
+    let svc = service_with(&pool, scripted_skills(ScriptedSkills::Unavailable));
+
+    let err = svc
+        .load_skill(&SkillId::new("outage_skill"), &make_ctx())
+        .await
+        .expect_err("an authority outage is not a disk fallback");
+    assert!(err.to_string().contains("outage"), "{err}");
 }
 
 #[test]
 fn coverage_skill_service_requires_a_profile_before_loading_disk_content() {
     assert!(ProfileBootstrap::get().is_err());
-    let err = SkillService::new().unwrap_err();
+    let Ok(url) = systemprompt_test_fixtures::fixture_database_url() else {
+        return;
+    };
+    let rt = tokio::runtime::Runtime::new().expect("runtime");
+    let Ok(pool) = rt.block_on(systemprompt_test_fixtures::fixture_db_pool(&url)) else {
+        return;
+    };
+    let repo = Arc::new(ExecutionStepRepository::new(&pool).expect("step repo"));
+    let err = SkillService::new(not_managed_skills(), repo, recording_webhooks()).unwrap_err();
     assert!(err.to_string().contains("Profile not initialized"));
 }
+
 #[tokio::test]
 async fn coverage_skill_config_read_failure_names_the_file() {
+    let Some((_pool, svc)) = disk_service().await else {
+        return;
+    };
     let root = skills_root();
     fs::create_dir_all(root.join("blocked/config.yaml")).unwrap();
-    let err = SkillService::new()
-        .unwrap()
-        .load_skill_metadata(&SkillId::new("blocked"))
+    let err = svc
+        .load_skill_metadata(&SkillId::new("blocked"), &owner())
         .await
         .unwrap_err();
     assert!(err.to_string().contains("Failed to read"));
     assert!(err.to_string().contains("config.yaml"));
 }
+
 #[tokio::test]
 async fn coverage_skill_content_read_failure_is_not_empty_instructions() {
+    let Some((_pool, svc)) = disk_service().await else {
+        return;
+    };
     let root = skills_root();
     write_skill(
         &root,
@@ -443,58 +431,9 @@ async fn coverage_skill_content_read_failure_is_not_empty_instructions() {
         None,
     );
     fs::create_dir(root.join("blocked_body/index.md")).unwrap();
-    let err = SkillService::new()
-        .unwrap()
+    let err = svc
         .load_skill(&SkillId::new("blocked_body"), &make_ctx())
         .await
         .unwrap_err();
     assert!(err.to_string().contains("index.md"));
-}
-#[tokio::test]
-async fn coverage_skill_listing_skips_unreadable_configs_and_regular_files() {
-    let root = skills_root();
-    fs::create_dir_all(root.join("unreadable/config.yaml")).unwrap();
-    fs::write(root.join("README.md"), "not a skill").unwrap();
-    write_skill(
-        &root,
-        "fallback_id",
-        "id: ''\nname: Fallback\ndescription: fallback identifier\nenabled: true\n",
-        None,
-    );
-    let ids = SkillService::new().unwrap().list_skill_ids().await.unwrap();
-    assert!(ids.contains(&"fallback_id".to_owned()));
-    assert!(!ids.contains(&"unreadable".to_owned()));
-    assert!(!ids.contains(&"README.md".to_owned()));
-}
-#[tokio::test]
-async fn coverage_skill_listing_with_no_directory_is_empty() {
-    let root = skills_root();
-    fs::remove_dir_all(&root).unwrap();
-    assert!(
-        SkillService::new()
-            .unwrap()
-            .list_skill_ids()
-            .await
-            .unwrap()
-            .is_empty()
-    );
-}
-#[cfg(unix)]
-#[tokio::test]
-async fn coverage_skill_listing_rejects_a_non_utf8_directory_identifier() {
-    use std::os::unix::ffi::OsStringExt;
-    let root = skills_root();
-    let dir = root.join(std::ffi::OsString::from_vec(vec![b'x', 255]));
-    fs::create_dir(&dir).unwrap();
-    fs::write(
-        dir.join("config.yaml"),
-        "id: ''\nname: Invalid\ndescription: invalid identifier\nenabled: true\n",
-    )
-    .unwrap();
-    let err = SkillService::new()
-        .unwrap()
-        .list_skill_ids()
-        .await
-        .unwrap_err();
-    assert!(err.to_string().contains("Invalid skill dir entry"));
 }

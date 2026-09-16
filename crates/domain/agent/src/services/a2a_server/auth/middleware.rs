@@ -42,14 +42,6 @@ pub async fn agent_oauth_middleware(
     Ok(next.run(request).await)
 }
 
-pub fn get_user_context(
-    request: &Request<axum::body::Body>,
-) -> Option<&crate::services::shared::AgentSessionUser> {
-    request
-        .extensions()
-        .get::<crate::services::shared::AgentSessionUser>()
-}
-
 pub async fn agent_oauth_middleware_wrapper(
     State(handler_state): State<Arc<AgentHandlerState>>,
     request: Request<axum::body::Body>,

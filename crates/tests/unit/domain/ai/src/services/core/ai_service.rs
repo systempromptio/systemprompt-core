@@ -155,7 +155,10 @@ async fn generate_plan_tool_calls_when_present() {
     let svc = service(&pool, ANTHROPIC, server.uri());
     let (_user, ctx) = seeded_context(&pool).await;
     let request = user_request(ANTHROPIC_MODEL, ctx);
-    let tools = vec![McpTool::new("search", McpServerId::new("svc"))];
+    let tools = vec![McpTool::new(
+        "search",
+        McpServerId::try_new("svc").expect("valid McpServerId"),
+    )];
 
     let plan = svc.generate_plan(&request, &tools).await.expect("plan ok");
     match plan {
@@ -366,6 +369,88 @@ async fn drained_stream_persists_completed_audit_with_aggregated_usage() {
     assert_eq!(
         audit.content_len,
         i32::try_from("hello".len()).expect("len")
+    );
+}
+
+// Why: a consumer that drops the stream after the first chunk has still made
+// the provider call; the audit row must record the abandoned request (and
+// bill whatever usage had been reported) rather than leave no trace of it.
+#[tokio::test]
+async fn dropped_stream_persists_a_failed_audit_row_with_the_usage_seen_so_far() {
+    let Some(pool) = pool_or_skip().await else {
+        return;
+    };
+    let server = mock_http::anthropic_messages_stream(ANTHROPIC_SSE_WITH_USAGE).await;
+    let svc = service(&pool, ANTHROPIC, server.uri());
+    let (user_id, ctx) = seeded_context(&pool).await;
+    let request = user_request(ANTHROPIC_MODEL, ctx);
+
+    let mut stream = svc.generate_stream(&request).await.expect("stream ok");
+    let first = stream
+        .next()
+        .await
+        .expect("a first chunk")
+        .expect("chunk ok");
+    assert!(matches!(first, StreamChunk::Text(_)));
+    drop(stream);
+
+    let read = pool.pool_arc().expect("read pool");
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+    let row = loop {
+        let row = sqlx::query!(
+            r#"SELECT status, is_streaming, input_tokens, cost_microdollars, error_message
+               FROM ai_requests WHERE user_id = $1"#,
+            user_id.as_str()
+        )
+        .fetch_optional(read.as_ref())
+        .await
+        .expect("query");
+        if let Some(row) = row {
+            break row;
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "abandoned-stream audit row never appeared for {user_id}"
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(25)).await;
+    };
+    assert_eq!(row.status, "failed");
+    assert!(row.is_streaming);
+    // Anthropic reports usage on the trailing message_delta frames, which the
+    // consumer never reached: nothing was seen, so nothing is billed, and the
+    // row still exists to say so.
+    assert_eq!(row.input_tokens, None);
+    assert_eq!(row.cost_microdollars, 0);
+    assert!(
+        row.error_message
+            .as_deref()
+            .is_some_and(|m| m.contains("dropped by the consumer")),
+        "{:?}",
+        row.error_message
+    );
+}
+
+// Why: a request for a model the catalogue does not price cannot be settled;
+// it is refused before the provider is called instead of billed at zero.
+#[tokio::test]
+async fn a_model_without_catalogue_pricing_is_refused_before_streaming() {
+    let Some(pool) = pool_or_skip().await else {
+        return;
+    };
+    let server = mock_http::anthropic_messages_stream(ANTHROPIC_SSE).await;
+    let svc = service(&pool, ANTHROPIC, server.uri());
+    let (_user_id, ctx) = seeded_context(&pool).await;
+    let request = user_request("claude-not-in-catalogue", ctx);
+
+    let err = svc
+        .generate_stream(&request)
+        .await
+        .err()
+        .expect("an unpriced model is refused");
+    assert!(err.to_string().contains("no pricing"), "{err}");
+    assert!(
+        server.received_requests().await.unwrap().is_empty(),
+        "the provider is never called for an unpriced model"
     );
 }
 

@@ -51,7 +51,7 @@ impl GatewayRoute {
     }
 
     pub fn matches_request(&self, request: &CanonicalRequest) -> bool {
-        self.matches(&request.model)
+        self.matches(request.model.as_str())
             && self
                 .when
                 .as_ref()

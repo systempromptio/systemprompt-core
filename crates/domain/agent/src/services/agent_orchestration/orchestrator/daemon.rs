@@ -43,7 +43,6 @@ impl AgentOrchestrator {
         tracing::debug!("Performing startup reconciliation");
 
         let reconciled = self.reconciler.reconcile_running_services().await?;
-        let started_fixed = crate::services::agent_orchestration::reconciler::AgentReconciler::reconcile_starting_services();
 
         let report = self.reconciler.perform_consistency_check().await?;
         if report.has_inconsistencies() {
@@ -51,9 +50,8 @@ impl AgentOrchestrator {
             tracing::info!(fixed = %fixed, "Fixed inconsistencies");
         }
 
-        let total_fixed = reconciled + started_fixed;
-        if total_fixed > 0 {
-            tracing::info!(fixed = %total_fixed, "Startup reconciliation complete");
+        if reconciled > 0 {
+            tracing::info!(fixed = %reconciled, "Startup reconciliation complete");
         } else {
             tracing::debug!("Startup reconciliation complete - no issues found");
         }

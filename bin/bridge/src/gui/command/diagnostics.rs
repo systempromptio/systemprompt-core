@@ -30,6 +30,13 @@ pub(super) fn diagnostics_dispatch(
             );
             CommandOutcome::Async
         },
+        "config.repairDir" => {
+            send(
+                app,
+                UiEvent::ConfigDirRepairRequested { reply_to: reply_id },
+            );
+            CommandOutcome::Async
+        },
         "diagnostics.info" => CommandOutcome::Sync(Ok(json!({
             "version": crate::brand::brand().version,
             "git_sha": crate::buildinfo::short_sha(),

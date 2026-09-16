@@ -20,7 +20,7 @@ fn ctx() -> RequestContext {
         SessionId::new("s-loader"),
         TraceId::new("t-loader"),
         ContextId::generate(),
-        AgentName::new("agent-loader"),
+        AgentName::try_new("agent-loader").expect("valid AgentName"),
     )
     .with_actor(systemprompt_identifiers::Actor::user(UserId::new(
         "user-loader",

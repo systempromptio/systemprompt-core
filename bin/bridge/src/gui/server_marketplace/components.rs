@@ -41,22 +41,14 @@ pub(super) fn list_skills(dir: &Path) -> std::io::Result<Vec<MarketplaceItem>> {
             name: frontmatter_name.clone(),
             description: summary.clone(),
         });
-        out.push(MarketplaceItem {
-            id: id.to_owned(),
-            name: frontmatter_name.unwrap_or_else(|| id.to_owned()),
-            source: "tenant",
-            path: entry.path().display().to_string(),
-            summary,
-            readme: body,
-            version: None,
-            author: None,
-            homepage: None,
-            change: None,
-            children: Vec::new(),
-            plugins: Vec::new(),
-            extra,
-            error: None,
-        });
+        out.push(
+            MarketplaceItem::builder(id, entry.path().display().to_string())
+                .name(frontmatter_name.unwrap_or_else(|| id.to_owned()))
+                .summary(summary)
+                .readme(body)
+                .extra(extra)
+                .build(),
+        );
     }
     out.sort_by(|a, b| a.name.cmp(&b.name));
     Ok(out)
@@ -99,22 +91,14 @@ fn list_markdown_dir(dir: &Path) -> std::io::Result<Vec<MarketplaceItem>> {
             name: frontmatter_name.clone(),
             description: summary.clone(),
         });
-        out.push(MarketplaceItem {
-            id: stem.to_owned(),
-            name: frontmatter_name.unwrap_or_else(|| stem.to_owned()),
-            source: "tenant",
-            path: path.display().to_string(),
-            summary,
-            readme: body,
-            version: None,
-            author: None,
-            homepage: None,
-            change: None,
-            children: Vec::new(),
-            plugins: Vec::new(),
-            extra,
-            error: None,
-        });
+        out.push(
+            MarketplaceItem::builder(stem, path.display().to_string())
+                .name(frontmatter_name.unwrap_or_else(|| stem.to_owned()))
+                .summary(summary)
+                .readme(body)
+                .extra(extra)
+                .build(),
+        );
     }
     out.sort_by(|a, b| a.name.cmp(&b.name));
     Ok(out)
@@ -123,8 +107,13 @@ fn list_markdown_dir(dir: &Path) -> std::io::Result<Vec<MarketplaceItem>> {
 pub(super) fn list_artifacts() -> Vec<MarketplaceItem> {
     use crate::integration::cowork_artifacts::{emit, sink};
 
-    let Some(dir) = emit::resolve_artifacts_dir() else {
-        return Vec::new();
+    let dir = match emit::resolve_artifacts_dir() {
+        Ok(Some(dir)) => dir,
+        Ok(None) => return Vec::new(),
+        Err(e) => {
+            tracing::warn!(error = %e, "artifacts library unavailable: Cowork session unresolved");
+            return Vec::new();
+        },
     };
     let store_path = dir.join(sink::LIBRARY_STORE_FILE).display().to_string();
     let mut out: Vec<MarketplaceItem> = sink::read_library_store(&dir)
@@ -135,22 +124,11 @@ pub(super) fn list_artifacts() -> Vec<MarketplaceItem> {
             } else {
                 record.name.clone()
             };
-            MarketplaceItem {
-                id,
-                name,
-                source: "tenant",
-                path: store_path.clone(),
-                summary: record.description,
-                readme: None,
-                version: None,
-                author: None,
-                homepage: None,
-                change: None,
-                children: Vec::new(),
-                plugins: record.plugins,
-                extra: MarketplaceExtra::None,
-                error: None,
-            }
+            MarketplaceItem::builder(id, store_path.clone())
+                .name(name)
+                .summary(record.description)
+                .plugins(record.plugins)
+                .build()
         })
         .collect();
     out.sort_by(|a, b| a.name.cmp(&b.name));
@@ -165,31 +143,21 @@ pub(super) fn list_registry_mcp(
     for (slug, upstream) in registry {
         let proxy_url = loopback.mcp_url(slug);
         let upstream_url = upstream.url.as_str().to_owned();
-        out.push(MarketplaceItem {
-            id: slug.clone(),
-            name: upstream.display_name.clone(),
-            source: "tenant",
-            path: upstream_url.clone(),
-            summary: None,
-            readme: None,
-            version: None,
-            author: None,
-            homepage: None,
-            change: None,
-            children: Vec::new(),
-            plugins: Vec::new(),
-            extra: MarketplaceExtra::Mcp(McpServerEntry {
-                proxy_url: Some(proxy_url),
-                upstream_url: Some(upstream_url),
-                command: None,
-                args: Vec::new(),
-                transport: upstream
-                    .transport
-                    .clone()
-                    .or_else(|| Some("http".to_owned())),
-            }),
-            error: None,
-        });
+        out.push(
+            MarketplaceItem::builder(slug.clone(), upstream_url.clone())
+                .name(upstream.display_name.clone())
+                .extra(MarketplaceExtra::Mcp(McpServerEntry {
+                    proxy_url: Some(proxy_url),
+                    upstream_url: Some(upstream_url),
+                    command: None,
+                    args: Vec::new(),
+                    transport: upstream
+                        .transport
+                        .clone()
+                        .or_else(|| Some("http".to_owned())),
+                }))
+                .build(),
+        );
     }
     out.sort_by(|a, b| a.name.cmp(&b.name));
     out

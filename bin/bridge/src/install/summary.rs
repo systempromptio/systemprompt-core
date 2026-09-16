@@ -147,6 +147,9 @@ pub fn render_uninstall_summary(s: &UninstallSummary) -> String {
         },
         ScheduleRemoval::NotInstalled(_) | ScheduleRemoval::Failed(_) => {},
     }
+    for warning in &s.host_warnings {
+        lines.push(format!("Warning: {warning}"));
+    }
     joined(&lines)
 }
 

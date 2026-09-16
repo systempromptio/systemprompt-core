@@ -39,6 +39,43 @@ pub struct ContextWithStats {
     pub last_message_at: Option<DateTime<Utc>>,
 }
 
+#[derive(Debug, Clone, Copy, Default)]
+pub struct ContextStats {
+    pub task_count: i64,
+    pub message_count: i64,
+    pub last_message_at: Option<DateTime<Utc>>,
+}
+
+impl ContextWithStats {
+    #[must_use]
+    pub fn new(
+        context_id: ContextId,
+        user_id: UserId,
+        name: impl Into<String>,
+        created_at: DateTime<Utc>,
+        updated_at: DateTime<Utc>,
+    ) -> Self {
+        Self {
+            context_id,
+            user_id,
+            name: name.into(),
+            created_at,
+            updated_at,
+            task_count: 0,
+            message_count: 0,
+            last_message_at: None,
+        }
+    }
+
+    #[must_use]
+    pub const fn with_stats(mut self, stats: ContextStats) -> Self {
+        self.task_count = stats.task_count;
+        self.message_count = stats.message_count;
+        self.last_message_at = stats.last_message_at;
+        self
+    }
+}
+
 #[async_trait]
 pub trait ContextProvider: Send + Sync {
     async fn list_contexts_with_stats(

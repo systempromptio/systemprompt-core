@@ -10,9 +10,10 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::error::McpDomainResult;
-use std::net::{SocketAddr, TcpStream};
+use std::net::SocketAddr;
 use std::process::Command;
 use std::time::Duration;
+use tokio::net::TcpStream;
 
 pub const MAX_PORT_CLEANUP_ATTEMPTS: u32 = 5;
 pub const PORT_BACKOFF_BASE_MS: u64 = 200;
@@ -25,7 +26,7 @@ const PORT_PROBE_TIMEOUT: Duration = Duration::from_secs(1);
 pub async fn prepare_port(port: u16, service_name: &str) -> McpDomainResult<()> {
     tracing::debug!(port = port, service = %service_name, "Preparing port");
 
-    if is_port_in_use(port) {
+    if is_port_in_use(port).await {
         tracing::debug!(port = port, service = %service_name, "Port is in use, cleaning up");
         cleanup_port_processes(port, service_name).await?;
     }
@@ -48,7 +49,7 @@ fn classify_port_holder(pid: u32, service_name: &str) -> PortHolder {
     if !systemprompt_models::subprocess::identity_verification_supported() {
         return PortHolder::Unverifiable;
     }
-    if systemprompt_models::subprocess::live_pid_is_subprocess(
+    if systemprompt_loader::subprocess::live_pid_is_subprocess(
         pid,
         systemprompt_models::subprocess::MCP_SERVICE_ID_ENV,
         service_name,
@@ -59,19 +60,19 @@ fn classify_port_holder(pid: u32, service_name: &str) -> PortHolder {
     }
 }
 
-#[must_use]
-pub fn is_port_in_use(port: u16) -> bool {
-    let addr: SocketAddr = match format!("127.0.0.1:{port}").parse() {
-        Ok(a) => a,
-        Err(e) => {
-            tracing::error!(port = port, error = %e, "BUG: failed to parse loopback addr for probe");
-            return false;
+// Why: a loopback connect that neither succeeds nor is refused within the
+// probe timeout means no listener accepted and no RST came back; the port is
+// treated as free so a stale half-open socket cannot block startup forever.
+pub async fn is_port_in_use(port: u16) -> bool {
+    let addr = SocketAddr::from(([127, 0, 0, 1], port));
+    match tokio::time::timeout(PORT_PROBE_TIMEOUT, TcpStream::connect(addr)).await {
+        Ok(Ok(_)) => true,
+        Ok(Err(e)) if e.kind() == std::io::ErrorKind::ConnectionRefused => false,
+        Ok(Err(e)) => {
+            tracing::warn!(port = port, error = %e, "Port probe failed; treating port as free");
+            false
         },
-    };
-    match TcpStream::connect_timeout(&addr, PORT_PROBE_TIMEOUT) {
-        Ok(_) => true,
-        Err(e) if e.kind() == std::io::ErrorKind::ConnectionRefused => false,
-        Err(e) if e.kind() == std::io::ErrorKind::TimedOut => {
+        Err(_) => {
             tracing::warn!(
                 port = port,
                 timeout_ms = PORT_PROBE_TIMEOUT.as_millis() as u64,
@@ -81,16 +82,11 @@ pub fn is_port_in_use(port: u16) -> bool {
             );
             false
         },
-        Err(e) => {
-            tracing::warn!(port = port, error = %e, "Port probe failed; treating port as free");
-            false
-        },
     }
 }
 
-#[must_use]
-pub fn is_port_responsive(port: u16) -> bool {
-    is_port_in_use(port)
+pub async fn is_port_responsive(port: u16) -> bool {
+    is_port_in_use(port).await
 }
 
 #[cfg(unix)]
@@ -233,7 +229,7 @@ pub async fn wait_for_port_release(port: u16) -> McpDomainResult<()> {
     let delay = Duration::from_millis(100);
 
     for attempt in 1..=max_attempts {
-        if !is_port_in_use(port) {
+        if !is_port_in_use(port).await {
             return Ok(());
         }
 
@@ -253,7 +249,7 @@ pub async fn wait_for_port_release_with_retry(
     max_cleanup_attempts: u32,
 ) -> McpDomainResult<()> {
     for cleanup_attempt in 1..=max_cleanup_attempts {
-        if !is_port_in_use(port) {
+        if !is_port_in_use(port).await {
             return Ok(());
         }
 
@@ -280,19 +276,5 @@ pub async fn wait_for_port_release_with_retry(
 
     Err(crate::error::McpDomainError::Internal(format!(
         "Port {port} could not be acquired after {max_cleanup_attempts} cleanup attempts"
-    )))
-}
-
-pub const fn cleanup_port_resources(_port: u16) {}
-
-pub fn find_available_port(start_port: u16, end_port: u16) -> McpDomainResult<u16> {
-    for port in start_port..=end_port {
-        if !is_port_in_use(port) {
-            return Ok(port);
-        }
-    }
-
-    Err(crate::error::McpDomainError::Internal(format!(
-        "No available ports in range {start_port}-{end_port}"
     )))
 }

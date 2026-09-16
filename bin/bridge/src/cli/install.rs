@@ -37,9 +37,16 @@ pub(super) fn cmd_install(ctx: &BridgeContext, args: &[String]) -> ExitCode {
     let apply = has_flag(args, "--apply");
     let apply_mobileconfig = has_flag(args, "--apply-mobileconfig");
     let apply_schedule = has_flag(args, "--apply-schedule");
-    let egress_allowed_hosts = parse_opt_flag(args, "--egress-allowed-hosts")
-        .as_deref()
-        .and_then(install::parse_egress_allowed_hosts);
+    let egress_allowed_hosts = match parse_opt_flag(args, "--egress-allowed-hosts") {
+        None => None,
+        Some(raw) => match install::parse_egress_allowed_hosts(&raw) {
+            Ok(hosts) => Some(hosts),
+            Err(e) => {
+                diag(&format!("--egress-allowed-hosts: {e}"));
+                return ExitCode::from(64);
+            },
+        },
+    };
     let host_selection = match parse_host_selection(args) {
         Ok(sel) => sel,
         Err(msg) => {
@@ -96,7 +103,13 @@ fn parse_host_selection(args: &[String]) -> Result<Option<Selection>, String> {
 
 fn enrol_selected(ctx: &BridgeContext, selection: &Selection) -> ExitCode {
     let overrides = crate::integration::reapply::ModelProtocolOverrides::new();
-    let enabled = crate::sync::last_synced_enabled_hosts();
+    let enabled = match crate::sync::last_synced_enabled_hosts() {
+        Ok(enabled) => enabled,
+        Err(e) => {
+            diag(&format!("last-sync sentinel: {e}"));
+            return ExitCode::from(1);
+        },
+    };
     match ctx.block_on(enrol::enrol_hosts(ctx, selection, &overrides, enabled)) {
         Ok(reports) => {
             stdio::print_str(&enrol::render(&reports));

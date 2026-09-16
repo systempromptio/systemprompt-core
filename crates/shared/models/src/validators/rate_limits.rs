@@ -6,7 +6,7 @@
 use super::ValidationConfigProvider;
 use crate::config::RateLimitConfig;
 use systemprompt_traits::validation_report::{
-    ValidationError, ValidationReport, ValidationWarning,
+    ValidationIssue, ValidationReport, ValidationWarning,
 };
 use systemprompt_traits::{ConfigProvider, DomainConfig, DomainConfigError};
 
@@ -66,7 +66,7 @@ impl DomainConfig for RateLimitsConfigValidator {
 impl RateLimitsConfigValidator {
     fn validate_quota_limits(report: &mut ValidationReport, config: &RateLimitConfig) {
         if config.burst_multiplier == 0 {
-            report.add_error(ValidationError::new(
+            report.add_error(ValidationIssue::new(
                 "rate_limits.burst_multiplier",
                 "burst_multiplier must be at least 1; a zero burst leaves every route unlimited",
             ));
@@ -91,7 +91,7 @@ impl RateLimitsConfigValidator {
 
         for (field, per_second) in limits {
             if per_second == 0 {
-                report.add_error(ValidationError::new(
+                report.add_error(ValidationIssue::new(
                     format!("rate_limits.{field}"),
                     "must be at least 1; a zero rate leaves the route unlimited",
                 ));
@@ -99,7 +99,7 @@ impl RateLimitsConfigValidator {
             }
 
             if per_second.saturating_mul(config.burst_multiplier) > u64::from(u32::MAX) {
-                report.add_error(ValidationError::new(
+                report.add_error(ValidationIssue::new(
                     format!("rate_limits.{field}"),
                     format!(
                         "{per_second} x burst_multiplier {} exceeds the maximum representable \

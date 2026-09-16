@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct TableSectionData {
     pub columns: Vec<String>,
+    // JSON: Table rows are the tool's own row objects.
     pub rows: Vec<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sortable: Option<bool>,
@@ -23,6 +24,7 @@ pub struct SortConfig {
 }
 
 impl TableSectionData {
+    // JSON: Table rows are the tool's own row objects.
     pub const fn new(columns: Vec<String>, rows: Vec<serde_json::Value>) -> Self {
         Self {
             columns,

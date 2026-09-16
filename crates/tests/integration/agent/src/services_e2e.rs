@@ -1,9 +1,9 @@
 use anyhow::Result;
 use chrono::Utc;
 use std::sync::Arc;
+use systemprompt_agent::repository::ContextRepository;
 use systemprompt_agent::repository::execution::ExecutionStepRepository;
 use systemprompt_agent::repository::task::{RepoCreateTaskParams, TaskRepository};
-use systemprompt_agent::repository::{A2ARepositories, ContextRepository};
 use systemprompt_agent::services::context::ContextService;
 use systemprompt_agent::services::context_provider::ContextProviderService;
 use systemprompt_agent::services::execution_tracking::ExecutionTrackingService;
@@ -48,7 +48,7 @@ impl ServicesFixture {
         let user_id = UserId::new(format!("svc_user_{tag}"));
         let session_id = SessionId::new(format!("svc_session_{tag}"));
         let trace_id = TraceId::new(format!("svc_trace_{tag}"));
-        let context_id = ContextId::new_unchecked(Uuid::new_v4().to_string());
+        let context_id = ContextId::try_new(Uuid::new_v4().to_string()).expect("valid ContextId");
 
         sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $2, $3)")
             .bind(user_id.as_str())
@@ -77,11 +77,7 @@ impl ServicesFixture {
     }
 
     async fn insert_task(&self) -> Result<TaskId> {
-        let repos = A2ARepositories::new(
-            &self.db,
-            crate::common::session_usage(&self.db)?,
-            systemprompt_identifiers::InstanceId::new("test-instance"),
-        )?;
+        let repos = systemprompt_test_fixtures::a2a_repositories(&self.db);
         let task_id = TaskId::new(format!("svc_task_{}_{}", self.tag, Uuid::new_v4().simple()));
         let task = Task {
             id: task_id.clone(),
@@ -298,7 +294,7 @@ async fn message_service_creates_tool_execution_message() -> Result<()> {
         fx.session_id.clone(),
         fx.trace_id.clone(),
         fx.context_id.clone(),
-        AgentName::new("svc-agent"),
+        AgentName::try_new("svc-agent").expect("valid AgentName"),
     );
 
     let (msg_id, seq) = svc
@@ -310,7 +306,7 @@ async fn message_service_creates_tool_execution_message() -> Result<()> {
             request_context: &request_context,
         })
         .await?;
-    assert!(!msg_id.is_empty());
+    assert!(!msg_id.as_str().is_empty());
     assert!(seq >= 0);
 
     fx.cleanup().await?;

@@ -122,6 +122,7 @@ pub fn start_with_listener(
     let stats = Arc::new(ProxyStats::default());
 
     let client = build_upstream_client()?;
+    let stream_client = build_stream_client()?;
 
     let ctx = ProxyContext {
         runtime_config: Arc::clone(&runtime_config),
@@ -150,12 +151,12 @@ pub fn start_with_listener(
         Arc::clone(&token_cache),
         session,
         Arc::clone(&stats),
-        client.clone(),
+        client,
     ));
     tasks.spawn(crate::proxy::comms::run_loop(
         runtime_config,
         token_cache,
-        client,
+        stream_client,
     ));
 
     Ok(ServedProxy {
@@ -185,6 +186,19 @@ fn build_upstream_client() -> std::io::Result<reqwest::Client> {
         .timeout(Duration::from_mins(10))
         .build()
         .map_err(|e| std::io::Error::other(format!("upstream client build failed: {e}")))
+}
+
+// Why: the comms subscription is one SSE response held open for as long as the
+// gateway keeps it; a client-wide total timeout would cut it on a schedule and
+// reset the reconnect backoff each time. Only the connect is bounded.
+fn build_stream_client() -> std::io::Result<reqwest::Client> {
+    reqwest::Client::builder()
+        .dns_resolver(Arc::new(crate::gateway::Ipv4FirstResolver))
+        .pool_max_idle_per_host(1)
+        .tcp_nodelay(true)
+        .connect_timeout(Duration::from_secs(15))
+        .build()
+        .map_err(|e| std::io::Error::other(format!("stream client build failed: {e}")))
 }
 
 async fn run_listener(
@@ -227,15 +241,13 @@ async fn run_listener(
                 .keep_alive(true)
                 .serve_connection(io, svc)
                 .await
+                && !is_peer_hangup(&e)
             {
-                let msg = e.to_string();
-                if !msg.contains("closed") && !msg.contains("connection") {
-                    tracing::warn!(
-                        target: "systemprompt_bridge::proxy",
-                        error = %msg,
-                        "proxy connection error"
-                    );
-                }
+                tracing::warn!(
+                    target: "systemprompt_bridge::proxy",
+                    error = %e,
+                    "proxy connection error"
+                );
             }
         });
     }
@@ -256,11 +268,27 @@ async fn run_listener(
     }
 }
 
-pub async fn try_bind(port: u16) -> std::io::Result<TcpListener> {
-    let v4: SocketAddr = SocketAddr::from(([127u8, 0, 0, 1], port));
-    if let Ok(l) = TcpListener::bind(v4).await {
-        return Ok(l);
+fn is_peer_hangup(e: &hyper::Error) -> bool {
+    if e.is_incomplete_message() || e.is_closed() || e.is_canceled() {
+        return true;
     }
-    let v6: SocketAddr = SocketAddr::from(([0u16, 0, 0, 0, 0, 0, 0, 1], port));
-    TcpListener::bind(v6).await
+    let mut cause = std::error::Error::source(e);
+    while let Some(inner) = cause {
+        if let Some(io) = inner.downcast_ref::<std::io::Error>() {
+            return matches!(
+                io.kind(),
+                std::io::ErrorKind::ConnectionReset
+                    | std::io::ErrorKind::ConnectionAborted
+                    | std::io::ErrorKind::BrokenPipe
+                    | std::io::ErrorKind::UnexpectedEof
+            );
+        }
+        cause = inner.source();
+    }
+    false
+}
+
+pub async fn try_bind(port: u16) -> std::io::Result<TcpListener> {
+    let address = SocketAddr::from(([127u8, 0, 0, 1], port));
+    TcpListener::bind(address).await
 }

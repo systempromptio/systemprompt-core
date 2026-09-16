@@ -92,16 +92,13 @@ async fn build_state(permits: usize) -> anyhow::Result<Arc<AgentHandlerState>> {
 
     let jwt_provider: DynJwtValidationProvider = Arc::new(StubJwtProvider);
 
-    let repositories = systemprompt_agent::repository::A2ARepositories::new(
-        &db_pool,
-        crate::common::session_usage(&db_pool)?,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    )?;
+    let repositories = systemprompt_test_fixtures::a2a_repositories(&db_pool);
     let agent_state = Arc::new(AgentState::new(
         Arc::clone(&db_pool),
         Arc::clone(&global_config),
         Arc::clone(&jwt_provider),
         Arc::new(repositories),
+        systemprompt_test_mocks::recording_webhooks(),
     ));
 
     let oauth_state = Arc::new(
@@ -122,6 +119,7 @@ async fn build_state(permits: usize) -> anyhow::Result<Arc<AgentHandlerState>> {
         agent_state,
         ai_service,
         stream_semaphore: Arc::new(Semaphore::new(permits)),
+        active_tasks: systemprompt_agent::services::a2a_server::ActiveTasks::default(),
     }))
 }
 
@@ -145,7 +143,7 @@ fn fixture_request_context() -> RequestContext {
         SessionId::generate(),
         TraceId::new("trace-harness"),
         ContextId::generate(),
-        AgentName::new("test_agent"),
+        AgentName::try_new("test_agent").expect("valid AgentName"),
     )
 }
 

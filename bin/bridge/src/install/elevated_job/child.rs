@@ -92,6 +92,11 @@ fn run_job(job: &ElevatedJob, steps: &mut Vec<CompletedStep>) -> Result<(), Elev
         remove_verified(dest)?;
         steps.push(step("remove", dest.display()));
     }
+    for dir in &job.private_dirs {
+        crate::windows_acl::reassign_private_dir(&dir.path, &dir.owner_sid)
+            .map_err(io("reassign owner", dir.path.display()))?;
+        steps.push(step("own", dir.path.display()));
+    }
     Ok(())
 }
 
@@ -124,7 +129,8 @@ fn write_from_reg(
     reg_path: &str,
 ) -> Result<crate::config::store::verified::PolicyReceipt, ElevateError> {
     let body = std::fs::read_to_string(reg_path).map_err(io("read staged profile", reg_path))?;
-    let entries = super::super::reg_values::parse_reg_entries(&body);
+    let entries =
+        super::super::reg_values::parse_reg_entries(&body).map_err(ElevateError::RegLine)?;
     if entries.is_empty() {
         return Err(ElevateError::NoPolicyValues);
     }
@@ -135,13 +141,15 @@ fn write_from_reg(
 pub(crate) fn provision_org_plugins(path: &Path, grant_user: &str) -> Result<(), ElevateError> {
     std::fs::create_dir_all(path).map_err(io("create org-plugins dir", path.display()))?;
     let grant_arg = format!("*{grant_user}:(OI)(CI)M");
-    let output = crate::winproc::no_window(&mut std::process::Command::new("icacls"))
-        .arg(path.to_string_lossy().into_owned())
-        .arg("/grant:r")
-        .arg(&grant_arg)
-        .arg("/T")
-        .output()
-        .map_err(ElevateError::Spawn)?;
+    let output = crate::winproc::no_window(&mut std::process::Command::new(
+        crate::winproc::system32("icacls.exe"),
+    ))
+    .arg(path.to_string_lossy().into_owned())
+    .arg("/grant:r")
+    .arg(&grant_arg)
+    .arg("/T")
+    .output()
+    .map_err(ElevateError::Spawn)?;
     if !output.status.success() {
         return Err(ElevateError::Icacls {
             code: output.status.code(),

@@ -6,8 +6,7 @@
 use super::{GatewayJournal, Receipt};
 use anyhow::{Result, ensure};
 use chacha20poly1305::Nonce;
-use chacha20poly1305::aead::rand_core::RngCore;
-use chacha20poly1305::aead::{Aead, OsRng};
+use chacha20poly1305::aead::Aead;
 use sha2::{Digest, Sha256};
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
@@ -64,6 +63,45 @@ pub(super) fn reserve(journal: &GatewayJournal, receipt: &Receipt) -> Result<Fil
     Ok(lease)
 }
 
+pub(super) fn append_accounting_failure(journal: &GatewayJournal, receipt: &Receipt) -> Result<()> {
+    let root = journal.root();
+    let _lock = lock(root)?;
+    let id = receipt.storage_id();
+    let destination = root.join(name(&id));
+    ensure!(
+        receipt
+            .accounting_failure
+            .as_ref()
+            .is_some_and(|error| !error.is_empty() && error.len() <= 4096)
+            && receipt.completion.is_none()
+            && receipt.failure.is_none(),
+        "Invalid accounting failure receipt"
+    );
+    if destination.exists() {
+        let previous = read(journal, &destination)?;
+        ensure!(
+            previous.request_id == receipt.request_id
+                && previous.user_id == receipt.user_id
+                && previous.accounting_failure == receipt.accounting_failure,
+            "Conflicting retained accounting failure"
+        );
+        return Ok(());
+    }
+    ensure!(
+        fs::read_dir(root)?
+            .collect::<std::io::Result<Vec<_>>>()?
+            .iter()
+            .filter(|entry| entry
+                .path()
+                .extension()
+                .is_some_and(|extension| extension == "receipt"))
+            .count()
+            < MAX_ENTRIES,
+        "Gateway accounting journal is full"
+    );
+    write(journal, &id, &serde_json::to_vec(receipt)?)
+}
+
 pub(super) fn replace(journal: &GatewayJournal, id: &AiRequestId, bytes: &[u8]) -> Result<()> {
     let root = journal.root();
     let _lock = lock(root)?;
@@ -85,8 +123,7 @@ fn write(journal: &GatewayJournal, id: &AiRequestId, bytes: &[u8]) -> Result<()>
         "Gateway completion exceeds journal capacity"
     );
     let root = journal.root();
-    let mut nonce = [0u8; 12];
-    OsRng.fill_bytes(&mut nonce);
+    let nonce: [u8; 12] = rand::random();
     let encrypted = journal
         .cipher()
         .encrypt(&Nonce::from(nonce), bytes)
@@ -159,7 +196,10 @@ pub(super) fn list(journal: &GatewayJournal) -> Result<Vec<Listed>> {
                 continue;
             },
         };
-        if receipt.completion.is_none() && receipt.failure.is_none() {
+        if receipt.completion.is_none()
+            && receipt.failure.is_none()
+            && receipt.accounting_failure.is_none()
+        {
             let lease = lease(root, &receipt.request_id)?;
             match lease.try_lock() {
                 Ok(()) => {

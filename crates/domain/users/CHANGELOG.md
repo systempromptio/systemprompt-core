@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.53.0] - 2026-09-15
+
+### Added
+
+- `UsersAiSessionProvider::find_live_session` (the `AiSessionProvider` seam) reports a session's owner only while it is neither revoked nor expired.
+- `UserRepository::missing_ids(&[UserId])` — which of the given ids no user carries; the scheduler's log-orphan sweep composes it with the logging repository.
+- `UsersRoleDirectory` implements the security crate's `RoleDirectory` over `users.roles` and is registered at link time for authz ingestion's inert-rule report.
+- `sessions` module: `SessionRepository` (the authoritative session persistence moved from analytics — creation, revocation, lifecycle, usage counters, behavioural, fingerprint and geo queries, `cleanup_inactive`, `migrate_user_sessions`) implements the shared `SessionStore` / `SessionProvider` contracts; `UsersAiSessionProvider` serves the AI domain.
+- SQL device-eligibility interface `active_device_identity(device)` and `active_devices_for_consumer(consumer)` over `user_device_certs` (migration 012), the retention barrier `lock_user_deletion_for_retention()` (013) and the reporting-privacy delivery functions `begin_user_privacy()` / `finish_user_privacy()` (014–015); `UserRepository::merge` runs them so a merge waits for pending reporting evidence and delivers it atomically before identity moves.
+- The extension installs `reporting_capture.sql` (a `reporting_source_users` / `reporting_source_user_sessions` views and the transactional capture trigger on `users`) and declares a dependency on `events`.
+
+### Changed
+
+- `SessionRepository::find_active_by_id` (and the `SessionStore` / `SessionProvider` active-session lookups over it) no longer reports a session whose `expires_at` has passed.
+- `SessionRepository::find_reusable_fingerprint` and `fingerprint_session_ids` answer typed `SessionId`s through compile-time checked queries.
+
 ## [0.50.0] - 2026-09-10
 
 ### Changed

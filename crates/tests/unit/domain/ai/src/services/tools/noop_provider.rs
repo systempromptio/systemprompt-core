@@ -2,7 +2,7 @@
 
 use serde_json::json;
 use systemprompt_ai::services::tools::NoopToolProvider;
-use systemprompt_identifiers::McpServerId;
+use systemprompt_identifiers::{AgentName, McpServerId};
 use systemprompt_test_fixtures::fixture_actor;
 use systemprompt_traits::{ToolCallRequest, ToolContext, ToolProvider};
 
@@ -18,9 +18,15 @@ mod noop_provider_tests {
         let provider = NoopToolProvider::new();
         let context = create_context();
 
-        let tools = provider.list_tools("agent", &context).await.unwrap();
+        let tools = provider
+            .list_tools(
+                &AgentName::try_new("agent").expect("valid AgentName"),
+                &context,
+            )
+            .await
+            .unwrap();
 
-        assert!(tools.is_empty());
+        assert!(tools.tools.is_empty());
     }
 
     #[tokio::test]
@@ -34,7 +40,11 @@ mod noop_provider_tests {
         };
 
         let result = provider
-            .call_tool(&request, &McpServerId::new("service"), &context)
+            .call_tool(
+                &request,
+                &McpServerId::try_new("service").expect("valid McpServerId"),
+                &context,
+            )
             .await;
 
         let error = result.unwrap_err();
@@ -46,7 +56,9 @@ mod noop_provider_tests {
     async fn refresh_connections_succeeds() {
         let provider = NoopToolProvider::new();
 
-        let result = provider.refresh_connections("agent").await;
+        let result = provider
+            .refresh_connections(&AgentName::try_new("agent").expect("valid AgentName"))
+            .await;
 
         result.expect("should succeed");
     }

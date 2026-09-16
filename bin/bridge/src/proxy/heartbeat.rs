@@ -49,6 +49,7 @@ pub async fn run_loop(
     loop {
         interval.tick().await;
         let cfg = runtime_config.load_full();
+        flush_feedback(cfg.gateway_base.as_str(), Arc::clone(&session)).await;
         if token_cache.sign_in_required() {
             if !waiting_for_sign_in {
                 tracing::warn!("bridge heartbeat paused until the user signs in");
@@ -68,6 +69,25 @@ pub async fn run_loop(
         {
             tracing::warn!(error = %err, "bridge heartbeat tick failed");
         }
+    }
+}
+
+async fn flush_feedback(gateway: &str, session: Arc<SessionContext>) {
+    let gateway_for_flush = gateway.to_owned();
+    let flushed =
+        tokio::task::spawn_blocking(move || session.native_sessions().flush(&gateway_for_flush))
+            .await
+            .map_err(|error| crate::feedback::FeedbackError::Io(std::io::Error::other(error)))
+            .and_then(|result| result);
+    report_feedback(flushed, "Native session bindings remain unqueued");
+    let retried = crate::feedback::retry_pending(gateway).await;
+    report_feedback(retried, "Installation feedback retry remains pending");
+}
+
+fn report_feedback(result: crate::feedback::Result<()>, message: &'static str) {
+    match result {
+        Ok(()) | Err(crate::feedback::FeedbackError::EnrollmentRequired) => {},
+        Err(error) => tracing::warn!(%error, "{message}"),
     }
 }
 
@@ -124,7 +144,7 @@ async fn send_one(
             required = %body.min_bridge_version,
             "gateway reports this bridge as unsupported",
         );
-        crate::update::run_automatic(gateway_base, token.token.expose(), client).await;
+        crate::update::run_automatic(gateway_base, &token.token, client).await;
     }
     Ok(())
 }
@@ -140,10 +160,7 @@ fn i64_saturating(value: u64) -> i64 {
 }
 
 fn hostname_or_unknown() -> String {
-    hostname::get()
-        .ok()
-        .and_then(|os| os.into_string().ok())
-        .unwrap_or_else(|| "unknown".to_owned())
+    crate::sysproc::host_name().unwrap_or_else(|| "unknown".to_owned())
 }
 
 #[derive(Debug, thiserror::Error)]

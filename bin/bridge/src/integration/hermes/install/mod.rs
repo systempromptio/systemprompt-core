@@ -12,45 +12,30 @@
 mod merge;
 mod render;
 
-use std::io::Write;
 
 use serde_yaml::Value;
 
 use super::config;
+use crate::integration::generated_profile;
 use crate::integration::host_app::{GeneratedProfile, ProfileGenInputs, ProfileRemoval};
 
-fn unique_stem() -> String {
-    use std::sync::atomic::{AtomicU64, Ordering};
-    static SEQ: AtomicU64 = AtomicU64::new(0);
-    format!(
-        "{}-{}-{}",
-        config::now_unix(),
-        std::process::id(),
-        SEQ.fetch_add(1, Ordering::Relaxed)
-    )
-}
-
 pub(super) fn write_profile(inputs: &ProfileGenInputs) -> std::io::Result<GeneratedProfile> {
-    let dir = std::env::temp_dir().join(crate::brand::brand().working_dir_name);
-    std::fs::create_dir_all(&dir)?;
-    let (payload_uuid, profile_uuid) = config::make_uuids();
-
+    let uuids = generated_profile::profile_uuids();
     let yaml_text = render::managed_yaml(inputs)?;
-    let path = dir.join(format!("hermes-bridge-{}-config.yaml", unique_stem()));
-    std::fs::File::create(&path)?.write_all(yaml_text.as_bytes())?;
+    let path = generated_profile::write("hermes-bridge-config", ".yaml", yaml_text.as_bytes())?;
     Ok(GeneratedProfile {
         path: path.display().to_string(),
         bytes: yaml_text.len(),
-        payload_uuid,
-        profile_uuid,
+        payload_uuid: uuids.payload,
+        profile_uuid: uuids.profile,
     })
 }
 
 pub(super) fn install_profile(generated_path: &str) -> std::io::Result<()> {
-    install_profile_into(generated_path, &config::hermes_home())
+    install_profile_into(generated_path, &config::hermes_home())?;
+    generated_profile::consume(generated_path)
 }
 
-#[doc(hidden)]
 pub fn install_profile_into(
     generated_path: &str,
     hermes_home: &std::path::Path,
@@ -75,7 +60,6 @@ pub(super) fn remove_profile() -> std::io::Result<ProfileRemoval> {
     remove_profile_from(&config::hermes_home())
 }
 
-#[doc(hidden)]
 pub fn remove_profile_from(hermes_home: &std::path::Path) -> std::io::Result<ProfileRemoval> {
     let target = config::config_yaml_path_in(hermes_home);
     let removed_config = merge::uninstall(&target)?;

@@ -189,18 +189,6 @@ fn extension_default_validate_config_returns_ok() {
 }
 
 #[test]
-fn extension_default_llm_providers_is_empty() {
-    let ext = MinimalExt;
-    assert!(ext.llm_providers().is_empty());
-}
-
-#[test]
-fn extension_default_has_llm_providers_is_false() {
-    let ext = MinimalExt;
-    assert!(!ext.has_llm_providers());
-}
-
-#[test]
 fn extension_default_tool_providers_is_empty() {
     let ext = MinimalExt;
     assert!(ext.tool_providers().is_empty());

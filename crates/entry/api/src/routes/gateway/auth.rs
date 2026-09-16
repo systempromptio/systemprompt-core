@@ -19,12 +19,13 @@ use systemprompt_identifiers::{JwtToken, headers};
 use systemprompt_models::Config;
 use systemprompt_models::auth::BEARER_PREFIX;
 use systemprompt_oauth::services::{
-    BridgeAuthResult, BridgeOAuthClient, exchange_bridge_session_code, hash_exchange_code,
-    issue_bridge_access, provision_bridge_oauth_client,
+    BridgeAccessRequest, BridgeAuthResult, BridgeExchangeRequest, BridgeOAuthClient,
+    exchange_bridge_session_code, hash_exchange_code, issue_bridge_access,
+    provision_bridge_oauth_client,
 };
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{AnalyticsProvider, AppContext as _};
-use systemprompt_users::{ApiKeyService, DeviceCertService, IssueApiKeyParams};
+use systemprompt_users::{ApiKeyService, IssueApiKeyParams};
 
 use crate::error::ApiHttpError;
 use crate::services::middleware::JwtContextExtractor;
@@ -55,13 +56,8 @@ pub struct Capabilities {
 
 pub async fn capabilities() -> Json<Capabilities> {
     Json(Capabilities {
-        modes: vec!["pat", "session", "mtls", "oauth-client"],
+        modes: vec!["pat", "session", "oauth-client"],
     })
-}
-
-#[derive(Debug, Deserialize)]
-pub struct MtlsRequestBody {
-    pub device_cert_fingerprint: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -96,9 +92,10 @@ pub async fn pat(ctx: AppContext, request: Request) -> Result<Json<AuthResponse>
     let result = issue_bridge_access(
         &ctx.oauth_repositories().oauth,
         analytics.as_ref(),
-        request.headers(),
-        caller_ip,
-        &record.user_id,
+        ctx.session_provider()
+            .ok_or_else(|| ApiHttpError::internal_error("Session provider unavailable"))?
+            .as_ref(),
+        BridgeAccessRequest::bridge(request.headers(), caller_ip, &record.user_id),
     )
     .await?;
 
@@ -119,9 +116,14 @@ pub async fn session(
     let result = exchange_bridge_session_code(
         &ctx.oauth_repositories().oauth,
         analytics.as_ref(),
-        &headers,
-        caller_ip,
-        body.code.trim(),
+        ctx.session_provider()
+            .ok_or_else(|| ApiHttpError::internal_error("Session provider unavailable"))?
+            .as_ref(),
+        BridgeExchangeRequest {
+            request_headers: &headers,
+            caller_ip,
+            code: body.code.trim(),
+        },
     )
     .await?
     .ok_or_else(|| {
@@ -212,36 +214,6 @@ fn build_token_endpoint(headers: &HeaderMap) -> Result<String, ApiHttpError> {
     let raw_host = headers.get(header::HOST).and_then(|v| v.to_str().ok());
     let base = request_base_url::resolve(raw_host, &configured);
     Ok(format!("{}/api/v1/core/oauth/token", base.as_str()))
-}
-
-pub async fn mtls(
-    ctx: AppContext,
-    ClientIp(caller_ip): ClientIp,
-    headers: HeaderMap,
-    Json(body): Json<MtlsRequestBody>,
-) -> Result<Json<AuthResponse>, ApiHttpError> {
-    let fingerprint = body.device_cert_fingerprint.trim();
-    if fingerprint.is_empty() {
-        return Err(ApiHttpError::bad_request("missing device_cert_fingerprint"));
-    }
-
-    let service = DeviceCertService::new(Arc::clone(ctx.user_repository()));
-    let record = service
-        .verify(fingerprint)
-        .await?
-        .ok_or_else(|| ApiHttpError::unauthorized("device certificate not enrolled or revoked"))?;
-
-    let analytics = require_analytics(&ctx)?;
-    let result = issue_bridge_access(
-        &ctx.oauth_repositories().oauth,
-        analytics.as_ref(),
-        &headers,
-        caller_ip,
-        &record.user_id,
-    )
-    .await?;
-
-    Ok(Json(result.into()))
 }
 
 fn extract_bearer(hdrs: &HeaderMap) -> Option<String> {

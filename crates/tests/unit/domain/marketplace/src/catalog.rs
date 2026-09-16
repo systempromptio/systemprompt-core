@@ -7,6 +7,7 @@ use systemprompt_marketplace::catalog::{
 };
 use systemprompt_marketplace::{BundleContent, CatalogContent};
 use systemprompt_models::auth::JwtAudience;
+use systemprompt_models::bridge::ids::ToolPolicy;
 use systemprompt_models::mcp::deployment::OAuthRequirement;
 use systemprompt_models::mcp::{Deployment, ExternalAuth, McpServerType};
 use systemprompt_models::services::{
@@ -71,7 +72,7 @@ fn make_deployment(_name: &str, enabled: bool, endpoint: Option<&str>) -> Deploy
         env_vars: vec![],
         external_auth: None,
         headers: Default::default(),
-        tool_policy: None,
+        tool_policy: Some(ToolPolicy::Allow),
     }
 }
 
@@ -157,6 +158,7 @@ fn load_skills_dir_with_valid_skill() {
         "id: my_skill\nname: My Skill\ndescription: test\nenabled: true\n",
     )
     .expect("write config");
+    fs::write(skill_dir.join("index.md"), "body").expect("write content");
 
     let skills = load_skills(dir.path()).expect("load skills");
     assert_eq!(skills.len(), 1);
@@ -189,6 +191,7 @@ fn load_skills_sorted_alphabetically() {
             format!("id: {name}\nname: {name}\ndescription: test\nenabled: true\n"),
         )
         .expect("write config");
+        fs::write(skill_dir.join("index.md"), "body").expect("write content");
     }
     let skills = load_skills(dir.path()).expect("load skills");
     assert_eq!(skills[0].id.as_str(), "apple");
@@ -244,6 +247,7 @@ fn load_skills_empty_name_derives_display_from_dir() {
         "id: my_named_skill\nname: \"\"\ndescription: d\nenabled: true\n",
     )
     .expect("write config");
+    fs::write(skill_dir.join("index.md"), "body").expect("write content");
 
     let skills = load_skills(dir.path()).expect("load skills");
     assert_eq!(skills.len(), 1);
@@ -255,7 +259,7 @@ fn load_skills_empty_name_derives_display_from_dir() {
 }
 
 #[test]
-fn load_skills_missing_content_file_yields_empty_instructions() {
+fn load_skills_missing_content_file_fails_the_catalogue() {
     let dir = tempfile::tempdir().expect("temp dir");
     let skill_dir = dir.path().join("skills").join("bare_skill");
     fs::create_dir_all(&skill_dir).expect("create skill dir");
@@ -265,17 +269,13 @@ fn load_skills_missing_content_file_yields_empty_instructions() {
     )
     .expect("write config");
 
-    let skills = load_skills(dir.path()).expect("load skills");
-    assert_eq!(skills.len(), 1);
-    assert_eq!(
-        skills[0].instructions, "",
-        "absent content file yields empty instructions",
-    );
+    let error = load_skills(dir.path())
+        .expect_err("a skill without its content file is never signed with empty instructions");
+    assert!(error.to_string().contains("index.md"), "{error}");
 }
 
 #[test]
-fn load_skills_invalid_config_is_skipped_not_fatal() {
-    let _guard = warn_subscriber_guard();
+fn load_skills_invalid_config_fails_the_catalogue() {
     let dir = tempfile::tempdir().expect("temp dir");
     let good = dir.path().join("skills").join("good");
     let bad = dir.path().join("skills").join("bad");
@@ -287,10 +287,10 @@ fn load_skills_invalid_config_is_skipped_not_fatal() {
     )
     .expect("write good config");
     fs::write(bad.join("config.yaml"), "this: [is, not, valid").expect("write bad config");
+    fs::write(good.join("index.md"), "body").expect("write good content");
 
-    let skills = load_skills(dir.path()).expect("an unparseable skill is skipped, not fatal");
-    assert_eq!(skills.len(), 1);
-    assert_eq!(skills[0].id.as_str(), "good");
+    let error = load_skills(dir.path()).expect_err("an unparseable skill fails the catalogue");
+    assert!(error.to_string().contains("bad"), "{error}");
 }
 
 #[test]
@@ -459,7 +459,12 @@ fn load_plugins_empty_config_returns_empty() {
         plugins_root: &plugins_root,
         managed_files: &BTreeMap::new(),
     };
-    let plugins = load_plugins(&config, &content).expect("load plugins");
+    let plugins = load_plugins(
+        &config,
+        &content,
+        &systemprompt_marketplace::MarketplaceCache::default(),
+    )
+    .expect("load plugins");
     assert!(plugins.is_empty());
 }
 
@@ -493,8 +498,13 @@ fn load_cached_reuses_until_the_skills_tree_changes() {
     let services = ServicesConfig::default();
     let url = "https://api.example.com";
 
-    let first = CatalogContent::load_cached(&services, dir.path(), url).expect("first load");
-    let second = CatalogContent::load_cached(&services, dir.path(), url).expect("second load");
+    let cache = systemprompt_marketplace::MarketplaceCache::default();
+    let first = cache
+        .catalog(&services, dir.path(), url)
+        .expect("first load");
+    let second = cache
+        .catalog(&services, dir.path(), url)
+        .expect("second load");
     assert!(
         std::sync::Arc::ptr_eq(&first, &second),
         "an unchanged skills tree must return the cached catalogue"
@@ -503,7 +513,9 @@ fn load_cached_reuses_until_the_skills_tree_changes() {
     assert_eq!(first.as_content().skills[0].instructions, "first body");
 
     fs::write(skill_dir.join("index.md"), "a longer second body").expect("rewrite content");
-    let third = CatalogContent::load_cached(&services, dir.path(), url).expect("third load");
+    let third = cache
+        .catalog(&services, dir.path(), url)
+        .expect("third load");
     assert!(
         !std::sync::Arc::ptr_eq(&first, &third),
         "a changed skill file must invalidate the cache"
@@ -537,8 +549,13 @@ fn load_cached_tolerates_a_dangling_symlink_in_the_skills_tree() {
 
     let services = ServicesConfig::default();
     let url = "https://api.example.com";
-    let first = CatalogContent::load_cached(&services, dir.path(), url).expect("first load");
-    let second = CatalogContent::load_cached(&services, dir.path(), url).expect("second load");
+    let cache = systemprompt_marketplace::MarketplaceCache::default();
+    let first = cache
+        .catalog(&services, dir.path(), url)
+        .expect("first load");
+    let second = cache
+        .catalog(&services, dir.path(), url)
+        .expect("second load");
     assert!(
         std::sync::Arc::ptr_eq(&first, &second),
         "a stable tree (dangling link included) must reuse the cached catalogue"
@@ -711,6 +728,7 @@ fn load_skills_stray_file_and_config_less_dir_are_ignored() {
         "id: real\nname: Real\ndescription: d\nenabled: true\n",
     )
     .expect("write config");
+    fs::write(skills_root.join("real").join("index.md"), "body").expect("write content");
 
     let skills = load_skills(dir.path()).expect("load skills");
     assert_eq!(
@@ -730,6 +748,7 @@ fn load_skills_empty_id_derives_id_from_dir_name() {
         "id: \"\"\nname: Derive\ndescription: d\nenabled: true\n",
     )
     .expect("write config");
+    fs::write(skill_dir.join("index.md"), "body").expect("write content");
 
     let skills = load_skills(dir.path()).expect("load skills");
     assert_eq!(
@@ -824,8 +843,7 @@ fn load_artifacts_stray_file_and_config_less_dir_are_ignored() {
 }
 
 #[test]
-fn load_artifacts_unparseable_config_is_skipped_not_fatal() {
-    let _guard = warn_subscriber_guard();
+fn load_artifacts_unparseable_config_fails_the_catalogue() {
     let dir = tempfile::tempdir().expect("temp dir");
     write_artifact(
         dir.path(),
@@ -840,13 +858,9 @@ fn load_artifacts_unparseable_config_is_skipped_not_fatal() {
         Some("<table>data</table>"),
     );
 
-    let artifacts =
-        load_artifacts(dir.path()).expect("an unparseable artifact is skipped, not fatal");
-    assert_eq!(
-        artifacts.iter().map(|a| a.id.as_str()).collect::<Vec<_>>(),
-        vec!["good"],
-        "the parseable artifact still loads alongside the dropped one",
-    );
+    let error = load_artifacts(dir.path())
+        .expect_err("an unparseable artifact fails the catalogue instead of being dropped");
+    assert!(error.to_string().contains("bad"), "{error}");
 }
 
 // Only Linux: APFS validates filenames as UTF-8 and refuses this one with
@@ -880,6 +894,7 @@ fn load_skills_non_utf8_dir_name_is_skipped() {
         "id: good\nname: Good\ndescription: d\nenabled: true\n",
     )
     .expect("write good config");
+    fs::write(good.join("index.md"), "body").expect("write good content");
 
     let skills = load_skills(dir.path()).expect("load skills");
     assert_eq!(
@@ -1019,8 +1034,7 @@ fn load_rules_reads_content_strips_frontmatter_and_hashes() {
 }
 
 #[test]
-fn load_managed_mcp_servers_allows_every_tool_unless_the_yaml_says_otherwise() {
-    use systemprompt_models::bridge::ids::ToolPolicy;
+fn load_managed_mcp_servers_applies_the_declared_tool_policy_to_every_tool() {
     let mut config = ServicesConfig::default();
     let mut prompting = make_deployment("b", true, Some("/api/v1/mcp/b/mcp"));
     prompting.tool_policy = Some(ToolPolicy::Prompt);
@@ -1037,4 +1051,20 @@ fn load_managed_mcp_servers_allows_every_tool_unless_the_yaml_says_otherwise() {
         Some(ToolPolicy::Allow)
     );
     assert_eq!(servers[1].default_tool_policy(), Some(ToolPolicy::Prompt));
+}
+
+#[test]
+fn load_managed_mcp_servers_withholds_a_server_without_tool_policy() {
+    let mut config = ServicesConfig::default();
+    let mut undeclared = make_deployment("b", true, Some("/api/v1/mcp/b/mcp"));
+    undeclared.tool_policy = None;
+    config.mcp_servers.insert(
+        "a".into(),
+        make_deployment("a", true, Some("/api/v1/mcp/a/mcp")),
+    );
+    config.mcp_servers.insert("b".into(), undeclared);
+    let servers =
+        load_managed_mcp_servers(&config, "https://api.example.com").expect("load mcp servers");
+    assert_eq!(servers.len(), 1);
+    assert_eq!(servers[0].name.as_str(), "a");
 }

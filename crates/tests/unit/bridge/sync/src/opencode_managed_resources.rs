@@ -3,8 +3,8 @@ use std::path::{Path, PathBuf};
 
 use systemprompt_bridge::gateway::GatewayClient;
 use systemprompt_bridge::gateway::manifest::{
-    MANIFEST_SCHEMA_VERSION, ManagedMcpServer, ManifestMarketplace, SignedManifest, SkillEntry,
-    ValidatedUrl,
+    MANIFEST_SCHEMA_VERSION, ManagedMcpServer, ManifestMarketplace, PluginEntry, SignedManifest,
+    SkillEntry, ValidatedUrl,
 };
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
 use systemprompt_bridge::host_sync::{ApplyError, HostSync, HostSyncCtx};
@@ -16,6 +16,7 @@ use systemprompt_test_fixtures::fixture_user_id;
 struct Sandbox {
     config: PathBuf,
     skills: PathBuf,
+    hook_plugin: PathBuf,
 }
 
 fn with_sandbox<R>(body: impl FnOnce(&Sandbox) -> R) -> R {
@@ -24,7 +25,21 @@ fn with_sandbox<R>(body: impl FnOnce(&Sandbox) -> R) -> R {
     let sb = Sandbox {
         config: config_home.join("opencode").join("opencode.json"),
         skills: config_home.join("opencode").join("skills"),
+        hook_plugin: config_home
+            .join("opencode")
+            .join("plugin")
+            .join("systemprompt-hooks.js"),
     };
+    let bridge_dir = config_home.join("systemprompt");
+    std::fs::create_dir_all(&bridge_dir).expect("bridge config dir");
+    std::fs::write(
+        bridge_dir.join("systemprompt-bridge.toml"),
+        format!(
+            "[opencode]\nmanaged_dir = '{}'\n",
+            temp.path().join("managed").display()
+        ),
+    )
+    .expect("bridge config");
     let vars: Vec<(&str, Option<String>)> = vec![
         ("HOME", Some(temp.path().display().to_string())),
         ("XDG_CONFIG_HOME", Some(config_home.display().to_string())),
@@ -32,10 +47,7 @@ fn with_sandbox<R>(body: impl FnOnce(&Sandbox) -> R) -> R {
             "XDG_DATA_HOME",
             Some(temp.path().join("data").display().to_string()),
         ),
-        (
-            "SP_BRIDGE_OPENCODE_MANAGED_DIR",
-            Some(temp.path().join("managed").display().to_string()),
-        ),
+        ("SP_BRIDGE_CONFIG", None),
     ];
     temp_env::with_vars(vars, || body(&sb))
 }
@@ -45,8 +57,12 @@ fn manifest_with(skills: Vec<SkillEntry>, mcp: Vec<ManagedMcpServer>) -> SignedM
         min_schema_version: MANIFEST_SCHEMA_VERSION,
         min_bridge_version: None,
         manifest_version: ManifestVersion::try_new("2026-04-30T12:00:00Z-deadbeef").unwrap(),
-        issued_at: "2026-04-30T12:00:00+00:00".into(),
-        not_before: "2026-04-30T12:00:00+00:00".into(),
+        issued_at: chrono::DateTime::parse_from_rfc3339("2026-04-30T12:00:00+00:00")
+            .expect("rfc3339")
+            .with_timezone(&chrono::Utc),
+        not_before: chrono::DateTime::parse_from_rfc3339("2026-04-30T12:00:00+00:00")
+            .expect("rfc3339")
+            .with_timezone(&chrono::Utc),
         user_id: fixture_user_id(),
         tenant_id: None,
         user: None,
@@ -69,6 +85,7 @@ fn manifest_with(skills: Vec<SkillEntry>, mcp: Vec<ManagedMcpServer>) -> SignedM
 
 fn skill(id: &str, body: &str) -> SkillEntry {
     SkillEntry {
+        publication: None,
         id: SkillId::try_new(id).unwrap(),
         name: SkillName::try_new(id).unwrap(),
         description: format!("desc for {id}"),
@@ -83,7 +100,7 @@ fn skill(id: &str, body: &str) -> SkillEntry {
 
 fn mcp(name: &str) -> ManagedMcpServer {
     ManagedMcpServer {
-        id: systemprompt_identifiers::McpServerId::new(name),
+        id: systemprompt_identifiers::McpServerId::try_new(name).expect("valid McpServerId"),
         name: ManagedMcpServerName::try_new(name).unwrap(),
         url: ValidatedUrl::try_new("https://mcp.example.invalid/api").unwrap(),
         transport: Some("http".into()),
@@ -103,11 +120,20 @@ static POLICY_STORE: std::sync::LazyLock<systemprompt_bridge::config::store::Pol
         )
     });
 
+static EMPTY_BEARER: std::sync::LazyLock<systemprompt_bridge::ids::BearerToken> =
+    std::sync::LazyLock::new(systemprompt_bridge::ids::BearerToken::default);
+static START_MENU: std::sync::LazyLock<systemprompt_bridge::probe_cache::StartMenuCache> =
+    std::sync::LazyLock::new(systemprompt_bridge::probe_cache::StartMenuCache::default);
 static EMPTY_REGISTRY: std::sync::LazyLock<systemprompt_bridge::mcp_registry::McpRegistry> =
     std::sync::LazyLock::new(std::collections::HashMap::new);
 
 static LOOPBACK: std::sync::LazyLock<LoopbackEndpoint> = std::sync::LazyLock::new(|| {
-    LoopbackEndpoint::new(systemprompt_bridge::proxy::DEFAULT_PROXY_PORT, None)
+    LoopbackEndpoint::new(
+        systemprompt_bridge::proxy::DEFAULT_PROXY_PORT,
+        Some(systemprompt_bridge::ids::LoopbackSecret::new(
+            "loopback-secret-value",
+        )),
+    )
 });
 
 fn clear(root: &Path) -> Result<(), ApplyError> {
@@ -124,9 +150,10 @@ fn clear(root: &Path) -> Result<(), ApplyError> {
         org_plugins_root: root,
         plugin_mcp_servers: &plugin_mcp_servers,
         client: &client,
-        bearer: "",
+        bearer: &EMPTY_BEARER,
         loopback: &LOOPBACK,
         mcp_registry: &EMPTY_REGISTRY,
+        start_menu: &START_MENU,
     };
     OpenCodeSync.clear(&ctx)
 }
@@ -144,9 +171,10 @@ fn apply(m: &SignedManifest, root: &Path) -> Result<(), ApplyError> {
         org_plugins_root: root,
         plugin_mcp_servers: &plugin_mcp_servers,
         client: &client,
-        bearer: "",
+        bearer: &EMPTY_BEARER,
         loopback: &LOOPBACK,
         mcp_registry: &EMPTY_REGISTRY,
+        start_menu: &START_MENU,
     };
     tokio::runtime::Builder::new_current_thread()
         .enable_all()
@@ -346,11 +374,15 @@ fn the_managed_sidecar_records_which_marketplaces_the_skills_came_from() {
                 id: systemprompt_identifiers::MarketplaceId::new("core"),
                 name: "Core".into(),
                 plugin_ids: vec![],
+                allow_cross_marketplace_dependencies_on: vec![],
+                external_marketplaces: vec![],
             },
             ManifestMarketplace {
                 id: systemprompt_identifiers::MarketplaceId::new("commerce"),
                 name: "Commerce".into(),
                 plugin_ids: vec![],
+                allow_cross_marketplace_dependencies_on: vec![],
+                external_marketplaces: vec![],
             },
         ];
         apply(&m, &sb.skills).unwrap();
@@ -362,5 +394,81 @@ fn the_managed_sidecar_records_which_marketplaces_the_skills_came_from() {
             "{sidecar}"
         );
         assert_eq!(sidecar["ids"], serde_json::json!(["review"]), "{sidecar}");
+    });
+}
+
+fn governance_plugin(id: &str) -> PluginEntry {
+    PluginEntry {
+        id: systemprompt_bridge::ids::PluginId::try_new(id).unwrap(),
+        version: "1.0.0".into(),
+        sha256: Sha256Digest::try_new("0".repeat(64)).unwrap(),
+        files: vec![],
+        hooks: systemprompt_models::services::PluginHooksRef {
+            governance: true,
+            comms: false,
+            include: vec![],
+        },
+    }
+}
+
+#[test]
+fn the_governance_owner_gets_an_opencode_hook_plugin_with_a_scoped_token() {
+    with_sandbox(|sb| {
+        let mut owned = skill("code_review", "review\n");
+        owned.plugins = vec![systemprompt_bridge::ids::PluginId::try_new("astound-dev").unwrap()];
+        let mut m = manifest_with(vec![owned, skill("who_am_i", "who\n")], vec![]);
+        m.plugins = vec![governance_plugin("astound-commons")];
+        apply(&m, &sb.skills).unwrap();
+        let body = fs::read_to_string(&sb.hook_plugin).unwrap();
+        let expected_token = LOOPBACK
+            .hook_bearer(&systemprompt_bridge::ids::PluginId::try_new("astound-commons").unwrap())
+            .unwrap();
+        assert!(body.contains(&format!(
+            "{}/api/public/hooks/track?plugin_id=astound-commons",
+            LOOPBACK.origin()
+        )));
+        assert!(body.contains(&expected_token));
+        assert!(
+            !body.contains("loopback-secret-value"),
+            "the raw loopback secret must never reach the plugin file"
+        );
+        assert!(body.contains("\"code-review\":\"astound-dev:code-review\""));
+        assert!(body.contains("\"who-am-i\":\"opencode:who-am-i\""));
+        assert!(body.contains("\"tool.execute.after\""));
+        assert!(
+            body.contains("\"chat.headers\"") && body.contains("\"chat.params\""),
+            "the plugin stamps chat requests with the session header: {body}"
+        );
+        assert!(body.contains("\"x-opencode-session\""));
+        assert!(
+            body.contains(&format!(
+                "const SESSION_NAMESPACE = \"{}\";",
+                systemprompt_bridge::feedback::opencode_session::OPENCODE_SESSION_NAMESPACE
+                    .hyphenated()
+            )),
+            "the v5 namespace is substituted from the bridge constant: {body}"
+        );
+        assert!(
+            !body.contains("__SESSION_NAMESPACE__"),
+            "the namespace placeholder is substituted: {body}"
+        );
+        let first = fs::read(&sb.hook_plugin).unwrap();
+        apply(&m, &sb.skills).unwrap();
+        assert_eq!(fs::read(&sb.hook_plugin).unwrap(), first);
+    });
+}
+
+#[test]
+fn no_governance_owner_means_no_hook_plugin_and_clear_removes_it() {
+    with_sandbox(|sb| {
+        let mut m = manifest_with(vec![skill("one", "1\n")], vec![]);
+        m.plugins = vec![governance_plugin("astound-commons")];
+        apply(&m, &sb.skills).unwrap();
+        assert!(sb.hook_plugin.exists());
+        clear(&sb.skills).unwrap();
+        assert!(!sb.hook_plugin.exists());
+        let without_owner = manifest_with(vec![skill("one", "1\n")], vec![]);
+        apply(&without_owner, &sb.skills).unwrap();
+        assert!(!sb.hook_plugin.exists());
     });
 }

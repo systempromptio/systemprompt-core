@@ -20,6 +20,8 @@ impl Extension for McpExtension {
 
     fn schemas(&self) -> Vec<SchemaDefinition> {
         vec![
+            SchemaDefinition::sql_only(include_str!("../schema/reporting_privacy.sql")),
+            SchemaDefinition::sql_only(include_str!("../schema/reporting_capture.sql")),
             SchemaDefinition::new(
                 "mcp_external_sessions",
                 include_str!("../schema/mcp_external_sessions.sql"),

@@ -1,0 +1,38 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT currency AS \"currency!\",SUM(amount_micros)::text AS \"amount!\" FROM analytics_normalized_facts r WHERE owner_id=$1 AND fact_kind='request' AND NOT deleted AND occurred_at>=$2 AND occurred_at<$3 AND currency IS NOT NULL AND ($4::text IS NULL OR EXISTS(SELECT 1 FROM analytics_normalized_facts a WHERE a.owner_id=r.owner_id AND a.fact_kind='resource_association' AND NOT a.deleted AND a.resource_id=$4 AND a.request_source=r.source AND a.request_id=r.fact_id)) GROUP BY currency",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "currency!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "analytics_normalized_facts",
+            "name": "currency"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "amount!",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Timestamptz",
+        "Timestamptz",
+        "Text"
+      ]
+    },
+    "nullable": [
+      true,
+      null
+    ]
+  },
+  "hash": "fe86bdcd1d94bb2cfd6bd3c2337ab12cdafc1b78888e4ce2579407fc43bb2ce4"
+}

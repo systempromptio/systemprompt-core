@@ -103,7 +103,9 @@ mod create_tests {
             "https://api.anthropic.com/v1",
             false,
         );
-        let pricing = provider.get_pricing("claude-haiku-4-5-20251001");
+        let pricing = provider
+            .get_pricing("claude-haiku-4-5-20251001")
+            .expect("catalogue model is priced");
         assert!((pricing.input_per_million - 1.0).abs() < f64::EPSILON);
         assert!((pricing.output_per_million - 5.0).abs() < f64::EPSILON);
     }

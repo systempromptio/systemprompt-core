@@ -14,11 +14,10 @@ use systemprompt_evaluation::experiments::{
     ClientKind, ExecutionMode, ExperimentSpec, FrozenCostEnvelope, FrozenSettings, Objective,
     VariantSpec, content_digest,
 };
-use systemprompt_evaluation::repository::experiments::{
-    BudgetRepository, ExperimentRepository, RevisionRepository,
-};
+use systemprompt_evaluation::repository::experiments::{ExperimentRepository, RevisionRepository};
 use systemprompt_identifiers::{
-    EvalBudgetId, EvalExperimentId, EvalRevisionId, EvalWorkerId, ModelId, ProviderId, UserId,
+    EvalBudgetId, EvalExperimentId, EvalRevisionId, EvalWorkerId, ManagedResourceId, ModelId,
+    ProviderId, ResourceRevisionId, UserId,
 };
 use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fixture_db_pool};
 use uuid::Uuid;
@@ -85,6 +84,8 @@ struct Fixture {
     dataset_digest: String,
     rubric_digest: String,
     budget: EvalBudgetId,
+    resource: ManagedResourceId,
+    baseline: ResourceRevisionId,
 }
 
 impl Fixture {
@@ -155,12 +156,22 @@ async fn fixture(pool: &PgPool) -> Fixture {
         let manifest = serde_json::json!({"projection": revision});
         sqlx::query!("INSERT INTO eval_managed_workspace_projections(owner_id,digest,managed_revision_id,manifest,verified_file_count,verified_byte_count) VALUES($1,$2,$3,$4,0,0)", owner.as_str(), &digest, revision, manifest).execute(pool).await.expect("managed projection");
     }
-    let budget = BudgetRepository::new(pool.clone())
+    let budget = crate::seams::budgets(&pool)
         .create_shared(&owner, &format!("budget-{}", Uuid::new_v4()), 5_000_000)
         .await
         .expect("budget");
+    let (resource, baseline) = systemprompt_test_fixtures::seed_managed_baseline(
+        &crate::seams::db(pool),
+        &owner,
+        &format!("baseline-{}", Uuid::new_v4()),
+    )
+    .await
+    .expect("managed baseline");
     Fixture {
-        experiments: ExperimentRepository::new(pool.clone()),
+        experiments: crate::seams::experiments(
+            &pool,
+            crate::fixture_admission::fixture_admission(),
+        ),
         owner,
         case,
         dataset,
@@ -168,6 +179,8 @@ async fn fixture(pool: &PgPool) -> Fixture {
         rubric_digest: content_digest(&rubric_content()).expect("rubric digest"),
         rubric,
         budget,
+        resource,
+        baseline,
     }
 }
 
@@ -647,3 +660,12 @@ async fn claim_completes_an_experiment_once_its_executions_are_terminal() {
         "an exhausted queue completes the running experiment"
     );
 }
+
+#[path = "repository_admission.rs"]
+mod admission;
+
+#[path = "campaign_completion.rs"]
+mod campaign_completion;
+
+#[path = "repository_campaign_dispatch.rs"]
+mod campaign_dispatch;

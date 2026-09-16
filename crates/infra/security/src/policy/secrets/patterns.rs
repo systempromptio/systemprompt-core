@@ -127,5 +127,4 @@ pub(super) fn field_matches(path: &str, field: Option<&str>) -> bool {
     })
 }
 
-pub(super) const HIGH_ENTROPY_PATTERN_ID: &str = "high-entropy-token";
 pub(super) const HIGH_ENTROPY_PATTERN_NAME: &str = "High-entropy token (possible credential)";

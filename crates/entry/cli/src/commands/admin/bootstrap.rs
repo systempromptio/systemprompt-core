@@ -111,8 +111,7 @@ fn resolve_admin_name(requested: Option<&str>) -> Result<String> {
 
 async fn connect_user_service() -> Result<UserService> {
     let database: DbPool = Arc::new(
-        Database::from_config_with_write(
-            &Config::get()?.database_type,
+        Database::connect(
             &Config::get()?.database_url,
             Config::get()?.database_write_url.as_deref(),
             &systemprompt_database::PoolConfig::default(),

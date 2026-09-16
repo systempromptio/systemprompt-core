@@ -11,6 +11,8 @@ publish = false
 workspace = true
 
 [dependencies]
+systemprompt-models = { workspace = true }
+http = { workspace = true }
 reqwest = { workspace = true }
 systemprompt-test-fixtures = { workspace = true }
 systemprompt-identifiers = { workspace = true }

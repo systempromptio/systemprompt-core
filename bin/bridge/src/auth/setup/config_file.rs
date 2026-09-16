@@ -13,14 +13,18 @@ use toml_edit::DocumentMut;
 const CREDENTIAL_SECTIONS: [&str; 2] = ["pat", "session"];
 
 fn read_existing_gateway(path: &Path) -> Result<Option<String>, SetupError> {
-    let contents = crate::fsutil::read_optional(path)
-        .map_err(|e| SetupError::Io(format!("read {}: {e}", path.display())))?;
+    let contents = crate::fsutil::read_optional(path).map_err(|source| SetupError::Io {
+        action: "read",
+        path: path.to_path_buf(),
+        source,
+    })?;
     let Some(contents) = contents else {
         return Ok(None);
     };
-    let doc: DocumentMut = contents
-        .parse()
-        .map_err(|e| SetupError::Io(format!("parse {}: {e}", path.display())))?;
+    let doc: DocumentMut = contents.parse().map_err(|source| SetupError::ConfigParse {
+        path: path.to_path_buf(),
+        source,
+    })?;
     write::get(&doc, &["gateway_url"]).map_or_else(
         || Ok(None),
         |value| {
@@ -28,11 +32,8 @@ fn read_existing_gateway(path: &Path) -> Result<Option<String>, SetupError> {
                 .as_str()
                 .filter(|s| !s.trim().is_empty())
                 .map(|s| Some(s.to_owned()))
-                .ok_or_else(|| {
-                    SetupError::Io(format!(
-                        "{}: gateway_url must be a nonempty string",
-                        path.display()
-                    ))
+                .ok_or_else(|| SetupError::GatewayNotString {
+                    path: path.to_path_buf(),
                 })
         },
     )
@@ -77,15 +78,16 @@ pub(super) fn merge_config_file(
         write::remove(doc, &[section])?;
         fill(doc)
     })
-    .map_err(|e| SetupError::Io(e.to_string()))
+    .map_err(SetupError::ConfigWrite)
 }
 
-pub(super) fn strip_credential_sections(contents: &str) -> Result<String, SetupError> {
-    let mut doc: DocumentMut = contents
-        .parse()
-        .map_err(|e| SetupError::Io(format!("parse config: {e}")))?;
+pub(super) fn strip_credential_sections(path: &Path, contents: &str) -> Result<String, SetupError> {
+    let mut doc: DocumentMut = contents.parse().map_err(|source| SetupError::ConfigParse {
+        path: path.to_path_buf(),
+        source,
+    })?;
     for section in CREDENTIAL_SECTIONS {
-        write::remove(&mut doc, &[section]).map_err(|e| SetupError::Io(e.to_string()))?;
+        write::remove(&mut doc, &[section])?;
     }
     Ok(doc.to_string())
 }

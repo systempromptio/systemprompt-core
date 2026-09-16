@@ -9,8 +9,12 @@ use systemprompt_test_fixtures::fixture_user_id;
 fn envelope_requiring(floor: Option<&str>) -> SignedManifestEnvelope {
     let manifest = SignedManifestBuilder::new(
         ManifestVersion::try_new("2026-04-22T00:00:00Z-01abcdef").expect("version"),
-        "2026-04-22T00:00:00Z",
-        "2026-04-22T00:00:00Z",
+        chrono::DateTime::parse_from_rfc3339("2026-04-22T00:00:00Z")
+            .expect("rfc3339")
+            .with_timezone(&chrono::Utc),
+        chrono::DateTime::parse_from_rfc3339("2026-04-22T00:00:00Z")
+            .expect("rfc3339")
+            .with_timezone(&chrono::Utc),
         fixture_user_id(),
     )
     .build();
@@ -51,12 +55,15 @@ fn a_gateway_that_declares_no_floor_is_accepted() {
 #[test]
 fn the_floor_comparison_orders_numerically_not_lexically() {
     assert!(
-        bridge_version_is_supported("0.1.10", "0.1.9"),
+        bridge_version_is_supported("0.1.10", &semver::Version::new(0, 1, 9)),
         "0.1.10 is newer than 0.1.9; a lexical compare would invert this"
     );
-    assert!(!bridge_version_is_supported("0.1.9", "0.1.10"));
+    assert!(!bridge_version_is_supported(
+        "0.1.9",
+        &semver::Version::new(0, 1, 10)
+    ));
     assert!(
-        bridge_version_is_supported("1.0.0", "1.0.0"),
+        bridge_version_is_supported("1.0.0", &semver::Version::new(1, 0, 0)),
         "the floor itself is supported"
     );
 }
@@ -64,7 +71,7 @@ fn the_floor_comparison_orders_numerically_not_lexically() {
 #[test]
 fn an_unparseable_version_is_refused() {
     assert!(
-        !bridge_version_is_supported("dev-build", "1.0.0"),
+        !bridge_version_is_supported("dev-build", &semver::Version::new(1, 0, 0)),
         "a version that cannot be parsed cannot be shown to meet the floor; every cargo build \
          carries a semver CARGO_PKG_VERSION, so a work tree is never refused by this"
     );

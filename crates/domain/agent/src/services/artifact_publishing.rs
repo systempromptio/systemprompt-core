@@ -1,8 +1,9 @@
 //! Artifact persistence for agent and MCP tool output.
 //!
-//! Persists artifacts, enriches them with skill metadata, validates
-//! execution-id foreign keys, and creates the accompanying conversation
-//! messages for direct MCP calls.
+//! Persists artifacts, enriches them with skill metadata, verifies MCP
+//! execution ids against the owning domain's ledger through
+//! [`ToolExecutionLookup`](systemprompt_traits::ToolExecutionLookup), and
+//! creates the accompanying conversation messages for direct MCP calls.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -10,14 +11,16 @@
 use crate::services::shared::{AgentServiceError, Result};
 use serde_json::json;
 
+use std::sync::Arc;
+
 use crate::models::a2a::{Artifact, Message, MessageRole, Part, TextPart};
+use crate::repository::A2ARepositories;
 use crate::repository::content::ArtifactRepository;
-use crate::repository::execution::ExecutionStepRepository;
-use crate::repository::task::TaskRepository;
 use crate::services::{MessageService, SkillService};
-use systemprompt_identifiers::{ContextId, McpExecutionId, MessageId, TaskId};
+use systemprompt_identifiers::{ContextId, McpExecutionId, MessageId, TaskId, UserId};
 use systemprompt_models::RequestContext;
 use systemprompt_models::execution::CallSource;
+use systemprompt_traits::DynToolExecutionLookup;
 
 #[derive(Debug)]
 pub struct PublishFromMcpParams<'a> {
@@ -32,9 +35,9 @@ pub struct PublishFromMcpParams<'a> {
 
 pub struct ArtifactPublishingService {
     artifact_repo: ArtifactRepository,
-    skill_service: SkillService,
+    skill_service: Arc<SkillService>,
     message_service: MessageService,
-    execution_repo: ExecutionStepRepository,
+    tool_executions: DynToolExecutionLookup,
 }
 
 impl std::fmt::Debug for ArtifactPublishingService {
@@ -45,62 +48,57 @@ impl std::fmt::Debug for ArtifactPublishingService {
 }
 
 impl ArtifactPublishingService {
-    pub fn new(
-        artifact_repo: ArtifactRepository,
-        execution_repo: ExecutionStepRepository,
-        task_repo: TaskRepository,
-    ) -> Result<Self> {
-        Ok(Self {
-            artifact_repo,
-            skill_service: SkillService::new()?,
-            message_service: MessageService::new(task_repo),
-            execution_repo,
-        })
-    }
-
-    async fn execution_id_exists(&self, mcp_execution_id: &McpExecutionId) -> bool {
-        match self
-            .execution_repo
-            .mcp_execution_id_exists(mcp_execution_id)
-            .await
-        {
-            Ok(exists) => exists,
-            Err(e) => {
-                tracing::warn!(
-                    mcp_execution_id = %mcp_execution_id,
-                    error = %e,
-                    "Failed to check mcp_execution_id existence"
-                );
-                false
-            },
+    #[must_use]
+    pub fn new(repositories: &A2ARepositories, skill_service: Arc<SkillService>) -> Self {
+        Self {
+            artifact_repo: repositories.artifacts.clone(),
+            skill_service,
+            message_service: MessageService::new(repositories.tasks.clone()),
+            tool_executions: repositories.tool_executions(),
         }
     }
 
-    async fn validate_execution_id(&self, artifact: &Artifact) -> Artifact {
+    // Why: an unknown execution id is dropped so the artifact never points at
+    // a ledger row that does not exist, but an unreachable ledger is an error
+    // — treating it as "unknown" would silently detach every artifact.
+    async fn validate_execution_id(&self, artifact: &Artifact) -> Result<Artifact> {
         let mut validated = artifact.clone();
 
         if let Some(exec_id) = &validated.metadata.mcp_execution_id {
             let exec_id = McpExecutionId::new(exec_id);
-            if !self.execution_id_exists(&exec_id).await {
+            let exists = self
+                .tool_executions
+                .execution_exists(&exec_id)
+                .await
+                .map_err(|e| {
+                    AgentServiceError::Internal(format!(
+                        "Failed to check mcp_execution_id {exec_id}: {e}"
+                    ))
+                })?;
+            if !exists {
                 tracing::warn!(
                     mcp_execution_id = %exec_id,
                     artifact_id = %artifact.id,
-                    "mcp_execution_id not found in mcp_tool_executions, setting to NULL"
+                    "mcp_execution_id not found in the tool-execution ledger, setting to NULL"
                 );
                 validated.metadata.mcp_execution_id = None;
             }
         }
 
-        validated
+        Ok(validated)
     }
 
-    async fn enrich_artifact_with_skill(&self, artifact: &Artifact) -> Artifact {
+    async fn enrich_artifact_with_skill(&self, artifact: &Artifact, owner: &UserId) -> Artifact {
         let mut enriched = artifact.clone();
 
         if let Some(skill_id) = &enriched.metadata.skill_id
             && enriched.metadata.skill_name.is_none()
         {
-            match self.skill_service.load_skill_metadata(skill_id).await {
+            match self
+                .skill_service
+                .load_skill_metadata(skill_id, owner)
+                .await
+            {
                 Ok(meta) => enriched.metadata.skill_name = Some(meta.name),
                 Err(e) => tracing::debug!(
                     skill_id = %skill_id,
@@ -118,9 +116,10 @@ impl ArtifactPublishingService {
         artifact: &Artifact,
         task_id: &TaskId,
         context_id: &ContextId,
+        owner: &UserId,
     ) -> Result<()> {
-        let enriched_artifact = self.enrich_artifact_with_skill(artifact).await;
-        let validated_artifact = self.validate_execution_id(&enriched_artifact).await;
+        let enriched_artifact = self.enrich_artifact_with_skill(artifact, owner).await;
+        let validated_artifact = self.validate_execution_id(&enriched_artifact).await?;
 
         tracing::info!(
             artifact_id = %validated_artifact.id,
@@ -134,9 +133,7 @@ impl ArtifactPublishingService {
         self.artifact_repo
             .create_artifact(task_id, context_id, &validated_artifact)
             .await
-            .map_err(|e| {
-                AgentServiceError::Internal(format!("Failed to persist artifact: {}", e))
-            })?;
+            .map_err(|e| AgentServiceError::Internal(format!("Failed to persist artifact: {e}")))?;
 
         tracing::info!(
             artifact_id = %validated_artifact.id,
@@ -147,8 +144,11 @@ impl ArtifactPublishingService {
     }
 
     pub async fn publish_from_mcp(&self, params: PublishFromMcpParams<'_>) -> Result<()> {
-        let enriched_artifact = self.enrich_artifact_with_skill(params.artifact).await;
-        let validated_artifact = self.validate_execution_id(&enriched_artifact).await;
+        let owner = params.request_context.user_id();
+        let enriched_artifact = self
+            .enrich_artifact_with_skill(params.artifact, owner)
+            .await;
+        let validated_artifact = self.validate_execution_id(&enriched_artifact).await?;
 
         tracing::info!(
             artifact_id = %validated_artifact.id,
@@ -163,9 +163,7 @@ impl ArtifactPublishingService {
         self.artifact_repo
             .create_artifact(params.task_id, params.context_id, &validated_artifact)
             .await
-            .map_err(|e| {
-                AgentServiceError::Internal(format!("Failed to persist artifact: {}", e))
-            })?;
+            .map_err(|e| AgentServiceError::Internal(format!("Failed to persist artifact: {e}")))?;
 
         tracing::info!(
             artifact_id = %validated_artifact.id,

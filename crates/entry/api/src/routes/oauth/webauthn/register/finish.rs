@@ -97,12 +97,6 @@ pub async fn finish_register(
         .finish_registration(builder.build())
         .await?;
 
-    if let Some(publisher) = state.event_publisher() {
-        publisher.publish_user_event(systemprompt_traits::UserEvent::UserCreated {
-            user_id: user_id.clone(),
-        });
-    }
-
     if let Some(session_id_str) = &request.session_id {
         migrate_session_user(&state, session_id_str, &user_id).await;
     }
@@ -127,7 +121,7 @@ async fn migrate_session_user(state: &OAuthState, session_id_str: &str, new_user
     use systemprompt_identifiers::SessionId;
 
     let session_id = SessionId::new(session_id_str.to_owned());
-    let analytics_provider = state.analytics_provider();
+    let analytics_provider = state.session_provider();
 
     match analytics_provider
         .find_active_session_by_id(&session_id)

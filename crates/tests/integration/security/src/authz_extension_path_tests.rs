@@ -42,9 +42,9 @@ fn request_with_trace(route: &str, trace: &str) -> AuthzRequest {
         trace_id: TraceId::new(trace),
         session_id: None,
         context: AuthzContext::none(),
-        context_id: Some(ContextId::new_unchecked(
-            "55555555-5555-4555-8555-555555555555",
-        )),
+        context_id: Some(
+            ContextId::try_new("55555555-5555-4555-8555-555555555555").expect("valid ContextId"),
+        ),
         task_id: Some(TaskId::new("task-55")),
         act_chain: Vec::new(),
     }
@@ -107,7 +107,7 @@ async fn extension_hook_evaluated_and_audited() {
     let governance = extension_governance();
     let built = build_authz_hook(
         Some(&governance),
-        Some(write_pool.clone()),
+        write_pool.clone(),
         Some(hook),
         ChainSources::default(),
     )

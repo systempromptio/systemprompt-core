@@ -4,14 +4,26 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::path::PathBuf;
+
 #[derive(Debug, Clone)]
 pub(crate) struct ProcInfo {
     pub name: String,
     pub path: Option<String>,
 }
 
-#[must_use]
-pub(crate) fn list_processes() -> Vec<ProcInfo> {
+#[derive(Debug, thiserror::Error)]
+pub enum SysprocError {
+    #[error("process enumeration failed: {source}")]
+    Enumerate {
+        #[source]
+        source: std::io::Error,
+    },
+    #[error("process enumeration is not supported on this platform")]
+    Unsupported,
+}
+
+pub(crate) fn list_processes() -> Result<Vec<ProcInfo>, SysprocError> {
     #[cfg(target_os = "windows")]
     {
         windows::list()
@@ -26,7 +38,7 @@ pub(crate) fn list_processes() -> Vec<ProcInfo> {
     }
     #[cfg(not(any(unix, windows)))]
     {
-        Vec::new()
+        Err(SysprocError::Unsupported)
     }
 }
 
@@ -34,7 +46,7 @@ pub(crate) fn list_processes() -> Vec<ProcInfo> {
 mod windows {
     #![allow(unsafe_code, reason = "Win32 ToolHelp32 process enumeration FFI")]
 
-    use super::ProcInfo;
+    use super::{ProcInfo, SysprocError};
     use windows_sys::Win32::Foundation::{CloseHandle, INVALID_HANDLE_VALUE};
     use windows_sys::Win32::System::Diagnostics::ToolHelp::{
         CreateToolhelp32Snapshot, PROCESSENTRY32W, Process32FirstW, Process32NextW,
@@ -44,12 +56,14 @@ mod windows {
         OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION, QueryFullProcessImageNameW,
     };
 
-    pub(super) fn list() -> Vec<ProcInfo> {
+    pub(super) fn list() -> Result<Vec<ProcInfo>, SysprocError> {
         // SAFETY: `CreateToolhelp32Snapshot` has no preconditions and reports failure
         // as an invalid handle, checked immediately below.
         let snap = unsafe { CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) };
         if snap == INVALID_HANDLE_VALUE || snap.is_null() {
-            return Vec::new();
+            return Err(SysprocError::Enumerate {
+                source: std::io::Error::last_os_error(),
+            });
         }
         let mut out = Vec::new();
         // SAFETY: `PROCESSENTRY32W` is plain-old-data for which all-zero is valid
@@ -76,7 +90,7 @@ mod windows {
         }
         // SAFETY: `snap` is the live snapshot handle owned by this function.
         unsafe { CloseHandle(snap) };
-        out
+        Ok(out)
     }
 
     fn image_path(pid: u32) -> Option<String> {
@@ -107,7 +121,7 @@ mod windows {
 mod macos {
     #![allow(unsafe_code, reason = "macOS libproc process enumeration FFI")]
 
-    use super::ProcInfo;
+    use super::{ProcInfo, SysprocError};
 
     const PROC_ALL_PIDS: u32 = 1;
     const PATH_MAX_BYTES: usize = 4096;
@@ -127,12 +141,14 @@ mod macos {
         ) -> libc::c_int;
     }
 
-    pub(super) fn list() -> Vec<ProcInfo> {
+    pub(super) fn list() -> Result<Vec<ProcInfo>, SysprocError> {
         // SAFETY: a null buffer with zero length is the documented way to query the
         // required size; the call only reads `type`/`typeinfo` scalars.
         let needed = unsafe { proc_listpids(PROC_ALL_PIDS, 0, std::ptr::null_mut(), 0) };
         if needed <= 0 {
-            return Vec::new();
+            return Err(SysprocError::Enumerate {
+                source: std::io::Error::last_os_error(),
+            });
         }
         let count = (needed as usize) / size_of::<libc::pid_t>();
         let mut pids = vec![0i32; count + 32];
@@ -148,7 +164,9 @@ mod macos {
             )
         };
         if written <= 0 {
-            return Vec::new();
+            return Err(SysprocError::Enumerate {
+                source: std::io::Error::last_os_error(),
+            });
         }
         let n = (written as usize) / size_of::<libc::pid_t>();
         let mut out = Vec::with_capacity(n);
@@ -179,19 +197,17 @@ mod macos {
                 path: Some(path),
             });
         }
-        out
+        Ok(out)
     }
 }
 
 #[cfg(all(unix, not(target_os = "macos")))]
 mod linux {
-    use super::ProcInfo;
+    use super::{ProcInfo, SysprocError};
     use std::fs;
 
-    pub(super) fn list() -> Vec<ProcInfo> {
-        let Ok(entries) = fs::read_dir("/proc") else {
-            return Vec::new();
-        };
+    pub(super) fn list() -> Result<Vec<ProcInfo>, SysprocError> {
+        let entries = fs::read_dir("/proc").map_err(|source| SysprocError::Enumerate { source })?;
         let mut out = Vec::new();
         for entry in entries.flatten() {
             let file_name = entry.file_name();
@@ -201,23 +217,26 @@ mod linux {
             if name_str.parse::<u32>().is_err() {
                 continue;
             }
-            let comm = fs::read_to_string(format!("/proc/{name_str}/comm")).unwrap_or_default();
+            // Why: /proc entries vanish between readdir and read; a missing
+            // comm is a process that exited, not an enumeration failure.
+            let Ok(comm) = fs::read_to_string(format!("/proc/{name_str}/comm")) else {
+                continue;
+            };
             let name = comm.trim().to_owned();
             let path = fs::read_link(format!("/proc/{name_str}/exe"))
                 .ok()
                 .map(|p| p.display().to_string());
             out.push(ProcInfo { name, path });
         }
-        out
+        Ok(out)
     }
 }
 
-#[must_use]
-pub(crate) fn find_processes(binary: &str) -> Vec<String> {
+pub(crate) fn find_processes(binary: &str) -> Result<Vec<String>, SysprocError> {
     let exe = format!("{binary}.exe");
     let suffix = format!("/{binary}");
     let bundle = format!("/{binary}.app/");
-    let mut hits: Vec<String> = list_processes()
+    let mut hits: Vec<String> = list_processes()?
         .into_iter()
         .filter_map(|p| {
             let name_lower = p.name.to_ascii_lowercase();
@@ -245,5 +264,23 @@ pub(crate) fn find_processes(binary: &str) -> Vec<String> {
         .collect();
     hits.sort();
     hits.dedup();
-    hits
+    Ok(hits)
+}
+
+pub fn binary_on_path(binary: &str) -> Option<PathBuf> {
+    let paths = std::env::var_os("PATH")?;
+    std::env::split_paths(&paths).find_map(|dir| {
+        ["", ".exe", ".cmd"]
+            .iter()
+            .map(|ext| dir.join(format!("{binary}{ext}")))
+            .find(|candidate| candidate.is_file())
+    })
+}
+
+pub(crate) fn host_name() -> Option<String> {
+    hostname::get()
+        .ok()
+        .and_then(|name| name.into_string().ok())
+        .map(|name| name.trim().to_owned())
+        .filter(|name| !name.is_empty())
 }

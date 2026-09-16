@@ -33,7 +33,7 @@ fn params(jwt: JwtUserContext) -> BuildContextParams {
         user_id: jwt.user_id.clone(),
         trace_id: TraceId::new("trace-1"),
         context_id: ContextId::generate(),
-        agent_name: AgentName::new("agent-x"),
+        agent_name: AgentName::try_new("agent-x").expect("valid AgentName"),
         task_id: None,
         auth_token: None,
         user_type: UserType::User,

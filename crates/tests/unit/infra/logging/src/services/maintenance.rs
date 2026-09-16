@@ -38,10 +38,7 @@ async fn maintenance_service_reads_counts_and_cleans() {
         return;
     };
     let svc = LoggingMaintenanceService::new(&db).expect("maintenance service");
-    let repo = systemprompt_logging::LoggingRepository::new(&db)
-        .unwrap()
-        .with_terminal(false)
-        .with_database(true);
+    let repo = systemprompt_logging::LoggingRepository::new(&db).unwrap();
 
     let module = format!("maint-mod-{}", uuid::Uuid::new_v4().simple());
     let mut old = seeded_entry(&module, "maint-old");

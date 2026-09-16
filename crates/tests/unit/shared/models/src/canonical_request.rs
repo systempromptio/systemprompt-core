@@ -1,4 +1,5 @@
 use serde_json::json;
+use systemprompt_identifiers::ModelId;
 use systemprompt_models::wire::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalStopReason, ImageDetail,
     ImageSource, ReasoningEffort, Role,
@@ -6,7 +7,7 @@ use systemprompt_models::wire::canonical::{
 
 fn empty_request() -> CanonicalRequest {
     CanonicalRequest {
-        model: "m".to_owned(),
+        model: ModelId::new("m"),
         system: None,
         messages: Vec::new(),
         max_tokens: 16,

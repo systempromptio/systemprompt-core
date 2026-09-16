@@ -1,11 +1,14 @@
 // DB-backed tests for ArtifactPublishingService: publishing A2A + MCP
-// artifacts, execution-id FK validation (unknown id is nulled), and the
-// direct-vs-agentic message-creation branch.
+// artifacts, execution-id verification through the `ToolExecutionLookup`
+// seam (unknown id is nulled, an unreachable ledger fails the publish), and
+// the direct-vs-agentic message-creation branch.
+
+use std::sync::Arc;
 
 use systemprompt_agent::models::a2a::{Artifact, ArtifactMetadata, Part, TextPart};
-use systemprompt_agent::repository::content::ArtifactRepository;
+use systemprompt_agent::repository::A2ARepositories;
 use systemprompt_agent::repository::execution::ExecutionStepRepository;
-use systemprompt_agent::repository::task::TaskRepository;
+use systemprompt_agent::services::SkillService;
 use systemprompt_agent::services::artifact_publishing::{
     ArtifactPublishingService, PublishFromMcpParams,
 };
@@ -14,19 +17,32 @@ use systemprompt_identifiers::{
 };
 use systemprompt_models::execution::CallSource;
 use systemprompt_models::execution::context::RequestContext;
-use systemprompt_test_fixtures::ensure_test_bootstrap;
+use systemprompt_test_fixtures::{
+    ToolExecutionLedger, a2a_dependencies, ensure_test_bootstrap, not_managed_skills,
+    tool_execution_ledger,
+};
+use systemprompt_test_mocks::recording_webhooks;
 
 use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try_pool_or_skip};
 
 async fn publishing_service(pool: &systemprompt_database::DbPool) -> ArtifactPublishingService {
+    service_with_ledger(pool, ToolExecutionLedger::Absent).await
+}
+
+async fn service_with_ledger(
+    pool: &systemprompt_database::DbPool,
+    ledger: ToolExecutionLedger,
+) -> ArtifactPublishingService {
     ensure_test_bootstrap();
     let _skills = crate::SKILLS_FIXTURE_LOCK.read().await;
-    ArtifactPublishingService::new(
-        ArtifactRepository::new(pool).expect("artifact repo"),
-        ExecutionStepRepository::new(pool).expect("execution repo"),
-        TaskRepository::new(pool, crate::session_usage(pool)).expect("task repo"),
-    )
-    .expect("publishing service")
+    let mut deps = a2a_dependencies(pool);
+    deps.tool_executions = tool_execution_ledger(ledger);
+    let repositories = A2ARepositories::new(pool, deps).expect("repositories");
+    let steps = Arc::new(ExecutionStepRepository::new(pool).expect("step repo"));
+    let skills = Arc::new(
+        SkillService::new(not_managed_skills(), steps, recording_webhooks()).expect("skills"),
+    );
+    ArtifactPublishingService::new(&repositories, skills)
 }
 
 fn artifact(
@@ -56,7 +72,7 @@ fn request_context(ctx: &ContextId, session: &SessionId, user: &UserId) -> Reque
         session.clone(),
         TraceId::generate(),
         ctx.clone(),
-        AgentName::new("pub-agent"),
+        AgentName::try_new("pub-agent").expect("valid AgentName"),
     );
     rc.auth.actor = Actor::user(user.clone());
     rc
@@ -74,7 +90,7 @@ async fn publish_from_a2a_persists_artifact() {
 
     let id = ArtifactId::generate();
     let art = artifact(&id, &ctx, &tid, None);
-    svc.publish_from_a2a(&art, &tid, &ctx)
+    svc.publish_from_a2a(&art, &tid, &ctx, &user_id)
         .await
         .expect("publish a2a");
 
@@ -100,9 +116,9 @@ async fn publish_from_a2a_nulls_unknown_execution_id() {
     let (ctx, tid) = seed_context_and_task(&r, &user_id, &session_id).await;
 
     let id = ArtifactId::generate();
-    // This execution id does not exist in mcp_tool_executions, so it is nulled.
+    // The ledger answers "absent" for this execution id, so it is nulled.
     let art = artifact(&id, &ctx, &tid, Some("nonexistent-exec-id"));
-    svc.publish_from_a2a(&art, &tid, &ctx)
+    svc.publish_from_a2a(&art, &tid, &ctx, &user_id)
         .await
         .expect("publish");
 
@@ -113,6 +129,75 @@ async fn publish_from_a2a_nulls_unknown_execution_id() {
         .expect("get")
         .expect("present");
     assert!(fetched.metadata.mcp_execution_id.is_none());
+
+    r.tasks.delete_task(&tid).await.ok();
+}
+
+#[tokio::test]
+async fn publish_from_a2a_keeps_a_known_execution_id() {
+    let Some(pool) = try_pool_or_skip().await else {
+        return;
+    };
+    let svc = service_with_ledger(&pool, ToolExecutionLedger::Exists).await;
+    let (user_id, session_id) = seed_user_and_session(&pool).await;
+    let r = repos(&pool);
+    let (ctx, tid) = seed_context_and_task(&r, &user_id, &session_id).await;
+
+    let exec_id = format!("exec-{}", uuid::Uuid::new_v4().simple());
+    let sqlx_pool = pool.pool_arc().expect("sqlx pool");
+    sqlx::query(
+        "INSERT INTO mcp_tool_executions (mcp_execution_id, tool_name, server_name, started_at, \
+         input, user_id) VALUES ($1, 'echo', 'test-server', NOW(), '{}', $2)",
+    )
+    .bind(&exec_id)
+    .bind(user_id.as_str())
+    .execute(sqlx_pool.as_ref())
+    .await
+    .expect("seed execution row");
+
+    let id = ArtifactId::generate();
+    let art = artifact(&id, &ctx, &tid, Some(&exec_id));
+    svc.publish_from_a2a(&art, &tid, &ctx, &user_id)
+        .await
+        .expect("publish");
+
+    let fetched = r
+        .artifacts
+        .get_artifact_by_id(&id)
+        .await
+        .expect("get")
+        .expect("present");
+    assert_eq!(
+        fetched.metadata.mcp_execution_id.as_deref(),
+        Some(exec_id.as_str())
+    );
+
+    r.tasks.delete_task(&tid).await.ok();
+}
+
+#[tokio::test]
+async fn an_unreachable_execution_ledger_fails_the_publish_and_keeps_the_id() {
+    let Some(pool) = try_pool_or_skip().await else {
+        return;
+    };
+    let svc = service_with_ledger(&pool, ToolExecutionLedger::Unavailable).await;
+    let (user_id, session_id) = seed_user_and_session(&pool).await;
+    let r = repos(&pool);
+    let (ctx, tid) = seed_context_and_task(&r, &user_id, &session_id).await;
+
+    let id = ArtifactId::generate();
+    let art = artifact(&id, &ctx, &tid, Some("exec-while-down"));
+    let err = svc
+        .publish_from_a2a(&art, &tid, &ctx, &user_id)
+        .await
+        .expect_err("an unreachable ledger is an error, not an unknown execution");
+    assert!(err.to_string().contains("exec-while-down"), "{err}");
+
+    let fetched = r.artifacts.get_artifact_by_id(&id).await.expect("get");
+    assert!(
+        fetched.is_none(),
+        "nothing is persisted with a detached execution id"
+    );
 
     r.tasks.delete_task(&tid).await.ok();
 }

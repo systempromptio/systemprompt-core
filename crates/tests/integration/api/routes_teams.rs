@@ -17,7 +17,8 @@ use rsa::pkcs1::EncodeRsaPrivateKey;
 use rsa::traits::PublicKeyParts;
 use systemprompt_security::keys::RsaSigningKey;
 use systemprompt_test_fixtures::{
-    TEST_TEAMS_APP_ID, TEST_TEAMS_TENANT_ID, agent_reply_response_json, ensure_messaging_bootstrap,
+    TEST_TEAMS_APP_ID, TEST_TEAMS_TENANT_ID, TEST_TEAMS_UNRESOLVABLE_APP_ID,
+    TEST_TEAMS_UNRESOLVABLE_TENANT_ID, agent_reply_response_json, ensure_messaging_bootstrap,
     fixture_app_context, fixture_db_pool, init_services_bootstrap, install_test_signing_key,
     messaging_config_yaml_with_teams_endpoints, seed_agent_backend,
 };
@@ -106,13 +107,17 @@ async fn malformed_bearer_is_unauthorized() -> anyhow::Result<()> {
 }
 
 fn mint(signing: &RsaSigningKey, service_url: &str) -> String {
+    mint_for_app(signing, service_url, TEST_TEAMS_APP_ID)
+}
+
+fn mint_for_app(signing: &RsaSigningKey, service_url: &str, app_id: &str) -> String {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .expect("clock")
         .as_secs();
     let claims = serde_json::json!({
         "iss": ISSUER,
-        "aud": TEST_TEAMS_APP_ID,
+        "aud": app_id,
         "exp": now + 3600,
         "serviceurl": service_url,
     });
@@ -205,6 +210,66 @@ async fn signed_activity_dispatches_and_posts_the_card() -> anyhow::Result<()> {
         "Adaptive Card carries the agent reply (agent backend received \
          {agent_calls} request(s), so the dispatch failed {} it): {card}",
         if agent_calls == 0 { "before" } else { "after" }
+    );
+    Ok(())
+}
+
+async fn mount_connector_jwks(connector: &MockServer, signing: &RsaSigningKey) {
+    Mock::given(method("GET"))
+        .and(path("/openid"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "jwks_uri": format!("{}/jwks", connector.uri()),
+        })))
+        .mount(connector)
+        .await;
+    Mock::given(method("GET"))
+        .and(path("/jwks"))
+        .respond_with(
+            ResponseTemplate::new(200).set_body_json(serde_json::json!({ "keys": [jwk(signing)] })),
+        )
+        .mount(connector)
+        .await;
+}
+
+#[tokio::test]
+async fn an_unresolvable_app_password_is_service_unavailable_not_acked() -> anyhow::Result<()> {
+    let connector = MockServer::start().await;
+    let b = init_services_bootstrap(&messaging_config_yaml_with_teams_endpoints(Some((
+        &format!("{}/openid", connector.uri()),
+        &format!("{}/token", connector.uri()),
+    ))));
+    install_test_signing_key();
+    let pool = fixture_db_pool(&b.database_url).await?;
+    let ctx = fixture_app_context(&pool, &b.database_url)?;
+
+    let signing = systemprompt_test_fixtures::next_test_key();
+    mount_connector_jwks(&connector, &signing).await;
+    Mock::given(method("POST"))
+        .and(path(format!(
+            "/v3/conversations/{CONVERSATION_ID}/activities"
+        )))
+        .respond_with(ResponseTemplate::new(201).set_body_json(serde_json::json!({ "id": "1" })))
+        .expect(0)
+        .mount(&connector)
+        .await;
+
+    let token = mint_for_app(&signing, &connector.uri(), TEST_TEAMS_UNRESOLVABLE_APP_ID);
+    let body = activity_json(TEST_TEAMS_UNRESOLVABLE_TENANT_ID, &connector.uri());
+    let resp = router(&ctx)
+        .oneshot(post_messages(&body, Some(&token)))
+        .await?;
+    assert_eq!(
+        resp.status(),
+        StatusCode::SERVICE_UNAVAILABLE,
+        "a secret the store cannot resolve is a 503, never an ack that drops the activity"
+    );
+    let verified = connector
+        .received_requests()
+        .await
+        .is_some_and(|reqs| reqs.iter().any(|r| r.url.path() == "/jwks"));
+    assert!(
+        verified,
+        "the 503 must come from the secrets arm behind bearer verification, not before it"
     );
     Ok(())
 }

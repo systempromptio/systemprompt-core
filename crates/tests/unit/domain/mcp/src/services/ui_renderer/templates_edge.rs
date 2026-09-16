@@ -52,7 +52,6 @@ async fn table_infers_its_columns_from_the_first_row_object() {
                 ]
             }))],
         ))
-        .await
         .expect("render");
 
     assert!(
@@ -72,7 +71,6 @@ async fn table_falls_back_to_positional_column_names_for_array_rows() {
                 "data": [["a", "b", "c"], ["d", "e", "f"]]
             }))],
         ))
-        .await
         .expect("render");
 
     assert!(
@@ -94,7 +92,6 @@ async fn table_row_objects_missing_a_declared_column_render_an_empty_cell() {
                 "data": [{"a": 1}]
             }))],
         ))
-        .await
         .expect("render");
 
     assert!(
@@ -107,7 +104,6 @@ async fn table_row_objects_missing_a_declared_column_render_an_empty_cell() {
 async fn chart_axis_ticks_are_rounded_to_a_readable_step() {
     let result = ChartRenderer::new()
         .render(&chart_of(vec![0.0, 37.0, 84.0]))
-        .await
         .expect("render");
 
     assert!(
@@ -121,7 +117,6 @@ async fn chart_axis_ticks_are_rounded_to_a_readable_step() {
 async fn chart_axis_ticks_render_large_magnitudes_without_decimals() {
     let result = ChartRenderer::new()
         .render(&chart_of(vec![0.0, 250_000.0]))
-        .await
         .expect("render");
 
     assert!(
@@ -135,7 +130,6 @@ async fn chart_axis_ticks_render_large_magnitudes_without_decimals() {
 async fn chart_axis_ticks_keep_significant_decimals_for_small_ranges() {
     let result = ChartRenderer::new()
         .render(&chart_of(vec![0.0, 0.05]))
-        .await
         .expect("render");
 
     assert!(
@@ -154,7 +148,6 @@ async fn chart_axis_ticks_keep_significant_decimals_for_small_ranges() {
 async fn chart_with_a_flat_series_still_renders_a_unit_axis() {
     let result = ChartRenderer::new()
         .render(&chart_of(vec![7.0, 7.0, 7.0]))
-        .await
         .expect("render");
 
     assert!(
@@ -168,7 +161,6 @@ async fn chart_with_a_flat_series_still_renders_a_unit_axis() {
 async fn chart_spanning_zero_renders_both_signs() {
     let result = ChartRenderer::new()
         .render(&chart_of(vec![-40.0, 0.0, 60.0]))
-        .await
         .expect("render");
 
     assert!(

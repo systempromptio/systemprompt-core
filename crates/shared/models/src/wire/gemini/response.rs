@@ -37,6 +37,7 @@ pub fn stop_reason(finish: &str) -> CanonicalStopReason {
 }
 
 pub fn parse_response(
+    // JSON: Gemini `generateContent` response body; upstream JSON is the contract.
     value: &Value,
     fallback_model: &str,
 ) -> Result<CanonicalResponse, WireParseError> {
@@ -173,6 +174,7 @@ pub(super) fn parts_to_content(parts: &[GeminiPart]) -> Vec<CanonicalContent> {
 }
 
 #[must_use]
+// JSON: Gemini `generateContent` response body; upstream JSON is the contract.
 pub fn buffered_defect(value: &Value) -> Option<BodyDefect> {
     buffered_body_defect(value, "candidates", "usageMetadata")
 }

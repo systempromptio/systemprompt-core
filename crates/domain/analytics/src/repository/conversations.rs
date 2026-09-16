@@ -12,6 +12,7 @@ use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
+use systemprompt_identifiers::UserId;
 use systemprompt_models::ContextKind;
 
 use crate::models::reporting::{ConversationListRow, GatewaySessionListRow, TimestampRow};
@@ -32,28 +33,33 @@ impl ConversationAnalyticsRepository {
         start: DateTime<Utc>,
         end: DateTime<Utc>,
         limit: i64,
+        user: Option<&UserId>,
     ) -> Result<Vec<ConversationListRow>> {
+        let user = user.map(UserId::as_str);
         sqlx::query_as!(
             ConversationListRow,
             r#"
             SELECT
                 uc.context_id as "context_id!: systemprompt_identifiers::ContextId",
+                uc.user_id as "user_id!: systemprompt_identifiers::UserId",
                 uc.name as "name?",
-                (SELECT COUNT(*) FROM agent_tasks at WHERE at.context_id = uc.context_id)::bigint as "task_count!",
-                (SELECT COUNT(*) FROM task_messages tm
-                 JOIN agent_tasks at ON at.task_id = tm.task_id
+                (SELECT COUNT(*) FROM analytics_report_agent_tasks at WHERE at.context_id = uc.context_id)::bigint as "task_count!",
+                (SELECT COUNT(*) FROM analytics_report_task_messages tm
+                 JOIN analytics_report_agent_tasks at ON at.task_id = tm.task_id
                  WHERE at.context_id = uc.context_id)::bigint as "message_count!",
                 uc.created_at as "created_at!",
                 uc.updated_at as "updated_at!"
-            FROM user_contexts uc
+            FROM analytics_report_user_contexts uc
             WHERE uc.created_at >= $1 AND uc.created_at < $2 AND uc.kind = $4
+              AND ($5::text IS NULL OR uc.user_id = $5)
             ORDER BY uc.updated_at DESC
             LIMIT $3
             "#,
             start,
             end,
             limit,
-            ContextKind::User.as_str()
+            ContextKind::User.as_str(),
+            user
         )
         .fetch_all(&*self.pool)
         .await
@@ -65,22 +71,26 @@ impl ConversationAnalyticsRepository {
         start: DateTime<Utc>,
         end: DateTime<Utc>,
         limit: i64,
+        user: Option<&UserId>,
     ) -> Result<Vec<GatewaySessionListRow>> {
+        let user = user.map(UserId::as_str);
         sqlx::query_as!(
             GatewaySessionListRow,
             r#"
             SELECT
                 ar.session_id as "session_id!: systemprompt_identifiers::SessionId",
+                MIN(ar.user_id) as "user_id!: systemprompt_identifiers::UserId",
                 COUNT(arm.id)::bigint as "message_count!",
                 MIN(ar.created_at) as "created_at!",
                 MAX(ar.created_at) as "updated_at!"
-            FROM ai_requests ar
-            LEFT JOIN ai_request_messages arm ON arm.request_id = ar.id
+            FROM analytics_report_ai_requests ar
+            LEFT JOIN analytics_report_ai_request_messages arm ON arm.request_id = ar.id
             WHERE ar.task_id IS NULL
               AND ar.session_id IS NOT NULL
               AND ar.created_at >= $1 AND ar.created_at < $2
+              AND ($4::text IS NULL OR ar.user_id = $4)
               AND NOT EXISTS (
-                  SELECT 1 FROM user_contexts uc2 WHERE uc2.context_id::text = ar.session_id
+                  SELECT 1 FROM analytics_report_user_contexts uc2 WHERE uc2.context_id::text = ar.session_id
               )
             GROUP BY ar.session_id
             ORDER BY MAX(ar.created_at) DESC
@@ -88,7 +98,8 @@ impl ConversationAnalyticsRepository {
             "#,
             start,
             end,
-            limit
+            limit,
+            user
         )
         .fetch_all(&*self.pool)
         .await
@@ -97,7 +108,7 @@ impl ConversationAnalyticsRepository {
 
     pub async fn get_context_count(&self, start: DateTime<Utc>, end: DateTime<Utc>) -> Result<i64> {
         let count = sqlx::query_scalar!(
-            r#"SELECT COUNT(*)::bigint as "count!" FROM user_contexts WHERE created_at >= $1 AND created_at < $2 AND kind = $3"#,
+            r#"SELECT COUNT(*)::bigint as "count!" FROM analytics_report_user_contexts WHERE created_at >= $1 AND created_at < $2 AND kind = $3"#,
             start,
             end,
             ContextKind::User.as_str()
@@ -115,7 +126,7 @@ impl ConversationAnalyticsRepository {
         let row = sqlx::query!(
             r#"
             SELECT COUNT(*)::bigint as "count!", AVG(execution_time_ms)::float8 as avg_time
-            FROM agent_tasks
+            FROM analytics_report_agent_tasks
             WHERE started_at >= $1 AND started_at < $2
             "#,
             start,
@@ -128,7 +139,7 @@ impl ConversationAnalyticsRepository {
 
     pub async fn get_message_count(&self, start: DateTime<Utc>, end: DateTime<Utc>) -> Result<i64> {
         let count = sqlx::query_scalar!(
-            r#"SELECT COUNT(*)::bigint as "count!" FROM task_messages WHERE created_at >= $1 AND created_at < $2"#,
+            r#"SELECT COUNT(*)::bigint as "count!" FROM analytics_report_task_messages WHERE created_at >= $1 AND created_at < $2"#,
             start,
             end
         )
@@ -146,7 +157,7 @@ impl ConversationAnalyticsRepository {
             TimestampRow,
             r#"
             SELECT created_at as "timestamp!"
-            FROM user_contexts
+            FROM analytics_report_user_contexts
             WHERE created_at >= $1 AND created_at < $2 AND kind = $3
             "#,
             start,
@@ -167,7 +178,7 @@ impl ConversationAnalyticsRepository {
             TimestampRow,
             r#"
             SELECT started_at as "timestamp!"
-            FROM agent_tasks
+            FROM analytics_report_agent_tasks
             WHERE started_at >= $1 AND started_at < $2
             "#,
             start,
@@ -187,7 +198,7 @@ impl ConversationAnalyticsRepository {
             TimestampRow,
             r#"
             SELECT created_at as "timestamp!"
-            FROM task_messages
+            FROM analytics_report_task_messages
             WHERE created_at >= $1 AND created_at < $2
             "#,
             start,

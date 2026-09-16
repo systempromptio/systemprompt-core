@@ -98,6 +98,7 @@ pub enum RequestCommands {
 pub struct RequestListRow {
     pub request_id: String,
     pub timestamp: String,
+    pub cursor: String,
     pub user_id: UserId,
     pub actor: String,
     pub provider: String,

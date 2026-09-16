@@ -97,6 +97,28 @@ pub fn html_escape(s: &str) -> String {
         .replace('\'', "&#39;")
 }
 
+// Why: tool output is untrusted; a `javascript:` (or any other scripting)
+// scheme in an href/src would run in the host's app frame, so only web and
+// inline-media URLs are rendered.
+#[must_use]
+pub fn safe_url(candidate: &str) -> Option<String> {
+    let trimmed = candidate.trim();
+    let lower = trimmed.to_ascii_lowercase();
+    let allowed = lower.starts_with("https://")
+        || lower.starts_with("http://")
+        || lower.starts_with("data:image/")
+        || lower.starts_with("data:audio/")
+        || lower.starts_with("data:video/");
+    allowed.then(|| html_escape(trimmed))
+}
+
+pub fn unsafe_url_error(field: &str, candidate: &str) -> crate::error::McpDomainError {
+    let scheme: String = candidate.trim().chars().take(16).collect();
+    crate::error::McpDomainError::Internal(format!(
+        "{field} must be an http(s) or data: media URL, got {scheme:?}"
+    ))
+}
+
 pub fn json_to_js_literal(value: &serde_json::Value) -> String {
     serde_json::to_string(value)
         .unwrap_or_else(|_| "null".to_owned())

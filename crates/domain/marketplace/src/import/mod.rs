@@ -154,7 +154,7 @@ fn import_marketplace_tree(
             });
             continue;
         }
-        let dir = plugin::plugin_dir(from, entry, plugin_root);
+        let dir = plugin::plugin_dir(from, entry, plugin_root)?;
         let mut scope = plugin::PluginScope {
             seen_skills: &mut seen_skills,
             seen_rules: &mut seen_rules,

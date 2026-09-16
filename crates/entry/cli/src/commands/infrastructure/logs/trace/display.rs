@@ -5,7 +5,8 @@
 
 use chrono::{DateTime, Utc};
 use serde_json::Value;
-use systemprompt_logging::{CliService, TraceEvent};
+use systemprompt_logging::CliService;
+use systemprompt_runtime::TraceEvent;
 
 use crate::presentation::tables::{format_metadata_value, trace_events_table};
 

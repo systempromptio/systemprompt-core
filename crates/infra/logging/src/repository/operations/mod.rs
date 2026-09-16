@@ -12,7 +12,7 @@ mod mutations;
 mod queries;
 
 pub(super) use mutations::{
-    cleanup_logs_before, clear_all_logs, count_logs_before, create_log, delete_log,
-    delete_logs_multiple, update_log,
+    cleanup_logs_before, clear_all_logs, count_logs_before, count_logs_for_users, create_log,
+    delete_log, delete_logs_for_users, delete_logs_multiple, distinct_log_user_ids, update_log,
 };
 pub(super) use queries::{get_log, list_logs, list_logs_by_module_patterns, list_logs_paginated};

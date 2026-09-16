@@ -54,8 +54,14 @@ impl Job for BehavioralAnalysisJob {
                 .ok_or_else(|| SchedulerError::missing_context("DbPool"))?,
         );
 
-        let fingerprint_repo =
-            FingerprintRepository::new(&db_pool).map_err(SchedulerError::from)?;
+        let fingerprint_repo = FingerprintRepository::new(
+            &db_pool,
+            std::sync::Arc::new(
+                systemprompt_users::SessionRepository::new(&db_pool)
+                    .map_err(SchedulerError::from)?,
+            ),
+        )
+        .map_err(SchedulerError::from)?;
         let banned_ip_repo = BannedIpRepository::new(&db_pool).map_err(SchedulerError::from)?;
 
         info!("Starting behavioral analysis job");

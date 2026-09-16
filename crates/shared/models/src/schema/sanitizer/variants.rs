@@ -13,6 +13,7 @@ impl SchemaSanitizer {
     // typed `anyOf` variants — appended to any variants already there — so a
     // later pass can pin `items` to the array variant instead of leaving it
     // beside a type Gemini will not accept it on.
+    // JSON: JSON Schema document rewritten in place for the provider's subset.
     pub(super) fn split_type_list_into_variants(obj: &mut Map<String, Value>) {
         let Some(Value::Array(types)) = obj.get("type").cloned() else {
             return;
@@ -50,6 +51,7 @@ impl SchemaSanitizer {
     // leave exactly that. The type is inferred from what the variant still
     // says about itself; a variant that says nothing is dropped, and a
     // keyword left with no variants goes with it.
+    // JSON: JSON Schema document rewritten in place for the provider's subset.
     pub(super) fn type_or_drop_variants(obj: &mut Map<String, Value>) {
         for keyword in ["anyOf", "oneOf", "allOf"] {
             let Some(Value::Array(variants)) = obj.get_mut(keyword) else {
@@ -80,6 +82,7 @@ impl SchemaSanitizer {
         }
     }
 
+    // JSON: JSON Schema document rewritten in place for the provider's subset.
     pub(super) fn infer_type(inner: &Map<String, Value>) -> Option<&'static str> {
         let has = |keys: &[&str]| keys.iter().any(|k| inner.contains_key(*k));
         if has(&["items", "minItems", "maxItems", "uniqueItems"]) {
@@ -103,6 +106,7 @@ impl SchemaSanitizer {
     // `items`, while JSON Schema allows `items` beside an `anyOf` whose array
     // variant carries none. Runs before the nested pass so the outer `items`
     // reaches a variant before that variant is given an empty one.
+    // JSON: JSON Schema document rewritten in place for the provider's subset.
     pub(super) fn pin_items_to_arrays(obj: &mut Map<String, Value>) {
         // Why: draft-4 tuple validation writes `items` as a list of schemas,
         // and draft-2020 allows a boolean; Gemini wants one item object. The

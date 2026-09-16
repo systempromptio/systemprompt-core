@@ -66,18 +66,36 @@ pub struct BuildAgentCommandParams<'a> {
     pub log_file: File,
 }
 
-#[expect(
-    clippy::too_many_arguments,
-    reason = "one argument per environment source; a struct would only rename the same six"
-)]
+pub struct AgentEnvironmentParams<'a> {
+    pub agent_name: &'a str,
+    pub port: u16,
+    pub profile_path: &'a str,
+    pub database_type: &'a str,
+    pub secrets: &'a Secrets,
+}
+
+impl std::fmt::Debug for AgentEnvironmentParams<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AgentEnvironmentParams")
+            .field("agent_name", &self.agent_name)
+            .field("port", &self.port)
+            .field("profile_path", &self.profile_path)
+            .field("database_type", &self.database_type)
+            .finish_non_exhaustive()
+    }
+}
+
 pub fn build_agent_environment(
-    agent_name: &str,
-    port: u16,
-    profile_path: &str,
-    database_type: &str,
-    secrets: &Secrets,
+    params: &AgentEnvironmentParams<'_>,
     lookup: impl Fn(&str) -> Option<String>,
 ) -> Vec<(String, String)> {
+    let AgentEnvironmentParams {
+        agent_name,
+        port,
+        profile_path,
+        database_type,
+        secrets,
+    } = *params;
     let mut env = systemprompt_models::subprocess::inherited_parent_env(lookup);
 
     env.push(("SYSTEMPROMPT_PROFILE".to_owned(), profile_path.to_owned()));
@@ -117,14 +135,14 @@ pub fn build_agent_command(params: BuildAgentCommandParams<'_>) -> Command {
         .arg(port.to_string())
         .env_clear();
 
-    for (key, value) in build_agent_environment(
+    let environment = AgentEnvironmentParams {
         agent_name,
         port,
         profile_path,
-        &config.database_type,
+        database_type: &config.database_type,
         secrets,
-        |name| std::env::var(name).ok(),
-    ) {
+    };
+    for (key, value) in build_agent_environment(&environment, |name| std::env::var(name).ok()) {
         command.env(key, value);
     }
 
@@ -133,7 +151,7 @@ pub fn build_agent_command(params: BuildAgentCommandParams<'_>) -> Command {
         .stderr(std::process::Stdio::from(log_file))
         .stdin(std::process::Stdio::null());
 
-    systemprompt_models::subprocess::place_in_own_process_group(&mut command);
+    systemprompt_loader::subprocess::place_in_own_process_group(&mut command);
 
     command
 }

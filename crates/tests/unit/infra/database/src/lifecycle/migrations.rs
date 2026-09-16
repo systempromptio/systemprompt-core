@@ -7,11 +7,13 @@
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
+
+use crate::services::db_helper::{lazy_pool, pool_or_skip};
 use systemprompt_database::{
     AppliedMigration, ChecksumDrift, DatabaseInfo, DatabaseProvider, DatabaseResult,
-    DatabaseTransaction, DbValue, ExtensionMigrationStatus, JsonRow, MarkAppliedOutcome,
-    MigrationResult, MigrationService, MigrationStatus, OrphanedMigration, PendingMigration,
-    QueryResult, QuerySelector, SlotCollision, ToDbValue, TombstonedSlot,
+    DatabaseTransaction, ExtensionMigrationStatus, JsonRow, MarkAppliedOutcome, MigrationResult,
+    MigrationService, MigrationStatus, OrphanedMigration, PendingMigration, QueryResult,
+    QuerySelector, SlotCollision, ToDbValue, TombstonedSlot,
 };
 use systemprompt_extension::{
     Extension, ExtensionMetadata, LoaderError, Migration, SchemaDefinition,
@@ -223,6 +225,10 @@ impl RecordingProvider {
 
 #[async_trait]
 impl DatabaseProvider for RecordingProvider {
+    fn get_postgres_pool(&self) -> Arc<sqlx::PgPool> {
+        lazy_pool()
+    }
+
     async fn execute(
         &self,
         _query: &dyn QuerySelector,
@@ -259,14 +265,6 @@ impl DatabaseProvider for RecordingProvider {
         _params: &[&dyn ToDbValue],
     ) -> DatabaseResult<Option<JsonRow>> {
         Ok(None)
-    }
-
-    async fn fetch_scalar_value(
-        &self,
-        _query: &dyn QuerySelector,
-        _params: &[&dyn ToDbValue],
-    ) -> DatabaseResult<DbValue> {
-        Ok(DbValue::NullString)
     }
 
     async fn begin_transaction(&self) -> DatabaseResult<Box<dyn DatabaseTransaction>> {
@@ -875,6 +873,10 @@ impl AppliedVersionsProvider {
 
 #[async_trait]
 impl DatabaseProvider for AppliedVersionsProvider {
+    fn get_postgres_pool(&self) -> Arc<sqlx::PgPool> {
+        lazy_pool()
+    }
+
     async fn execute(
         &self,
         _query: &dyn QuerySelector,
@@ -911,14 +913,6 @@ impl DatabaseProvider for AppliedVersionsProvider {
         _params: &[&dyn ToDbValue],
     ) -> DatabaseResult<Option<JsonRow>> {
         Ok(None)
-    }
-
-    async fn fetch_scalar_value(
-        &self,
-        _query: &dyn QuerySelector,
-        _params: &[&dyn ToDbValue],
-    ) -> DatabaseResult<DbValue> {
-        Ok(DbValue::NullString)
     }
 
     async fn begin_transaction(&self) -> DatabaseResult<Box<dyn DatabaseTransaction>> {
@@ -1140,6 +1134,10 @@ impl AppliedRowsProvider {
 
 #[async_trait]
 impl DatabaseProvider for AppliedRowsProvider {
+    fn get_postgres_pool(&self) -> Arc<sqlx::PgPool> {
+        lazy_pool()
+    }
+
     async fn execute(
         &self,
         _query: &dyn QuerySelector,
@@ -1176,14 +1174,6 @@ impl DatabaseProvider for AppliedRowsProvider {
         _params: &[&dyn ToDbValue],
     ) -> DatabaseResult<Option<JsonRow>> {
         Ok(None)
-    }
-
-    async fn fetch_scalar_value(
-        &self,
-        _query: &dyn QuerySelector,
-        _params: &[&dyn ToDbValue],
-    ) -> DatabaseResult<DbValue> {
-        Ok(DbValue::NullString)
     }
 
     async fn begin_transaction(&self) -> DatabaseResult<Box<dyn DatabaseTransaction>> {
@@ -1286,6 +1276,22 @@ async fn a_migration_already_recorded_with_a_matching_checksum_is_skipped_not_re
         "nothing may be re-executed, so no transaction is opened: {:?}",
         log.snapshot()
     );
+}
+
+#[tokio::test]
+async fn a_row_with_a_malformed_version_fails_the_query_instead_of_reading_as_pending() {
+    let log = Arc::new(CallLog::default());
+    let provider = AppliedRowsProvider {
+        log: Arc::clone(&log),
+        rows: vec![(-1, "negative", "c", None)],
+    };
+    let service = MigrationService::new(&provider);
+
+    let err = service
+        .get_applied_migrations("rows_ext")
+        .await
+        .expect_err("a version that does not fit u32 is malformed, not absent");
+    assert!(err.to_string().contains("malformed"), "{err}");
 }
 
 #[tokio::test]
@@ -1441,10 +1447,15 @@ impl AppliedRows {
 struct HealingRowsProvider {
     log: Arc<CallLog>,
     state: Arc<AppliedRows>,
+    pool: Arc<sqlx::PgPool>,
 }
 
 #[async_trait]
 impl DatabaseProvider for HealingRowsProvider {
+    fn get_postgres_pool(&self) -> Arc<sqlx::PgPool> {
+        Arc::clone(&self.pool)
+    }
+
     async fn execute(
         &self,
         _query: &dyn QuerySelector,
@@ -1482,14 +1493,6 @@ impl DatabaseProvider for HealingRowsProvider {
         _params: &[&dyn ToDbValue],
     ) -> DatabaseResult<Option<JsonRow>> {
         Ok(None)
-    }
-
-    async fn fetch_scalar_value(
-        &self,
-        _query: &dyn QuerySelector,
-        _params: &[&dyn ToDbValue],
-    ) -> DatabaseResult<DbValue> {
-        Ok(DbValue::NullString)
     }
 
     async fn begin_transaction(&self) -> DatabaseResult<Box<dyn DatabaseTransaction>> {
@@ -1600,9 +1603,11 @@ fn drifted_provider(
     log: &Arc<CallLog>,
     stored_name: &str,
     file_name: &'static str,
+    pool: Arc<sqlx::PgPool>,
 ) -> HealingRowsProvider {
     HealingRowsProvider {
         log: Arc::clone(log),
+        pool,
         state: Arc::new(AppliedRows {
             rows: Mutex::new(vec![(
                 34,
@@ -1617,7 +1622,12 @@ fn drifted_provider(
 #[tokio::test]
 async fn status_reports_a_renamed_slot_as_a_collision_not_as_drift() {
     let log = Arc::new(CallLog::default());
-    let provider = drifted_provider(&log, "034_knowledge_bank", "034_project_activity");
+    let provider = drifted_provider(
+        &log,
+        "034_knowledge_bank",
+        "034_project_activity",
+        lazy_pool(),
+    );
     let service = MigrationService::new(&provider);
 
     let status = service
@@ -1641,7 +1651,12 @@ async fn status_reports_a_renamed_slot_as_a_collision_not_as_drift() {
 #[tokio::test]
 async fn repair_drift_refuses_a_reused_slot() {
     let log = Arc::new(CallLog::default());
-    let provider = drifted_provider(&log, "034_knowledge_bank", "034_project_activity");
+    let provider = drifted_provider(
+        &log,
+        "034_knowledge_bank",
+        "034_project_activity",
+        lazy_pool(),
+    );
     let service = MigrationService::new(&provider);
 
     let err = service
@@ -1663,7 +1678,12 @@ async fn repair_drift_refuses_a_reused_slot() {
 #[tokio::test]
 async fn reconcile_drift_refuses_a_reused_slot() {
     let log = Arc::new(CallLog::default());
-    let provider = drifted_provider(&log, "034_knowledge_bank", "034_project_activity");
+    let provider = drifted_provider(
+        &log,
+        "034_knowledge_bank",
+        "034_project_activity",
+        lazy_pool(),
+    );
     let service = MigrationService::new(&provider);
 
     service
@@ -1678,8 +1698,13 @@ async fn reconcile_drift_refuses_a_reused_slot() {
 
 #[tokio::test]
 async fn repair_drift_reapplies_when_the_name_matches() {
+    // Why: repair takes the bootstrap advisory lock on a live session before
+    // touching the faked rows, so the fake borrows the fixture pool for it.
+    let Some(db) = pool_or_skip().await else {
+        return;
+    };
     let log = Arc::new(CallLog::default());
-    let provider = drifted_provider(&log, "034_knowledge_bank", "034_knowledge_bank");
+    let provider = drifted_provider(&log, "034_knowledge_bank", "034_knowledge_bank", db.pool());
     let service = MigrationService::new(&provider);
 
     let result = service
@@ -1698,8 +1723,11 @@ async fn repair_drift_reapplies_when_the_name_matches() {
 
 #[tokio::test]
 async fn reconcile_drift_rewrites_bookkeeping_without_executing_sql() {
+    let Some(db) = pool_or_skip().await else {
+        return;
+    };
     let log = Arc::new(CallLog::default());
-    let provider = drifted_provider(&log, "034_knowledge_bank", "034_knowledge_bank");
+    let provider = drifted_provider(&log, "034_knowledge_bank", "034_knowledge_bank", db.pool());
     let service = MigrationService::new(&provider);
 
     let result = service
@@ -1776,4 +1804,64 @@ fn refuse_slot_collisions_reports_the_first_collision_when_several_exist() {
     let message = err.to_string();
     assert!(message.contains("034_knowledge_bank"), "{message}");
     assert!(!message.contains("035_files"), "{message}");
+}
+
+#[tokio::test]
+async fn historical_checksum_status_requires_exact_sql_and_slot_identity_without_writing() {
+    use std::hash::{Hash, Hasher};
+    const ORIGINAL: &str = "SELECT 'retained café';\n";
+    let mut hash = std::collections::hash_map::DefaultHasher::new();
+    ORIGINAL.hash(&mut hash);
+    let historical: &'static str = Box::leak(format!("{:x}", hash.finish()).into_boxed_str());
+    let log = Arc::new(CallLog::default());
+    let provider = AppliedRowsProvider {
+        log: Arc::clone(&log),
+        rows: vec![(1, "first", historical, None)],
+    };
+    let service = MigrationService::new(&provider);
+    for (name, sql, expected_drift, expected_collision) in [
+        ("first", ORIGINAL, 0, 0),
+        ("first", "SELECT 'retained café';", 1, 0),
+        ("first", "SELECT 'retained cafe';\n", 1, 0),
+        ("reused", ORIGINAL, 0, 1),
+    ] {
+        let extension = StubExtension {
+            id: "rows_ext",
+            migrations: vec![Migration::new(1, name, sql)],
+        };
+        let status = service.status(&extension).await.unwrap();
+        assert_eq!(status.drift.len(), expected_drift);
+        assert_eq!(status.slot_collisions.len(), expected_collision);
+        assert_eq!(status.applied[0].checksum, historical);
+    }
+    assert!(!log.snapshot().iter().any(|entry| entry == "begin"));
+}
+
+#[tokio::test]
+async fn persisted_users001_checksum_matches_exact_historical_release_bytes() {
+    const SQL: &str = include_str!(
+        "../../../../../../domain/users/schema/migrations/001_add_user_sessions_utm_content_term.sql"
+    );
+    const HISTORICAL: &str = "c0a14059cd93c06b";
+    let log = Arc::new(CallLog::default());
+    let provider = AppliedRowsProvider {
+        log: Arc::clone(&log),
+        rows: vec![(1, "users001", HISTORICAL, None)],
+    };
+    let extension = StubExtension {
+        id: "rows_ext",
+        migrations: vec![Migration::new(1, "users001", SQL)],
+    };
+    let status = MigrationService::new(&provider)
+        .status(&extension)
+        .await
+        .unwrap();
+    assert!(
+        status.drift.is_empty(),
+        "persisted pre-8374d3210 checksum must match exact users001 bytes"
+    );
+    assert!(status.slot_collisions.is_empty());
+    assert_eq!(status.applied[0].checksum, HISTORICAL);
+    assert_ne!(extension.migrations[0].checksum(), HISTORICAL);
+    assert!(!log.snapshot().iter().any(|entry| entry == "begin"));
 }

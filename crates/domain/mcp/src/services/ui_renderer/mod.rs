@@ -27,7 +27,6 @@ pub use registry::{UiRendererRegistration, UiRendererRegistry};
 pub use theme::{ArtifactTheme, ArtifactThemeRegistration, active_theme};
 
 use crate::error::McpDomainResult;
-use async_trait::async_trait;
 use systemprompt_models::a2a::Artifact;
 use systemprompt_models::artifacts::ArtifactType;
 use systemprompt_models::mcp::{McpResourceUiMeta, ToolVisibility};
@@ -127,7 +126,9 @@ impl UiMetadata {
     }
 }
 
-#[async_trait]
+/// Renderers are stored in the registry as `Arc<dyn UiRenderer>`; rendering
+/// is pure string assembly, so the trait is synchronous and `dyn`-compatible
+/// as written.
 pub trait UiRenderer: Send + Sync {
     fn artifact_type(&self) -> ArtifactType;
 
@@ -135,7 +136,7 @@ pub trait UiRenderer: Send + Sync {
         self.artifact_type().to_string() == artifact_type
     }
 
-    async fn render(&self, artifact: &Artifact) -> McpDomainResult<UiResource>;
+    fn render(&self, artifact: &Artifact) -> McpDomainResult<UiResource>;
 
     fn csp_policy(&self) -> CspPolicy {
         CspPolicy::strict()

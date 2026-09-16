@@ -3,8 +3,8 @@
 
 use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId};
 use systemprompt_mcp::OAuthRequirement;
+use systemprompt_mcp::middleware::AuthenticatedRequestContext;
 use systemprompt_mcp::middleware::rbac::try_proxy_verified_auth;
-use systemprompt_mcp::middleware::{AuthResult, AuthenticatedRequestContext};
 use systemprompt_models::RequestContext;
 use systemprompt_models::auth::{JwtAudience, Permission};
 
@@ -13,7 +13,7 @@ fn ctx() -> RequestContext {
         SessionId::new("s-proxy"),
         TraceId::new("t-proxy"),
         ContextId::generate(),
-        AgentName::new("agent-proxy"),
+        AgentName::try_new("agent-proxy").expect("valid AgentName"),
     )
 }
 
@@ -139,10 +139,25 @@ fn verified_request_authenticates() {
             .expect("auth ok")
             .expect("short-circuits");
 
-    let auth: AuthenticatedRequestContext = match result {
-        AuthResult::Authenticated(auth) => auth,
-        AuthResult::Anonymous(_) => panic!("expected authenticated result"),
-    };
+    let auth: AuthenticatedRequestContext = result;
     assert_eq!(auth.token(), "proxied-token");
     assert_eq!(auth.context.user_id().to_string(), USER_ID);
+    assert!(
+        auth.context
+            .user
+            .as_ref()
+            .is_some_and(|u| u.roles.is_empty())
+    );
+}
+
+#[test]
+fn verified_request_carries_the_forwarded_roles() {
+    let mut headers = verified_headers();
+    headers.push(("x-user-roles", "viewer analyst"));
+    let parts = parts_with(&headers);
+    let auth = try_proxy_verified_auth(Some(&parts), ctx(), &oauth(vec![Permission::User]), "srv")
+        .expect("auth ok")
+        .expect("short-circuits");
+    let user = auth.context.user.as_ref().expect("proxy-verified user");
+    assert_eq!(user.roles, vec!["viewer", "analyst"]);
 }

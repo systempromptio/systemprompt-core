@@ -46,12 +46,7 @@ impl AgentDatabaseService {
         }
     }
 
-    pub async fn register_agent(
-        &self,
-        name: &str,
-        pid: u32,
-        port: u16,
-    ) -> OrchestrationResult<String> {
+    pub async fn register_agent(&self, name: &str, pid: u32, port: u16) -> OrchestrationResult<()> {
         self.repository
             .register_agent(name, pid, port)
             .await
@@ -68,12 +63,9 @@ impl AgentDatabaseService {
         match row {
             Some(r) => match (r.pid, r.status.as_str()) {
                 (Some(pid), "running") => {
-                    let pid = pid as u32;
+                    let (pid, port) = stored_process(pid, r.port)?;
                     if process::process_exists(pid) {
-                        Ok(AgentStatus::Running {
-                            pid,
-                            port: r.port as u16,
-                        })
+                        Ok(AgentStatus::Running { pid, port })
                     } else {
                         self.mark_failed(agent_name).await?;
                         Ok(AgentStatus::Failed {
@@ -120,16 +112,7 @@ impl AgentDatabaseService {
         self.repository
             .mark_error(agent_name)
             .await
-            .map_err(|e| OrchestrationError::Database(e.to_string()))?;
-
-        self.repository
-            .mark_crashed(agent_name)
-            .await
             .map_err(|e| OrchestrationError::Database(e.to_string()))
-    }
-
-    pub async fn mark_crashed(&self, agent_name: &str) -> OrchestrationResult<()> {
-        self.mark_failed(agent_name).await
     }
 
     pub async fn get_error_message(&self, agent_name: &str) -> OrchestrationResult<String> {
@@ -143,13 +126,6 @@ impl AgentDatabaseService {
             Some(r) => Ok(format!("Status: {}", r.status)),
             None => Ok("No service record".to_owned()),
         }
-    }
-
-    pub async fn mark_error(&self, agent_name: &str) -> OrchestrationResult<()> {
-        self.repository
-            .mark_error(agent_name)
-            .await
-            .map_err(|e| OrchestrationError::Database(e.to_string()))
     }
 
     pub async fn list_running_agents(&self) -> OrchestrationResult<Vec<String>> {
@@ -209,9 +185,11 @@ impl AgentDatabaseService {
         let mut cleaned = 0u64;
 
         for row in rows {
-            let pid = row.pid as u32;
+            let pid = u32::try_from(row.pid).map_err(|_negative| {
+                OrchestrationError::Database(format!("stored pid {} is not a process id", row.pid))
+            })?;
             if !process::process_exists(pid) {
-                self.mark_crashed(&row.name).await?;
+                self.mark_failed(&row.name).await?;
                 cleaned += 1;
             }
         }
@@ -242,7 +220,7 @@ impl AgentDatabaseService {
         agent_name: &str,
         pid: u32,
         port: u16,
-    ) -> OrchestrationResult<String> {
+    ) -> OrchestrationResult<()> {
         self.repository
             .register_agent(agent_name, pid, port)
             .await
@@ -261,7 +239,7 @@ impl AgentDatabaseService {
         agent_name: &str,
         pid: u32,
         port: u16,
-    ) -> OrchestrationResult<String> {
+    ) -> OrchestrationResult<()> {
         self.repository
             .register_agent_starting(agent_name, pid, port)
             .await
@@ -293,4 +271,14 @@ impl AgentDatabaseService {
 
         Ok(unresponsive)
     }
+}
+
+fn stored_process(pid: i32, port: i32) -> OrchestrationResult<(u32, u16)> {
+    let pid = u32::try_from(pid).map_err(|_negative| {
+        OrchestrationError::Database(format!("stored pid {pid} is not a process id"))
+    })?;
+    let port = u16::try_from(port).map_err(|_range| {
+        OrchestrationError::Database(format!("stored port {port} is not a TCP port"))
+    })?;
+    Ok((pid, port))
 }

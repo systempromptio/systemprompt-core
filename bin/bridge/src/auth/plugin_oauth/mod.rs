@@ -35,7 +35,19 @@ pub enum PluginOAuthError {
     #[error("decode OAuth client credentials: {0}")]
     CredsDecode(#[from] serde_json::Error),
     #[error("keyring: {0}")]
-    Keyring(String),
+    Keyring(#[source] keyring_core::Error),
+    #[error("no usable credential store: secret-service ({secret_service}), keyutils ({keyutils})")]
+    NoCredentialStore {
+        secret_service: String,
+        #[source]
+        keyutils: keyring_core::Error,
+    },
+    #[error("in-memory secret store lock was poisoned")]
+    MemoryStorePoisoned,
+    #[error("remove OAuth client credentials: {0}")]
+    CredsRemove(#[source] io::Error),
+    #[error(transparent)]
+    Trust(#[from] crate::config::TrustError),
     #[error("gateway: {0}")]
     Gateway(#[from] GatewayError),
 }
@@ -71,15 +83,6 @@ struct StoredCreds {
     gateway: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
-struct LegacyCreds {
-    client_id: ClientId,
-    client_secret: String,
-    token_endpoint: String,
-    #[serde(default)]
-    scopes: Vec<String>,
-}
-
 pub fn creds_path() -> Option<PathBuf> {
     let base = crate::basedirs::cache_dir()?;
     Some(
@@ -97,8 +100,10 @@ pub fn store_creds(creds: &OAuthClientCreds) -> Result<(), PluginOAuthError> {
         gateway: creds.gateway.clone(),
     };
     let bytes = serde_json::to_vec_pretty(&stored)?;
-    crate::fsutil::atomic_write_0600(&path, &bytes).map_err(PluginOAuthError::CredsWrite)?;
+    // Why: the secret goes to the keystore before the metadata names it; a
+    // keystore failure then leaves the previous, still-usable pair in place.
     write_secret(&creds.client_id, &creds.client_secret)?;
+    crate::fsutil::atomic_write_0600(&path, &bytes).map_err(PluginOAuthError::CredsWrite)?;
     Ok(())
 }
 
@@ -110,25 +115,7 @@ pub fn load_creds() -> Result<Option<OAuthClientCreds>, PluginOAuthError> {
     else {
         return Ok(None);
     };
-    // JSON: on-disk format discrimination — a `client_secret` key marks the
-    // legacy layout, decided before either typed struct can be chosen. The
-    // keystore migration shipped in 0.30.0; drop the legacy arm once 0.36.0
-    // is the oldest bridge still updating itself.
-    let raw: serde_json::Value = serde_json::from_str(&text)?;
-    if raw.get("client_secret").is_some() {
-        let l: LegacyCreds = serde_json::from_value(raw)?;
-        tracing::info!(client_id = %l.client_id, "migrating legacy OAuth client_secret into OS keystore");
-        let creds = OAuthClientCreds {
-            client_id: l.client_id,
-            client_secret: l.client_secret,
-            token_endpoint: l.token_endpoint,
-            scopes: l.scopes,
-            gateway: None,
-        };
-        store_creds(&creds)?;
-        return Ok(Some(creds));
-    }
-    let stored: StoredCreds = serde_json::from_value(raw)?;
+    let stored: StoredCreds = serde_json::from_str(&text)?;
     let Some(secret) = read_secret(&stored.client_id)? else {
         tracing::warn!(client_id = %stored.client_id, "OAuth metadata on disk but no keyring entry; treating as unprovisioned");
         return Ok(None);
@@ -142,34 +129,41 @@ pub fn load_creds() -> Result<Option<OAuthClientCreds>, PluginOAuthError> {
     }))
 }
 
-pub fn delete_creds() -> io::Result<()> {
+pub fn delete_creds() -> Result<(), PluginOAuthError> {
     let Some(path) = creds_path() else {
         return Ok(());
     };
-    if let Some(text) = crate::fsutil::read_optional(&path)?
-        && let Ok(stored) = serde_json::from_str::<StoredCreds>(&text)
-    {
-        delete_secret(&stored.client_id);
+    if let Some(text) = crate::fsutil::read_optional(&path).map_err(PluginOAuthError::CredsRead)? {
+        let stored: StoredCreds = serde_json::from_str(&text)?;
+        delete_secret(&stored.client_id)?;
     }
     match fs::remove_file(&path) {
+        Ok(()) | Err(_) if !path.exists() => Ok(()),
         Ok(()) => Ok(()),
-        Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(()),
-        Err(e) => Err(e),
+        Err(e) => Err(PluginOAuthError::CredsRemove(e)),
     }
 }
 
-fn load_creds_for(gateway: &str) -> Result<Option<OAuthClientCreds>, PluginOAuthError> {
+fn load_creds_for(
+    gateway: &systemprompt_identifiers::ValidatedUrl,
+) -> Result<Option<OAuthClientCreds>, PluginOAuthError> {
     let Some(existing) = load_creds()? else {
         return Ok(None);
     };
-    if existing.gateway.as_deref() == Some(gateway) {
+    let current = crate::config::trust::GatewayIdentity::new(gateway)?;
+    let stored = existing
+        .gateway
+        .as_deref()
+        .map(crate::config::trust::GatewayIdentity::parse)
+        .transpose()?;
+    if stored.as_ref() == Some(&current) {
         return Ok(Some(existing));
     }
     tracing::info!(
         target: "bridge::auth::plugin-oauth",
         client_id = %existing.client_id,
         stored_gateway = existing.gateway.as_deref().unwrap_or("<unrecorded>"),
-        gateway,
+        gateway = %current,
         "stored OAuth client belongs to a different gateway; re-provisioning"
     );
     Ok(None)
@@ -179,7 +173,7 @@ pub async fn ensure_creds(
     gateway: &GatewayClient,
     bearer: &BearerToken,
 ) -> Result<OAuthClientCreds, PluginOAuthError> {
-    if let Some(existing) = load_creds_for(gateway.base_url_str())? {
+    if let Some(existing) = load_creds_for(gateway.base_url())? {
         return Ok(existing);
     }
     provision(gateway, bearer).await

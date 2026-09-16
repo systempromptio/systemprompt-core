@@ -12,10 +12,7 @@ use systemprompt_events::PostgresEventBridge;
 use systemprompt_runtime::AppContext;
 
 pub(in crate::services::server) fn start_event_bridge(ctx: &AppContext) {
-    let Some(pool) = ctx.db_pool().write_pool() else {
-        tracing::info!("No Postgres pool; cross-replica event relay disabled");
-        return;
-    };
+    let pool = ctx.db_pool().write_pool();
 
     let instance_id = systemprompt_identifiers::InstanceId::new(&ctx.config().instance_id);
     let handle = PostgresEventBridge::new(pool.as_ref().clone(), instance_id).start();

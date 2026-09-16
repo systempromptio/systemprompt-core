@@ -21,22 +21,6 @@ fn emits_options_objects_with_model_keys_not_the_ignored_legacy_array() {
 }
 
 #[test]
-fn migrates_legacy_arrays_and_preserves_unrelated_rows() {
-    let old = json!([
-        {"id": "old-gemini", "label": "Old"},
-        {"id": "personal-model", "label": "Mine", "description": "Keep"}
-    ]);
-    let merged = merged_picker(Some(&old), &["old-gemini".into()], &rows()).unwrap();
-    assert_eq!(
-        merged["options"][0],
-        json!({
-            "model": "personal-model", "label": "Mine", "description": "Keep"
-        })
-    );
-    assert_eq!(merged["options"][1]["model"], "gemini-2.5-flash");
-}
-
-#[test]
 fn preserves_user_option_metadata_and_picker_settings() {
     let old = json!({"customSetting": true, "options": [
         {"model": "personal", "label": "Mine", "description": "Keep", "behavesAs": "sonnet"}

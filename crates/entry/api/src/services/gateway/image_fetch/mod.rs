@@ -20,7 +20,8 @@ mod guard;
 
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD as BASE64;
-use systemprompt_models::net::{GuardedConnectError, trusted_http_hosts_from_env};
+use systemprompt_client::GuardedConnectError;
+use systemprompt_models::net::trusted_http_hosts_from_env;
 
 use super::protocol::canonical::{CanonicalContent, CanonicalRequest, ImageSource};
 

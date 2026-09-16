@@ -7,16 +7,18 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod per_user;
+
 use std::sync::Arc;
 
 use axum::Json;
 use axum::http::{HeaderMap, StatusCode};
-use chrono::{Duration, Utc};
+use chrono::{DateTime, Duration, Utc};
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::{JwtToken, UserId};
-use systemprompt_marketplace::{CatalogContent, ManifestService, MarketplaceCandidate, NoopTrace};
+use systemprompt_marketplace::{AssembleRequest, ManifestService, MarketplaceCandidate, NoopTrace};
 use systemprompt_models::bridge::manifest::{
-    MANIFEST_SCHEMA_VERSION, MIN_BRIDGE_VERSION, SignedManifest, SignedManifestEnvelope, UserInfo,
+    MANIFEST_SCHEMA_VERSION, SignedManifest, SignedManifestEnvelope, min_bridge_version,
 };
 use systemprompt_models::bridge::manifest_version::ManifestVersion;
 use systemprompt_models::services::BridgePolicyConfig;
@@ -26,6 +28,7 @@ use super::bridge::instance_enabled_hosts;
 use super::bridge_data;
 use super::messages::extract_credential;
 use crate::services::middleware::JwtContextExtractor;
+use per_user::{PerUserContext, load_per_user_context, record_catalog_grants};
 
 pub async fn manifest(
     jwt_extractor: Arc<JwtContextExtractor>,
@@ -41,7 +44,11 @@ pub async fn manifest(
         .filter(|t| !t.as_str().is_empty())
         .cloned();
 
-    let (manifest_version, issued_at, not_before) = build_version()?;
+    let ManifestStamp {
+        manifest_version,
+        issued_at,
+        not_before,
+    } = build_version()?;
 
     let services = bridge_data::load_services_config().map_err(|e| {
         tracing::warn!(error = %e, "manifest: services config load failed");
@@ -69,11 +76,11 @@ pub async fn manifest(
         revocations,
         enabled_hosts,
         host_model_protocols,
-    } = load_per_user_context(&ctx, &claims.user_id, instance_hosts).await;
+    } = load_per_user_context(&ctx, &claims.user_id, instance_hosts).await?;
 
     let manifest = SignedManifest {
         min_schema_version: MANIFEST_SCHEMA_VERSION,
-        min_bridge_version: Some(MIN_BRIDGE_VERSION.to_owned()),
+        min_bridge_version: Some(min_bridge_version()),
         manifest_version,
         issued_at,
         not_before,
@@ -99,7 +106,7 @@ pub async fn manifest(
     seal_manifest(&manifest).map(Json)
 }
 
-async fn assemble_candidate(
+pub(crate) async fn assemble_candidate(
     ctx: &AppContext,
     profile: &systemprompt_models::Profile,
     user_id: &UserId,
@@ -108,15 +115,20 @@ async fn assemble_candidate(
     let bridge_policy = services.bridge_policy.unwrap_or_default();
 
     let services_root = ctx.app_paths().system().services();
-    let disk_catalog =
-        CatalogContent::load_cached(&services, services_root, &profile.server.api_external_url)
-            .map_err(|e| {
-                tracing::warn!(error = %e, "manifest: catalog load failed");
-                (StatusCode::INTERNAL_SERVER_ERROR, format!("manifest: {e}"))
-            })?;
+    let disk_catalog = ctx
+        .marketplace_cache()
+        .catalog(&services, services_root, &profile.server.api_external_url)
+        .map_err(|e| {
+            tracing::warn!(error = %e, "manifest: catalog load failed");
+            (StatusCode::INTERNAL_SERVER_ERROR, format!("manifest: {e}"))
+        })?;
     let catalog = (*disk_catalog)
         .clone()
-        .with_managed_skills(ctx.managed_repository().as_ref().clone(), user_id)
+        .with_organization_skills(
+            ctx.managed_repository().as_ref().clone(),
+            ctx.system_admin().id(),
+            user_id,
+        )
         .await
         .map_err(|error| {
             tracing::warn!(%error, "manifest: managed catalogue resolution failed");
@@ -125,82 +137,24 @@ async fn assemble_candidate(
                 format!("manifest: {error}"),
             )
         })?;
-    ManifestService::assemble_candidate_from_catalog(
+    let candidate = ManifestService::assemble_candidate_from_catalog(
         catalog,
-        &services,
-        services_root,
-        ctx.marketplace_filter().as_ref(),
-        user_id,
+        &AssembleRequest {
+            services: &services,
+            services_root,
+            filter: ctx.marketplace_filter().as_ref(),
+            user_id,
+            cache: ctx.marketplace_cache(),
+        },
         &mut NoopTrace,
     )
     .await
-    .map(|candidate| (candidate, bridge_policy))
     .map_err(|e| {
         tracing::warn!(error = %e, "manifest: candidate assembly failed");
         (StatusCode::INTERNAL_SERVER_ERROR, format!("manifest: {e}"))
-    })
-}
-
-struct PerUserContext {
-    user: Option<UserInfo>,
-    revocations: Vec<String>,
-    enabled_hosts: Vec<String>,
-    host_model_protocols: std::collections::BTreeMap<String, Vec<String>>,
-}
-
-async fn load_per_user_context(
-    ctx: &AppContext,
-    user_id: &UserId,
-    instance_hosts: Vec<String>,
-) -> PerUserContext {
-    let user = match bridge_data::load_user(ctx, user_id).await {
-        Ok(u) => u,
-        Err(e) => {
-            tracing::warn!(error = %e, "manifest: user load failed; continuing without user");
-            None
-        },
-    };
-
-    let revocations = match bridge_data::load_revocations(ctx, user_id).await {
-        Ok(r) => r,
-        Err(e) => {
-            tracing::warn!(error = %e, "manifest: revocation load failed; continuing empty");
-            Vec::new()
-        },
-    };
-
-    let enabled_hosts = match bridge_data::load_enabled_hosts(ctx, user_id).await {
-        Ok(rows) if rows.is_empty() => instance_hosts,
-        Ok(rows) => instance_hosts
-            .into_iter()
-            .filter(|h| rows.iter().any(|r| r == h))
-            .collect(),
-        Err(e) => {
-            tracing::warn!(
-                error = %e,
-                "manifest: enabled_hosts load failed; defaulting to instance-enabled hosts"
-            );
-            instance_hosts
-        },
-    };
-
-    let host_model_protocols = match bridge_data::load_host_model_protocols(ctx, user_id).await {
-        Ok(rows) => rows.into_iter().collect(),
-        Err(e) => {
-            tracing::warn!(
-                error = %e,
-                "manifest: host model-protocol prefs load failed; continuing with defaults"
-            );
-            std::collections::BTreeMap::new()
-        },
-    };
-
-    PerUserContext {
-        user,
-        revocations,
-        enabled_hosts,
-        host_model_protocols,
-    }
+    })?;
+    record_catalog_grants(ctx, user_id, &candidate).await?;
+    Ok((candidate, bridge_policy))
 }
 
 fn seal_manifest(
@@ -241,10 +195,16 @@ fn profile_bootstrap() -> Result<&'static systemprompt_models::Profile, (StatusC
     })
 }
 
-fn build_version() -> Result<(ManifestVersion, String, String), (StatusCode, String)> {
+struct ManifestStamp {
+    manifest_version: ManifestVersion,
+    issued_at: DateTime<Utc>,
+    not_before: DateTime<Utc>,
+}
+
+fn build_version() -> Result<ManifestStamp, (StatusCode, String)> {
     let now = Utc::now();
-    let issued_at = now.to_rfc3339();
-    let not_before = (now - Duration::seconds(60)).to_rfc3339();
+    let issued_at = now;
+    let not_before = now - Duration::seconds(60);
     let ts_millis = u64::try_from(now.timestamp_millis()).map_err(|_e| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -258,5 +218,9 @@ fn build_version() -> Result<(ManifestVersion, String, String), (StatusCode, Str
             format!("manifest version: {e}"),
         )
     })?;
-    Ok((version, issued_at, not_before))
+    Ok(ManifestStamp {
+        manifest_version: version,
+        issued_at,
+        not_before,
+    })
 }

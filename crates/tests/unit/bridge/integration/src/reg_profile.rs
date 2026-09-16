@@ -1,3 +1,5 @@
+use systemprompt_bridge::ids::LoopbackSecret;
+use systemprompt_bridge::install::mdm::policy::desktop_host_token;
 use systemprompt_bridge::install::reg_values::{parse_reg_entries, render_reg_values};
 use systemprompt_bridge::integration::claude_desktop::reg_profile::{profile_entries, render_reg};
 use systemprompt_bridge::integration::host_app::ProfileGenInputs;
@@ -5,12 +7,12 @@ use systemprompt_bridge::integration::host_app::ProfileGenInputs;
 fn inputs() -> ProfileGenInputs {
     ProfileGenInputs {
         gateway_base_url: "https://gateway.example.com".to_string(),
-        api_key: "sp-secret-key".to_string(),
+        api_key: LoopbackSecret::new("sp-secret-key"),
         models: vec!["claude-opus-4-7".to_string()],
         default_model: None,
         organization_uuid: Some("org-abc".to_string()),
         headers: Default::default(),
-        mcp_servers: Vec::new(),
+        mcp_servers: Some(Vec::new()),
     }
 }
 
@@ -35,7 +37,12 @@ fn profile_entries_carry_required_policy_keys() {
         value_of(&owned, "inferenceGatewayBaseUrl"),
         "https://gateway.example.com"
     );
-    assert_eq!(value_of(&owned, "inferenceGatewayApiKey"), "sp-secret-key");
+    assert_eq!(
+        value_of(&owned, "inferenceGatewayApiKey"),
+        desktop_host_token(&LoopbackSecret::new("sp-secret-key")).as_str(),
+        "the registry profile carries the desktop host token, never the raw secret"
+    );
+    assert_ne!(value_of(&owned, "inferenceGatewayApiKey"), "sp-secret-key");
     assert_eq!(value_of(&owned, "inferenceModels"), "[\"claude-opus-4-7\"]");
 }
 
@@ -91,7 +98,7 @@ fn render_targets_hkcu_unelevated_and_hklm_elevated() {
 fn hklm_profile_parses_to_all_five_policy_values() {
     let rendered = render_reg(true, &inputs());
     assert!(rendered.contains(r"[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Claude]"));
-    let parsed = parse_reg_entries(&rendered);
+    let parsed = parse_reg_entries(&rendered).expect("rendered profile parses");
     let names: Vec<&str> = parsed.iter().map(|(k, _)| k.as_str()).collect();
     assert_eq!(
         names,
@@ -111,7 +118,7 @@ fn rendered_profile_round_trips_through_parser() {
     let rendered = render_reg(false, &probe);
     assert!(rendered.starts_with("Windows Registry Editor Version 5.00"));
 
-    let parsed = parse_reg_entries(&rendered);
+    let parsed = parse_reg_entries(&rendered).expect("rendered profile parses");
     let expected: Vec<(String, String)> = profile_entries(&probe)
         .into_iter()
         .map(|(k, v)| (k.to_string(), v))
@@ -121,11 +128,16 @@ fn rendered_profile_round_trips_through_parser() {
 
 #[test]
 fn round_trip_preserves_backslashes_and_quotes() {
-    let mut probe = inputs();
-    probe.api_key = r#"key-with-"quote"-and-\back\slash"#.to_string();
-    let parsed = parse_reg_entries(&render_reg(false, &probe));
+    let body = render_reg_values(
+        false,
+        &[(
+            "customValue",
+            r#"key-with-"quote"-and-\back\slash"#.to_string(),
+        )],
+    );
+    let parsed = parse_reg_entries(&body).expect("rendered values parse");
     assert_eq!(
-        value_of(&parsed, "inferenceGatewayApiKey"),
+        value_of(&parsed, "customValue"),
         r#"key-with-"quote"-and-\back\slash"#
     );
 }
@@ -134,7 +146,8 @@ fn round_trip_preserves_backslashes_and_quotes() {
 fn parser_ignores_header_and_section_lines() {
     let parsed = parse_reg_entries(
         "Windows Registry Editor Version 5.00\r\n\r\n[HKEY_CURRENT_USER\\SOFTWARE\\Policies\\Claude]\r\n\"inferenceProvider\"=\"gateway\"\r\n",
-    );
+    )
+    .expect("header and section lines are skipped");
     assert_eq!(
         parsed,
         vec![("inferenceProvider".to_string(), "gateway".to_string())]
@@ -147,7 +160,19 @@ fn render_reg_values_round_trips_a_json_payload() {
     let body = render_reg_values(true, &[("managedMcpServers", payload.to_string())]);
 
     assert!(body.contains("[HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Claude]"));
-    let entries = parse_reg_entries(&body);
+    let entries = parse_reg_entries(&body).expect("rendered values parse");
     assert_eq!(entries.len(), 1);
     assert_eq!(value_of(&entries, "managedMcpServers"), payload);
+}
+
+// A line that is neither header, section, blank, nor `"name"="value"` is a
+// parse error naming the line, never a silently skipped entry.
+#[test]
+fn parser_rejects_a_malformed_value_line_and_names_it() {
+    let err = parse_reg_entries(
+        "Windows Registry Editor Version 5.00\r\n[HKEY_CURRENT_USER\\SOFTWARE\\Policies\\Claude]\r\n\"inferenceProvider\"=\"gateway\"\r\ngarbage line\r\n",
+    )
+    .expect_err("a malformed line is an error");
+    assert_eq!(err.line, 4);
+    assert_eq!(err.text, "garbage line");
 }

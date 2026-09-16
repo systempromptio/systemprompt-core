@@ -29,12 +29,8 @@ mod process_utilities_tests;
 mod services_e2e;
 
 #[cfg(test)]
-mod webhook_service_tests;
-
-#[cfg(test)]
 mod task_builder_tests;
 
-#[cfg(test)]
 #[cfg(test)]
 mod agent_service_repo_e2e;
 
@@ -42,17 +38,10 @@ mod agent_service_repo_e2e;
 mod execution_step_repo_e2e;
 
 #[cfg(test)]
-mod message_service_e2e;
-
-#[cfg(test)]
-mod conversation_service_e2e;
-
 #[cfg(test)]
 mod artifact_publishing_e2e;
 
 #[cfg(test)]
-mod message_repo_e2e;
-
 #[cfg(test)]
 mod agent_database_service_e2e;
 
@@ -60,13 +49,6 @@ mod agent_database_service_e2e;
 mod agent_monitor_e2e;
 
 #[cfg(test)]
-mod task_helper_tests;
-
 #[cfg(test)]
-mod webhook_broadcaster_tests;
-
-#[cfg(test)]
-mod task_builder_multiturn_tests;
-
 #[cfg(test)]
 mod a2a_streaming_harness;

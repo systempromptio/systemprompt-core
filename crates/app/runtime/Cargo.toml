@@ -24,7 +24,11 @@ default = []
 geolocation = ["dep:maxminddb", "systemprompt-analytics/geolocation"]
 
 [dependencies]
+schemars = { workspace = true }
 tokio = { workspace = true }
+chrono = { workspace = true }
+metrics = { workspace = true }
+sqlx = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 inventory = { workspace = true }
@@ -36,6 +40,7 @@ systemprompt-config = { workspace = true }
 systemprompt-traits = { workspace = true }
 systemprompt-extension = { workspace = true }
 systemprompt-database = { workspace = true }
+systemprompt-events = { workspace = true }
 systemprompt-logging = { workspace = true, features = ["cli"] }
 systemprompt-loader = { workspace = true }
 systemprompt-ai = { workspace = true }
@@ -52,6 +57,7 @@ systemprompt-content = { workspace = true }
 systemprompt-evaluation = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+serde_jcs = { workspace = true }
 serde_yaml = { workspace = true }
 indicatif = { workspace = true }
 

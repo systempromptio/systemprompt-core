@@ -7,7 +7,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use systemprompt_identifiers::{Actor, InstanceId, UserId};
-use systemprompt_traits::{Job as JobTrait, OptionalStartupEventExt, StartupEventSender};
+use systemprompt_traits::{Job as JobTrait, StartupEventExt, StartupEventSender};
 use tokio::sync::Mutex;
 
 use super::{RunningJobs, SchedulerService, dispatch};

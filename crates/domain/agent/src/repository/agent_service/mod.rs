@@ -56,11 +56,11 @@ impl AgentServiceRepository {
         name: &str,
         pid: u32,
         port: u16,
-    ) -> Result<String, RepositoryError> {
+    ) -> Result<(), RepositoryError> {
         self.remove_agent_service(name).await?;
 
         let pool = &self.write_pool;
-        let pid_i32 = pid as i32;
+        let pid_i32 = db_pid(pid)?;
         let port_i32 = i32::from(port);
 
         sqlx::query!(
@@ -77,7 +77,7 @@ impl AgentServiceRepository {
         .await
         .map_err(RepositoryError::database)?;
 
-        Ok(name.to_owned())
+        Ok(())
     }
 
     pub async fn register_agent_starting(
@@ -85,11 +85,11 @@ impl AgentServiceRepository {
         name: &str,
         pid: u32,
         port: u16,
-    ) -> Result<String, RepositoryError> {
+    ) -> Result<(), RepositoryError> {
         self.remove_agent_service(name).await?;
 
         let pool = &self.write_pool;
-        let pid_i32 = pid as i32;
+        let pid_i32 = db_pid(pid)?;
         let port_i32 = i32::from(port);
 
         sqlx::query!(
@@ -106,7 +106,7 @@ impl AgentServiceRepository {
         .await
         .map_err(RepositoryError::database)?;
 
-        Ok(name.to_owned())
+        Ok(())
     }
 
     pub async fn mark_running(&self, agent_name: &str) -> Result<(), RepositoryError> {
@@ -145,22 +145,6 @@ impl AgentServiceRepository {
             port: r.port,
             status: r.status,
         }))
-    }
-
-    pub async fn mark_crashed(&self, agent_name: &str) -> Result<(), RepositoryError> {
-        let pool = &self.write_pool;
-
-        sqlx::query!(
-            "UPDATE services SET status = 'error', pid = NULL, updated_at = CURRENT_TIMESTAMP \
-             WHERE instance_id = $2 AND name = $1",
-            agent_name,
-            self.instance_id.as_str()
-        )
-        .execute(pool.as_ref())
-        .await
-        .map_err(RepositoryError::database)?;
-
-        Ok(())
     }
 
     pub async fn mark_stopped(&self, agent_name: &str) -> Result<(), RepositoryError> {
@@ -267,4 +251,10 @@ impl AgentServiceRepository {
 
         Ok(())
     }
+}
+
+fn db_pid(pid: u32) -> Result<i32, RepositoryError> {
+    i32::try_from(pid).map_err(|_overflow| {
+        RepositoryError::InvalidData(format!("pid {pid} exceeds the services.pid column"))
+    })
 }

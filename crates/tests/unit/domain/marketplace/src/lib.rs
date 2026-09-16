@@ -1,6 +1,8 @@
 #[cfg(test)]
 mod bundle;
 #[cfg(test)]
+mod bundle_node;
+#[cfg(test)]
 mod bundle_rules;
 #[cfg(test)]
 mod candidate;
@@ -160,3 +162,52 @@ async fn errors_propagate() {
     let result = Failing.filter(&fixture_user_id(), sample_candidate()).await;
     assert!(matches!(result, Err(MarketplaceFilterError::Backend(_))));
 }
+
+#[cfg(test)]
+mod consumer_evidence;
+#[cfg(test)]
+mod consumer_fixture;
+
+#[cfg(test)]
+mod git_execution;
+
+#[cfg(test)]
+mod git_https;
+
+#[cfg(test)]
+mod git_verification;
+
+#[cfg(test)]
+mod inventory;
+
+#[cfg(test)]
+mod consumer_plan;
+
+#[cfg(test)]
+mod installation_coverage;
+
+#[cfg(test)]
+mod api_operations;
+
+#[cfg(test)]
+mod api_consumer_status;
+
+#[cfg(test)]
+mod organization_resolution;
+
+#[cfg(test)]
+mod reconciliation_persistence;
+#[cfg(test)]
+mod retained_distribution;
+
+#[cfg(test)]
+mod authoring_capture;
+#[cfg(test)]
+mod source_sync_fixture;
+#[cfg(test)]
+mod source_sync_regressions;
+
+#[cfg(test)]
+mod managed_authoring_lifecycle;
+#[cfg(test)]
+mod managed_withdrawal_lifecycle;

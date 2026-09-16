@@ -163,7 +163,7 @@ fn mcp_event_roundtrip_all_variants() {
         McpEvent::start_completed_failure("s".to_string(), "e".to_string(), 10),
         McpEvent::ServiceStarted {
             service_name: "s".to_string(),
-            process_id: 1,
+            process_id: Some(1),
             port: 80,
         },
         McpEvent::ServiceFailed {

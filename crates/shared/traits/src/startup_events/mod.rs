@@ -11,12 +11,10 @@
 
 mod events;
 mod ext;
-mod ext_optional;
 mod types;
 
 pub use events::StartupEvent;
 pub use ext::StartupEventExt;
-pub use ext_optional::OptionalStartupEventExt;
 pub use types::{ModuleInfo, Phase, ServiceInfo, ServiceState, ServiceType};
 
 use futures::channel::mpsc;

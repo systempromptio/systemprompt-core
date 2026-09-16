@@ -25,6 +25,13 @@ async fn summary_and_stats_report_reasoning_and_keep_tokens_used_intact() {
 
     let nonce = Uuid::new_v4().simple().to_string();
     let user_id = UserId::new(format!("user-{nonce}"));
+    systemprompt_test_fixtures::seed_user_row(
+        &db,
+        &user_id,
+        &format!("{}@reasoning-test.invalid", user_id.as_str()),
+    )
+    .await
+    .expect("retained request user");
     let created_at = Utc::now();
 
     sqlx::query(
@@ -54,6 +61,9 @@ async fn summary_and_stats_report_reasoning_and_keep_tokens_used_intact() {
     let start = created_at - Duration::seconds(1);
     let end = created_at + Duration::seconds(1);
 
+    systemprompt_test_fixtures::refresh_reporting(&db)
+        .await
+        .expect("reporting snapshot");
     let costs = CostAnalyticsRepository::new(&db).expect("cost repository");
     let summary = costs
         .get_summary_for_user(&user_id, start, end)

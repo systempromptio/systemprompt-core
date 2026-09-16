@@ -79,6 +79,7 @@ pub async fn validate_id_jag_subject(
             issuer: claims.iss,
             sub: claims.sub,
             email: claims.email,
+            email_verified: claims.email_verified,
         }),
         bound_resource: claims.resource,
     })

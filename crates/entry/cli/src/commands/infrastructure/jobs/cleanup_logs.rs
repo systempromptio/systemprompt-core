@@ -5,7 +5,8 @@
 
 use anyhow::Result;
 use clap::Args;
-use systemprompt_database::{CleanupRepository, DbPool};
+use systemprompt_database::DbPool;
+use systemprompt_logging::LoggingRepository;
 
 use super::types::LogCleanupOutput;
 use crate::context::CommandContext;
@@ -26,11 +27,11 @@ pub(super) async fn execute(args: LogCleanupArgs, ctx: &CommandContext) -> Resul
 }
 
 pub async fn execute_with_pool(args: LogCleanupArgs, pool: &DbPool) -> Result<CommandOutput> {
-    let write_pool = pool.write_pool_arc()?;
-    let repo = CleanupRepository::new_with_write_pool((*write_pool).clone());
+    let repo = LoggingRepository::new(pool)?;
+    let cutoff = chrono::Utc::now() - chrono::Duration::days(i64::from(args.days));
 
     if args.dry_run {
-        let count = repo.count_old_logs(args.days).await?;
+        let count = repo.count_logs_before(cutoff).await?;
         let output = LogCleanupOutput {
             job_name: "log_cleanup".to_owned(),
             entries_deleted: 0,
@@ -43,7 +44,7 @@ pub async fn execute_with_pool(args: LogCleanupArgs, pool: &DbPool) -> Result<Co
         return Ok(CommandOutput::card_value("Log Cleanup (Dry Run)", &output));
     }
 
-    let deleted_count = repo.delete_old_logs(args.days).await? as i64;
+    let deleted_count = i64::try_from(repo.cleanup_old_logs(cutoff).await?).unwrap_or(i64::MAX);
     let output = LogCleanupOutput {
         job_name: "log_cleanup".to_owned(),
         entries_deleted: deleted_count,

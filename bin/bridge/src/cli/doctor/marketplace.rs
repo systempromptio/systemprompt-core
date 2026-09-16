@@ -41,15 +41,65 @@ pub fn check_marketplace() -> Check {
         );
     };
 
-    let owned = match sidecar::owned_marketplaces(&plugins, sidecar::Legacy::WhenUnrecorded) {
+    let owned = match sidecar::owned_marketplaces(&plugins) {
         Ok(owned) => owned,
         Err(e) => return Check::fail(NAME, format!("cannot read the marketplace sidecar: {e}")),
     };
-    let checks: Vec<Check> = owned
+    if owned.is_empty() {
+        return Check::warn(
+            NAME,
+            format!(
+                "no marketplace recorded under {} — run `{bin} sync`",
+                plugins.display()
+            ),
+        );
+    }
+    let mut checks: Vec<Check> = owned
         .iter()
         .map(|marketplace| check_one(&plugins, marketplace, bin))
         .collect();
+    checks.extend(owned.iter().filter_map(|m| check_node_tooling(&plugins, m)));
     combine(checks)
+}
+
+// Why: a plugin that ships a lockfile loads without its packages when the
+// installer is missing, and sync only records that as a warning.
+fn check_node_tooling(plugins: &Path, marketplace: &MarketplaceId) -> Option<Check> {
+    use crate::sysproc::binary_on_path;
+    use systemprompt_models::bridge::plugin_bundle::{NODE_PACKAGE_FILE, node_lockfile};
+    let root = marketplace_dir(plugins, marketplace).join("plugins");
+    let mut missing = Vec::new();
+    for entry in std::fs::read_dir(root).ok()?.flatten() {
+        let dir = entry.path();
+        if !dir.join(NODE_PACKAGE_FILE).is_file() {
+            continue;
+        }
+        let Some(lockfile) = node_lockfile(&dir) else {
+            continue;
+        };
+        let tool = if lockfile.starts_with("bun.") {
+            "bun"
+        } else {
+            "npm"
+        };
+        if binary_on_path(tool).is_none() {
+            missing.push(format!(
+                "{} needs {tool} for its {lockfile}",
+                entry.file_name().to_string_lossy()
+            ));
+        }
+    }
+    if missing.is_empty() {
+        return None;
+    }
+    Some(Check::warn(
+        NAME,
+        format!(
+            "{marketplace}: Node packages cannot be installed — {} — install the tool and re-run \
+             sync",
+            missing.join(", ")
+        ),
+    ))
 }
 
 fn combine(mut checks: Vec<Check>) -> Check {

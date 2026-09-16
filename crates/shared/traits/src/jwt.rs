@@ -29,7 +29,7 @@ pub enum JwtProviderError {
 
 #[derive(Debug, Clone)]
 pub struct AgentJwtClaims {
-    pub subject: String,
+    pub subject: UserId,
     pub username: String,
     pub user_type: String,
     pub audiences: Vec<String>,

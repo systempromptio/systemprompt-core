@@ -11,11 +11,15 @@ const DIGEST: &str = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b78
 const ASSET: &str = "systemprompt-bridge-linux";
 
 fn spec(server: &MockServer) -> BridgeReleasesSpec {
+    spec_with_token(server, None)
+}
+
+fn spec_with_token(server: &MockServer, token_secret: Option<&str>) -> BridgeReleasesSpec {
     let mut assets = BTreeMap::new();
     assets.insert("linux-x64".to_owned(), ASSET.to_owned());
     BridgeReleasesSpec {
         repo: "systempromptio/bridge".to_owned(),
-        token_secret: None,
+        token_secret: token_secret.map(str::to_owned),
         tag_prefix: "bridge-v".to_owned(),
         pinned_version: None,
         assets,
@@ -330,4 +334,37 @@ async fn a_github_error_with_nothing_cached_is_reported_as_a_bad_gateway() {
 
     assert_eq!(status, StatusCode::BAD_GATEWAY);
     assert!(message.contains("github returned 500"), "{message}");
+}
+
+#[tokio::test]
+async fn a_token_secret_the_store_cannot_resolve_refuses_rather_than_calling_github_anonymously() {
+    let server = MockServer::start().await;
+    let sums = format!("{}/sums", server.uri());
+    mount_releases(
+        &server,
+        serde_json::json!([release(
+            "bridge-v0.50.0",
+            &sums,
+            "https://example.test/asset"
+        )]),
+    )
+    .await;
+    mount_sums(&server, &format!("{DIGEST}  {ASSET}\n")).await;
+
+    let (status, detail) = ReleaseFeed::default()
+        .resolve(
+            &spec_with_token(&server, Some("github_release_token")),
+            "linux-x64",
+        )
+        .await
+        .expect_err("a configured token that cannot be resolved must refuse");
+
+    assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE, "{detail}");
+    assert!(
+        server
+            .received_requests()
+            .await
+            .is_none_or(|r| r.is_empty()),
+        "no GitHub request may be sent without the configured token"
+    );
 }

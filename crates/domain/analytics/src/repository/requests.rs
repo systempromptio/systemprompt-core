@@ -1,8 +1,9 @@
 //! AI-request analytics over the `ai_requests` table.
 //!
 //! [`RequestAnalyticsRepository`] reports token, cost, latency, and
-//! cache-hit stats, per-model usage breakdowns, trend series, and a request
-//! list, each optionally filtered by a model substring.
+//! cache-hit stats, per-model usage breakdowns, trend series, and a paged
+//! request list, each optionally filtered by a model substring and the list
+//! by user as well.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -14,7 +15,9 @@ use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
 
-use crate::models::reporting::{ModelUsageRow, RequestListRow, RequestStatsRow, RequestTrendRow};
+use crate::models::reporting::{
+    ModelUsageRow, RequestListFilter, RequestListRow, RequestStatsRow, RequestTrendRow,
+};
 
 #[derive(Debug)]
 pub struct RequestAnalyticsRepository {
@@ -49,7 +52,7 @@ impl RequestAnalyticsRepository {
                     SUM(cost_microdollars)::bigint as "cost",
                     AVG(latency_ms)::float8 as "avg_latency",
                     COUNT(*) FILTER (WHERE cache_hit = true)::bigint as "cache_hits!"
-                FROM ai_requests
+                FROM analytics_report_ai_requests
                 WHERE created_at >= $1 AND created_at < $2
                   AND model ILIKE $3
                 "#,
@@ -75,7 +78,7 @@ impl RequestAnalyticsRepository {
                     SUM(cost_microdollars)::bigint as "cost",
                     AVG(latency_ms)::float8 as "avg_latency",
                     COUNT(*) FILTER (WHERE cache_hit = true)::bigint as "cache_hits!"
-                FROM ai_requests
+                FROM analytics_report_ai_requests
                 WHERE created_at >= $1 AND created_at < $2
                 "#,
                 start,
@@ -103,7 +106,7 @@ impl RequestAnalyticsRepository {
                 SUM(tokens_used)::bigint as "total_tokens",
                 SUM(cost_microdollars)::bigint as "total_cost",
                 AVG(latency_ms)::float8 as "avg_latency"
-            FROM ai_requests
+            FROM analytics_report_ai_requests
             WHERE created_at >= $1 AND created_at < $2
               AND provider IS NOT NULL AND model IS NOT NULL
             GROUP BY provider, model
@@ -132,7 +135,7 @@ impl RequestAnalyticsRepository {
                 tokens_used,
                 cost_microdollars,
                 latency_ms
-            FROM ai_requests
+            FROM analytics_report_ai_requests
             WHERE created_at >= $1 AND created_at < $2
             ORDER BY created_at
             "#,
@@ -148,70 +151,42 @@ impl RequestAnalyticsRepository {
         &self,
         start: DateTime<Utc>,
         end: DateTime<Utc>,
-        limit: i64,
-        model_filter: Option<&str>,
+        filter: &RequestListFilter,
     ) -> Result<Vec<RequestListRow>> {
-        if let Some(model) = model_filter {
-            let pattern = format!("%{model}%");
-            sqlx::query_as!(
-                RequestListRow,
-                r#"
-                SELECT
-                    id as "id!",
-                    provider,
-                    model,
-                    input_tokens,
-                    output_tokens,
-                    cost_microdollars,
-                    latency_ms,
-                    cache_hit,
-                    created_at as "created_at!",
-                    status as "status!",
-                    error_message,
-                    user_id as "user_id!: UserId"
-                FROM ai_requests
-                WHERE created_at >= $1 AND created_at < $2
-                  AND model ILIKE $3
-                ORDER BY created_at DESC
-                LIMIT $4
-                "#,
-                start,
-                end,
-                pattern,
-                limit
-            )
-            .fetch_all(&*self.pool)
-            .await
-            .map_err(Into::into)
-        } else {
-            sqlx::query_as!(
-                RequestListRow,
-                r#"
-                SELECT
-                    id as "id!",
-                    provider,
-                    model,
-                    input_tokens,
-                    output_tokens,
-                    cost_microdollars,
-                    latency_ms,
-                    cache_hit,
-                    created_at as "created_at!",
-                    status as "status!",
-                    error_message,
-                    user_id as "user_id!: UserId"
-                FROM ai_requests
-                WHERE created_at >= $1 AND created_at < $2
-                ORDER BY created_at DESC
-                LIMIT $3
-                "#,
-                start,
-                end,
-                limit
-            )
-            .fetch_all(&*self.pool)
-            .await
-            .map_err(Into::into)
-        }
+        let pattern = filter.model.as_deref().map(|model| format!("%{model}%"));
+        let user = filter.user.as_ref().map(UserId::as_str);
+        sqlx::query_as!(
+            RequestListRow,
+            r#"
+            SELECT
+                id as "id!",
+                provider,
+                model,
+                input_tokens,
+                output_tokens,
+                cost_microdollars,
+                latency_ms,
+                cache_hit,
+                created_at as "created_at!",
+                status as "status!",
+                error_message,
+                user_id as "user_id!: UserId"
+            FROM analytics_report_ai_requests
+            WHERE created_at >= $1 AND created_at < $2
+              AND ($3::text IS NULL OR model ILIKE $3)
+              AND ($4::text IS NULL OR user_id = $4)
+            ORDER BY created_at DESC, id DESC
+            LIMIT $5 OFFSET $6
+            "#,
+            start,
+            end,
+            pattern,
+            user,
+            filter.limit,
+            filter.offset
+        )
+        .fetch_all(&*self.pool)
+        .await
+        .map_err(Into::into)
     }
 }

@@ -5,16 +5,20 @@
 //! trait. Concrete type aliases (`A2ABroadcaster`, `AgUiBroadcaster`, etc.)
 //! pick the event kind so that callers never need to spell out the generic.
 //!
+//! The registry is guarded by a `std::sync::RwLock`: every critical section
+//! is a map lookup with no await inside, so `ConnectionGuard::drop` can
+//! unregister without a runtime and the async trait methods resolve eagerly.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use axum::response::sse::{Event, KeepAlive};
 use std::collections::HashMap;
 use std::marker::PhantomData;
-use std::sync::Arc;
+use std::sync::{Arc, PoisonError, RwLock};
 use std::time::Duration;
 use systemprompt_identifiers::{ConnectionId, UserId};
-use tokio::sync::RwLock;
+use tokio::sync::mpsc::error::TrySendError;
 
 use crate::{Broadcaster, EventSender, ToSse};
 
@@ -28,8 +32,10 @@ pub fn standard_keep_alive() -> KeepAlive {
         .event(Event::default().event("heartbeat").data(HEARTBEAT_JSON))
 }
 
+type Registry = HashMap<UserId, HashMap<ConnectionId, EventSender>>;
+
 pub struct GenericBroadcaster<E: ToSse + Clone + Send + Sync> {
-    connections: Arc<RwLock<HashMap<String, HashMap<String, EventSender>>>>,
+    connections: Arc<RwLock<Registry>>,
     _phantom: PhantomData<E>,
 }
 
@@ -52,20 +58,38 @@ impl<E: ToSse + Clone + Send + Sync> GenericBroadcaster<E> {
         }
     }
 
-    pub async fn connected_users(&self) -> Vec<String> {
-        let connections = self.connections.read().await;
-        connections.keys().cloned().collect()
+    pub fn connected_users(&self) -> Vec<UserId> {
+        self.read().keys().cloned().collect()
     }
 
-    pub async fn connection_info(&self) -> (usize, usize) {
-        let (user_count, conn_count) = {
-            let connections = self.connections.read().await;
-            (
-                connections.len(),
-                connections.values().map(HashMap::len).sum(),
-            )
-        };
-        (user_count, conn_count)
+    pub fn connection_info(&self) -> (usize, usize) {
+        let connections = self.read();
+        (
+            connections.len(),
+            connections.values().map(HashMap::len).sum(),
+        )
+    }
+
+    fn read(&self) -> std::sync::RwLockReadGuard<'_, Registry> {
+        self.connections
+            .read()
+            .unwrap_or_else(PoisonError::into_inner)
+    }
+
+    fn write(&self) -> std::sync::RwLockWriteGuard<'_, Registry> {
+        self.connections
+            .write()
+            .unwrap_or_else(PoisonError::into_inner)
+    }
+
+    fn remove_connection(&self, user_id: &UserId, connection_id: &ConnectionId) {
+        let mut connections = self.write();
+        if let Some(user_connections) = connections.get_mut(user_id) {
+            user_connections.remove(connection_id);
+            if user_connections.is_empty() {
+                connections.remove(user_id);
+            }
+        }
     }
 }
 
@@ -78,17 +102,52 @@ impl<E: ToSse + Clone + Send + Sync> Default for GenericBroadcaster<E> {
 impl<E: ToSse + Clone + Send + Sync + 'static> Broadcaster for GenericBroadcaster<E> {
     type Event = E;
 
-    async fn register(
+    fn register(
+        &self,
+        user_id: &UserId,
+        connection_id: &ConnectionId,
+        sender: EventSender,
+    ) -> impl Future<Output = bool> + Send {
+        std::future::ready(self.register_now(user_id, connection_id, sender))
+    }
+
+    fn unregister(
+        &self,
+        user_id: &UserId,
+        connection_id: &ConnectionId,
+    ) -> impl Future<Output = ()> + Send {
+        self.remove_connection(user_id, connection_id);
+        std::future::ready(())
+    }
+
+    fn broadcast(
+        &self,
+        user_id: &UserId,
+        event: Self::Event,
+    ) -> impl Future<Output = usize> + Send {
+        std::future::ready(self.broadcast_now(user_id, &event))
+    }
+
+    fn connection_count(&self, user_id: &UserId) -> impl Future<Output = usize> + Send {
+        std::future::ready(self.read().get(user_id).map_or(0, HashMap::len))
+    }
+
+    fn total_connections(&self) -> impl Future<Output = usize> + Send {
+        std::future::ready(self.read().values().map(HashMap::len).sum())
+    }
+}
+
+impl<E: ToSse + Clone + Send + Sync + 'static> GenericBroadcaster<E> {
+    fn register_now(
         &self,
         user_id: &UserId,
         connection_id: &ConnectionId,
         sender: EventSender,
     ) -> bool {
-        let connection_key = connection_id.to_string();
-        let mut connections = self.connections.write().await;
-        let user_connections = connections.entry(user_id.to_string()).or_default();
+        let mut connections = self.write();
+        let user_connections = connections.entry(user_id.clone()).or_default();
         if user_connections.len() >= Self::MAX_CONNECTIONS_PER_USER
-            && !user_connections.contains_key(&connection_key)
+            && !user_connections.contains_key(connection_id)
         {
             drop(connections);
             tracing::warn!(
@@ -98,22 +157,12 @@ impl<E: ToSse + Clone + Send + Sync + 'static> Broadcaster for GenericBroadcaste
             );
             return false;
         }
-        user_connections.insert(connection_key, sender);
+        user_connections.insert(connection_id.clone(), sender);
         drop(connections);
         true
     }
 
-    async fn unregister(&self, user_id: &UserId, connection_id: &ConnectionId) {
-        let mut connections = self.connections.write().await;
-        if let Some(user_connections) = connections.get_mut(user_id.as_str()) {
-            user_connections.remove(connection_id.as_str());
-            if user_connections.is_empty() {
-                connections.remove(user_id.as_str());
-            }
-        }
-    }
-
-    async fn broadcast(&self, user_id: &UserId, event: Self::Event) -> usize {
+    fn broadcast_now(&self, user_id: &UserId, event: &E) -> usize {
         let sse_event: Event = match event.to_sse() {
             Ok(e) => e,
             Err(e) => {
@@ -122,9 +171,9 @@ impl<E: ToSse + Clone + Send + Sync + 'static> Broadcaster for GenericBroadcaste
             },
         };
 
-        let senders: Vec<(String, EventSender)> = {
-            let connections = self.connections.read().await;
-            match connections.get(user_id.as_str()) {
+        let senders: Vec<(ConnectionId, EventSender)> = {
+            let connections = self.read();
+            match connections.get(user_id) {
                 Some(user_connections) => user_connections
                     .iter()
                     .map(|(id, sender)| (id.clone(), sender.clone()))
@@ -134,39 +183,25 @@ impl<E: ToSse + Clone + Send + Sync + 'static> Broadcaster for GenericBroadcaste
         };
 
         let mut successful = 0;
-        let mut failed_ids = Vec::new();
-
+        // Why: a full channel is a consumer that stopped reading, not a dead
+        // one. Its sender is dropped so the stream ends and the client
+        // reconnects, instead of silently receiving heartbeats only.
         for (conn_id, sender) in senders {
-            if sender.try_send(Ok(sse_event.clone())).is_ok() {
-                successful += 1;
-            } else {
-                failed_ids.push(conn_id);
-            }
-        }
-
-        if !failed_ids.is_empty() {
-            let mut connections = self.connections.write().await;
-            if let Some(user_connections) = connections.get_mut(user_id.as_str()) {
-                for conn_id in &failed_ids {
-                    user_connections.remove(conn_id);
-                }
-                if user_connections.is_empty() {
-                    connections.remove(user_id.as_str());
-                }
+            match sender.try_send(Ok(sse_event.clone())) {
+                Ok(()) => successful += 1,
+                Err(TrySendError::Closed(_)) => self.remove_connection(user_id, &conn_id),
+                Err(TrySendError::Full(_)) => {
+                    tracing::warn!(
+                        user_id = %user_id,
+                        connection_id = %conn_id,
+                        "SSE consumer is not draining its channel; closing its stream"
+                    );
+                    self.remove_connection(user_id, &conn_id);
+                },
             }
         }
 
         successful
-    }
-
-    async fn connection_count(&self, user_id: &UserId) -> usize {
-        let connections = self.connections.read().await;
-        connections.get(user_id.as_str()).map_or(0, HashMap::len)
-    }
-
-    async fn total_connections(&self) -> usize {
-        let connections = self.connections.read().await;
-        connections.values().map(HashMap::len).sum()
     }
 }
 
@@ -210,12 +245,7 @@ impl<E: ToSse + Clone + Send + Sync + 'static> ConnectionGuard<E> {
 
 impl<E: ToSse + Clone + Send + Sync + 'static> Drop for ConnectionGuard<E> {
     fn drop(&mut self) {
-        let broadcaster = self.broadcaster;
-        let user_id = self.user_id.clone();
-        let conn_id = self.connection_id.clone();
-
-        tokio::spawn(async move {
-            broadcaster.unregister(&user_id, &conn_id).await;
-        });
+        self.broadcaster
+            .remove_connection(&self.user_id, &self.connection_id);
     }
 }

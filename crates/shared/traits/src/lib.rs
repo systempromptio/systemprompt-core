@@ -4,8 +4,8 @@
 //!
 //! This crate defines the abstractions every other layer (infra, domain,
 //! app, entry) implements or consumes: configuration, database handle,
-//! analytics, authentication, JWT, file storage, repositories, schedulers,
-//! and the cross-cutting [`ExtensionError`] contract.
+//! analytics, authentication, JWT, file storage, repositories, and the
+//! cross-cutting [`ExtensionError`] contract.
 //!
 //! ## Layering
 //!
@@ -33,50 +33,42 @@
 //!
 //! ## Feature flags
 //!
-//! | Feature | Effect |
-//! |---------|--------|
-//! | `default` | No optional features. |
-//! | `web`     | Enables the `ApiModule` trait and pulls in `axum` for HTTP routing. |
+//! This crate exposes no Cargo features.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod ai_providers;
 pub mod analytics;
+pub mod analytics_events;
 pub mod auth;
 pub mod content;
+pub use content::{ContentCatalogStats, DynContentCatalogStats};
 pub mod context;
 pub mod context_provider;
 pub mod domain_config;
-pub mod events;
 pub mod extension_error;
 pub mod jwt;
 pub mod log_service;
 pub mod managed_resources;
-pub mod module;
+pub mod ownership;
 pub mod registry;
 pub mod repository;
-pub mod scheduler;
-pub mod service;
 pub mod storage;
+pub mod tool_executions;
 pub mod validation;
 pub mod validation_report;
 
 pub use systemprompt_provider_contracts::{
-    ChatMessage, ChatRequest, ChatResponse, ChatRole, ChatStream, Job, JobContext, JobResult,
-    JobScope, LlmProvider, LlmProviderError, LlmProviderResult, ProviderError, ProviderResult,
-    SamplingParameters, TokenUsage, ToolCallRequest, ToolCallResult, ToolContent, ToolContext,
-    ToolDefinition, ToolExecutionContext, ToolExecutor, ToolProvider, ToolProviderError,
-    ToolProviderResult, submit_job,
+    Job, JobContext, JobResult, JobScope, ProviderError, ProviderResult, ServerListingFailure,
+    ToolCallRequest, ToolCallResult, ToolContent, ToolContext, ToolDefinition, ToolInventory,
+    ToolProvider, ToolProviderError, ToolProviderResult, submit_job,
 };
 
 pub use context::{
     AppContext, ConfigProvider, ContextPropagation, ContextPropagationError,
-    ContextPropagationResult, DatabaseHandle, InjectContextHeaders, Module, ModuleRegistry,
+    ContextPropagationResult, DatabaseHandle, InjectContextHeaders,
 };
-
-#[cfg(feature = "web")]
-pub use context::ApiModule;
 
 pub use systemprompt_identifiers::{
     DbValue, FromDbValue, JsonRow, ToDbValue, parse_database_datetime,
@@ -84,26 +76,23 @@ pub use systemprompt_identifiers::{
 
 pub use repository::RepositoryError;
 
-pub use service::{AsyncService, Service};
+pub use ownership::{DynOwnerReassignment, OwnerReassignment, ReassignedRows};
+pub use tool_executions::{DynToolExecutionLookup, ToolExecutionLookup};
 
 pub use log_service::LogService;
 
 pub use managed_resources::{
-    DynManagedSkillResolver, ManagedSkillResolver, ManagedSkillResolverError, ResolvedManagedSkill,
-    SkillResolution, WithheldReason,
+    DynManagedRevisionOwnership, DynManagedSkillResolver, ManagedRevisionOwnership,
+    ManagedSkillResolver, ManagedSkillResolverError, ResolvedManagedSkill, SkillResolution,
+    WithheldReason,
 };
 
 pub use context_provider::{
-    ContextMaterializer, ContextProvider, ContextProviderError, ContextWithStats,
+    ContextMaterializer, ContextProvider, ContextProviderError, ContextStats, ContextWithStats,
     DynContextMaterializer, DynContextProvider, EnsureContextParams,
 };
 
-pub use validation::{MetadataValidation, Validate, ValidationError, ValidationResult};
-
-pub use events::{
-    AnalyticsEvent, AnalyticsEventPublisher, LogEventData, LogEventLevel, LogEventPublisher,
-    UserEvent, UserEventPublisher,
-};
+pub use validation::{MetadataValidation, MetadataValidationError, Validate, ValidationResult};
 
 pub use analytics::{
     ActiveSession, AnalyticsProvider, AnalyticsProviderError, AnalyticsResult, AnalyticsSession,
@@ -121,19 +110,19 @@ pub use storage::{
 };
 
 pub use ai_providers::{
-    AiFilePersistenceProvider, AiGeneratedFile, AiProviderError, AiProviderResult,
-    AiSessionProvider, CreateAiSessionParams, DynAiFilePersistenceProvider, DynAiSessionProvider,
-    ImageGenerationInfo, ImageMetadata, ImageStorageConfig, InsertAiFileParams,
+    AiFilePersistenceProvider, AiGeneratedFile, AiProviderError, AiProviderResult, AiRequestTrace,
+    AiSessionProvider, CreateAiSessionParams, DynAiFilePersistenceProvider, DynAiRequestTrace,
+    DynAiSessionProvider, ImageGenerationInfo, ImageMetadata, ImageStorageConfig,
+    InsertAiFileParams, TraceMessage, TraceRequestStatus, TraceRequestUsage, TraceSample,
+    TraceSampleFilter, TraceSampleMode,
 };
-
-pub use scheduler::JobStatus;
 
 pub use registry::{
     AgentInfo, AgentRegistryProvider, DynAgentRegistryProvider, DynMcpRegistryProvider,
     McpRegistryProvider, McpServerInfo, RegistryError, ServiceOAuthConfig,
 };
 
-pub use extension_error::{ApiError, ExtensionError, McpErrorData};
+pub use extension_error::{ExtensionApiError, ExtensionError, McpErrorData};
 
 pub use domain_config::{DomainConfig, DomainConfigError, DomainConfigRegistry};
 
@@ -146,7 +135,10 @@ pub use jwt::{
     JwtValidationProvider,
 };
 
-pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
-
 mod startup_events;
 pub use startup_events::*;
+
+pub mod session_store;
+pub use analytics::{DynSessionProvider, SessionProvider};
+pub use analytics_events::{AnalyticsEventRecord, AnalyticsEventStore, DynAnalyticsEventStore};
+pub use session_store::{DynSessionStore, SessionStore};

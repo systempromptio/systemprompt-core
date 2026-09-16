@@ -259,6 +259,7 @@ fn plugin_config(id: &str, enabled: bool, skills: &[&str]) -> PluginConfig {
         artifacts: Default::default(),
         hooks: Default::default(),
         scripts: vec![],
+        dependencies: vec![],
     }
 }
 
@@ -305,6 +306,8 @@ fn from_services_records_which_plugin_selects_each_skill() {
             attributes: Default::default(),
             justification: None,
         },
+        allow_cross_marketplace_dependencies_on: vec![],
+        external_marketplaces: vec![],
     };
     services
         .marketplaces

@@ -7,7 +7,7 @@ use systemprompt_api::services::gateway::protocol::outbound::PreparedBody;
 use systemprompt_api::services::gateway::service::stages::recovery::{
     PromptRecovery, govern_prompt,
 };
-use systemprompt_identifiers::{CallId, SessionId, UserId};
+use systemprompt_identifiers::{CallId, ModelId, SessionId, UserId};
 use systemprompt_security::authz::types::Decision;
 use systemprompt_security::policy::secrets::REDACTION_MARKER;
 use systemprompt_security::policy::types::AccessScope;
@@ -54,14 +54,14 @@ fn body(value: Value) -> PreparedBody {
 
 pub(super) fn request() -> CanonicalRequest {
     CanonicalRequest {
-        model: "test-model".to_owned(),
+        model: ModelId::new("test-model"),
         system: Some(format!("Use this key {KEY} carefully")),
         messages: vec![CanonicalMessage {
             role: Role::User,
             content: vec![CanonicalContent::Text(format!("Inspect {KEY}"))],
         }],
         max_tokens: 64,
-        ..CanonicalRequest::default()
+        ..CanonicalRequest::new(ModelId::new("m"), Vec::new(), 1024)
     }
 }
 
@@ -98,7 +98,11 @@ fn passthrough_tool_results_metadata_and_json_arguments_are_sanitized() {
              "structuredContent":{"a.b[0]/~":KEY}, "_meta":{"note":KEY}}
         ]
     }));
-    let result = govern(&engine(POLICY), &mut CanonicalRequest::default(), &mut wire);
+    let result = govern(
+        &engine(POLICY),
+        &mut CanonicalRequest::new(ModelId::new("m"), Vec::new(), 1024),
+        &mut wire,
+    );
     assert!(matches!(result.evaluation.decision, Decision::Warn { .. }));
     assert!(!String::from_utf8_lossy(&wire.bytes).contains(KEY));
     let value: Value = serde_json::from_slice(&wire.bytes).unwrap();
@@ -123,7 +127,11 @@ fn protected_fields_and_secret_keys_fail_closed_without_partial_changes() {
     ] {
         let mut wire = body(json!({"system":KEY, "extra":extra}));
         let original = wire.bytes.clone();
-        let result = govern(&engine(POLICY), &mut CanonicalRequest::default(), &mut wire);
+        let result = govern(
+            &engine(POLICY),
+            &mut CanonicalRequest::new(ModelId::new("m"), Vec::new(), 1024),
+            &mut wire,
+        );
         assert!(matches!(result.evaluation.decision, Decision::Deny { .. }));
         assert_eq!(wire.bytes, original);
         assert!(!format!("{:?}", result.evaluation).contains(KEY));
@@ -136,7 +144,11 @@ fn signed_reasoning_is_preserved_while_other_text_is_repaired() {
     let mut wire = body(json!({"messages":[{"role":"assistant", "content":[
         {"type":"thinking", "thinking":"safe thought", "signature":signature},
         {"type":"text", "text":KEY}]}]}));
-    let result = govern(&engine(POLICY), &mut CanonicalRequest::default(), &mut wire);
+    let result = govern(
+        &engine(POLICY),
+        &mut CanonicalRequest::new(ModelId::new("m"), Vec::new(), 1024),
+        &mut wire,
+    );
     assert!(matches!(result.evaluation.decision, Decision::Warn { .. }));
     assert!(String::from_utf8_lossy(&wire.bytes).contains(signature));
     assert!(!String::from_utf8_lossy(&wire.bytes).contains(KEY));
@@ -145,13 +157,17 @@ fn signed_reasoning_is_preserved_while_other_text_is_repaired() {
 #[test]
 fn disabled_and_warn_modes_leave_requests_unchanged() {
     for config in [
-        "governance:\n  enabled: false\n  policies:\n    - id: secret_scan\n",
-        "governance:\n  policies:\n    - id: secret_scan\n      enabled: false\n",
+        "governance:\n  enabled: false\n  policies:\n    - id: secret_scan\n      patterns:\n        - id: recovery-key\n          name: Recovery Key\n          regex: 'XRECOVERY-[0-9]+'\n",
+        "governance:\n  policies:\n    - id: secret_scan\n      enabled: false\n      patterns:\n        - id: recovery-key\n          name: Recovery Key\n          regex: 'XRECOVERY-[0-9]+'\n",
         "governance:\n  policies:\n    - id: secret_scan\n      mode: warn\n      patterns:\n        - id: recovery-key\n          name: Recovery Key\n          regex: 'XRECOVERY-[0-9]+'\n",
     ] {
         let mut wire = body(json!({"system":KEY}));
         let original = wire.bytes.clone();
-        let result = govern(&engine(config), &mut CanonicalRequest::default(), &mut wire);
+        let result = govern(
+            &engine(config),
+            &mut CanonicalRequest::new(ModelId::new("m"), Vec::new(), 1024),
+            &mut wire,
+        );
         assert!(!matches!(result.evaluation.decision, Decision::Deny { .. }));
         assert_eq!(result.recovery_count, 0);
         assert_eq!(wire.bytes, original);
@@ -164,13 +180,21 @@ fn custom_prefix_removes_whole_value_and_respects_configured_policy_order() {
         "governance:\n  policies:\n    - id: rate_limit\n      requests_per_window: 1\n    - id: secret_scan\n      patterns:\n        - id: internal-credential\n          name: Internal Credential\n          regex: 'PRIVATE_[A-Za-z]+'\n          redact_whole_value: true\n",
     );
     let mut wire = body(json!({"system":"Use PRIVATE_sensitive here"}));
-    let result = govern(&engine, &mut CanonicalRequest::default(), &mut wire);
+    let result = govern(
+        &engine,
+        &mut CanonicalRequest::new(ModelId::new("m"), Vec::new(), 1024),
+        &mut wire,
+    );
     assert!(matches!(result.evaluation.decision, Decision::Warn { .. }));
     let value: Value = serde_json::from_slice(&wire.bytes).unwrap();
     assert_eq!(value["system"], REDACTION_MARKER);
     let mut second = body(json!({"system":"Use PRIVATE_sensitive here"}));
     let original = second.bytes.clone();
-    let result = govern(&engine, &mut CanonicalRequest::default(), &mut second);
+    let result = govern(
+        &engine,
+        &mut CanonicalRequest::new(ModelId::new("m"), Vec::new(), 1024),
+        &mut second,
+    );
     assert!(matches!(result.evaluation.decision, Decision::Deny { .. }));
     assert_eq!(result.recovery_count, 0);
     assert_eq!(second.bytes, original);
@@ -183,7 +207,11 @@ fn inspection_budget_and_ambiguous_paths_fail_closed() {
         json!({"a.b":KEY,"a":{"b":KEY}}),
     ] {
         let mut wire = body(value);
-        let result = govern(&engine(POLICY), &mut CanonicalRequest::default(), &mut wire);
+        let result = govern(
+            &engine(POLICY),
+            &mut CanonicalRequest::new(ModelId::new("m"), Vec::new(), 1024),
+            &mut wire,
+        );
         assert!(matches!(result.evaluation.decision, Decision::Deny { .. }));
     }
 }
@@ -192,7 +220,11 @@ fn inspection_budget_and_ambiguous_paths_fail_closed() {
 fn secret_in_middle_of_large_history_is_removed_without_clipping() {
     let mut wire =
         body(json!({"system":format!("{} {KEY} {}", "a ".repeat(40000), "b ".repeat(40000))}));
-    let result = govern(&engine(POLICY), &mut CanonicalRequest::default(), &mut wire);
+    let result = govern(
+        &engine(POLICY),
+        &mut CanonicalRequest::new(ModelId::new("m"), Vec::new(), 1024),
+        &mut wire,
+    );
     assert!(matches!(result.evaluation.decision, Decision::Warn { .. }));
     assert!(!String::from_utf8_lossy(&wire.bytes).contains(KEY));
 }
@@ -204,7 +236,11 @@ fn failed_reverification_does_not_commit_a_replacement() {
     );
     let mut wire = body(json!({"system":KEY}));
     let original = wire.bytes.clone();
-    let result = govern(&engine, &mut CanonicalRequest::default(), &mut wire);
+    let result = govern(
+        &engine,
+        &mut CanonicalRequest::new(ModelId::new("m"), Vec::new(), 1024),
+        &mut wire,
+    );
     assert!(matches!(result.evaluation.decision, Decision::Deny { .. }));
     assert_eq!(result.recovery_count, 0);
     assert_eq!(wire.bytes, original);
@@ -216,7 +252,11 @@ fn gemini_signed_function_arguments_are_not_rewritten() {
         json!({"contents":[{"parts":[{"functionCall":{"name":"lookup", "args":{"credential":KEY}}, "thoughtSignature":"signature"}]}]}),
     );
     let original = wire.bytes.clone();
-    let result = govern(&engine(POLICY), &mut CanonicalRequest::default(), &mut wire);
+    let result = govern(
+        &engine(POLICY),
+        &mut CanonicalRequest::new(ModelId::new("m"), Vec::new(), 1024),
+        &mut wire,
+    );
     assert!(matches!(result.evaluation.decision, Decision::Deny { .. }));
     assert_eq!(wire.bytes, original);
 }
@@ -256,7 +296,11 @@ async fn recovery_header_preserves_buffered_and_streaming_bodies() {
 #[test]
 fn failed_repairs_report_safe_locations_without_leaking_secret_keys() {
     let mut wire = body(json!({"messages":[{"id":KEY}], KEY:"value"}));
-    let result = govern(&engine(POLICY), &mut CanonicalRequest::default(), &mut wire);
+    let result = govern(
+        &engine(POLICY),
+        &mut CanonicalRequest::new(ModelId::new("m"), Vec::new(), 1024),
+        &mut wire,
+    );
     assert!(matches!(result.evaluation.decision, Decision::Deny { .. }));
     assert!(
         result
@@ -277,7 +321,11 @@ fn invalid_json_and_excessive_findings_cannot_be_forwarded() {
             bytes: bytes.clone(),
             raw_lane: true,
         };
-        let result = govern(&engine(POLICY), &mut CanonicalRequest::default(), &mut wire);
+        let result = govern(
+            &engine(POLICY),
+            &mut CanonicalRequest::new(ModelId::new("m"), Vec::new(), 1024),
+            &mut wire,
+        );
         assert!(matches!(result.evaluation.decision, Decision::Deny { .. }));
         assert_eq!(wire.bytes, bytes);
     }

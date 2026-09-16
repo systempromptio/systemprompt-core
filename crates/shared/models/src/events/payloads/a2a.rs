@@ -16,6 +16,7 @@ pub struct TaskSubmittedPayload {
     pub context_id: ContextId,
     pub agent_name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
+    // JSON: A2A `Message` input as sent by the client.
     pub input: Option<Value>,
 }
 
@@ -46,6 +47,7 @@ pub struct ArtifactUpdatedPayload {
     pub append: bool,
     pub last_chunk: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
+    // JSON: A2A `Part` content as emitted by the agent.
     pub content: Option<Value>,
 }
 
@@ -77,16 +79,20 @@ pub struct AuthRequiredPayload {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct JsonRpcResponsePayload {
+    // JSON: A2A JSON-RPC 2.0 envelope (`id` may be a string or a number).
     pub id: Value,
+    // JSON: A2A JSON-RPC 2.0 envelope (`id` may be a string or a number).
     pub result: Value,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct JsonRpcErrorPayload {
+    // JSON: A2A JSON-RPC 2.0 envelope (`id` may be a string or a number).
     pub id: Value,
     pub code: i32,
     pub message: String,
     #[serde(skip_serializing_if = "Option::is_none")]
+    // JSON: A2A `DataPart.data` is spec-defined as a free-form object.
     pub data: Option<Value>,
 }

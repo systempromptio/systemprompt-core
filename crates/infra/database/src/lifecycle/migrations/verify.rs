@@ -54,13 +54,10 @@ impl MigrationService<'_> {
         &self,
         ext_id: &str,
         migration: &Migration,
-        stored: Option<&str>,
+        stored_checksum: &str,
     ) -> Result<(), LoaderError> {
-        let Some(stored_checksum) = stored else {
-            return Ok(());
-        };
         let current_checksum = migration.checksum();
-        if stored_checksum == current_checksum {
+        if super::checksum_transition::matches_checksum(migration, stored_checksum) {
             return Ok(());
         }
         if self.config.allow_checksum_drift {

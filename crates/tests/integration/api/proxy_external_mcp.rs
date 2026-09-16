@@ -26,6 +26,7 @@ use wiremock::{Mock, MockServer, ResponseTemplate};
 
 const PROVIDER_BEARER: &str = "prov-tok-abc";
 const CALLER_JWT: &str = "caller-systemprompt-jwt";
+const BROKER_SECRET: &str = "cov-broker-secret";
 
 struct Harness {
     app: axum::Router,
@@ -46,6 +47,7 @@ fn services_yaml(provider_url: &str, ext_name: &str, int_name: &str) -> String {
     port: 5990
     endpoint: {provider_url}
     enabled: true
+    tool_policy: allow
     display_in_web: false
     oauth:
       required: false
@@ -60,6 +62,7 @@ fn services_yaml(provider_url: &str, ext_name: &str, int_name: &str) -> String {
     binary: {int_name}-bin
     port: 5321
     enabled: true
+    tool_policy: allow
     display_in_web: false
     oauth:
       required: false
@@ -85,6 +88,10 @@ async fn harness() -> anyhow::Result<Harness> {
 }
 
 async fn harness_with_governance(governance_yaml: Option<&str>) -> anyhow::Result<Harness> {
+    systemprompt_test_fixtures::install_named_secret(
+        systemprompt_mcp::services::client::external_auth::BROKER_SECRET_KEY,
+        BROKER_SECRET,
+    );
     let server = MockServer::start().await;
     let suffix = Uuid::new_v4().simple().to_string();
     let ext_name = format!("cov-ext-{}", &suffix[..8]);
@@ -137,7 +144,7 @@ fn caller_context(user: &str) -> RequestContext {
         SessionId::generate(),
         TraceId::generate(),
         ContextId::generate(),
-        AgentName::new("proxy-test-agent"),
+        AgentName::try_new("proxy-test-agent").expect("valid AgentName"),
     )
     .with_actor(systemprompt_identifiers::Actor::user(UserId::new(user)))
     .with_auth_token(CALLER_JWT)
@@ -169,6 +176,7 @@ async fn mount_accessor(server: &MockServer) {
     Mock::given(method("GET"))
         .and(path("/ext-token"))
         .and(header("authorization", format!("Bearer {CALLER_JWT}")))
+        .and(header("x-systemprompt-credential-broker", BROKER_SECRET))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
             "access_token": PROVIDER_BEARER
         })))
@@ -359,7 +367,7 @@ async fn external_with_anonymous_context_is_unauthorized() -> anyhow::Result<()>
         SessionId::generate(),
         TraceId::generate(),
         ContextId::generate(),
-        AgentName::new("proxy-test-agent"),
+        AgentName::try_new("proxy-test-agent").expect("valid AgentName"),
     );
     let resp = h
         .app

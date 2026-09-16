@@ -42,6 +42,15 @@
 //! resolved — the parser sees those as forward references the database itself
 //! validates at apply-time.
 //!
+//! A `FOREIGN KEY` whose referenced table is declared in the same input must
+//! find a `PRIMARY KEY` or `UNIQUE` on exactly the referenced columns in that
+//! table's `CREATE TABLE`. The installer applies foreign keys last, after
+//! migrations and indexes, so the key itself installs anywhere — but on a
+//! fresh database only the declarative schema runs, and the uniqueness has to
+//! be declared where the key can see it. For this rule the "input" is every
+//! schema file of one extension together ([`lint_declarative_schemas`]);
+//! positions are still reported per file.
+//!
 //! Column resolution does not descend into:
 //!
 //! - PL/pgSQL function bodies (resolved by Postgres at function call time)
@@ -52,20 +61,32 @@
 //! anything it cannot statically prove, avoiding false positives on
 //! late-bound names.
 //!
+//! The per-statement rules and column references are checked per input with
+//! that input's own line numbers; table definitions accumulate across inputs
+//! so a foreign key in one file resolves the table another file declares.
+//!
+//! Both lint entry points return `Ok(warnings)` when no error was found and
+//! `Err(findings)` — every warning and error — otherwise, so a caller never
+//! has to drop the advisory findings to learn the verdict. Table names from
+//! [`created_table_names`] are schema-qualified (`kb.docs`) when the
+//! `CREATE TABLE` names a schema and bare otherwise.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 mod classify;
 mod columns;
+mod foreign_keys;
 mod location;
+mod passes;
 
 use std::fmt;
 
 use pg_query::protobuf::node::Node;
 
-use classify::{imperative_reason, warn_create_table_missing_if_not_exists};
-use columns::{TableDef, check_index_columns, check_view_columns, collect_create_stmt};
-use location::{LineIndex, StmtLoc, stmt_start_offset};
+use columns::{TableDef, collect_create_stmt};
+use location::LineIndex;
+use passes::{classify_pass, column_ref_pass, foreign_key_pass};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LintSeverity {
@@ -101,145 +122,69 @@ impl fmt::Display for LintError {
     }
 }
 
-#[must_use]
-pub fn created_table_names(sql: &str) -> Vec<String> {
-    let Ok(parsed) = pg_query::parse(sql) else {
-        return Vec::new();
-    };
-    parsed
+pub fn created_table_names(sql: &str) -> Result<Vec<String>, pg_query::Error> {
+    let parsed = pg_query::parse(sql)?;
+    Ok(parsed
         .protobuf
         .stmts
         .iter()
         .filter_map(|raw| match raw.stmt.as_ref()?.node.as_ref()? {
-            Node::CreateStmt(create) => collect_create_stmt(create).map(|t| t.name().to_owned()),
+            Node::CreateStmt(create) => collect_create_stmt(create).map(|t| t.qualified_name()),
             _ => None,
         })
-        .collect()
+        .collect())
 }
 
-pub fn lint_declarative_schema(sql: &str, source: &str) -> Result<(), Vec<LintError>> {
-    let parsed = match pg_query::parse(sql) {
-        Ok(p) => p,
-        Err(e) => {
-            return Err(vec![LintError {
-                line: 1,
-                column: 1,
-                severity: LintSeverity::Error,
-                message: format!("SQL parse failed: {e}"),
-                source: source.to_owned(),
-            }]);
-        },
-    };
+pub fn lint_declarative_schema(sql: &str, source: &str) -> Result<Vec<LintError>, Vec<LintError>> {
+    lint_declarative_schemas(&[(source, sql)])
+}
 
-    let line_index = LineIndex::new(sql);
-    let stmts = &parsed.protobuf.stmts;
-    let (tables, mut errors) = classify_pass(stmts, sql, &line_index, source);
-    errors.extend(column_ref_pass(stmts, sql, &line_index, &tables, source));
+pub fn lint_declarative_schemas(inputs: &[(&str, &str)]) -> Result<Vec<LintError>, Vec<LintError>> {
+    let mut errors: Vec<LintError> = Vec::new();
+    let mut parsed_inputs = Vec::with_capacity(inputs.len());
+    let mut tables: Vec<TableDef> = Vec::new();
+
+    for (source, sql) in inputs {
+        let parsed = match pg_query::parse(sql) {
+            Ok(p) => p,
+            Err(e) => {
+                errors.push(LintError {
+                    line: 1,
+                    column: 1,
+                    severity: LintSeverity::Error,
+                    message: format!("SQL parse failed: {e}"),
+                    source: (*source).to_owned(),
+                });
+                continue;
+            },
+        };
+        let line_index = LineIndex::new(sql);
+        let (found, mut found_errors) =
+            classify_pass(&parsed.protobuf.stmts, sql, &line_index, source);
+        errors.append(&mut found_errors);
+        errors.extend(column_ref_pass(
+            &parsed.protobuf.stmts,
+            sql,
+            &line_index,
+            &found,
+            source,
+        ));
+        tables.extend(found);
+        parsed_inputs.push((*source, *sql, parsed, line_index));
+    }
+
+    for (source, sql, parsed, line_index) in &parsed_inputs {
+        errors.extend(foreign_key_pass(
+            &parsed.protobuf.stmts,
+            sql,
+            line_index,
+            &tables,
+            source,
+        ));
+    }
 
     if errors.iter().any(|e| e.severity == LintSeverity::Error) {
         return Err(errors);
     }
-    Ok(())
-}
-
-fn classify_pass(
-    stmts: &[pg_query::protobuf::RawStmt],
-    sql: &str,
-    line_index: &LineIndex,
-    source: &str,
-) -> (Vec<TableDef>, Vec<LintError>) {
-    let mut errors: Vec<LintError> = Vec::new();
-    let mut tables: Vec<TableDef> = Vec::new();
-
-    for raw in stmts {
-        let location = stmt_start_offset(sql, raw.stmt_location.max(0) as usize);
-        let (line, col) = line_index.position(location);
-        let loc = StmtLoc { line, col, source };
-
-        let Some(stmt) = raw.stmt.as_ref() else {
-            continue;
-        };
-        let Some(node) = stmt.node.as_ref() else {
-            continue;
-        };
-
-        match node {
-            Node::CreateStmt(create) => {
-                if let Some(table) = collect_create_stmt(create) {
-                    tables.push(table);
-                }
-                if let Some(warn) = warn_create_table_missing_if_not_exists(create, &loc) {
-                    errors.push(warn);
-                }
-            },
-            Node::IndexStmt(_)
-            | Node::CreateFunctionStmt(_)
-            | Node::ViewStmt(_)
-            | Node::CreateTrigStmt(_)
-            | Node::CompositeTypeStmt(_)
-            | Node::CreateEnumStmt(_)
-            | Node::CommentStmt(_) => {},
-            Node::CreateExtensionStmt(ext) => {
-                if !ext.if_not_exists {
-                    errors.push(LintError {
-                        line,
-                        column: col,
-                        severity: LintSeverity::Warning,
-                        message: "CREATE EXTENSION without IF NOT EXISTS".into(),
-                        source: source.to_owned(),
-                    });
-                }
-            },
-            other => {
-                if let Some(reason) = imperative_reason(other) {
-                    errors.push(LintError {
-                        line,
-                        column: col,
-                        severity: LintSeverity::Error,
-                        message: format!(
-                            "imperative SQL in declarative schema: {reason} — move to \
-                             schema/migrations/NNN_<name>.sql"
-                        ),
-                        source: source.to_owned(),
-                    });
-                }
-            },
-        }
-    }
-
-    (tables, errors)
-}
-
-fn column_ref_pass(
-    stmts: &[pg_query::protobuf::RawStmt],
-    sql: &str,
-    line_index: &LineIndex,
-    tables: &[TableDef],
-    source: &str,
-) -> Vec<LintError> {
-    let mut errors: Vec<LintError> = Vec::new();
-
-    for raw in stmts {
-        let Some(stmt) = raw.stmt.as_ref() else {
-            continue;
-        };
-        let Some(node) = stmt.node.as_ref() else {
-            continue;
-        };
-        let location = stmt_start_offset(sql, raw.stmt_location.max(0) as usize);
-        let (line, col) = line_index.position(location);
-        let loc = StmtLoc { line, col, source };
-
-        match node {
-            Node::IndexStmt(idx) => {
-                check_index_columns(idx, tables, &loc, &mut errors);
-            },
-            Node::ViewStmt(view) => {
-                check_view_columns(view, tables, &loc, &mut errors);
-            },
-            _ => {},
-        }
-    }
-
-    errors
+    Ok(errors)
 }

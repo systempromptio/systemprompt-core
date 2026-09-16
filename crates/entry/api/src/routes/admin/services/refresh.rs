@@ -42,11 +42,12 @@ pub async fn refresh(
 
     let profile = ProfileBootstrap::get()
         .map_err(|e| ApiHttpError::internal_error(format!("profile not ready: {e}")))?;
-    let secrets = SecretsBootstrap::get().ok();
+    let secrets = SecretsBootstrap::get()
+        .map_err(|e| ApiHttpError::internal_error(format!("secrets not ready: {e}")))?;
 
     let resolved = ServicesSourceBootstrap::resolve(
         profile,
-        |name| secrets.and_then(|s| s.get(name).cloned()),
+        |name| secrets.get(name).cloned(),
         env!("CARGO_PKG_VERSION"),
     )
     .await?;

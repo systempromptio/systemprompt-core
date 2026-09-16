@@ -10,8 +10,8 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use systemprompt_config::ProfileBootstrap;
+use systemprompt_config::paths::AppPaths;
 use systemprompt_loader::ServicesRootBootstrap;
-use systemprompt_models::AppPaths;
 
 pub fn resolve_export_path(user_path: &Path) -> Result<PathBuf> {
     if user_path.is_absolute()

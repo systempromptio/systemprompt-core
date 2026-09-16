@@ -313,3 +313,98 @@ async fn the_orphan_sweep_fails_only_pending_rows_older_than_the_bound() {
         "the sweep is idempotent"
     );
 }
+
+fn native_priced_completion<'a>(
+    body: &'a serde_json::Value,
+    digest: &'a str,
+) -> SettlementOutcome<'a> {
+    let SettlementOutcome::Completed(mut value) = completion(body, digest, &[]) else {
+        unreachable!("completion helper")
+    };
+    value.usage.input_tokens = 11;
+    value.usage.output_tokens = 7;
+    value.usage.tokens_used = 18;
+    value.cost_microdollars = 25;
+    SettlementOutcome::Completed(value)
+}
+
+#[tokio::test]
+async fn accounting_failure_preserves_paid_completion_across_identical_and_conflicting_retries() {
+    let pool = pool_or_skip()
+        .await
+        .expect("accounting regression requires fixture database");
+    let uid = user();
+    let id = seed_request(&pool, &uid).await;
+    let repo = AiRequestRepository::new(&pool).expect("repo");
+    let body = json!({"content":"native completed response"});
+    repo.settle(
+        &id,
+        &uid,
+        native_priced_completion(&body, "native-receipt-a"),
+    )
+    .await
+    .expect("paid completion");
+    repo.mark_accounting_failed(&id, &uid, "quota write failed")
+        .await
+        .expect("accounting projection");
+    repo.mark_accounting_failed(&id, &uid, "quota write failed")
+        .await
+        .expect("identical retry");
+    assert!(
+        repo.mark_accounting_failed(&id, &user(), "quota write failed")
+            .await
+            .is_err(),
+        "foreign owner cannot mark accounting failure"
+    );
+    assert!(
+        repo.mark_accounting_failed(&id, &uid, "different evidence")
+            .await
+            .is_err(),
+        "conflicting accounting evidence must not replace retained failure"
+    );
+    repo.settle(
+        &id,
+        &uid,
+        native_priced_completion(&body, "native-receipt-a"),
+    )
+    .await
+    .expect("identical completion retry");
+    assert!(
+        matches!(
+            repo.settle(
+                &id,
+                &uid,
+                native_priced_completion(&json!({"different":true}), "native-receipt-b")
+            )
+            .await,
+            Err(RepositoryError::SettlementConflict { .. })
+        ),
+        "conflicting provider terminal receipt stays rejected"
+    );
+    repo.settle(
+        &id,
+        &uid,
+        SettlementOutcome::Failed {
+            error: "late provider failure",
+        },
+    )
+    .await
+    .expect("generic failure retry remains harmless");
+    let read = pool.pool_arc().expect("pool");
+    let stored=sqlx::query!("SELECT status,input_tokens,output_tokens,cost_microdollars,accounting_error,accounting_failed_at,error_message FROM ai_requests WHERE id=$1",id.as_str()).fetch_one(read.as_ref()).await.expect("stored projection");
+    assert_eq!(stored.status, "failed");
+    assert_eq!(stored.input_tokens, Some(11));
+    assert_eq!(stored.output_tokens, Some(7));
+    assert_eq!(stored.cost_microdollars, 25);
+    assert_eq!(
+        stored.accounting_error.as_deref(),
+        Some("quota write failed")
+    );
+    assert_eq!(stored.error_message.as_deref(), Some("quota write failed"));
+    assert!(stored.accounting_failed_at.is_some());
+    assert_eq!(
+        turn_counts(&pool, &id).await,
+        (1, 0),
+        "accounting and completion retries cannot duplicate paid turn"
+    );
+}

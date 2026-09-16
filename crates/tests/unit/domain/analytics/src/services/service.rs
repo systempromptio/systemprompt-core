@@ -24,7 +24,7 @@ mod analytics_service_instance_tests {
         let service = AnalyticsService::new(
             None,
             None,
-            &systemprompt_analytics::repository::AnalyticsRepositories::new(&pool)
+            &systemprompt_test_fixtures::fixture_analytics_repositories(&pool)
                 .expect("repositories"),
         );
 
@@ -46,7 +46,7 @@ mod analytics_service_instance_tests {
         let service = AnalyticsService::new(
             None,
             None,
-            &systemprompt_analytics::repository::AnalyticsRepositories::new(&pool)
+            &systemprompt_test_fixtures::fixture_analytics_repositories(&pool)
                 .expect("repositories"),
         );
 

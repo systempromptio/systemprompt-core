@@ -122,8 +122,9 @@ pub async fn join_within_drain_grace(
 
 pub async fn drain(ctx: &AppContext, scheduler: Option<SchedulerHandle>) {
     if let Some(handle) = ctx.event_bridge().get() {
-        handle.abort();
+        handle.shutdown().await;
     }
+    ctx.snapshot_wakeup().shutdown().await;
 
     if let Some(handle) = scheduler
         && let Err(e) = handle.shutdown().await
@@ -190,7 +191,7 @@ async fn terminate_service_child(
         return;
     }
 
-    if !systemprompt_models::subprocess::live_pid_is_subprocess(pid, name_key, name) {
+    if !systemprompt_loader::subprocess::live_pid_is_subprocess(pid, name_key, name) {
         tracing::warn!(
             service = %name,
             pid,

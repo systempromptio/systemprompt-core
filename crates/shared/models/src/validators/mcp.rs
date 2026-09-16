@@ -6,7 +6,7 @@
 use super::ValidationConfigProvider;
 use crate::ServicesConfig;
 use std::collections::HashMap;
-use systemprompt_traits::validation_report::{ValidationError, ValidationReport};
+use systemprompt_traits::validation_report::{ValidationIssue, ValidationReport};
 use systemprompt_traits::{ConfigProvider, DomainConfig, DomainConfigError};
 
 #[derive(Debug, Default)]
@@ -59,7 +59,7 @@ impl DomainConfig for McpConfigValidator {
 
             if let Some(existing) = used_ports.get(&port) {
                 report.add_error(
-                    ValidationError::new(
+                    ValidationIssue::new(
                         format!("mcp_servers.{}.port", name),
                         format!("Port {} already used by server '{}'", port, existing),
                     )

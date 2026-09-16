@@ -6,12 +6,14 @@
 
 mod artifact;
 mod external_session;
+mod ownership;
 mod proxy_identity;
 mod session;
 mod tool_usage;
 
 pub use artifact::{CreateMcpArtifact, McpArtifactRecord, McpArtifactRepository};
 pub use external_session::ExternalSessionBinding;
+pub use ownership::McpOwnerReassignment;
 pub use proxy_identity::{McpProxyIdentityRepository, ProxyIdentityRow};
 pub use session::{McpSessionRecord, McpSessionRepository};
 pub use tool_usage::ToolUsageRepository;

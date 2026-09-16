@@ -1,12 +1,8 @@
 //! Re-applying host profiles that are installed but no longer valid.
 //!
-//! Why this exists: `HostApp::install_profile` had exactly one caller in the
-//! whole binary — the GUI's Re-apply button. `login` never revisited hosts, and
-//! `install --apply` installs the MDM payload and the scheduled task and no
-//! host profile at all, even though the stale-secret remediation names it. So a
-//! profile whose loopback secret or proxy port had moved on stayed stale, every
-//! request from that client 403'd, and the only cure was a button in a window.
-//! This is the one path the GUI, `install --apply` and `login` now share.
+//! The one path the GUI's Re-apply button, `install --apply` and `login`
+//! share, so a profile whose loopback secret or proxy port moved on is
+//! repaired from any of them.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -66,7 +62,6 @@ pub async fn build_profile_inputs(
 
     let api_key = loopback
         .secret()
-        .map(crate::ids::LoopbackSecret::into_inner)
         .map_err(|e| io_err("loopback secret", &e))?;
 
     let server_profile = bridge

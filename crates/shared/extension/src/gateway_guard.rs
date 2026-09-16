@@ -8,18 +8,28 @@
 //! This lets an extension enforce a policy — for example a per-user credit
 //! balance — without the core needing to know about it.
 //!
+//! [`GatewayRequestGuard`] is held as `Arc<dyn GatewayRequestGuard>` in the
+//! inventory-built [`gateway_guards`] list, so it uses `#[async_trait]`;
+//! native `async fn` in traits is not `dyn`-compatible. A guard receives the
+//! database as `&dyn DatabaseHandle` and downcasts through
+//! `DatabaseHandle::as_any` to the concrete handle it was compiled against;
+//! the shared layer never names a pool type.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
+
+use systemprompt_identifiers::{ModelId, ProviderId, RouteId, UserId};
+use systemprompt_traits::DatabaseHandle;
 
 /// The resolved gateway request a guard is asked to admit or deny.
 #[derive(Debug, Clone)]
 pub struct GatewayGuardRequest<'a> {
-    pub user_id: &'a str,
-    pub model: &'a str,
-    pub route_id: Option<&'a str>,
-    pub provider: &'a str,
+    pub user_id: &'a UserId,
+    pub model: &'a ModelId,
+    pub route_id: Option<&'a RouteId>,
+    pub provider: &'a ProviderId,
     pub streaming: bool,
 }
 
@@ -67,12 +77,13 @@ impl GatewayDenyReason {
     }
 }
 
-/// A policy consulted on every gateway request after the quota precheck.
+/// A policy consulted on every gateway request after the quota precheck;
+/// held as `Arc<dyn GatewayRequestGuard>`, hence `#[async_trait]`.
 #[async_trait::async_trait]
 pub trait GatewayRequestGuard: Send + Sync {
     async fn check(
         &self,
-        pool: &sqlx::PgPool,
+        db: &dyn DatabaseHandle,
         request: &GatewayGuardRequest<'_>,
     ) -> Result<(), GatewayDenyReason>;
 }
@@ -106,13 +117,24 @@ macro_rules! register_gateway_guard {
     };
 }
 
+static GATEWAY_GUARDS: LazyLock<Vec<Arc<dyn GatewayRequestGuard>>> = LazyLock::new(|| {
+    inventory::iter::<GatewayRequestGuardRegistration>
+        .into_iter()
+        .map(|registration| (registration.factory)())
+        .collect()
+});
+
+#[must_use]
+pub fn gateway_guards() -> &'static [Arc<dyn GatewayRequestGuard>] {
+    &GATEWAY_GUARDS
+}
+
 pub async fn run_gateway_guards(
-    pool: &sqlx::PgPool,
+    db: &dyn DatabaseHandle,
     request: &GatewayGuardRequest<'_>,
 ) -> Result<(), GatewayDenyReason> {
-    for registration in inventory::iter::<GatewayRequestGuardRegistration> {
-        let guard = (registration.factory)();
-        guard.check(pool, request).await?;
+    for guard in gateway_guards() {
+        guard.check(db, request).await?;
     }
     Ok(())
 }

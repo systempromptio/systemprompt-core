@@ -27,8 +27,7 @@ pub(super) async fn execute_migrate(config: &CliConfig, allow_checksum_drift: bo
     }
 
     let database = Arc::new(
-        Database::from_config_with_write(
-            &sys_config.database_type,
+        Database::connect(
             &sys_config.database_url,
             sys_config.database_write_url.as_deref(),
             &systemprompt_database::PoolConfig::default(),
@@ -80,9 +79,27 @@ async fn run_install(
         allow_checksum_drift,
     };
 
-    install_extension_schemas_full(registry, write_provider, &[], migration_config)
+    let report = install_extension_schemas_full(registry, write_provider, &[], migration_config)
         .await
         .map_err(|e| anyhow!("Schema installation failed: {}", e))?;
+    if !report.is_clean() {
+        let drift: Vec<String> = report
+            .foreign_key_drift
+            .iter()
+            .map(|d| {
+                format!(
+                    "{}.{} ({}): {}",
+                    d.extension, d.table, d.constraint, d.cause
+                )
+            })
+            .collect();
+        return Err(anyhow!(
+            "Schema installation committed but {} declared foreign key(s) could not be created \
+             on this established database; add the referenced unique index with a migration:\n{}",
+            drift.len(),
+            drift.join("\n")
+        ));
+    }
 
     let installed_extensions: Vec<String> = registry
         .schema_extensions()

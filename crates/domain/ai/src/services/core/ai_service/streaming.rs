@@ -3,14 +3,16 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::error::Result;
+use crate::error::{AiError, Result};
 use futures::Stream;
 use std::collections::HashMap;
 use std::pin::Pin;
 use uuid::Uuid;
 
 use crate::models::ai::{AiRequest, GoogleSearchParams, SearchGroundedResponse, StreamChunk};
-use crate::services::providers::{GenerationParams, SearchGenerationParams, ToolGenerationParams};
+use crate::services::providers::{
+    AiProvider, GenerationParams, ModelPricing, SearchGenerationParams, ToolGenerationParams,
+};
 
 use super::service::AiService;
 use super::stream_wrapper::{StreamStorageParams, StreamStorageWrapper};
@@ -25,7 +27,7 @@ impl AiService {
         let provider = self.get_provider(request.provider())?;
 
         if !provider.supports_streaming() {
-            return Err(crate::error::AiError::Internal(format!(
+            return Err(AiError::Internal(format!(
                 "Provider {} does not support streaming",
                 request.provider()
             )));
@@ -40,12 +42,13 @@ impl AiService {
             params = params.with_sampling(sampling);
         }
 
-        let pricing = provider.get_pricing(request.model());
+        let pricing = priced_model(provider.as_ref(), request.model())?;
         let inner_stream = provider.generate_stream(params).await?;
 
         let wrapped_stream = StreamStorageWrapper::new(StreamStorageParams {
             inner: inner_stream,
             storage: self.storage.clone(),
+            audit_tasks: self.audit_tasks.clone(),
             request: request.clone(),
             request_id,
             start,
@@ -66,7 +69,7 @@ impl AiService {
         let provider = self.get_provider(request.provider())?;
 
         if !provider.supports_streaming() {
-            return Err(crate::error::AiError::Internal(format!(
+            return Err(AiError::Internal(format!(
                 "Provider {} does not support streaming",
                 request.provider()
             )));
@@ -83,12 +86,13 @@ impl AiService {
         }
         let params = ToolGenerationParams::new(base, tools);
 
-        let pricing = provider.get_pricing(request.model());
+        let pricing = priced_model(provider.as_ref(), request.model())?;
         let inner_stream = provider.generate_with_tools_stream(params).await?;
 
         let wrapped_stream = StreamStorageWrapper::new(StreamStorageParams {
             inner: inner_stream,
             storage: self.storage.clone(),
+            audit_tasks: self.audit_tasks.clone(),
             request: request.clone(),
             request_id,
             start,
@@ -109,9 +113,7 @@ impl AiService {
             .values()
             .find(|p| p.supports_google_search())
             .ok_or_else(|| {
-                crate::error::AiError::Internal(
-                    "No provider with Google Search support available".to_owned(),
-                )
+                AiError::Internal("No provider with Google Search support available".to_owned())
             })?;
         let model = params
             .model
@@ -136,8 +138,8 @@ impl AiService {
 
     pub async fn health_check(&self) -> Result<HashMap<String, bool>> {
         let mut health = HashMap::new();
-        for name in self.providers.keys() {
-            health.insert(format!("provider_{name}"), true);
+        for (name, provider) in &self.providers {
+            health.insert(format!("provider_{name}"), provider.is_available());
         }
         let tool_health = self.tool_provider.health_check().await?;
         for (service_id, is_healthy) in tool_health {
@@ -145,4 +147,13 @@ impl AiService {
         }
         Ok(health)
     }
+}
+
+fn priced_model(provider: &dyn AiProvider, model: &str) -> Result<ModelPricing> {
+    provider
+        .get_pricing(model)
+        .ok_or_else(|| AiError::UnknownModel {
+            provider: provider.name().to_owned(),
+            model: model.to_owned(),
+        })
 }

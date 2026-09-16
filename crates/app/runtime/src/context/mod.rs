@@ -9,30 +9,34 @@
 
 use std::sync::{Arc, OnceLock};
 
-use tokio::task::JoinHandle;
 
 use systemprompt_agent::repository::A2ARepositories;
 use systemprompt_ai::repository::AiRepositories;
 use systemprompt_analytics::repository::AnalyticsRepositories;
 use systemprompt_analytics::{AnalyticsService, FingerprintRepository, GeoIpReader};
+use systemprompt_config::paths::AppPaths;
 use systemprompt_content::repository::ContentRepositories;
-use systemprompt_database::{DbPool, ServiceRepository};
+use systemprompt_database::{DbPool, SchemaInstallReport, ServiceRepository};
 use systemprompt_evaluation::repository::experiments::EvaluationRepositories;
+use systemprompt_events::EventBridgeHandle;
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_files::FileRepository;
-use systemprompt_marketplace::MarketplaceFilter;
+use systemprompt_marketplace::inventory::PublishGuard;
 use systemprompt_marketplace::managed::ManagedRepository;
+use systemprompt_marketplace::{MarketplaceCache, MarketplaceFilter};
 use systemprompt_mcp::repository::McpSessionRepository;
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::services::SystemAdmin;
-use systemprompt_models::{AppPaths, Config, ContentConfigRaw, ContentRouting, RouteClassifier};
+use systemprompt_models::{Config, ContentConfigRaw, ContentRouting, RouteClassifier};
 use systemprompt_oauth::repository::OAuthRepositories;
 use systemprompt_security::authz::SharedAuthzHook;
+use systemprompt_security::policy::GovernanceEngine;
 use systemprompt_traits::FileStorage;
 use systemprompt_users::{UserRepository, UserService};
 
 mod context_loaders;
 mod debug_impls;
+mod repositories;
 mod shutdown;
 
 pub use shutdown::ShutdownRequest;
@@ -58,6 +62,9 @@ pub struct DataPlane {
     pub service_repository: Arc<ServiceRepository>,
     pub ai_repositories: Arc<AiRepositories>,
     pub analytics_repositories: Arc<AnalyticsRepositories>,
+    pub feedback_snapshots_repository:
+        Arc<systemprompt_analytics::snapshots::FeedbackSnapshotsRepository>,
+    pub feedback_facts_repository: Arc<systemprompt_analytics::feedback::FeedbackFactsRepository>,
     pub file_repository: Arc<FileRepository>,
     pub mcp_session_repository: Arc<McpSessionRepository>,
     pub managed_repository: Arc<ManagedRepository>,
@@ -78,16 +85,21 @@ pub struct Plugins {
     pub api_registry: Arc<ModuleApiRegistry>,
     pub mcp_registry: RegistryService,
     pub marketplace_filter: Arc<dyn MarketplaceFilter>,
+    pub marketplace_cache: Arc<MarketplaceCache>,
 }
 
 #[derive(Clone)]
 pub struct Subsystems {
     pub system_admin: Arc<SystemAdmin>,
     pub authz_hook: SharedAuthzHook,
-    pub event_bridge: Arc<OnceLock<JoinHandle<()>>>,
+    pub governance: Arc<GovernanceEngine>,
+    pub schema_install: Arc<SchemaInstallReport>,
+    pub event_bridge: Arc<OnceLock<EventBridgeHandle>>,
     pub geoip_reader: Option<GeoIpReader>,
     pub file_storage: Arc<dyn FileStorage>,
     pub shutdown: ShutdownRequest,
+    pub publish_guard: Arc<tokio::sync::Mutex<PublishGuard>>,
+    pub snapshot_wakeup: Arc<crate::reporting::SnapshotWakeup>,
 }
 
 /// Application-wide runtime container shared across the HTTP server, the
@@ -192,57 +204,13 @@ impl AppContext {
 
     #[must_use]
     pub fn session_usage(&self) -> systemprompt_traits::DynSessionUsageCounters {
-        Arc::new(self.data.analytics_service.session_repo().clone())
+        self.data.analytics_repositories.sessions.owner()
     }
 
     pub fn context_materializer(&self) -> systemprompt_traits::DynContextMaterializer {
         Arc::new(systemprompt_agent::services::ContextProviderService::new(
             self.data.a2a_repositories.contexts.clone(),
         ))
-    }
-
-    pub const fn a2a_repositories(&self) -> &Arc<A2ARepositories> {
-        &self.data.a2a_repositories
-    }
-
-    pub const fn content_repositories(&self) -> &Arc<ContentRepositories> {
-        &self.data.content_repositories
-    }
-
-    pub const fn oauth_repositories(&self) -> &Arc<OAuthRepositories> {
-        &self.data.oauth_repositories
-    }
-
-    pub const fn user_repository(&self) -> &Arc<UserRepository> {
-        &self.data.user_repository
-    }
-
-    pub const fn service_repository(&self) -> &Arc<ServiceRepository> {
-        &self.data.service_repository
-    }
-
-    pub const fn ai_repositories(&self) -> &Arc<AiRepositories> {
-        &self.data.ai_repositories
-    }
-
-    pub const fn analytics_repositories(&self) -> &Arc<AnalyticsRepositories> {
-        &self.data.analytics_repositories
-    }
-
-    pub const fn file_repository(&self) -> &Arc<FileRepository> {
-        &self.data.file_repository
-    }
-
-    pub const fn mcp_session_repository(&self) -> &Arc<McpSessionRepository> {
-        &self.data.mcp_session_repository
-    }
-
-    pub const fn managed_repository(&self) -> &Arc<ManagedRepository> {
-        &self.data.managed_repository
-    }
-
-    pub const fn evaluation_repositories(&self) -> &Arc<EvaluationRepositories> {
-        &self.data.evaluation_repositories
     }
 
     pub const fn route_classifier(&self) -> &Arc<RouteClassifier> {
@@ -261,8 +229,23 @@ impl AppContext {
         &self.plugins.marketplace_filter
     }
 
-    pub const fn event_bridge(&self) -> &Arc<OnceLock<JoinHandle<()>>> {
+    pub const fn marketplace_cache(&self) -> &Arc<MarketplaceCache> {
+        &self.plugins.marketplace_cache
+    }
+
+    pub const fn event_bridge(&self) -> &Arc<OnceLock<EventBridgeHandle>> {
         &self.subsystems.event_bridge
+    }
+
+    // Why: the guard memoises per-entry tree digests across passes; the
+    // scheduled job and the manual route share it so neither re-captures a
+    // tree the other already published.
+    pub const fn publish_guard(&self) -> &Arc<tokio::sync::Mutex<PublishGuard>> {
+        &self.subsystems.publish_guard
+    }
+
+    pub const fn snapshot_wakeup(&self) -> &Arc<crate::reporting::SnapshotWakeup> {
+        &self.subsystems.snapshot_wakeup
     }
 
     pub fn system_admin(&self) -> &SystemAdmin {
@@ -275,6 +258,21 @@ impl AppContext {
 
     pub const fn authz_hook(&self) -> &SharedAuthzHook {
         &self.subsystems.authz_hook
+    }
+
+    #[must_use]
+    pub fn governance(&self) -> &GovernanceEngine {
+        &self.subsystems.governance
+    }
+
+    #[must_use]
+    pub fn governance_arc(&self) -> Arc<GovernanceEngine> {
+        Arc::clone(&self.subsystems.governance)
+    }
+
+    #[must_use]
+    pub fn schema_install(&self) -> &SchemaInstallReport {
+        &self.subsystems.schema_install
     }
 
     pub const fn shutdown_request(&self) -> &ShutdownRequest {

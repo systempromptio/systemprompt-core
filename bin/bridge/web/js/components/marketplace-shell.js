@@ -30,6 +30,9 @@ function listingSummary(listing) {
 function badgeView(snap) {
   if (!snap.signed_in) { return { text: t("marketplace-badge-signin") || "sign in", cls: "sp-badge--warn" }; }
   if (snap.sync_in_flight) { return { text: t("marketplace-badge-syncing") || "syncing", cls: "sp-badge--warn" }; }
+  if (snap.overall && snap.overall.code === "degraded") {
+    return { text: t("marketplace-badge-degraded") || "synced with failures", cls: "sp-badge--warn" };
+  }
   if (snap.last_sync_summary) { return { text: t("marketplace-badge-synced") || "synced", cls: "sp-badge--ok" }; }
   return { text: t("marketplace-badge-never") || "never synced", cls: "sp-badge--muted" };
 }

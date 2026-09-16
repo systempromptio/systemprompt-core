@@ -46,7 +46,7 @@ async fn seed_session_ctx(db: &DbPool) -> anyhow::Result<RequestContext> {
         session,
         TraceId::generate(),
         ContextId::generate(),
-        AgentName::new("test-agent"),
+        AgentName::try_new("test-agent").expect("valid AgentName"),
     )
     .with_actor(systemprompt_identifiers::Actor::user(user)))
 }

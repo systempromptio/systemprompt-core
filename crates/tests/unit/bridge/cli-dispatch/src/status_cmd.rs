@@ -47,7 +47,9 @@ fn status_reports_a_fully_provisioned_machine() {
 
         let location = paths::org_plugins_effective().expect("org plugins resolvable");
         assert_eq!(location.path, sb.org_plugins());
-        let target = cowork_plugins::resolve_target().expect("the seeded Cowork session is found");
+        let target = cowork_plugins::resolve_target()
+            .expect("resolution succeeds")
+            .expect("the seeded Cowork session is found");
         assert!(
             target.session_org_dir.ends_with("org-1"),
             "the newest session org dir is picked: {}",
@@ -72,7 +74,9 @@ fn status_without_a_cowork_install_still_reports_the_org_plugins_tree() {
     sb.run(|| {
         let _ = run_with_args(&argv(&["install"]));
         assert!(
-            cowork_plugins::resolve_target().is_none(),
+            cowork_plugins::resolve_target()
+                .expect("no session is not an error")
+                .is_none(),
             "no Cowork session directory exists in this sandbox"
         );
         let _ = run_with_args(&argv(&["status"]));

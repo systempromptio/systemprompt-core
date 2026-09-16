@@ -11,6 +11,7 @@ workspace = true
 
 [dependencies]
 systemprompt-models = { workspace = true }
+systemprompt-client = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-agent = { workspace = true }
 proptest = { workspace = true }

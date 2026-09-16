@@ -60,6 +60,7 @@ mod error;
 mod extension;
 mod filter;
 pub mod import;
+pub mod inventory;
 mod keep;
 pub mod managed;
 mod manifest;
@@ -74,14 +75,14 @@ pub use bundle::{
     BundleContent, BundleFile, PluginBundle, build_plugin_bundle, bundle_has_content,
 };
 pub use candidate::{EntryKeepSets, FilterContext, ManifestEntries, MarketplaceCandidate};
-pub use catalog::{CatalogContent, plugin_bundles, plugin_bundles_cached};
+pub use catalog::{CatalogContent, MarketplaceCache, plugin_bundles};
 pub use error::{MarketplaceError, MarketplaceFilterError};
 pub use extension::ManagedResourcesExtension;
 pub use filter::{AllowAllFilter, MarketplaceFilter};
 pub use import::{ImportOptions, ImportReport, ImportWarning, import_anthropic_tree};
 pub use keep::{KeepSetsSubject, keep_sets};
 pub use managed::{ManagedRepository, ManagedResourceResolver, ManagedSkillResolution};
-pub use manifest::ManifestService;
+pub use manifest::{AssembleRequest, ManifestService};
 pub use membership::MarketplaceMembership;
 pub use registry::{MarketplaceFilterRegistration, discover_filters};
 pub use scope::{enabled_marketplaces, scope_to_marketplace, scope_to_union, union_include};

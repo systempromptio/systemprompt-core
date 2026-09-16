@@ -13,6 +13,8 @@ use systemprompt_agent::services::a2a_server::processing::message::{
     StreamEvent,
 };
 use systemprompt_identifiers::{ContextId, MessageId, TaskId};
+use systemprompt_test_mocks::recording_webhooks;
+use tokio_util::sync::CancellationToken;
 
 use super::a2a_helpers::{StubAiProvider, request_context, runtime_info};
 use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try_pool_or_skip};
@@ -40,8 +42,12 @@ async fn new_constructs_against_pool() {
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let provider = Arc::new(StubAiProvider::new());
-    MessageProcessor::new(Arc::new(crate::repository::repos(&pool)), provider)
-        .expect("processor constructs");
+    MessageProcessor::new(
+        Arc::new(crate::repository::repos(&pool)),
+        provider,
+        recording_webhooks(),
+    )
+    .expect("processor constructs");
 }
 
 #[tokio::test]
@@ -56,8 +62,12 @@ async fn process_message_stream_emits_text_and_complete() {
     let (ctx, task_id) = seed_context_and_task(&repos, &user, &session).await;
 
     let provider = Arc::new(StubAiProvider::new().with_text_stream(&["one ", "two"]));
-    let processor = MessageProcessor::new(Arc::new(crate::repository::repos(&pool)), provider)
-        .expect("processor");
+    let processor = MessageProcessor::new(
+        Arc::new(crate::repository::repos(&pool)),
+        provider,
+        recording_webhooks(),
+    )
+    .expect("processor");
 
     let runtime = runtime_info("stream-agent");
     let request = request_context(&ctx, &session, &user, "stream-agent");
@@ -70,13 +80,14 @@ async fn process_message_stream_emits_text_and_complete() {
             agent_name: "stream-agent",
             context: &request,
             task_id: task_id.clone(),
+            cancel: CancellationToken::new(),
         })
         .await
         .expect("stream");
 
     let mut text = String::new();
     let mut completed = false;
-    while let Some(event) = rx.recv().await {
+    while let Some(event) = rx.events.recv().await {
         match event {
             StreamEvent::Text(t) => text.push_str(&t),
             StreamEvent::Complete { full_text, .. } => {
@@ -104,8 +115,12 @@ async fn persist_completed_task_updates_existing_row() {
     let (ctx, task_id) = seed_context_and_task(&repos, &user, &session).await;
 
     let provider = Arc::new(StubAiProvider::new());
-    let processor = MessageProcessor::new(Arc::new(crate::repository::repos(&pool)), provider)
-        .expect("processor");
+    let processor = MessageProcessor::new(
+        Arc::new(crate::repository::repos(&pool)),
+        provider,
+        recording_webhooks(),
+    )
+    .expect("processor");
 
     let request = request_context(&ctx, &session, &user, "persist-agent");
     let user_msg = user_message(&ctx, &task_id, "question");
@@ -130,9 +145,65 @@ async fn persist_completed_task_updates_existing_row() {
         })
         .await;
 
-    let updated = persisted.expect("persisted");
-    assert_eq!(updated.id, task_id);
-    assert_eq!(updated.status.state, TaskState::Completed);
+    let outcome = persisted.expect("persisted");
+    assert_eq!(outcome.task.id, task_id);
+    assert_eq!(outcome.task.status.state, TaskState::Completed);
+    assert!(outcome.undelivered_broadcasts.is_empty());
+}
+
+#[tokio::test]
+async fn cancelling_a_running_stream_emits_exactly_one_cancelled_event() {
+    let Some(pool) = try_pool_or_skip().await else {
+        return;
+    };
+    systemprompt_test_fixtures::ensure_test_bootstrap();
+    let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
+    let repos = repos(&pool);
+    let (user, session) = seed_user_and_session(&pool).await;
+    let (ctx, task_id) = seed_context_and_task(&repos, &user, &session).await;
+
+    let provider = Arc::new(StubAiProvider::new().with_stalled_stream());
+    let processor = MessageProcessor::new(
+        Arc::new(crate::repository::repos(&pool)),
+        provider,
+        recording_webhooks(),
+    )
+    .expect("processor");
+
+    let runtime = runtime_info("cancel-agent");
+    let request = request_context(&ctx, &session, &user, "cancel-agent");
+    let msg = user_message(&ctx, &task_id, "hi");
+    let cancel = CancellationToken::new();
+
+    let mut stream = processor
+        .process_message_stream(ProcessMessageStreamParams {
+            a2a_message: &msg,
+            agent_runtime: &runtime,
+            agent_name: "cancel-agent",
+            context: &request,
+            task_id,
+            cancel: cancel.clone(),
+        })
+        .await
+        .expect("stream");
+
+    cancel.cancel();
+
+    let mut terminal = Vec::new();
+    while let Some(event) = stream.events.recv().await {
+        match event {
+            StreamEvent::Cancelled => terminal.push("cancelled"),
+            StreamEvent::Complete { .. } => terminal.push("complete"),
+            StreamEvent::Error(_) => terminal.push("error"),
+            _ => {},
+        }
+    }
+    assert_eq!(
+        terminal,
+        vec!["cancelled"],
+        "one terminal event, and it is Cancelled"
+    );
+    assert!(stream.worker.is_finished() || stream.cancel.is_cancelled());
 }
 
 #[tokio::test]
@@ -147,8 +218,12 @@ async fn process_message_stream_provider_failure_emits_error() {
     let (ctx, task_id) = seed_context_and_task(&repos, &user, &session).await;
 
     let provider = Arc::new(StubAiProvider::new().failing_stream());
-    let processor = MessageProcessor::new(Arc::new(crate::repository::repos(&pool)), provider)
-        .expect("processor");
+    let processor = MessageProcessor::new(
+        Arc::new(crate::repository::repos(&pool)),
+        provider,
+        recording_webhooks(),
+    )
+    .expect("processor");
 
     let runtime = runtime_info("fail-agent");
     let request = request_context(&ctx, &session, &user, "fail-agent");
@@ -161,12 +236,13 @@ async fn process_message_stream_provider_failure_emits_error() {
             agent_name: "fail-agent",
             context: &request,
             task_id,
+            cancel: CancellationToken::new(),
         })
         .await
         .expect("stream");
 
     let mut saw_error = false;
-    while let Some(event) = rx.recv().await {
+    while let Some(event) = rx.events.recv().await {
         if matches!(event, StreamEvent::Error(_)) {
             saw_error = true;
             break;

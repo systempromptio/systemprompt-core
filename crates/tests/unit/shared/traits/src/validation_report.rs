@@ -5,14 +5,14 @@ use systemprompt_traits::{
     StartupValidationError, StartupValidationReport, ValidationReport, ValidationWarning,
 };
 
-use systemprompt_traits::validation_report::ValidationError;
+use systemprompt_traits::validation_report::ValidationIssue;
 
 mod validation_error_tests {
     use super::*;
 
     #[test]
     fn new_creates_error() {
-        let err = ValidationError::new("config.port", "Invalid port number");
+        let err = ValidationIssue::new("config.port", "Invalid port number");
 
         assert_eq!(err.field, "config.port");
         assert_eq!(err.message, "Invalid port number");
@@ -23,7 +23,7 @@ mod validation_error_tests {
     #[test]
     fn with_path_adds_path() {
         let err =
-            ValidationError::new("database", "Connection failed").with_path("/etc/config.yaml");
+            ValidationIssue::new("database", "Connection failed").with_path("/etc/config.yaml");
 
         err.path.as_ref().expect("path should be set");
         assert_eq!(err.path.unwrap(), PathBuf::from("/etc/config.yaml"));
@@ -31,7 +31,7 @@ mod validation_error_tests {
 
     #[test]
     fn with_suggestion_adds_suggestion() {
-        let err = ValidationError::new("api_key", "Missing API key")
+        let err = ValidationIssue::new("api_key", "Missing API key")
             .with_suggestion("Set the API_KEY environment variable");
 
         err.suggestion.as_ref().expect("suggestion should be set");
@@ -43,7 +43,7 @@ mod validation_error_tests {
 
     #[test]
     fn builders_are_chainable() {
-        let err = ValidationError::new("field", "message")
+        let err = ValidationIssue::new("field", "message")
             .with_path("/path/to/file")
             .with_suggestion("suggestion text");
 
@@ -55,7 +55,7 @@ mod validation_error_tests {
 
     #[test]
     fn display_basic_error() {
-        let err = ValidationError::new("setting", "Invalid value");
+        let err = ValidationIssue::new("setting", "Invalid value");
         let display = format!("{}", err);
 
         assert!(display.contains("setting"));
@@ -64,7 +64,7 @@ mod validation_error_tests {
 
     #[test]
     fn display_with_path() {
-        let err = ValidationError::new("config", "Parse error").with_path("/etc/app/config.yaml");
+        let err = ValidationIssue::new("config", "Parse error").with_path("/etc/app/config.yaml");
         let display = format!("{}", err);
 
         assert!(display.contains("Path:"));
@@ -74,7 +74,7 @@ mod validation_error_tests {
     #[test]
     fn display_with_suggestion() {
         let err =
-            ValidationError::new("port", "Port in use").with_suggestion("Try a different port");
+            ValidationIssue::new("port", "Port in use").with_suggestion("Try a different port");
         let display = format!("{}", err);
 
         assert!(display.contains("To fix:"));
@@ -122,8 +122,8 @@ mod validation_report_tests {
     #[test]
     fn add_error_appends_error() {
         let mut report = ValidationReport::new("domain");
-        report.add_error(ValidationError::new("field1", "error1"));
-        report.add_error(ValidationError::new("field2", "error2"));
+        report.add_error(ValidationIssue::new("field1", "error1"));
+        report.add_error(ValidationIssue::new("field2", "error2"));
 
         assert_eq!(report.errors.len(), 2);
     }
@@ -141,7 +141,7 @@ mod validation_report_tests {
         let mut report = ValidationReport::new("domain");
         assert!(!report.has_errors());
 
-        report.add_error(ValidationError::new("field", "error"));
+        report.add_error(ValidationIssue::new("field", "error"));
         assert!(report.has_errors());
     }
 
@@ -163,7 +163,7 @@ mod validation_report_tests {
     #[test]
     fn is_clean_returns_false_with_errors() {
         let mut report = ValidationReport::new("domain");
-        report.add_error(ValidationError::new("field", "error"));
+        report.add_error(ValidationIssue::new("field", "error"));
         assert!(!report.is_clean());
     }
 
@@ -177,11 +177,11 @@ mod validation_report_tests {
     #[test]
     fn merge_combines_reports() {
         let mut report1 = ValidationReport::new("domain1");
-        report1.add_error(ValidationError::new("f1", "e1"));
+        report1.add_error(ValidationIssue::new("f1", "e1"));
         report1.add_warning(ValidationWarning::new("w1", "m1"));
 
         let mut report2 = ValidationReport::new("domain2");
-        report2.add_error(ValidationError::new("f2", "e2"));
+        report2.add_error(ValidationIssue::new("f2", "e2"));
         report2.add_warning(ValidationWarning::new("w2", "m2"));
 
         report1.merge(report2);
@@ -248,7 +248,7 @@ mod startup_validation_report_tests {
         assert!(!report.has_errors());
 
         let mut domain = ValidationReport::new("test");
-        domain.add_error(ValidationError::new("field", "error"));
+        domain.add_error(ValidationIssue::new("field", "error"));
         report.add_domain(domain);
 
         assert!(report.has_errors());
@@ -259,7 +259,7 @@ mod startup_validation_report_tests {
         let mut report = StartupValidationReport::new();
 
         let mut ext = ValidationReport::new("ext");
-        ext.add_error(ValidationError::new("field", "error"));
+        ext.add_error(ValidationIssue::new("field", "error"));
         report.add_extension(ext);
 
         assert!(report.has_errors());
@@ -293,14 +293,14 @@ mod startup_validation_report_tests {
         let mut report = StartupValidationReport::new();
 
         let mut domain1 = ValidationReport::new("d1");
-        domain1.add_error(ValidationError::new("f1", "e1"));
-        domain1.add_error(ValidationError::new("f2", "e2"));
+        domain1.add_error(ValidationIssue::new("f1", "e1"));
+        domain1.add_error(ValidationIssue::new("f2", "e2"));
 
         let mut domain2 = ValidationReport::new("d2");
-        domain2.add_error(ValidationError::new("f3", "e3"));
+        domain2.add_error(ValidationIssue::new("f3", "e3"));
 
         let mut ext = ValidationReport::new("ext");
-        ext.add_error(ValidationError::new("f4", "e4"));
+        ext.add_error(ValidationIssue::new("f4", "e4"));
 
         report.add_domain(domain1);
         report.add_domain(domain2);
@@ -331,8 +331,8 @@ mod startup_validation_report_tests {
         let mut report = StartupValidationReport::new();
 
         let mut domain = ValidationReport::new("test");
-        domain.add_error(ValidationError::new("f1", "e1"));
-        domain.add_error(ValidationError::new("f2", "e2"));
+        domain.add_error(ValidationIssue::new("f1", "e1"));
+        domain.add_error(ValidationIssue::new("f2", "e2"));
         domain.add_warning(ValidationWarning::new("w1", "m1"));
         report.add_domain(domain);
 
@@ -357,7 +357,7 @@ mod startup_validation_error_tests {
     fn from_report_creates_error() {
         let mut report = StartupValidationReport::new();
         let mut domain = ValidationReport::new("test");
-        domain.add_error(ValidationError::new("field", "error"));
+        domain.add_error(ValidationIssue::new("field", "error"));
         report.add_domain(domain);
 
         let error: StartupValidationError = report.into();
@@ -368,7 +368,7 @@ mod startup_validation_error_tests {
     fn error_display_shows_report_info() {
         let mut report = StartupValidationReport::new();
         let mut domain = ValidationReport::new("test");
-        domain.add_error(ValidationError::new("f1", "e1"));
+        domain.add_error(ValidationIssue::new("f1", "e1"));
         domain.add_warning(ValidationWarning::new("w1", "m1"));
         report.add_domain(domain);
 

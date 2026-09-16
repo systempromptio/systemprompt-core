@@ -41,28 +41,27 @@ pub async fn handle_token(
 ) -> Result<Response, OAuthHttpError> {
     tracing::info!(grant_type = %request.grant_type, "Token request received");
 
-    let parsed = request.grant_type.parse::<GrantType>().ok();
-    let response = match parsed {
-        Some(GrantType::AuthorizationCode) => {
+    let grant_type = request
+        .grant_type
+        .parse::<GrantType>()
+        .map_err(|_unknown| TokenError::UnsupportedGrantType {
+            grant_type: request.grant_type.clone(),
+        })?;
+    let response = match grant_type {
+        GrantType::AuthorizationCode => {
             handle_authorization_code_grant(repo, request, &headers, caller_ip, &state).await?
         },
-        Some(GrantType::RefreshToken) => {
+        GrantType::RefreshToken => {
             handle_refresh_token_grant(repo, request, &headers, caller_ip, &state).await?
         },
-        Some(GrantType::ClientCredentials) => {
+        GrantType::ClientCredentials => {
             handle_client_credentials_grant(repo, request, &headers, caller_ip, &state).await?
         },
-        Some(GrantType::TokenExchange) => {
+        GrantType::TokenExchange => {
             handle_token_exchange_grant(repo, request, &headers, caller_ip, &state).await?
         },
-        Some(GrantType::JwtBearer) => {
+        GrantType::JwtBearer => {
             handle_jwt_bearer_grant(repo, request, &headers, caller_ip, &state).await?
-        },
-        None => {
-            return Err(TokenError::UnsupportedGrantType {
-                grant_type: request.grant_type.clone(),
-            }
-            .into());
         },
     };
     Ok((StatusCode::OK, Json(response)).into_response())

@@ -184,7 +184,10 @@ pub async fn probe_endpoint(
             404 => McpAuthState::NotRegistered,
             _ => McpAuthState::UpstreamError,
         };
-        let body = resp.text().await.unwrap_or_default();
+        let error = match resp.text().await {
+            Ok(body) => snippet(&body),
+            Err(e) => format!("response body unreadable: {e}"),
+        };
         return result(
             slug,
             url,
@@ -193,7 +196,7 @@ pub async fn probe_endpoint(
                 state,
                 http_status: Some(http),
                 latency_ms: Some(latency),
-                error: Some(snippet(&body)),
+                error: Some(error),
             },
         );
     }

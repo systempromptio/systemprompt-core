@@ -21,11 +21,11 @@ use systemprompt_evaluation::experiments::scoring::{self, EvidenceJudgment};
 use systemprompt_evaluation::experiments::verification::{self, VerificationInput};
 use systemprompt_evaluation::repository::experiments::{
     DeterministicMeasurement, EvaluationRepositories, EvaluationTrafficClass, ExecutionAssignment,
-    ExecutionCompletion, ExecutionEvent, ExecutionLease, ExecutionStage, GeneratedSuggestion,
-    TerminalOutcome, WorkerRecord,
+    ExecutionEvent, ExecutionLease, ExecutionStage, GeneratedSuggestion, TerminalOutcome,
+    WorkerRecord,
 };
 use systemprompt_identifiers::{EvalExecutionId, EvalWorkerId, UserId};
-use systemprompt_marketplace::managed::RevisionBundle;
+use systemprompt_models::managed::RevisionBundle;
 
 use super::client::{ClientPurpose, NativeClient};
 use super::container::{ContainerExecution, ContainerLaunch, ExecutionNetwork};
@@ -33,16 +33,24 @@ use crate::{SchedulerError, SchedulerResult};
 
 #[path = "supervisor_execution.rs"]
 mod execution;
+#[path = "supervisor_failures.rs"]
+mod failures;
 #[path = "supervisor_finalize.rs"]
 mod finalize;
+#[path = "supervisor_judgment.rs"]
+mod judgment;
 #[path = "supervisor_prepare.rs"]
 mod prepare;
 #[path = "supervisor_prompts.rs"]
 mod prompts;
+#[path = "supervisor_provision.rs"]
+mod provision;
 #[path = "supervisor_suggestion.rs"]
 mod suggestion;
+#[path = "supervisor_terminal.rs"]
+pub mod terminal;
 #[path = "supervisor_workspace.rs"]
-mod workspace;
+pub mod workspace;
 
 use execution::{ExecutionOutcome, capture_outputs};
 use prepare::PreparedExecution;
@@ -99,10 +107,31 @@ impl EvaluatorSupervisor {
         let Some(mut run) = self.prepare_execution(owner, worker_id).await? else {
             return Ok(false);
         };
-        let mut outcome = self.run_client(&mut run).await?;
-        outcome.judgment = self.run_judgment(&mut run, &mut outcome).await?;
-        self.generate_suggestion_if_needed(&mut run, &mut outcome)
-            .await?;
+        let mut outcome = match self.run_client(&mut run).await {
+            Ok(Some(outcome)) => outcome,
+            Ok(None) => return Ok(true),
+            Err(error) => {
+                self.block_execution(
+                    &run.worker.owner_id,
+                    &run.lease,
+                    run.record.variant_index,
+                    &failures::diagnostic("client", &error),
+                )
+                .await?;
+                return Ok(true);
+            },
+        };
+        match self.run_judgment(&mut run, &mut outcome).await {
+            Ok(judgment) => outcome.judgment = judgment,
+            Err(error) => outcome.blocked = Some(failures::diagnostic("judge", &error)),
+        }
+        if outcome.blocked.is_none()
+            && let Err(error) = self
+                .generate_suggestion_if_needed(&mut run, &mut outcome)
+                .await
+        {
+            outcome.blocked = Some(failures::diagnostic("suggestion", &error));
+        }
         self.finalize_execution(run, outcome).await?;
         Ok(true)
     }
@@ -132,9 +161,8 @@ impl EvaluatorSupervisor {
             } else {
                 vec!["network", "ls", "-q", "--filter", owner_filter.as_str()]
             };
-            let output = std::process::Command::new(&self.config.docker)
-                .args(&list_args)
-                .output()?;
+            let (mut command, _docker_configuration) = super::docker::command(&self.config.docker)?;
+            let output = command.args(&list_args).output()?;
             if !output.status.success() {
                 return Err(SchedulerError::config_error(
                     "Unable to enumerate owned evaluator Docker objects",
@@ -155,9 +183,9 @@ impl EvaluatorSupervisor {
                 } else {
                     vec!["network", "inspect", "--format", format, id]
                 };
-                let inspected = std::process::Command::new(&self.config.docker)
-                    .args(inspect_args)
-                    .output()?;
+                let (mut command, _docker_configuration) =
+                    super::docker::command(&self.config.docker)?;
+                let inspected = command.args(inspect_args).output()?;
                 if !inspected.status.success() {
                     return Err(SchedulerError::config_error(
                         "Unable to inspect owned evaluator Docker object",
@@ -180,9 +208,9 @@ impl EvaluatorSupervisor {
                     } else {
                         vec!["network", "rm", id]
                     };
-                    let removed = std::process::Command::new(&self.config.docker)
-                        .args(remove_args)
-                        .output()?;
+                    let (mut command, _docker_configuration) =
+                        super::docker::command(&self.config.docker)?;
+                    let removed = command.args(remove_args).output()?;
                     if !removed.status.success() {
                         return Err(SchedulerError::config_error(
                             "Owned evaluator Docker cleanup was not acknowledged",

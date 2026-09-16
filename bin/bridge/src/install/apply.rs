@@ -79,7 +79,7 @@ fn resolve_binary_path() -> Result<PathBuf, InstallError> {
 }
 
 fn resolve_org_plugins() -> Result<paths::OrgPluginsLocation, InstallError> {
-    paths::org_plugins_install_target().ok_or(InstallError::OrgPluginsUnresolvable)
+    paths::org_plugins_effective().ok_or(InstallError::OrgPluginsUnresolvable)
 }
 
 fn bootstrap_install(
@@ -88,24 +88,20 @@ fn bootstrap_install(
     gateway_url: Option<&str>,
     completed: &mut Vec<super::InstallStep>,
 ) -> Result<(), InstallError> {
-    if let Err(e) = bootstrap::bootstrap_directory(location) {
-        let msg = if e.kind() == std::io::ErrorKind::PermissionDenied
+    if let Err(source) = bootstrap::bootstrap_directory(location) {
+        if source.kind() == std::io::ErrorKind::PermissionDenied
             && matches!(location.scope, Scope::System)
         {
-            format!(
-                "permission denied creating {} — Claude Desktop only reads org plugins from the \
-                 system path. Re-run as root: `sudo {} install --apply` (or use the install \
-                 script). Underlying error: {e}",
-                location.path.display(),
-                std::env::current_exe().map_or_else(
+            return Err(InstallError::SystemOrgPluginsDenied {
+                path: location.path.clone(),
+                bin: std::env::current_exe().map_or_else(
                     |_| crate::brand::brand().binary_name.to_owned(),
-                    |p| p.display().to_string()
+                    |p| p.display().to_string(),
                 ),
-            )
-        } else {
-            format!("directory bootstrap failed: {e}")
-        };
-        return Err(InstallError::Bootstrap(msg));
+                source,
+            });
+        }
+        return Err(InstallError::Bootstrap(source));
     }
     completed.push(super::InstallStep::Directory(location.path.clone()));
     bootstrap::write_version_sentinel(binary, gateway_url).map_err(InstallError::Sentinel)?;

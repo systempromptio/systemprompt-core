@@ -79,6 +79,8 @@ pub enum GatewayError {
     ReleaseFetch(Box<reqwest::Error>),
     #[error("malformed release manifest response: {0}")]
     ReleaseDecode(Box<reqwest::Error>),
+    #[error("malformed device enrolment response: {0}")]
+    DeviceEnrollDecode(Box<reqwest::Error>),
     #[error("serialize: {0}")]
     Serialize(#[from] serde_json::Error),
 }

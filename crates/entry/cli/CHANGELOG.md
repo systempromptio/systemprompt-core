@@ -1,5 +1,45 @@
 # Changelog
 
+## [0.53.0] - 2026-09-15
+
+### Breaking
+
+- **Breaking:** `plugins capabilities llm-providers` and the LLM-provider counters in `plugins list|show` are removed with the unimplemented `LlmProvider` seam.
+- **Breaking:** `infra logs audit` no longer includes messages or tool calls unless asked (`--messages` / `--tools`).
+
+### Added
+
+- `admin evals promote` samples through the AI request trace seam (`SamplerService::new(Arc<AiRequestRepository>)`).
+- `admin config rate-limits` reads, sets, diffs, resets and validates `gateway_per_second`.
+- `runner::profile_routing::{BootstrapOutcome, RoutingDecision, decide_routing}` expose the routing decision the runner acts on.
+- `analytics projection status|sync --limit <n>|rebuild`; every other `analytics` report command refuses an uninitialised reporting baseline with a rebuild instruction instead of returning empty reports.
+- `infra logs request list --until <time>` / `--before <cursor>` (keyset on `(created_at, id)`; each JSON row carries `cursor`); `infra logs audit` is counts-only by default with `--messages` / `--tools`, `--offset` / `--limit` and `--max-content <chars>`; `analytics costs breakdown --by user`, `analytics requests list --user <id> --offset <n>`, `analytics conversations list --source agent|gateway|all --user <id>`. A malformed `--before` cursor is a usage error naming the reason; a negative `infra logs audit --offset` / `--limit`, a non-positive `analytics conversations list --limit` and a negative `analytics requests list --offset` are refused at parse time.
+
+### Changed
+
+- `infra db migrate` fails, after committing everything else, when a declared foreign key could not be created on an established database, naming each key and its cause.
+- `infra logs` commands read trace data through `systemprompt_runtime::trace`.
+- `admin session login` refuses to proceed on a corrupt session index (`SessionStoreCorrupted`, with the repair hint) instead of silently starting from an empty store; `admin session switch` remains the documented repair path and `show`/`list` render an unreadable store as empty with a warning.
+- `infra migrations history` prints `unstamped` for a migration recorded without a checksum; `infra jobs cleanup-logs` runs on `LoggingRepository`.
+- `infra db migrate*`, `admin bootstrap`, `admin config reconcile` and session creation connect through `Database::connect`; the profile `database_type` string is no longer consulted.
+- `admin evals promote` samples the request through the AI request trace seam; `skills list` pages managed resources by `has_more`.
+- `infra logs delete` and `infra logs cleanup` are classed as mutating: they refuse an implicitly selected cloud profile and never fall back to a local run when remote routing fails.
+- `admin config validate` fails when a section directory cannot be enumerated instead of silently omitting the section and reporting success.
+- `cloud init` and `cloud profile` scaffolding fail when the embedded provider catalog is unreadable instead of writing empty default models; `admin config catalog discovery` fails when the embedded Vertex rate card is unreadable.
+- `admin agents validate` fails when secrets are not initialised instead of reporting every provider key as missing.
+- `cloud profile show` prints a warning when the profile or services config cannot be loaded; a failed container cleanup after a failed `cloud tenant create` start is reported.
+
+- `core files upload --context` and `core artifacts list --context` validate the id and report an error instead of aborting the process on a malformed value.
+- `core services refresh` requires the secrets store up front and fails before contacting any source when it is unavailable, instead of resolving every credential to `None`.
+
+### Fixed
+
+- A command routed to a remote tenant runs exactly once; the runner no longer dispatches it a second time locally after the remote run succeeds.
+- `admin config catalog|gateway` leave `services/config/config.yaml` untouched and report the error when the file cannot be read (permissions, a directory, invalid UTF-8) instead of overwriting it with a bare `includes:` block.
+- `admin agents run` drains pending streaming audit writes after the A2A server stops.
+- `--json` / `--yaml` (and `SYSTEMPROMPT_OUTPUT_FORMAT`) emit the artifact for a command whose result was flagged terminal-skip — every empty-result path — instead of printing nothing; `skip_render` suppresses terminal rendering only. `admin config validate --schema`, `admin session login --token-only` and `admin keys issue --token-only` return their payload as the text artifact, so `--json` carries one document and the terminal output is unchanged.
+
+
 ## [0.52.0] - 2026-09-14
 
 ### Changed

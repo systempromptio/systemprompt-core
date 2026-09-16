@@ -48,8 +48,6 @@ fn ctx(pool: &DbPool, json: bool) -> CommandContext {
 async fn store(pool: &DbPool, entry: LogEntry) -> LogEntry {
     LoggingRepository::new(pool)
         .unwrap()
-        .with_terminal(false)
-        .with_database(true)
         .log(entry.clone())
         .await
         .unwrap();

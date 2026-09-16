@@ -5,11 +5,12 @@
 
 use std::path::Path;
 use systemprompt_config::ProfileBootstrap;
+use systemprompt_config::paths::AppPaths;
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_logging::CliService;
 use systemprompt_logging::services::cli::{BrandColors, render_phase_success};
-use systemprompt_models::{AppPaths, Config};
-use systemprompt_traits::validation_report::ValidationError;
+use systemprompt_models::Config;
+use systemprompt_traits::validation_report::ValidationIssue;
 use systemprompt_traits::{StartupValidationReport, ValidationReport};
 
 use super::config_loaders::load_extension_config;
@@ -23,7 +24,7 @@ pub(super) fn validate_extensions(
         Ok(extensions) => extensions,
         Err(e) => {
             let mut ext_report = ValidationReport::new("ext:registry".to_owned());
-            ext_report.add_error(ValidationError::new(
+            ext_report.add_error(ValidationIssue::new(
                 "extension_discovery",
                 format!("Failed to discover extensions: {}", e),
             ));
@@ -91,7 +92,7 @@ fn validate_extension_assets(
                 has_errors = true;
                 let mut ext_report = ValidationReport::new(format!("ext:{}", ext_id));
                 ext_report.add_error(
-                    ValidationError::new(
+                    ValidationIssue::new(
                         "required_asset",
                         format!("Missing required asset: {}", asset.source().display()),
                     )
@@ -206,7 +207,7 @@ fn validate_single_extension(
                 ExtConfigError::Validate(m) => m.clone(),
             };
             let mut ext_report = ValidationReport::new(format!("ext:{}", ext_id));
-            ext_report.add_error(ValidationError::new(
+            ext_report.add_error(ValidationIssue::new(
                 format!("{}.config", prefix),
                 report_message,
             ));

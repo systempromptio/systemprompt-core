@@ -47,7 +47,7 @@ pub async fn handle(
         SessionId::generate(),
         TraceId::generate(),
         ContextId::generate(),
-        AgentName::new("bridge".to_owned()),
+        AgentName::bridge(),
     )
     .with_actor(Actor::user(user.id));
 

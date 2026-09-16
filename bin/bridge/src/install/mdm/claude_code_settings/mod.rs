@@ -12,6 +12,7 @@ mod helper;
 mod merge;
 
 pub use helper::windows_helper_command;
+use helper::{key_helper_path, prepare_helper, shell_command_for};
 pub mod model_picker;
 pub mod permissions;
 mod removal;
@@ -25,8 +26,6 @@ use crate::install::mdm::{MdmApplication, MdmError};
 pub(crate) use self::model_picker::apply_model_picker;
 pub(crate) use self::removal::{remove_all, remove_managed_settings};
 
-// Why: Claude Code reads ~/.claude/settings.json, not
-// ~/.claude/managed-settings.json.
 pub fn managed_settings_path() -> Option<PathBuf> {
     let system = crate::config::paths::claude_code_policy_dir().join("managed-settings.json");
     if can_write(&system) {
@@ -39,25 +38,21 @@ pub fn managed_settings_path() -> Option<PathBuf> {
     )
 }
 
+// Why: the probe must not leave an empty policy file behind — Claude Code
+// reads an empty managed-settings.json as `{}` and the operator sees a
+// policy that was never applied. An existing file is opened for write; a
+// missing one is judged by whether the nearest existing ancestor accepts a
+// temporary file, which the real write path creates and removes.
 fn can_write(path: &Path) -> bool {
-    let Some(parent) = path.parent() else {
-        return false;
-    };
-    fs::create_dir_all(parent).is_ok()
-        && fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(path)
-            .is_ok()
-}
-
-#[cfg(unix)]
-pub(super) fn key_helper_path() -> Option<PathBuf> {
-    Some(
-        crate::basedirs::config_dir()?
-            .join(crate::brand::brand().config_dir)
-            .join("claude-key-helper.sh"),
-    )
+    match fs::metadata(path) {
+        Ok(meta) if meta.is_file() => fs::OpenOptions::new().write(true).open(path).is_ok(),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => path
+            .ancestors()
+            .skip(1)
+            .find(|dir| dir.is_dir())
+            .is_some_and(|dir| tempfile::Builder::new().tempfile_in(dir).is_ok()),
+        Ok(_) | Err(_) => false,
+    }
 }
 
 pub fn standalone_settings_path() -> Option<PathBuf> {
@@ -65,17 +60,6 @@ pub fn standalone_settings_path() -> Option<PathBuf> {
         crate::basedirs::config_dir()?
             .join(crate::brand::brand().config_dir)
             .join("claude-code-settings.json"),
-    )
-}
-
-#[cfg(unix)]
-fn key_helper_body(key_path: &Path) -> String {
-    let bin = crate::brand::brand().binary_name;
-    format!(
-        "#!/bin/sh\n\
-         # Written by `{bin} install --apply`. Rewritten on every apply — do not edit.\n\
-         exec cat \"{key}\"\n",
-        key = key_path.display(),
     )
 }
 
@@ -111,7 +95,7 @@ fn render(
     Ok(format!("{rendered}\n"))
 }
 
-fn write_verified(path: &Path, body: &str) -> Result<FileReceipt, MdmError> {
+pub(super) fn write_verified(path: &Path, body: &str) -> Result<FileReceipt, MdmError> {
     write_atomic(path, body)?;
     FileReceipt::verify(path, body.as_bytes()).map_err(io_error("verify", path))
 }
@@ -232,39 +216,6 @@ pub(super) fn read_or_empty(path: &Path) -> Result<String, MdmError> {
     }
 }
 
-// Why: Claude Code hands `apiKeyHelper` to `/bin/sh` verbatim, so a path with
-// whitespace — every macOS `~/Library/Application Support/…` path — is split
-// into words. Quote only then, so the Linux value stays the bare path.
-#[cfg(unix)]
-pub(super) fn shell_command_for(helper: &Path) -> String {
-    let raw = helper.display().to_string();
-    if raw.chars().any(char::is_whitespace) {
-        format!("'{}'", raw.replace('\'', "'\\''"))
-    } else {
-        raw
-    }
-}
-
-#[cfg(unix)]
-fn set_executable(path: &Path) -> Result<(), MdmError> {
-    use std::os::unix::fs::PermissionsExt as _;
-    fs::set_permissions(path, fs::Permissions::from_mode(0o700))
-        .map_err(io_error("chmod", path))?;
-    if fs::metadata(path)
-        .map_err(io_error("verify chmod", path))?
-        .permissions()
-        .mode()
-        & 0o777
-        != 0o700
-    {
-        return Err(MdmError::InvalidConfig(format!(
-            "{}: expected mode 0700",
-            path.display()
-        )));
-    }
-    Ok(())
-}
-
 // Why: Claude Code stores the user's /model selection in this same settings
 // file.
 pub fn seed_default_model(model: &str) -> Result<bool, MdmError> {
@@ -280,27 +231,4 @@ pub fn seed_default_model(model: &str) -> Result<bool, MdmError> {
     );
     write_atomic(&settings_path, &render(root, &settings_path)?)?;
     Ok(true)
-}
-
-#[cfg(unix)]
-fn prepare_helper(helper: &Path, key_path: &Path) -> Result<Vec<FileReceipt>, MdmError> {
-    let receipt = write_verified(helper, &key_helper_body(key_path))?;
-    set_executable(helper)?;
-    Ok(vec![receipt])
-}
-
-#[cfg(target_os = "windows")]
-pub(super) fn key_helper_path() -> Option<PathBuf> {
-    std::env::current_exe().ok()
-}
-
-#[cfg(target_os = "windows")]
-fn prepare_helper(helper: &Path, _key_path: &Path) -> Result<Vec<FileReceipt>, MdmError> {
-    fs::metadata(helper).map_err(io_error("read helper executable", helper))?;
-    Ok(Vec::new())
-}
-
-#[cfg(target_os = "windows")]
-pub(super) fn shell_command_for(helper: &Path) -> String {
-    windows_helper_command(helper)
 }

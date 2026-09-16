@@ -155,7 +155,7 @@ impl<T: Serialize + JsonSchema + McpOutputSchema> McpResponseBuilder<T> {
             structured_output,
             metadata: &metadata,
         };
-        Ok(shape.into_result(&create_artifact, &self.ctx).await)
+        Ok(shape.into_result(&create_artifact, &self.ctx))
     }
 }
 
@@ -168,11 +168,7 @@ struct WireShape<'a> {
 }
 
 impl WireShape<'_> {
-    async fn into_result(
-        self,
-        artifact: &CreateMcpArtifact,
-        ctx: &RequestContext,
-    ) -> CallToolResult {
+    fn into_result(self, artifact: &CreateMcpArtifact, ctx: &RequestContext) -> CallToolResult {
         let include_ui = self.client.supports_ui();
         let include_structured = self.client.supports_structured_content();
         let uri = artifact_resource_uri(&artifact.server_name, &artifact.artifact_id);
@@ -180,7 +176,7 @@ impl WireShape<'_> {
         let mut content = vec![ContentBlock::text(
             self.text_block(include_ui, include_structured),
         )];
-        if include_ui && let Some(block) = ui_resource_block(artifact, ctx, &uri).await {
+        if include_ui && let Some(block) = ui_resource_block(artifact, ctx, &uri) {
             content.push(block);
         }
 
@@ -238,7 +234,7 @@ fn wire_meta(
     Some(MetaObject(meta))
 }
 
-async fn ui_resource_block(
+fn ui_resource_block(
     artifact: &CreateMcpArtifact,
     ctx: &RequestContext,
     uri: &str,
@@ -252,7 +248,7 @@ async fn ui_resource_block(
         title: artifact.title.clone(),
     };
 
-    let resource = match artifact_ui_resource(&target).await {
+    let resource = match artifact_ui_resource(&target) {
         Ok(resource) => resource,
         Err(e) => {
             tracing::warn!(

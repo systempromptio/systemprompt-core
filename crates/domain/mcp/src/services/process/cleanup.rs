@@ -123,7 +123,7 @@ pub async fn terminate_gracefully_verified(pid: u32, service_name: &str) -> McpD
         return Ok(());
     }
 
-    if !systemprompt_models::subprocess::live_pid_is_subprocess(
+    if !systemprompt_loader::subprocess::live_pid_is_subprocess(
         pid,
         systemprompt_models::subprocess::MCP_SERVICE_ID_ENV,
         service_name,

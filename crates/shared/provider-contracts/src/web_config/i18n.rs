@@ -15,7 +15,7 @@ pub struct SiteI18nConfig {
 
 impl Default for SiteI18nConfig {
     fn default() -> Self {
-        let default_locale = LocaleCode::new("en");
+        let default_locale = LocaleCode::english();
         Self {
             supported_locales: vec![default_locale.clone()],
             default_locale,

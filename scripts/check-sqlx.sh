@@ -4,7 +4,7 @@ set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
 # Match sqlx::query( and sqlx::query_{as,scalar,file,file_as,file_scalar,with,...}(
-pattern='sqlx::query[a-z_]*\('
+pattern='sqlx::query[a-z_]*(::<[^>]*>)?\('
 
 allowlist=(
     '^crates/infra/database/src/admin/'
@@ -20,6 +20,11 @@ allowlist=(
     # CREATE/DROP DATABASE cannot take a bind parameter, so the name is
     # interpolated under AssertSqlSafe. Same exemption as the two test trees.
     '^crates/tests/common/'
+    # The reporting projector is table-driven by SOURCE_DEFINITIONS: target
+    # tables, key columns and the rebuild cursor over each owner's reporting
+    # view are resolved at runtime and interpolated under AssertSqlSafe. Every
+    # static statement in the module uses the compile-time macros.
+    '^crates/domain/analytics/src/projection/(mod|snapshot)\.rs:'
     '^crates/entry/cli/src/commands/admin/setup/'
     '^crates/entry/cli/src/commands/infrastructure/jobs/cleanup_logs\.rs:'
 )

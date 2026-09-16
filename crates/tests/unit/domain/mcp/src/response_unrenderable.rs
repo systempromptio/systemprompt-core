@@ -37,7 +37,7 @@ fn test_ctx() -> RequestContext {
         SessionId::new("s-unrender"),
         TraceId::new("t-unrender"),
         ContextId::generate(),
-        AgentName::new("agent-unrender"),
+        AgentName::try_new("agent-unrender").expect("valid AgentName"),
     )
     .with_actor(systemprompt_identifiers::Actor::user(UserId::new(
         "user-unrender",

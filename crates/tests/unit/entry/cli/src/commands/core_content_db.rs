@@ -178,7 +178,7 @@ async fn edit_by_slug_with_source_and_flags() {
         .get_by_source_and_slug(
             &SourceId::new(source),
             &slug,
-            &systemprompt_identifiers::LocaleCode::new("en"),
+            &systemprompt_identifiers::LocaleCode::english(),
         )
         .await
         .unwrap()

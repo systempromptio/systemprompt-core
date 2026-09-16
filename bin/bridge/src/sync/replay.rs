@@ -10,7 +10,7 @@ use crate::last_sync::LastSyncState;
 pub const SKEW_WINDOW_MINUTES: i64 = 5;
 
 pub fn check_replay(last: &LastSyncState, incoming: &ManifestVersion) -> Result<(), SyncError> {
-    if let Some(prev) = last.last_applied_manifest_version.as_ref()
+    if let Some(prev) = last.manifest_version.as_ref()
         && incoming <= prev
     {
         return Err(SyncError::ReplayedManifest {
@@ -21,19 +21,15 @@ pub fn check_replay(last: &LastSyncState, incoming: &ManifestVersion) -> Result<
     Ok(())
 }
 
-pub fn check_skew(not_before: &str, now: chrono::DateTime<chrono::Utc>) -> Result<(), SyncError> {
-    let parsed = chrono::DateTime::parse_from_rfc3339(not_before).map_err(|_parse| {
-        SyncError::ManifestSkew {
-            not_before: not_before.to_owned(),
-            now: now.to_rfc3339(),
-        }
-    })?;
-    let nb_utc = parsed.with_timezone(&chrono::Utc);
+pub fn check_skew(
+    not_before: chrono::DateTime<chrono::Utc>,
+    now: chrono::DateTime<chrono::Utc>,
+) -> Result<(), SyncError> {
     let window = chrono::Duration::minutes(SKEW_WINDOW_MINUTES);
-    let delta = nb_utc.signed_duration_since(now);
+    let delta = not_before.signed_duration_since(now);
     if delta > window || delta < -window {
         return Err(SyncError::ManifestSkew {
-            not_before: not_before.to_owned(),
+            not_before: not_before.to_rfc3339(),
             now: now.to_rfc3339(),
         });
     }

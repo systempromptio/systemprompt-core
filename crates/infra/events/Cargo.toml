@@ -23,6 +23,7 @@ systemprompt-extension = { workspace = true }
 [dependencies]
 # Core runtime
 tokio = { workspace = true }
+tokio-util = { workspace = true }
 tracing = { workspace = true }
 thiserror = { workspace = true }
 

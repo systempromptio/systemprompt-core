@@ -10,6 +10,8 @@ mod content;
 mod context;
 mod definition;
 mod error;
+mod inventory;
+mod model_config;
 mod provider;
 
 pub use call::{ToolCallRequest, ToolCallResult};
@@ -17,4 +19,6 @@ pub use content::ToolContent;
 pub use context::ToolContext;
 pub use definition::ToolDefinition;
 pub use error::{ToolProviderError, ToolProviderResult};
+pub use inventory::{ServerListingFailure, ToolInventory};
+pub use model_config::ToolModelConfig;
 pub use provider::ToolProvider;

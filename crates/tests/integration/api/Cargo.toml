@@ -53,7 +53,7 @@ http = { workspace = true }
 http-body-util = "0.1"
 serde_json = { workspace = true }
 anyhow = { workspace = true }
-tokio = { workspace = true }
+tokio = { workspace = true, features = ["io-std"] }
 uuid = { workspace = true }
 sha2 = { workspace = true }
 base64 = { workspace = true }

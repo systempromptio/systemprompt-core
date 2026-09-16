@@ -8,6 +8,7 @@ use super::SchemaSanitizer;
 use serde_json::{Map, Value, json};
 
 impl SchemaSanitizer {
+    // JSON: JSON Schema document rewritten in place for the provider's subset.
     pub(super) fn remove_unsupported_keywords(&self, obj: &mut Map<String, Value>) {
         if !self.capabilities.composition.allof {
             obj.remove("allOf");
@@ -54,6 +55,7 @@ impl SchemaSanitizer {
     // a `[field, operator, value]` triple. The array survives as a plain
     // `items` schema — the shared prefix schema when every position agrees,
     // otherwise an untyped item — instead of the whole request failing.
+    // JSON: JSON Schema document rewritten in place for the provider's subset.
     pub(super) fn flatten_tuple_items(obj: &mut Map<String, Value>) {
         let prefix = obj.remove("prefixItems");
         obj.remove("additionalItems");
@@ -71,6 +73,7 @@ impl SchemaSanitizer {
         obj.insert("items".to_owned(), items);
     }
 
+    // JSON: JSON Schema document rewritten in place for the provider's subset.
     pub(super) fn remove_metadata_fields(obj: &mut Map<String, Value>) {
         for field in [
             "$schema",
@@ -88,6 +91,7 @@ impl SchemaSanitizer {
         }
     }
 
+    // JSON: JSON Schema document rewritten in place for the provider's subset.
     pub(super) fn remove_extension_fields(obj: &mut Map<String, Value>) {
         let extensions: Vec<String> = obj
             .keys()
@@ -99,6 +103,7 @@ impl SchemaSanitizer {
         }
     }
 
+    // JSON: JSON Schema document rewritten in place for the provider's subset.
     pub(super) fn convert_const_to_enum(&self, obj: &mut Map<String, Value>) {
         if !self.capabilities.features.const_values
             && let Some(const_val) = obj.remove("const")

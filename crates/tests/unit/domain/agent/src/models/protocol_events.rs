@@ -3,11 +3,10 @@
 //! Tests cover:
 //! - TaskStatusUpdateEvent construction and serialization
 //! - TaskArtifactUpdateEvent construction and serialization
-//! - ServiceStatusParams serialization
 
 use systemprompt_agent::models::a2a::protocol::{TaskArtifactUpdateEvent, TaskStatusUpdateEvent};
 use systemprompt_agent::models::a2a::{
-    Artifact, ArtifactMetadata, Part, ServiceStatusParams, TaskState, TaskStatus, TextPart,
+    Artifact, ArtifactMetadata, Part, TaskState, TaskStatus, TextPart,
 };
 use systemprompt_identifiers::{ArtifactId, ContextId, TaskId};
 
@@ -22,7 +21,7 @@ fn create_test_artifact(id: &str) -> Artifact {
         extensions: vec![],
         metadata: ArtifactMetadata::new(
             "text".to_string(),
-            ContextId::new_unchecked(TEST_CONTEXT_ID_A),
+            ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
             TaskId::new("task-1"),
         ),
     }
@@ -51,7 +50,7 @@ fn test_task_status_update_event_new() {
     let status = create_working_status();
     let event = TaskStatusUpdateEvent::new(
         "task-123",
-        ContextId::new_unchecked(TEST_CONTEXT_ID_A),
+        ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
         status,
         false,
     );
@@ -67,7 +66,7 @@ fn test_task_status_update_event_final() {
     let status = create_completed_status();
     let event = TaskStatusUpdateEvent::new(
         "task-abc",
-        ContextId::new_unchecked(TEST_CONTEXT_ID_A),
+        ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
         status,
         true,
     );
@@ -81,7 +80,7 @@ fn test_task_status_update_event_serialize() {
     let status = create_failed_status();
     let event = TaskStatusUpdateEvent::new(
         "task-1",
-        ContextId::new_unchecked(TEST_CONTEXT_ID_A),
+        ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
         status,
         true,
     );
@@ -98,7 +97,7 @@ fn test_task_status_update_event_to_jsonrpc_response() {
     let status = TaskStatus::default();
     let event = TaskStatusUpdateEvent::new(
         "t1",
-        ContextId::new_unchecked(TEST_CONTEXT_ID_A),
+        ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
         status,
         false,
     );
@@ -113,7 +112,7 @@ fn test_task_artifact_update_event_new() {
     let artifact = create_test_artifact("art-1");
     let event = TaskArtifactUpdateEvent::new(
         "task-1",
-        ContextId::new_unchecked(TEST_CONTEXT_ID_A),
+        ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
         artifact,
         false,
     );
@@ -133,7 +132,7 @@ fn test_task_artifact_update_event_with_parts() {
 
     let event = TaskArtifactUpdateEvent::new(
         "task-2",
-        ContextId::new_unchecked(TEST_CONTEXT_ID_A),
+        ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
         artifact,
         true,
     );
@@ -147,7 +146,7 @@ fn test_task_artifact_update_event_serialize() {
     let artifact = create_test_artifact("art-3");
     let event = TaskArtifactUpdateEvent::new(
         "t1",
-        ContextId::new_unchecked(TEST_CONTEXT_ID_A),
+        ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
         artifact,
         false,
     );
@@ -163,7 +162,7 @@ fn test_task_artifact_update_event_to_jsonrpc_response() {
     let artifact = create_test_artifact("art-4");
     let event = TaskArtifactUpdateEvent::new(
         "t",
-        ContextId::new_unchecked(TEST_CONTEXT_ID_A),
+        ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
         artifact,
         true,
     );
@@ -171,32 +170,4 @@ fn test_task_artifact_update_event_to_jsonrpc_response() {
 
     assert_eq!(response["jsonrpc"], "2.0");
     assert!(response["result"].is_object());
-}
-
-#[test]
-fn test_service_status_params_serialize() {
-    let params = ServiceStatusParams {
-        status: "running".to_string(),
-        default: true,
-        port: Some(8080),
-        pid: Some(12345),
-    };
-
-    let json = serde_json::to_string(&params).unwrap();
-    assert!(json.contains("running"));
-    assert!(json.contains("8080"));
-    assert!(json.contains("12345"));
-}
-
-#[test]
-fn test_service_status_params_optional_fields() {
-    let json = r#"{
-        "status": "starting"
-    }"#;
-
-    let params: ServiceStatusParams = serde_json::from_str(json).unwrap();
-    assert_eq!(params.status, "starting");
-    assert!(!params.default);
-    assert!(params.port.is_none());
-    assert!(params.pid.is_none());
 }

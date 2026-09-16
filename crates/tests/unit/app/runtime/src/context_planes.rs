@@ -6,11 +6,12 @@
 use std::sync::{Arc, OnceLock};
 
 use systemprompt_analytics::AnalyticsService;
+use systemprompt_config::paths::AppPaths;
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_marketplace::AllowAllFilter;
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::profile::PathsConfig;
-use systemprompt_models::{AppPaths, ContentConfigRaw, RouteClassifier};
+use systemprompt_models::{ContentConfigRaw, RouteClassifier};
 use systemprompt_runtime::{
     AppContext, ConfigPlane, DataPlane, ModuleApiRegistry, Plugins, Subsystems,
 };
@@ -39,11 +40,10 @@ async fn plane_debug_impls_flag_optional_members() {
     let analytics_service = Arc::new(AnalyticsService::new(
         None,
         None,
-        &systemprompt_analytics::repository::AnalyticsRepositories::new(&pool)
-            .expect("repositories"),
+        &systemprompt_test_fixtures::fixture_analytics_repositories(&pool).expect("repositories"),
     ));
     let session_usage: systemprompt_traits::DynSessionUsageCounters =
-        Arc::new(analytics_service.session_repo().clone());
+        analytics_service.session_repo().owner();
     let sqlx_pool = pool.pool_arc().expect("SQLx pool").as_ref().clone();
     let data = DataPlane {
         database: Arc::clone(&pool),
@@ -53,8 +53,14 @@ async fn plane_debug_impls_flag_optional_members() {
         a2a_repositories: Arc::new(
             systemprompt_agent::repository::A2ARepositories::new(
                 &pool,
-                session_usage,
-                systemprompt_identifiers::InstanceId::new("test-instance"),
+                systemprompt_agent::repository::A2aDependencies {
+                    session_usage,
+                    instance_id: systemprompt_identifiers::InstanceId::new("test-instance"),
+                    managed_skills: systemprompt_test_fixtures::not_managed_skills(),
+                    tool_executions: systemprompt_test_fixtures::tool_execution_ledger(
+                        systemprompt_test_fixtures::ToolExecutionLedger::Exists,
+                    ),
+                },
             )
             .expect("a2a repositories"),
         ),
@@ -80,7 +86,7 @@ async fn plane_debug_impls_flag_optional_members() {
             systemprompt_ai::repository::AiRepositories::new(&pool).expect("ai repositories"),
         ),
         analytics_repositories: Arc::new(
-            systemprompt_analytics::repository::AnalyticsRepositories::new(&pool)
+            systemprompt_test_fixtures::fixture_analytics_repositories(&pool)
                 .expect("analytics repositories"),
         ),
         file_repository: Arc::new(
@@ -90,13 +96,22 @@ async fn plane_debug_impls_flag_optional_members() {
             systemprompt_mcp::repository::McpSessionRepository::new(&pool)
                 .expect("mcp session repository"),
         ),
-        managed_repository: Arc::new(systemprompt_marketplace::managed::ManagedRepository::new(
-            sqlx_pool.clone(),
-        )),
-        evaluation_repositories: Arc::new(
-            systemprompt_evaluation::repository::experiments::EvaluationRepositories::new(
-                &sqlx_pool,
+        feedback_snapshots_repository: Arc::new(
+            systemprompt_analytics::snapshots::FeedbackSnapshotsRepository::new(
+                sqlx_pool.clone(),
+                systemprompt_analytics::feedback::FeedbackFactsRepository::new(sqlx_pool.clone()),
             ),
+        ),
+        feedback_facts_repository: Arc::new(
+            systemprompt_analytics::feedback::FeedbackFactsRepository::new(sqlx_pool.clone()),
+        ),
+        managed_repository: Arc::new(
+            systemprompt_marketplace::managed::ManagedRepository::new(&pool)
+                .expect("managed repository"),
+        ),
+        evaluation_repositories: Arc::new(
+            systemprompt_test_fixtures::fixture_evaluation_repositories(&pool)
+                .expect("evaluation repositories"),
         ),
     };
     let dbg = format!("{data:?}");
@@ -128,6 +143,7 @@ async fn plane_debug_impls_flag_optional_members() {
         api_registry: Arc::new(ModuleApiRegistry::new()),
         mcp_registry: RegistryService::new(systemprompt_test_fixtures::fixture_user_id()),
         marketplace_filter: Arc::new(AllowAllFilter),
+        marketplace_cache: Arc::new(systemprompt_marketplace::MarketplaceCache::default()),
     };
     let dbg = format!("{plugins:?}");
     assert!(dbg.contains("Plugins"), "got: {dbg}");
@@ -136,6 +152,8 @@ async fn plane_debug_impls_flag_optional_members() {
     let subsystems = Subsystems {
         system_admin: Arc::new(fixture_system_admin("planeadmin")),
         authz_hook: Arc::new(AllowAllHook::new(Arc::new(NullAuditSink))),
+        governance: systemprompt_test_fixtures::default_governance_engine(),
+        schema_install: Arc::new(systemprompt_database::SchemaInstallReport::default()),
         event_bridge: Arc::new(OnceLock::new()),
         geoip_reader: None,
         file_storage: systemprompt_storage::build_file_storage(
@@ -143,6 +161,10 @@ async fn plane_debug_impls_flag_optional_members() {
             &std::env::temp_dir(),
         ),
         shutdown: Default::default(),
+        publish_guard: Arc::new(tokio::sync::Mutex::new(
+            systemprompt_marketplace::inventory::PublishGuard::default(),
+        )),
+        snapshot_wakeup: Arc::new(systemprompt_runtime::reporting::SnapshotWakeup::default()),
     };
     let dbg = format!("{subsystems:?}");
     assert!(dbg.contains("Subsystems"), "got: {dbg}");

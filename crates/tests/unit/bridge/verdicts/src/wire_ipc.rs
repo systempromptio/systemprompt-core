@@ -6,7 +6,8 @@
 
 use serde_json::{Value, json};
 use systemprompt_bridge::wire::ipc::{
-    BridgeError, ErrorCode, ErrorScope, IpcReplyPayload, IpcRequest, emit_script, reply_script,
+    BridgeError, ErrorCode, ErrorScope, IpcReplyPayload, IpcRequest, ReplyTarget, emit_script,
+    reply_script,
 };
 
 fn json_of<T: serde::Serialize>(v: &T) -> Value {
@@ -22,6 +23,11 @@ fn error_scopes_and_codes_serialise_as_snake_case_the_catalogue_keys_on() {
     assert_eq!(json_of(&ErrorCode::InvalidFormat), json!("invalid_format"));
     assert_eq!(json_of(&ErrorCode::NotFound), json!("not_found"));
     assert_eq!(json_of(&ErrorCode::Unauthorized), json!("unauthorized"));
+    assert_eq!(
+        json_of(&ErrorCode::ElevationRequired),
+        json!("elevation_required")
+    );
+    assert_eq!(json_of(&ErrorCode::Partial), json!("partial"));
 }
 
 #[test]
@@ -81,19 +87,21 @@ fn an_error_reply_carries_the_error_and_no_value_key() {
 
 #[test]
 fn an_ipc_request_without_args_deserialises_to_a_null_value() {
-    let req: IpcRequest =
-        serde_json::from_str(r#"{"id":7,"cmd":"state.refresh"}"#).expect("request parses");
+    let req: IpcRequest = serde_json::from_str(r#"{"mount":1,"id":7,"cmd":"state.refresh"}"#)
+        .expect("request parses");
 
     assert_eq!(req.id, 7);
+    assert_eq!(req.mount, 1);
     assert_eq!(req.cmd, "state.refresh");
     assert_eq!(req.args, Value::Null);
 }
 
 #[test]
 fn an_ipc_request_keeps_its_args_untouched() {
-    let req: IpcRequest =
-        serde_json::from_str(r#"{"id":42,"cmd":"host.probe","args":{"host_id":"codex"}}"#)
-            .expect("request parses");
+    let req: IpcRequest = serde_json::from_str(
+        r#"{"mount":1,"id":42,"cmd":"host.probe","args":{"host_id":"codex"}}"#,
+    )
+    .expect("request parses");
 
     assert_eq!(req.id, 42);
     assert_eq!(req.cmd, "host.probe");
@@ -109,10 +117,15 @@ fn an_ipc_request_missing_its_id_is_rejected() {
 
 #[test]
 fn reply_script_guards_the_bridge_handle_and_embeds_the_id_and_body() {
-    let script = reply_script(9, &IpcReplyPayload::ok(json!({ "a": 1 })));
+    let script = reply_script(
+        ReplyTarget { mount: 4, id: 9 },
+        &IpcReplyPayload::ok(json!({ "a": 1 })),
+    );
 
     assert!(
-        script.starts_with("window.__bridge && window.__bridge.reply && window.__bridge.reply(9, "),
+        script.starts_with(
+            "window.__bridge && window.__bridge.reply && window.__bridge.reply(4, 9, "
+        ),
         "unexpected script: {script}"
     );
     assert!(

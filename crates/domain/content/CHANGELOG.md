@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.53.0] - 2026-09-15
+
+### Added
+
+- `ContentRepository` implements `systemprompt_traits::ContentCatalogStats` (`count_public_pages`), the authoritative public-page count the analytics behavioural classifier reads.
+- The extension installs `reporting_capture.sql` and `reporting_privacy.sql`: a `reporting_source_markdown_content` view, a transactional `reporting_capture` trigger on `markdown_content` that publishes `id,slug,title,source_id` to the `analytics_reporting` outbox consumer, and `lock_content_reporting_sources()` for rebuilds. Migration 003 installs the same on an established database.
+
+### Changed
+
+- `ContentProvider` is a native `async fn` trait implementation (no `#[async_trait]`); category filters are typed `CategoryId`s; `AppPaths` comes from `systemprompt_config::paths`; locales use `LocaleCode::english()`; `validate_config` returns `ExtensionConfigError`.
+
 ## [0.23.0] - 2026-07-24
 
 ### Removed

@@ -142,7 +142,6 @@ mod secrets;
 mod net;
 
 #[cfg(test)]
-mod subprocess;
 #[cfg(test)]
 mod subprocess_deployment_host;
 
@@ -159,6 +158,8 @@ mod content_config;
 
 #[cfg(test)]
 mod services_plugin;
+#[cfg(test)]
+mod services_plugin_dependencies;
 
 #[cfg(test)]
 mod auth_enums;
@@ -236,8 +237,6 @@ mod content_models;
 #[cfg(test)]
 mod services_includable;
 
-#[cfg(test)]
-mod paths_tests;
 
 #[cfg(test)]
 mod schema_gemini_invariants;
@@ -284,6 +283,9 @@ mod ai_template_validation;
 mod events_builders;
 
 #[cfg(test)]
+mod managed_bundle;
+
+#[cfg(test)]
 mod mcp_apps;
 
 #[cfg(test)]
@@ -310,8 +312,6 @@ mod ai_request_response;
 #[cfg(test)]
 mod extension_manifest;
 
-#[cfg(test)]
-mod paths_build;
 
 #[cfg(test)]
 mod events_context_summary;
@@ -321,3 +321,6 @@ mod artifacts_message;
 
 #[cfg(test)]
 mod services_rules;
+
+#[cfg(test)]
+mod feedback_contracts;

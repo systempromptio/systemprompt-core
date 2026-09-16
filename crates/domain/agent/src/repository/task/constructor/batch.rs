@@ -94,15 +94,14 @@ fn build_tasks(params: &BuildTasksParams<'_>) -> Result<Vec<Task>, RepositoryErr
     let mut tasks = Vec::new();
 
     for row in *task_rows {
-        let history = build_messages(messages_by_task.get(&row.task_id), parts_by_message);
-        let artifacts = build_artifacts(artifacts_by_task.get(&row.task_id), artifact_parts_by_id);
-        let execution_steps = build_execution_steps(steps_by_task.get(&row.task_id));
+        let history = build_messages(messages_by_task.get(&row.task_id), parts_by_message)?;
+        let artifacts = build_artifacts(artifacts_by_task.get(&row.task_id), artifact_parts_by_id)?;
+        let execution_steps = build_execution_steps(steps_by_task.get(&row.task_id))?;
 
         let mut metadata = converters::construct_metadata(row);
         metadata.execution_steps = execution_steps;
 
-        let task_state = converters::parse_task_state(&row.status)
-            .map_err(|e| RepositoryError::InvalidData(e.to_string()))?;
+        let task_state = converters::parse_task_state(row)?;
 
         tasks.push(Task {
             id: row.task_id.clone(),

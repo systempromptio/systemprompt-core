@@ -10,6 +10,10 @@
 //! the same folder name dedupes against a managed one, which the bridge cannot
 //! prevent.
 //!
+//! The governance-owning plugin also gets an `OpenCode` plugin module that
+//! reports skill use through the loopback proxy, so `OpenCode` sessions land
+//! in the same invocation ledger as Claude Code sessions.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -19,8 +23,11 @@ use crate::host_sync::{ApplyError, HostSync, HostSyncCtx};
 use crate::integration::managed_skills::{SkillDirPolicy, SkillTarget};
 
 mod config_json;
+mod plugin_js;
 
 use config_json::write_mcp_blocks;
+pub(super) use plugin_js::remove_hook_plugin;
+use plugin_js::write_hook_plugin;
 
 #[derive(Clone, Copy, Debug)]
 pub struct OpenCodeSync;
@@ -45,9 +52,11 @@ impl HostSync for OpenCodeSync {
         if has_content {
             skills().apply(ctx.manifest)?;
             write_mcp_blocks(ctx.loopback, &ctx.manifest.managed_mcp_servers)?;
+            write_hook_plugin(ctx.loopback, ctx.manifest)?;
         } else {
             skills().clear()?;
             write_mcp_blocks(ctx.loopback, &[])?;
+            remove_hook_plugin()?;
         }
         Ok(())
     }
@@ -55,6 +64,7 @@ impl HostSync for OpenCodeSync {
     fn clear(&self, ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
         skills().clear()?;
         write_mcp_blocks(ctx.loopback, &[])?;
+        remove_hook_plugin()?;
         Ok(())
     }
 }

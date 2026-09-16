@@ -7,7 +7,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::error::Result;
+use crate::error::{AiError, Result};
 use std::sync::Arc;
 use systemprompt_identifiers::AgentName;
 use systemprompt_models::RequestContext;
@@ -37,17 +37,29 @@ impl ToolDiscovery {
         agent_name: &AgentName,
         context: &RequestContext,
     ) -> Result<Vec<McpTool>> {
-        self.tool_provider
-            .refresh_connections(agent_name.as_str())
-            .await?;
+        self.tool_provider.refresh_connections(agent_name).await?;
 
         let tool_context = request_context_to_tool_context(context);
-        let definitions = self
+        let inventory = self
             .tool_provider
-            .list_tools(agent_name.as_str(), &tool_context)
+            .list_tools(agent_name, &tool_context)
             .await?;
 
-        Ok(definitions.iter().map(definition_to_mcp_tool).collect())
+        // Why: an agent planning against a partial tool list would silently
+        // lose capabilities; a server that cannot be listed fails discovery.
+        if !inventory.is_complete() {
+            let failed: Vec<String> = inventory
+                .failed_servers
+                .iter()
+                .map(|f| format!("{}: {}", f.server, f.message))
+                .collect();
+            return Err(AiError::ToolDiscovery(format!(
+                "tool inventory for agent {agent_name} is incomplete: {}",
+                failed.join("; ")
+            )));
+        }
+
+        Ok(inventory.tools.iter().map(definition_to_mcp_tool).collect())
     }
 
     pub async fn find_tool_for_agent(
@@ -59,7 +71,7 @@ impl ToolDiscovery {
         let tool_context = request_context_to_tool_context(context);
         let definition = self
             .tool_provider
-            .find_tool(agent_name.as_str(), tool_name, &tool_context)
+            .find_tool(agent_name, tool_name, &tool_context)
             .await?;
 
         Ok(definition.as_ref().map(definition_to_mcp_tool))

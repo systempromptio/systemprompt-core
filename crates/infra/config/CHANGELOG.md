@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.53.0] - 2026-09-15
+
+### Breaking
+
+- **Breaking:** `init_config` and `init_config_from_profile` are removed; `try_init_config` is the one entry point. `SecretsBootstrap::require` (identical to `get`) is removed.
+
+### Added
+
+- `VaultError::Body` — a Vault response whose body could not be read is reported instead of being treated as an empty response.
+- `paths` module: `AppPaths` and the build / system / storage / web path resolvers (previously `systemprompt_models::paths`).
+
+### Fixed
+
+- With the `env` secrets source, only an absent secrets file falls back to the environment; a malformed or unreadable file is reported as `InvalidSecretsFile` instead of silently booting on environment values.
+
 ## [0.52.0] - 2026-09-14
 
 ### Changed

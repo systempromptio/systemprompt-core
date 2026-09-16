@@ -131,8 +131,7 @@ impl SchedulerService {
         let repository = SchedulerRepository::new(&db_pool)?;
         let user_repository = Arc::clone(app_context.user_repository());
         let logging_repository = systemprompt_logging::LoggingRepository::new(&db_pool)
-            .map_err(|e| SchedulerError::Internal(e.to_string()))?
-            .with_database(true);
+            .map_err(|e| SchedulerError::Internal(e.to_string()))?;
         Ok(Self {
             config,
             db_pool,
@@ -155,9 +154,9 @@ impl SchedulerService {
         self.validate_configured_jobs(&registered_jobs)?;
 
         debug!(
-            "Discovered {} jobs via inventory, {} configured",
-            registered_jobs.len(),
-            self.config.jobs.len()
+            discovered = registered_jobs.len(),
+            configured = self.config.jobs.len(),
+            "Discovered jobs via inventory"
         );
         self.warn_unscheduled_jobs(&registered_jobs);
 

@@ -1,29 +1,30 @@
 //! Per-plugin sync application: change detection and materialisation.
 //!
-//! Plugin files are fetched with bounded concurrency. Each per-file future owns
-//! its inputs (a cloned [`GatewayClient`], the bearer, the file entry) rather
-//! than borrowing them: a borrow held across the buffered await trips rustc's
-//! higher-ranked `Send` check once the sync future is spawned. Staging is into
-//! a temporary directory that only becomes the plugin on success, so a failure
-//! part-way leaves the installed plugin untouched.
+//! Plugin files are fetched into a staging directory ([`super::fetch`]) that
+//! only becomes the plugin on success, so a failure part-way leaves the
+//! installed plugin untouched.
+//!
+//! Cancellation is cooperative and lands only between plugins: a plugin that
+//! has started is either promoted or left as it was, never half-swapped.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::hooks::{ensure_plugin_json_managed_fields, write_hooks_json};
+use super::fetch::fetch_plugin_into_staging;
+use super::hooks::{PluginJsonShape, ensure_plugin_json_managed_fields, write_hooks_json};
+use super::node_deps::{self, NodeInstall};
+use super::swap::promote_staged;
 use crate::auth::plugin_oauth::PluginTokenCache;
 use crate::gateway::GatewayClient;
-use crate::gateway::manifest::{HookEntry, PluginEntry, PluginFile, SignedManifest};
-use crate::hash::{normalise_relative, safe_plugin_id, sha256_hex};
-use crate::host_sync::HostWarning;
-use crate::ids::Sha256Digest;
+use crate::gateway::manifest::{HookEntry, PluginEntry, SignedManifest};
+use crate::hash::safe_plugin_id;
+use crate::host_sync::{HostWarning, HostWarnings};
+use crate::ids::{BearerToken, HostId};
 use crate::proxy::LoopbackEndpoint;
-use futures_util::StreamExt;
 use std::collections::{BTreeMap, HashSet};
 use std::fs;
-use std::path::{Path, PathBuf};
-
-const PLUGIN_FILE_FETCH_CONCURRENCY: usize = 8;
+use std::path::Path;
+use tokio_util::sync::CancellationToken;
 
 pub(crate) struct PluginApplyOutcome {
     pub installed: Vec<String>,
@@ -33,27 +34,41 @@ pub(crate) struct PluginApplyOutcome {
     pub host_failures: Vec<HostFailure>,
     pub host_warnings: Vec<HostWarning>,
     pub mcp_servers_by_plugin: BTreeMap<String, Vec<String>>,
+    pub receipts: Vec<crate::fsutil::FileReceipt>,
+}
+
+pub(crate) enum PluginPhase {
+    Complete(PluginApplyOutcome),
+    Cancelled { applied: usize },
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
 #[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
 #[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
 pub struct HostFailure {
-    pub host_id: String,
+    #[cfg_attr(feature = "ts-export", ts(type = "string"))]
+    pub host_id: HostId,
+    pub emitter: String,
     pub error: String,
+    pub needs_elevation: bool,
 }
 
 #[tracing::instrument(level = "debug", skip(ctx, manifest))]
 pub(super) async fn apply_plugins(
     ctx: &PluginSyncCtx<'_>,
     manifest: &SignedManifest,
-) -> Result<PluginApplyOutcome, super::ApplyError> {
+) -> Result<PluginPhase, super::ApplyError> {
     let mut installed = Vec::new();
     let mut updated = Vec::new();
     let mut malformed = Vec::new();
     let mut mcp_servers_by_plugin = BTreeMap::new();
+    let mut receipts = Vec::new();
+    let warnings = HostWarnings::new();
     let total = manifest.plugins.len();
     for (index, plugin) in manifest.plugins.iter().enumerate() {
+        if ctx.cancel.is_cancelled() {
+            return Ok(PluginPhase::Cancelled { applied: index });
+        }
         if !safe_plugin_id(plugin.id.as_str()) {
             return Err(super::ApplyError::UnsafePluginId(plugin.id.clone()));
         }
@@ -63,84 +78,128 @@ pub(super) async fn apply_plugins(
             index + 1,
             total,
         ));
-        match sync_one_plugin(ctx, plugin, &manifest.hooks).await? {
+        let applied = sync_one_plugin(ctx, plugin, &manifest.hooks).await?;
+        receipts.push(applied.hooks_receipt);
+        if let NodeInstall::Skipped { reason } = &applied.node_install {
+            warnings.push(
+                NODE_WARNING_HOST,
+                format!(
+                    "plugin {}: Node packages not installed — {reason}",
+                    plugin.id
+                ),
+            );
+        }
+        match applied.change {
             PluginChange::Installed(id) => installed.push(id),
             PluginChange::Updated(id) => updated.push(id),
         }
-        let servers = extract_mcp_servers(&ctx.root.join(plugin.id.as_str()));
+        let plugin_dir = ctx.root.join(plugin.id.as_str());
+        let servers = extract_mcp_servers(&plugin_dir)?;
         if !servers.is_empty() {
             mcp_servers_by_plugin.insert(plugin.id.to_string(), servers);
         }
-        if !is_well_formed(&ctx.root.join(plugin.id.as_str())) {
-            tracing::warn!(
-                plugin_id = %plugin.id,
-                "synced plugin is missing claude-plugin/plugin.json — Claude Desktop will skip it"
-            );
-            malformed.push(plugin.id.to_string());
+        match applied.manifest_shape {
+            PluginJsonShape::Stamped => {},
+            PluginJsonShape::Absent => {
+                tracing::warn!(
+                    plugin_id = %plugin.id,
+                    "synced plugin is missing claude-plugin/plugin.json — Claude Desktop will skip it"
+                );
+                malformed.push(plugin.id.to_string());
+            },
+            PluginJsonShape::Malformed(detail) => {
+                tracing::warn!(
+                    plugin_id = %plugin.id,
+                    detail = %detail,
+                    "synced plugin.json cannot be read; delivered verbatim and reported"
+                );
+                malformed.push(plugin.id.to_string());
+            },
         }
+    }
+    if ctx.cancel.is_cancelled() {
+        return Ok(PluginPhase::Cancelled { applied: total });
     }
 
     let expected: HashSet<&str> = manifest.plugins.iter().map(|p| p.id.as_str()).collect();
     let removed = remove_stale(ctx.root, &expected)?;
-    if !removed.is_empty() {
-        for id in &removed {
-            ctx.plugin_tokens
-                .invalidate_plugin(&systemprompt_identifiers::PluginId::new(id));
-        }
+    for id in &removed {
+        ctx.plugin_tokens
+            .invalidate_plugin(&systemprompt_identifiers::PluginId::new(id));
     }
 
-    Ok(PluginApplyOutcome {
+    Ok(PluginPhase::Complete(PluginApplyOutcome {
         installed,
         updated,
         removed,
         malformed,
         host_failures: Vec::new(),
-        host_warnings: Vec::new(),
+        host_warnings: warnings.drain(),
         mcp_servers_by_plugin,
-    })
+        receipts,
+    }))
 }
 
 #[derive(serde::Deserialize)]
 struct McpFileProbe {
+    // JSON: `.mcp.json` is Claude Code's own file; only the server names are
+    // read, the per-server bodies are opaque here.
     #[serde(rename = "mcpServers", default)]
     mcp_servers: BTreeMap<String, serde_json::Value>,
 }
 
-fn extract_mcp_servers(plugin_dir: &Path) -> Vec<String> {
+// Why: Claude Desktop would register a bundled `.mcp.json` verbatim, bypassing
+// the loopback proxy; the names are recorded and the file is stripped only
+// once it has parsed — a malformed file stays in place for the operator to see.
+fn extract_mcp_servers(plugin_dir: &Path) -> Result<Vec<String>, super::ApplyError> {
     let path = plugin_dir.join(".mcp.json");
-    let Ok(bytes) = fs::read(&path) else {
-        return Vec::new();
+    let bytes = match fs::read(&path) {
+        Ok(bytes) => bytes,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(source) => {
+            return Err(super::ApplyError::Io {
+                context: format!("read {}", path.display()),
+                source,
+            });
+        },
     };
-    let names = serde_json::from_slice::<McpFileProbe>(&bytes)
+    let names: Vec<String> = serde_json::from_slice::<McpFileProbe>(&bytes)
         .map(|f| f.mcp_servers.into_keys().collect())
-        .unwrap_or_default();
-    if let Err(e) = fs::remove_file(&path) {
-        tracing::warn!(
-            target: "bridge::sync",
-            path = %path.display(),
-            error = %e,
-            "could not strip bundled .mcp.json"
-        );
-    }
-    names
+        .map_err(|e| super::ApplyError::Serialize {
+            what: format!("{} is not valid JSON", path.display()),
+            source: e,
+        })?;
+    crate::fsutil::remove_verified(&path).map_err(|source| super::ApplyError::Io {
+        context: format!("strip bundled {}", path.display()),
+        source,
+    })?;
+    Ok(names)
 }
 
-fn is_well_formed(plugin_dir: &Path) -> bool {
-    super::plugin_manifest_path(plugin_dir).is_some()
-}
+// Why: a Node install serves every host that reads the org-plugins tree, so
+// its warning is filed under the tree rather than under one host.
+const NODE_WARNING_HOST: &str = "org-plugins";
 
 enum PluginChange {
     Installed(String),
     Updated(String),
 }
 
+struct PluginApplied {
+    change: PluginChange,
+    hooks_receipt: crate::fsutil::FileReceipt,
+    manifest_shape: PluginJsonShape,
+    node_install: NodeInstall,
+}
+
 pub(super) struct PluginSyncCtx<'a> {
     pub client: &'a GatewayClient,
-    pub bearer: &'a str,
+    pub bearer: &'a BearerToken,
     pub loopback: &'a LoopbackEndpoint,
     pub plugin_tokens: &'a PluginTokenCache,
     pub root: &'a Path,
     pub staging_root: &'a Path,
+    pub cancel: &'a CancellationToken,
     // Why: borrowing this sink across file-fetch awaits triggers rustc's higher-ranked Send error.
     pub progress: crate::progress::SyncProgressSink,
 }
@@ -150,116 +209,57 @@ async fn sync_one_plugin(
     ctx: &PluginSyncCtx<'_>,
     plugin: &PluginEntry,
     hook_pool: &[HookEntry],
-) -> Result<PluginChange, super::ApplyError> {
+) -> Result<PluginApplied, super::ApplyError> {
     let target = ctx.root.join(plugin.id.as_str());
 
     let stage = ctx.staging_root.join(plugin.id.as_str());
     fetch_plugin_into_staging(ctx.client, ctx.bearer, plugin, &stage).await?;
     super::check_not_superseded(ctx.client.base_url())?;
 
-    let was_present = target.exists();
-    if was_present {
-        fs::remove_dir_all(&target).map_err(|e| super::ApplyError::Io {
-            context: format!("remove old {}", plugin.id),
-            source: e,
+    let was_present = promote_staged(&stage, &target, plugin.id.as_str())?;
+
+    let hooks_receipt = write_hooks_json(ctx.loopback, plugin, &target, hook_pool)?;
+    let manifest_shape = ensure_plugin_json_managed_fields(&target)?;
+    let install_dir = target.clone();
+    let node_install = tokio::task::spawn_blocking(move || node_deps::install(&install_dir))
+        .await
+        .map_err(|error| super::ApplyError::Io {
+            context: format!("run the Node install for {}", plugin.id),
+            source: std::io::Error::other(error),
         })?;
+    if let NodeInstall::Installed { tool } = &node_install {
+        tracing::info!(
+            target: "bridge::sync::node",
+            plugin_id = %plugin.id,
+            tool,
+            "installed the plugin's Node packages from its lockfile"
+        );
     }
-    fs::rename(&stage, &target).map_err(|e| super::ApplyError::Io {
-        context: format!("rename stage→target for {}", plugin.id),
-        source: e,
-    })?;
 
-    write_hooks_json(ctx.loopback, plugin, &target, hook_pool)?;
-    ensure_plugin_json_managed_fields(&target)?;
-
-    Ok(if was_present {
+    let change = if was_present {
         PluginChange::Updated(plugin.id.to_string())
     } else {
         PluginChange::Installed(plugin.id.to_string())
+    };
+    Ok(PluginApplied {
+        change,
+        hooks_receipt,
+        manifest_shape,
+        node_install,
     })
-}
-
-async fn fetch_plugin_into_staging(
-    client: &GatewayClient,
-    bearer: &str,
-    plugin: &PluginEntry,
-    stage: &Path,
-) -> Result<(), super::ApplyError> {
-    fs::create_dir_all(stage).map_err(|e| super::ApplyError::Io {
-        context: format!("create stage {}", stage.display()),
-        source: e,
-    })?;
-    for file in &plugin.files {
-        if file.path.contains("..") || file.path.starts_with('/') || file.path.starts_with('\\') {
-            return Err(super::ApplyError::UnsafePath(file.path.clone()));
-        }
-        let out = stage.join(normalise_relative(&file.path));
-        if let Some(parent) = out.parent() {
-            fs::create_dir_all(parent).map_err(|e| super::ApplyError::Io {
-                context: format!("create parent {}", parent.display()),
-                source: e,
-            })?;
-        }
-    }
-
-    // Why: the stream must own its futures before the first await; an
-    // iterator still borrowing `plugin.files` is a borrow held across the
-    // buffered await, which fails the spawned sync task's `Send` check.
-    let fetches: Vec<_> = plugin
-        .files
-        .iter()
-        .map(|file| {
-            fetch_one_file(
-                client.clone(),
-                bearer.to_owned(),
-                plugin.id.to_string(),
-                file.clone(),
-                stage.join(normalise_relative(&file.path)),
-            )
-        })
-        .collect();
-    let mut fetches =
-        futures_util::stream::iter(fetches).buffer_unordered(PLUGIN_FILE_FETCH_CONCURRENCY);
-    while let Some(fetched) = fetches.next().await {
-        fetched?;
-    }
-    Ok(())
-}
-
-async fn fetch_one_file(
-    client: GatewayClient,
-    bearer: String,
-    plugin_id: String,
-    file: PluginFile,
-    out: PathBuf,
-) -> Result<(), super::ApplyError> {
-    let bytes = client
-        .fetch_plugin_file(&bearer, &plugin_id, &file.path)
-        .await?;
-    let actual = sha256_hex(&bytes);
-    if !sha256_matches(&actual, &file.sha256) {
-        return Err(super::ApplyError::HashMismatch {
-            what: format!("file {plugin_id}/{}", file.path),
-            expected: file.sha256.clone(),
-            actual,
-        });
-    }
-    fs::write(&out, &bytes).map_err(|e| super::ApplyError::Io {
-        context: format!("write {}", out.display()),
-        source: e,
-    })
-}
-
-fn sha256_matches(actual: &str, expected: &Sha256Digest) -> bool {
-    actual == expected.as_str()
 }
 
 fn remove_stale(root: &Path, expected: &HashSet<&str>) -> Result<Vec<String>, super::ApplyError> {
     let mut removed = Vec::new();
-    let Ok(entries) = fs::read_dir(root) else {
-        return Ok(removed);
-    };
-    for entry in entries.flatten() {
+    let entries = fs::read_dir(root).map_err(|source| super::ApplyError::Io {
+        context: format!("enumerate {}", root.display()),
+        source,
+    })?;
+    for entry in entries {
+        let entry = entry.map_err(|source| super::ApplyError::Io {
+            context: format!("enumerate {}", root.display()),
+            source,
+        })?;
         let name = entry.file_name();
         let Some(name_str) = name.to_str() else {
             continue;

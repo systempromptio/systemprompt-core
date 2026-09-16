@@ -31,8 +31,7 @@ pub fn signing_key() -> ManifestSigningResult<&'static SigningKey> {
     let seed = SecretsBootstrap::manifest_signing_secret_seed()
         .map_err(|e| ManifestSigningError::SeedUnavailable(e.to_string()))?;
     let key = SigningKey::from_bytes(&seed);
-    drop(CELL.set(key));
-    CELL.get().ok_or(ManifestSigningError::KeyMissing)
+    Ok(CELL.get_or_init(|| key))
 }
 
 pub fn canonicalize<T: Serialize>(value: &T) -> ManifestSigningResult<String> {

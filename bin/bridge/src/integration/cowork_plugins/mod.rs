@@ -2,6 +2,10 @@
 //! org-provisioned plugin enables in `cowork_settings.json` to the manifest's
 //! plugin list. Pure data in `settings`; IO in `emit`.
 //!
+//! Cowork consumes each plugin's `hooks.json` in place from the org-plugins
+//! tree rather than from a copy, so that file carries the `claude-desktop`
+//! host stamp — stamped here after the enable, not by the sync that wrote it.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -10,7 +14,10 @@ mod prune;
 pub(crate) mod settings;
 mod upsert;
 
-pub use emit::{CoworkTarget, EmitReport, apply_enable, clear_all, pick_target, resolve_target};
+pub use emit::{
+    CoworkTarget, EmitReport, ResolveTargetError, apply_enable, clear_all, pick_target,
+    resolve_target,
+};
 
 pub use settings::{
     SettingsReport, disable_plugin, enable_plugin, enabled_plugins_key, parse_settings,
@@ -23,7 +30,7 @@ use thiserror::Error;
 
 use async_trait::async_trait;
 
-use crate::host_sync::{ApplyError, HostSync, HostSyncCtx};
+use crate::host_sync::{ApplyError, HostSync, HostSyncCtx, stamp_hooks_file};
 
 #[derive(Clone, Copy, Debug)]
 pub struct CoworkSync;
@@ -34,12 +41,20 @@ impl HostSync for CoworkSync {
         "claude-desktop"
     }
 
+    fn emitter_id(&self) -> &'static str {
+        "cowork-plugins"
+    }
+
     async fn apply(&self, ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
-        let Some(target) = resolve_target() else {
+        let Some(target) = resolve_target().map_err(|e| ApplyError::Io {
+            context: "resolve the Cowork session directory".to_owned(),
+            source: std::io::Error::other(e),
+        })?
+        else {
             // Why: Cowork lists a plugin only once `cowork_settings.json` in
             // its session dir enables it, and that dir exists only after
             // Cowork has been opened once.
-            if crate::integration::claude_desktop::is_app_installed() {
+            if crate::integration::claude_desktop::is_app_installed(ctx.start_menu) {
                 ctx.warnings.push(
                     self.host_id(),
                     "Claude Desktop is installed but has not opened Cowork on this machine yet, \
@@ -54,10 +69,35 @@ impl HostSync for CoworkSync {
             return Ok(());
         };
         let plugin_ids: Vec<&str> = ctx.manifest.plugins.iter().map(|p| p.id.as_str()).collect();
+        for id in &plugin_ids {
+            let declares_dependencies =
+                crate::integration::claude_code_cli::foreign::read_plugin_manifest(
+                    &ctx.org_plugins_root.join(id),
+                )
+                .is_some_and(|manifest| !manifest.dependencies.is_empty());
+            if declares_dependencies {
+                ctx.warnings.push(
+                    self.host_id(),
+                    format!(
+                        "plugin {id} declares plugin dependencies; Claude Desktop does not \
+                         resolve them, so only the Claude Code CLI receives them"
+                    ),
+                );
+            }
+        }
         let report = apply_enable(&target, &plugin_ids).map_err(|e| ApplyError::Io {
             context: format!("cowork enable: {e}"),
             source: std::io::Error::other(e.to_string()),
         })?;
+        for id in &plugin_ids {
+            stamp_hooks_file(
+                &ctx.org_plugins_root
+                    .join(id)
+                    .join("hooks")
+                    .join("hooks.json"),
+                self.host_id(),
+            )?;
+        }
         tracing::info!(
             target: "bridge::cowork",
             session_org = ?report.target,
@@ -68,7 +108,11 @@ impl HostSync for CoworkSync {
     }
 
     fn clear(&self, _ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
-        let Some(target) = resolve_target() else {
+        let Some(target) = resolve_target().map_err(|e| ApplyError::Io {
+            context: "resolve the Cowork session directory".to_owned(),
+            source: std::io::Error::other(e),
+        })?
+        else {
             return Ok(());
         };
         clear_all(&target).map_err(|e| ApplyError::Io {

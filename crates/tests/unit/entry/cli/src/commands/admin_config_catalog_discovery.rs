@@ -3,7 +3,11 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use systemprompt_cli::admin::config::catalog::discovery_rows;
-use systemprompt_models::services::DiscoveryReport;
+use systemprompt_models::services::{DiscoveryReport, VertexRateCard};
+
+fn card() -> VertexRateCard {
+    VertexRateCard::embedded().expect("embedded rate card")
+}
 
 fn report() -> DiscoveryReport {
     DiscoveryReport {
@@ -19,7 +23,7 @@ fn report() -> DiscoveryReport {
 
 #[test]
 fn each_bucket_renders_one_row_with_its_own_state() {
-    let rows = discovery_rows(&report());
+    let rows = discovery_rows(&report(), &card());
     let pairs: Vec<(&str, &str)> = rows
         .iter()
         .map(|r| (r.upstream_or_id.as_str(), r.state.as_str()))
@@ -39,7 +43,7 @@ fn each_bucket_renders_one_row_with_its_own_state() {
 // Why: the date is what an operator acts on; a bucket name alone says "soon".
 #[test]
 fn a_rate_card_id_carries_its_documented_retirement_date() {
-    let rows = discovery_rows(&report());
+    let rows = discovery_rows(&report(), &card());
     let retiring = rows
         .iter()
         .find(|r| r.upstream_or_id == "vertex-gemini-2.5-flash")
@@ -54,5 +58,5 @@ fn a_rate_card_id_carries_its_documented_retirement_date() {
 
 #[test]
 fn an_empty_report_renders_no_rows() {
-    assert!(discovery_rows(&DiscoveryReport::default()).is_empty());
+    assert!(discovery_rows(&DiscoveryReport::default(), &card()).is_empty());
 }

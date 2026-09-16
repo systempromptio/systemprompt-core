@@ -6,8 +6,9 @@
 use crate::error::OauthResult as Result;
 use crate::models::cimd::CimdMetadata;
 use reqwest::Client;
+use systemprompt_client::{GuardedClientConfig, guarded_client};
 use systemprompt_identifiers::ClientId;
-use systemprompt_models::net::{GuardedClientConfig, HTTP_AUTH_VERIFY_TIMEOUT, guarded_client};
+use systemprompt_models::net::HTTP_AUTH_VERIFY_TIMEOUT;
 
 #[derive(Debug)]
 pub struct CimdFetcher {

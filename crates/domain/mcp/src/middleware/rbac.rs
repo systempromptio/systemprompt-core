@@ -95,16 +95,7 @@ pub async fn enforce_rbac_from_registry(
     let header_dump = mcp_context
         .extensions
         .get::<http::request::Parts>()
-        .map(|p| {
-            p.headers
-                .iter()
-                .filter(|(k, _)| {
-                    let name = k.as_str();
-                    name.starts_with("x-") || name == "authorization" || name == "mcp-session-id"
-                })
-                .map(|(k, v)| format!("{}: {}", k, v.to_str().unwrap_or("?")))
-                .collect::<Vec<_>>()
-        });
+        .map(diagnostic_headers);
 
     let services_config = ConfigLoader::load().map_err(|e| {
         tracing::error!(server = %server_name, headers = ?header_dump, error = %e, "Failed to load services config");
@@ -129,13 +120,24 @@ pub async fn enforce_rbac_from_registry(
         return Ok(AuthResult::Anonymous(request_context));
     }
 
-    if let Some(auth_result) = try_proxy_verified_auth(
+    let server_id = McpServerId::try_new(server_name).map_err(|e| {
+        McpError::invalid_request(
+            format!("invalid MCP server name '{server_name}': {e}"),
+            None,
+        )
+    })?;
+    let floor = member_attribute_floor(&services_config, EntityKind::McpServer, server_name);
+
+    if let Some(proxy_auth) = try_proxy_verified_auth(
         mcp_context.extensions.get::<http::request::Parts>(),
         request_context.clone(),
         oauth_config,
         server_name,
     )? {
-        return Ok(auth_result);
+        let authz_request =
+            proxy::build_proxy_authz_request(&server_id, &proxy_auth.context, floor.as_ref());
+        enforce_authz_for_server(server_name, authz_request, hook).await?;
+        return Ok(AuthResult::Authenticated(proxy_auth));
     }
 
     let token = extract_bearer_token(mcp_context)?.ok_or_else(|| {
@@ -155,9 +157,8 @@ pub async fn enforce_rbac_from_registry(
 
     let act_chain = extract_act_chain(&claims);
 
-    let floor = member_attribute_floor(&services_config, EntityKind::McpServer, server_name);
     let authz_request = build_mcp_authz_request(
-        server_name,
+        &server_id,
         &claims,
         act_chain.clone(),
         &request_context.execution,
@@ -170,6 +171,26 @@ pub async fn enforce_rbac_from_registry(
     Ok(AuthResult::Authenticated(authenticated_context))
 }
 
+// Why: the dump exists to diagnose failed auth; the bearer credential must
+// never reach the log, so only its presence is recorded.
+fn diagnostic_headers(parts: &http::request::Parts) -> Vec<String> {
+    parts
+        .headers
+        .iter()
+        .filter(|(k, _)| {
+            let name = k.as_str();
+            name.starts_with("x-") || name == "authorization" || name == "mcp-session-id"
+        })
+        .map(|(k, v)| {
+            if k == http::header::AUTHORIZATION {
+                format!("{k}: <redacted>")
+            } else {
+                format!("{k}: {}", v.to_str().unwrap_or("?"))
+            }
+        })
+        .collect()
+}
+
 fn extract_act_chain(claims: &JwtClaims) -> Vec<Actor> {
     claims
         .act
@@ -180,7 +201,7 @@ fn extract_act_chain(claims: &JwtClaims) -> Vec<Actor> {
 
 #[must_use]
 pub fn build_mcp_authz_request(
-    server_name: &str,
+    server_id: &McpServerId,
     claims: &JwtClaims,
     act_chain: Vec<Actor>,
     execution: &ExecutionContext,
@@ -191,9 +212,9 @@ pub fn build_mcp_authz_request(
     });
     let user_id = UserId::new(claims.sub.clone());
     AuthzRequest {
-        entity: EntityRef::McpServer(McpServerId::new(server_name)),
+        entity: EntityRef::McpServer(server_id.clone()),
         user_id: user_id.clone(),
-        actor: Some(Actor::mcp(user_id, server_name)),
+        actor: Some(Actor::mcp(user_id, server_id.as_str())),
         client_id: claims.client_id.clone(),
         access_scope: None,
         roles: claims.roles.clone(),

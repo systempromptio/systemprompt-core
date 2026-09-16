@@ -36,7 +36,11 @@ use systemprompt_models::bridge::manifest::{
     AgentEntry, ArtifactEntry, ManagedMcpServer, RuleEntry, SkillEntry,
 };
 use systemprompt_models::bridge::plugin_bundle::{
-    ManifestAuthor, PLUGIN_MANIFEST_RELPATH, PluginManifest, bundle_has_manifest,
+    ManifestAuthor, ManifestDependency, PLUGIN_MANIFEST_RELPATH, PluginManifest,
+    bundle_has_manifest,
+};
+pub use systemprompt_models::bridge::plugin_bundle::{
+    NODE_LOCKFILES, NODE_PACKAGE_FILE, node_lockfile,
 };
 use systemprompt_models::services::PluginConfig;
 
@@ -82,11 +86,10 @@ pub fn build_plugin_bundle(
     let mut bundle = PluginBundle::new();
 
     let agent_ids = resolve_agents(config, content.agents);
-    skills::append_skill_files(config, content, &agent_ids, &mut bundle);
+    skills::append_skill_files(config, content, &agent_ids, &mut bundle)?;
     rules::append_rule_files(config, content, &mut bundle);
     agents::append_agent_files(content.agents, &agent_ids, &mut bundle);
-    artifacts::append_artifact_files(config, content, &mut bundle);
-    rules::append_rule_files(config, content, &mut bundle);
+    artifacts::append_artifact_files(config, content, &mut bundle)?;
     mcp::append_mcp_file(
         config,
         content.mcp_servers,
@@ -94,6 +97,7 @@ pub fn build_plugin_bundle(
         &mut bundle,
     )?;
     append_script_files(config, content.plugins_root, &mut bundle)?;
+    append_package_files(config, content.plugins_root, &mut bundle)?;
 
     let version = content_version(&config.version, &bundle);
     let manifest = build_manifest(config, &version);
@@ -128,8 +132,40 @@ fn build_manifest(config: &PluginConfig, version: &str) -> PluginManifest {
         hooks: Some(HOOKS_RELPATH.to_owned()),
         keywords: config.keywords.clone(),
         installation_preference: None,
+        dependencies: config
+            .dependencies
+            .iter()
+            .map(ManifestDependency::from)
+            .collect(),
         ..PluginManifest::default()
     }
+}
+
+fn append_package_files(
+    config: &PluginConfig,
+    plugins_root: &Path,
+    bundle: &mut PluginBundle,
+) -> Result<(), MarketplaceError> {
+    let dir = plugins_root.join(config.id.as_str());
+    let package = dir.join(NODE_PACKAGE_FILE);
+    if !package.is_file() {
+        return Ok(());
+    }
+    let Some(lockfile) = node_lockfile(&dir) else {
+        return Ok(());
+    };
+    for name in [NODE_PACKAGE_FILE, lockfile] {
+        let bytes =
+            std::fs::read(dir.join(name)).map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
+        bundle.insert(
+            name.to_owned(),
+            BundleFile {
+                bytes,
+                executable: false,
+            },
+        );
+    }
+    Ok(())
 }
 
 fn content_version(base: &str, bundle: &PluginBundle) -> String {
@@ -157,7 +193,13 @@ fn append_script_files(
         if !source.is_file() {
             continue;
         }
-        let bytes = std::fs::read(&source).map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
+        let bytes = std::fs::read(&source).map_err(|e| {
+            MarketplaceError::Catalog(format!(
+                "plugin '{}' script {}: {e}",
+                config.id,
+                source.display()
+            ))
+        })?;
         bundle.insert(
             format!("scripts/{}", script.name),
             BundleFile {

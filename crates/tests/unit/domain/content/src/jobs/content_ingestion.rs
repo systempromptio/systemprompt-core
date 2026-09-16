@@ -6,11 +6,11 @@
 //! no-enabled-sources short-circuit.
 
 use std::collections::HashMap;
+use systemprompt_config::paths::AppPaths;
 use systemprompt_content::execute_content_ingestion;
 use systemprompt_content::repository::ContentRepository;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{CategoryId, LocaleCode, SourceId};
-use systemprompt_models::AppPaths;
 use systemprompt_models::content_config::{
     ContentConfigRaw, ContentSourceConfigRaw, IndexingConfig,
 };
@@ -111,7 +111,7 @@ async fn ingests_enabled_source_into_content_store() {
 
     let repo = ContentRepository::new(&pool).expect("repo");
     let stored = repo
-        .get_by_source_and_slug(&source_id, &slug, &LocaleCode::new("en"))
+        .get_by_source_and_slug(&source_id, &slug, &LocaleCode::english())
         .await
         .expect("query")
         .expect("ingested row present");
@@ -165,7 +165,7 @@ async fn relative_source_path_resolves_and_per_file_errors_are_logged() {
 
     let repo = ContentRepository::new(&pool).expect("repo");
     let stored = repo
-        .get_by_source_and_slug(&source_id, &good_slug, &LocaleCode::new("en"))
+        .get_by_source_and_slug(&source_id, &good_slug, &LocaleCode::english())
         .await
         .expect("query");
     assert!(
@@ -217,7 +217,7 @@ async fn skill_sources_are_filtered_out() {
 
     let repo = ContentRepository::new(&pool).expect("repo");
     let stored = repo
-        .get_by_source_and_slug(&source_id, &slug, &LocaleCode::new("en"))
+        .get_by_source_and_slug(&source_id, &slug, &LocaleCode::english())
         .await
         .expect("query");
     assert!(stored.is_none(), "skill source must not be ingested");

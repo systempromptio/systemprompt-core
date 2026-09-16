@@ -14,7 +14,6 @@
 use crate::error::McpDomainResult;
 use std::collections::HashSet;
 use std::sync::Arc;
-use systemprompt_database::DbPool;
 use systemprompt_traits::{StartupEvent, StartupEventSender};
 use tracing::Instrument;
 
@@ -22,7 +21,6 @@ use super::event_bus::EventBus;
 use super::process_cleanup::{
     detect_and_handle_orphaned_processes, detect_and_handle_stale_binaries,
 };
-use super::schema_sync::validate_schemas;
 use super::server_startup::{StartPendingServersParams, start_pending_servers};
 use crate::McpServerConfig;
 use crate::services::database::DatabaseService;
@@ -36,7 +34,6 @@ pub struct ReconcileParams<'a> {
     pub database: &'a DatabaseService,
     pub lifecycle: &'a LifecycleOrchestrator,
     pub event_bus: &'a Arc<EventBus>,
-    pub db_pool: &'a DbPool,
     pub registry: &'a RegistryService,
     pub events: Option<&'a StartupEventSender>,
 }
@@ -46,7 +43,6 @@ pub(super) async fn reconcile(params: ReconcileParams<'_>) -> McpDomainResult<us
         database,
         lifecycle,
         event_bus,
-        db_pool,
         registry,
         events,
     } = params;
@@ -63,7 +59,6 @@ pub(super) async fn reconcile(params: ReconcileParams<'_>) -> McpDomainResult<us
             notify_cleanup(events, deleted, "no longer enabled in configuration");
         }
 
-        validate_schemas(&enabled_servers, db_pool).await?;
         database.sync_state(&enabled_servers).await?;
         cleanup_orphaned_and_stale(database, &enabled_servers, events).await?;
 
@@ -163,7 +158,7 @@ async fn kill_single_server(
     server_name: &str,
     events: Option<&StartupEventSender>,
 ) -> McpDomainResult<()> {
-    if let Ok(Some(service_info)) = database.get_service_by_name(server_name).await {
+    if let Some(service_info) = database.get_service_by_name(server_name).await? {
         if let Some(pid) = service_info.pid {
             if let Some(tx) = events
                 && let Err(e) = tx.unbounded_send(StartupEvent::McpServiceCleanup {

@@ -27,6 +27,7 @@ impl std::fmt::Debug for AppContext {
             .field("system_admin", &self.subsystems.system_admin.username())
             .field("mcp_registry", &"RegistryService")
             .field("authz_hook", &"SharedAuthzHook")
+            .field("governance", &self.subsystems.governance)
             .finish()
     }
 }
@@ -45,6 +46,11 @@ impl std::fmt::Debug for DataPlane {
             .field("service_repository", &"ServiceRepository")
             .field("ai_repositories", &"AiRepositories")
             .field("analytics_repositories", &"AnalyticsRepositories")
+            .field(
+                "feedback_snapshots_repository",
+                &"FeedbackSnapshotsRepository",
+            )
+            .field("feedback_facts_repository", &"FeedbackFactsRepository")
             .field("file_repository", &"FileRepository")
             .field("mcp_session_repository", &"McpSessionRepository")
             .field("managed_repository", &"ManagedRepository")
@@ -71,6 +77,7 @@ impl std::fmt::Debug for Plugins {
             .field("api_registry", &"ModuleApiRegistry")
             .field("mcp_registry", &"RegistryService")
             .field("marketplace_filter", &self.marketplace_filter)
+            .field("marketplace_cache", &self.marketplace_cache)
             .finish()
     }
 }
@@ -80,10 +87,14 @@ impl std::fmt::Debug for Subsystems {
         f.debug_struct("Subsystems")
             .field("system_admin", &self.system_admin.username())
             .field("authz_hook", &"SharedAuthzHook")
+            .field("governance", &self.governance)
+            .field("schema_install_clean", &self.schema_install.is_clean())
             .field("event_bridge", &self.event_bridge.get().is_some())
             .field("geoip_reader", &self.geoip_reader.is_some())
             .field("file_storage", &"FileStorage")
             .field("shutdown", &"ShutdownRequest")
+            .field("publish_guard", &"Mutex<PublishGuard>")
+            .field("snapshot_wakeup", &self.snapshot_wakeup)
             .finish()
     }
 }

@@ -93,14 +93,11 @@ async fn issue_anonymous_session(
 
 fn build_session_service(state: &OAuthState) -> SessionCreationService {
     let mut session_service = SessionCreationService::new(
-        Arc::clone(state.analytics_provider()),
+        Arc::clone(state.session_provider()),
         Arc::clone(state.user_provider()),
     );
     if let Some(fp_provider) = state.fingerprint_provider() {
         session_service = session_service.with_fingerprint_provider(Arc::clone(fp_provider));
-    }
-    if let Some(event_publisher) = state.event_publisher() {
-        session_service = session_service.with_event_publisher(Arc::clone(event_publisher));
     }
     session_service
 }

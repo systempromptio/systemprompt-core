@@ -59,9 +59,6 @@ impl CatalogSource for VertexCatalog {
         !self.publishers(provider).is_empty() && vertex_host(&provider.endpoint).is_some()
     }
 
-    // Why: a provider keyed with something other than a service account is not
-    // a discovery failure — it is an API key, and Vertex is simply not
-    // reachable that way.
     fn applies(&self, provider: &ProviderEntry, credential: &ProviderCredential) -> bool {
         self.matches_provider(provider) && credential.kind() == CredentialKind::GoogleServiceAccount
     }

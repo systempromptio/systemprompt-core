@@ -84,7 +84,7 @@ pub async fn wait_for_startup(
             )));
         }
 
-        if !NetworkService::is_port_responsive(config.port) {
+        if !NetworkService::is_port_responsive(config.port).await {
             continue;
         }
 

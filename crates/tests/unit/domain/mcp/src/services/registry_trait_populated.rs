@@ -1,10 +1,10 @@
 //! Provider-trait impls on `RegistryService` over a POPULATED registry: the
 //! Some/success arms that the config-error smoke tests never reach.
 
-use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId};
+use systemprompt_identifiers::{AgentName, ContextId, McpServerId, SessionId, TraceId};
 use systemprompt_mcp::RegistryService;
 use systemprompt_models::RequestContext;
-use systemprompt_models::mcp::{McpRegistry, McpToolProvider};
+use systemprompt_models::mcp::{McpRegistry, McpServerStatus, McpToolProvider};
 use systemprompt_test_fixtures::fixture_user_id;
 use systemprompt_traits::McpRegistryProvider;
 use wiremock::MockServer;
@@ -19,18 +19,19 @@ fn ctx() -> RequestContext {
         SessionId::new("s-rtp"),
         TraceId::new("t-rtp"),
         ContextId::generate(),
-        AgentName::new("agent-rtp"),
+        AgentName::try_new("agent-rtp").expect("valid AgentName"),
     )
 }
 
-async fn populated_registry() -> (RegistryService, String, MockServer) {
+async fn populated_registry() -> (RegistryService, McpServerId, MockServer) {
     let mock = MockServer::start().await;
     mount_mcp_endpoint(&mock, default_tools_json()).await;
 
-    let name = format!("rtp_{}", uuid::Uuid::new_v4().simple());
+    let name = McpServerId::try_new(format!("rtp_{}", uuid::Uuid::new_v4().simple()))
+        .expect("valid McpServerId");
     let _bootstrap = bootstrap_with_services(&config_with_servers(&[external_server_block(
         &ExternalServerSpec {
-            name: &name,
+            name: name.as_str(),
             endpoint: &format!("{}/mcp", mock.uri()),
             oauth_required: false,
             enabled: true,
@@ -48,7 +49,7 @@ async fn registry_find_server_returns_state_for_known_server() {
         .expect("registry reachable")
         .expect("server known");
     assert_eq!(state.name, name);
-    assert_eq!(state.status, "unknown");
+    assert_eq!(state.status, McpServerStatus::Unknown);
 
     let servers = McpRegistry::list_servers(&registry)
         .await
@@ -81,10 +82,10 @@ async fn tool_provider_trait_lists_tools_from_scripted_server() {
 async fn registry_provider_reports_server_info_and_enabled_set() {
     let (registry, name, _mock) = populated_registry().await;
 
-    let info = McpRegistryProvider::get_server(&registry, &name)
+    let info = McpRegistryProvider::get_server(&registry, name.as_str())
         .await
         .expect("server info");
-    assert_eq!(info.name, name);
+    assert_eq!(info.name, name.as_str());
     assert!(info.enabled);
     assert!(!info.oauth.required);
     assert_eq!(info.oauth.audience, "mcp");
@@ -93,5 +94,5 @@ async fn registry_provider_reports_server_info_and_enabled_set() {
         .list_enabled_servers()
         .await
         .expect("enabled servers");
-    assert!(enabled.iter().any(|s| s.name == name));
+    assert!(enabled.iter().any(|s| s.name == name.as_str()));
 }

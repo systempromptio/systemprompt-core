@@ -28,7 +28,9 @@ pub use media_types::{
 };
 pub use models::{ModelConfig, ToolModelConfig, ToolModelOverrides};
 pub use request::{AiContentPart, AiMessage, AiRequest, AiRequestBuilder, MessageRole};
-pub use response::{AiResponse, SearchGroundedResponse, StreamChunk, UrlMetadata, WebSource};
+pub use response::{
+    AiResponse, SafetyRating, SearchGroundedResponse, StreamChunk, UrlMetadata, WebSource,
+};
 pub use response_format::{ResponseFormat, StructuredOutputOptions};
 pub use sampling::{ModelHint, ModelPreferences, ProviderConfig, SamplingParams};
 pub use template_resolver::TemplateResolver;

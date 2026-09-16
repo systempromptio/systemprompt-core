@@ -22,39 +22,42 @@
 //! | `security` | `systemprompt-security` | JWT, scope/RBAC, secret scanning, rate limit. |
 //! | `cli` | `systemprompt-cli` | The `systemprompt` CLI as a library entry point. |
 //! | `runtime` | `cli` + extension injection | `RuntimeBuilder` for embedding with custom extensions. |
-//! | `full` | All of the above plus all domain crates (`agent`, `ai`, `mcp`, `oauth`, `users`, `content`, `analytics`, `evaluation`, `scheduler`, `generator`, `files`) | Building a product binary. |
+//! | `analytics` | `systemprompt-analytics` | Request, conversation, agent, tool, and cost metrics without the rest of `full`. |
+//! | `evaluation` | `systemprompt-evaluation` | Judge runs over production traffic, replay, auto-improve loop. |
+//! | `slack` | `systemprompt-slack` | Slack Events API, slash commands, interactivity. Opt-in: not part of `full`. |
+//! | `teams` | `systemprompt-teams` | Microsoft Teams Bot Framework activities. Opt-in: not part of `full`. |
+//! | `full` | `api`, `mcp`, `cloud`, `cli`, `config`, `logging`, `loader`, `events`, `storage`, `client`, `security`, `analytics`, `evaluation`, and the domain crates (`agent`, `ai`, `mcp`, `oauth`, `users`, `content`, `marketplace`, `scheduler`, `generator`, `files`) | Building a product binary. `slack` and `teams` stay opt-in. |
 //!
 //! ```toml
-//! systemprompt = { version = "0.52.0", features = ["full"] }
+//! systemprompt = { version = "0.53.0", features = ["full"] }
 //! ```
+//!
+//! Every crate is reachable as a module of the same name
+//! (`systemprompt::models`, `systemprompt::agent`, …) gated on its feature. The
+//! curated [`prelude`] is opt-in — `use systemprompt::prelude::*` — and is not
+//! re-exported at the crate root, so the root namespace stays the module map.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-/// Includes `LlmProvider`, `ToolProvider`, `Job`, and the typed error
-/// contracts (`ApiError`, `ExtensionError`, `McpErrorData`).
 #[cfg(feature = "core")]
 #[cfg_attr(docsrs, doc(cfg(feature = "core")))]
 pub mod traits {
     pub use systemprompt_traits::*;
 }
 
-/// I/O-free: config structs, profile types, domain DTOs.
 #[cfg(feature = "core")]
 #[cfg_attr(docsrs, doc(cfg(feature = "core")))]
 pub mod models {
     pub use systemprompt_models::*;
 }
 
-/// `UserId`, `AgentId`, `TaskId`, `TraceId`, and the rest of the wrappers.
 #[cfg(feature = "core")]
 #[cfg_attr(docsrs, doc(cfg(feature = "core")))]
 pub mod identifiers {
     pub use systemprompt_identifiers::*;
 }
 
-/// Compile-time extension framework: the `Extension` trait, typed variants,
-/// `register_extension!` macro, and registry.
 #[cfg(feature = "core")]
 #[cfg_attr(docsrs, doc(cfg(feature = "core")))]
 pub mod extension {
@@ -69,15 +72,12 @@ pub mod template_provider {
     pub use systemprompt_template_provider::*;
 }
 
-/// SQLx-backed database abstraction: `DbPool`, `DatabaseProvider`,
-/// repositories, introspection.
 #[cfg(feature = "database")]
 #[cfg_attr(docsrs, doc(cfg(feature = "database")))]
 pub mod database {
     pub use systemprompt_database::*;
 }
 
-/// Tracing/logging setup helpers (startup-mode gating, layered subscribers).
 #[cfg(feature = "logging")]
 #[cfg_attr(docsrs, doc(cfg(feature = "logging")))]
 pub mod logging {
@@ -93,14 +93,12 @@ pub mod config {
     pub use systemprompt_config::*;
 }
 
-/// Filesystem and module discovery for services, plugins, and config files.
 #[cfg(feature = "loader")]
 #[cfg_attr(docsrs, doc(cfg(feature = "loader")))]
 pub mod loader {
     pub use systemprompt_loader::*;
 }
 
-/// In-process event bus and SSE broadcasting.
 #[cfg(feature = "events")]
 #[cfg_attr(docsrs, doc(cfg(feature = "events")))]
 pub mod events {
@@ -113,16 +111,12 @@ pub mod storage {
     pub use systemprompt_storage::*;
 }
 
-/// HTTP API client used by the CLI and external tooling to drive a running
-/// instance.
 #[cfg(feature = "client")]
 #[cfg_attr(docsrs, doc(cfg(feature = "client")))]
 pub mod client {
     pub use systemprompt_client::*;
 }
 
-/// Security primitives: JWT verification, scope/RBAC, secret scanning,
-/// rate-limit middleware.
 #[cfg(feature = "security")]
 #[cfg_attr(docsrs, doc(cfg(feature = "security")))]
 pub mod security {
@@ -137,23 +131,18 @@ pub mod system {
     pub use systemprompt_runtime::*;
 }
 
-/// HTTP server entry: Axum router, middleware stack, listener bootstrap.
 #[cfg(feature = "api")]
 #[cfg_attr(docsrs, doc(cfg(feature = "api")))]
 pub mod api {
     pub use systemprompt_api::*;
 }
 
-/// CLI entry surface: `run`, `CliConfig`, `OutputFormat`, `ColorMode`,
-/// `VerbosityLevel`.
 #[cfg(feature = "cli")]
 #[cfg_attr(docsrs, doc(cfg(feature = "cli")))]
 pub mod cli {
     pub use systemprompt_cli::{CliConfig, ColorMode, OutputFormat, VerbosityLevel, run};
 }
 
-/// `RuntimeBuilder` for embedding the platform with compile-time injected
-/// extensions and a custom web-asset strategy.
 #[cfg(feature = "runtime")]
 #[cfg_attr(docsrs, doc(cfg(feature = "runtime")))]
 pub mod runtime;
@@ -170,66 +159,54 @@ pub use runtime::WebAssets;
 #[cfg_attr(docsrs, doc(cfg(feature = "runtime")))]
 pub use runtime::RuntimeError;
 
-/// Agent-to-Agent (A2A) protocol: message types, task lifecycle, streaming
-/// server, agent registry.
 #[cfg(feature = "full")]
 #[cfg_attr(docsrs, doc(cfg(feature = "full")))]
 pub mod agent {
     pub use systemprompt_agent::*;
 }
 
-/// Provider selection, request/response types, cost accounting.
 #[cfg(feature = "full")]
 #[cfg_attr(docsrs, doc(cfg(feature = "full")))]
 pub mod ai {
     pub use systemprompt_ai::*;
 }
 
-/// Server orchestrator, network/proxy layer, RBAC middleware.
 #[cfg(feature = "full")]
 #[cfg_attr(docsrs, doc(cfg(feature = "full")))]
 pub mod mcp {
     pub use systemprompt_mcp::{register_artifact_theme, register_ui_renderer, *};
 }
 
-/// OAuth2, OIDC, and WebAuthn flows.
 #[cfg(feature = "full")]
 #[cfg_attr(docsrs, doc(cfg(feature = "full")))]
 pub mod oauth {
     pub use systemprompt_oauth::*;
 }
 
-/// Accounts, roles, scopes.
 #[cfg(feature = "full")]
 #[cfg_attr(docsrs, doc(cfg(feature = "full")))]
 pub mod users {
     pub use systemprompt_users::*;
 }
 
-/// Pages, articles, markdown ingestion.
 #[cfg(feature = "full")]
 #[cfg_attr(docsrs, doc(cfg(feature = "full")))]
 pub mod content {
     pub use systemprompt_content::*;
 }
 
-/// Request, conversation, agent, tool, and cost metrics.
 #[cfg(feature = "analytics")]
 #[cfg_attr(docsrs, doc(cfg(feature = "analytics")))]
 pub mod analytics {
     pub use systemprompt_analytics::*;
 }
 
-/// Evaluation framework: judge runs over production AI traffic, failure
-/// replay with repair hints, and the auto-improve loop.
 #[cfg(feature = "evaluation")]
 #[cfg_attr(docsrs, doc(cfg(feature = "evaluation")))]
 pub mod evaluation {
     pub use systemprompt_evaluation::*;
 }
 
-/// The `MarketplaceFilter` trait, which gates per-user visibility of plugins,
-/// skills, agents, and managed MCP servers in the bridge manifest.
 #[cfg(feature = "full")]
 #[cfg_attr(docsrs, doc(cfg(feature = "full")))]
 pub mod marketplace {
@@ -242,22 +219,18 @@ pub mod scheduler {
     pub use systemprompt_scheduler::*;
 }
 
-/// Inbound Events API, slash commands, and Block Kit interactivity dispatched
-/// to governed agents.
 #[cfg(feature = "slack")]
 #[cfg_attr(docsrs, doc(cfg(feature = "slack")))]
 pub mod slack {
     pub use systemprompt_slack::*;
 }
 
-/// Inbound Bot Framework activities, token validation, Adaptive Card rendering.
 #[cfg(feature = "teams")]
 #[cfg_attr(docsrs, doc(cfg(feature = "teams")))]
 pub mod teams {
     pub use systemprompt_teams::*;
 }
 
-/// Tera-based renderer driving the `web` CLI domain.
 #[cfg(feature = "full")]
 #[cfg_attr(docsrs, doc(cfg(feature = "full")))]
 pub mod generator {
@@ -270,7 +243,6 @@ pub mod files {
     pub use systemprompt_files::*;
 }
 
-/// Credentials bootstrap, tenant management, deployment.
 #[cfg(feature = "cloud")]
 #[cfg_attr(docsrs, doc(cfg(feature = "cloud")))]
 pub mod cloud {
@@ -296,14 +268,10 @@ pub mod profile {
     };
 }
 
-/// Loads OAuth client credentials and tenant identity at startup.
 #[cfg(feature = "cloud")]
 #[cfg_attr(docsrs, doc(cfg(feature = "cloud")))]
 pub mod credentials {
     pub use systemprompt_cloud::{CredentialsBootstrap, CredentialsBootstrapError};
 }
 
-/// Curated re-exports for `use systemprompt::prelude::*`.
 pub mod prelude;
-
-pub use crate::prelude::*;

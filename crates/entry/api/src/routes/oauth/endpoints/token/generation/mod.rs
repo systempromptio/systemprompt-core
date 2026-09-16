@@ -81,7 +81,7 @@ pub async fn generate_tokens_by_user_id(
     let user_perms = user.permissions().to_vec();
     let final_permissions = resolve_user_permissions(&requested_permissions, &user_perms)?;
     let session_service = systemprompt_oauth::services::SessionCreationService::new(
-        Arc::clone(state.analytics_provider()),
+        Arc::clone(state.session_provider()),
         Arc::clone(state.user_provider()),
     );
     let analytics = state.analytics_provider().extract_analytics(
@@ -151,7 +151,7 @@ async fn create_jwt_and_refresh_token(
         permissions,
         audience: global_config.jwt_audiences.clone(),
         resource: params.resource.map(String::from),
-        expires_in_hours: Some(global_config.jwt_access_token_expiration / 3600),
+        expires_in: chrono::Duration::seconds(global_config.jwt_access_token_expiration),
         plugin_id: None,
         client_id: Some(params.client_id.clone()),
     };

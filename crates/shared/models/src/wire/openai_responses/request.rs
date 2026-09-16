@@ -22,6 +22,7 @@ pub fn build_request_body(
     request: &CanonicalRequest,
     upstream_model: &str,
     limits: Option<ModelLimits>,
+    // JSON: OpenAI Responses API request body; upstream JSON is the contract.
 ) -> Value {
     let mut input: Vec<Value> = Vec::new();
     for msg in &request.messages {
@@ -109,6 +110,7 @@ fn reasoning_effort(request: &CanonicalRequest) -> Option<&'static str> {
     })
 }
 
+// JSON: OpenAI Responses API request body; upstream JSON is the contract.
 fn response_format_to_responses(format: &ResponseFormat) -> Value {
     match format {
         ResponseFormat::JsonObject => json!({ "type": "json_object" }),
@@ -125,6 +127,7 @@ fn response_format_to_responses(format: &ResponseFormat) -> Value {
     }
 }
 
+// JSON: OpenAI Responses API request body; upstream JSON is the contract.
 fn web_search_tool(search: &SearchConfig) -> Value {
     let mut t = Map::new();
     t.insert("type".into(), Value::String("web_search".into()));
@@ -134,6 +137,7 @@ fn web_search_tool(search: &SearchConfig) -> Value {
     Value::Object(t)
 }
 
+// JSON: OpenAI Responses API request body; upstream JSON is the contract.
 fn tool_result_to_output(part: &CanonicalContent) -> Option<Value> {
     if let CanonicalContent::ToolResult {
         tool_use_id,
@@ -151,10 +155,12 @@ fn tool_result_to_output(part: &CanonicalContent) -> Option<Value> {
     }
 }
 
+// JSON: OpenAI Responses API request body; upstream JSON is the contract.
 fn render_tool_message(msg: &CanonicalMessage, input: &mut Vec<Value>) {
     input.extend(msg.content.iter().filter_map(tool_result_to_output));
 }
 
+// JSON: OpenAI Responses API request body; upstream JSON is the contract.
 fn render_assistant_message(msg: &CanonicalMessage, input: &mut Vec<Value>) {
     let mut text = String::new();
     let mut tool_calls: Vec<Value> = Vec::new();
@@ -213,6 +219,7 @@ fn render_assistant_message(msg: &CanonicalMessage, input: &mut Vec<Value>) {
     }
 }
 
+// JSON: OpenAI Responses API request body; upstream JSON is the contract.
 fn render_user_or_system(msg: &CanonicalMessage, input: &mut Vec<Value>) {
     input.extend(msg.content.iter().filter_map(tool_result_to_output));
     let parts: Vec<Value> = msg
@@ -233,6 +240,7 @@ fn render_user_or_system(msg: &CanonicalMessage, input: &mut Vec<Value>) {
     }));
 }
 
+// JSON: OpenAI Responses API request body; upstream JSON is the contract.
 fn content_to_input_part(part: &CanonicalContent) -> Option<Value> {
     match part {
         CanonicalContent::Text(t) => Some(json!({ "type": "input_text", "text": t })),
@@ -270,6 +278,7 @@ fn flatten_text_parts(parts: &[CanonicalContent]) -> String {
     out
 }
 
+// JSON: OpenAI Responses API request body; upstream JSON is the contract.
 fn tool_choice_to_responses(tc: &CanonicalToolChoice) -> Value {
     match tc {
         CanonicalToolChoice::Auto => Value::String("auto".into()),

@@ -31,8 +31,6 @@ mod storage;
 #[cfg(test)]
 mod jwt;
 
-#[cfg(test)]
-mod events;
 
 #[cfg(test)]
 #[cfg(test)]

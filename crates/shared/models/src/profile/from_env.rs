@@ -12,8 +12,9 @@ use super::{
     ContentNegotiationConfig, DatabaseConfig, ExtensionsConfig, PathsConfig, Profile, ProfileError,
     ProfileResult, ProfileType, RateLimitsConfig, RuntimeConfig, SecurityConfig,
     SecurityHeadersConfig, ServerConfig, SiteConfig, default_agent_registry, default_agents,
-    default_artifacts, default_burst, default_content, default_contexts, default_mcp,
-    default_mcp_registry, default_oauth_auth, default_oauth_public, default_stream, default_tasks,
+    default_artifacts, default_burst, default_content, default_contexts, default_gateway,
+    default_mcp, default_mcp_registry, default_oauth_auth, default_oauth_public, default_stream,
+    default_tasks,
 };
 use crate::services::SystemAdminConfig;
 
@@ -207,6 +208,7 @@ fn rate_limits_from_env() -> RateLimitsConfig {
         mcp_per_second: parse_rate("RATE_LIMIT_MCP_PER_SECOND", default_mcp),
         stream_per_second: parse_rate("RATE_LIMIT_STREAM_PER_SECOND", default_stream),
         content_per_second: parse_rate("RATE_LIMIT_CONTENT_PER_SECOND", default_content),
+        gateway_per_second: parse_rate("RATE_LIMIT_GATEWAY_PER_SECOND", default_gateway),
         burst_multiplier: parse_rate("RATE_LIMIT_BURST_MULTIPLIER", default_burst),
     }
 }

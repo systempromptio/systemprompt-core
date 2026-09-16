@@ -1,5 +1,39 @@
 # Changelog
 
+## [0.53.0] - 2026-09-15
+
+### Breaking
+
+- **Breaking:** `AnalyticsRepositories::new(db, sessions: DynSessionStore, event_sink: DynAnalyticsEventStore, content: DynContentCatalogStats)` — the users, logging and content owners are injected; `SessionRepository` delegates session persistence to the users store and behavioural event/content reads to their owners. Migrate by passing the owners from the composition root (`AppContext::analytics_repositories()`).
+- **Breaking:** session lifecycle moves to `systemprompt_users` (`SessionRepository`, `UsersAiSessionProvider`, the session mutations, geo and fingerprint queries) and `SessionCleanupService` is removed; `AnalyticsService` extracts request signals only. Event ingestion runs through the logging-owned `AnalyticsEventStore`; the authoritative public-page count comes from `ContentCatalogStats`.
+- **Breaking:** reporting repositories (agents, tools, requests, costs, conversations, traffic, content, core stats, overview, CLI sessions) read the analytics-owned `analytics_report_*` projections instead of the source tables; reports are eventually consistent and a report against an uninitialised baseline is refused with a rebuild instruction.
+- **Breaking:** `FeedbackSnapshotsRepository::new(pool, facts: FeedbackFactsRepository)` takes the facts repository (`AppContext::feedback_snapshots_repository()`).
+- **Breaking:** `SnapshotRangeRequest::operation_id`, `SnapshotRangeJob::operation_id` and `SnapshotJobLease::operation_id` are `AnalyticsSnapshotJobId`; every worker argument and `worker_id` field is `AnalyticsWorkerId`; `SnapshotRangeJob::state` is `SnapshotJobState`. Migrate by constructing the typed ids with `generate()`/`new()` and matching on the enum.
+- **Breaking:** `RequestAnalyticsRepository::list_requests(start, end, &RequestListFilter)` replaces the `(limit, model)` arguments; `ConversationAnalyticsRepository::{list_agent_contexts, list_gateway_sessions}` take a trailing `user: Option<&str>`; `ConversationListRow` and `GatewaySessionListRow` gain `user_id`.
+
+### Added
+
+- `projection` module: versioned reporting contracts (`ReportingSource`, `SourceDefinition`, `ReportingRow`) and the `ReportingProjector` that applies `reporting.row` facts from the durable outbox in the delivering transaction, ignoring revisions already in the baseline and older or duplicate entity revisions; `begin_rebuild` / `finish_rebuild` replace projection rows under the projector advisory lock and shared source-table locks; `status(pool, consumer)` reports initialisation, generation, pending count and oldest pending age.
+- `feedback` module: `FeedbackFactsRepository` and `FactsProcessingService` — durable normalised invocation, request, assessment and resource-association facts with source-qualified deduplication keys and monotonic revisions; corrections replace facts and tombstones retain ordering; leased processing with owner checkpoints (`drain`, owned cancellable `run`); downstream delta claiming (`claim_deltas`, `delta_batch`, `lock_delta_lease` / `complete_delta_batch`); idempotent backfill pages. Migrations 005 (`analytics_fact_*`, `analytics_normalized_facts`) and 006 (`analytics_ingestion_producers`).
+- `snapshots` module: fenced daily aggregate snapshots, bounded custom-range jobs (`request_range`, `claim_range`, `complete_range`, `range_job`), snapshot reads and health, and retention that erases evidence only behind committed producer, fact and snapshot barriers. Migration 007 (`analytics_snapshot_*`).
+- `resource_metrics`: each request and assessed conversation counts once within a cohort; related conversation spend is non-additive across cohorts.
+- Privacy coordination: `lock_user_deletion`, `next_cutoff_revision` and the `evidence_cutoff` on `analytics_projection_state`; the SQL functions installed by migrations 008–010 (`prepare_reporting_privacy`, `begin_user_privacy` counterparts) make a user deletion or merge wait for pending committed evidence and deliver it atomically before identity is removed.
+- `models::reporting` row types for the CLI report commands.
+- `FeedbackSnapshotsRepository::fail_range` records a lease-fenced terminal failure with its diagnostic.
+- `CostAnalyticsRepository::get_breakdown_by_user` (spend, requests, tokens and distinct conversations per user); `RequestListFilter` (`user`, `offset`); `ConversationAnalyticsRepository::list_gateway_sessions` beside `list_agent_contexts`, both filterable by `Option<&UserId>`; `CostUserBreakdownRow::user_id` is a `UserId`.
+
+### Changed
+
+- Every table the extension creates is declared by its own schema file (`analytics_report_*`, `analytics_fact_*`, `analytics_snapshot_*`, `analytics_projection_*`, `ingestion_producers`), so `infra db doctor` reports none as undeclared; `reporting_privacy.sql` installs the privacy functions declaratively.
+- Stream cursors are canonical digit-only strings; a padded or signed cursor is refused.
+- The rebuild snapshot cursor and the retention lock live in the `projection` module; snapshot delta batches and retention compaction are split into named helpers.
+- `FingerprintRepository::find_reusable_session` answers a typed `SessionId`; the fingerprint engagement count is a compile-time checked query.
+
+### Fixed
+
+- `complete_range` routes an assembly or serialisation error through `fail_range`, so a deterministic failure is no longer re-claimed on every run.
+- The reporting projector's retention check uses the compile-time query macro.
+
 ## [0.48.0] - 2026-09-08
 
 ### Changed

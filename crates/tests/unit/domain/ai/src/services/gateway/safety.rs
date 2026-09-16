@@ -2,6 +2,7 @@
 // (jailbreak, email, credit-card detection) and the no-op null scanner.
 
 use systemprompt_ai::{HeuristicScanner, NullScanner, SafetyScanner, Severity};
+use systemprompt_identifiers::ModelId;
 use systemprompt_models::wire::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalResponse, CanonicalUsage, Role,
 };
@@ -9,7 +10,7 @@ use systemprompt_models::wire::inspect::{SurfaceBudget, string_leaves};
 
 fn request(system: Option<&str>, texts: &[&str]) -> CanonicalRequest {
     CanonicalRequest {
-        model: "test-model".to_owned(),
+        model: ModelId::new("test-model"),
         system: system.map(str::to_owned),
         messages: texts
             .iter()

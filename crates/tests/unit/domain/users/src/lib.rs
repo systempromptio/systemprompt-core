@@ -34,3 +34,23 @@ mod repository;
 
 #[cfg(test)]
 mod services;
+
+#[cfg(test)]
+mod device_cert_reuse;
+
+#[cfg(test)]
+mod authoritative_reads_db;
+#[cfg(test)]
+mod session_mutations;
+#[cfg(test)]
+mod session_queries;
+#[cfg(test)]
+mod session_support;
+
+#[cfg(test)]
+mod ai_session_provider;
+#[cfg(test)]
+mod session_provider;
+
+#[cfg(test)]
+mod privacy_fixture;

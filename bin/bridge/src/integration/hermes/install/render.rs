@@ -24,34 +24,39 @@ pub(super) fn managed_yaml(inputs: &ProfileGenInputs) -> std::io::Result<String>
         &mut value,
         MODEL_PROVIDER,
         serde_yaml::Value::String(PROVIDER_ENTRY.to_owned()),
-    );
+    )?;
     write_dotted(
         &mut value,
         PROVIDER_BASE_URL,
         serde_yaml::Value::String(format!("{gateway}/v1")),
-    );
+    )?;
     write_dotted(
         &mut value,
         PROVIDER_API_MODE,
         serde_yaml::Value::String(API_MODE_VALUE.to_owned()),
-    );
+    )?;
     write_dotted(
         &mut value,
         PROVIDER_KEY_ENV,
         serde_yaml::Value::String(KEY_ENV_VALUE.to_owned()),
-    );
-    if let Some(model) = inputs.models.first() {
+    )?;
+    let default = inputs
+        .default_model
+        .as_ref()
+        .filter(|m| inputs.models.contains(m))
+        .or_else(|| inputs.models.first());
+    if let Some(model) = default {
         write_dotted(
             &mut value,
             MODEL_NAME,
             serde_yaml::Value::String(model.clone()),
-        );
+        )?;
     }
     write_dotted(
         &mut value,
         API_KEY_MARKER,
-        serde_yaml::Value::String(inputs.api_key.clone()),
-    );
+        serde_yaml::Value::String(inputs.api_key.as_str().to_owned()),
+    )?;
 
     serde_yaml::to_string(&value)
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))

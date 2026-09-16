@@ -1,0 +1,259 @@
+//! One `plugins/<id>/` Anthropic bundle → `plugins/<id>/config.yaml` plus the
+//! skills, hooks, rules and scripts it ships.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
+mod metadata;
+
+use std::collections::BTreeSet;
+use std::path::{Path, PathBuf};
+
+use systemprompt_identifiers::PluginId;
+use systemprompt_models::bridge::plugin_bundle::{PLUGIN_MANIFEST_RELPATH, PluginManifest};
+use systemprompt_models::services::plugin::{
+    ComponentSource, PluginComponentRef, PluginConfig, PluginConfigFile, PluginDependency,
+    PluginHooksRef,
+};
+
+use crate::bundle::{NODE_PACKAGE_FILE, node_lockfile};
+use crate::error::MarketplaceError;
+
+use super::anthropic::MarketplacePluginEntry;
+use super::marketplace::DEFAULT_LICENSE;
+use super::rules::import_rules_dir;
+use super::sidecar::{PluginSidecar, SIDECAR_RELPATH, load_plugin_sidecar};
+use super::skill::{discover_skill_dirs, import_skill};
+use super::warning::ImportWarning;
+use super::writer::Sink;
+use super::{hooks, scripts};
+use metadata::{author, description, keywords, resolve_category, version};
+
+pub(super) const FALLBACK_CATEGORY: &str = "general";
+
+pub(super) struct PluginImport {
+    pub id: PluginId,
+    pub skills: Vec<String>,
+    pub rules: Vec<String>,
+    pub hooks: Vec<String>,
+    pub warnings: Vec<ImportWarning>,
+}
+
+pub(super) struct PluginScope<'a> {
+    pub seen_skills: &'a mut BTreeSet<String>,
+    pub seen_rules: &'a mut BTreeSet<String>,
+}
+
+pub(super) fn plugin_dir(
+    from: &Path,
+    entry: &MarketplacePluginEntry,
+    plugin_root: Option<&str>,
+) -> Result<PathBuf, MarketplaceError> {
+    let relative = entry.local_path().map_or_else(
+        || {
+            let root = plugin_root.unwrap_or("./plugins");
+            format!("{}/{}", strip_dot(root).trim_end_matches('/'), entry.name)
+        },
+        |path| strip_dot(path).to_owned(),
+    );
+    systemprompt_models::managed::validate_path(&relative).map_err(|error| {
+        MarketplaceError::Import {
+            path: from.join(&relative).display().to_string(),
+            message: format!(
+                "plugin `{}` source must stay inside the marketplace tree: {error}",
+                entry.name
+            ),
+        }
+    })?;
+    Ok(from.join(relative))
+}
+
+fn strip_dot(path: &str) -> &str {
+    path.strip_prefix("./").unwrap_or(path)
+}
+
+pub(super) fn import_plugin(
+    entry: &MarketplacePluginEntry,
+    dir: &Path,
+    scope: &mut PluginScope<'_>,
+    sink: &Sink,
+) -> Result<PluginImport, MarketplaceError> {
+    let manifest_path = dir.join(PLUGIN_MANIFEST_RELPATH);
+    let manifest = read_manifest(&manifest_path)?;
+    let sidecar = load_plugin_sidecar(&dir.join(SIDECAR_RELPATH))?;
+
+    let id = PluginId::new(manifest.name.trim());
+    let mut warnings = Vec::new();
+    collect_manifest_warnings(id.as_str(), &manifest, dir, &mut warnings);
+
+    let category = resolve_category(id.as_str(), &sidecar, entry, &mut warnings);
+
+    let skills = import_skills(dir, &category, scope, sink)?;
+    if skills.is_empty() {
+        warnings.push(ImportWarning::NoSkills {
+            plugin: id.as_str().to_owned(),
+        });
+    }
+
+    let mut rules = Vec::new();
+    import_rules_dir(&dir.join("rules"), scope.seen_rules, sink, &mut rules)?;
+
+    let imported_hooks = hooks::import_plugin_hooks(id.as_str(), dir, sink)?;
+    warnings.extend(imported_hooks.warnings);
+
+    scripts::copy_plugin_scripts(&id, dir, &sidecar.plugin.scripts, sink)?;
+    scripts::copy_node_package_files(&id, dir, sink)?;
+
+    let config = PluginConfig {
+        id: id.clone(),
+        name: sidecar
+            .plugin
+            .title
+            .clone()
+            .filter(|t| !t.trim().is_empty())
+            .unwrap_or_else(|| id.as_str().to_owned()),
+        description: description(&manifest, entry),
+        version: version(&manifest, entry),
+        enabled: sidecar.plugin.enabled,
+        author: author(&manifest, entry),
+        keywords: keywords(&manifest, entry),
+        license: manifest
+            .license
+            .clone()
+            .or_else(|| entry.license.clone())
+            .unwrap_or_else(|| DEFAULT_LICENSE.to_owned()),
+        category,
+        skills: PluginComponentRef {
+            source: ComponentSource::Explicit,
+            filter: None,
+            include: skills.clone(),
+            exclude: Vec::new(),
+        },
+        agents: sidecar.plugin.agents.clone(),
+        rules: rules_ref(&sidecar, &rules),
+        mcp_servers: sidecar.plugin.mcp_servers.clone(),
+        content_sources: sidecar.plugin.content_sources.clone(),
+        artifacts: sidecar.plugin.artifacts.clone(),
+        hooks: hooks_ref(&sidecar, &imported_hooks.ids),
+        scripts: sidecar.plugin.scripts.clone(),
+        dependencies: manifest
+            .dependencies
+            .iter()
+            .map(PluginDependency::from)
+            .collect(),
+    };
+
+    config
+        .validate(id.as_str())
+        .map_err(|e| MarketplaceError::Import {
+            path: manifest_path.display().to_string(),
+            message: e.to_string(),
+        })?;
+
+    let rel = Path::new("plugins").join(id.as_str()).join("config.yaml");
+    sink.write_yaml(&rel, &PluginConfigFile { plugin: config })?;
+
+    Ok(PluginImport {
+        id,
+        skills,
+        rules,
+        hooks: imported_hooks.ids,
+        warnings,
+    })
+}
+
+fn import_skills(
+    dir: &Path,
+    category: &str,
+    scope: &mut PluginScope<'_>,
+    sink: &Sink,
+) -> Result<Vec<String>, MarketplaceError> {
+    let mut skills = Vec::new();
+    for (skill_id, skill_dir) in discover_skill_dirs(dir) {
+        if !scope.seen_skills.insert(skill_id.clone()) {
+            return Err(MarketplaceError::Import {
+                path: skill_dir.display().to_string(),
+                message: format!(
+                    "skill '{skill_id}' is shipped by more than one plugin; skill ids are unique \
+                     across the whole tree"
+                ),
+            });
+        }
+        import_skill(&skill_id, &skill_dir, Some(category), sink)?;
+        skills.push(skill_id);
+    }
+    Ok(skills)
+}
+
+fn hooks_ref(sidecar: &PluginSidecar, imported: &[String]) -> PluginHooksRef {
+    let mut out = sidecar.plugin.hooks.clone();
+    for hook_id in imported {
+        if !out.include.contains(hook_id) {
+            out.include.push(hook_id.clone());
+        }
+    }
+    out
+}
+
+fn rules_ref(sidecar: &PluginSidecar, imported: &[String]) -> PluginComponentRef {
+    let mut out = sidecar.plugin.rules.clone();
+    out.source = ComponentSource::Explicit;
+    for id in imported {
+        if !out.include.contains(id) {
+            out.include.push(id.clone());
+        }
+    }
+    out
+}
+
+fn read_manifest(path: &Path) -> Result<PluginManifest, MarketplaceError> {
+    let text = std::fs::read_to_string(path).map_err(|e| MarketplaceError::Import {
+        path: path.display().to_string(),
+        message: e.to_string(),
+    })?;
+    serde_json::from_str(&text).map_err(|e| MarketplaceError::Import {
+        path: path.display().to_string(),
+        message: format!("plugin.json is not valid: {e}"),
+    })
+}
+
+fn collect_manifest_warnings(
+    id: &str,
+    manifest: &PluginManifest,
+    dir: &Path,
+    warnings: &mut Vec<ImportWarning>,
+) {
+    if manifest.mcp_servers.is_some() || dir.join(".mcp.json").is_file() {
+        warnings.push(ImportWarning::InlineMcpServers {
+            plugin: id.to_owned(),
+        });
+    }
+    if dir.join("commands").is_dir() || manifest.commands.is_some() {
+        warnings.push(ImportWarning::CommandsDirectory {
+            plugin: id.to_owned(),
+        });
+    }
+    let agents = count_agent_files(&dir.join("agents"));
+    if agents > 0 {
+        warnings.push(ImportWarning::AgentsDirectory {
+            plugin: id.to_owned(),
+            count: agents,
+        });
+    }
+    if dir.join(NODE_PACKAGE_FILE).is_file() && node_lockfile(dir).is_none() {
+        warnings.push(ImportWarning::NodePackageWithoutLockfile {
+            plugin: id.to_owned(),
+        });
+    }
+}
+
+fn count_agent_files(dir: &Path) -> usize {
+    std::fs::read_dir(dir).map_or(0, |read| {
+        read.filter_map(Result::ok)
+            .filter(|e| {
+                let p = e.path();
+                p.is_file() && p.extension().is_some_and(|x| x == "md")
+            })
+            .count()
+    })
+}

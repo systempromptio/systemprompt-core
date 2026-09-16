@@ -5,6 +5,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::ids::BearerToken;
 use std::time::Instant;
 
 use crate::gateway::errors::GatewayError;
@@ -53,14 +54,14 @@ impl GatewayClient {
     )]
     pub async fn fetch_manifest(
         &self,
-        bearer: &str,
+        bearer: &BearerToken,
     ) -> Result<SignedManifestEnvelope, GatewayError> {
         let url = self.url("/v1/bridge/manifest");
         let started = Instant::now();
         let resp = self
             .http()
             .get(&url)
-            .bearer_auth(bearer)
+            .bearer_auth(bearer.expose())
             .send()
             .await
             .map_err(|e| GatewayError::ManifestFetch(Box::new(e)))?;
@@ -90,7 +91,7 @@ impl GatewayClient {
     )]
     pub async fn fetch_plugin_file(
         &self,
-        bearer: &str,
+        bearer: &BearerToken,
         plugin_id: &str,
         relative_path: &str,
     ) -> Result<Vec<u8>, GatewayError> {
@@ -102,7 +103,7 @@ impl GatewayClient {
         let resp = self
             .http()
             .get(&url)
-            .bearer_auth(bearer)
+            .bearer_auth(bearer.expose())
             .send()
             .await
             .map_err(|e| GatewayError::PluginFetch {
@@ -156,7 +157,7 @@ impl GatewayClient {
     )]
     pub async fn fetch_latest_release(
         &self,
-        bearer: &str,
+        bearer: &BearerToken,
         platform: &str,
     ) -> Result<ReleaseManifest, GatewayError> {
         let url = self.url(&format!("/v1/bridge/latest?platform={platform}"));
@@ -164,7 +165,7 @@ impl GatewayClient {
         let resp = self
             .http()
             .get(&url)
-            .bearer_auth(bearer)
+            .bearer_auth(bearer.expose())
             .send()
             .await
             .map_err(|e| GatewayError::ReleaseFetch(Box::new(e)))?;

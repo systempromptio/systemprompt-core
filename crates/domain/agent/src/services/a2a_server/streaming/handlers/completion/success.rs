@@ -6,7 +6,7 @@
 
 use axum::response::sse::Event;
 use systemprompt_identifiers::{ContextId, MessageId, TaskId};
-use systemprompt_models::{A2AEventBuilder, AgUiEventBuilder, RequestContext};
+use systemprompt_models::{A2AEventBuilder, AgUiEventBuilder};
 use tokio::sync::mpsc::Sender;
 
 use super::send_a2a_status_event;
@@ -23,8 +23,6 @@ pub(super) struct BroadcastTaskSuccessParams<'a> {
     pub full_text: &'a str,
     pub artifact_count: usize,
     pub task_with_timing: &'a Task,
-    pub context: &'a RequestContext,
-    pub auth_token: &'a str,
 }
 
 pub(super) async fn broadcast_task_success(params: BroadcastTaskSuccessParams<'_>) {
@@ -50,7 +48,8 @@ pub(super) async fn broadcast_task_success(params: BroadcastTaskSuccessParams<'_
         params.context_id,
         completed_status,
         true,
-    );
+    )
+    .await;
 
     let a2a_event = A2AEventBuilder::task_status_update(
         params.task_id.clone(),
@@ -77,10 +76,5 @@ pub(super) async fn broadcast_task_success(params: BroadcastTaskSuccessParams<'_
         tracing::error!(error = %e, "Failed to broadcast RUN_FINISHED");
     }
 
-    broadcast_task_completed(
-        params.task_with_timing,
-        params.context.user_id(),
-        params.auth_token,
-    )
-    .await;
+    broadcast_task_completed(params.webhook_context, params.task_with_timing).await;
 }

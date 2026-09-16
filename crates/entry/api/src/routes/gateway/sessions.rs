@@ -63,9 +63,13 @@ pub async fn create_session(
         },
     );
 
-    let session_id = SessionCreationService::new(Arc::clone(&analytics), user_provider)
-        .create_authenticated_session(&record.user_id, &session_analytics, SessionSource::Api)
-        .await?;
+    let session_id = SessionCreationService::new(
+        ctx.session_provider()
+            .ok_or_else(|| ApiHttpError::internal_error("Session provider unavailable"))?,
+        user_provider,
+    )
+    .create_authenticated_session(&record.user_id, &session_analytics, SessionSource::Api)
+    .await?;
 
     Ok((StatusCode::CREATED, Json(MintedSession { session_id })))
 }

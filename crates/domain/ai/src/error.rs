@@ -3,18 +3,16 @@
 //! Two error families live here:
 //!
 //! - [`AiError`] — the top-level public error returned by [`crate::services`].
-//!   It composes provider-level failures ([`LlmProviderError`]) and
-//!   repository-level failures ([`RepositoryError`]) via `#[from]`, plus common
-//!   transport / parsing errors ([`reqwest::Error`], [`serde_json::Error`],
-//!   [`sqlx::Error`]).
+//!   It composes repository-level failures ([`RepositoryError`]) via `#[from]`,
+//!   plus common transport / parsing errors ([`reqwest::Error`],
+//!   [`serde_json::Error`], [`sqlx::Error`]).
 //! - [`RepositoryError`] — the persistence-layer error returned by every
 //!   `*Repository` type in [`crate::repository`].
 //!
 //! All public service signatures use [`Result<T>`] (i.e. `Result<T, AiError>`).
-//! Provider-trait signatures continue to use the boxed
-//! [`systemprompt_models::errors::ProviderResult`] and bridge through
-//! `AiProvider for AiService` in
-//! `crate::services::core::ai_service` (the `provider_impl` submodule).
+//! The dyn `AiProvider` seam returns
+//! [`AiInferenceError`](systemprompt_models::errors::AiInferenceError); the
+//! `From<AiError>` impl below is the single mapping onto it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -26,7 +24,6 @@ use uuid::Uuid;
 
 use systemprompt_database::resilience::Outcome;
 use systemprompt_identifiers::{AiRequestId, McpServerId};
-use systemprompt_provider_contracts::LlmProviderError;
 
 #[derive(Debug, Error)]
 pub enum AiError {
@@ -56,9 +53,6 @@ pub enum AiError {
 
     #[error("No configured provider supports model {model}")]
     NoProviderForModel { model: String },
-
-    #[error(transparent)]
-    Provider(#[from] LlmProviderError),
 
     #[error("Serialization failed: {0}")]
     SerializationError(#[from] serde_json::Error),
@@ -131,6 +125,12 @@ pub enum AiError {
     #[error(transparent)]
     ToolProvider(#[from] systemprompt_traits::ToolProviderError),
 
+    #[error("tool discovery incomplete: {0}")]
+    ToolDiscovery(String),
+
+    #[error("provider {provider} has no pricing for model {model}; refusing to bill it")]
+    UnknownModel { provider: String, model: String },
+
     #[error(transparent)]
     Secrets(#[from] systemprompt_config::SecretsBootstrapError),
 
@@ -139,6 +139,56 @@ pub enum AiError {
 
     #[error("internal: {0}")]
     Internal(String),
+}
+
+impl From<AiError> for systemprompt_models::errors::AiInferenceError {
+    fn from(err: AiError) -> Self {
+        match err {
+            AiError::ModelNotSpecified { ref provider }
+            | AiError::EmptyProviderResponse { ref provider } => Self::Provider {
+                provider: provider.clone(),
+                message: err.to_string(),
+            },
+            AiError::ProviderError { provider, message } => Self::Provider { provider, message },
+            AiError::NoProviderForModel { model } => Self::NoProviderForModel { model },
+            AiError::RateLimit { provider, details } => Self::RateLimited { provider, details },
+            AiError::AuthenticationFailed { provider } => Self::AuthenticationFailed { provider },
+            AiError::HttpStatus { ref provider, .. }
+            | AiError::Timeout { ref provider, .. }
+            | AiError::CircuitOpen { ref provider }
+            | AiError::DependencyUnavailable { ref provider } => Self::Unavailable {
+                provider: provider.clone(),
+                message: err.to_string(),
+            },
+            AiError::MissingMetadata { .. }
+            | AiError::MissingUserContext
+            | AiError::InvalidToolSchema { .. }
+            | AiError::StructuredOutputFailed { .. }
+            | AiError::MessageSerializationFailed
+            | AiError::MissingToolField { .. }
+            | AiError::EmptyToolDescription { .. }
+            | AiError::InvalidInput(_)
+            | AiError::WireParse(_) => Self::InvalidRequest(err.to_string()),
+            AiError::NoToolCalls
+            | AiError::McpServiceNotFound { .. }
+            | AiError::McpAuthenticationMissing { .. }
+            | AiError::ServiceAuthCheckFailed { .. }
+            | AiError::ToolDiscovery(_)
+            | AiError::ToolProvider(_) => Self::Tool(err.to_string()),
+            AiError::UnknownModel { .. }
+            | AiError::AuthenticationRequired { .. }
+            | AiError::ConfigurationError { .. }
+            | AiError::Secrets(_) => Self::Configuration(err.to_string()),
+            AiError::DatabaseError { .. } | AiError::StorageError { .. } => {
+                Self::Storage(err.to_string())
+            },
+            AiError::SerializationError(_)
+            | AiError::Http(_)
+            | AiError::Io(_)
+            | AiError::Regex(_)
+            | AiError::Internal(_) => Self::Internal(err.to_string()),
+        }
+    }
 }
 
 #[derive(Debug, Error)]
@@ -160,13 +210,19 @@ pub enum RepositoryError {
         request_id: AiRequestId,
         reason: String,
     },
+
+    #[error("AI request {0} already exists")]
+    AlreadyExists(AiRequestId),
 }
 
 impl AiError {
     pub async fn from_error_response(provider: &str, response: reqwest::Response) -> Self {
         let status = response.status().as_u16();
         let retry_after = parse_retry_after(response.headers());
-        let body = response.text().await.unwrap_or_default();
+        let body = response
+            .text()
+            .await
+            .unwrap_or_else(|e| format!("<unreadable body: {e}>"));
         Self::HttpStatus {
             provider: provider.to_owned(),
             status,

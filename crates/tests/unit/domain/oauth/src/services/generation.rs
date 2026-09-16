@@ -204,7 +204,7 @@ fn test_jwt_config_default() {
     let config = JwtConfig::default();
     assert_eq!(config.permissions, vec![Permission::User]);
     assert_eq!(config.audience, JwtAudience::standard());
-    assert_eq!(config.expires_in_hours, Some(24));
+    assert_eq!(config.expires_in, chrono::Duration::hours(24));
 }
 
 #[test]
@@ -212,7 +212,7 @@ fn test_jwt_config_custom() {
     let config = JwtConfig {
         permissions: vec![Permission::Admin, Permission::User],
         audience: vec![JwtAudience::Api],
-        expires_in_hours: Some(48),
+        expires_in: chrono::Duration::hours(48),
         resource: None,
         plugin_id: None,
         client_id: None,
@@ -221,21 +221,19 @@ fn test_jwt_config_custom() {
     assert_eq!(config.permissions.len(), 2);
     assert!(config.permissions.contains(&Permission::Admin));
     assert_eq!(config.audience, vec![JwtAudience::Api]);
-    assert_eq!(config.expires_in_hours, Some(48));
+    assert_eq!(config.expires_in, chrono::Duration::hours(48));
 }
 
 #[test]
-fn test_jwt_config_no_expiry() {
+fn test_jwt_config_serializes_expiry_in_seconds() {
     let config = JwtConfig {
-        permissions: vec![Permission::User],
-        audience: JwtAudience::standard(),
-        expires_in_hours: None,
-        resource: None,
-        plugin_id: None,
-        client_id: None,
+        expires_in: chrono::Duration::seconds(900),
+        ..JwtConfig::default()
     };
-
-    assert!(config.expires_in_hours.is_none());
+    let json = serde_json::to_value(&config).expect("serialise");
+    assert_eq!(json["expires_in"], serde_json::json!(900));
+    let back: JwtConfig = serde_json::from_value(json).expect("deserialise");
+    assert_eq!(back.expires_in, chrono::Duration::seconds(900));
 }
 
 
@@ -245,7 +243,7 @@ fn test_jwt_config_serialize() {
     let json = serde_json::to_string(&config).unwrap();
     assert!(json.contains("permissions"));
     assert!(json.contains("audience"));
-    assert!(json.contains("expires_in_hours"));
+    assert!(json.contains("\"expires_in\":86400"));
 }
 
 #[test]
@@ -253,13 +251,13 @@ fn test_jwt_config_deserialize() {
     let json = r#"{
         "permissions": ["admin"],
         "audience": ["api"],
-        "expires_in_hours": 72
+        "expires_in": 259200
     }"#;
 
     let config: JwtConfig = serde_json::from_str(json).unwrap();
     assert_eq!(config.permissions, vec![Permission::Admin]);
     assert_eq!(config.audience, vec![JwtAudience::Api]);
-    assert_eq!(config.expires_in_hours, Some(72));
+    assert_eq!(config.expires_in, chrono::Duration::hours(72));
 }
 
 // Base64url-decode the JWT payload directly. These tests cover the minting
@@ -283,6 +281,7 @@ fn mints_id_jag_with_correct_typ_and_claims() {
     let token = mint_id_jag(&IdJagGrant {
         sub: "user-42",
         email: Some("user@example.com"),
+        email_verified: true,
         aud: "https://core.example",
         client_id: &client_id,
         resource: Some("https://mcp.example/api/v1/mcp/demo/mcp"),
@@ -319,6 +318,7 @@ fn defaults_optional_claims_to_none() {
     let token = mint_id_jag(&IdJagGrant {
         sub: "user-1",
         email: None,
+        email_verified: false,
         aud: "https://rs.example",
         client_id: &client_id,
         resource: None,
@@ -446,9 +446,13 @@ mod jwt_minting {
     fn generate_jwt_rejects_out_of_range_expiry() {
         ensure_test_bootstrap();
         install_test_signing_key();
-        for hours in [0i64, -5, 8761] {
+        for expires_in in [
+            chrono::Duration::zero(),
+            chrono::Duration::hours(-5),
+            chrono::Duration::days(366),
+        ] {
             let config = JwtConfig {
-                expires_in_hours: Some(hours),
+                expires_in,
                 ..JwtConfig::default()
             };
             let err = generate_jwt(
@@ -511,7 +515,7 @@ mod jwt_minting {
     }
 
     #[test]
-    fn generate_anonymous_jwt_with_expiry_rejects_overflowing_expiry() {
+    fn generate_anonymous_jwt_with_expiry_rejects_more_than_a_year() {
         ensure_test_bootstrap();
         install_test_signing_key();
         let err = generate_anonymous_jwt_with_expiry(
@@ -519,14 +523,14 @@ mod jwt_minting {
             &SessionId::generate(),
             &ClientId::new("client_anon_overflow"),
             &signing(),
-            10_800_000_000_000,
+            366 * 24 * 3600,
         )
-        .expect_err("expiry beyond the representable datetime range must fail");
-        assert!(err.to_string().contains("token expiration"));
+        .expect_err("expiry beyond one year must fail");
+        assert!(err.to_string().contains("Invalid token expiry"));
     }
 
     #[test]
-    fn generate_anonymous_jwt_with_expiry_truncates_to_whole_hours() {
+    fn generate_anonymous_jwt_with_expiry_keeps_sub_hour_lifetimes() {
         ensure_test_bootstrap();
         install_test_signing_key();
         let user_id = UserId::new(Uuid::new_v4().to_string());
@@ -535,12 +539,15 @@ mod jwt_minting {
             &SessionId::generate(),
             &ClientId::new("client_anon_exp"),
             &signing(),
-            7200,
+            900,
         )
         .expect("mint");
 
         let claims = validate_jwt_token(&token, "test", &[JwtAudience::Api]).expect("decode");
         let lifetime = claims.exp - claims.iat;
-        assert!((7195..=7205).contains(&lifetime), "lifetime {lifetime}");
+        assert!(
+            (895..=905).contains(&lifetime),
+            "a 900 s expiry used to mint an already-expired token; got {lifetime}"
+        );
     }
 }

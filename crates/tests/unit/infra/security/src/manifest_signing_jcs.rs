@@ -46,8 +46,12 @@ fn sample_manifest() -> SignedManifest {
         min_bridge_version: None,
         manifest_version: ManifestVersion::try_new("2026-04-27T00:00:00Z-deadbeef")
             .expect("valid manifest version"),
-        issued_at: "2026-04-27T00:00:00Z".into(),
-        not_before: "2026-04-27T00:00:00Z".into(),
+        issued_at: chrono::DateTime::parse_from_rfc3339("2026-04-27T00:00:00Z")
+            .expect("rfc3339")
+            .with_timezone(&chrono::Utc),
+        not_before: chrono::DateTime::parse_from_rfc3339("2026-04-27T00:00:00Z")
+            .expect("rfc3339")
+            .with_timezone(&chrono::Utc),
         user_id: fixture_user_id(),
         tenant_id: Some(TenantId::new("tenant_xyz")),
         user: Some(UserInfo {
@@ -69,6 +73,7 @@ fn sample_manifest() -> SignedManifest {
             hooks: Default::default(),
         }],
         skills: vec![SkillEntry {
+            publication: None,
             id: SkillId::try_new("skill_one").unwrap(),
             name: SkillName::try_new("Skill One").unwrap(),
             description: "first skill".into(),
@@ -100,8 +105,8 @@ fn sample_manifest() -> SignedManifest {
             enabled: true,
             is_default: true,
             is_primary: true,
-            provider: Some("anthropic".into()),
-            model: Some("claude-opus".into()),
+            provider: Some(systemprompt_identifiers::ProviderId::new("anthropic")),
+            model: Some(systemprompt_identifiers::ModelId::new("claude-opus")),
             mcp_servers: systemprompt_models::services::PluginComponentRef {
                 include: vec!["github".into()],
                 ..Default::default()
@@ -115,7 +120,8 @@ fn sample_manifest() -> SignedManifest {
         }],
         hooks: vec![],
         managed_mcp_servers: vec![ManagedMcpServer {
-            id: systemprompt_identifiers::McpServerId::new("github"),
+            id: systemprompt_identifiers::McpServerId::try_new("github")
+                .expect("valid McpServerId"),
             name: ManagedMcpServerName::try_new("github").unwrap(),
             url: ValidatedUrl::try_from("https://mcp.example.com/github").unwrap(),
             transport: Some("http".into()),

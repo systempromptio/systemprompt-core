@@ -18,6 +18,7 @@ use super::subject::{jwks_host_allowlist, peek_issuer};
 pub struct OidcSubject {
     pub(super) sub: String,
     pub(super) email: Option<String>,
+    pub(super) email_verified: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -25,6 +26,8 @@ struct OidcIdTokenClaims {
     sub: String,
     #[serde(default)]
     email: Option<String>,
+    #[serde(default)]
+    email_verified: bool,
 }
 
 pub async fn validate_oidc_subject(token: &str, global: &Config) -> Result<OidcSubject> {
@@ -102,5 +105,6 @@ pub async fn validate_oidc_subject(token: &str, global: &Config) -> Result<OidcS
     Ok(OidcSubject {
         sub: data.claims.sub,
         email: data.claims.email,
+        email_verified: data.claims.email_verified,
     })
 }

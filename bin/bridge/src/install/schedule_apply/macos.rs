@@ -32,7 +32,7 @@ pub(super) fn register(
 
     let domain = gui_domain();
     bootout(&domain, label).map_err(InstallError::ScheduleApply)?;
-    let status = Command::new("launchctl")
+    let status = Command::new("/bin/launchctl")
         .args(["bootstrap", &domain])
         .arg(&path)
         .status()
@@ -58,7 +58,7 @@ pub(super) fn register_autostart(rendered: &str) -> Result<Vec<String>, InstallE
     write(&path, rendered)?;
     let domain = gui_domain();
     bootout(&domain, label).map_err(InstallError::ScheduleApply)?;
-    let status = Command::new("launchctl")
+    let status = Command::new("/bin/launchctl")
         .args(["bootstrap", &domain])
         .arg(&path)
         .status()
@@ -133,7 +133,7 @@ pub(super) fn remove_current() -> ScheduleRemoval {
 
 fn bootout(domain: &str, label: &str) -> Result<(), String> {
     let target = format!("{domain}/{label}");
-    let output = Command::new("launchctl")
+    let output = Command::new("/bin/launchctl")
         .args(["bootout", &target])
         .output()
         .map_err(|e| format!("launchctl bootout {target}: {e}"))?;

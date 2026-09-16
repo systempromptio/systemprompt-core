@@ -6,7 +6,7 @@
 use std::collections::BTreeSet;
 use std::path::Path;
 
-use super::{MarketplaceExtra, MarketplaceItem};
+use super::MarketplaceItem;
 
 pub fn list_hooks(dir: &Path) -> Vec<MarketplaceItem> {
     let path = dir.join("hooks.json");
@@ -17,7 +17,7 @@ pub fn list_hooks(dir: &Path) -> Vec<MarketplaceItem> {
 }
 
 pub fn hook_items(bytes: &[u8], path: &Path) -> Vec<MarketplaceItem> {
-    use crate::sync::apply::hooks_schema::{HookEntry as WireHookEntry, HooksFile};
+    use crate::host_sync::hooks_schema::{HookEntry as WireHookEntry, HooksFile};
 
     let Ok(file) = serde_json::from_slice::<HooksFile>(bytes) else {
         return Vec::new();
@@ -51,22 +51,15 @@ pub fn hook_items(bytes: &[u8], path: &Path) -> Vec<MarketplaceItem> {
                         } else {
                             command.clone()
                         };
-                        user_rows.push(MarketplaceItem {
-                            id: format!("{event}:{}:{i}", matcher.matcher),
-                            name,
-                            source: "tenant",
-                            path: String::new(),
-                            summary: Some(summary),
-                            readme: None,
-                            version: None,
-                            author: None,
-                            homepage: None,
-                            change: None,
-                            children: Vec::new(),
-                            plugins: Vec::new(),
-                            extra: MarketplaceExtra::None,
-                            error: None,
-                        });
+                        user_rows.push(
+                            MarketplaceItem::builder(
+                                format!("{event}:{}:{i}", matcher.matcher),
+                                String::new(),
+                            )
+                            .name(name)
+                            .summary(Some(summary))
+                            .build(),
+                        );
                     },
                 }
             }
@@ -101,22 +94,13 @@ pub fn hook_items(bytes: &[u8], path: &Path) -> Vec<MarketplaceItem> {
             readme.push_str(&format!("\nTracking:\n- {}\n", events.join("\n- ")));
         }
 
-        out.push(MarketplaceItem {
-            id: "systemprompt-governance".to_owned(),
-            name: "Governance & tracking (active)".to_owned(),
-            source: "tenant",
-            path: path.display().to_string(),
-            summary: Some(summary_parts.join("; ")),
-            readme: Some(readme),
-            version: None,
-            author: None,
-            homepage: None,
-            change: None,
-            children: Vec::new(),
-            plugins: Vec::new(),
-            extra: MarketplaceExtra::None,
-            error: None,
-        });
+        out.push(
+            MarketplaceItem::builder("systemprompt-governance", path.display().to_string())
+                .name("Governance & tracking (active)")
+                .summary(Some(summary_parts.join("; ")))
+                .readme(Some(readme))
+                .build(),
+        );
     }
 
     user_rows.sort_by(|a, b| a.name.cmp(&b.name));

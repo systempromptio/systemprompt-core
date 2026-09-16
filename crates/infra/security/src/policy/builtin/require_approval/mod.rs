@@ -1,4 +1,5 @@
-//! `require_approval`: hold a matching tool call for a named human.
+//! Hold a matching tool call for a named human; registered as the
+//! `require_approval` policy.
 //!
 //! The only policy that returns [`Decision::Pending`]. It does not park or
 //! resume anything itself — [`GovernancePolicy::evaluate`] is pure and sync —
@@ -60,7 +61,7 @@ mod rules;
 use rules::{Rule, Verdict};
 
 use super::super::config::GovernanceConfig;
-use super::super::registry::PolicyRegistration;
+use super::super::registry::{PolicyConfigurationError, PolicyRegistration};
 use super::super::types::{AccessScope, GovernancePolicy, PolicyContext};
 use crate::authz::types::{Decision, MatchedBy, PendingReason};
 
@@ -117,15 +118,15 @@ struct RequireApproval {
 }
 
 impl RequireApproval {
-    fn from_yaml(v: &YamlValue) -> Self {
+    fn from_yaml(v: &YamlValue) -> Result<Self, PolicyConfigurationError> {
         let exempt_scopes = string_list(v, "exempt_scopes")
             .iter()
-            .filter_map(|s| parse_scope(s))
-            .collect();
-        Self {
-            rules: rules::compile(v),
+            .map(|s| parse_scope(s))
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(Self {
+            rules: rules::compile(v)?,
             exempt_scopes,
-        }
+        })
     }
 }
 
@@ -140,19 +141,14 @@ fn string_list(v: &YamlValue, key: &str) -> Vec<String> {
         .unwrap_or_default()
 }
 
-fn parse_scope(raw: &str) -> Option<AccessScope> {
+fn parse_scope(raw: &str) -> Result<AccessScope, PolicyConfigurationError> {
     match raw.trim().to_ascii_lowercase().as_str() {
-        "admin" => Some(AccessScope::Admin),
-        "user" => Some(AccessScope::User),
-        "unknown" => Some(AccessScope::Unknown),
-        other => {
-            tracing::warn!(
-                scope = other,
-                policy = ID,
-                "unknown access scope in exempt_scopes — ignoring"
-            );
-            None
-        },
+        "admin" => Ok(AccessScope::Admin),
+        "user" => Ok(AccessScope::User),
+        "unknown" => Ok(AccessScope::Unknown),
+        other => Err(PolicyConfigurationError(format!(
+            "unknown access scope `{other}` in require_approval exempt_scopes"
+        ))),
     }
 }
 
@@ -202,6 +198,6 @@ impl GovernancePolicy for RequireApproval {
 inventory::submit! {
     PolicyRegistration {
         id: ID,
-        factory: |v| Ok(Box::new(RequireApproval::from_yaml(v))),
+        factory: |v| Ok(Box::new(RequireApproval::from_yaml(v)?)),
     }
 }

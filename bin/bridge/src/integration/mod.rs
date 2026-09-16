@@ -15,15 +15,16 @@ pub(crate) mod config_read;
 pub mod cowork_artifacts;
 pub mod cowork_plugins;
 pub mod enrol;
+pub mod generated_profile;
 pub mod hermes;
 pub mod host_app;
+pub mod json_io;
 pub(crate) mod managed_skills;
+pub mod mcp_sidecar;
 pub mod opencode;
 pub mod profile_state;
 pub mod reapply;
 pub mod registry;
-#[cfg(feature = "dev-stub-host")]
-pub mod stub_host;
 pub mod sync_only;
 pub mod uninstall;
 
@@ -34,7 +35,7 @@ pub use agent_health::{
     SyncOnlyAgent, sync_only_agent, verdict,
 };
 pub use host_app::{
-    AppInstallState, ConfigFormat, GeneratedProfile, HostApp, HostAppSnapshot, HostConfigSchema,
-    ProfileGenInputs, ProfileState, StaleReason,
+    AppInstallState, ConfigFormat, Freshness, GeneratedProfile, HostApp, HostAppSnapshot,
+    HostConfigSchema, ProfileGenInputs, ProfileProbe, ProfileState, StaleReason,
 };
 pub use registry::{ResolvedHost, find_host_by_id, host_apps, resolve_host};

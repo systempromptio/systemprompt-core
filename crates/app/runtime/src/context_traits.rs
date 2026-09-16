@@ -34,6 +34,10 @@ impl AppContextTrait for AppContext {
         handle
     }
 
+    fn session_provider(&self) -> Option<Arc<dyn systemprompt_traits::SessionProvider>> {
+        Some(self.data.analytics_repositories.sessions.owner())
+    }
+
     fn analytics_provider(&self) -> Option<Arc<dyn AnalyticsProvider>> {
         let concrete = Arc::clone(&self.data.analytics_service);
         let provider: Arc<dyn AnalyticsProvider> = concrete;
@@ -54,6 +58,10 @@ impl AppContextTrait for AppContext {
 }
 
 impl ExtensionContext for AppContext {
+    fn system_owner_id(&self) -> systemprompt_identifiers::UserId {
+        self.system_admin().id().clone()
+    }
+
     fn config(&self) -> Arc<dyn ConfigProvider> {
         let concrete = Arc::clone(&self.cfg.config);
         let provider: Arc<dyn ConfigProvider> = concrete;

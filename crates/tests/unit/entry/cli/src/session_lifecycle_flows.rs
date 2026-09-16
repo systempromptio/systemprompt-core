@@ -182,7 +182,7 @@ async fn coverage_tenant_session_uses_cloud_identity_and_tenant_binding() {
     let credentials = CloudCredentials::new(
         CloudAuthToken::new("eyJhbGciOiJIUzI1NiJ9.eyJleHAiOjQxMDI0NDQ4MDB9.fixture"),
         "https://example.invalid".to_owned(),
-        Email::new(email),
+        Email::try_new(email).expect("valid Email"),
     );
     credentials
         .save_to_path(

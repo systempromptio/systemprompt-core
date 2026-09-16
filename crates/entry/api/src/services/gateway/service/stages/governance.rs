@@ -10,8 +10,8 @@ use systemprompt_identifiers::{CallId, PolicyId, SessionId};
 use systemprompt_security::authz::types::{Decision, DenyReason};
 use systemprompt_security::policy::{
     AgentScope, AuditOrigin, AuditTarget, ChainEntryOutcome, ChainEntryResult, DecisionAudit,
-    Evaluation, GovernanceEngine, GovernanceEngineError, GovernedInput, GovernedTarget,
-    PolicyContext, PrincipalSnapshot, record_decision,
+    Evaluation, GovernanceEngine, GovernedInput, GovernedTarget, PolicyContext, PrincipalSnapshot,
+    record_decision,
 };
 
 pub(in crate::services::gateway::service) const QUOTA_POLICY_LABEL: &str = "quota";
@@ -30,7 +30,7 @@ pub(super) async fn record_governance_decision(
 ) -> anyhow::Result<()> {
     let decision_audit = DecisionAudit {
         id: uuid::Uuid::new_v4().to_string(),
-        call_id: call_id.as_str().to_owned(),
+        call_id,
         origin: AuditOrigin::Governed,
         decision: evaluation.decision,
         principal: PrincipalSnapshot {
@@ -40,7 +40,6 @@ pub(super) async fn record_governance_decision(
             agent_id: None,
             agent_scope: ctx.access_scope,
             client_id: ctx.client_id.clone(),
-            claimed: None,
         },
         target: AuditTarget {
             tool_name: GovernedTarget::Prompt.as_str().to_owned(),
@@ -49,7 +48,7 @@ pub(super) async fn record_governance_decision(
         chain: evaluation.chain,
         approver: None,
         act_chain: Vec::new(),
-        context_id: Some(ctx.context_id.as_str().to_owned()),
+        context_id: Some(ctx.context_id.clone()),
         trace_id: ctx.trace_id.as_ref().map(|t| t.as_str().to_owned()),
     };
     let pool = db.write_pool_arc()?;
@@ -89,10 +88,11 @@ pub(super) struct PromptEvaluation {
 }
 
 pub(super) fn evaluate_prompt(
+    governance: &GovernanceEngine,
     ctx: &GatewayRequestContext,
     request: &mut CanonicalRequest,
     body: &mut PreparedBody,
-) -> Result<PromptEvaluation, GovernanceEngineError> {
+) -> PromptEvaluation {
     let session_id = ctx.session_id.clone().unwrap_or_else(SessionId::system);
     let call_id = CallId::new(ctx.ai_request_id.as_str());
     let input = GovernedInput::prompt_parts([]);
@@ -111,13 +111,13 @@ pub(super) fn evaluate_prompt(
         evaluation,
         recovery_count,
         recovery_locations,
-    } = govern_prompt(GovernanceEngine::global()?, &policy_ctx, request, body);
+    } = govern_prompt(governance, &policy_ctx, request, body);
 
-    Ok(PromptEvaluation {
+    PromptEvaluation {
         evaluation,
         call_id,
         session_id,
         recovery_count,
         recovery_locations,
-    })
+    }
 }

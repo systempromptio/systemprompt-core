@@ -13,14 +13,17 @@ use systemprompt_agent::services::agent_orchestration::AgentStatus;
 use systemprompt_agent::services::agent_orchestration::database::AgentDatabaseService;
 use systemprompt_agent::services::agent_orchestration::orchestrator::AgentOrchestrator;
 use systemprompt_agent::services::registry::AgentRegistry;
-use systemprompt_models::{AppPaths, ServicesConfig};
+use systemprompt_config::paths::AppPaths;
+use systemprompt_models::ServicesConfig;
 use systemprompt_traits::{Phase, StartupEvent, startup_channel};
 use uuid::Uuid;
 
 use super::super::a2a_server::a2a_helpers::{agent_config, make_agent_state};
 use crate::repository::try_pool_or_skip;
 
-const DEAD_PID: u32 = 4_000_000_000;
+// Why: `services.pid` is an `INTEGER` column, so a dead pid must fit i32 while
+// still lying far above any pid_max a kernel will hand out.
+const DEAD_PID: u32 = 2_000_000_000;
 
 fn unique_name(prefix: &str) -> String {
     format!("{prefix}_{}", Uuid::new_v4().simple())

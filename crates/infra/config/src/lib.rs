@@ -10,7 +10,7 @@
 //! - [`ProfileBootstrap`] / [`SecretsBootstrap`] — process-wide cells for the
 //!   active profile and secrets document, initialised in that order by the
 //!   entry-crate boot sequence.
-//! - [`init_config`] / [`build_from_profile`] — build a runtime
+//! - [`try_init_config`] / [`build_from_profile`] — build a runtime
 //!   [`systemprompt_models::Config`] from the active profile.
 //! - [`ConfigService`], [`ConfigValidator`] — utilities used by the
 //!   `systemprompt cloud config` deployment pipeline.
@@ -42,6 +42,7 @@ pub mod bootstrap;
 pub(crate) mod config_loader;
 pub mod error;
 pub mod path_validation;
+pub mod paths;
 pub(crate) mod services;
 pub(crate) mod skill_validator;
 
@@ -53,10 +54,10 @@ pub use bootstrap::{
     resolve_source,
 };
 pub use config_loader::{
-    build_from_profile, init_config, init_config_from_profile, resolve_instance_id,
-    try_init_config, validate_database_config,
+    build_from_profile, resolve_instance_id, try_init_config, validate_database_config,
 };
 pub use error::{ConfigError, ConfigResult};
+pub use paths::{AppPaths, BuildPaths, PathError, StoragePaths, SystemPaths, WebPaths};
 pub use services::{
     ConfigService, ConfigValidationError, ConfigValidator, DeployEnvironment, DeploymentConfig,
     EnvironmentConfig, ModelSpec, ProviderCatalogService, ProviderSpec, SecurityChange,

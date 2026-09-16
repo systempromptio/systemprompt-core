@@ -18,8 +18,7 @@
 //! |---------|---------|------|
 //! | `tokio` | no | `FileSystemLoader`, a `tokio::fs`-backed [`TemplateLoader`] with base-path sandboxing |
 //!
-//! All public items are documented and `docs.rs` is built with
-//! `--all-features`.
+//! `docs.rs` is built with `--all-features`.
 //!
 //! # Example
 //!

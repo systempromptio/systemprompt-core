@@ -50,11 +50,9 @@ systemprompt-security = { workspace = true }
 [dev-dependencies]
 tempfile = { workspace = true }
 
-[features]
-default = []
-# Exposes test-only entry points (e.g. `ConfigLoader::load_from_content`)
-# to dependent crates that exercise the loader from outside `cfg(test)`.
-expose-internals = []
-
 [package.metadata.docs.rs]
 all-features = true
+
+# Parent-death signalling for spawned children (see `subprocess::spawn_supervised`)
+[target.'cfg(unix)'.dependencies]
+libc = { workspace = true }

@@ -1,13 +1,15 @@
 //! Tests for validation module types.
 
-use systemprompt_traits::{MetadataValidation, Validate, ValidationError, ValidationResult};
+use systemprompt_traits::{
+    MetadataValidation, MetadataValidationError, Validate, ValidationResult,
+};
 
 mod validation_error_tests {
     use super::*;
 
     #[test]
     fn new_creates_error_without_context() {
-        let err = ValidationError::new("email", "Invalid email format");
+        let err = MetadataValidationError::new("email", "Invalid email format");
 
         assert_eq!(err.field, "email");
         assert_eq!(err.message, "Invalid email format");
@@ -16,7 +18,7 @@ mod validation_error_tests {
 
     #[test]
     fn new_accepts_string_types() {
-        let err = ValidationError::new(String::from("username"), String::from("Too short"));
+        let err = MetadataValidationError::new(String::from("username"), String::from("Too short"));
 
         assert_eq!(err.field, "username");
         assert_eq!(err.message, "Too short");
@@ -24,7 +26,7 @@ mod validation_error_tests {
 
     #[test]
     fn with_context_adds_context() {
-        let err = ValidationError::new("password", "Too weak")
+        let err = MetadataValidationError::new("password", "Too weak")
             .with_context("Must contain uppercase and numbers");
 
         err.context.as_ref().expect("context should be set");
@@ -33,7 +35,7 @@ mod validation_error_tests {
 
     #[test]
     fn with_context_is_chainable() {
-        let err = ValidationError::new("field", "message").with_context("context");
+        let err = MetadataValidationError::new("field", "message").with_context("context");
 
         assert_eq!(err.field, "field");
         assert_eq!(err.message, "message");
@@ -42,7 +44,7 @@ mod validation_error_tests {
 
     #[test]
     fn display_without_context() {
-        let err = ValidationError::new("name", "Cannot be empty");
+        let err = MetadataValidationError::new("name", "Cannot be empty");
         let display = format!("{}", err);
 
         assert!(display.contains("VALIDATION ERROR"));
@@ -53,8 +55,8 @@ mod validation_error_tests {
 
     #[test]
     fn display_with_context() {
-        let err =
-            ValidationError::new("age", "Must be positive").with_context("User registration form");
+        let err = MetadataValidationError::new("age", "Must be positive")
+            .with_context("User registration form");
         let display = format!("{}", err);
 
         assert!(display.contains("VALIDATION ERROR"));
@@ -65,7 +67,7 @@ mod validation_error_tests {
 
     #[test]
     fn validation_error_is_debug() {
-        let err = ValidationError::new("test", "debug test");
+        let err = MetadataValidationError::new("test", "debug test");
         let debug_str = format!("{:?}", err);
 
         assert!(debug_str.contains("test"));
@@ -84,7 +86,7 @@ mod validate_trait_tests {
     impl Validate for ValidData {
         fn validate(&self) -> ValidationResult<()> {
             if self.name.is_empty() {
-                return Err(ValidationError::new("name", "Name cannot be empty"));
+                return Err(MetadataValidationError::new("name", "Name cannot be empty"));
             }
             Ok(())
         }

@@ -20,14 +20,16 @@
 
 use std::sync::Arc;
 
+use systemprompt_config::paths::AppPaths;
 use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
 use systemprompt_database::{
-    Database, MigrationConfig, PoolConfig, install_extension_schemas_full,
+    Database, MigrationConfig, PoolConfig, SchemaInstallReport, install_extension_schemas_full,
     validate_write_pool_is_primary,
 };
 use systemprompt_extension::ExtensionRegistry;
-use systemprompt_models::{AppPaths, Config};
+use systemprompt_models::Config;
 use systemprompt_security::authz::SharedAuthzHook;
+use systemprompt_security::policy::GovernanceEngine;
 use systemprompt_traits::FileStorage;
 
 use crate::error::{RuntimeError, RuntimeResult};
@@ -37,6 +39,7 @@ pub(super) struct CoreLayer {
     pub(super) app_paths: Arc<AppPaths>,
     pub(super) database: Arc<Database>,
     pub(super) authz_hook: SharedAuthzHook,
+    pub(super) governance: Arc<GovernanceEngine>,
     pub(super) file_storage: Arc<dyn FileStorage>,
 }
 
@@ -44,13 +47,11 @@ pub(super) async fn init_core(
     authz_hook_override: Option<SharedAuthzHook>,
 ) -> RuntimeResult<CoreLayer> {
     let profile = ProfileBootstrap::get()?;
+    let secrets = SecretsBootstrap::get()
+        .map_err(|err| RuntimeError::Internal(format!("services bundle secrets: {err}")))?;
     let active_root = systemprompt_loader::ServicesSourceBootstrap::try_run(
         profile,
-        |name| {
-            SecretsBootstrap::get()
-                .ok()
-                .and_then(|s| s.get(name).cloned())
-        },
+        |name| secrets.get(name).cloned(),
         env!("CARGO_PKG_VERSION"),
     )
     .await
@@ -78,8 +79,7 @@ pub(super) async fn init_core(
 
     let pool_config = pool_config_from_profile(profile.database.pool.as_ref());
     let database = Arc::new(
-        Database::from_config_with_write(
-            &config.database_type,
+        Database::connect(
             &config.database_url,
             config.database_write_url.as_deref(),
             &pool_config,
@@ -97,7 +97,7 @@ pub(super) async fn init_core(
     )
     .await?;
 
-    let authz_audit_pool = database.write_pool_arc().ok();
+    let authz_audit_pool = database.write_pool_arc()?;
     let authz_hook = systemprompt_security::authz::build_authz_hook(
         profile.governance.as_ref(),
         authz_audit_pool,
@@ -105,6 +105,10 @@ pub(super) async fn init_core(
         chain_sources()?,
     )
     .map_err(|err| RuntimeError::Internal(format!("authz bootstrap: {err}")))?;
+
+    let governance = Arc::new(GovernanceEngine::from_services_root(std::path::Path::new(
+        &profile.paths.services,
+    ))?);
 
     systemprompt_logging::init_logging(Arc::clone(&database));
 
@@ -119,6 +123,7 @@ pub(super) async fn init_core(
         app_paths,
         database,
         authz_hook,
+        governance,
         file_storage,
     })
 }
@@ -215,16 +220,18 @@ pub(super) async fn init_extensions(
     install_schemas: bool,
     migration_config: MigrationConfig,
     database: &Arc<Database>,
-) -> RuntimeResult<Arc<ExtensionRegistry>> {
+) -> RuntimeResult<(Arc<ExtensionRegistry>, SchemaInstallReport)> {
     let registry = match extension_registry {
         Some(registry) => registry,
         None => ExtensionRegistry::discover()?,
     };
     registry.validate()?;
 
-    if install_schemas {
-        install_extension_schemas_full(&registry, database.write(), &[], migration_config).await?;
-    }
+    let report = if install_schemas {
+        install_extension_schemas_full(&registry, database.write(), &[], migration_config).await?
+    } else {
+        SchemaInstallReport::default()
+    };
 
-    Ok(Arc::new(registry))
+    Ok((Arc::new(registry), report))
 }

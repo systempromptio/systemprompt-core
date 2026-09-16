@@ -64,7 +64,7 @@ pub(super) async fn dispatch_to_provider(
         access_scope: principal.access_scope(),
         client_id: principal.client_id().cloned(),
         provider,
-        requested_model: Some(gateway_request.model.clone()),
+        requested_model: Some(gateway_request.model.to_string()),
         model: upstream_model,
         max_tokens: Some(max_tokens),
         is_streaming,
@@ -90,6 +90,7 @@ pub(super) async fn dispatch_to_provider(
             inbound,
             forward_headers: client_headers.forward,
             identity_headers: client_headers.identity,
+            governance: rc.ctx.governance_arc(),
         },
     ))
     .await

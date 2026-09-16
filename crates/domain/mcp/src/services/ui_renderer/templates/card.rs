@@ -13,7 +13,6 @@ use super::html::{
 use super::typed::artifact_payload;
 use crate::error::McpDomainResult;
 use crate::services::ui_renderer::{CspPolicy, UiRenderer, UiResource};
-use async_trait::async_trait;
 use serde_json::Value as JsonValue;
 use systemprompt_models::a2a::Artifact;
 use systemprompt_models::artifacts::{
@@ -29,13 +28,12 @@ impl PresentationCardRenderer {
     }
 }
 
-#[async_trait]
 impl UiRenderer for PresentationCardRenderer {
     fn artifact_type(&self) -> ArtifactType {
         ArtifactType::PresentationCard
     }
 
-    async fn render(&self, artifact: &Artifact) -> McpDomainResult<UiResource> {
+    fn render(&self, artifact: &Artifact) -> McpDomainResult<UiResource> {
         let card: PresentationCardArtifact = artifact_payload(artifact)?;
         let title = if card.title.is_empty() {
             artifact.title.as_deref().unwrap_or("Card")

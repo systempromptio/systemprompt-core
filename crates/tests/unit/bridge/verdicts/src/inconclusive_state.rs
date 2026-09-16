@@ -88,9 +88,11 @@ fn cancellation_is_recognised_by_type_not_by_message() {
 
     assert!(!GuiError::NotAuthenticated.is_cancelled());
     assert!(
-        !GuiError::Auth(systemprompt_bridge::auth::setup::SetupError::Io(
-            "sign-in cancelled".to_owned()
-        ))
+        !GuiError::Auth(systemprompt_bridge::auth::setup::SetupError::Io {
+            action: "sign-in cancelled",
+            path: std::path::PathBuf::from("creds.toml"),
+            source: std::io::Error::other("cancelled"),
+        })
         .is_cancelled(),
         "a message that merely reads as cancelled is not a cancellation"
     );

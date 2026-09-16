@@ -54,6 +54,7 @@ fn original_plugin() -> PluginConfig {
         artifacts: PluginComponentRef::default(),
         hooks: systemprompt_models::services::plugin::PluginHooksRef::default(),
         scripts: Vec::new(),
+        dependencies: vec![],
     }
 }
 
@@ -84,11 +85,14 @@ fn original_marketplace() -> MarketplaceConfig {
             attributes: Default::default(),
             justification: None,
         },
+        allow_cross_marketplace_dependencies_on: vec![],
+        external_marketplaces: vec![],
     }
 }
 
 fn skill_entry(id: &str, description: &str) -> SkillEntry {
     SkillEntry {
+        publication: None,
         id: SkillId::try_new(id).expect("valid skill id"),
         name: SkillName::try_new(id.replace('_', " ")).expect("valid skill name"),
         description: description.to_owned(),

@@ -51,7 +51,7 @@ impl AiFilePersistenceProvider for InMemoryFileProvider {
     async fn insert_file(&self, params: InsertAiFileParams) -> AiProviderResult<()> {
         let now = chrono::Utc::now();
         let file = AiGeneratedFile {
-            id: params.id,
+            id: params.id.clone(),
             path: params.path,
             public_url: params.public_url,
             mime_type: params.mime_type,
@@ -150,6 +150,10 @@ impl ImageProvider for StubImageProvider {
             max_prompt_length: 1000,
             cost_per_image_cents: 4.0,
         }
+    }
+
+    fn cost_per_image_cents(&self, _model: &str) -> f32 {
+        4.0
     }
 
     fn supported_models(&self) -> Vec<String> {

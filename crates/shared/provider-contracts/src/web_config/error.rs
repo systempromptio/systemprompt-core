@@ -11,7 +11,7 @@ use thiserror::Error;
 pub enum WebConfigError {
     #[error("Failed to read web config at '{path}': {source}")]
     Io {
-        path: String,
+        path: PathBuf,
         #[source]
         source: std::io::Error,
     },

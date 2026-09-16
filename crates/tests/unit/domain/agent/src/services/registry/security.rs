@@ -1,110 +1,10 @@
 use std::collections::HashMap;
 use systemprompt_agent::SecurityScheme;
 use systemprompt_agent::services::registry::security::{
-    convert_json_security_to_struct, oauth_to_security_config, override_oauth_urls,
+    oauth_to_security_config, override_oauth_urls,
 };
 use systemprompt_models::AgentOAuthConfig;
 use systemprompt_models::auth::{JwtAudience, Permission};
-
-#[test]
-fn test_convert_json_security_none_inputs() {
-    let (schemes, reqs) = convert_json_security_to_struct(None, None);
-
-    assert!(schemes.is_none());
-    assert!(reqs.is_none());
-}
-
-#[test]
-fn test_convert_json_security_valid_oauth2_scheme() {
-    let schemes_json = serde_json::json!({
-        "oauth2": {
-            "type": "oauth2",
-            "flows": {
-                "authorizationCode": {
-                    "authorizationUrl": "https://auth.example.com/authorize",
-                    "tokenUrl": "https://auth.example.com/token",
-                    "scopes": {
-                        "read": "Read access"
-                    }
-                }
-            }
-        }
-    });
-
-    let (schemes, _) = convert_json_security_to_struct(Some(&schemes_json), None);
-
-    let schemes = schemes.expect("expected Some");
-    assert!(schemes.contains_key("oauth2"));
-}
-
-#[test]
-fn test_convert_json_security_valid_requirements() {
-    let reqs_json = vec![serde_json::json!({"oauth2": ["read", "write"]})];
-
-    let (_, reqs) = convert_json_security_to_struct(None, Some(&reqs_json));
-
-    let reqs = reqs.expect("expected Some");
-    assert_eq!(reqs.len(), 1);
-    assert_eq!(reqs[0]["oauth2"], vec!["read", "write"]);
-}
-
-#[test]
-fn test_convert_json_security_invalid_schemes_returns_none() {
-    let invalid_json = serde_json::json!("not a map");
-
-    let (schemes, _) = convert_json_security_to_struct(Some(&invalid_json), None);
-
-    assert!(schemes.is_none());
-}
-
-#[test]
-fn test_convert_json_security_invalid_requirements_returns_none() {
-    let invalid_reqs = vec![serde_json::json!("not a map")];
-
-    let (_, reqs) = convert_json_security_to_struct(None, Some(&invalid_reqs));
-
-    assert!(reqs.is_none());
-}
-
-#[test]
-fn test_convert_json_security_both_valid() {
-    let schemes_json = serde_json::json!({
-        "apiKey": {
-            "type": "apiKey",
-            "name": "X-API-Key",
-            "in": "header"
-        }
-    });
-    let reqs_json = vec![serde_json::json!({"apiKey": []})];
-
-    let (schemes, reqs) = convert_json_security_to_struct(Some(&schemes_json), Some(&reqs_json));
-
-    let schemes = schemes.expect("schemes present");
-    assert!(schemes.contains_key("apiKey"));
-    let reqs = reqs.expect("reqs present");
-    assert_eq!(reqs.len(), 1);
-    assert!(reqs[0].contains_key("apiKey"));
-}
-
-#[test]
-fn test_convert_json_security_empty_schemes_map() {
-    let empty_json = serde_json::json!({});
-
-    let (schemes, _) = convert_json_security_to_struct(Some(&empty_json), None);
-
-    let schemes = schemes.expect("expected Some");
-    assert!(schemes.is_empty());
-}
-
-#[test]
-fn test_convert_json_security_empty_requirements_list() {
-    let empty_reqs: Vec<serde_json::Value> = vec![];
-
-    let (_, reqs) = convert_json_security_to_struct(None, Some(&empty_reqs));
-
-    let reqs = reqs.expect("expected Some");
-    assert!(reqs.is_empty());
-}
 
 #[test]
 fn test_oauth_to_security_config_required() {
@@ -366,46 +266,4 @@ fn test_oauth_to_security_config_empty_scopes() {
 
     let reqs = reqs.expect("expected Some");
     assert!(reqs[0]["oauth2"].is_empty());
-}
-
-#[test]
-fn test_convert_json_security_multiple_requirements() {
-    let reqs_json = vec![
-        serde_json::json!({"oauth2": ["read"]}),
-        serde_json::json!({"apiKey": []}),
-    ];
-
-    let (_, reqs) = convert_json_security_to_struct(None, Some(&reqs_json));
-
-    let reqs = reqs.expect("expected Some");
-    assert_eq!(reqs.len(), 2);
-    assert!(reqs[0].contains_key("oauth2"));
-    assert!(reqs[1].contains_key("apiKey"));
-}
-
-#[test]
-fn test_convert_json_security_http_bearer_scheme() {
-    let schemes_json = serde_json::json!({
-        "bearer": {
-            "type": "http",
-            "scheme": "bearer",
-            "bearerFormat": "JWT"
-        }
-    });
-
-    let (schemes, _) = convert_json_security_to_struct(Some(&schemes_json), None);
-
-    let schemes = schemes.expect("expected Some");
-    assert!(schemes.contains_key("bearer"));
-    match schemes.get("bearer").unwrap() {
-        SecurityScheme::Http {
-            scheme,
-            bearer_format,
-            ..
-        } => {
-            assert_eq!(scheme, "bearer");
-            let _ = bearer_format;
-        },
-        _ => panic!("Expected Http variant"),
-    }
 }

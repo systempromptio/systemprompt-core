@@ -59,6 +59,8 @@ mod shutdown_request;
 #[cfg(test)]
 mod startup_validation;
 #[cfg(test)]
+mod trace;
+#[cfg(test)]
 mod validate_database_path;
 #[cfg(test)]
 mod validation;
@@ -66,3 +68,16 @@ mod validation;
 mod validation_report_extended;
 #[cfg(test)]
 mod wellknown;
+
+#[cfg(test)]
+mod reporting;
+
+#[cfg(test)]
+mod git_credentials;
+
+#[cfg(test)]
+mod optimization_campaigns;
+#[cfg(test)]
+mod optimization_evidence;
+#[cfg(test)]
+mod optimization_fixture;

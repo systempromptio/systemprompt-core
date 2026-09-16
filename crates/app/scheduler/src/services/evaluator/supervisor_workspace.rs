@@ -9,9 +9,24 @@ use super::{
 };
 use sha2::{Digest, Sha256};
 
-pub(super) fn install_case_fixtures(case: &CaseContent, root: &Path) -> SchedulerResult<()> {
+#[path = "supervisor_workspace_walk.rs"]
+mod walk;
+use walk::visit_workspace;
+
+pub fn install_case_fixtures(case: &CaseContent, root: &Path) -> SchedulerResult<()> {
+    if case.fixtures.len() > 256
+        || case.fixtures.values().map(String::len).sum::<usize>() > 8 * 1024 * 1024
+    {
+        return Err(SchedulerError::config_error(
+            "Case fixtures exceed workspace limits",
+        ));
+    }
+    super::ResourceContent::Case(case.clone())
+        .validate()
+        .map_err(internal)?;
     for (relative, content) in &case.fixtures {
         let path = root.join(relative);
+        ensure_no_directory_links(&path, root)?;
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)?;
         }
@@ -20,23 +35,30 @@ pub(super) fn install_case_fixtures(case: &CaseContent, root: &Path) -> Schedule
     Ok(())
 }
 
-pub(super) fn workspace_state(root: &Path) -> SchedulerResult<BTreeMap<String, String>> {
+pub fn workspace_state(root: &Path) -> SchedulerResult<BTreeMap<String, String>> {
     let mut files = BTreeMap::new();
-    visit_workspace(root, root, &mut |relative, bytes, _| {
-        files.insert(relative, hex::encode(Sha256::digest(bytes)));
+    visit_workspace(root, root, &mut |relative, bytes, executable| {
+        files.insert(relative, file_state_digest(bytes, executable));
         Ok(())
     })?;
     Ok(files)
 }
 
-pub(super) fn changed_workspace(
+fn file_state_digest(bytes: &[u8], executable: bool) -> String {
+    let mut digest = Sha256::new();
+    digest.update([u8::from(executable)]);
+    digest.update(bytes);
+    hex::encode(digest.finalize())
+}
+
+pub fn changed_workspace(
     root: &Path,
     baseline: &BTreeMap<String, String>,
 ) -> SchedulerResult<BTreeMap<String, ArtifactFile>> {
     let mut files = BTreeMap::new();
     let mut bytes_total = 0usize;
     visit_workspace(root, root, &mut |relative, bytes, executable| {
-        let digest = hex::encode(Sha256::digest(bytes));
+        let digest = file_state_digest(bytes, executable);
         if baseline.get(&relative) != Some(&digest) {
             bytes_total = bytes_total
                 .checked_add(bytes.len())
@@ -59,46 +81,6 @@ pub(super) fn changed_workspace(
     Ok(files)
 }
 
-fn visit_workspace(
-    root: &Path,
-    directory: &Path,
-    visitor: &mut impl FnMut(String, &[u8], bool) -> SchedulerResult<()>,
-) -> SchedulerResult<()> {
-    let mut entries = std::fs::read_dir(directory)?.collect::<Result<Vec<_>, _>>()?;
-    entries.sort_by_key(std::fs::DirEntry::file_name);
-    for entry in entries {
-        let path = entry.path();
-        let metadata = std::fs::symlink_metadata(&path)?;
-        if metadata.file_type().is_symlink() {
-            return Err(SchedulerError::config_error(
-                "Evaluation workspace contains a link",
-            ));
-        }
-        if metadata.is_dir() {
-            visit_workspace(root, &path, visitor)?;
-        } else if metadata.is_file() {
-            let relative = path
-                .strip_prefix(root)
-                .map_err(internal)?
-                .to_string_lossy()
-                .replace('\\', "/");
-            #[cfg(unix)]
-            let executable = {
-                use std::os::unix::fs::PermissionsExt;
-                metadata.permissions().mode() & 0o111 != 0
-            };
-            #[cfg(not(unix))]
-            let executable = false;
-            visitor(relative, &std::fs::read(path)?, executable)?;
-        } else {
-            return Err(SchedulerError::config_error(
-                "Evaluation workspace contains a non-regular file",
-            ));
-        }
-    }
-    Ok(())
-}
-
 pub(super) fn evidence_references(evidence: &ExecutionEvidence) -> BTreeSet<String> {
     let mut references = BTreeSet::new();
     for artifact in &evidence.artifacts {
@@ -111,41 +93,38 @@ pub(super) fn evidence_references(evidence: &ExecutionEvidence) -> BTreeSet<Stri
     references
 }
 
-fn decoded_bundle(value: &serde_json::Value) -> SchedulerResult<RevisionBundle> {
-    let bundle: RevisionBundle = serde_json::from_value(value.clone())
-        .map_err(|error| SchedulerError::Internal(error.to_string()))?;
+pub fn materialize_root(bundle: &RevisionBundle, destination: &Path) -> SchedulerResult<()> {
     bundle.verify().map_err(internal)?;
-    Ok(bundle)
-}
-
-pub(super) fn materialize_root(
-    value: &serde_json::Value,
-    destination: &Path,
-) -> SchedulerResult<()> {
-    let bundle = decoded_bundle(value)?;
     install_files(
         &bundle.revision_files(&bundle.root).map_err(internal)?.0,
         destination,
     )
 }
 
-pub(super) fn materialize_skills(
-    value: &serde_json::Value,
-    destination: &Path,
-) -> SchedulerResult<()> {
-    let bundle = decoded_bundle(value)?;
+pub fn materialize_skills(bundle: &RevisionBundle, destination: &Path) -> SchedulerResult<()> {
+    bundle.verify().map_err(internal)?;
     for revision in bundle.revisions.keys() {
         let files = bundle.revision_files(revision).map_err(internal)?;
-        let config = files.0.get("config.yaml").and_then(|file| {
-            serde_yaml::from_slice::<systemprompt_models::DiskSkillConfig>(&file.bytes).ok()
-        });
+        let config = files
+            .0
+            .get("config.yaml")
+            .map(|file| serde_yaml::from_slice::<systemprompt_models::DiskSkillConfig>(&file.bytes))
+            .transpose()
+            .map_err(|error| {
+                SchedulerError::config_error(format!(
+                    "Managed skill {} carries a malformed config.yaml: {error}",
+                    revision.as_str()
+                ))
+            })?;
         if let Some(config) = config {
             let id = if config.id.as_str().is_empty() {
                 revision.as_str()
             } else {
                 config.id.as_str()
             };
+            validate_directory_component(id)?;
             let directory = destination.join(id.replace('_', "-"));
+            ensure_no_directory_links(&directory, destination)?;
             std::fs::create_dir_all(&directory)?;
             let content = files
                 .0
@@ -163,29 +142,43 @@ pub(super) fn materialize_skills(
             for (path, file) in files.0.iter().filter(|(path, _)| {
                 path.as_str() != "config.yaml" && path.as_str() != config.content_file()
             }) {
-                install_file(&directory.join(path), file)?;
+                install_file(&directory.join(path), file, &directory)?;
             }
         } else {
-            install_files(&files.0, &destination.join(revision.as_str()))?;
+            validate_directory_component(revision.as_str())?;
+            let directory = destination.join(revision.as_str());
+            ensure_no_directory_links(&directory, destination)?;
+            install_files(&files.0, &directory)?;
         }
     }
     Ok(())
 }
 
+fn validate_directory_component(value: &str) -> SchedulerResult<()> {
+    if value.is_empty() || matches!(value, "." | "..") || value.contains(['/', '\\', ':']) {
+        return Err(SchedulerError::config_error(
+            "Skill directory must be one relative component",
+        ));
+    }
+    Ok(())
+}
+
 fn install_files(
-    files: &BTreeMap<String, systemprompt_marketplace::managed::AssetFile>,
+    files: &BTreeMap<String, systemprompt_models::managed::AssetFile>,
     destination: &Path,
 ) -> SchedulerResult<()> {
     for (path, file) in files {
-        install_file(&destination.join(path), file)?;
+        install_file(&destination.join(path), file, destination)?;
     }
     Ok(())
 }
 
 fn install_file(
     path: &Path,
-    file: &systemprompt_marketplace::managed::AssetFile,
+    file: &systemprompt_models::managed::AssetFile,
+    destination: &Path,
 ) -> SchedulerResult<()> {
+    ensure_no_directory_links(path, destination)?;
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
@@ -201,8 +194,23 @@ fn install_file(
     Ok(())
 }
 
+fn ensure_no_directory_links(path: &Path, root: &Path) -> SchedulerResult<()> {
+    for ancestor in path
+        .ancestors()
+        .take_while(|ancestor| ancestor.starts_with(root))
+    {
+        if std::fs::symlink_metadata(ancestor).is_ok_and(|meta| meta.file_type().is_symlink()) {
+            return Err(SchedulerError::config_error(
+                "Workspace write cannot traverse a directory link",
+            ));
+        }
+    }
+    Ok(())
+}
+
 pub(super) fn write_private(path: &Path, bytes: &[u8]) -> SchedulerResult<()> {
     use std::io::Write;
+    ensure_no_directory_links(path, path.parent().unwrap_or(path))?;
     let mut options = std::fs::OpenOptions::new();
     options.create_new(true).write(true);
     #[cfg(unix)]
@@ -218,8 +226,12 @@ pub(super) fn validate_config(config: &EvaluatorSupervisorConfig) -> SchedulerRe
     if !config.docker.is_absolute()
         || !config.workspace_root.is_absolute()
         || config.environment.trim().is_empty()
-        || !config.client_image.contains("@sha256:")
-        || !config.relay_image.contains("@sha256:")
+        || systemprompt_evaluation::capabilities::proofs::ImmutableImage::parse(
+            &config.client_image,
+        )
+        .is_err()
+        || systemprompt_evaluation::capabilities::proofs::ImmutableImage::parse(&config.relay_image)
+            .is_err()
         || matches!(
             config.relay_control_network.as_str(),
             "host" | "bridge" | "default" | "none"
@@ -243,20 +255,37 @@ pub(super) fn safe_suffix(execution: &EvalExecutionId) -> String {
         .collect()
 }
 pub(super) fn image_digest(image: &str) -> SchedulerResult<String> {
-    image
-        .rsplit_once("@sha256:")
-        .map(|(_, digest)| digest.to_owned())
-        .ok_or_else(|| SchedulerError::config_error("Pinned image digest missing"))
+    systemprompt_evaluation::capabilities::proofs::ImmutableImage::parse(image)
+        .map(|image| image.digest().to_owned())
+        .map_err(|error| SchedulerError::config_error(error.to_string()))
 }
 pub(super) fn internal(error: impl std::fmt::Display) -> SchedulerError {
     SchedulerError::Internal(error.to_string())
 }
 
+/// An exclusively created workspace removed when its owning execution ends.
 #[derive(Debug)]
-pub(super) struct WorkspaceDirectory(pub(super) PathBuf);
+pub struct WorkspaceDirectory(PathBuf);
+
+impl WorkspaceDirectory {
+    pub fn create(path: PathBuf) -> SchedulerResult<Self> {
+        std::fs::create_dir(&path)?;
+        Ok(Self(path))
+    }
+
+    pub fn path(&self) -> &Path {
+        &self.0
+    }
+}
 
 impl Drop for WorkspaceDirectory {
     fn drop(&mut self) {
-        drop(std::fs::remove_dir_all(&self.0));
+        if let Err(error) = std::fs::remove_dir_all(&self.0) {
+            tracing::warn!(
+                path = %self.0.display(),
+                error = %error,
+                "Evaluator workspace cleanup failed"
+            );
+        }
     }
 }

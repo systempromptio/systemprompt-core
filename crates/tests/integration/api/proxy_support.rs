@@ -31,6 +31,7 @@ impl TestSessionCache {
                     user_id: UserId::new(user.to_string()),
                     user_type: UserType::User,
                     permissions,
+                    roles: Vec::new(),
                     auth_token: JwtToken::new(token),
                 },
             )

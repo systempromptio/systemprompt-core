@@ -23,6 +23,7 @@ impl SchemaSanitizer {
         Self { capabilities }
     }
 
+    // JSON: JSON Schema document rewritten in place for the provider's subset.
     pub fn sanitize(&self, schema: Value) -> Value {
         let mut sanitized = schema;
 

@@ -1,20 +1,19 @@
 //! Log persistence repository.
 //!
-//! [`LoggingRepository`] writes entries to the configured sinks (terminal
-//! and/or database) and serves paginated reads, lookups, and age-based cleanup;
+//! [`LoggingRepository`] persists entries to the `logs` table and serves
+//! paginated reads, lookups, and age-based cleanup;
 //! [`AnalyticsRepository`] records analytics events. Read and write pools are
 //! held separately so reads never contend with the write path.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::io::Write;
 use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::LogId;
+use systemprompt_identifiers::{LogId, UserId};
 
 use crate::models::{LogEntry, LogFilter, LoggingError};
 
@@ -27,47 +26,18 @@ pub use analytics::{AnalyticsEvent, AnalyticsRepository};
 pub struct LoggingRepository {
     pool: Arc<PgPool>,
     write_pool: Arc<PgPool>,
-    terminal_output: bool,
-    db_output: bool,
 }
 
 impl LoggingRepository {
     pub fn new(db: &DbPool) -> Result<Self, LoggingError> {
         let pool = db.pool_arc()?;
         let write_pool = db.write_pool_arc()?;
-        Ok(Self {
-            pool,
-            write_pool,
-            terminal_output: true,
-            db_output: false,
-        })
-    }
-
-    #[must_use]
-    pub const fn with_terminal(mut self, enabled: bool) -> Self {
-        self.terminal_output = enabled;
-        self
-    }
-
-    #[must_use]
-    pub const fn with_database(mut self, enabled: bool) -> Self {
-        self.db_output = enabled;
-        self
+        Ok(Self { pool, write_pool })
     }
 
     pub async fn log(&self, entry: LogEntry) -> Result<(), LoggingError> {
         entry.validate()?;
-
-        if self.terminal_output {
-            let mut stdout = std::io::stdout();
-            writeln!(stdout, "{entry}").ok();
-        }
-
-        if self.db_output {
-            operations::create_log(&self.write_pool, &entry).await?;
-        }
-
-        Ok(())
+        operations::create_log(&self.write_pool, &entry).await
     }
 
     pub async fn get_recent_logs(&self, limit: i64) -> Result<Vec<LogEntry>, LoggingError> {
@@ -88,6 +58,18 @@ impl LoggingRepository {
 
     pub async fn count_logs_before(&self, cutoff: DateTime<Utc>) -> Result<u64, LoggingError> {
         operations::count_logs_before(&self.pool, cutoff).await
+    }
+
+    pub async fn distinct_log_user_ids(&self) -> Result<Vec<UserId>, LoggingError> {
+        operations::distinct_log_user_ids(&self.pool).await
+    }
+
+    pub async fn delete_logs_for_users(&self, user_ids: &[UserId]) -> Result<u64, LoggingError> {
+        operations::delete_logs_for_users(&self.write_pool, user_ids).await
+    }
+
+    pub async fn count_logs_for_users(&self, user_ids: &[UserId]) -> Result<u64, LoggingError> {
+        operations::count_logs_for_users(&self.pool, user_ids).await
     }
 
     pub async fn clear_all_logs(&self) -> Result<u64, LoggingError> {

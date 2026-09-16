@@ -10,7 +10,7 @@ use systemprompt_traits::{AiFilePersistenceProvider, AiProviderError, InsertAiFi
 fn params(metadata: serde_json::Value) -> InsertAiFileParams {
     let id = uuid::Uuid::new_v4();
     InsertAiFileParams {
-        id,
+        id: FileId::new(id.to_string()),
         path: format!("/storage/generated/{id}.png"),
         public_url: format!("/files/images/generated/{id}.png"),
         mime_type: "image/png".to_owned(),

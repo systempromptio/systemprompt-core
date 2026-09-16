@@ -91,12 +91,51 @@ fn agent_config_construct_url_trims_trailing_slash() {
 #[test]
 fn agent_config_extract_oauth_scopes_populates_oauth() {
     let mut a = valid_agent("my_agent");
-    a.card.security = Some(vec![serde_json::json!({
-        "oauth2": ["admin", "user", "service", "a2a", "mcp", "unknown_scope"]
-    })]);
+    a.card.security = Some(vec![std::collections::HashMap::from([(
+        "oauth2".to_owned(),
+        ["admin", "user", "service", "a2a", "mcp", "unknown_scope"]
+            .map(str::to_owned)
+            .to_vec(),
+    )])]);
     a.extract_oauth_scopes_from_card();
     assert!(a.oauth.required);
     assert_eq!(a.oauth.scopes.len(), 5);
+}
+
+#[test]
+fn agent_card_config_rejects_malformed_security_schemes() {
+    let yaml = r#"
+protocolVersion: "0.3.0"
+displayName: Display
+description: d
+version: "1.0.0"
+securitySchemes: "not a map"
+"#;
+    assert!(serde_yaml::from_str::<AgentCardConfig>(yaml).is_err());
+}
+
+#[test]
+fn agent_card_config_parses_typed_security_schemes() {
+    let yaml = r#"
+protocolVersion: "0.3.0"
+displayName: Display
+description: d
+version: "1.0.0"
+securitySchemes:
+  apiKey:
+    type: apiKey
+    name: X-API-Key
+    in: header
+security:
+  - apiKey: []
+"#;
+    let card: AgentCardConfig = serde_yaml::from_str(yaml).expect("typed card");
+    assert!(
+        card.security_schemes
+            .expect("schemes")
+            .contains_key("apiKey")
+    );
+    assert_eq!(card.security.expect("requirements").len(), 1);
 }
 
 #[test]

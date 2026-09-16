@@ -2,10 +2,11 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 use systemprompt_identifiers::{AgentId, AgentName, PluginId, ValidatedUrl};
+use systemprompt_marketplace::MarketplaceCache;
 use systemprompt_marketplace::bundle::{
     BundleContent, PluginBundle, build_plugin_bundle, bundle_has_content,
 };
-use systemprompt_marketplace::catalog::{load_plugins, plugin_bundles, plugin_bundles_cached};
+use systemprompt_marketplace::catalog::{load_plugins, plugin_bundles};
 use systemprompt_models::bridge::ids::{
     LibraryArtifactId, ManagedMcpServerName, RuleId, RuleName, Sha256Digest, SkillId, SkillName,
 };
@@ -29,6 +30,7 @@ fn zero_digest() -> Sha256Digest {
 
 fn skill_entry(id: &str, description: &str, instructions: &str) -> SkillEntry {
     SkillEntry {
+        publication: None,
         id: SkillId::try_new(id).expect("skill id"),
         name: SkillName::try_new(id.replace('_', " ")).expect("skill name"),
         description: description.to_owned(),
@@ -49,7 +51,7 @@ fn skill_entry_at(id: &str, description: &str, instructions: &str, file_path: &s
 
 fn mcp_server(name: &str, url: &str) -> ManagedMcpServer {
     ManagedMcpServer {
-        id: systemprompt_identifiers::McpServerId::new(name),
+        id: systemprompt_identifiers::McpServerId::try_new(name).expect("valid McpServerId"),
         name: ManagedMcpServerName::try_new(name).expect("mcp name"),
         url: ValidatedUrl::try_new(url).expect("mcp url"),
         transport: Some("http".to_owned()),
@@ -109,6 +111,7 @@ fn plugin_config(id: &str, skills: PluginComponentRef, agents: PluginComponentRe
         artifacts: PluginComponentRef::default(),
         hooks: Default::default(),
         scripts: vec![],
+        dependencies: vec![],
     }
 }
 
@@ -228,7 +231,8 @@ fn load_plugins_builds_entry_from_spec_without_prebuilt_dir() {
         ),
     );
 
-    let entries = load_plugins(&services, &content).expect("load plugins");
+    let entries =
+        load_plugins(&services, &content, &MarketplaceCache::default()).expect("load plugins");
     assert_eq!(entries.len(), 1);
     assert_eq!(entries[0].id.as_str(), "demo-plugin");
     assert!(!entries[0].files.is_empty());
@@ -262,7 +266,8 @@ fn load_plugins_skips_spec_with_no_resolvable_content() {
         ),
     );
 
-    let entries = load_plugins(&services, &content).expect("load plugins");
+    let entries =
+        load_plugins(&services, &content, &MarketplaceCache::default()).expect("load plugins");
     assert!(
         entries.is_empty(),
         "a spec resolving to no content must be skipped, not shipped as a shell"
@@ -430,7 +435,8 @@ fn manifest_entries_hash_the_served_bytes() {
         ),
     );
 
-    let entries = load_plugins(&services, &content).expect("load plugins");
+    let entries =
+        load_plugins(&services, &content, &MarketplaceCache::default()).expect("load plugins");
     let bundles = plugin_bundles(&services, &content).expect("plugin bundles");
     assert_eq!(entries.len(), 1);
 
@@ -487,13 +493,16 @@ fn cached_bundles_match_the_uncached_build_and_track_input_changes() {
     );
 
     let uncached = comparable(&plugin_bundles(&services, &content).expect("uncached bundles"));
+    let cache = MarketplaceCache::default();
     let first = comparable(
-        plugin_bundles_cached(&services, &content)
+        cache
+            .bundles(&services, &content)
             .expect("first cached")
             .as_ref(),
     );
     let second = comparable(
-        plugin_bundles_cached(&services, &content)
+        cache
+            .bundles(&services, &content)
             .expect("second cached")
             .as_ref(),
     );
@@ -511,7 +520,8 @@ fn cached_bundles_match_the_uncached_build_and_track_input_changes() {
         plugin_config("extra-plugin", explicit(&[]), explicit(&["cache_agent"])),
     );
     let rebuilt = comparable(
-        plugin_bundles_cached(&services, &content)
+        cache
+            .bundles(&services, &content)
             .expect("rebuilt cached")
             .as_ref(),
     );
@@ -845,7 +855,7 @@ fn mcp_file_absent_when_only_referenced_server_is_disabled() {
 #[test]
 fn agent_md_carries_model_when_set() {
     let mut agent = agent_entry("modelled", "an agent with a model", None);
-    agent.model = Some("claude-fable-5".to_owned());
+    agent.model = Some(systemprompt_identifiers::ModelId::new("claude-fable-5"));
     let agents = vec![agent];
     let content = BundleContent {
         skills: &[],
@@ -870,7 +880,7 @@ fn agent_md_carries_model_when_set() {
 #[test]
 fn agent_with_empty_model_omits_model_line() {
     let mut agent = agent_entry("blank_model", "no model", None);
-    agent.model = Some(String::new());
+    agent.model = Some(systemprompt_identifiers::ModelId::new(""));
     let agents = vec![agent];
     let content = BundleContent {
         skills: &[],
@@ -931,27 +941,22 @@ fn skill_with_pathless_file_path_still_bundles_without_aux() {
 
 #[cfg(unix)]
 #[test]
-fn aux_collection_skips_unreadable_files_and_directories() {
+fn an_unreadable_aux_file_fails_the_bundle_instead_of_silently_omitting_it() {
     use std::os::unix::fs::PermissionsExt;
 
     let dir = tempfile::tempdir().expect("temp dir");
     let skill_dir = dir.path().join("skills").join("locked-skill");
     let scripts_dir = skill_dir.join("scripts");
-    let locked_subdir = scripts_dir.join("locked-subdir");
-    std::fs::create_dir_all(&locked_subdir).expect("create dirs");
+    std::fs::create_dir_all(&scripts_dir).expect("create dirs");
     std::fs::write(scripts_dir.join("readable.txt"), b"visible").expect("write readable");
     std::fs::write(scripts_dir.join("unreadable.txt"), b"secret").expect("write unreadable");
-    std::fs::write(locked_subdir.join("inside.txt"), b"buried").expect("write buried");
     let skill_md_path = skill_dir.join("SKILL.md");
     std::fs::write(&skill_md_path, b"body").expect("write skill md");
-
     std::fs::set_permissions(
         scripts_dir.join("unreadable.txt"),
         std::fs::Permissions::from_mode(0o000),
     )
     .expect("lock file");
-    std::fs::set_permissions(&locked_subdir, std::fs::Permissions::from_mode(0o000))
-        .expect("lock subdir");
 
     let skills = vec![skill_entry_at(
         "locked_skill",
@@ -975,34 +980,24 @@ fn aux_collection_skips_unreadable_files_and_directories() {
         PluginComponentRef::default(),
     );
 
-    let bundle = build_plugin_bundle(&config, &content).expect("build");
+    let result = build_plugin_bundle(&config, &content);
 
-    // Restore perms so the tempdir can be cleaned up.
-    std::fs::set_permissions(&locked_subdir, std::fs::Permissions::from_mode(0o755))
-        .expect("unlock subdir");
     std::fs::set_permissions(
         scripts_dir.join("unreadable.txt"),
         std::fs::Permissions::from_mode(0o644),
     )
     .expect("unlock file");
 
+    let error = result.expect_err("an aux file the bundle cannot read is not silently omitted");
     assert!(
-        bundle.contains_key("skills/locked-skill/scripts/readable.txt"),
-        "a readable aux file is collected",
-    );
-    assert!(
-        !bundle.contains_key("skills/locked-skill/scripts/unreadable.txt"),
-        "an unreadable aux file is skipped rather than aborting the bundle",
-    );
-    assert!(
-        !bundle.keys().any(|k| k.contains("locked-subdir")),
-        "an unreadable subdirectory is skipped rather than aborting the bundle",
+        error.to_string().contains("unreadable.txt"),
+        "the error names the file: {error}"
     );
 }
 
 #[cfg(unix)]
 #[test]
-fn plugin_with_unreadable_script_is_skipped_while_siblings_survive() {
+fn a_plugin_whose_script_cannot_be_read_fails_the_catalogue() {
     use std::os::unix::fs::PermissionsExt;
 
     let dir = tempfile::tempdir().expect("temp dir");
@@ -1043,18 +1038,14 @@ fn plugin_with_unreadable_script_is_skipped_while_siblings_survive() {
         ),
     );
 
-    let bundles = plugin_bundles(&services, &content).expect("plugin bundles");
+    let result = plugin_bundles(&services, &content);
 
     std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o644)).expect("unlock");
 
-    let ids: Vec<&str> = bundles
-        .keys()
-        .map(systemprompt_models::bridge::ids::PluginId::as_str)
-        .collect();
-    assert_eq!(
-        ids,
-        vec!["good-plugin"],
-        "a plugin whose script cannot be read is skipped fail-closed while valid siblings survive",
+    let error = result.expect_err("a plugin whose script cannot be read fails the catalogue");
+    assert!(
+        error.to_string().contains("setup.sh"),
+        "the error names the script: {error}"
     );
 }
 
@@ -1089,8 +1080,10 @@ fn fingerprint_tolerates_a_dangling_symlink_under_plugins_root() {
         ),
     );
 
-    let bundles =
-        plugin_bundles_cached(&services, &content).expect("fingerprint ignores a dangling symlink");
+    let cache = MarketplaceCache::default();
+    let bundles = cache
+        .bundles(&services, &content)
+        .expect("fingerprint ignores a dangling symlink");
     assert_eq!(
         bundles.len(),
         1,
@@ -1181,6 +1174,7 @@ fn editing_an_artifact_body_reships_the_bundle() {
     let mut after = before.clone();
     after[0].content = "<html>edited dashboard</html>".to_owned();
 
+    let cache = MarketplaceCache::default();
     let served = |artifacts: &[ArtifactEntry]| {
         let content = BundleContent {
             skills: &[],
@@ -1192,7 +1186,7 @@ fn editing_an_artifact_body_reships_the_bundle() {
             plugins_root: Path::new("/nonexistent/plugins"),
             managed_files: &BTreeMap::new(),
         };
-        let bundles = plugin_bundles_cached(&services, &content).expect("bundles");
+        let bundles = cache.bundles(&services, &content).expect("bundles");
         bundles
             .iter()
             .next()

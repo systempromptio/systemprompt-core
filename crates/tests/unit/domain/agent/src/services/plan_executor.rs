@@ -1,7 +1,7 @@
 use serde_json::Value;
 use systemprompt_agent::services::a2a_server::processing::strategies::plan_executor::{
     ToolExecutorTrait, ToolOutcome, convert_to_call_tool_results, convert_to_tool_calls,
-    execute_tools_sequentially, execute_tools_with_templates, format_results_for_response,
+    execute_tools, format_results_for_response,
 };
 use systemprompt_agent::services::shared::Result;
 use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, UserId};
@@ -47,7 +47,7 @@ fn ctx() -> RequestContext {
         SessionId::new("pe-session"),
         TraceId::new("pe-trace"),
         ContextId::generate(),
-        AgentName::new("pe-agent"),
+        AgentName::try_new("pe-agent").expect("valid AgentName"),
     );
     c.auth.actor = Actor::user(UserId::new("pe-user"));
     c
@@ -58,14 +58,17 @@ fn call(name: &str) -> PlannedToolCall {
 }
 
 #[test]
-fn convert_to_tool_calls_assigns_ids() {
+fn convert_to_tool_calls_assigns_unique_ids() {
     let calls = vec![call("a"), call("b"), call("c")];
     let tool_calls = convert_to_tool_calls(&calls);
     assert_eq!(tool_calls.len(), 3);
     assert_eq!(tool_calls[0].name, "a");
-    assert_eq!(tool_calls[0].ai_tool_call_id.as_str(), "plan_call_0");
-    assert_eq!(tool_calls[1].ai_tool_call_id.as_str(), "plan_call_1");
-    assert_eq!(tool_calls[2].ai_tool_call_id.as_str(), "plan_call_2");
+    let ids: std::collections::HashSet<&str> = tool_calls
+        .iter()
+        .map(|c| c.ai_tool_call_id.as_str())
+        .collect();
+    assert_eq!(ids.len(), 3, "each planned call gets a unique id");
+    assert!(ids.iter().all(|id| !id.is_empty()));
 }
 
 #[test]
@@ -98,7 +101,7 @@ fn convert_to_call_tool_results_maps_success_and_failure() {
 #[tokio::test]
 async fn executed_tools_keep_the_wire_meta_for_the_artifact_transformer() {
     let calls = vec![call("with_meta")];
-    let state = execute_tools_sequentially(&calls, &[], &ctx(), &AlwaysOkExecutor)
+    let state = execute_tools(&calls, &[], &ctx(), &AlwaysOkExecutor)
         .await
         .expect("ok");
     let results = convert_to_call_tool_results(&state);
@@ -141,9 +144,9 @@ fn format_results_for_response_empty_state() {
 }
 
 #[tokio::test]
-async fn execute_tools_sequentially_collects_results() {
+async fn execute_tools_collects_results() {
     let calls = vec![call("alpha"), call("beta")];
-    let state = execute_tools_sequentially(&calls, &[], &ctx(), &AlwaysOkExecutor)
+    let state = execute_tools(&calls, &[], &ctx(), &AlwaysOkExecutor)
         .await
         .expect("ok");
     assert_eq!(state.results.len(), 2);
@@ -152,9 +155,9 @@ async fn execute_tools_sequentially_collects_results() {
 }
 
 #[tokio::test]
-async fn execute_tools_sequentially_records_failures() {
+async fn execute_tools_records_failures() {
     let calls = vec![call("x")];
-    let state = execute_tools_sequentially(&calls, &[], &ctx(), &AlwaysFailExecutor)
+    let state = execute_tools(&calls, &[], &ctx(), &AlwaysFailExecutor)
         .await
         .expect("ok");
     assert_eq!(state.results.len(), 1);
@@ -169,17 +172,17 @@ async fn execute_tools_sequentially_records_failures() {
 }
 
 #[tokio::test]
-async fn execute_tools_sequentially_empty_calls_returns_empty_state() {
-    let state = execute_tools_sequentially(&[], &[], &ctx(), &AlwaysOkExecutor)
+async fn execute_tools_empty_calls_returns_empty_state() {
+    let state = execute_tools(&[], &[], &ctx(), &AlwaysOkExecutor)
         .await
         .expect("ok");
     assert!(state.results.is_empty());
 }
 
 #[tokio::test]
-async fn execute_tools_with_templates_no_templates_runs_like_sequential() {
+async fn execute_tools_without_templates_runs_plainly() {
     let calls = vec![call("plain")];
-    let state = execute_tools_with_templates(&calls, &[], &ctx(), &AlwaysOkExecutor)
+    let state = execute_tools(&calls, &[], &ctx(), &AlwaysOkExecutor)
         .await
         .expect("ok");
     assert_eq!(state.results.len(), 1);

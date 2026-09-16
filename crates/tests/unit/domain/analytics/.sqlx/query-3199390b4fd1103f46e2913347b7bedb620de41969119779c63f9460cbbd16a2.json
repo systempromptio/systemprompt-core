@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "CREATE TEMP TABLE analytics_fact_checkpoints (LIKE public.analytics_fact_checkpoints INCLUDING ALL) ON COMMIT DROP",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "3199390b4fd1103f46e2913347b7bedb620de41969119779c63f9460cbbd16a2"
+}

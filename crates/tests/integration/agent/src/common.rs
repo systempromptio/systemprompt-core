@@ -1,6 +1,5 @@
 use anyhow::{Context, Result};
 use systemprompt_agent::repository::task::{RepoCreateTaskParams, TaskRepository};
-use systemprompt_analytics::SessionRepository;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContextId, SessionId, TaskId, TraceId, UserId};
 use systemprompt_models::a2a::{Task, TaskState, TaskStatus};
@@ -47,7 +46,7 @@ impl Fixture {
         let session_id = SessionId::new(format!("test_session_{tag}"));
         let trace_id = TraceId::new(format!("test_trace_{tag}"));
         // ContextId is `validated, schema` and requires a UUID v4 string.
-        let context_id = ContextId::new_unchecked(Uuid::new_v4().to_string());
+        let context_id = ContextId::try_new(Uuid::new_v4().to_string()).expect("valid ContextId");
 
         sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $2, $3)")
             .bind(user_id.as_str())
@@ -138,5 +137,9 @@ impl Fixture {
 }
 
 pub fn session_usage(db: &DbPool) -> Result<DynSessionUsageCounters> {
-    Ok(std::sync::Arc::new(SessionRepository::new(db)?))
+    Ok(
+        systemprompt_test_fixtures::fixture_analytics_repositories(db)?
+            .sessions
+            .owner(),
+    )
 }

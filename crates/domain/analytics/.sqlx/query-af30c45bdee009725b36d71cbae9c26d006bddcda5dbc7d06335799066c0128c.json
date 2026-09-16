@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT evidence_cutoff FROM analytics_snapshot_state WHERE owner_id=$1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "evidence_cutoff",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "analytics_snapshot_state",
+            "name": "evidence_cutoff"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "af30c45bdee009725b36d71cbae9c26d006bddcda5dbc7d06335799066c0128c"
+}

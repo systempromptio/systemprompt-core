@@ -68,8 +68,12 @@ pub trait AgentRegistryProvider: Send + Sync {
 
     async fn get_default_agent(&self) -> Result<AgentInfo, RegistryError>;
 
-    async fn agent_exists(&self, name: &str) -> bool {
-        self.get_agent(name).await.is_ok()
+    async fn agent_exists(&self, name: &str) -> Result<bool, RegistryError> {
+        match self.get_agent(name).await {
+            Ok(_) => Ok(true),
+            Err(RegistryError::NotFound(_)) => Ok(false),
+            Err(e) => Err(e),
+        }
     }
 }
 
@@ -79,8 +83,12 @@ pub trait McpRegistryProvider: Send + Sync {
 
     async fn list_enabled_servers(&self) -> Result<Vec<McpServerInfo>, RegistryError>;
 
-    async fn server_exists(&self, name: &str) -> bool {
-        self.get_server(name).await.is_ok()
+    async fn server_exists(&self, name: &str) -> Result<bool, RegistryError> {
+        match self.get_server(name).await {
+            Ok(_) => Ok(true),
+            Err(RegistryError::NotFound(_)) => Ok(false),
+            Err(e) => Err(e),
+        }
     }
 }
 

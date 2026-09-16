@@ -6,6 +6,7 @@
 use super::{LifecycleOrchestrator, shutdown, startup};
 use crate::McpServerConfig;
 use crate::error::McpDomainResult;
+use crate::services::database::ServiceLifecycleStatus;
 use crate::services::process::ProcessService;
 
 pub async fn restart_server(
@@ -48,7 +49,7 @@ async fn verify_clean_state(
         tracing::warn!(service = %config.name, "Database shows service as running, cleaning up");
         manager
             .database()
-            .update_service_status(&config.name, "stopped")
+            .update_service_status(&config.name, ServiceLifecycleStatus::Stopped)
             .await?;
         manager.database().clear_service_pid(&config.name).await?;
     }

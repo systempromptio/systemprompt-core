@@ -10,8 +10,7 @@ use systemprompt_extension::{Extension, ExtensionRegistry};
 use systemprompt_loader::ExtensionLoader;
 
 use super::types::{
-    ExtensionDetailOutput, ExtensionSource, JobInfo, LlmProviderInfo, RoleInfo, SchemaInfo,
-    TemplateInfo, ToolInfo,
+    ExtensionDetailOutput, ExtensionSource, JobInfo, RoleInfo, SchemaInfo, TemplateInfo, ToolInfo,
 };
 use crate::CliConfig;
 use crate::shared::CommandOutput;
@@ -67,13 +66,6 @@ pub fn build_detail_output(ext: &dyn Extension) -> ExtensionDetailOutput {
             })
             .collect(),
         roles: role_infos(ext),
-        llm_providers: ext
-            .llm_providers()
-            .iter()
-            .map(|_provider| LlmProviderInfo {
-                name: "llm_provider".to_owned(),
-            })
-            .collect(),
         storage_paths: ext
             .required_storage_paths()
             .iter()
@@ -154,7 +146,6 @@ fn show_manifest(id: &str) -> Option<Result<CommandOutput>> {
         routes: vec![],
         tools: vec![],
         roles: vec![],
-        llm_providers: vec![],
         storage_paths: vec![],
     };
 

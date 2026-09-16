@@ -16,7 +16,11 @@ use systemprompt_test_fixtures::{closed_db_pool, ensure_test_bootstrap, fixture_
 
 async fn dead_repo() -> Arc<SessionRepository> {
     let pool = closed_db_pool().await;
-    Arc::new(SessionRepository::new(&pool).expect("repository construction is not a query"))
+    Arc::new(
+        systemprompt_test_fixtures::fixture_analytics_repositories(&pool)
+            .map(|repositories| repositories.sessions)
+            .expect("repository construction is not a query"),
+    )
 }
 
 async fn live_repo() -> Arc<SessionRepository> {
@@ -24,7 +28,11 @@ async fn live_repo() -> Arc<SessionRepository> {
     let pool = fixture_db_pool(&boot.database_url)
         .await
         .expect("test database");
-    Arc::new(SessionRepository::new(&pool).expect("repository"))
+    Arc::new(
+        systemprompt_test_fixtures::fixture_analytics_repositories(&pool)
+            .map(|repositories| repositories.sessions)
+            .expect("repository"),
+    )
 }
 
 #[tokio::test]

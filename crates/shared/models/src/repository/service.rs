@@ -1,15 +1,9 @@
-//! Managed-service record and lifecycle trait.
-//!
-//! [`ServiceLifecycle`] is invoked through trait objects, so it uses
-//! `#[async_trait]` — native `async fn` in traits is not yet
-//! `dyn`-compatible.
+//! Managed-service record decoded from a `services` row.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use systemprompt_traits::RepositoryError;
 
 use crate::errors::RowParseError;
 
@@ -24,6 +18,7 @@ pub struct ServiceRecord {
 
 impl ServiceRecord {
     pub fn from_json_row(
+        // JSON: `services` row decoded from a dynamic query result.
         row: &std::collections::HashMap<String, serde_json::Value>,
     ) -> Result<Self, RowParseError> {
         let name = row
@@ -63,11 +58,4 @@ impl ServiceRecord {
             port,
         })
     }
-}
-
-#[async_trait]
-pub trait ServiceLifecycle: Send + Sync {
-    async fn get_running_services(&self) -> Result<Vec<ServiceRecord>, RepositoryError>;
-    async fn mark_crashed(&self, service_name: &str) -> Result<(), RepositoryError>;
-    async fn update_status(&self, service_name: &str, status: &str) -> Result<(), RepositoryError>;
 }

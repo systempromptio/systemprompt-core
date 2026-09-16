@@ -13,6 +13,7 @@ workspace = true
 [dependencies]
 systemprompt-generator = { workspace = true }
 systemprompt-models = { workspace = true }
+systemprompt-config = { workspace = true }
 systemprompt-content = { workspace = true }
 systemprompt-provider-contracts = { workspace = true }
 systemprompt-extension = { workspace = true }

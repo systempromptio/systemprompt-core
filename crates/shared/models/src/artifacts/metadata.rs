@@ -68,7 +68,7 @@ impl Default for ExecutionMetadata {
             trace_id: TraceId::new("unset"),
             session_id: SessionId::new("unset"),
             user_id: UserId::new("unset"),
-            agent_name: AgentName::new("unset"),
+            agent_name: AgentName::unset(),
             timestamp: Utc::now(),
             task_id: None,
             tool_name: None,
@@ -169,6 +169,7 @@ impl ExecutionMetadata {
         self
     }
 
+    // JSON: JSON Schema document describing the metadata for the model.
     pub fn schema() -> JsonValue {
         match serde_json::to_value(schemars::schema_for!(Self)) {
             Ok(v) => v,
@@ -179,6 +180,7 @@ impl ExecutionMetadata {
         }
     }
 
+    // JSON: A2A `Artifact.metadata` map.
     pub fn to_object(&self) -> Option<serde_json::Map<String, JsonValue>> {
         serde_json::to_value(self)
             .map_err(|e| {
@@ -214,6 +216,7 @@ impl<T: Serialize + JsonSchema> ToolResponse<T> {
         }
     }
 
+    // JSON: A2A `Artifact.metadata` map.
     pub fn to_json(&self) -> Result<JsonValue, serde_json::Error> {
         serde_json::to_value(self)
     }

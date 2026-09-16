@@ -1,11 +1,11 @@
-// Tests for `StreamProcessor::extract_message_content`: which A2A parts reach
+// Tests for `extract_message_content`: which A2A parts reach
 // the AI as content, how each supported media class is mapped, and which
 // malformed file parts are dropped rather than propagated.
 
 use systemprompt_agent::models::a2a::{
     DataPart, FileContent, FilePart, Message, MessageRole, Part, TextPart,
 };
-use systemprompt_agent::services::a2a_server::processing::message::StreamProcessor;
+use systemprompt_agent::services::a2a_server::processing::message::extract_message_content;
 use systemprompt_identifiers::{ContextId, MessageId};
 use systemprompt_models::AiContentPart;
 
@@ -45,8 +45,7 @@ fn b64(s: &str) -> String {
 
 #[test]
 fn first_text_part_becomes_the_prompt_and_every_text_part_becomes_content() {
-    let (prompt, parts) =
-        StreamProcessor::extract_message_content(&message(vec![text("first"), text("second")]));
+    let (prompt, parts) = extract_message_content(&message(vec![text("first"), text("second")]));
 
     assert_eq!(prompt, "first", "the prompt is the first text part only");
     assert_eq!(
@@ -57,8 +56,7 @@ fn first_text_part_becomes_the_prompt_and_every_text_part_becomes_content() {
 
 #[test]
 fn an_empty_leading_text_part_lets_a_later_one_supply_the_prompt() {
-    let (prompt, parts) =
-        StreamProcessor::extract_message_content(&message(vec![text(""), text("real prompt")]));
+    let (prompt, parts) = extract_message_content(&message(vec![text(""), text("real prompt")]));
 
     assert_eq!(prompt, "real prompt");
     assert_eq!(parts.len(), 2);
@@ -66,7 +64,7 @@ fn an_empty_leading_text_part_lets_a_later_one_supply_the_prompt() {
 
 #[test]
 fn a_message_with_no_parts_yields_no_prompt_and_no_content() {
-    let (prompt, parts) = StreamProcessor::extract_message_content(&message(Vec::new()));
+    let (prompt, parts) = extract_message_content(&message(Vec::new()));
 
     assert!(prompt.is_empty());
     assert!(parts.is_empty());
@@ -74,7 +72,7 @@ fn a_message_with_no_parts_yields_no_prompt_and_no_content() {
 
 #[test]
 fn data_parts_are_dropped_entirely() {
-    let (prompt, parts) = StreamProcessor::extract_message_content(&message(vec![
+    let (prompt, parts) = extract_message_content(&message(vec![
         Part::Data(DataPart {
             data: serde_json::Map::new(),
         }),
@@ -87,7 +85,7 @@ fn data_parts_are_dropped_entirely() {
 
 #[test]
 fn image_audio_and_video_files_map_to_their_own_content_kinds() {
-    let (_prompt, parts) = StreamProcessor::extract_message_content(&message(vec![
+    let (_prompt, parts) = extract_message_content(&message(vec![
         file(Some("a.png"), Some("image/png"), Some("IMGDATA")),
         file(Some("a.wav"), Some("audio/wav"), Some("AUDDATA")),
         file(Some("a.mp4"), Some("video/mp4"), Some("VIDDATA")),
@@ -105,7 +103,7 @@ fn image_audio_and_video_files_map_to_their_own_content_kinds() {
 
 #[test]
 fn a_mime_type_with_a_charset_suffix_still_matches_its_media_class() {
-    let (_prompt, parts) = StreamProcessor::extract_message_content(&message(vec![file(
+    let (_prompt, parts) = extract_message_content(&message(vec![file(
         Some("a.png"),
         Some("image/png; charset=binary"),
         Some("IMGDATA"),
@@ -119,7 +117,7 @@ fn a_mime_type_with_a_charset_suffix_still_matches_its_media_class() {
 
 #[test]
 fn a_text_file_is_base64_decoded_and_labelled_with_its_name_and_mime() {
-    let (_prompt, parts) = StreamProcessor::extract_message_content(&message(vec![file(
+    let (_prompt, parts) = extract_message_content(&message(vec![file(
         Some("notes.md"),
         Some("text/markdown"),
         Some(&b64("# Heading")),
@@ -135,7 +133,7 @@ fn a_text_file_is_base64_decoded_and_labelled_with_its_name_and_mime() {
 
 #[test]
 fn an_unnamed_text_file_is_labelled_unnamed() {
-    let (_prompt, parts) = StreamProcessor::extract_message_content(&message(vec![file(
+    let (_prompt, parts) = extract_message_content(&message(vec![file(
         None,
         Some("text/plain"),
         Some(&b64("body")),
@@ -149,7 +147,7 @@ fn an_unnamed_text_file_is_labelled_unnamed() {
 
 #[test]
 fn a_text_file_with_invalid_base64_is_dropped() {
-    let (_prompt, parts) = StreamProcessor::extract_message_content(&message(vec![
+    let (_prompt, parts) = extract_message_content(&message(vec![
         file(
             Some("bad.txt"),
             Some("text/plain"),
@@ -164,7 +162,7 @@ fn a_text_file_with_invalid_base64_is_dropped() {
 #[test]
 fn a_text_file_whose_bytes_are_not_utf8_is_dropped() {
     let invalid_utf8 = base64::engine::general_purpose::STANDARD.encode([0xffu8, 0xfe, 0xfd]);
-    let (_prompt, parts) = StreamProcessor::extract_message_content(&message(vec![
+    let (_prompt, parts) = extract_message_content(&message(vec![
         file(Some("bin.txt"), Some("text/plain"), Some(&invalid_utf8)),
         text("survivor"),
     ]));
@@ -174,7 +172,7 @@ fn a_text_file_whose_bytes_are_not_utf8_is_dropped() {
 
 #[test]
 fn a_file_with_an_unsupported_mime_type_is_dropped() {
-    let (_prompt, parts) = StreamProcessor::extract_message_content(&message(vec![file(
+    let (_prompt, parts) = extract_message_content(&message(vec![file(
         Some("doc.pdf"),
         Some("application/pdf"),
         Some(&b64("%PDF")),
@@ -185,7 +183,7 @@ fn a_file_with_an_unsupported_mime_type_is_dropped() {
 
 #[test]
 fn a_file_without_a_mime_type_or_without_bytes_is_dropped() {
-    let (_prompt, parts) = StreamProcessor::extract_message_content(&message(vec![
+    let (_prompt, parts) = extract_message_content(&message(vec![
         file(Some("a.png"), None, Some("IMGDATA")),
         file(Some("a.png"), Some("image/png"), None),
     ]));
@@ -195,7 +193,7 @@ fn a_file_without_a_mime_type_or_without_bytes_is_dropped() {
 
 #[test]
 fn text_and_file_parts_are_emitted_in_source_order() {
-    let (prompt, parts) = StreamProcessor::extract_message_content(&message(vec![
+    let (prompt, parts) = extract_message_content(&message(vec![
         text("describe this"),
         file(Some("a.png"), Some("image/png"), Some("IMGDATA")),
         text("please"),

@@ -191,12 +191,12 @@ async fn the_database_handle_reports_its_pools_and_liveness() {
     };
 
     assert!(
-        db.pool().is_some(),
-        "a postgres-backed handle must expose a read pool"
+        !db.pool().is_closed(),
+        "a postgres-backed handle must expose a live read pool"
     );
     assert!(
-        db.write_pool().is_some(),
-        "a postgres-backed handle must expose a write pool"
+        !db.write_pool().is_closed(),
+        "a postgres-backed handle must expose a live write pool"
     );
     db.pool_arc().expect("read pool arc");
     db.write_pool_arc().expect("write pool arc");

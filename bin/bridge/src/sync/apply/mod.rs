@@ -9,10 +9,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod fetch;
 mod hooks;
-pub(crate) mod hooks_schema;
 mod loopback;
+pub mod node_deps;
 mod plugin;
+pub mod safe_path;
+pub mod swap;
 
 pub(crate) use crate::host_sync::ApplyError;
 pub use crate::host_sync::HostWarning;
@@ -20,26 +23,50 @@ pub use plugin::HostFailure;
 
 pub const PLUGIN_INSTALLATION_PREFERENCE: &str = "required";
 
-const LEGACY_SYNTHETIC_PLUGIN: &str = "systemprompt-managed";
-
 use crate::config::paths::{self, OrgPluginsLocation};
 use crate::context::BridgeContext;
+use crate::fsutil::{FileReceipt, atomic_write_0644};
 use crate::gateway::GatewayClient;
 use crate::gateway::manifest::{ManagedMcpServer, SignedManifest, UserInfo};
 use crate::host_sync::{self, HostSyncCtx};
+use crate::ids::{BearerToken, HostId};
 use std::fs;
 use std::path::Path;
 use systemprompt_identifiers::ValidatedUrl;
+use tokio_util::sync::CancellationToken;
 
 pub(crate) use plugin::PluginApplyOutcome as ApplyReport;
 
-pub(crate) async fn apply_manifest(
-    client: &GatewayClient,
-    bearer: &str,
-    bridge: &BridgeContext,
-    manifest: &SignedManifest,
-    location: &OrgPluginsLocation,
-) -> Result<ApplyReport, ApplyError> {
+pub(crate) enum ApplyOutcome {
+    Applied(ApplyReport),
+    Cancelled { applied: usize },
+}
+
+pub(crate) struct ApplyRequest<'a> {
+    pub client: &'a GatewayClient,
+    pub bearer: &'a BearerToken,
+    pub bridge: &'a BridgeContext,
+    pub manifest: &'a SignedManifest,
+    pub location: &'a OrgPluginsLocation,
+    pub cancel: &'a CancellationToken,
+}
+
+pub(crate) async fn apply_manifest(req: &ApplyRequest<'_>) -> Result<ApplyOutcome, ApplyError> {
+    let ApplyRequest {
+        client,
+        bearer,
+        bridge,
+        manifest,
+        location,
+        cancel,
+    } = *req;
+    let _installation_lock = tokio::select! {
+        () = cancel.cancelled() => return Ok(ApplyOutcome::Cancelled { applied: 0 }),
+        lock = crate::feedback::installation_lock() => lock.map_err(|error| ApplyError::Io {
+            context: "serialize native host installation".to_owned(),
+            source: std::io::Error::other(error),
+        })?,
+    };
     let loopback = bridge.proxy.loopback();
     let root = &location.path;
     let (meta_dir, staging_root) = prepare_dirs(root)?;
@@ -51,19 +78,31 @@ pub(crate) async fn apply_manifest(
         plugin_tokens: &bridge.plugin_tokens,
         root,
         staging_root: &staging_root,
+        cancel,
         progress: bridge.sync_progress.clone(),
     };
-    let mut report = plugin::apply_plugins(&plugin_ctx, manifest).await?;
-
+    let phase = plugin::apply_plugins(&plugin_ctx, manifest).await;
     crate::fsutil::remove_leftover_dir(&staging_root);
+    let mut report = match phase? {
+        plugin::PluginPhase::Complete(report) => report,
+        plugin::PluginPhase::Cancelled { applied } => {
+            return Ok(ApplyOutcome::Cancelled { applied });
+        },
+    };
+
     check_not_superseded(client.base_url())?;
-    prune_legacy_state();
 
     let mcp_servers =
         loopback::rewrite_loopback_urls(&manifest.managed_mcp_servers, client.base_url());
     let manifest_for_write = loopback::manifest_with_servers(manifest, mcp_servers.clone());
-    write_user(&meta_dir, manifest.user.as_ref())?;
-    write_mcp_servers(&meta_dir, client.base_url(), &mcp_servers)?;
+    report
+        .receipts
+        .push(write_user(&meta_dir, manifest.user.as_ref())?);
+    report.receipts.push(write_mcp_servers(
+        &meta_dir,
+        client.base_url(),
+        &mcp_servers,
+    )?);
 
     crate::mcp_registry::publish(&bridge.mcp_registry, &mcp_servers);
     let registry = bridge.mcp_registry();
@@ -80,6 +119,7 @@ pub(crate) async fn apply_manifest(
         bearer,
         loopback,
         mcp_registry: &registry,
+        start_menu: &bridge.start_menu,
     };
     let emitters = host_sync::registry();
     for (index, emitter) in emitters.iter().enumerate() {
@@ -103,15 +143,50 @@ pub(crate) async fn apply_manifest(
         };
         if let Err(e) = &outcome {
             report.host_failures.push(HostFailure {
-                host_id: host_id.to_owned(),
+                host_id: HostId::new(host_id),
+                emitter: emitter.emitter_id().to_owned(),
                 error: format!("{e:#}"),
+                needs_elevation: matches!(e, ApplyError::ElevationRequired { .. }),
             });
         }
-        host_sync::log_outcome(host_id, enabled, outcome);
+        host_sync::log_outcome(*emitter, enabled, outcome);
     }
-    report.host_warnings = warnings.drain();
+    let hosts: std::collections::BTreeSet<_> =
+        emitters.iter().map(|emitter| emitter.host_id()).collect();
+    for host_id in hosts {
+        if !manifest_for_write
+            .enabled_hosts
+            .iter()
+            .any(|host| host == host_id)
+            || report
+                .host_failures
+                .iter()
+                .any(|failure| failure.host_id.as_str() == host_id)
+        {
+            continue;
+        }
+        if let Err(error) = crate::feedback_capture::capture_host(host_id, &ctx).await {
+            warnings.push(
+                host_id,
+                format!("Installation evidence unacknowledged: {error}"),
+            );
+            if matches!(
+                error,
+                crate::feedback::FeedbackError::Readback
+                    | crate::feedback::FeedbackError::Contract(_)
+            ) {
+                report.host_failures.push(HostFailure {
+                    host_id: HostId::new(host_id),
+                    emitter: "installation-evidence".to_owned(),
+                    error: format!("verify installed skill evidence: {error}"),
+                    needs_elevation: false,
+                });
+            }
+        }
+    }
+    report.host_warnings.extend(warnings.drain());
 
-    Ok(report)
+    Ok(ApplyOutcome::Applied(report))
 }
 
 pub(crate) fn check_not_superseded(run_gateway: &ValidatedUrl) -> Result<(), ApplyError> {
@@ -127,39 +202,6 @@ pub(crate) fn check_not_superseded(run_gateway: &ValidatedUrl) -> Result<(), App
         started_for: run_gateway.to_string(),
         current: current.to_string(),
     })
-}
-
-fn prune_legacy_state() {
-    for root in paths::all_known_org_plugins_roots() {
-        remove_legacy_dir(
-            &root.join(LEGACY_SYNTHETIC_PLUGIN),
-            "legacy aggregate plugin",
-        );
-        for marker in paths::LEGACY_ORG_PLUGINS_METADATA {
-            remove_legacy_dir(&root.join(marker), "legacy bridge metadata dir");
-        }
-    }
-}
-
-fn remove_legacy_dir(path: &Path, what: &str) {
-    if !path.exists() {
-        return;
-    }
-    match fs::remove_dir_all(path) {
-        Ok(()) => tracing::info!(
-            target: "bridge::sync",
-            path = %path.display(),
-            kind = what,
-            "pruned legacy state"
-        ),
-        Err(e) => tracing::warn!(
-            target: "bridge::sync",
-            path = %path.display(),
-            kind = what,
-            error = %e,
-            "could not prune legacy state (likely permissions); skipping"
-        ),
-    }
 }
 
 pub fn prepare_dirs(root: &Path) -> Result<(std::path::PathBuf, std::path::PathBuf), ApplyError> {
@@ -195,7 +237,7 @@ fn plugin_manifest_path(plugin_dir: &Path) -> Option<std::path::PathBuf> {
         .find(|path| path.is_file())
 }
 
-pub fn write_user(meta_dir: &Path, user: Option<&UserInfo>) -> Result<(), ApplyError> {
+pub fn write_user(meta_dir: &Path, user: Option<&UserInfo>) -> Result<FileReceipt, ApplyError> {
     let path = meta_dir.join(paths::USER_FRAGMENT);
     let bytes = match user {
         Some(u) => serde_json::to_vec_pretty(u).map_err(|e| ApplyError::Serialize {
@@ -204,17 +246,14 @@ pub fn write_user(meta_dir: &Path, user: Option<&UserInfo>) -> Result<(), ApplyE
         })?,
         None => b"null".to_vec(),
     };
-    fs::write(&path, bytes).map_err(|e| ApplyError::Io {
-        context: format!("write {}", path.display()),
-        source: e,
-    })
+    write_fragment(&path, &bytes)
 }
 
 pub fn write_mcp_servers(
     meta_dir: &Path,
     gateway: &ValidatedUrl,
     servers: &[ManagedMcpServer],
-) -> Result<(), ApplyError> {
+) -> Result<FileReceipt, ApplyError> {
     let path = meta_dir.join(paths::MCP_SERVERS_FRAGMENT);
     let fragment = crate::mcp_registry::McpServersFragment {
         gateway: gateway.clone(),
@@ -224,8 +263,16 @@ pub fn write_mcp_servers(
         what: "managed MCP servers".into(),
         source: e,
     })?;
-    fs::write(&path, bytes).map_err(|e| ApplyError::Io {
+    write_fragment(&path, &bytes)
+}
+
+fn write_fragment(path: &Path, bytes: &[u8]) -> Result<FileReceipt, ApplyError> {
+    atomic_write_0644(path, bytes).map_err(|e| ApplyError::Io {
         context: format!("write {}", path.display()),
+        source: e,
+    })?;
+    FileReceipt::verify(path, bytes).map_err(|e| ApplyError::Io {
+        context: format!("verify {}", path.display()),
         source: e,
     })
 }

@@ -38,7 +38,7 @@ use winit::event_loop::{ControlFlow, EventLoop, EventLoopProxy};
 
 use crate::context::BridgeContext;
 use crate::gui::events::UiEvent;
-use crate::gui::server::Server;
+use crate::gui::server::FocusServer;
 use crate::gui::state::AppState;
 use crate::gui::window::SettingsWindow;
 use crate::proxy::ProxyRole;
@@ -130,10 +130,9 @@ pub fn run(ctx: Arc<BridgeContext>) -> ExitCode {
                 crate::brand::brand().app_name
             ));
         },
-        ProxyRole::Failed { tried, last_error } => {
+        ProxyRole::Failed(failure) => {
             app.append_log(format!(
-                "local proxy FAILED to start — host requests will be refused. Tried ports \
-                 {tried:?}: {last_error}"
+                "local proxy FAILED to start — host requests will be refused: {failure}"
             ));
         },
         ProxyRole::Attached => {
@@ -155,7 +154,7 @@ pub(crate) struct GuiApp {
     pub(crate) tray: Option<tray::TrayHandles>,
     #[cfg(target_os = "macos")]
     pub(crate) menu_bar: Option<menu::MenuBarHandles>,
-    pub(crate) server: Option<Server>,
+    pub(crate) server: Option<FocusServer>,
     pub(crate) ctx: Arc<BridgeContext>,
     pub(crate) settings_window: Option<SettingsWindow>,
     pub(crate) last_proxy_stats_tick: Instant,
@@ -163,7 +162,9 @@ pub(crate) struct GuiApp {
     pub(crate) last_update_check_at: Option<Instant>,
     pub(crate) auto_update_pending: bool,
     pub(crate) last_saved_geometry: Option<crate::window_state::WindowGeometry>,
+    // JSON: webview IPC envelope, the last `state.changed` projection compared before re-emitting
     pub(crate) last_semantic_state: Option<serde_json::Value>,
+    pub(crate) current_mount: Option<u64>,
     pub(crate) did_initial_sync: bool,
     pub(crate) active_signals: HashSet<notify::Signal>,
 }
@@ -191,9 +192,23 @@ impl GuiApp {
             auto_update_pending: false,
             last_saved_geometry: None,
             last_semantic_state: None,
+            current_mount: None,
             did_initial_sync: false,
             active_signals: HashSet::new(),
         }
+    }
+
+    // Why: a webview reload restarts IPC ids at 1, so only the mount nonce tells
+    // a reply for the old page apart from one for the new page.
+    pub(crate) fn note_mount(&mut self, mount: u64) {
+        if self.current_mount != Some(mount) {
+            self.current_mount = Some(mount);
+            self.last_semantic_state = None;
+        }
+    }
+
+    pub(crate) fn stale_mount(&self, mount: u64) -> bool {
+        self.current_mount.is_some_and(|current| current != mount)
     }
 
     pub(crate) fn probe_env(&self) -> crate::integration::host_app::ProbeEnv {
@@ -214,9 +229,9 @@ impl GuiApp {
         }
     }
 
-    pub(crate) fn ensure_server(&mut self) -> Option<&Server> {
+    pub(crate) fn ensure_server(&mut self) -> Option<&FocusServer> {
         if self.server.is_none() {
-            match Server::start(Arc::clone(&self.state), self.tx.clone()) {
+            match FocusServer::start(Arc::clone(&self.state), self.tx.clone()) {
                 Ok(s) => {
                     self.ctx
                         .activity

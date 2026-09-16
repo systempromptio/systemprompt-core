@@ -25,7 +25,7 @@ fn version(s: &str) -> ManifestVersion {
 
 fn last(v: &str) -> LastSyncState {
     LastSyncState {
-        last_applied_manifest_version: Some(version(v)),
+        manifest_version: Some(version(v)),
         ..LastSyncState::default()
     }
 }
@@ -98,31 +98,31 @@ fn manifest_version_rejects_bad_timestamp() {
 #[test]
 fn not_before_ten_minutes_in_past_rejected() {
     let now = chrono::Utc::now();
-    let nb = (now - chrono::Duration::minutes(10)).to_rfc3339();
-    let err = check_skew(&nb, now).expect_err("10m past should reject");
+    let nb = now - chrono::Duration::minutes(10);
+    let err = check_skew(nb, now).expect_err("10m past should reject");
     assert!(matches!(err, SyncError::ManifestSkew { .. }));
 }
 
 #[test]
 fn not_before_ten_minutes_in_future_rejected() {
     let now = chrono::Utc::now();
-    let nb = (now + chrono::Duration::minutes(10)).to_rfc3339();
-    let err = check_skew(&nb, now).expect_err("10m future should reject");
+    let nb = now + chrono::Duration::minutes(10);
+    let err = check_skew(nb, now).expect_err("10m future should reject");
     assert!(matches!(err, SyncError::ManifestSkew { .. }));
 }
 
 #[test]
 fn not_before_thirty_seconds_past_accepted() {
     let now = chrono::Utc::now();
-    let nb = (now - chrono::Duration::seconds(30)).to_rfc3339();
-    check_skew(&nb, now).expect("30s past should pass");
+    let nb = now - chrono::Duration::seconds(30);
+    check_skew(nb, now).expect("30s past should pass");
 }
 
 #[test]
 fn not_before_thirty_seconds_future_accepted() {
     let now = chrono::Utc::now();
-    let nb = (now + chrono::Duration::seconds(30)).to_rfc3339();
-    check_skew(&nb, now).expect("30s future should pass");
+    let nb = now + chrono::Duration::seconds(30);
+    check_skew(nb, now).expect("30s future should pass");
 }
 
 #[test]
@@ -131,8 +131,8 @@ fn force_replay_bypasses_replay_and_skew() {
     assert!(check_replay(&s, &version("2026-04-21T09:00:00Z-aaaaaaaa")).is_err());
 
     let now = chrono::Utc::now();
-    let nb = (now - chrono::Duration::minutes(30)).to_rfc3339();
-    assert!(check_skew(&nb, now).is_err());
+    let nb = now - chrono::Duration::minutes(30);
+    assert!(check_skew(nb, now).is_err());
 }
 
 #[test]
@@ -141,12 +141,12 @@ fn read_last_sync_reads_new_field() {
     let path = dir.join("last-sync.json");
     fs::write(
         &path,
-        r#"{"last_applied_manifest_version":"2026-04-22T10:00:00Z-abcdef01"}"#,
+        r#"{"manifest_version":"2026-04-22T10:00:00Z-abcdef01"}"#,
     )
     .unwrap();
     let s = read_last_sync(&path).expect("valid file").expect("found");
     assert_eq!(
-        s.last_applied_manifest_version
+        s.manifest_version
             .as_ref()
             .map(ToString::to_string)
             .as_deref(),
@@ -174,11 +174,7 @@ fn read_last_sync_corrupt_file_propagates() {
 fn read_last_sync_invalid_version_format_propagates() {
     let dir = tempdir();
     let path = dir.join("bad-version.json");
-    fs::write(
-        &path,
-        r#"{"last_applied_manifest_version":"not-a-valid-version"}"#,
-    )
-    .unwrap();
+    fs::write(&path, r#"{"manifest_version":"not-a-valid-version"}"#).unwrap();
     let err = read_last_sync(&path).expect_err("invalid version must fail");
     assert!(matches!(err, ReplayStateError::Parse { .. }));
 }
@@ -187,8 +183,10 @@ fn read_last_sync_invalid_version_format_propagates() {
 // not make the new gateway's first manifest look like a replay.
 #[test]
 fn a_sentinel_from_another_gateway_does_not_belong_to_this_one() {
-    let this = systemprompt_identifiers::ValidatedUrl::new("https://gw.example.com");
-    let other = systemprompt_identifiers::ValidatedUrl::new("http://localhost:8080");
+    let this = systemprompt_identifiers::ValidatedUrl::try_new("https://gw.example.com")
+        .expect("valid ValidatedUrl");
+    let other = systemprompt_identifiers::ValidatedUrl::try_new("http://localhost:8080")
+        .expect("valid ValidatedUrl");
     let stamped = LastSyncState {
         gateway: Some(other),
         ..last("2026-04-22T10:00:00Z-abcdef01")

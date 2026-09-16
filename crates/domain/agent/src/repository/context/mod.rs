@@ -15,12 +15,13 @@ use std::sync::Arc;
 use systemprompt_database::DbPool;
 
 use crate::error::AgentError;
+use crate::repository::task::TaskConstructor;
 
 #[derive(Debug, Clone)]
 pub struct ContextRepository {
     pool: Arc<PgPool>,
     write_pool: Arc<PgPool>,
-    db_pool: DbPool,
+    tasks: TaskConstructor,
 }
 
 impl ContextRepository {
@@ -32,7 +33,7 @@ impl ContextRepository {
         Ok(Self {
             pool,
             write_pool,
-            db_pool: Arc::clone(db),
+            tasks: TaskConstructor::new(db)?,
         })
     }
 }

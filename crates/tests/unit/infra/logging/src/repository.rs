@@ -19,6 +19,114 @@ fn unique_id(prefix: &str) -> String {
     format!("{prefix}-{}", uuid::Uuid::new_v4().simple())
 }
 
+#[tokio::test]
+async fn analytics_ingestion_preserves_payloads_and_rejects_batches_atomically() {
+    use systemprompt_traits::analytics_events::{AnalyticsEventRecord, AnalyticsEventStore};
+
+    let Some(db) = pool_or_skip().await else {
+        return;
+    };
+    let pool = db.write_pool_arc().unwrap();
+    let session_id = SessionId::new(unique_id("event-store"));
+    sqlx::query("INSERT INTO user_sessions (session_id, session_source) VALUES ($1, 'web')")
+        .bind(session_id.as_str())
+        .execute(pool.as_ref())
+        .await
+        .unwrap();
+    let unavailable_replica =
+        sqlx::PgPool::connect_lazy("postgres://closed:closed@127.0.0.1:1/closed").unwrap();
+    unavailable_replica.close().await;
+    let split_db = std::sync::Arc::new(systemprompt_database::Database::from_pools(
+        std::sync::Arc::new(unavailable_replica),
+        Some(pool.clone()),
+    ));
+    let store = AnalyticsRepository::new(&split_db).unwrap();
+    assert!(!store.has_analytics_events(&session_id).await.unwrap());
+    store.persist_events(&[]).await.unwrap();
+    let first = AnalyticsEventRecord {
+        id: format!("evt_{}", uuid::Uuid::new_v4()),
+        user_id: UserId::new("anon"),
+        session_id: session_id.clone(),
+        event_type: "page_view".to_owned(),
+        event_category: "navigation".to_owned(),
+        page_url: "/original".to_owned(),
+        event_data: json!({"content_id": "content-1", "nested": {"value": 7}}),
+    };
+    store
+        .persist_events(std::slice::from_ref(&first))
+        .await
+        .unwrap();
+    let stored: (String, String, String, serde_json::Value) = sqlx::query_as(
+        "SELECT event_type, severity, endpoint, event_data FROM analytics_events WHERE id = $1",
+    )
+    .bind(&first.id)
+    .fetch_one(pool.as_ref())
+    .await
+    .unwrap();
+    assert_eq!(
+        stored,
+        (
+            first.event_type.clone(),
+            "info".to_owned(),
+            first.page_url.clone(),
+            first.event_data.clone()
+        )
+    );
+
+    let mut second = first.clone();
+    second.id = format!("evt_{}", uuid::Uuid::new_v4());
+    second.page_url = "/second".to_owned();
+    second.event_data = json!([1, "unmodified"]);
+    assert!(
+        store
+            .persist_events(&[second.clone(), first.clone()])
+            .await
+            .is_err()
+    );
+    let count: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM analytics_events WHERE session_id = $1")
+            .bind(session_id.as_str())
+            .fetch_one(pool.as_ref())
+            .await
+            .unwrap();
+    assert_eq!(count, 1);
+    assert!(store.has_analytics_events(&session_id).await.unwrap());
+    assert_eq!(
+        store.get_endpoint_sequence(&session_id).await.unwrap(),
+        vec!["/original"]
+    );
+    assert_eq!(
+        store
+            .get_request_timestamps(&session_id)
+            .await
+            .unwrap()
+            .len(),
+        1
+    );
+
+    store
+        .persist_events(std::slice::from_ref(&second))
+        .await
+        .unwrap();
+    let payload: serde_json::Value =
+        sqlx::query_scalar("SELECT event_data FROM analytics_events WHERE id = $1")
+            .bind(&second.id)
+            .fetch_one(pool.as_ref())
+            .await
+            .unwrap();
+    assert_eq!(payload, second.event_data);
+    sqlx::query("DELETE FROM analytics_events WHERE session_id = $1")
+        .bind(session_id.as_str())
+        .execute(pool.as_ref())
+        .await
+        .unwrap();
+    sqlx::query("DELETE FROM user_sessions WHERE session_id = $1")
+        .bind(session_id.as_str())
+        .execute(pool.as_ref())
+        .await
+        .unwrap();
+}
+
 fn make_actor(prefix: &str) -> (UserId, SessionId, TraceId) {
     (
         UserId::new(unique_id(&format!("{prefix}-user"))),
@@ -58,10 +166,7 @@ async fn log_with_database_persists_then_fetch_by_id() {
     let Some(db) = pool_or_skip().await else {
         return;
     };
-    let repo = LoggingRepository::new(&db)
-        .unwrap()
-        .with_terminal(false)
-        .with_database(true);
+    let repo = LoggingRepository::new(&db).unwrap();
     let actor = make_actor("persist");
     let entry = make_entry("repo-test", "persisted row", &actor);
     let id = entry.id.clone();
@@ -78,30 +183,11 @@ async fn log_with_database_persists_then_fetch_by_id() {
 }
 
 #[tokio::test]
-async fn log_terminal_only_does_not_persist() {
-    let Some(db) = pool_or_skip().await else {
-        return;
-    };
-    let repo = LoggingRepository::new(&db)
-        .unwrap()
-        .with_terminal(false)
-        .with_database(false);
-    let actor = make_actor("terminal");
-    let entry = make_entry("term-only", "msg", &actor);
-    let id = entry.id.clone();
-    repo.log(entry).await.unwrap();
-    assert!(repo.get_by_id(&id).await.unwrap().is_none());
-}
-
-#[tokio::test]
 async fn log_rejects_invalid_entry() {
     let Some(db) = pool_or_skip().await else {
         return;
     };
-    let repo = LoggingRepository::new(&db)
-        .unwrap()
-        .with_terminal(false)
-        .with_database(true);
+    let repo = LoggingRepository::new(&db).unwrap();
     let actor = make_actor("invalid");
     let mut bad = make_entry("ok-mod", "ok-msg", &actor);
     bad.module = String::new();
@@ -114,10 +200,7 @@ async fn get_recent_logs_returns_inserted_rows() {
     let Some(db) = pool_or_skip().await else {
         return;
     };
-    let repo = LoggingRepository::new(&db)
-        .unwrap()
-        .with_terminal(false)
-        .with_database(true);
+    let repo = LoggingRepository::new(&db).unwrap();
 
     let actor = make_actor("recent");
     let mut ids = Vec::new();
@@ -140,10 +223,7 @@ async fn get_logs_paginated_with_filter() {
     let Some(db) = pool_or_skip().await else {
         return;
     };
-    let repo = LoggingRepository::new(&db)
-        .unwrap()
-        .with_terminal(false)
-        .with_database(true);
+    let repo = LoggingRepository::new(&db).unwrap();
 
     let actor = make_actor("paginated");
     let mut ids = Vec::new();
@@ -174,10 +254,7 @@ async fn get_logs_by_module_patterns() {
     let Some(db) = pool_or_skip().await else {
         return;
     };
-    let repo = LoggingRepository::new(&db)
-        .unwrap()
-        .with_terminal(false)
-        .with_database(true);
+    let repo = LoggingRepository::new(&db).unwrap();
 
     let actor = make_actor("by-mod");
     let e = make_entry("module-pattern-test", "pat", &actor);
@@ -198,10 +275,7 @@ async fn update_log_entry_updates_message() {
     let Some(db) = pool_or_skip().await else {
         return;
     };
-    let repo = LoggingRepository::new(&db)
-        .unwrap()
-        .with_terminal(false)
-        .with_database(true);
+    let repo = LoggingRepository::new(&db).unwrap();
 
     let actor = make_actor("update");
     let mut e = make_entry("update-mod", "old", &actor);
@@ -222,10 +296,7 @@ async fn cleanup_old_logs_removes_old_rows() {
     let Some(db) = pool_or_skip().await else {
         return;
     };
-    let repo = LoggingRepository::new(&db)
-        .unwrap()
-        .with_terminal(false)
-        .with_database(true);
+    let repo = LoggingRepository::new(&db).unwrap();
 
     let actor = make_actor("cleanup");
     let mut e = make_entry("cleanup-mod", "old-msg", &actor);

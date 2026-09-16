@@ -65,7 +65,7 @@ impl Call {
 
 fn tool(name: &str) -> GovernedTarget {
     GovernedTarget::Tool {
-        tool: McpToolName::new(name),
+        tool: McpToolName::try_new(name).expect("valid McpToolName"),
     }
 }
 
@@ -136,7 +136,8 @@ fn disabling_entropy_with_no_patterns_is_a_clean_scan() {
 
 #[test]
 fn an_absent_entropy_block_keeps_the_built_in_behaviour() {
-    let yaml = "governance:\n  policies:\n    - id: secret_scan\n      enabled: true\n";
+    let yaml =
+        "governance:\n  policies:\n    - id: secret_scan\n      enabled: true\n      mode: warn\n";
     let engine = engine(yaml);
     let call = Call::new("u1");
     let input = GovernedInput::prompt_text(
@@ -152,8 +153,8 @@ fn an_absent_entropy_block_keeps_the_built_in_behaviour() {
 
 #[test]
 fn a_configured_entropy_allowlist_reaches_the_policy() {
-    let yaml = "governance:\n  policies:\n    - id: secret_scan\n      enabled: true\n      \
-                entropy:\n        allowlist:\n          - '^PHL'\n";
+    let yaml = "governance:\n  policies:\n    - id: secret_scan\n      enabled: true\n      mode: \
+                warn\n      entropy:\n        allowlist:\n          - '^PHL'\n";
     let engine = engine(yaml);
     let call = Call::new("u1");
     let input = GovernedInput::prompt_text(
@@ -349,8 +350,8 @@ fn a_mixed_alphabet_credential_shaped_token_still_denies() {
 
 #[test]
 fn a_mistyped_entropy_tunable_falls_back_to_the_default_loudly() {
-    let yaml = "governance:\n  policies:\n    - id: secret_scan\n      enabled: true\n      \
-                entropy:\n        threshold: not-a-number\n";
+    let yaml = "governance:\n  policies:\n    - id: secret_scan\n      enabled: true\n      mode: \
+                warn\n      entropy:\n        threshold: not-a-number\n";
     let engine = engine(yaml);
     let call = Call::new("u1");
     let input = GovernedInput::prompt_text(
@@ -400,7 +401,7 @@ fn secret_scan_denies_on_an_arbitrary_configured_regex() {
 
 #[test]
 fn secret_scan_allows_clean_input() {
-    let e = engine("governance:\n  policies:\n    - id: secret_scan\n");
+    let e = engine("governance:\n  policies:\n    - id: secret_scan\n      mode: warn\n");
     let call = Call::new("u-clean");
     let input = args(json!({ "path": "/tmp/notes.txt" }));
     let evaluation = e.evaluate(&call.ctx(&tool("read_file"), AccessScope::User, &input));
@@ -616,7 +617,10 @@ mod require_approval {
     use super::{Call, args, engine, tool};
     use systemprompt_security::authz::types::Decision;
     use systemprompt_security::policy::types::AccessScope;
-    use systemprompt_security::policy::{ApprovalSettings, ChainEntryResult, GovernanceConfig};
+    use systemprompt_security::policy::{
+        ApprovalSettings, ChainEntryResult, GovernanceConfig, GovernanceEngine,
+        GovernanceEngineError,
+    };
 
     const HOLDS_NOTE_ADD: &str = r"
 governance:
@@ -1090,9 +1094,9 @@ governance:
     }
 
     #[test]
-    fn a_malformed_rule_is_dropped_without_taking_its_siblings_with_it() {
-        // The opposite failure direction from the tests above, and deliberately
-        // so: a config typo must not conjure a hold nobody configured.
+    fn a_malformed_rule_rejects_the_configuration_instead_of_dropping_the_gate() {
+        // A config typo must not silently remove the approval gate for the
+        // tool it names: the engine refuses to build, so the boot fails.
         const BROKEN: &str = r"
 governance:
   policies:
@@ -1104,22 +1108,46 @@ governance:
       when: 'not a list'
     exempt_scopes: ['admin']
 ";
+        let err = GovernanceEngine::from_config(&GovernanceConfig::parse(BROKEN).unwrap())
+            .expect_err("a malformed patterns entry rejects the policy configuration");
         assert!(
-            held_rule(&verdict(
-                BROKEN,
-                "mcp__odoo__note_add",
-                serde_json::json!({})
-            ))
-            .contains("note_add")
+            matches!(&err, GovernanceEngineError::InvalidPolicyConfiguration { id, .. } if id == "require_approval"),
+            "{err}"
         );
-        assert!(matches!(
-            verdict(
-                BROKEN,
-                "mcp__email__email_send",
-                serde_json::json!({"to": ["x@gmail.com"]})
-            ),
-            Decision::Allow { .. }
-        ));
+    }
+
+    #[test]
+    fn a_condition_without_a_usable_operand_rejects_the_configuration() {
+        const BROKEN: &str = r"
+governance:
+  policies:
+  - id: require_approval
+    enabled: true
+    patterns:
+    - tool: crm_lead_write
+      when:
+      - path: expected_revenue
+        op: gt
+        value: 'not a number'
+";
+        let err = GovernanceEngine::from_config(&GovernanceConfig::parse(BROKEN).unwrap())
+            .expect_err("an operand the operator cannot use rejects the configuration");
+        assert!(err.to_string().contains("expected_revenue"), "{err}");
+    }
+
+    #[test]
+    fn an_unknown_exempt_scope_rejects_the_configuration() {
+        const BROKEN: &str = r"
+governance:
+  policies:
+  - id: require_approval
+    enabled: true
+    patterns: [note_add]
+    exempt_scopes: ['superuser']
+";
+        let err = GovernanceEngine::from_config(&GovernanceConfig::parse(BROKEN).unwrap())
+            .expect_err("an unknown scope rejects the configuration");
+        assert!(err.to_string().contains("superuser"), "{err}");
     }
 
     #[test]
@@ -1266,5 +1294,66 @@ mod approval_digest {
         let a = serde_json::json!({"to": ["a@x.com", "b@x.com"]});
         let b = serde_json::json!({"to": ["b@x.com", "a@x.com"]});
         assert_ne!(args_digest(&a), args_digest(&b));
+    }
+}
+
+mod secret_scan_enforcement {
+    use systemprompt_security::policy::{
+        GovernanceConfig, GovernanceEngine, GovernanceEngineError,
+    };
+
+    #[test]
+    fn an_enforcing_secret_scan_with_no_patterns_rejects_the_configuration() {
+        const TOOTHLESS: &str = r"
+governance:
+  policies:
+  - id: secret_scan
+    enabled: true
+    mode: enforce
+";
+        let err = GovernanceEngine::from_config(&GovernanceConfig::parse(TOOTHLESS).unwrap())
+            .expect_err("enforce mode with nothing to detect is silent non-enforcement");
+        assert!(
+            matches!(&err, GovernanceEngineError::InvalidPolicyConfiguration { id, .. } if id == "secret_scan"),
+            "{err}"
+        );
+    }
+
+    #[test]
+    fn a_disabled_governance_engine_tolerates_a_toothless_secret_scan() {
+        const DISABLED: &str = r"
+governance:
+  enabled: false
+  policies:
+  - id: secret_scan
+    enabled: true
+    mode: enforce
+";
+        let engine = GovernanceEngine::from_config(&GovernanceConfig::parse(DISABLED).unwrap())
+            .expect("a disabled engine enforces nothing, so nothing is silently unenforced");
+        assert!(!engine.enforces_prompt_secrets());
+    }
+
+    #[test]
+    fn a_warn_mode_secret_scan_with_no_patterns_still_builds() {
+        GovernanceEngine::from_config(&GovernanceConfig::defaults())
+            .expect("the documented warn-only defaults carry an empty catalog");
+    }
+
+    #[test]
+    fn an_enforcing_secret_scan_with_patterns_builds() {
+        const ARMED: &str = r"
+governance:
+  policies:
+  - id: secret_scan
+    enabled: true
+    mode: enforce
+    patterns:
+    - id: demo-key
+      name: Demo Key
+      regex: 'XDEMO-[0-9]+'
+";
+        GovernanceEngine::from_config(&GovernanceConfig::parse(ARMED).unwrap())
+            .expect("an armed enforce scanner is fine");
     }
 }

@@ -104,6 +104,7 @@ async fn authorize_app() -> anyhow::Result<Router> {
     let state = OAuthState::new(
         ctx.oauth_repositories().oauth.clone(),
         ctx.analytics_provider().expect("analytics"),
+        ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
     );
     Ok(public_router()
@@ -322,6 +323,7 @@ async fn authorize_app_with_mcp_registry() -> anyhow::Result<Router> {
     let state = OAuthState::new(
         ctx.oauth_repositories().oauth.clone(),
         ctx.analytics_provider().expect("analytics"),
+        ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
     )
     .with_mcp_registry(std::sync::Arc::new(ctx.mcp_registry().clone()));
@@ -435,5 +437,113 @@ async fn authorize_without_a_resource_is_unaffected_by_the_registry() -> anyhow:
         .await?;
 
     assert_eq!(resp.status(), StatusCode::OK, "{}", resp.status());
+    Ok(())
+}
+
+// RFC 6749 §4.1.2.1: the server must not redirect the user-agent to a
+// `redirect_uri` it has not confirmed is registered for the client. Every
+// validation failure below happens before (or because) that confirmation
+// fails, so the error must render in place with no `Location` at all.
+#[tokio::test]
+async fn authorize_get_unknown_client_never_redirects_to_the_supplied_uri() -> anyhow::Result<()> {
+    let app = authorize_app().await?;
+    let uri = format!(
+        "/authorize?response_type=code&client_id=no-such-client&redirect_uri={}&scope=openid&state={}&code_challenge={}&code_challenge_method=S256",
+        enc("https://evil.example/phish"),
+        VALID_STATE,
+        VALID_CHALLENGE,
+    );
+    let resp = app.oneshot(empty_get(&uri)).await?;
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST, "{}", resp.status());
+    assert!(
+        resp.headers().get(header::LOCATION).is_none(),
+        "an unregistered client must not be redirected: {:?}",
+        resp.headers().get(header::LOCATION)
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn authorize_get_unregistered_redirect_uri_for_known_client_renders_in_place()
+-> anyhow::Result<()> {
+    let client = seeded_client().await?;
+    let app = authorize_app().await?;
+    let uri = format!(
+        "/authorize?response_type=code&client_id={}&redirect_uri={}&scope=user&state={}&code_challenge={}&code_challenge_method=S256",
+        client.client_id.as_str(),
+        enc("https://evil.example/phish"),
+        VALID_STATE,
+        VALID_CHALLENGE,
+    );
+    let resp = app.oneshot(empty_get(&uri)).await?;
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST, "{}", resp.status());
+    assert!(resp.headers().get(header::LOCATION).is_none());
+    Ok(())
+}
+
+#[tokio::test]
+async fn authorize_get_pkce_failure_with_unregistered_redirect_renders_in_place()
+-> anyhow::Result<()> {
+    let client = seeded_client().await?;
+    let app = authorize_app().await?;
+    let uri = format!(
+        "/authorize?response_type=code&client_id={}&redirect_uri={}&scope=user&state={}",
+        client.client_id.as_str(),
+        enc("https://evil.example/phish"),
+        VALID_STATE,
+    );
+    let resp = app.oneshot(empty_get(&uri)).await?;
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST, "{}", resp.status());
+    assert!(resp.headers().get(header::LOCATION).is_none());
+    Ok(())
+}
+
+#[tokio::test]
+async fn authorize_get_pkce_failure_with_registered_redirect_redirects_with_error()
+-> anyhow::Result<()> {
+    let client = seeded_client().await?;
+    let app = authorize_app().await?;
+    let uri = format!(
+        "/authorize?response_type=code&client_id={}&redirect_uri={}&scope=user&state={}",
+        client.client_id.as_str(),
+        enc("http://127.0.0.1/callback"),
+        VALID_STATE,
+    );
+    let resp = app.oneshot(empty_get(&uri)).await?;
+    assert!(resp.status().is_redirection(), "{}", resp.status());
+    let location = resp
+        .headers()
+        .get(header::LOCATION)
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or_default();
+    assert!(
+        location.starts_with("http://127.0.0.1/callback?error=invalid_request"),
+        "{location}"
+    );
+    assert!(
+        location.contains(&format!("state={VALID_STATE}")),
+        "{location}"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn authorize_post_denied_consent_with_unregistered_redirect_renders_in_place()
+-> anyhow::Result<()> {
+    let client = seeded_client().await?;
+    let app = authorize_app().await?;
+    let body = urlencode(&[
+        ("response_type", "code"),
+        ("client_id", client.client_id.as_str()),
+        ("redirect_uri", "https://evil.example/phish"),
+        ("scope", "user"),
+        ("state", VALID_STATE),
+        ("code_challenge", VALID_CHALLENGE),
+        ("code_challenge_method", "S256"),
+        ("user_consent", "deny"),
+    ]);
+    let resp = app.oneshot(form_post("/authorize", body)).await?;
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST, "{}", resp.status());
+    assert!(resp.headers().get(header::LOCATION).is_none());
     Ok(())
 }

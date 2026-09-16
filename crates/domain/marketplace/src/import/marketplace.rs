@@ -61,6 +61,10 @@ pub(super) fn import_marketplace(
         agents: sidecar.marketplace.agents.clone(),
         artifacts: sidecar.marketplace.artifacts.clone(),
         access: sidecar.marketplace.access.clone(),
+        allow_cross_marketplace_dependencies_on: manifest
+            .allow_cross_marketplace_dependencies_on
+            .clone(),
+        external_marketplaces: sidecar.marketplace.external_marketplaces.clone(),
     };
 
     config

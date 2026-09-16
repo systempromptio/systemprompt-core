@@ -7,4 +7,4 @@ import type { StaleReason } from "./StaleReason";
  * `CloudManaged` is routed through the gateway centrally with nothing to
  * install on this machine.
  */
-export type AgentReason = { "code": "governed", when_unix: bigint | null, } | { "code": "awaiting" } | { "code": "app-missing" } | { "code": "stale", cause: StaleReason, } | { "code": "partial", missing: string, } | { "code": "absent" } | { "code": "no-key", providers: string, } | { "code": "no-models" } | { "code": "proxy-down", probe: ProxyProbeState, } | { "code": "never-probed" } | { "code": "cloud-managed" };
+export type AgentReason = { "code": "governed", when_unix: bigint | null, } | { "code": "awaiting" } | { "code": "app-missing" } | { "code": "stale", cause: StaleReason, } | { "code": "partial", missing: string, } | { "code": "unverifiable", detail: string, } | { "code": "absent" } | { "code": "no-key", providers: string, } | { "code": "no-models" } | { "code": "proxy-down", probe: ProxyProbeState, } | { "code": "never-probed" } | { "code": "cloud-managed" };

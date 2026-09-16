@@ -18,6 +18,10 @@
 
 use assert_cmd::Command;
 use predicates::str::contains;
+use systemprompt_identifiers::SessionId;
+use systemprompt_test_fixtures::{
+    drain_reporting, fixture_db_pool, seed_user_row, seed_user_session, unique_user_id,
+};
 
 fn systemprompt_bin() -> std::path::PathBuf {
     if let Ok(path) = std::env::var("SYSTEMPROMPT_BIN") {
@@ -57,6 +61,38 @@ fn sp_db_or_skip() -> Option<Command> {
     c.env_remove("RUST_LOG");
     c.arg("--database-url").arg(url);
     Some(c)
+}
+
+// Reports read analytics-owned projection tables, so seeded conversation and
+// session evidence must be drained through the projector before the binary
+// runs; the seed commits first so the source triggers capture it.
+fn seed_reporting_evidence() {
+    let Some(url) = database_url_or_skip() else {
+        return;
+    };
+    tokio::runtime::Runtime::new()
+        .expect("tokio runtime")
+        .block_on(async {
+            let db = fixture_db_pool(&url).await.expect("fixture pool");
+            let user_id = unique_user_id("subprocess-analytics");
+            let email = format!("{}@subprocess.invalid", user_id.as_str());
+            seed_user_row(&db, &user_id, &email)
+                .await
+                .expect("seed user");
+            seed_user_session(&db, &user_id, &SessionId::generate())
+                .await
+                .expect("seed session");
+            sqlx::query(
+                "INSERT INTO user_contexts (context_id, user_id, name, kind) VALUES ($1, $2, \
+                 'subprocess-analytics', 'user')",
+            )
+            .bind(uuid::Uuid::new_v4().to_string())
+            .bind(user_id.as_str())
+            .execute(db.pool_arc().expect("pool").as_ref())
+            .await
+            .expect("seed context");
+            drain_reporting(&db).await.expect("drain reporting");
+        });
 }
 
 fn run_db(args: &[&str]) {
@@ -359,7 +395,7 @@ fn db_query_reject_write() {
             "query",
             "INSERT INTO users (id) VALUES ('nope')",
         ],
-        "must begin with SELECT",
+        "must be a SELECT, an EXPLAIN of a SELECT, or SHOW",
     );
 }
 
@@ -448,6 +484,7 @@ fn analytics_conversations_trends_since() {
 
 #[test]
 fn analytics_conversations_list() {
+    seed_reporting_evidence();
     db_stderr_fmt(&["analytics", "conversations", "list"], "Conversations");
 }
 
@@ -554,6 +591,7 @@ fn analytics_sessions_trends() {
 
 #[test]
 fn analytics_sessions_live() {
+    seed_reporting_evidence();
     db_stderr_fmt(&["analytics", "sessions", "live"], "Live Sessions");
 }
 

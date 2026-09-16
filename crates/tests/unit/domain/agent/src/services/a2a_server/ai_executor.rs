@@ -16,12 +16,13 @@ use tokio::sync::mpsc;
 
 use super::a2a_helpers::{StubAiProvider, ai_messages, request_context, runtime_info};
 
-// SkillService::new() reads the profile, so the bootstrap fixture has to be
-// installed first. The previous form skipped the whole test when construction
-// failed, which meant the synthesis body never ran here at all.
-fn skill_service() -> SkillService {
+// SkillService reads the profile for its disk catalogue and needs a step
+// repository, so the synthesis tests run under the bootstrap fixture against
+// the test database and skip when none is configured.
+async fn skill_service_or_skip() -> Option<Arc<SkillService>> {
+    let pool = crate::repository::try_pool_or_skip().await?;
     systemprompt_test_fixtures::ensure_test_bootstrap();
-    SkillService::new().expect("SkillService should construct under the bootstrap fixture")
+    Some(Arc::new(super::a2a_helpers::skill_service(&pool)))
 }
 
 fn ctx() -> systemprompt_models::execution::context::RequestContext {
@@ -70,29 +71,35 @@ async fn process_without_tools_empty_stream_yields_empty_text() {
     assert!(text.is_empty());
 }
 
+// Why: the pipeline emits the single terminal `Error` event; the executor
+// reports the failure through its return value and never writes one itself,
+// or a task could end with two terminal events.
 #[tokio::test]
-async fn process_without_tools_stream_failure_is_err_and_emits_error_event() {
+async fn process_without_tools_stream_failure_is_err_and_leaves_the_terminal_event_to_the_pipeline()
+{
     let provider = Arc::new(StubAiProvider::new().failing_stream());
     let runtime = runtime_info("exec-agent");
     let (tx, mut rx) = mpsc::channel(8);
 
     let result = process_without_tools(provider, &runtime, ai_messages("hi"), tx, ctx()).await;
-    assert!(result.is_err());
+    let err = result.expect_err("a failed stream is an error");
+    assert!(err.to_string().contains("stub stream failure"), "{err}");
 
-    let mut saw_error = false;
     while let Ok(ev) = rx.try_recv() {
-        if matches!(ev, StreamEvent::Error(_)) {
-            saw_error = true;
-        }
+        assert!(
+            !matches!(ev, StreamEvent::Error(_)),
+            "the executor must not emit its own terminal event: {ev:?}"
+        );
     }
-    assert!(saw_error, "expected an Error stream event");
 }
 
 #[tokio::test]
 async fn synthesize_tool_results_returns_text_and_emits_event() {
+    let Some(skill_service) = skill_service_or_skip().await else {
+        return;
+    };
     let provider = Arc::new(StubAiProvider::new().with_generate("Done summarizing."));
     let runtime = runtime_info("exec-agent");
-    let skill_service = Arc::new(skill_service());
     let (tx, mut rx) = mpsc::channel(8);
 
     let synthesized = synthesize_tool_results_with_artifacts(SynthesizeToolResultsParams {
@@ -213,10 +220,13 @@ async fn synthesize(
     calls: &[systemprompt_models::ToolCall],
     results: &[rmcp::model::CallToolResult],
     artifacts: &[systemprompt_models::a2a::Artifact],
-) -> (Result<String, ()>, Vec<StreamEvent>) {
+) -> Option<(
+    Result<String, systemprompt_agent::services::shared::AgentServiceError>,
+    Vec<StreamEvent>,
+)> {
+    let skill_service = skill_service_or_skip().await?;
     let provider = Arc::new(StubAiProvider::new().with_generate("Summary."));
     let runtime = runtime_info("exec-agent");
-    let skill_service = Arc::new(skill_service());
     let (tx, mut rx) = mpsc::channel(16);
 
     let out = synthesize_tool_results_with_artifacts(SynthesizeToolResultsParams {
@@ -237,13 +247,16 @@ async fn synthesize(
     while let Ok(ev) = rx.try_recv() {
         events.push(ev);
     }
-    (out, events)
+    Some((out, events))
 }
 
 #[tokio::test]
 async fn synthesize_with_tool_results_returns_the_model_summary() {
-    let (out, events) =
-        synthesize(&[tool_call("search")], &[tool_result("three matches")], &[]).await;
+    let Some((out, events)) =
+        synthesize(&[tool_call("search")], &[tool_result("three matches")], &[]).await
+    else {
+        return;
+    };
 
     assert_eq!(out.expect("synthesis should succeed"), "Summary.");
     assert!(
@@ -254,12 +267,15 @@ async fn synthesize_with_tool_results_returns_the_model_summary() {
 
 #[tokio::test]
 async fn synthesize_with_artifacts_still_returns_the_summary() {
-    let (out, events) = synthesize(
+    let Some((out, events)) = synthesize(
         &[tool_call("chart")],
         &[tool_result("rendered")],
         &[artifact("Q3 revenue")],
     )
-    .await;
+    .await
+    else {
+        return;
+    };
 
     assert_eq!(out.expect("synthesis should succeed"), "Summary.");
     assert!(events.iter().any(|e| matches!(e, StreamEvent::Text(_))));
@@ -267,21 +283,26 @@ async fn synthesize_with_artifacts_still_returns_the_summary() {
 
 #[tokio::test]
 async fn synthesize_handles_several_tool_calls_and_results() {
-    let (out, _events) = synthesize(
+    let Some((out, _events)) = synthesize(
         &[tool_call("search"), tool_call("fetch")],
         &[tool_result("first"), tool_result("second")],
         &[artifact("one"), artifact("two")],
     )
-    .await;
+    .await
+    else {
+        return;
+    };
 
     assert_eq!(out.expect("synthesis should succeed"), "Summary.");
 }
 
 #[tokio::test]
 async fn synthesize_propagates_a_provider_failure() {
+    let Some(skill_service) = skill_service_or_skip().await else {
+        return;
+    };
     let provider = Arc::new(StubAiProvider::new().failing_generate());
     let runtime = runtime_info("exec-agent");
-    let skill_service = Arc::new(skill_service());
     let (tx, _rx) = mpsc::channel(8);
 
     let out = synthesize_tool_results_with_artifacts(SynthesizeToolResultsParams {

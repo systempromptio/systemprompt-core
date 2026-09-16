@@ -111,6 +111,7 @@ async fn token_app() -> anyhow::Result<Router> {
     let state = OAuthState::new(
         ctx.oauth_repositories().oauth.clone(),
         ctx.analytics_provider().expect("analytics"),
+        ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
     );
     Ok(public_router()
@@ -180,7 +181,7 @@ fn mint_self_issued_subject(scopes: Vec<Permission>) -> String {
     let config = JwtConfig {
         permissions: scopes,
         audience: vec![],
-        expires_in_hours: Some(1),
+        expires_in: chrono::Duration::hours(1),
         resource: None,
         plugin_id: None,
         client_id: None,
@@ -419,6 +420,7 @@ fn mint_id_jag_for(client_id: &str, aud: &str) -> String {
     mint_id_jag(&IdJagGrant {
         sub: "id-jag-subject",
         email: Some("subj@tx.invalid"),
+        email_verified: true,
         aud,
         client_id: &client_id,
         resource: None,
@@ -593,6 +595,7 @@ fn mint_id_jag_bound_to(client_id: &str, aud: &str, sub: &str, resource: Option<
     mint_id_jag(&IdJagGrant {
         sub,
         email: Some("employee@tx.invalid"),
+        email_verified: true,
         aud,
         client_id: &client_id,
         resource,

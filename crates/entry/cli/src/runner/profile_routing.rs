@@ -2,9 +2,10 @@
 //!
 //! Resolves the active profile, enforces whether a command may run locally or
 //! must route to a remote tenant, and initialises credentials, secrets, and
-//! paths accordingly. The single entry point is `bootstrap_profile`; it
-//! returns an external database URL when the command should reconnect against
-//! a cloud-issued database instead of continuing the local boot.
+//! paths accordingly. The single entry point is `bootstrap_profile`; its
+//! [`BootstrapOutcome`] tells the runner whether the command already ran on
+//! the remote tenant, should continue locally, or should reconnect against a
+//! cloud-issued database.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -20,9 +21,27 @@ use crate::env_overrides::EnvOverrides;
 use crate::interactive;
 use crate::shared::ProfileSource;
 
-enum RoutingAction {
+/// What the runner does once the profile is bootstrapped.
+///
+/// `RemoteExecuted` means the command has already run on the remote tenant
+/// and its output has been streamed; the runner must not dispatch it again
+/// locally.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum BootstrapOutcome {
+    RemoteExecuted,
     ContinueLocal,
     ExternalDbUrl(String),
+}
+
+/// Where a command runs once the routing target is known.
+#[derive(Debug, PartialEq, Eq)]
+pub enum RoutingDecision {
+    ExecuteRemote {
+        hostname: String,
+        token: systemprompt_identifiers::SessionToken,
+        context: systemprompt_identifiers::ContextId,
+    },
+    ContinueLocal,
 }
 
 pub(super) async fn bootstrap_profile(
@@ -30,18 +49,19 @@ pub(super) async fn bootstrap_profile(
     desc: &CommandDescriptor,
     cli_config: &CliConfig,
     env: &EnvOverrides,
-) -> Result<Option<String>> {
+) -> Result<BootstrapOutcome> {
     let has_export = args::has_local_export_flag(cli.command.as_ref());
     let ctx = bootstrap::resolve_and_display_profile(cli_config, env, has_export)?;
 
     require_explicit_cloud_profile(ProfileBootstrap::get()?, ctx.source, desc)?;
-    enforce_routing_policy(&ctx, cli, desc, cli_config).await?;
+    if enforce_routing_policy(&ctx, cli, desc, cli_config).await?
+        == BootstrapOutcome::RemoteExecuted
+    {
+        return Ok(BootstrapOutcome::RemoteExecuted);
+    }
 
     let needs_cloud = is_cloud_bypass_command(cli.command.as_ref());
-    match initialize_post_routing(&ctx, desc, needs_cloud).await? {
-        RoutingAction::ExternalDbUrl(url) => Ok(Some(url)),
-        RoutingAction::ContinueLocal => Ok(None),
-    }
+    initialize_post_routing(&ctx, desc, needs_cloud).await
 }
 
 async fn enforce_routing_policy(
@@ -49,12 +69,11 @@ async fn enforce_routing_policy(
     cli: &args::Cli,
     desc: &CommandDescriptor,
     cli_config: &CliConfig,
-) -> Result<()> {
+) -> Result<BootstrapOutcome> {
     let class = desc.routing_class();
     if !ctx.env.is_deployment_host && class != RoutingClass::LocalOnly && !ctx.has_export {
         let profile = ProfileBootstrap::get()?;
-        try_remote_routing(cli, profile, cli_config, class).await?;
-        return Ok(());
+        return try_remote_routing(cli, profile, cli_config, class).await;
     }
 
     if ctx.has_export && ctx.is_cloud && !ctx.external_db_access {
@@ -77,7 +96,7 @@ async fn enforce_routing_policy(
         );
     }
 
-    Ok(())
+    Ok(BootstrapOutcome::ContinueLocal)
 }
 
 pub fn require_explicit_cloud_profile(
@@ -116,7 +135,7 @@ async fn initialize_post_routing(
     ctx: &bootstrap::ProfileContext,
     desc: &CommandDescriptor,
     needs_cloud: bool,
-) -> Result<RoutingAction> {
+) -> Result<BootstrapOutcome> {
     if needs_cloud || (ctx.is_cloud && ctx.external_db_access) {
         bootstrap::init_credentials_gracefully(needs_cloud).await?;
     }
@@ -128,7 +147,7 @@ async fn initialize_post_routing(
     if ctx.is_cloud && ctx.external_db_access && desc.paths() && !ctx.env.is_deployment_host {
         let secrets = SecretsBootstrap::get().context("Secrets required for external DB access")?;
         let db_url = secrets.effective_database_url(true).to_owned();
-        return Ok(RoutingAction::ExternalDbUrl(db_url));
+        return Ok(BootstrapOutcome::ExternalDbUrl(db_url));
     }
 
     if desc.paths() {
@@ -142,7 +161,7 @@ async fn initialize_post_routing(
         bootstrap::validate_cloud_credentials(&ctx.env);
     }
 
-    Ok(RoutingAction::ContinueLocal)
+    Ok(BootstrapOutcome::ContinueLocal)
 }
 
 async fn try_remote_routing(
@@ -150,37 +169,60 @@ async fn try_remote_routing(
     profile: &systemprompt_models::Profile,
     cli_config: &CliConfig,
     class: RoutingClass,
-) -> Result<()> {
+) -> Result<BootstrapOutcome> {
     use super::routing;
 
-    let is_cloud = profile.target.is_cloud();
+    let decision = decide_routing(routing::determine_execution_target(), profile, class)?;
+    let RoutingDecision::ExecuteRemote {
+        hostname,
+        token,
+        context,
+    } = decision
+    else {
+        return Ok(BootstrapOutcome::ContinueLocal);
+    };
 
-    match routing::determine_execution_target() {
-        Ok(routing::ExecutionTarget::Remote {
+    confirm_remote_job_run(cli, cli_config, &profile.name, &hostname)?;
+    let args = args::reconstruct_args(cli);
+    let exit_code = routing::execute_remote(&hostname, &token, &context, &args, 300).await?;
+    if exit_code != 0 {
+        bail!("Remote command exited with code {}", exit_code);
+    }
+    Ok(BootstrapOutcome::RemoteExecuted)
+}
+
+pub fn decide_routing(
+    target: Result<super::routing::ExecutionTarget>,
+    profile: &systemprompt_models::Profile,
+    class: RoutingClass,
+) -> Result<RoutingDecision> {
+    use super::routing::ExecutionTarget;
+
+    let is_cloud = profile.target.is_cloud();
+    match target {
+        Ok(ExecutionTarget::Remote {
             hostname,
             token,
             context,
-        }) => {
-            confirm_remote_job_run(cli, cli_config, &profile.name, &hostname)?;
-            let args = args::reconstruct_args(cli);
-            let exit_code =
-                routing::execute_remote(&hostname, token.as_str(), context.as_str(), &args, 300)
-                    .await?;
-            if exit_code != 0 {
-                bail!("Remote command exited with code {}", exit_code);
-            }
-            return Ok(());
-        },
-        Ok(routing::ExecutionTarget::Local) if is_cloud => {
+        }) => Ok(RoutingDecision::ExecuteRemote {
+            hostname,
+            token,
+            context,
+        }),
+        Ok(ExecutionTarget::Local) if is_cloud => {
             allow_local_execution(profile, class, "no tenant is configured")?;
+            Ok(RoutingDecision::ContinueLocal)
         },
         Err(e) if is_cloud => {
             allow_local_execution(profile, class, &format!("routing failed: {}", e))?;
+            Ok(RoutingDecision::ContinueLocal)
         },
-        _ => {},
+        Ok(ExecutionTarget::Local) => Ok(RoutingDecision::ContinueLocal),
+        Err(e) => {
+            tracing::debug!(error = %e, "Routing failed on a local profile; continuing locally");
+            Ok(RoutingDecision::ContinueLocal)
+        },
     }
-
-    Ok(())
 }
 
 pub fn confirm_remote_job_run(

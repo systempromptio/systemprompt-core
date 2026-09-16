@@ -42,7 +42,9 @@ pub async fn delete_context(
             );
 
             let event = SystemEventBuilder::context_deleted(context_id);
-            EventRouter::route_system(user_id, event).await;
+            EventRouter::route_system(user_id, event)
+                .await
+                .into_local_logged();
 
             StatusCode::NO_CONTENT.into_response()
         },

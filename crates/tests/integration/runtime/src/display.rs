@@ -7,7 +7,7 @@
 use std::path::PathBuf;
 
 use systemprompt_runtime::{display_validation_report, display_validation_warnings};
-use systemprompt_traits::validation_report::{ValidationError, ValidationWarning};
+use systemprompt_traits::validation_report::{ValidationIssue, ValidationWarning};
 use systemprompt_traits::{StartupValidationReport, ValidationReport};
 
 fn report_with_errors() -> StartupValidationReport {
@@ -16,7 +16,7 @@ fn report_with_errors() -> StartupValidationReport {
 
     let mut domain = ValidationReport::new("web");
     domain.add_error(
-        ValidationError::new("web.host", "invalid host")
+        ValidationIssue::new("web.host", "invalid host")
             .with_path(PathBuf::from("/tmp/web.yaml"))
             .with_suggestion("set web.host to a valid hostname"),
     );
@@ -24,7 +24,7 @@ fn report_with_errors() -> StartupValidationReport {
     report.add_domain(domain);
 
     let mut ext_report = ValidationReport::new("ext:demo");
-    ext_report.add_error(ValidationError::new(
+    ext_report.add_error(ValidationIssue::new(
         "ext_config.api_key",
         "extension api_key missing",
     ));

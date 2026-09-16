@@ -11,6 +11,10 @@ use crate::repository::UserRepository;
 
 impl UserRepository {
     pub async fn bulk_update_status(&self, user_ids: &[UserId], new_status: &str) -> Result<u64> {
+        let mut tx = self.write_pool.begin().await?;
+        sqlx::query!("SELECT public.begin_user_privacy() AS prepared")
+            .fetch_one(&mut *tx)
+            .await?;
         let ids: Vec<String> = user_ids.iter().map(ToString::to_string).collect();
         let result = sqlx::query!(
             r#"
@@ -21,14 +25,22 @@ impl UserRepository {
             new_status,
             &ids[..]
         )
-        .execute(&*self.write_pool)
+        .execute(&mut *tx)
         .await?;
 
+        sqlx::query!("SELECT public.finish_user_privacy() AS finished")
+            .fetch_one(&mut *tx)
+            .await?;
+        tx.commit().await?;
         Ok(result.rows_affected())
     }
 
     pub async fn bulk_delete(&self, user_ids: &[UserId]) -> Result<u64> {
         let deleted_status = UserStatus::Deleted.as_str();
+        let mut tx = self.write_pool.begin().await?;
+        sqlx::query!("SELECT public.begin_user_privacy() AS prepared")
+            .fetch_one(&mut *tx)
+            .await?;
         let ids: Vec<String> = user_ids.iter().map(ToString::to_string).collect();
         let result = sqlx::query!(
             r#"
@@ -39,9 +51,13 @@ impl UserRepository {
             deleted_status,
             &ids[..]
         )
-        .execute(&*self.write_pool)
+        .execute(&mut *tx)
         .await?;
 
+        sqlx::query!("SELECT public.finish_user_privacy() AS finished")
+            .fetch_one(&mut *tx)
+            .await?;
+        tx.commit().await?;
         Ok(result.rows_affected())
     }
 }

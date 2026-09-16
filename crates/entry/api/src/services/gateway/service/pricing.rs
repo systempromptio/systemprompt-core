@@ -16,11 +16,11 @@ pub(super) fn dispatch_pricing(
     evaluation_session: bool,
 ) -> Result<ModelPricing, DispatchError> {
     let pricing = if evaluation_session {
-        model_pricing::resolve_selected(&upstream.route, upstream.provider, &request.model)
+        model_pricing::resolve_selected(&upstream.route, upstream.provider, request.model.as_str())
     } else {
         model_pricing::resolve(
             upstream.route.provider.as_str(),
-            &[&request.model],
+            &[request.model.as_str()],
             Some(config),
             registry,
         )

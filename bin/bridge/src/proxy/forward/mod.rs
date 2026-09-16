@@ -14,73 +14,29 @@ use futures_util::TryStreamExt;
 use http_body_util::{BodyExt, Full, StreamBody};
 use hyper::body::{Frame, Incoming};
 use hyper::{Request, Response, StatusCode};
-use systemprompt_identifiers::{GatewayConversationId, ValidatedUrl};
-use thiserror::Error;
+use systemprompt_identifiers::ValidatedUrl;
 
+use crate::proxy::credential::LoopbackCredential;
 use crate::proxy::server::ProxyStats;
-use crate::proxy::session::{self, SessionContext};
+use crate::proxy::session::SessionContext;
 use crate::proxy::token_cache::TokenCache;
 use crate::proxy::{keepalive, usage};
 
+mod body;
+mod error;
 mod headers;
 pub mod replay;
 mod route;
 
+use body::prepare_upstream_body;
+pub use body::{CHAT_COMPLETIONS_PATH, stamp_opencode_session};
+pub use error::{ForwardError, ForwardResult, is_client_disconnect};
 use headers::{build_upstream_headers, copy_response_headers};
 pub use replay::{Replay, describe, replay_policy, should_replay};
 use replay::{UpstreamRequest, send_with_replay};
 use route::{Route, RouteResolution, resolve_route, same_origin_as};
 
 pub type ProxyBody = http_body_util::combinators::BoxBody<Bytes, std::io::Error>;
-
-#[derive(Debug, Error)]
-pub enum ForwardError {
-    #[error("routing unavailable: {0}")]
-    Routing(String),
-    #[error("authentication unavailable: {0}")]
-    Auth(String),
-    #[error("authentication temporarily unavailable, retrying: {0}")]
-    AuthRetryable(String),
-    #[error("authentication timed out after 10s")]
-    AuthTimeout,
-    #[error("invalid request method {method}: {source}")]
-    BadMethod {
-        method: String,
-        #[source]
-        source: http::method::InvalidMethod,
-    },
-    #[error("invalid header value: {0}")]
-    BadHeader(String),
-    #[error("upstream request failed: {}", describe(.0))]
-    Upstream(#[from] reqwest::Error),
-    #[error("response build failed: {0}")]
-    BuildResponse(#[from] http::Error),
-    #[error("request body exceeds {BUFFERED_BODY_LIMIT} bytes")]
-    BodyTooLarge,
-    #[error("request body read failed: {0}")]
-    ReadBody(#[source] Box<dyn std::error::Error + Send + Sync>),
-}
-
-impl ForwardError {
-    pub const fn status(&self) -> StatusCode {
-        match self {
-            Self::Auth(_) | Self::AuthRetryable(_) | Self::AuthTimeout | Self::Routing(_) => {
-                StatusCode::SERVICE_UNAVAILABLE
-            },
-            Self::BodyTooLarge => StatusCode::PAYLOAD_TOO_LARGE,
-            Self::BadMethod { .. } | Self::BadHeader(_) => StatusCode::BAD_REQUEST,
-            Self::Upstream(_) | Self::BuildResponse(_) | Self::ReadBody(_) => {
-                StatusCode::BAD_GATEWAY
-            },
-        }
-    }
-
-    pub fn client_detail(&self) -> String {
-        format!("{self}\n")
-    }
-}
-
-pub type ForwardResult<T> = Result<T, ForwardError>;
 
 pub const REFRESH_THRESHOLD_SECS: u64 = 300;
 
@@ -96,6 +52,7 @@ pub(crate) struct ForwardDeps<'a> {
     pub mcp_registry: Arc<crate::mcp_registry::McpRegistrySlot>,
     pub gateway_http: reqwest::Client,
     pub plugin_tokens: Arc<crate::auth::plugin_oauth::PluginTokenCache>,
+    pub credential: LoopbackCredential,
 }
 
 #[tracing::instrument(
@@ -122,6 +79,7 @@ pub(crate) async fn forward(
         mcp_registry,
         gateway_http,
         plugin_tokens,
+        credential,
     } = deps;
     let token = token_cache.current(REFRESH_THRESHOLD_SECS).await?;
 
@@ -140,6 +98,7 @@ pub(crate) async fn forward(
         ),
         RouteResolution::Mcp(route) => (route, token.token.expose().to_owned()),
         RouteResolution::Hook { url, plugin_id } => {
+            require_hook_credential(&credential, plugin_id.as_str())?;
             let gw = crate::gateway::GatewayClient::new(gateway_base.clone(), gateway_http);
             let hook = crate::auth::plugin_oauth::mint_or_refresh_plugin_token(
                 &plugin_tokens,
@@ -172,8 +131,14 @@ pub(crate) async fn forward(
     })?;
 
     let (buffered_body, gateway_conversation_id) =
-        prepare_upstream_body(body, session_context).await?;
+        prepare_upstream_body(body, session_context, &parts.headers, &request_path).await?;
 
+    if let Err(error) = session_context
+        .native_sessions()
+        .observe(&parts.headers, &buffered_body)
+    {
+        tracing::warn!(%error, "Native session could not be recorded for binding");
+    }
     let mut upstream_headers = build_upstream_headers(
         &parts.headers,
         &upstream_bearer,
@@ -183,6 +148,14 @@ pub(crate) async fn forward(
     )?;
 
     headers::ensure_ingestion_delivery_id(&request_path, &mut upstream_headers)?;
+    if hook_plugin.is_some() && request_path == "/api/public/hooks/track" {
+        authenticate_hook_track(
+            gateway_base,
+            &parts.headers,
+            &buffered_body,
+            &mut upstream_headers,
+        )?;
+    }
 
     let upstream_response = send_with_replay(UpstreamRequest {
         client: &client,
@@ -211,13 +184,13 @@ pub(crate) async fn forward(
             } else {
                 // Why: only the gateway that minted the credential can say it
                 // is bad. A managed MCP upstream elsewhere (or a stale entry
-                // for a previous gateway) rejecting it is not a sign-out.
+                // for a previous gateway) rejecting it is neither a sign-out
+                // nor a reason to re-mint.
                 tracing::warn!(
                     upstream = %route.url,
                     gateway = %gateway_base,
-                    "401 from a non-gateway upstream; not treated as a credential rejection"
+                    "401 from a non-gateway upstream; the gateway token is kept"
                 );
-                token_cache.invalidate().await;
             }
         }
     }
@@ -254,6 +227,64 @@ pub(crate) async fn forward(
     Ok(response_builder.body(body)?)
 }
 
+fn authenticate_hook_track(
+    gateway_base: &ValidatedUrl,
+    request_headers: &http::HeaderMap,
+    buffered_body: &[u8],
+    upstream_headers: &mut http::HeaderMap,
+) -> ForwardResult<()> {
+    let host = request_headers
+        .get("x-systemprompt-host")
+        .and_then(|value| value.to_str().ok());
+    if let Err(error) = crate::feedback::hooks::authenticate_forwarded_hook(
+        gateway_base.as_str(),
+        host,
+        upstream_headers,
+    ) && !matches!(error, crate::feedback::FeedbackError::EnrollmentRequired)
+    {
+        return Err(ForwardError::Auth(
+            "Device evidence authentication unavailable".to_owned(),
+        ));
+    }
+    // JSON: protocol boundary — the hook body is the host's own wire shape.
+    if let Ok(value) = serde_json::from_slice::<serde_json::Value>(buffered_body)
+        && let (Some(host), Some(session)) = (
+            host.and_then(crate::feedback::client_kind),
+            value.get("session_id").and_then(serde_json::Value::as_str),
+        )
+        && let Ok(root) = crate::feedback::metadata_root()
+        && let Ok(enrollment) =
+            crate::feedback::credentials::Enrollment::load(&root, gateway_base.as_str())
+    {
+        let outbox = crate::feedback::outbox::Outbox::new(
+            enrollment.outbox_path(&root),
+            crate::feedback::outbox::OutboxScope::from_enrollment(&enrollment),
+        );
+        if let Err(error) = outbox.queue_session(host, session) {
+            tracing::debug!(%error, "Hook native session awaits binding");
+        }
+    }
+    Ok(())
+}
+
+fn require_hook_credential(credential: &LoopbackCredential, plugin_id: &str) -> ForwardResult<()> {
+    match credential {
+        LoopbackCredential::Hook(plugin) if plugin.as_str() == plugin_id => Ok(()),
+        LoopbackCredential::Hook(_) => Err(ForwardError::Scope {
+            presented: "hook token of another plugin",
+            route: "this plugin's hook route",
+        }),
+        LoopbackCredential::Secret => Err(ForwardError::Scope {
+            presented: "loopback secret",
+            route: "a plugin hook route",
+        }),
+        LoopbackCredential::Host(_) => Err(ForwardError::Scope {
+            presented: "host token",
+            route: "a plugin hook route",
+        }),
+    }
+}
+
 fn not_found_response(body: &str) -> ForwardResult<Response<ProxyBody>> {
     let bytes = Bytes::copy_from_slice(body.as_bytes());
     let body: ProxyBody = Full::new(bytes).map_err(|never| match never {}).boxed();
@@ -261,39 +292,6 @@ fn not_found_response(body: &str) -> ForwardResult<Response<ProxyBody>> {
         .status(StatusCode::NOT_FOUND)
         .header(http::header::CONTENT_TYPE, "text/plain")
         .body(body)?)
-}
-
-async fn prepare_upstream_body(
-    body: Incoming,
-    session_context: &SessionContext,
-) -> ForwardResult<(Bytes, Option<GatewayConversationId>)> {
-    let buffered = collect_body(body).await?;
-    let id = session::derive_gateway_conversation_id(&buffered)
-        .map(|hash| session_context.context_for_prefix(hash));
-    if let Some(ref c) = id {
-        tracing::Span::current().record("gateway_conversation_id", tracing::field::display(c));
-    }
-    Ok((buffered, id))
-}
-
-async fn collect_body(body: Incoming) -> ForwardResult<Bytes> {
-    match http_body_util::Limited::new(body, BUFFERED_BODY_LIMIT)
-        .collect()
-        .await
-    {
-        Ok(collected) => Ok(collected.to_bytes()),
-        Err(e) if e.is::<http_body_util::LengthLimitError>() => Err(ForwardError::BodyTooLarge),
-        Err(e) => Err(ForwardError::ReadBody(e)),
-    }
-}
-
-#[must_use]
-pub fn is_client_disconnect(err: &ForwardError) -> bool {
-    matches!(
-        err,
-        ForwardError::Upstream(e)
-            if e.is_request() && describe(e).contains("connection closed")
-    )
 }
 
 const _: fn() = || {

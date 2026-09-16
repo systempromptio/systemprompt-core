@@ -12,7 +12,8 @@ use chrono::{DateTime, Utc};
 use clap::Args;
 use std::sync::Arc;
 use systemprompt_identifiers::{TaskId, TraceId};
-use systemprompt_logging::{AiTraceService, CliService, TraceEvent, TraceQueryService};
+use systemprompt_logging::CliService;
+use systemprompt_runtime::{AiTraceService, TraceEvent, TraceQueryService};
 
 use super::ai_trace_display::{execute_ai_trace, filter_log_events};
 use super::display::{print_event, print_table};
@@ -58,9 +59,9 @@ pub struct TraceSections {
 
 #[derive(Debug)]
 pub struct TraceSummaries<'a> {
-    pub ai: &'a systemprompt_logging::AiRequestSummary,
-    pub mcp: &'a systemprompt_logging::McpExecutionSummary,
-    pub step: &'a systemprompt_logging::ExecutionStepSummary,
+    pub ai: &'a systemprompt_runtime::AiRequestSummary,
+    pub mcp: &'a systemprompt_runtime::McpExecutionSummary,
+    pub step: &'a systemprompt_runtime::ExecutionStepSummary,
 }
 
 struct FormattedDisplayContext<'a> {
@@ -68,9 +69,9 @@ struct FormattedDisplayContext<'a> {
     trace_id: &'a str,
     task_id: Option<&'a TaskId>,
     verbose: bool,
-    ai_summary: &'a systemprompt_logging::AiRequestSummary,
-    mcp_summary: &'a systemprompt_logging::McpExecutionSummary,
-    step_summary: &'a systemprompt_logging::ExecutionStepSummary,
+    ai_summary: &'a systemprompt_runtime::AiRequestSummary,
+    mcp_summary: &'a systemprompt_runtime::McpExecutionSummary,
+    step_summary: &'a systemprompt_runtime::ExecutionStepSummary,
 }
 
 pub(super) async fn execute(args: ShowArgs, ctx: &CommandContext) -> Result<CommandOutput> {
@@ -165,8 +166,8 @@ async fn execute_trace_view(
 
 fn report_empty_trace(
     trace_id: &str,
-    ai_summary: &systemprompt_logging::AiRequestSummary,
-    mcp_summary: &systemprompt_logging::McpExecutionSummary,
+    ai_summary: &systemprompt_runtime::AiRequestSummary,
+    mcp_summary: &systemprompt_runtime::McpExecutionSummary,
 ) {
     if ai_summary.request_count == 0 && mcp_summary.execution_count == 0 {
         CliService::warning(&format!("No events found for trace: {}", trace_id));

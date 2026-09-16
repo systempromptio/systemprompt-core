@@ -17,7 +17,7 @@ use axum::http::{HeaderMap, StatusCode, header};
 use axum::response::Response;
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::JwtToken;
-use systemprompt_marketplace::{CatalogContent, ManifestService, NoopTrace, plugin_bundles_cached};
+use systemprompt_marketplace::{AssembleRequest, CatalogContent, ManifestService, NoopTrace};
 use systemprompt_models::bridge::ids::PluginId;
 use systemprompt_models::services::ServicesConfig;
 use systemprompt_runtime::AppContext;
@@ -52,15 +52,21 @@ pub async fn handle(
 
     let services = bridge_data::load_services_config().map_err(|e| internal("services", &e))?;
     let profile = ProfileBootstrap::get().map_err(|e| internal("profile", &e))?;
-    let disk_catalog = CatalogContent::load_cached(
-        &services,
-        ctx.app_paths().system().services(),
-        &profile.server.api_external_url,
-    )
-    .map_err(|e| internal("catalog", &e))?;
+    let disk_catalog = ctx
+        .marketplace_cache()
+        .catalog(
+            &services,
+            ctx.app_paths().system().services(),
+            &profile.server.api_external_url,
+        )
+        .map_err(|e| internal("catalog", &e))?;
     let catalog = (*disk_catalog)
         .clone()
-        .with_managed_skills(ctx.managed_repository().as_ref().clone(), &user.id)
+        .with_organization_skills(
+            ctx.managed_repository().as_ref().clone(),
+            ctx.system_admin().id(),
+            &user.id,
+        )
         .await
         .map_err(|error| internal("managed-catalog", &error))?;
 
@@ -73,7 +79,9 @@ pub async fn handle(
         return Err((StatusCode::NOT_FOUND, "Plugin not found".to_owned()));
     }
 
-    let bundles = plugin_bundles_cached(&services, &catalog.as_content())
+    let bundles = ctx
+        .marketplace_cache()
+        .bundles(&services, &catalog.as_content())
         .map_err(|e| internal("bundle", &e))?;
     let bundle = bundles
         .get(&id)
@@ -124,10 +132,13 @@ async fn plugin_is_granted(
 ) -> Result<bool, HttpError> {
     let candidate = ManifestService::assemble_candidate_from_catalog(
         catalog.clone(),
-        services,
-        ctx.app_paths().system().services(),
-        ctx.marketplace_filter().as_ref(),
-        user_id,
+        &AssembleRequest {
+            services,
+            services_root: ctx.app_paths().system().services(),
+            filter: ctx.marketplace_filter().as_ref(),
+            user_id,
+            cache: ctx.marketplace_cache(),
+        },
         &mut NoopTrace,
     )
     .await

@@ -7,16 +7,12 @@ use crate::error::{DatabaseResult, RepositoryError};
 use crate::services::{Database, DatabaseProvider};
 
 pub async fn validate_database_connection(db: &dyn DatabaseProvider) -> DatabaseResult<()> {
-    db.test_connection().await.map_err(|e| {
-        RepositoryError::Internal(format!("Failed to establish database connection: {e}"))
-    })
+    db.test_connection()
+        .await
+        .map_err(|e| RepositoryError::Connection(Box::new(e)))
 }
 
 pub async fn validate_write_pool_is_primary(db: &Database) -> DatabaseResult<()> {
-    if !db.write().is_postgres() {
-        return Ok(());
-    }
-
     let result = db
         .write()
         .query_raw(&"SELECT pg_is_in_recovery() as in_recovery")

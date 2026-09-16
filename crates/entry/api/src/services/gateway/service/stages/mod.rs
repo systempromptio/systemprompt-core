@@ -22,7 +22,7 @@ use systemprompt_identifiers::AiRequestId;
 use systemprompt_models::services::GatewayConfig;
 use systemprompt_models::services::ai::ModelLimits;
 use systemprompt_security::authz::types::{Decision, DenyReason};
-use systemprompt_security::policy::{ChainEntryResult, SECRET_SCAN_ID};
+use systemprompt_security::policy::{ChainEntryResult, GovernanceEngine, SECRET_SCAN_ID};
 
 pub(in crate::services::gateway::service) use self::governance::record_quota_warning;
 use self::governance::{PromptEvaluation, evaluate_prompt, record_governance_decision};
@@ -71,7 +71,10 @@ impl PreparedDispatch {
     ) -> Result<Self, DispatchError> {
         let upstream_model = upstream
             .provider
-            .upstream_model_for(upstream.route.upstream_model.as_deref(), &request.model)
+            .upstream_model_for(
+                upstream.route.upstream_model.as_deref(),
+                request.model.as_str(),
+            )
             .to_owned();
         let override_descriptor = apply_system_prompt_override(
             config,
@@ -85,7 +88,7 @@ impl PreparedDispatch {
         }
         let model_limits = upstream
             .provider
-            .find_model(&request.model)
+            .find_model(request.model.as_str())
             .map(|m| m.limits);
         let raw_body = match &override_descriptor {
             Some(_) => None,
@@ -127,6 +130,7 @@ impl GovernedDispatch {
         db: &DbPool,
         ctx: &GatewayRequestContext,
         audit: &GatewayAudit,
+        governance: &GovernanceEngine,
     ) -> Result<Self, DispatchError> {
         let PromptEvaluation {
             evaluation,
@@ -134,8 +138,7 @@ impl GovernedDispatch {
             session_id,
             recovery_count,
             recovery_locations,
-        } = evaluate_prompt(ctx, &mut prepared.request, &mut prepared.body)
-            .map_err(|error| DispatchError::PreAudit(error.into()))?;
+        } = evaluate_prompt(governance, ctx, &mut prepared.request, &mut prepared.body);
 
         prepared.recovery_count = recovery_count;
         if recovery_count > 0 {
@@ -265,7 +268,7 @@ impl ScannedDispatch {
     }
 
     pub(super) fn request_model(&self) -> &str {
-        &self.0.request.model
+        self.0.request.model.as_str()
     }
 
     pub(super) async fn send(
@@ -289,7 +292,7 @@ impl ScannedDispatch {
             upstream,
             ctx,
             &prepared.body,
-            &prepared.request.model,
+            prepared.request.model.as_str(),
             audit,
         )
         .await

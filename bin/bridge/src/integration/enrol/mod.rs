@@ -1,18 +1,9 @@
 //! Enrolling a named host into the bridge from the command line.
 //!
-//! Why this exists: `HostApp::install_profile` was reachable only from the GUI
-//! and from [`super::reapply::reapply_stale_profiles`], which by design touches
-//! *only* hosts that already carry a profile. On a headless Linux box the sole
-//! setup path is `install`, and it installed no host profile at all — so
-//! `sync` wrote `OpenCode`'s MCP connectors while the provider block and the
-//! `auth.json` key were never written, and every request the client made to
-//! the loopback proxy came back `403 no loopback credential presented`. This
-//! module is the enrolment half: name a host, get its profile written, whether
-//! or not one was there before.
-//!
-//! It shares [`super::reapply::build_profile_inputs`] with the repair path, so
-//! an enrolled profile and a re-applied one are generated from the same live
-//! port, secret and model list.
+//! Name a host and get its profile written, whether or not one was there
+//! before. Shares [`super::reapply::build_profile_inputs`] with the repair
+//! path, so an enrolled profile and a re-applied one are generated from the
+//! same live port, secret and model list.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

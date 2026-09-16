@@ -6,7 +6,7 @@ use systemprompt_traits::AiGeneratedFile;
 
 fn fixture_file(id: uuid::Uuid) -> AiGeneratedFile {
     AiGeneratedFile {
-        id,
+        id: FileId::new(id.to_string()),
         path: "generated/report.png".to_owned(),
         public_url: "https://cdn.example.com/generated/report.png".to_owned(),
         mime_type: "image/png".to_owned(),
@@ -24,11 +24,11 @@ fn fixture_file(id: uuid::Uuid) -> AiGeneratedFile {
 }
 
 #[test]
-fn id_accessor_returns_typed_file_id_of_the_row_uuid() {
+fn id_is_the_typed_file_id_of_the_row_uuid() {
     let raw = uuid::Uuid::new_v4();
     let file = fixture_file(raw);
 
-    assert_eq!(file.id(), FileId::new(raw.to_string()));
+    assert_eq!(file.id, FileId::new(raw.to_string()));
 }
 
 #[test]
@@ -38,7 +38,7 @@ fn serde_round_trip_preserves_identity_and_metadata() {
     let back: AiGeneratedFile =
         serde_json::from_str(&serde_json::to_string(&file).unwrap()).unwrap();
 
-    assert_eq!(back.id(), file.id());
+    assert_eq!(back.id, file.id);
     assert_eq!(back.metadata, file.metadata);
     assert_eq!(back.size_bytes, Some(2048));
 }

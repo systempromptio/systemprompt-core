@@ -56,7 +56,7 @@ pub fn check_private_files() -> Check {
     let Some(dir) = config.parent().map(std::path::Path::to_path_buf) else {
         return Check::fail("private files", "config path has no parent");
     };
-    let mut candidates = vec![config];
+    let mut candidates = vec![config.with_extension("toml.lock"), config];
     candidates.extend(crate::proxy::secret::secret_path());
     candidates.extend(crate::proxy::identity::install_id_path());
     candidates.extend(crate::proxy::portfile::portfile_path());
@@ -88,6 +88,38 @@ pub fn check_private_files() -> Check {
             unreadable.join("; ")
         ),
     )
+}
+
+#[cfg(target_os = "windows")]
+pub fn check_config_dir_owner() -> Check {
+    let Some(dir) =
+        crate::config::config_path().and_then(|p| p.parent().map(std::path::Path::to_path_buf))
+    else {
+        return Check::fail("config dir owner", "no config dir resolvable");
+    };
+    match crate::config::dir_owner::config_dir_owner(&dir) {
+        Ok(crate::config::dir_owner::DirOwner::Absent) => Check::ok(
+            "config dir owner",
+            format!("{} not created yet", dir.display()),
+        ),
+        Ok(crate::config::dir_owner::DirOwner::Current) => Check::ok(
+            "config dir owner",
+            format!("{} is owned by this account", dir.display()),
+        ),
+        Ok(crate::config::dir_owner::DirOwner::Foreign { owner }) => Check::fail(
+            "config dir owner",
+            format!(
+                "{} is owned by {owner}, not this account — sign-in and sync fail with `Access \
+                 is denied`; repair as administrator from the app, or delete the folder as an \
+                 administrator and sign in again",
+                dir.display()
+            ),
+        ),
+        Err(e) => Check::fail(
+            "config dir owner",
+            format!("{}: owner unreadable: {e}", dir.display()),
+        ),
+    }
 }
 
 #[cfg(target_os = "windows")]

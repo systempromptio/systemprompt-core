@@ -1,4 +1,4 @@
-use systemprompt_bridge::sync::{CredentialRejection, SyncError};
+use systemprompt_bridge::sync::{CredentialRejection, ProvisionError, SyncError};
 
 fn unauthorized() -> SyncError {
     SyncError::GatewayUnauthorized(Box::new(CredentialRejection {
@@ -56,7 +56,6 @@ fn an_authentication_failure_carries_the_chain_s_own_exit_code_through_sync() {
     // to stay distinguishable from a transient failure worth retrying (10).
     // Flattening both onto 1 is what makes an automated retry impossible.
     use systemprompt_bridge::auth::ChainError;
-    use systemprompt_bridge::auth::providers::AuthFailedSource;
 
     assert_eq!(
         code(SyncError::Authentication(ChainError::NoneSucceeded).exit_code()),
@@ -64,9 +63,9 @@ fn an_authentication_failure_carries_the_chain_s_own_exit_code_through_sync() {
     );
     assert_eq!(
         code(
-            SyncError::Authentication(ChainError::PreferredTransient {
-                provider: "mtls",
-                source: AuthFailedSource::SignInRequired,
+            SyncError::Authentication(ChainError::Providers {
+                failures: vec!["session: gateway unreachable".to_owned()],
+                terminal: false,
             })
             .exit_code()
         ),
@@ -85,26 +84,20 @@ fn an_authentication_failure_carries_the_chain_s_own_exit_code_through_sync() {
 }
 
 #[test]
-fn provisioning_and_elevation_failures_are_plain_failures_that_still_say_why() {
-    let provision = SyncError::Provision(std::io::Error::other(
-        "create /Library/Application Support/ClaudeCode: permission denied",
-    ));
-    let elevation = SyncError::Elevation("the administrator prompt was declined".to_owned());
+fn provisioning_failures_are_plain_failures_that_still_say_why() {
+    let provision = SyncError::Provision(ProvisionError::Stage {
+        path: "/Library/Application Support/ClaudeCode".into(),
+        source: std::io::Error::other("permission denied"),
+    });
 
-    for error in [&provision, &elevation] {
-        assert_eq!(
-            code(error.exit_code()),
-            code(std::process::ExitCode::FAILURE),
-            "{error}"
-        );
-    }
-    assert!(
-        provision.to_string().contains("permission denied"),
-        "the underlying io failure reaches the operator verbatim: {provision}"
-    );
     assert_eq!(
-        elevation.to_string(),
-        "the administrator prompt was declined",
-        "an elevation failure is reported as written, not wrapped in boilerplate"
+        code(provision.exit_code()),
+        code(std::process::ExitCode::FAILURE),
+        "{provision}"
+    );
+    assert!(
+        provision.to_string().contains("permission denied")
+            && provision.to_string().contains("ClaudeCode"),
+        "the underlying io failure and the path reach the operator verbatim: {provision}"
     );
 }

@@ -38,6 +38,66 @@ pub enum ConfigWriteError {
         path: PathBuf,
         source: std::io::Error,
     },
+    #[error("{path} is owned by {owner}, not this account; repair it as administrator")]
+    ForeignOwner { path: PathBuf, owner: String },
+}
+
+#[cfg(not(target_os = "windows"))]
+fn open_lock(
+    lock_path: &Path,
+    options: &std::fs::OpenOptions,
+) -> Result<std::fs::File, ConfigWriteError> {
+    options
+        .open(lock_path)
+        .map_err(|source| ConfigWriteError::Write {
+            path: lock_path.to_owned(),
+            source,
+        })
+}
+
+// Why: the config directory carries a protected DACL naming the account that
+// created it, so one created under another account (an elevated install)
+// denies this user outright; that is a repair, not a write failure.
+#[cfg(target_os = "windows")]
+fn open_lock(
+    lock_path: &Path,
+    options: &std::fs::OpenOptions,
+) -> Result<std::fs::File, ConfigWriteError> {
+    let denied = match options.open(lock_path) {
+        Ok(file) => return Ok(file),
+        Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => e,
+        Err(source) => {
+            return Err(ConfigWriteError::Write {
+                path: lock_path.to_owned(),
+                source,
+            });
+        },
+    };
+    let write = |source| ConfigWriteError::Write {
+        path: lock_path.to_owned(),
+        source,
+    };
+    let reader = crate::windows_acl::current_sid().map_err(write)?;
+    let exists = lock_path.try_exists().map_err(write)?;
+    let subject = if exists {
+        lock_path.to_owned()
+    } else {
+        lock_path
+            .parent()
+            .map_or_else(|| lock_path.to_owned(), Path::to_owned)
+    };
+    let owner = crate::windows_acl::owner_sid(&subject).map_err(write)?;
+    if owner != reader {
+        return Err(ConfigWriteError::ForeignOwner {
+            path: subject,
+            owner,
+        });
+    }
+    if exists {
+        crate::windows_acl::repair_private(lock_path, &reader).map_err(write)?;
+        return options.open(lock_path).map_err(write);
+    }
+    Err(write(denied))
 }
 
 pub fn edit(
@@ -74,12 +134,7 @@ pub fn edit_file(
         use std::os::unix::fs::OpenOptionsExt;
         options.mode(0o600);
     }
-    let lock = options
-        .open(&lock_path)
-        .map_err(|source| ConfigWriteError::Write {
-            path: lock_path.clone(),
-            source,
-        })?;
+    let lock = open_lock(&lock_path, &options)?;
     lock.lock().map_err(|source| ConfigWriteError::Write {
         path: lock_path,
         source,

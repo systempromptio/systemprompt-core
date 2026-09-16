@@ -6,6 +6,7 @@
 
 pub mod bridge_host_prefs;
 pub mod bridge_session;
+pub mod cleanup;
 pub mod client;
 pub mod exchange_code;
 pub mod oauth;
@@ -15,6 +16,7 @@ pub mod webauthn_challenge;
 
 pub use bridge_host_prefs::BridgeHostPrefsRepository;
 pub use bridge_session::{BridgeSessionRepository, BridgeSessionRow, UpsertBridgeSession};
+pub use cleanup::{OauthCleanupCounts, OauthCleanupRepository};
 pub use client::{
     ClientRepository, ClientSummary, ClientUsageSummary, CreateClientParams, UpdateClientParams,
 };

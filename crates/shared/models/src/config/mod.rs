@@ -39,7 +39,7 @@ pub fn random_instance_id() -> String {
     format!("instance-{}", uuid::Uuid::new_v4().simple())
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Config {
     pub instance_id: String,
     pub metrics_port: Option<u16>,
@@ -84,6 +84,69 @@ pub struct Config {
     pub login_page_url: Option<String>,
     pub system_admin_username: String,
     pub system_admin_email: Option<systemprompt_identifiers::Email>,
+}
+
+const REDACTED: &str = "<redacted>";
+
+// Why: `database_url` carries the password and `github_token` is a credential;
+// a `?config` in any log line must not print either.
+impl std::fmt::Debug for Config {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Config")
+            .field("instance_id", &self.instance_id)
+            .field("metrics_port", &self.metrics_port)
+            .field("max_concurrent_streams", &self.max_concurrent_streams)
+            .field("sitename", &self.sitename)
+            .field("database_type", &self.database_type)
+            .field("database_url", &REDACTED)
+            .field("database_write_url", &REDACTED)
+            .field("github_link", &self.github_link)
+            .field("github_token", &REDACTED)
+            .field("system_path", &self.system_path)
+            .field("services_path", &self.services_path)
+            .field("bin_path", &self.bin_path)
+            .field("skills_path", &self.skills_path)
+            .field("settings_path", &self.settings_path)
+            .field("content_config_path", &self.content_config_path)
+            .field("geoip_database_path", &self.geoip_database_path)
+            .field("web_path", &self.web_path)
+            .field("web_config_path", &self.web_config_path)
+            .field("web_metadata_path", &self.web_metadata_path)
+            .field("host", &self.host)
+            .field("port", &self.port)
+            .field("api_server_url", &self.api_server_url)
+            .field("api_internal_url", &self.api_internal_url)
+            .field("api_external_url", &self.api_external_url)
+            .field("jwt_issuer", &self.jwt_issuer)
+            .field(
+                "jwt_access_token_expiration",
+                &self.jwt_access_token_expiration,
+            )
+            .field(
+                "jwt_refresh_token_expiration",
+                &self.jwt_refresh_token_expiration,
+            )
+            .field("jwt_audiences", &self.jwt_audiences)
+            .field(
+                "allowed_resource_audiences",
+                &self.allowed_resource_audiences,
+            )
+            .field("trusted_issuers", &self.trusted_issuers)
+            .field("id_jag_ttl_secs", &self.id_jag_ttl_secs)
+            .field("signing_key_path", &self.signing_key_path)
+            .field("use_https", &self.use_https)
+            .field("rate_limits", &self.rate_limits)
+            .field("cors_allowed_origins", &self.cors_allowed_origins)
+            .field("trusted_proxies", &self.trusted_proxies)
+            .field("is_cloud", &self.is_cloud)
+            .field("content_negotiation", &self.content_negotiation)
+            .field("security_headers", &self.security_headers)
+            .field("allow_registration", &self.allow_registration)
+            .field("login_page_url", &self.login_page_url)
+            .field("system_admin_username", &self.system_admin_username)
+            .field("system_admin_email", &self.system_admin_email)
+            .finish()
+    }
 }
 
 impl Config {

@@ -23,7 +23,7 @@ async fn tool_provider_construction_and_accessors() {
 
 #[tokio::test]
 async fn tool_provider_list_tools_unknown_agent_returns_error_or_empty() {
-    use systemprompt_identifiers::Actor;
+    use systemprompt_identifiers::{Actor, AgentName};
     use systemprompt_traits::{ToolContext, ToolProvider};
     let Ok(url) = fixture_database_url() else {
         return;
@@ -35,7 +35,11 @@ async fn tool_provider_list_tools_unknown_agent_returns_error_or_empty() {
     let provider = McpToolProvider::new(db, registry, &ResilienceSettings::default());
     let ctx = ToolContext::new(Actor::user(fixture_user_id()), "");
     let res = provider
-        .list_tools(&format!("no-agent-{}", uuid::Uuid::new_v4().simple()), &ctx)
+        .list_tools(
+            &AgentName::try_new(format!("no-agent-{}", uuid::Uuid::new_v4().simple()))
+                .expect("valid AgentName"),
+            &ctx,
+        )
         .await;
     let _ = res;
 }

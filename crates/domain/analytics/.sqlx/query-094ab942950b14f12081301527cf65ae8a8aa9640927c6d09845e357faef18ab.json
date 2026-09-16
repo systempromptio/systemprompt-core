@@ -1,0 +1,39 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                SELECT\n                    COALESCE(device_type, 'unknown') as \"device\",\n                    COALESCE(browser, 'unknown') as \"browser\",\n                    COUNT(*)::bigint as \"count!\"\n                FROM analytics_report_v_clean_traffic\n                WHERE started_at >= $1 AND started_at < $2\n                GROUP BY device_type, browser\n                ORDER BY COUNT(*) DESC\n                LIMIT $3\n                ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "device",
+        "type_info": "Varchar",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "browser",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Timestamptz",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "094ab942950b14f12081301527cf65ae8a8aa9640927c6d09845e357faef18ab"
+}

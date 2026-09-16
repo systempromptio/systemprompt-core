@@ -12,12 +12,11 @@ use crate::stdio::diag;
 
 #[tracing::instrument(level = "info", skip(app, event_loop))]
 pub(crate) fn on_open_settings(app: &mut GuiApp, event_loop: &dyn ActiveEventLoop) {
-    let legacy_origin = app.ensure_server().map(|s| {
-        let port = s.port();
-        format!("http://127.0.0.1:{port}")
-    });
-    if let Some(server) = app.server.as_ref() {
-        app.append_log(format!("legacy http transport on {}", server.url()));
+    if let Some(url) = app
+        .ensure_server()
+        .map(super::super::server::FocusServer::url)
+    {
+        app.append_log(format!("single-instance focus server on {url}"));
     }
 
     if let Some(win) = &app.settings_window {
@@ -26,7 +25,7 @@ pub(crate) fn on_open_settings(app: &mut GuiApp, event_loop: &dyn ActiveEventLoo
         return;
     }
 
-    match window::SettingsWindow::create(event_loop, &app.proxy, legacy_origin.as_deref()) {
+    match window::SettingsWindow::create(event_loop, &app.proxy) {
         Ok(win) => {
             app.append_log("opened native settings window (sp:// custom protocol)");
             app.settings_window = Some(win);

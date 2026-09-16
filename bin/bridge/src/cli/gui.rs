@@ -41,8 +41,10 @@ pub(crate) fn cmd_gui(ctx: Arc<BridgeContext>) -> ExitCode {
             return ExitCode::FAILURE;
         },
         crate::single_instance::SingletonResult::Error(e) => {
-            crate::stdio::diag(&format!("gui: singleton check failed: {e}; continuing"));
-            return crate::gui::run(ctx);
+            crate::stdio::diag(&format!(
+                "gui: singleton check failed: {e}; refusing to start a second instance blind"
+            ));
+            return ExitCode::from(70);
         },
     };
     let exit = crate::gui::run(ctx);

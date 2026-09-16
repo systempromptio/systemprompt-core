@@ -27,12 +27,14 @@ const UNKNOWN_KEYWORDS: [&str; 9] = [
 ];
 
 #[must_use]
+// JSON: JSON Schema document walked for Gemini-unsupported constructs.
 pub fn gemini_declaration_violations(schema: &Value) -> Vec<String> {
     let mut out = Vec::new();
     walk(schema, "$", &mut out);
     out
 }
 
+// JSON: JSON Schema document walked for Gemini-unsupported constructs.
 fn walk(node: &Value, path: &str, out: &mut Vec<String>) {
     let Some(obj) = node.as_object() else {
         return;

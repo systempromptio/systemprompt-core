@@ -233,3 +233,51 @@ fn an_includes_key_ending_the_file_still_gets_its_entry_on_a_new_line() {
         );
     }
 }
+
+// Why: `admin config validate` walks every section; a section whose
+// directory cannot be enumerated must fail the run, not vanish from the
+// report while `all_valid` stays true.
+#[test]
+fn an_unreadable_section_directory_fails_enumeration_instead_of_being_skipped() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let services = tempfile::tempdir().unwrap();
+    let locked = services.path().join("skills").join("locked");
+    std::fs::create_dir_all(&locked).unwrap();
+    std::fs::write(locked.join("skill.yaml"), "name: x\n").unwrap();
+    std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o000)).unwrap();
+    let restore = || {
+        std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o755)).ok();
+    };
+    if std::fs::read_dir(&locked).is_ok() {
+        // Running with CAP_DAC_OVERRIDE (root): the permission bit cannot
+        // deny the read, so there is nothing to observe here.
+        restore();
+        return;
+    }
+
+    let result =
+        ConfigSection::Skills.files_under(services.path(), &services.path().join("p.yaml"));
+    restore();
+
+    let err = result.expect_err("an unreadable directory cannot be enumerated");
+    assert!(
+        format!("{err:#}").contains("Failed to read config directory"),
+        "{err:#}"
+    );
+}
+
+#[test]
+fn a_readable_section_directory_lists_its_yaml_files_recursively() {
+    let services = tempfile::tempdir().unwrap();
+    let nested = services.path().join("skills").join("nested");
+    std::fs::create_dir_all(&nested).unwrap();
+    std::fs::write(nested.join("skill.yaml"), "name: x\n").unwrap();
+    std::fs::write(nested.join("notes.txt"), "ignored\n").unwrap();
+
+    let files = ConfigSection::Skills
+        .files_under(services.path(), &services.path().join("p.yaml"))
+        .expect("a readable tree enumerates");
+
+    assert_eq!(files, vec![nested.join("skill.yaml")]);
+}

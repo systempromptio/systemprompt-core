@@ -1,48 +1,33 @@
 //! Parser/validator for admin-supplied SQL strings.
 //!
-//! Two parse modes are exposed:
-//! - [`AdminSql::parse_readonly`] — only `SELECT`/`WITH`/`EXPLAIN`/`SHOW`/
-//!   `TABLE`/`VALUES` queries with no forbidden keywords.
-//! - [`AdminSql::parse_unrestricted`] — single statement, otherwise free-form.
+//! Both modes parse with `pg_query` and accept exactly one statement.
+//! [`AdminSql::parse_readonly`] additionally requires the statement root to
+//! be a `SELECT`, `EXPLAIN` of a `SELECT`, or `SHOW`, and refuses any
+//! data-modifying, DDL or utility node anywhere in the tree — including a
+//! CTE that writes. The executor runs read-only statements inside a
+//! `READ ONLY` transaction so Postgres refuses what the parse cannot see
+//! (a volatile function that writes).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use pg_query::NodeEnum;
 use thiserror::Error;
 
 pub const DEFAULT_READONLY_ROW_LIMIT: usize = 1000;
 
-const READONLY_PREFIXES: &[&str] = &["select", "with", "explain", "show", "table", "values"];
-
-const FORBIDDEN_KEYWORDS: &[&str] = &[
-    " drop ",
-    " delete ",
-    " insert ",
-    " update ",
-    " alter ",
-    " create ",
-    " truncate ",
-    " grant ",
-    " revoke ",
-    " copy ",
-    " vacuum ",
-    " call ",
-    " lock ",
-    " set ",
-    " reset ",
-    " rename ",
-];
-
-#[derive(Debug, Clone, Copy, Error)]
+#[derive(Debug, Error)]
 pub enum AdminSqlError {
     #[error("SQL query is empty")]
     Empty,
+    #[error("SQL query could not be parsed: {0}")]
+    Parse(#[from] pg_query::Error),
     #[error("SQL query contains multiple statements; only one is allowed")]
     MultipleStatements,
-    #[error("SQL query must begin with SELECT, WITH, EXPLAIN, SHOW, TABLE, or VALUES")]
+    #[error("SQL query must be a SELECT, an EXPLAIN of a SELECT, or SHOW")]
     NotReadOnly,
-    #[error("SQL query contains forbidden keyword for read-only mode")]
-    ForbiddenKeyword,
+    #[error("SQL query contains a data-modifying, DDL or utility statement in read-only mode")]
+    WriteInReadOnly,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -50,46 +35,32 @@ pub struct AdminSql(String);
 
 impl AdminSql {
     pub fn parse_readonly(raw: &str) -> Result<Self, AdminSqlError> {
-        let stripped = strip_comments(raw);
-        let trimmed = stripped.trim();
-        if trimmed.is_empty() {
-            return Err(AdminSqlError::Empty);
+        let (text, root) = single_statement(raw)?;
+        let inner = match &root {
+            NodeEnum::ExplainStmt(explain) => explain
+                .query
+                .as_ref()
+                .and_then(|q| q.node.as_ref())
+                .ok_or(AdminSqlError::NotReadOnly)?,
+            other => other,
+        };
+        match inner {
+            NodeEnum::SelectStmt(_) | NodeEnum::VariableShowStmt(_) => {},
+            _ => return Err(AdminSqlError::NotReadOnly),
         }
-
-        let without_terminator = trimmed.strip_suffix(';').unwrap_or(trimmed).trim_end();
-        if without_terminator.contains(';') {
-            return Err(AdminSqlError::MultipleStatements);
-        }
-
-        let lower = without_terminator.to_lowercase();
-        if !READONLY_PREFIXES
+        let nested = statement_kinds(inner)?;
+        if nested
             .iter()
-            .any(|p| starts_with_word(&lower, p))
+            .any(|kind| !READONLY_ROOTS.contains(&kind.as_str()))
         {
-            return Err(AdminSqlError::NotReadOnly);
+            return Err(AdminSqlError::WriteInReadOnly);
         }
-
-        let padded = format!(" {lower} ");
-        if FORBIDDEN_KEYWORDS.iter().any(|kw| padded.contains(kw)) {
-            return Err(AdminSqlError::ForbiddenKeyword);
-        }
-
-        Ok(Self(without_terminator.to_owned()))
+        Ok(Self(text))
     }
 
     pub fn parse_unrestricted(raw: &str) -> Result<Self, AdminSqlError> {
-        let stripped = strip_comments(raw);
-        let trimmed = stripped.trim();
-        if trimmed.is_empty() {
-            return Err(AdminSqlError::Empty);
-        }
-
-        let without_terminator = trimmed.strip_suffix(';').unwrap_or(trimmed).trim_end();
-        if without_terminator.contains(';') {
-            return Err(AdminSqlError::MultipleStatements);
-        }
-
-        Ok(Self(without_terminator.to_owned()))
+        let (text, _) = single_statement(raw)?;
+        Ok(Self(text))
     }
 
     pub fn as_str(&self) -> &str {
@@ -97,41 +68,59 @@ impl AdminSql {
     }
 }
 
-fn strip_comments(raw: &str) -> String {
-    let mut out = String::with_capacity(raw.len());
-    let mut chars = raw.chars().peekable();
-    while let Some(c) = chars.next() {
-        if c == '-' && chars.peek() == Some(&'-') {
-            for nc in chars.by_ref() {
-                if nc == '\n' {
-                    out.push('\n');
-                    break;
-                }
-            }
-            continue;
-        }
-        if c == '/' && chars.peek() == Some(&'*') {
-            chars.next();
-            let mut prev = '\0';
-            for nc in chars.by_ref() {
-                if prev == '*' && nc == '/' {
-                    break;
-                }
-                prev = nc;
-            }
-            continue;
-        }
-        out.push(c);
+fn single_statement(raw: &str) -> Result<(String, NodeEnum), AdminSqlError> {
+    let parsed = pg_query::parse(raw)?;
+    let mut stmts = parsed.protobuf.stmts.into_iter();
+    let Some(first) = stmts.next() else {
+        return Err(AdminSqlError::Empty);
+    };
+    if stmts.next().is_some() {
+        return Err(AdminSqlError::MultipleStatements);
     }
-    out
+    let node = first
+        .stmt
+        .and_then(|s| s.node)
+        .ok_or(AdminSqlError::Empty)?;
+    let start = usize::try_from(first.stmt_location).unwrap_or(0);
+    let end = if first.stmt_len > 0 {
+        start.saturating_add(usize::try_from(first.stmt_len).unwrap_or(0))
+    } else {
+        raw.len()
+    };
+    let text = raw.get(start..end).unwrap_or(raw).trim();
+    let text = text.strip_suffix(';').unwrap_or(text).trim_end();
+    Ok((text.to_owned(), node))
 }
 
-fn starts_with_word(haystack: &str, needle: &str) -> bool {
-    if !haystack.starts_with(needle) {
-        return false;
+const READONLY_ROOTS: &[&str] = &["SelectStmt", "VariableShowStmt"];
+
+// Why: the typed `nodes()` walk skips node kinds it does not model, so the
+// exhaustive check serialises the protobuf tree and looks at every statement
+// node wherever it sits — a CTE, a subquery, a function argument.
+fn statement_kinds(root: &NodeEnum) -> Result<Vec<String>, AdminSqlError> {
+    // JSON: pg_query protobuf AST, externally tagged by node variant name
+    let tree = serde_json::to_value(root)
+        .map_err(|e| AdminSqlError::Parse(pg_query::Error::InvalidJson(e.to_string())))?;
+    let mut kinds = Vec::new();
+    collect_statement_kinds(&tree, &mut kinds);
+    Ok(kinds)
+}
+
+fn collect_statement_kinds(value: &serde_json::Value, kinds: &mut Vec<String>) {
+    match value {
+        serde_json::Value::Object(map) => {
+            for (key, child) in map {
+                if key.ends_with("Stmt") {
+                    kinds.push(key.clone());
+                }
+                collect_statement_kinds(child, kinds);
+            }
+        },
+        serde_json::Value::Array(items) => {
+            for item in items {
+                collect_statement_kinds(item, kinds);
+            }
+        },
+        _ => {},
     }
-    haystack[needle.len()..]
-        .chars()
-        .next()
-        .is_none_or(|c| c.is_whitespace() || c == '(' || c == ';')
 }

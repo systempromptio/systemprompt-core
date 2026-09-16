@@ -1,0 +1,25 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT MAX(generation) FROM (SELECT generation FROM analytics_fact_deltas WHERE owner_id=$1 AND generation>$2 ORDER BY generation LIMIT $3) batch",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "max",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "89327e7f9a0579525d324726dfd6c6690caf53fcc6d163d518a7636998a63e0b"
+}

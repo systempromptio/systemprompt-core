@@ -27,12 +27,12 @@ impl SchedulerService {
         job_config: &JobConfig,
     ) -> SchedulerResult<()> {
         if !job_config.enabled {
-            debug!("Skipping disabled job: {}", job_config.name);
+            debug!(job = %job_config.name, "Skipping disabled job");
             return Ok(());
         }
 
         let Some(registered_job) = ctx.registered_jobs.get(job_config.name.as_str()) else {
-            warn!("Job '{}' not found in inventory, skipping", job_config.name);
+            warn!(job = %job_config.name, "Job not found in inventory, skipping");
             return Ok(());
         };
 

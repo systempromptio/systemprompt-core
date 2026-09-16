@@ -34,8 +34,9 @@ mod probe;
 pub use managed_resources::OpenCodeSync;
 
 use crate::integration::host_app::{
-    ConfigFormat, GeneratedProfile, HostApp, HostAppSnapshot, HostConfigSchema, HostKind, ProbeEnv,
-    ProfileGenInputs, ProfileInstalled, ProfileRemoval, ProfileState,
+    ConfigFormat, Freshness, GeneratedProfile, HostApp, HostAppSnapshot, HostConfigSchema,
+    HostKind, HostProcesses, ProbeEnv, ProfileGenInputs, ProfileInstalled, ProfileProbe,
+    ProfileRemoval, ProfileState,
 };
 
 #[derive(Clone, Copy, Debug)]
@@ -58,21 +59,28 @@ impl HostApp for OpenCodeHost {
 
     fn probe(&self, env: &ProbeEnv) -> HostAppSnapshot {
         let read = probe::read_config();
-        let endpoint_fresh = ProfileState::endpoint_freshness(
+        let endpoint = ProfileState::endpoint_freshness(
             read.keys.get(config::PROVIDER_BASE_URL).map(String::as_str),
             env.proxy_port,
         );
-        let profile_state =
-            ProfileState::classify(config::REQUIRED_KEYS, &read.keys, None, endpoint_fresh);
-        let processes = probe::list_opencode_processes();
+        let secret = Freshness::Unchecked;
+        let profile_state = ProfileState::classify(&ProfileProbe {
+            required: config::REQUIRED_KEYS,
+            present: &read.keys,
+            read_error: read.probe_error.as_deref(),
+            secret,
+            endpoint,
+        });
+        let found = HostProcesses::from_enumeration(probe::list_opencode_processes());
         HostAppSnapshot {
             host_id: self.id(),
             display_name: self.display_name(),
             profile_state,
             profile_source: read.source_path,
             profile_keys: read.keys,
-            host_running: !processes.is_empty(),
-            host_processes: processes,
+            probe_error: read.probe_error.or(found.error),
+            host_running: found.running,
+            host_processes: found.processes,
             app_installed: crate::integration::app_launch::cli_installed(
                 config::BINARY,
                 &config::extra_bin_dirs(),
@@ -133,3 +141,7 @@ impl HostApp for OpenCodeHost {
 }
 
 crate::register_host_sync!(OpenCodeSync);
+
+pub(crate) fn feedback_skill_root() -> std::path::PathBuf {
+    config::skills_dir()
+}

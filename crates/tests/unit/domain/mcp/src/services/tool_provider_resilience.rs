@@ -66,7 +66,10 @@ async fn provider_for_endpoint_or_skip(
     let _bootstrap = bootstrap_with_services(&yaml);
 
     let provider = McpToolProvider::new(db, RegistryService::new(fixture_user_id()), resilience);
-    Some((provider, McpServerId::new(&server_name)))
+    Some((
+        provider,
+        McpServerId::try_new(&server_name).expect("valid McpServerId"),
+    ))
 }
 
 async fn mount_delayed_tool_call(mock: &MockServer, delay: Duration) {

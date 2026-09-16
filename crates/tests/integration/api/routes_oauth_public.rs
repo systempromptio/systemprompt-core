@@ -77,6 +77,7 @@ async fn public_app() -> anyhow::Result<Router> {
     let state = OAuthState::new(
         ctx.oauth_repositories().oauth.clone(),
         ctx.analytics_provider().expect("analytics"),
+        ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
     );
     Ok(public_router().with_state(state))
@@ -88,6 +89,7 @@ async fn authenticated_app() -> anyhow::Result<Router> {
     let state = OAuthState::new(
         ctx.oauth_repositories().oauth.clone(),
         ctx.analytics_provider().expect("analytics"),
+        ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
     );
     Ok(authenticated_router().with_state(state))
@@ -261,6 +263,7 @@ async fn register_client_applies_rfc7591_defaults_when_grant_and_response_types_
     let state = OAuthState::new(
         ctx.oauth_repositories().oauth.clone(),
         ctx.analytics_provider().expect("analytics"),
+        ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
     );
     let app = systemprompt_api::routes::oauth::public_router()
@@ -326,6 +329,7 @@ async fn register_client_echoes_native_application_type() -> anyhow::Result<()> 
     let state = OAuthState::new(
         ctx.oauth_repositories().oauth.clone(),
         ctx.analytics_provider().expect("analytics"),
+        ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
     );
     let app = systemprompt_api::routes::oauth::public_router()
@@ -412,6 +416,7 @@ async fn dcr_app() -> anyhow::Result<Router> {
     let state = OAuthState::new(
         ctx.oauth_repositories().oauth.clone(),
         ctx.analytics_provider().expect("analytics"),
+        ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
     );
     Ok(systemprompt_api::routes::oauth::public_router()

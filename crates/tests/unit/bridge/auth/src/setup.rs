@@ -1,4 +1,4 @@
-use systemprompt_bridge::auth::setup::{self, SetupError};
+use systemprompt_bridge::auth::setup::{self, SetupError, TokenRejection};
 use tempfile::TempDir;
 
 const GOOD: &str = "sp-live-testprefix.secretsecretsecretsecretsecret012345";
@@ -79,15 +79,15 @@ fn token_validation_rejects_the_three_malformed_shapes() {
         )
     });
     assert!(
-        matches!(prefix, Err(SetupError::Token(ref m)) if m.contains("sp-live-")),
+        matches!(prefix, Err(SetupError::Token(TokenRejection::Prefix))),
         "{prefix:?}"
     );
     assert!(
-        matches!(dot, Err(SetupError::Token(ref m)) if m.contains('.')),
+        matches!(dot, Err(SetupError::Token(TokenRejection::Separator))),
         "{dot:?}"
     );
     assert!(
-        matches!(short, Err(SetupError::Token(ref m)) if m.contains("too short")),
+        matches!(short, Err(SetupError::Token(TokenRejection::TooShort))),
         "{short:?}"
     );
 }
@@ -106,7 +106,7 @@ fn set_gateway_url_rewrites_the_config_and_rejects_an_empty_value() {
         config.contains("gateway_url = \"http://moved.invalid:7100\""),
         "the trimmed override is written: {config}"
     );
-    assert!(matches!(empty, Err(SetupError::Path(_))), "{empty:?}");
+    assert!(matches!(empty, Err(SetupError::EmptyGateway)), "{empty:?}");
 }
 
 #[test]
@@ -256,9 +256,10 @@ fn login_fails_with_the_prepare_dir_context_when_the_config_base_is_read_only() 
         err
     });
     match err {
-        SetupError::Io(msg) => assert!(
-            msg.starts_with("prepare ") && msg.contains("systemprompt"),
-            "error names the failing step and the directory: {msg}"
+        SetupError::Io { action, path, .. } => assert!(
+            action == "prepare" && path.display().to_string().contains("systemprompt"),
+            "error names the failing step and the directory: {action} {}",
+            path.display()
         ),
         other => panic!("expected Io, got {other:?}"),
     }
@@ -272,9 +273,10 @@ fn login_fails_with_the_write_context_when_the_pat_path_is_a_directory() {
         setup::login(GOOD, None).expect_err("a directory squatting on the PAT path must fail")
     });
     match err {
-        SetupError::Io(msg) => assert!(
-            msg.starts_with("write and verify ") && msg.contains(".pat"),
-            "the atomic-write step surfaces with the PAT path: {msg}"
+        SetupError::Io { action, path, .. } => assert!(
+            action == "write and verify" && path.extension().is_some_and(|e| e == "pat"),
+            "the atomic-write step surfaces with the PAT path: {action} {}",
+            path.display()
         ),
         other => panic!("expected Io, got {other:?}"),
     }
@@ -288,10 +290,9 @@ fn logout_fails_with_the_read_config_context_when_the_config_path_is_a_directory
         setup::logout().expect_err("an unreadable config must fail logout")
     });
     match err {
-        SetupError::Io(msg) => assert!(
-            msg.contains("read config"),
-            "error names the failing step: {msg}"
-        ),
+        SetupError::Io { action, .. } => {
+            assert_eq!(action, "read", "error names the failing step: {action}")
+        },
         other => panic!("expected Io, got {other:?}"),
     }
 }
@@ -304,10 +305,9 @@ fn clean_fails_with_the_remove_context_when_the_pat_path_is_a_directory() {
         setup::clean().expect_err("an unremovable PAT path must fail clean")
     });
     match err {
-        SetupError::Io(msg) => assert!(
-            msg.contains("remove"),
-            "error names the failing step: {msg}"
-        ),
+        SetupError::Io { action, .. } => {
+            assert_eq!(action, "remove", "error names the failing step: {action}")
+        },
         other => panic!("expected Io, got {other:?}"),
     }
 }

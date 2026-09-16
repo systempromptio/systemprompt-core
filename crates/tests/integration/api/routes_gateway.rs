@@ -124,31 +124,6 @@ async fn session_pat_unknown_code_returns_unauthorized() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[tokio::test]
-async fn mtls_empty_fingerprint_returns_400() -> anyhow::Result<()> {
-    let app = router().await?;
-    let resp = app
-        .oneshot(json_post(
-            "/auth/bridge/mtls",
-            serde_json::json!({ "device_cert_fingerprint": "" }),
-        ))
-        .await?;
-    assert_eq!(resp.status().as_u16(), 400);
-    Ok(())
-}
-
-#[tokio::test]
-async fn mtls_unknown_fingerprint_returns_unauthorized() -> anyhow::Result<()> {
-    let app = router().await?;
-    let resp = app
-        .oneshot(json_post(
-            "/auth/bridge/mtls",
-            serde_json::json!({ "device_cert_fingerprint": "deadbeefcafe" }),
-        ))
-        .await?;
-    assert!(resp.status().is_client_error());
-    Ok(())
-}
 
 #[tokio::test]
 async fn oauth_client_missing_bearer_returns_401() -> anyhow::Result<()> {
@@ -261,5 +236,51 @@ async fn otel_with_rest_path_runs_handler() -> anyhow::Result<()> {
         .oneshot(json_post("/otel/v1/traces", serde_json::json!({})))
         .await?;
     assert!(resp.status().as_u16() >= 200);
+    Ok(())
+}
+
+fn otel_post(uri: &str, headers: &[(&str, &str)]) -> axum::extract::Request {
+    let mut req = axum::extract::Request::builder()
+        .method(http::Method::POST)
+        .uri(uri)
+        .header("content-type", "application/x-protobuf");
+    for (name, value) in headers {
+        req = req.header(*name, *value);
+    }
+    req.body(axum::body::Body::from(vec![0x0a, 0x00]))
+        .expect("request build")
+}
+
+// Why: an anonymous OTLP writer could fill the log store with attacker-chosen
+// rows; the route must refuse before it reads the body, not accept and drop.
+#[tokio::test]
+async fn otel_without_a_credential_is_unauthorized() -> anyhow::Result<()> {
+    let app = router().await?;
+    let resp = app.oneshot(otel_post("/otel", &[])).await?;
+    assert_eq!(resp.status(), http::StatusCode::UNAUTHORIZED);
+    Ok(())
+}
+
+#[tokio::test]
+async fn otel_subpath_without_a_credential_is_unauthorized() -> anyhow::Result<()> {
+    let app = router().await?;
+    let resp = app.oneshot(otel_post("/otel/v1/traces", &[])).await?;
+    assert_eq!(resp.status(), http::StatusCode::UNAUTHORIZED);
+    Ok(())
+}
+
+#[tokio::test]
+async fn otel_with_an_invalid_bearer_is_unauthorized() -> anyhow::Result<()> {
+    let app = router().await?;
+    let resp = app
+        .oneshot(otel_post(
+            "/otel",
+            &[
+                ("authorization", "Bearer not-a-token"),
+                ("x-session-id", "sess-otel"),
+            ],
+        ))
+        .await?;
+    assert_eq!(resp.status(), http::StatusCode::UNAUTHORIZED);
     Ok(())
 }

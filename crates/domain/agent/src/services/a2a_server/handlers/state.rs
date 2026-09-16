@@ -7,6 +7,7 @@ use std::sync::Arc;
 use systemprompt_models::{AgentConfig, AiProvider};
 use tokio::sync::{RwLock, Semaphore};
 
+use crate::services::a2a_server::active_tasks::ActiveTasks;
 use crate::services::a2a_server::auth::AgentOAuthState;
 use crate::state::AgentState;
 
@@ -17,6 +18,7 @@ pub struct AgentHandlerState {
     pub agent_state: Arc<AgentState>,
     pub ai_service: Arc<dyn AiProvider>,
     pub stream_semaphore: Arc<Semaphore>,
+    pub active_tasks: ActiveTasks,
 }
 
 impl std::fmt::Debug for AgentHandlerState {
@@ -30,6 +32,7 @@ impl std::fmt::Debug for AgentHandlerState {
                 "stream_semaphore",
                 &self.stream_semaphore.available_permits(),
             )
+            .field("active_tasks", &self.active_tasks)
             .finish()
     }
 }

@@ -34,8 +34,12 @@ fn manifest_with(
         min_schema_version: MANIFEST_SCHEMA_VERSION,
         min_bridge_version: None,
         manifest_version: version(),
-        issued_at: "2026-04-30T12:00:00+00:00".into(),
-        not_before: "2026-04-30T12:00:00+00:00".into(),
+        issued_at: chrono::DateTime::parse_from_rfc3339("2026-04-30T12:00:00+00:00")
+            .expect("rfc3339")
+            .with_timezone(&chrono::Utc),
+        not_before: chrono::DateTime::parse_from_rfc3339("2026-04-30T12:00:00+00:00")
+            .expect("rfc3339")
+            .with_timezone(&chrono::Utc),
         user_id: fixture_user_id(),
         tenant_id: None,
         user: None,
@@ -58,6 +62,7 @@ fn manifest_with(
 
 fn skill(id: &str, body: &str) -> SkillEntry {
     SkillEntry {
+        publication: None,
         id: SkillId::try_new(id).unwrap(),
         name: SkillName::try_new(id).unwrap(),
         description: format!("desc for {id}"),
@@ -72,7 +77,7 @@ fn skill(id: &str, body: &str) -> SkillEntry {
 
 fn mcp(name: &str, url: &str) -> ManagedMcpServer {
     ManagedMcpServer {
-        id: systemprompt_identifiers::McpServerId::new(name),
+        id: systemprompt_identifiers::McpServerId::try_new(name).expect("valid McpServerId"),
         name: ManagedMcpServerName::try_new(name).unwrap(),
         url: ValidatedUrl::try_new(url).unwrap(),
         transport: Some("http".into()),
@@ -86,7 +91,7 @@ fn ctx<'a>(
     manifest: &'a SignedManifest,
     root: &'a Path,
     client: &'a GatewayClient,
-    bearer: &'a str,
+    bearer: &'a systemprompt_bridge::ids::BearerToken,
     plugin_mcp_servers: &'a std::collections::BTreeMap<String, Vec<String>>,
 ) -> HostSyncCtx<'a> {
     HostSyncCtx {
@@ -99,6 +104,7 @@ fn ctx<'a>(
         bearer,
         loopback: &LOOPBACK,
         mcp_registry: &EMPTY_REGISTRY,
+        start_menu: &START_MENU,
     }
 }
 
@@ -112,6 +118,10 @@ static POLICY_STORE: std::sync::LazyLock<systemprompt_bridge::config::store::Pol
         )
     });
 
+static EMPTY_BEARER: std::sync::LazyLock<systemprompt_bridge::ids::BearerToken> =
+    std::sync::LazyLock::new(systemprompt_bridge::ids::BearerToken::default);
+static START_MENU: std::sync::LazyLock<systemprompt_bridge::probe_cache::StartMenuCache> =
+    std::sync::LazyLock::new(systemprompt_bridge::probe_cache::StartMenuCache::default);
 static EMPTY_REGISTRY: std::sync::LazyLock<systemprompt_bridge::mcp_registry::McpRegistry> =
     std::sync::LazyLock::new(std::collections::HashMap::new);
 
@@ -123,7 +133,7 @@ fn clear(home: &Path) -> Result<(), systemprompt_bridge::host_sync::ApplyError> 
     let client = stub_client();
     let plugin_mcp_servers = std::collections::BTreeMap::new();
     let m = manifest_with(Vec::new(), Vec::new(), Vec::new());
-    CodexCliSync.clear(&ctx(&m, home, &client, "", &plugin_mcp_servers))
+    CodexCliSync.clear(&ctx(&m, home, &client, &EMPTY_BEARER, &plugin_mcp_servers))
 }
 
 fn stub_client() -> GatewayClient {
@@ -187,7 +197,8 @@ fn read_cfg(home: &Path) -> String {
 fn apply(m: &SignedManifest, home: &Path) {
     let client = stub_client();
     let plugin_mcp_servers = std::collections::BTreeMap::new();
-    block_on(CodexCliSync.apply(&ctx(m, home, &client, "", &plugin_mcp_servers))).unwrap();
+    block_on(CodexCliSync.apply(&ctx(m, home, &client, &EMPTY_BEARER, &plugin_mcp_servers)))
+        .unwrap();
 }
 
 #[test]
@@ -584,7 +595,7 @@ fn an_unsafe_skill_id_is_refused_before_anything_is_written() {
         let m = manifest_with(vec![entry], vec![], vec![]);
         let client = stub_client();
         let plugin_servers = std::collections::BTreeMap::new();
-        let context = ctx(&m, home, &client, "", &plugin_servers);
+        let context = ctx(&m, home, &client, &EMPTY_BEARER, &plugin_servers);
         let err = block_on(CodexCliSync.apply(&context))
             .expect_err("a traversing skill id must abort the emitter");
         assert!(

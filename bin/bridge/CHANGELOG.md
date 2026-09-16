@@ -1,5 +1,92 @@
 # Changelog
 
+## [0.53.0] - 2026-09-15
+
+### Breaking
+
+- **Breaking:** `SignedManifestBuilder::new` takes `issued_at` / `not_before` as `DateTime<Utc>` and `sync::check_skew` takes the typed `not_before`; the manifest fields are typed at the shared model. Migrate by parsing RFC 3339 strings before building.
+- **Breaking:** the `mtls` credential source is removed: `[mtls] cert_keystore_ref`, `AuthProvider` `mtls`, `GatewayClient::mtls_exchange`, `MtlsRequest`, the `KeystoreRef`/`CertFingerprint` ids and the `<PREFIX>_DEVICE_CERT*` variables. Migrate by signing in with `login` (session or PAT); the chain is session → PAT.
+- **Breaking:** `[sync] pinned_pubkey` / `pinned_pubkey_gateway` and `<PREFIX>_POLICY_PUBKEY` are no longer read; a bare key is never adopted as trust. Migrate by writing a gateway-bound `[sync.trust]` record (`gateway`, `key`, `source = "operator"`) or provisioning `<PREFIX>_POLICY_TRUST` / the managed `manifestTrust` key.
+- **Breaking:** `hooks/hooks.json` and the Claude Desktop managed preferences no longer carry the loopback secret. Hooks carry a per-plugin `hook:<plugin_id>` token accepted only on that plugin's `/api/public/hooks/*` routes; Claude Desktop's `inferenceGatewayApiKey` and `managedMcpServers[].headers.Authorization` carry a `host:claude-desktop` token accepted on inference and `/mcp/*` only. Re-run `sync` (and re-apply the desktop profile) after upgrading so every surface holds a current token.
+- **Breaking:** `/otel*` is forwarded only for callers presenting the loopback secret; a host or hook token is answered `401 scope-mismatch`.
+- **Breaking:** the `SP_BRIDGE_OPENCODE_MANAGED_DIR` variable is removed. Migrate by setting `[opencode] managed_dir` in the bridge config.
+- **Breaking:** every pre-0.49 on-disk layout is no longer migrated: the pre-stamp `mcp-servers.json`, `LegacyCreds` plaintext OAuth secrets, the `systemprompt-bridge-managed` Cowork marketplace, the aggregate `systemprompt-managed` plugin dir and `.systemprompt-bridge` marker, the legacy org-plugins roots, `agents.json`, and the unbound legacy pin. A bridge older than 0.49 must upgrade through 0.52 first.
+- **Breaking:** `ProfileState::classify` takes a `ProfileProbe`; `ProfileState::endpoint_freshness` returns `Freshness` (`Fresh` / `Stale` / `Unchecked` / `Unverifiable { reason }`) and a new `ProfileState::Unverifiable` variant (wire code `unverifiable`) reports a profile fact the probe could not evaluate instead of assuming it fresh.
+- **Breaking:** `sync::run_once(bridge, &SyncOptions { allow_unsigned, force_replay, allow_tofu, cancel })` replaces the three boolean arguments; `SyncError::Cancelled { applied }` reports a run stopped by its token.
+- **Breaking:** `GatewayClient::{fetch_manifest, fetch_plugin_file, fetch_latest_release, fetch_whoami, fetch_profile_usage, set_host_model_filter}`, `update::{check, apply, download_verified, run_automatic}` and `HostSyncCtx::bearer` take `&BearerToken` instead of `&str`.
+- **Breaking:** `HostSyncCtx` gains `start_menu: &StartMenuCache`; `claude_desktop::is_app_installed` takes the cache instead of building one per sync.
+- **Breaking:** `HostFailure` and `HostWarning` carry `host_id: HostId`; `HostFailure` gains `emitter`, and `HostSync::emitter_id` distinguishes the Cowork plugin (`cowork-plugins`) and artifacts (`cowork-artifacts`) emitters that share the `claude-desktop` host id.
+- **Breaking:** `install::UninstallSummary` gains `foreign_plugins` and `host_warnings`; `UninstallSummaryBuilder` is removed and `integration::uninstall::uninstall` performs the host cleanup that `install::uninstall` no longer does. `PurgeReport::warnings` is folded into `uninstall.host_warnings`.
+- **Breaking:** `mdm::policy::PolicyInputs` takes `host_token: &HostToken` and `mcp_servers: Option<&[McpServerEntry]>`; `claude_desktop_policy` returns `Result<_, MdmError>` and refuses a malformed `deployment_organization_uuid` (`MdmError::InvalidConfig { key, detail }`). `cowork_egress_allowed_hosts` returns `Result<Option<_>, EgressParseError>`; an empty allow-list is a config error, not "unrestricted".
+- **Breaking:** `auth::ChainError::PreferredTransient` is removed; `ChainError::Providers { failures, terminal }` carries whether any provider's failure was retryable (exit `10`) or every one was terminal.
+- **Breaking:** `SetupError::Io { action, path, source }` and `SetupError::Token(TokenRejection)` replace the string variants; `SetupError::EmptyGateway` replaces `SetupError::Path` for a blank `set_gateway_url`.
+- **Breaking:** `cli::run` takes a `Launch`; `cli::run_launch(args, launch)` is the argument-driven entry and `cli::run_with_args` never defaults to the GUI.
+- **Breaking:** `wire::ipc::reply_script` takes a `ReplyTarget { mount, id }` so a reply produced for a previous webview mount is dropped instead of delivered.
+- **Breaking:** `update::hex_lower` is removed; use `hash::hex_encode`. `gui::server_marketplace::{ChangeKind, ChildKind, ItemSource, MarketplaceExtra, PluginManifest, FrontmatterExtra, McpServerEntry}` are public.
+
+### Added
+
+- `sync::apply::node_deps`: after a plugin is promoted, a root `package.json` with a lockfile Claude Code accepts (`bun.lock`, `bun.lockb`, `npm-shrinkwrap.json`, `package-lock.json`) is installed with `npm ci --ignore-scripts --no-audit --no-fund` or `bun install --frozen-lockfile --ignore-scripts`, bounded to 60 s. A missing installer, timeout or non-zero exit is a host warning (`org-plugins`), never a failed sync. The install is stamped with the package-file digest and carried over to the next sync when unchanged. `doctor` warns when a mirrored plugin needs an installer that is not on `PATH`.
+- `integration::claude_code_cli::foreign`: the `dependencies` in each mirrored plugin's `plugin.json` that leave the mirrored marketplaces are enabled at user scope as `<plugin>@<marketplace>`, the gateway's external marketplaces are registered in `extraKnownMarketplaces`, and `marketplace.json` carries `allowCrossMarketplaceDependenciesOn`. The sidecar (`sidecar::Owned`) records the dependency keys and external marketplace names so a later sync or uninstall removes exactly those; the pre-0.53 sidecar shape still reads. Claude Desktop reports a host warning for a plugin that declares dependencies, which it cannot resolve.
+- `sync::apply::node_deps::binary_on_path` is the one `PATH` probe (`claude`, `npm`, `bun`; `.exe` / `.cmd` on Windows); the mirror skips a dangling symlink (npm's optional `.bin` links) instead of failing the host.
+- `ErrorCode::{ElevationRequired, Partial}`; a partial sync's toast names the agents that did not update and carries `host_failures` / `host_warnings` in `BridgeError.detail`; the `config.repairDir` command and `StatePayload.elevated`.
+- `ElevatedJob.private_dirs` (`PrivateDirJob { path, owner_sid }`) reassigns a private directory and its files to the requesting account from the elevated child (`own` step).
+- `config::store::hive_report` / `HiveReport` classify which registry hive holds the Claude policy; `doctor` and the GUI health table both report it, and `doctor` gains a `config dir owner` check and covers the config lock file in `private files`.
+
+- `login --stdin` reads the PAT from standard input; `sync --watch --interval <secs>` exits `64` on a value that is not a number.
+- `install::uninstall` records the host-cleanup warnings in the printed summary (`Warning: …` lines) and in the GUI disconnect result.
+- **Windows:** `remove_profile` run unelevated reports `ManualStepRequired` naming the HKLM values that still route Claude Desktop through the proxy instead of `NothingToRemove`.
+- `proxy::credential` classifies every inbound route (`Hook` / `Inference` / `Mcp` / `Otel` / `Other`) and judges the presented credential per class; `proxy::scoped_token` derives the hook and host tokens.
+- `ProxyRole::Failed(ProxyFailure)` names why a process is not serving (`Config`, `LoopbackSecret`, `Bind { tried }`, `Server`); a malformed config file refuses to serve and records a `config` start-up fault instead of binding against defaults.
+- `update::AutoUpdateDecision` (`Delivered` / `NeverSynced` / `Withheld`) replaces the boolean: an unreadable, corrupt or foreign-gateway last-sync sentinel withholds staging.
+- `integration::mcp_sidecar` records which MCP connector entries the bridge wrote into a host config, so a proxy port move replaces the old-origin entries rather than leaving them as foreign.
+- `integration::generated_profile` writes generated host profiles 0600 under the brand's private temp dir and consumes them after install; `profile_uuids()` mints real v4 UUIDs.
+- `proxy::comms::sweep_draining` folds a `.draining` inbox file left by an interrupted `comms-drain` back into the live inbox; the inbox lives under the brand config dir and its files are 0600.
+- Host probe results carry a per-host `ProbeSeq`; a result from a probe that a later probe of the same host superseded is discarded instead of overwriting the newer snapshot.
+- `wire::first_run::{FirstRunPhase, StepStatus}` are serialised enums; `HostFailure`, `HostWarning` and `FirstRunPayload` serialise them directly.
+- `device-enroll --token-file <file>` verifies an administrator-issued device credential against `POST /api/v1/consumer-devices/enrollment` and stores it atomically (0600 on Unix, a verified private ACL on Windows) with the authenticated consumer, enrolled device and gateway identity; the per-user bridge token or a certificate fingerprint cannot substitute for it. `feedback-status` reports acknowledged, unacknowledged, fully verified and superseded evidence.
+- `feedback` module: after every host emitter succeeds, installed managed skills are read back (native `SKILL.md`, every active supporting and dependency file, retained source, Unix 0644/0755 modes; Windows executable-mode verification is reported as unavailable) against the device-authorised installation plan, and receipts, session bindings and invocation evidence are retained in a bounded per-identity outbox (512 receipts, 512 pending plans, 16 MiB) that survives restarts, acknowledges identical retries, never evicts pending evidence and exposes conflicts and rejected credentials. Pending plans are retained before network access; a newer generation supersedes an unresolved plan. Retries run during `sync` and on the owned heartbeat task under a cross-process installation lock.
+- Session observation binds native client metadata on authenticated loopback requests (Claude session UUIDs in `metadata.user_id`, Codex thread metadata, OpenCode's per-session header, Hermes's `session_id`), never the bridge-generated `x-session-id`; bindings freeze the observed generation.
+- Native hook evidence is authenticated with the enrolled device; the governance owner's OpenCode install gets a hook plugin (`integration/opencode/managed_resources/plugin_js`) carrying its scoped hook token, removed when no plugin owns governance.
+- `sync::seed_model` seeds the Claude Code model picker and default model from the bridge profile after a sync.
+- `[opencode] managed_dir` config key.
+
+### Changed
+
+- The whoami peer probe stops reading at the declared `Content-Length` and retries once, so a sibling that keeps the socket open after answering is identified within the budget instead of read as an unidentified listener (the cause of the intermittent `the_proxy_command_stands_down_when_a_sibling_already_serves` failure).
+- `classify_configured_port` and the `Host` header check share one loopback test: a bracketed IPv6 loopback (`[::1]:48217`) is loopback; a URL whose port is not a number is `Unparseable`.
+- A bare invocation opens the GUI only when the process was launched without a console of its own (Windows: no parent console to attach; macOS: `__CFBundleIdentifier` set by LaunchServices); a pipe or scheduler with no subcommand gets the credential helper.
+- `AuthProvider` and `HostSync` document why they are `#[async_trait]`; every `.ok()` / `unwrap_or_default()` on a fallible side effect in the bridge is replaced by a typed outcome or a named error.
+- Test-only seams (`#[doc(hidden)]` items, `dev-stub-host`, `UninstallSummaryBuilder`, `unique_stem`) are removed; the remaining conveniences live in `crates/tests/`.
+
+### Fixed
+
+- **Windows:** an unelevated sync that meets a machine Claude policy holding other values (`HKLM\SOFTWARE\Policies\Claude`) reports the host as `ApplyError::ElevationRequired` instead of an io error; `HostFailure.needs_elevation` carries the classification and the GUI offers *Repair as administrator*, which runs the existing UAC-backed profile install.
+- **Windows:** signing in with a configuration folder another account created (`%APPDATA%\<brand>` owned by a different SID) reports `ConfigWriteError::ForeignOwner { path, owner }` instead of `write …\<brand>-bridge.toml.lock: Access is denied`; the GUI names the owning account and offers *Repair as administrator*, which reassigns the folder and its files through the elevated job.
+- Claude Code permission rules with no bridge-managed settings file to carry them are a host warning naming the file `install --apply` creates, not a host failure; `apply_permissions` returns `PermissionOutcome::{Written, NoCarrier}`.
+- A zero-byte or whitespace-only `managed-settings.json` no longer aborts managed MCP policy removal with `EOF while parsing a value`; a malformed file's error names its path.
+- The header pill and the Marketplace badge read a partial sync as `degraded` (`OverallCode::Degraded`, "synced with failures") instead of `synced` or `never synced`.
+
+- A user's scalar at a key the bridge merges a table into (Codex `config.toml`, Hermes `config.yaml`, Claude Code `settings.json`) is refused as `ForeignShape` naming the key; the file is never rewritten around the conflict.
+- `plugin_oauth::store_creds` writes the secret to the keystore before the metadata names it, so a keystore failure keeps the previous, still-usable pair; a stored gateway spelled with a trailing slash is recognised as the same gateway, and a malformed recorded gateway is an error rather than a silent re-provision.
+- Uninstall removes only the plugin directories, policy values and marketplace entries the bridge's sidecars record; a marketplace the bridge has no record of writing is never removed.
+- A staged plugin whose promotion rename fails is rolled back so the previously installed plugin stays in service, with its `node_modules`: the carried-over install moves from the displaced tree into the promoted one only after the promotion has landed.
+- Native session observation no longer writes on the request path: the proxy records a session in memory and the heartbeat task queues it into the feedback outbox; `Outbox::{entries, pending_installations}` are shared-lock reads and a mutation writes only when the state changed, so a session already recorded and every read leave the file untouched.
+- A receipt the gateway rejects with 400, 404 or 422 is stored as `Delivery::Rejected(status)` and never retried; the outbox evicts it before an acknowledged receipt.
+- A Node install that exceeds its deadline reports whether the child was actually stopped; `npm.cmd` is bypassed for `node npm-cli.js` so the bounded child is the installer itself, not a cmd shim.
+- `device-enroll` refuses an unreadable or corrupt `device.json` instead of overwriting it, matching self-enrolment.
+- The device name and the heartbeat host name come from one OS host-name lookup; `COMPUTERNAME` / `HOSTNAME` and `/etc/hostname` are no longer consulted, so a launchd-started GUI reports the same name as its heartbeat.
+- A mirrored plugin whose `plugin.json` is unreadable or does not parse is logged with its path instead of silently losing its `dependencies`; an unreadable loopback secret is logged before a host probe reports it unverifiable.
+- `Enrollment.gateway` and `OutboxScope.gateway` are the typed `GatewayOrigin` (https, or http on loopback; origin only).
+- `resolve_target` for Cowork returns `Err(Ambiguous)` when several usable org sessions exist and none is the personal session, and `Err(ConfiguredUnusable)` for a configured dir without a plugins subdir, instead of guessing or reading as absent.
+- **Windows:** `open_target` no longer runs `cmd /C start` with an untrusted URL; every external open goes through `opener`.
+- The proxy binds only on its advertised loopback address; an occupied advertised port refuses to start instead of binding elsewhere.
+- Receipt recovery is preserved across canonical sync state and pending verification recovers on an unchanged signed manifest; acknowledged bridge sessions are compacted while preserving binding identity; contract violations in installation evidence escalate to host failures; retained error sources are sanitised and Windows readback is explicit. `FeedbackError` carries `Http`, `Timeout`, `Config`, `InvalidGateway`, `Header` and `Contract` sources.
+
+### Removed
+
+- `auth/keystore`, `auth/providers/mtls`, `config/trust/legacy`, `install/proxy_service`, `integration/claude_desktop/gateway_probe`, `integration/stub_host` and the `dev-stub-host` feature.
+
 ## [0.52.0] - 2026-09-14
 
 ### Changed

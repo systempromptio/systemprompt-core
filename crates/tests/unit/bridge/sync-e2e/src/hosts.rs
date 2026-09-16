@@ -16,7 +16,7 @@ use systemprompt_bridge::gateway::manifest::{
 };
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
 use systemprompt_bridge::ids::{LibraryArtifactId, PluginId, Sha256Digest};
-use systemprompt_bridge::sync::run_once;
+use systemprompt_bridge::sync::{SyncOptions, run_once};
 use systemprompt_test_fixtures::fixture_user_id;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -155,7 +155,15 @@ fn run_sync(dirs: &HostSandbox) -> Result<systemprompt_bridge::sync::SyncSummary
                 .enable_all()
                 .build()
                 .unwrap()
-                .block_on(run_once(&bridge(), true, true, true))
+                .block_on(run_once(
+                    &bridge(),
+                    &SyncOptions {
+                        allow_unsigned: true,
+                        force_replay: true,
+                        allow_tofu: true,
+                        ..SyncOptions::default()
+                    },
+                ))
                 .map_err(|e| e.to_string())
         },
     )
@@ -165,7 +173,24 @@ fn version(suffix: &str) -> ManifestVersion {
     ManifestVersion::try_new(format!("2026-07-01T12:00:00Z-{suffix}")).unwrap()
 }
 
+// Why: a gateway names the marketplace each plugin is mirrored into; a
+// manifest with plugins but no marketplaces mirrors nothing into Claude Code.
+fn org_provisioned_marketplace() -> ManifestMarketplace {
+    ManifestMarketplace {
+        id: systemprompt_identifiers::MarketplaceId::new("org-provisioned"),
+        name: "Org provisioned".into(),
+        plugin_ids: vec![PluginId::try_new(PLUGIN_ID).unwrap()],
+        allow_cross_marketplace_dependencies_on: vec![],
+        external_marketplaces: vec![],
+    }
+}
+
 fn manifest(enabled_hosts: Vec<String>, populated: bool, suffix: &str) -> SignedManifest {
+    let marketplaces = if populated {
+        vec![org_provisioned_marketplace()]
+    } else {
+        Vec::new()
+    };
     let (plugins, artifacts) = if populated {
         (
             vec![plugin_entry()],
@@ -188,8 +213,12 @@ fn manifest(enabled_hosts: Vec<String>, populated: bool, suffix: &str) -> Signed
         min_schema_version: MANIFEST_SCHEMA_VERSION,
         min_bridge_version: None,
         manifest_version: version(suffix),
-        issued_at: "2026-07-01T12:00:00+00:00".into(),
-        not_before: "2026-07-01T12:00:00+00:00".into(),
+        issued_at: chrono::DateTime::parse_from_rfc3339("2026-07-01T12:00:00+00:00")
+            .expect("rfc3339")
+            .with_timezone(&chrono::Utc),
+        not_before: chrono::DateTime::parse_from_rfc3339("2026-07-01T12:00:00+00:00")
+            .expect("rfc3339")
+            .with_timezone(&chrono::Utc),
         user_id: fixture_user_id(),
         tenant_id: None,
         user: Some(UserInfo {
@@ -217,7 +246,7 @@ fn manifest(enabled_hosts: Vec<String>, populated: bool, suffix: &str) -> Signed
         allow_claude_ai_connectors: false,
         auto_update: Default::default(),
         diagnostics: Vec::new(),
-        marketplaces: Vec::new(),
+        marketplaces,
     }
 }
 
@@ -369,6 +398,110 @@ fn run_once_with_enabled_hosts_materialises_all_host_state() {
         serde_json::from_slice(&fs::read(artifacts_dir.join("library.json")).unwrap()).unwrap();
     assert_eq!(library["welcome-doc"]["content"], "<h1>Welcome</h1>");
     assert!(artifacts_dir.join("version.json").is_file());
+}
+
+fn http_hook_hosts(hooks_json: &serde_json::Value) -> Vec<String> {
+    hooks_json["hooks"]
+        .as_object()
+        .expect("hooks map")
+        .values()
+        .flat_map(|groups| groups.as_array().expect("matcher groups"))
+        .flat_map(|group| group["hooks"].as_array().expect("hook entries"))
+        .filter(|hook| hook["type"] == "http")
+        .map(|hook| {
+            assert!(
+                hook["headers"]
+                    .get("x-systemprompt-device-credential")
+                    .is_none(),
+                "authored hooks never carry a device credential: {hook}"
+            );
+            hook["headers"]["x-systemprompt-host"]
+                .as_str()
+                .unwrap_or_else(|| panic!("http hook without a host stamp: {hook}"))
+                .to_owned()
+        })
+        .collect()
+}
+
+// Why: Claude Code runs hooks from its own copy of the plugin and Cowork reads
+// the org-plugins file in place, so each copy is stamped with the host that
+// runs it at emit time — stamping the source once could only ever name one.
+#[test]
+fn each_host_copy_of_hooks_json_is_stamped_with_the_host_that_runs_it() {
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .unwrap();
+
+    let mut m = manifest(
+        vec!["claude-code".into(), "claude-desktop".into()],
+        true,
+        "dddd0001",
+    );
+    m.plugins[0].hooks = systemprompt_models::services::PluginHooksRef {
+        governance: true,
+        comms: false,
+        include: vec![],
+    };
+    let (server, dirs) = rt.block_on(async {
+        let server = MockServer::start().await;
+        crate::mount_profile(&server).await;
+        mount_gateway(&server, &m).await;
+        let dirs = sandbox(&server.uri());
+        (server, dirs)
+    });
+    let _ = &server;
+
+    let summary = run_sync(&dirs).expect("run_once should succeed");
+    assert!(
+        summary.host_failures.is_empty(),
+        "host emitters must succeed: {:?}",
+        summary.host_failures
+    );
+
+    let org_hooks: serde_json::Value = serde_json::from_slice(
+        &fs::read(
+            PathBuf::from(&dirs.data_home)
+                .join("Claude")
+                .join("org-plugins")
+                .join(PLUGIN_ID)
+                .join("hooks")
+                .join("hooks.json"),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    let hosts = http_hook_hosts(&org_hooks);
+    assert!(!hosts.is_empty(), "the governance owner carries http hooks");
+    assert!(
+        hosts.iter().all(|h| h == "claude-desktop"),
+        "Cowork consumes the org-plugins copy in place: {hosts:?}"
+    );
+
+    let plugins = dirs.claude_home.join("plugins");
+    for bundle in [
+        plugins
+            .join("marketplaces")
+            .join("org-provisioned")
+            .join("plugins")
+            .join(PLUGIN_ID),
+        plugins
+            .join("cache")
+            .join("org-provisioned")
+            .join(PLUGIN_ID)
+            .join("current"),
+    ] {
+        let mirrored: serde_json::Value =
+            serde_json::from_slice(&fs::read(bundle.join("hooks").join("hooks.json")).unwrap())
+                .unwrap();
+        let hosts = http_hook_hosts(&mirrored);
+        assert!(!hosts.is_empty(), "{bundle:?}");
+        assert!(
+            hosts.iter().all(|h| h == "claude-code"),
+            "the Claude Code CLI copy is stamped for Claude Code: {hosts:?}"
+        );
+    }
 }
 
 // Why: a fresh install has never opened a Cowork session, so
@@ -525,9 +658,9 @@ fn bridge() -> std::sync::Arc<BridgeContext> {
     BridgeContext::start(ProxyMode::Attach).expect("runtime builds")
 }
 
-// Seeds the layout a pre-marketplace bridge wrote — the legacy marketplace
-// under every registry key — beside a marketplace the user registered by hand.
-fn seed_legacy_and_foreign_marketplaces(claude_home: &Path) {
+// Seeds a marketplace nothing in the sidecar owns beside one the user
+// registered by hand; neither is the bridge's to touch.
+fn seed_unowned_and_foreign_marketplaces(claude_home: &Path) {
     let plugins = claude_home.join("plugins");
     for marketplace in ["org-provisioned", "someones-mp"] {
         let plugin = plugins
@@ -577,7 +710,7 @@ fn seed_legacy_and_foreign_marketplaces(claude_home: &Path) {
 }
 
 #[test]
-fn a_manifest_naming_marketplaces_mirrors_each_purges_the_legacy_one_and_spares_foreign_ones() {
+fn a_manifest_naming_marketplaces_mirrors_each_and_spares_every_marketplace_it_did_not_write() {
     let rt = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(1)
         .enable_all()
@@ -591,6 +724,8 @@ fn a_manifest_naming_marketplaces_mirrors_each_purges_the_legacy_one_and_spares_
             id: systemprompt_identifiers::MarketplaceId::new(id),
             name: format!("{id} marketplace"),
             plugin_ids: vec![PluginId::try_new(PLUGIN_ID).unwrap()],
+            allow_cross_marketplace_dependencies_on: vec![],
+            external_marketplaces: vec![],
         })
         .collect();
     let (server, dirs) = rt.block_on(async {
@@ -601,7 +736,7 @@ fn a_manifest_naming_marketplaces_mirrors_each_purges_the_legacy_one_and_spares_
         (server, dirs)
     });
     let _ = &server;
-    seed_legacy_and_foreign_marketplaces(&dirs.claude_home);
+    seed_unowned_and_foreign_marketplaces(&dirs.claude_home);
 
     let summary = run_sync(&dirs).expect("run_once should succeed");
     assert!(
@@ -636,36 +771,34 @@ fn a_manifest_naming_marketplaces_mirrors_each_purges_the_legacy_one_and_spares_
         serde_json::json!(["core", "commerce"])
     );
 
-    assert!(
-        !plugins
-            .join("marketplaces")
-            .join("org-provisioned")
-            .exists()
-            && !plugins.join("cache").join("org-provisioned").exists(),
-        "the legacy single marketplace is purged on the first marketplace-aware sync"
-    );
-    assert!(
-        plugins
-            .join("marketplaces")
-            .join("someones-mp")
-            .join("plugins")
-            .join("old-plugin")
-            .is_dir(),
-        "a marketplace the user registered is never touched"
-    );
+    for marketplace in ["org-provisioned", "someones-mp"] {
+        assert!(
+            plugins
+                .join("marketplaces")
+                .join(marketplace)
+                .join("plugins")
+                .join("old-plugin")
+                .is_dir()
+                && plugins
+                    .join("cache")
+                    .join(marketplace)
+                    .join("old-plugin")
+                    .is_dir(),
+            "a marketplace the sidecar does not record was not written by this bridge and is \
+             never removed: {marketplace}"
+        );
+    }
 
     let known: serde_json::Value =
         serde_json::from_slice(&fs::read(plugins.join("known_marketplaces.json")).unwrap())
             .unwrap();
-    assert!(known.get("org-provisioned").is_none(), "{known}");
+    assert_eq!(known["org-provisioned"]["source"]["path"], "x", "{known}");
     assert_eq!(known["someones-mp"]["source"]["repo"], "a/b", "{known}");
 
     let installed: serde_json::Value =
         serde_json::from_slice(&fs::read(plugins.join("installed_plugins.json")).unwrap()).unwrap();
     assert!(
-        installed["plugins"]
-            .get("old-plugin@org-provisioned")
-            .is_none(),
+        installed["plugins"]["old-plugin@org-provisioned"].is_array(),
         "{installed}"
     );
     assert!(
@@ -675,18 +808,12 @@ fn a_manifest_naming_marketplaces_mirrors_each_purges_the_legacy_one_and_spares_
 
     let settings: serde_json::Value =
         serde_json::from_slice(&fs::read(dirs.claude_home.join("settings.json")).unwrap()).unwrap();
-    assert!(
-        settings["enabledPlugins"]
-            .get("old-plugin@org-provisioned")
-            .is_none(),
-        "{settings}"
+    assert_eq!(
+        settings["enabledPlugins"]["old-plugin@org-provisioned"],
+        true
     );
     assert_eq!(settings["enabledPlugins"]["old-plugin@someones-mp"], true);
-    assert!(
-        settings["extraKnownMarketplaces"]
-            .get("org-provisioned")
-            .is_none()
-    );
+    assert!(settings["extraKnownMarketplaces"]["org-provisioned"].is_object());
     assert!(settings["extraKnownMarketplaces"]["someones-mp"].is_object());
 }
 

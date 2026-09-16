@@ -29,7 +29,7 @@ fn req_ctx() -> RequestContext {
         SessionId::generate(),
         TraceId::generate(),
         ContextId::generate(),
-        AgentName::new("admin"),
+        AgentName::try_new("admin").expect("valid AgentName"),
     )
 }
 

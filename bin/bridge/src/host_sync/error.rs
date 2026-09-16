@@ -34,6 +34,8 @@ pub enum ApplyError {
         started_for: String,
         current: String,
     },
+    #[error("{what} needs administrator approval: {detail}")]
+    ElevationRequired { what: &'static str, detail: String },
     #[error("io error in {context}: {source}")]
     Io {
         context: String,
@@ -46,6 +48,8 @@ pub enum ApplyError {
     },
     #[error("plugin hook token: {0}")]
     PluginOAuth(#[from] crate::auth::plugin_oauth::PluginOAuthError),
+    #[error(transparent)]
+    ForeignShape(#[from] ForeignShape),
     #[error("toml {what}: {source}")]
     Toml {
         what: String,
@@ -60,4 +64,24 @@ pub enum TomlError {
     Serialize(#[from] toml::ser::Error),
     #[error(transparent)]
     Deserialize(#[from] toml::de::Error),
+    #[error(transparent)]
+    Edit(#[from] Box<toml_edit::TomlError>),
+}
+
+/// A key the bridge owns already holds a value of a shape the bridge does not
+/// write (a scalar where a table is expected, a list where a mapping is). The
+/// file is the user's; it is never rewritten to fit.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[error("{path}: `{key}` is {found}, expected {expected}; not rewriting a foreign value")]
+pub struct ForeignShape {
+    pub path: String,
+    pub key: String,
+    pub found: &'static str,
+    pub expected: &'static str,
+}
+
+impl From<ForeignShape> for std::io::Error {
+    fn from(e: ForeignShape) -> Self {
+        Self::new(std::io::ErrorKind::InvalidData, e)
+    }
 }

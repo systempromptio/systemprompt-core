@@ -122,6 +122,24 @@ pub(crate) fn on_profile_install_requested(
     ) else {
         return;
     };
+    // Why: the path arrives from the webview; only the file this process
+    // generated for that host is installable, never an arbitrary path.
+    let generated = app
+        .state
+        .snapshot()
+        .hosts
+        .get(host_id.as_str())
+        .and_then(|s| s.last_generated_profile.as_ref().map(|p| p.path.clone()));
+    if generated.as_deref() != Some(path.as_str()) {
+        finish(
+            app,
+            Err(BridgeError::invalid_args(
+                "install profile: path is not the profile last generated for this host",
+            )),
+            reply_to,
+        );
+        return;
+    }
     app.append_log(format!("[{host_id}] installing {path}…"));
     if needs_elevation_notice(host) {
         app.append_log(format!(

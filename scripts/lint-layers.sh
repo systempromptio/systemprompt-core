@@ -13,14 +13,29 @@
 #   3. No domain -> domain dependencies. Domain crates are peers: cross-domain
 #      capability flows through shared-layer traits (DynAiProvider,
 #      ToolProvider, provider-contracts), wired at app/entry composition
-#      layers. LEGACY_DOMAIN_EDGES below allowlists the edges that predate the
-#      rule and are being removed; deleting an edge deletes its entry, and any
-#      edge not in the list fails the gate.
+#      layers. LEGACY_DOMAIN_EDGES below is empty by design: every edge fails
+#      the gate, and adding one requires a written justification in the
+#      commit that adds it.
+#   4. The shared layer carries no I/O capability. A `crates/shared/*` manifest
+#      may not list `reqwest`, `axum`, `libc`, a non-optional `sqlx`, or
+#      `tokio` with the `net` (or `full`) feature — the workspace `tokio`
+#      definition carries `net`, so a bare `workspace = true` inherits it.
+#      `systemprompt-client` is the one sanctioned network crate
+#      (architecture.md "The client crate performs network I/O") and is
+#      exempt from the `reqwest` / `tokio` rows only. `axum` is exempt for
+#      exactly two crates: `systemprompt-extension` (the extension routing
+#      contract is `ApiExtensionTyped::router() -> axum::Router`) and
+#      `systemprompt-models` behind its optional `web` feature (the
+#      `IntoResponse` impls for the API envelopes). Neither opens a socket;
+#      replacing them is a router-abstraction redesign, not a dependency trim.
 #
 # Layer membership is read from each crate's position on disk (crates/<layer>/),
 # so a crate moved between layers is re-classified automatically. Only normal
 # and build dependencies are considered: dev-dependencies may legitimately point
 # at test helpers in any layer and are not part of the shipped graph.
+#
+# Table ownership (a crate querying tables another crate's schema declares) is
+# the SQL face of the same boundary and is gated by lint-table-ownership.sh.
 #
 # These dependency properties are checked statically. They are cheap
 # and deterministic, so they are enforced here instead.
@@ -95,6 +110,28 @@ for name in sorted(local):
     if colour[name] == WHITE:
         visit(name)
 
+NETWORK_CRATE = "systemprompt-client"
+ROUTER_CONTRACT_CRATES = {"systemprompt-extension", "systemprompt-models"}
+capability = []
+for name in sorted(local):
+    if layer[name] != "shared":
+        continue
+    for d in pkgs[name]["dependencies"]:
+        if d["kind"] not in (None, "build"):
+            continue
+        dep = d["name"]
+        if dep in ("reqwest", "tokio") and name == NETWORK_CRATE:
+            continue
+        if dep == "axum" and name in ROUTER_CONTRACT_CRATES:
+            continue
+        if dep in ("reqwest", "axum", "libc"):
+            optional = " (optional)" if d["optional"] else ""
+            capability.append(f"  {name} -> {dep}{optional}: shared crates carry no I/O capability")
+        elif dep == "sqlx" and not d["optional"]:
+            capability.append(f"  {name} -> sqlx (non-optional): shared crates carry no SQL")
+        elif dep == "tokio" and ({"net", "full"} & set(d["features"])):
+            capability.append(f"  {name} -> tokio[net]: shared crates open no sockets (inherited from the workspace tokio features)")
+
 if violations:
     print("Dependencies pointing upward through the layer stack:")
     print("\n".join(violations))
@@ -102,10 +139,20 @@ if cycles:
     print("Dependency cycles:")
     for c in cycles:
         print(f"  {c}")
+if capability:
+    print("Shared-layer manifests listing an I/O capability:")
+    print("\n".join(capability))
 
-if violations or cycles:
-    print(f"lint-layers: FAIL — {len(violations)} layer violation(s), {len(cycles)} cycle(s)")
+if violations or cycles or capability:
+    print(f"lint-layers: FAIL — {len(violations)} layer violation(s), {len(cycles)} cycle(s), {len(capability)} shared-layer capability dep(s)")
     sys.exit(1)
 
-print(f"lint-layers: OK — {len(local)} crates, no upward dependencies, no cycles, domain isolation holds")
+print(f"lint-layers: OK — {len(local)} crates, no upward dependencies, no cycles, domain isolation holds, shared layer is I/O-free")
 '
+
+if rg --line-number --ignore-case --multiline \
+    '\b(FROM|JOIN|UPDATE|INSERT\s+INTO|DELETE\s+FROM)\s+(public\.)?(users|user_sessions|agent_tasks|task_messages|user_contexts|ai_requests|ai_request_messages|mcp_tool_executions|markdown_content|logs|analytics_events)\b' \
+    crates/domain/analytics/src; then
+    echo 'lint-layers: FAIL — analytics SQL must use its reporting tables or owner traits'
+    exit 1
+fi

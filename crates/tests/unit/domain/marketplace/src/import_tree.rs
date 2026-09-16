@@ -237,6 +237,30 @@ fn a_marketplace_only_tree_gets_no_root_config() {
 }
 
 #[test]
+fn a_plugin_source_outside_the_marketplace_tree_is_refused() {
+    let src = TempDir::new().expect("tempdir");
+    let plugin_dir = src.path().join(".claude-plugin");
+    std::fs::create_dir_all(&plugin_dir).expect("create marketplace dir");
+    std::fs::write(
+        plugin_dir.join("marketplace.json"),
+        r#"{"name":"escape","owner":{"name":"x"},"plugins":[{"name":"evil","source":"../outside"}]}"#,
+    )
+    .expect("write marketplace.json");
+    let dest = TempDir::new().expect("tempdir");
+
+    let error = import_anthropic_tree(src.path(), dest.path(), &ImportOptions::default())
+        .expect_err("a `..` plugin source never reads outside the marketplace tree");
+    assert!(
+        matches!(
+            error,
+            systemprompt_marketplace::MarketplaceError::Import { .. }
+        ),
+        "{error}"
+    );
+    assert!(error.to_string().contains("evil"), "{error}");
+}
+
+#[test]
 fn sidecar_and_frontmatter_titles_become_display_names() {
     let (dest, _report) = import_good();
     let services = ConfigLoader::load_from_path(&dest.path().join("config/config.yaml"))

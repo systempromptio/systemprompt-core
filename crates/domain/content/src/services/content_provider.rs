@@ -3,7 +3,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use async_trait::async_trait;
 use systemprompt_identifiers::LocaleCode;
 use systemprompt_traits::content::{ContentFilter, ContentItem, ContentProvider, ContentSummary};
 
@@ -22,7 +21,6 @@ impl DefaultContentProvider {
     }
 }
 
-#[async_trait]
 impl ContentProvider for DefaultContentProvider {
     type Error = ContentError;
 
@@ -44,12 +42,12 @@ impl ContentProvider for DefaultContentProvider {
             kind: c.kind,
             image: c.image,
             source_id: c.source_id,
-            category_id: c.category_id.map(|id| id.to_string()),
+            category_id: c.category_id,
         }))
     }
 
     async fn find_content_by_slug(&self, slug: &str) -> Result<Option<ContentItem>, Self::Error> {
-        let content = self.repo.get_by_slug(slug, &LocaleCode::new("en")).await?;
+        let content = self.repo.get_by_slug(slug, &LocaleCode::english()).await?;
 
         Ok(content.map(|c| ContentItem {
             id: c.id,
@@ -63,7 +61,7 @@ impl ContentProvider for DefaultContentProvider {
             kind: c.kind,
             image: c.image,
             source_id: c.source_id,
-            category_id: c.category_id.map(|id| id.to_string()),
+            category_id: c.category_id,
         }))
     }
 
@@ -74,7 +72,7 @@ impl ContentProvider for DefaultContentProvider {
     ) -> Result<Option<ContentItem>, Self::Error> {
         let content = self
             .repo
-            .get_by_source_and_slug(source_id, slug, &LocaleCode::new("en"))
+            .get_by_source_and_slug(source_id, slug, &LocaleCode::english())
             .await?;
 
         Ok(content.map(|c| ContentItem {
@@ -89,7 +87,7 @@ impl ContentProvider for DefaultContentProvider {
             kind: c.kind,
             image: c.image,
             source_id: c.source_id,
-            category_id: c.category_id.map(|id| id.to_string()),
+            category_id: c.category_id,
         }))
     }
 
@@ -102,7 +100,7 @@ impl ContentProvider for DefaultContentProvider {
 
         let contents = if let Some(source_id) = &filter.source_id {
             self.repo
-                .list_by_source(source_id, &LocaleCode::new("en"))
+                .list_by_source(source_id, &LocaleCode::english())
                 .await?
         } else {
             self.repo.list(limit, offset).await?

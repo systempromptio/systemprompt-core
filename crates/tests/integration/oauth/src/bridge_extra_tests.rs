@@ -10,8 +10,8 @@ use systemprompt_models::Config;
 use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::config::RateLimitConfig;
 use systemprompt_oauth::services::{
-    exchange_bridge_session_code, hash_exchange_code, issue_bridge_exchange_code,
-    provision_bridge_oauth_client,
+    BridgeExchangeRequest, exchange_bridge_session_code, hash_exchange_code,
+    issue_bridge_exchange_code, provision_bridge_oauth_client,
 };
 use systemprompt_security::keys::authority;
 
@@ -94,22 +94,38 @@ async fn exchange_code_issued_and_consumed_once() {
     let analytics = systemprompt_analytics::AnalyticsService::new(
         None,
         None,
-        &systemprompt_analytics::repository::AnalyticsRepositories::new(&db).expect("repositories"),
+        &systemprompt_test_fixtures::fixture_analytics_repositories(&db).expect("repositories"),
     );
     let headers = http::HeaderMap::new();
-    let result =
-        exchange_bridge_session_code(&oauth_repo(&db), &analytics, &headers, None, &issued.code)
-            .await
-            .expect("consume code");
+    let result = exchange_bridge_session_code(
+        &oauth_repo(&db),
+        &analytics,
+        &*analytics.session_repo().owner(),
+        BridgeExchangeRequest {
+            request_headers: &headers,
+            caller_ip: None,
+            code: &issued.code,
+        },
+    )
+    .await
+    .expect("consume code");
     assert!(
         result.is_some(),
         "first consume must yield a BridgeAuthResult"
     );
 
-    let replay =
-        exchange_bridge_session_code(&oauth_repo(&db), &analytics, &headers, None, &issued.code)
-            .await
-            .expect("replay returns None, not Err");
+    let replay = exchange_bridge_session_code(
+        &oauth_repo(&db),
+        &analytics,
+        &*analytics.session_repo().owner(),
+        BridgeExchangeRequest {
+            request_headers: &headers,
+            caller_ip: None,
+            code: &issued.code,
+        },
+    )
+    .await
+    .expect("replay returns None, not Err");
     assert!(replay.is_none(), "exchange code must be single-use");
 }
 
@@ -120,13 +136,21 @@ async fn exchange_unknown_code_returns_none() {
     let analytics = systemprompt_analytics::AnalyticsService::new(
         None,
         None,
-        &systemprompt_analytics::repository::AnalyticsRepositories::new(&db).expect("repositories"),
+        &systemprompt_test_fixtures::fixture_analytics_repositories(&db).expect("repositories"),
     );
     let headers = http::HeaderMap::new();
-    let result =
-        exchange_bridge_session_code(&oauth_repo(&db), &analytics, &headers, None, "deadbeef")
-            .await
-            .expect("not an error");
+    let result = exchange_bridge_session_code(
+        &oauth_repo(&db),
+        &analytics,
+        &*analytics.session_repo().owner(),
+        BridgeExchangeRequest {
+            request_headers: &headers,
+            caller_ip: None,
+            code: "deadbeef",
+        },
+    )
+    .await
+    .expect("not an error");
     assert!(result.is_none());
 }
 

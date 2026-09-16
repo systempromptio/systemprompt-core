@@ -84,7 +84,7 @@ pub async fn download(
 
     // Why: GitHub's asset API returns JSON metadata unless Accept is
     // application/octet-stream.
-    let upstream = github(feed.http(), &spec, &asset.url)
+    let upstream = github(feed.http(), &spec, &asset.url)?
         .header(header::ACCEPT, "application/octet-stream")
         .send()
         .await

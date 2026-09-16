@@ -3,7 +3,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_logging::{AiRequestInfo, CliService, ExecutionStep, TaskInfo};
+use systemprompt_logging::CliService;
+use systemprompt_runtime::{AiRequestInfo, ExecutionStep, TaskInfo};
 
 use crate::presentation::tables::{ai_requests_table, execution_steps_table, task_info_table};
 

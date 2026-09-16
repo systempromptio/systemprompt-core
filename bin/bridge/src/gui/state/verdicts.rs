@@ -73,7 +73,7 @@ impl AppStateSnapshot {
     }
 
     #[must_use]
-    pub const fn overall_verdict(&self) -> Verdict<OverallCode> {
+    pub fn overall_verdict(&self) -> Verdict<OverallCode> {
         if self.sync_in_flight {
             return Verdict::new(Tone::Probing, OverallCode::Syncing);
         }
@@ -81,6 +81,9 @@ impl AppStateSnapshot {
             return Verdict::new(Tone::Err, OverallCode::Offline);
         }
         if self.signed_in() {
+            if self.last_sync_degraded() {
+                return Verdict::new(Tone::Warn, OverallCode::Degraded);
+            }
             return if self.last_sync_summary.is_some() {
                 Verdict::new(Tone::Ok, OverallCode::Synced)
             } else {
@@ -99,6 +102,13 @@ impl AppStateSnapshot {
             },
             Some(_) => Verdict::new(Tone::Ok, TokenCode::Valid),
         }
+    }
+
+    #[must_use]
+    pub fn last_sync_degraded(&self) -> bool {
+        self.last_sync_report
+            .as_ref()
+            .is_some_and(|sync| !sync.host_failures.is_empty() || !sync.malformed.is_empty())
     }
 
     #[must_use]

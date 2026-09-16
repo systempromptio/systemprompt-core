@@ -21,15 +21,21 @@ fn policy_body(
     gateway: &str,
     indent: &str,
 ) -> Result<String, super::MdmError> {
-    let api_key = mcp.loopback.secret().map_err(|e| {
-        super::MdmError::Store(crate::config::store::ConfigStoreError::Backend(
-            e.to_string(),
-        ))
-    })?;
-    let servers = super::policy::mcp_entries(mcp.loopback, mcp.registry).map_err(|e| {
-        super::MdmError::Store(crate::config::store::ConfigStoreError::Backend(
-            e.to_string(),
-        ))
+    let secret = mcp
+        .loopback
+        .secret_or_mint()
+        .map_err(|source| super::MdmError::Io {
+            action: "read loopback secret",
+            path: crate::proxy::secret::secret_path().unwrap_or_default(),
+            source,
+        })?;
+    let host_token = super::policy::desktop_host_token(&secret);
+    let servers = super::policy::mcp_entries(mcp.loopback, mcp.registry).map_err(|source| {
+        super::MdmError::Io {
+            action: "resolve managed MCP servers",
+            path: std::path::PathBuf::new(),
+            source,
+        }
     })?;
     let existing_models = mcp
         .policy_store
@@ -37,15 +43,16 @@ fn policy_body(
         .read_managed_policy("inferenceModels")?;
     let policy = super::policy::claude_desktop_policy(&super::policy::PolicyInputs {
         base_url: gateway,
-        api_key: api_key.as_str(),
+        host_token: &host_token,
         models: existing_models,
         headers: &std::collections::BTreeMap::new(),
         egress_allowed_hosts: mcp.egress_allowed_hosts,
         org_uuid: crate::config::load()?
             .deployment_organization_uuid
-            .as_deref(),
-        mcp_servers: &servers,
-    });
+            .as_ref()
+            .map(crate::ids::DeploymentOrganizationUuid::as_str),
+        mcp_servers: servers.as_deref(),
+    })?;
     Ok(super::policy::plist_body(&policy, indent))
 }
 

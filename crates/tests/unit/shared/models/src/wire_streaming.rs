@@ -1045,10 +1045,23 @@ mod gemini_streaming {
     }
 
     #[tokio::test]
-    async fn malformed_chunk_skipped() {
-        let sse = "data: not-json\n\n".to_owned();
-        let events = run(sse).await;
-        assert!(events.is_empty());
+    async fn malformed_chunk_yields_error() {
+        let sse = "data: not-json\n\ndata: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"hi\"}]}}]}\n\n"
+            .to_owned();
+        let results: Vec<_> =
+            gemini::sse_to_canonical_events(one_frame(sse), "fallback".to_owned())
+                .collect()
+                .await;
+        assert!(
+            results[0].is_err(),
+            "the malformed frame is reported, not skipped"
+        );
+        assert!(
+            results[1..]
+                .iter()
+                .any(|r| matches!(r, Ok(CanonicalEvent::TextDelta { text, .. }) if text == "hi")),
+            "later well-formed frames still decode"
+        );
     }
 
     #[tokio::test]

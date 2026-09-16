@@ -52,6 +52,7 @@ impl AnthropicStreamState {
         &self.message_id
     }
 
+    // JSON: Anthropic Messages SSE frame; upstream JSON is the contract.
     pub fn events_from_sse(&mut self, value: &Value) -> Vec<CanonicalEvent> {
         let Some(kind) = value.get("type").and_then(Value::as_str) else {
             return Vec::new();
@@ -76,6 +77,7 @@ impl AnthropicStreamState {
         events
     }
 
+    // JSON: Anthropic Messages SSE frame; upstream JSON is the contract.
     fn convert_message_delta(&self, value: &Value) -> Vec<CanonicalEvent> {
         let mut events = Vec::with_capacity(2);
         if let Some(usage) = value.get("usage") {
@@ -100,6 +102,7 @@ impl AnthropicStreamState {
     }
 }
 
+// JSON: Anthropic Messages SSE frame; upstream JSON is the contract.
 fn single_event(kind: &str, value: &Value, msg_id: &str) -> Option<CanonicalEvent> {
     match kind {
         "message_start" => convert_message_start(value),
@@ -124,6 +127,7 @@ fn single_event(kind: &str, value: &Value, msg_id: &str) -> Option<CanonicalEven
     }
 }
 
+// JSON: Anthropic Messages SSE frame; upstream JSON is the contract.
 fn convert_message_start(value: &Value) -> Option<CanonicalEvent> {
     let msg = value.get("message")?;
     Some(CanonicalEvent::MessageStart {
@@ -133,6 +137,7 @@ fn convert_message_start(value: &Value) -> Option<CanonicalEvent> {
     })
 }
 
+// JSON: Anthropic Messages SSE frame; upstream JSON is the contract.
 fn convert_content_block_start(value: &Value) -> Option<CanonicalEvent> {
     let index = u32_field(value, "index");
     let block = value.get("content_block")?;
@@ -159,6 +164,7 @@ fn convert_content_block_start(value: &Value) -> Option<CanonicalEvent> {
     Some(CanonicalEvent::ContentBlockStart { index, block: kind })
 }
 
+// JSON: Anthropic Messages SSE frame; upstream JSON is the contract.
 fn convert_content_block_delta(value: &Value) -> Option<CanonicalEvent> {
     let index = u32_field(value, "index");
     let delta = value.get("delta")?;
@@ -185,6 +191,7 @@ fn convert_content_block_delta(value: &Value) -> Option<CanonicalEvent> {
     }
 }
 
+// JSON: Anthropic Messages SSE frame; upstream JSON is the contract.
 fn usage_update_from_value(u: &Value) -> CanonicalUsageUpdate {
     let field = |name: &str| u.get(name).and_then(Value::as_u64).map(|v| v as u32);
     CanonicalUsageUpdate {
@@ -199,6 +206,7 @@ fn usage_update_from_value(u: &Value) -> CanonicalUsageUpdate {
     }
 }
 
+// JSON: Anthropic Messages SSE frame; upstream JSON is the contract.
 fn usage_from_value(v: Option<&Value>) -> CanonicalUsage {
     let Some(u) = v else {
         return CanonicalUsage::default();
@@ -218,6 +226,7 @@ fn usage_from_value(v: Option<&Value>) -> CanonicalUsage {
     }
 }
 
+// JSON: Anthropic Messages SSE frame; upstream JSON is the contract.
 fn thinking_tokens(usage: &Value) -> Option<u32> {
     usage
         .get("output_tokens_details")
@@ -226,6 +235,7 @@ fn thinking_tokens(usage: &Value) -> Option<u32> {
         .map(|v| v as u32)
 }
 
+// JSON: Anthropic Messages SSE frame; upstream JSON is the contract.
 fn str_field(value: &Value, field: &str, default: &str) -> String {
     value
         .get(field)
@@ -234,6 +244,7 @@ fn str_field(value: &Value, field: &str, default: &str) -> String {
         .to_owned()
 }
 
+// JSON: Anthropic Messages SSE frame; upstream JSON is the contract.
 fn u32_field(value: &Value, field: &str) -> u32 {
     value.get(field).and_then(Value::as_u64).unwrap_or(0) as u32
 }

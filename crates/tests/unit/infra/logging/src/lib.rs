@@ -31,5 +31,3 @@ mod repository;
 mod sanitize_argv;
 #[cfg(test)]
 mod services;
-#[cfg(test)]
-mod trace;

@@ -23,6 +23,7 @@ workspace = true
 systemprompt-extension = { workspace = true }
 
 [dependencies]
+schemars = { workspace = true }
 systemprompt-extension = { workspace = true }
 sqlx = { workspace = true }
 serde_jcs = { workspace = true }
@@ -36,9 +37,13 @@ serde_yaml = { workspace = true }
 chrono = { workspace = true }
 sha2 = { workspace = true }
 hex = { workspace = true }
+uuid = { workspace = true }
 tokio = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-traits = { workspace = true }
-systemprompt-identifiers = { workspace = true }
+systemprompt-identifiers = { workspace = true, features = ["sqlx"] }
 systemprompt-database = { workspace = true }
 systemprompt-security = { workspace = true }
+
+[target.'cfg(unix)'.dependencies]
+libc = { workspace = true }

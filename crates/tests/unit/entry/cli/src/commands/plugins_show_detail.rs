@@ -117,6 +117,5 @@ fn build_detail_output_defaults_to_empty_sections() {
     assert!(out.schemas.is_empty());
     assert!(out.tools.is_empty());
     assert!(out.roles.is_empty());
-    assert!(out.llm_providers.is_empty());
     assert!(out.config_prefix.is_none());
 }

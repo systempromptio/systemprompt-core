@@ -7,6 +7,8 @@ use crate::error::DatabaseResult;
 use crate::models::{JsonRow, QuerySelector, ToDbValue};
 use async_trait::async_trait;
 
+/// Held as `Box<dyn DatabaseTransaction>` by the dynamic-SQL surface, so the
+/// trait uses `#[async_trait]` to stay object-safe.
 #[async_trait]
 pub trait DatabaseTransaction: Send {
     async fn execute(

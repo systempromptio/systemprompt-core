@@ -11,6 +11,7 @@ publish = false
 workspace = true
 
 [dependencies]
+semver = { workspace = true }
 systemprompt-bridge = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-identifiers = { workspace = true }

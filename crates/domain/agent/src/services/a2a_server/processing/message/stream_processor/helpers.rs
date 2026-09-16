@@ -64,7 +64,9 @@ pub(super) struct SynthesizeFinalResponseParams<'a> {
     pub skill_service: Arc<SkillService>,
 }
 
-pub(super) async fn synthesize_final_response(params: SynthesizeFinalResponseParams<'_>) -> String {
+pub(super) async fn synthesize_final_response(
+    params: SynthesizeFinalResponseParams<'_>,
+) -> Result<String> {
     use crate::services::a2a_server::processing::ai_executor::{
         SynthesizeToolResultsParams, synthesize_tool_results_with_artifacts,
     };
@@ -102,10 +104,6 @@ pub(super) async fn synthesize_final_response(params: SynthesizeFinalResponsePar
             skill_service,
         })
         .await
-        .unwrap_or_else(|()| {
-            tracing::warn!("Synthesis failed, using initial response");
-            accumulated_text.to_owned()
-        })
     } else {
         if tool_calls.is_empty() && !accumulated_text.is_empty() {
             tracing::warn!(
@@ -113,6 +111,6 @@ pub(super) async fn synthesize_final_response(params: SynthesizeFinalResponsePar
                 "Synthesis skipped: Agent produced text without tool calls"
             );
         }
-        accumulated_text.to_owned()
+        Ok(accumulated_text.to_owned())
     }
 }

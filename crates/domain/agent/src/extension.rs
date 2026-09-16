@@ -19,11 +19,13 @@ impl Extension for AgentExtension {
     }
 
     fn schemas(&self) -> Vec<SchemaDefinition> {
-        let mut schemas = conversation_schemas();
+        let mut schemas = vec![SchemaDefinition::sql_only(include_str!(
+            "../schema/reporting_capture.sql"
+        ))];
+        schemas.extend(conversation_schemas());
         schemas.extend(artifact_schemas());
         schemas.extend(context_schemas());
         schemas.extend(task_tracking_schemas());
-        schemas.extend(service_schemas());
         schemas
     }
 
@@ -36,12 +38,13 @@ impl Extension for AgentExtension {
     }
 
     fn cross_extension_tables(&self) -> Vec<&'static str> {
-        vec!["ai_requests"]
+        vec!["ai_requests", "services"]
     }
 }
 
 fn conversation_schemas() -> Vec<SchemaDefinition> {
     vec![
+        SchemaDefinition::sql_only(include_str!("../schema/reporting_privacy.sql")),
         SchemaDefinition::new("user_contexts", include_str!("../schema/user_contexts.sql"))
             .with_required_columns(vec![
                 "context_id".into(),
@@ -112,13 +115,6 @@ fn artifact_schemas() -> Vec<SchemaDefinition> {
             include_str!("../schema/artifact_parts.sql"),
         )
         .with_required_columns(vec!["id".into(), "artifact_id".into(), "part_kind".into()]),
-    ]
-}
-
-fn service_schemas() -> Vec<SchemaDefinition> {
-    vec![
-        SchemaDefinition::new("services", include_str!("../schema/services.sql"))
-            .with_required_columns(vec!["name".into(), "module_name".into(), "status".into()]),
     ]
 }
 

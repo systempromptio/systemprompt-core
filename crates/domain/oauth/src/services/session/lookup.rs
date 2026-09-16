@@ -30,7 +30,7 @@ impl SessionCreationService {
             return None;
         }
 
-        let session_id_str = fp_provider
+        let session_id = fp_provider
             .find_reusable_session(fingerprint)
             .await
             .map_err(|e| {
@@ -41,7 +41,7 @@ impl SessionCreationService {
             .flatten()?;
 
         let existing_session = self
-            .analytics_provider
+            .session_provider
             .find_recent_session_by_fingerprint(fingerprint, MAX_SESSION_AGE_SECONDS)
             .await
             .map_err(|e| {
@@ -53,7 +53,6 @@ impl SessionCreationService {
 
         let user_id_str = existing_session.user_id.as_ref()?;
         let user_id = UserId::new(user_id_str.clone());
-        let session_id = SessionId::new(session_id_str);
 
         let config = systemprompt_models::Config::get()
             .inspect_err(|e| {
@@ -93,7 +92,7 @@ impl SessionCreationService {
     ) -> Option<AnonymousSessionInfo> {
         let lookup_result = tokio::time::timeout(
             tokio::time::Duration::from_millis(SESSION_LOOKUP_TIMEOUT_MS),
-            self.analytics_provider
+            self.session_provider
                 .find_recent_session_by_fingerprint(fingerprint, MAX_SESSION_AGE_SECONDS),
         )
         .await;

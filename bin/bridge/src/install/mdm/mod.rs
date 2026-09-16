@@ -24,7 +24,7 @@ mod windows;
 #[cfg(target_os = "windows")]
 mod windows_policy;
 
-pub use egress::{cowork_egress_allowed_hosts, parse_egress_allowed_hosts};
+pub use egress::{EgressParseError, cowork_egress_allowed_hosts, parse_egress_allowed_hosts};
 pub use error::MdmError;
 pub use inference::default_inference_models;
 
@@ -57,8 +57,10 @@ pub struct MdmPayloadInputs<'a> {
 }
 
 #[cfg(target_os = "windows")]
-pub(crate) fn remove_windows_policy() -> Result<bool, MdmError> {
-    windows::remove_policy()
+pub(crate) fn remove_windows_policy(
+    store: &crate::config::store::PolicyStore,
+) -> Result<bool, MdmError> {
+    windows::remove_policy(store)
 }
 
 #[derive(Debug, Clone, Default)]

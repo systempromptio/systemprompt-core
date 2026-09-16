@@ -13,6 +13,7 @@ use super::content::ToolContent;
 pub struct ToolCallRequest {
     pub tool_call_id: String,
     pub name: String,
+    // JSON: MCP tool-call arguments are the tool's own JSON object.
     pub arguments: JsonValue,
 }
 
@@ -21,6 +22,7 @@ pub struct ToolCallResult {
     pub content: Vec<ToolContent>,
     pub structured_content: Option<JsonValue>,
     pub is_error: Option<bool>,
+    // JSON: MCP `_meta` is an open map of vendor-prefixed keys.
     pub meta: Option<JsonValue>,
 }
 
@@ -46,6 +48,7 @@ impl ToolCallResult {
     }
 
     #[must_use]
+    // JSON: MCP `CallToolResult.structuredContent` is spec-defined as free-form.
     pub fn with_structured_content(mut self, content: JsonValue) -> Self {
         self.structured_content = Some(content);
         self

@@ -9,11 +9,11 @@
 //!
 //! Policies that accumulate state (the rate limiter) scope it to their
 //! instance, so two engines never share buckets — a second engine would
-//! silently double every budget. [`GovernanceEngine::global`] is therefore the
-//! way every enforcement point in a process reaches the chain: the MCP
-//! governance webhook and the `/v1/messages` gateway must charge the same
-//! limiter, not one each. [`GovernanceEngine::from_config`] remains available
-//! for tests and for callers that genuinely want an isolated chain.
+//! silently double every budget. The engine is therefore built once at the
+//! composition root ([`GovernanceEngine::from_services_root`]) and injected
+//! into every enforcement point: the MCP governance webhook and the
+//! `/v1/messages` gateway charge the same limiter, not one each.
+//! [`GovernanceEngine::from_config`] builds an isolated chain for tests.
 //!
 //! [`GovernanceEngine::evaluate_with_prompt_recovery`] is the opt-in variant
 //! for prompt targets: when a policy denies with a located secret leak, the
@@ -27,10 +27,8 @@
 mod chain;
 
 use std::collections::{HashMap, HashSet};
-use std::path::PathBuf;
-use std::sync::LazyLock;
+use std::path::Path;
 
-use systemprompt_config::ProfileBootstrap;
 use thiserror::Error;
 
 use super::audit::ChainEntryOutcome;
@@ -93,21 +91,15 @@ impl std::fmt::Debug for GovernanceEngine {
 }
 
 impl GovernanceEngine {
-    pub fn global() -> Result<&'static Self, GovernanceEngineError> {
-        static ENGINE: LazyLock<Result<GovernanceEngine, GovernanceEngineError>> =
-            LazyLock::new(|| {
-                let config = match governance_config_path() {
-                    Some(path) => GovernanceConfig::load(&path).map_err(|error| {
-                        GovernanceEngineError::ConfigRejected {
-                            path: path.display().to_string(),
-                            message: error.to_string(),
-                        }
-                    })?,
-                    None => GovernanceConfig::defaults(),
-                };
-                GovernanceEngine::from_config(&config)
-            });
-        ENGINE.as_ref().map_err(Clone::clone)
+    pub fn from_services_root(services_root: &Path) -> Result<Self, GovernanceEngineError> {
+        let path = services_root.join("governance/config.yaml");
+        let config = GovernanceConfig::load(&path).map_err(|error| {
+            GovernanceEngineError::ConfigRejected {
+                path: path.display().to_string(),
+                message: error.to_string(),
+            }
+        })?;
+        Self::from_config(&config)
     }
 
     pub fn from_config(config: &GovernanceConfig) -> Result<Self, GovernanceEngineError> {
@@ -133,6 +125,9 @@ impl GovernanceEngine {
                     source,
                 }
             })?;
+            if config.enabled {
+                reject_toothless_enforcement(cfg, instance.as_ref())?;
+            }
             entries.push(ChainEntry {
                 config: cfg.clone(),
                 instance,
@@ -199,14 +194,29 @@ impl GovernanceEngine {
     }
 }
 
-fn governance_config_path() -> Option<PathBuf> {
-    let profile = ProfileBootstrap::get()
-        .inspect_err(|e| {
-            tracing::error!(
-                error = %e,
-                "governance profile bootstrap failed; policies fall back to built-in defaults"
-            );
-        })
-        .ok()?;
-    Some(PathBuf::from(&profile.paths.services).join("governance/config.yaml"))
+// Why: the warn-only defaults rely on an empty pattern catalog being legal,
+// but an operator-authored `enforce` block that compiles to a scanner which
+// can never deny is a silent non-enforcement — refuse it at boot. A globally
+// disabled engine enforces nothing, so it is not silently non-enforcing.
+fn reject_toothless_enforcement(
+    cfg: &PolicyConfig,
+    instance: &dyn GovernancePolicy,
+) -> Result<(), GovernanceEngineError> {
+    if cfg.id != SECRET_SCAN_ID || !cfg.enabled || cfg.mode.is_warn() {
+        return Ok(());
+    }
+    let toothless = instance
+        .secret_scanner()
+        .is_none_or(|scanner| scanner.pattern_count() == 0);
+    if toothless {
+        return Err(GovernanceEngineError::InvalidPolicyConfiguration {
+            id: cfg.id.clone(),
+            source: PolicyConfigurationError(
+                "secret_scan is in enforce mode but compiles no secret patterns; declare \
+                 `patterns` or set `mode: warn`"
+                    .to_owned(),
+            ),
+        });
+    }
+    Ok(())
 }

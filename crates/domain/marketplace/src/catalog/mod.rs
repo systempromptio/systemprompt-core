@@ -12,6 +12,7 @@
 
 mod agents;
 mod artifacts;
+mod cache;
 mod content;
 mod fingerprint;
 mod hooks;
@@ -22,13 +23,13 @@ mod skills;
 
 pub use agents::load_agents;
 pub use artifacts::{load_artifacts, validate_artifact_tools};
+pub use cache::{BundleMap, MarketplaceCache};
 pub use content::{CatalogContent, CatalogParts};
 pub use hooks::load_hooks;
 pub use mcp::{disabled_mcp_server_names, load_managed_mcp_servers};
 pub(crate) use plugins::selected_configs;
 pub use plugins::{
-    artifact_owners, load_plugins, plugin_bundles, plugin_bundles_cached, rule_owners,
-    selects_artifact, skill_owners,
+    artifact_owners, load_plugins, plugin_bundles, rule_owners, selects_artifact, skill_owners,
 };
 pub use rules::{load_rules, load_rules_traced};
 pub use skills::{load_skills, load_skills_traced};

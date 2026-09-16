@@ -6,21 +6,14 @@
 //! single parse-time SSRF guard applied to every outbound destination.
 //!
 //! Parse-time validation is a pre-filter, not the enforcement point: a
-//! hostname carries no address, so [`client`] installs a DNS resolver that
-//! re-applies [`is_blocked_ip`] to every address a name resolves to, on the
-//! initial request and on every redirect hop. Reach for
-//! [`guarded_client`] rather than
+//! hostname carries no address, so `systemprompt_client::guarded` installs a
+//! DNS resolver that re-applies [`is_blocked_ip`] to every address a name
+//! resolves to, on the initial request and on every redirect hop. Reach for
+//! `systemprompt_client::guarded_client` rather than
 //! `reqwest::Client::builder()` for any destination a caller can influence.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
-
-pub mod client;
-
-pub use client::{
-    DEFAULT_MAX_REDIRECTS, GuardedClientConfig, GuardedConnectError, GuardedResolver,
-    guarded_client, guarded_client_builder,
-};
 
 use std::time::Duration;
 use thiserror::Error;
@@ -145,18 +138,33 @@ pub fn is_blocked_ip(ip: std::net::IpAddr) -> bool {
     }
 }
 
-// Why: RFC 4291 §2.5.5.2 maps `::ffff:0:0/96` to IPv4, including private IPv4
-// addresses.
+// Why: RFC 4291 §2.5.5.2 maps `::ffff:0:0/96` to IPv4 and §2.5.5.1 embeds an
+// IPv4 address in the low 32 bits of `::/96`; RFC 6052 `64:ff9b::/96` is the
+// NAT64 well-known prefix, through which `64:ff9b::a9fe:a9fe` reaches
+// 169.254.169.254. Each embedded IPv4 is judged by the IPv4 table.
 fn is_blocked_v6(ip: std::net::Ipv6Addr) -> bool {
-    ip.to_ipv4_mapped().map_or_else(
-        || {
-            let segments = ip.segments();
-            let is_unique_local = (segments[0] & 0xfe00) == 0xfc00;
-            let is_link_local = (segments[0] & 0xffc0) == 0xfe80;
-            ip.is_loopback() || ip.is_unspecified() || is_unique_local || is_link_local
-        },
-        is_blocked_v4,
-    )
+    if let Some(v4) = ip.to_ipv4_mapped() {
+        return is_blocked_v4(v4);
+    }
+    let segments = ip.segments();
+    if let Some(v4) = embedded_v4(&segments) {
+        return is_blocked_v4(v4);
+    }
+    let is_unique_local = (segments[0] & 0xfe00) == 0xfc00;
+    let is_link_local = (segments[0] & 0xffc0) == 0xfe80;
+    let is_multicast = (segments[0] & 0xff00) == 0xff00;
+    ip.is_loopback() || ip.is_unspecified() || is_unique_local || is_link_local || is_multicast
+}
+
+fn embedded_v4(segments: &[u16; 8]) -> Option<std::net::Ipv4Addr> {
+    let is_nat64 = segments[..6] == [0x64, 0xff9b, 0, 0, 0, 0];
+    let is_ipv4_compatible = segments[..6] == [0, 0, 0, 0, 0, 0];
+    if !(is_nat64 || is_ipv4_compatible) {
+        return None;
+    }
+    let [a, b] = segments[6].to_be_bytes();
+    let [c, d] = segments[7].to_be_bytes();
+    Some(std::net::Ipv4Addr::new(a, b, c, d))
 }
 
 // Why: RFC 6598 reserves `100.64.0.0/10` for shared carrier-grade NAT, not
@@ -166,6 +174,14 @@ fn is_cgnat_shared_v4(ip: std::net::Ipv4Addr) -> bool {
     a == 100 && (64..=127).contains(&b)
 }
 
+// Why: `0.0.0.0/8` routes to the local host on Linux, `192.0.0.0/24` (RFC
+// 6890) and `198.18.0.0/15` (RFC 2544) are IETF-reserved, and `224.0.0.0/4` /
+// `240.0.0.0/4` are multicast and reserved — none is a public host.
+const fn is_reserved_v4(ip: std::net::Ipv4Addr) -> bool {
+    let [a, b, c, _] = ip.octets();
+    a == 0 || (a == 192 && b == 0 && c == 0) || (a == 198 && (b == 18 || b == 19)) || a >= 224
+}
+
 fn is_blocked_v4(ip: std::net::Ipv4Addr) -> bool {
     ip.is_private()
         || ip.is_loopback()
@@ -173,4 +189,5 @@ fn is_blocked_v4(ip: std::net::Ipv4Addr) -> bool {
         || ip.is_unspecified()
         || ip.is_broadcast()
         || is_cgnat_shared_v4(ip)
+        || is_reserved_v4(ip)
 }

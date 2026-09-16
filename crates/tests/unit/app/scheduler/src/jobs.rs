@@ -24,7 +24,7 @@ mod job_properties_tests {
         assert_eq!(job.name(), "database_cleanup");
         assert_eq!(
             job.description(),
-            "Cleans up orphaned logs, old logs (parameter log_retention_days, default 30), and expired OAuth tokens; log deletion requires enforce"
+            "Cleans up orphaned logs and old logs (parameter log_retention_days, default 30); deletion requires enforce"
         );
         assert_eq!(job.schedule(), "0 0 3 * * *");
     }

@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT EXISTS(SELECT 1 FROM eval_campaign_events e JOIN eval_campaigns c ON c.id=e.campaign_id WHERE c.owner_id=$1 AND c.id=$2 AND e.generation=$3 AND e.action=$4)",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "exists",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "3f88100ec499f926353fa69ae3358986e215f3584853c93dff6f1a8e0a7f5805"
+}

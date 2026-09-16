@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.53.0] - 2026-09-15
+
+### Breaking
+
+- **Breaking:** the crate root no longer glob re-exports `prelude::*`; write `use systemprompt::prelude::*` explicitly.
+
+### Changed
+
+- The feature table documents `analytics`, `evaluation`, `slack` and `teams`, and states what `full` excludes.
+
 ## [0.48.0] - 2026-09-08
 
 ### Removed

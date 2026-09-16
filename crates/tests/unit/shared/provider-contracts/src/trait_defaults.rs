@@ -5,13 +5,14 @@
 //! on these without overriding them, so the defaults are public contract.
 
 use std::collections::HashMap;
+use systemprompt_identifiers::{AgentName, McpServerId};
 
 use async_trait::async_trait;
 use serde_json::Value;
 use systemprompt_provider_contracts::{
     ContentDataContext, ContentDataProvider, FrontmatterContext, FrontmatterProcessor, PathsConfig,
     ProviderResult, RssFeedContext, RssFeedItem, RssFeedMetadata, RssFeedProvider, RssFeedSpec,
-    TemplateDefinition, TemplateProvider, ToolContext, ToolDefinition, ToolProvider,
+    TemplateDefinition, TemplateProvider, ToolContext, ToolDefinition, ToolInventory, ToolProvider,
     ToolProviderResult,
 };
 
@@ -103,16 +104,22 @@ struct TwoToolProvider;
 impl ToolProvider for TwoToolProvider {
     async fn list_tools(
         &self,
-        _agent_name: &str,
+        _agent_name: &AgentName,
         _context: &ToolContext,
-    ) -> ToolProviderResult<Vec<ToolDefinition>> {
-        Ok(vec![
-            ToolDefinition::new("alpha", "svc"),
-            ToolDefinition::new("beta", "svc"),
-        ])
+    ) -> ToolProviderResult<ToolInventory> {
+        Ok(ToolInventory::complete(vec![
+            ToolDefinition::new(
+                "alpha",
+                McpServerId::try_new("svc").expect("valid McpServerId"),
+            ),
+            ToolDefinition::new(
+                "beta",
+                McpServerId::try_new("svc").expect("valid McpServerId"),
+            ),
+        ]))
     }
 
-    async fn refresh_connections(&self, _agent_name: &str) -> ToolProviderResult<()> {
+    async fn refresh_connections(&self, _agent_name: &AgentName) -> ToolProviderResult<()> {
         Ok(())
     }
 
@@ -141,13 +148,21 @@ async fn default_find_tool_selects_by_name_from_list_tools() {
     );
 
     let found = TwoToolProvider
-        .find_tool("agent", "beta", &ctx)
+        .find_tool(
+            &AgentName::try_new("agent").expect("valid AgentName"),
+            "beta",
+            &ctx,
+        )
         .await
         .expect("find_tool succeeds");
     assert_eq!(found.expect("beta exists").name, "beta");
 
     let missing = TwoToolProvider
-        .find_tool("agent", "gamma", &ctx)
+        .find_tool(
+            &AgentName::try_new("agent").expect("valid AgentName"),
+            "gamma",
+            &ctx,
+        )
         .await
         .expect("find_tool succeeds");
     assert!(missing.is_none());

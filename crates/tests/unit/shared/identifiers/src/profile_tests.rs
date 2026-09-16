@@ -74,13 +74,13 @@ fn default_profile_value() {
 
 #[test]
 fn display_shows_name() {
-    let name = ProfileName::new("production");
+    let name = ProfileName::try_new("production").expect("valid ProfileName");
     assert_eq!(format!("{}", name), "production");
 }
 
 #[test]
 fn serde_roundtrip_exact_json() {
-    let name = ProfileName::new("staging");
+    let name = ProfileName::try_new("staging").expect("valid ProfileName");
     let json = serde_json::to_string(&name).unwrap();
     assert_eq!(json, "\"staging\"");
     let deserialized: ProfileName = serde_json::from_str(&json).unwrap();
@@ -113,20 +113,20 @@ fn from_str_parse() {
 
 #[test]
 fn to_db_value_returns_string_variant() {
-    let name = ProfileName::new("local");
+    let name = ProfileName::try_new("local").expect("valid ProfileName");
     let db_val = name.to_db_value();
     assert!(matches!(db_val, DbValue::String(s) if s == "local"));
 }
 
 #[test]
-#[should_panic(expected = "ProfileName validation failed")]
-fn new_panics_on_invalid() {
-    let _ = ProfileName::new("has spaces");
+fn try_new_rejects_invalid() {
+    let err = ProfileName::try_new("has spaces").expect_err("ProfileName must reject `has spaces`");
+    assert!(err.to_string().contains("alphanumeric"), "{err}");
 }
 
 #[test]
 fn equality_across_construction_paths() {
-    let from_new = ProfileName::new("local");
+    let from_new = ProfileName::try_new("local").expect("valid ProfileName");
     let from_try: ProfileName = "local".try_into().unwrap();
     let from_parse: ProfileName = "local".parse().unwrap();
     assert_eq!(from_new, from_try);

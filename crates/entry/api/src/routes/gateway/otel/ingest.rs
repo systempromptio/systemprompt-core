@@ -15,6 +15,9 @@ use opentelemetry_proto::tonic::collector::trace::v1::ExportTraceServiceRequest;
 use super::convert::{any_value_to_string, attrs_to_json, hex_lower, severity_to_level};
 
 const MODULE: &str = "otel";
+// Why: OTLP `Status.code` — 0 UNSET, 1 OK, 2 ERROR
+// (opentelemetry/proto/trace/v1/trace.proto).
+const OTLP_STATUS_CODE_ERROR: i32 = 2;
 
 pub fn ingest_traces(req: ExportTraceServiceRequest) {
     for resource in req.resource_spans {
@@ -52,7 +55,7 @@ pub fn ingest_traces(req: ExportTraceServiceRequest) {
                 let level = span
                     .status
                     .as_ref()
-                    .filter(|s| s.code == 2) // STATUS_CODE_ERROR
+                    .filter(|s| s.code == OTLP_STATUS_CODE_ERROR)
                     .map_or(LogLevel::Info, |_| LogLevel::Error);
 
                 let trace_id = if trace_hex.is_empty() {

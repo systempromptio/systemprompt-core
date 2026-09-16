@@ -1,22 +1,12 @@
-//! Process-global log-event publishing.
-//!
-//! Holds the once-initialised [`LogEventPublisher`] and a startup-mode flag,
-//! letting any crate emit a [`LogEventData`] via [`publish_log`] without
-//! threading the publisher through call sites. Before a publisher is installed
-//! (e.g. early boot), `publish_log` is a no-op.
+//! Process-wide CLI output mode flags and the pre-init notice buffer.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex, OnceLock};
-
-use chrono::Utc;
-use systemprompt_traits::{LogEventData, LogEventLevel, LogEventPublisher};
+use std::sync::{Mutex, OnceLock};
 
 static STARTUP_MODE: AtomicBool = AtomicBool::new(true);
-
-static LOG_PUBLISHER: OnceLock<Arc<dyn LogEventPublisher>> = OnceLock::new();
 
 static STRUCTURED_MODE: AtomicBool = AtomicBool::new(false);
 
@@ -80,21 +70,4 @@ pub fn drain_notices() -> Vec<BufferedNotice> {
         .lock()
         .map(|mut buf| std::mem::take(&mut *buf))
         .unwrap_or_default()
-}
-
-pub fn set_log_publisher(publisher: Arc<dyn LogEventPublisher>) {
-    if LOG_PUBLISHER.set(publisher).is_err() {
-        tracing::warn!("Log publisher already initialized, ignoring duplicate registration");
-    }
-}
-
-#[must_use]
-pub fn get_log_publisher() -> Option<&'static Arc<dyn LogEventPublisher>> {
-    LOG_PUBLISHER.get()
-}
-
-pub fn publish_log(level: LogEventLevel, module: &str, message: &str) {
-    if let Some(publisher) = LOG_PUBLISHER.get() {
-        publisher.publish_log(LogEventData::new(Utc::now(), level, module, message));
-    }
 }

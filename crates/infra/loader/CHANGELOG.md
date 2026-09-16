@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.53.0] - 2026-09-15
+
+### Added
+
+- `subprocess` module: the supervised child-process spawner (previously `systemprompt_models::subprocess`). A failure to start the spawner thread is reported on that call and retried on the next, instead of being cached for the life of the process.
+
+### Changed
+
+- `ConfigLoader::load_cached_from_path`, `reload_from_path` and `load_from_content` are always compiled; the `expose-internals` Cargo feature is removed. Migrate by dropping the feature from dependents.
+- Catalog discovery propagates an unreadable listing body as a listing error instead of parsing an empty page.
+- `ServicesRootBootstrap::install` returns the root that won initialisation.
+
 ## [0.51.0] - 2026-09-11
 
 ### Added

@@ -42,7 +42,8 @@ pub struct HostHealthPayload<'a> {
     pub profile: Verdict<ProfileCode>,
     pub missing_required: &'a [String],
     pub app: Verdict<AppInstallState>,
-    pub host_running: bool,
+    pub host_running: Option<bool>,
+    pub probe_error: Option<&'a str>,
     pub host_processes: &'a [String],
     pub inference_models: Vec<String>,
     pub probed_at_unix: u64,
@@ -55,6 +56,7 @@ impl<'a> From<&'a HostAppSnapshot> for HostHealthPayload<'a> {
             missing_required: s.profile_state.missing_required(),
             app: s.app_installed.verdict(),
             host_running: s.host_running,
+            probe_error: s.probe_error.as_deref(),
             host_processes: &s.host_processes,
             inference_models: s
                 .profile_keys

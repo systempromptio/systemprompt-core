@@ -15,7 +15,7 @@ use std::path::Path;
 use serde_json::json;
 
 use super::io_err;
-use crate::host_sync::ApplyError;
+use crate::host_sync::{ApplyError, stamp_hooks_file};
 use crate::proxy::LoopbackEndpoint;
 
 pub(super) fn mirror_plugin(
@@ -31,6 +31,9 @@ pub(super) fn mirror_plugin(
     copy_dir_all(src, dst)?;
     filter_skills_for_host(dst, skills, "claude-code")?;
     drop_standard_hooks_pointer(dst)?;
+    // Why: Claude Code runs hooks from this copy, so the host stamp has to
+    // land here — the org-plugins source stays unstamped.
+    stamp_hooks_file(&dst.join("hooks").join("hooks.json"), super::HOST_ID)?;
     write_mcp_json(loopback, dst, mcp_servers)?;
     Ok(())
 }
@@ -126,6 +129,16 @@ fn copy_dir_all(src: &Path, dst: &Path) -> Result<(), ApplyError> {
             .map_err(|e| io_err(format!("stat {}", from.display()), e))?;
         if file_type.is_dir() {
             copy_dir_all(&from, &to)?;
+        } else if file_type.is_symlink() && !from.exists() {
+            // Why: npm leaves dangling `.bin` links behind optional packages;
+            // Claude Code ignores them and so does the mirror.
+            tracing::debug!(
+                target: "bridge::claude-code-cli",
+                path = %from.display(),
+                "skipped a dangling symlink while mirroring"
+            );
+        } else if from.is_dir() {
+            copy_dir_all(&from, &to)?;
         } else {
             fs::copy(&from, &to)
                 .map_err(|e| io_err(format!("copy {} -> {}", from.display(), to.display()), e))?;
@@ -148,8 +161,8 @@ fn write_mcp_json(
     servers: &[String],
 ) -> Result<(), ApplyError> {
     let bearer = loopback
-        .bearer()
-        .map_err(|e| io_err("read loopback secret for claude-code .mcp.json", e))?;
+        .host_bearer(&crate::ids::HostId::new("claude-code"))
+        .map_err(|e| io_err("derive claude-code host token for .mcp.json", e))?;
     let mut map = serde_json::Map::new();
     for name in servers {
         let slug = crate::mcp_registry::normalize_key(name);
@@ -162,22 +175,14 @@ fn write_mcp_json(
             }),
         );
     }
-    super::json_io::write_json(&root.join(".mcp.json"), &json!({ "mcpServers": map }))
+    crate::integration::json_io::write_json(&root.join(".mcp.json"), &json!({ "mcpServers": map }))
 }
 
 pub(super) fn remove_stale_children(dir: &Path, expected: &[&str]) -> Result<(), ApplyError> {
     let entries = match fs::read_dir(dir) {
         Ok(entries) => entries,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(()),
-        Err(e) => {
-            tracing::warn!(
-                target: "bridge::claude-code-cli",
-                dir = %dir.display(),
-                error = %e,
-                "marketplace directory unreadable; stale plugins left in place"
-            );
-            return Ok(());
-        },
+        Err(e) => return Err(io_err(format!("enumerate {}", dir.display()), e)),
     };
     for entry in entries.flatten() {
         let name = entry.file_name();

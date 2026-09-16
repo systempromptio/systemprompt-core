@@ -752,27 +752,24 @@ mod empty_context_audit_guards {
 
         repo.cleanup_empty_contexts(1).await.expect("context sweep");
 
-        let cleanup = systemprompt_database::CleanupRepository::new(
-            (*seed.pool.write_pool_arc().expect("write pool")).clone(),
-        );
-        cleanup.delete_orphaned_logs().await.expect("orphaned logs");
-        cleanup.delete_old_logs(30).await.expect("old logs");
-        cleanup
-            .delete_expired_oauth_tokens()
+        let logs = systemprompt_logging::LoggingRepository::new(&seed.pool).expect("logs repo");
+        let seen = logs.distinct_log_user_ids().await.expect("log owners");
+        let orphans = systemprompt_users::UserRepository::new(&seed.pool)
+            .expect("users repo")
+            .missing_ids(&seen)
             .await
-            .expect("oauth tokens");
-        cleanup
-            .delete_expired_oauth_codes()
+            .expect("missing owners");
+        logs.delete_logs_for_users(&orphans)
             .await
-            .expect("oauth codes");
-        cleanup
-            .delete_expired_oauth_state_bindings()
+            .expect("orphaned logs");
+        logs.cleanup_old_logs(chrono::Utc::now() - chrono::Duration::days(30))
             .await
-            .expect("oauth state bindings");
-        cleanup
-            .delete_expired_oauth_jti_revocations()
+            .expect("old logs");
+        systemprompt_oauth::repository::OauthCleanupRepository::new(&seed.pool)
+            .expect("oauth cleanup repo")
+            .delete_expired()
             .await
-            .expect("oauth jti revocations");
+            .expect("oauth expiry sweep");
 
         let survived = sqlx::query_scalar::<_, bool>(
             "SELECT EXISTS(SELECT 1 FROM mcp_tool_executions WHERE mcp_execution_id = $1)",

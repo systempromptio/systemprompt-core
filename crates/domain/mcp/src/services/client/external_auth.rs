@@ -41,11 +41,24 @@ pub(super) async fn resolve_external_bearer(
 
     let base = Config::get()?.api_external_url.clone();
     let accessor = accessor_url(&base, &ext.token_endpoint);
-    let broker_secret = systemprompt_config::SecretsBootstrap::get()
-        .ok()
-        .and_then(|secrets| secrets.get(BROKER_SECRET_KEY).cloned())
-        .filter(|secret| !secret.is_empty());
-    fetch_external_bearer(&accessor, jwt.as_str(), broker_secret.as_deref(), server).await
+    // Why: the accessor authenticates this process by the broker secret; a
+    // call without it would be refused (or, worse, served to an unbrokered
+    // caller), so a missing secret is a configuration error here.
+    let secrets = systemprompt_config::SecretsBootstrap::get().map_err(|e| {
+        McpDomainError::Configuration(format!(
+            "credential broker secret unavailable for external MCP server '{server}': {e}"
+        ))
+    })?;
+    let broker_secret = secrets
+        .get(BROKER_SECRET_KEY)
+        .filter(|secret| !secret.is_empty())
+        .ok_or_else(|| {
+            McpDomainError::Configuration(format!(
+                "secret `{BROKER_SECRET_KEY}` is not configured; external MCP server '{server}' \
+                 cannot resolve its bearer"
+            ))
+        })?;
+    fetch_external_bearer(&accessor, jwt.as_str(), broker_secret, server).await
 }
 
 pub fn accessor_url(api_external_url: &str, token_endpoint: &str) -> String {
@@ -60,26 +73,26 @@ pub fn accessor_url(api_external_url: &str, token_endpoint: &str) -> String {
 pub async fn fetch_external_bearer(
     accessor: &str,
     jwt: &str,
-    broker_secret: Option<&str>,
+    broker_secret: &str,
     server: &str,
 ) -> McpDomainResult<String> {
-    let client = systemprompt_models::net::guarded_client(
-        &systemprompt_models::net::GuardedClientConfig::default().with_max_redirects(0),
+    let client = systemprompt_client::guarded_client(
+        &systemprompt_client::GuardedClientConfig::default().with_max_redirects(0),
     )
     .map_err(|error| {
         McpDomainError::Transport(format!(
             "token accessor client failed for '{server}': {error}"
         ))
     })?;
-    let mut request = client
+    let response = client
         .get(accessor)
-        .header("Authorization", format!("Bearer {jwt}"));
-    if let Some(secret) = broker_secret {
-        request = request.header("X-Systemprompt-Credential-Broker", secret);
-    }
-    let response = request.send().await.map_err(|e| {
-        McpDomainError::Transport(format!("token accessor request failed for '{server}': {e}"))
-    })?;
+        .header("Authorization", format!("Bearer {jwt}"))
+        .header("X-Systemprompt-Credential-Broker", broker_secret)
+        .send()
+        .await
+        .map_err(|e| {
+            McpDomainError::Transport(format!("token accessor request failed for '{server}': {e}"))
+        })?;
 
     match response.status() {
         reqwest::StatusCode::OK => {

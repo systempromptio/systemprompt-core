@@ -11,31 +11,47 @@
 //! # Module map
 //!
 //! - [`a2a`] — A2A protocol agent card, message, task, and transport types.
+//! - [`admin`] — admin-dashboard read models.
 //! - [`agui`] — AG-UI streaming event protocol.
 //! - [`ai`] — LLM request/response shapes plus the [`ai::AiProvider`] trait.
 //! - [`api`] — public HTTP envelopes, error model, pagination, cloud DTOs.
 //! - [`artifacts`] — typed tool-result artifacts.
 //! - [`auth`] — authenticated user, permission, audience, and PKCE types.
+//! - [`bridge`] — bridge wire formats (signed manifest, plugin bundles,
+//!   telemetry).
 //! - [`config`] — global [`config::Config`] singleton and validation helpers.
 //! - [`content`], [`content_config`] — published content metadata.
+//! - [`env`](mod@env) — `${VAR}` interpolation over environment variables.
 //! - [`errors`] — `thiserror`-derived public error enums.
 //! - [`events`] — analytics, A2A and system event envelopes.
 //! - [`execution`] — request context and execution-step bookkeeping.
 //! - [`extension`] — extension framework manifest types.
+//! - [`gateway_hash`] — deterministic gateway conversation-id derivation.
+//! - [`macros`] — builder-setter macros used by the crate's builder types.
+//! - [`managed`] — verified managed-resource revision bundles.
 //! - [`mcp`] — MCP protocol metadata helpers.
+//! - [`mime`] — canonical file-extension ↔ MIME mapping.
 //! - [`modules`] — module manifest tree resolution.
+//! - [`net`] — timeout constants and the outbound-URL (SSRF) validator.
 //! - [`oauth`] — OAuth client / server config shapes.
-//! - [`paths`] — well-known directory layout helpers.
+//! - [`paths`] — path-resolution contract and well-known directory constants.
 //! - [`profile`] — on-disk profile and bootstrap configuration.
-//! - [`repository`] — repository lifecycle traits and value objects.
+//! - [`repository`] — repository value objects and managed-service records.
 //! - [`routing`] — request routing classification.
+//! - [`schema`] — JSON-Schema capability matrices and sanitisation.
 //! - [`scope`] — per-request scoping identity for scoped DB transactions.
 //! - [`secrets`] — secrets document model.
 //! - [`services`] — services manifest (agents, plugins, hooks, MCP, …).
+//! - [`subprocess`] — identity contract for supervised child processes.
+//! - [`text`], [`time_format`] — display formatting helpers.
 //! - [`users`] — public user / session summaries.
 //! - [`validators`] — startup configuration validation passes.
 //! - [`wire`] — canonical AI wire types and per-protocol codecs (gateway +
 //!   agent clients).
+//!
+//! No module here spawns processes or opens sockets: process spawning lives
+//! in `systemprompt-loader`, outbound HTTP in `systemprompt-client`, and path
+//! resolution against the filesystem in `systemprompt-config`.
 //!
 //! # Feature flags
 //!
@@ -69,7 +85,9 @@ pub mod errors;
 pub mod events;
 pub mod execution;
 pub mod extension;
+pub mod feedback;
 pub mod gateway_hash;
+pub mod managed;
 pub mod mcp;
 pub mod mime;
 pub mod modules;
@@ -91,12 +109,12 @@ pub mod validators;
 pub mod wire;
 
 pub use a2a::{
-    AgentAuthentication, AgentCapabilities, AgentCard, AgentCardBuilder, AgentCardSignature,
-    AgentExtension, AgentInterface, AgentProvider, AgentSkill, ApiKeyLocation,
-    Artifact as A2aArtifact, ArtifactMetadata, ArtifactSummary, DataPart, FileContent, FilePart,
-    McpServerMetadata, McpToolsParams, Message, MessageMetadata as A2aMessageMetadata,
-    MessageRole as A2aMessageRole, OAuth2Flow, OAuth2Flows, Part, ProtocolBinding, SecurityScheme,
-    Task, TaskMetadata, TaskState, TaskStatus, TextPart, TransportProtocol,
+    AgentCapabilities, AgentCard, AgentCardBuilder, AgentCardSignature, AgentExtension,
+    AgentInterface, AgentProvider, AgentSkill, ApiKeyLocation, Artifact as A2aArtifact,
+    ArtifactMetadata, ArtifactSummary, DataPart, FileContent, FilePart, McpServerMetadata,
+    McpToolsParams, Message, MessageMetadata as A2aMessageMetadata, MessageRole as A2aMessageRole,
+    OAuth2Flow, OAuth2Flows, Part, ProtocolBinding, SecurityScheme, Task, TaskMetadata, TaskState,
+    TaskStatus, TextPart, TransportProtocol,
 };
 pub use admin::{
     ActivityTrend, AnalyticsData as AdminAnalyticsData, BotTrafficStats, BrowserBreakdown,
@@ -161,23 +179,20 @@ pub use extension::{
 };
 pub use mcp::{
     Deployment, DeploymentConfig, DynMcpDeploymentProvider, DynMcpRegistry, DynMcpToolProvider,
-    ERROR as MCP_ERROR, McpAuthState, McpDeploymentProvider, McpProvider, McpRegistry,
-    McpServerConfig, McpServerState, McpToolProvider, OAuthRequirement, RUNNING as MCP_RUNNING,
-    RegistryConfig, STARTING as MCP_STARTING, STOPPED as MCP_STOPPED, Settings,
+    ERROR as MCP_ERROR, McpAuthState, McpDeploymentProvider, McpRegistry, McpServerConfig,
+    McpServerState, McpToolProvider, OAuthRequirement, RUNNING as MCP_RUNNING, RegistryConfig,
+    STARTING as MCP_STARTING, STOPPED as MCP_STOPPED, Settings,
 };
 pub use modules::{ApiPaths, CliPaths, ServiceCategory};
 pub use oauth::{OAuthClientConfig, OAuthServerConfig};
-pub use paths::{
-    AppPaths, BuildPaths, PathError, PathResolution, StoragePaths, SystemPaths, WebPaths,
-    cloud_container, dir_names, file_names,
-};
+pub use paths::{PathResolution, cloud_container, dir_names, file_names};
 pub use profile::{
     CloudConfig, CloudValidationMode, ContentNegotiationConfig,
     DatabaseConfig as ProfileDatabaseConfig, Environment, ExtensionsConfig, LogLevel, OutputFormat,
     PathsConfig, Profile, ProfileInfo, ProfileStyle, ProfileType, RateLimitsConfig, RuntimeConfig,
     SecurityConfig, SecurityHeadersConfig, ServerConfig, SiteConfig,
 };
-pub use repository::{ServiceLifecycle, ServiceRecord, WhereClause};
+pub use repository::{ServiceRecord, WhereClause};
 pub use routing::{ApiCategory, AssetType, RouteClassifier, RouteType};
 pub use scope::RequestScope;
 pub use secrets::Secrets;

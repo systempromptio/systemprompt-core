@@ -17,7 +17,7 @@ async fn prepare_port_is_a_no_op_while_this_process_still_holds_the_port() {
     let (listener, port) = held_port();
 
     assert!(
-        NetworkService::is_port_responsive(port),
+        NetworkService::is_port_responsive(port).await,
         "the port this test holds must probe as in use"
     );
 
@@ -26,7 +26,7 @@ async fn prepare_port_is_a_no_op_while_this_process_still_holds_the_port() {
     let result = NetworkService::new()
         .prepare_port(port, "systemprompt")
         .await;
-    let still_held = NetworkService::is_port_responsive(port);
+    let still_held = NetworkService::is_port_responsive(port).await;
     drop(listener);
 
     result.expect("preparing an occupied port reports no error");
@@ -39,12 +39,12 @@ async fn prepare_port_is_a_no_op_while_this_process_still_holds_the_port() {
 #[tokio::test]
 async fn is_port_responsive_flips_to_false_once_the_listener_is_dropped() {
     let (listener, port) = held_port();
-    assert!(NetworkService::is_port_responsive(port));
+    assert!(NetworkService::is_port_responsive(port).await);
 
     drop(listener);
 
     assert!(
-        !NetworkService::is_port_responsive(port),
+        !NetworkService::is_port_responsive(port).await,
         "a closed listener refuses the probe"
     );
 }
@@ -85,6 +85,4 @@ async fn wait_for_port_release_with_retry_succeeds_for_a_released_port() {
         .wait_for_port_release_with_retry(port, "systemprompt", 2)
         .await
         .expect("a released port passes on the first attempt");
-
-    NetworkService::cleanup_port_resources(port);
 }

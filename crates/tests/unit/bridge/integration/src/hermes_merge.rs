@@ -1,6 +1,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use systemprompt_bridge::ids::LoopbackSecret;
 use systemprompt_bridge::integration::hermes::HERMES_HOST;
 use systemprompt_bridge::integration::host_app::{HostApp, ProfileGenInputs, ProfileRemoval};
 
@@ -14,12 +15,12 @@ fn with_hermes_home<R>(body: impl FnOnce(&Path) -> R) -> R {
 fn inputs() -> ProfileGenInputs {
     ProfileGenInputs {
         gateway_base_url: "http://127.0.0.1:48217".to_owned(),
-        api_key: "loopback-secret-value".to_owned(),
+        api_key: LoopbackSecret::new("loopback-secret-value"),
         models: vec!["gpt-5".to_owned(), "gpt-5-mini".to_owned()],
         default_model: None,
         organization_uuid: Some("00000000-0000-4000-8000-000000000009".to_owned()),
         headers: Default::default(),
-        mcp_servers: Vec::new(),
+        mcp_servers: Some(Vec::new()),
     }
 }
 
@@ -30,7 +31,10 @@ fn install(home: &Path) {
     HERMES_HOST
         .install_profile(&generated.path)
         .expect("install merges into config.yaml");
-    _ = fs::remove_file(&generated.path);
+    assert!(
+        !Path::new(&generated.path).exists(),
+        "the installer consumes the generated profile"
+    );
     assert!(
         home.join("config.yaml").is_file(),
         "install writes HERMES_HOME/config.yaml"
@@ -77,7 +81,7 @@ fn generating_a_profile_writes_yaml_carrying_the_loopback_endpoint_and_key_marke
     );
     assert_eq!(generated.bytes, body.len());
     assert_ne!(generated.payload_uuid, generated.profile_uuid);
-    _ = fs::remove_file(&generated.path);
+    fs::remove_file(&generated.path).expect("the generated profile is a real file");
 }
 
 #[test]

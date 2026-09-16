@@ -3,7 +3,6 @@
 //! a real database can still enrich it.
 
 use chrono::{Duration, Utc};
-use systemprompt_analytics::SessionRepository;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fixture_db_pool};
 use uuid::Uuid;
 
@@ -16,7 +15,9 @@ async fn backfill_without_a_reader_updates_nothing_and_is_idempotent() {
     };
     ensure_test_bootstrap();
     let pool = fixture_db_pool(&url).await.expect("pool");
-    let repo = SessionRepository::new(&pool).expect("repo");
+    let repo = systemprompt_test_fixtures::fixture_analytics_repositories(&pool)
+        .map(|repositories| repositories.sessions)
+        .expect("repo");
 
     let sid = unique_session_id();
     let fp = format!("fp-{}", Uuid::new_v4());

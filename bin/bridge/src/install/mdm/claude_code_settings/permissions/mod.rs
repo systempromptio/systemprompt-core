@@ -163,7 +163,18 @@ fn splice_rules(
     }
 }
 
-pub(crate) fn apply_permissions(rules: &PermissionRules) -> Result<Vec<String>, MdmError> {
+/// Where the derived rules landed.
+///
+/// `NoCarrier` means the rules were recorded in the sidecar but no settings
+/// file the bridge owns exists yet to hold them, so Claude Code keeps
+/// prompting until `install --apply` creates one.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PermissionOutcome {
+    Written(Vec<String>),
+    NoCarrier { rules: usize, standalone: PathBuf },
+}
+
+pub(crate) fn apply_permissions(rules: &PermissionRules) -> Result<PermissionOutcome, MdmError> {
     let previously = read_sidecar()?;
     let mut lines = Vec::new();
     let standalone =
@@ -193,13 +204,14 @@ pub(crate) fn apply_permissions(rules: &PermissionRules) -> Result<Vec<String>, 
             rules.deny.len()
         ));
     }
-    if lines.is_empty() && !rules.is_empty() {
-        return Err(MdmError::Resolve(
-            "a Claude Code settings file to carry the permission rules",
-        ));
-    }
     write_sidecar(rules)?;
-    Ok(lines)
+    if lines.is_empty() && !rules.is_empty() {
+        return Ok(PermissionOutcome::NoCarrier {
+            rules: rules.allow.len() + rules.deny.len(),
+            standalone,
+        });
+    }
+    Ok(PermissionOutcome::Written(lines))
 }
 
 pub(super) fn strip_owned_rules(

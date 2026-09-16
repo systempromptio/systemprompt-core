@@ -11,6 +11,7 @@ use super::types::{AgentStatusOutput, AgentStatusRow};
 use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 use systemprompt_agent::AgentState;
+use systemprompt_agent::services::a2a_server::streaming::webhook_client::HttpWebhookBroadcaster;
 use systemprompt_agent::services::agent_orchestration::{AgentOrchestrator, AgentStatus};
 use systemprompt_loader::ConfigLoader;
 use systemprompt_oauth::JwtValidationProviderImpl;
@@ -37,6 +38,7 @@ pub(super) async fn execute(args: StatusArgs, ctx: &CommandContext) -> Result<Co
         Arc::new(app.config().clone()),
         jwt_provider,
         Arc::clone(app.a2a_repositories()),
+        Arc::new(HttpWebhookBroadcaster::from_config(app.config())?),
     ));
 
     let orchestrator = AgentOrchestrator::new(agent_state, Arc::clone(app.app_paths_arc()), None)

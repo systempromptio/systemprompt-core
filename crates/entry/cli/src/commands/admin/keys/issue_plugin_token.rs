@@ -13,7 +13,6 @@ use uuid::Uuid;
 use systemprompt_cloud::CredentialsBootstrap;
 use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
 use systemprompt_database::{Database, DbPool};
-use systemprompt_logging::CliService;
 use systemprompt_oauth::services::plugin_token::{PluginTokenService, PluginTokenSubject};
 use systemprompt_users::{UserRepository, UserService};
 
@@ -123,8 +122,7 @@ pub(super) async fn execute(args: IssuePluginTokenArgs) -> Result<CommandOutput>
     };
 
     if args.token_only {
-        CliService::output(&issued.token);
-        return Ok(CommandOutput::card_value("Plugin-scope JWT", &output).with_skip_render());
+        return Ok(CommandOutput::text(&issued.token));
     }
 
     Ok(CommandOutput::card_value("Plugin-scope JWT", &output))

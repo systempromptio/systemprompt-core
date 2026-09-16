@@ -17,7 +17,7 @@ async fn test_event_bus_publish() {
 
     let event = McpEvent::ServiceStarted {
         service_name: "test-service".to_string(),
-        process_id: 1234,
+        process_id: Some(1234),
         port: 8080,
     };
 
@@ -40,7 +40,7 @@ async fn test_event_bus_publish_multiple_events() {
         },
         McpEvent::ServiceStarted {
             service_name: "service1".to_string(),
-            process_id: 1234,
+            process_id: Some(1234),
             port: 8080,
         },
         McpEvent::ServiceStopped {
@@ -67,7 +67,7 @@ async fn test_event_bus_publish_without_subscribers() {
 
     let event = McpEvent::ServiceStarted {
         service_name: "test-service".to_string(),
-        process_id: 1234,
+        process_id: Some(1234),
         port: 8080,
     };
 
@@ -83,7 +83,7 @@ async fn test_event_bus_publish_to_multiple_subscribers() {
 
     let event = McpEvent::ServiceStarted {
         service_name: "test-service".to_string(),
-        process_id: 1234,
+        process_id: Some(1234),
         port: 8080,
     };
 

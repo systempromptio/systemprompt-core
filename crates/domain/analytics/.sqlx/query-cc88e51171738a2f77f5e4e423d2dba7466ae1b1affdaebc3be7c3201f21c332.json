@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM analytics_normalized_facts n WHERE owner_id=$1 AND (n.occurred_at<$2 OR EXISTS(SELECT 1 FROM analytics_normalized_facts old WHERE old.owner_id=n.owner_id AND old.occurred_at<$2 AND ((old.fact_kind='request' AND n.request_source=old.source AND n.request_id=old.fact_id) OR (old.fact_kind='invocation' AND n.invocation_source=old.source AND n.invocation_id=old.fact_id))))",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "cc88e51171738a2f77f5e4e423d2dba7466ae1b1affdaebc3be7c3201f21c332"
+}

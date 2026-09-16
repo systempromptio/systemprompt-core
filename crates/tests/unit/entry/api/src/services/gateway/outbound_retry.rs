@@ -20,7 +20,7 @@ use systemprompt_api::services::gateway::protocol::outbound::retry::{
 use systemprompt_api::services::gateway::protocol::outbound::{
     OutboundAdapter, OutboundCtx, OutboundOutcome, UpstreamError,
 };
-use systemprompt_identifiers::{ProviderId, RouteId};
+use systemprompt_identifiers::{ModelId, ProviderId, RouteId};
 use systemprompt_models::services::GatewayRoute;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -40,7 +40,7 @@ fn route() -> GatewayRoute {
 
 fn request() -> CanonicalRequest {
     CanonicalRequest {
-        model: "m".into(),
+        model: ModelId::new("m"),
         system: None,
         messages: vec![CanonicalMessage {
             role: Role::User,

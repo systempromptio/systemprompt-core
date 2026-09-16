@@ -17,12 +17,13 @@ use systemprompt_evaluation::experiments::{
     VariantSpec,
 };
 use systemprompt_evaluation::repository::experiments::{
-    BudgetRepository, EvidenceRepository, ExecutionLease, ExperimentRepository,
-    ManagedWorkspaceRegistration, RevisionRepository,
+    EvidenceRepository, ExecutionLease, ManagedWorkspaceRegistration, RevisionRepository,
 };
 use systemprompt_identifiers::{
-    AiRequestId, EvalExecutionId, EvalRevisionId, EvalWorkerId, ModelId, ProviderId, UserId,
+    AiRequestId, EvalExecutionId, EvalRevisionId, EvalWorkerId, ModelId, ProviderId,
+    ResourceRevisionId, UserId,
 };
+use systemprompt_models::managed::RevisionBundle;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fixture_db_pool};
 use uuid::Uuid;
 
@@ -67,14 +68,15 @@ fn workspace(files: &[(&str, &str)]) -> EvidenceArchive {
     }
 }
 
-fn managed_projection() -> serde_json::Value {
+fn managed_projection() -> RevisionBundle {
     let digest = "d59386e0ae435e292fbe0ebcdb954b75ed5fb3922091277cb19f798fc5d50718";
-    serde_json::json!({
+    serde_json::from_value(serde_json::json!({
         "schema_version":1,"assembler_version":"managed-bundle-v1","root":"managed-revision-1",
         "revisions":{"managed-revision-1":{"schema_version":1,"snapshot_id":"snapshot-1","parent_id":null,
             "files":{"asset.bin":{"digest":digest,"bytes":5,"media_type":"application/octet-stream","executable":true}},"dependencies":{}}},
         "assets":{(digest):b"asset"}
-    })
+    }))
+    .expect("projection is a well-formed bundle")
 }
 
 fn capabilities() -> ClientCapabilities {
@@ -193,11 +195,12 @@ async fn fixture(pool: &PgPool) -> Fixture {
     ] {
         sqlx::query!("INSERT INTO eval_managed_workspace_projections(owner_id,digest,managed_revision_id,manifest,verified_file_count,verified_byte_count) VALUES($1,$2,$3,$4,0,0)", owner.as_str(), &digest, revision, serde_json::json!({"projection": revision})).execute(pool).await.expect("managed projection");
     }
-    let budget = BudgetRepository::new(pool.clone())
+    let budget = crate::seams::budgets(&pool)
         .create_shared(&owner, &format!("budget-{}", Uuid::new_v4()), 100)
         .await
         .expect("budget");
-    let experiments = ExperimentRepository::new(pool.clone());
+    let experiments =
+        crate::seams::experiments(&pool, crate::fixture_admission::fixture_admission());
     let rubric_content = ResourceContent::Rubric(RubricContent {
         dimensions: vec![WeightedDimension {
             name: "grounding".to_owned(),
@@ -235,7 +238,7 @@ async fn fixture(pool: &PgPool) -> Fixture {
         .build()
         .expect("lease");
     Fixture {
-        evidence: EvidenceRepository::new(pool.clone()),
+        evidence: crate::seams::evidence(&pool),
         owner,
         lease,
     }
@@ -248,7 +251,7 @@ fn evidence_for(lease: &ExecutionLease, elapsed: u64) -> ExecutionEvidence {
         capabilities: capabilities(),
         installed_bundle_digest: BUNDLE_DIGEST.to_owned(),
         candidate_bundle_digest: BUNDLE_DIGEST.to_owned(),
-        workspace_digest: workspace(&[]).digest().expect("digest"),
+        workspace_digest: "b".repeat(64),
         requests: Vec::new(),
         artifacts: Vec::new(),
         exit_code: Some(0),
@@ -262,7 +265,7 @@ async fn managed_workspace_projections_are_stored_once_and_read_back_in_scope() 
     let Some(pool) = evidence_pool().await else {
         return;
     };
-    let evidence = EvidenceRepository::new(pool.clone());
+    let evidence = crate::seams::evidence(&pool);
     let owner = new_owner(&pool).await;
     let manifest = managed_projection();
     let digest = systemprompt_evaluation::experiments::content_digest(&manifest).expect("digest");
@@ -270,7 +273,7 @@ async fn managed_workspace_projections_are_stored_once_and_read_back_in_scope() 
         .register_managed_workspace(
             &owner,
             &ManagedWorkspaceRegistration {
-                managed_revision_id: "managed-revision-1",
+                managed_revision_id: &ResourceRevisionId::new("managed-revision-1"),
                 publication_generation: Some(1),
                 manifest: &manifest,
                 expected_digest: &digest,
@@ -284,7 +287,7 @@ async fn managed_workspace_projections_are_stored_once_and_read_back_in_scope() 
         .register_managed_workspace(
             &owner,
             &ManagedWorkspaceRegistration {
-                managed_revision_id: "managed-revision-1",
+                managed_revision_id: &ResourceRevisionId::new("managed-revision-1"),
                 publication_generation: Some(1),
                 manifest: &manifest,
                 expected_digest: &digest,
@@ -299,7 +302,7 @@ async fn managed_workspace_projections_are_stored_once_and_read_back_in_scope() 
         .get_managed_workspace(&owner, &digest)
         .await
         .expect("get workspace");
-    assert_eq!(loaded.managed_revision_id, "managed-revision-1");
+    assert_eq!(loaded.managed_revision_id.as_str(), "managed-revision-1");
     assert_eq!(loaded.manifest, manifest);
 
     assert!(matches!(
@@ -324,7 +327,7 @@ async fn a_managed_workspace_stored_under_the_wrong_digest_is_refused_on_read() 
     let Some(pool) = evidence_pool().await else {
         return;
     };
-    let evidence = EvidenceRepository::new(pool.clone());
+    let evidence = crate::seams::evidence(&pool);
     let owner = new_owner(&pool).await;
     let claimed = "d".repeat(64);
 
@@ -359,7 +362,6 @@ async fn submitted_evidence_is_readable_and_immutable() {
     };
     let mut evidence = evidence_for(&f.lease, 1_200);
     evidence.artifacts = vec![manifest];
-    evidence.workspace_digest = artifacts.digest().expect("digest");
 
     f.evidence
         .submit(&f.owner, &f.lease, &evidence, &artifacts)

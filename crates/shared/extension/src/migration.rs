@@ -74,11 +74,11 @@ impl Migration {
         }
     }
 
+    // Why: the digest is persisted in `extension_migrations.checksum` and
+    // compared on every boot, so it must be a specified algorithm — std's
+    // `DefaultHasher` is documented as free to change between releases.
     #[must_use]
     pub fn checksum(&self) -> String {
-        use std::hash::{Hash, Hasher};
-        let mut hasher = std::collections::hash_map::DefaultHasher::new();
-        self.sql.hash(&mut hasher);
-        format!("{:x}", hasher.finish())
+        format!("{:016x}", xxhash_rust::xxh64::xxh64(self.sql.as_bytes(), 0))
     }
 }

@@ -41,6 +41,7 @@ pub struct ValidationError {
     pub message: String,
     pub code: String,
     #[serde(skip_serializing_if = "Option::is_none")]
+    // JSON: Validation context echoes the offending request fragment, whatever its shape.
     pub context: Option<Value>,
 }
 

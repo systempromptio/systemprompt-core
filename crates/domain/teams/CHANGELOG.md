@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.53.0] - 2026-09-15
+
+### Changed
+
+- `TeamsError::Outbound` carries an `<unreadable body: …>` marker when the error response body could not be read.
+
 ## [0.50.0] - 2026-09-10
 
 ### Fixed

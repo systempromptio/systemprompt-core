@@ -11,6 +11,7 @@ pub mod credential_helper;
 mod dev_web;
 pub mod diagnostics;
 pub mod doctor;
+mod feedback;
 mod gui;
 mod install;
 mod install_claude_policy;
@@ -33,12 +34,43 @@ use std::sync::Arc;
 use crate::context::{BridgeContext, ProxyMode};
 use crate::stdio::{self, diag};
 
-pub fn run() -> ExitCode {
+/// How the process was started, decided once before argument parsing.
+///
+/// `gui_by_default` is true only for a launch with no console of its own — a
+/// double-click on Windows (no parent console to attach) or an app-bundle
+/// launch on macOS — so a scheduler or a pipe with no subcommand gets the
+/// credential helper, not a GUI.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct Launch {
+    pub gui_by_default: bool,
+}
+
+impl Launch {
+    #[must_use]
+    #[cfg_attr(
+        not(any(target_os = "windows", target_os = "macos")),
+        expect(
+            clippy::missing_const_for_fn,
+            reason = "the console probe is a runtime call on Windows and macOS"
+        )
+    )]
+    pub fn detect() -> Self {
+        Self {
+            gui_by_default: args::launched_without_console(),
+        }
+    }
+}
+
+pub fn run(launch: Launch) -> ExitCode {
     let args: Vec<String> = env::args().collect();
-    run_with_args(&args)
+    run_launch(&args, launch)
 }
 
 pub fn run_with_args(args: &[String]) -> ExitCode {
+    run_launch(args, Launch::default())
+}
+
+pub fn run_launch(args: &[String], launch: Launch) -> ExitCode {
     let command = args.get(1).map(String::as_str);
     match command {
         Some("--version" | "-V" | "version") => {
@@ -58,7 +90,7 @@ pub fn run_with_args(args: &[String]) -> ExitCode {
         _ => {},
     }
 
-    let default_gui = args.len() == 1 && args::should_default_to_gui();
+    let default_gui = args.len() == 1 && launch.gui_by_default;
     let mode = if default_gui || matches!(command, Some("proxy" | "gui")) {
         ProxyMode::Serve
     } else {
@@ -81,6 +113,8 @@ fn dispatch(command: Option<&str>, args: &[String], ctx: Arc<BridgeContext>) -> 
     match command {
         None | Some("run") => run::cmd_run(&ctx),
         Some("proxy") => proxy::cmd_proxy(&ctx),
+        Some("device-enroll") => feedback::enroll(&ctx, args),
+        Some("feedback-status") => feedback::status(),
         Some("login") => login::cmd_login(&ctx, args),
         Some("logout") => logout::cmd_logout(),
         Some("clean") => clean::cmd_clean(),

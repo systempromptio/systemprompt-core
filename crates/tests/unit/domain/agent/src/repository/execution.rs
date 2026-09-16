@@ -1,5 +1,5 @@
 use super::{repos, seed_context_and_task, seed_user_and_session, try_pool_or_skip};
-use systemprompt_identifiers::{McpExecutionId, TaskId};
+use systemprompt_identifiers::TaskId;
 use systemprompt_models::{ExecutionStep, StepContent, StepId, StepStatus, StepType};
 
 #[tokio::test]
@@ -248,20 +248,6 @@ async fn complete_planning_step_returns_step() {
     assert_eq!(completed.reasoning(), Some("because"));
 
     r.tasks.delete_task(&task_id).await.ok();
-}
-
-#[tokio::test]
-async fn mcp_execution_id_exists_false_for_unknown() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
-    let r = repos(&pool);
-    let exists = r
-        .execution_steps
-        .mcp_execution_id_exists(&McpExecutionId::new("does-not-exist-xyz"))
-        .await
-        .expect("check");
-    assert!(!exists);
 }
 
 #[tokio::test]

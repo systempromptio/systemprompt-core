@@ -24,13 +24,14 @@ use axum::body::{Body, to_bytes};
 use axum::extract::ConnectInfo;
 use axum::http::{Request, StatusCode, header};
 use http::Method;
-use systemprompt_analytics::{AnalyticsService, FingerprintRepository};
+use systemprompt_analytics::AnalyticsService;
 use systemprompt_api::services::server::setup_api_server;
+use systemprompt_config::paths::AppPaths;
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_marketplace::AllowAllFilter;
 use systemprompt_mcp::services::registry::RegistryService;
+use systemprompt_models::RouteClassifier;
 use systemprompt_models::profile::PathsConfig;
-use systemprompt_models::{AppPaths, RouteClassifier};
 use systemprompt_runtime::{
     AppContext, ConfigPlane, DataPlane, ModuleApiRegistry, Plugins, Subsystems,
 };
@@ -64,24 +65,33 @@ async fn boot_full_router() -> anyhow::Result<axum::Router> {
 
     let ctx = Arc::new(AppContext::from_parts(
         {
-            let analytics_repositories =
-                Arc::new(systemprompt_analytics::repository::AnalyticsRepositories::new(&pool)?);
+            let analytics_repositories = Arc::new(
+                systemprompt_test_fixtures::fixture_analytics_repositories(&pool)?,
+            );
             let analytics_service =
                 Arc::new(AnalyticsService::new(None, None, &analytics_repositories));
             let session_usage: systemprompt_traits::DynSessionUsageCounters =
-                Arc::new(analytics_service.session_repo().clone());
+                analytics_service.session_repo().owner();
             let sqlx_pool = pool.pool_arc()?.as_ref().clone();
             DataPlane {
                 database: Arc::clone(&pool),
                 analytics_service,
-                fingerprint_repo: Some(Arc::new(FingerprintRepository::new(&pool)?)),
+                fingerprint_repo: Some(Arc::new(
+                    systemprompt_test_fixtures::fixture_fingerprint_repository(&pool)?,
+                )),
                 user_service: Some(Arc::new(UserService::new(Arc::new(UserRepository::new(
                     &pool,
                 )?)))),
                 a2a_repositories: Arc::new(systemprompt_agent::repository::A2ARepositories::new(
                     &pool,
-                    session_usage,
-                    systemprompt_identifiers::InstanceId::new("test-instance"),
+                    systemprompt_agent::repository::A2aDependencies {
+                        session_usage,
+                        instance_id: systemprompt_identifiers::InstanceId::new("test-instance"),
+                        managed_skills: systemprompt_test_fixtures::not_managed_skills(),
+                        tool_executions: systemprompt_test_fixtures::tool_execution_ledger(
+                            systemprompt_test_fixtures::ToolExecutionLedger::Exists,
+                        ),
+                    },
                 )?),
                 content_repositories: Arc::new(
                     systemprompt_content::repository::ContentRepositories::new(&pool)?,
@@ -100,13 +110,24 @@ async fn boot_full_router() -> anyhow::Result<axum::Router> {
                 mcp_session_repository: Arc::new(
                     systemprompt_mcp::repository::McpSessionRepository::new(&pool)?,
                 ),
+                feedback_snapshots_repository: Arc::new(
+                    systemprompt_analytics::snapshots::FeedbackSnapshotsRepository::new(
+                        sqlx_pool.clone(),
+                        systemprompt_analytics::feedback::FeedbackFactsRepository::new(
+                            sqlx_pool.clone(),
+                        ),
+                    ),
+                ),
+                feedback_facts_repository: Arc::new(
+                    systemprompt_analytics::feedback::FeedbackFactsRepository::new(
+                        sqlx_pool.clone(),
+                    ),
+                ),
                 managed_repository: Arc::new(
-                    systemprompt_marketplace::managed::ManagedRepository::new(sqlx_pool.clone()),
+                    systemprompt_marketplace::managed::ManagedRepository::new(&pool)?,
                 ),
                 evaluation_repositories: Arc::new(
-                    systemprompt_evaluation::repository::experiments::EvaluationRepositories::new(
-                        &sqlx_pool,
-                    ),
+                    systemprompt_test_fixtures::fixture_evaluation_repositories(&pool)?,
                 ),
             }
         },
@@ -121,10 +142,13 @@ async fn boot_full_router() -> anyhow::Result<axum::Router> {
             api_registry: Arc::new(ModuleApiRegistry::new()),
             mcp_registry: RegistryService::new(fixture_user_id()),
             marketplace_filter: Arc::new(AllowAllFilter),
+            marketplace_cache: Arc::new(systemprompt_marketplace::MarketplaceCache::default()),
         },
         Subsystems {
             system_admin: Arc::new(fixture_system_admin("admin")),
             authz_hook: Arc::new(AllowAllHook::new(Arc::new(NullAuditSink))),
+            governance: systemprompt_test_fixtures::default_governance_engine(),
+            schema_install: Arc::new(systemprompt_database::SchemaInstallReport::default()),
             event_bridge: Arc::new(OnceLock::new()),
             geoip_reader: None,
             file_storage: systemprompt_storage::build_file_storage(
@@ -132,6 +156,10 @@ async fn boot_full_router() -> anyhow::Result<axum::Router> {
                 &std::env::temp_dir(),
             ),
             shutdown: Default::default(),
+            publish_guard: Arc::new(tokio::sync::Mutex::new(
+                systemprompt_marketplace::inventory::PublishGuard::default(),
+            )),
+            snapshot_wakeup: Arc::new(systemprompt_runtime::reporting::SnapshotWakeup::default()),
         },
     ));
     let router = setup_api_server(&ctx, None)

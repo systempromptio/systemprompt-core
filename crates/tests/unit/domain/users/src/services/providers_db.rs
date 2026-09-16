@@ -3,21 +3,21 @@
 
 use std::sync::Arc;
 use systemprompt_identifiers::UserId;
-use systemprompt_test_fixtures::{
-    closed_db_pool, ensure_test_bootstrap, fixture_database_url, fixture_db_pool,
-};
+use systemprompt_test_fixtures::{closed_db_pool, ensure_test_bootstrap};
 use systemprompt_traits::FederatedIdentityClaims;
 use systemprompt_traits::auth::AuthProviderError;
 use systemprompt_users::{RoleProvider, UserProvider, UserRepository, UserService};
 use uuid::Uuid;
 
-async fn setup_or_skip() -> Option<UserService> {
-    let url = fixture_database_url().ok()?;
-    ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
-    Some(UserService::new(Arc::new(
-        UserRepository::new(&pool).expect("user repository"),
-    )))
+async fn setup_or_skip() -> Option<(UserService, crate::privacy_fixture::PrivacyFixture)> {
+    let fixture = crate::privacy_fixture::PrivacyFixture::new().await?;
+    let pool = fixture.pool.clone();
+    Some((
+        UserService::new(Arc::new(
+            UserRepository::new(&pool).expect("user repository"),
+        )),
+        fixture,
+    ))
 }
 
 fn unique(prefix: &str) -> (String, String) {
@@ -30,7 +30,7 @@ fn unique(prefix: &str) -> (String, String) {
 
 #[tokio::test]
 async fn user_provider_creates_and_finds_auth_users() {
-    let Some(service) = setup_or_skip().await else {
+    let Some((service, fixture)) = setup_or_skip().await else {
         return;
     };
     let (name, email) = unique("provider");
@@ -72,12 +72,14 @@ async fn user_provider_creates_and_finds_auth_users() {
         .expect("get_roles");
     assert!(roles.contains(&"admin".to_owned()));
 
+    fixture.drain().await;
     service.delete(&created.id).await.expect("cleanup");
+    fixture.finish().await;
 }
 
 #[tokio::test]
 async fn user_provider_creates_anonymous_and_federated_identities() {
-    let Some(service) = setup_or_skip().await else {
+    let Some((service, fixture)) = setup_or_skip().await else {
         return;
     };
     let fingerprint = format!("prov-anon-{}", Uuid::new_v4().simple());
@@ -105,13 +107,16 @@ async fn user_provider_creates_anonymous_and_federated_identities() {
     assert!(fed_user.name.starts_with("fedprov"));
     assert_eq!(fed_user.roles, vec!["operator".to_owned()]);
 
+    fixture.drain().await;
     service.delete(&anon.id).await.expect("cleanup anon");
+    fixture.drain().await;
     service.delete(&fed_id).await.expect("cleanup fed");
+    fixture.finish().await;
 }
 
 #[tokio::test]
 async fn role_provider_assign_and_revoke_are_idempotent() {
-    let Some(service) = setup_or_skip().await else {
+    let Some((service, fixture)) = setup_or_skip().await else {
         return;
     };
     let (name, email) = unique("roles");
@@ -138,12 +143,14 @@ async fn role_provider_assign_and_revoke_are_idempotent() {
         .expect("roles after");
     assert!(!after.contains(&"auditor".to_owned()));
 
+    fixture.drain().await;
     service.delete(&created.id).await.expect("cleanup");
+    fixture.finish().await;
 }
 
 #[tokio::test]
 async fn role_provider_lists_by_role_and_ignores_unknown_roles() {
-    let Some(service) = setup_or_skip().await else {
+    let Some((service, fixture)) = setup_or_skip().await else {
         return;
     };
     let (name, email) = unique("byrole");
@@ -164,12 +171,14 @@ async fn role_provider_lists_by_role_and_ignores_unknown_roles() {
         .expect("unknown role");
     assert!(unknown.is_empty());
 
+    fixture.drain().await;
     service.delete(&created.id).await.expect("cleanup");
+    fixture.finish().await;
 }
 
 #[tokio::test]
 async fn missing_user_maps_to_user_not_found() {
-    let Some(service) = setup_or_skip().await else {
+    let Some((service, fixture)) = setup_or_skip().await else {
         return;
     };
     let ghost = UserId::new(Uuid::new_v4().to_string());
@@ -186,6 +195,7 @@ async fn missing_user_maps_to_user_not_found() {
         RoleProvider::revoke_role(&service, &ghost, "admin").await,
         Err(AuthProviderError::UserNotFound)
     ));
+    fixture.finish().await;
 }
 
 #[tokio::test]

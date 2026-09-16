@@ -89,8 +89,11 @@ impl AiProvider for StubProvider {
         "stub-model"
     }
 
-    fn get_pricing(&self, _model: &str) -> systemprompt_ai::services::providers::ModelPricing {
-        systemprompt_ai::services::providers::ModelPricing::default()
+    fn get_pricing(
+        &self,
+        _model: &str,
+    ) -> Option<systemprompt_ai::services::providers::ModelPricing> {
+        Some(systemprompt_ai::services::providers::ModelPricing::default())
     }
 
     async fn generate(&self, _params: GenerationParams<'_>) -> Result<AiResponse> {
@@ -156,7 +159,7 @@ async fn run(provider: &StubProvider) -> String {
         max_output_tokens: 256,
         model: "stub-model",
     };
-    synthesizer.synthesize_or_fallback(params).await
+    synthesizer.synthesize_or_fallback(params).await.content
 }
 
 #[tokio::test]

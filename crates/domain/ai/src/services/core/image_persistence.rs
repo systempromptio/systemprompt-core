@@ -53,7 +53,7 @@ async fn persist_ai_request(
     )
     .provider(&response.provider)
     .model(&response.model)
-    .cost(response.cost_estimate.map_or(0, |c| c.round() as i64))
+    .cost(response.cost_estimate.map_or(0, cents_to_microdollars))
     .latency(response.generation_time_ms as i32)
     .completed();
 
@@ -102,21 +102,17 @@ async fn persist_file_record(
     let image_metadata = ImageMetadata::new().with_generation(generation_info);
     let metadata = serde_json::to_value(image_metadata).map_err(AiError::SerializationError)?;
 
-    let id = Uuid::parse_str(response.id.as_str())
+    let file_id = Uuid::parse_str(response.id.as_str())
+        .map(|uuid| FileId::new(uuid.to_string()))
         .map_err(|e| AiError::InvalidInput(format!("Invalid UUID: {e}")))?;
 
-    let params = InsertAiFileParams {
-        id,
-        path: file_path.to_owned(),
-        public_url: public_url.to_owned(),
-        mime_type: response.mime_type.clone(),
-        size_bytes: response.file_size_bytes.map(|s| s as i64),
-        metadata,
-        user_id: Some(request.user_id.clone()),
-        session_id: request.session_id.clone(),
-        trace_id: request.trace_id.clone(),
-        context_id: None,
-    };
+    let params =
+        InsertAiFileParams::new(file_id, file_path, public_url, response.mime_type.clone())
+            .with_size_bytes(response.file_size_bytes.map(|s| s as i64))
+            .with_metadata(metadata)
+            .with_user_id(Some(request.user_id.clone()))
+            .with_session_id(request.session_id.clone())
+            .with_trace_id(request.trace_id.clone());
 
     file_provider
         .insert_file(params)
@@ -182,4 +178,10 @@ pub(super) async fn delete_image(
     }
 
     Ok(())
+}
+
+// Why: `cost_estimate` is priced in cents while `ai_requests.cost_microdollars`
+// is billed in microdollars; one cent is ten thousand microdollars.
+fn cents_to_microdollars(cents: f32) -> i64 {
+    (f64::from(cents) * 10_000.0).round() as i64
 }

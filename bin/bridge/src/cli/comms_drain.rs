@@ -70,19 +70,17 @@ pub fn cmd_comms_drain() -> ExitCode {
 }
 
 fn drain(session_id: &crate::ids::HookSessionId) -> Vec<InboxLine> {
-    let safe: String = session_id
-        .as_str()
-        .chars()
-        .filter(|c| c.is_ascii_alphanumeric() || *c == '-' || *c == '_')
-        .collect();
-    if safe.is_empty() {
-        return Vec::new();
-    }
-    let Some(path) = crate::proxy::comms::inbox_dir().map(|d| d.join(format!("{safe}.jsonl")))
-    else {
+    let Some(path) = crate::proxy::comms::inbox_path(session_id) else {
         return Vec::new();
     };
-    let taken = path.with_extension(format!("jsonl.{}.draining", std::process::id()));
+    if let Err(e) = crate::proxy::comms::sweep_draining() {
+        tracing::warn!(error = %e, "could not restore a stranded comms drain file");
+    }
+    let taken = path.with_extension(format!(
+        "jsonl.{}{}",
+        std::process::id(),
+        crate::proxy::comms::DRAINING_SUFFIX
+    ));
     if std::fs::rename(&path, &taken).is_err() {
         return Vec::new();
     }

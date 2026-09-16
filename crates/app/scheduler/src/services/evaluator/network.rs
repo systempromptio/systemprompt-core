@@ -3,12 +3,21 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::{
-    Child, Command, ContainerExecution, ExitStatus, Instant, Path, PathBuf, SchedulerError,
-    SchedulerResult, Stdio,
-};
+use super::{PathBuf, SchedulerError, SchedulerResult, docker_command};
+pub(super) use process::{docker_status, private_log, safe_label, safe_name, wait_bounded};
+
+#[path = "network_process.rs"]
+mod process;
 use serde::Deserialize;
 use std::collections::BTreeMap;
+
+#[derive(Clone, Copy)]
+struct NetworkOwnership<'a> {
+    owner: &'a str,
+    execution: &'a str,
+    worker: &'a str,
+    fence: i64,
+}
 
 #[derive(Debug)]
 pub struct ExecutionNetwork {
@@ -18,6 +27,8 @@ pub struct ExecutionNetwork {
     removed: bool,
     owner_label: String,
     execution_label: String,
+    worker_label: String,
+    fence_label: i64,
 }
 
 impl ExecutionNetwork {
@@ -27,6 +38,47 @@ impl ExecutionNetwork {
         owner: &str,
         execution: &str,
     ) -> SchedulerResult<Self> {
+        Self::create_owned(
+            docker,
+            name,
+            NetworkOwnership {
+                owner,
+                execution,
+                worker: "",
+                fence: 0,
+            },
+        )
+    }
+
+    pub fn create_fenced(
+        docker: PathBuf,
+        name: String,
+        owner: &str,
+        lease: &systemprompt_evaluation::repository::experiments::ExecutionLease,
+    ) -> SchedulerResult<Self> {
+        Self::create_owned(
+            docker,
+            name,
+            NetworkOwnership {
+                owner,
+                execution: lease.execution_id.as_str(),
+                worker: lease.worker_id.as_str(),
+                fence: lease.fencing_token,
+            },
+        )
+    }
+
+    fn create_owned(
+        docker: PathBuf,
+        name: String,
+        ownership: NetworkOwnership<'_>,
+    ) -> SchedulerResult<Self> {
+        let NetworkOwnership {
+            owner,
+            execution,
+            worker,
+            fence,
+        } = ownership;
         if !docker.is_absolute()
             || !safe_name(&name)
             || !safe_label(owner)
@@ -49,6 +101,10 @@ impl ExecutionNetwork {
                 &format!("systemprompt.evaluator.owner={owner}"),
                 "--label",
                 &format!("systemprompt.evaluator.execution={execution}"),
+                "--label",
+                &format!("systemprompt.evaluator.worker={worker}"),
+                "--label",
+                &format!("systemprompt.evaluator.fence={fence}"),
                 &name,
             ],
         )?;
@@ -59,6 +115,8 @@ impl ExecutionNetwork {
             removed: false,
             owner_label: owner.to_owned(),
             execution_label: execution.to_owned(),
+            worker_label: worker.to_owned(),
+            fence_label: fence,
         };
         network.verify(&[])?;
         Ok(network)
@@ -78,7 +136,7 @@ impl ExecutionNetwork {
         if !safe_name(control_network)
             || matches!(control_network, "host" | "bridge" | "default" | "none")
             || !safe_name(&name)
-            || !image.contains("@sha256:")
+            || systemprompt_evaluation::capabilities::proofs::ImmutableImage::parse(image).is_err()
         {
             return Err(SchedulerError::config_error(
                 "Relay requires pinned image and dedicated control network",
@@ -97,6 +155,10 @@ impl ExecutionNetwork {
                 &format!("systemprompt.evaluator.owner={}", self.owner_label),
                 "--label",
                 &format!("systemprompt.evaluator.execution={}", self.execution_label),
+                "--label",
+                &format!("systemprompt.evaluator.worker={}", self.worker_label),
+                "--label",
+                &format!("systemprompt.evaluator.fence={}", self.fence_label),
                 "--network",
                 &self.name,
                 "--read-only",
@@ -120,9 +182,8 @@ impl ExecutionNetwork {
     }
 
     pub fn verify(&self, expected: &[String]) -> SchedulerResult<()> {
-        let output = Command::new(&self.docker)
-            .args(["network", "inspect", &self.name])
-            .output()?;
+        let (mut command, _docker_configuration) = docker_command(&self.docker)?;
+        let output = command.args(["network", "inspect", &self.name]).output()?;
         if !output.status.success() {
             return Err(SchedulerError::config_error(
                 "Execution network inspection failed",
@@ -191,95 +252,6 @@ impl Drop for ExecutionNetwork {
         }
         if let Err(error) = docker_status(&self.docker, &["network", "rm", &self.name]) {
             tracing::error!(network = %self.name, %error, "evaluator network leaked; reconciliation must remove it");
-        }
-    }
-}
-
-pub(super) fn docker_status(docker: &Path, arguments: &[&str]) -> SchedulerResult<()> {
-    let status = Command::new(docker)
-        .args(arguments)
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .status()?;
-    if !status.success() {
-        return Err(SchedulerError::config_error(format!(
-            "Docker {} failed",
-            arguments.first().copied().unwrap_or("command")
-        )));
-    }
-    Ok(())
-}
-
-pub(super) fn safe_name(value: &str) -> bool {
-    !value.is_empty()
-        && value.len() <= 128
-        && value
-            .bytes()
-            .all(|c| c.is_ascii_alphanumeric() || matches!(c, b'-' | b'_'))
-}
-
-pub(super) fn safe_label(value: &str) -> bool {
-    !value.is_empty()
-        && value.len() <= 255
-        && value
-            .bytes()
-            .all(|c| c.is_ascii_alphanumeric() || matches!(c, b'-' | b'_' | b'.'))
-}
-
-pub(super) fn private_log(path: &Path) -> std::io::Result<std::fs::File> {
-    let mut options = std::fs::OpenOptions::new();
-    options.write(true).create_new(true);
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::OpenOptionsExt;
-        options.mode(0o600);
-    }
-    options.open(path)
-}
-
-// Why: cancellation runs from `Drop`, which cannot be async, so the bounded
-// wait has to block. On a multi-threaded runtime it is handed to
-// `block_in_place` so the ten seconds are spent off the async scheduler rather
-// than stalling a worker that still owns other tasks.
-pub(super) fn wait_bounded(child: &mut Child) -> std::io::Result<ExitStatus> {
-    match tokio::runtime::Handle::try_current().map(|handle| handle.runtime_flavor()) {
-        Ok(tokio::runtime::RuntimeFlavor::MultiThread) => {
-            tokio::task::block_in_place(|| poll_until_exit(child))
-        },
-        _ => poll_until_exit(child),
-    }
-}
-
-fn poll_until_exit(child: &mut Child) -> std::io::Result<ExitStatus> {
-    let started = Instant::now();
-    loop {
-        if let Some(status) = child.try_wait()? {
-            return Ok(status);
-        }
-        if started.elapsed().as_secs() >= 10 {
-            child.kill()?;
-            child.wait()?;
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::TimedOut,
-                "Container command timed out",
-            ));
-        }
-        std::thread::sleep(std::time::Duration::from_millis(25));
-    }
-}
-
-impl Drop for ContainerExecution {
-    fn drop(&mut self) {
-        match self.child.try_wait() {
-            Ok(Some(_)) => {},
-            Ok(None) => {
-                if let Err(error) = self.cancel() {
-                    tracing::error!(error = %error, container = %self.name, "Evaluator cleanup requires reconciliation");
-                }
-            },
-            Err(error) => {
-                tracing::error!(error = %error, container = %self.name, "Cannot establish evaluator child state");
-            },
         }
     }
 }

@@ -9,8 +9,8 @@ fn ctx(tag: &str) -> RequestContext {
     RequestContext::new(
         SessionId::new(format!("sess-{tag}")),
         TraceId::new(format!("trace-{tag}")),
-        ContextId::new_unchecked("00000000-0000-4000-8000-000000000001"),
-        AgentName::new(format!("agent-{tag}")),
+        ContextId::try_new("00000000-0000-4000-8000-000000000001").expect("valid ContextId"),
+        AgentName::try_new(format!("agent-{tag}")).expect("valid AgentName"),
     )
 }
 

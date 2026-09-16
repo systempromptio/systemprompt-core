@@ -141,10 +141,3 @@ fn test_consistency_report_log_summary_with_inconsistencies() {
 
     assert!(report.has_inconsistencies());
 }
-
-#[test]
-fn test_reconcile_starting_services_returns_zero() {
-    let result =
-        systemprompt_agent::services::agent_orchestration::reconciler::AgentReconciler::reconcile_starting_services();
-    assert_eq!(result, 0);
-}

@@ -1,0 +1,139 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id,campaign_id,operation_key,stage,code,remediation,first_seen_at,last_seen_at,occurrences,resolved_at FROM eval_campaign_diagnostics WHERE owner_id=$1 AND ($2::text IS NULL OR campaign_id=$2) AND ($3::text IS NULL OR id>$3) ORDER BY id LIMIT $4",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval_campaign_diagnostics",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "campaign_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval_campaign_diagnostics",
+            "name": "campaign_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "operation_key",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval_campaign_diagnostics",
+            "name": "operation_key"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "stage",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval_campaign_diagnostics",
+            "name": "stage"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "code",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval_campaign_diagnostics",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "remediation",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval_campaign_diagnostics",
+            "name": "remediation"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "first_seen_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "eval_campaign_diagnostics",
+            "name": "first_seen_at"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "last_seen_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "eval_campaign_diagnostics",
+            "name": "last_seen_at"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "occurrences",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "eval_campaign_diagnostics",
+            "name": "occurrences"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "resolved_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "eval_campaign_diagnostics",
+            "name": "resolved_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "412dc57fef2132513fd23e4079552ef5c081449ba6f5df7464fedc2b181efc9f"
+}

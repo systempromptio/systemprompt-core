@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM analytics_snapshot_identities WHERE owner_id=$1 AND day=ANY($2)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "DateArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "bce2bce0132de45de09df66a4889a521d974d372a504abe001713a6ab710d7af"
+}

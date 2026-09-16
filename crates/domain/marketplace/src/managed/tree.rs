@@ -12,10 +12,10 @@ use serde::Serialize;
 use systemprompt_models::DiskSkillConfig;
 
 use super::error::invalid;
-use super::provenance::validate_key;
 use super::{AssetDigest, AssetFile, FileEntry, ManagedError, Result, RevisionFiles};
+use systemprompt_models::managed::validate_key;
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, serde::Deserialize)]
 pub struct CapturedSkills {
     pub(super) skills: BTreeMap<String, RevisionFiles>,
     pub(super) tree_digest: AssetDigest,
@@ -142,7 +142,7 @@ fn capture_file(
         .to_str()
         .ok_or_else(|| invalid("Authoring paths must be UTF-8"))?
         .replace('\\', "/");
-    super::assets::validate_path(&relative)?;
+    systemprompt_models::managed::validate_path(&relative)?;
     let mut bytes = Vec::new();
     fs::File::open(path)
         .map_err(ManagedError::Io)?
@@ -222,4 +222,39 @@ fn executable(path: &Path) -> Result<bool> {
         path.extension().and_then(|ext| ext.to_str()),
         Some("sh" | "py")
     ))
+}
+
+pub(crate) fn capture_inventory_files(
+    services_root: &Path,
+    relative: &str,
+) -> Result<RevisionFiles> {
+    systemprompt_models::managed::validate_path(relative)?;
+    reject_link(services_root)?;
+    let mut path = services_root.to_path_buf();
+    for component in Path::new(relative).components() {
+        path.push(component);
+        reject_link(&path)?;
+    }
+    let capture = || -> Result<RevisionFiles> {
+        let mut files = RevisionFiles::default();
+        let mut budget = CaptureBudget::default();
+        if path.is_dir() {
+            capture_directory(&path, &path, &mut files, &mut budget)?;
+        } else {
+            capture_file(
+                path.parent()
+                    .ok_or_else(|| invalid("Missing resource parent"))?,
+                &path,
+                &mut files,
+                &mut budget,
+            )?;
+        }
+        files.validate()?;
+        Ok(files)
+    };
+    let first = capture()?;
+    if serde_jcs::to_vec(&first)? != serde_jcs::to_vec(&capture()?)? {
+        return Err(invalid("Configured resource changed during capture"));
+    }
+    Ok(first)
 }

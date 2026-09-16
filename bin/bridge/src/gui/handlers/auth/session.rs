@@ -54,7 +54,7 @@ async fn run_session_login(
     {
         tokio::task::spawn_blocking(move || setup::set_gateway_url(&g)).await??;
     }
-    let cfg = crate::config::load().map_err(|e| setup::SetupError::Io(e.to_string()))?;
+    let cfg = crate::config::load()?;
     let base = crate::config::gateway_url_or_default(&cfg);
 
     let code = tokio::select! {
@@ -62,7 +62,7 @@ async fn run_session_login(
             return Err(setup::SetupError::Cancelled);
         }
         result = capture_device_link_code(&base) => {
-            result.map_err(|e| setup::SetupError::Io(e.to_string()))?
+            result.map_err(setup::SetupError::DeviceLink)?
         }
     };
 
@@ -78,27 +78,21 @@ async fn run_session_login(
     } else {
         let gw = gateway.clone();
         tokio::task::spawn_blocking(move || setup::session_setup(gw.as_deref())).await??;
-        let cfg = crate::config::load().map_err(|e| setup::SetupError::Io(e.to_string()))?;
+        let cfg = crate::config::load()?;
         let binding = crate::auth::cache::CredentialBinding::capture(&cfg)
-            .map_err(|e| setup::SetupError::Io(e.to_string()))?;
+            .map_err(setup::SetupError::Binding)?;
         if crate::config::gateway_url_or_default(&cfg) != base {
-            return Err(setup::SetupError::Io(
-                "gateway changed during session sign-in".into(),
-            ));
+            return Err(setup::SetupError::GatewayMoved);
         }
         let req = SessionExchangeRequest { code };
         let out: HelperOutput = client.session_exchange(&req, &session_id).await?.into();
         crate::auth::cache::write_bound(&cfg, &base, &out, &binding)
-            .map_err(|e| setup::SetupError::Io(format!("persist session cache: {e}")))?;
+            .map_err(setup::SetupError::Cache)?;
     }
     Ok(())
 }
 
 fn default_device_name() -> String {
-    let host = std::env::var("COMPUTERNAME")
-        .ok()
-        .or_else(|| std::env::var("HOSTNAME").ok())
-        .filter(|s| !s.trim().is_empty())
-        .unwrap_or_else(|| "device".to_owned());
+    let host = crate::sysproc::host_name().unwrap_or_else(|| "device".to_owned());
     format!("{} — {host}", crate::brand::brand().app_name)
 }

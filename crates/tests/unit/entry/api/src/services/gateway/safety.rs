@@ -4,6 +4,7 @@
 //! resolution that backs the policy-driven extension point.
 
 use std::sync::Arc;
+use systemprompt_identifiers::ModelId;
 
 use systemprompt_ai::{
     Finding, HeuristicScanner, NullScanner, SafetyConfig, SafetyScanner, SafetyScannerRegistration,
@@ -19,7 +20,7 @@ use systemprompt_api::services::gateway::registry::SafetyScannerRegistry;
 
 fn req_with(text: &str) -> CanonicalRequest {
     CanonicalRequest {
-        model: "m".into(),
+        model: ModelId::new("m"),
         system: None,
         messages: vec![CanonicalMessage {
             role: Role::User,

@@ -36,7 +36,7 @@ pub enum GuiError {
     Config(#[from] crate::config::ConfigWriteError),
 
     #[error("install: {0}")]
-    Install(#[from] crate::install::InstallError),
+    Install(#[source] Box<crate::install::InstallError>),
 
     #[error("profile: {context}: {source}")]
     Profile {
@@ -84,3 +84,9 @@ pub enum WindowError {
 }
 
 pub type GuiResult<T> = Result<T, GuiError>;
+
+impl From<crate::install::InstallError> for GuiError {
+    fn from(source: crate::install::InstallError) -> Self {
+        Self::Install(Box::new(source))
+    }
+}

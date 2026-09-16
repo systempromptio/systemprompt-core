@@ -71,24 +71,30 @@ impl AiRequestRepository {
         .map_err(RepositoryError::from)
     }
 
+    // Why: a user with no requests has zero usage, not a missing row; the
+    // aggregate runs without GROUP BY so it always yields exactly one row.
     pub async fn get_user_usage(&self, user_id: &UserId) -> Result<UserAiUsage, RepositoryError> {
-        sqlx::query_as!(
-            UserAiUsage,
+        let row = sqlx::query!(
             r#"
             SELECT
-                user_id as "user_id!: UserId",
                 COUNT(*)::bigint as "request_count!",
                 COALESCE(SUM(tokens_used), 0)::bigint as "total_tokens!",
                 COALESCE(SUM(cost_microdollars), 0)::float8 / 1000000.0 as "total_cost!",
                 AVG(tokens_used)::float8 as "avg_tokens_per_request"
             FROM ai_requests
             WHERE user_id = $1
-            GROUP BY user_id
             "#,
             user_id.as_str()
         )
         .fetch_one(self.pool())
         .await
-        .map_err(RepositoryError::from)
+        .map_err(RepositoryError::from)?;
+        Ok(UserAiUsage {
+            user_id: user_id.clone(),
+            request_count: row.request_count,
+            total_tokens: row.total_tokens,
+            total_cost: row.total_cost,
+            avg_tokens_per_request: row.avg_tokens_per_request,
+        })
     }
 }

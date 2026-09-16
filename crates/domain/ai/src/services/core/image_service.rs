@@ -161,16 +161,16 @@ impl ImageService {
                 return Err(e);
             },
         };
-        response.cost_estimate = Some(provider.capabilities().cost_per_image_cents);
+        response.cost_estimate = Some(provider.cost_per_image_cents(&response.model));
 
-        let (stored_id, public_url) = self
+        let stored = self
             .storage
             .save_base64_image(&response.image_data, &response.mime_type)
             .await?;
 
-        response.file_path = Some(stored_id.as_str().to_owned());
-        response.public_url = Some(public_url.clone());
-        response.file_size_bytes = Some(response.image_data.len());
+        response.file_path = Some(stored.id.as_str().to_owned());
+        response.public_url = Some(stored.public_url.clone());
+        response.file_size_bytes = Some(stored.size_bytes);
 
         image_persistence::persist_image_generation(
             &self.ai_request_repo,
@@ -178,8 +178,8 @@ impl ImageService {
             &request,
             &response,
             image_persistence::FileLocation {
-                path: stored_id.as_str(),
-                public_url: &public_url,
+                path: stored.id.as_str(),
+                public_url: &stored.public_url,
             },
         )
         .await?;

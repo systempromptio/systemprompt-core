@@ -3,8 +3,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod campaign_completion;
+pub mod campaigns;
 mod error;
 mod handlers;
+pub mod lifecycle;
 
 pub use crate::repository::evaluation::{EvaluationWorkerState, EvaluationWorkerStateBuilder};
 use axum::Router;
@@ -31,8 +34,33 @@ pub fn router(state: EvaluationWorkerState) -> Router {
 pub(crate) fn router_from_context(
     ctx: &systemprompt_runtime::AppContext,
 ) -> anyhow::Result<Router> {
-    let state = EvaluationWorkerState::builder((*ctx.db_pool().write_pool_arc()?).clone())
+    let state = EvaluationWorkerState::builder(ctx.evaluation_repositories().as_ref().clone())
         .environment(ctx.config().api_external_url.clone())
         .build()?;
     Ok(router(state))
 }
+mod inventory;
+mod optimization_error;
+pub mod optimization_origin;
+mod optimization_resources;
+pub mod optimization_state;
+
+pub mod consumer;
+
+mod snapshots;
+
+mod snapshot_stream;
+
+mod snapshot_generation;
+
+pub mod contract;
+
+pub mod collections;
+
+pub mod operations;
+
+mod operation_handlers;
+
+mod publications;
+
+mod execution_pages;

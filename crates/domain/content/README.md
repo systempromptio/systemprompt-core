@@ -25,7 +25,7 @@ This crate handles all content-related functionality:
 
 ```toml
 [dependencies]
-systemprompt-content = "0.52"
+systemprompt-content = "0.53"
 ```
 
 ```rust

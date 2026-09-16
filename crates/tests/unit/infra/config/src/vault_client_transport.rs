@@ -134,3 +134,39 @@ async fn a_read_that_outlives_the_timeout_is_retried_rather_than_hanging() {
         } if message == "request timed out"
     ));
 }
+
+// A response whose body ends before its declared Content-Length: the request
+// succeeded at the transport level, so this is a `Body` failure of that one
+// attempt, not an `Exhausted` transport retry.
+#[tokio::test]
+async fn a_body_cut_short_of_its_content_length_is_a_body_error() {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = format!("http://{}", listener.local_addr().unwrap());
+    let server = tokio::spawn(async move {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        let (mut socket, _) = listener.accept().await.unwrap();
+        let mut request = [0u8; 4096];
+        let request_bytes = socket.read(&mut request).await.unwrap();
+        assert!(
+            request_bytes > 0,
+            "the client sent a request before the body was cut"
+        );
+        socket
+            .write_all(
+                b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 4096\r\n\r\n{\"data\":{",
+            )
+            .await
+            .unwrap();
+        socket.shutdown().await.unwrap();
+    });
+
+    let err = vault_error(
+        provider(&address, |c| c.retries = 0)
+            .fetch()
+            .await
+            .unwrap_err(),
+    );
+    server.await.unwrap();
+
+    assert!(matches!(err, VaultError::Body { .. }), "got {err}");
+}

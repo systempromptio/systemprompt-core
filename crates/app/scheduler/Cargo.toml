@@ -25,6 +25,7 @@ workspace = true
 systemprompt-extension = { workspace = true }
 
 [dependencies]
+tempfile = { workspace = true }
 # Core dependencies
 tokio = { workspace = true }
 tracing = { workspace = true }
@@ -50,7 +51,6 @@ systemprompt-analytics = { workspace = true }
 systemprompt-config = { workspace = true }
 systemprompt-evaluation = { workspace = true }
 systemprompt-loader = { workspace = true }
-systemprompt-marketplace = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-extension = { workspace = true }
 systemprompt-identifiers = { workspace = true }
@@ -77,5 +77,4 @@ nix = { workspace = true }
 [dev-dependencies]
 wiremock = { workspace = true }
 tokio-test = { workspace = true }
-tempfile = { workspace = true }
 serde_json = { workspace = true }

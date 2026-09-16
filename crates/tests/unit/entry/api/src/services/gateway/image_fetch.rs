@@ -4,6 +4,7 @@
 //! redirect to an internal address.
 
 use std::time::Duration;
+use systemprompt_identifiers::ModelId;
 
 use serde_json::Value;
 use systemprompt_api::services::gateway::image_fetch::{
@@ -26,7 +27,7 @@ fn policy_trusting_mock() -> ImageFetchPolicy {
 
 fn url_image_request(url: &str) -> CanonicalRequest {
     CanonicalRequest {
-        model: "gemini-2.5-pro".into(),
+        model: ModelId::new("gemini-2.5-pro"),
         messages: vec![CanonicalMessage {
             role: Role::User,
             content: vec![
@@ -37,7 +38,7 @@ fn url_image_request(url: &str) -> CanonicalRequest {
                 }),
             ],
         }],
-        ..CanonicalRequest::default()
+        ..CanonicalRequest::new(ModelId::new("m"), Vec::new(), 1024)
     }
 }
 

@@ -7,7 +7,8 @@
 use async_trait::async_trait;
 use chrono::Utc;
 use std::collections::HashMap;
-use systemprompt_models::{AppPaths, ContentConfigRaw};
+use systemprompt_config::paths::AppPaths;
+use systemprompt_models::ContentConfigRaw;
 use systemprompt_provider_contracts::{
     PlaceholderMapping, ProviderResult, SitemapContext, SitemapProvider, SitemapSourceSpec,
     SitemapUrlEntry,

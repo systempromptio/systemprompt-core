@@ -3,7 +3,9 @@
 
 use std::collections::HashMap;
 
-use systemprompt_identifiers::{Actor, ContextId, McpServerId, SessionId, TraceId, UserId};
+use systemprompt_identifiers::{
+    Actor, AgentName, ContextId, McpServerId, SessionId, TraceId, UserId,
+};
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_mcp::services::tool_provider::McpToolProvider;
 use systemprompt_models::services::ResilienceSettings;
@@ -55,7 +57,11 @@ async fn setup_or_skip(agent: &str) -> Option<(McpToolProvider, McpServerId, Moc
     let _bootstrap = bootstrap_with_services(&yaml);
 
     let provider = McpToolProvider::new(db, RegistryService::new(fixture_user_id()), &resilience());
-    Some((provider, McpServerId::new(&server_name), mock))
+    Some((
+        provider,
+        McpServerId::try_new(&server_name).expect("valid McpServerId"),
+        mock,
+    ))
 }
 
 #[tokio::test]
@@ -65,11 +71,15 @@ async fn list_tools_resolves_agent_servers() {
     };
 
     let tools = provider
-        .list_tools("tp_agent_list", &tool_context())
+        .list_tools(
+            &AgentName::try_new("tp_agent_list").expect("valid AgentName"),
+            &tool_context(),
+        )
         .await
         .expect("tools listed");
-    assert_eq!(tools.len(), 2);
-    assert!(tools.iter().any(|t| t.name == "echo"));
+    assert!(tools.is_complete());
+    assert_eq!(tools.tools.len(), 2);
+    assert!(tools.tools.iter().any(|t| t.name == "echo"));
     let _ = provider.db_pool();
 }
 
@@ -80,7 +90,10 @@ async fn list_tools_unknown_agent_is_configuration_error() {
     };
 
     let err = provider
-        .list_tools("no-such-agent", &tool_context())
+        .list_tools(
+            &AgentName::try_new("no-such-agent").expect("valid AgentName"),
+            &tool_context(),
+        )
         .await
         .expect_err("unknown agent rejected");
     assert!(err.to_string().contains("Failed to load agent config"));
@@ -126,7 +139,7 @@ async fn call_tool_unknown_server_is_configuration_error() {
     let err = provider
         .call_tool(
             &request,
-            &McpServerId::new("no-such-server"),
+            &McpServerId::try_new("no-such-server").expect("valid McpServerId"),
             &tool_context(),
         )
         .await
@@ -171,7 +184,7 @@ async fn refresh_connections_validates_reachable_server() {
     };
 
     provider
-        .refresh_connections("tp_agent_refresh")
+        .refresh_connections(&AgentName::try_new("tp_agent_refresh").expect("valid AgentName"))
         .await
         .expect("refresh validates");
 }
@@ -210,8 +223,16 @@ async fn list_tools_tolerates_unreachable_server() {
 
     let provider = McpToolProvider::new(db, RegistryService::new(fixture_user_id()), &resilience());
     let tools = provider
-        .list_tools("tp_agent_down", &tool_context())
+        .list_tools(
+            &AgentName::try_new("tp_agent_down").expect("valid AgentName"),
+            &tool_context(),
+        )
         .await
-        .expect("unreachable server is skipped");
-    assert!(tools.is_empty());
+        .expect("an unreachable server is reported, not silently skipped");
+    assert!(tools.tools.is_empty());
+    assert_eq!(
+        tools.failed_servers.len(),
+        1,
+        "the failed server is named in the inventory: {tools:?}"
+    );
 }

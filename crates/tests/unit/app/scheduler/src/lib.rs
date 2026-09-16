@@ -30,6 +30,8 @@ mod evaluator_container;
 #[cfg(test)]
 mod extended_jobs;
 #[cfg(test)]
+mod feedback_jobs_owner_db;
+#[cfg(test)]
 mod job_config;
 #[cfg(test)]
 mod job_execution_db;
@@ -73,3 +75,27 @@ mod state_verifier_seeded_db;
 mod test_jobs;
 #[cfg(test)]
 mod unit_tests;
+
+#[cfg(test)]
+mod evaluator_admission;
+
+#[cfg(all(test, unix))]
+mod evaluator_probe_cleanup;
+
+#[cfg(test)]
+mod evaluator_claude_adapter;
+#[cfg(test)]
+mod evaluator_codex_adapter;
+#[cfg(test)]
+mod evaluator_hermes_adapter;
+#[cfg(test)]
+mod evaluator_opencode_adapter;
+
+#[cfg(test)]
+mod evaluator_supervisor_recovery;
+
+#[cfg(test)]
+mod evaluator_workspace;
+
+#[cfg(test)]
+mod evaluator_terminal;

@@ -2,9 +2,10 @@
 //! validated registry or filesystem layout.
 
 use std::sync::Arc;
+use systemprompt_config::paths::AppPaths;
+use systemprompt_mcp::services::ServiceLifecycleStatus;
 use systemprompt_mcp::services::database::DatabaseService;
 use systemprompt_mcp::services::registry::RegistryService;
-use systemprompt_models::AppPaths;
 use systemprompt_models::profile::PathsConfig;
 use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool, fixture_user_id};
 
@@ -137,7 +138,7 @@ async fn update_service_status_missing_no_panic() {
     };
     svc.update_service_status(
         &format!("missing-{}", uuid::Uuid::new_v4().simple()),
-        "stopped",
+        ServiceLifecycleStatus::Stopped,
     )
     .await
     .unwrap();

@@ -14,6 +14,7 @@ use crate::gui::UiEventProxy;
 use crate::gui::error::{GuiError, GuiResult, WindowError};
 use crate::gui::events::UiEvent;
 use crate::window_state::{self as geometry, MIN_HEIGHT, MIN_WIDTH, WindowGeometry};
+use crate::wire::external_url::ExternalUrl;
 
 #[cfg(target_os = "macos")]
 use winit::platform::macos::WindowAttributesMacOS;
@@ -65,7 +66,6 @@ impl SettingsWindow {
     pub(crate) fn create(
         event_loop: &dyn ActiveEventLoop,
         proxy: &UiEventProxy,
-        legacy_origin: Option<&str>,
     ) -> GuiResult<Self> {
         let mut attrs = chrome_attributes(
             WindowAttributes::default()
@@ -99,7 +99,6 @@ impl SettingsWindow {
             window.set_maximized(true);
         }
 
-        let nav_legacy: Option<String> = legacy_origin.map(str::to_owned);
         let ipc_proxy = proxy.clone();
         let builder = WebViewBuilder::new();
         #[cfg(target_os = "windows")]
@@ -125,9 +124,9 @@ impl SettingsWindow {
             .with_custom_protocol(SP_PROTOCOL.to_owned(), move |_id, request| {
                 serve_custom_asset(&request)
             })
-            .with_navigation_handler(move |target| allow_navigation(&target, nav_legacy.as_deref()))
-            .with_new_window_req_handler(move |target, _features| {
-                super::open_external_url(&target);
+            .with_navigation_handler(|target| allow_navigation(&target))
+            .with_new_window_req_handler(|target, _features| {
+                open_if_external(&target);
                 NewWindowResponse::Deny
             })
             .build_as_child(&WindowRef(&*window))
@@ -229,7 +228,7 @@ fn work_areas(event_loop: &dyn ActiveEventLoop) -> Vec<geometry::WorkArea> {
 }
 
 
-fn allow_navigation(target: &str, legacy_origin: Option<&str>) -> bool {
+fn allow_navigation(target: &str) -> bool {
     if target.starts_with("sp://")
         || target.starts_with("http://sp.app")
         || target.starts_with("https://sp.app")
@@ -237,16 +236,15 @@ fn allow_navigation(target: &str, legacy_origin: Option<&str>) -> bool {
     {
         return true;
     }
-    if let Some(origin) = legacy_origin
-        && target.starts_with(origin)
-    {
-        return true;
+    open_if_external(target);
+    false
+}
+
+fn open_if_external(target: &str) {
+    match ExternalUrl::parse(target) {
+        Ok(url) => super::open_external_url(&url),
+        Err(e) => tracing::warn!(error = %e, "webview navigation refused"),
     }
-    if target.starts_with("http://") || target.starts_with("https://") {
-        super::open_external_url(target);
-        return false;
-    }
-    true
 }
 
 fn decode_icon() -> Option<Icon> {

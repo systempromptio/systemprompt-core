@@ -123,6 +123,9 @@ async fn external_auth_with_unreachable_accessor_fails() {
     let context = request_context("ext2").with_auth_token("user-jwt".to_owned());
     let err = McpClient::call_tool(&config, "echo".to_owned(), None, &context)
         .await
-        .expect_err("accessor unreachable surfaces");
-    assert!(err.to_string().contains("token accessor"));
+        .expect_err("no broker secret is configured, so the accessor is never called");
+    assert!(
+        err.to_string().contains("mcp_credential_broker_secret"),
+        "{err}"
+    );
 }

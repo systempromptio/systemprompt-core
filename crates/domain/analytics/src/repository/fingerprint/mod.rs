@@ -24,16 +24,28 @@ pub const HIGH_VELOCITY_RPM: f32 = 10.0;
 pub const SUSTAINED_VELOCITY_MINUTES: i32 = 60;
 pub const ABUSE_THRESHOLD_FOR_BAN: i32 = 3;
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct FingerprintRepository {
     pool: Arc<PgPool>,
     write_pool: Arc<PgPool>,
+    sessions: systemprompt_traits::DynSessionStore,
 }
 
 impl FingerprintRepository {
-    pub fn new(db: &DbPool) -> Result<Self> {
+    pub fn new(db: &DbPool, sessions: systemprompt_traits::DynSessionStore) -> Result<Self> {
         let pool = db.pool_arc()?;
         let write_pool = db.write_pool_arc()?;
-        Ok(Self { pool, write_pool })
+        Ok(Self {
+            pool,
+            write_pool,
+            sessions,
+        })
+    }
+}
+
+impl std::fmt::Debug for FingerprintRepository {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("FingerprintRepository")
+            .finish_non_exhaustive()
     }
 }

@@ -72,18 +72,6 @@ impl<'a> WritePlan<'a> {
             })?;
             completed.push(receipt);
         }
-        store::verified::remove_values(
-            self.store.backend(),
-            self.hive,
-            store::PolicyTarget::Claude,
-            &[store::LEGACY_MANIFEST_PUBKEY_KEY],
-        )
-        .map_err(|source| {
-            policy_err(store::ConfigStoreError::Partial {
-                completed: completed.clone(),
-                source: Box::new(source),
-            })
-        })?;
         Ok(completed)
     }
 }

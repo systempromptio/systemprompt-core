@@ -5,7 +5,7 @@
 
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
-use systemprompt_identifiers::{ClientId, ContextId, LogId, TaskId};
+use systemprompt_identifiers::{ClientId, ContextId, LogId, TaskId, UserId};
 
 use crate::models::{LogEntry, LoggingError};
 
@@ -148,4 +148,40 @@ pub(in crate::repository) async fn count_logs_before(
     .await?;
 
     Ok(count as u64)
+}
+
+pub(in crate::repository) async fn distinct_log_user_ids(
+    pool: &PgPool,
+) -> Result<Vec<UserId>, LoggingError> {
+    let ids = sqlx::query_scalar!(
+        r#"SELECT DISTINCT user_id AS "user_id!" FROM logs WHERE user_id IS NOT NULL"#
+    )
+    .fetch_all(pool)
+    .await?;
+    Ok(ids.into_iter().map(UserId::new).collect())
+}
+
+pub(in crate::repository) async fn delete_logs_for_users(
+    pool: &PgPool,
+    user_ids: &[UserId],
+) -> Result<u64, LoggingError> {
+    let ids: Vec<String> = user_ids.iter().map(ToString::to_string).collect();
+    let result = sqlx::query!("DELETE FROM logs WHERE user_id = ANY($1)", &ids[..])
+        .execute(pool)
+        .await?;
+    Ok(result.rows_affected())
+}
+
+pub(in crate::repository) async fn count_logs_for_users(
+    pool: &PgPool,
+    user_ids: &[UserId],
+) -> Result<u64, LoggingError> {
+    let ids: Vec<String> = user_ids.iter().map(ToString::to_string).collect();
+    let count = sqlx::query_scalar!(
+        r#"SELECT COUNT(*) as "count!" FROM logs WHERE user_id = ANY($1)"#,
+        &ids[..]
+    )
+    .fetch_one(pool)
+    .await?;
+    Ok(u64::try_from(count).unwrap_or(0))
 }

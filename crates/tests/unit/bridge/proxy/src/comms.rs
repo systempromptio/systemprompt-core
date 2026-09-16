@@ -65,6 +65,7 @@ impl Sandbox {
         let path = self
             .temp
             .path()
+            .join("systemprompt")
             .join("inbox")
             .join(format!("{session}.jsonl"));
         std::fs::read_to_string(path)
@@ -76,6 +77,7 @@ impl Sandbox {
         let path = self
             .temp
             .path()
+            .join("systemprompt")
             .join("inbox")
             .join(format!("{session}.jsonl"));
         std::fs::read_to_string(path).unwrap_or_default()
@@ -161,13 +163,16 @@ fn status_only(
     }
 }
 
+// Why: the inbox holds message previews for this user; under the brand's
+// own config dir it inherits that directory's 0700, instead of sitting at
+// the top of `~/.config` beside every other application's files.
 #[test]
-fn the_inbox_lives_beside_the_bridge_config() {
+fn the_inbox_lives_inside_the_brand_config_dir() {
     let temp = tempfile::tempdir().expect("config tempdir");
     let dir = temp_env::with_var("XDG_CONFIG_HOME", Some(temp.path().as_os_str()), || {
         comms::inbox_dir().expect("an inbox dir resolves inside the sandbox")
     });
-    assert_eq!(dir, temp.path().join("inbox"));
+    assert_eq!(dir, temp.path().join("systemprompt").join("inbox"));
 }
 
 #[test]
@@ -229,7 +234,7 @@ fn a_sessionless_announcement_is_never_written_anywhere() {
         1,
         "only the session-addressed announcement is delivered"
     );
-    let inbox = sb.temp.path().join("inbox");
+    let inbox = sb.temp.path().join("systemprompt").join("inbox");
     let files: Vec<String> = std::fs::read_dir(&inbox)
         .expect("inbox exists")
         .map(|e| e.expect("entry").file_name().to_string_lossy().into_owned())
@@ -296,7 +301,7 @@ fn a_session_id_carrying_path_characters_is_flattened_to_one_safe_filename() {
     );
 
     assert!(requests >= 1, "the stream was subscribed to");
-    let inbox = sb.temp.path().join("inbox");
+    let inbox = sb.temp.path().join("systemprompt").join("inbox");
     let mut files: Vec<String> = std::fs::read_dir(&inbox)
         .expect("inbox exists")
         .map(|e| e.expect("entry").file_name().to_string_lossy().into_owned())

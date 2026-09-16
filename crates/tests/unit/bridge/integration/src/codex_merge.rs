@@ -2,6 +2,7 @@ use std::ffi::OsString;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use systemprompt_bridge::ids::LoopbackSecret;
 use systemprompt_bridge::integration::find_host_by_id;
 use systemprompt_bridge::integration::host_app::ProfileGenInputs;
 
@@ -24,12 +25,12 @@ fn with_codex_home<R>(body: impl FnOnce(&Path) -> R) -> R {
 fn codex_inputs() -> ProfileGenInputs {
     ProfileGenInputs {
         gateway_base_url: "https://gateway.example.com".to_string(),
-        api_key: "sp-test-key".to_string(),
+        api_key: LoopbackSecret::new("sp-test-key"),
         models: vec!["claude-opus-4-7".to_string()],
         default_model: None,
         organization_uuid: Some("org-abc".to_string()),
         headers: Default::default(),
-        mcp_servers: Vec::new(),
+        mcp_servers: Some(Vec::new()),
     }
 }
 

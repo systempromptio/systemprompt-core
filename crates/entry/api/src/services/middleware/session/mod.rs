@@ -41,7 +41,7 @@ use systemprompt_models::api::ApiError;
 use systemprompt_oauth::services::SessionCreationService;
 use systemprompt_runtime::AppContext;
 use systemprompt_security::{CookieExtractor, HeaderExtractor};
-use systemprompt_traits::{AnalyticsProvider, ExtractSignals};
+use systemprompt_traits::{ExtractSignals, SessionProvider};
 use systemprompt_users::UserService;
 
 struct RequestMeta<'a> {
@@ -65,8 +65,8 @@ const DEGRADED_WARN_INTERVAL_SECS: u64 = 60;
 impl SessionMiddleware {
     pub fn new(ctx: &AppContext) -> Self {
         let user_service = UserService::new(Arc::clone(ctx.user_repository()));
-        let concrete = Arc::clone(ctx.analytics_service());
-        let analytics: Arc<dyn AnalyticsProvider> = concrete;
+        let concrete = ctx.analytics_repositories().sessions.owner();
+        let analytics: Arc<dyn SessionProvider> = concrete;
         let session_creation_service = Arc::new(SessionCreationService::new(
             analytics,
             Arc::new(user_service),

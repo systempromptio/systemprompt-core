@@ -7,7 +7,8 @@ mod model;
 
 use chrono::{Duration, Utc};
 use sqlx::PgPool;
-use systemprompt_identifiers::SessionId;
+use systemprompt_database::RepositoryError;
+use systemprompt_identifiers::{CallId, SessionId, UserId};
 
 pub use model::{
     ApprovalRequest, ApprovalStatus, ApprovalVerdict, NewApprovalRequest, args_digest,
@@ -24,7 +25,10 @@ impl ApprovalRepository {
         Self { pool }
     }
 
-    pub async fn open(&self, req: &NewApprovalRequest<'_>) -> Result<ApprovalRequest, sqlx::Error> {
+    pub async fn open(
+        &self,
+        req: &NewApprovalRequest<'_>,
+    ) -> Result<ApprovalRequest, RepositoryError> {
         let digest = args_digest(req.arguments);
         let expires_at = Utc::now()
             + Duration::try_seconds(i64::try_from(req.expires_in_seconds).unwrap_or(i64::MAX))
@@ -50,34 +54,34 @@ impl ApprovalRepository {
         .execute(&self.pool)
         .await?;
 
-        self.find(req.call_id.as_str())
+        self.find(req.call_id)
             .await?
-            .ok_or(sqlx::Error::RowNotFound)
+            .ok_or_else(|| RepositoryError::not_found(req.call_id.as_str()))
     }
 
-    pub async fn find(&self, call_id: &str) -> Result<Option<ApprovalRequest>, sqlx::Error> {
+    pub async fn find(&self, call_id: &CallId) -> Result<Option<ApprovalRequest>, RepositoryError> {
         let row = sqlx::query!(
             "SELECT call_id, tool_name, server_name, arguments, args_digest, requested_by,
                     session_id, trace_id, rule, status, approver_id, approver_username,
                     decided_at, decision_note, expires_at, created_at
              FROM approval_requests WHERE call_id = $1",
-            call_id
+            call_id.as_str()
         )
         .fetch_optional(&self.pool)
         .await?;
 
         Ok(row.map(|r| ApprovalRequest {
-            call_id: r.call_id,
+            call_id: CallId::new(r.call_id),
             tool_name: r.tool_name,
             server_name: r.server_name,
             arguments: r.arguments,
             args_digest: r.args_digest,
-            requested_by: r.requested_by,
-            session_id: r.session_id,
+            requested_by: UserId::new(r.requested_by),
+            session_id: r.session_id.map(SessionId::new),
             trace_id: r.trace_id,
             rule: r.rule,
             status: parse_status(&r.status),
-            approver_id: r.approver_id,
+            approver_id: r.approver_id.map(UserId::new),
             approver_username: r.approver_username,
             decided_at: r.decided_at,
             decision_note: r.decision_note,
@@ -86,7 +90,7 @@ impl ApprovalRepository {
         }))
     }
 
-    pub async fn list_pending(&self, limit: i64) -> Result<Vec<ApprovalRequest>, sqlx::Error> {
+    pub async fn list_pending(&self, limit: i64) -> Result<Vec<ApprovalRequest>, RepositoryError> {
         let rows = sqlx::query!(
             "SELECT call_id, tool_name, server_name, arguments, args_digest, requested_by,
                     session_id, trace_id, rule, status, approver_id, approver_username,
@@ -103,17 +107,17 @@ impl ApprovalRepository {
         Ok(rows
             .into_iter()
             .map(|r| ApprovalRequest {
-                call_id: r.call_id,
+                call_id: CallId::new(r.call_id),
                 tool_name: r.tool_name,
                 server_name: r.server_name,
                 arguments: r.arguments,
                 args_digest: r.args_digest,
-                requested_by: r.requested_by,
-                session_id: r.session_id,
+                requested_by: UserId::new(r.requested_by),
+                session_id: r.session_id.map(SessionId::new),
                 trace_id: r.trace_id,
                 rule: r.rule,
                 status: parse_status(&r.status),
-                approver_id: r.approver_id,
+                approver_id: r.approver_id.map(UserId::new),
                 approver_username: r.approver_username,
                 decided_at: r.decided_at,
                 decision_note: r.decision_note,
@@ -123,7 +127,7 @@ impl ApprovalRepository {
             .collect())
     }
 
-    pub async fn list_decided(&self, limit: i64) -> Result<Vec<ApprovalRequest>, sqlx::Error> {
+    pub async fn list_decided(&self, limit: i64) -> Result<Vec<ApprovalRequest>, RepositoryError> {
         let rows = sqlx::query!(
             "SELECT call_id, tool_name, server_name, arguments, args_digest, requested_by,
                     session_id, trace_id, rule, status, approver_id, approver_username,
@@ -140,17 +144,17 @@ impl ApprovalRepository {
         Ok(rows
             .into_iter()
             .map(|r| ApprovalRequest {
-                call_id: r.call_id,
+                call_id: CallId::new(r.call_id),
                 tool_name: r.tool_name,
                 server_name: r.server_name,
                 arguments: r.arguments,
                 args_digest: r.args_digest,
-                requested_by: r.requested_by,
-                session_id: r.session_id,
+                requested_by: UserId::new(r.requested_by),
+                session_id: r.session_id.map(SessionId::new),
                 trace_id: r.trace_id,
                 rule: r.rule,
                 status: parse_status(&r.status),
-                approver_id: r.approver_id,
+                approver_id: r.approver_id.map(UserId::new),
                 approver_username: r.approver_username,
                 decided_at: r.decided_at,
                 decision_note: r.decision_note,
@@ -162,9 +166,9 @@ impl ApprovalRepository {
 
     pub async fn resolve(
         &self,
-        call_id: &str,
+        call_id: &CallId,
         verdict: &ApprovalVerdict<'_>,
-    ) -> Result<Option<ApprovalRequest>, sqlx::Error> {
+    ) -> Result<Option<ApprovalRequest>, RepositoryError> {
         let ApprovalVerdict {
             status,
             approver_id,
@@ -182,7 +186,7 @@ impl ApprovalRepository {
                  decision_note = $5, decided_at = NOW()
              WHERE call_id = $1 AND status = 'pending' AND expires_at > NOW()
              RETURNING call_id",
-            call_id,
+            call_id.as_str(),
             status.as_str(),
             approver_id.as_str(),
             approver_username,
@@ -197,7 +201,7 @@ impl ApprovalRepository {
         }
     }
 
-    pub async fn expire_due(&self) -> Result<u64, sqlx::Error> {
+    pub async fn expire_due(&self) -> Result<u64, RepositoryError> {
         let result = sqlx::query!(
             "UPDATE approval_requests
              SET status = 'expired', decided_at = NOW()

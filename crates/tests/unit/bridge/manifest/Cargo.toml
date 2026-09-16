@@ -11,6 +11,8 @@ publish = false
 workspace = true
 
 [dependencies]
+semver = { workspace = true }
+chrono = { workspace = true }
 systemprompt-test-fixtures = { workspace = true }
 systemprompt-bridge = { workspace = true }
 systemprompt-models = { workspace = true }

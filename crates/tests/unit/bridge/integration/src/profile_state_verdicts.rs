@@ -1,6 +1,8 @@
 use std::collections::BTreeMap;
 
-use systemprompt_bridge::integration::host_app::{AppInstallState, ProfileState, StaleReason};
+use systemprompt_bridge::integration::host_app::{
+    AppInstallState, Freshness, ProfileProbe, ProfileState, StaleReason,
+};
 use systemprompt_bridge::integration::profile_state::ProfileCode;
 use systemprompt_bridge::verdict::Tone;
 
@@ -87,7 +89,13 @@ fn the_verdict_pairs_the_tone_with_the_same_code_the_wire_carries() {
 
 #[test]
 fn missing_required_keys_are_listed_only_for_a_partial_profile() {
-    let partial = ProfileState::classify(&["a", "b"], &keys(&[("a", "1")]), None, None);
+    let partial = ProfileState::classify(&ProfileProbe {
+        required: &["a", "b"],
+        present: &keys(&[("a", "1")]),
+        read_error: None,
+        secret: Freshness::Unchecked,
+        endpoint: Freshness::Unchecked,
+    });
     assert_eq!(partial.missing_required(), ["b".to_owned()]);
     assert!(ProfileState::Installed.missing_required().is_empty());
     assert!(ProfileState::Absent.missing_required().is_empty());
@@ -105,11 +113,11 @@ fn missing_required_keys_are_listed_only_for_a_partial_profile() {
 fn a_loopback_url_on_the_live_port_is_fresh_and_one_on_another_port_is_not() {
     assert_eq!(
         ProfileState::endpoint_freshness(Some("http://127.0.0.1:48217/v1"), 48217),
-        Some(true)
+        Freshness::Fresh
     );
     assert_eq!(
         ProfileState::endpoint_freshness(Some("http://127.0.0.1:48217/v1"), 51999),
-        Some(false),
+        Freshness::Stale,
         "a profile baked for the old port is not fresh"
     );
 }

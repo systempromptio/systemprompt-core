@@ -61,6 +61,7 @@
 pub mod constants;
 pub mod error;
 pub(crate) mod extension;
+pub mod jobs;
 pub mod models;
 pub(crate) mod queries;
 pub mod repository;

@@ -348,9 +348,9 @@ async fn generate_feed_with_providers_propagates_fetch_failure() {
     );
 }
 
-fn tempdir_paths(tmp: &tempfile::TempDir) -> systemprompt_models::AppPaths {
+fn tempdir_paths(tmp: &tempfile::TempDir) -> systemprompt_config::paths::AppPaths {
     let p = tmp.path().to_string_lossy().to_string();
-    systemprompt_models::AppPaths::from_profile(
+    systemprompt_config::paths::AppPaths::from_profile(
         &systemprompt_models::profile::PathsConfig {
             system: p.clone(),
             services: p.clone(),

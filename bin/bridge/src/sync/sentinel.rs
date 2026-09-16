@@ -4,11 +4,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use serde::Serialize;
-
 use super::apply::ApplyReport;
 use super::error::SyncError;
 use crate::gateway::manifest::SignedManifest;
+use crate::last_sync::LastSyncState;
 
 pub(super) fn persist_last_sync(
     path: &std::path::Path,
@@ -17,26 +16,29 @@ pub(super) fn persist_last_sync(
     now: chrono::DateTime<chrono::Utc>,
     gateway: &systemprompt_identifiers::ValidatedUrl,
 ) -> Result<(), SyncError> {
-    let sentinel = LastSyncSentinel {
-        gateway: gateway.as_str(),
-        synced_at: current_iso8601(),
-        manifest_version: manifest.manifest_version.as_str(),
-        last_applied_manifest_version: manifest.manifest_version.as_str(),
-        last_applied_at: now.to_rfc3339(),
-        installed_plugins: &report.installed,
-        updated_plugins: &report.updated,
-        removed_plugins: &report.removed,
+    let state = LastSyncState {
+        gateway: Some(gateway.clone()),
+        synced_at: Some(now.to_rfc3339_opts(chrono::SecondsFormat::AutoSi, true)),
+        manifest_version: Some(manifest.manifest_version.clone()),
+        installed_plugins: report.installed.clone(),
+        updated_plugins: report.updated.clone(),
+        removed_plugins: report.removed.clone(),
+        present_plugins: manifest
+            .plugins
+            .iter()
+            .map(|p| p.id.as_str().to_owned())
+            .collect(),
         mcp_server_count: manifest.managed_mcp_servers.len(),
         skill_count: manifest.skills.len(),
         rule_count: manifest.rules.len(),
         agent_count: manifest.agents.len(),
         hook_count: manifest.hooks.len(),
-        user: manifest.user.as_ref().map(|u| u.email.as_str()),
-        enabled_hosts: &manifest.enabled_hosts,
-        host_model_protocols: &manifest.host_model_protocols,
+        user: manifest.user.as_ref().map(|u| u.email.as_str().to_owned()),
+        enabled_hosts: manifest.enabled_hosts.clone(),
+        host_model_protocols: manifest.host_model_protocols.clone(),
         auto_update: manifest.auto_update,
     };
-    let bytes = serde_json::to_vec_pretty(&sentinel).map_err(|e| SyncError::Persistence {
+    let bytes = serde_json::to_vec_pretty(&state).map_err(|e| SyncError::Persistence {
         path: path.to_owned(),
         source: std::io::Error::other(e),
     })?;
@@ -44,29 +46,4 @@ pub(super) fn persist_last_sync(
         path: path.to_owned(),
         source,
     })
-}
-
-#[derive(Serialize)]
-struct LastSyncSentinel<'a> {
-    gateway: &'a str,
-    synced_at: String,
-    manifest_version: &'a str,
-    last_applied_manifest_version: &'a str,
-    last_applied_at: String,
-    installed_plugins: &'a [String],
-    updated_plugins: &'a [String],
-    removed_plugins: &'a [String],
-    mcp_server_count: usize,
-    skill_count: usize,
-    rule_count: usize,
-    agent_count: usize,
-    hook_count: usize,
-    user: Option<&'a str>,
-    enabled_hosts: &'a [String],
-    host_model_protocols: &'a std::collections::BTreeMap<String, Vec<String>>,
-    auto_update: crate::gateway::manifest::AutoUpdatePolicy,
-}
-
-fn current_iso8601() -> String {
-    chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::AutoSi, true)
 }

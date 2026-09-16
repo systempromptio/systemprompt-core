@@ -7,7 +7,6 @@ use std::sync::Arc;
 
 use rmcp::model::{CallToolResult, ContentBlock};
 use systemprompt_agent::repository::execution::ExecutionStepRepository;
-use systemprompt_agent::services::SkillService;
 use systemprompt_agent::services::a2a_server::processing::message::StreamEvent;
 use systemprompt_agent::services::a2a_server::processing::strategies::{
     ContextToolExecutor, ExecutionContext, ToolExecutorTrait,
@@ -36,9 +35,9 @@ async fn executor_or_skip(provider: StubAiProvider) -> Option<ContextToolExecuto
     Some(ContextToolExecutor {
         context: ExecutionContext {
             ai_service: Arc::new(provider),
-            skill_service: Arc::new(SkillService::new().expect("skill service")),
+            skill_service: Arc::new(super::a2a_helpers::skill_service(&pool)),
             agent_runtime: runtime_info(AGENT),
-            agent_name: AgentName::new(AGENT),
+            agent_name: AgentName::try_new(AGENT).expect("valid AgentName"),
             task_id,
             context_id: ctx,
             tx,

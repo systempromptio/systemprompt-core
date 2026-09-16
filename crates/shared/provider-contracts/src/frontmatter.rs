@@ -1,5 +1,9 @@
 //! [`FrontmatterProcessor`] contract for post-processing parsed frontmatter.
 //!
+//! Processors are returned as `Arc<dyn FrontmatterProcessor>` from
+//! `Extension::frontmatter_processors`, so the trait uses `#[async_trait]`;
+//! native `async fn` in traits is not `dyn`-compatible.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

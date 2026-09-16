@@ -1,9 +1,8 @@
 //! Tests for the standalone Claude Code CLI marketplace writer: the schema
 //! fields Claude Code requires (`owner`, `lastUpdated`), user-scoped install
 //! entries, foreign-key preservation, the one-marketplace-per-manifest-
-//! marketplace mapping with its legacy fallback, the ownership sidecar, and
-//! the safety rule that an unparseable registry file is never silently
-//! clobbered.
+//! marketplace mapping, the ownership sidecar, and the safety rule that an
+//! unparseable registry file is never silently clobbered.
 
 use std::path::Path;
 
@@ -13,16 +12,12 @@ use systemprompt_bridge::gateway::manifest::{
 };
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
 use systemprompt_bridge::ids::{PluginId, Sha256Digest};
-use systemprompt_bridge::integration::claude_code_cli::json_io::{
-    object_entry, read_optional_object,
-};
+use systemprompt_bridge::integration::claude_code_cli::installed::installed_entry;
 use systemprompt_bridge::integration::claude_code_cli::marketplace::{
-    MarketplaceEntry, installed_entry, marketplace_value, strip_known_marketplace,
-    upsert_known_marketplace,
+    MarketplaceEntry, marketplace_value, strip_known_marketplace, upsert_known_marketplace,
 };
-use systemprompt_bridge::integration::claude_code_cli::{
-    HostMarketplace, LEGACY_MARKETPLACE, host_marketplaces, sidecar,
-};
+use systemprompt_bridge::integration::claude_code_cli::{host_marketplaces, sidecar};
+use systemprompt_bridge::integration::json_io::{object_entry, read_optional_object};
 use systemprompt_identifiers::MarketplaceId;
 use tempfile::tempdir;
 
@@ -53,7 +48,7 @@ fn marketplace_value_has_required_owner_object() {
             version: "1.0.0".into(),
         },
     ];
-    let v = marketplace_value("acme", "Acme tooling", "v1", &entries);
+    let v = marketplace_value("acme", "Acme tooling", "v1", &entries, &[]);
     assert!(v["owner"].is_object(), "owner must be an object");
     assert_eq!(v["name"], json!("acme"), "name is the marketplace id");
     assert_eq!(v["description"], json!("Acme tooling"));
@@ -104,11 +99,30 @@ fn read_optional_object_aborts_on_malformed_without_clobbering() {
     );
 }
 
+// A user's scalar at a key the bridge owns is a foreign shape, not a slot to
+// overwrite: the write is refused and the value left as found.
 #[test]
-fn object_entry_coerces_non_object_slot() {
+fn object_entry_refuses_a_non_object_slot_and_leaves_it_intact() {
     let mut root = Map::new();
     root.insert("enabledPlugins".to_owned(), json!("scalar"));
-    let m = object_entry(&mut root, "enabledPlugins").unwrap();
+    let err = object_entry(&mut root, Path::new("settings.json"), "enabledPlugins")
+        .expect_err("a scalar where an object is owned is a foreign shape");
+    assert_eq!(err.key, "enabledPlugins");
+    assert_eq!(err.found, "a string");
+    assert_eq!(root["enabledPlugins"], json!("scalar"));
+
+    root.insert("enabledPlugins".to_owned(), json!([]));
+    let err = object_entry(&mut root, Path::new("settings.json"), "enabledPlugins")
+        .expect_err("an array where an object is owned is a foreign shape");
+    assert_eq!(err.found, "an array");
+    assert_eq!(err.expected, "an object");
+    assert_eq!(root["enabledPlugins"], json!([]));
+}
+
+#[test]
+fn object_entry_creates_the_slot_when_absent() {
+    let mut root = Map::new();
+    let m = object_entry(&mut root, Path::new("settings.json"), "enabledPlugins").unwrap();
     m.insert("p@mp".to_owned(), Value::Bool(true));
     assert_eq!(root["enabledPlugins"]["p@mp"], Value::Bool(true));
 }
@@ -174,8 +188,12 @@ fn manifest(plugins: Vec<PluginEntry>, marketplaces: Vec<ManifestMarketplace>) -
         min_schema_version: MANIFEST_SCHEMA_VERSION,
         min_bridge_version: None,
         manifest_version: ManifestVersion::try_new("2026-09-05T00:00:00Z-deadbeef").unwrap(),
-        issued_at: "2026-09-05T00:00:00Z".into(),
-        not_before: "2026-09-05T00:00:00Z".into(),
+        issued_at: chrono::DateTime::parse_from_rfc3339("2026-09-05T00:00:00Z")
+            .expect("rfc3339")
+            .with_timezone(&chrono::Utc),
+        not_before: chrono::DateTime::parse_from_rfc3339("2026-09-05T00:00:00Z")
+            .expect("rfc3339")
+            .with_timezone(&chrono::Utc),
         user_id: systemprompt_identifiers::UserId::new("test-user"),
         tenant_id: None,
         user: None,
@@ -204,26 +222,15 @@ fn manifest_marketplace(id: &str, name: &str, plugin_ids: &[&str]) -> ManifestMa
             .iter()
             .map(|p| PluginId::try_new(*p).unwrap())
             .collect(),
+        allow_cross_marketplace_dependencies_on: vec![],
+        external_marketplaces: vec![],
     }
 }
 
 #[test]
-fn a_manifest_that_lists_no_marketplaces_is_mirrored_as_the_legacy_one_holding_every_plugin() {
-    // An older gateway serialises no `marketplaces`; the layout must be the
-    // one every bridge wrote before, or a gateway upgrade lag would strand
-    // every plugin.
+fn a_manifest_that_lists_no_marketplaces_yields_no_host_marketplaces() {
     let m = manifest(vec![plugin("alpha"), plugin("beta")], vec![]);
-    assert_eq!(
-        host_marketplaces(&m),
-        vec![HostMarketplace {
-            id: MarketplaceId::new(LEGACY_MARKETPLACE),
-            name: "Skills, agents, and MCP servers provisioned by your organization.".into(),
-            plugin_ids: vec![
-                PluginId::try_new("alpha").unwrap(),
-                PluginId::try_new("beta").unwrap(),
-            ],
-        }]
-    );
+    assert!(host_marketplaces(&m).is_empty());
 }
 
 #[test]
@@ -251,31 +258,25 @@ fn a_manifest_with_no_plugins_yields_no_host_marketplaces_even_if_it_names_some(
 }
 
 #[test]
-fn sidecar_round_trips_and_the_legacy_marketplace_is_always_purgeable() {
+fn sidecar_round_trips_and_an_absent_sidecar_owns_nothing() {
     let d = tempdir().unwrap();
-    assert_eq!(
-        names(sidecar::owned_marketplaces(d.path(), sidecar::Legacy::Always).unwrap()),
-        vec![LEGACY_MARKETPLACE],
-        "with no sidecar the only thing the bridge could have written is the legacy layout"
-    );
-    assert_eq!(
-        names(sidecar::owned_marketplaces(d.path(), sidecar::Legacy::WhenUnrecorded).unwrap()),
-        vec![LEGACY_MARKETPLACE]
+    assert!(
+        sidecar::owned_marketplaces(d.path()).unwrap().is_empty(),
+        "with no sidecar the bridge has no record of writing anything"
     );
 
     sidecar::write(
         d.path(),
-        &[MarketplaceId::new("core"), MarketplaceId::new("commerce")],
+        &sidecar::Owned {
+            marketplaces: vec![MarketplaceId::new("core"), MarketplaceId::new("commerce")],
+            dependency_keys: vec![],
+            external_marketplaces: vec![],
+        },
     )
     .unwrap();
     assert_eq!(
-        names(sidecar::owned_marketplaces(d.path(), sidecar::Legacy::WhenUnrecorded).unwrap()),
+        names(sidecar::owned_marketplaces(d.path()).unwrap()),
         vec!["core", "commerce"]
-    );
-    assert_eq!(
-        names(sidecar::owned_marketplaces(d.path(), sidecar::Legacy::Always).unwrap()),
-        vec!["core", "commerce", LEGACY_MARKETPLACE],
-        "the legacy marketplace stays purgeable however the sidecar reads"
     );
 
     sidecar::remove(d.path()).unwrap();
@@ -288,14 +289,12 @@ fn a_corrupt_sidecar_is_an_error_rather_than_an_empty_ownership_record() {
     let d = tempdir().unwrap();
     std::fs::write(d.path().join(sidecar::SIDECAR), b"{ not json").unwrap();
 
-    for legacy in [sidecar::Legacy::Always, sidecar::Legacy::WhenUnrecorded] {
-        let err = sidecar::owned_marketplaces(d.path(), legacy)
-            .expect_err("a present but unparseable sidecar must not read as absent");
-        assert!(
-            err.to_string().contains(sidecar::SIDECAR),
-            "the error names the file the operator has to fix: {err}"
-        );
-    }
+    let err = sidecar::owned_marketplaces(d.path())
+        .expect_err("a present but unparseable sidecar must not read as absent");
+    assert!(
+        err.to_string().contains(sidecar::SIDECAR),
+        "the error names the file the operator has to fix: {err}"
+    );
 }
 
 #[test]

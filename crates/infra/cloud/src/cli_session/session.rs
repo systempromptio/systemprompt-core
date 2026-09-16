@@ -8,8 +8,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
@@ -19,10 +18,9 @@ use systemprompt_identifiers::{
 use systemprompt_models::auth::UserType;
 
 use super::{LOCAL_SESSION_KEY, SessionKey};
-use crate::error::{CloudError, CloudResult};
 
-const CURRENT_VERSION: u32 = 6;
-const MIN_SUPPORTED_VERSION: u32 = 6;
+pub(super) const CURRENT_VERSION: u32 = 6;
+pub(super) const MIN_SUPPORTED_VERSION: u32 = 6;
 const SESSION_DURATION_HOURS: i64 = 24;
 
 /// The profile a session belongs to, paired with the issuer its token was
@@ -242,59 +240,5 @@ impl CliSession {
             Some(k) if k.as_str() == LOCAL_SESSION_KEY => SessionKey::Local,
             Some(k) => SessionKey::Tenant(k.clone()),
         }
-    }
-
-    pub fn load_from_path(path: &Path) -> CloudResult<Self> {
-        if !path.exists() {
-            return Err(CloudError::NotAuthenticated);
-        }
-
-        let content = fs::read_to_string(path)?;
-
-        let mut session: Self = serde_json::from_str(&content)
-            .map_err(|e| CloudError::CredentialsCorrupted { source: e })?;
-
-        if session.version < MIN_SUPPORTED_VERSION || session.version > CURRENT_VERSION {
-            return Err(CloudError::SessionVersionMismatch {
-                min: MIN_SUPPORTED_VERSION,
-                max: CURRENT_VERSION,
-                actual: session.version,
-                path: path.display().to_string(),
-            });
-        }
-
-        session.version = CURRENT_VERSION;
-        Ok(session)
-    }
-
-    pub fn save_to_path(&self, path: &Path) -> CloudResult<()> {
-        if let Some(dir) = path.parent() {
-            fs::create_dir_all(dir)?;
-
-            let gitignore_path = dir.join(".gitignore");
-            if !gitignore_path.exists() {
-                fs::write(&gitignore_path, "*\n")?;
-            }
-        }
-
-        let content = serde_json::to_string_pretty(self)?;
-        fs::write(path, content)?;
-
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            let mut perms = fs::metadata(path)?.permissions();
-            perms.set_mode(0o600);
-            fs::set_permissions(path, perms)?;
-        }
-
-        Ok(())
-    }
-
-    pub fn delete_from_path(path: &Path) -> CloudResult<()> {
-        if path.exists() {
-            fs::remove_file(path)?;
-        }
-        Ok(())
     }
 }

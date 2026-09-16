@@ -12,16 +12,15 @@ mod assembly;
 mod composition;
 mod core_layer;
 
-use composition::{build_data_plane, build_repositories, build_subsystems, ensure_legacy_context};
+use composition::{build_data_plane, build_repositories, ensure_legacy_context};
 
 use std::sync::{Arc, OnceLock};
 
 use systemprompt_database::MigrationConfig;
 use systemprompt_extension::ExtensionRegistry;
-use systemprompt_marketplace::MarketplaceFilter;
+use systemprompt_marketplace::{MarketplaceCache, MarketplaceFilter};
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_security::authz::{AuthzDecisionHook, SharedAuthzHook};
-use systemprompt_security::policy::GovernanceEngine;
 use systemprompt_users::UserService;
 
 use crate::context::{AppContext, ConfigPlane, DataPlane, Plugins, ShutdownRequest, Subsystems};
@@ -127,11 +126,12 @@ impl AppContextBuilder {
             app_paths,
             database,
             authz_hook,
+            governance,
             file_storage,
         } = init_core(self.authz_hook).await?;
 
         let api_registry = Arc::new(ModuleApiRegistry::new());
-        let extension_registry = init_extensions(
+        let (extension_registry, schema_install) = init_extensions(
             self.extension_registry,
             self.install_schemas,
             self.migration_config,
@@ -139,7 +139,7 @@ impl AppContextBuilder {
         )
         .await?;
 
-        GovernanceEngine::global()?;
+        crate::reporting::initialize(&database).await?;
 
         let assembly::ContentAnalytics {
             geoip_reader,
@@ -155,28 +155,27 @@ impl AppContextBuilder {
             self.show_startup_warnings,
         )?;
 
-        let instance_id = systemprompt_identifiers::InstanceId::new(&config.instance_id);
-        let repositories = build_repositories(&database, analytics_repositories, instance_id)?;
-
-        let user_service = Arc::new(UserService::new(Arc::clone(&repositories.users)));
-
-        let system_admin =
-            assembly::resolve_and_install_system_admin(&config, &user_service).await?;
-        let mcp_registry = RegistryService::new(system_admin.id().clone());
-
-        ensure_legacy_context(&repositories, &system_admin).await?;
+        let (repositories, user_service, system_admin, mcp_registry) =
+            build_domain_layer(&config, &database, analytics_repositories).await?;
 
         let marketplace_filter = self
             .marketplace_filter
             .unwrap_or_else(|| assembly::build_marketplace_filter(&database));
 
-        let subsystems = build_subsystems(
+        let subsystems = Subsystems {
             system_admin,
             authz_hook,
+            governance,
+            schema_install: Arc::new(schema_install),
+            event_bridge: Arc::new(OnceLock::new()),
             geoip_reader,
             file_storage,
             shutdown,
-        );
+            publish_guard: Arc::new(tokio::sync::Mutex::new(
+                systemprompt_marketplace::inventory::PublishGuard::default(),
+            )),
+            snapshot_wakeup: Arc::new(crate::reporting::SnapshotWakeup::default()),
+        };
 
         Ok(AppContext::from_parts(
             build_data_plane(
@@ -197,8 +196,32 @@ impl AppContextBuilder {
                 api_registry,
                 mcp_registry,
                 marketplace_filter,
+                marketplace_cache: Arc::new(MarketplaceCache::default()),
             },
             subsystems,
         ))
     }
+}
+
+async fn build_domain_layer(
+    config: &systemprompt_models::Config,
+    database: &systemprompt_database::DbPool,
+    analytics_repositories: Arc<systemprompt_analytics::repository::AnalyticsRepositories>,
+) -> RuntimeResult<(
+    composition::RepositoryBundles,
+    Arc<UserService>,
+    Arc<systemprompt_models::SystemAdmin>,
+    RegistryService,
+)> {
+    let mut repositories = build_repositories(
+        database,
+        analytics_repositories,
+        systemprompt_identifiers::InstanceId::new(&config.instance_id),
+    )?;
+    let user_service = Arc::new(UserService::new(Arc::clone(&repositories.users)));
+    let system_admin = assembly::resolve_and_install_system_admin(config, &user_service).await?;
+    repositories.install_organization_resolver(system_admin.id());
+    let mcp_registry = RegistryService::new(system_admin.id().clone());
+    ensure_legacy_context(&repositories, &system_admin).await?;
+    Ok((repositories, user_service, system_admin, mcp_registry))
 }

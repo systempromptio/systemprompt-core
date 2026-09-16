@@ -15,6 +15,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use anyhow::Context as _;
 use axum::Router;
 use axum::body::Bytes;
 use axum::extract::State;
@@ -56,8 +57,13 @@ async fn handle_messages(
         return StatusCode::OK.into_response();
     };
 
-    let Some(app) = resolve_app(&normalized.tenant_id) else {
-        return StatusCode::OK.into_response();
+    let app = match resolve_app(&normalized.tenant_id) {
+        Ok(Some(app)) => app,
+        Ok(None) => return StatusCode::OK.into_response(),
+        Err(err) => {
+            tracing::error!(error = %err, "teams app config unavailable");
+            return StatusCode::SERVICE_UNAVAILABLE.into_response();
+        },
     };
 
     let Some(token) = bearer(&headers) else {
@@ -79,9 +85,16 @@ async fn handle_messages(
     let Some(agent) = app.agent_for(&normalized.routing_key).cloned() else {
         return StatusCode::OK.into_response();
     };
-    let Some(app_password) = app_password(&app) else {
-        tracing::warn!(tenant = %normalized.tenant_id.as_str(), "no teams app password configured");
-        return StatusCode::OK.into_response();
+    let app_password = match app_password(&app) {
+        Ok(password) => password,
+        Err(err) => {
+            tracing::error!(
+                tenant = %normalized.tenant_id.as_str(),
+                error = %err,
+                "teams app password unavailable"
+            );
+            return StatusCode::SERVICE_UNAVAILABLE.into_response();
+        },
     };
 
     let inbound = MessagingInbound {
@@ -151,19 +164,20 @@ fn non_empty(text: String) -> String {
     }
 }
 
-fn resolve_app(tenant_id: &TeamsTenantId) -> Option<TeamsAppConfig> {
-    let config = ConfigLoader::load().ok()?;
-    config
+fn resolve_app(tenant_id: &TeamsTenantId) -> anyhow::Result<Option<TeamsAppConfig>> {
+    let config = ConfigLoader::load().context("services config")?;
+    Ok(config
         .teams_apps
         .into_values()
-        .find(|app| app.enabled && app.tenant_id == *tenant_id)
+        .find(|app| app.enabled && app.tenant_id == *tenant_id))
 }
 
-fn app_password(app: &TeamsAppConfig) -> Option<String> {
+fn app_password(app: &TeamsAppConfig) -> anyhow::Result<String> {
     SecretsBootstrap::get()
-        .ok()?
+        .context("secrets store")?
         .get(app.app_password_ref.as_str())
         .cloned()
+        .with_context(|| format!("secret {} is not configured", app.app_password_ref))
 }
 
 fn bearer(headers: &HeaderMap) -> Option<&str> {

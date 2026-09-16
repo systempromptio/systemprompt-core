@@ -19,7 +19,7 @@ workspace = true
 [dependencies]
 # Serialization
 serde = { workspace = true }
-semver = { workspace = true }
+semver = { workspace = true, features = ["serde"] }
 serde_json = { workspace = true }
 chrono = { workspace = true }
 uuid = { workspace = true }
@@ -44,10 +44,6 @@ http = { workspace = true }
 # URL parsing for outbound-endpoint (SSRF) validation
 url = { workspace = true }
 
-# Guarded outbound HTTP client: connect-time SSRF enforcement (see `net::client`)
-reqwest = { workspace = true }
-tokio = { workspace = true }
-
 # Typed CIDR ranges for trusted_proxies (parse-on-deserialize, fail-closed)
 ipnet = { workspace = true }
 
@@ -65,6 +61,7 @@ regex = { workspace = true }
 # Crypto (services-bundle content hashing + ed25519 public-key validation)
 sha2 = { workspace = true }
 hex = { workspace = true }
+serde_jcs = { workspace = true }
 base64 = { workspace = true }
 
 # Async streaming
@@ -94,10 +91,6 @@ sqlx = ["dep:sqlx"]
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
-
-# Parent-death signalling for spawned children (see `subprocess::spawn_supervised`)
-[target.'cfg(unix)'.dependencies]
-libc = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

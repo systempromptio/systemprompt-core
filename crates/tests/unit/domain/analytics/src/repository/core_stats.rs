@@ -3,7 +3,7 @@
 //! tables, so assertions are lower-bound invariants against seeded data
 //! rather than exact counts.
 
-use systemprompt_analytics::{CoreStatsRepository, SessionRepository};
+use systemprompt_analytics::CoreStatsRepository;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fixture_db_pool};
 use uuid::Uuid;
 
@@ -17,11 +17,16 @@ async fn platform_overview_counts_seeded_session() {
     ensure_test_bootstrap();
     let pool = fixture_db_pool(&url).await.expect("pool");
     let repo = CoreStatsRepository::new(&pool).expect("repo");
-    let sessions = SessionRepository::new(&pool).expect("session repo");
+    let sessions = systemprompt_test_fixtures::fixture_analytics_repositories(&pool)
+        .map(|repositories| repositories.sessions)
+        .expect("session repo");
 
     let sid = unique_session_id();
     seed_session(&sessions, &sid, &format!("fp-{}", Uuid::new_v4())).await;
 
+    systemprompt_test_fixtures::refresh_reporting(&pool)
+        .await
+        .expect("reporting snapshot");
     let overview = repo.get_platform_overview().await.expect("overview");
     assert!(overview.total_sessions >= 1);
     assert!(overview.active_sessions >= 1);
@@ -56,11 +61,16 @@ async fn user_metrics_with_trends_are_consistent() {
     ensure_test_bootstrap();
     let pool = fixture_db_pool(&url).await.expect("pool");
     let repo = CoreStatsRepository::new(&pool).expect("repo");
-    let sessions = SessionRepository::new(&pool).expect("session repo");
+    let sessions = systemprompt_test_fixtures::fixture_analytics_repositories(&pool)
+        .map(|repositories| repositories.sessions)
+        .expect("session repo");
 
     let sid = unique_session_id();
     seed_session(&sessions, &sid, &format!("fp-{}", Uuid::new_v4())).await;
 
+    systemprompt_test_fixtures::refresh_reporting(&pool)
+        .await
+        .expect("reporting snapshot");
     let metrics = repo.get_user_metrics_with_trends().await.expect("metrics");
     assert!(metrics.count_24h >= 1);
     assert!(metrics.count_24h <= metrics.count_7d);

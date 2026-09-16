@@ -62,7 +62,12 @@ pub(super) fn append_host_profiles(out: &mut Vec<String>, ctx: &BridgeContext) {
         let snapshot = host.probe(&env);
         out.push(format!(
             "  {}: {:?}; app {:?}; running {}",
-            snapshot.host_id, snapshot.profile_state, snapshot.app_installed, snapshot.host_running
+            snapshot.host_id,
+            snapshot.profile_state,
+            snapshot.app_installed,
+            snapshot
+                .host_running
+                .map_or("unknown", |running| if running { "yes" } else { "no" })
         ));
         for (key, value) in &snapshot.profile_keys {
             let shown = if crate::config::redaction::is_sensitive_key(key) {
@@ -121,8 +126,8 @@ pub(super) fn append_single_instance(out: &mut Vec<String>) {
 pub(super) fn append_update(out: &mut Vec<String>) {
     out.push("update:".to_owned());
     out.push(format!(
-        "  policy: {:?}",
-        crate::update::auto_update_policy()
+        "  policy: {}",
+        crate::update::auto_update_policy().describe()
     ));
     match crate::config::load() {
         Ok(cfg) => out.push(format!(

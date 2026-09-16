@@ -52,19 +52,25 @@ pub async fn forward_event(
     let (protocol, broadcast_count) = match event {
         ContextEvent::AgUi(e) => {
             let event_type = e.event_type();
-            let (agui, ctx) = EventRouter::route_agui(user_id, e).await;
+            let (agui, ctx) = EventRouter::route_agui(user_id, e)
+                .await
+                .into_local_logged();
             tracing::debug!(event_type = ?event_type, agui = %agui, ctx = %ctx, "AG-UI event routed");
             ("agui", agui + ctx)
         },
         ContextEvent::A2A(e) => {
             let event_type = e.event_type();
-            let (a2a, ctx) = EventRouter::route_a2a(user_id, *e).await;
+            let (a2a, ctx) = EventRouter::route_a2a(user_id, *e)
+                .await
+                .into_local_logged();
             tracing::debug!(event_type = ?event_type, a2a = %a2a, ctx = %ctx, "A2A event routed");
             ("a2a", a2a + ctx)
         },
         ContextEvent::System(e) => {
             let event_type = e.event_type();
-            let ctx = EventRouter::route_system(user_id, e).await;
+            let ctx = EventRouter::route_system(user_id, e)
+                .await
+                .into_local_logged();
             tracing::debug!(event_type = ?event_type, ctx = %ctx, "System event routed");
             ("system", ctx)
         },

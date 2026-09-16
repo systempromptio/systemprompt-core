@@ -4,9 +4,9 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use async_trait::async_trait;
-use systemprompt_analytics::SessionRepository;
 use systemprompt_database::DbPool;
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
+use systemprompt_users::SessionRepository;
 use tracing::debug;
 
 use crate::error::SchedulerError;

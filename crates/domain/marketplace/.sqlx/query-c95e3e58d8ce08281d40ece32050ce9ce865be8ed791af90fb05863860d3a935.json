@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE managed_api_operations SET fence=fence+1,lease_until=clock_timestamp()+interval '180 seconds',updated_at=clock_timestamp() WHERE owner_id=$1 AND id=$2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "c95e3e58d8ce08281d40ece32050ce9ce865be8ed791af90fb05863860d3a935"
+}

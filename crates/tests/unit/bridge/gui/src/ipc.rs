@@ -1,6 +1,6 @@
 use serde_json::{Value, json};
 use systemprompt_bridge::wire::ipc::{
-    BridgeError, ErrorCode, ErrorScope, IpcReplyPayload, emit_script, reply_script,
+    BridgeError, ErrorCode, ErrorScope, IpcReplyPayload, ReplyTarget, emit_script, reply_script,
 };
 
 #[test]
@@ -59,11 +59,11 @@ fn internal_constructor() {
 #[test]
 fn reply_script_contains_id_and_payload_json() {
     let payload = IpcReplyPayload::ok(json!({ "answer": 42 }));
-    let script = reply_script(7, &payload);
+    let script = reply_script(ReplyTarget { mount: 1, id: 7 }, &payload);
 
     let body = serde_json::to_string(&payload).expect("serialize payload");
     assert!(
-        script.contains("reply(7, "),
+        script.contains("reply(1, 7, "),
         "script should embed the request id: {script}"
     );
     assert!(
@@ -75,9 +75,9 @@ fn reply_script_contains_id_and_payload_json() {
 #[test]
 fn reply_script_err_payload_carries_error() {
     let payload = IpcReplyPayload::err(BridgeError::not_found("nope"));
-    let script = reply_script(11, &payload);
+    let script = reply_script(ReplyTarget { mount: 1, id: 11 }, &payload);
 
-    assert!(script.contains("reply(11, "));
+    assert!(script.contains("reply(1, 11, "));
     assert!(script.contains("\"ok\":false"));
     assert!(script.contains("not_found"));
 }

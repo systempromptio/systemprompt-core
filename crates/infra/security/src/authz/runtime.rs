@@ -27,7 +27,9 @@
 //! Bootstrap ordering: called from `AppContextBuilder::build` after the
 //! database pool is created so the audit sink can write to
 //! `governance_decisions` and [`RuleBasedHook`] can query
-//! `access_control_rules`.
+//! `access_control_rules`. The pool is required: every webhook or extension
+//! composition carries [`RuleBasedHook`] in front, and every decision is
+//! audited to the database.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -40,7 +42,7 @@ use systemprompt_models::profile::{
     AuthzConfig, AuthzMode, GovernanceConfig, UNRESTRICTED_ACKNOWLEDGEMENT,
 };
 
-use super::audit::{AuthzAuditSink, DbAuditSink, GovernanceDecisionRepository, NullAuditSink};
+use super::audit::{AuthzAuditSink, DbAuditSink, GovernanceDecisionRepository};
 use super::composite::CompositeAuthzHook;
 use super::error::{AuthzBootstrapError, AuthzResult};
 use super::hook::{AllowAllHook, DenyAllHook, SharedAuthzHook, WebhookHook};
@@ -50,18 +52,18 @@ use super::rule_based::RuleBasedHook;
 
 pub fn build_authz_hook(
     governance: Option<&GovernanceConfig>,
-    pool: Option<Arc<sqlx::PgPool>>,
+    pool: Arc<sqlx::PgPool>,
     extension: Option<SharedAuthzHook>,
     sources: ChainSources,
 ) -> AuthzResult<SharedAuthzHook> {
-    let sink = build_sink(pool.clone());
+    let sink: Arc<dyn AuthzAuditSink> = Arc::new(DbAuditSink::new(
+        GovernanceDecisionRepository::from_pool(Arc::clone(&pool)),
+    ));
 
     let extension = extension.or_else(|| {
-        pool.as_ref().and_then(|p| {
-            discover_authz_hook(&AuthzHookContext {
-                pool: Arc::clone(p),
-                sink: Arc::clone(&sink),
-            })
+        discover_authz_hook(&AuthzHookContext {
+            pool: Arc::clone(&pool),
+            sink: Arc::clone(&sink),
         })
     });
 
@@ -136,17 +138,11 @@ fn build_webhook_hook(
 }
 
 fn compose_rule_based(
-    pool: Option<Arc<sqlx::PgPool>>,
+    pool: Arc<sqlx::PgPool>,
     sink: Arc<dyn AuthzAuditSink>,
     sources: ChainSources,
-    mut tail: Vec<SharedAuthzHook>,
+    tail: Vec<SharedAuthzHook>,
 ) -> SharedAuthzHook {
-    let Some(pool) = pool else {
-        if tail.len() == 1 {
-            return tail.remove(0);
-        }
-        return Arc::new(CompositeAuthzHook::new(tail));
-    };
     let rule_based: SharedAuthzHook = Arc::new(RuleBasedHook::new(pool, sink, sources));
     let mut hooks = Vec::with_capacity(tail.len() + 1);
     hooks.push(rule_based);
@@ -161,13 +157,4 @@ const fn mode_name(mode: AuthzMode) -> &'static str {
         AuthzMode::Disabled => "disabled",
         AuthzMode::Unrestricted => "unrestricted",
     }
-}
-
-fn build_sink(pool: Option<Arc<sqlx::PgPool>>) -> Arc<dyn AuthzAuditSink> {
-    pool.map_or_else(
-        || -> Arc<dyn AuthzAuditSink> { Arc::new(NullAuditSink) },
-        |p| -> Arc<dyn AuthzAuditSink> {
-            Arc::new(DbAuditSink::new(GovernanceDecisionRepository::from_pool(p)))
-        },
-    )
 }

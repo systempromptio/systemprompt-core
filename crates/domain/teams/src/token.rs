@@ -131,7 +131,10 @@ impl TokenProvider {
             .await?;
         if !resp.status().is_success() {
             let status = resp.status();
-            let body = resp.text().await.unwrap_or_default();
+            let body = resp
+                .text()
+                .await
+                .unwrap_or_else(|e| format!("<unreadable body: {e}>"));
             return Err(TeamsError::Outbound(format!(
                 "token endpoint returned {status}: {body}"
             )));

@@ -53,6 +53,12 @@ pub enum AgentServiceError {
     #[error("capacity exceeded: {0}")]
     Capacity(String),
 
+    #[error("stream consumer closed before the task finished")]
+    StreamClosed,
+
+    #[error("task was cancelled before it finished")]
+    TaskCancelled,
+
     #[error("skill {skill_id} is managed but withheld ({reason})")]
     SkillWithheld {
         skill_id: systemprompt_identifiers::SkillId,
@@ -97,8 +103,14 @@ impl From<crate::error::AgentError> for AgentServiceError {
     }
 }
 
-impl From<systemprompt_models::errors::ProviderError> for AgentServiceError {
-    fn from(err: systemprompt_models::errors::ProviderError) -> Self {
+impl From<systemprompt_models::errors::AiInferenceError> for AgentServiceError {
+    fn from(err: systemprompt_models::errors::AiInferenceError) -> Self {
+        Self::Internal(err.to_string())
+    }
+}
+
+impl From<systemprompt_models::errors::McpRegistryError> for AgentServiceError {
+    fn from(err: systemprompt_models::errors::McpRegistryError) -> Self {
         Self::Internal(err.to_string())
     }
 }

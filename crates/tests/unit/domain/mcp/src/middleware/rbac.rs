@@ -10,8 +10,8 @@ fn create_test_context() -> RequestContext {
     RequestContext::new(
         SessionId::new("test_session".to_string()),
         TraceId::new("test_trace".to_string()),
-        ContextId::new_unchecked(TEST_CONTEXT_ID_A),
-        AgentName::new("test_agent".to_string()),
+        ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
+        AgentName::try_new("test_agent".to_string()).expect("valid AgentName"),
     )
 }
 

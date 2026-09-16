@@ -5,12 +5,12 @@
 
 use std::path::PathBuf;
 use systemprompt_runtime::{display_validation_report, display_validation_warnings};
-use systemprompt_traits::validation_report::ValidationError;
+use systemprompt_traits::validation_report::ValidationIssue;
 use systemprompt_traits::{StartupValidationReport, ValidationReport, ValidationWarning};
 
 fn make_error_report(domain: &str, with_path: bool, with_suggestion: bool) -> ValidationReport {
     let mut report = ValidationReport::new(domain);
-    let mut err = ValidationError::new("field.x", "something is wrong");
+    let mut err = ValidationIssue::new("field.x", "something is wrong");
     if with_path {
         err = err.with_path(PathBuf::from("/tmp/x.yaml"));
     }
@@ -45,7 +45,7 @@ fn display_report_with_domain_errors_full_metadata() {
 fn display_report_with_extension_errors() {
     let mut report = StartupValidationReport::new();
     let mut ext = ValidationReport::new("ext-foo");
-    ext.add_error(ValidationError::new("field", "boom"));
+    ext.add_error(ValidationIssue::new("field", "boom"));
     report.add_extension(ext);
     display_validation_report(&report);
 }

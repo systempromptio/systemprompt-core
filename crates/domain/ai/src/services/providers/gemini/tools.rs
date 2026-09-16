@@ -27,6 +27,7 @@ pub use super::params::{ToolRequestParams, ToolResultParams};
 use super::provider::GeminiProvider;
 use super::tool_conversion::{convert_tools, resolve_response, thinking_for};
 use super::transport;
+use crate::services::schema::ToolNameMapper;
 
 pub(super) async fn generate_with_tools(
     provider: &GeminiProvider,
@@ -34,7 +35,8 @@ pub(super) async fn generate_with_tools(
 ) -> Result<(AiResponse, Vec<ToolCall>)> {
     let start = Instant::now();
     let request_id = Uuid::new_v4();
-    let canonical_tools = convert_tools(provider, params.tools.to_vec()).await?;
+    let mut mapper = ToolNameMapper::new();
+    let canonical_tools = convert_tools(&mut mapper, params.tools.to_vec())?;
     let has_tools = !canonical_tools.is_empty();
 
     let mut build = CanonicalBuild::new(
@@ -59,7 +61,7 @@ pub(super) async fn generate_with_tools(
         .json()
         .await?;
     let parsed = gemini::parse_response(&value, params.model)?;
-    let (content, tool_calls) = resolve_response(provider, &parsed).await;
+    let (content, tool_calls) = resolve_response(&mapper, &parsed);
 
     let mut response =
         canonical_bridge::to_ai_response("gemini", params.model, request_id, start, &parsed);

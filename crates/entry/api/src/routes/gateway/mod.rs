@@ -4,7 +4,7 @@
 //! `/responses`, and `/chat/completions` proxy endpoints (each bound to an
 //! [`InboundAdapter`](crate::services::gateway::protocol::InboundAdapter)), the
 //! `/auth/bridge/*` credential-exchange routes ([`auth`]), the `/bridge/*`
-//! manifest and heartbeat routes, the unauthenticated `/otel` ingest
+//! manifest and heartbeat routes, the credential-gated `/otel` ingest
 //! ([`otel`]), and `/models`. The router is gated on the availability of the
 //! analytics, user, and JTI-revocation providers; if any is missing it returns
 //! `None` and the gateway stays unmounted. `log_gateway_request` is the
@@ -16,6 +16,7 @@
 pub mod auth;
 pub mod bridge;
 pub mod bridge_data;
+pub mod bridge_device;
 pub mod bridge_heartbeat;
 pub mod bridge_manifest;
 pub mod bridge_plugin_file;
@@ -31,7 +32,7 @@ pub mod sessions;
 mod access_log;
 mod routers;
 
-use axum::routing::{get, post};
+use axum::routing::get;
 use axum::{Extension, Router};
 use std::sync::Arc;
 use systemprompt_runtime::AppContext;
@@ -40,18 +41,20 @@ use systemprompt_traits::AppContext as _;
 use self::access_log::log_gateway_request;
 use self::routers::{
     bridge_auth_routes, bridge_profile_routes, bridge_release_routes, bridge_session_routes,
-    inference_routes,
+    inference_routes, otel_routes,
 };
 use crate::services::middleware::{JtiRevocationChecker, JwtContextExtractor};
 
 pub(crate) use self::access_log::{GatewayLogIdentity, TerminalOutcome, log_gateway_terminal};
 
 pub fn gateway_enabled(ctx: &AppContext) -> bool {
-    ctx.analytics_provider().is_some() && ctx.user_provider().is_some()
+    ctx.analytics_provider().is_some()
+        && ctx.session_provider().is_some()
+        && ctx.user_provider().is_some()
 }
 
 fn build_jwt_extractor(ctx: &AppContext) -> Option<Arc<JwtContextExtractor>> {
-    let Some(analytics) = ctx.analytics_provider() else {
+    let Some(analytics) = ctx.session_provider() else {
         tracing::warn!("Gateway router: analytics provider unavailable — gateway disabled");
         return None;
     };
@@ -95,14 +98,7 @@ pub fn gateway_router(ctx: &AppContext) -> anyhow::Result<Option<Router>> {
             .merge(bridge_profile_routes(ctx, &jwt_extractor))
             .merge(bridge_session_routes(ctx, &jwt_extractor))
             .merge(bridge_release_routes(&jwt_extractor))
-            .route(
-                "/otel",
-                post(|request| async move { otel::handle(request).await }),
-            )
-            .route(
-                "/otel/{*rest}",
-                post(|request| async move { otel::handle(request).await }),
-            )
+            .merge(otel_routes(ctx, &jwt_extractor, &gateway_repos))
             .route("/models", get(models::list))
             .route("/", get(models::root))
             .layer(Extension(ctx.clone()))

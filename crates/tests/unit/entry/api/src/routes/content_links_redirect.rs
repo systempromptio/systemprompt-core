@@ -28,7 +28,7 @@ fn ctx(session_id: &str) -> RequestContext {
         SessionId::new(session_id),
         TraceId::generate(),
         ContextId::generate(),
-        AgentName::new("test"),
+        AgentName::try_new("test").expect("valid AgentName"),
     );
     ctx.auth.actor = systemprompt_identifiers::Actor::user(UserId::new("link-visitor"));
     ctx

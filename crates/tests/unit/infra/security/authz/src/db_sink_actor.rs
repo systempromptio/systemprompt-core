@@ -1,7 +1,7 @@
 //! DB-backed tests that `DbAuditSink` persists the enforcement surface and
 //! the verified client rather than flattening every row to a bare user.
 
-use systemprompt_identifiers::{Actor, ClientId, McpServerId, TraceId, UserId};
+use systemprompt_identifiers::{Actor, AgentId, ClientId, McpServerId, TraceId, UserId};
 use systemprompt_security::authz::{
     AuthzAuditSink, AuthzContext, AuthzDecision, AuthzRequest, AuthzSource, DbAuditSink, EntityRef,
     GovernanceDecisionRepository,
@@ -10,7 +10,7 @@ use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
 
 fn mcp_request(user: &str, server: &str, chain: Vec<Actor>) -> AuthzRequest {
     AuthzRequest {
-        entity: EntityRef::McpServer(McpServerId::new(server)),
+        entity: EntityRef::McpServer(McpServerId::try_new(server).expect("valid McpServerId")),
         user_id: UserId::new(user),
         actor: None,
         client_id: Some(ClientId::bridge()),
@@ -99,7 +99,10 @@ async fn sink_records_a_verified_agent_delegate() {
     let req = mcp_request(
         "sink-user",
         "email",
-        vec![Actor::agent(UserId::new("sink-user"), "planner")],
+        vec![Actor::agent(
+            UserId::new("sink-user"),
+            AgentId::new("planner"),
+        )],
     );
     let trace = req.trace_id.as_str().to_owned();
     sink.record(

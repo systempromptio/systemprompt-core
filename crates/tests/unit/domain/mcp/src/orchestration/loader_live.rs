@@ -4,11 +4,12 @@
 
 use std::sync::Arc;
 
+use systemprompt_config::paths::AppPaths;
 use systemprompt_identifiers::UserId;
 use systemprompt_mcp::orchestration::McpToolLoader;
+use systemprompt_mcp::services::ServiceLifecycleStatus;
 use systemprompt_mcp::services::database::DatabaseService;
 use systemprompt_mcp::services::registry::RegistryService;
-use systemprompt_models::AppPaths;
 use systemprompt_test_fixtures::{
     TestBootstrap, fixture_database_url, fixture_db_pool, fixture_user_id,
 };
@@ -262,7 +263,7 @@ async fn stopped_service_row_is_reported_not_running() {
         .await
         .expect("service registered");
     live.database
-        .update_service_status(&live.server_name, "stopped")
+        .update_service_status(&live.server_name, ServiceLifecycleStatus::Stopped)
         .await
         .expect("status updated");
 

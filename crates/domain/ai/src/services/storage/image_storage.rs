@@ -71,6 +71,15 @@ impl StorageConfig {
     }
 }
 
+/// A decoded image written to storage: its key, public URL and the size of
+/// the bytes actually stored (not the base64 transport length).
+#[derive(Debug, Clone)]
+pub struct StoredImage {
+    pub id: StoredFileId,
+    pub public_url: String,
+    pub size_bytes: usize,
+}
+
 pub struct ImageStorage {
     config: StorageConfig,
     storage: Arc<dyn FileStorage>,
@@ -101,12 +110,17 @@ impl ImageStorage {
         &self,
         base64_data: &str,
         mime_type: &str,
-    ) -> Result<(StoredFileId, String), AiError> {
+    ) -> Result<StoredImage, AiError> {
         let image_bytes = BASE64
             .decode(base64_data)
             .map_err(|e| storage_error(format!("Failed to decode base64 image: {e}")))?;
 
-        self.save_image_bytes(&image_bytes, mime_type).await
+        let (id, public_url) = self.save_image_bytes(&image_bytes, mime_type).await?;
+        Ok(StoredImage {
+            id,
+            public_url,
+            size_bytes: image_bytes.len(),
+        })
     }
 
     pub async fn save_image_bytes(

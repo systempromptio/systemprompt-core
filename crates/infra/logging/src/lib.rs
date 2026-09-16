@@ -2,14 +2,15 @@
 //!
 //! Tracing and audit infrastructure for systemprompt.io. Owns the
 //! structured-event pipeline, the database-backed `tracing` layer,
-//! log/analytics repositories, retention scheduling, and a typed query surface
-//! over the audit trail (traces, AI requests, MCP tool executions).
+//! log/analytics repositories, retention scheduling, and the CLI display
+//! sinks. The trace-assembly queries over agent, AI and MCP tables live in
+//! `systemprompt_runtime::trace`.
 //!
 //! ## Feature flags
 //!
 //! | Feature   | Description                                                               |
 //! |-----------|---------------------------------------------------------------------------|
-//! | (default) | Database layer, repositories, trace queries, retention scheduler          |
+//! | (default) | Database layer, repositories, retention scheduler                         |
 //! | `cli`     | CLI display helpers (`CliService`, tables, banners) — pulls in `console`, `indicatif` |
 //!
 //! ## Top-level entry points
@@ -20,7 +21,6 @@
 //! - [`LoggingExtension`] — schema/extension registration via the `inventory`
 //!   framework.
 //! - [`LoggingRepository`], [`AnalyticsRepository`] — direct repository access.
-//! - [`TraceQueryService`], [`AiTraceService`] — typed audit/trace queries.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -32,7 +32,6 @@ pub mod models;
 pub mod repository;
 pub mod sanitize;
 pub mod services;
-pub mod trace;
 
 pub use attribution::{LogAttributionUnset, install_log_attribution, platform_attribution};
 pub use extension::LoggingExtension;
@@ -45,16 +44,8 @@ pub use services::CliService;
 pub use services::{
     BufferedNotice, DatabaseLogService, FilterSystemFields, LogThrottle, LoggingMaintenanceService,
     SystemSpan, buffer_notice, drain_notices, is_startup_mode, is_structured_output,
-    mark_structured_emitted, publish_log, reset_structured_emitted, set_log_publisher,
-    set_startup_mode, set_structured_output, structured_was_emitted,
-};
-pub use trace::{
-    AiRequestDetail, AiRequestFilter, AiRequestInfo, AiRequestListItem, AiRequestStats,
-    AiRequestSummary, AiTraceService, AuditLookupResult, AuditToolCallRow, ConversationMessage,
-    ExecutionStep, ExecutionStepSummary, LevelCount, LinkedMcpCall, LogSearchFilter, LogSearchItem,
-    LogTimeRange, McpExecutionSummary, McpToolExecution, ModelStatsRow, ModuleCount,
-    ProviderStatsRow, TaskArtifact, TaskInfo, ToolExecutionFilter, ToolExecutionItem, ToolLogEntry,
-    TraceEvent, TraceListFilter, TraceListItem, TraceQueryService,
+    mark_structured_emitted, reset_structured_emitted, set_startup_mode, set_structured_output,
+    structured_was_emitted,
 };
 
 use std::sync::OnceLock;

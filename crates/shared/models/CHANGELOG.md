@@ -1,5 +1,42 @@
 # Changelog
 
+## [0.53.0] - 2026-09-15
+
+### Breaking
+
+- **Breaking:** `bridge::manifest::SignedManifest::{issued_at, not_before}` are `DateTime<Utc>` and `min_bridge_version` is `Option<semver::Version>`; `bridge::manifest::min_bridge_version()` replaces the `MIN_BRIDGE_VERSION` string and `bridge_version_is_supported` takes the floor as `&semver::Version`; `AgentEntry::{provider, model}` are `Option<ProviderId>` / `Option<ModelId>`. Signature verification runs on the raw payload before deserialisation, so the wire bytes are unchanged; migrate fixtures by parsing RFC 3339 strings.
+- **Breaking:** `ProviderError` / `ProviderResult` (`Box<dyn Error>`) are replaced by `errors::AiInferenceError` / `AiInferenceResult` on `AiProvider` and by `errors::McpRegistryError` / `McpRegistryResult` on `McpRegistry`, `McpToolProvider` and `McpDeploymentProvider`. Migrate by matching the typed variants; `From<AiError>` covers the AI domain's own failures.
+- **Breaking:** the subprocess supervisor (`subprocess::{spawn_supervised, …}`), the guarded HTTP client (`net::client`) and the filesystem path resolvers (`paths::{build, system, storage, web}`, `AppPaths`) moved out of this crate: process spawning lives in `systemprompt_loader::subprocess`, the client in `systemprompt_client::guarded`, path resolution in `systemprompt_config::paths`. `models::subprocess` keeps only the pure identity contract and `models::paths` keeps `PathResolution` and the directory-name constants. Migrate by updating the import paths.
+- **Breaking:** `CanonicalRequest` no longer implements `Default`; construct it with `CanonicalRequest::new(model: ModelId, messages, max_tokens)` and the `with_*` setters. `CanonicalRequest::model` is a `ModelId`.
+- **Breaking:** `execution::context::propagation` rejects a malformed `x-user-permissions`, `x-context-id` or `x-call-source` header with `ContextPropagationError::InvalidHeader` instead of silently downgrading the request; an absent header still derives the default.
+- **Breaking:** typed identifiers replace raw strings on `AgentJwtClaims.subject` (`UserId`), `AiGeneratedFile.id` (`FileId`), `McpServerState { name: McpServerId, status: McpServerStatus }`, `McpRegistry::{list_servers, find_server, server_exists}` (`McpServerId`), `SignedManifest.revocations` (`Vec<ApiKeyId>`), and `services::AgentCardConfig::{security_schemes: Option<HashMap<String, SecurityScheme>>, security: Option<Vec<HashMap<String, Vec<String>>>>}` — a card whose security block is malformed now fails to load instead of being dropped with a warning.
+- **Breaking:** `wire::WireParseError::OpenAiResponsesMissingToolCallId` is returned when a Responses API `function_call` carries neither `call_id` nor `id`; an unparseable Responses or Gemini SSE frame yields an `Err` stream item instead of being skipped.
+- **Breaking:** `ai::ToolModelConfig` is now defined in `systemprompt_provider_contracts` and re-exported here unchanged. `SearchGroundedResponse.safety_ratings` is `Option<Vec<ai::SafetyRating>>`. Migrate by using the typed struct.
+- **Breaking:** `RowParseError` gains `InvalidId { field, source: IdValidationError }` and is no longer `Copy`; a malformed `service_id` on a tool-call row reports the identifier error instead of `Missing`. Migrate by cloning where a copy was relied on.
+
+### Added
+
+- `services::PluginDependency` and `PluginConfig::dependencies` (validated: non-empty name, semver-range `version`, no duplicates); `services::{ExternalMarketplace, ExternalMarketplaceSource}` and `MarketplaceConfig::{allow_cross_marketplace_dependencies_on, external_marketplaces}` (validated: `owner/repo` GitHub repos, https git URLs through the outbound-URL guard, no self-reference, unique names); `ServicesConfig::validate` refuses a plugin dependency on a marketplace the carrying marketplace does not allowlist and declare (or configure locally). `bridge::plugin_bundle::ManifestDependency` is Claude Code's `dependencies` wire shape on `PluginManifest`; `NODE_PACKAGE_FILE`, `NODE_LOCKFILES` and `node_lockfile` are the shared Node-install contract. `ManifestMarketplace` carries both marketplace fields.
+- `rate_limits.gateway_per_second` (default `100`) governs the `/v1` gateway route group; `RATE_LIMIT_GATEWAY_PER_SECOND` in the env profile source.
+- `RevisionFiles::same_content` compares two file sets by path, bytes and executable bit.
+
+- `managed` module: `RevisionBundle`, `RevisionManifest`, `FileEntry`, `DependencyRef`, `AssetDigest`, `AssetFile`, `RevisionFiles`, `RevisionBundleError` and the `validate_path` / `validate_key` validators — the verified managed-resource revision closure shared by the marketplace, evaluation and scheduler domains (previously `systemprompt_marketplace::managed`).
+- `bridge::manifest` is a directory module (`entries`, `managed_mcp`); `wire::canonical::request` likewise (`content`, `options`). Re-exports are unchanged.
+- `Config` implements `Debug` by hand, redacting `database_url`, `database_write_url` and `github_token`.
+- `extension_migrations!` checksums are xxh64 of the SQL, a specified digest that is stable across toolchains.
+- `feedback` module: the consumer-evidence, inventory, verification and analytics contracts shared by the API, the bridge and the evaluator — `ConsumerReceiptRequest` / `ConsumerReceiptResponse`, `ConsumerInstallationPlan`, `FileReadback` / `RuntimeFileReadback`, `ReadbackStatus`, `ReceiptAcknowledgement`, `SessionBindingRequest`, `InvocationConsumerIdentity` / `InvocationResourceAttribution`, `AuthenticatedConsumerDevice`, `InventoryInput` / `InventoryOrigin` / `InventoryMembership` / `InventoryAvailability`, `DependencyVerificationRequest` / `DependencyVerificationManifest` / `VerifiedRevisionManifest`, `NormalizedAnalyticsFact` and its kinds, `RecordedSpend`, `AssessmentOutcome`, `EvaluatorClient` (with host aliases) and `FeedbackContractError`; every request type carries `validate()`.
+- `auth::roles_to_string` / `auth::parse_roles`; context propagation emits and reads `x-user-roles` alongside the proxy-verified permissions.
+
+### Changed
+
+- `net::validate_outbound_url` and `is_blocked_ip` additionally refuse `0.0.0.0/8`, `192.0.0.0/24`, `198.18.0.0/15`, `224.0.0.0/4`, `240.0.0.0/4`, `ff00::/8`, NAT64 `64:ff9b::/96` and IPv4-compatible `::a.b.c.d` addresses (judged by the IPv4 table).
+- `Profile::is_local_trial` is `false` for a cloud-target profile without a `cloud` section; only a local target defaults to the local trial.
+- `ai::execution_plan::TemplateRef` compiles its pattern once.
+
+### Removed
+
+- `McpProvider`, `ServiceLifecycle`, `a2a::AgentAuthentication` (a bare `serde_json::Value` alias), `CreateSessionInput` / `InsertAiFileParams` / `ContextWithStats` struct-literal construction (use their `new` / `with_*` builders), and the `execution::context` publisher hooks (`LogEventPublisher`, `set_log_publisher`, `publish_log`).
+
 ## [0.52.0] - 2026-09-14
 
 ### Breaking

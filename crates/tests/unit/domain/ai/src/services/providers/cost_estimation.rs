@@ -21,7 +21,9 @@ fn seed_models(provider: &str) -> Vec<ProviderModel> {
 }
 
 fn microdollars(models: &[ProviderModel], model: &str, input: u32, output: u32) -> i64 {
-    catalog_pricing(models, model).cost_microdollars(&usage().input(input).output(output).build())
+    catalog_pricing(models, model)
+        .expect("model is priced")
+        .cost_microdollars(&usage().input(input).output(output).build())
 }
 
 #[test]
@@ -65,19 +67,9 @@ fn gemini_flash_cost_is_exact() {
 }
 
 #[test]
-fn unknown_model_costs_zero() {
-    let models = seed_models("openai");
-    assert_eq!(
-        microdollars(&models, "no-such-model", 1_000, 1_000),
-        0,
-        "an unknown model resolves to default (zero) pricing"
-    );
-}
-
-#[test]
 fn cache_tokens_are_billed_by_the_shared_cost_function() {
     let models = seed_models("anthropic");
-    let pricing = catalog_pricing(&models, "claude-sonnet-4-6");
+    let pricing = catalog_pricing(&models, "claude-sonnet-4-6").expect("model is priced");
     let cached = usage()
         .input(1_000)
         .output(500)
@@ -90,4 +82,12 @@ fn cache_tokens_are_billed_by_the_shared_cost_function() {
             > pricing.cost_microdollars(&usage().input(1_000).output(500).build()),
         "cache tokens must be billed, not dropped"
     );
+}
+
+// Why: a model the catalogue does not price is withheld rather than priced at
+// zero, so a request for it can be refused instead of settled unbilled.
+#[test]
+fn an_unpriced_model_has_no_pricing() {
+    let models = seed_models("anthropic");
+    assert!(catalog_pricing(&models, "claude-not-in-catalogue").is_none());
 }

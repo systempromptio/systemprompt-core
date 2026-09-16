@@ -3,10 +3,9 @@
 //! `event_outbox` rows are the durable handoff between replicas: a routed
 //! event is appended here and announced over Postgres `NOTIFY`; peer
 //! replicas load the row and re-inject the event into their local
-//! broadcasters. Every `event_outbox` statement lives in this repository —
-//! [`EventRouter`](super::routing::EventRouter) and
-//! [`PostgresEventBridge`](super::bridge::PostgresEventBridge) call it
-//! rather than running SQL themselves.
+//! broadcasters. [`EventRouter`](super::routing::EventRouter) and
+//! [`PostgresEventBridge`](super::bridge::PostgresEventBridge) use this
+//! repository; transactional publication and processing live in `durable`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -20,6 +19,7 @@ pub(super) struct OutboxRow {
     pub channel: String,
     pub user_id: UserId,
     pub origin_instance_id: InstanceId,
+    pub deliver_to_origin: bool,
     // JSON: the `payload` jsonb column is polymorphic by `channel`; the
     // relay decodes it into the matching typed event after dispatch.
     pub payload: serde_json::Value,
@@ -74,9 +74,16 @@ impl EventOutboxRepository {
     pub(super) async fn find(&self, id: &EventOutboxId) -> Result<Option<OutboxRow>, sqlx::Error> {
         sqlx::query_as!(
             OutboxRow,
-            r#"SELECT channel, user_id as "user_id!: UserId", payload,
-                      origin_instance_id as "origin_instance_id!: InstanceId"
-               FROM event_outbox WHERE id = $1"#,
+            r#"
+            SELECT
+                channel,
+                user_id as "user_id: UserId",
+                payload,
+                origin_instance_id as "origin_instance_id: InstanceId",
+                deliver_to_origin
+            FROM event_outbox
+            WHERE id = $1
+            "#,
             id.as_str(),
         )
         .fetch_optional(&self.pool)
@@ -87,9 +94,6 @@ impl EventOutboxRepository {
         &self,
         cutoff: chrono::DateTime<chrono::Utc>,
     ) -> Result<u64, sqlx::Error> {
-        sqlx::query!("DELETE FROM event_outbox WHERE created_at < $1", cutoff)
-            .execute(&self.pool)
-            .await
-            .map(|result| result.rows_affected())
+        super::durable::prune_processed(&self.pool, cutoff).await
     }
 }

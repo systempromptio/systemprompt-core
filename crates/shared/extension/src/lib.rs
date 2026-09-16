@@ -35,10 +35,10 @@
 //!   [`extension_migrations!`] macro.
 //! - [`registry`] — runtime store of registered extensions, built from
 //!   `inventory` submissions at startup.
-//! - [`capabilities`] — `Has*` capability traits and the [`CapabilityContext`]
-//!   composition helper.
-//! - [`error`] — typed error enums ([`LoaderError`], [`ConfigError`]) raised by
-//!   the registry.
+//! - [`capabilities`] — `Has*` capability traits the host context implements to
+//!   expose its subsystems to extensions.
+//! - [`error`] — typed error enums ([`LoaderError`], [`ExtensionConfigError`])
+//!   raised by the registry.
 //!
 //! # Feature flags
 //!
@@ -70,11 +70,11 @@ mod traits;
 
 pub use asset::{AssetDefinition, AssetDefinitionBuilder, AssetPaths, AssetType};
 pub use context::{DynExtensionContext, ExtensionContext};
-pub use error::{ConfigError, LoaderError};
+pub use error::{ExtensionConfigError, LoaderError};
 pub use frame_options::{FrameOptions, FrameOptionsOverride, stamp_frame_options};
 pub use gateway_guard::{
     GatewayDenyKind, GatewayDenyReason, GatewayGuardRequest, GatewayRequestGuard,
-    GatewayRequestGuardRegistration, run_gateway_guards,
+    GatewayRequestGuardRegistration, gateway_guards, run_gateway_guards,
 };
 pub use metadata::{ExtensionMetadata, ExtensionRole, SchemaDefinition};
 pub use migration::Migration;
@@ -83,15 +83,12 @@ pub use router::{ExtensionRouter, ExtensionRouterConfig, SiteAuthConfig};
 pub use seed::Seed;
 pub use traits::Extension;
 
-pub use capabilities::{
-    CapabilityContext, FullContext, HasAnalytics, HasConfig, HasDatabase, HasEventBus,
-    HasFingerprint, HasHttpClient, HasRouteClassifier, HasUserService,
-};
+pub use capabilities::{HasAnalytics, HasFingerprint, HasRouteClassifier, HasUserService};
 
 pub mod prelude {
     pub use crate::asset::{AssetDefinition, AssetDefinitionBuilder, AssetPaths, AssetType};
     pub use crate::context::{DynExtensionContext, ExtensionContext};
-    pub use crate::error::{ConfigError, LoaderError};
+    pub use crate::error::{ExtensionConfigError, LoaderError};
     pub use crate::gateway_guard::{
         GatewayDenyKind, GatewayDenyReason, GatewayGuardRequest, GatewayRequestGuard,
         run_gateway_guards,
@@ -102,10 +99,6 @@ pub mod prelude {
         Extension, ExtensionMetadata, ExtensionRole, ExtensionRouter, FrameOptions, Migration,
         SchemaDefinition, SiteAuthConfig, extension_migrations, register_extension,
         register_gateway_guard, stamp_frame_options,
-    };
-
-    pub use crate::capabilities::{
-        CapabilityContext, FullContext, HasConfig, HasDatabase, HasEventBus, HasHttpClient,
     };
 
     pub use systemprompt_provider_contracts::{

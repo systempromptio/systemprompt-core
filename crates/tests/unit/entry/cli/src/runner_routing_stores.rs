@@ -41,13 +41,16 @@ fn project_root() -> TempDir {
 
 fn session_for(key: &SessionKey, ttl: Duration) -> CliSession {
     CliSession::builder(
-        SessionBinding::new(ProfileName::new("routed"), ISSUER.to_owned()),
+        SessionBinding::new(
+            ProfileName::try_new("routed").expect("valid ProfileName"),
+            ISSUER.to_owned(),
+        ),
         SessionToken::new("token-for-routing"),
         SessionId::new("session-for-routing"),
         ContextId::generate(),
         SessionIdentity::new(
             UserId::new(format!("user_{}", uuid::Uuid::new_v4().simple())),
-            Email::new("router@routing.invalid"),
+            Email::try_new("router@routing.invalid").expect("valid Email"),
             UserType::User,
         ),
     )

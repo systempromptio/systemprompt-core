@@ -7,7 +7,13 @@
 //! - Source: `crates/domain/evaluation/src/services/*.rs` → `src/services/`
 
 #[cfg(test)]
+mod seams;
+
+#[cfg(test)]
 mod models;
+
+#[cfg(test)]
+mod models_status;
 
 #[cfg(test)]
 mod repository;
@@ -56,3 +62,20 @@ mod experiments_execution;
 
 #[cfg(test)]
 mod experiments_builders;
+
+#[cfg(test)]
+mod fixture_admission;
+
+#[cfg(test)]
+mod native_capabilities;
+
+#[cfg(test)]
+mod repository_approval_acceptance;
+
+#[cfg(test)]
+mod repository_suggestion_operations;
+
+#[cfg(test)]
+mod campaigns;
+#[cfg(test)]
+mod repository_campaigns;

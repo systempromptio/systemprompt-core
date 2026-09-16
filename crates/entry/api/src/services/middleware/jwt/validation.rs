@@ -11,7 +11,7 @@ use systemprompt_identifiers::UserId;
 use systemprompt_models::auth::UserRole;
 use systemprompt_models::execution::context::ContextExtractionError;
 use systemprompt_security::JwtUserContext;
-use systemprompt_traits::{AnalyticsProvider, AuthUser, UserProvider};
+use systemprompt_traits::{AuthUser, SessionProvider, UserProvider};
 
 use crate::services::middleware::session::{SessionAttestationError, attest_session};
 
@@ -122,12 +122,12 @@ pub fn user_is_admin(user: &AuthUser) -> bool {
 }
 
 pub(super) async fn validate_session_exists(
-    analytics_provider: &Arc<dyn AnalyticsProvider>,
+    session_provider: &Arc<dyn SessionProvider>,
     jwt_context: &JwtUserContext,
     route_context: &str,
 ) -> Result<(), ContextExtractionError> {
     attest_session(
-        analytics_provider,
+        session_provider,
         &jwt_context.session_id,
         &jwt_context.user_id,
         route_context,

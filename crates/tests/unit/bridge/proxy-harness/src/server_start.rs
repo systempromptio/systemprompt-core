@@ -13,7 +13,7 @@ use systemprompt_identifiers::ValidatedUrl;
 
 fn runtime_config(uri: &str) -> SharedRuntimeConfig {
     Arc::new(ArcSwap::from_pointee(RuntimeConfig {
-        gateway_base: Arc::new(ValidatedUrl::new(uri)),
+        gateway_base: Arc::new(ValidatedUrl::try_new(uri).expect("valid ValidatedUrl")),
     }))
 }
 
@@ -47,7 +47,7 @@ fn parts(uri: &str) -> ServerParts {
 }
 
 #[test]
-fn start_binds_serves_and_survives_an_occupied_port() {
+fn start_binds_serves_and_refuses_an_occupied_port() {
     let temp = tempfile::tempdir().unwrap();
     temp_env::with_var("XDG_CONFIG_HOME", Some(temp.path().as_os_str()), || {
         let rt = tokio::runtime::Builder::new_multi_thread()
@@ -81,14 +81,17 @@ fn start_binds_serves_and_survives_an_occupied_port() {
             "start must mint the loopback secret"
         );
 
-        // An occupied v4 port still comes up, over v6 on the same port.
+        // An occupied advertised port is a startup failure, never a silent
+        // bind on another address family the client was not told about.
         let blocker = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
         let taken = blocker.local_addr().unwrap().port();
-        let second = start(rt.handle(), taken, parts("http://127.0.0.1:9"))
-            .expect("occupied preferred port must still yield a listener");
-        assert_ne!(
-            second.port, 0,
-            "listener must come up despite the v4 conflict"
+        let error = start(rt.handle(), taken, parts("http://127.0.0.1:9"))
+            .err()
+            .expect("an occupied advertised port must refuse to start");
+        assert_eq!(
+            error.kind(),
+            std::io::ErrorKind::AddrInUse,
+            "the failure must name the occupied port: {error}"
         );
     });
 }

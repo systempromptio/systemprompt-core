@@ -1,0 +1,122 @@
+//! Full-text log search queries for trace tooling.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
+use super::TraceError;
+pub(super) type Result<T> = std::result::Result<T, TraceError>;
+use chrono::{DateTime, Utc};
+use sqlx::PgPool;
+use std::sync::Arc;
+
+use systemprompt_identifiers::{LogId, TraceId};
+
+use super::models::{LogSearchItem, ToolExecutionItem};
+
+struct LogRow {
+    id: LogId,
+    trace_id: TraceId,
+    timestamp: DateTime<Utc>,
+    level: String,
+    module: String,
+    message: String,
+    metadata: Option<String>,
+}
+
+struct ToolRow {
+    timestamp: DateTime<Utc>,
+    trace_id: TraceId,
+    tool_name: String,
+    server_name: Option<String>,
+    status: String,
+    execution_time_ms: Option<i32>,
+}
+
+pub(super) async fn search_logs(
+    pool: &Arc<PgPool>,
+    pattern: &str,
+    since: Option<DateTime<Utc>>,
+    level: Option<&str>,
+    limit: i64,
+) -> Result<Vec<LogSearchItem>> {
+    let rows = sqlx::query_as!(
+        LogRow,
+        r#"
+        SELECT
+            id as "id!: LogId",
+            trace_id as "trace_id!: TraceId",
+            timestamp as "timestamp!",
+            level as "level!",
+            module as "module!",
+            message as "message!",
+            metadata
+        FROM logs
+        WHERE message ILIKE $1
+          AND ($2::timestamptz IS NULL OR timestamp >= $2)
+          AND ($3::text IS NULL OR UPPER(level) = $3)
+        ORDER BY timestamp DESC
+        LIMIT $4
+        "#,
+        pattern,
+        since,
+        level,
+        limit
+    )
+    .fetch_all(&**pool)
+    .await?;
+
+    Ok(rows
+        .into_iter()
+        .map(|r| LogSearchItem {
+            id: r.id,
+            trace_id: r.trace_id,
+            timestamp: r.timestamp,
+            level: r.level,
+            module: r.module,
+            message: r.message,
+            metadata: r.metadata,
+        })
+        .collect())
+}
+
+pub(super) async fn search_tool_executions(
+    pool: &Arc<PgPool>,
+    pattern: &str,
+    since: Option<DateTime<Utc>>,
+    limit: i64,
+) -> Result<Vec<ToolExecutionItem>> {
+    let rows = sqlx::query_as!(
+        ToolRow,
+        r#"
+        SELECT
+            started_at as "timestamp!",
+            trace_id as "trace_id!: TraceId",
+            tool_name as "tool_name!",
+            server_name,
+            status as "status!",
+            execution_time_ms
+        FROM mcp_tool_executions
+        WHERE (tool_name ILIKE $1 OR server_name ILIKE $1)
+          AND ($2::timestamptz IS NULL OR started_at >= $2)
+        ORDER BY started_at DESC
+        LIMIT $3
+        "#,
+        pattern,
+        since,
+        limit
+    )
+    .fetch_all(&**pool)
+    .await?;
+
+    Ok(rows
+        .into_iter()
+        .map(|r| ToolExecutionItem {
+            timestamp: r.timestamp,
+            trace_id: r.trace_id,
+            tool_name: r.tool_name,
+            server_name: r.server_name,
+            status: r.status,
+            execution_time_ms: r.execution_time_ms,
+        })
+        .collect())
+}

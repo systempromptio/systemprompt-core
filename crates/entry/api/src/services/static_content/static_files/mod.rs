@@ -189,7 +189,7 @@ async fn serve_content_page(
 
     let source_id = SourceId::new(req.source_id);
     match content_repo
-        .get_by_source_and_slug(&source_id, req.slug, &LocaleCode::new("en"))
+        .get_by_source_and_slug(&source_id, req.slug, &LocaleCode::english())
         .await
     {
         Ok(Some(_)) => not_prerendered_response(req.path, req.slug),

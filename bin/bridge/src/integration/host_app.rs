@@ -9,12 +9,43 @@ use serde::Serialize;
 
 use systemprompt_models::services::ApiSurface;
 
+use crate::ids::{HostId, LoopbackSecret};
 pub use crate::integration::profile_state::{
-    AppInstallState, ProfileCode, ProfileState, StaleReason,
+    AppInstallState, Freshness, ProfileCode, ProfileProbe, ProfileState, StaleReason,
 };
+use crate::sysproc::SysprocError;
+
+/// The outcome of looking for a host's processes: `running` is `None` when
+/// the enumeration itself failed, which is not the same as "none found".
+#[derive(Debug, Clone, Default)]
+pub struct HostProcesses {
+    pub running: Option<bool>,
+    pub processes: Vec<String>,
+    pub error: Option<String>,
+}
+
+impl HostProcesses {
+    #[must_use]
+    pub fn from_enumeration(found: Result<Vec<String>, SysprocError>) -> Self {
+        match found {
+            Ok(processes) => Self {
+                running: Some(!processes.is_empty()),
+                processes,
+                error: None,
+            },
+            Err(e) => Self {
+                running: None,
+                processes: Vec::new(),
+                error: Some(e.to_string()),
+            },
+        }
+    }
+}
+
 
 /// What a host probe needs to know about the proxy to judge a profile fresh:
-/// the port the proxy is on and the fingerprint of the secret it accepts.
+/// the port the proxy is on and the secret it accepts, from which the
+/// per-host token a desktop policy carries is derived.
 ///
 /// A value built by the caller from the [`crate::proxy::LoopbackEndpoint`],
 /// so a probe never reaches for process state and a test can hand it any
@@ -22,7 +53,7 @@ pub use crate::integration::profile_state::{
 #[derive(Debug, Clone)]
 pub struct ProbeEnv {
     pub proxy_port: u16,
-    pub loopback_secret_fingerprint: Option<String>,
+    pub loopback_secret: Option<LoopbackSecret>,
     pub start_menu: std::sync::Arc<crate::probe_cache::StartMenuCache>,
 }
 
@@ -32,25 +63,52 @@ impl ProbeEnv {
         loopback: &crate::proxy::LoopbackEndpoint,
         start_menu: std::sync::Arc<crate::probe_cache::StartMenuCache>,
     ) -> Self {
+        let loopback_secret = match loopback.secret() {
+            Ok(secret) => Some(secret),
+            Err(error) => {
+                tracing::warn!(error = %error, "loopback secret is unreadable; host probes report it as unverifiable");
+                None
+            },
+        };
         Self {
             proxy_port: loopback.port(),
-            loopback_secret_fingerprint: loopback.secret_fingerprint(),
+            loopback_secret,
             start_menu,
         }
     }
+
+    #[must_use]
+    pub fn loopback_secret_fingerprint(&self) -> Option<String> {
+        self.loopback_secret
+            .as_ref()
+            .map(|s| crate::proxy::secret::fingerprint(s.as_str()))
+    }
+
+    #[must_use]
+    pub fn host_token_fingerprint(&self, host: &HostId) -> Option<String> {
+        self.loopback_secret.as_ref().map(|s| {
+            crate::proxy::secret::fingerprint(
+                crate::proxy::scoped_token::host_token(s, host).as_str(),
+            )
+        })
+    }
 }
 
-/// Inputs a host renders its profile from. `default_model` is the gateway's
-/// configured default only when it is one of `models`.
+/// Inputs a host renders its profile from.
+///
+/// `default_model` is the gateway's configured default only when it is one
+/// of `models`. `api_key` is the raw loopback secret; a host whose profile
+/// other local accounts can read derives its own [`crate::ids::HostToken`]
+/// from it instead of writing it.
 #[derive(Debug, Clone)]
 pub struct ProfileGenInputs {
     pub gateway_base_url: String,
-    pub api_key: String,
+    pub api_key: LoopbackSecret,
     pub models: Vec<String>,
     pub default_model: Option<String>,
     pub organization_uuid: Option<String>,
     pub headers: BTreeMap<String, String>,
-    pub mcp_servers: Vec<crate::install::mdm::policy::McpServerEntry>,
+    pub mcp_servers: Option<Vec<crate::install::mdm::policy::McpServerEntry>>,
 }
 
 #[derive(Debug, Clone, Copy, Serialize)]
@@ -66,7 +124,8 @@ pub struct HostAppSnapshot {
     pub profile_state: ProfileState,
     pub profile_source: Option<String>,
     pub profile_keys: BTreeMap<String, String>,
-    pub host_running: bool,
+    pub probe_error: Option<String>,
+    pub host_running: Option<bool>,
     pub host_processes: Vec<String>,
     pub app_installed: AppInstallState,
     pub probed_at_unix: u64,

@@ -29,6 +29,7 @@ fn newline_len(buf: &[u8], idx: usize) -> Option<usize> {
 
 // Why: Providers can signal mid-stream failure with an `{"error": {...}}` chunk
 // after the HTTP response has already returned 200.
+// JSON: Upstream provider error body; every vendor uses a different shape.
 pub fn upstream_error_message(value: &serde_json::Value) -> Option<String> {
     let error = value.get("error")?;
     if error.is_null() {

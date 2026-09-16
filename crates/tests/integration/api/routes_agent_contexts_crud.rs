@@ -44,7 +44,7 @@ fn request_context_for(owner: &Owner) -> RequestContext {
         owner.session_id.clone(),
         TraceId::generate(),
         ContextId::generate(),
-        AgentName::new("crud-agent"),
+        AgentName::try_new("crud-agent").expect("valid AgentName"),
     )
     .with_actor(Actor::user(owner.user_id.clone()))
 }
@@ -54,7 +54,7 @@ fn foreign_request_context(user: &UserId) -> RequestContext {
         SessionId::generate(),
         TraceId::generate(),
         ContextId::generate(),
-        AgentName::new("crud-agent"),
+        AgentName::try_new("crud-agent").expect("valid AgentName"),
     )
     .with_actor(Actor::user(user.clone()))
 }

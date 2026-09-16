@@ -193,7 +193,7 @@ pub fn reapply_hint() -> String {
     )
 }
 
-fn constant_time_eq(presented: &[u8], expected: &[u8]) -> bool {
+pub(crate) fn constant_time_eq(presented: &[u8], expected: &[u8]) -> bool {
     if presented.len() != expected.len() {
         return false;
     }

@@ -140,7 +140,7 @@ fn deny_reason_policy_violation_display() {
 #[test]
 fn deny_reason_secret_leak_display() {
     let r = DenyReason::SecretLeak {
-        pattern_id: SecretPatternId::new("aws-key"),
+        pattern_id: SecretPatternId::try_new("aws-key").expect("valid SecretPatternId"),
         pattern_name: Cow::Borrowed("AWS Secret Key"),
         location: SecretLocation::new("tool_input", "env.AWS_SECRET", "AKIA...[REDACTED]"),
     };
@@ -153,7 +153,7 @@ fn deny_reason_secret_leak_display() {
 #[test]
 fn deny_reason_scope_violation_display() {
     let r = DenyReason::ScopeViolation {
-        tool: McpToolName::new("exec"),
+        tool: McpToolName::try_new("exec").expect("valid McpToolName"),
         required: AccessScope::Admin,
     };
     let s = r.to_string();
@@ -164,7 +164,7 @@ fn deny_reason_scope_violation_display() {
 #[test]
 fn deny_reason_tool_blocked_display() {
     let r = DenyReason::ToolBlocked {
-        tool: McpToolName::new("rm"),
+        tool: McpToolName::try_new("rm").expect("valid McpToolName"),
         list_id: "blocklist-1".to_owned(),
     };
     let s = r.to_string();

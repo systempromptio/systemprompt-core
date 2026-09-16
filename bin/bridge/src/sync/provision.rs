@@ -3,8 +3,46 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::path::PathBuf;
+
 use super::SyncError;
 use crate::config::paths;
+
+#[derive(Debug, thiserror::Error)]
+pub enum ProvisionError {
+    #[error("verify org-plugins access {path}: {source}")]
+    VerifyAccess {
+        path: PathBuf,
+        #[source]
+        source: std::io::Error,
+    },
+    #[error("provisioning task for {path} did not complete: {source}")]
+    Task {
+        path: PathBuf,
+        #[source]
+        source: tokio::task::JoinError,
+    },
+    #[cfg(target_os = "macos")]
+    #[error("provision {path}: {source}")]
+    Elevation {
+        path: PathBuf,
+        #[source]
+        source: crate::install::elevate::ElevationError,
+    },
+    #[cfg(target_os = "windows")]
+    #[error("org-plugins provisioning for {path}: {source}")]
+    Elevated {
+        path: PathBuf,
+        #[source]
+        source: std::io::Error,
+    },
+    #[error("stage {path}: {source}")]
+    Stage {
+        path: PathBuf,
+        #[source]
+        source: std::io::Error,
+    },
+}
 
 // Why: Claude Desktop on macOS scans org-plugins only under the root-owned
 // system directory.
@@ -24,13 +62,13 @@ pub(super) async fn provision_system_org_plugins(
     {
         return Err(missing());
     }
-    let user = std::env::var("USER").unwrap_or_default();
-    if user.is_empty() || user == "root" {
-        return Err(missing());
-    }
+    let user = match std::env::var("USER") {
+        Ok(user) if !user.is_empty() && user != "root" => user,
+        Ok(_) | Err(_) => return Err(missing()),
+    };
     let quote = crate::install::elevation_script::shell_quote;
     let script = format!(
-        "set -e\nmkdir -p {}\n/usr/sbin/chown -R {} {}\n",
+        "set -e\n/bin/mkdir -p {}\n/usr/sbin/chown -R {} {}\n",
         quote(&path.display().to_string()),
         quote(&user),
         quote(&path.display().to_string())
@@ -49,21 +87,26 @@ pub(super) async fn provision_system_org_plugins(
     .await;
     match outcome {
         Ok(Ok(())) if path.is_dir() => {
-            crate::fsutil::verify_directory_write(path).map_err(|e| {
-                SyncError::Network(format!("verify org-plugins access {}: {e}", path.display()))
+            crate::fsutil::verify_directory_write(path).map_err(|source| {
+                ProvisionError::VerifyAccess {
+                    path: path.to_path_buf(),
+                    source,
+                }
             })?;
             tracing::info!(path = %path.display(), "provisioned system org-plugins directory");
             Ok(())
         },
         Ok(Ok(())) => Err(missing()),
-        Ok(Err(e)) => Err(SyncError::Network(format!(
-            "provision {}: {e}",
-            path.display()
-        ))),
-        Err(e) => Err(SyncError::Network(format!(
-            "provisioning task for {}: {e}",
-            path.display()
-        ))),
+        Ok(Err(source)) => Err(ProvisionError::Elevation {
+            path: path.to_path_buf(),
+            source,
+        }
+        .into()),
+        Err(source) => Err(ProvisionError::Task {
+            path: path.to_path_buf(),
+            source,
+        }
+        .into()),
     }
 }
 
@@ -100,16 +143,18 @@ pub(super) fn denied_inside_system_root(
 
 #[cfg(target_os = "windows")]
 pub(super) fn org_plugins_denied(
-    error: &crate::host_sync::ApplyError,
+    error: crate::host_sync::ApplyError,
     location: &paths::OrgPluginsLocation,
 ) -> SyncError {
-    SyncError::Elevation(format!(
-        "{error}; the current user cannot replace a plugin directory under {}. Re-run `{} \
-         install --apply` and approve the administrator prompt to restore the Modify grant on \
-         the whole tree, or remove the directory as an administrator",
-        location.path.display(),
-        crate::brand::brand().binary_name
-    ))
+    SyncError::OrgPluginsDenied {
+        path: location.path.clone(),
+        remedy: format!(
+            ". Re-run `{} install --apply` and approve the administrator prompt to restore the \
+             Modify grant on the whole tree, or remove the directory as an administrator",
+            crate::brand::brand().binary_name
+        ),
+        source: Box::new(error),
+    }
 }
 
 #[cfg(not(target_os = "windows"))]
@@ -122,13 +167,14 @@ pub(super) const fn denied_inside_system_root(
 
 #[cfg(not(target_os = "windows"))]
 pub(super) fn org_plugins_denied(
-    error: &crate::host_sync::ApplyError,
+    error: crate::host_sync::ApplyError,
     location: &paths::OrgPluginsLocation,
 ) -> SyncError {
-    SyncError::Elevation(format!(
-        "{error}; the current user cannot replace a plugin directory under {}",
-        location.path.display()
-    ))
+    SyncError::OrgPluginsDenied {
+        path: location.path.clone(),
+        remedy: String::new(),
+        source: Box::new(error),
+    }
 }
 
 #[cfg(not(target_os = "windows"))]
@@ -150,20 +196,28 @@ pub(super) async fn heal_org_plugins_scope(
     {
         return Ok(None);
     }
-    let org = crate::install::elevated_job::ElevatedJob::org_plugins_for_current_user()
-        .map_err(|e| SyncError::Network(format!("org-plugins provisioning: {e}")))?;
+    let org = crate::install::elevated_job::ElevatedJob::org_plugins_for_current_user().map_err(
+        |source| ProvisionError::Stage {
+            path: PathBuf::from("org-plugins"),
+            source,
+        },
+    )?;
     let stage_dir = std::env::temp_dir().join(crate::brand::brand().working_dir_name);
-    std::fs::create_dir_all(&stage_dir)
-        .map_err(|e| SyncError::Network(format!("create {}: {e}", stage_dir.display())))?;
+    std::fs::create_dir_all(&stage_dir).map_err(|source| ProvisionError::Stage {
+        path: stage_dir.clone(),
+        source,
+    })?;
     tracing::info!(
         path = %org.path.display(),
         "requesting one-time administrator approval to provision org-plugins for Cowork"
     );
+    let path = org.path.clone();
     let job = crate::install::elevated_job::ElevatedJob {
         clear_values: Vec::new(),
         bridge_values: Vec::new(),
         managed_files: Vec::new(),
         remove_files: Vec::new(),
+        private_dirs: Vec::new(),
         reg_path: None,
         org_plugins: Some(org),
     };
@@ -173,8 +227,14 @@ pub(super) async fn heal_org_plugins_scope(
     })
     .await;
     let receipt = outcome
-        .map_err(|e| SyncError::Network(format!("org-plugins provisioning task: {e}")))?
-        .map_err(|e| SyncError::Network(format!("org-plugins provisioning: {e}")))?;
+        .map_err(|source| ProvisionError::Task {
+            path: path.clone(),
+            source,
+        })?
+        .map_err(|source| ProvisionError::Elevated {
+            path: path.clone(),
+            source,
+        })?;
     for step in receipt.steps() {
         bridge
             .activity

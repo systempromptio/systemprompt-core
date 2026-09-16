@@ -6,10 +6,10 @@
 use anyhow::Result;
 use clap::Args;
 use std::sync::Arc;
-use systemprompt_logging::{AiRequestFilter, TraceQueryService};
+use systemprompt_runtime::{AiRequestFilter, RequestCursor, RequestCursorError, TraceQueryService};
 
 use super::{RequestListRow, build_request_list};
-use crate::commands::infrastructure::logs::duration::parse_since;
+use crate::commands::infrastructure::logs::duration::{parse_since, parse_until};
 use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
@@ -27,6 +27,20 @@ pub struct ListArgs {
         help = "Only show requests since this duration (e.g., '1h', '24h', '7d')"
     )]
     pub since: Option<String>,
+
+    #[arg(
+        long,
+        help = "Only show requests before this time (same formats as --since; exclusive)"
+    )]
+    pub until: Option<String>,
+
+    #[arg(
+        long,
+        value_name = "CURSOR",
+        help = "Page past a previous result: the `cursor` of its last row (rows strictly older \
+                than it are returned)"
+    )]
+    pub before: Option<String>,
 
     #[arg(long, help = "Filter by model name (partial match)")]
     pub model: Option<String>,
@@ -47,6 +61,18 @@ async fn execute_with_pool_inner(
     let mut filter = AiRequestFilter::new(args.limit);
     if let Some(since) = parse_since(args.since.as_ref())? {
         filter = filter.with_since(since);
+    }
+    if let Some(until) = parse_until(args.until.as_ref())? {
+        filter = filter.with_until(until);
+    }
+    if let Some(raw) = args.before.as_deref() {
+        let cursor: RequestCursor = raw.parse().map_err(|e: RequestCursorError| {
+            anyhow::anyhow!(
+                "Invalid --before cursor `{raw}`: {e}. Pass the `cursor` value of the last row \
+                 from a previous `infra logs request list` page"
+            )
+        })?;
+        filter = filter.with_before(cursor);
     }
     if let Some(model) = args.model.as_ref() {
         filter = filter.with_model(format!("%{model}%"));
@@ -80,9 +106,16 @@ async fn execute_with_pool_inner(
             };
             let cost_dollars = r.cost_microdollars as f64 / 1_000_000.0;
 
+            let cursor = RequestCursor {
+                created_at: r.created_at,
+                id: r.id.clone(),
+            }
+            .to_string();
+
             RequestListRow {
                 request_id: r.id.as_str().to_owned(),
                 timestamp: r.created_at.format("%Y-%m-%d %H:%M:%S").to_string(),
+                cursor,
                 user_id: r.user_id,
                 actor: format!("{}:{}", r.actor_kind, r.actor_id),
                 provider: r.provider.unwrap_or_else(|| "-".to_owned()),

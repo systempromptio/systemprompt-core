@@ -2,7 +2,7 @@
 
 [package]
 name = "systemprompt-bridge"
-version = "0.52.0"
+version = "0.53.0"
 edition = "2024"
 rust-version = "1.96"
 authors = ["Edward Burton"]
@@ -36,13 +36,14 @@ toml_edit = "0.25"
 # Codex host applies to TOML is applied here to YAML.
 serde_yaml = { package = "serde_yaml_ng", version = "0.10" }
 chrono = { version = "0.4", default-features = false, features = ["clock", "std", "serde"] }
-dirs = "6"
+dirs = "7"
 sha2 = "0.11"
+hmac = "0.13"
 # Release-version ordering for the self-updater. A lexical compare would place
 # 0.1.10 before 0.1.9; already in the lockfile transitively, so this is free.
 semver = "1"
 ed25519-dalek = { version = "3", default-features = false, features = ["pkcs8"] }
-base64 = "0.22"
+base64 = "0.23"
 thiserror = "2"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "env-filter", "json"] }
@@ -50,14 +51,14 @@ tracing-appender = "0.2"
 backtrace = "0.3"
 opener = { version = "0.8", features = ["reveal"] }
 zip = { version = "8", default-features = false, features = ["deflate"] }
-uuid = { version = "1", features = ["v4"] }
+uuid = { version = "1", features = ["v4", "v5"] }
 zeroize = { version = "1", features = ["zeroize_derive"] }
-tokio = { version = "1.49", features = ["rt-multi-thread", "net", "io-util", "time", "sync", "macros"] }
+tokio = { version = "1.53", features = ["rt-multi-thread", "net", "io-util", "time", "sync", "macros"] }
 tokio-util = "0.7"
 hyper = { version = "1", features = ["http1", "server"] }
 hyper-util = { version = "0.1", features = ["server", "server-auto", "tokio"] }
 http-body-util = "0.1"
-http = "1.0"
+http = "1.5"
 reqwest = { version = "0.12", default-features = false, features = ["json", "stream", "rustls-tls"] }
 url = "2.5"
 futures-util = "0.3"
@@ -70,8 +71,8 @@ ctrlc = "3"
 is-terminal = "0.4"
 rand = "0.10"
 tempfile = "3"
-systemprompt-identifiers = { path = "../../crates/shared/identifiers", version = "0.52.0", default-features = false }
-systemprompt-models = { path = "../../crates/shared/models", version = "0.52.0", default-features = false }
+systemprompt-identifiers = { path = "../../crates/shared/identifiers", version = "0.53.0", default-features = false }
+systemprompt-models = { path = "../../crates/shared/models", version = "0.53.0", default-features = false }
 hostname = "0.4"
 ts-rs = { version = "12", optional = true }
 # Why: OAuth client_secret moves off disk into the OS keystore. We link
@@ -90,7 +91,6 @@ keyring-core = "1"
 
 [features]
 default = []
-dev-stub-host = []
 # Compiles the `dev-web` HTTP preview of the GUI web tree. Dev only; never in
 # a shipped build, which is why it is not in `default`.
 dev-preview = []
@@ -112,19 +112,19 @@ apple-native-keyring-store = { version = "1", features = ["keychain"] }
 security-framework = "3"
 core-foundation = "0.10"
 core-foundation-sys = "0.8"
-tray-icon = "0.24"
-muda = "0.19"
-winit = "0.31.0-beta.2"
-wry = { version = "0.55", default-features = false, features = ["os-webview", "protocol", "devtools"] }
+tray-icon = "0.25"
+muda = "0.20"
+winit = "0.31.0-beta.3"
+wry = { version = "0.57", default-features = false, features = ["os-webview", "devtools"] }
 image = { version = "0.25", default-features = false, features = ["png"] }
 raw-window-handle = "0.6"
 
 [target.'cfg(target_os = "windows")'.dependencies]
 windows-native-keyring-store = "1"
-tray-icon = "0.24"
-muda = "0.19"
-winit = "0.31.0-beta.2"
-wry = { version = "0.55", default-features = false, features = ["os-webview", "protocol", "devtools"] }
+tray-icon = "0.25"
+muda = "0.20"
+winit = "0.31.0-beta.3"
+wry = { version = "0.57", default-features = false, features = ["os-webview", "devtools"] }
 image = { version = "0.25", default-features = false, features = ["png", "ico"] }
 raw-window-handle = "0.6"
 # Why: `windows-sys` is raw FFI with no WinRT projection, so it can set the

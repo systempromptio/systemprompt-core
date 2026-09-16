@@ -61,12 +61,22 @@ pub struct AnalyticsRepositories {
 }
 
 impl AnalyticsRepositories {
-    pub fn new(db: &DbPool) -> Result<Self> {
+    pub fn new(
+        db: &DbPool,
+        sessions: systemprompt_traits::DynSessionStore,
+        event_sink: systemprompt_traits::DynAnalyticsEventStore,
+        content: systemprompt_traits::DynContentCatalogStats,
+    ) -> Result<Self> {
         Ok(Self {
-            sessions: SessionRepository::new(db)?,
+            sessions: SessionRepository::new(
+                db,
+                sessions,
+                std::sync::Arc::clone(&event_sink),
+                content,
+            )?,
             costs: CostAnalyticsRepository::new(db)?,
             engagement: EngagementRepository::new(db)?,
-            events: AnalyticsEventsRepository::new(db)?,
+            events: AnalyticsEventsRepository::new(db, event_sink)?,
         })
     }
 }

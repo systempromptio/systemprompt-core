@@ -6,6 +6,7 @@
 
 use std::io;
 use std::path::PathBuf;
+#[cfg(not(target_os = "windows"))]
 use std::process::Command;
 
 use crate::integration::host_app::AppInstallState;
@@ -50,15 +51,7 @@ pub(crate) fn open_app(loc: &AppLocator<'_>) -> io::Result<()> {
         return Ok(());
     }
     if let Some(path) = loc.windows_candidates.iter().find(|p| p.exists()) {
-        return run(
-            crate::winproc::no_window(&mut Command::new("cmd")).args([
-                "/C",
-                "start",
-                "",
-                &path.to_string_lossy(),
-            ]),
-            loc.windows_name,
-        );
+        return opener::open(path).map_err(io::Error::other);
     }
     Err(io::Error::new(
         io::ErrorKind::NotFound,
@@ -132,7 +125,7 @@ fn macos_bundles(name: &str) -> Vec<PathBuf> {
     out
 }
 
-#[cfg(any(target_os = "macos", target_os = "windows"))]
+#[cfg(target_os = "macos")]
 fn run(cmd: &mut Command, what: &str) -> io::Result<()> {
     let status = cmd.status()?;
     if status.success() {
@@ -145,7 +138,8 @@ fn run(cmd: &mut Command, what: &str) -> io::Result<()> {
     }
 }
 
-// Why: GUI processes may lack Homebrew, npm, and ~/.opencode/bin in PATH.
+// Why: a GUI process launched from the desktop does not inherit the shell's
+// PATH, so the host tool's own install directories are probed as well.
 pub(crate) fn cli_installed(binary: &str, extra_dirs: &[PathBuf]) -> AppInstallState {
     let Some(paths) = std::env::var_os("PATH") else {
         return AppInstallState::Unknown;

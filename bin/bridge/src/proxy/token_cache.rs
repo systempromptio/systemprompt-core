@@ -140,7 +140,7 @@ impl TokenCache {
             return Err(sign_in_required_error());
         }
 
-        let stamp = capture_stamp()?;
+        let stamp = capture_stamp_blocking().await?;
         let refresh = Arc::clone(&self.refresh);
         let token = tokio::time::timeout(REFRESH_TIMEOUT, refresh(refresh_threshold_secs))
             .await
@@ -149,7 +149,7 @@ impl TokenCache {
                 ForwardError::AuthRetryable(reason) => self.latch.defer(reason),
                 terminal => self.latch.engage(&terminal.to_string()),
             })?;
-        if capture_stamp()? != stamp {
+        if capture_stamp_blocking().await? != stamp {
             return Err(ForwardError::Auth(
                 "credentials changed during token refresh".into(),
             ));
@@ -220,9 +220,7 @@ impl TokenCache {
             }
             (entry.token.clone(), age_secs)
         };
-        let current = tokio::task::spawn_blocking(capture_stamp)
-            .await
-            .map_err(|e| ForwardError::Auth(format!("credential stamp task: {e}")))?;
+        let current = capture_stamp_blocking().await;
         let mut guard = self.cached.lock().await;
         let Some(entry) = guard.as_mut() else {
             return Ok(None);
@@ -246,6 +244,14 @@ impl TokenCache {
             },
         }
     }
+}
+
+// Why: the stamp reads the config file, hashes the PAT and opens the OS
+// keystore — all blocking, so it runs off the async workers.
+async fn capture_stamp_blocking() -> ForwardResult<CredentialStamp> {
+    tokio::task::spawn_blocking(capture_stamp)
+        .await
+        .map_err(|e| ForwardError::Auth(format!("credential stamp task: {e}")))?
 }
 
 fn chain_error(e: &auth::ChainError) -> ForwardError {

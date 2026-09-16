@@ -540,3 +540,17 @@ mod governance_validation {
         assert!(p.validate().is_ok());
     }
 }
+
+#[test]
+fn local_trial_is_the_local_target_without_a_cloud_section() {
+    let profile = valid_profile();
+    assert!(profile.is_local_trial());
+}
+
+#[test]
+fn a_cloud_target_without_a_cloud_section_is_not_a_local_trial() {
+    let mut profile = valid_profile();
+    profile.target = ProfileType::Cloud;
+    profile.paths = cloud_paths();
+    assert!(!profile.is_local_trial());
+}

@@ -11,6 +11,7 @@ use super::enums::StepType;
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct PlannedTool {
     pub tool_name: String,
+    // JSON: MCP tool-call arguments / result are the tool's own JSON.
     pub arguments: serde_json::Value,
 }
 
@@ -30,8 +31,10 @@ pub enum StepContent {
     },
     ToolExecution {
         tool_name: String,
+        // JSON: MCP tool-call arguments / result are the tool's own JSON.
         tool_arguments: serde_json::Value,
         #[serde(skip_serializing_if = "Option::is_none")]
+        // JSON: MCP tool-call arguments / result are the tool's own JSON.
         tool_result: Option<serde_json::Value>,
     },
     Completion,
@@ -61,6 +64,7 @@ impl StepContent {
         }
     }
 
+    // JSON: MCP tool-call arguments / result are the tool's own JSON.
     pub fn tool_execution(tool_name: impl Into<String>, tool_arguments: serde_json::Value) -> Self {
         Self::ToolExecution {
             tool_name: tool_name.into(),
@@ -111,6 +115,7 @@ impl StepContent {
     }
 
     #[must_use]
+    // JSON: MCP tool-call arguments / result are the tool's own JSON.
     pub const fn tool_arguments(&self) -> Option<&serde_json::Value> {
         match self {
             Self::ToolExecution { tool_arguments, .. } => Some(tool_arguments),
@@ -122,6 +127,7 @@ impl StepContent {
     }
 
     #[must_use]
+    // JSON: MCP tool-call arguments / result are the tool's own JSON.
     pub const fn tool_result(&self) -> Option<&serde_json::Value> {
         match self {
             Self::ToolExecution { tool_result, .. } => tool_result.as_ref(),
@@ -155,6 +161,7 @@ impl StepContent {
     }
 
     #[must_use]
+    // JSON: MCP tool-call arguments / result are the tool's own JSON.
     pub fn with_tool_result(self, result: serde_json::Value) -> Self {
         match self {
             Self::ToolExecution {

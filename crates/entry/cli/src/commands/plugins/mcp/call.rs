@@ -110,7 +110,6 @@ async fn resolve_running_port(server_name: &str, ctx: &CommandContext) -> Result
         .context("Failed to initialize application context")?;
 
     let manager = McpOrchestrator::new(
-        Arc::clone(app.db_pool()),
         (**app.service_repository()).clone(),
         Arc::clone(app.app_paths_arc()),
         app.mcp_registry().clone(),

@@ -197,7 +197,6 @@ pub fn refresh(
     Ok(())
 }
 
-#[doc(hidden)]
 pub fn update_menu(state: &UpdateUiState) -> (String, bool, UiEvent) {
     match state {
         UpdateUiState::Available { version, .. } => (

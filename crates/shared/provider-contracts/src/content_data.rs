@@ -1,6 +1,10 @@
 //! [`ContentDataProvider`] contract for enriching content items with extra
 //! data joined from outside the source file (database lookups, etc.).
 //!
+//! Providers are held as `Arc<dyn ContentDataProvider>` by the prerender
+//! context, so the trait uses `#[async_trait]`; native `async fn` in traits
+//! is not `dyn`-compatible.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -67,6 +71,7 @@ pub trait ContentDataProvider: Send + Sync {
     async fn enrich_content(
         &self,
         ctx: &ContentDataContext<'_>,
+        // JSON: Tera template context item; the page data model is dynamic.
         item: &mut Value,
     ) -> ProviderResult<()>;
 

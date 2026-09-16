@@ -1,4 +1,6 @@
-use systemprompt_database::services::{LintError, lint_declarative_schema};
+use systemprompt_database::services::schema_linter::{
+    LintError, LintSeverity, created_table_names, lint_declarative_schema, lint_declarative_schemas,
+};
 
 fn lint_ok(sql: &str) {
     if let Err(errs) = lint_declarative_schema(sql, "test") {
@@ -14,7 +16,7 @@ fn lint_ok(sql: &str) {
 
 fn lint_err(sql: &str) -> Vec<LintError> {
     match lint_declarative_schema(sql, "test") {
-        Ok(()) => panic!("expected lint failure, got Ok"),
+        Ok(warnings) => panic!("expected lint failure, got Ok with {warnings:?}"),
         Err(errs) => errs,
     }
 }
@@ -367,11 +369,43 @@ fn error_position_skips_inline_block_comment_on_same_line() {
 
 #[test]
 fn a_create_extension_without_if_not_exists_is_a_warning_not_a_rejection() {
-    lint_declarative_schema("CREATE EXTENSION pg_trgm;", "warn_ext")
+    let warnings = lint_declarative_schema("CREATE EXTENSION pg_trgm;", "warn_ext")
         .expect("a missing IF NOT EXISTS is advisory — only errors reject the schema");
+    assert_eq!(warnings.len(), 1, "the warning is surfaced, not dropped");
+    assert_eq!(warnings[0].severity, LintSeverity::Warning);
+    assert_eq!(warnings[0].source, "warn_ext");
 
-    lint_declarative_schema("CREATE EXTENSION IF NOT EXISTS pg_trgm;", "ok_ext")
+    let clean = lint_declarative_schema("CREATE EXTENSION IF NOT EXISTS pg_trgm;", "ok_ext")
         .expect("the guarded form is clean");
+    assert!(clean.is_empty());
+}
+
+#[test]
+fn a_create_table_without_if_not_exists_is_surfaced_as_a_warning() {
+    let warnings = lint_declarative_schema("CREATE TABLE t (id INT PRIMARY KEY);", "t.sql")
+        .expect("advisory only");
+    assert_eq!(warnings.len(), 1);
+    assert_eq!(warnings[0].line, 1);
+    assert!(
+        warnings[0].message.contains("IF NOT EXISTS"),
+        "{}",
+        warnings[0]
+    );
+}
+
+#[test]
+fn created_table_names_keeps_the_schema_qualifier() {
+    let names = created_table_names(
+        "CREATE TABLE IF NOT EXISTS s.t (id INT PRIMARY KEY); CREATE TABLE IF NOT EXISTS u (id \
+         INT PRIMARY KEY);",
+    )
+    .expect("parses");
+    assert_eq!(names, vec!["s.t".to_owned(), "u".to_owned()]);
+}
+
+#[test]
+fn created_table_names_reports_a_parse_failure_instead_of_owning_nothing() {
+    created_table_names("CREATE TABLE (((").expect_err("unparseable SQL is not an empty schema");
 }
 
 #[test]
@@ -416,5 +450,169 @@ fn every_reported_error_carries_the_source_name_it_was_given() {
     assert!(
         errs.iter().all(|e| e.to_string().contains("my_schema.sql")),
         "every diagnostic must name the file it came from: {errs:?}"
+    );
+}
+
+// ── Foreign keys and the uniqueness they reference ───────────────────────────
+
+#[test]
+fn foreign_key_to_in_input_table_without_matching_unique_is_rejected() {
+    let errs = lint_err(
+        "CREATE TABLE IF NOT EXISTS events (id TEXT PRIMARY KEY, user_id TEXT NOT NULL);\n\
+         CREATE UNIQUE INDEX IF NOT EXISTS events_owner ON events (user_id, id);\n\
+         CREATE TABLE IF NOT EXISTS reviews (id TEXT PRIMARY KEY, owner_id TEXT, event_id TEXT, \
+         FOREIGN KEY (owner_id, event_id) REFERENCES events (user_id, id));",
+    );
+    let e = errs
+        .iter()
+        .find(|e| e.message.contains("foreign key on `reviews`"))
+        .expect("the composite key is reported");
+    assert!(
+        e.message.contains("references `events`(user_id, id)"),
+        "{}",
+        e.message
+    );
+    assert!(e.message.contains("CREATE UNIQUE INDEX"), "{}", e.message);
+    assert_eq!(e.line, 3, "{e}");
+}
+
+#[test]
+fn foreign_key_matching_table_level_unique_passes_in_either_column_order() {
+    lint_ok(
+        "CREATE TABLE IF NOT EXISTS events (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, \
+         UNIQUE (user_id, id));\n\
+         CREATE TABLE IF NOT EXISTS reviews (id TEXT PRIMARY KEY, owner_id TEXT, event_id TEXT, \
+         FOREIGN KEY (event_id, owner_id) REFERENCES events (id, user_id));",
+    );
+}
+
+#[test]
+fn foreign_key_matching_column_level_primary_key_passes() {
+    lint_ok(
+        "CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY);\n\
+         CREATE TABLE IF NOT EXISTS keys (id TEXT PRIMARY KEY, user_id TEXT REFERENCES users (id));",
+    );
+}
+
+#[test]
+fn foreign_key_matching_column_level_unique_passes() {
+    lint_ok(
+        "CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, email TEXT UNIQUE);\n\
+         CREATE TABLE IF NOT EXISTS invites (id TEXT PRIMARY KEY, email TEXT REFERENCES users \
+         (email));",
+    );
+}
+
+#[test]
+fn references_without_columns_uses_the_referenced_primary_key() {
+    lint_ok(
+        "CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY);\n\
+         CREATE TABLE IF NOT EXISTS keys (id TEXT PRIMARY KEY, user_id TEXT REFERENCES users);",
+    );
+    let errs = lint_err(
+        "CREATE TABLE IF NOT EXISTS logs (id TEXT);\n\
+         CREATE TABLE IF NOT EXISTS keys (id TEXT PRIMARY KEY, log_id TEXT REFERENCES logs);",
+    );
+    assert!(
+        errs.iter()
+            .any(|e| e.message.contains("declares no PRIMARY KEY")),
+        "{errs:?}"
+    );
+}
+
+#[test]
+fn a_subset_or_superset_unique_does_not_satisfy_a_composite_key() {
+    let errs = lint_err(
+        "CREATE TABLE IF NOT EXISTS events (id TEXT PRIMARY KEY, user_id TEXT, kind TEXT, UNIQUE \
+         (user_id, id, kind));\n\
+         CREATE TABLE IF NOT EXISTS reviews (id TEXT PRIMARY KEY, owner_id TEXT, event_id TEXT, \
+         FOREIGN KEY (owner_id, event_id) REFERENCES events (user_id, id));",
+    );
+    assert!(
+        errs.iter()
+            .any(|e| e.message.contains("exactly those columns")),
+        "{errs:?}"
+    );
+}
+
+#[test]
+fn foreign_key_to_external_table_is_skipped() {
+    lint_ok(
+        "CREATE TABLE IF NOT EXISTS reviews (id TEXT PRIMARY KEY, owner_id TEXT, event_id TEXT, \
+         FOREIGN KEY (owner_id, event_id) REFERENCES somewhere_else (user_id, id));",
+    );
+}
+
+#[test]
+fn foreign_key_across_files_of_one_extension_is_checked_with_per_file_position() {
+    let a = "CREATE TABLE IF NOT EXISTS events (id TEXT PRIMARY KEY, user_id TEXT NOT NULL);";
+    let b = "-- a comment line first\nCREATE TABLE IF NOT EXISTS reviews (id TEXT PRIMARY KEY, \
+             owner_id TEXT, event_id TEXT, FOREIGN KEY (owner_id, event_id) REFERENCES events \
+             (user_id, id));";
+    let errs = lint_declarative_schemas(&[("a.sql", a), ("b.sql", b)]).expect_err("rejected");
+    let e = errs
+        .iter()
+        .find(|e| e.message.contains("foreign key on `reviews`"))
+        .expect("reported");
+    assert_eq!(e.source, "b.sql");
+    assert_eq!(e.line, 2);
+
+    let fixed_a = "CREATE TABLE IF NOT EXISTS events (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, \
+                   UNIQUE (user_id, id));";
+    lint_declarative_schemas(&[("a.sql", fixed_a), ("b.sql", b)]).expect("declared unique passes");
+}
+
+#[test]
+fn a_parse_failure_in_one_file_still_lints_the_others() {
+    let errs = lint_declarative_schemas(&[
+        ("broken.sql", "CREATE TABLE %%% ("),
+        ("ok.sql", "INSERT INTO t VALUES (1);"),
+    ])
+    .expect_err("both reported");
+    assert!(
+        errs.iter()
+            .any(|e| e.source == "broken.sql" && e.message.contains("SQL parse failed"))
+    );
+    assert!(
+        errs.iter()
+            .any(|e| e.source == "ok.sql" && e.message.contains("imperative SQL"))
+    );
+}
+
+#[test]
+fn a_quoted_mixed_case_unique_column_does_not_satisfy_a_lowercase_reference() {
+    let errs = lint_err(
+        "CREATE TABLE IF NOT EXISTS p (\"Id\" INT UNIQUE);\nCREATE TABLE IF NOT EXISTS c (p_id \
+         INT REFERENCES p(id));",
+    );
+    assert!(
+        errs.iter()
+            .any(|e| e.message.contains("declares no PRIMARY KEY")),
+        "{errs:?}"
+    );
+}
+
+#[test]
+fn a_duplicated_referenced_column_does_not_match_a_two_column_unique() {
+    let errs = lint_err(
+        "CREATE TABLE IF NOT EXISTS p (a INT, b INT, UNIQUE (a, b));\nCREATE TABLE IF NOT \
+         EXISTS c (x INT, y INT, FOREIGN KEY (x, y) REFERENCES p(a, a));",
+    );
+    assert!(
+        errs.iter()
+            .any(|e| e.message.contains("declares no PRIMARY KEY")),
+        "{errs:?}"
+    );
+}
+
+#[test]
+fn same_named_tables_in_different_schemas_do_not_alias_each_other() {
+    let errs = lint_err(
+        "CREATE TABLE IF NOT EXISTS a.p (id INT PRIMARY KEY);\nCREATE TABLE IF NOT EXISTS b.p \
+         (id INT);\nCREATE INDEX IF NOT EXISTS i ON b.p (missing);",
+    );
+    assert!(
+        errs.iter().any(|e| e.message.contains("unknown column")),
+        "{errs:?}"
     );
 }

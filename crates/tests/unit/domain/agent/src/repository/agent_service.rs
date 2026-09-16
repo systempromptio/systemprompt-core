@@ -13,12 +13,10 @@ async fn register_and_get_status_running() {
     let r = repos(&pool);
     let name = unique_name("svc-running");
 
-    let returned = r
-        .agent_services
+    r.agent_services
         .register_agent(&name, 4242, 9100)
         .await
         .expect("register");
-    assert_eq!(returned, name);
 
     let status = r
         .agent_services
@@ -84,7 +82,7 @@ async fn mark_crashed_clears_pid() {
         .await
         .expect("register");
 
-    r.agent_services.mark_crashed(&name).await.expect("crash");
+    r.agent_services.mark_error(&name).await.expect("crash");
     let status = r
         .agent_services
         .get_agent_status(&name)

@@ -3,11 +3,12 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::{
-    AgentServiceError, DiskSkillConfig, Path, PathBuf, ProfileBootstrap, RequestContext, Result,
-    SKILL_CONFIG_FILENAME, ServicesRootBootstrap, SkillId, WebhookError, broadcast_agui_event,
-    strip_frontmatter,
-};
+use crate::services::shared::{AgentServiceError, Result};
+use std::path::{Path, PathBuf};
+use systemprompt_config::ProfileBootstrap;
+use systemprompt_identifiers::SkillId;
+use systemprompt_loader::ServicesRootBootstrap;
+use systemprompt_models::{DiskSkillConfig, SKILL_CONFIG_FILENAME, strip_frontmatter};
 
 pub(super) struct LoadedDiskSkill {
     pub(super) skill_id: SkillId,
@@ -73,66 +74,4 @@ pub(super) fn load_disk_skill(skills_root: &Path, skill_id: &SkillId) -> Result<
         description: config.description,
         instructions,
     })
-}
-
-pub(super) fn list_enabled_skill_ids(skills_root: &Path) -> Result<Vec<String>> {
-    if !skills_root.is_dir() {
-        return Ok(Vec::new());
-    }
-
-    let mut ids: Vec<String> = Vec::new();
-    for entry in std::fs::read_dir(skills_root).map_err(|e| {
-        AgentServiceError::Internal(format!(
-            "Failed to read skills dir {}: {e}",
-            skills_root.display()
-        ))
-    })? {
-        let entry = entry?;
-        let path = entry.path();
-        if !path.is_dir() {
-            continue;
-        }
-        let config_path = path.join(SKILL_CONFIG_FILENAME);
-        if !config_path.exists() {
-            continue;
-        }
-        let config_text = match std::fs::read_to_string(&config_path) {
-            Ok(t) => t,
-            Err(e) => {
-                tracing::warn!(path = %config_path.display(), error = %e, "skill: read failed; skipping");
-                continue;
-            },
-        };
-        let config: DiskSkillConfig = match serde_yaml::from_str(&config_text) {
-            Ok(c) => c,
-            Err(e) => {
-                tracing::warn!(path = %config_path.display(), error = %e, "skill: invalid YAML; skipping");
-                continue;
-            },
-        };
-        if !config.enabled {
-            continue;
-        }
-        let dir_name = path.file_name().and_then(|n| n.to_str()).ok_or_else(|| {
-            AgentServiceError::Internal(format!(
-                "Invalid skill dir entry under {}",
-                skills_root.display()
-            ))
-        })?;
-        let id = if config.id.as_str().is_empty() {
-            dir_name.to_owned()
-        } else {
-            config.id.as_str().to_owned()
-        };
-        ids.push(id);
-    }
-    ids.sort();
-    Ok(ids)
-}
-
-pub(super) async fn broadcast_skill_event(
-    ctx: &RequestContext,
-    event: systemprompt_models::AgUiEvent,
-) -> std::result::Result<usize, WebhookError> {
-    broadcast_agui_event(ctx.user_id(), event, ctx.auth_token().as_str()).await
 }

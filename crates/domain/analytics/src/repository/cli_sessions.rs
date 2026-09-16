@@ -47,7 +47,7 @@ impl CliSessionAnalyticsRepository {
                 ))::float8 as "avg_duration",
                 AVG(request_count)::float8 as "avg_requests",
                 COUNT(*) FILTER (WHERE converted_at IS NOT NULL)::bigint as "conversions!"
-            FROM v_clean_traffic
+            FROM analytics_report_v_clean_traffic
             WHERE started_at >= $1 AND started_at < $2            "#,
             start,
             end
@@ -59,7 +59,7 @@ impl CliSessionAnalyticsRepository {
 
     pub async fn get_active_session_count(&self, since: DateTime<Utc>) -> Result<i64> {
         let count = sqlx::query_scalar!(
-            r#"SELECT COUNT(*)::bigint as "count!" FROM v_clean_traffic WHERE ended_at IS NULL AND last_activity_at >= $1"#,
+            r#"SELECT COUNT(*)::bigint as "count!" FROM analytics_report_v_clean_traffic WHERE ended_at IS NULL AND last_activity_at >= $1"#,
             since
         )
         .fetch_one(&*self.pool)
@@ -82,7 +82,7 @@ impl CliSessionAnalyticsRepository {
                 duration_seconds,
                 request_count,
                 last_activity_at as "last_activity_at!"
-            FROM v_clean_traffic
+            FROM analytics_report_v_clean_traffic
             WHERE ended_at IS NULL
               AND last_activity_at >= $1            ORDER BY last_activity_at DESC
             LIMIT $2
@@ -97,7 +97,7 @@ impl CliSessionAnalyticsRepository {
 
     pub async fn get_active_count(&self, cutoff: DateTime<Utc>) -> Result<i64> {
         let count = sqlx::query_scalar!(
-            r#"SELECT COUNT(*)::bigint as "count!" FROM v_clean_traffic WHERE ended_at IS NULL AND last_activity_at >= $1"#,
+            r#"SELECT COUNT(*)::bigint as "count!" FROM analytics_report_v_clean_traffic WHERE ended_at IS NULL AND last_activity_at >= $1"#,
             cutoff
         )
         .fetch_one(&*self.pool)
@@ -117,7 +117,7 @@ impl CliSessionAnalyticsRepository {
                 started_at as "started_at!",
                 user_id as "user_id: UserId",
                 duration_seconds
-            FROM v_clean_traffic
+            FROM analytics_report_v_clean_traffic
             WHERE started_at >= $1 AND started_at < $2            ORDER BY started_at
             "#,
             start,
@@ -132,7 +132,7 @@ impl CliSessionAnalyticsRepository {
         let count = sqlx::query_scalar!(
             r#"
             SELECT COUNT(*)::bigint as "count!"
-            FROM v_clean_traffic
+            FROM analytics_report_v_clean_traffic
             WHERE ended_at IS NULL
               AND last_activity_at >= $1            "#,
             start
@@ -144,7 +144,7 @@ impl CliSessionAnalyticsRepository {
 
     pub async fn get_total_count(&self, start: DateTime<Utc>, end: DateTime<Utc>) -> Result<i64> {
         let count = sqlx::query_scalar!(
-            r#"SELECT COUNT(*)::bigint as "count!" FROM v_clean_traffic WHERE started_at >= $1 AND started_at < $2"#,
+            r#"SELECT COUNT(*)::bigint as "count!" FROM analytics_report_v_clean_traffic WHERE started_at >= $1 AND started_at < $2"#,
             start,
             end
         )

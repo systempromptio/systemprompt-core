@@ -82,6 +82,7 @@ fn execute_preset_show(args: PresetShowArgs, config: &CliConfig) -> Result<()> {
             mcp_per_second: limits.mcp_per_second,
             stream_per_second: limits.stream_per_second,
             content_per_second: limits.content_per_second,
+            gateway_per_second: limits.gateway_per_second,
             burst_multiplier: limits.burst_multiplier,
         },
     };
@@ -184,6 +185,7 @@ pub fn get_preset_config(name: &str) -> Result<RateLimitsConfig> {
             mcp_per_second: 100,
             stream_per_second: 50,
             content_per_second: 200,
+            gateway_per_second: 200,
             burst_multiplier: 5,
         }),
         "production" => Ok(RateLimitsConfig::default()),
@@ -200,6 +202,7 @@ pub fn get_preset_config(name: &str) -> Result<RateLimitsConfig> {
             mcp_per_second: 10,
             stream_per_second: 5,
             content_per_second: 20,
+            gateway_per_second: 20,
             burst_multiplier: 2,
         }),
         _ => bail!(

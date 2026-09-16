@@ -85,3 +85,14 @@ fn files_validator_load_then_validate_pairs_cleanly() {
     let report = DomainConfig::validate(&v).expect("validate after load");
     let _ = report.has_errors();
 }
+
+#[test]
+fn config_debug_redacts_database_url_and_github_token() {
+    let mut config = fixture_config();
+    config.database_url = "postgres://user:hunter2@db.internal:5432/app".to_owned();
+    config.github_token = Some("ghp_secret_token".to_owned());
+    let debug = format!("{config:?}");
+    assert!(!debug.contains("hunter2"), "{debug}");
+    assert!(!debug.contains("ghp_secret_token"), "{debug}");
+    assert!(debug.contains("<redacted>"), "{debug}");
+}

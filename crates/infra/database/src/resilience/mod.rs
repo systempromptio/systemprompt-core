@@ -41,11 +41,11 @@ pub mod guard;
 pub mod retry;
 pub mod stream;
 
-pub use breaker::CircuitBreaker;
+pub use breaker::{CircuitBreaker, Probe, Tripped};
 pub use bulkhead::Bulkhead;
 pub use classify::Outcome;
 pub use config::{BreakerConfig, BulkheadConfig, ResilienceConfig, RetryConfig};
 pub use error::ResilienceError;
-pub use guard::ResilienceGuard;
+pub use guard::{Admission, ResilienceGuard};
 pub use retry::retry_async;
 pub use stream::guarded_stream;

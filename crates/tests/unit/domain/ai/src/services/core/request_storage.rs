@@ -1,5 +1,5 @@
-// RequestStorage seams: session-usage propagation through AiSessionProvider
-// and analytics-event publication, driven against the migrated test DB.
+// RequestStorage seams: session-usage propagation through AiSessionProvider,
+// driven against the migrated test DB.
 
 use std::sync::{Arc, Mutex};
 
@@ -9,10 +9,7 @@ use systemprompt_ai::repository::{AiRequestPayloadRepository, AiRequestRepositor
 use systemprompt_ai::services::core::request_storage::{RequestStorage, StoreParams};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{SessionId, UserId};
-use systemprompt_traits::{
-    AiProviderResult, AiSessionProvider, AnalyticsEvent, AnalyticsEventPublisher,
-    CreateAiSessionParams,
-};
+use systemprompt_traits::{AiProviderResult, AiSessionProvider, CreateAiSessionParams};
 use uuid::Uuid;
 
 use super::{pool_or_skip, seeded_context};
@@ -46,18 +43,12 @@ impl AiSessionProvider for RecordingSessionProvider {
         ));
         Ok(())
     }
-}
 
-#[derive(Default)]
-struct RecordingPublisher {
-    tokens: Mutex<Vec<i64>>,
-}
-
-impl AnalyticsEventPublisher for RecordingPublisher {
-    fn publish_analytics_event(&self, event: AnalyticsEvent) {
-        if let AnalyticsEvent::AiRequestCompleted { tokens_used } = event {
-            self.tokens.lock().expect("lock").push(tokens_used);
-        }
+    async fn find_live_session(
+        &self,
+        _session_id: &SessionId,
+    ) -> AiProviderResult<Option<systemprompt_traits::ActiveSession>> {
+        Ok(None)
     }
 }
 
@@ -155,23 +146,6 @@ async fn system_user_skips_usage_accounting_but_touches_session() {
 }
 
 #[tokio::test]
-async fn analytics_publisher_receives_token_count() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
-    let (_user, ctx) = seeded_context(&pool).await;
-    let publisher = Arc::new(RecordingPublisher::default());
-    let storage = storage(&pool, Arc::new(RecordingSessionProvider::default()))
-        .with_event_publisher(publisher.clone());
-
-    let request = request(ctx);
-    let response = response(Uuid::new_v4(), "answer");
-    store(&storage, &request, &response, 0).await;
-
-    assert_eq!(*publisher.tokens.lock().expect("lock"), vec![42]);
-}
-
-#[tokio::test]
 async fn stored_request_persists_messages_and_assistant_reply() {
     let Some(pool) = pool_or_skip().await else {
         return;
@@ -218,6 +192,15 @@ impl AiSessionProvider for FailingSessionProvider {
     ) -> AiProviderResult<()> {
         Err(systemprompt_traits::AiProviderError::ConfigurationError {
             message: "usage counter unavailable".to_owned(),
+        })
+    }
+
+    async fn find_live_session(
+        &self,
+        _session_id: &SessionId,
+    ) -> AiProviderResult<Option<systemprompt_traits::ActiveSession>> {
+        Err(systemprompt_traits::AiProviderError::ConfigurationError {
+            message: "session store unavailable".to_owned(),
         })
     }
 }
@@ -420,24 +403,5 @@ async fn a_failed_status_with_no_message_falls_back_to_a_placeholder() {
         error_message.as_deref(),
         Some("Unknown error"),
         "a failed row must never carry an empty reason — it would read as a success"
-    );
-}
-
-#[tokio::test]
-async fn the_storage_debug_elides_the_analytics_publisher() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
-    let storage = RequestStorage::new(
-        AiRequestRepository::new(&pool).expect("repo"),
-        AiRequestPayloadRepository::new(&pool).expect("payloads"),
-        Arc::new(RecordingSessionProvider::default()),
-    );
-
-    let rendered = format!("{storage:?}");
-    assert!(rendered.contains("RequestStorage"));
-    assert!(
-        rendered.contains("None"),
-        "a storage built without a publisher must render one as absent, got {rendered}"
     );
 }

@@ -15,7 +15,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::collections::BTreeMap;
 
 use serde_json::Value;
 
@@ -40,9 +39,7 @@ fn read_macos_managed() -> Option<DomainRead> {
             continue;
         }
         let text = String::from_utf8_lossy(&out.stdout);
-        if let Some(read) = parse_into_keys(&text, &path.display().to_string()) {
-            return Some(read);
-        }
+        return Some(parse_into_keys(&text, &path.display().to_string()));
     }
     None
 }
@@ -52,47 +49,49 @@ pub(super) fn read_config() -> DomainRead {
     if let Some(read) = read_macos_managed() {
         return read;
     }
-    let managed = config::managed_config_path();
-    if managed.exists()
-        && let Ok(text) = std::fs::read_to_string(&managed)
-        && let Some(read) = parse_into_keys(&text, &managed.display().to_string())
-    {
+    let managed = match config::managed_config_path() {
+        Ok(path) => path,
+        Err(e) => return DomainRead::unreadable("bridge config", &e),
+    };
+    if let Some(read) = read_file(&managed) {
         return read;
     }
-    let jsonc = config::managed_jsonc_path();
+    let jsonc = managed.with_file_name(config::CONFIG_FILE_JSONC);
     if jsonc.exists() {
-        tracing::warn!(
-            source = %jsonc.display(),
-            "opencode probe: managed opencode.jsonc present; bridge reads opencode.json only"
+        return DomainRead::unreadable(
+            &jsonc.display().to_string(),
+            &"managed opencode.jsonc present; the bridge reads opencode.json only",
         );
-        return DomainRead {
-            source_path: Some(jsonc.display().to_string()),
-            keys: BTreeMap::new(),
-        };
     }
-    if let Some(fallback) = config::fallback_config_path()
-        && fallback.exists()
-        && let Ok(text) = std::fs::read_to_string(&fallback)
-        && let Some(read) = parse_into_keys(&text, &fallback.display().to_string())
+    if let Some(fallback) = config::fallback_config_path(&managed)
+        && let Some(read) = read_file(&fallback)
     {
         return read;
     }
     DomainRead::default()
 }
 
-fn parse_into_keys(text: &str, source: &str) -> Option<DomainRead> {
+fn read_file(path: &std::path::Path) -> Option<DomainRead> {
+    let source = path.display().to_string();
+    match std::fs::read_to_string(path) {
+        Ok(text) => Some(parse_into_keys(&text, &source)),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
+        Err(e) => Some(DomainRead::unreadable(&source, &e)),
+    }
+}
+
+fn parse_into_keys(text: &str, source: &str) -> DomainRead {
     let text = text.strip_prefix('\u{feff}').unwrap_or(text);
-    let value: Value = serde_json::from_str(text)
-        .map_err(|e| {
-            tracing::warn!(error = %e, source = %source, "opencode probe: JSON parse failed");
-        })
-        .ok()?;
-    Some(DomainRead::collect(
+    let value: Value = match serde_json::from_str(text) {
+        Ok(value) => value,
+        Err(e) => return DomainRead::unreadable(source, &e),
+    };
+    DomainRead::collect(
         source,
         KEYS_OF_INTEREST,
         |dotted| lookup_dotted(&value, dotted),
         |_, raw| raw,
-    ))
+    )
 }
 
 fn lookup_dotted(root: &Value, dotted: &str) -> Option<String> {
@@ -115,6 +114,6 @@ fn stringify(v: &Value) -> String {
     }
 }
 
-pub(super) fn list_opencode_processes() -> Vec<String> {
+pub(super) fn list_opencode_processes() -> Result<Vec<String>, sysproc::SysprocError> {
     sysproc::find_processes("opencode")
 }

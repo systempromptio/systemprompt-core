@@ -32,9 +32,19 @@ pub(crate) struct Receipt {
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub completion: Option<Completion>,
     pub failure: Option<String>,
+    #[serde(default)]
+    pub accounting_failure: Option<String>,
 }
 
 impl Receipt {
+    pub(crate) fn storage_id(&self) -> AiRequestId {
+        if self.accounting_failure.is_some() {
+            AiRequestId::new(format!("accounting-failure:{}", self.request_id))
+        } else {
+            self.request_id.clone()
+        }
+    }
+
     pub(crate) fn pending(request_id: AiRequestId, user_id: UserId) -> Self {
         Self {
             request_id,
@@ -42,6 +52,7 @@ impl Receipt {
             created_at: chrono::Utc::now(),
             completion: None,
             failure: None,
+            accounting_failure: None,
         }
     }
 }

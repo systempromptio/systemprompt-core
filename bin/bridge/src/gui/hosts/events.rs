@@ -7,6 +7,7 @@ use std::sync::Arc;
 
 use crate::gui::error::GuiError;
 use crate::gui::events::ReplyId;
+use crate::gui::hosts::state::ProbeSeq;
 use crate::ids::HostId;
 use crate::integration::{GeneratedProfile, HostAppSnapshot, ProxyHealth};
 
@@ -19,7 +20,7 @@ pub enum ProbeCause {
 #[derive(Debug, Clone)]
 pub enum HostUiEvent {
     ProbeFailed {
-        host_id: Option<HostId>,
+        host_id: Option<(HostId, ProbeSeq)>,
         error: String,
         reply_to: ReplyId,
     },
@@ -30,6 +31,7 @@ pub enum HostUiEvent {
     },
     ProbeFinished {
         host_id: HostId,
+        seq: ProbeSeq,
         cause: ProbeCause,
         snapshot: Box<HostAppSnapshot>,
         reply_to: ReplyId,

@@ -18,10 +18,6 @@ allow=(
     "host_sync/mod.rs:REGISTRY — link-time inventory of sync emitters, sorted once"
     "auth/plugin_oauth/secret_store.rs:BACKEND — mirrors keyring_core::set_default_store, a set-once third-party global"
     "auth/plugin_oauth/secret_store.rs:MEMORY_SECRETS — the in-memory fallback behind that same set-once backend"
-    "integration/codex_cli/install/mod.rs:SEQ — temp-file name uniqueness counter"
-    "integration/hermes/install/mod.rs:SEQ — temp-file name uniqueness counter"
-    "integration/opencode/install/mod.rs:SEQ — temp-file name uniqueness counter"
-    "integration/claude_desktop/shared.rs:SEQ — temp-file name uniqueness counter"
 )
 
 is_allowed() {

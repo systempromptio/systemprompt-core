@@ -6,7 +6,8 @@ use systemprompt_ai::services::tools::ToolDiscovery;
 use systemprompt_identifiers::{AgentName, McpServerId};
 use systemprompt_test_fixtures::fixture_actor;
 use systemprompt_traits::{
-    ToolCallRequest, ToolCallResult, ToolContext, ToolDefinition, ToolProvider, ToolProviderResult,
+    ToolCallRequest, ToolCallResult, ToolContext, ToolDefinition, ToolInventory, ToolProvider,
+    ToolProviderResult,
 };
 
 struct MockToolProvider {
@@ -32,10 +33,10 @@ impl MockToolProvider {
 impl ToolProvider for MockToolProvider {
     async fn list_tools(
         &self,
-        _agent_name: &str,
+        _agent_name: &AgentName,
         _context: &ToolContext,
-    ) -> ToolProviderResult<Vec<ToolDefinition>> {
-        Ok(self.tools.clone())
+    ) -> ToolProviderResult<ToolInventory> {
+        Ok(ToolInventory::complete(self.tools.clone()))
     }
 
     async fn call_tool(
@@ -52,7 +53,7 @@ impl ToolProvider for MockToolProvider {
         })
     }
 
-    async fn refresh_connections(&self, _agent_name: &str) -> ToolProviderResult<()> {
+    async fn refresh_connections(&self, _agent_name: &AgentName) -> ToolProviderResult<()> {
         self.refresh_called
             .store(true, std::sync::atomic::Ordering::SeqCst);
         Ok(())
@@ -64,7 +65,7 @@ impl ToolProvider for MockToolProvider {
 
     async fn find_tool(
         &self,
-        _agent_name: &str,
+        _agent_name: &AgentName,
         tool_name: &str,
         _context: &ToolContext,
     ) -> ToolProviderResult<Option<ToolDefinition>> {
@@ -73,9 +74,12 @@ impl ToolProvider for MockToolProvider {
 }
 
 fn create_test_tool(name: &str, description: &str) -> ToolDefinition {
-    ToolDefinition::new(name, "test-service")
-        .with_description(description)
-        .with_input_schema(json!({"type": "object", "properties": {}}))
+    ToolDefinition::new(
+        name,
+        McpServerId::try_new("test-service").expect("valid McpServerId"),
+    )
+    .with_description(description)
+    .with_input_schema(json!({"type": "object", "properties": {}}))
 }
 
 fn _create_test_context() -> ToolContext {
@@ -93,8 +97,8 @@ mod tool_discovery_tests {
         RequestContext::new(
             SessionId::new("test-session".to_string()),
             TraceId::new("test-trace".to_string()),
-            ContextId::new_unchecked(TEST_CONTEXT_ID_A),
-            AgentName::new("test-agent".to_string()),
+            ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
+            AgentName::try_new("test-agent".to_string()).expect("valid AgentName"),
         )
     }
 
@@ -103,7 +107,7 @@ mod tool_discovery_tests {
     async fn discover_tools_returns_empty_for_no_tools() {
         let provider = Arc::new(MockToolProvider::new(vec![]));
         let discovery = ToolDiscovery::new(provider);
-        let agent_name = AgentName::new("test-agent".to_string());
+        let agent_name = AgentName::try_new("test-agent".to_string()).expect("valid AgentName");
         let context = create_request_context();
 
         let result = discovery.discover_tools(&agent_name, &context).await;
@@ -119,7 +123,7 @@ mod tool_discovery_tests {
         ];
         let provider = Arc::new(MockToolProvider::new(tools));
         let discovery = ToolDiscovery::new(provider);
-        let agent_name = AgentName::new("test-agent".to_string());
+        let agent_name = AgentName::try_new("test-agent".to_string()).expect("valid AgentName");
         let context = create_request_context();
 
         let result = discovery.discover_tools(&agent_name, &context).await;
@@ -132,7 +136,7 @@ mod tool_discovery_tests {
     async fn discover_tools_calls_refresh() {
         let provider = Arc::new(MockToolProvider::new(vec![]));
         let discovery = ToolDiscovery::new(provider.clone());
-        let agent_name = AgentName::new("test-agent".to_string());
+        let agent_name = AgentName::try_new("test-agent".to_string()).expect("valid AgentName");
         let context = create_request_context();
 
         let _ = discovery.discover_tools(&agent_name, &context).await;
@@ -144,7 +148,7 @@ mod tool_discovery_tests {
     async fn find_tool_returns_none_for_missing_tool() {
         let provider = Arc::new(MockToolProvider::new(vec![]));
         let discovery = ToolDiscovery::new(provider);
-        let agent_name = AgentName::new("test-agent".to_string());
+        let agent_name = AgentName::try_new("test-agent".to_string()).expect("valid AgentName");
         let context = create_request_context();
 
         let result = discovery
@@ -159,7 +163,7 @@ mod tool_discovery_tests {
         let tools = vec![create_test_tool("search", "Search the web")];
         let provider = Arc::new(MockToolProvider::new(tools));
         let discovery = ToolDiscovery::new(provider);
-        let agent_name = AgentName::new("test-agent".to_string());
+        let agent_name = AgentName::try_new("test-agent".to_string()).expect("valid AgentName");
         let context = create_request_context();
 
         let result = discovery
@@ -202,16 +206,19 @@ mod tool_discovery_tests {
 
     #[test]
     fn definitions_to_mcp_tools_preserves_schema() {
-        let definition = ToolDefinition::new("test", "test-service")
-            .with_description("Test")
-            .with_input_schema(json!({
-                "type": "object",
-                "properties": {
-                    "query": {"type": "string"}
-                },
-                "required": ["query"]
-            }))
-            .with_output_schema(json!({"type": "string"}));
+        let definition = ToolDefinition::new(
+            "test",
+            McpServerId::try_new("test-service").expect("valid McpServerId"),
+        )
+        .with_description("Test")
+        .with_input_schema(json!({
+            "type": "object",
+            "properties": {
+                "query": {"type": "string"}
+            },
+            "required": ["query"]
+        }))
+        .with_output_schema(json!({"type": "string"}));
 
         let mcp_tools = ToolDiscovery::definitions_to_mcp_tools(&[definition]);
 

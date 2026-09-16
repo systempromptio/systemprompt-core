@@ -45,6 +45,7 @@ pub mod resolver;
 pub mod rule_based;
 pub mod runtime;
 pub mod subject;
+pub mod subject_directory;
 pub mod types;
 
 pub use audit::{
@@ -76,6 +77,9 @@ pub use subject::{
     NO_SUBJECT_ATTRIBUTES, ROLE_PRECEDENCE, SharedSubjectAttributeProvider,
     SubjectAttributeProvider, SubjectAttributes, SubjectDimension, SubjectProviderRegistration,
     USER_PRECEDENCE, dimensions_of, discover_subject_providers, gather_subject_attributes,
+};
+pub use subject_directory::{
+    RoleDirectory, RoleDirectoryRegistration, SharedRoleDirectory, discover_role_directory,
 };
 pub use types::{
     Access, AccessRule, AuthzContext, AuthzDecision, AuthzRequest, Decision, DecisionTag,

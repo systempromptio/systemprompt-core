@@ -14,6 +14,7 @@ pub struct DashboardSection {
     pub section_id: SectionId,
     pub title: String,
     pub section_type: SectionType,
+    // JSON: Section payload is one of the `section_data` shapes, decoded by `kind`.
     pub data: JsonValue,
     pub layout: SectionLayout,
 }

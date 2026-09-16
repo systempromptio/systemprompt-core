@@ -1,5 +1,47 @@
 # Changelog
 
+## [0.53.0] - 2026-09-15
+
+### Breaking
+
+- **Breaking:** `services::providers::AiProvider::get_pricing` and `catalog_pricing` return `Option<ModelPricing>`; a model the catalogue does not price is `AiError::UnknownModel` at request time (streaming, planning, generation, tool execution) instead of being billed at zero. Migrate provider impls by returning `catalog_pricing(..)` directly.
+- **Breaking:** `ImageProvider::cost_per_image_cents(model)` is a trait method; `ImageStorage::save_base64_image` returns `StoredImage { id, public_url, size_bytes }`.
+- **Breaking:** `ResponseSynthesizer::synthesize_or_fallback` returns `SynthesisOutcome { content, provider_calls }` so the calling service audits and bills every synthesis call; the synthesizer never writes an audit row itself.
+- **Breaking:** `AiRequestRepository::insert_with_id` returns `RepositoryError::AlreadyExists(id)` when the id is already present instead of `Ok(id)`; `RepositoryError::AlreadyExists` is a new variant.
+- **Breaking:** the Gemini provider's `tool_mapper` field is gone; a `ToolNameMapper` is built per request.
+
+### Added
+
+- `AiRequestRepository` implements `systemprompt_traits::AiRequestTrace`, the owner-scoped read seam (sampling and recorded usage) other domains use instead of querying `ai_requests*` directly.
+- `repository::AiOwnerReassignment` implements `systemprompt_traits::OwnerReassignment` over `ai_requests`, `ai_quota_buckets` (merged buckets are dropped) and `ai_gateway_thought_signatures`.
+- `services::providers::AiProvider::is_available` — `ResilientProvider` reports its circuit-breaker state, and `AiService::health_check` reports it instead of `true` for every registered provider.
+- `AiError::UnknownModel`.
+- `AiError::ToolDiscovery` — `ToolDiscovery::discover_tools` fails when the tool inventory is incomplete (a server could not be listed) instead of planning against a partial tool set.
+- Migration 024 adds `ai_requests.accounting_failed_at` / `accounting_error`; `AiRequestRepository::mark_accounting_failed` retains a bounded diagnostic and a later completion settles the row `failed` instead of `completed`, so an accounting failure never replaces settled spend.
+- The extension installs `reporting_capture.sql` / `reporting_privacy.sql` (migration 025): the `reporting_source_ai_requests` / `reporting_source_ai_request_messages` views and transactional capture triggers feeding the analytics projections.
+- `AiService::audit_tasks` exposes the tracker that owns streaming audit writes so the process can drain them before exit.
+
+### Changed
+
+- `ResilientProvider` settles the breaker through the RAII `Probe` returned by `ResilienceGuard::admit`, so a cancelled stream open no longer leaks a half-open probe slot.
+- `SchemaValidator` rejects a `type` keyword it cannot interpret (an unknown type name, a non-string union member, or a non-string/non-array keyword) with `AiError::InvalidInput` instead of accepting any value.
+- `AiError::HttpStatus.body` carries an `<unreadable body: …>` marker when the error response body could not be read.
+
+- `AiProvider` implementations return `AiInferenceError` (`From<AiError>`) instead of a boxed error; tool definitions carry `ToolModelConfig` directly, so a model override is no longer round-tripped through JSON.
+
+### Fixed
+
+- A provider whose `api_key` secret is missing is withheld from the registry (and named in the boot error when it is the default) instead of being registered with an empty key.
+- `AiRequestRepository::get_user_usage` returns zero usage for a user with no requests instead of `RowNotFound`.
+- A stream dropped by its consumer before completion settles a `failed` audit row carrying the usage reported so far.
+- Anthropic `generate_with_schema` fails when the response carries no `tool_use` block instead of returning an empty string.
+- Image generation stores `cost_microdollars` converted from the per-image cents (×10 000), records the decoded byte size, and prices by the generated model.
+- Tool-results synthesis logs the first failure before retrying instead of discarding it.
+
+### Removed
+
+- `AiRequestRepository::link_tool_calls_to_recent_executions`: the ai crate no longer reads the mcp-owned `mcp_tool_executions` table.
+
 ## [0.52.0] - 2026-09-14
 
 ### Breaking

@@ -1,20 +1,14 @@
 //! Assembly of A2A [`Task`] values for the various completion paths.
 //!
-//! [`TaskBuilder`] is the general builder; the free functions cover the common
-//! shapes (completed, canceled, mock, submitted, multi-turn) used across the
-//! processing pipeline.
+//! [`TaskBuilder`] is the general builder; the free functions cover the
+//! completed and canceled shapes used across the processing pipeline.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 mod builders;
-pub mod helpers;
-mod history;
 
-pub use builders::{
-    BuildMultiturnTaskParams, build_canceled_task, build_completed_task, build_mock_task,
-    build_multiturn_task, build_submitted_task,
-};
+pub use builders::{build_canceled_task, build_completed_task};
 
 use crate::models::a2a::{
     Artifact, Message, MessageRole, Part, Task, TaskState, TaskStatus, TextPart,

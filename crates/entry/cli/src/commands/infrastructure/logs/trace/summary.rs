@@ -6,8 +6,9 @@
 use chrono::{DateTime, Utc};
 use std::collections::HashMap;
 use systemprompt_identifiers::TaskId;
-use systemprompt_logging::{
-    AiRequestSummary, CliService, ExecutionStepSummary, McpExecutionSummary, TraceEvent,
+use systemprompt_logging::CliService;
+use systemprompt_runtime::{
+    AiRequestSummary, ExecutionStepSummary, McpExecutionSummary, TraceEvent,
 };
 
 #[derive(Debug)]

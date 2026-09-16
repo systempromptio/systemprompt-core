@@ -45,10 +45,7 @@ async fn audio_render_full_payload_includes_artist_artwork_and_flags() {
         }),
     );
 
-    let resource = AudioRenderer::new()
-        .render(&artifact)
-        .await
-        .expect("render");
+    let resource = AudioRenderer::new().render(&artifact).expect("render");
 
     assert!(resource.html.contains("Night Drive"));
     assert!(resource.html.contains("The &lt;Bots&gt;"));
@@ -84,13 +81,10 @@ async fn audio_render_minimal_payload_falls_back_to_artifact_title() {
     let artifact = media_artifact(
         "audio",
         Some("From Artifact"),
-        serde_json::json!({"src": "blob:abc"}),
+        serde_json::json!({"src": "https://cdn.example.com/abc.mp3"}),
     );
 
-    let resource = AudioRenderer::new()
-        .render(&artifact)
-        .await
-        .expect("render");
+    let resource = AudioRenderer::new().render(&artifact).expect("render");
 
     assert!(resource.html.contains("From Artifact"));
     assert!(!resource.html.contains(r#"<p class="mcp-app-description">"#));
@@ -103,11 +97,12 @@ async fn audio_render_minimal_payload_falls_back_to_artifact_title() {
 
 #[tokio::test]
 async fn audio_render_without_any_title_uses_default() {
-    let artifact = media_artifact("audio", None, serde_json::json!({"src": "a.mp3"}));
-    let resource = AudioRenderer::new()
-        .render(&artifact)
-        .await
-        .expect("render");
+    let artifact = media_artifact(
+        "audio",
+        None,
+        serde_json::json!({"src": "https://cdn.example.com/a.mp3"}),
+    );
+    let resource = AudioRenderer::new().render(&artifact).expect("render");
     assert!(
         resource
             .html
@@ -139,10 +134,7 @@ async fn video_render_full_payload_includes_poster_caption_and_muted() {
         }),
     );
 
-    let resource = VideoRenderer::new()
-        .render(&artifact)
-        .await
-        .expect("render");
+    let resource = VideoRenderer::new().render(&artifact).expect("render");
 
     assert!(resource.html.contains("Launch &lt;Video&gt;"));
     assert!(
@@ -162,12 +154,13 @@ async fn video_render_full_payload_includes_poster_caption_and_muted() {
 
 #[tokio::test]
 async fn video_render_minimal_payload_uses_default_title_and_omits_extras() {
-    let artifact = media_artifact("video", None, serde_json::json!({"src": "v.webm"}));
+    let artifact = media_artifact(
+        "video",
+        None,
+        serde_json::json!({"src": "https://cdn.example.com/v.webm"}),
+    );
 
-    let resource = VideoRenderer::new()
-        .render(&artifact)
-        .await
-        .expect("render");
+    let resource = VideoRenderer::new().render(&artifact).expect("render");
 
     assert!(
         resource
@@ -183,6 +176,37 @@ async fn video_render_minimal_payload_uses_default_title_and_omits_extras() {
 #[tokio::test]
 async fn video_render_rejects_payload_missing_src() {
     let artifact = media_artifact("video", None, serde_json::json!({"caption": "no src"}));
-    let result = VideoRenderer::new().render(&artifact).await;
+    let result = VideoRenderer::new().render(&artifact);
     assert!(result.is_err());
+}
+
+// Why: `src`/`href` come from tool output; a scripting scheme would execute
+// inside the host's app frame, so only web and inline-media URLs render.
+#[tokio::test]
+async fn audio_render_refuses_a_javascript_src() {
+    let artifact = media_artifact(
+        "audio",
+        Some("Evil"),
+        serde_json::json!({"src": "javascript:alert(1)"}),
+    );
+    let err = AudioRenderer::new()
+        .render(&artifact)
+        .expect_err("a javascript: source is refused");
+    assert!(err.to_string().contains("audio src"), "{err}");
+}
+
+#[tokio::test]
+async fn video_render_refuses_a_javascript_poster() {
+    let artifact = media_artifact(
+        "video",
+        Some("Evil"),
+        serde_json::json!({
+            "src": "https://cdn.example.com/v.webm",
+            "poster": "javascript:alert(1)"
+        }),
+    );
+    let err = VideoRenderer::new()
+        .render(&artifact)
+        .expect_err("a javascript: poster is refused");
+    assert!(err.to_string().contains("video poster"), "{err}");
 }

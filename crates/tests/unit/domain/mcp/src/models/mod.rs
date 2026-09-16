@@ -6,5 +6,4 @@ mod mcp_server_config;
 mod mcp_service;
 mod tool_execution;
 mod tool_execution_request;
-mod tool_stats;
 mod validation_result_type;

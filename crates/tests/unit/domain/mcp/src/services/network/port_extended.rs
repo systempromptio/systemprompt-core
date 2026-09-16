@@ -6,8 +6,7 @@
 use std::net::TcpListener;
 
 use systemprompt_mcp::services::network::port::{
-    find_available_port, is_port_in_use, is_port_responsive, wait_for_port_release,
-    wait_for_port_release_with_retry,
+    is_port_in_use, is_port_responsive, wait_for_port_release, wait_for_port_release_with_retry,
 };
 
 fn bind_loopback() -> (TcpListener, u16) {
@@ -16,43 +15,27 @@ fn bind_loopback() -> (TcpListener, u16) {
     (listener, port)
 }
 
-#[test]
-fn is_port_in_use_true_for_bound_listener() {
+#[tokio::test]
+async fn is_port_in_use_true_for_bound_listener() {
     let (_listener, port) = bind_loopback();
-    assert!(is_port_in_use(port));
+    assert!(is_port_in_use(port).await);
 }
 
-#[test]
-fn is_port_responsive_true_for_bound_listener() {
+#[tokio::test]
+async fn is_port_responsive_true_for_bound_listener() {
     let (_listener, port) = bind_loopback();
-    assert!(is_port_responsive(port));
+    assert!(is_port_responsive(port).await);
 }
 
-#[test]
-fn is_port_in_use_false_after_listener_dropped() {
+#[tokio::test]
+async fn is_port_in_use_false_after_listener_dropped() {
     let port = {
         let (_listener, port) = bind_loopback();
         port
     };
     // The listener is dropped; the port is no longer accepting. The OS may not
     // immediately reuse it, but a connect should now be refused.
-    assert!(!is_port_in_use(port));
-}
-
-#[test]
-fn find_available_port_skips_bound_port() {
-    let (_listener, bound) = bind_loopback();
-    // Search a range that starts on the bound port; the function must skip it.
-    let found = find_available_port(bound, bound.saturating_add(20)).expect("a free port");
-    assert_ne!(found, bound);
-    assert!(found > bound);
-}
-
-#[test]
-fn find_available_port_single_bound_port_range_fails() {
-    let (_listener, bound) = bind_loopback();
-    let result = find_available_port(bound, bound);
-    assert!(result.is_err());
+    assert!(!is_port_in_use(port).await);
 }
 
 #[tokio::test]

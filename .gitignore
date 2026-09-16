@@ -190,5 +190,10 @@ rustc-ice-*.txt
 
 !scripts/check-discarded-results.sh
 !scripts/check-fail-open.sh
+!scripts/lint-silent-skips.sh
+!scripts/lint-async-trait.sh
+!scripts/lint-json-value.sh
+!scripts/lint-tracing-messages.sh
+!scripts/lint-table-ownership.sh
 !scripts/rust-contracts/
 scripts/rust-contracts/target/

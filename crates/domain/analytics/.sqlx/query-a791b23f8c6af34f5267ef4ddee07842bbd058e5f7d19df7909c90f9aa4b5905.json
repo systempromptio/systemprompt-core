@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM analytics_projection_revisions",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "a791b23f8c6af34f5267ef4ddee07842bbd058e5f7d19df7909c90f9aa4b5905"
+}

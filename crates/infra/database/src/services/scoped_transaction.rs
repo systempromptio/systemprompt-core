@@ -14,7 +14,6 @@ use sqlx::{PgPool, Postgres, Transaction};
 use systemprompt_models::RequestScope;
 
 use crate::error::RepositoryError;
-use crate::repository::PgDbPool;
 use crate::scope::scope_providers;
 
 use super::transaction::BoxFuture;
@@ -46,7 +45,7 @@ pub async fn begin_scoped(
     Ok(tx)
 }
 
-pub async fn with_scoped_transaction_raw<F, T, E>(
+pub async fn with_scoped_transaction<F, T, E>(
     pool: &PgPool,
     scope: &RequestScope,
     f: F,
@@ -59,16 +58,4 @@ where
     let result = f(&mut tx).await?;
     tx.commit().await?;
     Ok(result)
-}
-
-pub async fn with_scoped_transaction<F, T, E>(
-    pool: &PgDbPool,
-    scope: &RequestScope,
-    f: F,
-) -> Result<T, E>
-where
-    F: for<'c> FnOnce(&'c mut Transaction<'_, Postgres>) -> BoxFuture<'c, Result<T, E>>,
-    E: From<sqlx::Error> + From<RepositoryError>,
-{
-    with_scoped_transaction_raw(pool, scope, f).await
 }

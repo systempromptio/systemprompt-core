@@ -6,7 +6,9 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use sha2::{Digest as _, Sha256};
 use systemprompt_bridge::gateway::GatewayClient;
 use systemprompt_bridge::gateway::types::ReleaseManifest;
-use systemprompt_bridge::update::{DownloadProgress, download_verified, hex_lower};
+use systemprompt_bridge::hash::hex_encode as hex_lower;
+use systemprompt_bridge::ids::BearerToken;
+use systemprompt_bridge::update::{DownloadProgress, download_verified};
 use systemprompt_identifiers::ValidatedUrl;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -76,7 +78,7 @@ fn a_matching_digest_stages_the_artifact_under_a_version_and_platform_named_path
 
             let staged = download_verified(
                 &client(&server),
-                "bearer-token",
+                &BearerToken::new("bearer-token"),
                 PLATFORM,
                 &manifest(digest_of(BODY), BODY.len() as u64),
                 &|_| {},
@@ -106,7 +108,7 @@ fn progress_is_reported_as_bytes_arrive_and_ends_at_the_full_body() {
             let last = AtomicU64::new(0);
             download_verified(
                 &client(&server),
-                "bearer-token",
+                &BearerToken::new("bearer-token"),
                 PLATFORM,
                 &manifest(digest_of(BODY), BODY.len() as u64),
                 &|p: DownloadProgress| {
@@ -142,7 +144,7 @@ fn a_digest_that_does_not_match_the_manifest_is_refused_and_the_partial_file_is_
             let expected = digest_of(b"a completely different artifact");
             let err = download_verified(
                 &client(&server),
-                "bearer-token",
+                &BearerToken::new("bearer-token"),
                 PLATFORM,
                 &manifest(expected.clone(), BODY.len() as u64),
                 &|_| {},
@@ -169,7 +171,7 @@ fn a_manifest_digest_in_uppercase_still_matches_the_computed_lowercase_one() {
 
             let staged = download_verified(
                 &client(&server),
-                "bearer-token",
+                &BearerToken::new("bearer-token"),
                 PLATFORM,
                 &manifest(digest_of(BODY).to_uppercase(), BODY.len() as u64),
                 &|_| {},
@@ -191,7 +193,7 @@ fn a_gateway_that_refuses_the_download_surfaces_the_status_it_returned() {
 
             let err = download_verified(
                 &client(&server),
-                "bearer-token",
+                &BearerToken::new("bearer-token"),
                 PLATFORM,
                 &manifest(digest_of(BODY), BODY.len() as u64),
                 &|_| {},
@@ -222,7 +224,7 @@ fn a_gateway_that_is_not_listening_at_all_reports_a_download_failure() {
             );
             let err = download_verified(
                 &client,
-                "bearer-token",
+                &BearerToken::new("bearer-token"),
                 PLATFORM,
                 &manifest(digest_of(BODY), BODY.len() as u64),
                 &|_| {},
@@ -248,7 +250,7 @@ fn an_empty_artifact_body_still_verifies_against_the_digest_of_no_bytes() {
 
             let staged = download_verified(
                 &client(&server),
-                "bearer-token",
+                &BearerToken::new("bearer-token"),
                 PLATFORM,
                 &manifest(digest_of(b""), 0),
                 &|_| {},
@@ -270,7 +272,7 @@ fn downloading_the_same_release_twice_replaces_the_staged_artifact_in_place() {
 
             let first = download_verified(
                 &client(&server),
-                "bearer-token",
+                &BearerToken::new("bearer-token"),
                 PLATFORM,
                 &manifest(digest_of(BODY), BODY.len() as u64),
                 &|_| {},
@@ -279,7 +281,7 @@ fn downloading_the_same_release_twice_replaces_the_staged_artifact_in_place() {
             .expect("first download");
             let second = download_verified(
                 &client(&server),
-                "bearer-token",
+                &BearerToken::new("bearer-token"),
                 PLATFORM,
                 &manifest(digest_of(BODY), BODY.len() as u64),
                 &|_| {},

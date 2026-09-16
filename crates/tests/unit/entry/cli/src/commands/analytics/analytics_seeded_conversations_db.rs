@@ -92,6 +92,9 @@ async fn seed_conversation(pool: &DbPool) -> String {
 async fn the_conversation_listing_projects_seeded_contexts() {
     let pool = pool().await;
     seed_conversation(&pool).await;
+    systemprompt_test_fixtures::refresh_reporting(&pool)
+        .await
+        .unwrap();
     let ctx = ctx(&pool);
 
     let dir = tempfile::tempdir().unwrap();
@@ -119,6 +122,9 @@ async fn the_conversation_listing_projects_seeded_contexts() {
 async fn conversation_stats_and_trends_render_with_seeded_tasks() {
     let pool = pool().await;
     seed_conversation(&pool).await;
+    systemprompt_test_fixtures::refresh_reporting(&pool)
+        .await
+        .unwrap();
     let ctx = ctx(&pool);
 
     analytics::execute(parse(&["conversations", "stats"]), &ctx)
@@ -133,6 +139,9 @@ async fn conversation_stats_and_trends_render_with_seeded_tasks() {
 async fn a_limit_of_one_still_renders_a_row() {
     let pool = pool().await;
     seed_conversation(&pool).await;
+    systemprompt_test_fixtures::refresh_reporting(&pool)
+        .await
+        .unwrap();
     let ctx = ctx(&pool);
 
     let dir = tempfile::tempdir().unwrap();
@@ -154,4 +163,52 @@ async fn a_limit_of_one_still_renders_a_row() {
     let csv = std::fs::read_to_string(&path).unwrap();
     let rows = csv.lines().skip(1).filter(|l| !l.trim().is_empty()).count();
     assert_eq!(rows, 1, "{csv}");
+}
+
+// An instance without A2A agents holds every conversation as a gateway
+// session; the listing must be able to show those, alone or beside agent
+// contexts, and narrow to one user.
+#[tokio::test]
+async fn the_conversation_listing_accepts_source_and_user_filters() {
+    let pool = pool().await;
+    seed_conversation(&pool).await;
+    systemprompt_test_fixtures::refresh_reporting(&pool)
+        .await
+        .unwrap();
+    let ctx = ctx(&pool);
+
+    for source in ["agent", "gateway", "all"] {
+        analytics::execute(
+            parse(&["conversations", "list", "--source", source, "--limit", "5"]),
+            &ctx,
+        )
+        .await
+        .unwrap_or_else(|e| panic!("--source {source} must list: {e}"));
+    }
+    analytics::execute(
+        parse(&[
+            "conversations",
+            "list",
+            "--user",
+            "nobody_here",
+            "--since",
+            "7d",
+        ]),
+        &ctx,
+    )
+    .await
+    .expect("an unknown user is an empty listing, not an error");
+}
+
+#[test]
+fn the_conversation_listing_refuses_a_non_positive_limit() {
+    for limit in ["0", "-3"] {
+        let err = Harness::try_parse_from(["analytics", "conversations", "list", "--limit", limit])
+            .expect_err("a non-positive limit is a usage error");
+        assert_eq!(
+            err.kind(),
+            clap::error::ErrorKind::ValueValidation,
+            "--limit {limit}"
+        );
+    }
 }

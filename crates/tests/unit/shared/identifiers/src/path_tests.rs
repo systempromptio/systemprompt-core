@@ -86,55 +86,56 @@ fn rejects_double_encoded_traversal() {
 
 #[test]
 fn extension_extraction_simple() {
-    let path = ValidatedFilePath::new("file.txt");
+    let path = ValidatedFilePath::try_new("file.txt").expect("valid ValidatedFilePath");
     assert_eq!(path.extension(), Some("txt"));
 }
 
 #[test]
 fn extension_extraction_nested() {
-    let path = ValidatedFilePath::new("/path/to/file.tar.gz");
+    let path = ValidatedFilePath::try_new("/path/to/file.tar.gz").expect("valid ValidatedFilePath");
     assert_eq!(path.extension(), Some("gz"));
 }
 
 #[test]
 fn extension_none_for_no_extension() {
-    let path = ValidatedFilePath::new("Makefile");
+    let path = ValidatedFilePath::try_new("Makefile").expect("valid ValidatedFilePath");
     assert_eq!(path.extension(), None);
 }
 
 #[test]
 fn extension_none_for_trailing_dot() {
-    let path = ValidatedFilePath::new("file.");
+    let path = ValidatedFilePath::try_new("file.").expect("valid ValidatedFilePath");
     assert_eq!(path.extension(), None);
 }
 
 #[test]
 fn file_name_extraction() {
-    let path = ValidatedFilePath::new("/path/to/file.txt");
+    let path = ValidatedFilePath::try_new("/path/to/file.txt").expect("valid ValidatedFilePath");
     assert_eq!(path.file_name(), Some("file.txt"));
 }
 
 #[test]
 fn file_name_from_windows_path() {
-    let path = ValidatedFilePath::new("C:\\Users\\test\\file.txt");
+    let path =
+        ValidatedFilePath::try_new("C:\\Users\\test\\file.txt").expect("valid ValidatedFilePath");
     assert_eq!(path.file_name(), Some("file.txt"));
 }
 
 #[test]
 fn file_name_simple() {
-    let path = ValidatedFilePath::new("file.txt");
+    let path = ValidatedFilePath::try_new("file.txt").expect("valid ValidatedFilePath");
     assert_eq!(path.file_name(), Some("file.txt"));
 }
 
 #[test]
 fn display_shows_full_path() {
-    let path = ValidatedFilePath::new("/var/www/file.txt");
+    let path = ValidatedFilePath::try_new("/var/www/file.txt").expect("valid ValidatedFilePath");
     assert_eq!(format!("{}", path), "/var/www/file.txt");
 }
 
 #[test]
 fn serde_roundtrip_exact_json() {
-    let path = ValidatedFilePath::new("documents/file.txt");
+    let path = ValidatedFilePath::try_new("documents/file.txt").expect("valid ValidatedFilePath");
     let json = serde_json::to_string(&path).unwrap();
     assert_eq!(json, "\"documents/file.txt\"");
     let deserialized: ValidatedFilePath = serde_json::from_str(&json).unwrap();
@@ -167,20 +168,21 @@ fn from_str_parse() {
 
 #[test]
 fn to_db_value_returns_string_variant() {
-    let path = ValidatedFilePath::new("file.txt");
+    let path = ValidatedFilePath::try_new("file.txt").expect("valid ValidatedFilePath");
     let db_val = path.to_db_value();
     assert!(matches!(db_val, DbValue::String(s) if s == "file.txt"));
 }
 
 #[test]
-#[should_panic(expected = "ValidatedFilePath validation failed")]
-fn new_panics_on_traversal() {
-    let _ = ValidatedFilePath::new("../secret");
+fn try_new_rejects_traversal() {
+    let err = ValidatedFilePath::try_new("../secret")
+        .expect_err("ValidatedFilePath must reject `../secret`");
+    assert!(err.to_string().contains("path traversal"), "{err}");
 }
 
 #[test]
 fn equality_across_construction_paths() {
-    let from_new = ValidatedFilePath::new("file.txt");
+    let from_new = ValidatedFilePath::try_new("file.txt").expect("valid ValidatedFilePath");
     let from_try: ValidatedFilePath = "file.txt".try_into().unwrap();
     let from_parse: ValidatedFilePath = "file.txt".parse().unwrap();
     assert_eq!(from_new, from_try);

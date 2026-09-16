@@ -14,7 +14,6 @@ workspace = true
 systemprompt-test-fixtures = { workspace = true }
 systemprompt-test-mocks = { workspace = true }
 systemprompt-agent = { workspace = true }
-systemprompt-analytics = { workspace = true }
 systemprompt-config = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-models = { workspace = true }
@@ -30,6 +29,7 @@ axum = { workspace = true }
 futures = { workspace = true }
 sqlx = { workspace = true }
 tokio = { workspace = true }
+tokio-util = { workspace = true }
 tower = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }

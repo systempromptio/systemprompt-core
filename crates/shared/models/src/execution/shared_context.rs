@@ -1,4 +1,4 @@
-//! `SharedRequestContext`: mutex-shared form of `RequestContext` for async
+//! Mutex-shared form of `RequestContext` for async
 //! tasks.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.

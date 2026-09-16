@@ -6,15 +6,23 @@
 
 use systemprompt_bridge::gateway::manifest::decode_payload;
 use systemprompt_bridge::gateway::{GatewayClient, GatewayError};
+use systemprompt_bridge::ids::BearerToken;
 use systemprompt_identifiers::ValidatedUrl;
 use wiremock::matchers::{header, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 fn client(server: &MockServer) -> GatewayClient {
-    GatewayClient::new(ValidatedUrl::new(server.uri()), reqwest::Client::new())
+    GatewayClient::new(
+        ValidatedUrl::try_new(server.uri()).expect("valid ValidatedUrl"),
+        reqwest::Client::new(),
+    )
 }
 
 const BEARER: &str = "test-bearer-token";
+
+fn bearer() -> BearerToken {
+    BearerToken::new(BEARER)
+}
 
 fn manifest_json() -> serde_json::Value {
     let payload = serde_json::json!({
@@ -141,7 +149,7 @@ async fn fetch_manifest_ok() {
         .mount(&server)
         .await;
 
-    let envelope = client(&server).fetch_manifest(BEARER).await.unwrap();
+    let envelope = client(&server).fetch_manifest(&bearer()).await.unwrap();
     assert!(envelope.signature.as_str().is_empty());
     let manifest = decode_payload(&envelope).unwrap();
     assert_eq!(manifest.user_id.as_str(), "user_abc");
@@ -157,7 +165,7 @@ async fn fetch_manifest_401_maps_to_http_status() {
         .mount(&server)
         .await;
 
-    let err = client(&server).fetch_manifest(BEARER).await.unwrap_err();
+    let err = client(&server).fetch_manifest(&bearer()).await.unwrap_err();
     match err {
         GatewayError::HttpStatus { status, endpoint } => {
             assert_eq!(status.as_u16(), 401);
@@ -176,7 +184,7 @@ async fn fetch_manifest_malformed_body_maps_to_envelope_shape_with_snippet() {
         .mount(&server)
         .await;
 
-    let err = client(&server).fetch_manifest(BEARER).await.unwrap_err();
+    let err = client(&server).fetch_manifest(&bearer()).await.unwrap_err();
     match err {
         GatewayError::ManifestEnvelopeShape { snippet, .. } => {
             assert_eq!(snippet, "{ not a manifest }");
@@ -195,7 +203,7 @@ async fn fetch_manifest_html_body_names_the_shape_mismatch() {
         .mount(&server)
         .await;
 
-    let err = client(&server).fetch_manifest(BEARER).await.unwrap_err();
+    let err = client(&server).fetch_manifest(&bearer()).await.unwrap_err();
     match err {
         GatewayError::ManifestEnvelopeShape { snippet, .. } => {
             assert_eq!(
@@ -222,7 +230,7 @@ async fn fetch_whoami_ok() {
         .mount(&server)
         .await;
 
-    let whoami = client(&server).fetch_whoami(BEARER).await.unwrap();
+    let whoami = client(&server).fetch_whoami(&bearer()).await.unwrap();
     assert_eq!(whoami.email.as_deref(), Some("ed@example.com"));
     assert_eq!(whoami.roles, vec!["admin".to_owned(), "member".to_owned()]);
 }
@@ -236,7 +244,7 @@ async fn fetch_whoami_403_maps_to_http_status() {
         .mount(&server)
         .await;
 
-    let err = client(&server).fetch_whoami(BEARER).await.unwrap_err();
+    let err = client(&server).fetch_whoami(&bearer()).await.unwrap_err();
     match err {
         GatewayError::HttpStatus { status, endpoint } => {
             assert_eq!(status.as_u16(), 403);
@@ -255,7 +263,7 @@ async fn fetch_whoami_malformed_body_maps_to_decode() {
         .mount(&server)
         .await;
 
-    let err = client(&server).fetch_whoami(BEARER).await.unwrap_err();
+    let err = client(&server).fetch_whoami(&bearer()).await.unwrap_err();
     assert!(
         matches!(err, GatewayError::WhoamiDecode(_)),
         "expected WhoamiDecode, got {err:?}"
@@ -338,7 +346,10 @@ async fn fetch_profile_usage_ok() {
         .mount(&server)
         .await;
 
-    let usage = client(&server).fetch_profile_usage(BEARER).await.unwrap();
+    let usage = client(&server)
+        .fetch_profile_usage(&bearer())
+        .await
+        .unwrap();
     assert_eq!(usage.d7.requests, 5);
     assert_eq!(usage.d7.cost_microdollars, 42);
 }
@@ -353,7 +364,7 @@ async fn fetch_profile_usage_502_maps_to_http_status() {
         .await;
 
     let err = client(&server)
-        .fetch_profile_usage(BEARER)
+        .fetch_profile_usage(&bearer())
         .await
         .unwrap_err();
     match err {
@@ -375,7 +386,7 @@ async fn fetch_profile_usage_malformed_body_maps_to_decode() {
         .await;
 
     let err = client(&server)
-        .fetch_profile_usage(BEARER)
+        .fetch_profile_usage(&bearer())
         .await
         .unwrap_err();
     assert!(
@@ -396,7 +407,7 @@ async fn fetch_plugin_file_ok() {
         .await;
 
     let bytes = client(&server)
-        .fetch_plugin_file(BEARER, "my-plugin", "dist/index.js")
+        .fetch_plugin_file(&bearer(), "my-plugin", "dist/index.js")
         .await
         .unwrap();
     assert_eq!(bytes, payload);
@@ -412,7 +423,7 @@ async fn fetch_plugin_file_404_maps_to_http_status() {
         .await;
 
     let err = client(&server)
-        .fetch_plugin_file(BEARER, "my-plugin", "missing.js")
+        .fetch_plugin_file(&bearer(), "my-plugin", "missing.js")
         .await
         .unwrap_err();
     match err {
@@ -428,7 +439,7 @@ async fn fetch_plugin_file_404_maps_to_http_status() {
 async fn fetch_plugin_file_traversal_path_maps_to_unsafe_path() {
     let server = MockServer::start().await;
     let err = client(&server)
-        .fetch_plugin_file(BEARER, "my-plugin", "../etc/passwd")
+        .fetch_plugin_file(&bearer(), "my-plugin", "../etc/passwd")
         .await
         .unwrap_err();
     match err {
@@ -448,7 +459,11 @@ async fn set_host_model_filter_posts_the_host_and_protocol_list() {
         .await;
 
     client(&server)
-        .set_host_model_filter("bearer-token", "codex-cli", Some(&["responses".to_owned()]))
+        .set_host_model_filter(
+            &BearerToken::new("bearer-token"),
+            "codex-cli",
+            Some(&["responses".to_owned()]),
+        )
         .await
         .expect("a 2xx means the filter was accepted");
 
@@ -475,7 +490,7 @@ async fn clearing_the_host_model_filter_sends_a_null_protocol_list() {
         .await;
 
     client(&server)
-        .set_host_model_filter("bearer-token", "claude-desktop", None)
+        .set_host_model_filter(&BearerToken::new("bearer-token"), "claude-desktop", None)
         .await
         .expect("clearing is accepted");
 
@@ -489,7 +504,7 @@ async fn clearing_the_host_model_filter_sends_a_null_protocol_list() {
 
 fn dead_client() -> GatewayClient {
     GatewayClient::new(
-        ValidatedUrl::new("http://127.0.0.1:1".to_owned()),
+        ValidatedUrl::try_new("http://127.0.0.1:1".to_owned()).expect("valid ValidatedUrl"),
         reqwest::Client::new(),
     )
 }
@@ -502,11 +517,11 @@ async fn each_endpoint_maps_a_connection_failure_to_its_own_fetch_variant() {
         GatewayError::PubkeyFetch(_)
     ));
     assert!(matches!(
-        c.fetch_manifest(BEARER).await.unwrap_err(),
+        c.fetch_manifest(&bearer()).await.unwrap_err(),
         GatewayError::ManifestFetch(_)
     ));
     assert!(matches!(
-        c.fetch_whoami(BEARER).await.unwrap_err(),
+        c.fetch_whoami(&bearer()).await.unwrap_err(),
         GatewayError::WhoamiFetch(_)
     ));
     assert!(matches!(
@@ -514,7 +529,7 @@ async fn each_endpoint_maps_a_connection_failure_to_its_own_fetch_variant() {
         GatewayError::ProfileFetch(_)
     ));
     assert!(matches!(
-        c.fetch_profile_usage(BEARER).await.unwrap_err(),
+        c.fetch_profile_usage(&bearer()).await.unwrap_err(),
         GatewayError::ProfileUsageFetch(_)
     ));
     assert!(matches!(
@@ -522,7 +537,7 @@ async fn each_endpoint_maps_a_connection_failure_to_its_own_fetch_variant() {
         GatewayError::HealthCheck(_)
     ));
     assert!(matches!(
-        c.set_host_model_filter(BEARER, "codex-cli", None)
+        c.set_host_model_filter(&bearer(), "codex-cli", None)
             .await
             .unwrap_err(),
         GatewayError::PostRequest(_)
@@ -532,7 +547,7 @@ async fn each_endpoint_maps_a_connection_failure_to_its_own_fetch_variant() {
 #[tokio::test]
 async fn a_plugin_file_connection_failure_carries_the_plugin_and_path() {
     let err = dead_client()
-        .fetch_plugin_file(BEARER, "my-plugin", "dist/index.js")
+        .fetch_plugin_file(&bearer(), "my-plugin", "dist/index.js")
         .await
         .unwrap_err();
     match err {
@@ -549,7 +564,7 @@ async fn a_plugin_file_connection_failure_carries_the_plugin_and_path() {
 #[tokio::test]
 async fn an_absolute_plugin_path_is_refused_before_any_request() {
     let err = dead_client()
-        .fetch_plugin_file(BEARER, "my-plugin", "/etc/passwd")
+        .fetch_plugin_file(&bearer(), "my-plugin", "/etc/passwd")
         .await
         .unwrap_err();
     match err {
@@ -568,7 +583,7 @@ async fn a_rejected_host_model_filter_maps_to_http_status() {
         .await;
 
     let err = client(&server)
-        .set_host_model_filter("bearer-token", "codex-cli", Some(&[]))
+        .set_host_model_filter(&BearerToken::new("bearer-token"), "codex-cli", Some(&[]))
         .await
         .expect_err("a 422 must surface");
     match err {

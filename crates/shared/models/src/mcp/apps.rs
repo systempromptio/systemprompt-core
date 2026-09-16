@@ -198,6 +198,7 @@ pub struct UiInitializeParams {
     pub app_info: Implementation,
     // JSON: protocol boundary — McpUiAppCapabilities is an open object hosts
     // extend, so the schema fixes no field set to type against.
+    // JSON: MCP Apps `appCapabilities` is spec-defined as a free-form object.
     pub app_capabilities: serde_json::Value,
     pub protocol_version: String,
 }

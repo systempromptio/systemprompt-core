@@ -1,5 +1,47 @@
 # Changelog
 
+## [0.53.0] - 2026-09-15
+
+### Breaking
+
+- **Breaking:** `Subsystems.event_bridge` holds an `EventBridgeHandle` instead of a `JoinHandle`; shutdown cancels and joins it.
+- **Breaking:** `HoldoutConfirmationTarget::id` is `EvalHoldoutProposalId`. Migrate by constructing it with `EvalHoldoutProposalId::try_new`.
+- **Breaking:** `TraceQueryService::list_audit_messages` / `list_audit_tool_calls` take an `AuditPage` (`AuditPage::ALL` for the previous behaviour).
+- **Breaking:** `SkillOptimizationOrchestrator::new(managed, evaluations)` drops the separate `RevisionRepository` argument and reads revisions from `EvaluationRepositories::revisions`. Migrate by removing the third argument.
+
+### Added
+
+- `Subsystems.publish_guard` / `AppContext::publish_guard()`: the inventory publish memo shared by the scheduled refresh and the manual route, previously a process static. `Subsystems.snapshot_wakeup` / `AppContext::snapshot_wakeup()` (`reporting::SnapshotWakeup`): the `feedback_snapshots` listener relay, spawned on first subscription and joined by `shutdown()`.
+- `RuntimeError::Evaluation`; the composition root builds `EvaluationSeams` from the AI request repository, the users session provider and the managed repository and constructs the evaluation repositories on the write pool.
+- `Plugins::marketplace_cache` / `AppContext::marketplace_cache()`: the owned marketplace catalogue and bundle cache, built once per context.
+- `AppContext::schema_install()` exposes the `SchemaInstallReport` of the boot's schema installation (`Subsystems.schema_install`), so `/health/detail` can surface declared foreign keys an established database could not create.
+- `trace` module: `TraceQueryService`, `AiTraceService`, their result types and `TraceError` (moved from `systemprompt_logging::trace`); the crate now carries its own `.sqlx` cache.
+- `AppContext::governance()` / `governance_arc()`; `Subsystems.governance` carries the engine built once from the profile's services root.
+- `OptimizationError::Bundle(RevisionBundleError)` for a candidate bundle that fails verification.
+- `reporting` module: `spawn` (the owned projection worker: 256 deliveries per pass, once per second, a full pass reschedules immediately), `initialize` (installs owner capture contracts and builds the baseline when none exists), `rebuild`, `process_pending` and `status`; the builder initialises reporting at boot.
+- `optimization` module: cross-domain source verification and evaluation attestation (`candidate`, `capture`, `diagnostics`, `holdout`, `inventory`, `iteration`) and `GitSourceOrchestrator` (`git_sources`), the application-owned credential resolution for Git import, sync and verification.
+- `AppContext::feedback_facts_repository()` and `feedback_snapshots_repository()`; the repository accessors live in `context::repositories`; `AppContext::analytics_repositories()` is built with the users session store, the logging event store and the content catalog stats.
+- `trace::RequestCursor` and `AiRequestFilter::{with_until, with_before}` for keyset paging of request logs; `TraceQueryService::{count_audit_messages, count_audit_tool_calls}` and `AuditPage` on the two audit list queries.
+- `optimization::EvaluationEvidence`: the facts an evaluation attestation commits to, with `digest()` hashing them as canonical JSON (RFC 8785) so field order never changes the attested digest.
+- `trace::RequestCursor` (`FromStr`; a malformed value is a `RequestCursorError`) and `AiRequestFilter::{with_until, with_before}` for keyset paging of request logs; `TraceQueryService::{count_audit_messages, count_audit_tool_calls}` and `AuditPage` on the two audit list queries.
+
+### Changed
+
+- `AppContext` and `DatabaseContext` connect through `Database::connect`; the profile `database_type` string is no longer consulted.
+- The optimization iteration compares the campaign's typed `CampaignStatus`.
+- The composition root builds `A2ARepositories` with `A2aDependencies` (managed-skill resolver and the mcp `ToolUsageRepository` as the tool-execution lookup) and adopts the legacy context through `ensure_legacy_context`.
+
+### Fixed
+
+- A configured-inventory load failure, an invalid dependency verification request and an unavailable secrets store carry their cause in the `OptimizationError::Source` message and are logged.
+- The reporting projection worker claims through `OutboxConsumer` instead of a `DurableOutbox` stamped with a fabricated instance id.
+- `AppContext` construction fails when the governance audit sink cannot obtain the write pool instead of silently installing a null audit sink.
+
+- Boot no longer fails with `Context … not found for user` after the system admin changes: the legacy context (`ContextId::legacy()`) is re-homed onto the current admin through `ensure_system_context` instead of the user-scoped `ensure_context`.
+- Core initialisation resolves the secrets store once and fails when it is unavailable, instead of resolving every services-bundle source credential to `None`.
+- `reporting::rebuild` / `initialize` retry a transaction Postgres aborted as a deadlock or serialization failure (SQLSTATE 40P01 / 40001) up to four times with backoff; the rebuild holds `SHARE` locks on every source table and a concurrent writer could otherwise abort it.
+
+
 ## [0.52.0] - 2026-09-14
 
 ### Added

@@ -108,10 +108,7 @@ pub struct ModelAddArgs {
 pub async fn execute(command: &CatalogCommands, config: &CliConfig) -> Result<()> {
     match command {
         CatalogCommands::Provider(ProviderCommands::List) => list_providers(config),
-        CatalogCommands::Discovery => {
-            super::catalog_discovery::show_discovery(config);
-            Ok(())
-        },
+        CatalogCommands::Discovery => super::catalog_discovery::show_discovery(config),
         CatalogCommands::Provider(ProviderCommands::Add(args)) => {
             apply(config, |registry| {
                 ProviderCatalogService::upsert_provider(registry, provider_spec(args)?);

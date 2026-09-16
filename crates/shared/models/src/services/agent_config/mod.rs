@@ -79,28 +79,28 @@ impl AgentConfig {
     }
 
     pub fn extract_oauth_scopes_from_card(&mut self) {
-        if let Some(security_vec) = &self.card.security {
-            for security_obj in security_vec {
-                if let Some(oauth2_scopes) = security_obj.get("oauth2").and_then(|v| v.as_array()) {
-                    let mut permissions = Vec::new();
-                    for scope_val in oauth2_scopes {
-                        if let Some(scope_str) = scope_val.as_str() {
-                            match scope_str {
-                                "admin" => permissions.push(Permission::Admin),
-                                "user" => permissions.push(Permission::User),
-                                "service" => permissions.push(Permission::Service),
-                                "a2a" => permissions.push(Permission::A2a),
-                                "mcp" => permissions.push(Permission::Mcp),
-                                "anonymous" => permissions.push(Permission::Anonymous),
-                                _ => {},
-                            }
-                        }
-                    }
-                    if !permissions.is_empty() {
-                        self.oauth.scopes = permissions;
-                        self.oauth.required = true;
-                    }
-                }
+        let Some(security_vec) = &self.card.security else {
+            return;
+        };
+        for security_obj in security_vec {
+            let Some(oauth2_scopes) = security_obj.get("oauth2") else {
+                continue;
+            };
+            let permissions: Vec<Permission> = oauth2_scopes
+                .iter()
+                .filter_map(|scope| match scope.as_str() {
+                    "admin" => Some(Permission::Admin),
+                    "user" => Some(Permission::User),
+                    "service" => Some(Permission::Service),
+                    "a2a" => Some(Permission::A2a),
+                    "mcp" => Some(Permission::Mcp),
+                    "anonymous" => Some(Permission::Anonymous),
+                    _ => None,
+                })
+                .collect();
+            if !permissions.is_empty() {
+                self.oauth.scopes = permissions;
+                self.oauth.required = true;
             }
         }
     }

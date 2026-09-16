@@ -2,9 +2,8 @@
 //!
 //! `claude-code` is enabled in the instance manifest exactly like the desktop
 //! hosts, but it has no [`crate::integration::HostApp`] — it reaches the
-//! gateway itself and only receives skill/plugin sync from here.
-//! Before this table they were simply invisible: a user running Claude Code
-//! looked at the Agents card and saw no sign of the agent they were using.
+//! gateway itself and only receives skill/plugin sync from here — and it is
+//! still listed on the Agents card.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

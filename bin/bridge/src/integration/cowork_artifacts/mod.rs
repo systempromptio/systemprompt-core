@@ -19,8 +19,9 @@
 //! separately by [`workspace_sink::stage_bundle`], which runs before the
 //! session dir is resolved and independently of whether it resolves at all.
 //!
-//! The emitter reuses the `"cowork"` host id, so it fires whenever Cowork is in
-//! the manifest's `enabled_hosts` — the same gate as the plugin emitter.
+//! The emitter shares the `"claude-desktop"` host id with the plugin emitter,
+//! so it fires under the same `enabled_hosts` gate; its `emitter_id` is
+//! `"cowork-artifacts"`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -42,9 +43,13 @@ impl HostSync for CoworkArtifactsSync {
         "claude-desktop"
     }
 
+    fn emitter_id(&self) -> &'static str {
+        "cowork-artifacts"
+    }
+
     async fn apply(&self, ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
         workspace_sink::stage_bundle(&ctx.manifest.artifacts)?;
-        let Some(dir) = emit::resolve_artifacts_dir() else {
+        let Some(dir) = emit::resolve_artifacts_dir().map_err(resolve_err)? else {
             return Ok(());
         };
         emit::write_artifacts(&dir, emit::active_sinks(), &ctx.manifest.artifacts)
@@ -54,10 +59,17 @@ impl HostSync for CoworkArtifactsSync {
         if let Some(ws) = crate::config::paths::workspace_artifacts_dir() {
             workspace_sink::remove_bundle(&ws)?;
         }
-        let Some(dir) = emit::resolve_artifacts_dir() else {
+        let Some(dir) = emit::resolve_artifacts_dir().map_err(resolve_err)? else {
             return Ok(());
         };
         emit::remove_dir(&dir)
+    }
+}
+
+fn resolve_err(e: crate::integration::cowork_plugins::ResolveTargetError) -> ApplyError {
+    ApplyError::Io {
+        context: "resolve the Cowork session directory".to_owned(),
+        source: std::io::Error::other(e),
     }
 }
 

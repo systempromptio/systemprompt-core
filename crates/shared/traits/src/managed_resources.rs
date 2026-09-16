@@ -12,7 +12,7 @@
 
 use async_trait::async_trait;
 use std::sync::Arc;
-use systemprompt_identifiers::{SkillId, UserId};
+use systemprompt_identifiers::{ManagedResourceId, ResourceRevisionId, SkillId, UserId};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ResolvedManagedSkill {
@@ -25,6 +25,7 @@ pub struct ResolvedManagedSkill {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum WithheldReason {
     NeverAdopted,
+    NotGranted,
     Withdrawn,
 }
 
@@ -32,6 +33,7 @@ impl WithheldReason {
     #[must_use]
     pub const fn as_str(self) -> &'static str {
         match self {
+            Self::NotGranted => "not granted",
             Self::NeverAdopted => "never adopted",
             Self::Withdrawn => "withdrawn",
         }
@@ -53,8 +55,9 @@ pub enum ManagedSkillResolverError {
     Unavailable(String),
 }
 
-/// Object-safe so the agent runtime can hold whichever authority the
-/// composition root wires in without depending on the marketplace domain.
+/// Held as `Arc<dyn ManagedSkillResolver>` so the agent runtime can use
+/// whichever authority the composition root wires in without depending on
+/// the marketplace domain; hence `#[async_trait]`.
 #[async_trait]
 pub trait ManagedSkillResolver: Send + Sync + std::fmt::Debug {
     async fn resolve_skill(
@@ -65,3 +68,20 @@ pub trait ManagedSkillResolver: Send + Sync + std::fmt::Debug {
 }
 
 pub type DynManagedSkillResolver = Arc<dyn ManagedSkillResolver>;
+
+/// Owner-scoped lookup of the resource a managed revision belongs to.
+///
+/// Held as `Arc<dyn ManagedRevisionOwnership>` by domains that persist
+/// references to managed revisions (evaluation campaigns) so they can refuse a
+/// foreign revision without depending on the marketplace domain; hence
+/// `#[async_trait]`. A revision the owner does not hold resolves to `None`.
+#[async_trait]
+pub trait ManagedRevisionOwnership: Send + Sync {
+    async fn revision_resource(
+        &self,
+        owner: &UserId,
+        revision: &ResourceRevisionId,
+    ) -> Result<Option<ManagedResourceId>, ManagedSkillResolverError>;
+}
+
+pub type DynManagedRevisionOwnership = Arc<dyn ManagedRevisionOwnership>;

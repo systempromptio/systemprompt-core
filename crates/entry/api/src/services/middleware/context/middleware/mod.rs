@@ -16,10 +16,12 @@
 //! - [`A2AContextMiddleware`] — extracts a real user AND parses the JSON-RPC
 //!   body to recover `contextId` (the A2A wire spec carries it in the body, not
 //!   headers). Rebuilds the body for downstream handlers.
-//! - [`McpContextMiddleware`] — headers-only extraction; on extraction failure,
-//!   forwards the session-derived `RequestContext` (Anon) so the downstream MCP
-//!   proxy handler can answer with an RFC 9728 `WWW-Authenticate` 401
-//!   challenge. The fallback is load-bearing — see
+//! - [`McpContextMiddleware`] — headers-only extraction; when no
+//!   `Authorization` header is present, forwards the session-derived
+//!   `RequestContext` (Anon) so the downstream MCP proxy handler can answer
+//!   with an RFC 9728 `WWW-Authenticate` 401 challenge. Any other extraction
+//!   failure (invalid, revoked, orphaned bearer) is refused. The fallback is
+//!   load-bearing — see
 //!   `crates/tests/integration/api/routes_mcp_unauth_challenge.rs`.
 //!
 //! All four share the same `Arc<dyn ContextExtractor>` and the same error

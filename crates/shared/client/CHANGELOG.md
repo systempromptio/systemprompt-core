@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.53.0] - 2026-09-15
+
+### Breaking
+
+- **Breaking:** `SystempromptClient::list_artifacts` / `list_all_artifacts` return `Vec<systemprompt_models::a2a::Artifact>`; `send_message` takes `&AgentName` and `&a2a::Message`.
+- **Breaking:** `RemoteCliRequest { token: &SessionToken, context: Option<&ContextId> }` replaces the string fields; `EventStreamSetup` is removed. A stream that ends before an `ExitCode` event, or delivers an undecodable event, is `ClientError::ServerUnavailable`; a non-2xx response is `ClientError::ApiError`. The stream is driven by `sse-stream`; `reqwest-eventsource` is no longer a dependency.
+
+### Added
+
+- `guarded` module: the SSRF-guarded outbound `reqwest` client builder (previously `systemprompt_models::net::client`).
+
+### Fixed
+
+- `ClientError::from_response` no longer stores the response body twice.
+
 ## [0.21.1] - 2026-07-17
 
 ### Changed

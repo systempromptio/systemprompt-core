@@ -39,6 +39,7 @@ pub async fn run_server(
 
     early.activate(router);
     let metrics_listener = start_metrics_listener(&ctx).await?;
+    let reporting = systemprompt_runtime::reporting::spawn(ctx.db_pool())?;
     super::readiness::signal_ready();
 
     if let Some(ref tx) = events {
@@ -55,6 +56,12 @@ pub async fn run_server(
 
     super::shutdown::arm_forced_exit();
     heartbeat.abort();
+    reporting.abort();
+    if let Err(error) = reporting.await
+        && !error.is_cancelled()
+    {
+        tracing::warn!(error = %error, "Analytics projection worker ended abnormally");
+    }
     if let Some(recovery) = accounting_recovery {
         recovery.abort();
     }
@@ -146,7 +153,6 @@ fn create_mcp_orchestrator(
 ) -> Result<Arc<systemprompt_mcp::services::McpOrchestrator>> {
     use systemprompt_mcp::services::McpOrchestrator;
     let manager = McpOrchestrator::new(
-        Arc::clone(ctx.db_pool()),
         (**ctx.service_repository()).clone(),
         Arc::clone(ctx.app_paths_arc()),
         ctx.mcp_registry().clone(),

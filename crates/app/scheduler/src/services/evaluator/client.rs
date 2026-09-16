@@ -13,6 +13,7 @@ pub struct NativeClient {
     kind: ClientKind,
     model: ModelId,
     limits: ExecutionLimits,
+    pins: Option<(String, String)>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -29,67 +30,68 @@ impl NativeClient {
                 kind,
                 model,
                 limits: ExecutionLimits::default(),
+                pins: None,
             },
         }
     }
 
-    pub fn arguments(&self, prompt: &str) -> Vec<OsString> {
+    pub fn arguments(&self, prompt: &str) -> systemprompt_evaluation::Result<Vec<OsString>> {
         self.arguments_for(ClientPurpose::Execution, prompt)
     }
 
-    pub fn arguments_for(&self, purpose: ClientPurpose, prompt: &str) -> Vec<OsString> {
-        match self.kind {
-            ClientKind::ClaudeCode => {
-                let (tools, disallowed, turns) = match purpose {
-                    ClientPurpose::Execution => (
-                        "Read,Write,Edit,Glob,Grep,Skill,mcp__evaluation_fixture__evaluation_fixture",
-                        "Bash,Agent,Task,WebSearch,WebFetch",
-                        self.limits.max_turns,
-                    ),
-                    ClientPurpose::Judge => {
-                        ("Read", "Bash,Agent,Task,WebSearch,WebFetch,Write,Edit", 2)
-                    },
-                    ClientPurpose::Suggestion => {
-                        ("Read", "Bash,Agent,Task,WebSearch,WebFetch,Write,Edit", 3)
-                    },
-                };
-                [
-                    "claude",
-                    "-p",
-                    "--output-format",
-                    "stream-json",
-                    "--verbose",
-                    "--model",
-                    self.model.as_str(),
-                    "--max-turns",
-                    &turns.to_string(),
-                    "--tools",
-                    tools,
-                    "--allowedTools",
-                    tools,
-                    "--disallowedTools",
-                    disallowed,
-                    "--",
-                    prompt,
-                ]
-                .iter()
-                .map(OsString::from)
-                .collect()
-            },
-            ClientKind::Opencode => [
-                "opencode",
-                "run",
-                "--format",
-                "json",
-                "--model",
-                &format!("systemprompt/{}", self.model),
-                "--",
+    pub fn arguments_for(
+        &self,
+        purpose: ClientPurpose,
+        prompt: &str,
+    ) -> systemprompt_evaluation::Result<Vec<OsString>> {
+        self.adapter()?
+            .arguments(&super::adapters::AdapterInvocation {
+                model: &self.model,
+                limits: &self.limits,
+                purpose,
                 prompt,
-            ]
+            })
+    }
+
+    pub fn adapter(
+        &self,
+    ) -> systemprompt_evaluation::Result<&'static dyn super::adapters::NativeAdapter> {
+        super::adapters::adapter(self.kind)
+    }
+
+    pub fn admitted_target(
+        &self,
+        image: &str,
+    ) -> systemprompt_evaluation::Result<
+        &'static systemprompt_evaluation::capabilities::VerifiedNativeTarget,
+    > {
+        let Some((version, digest)) = &self.pins else {
+            return Err(systemprompt_evaluation::EvaluationError::InvalidSpec(
+                "Unpinned native execution is unsupported".to_owned(),
+            ));
+        };
+        let image_digest =
+            systemprompt_evaluation::capabilities::proofs::ImmutableImage::parse(image)?.digest();
+        systemprompt_evaluation::capabilities::verified_native_targets()
             .iter()
-            .map(OsString::from)
-            .collect(),
-        }
+            .find(|target| {
+                target.validate().is_ok()
+                    && target.client == self.kind
+                    && &target.client_version == version
+                    && &target.image_digest == digest
+                    && image_digest == digest.as_str()
+                    && systemprompt_evaluation::capabilities::proofs::image_config_for_target(
+                        target, image,
+                    )
+                    .is_ok()
+                    && target.supports_platform(std::env::consts::OS, std::env::consts::ARCH)
+            })
+            .ok_or_else(|| {
+                systemprompt_evaluation::EvaluationError::InvalidSpec(
+                    "Native target has no matching retained isolation and metering proofs"
+                        .to_owned(),
+                )
+            })
     }
 
     pub const fn limits(&self) -> &ExecutionLimits {
@@ -103,6 +105,11 @@ pub struct NativeClientBuilder {
 }
 
 impl NativeClientBuilder {
+    pub fn pinned(mut self, version: String, image_digest: String) -> Self {
+        self.client.pins = Some((version, image_digest));
+        self
+    }
+
     pub const fn limits(mut self, limits: ExecutionLimits) -> Self {
         self.client.limits = limits;
         self

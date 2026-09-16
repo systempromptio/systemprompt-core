@@ -3,7 +3,13 @@
 #[cfg(test)]
 mod claude_code_cli;
 #[cfg(test)]
+mod claude_code_cli_dependencies;
+#[cfg(test)]
+mod codex_foreign_shape;
+#[cfg(test)]
 mod codex_host;
+#[cfg(test)]
+mod codex_install;
 #[cfg(test)]
 mod codex_merge;
 #[cfg(test)]
@@ -11,28 +17,25 @@ mod cowork_artifacts;
 #[cfg(test)]
 mod doctor_hook_token;
 #[cfg(test)]
-mod enrol_selection;
-#[cfg(test)]
-mod gateway_hook_token;
-#[cfg(test)]
-mod hermes_host;
-#[cfg(test)]
-mod hermes_merge;
-// The module under test is the Linux device-cert keystore; `platform_source`
-// resolves to the Keychain branch elsewhere, which answers `NotConfigured`
-// rather than reading `SP_BRIDGE_DEVICE_CERT` at all.
-#[cfg(test)]
-mod codex_install;
-#[cfg(test)]
 mod enrol_hosts;
 #[cfg(test)]
 mod enrol_report;
 #[cfg(test)]
+mod enrol_selection;
+#[cfg(test)]
+mod gateway_hook_token;
+#[cfg(test)]
+mod generated_profile_privacy;
+#[cfg(test)]
+mod hermes_host;
+#[cfg(test)]
+mod hermes_merge;
+#[cfg(test)]
 mod host_app_contract;
-#[cfg(all(test, target_os = "linux"))]
-mod keystore_linux;
 #[cfg(test)]
 mod managed_skills;
+#[cfg(test)]
+mod node_deps;
 #[cfg(test)]
 mod opencode_default_model;
 #[cfg(test)]
@@ -43,6 +46,8 @@ mod opencode_host;
 mod opencode_merge;
 #[cfg(test)]
 mod plugin_oauth;
+#[cfg(test)]
+mod plugin_oauth_gateway_identity;
 #[cfg(test)]
 mod plugin_oauth_store;
 #[cfg(test)]

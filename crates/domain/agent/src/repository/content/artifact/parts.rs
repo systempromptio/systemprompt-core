@@ -4,7 +4,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::models::ArtifactPartRow;
-use crate::models::a2a::{DataPart, FileContent, FilePart, Part, TextPart};
+use crate::models::a2a::Part;
+use crate::repository::parts::parts_from_rows;
 use sqlx::PgPool;
 use systemprompt_identifiers::{ArtifactId, ContextId};
 use systemprompt_traits::RepositoryError;
@@ -41,47 +42,7 @@ pub async fn get_artifact_parts(
     .await
     .map_err(RepositoryError::database)?;
 
-    let mut parts = Vec::new();
-
-    for row in part_rows {
-        let part = match row.part_kind.as_str() {
-            "text" => {
-                let text = row
-                    .text_content
-                    .ok_or_else(|| RepositoryError::InvalidData("Missing text_content".into()))?;
-                Part::Text(TextPart { text })
-            },
-            "file" => Part::File(FilePart {
-                file: FileContent {
-                    name: row.file_name,
-                    mime_type: row.file_mime_type,
-                    bytes: row.file_bytes,
-                    url: row.file_uri,
-                },
-            }),
-            "data" => {
-                let data_value = row
-                    .data_content
-                    .ok_or_else(|| RepositoryError::InvalidData("Missing data_content".into()))?;
-                let serde_json::Value::Object(data) = data_value else {
-                    return Err(RepositoryError::InvalidData(
-                        "Data content must be a JSON object".into(),
-                    ));
-                };
-                Part::Data(DataPart { data })
-            },
-            _ => {
-                return Err(RepositoryError::InvalidData(format!(
-                    "Unknown part kind: {}",
-                    row.part_kind
-                )));
-            },
-        };
-
-        parts.push(part);
-    }
-
-    Ok(parts)
+    parts_from_rows(&part_rows)
 }
 
 pub async fn persist_artifact_part(
@@ -108,7 +69,6 @@ pub async fn persist_artifact_part(
             .map_err(RepositoryError::database)?;
         },
         Part::File(file_part) => {
-            let file_uri: Option<&str> = None;
             sqlx::query!(
                 r#"INSERT INTO artifact_parts (artifact_id, context_id, part_kind, sequence_number, file_name, file_mime_type, file_uri, file_bytes)
                 VALUES ($1, $2, 'file', $3, $4, $5, $6, $7)"#,
@@ -117,7 +77,7 @@ pub async fn persist_artifact_part(
                 sequence_number,
                 file_part.file.name,
                 file_part.file.mime_type,
-                file_uri,
+                file_part.file.url.as_deref(),
                 file_part.file.bytes.as_deref()
             )
             .execute(pool)

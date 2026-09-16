@@ -44,8 +44,8 @@ pub use oci_reference::{OciReference, OciReferenceError};
 pub use paths::{PathsConfig, expand_home, resolve_path, resolve_with_home};
 pub use rate_limits::{
     RateLimitsConfig, default_agent_registry, default_agents, default_artifacts, default_burst,
-    default_content, default_contexts, default_mcp, default_mcp_registry, default_oauth_auth,
-    default_oauth_public, default_stream, default_tasks,
+    default_content, default_contexts, default_gateway, default_mcp, default_mcp_registry,
+    default_oauth_auth, default_oauth_public, default_stream, default_tasks,
 };
 pub use runtime::{Environment, LogLevel, OutputFormat, RuntimeConfig};
 pub use secrets::{SecretsConfig, SecretsSource, SecretsValidationMode};
@@ -180,7 +180,9 @@ fn reject_moved_sections(content: &str, profile_path: &Path) -> ProfileResult<()
 impl Profile {
     #[must_use]
     pub fn is_local_trial(&self) -> bool {
-        self.cloud.as_ref().is_none_or(CloudConfig::is_local_trial)
+        self.cloud
+            .as_ref()
+            .map_or_else(|| self.target.is_local(), CloudConfig::is_local_trial)
     }
 
     #[must_use]

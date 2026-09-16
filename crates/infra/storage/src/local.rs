@@ -110,9 +110,24 @@ impl FileStorage for LocalFileStorage {
         if let Some(parent) = full.parent() {
             fs::create_dir_all(parent).await?;
         }
-        let mut file = fs::File::create(&full).await?;
+        // Why: the root may be a mount shared between replicas, and a reader
+        // on another replica must never see a half-written file; the rename
+        // is atomic on the same filesystem.
+        let staging = full.with_extension(format!(
+            "tmp-{}-{}",
+            std::process::id(),
+            uuid::Uuid::new_v4().simple()
+        ));
+        let mut file = fs::File::create(&staging).await?;
         file.write_all(content).await?;
-        file.flush().await?;
+        file.sync_all().await?;
+        drop(file);
+        if let Err(err) = fs::rename(&staging, &full).await {
+            if let Err(cleanup) = fs::remove_file(&staging).await {
+                tracing::warn!(path = %staging.display(), error = %cleanup, "staging file left behind");
+            }
+            return Err(err.into());
+        }
         Ok(id_for(relative))
     }
 

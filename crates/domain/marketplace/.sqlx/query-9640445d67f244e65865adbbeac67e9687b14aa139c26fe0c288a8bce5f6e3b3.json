@@ -1,0 +1,31 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT manifest FROM managed_dependency_verifications WHERE owner_id=$1 AND revision_id=$2 AND commit_sha=$3 AND bundle_digest=$4",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "manifest",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "managed_dependency_verifications",
+            "name": "manifest"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "9640445d67f244e65865adbbeac67e9687b14aa139c26fe0c288a8bce5f6e3b3"
+}

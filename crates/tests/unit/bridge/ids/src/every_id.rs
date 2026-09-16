@@ -6,9 +6,8 @@ use std::collections::{BTreeSet, HashSet};
 use std::str::FromStr;
 
 use systemprompt_bridge::ids::{
-    BearerToken, CertFingerprint, CommsMessageId, HookSessionId, HostId, KeystoreRef,
-    LoopbackSecret, McpSessionId, ModelId, PatToken, PinnedPubKey, PrefsDomain, PrefsKey,
-    PrefsValue, ProxySecret, QueryKey, QueryValue,
+    BearerToken, CommsMessageId, HookSessionId, HostId, LoopbackSecret, McpSessionId, ModelId,
+    PatToken, PinnedPubKey, PrefsDomain, PrefsKey, PrefsValue, ProxySecret, QueryKey, QueryValue,
 };
 
 macro_rules! assert_plain_id_surface {
@@ -84,8 +83,6 @@ fn every_validated_id_rejects_empty_and_round_trips_when_non_empty() {
     assert_validated_id_surface!(PrefsDomain, "editor");
     assert_validated_id_surface!(PrefsKey, "theme");
     assert_validated_id_surface!(ModelId, "claude-opus-5");
-    assert_validated_id_surface!(KeystoreRef, "login-keychain");
-    assert_validated_id_surface!(CertFingerprint, "aa:bb:cc:dd");
     assert_validated_id_surface!(QueryKey, "host");
 }
 
@@ -98,9 +95,9 @@ fn a_validated_id_reports_its_own_type_name_when_rejecting_empty() {
         "error should name the id type it came from, got {rendered}"
     );
 
-    let other = CertFingerprint::try_new("").expect_err("empty is rejected");
+    let other = ModelId::try_new("").expect_err("empty is rejected");
     assert!(
-        other.to_string().contains("CertFingerprint"),
+        other.to_string().contains("ModelId"),
         "each id type reports itself, got {other}"
     );
 }

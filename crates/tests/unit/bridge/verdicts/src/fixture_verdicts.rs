@@ -59,10 +59,8 @@ fn snapshot_of(v: &Value) -> HostAppSnapshot {
         profile_state: profile_state_of(v),
         profile_source: None,
         profile_keys: BTreeMap::new(),
-        host_running: v
-            .get("host_running")
-            .and_then(Value::as_bool)
-            .unwrap_or(false),
+        probe_error: None,
+        host_running: v.get("host_running").and_then(Value::as_bool),
         host_processes: Vec::new(),
         app_installed: match v
             .get("app")

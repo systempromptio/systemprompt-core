@@ -6,13 +6,13 @@
 use std::fmt::Debug;
 
 #[derive(Debug, Clone)]
-pub struct ValidationError {
+pub struct MetadataValidationError {
     pub field: String,
     pub message: String,
     pub context: Option<String>,
 }
 
-impl ValidationError {
+impl MetadataValidationError {
     #[must_use]
     pub fn new(field: impl Into<String>, message: impl Into<String>) -> Self {
         Self {
@@ -29,7 +29,7 @@ impl ValidationError {
     }
 }
 
-impl std::fmt::Display for ValidationError {
+impl std::fmt::Display for MetadataValidationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if let Some(ref ctx) = self.context {
             write!(
@@ -43,9 +43,9 @@ impl std::fmt::Display for ValidationError {
     }
 }
 
-impl std::error::Error for ValidationError {}
+impl std::error::Error for MetadataValidationError {}
 
-pub type ValidationResult<T> = Result<T, ValidationError>;
+pub type ValidationResult<T> = Result<T, MetadataValidationError>;
 
 pub trait Validate: Debug {
     fn validate(&self) -> ValidationResult<()>;
@@ -57,7 +57,7 @@ pub trait MetadataValidation: Validate {
     fn validate_required_fields(&self) -> ValidationResult<()> {
         for (field_name, field_value) in self.required_string_fields() {
             if field_value.is_empty() {
-                return Err(ValidationError::new(
+                return Err(MetadataValidationError::new(
                     field_name,
                     format!("{field_name} cannot be empty"),
                 ));

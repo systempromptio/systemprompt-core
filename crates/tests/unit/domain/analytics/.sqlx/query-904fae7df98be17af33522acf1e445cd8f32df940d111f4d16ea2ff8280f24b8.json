@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO analytics_ingestion_producers(producer,pending_count,oldest_pending_at) VALUES($1,1,clock_timestamp())",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "904fae7df98be17af33522acf1e445cd8f32df940d111f4d16ea2ff8280f24b8"
+}

@@ -18,12 +18,14 @@ use systemprompt_evaluation::experiments::{
     content_digest,
 };
 use systemprompt_evaluation::repository::experiments::{
-    BudgetRepository, EvidenceRepository, ExecutionLease, ExperimentRepository,
-    ManagedWorkspaceRegistration, RevisionRepository, WorkerRecord, WorkerRepository,
+    ExecutionLease, ExperimentRepository, ManagedWorkspaceRegistration, RevisionRepository,
+    WorkerRecord, WorkerRepository,
 };
 use systemprompt_identifiers::{
-    EvalExecutionId, EvalExperimentId, EvalRevisionId, EvalWorkerId, ModelId, ProviderId, UserId,
+    EvalExecutionId, EvalExperimentId, EvalRevisionId, EvalWorkerId, ModelId, ProviderId,
+    ResourceRevisionId, UserId,
 };
+use systemprompt_models::managed::RevisionBundle;
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, fixture_database_url, fixture_db_pool, seed_user_row, unique_user_id,
 };
@@ -68,7 +70,7 @@ pub fn case_content() -> CaseContent {
     }
 }
 
-fn workspace(marker: &str) -> (serde_json::Value, String, usize) {
+fn workspace(marker: &str) -> (RevisionBundle, String, usize) {
     let asset_digest = match marker {
         "bundle" => "1e6ed65d77d6364eeaed5a745ba5c4985ae2b700dd85d7cf7f027bdf294a33fc",
         "candidate" => "dda18a0e21ae47c53b4309434cbc02ae8bf764fa83a6defbb719431242722aa7",
@@ -87,6 +89,8 @@ fn workspace(marker: &str) -> (serde_json::Value, String, usize) {
         }},
         "assets":{(asset_digest):marker.as_bytes()}
     });
+    let files: RevisionBundle =
+        serde_json::from_value(files).expect("workspace is a well-formed bundle");
     let digest = content_digest(&files).expect("workspace digest");
     (files, digest, marker.len())
 }
@@ -106,7 +110,7 @@ impl Harness {
             .await
             .expect("seed owner");
 
-        let evidence = EvidenceRepository::new(pg.clone());
+        let evidence = crate::seams::evidence(&pg);
         let (bundle, bundle_digest, bundle_bytes) = workspace("bundle");
         let (candidate, candidate_digest, candidate_bytes) = workspace("candidate");
         let (configuration, configuration_digest, configuration_bytes) = workspace("configuration");
@@ -129,7 +133,7 @@ impl Harness {
                 .register_managed_workspace(
                     &owner,
                     &ManagedWorkspaceRegistration {
-                        managed_revision_id: revision,
+                        managed_revision_id: &ResourceRevisionId::new(revision),
                         publication_generation: Some(1),
                         manifest,
                         expected_digest: digest,
@@ -208,14 +212,15 @@ impl Harness {
             }),
             claim_independent_improvement: false,
         };
-        let budget = BudgetRepository::new(pg.clone())
+        let budget = crate::seams::budgets(&pg)
             .create_shared(&owner, &format!("budget-{}", Uuid::new_v4()), 5_000_000)
             .await
             .expect("shared budget");
-        let experiment = ExperimentRepository::new(pg.clone())
-            .create_with_budget(&owner, &format!("key-{}", Uuid::new_v4()), &budget, &spec)
-            .await
-            .expect("create experiment");
+        let experiment =
+            crate::seams::experiments(&pg, crate::fixture_admission::fixture_admission())
+                .create_with_budget(&owner, &format!("key-{}", Uuid::new_v4()), &budget, &spec)
+                .await
+                .expect("create experiment");
 
         let environment = format!("env-{}", Uuid::new_v4());
         let workers = WorkerRepository::new(pg.clone());
@@ -245,7 +250,7 @@ impl Harness {
     }
 
     pub fn experiments(&self) -> ExperimentRepository {
-        ExperimentRepository::new(self.pg.clone())
+        crate::seams::experiments(&self.pg, crate::fixture_admission::fixture_admission())
     }
 
     pub fn workers(&self) -> WorkerRepository {
@@ -396,7 +401,11 @@ impl Harness {
              WHERE owner_id = $1)",
             "DELETE FROM eval_budget_reservations WHERE account_id IN (SELECT id FROM \
              eval_budget_accounts WHERE owner_id = $1)",
+            "DELETE FROM eval_campaign_events WHERE campaign_id IN (SELECT id FROM \
+             eval_campaigns WHERE owner_id = $1)",
+            "DELETE FROM eval_campaign_experiments WHERE owner_id = $1",
             "DELETE FROM eval_experiments WHERE owner_id = $1",
+            "DELETE FROM eval_campaigns WHERE owner_id = $1",
             "DELETE FROM eval_budget_accounts WHERE owner_id = $1",
             "DELETE FROM eval_resource_revisions WHERE owner_id = $1",
             "ALTER TABLE eval_managed_workspace_assets DISABLE TRIGGER \
@@ -531,6 +540,33 @@ async fn worker_authentication_rejects_malformed_tokens() {
             "token {token} must be rejected"
         );
     }
+
+    harness.cleanup().await;
+}
+
+#[tokio::test]
+async fn claims_within_one_creation_instant_hand_out_the_baseline_before_the_candidate() {
+    // skip-ok: DB-backed; runs only where the fixture database is reachable
+    let Some(harness) = Harness::start().await else {
+        return;
+    };
+    let first = harness.claim().await;
+    let second = harness.claim().await;
+    assert_eq!(
+        first.created_at, second.created_at,
+        "both variants of an experiment are created in one transaction"
+    );
+    assert_eq!(first.variant_index, 0, "the baseline is claimed first");
+    assert_eq!(second.variant_index, 1, "then the candidate");
+    assert!(
+        harness
+            .experiments()
+            .claim(&harness.owner, &harness.worker.id)
+            .await
+            .expect("claim")
+            .is_none(),
+        "nothing else is queued"
+    );
 
     harness.cleanup().await;
 }

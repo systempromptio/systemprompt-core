@@ -28,8 +28,13 @@ fn create_oauth_state(ctx: &AppContext) -> Option<OAuthState> {
     let users = ctx.user_provider()?;
     let mcp_registry: Arc<dyn systemprompt_traits::McpRegistryProvider> =
         Arc::new(ctx.mcp_registry().clone());
-    let state = OAuthState::new(ctx.oauth_repositories().oauth.clone(), analytics, users)
-        .with_mcp_registry(mcp_registry);
+    let state = OAuthState::new(
+        ctx.oauth_repositories().oauth.clone(),
+        analytics,
+        ctx.session_provider()?,
+        users,
+    )
+    .with_mcp_registry(mcp_registry);
     Some(state)
 }
 
@@ -265,24 +270,6 @@ pub(super) fn mount_content_and_misc(
             .with_auth(user_middleware.clone(), AuthzPolicy::admin()),
     );
 
-    router = mount_evaluation_worker(router, mount)?;
+    router = super::evaluation::mount(router, mount)?;
     super::gateway::mount_gateway(router, mount)
-}
-
-
-// Why: this mount deliberately carries no `with_auth`. Workers present an
-// environment-scoped `spexec_`/worker credential, not a user JWT, so every
-// handler authenticates it against the lease fence itself; wrapping the mount
-// in user auth would reject the only credential these routes accept.
-fn mount_evaluation_worker(router: Router, mount: &MountCtx<'_>) -> Result<Router, LoaderError> {
-    let evaluator = crate::routes::evaluation::router_from_context(mount.ctx).map_err(|error| {
-        LoaderError::InitializationFailed {
-            extension: "evaluation-worker".to_owned(),
-            message: error.to_string(),
-        }
-    })?;
-    Ok(router.nest(
-        "/api/v1/evaluation/worker",
-        evaluator.with_rate_limit(mount.limits, 10, "evaluation_worker")?,
-    ))
 }

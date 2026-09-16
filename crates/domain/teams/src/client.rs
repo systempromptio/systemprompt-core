@@ -24,8 +24,9 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use serde_json::{Value, json};
+use systemprompt_client::{GuardedClientConfig, guarded_client};
 use systemprompt_identifiers::TeamsConversationId;
-use systemprompt_models::net::{GuardedClientConfig, guarded_client, validate_outbound_url};
+use systemprompt_models::net::validate_outbound_url;
 
 use crate::error::{TeamsError, TeamsResult};
 use crate::token::TokenProvider;
@@ -95,7 +96,10 @@ impl TeamsClient {
             return Ok(());
         }
         let status = resp.status();
-        let detail = resp.text().await.unwrap_or_default();
+        let detail = resp
+            .text()
+            .await
+            .unwrap_or_else(|e| format!("<unreadable body: {e}>"));
         Err(TeamsError::Outbound(format!("{status}: {detail}")))
     }
 }

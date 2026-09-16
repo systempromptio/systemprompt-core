@@ -8,7 +8,8 @@ use clap::Args;
 use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
-use systemprompt_logging::{CliService, TraceListFilter, TraceQueryService};
+use systemprompt_logging::CliService;
+use systemprompt_runtime::{TraceListFilter, TraceQueryService};
 use systemprompt_security::authz::list_trace_ids_with_decision;
 
 use super::{TraceListOutput, TraceListRow};

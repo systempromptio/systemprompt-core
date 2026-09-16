@@ -1,5 +1,10 @@
 //! `define_id!` macro generating validated newtype-`String` identifiers.
 //!
+//! The `non_empty` and `validated` arms expose only `try_new`: every value
+//! that reaches them is runtime input (a header, a CLI argument, a database
+//! row), so there is no infallible constructor to panic on it. Identifiers
+//! minted from a UUID or a hash construct `Self(..)` inside this crate.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -53,10 +58,6 @@ macro_rules! define_id {
                 Ok(Self(value))
             }
 
-            pub fn new(value: impl Into<String>) -> Self {
-                Self::try_new(value).expect(concat!(stringify!($name), " cannot be empty"))
-            }
-
             pub fn as_str(&self) -> &str {
                 &self.0
             }
@@ -81,10 +82,6 @@ macro_rules! define_id {
                 Ok(Self(value))
             }
 
-            pub fn new_unchecked(value: impl Into<String>) -> Self {
-                Self::try_new(value).expect(concat!(stringify!($name), " validation failed"))
-            }
-
             pub fn as_str(&self) -> &str {
                 &self.0
             }
@@ -107,10 +104,6 @@ macro_rules! define_id {
                 let validator: fn(&str) -> Result<(), $crate::error::IdValidationError> = $validator;
                 validator(&value)?;
                 Ok(Self(value))
-            }
-
-            pub fn new_unchecked(value: impl Into<String>) -> Self {
-                Self::try_new(value).expect(concat!(stringify!($name), " validation failed"))
             }
 
             pub fn as_str(&self) -> &str {

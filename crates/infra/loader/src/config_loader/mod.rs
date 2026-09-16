@@ -88,12 +88,10 @@ impl ConfigLoader {
         Ok(config)
     }
 
-    #[cfg(any(test, feature = "expose-internals"))]
     pub fn load_cached_from_path(path: &Path) -> ConfigLoadResult<ServicesConfig> {
         Self::new(path.to_path_buf()).run_cached()
     }
 
-    #[cfg(any(test, feature = "expose-internals"))]
     pub fn reload_from_path(path: &Path) -> ConfigLoadResult<ServicesConfig> {
         Self::new(path.to_path_buf()).run_uncached()
     }
@@ -125,7 +123,6 @@ impl ConfigLoader {
         Self::new(path.to_path_buf()).run()
     }
 
-    #[cfg(any(test, feature = "expose-internals"))]
     pub fn load_from_content(content: &str, path: &Path) -> ConfigLoadResult<ServicesConfig> {
         Self::new(path.to_path_buf()).run_from_content(content)
     }

@@ -1,5 +1,51 @@
 # Changelog
 
+## [0.53.0] - 2026-09-15
+
+### Breaking
+
+- **Breaking:** `DatabaseProvider::get_postgres_pool` returns `Arc<PgPool>` and `is_postgres` is removed; only Postgres exists. `Database::pool`/`write_pool` are infallible. Migrate by dropping the `Option` handling.
+- **Breaking:** `Database::from_config`/`from_config_with_write` are replaced by `Database::connect(read_url, write_url, &pool_config)`; the `db_type` string is gone. Migrate by removing the first argument.
+- **Breaking:** `CircuitBreaker::acquire` returns an RAII `Probe` that must be settled with `success()`/`failure()`; `ResilienceGuard::acquire_permit` is replaced by `admit()`, which returns `Admission { permit, probe }`. Migrate by settling the probe instead of calling `record_success`/`record_failure` on the breaker.
+- **Breaking:** `install_extension_schemas*` return a `SchemaInstallReport` whose `foreign_key_drift` lists every declared foreign key an established database could not create, for `/health/detail` and `infra db migrate` to surface.
+- **Breaking:** `AdminSqlError::ForbiddenKeyword` is replaced by `WriteInReadOnly` and a `Parse(pg_query::Error)` variant; `QueryExecutorError::WriteQueryNotAllowed` (never constructed) is removed.
+- **Breaking:** `lint_declarative_schema(s)` return `Result<Vec<LintError>, Vec<LintError>>` — `Ok` carries the warnings that were previously discarded; `created_table_names` returns `Result<Vec<String>, pg_query::Error>` with schema-qualified names, instead of an empty list on a parse failure.
+- **Breaking:** `split_create_table_foreign_keys` returns `FkDeferralError` instead of `String`.
+- **Breaking:** `CleanupRepository` is removed. Log retention lives on `systemprompt_logging::LoggingRepository` (`delete_orphaned_logs`, `count_orphaned_logs`); OAuth expiry sweeps live on `systemprompt_oauth::repository::OauthCleanupRepository`.
+- **Breaking:** `SqlExecutor::table_exists`/`column_exists` are removed; use `validate_table_exists`/`validate_column_exists`. `with_transaction`/`with_scoped_transaction` take `&PgPool` and the `_raw` variants are removed.
+- **Breaking:** `DatabaseProvider::fetch_scalar_value` is removed (no caller; it conflated NULL with an unrepresentable number).
+- **Breaking:** `RepositoryError` gains `SqlSplit`, `Statement { statement, source }`, `Connection` and `SqlFile { path, source }` variants; `SqlExecutor` and `validate_database_connection` no longer flatten causes into `Internal(String)`.
+
+### Added
+
+- `BootstrapLockGuard` and `BOOTSTRAP_ADVISORY_LOCK_KEY` are public; `PostgresProvider` exposes `connection::connect_options`.
+- The database extension now declares the `services` process-registry table (moved from the agent extension, whose migrations declare it as a cross-extension table).
+- `RepositoryError::is_serialization_failure` — the retry classifier `with_transaction_retry` uses, exposed for callers that run their own retry loop.
+
+### Changed
+
+- A failed write to the CLI display sink is reported through `tracing::warn!`.
+- `SqlExecutor::parse_sql_statements` splits with the Postgres parser (`pg_query::split_with_parser`): quoted identifiers and escape strings containing `;` no longer split, and malformed SQL is refused as a whole.
+- `SqlExecutor::execute_file` reads asynchronously.
+- The schema linter compares identifiers exactly (pg_query already case-folds unquoted names), keys tables by schema, and compares unique-key column sets as deduplicated sets; the referenced-uniqueness message states the project rule.
+- Column introspection is scoped to `table_schema = 'public'`.
+- Serving-pool connections disable sqlx's prepared-statement cache (`statement_cache_capacity(0)`) so DDL applied by migrations on the same pool cannot leave a connection with a stale cached plan (SQLSTATE 0A000); every query is prepared per execution.
+- `DatabaseHandle::is_connected` reports whether both pools are open instead of a constant `true`.
+- Migration checksums are xxh64: an applied row whose stored checksum is the historical `DefaultHasher` digest of the SQL now in its slot is rewritten to the xxh64 digest in one verified transaction (`checksum_transition`) — never executed, never a drift repair — and any other mismatch is still checksum drift.
+- Repeated schema installation is idempotent; the schema linter skips dollar-quoted function bodies.
+
+### Fixed
+
+- A database URL carrying `sslmode=verify-full`/`verify-ca` (and `sslrootcert`) is honoured; the provider no longer downgrades every mode other than `require`/`disable` to `prefer`.
+- On an established database only the `ADD CONSTRAINT` of a declared foreign key may be recorded as drift; a failing catalog probe, savepoint or release now fails the install instead of aborting the transaction silently and reporting success.
+- A `BootstrapLockGuard` dropped without `release` (cancelled or panicking install) closes its session so the advisory lock cannot survive in the pool for up to `max_lifetime`; an explicit `release` whose `pg_advisory_unlock` fails closes the session too instead of returning the lock-holding connection to the pool.
+- A deferred foreign key whose `VALIDATE CONSTRAINT` fails is reported with the failure cause; the warning no longer asserts that existing rows violate the key when the validation timed out or lost its lock.
+- A circuit-breaker probe whose future is cancelled releases its half-open slot; previously the leaked probes left the breaker open forever.
+- `AdminSql::parse_readonly` parses with `pg_query` and refuses a data-modifying CTE (`WITH d AS (DELETE …) SELECT …`), DDL or utility statement anywhere in the tree; the keyword heuristic let them through. Read-only admin queries also run inside a `READ ONLY` transaction.
+- `infra db query` decodes `uuid`, `numeric` and `bytea` columns instead of returning `null` for them.
+- A `DEFERRABLE`/`INITIALLY …` attribute after a `UNIQUE`/`PRIMARY KEY` that follows the column's `REFERENCES` stays on that constraint, as Postgres attaches it, instead of being folded into the deferred foreign key.
+- A malformed `extension_migrations` row fails the migration run instead of being skipped and re-executed as pending.
+
 ## [0.52.0] - 2026-09-14
 
 ### Removed

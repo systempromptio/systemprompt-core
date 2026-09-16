@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod dir_owner;
 pub mod paths;
 mod profile;
 pub mod redaction;
@@ -19,12 +20,12 @@ use std::path::PathBuf;
 
 use systemprompt_identifiers::ValidatedUrl;
 
-use crate::ids::KeystoreRef;
+use crate::ids::DeploymentOrganizationUuid;
 
 pub use self::profile::{ClaudeConfig, gateway_url_or_default};
 pub use self::trust::{
-    LegacyPin, PinSource, PinnedPubkeyState, SyncConfig, TrustError, persist_pinned_pubkey,
-    pinned_pubkey, pinned_pubkey_state, policy_pubkey,
+    PinSource, PinnedPubkeyState, SyncConfig, TrustError, persist_pinned_pubkey, pinned_pubkey,
+    pinned_pubkey_state, policy_pubkey,
 };
 pub use self::write::ConfigWriteError;
 
@@ -44,15 +45,21 @@ pub struct Config {
     #[serde(default)]
     pub session: Option<SessionConfig>,
     #[serde(default)]
-    pub mtls: Option<MtlsConfig>,
-    #[serde(default)]
     pub sync: Option<SyncConfig>,
     #[serde(default)]
     pub claude: Option<ClaudeConfig>,
     #[serde(default)]
     pub cowork: Option<CoworkConfig>,
     #[serde(default)]
-    pub deployment_organization_uuid: Option<String>,
+    pub opencode: Option<OpenCodeConfig>,
+    #[serde(default)]
+    pub deployment_organization_uuid: Option<DeploymentOrganizationUuid>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct OpenCodeConfig {
+    #[serde(default)]
+    pub managed_dir: Option<PathBuf>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -75,12 +82,6 @@ pub struct SessionConfig {
     pub enabled: Option<bool>,
 }
 
-#[derive(Debug, Clone, Default, Deserialize)]
-pub struct MtlsConfig {
-    #[serde(default)]
-    pub cert_keystore_ref: Option<KeystoreRef>,
-}
-
 impl Config {
     pub fn load() -> Result<Self, ConfigReadError> {
         let mut cfg = read()?;
@@ -88,13 +89,6 @@ impl Config {
             cfg.gateway_url = Some(default_gateway());
         }
         Ok(cfg)
-    }
-
-    #[must_use]
-    pub fn cert_keystore_ref(&self) -> Option<&KeystoreRef> {
-        self.mtls
-            .as_ref()
-            .and_then(|m| m.cert_keystore_ref.as_ref())
     }
 }
 

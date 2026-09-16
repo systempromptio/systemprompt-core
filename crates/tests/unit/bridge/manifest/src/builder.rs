@@ -17,8 +17,12 @@ fn version(s: &str) -> ManifestVersion {
 fn builder(version_suffix: &str) -> SignedManifestBuilder {
     SignedManifestBuilder::new(
         version(&format!("2026-04-22T00:00:00Z-{version_suffix}")),
-        "2026-04-22T00:00:00Z",
-        "2026-04-22T00:00:00Z",
+        chrono::DateTime::parse_from_rfc3339("2026-04-22T00:00:00Z")
+            .expect("rfc3339")
+            .with_timezone(&chrono::Utc),
+        chrono::DateTime::parse_from_rfc3339("2026-04-22T00:00:00Z")
+            .expect("rfc3339")
+            .with_timezone(&chrono::Utc),
         fixture_user_id(),
     )
 }
@@ -39,6 +43,7 @@ fn sample_plugin() -> PluginEntry {
 
 fn sample_skill() -> SkillEntry {
     SkillEntry {
+        publication: None,
         id: SkillId::try_new("s1").unwrap(),
         name: SkillName::try_new("Skill 1").unwrap(),
         description: "desc".into(),
@@ -62,8 +67,8 @@ fn sample_agent() -> AgentEntry {
         enabled: true,
         is_default: false,
         is_primary: true,
-        provider: Some("anthropic".into()),
-        model: Some("claude".into()),
+        provider: Some(systemprompt_identifiers::ProviderId::new("anthropic")),
+        model: Some(systemprompt_identifiers::ModelId::new("claude")),
         mcp_servers: Default::default(),
         skills: Default::default(),
         tags: vec![],
@@ -89,9 +94,9 @@ fn sample_hook() -> HookEntry {
 
 fn sample_mcp_server() -> ManagedMcpServer {
     ManagedMcpServer {
-        id: systemprompt_identifiers::McpServerId::new("github"),
+        id: systemprompt_identifiers::McpServerId::try_new("github").expect("valid McpServerId"),
         name: ManagedMcpServerName::try_new("github").unwrap(),
-        url: ValidatedUrl::new("https://mcp.example.com/github"),
+        url: ValidatedUrl::try_new("https://mcp.example.com/github").expect("valid ValidatedUrl"),
         transport: None,
         headers: None,
         oauth: None,
@@ -128,8 +133,11 @@ fn minimal_build_has_empty_collections() {
 fn minimal_build_preserves_constructor_fields() {
     let manifest = builder("01aaaaaa").build();
 
-    assert_eq!(manifest.issued_at, "2026-04-22T00:00:00Z");
-    assert_eq!(manifest.not_before, "2026-04-22T00:00:00Z");
+    assert_eq!(manifest.issued_at.to_rfc3339(), "2026-04-22T00:00:00+00:00");
+    assert_eq!(
+        manifest.not_before.to_rfc3339(),
+        "2026-04-22T00:00:00+00:00"
+    );
     assert_eq!(manifest.user_id, fixture_user_id());
     assert_eq!(manifest.min_schema_version, MANIFEST_SCHEMA_VERSION);
     assert_eq!(

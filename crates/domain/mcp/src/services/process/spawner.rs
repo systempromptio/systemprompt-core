@@ -14,8 +14,9 @@ use crate::error::McpDomainResult;
 use std::fs;
 use std::path::Path;
 use std::process::Command;
+use systemprompt_config::paths::AppPaths;
 use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
-use systemprompt_models::{AppPaths, Config, Secrets};
+use systemprompt_models::{Config, Secrets};
 
 const MAX_LOG_SIZE: u64 = 10 * 1024 * 1024;
 
@@ -190,9 +191,9 @@ pub fn spawn_server(paths: &AppPaths, config: &McpServerConfig) -> McpDomainResu
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::from(log_file))
         .stdin(std::process::Stdio::null());
-    systemprompt_models::subprocess::place_in_own_process_group(&mut child_command);
+    systemprompt_loader::subprocess::place_in_own_process_group(&mut child_command);
 
-    let pid = systemprompt_models::subprocess::spawn_supervised(child_command).map_err(|e| {
+    let pid = systemprompt_loader::subprocess::spawn_supervised(child_command).map_err(|e| {
         crate::error::McpDomainError::Internal(format!(
             "Failed to start detached {}: {e}",
             config.name

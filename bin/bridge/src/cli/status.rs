@@ -71,7 +71,8 @@ fn print_oauth_client_status(s: &setup::StatusReport) {
 fn print_cowork_status() {
     let target = crate::integration::cowork_plugins::resolve_target();
     match target {
-        Some(t) => {
+        Err(e) => status_line("cowork session", format!("unresolved: {e}")),
+        Ok(Some(t)) => {
             status_line("cowork session", t.session_org_dir.display());
             let settings = t
                 .session_org_dir
@@ -96,7 +97,7 @@ fn print_cowork_status() {
                 }
             }
         },
-        None => {
+        Ok(None) => {
             status_line("cowork session", "(not detected)");
         },
     }

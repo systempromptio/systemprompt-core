@@ -205,7 +205,7 @@ async fn table_renderer_with_columns_and_data() {
         }))],
         None,
     );
-    let result = renderer.render(&artifact).await.unwrap();
+    let result = renderer.render(&artifact).unwrap();
     assert!(result.html.contains("Users"));
     assert!(result.html.contains("data-table"));
 }
@@ -226,7 +226,7 @@ async fn table_renderer_object_with_columns_and_rows() {
         }))],
         None,
     );
-    let result = renderer.render(&artifact).await.unwrap();
+    let result = renderer.render(&artifact).unwrap();
     assert!(result.html.contains("Sales"));
     assert!(result.html.contains("Monthly sales data"));
 }
@@ -235,7 +235,7 @@ async fn table_renderer_object_with_columns_and_rows() {
 async fn table_renderer_empty_data() {
     let renderer = TableRenderer::new();
     let artifact = make_artifact("table", Some("Empty"), None, vec![], None);
-    let result = renderer.render(&artifact).await.unwrap();
+    let result = renderer.render(&artifact).unwrap();
     assert!(result.html.contains("Empty"));
 }
 
@@ -251,7 +251,7 @@ async fn table_renderer_with_filterable_hint() {
         )],
         Some(serde_json::json!({"filterable": true})),
     );
-    let result = renderer.render(&artifact).await.unwrap();
+    let result = renderer.render(&artifact).unwrap();
     assert!(result.html.contains("filter-input"));
 }
 
@@ -267,7 +267,7 @@ async fn table_renderer_with_pagination_hint() {
         )],
         Some(serde_json::json!({"page_size": 10})),
     );
-    let result = renderer.render(&artifact).await.unwrap();
+    let result = renderer.render(&artifact).unwrap();
     assert!(result.html.contains("pagination"));
 }
 
@@ -302,7 +302,7 @@ async fn chart_renderer_bar_chart() {
         vec![data_part(serde_json::to_value(&chart).unwrap())],
         None,
     );
-    let result = renderer.render(&artifact).await.unwrap();
+    let result = renderer.render(&artifact).unwrap();
     assert!(result.html.contains("Sales Chart"));
     assert!(result.html.contains("<svg class=\"chart-svg\""));
     assert_eq!(result.html.matches("class=\"chart-bar\"").count(), 3);
@@ -322,7 +322,7 @@ async fn chart_renderer_line_chart() {
         vec![data_part(serde_json::to_value(&chart).unwrap())],
         None,
     );
-    let result = renderer.render(&artifact).await.unwrap();
+    let result = renderer.render(&artifact).unwrap();
     assert!(result.html.contains("Trend"));
     assert!(result.html.contains("class=\"chart-line\""));
     assert_eq!(result.html.matches("class=\"chart-point\"").count(), 2);
@@ -341,7 +341,7 @@ async fn chart_renderer_pie_chart() {
         vec![data_part(serde_json::to_value(&chart).unwrap())],
         None,
     );
-    let result = renderer.render(&artifact).await.unwrap();
+    let result = renderer.render(&artifact).unwrap();
     assert!(!result.html.contains("<canvas"));
     assert_eq!(result.html.matches("class=\"chart-slice\"").count(), 2);
     assert!(result.html.contains("A: 60 (60%)"));
@@ -361,7 +361,7 @@ async fn chart_renderer_with_axis_labels() {
         vec![data_part(serde_json::to_value(&chart).unwrap())],
         None,
     );
-    let result = renderer.render(&artifact).await.unwrap();
+    let result = renderer.render(&artifact).unwrap();
     assert!(result.html.contains("class=\"chart-axis-label\""));
     assert!(result.html.contains("Category"));
     assert!(result.html.contains("Value"));
@@ -383,7 +383,7 @@ async fn text_renderer_simple_text() {
         vec![text_part("Hello, world!")],
         None,
     );
-    let result = renderer.render(&artifact).await.unwrap();
+    let result = renderer.render(&artifact).unwrap();
     assert!(result.html.contains("Hello, world!"));
     assert!(result.html.contains("Note"));
 }
@@ -392,7 +392,7 @@ async fn text_renderer_simple_text() {
 async fn text_renderer_multiline_text() {
     let renderer = TextRenderer::new();
     let artifact = make_artifact("text", None, None, vec![text_part("Line 1\nLine 2")], None);
-    let result = renderer.render(&artifact).await.unwrap();
+    let result = renderer.render(&artifact).unwrap();
     assert!(result.html.contains("<p>Line 1</p>"));
     assert!(result.html.contains("<p>Line 2</p>"));
 }
@@ -407,7 +407,7 @@ async fn text_renderer_escapes_html() {
         vec![text_part("<script>alert('xss')</script>")],
         None,
     );
-    let result = renderer.render(&artifact).await.unwrap();
+    let result = renderer.render(&artifact).unwrap();
     assert!(result.html.contains("&lt;script&gt;"));
     assert!(!result.html.contains("<script>alert"));
 }
@@ -422,7 +422,7 @@ async fn text_renderer_drops_blank_lines() {
         vec![text_part("Before\n\n\nAfter")],
         None,
     );
-    let result = renderer.render(&artifact).await.unwrap();
+    let result = renderer.render(&artifact).unwrap();
     assert!(result.html.contains("<p>Before</p>"));
     assert!(result.html.contains("<p>After</p>"));
     // A blank line is separation, not content: however many were typed, the gap
@@ -442,7 +442,7 @@ async fn text_renderer_formats_bullets_and_emphasis() {
         )],
         None,
     );
-    let result = renderer.render(&artifact).await.unwrap();
+    let result = renderer.render(&artifact).unwrap();
     assert!(result.html.contains(r#"<ul class="text-list">"#));
     assert!(result.html.contains("<strong>[23] Follow up</strong>"));
     assert!(result.html.contains("<code>crm.lead</code>"));
@@ -469,7 +469,7 @@ async fn text_renderer_leaves_unpaired_markers_alone() {
         vec![text_part("2 * 3 * 4 is a product, not **emphasis")],
         None,
     );
-    let result = renderer.render(&artifact).await.unwrap();
+    let result = renderer.render(&artifact).unwrap();
     assert!(!result.html.contains("<strong>"));
 }
 
@@ -477,7 +477,7 @@ async fn text_renderer_leaves_unpaired_markers_alone() {
 async fn text_renderer_copy_button() {
     let renderer = TextRenderer::new();
     let artifact = make_artifact("text", None, None, vec![text_part("Copy me")], None);
-    let result = renderer.render(&artifact).await.unwrap();
+    let result = renderer.render(&artifact).unwrap();
     assert!(result.html.contains("copy-btn"));
 }
 
@@ -499,7 +499,7 @@ async fn list_renderer_simple_string_items() {
         )],
         None,
     );
-    let result = renderer.render(&artifact).await.unwrap();
+    let result = renderer.render(&artifact).unwrap();
     assert!(result.html.contains("Item 1"));
     assert!(result.html.contains("3 items"));
 }
@@ -519,7 +519,7 @@ async fn list_renderer_object_items_with_title() {
         }))],
         None,
     );
-    let result = renderer.render(&artifact).await.unwrap();
+    let result = renderer.render(&artifact).unwrap();
     assert!(result.html.contains("First"));
     assert!(result.html.contains("Desc 1"));
 }
@@ -534,7 +534,7 @@ async fn list_renderer_ordered_style() {
         vec![data_part(serde_json::json!({"items": ["A"]}))],
         Some(serde_json::json!({"style": "ordered"})),
     );
-    let result = renderer.render(&artifact).await.unwrap();
+    let result = renderer.render(&artifact).unwrap();
     assert!(result.html.contains("<ol"));
     assert!(result.html.contains("ordered-list"));
 }
@@ -549,7 +549,7 @@ async fn list_renderer_unordered_style_default() {
         vec![data_part(serde_json::json!({"items": ["A"]}))],
         None,
     );
-    let result = renderer.render(&artifact).await.unwrap();
+    let result = renderer.render(&artifact).unwrap();
     assert!(result.html.contains("<ul"));
     assert!(result.html.contains("unordered-list"));
 }
@@ -566,7 +566,7 @@ async fn list_renderer_items_with_links() {
         }))],
         None,
     );
-    let result = renderer.render(&artifact).await.unwrap();
+    let result = renderer.render(&artifact).unwrap();
     assert!(result.html.contains("href="));
     assert!(result.html.contains("noopener"));
 }
@@ -575,7 +575,7 @@ async fn list_renderer_items_with_links() {
 async fn list_renderer_empty_list() {
     let renderer = ListRenderer::new();
     let artifact = make_artifact("list", None, None, vec![], None);
-    let result = renderer.render(&artifact).await.unwrap();
+    let result = renderer.render(&artifact).unwrap();
     assert!(result.html.contains("0 items"));
 }
 
@@ -600,7 +600,7 @@ async fn form_renderer_text_fields() {
         }))],
         None,
     );
-    let result = renderer.render(&artifact).await.unwrap();
+    let result = renderer.render(&artifact).unwrap();
     assert!(result.html.contains("Contact"));
     assert!(result.html.contains("username"));
     assert!(result.html.contains("email"));
@@ -626,7 +626,7 @@ async fn form_renderer_select_field() {
         }))],
         None,
     );
-    let result = renderer.render(&artifact).await.unwrap();
+    let result = renderer.render(&artifact).unwrap();
     assert!(result.html.contains("<select"));
     assert!(result.html.contains("United States"));
 }
@@ -643,7 +643,7 @@ async fn form_renderer_checkbox_field() {
         }))],
         None,
     );
-    let result = renderer.render(&artifact).await.unwrap();
+    let result = renderer.render(&artifact).unwrap();
     assert!(result.html.contains("checkbox"));
     assert!(result.html.contains("checked"));
 }
@@ -660,9 +660,39 @@ async fn form_renderer_submit_tool_hint() {
         )],
         Some(serde_json::json!({"submit_tool": "my_tool"})),
     );
-    let result = renderer.render(&artifact).await.unwrap();
+    let result = renderer.render(&artifact).unwrap();
     assert!(result.html.contains("FORM_SUBMIT_TOOL"));
     assert!(result.html.contains("my_tool"));
+}
+
+// Why: `submit_tool` comes from the tool's own `x-form-hints`; it is written
+// into inline script and must land as a JSON string literal, so a quote or a
+// closing tag in the name can never break out of the assignment.
+#[tokio::test]
+async fn form_renderer_json_encodes_the_submit_tool_into_the_script() {
+    let renderer = FormRenderer::new();
+    let hostile = r#"x"; alert(1); </script><script>//"#;
+    let artifact = make_artifact(
+        "form",
+        None,
+        None,
+        vec![data_part(
+            serde_json::json!({"fields": [{"name": "x", "type": "text"}]}),
+        )],
+        Some(serde_json::json!({"submit_tool": hostile})),
+    );
+    let result = renderer.render(&artifact).unwrap();
+    let expected = serde_json::to_string(hostile)
+        .unwrap()
+        .replace("</", "<\\/");
+    assert!(
+        result
+            .html
+            .contains(&format!("window.FORM_SUBMIT_TOOL = {expected};")),
+        "the tool name is a JSON literal with `</` escaped: {}",
+        result.html
+    );
+    assert!(!result.html.contains("alert(1); </script>"));
 }
 
 #[tokio::test]
@@ -677,7 +707,7 @@ async fn form_renderer_has_submit_and_reset_buttons() {
         )],
         None,
     );
-    let result = renderer.render(&artifact).await.unwrap();
+    let result = renderer.render(&artifact).unwrap();
     assert!(result.html.contains("submit-btn"));
     assert!(result.html.contains("reset-btn"));
 }
@@ -710,7 +740,7 @@ async fn image_renderer_data_uri() {
         }))],
         None,
     );
-    let result = renderer.render(&artifact).await.unwrap();
+    let result = renderer.render(&artifact).unwrap();
     assert!(result.html.contains("Photo"));
     assert!(result.html.contains("https://example.com/image.png"));
     assert!(result.html.contains("A photo"));
@@ -731,7 +761,7 @@ async fn image_renderer_with_dimensions() {
         }))],
         None,
     );
-    let result = renderer.render(&artifact).await.unwrap();
+    let result = renderer.render(&artifact).unwrap();
     assert!(result.html.contains("width=\"800\""));
     assert!(result.html.contains("height=\"600\""));
 }
@@ -748,7 +778,7 @@ async fn image_renderer_zoom_controls() {
         )],
         None,
     );
-    let result = renderer.render(&artifact).await.unwrap();
+    let result = renderer.render(&artifact).unwrap();
     assert!(result.html.contains("zoom-in"));
     assert!(result.html.contains("zoom-out"));
     assert!(result.html.contains("zoom-reset"));
@@ -774,10 +804,7 @@ async fn dashboard_renderer_vertical_layout() {
     let renderer = DashboardRenderer::new();
     let dashboard =
         DashboardArtifact::new("Overview").add_section(text_section("welcome", "Welcome", "Hello"));
-    let result = renderer
-        .render(&dashboard_artifact(&dashboard))
-        .await
-        .unwrap();
+    let result = renderer.render(&dashboard_artifact(&dashboard)).unwrap();
     assert!(result.html.contains("Overview"));
     assert!(result.html.contains("layout-vertical"));
     assert!(result.html.contains("Hello"));
@@ -789,10 +816,7 @@ async fn dashboard_renderer_grid_layout() {
     let dashboard = DashboardArtifact::new("Grid")
         .add_section(text_section("s1", "S1", "A"))
         .with_hints(DashboardHints::new().with_layout(LayoutMode::Grid));
-    let result = renderer
-        .render(&dashboard_artifact(&dashboard))
-        .await
-        .unwrap();
+    let result = renderer.render(&dashboard_artifact(&dashboard)).unwrap();
     assert!(result.html.contains("layout-grid"));
 }
 
@@ -803,10 +827,7 @@ async fn dashboard_renderer_tabs_layout() {
         .add_section(text_section("tab1", "Tab 1", "Content 1"))
         .add_section(text_section("tab2", "Tab 2", "Content 2"))
         .with_hints(DashboardHints::new().with_layout(LayoutMode::Tabs));
-    let result = renderer
-        .render(&dashboard_artifact(&dashboard))
-        .await
-        .unwrap();
+    let result = renderer.render(&dashboard_artifact(&dashboard)).unwrap();
     assert!(result.html.contains("layout-tabs"));
     assert!(result.html.contains("tabs-nav"));
     assert!(result.html.contains("Tab 1"));
@@ -824,10 +845,7 @@ async fn dashboard_renderer_metrics_section() {
             ]))
             .unwrap(),
     );
-    let result = renderer
-        .render(&dashboard_artifact(&dashboard))
-        .await
-        .unwrap();
+    let result = renderer.render(&dashboard_artifact(&dashboard)).unwrap();
     assert!(result.html.contains("KPIs"));
     assert!(result.html.contains("metric-card"));
     assert!(result.html.contains("Revenue"));
@@ -845,10 +863,7 @@ async fn dashboard_renderer_status_section() {
             ]))
             .unwrap(),
     );
-    let result = renderer
-        .render(&dashboard_artifact(&dashboard))
-        .await
-        .unwrap();
+    let result = renderer.render(&dashboard_artifact(&dashboard)).unwrap();
     assert!(result.html.contains("Services"));
     assert!(result.html.contains("status-ok"));
     assert!(result.html.contains("status-error"));
@@ -865,10 +880,7 @@ async fn dashboard_renderer_table_section() {
             ))
             .unwrap(),
     );
-    let result = renderer
-        .render(&dashboard_artifact(&dashboard))
-        .await
-        .unwrap();
+    let result = renderer.render(&dashboard_artifact(&dashboard)).unwrap();
     assert!(result.html.contains("section-table"));
     assert!(result.html.contains("<td>A</td>"));
 }
@@ -885,10 +897,7 @@ async fn dashboard_renderer_chart_section() {
             ))
             .unwrap(),
     );
-    let result = renderer
-        .render(&dashboard_artifact(&dashboard))
-        .await
-        .unwrap();
+    let result = renderer.render(&dashboard_artifact(&dashboard)).unwrap();
     assert!(result.html.contains("chart-container"));
     assert!(result.html.contains("<svg class=\"chart-svg\""));
     assert!(result.html.contains("class=\"chart-line\""));
@@ -909,10 +918,7 @@ async fn dashboard_renderer_list_section() {
             )]))
             .unwrap(),
     );
-    let result = renderer
-        .render(&dashboard_artifact(&dashboard))
-        .await
-        .unwrap();
+    let result = renderer.render(&dashboard_artifact(&dashboard)).unwrap();
     assert!(result.html.contains("section-list"));
     assert!(result.html.contains("One"));
     assert!(result.html.contains("list-badge"));
@@ -924,10 +930,7 @@ async fn dashboard_renderer_sections_sorted_by_order() {
     let dashboard = DashboardArtifact::new("Ordered")
         .add_section(text_section("second", "Second", "b").with_order(1))
         .add_section(text_section("first", "First", "a").with_order(0));
-    let result = renderer
-        .render(&dashboard_artifact(&dashboard))
-        .await
-        .unwrap();
+    let result = renderer.render(&dashboard_artifact(&dashboard)).unwrap();
     let first = result.html.find("First").unwrap();
     let second = result.html.find("Second").unwrap();
     assert!(first < second);
@@ -946,7 +949,6 @@ async fn dashboard_renderer_isolates_mismatched_section_data() {
 
     let result = renderer
         .render(&dashboard_artifact(&dashboard))
-        .await
         .expect("a bad section must not fail the whole dashboard");
 
     // The bad section reports itself in place...
@@ -1002,7 +1004,7 @@ async fn all_renderers_produce_valid_html_structure() {
     ];
 
     for (renderer, artifact) in renderers.iter().zip(artifacts.iter()) {
-        let result = renderer.render(artifact).await.unwrap();
+        let result = renderer.render(artifact).unwrap();
         assert!(result.html.contains("<!DOCTYPE html>"));
         assert!(result.html.contains("</html>"));
     }
@@ -1027,7 +1029,6 @@ fn table_dashboard(data: TableSectionData) -> Artifact {
 async fn table_html(data: TableSectionData) -> String {
     DashboardRenderer::new()
         .render(&table_dashboard(data))
-        .await
         .expect("a table section should render")
         .html
 }
@@ -1238,7 +1239,6 @@ async fn card_html(card: systemprompt_models::artifacts::card::PresentationCardA
             vec![data_part(serde_json::to_value(&card).unwrap())],
             None,
         ))
-        .await
         .expect("a presentation card should render")
         .html
 }

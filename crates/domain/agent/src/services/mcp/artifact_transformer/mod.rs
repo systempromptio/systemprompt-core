@@ -96,27 +96,16 @@ pub fn parse_wire_result(
     })
 }
 
+// Why: the fingerprint is persisted and compared across processes and
+// releases, so it must come from a stable digest, never `DefaultHasher`.
 pub fn calculate_fingerprint(tool_name: &str, tool_arguments: Option<&JsonValue>) -> String {
-    use std::collections::hash_map::DefaultHasher;
-    use std::hash::{Hash, Hasher};
+    use sha2::{Digest, Sha256};
 
-    #[expect(clippy::collection_is_never_read, reason = "collection is accumulated for its side-effect on the borrow checker")]
-    let args_str = tool_arguments
-        .and_then(|args| {
-            serde_json::to_string(args)
-                .map_err(|e| {
-                    tracing::debug!(error = %e, "Failed to serialize tool arguments for fingerprint");
-                    e
-                })
-                .ok()
-        })
-        .unwrap_or_else(String::new);
+    let args_str = tool_arguments.map(ToString::to_string).unwrap_or_default();
+    let digest = Sha256::digest(args_str.as_bytes());
+    let short = &hex::encode(digest)[..16];
 
-    let mut hasher = DefaultHasher::new();
-    args_str.hash(&mut hasher);
-    let hash = hasher.finish();
-
-    format!("{}-{:x}", tool_name, hash)
+    format!("{tool_name}-{short}")
 }
 
 struct TransformParsedParams<'a> {

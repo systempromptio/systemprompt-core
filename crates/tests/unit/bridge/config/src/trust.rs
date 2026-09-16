@@ -1,5 +1,5 @@
 use systemprompt_bridge::config::trust::{GatewayIdentity, TrustError, pinned_pubkey_state_for};
-use systemprompt_bridge::config::{Config, PinSource, PinnedPubkeyState};
+use systemprompt_bridge::config::{Config, PinnedPubkeyState};
 use systemprompt_identifiers::ValidatedUrl;
 
 #[test]
@@ -17,67 +17,8 @@ fn gateway_identity_preserves_tenant_path_and_port() {
     assert!(GatewayIdentity::try_from("https://user:password@example.com".to_owned()).is_err());
 }
 
-// Why: a pre-0.48 pin was trust-on-first-use for the gateway configured at
-// the time. Refusing it on upgrade blocked every sync on an install that had
-// worked the day before, with a remedy only an administrator could run.
 #[test]
-fn a_legacy_pin_for_the_configured_gateway_is_adopted_as_operator_trust() {
-    let cfg: Config = toml::from_str(&format!(
-        "[sync]\npinned_pubkey = '{VALID_KEY}'\npinned_pubkey_gateway = 'https://example.com/'",
-    ))
-    .unwrap();
-    let gateway = ValidatedUrl::try_new("https://example.com").unwrap();
-    let state = without_policy(|| pinned_pubkey_state_for(&cfg, &gateway).unwrap());
-    assert!(
-        matches!(
-            &state,
-            PinnedPubkeyState::Pinned { key, source: PinSource::Operator } if key.as_str() == VALID_KEY
-        ),
-        "{state:?}"
-    );
-    assert!(cfg.sync.as_ref().unwrap().needs_legacy_migration());
-}
-
-#[test]
-fn a_legacy_pin_without_a_recorded_gateway_is_adopted_for_the_configured_one() {
-    let cfg: Config = toml::from_str(&format!("[sync]\npinned_pubkey = '{VALID_KEY}'")).unwrap();
-    let gateway = ValidatedUrl::try_new("https://example.com").unwrap();
-    let state = without_policy(|| pinned_pubkey_state_for(&cfg, &gateway).unwrap());
-    assert!(
-        matches!(
-            state,
-            PinnedPubkeyState::Pinned {
-                source: PinSource::Operator,
-                ..
-            }
-        ),
-        "{state:?}"
-    );
-}
-
-#[test]
-fn a_legacy_pin_for_another_gateway_is_dropped_like_any_operator_pin() {
-    let cfg: Config = toml::from_str(&format!(
-        "[sync]\npinned_pubkey = '{VALID_KEY}'\npinned_pubkey_gateway = 'https://old.example.com'",
-    ))
-    .unwrap();
-    let gateway = ValidatedUrl::try_new("https://new.example.com").unwrap();
-    let state = without_policy(|| pinned_pubkey_state_for(&cfg, &gateway).unwrap());
-    assert_eq!(state, PinnedPubkeyState::Unpinned);
-}
-
-#[test]
-fn a_legacy_pin_with_an_unusable_key_is_an_error_not_a_silent_pin() {
-    let cfg: Config = toml::from_str(&format!(
-        "[sync]\npinned_pubkey = '{MALFORMED_KEY}'\npinned_pubkey_gateway = 'https://example.com'",
-    ))
-    .unwrap();
-    let gateway = ValidatedUrl::try_new("https://example.com").unwrap();
-    assert!(without_policy(|| pinned_pubkey_state_for(&cfg, &gateway)).is_err());
-}
-
-#[test]
-fn a_bound_trust_record_outranks_a_leftover_legacy_pin() {
+fn a_leftover_pinned_pubkey_key_is_ignored_and_only_the_trust_record_counts() {
     let cfg: Config = toml::from_str(&format!(
         "[sync]\npinned_pubkey = 'ignored'\n[sync.trust]\ngateway = 'https://example.com'\nkey = '{VALID_KEY}'\nsource = 'operator'\n",
     ))
@@ -88,7 +29,19 @@ fn a_bound_trust_record_outranks_a_leftover_legacy_pin() {
         matches!(state, PinnedPubkeyState::Pinned { .. }),
         "{state:?}"
     );
-    assert!(!cfg.sync.as_ref().unwrap().needs_legacy_migration());
+}
+
+// `[sync] pinned_pubkey` alone is no longer a trust source: without a bound
+// record the bridge is unpinned, never trust-on-first-use.
+#[test]
+fn a_bare_pinned_pubkey_key_without_a_trust_record_is_unpinned() {
+    let cfg: Config = toml::from_str(&format!(
+        "[sync]\npinned_pubkey = '{VALID_KEY}'\npinned_pubkey_gateway = 'https://example.com/'",
+    ))
+    .unwrap();
+    let gateway = ValidatedUrl::try_new("https://example.com").unwrap();
+    let state = without_policy(|| pinned_pubkey_state_for(&cfg, &gateway).unwrap());
+    assert_eq!(state, PinnedPubkeyState::Unpinned, "{state:?}");
 }
 
 const VALID_KEY: &str = "WGZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmY=";
@@ -163,8 +116,8 @@ fn a_managed_pin_for_another_gateway_is_reported_stale_rather_than_ignored() {
             pinned_for,
             current,
         } => {
-            assert_eq!(pinned_for, "https://managed.example.com");
-            assert_eq!(current, "https://other.example.com");
+            assert_eq!(pinned_for.as_str(), "https://managed.example.com");
+            assert_eq!(current.as_str(), "https://other.example.com");
         },
         other => panic!("a managed pin for another gateway must be reported stale: {other:?}"),
     }
@@ -192,8 +145,8 @@ fn a_stale_managed_pin_is_reported_stale_even_when_its_key_is_unusable() {
             pinned_for,
             current,
         } => {
-            assert_eq!(pinned_for, "https://managed.example.com");
-            assert_eq!(current, "https://other.example.com");
+            assert_eq!(pinned_for.as_str(), "https://managed.example.com");
+            assert_eq!(current.as_str(), "https://other.example.com");
         },
         other => panic!("{other:?}"),
     }

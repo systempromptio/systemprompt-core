@@ -11,6 +11,7 @@ publish = false
 workspace = true
 
 [dependencies]
+tempfile = { workspace = true }
 systemprompt-test-fixtures = { workspace = true }
 systemprompt-security = { workspace = true }
 systemprompt-database = { workspace = true }
@@ -25,12 +26,13 @@ rsa = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }
-ed25519-dalek = { version = "2", default-features = false, features = ["std"] }
+ed25519-dalek = { version = "3", default-features = false }
 base64 = { workspace = true }
 uuid = { workspace = true }
 url = { workspace = true }
 
 [dev-dependencies]
+async-trait = { workspace = true }
 reqwest = { workspace = true }
 tokio = { workspace = true }
 wiremock = { workspace = true }

@@ -1,5 +1,28 @@
 # systemprompt-events
 
+Transactional reporting can use `services::durable::DurableOutbox`. Its `append`
+method takes the source SQL transaction, actor, an existing typed SSE event and
+a `ReportingFact<T>` with a consumer, kind and version. Use the primary database
+for both the outbox pool and the source transaction. Committing publishes the
+notification; rolling back removes both the event and notification. Run a bridge
+on the emitting instance for local delivery of this opt-in path. Existing
+`EventRouter::route_*` methods keep their immediate local delivery behavior.
+Use one publishing path per event: do not call `route_*` again after `append`.
+
+A consumer polls `claim`, validates the fact kind/version, applies projection
+writes using `Delivery::connection`, and calls `acknowledge` to commit both writes
+and processing state. Rollback or dropping the delivery leaves it pending.
+Claims use row locks with `SKIP LOCKED`; they do not promise aggregate ordering.
+Consumers must reject stale entity revisions and make external side effects
+idempotent. Each row supports one durable consumer. Pending facts survive relay
+cleanup; acknowledged rows retain the ordinary age-based retention policy.
+
+Apply migration 004 and upgrade all relay instances before enabling durable
+producers. Older binaries do not protect pending rows from pruning. SSE remains
+a live stream: a disconnected listener can miss notifications; durable consumers
+recover by polling. This API does not install a projector or change analytics
+report queries. See the [analytics migration plan](../../../documentation/concepts/analytics-migration.md).
+
 [![Crates.io](https://img.shields.io/crates/v/systemprompt-events.svg?style=flat-square)](https://crates.io/crates/systemprompt-events)
 [![Docs.rs](https://img.shields.io/docsrs/systemprompt-events?style=flat-square)](https://docs.rs/systemprompt-events)
 [![codecov](https://img.shields.io/codecov/c/github/systempromptio/systemprompt-core/main?style=flat-square&logo=codecov)](https://codecov.io/gh/systempromptio/systemprompt-core)
@@ -48,7 +71,7 @@ AG-UI and A2A events route to both their primary broadcaster and the context bro
 
 ```toml
 [dependencies]
-systemprompt-events = "0.52"
+systemprompt-events = "0.53"
 ```
 
 ```rust

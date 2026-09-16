@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.53.0] - 2026-09-15
+
+### Breaking
+
+- **Breaking:** `GatewayGuardRequest` carries typed ids (`user_id: &UserId`, `model: &ModelId`, `route_id: Option<&RouteId>`, `provider: &ProviderId`) and `GatewayRequestGuard::check` receives `&dyn DatabaseHandle` instead of a `PgPool`; guards downcast to the pool type they need. Guards are materialised once through `gateway_guards()`.
+- **Breaking:** `ExtensionRegistry::enabled_extensions` / `enabled_schema_extensions` / `enabled_job_extensions` return `Result` and refuse to disable a required extension (`RequiredExtensionDisabled`) or a dependency of an enabled extension (`DisabledDependency`); `discover()` fails with `MissingDependency` instead of treating the dependency as optional, and a duplicate `register_extension!` id is `DuplicateExtension`.
+- **Breaking:** `error::ConfigError` is `ExtensionConfigError`; `Migration::checksum` is xxh64.
+- **Breaking:** `Extension::llm_providers` / `has_llm_providers`, `llm_provider_extensions`, `tool_provider_extensions`, `discover_and_merge`, `HasHttpClient`, `CapabilityContext` and `FullContext` are removed. The crate no longer depends on `reqwest` or `sqlx`.
+- **Breaking:** `ExtensionContext::system_owner_id() -> UserId` is a required method; the analytics, inventory and feedback jobs run under it.
+
+### Fixed
+
+- Extension routers are validated before mounting: a base path is either the web root `/` (merged, `WEB_ROOT_BASE_PATH`) or nested under `/api/` outside the reserved prefixes, so an extension cannot shadow a core route. Any other base path is `InvalidBasePath` at boot.
+
 ## [0.49.0] - 2026-09-09
 
 ### Breaking

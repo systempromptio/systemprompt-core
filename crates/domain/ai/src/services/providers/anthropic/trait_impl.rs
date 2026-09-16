@@ -47,7 +47,7 @@ impl AiProvider for AnthropicProvider {
         catalog_default_model(&self.models, self.default_model_override.as_deref())
     }
 
-    fn get_pricing(&self, model: &str) -> ModelPricing {
+    fn get_pricing(&self, model: &str) -> Option<ModelPricing> {
         catalog_pricing(&self.models, model)
     }
 

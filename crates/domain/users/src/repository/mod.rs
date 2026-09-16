@@ -15,6 +15,7 @@ mod banned_ip;
 mod device_cert;
 mod federated_identity;
 mod rate_limit_bucket;
+mod role_directory;
 mod user;
 
 pub use api_key::CreateApiKeyParams;
@@ -23,6 +24,7 @@ pub use banned_ip::{
 };
 pub use device_cert::EnrollDeviceCertParams;
 pub use rate_limit_bucket::UserRateLimitBucketRepository;
+pub use role_directory::UsersRoleDirectory;
 pub use user::{MERGE_EXCLUDED_SECURITY_TABLES, MergeResult, UpdateUserParams};
 
 use crate::error::Result;

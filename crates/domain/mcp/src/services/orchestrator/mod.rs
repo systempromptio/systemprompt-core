@@ -8,8 +8,8 @@
 
 use crate::error::McpDomainResult;
 use std::sync::Arc;
-use systemprompt_database::{DbPool, ServiceRepository};
-use systemprompt_models::AppPaths;
+use systemprompt_config::paths::AppPaths;
+use systemprompt_database::ServiceRepository;
 use systemprompt_traits::StartupEventSender;
 
 mod daemon;
@@ -19,7 +19,6 @@ pub mod handlers;
 mod lifecycle_ops;
 pub mod process_cleanup;
 mod reconciliation;
-pub mod schema_sync;
 mod server_startup;
 mod service_validation;
 mod target_resolution;
@@ -44,7 +43,6 @@ pub struct McpOrchestrator {
     lifecycle: LifecycleOrchestrator,
     database: DatabaseService,
     monitoring: MonitoringService,
-    db_pool: DbPool,
     registry: RegistryService,
 }
 
@@ -55,7 +53,6 @@ impl McpOrchestrator {
                   extra Arc clone at the call site"
     )]
     pub fn new(
-        db_pool: DbPool,
         service_repo: ServiceRepository,
         app_paths: Arc<AppPaths>,
         registry: RegistryService,
@@ -89,7 +86,6 @@ impl McpOrchestrator {
             lifecycle,
             database,
             monitoring,
-            db_pool,
             registry,
         })
     }
@@ -175,7 +171,6 @@ impl McpOrchestrator {
             database: &self.database,
             lifecycle: &self.lifecycle,
             event_bus: &self.event_bus,
-            db_pool: &self.db_pool,
             registry: &self.registry,
             events,
         })

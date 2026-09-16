@@ -1,71 +1,31 @@
 // Tests for the streaming event loop (`process_events`): fan-out of stream
-// events to SSE frames, AG-UI webhook events (via a recording broadcaster
-// installed through the `install_for_test` seam), and task-state updates.
-// Covers the completion path (task completed + persisted), the failure path,
-// and the tool-call / tool-result / execution-step broadcasts.
+// events to SSE frames, AG-UI webhook events (via the recording broadcaster
+// injected into the processor), and task-state updates. Covers the completion
+// path (persisted first, then announced), the failure path, cancellation, and
+// the tool-call / tool-result / execution-step broadcasts. Every path emits
+// exactly one `final: true` status frame.
 
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::Arc;
 
-use async_trait::async_trait;
 use axum::response::sse::Event;
-use systemprompt_agent::models::a2a::jsonrpc::RequestId;
 use systemprompt_agent::models::a2a::{Message, MessageRole, Part, TaskState, TextPart};
 use systemprompt_agent::repository::task::TaskRepository;
 use systemprompt_agent::services::a2a_server::processing::message::{
-    MessageProcessor, StreamEvent,
-};
-use systemprompt_agent::services::a2a_server::streaming::webhook_client::{
-    WebhookBroadcaster, WebhookError, install_for_test,
+    MessageProcessor, MessageStream, StreamEvent,
 };
 use systemprompt_agent::services::a2a_server::streaming::{ProcessEventsParams, process_events};
-use systemprompt_identifiers::{AiToolCallId, ContextId, MessageId, TaskId, UserId};
+use systemprompt_identifiers::{AiToolCallId, ContextId, MessageId, TaskId};
 use systemprompt_models::{
-    A2AEvent, AgUiEvent, CallToolResult, ExecutionStep, StepContent, StepId, StepStatus, ToolCall,
+    CallToolResult, ExecutionStep, StepContent, StepId, StepStatus, ToolCall,
+};
+use systemprompt_test_mocks::{
+    RecordedBroadcast, RecordingWebhookBroadcaster, arc_recording_broadcaster,
 };
 use tokio::sync::mpsc;
+use tokio_util::sync::CancellationToken;
 
 use super::a2a_helpers::{StubAiProvider, request_context};
 use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try_pool_or_skip};
-
-#[derive(Debug, Default)]
-struct RecordingBroadcaster {
-    agui: Mutex<Vec<String>>,
-    a2a: Mutex<Vec<String>>,
-}
-
-#[async_trait]
-impl WebhookBroadcaster for RecordingBroadcaster {
-    async fn broadcast_agui(
-        &self,
-        _user_id: &UserId,
-        event: AgUiEvent,
-        _auth_token: &str,
-    ) -> Result<usize, WebhookError> {
-        let json = serde_json::to_string(&event).unwrap_or_default();
-        self.agui.lock().expect("lock").push(json);
-        Ok(1)
-    }
-
-    async fn broadcast_a2a(
-        &self,
-        _user_id: &UserId,
-        event: A2AEvent,
-        _auth_token: &str,
-    ) -> Result<usize, WebhookError> {
-        let json = serde_json::to_string(&event).unwrap_or_default();
-        self.a2a.lock().expect("lock").push(json);
-        Ok(1)
-    }
-}
-
-fn recorder() -> &'static Arc<RecordingBroadcaster> {
-    static RECORDER: OnceLock<Arc<RecordingBroadcaster>> = OnceLock::new();
-    RECORDER.get_or_init(|| {
-        let recorder = Arc::new(RecordingBroadcaster::default());
-        install_for_test(Arc::clone(&recorder) as Arc<dyn WebhookBroadcaster>);
-        recorder
-    })
-}
 
 fn user_message(ctx: &ContextId, task_id: &TaskId) -> Message {
     Message {
@@ -88,6 +48,7 @@ struct Loop {
     handle: tokio::task::JoinHandle<()>,
     task_id: TaskId,
     pool: systemprompt_database::DbPool,
+    rec: Arc<RecordingWebhookBroadcaster>,
 }
 
 // `agent_name` is the name the completion handler stamps into the task
@@ -124,10 +85,12 @@ async fn spawn_loop_with_or_skip(spec: LoopSpec<'_>) -> Option<Loop> {
         TaskId::generate()
     };
 
+    let (broadcaster, rec) = arc_recording_broadcaster();
     let processor = Arc::new(
         MessageProcessor::new(
             Arc::new(crate::repository::repos(&pool)),
             Arc::new(StubAiProvider::new()),
+            broadcaster,
         )
         .expect("processor"),
     );
@@ -135,11 +98,16 @@ async fn spawn_loop_with_or_skip(spec: LoopSpec<'_>) -> Option<Loop> {
     let request = request_context(&ctx, &session, &user, "loop-agent");
 
     let (sse_tx, sse_rx) = mpsc::channel::<Event>(64);
-    let (event_tx, chunk_rx) = mpsc::channel::<StreamEvent>(64);
+    let (event_tx, events) = mpsc::channel::<StreamEvent>(64);
+    let stream = MessageStream {
+        events,
+        worker: tokio::spawn(async {}),
+        cancel: CancellationToken::new(),
+    };
 
     let params = ProcessEventsParams {
         tx: sse_tx,
-        chunk_rx,
+        stream,
         task_id: task_id.clone(),
         context_id: ctx.clone(),
         message_id: MessageId::generate(),
@@ -148,7 +116,6 @@ async fn spawn_loop_with_or_skip(spec: LoopSpec<'_>) -> Option<Loop> {
         context: request,
         task_repo,
         processor,
-        request_id: RequestId::Number(1),
     };
 
     let handle = tokio::spawn(process_events(params));
@@ -159,22 +126,48 @@ async fn spawn_loop_with_or_skip(spec: LoopSpec<'_>) -> Option<Loop> {
         handle,
         task_id,
         pool,
+        rec,
     })
 }
 
-fn recorded_for(entries: &Mutex<Vec<String>>, task_id: &TaskId) -> Vec<String> {
-    entries
-        .lock()
-        .expect("lock")
-        .iter()
+fn a2a_for(rec: &RecordingWebhookBroadcaster, task_id: &TaskId) -> Vec<String> {
+    rec.records()
+        .into_iter()
+        .filter_map(|r| match r {
+            RecordedBroadcast::A2A { event, .. } => serde_json::to_string(&event).ok(),
+            _ => None,
+        })
         .filter(|e| e.contains(task_id.as_str()))
-        .cloned()
+        .collect()
+}
+
+fn agui_all(rec: &RecordingWebhookBroadcaster) -> Vec<String> {
+    rec.records()
+        .into_iter()
+        .filter_map(|r| match r {
+            RecordedBroadcast::AgUi { event, .. } => serde_json::to_string(&event).ok(),
+            _ => None,
+        })
+        .collect()
+}
+
+fn drain_frames(rx: &mut mpsc::Receiver<Event>) -> Vec<String> {
+    let mut frames = Vec::new();
+    while let Ok(frame) = rx.try_recv() {
+        frames.push(format!("{frame:?}"));
+    }
+    frames
+}
+
+fn final_frames(frames: &[String]) -> Vec<&String> {
+    frames
+        .iter()
+        .filter(|f| f.contains(r#"final\":true"#))
         .collect()
 }
 
 #[tokio::test]
 async fn process_events_completion_path_persists_and_broadcasts() {
-    let rec = recorder();
     let Some(mut ctx) = spawn_loop_or_skip().await else {
         return;
     };
@@ -193,11 +186,14 @@ async fn process_events_completion_path_persists_and_broadcasts() {
 
     ctx.handle.await.expect("loop finished");
 
-    let mut sse_count = 0;
-    while ctx.sse_rx.try_recv().is_ok() {
-        sse_count += 1;
-    }
-    assert!(sse_count > 0, "expected SSE frames from the event loop");
+    let frames = drain_frames(&mut ctx.sse_rx);
+    assert!(
+        !frames.is_empty(),
+        "expected SSE frames from the event loop"
+    );
+    let finals = final_frames(&frames);
+    assert_eq!(finals.len(), 1, "exactly one final frame: {frames:?}");
+    assert!(finals[0].contains("TASK_STATE_COMPLETED"), "{finals:?}");
 
     let repos = repos(&ctx.pool);
     let stored = repos
@@ -207,17 +203,24 @@ async fn process_events_completion_path_persists_and_broadcasts() {
         .expect("get task")
         .expect("task row");
     assert_eq!(stored.status.state, TaskState::Completed);
-
-    let a2a = recorded_for(&rec.a2a, &ctx.task_id);
     assert!(
-        a2a.iter().any(|e| e.contains("TASK_STATE_COMPLETED")),
-        "expected an A2A completed broadcast, got: {a2a:?}"
+        stored.history.as_ref().is_some_and(|h| h.len() >= 2),
+        "the completed task carries its persisted messages: {:?}",
+        stored.history
+    );
+
+    let a2a = a2a_for(&ctx.rec, &ctx.task_id);
+    assert_eq!(
+        a2a.iter()
+            .filter(|e| e.contains("TASK_STATE_COMPLETED"))
+            .count(),
+        1,
+        "one A2A completed broadcast, got: {a2a:?}"
     );
 }
 
 #[tokio::test]
 async fn process_events_error_path_fails_task_and_broadcasts() {
-    let rec = recorder();
     let Some(mut ctx) = spawn_loop_or_skip().await else {
         return;
     };
@@ -229,11 +232,10 @@ async fn process_events_error_path_fails_task_and_broadcasts() {
 
     ctx.handle.await.expect("loop finished");
 
-    let mut saw_frame = false;
-    while ctx.sse_rx.try_recv().is_ok() {
-        saw_frame = true;
-    }
-    assert!(saw_frame, "expected SSE frames on the error path");
+    let frames = drain_frames(&mut ctx.sse_rx);
+    let finals = final_frames(&frames);
+    assert_eq!(finals.len(), 1, "exactly one final frame: {frames:?}");
+    assert!(finals[0].contains("TASK_STATE_FAILED"), "{finals:?}");
 
     let repos = repos(&ctx.pool);
     let stored = repos
@@ -244,21 +246,61 @@ async fn process_events_error_path_fails_task_and_broadcasts() {
         .expect("task row");
     assert_eq!(stored.status.state, TaskState::Failed);
 
-    let a2a = recorded_for(&rec.a2a, &ctx.task_id);
+    let a2a = a2a_for(&ctx.rec, &ctx.task_id);
+    assert_eq!(
+        a2a.iter()
+            .filter(|e| e.contains("TASK_STATE_FAILED"))
+            .count(),
+        1,
+        "one A2A failed broadcast, got: {a2a:?}"
+    );
+}
+
+#[tokio::test]
+async fn process_events_cancelled_path_marks_task_canceled_with_one_final_frame() {
+    let Some(mut ctx) = spawn_loop_or_skip().await else {
+        return;
+    };
+
+    ctx.event_tx
+        .send(StreamEvent::Text("part".to_owned()))
+        .await
+        .expect("send text");
+    ctx.event_tx
+        .send(StreamEvent::Cancelled)
+        .await
+        .expect("send cancelled");
+
+    ctx.handle.await.expect("loop finished");
+
+    let frames = drain_frames(&mut ctx.sse_rx);
+    let finals = final_frames(&frames);
+    assert_eq!(finals.len(), 1, "exactly one final frame: {frames:?}");
+    assert!(finals[0].contains("TASK_STATE_CANCELED"), "{finals:?}");
+
+    let repos = repos(&ctx.pool);
+    let stored = repos
+        .tasks
+        .get_task(&ctx.task_id)
+        .await
+        .expect("get task")
+        .expect("task row");
+    assert_eq!(stored.status.state, TaskState::Canceled);
+
+    let agui = agui_all(&ctx.rec);
     assert!(
-        a2a.iter().any(|e| e.contains("TASK_STATE_FAILED")),
-        "expected an A2A failed broadcast, got: {a2a:?}"
+        agui.iter().any(|e| e.contains("TASK_CANCELLED")),
+        "cancellation is reported to AG-UI: {agui:?}"
     );
 }
 
 #[tokio::test]
 async fn process_events_broadcasts_tool_and_step_events() {
-    let rec = recorder();
     let Some(ctx) = spawn_loop_or_skip().await else {
         return;
     };
 
-    let call_id = AiToolCallId::new(uuid::Uuid::new_v4().to_string());
+    let call_id = AiToolCallId::generate();
     ctx.event_tx
         .send(StreamEvent::ToolCallStarted(ToolCall {
             ai_tool_call_id: call_id.clone(),
@@ -269,7 +311,7 @@ async fn process_events_broadcasts_tool_and_step_events() {
         .expect("send tool call");
     ctx.event_tx
         .send(StreamEvent::ToolResult {
-            call_id: call_id.to_string(),
+            ai_tool_call_id: call_id.clone(),
             result: CallToolResult::success(vec![]),
         })
         .await
@@ -299,7 +341,7 @@ async fn process_events_broadcasts_tool_and_step_events() {
 
     ctx.handle.await.expect("loop finished");
 
-    let agui: Vec<String> = rec.agui.lock().expect("lock").clone();
+    let agui = agui_all(&ctx.rec);
     assert!(
         agui.iter().any(|e| e.contains(call_id.as_str())),
         "expected AG-UI tool-call broadcasts for {call_id}"
@@ -311,9 +353,8 @@ async fn process_events_broadcasts_tool_and_step_events() {
 }
 
 #[tokio::test]
-async fn completion_with_an_empty_agent_name_aborts_before_persistence() {
-    let rec = recorder();
-    let Some(ctx) = spawn_loop_with_or_skip(LoopSpec {
+async fn completion_with_an_empty_agent_name_fails_the_task_before_persistence() {
+    let Some(mut ctx) = spawn_loop_with_or_skip(LoopSpec {
         agent_name: "",
         ..LoopSpec::default()
     })
@@ -340,11 +381,16 @@ async fn completion_with_an_empty_agent_name_aborts_before_persistence() {
         .expect("task row");
     assert_eq!(
         stored.status.state,
-        TaskState::Completed,
-        "the task state is marked before metadata is built"
+        TaskState::Failed,
+        "nothing marks the task completed before its messages are committed"
     );
 
-    let agui: Vec<String> = rec.agui.lock().expect("lock").clone();
+    let frames = drain_frames(&mut ctx.sse_rx);
+    let finals = final_frames(&frames);
+    assert_eq!(finals.len(), 1, "exactly one final frame: {frames:?}");
+    assert!(finals[0].contains("TASK_STATE_FAILED"), "{finals:?}");
+
+    let agui = agui_all(&ctx.rec);
     assert!(
         agui.iter().any(|e| e.contains("METADATA_ERROR")),
         "an unusable agent name is reported as a RUN_ERROR"
@@ -359,8 +405,7 @@ async fn completion_with_an_empty_agent_name_aborts_before_persistence() {
 
 #[tokio::test]
 async fn completion_of_an_unpersisted_task_reports_a_persistence_error() {
-    let rec = recorder();
-    let Some(ctx) = spawn_loop_with_or_skip(LoopSpec {
+    let Some(mut ctx) = spawn_loop_with_or_skip(LoopSpec {
         persist_task_row: false,
         ..LoopSpec::default()
     })
@@ -389,7 +434,11 @@ async fn completion_of_an_unpersisted_task_reports_a_persistence_error() {
         "the task was never persisted, so nothing is written back"
     );
 
-    let agui: Vec<String> = rec.agui.lock().expect("lock").clone();
+    let frames = drain_frames(&mut ctx.sse_rx);
+    let finals = final_frames(&frames);
+    assert_eq!(finals.len(), 1, "exactly one final frame: {frames:?}");
+
+    let agui = agui_all(&ctx.rec);
     assert!(
         agui.iter().any(|e| e.contains("PERSISTENCE_ERROR")),
         "a failed write is reported as a RUN_ERROR"

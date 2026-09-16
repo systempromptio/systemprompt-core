@@ -215,10 +215,18 @@ fn from_agent_error_maps_to_internal() {
 }
 
 #[test]
-fn from_provider_error_maps_to_internal() {
-    let provider_err: systemprompt_models::errors::ProviderError =
-        Box::new(std::io::Error::other("bad prompt"));
+fn from_inference_error_maps_to_internal() {
+    let provider_err =
+        systemprompt_models::errors::AiInferenceError::InvalidRequest("bad prompt".to_owned());
     let err: AgentServiceError = provider_err.into();
     assert!(matches!(err, AgentServiceError::Internal(_)));
     assert!(err.to_string().contains("bad prompt"));
+}
+
+#[test]
+fn from_mcp_registry_error_maps_to_internal() {
+    let registry_err = systemprompt_models::errors::McpRegistryError::NotFound("srv".to_owned());
+    let err: AgentServiceError = registry_err.into();
+    assert!(matches!(err, AgentServiceError::Internal(_)));
+    assert!(err.to_string().contains("srv"));
 }

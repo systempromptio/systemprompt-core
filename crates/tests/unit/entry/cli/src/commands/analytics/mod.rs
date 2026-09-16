@@ -13,6 +13,7 @@ mod costs_summary_widening;
 mod export_csv;
 mod output_format;
 mod overview;
+mod projection;
 mod time_parse;
 mod time_parse_arms;
 mod traffic_pages_navigation_db;

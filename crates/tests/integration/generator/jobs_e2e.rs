@@ -7,11 +7,11 @@
 
 use std::sync::Arc;
 
+use systemprompt_config::paths::AppPaths;
 use systemprompt_generator::{
     ContentPrerenderJob, PagePrerenderJob, execute_copy_extension_assets,
 };
 use systemprompt_identifiers::{Actor, UserId};
-use systemprompt_models::AppPaths;
 use systemprompt_models::profile::PathsConfig;
 use systemprompt_provider_contracts::{Job, JobContext};
 use tempfile::TempDir;

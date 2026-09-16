@@ -18,7 +18,7 @@ fn test_user_id() -> UserId {
 
 fn test_agui_event() -> AgUiEvent {
     AgUiEventBuilder::run_started(
-        ContextId::new_unchecked(TEST_CONTEXT_ID_A),
+        ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
         TaskId::new("test-task"),
         None,
     )
@@ -27,7 +27,7 @@ fn test_agui_event() -> AgUiEvent {
 fn test_a2a_event() -> A2AEvent {
     A2AEventBuilder::task_status_update(
         TaskId::new("test-task"),
-        ContextId::new_unchecked(TEST_CONTEXT_ID_A),
+        ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
         TaskState::Working,
         Some("test message".to_string()),
     )
@@ -43,7 +43,9 @@ async fn test_route_agui_returns_tuple() {
     let user_id = test_user_id();
     let event = test_agui_event();
 
-    let result = EventRouter::route_agui(&user_id, event).await;
+    let result = EventRouter::route_agui(&user_id, event)
+        .await
+        .into_local_logged();
 
     assert_eq!(result.0, 0);
     assert_eq!(result.1, 0);
@@ -59,7 +61,9 @@ async fn test_route_agui_with_registered_connection() {
         .await;
 
     let event = test_agui_event();
-    let (agui_count, _context_count) = EventRouter::route_agui(&user_id, event).await;
+    let (agui_count, _context_count) = EventRouter::route_agui(&user_id, event)
+        .await
+        .into_local_logged();
 
     assert_eq!(agui_count, 1);
     let _ = receiver
@@ -77,7 +81,9 @@ async fn test_route_a2a_returns_tuple() {
     let user_id = test_user_id();
     let event = test_a2a_event();
 
-    let result = EventRouter::route_a2a(&user_id, event).await;
+    let result = EventRouter::route_a2a(&user_id, event)
+        .await
+        .into_local_logged();
 
     assert_eq!(result.0, 0);
     assert_eq!(result.1, 0);
@@ -93,7 +99,9 @@ async fn test_route_a2a_with_registered_connection() {
         .await;
 
     let event = test_a2a_event();
-    let (a2a_count, _context_count) = EventRouter::route_a2a(&user_id, event).await;
+    let (a2a_count, _context_count) = EventRouter::route_a2a(&user_id, event)
+        .await
+        .into_local_logged();
 
     assert_eq!(a2a_count, 1);
     let _ = receiver
@@ -111,7 +119,9 @@ async fn test_route_system_returns_count() {
     let user_id = test_user_id();
     let event = test_system_event();
 
-    let count = EventRouter::route_system(&user_id, event).await;
+    let count = EventRouter::route_system(&user_id, event)
+        .await
+        .into_local_logged();
 
     assert_eq!(count, 0);
 }
@@ -126,7 +136,9 @@ async fn test_route_system_with_registered_connection() {
         .await;
 
     let event = test_system_event();
-    let count = EventRouter::route_system(&user_id, event).await;
+    let count = EventRouter::route_system(&user_id, event)
+        .await
+        .into_local_logged();
 
     assert_eq!(count, 1);
     let _ = receiver
@@ -154,7 +166,9 @@ async fn test_route_agui_broadcasts_to_context() {
         .await;
 
     let event = test_agui_event();
-    let (_agui_count, context_count) = EventRouter::route_agui(&user_id, event).await;
+    let (_agui_count, context_count) = EventRouter::route_agui(&user_id, event)
+        .await
+        .into_local_logged();
 
     assert_eq!(context_count, 1);
     let _ = context_receiver
@@ -182,7 +196,9 @@ async fn test_route_a2a_broadcasts_to_context() {
         .await;
 
     let event = test_a2a_event();
-    let (_a2a_count, context_count) = EventRouter::route_a2a(&user_id, event).await;
+    let (_a2a_count, context_count) = EventRouter::route_a2a(&user_id, event)
+        .await
+        .into_local_logged();
 
     assert_eq!(context_count, 1);
     let _ = context_receiver
@@ -235,7 +251,9 @@ async fn test_route_analytics_returns_count() {
     let user_id = test_user_id();
     let event = test_analytics_event();
 
-    let count = EventRouter::route_analytics(&user_id, event).await;
+    let count = EventRouter::route_analytics(&user_id, event)
+        .await
+        .into_local_logged();
 
     assert_eq!(count, 0);
 }
@@ -250,7 +268,9 @@ async fn test_route_analytics_with_registered_connection() {
         .await;
 
     let event = test_analytics_event();
-    let count = EventRouter::route_analytics(&user_id, event).await;
+    let count = EventRouter::route_analytics(&user_id, event)
+        .await
+        .into_local_logged();
 
     assert_eq!(count, 1);
     let _ = receiver
@@ -277,7 +297,9 @@ async fn test_route_analytics_multiple_connections() {
         .await;
 
     let event = test_analytics_event();
-    let count = EventRouter::route_analytics(&user_id, event).await;
+    let count = EventRouter::route_analytics(&user_id, event)
+        .await
+        .into_local_logged();
 
     assert_eq!(count, 2);
     let _ = rx1
@@ -332,7 +354,9 @@ async fn test_route_analytics_heartbeat_event() {
         .await;
 
     let heartbeat = AnalyticsEventBuilder::heartbeat();
-    let count = EventRouter::route_analytics(&user_id, heartbeat).await;
+    let count = EventRouter::route_analytics(&user_id, heartbeat)
+        .await
+        .into_local_logged();
     assert_eq!(count, 1);
     let _ = receiver
         .recv()
@@ -355,7 +379,9 @@ async fn test_route_analytics_session_ended_event() {
 
     let session_end =
         AnalyticsEventBuilder::session_ended("test-session".to_string().into(), 120000, 10, 20);
-    let count = EventRouter::route_analytics(&user_id, session_end).await;
+    let count = EventRouter::route_analytics(&user_id, session_end)
+        .await
+        .into_local_logged();
     assert_eq!(count, 1);
     let _ = receiver
         .recv()

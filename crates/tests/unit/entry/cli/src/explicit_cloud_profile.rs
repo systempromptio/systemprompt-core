@@ -26,7 +26,7 @@ use tempfile::TempDir;
 fn session(profile_name: &str) -> CliSession {
     CliSession::builder(
         SessionBinding::new(
-            ProfileName::new(profile_name),
+            ProfileName::try_new(profile_name).expect("valid ProfileName"),
             "http://localhost:8080".to_owned(),
         ),
         SessionToken::new("tok"),
@@ -34,7 +34,7 @@ fn session(profile_name: &str) -> CliSession {
         ContextId::generate(),
         SessionIdentity::new(
             UserId::new("user-explicit-profile"),
-            Email::new("ops@example.test"),
+            Email::try_new("ops@example.test").expect("valid Email"),
             UserType::Admin,
         ),
     )
@@ -193,10 +193,18 @@ fn every_mutating_database_command_demands_an_explicit_cloud_profile() {
         vec!["infra", "db", "execute", "DELETE FROM users"],
         vec!["infra", "db", "assign-admin", "u"],
         vec!["infra", "jobs", "run", "publish_pipeline"],
+        vec!["infra", "logs", "delete", "--yes"],
+        vec!["infra", "logs", "cleanup", "--yes"],
     ] {
+        let desc = descriptor(&args);
         assert!(
-            descriptor(&args).requires_explicit_cloud_profile(),
+            desc.requires_explicit_cloud_profile(),
             "{args:?} mutates the resolved database and must carry the flag"
+        );
+        assert_eq!(
+            desc.routing_class(),
+            systemprompt_cli::descriptor::RoutingClass::Mutating,
+            "{args:?} deletes rows; a failed remote route must never fall back to a local run"
         );
     }
 

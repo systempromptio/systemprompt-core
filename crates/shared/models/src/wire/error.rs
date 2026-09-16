@@ -24,4 +24,9 @@ pub enum WireParseError {
     OpenAiChat(serde_json::Error),
     #[error("Malformed OpenAI responses body: {0}")]
     OpenAiResponses(serde_json::Error),
+    // Why: the Responses API rejects a replayed function call whose id is
+    // missing, so a call that arrives without `call_id` and `id` cannot be
+    // represented as a canonical tool use.
+    #[error("OpenAI responses body: function_call `{name}` carries neither call_id nor id")]
+    OpenAiResponsesMissingToolCallId { name: String },
 }

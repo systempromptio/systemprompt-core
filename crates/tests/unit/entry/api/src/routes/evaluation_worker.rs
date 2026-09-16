@@ -33,10 +33,12 @@ async fn harness() -> Option<Harness> {
         .await
         .ok()?;
     let pool = (*db_pool.write_pool_arc().ok()?).clone();
-    let state = systemprompt_api::routes::evaluation::EvaluationWorkerState::builder(pool.clone())
-        .environment(ENVIRONMENT.to_owned())
-        .build()
-        .ok()?;
+    let state = systemprompt_api::routes::evaluation::EvaluationWorkerState::builder(
+        systemprompt_test_fixtures::fixture_evaluation_repositories(&db_pool).ok()?,
+    )
+    .environment(ENVIRONMENT.to_owned())
+    .build()
+    .ok()?;
     Some(Harness {
         router: systemprompt_api::routes::evaluation::router(state),
         pool,

@@ -119,7 +119,7 @@ pub(super) fn gateway_config(route_provider: &str) -> GatewayConfig {
 
 fn canonical_request(model: &str, stream: bool) -> CanonicalRequest {
     CanonicalRequest {
-        model: model.to_owned(),
+        model: ModelId::new(model),
         system: Some("be brief".to_owned()),
         messages: vec![CanonicalMessage {
             role: Role::User,
@@ -214,7 +214,7 @@ pub(super) fn inputs_with(
     inbound: Arc<dyn InboundAdapter>,
     raw_body: Bytes,
 ) -> DispatchInputs {
-    let ctx = dispatch_ctx(cred, &request.model, stream, inbound.wire_name());
+    let ctx = dispatch_ctx(cred, request.model.as_str(), stream, inbound.wire_name());
     DispatchInputs {
         request,
         raw_body,
@@ -222,6 +222,7 @@ pub(super) fn inputs_with(
         inbound,
         forward_headers: Vec::new(),
         identity_headers: Vec::new(),
+        governance: systemprompt_test_fixtures::default_governance_engine(),
     }
 }
 
@@ -1050,10 +1051,10 @@ struct CoverageGatewayGuard;
 impl systemprompt_extension::GatewayRequestGuard for CoverageGatewayGuard {
     async fn check(
         &self,
-        _pool: &sqlx::PgPool,
+        _db: &dyn systemprompt_traits::DatabaseHandle,
         request: &systemprompt_extension::GatewayGuardRequest<'_>,
     ) -> Result<(), systemprompt_extension::GatewayDenyReason> {
-        match request.model {
+        match request.model.as_str() {
             "claude-coverage-guard-forbidden" => Err(
                 systemprompt_extension::GatewayDenyReason::forbidden("fixture entitlement denied"),
             ),

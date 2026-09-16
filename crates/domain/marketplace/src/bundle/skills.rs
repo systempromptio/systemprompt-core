@@ -15,6 +15,7 @@ use std::path::Path;
 
 use systemprompt_identifiers::AgentId;
 
+use crate::error::MarketplaceError;
 use crate::managed::RevisionFiles;
 use systemprompt_models::bridge::ids::SkillId;
 use systemprompt_models::bridge::manifest::SkillEntry;
@@ -47,7 +48,7 @@ pub(super) fn append_skill_files(
     content: &BundleContent<'_>,
     agent_ids: &[AgentId],
     bundle: &mut PluginBundle,
-) {
+) -> Result<(), MarketplaceError> {
     let selected = resolve_skill_ids(config, content, agent_ids);
     for skill in content
         .skills
@@ -64,9 +65,10 @@ pub(super) fn append_skill_files(
         );
         match content.managed_files.get(&skill.id) {
             Some(files) => append_managed_files(&kebab, files, bundle),
-            None => append_disk_aux_files(&kebab, skill, bundle),
+            None => append_disk_aux_files(&kebab, skill, bundle)?,
         }
     }
+    Ok(())
 }
 
 pub(crate) fn resolve_skill_ids(
@@ -123,16 +125,21 @@ fn skill_md(kebab: &str, skill: &SkillEntry) -> String {
     )
 }
 
-fn append_disk_aux_files(kebab: &str, skill: &SkillEntry, bundle: &mut PluginBundle) {
+fn append_disk_aux_files(
+    kebab: &str,
+    skill: &SkillEntry,
+    bundle: &mut PluginBundle,
+) -> Result<(), MarketplaceError> {
     let Some(skill_dir) = Path::new(&skill.file_path).parent() else {
-        return;
+        return Ok(());
     };
     for subdir in AUX_SUBDIRS {
         let dir = skill_dir.join(subdir);
         if dir.is_dir() {
-            collect_aux(&dir, &dir, kebab, subdir, bundle);
+            collect_aux(&dir, &dir, kebab, subdir, bundle)?;
         }
     }
+    Ok(())
 }
 
 fn append_managed_files(kebab: &str, files: &RevisionFiles, bundle: &mut PluginBundle) {
@@ -154,11 +161,19 @@ fn append_managed_files(kebab: &str, files: &RevisionFiles, bundle: &mut PluginB
     }
 }
 
-fn collect_aux(base: &Path, current: &Path, kebab: &str, subdir: &str, bundle: &mut PluginBundle) {
-    let Ok(entries) = std::fs::read_dir(current) else {
-        return;
+fn collect_aux(
+    base: &Path,
+    current: &Path,
+    kebab: &str,
+    subdir: &str,
+    bundle: &mut PluginBundle,
+) -> Result<(), MarketplaceError> {
+    let io = |path: &Path, e: std::io::Error| {
+        MarketplaceError::Catalog(format!("skill aux file {}: {e}", path.display()))
     };
-    for entry in entries.flatten() {
+    let entries = std::fs::read_dir(current).map_err(|e| io(current, e))?;
+    for entry in entries {
+        let entry = entry.map_err(|e| io(current, e))?;
         let path = entry.path();
         let name = entry.file_name().to_string_lossy().into_owned();
         if name.starts_with('.') {
@@ -168,7 +183,7 @@ fn collect_aux(base: &Path, current: &Path, kebab: &str, subdir: &str, bundle: &
             if name == "__pycache__" {
                 continue;
             }
-            collect_aux(base, &path, kebab, subdir, bundle);
+            collect_aux(base, &path, kebab, subdir, bundle)?;
             continue;
         }
         if let Some(ext) = path.extension().and_then(|e| e.to_str())
@@ -176,12 +191,10 @@ fn collect_aux(base: &Path, current: &Path, kebab: &str, subdir: &str, bundle: &
         {
             continue;
         }
-        let Ok(bytes) = std::fs::read(&path) else {
-            continue;
-        };
-        let Ok(rel) = path.strip_prefix(base) else {
-            continue;
-        };
+        let bytes = std::fs::read(&path).map_err(|e| io(&path, e))?;
+        let rel = path.strip_prefix(base).map_err(|e| {
+            MarketplaceError::Catalog(format!("skill aux file {}: {e}", path.display()))
+        })?;
         let rel = rel.to_string_lossy().replace('\\', "/");
         let executable = matches!(path.extension().and_then(|e| e.to_str()), Some("sh" | "py"));
         bundle.insert(
@@ -189,4 +202,5 @@ fn collect_aux(base: &Path, current: &Path, kebab: &str, subdir: &str, bundle: &
             BundleFile { bytes, executable },
         );
     }
+    Ok(())
 }

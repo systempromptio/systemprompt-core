@@ -6,7 +6,7 @@
 use chrono::{Duration, TimeZone, Utc};
 use systemprompt_cli::infrastructure::logs::trace::show::{TraceSummaries, build_trace_output};
 use systemprompt_identifiers::TaskId;
-use systemprompt_logging::{
+use systemprompt_runtime::{
     AiRequestSummary, ExecutionStepSummary, McpExecutionSummary, TraceEvent,
 };
 

@@ -19,13 +19,12 @@ fn singular_labels_used_for_count_of_one() {
         routes: 1,
         tools: 1,
         roles: 1,
-        llm_providers: 1,
         storage_paths: 0,
     };
     let rendered = summary.summary_string();
     assert_eq!(
         rendered,
-        "1 job, 1 template, 1 schema, 1 route, 1 tool, 1 role, 1 LLM"
+        "1 job, 1 template, 1 schema, 1 route, 1 tool, 1 role"
     );
 }
 
@@ -38,13 +37,12 @@ fn plural_labels_used_for_counts_above_one() {
         routes: 5,
         tools: 6,
         roles: 7,
-        llm_providers: 8,
         storage_paths: 9,
     };
     let rendered = summary.summary_string();
     assert_eq!(
         rendered,
-        "2 jobs, 3 templates, 4 schemas, 5 routes, 6 tools, 7 roles, 8 LLMs"
+        "2 jobs, 3 templates, 4 schemas, 5 routes, 6 tools, 7 roles"
     );
 }
 
@@ -57,7 +55,6 @@ fn zero_valued_categories_are_omitted() {
         routes: 0,
         tools: 2,
         roles: 0,
-        llm_providers: 0,
         storage_paths: 0,
     };
     assert_eq!(summary.summary_string(), "3 jobs, 2 tools");
@@ -72,7 +69,6 @@ fn summary_round_trips_through_json() {
         routes: 4,
         tools: 5,
         roles: 6,
-        llm_providers: 7,
         storage_paths: 8,
     };
     let json = serde_json::to_string(&summary).unwrap();

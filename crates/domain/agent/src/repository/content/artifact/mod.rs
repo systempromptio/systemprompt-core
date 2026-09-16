@@ -9,6 +9,7 @@ mod mutations;
 mod parts;
 mod queries;
 
+pub(crate) use converters::artifact_from_row;
 pub use parts::{get_artifact_parts, persist_artifact_part};
 
 use sqlx::PgPool;

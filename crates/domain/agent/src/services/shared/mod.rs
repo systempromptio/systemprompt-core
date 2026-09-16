@@ -1,21 +1,8 @@
-//! Cross-cutting helpers shared by the agent service layer: the service-local
-//! error type, JWT authentication, runtime configuration, resilience wrappers,
-//! and slug generation.
+//! The service-local error type shared by the agent service layer.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-pub mod auth;
-pub mod config;
 pub mod error;
-pub mod resilience;
-pub mod slug;
 
 pub use error::{AgentServiceError, Result};
-pub type ServiceResult<T> = Result<T>;
-pub use auth::{AgentSessionUser, JwtClaims, JwtValidator, extract_bearer_token};
-pub use config::{
-    AgentServiceConfig, ConnectionConfiguration, RuntimeConfiguration, RuntimeConfigurationBuilder,
-    ServiceConfiguration,
-};
-pub use slug::{generate_slug, generate_unique_slug};

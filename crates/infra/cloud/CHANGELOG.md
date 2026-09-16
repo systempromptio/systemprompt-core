@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.53.0] - 2026-09-15
+
+### Breaking
+
+- **Breaking:** `SessionStore::load_or_reset` is removed; `load_or_create` surfaces `SessionStoreCorrupted` instead of replacing the index. `CloudError::Deploy.source` is `Option<DeploySource>` (`Io` | `Json`) and `Docker.source` is `Option<std::io::Error>`; `docker_with` takes an `io::Error`.
+
+### Changed
+
+- `CloudError::HttpStatus.body` carries an `<unreadable body: …>` marker when the error response body could not be read.
+
+### Fixed
+
+- The session index and per-session files are created owner-only (0600) from the first byte and published by rename; the previous write-then-chmod left a world-readable window and could overwrite every tenant's session after a corrupt read.
+
 ## [0.52.0] - 2026-09-14
 
 ### Added

@@ -10,6 +10,7 @@ use systemprompt_identifiers::{ContextId, MessageId, SessionId, TaskId, TraceId,
 use systemprompt_traits::RepositoryError;
 
 use crate::models::a2a::{Message, MessageRole, Part};
+use crate::repository::parts::part_from_row;
 use crate::repository::task::constructor::batch_queries;
 
 pub async fn get_messages_by_task(
@@ -42,7 +43,7 @@ pub async fn get_messages_by_task(
 
     let task_ids: Vec<String> = message_rows.iter().map(|r| r.task_id.to_string()).collect();
     let all_parts = batch_queries::fetch_message_parts(pool, &task_ids).await?;
-    let parts_by_message = group_parts_by_message(all_parts);
+    let parts_by_message = group_parts_by_message(all_parts)?;
 
     let mut messages = Vec::new();
 
@@ -108,7 +109,7 @@ pub async fn get_messages_by_context(
 
     let task_ids: Vec<String> = message_rows.iter().map(|r| r.task_id.to_string()).collect();
     let all_parts = batch_queries::fetch_message_parts(pool, &task_ids).await?;
-    let parts_by_message = group_parts_by_message(all_parts);
+    let parts_by_message = group_parts_by_message(all_parts)?;
 
     let mut messages = Vec::new();
 
@@ -173,52 +174,13 @@ pub async fn get_next_sequence_number_sqlx(
     Ok(row.and_then(|r| r.max_seq).map_or(0, |s| s + 1))
 }
 
-pub async fn get_next_sequence_number_in_tx(
-    tx: &mut dyn systemprompt_database::DatabaseTransaction,
-    task_id: &TaskId,
-) -> Result<i32, RepositoryError> {
-    let lock: &str = "SELECT task_id FROM agent_tasks WHERE task_id = $1 FOR UPDATE";
-    let query: &str =
-        "SELECT MAX(sequence_number) as max_seq FROM task_messages WHERE task_id = $1";
-    let task_id_str = task_id.as_str();
-    tx.fetch_optional(&lock, &[&task_id_str]).await?;
-    let row = tx.fetch_optional(&query, &[&task_id_str]).await?;
-
-    let max_seq = row.as_ref().and_then(|r| {
-        r.get("max_seq")
-            .and_then(serde_json::Value::as_i64)
-            .map(|v| v as i32)
-    });
-
-    Ok(max_seq.map_or(0, |s| s + 1))
-}
-
 fn group_parts_by_message(
     all_parts: Vec<crate::models::MessagePart>,
-) -> HashMap<MessageId, Vec<Part>> {
-    use crate::models::a2a::{DataPart, FileContent, FilePart, TextPart};
-
+) -> Result<HashMap<MessageId, Vec<Part>>, RepositoryError> {
     let mut map: HashMap<MessageId, Vec<Part>> = HashMap::new();
     for row in all_parts {
-        let part = match row.part_kind.as_str() {
-            "text" => row.text_content.map(|text| Part::Text(TextPart { text })),
-            "file" => Some(Part::File(FilePart {
-                file: FileContent {
-                    name: row.file_name,
-                    mime_type: row.file_mime_type,
-                    bytes: row.file_bytes,
-                    url: row.file_uri,
-                },
-            })),
-            "data" => row.data_content.and_then(|v| match v {
-                serde_json::Value::Object(data) => Some(Part::Data(DataPart { data })),
-                _ => None,
-            }),
-            _ => None,
-        };
-        if let Some(part) = part {
-            map.entry(row.message_id).or_default().push(part);
-        }
+        let part = part_from_row(&row)?;
+        map.entry(row.message_id).or_default().push(part);
     }
-    map
+    Ok(map)
 }

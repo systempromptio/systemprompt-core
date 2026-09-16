@@ -1,14 +1,12 @@
 //! Tests for the per-capability listing commands under `plugins capabilities`.
 //!
 //! Each submodule projects the compiled extension registry into its own table;
-//! none of the six were called by a test.
+//! none of the five were called by a test.
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use systemprompt_cli::CliConfig;
-use systemprompt_cli::plugins::capabilities::{
-    jobs, llm_providers, roles, schemas, templates, tools,
-};
+use systemprompt_cli::plugins::capabilities::{jobs, roles, schemas, templates, tools};
 use systemprompt_extension::ExtensionRegistry;
 
 fn cfg() -> CliConfig {
@@ -50,7 +48,6 @@ fn every_capability_listing_renders_over_the_compiled_registry() {
         schemas::execute(&schemas::SchemasArgs { extension: None }, &cfg),
         templates::execute(&templates::TemplatesArgs { extension: None }, &cfg),
         tools::execute(&tools::ToolsArgs { extension: None }, &cfg),
-        llm_providers::execute(&llm_providers::LlmProvidersArgs { extension: None }, &cfg),
     ];
 
     for out in &outputs {
@@ -113,13 +110,6 @@ fn an_unknown_extension_filter_yields_no_rows() {
             &tools::ToolsArgs {
                 extension: absent.clone()
             },
-            &cfg
-        )),
-        0
-    );
-    assert_eq!(
-        row_count(&llm_providers::execute(
-            &llm_providers::LlmProvidersArgs { extension: absent },
             &cfg
         )),
         0

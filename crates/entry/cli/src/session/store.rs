@@ -10,11 +10,8 @@ use systemprompt_config::ProfileBootstrap;
 use crate::paths::ResolvedPaths;
 
 pub fn clear_session() -> Result<()> {
-    let profile = ProfileBootstrap::get().ok();
-    let tenant_id = profile
-        .as_ref()
-        .and_then(|p| p.cloud.as_ref())
-        .and_then(|c| c.tenant_id.as_ref());
+    let profile = ProfileBootstrap::get()?;
+    let tenant_id = profile.cloud.as_ref().and_then(|c| c.tenant_id.as_ref());
     let session_key = SessionKey::from_tenant_id(tenant_id);
 
     let sessions_dir = ResolvedPaths::discover().sessions_dir();

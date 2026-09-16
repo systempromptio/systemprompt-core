@@ -1,4 +1,4 @@
-use systemprompt_extension::error::{ConfigError, LoaderError};
+use systemprompt_extension::error::{ExtensionConfigError, LoaderError};
 
 #[test]
 fn loader_error_missing_dependency_display() {
@@ -85,7 +85,7 @@ fn loader_error_invalid_base_path_display() {
     let msg = err.to_string();
     assert!(msg.contains("bad-path-ext"));
     assert!(msg.contains("/not-api/v1"));
-    assert!(msg.contains("must start with /api/"));
+    assert!(msg.contains("must be / or start with /api/"));
 }
 
 #[test]
@@ -107,7 +107,7 @@ fn loader_error_is_std_error() {
 
 #[test]
 fn config_error_not_found_display() {
-    let err = ConfigError::NotFound("database.url".to_string());
+    let err = ExtensionConfigError::NotFound("database.url".to_string());
     let msg = err.to_string();
     assert!(msg.contains("database.url"));
     assert!(msg.contains("not found"));
@@ -115,7 +115,7 @@ fn config_error_not_found_display() {
 
 #[test]
 fn config_error_invalid_value_display() {
-    let err = ConfigError::InvalidValue {
+    let err = ExtensionConfigError::InvalidValue {
         key: "port".to_string(),
         message: "must be between 1 and 65535".to_string(),
     };
@@ -126,7 +126,7 @@ fn config_error_invalid_value_display() {
 
 #[test]
 fn config_error_parse_error_display() {
-    let err = ConfigError::ParseError {
+    let err = ExtensionConfigError::ParseError {
         message: "unexpected token at line 5".to_string(),
     };
     let msg = err.to_string();
@@ -135,14 +135,14 @@ fn config_error_parse_error_display() {
 
 #[test]
 fn config_error_schema_validation_display() {
-    let err = ConfigError::SchemaValidation("missing required field 'name'".to_string());
+    let err = ExtensionConfigError::SchemaValidation("missing required field 'name'".to_string());
     let msg = err.to_string();
     assert!(msg.contains("missing required field"));
 }
 
 #[test]
 fn config_error_is_std_error() {
-    let err = ConfigError::NotFound("key".to_string());
+    let err = ExtensionConfigError::NotFound("key".to_string());
     let _: &dyn std::error::Error = &err;
     assert!(!err.to_string().is_empty());
 }

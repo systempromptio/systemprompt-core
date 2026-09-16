@@ -49,10 +49,10 @@ mod extension_config_tests {
     }
 
     #[test]
-    fn dependencies_is_empty() {
+    fn dependencies_order_event_capture_before_user_triggers() {
         let ext = UsersExtension;
 
-        assert!(ext.dependencies().is_empty());
+        assert_eq!(ext.dependencies(), vec!["events"]);
     }
 }
 
@@ -220,4 +220,35 @@ mod extension_trait_tests {
         let ext = UsersExtension;
         assert!(!ext.version().is_empty());
     }
+}
+
+#[test]
+fn owner_capture_and_privacy_contracts_are_registered() {
+    let schemas = UsersExtension.schemas();
+    let capture: Vec<_> = schemas
+        .iter()
+        .filter(|schema| {
+            schema.table.is_none()
+                && schema
+                    .sql
+                    .contains("EXECUTE FUNCTION sp_capture_reporting_change")
+        })
+        .collect();
+    assert_eq!(
+        capture.len(),
+        1,
+        "owner capture SQL must be registered exactly once"
+    );
+    for view in ["reporting_source_users", "reporting_source_user_sessions"] {
+        assert!(
+            capture[0].sql.contains(view),
+            "missing reporting view: {view}"
+        );
+    }
+    let users = schemas
+        .iter()
+        .find(|schema| schema.table.as_deref() == Some("users"))
+        .unwrap();
+    assert!(users.sql.contains("lock_user_deletion_for_retention"));
+    assert!(users.sql.contains("reporting_user_is_retained"));
 }

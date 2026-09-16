@@ -4,7 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicI64, Ordering};
+use std::sync::atomic::{AtomicI64, AtomicU64, Ordering};
 
 use chrono::{DateTime, Utc};
 use parking_lot::Mutex;
@@ -14,10 +14,18 @@ use systemprompt_models::gateway_hash::conversation_prefix_hash;
 const CONTEXT_CACHE_CAP: usize = 1024;
 
 #[derive(Debug)]
+struct CachedContext {
+    id: GatewayConversationId,
+    last_used: u64,
+}
+
+#[derive(Debug)]
 pub struct SessionContext {
     session_id: SessionId,
-    contexts: Mutex<HashMap<u64, GatewayConversationId>>,
+    contexts: Mutex<HashMap<u64, CachedContext>>,
+    tick: AtomicU64,
     last_activity_unix_ms: AtomicI64,
+    native_sessions: crate::feedback::sessions::NativeSessionLedger,
 }
 
 impl Default for SessionContext {
@@ -32,8 +40,15 @@ impl SessionContext {
         Self {
             session_id: SessionId::generate(),
             contexts: Mutex::new(HashMap::with_capacity(64)),
+            tick: AtomicU64::new(0),
             last_activity_unix_ms: AtomicI64::new(0),
+            native_sessions: crate::feedback::sessions::NativeSessionLedger::default(),
         }
+    }
+
+    #[must_use]
+    pub const fn native_sessions(&self) -> &crate::feedback::sessions::NativeSessionLedger {
+        &self.native_sessions
     }
 
     #[must_use]
@@ -58,16 +73,38 @@ impl SessionContext {
 
     pub fn context_for_prefix(&self, hash: u64) -> GatewayConversationId {
         let mut map = self.contexts.lock();
-        if let Some(existing) = map.get(&hash) {
-            return existing.clone();
+        let tick = self.tick.fetch_add(1, Ordering::Relaxed);
+        if let Some(entry) = map.get_mut(&hash) {
+            entry.last_used = tick;
+            return entry.id.clone();
         }
         if map.len() >= CONTEXT_CACHE_CAP {
-            map.clear();
+            evict_oldest_half(&mut map);
         }
-        let ctx = GatewayConversationId::from_prefix_hash(hash);
-        map.insert(hash, ctx.clone());
-        ctx
+        let id = GatewayConversationId::from_prefix_hash(hash);
+        map.insert(
+            hash,
+            CachedContext {
+                id: id.clone(),
+                last_used: tick,
+            },
+        );
+        id
     }
+
+    #[must_use]
+    pub fn cached_contexts(&self) -> usize {
+        self.contexts.lock().len()
+    }
+}
+
+fn evict_oldest_half(map: &mut HashMap<u64, CachedContext>) {
+    let mut ages: Vec<u64> = map.values().map(|c| c.last_used).collect();
+    ages.sort_unstable();
+    let Some(&cutoff) = ages.get(ages.len() / 2) else {
+        return;
+    };
+    map.retain(|_, c| c.last_used > cutoff);
 }
 
 #[must_use]
@@ -77,6 +114,8 @@ pub fn derive_gateway_conversation_id(body: &[u8]) -> Option<u64> {
     Some(conversation_prefix_hash(system.as_deref(), &role, &content))
 }
 
+// JSON: polymorphic wire content — `system` and `content` are a string or a
+// block array depending on the inference wire; only their text is hashed.
 #[derive(serde::Deserialize)]
 struct PrefixProbe {
     #[serde(default)]

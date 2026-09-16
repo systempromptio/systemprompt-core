@@ -110,10 +110,12 @@ impl PublisherModel {
             .is_some_and(|actions| actions.get("deploy").is_some())
     }
 
-    fn has_no_actions(&self) -> bool {
-        self.supported_actions.as_ref().is_none_or(|actions| {
-            actions.as_object().is_some_and(serde_json::Map::is_empty) || actions.is_null()
-        })
+    fn declares_actions(&self) -> bool {
+        match self.supported_actions.as_ref() {
+            None | Some(serde_json::Value::Null) => false,
+            Some(serde_json::Value::Object(actions)) => !actions.is_empty(),
+            Some(_) => true,
+        }
     }
 }
 
@@ -127,7 +129,7 @@ pub fn is_serverless(model: &PublisherModel) -> bool {
     }
     model.model_name().ends_with(MAAS_SUFFIX)
         && model.open_source_category.as_deref() == Some(THIRD_PARTY_OSS)
-        && model.has_no_actions()
+        && !model.declares_actions()
 }
 
 /// What discovery decided about one listing entry.

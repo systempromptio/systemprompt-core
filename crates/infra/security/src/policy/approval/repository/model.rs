@@ -45,19 +45,19 @@ impl std::fmt::Display for ApprovalStatus {
 /// A held call, as the console renders it and the waiter reads it back.
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct ApprovalRequest {
-    pub call_id: String,
+    pub call_id: CallId,
     pub tool_name: String,
     pub server_name: String,
     // JSON: the tool arguments verbatim, so the approver authorises exactly
     // what will run rather than a re-rendered summary of it.
     pub arguments: serde_json::Value,
     pub args_digest: String,
-    pub requested_by: String,
-    pub session_id: Option<String>,
+    pub requested_by: UserId,
+    pub session_id: Option<SessionId>,
     pub trace_id: Option<String>,
     pub rule: String,
     pub status: ApprovalStatus,
-    pub approver_id: Option<String>,
+    pub approver_id: Option<UserId>,
     pub approver_username: Option<String>,
     pub decided_at: Option<DateTime<Utc>>,
     pub decision_note: Option<String>,

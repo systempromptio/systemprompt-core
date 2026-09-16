@@ -12,8 +12,9 @@
 
 use std::sync::Arc;
 
+use systemprompt_config::paths::AppPaths;
 use systemprompt_logging::CliService;
-use systemprompt_models::{AppPaths, Config, ContentConfigRaw};
+use systemprompt_models::{Config, ContentConfigRaw};
 
 #[cfg(feature = "geolocation")]
 use systemprompt_analytics::GeoIpReader;

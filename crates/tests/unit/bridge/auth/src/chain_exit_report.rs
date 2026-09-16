@@ -1,7 +1,6 @@
 use std::process::ExitCode;
 
 use systemprompt_bridge::auth::ChainError;
-use systemprompt_bridge::auth::providers::AuthFailedSource;
 
 // Why: `ExitCode` has no `PartialEq`, so the observable is its `Debug` shape.
 fn code(actual: ExitCode) -> String {
@@ -13,11 +12,11 @@ fn every_chain_failure_maps_to_a_distinct_operator_facing_outcome() {
     let cases: Vec<(ChainError, ExitCode, &str)> = vec![
         (
             ChainError::Providers {
-                failures: vec!["pat: 401".to_owned(), "mtls: no cert".to_owned()],
+                failures: vec!["pat: 401".to_owned(), "session: no session".to_owned()],
                 terminal: true,
             },
             ExitCode::FAILURE,
-            "credential providers failed: pat: 401; mtls: no cert",
+            "credential providers failed: pat: 401; session: no session",
         ),
         (
             ChainError::Cache(std::io::Error::other("cache.json is a directory")),
@@ -41,19 +40,19 @@ fn every_chain_failure_maps_to_a_distinct_operator_facing_outcome() {
 }
 
 #[test]
-fn a_transient_failure_on_the_preferred_provider_exits_10_so_a_retry_is_distinguishable() {
-    let error = ChainError::PreferredTransient {
-        provider: "mtls",
-        source: AuthFailedSource::SignInRequired,
+fn a_transient_chain_failure_exits_10_so_a_retry_is_distinguishable() {
+    let error = ChainError::Providers {
+        failures: vec!["session: gateway unreachable".to_owned()],
+        terminal: false,
     };
     let (actual, message) = error.exit_report();
     assert_eq!(code(actual), code(ExitCode::from(10)));
     assert!(
-        message.contains("transient auth failure on preferred provider mtls"),
+        message.contains("transient auth failure"),
         "the caller must be able to tell a retryable failure from a dead credential: {message}"
     );
     assert!(
-        message.contains("sign in"),
+        message.contains("gateway unreachable"),
         "the underlying reason travels with the exit report: {message}"
     );
 }
@@ -73,7 +72,7 @@ fn an_empty_chain_exits_5_and_names_the_command_that_fixes_it() {
 }
 
 #[test]
-fn the_exit_codes_of_the_four_outcomes_are_not_all_the_same() {
+fn the_exit_codes_of_the_three_outcomes_are_not_all_the_same() {
     // Why: the negative control. A mapping that collapsed every variant onto
     // FAILURE would satisfy each test above that only checks the message.
     let codes: Vec<String> = vec![
@@ -81,9 +80,9 @@ fn the_exit_codes_of_the_four_outcomes_are_not_all_the_same() {
             failures: Vec::new(),
             terminal: true,
         },
-        ChainError::PreferredTransient {
-            provider: "pat",
-            source: AuthFailedSource::SignInRequired,
+        ChainError::Providers {
+            failures: vec!["pat: gateway unreachable".to_owned()],
+            terminal: false,
         },
         ChainError::NoneSucceeded,
     ]

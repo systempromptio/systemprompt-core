@@ -16,6 +16,18 @@ pub enum LoaderError {
     #[error("Extension with ID '{0}' is already registered")]
     DuplicateExtension(String),
 
+    #[error("Extension '{0}' is required and cannot be disabled")]
+    RequiredExtensionDisabled(String),
+
+    #[error(
+        "Extension '{dependency}' is disabled but extension '{extension}' depends on it; disable \
+         '{extension}' as well or re-enable '{dependency}'"
+    )]
+    DisabledDependency {
+        extension: String,
+        dependency: String,
+    },
+
     #[error("Failed to initialize extension '{extension}': {message}")]
     InitializationFailed { extension: String, message: String },
 
@@ -50,7 +62,9 @@ pub enum LoaderError {
     #[error("Extension '{extension}' uses reserved API path '{path}'")]
     ReservedPathCollision { extension: String, path: String },
 
-    #[error("Extension '{extension}' has invalid base path '{path}': must start with /api/")]
+    #[error(
+        "Extension '{extension}' has invalid base path '{path}': must be / or start with /api/"
+    )]
     InvalidBasePath { extension: String, path: String },
 
     #[error("Dependency cycle detected while ordering extensions: {chain}")]
@@ -104,7 +118,7 @@ pub enum LoaderError {
 }
 
 #[derive(Debug, Error)]
-pub enum ConfigError {
+pub enum ExtensionConfigError {
     #[error("Configuration key '{0}' not found")]
     NotFound(String),
 

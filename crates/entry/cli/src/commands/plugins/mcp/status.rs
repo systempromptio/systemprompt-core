@@ -39,7 +39,6 @@ pub(super) async fn execute(args: StatusArgs, ctx: &CommandContext) -> Result<Co
     let bin_path = app.app_paths().build().bin().to_path_buf();
 
     let manager = McpOrchestrator::new(
-        Arc::clone(app.db_pool()),
         (**app.service_repository()).clone(),
         Arc::clone(app.app_paths_arc()),
         app.mcp_registry().clone(),

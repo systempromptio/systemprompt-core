@@ -66,7 +66,7 @@ pub fn init() -> TokenAuthorityResult<()> {
         return Ok(());
     }
     let authority = load_from_secret_or_file()?;
-    drop(CELL.set(authority));
+    CELL.get_or_init(|| authority);
     Ok(())
 }
 
@@ -117,8 +117,7 @@ fn authority() -> TokenAuthorityResult<&'static Authority> {
         return Ok(a);
     }
     let a = load_from_secret_or_file()?;
-    drop(CELL.set(a));
-    CELL.get().ok_or(TokenAuthorityError::PathMissing)
+    Ok(CELL.get_or_init(|| a))
 }
 
 pub fn signing_key() -> TokenAuthorityResult<&'static RsaSigningKey> {
@@ -152,6 +151,6 @@ pub fn install_for_test(key: RsaSigningKey) {
         return;
     }
     if let Ok(a) = build(key) {
-        drop(CELL.set(a));
+        CELL.get_or_init(|| a);
     }
 }

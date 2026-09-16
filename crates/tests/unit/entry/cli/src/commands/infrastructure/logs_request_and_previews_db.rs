@@ -338,3 +338,21 @@ async fn a_tool_listing_scoped_to_the_seeded_tool_renders_in_both_modes() {
 
     seed.cleanup().await;
 }
+
+#[tokio::test]
+async fn request_list_rejects_a_malformed_before_cursor_with_its_reason() {
+    let seed = Seed::new().await;
+    let err = logs::execute(
+        parse(&["request", "list", "--before", "2026-09-12T13:14:15Z|req"]),
+        &ctx(&seed.pool, false),
+    )
+    .await
+    .expect_err("a cursor without the `@` separator is refused, never an empty page");
+    let text = format!("{err:#}");
+    assert!(text.contains("Invalid --before cursor"), "got: {text}");
+    assert!(
+        text.contains("missing the `@`"),
+        "the typed reason is surfaced: {text}"
+    );
+    seed.cleanup().await;
+}

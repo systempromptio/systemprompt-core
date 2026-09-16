@@ -21,6 +21,8 @@ workspace = true
 tokio = { workspace = true }
 async-trait = { workspace = true }
 chrono = { workspace = true }
+tracing = { workspace = true }
+uuid = { workspace = true }
 
 systemprompt-identifiers = { workspace = true }
 systemprompt-models = { workspace = true }

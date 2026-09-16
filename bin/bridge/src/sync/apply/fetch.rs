@@ -1,0 +1,99 @@
+//! Fetching a plugin's files into its staging directory with bounded
+//! concurrency, each verified against the digest the manifest signed.
+//!
+//! Each per-file future owns its inputs (a cloned [`GatewayClient`], the
+//! bearer, the file entry) rather than borrowing them: a borrow held across
+//! the buffered await trips rustc's higher-ranked `Send` check once the sync
+//! future is spawned.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
+use std::fs;
+use std::path::{Path, PathBuf};
+
+use futures_util::StreamExt;
+
+use super::ApplyError;
+use super::safe_path::join_under;
+use crate::gateway::GatewayClient;
+use crate::gateway::manifest::{PluginEntry, PluginFile};
+use crate::hash::sha256_hex;
+use crate::ids::{BearerToken, Sha256Digest};
+
+const PLUGIN_FILE_FETCH_CONCURRENCY: usize = 8;
+
+pub(super) async fn fetch_plugin_into_staging(
+    client: &GatewayClient,
+    bearer: &BearerToken,
+    plugin: &PluginEntry,
+    stage: &Path,
+) -> Result<(), ApplyError> {
+    fs::create_dir_all(stage).map_err(|e| ApplyError::Io {
+        context: format!("create stage {}", stage.display()),
+        source: e,
+    })?;
+    let mut outputs = Vec::with_capacity(plugin.files.len());
+    for file in &plugin.files {
+        let out = join_under(stage, &file.path)?;
+        if let Some(parent) = out.parent() {
+            fs::create_dir_all(parent).map_err(|e| ApplyError::Io {
+                context: format!("create parent {}", parent.display()),
+                source: e,
+            })?;
+        }
+        outputs.push(out);
+    }
+
+    // Why: the stream must own its futures before the first await; an
+    // iterator still borrowing `plugin.files` is a borrow held across the
+    // buffered await, which fails the spawned sync task's `Send` check.
+    let fetches: Vec<_> = plugin
+        .files
+        .iter()
+        .zip(outputs)
+        .map(|(file, out)| {
+            fetch_one_file(
+                client.clone(),
+                bearer.clone(),
+                plugin.id.to_string(),
+                file.clone(),
+                out,
+            )
+        })
+        .collect();
+    let mut fetches =
+        futures_util::stream::iter(fetches).buffer_unordered(PLUGIN_FILE_FETCH_CONCURRENCY);
+    while let Some(fetched) = fetches.next().await {
+        fetched?;
+    }
+    Ok(())
+}
+
+async fn fetch_one_file(
+    client: GatewayClient,
+    bearer: BearerToken,
+    plugin_id: String,
+    file: PluginFile,
+    out: PathBuf,
+) -> Result<(), ApplyError> {
+    let bytes = client
+        .fetch_plugin_file(&bearer, &plugin_id, &file.path)
+        .await?;
+    let actual = sha256_hex(&bytes);
+    if !sha256_matches(&actual, &file.sha256) {
+        return Err(ApplyError::HashMismatch {
+            what: format!("file {plugin_id}/{}", file.path),
+            expected: file.sha256.clone(),
+            actual,
+        });
+    }
+    fs::write(&out, &bytes).map_err(|e| ApplyError::Io {
+        context: format!("write {}", out.display()),
+        source: e,
+    })
+}
+
+fn sha256_matches(actual: &str, expected: &Sha256Digest) -> bool {
+    actual == expected.as_str()
+}

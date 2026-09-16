@@ -111,8 +111,8 @@ mod tooled_executor_tests {
     use systemprompt_identifiers::{AgentName, ContextId, McpServerId, SessionId, TraceId};
     use systemprompt_models::execution::context::RequestContext;
     use systemprompt_traits::{
-        ToolCallRequest, ToolCallResult, ToolContent, ToolContext, ToolDefinition, ToolProvider,
-        ToolProviderError, ToolProviderResult,
+        ToolCallRequest, ToolCallResult, ToolContent, ToolContext, ToolDefinition, ToolInventory,
+        ToolProvider, ToolProviderError, ToolProviderResult,
     };
 
     struct ScriptedToolProvider {
@@ -133,10 +133,10 @@ mod tooled_executor_tests {
     impl ToolProvider for ScriptedToolProvider {
         async fn list_tools(
             &self,
-            _agent_name: &str,
+            _agent_name: &AgentName,
             _context: &ToolContext,
-        ) -> ToolProviderResult<Vec<ToolDefinition>> {
-            Ok(vec![])
+        ) -> ToolProviderResult<ToolInventory> {
+            Ok(ToolInventory::default())
         }
 
         async fn call_tool(
@@ -162,7 +162,7 @@ mod tooled_executor_tests {
             })
         }
 
-        async fn refresh_connections(&self, _agent_name: &str) -> ToolProviderResult<()> {
+        async fn refresh_connections(&self, _agent_name: &AgentName) -> ToolProviderResult<()> {
             Ok(())
         }
 
@@ -172,7 +172,7 @@ mod tooled_executor_tests {
 
         async fn find_tool(
             &self,
-            _agent_name: &str,
+            _agent_name: &AgentName,
             _tool_name: &str,
             _context: &ToolContext,
         ) -> ToolProviderResult<Option<ToolDefinition>> {
@@ -184,13 +184,16 @@ mod tooled_executor_tests {
         RequestContext::new(
             SessionId::new("sess-exec"),
             TraceId::new("trace-exec"),
-            ContextId::new_unchecked("00000000-0000-4000-8000-0000000000ee"),
-            AgentName::new("exec-agent"),
+            ContextId::try_new("00000000-0000-4000-8000-0000000000ee").expect("valid ContextId"),
+            AgentName::try_new("exec-agent").expect("valid AgentName"),
         )
     }
 
     fn known_tool(name: &str, service: &str) -> McpTool {
-        McpTool::new(name, McpServerId::new(service))
+        McpTool::new(
+            name,
+            McpServerId::try_new(service).expect("valid McpServerId"),
+        )
     }
 
     #[tokio::test]

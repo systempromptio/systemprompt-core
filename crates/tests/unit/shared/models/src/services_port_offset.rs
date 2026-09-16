@@ -11,6 +11,7 @@ mcp_servers:
     binary: systemprompt-mcp-agent
     port: 5010
     enabled: true
+    tool_policy: allow
     display_in_web: true
     oauth:
       required: false
@@ -23,6 +24,7 @@ mcp_servers:
     port: 5020
     endpoint: https://example.test/mcp
     enabled: true
+    tool_policy: allow
     display_in_web: false
     oauth:
       required: false

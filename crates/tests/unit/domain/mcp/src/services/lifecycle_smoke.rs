@@ -3,13 +3,13 @@
 
 use std::path::PathBuf;
 use std::sync::Arc;
+use systemprompt_config::paths::AppPaths;
 use systemprompt_mcp::services::database::DatabaseService;
 use systemprompt_mcp::services::lifecycle::LifecycleOrchestrator;
 use systemprompt_mcp::services::monitoring::MonitoringService;
 use systemprompt_mcp::services::network::NetworkService;
 use systemprompt_mcp::services::process::ProcessService;
 use systemprompt_mcp::services::registry::RegistryService;
-use systemprompt_models::AppPaths;
 use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::mcp::deployment::{McpServerType, OAuthRequirement};
 use systemprompt_models::mcp::server::McpServerConfig;

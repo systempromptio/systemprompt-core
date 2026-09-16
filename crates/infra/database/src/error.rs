@@ -36,6 +36,26 @@ pub enum RepositoryError {
 
     #[error("Failed to execute query")]
     QueryExecution(#[source] Box<Self>),
+
+    #[error("SQL could not be split into statements: {0}")]
+    SqlSplit(#[source] pg_query::Error),
+
+    #[error("Failed to execute SQL statement: {statement}")]
+    Statement {
+        statement: String,
+        #[source]
+        source: Box<Self>,
+    },
+
+    #[error("Failed to establish database connection")]
+    Connection(#[source] Box<Self>),
+
+    #[error("Failed to read SQL file {path}")]
+    SqlFile {
+        path: String,
+        #[source]
+        source: std::io::Error,
+    },
 }
 
 pub type DatabaseResult<T> = Result<T, RepositoryError>;
@@ -43,6 +63,18 @@ pub type DatabaseResult<T> = Result<T, RepositoryError>;
 impl RepositoryError {
     pub fn not_found<T: std::fmt::Display>(id: T) -> Self {
         Self::NotFound(id.to_string())
+    }
+
+    pub fn is_serialization_failure(&self) -> bool {
+        // Why: Postgres aborts one side of a serialization conflict (40001) or a
+        // deadlock (40P01) and documents both as "retry the transaction".
+        match self {
+            Self::Database(sqlx_error) => sqlx_error.as_database_error().is_some_and(|db_error| {
+                let code = db_error.code().map(|c| c.to_string());
+                matches!(code.as_deref(), Some("40001" | "40P01"))
+            }),
+            _ => false,
+        }
     }
 
     pub fn constraint<T: Into<String>>(message: T) -> Self {
@@ -74,6 +106,6 @@ impl RepositoryError {
 
 impl From<RepositoryError> for systemprompt_traits::RepositoryError {
     fn from(err: RepositoryError) -> Self {
-        Self::Database(Box::new(err))
+        Self::database(err)
     }
 }

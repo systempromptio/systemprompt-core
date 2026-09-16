@@ -354,11 +354,20 @@ fn agent_response_format_json_schema_defaults_name_and_strict() {
 
 #[test]
 fn tools_to_canonical_fills_empty_schema_default() {
-    let tools = vec![McpTool::new("with_schema", McpServerId::new("svc")), {
-        let mut t = McpTool::new("with_schema", McpServerId::new("svc"));
-        t.input_schema = Some(json!({"type": "object", "properties": {"a": {}}}));
-        t
-    }];
+    let tools = vec![
+        McpTool::new(
+            "with_schema",
+            McpServerId::try_new("svc").expect("valid McpServerId"),
+        ),
+        {
+            let mut t = McpTool::new(
+                "with_schema",
+                McpServerId::try_new("svc").expect("valid McpServerId"),
+            );
+            t.input_schema = Some(json!({"type": "object", "properties": {"a": {}}}));
+            t
+        },
+    ];
     let canonical = tools_to_canonical(tools);
     assert_eq!(canonical.len(), 2);
     // First tool had no schema, so it gets the empty-object default.

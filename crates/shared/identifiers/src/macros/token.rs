@@ -1,4 +1,8 @@
-//! `define_token!` macro for secret-bearing identifiers with redacted `Debug`.
+//! `define_token!` macro for secret-bearing identifiers.
+//!
+//! Both `Debug` and `Display` render the redacted form, so a token that ends
+//! up in a `tracing` field or a derived error `Debug` never prints the
+//! credential; `as_str` is the only way to read it back.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -6,7 +10,9 @@
 #[macro_export]
 macro_rules! define_token {
     ($name:ident) => {
-        #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
+        #[derive(
+            Clone, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize,
+        )]
         #[cfg_attr(feature = "sqlx", derive(sqlx::Type))]
         #[cfg_attr(feature = "sqlx", sqlx(transparent))]
         #[serde(transparent)]
@@ -23,18 +29,27 @@ macro_rules! define_token {
 
             #[must_use]
             pub fn redacted(&self) -> String {
-                let len = self.0.len();
-                if len <= 16 {
-                    "*".repeat(len.min(8))
-                } else {
-                    format!("{}...{}", &self.0[..8], &self.0[len - 4..])
+                let chars = self.0.chars().count();
+                if chars <= 16 {
+                    return "*".repeat(chars.min(8));
                 }
+                let head: String = self.0.chars().take(8).collect();
+                let tail: String = self.0.chars().skip(chars - 4).collect();
+                format!("{head}...{tail}")
             }
         }
 
         impl std::fmt::Display for $name {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 write!(f, "{}", self.redacted())
+            }
+        }
+
+        impl std::fmt::Debug for $name {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                f.debug_tuple(stringify!($name))
+                    .field(&self.redacted())
+                    .finish()
             }
         }
 

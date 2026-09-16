@@ -13,7 +13,8 @@ use std::io;
 use std::path::Path;
 use std::ptr::null_mut;
 use windows_sys::Win32::Security::Authorization::{
-    ConvertSidToStringSidW, GetNamedSecurityInfoW, SE_FILE_OBJECT, SetNamedSecurityInfoW,
+    ConvertSidToStringSidW, ConvertStringSidToSidW, GetNamedSecurityInfoW, SE_FILE_OBJECT,
+    SetNamedSecurityInfoW,
 };
 use windows_sys::Win32::Security::{
     ACL, DACL_SECURITY_INFORMATION, OWNER_SECURITY_INFORMATION,
@@ -30,7 +31,7 @@ pub(crate) fn repair_private(path: &Path, reader: &str) -> io::Result<()> {
     let before = super::describe(path).unwrap_or_else(|e| format!("<{e}>"));
     let path_w = wide(path)?;
     refuse_reparse_point(path, &path_w).map_err(|e| step("check attributes", &e))?;
-    let owner = owner_sid(&path_w).map_err(|e| step("read owner", &e))?;
+    let owner = owner_sid_w(&path_w).map_err(|e| step("read owner", &e))?;
     if owner != reader {
         return Err(io::Error::new(
             io::ErrorKind::PermissionDenied,
@@ -82,7 +83,71 @@ fn refuse_reparse_point(path: &Path, path_w: &[u16]) -> io::Result<()> {
     Ok(())
 }
 
-fn owner_sid(path_w: &[u16]) -> io::Result<String> {
+pub(crate) fn owner_sid(path: &Path) -> io::Result<String> {
+    owner_sid_w(&wide(path)?)
+}
+
+// Why: only the elevated child may run this; assigning an owner other than
+// the caller needs SeRestorePrivilege, which the parent process never holds.
+pub(crate) fn reassign_private_dir(path: &Path, owner: &str) -> io::Result<()> {
+    super::privilege::enable_restore()?;
+    let owner_w: Vec<u16> = owner.encode_utf16().chain(Some(0)).collect();
+    let mut owner_sid: PSID = null_mut();
+    // SAFETY: the SID text is NUL terminated; the SID Windows allocates is
+    // freed by `Descriptor` once every write that names it has returned.
+    unsafe {
+        checked(ConvertStringSidToSidW(owner_w.as_ptr(), &raw mut owner_sid))?;
+    }
+    let allocation = Descriptor(owner_sid.cast());
+    let scoped = |scope: Scope, target: &Path| -> io::Result<()> {
+        let target_w = wide(target)?;
+        refuse_reparse_point(target, &target_w)?;
+        let expected = private_descriptor(owner, scope)?;
+        let acl = descriptor_dacl(&expected)?;
+        // SAFETY: the path is NUL terminated; `acl` lives inside `expected`
+        // and `owner_sid` inside `allocation`, both of which outlive the call.
+        unsafe {
+            status(SetNamedSecurityInfoW(
+                target_w.as_ptr(),
+                SE_FILE_OBJECT,
+                OWNER_SECURITY_INFORMATION
+                    | DACL_SECURITY_INFORMATION
+                    | PROTECTED_DACL_SECURITY_INFORMATION,
+                owner_sid,
+                null_mut(),
+                acl,
+                null_mut(),
+            ))?;
+        }
+        verify_named(&target_w, &expected)?;
+        if owner_sid_w(&target_w)? != owner {
+            return Err(io::Error::other(format!(
+                "{} owner did not change to {owner}",
+                target.display()
+            )));
+        }
+        Ok(())
+    };
+    scoped(Scope::Directory, path).map_err(|e| step("reassign directory", &e))?;
+    for entry in std::fs::read_dir(path)? {
+        let child = entry?.path();
+        let scope = if child.is_dir() {
+            Scope::Directory
+        } else {
+            Scope::File
+        };
+        scoped(scope, &child).map_err(|e| step("reassign child", &e))?;
+    }
+    drop(allocation);
+    tracing::warn!(
+        path = %path.display(),
+        owner,
+        "reassigned the configuration directory and its files to the requesting account"
+    );
+    Ok(())
+}
+
+fn owner_sid_w(path_w: &[u16]) -> io::Result<String> {
     let mut descriptor = null_mut();
     let mut owner: PSID = null_mut();
     // SAFETY: the path is NUL terminated; the descriptor Windows allocates owns

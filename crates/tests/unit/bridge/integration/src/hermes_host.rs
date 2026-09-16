@@ -7,7 +7,7 @@ use tempfile::TempDir;
 fn probe_env() -> ProbeEnv {
     ProbeEnv {
         proxy_port: systemprompt_bridge::proxy::DEFAULT_PROXY_PORT,
-        loopback_secret_fingerprint: None,
+        loopback_secret: None,
         start_menu: std::sync::Arc::default(),
     }
 }
@@ -132,18 +132,21 @@ fn a_partial_hermes_config_lists_the_missing_required_keys() {
 }
 
 #[test]
-fn a_malformed_hermes_config_falls_back_to_an_empty_read() {
+fn a_malformed_hermes_config_is_unverifiable_not_absent() {
     let snapshot = hermes_sandbox(Some("model: [not: yaml\n  : :"), || {
         HERMES_HOST.probe(&probe_env())
     });
     assert!(
-        matches!(snapshot.profile_state, ProfileState::Absent),
-        "a YAML parse failure degrades to Absent, got {:?}",
+        matches!(&snapshot.profile_state, ProfileState::Unverifiable { reason } if reason.contains("config.yaml")),
+        "a YAML parse failure is reported, never read as an absent profile, got {:?}",
         snapshot.profile_state
     );
     assert!(
-        snapshot.profile_source.is_none(),
-        "an unparseable file is not reported as a source, got {:?}",
+        snapshot
+            .profile_source
+            .as_deref()
+            .is_some_and(|p| p.ends_with("config.yaml")),
+        "the file the probe could not read is named as the source, got {:?}",
         snapshot.profile_source
     );
     assert!(

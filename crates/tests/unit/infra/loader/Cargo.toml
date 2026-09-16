@@ -11,7 +11,8 @@ publish = false
 workspace = true
 
 [dependencies]
-systemprompt-loader = { workspace = true, features = ["expose-internals"] }
+systemprompt-loader = { workspace = true }
+systemprompt-test-fixtures = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-identifiers = { workspace = true }

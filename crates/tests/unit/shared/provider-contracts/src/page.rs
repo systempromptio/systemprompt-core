@@ -25,7 +25,7 @@ fn with_locale_overrides() {
     let wc = web_config();
     let cc: &(dyn std::any::Any + Send + Sync) = &();
     let pool: &(dyn std::any::Any + Send + Sync) = &();
-    let locale = LocaleCode::new("de");
+    let locale = LocaleCode::try_new("de").expect("valid LocaleCode");
     let ctx = PageContext::new("home", &wc, cc, pool).with_locale(&locale);
     assert_eq!(ctx.locale.as_str(), "de");
 }

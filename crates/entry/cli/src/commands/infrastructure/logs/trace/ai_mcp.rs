@@ -4,9 +4,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_identifiers::{ContextId, TaskId};
-use systemprompt_logging::{
-    AiRequestInfo, AiTraceService, CliService, McpToolExecution, ToolLogEntry,
-};
+use systemprompt_logging::CliService;
+use systemprompt_runtime::{AiRequestInfo, AiTraceService, McpToolExecution, ToolLogEntry};
 
 use super::ai_display::{print_content_block, print_section, truncate};
 use crate::presentation::tables::mcp_tool_calls_table;

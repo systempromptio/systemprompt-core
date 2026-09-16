@@ -244,6 +244,7 @@ mod mcp_failure {
     package: fixture
     port: 5987
     enabled: true
+    tool_policy: allow
     display_in_web: false
     oauth:
       required: false

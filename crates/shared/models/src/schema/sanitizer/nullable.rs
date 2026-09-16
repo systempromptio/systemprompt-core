@@ -8,6 +8,7 @@ use super::SchemaSanitizer;
 use serde_json::{Map, Value};
 
 impl SchemaSanitizer {
+    // JSON: JSON Schema document rewritten in place for the provider's subset.
     pub(super) fn normalize_nullable(obj: &mut Map<String, Value>) {
         if let Some(Value::Array(values)) = obj.get_mut("enum") {
             values.retain(|v| !v.is_null());

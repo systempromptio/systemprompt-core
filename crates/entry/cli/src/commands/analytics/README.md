@@ -2,6 +2,12 @@
 
 Command reference for analytics. Use the installed command’s `--help` output for its complete arguments and defaults.
 
+Reports read asynchronously maintained analytics projections. Use `analytics projection status`
+to inspect generation and backlog, `analytics projection sync --limit 10000` to process a
+bounded backlog without a server, and `analytics projection rebuild` to atomically rebuild
+from source-owner snapshots. Rebuild requires schema-owner privileges and blocks source
+writes during its snapshot; failed rebuilds retain the previous committed reports.
+
 ---
 
 ## Prerequisites
@@ -190,19 +196,28 @@ sp analytics conversations trends --group-by hour
 
 ### analytics conversations list
 
-List conversations with details.
+List conversations, newest activity first. A conversation is either an **agent
+context** (an A2A task thread) or a **gateway session** (a `/v1/messages`
+client such as Claude Code or Cowork). Both are listed by default; an instance
+that ships no A2A agents has gateway sessions only.
 
 ```bash
 sp analytics conversations list
 sp --json analytics conversations list
 sp analytics conversations list --limit 20
 sp analytics conversations list --since 7d
+sp analytics conversations list --since 30d --source gateway
+sp analytics conversations list --since 30d --user 8a1ece9f-ff46-436e-99d3-21b589ac57f3
 ```
 
 **Flags:**
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--limit` | `50` | Maximum number of results |
+| `--since` / `--until` | `24h` / now | Time window (by conversation start) |
+| `--limit`, `-n` | `20` | Maximum number of results |
+| `--source` | `all` | `agent`, `gateway`, or `all` |
+| `--user` | All | Filter by user id (exact match) |
+| `--export` | None | Write the rows to a CSV file at this path |
 
 **Output Structure:**
 ```json
@@ -210,19 +225,35 @@ sp analytics conversations list --since 7d
   "conversations": [
     {
       "context_id": "ctx_abc123",
+      "source": "agent",
+      "user_id": "8a1ece9f-ff46-436e-99d3-21b589ac57f3",
       "name": "Code Review Session",
       "task_count": 5,
       "message_count": 23,
-      "created_at": "2024-01-15T10:30:00Z",
-      "updated_at": "2024-01-15T11:45:00Z"
+      "created_at": "2024-01-15 10:30:00",
+      "updated_at": "2024-01-15 11:45:00"
+    },
+    {
+      "context_id": "sess_9f1c",
+      "source": "gateway",
+      "user_id": "6aa4cda9-8c08-4c76-a5cd-b1fbd5a9f4a5",
+      "name": null,
+      "task_count": 0,
+      "message_count": 41,
+      "created_at": "2024-01-15 09:02:11",
+      "updated_at": "2024-01-15 11:40:07"
     }
   ],
-  "total": 150
+  "total": 2
 }
 ```
 
+For a gateway row, `context_id` is the session id. To read what was said,
+list that user's requests with `infra logs request list --user <user_id>` and
+audit one with `infra logs audit <request-id> --messages`.
+
 **Artifact Type:** `Table`
-**Columns:** `context_id`, `name`, `task_count`, `message_count`, `created_at`
+**Columns:** `context_id`, `source`, `user_id`, `name`, `task_count`, `message_count`, `updated_at`
 
 ---
 
@@ -564,12 +595,14 @@ sp analytics requests stats --since 7d
 
 ### analytics requests list
 
-List individual AI requests over a time range, with optional model filter and CSV export. For a quick operational list, use `infra logs request list`.
+List individual AI requests over a time range, newest first, with optional model and user filters, offset paging, and CSV export. For a quick operational list, use `infra logs request list`.
 
 ```bash
 sp analytics requests list
 sp --json analytics requests list
 sp analytics requests list --since 24h --limit 100
+sp analytics requests list --since 30d --user 8a1ece9f-ff46-436e-99d3-21b589ac57f3 -n 200
+sp analytics requests list --since 30d -n 200 --offset 200
 sp analytics requests list --model claude-sonnet-4-6-20250610
 sp analytics requests list --since 7d --export requests.csv
 ```
@@ -580,7 +613,9 @@ sp analytics requests list --since 7d --export requests.csv
 | `--since` | `24h` | Start of the time range |
 | `--until` (alias `--to`) | Now | End of the time range |
 | `--limit`, `-n` | `20` | Maximum number of rows |
-| `--model` | All | Filter by model name |
+| `--offset` | `0` | Rows to skip before the page |
+| `--model` | All | Filter by model name (substring) |
+| `--user` | All | Filter by user id (exact match) |
 | `--export` | None | Export results to a CSV file |
 
 **Artifact Type:** `Table`
@@ -1063,19 +1098,29 @@ sp analytics costs trends --since 7d --group-by day
 
 ### analytics costs breakdown
 
-Cost breakdown by model or agent.
+Cost breakdown by model, provider, agent, or user.
 
 ```bash
 sp analytics costs breakdown
 sp --json analytics costs breakdown
 sp analytics costs breakdown --by model
 sp analytics costs breakdown --by agent
+sp analytics costs breakdown --by user --since 7d -n 50
 ```
 
 **Flags:**
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--by` | `model` | Breakdown by: `model`, `agent` |
+| `--since` / `--until` | `24h` / now | Time window |
+| `--by` | `model` | Breakdown by: `model`, `provider`, `agent`, `user` |
+| `--limit`, `-n` | `20` | Maximum rows |
+| `--export` | None | Write the rows to a CSV file at this path |
+
+`--by user` names each row `<user_id> (<display name>)` — the id is what
+`infra logs request list --user` takes — and adds a `conversations` column
+(distinct contexts), which separates a user working through tasks from one
+sending many one-line requests. Emails never appear: the reporting projection
+does not carry them.
 
 **Output Structure:**
 ```json

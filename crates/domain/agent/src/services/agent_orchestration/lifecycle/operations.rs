@@ -49,8 +49,7 @@ impl AgentLifecycle {
             let pid = self
                 .spawn_detached_process(agent_name, agent_config.port)?;
 
-            let service_id = self
-                .db_service
+            self.db_service
                 .register_agent_starting(&agent_config.name, pid, agent_config.port)
                 .await?;
 
@@ -70,7 +69,7 @@ impl AgentLifecycle {
                 tx.agent_ready(&agent_config.name, agent_config.port, start.elapsed());
             }
 
-            Ok(service_id)
+            Ok(agent_config.name.clone())
         }
         .await;
 
@@ -166,7 +165,7 @@ impl AgentLifecycle {
         if let AgentStatus::Running { pid, .. } = status
             && !process::process_exists(pid)
         {
-            self.db_service.mark_crashed(agent_name).await?;
+            self.db_service.mark_failed(agent_name).await?;
             tracing::info!(agent_name = %agent_name, "Marked crashed agent as failed in database");
         }
 

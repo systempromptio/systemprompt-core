@@ -76,7 +76,7 @@ pub async fn discover(
     let card = match VertexRateCard::embedded() {
         Ok(card) => card,
         Err(e) => {
-            tracing::warn!("catalog discovery skipped: {e}");
+            tracing::warn!(error = %e, "Catalog discovery skipped");
             report.failed_publishers.push(format!("rate card: {e}"));
             return report;
         },
@@ -159,7 +159,7 @@ pub async fn discover_with(
 }
 
 fn push_failure(report: &mut DiscoveryReport, note: String) {
-    tracing::warn!("catalog discovery: {note}");
+    tracing::warn!(note = %note, "Catalog discovery publisher failed");
     report.failed_publishers.push(note);
 }
 
@@ -171,9 +171,6 @@ fn plan<'a>(
 ) -> Vec<Plan<'a>> {
     let mut plans = Vec::new();
     for (index, entry) in providers.providers.iter().enumerate() {
-        // Why: the cheap, credential-free check comes first so that a
-        // malformed secret on a provider no source could have listed anyway is
-        // not reported as a discovery failure.
         if !sources.iter().any(|s| s.matches_provider(entry)) {
             continue;
         }

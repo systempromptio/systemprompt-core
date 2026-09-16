@@ -65,8 +65,9 @@ fn drain_buffer(
         if joined.trim().is_empty() {
             continue;
         }
-        if let Ok(value) = serde_json::from_str::<Value>(&joined) {
-            handle_responses_event(state, &value, &mut events);
+        match serde_json::from_str::<Value>(&joined) {
+            Ok(value) => handle_responses_event(state, &value, &mut events),
+            Err(e) => events.push(Err(format!("malformed Responses SSE frame: {e}"))),
         }
     }
     events
@@ -74,6 +75,7 @@ fn drain_buffer(
 
 fn handle_responses_event(
     state: &mut ResponsesStreamState,
+    // JSON: OpenAI Responses API streaming event; upstream JSON is the contract.
     value: &Value,
     events: &mut Vec<Result<CanonicalEvent, String>>,
 ) {
@@ -120,6 +122,7 @@ fn handle_responses_event(
 
 fn handle_created(
     state: &mut ResponsesStreamState,
+    // JSON: OpenAI Responses API streaming event; upstream JSON is the contract.
     value: &Value,
     events: &mut Vec<Result<CanonicalEvent, String>>,
 ) {
@@ -146,6 +149,7 @@ fn handle_created(
 
 fn handle_item_added(
     state: &mut ResponsesStreamState,
+    // JSON: OpenAI Responses API streaming event; upstream JSON is the contract.
     value: &Value,
     events: &mut Vec<Result<CanonicalEvent, String>>,
 ) {

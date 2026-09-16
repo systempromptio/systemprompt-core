@@ -7,7 +7,7 @@
 use super::config::{self, KEYS_OF_INTEREST};
 use crate::sysproc;
 
-pub(super) use crate::integration::config_read::DomainRead;
+pub(super) use crate::integration::config_read::{DomainRead, ForeignShape};
 
 // Why: macOS managed preferences can be binary plists; plutil decodes them.
 #[cfg(target_os = "macos")]
@@ -33,9 +33,7 @@ fn read_macos_managed() -> Option<DomainRead> {
         let Ok(text) = String::from_utf8(decoded) else {
             continue;
         };
-        if let Some(read) = parse_into_keys(&text, &path.display().to_string()) {
-            return Some(read);
-        }
+        return Some(parse_into_keys(&text, &path.display().to_string()));
     }
     None
 }
@@ -45,35 +43,28 @@ pub(super) fn read_config() -> DomainRead {
     if let Some(read) = read_macos_managed() {
         return read;
     }
-    let managed = config::managed_config_path();
-    if managed.exists()
-        && let Ok(text) = std::fs::read_to_string(&managed)
-        && let Some(read) = parse_into_keys(&text, &managed.display().to_string())
-    {
-        return read;
-    }
-    let user = config::user_config_path();
-    if user.exists()
-        && let Ok(text) = std::fs::read_to_string(&user)
-        && let Some(read) = parse_into_keys(&text, &user.display().to_string())
-    {
-        return read;
+    for path in [config::managed_config_path(), config::user_config_path()] {
+        let source = path.display().to_string();
+        match std::fs::read_to_string(&path) {
+            Ok(text) => return parse_into_keys(&text, &source),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {},
+            Err(e) => return DomainRead::unreadable(&source, &e),
+        }
     }
     DomainRead::default()
 }
 
-fn parse_into_keys(text: &str, source: &str) -> Option<DomainRead> {
-    let value: toml::Value = toml::from_str(text)
-        .map_err(|e| {
-            tracing::warn!(error = %e, source = %source, "codex probe: TOML parse failed");
-        })
-        .ok()?;
-    Some(DomainRead::collect(
+fn parse_into_keys(text: &str, source: &str) -> DomainRead {
+    let value: toml::Value = match toml::from_str(text) {
+        Ok(value) => value,
+        Err(e) => return DomainRead::unreadable(source, &e),
+    };
+    DomainRead::collect(
         source,
         KEYS_OF_INTEREST,
         |dotted| lookup_dotted(&value, dotted),
         config::redact_if_sensitive,
-    ))
+    )
 }
 
 fn lookup_dotted(root: &toml::Value, dotted: &str) -> Option<String> {
@@ -95,31 +86,48 @@ fn stringify(v: &toml::Value) -> String {
     }
 }
 
-pub(super) fn list_codex_processes() -> Vec<String> {
+pub(super) fn list_codex_processes() -> Result<Vec<String>, sysproc::SysprocError> {
     sysproc::find_processes("codex")
 }
 
-pub(super) fn write_dotted(target: &mut toml::Value, dotted: &str, value: toml::Value) -> bool {
+pub(super) fn write_dotted(
+    target: &mut toml::Value,
+    dotted: &str,
+    value: toml::Value,
+) -> Result<(), ForeignShape> {
     let segments: Vec<&str> = dotted.split('.').collect();
     let mut cur = target;
+    let mut walked = String::new();
     for segment in &segments[..segments.len() - 1] {
         let key = segment.trim_matches('"');
         let toml::Value::Table(table) = cur else {
-            return false;
+            return Err(foreign(&walked, cur));
         };
-        let entry = table
+        if !walked.is_empty() {
+            walked.push('.');
+        }
+        walked.push_str(key);
+        cur = table
             .entry(key.to_owned())
             .or_insert_with(|| toml::Value::Table(toml::map::Map::new()));
-        if !matches!(entry, toml::Value::Table(_)) {
-            *entry = toml::Value::Table(toml::map::Map::new());
-        }
-        cur = entry;
     }
     let last = segments[segments.len() - 1].trim_matches('"');
-    if let toml::Value::Table(t) = cur {
-        t.insert(last.to_owned(), value);
-        true
-    } else {
-        false
+    let toml::Value::Table(t) = cur else {
+        return Err(foreign(&walked, cur));
+    };
+    t.insert(last.to_owned(), value);
+    Ok(())
+}
+
+fn foreign(key: &str, found: &toml::Value) -> ForeignShape {
+    ForeignShape {
+        path: "config.toml".to_owned(),
+        key: if key.is_empty() {
+            "<root>".to_owned()
+        } else {
+            key.to_owned()
+        },
+        found: found.type_str(),
+        expected: "a table",
     }
 }

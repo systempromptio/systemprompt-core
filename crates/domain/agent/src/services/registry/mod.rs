@@ -18,7 +18,7 @@ use crate::error::{AgentError, AgentResult};
 use crate::models::a2a::{
     AgentCapabilities, AgentCard, AgentExtension, AgentInterface, AgentProvider, TransportProtocol,
 };
-use security::{convert_json_security_to_struct, oauth_to_security_config, override_oauth_urls};
+use security::{oauth_to_security_config, override_oauth_urls};
 use skills::load_skill_from_disk;
 use std::path::Path;
 
@@ -111,19 +111,16 @@ impl AgentRegistry {
 
         let (security_schemes, security) =
             if agent.card.security_schemes.is_some() || agent.card.security.is_some() {
-                let (mut schemes, sec) = convert_json_security_to_struct(
-                    agent.card.security_schemes.as_ref(),
-                    agent.card.security.as_ref(),
-                );
+                let mut schemes = agent.card.security_schemes.clone();
                 if let Some(ref mut s) = schemes {
                     override_oauth_urls(s, api_external_url);
                 }
-                (schemes, sec)
+                (schemes, agent.card.security.clone())
             } else {
                 oauth_to_security_config(&agent.oauth, api_external_url)
             };
 
-        let all_skills = load_agent_skills(&agent);
+        let all_skills = load_agent_skills(&agent)?;
 
         let protocol_binding = match agent.card.preferred_transport.as_str() {
             "GRPC" => TransportProtocol::Grpc,
@@ -212,32 +209,31 @@ fn build_extensions(
     extensions
 }
 
-fn load_agent_skills(agent: &AgentConfig) -> Vec<crate::models::a2a::AgentSkill> {
-    let Ok(profile) = ProfileBootstrap::get() else {
-        return Vec::new();
-    };
+fn load_agent_skills(agent: &AgentConfig) -> AgentResult<Vec<crate::models::a2a::AgentSkill>> {
+    let profile = ProfileBootstrap::get().map_err(|e| AgentError::Config(e.to_string()))?;
     let skills_path = ServicesRootBootstrap::active_path_or(&profile.paths.services, "skills");
     load_agent_skills_from_dir(agent, &skills_path)
 }
 
-#[doc(hidden)]
+// Why: the card advertises every skill in `metadata.skills.include`; a skill
+// that cannot be loaded is an agent configuration error, not a skill to omit.
 pub fn load_agent_skills_from_dir(
     agent: &AgentConfig,
     skills_dir: &Path,
-) -> Vec<crate::models::a2a::AgentSkill> {
-    let mut all_skills = Vec::new();
-    for skill_id in &agent.metadata.skills.include {
-        let skill_id_typed = systemprompt_identifiers::SkillId::new(skill_id);
-        match load_skill_from_disk(skills_dir, &skill_id_typed) {
-            Ok(skill) => all_skills.push(skill),
-            Err(e) => {
-                tracing::warn!(
-                    skill_id = %skill_id,
-                    error = %e,
-                    "Failed to load skill for agent card, skipping"
-                );
-            },
-        }
-    }
-    all_skills
+) -> AgentResult<Vec<crate::models::a2a::AgentSkill>> {
+    agent
+        .metadata
+        .skills
+        .include
+        .iter()
+        .map(|skill_id| {
+            let skill_id_typed = systemprompt_identifiers::SkillId::new(skill_id);
+            load_skill_from_disk(skills_dir, &skill_id_typed).map_err(|e| {
+                AgentError::Config(format!(
+                    "agent {} advertises skill {skill_id} which failed to load: {e}",
+                    agent.name
+                ))
+            })
+        })
+        .collect()
 }

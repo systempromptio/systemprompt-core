@@ -24,9 +24,12 @@
 //! let task = TaskId::generate();
 //! ```
 //!
-//! Validated identifiers (`McpServerId`, `Email`, `ProfileName`,
-//! `ValidatedUrl`, `ValidatedFilePath`, `AgentName`) additionally expose a
-//! fallible `try_new` constructor returning [`error::IdValidationError`].
+//! Validated identifiers (`McpServerId`, `ContextId`, `Email`, `ProfileName`,
+//! `ValidatedUrl`, `ValidatedFilePath`, `AgentName`, ...) expose **only** the
+//! fallible `try_new` constructor returning [`error::IdValidationError`];
+//! there is no infallible `new` that could panic on runtime input. Values
+//! minted by the platform itself (`ContextId::generate`, `AgentName::system`)
+//! come from dedicated constructors.
 //!
 //! # Feature flags
 //!
@@ -105,8 +108,8 @@ pub use content::{CategoryId, ContentId, FileId, SkillId, SourceId, TagId};
 pub use context::ContextId;
 pub use email::Email;
 pub use evaluation::{
-    EvalApprovalId, EvalBudgetId, EvalCaseId, EvalExecutionId, EvalExperimentId, EvalReservationId,
-    EvalRevisionId, EvalSuggestionId, EvalWorkerId,
+    EvalApprovalId, EvalBudgetId, EvalCampaignId, EvalCaseId, EvalExecutionId, EvalExperimentId,
+    EvalHoldoutProposalId, EvalReservationId, EvalRevisionId, EvalSuggestionId, EvalWorkerId,
 };
 pub use events::EventOutboxId;
 pub use execution::{ArtifactId, ExecutionStepId, LogId, TokenId};
@@ -119,9 +122,11 @@ pub use jobs::{JobName, ScheduledJobId};
 pub use links::{CampaignId, LinkClickId, LinkId};
 pub use locale::LocaleCode;
 pub use managed::{
-    DistributionId, InstallationReceiptId, InvocationAttributionId, ManagedReconciliationId,
-    ManagedResourceId, ManagedSourceId, PublicationId, PublicationReviewId, ResourceRevisionId,
-    SourceSnapshotId, WithdrawalProposalId,
+    AnalyticsChangeId, AnalyticsFactId, AnalyticsSnapshotJobId, AnalyticsWorkerId,
+    ConsumerInstallationId, DependencyVerificationId, DistributionId, InstallationReceiptId,
+    InstallationSessionBindingId, InventoryEntryId, InvocationAttributionId,
+    ManagedReconciliationId, ManagedResourceId, ManagedSourceId, NativeSessionId, PublicationId,
+    PublicationReviewId, ResourceRevisionId, SourceSnapshotId, WithdrawalProposalId,
 };
 pub use marketplace::MarketplaceId;
 pub use mcp::{AiToolCallId, McpExecutionId, McpServerId, McpToolName};
@@ -144,3 +149,4 @@ pub use user::UserId;
 pub use webhook::WebhookEndpointId;
 
 define_id!(RuleId, generate);
+pub use managed::ResourceInvocationId;

@@ -324,7 +324,7 @@ fn a2a_card_skills_are_joined_from_metadata_skills_against_disk_catalog() {
     .unwrap();
 
     let agent = agent_with_metadata_skills(vec!["example_web_search".to_owned()]);
-    let resolved = load_agent_skills_from_dir(&agent, dir.path());
+    let resolved = load_agent_skills_from_dir(&agent, dir.path()).expect("skills load");
 
     assert_eq!(
         resolved.len(),
@@ -339,12 +339,13 @@ fn a2a_card_skills_are_joined_from_metadata_skills_against_disk_catalog() {
 }
 
 #[test]
-fn a2a_card_skills_drop_unresolvable_metadata_ids_silently() {
-    // Skills listed in metadata.skills but missing from the on-disk catalog
-    // must be skipped, not crash the card assembly.
+fn a2a_card_skills_fail_on_an_unresolvable_metadata_id() {
+    // A skill the agent advertises but the catalogue cannot supply is a
+    // configuration error, not a skill to omit from the card.
     let dir = TempDir::new().unwrap();
     let agent = agent_with_metadata_skills(vec!["does_not_exist_on_disk".to_owned()]);
 
-    let resolved = load_agent_skills_from_dir(&agent, dir.path());
-    assert!(resolved.is_empty(), "expected empty, got {resolved:?}");
+    let err = load_agent_skills_from_dir(&agent, dir.path())
+        .expect_err("an advertised skill that cannot load fails the card");
+    assert!(err.to_string().contains("does_not_exist_on_disk"), "{err}");
 }

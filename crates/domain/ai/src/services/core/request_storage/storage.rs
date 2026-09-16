@@ -3,16 +3,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::Arc;
 
 use crate::error::AiError;
 use crate::models::RequestStatus;
 use crate::models::ai::{AiRequest, AiResponse};
 use crate::repository::{AiRequestPayloadRepository, AiRequestRepository};
 use systemprompt_models::RequestContext;
-use systemprompt_traits::{
-    AnalyticsEventPublisher, DynAiSessionProvider, DynContextMaterializer, EnsureContextParams,
-};
+use systemprompt_traits::{DynAiSessionProvider, DynContextMaterializer, EnsureContextParams};
 
 use super::record_builder::{
     BuildRecordParams, build_record, extract_messages, extract_tool_calls,
@@ -37,7 +34,6 @@ pub struct RequestStorage {
     ai_request_repo: AiRequestRepository,
     payload_repo: AiRequestPayloadRepository,
     session_provider: DynAiSessionProvider,
-    event_publisher: Option<Arc<dyn AnalyticsEventPublisher>>,
     context_materializer: Option<DynContextMaterializer>,
 }
 
@@ -45,10 +41,6 @@ impl std::fmt::Debug for RequestStorage {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("RequestStorage")
             .field("ai_request_repo", &self.ai_request_repo)
-            .field(
-                "event_publisher",
-                &self.event_publisher.as_ref().map(|_| "<publisher>"),
-            )
             .finish_non_exhaustive()
     }
 }
@@ -63,14 +55,8 @@ impl RequestStorage {
             ai_request_repo,
             payload_repo,
             session_provider,
-            event_publisher: None,
             context_materializer: None,
         }
-    }
-
-    pub fn with_event_publisher(mut self, publisher: Arc<dyn AnalyticsEventPublisher>) -> Self {
-        self.event_publisher = Some(publisher);
-        self
     }
 
     pub fn with_context_materializer(mut self, materializer: DynContextMaterializer) -> Self {
@@ -131,14 +117,6 @@ impl RequestStorage {
             cost,
         )
         .await;
-
-        if let Some(publisher) = self.event_publisher.as_ref() {
-            publisher.publish_analytics_event(
-                systemprompt_traits::AnalyticsEvent::AiRequestCompleted {
-                    tokens_used: i64::from(tokens.unwrap_or(0)),
-                },
-            );
-        }
 
         Ok(())
     }

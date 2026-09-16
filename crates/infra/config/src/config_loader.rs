@@ -28,18 +28,14 @@ struct BuildConfigPaths {
     web_metadata: String,
 }
 
-pub fn init_config(services_root: Option<&Path>) -> ConfigResult<()> {
-    let profile = ProfileBootstrap::get()?;
-    let config = build_from_profile(profile, services_root)?;
-    Config::install(config).map_err(|_e| ConfigError::AlreadyInitialized)?;
-    Ok(())
-}
-
 pub fn try_init_config(services_root: Option<&Path>) -> ConfigResult<()> {
     if Config::is_initialized() {
         return Ok(());
     }
-    init_config(services_root)
+    let profile = ProfileBootstrap::get()?;
+    let config = build_from_profile(profile, services_root)?;
+    Config::install(config).map_err(|_e| ConfigError::AlreadyInitialized)?;
+    Ok(())
 }
 
 pub fn build_from_profile(profile: &Profile, services_root: Option<&Path>) -> ConfigResult<Config> {
@@ -79,15 +75,6 @@ pub fn build_from_profile(profile: &Profile, services_root: Option<&Path>) -> Co
 
     validate_database_config(&config)?;
     Ok(config)
-}
-
-pub fn init_config_from_profile(
-    profile: &Profile,
-    services_root: Option<&Path>,
-) -> ConfigResult<()> {
-    let config = build_from_profile(profile, services_root)?;
-    Config::install(config).map_err(|_e| ConfigError::AlreadyInitialized)?;
-    Ok(())
 }
 
 fn canonicalize_path(path: &str, name: &str) -> ConfigResult<String> {

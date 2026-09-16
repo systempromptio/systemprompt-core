@@ -199,8 +199,9 @@ impl IntoResponse for OAuthHttpError {
         self.log();
 
         if let Some(redirect) = &self.redirect {
+            let separator = if redirect.uri.contains('?') { '&' } else { '?' };
             let mut target = format!(
-                "{}?error={}&error_description={}",
+                "{}{separator}error={}&error_description={}",
                 redirect.uri,
                 urlencoding::encode(self.code.as_str()),
                 urlencoding::encode(&self.description),

@@ -5,10 +5,10 @@
 //! never reach.
 
 use std::sync::Arc;
+use systemprompt_config::paths::AppPaths;
 use systemprompt_database::{CreateServiceInput, ServiceRepository};
 use systemprompt_mcp::services::orchestrator::{McpEvent, McpOrchestrator};
 use systemprompt_mcp::services::registry::RegistryService;
-use systemprompt_models::AppPaths;
 use systemprompt_models::profile::PathsConfig;
 use systemprompt_test_fixtures::{
     TestBootstrap, fixture_database_url, fixture_db_pool, fixture_user_id,
@@ -56,7 +56,7 @@ async fn orchestrator_with_config_or_skip(
         systemprompt_identifiers::InstanceId::new("test-instance"),
     )
     .ok()?;
-    McpOrchestrator::new(db, service_repo, app_paths, registry).ok()
+    McpOrchestrator::new(service_repo, app_paths, registry).ok()
 }
 
 // Internal MCP servers are validated against the 5000-5999 range, so a port

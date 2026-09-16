@@ -26,7 +26,7 @@ fn anon_context() -> RequestContext {
         SessionId::generate(),
         TraceId::generate(),
         ContextId::generate(),
-        AgentName::new("test"),
+        AgentName::try_new("test").expect("valid AgentName"),
     )
 }
 
@@ -35,7 +35,7 @@ fn user_context(kind: UserType) -> RequestContext {
         SessionId::generate(),
         TraceId::generate(),
         ContextId::generate(),
-        AgentName::new("test"),
+        AgentName::try_new("test").expect("valid AgentName"),
     )
     .with_user_type(kind)
     .with_actor(systemprompt_identifiers::Actor::user(UserId::new("u")))

@@ -1,9 +1,8 @@
 use systemprompt_agent::models::a2a::jsonrpc::NumberOrString;
 use systemprompt_agent::services::a2a_server::errors::jsonrpc::{
-    JsonRpcErrorBuilder, classify_database_error, forbidden_response, unauthorized_response,
+    JsonRpcErrorBuilder, forbidden_response, unauthorized_response,
 };
 use systemprompt_logging::LogLevel;
-use systemprompt_traits::RepositoryError;
 
 fn string_request_id() -> NumberOrString {
     NumberOrString::String("req-1".to_string())
@@ -11,58 +10,6 @@ fn string_request_id() -> NumberOrString {
 
 fn number_request_id() -> NumberOrString {
     NumberOrString::Number(42)
-}
-
-#[test]
-fn classify_database_error_foreign_key() {
-    let error = RepositoryError::ConstraintViolation(
-        "FOREIGN KEY constraint failed: tasks.agent_id".to_string(),
-    );
-    let result = classify_database_error(&error);
-    assert!(result.contains("Referenced entity does not exist"));
-    assert!(result.contains("FOREIGN KEY constraint failed"));
-}
-
-#[test]
-fn classify_database_error_unique_constraint() {
-    let error =
-        RepositoryError::ConstraintViolation("UNIQUE constraint failed: users.email".to_string());
-    let result = classify_database_error(&error);
-    assert!(result.contains("Duplicate entry"));
-    assert!(result.contains("UNIQUE constraint failed"));
-}
-
-#[test]
-fn classify_database_error_not_null_constraint() {
-    let error =
-        RepositoryError::ConstraintViolation("NOT NULL constraint failed: tasks.name".to_string());
-    let result = classify_database_error(&error);
-    assert!(result.contains("Required field missing"));
-    assert!(result.contains("NOT NULL constraint failed"));
-}
-
-#[test]
-fn classify_database_error_generic() {
-    let error = RepositoryError::Database(Box::new(std::io::Error::new(
-        std::io::ErrorKind::ConnectionRefused,
-        "connection refused",
-    )));
-    let result = classify_database_error(&error);
-    assert!(result.starts_with("Database error:"));
-}
-
-#[test]
-fn classify_database_error_not_found() {
-    let error = RepositoryError::NotFound("task xyz".to_string());
-    let result = classify_database_error(&error);
-    assert!(result.starts_with("Database error:"));
-}
-
-#[test]
-fn classify_database_error_invalid_data() {
-    let error = RepositoryError::InvalidData("bad format".to_string());
-    let result = classify_database_error(&error);
-    assert!(result.starts_with("Database error:"));
 }
 
 #[test]

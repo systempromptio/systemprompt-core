@@ -6,6 +6,7 @@
 use std::collections::BTreeMap;
 
 pub mod document;
+pub mod hive_report;
 #[cfg(target_os = "macos")]
 mod macos_managed_prefs;
 #[cfg(target_os = "macos")]
@@ -19,9 +20,11 @@ mod windows_registry;
 mod windows_registry_write;
 
 pub use document::{PolicyDocument, PolicyDocumentValue, PolicyHive, PolicyTarget};
+pub use hive_report::{HiveReport, hive_report};
 #[cfg(target_os = "windows")]
 pub(crate) use windows_policy::{
-    clear_managed_claude_policy, read_registry_string, write_managed_claude_policy,
+    clear_managed_claude_policy, machine_claude_policy_keys, read_registry_string,
+    write_managed_claude_policy,
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -118,8 +121,6 @@ pub trait ConfigStore: Send + Sync {
         target: PolicyTarget,
         names: &[&str],
     ) -> Result<usize, ConfigStoreError>;
-
-    fn delete_policy_key(&self, hive: PolicyHive) -> Result<bool, ConfigStoreError>;
 }
 
 #[derive(Clone)]
@@ -140,12 +141,8 @@ impl std::fmt::Debug for PolicyStore {
 
 pub const MANIFEST_TRUST_KEY: &str = "manifestTrust";
 
-pub const MANIFEST_PUBKEY_KEY: &str = "manifestPubkey";
-
-pub const LEGACY_MANIFEST_PUBKEY_KEY: &str = "inferenceManifestPubkey";
-
-// Why: Claude Desktop 1.44121 logs inferenceManifestPubkey as an unrecognized
-// policy key.
+// Why: Claude Desktop logs every policy key it does not recognise under its
+// own hive, so the bridge's trust record lives under the brand's key.
 #[must_use]
 pub fn bridge_policy_subkey() -> String {
     format!(r"SOFTWARE\Policies\{}", crate::brand::brand().config_dir)
@@ -247,9 +244,5 @@ impl ConfigStore for NoopStore {
         _names: &[&str],
     ) -> Result<usize, ConfigStoreError> {
         Ok(0)
-    }
-
-    fn delete_policy_key(&self, _hive: PolicyHive) -> Result<bool, ConfigStoreError> {
-        Ok(false)
     }
 }

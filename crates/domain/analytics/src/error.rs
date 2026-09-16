@@ -9,6 +9,12 @@ domain_error! {
     pub enum AnalyticsError {
         common: [repository, io, json],
 
+        #[error("session owner: {0}")]
+        SessionOwner(#[from] systemprompt_traits::AnalyticsProviderError),
+
+        #[error("Analytics event store failed: {0}")]
+        EventStore(#[from] systemprompt_traits::RepositoryError),
+
         #[error("Session not found: {0}")]
         SessionNotFound(String),
 

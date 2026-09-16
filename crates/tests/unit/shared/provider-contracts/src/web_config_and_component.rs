@@ -11,15 +11,15 @@ use systemprompt_provider_contracts::{
 fn i18n_default_is_english_only() {
     let cfg = SiteI18nConfig::default();
     assert_eq!(cfg.default_locale.as_str(), "en");
-    assert_eq!(cfg.supported_locales, vec![LocaleCode::new("en")]);
+    assert_eq!(cfg.supported_locales, vec![LocaleCode::english()]);
     assert!(cfg.validate().is_ok());
 }
 
 #[test]
 fn i18n_validate_rejects_default_not_in_supported() {
     let cfg = SiteI18nConfig {
-        default_locale: LocaleCode::new("fr"),
-        supported_locales: vec![LocaleCode::new("en")],
+        default_locale: LocaleCode::try_new("fr").expect("valid LocaleCode"),
+        supported_locales: vec![LocaleCode::english()],
     };
     let err = cfg.validate().unwrap_err();
     assert!(err.contains("fr"));
@@ -29,16 +29,22 @@ fn i18n_validate_rejects_default_not_in_supported() {
 #[test]
 fn i18n_locale_prefix_empty_for_default() {
     let cfg = SiteI18nConfig::default();
-    assert_eq!(cfg.locale_prefix(&LocaleCode::new("en")), "");
+    assert_eq!(cfg.locale_prefix(&LocaleCode::english()), "");
 }
 
 #[test]
 fn i18n_locale_prefix_slashed_for_non_default() {
     let cfg = SiteI18nConfig {
-        default_locale: LocaleCode::new("en"),
-        supported_locales: vec![LocaleCode::new("en"), LocaleCode::new("de")],
+        default_locale: LocaleCode::english(),
+        supported_locales: vec![
+            LocaleCode::english(),
+            LocaleCode::try_new("de").expect("valid LocaleCode"),
+        ],
     };
-    assert_eq!(cfg.locale_prefix(&LocaleCode::new("de")), "/de");
+    assert_eq!(
+        cfg.locale_prefix(&LocaleCode::try_new("de").expect("valid LocaleCode")),
+        "/de"
+    );
 }
 
 #[test]

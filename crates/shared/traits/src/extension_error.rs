@@ -10,13 +10,13 @@
 use http::StatusCode;
 
 #[derive(Debug, Clone)]
-pub struct ApiError {
+pub struct ExtensionApiError {
     pub code: String,
     pub message: String,
     pub status: StatusCode,
 }
 
-impl ApiError {
+impl ExtensionApiError {
     #[must_use]
     pub fn new(code: impl Into<String>, message: impl Into<String>, status: StatusCode) -> Self {
         Self {
@@ -33,6 +33,7 @@ pub struct McpErrorData {
     pub message: String,
     // JSON: JSON-RPC 2.0 §5.1 error `data` field — protocol boundary.
     #[serde(skip_serializing_if = "Option::is_none")]
+    // JSON: JSON-RPC 2.0 `error.data` is spec-defined as free-form.
     pub data: Option<serde_json::Value>,
 }
 
@@ -47,6 +48,7 @@ impl McpErrorData {
     }
 
     #[must_use]
+    // JSON: JSON-RPC 2.0 `error.data` is spec-defined as free-form.
     pub fn with_data(mut self, data: serde_json::Value) -> Self {
         self.data = Some(data);
         self
@@ -79,8 +81,8 @@ pub trait ExtensionError: std::error::Error + Send + Sync + 'static {
         }
     }
 
-    fn to_api_error(&self) -> ApiError {
-        ApiError {
+    fn to_api_error(&self) -> ExtensionApiError {
+        ExtensionApiError {
             code: self.code().to_owned(),
             message: self.user_message(),
             status: self.status(),

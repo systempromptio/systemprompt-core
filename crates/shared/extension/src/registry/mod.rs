@@ -2,7 +2,9 @@
 //!
 //! It accepts `Arc<dyn Extension>` values supplied by either inventory
 //! discovery or runtime injection, sorts them by priority, and validates
-//! their declared dependencies.
+//! their declared dependencies. A declared dependency that is not loaded is a
+//! [`LoaderError::MissingDependency`] from every constructor, so no caller
+//! can observe a registry whose dependency graph is unsatisfied.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -15,9 +17,8 @@ use crate::Extension;
 use crate::error::LoaderError;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
-use tracing::warn;
 
-pub use validation::RESERVED_PATHS;
+pub use validation::{RESERVED_PATHS, WEB_ROOT_BASE_PATH};
 
 #[derive(Default)]
 pub struct ExtensionRegistry {
@@ -55,12 +56,10 @@ impl ExtensionRegistry {
         for (owner, ext) in &by_id {
             for dep in ext.dependencies() {
                 if !id_set.contains(dep) {
-                    warn!(
-                        extension = %owner,
-                        missing_dependency = %dep,
-                        "Extension declares dependency that is not loaded; treating as optional \
-                         and ignoring for ordering"
-                    );
+                    return Err(LoaderError::MissingDependency {
+                        extension: owner.clone(),
+                        dependency: dep.to_owned(),
+                    });
                 }
             }
         }
@@ -75,13 +74,18 @@ impl ExtensionRegistry {
     }
 
     pub fn register(&mut self, ext: Arc<dyn Extension>) -> Result<(), LoaderError> {
+        self.insert(ext)?;
+        self.sort_by_priority()?;
+        Ok(())
+    }
+
+    pub(crate) fn insert(&mut self, ext: Arc<dyn Extension>) -> Result<(), LoaderError> {
         let id = ext.id().to_owned();
         if self.extensions.contains_key(&id) {
             return Err(LoaderError::DuplicateExtension(id));
         }
         self.extensions.insert(id, Arc::clone(&ext));
         self.sorted_extensions.push(ext);
-        self.sort_by_priority()?;
         Ok(())
     }
 

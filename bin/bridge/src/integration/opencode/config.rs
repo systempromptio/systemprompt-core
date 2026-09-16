@@ -15,8 +15,6 @@ pub(super) const CONFIG_FILE: &str = "opencode.json";
 pub(super) const CONFIG_FILE_JSONC: &str = "opencode.jsonc";
 pub(super) const AUTH_FILE: &str = "auth.json";
 
-pub(super) const MANAGED_DIR_OVERRIDE: &str = "SP_BRIDGE_OPENCODE_MANAGED_DIR";
-
 pub(super) const PROVIDER_NPM: &str = "provider.systemprompt.npm";
 pub(super) const PROVIDER_BASE_URL: &str = "provider.systemprompt.options.baseURL";
 pub(super) const PROVIDER_PROTOCOL_HEADER: &str =
@@ -39,10 +37,18 @@ pub(super) const SCHEMA: HostConfigSchema = HostConfigSchema {
     display_keys: KEYS_OF_INTEREST,
 };
 
-pub(super) fn managed_dir() -> PathBuf {
-    if let Some(custom) = crate::basedirs::env_dir(MANAGED_DIR_OVERRIDE) {
-        return custom;
+// Why: `[opencode] managed_dir` in the bridge config names a nonstandard
+// managed tier (a relocated /etc, a test sandbox); the platform default
+// applies only when the config does not set it.
+pub(super) fn managed_dir() -> Result<PathBuf, crate::config::ConfigReadError> {
+    let cfg = crate::config::load()?;
+    if let Some(custom) = cfg.opencode.and_then(|o| o.managed_dir) {
+        return Ok(custom);
     }
+    Ok(platform_managed_dir())
+}
+
+fn platform_managed_dir() -> PathBuf {
     if cfg!(target_os = "macos") {
         PathBuf::from("/Library/Application Support/opencode")
     } else if cfg!(target_os = "windows") {
@@ -54,12 +60,8 @@ pub(super) fn managed_dir() -> PathBuf {
     }
 }
 
-pub(super) fn managed_config_path() -> PathBuf {
-    managed_dir().join(CONFIG_FILE)
-}
-
-pub(super) fn managed_jsonc_path() -> PathBuf {
-    managed_dir().join(CONFIG_FILE_JSONC)
+pub(super) fn managed_config_path() -> Result<PathBuf, crate::config::ConfigReadError> {
+    Ok(managed_dir()?.join(CONFIG_FILE))
 }
 
 // Why: OpenCode's macOS MDM preferences take precedence over the managed file.
@@ -67,7 +69,11 @@ pub(super) fn managed_jsonc_path() -> PathBuf {
 pub(super) fn macos_managed_prefs_paths() -> Vec<PathBuf> {
     const DOMAIN: &str = "ai.opencode.managed.plist";
     const ROOT: &str = "/Library/Managed Preferences";
-    if crate::basedirs::env_dir(MANAGED_DIR_OVERRIDE).is_some() {
+    if crate::config::load()
+        .ok()
+        .and_then(|c| c.opencode)
+        .is_some_and(|o| o.managed_dir.is_some())
+    {
         return Vec::new();
     }
     let mut paths = Vec::new();
@@ -92,16 +98,16 @@ pub(super) fn user_config_path() -> PathBuf {
 }
 
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-pub(super) fn fallback_config_path() -> Option<PathBuf> {
+pub(super) fn fallback_config_path(managed: &std::path::Path) -> Option<PathBuf> {
     let path = user_config_path();
-    if path == managed_config_path() {
+    if path == managed {
         return None;
     }
     Some(path)
 }
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
-pub(super) const fn fallback_config_path() -> Option<PathBuf> {
+pub(super) const fn fallback_config_path(_managed: &std::path::Path) -> Option<PathBuf> {
     None
 }
 
@@ -141,19 +147,4 @@ pub(super) fn now_unix() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map_or(0, |d| d.as_secs())
-}
-
-pub(super) fn make_uuids() -> (String, String) {
-    let n = now_unix();
-    let payload_uuid = format!(
-        "ce0c{:08x}-0pc0-40pc-0pc0-{:012x}",
-        n & 0xFFFF_FFFF,
-        n ^ 0xC0DE_C0DE_C0DE_C0DEu64
-    );
-    let profile_uuid = format!(
-        "ce0d{:08x}-0pc0-40pc-0pc0-{:012x}",
-        (n ^ 0x9876_5432) & 0xFFFF_FFFF,
-        n ^ 0xBEEF_FACE_BEEF_FACEu64
-    );
-    (payload_uuid, profile_uuid)
 }

@@ -1,7 +1,7 @@
 //! Coverage for the `Actor` principal/surface attribution type and its
 //! `ActorKind` / `ActorKindTag` enums.
 
-use systemprompt_identifiers::{Actor, ActorKind, ActorKindTag, UserId};
+use systemprompt_identifiers::{Actor, ActorKind, ActorKindTag, AgentId, UserId};
 
 fn user() -> UserId {
     UserId::new("user_abc")
@@ -54,11 +54,11 @@ fn mcp_actor_uses_server_name_as_actor_id() {
 
 #[test]
 fn agent_actor_uses_agent_id_as_actor_id() {
-    let actor = Actor::agent(user(), "developer_agent");
+    let actor = Actor::agent(user(), AgentId::new("developer_agent"));
     assert_eq!(
         actor.kind,
         ActorKind::Agent {
-            agent_id: "developer_agent".to_owned()
+            agent_id: AgentId::new("developer_agent")
         }
     );
     assert_eq!(actor.audit_columns(), ("agent", "developer_agent"));
@@ -78,7 +78,11 @@ fn from_tool_name_mcp_prefix_extracts_server() {
 
 #[test]
 fn from_tool_name_mcp_prefix_takes_priority_over_agent() {
-    let actor = Actor::from_tool_name(user(), Some("some_agent"), "mcp__github__create_issue");
+    let actor = Actor::from_tool_name(
+        user(),
+        Some(&AgentId::new("some_agent")),
+        "mcp__github__create_issue",
+    );
     assert_eq!(
         actor.kind,
         ActorKind::Mcp {
@@ -89,29 +93,29 @@ fn from_tool_name_mcp_prefix_takes_priority_over_agent() {
 
 #[test]
 fn from_tool_name_empty_server_falls_through_to_agent() {
-    let actor = Actor::from_tool_name(user(), Some("a1"), "mcp____tool");
+    let actor = Actor::from_tool_name(user(), Some(&AgentId::new("a1")), "mcp____tool");
     assert_eq!(
         actor.kind,
         ActorKind::Agent {
-            agent_id: "a1".to_owned()
+            agent_id: AgentId::new("a1")
         }
     );
 }
 
 #[test]
 fn from_tool_name_with_agent_id_yields_agent() {
-    let actor = Actor::from_tool_name(user(), Some("my_agent"), "Bash");
+    let actor = Actor::from_tool_name(user(), Some(&AgentId::new("my_agent")), "Bash");
     assert_eq!(
         actor.kind,
         ActorKind::Agent {
-            agent_id: "my_agent".to_owned()
+            agent_id: AgentId::new("my_agent")
         }
     );
 }
 
 #[test]
 fn from_tool_name_empty_agent_id_yields_user() {
-    let actor = Actor::from_tool_name(user(), Some(""), "Bash");
+    let actor = Actor::from_tool_name(user(), Some(&AgentId::new("")), "Bash");
     assert_eq!(actor.kind, ActorKind::User);
 }
 
@@ -142,7 +146,7 @@ fn actor_kind_as_str_all_variants() {
     );
     assert_eq!(
         ActorKind::Agent {
-            agent_id: "a".to_owned()
+            agent_id: AgentId::new("a")
         }
         .as_str(),
         "agent"
@@ -184,7 +188,7 @@ fn actor_kind_tag_maps_each_variant() {
     );
     assert_eq!(
         ActorKind::Agent {
-            agent_id: "a".to_owned()
+            agent_id: AgentId::new("a")
         }
         .tag(),
         ActorKindTag::Agent

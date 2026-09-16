@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
 use systemprompt_config::{
-    ConfigError, ProfileBootstrap, SecretsBootstrap, build_from_profile, init_config,
-    try_init_config, validate_database_config,
+    ConfigError, ProfileBootstrap, SecretsBootstrap, build_from_profile, try_init_config,
+    validate_database_config,
 };
 
 use crate::fixture;
@@ -47,17 +47,14 @@ async fn build_from_profile_resolves_paths_and_secrets() {
 }
 
 #[tokio::test]
-async fn init_config_installs_global_and_try_init_is_idempotent() {
+async fn try_init_config_installs_the_global_once_and_is_idempotent() {
     let fx = file_fixture();
     boot(&fx).await;
 
-    init_config(None).unwrap();
+    try_init_config(None).unwrap();
 
     assert!(systemprompt_models::Config::is_initialized());
     try_init_config(None).unwrap();
-
-    let err = init_config(None).unwrap_err();
-    assert!(matches!(err, ConfigError::AlreadyInitialized));
 }
 
 #[tokio::test]

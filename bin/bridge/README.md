@@ -6,7 +6,7 @@ Three roles:
 
 1. **Credential helper.** Emits a JSON envelope matching Anthropic's `inferenceCredentialHelper` contract, `{ "token": "...", "ttl": 3600, "headers": {} }`, to stdout.
 2. **Sync agent.** Pulls the user's signed plugin, skill, agent, and MCP allowlist manifest from the gateway into the `org-plugins/` mount.
-3. **Local inference proxy.** Loopback HTTP/1.1 proxy on `127.0.0.1:48217`. The Claude Desktop profile pins it as `inferenceGatewayBaseUrl` with a long-lived loopback secret; the bridge swaps the bearer for a fresh JWT before forwarding upstream. The proxy sends the gateway JWT to the configured gateway; clients use the local loopback credential.
+3. **Local inference proxy.** Loopback HTTP/1.1 proxy on `127.0.0.1:48217`. Every client presents a local credential; the bridge swaps it for a fresh gateway JWT before forwarding upstream. The credential a client holds is scoped to the surface it was written to (see *Loopback credentials* below).
 
 Diagnostics on stderr. `tracing` JSON via `SP_BRIDGE_LOG_FORMAT=json`. Exit 0 on success.
 
@@ -25,7 +25,7 @@ Released artifacts: macOS (arm64, x86_64), Windows (x86_64), Linux (x86_64). The
 | Module | Purpose |
 |---|---|
 | [`context.rs`](src/context.rs) | `BridgeContext`: the one composition root — tokio runtime, proxy handle, install id, MCP registry, activity log, gateway HTTP client, per-process caches. Built once in `cli::run_with_args` (serving for `proxy`/`gui`, attaching for every other command) and injected; nothing below it reaches for process state |
-| [`auth/`](src/auth/) | Provider chain (mTLS → session → PAT), single credential contract |
+| [`auth/`](src/auth/) | Provider chain (session → PAT), single credential contract |
 | [`proxy/`](src/proxy/) | Loopback inference proxy, forwarding, single-flight token cache |
 | [`gateway/`](src/gateway/) | Gateway client, manifest fetch and signature verification |
 | [`sync/`](src/sync/) | Manifest apply, replay protection (monotonic version + skew) |
@@ -47,13 +47,13 @@ The modules are layered bottom-up and `just lint-bridge-layers` refuses an upwar
 | `run` _(default)_ | Acquire a bearer via the auth chain and emit the JWT envelope to stdout |
 | `proxy` | Run the local inference proxy headlessly (Linux/server equivalent of the desktop GUI) |
 | `gui` | Launch the native settings window (Windows + macOS) |
-| `login <sp-live-…> [--gateway <url>]` | Store a PAT securely and wire up config |
+| `login [<sp-live-…>] [--stdin] [--code <exchange-code>] [--gateway <url>]` | Store a PAT securely and wire up config; `--stdin` reads the PAT from stdin so it never appears on the command line |
 | `logout` | Remove the stored PAT and its config section |
 | `clean` | Wipe local bridge state (config + PAT + token cache) |
 | `status` | Show config paths and what is currently set up |
 | `whoami` | Print authenticated identity from the gateway |
 | `install [--apply] [--pubkey <base64>] …` | Bootstrap integration; pin manifest signing pubkey |
-| `sync [--watch] [--allow-tofu] [--force-replay] …` | Pull plugins + MCP allowlist into `org-plugins/` |
+| `sync [--watch [--interval <secs>]] [--allow-tofu] [--force-replay] …` | Pull plugins + MCP allowlist into `org-plugins/`; an unparseable `--interval` exits `64` |
 | `oauth-client {status\|rotate}` | Manage the per-tenant OAuth client that mints plugin-scoped hook tokens |
 | `validate` | End-to-end self-check (paths, gateway, creds, signatures) |
 | `doctor` | Diagnose common failure modes (config, creds, gateway, loopback secret, pinned pubkey), one line per check |
@@ -61,18 +61,33 @@ The modules are layered bottom-up and `just lint-bridge-layers` refuses an upwar
 | `diagnostics` | Collect version, build provenance and diagnostic state |
 | `uninstall [--purge]` | Reverse install; `--purge` also clears credentials |
 
-Exit codes: `0` success, `2` emit error, `3` whoami error, `5` no credential source succeeded, `8` pubkey not pinned, `10` transient failure on preferred provider.
+Exit codes: `0` success, `2` emit error, `3` whoami error, `4` signature failure or unsigned refused under a pin, `5` no credential source succeeded, `8` pubkey not pinned, `10` transient credential failure worth retrying, `64` usage error.
+
+A bare invocation with no subcommand is `run`; the GUI opens by default only when the process was started without a console of its own (a double-click on Windows, an app-bundle launch on macOS). A scheduler or a pipe invoking the binary with no arguments gets the credential helper, never a window.
 
 ---
 
 ## Security posture
 
-- **Manifest trust.** `install --apply --pubkey <base64>` provisions administrator trust in the brand’s policy location. Operator trust uses a gateway-bound `[sync.trust]` record. Review `src/config/trust/` for precedence and legacy-pin adoption.
+- **Manifest trust.** `install --apply --pubkey <base64>` provisions administrator trust in the brand’s policy location. Operator trust uses a gateway-bound `[sync.trust]` record; a key that is not bound to the configured gateway is never adopted. `sync --allow-unsigned` is refused once a pin exists for the gateway.
 - **Distinct JWT audience.** Bridge tokens use the audiences selected by the gateway credential exchange. Acceptance is determined by the receiving route’s audience and authorization policies.
 - **Replay protection.** Manifests carry a signed `not_before` field; sync rejects `manifest_version` ≤ last applied or `not_before` outside ±5 min skew.
 - **RFC 8785 (JCS) canonical JSON** for signature input. Field-order stability is contract, not coincidence.
-- **Loopback proxy** validates a constant-time-compared shared secret on protected inbound paths and rejects non-loopback `Host` headers.
-- **mTLS-preferred chain.** When mTLS is configured, a transient gateway failure returns an unavailable result; it exits `10`, distinct from the "no credential source" `5`.
+- **Loopback proxy** validates a constant-time-compared credential on every inbound path except `/healthz` and `/__bridge/whoami`, and rejects non-loopback `Host` headers.
+- **Auto-update policy is fail-closed.** The last-sync sentinel carries the organisation's `AutoUpdatePolicy`; when it is unreadable, corrupt, or written by another gateway the bridge withholds automatic staging and records a start-up fault instead of falling back to the staged default.
+- **Uninstall removes only what the bridge wrote.** Plugins, policy values and marketplace entries are removed from the sidecar records the bridge keeps; foreign entries are reported and left in place.
+
+### Loopback credentials
+
+The loopback secret (`<config_dir>/<brand>/bridge-loopback.key`, mode 0600) is the root credential and is only ever written to bridge-owned 0600 files: the OpenCode `auth.json`, the Hermes `.env`, the Codex credential helper, and the Linux `env.sh`. Every surface another local account can read carries a token derived from it with a domain-separated HMAC-SHA256 (`src/proxy/scoped_token.rs`), so a leaked file grants only what that surface needs and a secret reset invalidates every derived token at once:
+
+| Surface | Credential | Accepted on |
+|---|---|---|
+| Bridge-owned 0600 files | loopback secret | inference (`/v1/*`), `/mcp/*`, `/otel*` |
+| Claude Desktop managed preferences / policy hive (`inferenceGatewayApiKey`, `managedMcpServers[].bearer`) | `host:claude-desktop` token | inference and `/mcp/*` only |
+| `org-plugins/<plugin>/hooks/hooks.json` | `hook:<plugin_id>` token | `/api/public/hooks/*?plugin_id=<plugin_id>` only |
+
+A hook route accepts only the matching plugin's hook token (the raw secret and host tokens are rejected there); `/otel*` accepts only the raw secret, so telemetry forwarded with the user's gateway JWT can be emitted only by a process that can read a bridge-owned file. A request whose credential does not fit the route is answered `401` with `x-systemprompt-bridge-reason: scope-mismatch`. Claude Desktop keeps a credential in its managed preferences because its third-party gateway contract offers no credential helper — `inferenceGatewayApiKey` is the only value it can present.
 
 ---
 
@@ -147,13 +162,9 @@ under *Add agent* rather than listed with a status.
 | `SP_BRIDGE_CONFIG` | Path to `systemprompt-bridge.toml` (default: `<config_dir>/systemprompt/systemprompt-bridge.toml`) |
 | `SP_BRIDGE_PAT` | Inline PAT (overrides file-based `[pat]`) |
 | `SP_BRIDGE_POLICY_TRUST` | Managed manifest trust record as JSON (`{"gateway","key","source"}`); takes precedence over the OS policy store `manifestTrust` key |
-| `SP_BRIDGE_POLICY_PUBKEY` | Pinned manifest signing pubkey (overrides operator value) |
 | `SP_BRIDGE_ORG_PLUGINS_SYSTEM` | Override the system-scope org-plugins root (nonstandard installs, hermetic tests) |
 | `SP_BRIDGE_EGRESS_ALLOWED_HOSTS` | Comma-separated Cowork egress allowlist for `install --apply` when `--egress-allowed-hosts` is absent; `loopback` expands to `127.0.0.1` |
 | `SP_BRIDGE_LOG_FORMAT` | `json` for structured logs; default human-readable |
-| `SP_BRIDGE_DEVICE_CERT` | Linux: path to the device certificate (PEM or DER); takes precedence over `mtls.cert_keystore_ref` |
-| `SP_BRIDGE_DEVICE_CERT_LABEL` | macOS: Keychain label of the device certificate |
-| `SP_BRIDGE_DEVICE_CERT_SHA256` | Windows: pin a specific device cert in the `MY` store by SHA-256 fingerprint |
 | `RUST_LOG` | `tracing` filter directive; default `info,systemprompt_bridge::proxy=debug`. A malformed value fails start-up |
 
 The `SP_BRIDGE_` prefix is the brand's `env_prefix`; a white-label build reads the same suffixes under its own prefix. Every other environment read is an OS directory or identity probe (`HOME`, `XDG_CONFIG_HOME`/`XDG_CACHE_HOME`/`XDG_DATA_HOME`/`XDG_STATE_HOME`, `USER`, `SUDO_USER`, `HOSTNAME`/`COMPUTERNAME`, `LANG`, `PATH`, and the Windows `LOCALAPPDATA`/`APPDATA`/`USERPROFILE`/`ProgramData`/`ProgramFiles` folders) or a home override the managed host tool itself defines (`CODEX_HOME`, `CODEX_SYSTEM_CONFIG`, `HERMES_HOME`). Bridge behaviour is never switched by an undocumented variable; `just lint-env-vars` holds that line.
@@ -176,17 +187,19 @@ file = "…"                            # PAT path override (default: <config_di
 [session]
 enabled = true                        # device-link browser sign-in
 
-[mtls]
-cert_keystore_ref = "…"               # OS keystore reference for the device cert
-
-[sync]
-pinned_pubkey = "…"                   # base64 manifest signing key; also settable via --pubkey / MDM
+[sync.trust]
+gateway = "https://gateway.example.com"   # the gateway this key is bound to
+key = "…"                              # base64 manifest signing key; also settable via --pubkey / MDM
+source = "operator"
 
 [claude]
 # host-app integration overrides
 
 [cowork]
 session_org_dir = "…"                 # absolute path to the Cowork session/organization directory
+
+[opencode]
+managed_dir = "…"                     # where the OpenCode managed config is written (default: the OS-managed OpenCode config dir)
 ```
 
 `[cowork] session_org_dir` pins which Cowork session directory the bridge writes plugin enables and
@@ -213,3 +226,56 @@ Tag `bridge-vX.Y.Z` triggers `.github/workflows/bridge-release.yml`. Workspace C
 ---
 
 Part of [systemprompt.io](https://systemprompt.io), self-hosted AI governance infrastructure.
+
+
+## Installation receipts and native sessions
+
+An administrator provisions a device-scoped credential through
+`POST /api/v1/consumer-devices/{enrolled_certificate_id}/credential`. Transfer that
+secret to the intended device in a protected file, then run
+`systemprompt-bridge device-enroll --token-file <file>`. Enrollment verifies the
+credential against `/api/v1/consumer-devices/enrollment` before atomically storing
+it with the authenticated consumer, enrolled device, and gateway identity.
+The existing per-user bridge token and a supplied certificate fingerprint cannot
+substitute for this credential. Local secret storage uses mode 0600 on Unix and a
+verified private ACL on Windows. Same-device credential rotation preserves the
+installation identity; another device or account uses a separate outbox and cannot
+replay its predecessor's evidence.
+
+Every implemented skill host participates after its native emitter succeeds:
+Claude Code's active plugin cache, Codex's source and active cache, OpenCode and
+Hermes skill directories, and Claude Desktop's enabled org-provisioned plugin
+roots. A device-authorized download supplies a deterministic host installation
+plan derived from the retained publication and full dependency bundle. Readback
+checks native `SKILL.md`, every active supporting/dependency file, and retained
+source material. A `.systemprompt-source` copy alone cannot pass: changing an
+active script or entrypoint independently prevents acknowledgment. Unix file
+permissions are checked against the applied 0644/0755 modes. Windows executable
+mode verification is explicitly unavailable, so those receipts cannot support
+verified session attribution.
+
+Pending plan downloads are retained before network access, including their signed
+publication, host and actual target directories. Sync retries materialization and
+readback under a cross-process installation lock. A newer generation supersedes an
+unresolved old plan; recovery cannot install the old plan over the newer version.
+Receipt and session retries run during sync and the existing owned heartbeat task;
+the heartbeat does not mutate native installations. The bounded outbox retains
+unacknowledged evidence across process restarts, acknowledges identical retries,
+and exposes conflicts and rejected credentials explicitly. Limits are 512 receipts,
+512 pending plans and 16 MiB per identity-scoped outbox. Pending evidence is never
+evicted to create room. `systemprompt-bridge feedback-status` reports acknowledged,
+unacknowledged, fully verified and superseded states separately.
+
+Session observation uses native client metadata on authenticated loopback requests:
+Claude session UUIDs in `metadata.user_id`, Codex thread metadata (or compatible
+native session headers), OpenCode's per-session header, and Hermes's native
+`session_id` when present. It never binds the bridge-generated `x-session-id`.
+Client versions/transports that omit native metadata retain unknown session
+attribution; a user-agent alone cannot establish a session. Session bindings freeze
+the observed generation instead of silently following later upgrades. These wire
+parsers and filesystem contracts do not establish Windows/macOS native acceptance,
+paid inference acceptance, or automated evaluator capability.
+
+The upstream wire references inspected for these parsers are
+[Codex response metadata](https://github.com/openai/codex/blob/main/codex-rs/core/src/responses_metadata.rs)
+and [Hermes auxiliary request routing](https://github.com/NousResearch/hermes-agent/blob/main/agent/auxiliary_client.py).

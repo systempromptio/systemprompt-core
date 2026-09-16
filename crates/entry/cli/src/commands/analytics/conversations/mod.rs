@@ -16,6 +16,7 @@ use anyhow::Result;
 use clap::Subcommand;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::UserId;
 
 use crate::context::CommandContext;
 use crate::shared::render_result;
@@ -61,6 +62,8 @@ pub struct ConversationTrendsOutput {
 pub struct ConversationListRow {
     #[serde(rename = "context_id")]
     pub context: String,
+    pub source: String,
+    pub user_id: UserId,
     pub name: Option<String>,
     pub task_count: i64,
     pub message_count: i64,

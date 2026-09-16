@@ -8,10 +8,12 @@ mod error;
 mod manifest;
 mod provision;
 mod replay;
+mod seed_model;
 mod sentinel;
 mod summary;
 
 use self::provision::{denied_inside_system_root, heal_org_plugins_scope, org_plugins_denied};
+use self::seed_model::seed_default_model_from_profile;
 use self::sentinel::persist_last_sync;
 pub use crate::last_sync::{
     LastSyncState, ReplayStateError, last_synced_auto_update_policy, last_synced_enabled_hosts,
@@ -19,6 +21,7 @@ pub use crate::last_sync::{
 };
 pub use apply::{HostFailure, HostWarning, PLUGIN_INSTALLATION_PREFERENCE};
 pub use error::{CredentialRejection, SyncError};
+pub use provision::ProvisionError;
 pub use replay::{SKEW_WINDOW_MINUTES, check_replay, check_skew};
 pub use summary::SyncSummary;
 use summary::build_summary;
@@ -49,13 +52,52 @@ pub fn warn_unsafe_flags(allow_unsigned: bool, force_replay: bool, allow_tofu: b
     }
 }
 
-#[tracing::instrument(level = "info")]
+#[derive(Debug, Clone, Default)]
+pub struct SyncOptions {
+    pub allow_unsigned: bool,
+    pub force_replay: bool,
+    pub allow_tofu: bool,
+    pub cancel: tokio_util::sync::CancellationToken,
+}
+
+// Why: the credential is only attribution; a sync must never fail because
+// the gateway declined to enrol this install.
+async fn ensure_device_enrolled(
+    bridge: &crate::context::BridgeContext,
+    fetch: &manifest::ManifestFetch,
+    user_id: &systemprompt_identifiers::UserId,
+) {
+    let Ok(root) = crate::feedback::metadata_root() else {
+        return;
+    };
+    if crate::feedback::credentials::Enrollment::load(&root, fetch.client.base_url_str()).is_ok() {
+        return;
+    }
+    let enrolment = crate::feedback::enrol::SelfEnrolment {
+        install_id: bridge.install_id().as_str(),
+        user_id,
+        label: crate::sysproc::host_name(),
+        force_rotate: false,
+    };
+    if let Err(error) =
+        crate::feedback::enrol::ensure_self_enrolled(&fetch.client, &fetch.bearer, &enrolment).await
+    {
+        tracing::warn!(%error, "device self-enrolment failed; installation feedback stays unattributed");
+    }
+}
+
+#[tracing::instrument(level = "info", skip(bridge))]
 pub async fn run_once(
     bridge: &crate::context::BridgeContext,
-    allow_unsigned: bool,
-    force_replay: bool,
-    allow_tofu: bool,
+    options: &SyncOptions,
 ) -> Result<SyncSummary, SyncError> {
+    let SyncOptions {
+        allow_unsigned,
+        force_replay,
+        allow_tofu,
+        cancel,
+    } = options;
+    let (allow_unsigned, force_replay, allow_tofu) = (*allow_unsigned, *force_replay, *allow_tofu);
     let operation =
         std::sync::Arc::new(std::sync::Arc::clone(&bridge.sync_lock).lock_owned().await);
     bridge
@@ -72,9 +114,16 @@ pub async fn run_once(
         .report(&crate::progress::SyncProgress::new(
             "manifest", "manifest", 1, 1,
         ));
+    if let Ok(config) = config::load() {
+        let gateway = config::gateway_url_or_default(&config);
+        if let Err(error) = crate::feedback::retry_pending(gateway.as_str()).await {
+            tracing::debug!(%error,"Installation receipts remain unacknowledged before sync");
+        }
+    }
     let fetch = manifest::fetch_authenticated_manifest(&bridge.http).await?;
     let synced = manifest::verify_and_decode(&fetch, allow_unsigned, allow_tofu).await?;
     let run_gateway = fetch.client.base_url().clone();
+    ensure_device_enrolled(bridge, &fetch, &synced.user_id).await;
 
     #[cfg_attr(
         not(target_os = "windows"),
@@ -93,11 +142,11 @@ pub async fn run_once(
     if !location.path.is_dir() {
         match location.scope {
             paths::Scope::User => {
-                fs::create_dir_all(&location.path).map_err(|e| {
-                    SyncError::Network(format!(
-                        "could not create org-plugins directory at {}: {e}",
-                        location.path.display()
-                    ))
+                fs::create_dir_all(&location.path).map_err(|source| {
+                    SyncError::OrgPluginsCreate {
+                        path: location.path.clone(),
+                        source,
+                    }
                 })?;
                 tracing::info!(path = %location.path.display(), "provisioned per-user org-plugins directory");
             },
@@ -126,41 +175,53 @@ pub async fn run_once(
                 return Err(SyncError::from(e));
             },
         };
+        check_skew(synced.not_before, now)?;
+        if last_state.manifest_version.as_ref() == Some(&synced.manifest_version) {
+            ensure_not_superseded(&run_gateway)?;
+            if let Err(error) =
+                crate::feedback::recover_current_manifest(fetch.client.base_url_str(), &synced)
+                    .await
+            {
+                tracing::debug!(%error, "Pending installation recovery remains unacknowledged");
+            }
+        }
         check_replay(&last_state, &synced.manifest_version)?;
-        check_skew(&synced.not_before, now)?;
     }
     ensure_not_superseded(&run_gateway)?;
 
-    let report = match apply::apply_manifest(
-        &fetch.client,
-        fetch.bearer.expose(),
+    let request = apply::ApplyRequest {
+        client: &fetch.client,
+        bearer: &fetch.bearer,
         bridge,
-        &synced,
-        &location,
-    )
-    .await
-    {
-        Ok(report) => report,
+        manifest: &synced,
+        location: &location,
+        cancel,
+    };
+    let outcome = match apply::apply_manifest(&request).await {
+        Ok(outcome) => outcome,
         Err(e) if denied_inside_system_root(&e, &location) => {
             let healed = heal_org_plugins_scope(bridge, std::sync::Arc::clone(&operation))
                 .await?
-                .ok_or_else(|| org_plugins_denied(&e, &location))?;
+                .ok_or_else(|| org_plugins_denied(e, &location))?;
             tracing::warn!(
                 path = %healed.path.display(),
-                error = %e,
                 "org-plugins re-granted after a denied plugin replacement; applying again"
             );
-            apply::apply_manifest(
-                &fetch.client,
-                fetch.bearer.expose(),
-                bridge,
-                &synced,
-                &healed,
-            )
-            .await
-            .map_err(|e| org_plugins_denied(&e, &healed))?
+            let healed_request = apply::ApplyRequest {
+                location: &healed,
+                ..request
+            };
+            apply::apply_manifest(&healed_request)
+                .await
+                .map_err(|e| org_plugins_denied(e, &healed))?
         },
         Err(e) => return Err(apply_error_to_sync(e)),
+    };
+    let report = match outcome {
+        apply::ApplyOutcome::Applied(report) => report,
+        apply::ApplyOutcome::Cancelled { applied } => {
+            return Err(SyncError::Cancelled { applied });
+        },
     };
 
     if !report.host_failures.is_empty() || !report.malformed.is_empty() {
@@ -196,42 +257,8 @@ fn apply_error_to_sync(e: apply::ApplyError) -> SyncError {
             started_for,
             current,
         },
-        other => SyncError::ApplyFailed(other),
+        other => SyncError::ApplyFailed(Box::new(other)),
     }
-}
-
-async fn seed_default_model_from_profile(
-    client: &crate::gateway::GatewayClient,
-) -> Result<(), SyncError> {
-    let profile = match client.fetch_bridge_profile().await {
-        Ok(profile) => profile,
-        // Why: a gateway older than the profile endpoint has no default model
-        // to seed; the sync itself completed and its checkpoint is written.
-        Err(crate::gateway::GatewayError::HttpStatus {
-            status: reqwest::StatusCode::NOT_FOUND,
-            ..
-        }) => return Ok(()),
-        Err(e) => return Err(SyncError::Network(e.to_string())),
-    };
-    let rows =
-        crate::install::mdm::claude_code_settings::model_picker::picker_rows(&profile.providers);
-    match crate::install::mdm::claude_code_settings::apply_model_picker(&rows) {
-        Ok(lines) => {
-            for line in lines {
-                tracing::info!(target: "bridge::install", detail = %line, "claude code model picker");
-            }
-        },
-        Err(e) => return Err(SyncError::Network(format!("claude code model picker: {e}"))),
-    }
-    let Some(model) = profile.default_model.as_deref() else {
-        return Ok(());
-    };
-    match crate::install::mdm::claude_code_settings::seed_default_model(model) {
-        Ok(true) => tracing::info!(model, "seeded the default model from the bridge profile"),
-        Ok(false) => tracing::debug!("settings already name a model; leaving the user's choice"),
-        Err(e) => return Err(SyncError::Network(format!("seed default model: {e}"))),
-    }
-    Ok(())
 }
 
 #[cfg(target_os = "windows")]

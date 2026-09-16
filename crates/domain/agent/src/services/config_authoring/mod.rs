@@ -12,6 +12,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod edit;
+mod set_value;
 
 use std::fs;
 use std::path::PathBuf;
@@ -65,6 +66,15 @@ pub enum ConfigAuthoringError {
 
     #[error(transparent)]
     Write(#[from] ConfigWriteError),
+
+    #[error("No provider given and services config declares no ai.default_provider")]
+    NoDefaultProvider,
+
+    #[error("No model given and the provider catalogue lists no model for provider '{0}'")]
+    NoDefaultModel(String),
+
+    #[error("Failed to load services config for defaults: {0}")]
+    ServicesConfig(String),
 }
 
 #[derive(Debug, Clone, Default)]
@@ -153,7 +163,7 @@ impl AgentConfigAuthoringService {
     pub fn create(&self, request: AgentCreateRequest) -> Result<PathBuf, ConfigAuthoringError> {
         Self::validate_agent_name(&request.name)?;
         Self::validate_port(request.port)?;
-        let agent_config = build_agent_config(request);
+        let agent_config = build_agent_config(request)?;
         Ok(ConfigWriter::create_agent(
             &agent_config,
             &self.services_dir,
@@ -165,17 +175,23 @@ impl AgentConfigAuthoringService {
     }
 }
 
-fn build_agent_config(mut request: AgentCreateRequest) -> AgentConfig {
-    let provider = request.provider.unwrap_or_else(|| "anthropic".to_owned());
-    let model = request
-        .model
-        .unwrap_or_else(|| default_model_for(&provider));
+fn build_agent_config(
+    mut request: AgentCreateRequest,
+) -> Result<AgentConfig, ConfigAuthoringError> {
+    let provider = match request.provider.take() {
+        Some(provider) => provider,
+        None => default_provider()?,
+    };
+    let model = match request.model.take() {
+        Some(model) => model,
+        None => default_model_for(&provider)?,
+    };
     let endpoint = match request.endpoint.take() {
         Some(endpoint) => endpoint,
         None => ApiPaths::agent_endpoint(&AgentId::new(&request.name)),
     };
 
-    AgentConfig {
+    Ok(AgentConfig {
         name: request.name.clone(),
         port: request.port,
         endpoint,
@@ -220,16 +236,23 @@ fn build_agent_config(mut request: AgentCreateRequest) -> AgentConfig {
             ..Default::default()
         },
         oauth: OAuthConfig::default(),
-    }
+    })
 }
 
-fn default_model_for(provider: &str) -> String {
-    ProviderRegistry::default_seed()
-        .ok()
-        .and_then(|registry| {
-            registry
-                .find_provider(provider)
-                .and_then(|entry| entry.models.first().map(|m| m.id.as_str().to_owned()))
-        })
-        .unwrap_or_else(|| "claude-sonnet-4-6".to_owned())
+fn default_provider() -> Result<String, ConfigAuthoringError> {
+    let services = systemprompt_loader::ConfigLoader::load()
+        .map_err(|e| ConfigAuthoringError::ServicesConfig(e.to_string()))?;
+    if services.ai.default_provider.is_empty() {
+        return Err(ConfigAuthoringError::NoDefaultProvider);
+    }
+    Ok(services.ai.default_provider)
+}
+
+fn default_model_for(provider: &str) -> Result<String, ConfigAuthoringError> {
+    let registry = ProviderRegistry::default_seed()
+        .map_err(|e| ConfigAuthoringError::ServicesConfig(e.to_string()))?;
+    registry
+        .find_provider(provider)
+        .and_then(|entry| entry.models.first().map(|m| m.id.as_str().to_owned()))
+        .ok_or_else(|| ConfigAuthoringError::NoDefaultModel(provider.to_owned()))
 }

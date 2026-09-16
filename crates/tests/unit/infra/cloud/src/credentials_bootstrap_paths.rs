@@ -43,7 +43,7 @@ fn write_credentials(
         api_token: CloudAuthToken::new(jwt_with_exp(token_offset_secs)),
         api_url: api_url.to_owned(),
         authenticated_at: Utc::now(),
-        user_email: Email::new("dev@example.com".to_owned()),
+        user_email: Email::try_new("dev@example.com".to_owned()).expect("valid Email"),
         last_validated_at,
     };
     let path = root.join(".systemprompt/credentials.json");

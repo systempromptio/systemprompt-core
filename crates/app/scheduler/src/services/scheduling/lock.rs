@@ -28,6 +28,22 @@ pub(super) struct JobLockGuard {
     job_name: String,
 }
 
+impl Drop for JobLockGuard {
+    fn drop(&mut self) {
+        // Why: a connection returned to the pool keeps its session, and with it
+        // the advisory lock; detaching closes the session so a cancelled job
+        // cannot hold its claim until the pool recycles the connection.
+        if let Some(conn) = self.conn.take() {
+            warn!(
+                job_name = %self.job_name,
+                "JobLockGuard dropped without explicit release; closing its session"
+            );
+            let session = conn.detach();
+            drop(session);
+        }
+    }
+}
+
 impl JobLockGuard {
     pub(super) async fn release(mut self) {
         if let Some(mut conn) = self.conn.take()

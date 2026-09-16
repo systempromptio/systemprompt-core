@@ -20,7 +20,7 @@ use systemprompt_identifiers::{
 };
 use systemprompt_models::Config;
 use systemprompt_models::auth::{AuthenticatedUser, JwtAudience};
-use systemprompt_traits::{AnalyticsProvider, CreateSessionInput, ExtractSignals};
+use systemprompt_traits::{AnalyticsProvider, CreateSessionInput, ExtractSignals, SessionProvider};
 
 use crate::repository::{CreateExchangeCodeParams, OAuthRepository};
 use crate::services::generation::{
@@ -48,30 +48,25 @@ pub struct BridgeAccessRequest<'a> {
     pub ttl_seconds: u64,
 }
 
-pub async fn issue_bridge_access(
-    repo: &OAuthRepository,
-    analytics: &dyn AnalyticsProvider,
-    request_headers: &HeaderMap,
-    caller_ip: Option<IpAddr>,
-    user_id: &UserId,
-) -> Result<BridgeAuthResult> {
-    issue_bridge_access_with(
-        repo,
-        analytics,
-        BridgeAccessRequest {
+impl<'a> BridgeAccessRequest<'a> {
+    pub fn bridge(
+        request_headers: &'a HeaderMap,
+        caller_ip: Option<IpAddr>,
+        user_id: &'a UserId,
+    ) -> Self {
+        Self {
             request_headers,
             caller_ip,
             user_id,
             client_id: ClientId::bridge(),
             session_source: SessionSource::Bridge,
             ttl_seconds: DEFAULT_ACCESS_TTL_SECONDS,
-        },
-    )
-    .await
+        }
+    }
 }
 
 async fn adopt_or_mint_session(
-    analytics: &dyn AnalyticsProvider,
+    sessions: &dyn SessionProvider,
     request_headers: &HeaderMap,
     user_id: &UserId,
 ) -> SessionId {
@@ -82,7 +77,7 @@ async fn adopt_or_mint_session(
         .filter(|s| !s.is_empty())
         .map(SessionId::new);
     match requested_session {
-        Some(requested) => match analytics.find_session_by_id(&requested).await {
+        Some(requested) => match sessions.find_session_by_id(&requested).await {
             Ok(Some(existing)) if existing.user_id.as_ref() == Some(user_id) => requested,
             Ok(None) => requested,
             Ok(Some(_)) => {
@@ -102,9 +97,10 @@ async fn adopt_or_mint_session(
     }
 }
 
-pub async fn issue_bridge_access_with(
+pub async fn issue_bridge_access(
     repo: &OAuthRepository,
     analytics: &dyn AnalyticsProvider,
+    sessions: &dyn SessionProvider,
     request: BridgeAccessRequest<'_>,
 ) -> Result<BridgeAuthResult> {
     let BridgeAccessRequest {
@@ -120,12 +116,12 @@ pub async fn issue_bridge_access_with(
 
     let global_config = Config::get()?;
 
-    let session_id = adopt_or_mint_session(analytics, request_headers, user_id).await;
+    let session_id = adopt_or_mint_session(sessions, request_headers, user_id).await;
     let trace_id = TraceId::generate();
     let policy_version = PolicyVersion::unversioned();
 
-    let ttl_hours = i64::try_from((ttl_seconds / 3600).max(1)).unwrap_or(1);
-    let config = build_bridge_jwt_config(&auth_user, ttl_hours);
+    let ttl = ChronoDuration::seconds(i64::try_from(ttl_seconds).unwrap_or(i64::MAX));
+    let config = build_bridge_jwt_config(&auth_user, ttl);
     let signing = JwtSigningParams {
         issuer: &global_config.jwt_issuer,
     };
@@ -145,7 +141,7 @@ pub async fn issue_bridge_access_with(
         },
     );
     let expires_at = Utc::now() + ChronoDuration::seconds(i64::try_from(ttl_seconds).unwrap_or(0));
-    analytics
+    sessions
         .create_session(CreateSessionInput {
             session_id: &session_id,
             user_id: Some(user_id),
@@ -174,11 +170,11 @@ pub async fn issue_bridge_access_with(
     })
 }
 
-fn build_bridge_jwt_config(auth_user: &AuthenticatedUser, ttl_hours: i64) -> JwtConfig {
+fn build_bridge_jwt_config(auth_user: &AuthenticatedUser, ttl: ChronoDuration) -> JwtConfig {
     JwtConfig {
         permissions: auth_user.permissions().to_vec(),
         audience: vec![JwtAudience::Bridge, JwtAudience::Mcp],
-        expires_in_hours: Some(ttl_hours),
+        expires_in: ttl,
         resource: None,
         plugin_id: None,
         client_id: Some(ClientId::bridge()),
@@ -238,18 +234,36 @@ pub async fn issue_bridge_exchange_code(
     Ok(BridgeExchangeCode { code, expires_at })
 }
 
+/// One-shot exchange of a bridge session code presented by a caller.
+#[derive(Debug, Clone, Copy)]
+pub struct BridgeExchangeRequest<'a> {
+    pub request_headers: &'a HeaderMap,
+    pub caller_ip: Option<IpAddr>,
+    pub code: &'a str,
+}
+
 pub async fn exchange_bridge_session_code(
     repo: &OAuthRepository,
     analytics: &dyn AnalyticsProvider,
-    request_headers: &HeaderMap,
-    caller_ip: Option<IpAddr>,
-    code: &str,
+    sessions: &dyn SessionProvider,
+    exchange: BridgeExchangeRequest<'_>,
 ) -> Result<Option<BridgeAuthResult>> {
+    let BridgeExchangeRequest {
+        request_headers,
+        caller_ip,
+        code,
+    } = exchange;
     let code_hash = hash_exchange_code(code);
     let Some(user_id) = repo.consume_bridge_exchange_code(&code_hash).await? else {
         return Ok(None);
     };
-    let result = issue_bridge_access(repo, analytics, request_headers, caller_ip, &user_id).await?;
+    let result = issue_bridge_access(
+        repo,
+        analytics,
+        sessions,
+        BridgeAccessRequest::bridge(request_headers, caller_ip, &user_id),
+    )
+    .await?;
     Ok(Some(result))
 }
 

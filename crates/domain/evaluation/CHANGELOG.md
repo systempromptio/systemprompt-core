@@ -1,5 +1,50 @@
 # Changelog
 
+## [0.53.0] - 2026-09-15
+
+### Breaking
+
+- **Breaking:** `ManagedWorkspaceReference::manifest` is a `systemprompt_models::managed::RevisionBundle` and `ManagedWorkspaceRegistration::manifest` is `&RevisionBundle`; a stored projection that does not decode as a bundle is `InvalidSpec` on read. Migrate by passing the bundle instead of `serde_json::to_value(&bundle)`.
+- **Breaking:** `EvaluationRepositories::new(&DbPool, EvaluationSeams) -> Result<Self>` (and `with_admission(&DbPool, EvaluationSeams, admission)`) build every repository on the application write pool over the shared-layer seams (`AiRequestTrace`, `AiSessionProvider`, `ManagedRevisionOwnership`); `BudgetRepository`, `EvidenceRepository`, `ExecutionCapabilityRepository`, `EvaluationLifecycleRepository`, `GatewayEvaluationRepository` (`GatewaySeams`), `ExperimentRepository`, `AssignmentRepository` and `CampaignRepository` take their collaborators in `new`. Migrate by composing the seams once at the root and passing the bundle down.
+- **Breaking:** `SamplingRepository`, `SampleFilter`, `SampleMode`, `SampledRequest`, `CanonicalMessage` and `EvalRepositories::sampling` are removed; `SamplerService::new(DynAiRequestTrace)` samples through `systemprompt_traits::TraceSampleFilter` and returns `TraceSample`s, `CanonicalPrompt::from_sample` builds a prompt from one, and `CanonicalPrompt`/`EvalCase` carry `ProviderId`/`ModelId` with `EvalCase::prompt` typed (`prompt_body`, `canonical_messages`, `system_prompt`, `offered_tools`, `provider`, `model` fields are gone).
+- **Breaking:** `EvaluationError::BudgetExhausted { required, available }` replaces `{ spent, budget }` and is built by `EvaluationError::budget_exhausted(&ExperimentPreflight)`; `EvaluationError::Trace(AiProviderError)` and `ManagedRevisions(ManagedSkillResolverError)` replace the unused `Ai`, `RunNotFound`, `RubricNotFound`, `JudgeParse` and `ReplaySource` variants.
+- **Breaking:** `CampaignRecord::status` is `models::CampaignStatus`, `ExecutionAccounting::status` and `DeterministicMeasurement::accounting_status` are `models::AccountingStatus`, `ExecutionApproval::status` is `models::ApprovalStatus`, `RetainedSuggestion::status` is `models::SuggestionStatus`, and `ComparisonReport::variants` is `Vec<MeasurementRow>` (`MeasurementRow` / `RetainedMeasurement` are exported from `repository::experiments`). Migrate by matching the enums instead of comparing strings; the JSON wire form is unchanged.
+- **Breaking:** `CampaignRepository::transition` takes a `CampaignTransition { expected_generation, action }` instead of an `(i64, CampaignAction)` tuple. Migrate by constructing the struct.
+- **Breaking:** the unreleased migration slots are renumbered contiguously — `013_campaigns`, `014_campaign_completion`, `015_suggestion_operations` (they were 013/015/016 with 014 skipped). A database that applied the unreleased 015/016 slots must be reset or re-stamped; released databases are unaffected.
+- **Breaking:** `HoldoutProposal::id`, `HoldoutConfirmation::id`, `holdout_proposal` and `attach_holdout_run` use `EvalHoldoutProposalId`. Migrate by constructing the id with `EvalHoldoutProposalId::try_new`.
+- **Breaking:** `DeterministicMeasurement::checks` accepts only `checks` on the wire; the `deterministic_checks` alias is gone. Migrate by sending `checks`.
+
+### Added
+
+- A versioned, fail-closed evaluator capability registry covering Claude Code, OpenCode, Codex, Hermes and Claude Desktop.
+- `campaigns` module: organisational optimisation campaigns — durable policy with immutable attached experiments, source-change provenance, campaign runs, holdout proposals reviewed independently of execution admission (`holdout`), retained diagnostics for blocked work (`diagnostics`), campaign reports and comparisons, and development-only suggestions with atomic reservations (`suggestions`). Migrations 013 (`eval_campaigns`, `eval_campaign_experiments`, `eval_campaign_source_changes`), 014 (`eval_campaign_diagnostics`, `eval_campaign_holdout_proposals`, `eval_holdout_content_consumption`) and 015 (suggestion `operation_key` / `operation_digest`).
+- `native_proofs`: reviewed native acceptance provenance and immutable image identities; a native target stays unavailable until both the isolation and the gateway-metering proof are retained. Embedded proofs fail closed instead of panicking.
+- `repository::experiments::admission` rechecks retained execution admission before every claim and spend reservation; `collections` traverses experiments by owner-scoped cursor independent of mutable timestamps; `campaign_runs`, `holdout`, `lifecycle_models` and `lifecycle_suggestion_operations` back the campaign lifecycle; `EvalCampaignId`.
+- `eval_approved_operation_receipts`, `eval_execution_capabilities`, `eval_fixture_*`, `eval_session_bindings` and `eval_workers` join the declared schema.
+- `CampaignRepository::PAGE_SIZE`: `list` returns one row past it so a caller can tell a full page from a final one; `CampaignTransition` derives `Serialize` / `Deserialize` (`deny_unknown_fields`) and `CampaignAction::status` is public.
+
+### Changed
+
+- `execution_accounting` returns `InvalidSpec` when a token or tool-call count is negative instead of reporting zero.
+- A stored campaign, approval or suggestion status outside the declared set is `InvalidSpec` on read instead of being passed through as text.
+- `capabilities`, `experiments::execution`, `repository::experiments::{evidence,lifecycle,runs}` are directory modules; `native_proofs` is `capabilities::proofs`.
+- Campaign eligibility requires every frozen execution pair; terminal evidence is bound to the frozen workspace configuration; workspace inspection is bounded and unsafe materialisation paths are rejected; startup diagnostics are retained behind cleanup fences.
+- Native execution and judging replay through gateway accounting: a request the gateway settles as failed spend remains authoritative over any native usage report.
+
+### Fixed
+
+- `CampaignRepository::create` verifies through `ManagedRevisionOwnership` that the baseline revision is held by the owner (`ResourceNotFound`) and belongs to the campaign's resource (`InvalidSpec`) before persisting the policy.
+- `BudgetRepository::retain_orphaned` treats an execution `awaiting_approval` as live; its reservations stay held instead of being settled as orphans.
+- The crate no longer queries `ai_requests*` or `user_sessions`: sampling, evidence audit, budget settlement and execution accounting read recorded usage through `AiRequestTrace`, and execution sessions are created and re-verified (unrevoked, unexpired, owned) through `AiSessionProvider`.
+- An approved privileged operation is consumed the first time it is authorised (`status='consumed'`); a second `authorize_operation` on the same approval is a conflict instead of a silent re-authorisation.
+- Execution claims order by `variant_index` and `repetition` within a creation instant, so a worker takes an experiment's baseline before its candidates instead of an arbitrary row.
+- Every table the extension creates is declared by its own `SchemaDefinition` (one schema file per table), so `infra db doctor` no longer reports the evaluation tables as undeclared.
+- `attach_holdout_run` returns a conflict when the proposal is unconfirmed or already bound to a different experiment.
+
+### Removed
+
+- The never-written `eval_campaign_source_changes` table (migration 016 drops it).
+
 ## [0.52.0] - 2026-09-14
 
 ### Breaking

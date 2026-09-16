@@ -211,39 +211,16 @@ fn an_empty_gateway_override_is_refused_rather_than_falling_back_to_the_config()
 }
 
 #[test]
-fn the_device_name_comes_from_the_hostname_environment_when_it_is_set() {
-    let name = temp_env::with_var("HOSTNAME", Some("  workstation-7  "), default_device_name);
-    assert_eq!(name, Some("workstation-7".to_owned()));
-}
-
-#[test]
-fn a_blank_hostname_environment_value_is_not_used_as_a_device_name() {
-    let name = temp_env::with_var("HOSTNAME", Some("   "), default_device_name);
-    assert_ne!(
-        name,
-        Some(String::new()),
-        "a blank hostname must fall through rather than name the device the empty string"
-    );
+fn the_device_name_is_the_os_host_name_and_ignores_the_hostname_environment() {
+    let os_name = hostname::get()
+        .ok()
+        .and_then(|name| name.into_string().ok())
+        .map(|name| name.trim().to_owned())
+        .filter(|name| !name.is_empty());
+    let name = temp_env::with_var("HOSTNAME", Some("  spoofed-7  "), default_device_name);
+    assert_eq!(name, os_name, "the environment never names the device");
     if let Some(name) = name {
-        assert!(!name.trim().is_empty(), "fell back to a real name: {name}");
-    }
-}
-
-#[test]
-fn with_no_hostname_environment_the_device_name_falls_back_to_etc_hostname_or_nothing() {
-    let name = temp_env::with_var("HOSTNAME", None::<&str>, default_device_name);
-    match name {
-        Some(name) => {
-            assert!(!name.is_empty());
-            assert_eq!(name, name.trim(), "the fallback is trimmed");
-            let on_disk = std::fs::read_to_string("/etc/hostname").expect("read /etc/hostname");
-            assert_eq!(name, on_disk.trim());
-        },
-        None => assert!(
-            std::fs::read_to_string("/etc/hostname")
-                .map(|h| h.trim().is_empty())
-                .unwrap_or(true),
-            "None is only correct when /etc/hostname is absent or blank"
-        ),
+        assert_eq!(name, name.trim());
+        assert!(!name.is_empty());
     }
 }

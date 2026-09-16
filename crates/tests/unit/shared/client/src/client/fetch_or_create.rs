@@ -212,9 +212,10 @@ async fn test_get_context_returns_data_field() {
 
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
     let context = client
-        .get_context(&systemprompt_identifiers::ContextId::new_unchecked(
-            "00000000-0000-4000-8000-000000000088",
-        ))
+        .get_context(
+            &systemprompt_identifiers::ContextId::try_new("00000000-0000-4000-8000-000000000088")
+                .expect("valid ContextId"),
+        )
         .await
         .expect("get_context should succeed");
 
@@ -254,7 +255,7 @@ async fn test_list_contexts_returns_all_items() {
 }
 
 #[tokio::test]
-async fn test_list_artifacts_returns_json_values() {
+async fn test_list_artifacts_returns_typed_artifacts() {
     let mock_server = MockServer::start().await;
 
     Mock::given(method("GET"))
@@ -262,20 +263,73 @@ async fn test_list_artifacts_returns_json_values() {
             "/api/v1/core/contexts/00000000-0000-4000-8000-0000000000b1/artifacts",
         ))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!([
-            {"id": "art-1", "type": "text"},
-            {"id": "art-2", "type": "image"}
+            {
+                "id": "art-1",
+                "title": "Summary",
+                "parts": [{"text": "hello"}],
+                "extensions": [],
+                "metadata": {
+                    "artifact_type": "text",
+                    "context_id": "00000000-0000-4000-8000-0000000000b1",
+                    "created_at": "2026-01-01T00:00:00Z",
+                    "task_id": "task-1"
+                }
+            },
+            {
+                "id": "art-2",
+                "parts": [],
+                "extensions": [],
+                "metadata": {
+                    "artifact_type": "image",
+                    "context_id": "00000000-0000-4000-8000-0000000000b1",
+                    "created_at": "2026-01-01T00:00:00Z",
+                    "task_id": "task-1"
+                }
+            }
         ])))
         .mount(&mock_server)
         .await;
 
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
     let artifacts = client
-        .list_artifacts(&systemprompt_identifiers::ContextId::new_unchecked(
-            "00000000-0000-4000-8000-0000000000b1",
-        ))
+        .list_artifacts(
+            &systemprompt_identifiers::ContextId::try_new("00000000-0000-4000-8000-0000000000b1")
+                .expect("valid ContextId"),
+        )
         .await
-        .expect("list_artifacts should return JSON values");
+        .expect("list_artifacts should return typed artifacts");
 
     assert_eq!(artifacts.len(), 2);
-    assert_eq!(artifacts[0]["id"], "art-1");
+    assert_eq!(artifacts[0].id.as_str(), "art-1");
+    assert_eq!(artifacts[0].title.as_deref(), Some("Summary"));
+    assert_eq!(artifacts[1].metadata.artifact_type, "image");
+}
+
+#[tokio::test]
+async fn test_list_artifacts_rejects_rows_that_are_not_artifacts() {
+    let mock_server = MockServer::start().await;
+
+    Mock::given(method("GET"))
+        .and(path(
+            "/api/v1/core/contexts/00000000-0000-4000-8000-0000000000b2/artifacts",
+        ))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .set_body_json(serde_json::json!([{"id": "art-1", "type": "text"}])),
+        )
+        .mount(&mock_server)
+        .await;
+
+    let client = SystempromptClient::new(&mock_server.uri()).unwrap();
+    let result = client
+        .list_artifacts(
+            &systemprompt_identifiers::ContextId::try_new("00000000-0000-4000-8000-0000000000b2")
+                .expect("valid ContextId"),
+        )
+        .await;
+
+    assert!(
+        result.is_err(),
+        "a malformed artifact row must not be surfaced"
+    );
 }

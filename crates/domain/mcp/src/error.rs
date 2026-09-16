@@ -134,8 +134,8 @@ impl From<systemprompt_models::errors::ConfigValidationError> for McpDomainError
     }
 }
 
-impl From<systemprompt_models::paths::PathError> for McpDomainError {
-    fn from(e: systemprompt_models::paths::PathError) -> Self {
+impl From<systemprompt_config::paths::PathError> for McpDomainError {
+    fn from(e: systemprompt_config::paths::PathError) -> Self {
         Self::Path(e.to_string())
     }
 }

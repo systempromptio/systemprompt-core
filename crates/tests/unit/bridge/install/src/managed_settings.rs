@@ -39,3 +39,33 @@ fn an_unlocked_file_is_left_alone() {
 fn a_missing_file_is_nothing_to_do() {
     assert!(strip(None).is_none());
 }
+
+fn strip_raw(bytes: &[u8]) -> Result<Option<String>, std::io::Error> {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let path = dir.path().join("managed-settings.json");
+    fs::write(&path, bytes).expect("seed");
+    stripped_settings(&path)
+}
+
+// Why: a zero-byte policy file left by another installer must read as "nothing
+// there" so removal proceeds; it once aborted the whole claude-code sync with
+// a bare `EOF while parsing a value`.
+#[test]
+fn a_blank_file_is_nothing_to_do() {
+    assert!(strip_raw(b"").expect("empty").is_none());
+    assert!(strip_raw(b" \n\t\n").expect("whitespace").is_none());
+}
+
+#[test]
+fn a_malformed_file_names_its_path_in_the_error() {
+    let err = strip_raw(b"{ not json").expect_err("garbage");
+    assert_eq!(err.kind(), std::io::ErrorKind::InvalidData);
+    assert!(err.to_string().contains("managed-settings.json"), "{err}");
+}
+
+#[test]
+fn a_non_object_document_names_its_path_in_the_error() {
+    let err = strip_raw(b"[1, 2]").expect_err("array");
+    assert!(err.to_string().contains("managed-settings.json"), "{err}");
+    assert!(err.to_string().contains("not a JSON object"), "{err}");
+}

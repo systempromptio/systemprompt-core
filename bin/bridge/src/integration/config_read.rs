@@ -11,6 +11,7 @@ use std::collections::BTreeMap;
 pub(crate) struct DomainRead {
     pub source_path: Option<String>,
     pub keys: BTreeMap<String, String>,
+    pub probe_error: Option<String>,
 }
 
 impl DomainRead {
@@ -23,6 +24,7 @@ impl DomainRead {
         let mut out = Self {
             source_path: Some(source.to_owned()),
             keys: BTreeMap::new(),
+            probe_error: None,
         };
         for dotted in keys_of_interest {
             if let Some(raw) = lookup(dotted) {
@@ -31,4 +33,14 @@ impl DomainRead {
         }
         out
     }
+
+    pub(crate) fn unreadable(source: &str, error: &dyn std::fmt::Display) -> Self {
+        Self {
+            source_path: Some(source.to_owned()),
+            keys: BTreeMap::new(),
+            probe_error: Some(format!("{source}: {error}")),
+        }
+    }
 }
+
+pub(crate) use crate::host_sync::ForeignShape;

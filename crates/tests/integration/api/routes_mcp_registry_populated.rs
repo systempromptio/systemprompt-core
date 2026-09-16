@@ -31,6 +31,7 @@ fn services_config() -> String {
     package: fixture
     port: 5099
     enabled: true
+    tool_policy: allow
     display_in_web: true
     version: "2.1.0"
     description: An enabled fixture MCP server
@@ -48,6 +49,7 @@ fn services_config() -> String {
     package: fixture
     port: 5098
     enabled: false
+    tool_policy: allow
     display_in_web: false
     oauth:
       required: false

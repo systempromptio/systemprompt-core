@@ -15,17 +15,17 @@ use crate::services::client::challenge::{AuthChallenge, McpTransportError};
 use http::{HeaderName, HeaderValue};
 use rmcp::model::ClientCapabilities;
 use std::collections::HashMap;
+use systemprompt_client::{GuardedClientConfig, guarded_client_builder};
 use systemprompt_models::RequestContext;
 use systemprompt_models::net::{
-    GuardedClientConfig, HTTP_KEEPALIVE, HTTP_POOL_IDLE_TIMEOUT, HTTP_STREAM_CONNECT_TIMEOUT,
-    guarded_client_builder, validate_outbound_url,
+    HTTP_KEEPALIVE, HTTP_POOL_IDLE_TIMEOUT, HTTP_STREAM_CONNECT_TIMEOUT, validate_outbound_url,
 };
 use systemprompt_models::oauth::ProtectedResourceMetadata;
 use systemprompt_traits::ContextPropagation;
 
 #[derive(Clone, Debug)]
 pub struct HttpClientWithContext {
-    client: Option<reqwest::Client>,
+    client: reqwest::Client,
     context: RequestContext,
     forward_context: bool,
     outbound_headers: HashMap<HeaderName, HeaderValue>,
@@ -33,14 +33,12 @@ pub struct HttpClientWithContext {
 }
 
 impl HttpClientWithContext {
-    pub fn new(context: RequestContext) -> Self {
+    pub fn new(context: RequestContext) -> Result<Self, McpTransportError> {
         Self::build(context, true, HashMap::new())
     }
 
-    pub(super) fn client(&self) -> Result<&reqwest::Client, McpTransportError> {
-        self.client
-            .as_ref()
-            .ok_or(McpTransportError::ClientUnavailable)
+    pub(super) const fn client(&self) -> &reqwest::Client {
+        &self.client
     }
 
     async fn authorization_error(&self, header: &str) -> McpTransportError {
@@ -84,15 +82,7 @@ impl HttpClientWithContext {
             },
         };
 
-        let Some(client) = self.client.as_ref() else {
-            tracing::error!(
-                metadata_url,
-                "no outbound http client for MCP resource metadata"
-            );
-            return None;
-        };
-
-        let response = match client.get(url).send().await {
+        let response = match self.client.get(url).send().await {
             Ok(response) => response,
             Err(e) => {
                 tracing::debug!(
@@ -129,14 +119,14 @@ impl HttpClientWithContext {
     pub fn external(
         context: RequestContext,
         outbound_headers: HashMap<HeaderName, HeaderValue>,
-    ) -> Self {
+    ) -> Result<Self, McpTransportError> {
         Self::build(context, false, outbound_headers)
     }
 
     pub fn forwarding(
         context: RequestContext,
         outbound_headers: HashMap<HeaderName, HeaderValue>,
-    ) -> Self {
+    ) -> Result<Self, McpTransportError> {
         Self::build(context, true, outbound_headers)
     }
 
@@ -150,7 +140,7 @@ impl HttpClientWithContext {
         context: RequestContext,
         forward_context: bool,
         outbound_headers: HashMap<HeaderName, HeaderValue>,
-    ) -> Self {
+    ) -> Result<Self, McpTransportError> {
         let config = GuardedClientConfig {
             timeout: None,
             connect_timeout: HTTP_STREAM_CONNECT_TIMEOUT,
@@ -159,17 +149,15 @@ impl HttpClientWithContext {
         let client = guarded_client_builder(&config)
             .tcp_keepalive(Some(HTTP_KEEPALIVE))
             .pool_idle_timeout(HTTP_POOL_IDLE_TIMEOUT)
-            .build()
-            .inspect_err(|e| tracing::error!(error = %e, "Guarded MCP client unavailable"))
-            .ok();
+            .build()?;
 
-        Self {
+        Ok(Self {
             client,
             context,
             forward_context,
             outbound_headers,
             client_capabilities: super::capabilities::client_capabilities(false),
-        }
+        })
     }
 
     fn add_context_headers(&self, builder: reqwest::RequestBuilder) -> reqwest::RequestBuilder {

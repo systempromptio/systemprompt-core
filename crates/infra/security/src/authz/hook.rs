@@ -21,7 +21,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use async_trait::async_trait;
-use systemprompt_models::net::{GuardedClientConfig, guarded_client};
+use systemprompt_client::{GuardedClientConfig, guarded_client};
 
 use super::audit::{AuthzAuditSink, AuthzSource, NullAuditSink};
 use super::error::AuthzResult;

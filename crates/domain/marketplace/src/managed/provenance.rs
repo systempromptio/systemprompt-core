@@ -5,11 +5,12 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::assets::validate_path;
+use systemprompt_models::managed::{validate_key, validate_path};
+
 use super::error::invalid;
 use super::{AssetDigest, Result};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum SourceSpec {
     Git {
@@ -76,7 +77,7 @@ impl SourceSpec {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct SnapshotProvenance {
     pub source_kind: String,
@@ -108,16 +109,4 @@ impl SnapshotProvenance {
         }
         Ok(())
     }
-}
-
-pub(super) fn validate_key(key: &str) -> Result<()> {
-    if key.is_empty()
-        || key.len() > 200
-        || !key
-            .bytes()
-            .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'_' | b'-' | b'.' | b'/'))
-    {
-        return Err(invalid("Invalid resource key"));
-    }
-    Ok(())
 }

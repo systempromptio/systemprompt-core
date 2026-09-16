@@ -120,10 +120,7 @@ async fn replica_status_reports_a_primary_with_no_lag() {
 #[tokio::test]
 async fn a_dead_pool_fails_the_connection_check_with_a_boot_facing_message() {
     let db = systemprompt_test_fixtures::closed_db_pool().await;
-    let pg = db
-        .write_pool_arc()
-        .expect("a closed pool still has a handle");
-    let provider = PostgresProvider::from_pool(pg);
+    let provider = PostgresProvider::from_pool(db.write_pool());
 
     let error = validate_database_connection(&provider)
         .await

@@ -6,7 +6,7 @@
 use chrono::{TimeZone, Utc};
 use systemprompt_cli::infrastructure::logs::search::{map_log_rows, map_tool_rows};
 use systemprompt_identifiers::{LogId, TraceId};
-use systemprompt_logging::{LogSearchItem, ToolExecutionItem};
+use systemprompt_runtime::{LogSearchItem, ToolExecutionItem};
 
 fn log_item(module: &str, metadata: Option<&str>) -> LogSearchItem {
     LogSearchItem {

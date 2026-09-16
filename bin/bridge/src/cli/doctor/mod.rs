@@ -108,6 +108,8 @@ pub async fn run_checks(bridge: &BridgeContext) -> (Vec<Check>, bool) {
     checks.push(auth::check_pinned_pubkey());
     #[cfg(target_os = "windows")]
     checks.push(registry::check_policy_hives());
+    #[cfg(target_os = "windows")]
+    checks.push(filesystem::check_config_dir_owner());
     checks.push(check_version_agreement());
     checks.push(marketplace::check_marketplace());
     checks.extend(cowork::check_cowork_scope());

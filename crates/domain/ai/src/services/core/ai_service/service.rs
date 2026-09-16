@@ -21,6 +21,7 @@ use systemprompt_config::SecretsBootstrap;
 use systemprompt_database::DbPool;
 use systemprompt_models::services::{AiConfig, AiProviderConfig, ProviderEntry, ProviderRegistry};
 use systemprompt_traits::{DynAiSessionProvider, ToolProvider};
+use tokio_util::task::TaskTracker;
 
 pub struct AiService {
     pub(super) providers: HashMap<String, Arc<dyn AiProvider>>,
@@ -29,6 +30,7 @@ pub struct AiService {
     pub(super) tooled_executor: TooledExecutor,
     pub(super) synthesizer: ResponseSynthesizer,
     pub(super) storage: RequestStorage,
+    pub(super) audit_tasks: TaskTracker,
     default_provider: String,
     default_model: String,
     default_max_output_tokens: u32,
@@ -103,6 +105,7 @@ impl AiService {
             tooled_executor,
             synthesizer: ResponseSynthesizer::new(),
             storage,
+            audit_tasks: TaskTracker::new(),
             default_provider,
             default_model,
             default_max_output_tokens: ai_config.default_max_output_tokens.unwrap_or(8192),
@@ -116,6 +119,14 @@ impl AiService {
     ) -> Self {
         self.storage = self.storage.with_context_materializer(materializer);
         self
+    }
+
+    // Why: streaming audit rows are written by tasks that outlive the stream
+    // that produced them; the owner drains this tracker before the runtime
+    // is torn down so an abandoned stream's usage is never lost at shutdown.
+    #[must_use]
+    pub const fn audit_tasks(&self) -> &TaskTracker {
+        &self.audit_tasks
     }
 
     fn build_providers(
@@ -140,22 +151,21 @@ impl AiService {
                 continue;
             };
 
+            // Why: a provider without its credential cannot serve a request;
+            // registering it with an empty key would fail every call at the
+            // wire instead of at boot, so it is withheld and reported.
             let secret_name = entry.api_key_secret.as_str();
-            let api_key = secrets.get(secret_name).map_or_else(
-                || {
-                    tracing::warn!(
-                        provider = %name,
-                        secret = %secret_name,
-                        "api_key secret not found — keeping provider enabled with an empty key \
-                         (registry endpoint may be an internal mock)"
-                    );
-                    missing_env_vars.push(format!(
-                        "Provider '{name}': secret '{secret_name}' not found"
-                    ));
-                    String::new()
-                },
-                Clone::clone,
-            );
+            let Some(api_key) = secrets.get(secret_name).cloned() else {
+                tracing::warn!(
+                    provider = %name,
+                    secret = %secret_name,
+                    "api_key secret not found — provider withheld from the registry"
+                );
+                missing_env_vars.push(format!(
+                    "Provider '{name}': secret '{secret_name}' not found"
+                ));
+                continue;
+            };
 
             let provider = Self::build_one(entry, policy, api_key, db_pool)?;
             providers.insert(name.clone(), provider);

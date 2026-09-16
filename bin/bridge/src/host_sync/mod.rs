@@ -5,6 +5,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::ids::{BearerToken, HostId};
 use async_trait::async_trait;
 use std::path::Path;
 use std::sync::LazyLock;
@@ -13,8 +14,11 @@ use crate::gateway::GatewayClient;
 use crate::gateway::manifest::SignedManifest;
 
 mod error;
+mod hooks;
+pub(crate) mod hooks_schema;
 
-pub use error::{ApplyError, TomlError};
+pub use error::{ApplyError, ForeignShape, TomlError};
+pub use hooks::stamp_hooks_file;
 
 /// A host sync that completed but could not do everything it exists to do —
 /// the run is not partial, yet the operator has something to act on.
@@ -22,7 +26,8 @@ pub use error::{ApplyError, TomlError};
 #[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
 #[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
 pub struct HostWarning {
-    pub host_id: String,
+    #[cfg_attr(feature = "ts-export", ts(type = "string"))]
+    pub host_id: HostId,
     pub message: String,
 }
 
@@ -39,12 +44,12 @@ impl HostWarnings {
 
     pub fn push(&self, host_id: &str, message: impl Into<String>) {
         let warning = HostWarning {
-            host_id: host_id.to_owned(),
+            host_id: HostId::new(host_id),
             message: message.into(),
         };
         tracing::warn!(
             target: "bridge::sync::host",
-            host = host_id,
+            host = %warning.host_id,
             warning = %warning.message,
             "host sync warning"
         );
@@ -73,14 +78,24 @@ pub struct HostSyncCtx<'a> {
     pub org_plugins_root: &'a Path,
     pub plugin_mcp_servers: &'a std::collections::BTreeMap<String, Vec<String>>,
     pub client: &'a GatewayClient,
-    pub bearer: &'a str,
+    pub bearer: &'a BearerToken,
     pub loopback: &'a crate::proxy::LoopbackEndpoint,
     pub mcp_registry: &'a crate::mcp_registry::McpRegistry,
+    pub start_menu: &'a crate::probe_cache::StartMenuCache,
 }
 
+/// One emitter per host integration.
+///
+/// `#[async_trait]` because emitters are collected through `inventory` as
+/// `&'static dyn HostSync`. Several emitters may share a `host_id` (the
+/// enable gate); `emitter_id` names the emitter itself so failures from
+/// siblings stay distinguishable.
 #[async_trait]
 pub trait HostSync: std::any::Any + Send + Sync + 'static {
     fn host_id(&self) -> &'static str;
+    fn emitter_id(&self) -> &'static str {
+        self.host_id()
+    }
     async fn apply(&self, ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError>;
     fn clear(&self, ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError>;
 }
@@ -137,18 +152,20 @@ pub fn registry() -> &'static [&'static dyn HostSync] {
     REGISTRY.as_slice()
 }
 
-pub fn log_outcome(host_id: &str, enabled: bool, outcome: Result<(), ApplyError>) {
+pub fn log_outcome(emitter: &dyn HostSync, enabled: bool, outcome: Result<(), ApplyError>) {
     let action = if enabled { "apply" } else { "clear" };
     match outcome {
         Ok(()) => tracing::info!(
             target: "bridge::sync::host",
-            host = host_id,
+            host = emitter.host_id(),
+            emitter = emitter.emitter_id(),
             action,
             "host sync ok"
         ),
         Err(e) => tracing::error!(
             target: "bridge::sync::host",
-            host = host_id,
+            host = emitter.host_id(),
+            emitter = emitter.emitter_id(),
             action,
             error = %e,
             "host sync failed — partial sync; see SyncSummary.host_failures"

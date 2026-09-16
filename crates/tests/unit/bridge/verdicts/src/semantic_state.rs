@@ -3,7 +3,7 @@ use systemprompt_bridge::update::UpdateUiState;
 use systemprompt_bridge::verdict::{Tone, Verdict};
 use systemprompt_bridge::wire::StatePayload;
 use systemprompt_bridge::wire::codes::*;
-use systemprompt_bridge::wire::first_run::FirstRunPayload;
+use systemprompt_bridge::wire::first_run::{FirstRunPayload, FirstRunPhase, StepStatus};
 use systemprompt_bridge::wire::hosts::HostsPayload;
 use systemprompt_bridge::wire::payloads::*;
 
@@ -29,6 +29,7 @@ fn payload<'a>(proxy: &'a ProxyHealth, update: &'a UpdateUiState) -> StatePayloa
         credential_error: None,
         startup_faults: Vec::new(),
         sync_in_flight: false,
+        elevated: false,
         cached_token: Some(CachedTokenPayload {
             ttl_seconds: 300,
             length: 123,
@@ -74,8 +75,8 @@ fn payload<'a>(proxy: &'a ProxyHealth, update: &'a UpdateUiState) -> StatePayloa
             first_run: FirstRunPayload {
                 active: false,
                 done: true,
-                phase: "done",
-                sync: "done",
+                phase: FirstRunPhase::Complete,
+                sync: StepStatus::Done,
                 error: None,
                 hosts: Vec::new(),
             },

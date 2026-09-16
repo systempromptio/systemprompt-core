@@ -7,8 +7,8 @@ use systemprompt_agent::models::a2a::{
     TextPart,
 };
 use systemprompt_agent::models::context::ContextKind;
+use systemprompt_agent::repository::ContextRepository;
 use systemprompt_agent::repository::content::ArtifactRepository;
-use systemprompt_agent::repository::{A2ARepositories, ContextRepository};
 use systemprompt_cli::core::artifacts::{list, show};
 use systemprompt_cli::{CliConfig, OutputFormat};
 use systemprompt_database::DbPool;
@@ -38,14 +38,7 @@ async fn seed_task(pool: &DbPool) -> (UserId, ContextId, TaskId) {
         .await
         .unwrap();
 
-    let session_usage: systemprompt_traits::DynSessionUsageCounters =
-        std::sync::Arc::new(systemprompt_analytics::SessionRepository::new(pool).unwrap());
-    let repos = A2ARepositories::new(
-        pool,
-        session_usage,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    )
-    .unwrap();
+    let repos = systemprompt_test_fixtures::a2a_repositories(pool);
     let ctx_repo = ContextRepository::new(pool).unwrap();
     let context_id = ctx_repo
         .create_context(

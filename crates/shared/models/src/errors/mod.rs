@@ -14,7 +14,8 @@
 //! - [`RowParseError`] — JSON-row deserialization failures.
 //! - [`MetadataError`] — MCP `_meta` payload decoding.
 //! - [`SecretsError`] — on-disk secrets document.
-//! - [`ProviderError`] / [`ProviderResult`] — plug-in trait abstractions.
+//! - [`AiInferenceError`] / [`McpRegistryError`] — the typed errors of the
+//!   dyn-dispatched provider seams.
 //! - [`ServiceError`] — application-tier umbrella enum.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -33,7 +34,7 @@ mod validation;
 
 pub use metadata::MetadataError;
 pub use parse::{ConfigError, ParseEnumError};
-pub use provider::{ProviderError, ProviderResult};
+pub use provider::{AiInferenceError, AiInferenceResult, McpRegistryError, McpRegistryResult};
 pub use row::RowParseError;
 pub use secrets::SecretsError;
 pub use service::ServiceError;

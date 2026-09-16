@@ -1,5 +1,45 @@
 # Changelog
 
+## [0.53.0] - 2026-09-15
+
+### Breaking
+
+- **Breaking:** `CatalogContent::load_cached` and `plugin_bundles_cached` are replaced by `MarketplaceCache::{catalog, bundles}`, an owned fingerprint-keyed memo held by the application context; the process-wide caches are gone. Migrate by building one `MarketplaceCache` per context and calling it where the free functions were used.
+- **Breaking:** `ManifestService::{assemble_candidate, assemble_candidate_traced, assemble_candidate_from_catalog}` and `catalog::load_plugins` take an `AssembleRequest { services, services_root, filter, user_id, cache }`. Migrate by building the request struct at the call site.
+- **Breaking:** `ManagedRepository::new(&DbPool) -> Result<Self, ManagedError>` builds on the application write pool (`ManagedError::Pool` when it is unavailable). Migrate by passing the `DbPool` instead of a `PgPool`.
+- **Breaking:** `list_resources` / `list_revisions` return `Page<T> { items, has_more }` with `PAGE_SIZE = 50` items; `ResourceSummary::kind` is a `ResourceKind` and `RevisionSummary::created_at` a `DateTime<Utc>`. The unused `list_resources_for_key` is removed.
+- **Breaking:** managed records carry typed statuses and identifiers: `DistributionStatus::status: DistributionState`, `InvocationAttribution::status: AttributionStatus`, `WithdrawalProposal::status: WithdrawalStatus` (with typed `id`, `resource_id`, `snapshot_id`, `decided_by`), `ReconciliationRecord::status: ReconciliationStatus`, `ReconciliationConflict` digests as `AssetDigest`, `DistributionClaim::{outbox_id: EventOutboxId, payload: PublicationDecision}`, receipt and attribution `installation_id: ConsumerInstallationId` / `invocation_id: ResourceInvocationId`. Migrate by matching on the enums and constructing the identifiers.
+- **Breaking:** `PublicationRequest::comparison_evidence` and `PublicationHistoryEntry::comparison_evidence` are a `ComparisonEvidence { experiment_id, recorded }`; `InstallationReceiptRequest::client_evidence` and `InvocationAttributionRequest::authenticated_evidence` are a `ClientEvidence { session_id, owner_id, recorded }` whose owner must match the authenticated owner. The JSON wire shape is unchanged (the extra keys flatten into `recorded`).
+
+### Added
+
+- `bundle`: a plugin's root `package.json` and the lockfile Claude Code would pick are shipped as bundle files, and `plugin.json` carries `dependencies` from the plugin config. `import`: `plugin.json` `dependencies`, `marketplace.json` `allowCrossMarketplaceDependenciesOn` and the marketplace sidecar's `external_marketplaces` round-trip into the services tree; Node package files are copied beside the plugin config; `ImportWarning::NodePackageWithoutLockfile` reports a `package.json` no host would install. `manifest`: `ManifestMarketplace` carries the allowlist and external marketplaces.
+- `managed::consumer`: device-authenticated consumer evidence — administrator-issued device credentials stored as a SHA-256 digest and replaced on reissue (`credentials`), installation receipts compared file-by-file against the retained publication bundle with identical retries acknowledged (`receipts`), session bindings and immutable invocation evidence with a versioned, correctable resource-attribution projection (`sessions`, `attribution`), deterministic host installation plans derived from the exact retained publication (`plan`), and receipt / binding / invocation status reads. Migration 004 (`managed_consumer_credentials`, `managed_consumer_grants`, `managed_consumer_session_bindings`, `managed_consumer_invocation_evidence`, `managed_invocation_attributions`).
+- `managed::organization_resolver`: explicit organisation authority with consumer-scoped grants — a filtered managed publication with the requested canonical identity and an enabled host is eligible, a successful catalog authorisation retains a grant, and an administrative revocation is never reset by later catalog reads.
+- `managed::source_verification*`: complete server-side Git verification of immutable dependency closures over HTTPS with source-scoped bearer credentials (cleared environment and credential helpers, no redirects or submodule recursion, 60 s subprocess / 120 s aggregate deadlines, 8 MiB output, 256 files / 8 MiB retained trees, 64 MiB temporary storage, private temp dirs, reaped process groups); cycles, missing or extra revisions, incorrect bindings and nested Git metadata prevent attestation; immutable administrative source bindings for local-authored roots; retained `DependencyVerificationManifest`s (`DependencyVerificationId`). Migrations 003 (`managed_evaluation_attestations`, `managed_git_verifications`) and 005 (`managed_dependency_verifications`, `managed_resource_git_bindings`).
+- `managed::evaluation`: publication attestations produced by application-level evaluation and source verification; repository publication verifies the retained binding. `managed::publication_history`: retained review history and distribution evidence.
+- `inventory` module: canonical configured-and-managed inventory with explicit adoption and observed membership, retained baselines and captures, Git bindings, reconciliation conflicts and per-host installation coverage (`InventoryEntryId`). Migrations 006 (`managed_inventory_*`) and 007 (`managed_installation_coverage*`). Explicit binding candidates are bounded by owner and key.
+- `managed::operations`: durable fenced administrative operations that retain typed input checkpoints (`managed_api_operations`, migration 008) — credential issuance and inventory capture are addressed by `Idempotency-Key`.
+- `ManagedRepository` implements `systemprompt_traits::ManagedRevisionOwnership`, the owner-scoped revision → resource lookup other domains verify against.
+- Migration 009 adds `managed_publication_reviews.experiment_id`; an improvement review persists the attested experiment in that column and history reads it back from there.
+
+### Changed
+
+- Git verification compares the imported tree with the retained revision through `RevisionFiles::same_content`.
+
+- `managed::{RevisionBundle, RevisionManifest, FileEntry, DependencyRef, AssetDigest, AssetFile, RevisionFiles}` are re-exports of `systemprompt_models::managed`; `ManagedError` implements `From<RevisionBundleError>` so `?` on bundle verification keeps returning the same variants (`Invalid`, `Integrity`, `Unavailable`).
+- Organisation publications enforce consumer grants; delivery identity is fenced and reconciliation state retained; managed skills resolve for the requesting user; Git credentials are redacted in diagnostic request types; the fetched commit is resolved with `git rev-list --max-count=1 FETCH_HEAD`. Host aliases keep `codex-cli`/`codex` and `opencode`/`open-code` compatible; the retained resource owner supplies grant ownership.
+- The six-argument inventory, capture, verification and binding signatures are grouped behind `BaselineScope`, `GitCaptureRequest`, `GitTreeRead` and `GitSourceBinding`; `catalog/content.rs` is `catalog/content/mod.rs` with `managed.rs` beside it; `managed/assets.rs` and `managed/manifest.rs` are gone (the types live in `systemprompt_models::managed`).
+- Plugin script import and consumer attribution correction take `PluginId` / `InvocationAttributionId` instead of raw strings.
+- A publication request that names an `experiment_id` on any action other than `publish_improvement` is `Invalid`.
+
+### Fixed
+
+- The importer refuses a `marketplace.json` plugin `source` that escapes the marketplace tree (`..`, absolute or drive-qualified paths) with `MarketplaceError::Import` instead of reading outside it.
+- A skill or artifact that fails to build, a skill whose content file is missing, a skill aux file or plugin script that cannot be read, or an artifact record that does not serialise fails the catalogue (`MarketplaceError::Catalog`) instead of being logged and dropped from the signed manifest or bundle.
+- A managed MCP server declared without `tool_policy` is withheld from the signed bridge manifest instead of being published as allow-all; startup validation reports `mcp_servers.<name>.tool_policy` for it.
+- Every table the extension creates is declared by its own `SchemaDefinition` (one schema file per table), so `infra db doctor` no longer reports the managed tables as undeclared.
+
 ## [0.52.0] - 2026-09-14
 
 ### Added

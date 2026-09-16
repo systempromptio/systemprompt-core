@@ -1,15 +1,8 @@
 //! On-disk sentinel marking that the user finished the setup wizard.
 //!
-//! `agents_onboarded` lived only in the in-memory snapshot, so pressing Finish
-//! bought nothing beyond the current process: on the next launch the only thing
-//! keeping the wizard away was "some host still reports a profile installed".
-//! Uninstall the last profile, or probe it as stale, and a user who had already
-//! completed setup was put back through it.
-//!
-//! Stored beside `first-run.json` in the bridge metadata directory for the same
-//! reason that record is: `auth::setup::session_setup` rewrites the config TOML
-//! wholesale on every device link, so a flag kept there would be erased by the
-//! very event that most often precedes setting it.
+//! Stored beside `first-run.json` in the bridge metadata directory rather
+//! than in the config TOML, which `auth::setup::session_setup` rewrites
+//! wholesale on every device link.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

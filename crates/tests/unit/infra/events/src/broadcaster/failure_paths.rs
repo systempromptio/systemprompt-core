@@ -60,7 +60,7 @@ async fn broadcast_to_dropped_receiver_evicts_user_entry() {
         "the failed connection must be evicted"
     );
     assert!(
-        broadcaster.connected_users().await.is_empty(),
+        broadcaster.connected_users().is_empty(),
         "the user entry must be removed once its last connection is evicted"
     );
 }

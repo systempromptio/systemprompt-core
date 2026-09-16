@@ -2,11 +2,11 @@
 
 use std::path::PathBuf;
 use std::sync::Arc;
+use systemprompt_config::paths::AppPaths;
 use systemprompt_mcp::services::process::ProcessService;
 use systemprompt_mcp::services::process::spawner::{
     open_server_log, rotate_log_if_needed, serialize_server_configs,
 };
-use systemprompt_models::AppPaths;
 use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::mcp::deployment::{McpServerType, OAuthRequirement};
 use systemprompt_models::mcp::server::McpServerConfig;

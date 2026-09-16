@@ -155,6 +155,8 @@ async fn create_writes_a_new_agent_definition() {
         "create",
         "--name",
         "covcreated",
+        "--provider",
+        "anthropic",
         "--port",
         "9133",
         "--display-name",

@@ -16,7 +16,7 @@ use systemprompt_api::services::middleware::{
 };
 use systemprompt_identifiers::JwtToken;
 use systemprompt_test_fixtures::{install_test_signing_key, seed_admin_credential};
-use systemprompt_traits::{AnalyticsProvider, UserProvider};
+use systemprompt_traits::UserProvider;
 use systemprompt_users::UserService;
 
 use super::common::setup_ctx;
@@ -24,8 +24,7 @@ use super::common::setup_ctx;
 async fn extractor() -> Result<(systemprompt_database::DbPool, JwtContextExtractor)> {
     let (db, ctx) = setup_ctx().await?;
     install_test_signing_key();
-    let concrete = Arc::clone(ctx.analytics_service());
-    let analytics: Arc<dyn AnalyticsProvider> = concrete;
+    let analytics = ctx.analytics_repositories().sessions.owner();
     let user_provider: Arc<dyn UserProvider> =
         Arc::new(UserService::new(Arc::clone(ctx.user_repository())));
     let jti = JtiRevocationChecker::from_repository(ctx.oauth_repositories().oauth.clone());

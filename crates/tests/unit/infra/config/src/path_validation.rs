@@ -5,7 +5,7 @@ use systemprompt_config::path_validation::{
     format_path_errors, validate_optional_path, validate_required_path,
 };
 use systemprompt_traits::validation_report::{
-    ValidationError, ValidationReport, ValidationWarning,
+    ValidationIssue, ValidationReport, ValidationWarning,
 };
 use tempfile::TempDir;
 
@@ -84,7 +84,7 @@ fn validate_optional_path_exists_no_warning() {
 fn format_path_errors_includes_profile_and_error_detail() {
     let mut report = ValidationReport::new("paths");
     report.add_error(
-        ValidationError::new("paths.system", "Path does not exist")
+        ValidationIssue::new("paths.system", "Path does not exist")
             .with_path("/var/test")
             .with_suggestion("Create the path"),
     );
@@ -104,7 +104,7 @@ fn format_path_errors_includes_profile_and_error_detail() {
 #[test]
 fn format_path_errors_includes_warnings() {
     let mut report = ValidationReport::new("paths");
-    report.add_error(ValidationError::new("paths.system", "Missing"));
+    report.add_error(ValidationIssue::new("paths.system", "Missing"));
     report.add_warning(
         ValidationWarning::new("paths.geoip", "Path does not exist: /var/geoip")
             .with_suggestion("Download the database"),

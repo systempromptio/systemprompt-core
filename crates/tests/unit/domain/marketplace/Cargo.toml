@@ -11,6 +11,7 @@ publish = false
 workspace = true
 
 [dependencies]
+chrono = { workspace = true }
 systemprompt-test-fixtures = { workspace = true }
 systemprompt-marketplace = { workspace = true }
 systemprompt-loader = { workspace = true }
@@ -30,4 +31,4 @@ tempfile = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 base64 = { workspace = true }
-ed25519-dalek = { version = "2", default-features = false, features = ["std"] }
+ed25519-dalek = { version = "3", default-features = false }

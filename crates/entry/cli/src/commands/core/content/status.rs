@@ -42,7 +42,7 @@ pub async fn execute_with_pool(
     let repo = ContentRepository::new(pool)?;
 
     let source = SourceId::new(args.source.clone());
-    let contents = repo.list_by_source(&source, &LocaleCode::new("en")).await?;
+    let contents = repo.list_by_source(&source, &LocaleCode::english()).await?;
 
     let url_pattern = args
         .url_pattern

@@ -1,6 +1,7 @@
 //! DB-backed tests for the `Database` handle: config construction, the
 //! read/write delegation surface, and the boot-path validation helpers.
 
+use std::sync::Arc;
 use systemprompt_database::services::DatabaseProvider;
 use systemprompt_database::{
     Database, PoolConfig, validate_column_exists, validate_database_connection,
@@ -20,7 +21,7 @@ fn pool_config() -> PoolConfig {
 
 async fn database_or_skip() -> Option<Database> {
     let url = fixture_database_url().ok()?;
-    Database::from_config("postgres", &url).await.ok()
+    Database::connect(&url, None, &pool_config()).await.ok()
 }
 
 fn unique_table() -> String {
@@ -28,25 +29,16 @@ fn unique_table() -> String {
 }
 
 #[tokio::test]
-async fn from_config_rejects_unsupported_backend() {
-    let err = Database::from_config("mysql", "mysql://x").await;
-    assert!(err.is_err());
-
-    let err = Database::from_config_with_write("sqlite", "u", None, &pool_config()).await;
-    assert!(err.is_err());
-}
-
-#[tokio::test]
-async fn from_config_with_write_builds_distinct_write_provider() {
+async fn connect_builds_distinct_write_provider() {
     let Ok(url) = fixture_database_url() else {
         return;
     };
-    let db = Database::from_config_with_write("postgres", &url, Some(&url), &pool_config())
+    let db = Database::connect(&url, Some(&url), &pool_config())
         .await
         .expect("connects");
 
     assert!(db.has_write_pool());
-    assert!(db.write_pool().is_some());
+    assert!(!Arc::ptr_eq(&db.pool(), &db.write_pool()));
     db.test_connection().await.expect("both pools reachable");
 
     let tx = db.begin().await.expect("begin against write pool");
@@ -100,12 +92,9 @@ async fn provider_impl_delegates_reads_and_writes() {
     let all = db.fetch_all(&select_ids, &[]).await.expect("all");
     assert_eq!(all.len(), 2);
 
-    let count_sql = format!("SELECT COUNT(*) FROM \"{table}\" WHERE id > $1");
-    let scalar = db
-        .fetch_scalar_value(&count_sql, &[&0_i64])
-        .await
-        .expect("scalar");
-    assert!(format!("{scalar:?}").contains('2'));
+    let count_sql = format!("SELECT COUNT(*) AS n FROM \"{table}\" WHERE id > $1");
+    let counted = db.fetch_one(&count_sql, &[&0_i64]).await.expect("count");
+    assert_eq!(counted["n"], serde_json::json!(2));
 
     let ordered = format!("SELECT id, name FROM \"{table}\" ORDER BY id");
     let raw = db.query_raw(&ordered).await.expect("raw");

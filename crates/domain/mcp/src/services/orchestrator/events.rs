@@ -21,7 +21,7 @@ pub enum McpEvent {
     },
     ServiceStarted {
         service_name: String,
-        process_id: u32,
+        process_id: Option<u32>,
         port: u16,
     },
     ServiceFailed {

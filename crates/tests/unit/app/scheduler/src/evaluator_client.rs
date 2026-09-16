@@ -28,11 +28,15 @@ fn claude_client() -> NativeClient {
 
 #[test]
 fn claude_code_arguments_pin_the_model_and_end_with_the_prompt() {
-    let arguments = strings(&claude_client().arguments("audit the repository"));
+    let arguments = strings(
+        &claude_client()
+            .arguments("audit the repository")
+            .expect("adapter arguments"),
+    );
 
     assert_eq!(
         arguments.first().map(String::as_str),
-        Some("claude"),
+        Some("/usr/local/bin/claude"),
         "the executable is the fixed client name, never suite-supplied"
     );
     assert_eq!(
@@ -58,7 +62,11 @@ fn claude_code_arguments_pin_the_model_and_end_with_the_prompt() {
 
 #[test]
 fn claude_code_arguments_deny_the_dangerous_tools() {
-    let arguments = strings(&claude_client().arguments("prompt"));
+    let arguments = strings(
+        &claude_client()
+            .arguments("prompt")
+            .expect("adapter arguments"),
+    );
     let disallowed = arguments
         .iter()
         .position(|value| value == "--disallowedTools")
@@ -92,7 +100,7 @@ fn claude_code_arguments_carry_the_configured_turn_limit() {
         })
         .build()
         .expect("seven turns is inside the supported envelope");
-    let arguments = strings(&client.arguments("prompt"));
+    let arguments = strings(&client.arguments("prompt").expect("adapter arguments"));
     let turns = arguments
         .iter()
         .position(|value| value == "--max-turns")
@@ -107,9 +115,16 @@ fn opencode_arguments_namespace_the_model_to_the_gateway() {
     let client = NativeClient::builder(ClientKind::Opencode, ModelId::new("gpt-5"))
         .build()
         .expect("default execution limits are within the supported envelope");
-    let arguments = strings(&client.arguments("prompt"));
+    let arguments = strings(&client.arguments("prompt").expect("adapter arguments"));
 
-    assert_eq!(arguments.first().map(String::as_str), Some("opencode"));
+    assert_eq!(
+        arguments.first().map(String::as_str),
+        Some("/usr/local/bin/node")
+    );
+    assert_eq!(
+        arguments.get(1).map(String::as_str),
+        Some("/opt/systemprompt/opencode-runner.cjs")
+    );
     let model = arguments
         .iter()
         .position(|value| value == "--model")

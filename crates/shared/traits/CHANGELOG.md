@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.53.0] - 2026-09-15
+
+### Breaking
+
+- **Breaking:** `LogService` and `ContentProvider` are native `async fn` traits (no `#[async_trait]`, no `dyn`); `LogService::{find_by_id, delete}` take `&LogId`; `ContentProvider` category filters are `Option<CategoryId>`.
+- **Breaking:** `RepositoryError::Database { message }` replaces `Database(Box<dyn Error>)`; `RepositoryError::database(err)` takes any `Display`.
+- **Breaking:** `AgentRegistryProvider::agent_exists` / `McpRegistryProvider::server_exists` return `Result<bool, RegistryError>`; only `NotFound` maps to `false`.
+- **Breaking:** `ValidationError` (validation_report) is `ValidationIssue`; `validation::ValidationError` is `MetadataValidationError`; `extension_error::ApiError` is `ExtensionApiError`.
+- **Breaking:** `AnalyticsProvider::find_reusable_session` returns `Option<SessionId>`; `AgentJwtClaims.subject` is a `UserId`; `AiGeneratedFile.id` is a `FileId` (the separate `id()` accessor is gone); `InsertAiFileParams`, `CreateSessionInput` and `ContextWithStats` are built through `new` / `with_*` (fields are no longer constructed by literal).
+- **Breaking:** `OptionalStartupEventExt` is removed; `StartupEventExt` is implemented for `Option<&StartupEventSender>` and exposes `sender()` / `emit()` defaults, so the same method names work on both.
+
+### Added
+
+- `tool_executions::{ToolExecutionLookup, DynToolExecutionLookup}` — the cross-domain read seam over the MCP tool-execution ledger, implemented by the mcp domain and injected into agent.
+- `SessionProvider`, `SessionStore` (session persistence, usage counters and behavioural data, implemented by the users domain), `AnalyticsEventStore` (implemented by logging), `ContentCatalogStats` (implemented by content) and `OwnerReassignment` / `ReassignedRows` (implemented by agent, ai and mcp for cross-domain user merges), each with its `Dyn*` alias. `SessionStore::find_reusable_fingerprint_session` answers a typed `SessionId`.
+- `AiRequestTrace` (`sample`, `find_usage`, `list_usage`) with `TraceSampleFilter`, `TraceSampleMode`, `TraceSample`, `TraceMessage`, `TraceRequestUsage` (`is_settled` covers a completed row or one whose accounting failed after the spend was recorded), `TraceRequestStatus` and `DynAiRequestTrace`: the read seam over the AI request trace for domains that do not own it.
+- **Breaking:** `AiSessionProvider::find_live_session` reports a session's owner only while it is neither revoked nor expired. Migrate by implementing it on every `AiSessionProvider`.
+- `ManagedRevisionOwnership` / `DynManagedRevisionOwnership`: owner-scoped lookup of the resource a managed revision belongs to.
+
+### Removed
+
+- The unimplemented seams `Module`, `ApiModule`, `ModuleRegistry`, `register_module!`, `Service`, `AsyncService`, `traits::scheduler` (`JobTrigger`, `SchedulerLifecycle`, `JobInfo`, `JobStatus`, `SchedulerError`), the `traits::Result` alias, `LogEventPublisher` / `UserEventPublisher` / `AnalyticsEventPublisher`, `LogEventLevel` / `LogEventData`, and the `web` feature (with its `axum` and `inventory` dependencies).
+
 ## [0.52.0] - 2026-09-14
 
 ### Added

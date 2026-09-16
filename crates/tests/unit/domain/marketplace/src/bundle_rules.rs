@@ -51,6 +51,7 @@ fn plugin_with_rules(rules: PluginComponentRef) -> PluginConfig {
         artifacts: PluginComponentRef::default(),
         hooks: Default::default(),
         scripts: vec![],
+        dependencies: vec![],
     }
 }
 

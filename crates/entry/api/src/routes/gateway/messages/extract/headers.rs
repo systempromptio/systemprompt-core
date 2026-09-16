@@ -97,7 +97,7 @@ pub async fn read_gateway_body(
             format!("invalid request body: {e}"),
         )
     })?;
-    partial.model = Some(canonical.model.clone());
+    partial.model = Some(canonical.model.to_string());
     partial.max_tokens = Some(canonical.max_tokens);
     partial.is_streaming = canonical.stream;
     Ok((body_bytes, canonical))

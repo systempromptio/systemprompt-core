@@ -77,8 +77,9 @@ pub async fn broadcast_context_event(
         value: webhook_data.payload,
     }));
 
-    let (agui_count, context_count) =
-        EventRouter::route_agui(&req_ctx.auth.actor.user_id, event).await;
+    let (agui_count, context_count) = EventRouter::route_agui(&req_ctx.auth.actor.user_id, event)
+        .await
+        .into_local_logged();
     let count = agui_count + context_count;
 
     tracing::debug!(event_type = %webhook_data.event_name, connection_count = %count, user_id = %request.user_id, duration_ms = %start_time.elapsed().as_millis(), "Webhook processed");

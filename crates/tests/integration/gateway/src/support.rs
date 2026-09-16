@@ -2,7 +2,7 @@ use systemprompt_api::services::gateway::protocol::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, Role,
 };
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::UserId;
+use systemprompt_identifiers::{ModelId, UserId};
 use systemprompt_test_fixtures::{
     ensure_test_secrets_bootstrap, fixture_database_url, fixture_db_pool,
 };
@@ -10,7 +10,7 @@ use uuid::Uuid;
 
 pub fn minimal_request(system: Option<&str>, first_user_text: &str) -> CanonicalRequest {
     CanonicalRequest {
-        model: "claude-test".to_string(),
+        model: ModelId::new("claude-test"),
         system: system.map(str::to_string),
         messages: vec![CanonicalMessage {
             role: Role::User,

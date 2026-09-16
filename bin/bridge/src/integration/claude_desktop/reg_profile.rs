@@ -22,7 +22,12 @@ pub fn profile_entries(inputs: &ProfileGenInputs) -> Vec<(&'static str, String)>
     let mut entries = vec![
         ("inferenceProvider", "gateway".to_owned()),
         ("inferenceGatewayBaseUrl", inputs.gateway_base_url.clone()),
-        ("inferenceGatewayApiKey", inputs.api_key.clone()),
+        (
+            "inferenceGatewayApiKey",
+            crate::install::mdm::policy::desktop_host_token(&inputs.api_key)
+                .as_str()
+                .to_owned(),
+        ),
         ("inferenceGatewayAuthScheme", "bearer".to_owned()),
         ("inferenceModels", models_json),
     ];

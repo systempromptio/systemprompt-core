@@ -17,7 +17,7 @@ use wiremock::{Mock, MockServer, ResponseTemplate};
 use super::super::a2a_server::a2a_helpers::agent_config;
 use crate::repository::try_pool_or_skip;
 
-const DEAD_PID: u32 = 4_000_000_002;
+const DEAD_PID: u32 = 2_000_000_002;
 
 fn unique_name(prefix: &str) -> String {
     format!("{prefix}_{}", Uuid::new_v4().simple())
@@ -194,7 +194,17 @@ async fn unresponsive_agents_skip_agent_serving_valid_card() {
         .and(path("/.well-known/agent-card.json"))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
             "name": "mock-agent",
-            "url": "http://localhost/a2a"
+            "description": "mock",
+            "supportedInterfaces": [{
+                "url": "http://localhost/a2a",
+                "protocolBinding": "JSONRPC",
+                "protocolVersion": "0.3.0"
+            }],
+            "version": "1.0.0",
+            "capabilities": {},
+            "defaultInputModes": [],
+            "defaultOutputModes": [],
+            "skills": []
         })))
         .mount(&server)
         .await;

@@ -42,6 +42,7 @@ systemprompt-extension = { workspace = true }
 systemprompt-identifiers = { workspace = true, features = ["sqlx"] }
 systemprompt-models = { workspace = true }
 systemprompt-provider-contracts = { workspace = true }
+systemprompt-security = { workspace = true }
 systemprompt-traits = { workspace = true }
 
 [package.metadata.cargo-machete]

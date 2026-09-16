@@ -2,7 +2,7 @@
 //! fold `content_id` / `slug` / `referrer` into `event_data`, and the
 //! `find_by_content` reader that pivots on the JSON `content_id`.
 
-use systemprompt_analytics::{AnalyticsEventsRepository, SessionRepository};
+use systemprompt_analytics::AnalyticsEventsRepository;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContentId, SessionId, SessionSource, UserId};
 use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fixture_db_pool};
@@ -11,7 +11,9 @@ use uuid::Uuid;
 use systemprompt_analytics::CreateSessionParams;
 
 async fn seed_session(pool: &DbPool, session_id: &SessionId) {
-    let repo = SessionRepository::new(pool).expect("session repo");
+    let repo = systemprompt_test_fixtures::fixture_analytics_repositories(pool)
+        .map(|repositories| repositories.sessions)
+        .expect("session repo");
     let params = CreateSessionParams {
         session_id,
         user_id: None,
@@ -63,11 +65,24 @@ async fn create_event_folds_content_metadata_and_find_by_content_reads_it() {
     };
     ensure_test_bootstrap();
     let pool = fixture_db_pool(&url).await.expect("pool");
-    let repo = AnalyticsEventsRepository::new(&pool).expect("repo");
+    let repo = AnalyticsEventsRepository::new(
+        &pool,
+        std::sync::Arc::new(
+            systemprompt_logging::AnalyticsRepository::new(&pool).expect("logging store"),
+        ),
+    )
+    .expect("repo");
 
     let sid = SessionId::new(format!("sess-evt-{}", Uuid::new_v4()));
     seed_session(&pool, &sid).await;
-    let user = UserId::new("anon".to_owned());
+    let user = UserId::new(format!("event-user-{}", sid.as_str()));
+    systemprompt_test_fixtures::seed_user_row(
+        &pool,
+        &user,
+        &format!("{}@event-test.invalid", user.as_str()),
+    )
+    .await
+    .expect("retained event user");
     let content = ContentId::new(format!("content-{}", Uuid::new_v4()));
 
     let input = systemprompt_analytics::CreateAnalyticsEventInput {
@@ -84,6 +99,9 @@ async fn create_event_folds_content_metadata_and_find_by_content_reads_it() {
         .expect("create event");
     assert_eq!(created.event_type, "page_view");
 
+    systemprompt_test_fixtures::refresh_reporting(&pool)
+        .await
+        .expect("reporting snapshot");
     let events = repo
         .find_by_content(&content, 10)
         .await
@@ -110,7 +128,13 @@ async fn find_by_content_is_empty_for_unknown_content() {
     };
     ensure_test_bootstrap();
     let pool = fixture_db_pool(&url).await.expect("pool");
-    let repo = AnalyticsEventsRepository::new(&pool).expect("repo");
+    let repo = AnalyticsEventsRepository::new(
+        &pool,
+        std::sync::Arc::new(
+            systemprompt_logging::AnalyticsRepository::new(&pool).expect("logging store"),
+        ),
+    )
+    .expect("repo");
 
     let unknown = ContentId::new(format!("content-{}", Uuid::new_v4()));
     assert!(

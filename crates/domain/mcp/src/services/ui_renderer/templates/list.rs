@@ -7,10 +7,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::html::{HtmlBuilder, base_styles, html_escape, mcp_app_bridge_script};
+use super::html::{HtmlBuilder, base_styles, html_escape, mcp_app_bridge_script, safe_url};
 use crate::error::McpDomainResult;
 use crate::services::ui_renderer::{CspPolicy, UiRenderer, UiResource};
-use async_trait::async_trait;
 use serde_json::Value as JsonValue;
 use systemprompt_models::a2a::Artifact;
 use systemprompt_models::artifacts::ArtifactType;
@@ -132,10 +131,14 @@ impl ListItem {
                 )
             },
             |link| {
-                format!(
-                    r#"<a href="{}" class="item-link" target="_blank" rel="noopener noreferrer">{}<span class="visually-hidden"> (opens in a new tab)</span></a>"#,
-                    html_escape(link),
-                    html_escape(&self.title)
+                safe_url(link).map_or_else(
+                    || format!(r#"<span class="item-title">{}</span>"#, html_escape(&self.title)),
+                    |href| {
+                        format!(
+                            r#"<a href="{href}" class="item-link" target="_blank" rel="noopener noreferrer">{}<span class="visually-hidden"> (opens in a new tab)</span></a>"#,
+                            html_escape(&self.title)
+                        )
+                    },
                 )
             },
         );
@@ -193,13 +196,12 @@ impl ListStyle {
     }
 }
 
-#[async_trait]
 impl UiRenderer for ListRenderer {
     fn artifact_type(&self) -> ArtifactType {
         ArtifactType::List
     }
 
-    async fn render(&self, artifact: &Artifact) -> McpDomainResult<UiResource> {
+    fn render(&self, artifact: &Artifact) -> McpDomainResult<UiResource> {
         let items = Self::extract_items(artifact);
         let style = Self::extract_list_style(artifact);
         let title = artifact.title.as_deref().unwrap_or("List");

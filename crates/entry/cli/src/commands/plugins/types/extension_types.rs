@@ -73,11 +73,6 @@ pub struct RoleInfo {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct LlmProviderInfo {
-    pub name: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ExtensionDetailOutput {
     pub id: PluginId,
     pub name: String,
@@ -92,7 +87,6 @@ pub struct ExtensionDetailOutput {
     pub routes: Vec<RouteInfo>,
     pub tools: Vec<ToolInfo>,
     pub roles: Vec<RoleInfo>,
-    pub llm_providers: Vec<LlmProviderInfo>,
     pub storage_paths: Vec<String>,
 }
 

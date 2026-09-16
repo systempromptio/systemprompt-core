@@ -53,7 +53,7 @@ fn cloud_credentials_json_matches_legacy_string_schema() {
         api_token: CloudAuthToken::new("tok_abc123"),
         api_url: "https://api.systemprompt.io".to_string(),
         authenticated_at: at,
-        user_email: Email::new("ops@example.com"),
+        user_email: Email::try_new("ops@example.com").expect("valid Email"),
         last_validated_at: Some(at),
     };
 

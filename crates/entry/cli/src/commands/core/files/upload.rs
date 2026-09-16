@@ -5,7 +5,7 @@
 
 use std::path::{Path, PathBuf};
 
-use anyhow::{Result, anyhow};
+use anyhow::{Context, Result, anyhow};
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
 use clap::Args;
@@ -69,7 +69,7 @@ pub async fn execute(args: UploadArgs, ctx: &CommandContext) -> Result<CommandOu
         .and_then(|n| n.to_str())
         .map(String::from);
 
-    let context_id = ContextId::new_unchecked(args.context);
+    let context_id = ContextId::try_new(args.context).context("Invalid --context id")?;
 
     let request = FileUploadRequest {
         name: filename,

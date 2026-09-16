@@ -5,9 +5,9 @@
 
 use async_trait::async_trait;
 use std::sync::Arc;
+use systemprompt_config::paths::AppPaths;
 use systemprompt_content::ContentRepository;
 use systemprompt_database::DbPool;
-use systemprompt_models::AppPaths;
 use systemprompt_provider_contracts::{
     Job, JobContext, JobResult, JobScope, ProviderError, ProviderResult,
 };

@@ -133,25 +133,25 @@ fn accepts_two_char_tld() {
 
 #[test]
 fn local_part_extraction() {
-    let email = Email::new("admin@systemprompt.io");
+    let email = Email::try_new("admin@systemprompt.io").expect("valid Email");
     assert_eq!(email.local_part(), "admin");
 }
 
 #[test]
 fn domain_extraction() {
-    let email = Email::new("admin@systemprompt.io");
+    let email = Email::try_new("admin@systemprompt.io").expect("valid Email");
     assert_eq!(email.domain(), "systemprompt.io");
 }
 
 #[test]
 fn display_shows_full_email() {
-    let email = Email::new("user@example.com");
+    let email = Email::try_new("user@example.com").expect("valid Email");
     assert_eq!(format!("{}", email), "user@example.com");
 }
 
 #[test]
 fn serde_roundtrip_exact_json() {
-    let email = Email::new("test@example.com");
+    let email = Email::try_new("test@example.com").expect("valid Email");
     let json = serde_json::to_string(&email).unwrap();
     assert_eq!(json, "\"test@example.com\"");
     let deserialized: Email = serde_json::from_str(&json).unwrap();
@@ -190,14 +190,14 @@ fn from_str_parse_rejects_invalid() {
 
 #[test]
 fn to_db_value_returns_string_variant() {
-    let email = Email::new("user@example.com");
+    let email = Email::try_new("user@example.com").expect("valid Email");
     let db_val = email.to_db_value();
     assert!(matches!(db_val, DbValue::String(s) if s == "user@example.com"));
 }
 
 #[test]
 fn equality_across_construction_paths() {
-    let from_new = Email::new("user@example.com");
+    let from_new = Email::try_new("user@example.com").expect("valid Email");
     let from_try: Email = "user@example.com".try_into().unwrap();
     let from_parse: Email = "user@example.com".parse().unwrap();
     assert_eq!(from_new, from_try);
@@ -205,7 +205,7 @@ fn equality_across_construction_paths() {
 }
 
 #[test]
-#[should_panic(expected = "Email validation failed")]
-fn new_panics_on_invalid() {
-    let _ = Email::new("no-at-sign");
+fn try_new_rejects_invalid() {
+    let err = Email::try_new("no-at-sign").expect_err("Email must reject `no-at-sign`");
+    assert!(err.to_string().contains("exactly one '@'"), "{err}");
 }

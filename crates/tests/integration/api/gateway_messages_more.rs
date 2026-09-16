@@ -31,7 +31,7 @@ use systemprompt_api::services::gateway::protocol::{
 };
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::headers::{GATEWAY_CONVERSATION_ID, SESSION_ID};
-use systemprompt_identifiers::{AiRequestId, SessionId, TraceId, UserId};
+use systemprompt_identifiers::{AiRequestId, ModelId, SessionId, TraceId, UserId};
 use systemprompt_security::authz::{AllowAllHook, DenyAllHook, SharedAuthzHook};
 use systemprompt_test_fixtures::{install_test_signing_key, seed_admin_credential};
 use systemprompt_users::{ApiKeyService, IssueApiKeyParams};
@@ -76,7 +76,7 @@ fn inbound() -> Arc<dyn InboundAdapter> {
 
 fn canonical(messages: Vec<CanonicalMessage>) -> CanonicalRequest {
     CanonicalRequest {
-        model: "claude-test".to_owned(),
+        model: ModelId::new("claude-test"),
         system: None,
         messages,
         max_tokens: 128,
@@ -297,9 +297,8 @@ fn jwt_extractor(
     ctx: &systemprompt_runtime::AppContext,
 ) -> Result<systemprompt_api::services::middleware::JwtContextExtractor> {
     use systemprompt_api::services::middleware::{JtiRevocationChecker, JwtContextExtractor};
-    use systemprompt_traits::{AnalyticsProvider, UserProvider};
-    let concrete = Arc::clone(ctx.analytics_service());
-    let analytics: Arc<dyn AnalyticsProvider> = concrete;
+    use systemprompt_traits::UserProvider;
+    let analytics = ctx.analytics_repositories().sessions.owner();
     let user_provider: Arc<dyn UserProvider> = Arc::new(systemprompt_users::UserService::new(
         Arc::clone(ctx.user_repository()),
     ));
@@ -310,12 +309,7 @@ fn jwt_extractor(
 fn execution_capabilities(
     pool: &DbPool,
 ) -> Result<systemprompt_evaluation::repository::experiments::ExecutionCapabilityRepository> {
-    let write = pool.write_pool_arc()?;
-    Ok(
-        systemprompt_evaluation::repository::experiments::ExecutionCapabilityRepository::new(
-            (*write).clone(),
-        ),
-    )
+    Ok(systemprompt_test_fixtures::fixture_evaluation_repositories(pool)?.capabilities)
 }
 
 #[tokio::test]

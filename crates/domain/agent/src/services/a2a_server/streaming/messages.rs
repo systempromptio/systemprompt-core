@@ -76,8 +76,7 @@ pub async fn create_sse_stream_with_registry(
 
     let (tx, rx) = tokio::sync::mpsc::channel(1024);
 
-    tracing::info!("create_sse_stream() called - spawning tokio task");
-
+    let active_tasks = state.active_tasks.clone();
     let input = StreamInput {
         message,
         agent_name,
@@ -87,9 +86,8 @@ pub async fn create_sse_stream_with_registry(
         registry,
     };
 
-    tokio::spawn(async move {
+    active_tasks.tracker().spawn(async move {
         let _permit = permit;
-        tracing::info!("Inside tokio::spawn - task execution started");
         run_stream(input, tx).await;
     });
 
@@ -97,12 +95,15 @@ pub async fn create_sse_stream_with_registry(
 }
 
 async fn run_stream(input: StreamInput, tx: tokio::sync::mpsc::Sender<Event>) {
+    let active_tasks = input.state.active_tasks.clone();
+    let webhooks = input.state.agent_state.webhooks();
     let Ok(setup) = setup_stream(input, &tx).await else {
         return;
     };
 
     tracing::info!(agent = %setup.agent_name, "Starting message stream processing for agent");
 
+    let guard = active_tasks.register(setup.task_id.clone());
     match setup
         .processor
         .process_message_stream(ProcessMessageStreamParams {
@@ -111,13 +112,14 @@ async fn run_stream(input: StreamInput, tx: tokio::sync::mpsc::Sender<Event>) {
             agent_name: &setup.agent_name,
             context: &setup.context,
             task_id: setup.task_id.clone(),
+            cancel: guard.token(),
         })
         .await
     {
-        Ok(chunk_rx) => {
+        Ok(stream) => {
             let params = ProcessEventsParams {
                 tx,
-                chunk_rx,
+                stream,
                 task_id: setup.task_id,
                 context_id: setup.context_id,
                 message_id: setup.message_id,
@@ -126,15 +128,11 @@ async fn run_stream(input: StreamInput, tx: tokio::sync::mpsc::Sender<Event>) {
                 context: setup.context,
                 task_repo: setup.task_repo,
                 processor: setup.processor,
-                request_id: setup.request_id,
             };
             process_events(params).await;
         },
         Err(e) => {
-            let webhook_context = WebhookContext::new(
-                setup.context.user_id().clone(),
-                setup.context.auth_token().as_str(),
-            );
+            let webhook_context = WebhookContext::for_request(webhooks, &setup.context);
             handle_stream_creation_error(
                 &webhook_context,
                 e,

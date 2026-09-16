@@ -18,23 +18,26 @@ domain_error! {
         #[error("Invalid evaluation specification: {0}")]
         InvalidSpec(String),
 
-        #[error("AI provider request failed: {0}")]
-        Ai(String),
+        #[error("AI request trace unavailable: {0}")]
+        Trace(#[from] systemprompt_traits::AiProviderError),
 
-        #[error("Run not found: {0}")]
-        RunNotFound(String),
+        #[error("Managed revision ownership unavailable: {0}")]
+        ManagedRevisions(#[from] systemprompt_traits::ManagedSkillResolverError),
 
-        #[error("Rubric not found: {0}")]
-        RubricNotFound(String),
+        #[error("Budget exhausted: {required} microdollars required, {available} available")]
+        BudgetExhausted { required: i64, available: i64 },
+    }
+}
 
-        #[error("Judge verdict unparseable: {0}")]
-        JudgeParse(String),
-
-        #[error("Replay source incomplete: {0}")]
-        ReplaySource(String),
-
-        #[error("Budget exhausted: spent {spent} of {budget} microdollars")]
-        BudgetExhausted { spent: i64, budget: i64 },
+impl EvaluationError {
+    #[must_use]
+    pub const fn budget_exhausted(
+        preflight: &crate::experiments::records::ExperimentPreflight,
+    ) -> Self {
+        Self::BudgetExhausted {
+            required: preflight.maximum_cost_microdollars,
+            available: preflight.available_microdollars,
+        }
     }
 }
 

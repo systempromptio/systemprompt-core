@@ -78,7 +78,6 @@ impl ServiceResolver {
 
     async fn attempt_restart(service_name: &str, ctx: &AppContext) -> Result<(), ProxyError> {
         let orchestrator = McpOrchestrator::new(
-            Arc::clone(ctx.db_pool()),
             (**ctx.service_repository()).clone(),
             Arc::clone(ctx.app_paths_arc()),
             ctx.mcp_registry().clone(),

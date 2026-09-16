@@ -11,6 +11,8 @@ use crate::experiments::{ExperimentSpec, conflict, content_digest, invalid};
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use sqlx::types::Json;
+use systemprompt_identifiers::ResourceRevisionId;
+use systemprompt_models::managed::RevisionBundle;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExecutionAssignment {
@@ -27,10 +29,10 @@ pub struct ExecutionAssignment {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ManagedWorkspaceReference {
-    pub managed_revision_id: String,
+    pub managed_revision_id: ResourceRevisionId,
     pub digest: String,
     pub publication_generation: Option<i64>,
-    pub manifest: serde_json::Value,
+    pub manifest: RevisionBundle,
 }
 
 #[derive(Debug, Clone)]
@@ -40,11 +42,8 @@ pub struct AssignmentRepository {
 }
 
 impl AssignmentRepository {
-    pub fn new(pool: PgPool) -> Self {
-        Self {
-            evidence: EvidenceRepository::new(pool.clone()),
-            pool,
-        }
+    pub const fn new(pool: PgPool, evidence: EvidenceRepository) -> Self {
+        Self { pool, evidence }
     }
 
     pub async fn get(

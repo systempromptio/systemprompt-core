@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE analytics_fact_changes SET state='pending',lease_worker=NULL,lease_until=NULL,last_error='Fact processing failed; retry scheduled',next_attempt_at=now()+make_interval(secs=>LEAST(attempts,60)::double precision) WHERE owner_id=$1 AND change_id=$2 AND state='leased' AND lease_worker=$3 AND lease_epoch=$4 AND lease_until>now()",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "416ea0e74e7f875c2eda2e1cb65a2d04869a64bcda33d92aa7ca437a7c94104e"
+}

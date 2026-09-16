@@ -1,0 +1,52 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT generation,last_applied_at,last_recorded_at FROM analytics_fact_checkpoints WHERE owner_id=$1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "generation",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "analytics_fact_checkpoints",
+            "name": "generation"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "last_applied_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "analytics_fact_checkpoints",
+            "name": "last_applied_at"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "last_recorded_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "analytics_fact_checkpoints",
+            "name": "last_recorded_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "a55c62b7e0529fe84ddb54bbf8562028a8c8641bc1adad5bf59b123b1740f03d"
+}

@@ -9,11 +9,12 @@
 # --- core ---
 crates/infra/config/src/bootstrap/profile.rs  # SYSTEMPROMPT_PROFILE boot variable
 crates/infra/config/src/bootstrap/secrets/mod.rs  # deployment-host detection for the secrets bootstrap (SYSTEMPROMPT_* subprocess vars)
-crates/infra/config/src/bootstrap/secrets/loader.rs  # deployment-host / SYSTEMPROMPT_SUBPROCESS detection; Vault credentials from the secrets `env` source
+crates/infra/config/src/bootstrap/secrets/loader.rs  # deployment-host / SYSTEMPROMPT_SUBPROCESS detection; OAUTH_AT_REST_PEPPER presence for `resolve_source`; Vault credentials from the secrets `env` source
 crates/infra/config/src/bootstrap/secrets/sources/env.rs  # the secrets `env` source itself
 crates/infra/config/src/config_loader.rs  # SYSTEMPROMPT_SYSTEM_ADMIN cloud-boot variable; HOSTNAME replica identity when server.instance_id is absent
 crates/infra/loader/src/config_loader/mod.rs  # SYSTEMPROMPT_SERVICES_PATH / SKILLS_PATH / CONFIG_PATH subprocess boot variables
 crates/entry/cli/src/env_overrides.rs  # the single CLI reader of SYSTEMPROMPT_* overrides (EnvOverrides)
+crates/infra/logging/src/lib.rs  # RUST_LOG via EnvFilter::try_from_default_env — the tracing-subscriber convention every operator and every `cargo run` expects; a profile field cannot be read before the subscriber that reports profile errors exists
 crates/shared/models/src/profile/from_env.rs  # `${VAR}` interpolation in profile YAML
 crates/shared/models/src/profile/paths.rs  # HOME / USERPROFILE for `~` expansion in profile paths
 crates/shared/extension/src/build.rs  # cargo build-script environment (OUT_DIR, CARGO_MANIFEST_DIR)
@@ -30,21 +31,16 @@ crates/entry/cli/src/commands/core/services/publish.rs  # --auth env:VAR — ope
 crates/entry/cli/src/commands/core/services/signing.rs  # --key env:VAR — operator names the signing-key variable explicitly on the CLI
 
 # --- bridge (bin/bridge/README.md § Runtime environment is the contract) ---
-bin/bridge/src/auth/mod.rs  # <PREFIX>_PAT inline PAT and the <PREFIX>_DEVICE_CERT / _DEVICE_CERT_LABEL / _DEVICE_CERT_SHA256 presence probe for the credential-source check
-bin/bridge/src/auth/cache.rs  # <PREFIX>_DEVICE_CERT / _DEVICE_CERT_LABEL / _DEVICE_CERT_SHA256 empty-value rejection when capturing the credential binding
+bin/bridge/src/auth/mod.rs  # <PREFIX>_PAT inline PAT presence probe for the credential-source check
 bin/bridge/src/auth/providers/pat.rs  # <PREFIX>_PAT inline PAT
-bin/bridge/src/auth/providers/mtls.rs  # <PREFIX>_DEVICE_CERT / _DEVICE_CERT_LABEL / _DEVICE_CERT_SHA256 presence gates the mTLS provider
-bin/bridge/src/auth/keystore/linux.rs  # <PREFIX>_DEVICE_CERT device-certificate path (Linux)
-bin/bridge/src/auth/keystore/macos.rs  # <PREFIX>_DEVICE_CERT_LABEL Keychain label (macOS)
-bin/bridge/src/auth/keystore/windows.rs  # <PREFIX>_DEVICE_CERT_SHA256 certificate-store fingerprint pin (Windows)
 bin/bridge/src/basedirs.rs  # HOME and XDG_CONFIG_HOME / XDG_CACHE_HOME / XDG_DATA_HOME / XDG_STATE_HOME base-directory probes
-bin/bridge/src/cli/login.rs  # HOSTNAME for the device display name at login
+bin/bridge/src/cli/args.rs  # __CFBundleIdentifier LaunchServices app-bundle launch probe (macOS GUI-by-default)
 bin/bridge/src/config/mod.rs  # <PREFIX>_CONFIG config-file path
+bin/bridge/src/sysproc.rs  # PATH lookup for host tool binaries
 bin/bridge/src/config/paths/dirs.rs  # LOCALAPPDATA / USERPROFILE Windows folder probes
 bin/bridge/src/config/paths/mod.rs  # <PREFIX>_ORG_PLUGINS_SYSTEM system org-plugins root; ProgramFiles / ProgramData / LOCALAPPDATA Windows folder probes
 bin/bridge/src/config/store/macos_plist_store.rs  # USER for the per-user managed-preferences plist path (macOS)
 bin/bridge/src/config/trust/policy.rs  # <PREFIX>_POLICY_TRUST managed trust record and <PREFIX>_POLICY_PUBKEY pinned pubkey overrides
-bin/bridge/src/gui/handlers/auth/session.rs  # COMPUTERNAME / HOSTNAME for the device display name in the GUI sign-in
 bin/bridge/src/i18n.rs  # LANG locale probe for GUI language selection
 bin/bridge/src/install/bootstrap/unix.rs  # SUDO_USER to resolve the invoking user under sudo
 bin/bridge/src/install/mdm/egress.rs  # <PREFIX>_EGRESS_ALLOWED_HOSTS Cowork egress allowlist when --egress-allowed-hosts is absent
@@ -52,12 +48,13 @@ bin/bridge/src/install/mdm/macos.rs  # USER for the per-user managed-preferences
 bin/bridge/src/install/mdm/macos_remove.rs  # USER for the per-user managed-preferences plist (macOS MDM remove)
 bin/bridge/src/install/mdm/windows.rs  # USERPROFILE Windows home probe for the MDM payload
 bin/bridge/src/integration/app_launch/mod.rs  # PATH lookup for the host app binary
-bin/bridge/src/integration/claude_code_cli/mod.rs  # PATH lookup for the `claude` CLI
 bin/bridge/src/integration/claude_desktop/macos.rs  # USER for the Claude Desktop per-user managed preferences (macOS)
 bin/bridge/src/integration/claude_desktop/mod.rs  # LOCALAPPDATA Claude Desktop install probe (Windows)
 bin/bridge/src/integration/codex_cli/config.rs  # CODEX_HOME / CODEX_SYSTEM_CONFIG (Codex-defined home overrides); USER for the per-user config path
 bin/bridge/src/integration/hermes/config.rs  # HERMES_HOME (Hermes-defined home override)
-bin/bridge/src/integration/opencode/config.rs  # ProgramData / APPDATA Windows folder probes; USER for the per-user config path
+bin/bridge/src/integration/opencode/config.rs  # ProgramData / APPDATA Windows folder probes; USER for the per-user config path; SP_BRIDGE_OPENCODE_MANAGED_DIR managed-dir override via basedirs::env_dir
 bin/bridge/src/obs/mod.rs  # <PREFIX>_LOG_FORMAT, RUST_LOG filter presence, LOCALAPPDATA log directory (Windows)
 bin/bridge/src/sync/manifest.rs  # <PREFIX>_CONFIG presence noted in the credential-location diagnostic
+bin/bridge/src/winproc.rs  # SystemRoot to address System32 binaries by absolute path from the elevated child (Windows)
 bin/bridge/src/sync/provision.rs  # USER as the chown target when the elevated provisioning script creates the workspace (macOS)
+crates/app/scheduler/src/services/evaluator/docker.rs  # preserve Docker socket transport and executable/system paths while isolating subprocess credentials

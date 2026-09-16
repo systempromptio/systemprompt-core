@@ -12,12 +12,9 @@ pub fn to_tool_definition(mcp_tool: &McpTool) -> ToolDefinition {
         description: mcp_tool.description.clone(),
         input_schema: mcp_tool.input_schema.clone(),
         output_schema: mcp_tool.output_schema.clone(),
-        service_id: mcp_tool.service_id.to_string(),
+        service_id: mcp_tool.service_id.clone(),
         terminal_on_success: mcp_tool.terminal_on_success,
-        model_config: mcp_tool
-            .model_config
-            .as_ref()
-            .and_then(|c| serde_json::to_value(c).ok()),
+        model_config: mcp_tool.model_config.clone(),
     }
 }
 

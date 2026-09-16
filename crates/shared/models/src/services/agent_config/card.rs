@@ -4,8 +4,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 
+use crate::a2a::SecurityScheme;
 use crate::ai::ToolModelOverrides;
 use crate::auth::{JwtAudience, Permission};
 use crate::services::plugin::PluginComponentRef;
@@ -34,9 +37,9 @@ pub struct AgentCardConfig {
     #[serde(default = "default_output_modes")]
     pub default_output_modes: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub security_schemes: Option<serde_json::Value>,
+    pub security_schemes: Option<HashMap<String, SecurityScheme>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub security: Option<Vec<serde_json::Value>>,
+    pub security: Option<Vec<HashMap<String, Vec<String>>>>,
     #[serde(default)]
     pub supports_authenticated_extended_card: bool,
 }

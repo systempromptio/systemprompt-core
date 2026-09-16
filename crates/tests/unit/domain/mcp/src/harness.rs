@@ -163,7 +163,7 @@ pub fn request_context(tag: &str) -> RequestContext {
         SessionId::new(format!("s-{tag}")),
         TraceId::new(format!("t-{tag}")),
         ContextId::generate(),
-        AgentName::new(format!("agent-{tag}")),
+        AgentName::try_new(format!("agent-{tag}")).expect("valid AgentName"),
     )
     .with_actor(Actor::user(UserId::new(format!("user-{tag}"))))
 }

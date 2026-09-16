@@ -49,6 +49,7 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::RouteId;
 use systemprompt_models::services::{BundleOwnership, ServicesBundleManifest, ServicesConfig};
 
+use super::AuthzError;
 use super::error::AuthzResult;
 use super::gateway_entities::{GatewayReconcileReport, reconcile_gateway_entities_exact};
 use super::ingestion::{
@@ -145,7 +146,10 @@ async fn run_pass(
     };
 
     let roles_yaml = services_root.join(ROLES_YAML_RELATIVE);
-    if pass.platform_dirs && roles_yaml.exists() {
+    let roles_present = tokio::fs::try_exists(&roles_yaml).await.map_err(|err| {
+        AuthzError::Validation(format!("failed to probe {}: {err}", roles_yaml.display()))
+    })?;
+    if pass.platform_dirs && roles_present {
         report.roles = Some(
             svc.ingest_config_from_yaml_path(&roles_yaml, options.clone(), &registered)
                 .await?,

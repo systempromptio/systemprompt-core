@@ -8,14 +8,13 @@
 use std::sync::Arc;
 
 use axum::response::sse::Event;
-use systemprompt_identifiers::{ContextId, SessionId, TraceId, UserId};
+use systemprompt_identifiers::{ContextId, UserId};
 use systemprompt_models::TaskMetadata;
 use tokio::sync::mpsc::Sender;
 
 use crate::models::a2a::jsonrpc::NumberOrString;
 use crate::models::a2a::{Task, TaskState, TaskStatus};
 use crate::repository::task::TaskRepository;
-use crate::services::a2a_server::errors::classify_database_error;
 use crate::services::a2a_server::handlers::AgentHandlerState;
 
 use super::initialization::create_jsonrpc_error_event;
@@ -96,19 +95,18 @@ pub(super) async fn persist_initial_task(
     task_repo
         .create_task(crate::repository::task::RepoCreateTaskParams {
             task: &task,
-            user_id: &UserId::new(context.user_id().as_str()),
-            session_id: &SessionId::new(context.session_id().as_str()),
-            trace_id: &TraceId::new(context.trace_id().as_str()),
+            user_id: context.user_id(),
+            session_id: context.session_id(),
+            trace_id: context.trace_id(),
             agent_name,
         })
         .await
         .map_err(|e| {
             tracing::error!(task_id = %task_id, error = %e, "Failed to persist task at start");
-            let error_detail = classify_database_error(&e);
             if tx
                 .try_send(create_jsonrpc_error_event(
                     -32603,
-                    &format!("Failed to create task: {error_detail}"),
+                    &format!("Failed to create task: {e}"),
                     request_id,
                 ))
                 .is_err()

@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM analytics_snapshot_dirty WHERE owner_id=$1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "39e2805fcbcce09f19ca6c0f864fe0594084d96b4e8478c5bdf449234a4cc3d5"
+}

@@ -24,6 +24,9 @@ pub fn ensure_present() -> bool {
         "The Evergreen WebView2 runtime is not installed on this machine, so the app cannot \
          render its window. The download page will open now; install it and start the app again.",
     );
-    crate::gui::window::open_external_url(BOOTSTRAPPER_URL);
+    match crate::wire::external_url::ExternalUrl::parse(BOOTSTRAPPER_URL) {
+        Ok(url) => crate::gui::window::open_external_url(&url),
+        Err(e) => tracing::error!(error = %e, "webview2 bootstrapper url rejected"),
+    }
     false
 }

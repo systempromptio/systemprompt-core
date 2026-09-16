@@ -114,6 +114,7 @@ impl TemplateValidator {
     pub fn get_tool_output_schemas(
         calls: &[PlannedToolCall],
         tools: &[McpTool],
+        // JSON: MCP tool-call arguments walked for `$N.output.path` templates.
     ) -> Vec<(String, Option<Value>)> {
         calls
             .iter()
@@ -127,12 +128,14 @@ impl TemplateValidator {
             .collect()
     }
 
+    // JSON: MCP tool-call arguments walked for `$N.output.path` templates.
     pub fn find_templates_in_value(value: &Value) -> Vec<String> {
         let mut templates = Vec::new();
         Self::collect_templates(value, &mut templates);
         templates
     }
 
+    // JSON: MCP tool-call arguments walked for `$N.output.path` templates.
     fn collect_templates(value: &Value, templates: &mut Vec<String>) {
         match value {
             Value::String(s) if s.starts_with('$') && s.contains(".output.") => {
@@ -223,6 +226,7 @@ impl TemplateValidator {
 
     fn validate_field_access(
         template_ref: &TemplateRef,
+        // JSON: JSON Schema document (the tool's `inputSchema`).
         schema: &Value,
         tool_name: &str,
     ) -> Option<ValidationErrorKind> {
@@ -240,6 +244,7 @@ impl TemplateValidator {
         }
     }
 
+    // JSON: MCP tool-call arguments walked for `$N.output.path` templates.
     fn find_argument_for_template(value: &Value, template: &str) -> String {
         if let Value::Object(obj) = value {
             for (key, val) in obj {
@@ -257,6 +262,7 @@ impl TemplateValidator {
         String::new()
     }
 
+    // JSON: JSON Schema document (the tool's `inputSchema`).
     fn get_schema_fields(schema: &Value) -> Vec<String> {
         schema
             .get("properties")

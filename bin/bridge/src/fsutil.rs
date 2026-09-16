@@ -15,6 +15,27 @@ pub fn atomic_write_0644(path: &Path, bytes: &[u8]) -> io::Result<()> {
     atomic_write_with_mode(path, bytes, 0o644)
 }
 
+// Why: on Windows the private ACL is inherited from the 0700 directory the
+// caller creates first (OICI on the directory), so the file needs no ACL of
+// its own; on Unix the mode is pinned at open and re-asserted for a file that
+// already existed.
+pub fn open_append_0600(path: &Path) -> io::Result<fs::File> {
+    let mut options = fs::OpenOptions::new();
+    options.create(true).append(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt as _;
+        options.mode(0o600);
+    }
+    let file = options.open(path)?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt as _;
+        file.set_permissions(fs::Permissions::from_mode(0o600))?;
+    }
+    Ok(file)
+}
+
 fn atomic_write_with_mode(path: &Path, bytes: &[u8], mode: u32) -> io::Result<()> {
     if let Some(parent) = path.parent()
         && !parent.as_os_str().is_empty()
@@ -89,10 +110,8 @@ pub fn verify_contents(path: &Path, expected: &[u8]) -> io::Result<()> {
     Ok(())
 }
 
-// Why: a private file this user owns can lose every DACL entry (an upgrade
-// that re-protected its directory did exactly that); the owner can still
-// rewrite the DACL, so a denied read is repaired once and retried before it
-// is reported.
+// Why: the owner of a private file can rewrite a DACL that lost every entry,
+// so a denied read is repaired once and retried before it is reported.
 #[cfg(target_os = "windows")]
 pub fn read_private(path: &Path) -> io::Result<Vec<u8>> {
     match fs::read(path) {

@@ -54,7 +54,9 @@ pub(super) async fn read_entry(
         .await?;
 
     let status = response.status();
-    let text = response.text().await.unwrap_or_default();
+    let text = response.text().await.map_err(|e| VaultError::Body {
+        message: e.to_string(),
+    })?;
     let detail = truncate_detail(&super::auth::vault_errors(&text));
 
     match status {

@@ -3,30 +3,49 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use super::super::adapters::{NativeCompletion, normalize_evidence};
+use super::terminal::{CleanupResources, ExecutionTerminal, NativeStart};
 use super::{
-    ArtifactFile, BTreeMap, ClientPurpose, ContainerExecution, ContainerLaunch, Duration,
-    EvaluationTrafficClass, EvaluatorSupervisor, EvidenceJudgment, ExecutionStage, ExitStatus,
-    Instant, PreparedExecution, SchedulerError, SchedulerResult, StageEvent, changed_workspace,
-    execution_prompt, internal, judgment_prompt, parse_judgment, safe_suffix, workspace_state,
-    write_private,
+    ArtifactFile, BTreeMap, ClientPurpose, ContainerExecution, Duration, EvaluatorSupervisor,
+    EvidenceJudgment, ExecutionStage, ExitStatus, Instant, PreparedExecution, SchedulerError,
+    SchedulerResult, StageEvent, changed_workspace, execution_prompt, internal, workspace_state,
 };
-use systemprompt_evaluation::repository::experiments::CleanupReport;
 
 pub(super) struct ExecutionOutcome {
     pub status: ExitStatus,
+    pub native_completion: NativeCompletion,
     pub started: Instant,
     pub last_heartbeat: Instant,
     pub artifacts: BTreeMap<String, ArtifactFile>,
     pub judgment: Option<EvidenceJudgment>,
+    pub blocked: Option<String>,
 }
 
 impl EvaluatorSupervisor {
     pub(super) async fn run_client(
         &self,
         run: &mut PreparedExecution,
-    ) -> SchedulerResult<ExecutionOutcome> {
+    ) -> SchedulerResult<Option<ExecutionOutcome>> {
         let prompt = execution_prompt(&run.case)?;
-        let mut execution = run.launch.start(&run.client, &prompt)?;
+        let target =
+            systemprompt_evaluation::capabilities::admit_variant(&run.variant).map_err(internal)?;
+        let Some(mut execution) = ExecutionTerminal::new(&self.repositories)
+            .start_client(
+                &run.worker.owner_id,
+                &run.lease,
+                NativeStart {
+                    launch: &run.launch,
+                    client: &run.client,
+                    purpose: ClientPurpose::Execution,
+                    prompt: &prompt,
+                    readiness: Some((&run.worker, target)),
+                },
+                || self.cleanup_failed_execution(&run.worker.owner_id, &run.lease),
+            )
+            .await?
+        else {
+            return Ok(None);
+        };
         run.network
             .verify(&[run.client_name.clone(), run.relay_name.clone()])?;
         self.append_event(
@@ -35,7 +54,7 @@ impl EvaluatorSupervisor {
             StageEvent {
                 sequence: 1,
                 stage: ExecutionStage::Context,
-                summary: "Started isolated Claude Code execution and authenticated relay",
+                summary: "Started isolated native client execution and authenticated relay",
             },
         )
         .await?;
@@ -59,102 +78,16 @@ impl EvaluatorSupervisor {
             },
         )
         .await?;
-        let mut artifacts = BTreeMap::new();
-        capture_outputs(&execution, "client", &mut artifacts)?;
-        artifacts.extend(changed_workspace(&run.home.join("work"), &run.baseline)?);
-        let observed = workspace_state(&run.home.join(".claude/skills"))?;
-        artifacts.insert(
-            "installation-integrity.json".to_owned(),
-            ArtifactFile {
-                bytes: serde_jcs::to_vec(&serde_json::json!({
-                    "expected": &run.installed_skill_state,
-                    "observed": &observed,
-                    "matches": run.installed_skill_state == observed,
-                }))
-                .map_err(internal)?,
-                executable: false,
-            },
-        );
-        Ok(ExecutionOutcome {
+        let (artifacts, native_completion) = collect_client_artifacts(run, &execution)?;
+        Ok(Some(ExecutionOutcome {
             status,
+            native_completion,
             started,
             last_heartbeat,
             artifacts,
             judgment: None,
-        })
-    }
-
-    pub(super) async fn run_judgment(
-        &self,
-        run: &mut PreparedExecution,
-        outcome: &mut ExecutionOutcome,
-    ) -> SchedulerResult<Option<EvidenceJudgment>> {
-        if !outcome.status.success() {
-            return Ok(None);
-        }
-        let stdout = outcome
-            .artifacts
-            .get("client-events.jsonl")
-            .ok_or_else(|| SchedulerError::Internal("client evidence missing".to_owned()))?
-            .bytes
-            .clone();
-        let evidence_dir = run.home.join("work/evidence");
-        std::fs::create_dir_all(&evidence_dir)?;
-        write_private(&evidence_dir.join("client-events.jsonl"), &stdout)?;
-        self.repositories
-            .gateway
-            .set_traffic_class(
-                &run.worker.owner_id,
-                &run.lease,
-                EvaluationTrafficClass::Judge,
-            )
-            .await
-            .map_err(internal)?;
-        let judge_name = format!("eval-judge-{}", safe_suffix(&run.record.id));
-        let launch = ContainerLaunch::builder(self.config.docker.clone(), run.directory.clone())
-            .image(self.config.client_image.clone())
-            .network(run.network.name().to_owned())
-            .name(judge_name.clone())
-            .output_stem("judge")
-            .ownership(run.worker.owner_id.as_str(), run.record.id.as_str())
-            .build()?;
-        let evidence = outcome.artifacts.keys().collect::<Vec<_>>();
-        let prompt = judgment_prompt(&run.case, &run.rubric, &evidence)?;
-        let mut judge = launch.start_for(&run.client, ClientPurpose::Judge, &prompt)?;
-        run.network.verify(&[judge_name, run.relay_name.clone()])?;
-        let status = self
-            .await_exit(
-                run,
-                &mut judge,
-                &mut outcome.last_heartbeat,
-                "Judge cancellation cleanup was not fully acknowledged",
-            )
-            .await?;
-        let bytes = capture_outputs(&judge, "judge", &mut outcome.artifacts)?;
-        self.append_event(
-            &run.worker,
-            &run.lease,
-            StageEvent {
-                sequence: 3,
-                stage: ExecutionStage::Verification,
-                summary: "Completed separately metered bounded semantic judgment",
-            },
-        )
-        .await?;
-        if !status.success() {
-            return Ok(None);
-        }
-        match parse_judgment(&bytes) {
-            Ok(judgment) => Ok(Some(judgment)),
-            Err(error) => {
-                tracing::warn!(
-                    execution_id = %run.lease.execution_id,
-                    %error,
-                    "semantic judge output rejected; execution stays unscored"
-                );
-                Ok(None)
-            },
-        }
+            blocked: None,
+        }))
     }
 
     pub(super) async fn await_exit(
@@ -190,25 +123,78 @@ impl EvaluatorSupervisor {
         execution: &mut ContainerExecution,
         failure: &str,
     ) -> SchedulerResult<()> {
-        let cancel = execution.cancel();
-        let isolated = run.network.cleanup();
-        let cleaned = std::fs::remove_dir_all(&run.directory);
-        let confirmed = cancel.is_ok() && isolated.is_ok() && cleaned.is_ok();
-        self.repositories
-            .lifecycle
-            .record_cleanup(
+        ExecutionTerminal::new(&self.repositories)
+            .cleanup(
                 &run.worker.owner_id,
                 &run.lease,
-                &CleanupReport {
+                CleanupResources {
                     container_id: Some(&run.client_name),
                     network_id: Some(&run.network_name),
-                    succeeded: confirmed,
-                    error: (!confirmed).then_some(failure),
+                },
+                || {
+                    let cancel = execution.cancel();
+                    let isolated = run.network.cleanup();
+                    let cleaned = std::fs::remove_dir_all(&run.directory);
+                    let causes: Vec<String> = [
+                        ("container", cancel.err().map(|error| error.to_string())),
+                        ("network", isolated.err().map(|error| error.to_string())),
+                        ("workspace", cleaned.err().map(|error| error.to_string())),
+                    ]
+                    .into_iter()
+                    .filter_map(|(step, error)| error.map(|error| format!("{step}: {error}")))
+                    .collect();
+                    if causes.is_empty() {
+                        Ok(())
+                    } else {
+                        Err(SchedulerError::config_error(format!(
+                            "{failure}: {}",
+                            causes.join("; ")
+                        )))
+                    }
                 },
             )
             .await
-            .map_err(internal)
+            .map(|_| ())
     }
+}
+
+fn collect_client_artifacts(
+    run: &PreparedExecution,
+    execution: &ContainerExecution,
+) -> SchedulerResult<(BTreeMap<String, ArtifactFile>, NativeCompletion)> {
+    let mut artifacts = BTreeMap::new();
+    artifacts.insert(
+        "native-environment.json".to_owned(),
+        ArtifactFile {
+            bytes: std::fs::read(run.directory.join("native-environment.json"))?,
+            executable: false,
+        },
+    );
+    let stdout = capture_outputs(execution, "client", &mut artifacts)?;
+    let normalized = normalize_evidence(run.client.adapter().map_err(internal)?, &stdout);
+    let native_completion = normalized.output.completion;
+    artifacts.insert(
+        "client-normalized.json".to_owned(),
+        ArtifactFile {
+            bytes: serde_json::to_vec(&normalized).map_err(internal)?,
+            executable: false,
+        },
+    );
+    artifacts.extend(changed_workspace(&run.home.join("work"), &run.baseline)?);
+    let observed = workspace_state(&run.skill_directory)?;
+    artifacts.insert(
+        "installation-integrity.json".to_owned(),
+        ArtifactFile {
+            bytes: serde_jcs::to_vec(&serde_json::json!({
+                "expected": &run.installed_skill_state,
+                "observed": &observed,
+                "matches": run.installed_skill_state == observed,
+            }))
+            .map_err(internal)?,
+            executable: false,
+        },
+    );
+    Ok((artifacts, native_completion))
 }
 
 pub(super) fn capture_outputs(
@@ -229,6 +215,14 @@ pub(super) fn capture_outputs(
         format!("{stem}-stderr.log"),
         ArtifactFile {
             bytes: std::fs::read(stderr_path)?,
+            executable: false,
+        },
+    );
+    let verification_path = stdout_path.with_file_name(format!("{stem}-native-verification.json"));
+    artifacts.insert(
+        format!("{stem}-native-verification.json"),
+        ArtifactFile {
+            bytes: std::fs::read(verification_path)?,
             executable: false,
         },
     );

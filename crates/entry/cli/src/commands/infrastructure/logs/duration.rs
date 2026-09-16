@@ -41,7 +41,15 @@ pub fn parse_duration(s: &str) -> Result<Duration> {
 }
 
 pub fn parse_since(since: Option<&String>) -> Result<Option<DateTime<Utc>>> {
-    let Some(s) = since else {
+    parse_bound(since, "--since")
+}
+
+pub fn parse_until(until: Option<&String>) -> Result<Option<DateTime<Utc>>> {
+    parse_bound(until, "--until")
+}
+
+fn parse_bound(raw: Option<&String>, flag: &str) -> Result<Option<DateTime<Utc>>> {
+    let Some(s) = raw else {
         return Ok(None);
     };
 
@@ -63,8 +71,9 @@ pub fn parse_since(since: Option<&String>) -> Result<Option<DateTime<Utc>>> {
     }
 
     Err(anyhow!(
-        "Invalid --since format: {}. Use formats like '1h', '24h', '7d', '2026-01-13', or \
+        "Invalid {} format: {}. Use formats like '1h', '24h', '7d', '2026-01-13', or \
          '2026-01-13T10:00:00'",
+        flag,
         s
     ))
 }

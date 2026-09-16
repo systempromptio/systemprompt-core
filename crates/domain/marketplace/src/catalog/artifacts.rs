@@ -96,11 +96,12 @@ pub fn load_artifacts(services_root: &Path) -> Result<Vec<ArtifactEntry>, Market
             Ok(Some(entry)) => out.push(entry),
             Ok(None) => {},
             Err(e) => {
-                tracing::warn!(
+                tracing::error!(
                     artifact_dir = %artifact_dir.display(),
                     error = %e,
-                    "manifest: failed to build artifact entry; skipping"
+                    "manifest: failed to build artifact entry"
                 );
+                return Err(e);
             },
         }
     }

@@ -3,10 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::{
-    Arc, DataPlane, OnceLock, RuntimeResult, SharedAuthzHook, ShutdownRequest, Subsystems,
-    UserService,
-};
+use super::{Arc, DataPlane, RuntimeResult, UserService};
 
 pub(super) fn build_data_plane(
     database: Arc<systemprompt_database::Database>,
@@ -27,27 +24,12 @@ pub(super) fn build_data_plane(
         service_repository: repositories.services,
         ai_repositories: repositories.ai,
         analytics_repositories: repositories.analytics,
+        feedback_facts_repository: repositories.feedback_facts,
+        feedback_snapshots_repository: repositories.feedback_snapshots,
         file_repository: repositories.files,
         mcp_session_repository: repositories.mcp_sessions,
         managed_repository: repositories.managed,
         evaluation_repositories: repositories.evaluation,
-    }
-}
-
-pub(super) fn build_subsystems(
-    system_admin: Arc<systemprompt_models::services::SystemAdmin>,
-    authz_hook: SharedAuthzHook,
-    geoip_reader: Option<systemprompt_analytics::GeoIpReader>,
-    file_storage: Arc<dyn systemprompt_traits::FileStorage>,
-    shutdown: ShutdownRequest,
-) -> Subsystems {
-    Subsystems {
-        system_admin,
-        authz_hook,
-        event_bridge: Arc::new(OnceLock::new()),
-        geoip_reader,
-        file_storage,
-        shutdown,
     }
 }
 
@@ -58,16 +40,7 @@ pub(super) async fn ensure_legacy_context(
     repositories
         .a2a
         .contexts
-        .ensure_context(
-            &systemprompt_traits::EnsureContextParams {
-                context_id: &systemprompt_identifiers::ContextId::legacy(),
-                user_id: system_admin.id(),
-                session_id: None,
-                name: "Legacy (pre-context)",
-                kind: systemprompt_models::ContextKind::Legacy.as_str(),
-            },
-            systemprompt_models::ContextKind::Legacy,
-        )
+        .ensure_legacy_context(system_admin.id())
         .await
         .map_err(|e| crate::error::RuntimeError::Internal(e.to_string()))
 }
@@ -80,10 +53,32 @@ pub(super) struct RepositoryBundles {
     services: Arc<systemprompt_database::ServiceRepository>,
     ai: Arc<systemprompt_ai::repository::AiRepositories>,
     analytics: Arc<systemprompt_analytics::repository::AnalyticsRepositories>,
+    feedback_snapshots: Arc<systemprompt_analytics::snapshots::FeedbackSnapshotsRepository>,
+    feedback_facts: Arc<systemprompt_analytics::feedback::FeedbackFactsRepository>,
     files: Arc<systemprompt_files::FileRepository>,
     mcp_sessions: Arc<systemprompt_mcp::repository::McpSessionRepository>,
     managed: Arc<systemprompt_marketplace::managed::ManagedRepository>,
     evaluation: Arc<systemprompt_evaluation::repository::experiments::EvaluationRepositories>,
+}
+
+impl RepositoryBundles {
+    pub(super) fn install_organization_resolver(
+        &mut self,
+        owner: &systemprompt_identifiers::UserId,
+    ) {
+        let resolver = Arc::new(
+            systemprompt_marketplace::managed::OrganizationSkillResolver::new(
+                self.managed.as_ref().clone(),
+                owner.clone(),
+            ),
+        );
+        self.a2a = Arc::new(
+            self.a2a
+                .as_ref()
+                .clone()
+                .with_managed_skill_resolver(resolver),
+        );
+    }
 }
 
 pub(super) fn build_repositories(
@@ -91,31 +86,46 @@ pub(super) fn build_repositories(
     analytics: Arc<systemprompt_analytics::repository::AnalyticsRepositories>,
     instance_id: systemprompt_identifiers::InstanceId,
 ) -> RuntimeResult<RepositoryBundles> {
-    let session_usage: systemprompt_traits::DynSessionUsageCounters =
-        Arc::new(analytics.sessions.clone());
-    let pool = database
-        .pool_arc()
-        .map_err(|error| crate::error::RuntimeError::Internal(error.to_string()))?;
+    let session_usage: systemprompt_traits::DynSessionUsageCounters = analytics.sessions.owner();
     let managed = Arc::new(systemprompt_marketplace::managed::ManagedRepository::new(
-        pool.as_ref().clone(),
-    ));
+        database,
+    )?);
+    let ai = Arc::new(systemprompt_ai::repository::AiRepositories::new(database)?);
+    let managed_revisions: systemprompt_traits::DynManagedRevisionOwnership =
+        Arc::new(managed.as_ref().clone());
     let evaluation = Arc::new(
         systemprompt_evaluation::repository::experiments::EvaluationRepositories::new(
-            pool.as_ref(),
+            database,
+            systemprompt_evaluation::repository::experiments::EvaluationSeams {
+                trace: Arc::new(ai.requests.clone()),
+                sessions: Arc::new(systemprompt_users::UsersAiSessionProvider::from_repository(
+                    systemprompt_users::SessionRepository::new(database)?,
+                )),
+                managed_revisions,
+            },
+        )?,
+    );
+    let feedback_facts = Arc::new(
+        systemprompt_analytics::feedback::FeedbackFactsRepository::new(
+            database.write_pool_arc()?.as_ref().clone(),
         ),
+    );
+    let tool_executions: systemprompt_traits::DynToolExecutionLookup = Arc::new(
+        systemprompt_mcp::repository::ToolUsageRepository::new(database)?,
     );
     let managed_resolver: systemprompt_traits::DynManagedSkillResolver = Arc::new(
         systemprompt_marketplace::managed::ManagedResourceResolver::new(managed.as_ref().clone()),
     );
     Ok(RepositoryBundles {
-        a2a: Arc::new(
-            systemprompt_agent::repository::A2ARepositories::new(
-                database,
+        a2a: Arc::new(systemprompt_agent::repository::A2ARepositories::new(
+            database,
+            systemprompt_agent::repository::A2aDependencies {
                 session_usage,
-                instance_id.clone(),
-            )?
-            .with_managed_skill_resolver(managed_resolver),
-        ),
+                instance_id: instance_id.clone(),
+                managed_skills: managed_resolver,
+                tool_executions,
+            },
+        )?),
         content: Arc::new(systemprompt_content::repository::ContentRepositories::new(
             database,
         )?),
@@ -127,8 +137,15 @@ pub(super) fn build_repositories(
             database,
             instance_id,
         )?),
-        ai: Arc::new(systemprompt_ai::repository::AiRepositories::new(database)?),
+        ai,
         analytics,
+        feedback_snapshots: Arc::new(
+            systemprompt_analytics::snapshots::FeedbackSnapshotsRepository::new(
+                database.write_pool_arc()?.as_ref().clone(),
+                (*feedback_facts).clone(),
+            ),
+        ),
+        feedback_facts,
         files: Arc::new(systemprompt_files::FileRepository::new(database)?),
         mcp_sessions: Arc::new(systemprompt_mcp::repository::McpSessionRepository::new(
             database,

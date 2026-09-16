@@ -19,11 +19,15 @@ fn the_wire_tags_are_the_resolver_vocabulary() {
         serde_json::json!({"kind": "user", "id": "u1"})
     );
     assert_eq!(
-        json(&SubjectRef::Department(DepartmentId::new("d1"))),
+        json(&SubjectRef::Department(
+            DepartmentId::try_new("d1").expect("valid DepartmentId")
+        )),
         serde_json::json!({"kind": "department", "id": "d1"})
     );
     assert_eq!(
-        json(&SubjectRef::Role(RoleId::new("r1"))),
+        json(&SubjectRef::Role(
+            RoleId::try_new("r1").expect("valid RoleId")
+        )),
         serde_json::json!({"kind": "role", "id": "r1"})
     );
 }
@@ -36,8 +40,8 @@ fn the_wire_tags_are_the_resolver_vocabulary() {
 fn rule_type_agrees_with_the_tag_it_serialises_under() {
     for subject in [
         SubjectRef::User(UserId::new("u1")),
-        SubjectRef::Department(DepartmentId::new("d1")),
-        SubjectRef::Role(RoleId::new("r1")),
+        SubjectRef::Department(DepartmentId::try_new("d1").expect("valid DepartmentId")),
+        SubjectRef::Role(RoleId::try_new("r1").expect("valid RoleId")),
     ] {
         let tag = json(&subject)["kind"].as_str().expect("tag").to_owned();
         assert_eq!(
@@ -53,10 +57,13 @@ fn rule_type_agrees_with_the_tag_it_serialises_under() {
 fn value_returns_the_id_without_its_dimension() {
     assert_eq!(SubjectRef::User(UserId::new("u1")).value(), "u1");
     assert_eq!(
-        SubjectRef::Department(DepartmentId::new("d1")).value(),
+        SubjectRef::Department(DepartmentId::try_new("d1").expect("valid DepartmentId")).value(),
         "d1"
     );
-    assert_eq!(SubjectRef::Role(RoleId::new("r1")).value(), "r1");
+    assert_eq!(
+        SubjectRef::Role(RoleId::try_new("r1").expect("valid RoleId")).value(),
+        "r1"
+    );
 }
 
 // Why: `Display` is what lands in audit lines. Without the dimension prefix a
@@ -68,7 +75,7 @@ fn display_carries_the_dimension_alongside_the_id() {
         "user:shared"
     );
     assert_ne!(
-        SubjectRef::Role(RoleId::new("shared")).to_string(),
+        SubjectRef::Role(RoleId::try_new("shared").expect("valid RoleId")).to_string(),
         SubjectRef::User(UserId::new("shared")).to_string(),
         "a role and a user with the same id must not be indistinguishable"
     );
@@ -78,8 +85,8 @@ fn display_carries_the_dimension_alongside_the_id() {
 fn a_serialised_subject_reads_back_as_the_same_subject() {
     for subject in [
         SubjectRef::User(UserId::new("u1")),
-        SubjectRef::Department(DepartmentId::new("d1")),
-        SubjectRef::Role(RoleId::new("r1")),
+        SubjectRef::Department(DepartmentId::try_new("d1").expect("valid DepartmentId")),
+        SubjectRef::Role(RoleId::try_new("r1").expect("valid RoleId")),
     ] {
         let back: SubjectRef = serde_json::from_value(json(&subject)).expect("round trip");
         assert_eq!(back, subject);

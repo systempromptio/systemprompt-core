@@ -34,8 +34,8 @@
 //!
 //! Static SQL goes through the compile-time-verified `sqlx::query!` /
 //! `query_as!` / `query_scalar!` macros. Runtime/dynamic SQL is contained to
-//! two paths whose contract is dynamic SQL by design and that are documented in
-//! the workspace allowlist (`ci/check-sqlx.sh`, `instructions/prompt/rust.md`):
+//! two paths whose contract is dynamic SQL by design; the `lint-sqlx` gate
+//! allows runtime `sqlx::query` only there:
 //!
 //! - `src/admin/` — admin CLI surfaces (introspection, restricted query
 //!   executor) where the SQL is the user input.
@@ -72,22 +72,23 @@ pub use scope::{ConnectionScopeProvider, ScopeError, ScopeSetting, SharedScopePr
 pub use services::{
     BoxFuture, Database, DatabaseCliDisplay, DatabaseExt, DatabaseProvider, DatabaseProviderExt,
     DbPool, PoolConfig, PostgresProvider, SqlExecutor, begin_scoped, with_scoped_transaction,
-    with_scoped_transaction_raw, with_transaction, with_transaction_raw, with_transaction_retry,
+    with_transaction, with_transaction_retry,
 };
 pub use systemprompt_models::RequestScope;
 
 pub use error::{DatabaseResult, RepositoryError};
 pub use lifecycle::{
-    AppliedMigration, BaselineStamp, ChecksumDrift, ExtensionMigrationStatus, FreshnessCheck,
-    MarkAppliedOutcome, MigrationConfig, MigrationResult, MigrationService, MigrationStatus,
-    OrphanedMigration, PendingMigration, RepairResult, ReplicaStatus, SlotCollision,
-    TombstonedSlot, install_extension_schemas, install_extension_schemas_full,
-    install_extension_schemas_with_config, replica_status, validate_column_exists,
-    validate_database_connection, validate_table_exists, validate_write_pool_is_primary,
+    AppliedMigration, BOOTSTRAP_ADVISORY_LOCK_KEY, BaselineStamp, BootstrapLockGuard,
+    ChecksumDrift, DeferredForeignKey, ExtensionMigrationStatus, FkDeferralError, ForeignKeyDrift,
+    FreshnessCheck, MarkAppliedOutcome, MigrationConfig, MigrationResult, MigrationService,
+    MigrationStatus, OrphanedMigration, PendingMigration, RepairResult, ReplicaStatus,
+    SchemaInstallReport, SlotCollision, SplitCreateTable, TombstonedSlot,
+    install_extension_schemas, install_extension_schemas_full,
+    install_extension_schemas_with_config, replica_status, split_create_table_foreign_keys,
+    validate_column_exists, validate_database_connection, validate_table_exists,
+    validate_write_pool_is_primary,
 };
-pub use repository::{
-    CleanupRepository, CreateServiceInput, PgDbPool, ServiceConfig, ServiceRepository,
-};
+pub use repository::{CreateServiceInput, PgDbPool, ServiceConfig, ServiceRepository};
 
 pub use admin::{
     AdminSql, AdminSqlError, DEFAULT_READONLY_ROW_LIMIT, DatabaseAdminService, IdentifierError,
@@ -100,7 +101,7 @@ use systemprompt_traits::DatabaseHandle;
 
 impl DatabaseHandle for Database {
     fn is_connected(&self) -> bool {
-        true
+        !self.pool().is_closed() && !self.write_pool().is_closed()
     }
 
     fn as_any(&self) -> &dyn std::any::Any {

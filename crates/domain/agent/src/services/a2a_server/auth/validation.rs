@@ -1,43 +1,18 @@
 //! Token extraction and validation for A2A requests.
 //!
 //! [`extract_bearer_token`] pulls the bearer credential from request headers;
-//! [`validate_agent_token`] and [`validate_oauth_for_request`] verify the JWT,
-//! confirm the `a2a` audience, and enforce the required permission scopes.
+//! [`validate_oauth_for_request`] verifies the JWT, confirms the `a2a`
+//! audience, and enforces the required permission scopes.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::services::shared::{AgentServiceError, Result};
 use axum::http::{HeaderMap, StatusCode};
 use std::str::FromStr;
 use systemprompt_models::auth::Permission;
 use systemprompt_traits::AgentJwtClaims;
 
-use super::types::AgentOAuthState;
 use crate::services::a2a_server::errors::{forbidden_response, unauthorized_response};
-use crate::services::shared::AgentSessionUser;
-
-pub async fn validate_agent_token(
-    token: &str,
-    state: &AgentOAuthState,
-) -> Result<AgentSessionUser> {
-    let jwt_provider = state
-        .jwt_provider
-        .as_ref()
-        .ok_or_else(|| AgentServiceError::Internal("JWT provider not configured".to_owned()))?;
-
-    let claims = jwt_provider
-        .validate_token(token)
-        .map_err(|e| AgentServiceError::Internal(format!("Invalid or expired JWT token: {e}")))?;
-
-    if !claims.has_audience("a2a") {
-        return Err(AgentServiceError::Internal(
-            "Token does not support A2A protocol".to_owned(),
-        ));
-    }
-
-    Ok(AgentSessionUser::from_jwt_claims(claims))
-}
 
 pub fn extract_bearer_token(headers: &HeaderMap) -> Option<String> {
     headers
@@ -63,7 +38,7 @@ pub async fn validate_oauth_for_request(
     request_id: &crate::models::a2a::jsonrpc::NumberOrString,
     required_scopes: &[Permission],
     jwt_provider: Option<&std::sync::Arc<dyn systemprompt_traits::JwtValidationProvider>>,
-) -> std::result::Result<Option<serde_json::Value>, (StatusCode, serde_json::Value)> {
+) -> Result<Option<serde_json::Value>, (StatusCode, serde_json::Value)> {
     let token = match extract_bearer_token(headers) {
         Some(t) if !t.is_empty() => t,
         _ => {
@@ -124,7 +99,7 @@ fn ensure_required_scopes(
     claims: &AgentJwtClaims,
     required_scopes: &[Permission],
     request_id: &crate::models::a2a::jsonrpc::NumberOrString,
-) -> std::result::Result<(), (StatusCode, serde_json::Value)> {
+) -> Result<(), (StatusCode, serde_json::Value)> {
     let has_required_scope = required_scopes.iter().any(|required_scope| {
         claims.permissions.iter().any(|user_perm| {
             Permission::from_str(user_perm).is_ok_and(|p| p.implies(required_scope))

@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT initialized AS \"initialized!\" FROM analytics_projection_state WHERE singleton",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "initialized!",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "analytics_projection_state",
+            "name": "initialized"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "e95033e4846491fc0da2d2ea95b5b91af817a6df6e161987dd825a5c99d31c64"
+}

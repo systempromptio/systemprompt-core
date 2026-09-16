@@ -6,7 +6,7 @@
 use super::ValidationConfigProvider;
 use crate::ContentConfigRaw;
 use std::path::{Path, PathBuf};
-use systemprompt_traits::validation_report::{ValidationError, ValidationReport};
+use systemprompt_traits::validation_report::{ValidationIssue, ValidationReport};
 use systemprompt_traits::{ConfigProvider, DomainConfig, DomainConfigError};
 
 #[derive(Debug)]
@@ -75,7 +75,7 @@ impl DomainConfig for ContentConfigValidator {
             let source_path = loaded.resolve_path(&source.path);
             if !source_path.exists() {
                 report.add_error(
-                    ValidationError::new(
+                    ValidationIssue::new(
                         format!("content_sources.{}", name),
                         "Content source directory does not exist",
                     )
@@ -85,14 +85,14 @@ impl DomainConfig for ContentConfigValidator {
             }
 
             if source.source_id.as_str().is_empty() {
-                report.add_error(ValidationError::new(
+                report.add_error(ValidationIssue::new(
                     format!("content_sources.{}.source_id", name),
                     "Source ID cannot be empty",
                 ));
             }
 
             if source.category_id.as_str().is_empty() {
-                report.add_error(ValidationError::new(
+                report.add_error(ValidationIssue::new(
                     format!("content_sources.{}.category_id", name),
                     "Category ID cannot be empty",
                 ));
@@ -106,7 +106,7 @@ impl DomainConfig for ContentConfigValidator {
                 .contains_key(source.category_id.as_str())
             {
                 report.add_error(
-                    ValidationError::new(
+                    ValidationIssue::new(
                         format!("content_sources.{}.category_id", name),
                         format!(
                             "Referenced category '{}' not found in categories",

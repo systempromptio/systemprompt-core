@@ -114,7 +114,11 @@ fn build_artifacts_uses_output_schema_lookup_by_tool_name() {
     let _ = &schema; // schema is captured by McpTool below.
     r.structured_content = Some(serde_json::json!({"bad": true}));
 
-    let tool = McpTool::new("named", McpServerId::new("svc-1")).with_output_schema(schema);
+    let tool = McpTool::new(
+        "named",
+        McpServerId::try_new("svc-1").expect("valid McpServerId"),
+    )
+    .with_output_schema(schema);
     let builder = ArtifactBuilder::new(
         vec![ToolCall {
             ai_tool_call_id: AiToolCallId::new("c-named"),

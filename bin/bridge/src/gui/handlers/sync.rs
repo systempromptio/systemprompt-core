@@ -51,12 +51,19 @@ pub(crate) fn on_sync_requested(app: &mut GuiApp, reply_to: ReplyId) {
             config::pinned_pubkey_state(),
             Ok(config::PinnedPubkeyState::Unpinned)
         );
-        let result = tokio::select! {
-            () = token.cancelled() => Err(Arc::new(GuiError::Cancelled)),
-            outcome = sync::run_once(&bridge, false, false, allow_tofu) => {
-                outcome.map_err(GuiError::from).map_err(Arc::new)
-            }
+        let options = sync::SyncOptions {
+            allow_unsigned: false,
+            force_replay: false,
+            allow_tofu,
+            cancel: token,
         };
+        let result = sync::run_once(&bridge, &options)
+            .await
+            .map_err(|e| match e {
+                sync::SyncError::Cancelled { .. } => GuiError::Cancelled,
+                other => GuiError::from(other),
+            })
+            .map_err(Arc::new);
         bridge.sync_progress.clear();
         proxy.send_event(UiEvent::SyncFinished { result, reply_to });
     });
@@ -83,24 +90,6 @@ pub(crate) fn on_sync_finished(
             let line = summary.one_line();
             tracing::info!(summary = %line, "sync completed");
             app.append_log(&line);
-            if !summary.host_failures.is_empty() {
-                // Why: a host id alone ("claude-desktop") told the user nothing
-                // about a registry write that did not land; the failure text
-                // names the hive, key and value.
-                let failures: Vec<String> = summary
-                    .host_failures
-                    .iter()
-                    .map(|f| format!("{}: {}", f.host_id, f.error.lines().next().unwrap_or("")))
-                    .collect();
-                crate::gui::window::notify_user(
-                    &format!("{} synced with failures", crate::brand::brand().app_name),
-                    &format!("These agents did not update — {}", failures.join("; ")),
-                );
-                app.append_log_warn(format!(
-                    "These agents did not update — {}",
-                    failures.join("; ")
-                ));
-            }
             for warning in &summary.host_warnings {
                 app.append_log_warn(format!("[{}] {}", warning.host_id, warning.message));
             }
@@ -144,8 +133,16 @@ pub(crate) fn on_sync_finished(
                     sync::SyncError::NoCredential { .. } | sync::SyncError::GatewayUnauthorized(_)
                 )
             );
+            let mut detail = None;
             let (phase, line, scope, code) =
-                if matches!(sync_err, Some(sync::SyncError::NoCredential { .. })) {
+                if let Some(sync::SyncError::Partial(summary)) = sync_err {
+                    let (line, code, failures) = partial_failure(app, summary);
+                    detail = Some(json!({
+                        "host_failures": failures,
+                        "host_warnings": summary.host_warnings,
+                    }));
+                    ("failed", line, ErrorScope::Marketplace, code)
+                } else if matches!(sync_err, Some(sync::SyncError::NoCredential { .. })) {
                     (
                         "failed",
                         i18n::t("sync-no-credentials"),
@@ -187,7 +184,11 @@ pub(crate) fn on_sync_finished(
                 };
             app.append_log_error(&line);
             emit::emit_sync_progress(app, phase, Some(&line));
-            Err(BridgeError::new(scope, code, line))
+            let err = BridgeError::new(scope, code, line);
+            Err(match detail {
+                Some(detail) => err.with_detail(detail),
+                None => err,
+            })
         },
     };
     app.state.reload();
@@ -237,4 +238,51 @@ fn finish_value(app: &GuiApp, result: Result<serde_json::Value, BridgeError>, re
         },
     };
     emit::send_reply_payload(app, id, &payload);
+}
+
+// Why: every other host applied, so the toast names the agents that did not
+// and offers the repair the failure calls for instead of the whole error
+// chain; an elevation-required failure is one gesture (UAC) away from fixed.
+fn partial_failure(
+    app: &GuiApp,
+    summary: &sync::SyncSummary,
+) -> (String, ErrorCode, Vec<sync::HostFailure>) {
+    let failures: Vec<String> = summary
+        .host_failures
+        .iter()
+        .map(|f| format!("{}: {}", f.host_id, f.error.lines().next().unwrap_or("")))
+        .collect();
+    crate::gui::window::notify_user(
+        &format!("{} synced with failures", crate::brand::brand().app_name),
+        &format!("These agents did not update — {}", failures.join("; ")),
+    );
+    for failure in &failures {
+        app.append_log_warn(format!("did not update — {failure}"));
+    }
+    for warning in &summary.host_warnings {
+        app.append_log_warn(format!("[{}] {}", warning.host_id, warning.message));
+    }
+    let needs_elevation = summary.host_failures.iter().any(|f| f.needs_elevation);
+    let hosts = summary
+        .host_failures
+        .iter()
+        .map(|f| f.host_id.to_string())
+        .collect::<Vec<_>>()
+        .join(", ");
+    let count = summary.host_failures.len().to_string();
+    let key = if needs_elevation {
+        "sync-elevation-required"
+    } else {
+        "sync-partial"
+    };
+    let code = if needs_elevation {
+        ErrorCode::ElevationRequired
+    } else {
+        ErrorCode::Partial
+    };
+    (
+        i18n::t_args(key, &[("count", &count), ("hosts", &hosts)]),
+        code,
+        summary.host_failures.clone(),
+    )
 }

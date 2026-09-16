@@ -13,7 +13,10 @@ fn user_msg(text: &str) -> AiMessage {
 }
 
 fn make_tool(name: &str) -> McpTool {
-    McpTool::new(name, McpServerId::new("svc"))
+    McpTool::new(
+        name,
+        McpServerId::try_new("svc").expect("valid McpServerId"),
+    )
 }
 
 fn make_tool_call(name: &str) -> ToolCall {

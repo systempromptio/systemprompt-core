@@ -1,6 +1,14 @@
 //! CLI display traits for printing query results, table descriptors, and
 //! database info to stdout.
 //!
+//! A display write is best-effort: the command's outcome does not depend on
+//! whether the terminal accepted the bytes, so a failed write is reported
+//! through `tracing` via [`report_write_failure`] and the caller continues.
+//! A closed downstream pipe is not reported at all — with SIGPIPE ignored
+//! every later write would fail the same way and flood the log for a reader
+//! that has already gone away. Every stdio display sink in the infra layer
+//! routes its failures through that one helper.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -12,9 +20,17 @@ pub trait DatabaseCliDisplay {
     fn display_with_cli(&self);
 }
 
+pub fn report_write_failure(sink: &'static str, error: &std::io::Error) {
+    if error.kind() == std::io::ErrorKind::BrokenPipe {
+        return;
+    }
+    tracing::warn!(sink, error = %error, "Display sink write failed");
+}
+
 fn stdout_writeln(args: std::fmt::Arguments<'_>) {
-    let mut stdout = std::io::stdout();
-    writeln!(stdout, "{args}").ok();
+    if let Err(error) = writeln!(std::io::stdout(), "{args}") {
+        report_write_failure("stdout", &error);
+    }
 }
 
 impl DatabaseCliDisplay for Vec<TableInfo> {

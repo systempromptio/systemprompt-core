@@ -3,8 +3,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::path::PathBuf;
 use std::sync::Arc;
 
+use serde::Serialize;
 use serde_json::Value;
 
 use crate::auth::secret::Secret;
@@ -13,7 +15,12 @@ use crate::gui::hosts::events::HostUiEvent;
 use crate::gui::state::{CancelScope, GatewayProbeOutcome};
 use crate::ids::HostId;
 use crate::proxy::mcp_probe::McpServerAuth;
+use crate::sync::SyncSummary;
+use crate::update::UpdateUiState;
+use crate::validate::ValidationReport;
 use crate::wire::DeviceAction;
+use crate::wire::ipc::ReplyTarget;
+use crate::wire::profile::ProfileView;
 
 /// What one probe pass produced: every registered server, or one re-checked
 /// server (`None` when the registry did not know the id).
@@ -22,10 +29,14 @@ pub enum McpProbeResults {
     All(Vec<McpServerAuth>),
     One(Option<McpServerAuth>),
 }
-use crate::sync::SyncSummary;
-use crate::validate::ValidationReport;
 
-pub type ReplyId = Option<u64>;
+#[derive(Debug, Clone, Serialize)]
+pub struct InstalledUpdate {
+    pub version: String,
+    pub path: PathBuf,
+}
+
+pub type ReplyId = Option<ReplyTarget>;
 
 #[derive(Debug, Clone)]
 pub enum UiEvent {
@@ -43,6 +54,13 @@ pub enum UiEvent {
         reply_to: ReplyId,
     },
     ProxySecretResetRequested {
+        reply_to: ReplyId,
+    },
+    ConfigDirRepairRequested {
+        reply_to: ReplyId,
+    },
+    ConfigDirRepairFinished {
+        result: Result<String, Arc<GuiError>>,
         reply_to: ReplyId,
     },
     ExportDiagnosticBundle {
@@ -132,7 +150,7 @@ pub enum UiEvent {
         reply_to: ReplyId,
     },
     ProfileFetchFinished {
-        result: Result<Value, Arc<GuiError>>,
+        result: Box<Result<ProfileView, Arc<GuiError>>>,
         reply_to: ReplyId,
     },
 
@@ -140,14 +158,14 @@ pub enum UiEvent {
         reply_to: ReplyId,
     },
     UpdateCheckFinished {
-        result: Result<Value, Arc<GuiError>>,
+        result: Result<UpdateUiState, Arc<GuiError>>,
         reply_to: ReplyId,
     },
     UpdateInstallRequested {
         reply_to: ReplyId,
     },
     UpdateInstallFinished {
-        result: Result<Value, Arc<GuiError>>,
+        result: Result<InstalledUpdate, Arc<GuiError>>,
         reply_to: ReplyId,
     },
     UpdateProgress {
@@ -181,12 +199,8 @@ pub enum UiEvent {
     IpcInbound(String),
     IpcEmit {
         channel: &'static str,
+        // JSON: webview IPC envelope, the channel's payload serialized by the emitter
         payload: Value,
-    },
-    IpcReply {
-        id: u64,
-        payload: Value,
-        ok: bool,
     },
     ProxyStatsTick,
     CancelInFlight {

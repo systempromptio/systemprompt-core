@@ -24,6 +24,8 @@ pub fn marketplace(id: &str) -> MarketplaceConfig {
         agents: Default::default(),
         artifacts: Default::default(),
         access: Default::default(),
+        allow_cross_marketplace_dependencies_on: vec![],
+        external_marketplaces: vec![],
     }
 }
 
@@ -85,6 +87,7 @@ pub fn plugin_shipping_artifacts(id: &str, skill_id: &str, artifact_ids: &[&str]
         artifacts: include(artifact_ids),
         hooks: Default::default(),
         scripts: vec![],
+        dependencies: vec![],
     }
 }
 
@@ -98,6 +101,8 @@ pub fn write_skill_on_disk(root: &std::path::Path, id: &str) {
         format!("id: {id}\nname: {id}\ndescription: d\nenabled: true\n"),
     )
     .expect("write skill config");
+    std::fs::write(dir.join("index.md"), format!("{id} instructions\n"))
+        .expect("write skill content");
 }
 
 #[must_use]

@@ -29,8 +29,8 @@ pub enum ResolvedManagedResource {
 #[derive(Debug, Clone)]
 pub enum ManagedSkillResolution {
     NotManaged,
-    Published(ManagedSkill),
-    Withheld(WithheldReason),
+    Published(Box<ManagedSkill>),
+    Withheld(Box<WithheldReason>),
 }
 
 #[async_trait::async_trait]
@@ -40,22 +40,7 @@ impl ManagedSkillResolver for ManagedResourceResolver {
         owner: &UserId,
         key: &str,
     ) -> std::result::Result<SkillResolution, ManagedSkillResolverError> {
-        match Self::resolve_skill(self, owner, key).await {
-            Ok(ManagedSkillResolution::NotManaged) => Ok(SkillResolution::NotManaged),
-            Ok(ManagedSkillResolution::Withheld(reason)) => Ok(SkillResolution::Withheld(reason)),
-            Ok(ManagedSkillResolution::Published(skill)) => {
-                Ok(SkillResolution::Published(ResolvedManagedSkill {
-                    id: skill.id,
-                    name: skill.name,
-                    description: skill.description,
-                    instructions: skill.instructions,
-                }))
-            },
-            Err(ManagedError::Integrity) => Err(ManagedSkillResolverError::Integrity {
-                key: key.to_owned(),
-            }),
-            Err(error) => Err(ManagedSkillResolverError::Unavailable(error.to_string())),
-        }
+        runtime_resolution(Self::resolve_skill(self, owner, key).await, key)
     }
 }
 
@@ -66,6 +51,11 @@ pub struct ManagedResourceResolver {
 
 #[derive(Debug, Clone)]
 pub struct ManagedSkill {
+    pub publication_id: systemprompt_identifiers::PublicationId,
+    pub resource_id: systemprompt_identifiers::ManagedResourceId,
+    pub revision_id: systemprompt_identifiers::ResourceRevisionId,
+    pub hosts: Vec<String>,
+    pub tags: Vec<String>,
     pub id: SkillId,
     pub name: String,
     pub description: String,
@@ -148,14 +138,17 @@ impl ManagedResourceResolver {
         match self.resolve(owner, ResourceKind::Skill, key).await? {
             ResolvedManagedResource::NotManaged => Ok(ManagedSkillResolution::NotManaged),
             ResolvedManagedResource::NeverAdopted(_) => Ok(ManagedSkillResolution::Withheld(
-                WithheldReason::NeverAdopted,
+                Box::new(WithheldReason::NeverAdopted),
             )),
-            ResolvedManagedResource::Withdrawn(_) => {
-                Ok(ManagedSkillResolution::Withheld(WithheldReason::Withdrawn))
-            },
+            ResolvedManagedResource::Withdrawn(_) => Ok(ManagedSkillResolution::Withheld(
+                Box::new(WithheldReason::Withdrawn),
+            )),
             ResolvedManagedResource::IntegrityFailure(_) => Err(ManagedError::Integrity),
             ResolvedManagedResource::Published { state, bundle } => {
                 let ManagedResolution::Published {
+                    publication_id,
+                    resource_id,
+                    revision_id,
                     generation,
                     bundle_digest,
                     ..
@@ -177,7 +170,12 @@ impl ManagedResourceResolver {
                     .ok_or(ManagedError::Integrity)?;
                 let raw = std::str::from_utf8(&content.bytes)
                     .map_err(|_corrupt| ManagedError::Integrity)?;
-                Ok(ManagedSkillResolution::Published(ManagedSkill {
+                Ok(ManagedSkillResolution::Published(Box::new(ManagedSkill {
+                    publication_id,
+                    resource_id,
+                    revision_id,
+                    hosts: config.hosts.clone(),
+                    tags: config.tags.clone(),
                     id: if config.id.as_str().is_empty() {
                         SkillId::new(key.to_owned())
                     } else {
@@ -193,8 +191,30 @@ impl ManagedResourceResolver {
                     files,
                     generation,
                     bundle_digest,
-                }))
+                })))
             },
         }
+    }
+}
+
+pub(super) fn runtime_resolution(
+    result: Result<ManagedSkillResolution>,
+    key: &str,
+) -> std::result::Result<SkillResolution, ManagedSkillResolverError> {
+    match result {
+        Ok(ManagedSkillResolution::NotManaged) => Ok(SkillResolution::NotManaged),
+        Ok(ManagedSkillResolution::Withheld(reason)) => Ok(SkillResolution::Withheld(*reason)),
+        Ok(ManagedSkillResolution::Published(skill)) => {
+            Ok(SkillResolution::Published(ResolvedManagedSkill {
+                id: skill.id,
+                name: skill.name,
+                description: skill.description,
+                instructions: skill.instructions,
+            }))
+        },
+        Err(ManagedError::Integrity) => Err(ManagedSkillResolverError::Integrity {
+            key: key.to_owned(),
+        }),
+        Err(error) => Err(ManagedSkillResolverError::Unavailable(error.to_string())),
     }
 }

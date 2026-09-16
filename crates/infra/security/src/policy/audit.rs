@@ -13,8 +13,9 @@
 
 use serde::Serialize;
 use sqlx::PgPool;
+use systemprompt_database::RepositoryError;
 use systemprompt_identifiers::{
-    Actor, AgentId, ClientId, ContextId, PluginId, PolicyId, SessionId, UserId,
+    Actor, AgentId, CallId, ClientId, ContextId, PluginId, PolicyId, SessionId, UserId,
 };
 
 use super::types::AccessScope;
@@ -42,13 +43,8 @@ pub struct ChainEntryOutcome {
     pub duration_ms: f64,
 }
 
-/// Who the decision was made for, as verified from the credential.
-///
-/// `agent_id` is a verified delegate identity and lands in the `agent_id`
-/// column; `claimed` is whatever the caller *said* about itself (a hook
-/// payload's subagent id, for instance) and is kept in the audit blob only —
-/// it is never an input to a decision and never written to an identity
-/// column.
+/// Who the decision was made for, as verified from the credential; an
+/// identity the caller merely claims about itself never enters it.
 #[derive(Debug, Serialize, Clone)]
 pub struct PrincipalSnapshot {
     pub user_id: UserId,
@@ -58,15 +54,6 @@ pub struct PrincipalSnapshot {
     pub agent_scope: AccessScope,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub client_id: Option<ClientId>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub claimed: Option<ClaimedAgent>,
-}
-
-#[derive(Debug, Serialize, Clone)]
-pub struct ClaimedAgent {
-    pub agent_id: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub agent_type: Option<String>,
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -95,7 +82,7 @@ pub enum AuditOrigin {
 #[derive(Debug, Serialize, Clone)]
 pub struct DecisionAudit {
     pub id: String,
-    pub call_id: String,
+    pub call_id: CallId,
     pub origin: AuditOrigin,
     pub decision: Decision,
     pub principal: PrincipalSnapshot,
@@ -106,7 +93,7 @@ pub struct DecisionAudit {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub act_chain: Vec<Actor>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub context_id: Option<String>,
+    pub context_id: Option<ContextId>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub trace_id: Option<String>,
 }
@@ -169,10 +156,10 @@ fn decision_fields(audit: &DecisionAudit) -> (DecisionTag, String, String) {
     }
 }
 
-pub async fn record_decision(pool: &PgPool, audit: &DecisionAudit) -> Result<(), sqlx::Error> {
+pub async fn record_decision(pool: &PgPool, audit: &DecisionAudit) -> Result<(), RepositoryError> {
     let actor = Actor::from_tool_name(
         audit.principal.user_id.clone(),
-        audit.principal.agent_id.as_ref().map(AgentId::as_str),
+        audit.principal.agent_id.as_ref(),
         &audit.target.tool_name,
     );
     let (decision_tag, reason_str, policy_str) = decision_fields(audit);
@@ -192,8 +179,7 @@ pub async fn record_decision(pool: &PgPool, audit: &DecisionAudit) -> Result<(),
 
     let context_id = audit
         .context_id
-        .as_deref()
-        .and_then(|s| ContextId::try_new(s).ok())
+        .clone()
         .unwrap_or_else(|| ContextId::derived_from_session(&audit.principal.session_id));
     let record = GovernanceDecisionRecord {
         id: &audit.id,

@@ -6,10 +6,10 @@
 
 use std::sync::Arc;
 
+use systemprompt_config::paths::AppPaths;
 use systemprompt_database::ServiceRepository;
 use systemprompt_mcp::services::orchestrator::{McpEvent, McpOrchestrator};
 use systemprompt_mcp::services::registry::RegistryService;
-use systemprompt_models::AppPaths;
 use systemprompt_models::profile::PathsConfig;
 use systemprompt_test_fixtures::{
     TestBootstrap, fixture_database_url, fixture_db_pool, fixture_user_id,
@@ -83,7 +83,6 @@ async fn live_server_or_skip(prefix: &str) -> Option<LiveServer> {
     )
     .ok()?;
     let orchestrator = McpOrchestrator::new(
-        db,
         repo.clone(),
         app_paths,
         RegistryService::new(fixture_user_id()),
@@ -129,7 +128,10 @@ async fn start_services_registers_a_listening_server_and_publishes_started() {
             && service_name == live.name
         {
             saw_started = true;
-            assert!(process_id > 0, "ServiceStarted carries the real pid");
+            assert!(
+                process_id.is_some_and(|pid| pid > 0),
+                "ServiceStarted carries the real pid"
+            );
         }
     }
     assert!(saw_started, "a successful start publishes ServiceStarted");

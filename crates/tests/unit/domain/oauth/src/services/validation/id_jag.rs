@@ -16,6 +16,7 @@ fn claims() -> IdJagClaims {
         iat: 999_700,
         scope: Some("user".to_owned()),
         email: None,
+        email_verified: false,
         resource: None,
     }
 }

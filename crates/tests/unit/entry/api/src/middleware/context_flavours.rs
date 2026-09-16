@@ -33,7 +33,7 @@ fn anon_session_context() -> RequestContext {
         SessionId::generate(),
         TraceId::generate(),
         ContextId::generate(),
-        AgentName::new("session"),
+        AgentName::try_new("session").expect("valid AgentName"),
     )
 }
 
@@ -42,7 +42,7 @@ fn real_user_context() -> RequestContext {
         SessionId::generate(),
         TraceId::generate(),
         ContextId::generate(),
-        AgentName::new("real"),
+        AgentName::try_new("real").expect("valid AgentName"),
     )
     .with_user_type(UserType::User)
     .with_actor(Actor::user(UserId::new("u-1")))
@@ -283,6 +283,46 @@ async fn mcp_falls_back_to_session_context_on_extractor_failure() {
     assert!(
         body.contains("agent=session;"),
         "MCP fallback must use the session-derived context, got {body}"
+    );
+}
+
+struct RevokedExtractor;
+
+#[async_trait]
+impl ContextExtractor for RevokedExtractor {
+    async fn extract_from_headers(
+        &self,
+        _headers: &HeaderMap,
+    ) -> Result<RequestContext, ContextExtractionError> {
+        Err(ContextExtractionError::Revoked)
+    }
+}
+
+// Why: only a *missing* header may fall through to the anonymous session —
+// a revoked or forged bearer degrading to "anonymous with session" would let
+// `mcp_session_fallback` admit a caller whose credential was just refused.
+#[tokio::test]
+async fn mcp_refuses_a_revoked_bearer_instead_of_falling_back_to_the_session() {
+    let mw = McpContextMiddleware::new(RevokedExtractor);
+    let app = pipeline_with_session(
+        move |r| {
+            r.layer(from_fn(move |req, next| {
+                let mw = mw.clone();
+                async move { mw.handle(req, next).await }
+            }))
+        },
+        Some(anon_session_context()),
+    );
+    let (status, body) = drive(
+        app,
+        Method::POST,
+        &[("authorization", "Bearer revoked-token")],
+    )
+    .await;
+    assert_eq!(status, StatusCode::UNAUTHORIZED, "{body}");
+    assert!(
+        !body.contains("agent=session;"),
+        "a refused bearer must never reach the handler with the session context: {body}"
     );
 }
 

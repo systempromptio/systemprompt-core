@@ -61,7 +61,7 @@ fn context_for(user: &str) -> RequestContext {
         SessionId::generate(),
         TraceId::generate(),
         ContextId::generate(),
-        AgentName::new("router-ext"),
+        AgentName::try_new("router-ext").expect("valid AgentName"),
     )
     .with_user_type(UserType::User)
     .with_actor(systemprompt_identifiers::Actor::user(UserId::new(user)))
@@ -72,7 +72,7 @@ fn context(kind: UserType) -> RequestContext {
         SessionId::generate(),
         TraceId::generate(),
         ContextId::generate(),
-        AgentName::new("router-ext"),
+        AgentName::try_new("router-ext").expect("valid AgentName"),
     )
     .with_user_type(kind)
     .with_actor(systemprompt_identifiers::Actor::user(UserId::new(

@@ -15,7 +15,7 @@ use systemprompt_mcp::services::process::monitor::is_process_running;
 // Orphaned rather than kept as a direct child: a killed child this process has
 // not `wait`ed on lingers as a zombie and still answers `kill -0`, which would
 // make a successful reclaim look like a failure.
-fn spawn_owned_listener(port: u16, service_name: &str) -> Option<u32> {
+async fn spawn_owned_listener(port: u16, service_name: &str) -> Option<u32> {
     let python = format!(
         "import socket,time; s=socket.socket(); \
          s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1); \
@@ -38,10 +38,10 @@ fn spawn_owned_listener(port: u16, service_name: &str) -> Option<u32> {
 
     let deadline = Instant::now() + Duration::from_secs(5);
     while Instant::now() < deadline {
-        if is_port_in_use(port) {
+        if is_port_in_use(port).await {
             return Some(pid);
         }
-        std::thread::sleep(Duration::from_millis(25));
+        tokio::time::sleep(Duration::from_millis(25)).await;
     }
     kill(pid);
     None
@@ -67,7 +67,7 @@ fn free_port() -> u16 {
 async fn a_port_held_by_one_of_our_own_servers_is_reclaimed_and_the_process_dies() {
     let service = "port_reclaim_fixture";
     let port = free_port();
-    let Some(pid) = spawn_owned_listener(port, service) else {
+    let Some(pid) = spawn_owned_listener(port, service).await else {
         panic!("could not stand up a marked listener on port {port}");
     };
 

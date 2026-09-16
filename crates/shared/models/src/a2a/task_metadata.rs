@@ -12,7 +12,7 @@
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use systemprompt_traits::validation::{
-    MetadataValidation, Validate, ValidationError, ValidationResult,
+    MetadataValidation, MetadataValidationError, Validate, ValidationResult,
 };
 
 use crate::execution::ExecutionStep;
@@ -54,6 +54,7 @@ pub struct TaskMetadata {
     #[serde(rename = "executionSteps", skip_serializing_if = "Option::is_none")]
     pub execution_steps: Option<Vec<ExecutionStep>>,
     #[serde(flatten, default)]
+    // JSON: A2A task metadata extension map (vendor-prefixed keys).
     pub extensions: serde_json::Map<String, serde_json::Value>,
 }
 
@@ -126,6 +127,7 @@ impl TaskMetadata {
         self
     }
 
+    // JSON: A2A task metadata extension map (vendor-prefixed keys).
     pub fn with_extension(mut self, key: String, value: serde_json::Value) -> Self {
         self.extensions.insert(key, value);
         self
@@ -133,7 +135,7 @@ impl TaskMetadata {
 
     pub fn new_validated_agent_message(agent_name: String) -> ValidationResult<Self> {
         if agent_name.is_empty() {
-            return Err(ValidationError::new(
+            return Err(MetadataValidationError::new(
                 "agent_name",
                 "Cannot create TaskMetadata: agent_name is empty",
             )
@@ -151,7 +153,7 @@ impl TaskMetadata {
         mcp_server_name: String,
     ) -> ValidationResult<Self> {
         if agent_name.is_empty() {
-            return Err(ValidationError::new(
+            return Err(MetadataValidationError::new(
                 "agent_name",
                 "Cannot create TaskMetadata: agent_name is empty",
             )
@@ -159,7 +161,7 @@ impl TaskMetadata {
         }
 
         if tool_name.is_empty() {
-            return Err(ValidationError::new(
+            return Err(MetadataValidationError::new(
                 "tool_name",
                 "Cannot create TaskMetadata: tool_name is empty for MCP execution",
             )

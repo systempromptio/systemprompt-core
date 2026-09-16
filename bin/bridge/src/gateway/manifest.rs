@@ -20,7 +20,7 @@ pub use systemprompt_models::bridge::manifest::{
 pub use systemprompt_models::bridge::manifest_version::ManifestVersion;
 pub use systemprompt_models::services::{AutoUpdatePolicy, PluginComponentRef};
 
-pub use systemprompt_identifiers::{AgentId, AgentName, TenantId, UserId, ValidatedUrl};
+pub use systemprompt_identifiers::{AgentId, AgentName, ApiKeyId, TenantId, UserId, ValidatedUrl};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ManifestError {
@@ -102,7 +102,8 @@ pub fn decode_payload(envelope: &SignedManifestEnvelope) -> Result<SignedManifes
             });
         }
         if let Some(required) = probe.min_bridge_version.as_deref()
-            && !bridge_version_is_supported(local, required)
+            && !semver::Version::parse(required)
+                .is_ok_and(|floor| bridge_version_is_supported(local, &floor))
         {
             return Err(ManifestError::BridgeTooOld {
                 local: local.to_owned(),
@@ -116,8 +117,8 @@ pub fn decode_payload(envelope: &SignedManifestEnvelope) -> Result<SignedManifes
 #[derive(Debug)]
 pub struct SignedManifestBuilder {
     manifest_version: ManifestVersion,
-    issued_at: String,
-    not_before: String,
+    issued_at: chrono::DateTime<chrono::Utc>,
+    not_before: chrono::DateTime<chrono::Utc>,
     user_id: UserId,
     tenant_id: Option<TenantId>,
     user: Option<UserInfo>,
@@ -127,7 +128,7 @@ pub struct SignedManifestBuilder {
     agents: Vec<AgentEntry>,
     hooks: Vec<HookEntry>,
     managed_mcp_servers: Vec<ManagedMcpServer>,
-    revocations: Vec<String>,
+    revocations: Vec<ApiKeyId>,
     enabled_hosts: Vec<String>,
     host_model_protocols: std::collections::BTreeMap<String, Vec<String>>,
     artifacts: Vec<ArtifactEntry>,
@@ -140,14 +141,14 @@ impl SignedManifestBuilder {
     #[must_use]
     pub fn new(
         manifest_version: ManifestVersion,
-        issued_at: impl Into<String>,
-        not_before: impl Into<String>,
+        issued_at: chrono::DateTime<chrono::Utc>,
+        not_before: chrono::DateTime<chrono::Utc>,
         user_id: impl Into<UserId>,
     ) -> Self {
         Self {
             manifest_version,
-            issued_at: issued_at.into(),
-            not_before: not_before.into(),
+            issued_at,
+            not_before,
             user_id: user_id.into(),
             tenant_id: None,
             user: None,
@@ -243,7 +244,7 @@ impl SignedManifestBuilder {
     }
 
     #[must_use]
-    pub fn with_revocations(mut self, revocations: Vec<String>) -> Self {
+    pub fn with_revocations(mut self, revocations: Vec<ApiKeyId>) -> Self {
         self.revocations = revocations;
         self
     }

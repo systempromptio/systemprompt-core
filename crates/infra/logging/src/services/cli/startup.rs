@@ -3,14 +3,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::io::Write;
-
+use crate::services::cli::sink::stderr_writeln;
 use crate::services::cli::theme::BrandColors;
-
-fn stderr_writeln(args: std::fmt::Arguments<'_>) {
-    let mut out = std::io::stderr();
-    writeln!(out, "{args}").ok();
-}
 
 pub fn render_startup_banner(subtitle: Option<&str>) {
     stderr_writeln(format_args!(""));

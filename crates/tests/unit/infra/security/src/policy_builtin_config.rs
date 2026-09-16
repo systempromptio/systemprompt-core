@@ -46,7 +46,7 @@ impl Call {
 
 fn tool(name: &str) -> GovernedTarget {
     GovernedTarget::Tool {
-        tool: McpToolName::new(name),
+        tool: McpToolName::try_new(name).expect("valid McpToolName"),
     }
 }
 

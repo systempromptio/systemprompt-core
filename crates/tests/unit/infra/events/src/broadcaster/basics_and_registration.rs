@@ -140,7 +140,7 @@ async fn test_broadcaster_unregister_removes_user_when_empty() {
         .unregister(&user_id, &ConnectionId::new("conn-1"))
         .await;
 
-    let connected_users = broadcaster.connected_users().await;
+    let connected_users = broadcaster.connected_users();
     assert!(connected_users.is_empty());
 }
 

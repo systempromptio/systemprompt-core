@@ -3,8 +3,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use async_trait::async_trait;
 use systemprompt_database::DbPool;
+use systemprompt_identifiers::LogId;
 use systemprompt_traits::LogService;
 
 use crate::models::{LogEntry, LogFilter, LoggingError};
@@ -18,9 +18,7 @@ pub struct DatabaseLogService {
 impl DatabaseLogService {
     pub fn new(db_pool: &DbPool) -> Result<Self, LoggingError> {
         Ok(Self {
-            repository: LoggingRepository::new(db_pool)?
-                .with_terminal(false)
-                .with_database(true),
+            repository: LoggingRepository::new(db_pool)?,
         })
     }
 
@@ -35,7 +33,6 @@ impl DatabaseLogService {
     }
 }
 
-#[async_trait]
 impl LogService for DatabaseLogService {
     type Entry = LogEntry;
     type Filter = LogFilter;
@@ -53,13 +50,11 @@ impl LogService for DatabaseLogService {
         self.repository.get_recent_logs(limit).await
     }
 
-    async fn find_by_id(&self, id: &str) -> Result<Option<Self::Entry>, Self::Error> {
-        let log_id = systemprompt_identifiers::LogId::new(id);
-        self.repository.get_by_id(&log_id).await
+    async fn find_by_id(&self, id: &LogId) -> Result<Option<Self::Entry>, Self::Error> {
+        self.repository.get_by_id(id).await
     }
 
-    async fn delete(&self, id: &str) -> Result<bool, Self::Error> {
-        let log_id = systemprompt_identifiers::LogId::new(id);
-        self.repository.delete_log_entry(&log_id).await
+    async fn delete(&self, id: &LogId) -> Result<bool, Self::Error> {
+        self.repository.delete_log_entry(id).await
     }
 }

@@ -16,13 +16,13 @@ use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_db_pool, seed_us
 use systemprompt_traits::{ManagedSkillResolver, SkillResolution, WithheldReason};
 use uuid::Uuid;
 
-struct Fixture {
-    repository: ManagedRepository,
-    resolver: ManagedResourceResolver,
-    owner: UserId,
-    key: String,
-    resource: ManagedResourceId,
-    revision: systemprompt_identifiers::ResourceRevisionId,
+pub(super) struct Fixture {
+    pub(super) repository: ManagedRepository,
+    pub(super) resolver: ManagedResourceResolver,
+    pub(super) owner: UserId,
+    pub(super) key: String,
+    pub(super) resource: ManagedResourceId,
+    pub(super) revision: systemprompt_identifiers::ResourceRevisionId,
 }
 
 fn skill_files(key: &str, body: &str) -> RevisionFiles {
@@ -47,16 +47,18 @@ fn skill_files(key: &str, body: &str) -> RevisionFiles {
     RevisionFiles(files)
 }
 
-async fn fixture() -> Option<Fixture> {
+pub(super) async fn fixture() -> Option<Fixture> {
+    fixture_with_key(format!("skill_{}", Uuid::new_v4().simple())).await
+}
+
+pub(super) async fn fixture_with_key(key: String) -> Option<Fixture> {
     let bootstrap = ensure_test_bootstrap();
     let db = fixture_db_pool(&bootstrap.database_url).await.ok()?;
-    let pool = db.write_pool_arc().ok()?;
     let owner = UserId::new(format!("managed-res-{}", Uuid::new_v4()));
     seed_user_row(&db, &owner, &format!("{}@managed.invalid", owner.as_str()))
         .await
         .ok()?;
-    let repository = ManagedRepository::new(pool.as_ref().clone());
-    let key = format!("skill_{}", Uuid::new_v4().simple());
+    let repository = ManagedRepository::new(&db).ok()?;
     let source = repository
         .register_source(&owner, "authoring", &SourceSpec::Managed)
         .await
@@ -110,7 +112,7 @@ async fn fixture() -> Option<Fixture> {
     })
 }
 
-async fn publish(f: &Fixture) {
+pub(super) async fn publish(f: &Fixture) {
     f.repository
         .review_and_publish(
             &f.owner,
@@ -121,7 +123,8 @@ async fn publish(f: &Fixture) {
                 action: PublicationAction::InitialAdoption,
                 expected_generation: 0,
                 operation_key: format!("adopt-{}", f.key),
-                comparison_evidence: serde_json::json!({}),
+                comparison_evidence: systemprompt_marketplace::managed::ComparisonEvidence::default(
+                ),
                 limitations: String::new(),
             },
         )
@@ -129,7 +132,7 @@ async fn publish(f: &Fixture) {
         .expect("publish");
 }
 
-async fn withdraw(f: &Fixture) {
+pub(super) async fn withdraw(f: &Fixture) {
     f.repository
         .review_and_publish(
             &f.owner,
@@ -140,7 +143,8 @@ async fn withdraw(f: &Fixture) {
                 action: PublicationAction::Withdraw,
                 expected_generation: 1,
                 operation_key: format!("withdraw-{}", f.key),
-                comparison_evidence: serde_json::json!({}),
+                comparison_evidence: systemprompt_marketplace::managed::ComparisonEvidence::default(
+                ),
                 limitations: String::new(),
             },
         )
@@ -148,7 +152,7 @@ async fn withdraw(f: &Fixture) {
         .expect("withdraw");
 }
 
-fn disk_catalog_with(key: &str) -> (tempfile::TempDir, CatalogContent) {
+pub(super) fn disk_catalog_with(key: &str) -> (tempfile::TempDir, CatalogContent) {
     let dir = tempfile::tempdir().expect("services root");
     crate::helpers::write_skill_on_disk(dir.path(), key);
     std::fs::write(
@@ -190,7 +194,7 @@ async fn a_never_adopted_managed_skill_is_withheld_and_hides_its_disk_copy() {
         .expect("a never-adopted key is a resolution, not an error");
     assert!(matches!(
         outcome,
-        ManagedSkillResolution::Withheld(WithheldReason::NeverAdopted)
+        ManagedSkillResolution::Withheld(reason) if *reason == WithheldReason::NeverAdopted
     ));
 
     let (_dir, catalog) = disk_catalog_with(&f.key);
@@ -272,7 +276,7 @@ async fn a_withdrawn_managed_skill_is_withheld_after_publication() {
             .resolve_skill(&f.owner, &f.key)
             .await
             .expect("resolve"),
-        ManagedSkillResolution::Withheld(WithheldReason::Withdrawn)
+        ManagedSkillResolution::Withheld(reason) if *reason == WithheldReason::Withdrawn
     ));
     let (_dir, catalog) = disk_catalog_with(&f.key);
     let overlaid = catalog
@@ -280,20 +284,4 @@ async fn a_withdrawn_managed_skill_is_withheld_after_publication() {
         .await
         .expect("overlay");
     assert!(overlaid.as_content().skills.is_empty());
-}
-
-#[tokio::test]
-async fn another_owner_sees_the_key_as_unmanaged() {
-    let Some(f) = fixture().await else {
-        return;
-    };
-    publish(&f).await;
-    let stranger = UserId::new(format!("managed-stranger-{}", Uuid::new_v4()));
-    assert!(matches!(
-        f.resolver
-            .resolve_skill(&stranger, &f.key)
-            .await
-            .expect("resolve"),
-        ManagedSkillResolution::NotManaged
-    ));
 }

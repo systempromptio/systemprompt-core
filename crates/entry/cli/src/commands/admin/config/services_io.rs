@@ -123,7 +123,13 @@ fn ensure_included(relative: &str) -> Result<()> {
 
 // Why: serde_yaml::Value does not preserve YAML comments when serialized.
 pub fn append_include(root: &Path, relative: &str) -> Result<()> {
-    let existing = std::fs::read_to_string(root).unwrap_or_default();
+    let existing = match std::fs::read_to_string(root) {
+        Ok(existing) => existing,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => String::new(),
+        Err(e) => {
+            return Err(e).with_context(|| format!("Failed to read {}", root.display()));
+        },
+    };
     let already = existing.lines().any(|line| {
         let item = line.trim_start().strip_prefix("- ").map(str::trim);
         item.is_some_and(|value| value.trim_matches(['"', '\'']) == relative)

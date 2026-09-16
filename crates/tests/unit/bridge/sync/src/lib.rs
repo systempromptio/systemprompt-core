@@ -15,6 +15,10 @@ mod error_display;
 #[cfg(test)]
 mod hermes_managed_resources;
 #[cfg(test)]
+mod hooks_stamp;
+#[cfg(test)]
+mod mcp_sidecar_port_move;
+#[cfg(test)]
 mod opencode_managed_resources;
 #[cfg(test)]
 mod progress_sink;
@@ -28,3 +32,6 @@ mod summary_serde;
 mod workspace_sink;
 #[cfg(test)]
 mod workspace_sink_errors;
+
+#[cfg(test)]
+mod feedback;

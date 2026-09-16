@@ -47,6 +47,32 @@ pub enum SettlementOutcome<'a> {
 }
 
 impl AiRequestRepository {
+    pub async fn mark_accounting_failed(
+        &self,
+        request_id: &AiRequestId,
+        owner: &UserId,
+        error: &str,
+    ) -> Result<(), RepositoryError> {
+        if error.is_empty() || error.len() > 4096 {
+            return Err(RepositoryError::SettlementConflict {
+                request_id: request_id.clone(),
+                reason: "accounting failure must contain bounded diagnostic evidence".to_owned(),
+            });
+        }
+        let affected = sqlx::query!(
+            "UPDATE ai_requests SET status='failed', accounting_failed_at=COALESCE(accounting_failed_at,CURRENT_TIMESTAMP), accounting_error=COALESCE(accounting_error,$3), error_message=COALESCE(accounting_error,$3), updated_at=CASE WHEN accounting_failed_at IS NULL THEN CURRENT_TIMESTAMP ELSE updated_at END WHERE id=$1 AND user_id=$2 AND (accounting_error IS NULL OR accounting_error=$3)",
+            request_id.as_str(), owner.as_str(), error
+        ).execute(self.write_pool()).await?.rows_affected();
+        if affected != 1 {
+            return Err(RepositoryError::SettlementConflict {
+                request_id: request_id.clone(),
+                reason: "accounting failure owner, request or retained diagnostic differs"
+                    .to_owned(),
+            });
+        }
+        Ok(())
+    }
+
     #[must_use = "this returns a Result that should not be ignored"]
     pub async fn settle(
         &self,
@@ -82,7 +108,7 @@ impl AiRequestRepository {
                     SET status = 'failed', error_message = $2,
                         completed_at = COALESCE(completed_at, CURRENT_TIMESTAMP),
                         updated_at = CURRENT_TIMESTAMP
-                    WHERE id = $1 AND status <> 'completed'
+                    WHERE id = $1 AND status <> 'completed' AND accounting_failed_at IS NULL
                     "#,
                     request_id.as_str(),
                     error
@@ -152,7 +178,7 @@ async fn settle_completion(
         SET input_tokens = $2, output_tokens = $3, cache_read_tokens = $4,
             cache_creation_tokens = $5, reasoning_tokens = $6, tokens_used = $7,
             cost_microdollars = $8, latency_ms = $9, upstream_latency_ms = $10,
-            cache_hit = $11, status = 'completed',
+            cache_hit = $11, status = CASE WHEN accounting_failed_at IS NULL THEN 'completed' ELSE 'failed' END,
             completed_at = COALESCE(completed_at, CURRENT_TIMESTAMP),
             updated_at = CURRENT_TIMESTAMP
         WHERE id = $1

@@ -30,6 +30,11 @@ git rev-parse --is-inside-work-tree >/dev/null
 # banned. Code must express its own internal invariants; only an external
 # constraint on such an item may use a `// Why:` comment.
 #
+# Three more shapes of the same narration are rejected: a trailing
+# `code // text` comment, a `/* block */` comment, and a `//! \`name\`: …`
+# line in a module head — the per-item doc the placement rule bans, moved
+# one line up into the head where `///` cannot be seen.
+#
 # Scope: production sources in `crates/**`, `bin/bridge/src/**`, and the
 # `systemprompt` facade, tracked or not (`git ls-files -co`) — an untracked new
 # file must not pass vacuously.
@@ -45,7 +50,17 @@ while IFS= read -r file; do
     scanned=$((scanned + 1))
     FOUND=$(awk -v MAX_WHY_LINES="${MAX_WHY_LINES:-6}" '
         /^[[:space:]]*\/\/\// { prev_allowed = 0; if (!in_doc) doc_line = FNR; in_doc = 1; next }
+        /^[[:space:]]*\/\/! `[a-z_]+`: / {
+            print FILENAME ":" FNR ": per-item paraphrase in a module head (" $0 ") — a `name`: line is the field/fn doc the placement rule bans, moved up one line; keep only the WHY paragraph"
+            prev_allowed = 0; next
+        }
         /^[[:space:]]*\/\/!/ { prev_allowed = 0; next }
+        /[^[:space:]][[:space:]]+\/\/([[:space:]]|$)/ && $0 !~ /^[[:space:]]*\/\// && $0 !~ /"[^"]*\/\/[^"]*"/ && $0 !~ /\/\/ (Why|JSON|SAFETY):/ {
+            print FILENAME ":" FNR ": trailing // comment (" $0 ") — move it to a `// Why:` line above or delete it"
+        }
+        /(^|[[:space:]])\/\*/ && $0 !~ /^[[:space:]]*\/\/[\/!]/ && $0 !~ /"[^"]*\/\*/ {
+            print FILENAME ":" FNR ": block comment (" $0 ") — use a `// Why:` line or delete it"
+        }
         /^[[:space:]]*\/\// {
             in_doc = 0
             if ($0 ~ /^[[:space:]]*\/\/ (Why|JSON|SAFETY):/) { prev_allowed = 1; why_lines = 0; next }

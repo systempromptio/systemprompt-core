@@ -117,7 +117,7 @@ impl LocalProfileBuilder {
             services: systemprompt_models::profile::ServicesProfileConfig::default(),
             system_admin: SystemAdminConfig {
                 username: "admin".to_owned(),
-                email: Some(Email::new("admin@localhost.localdomain")),
+                email: Some(Email::local_admin()),
             },
         }
     }

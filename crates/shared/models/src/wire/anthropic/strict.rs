@@ -31,12 +31,14 @@ const UNSUPPORTED_KEYWORDS: &[&str] = &[
 ];
 
 #[must_use]
+// JSON: JSON Schema document handed to Anthropic strict tool mode.
 pub(super) fn strict_input_schema(schema: &Value) -> Value {
     let mut shaped = schema.clone();
     shape(&mut shaped);
     shaped
 }
 
+// JSON: JSON Schema document handed to Anthropic strict tool mode.
 fn shape(value: &mut Value) {
     let Some(object) = value.as_object_mut() else {
         return;
@@ -70,6 +72,7 @@ fn shape(value: &mut Value) {
     }
 }
 
+// JSON: JSON Schema document handed to Anthropic strict tool mode.
 fn lift_null_type(object: &mut Map<String, Value>) {
     let Some(Value::Array(types)) = object.get("type") else {
         return;

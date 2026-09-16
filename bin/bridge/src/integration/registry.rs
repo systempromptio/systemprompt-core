@@ -71,8 +71,6 @@ register_host_app!(super::claude_desktop::CLAUDE_DESKTOP_HOST);
 register_host_app!(super::codex_cli::CODEX_CLI_HOST);
 register_host_app!(super::hermes::HERMES_HOST);
 register_host_app!(super::opencode::OPENCODE_HOST);
-#[cfg(feature = "dev-stub-host")]
-register_host_app!(super::stub_host::STUB_HOST);
 
 struct Registry {
     hosts: Vec<&'static dyn HostApp>,

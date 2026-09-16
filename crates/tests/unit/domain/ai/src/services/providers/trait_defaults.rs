@@ -61,8 +61,8 @@ impl AiProvider for MinimalProvider {
         "minimal-model"
     }
 
-    fn get_pricing(&self, _model: &str) -> ModelPricing {
-        ModelPricing::default()
+    fn get_pricing(&self, _model: &str) -> Option<ModelPricing> {
+        Some(ModelPricing::default())
     }
 
     async fn generate(&self, params: GenerationParams<'_>) -> Result<AiResponse> {

@@ -1,14 +1,14 @@
 //! Tests for extension_error module types.
 
 use axum::http::StatusCode;
-use systemprompt_traits::{ApiError, ExtensionError, McpErrorData};
+use systemprompt_traits::{ExtensionApiError, ExtensionError, McpErrorData};
 
 mod api_error_tests {
     use super::*;
 
     #[test]
     fn new_creates_api_error() {
-        let err = ApiError::new("NOT_FOUND", "Resource not found", StatusCode::NOT_FOUND);
+        let err = ExtensionApiError::new("NOT_FOUND", "Resource not found", StatusCode::NOT_FOUND);
 
         assert_eq!(err.code, "NOT_FOUND");
         assert_eq!(err.message, "Resource not found");
@@ -17,7 +17,7 @@ mod api_error_tests {
 
     #[test]
     fn new_accepts_string_types() {
-        let err = ApiError::new(
+        let err = ExtensionApiError::new(
             String::from("BAD_REQUEST"),
             String::from("Invalid input"),
             StatusCode::BAD_REQUEST,
@@ -29,7 +29,7 @@ mod api_error_tests {
 
     #[test]
     fn api_error_is_debug() {
-        let err = ApiError::new("TEST", "Test message", StatusCode::OK);
+        let err = ExtensionApiError::new("TEST", "Test message", StatusCode::OK);
         let debug_str = format!("{:?}", err);
 
         assert!(debug_str.contains("TEST"));

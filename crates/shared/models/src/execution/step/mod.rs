@@ -80,6 +80,7 @@ impl ExecutionStep {
     pub fn tool_execution(
         task_id: TaskId,
         tool_name: impl Into<String>,
+        // JSON: MCP tool-call arguments / result are the tool's own JSON.
         tool_arguments: serde_json::Value,
     ) -> Self {
         Self::new(
@@ -109,11 +110,13 @@ impl ExecutionStep {
     }
 
     #[must_use]
+    // JSON: MCP tool-call arguments / result are the tool's own JSON.
     pub const fn tool_arguments(&self) -> Option<&serde_json::Value> {
         self.content.tool_arguments()
     }
 
     #[must_use]
+    // JSON: MCP tool-call arguments / result are the tool's own JSON.
     pub const fn tool_result(&self) -> Option<&serde_json::Value> {
         self.content.tool_result()
     }
@@ -123,6 +126,7 @@ impl ExecutionStep {
         self.content.reasoning()
     }
 
+    // JSON: MCP tool-call arguments / result are the tool's own JSON.
     pub fn complete(&mut self, result: Option<serde_json::Value>) {
         let now = Utc::now();
         self.status = StepStatus::Completed;

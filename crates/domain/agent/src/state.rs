@@ -9,6 +9,7 @@ use systemprompt_models::Config;
 use systemprompt_traits::DynJwtValidationProvider;
 
 use crate::repository::A2ARepositories;
+use crate::services::a2a_server::streaming::webhook_client::DynWebhookBroadcaster;
 
 #[derive(Clone)]
 pub struct AgentState {
@@ -16,6 +17,7 @@ pub struct AgentState {
     config: Arc<Config>,
     jwt_provider: DynJwtValidationProvider,
     repositories: Arc<A2ARepositories>,
+    webhooks: DynWebhookBroadcaster,
 }
 
 impl AgentState {
@@ -25,12 +27,14 @@ impl AgentState {
         config: Arc<Config>,
         jwt_provider: DynJwtValidationProvider,
         repositories: Arc<A2ARepositories>,
+        webhooks: DynWebhookBroadcaster,
     ) -> Self {
         Self {
             db_pool,
             config,
             jwt_provider,
             repositories,
+            webhooks,
         }
     }
 
@@ -53,6 +57,11 @@ impl AgentState {
     pub const fn repositories(&self) -> &Arc<A2ARepositories> {
         &self.repositories
     }
+
+    #[must_use]
+    pub fn webhooks(&self) -> DynWebhookBroadcaster {
+        Arc::clone(&self.webhooks)
+    }
 }
 
 impl std::fmt::Debug for AgentState {
@@ -62,6 +71,7 @@ impl std::fmt::Debug for AgentState {
             .field("config", &"<Arc<Config>>")
             .field("jwt_provider", &"<DynJwtValidationProvider>")
             .field("repositories", &"<A2ARepositories>")
+            .field("webhooks", &self.webhooks)
             .finish()
     }
 }

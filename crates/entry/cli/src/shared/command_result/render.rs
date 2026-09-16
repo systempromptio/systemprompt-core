@@ -22,13 +22,10 @@ use super::CommandOutput;
 use crate::cli_settings::{CliConfig, OutputFormat};
 
 pub fn render_result(result: &CommandOutput, config: &CliConfig) {
-    if result.should_skip_render() {
-        return;
-    }
-
     match config.output_format() {
         OutputFormat::Json => CliService::json(result.artifact()),
         OutputFormat::Yaml => CliService::yaml(result.artifact()),
+        OutputFormat::Table if result.should_skip_render() => {},
         OutputFormat::Table => render_terminal(result),
     }
 }

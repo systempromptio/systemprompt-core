@@ -9,26 +9,36 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod content;
 pub mod message_handler;
 pub mod persistence;
 pub mod stream_processor;
 
+pub use content::extract_message_content;
+pub use message_handler::HandleMessageParams;
+pub use persistence::PersistOutcome;
 pub use stream_processor::StreamProcessor;
 
 use crate::services::shared::{AgentServiceError, Result};
 use std::sync::Arc;
 use tokio::sync::mpsc;
+use tokio_util::sync::CancellationToken;
 
 use crate::models::AgentRuntimeInfo;
 use crate::models::a2a::{Artifact, Message, Task};
-use systemprompt_models::{AiProvider, CallToolResult, ToolCall};
+use crate::repository::A2ARepositories;
+use crate::repository::execution::ExecutionStepRepository;
+use crate::services::a2a_server::streaming::webhook_client::DynWebhookBroadcaster;
+use crate::services::{ArtifactPublishingService, ContextService, SkillService};
+use systemprompt_identifiers::{AiToolCallId, TaskId};
+use systemprompt_models::{AiProvider, CallToolResult, RequestContext, ToolCall};
 
 #[derive(Debug)]
 pub enum StreamEvent {
     Text(String),
     ToolCallStarted(ToolCall),
     ToolResult {
-        call_id: String,
+        ai_tool_call_id: AiToolCallId,
         result: CallToolResult,
     },
     ExecutionStepUpdate {
@@ -39,12 +49,31 @@ pub enum StreamEvent {
         artifacts: Vec<Artifact>,
     },
     Error(String),
+    Cancelled,
 }
-use crate::repository::A2ARepositories;
-use crate::repository::execution::ExecutionStepRepository;
-use crate::services::{ContextService, SkillService};
-use systemprompt_identifiers::TaskId;
-use systemprompt_models::RequestContext;
+
+/// A running message pipeline: its event receiver plus the owned worker and
+/// the token that stops it. Dropping the stream aborts the worker.
+pub struct MessageStream {
+    pub events: mpsc::Receiver<StreamEvent>,
+    pub worker: tokio::task::JoinHandle<()>,
+    pub cancel: CancellationToken,
+}
+
+impl std::fmt::Debug for MessageStream {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("MessageStream")
+            .field("cancelled", &self.cancel.is_cancelled())
+            .field("worker_finished", &self.worker.is_finished())
+            .finish_non_exhaustive()
+    }
+}
+
+impl Drop for MessageStream {
+    fn drop(&mut self) {
+        self.worker.abort();
+    }
+}
 
 #[derive(Debug)]
 pub struct PersistCompletedTaskOnProcessorParams<'a> {
@@ -63,6 +92,7 @@ pub struct ProcessMessageStreamParams<'a> {
     pub agent_name: &'a str,
     pub context: &'a RequestContext,
     pub task_id: TaskId,
+    pub cancel: CancellationToken,
 }
 
 pub struct MessageProcessor {
@@ -71,6 +101,8 @@ pub struct MessageProcessor {
     context_service: ContextService,
     skill_service: Arc<SkillService>,
     execution_step_repo: Arc<ExecutionStepRepository>,
+    publishing: ArtifactPublishingService,
+    webhooks: DynWebhookBroadcaster,
 }
 
 impl std::fmt::Debug for MessageProcessor {
@@ -85,15 +117,16 @@ impl MessageProcessor {
     pub fn new(
         repositories: Arc<A2ARepositories>,
         ai_service: Arc<dyn AiProvider>,
+        webhooks: DynWebhookBroadcaster,
     ) -> Result<Self> {
         let context_service = ContextService::new(repositories.tasks.clone());
         let execution_step_repo = Arc::new(repositories.execution_steps.clone());
-        let mut skill_service =
-            SkillService::new()?.with_execution_step_repo(Arc::clone(&execution_step_repo));
-        if let Some(resolver) = repositories.managed_skill_resolver() {
-            skill_service = skill_service.with_managed_resolver(resolver);
-        }
-        let skill_service = Arc::new(skill_service);
+        let skill_service = Arc::new(SkillService::new(
+            repositories.managed_skill_resolver(),
+            Arc::clone(&execution_step_repo),
+            Arc::clone(&webhooks),
+        )?);
+        let publishing = ArtifactPublishingService::new(&repositories, Arc::clone(&skill_service));
 
         Ok(Self {
             repositories,
@@ -101,7 +134,14 @@ impl MessageProcessor {
             context_service,
             skill_service,
             execution_step_repo,
+            publishing,
+            webhooks,
         })
+    }
+
+    #[must_use]
+    pub fn webhooks(&self) -> DynWebhookBroadcaster {
+        Arc::clone(&self.webhooks)
     }
 
     pub async fn load_agent_runtime(&self, agent_name: &str) -> Result<AgentRuntimeInfo> {
@@ -119,13 +159,15 @@ impl MessageProcessor {
     pub async fn persist_completed_task(
         &self,
         params: PersistCompletedTaskOnProcessorParams<'_>,
-    ) -> Result<Task> {
+    ) -> Result<PersistOutcome> {
         persistence::persist_completed_task(persistence::PersistCompletedTaskParams {
             task: params.task,
             user_message: params.user_message,
             agent_message: params.agent_message,
             context: params.context,
             repositories: &self.repositories,
+            publishing: &self.publishing,
+            webhooks: Arc::clone(&self.webhooks),
             artifacts_already_published: params.artifacts_already_published,
         })
         .await
@@ -134,7 +176,7 @@ impl MessageProcessor {
     pub async fn process_message_stream(
         &self,
         params: ProcessMessageStreamParams<'_>,
-    ) -> Result<mpsc::Receiver<StreamEvent>> {
+    ) -> Result<MessageStream> {
         let stream_processor = StreamProcessor {
             ai_service: Arc::clone(&self.ai_service),
             context_service: self.context_service.clone(),

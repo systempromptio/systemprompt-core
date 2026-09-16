@@ -4,20 +4,28 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::client::{ClientPurpose, NativeClient};
+use super::docker::command as docker_command;
 use crate::{SchedulerError, SchedulerResult};
 
+#[path = "container_builder.rs"]
+mod builder;
 #[path = "network.rs"]
 mod network;
+#[path = "container_verification.rs"]
+mod verification;
+pub use builder::ContainerLaunchBuilder;
 pub use network::ExecutionNetwork;
 use network::{private_log, safe_label, safe_name, wait_bounded};
 use std::path::{Path, PathBuf};
-use std::process::{Child, Command, ExitStatus, Stdio};
+use std::process::{Child, ExitStatus, Stdio};
 use std::time::Instant;
-use systemprompt_models::subprocess::{place_in_own_process_group, spawn_owned_supervised};
+use systemprompt_loader::subprocess::{place_in_own_process_group, spawn_owned_supervised};
+pub use verification::{ClientVerifier, PinnedClientVerifier};
 
 #[derive(Debug)]
 pub struct ContainerExecution {
     child: Child,
+    _docker_configuration: tempfile::TempDir,
     docker: PathBuf,
     name: String,
     output: PathBuf,
@@ -38,21 +46,14 @@ pub struct ContainerLaunch {
     output_stem: String,
     owner_label: String,
     execution_label: String,
+    lease: Option<systemprompt_evaluation::repository::experiments::ExecutionLease>,
     runtime_user: String,
+    verifier: std::sync::Arc<dyn ClientVerifier>,
 }
 
 impl ContainerLaunch {
     pub fn builder(docker: PathBuf, directory: PathBuf) -> ContainerLaunchBuilder {
-        ContainerLaunchBuilder {
-            docker,
-            directory,
-            image: None,
-            network: None,
-            name: None,
-            output_stem: "client".to_owned(),
-            owner_label: String::new(),
-            execution_label: String::new(),
-        }
+        ContainerLaunchBuilder::new(docker, directory)
     }
 
     pub fn start(
@@ -69,6 +70,7 @@ impl ContainerLaunch {
         purpose: ClientPurpose,
         prompt: &str,
     ) -> SchedulerResult<ContainerExecution> {
+        self.verifier.verify(self, client)?;
         let output = self
             .directory
             .join(format!("{}-events.jsonl", self.output_stem));
@@ -77,7 +79,7 @@ impl ContainerLaunch {
             .directory
             .join(format!("{}-stderr.log", self.output_stem));
         let errors = private_log(&errors_path)?;
-        let mut command = Command::new(&self.docker);
+        let (mut command, docker_configuration) = docker_command(&self.docker)?;
         command.args([
             "run",
             "--rm",
@@ -101,6 +103,14 @@ impl ContainerLaunch {
             "--tmpfs=/tmp:rw,nosuid,nodev,size=256m",
             "--workdir=/home/tester/work",
         ]);
+        if let Some(lease) = &self.lease {
+            command.args([
+                "--label",
+                &format!("systemprompt.evaluator.worker={}", lease.worker_id),
+                "--label",
+                &format!("systemprompt.evaluator.fence={}", lease.fencing_token),
+            ]);
+        }
         command.arg("--mount").arg(format!(
             "type=bind,src={},dst=/home/tester",
             self.directory.join("home").display()
@@ -108,9 +118,11 @@ impl ContainerLaunch {
         command
             .arg("--env-file")
             .arg(self.directory.join("client.env"));
-        command
-            .arg(&self.image)
-            .args(client.arguments_for(purpose, prompt));
+        command.arg(&self.image).args(
+            client
+                .arguments_for(purpose, prompt)
+                .map_err(|error| SchedulerError::config_error(error.to_string()))?,
+        );
         command
             .stdin(Stdio::null())
             .stdout(Stdio::from(log))
@@ -119,6 +131,7 @@ impl ContainerLaunch {
         let child = spawn_owned_supervised(command)?;
         Ok(ContainerExecution {
             child,
+            _docker_configuration: docker_configuration,
             docker: self.docker.clone(),
             name: self.name.clone(),
             output,
@@ -163,7 +176,7 @@ impl ContainerExecution {
     }
 
     pub fn cancel(&mut self) -> SchedulerResult<()> {
-        let mut command = Command::new(&self.docker);
+        let (mut command, _docker_configuration) = docker_command(&self.docker)?;
         command
             .args(["rm", "--force", &self.name])
             .stdout(Stdio::null())
@@ -205,91 +218,4 @@ fn directory_bytes(root: &Path) -> std::io::Result<u64> {
         }
     }
     Ok(total)
-}
-
-#[derive(Debug)]
-pub struct ContainerLaunchBuilder {
-    docker: PathBuf,
-    directory: PathBuf,
-    image: Option<String>,
-    network: Option<String>,
-    name: Option<String>,
-    output_stem: String,
-    owner_label: String,
-    execution_label: String,
-}
-
-impl ContainerLaunchBuilder {
-    pub fn image(mut self, image: String) -> Self {
-        self.image = Some(image);
-        self
-    }
-    pub fn network(mut self, network: String) -> Self {
-        self.network = Some(network);
-        self
-    }
-    pub fn name(mut self, name: String) -> Self {
-        self.name = Some(name);
-        self
-    }
-    pub fn output_stem(mut self, output_stem: impl Into<String>) -> Self {
-        self.output_stem = output_stem.into();
-        self
-    }
-    pub fn ownership(mut self, owner: impl Into<String>, execution: impl Into<String>) -> Self {
-        self.owner_label = owner.into();
-        self.execution_label = execution.into();
-        self
-    }
-    pub fn build(self) -> SchedulerResult<ContainerLaunch> {
-        let invalid = || {
-            SchedulerError::ConfigError { message: "Evaluator requires an absolute Docker path, workspace, pinned image, private network and execution name".to_owned() }
-        };
-        let image = self.image.ok_or_else(invalid)?;
-        let digest = image
-            .rsplit_once("sha256:")
-            .map(|(_, digest)| digest)
-            .ok_or_else(invalid)?;
-        let network = self.network.ok_or_else(invalid)?;
-        let name = self.name.ok_or_else(invalid)?;
-        #[cfg(unix)]
-        let runtime_user = {
-            use std::os::unix::fs::MetadataExt;
-            let metadata = std::fs::metadata(&self.directory)?;
-            if metadata.uid() == 0 {
-                return Err(SchedulerError::config_error(
-                    "Evaluator supervisor must not run as root",
-                ));
-            }
-            format!("{}:{}", metadata.uid(), metadata.gid())
-        };
-        #[cfg(not(unix))]
-        let runtime_user = "1001:1001".to_owned();
-        if digest.len() != 64
-            || !digest.bytes().all(|c| c.is_ascii_hexdigit())
-            || !self.docker.is_absolute()
-            || !self.directory.is_absolute()
-            || self.directory.to_string_lossy().contains(',')
-            || !name.starts_with("eval-")
-            || !safe_name(&name)
-            || !safe_name(&network)
-            || matches!(network.as_str(), "host" | "bridge" | "default" | "none")
-            || !safe_name(&self.output_stem)
-            || !safe_label(&self.owner_label)
-            || !safe_label(&self.execution_label)
-        {
-            return Err(invalid());
-        }
-        Ok(ContainerLaunch {
-            docker: self.docker,
-            directory: self.directory,
-            image,
-            network,
-            name,
-            output_stem: self.output_stem,
-            owner_label: self.owner_label,
-            execution_label: self.execution_label,
-            runtime_user,
-        })
-    }
 }

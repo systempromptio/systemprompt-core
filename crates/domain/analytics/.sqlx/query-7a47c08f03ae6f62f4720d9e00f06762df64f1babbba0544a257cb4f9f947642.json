@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT fact_generation FROM analytics_snapshot_state WHERE owner_id=$1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "fact_generation",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "analytics_snapshot_state",
+            "name": "fact_generation"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "7a47c08f03ae6f62f4720d9e00f06762df64f1babbba0544a257cb4f9f947642"
+}

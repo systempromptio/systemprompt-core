@@ -23,6 +23,10 @@ pub fn eprint_str(msg: &str) {
     eprint!("{msg}");
 }
 
+pub fn eprint_line(msg: &str) {
+    eprintln!("{msg}");
+}
+
 pub fn emit_json<T: serde::Serialize>(value: &T) -> std::io::Result<()> {
     use std::io::Write;
     let json = serde_json::to_string(value)?;

@@ -68,36 +68,7 @@ pub struct ContentStat {
     pub views_30d: i64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
-pub struct AnalyticsSession {
-    pub session_id: SessionId,
-    pub user_id: Option<UserId>,
-    pub fingerprint_hash: Option<String>,
-    pub ip_address: Option<String>,
-    pub user_agent: Option<String>,
-    pub device_type: Option<String>,
-    pub browser: Option<String>,
-    pub os: Option<String>,
-    pub country: Option<String>,
-    pub city: Option<String>,
-    pub referrer_url: Option<String>,
-    pub utm_source: Option<String>,
-    pub utm_medium: Option<String>,
-    pub utm_campaign: Option<String>,
-    pub utm_content: Option<String>,
-    pub utm_term: Option<String>,
-    pub is_bot: bool,
-    pub is_scanner: Option<bool>,
-    pub is_behavioral_bot: Option<bool>,
-    pub behavioral_bot_reason: Option<String>,
-    pub started_at: Option<DateTime<Utc>>,
-    pub last_activity_at: Option<DateTime<Utc>>,
-    pub ended_at: Option<DateTime<Utc>>,
-    pub request_count: Option<i32>,
-    pub task_count: Option<i32>,
-    pub ai_request_count: Option<i32>,
-    pub message_count: Option<i32>,
-}
+pub use systemprompt_traits::session_store::SessionSnapshot as AnalyticsSession;
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct AnalyticsEvent {

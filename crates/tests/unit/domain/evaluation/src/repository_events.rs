@@ -218,9 +218,107 @@ fn event_validation_bounds_sequence_and_summary() {
     }
 
     let valid = ExecutionEvent {
+        native_readiness: None,
         sequence: 999,
         stage: ExecutionStage::Verification,
         summary: "verified".to_owned(),
     };
     assert!(valid.validate().is_ok());
+}
+
+#[tokio::test]
+async fn runtime_readiness_is_historical_target_bound_and_owned() {
+    use systemprompt_evaluation::capabilities::{
+        NativeReadiness, NativeReadinessState, VerifiedNativeTarget,
+    };
+    let Some(harness) = Harness::start().await else {
+        return;
+    };
+    let (_, lease) = harness.claimed_lease().await;
+    let events = ExecutionEventRepository::new(harness.pg.clone());
+    let target = VerifiedNativeTarget {
+        client: systemprompt_evaluation::experiments::ClientKind::ClaudeCode,
+        platform: "fixture-platform".to_owned(),
+        architecture: "fixture-architecture".to_owned(),
+        client_version: "fixture-version".to_owned(),
+        adapter_version: "fixture-adapter".to_owned(),
+        image_digest: "a".repeat(64),
+        executable_digest: "b".repeat(64),
+        native_isolation_evidence_digest: "c".repeat(64),
+        native_metering_evidence_digest: "d".repeat(64),
+    };
+    assert_eq!(
+        events
+            .native_readiness(&harness.worker.owner_id, &target)
+            .await
+            .unwrap()
+            .state,
+        NativeReadinessState::Unknown
+    );
+    let mut observation = NativeReadiness {
+        target: target.clone(),
+        state: NativeReadinessState::LastVerified,
+        observed_at: None,
+        diagnostic: None,
+    };
+    events
+        .observe_readiness(&harness.worker, &lease, observation.clone())
+        .await
+        .unwrap();
+    let retained = events
+        .native_readiness(&harness.worker.owner_id, &target)
+        .await
+        .unwrap();
+    assert_eq!(retained.state, NativeReadinessState::LastVerified);
+    assert!(retained.observed_at.is_some());
+    observation.state = NativeReadinessState::Unavailable;
+    observation.diagnostic = Some("Pinned image unavailable".to_owned());
+    events
+        .observe_readiness(&harness.worker, &lease, observation.clone())
+        .await
+        .unwrap();
+    let retained = events
+        .native_readiness(&harness.worker.owner_id, &target)
+        .await
+        .unwrap();
+    assert_eq!(retained.state, NativeReadinessState::Unavailable);
+    assert_eq!(retained.diagnostic, observation.diagnostic);
+    let mut changed = target.clone();
+    changed.platform = "another-platform".to_owned();
+    assert_eq!(
+        events
+            .native_readiness(&harness.worker.owner_id, &changed)
+            .await
+            .unwrap()
+            .state,
+        NativeReadinessState::Unknown
+    );
+    assert_eq!(
+        events
+            .native_readiness(
+                &systemprompt_identifiers::UserId::new(uuid::Uuid::new_v4().to_string()),
+                &target
+            )
+            .await
+            .unwrap()
+            .state,
+        NativeReadinessState::Unknown
+    );
+    let mut forged = event(2, ExecutionStage::Verification, "forged observed health");
+    forged.native_readiness = Some(observation.clone());
+    assert!(
+        events
+            .append(&harness.worker, &lease, &forged)
+            .await
+            .is_err()
+    );
+    let mut stale = lease.clone();
+    stale.fencing_token += 1;
+    assert!(
+        events
+            .observe_readiness(&harness.worker, &stale, observation)
+            .await
+            .is_err()
+    );
+    harness.cleanup().await;
 }

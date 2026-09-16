@@ -24,6 +24,44 @@ pub enum StaleReason {
     ProxyPort,
 }
 
+/// Whether one fact a fresh profile depends on could be checked, and what it
+/// said.
+///
+/// `Unchecked` is a host that does not carry the fact at all (a CLI host
+/// keeps the secret in a file the probe does not read); `Unverifiable` is a
+/// fact the host carries but the probe could not evaluate — a guard that
+/// cannot evaluate never reports green.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Freshness {
+    Fresh,
+    Stale,
+    Unchecked,
+    Unverifiable { reason: String },
+}
+
+impl Freshness {
+    #[must_use]
+    pub fn compare(installed: Option<&str>, live: Option<&str>, what: &str) -> Self {
+        match (installed, live) {
+            (Some(installed), Some(live)) if installed == live => Self::Fresh,
+            (Some(_), Some(_)) => Self::Stale,
+            (None, _) => Self::Unchecked,
+            (Some(_), None) => Self::Unverifiable {
+                reason: format!("the live {what} could not be read"),
+            },
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct ProfileProbe<'a> {
+    pub required: &'a [&'a str],
+    pub present: &'a BTreeMap<String, String>,
+    pub read_error: Option<&'a str>,
+    pub secret: Freshness,
+    pub endpoint: Freshness,
+}
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum ProfileState {
@@ -31,6 +69,7 @@ pub enum ProfileState {
     Partial { missing_required: Vec<String> },
     Installed,
     Stale { reason: StaleReason },
+    Unverifiable { reason: String },
 }
 
 /// [`ProfileState`] without its payload — the code the GUI looks up.
@@ -43,6 +82,7 @@ pub enum ProfileCode {
     Partial,
     Installed,
     Stale,
+    Unverifiable,
 }
 
 impl ProfileState {
@@ -58,6 +98,7 @@ impl ProfileState {
             Self::Partial { .. } => ProfileCode::Partial,
             Self::Installed => ProfileCode::Installed,
             Self::Stale { .. } => ProfileCode::Stale,
+            Self::Unverifiable { .. } => ProfileCode::Unverifiable,
         }
     }
 
@@ -65,7 +106,7 @@ impl ProfileState {
     pub const fn tone(&self) -> Tone {
         match self {
             Self::Installed => Tone::Ok,
-            Self::Partial { .. } | Self::Stale { .. } => Tone::Warn,
+            Self::Partial { .. } | Self::Stale { .. } | Self::Unverifiable { .. } => Tone::Warn,
             Self::Absent => Tone::Err,
         }
     }
@@ -79,36 +120,54 @@ impl ProfileState {
     pub fn missing_required(&self) -> &[String] {
         match self {
             Self::Partial { missing_required } => missing_required,
-            Self::Absent | Self::Installed | Self::Stale { .. } => &[],
+            Self::Absent | Self::Installed | Self::Stale { .. } | Self::Unverifiable { .. } => &[],
         }
     }
 
     #[must_use]
-    pub fn classify(
-        required: &[&str],
-        present: &BTreeMap<String, String>,
-        secret_fresh: Option<bool>,
-        endpoint_fresh: Option<bool>,
-    ) -> Self {
-        match Self::from_keys(required, present) {
-            Self::Installed if secret_fresh == Some(false) => Self::Stale {
-                reason: StaleReason::LoopbackSecret,
-            },
-            Self::Installed if endpoint_fresh == Some(false) => Self::Stale {
-                reason: StaleReason::ProxyPort,
+    pub fn classify(probe: &ProfileProbe<'_>) -> Self {
+        if let Some(reason) = probe.read_error
+            && probe.present.is_empty()
+        {
+            return Self::Unverifiable {
+                reason: reason.to_owned(),
+            };
+        }
+        match Self::from_keys(probe.required, probe.present) {
+            Self::Installed => match (&probe.secret, &probe.endpoint) {
+                (Freshness::Stale, _) => Self::Stale {
+                    reason: StaleReason::LoopbackSecret,
+                },
+                (_, Freshness::Stale) => Self::Stale {
+                    reason: StaleReason::ProxyPort,
+                },
+                (Freshness::Unverifiable { reason }, _)
+                | (_, Freshness::Unverifiable { reason }) => Self::Unverifiable {
+                    reason: reason.clone(),
+                },
+                _ => Self::Installed,
             },
             state => state,
         }
     }
 
     #[must_use]
-    pub fn endpoint_freshness(configured_url: Option<&str>, proxy_port: u16) -> Option<bool> {
+    pub fn endpoint_freshness(configured_url: Option<&str>, proxy_port: u16) -> Freshness {
         use crate::proxy_probe::{PortMatch, classify_configured_port};
-        let url = configured_url.filter(|u| !u.is_empty())?;
+        let Some(url) = configured_url.filter(|u| !u.is_empty()) else {
+            return Freshness::Unchecked;
+        };
         match classify_configured_port(url, proxy_port) {
-            PortMatch::Match => Some(true),
-            PortMatch::Mismatch { .. } => Some(false),
-            PortMatch::NotLoopback | PortMatch::Unparseable => None,
+            PortMatch::Match => Freshness::Fresh,
+            PortMatch::Mismatch { .. } => Freshness::Stale,
+            PortMatch::NotLoopback => Freshness::Unverifiable {
+                reason: format!(
+                    "configured gateway url {url} does not point at the loopback proxy"
+                ),
+            },
+            PortMatch::Unparseable => Freshness::Unverifiable {
+                reason: format!("configured gateway url {url} cannot be parsed"),
+            },
         }
     }
 

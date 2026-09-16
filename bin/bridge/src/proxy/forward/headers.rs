@@ -22,6 +22,11 @@ const HOP_BY_HOP: &[&str] = &[
     "content-length",
     "authorization",
     "x-api-key",
+    "x-systemprompt-device-credential",
+    "x-systemprompt-host",
+    // Why: the OpenCode session rides upstream inside `metadata.user_id`,
+    // never as a header the gateway would have to trust from any client.
+    crate::feedback::sessions::OPENCODE_SESSION_HEADER,
 ];
 
 pub(super) fn build_upstream_headers(

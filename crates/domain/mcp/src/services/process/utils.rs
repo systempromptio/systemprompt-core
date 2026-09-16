@@ -58,7 +58,7 @@ pub fn kill_process(pid: u32) -> bool {
     {
         Ok(output) => output.status.success(),
         Err(e) => {
-            tracing::warn!(pid = pid, error = %e, "failed to run `taskkill /PID {pid} /F`");
+            tracing::warn!(pid = pid, error = %e, "Failed to run taskkill /PID /F");
             false
         },
     }
@@ -92,7 +92,7 @@ pub async fn terminate_gracefully(pid: u32, grace_period_ms: u64) -> bool {
         .args(["/PID", &pid.to_string()])
         .output()
     {
-        tracing::warn!(pid = pid, error = %e, "failed to run `taskkill /PID {pid}`");
+        tracing::warn!(pid = pid, error = %e, "Failed to run taskkill /PID");
         return false;
     }
 

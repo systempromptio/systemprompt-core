@@ -18,7 +18,7 @@ use systemprompt_api::routes::gateway::gateway_router;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{AiRequestId, ContextId, UserId};
 use systemprompt_test_fixtures::{
-    AuthedFixture, ensure_test_bootstrap, fixture_app_context, fixture_db_pool,
+    AuthedFixture, drain_reporting, ensure_test_bootstrap, fixture_app_context, fixture_db_pool,
     install_test_signing_key, seed_admin_credential,
 };
 use tower::ServiceExt;
@@ -78,6 +78,7 @@ async fn seed_history(pool: &DbPool, email: &str) -> Result<Seeded> {
     seed_request(pool, &cred.user_id, &context, "claude-usage-a", 1_000, 500).await?;
     seed_request(pool, &cred.user_id, &context, "claude-usage-a", 500, 250).await?;
     seed_request(pool, &cred.user_id, &context, "claude-usage-b", 500, 125).await?;
+    drain_reporting(pool).await?;
     Ok(Seeded { cred, context })
 }
 

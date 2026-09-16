@@ -13,7 +13,9 @@ set -uo pipefail
 #   1. Cargo features named `test*` in a `[features]` table. Dependencies such
 #      as `test-log` sit in `[dependencies]`/`[dev-dependencies]` and are not
 #      flagged — only the `[features]` table is tracked.
-#   2. `cfg(feature = "test…")` / `cfg!(…)` / `cfg_attr(…)`, including `not(`.
+#   2. `cfg(feature = "test…")` / `cfg!(…)` / `cfg_attr(…)`, including `not(`,
+#      and any `cfg(any(test, …))` — a `test` predicate OR-ed with a feature
+#      is the same seam under a feature name that dodges rule 1.
 #   3. `mod test_api`, `mod *_test_api`, `test_api::`, `#[path = "…_test_api.rs"]`.
 #   4. `unreachable_pub` *suppressions* in production sources: an
 #      `allow`/`expect` attribute in `.rs`, or an `= "allow"` lint setting in a
@@ -45,7 +47,7 @@ while IFS= read -r file; do
             ' "$file")
             ;;
         *)
-            FOUND=$(grep -nE 'cfg(_attr)?!?\((not\()?feature[[:space:]]*=[[:space:]]*"test|(^|[^A-Za-z0-9_])mod[[:space:]]+([a-z_]*_)?test_api|test_api::|#\[path[[:space:]]*=[[:space:]]*".*_test_api\.rs"|(allow|expect)\([^)]*unreachable_pub|SYSTEMPROMPT_TEST_' "$file" \
+            FOUND=$(grep -nE 'cfg(_attr)?!?\((not\()?feature[[:space:]]*=[[:space:]]*"test|cfg(_attr)?!?\((not\()?(any|all)\(([^)]*[^A-Za-z0-9_)])?test([^A-Za-z0-9_]|$)|(^|[^A-Za-z0-9_])mod[[:space:]]+([a-z_]*_)?test_api|test_api::|#\[path[[:space:]]*=[[:space:]]*".*_test_api\.rs"|(allow|expect)\([^)]*unreachable_pub|SYSTEMPROMPT_TEST_' "$file" \
                 | sed "s|^|$file:|; s|:\([0-9]*\):|:\1: test-only seam in production source: |")
             ;;
     esac

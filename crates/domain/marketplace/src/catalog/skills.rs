@@ -75,10 +75,10 @@ pub fn load_skills_traced(
                 });
             },
             Err(e) => {
-                tracing::warn!(
+                tracing::error!(
                     skill_dir = %skill_dir.display(),
                     error = %e,
-                    "manifest: failed to build skill entry; skipping"
+                    "manifest: failed to build skill entry"
                 );
                 trace.record(TraceEvent {
                     kind: TraceKind::Skill,
@@ -86,6 +86,7 @@ pub fn load_skills_traced(
                     stage: TraceStage::Parse,
                     reason: e.to_string(),
                 });
+                return Err(e);
             },
         }
     }
@@ -122,13 +123,9 @@ fn build_skill_entry(
         SkillName::try_new(display_name).map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
 
     let content_path = skill_dir.join(config.content_file());
-    let instructions = if content_path.exists() {
-        let raw = std::fs::read_to_string(&content_path)
-            .map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
-        strip_frontmatter(&raw)
-    } else {
-        String::new()
-    };
+    let raw = std::fs::read_to_string(&content_path)
+        .map_err(|e| MarketplaceError::Catalog(format!("read {}: {e}", content_path.display())))?;
+    let instructions = strip_frontmatter(&raw);
 
     let mut hasher = Sha256::new();
     hasher.update(instructions.as_bytes());
@@ -136,6 +133,7 @@ fn build_skill_entry(
         .map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
 
     Ok(Some(SkillEntry {
+        publication: None,
         id,
         name,
         description: config.description,
@@ -158,14 +156,22 @@ pub(crate) fn build_managed_skill_entry(
     let sha256 = Sha256Digest::try_new(hex::encode(Sha256::digest(skill.instructions.as_bytes())))
         .map_err(|error| MarketplaceError::Catalog(error.to_string()))?;
     let entry = SkillEntry {
+        publication: Some(systemprompt_models::bridge::manifest::SkillPublication {
+            publication_id: skill.publication_id,
+            resource_id: skill.resource_id,
+            revision_id: skill.revision_id,
+            generation: skill.generation,
+            bundle_digest: Sha256Digest::try_new(skill.bundle_digest.as_str())
+                .map_err(|error| MarketplaceError::Catalog(error.to_string()))?,
+        }),
         file_path: format!("managed://{}@{}", id.as_str(), skill.bundle_digest.as_str()),
         id,
         name,
         description: skill.description,
-        tags: Vec::new(),
+        tags: skill.tags,
         sha256,
         instructions: skill.instructions,
-        hosts: Vec::new(),
+        hosts: skill.hosts,
         plugins: Vec::new(),
     };
     Ok((entry, skill.files))

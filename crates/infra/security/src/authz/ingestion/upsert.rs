@@ -122,10 +122,6 @@ pub(super) async fn upsert_target(
         if !override_existing {
             return Ok(UpsertOutcome::Skipped);
         }
-        // Why: a row whose content matches but whose source does not is a grant
-        // that changed hands. Leaving the old source on it strands the row —
-        // the bundle that now declares it will not prune it, and the bundle
-        // that used to may never run again.
         let unchanged = row.access == target.access
             && row.justification.as_deref() == target.justification
             && row.source == target.source;

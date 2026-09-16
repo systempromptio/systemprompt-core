@@ -3,18 +3,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::ids::{BearerToken, CertFingerprint};
+use crate::ids::BearerToken;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 pub use systemprompt_models::bridge::profile::{
     BridgeProfileResponse as BridgeProfile, ProviderHealth,
 };
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct MtlsRequest {
-    pub device_cert_fingerprint: CertFingerprint,
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SessionExchangeRequest {

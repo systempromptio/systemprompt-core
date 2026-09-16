@@ -12,12 +12,13 @@ use anyhow::Result;
 use futures_util::future::join_all;
 use std::sync::Arc;
 use systemprompt_agent::AgentState;
+use systemprompt_agent::services::a2a_server::streaming::webhook_client::HttpWebhookBroadcaster;
 use systemprompt_agent::services::agent_orchestration::AgentOrchestrator;
 use systemprompt_agent::services::registry::AgentRegistry;
 use systemprompt_models::AgentConfig;
 use systemprompt_oauth::JwtValidationProviderImpl;
 use systemprompt_runtime::AppContext;
-use systemprompt_traits::{OptionalStartupEventExt, StartupEventSender};
+use systemprompt_traits::{StartupEventExt, StartupEventSender};
 
 pub async fn reconcile_agents(
     ctx: &AppContext,
@@ -80,6 +81,7 @@ async fn build_orchestrator(
         Arc::new(ctx.config().clone()),
         jwt_provider,
         Arc::clone(ctx.a2a_repositories()),
+        Arc::new(HttpWebhookBroadcaster::from_config(ctx.config())?),
     ));
 
     match AgentOrchestrator::new(agent_state, Arc::clone(ctx.app_paths_arc()), events).await {

@@ -1,31 +1,39 @@
 use chrono::Utc;
-use systemprompt_evaluation::{CanonicalMessage, SampleFilter, SampledRequest};
-use systemprompt_identifiers::{AiRequestId, ContextId};
+use systemprompt_evaluation::CanonicalPrompt;
+use systemprompt_identifiers::{AiRequestId, ContextId, ModelId, ProviderId};
+use systemprompt_traits::{TraceMessage, TraceSample, TraceSampleFilter};
 
 #[test]
 fn sample_filter_builder_sets_fields() {
     let since = Utc::now();
-    let filter = SampleFilter::with_limit(7)
+    let filter = TraceSampleFilter::with_limit(7)
         .since(since)
-        .provider("anthropic")
-        .model("claude-sonnet-5")
-        .ids(vec!["a".to_owned()]);
+        .provider(ProviderId::new("anthropic"))
+        .model(ModelId::new("claude-sonnet-5"))
+        .ids(vec![AiRequestId::new("a")]);
     assert_eq!(filter.limit, 7);
     assert_eq!(filter.since, Some(since));
-    assert_eq!(filter.provider.as_deref(), Some("anthropic"));
-    assert_eq!(filter.model.as_deref(), Some("claude-sonnet-5"));
-    assert_eq!(filter.ids.as_deref(), Some(&["a".to_owned()][..]));
+    assert_eq!(
+        filter.provider.as_ref().map(ProviderId::as_str),
+        Some("anthropic")
+    );
+    assert_eq!(
+        filter.model.as_ref().map(ModelId::as_str),
+        Some("claude-sonnet-5")
+    );
+    assert_eq!(filter.ids.as_deref(), Some(&[AiRequestId::new("a")][..]));
 }
 
 #[test]
 fn canonical_prompt_carries_request_identity() {
-    let request = SampledRequest {
+    let sample = TraceSample {
         ai_request_id: AiRequestId::new("req-1"),
-        context_id: ContextId::new_unchecked("00000000-0000-0000-0000-00000000c0de"),
-        provider: "anthropic".to_owned(),
-        model: "claude-sonnet-5".to_owned(),
+        context_id: ContextId::try_new("00000000-0000-0000-0000-00000000c0de")
+            .expect("valid ContextId"),
+        provider: ProviderId::new("anthropic"),
+        model: ModelId::new("claude-sonnet-5"),
         system_prompt_override: Some("be terse".to_owned()),
-        messages: vec![CanonicalMessage {
+        messages: vec![TraceMessage {
             role: "user".to_owned(),
             content: "hi".to_owned(),
         }],
@@ -36,9 +44,9 @@ fn canonical_prompt_carries_request_identity() {
         cost_microdollars: 5,
         created_at: Utc::now(),
     };
-    let prompt = request.canonical_prompt();
-    assert_eq!(prompt.provider, "anthropic");
-    assert_eq!(prompt.model, "claude-sonnet-5");
+    let prompt = CanonicalPrompt::from_sample(&sample);
+    assert_eq!(prompt.provider.as_str(), "anthropic");
+    assert_eq!(prompt.model.as_str(), "claude-sonnet-5");
     assert_eq!(prompt.system_prompt.as_deref(), Some("be terse"));
     assert_eq!(prompt.messages.len(), 1);
     assert!(prompt.offered_tools.is_some());

@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.53.0] - 2026-09-15
+
+### Breaking
+
+- **Breaking:** `JwtConfig.expires_in_hours: Option<i64>` is `expires_in: chrono::Duration` (serialised as `expires_in` seconds); `IdJagGrant` and `EnterprisePrincipal` carry `email_verified: bool`. Migrate by passing `Duration::seconds(profile.jwt_access_token_expiration)` and the issuer's claim.
+- **Breaking:** `SessionCreationService::new(.., session_provider: Arc<dyn SessionProvider>)` replaces the `AnalyticsProvider` argument and `with_event_publisher` / `UserEventPublisher` are removed; `issue_bridge_access(repo, &dyn SessionProvider, BridgeAccessRequest)` (built with `BridgeAccessRequest::bridge(headers, ip, &user_id)`) replaces `issue_bridge_access_with`, and the code exchange takes a `BridgeExchangeRequest { request_headers, caller_ip, code }`.
+
+### Added
+
+- `OauthCleanupRepository` (expired refresh tokens, authorization codes, state bindings, JTI revocations, ID-JAG replay markers) and the nightly `oauth_cleanup` job that runs it — moved out of the database crate's `CleanupRepository` and the `database_cleanup` job.
+
+### Fixed
+
+- Token lifetimes are computed in seconds: a `jwt_access_token_expiration` below 3600 no longer mints an already-expired anonymous JWT, and a bridge TTL under an hour no longer rounds up to one.
+- An ID-JAG `email` claim is no longer treated as verified by its presence; `email_verified` is carried verbatim from the issuer (default `false`), so a token naming an existing account's email creates a fresh federated user instead of linking to it.
+
 ## [0.50.0] - 2026-09-10
 
 ### Fixed

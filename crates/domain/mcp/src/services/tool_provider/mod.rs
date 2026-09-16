@@ -8,6 +8,7 @@
 
 mod context;
 pub mod conversions;
+mod health;
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, PoisonError};
@@ -17,21 +18,20 @@ use tracing::{info, warn};
 
 use systemprompt_database::DbPool;
 use systemprompt_database::resilience::{ResilienceConfig, ResilienceError, ResilienceGuard};
-use systemprompt_identifiers::McpServerId;
+use systemprompt_identifiers::{AgentName, McpServerId};
 use systemprompt_models::services::ResilienceSettings;
 use systemprompt_traits::{
-    ToolCallRequest, ToolCallResult, ToolContext, ToolDefinition, ToolProvider, ToolProviderError,
-    ToolProviderResult,
+    ServerListingFailure, ToolCallRequest, ToolCallResult, ToolContext, ToolInventory,
+    ToolProvider, ToolProviderError, ToolProviderResult,
 };
 
 use crate::error::McpDomainError;
-use crate::services::client::{
-    McpClient, rewrite_url_for_internal_use, validate_connection, validate_connection_by_url,
-};
+use crate::services::client::McpClient;
 pub use crate::services::registry::RegistryService;
 
 use context::{create_request_context, load_agent_servers};
 use conversions::{to_tool_definition, to_tool_result};
+use health::{check_server_connection, check_server_health};
 
 fn map_resilience_err(err: ResilienceError<McpDomainError>, server: &str) -> ToolProviderError {
     match err {
@@ -94,21 +94,21 @@ impl McpToolProvider {
 impl ToolProvider for McpToolProvider {
     async fn list_tools(
         &self,
-        agent_name: &str,
+        agent_name: &AgentName,
         context: &ToolContext,
-    ) -> ToolProviderResult<Vec<ToolDefinition>> {
+    ) -> ToolProviderResult<ToolInventory> {
         let assigned_servers =
             load_agent_servers(agent_name).map_err(|e| ToolProviderError::ConfigurationError {
                 message: format!("Failed to load agent config: {e}"),
             })?;
 
         info!(
-            agent = agent_name,
+            agent = %agent_name,
             servers = %assigned_servers.join(", "),
             "Listing tools for agent from MCP servers"
         );
 
-        let mut all_tools = Vec::new();
+        let mut inventory = ToolInventory::default();
 
         for server_name in &assigned_servers {
             let server_config = self.registry.get_server(server_name).map_err(|e| {
@@ -124,9 +124,7 @@ impl ToolProvider for McpToolProvider {
                         tool_count = tools.len(),
                         "Loaded tools from MCP server"
                     );
-                    for tool in tools {
-                        all_tools.push(to_tool_definition(&tool));
-                    }
+                    inventory.tools.extend(tools.iter().map(to_tool_definition));
                 },
                 Err(e) => {
                     warn!(
@@ -134,17 +132,26 @@ impl ToolProvider for McpToolProvider {
                         error = %e,
                         "Failed to list tools from MCP server"
                     );
+                    inventory.failed_servers.push(ServerListingFailure {
+                        server: McpServerId::try_new(server_name.clone()).map_err(|e| {
+                            ToolProviderError::ConfigurationError {
+                                message: format!("invalid MCP server name {server_name}: {e}"),
+                            }
+                        })?,
+                        message: e.to_string(),
+                    });
                 },
             }
         }
 
         info!(
-            agent = agent_name,
-            total_tools = all_tools.len(),
-            "Total tools loaded for agent"
+            agent = %agent_name,
+            total_tools = inventory.tools.len(),
+            failed_servers = inventory.failed_servers.len(),
+            "Tools loaded for agent"
         );
 
-        Ok(all_tools)
+        Ok(inventory)
     }
 
     async fn call_tool(
@@ -182,14 +189,14 @@ impl ToolProvider for McpToolProvider {
         Ok(to_tool_result(&result))
     }
 
-    async fn refresh_connections(&self, agent_name: &str) -> ToolProviderResult<()> {
+    async fn refresh_connections(&self, agent_name: &AgentName) -> ToolProviderResult<()> {
         let assigned_servers =
             load_agent_servers(agent_name).map_err(|e| ToolProviderError::ConfigurationError {
                 message: format!("Failed to load agent config: {e}"),
             })?;
 
         info!(
-            agent = agent_name,
+            agent = %agent_name,
             servers = %assigned_servers.join(", "),
             "Refreshing MCP connections for agent"
         );
@@ -199,15 +206,14 @@ impl ToolProvider for McpToolProvider {
         })?;
 
         let api_server_url = systemprompt_models::Config::get()
-            .map_err(|e| ToolProviderError::Config {
-                message: "Failed to get configuration".to_owned(),
-                source: Box::new(e),
+            .map_err(|e| ToolProviderError::ConfigurationError {
+                message: format!("Failed to get configuration: {e}"),
             })?
             .api_server_url
             .clone();
 
         for server_name in assigned_servers {
-            validate_server_connection(&self.registry, &server_name, &api_server_url).await;
+            check_server_connection(&self.registry, &server_name, &api_server_url).await;
         }
 
         Ok(())
@@ -217,85 +223,29 @@ impl ToolProvider for McpToolProvider {
         let mut health_status = HashMap::new();
 
         let config_api_server_url = systemprompt_models::Config::get()
-            .map_err(|e| ToolProviderError::Config {
-                message: "Failed to get configuration".to_owned(),
-                source: Box::new(e),
+            .map_err(|e| ToolProviderError::ConfigurationError {
+                message: format!("Failed to get configuration: {e}"),
             })?
             .api_server_url
             .clone();
 
-        if let Ok(servers) = self.registry.get_managed_servers() {
-            for server in servers {
-                let is_healthy =
-                    check_server_health(&server.name, server.port, &config_api_server_url).await;
-                let breaker = self.guard_for(&server.name);
-                if is_healthy {
-                    breaker.breaker().record_success();
-                } else {
-                    breaker.breaker().record_failure();
-                }
-                health_status.insert(server.name, is_healthy);
+        let servers = self.registry.get_managed_servers().map_err(|e| {
+            ToolProviderError::ConfigurationError {
+                message: format!("Failed to list managed MCP servers: {e}"),
             }
+        })?;
+        for server in servers {
+            let is_healthy =
+                check_server_health(&server.name, server.port, &config_api_server_url).await;
+            let breaker = self.guard_for(&server.name);
+            if is_healthy {
+                breaker.breaker().record_success();
+            } else {
+                breaker.breaker().record_failure();
+            }
+            health_status.insert(server.name, is_healthy);
         }
 
         Ok(health_status)
     }
-}
-
-async fn validate_server_connection(
-    registry: &RegistryService,
-    server_name: &str,
-    api_server_url: &str,
-) {
-    if let Ok(Some(server_config)) = registry.find_server(server_name) {
-        let host = &server_config.host;
-        let port = server_config.port;
-
-        let result = if port == 0 {
-            let url = server_config.endpoint(api_server_url);
-            let url = rewrite_url_for_internal_use(&url);
-            validate_connection_by_url(server_name, &url).await
-        } else {
-            validate_connection(server_name, host, port).await
-        };
-
-        match result {
-            Ok(result) if result.success => {
-                info!(server = server_name, "MCP server connection validated");
-            },
-            Ok(result) => {
-                warn!(
-                    server = server_name,
-                    error = result.error_message.as_deref().unwrap_or("[no error]"),
-                    "MCP server connection validation failed"
-                );
-            },
-            Err(e) => {
-                warn!(
-                    server = server_name,
-                    error = %e,
-                    "Failed to validate MCP server connection"
-                );
-            },
-        }
-    }
-}
-
-async fn check_server_health(server_name: &str, server_port: u16, api_server_url: &str) -> bool {
-    let url = format!("{}/api/v1/mcp/{}/mcp", api_server_url, server_name);
-
-    let Ok(parsed_url) = url::Url::parse(&url) else {
-        return false;
-    };
-
-    let host = parsed_url.host_str().unwrap_or("127.0.0.1");
-    let actual_port = if server_port > 0 {
-        server_port
-    } else {
-        parsed_url.port().unwrap_or(80)
-    };
-
-    validate_connection(server_name, host, actual_port)
-        .await
-        .is_ok_and(|r| r.success)
 }

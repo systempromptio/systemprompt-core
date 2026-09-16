@@ -5,13 +5,14 @@
 
 #![cfg(target_os = "windows")]
 
-use std::io::Write;
 
 use super::shared::{
-    API_KEY_KEY, DESKTOP_DOMAIN, DomainRead, KEYS_OF_INTEREST, ProfileGenInputs, make_uuids,
-    redact_if_sensitive, unique_stem,
+    API_KEY_KEY, DESKTOP_DOMAIN, DomainRead, KEYS_OF_INTEREST, ProfileGenInputs,
+    redact_if_sensitive,
 };
-use crate::config::store::{PolicyWrite, clear_managed_claude_policy, managed_policy_store};
+use crate::config::store::{
+    PolicyWrite, clear_managed_claude_policy, machine_claude_policy_keys, managed_policy_store,
+};
 use crate::integration::host_app::{GeneratedProfile, ProfileInstalled, ProfileRemoval};
 use crate::winproc;
 
@@ -39,8 +40,8 @@ pub(super) fn read_domain(domain: &str) -> DomainRead {
     out
 }
 
-pub(super) fn list_claude_processes() -> Vec<String> {
-    let mut hits: Vec<String> = crate::sysproc::list_processes()
+pub(super) fn list_claude_processes() -> Result<Vec<String>, crate::sysproc::SysprocError> {
+    let mut hits: Vec<String> = crate::sysproc::list_processes()?
         .into_iter()
         .filter_map(|p| {
             let lower = p.name.to_ascii_lowercase();
@@ -55,7 +56,7 @@ pub(super) fn list_claude_processes() -> Vec<String> {
         .collect();
     hits.sort();
     hits.dedup();
-    hits
+    Ok(hits)
 }
 
 // Why: Claude Code and Claude Desktop both use claude.exe; distinguish them by
@@ -70,19 +71,16 @@ fn is_cli_image(path: Option<&str>) -> bool {
 }
 
 pub(super) fn write_profile(inputs: &ProfileGenInputs) -> std::io::Result<GeneratedProfile> {
-    let dir = std::env::temp_dir().join(crate::brand::brand().working_dir_name);
-    std::fs::create_dir_all(&dir)?;
-    let (payload_uuid, profile_uuid) = make_uuids();
-    let path = dir.join(format!("claude-bridge-{}.reg", unique_stem()));
-
+    let uuids = crate::integration::generated_profile::profile_uuids();
     let body = super::reg_profile::render_reg(winproc::is_elevated(), inputs);
-    std::fs::File::create(&path)?.write_all(body.as_bytes())?;
+    let path =
+        crate::integration::generated_profile::write("claude-bridge", ".reg", body.as_bytes())?;
 
     Ok(GeneratedProfile {
         path: path.display().to_string(),
         bytes: body.len(),
-        payload_uuid,
-        profile_uuid,
+        payload_uuid: uuids.payload,
+        profile_uuid: uuids.profile,
     })
 }
 
@@ -90,7 +88,8 @@ pub(super) fn install_profile(path: &str) -> std::io::Result<ProfileInstalled> {
     let elevated = winproc::is_elevated();
     tracing::info!(path, elevated, "installing Claude Desktop profile");
     let body = std::fs::read_to_string(path)?;
-    let entries = crate::install::reg_values::parse_reg_entries(&body);
+    let entries = crate::install::reg_values::parse_reg_entries(&body)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
     tracing::info!(
         path,
         parsed_values = entries.len(),
@@ -161,6 +160,7 @@ fn install_profile_elevated(path: &str) -> std::io::Result<ProfileInstalled> {
         bridge_values: Vec::new(),
         managed_files: Vec::new(),
         remove_files: Vec::new(),
+        private_dirs: Vec::new(),
     };
     let receipt = crate::install::elevated_job::elevate_and_run(&stage_dir, &job)?;
     receipt.require("policy", std::path::Path::new(path))?;
@@ -212,6 +212,20 @@ pub(super) fn remove_profile() -> std::io::Result<ProfileRemoval> {
     let elevated = winproc::is_elevated();
     let removed = clear_managed_claude_policy(elevated, KEYS_OF_INTEREST)
         .map_err(|e| std::io::Error::other(e.to_string()))?;
+    if !elevated {
+        let machine_keys = machine_claude_policy_keys(KEYS_OF_INTEREST)
+            .map_err(|e| std::io::Error::other(e.to_string()))?;
+        if !machine_keys.is_empty() {
+            return Ok(ProfileRemoval::ManualStepRequired {
+                instruction: format!(
+                    "HKLM\\{} still holds {}; run `uninstall` as Administrator to remove the \
+                     machine policy",
+                    crate::cowork_compat::POLICY_SUBKEY,
+                    machine_keys.join(", ")
+                ),
+            });
+        }
+    }
     Ok(if removed == 0 {
         ProfileRemoval::NothingToRemove
     } else {

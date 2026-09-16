@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.53.0] - 2026-09-15
+
+### Changed
+
+- `FilesAiPersistenceProvider::{find_by_id, list_by_user}` return `AiProviderError::Internal` when a stored file's metadata cannot be serialised instead of substituting `null`.
+
 ## [0.50.0] - 2026-09-10
 
 ### Changed

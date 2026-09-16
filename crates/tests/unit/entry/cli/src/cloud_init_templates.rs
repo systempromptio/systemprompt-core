@@ -45,7 +45,7 @@ fn admin_mcp_config_requires_oauth_admin_scope() {
 
 #[test]
 fn ai_config_sets_default_provider_and_provider_block() {
-    let out = templates::ai_config("anthropic");
+    let out = templates::ai_config("anthropic").expect("embedded catalog");
     assert!(out.contains("default_provider: \"anthropic\""));
     assert!(out.contains("anthropic:"));
     assert!(out.contains("openai:"));
@@ -55,7 +55,7 @@ fn ai_config_sets_default_provider_and_provider_block() {
 
 #[test]
 fn ai_config_honours_a_non_default_provider() {
-    let out = templates::ai_config("gemini");
+    let out = templates::ai_config("gemini").expect("embedded catalog");
     assert!(out.contains("default_provider: \"gemini\""));
 }
 

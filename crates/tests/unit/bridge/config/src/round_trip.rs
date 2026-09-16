@@ -1,5 +1,4 @@
 use systemprompt_bridge::config::Config;
-use systemprompt_bridge::ids::KeystoreRef;
 use systemprompt_identifiers::ValidatedUrl;
 
 #[test]
@@ -12,11 +11,10 @@ file = "/etc/bridge/pat.token"
 [session]
 enabled = true
 
-[mtls]
-cert_keystore_ref = "macos:my-cert-label"
-
-[sync]
-pinned_pubkey = "MCowBQYDK2VwAyEABase64Pubkey=="
+[sync.trust]
+gateway = "https://gateway.example.com"
+key = "WGZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmY="
+source = "operator"
 
 [claude]
 inference_gateway_base_url = "https://inference.example.com"
@@ -29,14 +27,12 @@ organization_uuid = "abc-123"
         cfg.gateway_url.as_ref().map(ValidatedUrl::as_str),
         Some("https://gateway.example.com"),
     );
-    assert_eq!(
-        cfg.mtls
-            .as_ref()
-            .and_then(|m| m.cert_keystore_ref.as_ref())
-            .map(KeystoreRef::as_str),
-        Some("macos:my-cert-label"),
-    );
-    assert!(cfg.sync.as_ref().expect("sync").needs_legacy_migration());
+    let trust = cfg
+        .sync
+        .as_ref()
+        .and_then(|s| s.trust.as_ref())
+        .expect("trust record");
+    assert_eq!(trust.gateway.as_str(), "https://gateway.example.com");
     assert_eq!(
         cfg.claude
             .as_ref()
@@ -62,7 +58,9 @@ fn deserializes_deployment_organization_uuid() {
         toml::from_str(r#"deployment_organization_uuid = "f8e4d915-f8ad-5304-ab0d-c1bf895df963""#)
             .expect("parse toml");
     assert_eq!(
-        cfg.deployment_organization_uuid.as_deref(),
+        cfg.deployment_organization_uuid
+            .as_ref()
+            .map(systemprompt_bridge::ids::DeploymentOrganizationUuid::as_str),
         Some("f8e4d915-f8ad-5304-ab0d-c1bf895df963")
     );
 }

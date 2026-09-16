@@ -91,6 +91,9 @@ impl DatabaseHandle for StubDb {
 }
 
 impl ExtensionContext for StubCtx {
+    fn system_owner_id(&self) -> systemprompt_identifiers::UserId {
+        systemprompt_identifiers::UserId::new("extension-test-owner")
+    }
     fn config(&self) -> Arc<dyn ConfigProvider> {
         Arc::new(StubConfig)
     }
@@ -120,14 +123,13 @@ fn validate_dependencies_ok_when_satisfied() {
 }
 
 #[test]
-fn validate_dependencies_reports_missing() {
-    let registry = registry_with(vec![Arc::new(
-        RouterExt::new("needy").with_deps(vec!["absent"]),
-    )]);
-
+fn merge_refuses_a_missing_dependency() {
+    let mut registry = ExtensionRegistry::new();
     let err = registry
-        .validate_dependencies()
-        .expect_err("missing dependency must fail");
+        .merge(vec![Arc::new(
+            RouterExt::new("needy").with_deps(vec!["absent"]),
+        )])
+        .expect_err("missing dependency must fail at insert time");
     match err {
         LoaderError::MissingDependency {
             extension,
@@ -174,6 +176,14 @@ fn validate_api_paths_rejects_non_api_prefix() {
         },
         other => panic!("expected InvalidBasePath, got {other:?}"),
     }
+}
+
+#[test]
+fn validate_api_paths_accepts_the_web_root() {
+    let registry = registry_with(vec![Arc::new(RouterExt::new("site").with_base_path("/"))]);
+    registry
+        .validate_api_paths(&StubCtx)
+        .expect("the web root is the one sanctioned base outside /api/");
 }
 
 #[test]

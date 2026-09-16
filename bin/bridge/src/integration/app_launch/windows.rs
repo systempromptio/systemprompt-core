@@ -6,8 +6,6 @@
 use std::io;
 use std::process::Command;
 
-use super::run;
-
 pub(super) fn msix_package_present(family: &str) -> bool {
     const REPOSITORY: &str = r"Software\Classes\Local Settings\Software\Microsoft\Windows\CurrentVersion\AppModel\Repository\Packages";
 
@@ -120,9 +118,10 @@ fn start_menu_present(display_name: &str) -> Option<bool> {
         "if (Get-StartApps | Where-Object {{ $_.Name -eq '{name}' }}) {{ exit 0 }} else {{ exit 2 }}",
         name = ps_single_quote(display_name),
     );
-    let Ok(mut child) = crate::winproc::no_window(&mut Command::new("powershell"))
-        .args(["-NoProfile", "-NonInteractive", "-Command", &script])
-        .spawn()
+    let Ok(mut child) =
+        crate::winproc::no_window(&mut Command::new(crate::winproc::powershell_exe()))
+            .args(["-NoProfile", "-NonInteractive", "-Command", &script])
+            .spawn()
     else {
         return None;
     };
@@ -138,8 +137,12 @@ fn start_menu_present(display_name: &str) -> Option<bool> {
             },
             Ok(None) => {
                 if Instant::now() >= deadline {
-                    drop(child.kill());
-                    drop(child.wait());
+                    if let Err(e) = child.kill() {
+                        tracing::warn!(error = %e, "start-menu probe: could not kill the timed-out script");
+                    }
+                    if let Err(e) = child.wait() {
+                        tracing::warn!(error = %e, "start-menu probe: could not reap the timed-out script");
+                    }
                     return None;
                 }
                 std::thread::sleep(Duration::from_millis(50));
@@ -149,16 +152,11 @@ fn start_menu_present(display_name: &str) -> Option<bool> {
     }
 }
 
+// Why: `shell:AppsFolder\<family>!<id>` is a shell namespace path only
+// ShellExecute resolves; handing it to the opener keeps the id out of any
+// command line.
 pub(super) fn msix_launch(family: &str, app_id: &str) -> io::Result<()> {
-    run(
-        crate::winproc::no_window(&mut Command::new("cmd")).args([
-            "/C",
-            "start",
-            "",
-            &format!(r"shell:AppsFolder\{family}!{app_id}"),
-        ]),
-        family,
-    )
+    opener::open(format!(r"shell:AppsFolder\{family}!{app_id}")).map_err(io::Error::other)
 }
 
 pub(super) fn start_menu_launch(display_name: &str) -> io::Result<()> {
@@ -169,7 +167,7 @@ pub(super) fn start_menu_launch(display_name: &str) -> io::Result<()> {
          Start-Process ('shell:AppsFolder\\' + $a.AppID); exit 0",
         name = ps_single_quote(display_name),
     );
-    let status = crate::winproc::no_window(&mut Command::new("powershell"))
+    let status = crate::winproc::no_window(&mut Command::new(crate::winproc::powershell_exe()))
         .args(["-NoProfile", "-NonInteractive", "-Command", &script])
         .status()?;
     if status.success() {

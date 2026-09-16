@@ -14,7 +14,7 @@ fn test_content_links_metadata_valid() {
     let content = Content {
         id: ContentId::new("content-1"),
         slug: "test-content".to_string(),
-        locale: LocaleCode::new("en"),
+        locale: LocaleCode::english(),
         title: "Test Content".to_string(),
         description: "Description".to_string(),
         body: "Body content".to_string(),
@@ -47,7 +47,7 @@ fn test_content_links_metadata_empty() {
     let content = Content {
         id: ContentId::new("content-2"),
         slug: "no-links".to_string(),
-        locale: LocaleCode::new("en"),
+        locale: LocaleCode::english(),
         title: "No Links".to_string(),
         description: "Description".to_string(),
         body: "Body".to_string(),
@@ -77,7 +77,7 @@ fn test_content_links_metadata_invalid_json() {
     let content = Content {
         id: ContentId::new("content-3"),
         slug: "invalid-links".to_string(),
-        locale: LocaleCode::new("en"),
+        locale: LocaleCode::english(),
         title: "Invalid Links".to_string(),
         description: "Description".to_string(),
         body: "Body".to_string(),

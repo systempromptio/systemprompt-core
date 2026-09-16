@@ -57,9 +57,9 @@ async fn allow_all_hook_evaluates_to_allow() {
 async fn deny_all_hook_evaluates_to_deny() {
     let hook: Arc<dyn AuthzDecisionHook> = Arc::new(LocalDenyAllHook);
     let decision = hook
-        .evaluate(fixture_request(EntityRef::McpServer(McpServerId::new(
-            "fixture",
-        ))))
+        .evaluate(fixture_request(EntityRef::McpServer(
+            McpServerId::try_new("fixture").expect("valid McpServerId"),
+        )))
         .await;
     assert!(matches!(decision, AuthzDecision::Deny { .. }));
 }

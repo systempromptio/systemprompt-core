@@ -11,6 +11,7 @@ use systemprompt_cli::admin::config::config_section::{
     ConfigSection, read_yaml_file, write_yaml_file,
 };
 use systemprompt_cli::admin::config::validate::{ValidateArgs, execute, unknown_jobs_message};
+use systemprompt_models::artifacts::CliArtifact;
 use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::services::SystemAdminConfig;
 use systemprompt_models::{
@@ -176,14 +177,26 @@ fn read_yaml_file_errors_on_malformed_yaml() {
 }
 
 #[test]
-fn validate_schema_flag_reports_valid_and_skips_render() {
+fn validate_schema_flag_returns_the_schema_as_its_only_artifact() {
     let args = ValidateArgs {
         target: None,
         strict: false,
         schema: true,
     };
-    let (_output, all_valid) = execute(&args, &cfg()).unwrap();
+    let (output, all_valid) = execute(&args, &cfg()).unwrap();
     assert!(all_valid);
+    assert!(
+        !output.should_skip_render(),
+        "the schema is the artifact, not a side-channel print"
+    );
+    let CliArtifact::Text { artifact } = output.artifact() else {
+        panic!("expected a text artifact, got {:?}", output.artifact());
+    };
+    let schema: serde_json::Value = serde_json::from_str(&artifact.content).unwrap();
+    assert!(
+        schema.get("$schema").is_some(),
+        "the text is the Profile JSON schema"
+    );
 }
 
 #[test]

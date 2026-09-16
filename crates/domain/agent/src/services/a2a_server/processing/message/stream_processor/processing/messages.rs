@@ -9,6 +9,7 @@ use systemprompt_models::{AiContentPart, AiMessage, MessageRole, RequestContext}
 
 use crate::models::AgentRuntimeInfo;
 use crate::services::SkillService;
+use crate::services::shared::{AgentServiceError, Result};
 
 pub(super) struct BuildAiMessagesParams<'a> {
     pub agent_runtime: &'a AgentRuntimeInfo,
@@ -19,7 +20,7 @@ pub(super) struct BuildAiMessagesParams<'a> {
     pub request_ctx: &'a RequestContext,
 }
 
-pub(super) async fn build_ai_messages(params: BuildAiMessagesParams<'_>) -> Vec<AiMessage> {
+pub(super) async fn build_ai_messages(params: BuildAiMessagesParams<'_>) -> Result<Vec<AiMessage>> {
     let BuildAiMessagesParams {
         agent_runtime,
         conversation_history,
@@ -56,8 +57,12 @@ pub(super) async fn build_ai_messages(params: BuildAiMessagesParams<'_>) -> Vec<
                         skill_id, skill_content
                     ));
                 },
+                Err(
+                    e @ (AgentServiceError::SkillWithheld { .. }
+                    | AgentServiceError::SkillSource { .. }),
+                ) => return Err(e),
                 Err(e) => {
-                    tracing::warn!(skill_id = %skill_id, error = %e, "Failed to load skill");
+                    tracing::warn!(skill_id = %skill_id, error = %e, "Skill not available; continuing without it");
                 },
             }
         }
@@ -87,5 +92,5 @@ pub(super) async fn build_ai_messages(params: BuildAiMessagesParams<'_>) -> Vec<
         parts: user_parts,
     });
 
-    ai_messages
+    Ok(ai_messages)
 }

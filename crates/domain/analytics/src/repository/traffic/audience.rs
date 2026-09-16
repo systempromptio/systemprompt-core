@@ -23,7 +23,7 @@ impl TrafficAnalyticsRepository {
                 SELECT
                     COALESCE(country, 'Unknown') as "country",
                     COUNT(*)::bigint as "count!"
-                FROM v_engaged_traffic
+                FROM analytics_report_v_engaged_traffic
                 WHERE started_at >= $1 AND started_at < $2
                 GROUP BY country
                 ORDER BY COUNT(*) DESC
@@ -43,7 +43,7 @@ impl TrafficAnalyticsRepository {
                 SELECT
                     COALESCE(country, 'Unknown') as "country",
                     COUNT(*)::bigint as "count!"
-                FROM v_clean_traffic
+                FROM analytics_report_v_clean_traffic
                 WHERE started_at >= $1 AND started_at < $2
                 GROUP BY country
                 ORDER BY COUNT(*) DESC
@@ -74,7 +74,7 @@ impl TrafficAnalyticsRepository {
                     COALESCE(device_type, 'unknown') as "device",
                     COALESCE(browser, 'unknown') as "browser",
                     COUNT(*)::bigint as "count!"
-                FROM v_engaged_traffic
+                FROM analytics_report_v_engaged_traffic
                 WHERE started_at >= $1 AND started_at < $2
                 GROUP BY device_type, browser
                 ORDER BY COUNT(*) DESC
@@ -95,7 +95,7 @@ impl TrafficAnalyticsRepository {
                     COALESCE(device_type, 'unknown') as "device",
                     COALESCE(browser, 'unknown') as "browser",
                     COUNT(*)::bigint as "count!"
-                FROM v_clean_traffic
+                FROM analytics_report_v_clean_traffic
                 WHERE started_at >= $1 AND started_at < $2
                 GROUP BY device_type, browser
                 ORDER BY COUNT(*) DESC
@@ -123,7 +123,7 @@ impl TrafficAnalyticsRepository {
                 COUNT(*) FILTER (WHERE is_bot = false AND is_ai_crawler = false AND is_scanner = false AND is_behavioral_bot = false AND landing_page IS NOT NULL AND request_count > 0)::bigint as "human!",
                 COUNT(*) FILTER (WHERE is_bot = false AND is_ai_crawler = false AND is_scanner = false AND is_behavioral_bot = false AND (landing_page IS NULL OR request_count = 0))::bigint as "ghost!",
                 COUNT(*) FILTER (WHERE is_bot = true OR is_ai_crawler = true OR is_scanner = true OR is_behavioral_bot = true)::bigint as "bot!"
-            FROM user_sessions
+            FROM analytics_report_user_sessions
             WHERE started_at >= $1 AND started_at < $2
             "#,
             start,
@@ -145,7 +145,7 @@ impl TrafficAnalyticsRepository {
             SELECT
                 bot_type as "bot_type",
                 COUNT(*)::bigint as "count!"
-            FROM v_bot_sessions
+            FROM analytics_report_v_bot_sessions
             WHERE started_at >= $1 AND started_at < $2
             GROUP BY 1
             ORDER BY COUNT(*) DESC

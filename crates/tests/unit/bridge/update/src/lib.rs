@@ -17,6 +17,8 @@ mod install_paths;
 #[cfg(test)]
 mod policy;
 #[cfg(test)]
+mod sentinel_gating;
+#[cfg(test)]
 mod status;
 #[cfg(test)]
 mod ui_state;

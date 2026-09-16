@@ -9,7 +9,10 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod entropy;
+mod redirect;
 mod resource;
+
+pub use redirect::{RegisteredRedirect, resolve_registered_redirect};
 
 use super::AuthorizeQuery;
 use anyhow::Result;

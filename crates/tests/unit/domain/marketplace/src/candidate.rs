@@ -34,6 +34,7 @@ fn candidate(
 fn skill(id: &str) -> SkillEntry {
     use systemprompt_models::bridge::ids::{Sha256Digest, SkillId, SkillName};
     SkillEntry {
+        publication: None,
         id: SkillId::try_new(id).expect("valid skill id"),
         name: SkillName::try_new(id).expect("valid skill name"),
         description: String::new(),
@@ -114,7 +115,7 @@ fn mcp_server(name: &str) -> ManagedMcpServer {
     use systemprompt_identifiers::ValidatedUrl;
     use systemprompt_models::bridge::ids::ManagedMcpServerName;
     ManagedMcpServer {
-        id: systemprompt_identifiers::McpServerId::new(name),
+        id: systemprompt_identifiers::McpServerId::try_new(name).expect("valid McpServerId"),
         name: ManagedMcpServerName::try_new(name).expect("valid mcp name"),
         url: ValidatedUrl::try_new(format!("https://api.example.com/mcp/{name}"))
             .expect("valid url"),
@@ -295,7 +296,10 @@ fn keep(
             .collect(),
         agents: agents.iter().map(|s| AgentId::new(*s)).collect(),
         hooks: hooks.iter().map(|s| HookId::new(*s)).collect(),
-        mcp_servers: mcp_servers.iter().map(|s| McpServerId::new(*s)).collect(),
+        mcp_servers: mcp_servers
+            .iter()
+            .map(|s| McpServerId::try_new(*s).expect("valid McpServerId"))
+            .collect(),
         marketplaces: std::collections::HashSet::new(),
     }
 }

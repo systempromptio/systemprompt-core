@@ -11,6 +11,7 @@ use crate::Result;
 
 use super::FingerprintRepository;
 use crate::models::FingerprintReputation;
+use systemprompt_identifiers::SessionId;
 
 impl FingerprintRepository {
     pub async fn get_by_hash(
@@ -52,39 +53,17 @@ impl FingerprintRepository {
     }
 
     pub async fn count_active_sessions(&self, fingerprint_hash: &str) -> Result<i32> {
-        let row = sqlx::query_scalar!(
-            r#"
-            SELECT COUNT(*)::INT as "count!"
-            FROM user_sessions
-            WHERE fingerprint_hash = $1
-              AND ended_at IS NULL
-              AND last_activity_at > CURRENT_TIMESTAMP - INTERVAL '7 days'
-            "#,
-            fingerprint_hash,
-        )
-        .fetch_one(&*self.pool)
-        .await?;
-
-        Ok(row)
+        self.sessions
+            .count_active_fingerprint_sessions(fingerprint_hash)
+            .await
+            .map_err(crate::AnalyticsError::from)
     }
 
-    pub async fn find_reusable_session(&self, fingerprint_hash: &str) -> Result<Option<String>> {
-        let row = sqlx::query_scalar!(
-            r#"
-            SELECT session_id as "session_id!"
-            FROM user_sessions
-            WHERE fingerprint_hash = $1
-              AND ended_at IS NULL
-              AND last_activity_at > CURRENT_TIMESTAMP - INTERVAL '7 days'
-            ORDER BY last_activity_at ASC
-            LIMIT 1
-            "#,
-            fingerprint_hash,
-        )
-        .fetch_optional(&*self.pool)
-        .await?;
-
-        Ok(row)
+    pub async fn find_reusable_session(&self, fingerprint_hash: &str) -> Result<Option<SessionId>> {
+        self.sessions
+            .find_reusable_fingerprint_session(fingerprint_hash)
+            .await
+            .map_err(crate::AnalyticsError::from)
     }
 
     pub async fn get_fingerprints_for_analysis(&self) -> Result<Vec<FingerprintReputation>> {

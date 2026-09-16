@@ -6,7 +6,8 @@
 use anyhow::Result;
 use clap::Args;
 use std::sync::Arc;
-use systemprompt_logging::{CliService, ToolExecutionFilter, TraceQueryService};
+use systemprompt_logging::CliService;
+use systemprompt_runtime::{ToolExecutionFilter, TraceQueryService};
 
 use super::{ToolExecutionRow, ToolsListOutput};
 use crate::CliConfig;

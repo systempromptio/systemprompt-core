@@ -8,7 +8,7 @@ use clap::{Args, ValueEnum};
 use std::io::Write;
 use std::path::PathBuf;
 use std::sync::Arc;
-use systemprompt_logging::TraceQueryService;
+use systemprompt_runtime::TraceQueryService;
 
 use super::duration::parse_since;
 use super::{LogEntryRow, LogExportOutput};

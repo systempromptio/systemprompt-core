@@ -5,7 +5,7 @@
 //! network.
 
 use serde_json::json;
-use systemprompt_extension::{ConfigError, Extension};
+use systemprompt_extension::{Extension, ExtensionConfigError};
 use systemprompt_teams::TeamsExtension;
 
 #[test]
@@ -50,7 +50,7 @@ fn validate_config_rejects_a_non_object_document() {
         .validate_config(&json!("not an app map"))
         .expect_err("a scalar document cannot deserialize into the app map");
     assert!(
-        matches!(err, ConfigError::ParseError { .. }),
+        matches!(err, ExtensionConfigError::ParseError { .. }),
         "expected ParseError, got {err:?}"
     );
 }
@@ -69,7 +69,7 @@ fn validate_config_rejects_a_structurally_invalid_app() {
         .validate_config(&config)
         .expect_err("an empty app_id fails the per-app validation");
     assert!(
-        matches!(err, ConfigError::SchemaValidation(_)),
+        matches!(err, ExtensionConfigError::SchemaValidation(_)),
         "expected SchemaValidation, got {err:?}"
     );
 }

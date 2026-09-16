@@ -29,13 +29,44 @@ pub use secret::{
 pub struct JwtConfig {
     pub permissions: Vec<Permission>,
     pub audience: Vec<JwtAudience>,
-    pub expires_in_hours: Option<i64>,
+    #[serde(with = "expires_in_seconds")]
+    pub expires_in: Duration,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub resource: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub plugin_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub client_id: Option<ClientId>,
+}
+
+const MAX_TOKEN_LIFETIME: Duration = Duration::days(365);
+
+fn validated_expiry(expires_in: Duration) -> Result<Duration> {
+    if expires_in <= Duration::zero() || expires_in > MAX_TOKEN_LIFETIME {
+        return Err(crate::error::OauthError::Internal(format!(
+            "Invalid token expiry: {} seconds. Must be between 1 second and 1 year",
+            expires_in.num_seconds()
+        )));
+    }
+    Ok(expires_in)
+}
+
+mod expires_in_seconds {
+    use chrono::Duration;
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
+    pub(super) fn serialize<S: Serializer>(
+        value: &Duration,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error> {
+        value.num_seconds().serialize(serializer)
+    }
+
+    pub(super) fn deserialize<'de, D: Deserializer<'de>>(
+        deserializer: D,
+    ) -> Result<Duration, D::Error> {
+        i64::deserialize(deserializer).map(Duration::seconds)
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -48,7 +79,7 @@ impl Default for JwtConfig {
         Self {
             permissions: vec![Permission::User],
             audience: JwtAudience::standard(),
-            expires_in_hours: Some(24),
+            expires_in: Duration::hours(24),
             resource: None,
             plugin_id: None,
             client_id: None,
@@ -81,14 +112,9 @@ fn build_claims(
     session_id: &SessionId,
     signing: &JwtSigningParams<'_>,
 ) -> Result<JwtClaims> {
-    let expires_in_hours = config.expires_in_hours.unwrap_or(24);
-    if expires_in_hours <= 0 || expires_in_hours > 8760 {
-        return Err(crate::error::OauthError::Internal(format!(
-            "Invalid token expiry: {expires_in_hours} hours. Must be between 1 and 8760 (1 year)"
-        )));
-    }
+    let expires_in = validated_expiry(config.expires_in)?;
     let expiration = Utc::now()
-        .checked_add_signed(Duration::hours(expires_in_hours))
+        .checked_add_signed(expires_in)
         .ok_or_else(|| {
             crate::error::OauthError::Internal("Failed to calculate token expiration".to_owned())
         })?
@@ -180,9 +206,9 @@ pub fn generate_anonymous_jwt_with_expiry(
     signing: &JwtSigningParams<'_>,
     expires_in_seconds: i64,
 ) -> Result<String> {
-    let expires_in_hours = expires_in_seconds / 3600;
+    let expires_in = validated_expiry(Duration::seconds(expires_in_seconds))?;
     let expiration = Utc::now()
-        .checked_add_signed(Duration::hours(expires_in_hours))
+        .checked_add_signed(expires_in)
         .ok_or_else(|| {
             crate::error::OauthError::Internal("Failed to calculate token expiration".to_owned())
         })?

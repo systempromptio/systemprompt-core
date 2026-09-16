@@ -18,15 +18,20 @@ pub fn has_flag(args: &[String], flag: &str) -> bool {
     args.iter().skip(2).any(|a| a == flag)
 }
 
-#[cfg(any(target_os = "windows", target_os = "macos"))]
-pub(crate) fn should_default_to_gui() -> bool {
-    use is_terminal::IsTerminal as _;
+#[cfg(target_os = "windows")]
+pub(crate) fn launched_without_console() -> bool {
+    !crate::winproc::attach_parent_console_if_present()
+}
 
-    !std::io::stdout().is_terminal()
+// Why: LaunchServices sets `__CFBundleIdentifier` only when it starts the
+// app bundle (Finder, Dock, `open`); a shell, cron or launchd job does not.
+#[cfg(target_os = "macos")]
+pub(crate) fn launched_without_console() -> bool {
+    std::env::var_os("__CFBundleIdentifier").is_some()
 }
 
 #[cfg(not(any(target_os = "windows", target_os = "macos")))]
-pub(crate) const fn should_default_to_gui() -> bool {
+pub(crate) const fn launched_without_console() -> bool {
     false
 }
 

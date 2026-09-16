@@ -6,8 +6,8 @@
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum RepositoryError {
-    #[error("database error: {0}")]
-    Database(Box<dyn std::error::Error + Send + Sync>),
+    #[error("database error: {message}")]
+    Database { message: String },
 
     #[error("entity not found: {0}")]
     NotFound(String),
@@ -26,7 +26,9 @@ pub enum RepositoryError {
 }
 
 impl RepositoryError {
-    pub fn database(err: impl std::error::Error + Send + Sync + 'static) -> Self {
-        Self::Database(Box::new(err))
+    pub fn database(err: impl std::fmt::Display) -> Self {
+        Self::Database {
+            message: err.to_string(),
+        }
     }
 }

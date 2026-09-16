@@ -24,6 +24,7 @@ workspace = true
 systemprompt-extension = { workspace = true }
 
 [dependencies]
+schemars = { workspace = true }
 sha2 = { workspace = true }
 serde_jcs = { workspace = true }
 hex = { workspace = true }
@@ -40,6 +41,7 @@ systemprompt-database = { workspace = true }
 systemprompt-extension = { workspace = true }
 systemprompt-identifiers = { workspace = true, features = ["sqlx"] }
 systemprompt-models = { workspace = true }
+systemprompt-traits = { workspace = true }
 
 inventory = { workspace = true }
 

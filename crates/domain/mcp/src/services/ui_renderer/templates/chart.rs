@@ -13,7 +13,6 @@ use super::html::{HtmlBuilder, base_styles, html_escape, mcp_app_bridge_script};
 use super::typed;
 use crate::error::McpDomainResult;
 use crate::services::ui_renderer::{CspPolicy, UiRenderer, UiResource};
-use async_trait::async_trait;
 use systemprompt_models::a2a::Artifact;
 use systemprompt_models::artifacts::ArtifactType;
 use systemprompt_models::artifacts::chart::ChartArtifact;
@@ -27,13 +26,12 @@ impl ChartRenderer {
     }
 }
 
-#[async_trait]
 impl UiRenderer for ChartRenderer {
     fn artifact_type(&self) -> ArtifactType {
         ArtifactType::Chart
     }
 
-    async fn render(&self, artifact: &Artifact) -> McpDomainResult<UiResource> {
+    fn render(&self, artifact: &Artifact) -> McpDomainResult<UiResource> {
         let chart: ChartArtifact = typed::artifact_payload(artifact)?;
         let title = if chart.title.is_empty() {
             artifact.title.as_deref().unwrap_or("Chart")

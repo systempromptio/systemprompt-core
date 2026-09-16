@@ -117,13 +117,13 @@ fn agent_name_system_returns_system_value() {
 
 #[test]
 fn agent_name_display_matches_inner_value() {
-    let name = AgentName::new("display-agent");
+    let name = AgentName::try_new("display-agent").expect("valid AgentName");
     assert_eq!(format!("{}", name), "display-agent");
 }
 
 #[test]
 fn agent_name_serde_roundtrip_exact_json() {
-    let name = AgentName::new("serde-agent");
+    let name = AgentName::try_new("serde-agent").expect("valid AgentName");
     let json = serde_json::to_string(&name).unwrap();
     assert_eq!(json, "\"serde-agent\"");
     let deserialized: AgentName = serde_json::from_str(&json).unwrap();
@@ -162,7 +162,7 @@ fn agent_name_from_str_parse() {
 
 #[test]
 fn agent_name_equality_across_construction() {
-    let from_new = AgentName::new("test");
+    let from_new = AgentName::try_new("test").expect("valid AgentName");
     let from_try: AgentName = "test".try_into().unwrap();
     let from_parse: AgentName = "test".parse().unwrap();
     assert_eq!(from_new, from_try);
@@ -171,19 +171,19 @@ fn agent_name_equality_across_construction() {
 
 #[test]
 fn agent_name_to_db_value() {
-    let name = AgentName::new("db-agent");
+    let name = AgentName::try_new("db-agent").expect("valid AgentName");
     let db_val = name.to_db_value();
     assert!(matches!(db_val, DbValue::String(ref s) if s == "db-agent"));
 }
 
 #[test]
-#[should_panic(expected = "AgentName validation failed")]
-fn agent_name_new_panics_on_empty() {
-    let _ = AgentName::new("");
+fn agent_name_try_new_rejects_empty() {
+    let err = AgentName::try_new("").expect_err("AgentName must reject ``");
+    assert!(err.to_string().contains("cannot be empty"), "{err}");
 }
 
 #[test]
-#[should_panic(expected = "'unknown' is reserved")]
-fn agent_name_new_panics_on_unknown() {
-    let _ = AgentName::new("unknown");
+fn agent_name_try_new_rejects_unknown() {
+    let err = AgentName::try_new("unknown").expect_err("AgentName must reject `unknown`");
+    assert!(err.to_string().contains("'unknown' is reserved"), "{err}");
 }

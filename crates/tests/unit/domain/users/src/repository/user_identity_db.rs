@@ -3,24 +3,27 @@
 
 use std::sync::Arc;
 use systemprompt_identifiers::UserId;
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fixture_db_pool};
 use systemprompt_traits::FederatedIdentityClaims;
 use systemprompt_users::{UserError, UserRepository, UserService};
 use uuid::Uuid;
 
 struct Ctx {
+    fixture: crate::privacy_fixture::PrivacyFixture,
     service: UserService,
     pool: systemprompt_database::DbPool,
 }
 
 async fn setup_or_skip() -> Option<Ctx> {
-    let url = fixture_database_url().ok()?;
-    ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let fixture = crate::privacy_fixture::PrivacyFixture::new().await?;
+    let pool = fixture.pool.clone();
     let service = UserService::new(Arc::new(
         UserRepository::new(&pool).expect("user repository"),
     ));
-    Some(Ctx { service, pool })
+    Some(Ctx {
+        service,
+        pool,
+        fixture,
+    })
 }
 
 impl Ctx {
@@ -69,6 +72,7 @@ async fn create_stores_the_canonical_lowercased_email() {
     assert_eq!(user.email, format!("mixed-{t}@case.invalid"));
 
     ctx.purge(&user.id).await;
+    ctx.fixture.finish().await;
 }
 
 #[tokio::test]
@@ -97,6 +101,7 @@ async fn find_by_email_is_case_insensitive() {
     assert_eq!(found.id, user.id);
 
     ctx.purge(&user.id).await;
+    ctx.fixture.finish().await;
 }
 
 #[tokio::test]
@@ -162,6 +167,7 @@ async fn merge_users_moves_audit_rows_and_removes_the_source() {
     .await
     .expect("seed log");
 
+    ctx.fixture.drain().await;
     let result = ctx
         .service
         .merge_users(&source.id, &target.id)
@@ -208,6 +214,7 @@ async fn merge_users_moves_audit_rows_and_removes_the_source() {
     );
 
     ctx.purge(&target.id).await;
+    ctx.fixture.finish().await;
 }
 
 #[tokio::test]
@@ -237,6 +244,7 @@ async fn promote_anonymous_refuses_a_non_anonymous_source() {
         .await
         .expect("create target");
 
+    ctx.fixture.drain().await;
     let err = ctx
         .service
         .promote_anonymous(&source.id, &target.id)
@@ -257,6 +265,7 @@ async fn promote_anonymous_refuses_a_non_anonymous_source() {
 
     ctx.purge(&source.id).await;
     ctx.purge(&target.id).await;
+    ctx.fixture.finish().await;
 }
 
 #[tokio::test]
@@ -276,6 +285,7 @@ async fn promote_anonymous_refuses_a_self_merge() {
         .await
         .expect("create user");
 
+    ctx.fixture.drain().await;
     let err = ctx
         .service
         .promote_anonymous(&user.id, &user.id)
@@ -287,6 +297,7 @@ async fn promote_anonymous_refuses_a_self_merge() {
     );
 
     ctx.purge(&user.id).await;
+    ctx.fixture.finish().await;
 }
 
 fn claims(email: Option<&str>, email_verified: bool) -> FederatedIdentityClaims {
@@ -349,6 +360,7 @@ async fn verified_federated_email_links_to_the_existing_local_account() {
     );
 
     ctx.purge(&existing.id).await;
+    ctx.fixture.finish().await;
 }
 
 #[tokio::test]
@@ -391,4 +403,5 @@ async fn unverified_federated_email_creates_a_separate_synthetic_account() {
 
     ctx.purge(&created.id).await;
     ctx.purge(&existing.id).await;
+    ctx.fixture.finish().await;
 }

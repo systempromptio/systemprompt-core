@@ -71,17 +71,24 @@ pub(super) async fn enforce_request_guards(
     request: &CanonicalRequest,
     audit: &GatewayAudit,
 ) -> Result<(), DispatchError> {
-    let Some(pool) = db.pool() else {
+    if systemprompt_extension::gateway_guards().is_empty() {
         return Ok(());
-    };
+    }
     let guard_request = systemprompt_extension::GatewayGuardRequest {
-        user_id: user_id.as_str(),
+        user_id,
         model: &request.model,
-        route_id: Some(upstream.route.id.as_str()),
-        provider: upstream.route.provider.as_str(),
+        route_id: Some(&upstream.route.id),
+        provider: &upstream.route.provider,
         streaming: request.stream,
     };
-    let Err(deny) = systemprompt_extension::run_gateway_guards(&pool, &guard_request).await else {
+    let outcome = if db.pool().is_closed() {
+        Err(systemprompt_extension::GatewayDenyReason::unavailable(
+            "Request guards require a database connection",
+        ))
+    } else {
+        systemprompt_extension::run_gateway_guards(db.as_ref(), &guard_request).await
+    };
+    let Err(deny) = outcome else {
         return Ok(());
     };
     tracing::warn!(

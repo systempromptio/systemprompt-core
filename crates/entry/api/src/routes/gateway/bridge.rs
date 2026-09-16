@@ -213,7 +213,12 @@ pub async fn profile() -> Result<Json<BridgeProfileResponse>, (StatusCode, Strin
         .and_then(|cloud| cloud.tenant_id.as_ref())
         .map(canonicalize_org_uuid);
 
-    let secrets = systemprompt_config::SecretsBootstrap::get().ok();
+    let secrets = systemprompt_config::SecretsBootstrap::get().map_err(|e| {
+        (
+            StatusCode::SERVICE_UNAVAILABLE,
+            format!("Secrets not ready: {e}"),
+        )
+    })?;
     let response = bridge_profile::build(
         bridge_profile::BridgeProfileParams {
             inference_gateway_base_url,
@@ -222,11 +227,7 @@ pub async fn profile() -> Result<Json<BridgeProfileResponse>, (StatusCode, Strin
             default_model: gateway.default_model.clone(),
             registry: &services.providers,
         },
-        |name| {
-            secrets
-                .and_then(|s| s.get(name))
-                .is_some_and(|k| !k.is_empty())
-        },
+        |name| secrets.get(name).is_some_and(|k| !k.is_empty()),
     );
 
     Ok(Json(response))

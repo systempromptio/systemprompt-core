@@ -1,8 +1,6 @@
-//! Writing managed-policy values into the Windows registry.
-//!
-//! Split from `windows_registry.rs`, which keeps the read path. The two differ
-//! in more than direction: writing needs an elevated hive handle and has to
-//! create the policy key, so it carries its own open/create helpers.
+//! Writing managed-policy values into the Windows registry: needs an elevated
+//! hive handle and creates the policy key, so it carries its own open/create
+//! helpers beside the read path in `windows_registry.rs`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -16,12 +14,11 @@
 use windows_sys::Win32::Foundation::{ERROR_ACCESS_DENIED, ERROR_FILE_NOT_FOUND, ERROR_SUCCESS};
 use windows_sys::Win32::System::Registry::{
     HKEY, KEY_WOW64_64KEY, KEY_WRITE, REG_OPTION_NON_VOLATILE, REG_SZ, RegCreateKeyExW,
-    RegDeleteTreeW, RegDeleteValueW, RegOpenKeyExW, RegSetValueExW,
+    RegDeleteValueW, RegOpenKeyExW, RegSetValueExW,
 };
 
 use super::windows_registry::{OwnedKey, hkey};
 use super::{ConfigStoreError, PolicyDocumentValue, PolicyHive};
-use crate::cowork_compat::POLICY_SUBKEY;
 
 pub(super) fn write_values_at(
     hive: PolicyHive,
@@ -77,33 +74,6 @@ fn verify_written(
     Ok(())
 }
 
-pub(super) fn delete_policy_key(hive: PolicyHive) -> Result<bool, ConfigStoreError> {
-    let hive_label = hive.label();
-    if !super::windows_registry::key_exists(hive, POLICY_SUBKEY)? {
-        return Ok(false);
-    }
-    let parent = open_policy_parent_for_delete(hive)?;
-    let subkey: Vec<u16> = "Claude".encode_utf16().chain(std::iter::once(0)).collect();
-    // SAFETY: `hive` is a predefined HKEY and `subkey` is NUL-terminated.
-    let status = unsafe { RegDeleteTreeW(parent.0, subkey.as_ptr()) };
-    if status == ERROR_SUCCESS || status == ERROR_FILE_NOT_FOUND {
-        if super::windows_registry::key_exists(hive, POLICY_SUBKEY)? {
-            return Err(ConfigStoreError::VerifyMismatch {
-                hive: hive.label().to_owned(),
-                subkey: POLICY_SUBKEY.to_owned(),
-                name: "<key>".to_owned(),
-            });
-        }
-        Ok(status == ERROR_SUCCESS)
-    } else if status == ERROR_ACCESS_DENIED {
-        Err(access_denied(hive_label))
-    } else {
-        Err(ConfigStoreError::Backend(format!(
-            "RegDeleteTreeW({POLICY_SUBKEY}) failed with status {status}"
-        )))
-    }
-}
-
 pub(super) fn delete_values_at(
     hive: PolicyHive,
     subkey: &str,
@@ -149,31 +119,6 @@ pub(super) fn delete_values_at(
     Ok(removed)
 }
 
-fn open_policy_parent_for_delete(hive: PolicyHive) -> Result<OwnedKey, ConfigStoreError> {
-    let mut handle: HKEY = std::ptr::null_mut();
-    let parent: Vec<u16> = r"SOFTWARE\Policies"
-        .encode_utf16()
-        .chain(std::iter::once(0))
-        .collect();
-    // SAFETY: the hive is predefined, the parent subkey is terminated, and handle
-    // is a live out-param.
-    let status = unsafe {
-        RegOpenKeyExW(
-            hkey(hive),
-            parent.as_ptr(),
-            0,
-            windows_sys::Win32::System::Registry::KEY_ALL_ACCESS | KEY_WOW64_64KEY,
-            &raw mut handle,
-        )
-    };
-    if status != ERROR_SUCCESS {
-        return Err(ConfigStoreError::Backend(format!(
-            "{}: opening registry root for deletion failed ({status})",
-            hive.label()
-        )));
-    }
-    Ok(OwnedKey(handle))
-}
 
 fn open_key_for_write(
     hive: HKEY,
@@ -234,10 +179,6 @@ fn create_key(hive: HKEY, hive_label: &str, subkey: &str) -> Result<OwnedKey, Co
         )))
     }
 }
-fn access_denied(hive_label: &str) -> ConfigStoreError {
-    access_denied_at(hive_label, POLICY_SUBKEY)
-}
-
 fn access_denied_at(hive_label: &str, subkey: &str) -> ConfigStoreError {
     ConfigStoreError::AccessDenied {
         hive: hive_label.to_owned(),

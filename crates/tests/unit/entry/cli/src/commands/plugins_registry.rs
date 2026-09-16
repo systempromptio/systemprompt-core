@@ -4,6 +4,7 @@
 
 use systemprompt_cli::CliConfig;
 use systemprompt_cli::plugins::{capabilities, config, list, show, validate};
+use systemprompt_database::SqlExecutor;
 use systemprompt_extension::ExtensionRegistry;
 
 fn cfg() -> CliConfig {
@@ -152,14 +153,45 @@ fn capability_listings_execute_with_and_without_filters() {
         &capabilities::schemas::SchemasArgs { extension: None },
         &cfg(),
     );
-    capabilities::llm_providers::execute(
-        &capabilities::llm_providers::LlmProvidersArgs { extension: None },
-        &cfg(),
-    );
     capabilities::tools::execute(
         &capabilities::tools::ToolsArgs {
             extension: Some(id),
         },
         &cfg(),
     );
+}
+
+#[test]
+fn every_extension_migration_and_schema_splits_with_the_postgres_parser() {
+    let registry = ExtensionRegistry::discover().expect("compiled registry");
+
+    for ext in registry.extensions() {
+        for schema in ext.schemas() {
+            SqlExecutor::parse_sql_statements(&schema.sql).unwrap_or_else(|e| {
+                panic!("schema of extension `{}` does not split: {e}", ext.id())
+            });
+        }
+        for migration in ext.migrations() {
+            if migration.tombstone {
+                continue;
+            }
+            SqlExecutor::parse_sql_statements(migration.sql).unwrap_or_else(|e| {
+                panic!(
+                    "migration {} `{}` of extension `{}` does not split: {e}",
+                    migration.version,
+                    migration.name,
+                    ext.id()
+                )
+            });
+            if let Some(down) = migration.down {
+                SqlExecutor::parse_sql_statements(down).unwrap_or_else(|e| {
+                    panic!(
+                        "down migration {} of extension `{}` does not split: {e}",
+                        migration.version,
+                        ext.id()
+                    )
+                });
+            }
+        }
+    }
 }

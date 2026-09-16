@@ -19,6 +19,8 @@ use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId};
 use systemprompt_models::execution::context::RequestContext;
 use tokio::time::timeout;
 
+const OAUTH_PORT_PROBE_TIMEOUT: Duration = Duration::from_secs(2);
+
 use super::HttpClientWithContext;
 use super::types::{McpConnectionResult, McpProtocolInfo, ValidationResult};
 
@@ -38,7 +40,7 @@ pub async fn validate_connection_with_auth(
     requires_oauth: bool,
 ) -> McpDomainResult<McpConnectionResult> {
     if requires_oauth {
-        Ok(validate_oauth_service(service_name, host, port))
+        Ok(validate_oauth_service(service_name, host, port).await)
     } else {
         validate_connection(service_name, host, port).await
     }
@@ -89,10 +91,16 @@ pub async fn validate_connection_by_url(
     }
 }
 
-fn validate_oauth_service(service_name: &str, host: &str, port: u16) -> McpConnectionResult {
+async fn validate_oauth_service(service_name: &str, host: &str, port: u16) -> McpConnectionResult {
     let connection_start = std::time::Instant::now();
 
-    let port_check = std::net::TcpStream::connect(format!("{host}:{port}"));
+    let port_check = timeout(
+        OAUTH_PORT_PROBE_TIMEOUT,
+        tokio::net::TcpStream::connect(format!("{host}:{port}")),
+    )
+    .await
+    .map_err(|elapsed| std::io::Error::new(std::io::ErrorKind::TimedOut, elapsed))
+    .and_then(|connected| connected);
     let connection_time = connection_start.elapsed().as_millis() as u32;
 
     match port_check {
@@ -132,8 +140,13 @@ async fn connect_and_validate(
         AgentName::system(),
     );
     let config = StreamableHttpClientTransportConfig::with_uri(url);
-    let transport =
-        StreamableHttpClientTransport::with_client(HttpClientWithContext::new(context), config);
+    let http_client = HttpClientWithContext::new(context).map_err(|e| {
+        crate::error::McpDomainError::ConnectionFailed {
+            server: service_name.to_owned(),
+            message: e.to_string(),
+        }
+    })?;
+    let transport = StreamableHttpClientTransport::with_client(http_client, config);
 
     let client_info = ClientInfo::new(
         ClientCapabilities::default(),

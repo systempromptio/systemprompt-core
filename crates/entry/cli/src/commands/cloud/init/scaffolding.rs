@@ -81,7 +81,7 @@ fn write_config_files(services_dir: &Path, project_name: &str) -> Result<()> {
     )?;
     write_file(
         &services_dir.join("ai/config.yaml"),
-        &ai_config("anthropic"),
+        &ai_config("anthropic")?,
     )?;
     write_file(&services_dir.join("content/config.yaml"), &content_config())?;
     write_file(

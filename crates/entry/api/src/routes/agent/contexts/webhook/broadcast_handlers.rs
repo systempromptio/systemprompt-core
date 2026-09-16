@@ -37,7 +37,9 @@ pub async fn broadcast_a2a_event(
             .into_response();
     }
 
-    let (a2a_count, context_count) = EventRouter::route_a2a(&request_user_id, request.event).await;
+    let (a2a_count, context_count) = EventRouter::route_a2a(&request_user_id, request.event)
+        .await
+        .into_local_logged();
     let count = a2a_count + context_count;
 
     tracing::debug!(event_type = ?event_type, count = %count, user_id = %request.user_id, "Event broadcasted to connections");
@@ -75,8 +77,9 @@ pub async fn broadcast_agui_event(
             .into_response();
     }
 
-    let (agui_count, context_count) =
-        EventRouter::route_agui(&request_user_id, request.event).await;
+    let (agui_count, context_count) = EventRouter::route_agui(&request_user_id, request.event)
+        .await
+        .into_local_logged();
     let count = agui_count + context_count;
 
     tracing::debug!(event_type = ?event_type, count = %count, user_id = %request.user_id, "Event broadcasted to connections");

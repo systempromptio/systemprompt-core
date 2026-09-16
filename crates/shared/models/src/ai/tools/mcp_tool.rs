@@ -39,11 +39,13 @@ impl McpTool {
         self
     }
 
+    // JSON: MCP `inputSchema`/`outputSchema` JSON Schema owned by the server.
     pub fn with_input_schema(mut self, schema: JsonValue) -> Self {
         self.input_schema = Some(schema);
         self
     }
 
+    // JSON: MCP `inputSchema`/`outputSchema` JSON Schema owned by the server.
     pub fn with_output_schema(mut self, schema: JsonValue) -> Self {
         self.output_schema = Some(schema);
         self

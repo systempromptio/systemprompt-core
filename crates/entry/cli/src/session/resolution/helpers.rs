@@ -33,8 +33,8 @@ pub fn try_session_from_env(profile: &Profile, env: &EnvOverrides) -> Option<Cli
     let user_id = env.session.user_id.clone()?;
     let auth_token = env.session.auth_token.clone()?;
 
-    let profile_name = ProfileName::new("remote");
-    let email = Email::new("remote@cli.local");
+    let profile_name = ProfileName::try_new("remote").ok()?;
+    let email = Email::try_new("remote@cli.local").ok()?;
     let session = CliSession::builder(
         SessionBinding::new(profile_name, profile.security.issuer.clone()),
         SessionToken::new(auth_token),

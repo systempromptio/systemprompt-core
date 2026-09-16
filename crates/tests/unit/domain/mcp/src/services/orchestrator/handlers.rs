@@ -29,7 +29,7 @@ fn health_check_handler_handles_service_started() {
     let handler = HealthCheckHandler::new();
     let event = McpEvent::ServiceStarted {
         service_name: "svc".to_string(),
-        process_id: 1,
+        process_id: Some(1),
         port: 8080,
     };
     assert!(handler.handles(&event));
@@ -149,7 +149,7 @@ fn monitoring_handler_handles_all_events_by_default() {
     let handler = MonitoringHandler;
     let event = McpEvent::ServiceStarted {
         service_name: "svc".to_string(),
-        process_id: 1,
+        process_id: Some(1),
         port: 80,
     };
     assert!(handler.handles(&event));

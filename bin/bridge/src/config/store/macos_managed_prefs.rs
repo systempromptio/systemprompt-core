@@ -99,10 +99,6 @@ impl ConfigStore for MacOsManagedPrefsStore {
         claude_only(target)?;
         super::macos_plist_store::delete_values(hive, names)
     }
-
-    fn delete_policy_key(&self, hive: PolicyHive) -> Result<bool, ConfigStoreError> {
-        super::macos_plist_store::delete_key(hive)
-    }
 }
 
 // Why: on macOS the bridge's signing trust is a managed profile installed

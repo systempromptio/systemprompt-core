@@ -15,9 +15,10 @@ use systemprompt_bridge::install::mdm::claude_code_settings::permissions::{
 
 fn server(name: &str, policy: Option<BTreeMap<ToolName, ToolPolicy>>) -> ManagedMcpServer {
     ManagedMcpServer {
-        id: systemprompt_identifiers::McpServerId::new(name),
+        id: systemprompt_identifiers::McpServerId::try_new(name).expect("valid McpServerId"),
         name: ManagedMcpServerName::try_new(name).unwrap(),
-        url: ValidatedUrl::new(format!("https://gw.example.com/api/v1/mcp/{name}/mcp")),
+        url: ValidatedUrl::try_new(format!("https://gw.example.com/api/v1/mcp/{name}/mcp"))
+            .expect("valid ValidatedUrl"),
         transport: Some("http".into()),
         headers: None,
         oauth: None,
@@ -37,8 +38,12 @@ fn manifest(
 ) -> systemprompt_bridge::gateway::manifest::SignedManifest {
     SignedManifestBuilder::new(
         ManifestVersion::try_new("2026-09-11T00:00:00Z-00000000").unwrap(),
-        "2026-09-11T00:00:00Z",
-        "2026-09-11T00:00:00Z",
+        chrono::DateTime::parse_from_rfc3339("2026-09-11T00:00:00Z")
+            .expect("rfc3339")
+            .with_timezone(&chrono::Utc),
+        chrono::DateTime::parse_from_rfc3339("2026-09-11T00:00:00Z")
+            .expect("rfc3339")
+            .with_timezone(&chrono::Utc),
         systemprompt_identifiers::UserId::new("test-user"),
     )
     .with_managed_mcp_servers(servers)
@@ -150,7 +155,8 @@ fn upstream(
     policy: BTreeMap<String, ToolPolicy>,
 ) -> systemprompt_bridge::mcp_registry::McpUpstream {
     systemprompt_bridge::mcp_registry::McpUpstream {
-        url: ValidatedUrl::new("https://gw.example.com/api/v1/mcp/atlassian/mcp"),
+        url: ValidatedUrl::try_new("https://gw.example.com/api/v1/mcp/atlassian/mcp")
+            .expect("valid ValidatedUrl"),
         headers: BTreeMap::new(),
         display_name: "Atlassian".to_owned(),
         transport: None,
@@ -173,7 +179,8 @@ fn a_desktop_wildcard_deny_withholds_the_server_rather_than_prompting_for_unknow
     let map = desktop_tool_policy_map(
         &allowed,
         &["read_issue".to_owned(), "delete_issue".to_owned()],
-    );
+    )
+    .expect("a named catalog projects the wildcard");
     assert_eq!(map.get("read_issue").map(String::as_str), Some("allow"));
     assert_eq!(
         map.get("delete_issue").map(String::as_str),

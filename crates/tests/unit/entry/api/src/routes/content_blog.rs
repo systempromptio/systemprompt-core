@@ -28,7 +28,7 @@ fn req_ctx() -> RequestContext {
         SessionId::generate(),
         TraceId::generate(),
         ContextId::generate(),
-        AgentName::new("content"),
+        AgentName::try_new("content").expect("valid AgentName"),
     )
 }
 

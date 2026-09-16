@@ -14,8 +14,10 @@ mod migrations;
 mod validation;
 
 pub use installation::{
-    install_extension_schemas, install_extension_schemas_full,
-    install_extension_schemas_with_config,
+    BOOTSTRAP_ADVISORY_LOCK_KEY, BootstrapLockGuard, DeferredForeignKey, FkDeferralError,
+    ForeignKeyDrift, SchemaInstallReport, SplitCreateTable, install_extension_schemas,
+    install_extension_schemas_full, install_extension_schemas_with_config,
+    split_create_table_foreign_keys,
 };
 pub use migrations::{
     AppliedMigration, BaselineStamp, ChecksumDrift, ExtensionMigrationStatus, FreshnessCheck,

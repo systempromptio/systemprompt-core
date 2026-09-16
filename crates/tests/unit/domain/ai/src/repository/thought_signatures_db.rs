@@ -12,10 +12,11 @@ use super::pool_or_skip;
 const TTL: Duration = Duration::from_secs(3600);
 
 fn conversation() -> GatewayConversationId {
-    GatewayConversationId::new_unchecked(&format!(
+    GatewayConversationId::try_new(&format!(
         "ctx_{:016x}",
         u64::from(uuid::Uuid::new_v4().as_u128() as u32)
     ))
+    .expect("valid GatewayConversationId")
 }
 
 async fn expire(pool: &DbPool, conversation: &GatewayConversationId, tool_use_id: &str) {

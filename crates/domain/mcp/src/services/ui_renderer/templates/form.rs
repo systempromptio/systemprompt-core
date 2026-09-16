@@ -9,7 +9,6 @@ use super::html::{
 };
 use crate::error::McpDomainResult;
 use crate::services::ui_renderer::{CspPolicy, UiRenderer, UiResource};
-use async_trait::async_trait;
 use serde_json::Value as JsonValue;
 use systemprompt_models::a2a::Artifact;
 use systemprompt_models::artifacts::ArtifactType;
@@ -63,13 +62,12 @@ impl FormRenderer {
     }
 }
 
-#[async_trait]
 impl UiRenderer for FormRenderer {
     fn artifact_type(&self) -> ArtifactType {
         ArtifactType::Form
     }
 
-    async fn render(&self, artifact: &Artifact) -> McpDomainResult<UiResource> {
+    fn render(&self, artifact: &Artifact) -> McpDomainResult<UiResource> {
         let fields = Self::extract_fields(artifact);
         let submit_tool = Self::extract_submit_tool(artifact);
         let title = artifact.title.as_deref().unwrap_or("Form");
@@ -120,7 +118,7 @@ impl UiRenderer for FormRenderer {
              {submit_tool};\n{app}",
             bridge = mcp_app_bridge_script(),
             fields_json = json_to_js_literal(&serde_json::json!(fields_json)),
-            submit_tool = submit_tool.map_or_else(|| "null".to_owned(), |t| format!("\"{t}\"")),
+            submit_tool = json_to_js_literal(&serde_json::json!(submit_tool)),
             app = include_str!("assets/js/form.js"),
         );
 

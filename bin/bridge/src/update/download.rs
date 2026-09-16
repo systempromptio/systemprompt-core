@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::ids::BearerToken;
 use std::io::Write as _;
 use std::path::PathBuf;
 use std::time::Duration;
@@ -39,7 +40,7 @@ impl DownloadProgress {
 
 pub async fn download_verified(
     client: &GatewayClient,
-    bearer: &str,
+    bearer: &BearerToken,
     platform: &str,
     manifest: &ReleaseManifest,
     on_progress: &(dyn Fn(DownloadProgress) + Send + Sync),
@@ -54,7 +55,7 @@ pub async fn download_verified(
     let resp = client
         .http()
         .get(&url)
-        .bearer_auth(bearer)
+        .bearer_auth(bearer.expose())
         .timeout(DOWNLOAD_TIMEOUT)
         .send()
         .await
@@ -66,7 +67,7 @@ pub async fn download_verified(
     }
 
     let digest = stream_to_file(resp, &tmp, manifest.size, on_progress).await?;
-    let actual = hex_lower(&digest);
+    let actual = crate::hash::hex_encode(&digest);
     if !actual.eq_ignore_ascii_case(&manifest.sha256) {
         if let Err(e) = std::fs::remove_file(&tmp) {
             tracing::warn!(error = %e, path = %tmp.display(), "update: could not remove mismatched download");
@@ -109,9 +110,4 @@ async fn stream_to_file(
     file.sync_all().map_err(|e| UpdateError::io(tmp, e))?;
 
     Ok(hasher.finalize().into())
-}
-
-#[doc(hidden)]
-pub fn hex_lower(bytes: &[u8]) -> String {
-    crate::hash::hex_encode(bytes)
 }

@@ -12,7 +12,7 @@
 
 use std::sync::Arc;
 use systemprompt_identifiers::{SessionId, UserId};
-use systemprompt_traits::AnalyticsProvider;
+use systemprompt_traits::SessionProvider;
 
 #[derive(Debug, thiserror::Error)]
 pub enum SessionAttestationError {
@@ -25,12 +25,12 @@ pub enum SessionAttestationError {
 }
 
 pub async fn attest_session(
-    analytics_provider: &Arc<dyn AnalyticsProvider>,
+    session_provider: &Arc<dyn SessionProvider>,
     session_id: &SessionId,
     user_id: &UserId,
     route_context: &str,
 ) -> Result<(), SessionAttestationError> {
-    let session = analytics_provider
+    let session = session_provider
         .find_active_session_by_id(session_id)
         .await
         .map_err(|e| SessionAttestationError::Lookup(e.to_string()))?;

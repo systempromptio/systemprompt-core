@@ -16,10 +16,11 @@ async fn assignment_hands_a_live_lease_its_frozen_inputs() {
     };
     let (execution, lease) = harness.claimed_lease().await;
 
-    let assignment = AssignmentRepository::new(harness.pg.clone())
-        .get(&harness.worker, &lease)
-        .await
-        .expect("assignment");
+    let assignment =
+        AssignmentRepository::new(harness.pg.clone(), crate::seams::evidence(&harness.pg))
+            .get(&harness.worker, &lease)
+            .await
+            .expect("assignment");
 
     assert_eq!(assignment.execution.id, execution.id);
     assert_eq!(assignment.execution.case_revision_id, harness.case_revision);
@@ -45,7 +46,8 @@ async fn assignment_requires_a_live_owned_worker_lease() {
         return;
     };
     let (execution, lease) = harness.claimed_lease().await;
-    let assignments = AssignmentRepository::new(harness.pg.clone());
+    let assignments =
+        AssignmentRepository::new(harness.pg.clone(), crate::seams::evidence(&harness.pg));
 
     let stale = ExecutionLease::builder(execution.id.clone(), harness.worker.id.clone())
         .fencing_token(lease.fencing_token + 1)
@@ -85,7 +87,8 @@ async fn assignment_stops_when_the_lease_expires() {
         return;
     };
     let (execution, lease) = harness.claimed_lease().await;
-    let assignments = AssignmentRepository::new(harness.pg.clone());
+    let assignments =
+        AssignmentRepository::new(harness.pg.clone(), crate::seams::evidence(&harness.pg));
 
     assignments
         .get(&harness.worker, &lease)
@@ -103,7 +106,8 @@ async fn a_tampered_revision_digest_fails_the_assignment() {
         return;
     };
     let (_, lease) = harness.claimed_lease().await;
-    let assignments = AssignmentRepository::new(harness.pg.clone());
+    let assignments =
+        AssignmentRepository::new(harness.pg.clone(), crate::seams::evidence(&harness.pg));
 
     sqlx::query("UPDATE eval_resource_revisions SET digest = $2 WHERE id = $1")
         .bind(harness.case_revision.as_str())
@@ -126,7 +130,8 @@ async fn a_case_slot_holding_a_rubric_revision_fails_the_assignment() {
         return;
     };
     let (execution, lease) = harness.claimed_lease().await;
-    let assignments = AssignmentRepository::new(harness.pg.clone());
+    let assignments =
+        AssignmentRepository::new(harness.pg.clone(), crate::seams::evidence(&harness.pg));
 
     let decoy = RevisionRepository::new(harness.pg.clone())
         .create(
@@ -157,7 +162,8 @@ async fn an_out_of_range_variant_index_fails_the_assignment() {
         return;
     };
     let (execution, lease) = harness.claimed_lease().await;
-    let assignments = AssignmentRepository::new(harness.pg.clone());
+    let assignments =
+        AssignmentRepository::new(harness.pg.clone(), crate::seams::evidence(&harness.pg));
 
     sqlx::query("UPDATE eval_executions SET variant_index = 7 WHERE id = $1")
         .bind(execution.id.as_str())

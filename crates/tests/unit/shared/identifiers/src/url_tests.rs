@@ -86,55 +86,55 @@ fn rejects_empty_host_for_non_file() {
 
 #[test]
 fn scheme_extraction() {
-    let url = ValidatedUrl::new("https://example.com");
+    let url = ValidatedUrl::try_new("https://example.com").expect("valid ValidatedUrl");
     assert_eq!(url.scheme(), "https");
 }
 
 #[test]
 fn is_https_true() {
-    let url = ValidatedUrl::new("https://example.com");
+    let url = ValidatedUrl::try_new("https://example.com").expect("valid ValidatedUrl");
     assert!(url.is_https());
 }
 
 #[test]
 fn is_https_false_for_http() {
-    let url = ValidatedUrl::new("http://example.com");
+    let url = ValidatedUrl::try_new("http://example.com").expect("valid ValidatedUrl");
     assert!(!url.is_https());
 }
 
 #[test]
 fn is_http_true_for_http() {
-    let url = ValidatedUrl::new("http://example.com");
+    let url = ValidatedUrl::try_new("http://example.com").expect("valid ValidatedUrl");
     assert!(url.is_http());
 }
 
 #[test]
 fn is_http_true_for_https() {
-    let url = ValidatedUrl::new("https://example.com");
+    let url = ValidatedUrl::try_new("https://example.com").expect("valid ValidatedUrl");
     assert!(url.is_http());
 }
 
 #[test]
 fn is_http_false_for_ftp() {
-    let url = ValidatedUrl::new("ftp://example.com");
+    let url = ValidatedUrl::try_new("ftp://example.com").expect("valid ValidatedUrl");
     assert!(!url.is_http());
 }
 
 #[test]
 fn is_https_case_insensitive() {
-    let url = ValidatedUrl::new("HTTPS://EXAMPLE.COM");
+    let url = ValidatedUrl::try_new("HTTPS://EXAMPLE.COM").expect("valid ValidatedUrl");
     assert!(url.is_https());
 }
 
 #[test]
 fn display_shows_full_url() {
-    let url = ValidatedUrl::new("https://example.com/path");
+    let url = ValidatedUrl::try_new("https://example.com/path").expect("valid ValidatedUrl");
     assert_eq!(format!("{}", url), "https://example.com/path");
 }
 
 #[test]
 fn serde_roundtrip_exact_json() {
-    let url = ValidatedUrl::new("https://example.com");
+    let url = ValidatedUrl::try_new("https://example.com").expect("valid ValidatedUrl");
     let json = serde_json::to_string(&url).unwrap();
     assert_eq!(json, "\"https://example.com\"");
     let deserialized: ValidatedUrl = serde_json::from_str(&json).unwrap();
@@ -167,14 +167,14 @@ fn from_str_parse() {
 
 #[test]
 fn to_db_value_returns_string_variant() {
-    let url = ValidatedUrl::new("https://example.com");
+    let url = ValidatedUrl::try_new("https://example.com").expect("valid ValidatedUrl");
     let db_val = url.to_db_value();
     assert!(matches!(db_val, DbValue::String(s) if s == "https://example.com"));
 }
 
 #[test]
 fn equality_across_construction_paths() {
-    let from_new = ValidatedUrl::new("https://example.com");
+    let from_new = ValidatedUrl::try_new("https://example.com").expect("valid ValidatedUrl");
     let from_try: ValidatedUrl = "https://example.com".try_into().unwrap();
     let from_parse: ValidatedUrl = "https://example.com".parse().unwrap();
     assert_eq!(from_new, from_try);
@@ -182,9 +182,9 @@ fn equality_across_construction_paths() {
 }
 
 #[test]
-#[should_panic(expected = "ValidatedUrl validation failed")]
-fn new_panics_on_invalid() {
-    let _ = ValidatedUrl::new("not-a-url");
+fn try_new_rejects_invalid() {
+    let err = ValidatedUrl::try_new("not-a-url").expect_err("ValidatedUrl must reject `not-a-url`");
+    assert!(err.to_string().contains("must have a scheme"), "{err}");
 }
 
 #[test]
@@ -225,13 +225,13 @@ fn valid_ipv6_url_with_port() {
 
 #[test]
 fn as_ref_str_returns_inner() {
-    let url = ValidatedUrl::new("https://example.com/api");
+    let url = ValidatedUrl::try_new("https://example.com/api").expect("valid ValidatedUrl");
     assert_eq!(AsRef::<str>::as_ref(&url), "https://example.com/api");
 }
 
 #[test]
 fn to_db_value_via_reference() {
-    let url = ValidatedUrl::new("https://example.com");
+    let url = ValidatedUrl::try_new("https://example.com").expect("valid ValidatedUrl");
     let db_val = (&url).to_db_value();
     assert!(matches!(db_val, DbValue::String(s) if s == "https://example.com"));
 }

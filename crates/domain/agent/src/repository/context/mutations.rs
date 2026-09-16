@@ -40,11 +40,9 @@ impl ContextRepository {
         Ok(context_id)
     }
 
-    // Why: a second call is a sign of life, not a rename — `updated_at` moves
-    // and a missing session is filled, while `name` and `kind` stay whatever
-    // the row already says. The context id derives from caller-supplied
-    // metadata, so the update is scoped to the owning user: another user's
-    // call on the same id is a no-op rather than a write into their row.
+    // Why: the context id derives from caller-supplied metadata, so the
+    // conflict update is scoped to the owning user — another user's call on
+    // the same id must be a no-op rather than a write into their row.
     pub async fn ensure_context(
         &self,
         params: &systemprompt_traits::EnsureContextParams<'_>,
@@ -84,6 +82,35 @@ impl ContextRepository {
         Ok(())
     }
 
+    // Why: the legacy context is the one row whose owner may be rebound — it is
+    // system-owned and adopted by whichever admin the current profile names.
+    // The id is fixed here so no caller can use this path to reassign another
+    // user's context.
+    pub async fn ensure_legacy_context(
+        &self,
+        system_admin: &UserId,
+    ) -> Result<(), RepositoryError> {
+        let now = Utc::now();
+        let legacy = ContextId::legacy();
+        sqlx::query!(
+            "INSERT INTO user_contexts (context_id, user_id, session_id, name, kind, created_at, \
+             updated_at)
+             VALUES ($1, $2, NULL, $3, $4, $5, $5)
+             ON CONFLICT (context_id) DO UPDATE
+             SET user_id = EXCLUDED.user_id,
+                 updated_at = EXCLUDED.updated_at",
+            legacy.as_str(),
+            system_admin.as_str(),
+            "Legacy (pre-context)",
+            ContextKind::Legacy.as_str(),
+            now
+        )
+        .execute(&*self.write_pool)
+        .await
+        .map_err(RepositoryError::database)?;
+        Ok(())
+    }
+
     pub async fn get_or_create_cli_context(
         &self,
         user_id: &UserId,
@@ -111,7 +138,8 @@ impl ContextRepository {
         .map_err(RepositoryError::database)?;
 
         match adopted {
-            Some(context_id) => Ok(ContextId::new_unchecked(context_id)),
+            Some(context_id) => ContextId::try_new(context_id)
+                .map_err(|e| RepositoryError::InvalidData(e.to_string())),
             None => {
                 self.create_context(user_id, Some(session_id), name, ContextKind::CliSession)
                     .await

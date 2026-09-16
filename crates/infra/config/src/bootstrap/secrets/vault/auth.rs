@@ -128,7 +128,9 @@ async fn post_login(
         .await?;
 
     let status = response.status();
-    let text = response.text().await.unwrap_or_default();
+    let text = response.text().await.map_err(|e| VaultError::Body {
+        message: e.to_string(),
+    })?;
 
     if !status.is_success() {
         return Err(VaultError::Auth {

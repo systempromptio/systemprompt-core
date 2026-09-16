@@ -10,7 +10,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use async_trait::async_trait;
 use systemprompt_extension::{
     Extension, ExtensionContext, ExtensionMetadata, ExtensionRegistry, ExtensionRouter,
-    SchemaDefinition,
+    LoaderError, SchemaDefinition,
 };
 use systemprompt_provider_contracts::{Job, JobContext, JobResult, ProviderResult};
 use systemprompt_traits::{ConfigProvider, DatabaseHandle};
@@ -139,6 +139,9 @@ impl DatabaseHandle for StubDb {
 }
 
 impl ExtensionContext for StubCtx {
+    fn system_owner_id(&self) -> systemprompt_identifiers::UserId {
+        systemprompt_identifiers::UserId::new("extension-test-owner")
+    }
     fn config(&self) -> Arc<dyn ConfigProvider> {
         Arc::new(StubConfig)
     }
@@ -178,7 +181,9 @@ fn enabled_schema_extensions_excludes_disabled_and_non_schema() {
     b.schemas = true;
     let registry = registry_with(vec![Arc::new(a), Arc::new(b), Arc::new(CapExt::new("c"))]);
 
-    let enabled = registry.enabled_schema_extensions(&["a".to_string()]);
+    let enabled = registry
+        .enabled_schema_extensions(&["a".to_string()])
+        .expect("a has no dependants");
     let ids: Vec<_> = enabled.iter().map(|e| e.id()).collect();
     assert_eq!(
         ids,
@@ -225,10 +230,17 @@ fn job_extensions_and_enabled_job_extensions() {
 
     assert_eq!(registry.job_extensions().len(), 1);
     assert_eq!(registry.job_extensions()[0].id(), "worker");
-    assert_eq!(registry.enabled_job_extensions(&[]).len(), 1);
+    assert_eq!(
+        registry
+            .enabled_job_extensions(&[])
+            .expect("nothing disabled")
+            .len(),
+        1
+    );
     assert!(
         registry
             .enabled_job_extensions(&["worker".to_string()])
+            .expect("worker has no dependants")
             .is_empty()
     );
 }
@@ -255,8 +267,6 @@ fn storage_extensions_and_all_required_storage_paths() {
 fn capability_filters_empty_when_no_extension_declares() {
     let registry = registry_with(vec![Arc::new(CapExt::new("plain"))]);
     assert!(registry.config_extensions().is_empty());
-    assert!(registry.llm_provider_extensions().is_empty());
-    assert!(registry.tool_provider_extensions().is_empty());
     assert!(registry.asset_extensions().is_empty());
 }
 
@@ -329,18 +339,16 @@ fn jobs_by_tag_filters_by_tag_membership() {
 }
 
 #[test]
-fn enabled_extensions_keeps_required_even_when_disabled() {
+fn enabled_extensions_refuses_to_disable_required() {
     let mut required = CapExt::new("core");
     required.required = true;
     let registry = registry_with(vec![Arc::new(required), Arc::new(CapExt::new("optional"))]);
 
-    let enabled = registry.enabled_extensions(&["core".to_string(), "optional".to_string()]);
-    let ids: Vec<_> = enabled.iter().map(|e| e.id()).collect();
-    assert_eq!(
-        ids,
-        vec!["core"],
-        "required extension ignores the disable flag"
-    );
+    let err = registry
+        .enabled_extensions(&["core".to_string(), "optional".to_string()])
+        .err()
+        .expect("required extension cannot be disabled");
+    assert!(matches!(err, LoaderError::RequiredExtensionDisabled(id) if id == "core"));
 }
 
 // Guards against the `HashMap`-keyed lookups silently colliding across many

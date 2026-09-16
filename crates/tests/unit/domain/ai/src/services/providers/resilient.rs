@@ -82,7 +82,10 @@ async fn delegates_generate_with_tools() {
     let s = settings();
     let r = ResilientProvider::new("anthropic", Arc::new(inner), &s);
     let messages = vec![AiMessage::user("hi")];
-    let tools = vec![McpTool::new("f", McpServerId::new("svc"))];
+    let tools = vec![McpTool::new(
+        "f",
+        McpServerId::try_new("svc").expect("valid McpServerId"),
+    )];
     let params = ToolGenerationParams::new(
         GenerationParams::new(&messages, "claude-sonnet-4-6", 16),
         tools,
@@ -157,7 +160,10 @@ async fn delegates_generate_with_tools_stream() {
     let r = ResilientProvider::new("anthropic", Arc::new(inner), &s);
     let messages = vec![AiMessage::user("hi")];
     let base = GenerationParams::new(&messages, "claude-sonnet-4-6", 16);
-    let tools = vec![McpTool::new("f", McpServerId::new("svc"))];
+    let tools = vec![McpTool::new(
+        "f",
+        McpServerId::try_new("svc").expect("valid McpServerId"),
+    )];
     let params = ToolGenerationParams::new(base, tools);
     drop(
         r.generate_with_tools_stream(params)

@@ -4,7 +4,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_identifiers::AgentId;
+use systemprompt_identifiers::{AgentId, ModelId};
 use systemprompt_models::bridge::manifest::AgentEntry;
 use systemprompt_models::services::{ComponentSource, PluginConfig};
 
@@ -53,7 +53,12 @@ fn agent_md(agent: &AgentEntry) -> String {
         agent.id.as_str(),
         agent.description.replace('"', "\\\"")
     );
-    if let Some(model) = agent.model.as_deref().filter(|m| !m.is_empty()) {
+    if let Some(model) = agent
+        .model
+        .as_ref()
+        .map(ModelId::as_str)
+        .filter(|m| !m.is_empty())
+    {
         front.push_str(&format!("model: \"{}\"\n", model.replace('"', "\\\"")));
     }
     format!("{front}---\n\n{body}\n")

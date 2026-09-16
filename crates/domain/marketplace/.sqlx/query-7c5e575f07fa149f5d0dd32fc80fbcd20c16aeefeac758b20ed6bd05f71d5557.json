@@ -1,0 +1,66 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT status,revision_id,reconciliation_id,diagnostic FROM managed_inventory_captures WHERE owner_id=$1 AND entry_id=$2 AND operation_id=$3",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "status",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "managed_inventory_captures",
+            "name": "status"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "revision_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "managed_inventory_captures",
+            "name": "revision_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "reconciliation_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "managed_inventory_captures",
+            "name": "reconciliation_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "diagnostic",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "managed_inventory_captures",
+            "name": "diagnostic"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "7c5e575f07fa149f5d0dd32fc80fbcd20c16aeefeac758b20ed6bd05f71d5557"
+}

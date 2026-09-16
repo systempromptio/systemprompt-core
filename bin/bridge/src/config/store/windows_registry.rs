@@ -100,10 +100,6 @@ impl ConfigStore for WindowsRegistryStore {
     ) -> Result<usize, ConfigStoreError> {
         super::windows_registry_write::delete_values_at(hive, &target.subkey(), names)
     }
-
-    fn delete_policy_key(&self, hive: PolicyHive) -> Result<bool, ConfigStoreError> {
-        super::windows_registry_write::delete_policy_key(hive)
-    }
 }
 
 pub(super) const fn hkey(hive: PolicyHive) -> HKEY {

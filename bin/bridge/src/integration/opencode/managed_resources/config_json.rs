@@ -9,7 +9,7 @@ use serde_json::{Map, Value, json};
 
 use crate::gateway::manifest::ManagedMcpServer;
 use crate::host_sync::ApplyError;
-use crate::integration::claude_code_cli::json_io::{object_entry, read_json_object, write_json};
+use crate::integration::json_io::{object_entry, read_json_object, write_json};
 use crate::proxy::LoopbackEndpoint;
 
 use super::super::config::user_config_path;
@@ -24,15 +24,20 @@ pub(super) fn write_mcp_blocks(
     let original = read_json_object(&path)?;
     let mut value = original.clone();
 
-    strip_bridge_servers(loopback, &mut value);
+    let sidecar = crate::integration::mcp_sidecar::beside(&path);
+    strip_bridge_servers(
+        &crate::integration::mcp_sidecar::read(&sidecar)?,
+        &mut value,
+    );
+    let mut written = Vec::with_capacity(servers.len());
     if !servers.is_empty() {
-        let bearer = loopback.bearer().map_err(|e| ApplyError::Io {
-            context: "read loopback secret for opencode mcp".into(),
-            source: e,
-        })?;
-        let Some(table) = object_entry(&mut value, MCP_TABLE) else {
-            return Ok(());
-        };
+        let bearer = loopback
+            .host_bearer(&crate::ids::HostId::new("opencode"))
+            .map_err(|e| ApplyError::Io {
+                context: "derive opencode host token for mcp".into(),
+                source: e,
+            })?;
+        let table = object_entry(&mut value, &path, MCP_TABLE)?;
         for s in servers {
             let slug = crate::mcp_registry::normalize_key(s.name.as_str());
             table.insert(
@@ -44,8 +49,10 @@ pub(super) fn write_mcp_blocks(
                     "enabled": true,
                 }),
             );
+            written.push(slug);
         }
     }
+    crate::integration::mcp_sidecar::write(&sidecar, &written)?;
 
     if value == original {
         return Ok(());
@@ -53,17 +60,11 @@ pub(super) fn write_mcp_blocks(
     write_json(&path, &Value::Object(value))
 }
 
-fn strip_bridge_servers(loopback: &LoopbackEndpoint, root: &mut Map<String, Value>) {
+fn strip_bridge_servers(recorded: &[String], root: &mut Map<String, Value>) {
     let Some(Value::Object(table)) = root.get_mut(MCP_TABLE) else {
         return;
     };
-    let prefix = format!("{}/mcp/", loopback.origin());
-    table.retain(|_, entry| {
-        !entry
-            .get("url")
-            .and_then(Value::as_str)
-            .is_some_and(|u| u.starts_with(&prefix))
-    });
+    table.retain(|name, _| !recorded.iter().any(|r| r == name));
     if table.is_empty() {
         root.remove(MCP_TABLE);
     }

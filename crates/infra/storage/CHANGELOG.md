@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.53.0] - 2026-09-15
+
+### Fixed
+
+- `LocalFileStorage::store` writes to a per-process staging file and renames it into place, so a reader on another replica of a shared mount never sees a truncated file.
+
 ## [0.44.0] - 2026-09-02
 
 ### Added

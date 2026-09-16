@@ -3,7 +3,7 @@
 //! reputation-score adjustment, and the read queries over
 //! `fingerprint_reputation` and `user_sessions`.
 
-use systemprompt_analytics::{FingerprintRepository, FlagReason, SessionRepository};
+use systemprompt_analytics::FlagReason;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fixture_db_pool};
@@ -36,7 +36,7 @@ async fn upsert_fingerprint_inserts_then_accumulates() {
     };
     ensure_test_bootstrap();
     let pool = fixture_db_pool(&url).await.expect("pool");
-    let repo = FingerprintRepository::new(&pool).expect("repo");
+    let repo = systemprompt_test_fixtures::fixture_fingerprint_repository(&pool).expect("repo");
 
     let fp = unique_fingerprint();
     let user = UserId::new(format!("user-{}", Uuid::new_v4()));
@@ -89,7 +89,7 @@ async fn flag_clear_and_score_adjustment_round_trip() {
     };
     ensure_test_bootstrap();
     let pool = fixture_db_pool(&url).await.expect("pool");
-    let repo = FingerprintRepository::new(&pool).expect("repo");
+    let repo = systemprompt_test_fixtures::fixture_fingerprint_repository(&pool).expect("repo");
 
     let fp = unique_fingerprint();
     repo.upsert_fingerprint(&fp, None, None, None)
@@ -131,7 +131,7 @@ async fn velocity_and_request_counters_update() {
     };
     ensure_test_bootstrap();
     let pool = fixture_db_pool(&url).await.expect("pool");
-    let repo = FingerprintRepository::new(&pool).expect("repo");
+    let repo = systemprompt_test_fixtures::fixture_fingerprint_repository(&pool).expect("repo");
 
     let fp = unique_fingerprint();
     repo.upsert_fingerprint(&fp, None, None, None)
@@ -163,8 +163,10 @@ async fn session_queries_count_and_reuse_active_sessions() {
     };
     ensure_test_bootstrap();
     let pool = fixture_db_pool(&url).await.expect("pool");
-    let repo = FingerprintRepository::new(&pool).expect("repo");
-    let sessions = SessionRepository::new(&pool).expect("session repo");
+    let repo = systemprompt_test_fixtures::fixture_fingerprint_repository(&pool).expect("repo");
+    let sessions = systemprompt_test_fixtures::fixture_analytics_repositories(&pool)
+        .map(|repositories| repositories.sessions)
+        .expect("session repo");
 
     let fp = unique_fingerprint();
     assert_eq!(
@@ -187,7 +189,7 @@ async fn session_queries_count_and_reuse_active_sessions() {
         .await
         .expect("reuse")
         .expect("present");
-    assert_eq!(reusable, sid.as_str());
+    assert_eq!(reusable, sid);
 
     cleanup(&pool, &fp).await;
 }

@@ -1,3 +1,4 @@
+use systemprompt_bridge::ids::HostId;
 use systemprompt_bridge::sync::{HostFailure, SyncSummary, warn_unsafe_flags};
 
 fn summary() -> SyncSummary {
@@ -50,7 +51,7 @@ fn malformed_plugins_make_the_summary_partial() {
     );
     assert!(
         line.contains(
-            "WARNING: 2 malformed plugin(s) missing claude-plugin/plugin.json: ghost, husk"
+            "WARNING: 2 malformed plugin(s) with no readable claude-plugin/plugin.json: ghost, husk"
         ),
         "{line}"
     );
@@ -60,8 +61,10 @@ fn malformed_plugins_make_the_summary_partial() {
 fn a_failing_host_downgrades_the_line_to_partial_and_keeps_one_error_line() {
     let mut s = summary();
     s.host_failures = vec![HostFailure {
-        host_id: "claude-desktop".into(),
+        host_id: HostId::new("claude-desktop"),
+        emitter: "claude-desktop".to_owned(),
         error: "first line of the error\nsecond line that must not appear".into(),
+        needs_elevation: false,
     }];
     let line = s.one_line();
     assert!(line.starts_with("sync PARTIAL"), "{line}");
@@ -81,12 +84,16 @@ fn several_failing_hosts_are_joined() {
     let mut s = summary();
     s.host_failures = vec![
         HostFailure {
-            host_id: "claude-desktop".into(),
+            host_id: HostId::new("claude-desktop"),
+            emitter: "claude-desktop".to_owned(),
             error: "no session".into(),
+            needs_elevation: false,
         },
         HostFailure {
-            host_id: "codex-cli".into(),
+            host_id: HostId::new("codex-cli"),
+            emitter: "codex-cli".to_owned(),
             error: "permission denied".into(),
+            needs_elevation: false,
         },
     ];
     let line = s.one_line();
@@ -136,7 +143,7 @@ fn gateway_diagnostics_are_appended_to_the_summary_line() {
 fn a_host_warning_keeps_the_line_ok_but_names_the_host_and_its_first_line() {
     let mut s = summary();
     s.host_warnings = vec![systemprompt_bridge::sync::HostWarning {
-        host_id: "claude-desktop".into(),
+        host_id: HostId::new("claude-desktop"),
         message: "open Cowork once, then Re-sync\nsecond line".into(),
     }];
     let line = s.one_line();
@@ -146,4 +153,19 @@ fn a_host_warning_keeps_the_line_ok_but_names_the_host_and_its_first_line() {
         "{line}"
     );
     assert!(!line.contains("second line"), "{line}");
+}
+
+#[test]
+fn an_elevation_required_apply_error_names_what_needs_approval() {
+    let err = systemprompt_bridge::host_sync::ApplyError::ElevationRequired {
+        what: "the Claude Desktop machine policy",
+        detail: "HKLM\\SOFTWARE\\Policies\\Claude holds different values for managedMcpServers"
+            .into(),
+    };
+    let text = err.to_string();
+    assert!(
+        text.starts_with("the Claude Desktop machine policy needs administrator approval: "),
+        "{text}"
+    );
+    assert!(text.contains("managedMcpServers"), "{text}");
 }

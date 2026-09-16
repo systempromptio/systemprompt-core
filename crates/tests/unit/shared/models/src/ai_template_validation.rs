@@ -8,7 +8,7 @@ fn tool(name: &str, output_schema: Option<serde_json::Value>) -> McpTool {
         description: None,
         input_schema: None,
         output_schema,
-        service_id: McpServerId::new("svc"),
+        service_id: McpServerId::try_new("svc").expect("valid McpServerId"),
         terminal_on_success: false,
         model_config: None,
     }

@@ -1,14 +1,20 @@
 //! Claude Desktop managed-policy construction and platform rendering.
 //!
 //! `claude_desktop_policy` defines the keys; registry and plist renderers
-//! serialize them for the target platform.
+//! serialize them for the target platform. The policy is readable by every
+//! local account, so it carries the Claude Desktop host token derived from
+//! the loopback secret — never the secret itself.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::collections::BTreeMap;
 
+use super::error::MdmError;
+use crate::ids::{HostId, HostToken, LoopbackSecret};
 use crate::install::xml;
+
+pub const CLAUDE_DESKTOP_HOST_ID: &str = "claude-desktop";
 
 /// A managed-policy value in the shape the policy declares, before any
 /// platform's encoding is applied.
@@ -21,6 +27,27 @@ pub enum PolicyValue {
 
 pub type PolicyEntry = (&'static str, PolicyValue);
 
+// Why: removal is scoped to exactly the keys the bridge writes, so a value
+// another administrator placed in the same hive survives an uninstall.
+pub const WRITTEN_POLICY_KEYS: &[&str] = &[
+    "inferenceProvider",
+    "inferenceGatewayBaseUrl",
+    "inferenceGatewayApiKey",
+    "inferenceGatewayAuthScheme",
+    "inferenceModels",
+    "disableEssentialTelemetry",
+    "disableNonessentialTelemetry",
+    "disableNonessentialServices",
+    "disableAutoUpdates",
+    "disableDeploymentModeChooser",
+    "isLocalDevMcpEnabled",
+    "coworkEgressAllowedHosts",
+    "allowedWorkspaceFolders",
+    "inferenceCustomHeaders",
+    "deploymentOrganizationUuid",
+    "managedMcpServers",
+];
+
 /// One managed MCP server as the policy publishes it. `tool_policy` is
 /// Claude Desktop's per-tool decision (tool name → `allow` / `ask` /
 /// `blocked`); empty leaves the app's own default (ask).
@@ -28,26 +55,32 @@ pub type PolicyEntry = (&'static str, PolicyValue);
 pub struct McpServerEntry {
     pub name: String,
     pub url: String,
-    pub bearer: String,
     pub tool_policy: BTreeMap<String, String>,
 }
 
+/// `mcp_servers` is `None` when the connector list could not be projected
+/// completely; the `managedMcpServers` key is then withheld rather than
+/// written partially.
 #[derive(Debug)]
 pub struct PolicyInputs<'a> {
     pub base_url: &'a str,
-    pub api_key: &'a str,
+    pub host_token: &'a HostToken,
     pub models: Option<String>,
     pub headers: &'a BTreeMap<String, String>,
     pub egress_allowed_hosts: Option<&'a [String]>,
     pub org_uuid: Option<&'a str>,
-    pub mcp_servers: &'a [McpServerEntry],
+    pub mcp_servers: Option<&'a [McpServerEntry]>,
 }
 
 #[must_use]
-pub fn claude_desktop_policy(inputs: &PolicyInputs<'_>) -> Vec<PolicyEntry> {
-    let mut out = inference_entries(inputs);
+pub fn desktop_host_token(secret: &LoopbackSecret) -> HostToken {
+    crate::proxy::scoped_token::host_token(secret, &HostId::new(CLAUDE_DESKTOP_HOST_ID))
+}
+
+pub fn claude_desktop_policy(inputs: &PolicyInputs<'_>) -> Result<Vec<PolicyEntry>, MdmError> {
+    let mut out = super::inference::inference_entries(inputs)?;
     out.extend(hardening_entries());
-    if let Some(hosts) = super::cowork_egress_allowed_hosts(inputs.egress_allowed_hosts) {
+    if let Some(hosts) = super::cowork_egress_allowed_hosts(inputs.egress_allowed_hosts)? {
         out.push((
             "coworkEgressAllowedHosts",
             PolicyValue::Json(json_of(&hosts)),
@@ -60,68 +93,22 @@ pub fn claude_desktop_policy(inputs: &PolicyInputs<'_>) -> Vec<PolicyEntry> {
             PolicyValue::Json(json_of(inputs.headers)),
         ));
     }
-    if let Some(uuid) = inputs.org_uuid.filter(|u| super::is_uuid_like(u)) {
+    if let Some(uuid) = inputs.org_uuid {
+        if !super::is_uuid_like(uuid) {
+            return Err(MdmError::InvalidConfig {
+                key: "deploymentOrganizationUuid",
+                detail: format!("{uuid:?} is not a hyphenated UUID"),
+            });
+        }
         out.push((
             "deploymentOrganizationUuid",
             PolicyValue::Str(uuid.to_owned()),
         ));
     }
-    out.push(("managedMcpServers", mcp_value(inputs.mcp_servers)));
-    out
-}
-
-// Why: Claude Desktop breaks when `inferenceModels` names a non-Anthropic
-// family, so every list is filtered to Claude ids at the one place the key is
-// built. Desktop-only by construction (all callers go through
-// `claude_desktop_policy`); it is the single carve-out from the reachability
-// rule — every other host gets the whole advertised catalog, since the gateway
-// transcodes every inbound wire to every provider wire.
-fn anthropic_only(models: &serde_json::Value) -> serde_json::Value {
-    let Some(arr) = models.as_array() else {
-        return json_of(&super::default_inference_models());
-    };
-    let kept: Vec<serde_json::Value> = arr
-        .iter()
-        .filter(|m| {
-            m.as_str().is_some_and(|id| {
-                let lower = id.to_ascii_lowercase();
-                lower.contains("claude") || lower.contains("anthropic")
-            })
-        })
-        .cloned()
-        .collect();
-    if kept.is_empty() {
-        json_of(&super::default_inference_models())
-    } else {
-        serde_json::Value::Array(kept)
+    if let Some(servers) = inputs.mcp_servers {
+        out.push(("managedMcpServers", mcp_value(servers, inputs.host_token)));
     }
-}
-
-fn inference_entries(inputs: &PolicyInputs<'_>) -> Vec<PolicyEntry> {
-    let models = anthropic_only(
-        &inputs
-            .models
-            .as_deref()
-            .filter(|m| !m.trim().is_empty())
-            .and_then(|m| serde_json::from_str::<serde_json::Value>(m).ok())
-            .unwrap_or_else(|| json_of(&super::default_inference_models())),
-    );
-    vec![
-        ("inferenceProvider", PolicyValue::Str("gateway".into())),
-        (
-            "inferenceGatewayBaseUrl",
-            PolicyValue::Str(inputs.base_url.to_owned()),
-        ),
-        (
-            "inferenceGatewayApiKey",
-            PolicyValue::Str(inputs.api_key.to_owned()),
-        ),
-        (
-            "inferenceGatewayAuthScheme",
-            PolicyValue::Str("bearer".into()),
-        ),
-        ("inferenceModels", PolicyValue::Json(models)),
-    ]
+    Ok(out)
 }
 
 // Why: Cowork's disableNonessentialServices=true blocks the
@@ -161,7 +148,8 @@ pub fn workspace_folders() -> serde_json::Value {
     serde_json::Value::Array(folders)
 }
 
-fn mcp_value(servers: &[McpServerEntry]) -> PolicyValue {
+fn mcp_value(servers: &[McpServerEntry], host_token: &HostToken) -> PolicyValue {
+    let bearer = format!("Bearer {}", host_token.as_str());
     PolicyValue::Json(serde_json::Value::Array(
         servers
             .iter()
@@ -170,7 +158,7 @@ fn mcp_value(servers: &[McpServerEntry]) -> PolicyValue {
                     "name": s.name,
                     "url": s.url,
                     "transport": "http",
-                    "headers": { "Authorization": s.bearer },
+                    "headers": { "Authorization": bearer },
                 });
                 if !s.tool_policy.is_empty() {
                     entry["toolPolicy"] = json_of(&s.tool_policy);
@@ -181,7 +169,7 @@ fn mcp_value(servers: &[McpServerEntry]) -> PolicyValue {
     ))
 }
 
-fn json_of<T: serde::Serialize>(value: &T) -> serde_json::Value {
+pub(super) fn json_of<T: serde::Serialize>(value: &T) -> serde_json::Value {
     serde_json::to_value(value).unwrap_or(serde_json::Value::Null)
 }
 
@@ -254,38 +242,45 @@ fn plist_json(value: &serde_json::Value, indent: &str) -> String {
     }
 }
 
+// Why: Desktop's `toolPolicy` names tools one by one, so a wildcard can only
+// be expressed over names the catalog knows. A server denied outright or one
+// the manifest gave no tool policy is withheld from the list; a wildcard the
+// catalog cannot expand withholds the whole list (`None`), because a partial
+// map is one Desktop would resolve to its own default.
 pub fn mcp_entries(
     loopback: &crate::proxy::LoopbackEndpoint,
     registry: &crate::mcp_registry::McpRegistry,
-) -> std::io::Result<Vec<McpServerEntry>> {
+) -> std::io::Result<Option<Vec<McpServerEntry>>> {
     if registry.is_empty() {
-        return Ok(Vec::new());
+        return Ok(Some(Vec::new()));
     }
-    let bearer = loopback.bearer()?;
     let catalog = super::tool_catalog::read()?;
     let mut slugs: Vec<&String> = registry.keys().collect();
     slugs.sort();
-    // Why: Desktop's `toolPolicy` names tools one by one, so a wildcard deny
-    // can only be expressed over names the catalog knows; a server denied
-    // outright is withheld from the policy instead of prompting for tools
-    // the catalog has not seen.
-    Ok(slugs
-        .into_iter()
-        .filter(|slug| {
-            registry
-                .get(*slug)
-                .is_none_or(|upstream| !super::desktop_tool_policy::denied_outright(upstream))
-        })
-        .map(|slug| McpServerEntry {
+    let mut out = Vec::with_capacity(slugs.len());
+    for slug in slugs {
+        let Some(upstream) = registry.get(slug) else {
+            continue;
+        };
+        if upstream.tool_policy.is_empty() {
+            tracing::warn!(target: "bridge::mdm", slug = %slug, "managed MCP server has no tool policy; withheld from the desktop policy");
+            continue;
+        }
+        if super::desktop_tool_policy::denied_outright(upstream) {
+            continue;
+        }
+        let Some(tool_policy) = super::desktop_tool_policy::desktop_tool_policy_map(
+            upstream,
+            catalog.get(slug).map_or(&[][..], Vec::as_slice),
+        ) else {
+            tracing::warn!(target: "bridge::mdm", slug = %slug, "tool catalog has no names for a wildcard tool policy; managedMcpServers withheld");
+            return Ok(None);
+        };
+        out.push(McpServerEntry {
             name: slug.clone(),
             url: loopback.mcp_url(slug.as_str()),
-            bearer: bearer.clone(),
-            tool_policy: registry.get(slug).map_or_else(BTreeMap::new, |upstream| {
-                super::desktop_tool_policy::desktop_tool_policy_map(
-                    upstream,
-                    catalog.get(slug).map_or(&[][..], Vec::as_slice),
-                )
-            }),
-        })
-        .collect())
+            tool_policy,
+        });
+    }
+    Ok(Some(out))
 }

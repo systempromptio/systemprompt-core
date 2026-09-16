@@ -45,8 +45,14 @@ fn ctx(pool: &DbPool) -> CommandContext {
     )
 }
 
+struct SeededContext {
+    user_id: String,
+    context_id: String,
+}
+
 async fn seed_tool_execution(
     pool: &DbPool,
+    owner: &SeededContext,
     tool: &str,
     status: &str,
     error: Option<&str>,
@@ -55,13 +61,13 @@ async fn seed_tool_execution(
     sqlx::query(
         "INSERT INTO mcp_tool_executions (mcp_execution_id, tool_name, server_name, started_at, \
          execution_time_ms, input, status, error_message, user_id, task_id, trace_id, created_at) \
-         VALUES ($1, $2, 'stub-server', NOW(), 25, '{}', $3, $4, 'analytics-show-user', $5, $6, \
-         NOW())",
+         VALUES ($1, $2, 'stub-server', NOW(), 25, '{}', $3, $4, $5, $6, $7, NOW())",
     )
     .bind(Uuid::new_v4().to_string())
     .bind(tool)
     .bind(status)
     .bind(error)
+    .bind(owner.user_id.as_str())
     .bind(task_id)
     .bind(Uuid::new_v4().to_string())
     .execute(pool.pool_arc().unwrap().as_ref())
@@ -69,7 +75,7 @@ async fn seed_tool_execution(
     .unwrap();
 }
 
-async fn seed_context(pool: &DbPool) -> String {
+async fn seed_context(pool: &DbPool) -> SeededContext {
     let user_id = unique_user_id("clianalyticsshow");
     let session_id = SessionId::generate();
     let email = format!("{}@clianalyticsshow.invalid", user_id.as_str());
@@ -77,7 +83,7 @@ async fn seed_context(pool: &DbPool) -> String {
     seed_user_session(pool, &user_id, &session_id)
         .await
         .unwrap();
-    ContextRepository::new(pool)
+    let context_id = ContextRepository::new(pool)
         .unwrap()
         .create_context(
             &user_id,
@@ -87,24 +93,29 @@ async fn seed_context(pool: &DbPool) -> String {
         )
         .await
         .unwrap()
-        .to_string()
+        .to_string();
+    SeededContext {
+        user_id: user_id.to_string(),
+        context_id,
+    }
 }
 
 async fn seed_agent_task(
     pool: &DbPool,
-    context_id: &str,
+    owner: &SeededContext,
     task_id: &str,
     agent: &str,
     status: &str,
 ) {
     sqlx::query(
         "INSERT INTO agent_tasks (task_id, context_id, status, agent_name, started_at, user_id) \
-         VALUES ($1, $2, $3, $4, NOW(), 'analytics-show-user')",
+         VALUES ($1, $2, $3, $4, NOW(), $5)",
     )
     .bind(task_id)
-    .bind(context_id)
+    .bind(owner.context_id.as_str())
     .bind(status)
     .bind(agent)
+    .bind(owner.user_id.as_str())
     .execute(pool.pool_arc().unwrap().as_ref())
     .await
     .unwrap();
@@ -112,39 +123,32 @@ async fn seed_agent_task(
 
 async fn seed_tool_fixture(pool: &DbPool) -> String {
     let tool = format!("covtool_{}", Uuid::new_v4().simple());
-    let context_id = seed_context(pool).await;
+    let owner = seed_context(pool).await;
     let linked_task = Uuid::new_v4().to_string();
     seed_agent_task(
         pool,
-        &context_id,
+        &owner,
         &linked_task,
         "cov-linked-agent",
         "TASK_STATE_COMPLETED",
     )
     .await;
-    seed_tool_execution(pool, &tool, "success", None, Some(&linked_task)).await;
-    seed_tool_execution(pool, &tool, "success", None, None).await;
-    seed_tool_execution(pool, &tool, "failed", Some("boom failure"), None).await;
-    seed_tool_execution(pool, &tool, "timeout", None, None).await;
+    seed_tool_execution(pool, &owner, &tool, "success", None, Some(&linked_task)).await;
+    seed_tool_execution(pool, &owner, &tool, "success", None, None).await;
+    seed_tool_execution(pool, &owner, &tool, "failed", Some("boom failure"), None).await;
+    seed_tool_execution(pool, &owner, &tool, "timeout", None, None).await;
     tool
 }
 
 async fn seed_agent_fixture(pool: &DbPool) -> String {
     let agent = format!("covagent_{}", Uuid::new_v4().simple());
-    let context_id = seed_context(pool).await;
+    let owner = seed_context(pool).await;
     for status in [
         "TASK_STATE_COMPLETED",
         "TASK_STATE_FAILED",
         "TASK_STATE_WORKING",
     ] {
-        seed_agent_task(
-            pool,
-            &context_id,
-            &Uuid::new_v4().to_string(),
-            &agent,
-            status,
-        )
-        .await;
+        seed_agent_task(pool, &owner, &Uuid::new_v4().to_string(), &agent, status).await;
     }
     agent
 }
@@ -154,6 +158,9 @@ async fn tools_show_renders_seeded_activity() {
     let pool = pool().await;
     let ctx = ctx(&pool);
     let tool = seed_tool_fixture(&pool).await;
+    systemprompt_test_fixtures::refresh_reporting(&pool)
+        .await
+        .unwrap();
 
     analytics::execute(parse(&["tools", "show", &tool]), &ctx)
         .await
@@ -168,6 +175,9 @@ async fn tools_show_exports_csv() {
     let pool = pool().await;
     let ctx = ctx(&pool);
     let tool = seed_tool_fixture(&pool).await;
+    systemprompt_test_fixtures::refresh_reporting(&pool)
+        .await
+        .unwrap();
     let dir = tempfile::tempdir().unwrap();
     let export = dir.path().join("tools.csv");
 
@@ -197,6 +207,9 @@ async fn agents_show_renders_seeded_activity() {
     let pool = pool().await;
     let ctx = ctx(&pool);
     let agent = seed_agent_fixture(&pool).await;
+    systemprompt_test_fixtures::refresh_reporting(&pool)
+        .await
+        .unwrap();
 
     analytics::execute(parse(&["agents", "show", &agent]), &ctx)
         .await
@@ -208,6 +221,9 @@ async fn agents_show_exports_csv() {
     let pool = pool().await;
     let ctx = ctx(&pool);
     let agent = seed_agent_fixture(&pool).await;
+    systemprompt_test_fixtures::refresh_reporting(&pool)
+        .await
+        .unwrap();
     let dir = tempfile::tempdir().unwrap();
     let export = dir.path().join("agents.csv");
 

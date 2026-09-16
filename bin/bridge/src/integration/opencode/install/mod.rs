@@ -14,38 +14,23 @@
 mod merge;
 mod render;
 
-use std::io::Write;
 use std::path::Path;
 
 use serde_json::{Map, Value};
 
 use super::config;
+use crate::integration::generated_profile;
 use crate::integration::host_app::{GeneratedProfile, ProfileGenInputs, ProfileRemoval};
 
-fn unique_stem() -> String {
-    use std::sync::atomic::{AtomicU64, Ordering};
-    static SEQ: AtomicU64 = AtomicU64::new(0);
-    format!(
-        "{}-{}-{}",
-        config::now_unix(),
-        std::process::id(),
-        SEQ.fetch_add(1, Ordering::Relaxed)
-    )
-}
-
 pub(super) fn write_profile(inputs: &ProfileGenInputs) -> std::io::Result<GeneratedProfile> {
-    let dir = std::env::temp_dir().join(crate::brand::brand().working_dir_name);
-    std::fs::create_dir_all(&dir)?;
-    let (payload_uuid, profile_uuid) = config::make_uuids();
-
+    let uuids = generated_profile::profile_uuids();
     let json_text = render::managed_json_text(inputs)?;
-    let path = dir.join(format!("opencode-bridge-{}-opencode.json", unique_stem()));
-    std::fs::File::create(&path)?.write_all(json_text.as_bytes())?;
+    let path = generated_profile::write("opencode-bridge-opencode", ".json", json_text.as_bytes())?;
     Ok(GeneratedProfile {
         path: path.display().to_string(),
         bytes: json_text.len(),
-        payload_uuid,
-        profile_uuid,
+        payload_uuid: uuids.payload,
+        profile_uuid: uuids.profile,
     })
 }
 
@@ -57,11 +42,12 @@ pub(super) fn install_profile(generated_path: &str) -> std::io::Result<()> {
         upsert_auth_key(&config::auth_json_path(), &key)?;
     }
 
-    let managed = config::managed_config_path();
+    let managed = config::managed_config_path().map_err(std::io::Error::other)?;
+    generated_profile::consume(generated_path)?;
     match merge::install(&source, &managed) {
         Ok(_) => Ok(()),
         Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => {
-            let Some(fallback) = config::fallback_config_path() else {
+            let Some(fallback) = config::fallback_config_path(&managed) else {
                 return Err(e);
             };
             tracing::warn!(
@@ -78,13 +64,14 @@ pub(super) fn install_profile(generated_path: &str) -> std::io::Result<()> {
 }
 
 pub(super) fn remove_profile() -> std::io::Result<ProfileRemoval> {
-    let target = config::managed_config_path();
+    let target = config::managed_config_path().map_err(std::io::Error::other)?;
     let removed_config = merge::uninstall(&target)?;
-    let removed_fallback = match config::fallback_config_path() {
+    let removed_fallback = match config::fallback_config_path(&target) {
         Some(path) => merge::uninstall(&path)?,
         None => false,
     };
     let removed_auth = remove_auth_key(&config::auth_json_path())?;
+    super::managed_resources::remove_hook_plugin().map_err(std::io::Error::other)?;
     Ok(if removed_config || removed_fallback || removed_auth {
         ProfileRemoval::Removed {
             path: Some(target.display().to_string()),

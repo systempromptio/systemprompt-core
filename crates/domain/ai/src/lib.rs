@@ -25,8 +25,8 @@
 //! All public service signatures return [`error::Result<T>`] (an alias for
 //! `Result<T, AiError>`). [`AiError`](error::AiError) composes:
 //!
-//! - [`LlmProviderError`](systemprompt_provider_contracts::LlmProviderError)
-//!   for provider-trait failures
+//! - [`AiInferenceError`](systemprompt_models::errors::AiInferenceError) for
+//!   the provider-trait seam
 //! - [`RepositoryError`](error::RepositoryError) for persistence
 //! - common transport errors ([`reqwest::Error`], [`serde_json::Error`],
 //!   [`sqlx::Error`], [`std::io::Error`], [`regex::Error`])
@@ -34,8 +34,7 @@
 //!   stringified at the call site rather than typed
 //!
 //! The provider-trait surface ([`AiProvider`]) used over the wire bridges to
-//! the boxed [`ProviderResult`](systemprompt_models::errors::ProviderResult)
-//! in
+//! [`AiInferenceResult`](systemprompt_models::errors::AiInferenceResult) in
 //! [`services::core::ai_service`].
 //!
 //! ## Feature flags

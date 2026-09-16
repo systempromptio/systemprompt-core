@@ -9,10 +9,10 @@
 use std::collections::HashSet;
 use std::path::PathBuf;
 
+use systemprompt_config::paths::AppPaths;
 use systemprompt_content::ContentRepository;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::LocaleCode;
-use systemprompt_models::AppPaths;
 use systemprompt_template_provider::{
     ComponentContext, DynPagePrerenderer, PageContext, PagePrepareContext,
 };

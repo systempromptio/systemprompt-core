@@ -1,62 +1,80 @@
-//! `SessionRepository` — repository surface over `user_sessions`. Internal
-//! submodules: `queries` (read), `mutations` (write), `behavioral` (bot
-//! detection writes), `behavioral_queries` (bot detection reads), `types`
-//! (DTO/row structs).
+//! Session analytics orchestration through authoritative owner contracts.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 mod behavioral;
 mod behavioral_queries;
-mod mutations;
-mod queries;
+mod geo;
 mod types;
 
 use std::sync::Arc;
 
 use crate::Result;
-use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{SessionId, UserId};
 
 use crate::models::AnalyticsSession;
 
-pub(super) use types::ActiveSessionLookup;
+use systemprompt_traits::session_store::ActiveSessionLookup;
 pub use types::{
     CreateSessionParams, SessionBehavioralData, SessionMigrationResult, SessionRecord,
 };
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct SessionRepository {
-    pool: Arc<PgPool>,
     write_pool: Arc<PgPool>,
+    owner: systemprompt_traits::DynSessionStore,
+    events: systemprompt_traits::DynAnalyticsEventStore,
+    content: systemprompt_traits::DynContentCatalogStats,
 }
 
 impl SessionRepository {
-    pub fn new(db: &DbPool) -> Result<Self> {
-        let pool = db.pool_arc()?;
+    pub fn owner(&self) -> systemprompt_traits::DynSessionStore {
+        Arc::clone(&self.owner)
+    }
+
+    pub fn new(
+        db: &DbPool,
+        owner: systemprompt_traits::DynSessionStore,
+        events: systemprompt_traits::DynAnalyticsEventStore,
+        content: systemprompt_traits::DynContentCatalogStats,
+    ) -> Result<Self> {
         let write_pool = db.write_pool_arc()?;
-        Ok(Self { pool, write_pool })
+        Ok(Self {
+            write_pool,
+            owner,
+            events,
+            content,
+        })
     }
 
     pub async fn find_by_id(&self, session_id: &SessionId) -> Result<Option<AnalyticsSession>> {
-        queries::find_by_id(&self.write_pool, session_id).await
+        systemprompt_traits::SessionStore::find_by_id(&*self.owner, session_id)
+            .await
+            .map_err(crate::AnalyticsError::from)
     }
 
     pub async fn find_active_by_id(
         &self,
         session_id: &SessionId,
     ) -> Result<Option<ActiveSessionLookup>> {
-        queries::find_active_by_id(&self.write_pool, session_id).await
+        systemprompt_traits::SessionStore::find_active_by_id(&*self.owner, session_id)
+            .await
+            .map_err(crate::AnalyticsError::from)
     }
 
     pub async fn revoke_session(&self, session_id: &SessionId) -> Result<()> {
-        mutations::revoke_session(&self.write_pool, session_id).await
+        systemprompt_traits::SessionProvider::revoke_session(&*self.owner, session_id)
+            .await
+            .map_err(crate::AnalyticsError::from)
     }
 
     pub async fn revoke_all_for_user(&self, user_id: &UserId) -> Result<u64> {
-        mutations::revoke_all_for_user(&self.write_pool, user_id).await
+        systemprompt_traits::SessionStore::revoke_all_for_user(&*self.owner, user_id)
+            .await
+            .map_err(crate::AnalyticsError::from)
     }
 
     pub async fn find_by_fingerprint(
@@ -64,43 +82,67 @@ impl SessionRepository {
         fingerprint_hash: &str,
         user_id: &UserId,
     ) -> Result<Option<AnalyticsSession>> {
-        queries::find_by_fingerprint(&self.pool, fingerprint_hash, user_id).await
+        systemprompt_traits::SessionStore::find_by_fingerprint(
+            &*self.owner,
+            fingerprint_hash,
+            user_id,
+        )
+        .await
+        .map_err(crate::AnalyticsError::from)
     }
 
     pub async fn list_active_by_user(&self, user_id: &UserId) -> Result<Vec<AnalyticsSession>> {
-        queries::list_active_by_user(&self.pool, user_id).await
+        systemprompt_traits::SessionStore::list_active_by_user(&*self.owner, user_id)
+            .await
+            .map_err(crate::AnalyticsError::from)
     }
 
     pub async fn update_activity(&self, session_id: &SessionId) -> Result<()> {
-        mutations::update_activity(&self.write_pool, session_id).await
+        systemprompt_traits::SessionStore::update_activity(&*self.owner, session_id)
+            .await
+            .map_err(crate::AnalyticsError::from)
     }
 
     pub async fn increment_request_count(&self, session_id: &SessionId) -> Result<()> {
-        mutations::increment_request_count(&self.write_pool, session_id).await
+        systemprompt_traits::SessionStore::increment_request_count(&*self.owner, session_id)
+            .await
+            .map_err(crate::AnalyticsError::from)
     }
 
     pub async fn increment_task_count(&self, session_id: &SessionId) -> Result<()> {
-        mutations::increment_task_count(&self.write_pool, session_id).await
+        systemprompt_traits::SessionUsageCounters::increment_task_count(&*self.owner, session_id)
+            .await
+            .map_err(crate::AnalyticsError::from)
     }
 
     pub async fn increment_message_count(&self, session_id: &SessionId) -> Result<()> {
-        mutations::increment_message_count(&self.write_pool, session_id).await
+        systemprompt_traits::SessionUsageCounters::increment_message_count(&*self.owner, session_id)
+            .await
+            .map_err(crate::AnalyticsError::from)
     }
 
     pub async fn end_session(&self, session_id: &SessionId) -> Result<()> {
-        mutations::end_session(&self.write_pool, session_id).await
+        systemprompt_traits::SessionStore::end_session(&*self.owner, session_id)
+            .await
+            .map_err(crate::AnalyticsError::from)
     }
 
     pub async fn mark_as_scanner(&self, session_id: &SessionId) -> Result<()> {
-        mutations::mark_as_scanner(&self.write_pool, session_id).await
+        systemprompt_traits::SessionStore::mark_as_scanner(&*self.owner, session_id)
+            .await
+            .map_err(crate::AnalyticsError::from)
     }
 
     pub async fn mark_converted(&self, session_id: &SessionId) -> Result<()> {
-        mutations::mark_converted(&self.write_pool, session_id).await
+        systemprompt_traits::SessionStore::mark_converted(&*self.owner, session_id)
+            .await
+            .map_err(crate::AnalyticsError::from)
     }
 
     pub async fn mark_as_behavioral_bot(&self, session_id: &SessionId, reason: &str) -> Result<()> {
-        behavioral::mark_as_behavioral_bot(&self.write_pool, session_id, reason).await
+        systemprompt_traits::SessionStore::mark_as_behavioral_bot(&*self.owner, session_id, reason)
+            .await
+            .map_err(crate::AnalyticsError::from)
     }
 
     pub async fn check_and_mark_behavioral_bot(
@@ -108,20 +150,25 @@ impl SessionRepository {
         session_id: &SessionId,
         request_count_threshold: i32,
     ) -> Result<bool> {
-        behavioral::check_and_mark_behavioral_bot(
-            &self.write_pool,
+        systemprompt_traits::SessionStore::check_and_mark_behavioral_bot(
+            &*self.owner,
             session_id,
             request_count_threshold,
         )
         .await
+        .map_err(crate::AnalyticsError::from)
     }
 
     pub async fn cleanup_inactive(&self, inactive_hours: i32) -> Result<u64> {
-        mutations::cleanup_inactive(&self.write_pool, inactive_hours).await
+        systemprompt_traits::SessionStore::cleanup_inactive(&*self.owner, inactive_hours)
+            .await
+            .map_err(crate::AnalyticsError::from)
     }
 
     pub async fn count_inactive(&self, inactive_hours: i32) -> Result<i64> {
-        queries::count_inactive(&self.pool, inactive_hours).await
+        systemprompt_traits::SessionStore::count_inactive(&*self.owner, inactive_hours)
+            .await
+            .map_err(crate::AnalyticsError::from)
     }
 
     pub async fn backfill_session_geo(
@@ -129,11 +176,13 @@ impl SessionRepository {
         geoip_reader: Option<&crate::GeoIpReader>,
         batch_size: i64,
     ) -> Result<u64> {
-        mutations::backfill_session_geo(&self.write_pool, geoip_reader, batch_size).await
+        self.backfill_geo(geoip_reader, batch_size).await
     }
 
     pub async fn count_sessions_missing_geo(&self) -> Result<i64> {
-        mutations::count_sessions_missing_geo(&self.pool).await
+        systemprompt_traits::SessionStore::count_sessions_missing_geo(&*self.owner)
+            .await
+            .map_err(crate::AnalyticsError::from)
     }
 
     pub async fn migrate_user_sessions(
@@ -141,11 +190,19 @@ impl SessionRepository {
         old_user_id: &UserId,
         new_user_id: &UserId,
     ) -> Result<u64> {
-        mutations::migrate_user_sessions(&self.write_pool, old_user_id, new_user_id).await
+        systemprompt_traits::SessionProvider::migrate_user_sessions(
+            &*self.owner,
+            old_user_id,
+            new_user_id,
+        )
+        .await
+        .map_err(crate::AnalyticsError::from)
     }
 
     pub async fn create_session(&self, params: &CreateSessionParams<'_>) -> Result<()> {
-        mutations::create_session(&self.write_pool, params).await
+        systemprompt_traits::SessionStore::insert_session(&*self.owner, params)
+            .await
+            .map_err(crate::AnalyticsError::from)
     }
 
     pub async fn find_recent_by_fingerprint(
@@ -153,7 +210,13 @@ impl SessionRepository {
         fingerprint_hash: &str,
         max_age_seconds: i64,
     ) -> Result<Option<SessionRecord>> {
-        queries::find_recent_by_fingerprint(&self.pool, fingerprint_hash, max_age_seconds).await
+        systemprompt_traits::SessionStore::find_recent_by_fingerprint(
+            &*self.owner,
+            fingerprint_hash,
+            max_age_seconds,
+        )
+        .await
+        .map_err(crate::AnalyticsError::from)
     }
 
     pub async fn increment_ai_usage(
@@ -162,7 +225,14 @@ impl SessionRepository {
         tokens: i32,
         cost_microdollars: i64,
     ) -> Result<()> {
-        mutations::increment_ai_usage(&self.write_pool, session_id, tokens, cost_microdollars).await
+        systemprompt_traits::SessionStore::increment_ai_usage(
+            &*self.owner,
+            session_id,
+            tokens,
+            cost_microdollars,
+        )
+        .await
+        .map_err(crate::AnalyticsError::from)
     }
 
     pub async fn update_behavioral_detection(
@@ -172,98 +242,20 @@ impl SessionRepository {
         is_behavioral_bot: bool,
         reason: Option<&str>,
     ) -> Result<()> {
-        behavioral::update_behavioral_detection(
-            &self.write_pool,
+        systemprompt_traits::SessionStore::update_behavioral_detection(
+            &*self.owner,
             session_id,
             score,
             is_behavioral_bot,
             reason,
         )
         .await
+        .map_err(crate::AnalyticsError::from)
     }
+}
 
-    pub async fn count_sessions_by_fingerprint(
-        &self,
-        fingerprint_hash: &str,
-        window_hours: i64,
-    ) -> Result<i64> {
-        behavioral_queries::count_sessions_by_fingerprint(
-            &self.pool,
-            fingerprint_hash,
-            window_hours,
-        )
-        .await
-    }
-
-    pub async fn get_endpoint_sequence(&self, session_id: &SessionId) -> Result<Vec<String>> {
-        behavioral_queries::get_endpoint_sequence(&self.pool, session_id).await
-    }
-
-    pub async fn get_request_timestamps(
-        &self,
-        session_id: &SessionId,
-    ) -> Result<Vec<DateTime<Utc>>> {
-        behavioral_queries::get_request_timestamps(&self.pool, session_id).await
-    }
-
-    pub async fn get_total_content_pages(&self) -> Result<i64> {
-        queries::get_total_content_pages(&self.pool).await
-    }
-
-    pub async fn get_session_for_behavioral_analysis(
-        &self,
-        session_id: &SessionId,
-    ) -> Result<Option<SessionBehavioralData>> {
-        behavioral_queries::get_session_for_behavioral_analysis(&self.pool, session_id).await
-    }
-
-    pub async fn has_analytics_events(&self, session_id: &SessionId) -> Result<bool> {
-        behavioral_queries::has_analytics_events(&self.pool, session_id).await
-    }
-
-    pub async fn count_unique_ips_by_fingerprint(
-        &self,
-        fingerprint_hash: &str,
-        window_days: i64,
-    ) -> Result<i64> {
-        behavioral_queries::count_unique_ips_by_fingerprint(
-            &self.pool,
-            fingerprint_hash,
-            window_days,
-        )
-        .await
-    }
-
-    pub async fn count_engagement_events_by_fingerprint(
-        &self,
-        fingerprint_hash: &str,
-        window_days: i64,
-    ) -> Result<i64> {
-        behavioral_queries::count_engagement_events_by_fingerprint(
-            &self.pool,
-            fingerprint_hash,
-            window_days,
-        )
-        .await
-    }
-
-    pub async fn get_session_starts_by_fingerprint(
-        &self,
-        fingerprint_hash: &str,
-        window_days: i64,
-    ) -> Result<Vec<DateTime<Utc>>> {
-        behavioral_queries::get_session_starts_by_fingerprint(
-            &self.pool,
-            fingerprint_hash,
-            window_days,
-        )
-        .await
-    }
-
-    pub async fn get_session_velocity(
-        &self,
-        session_id: &SessionId,
-    ) -> Result<(Option<i64>, Option<i64>)> {
-        behavioral_queries::get_session_velocity(&self.pool, session_id).await
+impl std::fmt::Debug for SessionRepository {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SessionRepository").finish_non_exhaustive()
     }
 }

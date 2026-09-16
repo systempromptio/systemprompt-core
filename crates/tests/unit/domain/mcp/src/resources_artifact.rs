@@ -103,9 +103,7 @@ async fn read_artifact_renders_stored_payload_with_ui_meta() {
     repo.save(&stored(
         &id,
         payload,
-        Some(ContextId::new_unchecked(
-            "00000000-0000-4000-8000-0000000000ab",
-        )),
+        Some(ContextId::try_new("00000000-0000-4000-8000-0000000000ab").expect("valid ContextId")),
     ))
     .await
     .expect("save");

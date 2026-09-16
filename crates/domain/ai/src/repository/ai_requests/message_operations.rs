@@ -115,34 +115,4 @@ impl AiRequestRepository {
         .await
         .map_err(RepositoryError::from)
     }
-
-    pub async fn link_tool_calls_to_recent_executions(
-        &self,
-        ai_tool_call_ids: &[AiToolCallId],
-    ) -> Result<u64, RepositoryError> {
-        if ai_tool_call_ids.is_empty() {
-            return Ok(0);
-        }
-
-        let ai_tool_call_ids: Vec<String> = ai_tool_call_ids
-            .iter()
-            .map(|id| id.as_str().to_owned())
-            .collect();
-
-        let result = sqlx::query!(
-            r#"
-            UPDATE ai_request_tool_calls tc
-            SET mcp_execution_id = ex.mcp_execution_id
-            FROM mcp_tool_executions ex
-            WHERE tc.ai_tool_call_id = ex.ai_tool_call_id
-              AND tc.ai_tool_call_id = ANY($1)
-              AND tc.mcp_execution_id IS NULL
-            "#,
-            &ai_tool_call_ids
-        )
-        .execute(self.write_pool())
-        .await?;
-
-        Ok(result.rows_affected())
-    }
 }

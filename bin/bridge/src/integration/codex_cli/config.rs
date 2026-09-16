@@ -103,21 +103,6 @@ pub(super) fn now_unix() -> u64 {
         .map_or(0, |d| d.as_secs())
 }
 
-pub(super) fn make_uuids() -> (String, String) {
-    let n = now_unix();
-    let payload_uuid = format!(
-        "ce0c{:08x}-cdx0-4cdx-cdx0-{:012x}",
-        n & 0xFFFF_FFFF,
-        n ^ 0xC0DE_C0DE_C0DE_C0DEu64
-    );
-    let profile_uuid = format!(
-        "ce0d{:08x}-cdx0-4cdx-cdx0-{:012x}",
-        (n ^ 0x9876_5432) & 0xFFFF_FFFF,
-        n ^ 0xBEEF_FACE_BEEF_FACEu64
-    );
-    (payload_uuid, profile_uuid)
-}
-
 pub(super) fn redact_if_sensitive(key: &str, raw: String) -> String {
     if key == PROVIDER_HEADER_TENANT {
         let len = raw.chars().filter(|c| !c.is_whitespace()).count();

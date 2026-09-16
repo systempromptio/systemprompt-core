@@ -1,12 +1,13 @@
-//! Periodic database-cleanup job: orphan logs, old logs, expired OAuth
-//! artifacts.
+//! Periodic log-cleanup job: orphaned and aged-out `logs` rows.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use async_trait::async_trait;
-use systemprompt_database::{CleanupRepository, DbPool};
+use systemprompt_database::DbPool;
+use systemprompt_logging::LoggingRepository;
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderError, ProviderResult};
+use systemprompt_users::UserRepository;
 use tracing::{debug, info};
 
 use crate::error::SchedulerError;
@@ -23,7 +24,7 @@ impl Job for DatabaseCleanupJob {
     }
 
     fn description(&self) -> &'static str {
-        "Cleans up orphaned logs, old logs (parameter log_retention_days, default 30), and expired OAuth tokens; log deletion requires enforce"
+        "Cleans up orphaned logs and old logs (parameter log_retention_days, default 30); deletion requires enforce"
     }
 
     fn schedule(&self) -> &'static str {
@@ -43,30 +44,37 @@ impl Job for DatabaseCleanupJob {
         let log_retention_days = ctx
             .get_parameter_parsed::<i32>("log_retention_days")?
             .unwrap_or(DEFAULT_LOG_RETENTION_DAYS);
+        let cutoff = chrono::Utc::now() - chrono::Duration::days(i64::from(log_retention_days));
 
-        let write_pool = db_pool.write_pool_arc().map_err(SchedulerError::from)?;
-        let cleanup_repo = CleanupRepository::new_with_write_pool((*write_pool).clone());
-        let mut total_deleted = 0u64;
+        let logs = LoggingRepository::new(&db_pool)
+            .map_err(|e| ProviderError::Configuration(e.to_string()))?;
+        let users = UserRepository::new(&db_pool)
+            .map_err(|e| ProviderError::Configuration(e.to_string()))?;
+        let internal =
+            |e: systemprompt_logging::models::LoggingError| ProviderError::Internal(e.to_string());
+
+        // Why: `logs` and `users` have different owners, so the orphan set is
+        // computed by asking each: the log owners seen, minus the users that
+        // still exist.
+        let seen = logs.distinct_log_user_ids().await.map_err(internal)?;
+        let orphans = users
+            .missing_ids(&seen)
+            .await
+            .map_err(|e| ProviderError::Internal(e.to_string()))?;
 
         let (orphaned_logs, old_logs) = if ctx.enforce() {
-            let orphaned = cleanup_repo
-                .delete_orphaned_logs()
+            let orphaned = logs
+                .delete_logs_for_users(&orphans)
                 .await
-                .map_err(|e| ProviderError::from(SchedulerError::from(e)))?;
-            let old = cleanup_repo
-                .delete_old_logs(log_retention_days)
-                .await
-                .map_err(|e| ProviderError::from(SchedulerError::from(e)))?;
+                .map_err(internal)?;
+            let old = logs.cleanup_old_logs(cutoff).await.map_err(internal)?;
             (orphaned, old)
         } else {
-            let orphaned = cleanup_repo
-                .count_orphaned_logs()
+            let orphaned = logs
+                .count_logs_for_users(&orphans)
                 .await
-                .map_err(|e| ProviderError::from(SchedulerError::from(e)))?;
-            let old = cleanup_repo
-                .count_old_logs(log_retention_days)
-                .await
-                .map_err(|e| ProviderError::from(SchedulerError::from(e)))?;
+                .map_err(internal)?;
+            let old = logs.count_logs_before(cutoff).await.map_err(internal)?;
             info!(
                 would_delete_orphaned_logs = orphaned,
                 would_delete_old_logs = old,
@@ -75,22 +83,14 @@ impl Job for DatabaseCleanupJob {
             );
             (0, 0)
         };
-        total_deleted += orphaned_logs + old_logs;
+        let total_deleted = orphaned_logs + old_logs;
 
-        let oauth = Self::delete_expired_oauth(&cleanup_repo).await?;
-        total_deleted += oauth.total();
-
-        let duration_ms = start_time.elapsed().as_millis() as u64;
+        let duration_ms = u64::try_from(start_time.elapsed().as_millis()).unwrap_or(u64::MAX);
 
         debug!(
             total_deleted = total_deleted,
             orphaned_logs = orphaned_logs,
             old_logs = old_logs,
-            oauth_codes = oauth.codes,
-            oauth_tokens = oauth.tokens,
-            oauth_state_bindings = oauth.state_bindings,
-            oauth_jti_revocations = oauth.jti_revocations,
-            id_jag_replays = oauth.id_jag_replays,
             duration_ms = duration_ms,
             "Job completed"
         );
@@ -98,55 +98,6 @@ impl Job for DatabaseCleanupJob {
         Ok(JobResult::success()
             .with_stats(total_deleted, 0)
             .with_duration(duration_ms))
-    }
-}
-
-struct OauthCleanupCounts {
-    codes: u64,
-    tokens: u64,
-    state_bindings: u64,
-    jti_revocations: u64,
-    id_jag_replays: u64,
-}
-
-impl OauthCleanupCounts {
-    const fn total(&self) -> u64 {
-        self.codes + self.tokens + self.state_bindings + self.jti_revocations + self.id_jag_replays
-    }
-}
-
-impl DatabaseCleanupJob {
-    async fn delete_expired_oauth(
-        cleanup_repo: &CleanupRepository,
-    ) -> ProviderResult<OauthCleanupCounts> {
-        let codes = cleanup_repo
-            .delete_expired_oauth_codes()
-            .await
-            .map_err(|e| ProviderError::from(SchedulerError::from(e)))?;
-        let tokens = cleanup_repo
-            .delete_expired_oauth_tokens()
-            .await
-            .map_err(|e| ProviderError::from(SchedulerError::from(e)))?;
-        let state_bindings = cleanup_repo
-            .delete_expired_oauth_state_bindings()
-            .await
-            .map_err(|e| ProviderError::from(SchedulerError::from(e)))?;
-        let jti_revocations = cleanup_repo
-            .delete_expired_oauth_jti_revocations()
-            .await
-            .map_err(|e| ProviderError::from(SchedulerError::from(e)))?;
-        let id_jag_replays = cleanup_repo
-            .delete_expired_id_jag_replays()
-            .await
-            .map_err(|e| ProviderError::from(SchedulerError::from(e)))?;
-
-        Ok(OauthCleanupCounts {
-            codes,
-            tokens,
-            state_bindings,
-            jti_revocations,
-            id_jag_replays,
-        })
     }
 }
 

@@ -34,8 +34,12 @@ fn manifest(artifacts: Vec<ArtifactEntry>) -> SignedManifest {
         min_schema_version: MANIFEST_SCHEMA_VERSION,
         min_bridge_version: None,
         manifest_version: ManifestVersion::try_new("2026-05-01T12:00:00Z-deadbeef").unwrap(),
-        issued_at: "2026-05-01T12:00:00+00:00".into(),
-        not_before: "2026-05-01T12:00:00+00:00".into(),
+        issued_at: chrono::DateTime::parse_from_rfc3339("2026-05-01T12:00:00+00:00")
+            .expect("rfc3339")
+            .with_timezone(&chrono::Utc),
+        not_before: chrono::DateTime::parse_from_rfc3339("2026-05-01T12:00:00+00:00")
+            .expect("rfc3339")
+            .with_timezone(&chrono::Utc),
         user_id: fixture_user_id(),
         tenant_id: None,
         user: None,
@@ -116,6 +120,10 @@ static POLICY_STORE: std::sync::LazyLock<systemprompt_bridge::config::store::Pol
         )
     });
 
+static EMPTY_BEARER: std::sync::LazyLock<systemprompt_bridge::ids::BearerToken> =
+    std::sync::LazyLock::new(systemprompt_bridge::ids::BearerToken::default);
+static START_MENU: std::sync::LazyLock<systemprompt_bridge::probe_cache::StartMenuCache> =
+    std::sync::LazyLock::new(systemprompt_bridge::probe_cache::StartMenuCache::default);
 static EMPTY_REGISTRY: std::sync::LazyLock<systemprompt_bridge::mcp_registry::McpRegistry> =
     std::sync::LazyLock::new(std::collections::HashMap::new);
 
@@ -136,9 +144,10 @@ fn stub_ctx<'a>(
         org_plugins_root: root,
         plugin_mcp_servers: servers,
         client,
-        bearer: "",
+        bearer: &EMPTY_BEARER,
         loopback: &LOOPBACK,
         mcp_registry: &EMPTY_REGISTRY,
+        start_menu: &START_MENU,
     }
 }
 
@@ -154,6 +163,7 @@ fn the_emitter_resolves_the_artifacts_dir_from_the_cowork_session() {
     let session = Session::new();
     let resolved = session
         .run(resolve_artifacts_dir)
+        .expect("session resolves")
         .expect("session detected");
     assert_eq!(resolved, session.artifacts_dir());
 }
@@ -169,7 +179,11 @@ fn without_a_cowork_install_apply_and_clear_are_no_ops() {
             ("SP_BRIDGE_CONFIG", None),
         ],
         || {
-            assert!(resolve_artifacts_dir().is_none());
+            assert!(
+                resolve_artifacts_dir()
+                    .expect("no session is not an error")
+                    .is_none()
+            );
             let m = manifest(vec![artifact("pipeline", "1")]);
             let servers = std::collections::BTreeMap::new();
             let c = client();

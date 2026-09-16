@@ -8,7 +8,8 @@ use systemprompt_bridge::sync::apply::{prepare_dirs, write_mcp_servers, write_us
 use systemprompt_identifiers::UserId;
 
 fn gateway() -> systemprompt_identifiers::ValidatedUrl {
-    systemprompt_identifiers::ValidatedUrl::new("https://gw.example.com")
+    systemprompt_identifiers::ValidatedUrl::try_new("https://gw.example.com")
+        .expect("valid ValidatedUrl")
 }
 
 fn sandbox<R>(f: impl FnOnce(&Path) -> R) -> R {
@@ -110,7 +111,8 @@ fn a_root_that_is_already_a_file_reports_which_path_could_not_be_created() {
 fn a_user_fragment_is_written_as_pretty_json_that_reads_back_as_the_same_user() {
     sandbox(|home| {
         let (meta, _) = prepare_dirs(&home.join("org-plugins")).expect("prepare");
-        write_user(&meta, Some(&user())).expect("write the user fragment");
+        let receipt = write_user(&meta, Some(&user())).expect("write the user fragment");
+        assert_eq!(receipt.path(), meta.join("user.json"));
 
         let text = std::fs::read_to_string(meta.join("user.json")).expect("read back");
         assert!(text.contains('\n'), "the fragment is pretty-printed");
@@ -126,8 +128,9 @@ fn a_user_fragment_is_written_as_pretty_json_that_reads_back_as_the_same_user() 
 fn a_signed_out_sync_writes_a_null_user_fragment_rather_than_leaving_the_old_one() {
     sandbox(|home| {
         let (meta, _) = prepare_dirs(&home.join("org-plugins")).expect("prepare");
-        write_user(&meta, Some(&user())).expect("write a user");
-        write_user(&meta, None).expect("write no user");
+        let first = write_user(&meta, Some(&user())).expect("write a user");
+        let second = write_user(&meta, None).expect("write no user");
+        assert_eq!(first.path(), second.path());
 
         let text = std::fs::read_to_string(meta.join("user.json")).expect("read back");
         assert_eq!(
@@ -139,10 +142,11 @@ fn a_signed_out_sync_writes_a_null_user_fragment_rather_than_leaving_the_old_one
 }
 
 #[test]
-fn writing_the_user_fragment_into_a_directory_that_is_not_there_reports_the_path() {
+fn writing_the_user_fragment_where_a_file_blocks_the_directory_reports_the_path() {
     sandbox(|home| {
-        let absent = home.join("no-such-metadata-dir");
-        let err = write_user(&absent, Some(&user())).expect_err("the directory does not exist");
+        let blocked = home.join("not-a-dir");
+        std::fs::write(&blocked, "a file where the metadata dir should be").expect("seed");
+        let err = write_user(&blocked, Some(&user())).expect_err("the directory cannot be made");
         assert!(
             err.to_string().contains("user.json"),
             "the error must name the fragment it failed to write, got {err}"
@@ -154,7 +158,8 @@ fn writing_the_user_fragment_into_a_directory_that_is_not_there_reports_the_path
 fn an_empty_managed_server_list_writes_an_empty_json_array() {
     sandbox(|home| {
         let (meta, _) = prepare_dirs(&home.join("org-plugins")).expect("prepare");
-        write_mcp_servers(&meta, &gateway(), &[]).expect("write no servers");
+        let receipt = write_mcp_servers(&meta, &gateway(), &[]).expect("write no servers");
+        assert_eq!(receipt.path(), meta.join("mcp-servers.json"));
 
         let text = std::fs::read_to_string(meta.join("mcp-servers.json")).expect("read back");
         let parsed: serde_json::Value = serde_json::from_str(&text).expect("valid json");
@@ -172,11 +177,12 @@ fn an_empty_managed_server_list_writes_an_empty_json_array() {
 }
 
 #[test]
-fn writing_the_server_fragment_into_a_directory_that_is_not_there_reports_the_path() {
+fn writing_the_server_fragment_where_a_file_blocks_the_directory_reports_the_path() {
     sandbox(|home| {
-        let absent = home.join("no-such-metadata-dir");
+        let blocked = home.join("not-a-dir");
+        std::fs::write(&blocked, "a file where the metadata dir should be").expect("seed");
         let err =
-            write_mcp_servers(&absent, &gateway(), &[]).expect_err("the directory does not exist");
+            write_mcp_servers(&blocked, &gateway(), &[]).expect_err("the directory cannot be made");
         assert!(
             err.to_string().contains("mcp-servers.json"),
             "the error must name the fragment it failed to write, got {err}"
@@ -188,8 +194,9 @@ fn writing_the_server_fragment_into_a_directory_that_is_not_there_reports_the_pa
 fn rewriting_a_fragment_replaces_it_rather_than_appending() {
     sandbox(|home| {
         let (meta, _) = prepare_dirs(&home.join("org-plugins")).expect("prepare");
-        write_mcp_servers(&meta, &gateway(), &[]).expect("first write");
-        write_mcp_servers(&meta, &gateway(), &[]).expect("second write");
+        let first = write_mcp_servers(&meta, &gateway(), &[]).expect("first write");
+        let second = write_mcp_servers(&meta, &gateway(), &[]).expect("second write");
+        assert_eq!(first.path(), second.path());
 
         let text = std::fs::read_to_string(meta.join("mcp-servers.json")).expect("read back");
         serde_json::from_str::<serde_json::Value>(&text)

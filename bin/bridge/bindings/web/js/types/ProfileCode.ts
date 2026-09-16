@@ -3,4 +3,4 @@
 /**
  * [`ProfileState`] without its payload — the code the GUI looks up.
  */
-export type ProfileCode = "absent" | "partial" | "installed" | "stale";
+export type ProfileCode = "absent" | "partial" | "installed" | "stale" | "unverifiable";

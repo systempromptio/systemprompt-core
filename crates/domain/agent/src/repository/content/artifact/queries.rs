@@ -4,7 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::ArtifactRepository;
-use super::converters::{row_to_artifact_with_parts, rows_to_artifacts_batch};
+use super::converters::{artifact_from_row, rows_to_artifacts_batch};
 use super::parts::get_artifact_parts;
 use crate::models::ArtifactRow;
 use crate::models::a2a::Artifact;
@@ -234,5 +234,5 @@ async fn row_to_artifact(
     row: ArtifactRow,
 ) -> Result<Artifact, RepositoryError> {
     let parts = get_artifact_parts(pool, &row.artifact_id, &row.context_id).await?;
-    Ok(row_to_artifact_with_parts(row, parts))
+    Ok(artifact_from_row(row, parts))
 }

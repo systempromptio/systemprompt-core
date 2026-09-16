@@ -11,8 +11,9 @@ mod probe;
 pub use managed_resources::CodexCliSync;
 
 use crate::integration::host_app::{
-    ConfigFormat, GeneratedProfile, HostApp, HostAppSnapshot, HostConfigSchema, HostKind, ProbeEnv,
-    ProfileGenInputs, ProfileInstalled, ProfileRemoval, ProfileState,
+    ConfigFormat, Freshness, GeneratedProfile, HostApp, HostAppSnapshot, HostConfigSchema,
+    HostKind, HostProcesses, ProbeEnv, ProfileGenInputs, ProfileInstalled, ProfileProbe,
+    ProfileRemoval, ProfileState,
 };
 
 #[derive(Clone, Copy, Debug)]
@@ -35,21 +36,28 @@ impl HostApp for CodexCliHost {
 
     fn probe(&self, env: &ProbeEnv) -> HostAppSnapshot {
         let read = probe::read_config();
-        let endpoint_fresh = ProfileState::endpoint_freshness(
+        let endpoint = ProfileState::endpoint_freshness(
             read.keys.get(config::PROVIDER_BASE_URL).map(String::as_str),
             env.proxy_port,
         );
-        let profile_state =
-            ProfileState::classify(config::REQUIRED_KEYS, &read.keys, None, endpoint_fresh);
-        let processes = probe::list_codex_processes();
+        let secret = Freshness::Unchecked;
+        let profile_state = ProfileState::classify(&ProfileProbe {
+            required: config::REQUIRED_KEYS,
+            present: &read.keys,
+            read_error: read.probe_error.as_deref(),
+            secret,
+            endpoint,
+        });
+        let found = HostProcesses::from_enumeration(probe::list_codex_processes());
         HostAppSnapshot {
             host_id: self.id(),
             display_name: self.display_name(),
             profile_state,
             profile_source: read.source_path,
             profile_keys: read.keys,
-            host_running: !processes.is_empty(),
-            host_processes: processes,
+            probe_error: read.probe_error.or(found.error),
+            host_running: found.running,
+            host_processes: found.processes,
             app_installed: crate::integration::app_launch::is_installed(
                 &locator(),
                 &env.start_menu,
@@ -118,3 +126,5 @@ const fn locator() -> crate::integration::app_launch::AppLocator<'static> {
 }
 
 crate::register_host_sync!(CodexCliSync);
+
+pub(crate) use managed_resources::feedback_skill_roots;

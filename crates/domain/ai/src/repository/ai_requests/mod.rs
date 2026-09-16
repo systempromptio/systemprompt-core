@@ -6,7 +6,9 @@
 //! writes in message operations, and the transactional terminal settlement
 //! (completion or failure under an owner check) in the settlement submodule.
 //! [`InsertToolCallParams`] and [`SettlementOutcome`] are the grouped
-//! argument types for the wider write methods.
+//! argument types for the wider write methods. The repository also implements
+//! `systemprompt_traits::AiRequestTrace`, the read seam other domains use
+//! instead of querying these tables.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -17,6 +19,7 @@ mod orphans;
 mod queries;
 mod repository;
 mod settlement;
+mod trace;
 
 pub use message_operations::InsertToolCallParams;
 pub use orphans::{ORPHANED_REASON, OrphanedRequest};

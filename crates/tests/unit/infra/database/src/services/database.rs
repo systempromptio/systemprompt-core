@@ -16,8 +16,8 @@ async fn from_pools_read_only_falls_back_to_read_for_writes() {
     let db = Database::from_pools(Arc::clone(&read), None);
 
     assert!(!db.has_write_pool());
-    assert!(db.pool().is_some());
-    assert!(db.write_pool().is_some());
+    assert!(Arc::ptr_eq(&db.pool(), &read));
+    assert!(Arc::ptr_eq(&db.write_pool(), &read));
 }
 
 #[tokio::test]
@@ -28,8 +28,8 @@ async fn from_pools_reuses_distinct_write_pool() {
 
     assert!(db.has_write_pool());
 
-    let read_back = db.pool().expect("read pool");
-    let write_back = db.write_pool().expect("write pool");
+    let read_back = db.pool();
+    let write_back = db.write_pool();
     assert!(Arc::ptr_eq(&read_back, &read));
     assert!(Arc::ptr_eq(&write_back, &write));
 }

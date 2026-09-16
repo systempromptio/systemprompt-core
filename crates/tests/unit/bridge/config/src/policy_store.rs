@@ -219,9 +219,4 @@ fn unsupported_policy_backend_reports_absence_but_rejects_writes() {
             .expect("delete"),
         0
     );
-    assert!(
-        !store
-            .delete_policy_key(PolicyHive::Machine)
-            .expect("delete")
-    );
 }

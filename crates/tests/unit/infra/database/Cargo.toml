@@ -16,6 +16,7 @@ systemprompt-identifiers = { workspace = true }
 systemprompt-extension = { workspace = true }
 
 [dev-dependencies]
+pg_query = { workspace = true }
 tokio = { workspace = true }
 anyhow = { workspace = true }
 async-trait = { workspace = true }
@@ -27,3 +28,4 @@ futures-util = { workspace = true }
 tempfile = { workspace = true }
 uuid = { workspace = true }
 systemprompt-test-fixtures = { workspace = true }
+systemprompt-logging = { workspace = true }

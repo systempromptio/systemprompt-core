@@ -1,0 +1,37 @@
+CREATE TABLE IF NOT EXISTS analytics_normalized_facts (
+    owner_id TEXT NOT NULL REFERENCES users(id),
+    fact_kind TEXT NOT NULL,
+    source TEXT NOT NULL,
+    fact_id TEXT NOT NULL,
+    revision BIGINT NOT NULL CHECK (revision > 0),
+    occurred_at TIMESTAMPTZ NOT NULL,
+    deleted BOOLEAN NOT NULL,
+    fact JSONB,
+    consumer_id TEXT,
+    device_id TEXT,
+    host TEXT,
+    session_id TEXT,
+    resource_id TEXT,
+    resource_revision_id TEXT,
+    invocation_source TEXT,
+    invocation_id TEXT,
+    request_source TEXT,
+    request_id TEXT,
+    succeeded BOOLEAN,
+    currency TEXT,
+    amount_micros BIGINT,
+    input_tokens BIGINT,
+    output_tokens BIGINT,
+    latency_micros BIGINT,
+    conversation_source TEXT,
+    conversation_id TEXT,
+    assessment_status TEXT,
+    score_millionths BIGINT,
+    generation BIGINT NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY(owner_id,fact_kind,source,fact_id),
+    CHECK ((deleted AND fact IS NULL) OR (NOT deleted AND fact IS NOT NULL))
+);
+CREATE INDEX IF NOT EXISTS analytics_facts_time ON analytics_normalized_facts(owner_id,fact_kind,occurred_at) WHERE NOT deleted;
+CREATE INDEX IF NOT EXISTS analytics_facts_resource ON analytics_normalized_facts(owner_id,resource_id,occurred_at) WHERE NOT deleted;
+CREATE INDEX IF NOT EXISTS analytics_facts_request ON analytics_normalized_facts(owner_id,request_source,request_id) WHERE NOT deleted;

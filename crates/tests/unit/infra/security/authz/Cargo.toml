@@ -16,6 +16,7 @@ systemprompt-security = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-models = { workspace = true }
+systemprompt-users = { workspace = true }
 
 [dev-dependencies]
 chrono = { workspace = true }

@@ -1,8 +1,8 @@
 //! Tool-name and argument-condition rules for approval holds.
 //!
-//! Rules without conditions match by tool name. Invalid rule definitions are
-//! discarded. A valid rule whose conditions cannot be evaluated requires
-//! approval.
+//! Rules without conditions match by tool name. An invalid rule definition
+//! rejects the policy configuration (and so the boot); a valid rule whose
+//! conditions cannot be evaluated at call time requires approval.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -12,6 +12,7 @@ use serde_yaml::Value as YamlValue;
 
 use super::operators::{Op, erase_indices};
 use crate::policy::governed::GovernedScalar;
+use crate::policy::registry::PolicyConfigurationError;
 
 #[derive(Debug, Clone, Copy, Default, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -166,54 +167,45 @@ impl Condition {
 }
 
 
-pub(super) fn compile(v: &YamlValue) -> Vec<Rule> {
+pub(super) fn compile(v: &YamlValue) -> Result<Vec<Rule>, PolicyConfigurationError> {
     v.get("patterns")
         .and_then(YamlValue::as_sequence)
-        .map(|seq| seq.iter().filter_map(compile_one).collect())
-        .unwrap_or_default()
+        .map_or_else(
+            || Ok(Vec::new()),
+            |seq| seq.iter().map(compile_one).collect(),
+        )
 }
 
-fn compile_one(entry: &YamlValue) -> Option<Rule> {
+// Why: a rule that cannot be compiled must reject the config rather than be
+// dropped — dropping it silently removes the approval gate for that tool.
+fn compile_one(entry: &YamlValue) -> Result<Rule, PolicyConfigurationError> {
     match serde_yaml::from_value::<RuleSpec>(entry.clone()) {
-        Ok(RuleSpec::Bare(tool)) => Some(Rule {
+        Ok(RuleSpec::Bare(tool)) => Ok(Rule {
             tool,
             name: None,
             conditions: Vec::new(),
         }),
         Ok(RuleSpec::Conditional { tool, name, when }) => {
-            let declared = when.len();
             let conditions = when
                 .into_iter()
-                .filter_map(|spec| compile_condition(&tool, spec))
-                .collect::<Vec<_>>();
-            if declared > 0 && conditions.is_empty() {
-                tracing::error!(
-                    policy = super::ID,
-                    tool = %tool,
-                    declared,
-                    "every condition on this rule failed to compile; dropping the rule \
-                     rather than holding every call to the tool"
-                );
-                return None;
-            }
-            Some(Rule {
+                .map(|spec| compile_condition(&tool, spec))
+                .collect::<Result<Vec<_>, _>>()?;
+            Ok(Rule {
                 tool,
                 name,
                 conditions,
             })
         },
-        Err(error) => {
-            tracing::error!(
-                %error,
-                policy = super::ID,
-                "malformed require_approval patterns entry — ignoring it"
-            );
-            None
-        },
+        Err(error) => Err(PolicyConfigurationError(format!(
+            "malformed require_approval patterns entry: {error}"
+        ))),
     }
 }
 
-fn compile_condition(tool: &str, spec: ConditionSpec) -> Option<Condition> {
+fn compile_condition(
+    tool: &str,
+    spec: ConditionSpec,
+) -> Result<Condition, PolicyConfigurationError> {
     let mut literals = spec.values;
     if let Some(single) = spec.value {
         literals.insert(0, single);
@@ -230,16 +222,14 @@ fn compile_condition(tool: &str, spec: ConditionSpec) -> Option<Condition> {
         _ => !strings.is_empty(),
     };
     if !usable {
-        tracing::error!(
-            tool,
-            path = spec.path,
-            op = spec.op.label(),
-            policy = super::ID,
-            "require_approval condition has no operand its operator can use — ignoring it"
-        );
-        return None;
+        return Err(PolicyConfigurationError(format!(
+            "require_approval condition on `{tool}` at `{}` has no operand its `{}` operator can \
+             use",
+            spec.path,
+            spec.op.label()
+        )));
     }
-    Some(Condition {
+    Ok(Condition {
         path: spec.path,
         op: spec.op,
         strings,

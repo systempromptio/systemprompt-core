@@ -110,9 +110,6 @@ impl ProviderCredential {
     #[must_use]
     pub fn scope(&self) -> CredentialScope {
         match self {
-            // Why: an API key is a bare string. It names no project, no region
-            // and no principal, and inventing any of them would send a request
-            // somewhere the operator never chose.
             Self::ApiKey(_) => CredentialScope::empty(),
             Self::GoogleServiceAccount(key) => CredentialScope {
                 project: Some(key.project_id.clone()),

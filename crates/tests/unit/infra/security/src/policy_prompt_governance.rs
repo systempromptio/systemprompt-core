@@ -13,7 +13,7 @@ use systemprompt_security::authz::types::{Decision, DenyReason};
 use systemprompt_security::policy::governed::{GovernedInput, GovernedTarget, McpToolInput};
 use systemprompt_security::policy::types::{AccessScope, AgentScope, PolicyContext};
 use systemprompt_security::policy::{
-    ChainEntryResult, GovernanceConfig, GovernanceEngine, PROMPT_TARGET_NAME,
+    ChainEntryResult, GovernanceConfig, GovernanceEngine, GovernanceEngineError, PROMPT_TARGET_NAME,
 };
 
 const EXTRA_PATTERN: &str = "governance:\n  policies:\n    - id: secret_scan\n      patterns:\n        - id: demo-key\n          name: Demo Key\n          regex: 'XDEMO-[0-9]+'\n";
@@ -83,8 +83,8 @@ fn a_clean_inference_prompt_is_allowed() {
 #[test]
 fn tool_shaped_policies_still_appear_in_a_prompt_chain_trace() {
     let e = engine(
-        "governance:\n  policies:\n    - id: secret_scan\n    - id: scope_check\n    - id: \
-         tool_blocklist\n    - id: rate_limit\n",
+        "governance:\n  policies:\n    - id: secret_scan\n      mode: warn\n    - id: \
+         scope_check\n    - id: tool_blocklist\n    - id: rate_limit\n",
     );
     let (session, user, call) = (
         SessionId::generate(),
@@ -116,17 +116,29 @@ fn a_prompt_target_names_itself_in_the_audit_row() {
     assert_eq!(GovernedTarget::Prompt.as_str(), PROMPT_TARGET_NAME);
 }
 
-// Why: the rate limiter's buckets are instance-scoped, so two engines would
-// give the gateway and the MCP webhook a budget each and silently double every
-// operator limit. This is the test that pins "one engine, one budget".
 #[test]
-fn the_global_engine_is_one_shared_instance() {
-    let first: &'static GovernanceEngine = GovernanceEngine::global().unwrap();
-    let second: &'static GovernanceEngine = GovernanceEngine::global().unwrap();
-
+fn a_missing_services_governance_config_builds_the_warn_only_defaults() {
+    let root = tempfile::tempdir().unwrap();
+    let engine = GovernanceEngine::from_services_root(root.path()).expect("defaults");
     assert!(
-        std::ptr::eq(first, second),
-        "every enforcement point must observe the same engine, and so the same limiter state"
+        !engine.enforces_prompt_secrets(),
+        "the default chain is warn-only, so prompt secrets are not enforced"
+    );
+}
+
+#[test]
+fn a_rejected_services_governance_config_refuses_the_engine() {
+    let root = tempfile::tempdir().unwrap();
+    std::fs::create_dir_all(root.path().join("governance")).unwrap();
+    std::fs::write(
+        root.path().join("governance/config.yaml"),
+        "enabled: [not, a, bool]",
+    )
+    .unwrap();
+    let err = GovernanceEngine::from_services_root(root.path()).expect_err("rejected");
+    assert!(
+        matches!(err, GovernanceEngineError::ConfigRejected { .. }),
+        "{err}"
     );
 }
 

@@ -2,8 +2,8 @@ use async_trait::async_trait;
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
 use systemprompt_database::{
-    DatabaseInfo, DatabaseProvider, DatabaseResult, DatabaseTransaction, DbValue, JsonRow,
-    QueryResult, QuerySelector, RepositoryError, ToDbValue,
+    DatabaseInfo, DatabaseProvider, DatabaseResult, DatabaseTransaction, JsonRow, QueryResult,
+    QuerySelector, RepositoryError, ToDbValue,
 };
 
 #[derive(Debug, Clone)]
@@ -11,7 +11,6 @@ pub enum MockDbResponse {
     FetchAll(Result<Vec<JsonRow>, String>),
     FetchOne(Result<JsonRow, String>),
     FetchOptional(Result<Option<JsonRow>, String>),
-    FetchScalar(Result<DbValue, String>),
     Execute(Result<u64, String>),
     ExecuteRaw(Result<(), String>),
     ExecuteBatch(Result<(), String>),
@@ -25,6 +24,16 @@ pub enum MockDbResponse {
 pub struct MockDatabaseProvider {
     responses: Arc<Mutex<VecDeque<MockDbResponse>>>,
     calls: Arc<Mutex<Vec<String>>>,
+    pool: Arc<sqlx::PgPool>,
+}
+
+// Why: a lazily connected pool never opens a socket until a query runs, so
+// the mock stays DB-free while still owning a pool handle.
+fn lazy_pool() -> Arc<sqlx::PgPool> {
+    let pool = sqlx::postgres::PgPoolOptions::new()
+        .connect_lazy("postgres://mock:mock@127.0.0.1:1/mock")
+        .expect("static mock url parses");
+    Arc::new(pool)
 }
 
 impl MockDatabaseProvider {
@@ -59,6 +68,7 @@ impl Default for MockDatabaseProvider {
         Self {
             responses: Arc::new(Mutex::new(VecDeque::new())),
             calls: Arc::new(Mutex::new(Vec::new())),
+            pool: lazy_pool(),
         }
     }
 }
@@ -81,12 +91,6 @@ impl MockDatabaseProviderBuilder {
     pub fn with_fetch_optional_result(mut self, result: Result<Option<JsonRow>, String>) -> Self {
         self.responses
             .push_back(MockDbResponse::FetchOptional(result));
-        self
-    }
-
-    pub fn with_fetch_scalar_result(mut self, result: Result<DbValue, String>) -> Self {
-        self.responses
-            .push_back(MockDbResponse::FetchScalar(result));
         self
     }
 
@@ -126,6 +130,7 @@ impl MockDatabaseProviderBuilder {
         MockDatabaseProvider {
             responses: Arc::new(Mutex::new(self.responses)),
             calls: Arc::new(Mutex::new(Vec::new())),
+            pool: lazy_pool(),
         }
     }
 }
@@ -136,12 +141,8 @@ fn convert_result<T>(result: std::result::Result<T, String>) -> DatabaseResult<T
 
 #[async_trait]
 impl DatabaseProvider for MockDatabaseProvider {
-    fn get_postgres_pool(&self) -> Option<Arc<sqlx::PgPool>> {
-        None
-    }
-
-    fn is_postgres(&self) -> bool {
-        true
+    fn get_postgres_pool(&self) -> Arc<sqlx::PgPool> {
+        Arc::clone(&self.pool)
     }
 
     async fn execute(
@@ -202,19 +203,6 @@ impl DatabaseProvider for MockDatabaseProvider {
             Some(MockDbResponse::FetchOptional(result)) => convert_result(result),
             Some(_) => Ok(None),
             None => Ok(None),
-        }
-    }
-
-    async fn fetch_scalar_value(
-        &self,
-        _query: &dyn QuerySelector,
-        _params: &[&dyn ToDbValue],
-    ) -> DatabaseResult<DbValue> {
-        self.record_call("fetch_scalar_value");
-        match self.next_response() {
-            Some(MockDbResponse::FetchScalar(result)) => convert_result(result),
-            Some(_) => Ok(DbValue::NullString),
-            None => Ok(DbValue::NullString),
         }
     }
 

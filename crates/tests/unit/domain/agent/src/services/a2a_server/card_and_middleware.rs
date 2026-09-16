@@ -10,13 +10,10 @@ use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use axum::routing::get;
-use systemprompt_agent::services::a2a_server::auth::middleware::{
-    agent_oauth_middleware_wrapper, get_user_context,
-};
+use systemprompt_agent::services::a2a_server::auth::middleware::agent_oauth_middleware_wrapper;
 use systemprompt_agent::services::a2a_server::auth::{AgentOAuthConfig, AgentOAuthState};
 use systemprompt_agent::services::a2a_server::handlers::AgentHandlerState;
 use systemprompt_agent::services::a2a_server::handlers::card::handle_agent_card;
-use systemprompt_agent::services::shared::AgentSessionUser;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
 use systemprompt_models::auth::JwtAudience;
@@ -42,6 +39,7 @@ fn handler_state(pool: &DbPool) -> Arc<AgentHandlerState> {
         agent_state: make_agent_state(pool),
         ai_service: Arc::new(StubAiProvider::new()),
         stream_semaphore: Arc::new(Semaphore::new(2)),
+        active_tasks: systemprompt_agent::services::a2a_server::ActiveTasks::default(),
     })
 }
 
@@ -138,19 +136,4 @@ async fn middleware_admits_valid_jwt_and_injects_context() {
     assert_eq!(response.status(), StatusCode::OK);
     let body = body_string(response).await;
     assert_eq!(body, user.to_string());
-}
-
-#[test]
-fn get_user_context_reads_request_extension() {
-    let mut request = Request::get("/x").body(Body::empty()).expect("request");
-    assert!(get_user_context(&request).is_none());
-
-    request.extensions_mut().insert(AgentSessionUser {
-        id: UserId::new("user_ext"),
-        username: "ext".to_owned(),
-        user_type: "user".to_owned(),
-        permissions: vec!["read".to_owned()],
-    });
-    let found = get_user_context(&request).expect("extension present");
-    assert_eq!(found.id.as_str(), "user_ext");
 }

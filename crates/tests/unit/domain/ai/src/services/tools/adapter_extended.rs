@@ -7,9 +7,7 @@ use systemprompt_ai::services::tools::{
 };
 use systemprompt_identifiers::{AiToolCallId, McpServerId};
 use systemprompt_models::ai::ToolModelConfig;
-use systemprompt_traits::{
-    ToolCallRequest, ToolCallResult as TraitToolCallResult, ToolContent, ToolDefinition,
-};
+use systemprompt_traits::{ToolCallRequest, ToolCallResult as TraitToolCallResult, ToolContent};
 
 mod request_to_tool_call_tests {
     use super::*;
@@ -105,17 +103,17 @@ mod mcp_tool_with_model_config_tests {
             description: Some("A tool with config".to_string()),
             input_schema: None,
             output_schema: None,
-            service_id: McpServerId::new("config-service"),
+            service_id: McpServerId::try_new("config-service").expect("valid McpServerId"),
             terminal_on_success: false,
             model_config: Some(ToolModelConfig::new("anthropic", "claude-3")),
         };
 
         let definition = mcp_tool_to_definition(&mcp_tool);
 
-        assert!(definition.model_config.is_some());
-        let config_val = definition.model_config.unwrap();
-        assert_eq!(config_val["provider"], "anthropic");
-        assert_eq!(config_val["model"], "claude-3");
+        assert_eq!(
+            definition.model_config,
+            Some(ToolModelConfig::new("anthropic", "claude-3"))
+        );
     }
 
     #[test]
@@ -125,7 +123,7 @@ mod mcp_tool_with_model_config_tests {
             description: None,
             input_schema: None,
             output_schema: None,
-            service_id: McpServerId::new("svc"),
+            service_id: McpServerId::try_new("svc").expect("valid McpServerId"),
             terminal_on_success: true,
             model_config: Some(
                 ToolModelConfig::new("openai", "gpt-4").with_max_output_tokens(2048),
@@ -141,16 +139,6 @@ mod mcp_tool_with_model_config_tests {
         assert_eq!(config.provider, Some("openai".to_string()));
         assert_eq!(config.model, Some("gpt-4".to_string()));
         assert_eq!(config.max_output_tokens, Some(2048));
-    }
-
-    #[test]
-    fn definition_with_invalid_model_config_returns_none() {
-        let definition =
-            ToolDefinition::new("test", "svc").with_model_config(json!("not_an_object"));
-
-        let mcp_tool = definition_to_mcp_tool(&definition);
-
-        assert!(mcp_tool.model_config.is_none());
     }
 }
 

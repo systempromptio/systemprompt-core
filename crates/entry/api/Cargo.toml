@@ -15,6 +15,7 @@ readme = "README.md"
 include = ["src/**/*", "Cargo.toml", "README.md", "CHANGELOG.md"]
 
 [dependencies]
+schemars = { workspace = true }
 systemprompt-evaluation = { workspace = true }
 # Core runtime
 tokio = { workspace = true, features = ["fs", "process", "signal"] }
@@ -67,6 +68,7 @@ metrics-exporter-prometheus = { workspace = true }
 
 # systemprompt.io crates
 systemprompt-models = { workspace = true, features = ["web"] }
+systemprompt-client = { workspace = true }
 systemprompt-config = { workspace = true }
 systemprompt-loader = { workspace = true }
 systemprompt-identifiers = { workspace = true }

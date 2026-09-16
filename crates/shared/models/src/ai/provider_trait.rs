@@ -1,5 +1,11 @@
 //! `AiProvider` trait: the dyn-dispatched inference provider contract.
 //!
+//! Every method returns
+//! [`AiInferenceResult`](crate::errors::AiInferenceResult); the implementing
+//! provider maps its own error hierarchy onto
+//! [`AiInferenceError`](crate::errors::AiInferenceError) before crossing the
+//! seam.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -9,7 +15,7 @@ use std::collections::HashMap;
 use std::pin::Pin;
 use std::sync::Arc;
 
-use crate::errors::ProviderResult as Result;
+use crate::errors::AiInferenceResult as Result;
 
 use super::execution_plan::PlanningResult;
 use super::request::{AiMessage, AiRequest};
@@ -36,6 +42,7 @@ pub struct GoogleSearchParams<'a> {
     pub max_output_tokens: u32,
     pub model: Option<&'a str>,
     pub urls: Option<Vec<String>>,
+    // JSON: JSON Schema document for structured output.
     pub response_schema: Option<serde_json::Value>,
 }
 

@@ -26,7 +26,7 @@ pub(super) fn bridge_prefs_path() -> String {
 }
 
 fn validate_gateway(gateway: &str) -> Result<(), MdmError> {
-    let url = url::Url::parse(gateway).map_err(|e| MdmError::InvalidConfig(e.to_string()))?;
+    let url = url::Url::parse(gateway)?;
     let loopback = match url.host() {
         Some(url::Host::Domain(host)) => host.eq_ignore_ascii_case("localhost"),
         Some(url::Host::Ipv4(ip)) => ip.is_loopback(),
@@ -67,7 +67,7 @@ fn stage_writes(writes: &[StagedWrite<'_>]) -> Result<(String, bool), MdmError> 
         changed = true;
         let parent = target
             .parent()
-            .ok_or_else(|| MdmError::InvalidConfig("policy path has no parent".to_owned()))?;
+            .ok_or(MdmError::Resolve("policy path parent"))?;
         script.push_str(&format!(
             "mkdir -p {}\n/usr/bin/install -m 0644 {} {}\n",
             quote(&parent.to_string_lossy()),
@@ -110,11 +110,13 @@ pub(crate) fn apply(
             }
         })?;
     }
-    let user = std::env::var("USER").map_err(|e| MdmError::InvalidConfig(format!("USER: {e}")))?;
+    let user = std::env::var("USER").map_err(|e| MdmError::ManagedPrefsUser {
+        detail: e.to_string(),
+    })?;
     if user.is_empty() || user.contains('/') || user == "." || user == ".." {
-        return Err(MdmError::InvalidConfig(
-            "USER cannot identify a managed-preferences directory".to_owned(),
-        ));
+        return Err(MdmError::ManagedPrefsUser {
+            detail: format!("{user:?}"),
+        });
     }
     let dest_system = MANAGED_PREFS_PATH;
     let dest_user =
@@ -239,7 +241,10 @@ pub(crate) fn apply_mobileconfig(
         }
     })?;
 
-    let opened = Command::new("open").arg("-g").arg(&out_path).status();
+    let opened = Command::new("/usr/bin/open")
+        .arg("-g")
+        .arg(&out_path)
+        .status();
 
     let mut summary = Vec::with_capacity(5);
     summary.push(format!("wrote mobileconfig: {}", out_path.display()));

@@ -12,6 +12,8 @@ mod client;
 #[cfg(test)]
 mod error;
 #[cfg(test)]
+mod guarded;
+#[cfg(test)]
 mod http;
 #[cfg(test)]
 mod remote_cli;

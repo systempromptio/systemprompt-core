@@ -6,7 +6,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use anyhow::{Result, anyhow};
+use anyhow::{Context, Result, anyhow};
 use systemprompt_cloud::{
     CloudApiClient, CloudCredentials, CloudPath, OAuthTemplates, TenantInfo, TenantStore,
     UserMeResponse, get_cloud_paths, run_oauth_flow,
@@ -73,7 +73,8 @@ pub async fn complete_login(api_url: &str, token: String) -> Result<CommandOutpu
     let creds = CloudCredentials::new(
         systemprompt_identifiers::CloudAuthToken::new(token),
         api_url.to_owned(),
-        systemprompt_identifiers::Email::new(response.user.email.clone()),
+        systemprompt_identifiers::Email::try_new(response.user.email.clone())
+            .context("Cloud account email is not a valid address")?,
     );
 
     let save_path = cloud_paths.resolve(CloudPath::Credentials);

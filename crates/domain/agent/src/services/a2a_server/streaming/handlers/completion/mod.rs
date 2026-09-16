@@ -1,9 +1,9 @@
 //! Terminal stream-event handlers: task completion and failure.
 //!
 //! [`handle_complete`] persists the finished task and broadcasts the success
-//! events; [`handle_error`] records the failure. [`send_a2a_status_event`] is
-//! the shared helper for emitting an A2A `TaskStatusUpdate` over the SSE
-//! channel.
+//! events; [`record_failure`] / [`announce_failure`] and
+//! [`announce_cancelled`] cover the failure and cancellation paths. Every
+//! terminal frame goes through the event loop's single status emitter.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -15,28 +15,9 @@ mod success;
 pub(in crate::services::a2a_server::streaming) use complete::{
     HandleCompleteParams, handle_complete,
 };
-pub(in crate::services::a2a_server::streaming) use error::{HandleErrorParams, handle_error};
 
-use axum::response::sse::Event;
-use systemprompt_identifiers::{ContextId, TaskId};
-use tokio::sync::mpsc::Sender;
+pub(in crate::services::a2a_server::streaming) use error::{
+    AnnounceFailureParams, announce_cancelled, announce_failure, record_failure,
+};
 
-use crate::models::a2a::TaskStatus;
-use crate::models::a2a::protocol::TaskStatusUpdateEvent;
-
-pub(super) fn send_a2a_status_event(
-    tx: &Sender<Event>,
-    task_id: &TaskId,
-    context_id: &ContextId,
-    status: TaskStatus,
-    is_final: bool,
-) {
-    let event = TaskStatusUpdateEvent::new(task_id.clone(), context_id.clone(), status, is_final);
-    let jsonrpc = event.to_jsonrpc_response();
-    if tx
-        .try_send(Event::default().data(jsonrpc.to_string()))
-        .is_err()
-    {
-        tracing::trace!("Failed to send status event, channel closed");
-    }
-}
+pub(super) use super::super::event_loop_lifecycle::send_a2a_status_event;

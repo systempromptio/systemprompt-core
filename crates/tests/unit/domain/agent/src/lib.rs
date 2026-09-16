@@ -24,9 +24,10 @@ pub(crate) static SKILLS_FIXTURE_LOCK: tokio::sync::RwLock<()> = tokio::sync::Rw
 pub(crate) fn session_usage(
     db: &systemprompt_database::DbPool,
 ) -> systemprompt_traits::DynSessionUsageCounters {
-    std::sync::Arc::new(
-        systemprompt_analytics::SessionRepository::new(db).expect("session repository"),
-    )
+    systemprompt_test_fixtures::fixture_analytics_repositories(db)
+        .expect("session repository")
+        .sessions
+        .owner()
 }
 
 #[cfg(test)]

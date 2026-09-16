@@ -232,10 +232,6 @@ impl SecretsBootstrap {
         SECRETS.get().ok_or(SecretsBootstrapError::NotInitialized)
     }
 
-    pub fn require() -> Result<&'static Secrets, SecretsBootstrapError> {
-        Self::get()
-    }
-
     #[must_use]
     pub fn is_initialized() -> bool {
         SECRETS.get().is_some()

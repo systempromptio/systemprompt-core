@@ -87,7 +87,7 @@ fn artifact_part_row(
         text_content: (kind == "text").then(|| "hello".to_owned()),
         file_name: (kind == "file").then(|| "f.txt".to_owned()),
         file_mime_type: (kind == "file").then(|| "text/plain".to_owned()),
-        file_uri: None,
+        file_uri: (kind == "file").then(|| "https://files.example.test/f.txt".to_owned()),
         file_bytes: None,
         data_content: (kind == "data").then(|| serde_json::json!({"k": "v"})),
         metadata: None,
@@ -96,9 +96,9 @@ fn artifact_part_row(
 
 #[test]
 fn build_execution_steps_none_and_empty_inputs_yield_none() {
-    assert!(build_execution_steps(None).is_none());
+    assert!(build_execution_steps(None).expect("ok").is_none());
     let empty: Vec<&ExecutionStepBatchRow> = Vec::new();
-    assert!(build_execution_steps(Some(&empty)).is_none());
+    assert!(build_execution_steps(Some(&empty)).expect("ok").is_none());
 }
 
 #[test]
@@ -111,7 +111,9 @@ fn build_execution_steps_parses_valid_rows() {
     );
     let rows = vec![&row];
 
-    let steps = build_execution_steps(Some(&rows)).expect("steps");
+    let steps = build_execution_steps(Some(&rows))
+        .expect("ok")
+        .expect("steps");
     assert_eq!(steps.len(), 1);
     assert_eq!(steps[0].status, StepStatus::Completed);
     assert_eq!(steps[0].content, StepContent::Completion);
@@ -119,48 +121,39 @@ fn build_execution_steps_parses_valid_rows() {
 }
 
 #[test]
-fn build_execution_steps_skips_invalid_rows() {
+fn build_execution_steps_rejects_a_malformed_row_instead_of_skipping_it() {
     let task_id = TaskId::generate();
     let bad_status = step_row(
         &task_id,
         "nonsense",
         serde_json::json!({"type": "completion"}),
     );
-    let bad_content = step_row(
-        &task_id,
-        "pending",
-        serde_json::json!({"type": "unknown_kind"}),
-    );
     let good = step_row(
         &task_id,
         "in_progress",
         serde_json::json!({"type": "understanding"}),
     );
-    let rows = vec![&bad_status, &bad_content, &good];
+    let rows = vec![&good, &bad_status];
 
-    let steps = build_execution_steps(Some(&rows)).expect("steps");
-    assert_eq!(steps.len(), 1);
-    assert_eq!(steps[0].status, StepStatus::InProgress);
-}
+    let err = build_execution_steps(Some(&rows)).expect_err("a malformed status row is an error");
+    assert!(err.to_string().contains("invalid status"), "{err}");
 
-#[test]
-fn build_execution_steps_all_invalid_yields_none() {
-    let task_id = TaskId::generate();
-    let bad = step_row(
+    let bad_content = step_row(
         &task_id,
-        "nonsense",
-        serde_json::json!({"type": "completion"}),
+        "pending",
+        serde_json::json!({"type": "unknown_kind"}),
     );
-    let rows = vec![&bad];
-    assert!(build_execution_steps(Some(&rows)).is_none());
+    let rows = vec![&bad_content];
+    let err = build_execution_steps(Some(&rows)).expect_err("malformed content is an error");
+    assert!(err.to_string().contains("invalid content"), "{err}");
 }
 
 #[test]
 fn build_messages_none_and_empty_inputs_yield_none() {
     let parts: HashMap<MessageId, Vec<&MessagePart>> = HashMap::new();
-    assert!(build_messages(None, &parts).is_none());
+    assert!(build_messages(None, &parts).expect("ok").is_none());
     let empty: Vec<&TaskMessage> = Vec::new();
-    assert!(build_messages(Some(&empty), &parts).is_none());
+    assert!(build_messages(Some(&empty), &parts).expect("ok").is_none());
 }
 
 #[test]
@@ -173,7 +166,9 @@ fn build_messages_maps_roles_and_reference_task_ids() {
     let rows = vec![&user_row, &agent_row];
     let parts: HashMap<MessageId, Vec<&MessagePart>> = HashMap::new();
 
-    let messages = build_messages(Some(&rows), &parts).expect("messages");
+    let messages = build_messages(Some(&rows), &parts)
+        .expect("ok")
+        .expect("messages");
     assert_eq!(messages.len(), 2);
     assert_eq!(messages[0].role, MessageRole::User);
     assert_eq!(messages[1].role, MessageRole::Agent);
@@ -192,7 +187,9 @@ fn build_messages_merges_client_message_id_into_metadata() {
     let rows = vec![&row];
     let parts: HashMap<MessageId, Vec<&MessagePart>> = HashMap::new();
 
-    let messages = build_messages(Some(&rows), &parts).expect("messages");
+    let messages = build_messages(Some(&rows), &parts)
+        .expect("ok")
+        .expect("messages");
     let metadata = messages[0].metadata.as_ref().expect("metadata");
     assert_eq!(metadata["clientMessageId"], "cmid-1");
     assert_eq!(metadata["existing"], true);
@@ -201,9 +198,9 @@ fn build_messages_merges_client_message_id_into_metadata() {
 #[test]
 fn build_artifacts_none_and_empty_inputs_yield_none() {
     let parts: HashMap<ArtifactId, Vec<&ArtifactPartRow>> = HashMap::new();
-    assert!(build_artifacts(None, &parts).is_none());
+    assert!(build_artifacts(None, &parts).expect("ok").is_none());
     let empty: Vec<&ArtifactRow> = Vec::new();
-    assert!(build_artifacts(Some(&empty), &parts).is_none());
+    assert!(build_artifacts(Some(&empty), &parts).expect("ok").is_none());
 }
 
 #[test]
@@ -214,15 +211,16 @@ fn build_artifacts_assembles_metadata_and_parts() {
     let text_part = artifact_part_row(&row.artifact_id, &ctx, "text", 1);
     let file_part = artifact_part_row(&row.artifact_id, &ctx, "file", 2);
     let data_part = artifact_part_row(&row.artifact_id, &ctx, "data", 3);
-    let unknown_part = artifact_part_row(&row.artifact_id, &ctx, "mystery", 4);
     let mut parts: HashMap<ArtifactId, Vec<&ArtifactPartRow>> = HashMap::new();
     parts.insert(
         row.artifact_id.clone(),
-        vec![&text_part, &file_part, &data_part, &unknown_part],
+        vec![&text_part, &file_part, &data_part],
     );
     let rows = vec![&row];
 
-    let artifacts = build_artifacts(Some(&rows), &parts).expect("artifacts");
+    let artifacts = build_artifacts(Some(&rows), &parts)
+        .expect("ok")
+        .expect("artifacts");
     assert_eq!(artifacts.len(), 1);
     let artifact = &artifacts[0];
     assert_eq!(artifact.title.as_deref(), Some("report"));
@@ -237,7 +235,38 @@ fn build_artifacts_assembles_metadata_and_parts() {
     assert!(matches!(artifact.parts[0], Part::Text(_)));
     assert!(matches!(artifact.parts[1], Part::File(_)));
     assert!(matches!(artifact.parts[2], Part::Data(_)));
-    assert_eq!(artifact.extensions.len(), 1);
+    assert!(artifact.extensions.is_empty());
+}
+
+#[test]
+fn build_artifacts_rejects_an_unknown_part_kind() {
+    let task_id = TaskId::generate();
+    let ctx = ContextId::generate();
+    let row = artifact_row(&task_id, &ctx);
+    let unknown_part = artifact_part_row(&row.artifact_id, &ctx, "mystery", 4);
+    let mut parts: HashMap<ArtifactId, Vec<&ArtifactPartRow>> = HashMap::new();
+    parts.insert(row.artifact_id.clone(), vec![&unknown_part]);
+    let rows = vec![&row];
+
+    let err = build_artifacts(Some(&rows), &parts).expect_err("unknown part kind is malformed");
+    assert!(err.to_string().contains("Unknown part kind"), "{err}");
+}
+
+#[test]
+fn build_artifacts_reads_stored_extensions_from_metadata() {
+    let task_id = TaskId::generate();
+    let ctx = ContextId::generate();
+    let mut row = artifact_row(&task_id, &ctx);
+    row.metadata = Some(serde_json::json!({
+        "artifact_extensions": [systemprompt_models::a2a::ARTIFACT_RENDERING_URI]
+    }));
+    let parts: HashMap<ArtifactId, Vec<&ArtifactPartRow>> = HashMap::new();
+    let rows = vec![&row];
+
+    let artifacts = build_artifacts(Some(&rows), &parts)
+        .expect("ok")
+        .expect("artifacts");
+    assert_eq!(artifacts[0].extensions.len(), 1);
 }
 
 #[test]
@@ -249,9 +278,11 @@ fn build_artifacts_without_parts_or_metadata_uses_defaults() {
     let parts: HashMap<ArtifactId, Vec<&ArtifactPartRow>> = HashMap::new();
     let rows = vec![&row];
 
-    let artifacts = build_artifacts(Some(&rows), &parts).expect("artifacts");
+    let artifacts = build_artifacts(Some(&rows), &parts)
+        .expect("ok")
+        .expect("artifacts");
     let artifact = &artifacts[0];
     assert!(artifact.parts.is_empty());
     assert!(artifact.metadata.rendering_hints.is_none());
-    assert_eq!(artifact.extensions.len(), 1);
+    assert!(artifact.extensions.is_empty());
 }

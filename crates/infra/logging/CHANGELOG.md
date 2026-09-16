@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.53.0] - 2026-09-15
+
+### Breaking
+
+- **Breaking:** `LoggingRepository::delete_orphaned_logs`/`count_orphaned_logs` are replaced by `distinct_log_user_ids`, `delete_logs_for_users` and `count_logs_for_users`; the orphan set is computed by the caller against the users domain, so this crate no longer reads `users`.
+- **Breaking:** the `trace` module (`TraceQueryService`, `AiTraceService` and their result types) moves to `systemprompt_runtime::trace`; it compiled SQL over agent, AI and MCP tables that this crate does not own. `LoggingError::TaskNotFound` is no longer raised here.
+- **Breaking:** `LoggingRepository` persists only: `with_terminal`/`with_database` are removed and `log` always writes the `logs` row. The stdout echo that bypassed `tracing` is gone.
+
+### Added
+
+- `LoggingRepository::delete_orphaned_logs`/`count_orphaned_logs` (moved from the database crate's `CleanupRepository`).
+- `LoggingRepository` implements `systemprompt_traits::AnalyticsEventStore` (analytics-event ingestion and behavioural event lookups moved from the analytics domain); the extension installs `reporting_capture.sql` / `reporting_privacy.sql` (migration 006) for the `logs` and `analytics_events` reporting sources.
+
+### Changed
+
+- A failed write to a CLI display sink (stdout/stderr) is reported through `tracing::warn!` with the sink name; a closed downstream pipe is ignored.
+
 ## [0.48.0] - 2026-09-08
 
 ### Changed

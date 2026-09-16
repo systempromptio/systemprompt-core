@@ -30,8 +30,8 @@ impl NetworkService {
         port::prepare_port(port, service_name).await
     }
 
-    pub fn is_port_responsive(port: u16) -> bool {
-        port::is_port_responsive(port)
+    pub async fn is_port_responsive(port: u16) -> bool {
+        port::is_port_responsive(port).await
     }
 
     pub async fn wait_for_port_release(&self, port: u16) -> McpDomainResult<()> {
@@ -45,10 +45,6 @@ impl NetworkService {
         max_attempts: u32,
     ) -> McpDomainResult<()> {
         port::wait_for_port_release_with_retry(port, service_name, max_attempts).await
-    }
-
-    pub const fn cleanup_port_resources(port: u16) {
-        port::cleanup_port_resources(port);
     }
 
     pub fn create_router() -> axum::Router {

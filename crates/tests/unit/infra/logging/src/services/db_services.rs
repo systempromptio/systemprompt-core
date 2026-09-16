@@ -48,11 +48,11 @@ async fn database_log_service_log_get_recent_delete() {
     let recent = svc.list_recent(50).await.unwrap();
     assert!(recent.iter().any(|e| e.id.as_str() == id.as_str()));
 
-    let fetched = svc.find_by_id(id.as_str()).await.unwrap().expect("row");
+    let fetched = svc.find_by_id(&id).await.unwrap().expect("row");
     assert_eq!(fetched.module, "svc-test-mod");
     assert_eq!(fetched.message, "svc-msg");
 
-    let removed = svc.delete(id.as_str()).await.unwrap();
+    let removed = svc.delete(&id).await.unwrap();
     assert!(removed);
 
     let filter = LogFilter::new(1, 10).with_module("svc-test-mod");

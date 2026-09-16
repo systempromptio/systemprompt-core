@@ -5,10 +5,10 @@
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 
+use systemprompt_config::paths::AppPaths;
 use systemprompt_mcp::services::process::spawner::{
     build_server, open_server_log, serialize_server_configs, spawn_server, verify_binary,
 };
-use systemprompt_models::AppPaths;
 use systemprompt_test_fixtures::{TestBootstrap, ensure_test_bootstrap};
 
 use crate::harness::internal_mcp_config;

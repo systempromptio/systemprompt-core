@@ -28,7 +28,7 @@ pub async fn list_content_by_source_handler(
 
     let source_id = SourceId::new(source_id);
     match content_service
-        .list_by_source(&source_id, &LocaleCode::new("en"))
+        .list_by_source(&source_id, &LocaleCode::english())
         .await
     {
         Ok(content) => Json(content).into_response(),
@@ -57,7 +57,7 @@ pub async fn get_content_handler(
 
     let source_id_typed = SourceId::new(source_id.clone());
     match content_service
-        .get_by_source_and_slug(&source_id_typed, &slug, &LocaleCode::new("en"))
+        .get_by_source_and_slug(&source_id_typed, &slug, &LocaleCode::english())
         .await
     {
         Ok(Some(content)) => {
@@ -119,7 +119,7 @@ pub async fn get_content_markdown_handler(
     let source_id = SourceId::new(source_id);
 
     match content_service
-        .get_by_source_and_slug(&source_id, slug, &LocaleCode::new("en"))
+        .get_by_source_and_slug(&source_id, slug, &LocaleCode::english())
         .await
     {
         Ok(Some(content)) => content_to_markdown_response(&content).into_response(),

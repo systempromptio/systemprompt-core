@@ -5,8 +5,7 @@
 
 use super::db_helper::pool_or_skip;
 use systemprompt_database::{
-    DatabaseProvider, DatabaseProviderExt, DatabaseResult, DbValue, FromDatabaseRow,
-    PostgresProvider, RepositoryError,
+    DatabaseProvider, DatabaseProviderExt, DatabaseResult, FromDatabaseRow, PostgresProvider,
 };
 use systemprompt_test_fixtures::fixture_database_url;
 
@@ -99,49 +98,6 @@ async fn fetch_one_all_and_optional_round_trip_rows() {
 }
 
 #[tokio::test]
-async fn fetch_scalar_value_maps_json_types_to_db_values() {
-    let Some(provider) = provider_or_skip().await else {
-        return;
-    };
-
-    let s = provider
-        .fetch_scalar_value(&"SELECT 'hello'::text", &[])
-        .await
-        .expect("string scalar");
-    assert!(matches!(s, DbValue::String(v) if v == "hello"));
-
-    let i = provider
-        .fetch_scalar_value(&"SELECT 42::bigint", &[])
-        .await
-        .expect("int scalar");
-    assert!(matches!(i, DbValue::Int(42)));
-
-    let f = provider
-        .fetch_scalar_value(&"SELECT 1.5::float8", &[])
-        .await
-        .expect("float scalar");
-    assert!(matches!(f, DbValue::Float(v) if (v - 1.5).abs() < f64::EPSILON));
-
-    let b = provider
-        .fetch_scalar_value(&"SELECT true", &[])
-        .await
-        .expect("bool scalar");
-    assert!(matches!(b, DbValue::Bool(true)));
-
-    let n = provider
-        .fetch_scalar_value(&"SELECT NULL::text", &[])
-        .await
-        .expect("null scalar");
-    assert!(matches!(n, DbValue::NullString));
-
-    let err = provider
-        .fetch_scalar_value(&"SELECT ARRAY['a','b']", &[])
-        .await
-        .expect_err("array scalar unsupported");
-    assert!(matches!(err, RepositoryError::InvalidState { .. }));
-}
-
-#[tokio::test]
 async fn query_raw_and_query_raw_with_report_columns_and_counts() {
     let Some(provider) = provider_or_skip().await else {
         return;
@@ -184,10 +140,10 @@ async fn execute_batch_runs_each_statement() {
     provider.execute_batch(&batch).await.expect("batch");
 
     let count = provider
-        .fetch_scalar_value(&format!("SELECT COUNT(*) FROM \"{table}\""), &[])
+        .fetch_one(&format!("SELECT COUNT(*) AS n FROM \"{table}\""), &[])
         .await
         .expect("count");
-    assert!(matches!(count, DbValue::Int(2)));
+    assert_eq!(count["n"], serde_json::json!(2));
 
     drop_table(&provider, &table).await;
 }
@@ -198,8 +154,7 @@ async fn test_connection_succeeds_and_pool_accessors_expose_postgres() {
         return;
     };
     provider.test_connection().await.expect("connection probe");
-    assert!(provider.is_postgres());
-    assert!(provider.get_postgres_pool().is_some());
+    assert!(!provider.get_postgres_pool().is_closed());
 }
 
 #[tokio::test]
@@ -232,10 +187,10 @@ async fn transaction_commit_persists_and_rollback_discards() {
     tx.rollback().await.expect("rollback");
 
     let count = provider
-        .fetch_scalar_value(&count_sql, &[])
+        .fetch_one(&count_sql, &[])
         .await
         .expect("count after rollback");
-    assert!(matches!(count, DbValue::Int(1)));
+    assert_eq!(count["count"], serde_json::json!(1));
 
     drop_table(&provider, &table).await;
 }

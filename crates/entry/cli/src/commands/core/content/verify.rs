@@ -45,7 +45,7 @@ pub async fn execute(args: VerifyArgs, ctx: &CommandContext) -> Result<CommandOu
             .as_ref()
             .ok_or_else(|| anyhow!("--source required when using slug"))?;
         let source = SourceId::new(source_id.clone());
-        repo.get_by_source_and_slug(&source, &args.identifier, &LocaleCode::new("en"))
+        repo.get_by_source_and_slug(&source, &args.identifier, &LocaleCode::english())
             .await?
             .ok_or_else(|| {
                 anyhow!(

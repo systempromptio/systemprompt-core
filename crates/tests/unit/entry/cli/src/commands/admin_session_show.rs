@@ -11,7 +11,7 @@ use systemprompt_models::auth::UserType;
 fn session(profile: &str) -> CliSession {
     CliSession::builder(
         SessionBinding::new(
-            ProfileName::new(profile),
+            ProfileName::try_new(profile).expect("valid ProfileName"),
             "http://localhost:8080".to_owned(),
         ),
         SessionToken::new("tok"),
@@ -19,7 +19,7 @@ fn session(profile: &str) -> CliSession {
         ContextId::generate(),
         SessionIdentity::new(
             UserId::new("user-session-show"),
-            Email::new("a@b.test"),
+            Email::try_new("a@b.test").expect("valid Email"),
             UserType::Admin,
         ),
     )

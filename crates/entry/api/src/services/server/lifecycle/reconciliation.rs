@@ -11,7 +11,7 @@
 use anyhow::Result;
 use std::sync::Arc;
 use systemprompt_runtime::AppContext;
-use systemprompt_traits::{OptionalStartupEventExt, Phase, StartupEventSender};
+use systemprompt_traits::{Phase, StartupEventExt, StartupEventSender};
 
 struct ReconcileSuccessParams<'a> {
     running_count: usize,
@@ -91,7 +91,7 @@ async fn handle_reconcile_success(params: ReconcileSuccessParams<'_>) -> Result<
 
 #[expect(
     clippy::collection_is_never_read,
-    reason = "`events` is consumed by `OptionalStartupEventExt` trait methods \
+    reason = "`events` is consumed by `StartupEventExt` trait methods \
               (`events.error(...)`); clippy's `collection_is_never_read` heuristic does not \
               recognise those calls as reads of the `Option`"
 )]
@@ -131,7 +131,7 @@ pub async fn handle_missing_servers(
 
 #[expect(
     clippy::collection_is_never_read,
-    reason = "`events` is consumed by OptionalStartupEventExt trait methods that clippy does not \
+    reason = "`events` is consumed by StartupEventExt trait methods that clippy does not \
               recognise as reads"
 )]
 pub async fn verify_database_registration(
@@ -186,7 +186,7 @@ pub async fn verify_database_registration(
 
 #[expect(
     clippy::collection_is_never_read,
-    reason = "`events` is consumed by OptionalStartupEventExt trait methods that clippy does not \
+    reason = "`events` is consumed by StartupEventExt trait methods that clippy does not \
               recognise as reads"
 )]
 pub async fn cleanup_stale_service_entries(
@@ -258,7 +258,7 @@ pub fn service_row_is_stale(status: &str, pid: Option<i32>, name_key: &str, name
             if !ProcessCleanup::process_exists(pid) {
                 return true;
             }
-            !systemprompt_models::subprocess::live_pid_is_subprocess(pid, name_key, name)
+            !systemprompt_loader::subprocess::live_pid_is_subprocess(pid, name_key, name)
         },
         "error" | "stopped" => true,
         _ => false,

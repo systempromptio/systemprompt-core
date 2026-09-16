@@ -9,12 +9,12 @@
 //! IO paths that previously had 0% coverage.
 
 use std::fs;
+use systemprompt_config::paths::AppPaths;
 use systemprompt_database::DbPool;
 use systemprompt_generator::{
     DefaultRssFeedProvider, generate_feed, generate_feed_with_providers, generate_sitemap,
     prerender_content, prerender_pages,
 };
-use systemprompt_models::AppPaths;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fixture_db_pool};
 
 

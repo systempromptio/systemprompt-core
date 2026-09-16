@@ -12,6 +12,9 @@ set -uo pipefail
 
 SENSITIVE_FILES=(
     crates/domain/analytics/src/repository/session/mod.rs
+    crates/domain/users/src/sessions/mod.rs
+    crates/infra/logging/src/repository/analytics/ingestion.rs
+    crates/domain/content/src/repository/content/stats.rs
     crates/domain/users/src/repository/api_key.rs
     crates/domain/users/src/repository/user/session.rs
     crates/domain/users/src/repository/banned_ip/queries.rs
@@ -31,21 +34,10 @@ SENSITIVE_FILES=(
 # file:function pairs whose replica read is acceptable — listings and
 # analytics that tolerate replication lag. Every entry must still exist.
 ALLOWLIST=(
-    "crates/domain/analytics/src/repository/session/mod.rs:find_by_fingerprint"
-    "crates/domain/analytics/src/repository/session/mod.rs:list_active_by_user"
-    "crates/domain/analytics/src/repository/session/mod.rs:count_inactive"
-    "crates/domain/analytics/src/repository/session/mod.rs:find_recent_by_fingerprint"
-    "crates/domain/analytics/src/repository/session/mod.rs:count_sessions_by_fingerprint"
-    "crates/domain/analytics/src/repository/session/mod.rs:get_endpoint_sequence"
-    "crates/domain/analytics/src/repository/session/mod.rs:get_request_timestamps"
-    "crates/domain/analytics/src/repository/session/mod.rs:get_total_content_pages"
-    "crates/domain/analytics/src/repository/session/mod.rs:get_session_for_behavioral_analysis"
-    "crates/domain/analytics/src/repository/session/mod.rs:has_analytics_events"
-    "crates/domain/analytics/src/repository/session/mod.rs:count_unique_ips_by_fingerprint"
-    "crates/domain/analytics/src/repository/session/mod.rs:count_engagement_events_by_fingerprint"
-    "crates/domain/analytics/src/repository/session/mod.rs:get_session_starts_by_fingerprint"
-    "crates/domain/analytics/src/repository/session/mod.rs:get_session_velocity"
-    "crates/domain/analytics/src/repository/session/mod.rs:count_sessions_missing_geo"
+    "crates/domain/users/src/sessions/mod.rs:find_by_fingerprint"
+    "crates/domain/users/src/sessions/mod.rs:list_active_by_user"
+    "crates/domain/users/src/sessions/mod.rs:count_inactive"
+    "crates/domain/users/src/sessions/mod.rs:count_sessions_missing_geo"
     "crates/domain/users/src/repository/api_key.rs:list_api_keys_for_user"
     "crates/domain/users/src/repository/user/session.rs:list_sessions"
     "crates/domain/users/src/repository/user/session.rs:list_recent_sessions"
@@ -54,6 +46,7 @@ ALLOWLIST=(
 READ_RE='\.(fetch_one|fetch_optional|fetch_all|fetch_scalar)\((&\*self\.pool\b|self\.pool_ref\(\)|self\.pool\.as_ref\(\)|&self\.pool\b|pool\.as_ref\(\))'
 # The `let pool = &self.pool;` idiom hides the read pool behind a local.
 LOCAL_RE='let pool = &self\.pool;'
+DELEGATED_RE='self\.pool\b|self\.pool_ref\('
 
 allowed() {
     local key="$1"
@@ -81,7 +74,7 @@ for file in "${SENSITIVE_FILES[@]}"; do
         if [[ "$line" =~ fn[[:space:]]+([A-Za-z_][A-Za-z0-9_]*) ]]; then
             current_fn="${BASH_REMATCH[1]}"
         fi
-        if [[ "$line" =~ $READ_RE ]] || [[ "$line" =~ $LOCAL_RE ]]; then
+        if [[ "$line" =~ $READ_RE ]] || [[ "$line" =~ $LOCAL_RE ]] || [[ "$line" =~ $DELEGATED_RE ]]; then
             if ! allowed "$file:$current_fn"; then
                 echo "$file:$lineno: replica read in security-critical repository (fn $current_fn); use the write pool or allowlist it in scripts/lint-authoritative-reads.sh"
                 fail=1

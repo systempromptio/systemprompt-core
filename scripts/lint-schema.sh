@@ -12,10 +12,10 @@
 # Exception: DROP {VIEW|MATERIALIZED VIEW|INDEX|TRIGGER} IF EXISTS is allowed —
 # these are stateless derived objects, dropped only to be recreated by the
 # sibling CREATE statement (matches the install-time linter's carve-out).
-# False positives inside dollar-quoted function bodies are possible; the
-# install-time linter does the precise check. If this script flags a line
-# that is genuinely inside a function body, restructure the SQL so the
-# leading keyword does not appear in column 1 of a fresh line.
+# Lines inside a dollar-quoted body (`$$ … $$`, the plpgsql function form the
+# allowlist admits) are skipped: a DELETE inside a retention function is the
+# function's behaviour, not a schema mutation. The install-time linter does the
+# precise check.
 
 set -euo pipefail
 
@@ -42,8 +42,26 @@ violations=0
 forbidden='^[[:space:]]*(ALTER|DROP|UPDATE|INSERT|DELETE|TRUNCATE|GRANT|REVOKE|DO)\b'
 safe_drop='^[[:space:]]*DROP[[:space:]]+(MATERIALIZED[[:space:]]+VIEW|VIEW|INDEX|TRIGGER)[[:space:]]+IF[[:space:]]+EXISTS\b'
 
+# Prints the file with every line inside a `$$ … $$` body blanked, so the
+# line numbers reported below still point at the original file.
+outside_dollar_bodies() {
+    awk '{
+        line = $0
+        out = ""
+        while (line != "") {
+            i = index(line, "$$")
+            if (i == 0) { if (!inside) out = out line; break }
+            piece = substr(line, 1, i - 1)
+            if (!inside) out = out piece
+            inside = !inside
+            line = substr(line, i + 2)
+        }
+        print out
+    }' "$1"
+}
+
 for f in "${files[@]}"; do
-    if matches=$(grep -nEi "$forbidden" "$f" || true); [ -n "$matches" ]; then
+    if matches=$(outside_dollar_bodies "$f" | grep -nEi "$forbidden" || true); [ -n "$matches" ]; then
         file_violations=0
         while IFS= read -r line; do
             content="${line#*:}"

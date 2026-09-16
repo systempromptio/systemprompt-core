@@ -127,6 +127,7 @@ mcp_servers:
     package: clash
     port: 5001
     enabled: true
+    tool_policy: allow
     display_in_web: false
     oauth:
       required: false
@@ -147,6 +148,7 @@ mcp_servers:
     package: clash
     port: 5002
     enabled: true
+    tool_policy: allow
     display_in_web: false
     oauth:
       required: false

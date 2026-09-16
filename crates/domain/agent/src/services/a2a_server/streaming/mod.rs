@@ -12,6 +12,7 @@ mod event_loop_lifecycle;
 mod handlers;
 mod initialization;
 mod initialization_steps;
+mod lifecycle_event;
 mod messages;
 mod types;
 pub mod webhook_client;

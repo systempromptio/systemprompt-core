@@ -20,8 +20,7 @@ fn extension_is_required() {
 fn schemas_include_logs_and_analytics() {
     let schemas = LoggingExtension.schemas();
     let names: Vec<&str> = schemas.iter().filter_map(|s| s.table.as_deref()).collect();
-    assert!(names.contains(&"logs"));
-    assert!(names.contains(&"analytics_events"));
+    assert_eq!(names, vec!["logs", "analytics_events"]);
 }
 
 #[test]
@@ -67,4 +66,43 @@ fn extension_copy_clone() {
 #[test]
 fn migrations_returns_vec() {
     let _ = LoggingExtension.migrations();
+}
+
+#[test]
+fn owner_capture_and_privacy_contracts_are_registered() {
+    let schemas = LoggingExtension.schemas();
+    let capture: Vec<_> = schemas
+        .iter()
+        .filter(|schema| {
+            schema.table.is_none()
+                && schema
+                    .sql
+                    .contains("EXECUTE FUNCTION sp_capture_reporting_change")
+        })
+        .collect();
+    assert_eq!(
+        capture.len(),
+        1,
+        "owner capture SQL must be registered exactly once"
+    );
+    for view in ["reporting_source_logs", "reporting_source_analytics_events"] {
+        assert!(
+            capture[0].sql.contains(view),
+            "missing reporting view: {view}"
+        );
+    }
+    let privacy: Vec<_> = schemas
+        .iter()
+        .filter(|schema| {
+            schema.table.is_none()
+                && schema
+                    .sql
+                    .contains("CREATE OR REPLACE FUNCTION public.lock_logging_reporting_sources")
+        })
+        .collect();
+    assert_eq!(
+        privacy.len(),
+        1,
+        "owner privacy SQL must survive capture registration"
+    );
 }

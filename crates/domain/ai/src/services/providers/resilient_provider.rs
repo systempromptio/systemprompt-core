@@ -17,7 +17,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use futures::stream::Stream;
 use systemprompt_database::resilience::{
-    ResilienceConfig, ResilienceError, ResilienceGuard, guarded_stream,
+    Admission, ResilienceConfig, ResilienceError, ResilienceGuard, guarded_stream,
 };
 use systemprompt_models::services::ResilienceSettings;
 
@@ -81,13 +81,13 @@ impl ResilientProvider {
     }
 
     async fn guarded_stream_call(&self, open: impl Future<Output = StreamResult>) -> StreamResult {
-        let permit = self
+        let Admission { permit, probe } = self
             .guard
-            .acquire_permit::<AiError>()
+            .admit::<AiError>()
             .map_err(|err| self.map_err(err))?;
         match open.await {
             Ok(stream) => {
-                self.guard.breaker().record_success();
+                probe.success();
                 let provider = self.provider.clone();
                 let idle = self.guard.config().stream_idle_timeout;
                 let wrapped = guarded_stream(stream, idle, permit, move |after| AiError::Timeout {
@@ -98,7 +98,7 @@ impl ResilientProvider {
             },
             Err(err) => {
                 drop(permit);
-                self.guard.breaker().record_failure();
+                probe.failure();
                 Err(err)
             },
         }
@@ -131,7 +131,11 @@ impl AiProvider for ResilientProvider {
         self.inner.default_model()
     }
 
-    fn get_pricing(&self, model: &str) -> ModelPricing {
+    fn is_available(&self) -> bool {
+        !self.guard.breaker().is_open()
+    }
+
+    fn get_pricing(&self, model: &str) -> Option<ModelPricing> {
         self.inner.get_pricing(model)
     }
 

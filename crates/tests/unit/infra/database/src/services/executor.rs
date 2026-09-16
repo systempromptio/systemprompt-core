@@ -1,5 +1,7 @@
 use super::db_helper::pool_or_skip;
-use systemprompt_database::SqlExecutor;
+use systemprompt_database::{
+    RepositoryError, SqlExecutor, validate_column_exists, validate_table_exists,
+};
 
 fn unique_table() -> String {
     format!("exec_test_{}", uuid::Uuid::new_v4().simple())
@@ -45,14 +47,14 @@ BEGIN
     PERFORM 2;
 END;
 $$ LANGUAGE plpgsql;
-CREATE TABLE trailing (id INT);
+CREATE TABLE trailing_table (id INT);
 ";
     let stmts = SqlExecutor::parse_sql_statements(sql).expect("parse ok");
     assert_eq!(stmts.len(), 2, "got {stmts:#?}");
     assert!(stmts[0].contains("PERFORM 1"));
     assert!(stmts[0].contains("PERFORM 2"));
     assert!(stmts[1].to_uppercase().contains("CREATE TABLE"));
-    assert!(stmts[1].contains("trailing"));
+    assert!(stmts[1].contains("trailing_table"));
 }
 
 #[test]
@@ -169,7 +171,7 @@ async fn execute_statements_runs_batch_and_table_exists_tracks_it() {
     let table = unique_table();
 
     assert!(
-        !SqlExecutor::table_exists(&db, &table)
+        !validate_table_exists(db.read(), &table)
             .await
             .expect("table_exists before"),
         "table must not exist before creation"
@@ -181,20 +183,20 @@ async fn execute_statements_runs_batch_and_table_exists_tracks_it() {
         .expect("execute_statements");
 
     assert!(
-        SqlExecutor::table_exists(&db, &table)
+        validate_table_exists(db.read(), &table)
             .await
             .expect("table_exists after"),
         "table must exist after CREATE"
     );
 
     assert!(
-        SqlExecutor::column_exists(&db, &table, "label")
+        validate_column_exists(db.read(), &table, "label")
             .await
             .expect("column_exists label"),
         "label column must exist"
     );
     assert!(
-        !SqlExecutor::column_exists(&db, &table, "missing")
+        !validate_column_exists(db.read(), &table, "missing")
             .await
             .expect("column_exists missing"),
         "absent column must report false"
@@ -272,7 +274,7 @@ async fn execute_file_reads_and_runs_sql() {
         .await
         .expect("execute_file");
     assert!(
-        SqlExecutor::table_exists(&db, &table)
+        validate_table_exists(db.read(), &table)
             .await
             .expect("table_exists")
     );
@@ -314,45 +316,30 @@ async fn execute_query_invalid_sql_is_internal_error() {
 
 // --- terminal-state error arms ---
 //
-// `parse_sql_statements` walks the SQL as a small state machine; if it reaches
-// the end of the input while still inside a quote, dollar-quote or block
-// comment it must refuse the whole script rather than emit a truncated
-// statement. Each arm names the construct that was left open.
+// `parse_sql_statements` splits with the Postgres parser; input that ends
+// inside a quote, dollar-quote or block comment is refused as a whole rather
+// than emitted as a truncated statement.
 
 #[test]
 fn an_unterminated_single_quoted_literal_is_refused() {
     let err = SqlExecutor::parse_sql_statements("SELECT 'never closed")
         .expect_err("an open string literal must not yield a statement");
-    assert!(
-        err.to_string().contains("Unterminated string literal"),
-        "got {err}"
-    );
+    assert!(matches!(err, RepositoryError::SqlSplit(_)), "got {err}");
 }
 
 #[test]
-fn an_unterminated_dollar_quoted_body_is_refused_and_names_its_tag() {
+fn an_unterminated_dollar_quoted_body_is_refused() {
     let err =
         SqlExecutor::parse_sql_statements("CREATE FUNCTION f() RETURNS void AS $body$ BEGIN NULL;")
             .expect_err("an open dollar-quoted body must not yield a statement");
-    let message = err.to_string();
-    assert!(
-        message.contains("Unterminated dollar-quoted string"),
-        "got {message}"
-    );
-    assert!(
-        message.contains("$body$"),
-        "the error must name the tag that was left open, got {message}"
-    );
+    assert!(matches!(err, RepositoryError::SqlSplit(_)), "got {err}");
 }
 
 #[test]
 fn an_unterminated_block_comment_is_refused() {
     let err = SqlExecutor::parse_sql_statements("SELECT 1; /* still open")
         .expect_err("an open block comment must not yield a statement");
-    assert!(
-        err.to_string().contains("Unterminated block comment"),
-        "got {err}"
-    );
+    assert!(matches!(err, RepositoryError::SqlSplit(_)), "got {err}");
 }
 
 #[test]
@@ -368,10 +355,19 @@ fn a_doubled_quote_escapes_rather_than_closing_the_literal() {
 }
 
 #[test]
-fn a_lone_dollar_sign_is_ordinary_content_not_a_quote_opener() {
-    let stmts = SqlExecutor::parse_sql_statements("SELECT 'a' || $ || 'b';")
-        .expect("a `$` with no closing tag delimiter is just a character");
-    assert_eq!(stmts.len(), 1, "got {stmts:?}");
+fn a_quoted_identifier_containing_a_semicolon_does_not_split() {
+    let stmts = SqlExecutor::parse_sql_statements("CREATE TABLE \"a;b\" (id INT); SELECT 1;")
+        .expect("a quoted identifier is one token");
+    assert_eq!(stmts.len(), 2, "got {stmts:?}");
+    assert!(stmts[0].contains("\"a;b\""));
+}
+
+#[test]
+fn an_escape_string_with_an_escaped_quote_does_not_split() {
+    let stmts = SqlExecutor::parse_sql_statements("SELECT E'it\\'s; fine'; SELECT 2;")
+        .expect("an escape string is one token");
+    assert_eq!(stmts.len(), 2, "got {stmts:?}");
+    assert!(stmts[0].contains("it\\'s; fine"));
 }
 
 #[test]

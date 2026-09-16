@@ -68,7 +68,7 @@ async fn create_rejects_non_positive_caps_and_persists_positive_ones() {
     let Some(pool) = budget_pool().await else {
         return;
     };
-    let budgets = BudgetRepository::new(pool.clone());
+    let budgets = crate::seams::budgets(&pool);
     let owner = new_owner(&pool).await;
 
     for cap in [0, -1] {
@@ -93,7 +93,7 @@ async fn reservation_rejects_malformed_bounds_and_unknown_accounts() {
     let Some(pool) = budget_pool().await else {
         return;
     };
-    let budgets = BudgetRepository::new(pool.clone());
+    let budgets = crate::seams::budgets(&pool);
     let owner = new_owner(&pool).await;
     let account_id = create(&budgets, &owner, 5_000).await.expect("create");
 
@@ -136,7 +136,7 @@ async fn reservation_is_idempotent_per_operation_key_and_conflicts_on_a_new_boun
     let Some(pool) = budget_pool().await else {
         return;
     };
-    let budgets = BudgetRepository::new(pool.clone());
+    let budgets = crate::seams::budgets(&pool);
     let owner = new_owner(&pool).await;
     let account_id = create(&budgets, &owner, 5_000).await.expect("create");
 
@@ -177,7 +177,7 @@ async fn reservation_stops_at_the_cap_and_at_a_frozen_account() {
     let Some(pool) = budget_pool().await else {
         return;
     };
-    let budgets = BudgetRepository::new(pool.clone());
+    let budgets = crate::seams::budgets(&pool);
     let owner = new_owner(&pool).await;
     let account_id = create(&budgets, &owner, 1_000).await.expect("create");
 
@@ -186,9 +186,12 @@ async fn reservation_stops_at_the_cap_and_at_a_frozen_account() {
         .await
         .expect("reserve");
     match budgets.reserve(&owner, &account_id, "over", 200).await {
-        Err(EvaluationError::BudgetExhausted { spent, budget }) => {
-            assert_eq!(spent, 0);
-            assert_eq!(budget, 1_000);
+        Err(EvaluationError::BudgetExhausted {
+            required,
+            available,
+        }) => {
+            assert_eq!(required, 200);
+            assert_eq!(available, 100);
         },
         other => panic!("cap breach must be refused: {other:?}"),
     }
@@ -215,7 +218,7 @@ async fn concurrent_reservations_cannot_overdraw_the_shared_account() {
     let Some(pool) = budget_pool().await else {
         return;
     };
-    let budgets = BudgetRepository::new(pool.clone());
+    let budgets = crate::seams::budgets(&pool);
     let owner = new_owner(&pool).await;
     let account_id = create(&budgets, &owner, 100).await.expect("create");
     let first = budgets.clone();
@@ -237,7 +240,7 @@ async fn settlement_moves_reserved_to_settled_exactly_once() {
     let Some(pool) = budget_pool().await else {
         return;
     };
-    let budgets = BudgetRepository::new(pool.clone());
+    let budgets = crate::seams::budgets(&pool);
     let owner = new_owner(&pool).await;
     let account_id = create(&budgets, &owner, 5_000).await.expect("create");
     let ReservationAdmission::Admitted(reservation) = budgets
@@ -271,7 +274,7 @@ async fn settlement_rejects_negative_unknown_and_contradictory_spend() {
     let Some(pool) = budget_pool().await else {
         return;
     };
-    let budgets = BudgetRepository::new(pool.clone());
+    let budgets = crate::seams::budgets(&pool);
     let owner = new_owner(&pool).await;
     let account_id = create(&budgets, &owner, 5_000).await.expect("create");
     let ReservationAdmission::Admitted(reservation) = budgets
@@ -330,7 +333,7 @@ async fn overspending_a_reservation_freezes_the_account() {
     let Some(pool) = budget_pool().await else {
         return;
     };
-    let budgets = BudgetRepository::new(pool.clone());
+    let budgets = crate::seams::budgets(&pool);
     let owner = new_owner(&pool).await;
     let account_id = create(&budgets, &owner, 5_000).await.expect("create");
     let ReservationAdmission::Admitted(reservation) = budgets

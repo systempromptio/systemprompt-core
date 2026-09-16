@@ -1,5 +1,51 @@
 # Changelog
 
+## [0.53.0] - 2026-09-15
+
+### Breaking
+
+- **Breaking:** `A2ARepositories::new(db, A2aDependencies { session_usage, instance_id, managed_skills, tool_executions })` — the managed-skill resolver and the MCP tool-execution lookup (`systemprompt_traits::ToolExecutionLookup`) are required collaborators; `managed_skill_resolver()` returns the resolver directly. Migrate by building the dependencies at the composition root.
+- **Breaking:** `AgentState::new(.., webhooks: DynWebhookBroadcaster)`; the process-global webhook broadcaster (`install_for_test`, `broadcast_agui_event`, `broadcast_a2a_event`) is removed. `WebhookContext::new(broadcaster, user_id, token)` / `WebhookContext::for_request(broadcaster, &RequestContext)` bind it per request; `HttpWebhookBroadcaster::{new, from_config}` build the production client once with a timeout. `WebhookBroadcaster` gains `broadcast_lifecycle(LifecycleEvent, token)`; the lifecycle broadcasts in `streaming::broadcast` take a `&WebhookContext`.
+- **Breaking:** `MessageProcessor::new(repositories, ai_service, webhooks)`; `SkillService::new(managed, execution_step_repo, webhooks)` (the `with_*` builders and `list_skill_ids` are removed; `load_skill_metadata(skill_id, owner)` resolves through the managed authority); `ArtifactPublishingService::new(&A2ARepositories, Arc<SkillService>)`; `publish_from_a2a(.., owner)`.
+- **Breaking:** `MessageProcessor::handle_message_with_runtime(HandleMessageParams { .., active_tasks })` and `ProcessMessageStreamParams.cancel: CancellationToken`; `process_message_stream` returns an owned `MessageStream { events, worker, cancel }` and `StreamEvent::Cancelled` is a terminal event. `persist_completed_task` returns `PersistOutcome { task, undelivered_broadcasts }`.
+- **Breaking:** `Server::run(shutdown)` takes the shutdown future and waits for the active stream workers; `ProcessEventsParams { stream, .. }` (no `chunk_rx` / `request_id`), `EmitRunStartedParams` drops `request_id`.
+- **Breaking:** `ContextRepository::ensure_legacy_context(system_admin)` replaces `ensure_system_context`; the legacy context is the only row whose owner can be rebound.
+- **Breaking:** `TaskConstructor::construct_task_from_task_id` returns `Option<Task>`; `batch_builders::{build_messages, build_artifacts, build_execution_steps}` return `Result`; `TaskRepository::persist_messages(PersistMessagesTxParams)` replaces the raw-SQL `persist_message_with_tx` / `get_next_sequence_number_in_tx`; `MessageService::create_tool_execution_message` returns a `MessageId`.
+- **Breaking:** `AgentServiceRepository::register_agent` / `register_agent_starting` and `AgentDatabaseService::{register_agent, register_agent_starting, update_agent_running}` return `()`; `mark_crashed` / `mark_error` collapse into `AgentDatabaseService::mark_failed` (the repository keeps `mark_error`); `AgentReconciler::reconcile_starting_services` is removed. A pid that does not fit the `services.pid` column is `RepositoryError::InvalidData`.
+- **Breaking:** `process::command::build_agent_environment(&AgentEnvironmentParams, lookup)`; `registry::load_agent_skills_from_dir` returns `AgentResult` and `to_agent_card` fails when an advertised skill cannot be loaded; `ConfigAuthoringError::{NoDefaultProvider, NoDefaultModel, ServicesConfig}` replace the hard-coded provider/model defaults on `create`.
+- **Breaking:** `handlers::request::handle_agent_request(State, Option<Extension<RequestContext>>, HeaderMap, Bytes)` and the POST router carries `DefaultBodyLimit::max(A2A_MAX_REQUEST_BODY_BYTES)` (8 MiB, 413 when exceeded). `validation::validate_message_context(message, &UserId, ..)` / `validate_task_owner` return `ContextValidationError`.
+- **Breaking:** `WebhookService::new` returns `IntegrationResult<Self>` and `WebhookService` no longer implements `Default`; a guarded client that cannot be built is an error at construction rather than a disabled delivery path. Migrate by propagating the error.
+- **Breaking:** `StreamEvent::ToolResult { ai_tool_call_id: AiToolCallId, result }` names the LLM tool-call id it broadcasts instead of a `call_id: String`. Migrate by matching the typed field.
+
+### Added
+
+- `repository::AgentOwnerReassignment` implements `systemprompt_traits::OwnerReassignment` over `user_contexts`, `agent_tasks` and `task_messages` in one transaction.
+- `services::a2a_server::ActiveTasks` — the per-server registry of running message pipelines (`register`, `cancel`, `is_running`, `wait_until_finished`, `tracker`).
+- `services::a2a_server::processing::message::extract_message_content` — the single message→model-content converter.
+- The extension installs `reporting_capture.sql` / `reporting_privacy.sql` (migration 012): `reporting_source_agent_tasks`, `reporting_source_task_messages` and `reporting_source_user_contexts` views with transactional capture triggers feeding the analytics projections.
+
+### Changed
+
+- The `services` table is declared by the database extension; the agent extension lists it as a cross-extension table for its migrations.
+- `GetTask` and `CancelTask` are bound to the caller: a task owned by another user answers `-32001 Task not found`; `CancelTask` cancels the running pipeline (or persists `Canceled` directly), refuses a terminal task with `-32002`, and returns the persisted task instead of a synthetic one.
+- A task is marked `Completed` in the same transaction as its messages; a persistence failure leaves it `Working` and it is then recorded and announced `Failed` exactly once. Every stream emits exactly one `final: true` status frame (completed, failed or canceled) through one typed emitter.
+- Stream events use bounded `send().await` backpressure; a closed consumer stops the pipeline (`AgentServiceError::StreamClosed`) instead of dropping chunks and completing a truncated task. Execution-step persistence failures propagate.
+- A withheld or unavailable managed skill fails `build_ai_messages`; a history-load failure fails the request instead of answering without context.
+- Artifact publishing verifies `mcp_execution_id` through `ToolExecutionLookup`; an unreachable ledger is an error rather than a NULLed id. Artifact webhook failures are reported in `PersistOutcome::undelivered_broadcasts` and no longer fail a committed task.
+- Every message-part and artifact-part read path uses one row→`Part` converter: a malformed row is `RepositoryError::InvalidData` on every path, and `FileContent.url` round-trips through `file_uri`. `Artifact.extensions` persist in the metadata `artifact_extensions` key on every path.
+- Task metadata that cannot be serialised is `RepositoryError::Serialization`; `delete_task` runs in one transaction; `TaskConstructor` is built once per repository; context events carry the task's `last_modified`.
+- `check_a2a_agent_health` validates the served `AgentCard` (name + at least one `supportedInterfaces` entry) instead of a top-level `url` key. Artifact fingerprints use SHA-256.
+- Descriptions are truncated on a character boundary; the A2A server's CORS comes from `cors_allowed_origins` (permissive CORS and the CWD `web/dist` fallback are gone).
+- Agent-card `securitySchemes` / `security` are read from the typed config; `services::registry::security::convert_json_security_to_struct` is removed. A malformed block is a config load error rather than a warning that drops the schemes.
+
+- Agent-card `securitySchemes` / `security` are read from the typed config; `services::registry::security::convert_json_security_to_struct` is removed. A malformed block is a config load error rather than a warning that drops the schemes.
+- Registry, JWT and tool-provider seams use `AgentName`, `UserId` and `McpServerId` where strings were accepted.
+- `PersistOutcome::record_undelivered_broadcasts` is called by both persistence consumers; the persistence step no longer logs undelivered artifact broadcasts itself.
+
+### Removed
+
+- Dead surface: `models::web` (`CreateAgentRequest`, `UpdateAgentRequest`, `AgentDiscovery*`, `ListAgentsQuery`), `services::mcp::{task_helper, tool_result_handler}`, `PersistenceService`, `ConversationService`, `SkillInjector`, `build_multiturn_task` / `build_mock_task` / `build_submitted_task`, `execute_tools_sequentially` (use `execute_tools`), `validate_agent_token`, `get_user_context`, `services::shared::{auth, config, resilience, slug}`, `services::external_integrations` and `models::external_integrations`, `ServiceStatusParams`, `errors::classify_database_error`, `monitor::{check_agent_health, check_agent_responsiveness}`, `ExecutionStepRepository::mcp_execution_id_exists`.
+
 ## [0.52.0] - 2026-09-14
 
 ### Breaking

@@ -3,6 +3,7 @@
 //! user holds is reported back to the caller.
 
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::MarketplaceId;
@@ -266,6 +267,14 @@ async fn a_role_nobody_holds_is_reported_and_a_held_one_is_not() {
         .execute(&*pg)
         .await
         .expect("insert a user holding the role");
+
+    // Why: the role oracle is the users domain's `RoleDirectory`, registered
+    // at link time; asking it directly both pins its answer and links it.
+    let directly = systemprompt_users::UsersRoleDirectory::shared(Arc::clone(&pg))
+        .unknown_roles(&[held.clone(), ghost.clone()])
+        .await
+        .expect("directory answers");
+    assert_eq!(directly, vec![ghost.clone()]);
 
     let cfg: AccessControlConfig = serde_yaml::from_str(&format!(
         "rules:\n  - entity_type: gateway_route\n    entity_id: {id}\n    access: allow\n    \

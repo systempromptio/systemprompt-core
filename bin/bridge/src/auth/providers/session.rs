@@ -16,7 +16,6 @@ use crate::config::Config;
 use crate::gateway::types::HelperOutput;
 use crate::stdio::diag;
 use async_trait::async_trait;
-use std::process::Command;
 use std::time::Duration;
 use systemprompt_identifiers::{SessionId, ValidatedUrl};
 
@@ -133,32 +132,9 @@ const fn hex_upper(nibble: u8) -> char {
     }
 }
 
+// Why: the URL is handed to the platform opener (ShellExecute, `open`,
+// `xdg-open`) as one argument; it never passes through a shell where `&`
+// or `|` in a query string would start a second command.
 fn launch_browser(url: &str) -> std::io::Result<()> {
-    let (program, args) = browser_command(url);
-    let mut cmd = Command::new(program);
-    cmd.args(args)
-        .stdin(std::process::Stdio::null())
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null());
-    #[cfg(target_os = "windows")]
-    crate::winproc::no_window(&mut cmd);
-    cmd.spawn().map(|_| ())
-}
-
-#[cfg(target_os = "macos")]
-fn browser_command(url: &str) -> (&'static str, Vec<String>) {
-    ("open", vec![url.to_owned()])
-}
-
-#[cfg(target_os = "windows")]
-fn browser_command(url: &str) -> (&'static str, Vec<String>) {
-    (
-        "cmd",
-        vec!["/C".into(), "start".into(), String::new(), url.into()],
-    )
-}
-
-#[cfg(not(any(target_os = "macos", target_os = "windows")))]
-fn browser_command(url: &str) -> (&'static str, Vec<String>) {
-    ("xdg-open", vec![url.to_owned()])
+    opener::open(url).map_err(std::io::Error::other)
 }

@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO analytics_snapshot_jobs(owner_id,job_id,scope,from_day,to_day) VALUES($1,$2,$3,$4,$5)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Date",
+        "Date"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "f71fb243b1a6f00b7e822f5a2a42bcfb56d06e207a2c01d43f3db183d40f7a7c"
+}

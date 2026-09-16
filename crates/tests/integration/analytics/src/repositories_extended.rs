@@ -12,7 +12,7 @@ use systemprompt_analytics::{
 };
 use systemprompt_database::DbPool;
 use systemprompt_models::UserId;
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::{drain_reporting, fixture_database_url, fixture_db_pool};
 use tokio::sync::{Mutex, MutexGuard, OnceCell};
 use uuid::Uuid;
 
@@ -173,6 +173,11 @@ impl Fixture {
         Ok(())
     }
 
+    async fn drain(&self) -> Result<()> {
+        drain_reporting(&self.db).await?;
+        Ok(())
+    }
+
     async fn cleanup(&self) -> Result<()> {
         let _ = sqlx::query("DELETE FROM mcp_tool_executions WHERE user_id = $1")
             .bind(&self.user_id)
@@ -208,6 +213,7 @@ async fn cli_session_repository_smoke() -> Result<()> {
     fx.insert_session(&format!("cli_s_{}_1", fx.tag)).await?;
     fx.insert_session(&format!("cli_s_{}_2", fx.tag)).await?;
 
+    fx.drain().await?;
     let repo = CliSessionAnalyticsRepository::new(&fx.db)?;
     let stats = repo.get_stats(fx.window_start, fx.window_end).await?;
     assert!(stats.total_sessions >= 2);
@@ -243,6 +249,7 @@ async fn agent_repository_smoke() -> Result<()> {
     fx.insert_ai_request_for_task(&task_a, 500).await?;
     fx.insert_ai_request_for_task(&task_b, 750).await?;
 
+    fx.drain().await?;
     let repo = AgentAnalyticsRepository::new(&fx.db)?;
 
     for order in ["", "success_rate", "cost", "last_active", "task_count"] {
@@ -293,6 +300,7 @@ async fn tool_repository_smoke() -> Result<()> {
     fx.insert_tool_execution(&tool, "success").await?;
     fx.insert_tool_execution(&tool, "failed").await?;
 
+    fx.drain().await?;
     let repo = ToolAnalyticsRepository::new(&fx.db)?;
 
     for order in ["call_count", "success_rate", "p95_latency", "unknown_sort"] {
@@ -361,6 +369,7 @@ async fn core_stats_repository_smoke() -> Result<()> {
     fx.insert_ai_request_for_task(&fx.insert_task("agent-a").await?, 500)
         .await?;
 
+    fx.drain().await?;
     let repo = CoreStatsRepository::new(&fx.db)?;
     let _browsers = repo.get_browser_breakdown(10).await?;
     let _devices = repo.get_device_breakdown(10).await?;
@@ -382,6 +391,7 @@ async fn cost_repository_per_user_paths() -> Result<()> {
     fx.insert_ai_request_for_task(&task_a, 1_000).await?;
     fx.insert_ai_request_for_task(&task_a, 2_000).await?;
 
+    fx.drain().await?;
     let repo = CostAnalyticsRepository::new(&fx.db)?;
     let summary = repo
         .get_summary_for_user(&fx.user_typed, fx.window_start, fx.window_end)
@@ -422,6 +432,7 @@ async fn cost_breakdowns_skip_requests_rejected_before_routing() -> Result<()> {
     fx.insert_ai_request_for_task(&task, 1_000).await?;
     fx.insert_rejected_ai_request().await?;
 
+    fx.drain().await?;
     let repo = CostAnalyticsRepository::new(&fx.db)?;
 
     let by_model = repo

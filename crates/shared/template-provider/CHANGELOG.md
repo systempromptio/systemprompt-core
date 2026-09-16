@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.53.0] - 2026-09-15
+
+### Changed
+
+- The optional `tokio` dependency enables only `fs` and `sync` instead of inheriting the workspace feature set.
+
 ## [0.21.1] - 2026-07-17
 
 ### Changed

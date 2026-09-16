@@ -1,20 +1,34 @@
 //! What the hosts leave behind when the bridge is uninstalled.
 //!
-//! Cowork's enable keys and Claude Code's plugin registrations. Called from
-//! the uninstall command after `install::uninstall` has removed the bridge's
-//! own files; it lives here, not in `install`, so `install` never names a host.
+//! Cowork's enable keys and Claude Code's plugin registrations. [`uninstall`]
+//! runs `install::uninstall` and then clears the hosts, carrying their
+//! warnings in the summary; it lives here, not in `install`, so `install`
+//! never names a host.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::stdio::diag;
 
+pub fn uninstall(
+    purge: bool,
+    ctx: &crate::context::BridgeContext,
+) -> Result<crate::install::UninstallSummary, crate::install::InstallError> {
+    let mut summary = crate::install::uninstall(purge, ctx)?;
+    summary.host_warnings = clear_hosts();
+    Ok(summary)
+}
+
 pub fn clear_hosts() -> Vec<String> {
     let mut warnings = Vec::new();
-    if let Some(target) = super::cowork_plugins::resolve_target()
-        && let Err(e) = super::cowork_plugins::clear_all(&target)
-    {
-        warnings.push(format!("Cowork enable-key cleanup failed: {e}"));
+    match super::cowork_plugins::resolve_target() {
+        Ok(Some(target)) => {
+            if let Err(e) = super::cowork_plugins::clear_all(&target) {
+                warnings.push(format!("Cowork enable-key cleanup failed: {e}"));
+            }
+        },
+        Ok(None) => {},
+        Err(e) => warnings.push(format!("Cowork session could not be resolved: {e}")),
     }
 
     if let Err(e) = super::claude_code_cli::clear_install() {
@@ -56,7 +70,6 @@ pub fn clear_hosts() -> Vec<String> {
 pub struct PurgeReport {
     pub uninstall: crate::install::UninstallSummary,
     pub clean: crate::auth::setup::CleanReport,
-    pub warnings: Vec<String>,
     pub foreign_proxy: Option<String>,
     pub proxy_state_removed: Vec<std::path::PathBuf>,
 }
@@ -64,7 +77,7 @@ pub struct PurgeReport {
 impl PurgeReport {
     #[must_use]
     pub fn leftovers(&self) -> Vec<String> {
-        let mut out = self.warnings.clone();
+        let mut out = self.uninstall.host_warnings.clone();
         if let crate::install::ManagedProfileOutcome::RemoveFailed(e) =
             &self.uninstall.managed_profile
         {
@@ -85,10 +98,9 @@ impl PurgeReport {
 pub fn purge_device(
     ctx: &crate::context::BridgeContext,
 ) -> Result<PurgeReport, crate::install::InstallError> {
-    let uninstall = crate::install::uninstall(true, ctx)?;
-    let warnings = clear_hosts();
-    let clean = crate::auth::setup::clean()
-        .map_err(|e| crate::install::InstallError::Bootstrap(format!("clean local state: {e}")))?;
+    let uninstall = uninstall(true, ctx)?;
+    let clean =
+        crate::auth::setup::clean().map_err(crate::install::InstallError::CleanLocalState)?;
     let proxy_state_removed = remove_proxy_state()?;
     let foreign_proxy = match crate::proxy::peer::probe_identity(
         crate::proxy::DEFAULT_PROXY_PORT,
@@ -100,7 +112,6 @@ pub fn purge_device(
     Ok(PurgeReport {
         uninstall,
         clean,
-        warnings,
         foreign_proxy,
         proxy_state_removed,
     })
@@ -121,8 +132,11 @@ pub fn remove_proxy_state() -> Result<Vec<std::path::PathBuf>, crate::install::I
         if !path.exists() {
             continue;
         }
-        crate::fsutil::remove_verified(&path).map_err(|e| {
-            crate::install::InstallError::Bootstrap(format!("remove {}: {e}", path.display()))
+        crate::fsutil::remove_verified(&path).map_err(|source| {
+            crate::install::InstallError::Remove {
+                path: path.clone(),
+                source,
+            }
         })?;
         removed.push(path);
     }

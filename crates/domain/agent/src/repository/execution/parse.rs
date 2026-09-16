@@ -5,7 +5,7 @@
 
 use chrono::{DateTime, Utc};
 use systemprompt_identifiers::TaskId;
-use systemprompt_models::{ExecutionStep, StepContent, StepStatus};
+use systemprompt_models::{ExecutionStep, StepContent, StepId, StepStatus};
 use systemprompt_traits::RepositoryError;
 
 pub(super) struct ParseStepParams {
@@ -32,11 +32,11 @@ pub(super) fn parse_step(params: ParseStepParams) -> Result<ExecutionStep, Repos
     } = params;
     let status = status
         .parse::<StepStatus>()
-        .map_err(|e| RepositoryError::Internal(format!("Invalid status: {}", e)))?;
+        .map_err(|e| RepositoryError::Internal(format!("Invalid status: {e}")))?;
     let content: StepContent = serde_json::from_value(content)
-        .map_err(|e| RepositoryError::Internal(format!("Invalid content: {}", e)))?;
+        .map_err(|e| RepositoryError::Internal(format!("Invalid content: {e}")))?;
     Ok(ExecutionStep {
-        step_id: step_id.into(),
+        step_id: StepId(step_id),
         task_id,
         status,
         started_at,

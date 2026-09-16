@@ -31,7 +31,7 @@ fn map_gateway_error(
         },
         GatewayError::ManifestDecode(e) if e.is_decode() => SyncError::ManifestShape(e.to_string()),
         e @ GatewayError::ManifestEnvelopeShape { .. } => SyncError::ManifestShape(e.to_string()),
-        other => SyncError::Network(other.to_string()),
+        other => SyncError::Gateway(other),
     }
 }
 
@@ -154,13 +154,13 @@ pub(super) async fn fetch_authenticated_manifest(
         None => fetch_fresh_token(http, &cfg).await?,
     };
 
-    let mut envelope = client.fetch_manifest(bearer.expose()).await;
+    let mut envelope = client.fetch_manifest(&bearer).await;
 
     if is_unauthorized(&envelope) && was_cached {
         tracing::warn!("gateway refused the cached token; discarding it and re-authenticating");
         crate::auth::cache::clear().map_err(SyncError::CredentialCache)?;
         bearer = fetch_fresh_token(http, &cfg).await?;
-        envelope = client.fetch_manifest(bearer.expose()).await;
+        envelope = client.fetch_manifest(&bearer).await;
     }
 
     if is_unauthorized(&envelope) {
@@ -204,10 +204,16 @@ pub(super) async fn verify_and_decode(
     allow_unsigned: bool,
     allow_tofu: bool,
 ) -> Result<SignedManifest, SyncError> {
+    let state = config::trust::pinned_pubkey_state_for(&fetch.config, fetch.client.base_url())?;
     if allow_unsigned {
+        if let config::PinnedPubkeyState::Pinned { source, .. } = &state {
+            return Err(SyncError::UnsignedRefusedPinned {
+                gateway: fetch.client.base_url().as_str().to_owned(),
+                pin_source: source.label(),
+            });
+        }
         return decode_payload(&fetch.envelope).map_err(map_manifest_error);
     }
-    let state = config::trust::pinned_pubkey_state_for(&fetch.config, fetch.client.base_url())?;
     let (pubkey, source, newly_trusted) = match state {
         config::PinnedPubkeyState::Pinned { key, source } => (key, source, false),
         config::PinnedPubkeyState::StaleForGateway {
@@ -238,15 +244,7 @@ pub(super) async fn verify_and_decode(
     verify_envelope(&fetch.envelope, pubkey.as_str())
         .map_err(|e| signature_failure(e, &fetch.client, source))?;
     let manifest = decode_payload(&fetch.envelope).map_err(map_manifest_error)?;
-    // Why: a legacy pin is rewritten in the bound form only once a manifest
-    // has verified against it, the same bar a first-use key must clear.
-    let migrate_legacy = source == config::PinSource::Operator
-        && fetch
-            .config
-            .sync
-            .as_ref()
-            .is_some_and(config::SyncConfig::needs_legacy_migration);
-    if newly_trusted || migrate_legacy {
+    if newly_trusted {
         config::persist_pinned_pubkey(fetch.client.base_url(), pubkey.as_str())?;
     }
     Ok(manifest)

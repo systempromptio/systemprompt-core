@@ -24,7 +24,9 @@ use systemprompt_api::services::gateway::protocol::canonical::{
 use systemprompt_api::services::gateway::protocol::inbound::InboundAdapter;
 use systemprompt_api::services::gateway::protocol::inbound::anthropic_messages::AnthropicMessagesInbound;
 use systemprompt_identifiers::headers::{GATEWAY_CONVERSATION_ID, SESSION_ID};
-use systemprompt_identifiers::{ClientSessionId, ContextId, GatewayConversationId, SessionId};
+use systemprompt_identifiers::{
+    ClientSessionId, ContextId, GatewayConversationId, ModelId, SessionId,
+};
 
 fn headers_with(name: &'static str, value: &str) -> HeaderMap {
     let mut headers = HeaderMap::new();
@@ -49,7 +51,7 @@ fn post(body: &'static str) -> Request<Body> {
 
 fn canonical(messages: Vec<CanonicalMessage>) -> CanonicalRequest {
     CanonicalRequest {
-        model: "claude-test".into(),
+        model: ModelId::new("claude-test"),
         system: None,
         messages,
         max_tokens: 16,

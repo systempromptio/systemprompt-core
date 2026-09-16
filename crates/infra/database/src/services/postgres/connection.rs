@@ -11,6 +11,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::future::Future;
+use std::str::FromStr;
 use std::time::Duration;
 
 use sqlx::postgres::{PgConnectOptions, PgPool, PgPoolOptions};
@@ -25,10 +26,9 @@ const MAX_ATTEMPTS: u32 = 5;
 
 /// Operator-tunable connection-pool sizing for a `PostgresProvider`.
 ///
-/// [`PoolConfig::default`] reproduces the historical hardcoded values; callers
-/// that have profile config supply their own. The connect/SSL/retry behaviour
-/// is fixed and not exposed here — only the sizing/lifetime knobs an operator
-/// needs to fit the pool to their Postgres `max_connections` and replica count.
+/// Only the sizing/lifetime knobs an operator needs to fit the pool to their
+/// Postgres `max_connections` and replica count are exposed; the connect, SSL
+/// and retry behaviour is fixed.
 #[derive(Debug, Clone, Copy)]
 pub struct PoolConfig {
     pub max_connections: u32,
@@ -58,6 +58,18 @@ pub fn build_pool_options(cfg: &PoolConfig) -> PgPoolOptions {
         .max_lifetime(cfg.max_lifetime)
         .acquire_timeout(cfg.acquire_timeout)
         .idle_timeout(cfg.idle_timeout)
+}
+
+pub fn connect_options(database_url: &str) -> DatabaseResult<PgConnectOptions> {
+    let options = PgConnectOptions::from_str(database_url)?
+        .application_name("systemprompt")
+        // Why: migrations run DDL on the serving pool and sqlx never invalidates
+        // a connection's prepared statements, so a cached plan would fail with
+        // SQLSTATE 0A000 ("cached plan must not change result type") after an
+        // ALTER TABLE.
+        .statement_cache_capacity(0)
+        .options([("client_min_messages", "warning")]);
+    Ok(options)
 }
 
 pub async fn connect_with_retry(

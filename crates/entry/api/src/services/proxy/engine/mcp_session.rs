@@ -82,11 +82,12 @@ pub async fn enrich_with_cached_identity(
         .with_actor(systemprompt_identifiers::Actor::user(identity.user_id))
         .with_user_type(identity.user_type)
         .with_auth_token(identity.auth_token.as_str().to_owned())
-        .with_user(AuthenticatedUser::new(
+        .with_user(AuthenticatedUser::new_with_roles(
             user_uuid,
             String::new(),
             String::new(),
             identity.permissions,
+            identity.roles,
         ))
 }
 
@@ -212,6 +213,7 @@ async fn cache_identity_from_response(
         user_id: UserId::new(user.id.to_string()),
         user_type: req_context.user_type(),
         permissions: user.permissions.clone(),
+        roles: user.roles.clone(),
         auth_token: req_context.auth_token().clone(),
     };
     match identities.upsert(&session_id, &row).await {

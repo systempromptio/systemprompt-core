@@ -13,7 +13,8 @@ use crate::sync::LastSyncState;
 
 use super::frontmatter::parse_skill_frontmatter;
 use super::{
-    ChangeKind, MarketplaceDiff, MarketplaceExtra, MarketplaceItem, PluginChild, PluginManifest,
+    ChangeKind, ChildKind, MarketplaceDiff, MarketplaceExtra, MarketplaceItem, PluginChild,
+    PluginManifest,
 };
 
 const README_MAX_BYTES: usize = 32 * 1024;
@@ -83,22 +84,14 @@ fn read_plugin(name: &str, path: &Path) -> std::io::Result<MarketplaceItem> {
     let author = manifest.as_ref().and_then(|m| m.author.clone());
     let homepage = manifest.as_ref().and_then(|m| m.homepage.clone());
     let extra = manifest.map_or(MarketplaceExtra::None, MarketplaceExtra::Plugin);
-    Ok(MarketplaceItem {
-        id: name.to_owned(),
-        name: display_name,
-        source: "tenant",
-        path: path.display().to_string(),
-        summary,
-        readme,
-        version,
-        author,
-        homepage,
-        change: None,
-        children: plugin_children(path)?,
-        plugins: Vec::new(),
-        extra,
-        error: None,
-    })
+    Ok(MarketplaceItem::builder(name, path.display().to_string())
+        .name(display_name)
+        .summary(summary)
+        .readme(readme)
+        .provenance(version, author, homepage)
+        .children(plugin_children(path)?)
+        .extra(extra)
+        .build())
 }
 
 #[derive(Deserialize)]
@@ -127,7 +120,7 @@ pub fn plugin_children(plugin_dir: &Path) -> std::io::Result<Vec<PluginChild>> {
                 .as_deref()
                 .map_or((None, None), parse_skill_frontmatter);
             out.push(PluginChild {
-                kind: "skills",
+                kind: ChildKind::Skills,
                 name: name.unwrap_or_else(|| id.clone()),
                 id,
                 shared: false,
@@ -149,7 +142,7 @@ pub fn plugin_children(plugin_dir: &Path) -> std::io::Result<Vec<PluginChild>> {
                 .as_deref()
                 .map_or((None, None), parse_skill_frontmatter);
             out.push(PluginChild {
-                kind: "agents",
+                kind: ChildKind::Agents,
                 name: name.unwrap_or_else(|| id.clone()),
                 id,
                 shared: false,
@@ -157,11 +150,11 @@ pub fn plugin_children(plugin_dir: &Path) -> std::io::Result<Vec<PluginChild>> {
         }
     }
     if let Some(body) = super::read_optional_text(&plugin_dir.join("hooks").join("hooks.json"))? {
-        let file: crate::sync::apply::hooks_schema::HooksFile =
+        let file: crate::host_sync::hooks_schema::HooksFile =
             serde_json::from_str(&body).map_err(std::io::Error::other)?;
         for event in file.hooks.keys() {
             out.push(PluginChild {
-                kind: "hooks",
+                kind: ChildKind::Hooks,
                 id: event.clone(),
                 name: event.clone(),
                 shared: false,
@@ -172,7 +165,7 @@ pub fn plugin_children(plugin_dir: &Path) -> std::io::Result<Vec<PluginChild>> {
         let file: McpJsonFile = serde_json::from_str(&body).map_err(std::io::Error::other)?;
         for server in file.mcp_servers.keys() {
             out.push(PluginChild {
-                kind: "mcp",
+                kind: ChildKind::Mcp,
                 id: server.clone(),
                 name: server.clone(),
                 shared: false,
@@ -185,13 +178,13 @@ pub fn plugin_children(plugin_dir: &Path) -> std::io::Result<Vec<PluginChild>> {
 pub fn mark_shared_mcp(plugin_children: &mut [Vec<PluginChild>]) {
     let mut counts: BTreeMap<String, usize> = BTreeMap::new();
     for children in plugin_children.iter() {
-        for child in children.iter().filter(|c| c.kind == "mcp") {
+        for child in children.iter().filter(|c| c.kind == ChildKind::Mcp) {
             *counts.entry(child.id.clone()).or_insert(0) += 1;
         }
     }
     for children in plugin_children.iter_mut() {
         for child in children.iter_mut() {
-            if child.kind == "mcp" && counts.get(&child.id).copied().unwrap_or(0) > 1 {
+            if child.kind == ChildKind::Mcp && counts.get(&child.id).copied().unwrap_or(0) > 1 {
                 child.shared = true;
             }
         }
@@ -220,22 +213,11 @@ pub(super) fn annotate_plugins_with_diff(
     let present: BTreeSet<String> = plugins.iter().map(|p| p.id.clone()).collect();
     for removed_id in &state.removed_plugins {
         if !present.contains(removed_id) {
-            plugins.push(MarketplaceItem {
-                id: removed_id.clone(),
-                name: removed_id.clone(),
-                source: "tenant",
-                path: String::new(),
-                summary: None,
-                readme: None,
-                version: None,
-                author: None,
-                homepage: None,
-                change: Some(ChangeKind::Removed),
-                children: Vec::new(),
-                plugins: Vec::new(),
-                extra: MarketplaceExtra::None,
-                error: None,
-            });
+            plugins.push(
+                MarketplaceItem::builder(removed_id.clone(), String::new())
+                    .change(ChangeKind::Removed)
+                    .build(),
+            );
         }
     }
 
@@ -245,7 +227,7 @@ pub(super) fn annotate_plugins_with_diff(
         installed: state.installed_plugins.clone(),
         updated: state.updated_plugins.clone(),
         removed: state.removed_plugins.clone(),
-        last_applied_at: state.last_applied_at.clone(),
+        last_applied_at: state.synced_at.clone(),
     }
 }
 

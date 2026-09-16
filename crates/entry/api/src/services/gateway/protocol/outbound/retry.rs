@@ -45,14 +45,18 @@ pub struct RetryPolicy {
     pub jitter_ratio: f64,
 }
 
+impl RetryPolicy {
+    pub const PRODUCTION: Self = Self {
+        max_attempts: MAX_ATTEMPTS,
+        base_delay: Duration::from_millis(BASE_DELAY_MS),
+        max_delay: Duration::from_millis(MAX_DELAY_MS),
+        jitter_ratio: JITTER_RATIO,
+    };
+}
+
 impl Default for RetryPolicy {
     fn default() -> Self {
-        Self {
-            max_attempts: MAX_ATTEMPTS,
-            base_delay: Duration::from_millis(BASE_DELAY_MS),
-            max_delay: Duration::from_millis(MAX_DELAY_MS),
-            jitter_ratio: JITTER_RATIO,
-        }
+        Self::PRODUCTION
     }
 }
 
@@ -153,7 +157,7 @@ pub async fn observing_retries<F: Future>(fut: F) -> (F::Output, u32) {
 
 #[must_use]
 pub fn current_policy() -> RetryPolicy {
-    POLICY.try_with(|p| *p).unwrap_or_default()
+    POLICY.try_with(|p| *p).unwrap_or(RetryPolicy::PRODUCTION)
 }
 
 fn record_retry() {
