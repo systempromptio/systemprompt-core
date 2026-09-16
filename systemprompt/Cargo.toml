@@ -63,9 +63,6 @@ cli = ["dep:systemprompt-cli"]
 # Runtime builder for embedding systemprompt as a library
 runtime = ["cli", "dep:systemprompt-extension"]
 
-# Evaluation framework (judge runs, replay, auto-improve loop)
-evaluation = ["dep:systemprompt-evaluation"]
-
 # Granular access to the analytics domain for consumers that need request /
 # cost metrics without pulling the whole product surface — a server-rendered
 # admin extension, say. `full` implies it.
@@ -92,7 +89,6 @@ full = [
     "dep:systemprompt-users",
     "dep:systemprompt-content",
     "analytics",
-    "evaluation",
     "dep:systemprompt-marketplace",
     "dep:systemprompt-scheduler",
     "dep:systemprompt-generator",
@@ -143,7 +139,6 @@ systemprompt-oauth = { workspace = true, optional = true }
 systemprompt-users = { workspace = true, optional = true }
 systemprompt-content = { workspace = true, optional = true }
 systemprompt-analytics = { workspace = true, optional = true }
-systemprompt-evaluation = { workspace = true, optional = true }
 systemprompt-marketplace = { workspace = true, optional = true }
 systemprompt-slack = { workspace = true, optional = true }
 systemprompt-teams = { workspace = true, optional = true }

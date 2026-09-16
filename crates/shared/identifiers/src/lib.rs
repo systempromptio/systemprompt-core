@@ -56,7 +56,6 @@ mod connection;
 mod content;
 mod context;
 mod email;
-mod evaluation;
 mod events;
 mod execution;
 mod funnel;
@@ -107,10 +106,6 @@ pub use connection::ConnectionId;
 pub use content::{CategoryId, ContentId, FileId, SkillId, SourceId, TagId};
 pub use context::ContextId;
 pub use email::Email;
-pub use evaluation::{
-    EvalApprovalId, EvalBudgetId, EvalCampaignId, EvalCaseId, EvalExecutionId, EvalExperimentId,
-    EvalHoldoutProposalId, EvalReservationId, EvalRevisionId, EvalSuggestionId, EvalWorkerId,
-};
 pub use events::EventOutboxId;
 pub use execution::{ArtifactId, ExecutionStepId, LogId, TokenId};
 pub use funnel::{EngagementEventId, FunnelId, FunnelProgressId};

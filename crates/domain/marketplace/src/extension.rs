@@ -119,10 +119,6 @@ fn attestation_schemas() -> Vec<SchemaDefinition> {
             include_str!("../schema/managed_invocation_attributions.sql"),
         ),
         SchemaDefinition::new(
-            "managed_evaluation_attestations",
-            include_str!("../schema/managed_evaluation_attestations.sql"),
-        ),
-        SchemaDefinition::new(
             "managed_git_verifications",
             include_str!("../schema/managed_git_verifications.sql"),
         ),

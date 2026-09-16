@@ -111,7 +111,6 @@ The following ship as functional surface but are **not yet classified as stable*
 change shape within a minor while they settle:
 
 - `crates/domain/marketplace` — plugin and skill catalogue, managed resources, ABAC attribute floor
-- `crates/domain/evaluation` — supervised experiments, budgets and golden cases
 - `crates/domain/slack` and `crates/domain/teams` — outbound messaging integrations
 
 ### 2.6 Internal Implementation

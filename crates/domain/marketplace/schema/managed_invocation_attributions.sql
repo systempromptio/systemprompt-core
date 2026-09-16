@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS managed_invocation_attributions (
     resource_id TEXT,
     revision_id TEXT,
     publication_generation BIGINT,
-    traffic_class TEXT NOT NULL CHECK (traffic_class IN ('production','fixture','live_evaluation','suggestion','judge')),
+    traffic_class TEXT NOT NULL CHECK (traffic_class IN ('production','fixture')),
     status TEXT NOT NULL CHECK (status IN ('verified','revision_unknown','unsupported','historical')),
     receipt_id TEXT,
     authenticated_evidence JSONB NOT NULL,

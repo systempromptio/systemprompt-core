@@ -82,9 +82,8 @@ pub use tool_executions::{DynToolExecutionLookup, ToolExecutionLookup};
 pub use log_service::LogService;
 
 pub use managed_resources::{
-    DynManagedRevisionOwnership, DynManagedSkillResolver, ManagedRevisionOwnership,
-    ManagedSkillResolver, ManagedSkillResolverError, ResolvedManagedSkill, SkillResolution,
-    WithheldReason,
+    DynManagedSkillResolver, ManagedSkillResolver, ManagedSkillResolverError,
+    ResolvedManagedSkill, SkillResolution, WithheldReason,
 };
 
 pub use context_provider::{

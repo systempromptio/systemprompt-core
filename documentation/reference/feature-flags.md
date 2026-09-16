@@ -30,11 +30,10 @@ Cargo enables the transitive dependencies of each selected feature.
 | `security` | `dep:systemprompt-security` |
 | `cli` | `dep:systemprompt-cli` |
 | `runtime` | `cli`, `dep:systemprompt-extension` |
-| `evaluation` | `dep:systemprompt-evaluation` |
 | `analytics` | `dep:systemprompt-analytics` |
 | `slack` | `dep:systemprompt-slack` |
 | `teams` | `dep:systemprompt-teams` |
-| `full` | `api`, `mcp`, `cloud`, `cli`, `dep:systemprompt-agent`, `dep:systemprompt-ai`, `dep:systemprompt-mcp`, `dep:systemprompt-oauth`, `dep:systemprompt-users`, `dep:systemprompt-content`, `analytics`, `evaluation`, `dep:systemprompt-marketplace`, `dep:systemprompt-scheduler`, `dep:systemprompt-generator`, `logging`, `systemprompt-logging/cli`, `config`, `dep:systemprompt-files`, `loader`, `events`, `storage`, `client`, `security` |
+| `full` | `api`, `mcp`, `cloud`, `cli`, `dep:systemprompt-agent`, `dep:systemprompt-ai`, `dep:systemprompt-mcp`, `dep:systemprompt-oauth`, `dep:systemprompt-users`, `dep:systemprompt-content`, `analytics`, `dep:systemprompt-marketplace`, `dep:systemprompt-scheduler`, `dep:systemprompt-generator`, `logging`, `systemprompt-logging/cli`, `config`, `dep:systemprompt-files`, `loader`, `events`, `storage`, `client`, `security` |
 
 `dep:` selects an optional dependency; an unprefixed name selects another feature.
 `dependency/feature` enables a feature on that dependency. `full` excludes the opt-in

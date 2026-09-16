@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Removed
+
+- **Breaking:** the evaluation attestation seam is gone: `managed::evaluation` (`admit_improvement`, `attest_evaluation`, `EvaluationAttestation`), the `managed_evaluation_attestations` table and `managed_publication_reviews.experiment_id` (migration `011_drop_evaluation`, which also drops every `eval_*` table with CASCADE and the extension's `extension_migrations` rows). `ComparisonEvidence` is the flattened `recorded` map alone; `PublicationAdmission::Attested` is `Reviewed`; `TrafficClass` is `Production | Fixture`. `ManagedRepository` no longer implements `ManagedRevisionOwnership`.
+
 ## [0.53.0] - 2026-09-15
 
 ### Breaking
