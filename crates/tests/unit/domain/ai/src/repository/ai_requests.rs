@@ -1,5 +1,6 @@
 // DB-backed tests for AiRequestRepository: insert, status updates, usage
 // aggregates, and per-turn message / tool-call writes.
+use systemprompt_models::wire::origin::RequestOrigin;
 
 use systemprompt_ai::models::{AiRequestRecord, RequestStatus};
 use systemprompt_ai::repository::{AiRequestRepository, InsertToolCallParams};
@@ -50,10 +51,14 @@ async fn rejection_without_a_resolved_provider_still_persists_a_row() {
     systemprompt_test_fixtures::seed_user_row(&pool, &uid, &email)
         .await
         .expect("seed");
-    let record =
-        AiRequestRecord::builder(AiRequestId::generate(), uid.clone(), ContextId::generate())
-            .rejected()
-            .build();
+    let record = AiRequestRecord::builder(
+        AiRequestId::generate(),
+        uid.clone(),
+        ContextId::generate(),
+        RequestOrigin::INTERNAL,
+    )
+    .rejected()
+    .build();
 
     let id = repo.insert(&record).await.expect("rejection must persist");
 
@@ -73,10 +78,14 @@ async fn completed_request_without_a_provider_is_refused_by_the_database() {
     systemprompt_test_fixtures::seed_user_row(&pool, &uid, &email)
         .await
         .expect("seed");
-    let record =
-        AiRequestRecord::builder(AiRequestId::generate(), uid.clone(), ContextId::generate())
-            .completed()
-            .build();
+    let record = AiRequestRecord::builder(
+        AiRequestId::generate(),
+        uid.clone(),
+        ContextId::generate(),
+        RequestOrigin::INTERNAL,
+    )
+    .completed()
+    .build();
 
     let err = repo
         .insert(&record)

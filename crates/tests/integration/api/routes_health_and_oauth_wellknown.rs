@@ -64,6 +64,7 @@ fn test_config() -> Config {
         content_negotiation: ContentNegotiationConfig::default(),
         security_headers: SecurityHeadersConfig::default(),
         allow_registration: false,
+        allow_dynamic_client_registration: true,
         login_page_url: None,
     }
 }

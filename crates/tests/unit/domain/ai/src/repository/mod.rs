@@ -8,6 +8,7 @@ mod ai_request_trace;
 mod ai_requests;
 mod ai_safety_findings;
 mod thought_signatures_db;
+use systemprompt_models::wire::origin::RequestOrigin;
 
 use systemprompt_ai::models::AiRequestRecord;
 use systemprompt_database::DbPool;
@@ -38,6 +39,7 @@ pub(crate) async fn seed_request(pool: &DbPool, user_id: &UserId) -> AiRequestId
         AiRequestId::generate(),
         user_id.clone(),
         ContextId::generate(),
+        RequestOrigin::INTERNAL,
     )
     .provider("anthropic")
     .model("claude-3-opus")
@@ -54,6 +56,7 @@ pub(crate) fn completed_record(user_id: &UserId) -> AiRequestRecord {
         AiRequestId::generate(),
         user_id.clone(),
         ContextId::generate(),
+        RequestOrigin::INTERNAL,
     )
     .provider("anthropic")
     .model("claude-3-opus")

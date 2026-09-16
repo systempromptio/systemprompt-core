@@ -7,8 +7,9 @@
 use std::sync::Arc;
 
 use systemprompt_ai::repository::{
-    AiGatewayPolicyRepository, AiQuotaBucketRepository, AiRequestPayloadRepository,
-    AiRequestRepository, AiSafetyFindingRepository, AiThoughtSignatureRepository,
+    AiGatewayPolicyRepository, AiQuotaBucketRepository, AiRequestClientEvidenceRepository,
+    AiRequestPayloadRepository, AiRequestRepository, AiSafetyFindingRepository,
+    AiThoughtSignatureRepository,
 };
 use systemprompt_database::DbPool;
 use systemprompt_traits::DynContextMaterializer;
@@ -19,12 +20,10 @@ use crate::services::gateway::signature_cache::{TTL, ThoughtSignatureCache};
 #[derive(Clone)]
 pub struct GatewayRepositories {
     pub journal: Arc<GatewayJournal>,
-    pub execution_capabilities:
-        systemprompt_evaluation::repository::experiments::ExecutionCapabilityRepository,
-    pub evaluations: systemprompt_evaluation::repository::experiments::GatewayEvaluationRepository,
     pub quota_buckets: AiQuotaBucketRepository,
     pub requests: Arc<AiRequestRepository>,
     pub payloads: Arc<AiRequestPayloadRepository>,
+    pub client_evidence: Arc<AiRequestClientEvidenceRepository>,
     pub safety_findings: AiSafetyFindingRepository,
     pub gateway_policies: AiGatewayPolicyRepository,
     pub thought_signatures: Arc<ThoughtSignatureCache>,
@@ -44,40 +43,13 @@ impl GatewayRepositories {
         journal: GatewayJournal,
         context_materializer: DynContextMaterializer,
     ) -> Result<Self, systemprompt_ai::error::RepositoryError> {
-        let pool = db.write_pool_arc().map_err(|error| {
-            systemprompt_ai::error::RepositoryError::PoolInitialization(error.to_string())
-        })?;
         let requests = Arc::new(AiRequestRepository::new(db)?);
-        let trace: systemprompt_traits::DynAiRequestTrace = Arc::new(requests.as_ref().clone());
-        let sessions: systemprompt_traits::DynAiSessionProvider =
-            Arc::new(systemprompt_users::UsersAiSessionProvider::from_repository(
-                systemprompt_users::SessionRepository::new(db).map_err(|error| {
-                    systemprompt_ai::error::RepositoryError::PoolInitialization(error.to_string())
-                })?,
-            ));
-        let budgets = systemprompt_evaluation::repository::experiments::BudgetRepository::new(
-            (*pool).clone(),
-            Arc::clone(&trace),
-        );
         Ok(Self {
             journal: Arc::new(journal),
-            execution_capabilities:
-                systemprompt_evaluation::repository::experiments::ExecutionCapabilityRepository::new(
-                    (*pool).clone(),
-                    Arc::clone(&sessions),
-                ),
-            evaluations:
-                systemprompt_evaluation::repository::experiments::GatewayEvaluationRepository::new(
-                    (*pool).clone(),
-                    budgets,
-                    systemprompt_evaluation::repository::experiments::GatewaySeams {
-                        trace,
-                        sessions,
-                    },
-                ),
             quota_buckets: AiQuotaBucketRepository::new(db)?,
             requests,
             payloads: Arc::new(AiRequestPayloadRepository::new(db)?),
+            client_evidence: Arc::new(AiRequestClientEvidenceRepository::new(db)?),
             safety_findings: AiSafetyFindingRepository::new(db)?,
             gateway_policies: AiGatewayPolicyRepository::new(db)?,
             thought_signatures: Arc::new(ThoughtSignatureCache::new(
@@ -92,7 +64,6 @@ impl GatewayRepositories {
         Settlement {
             journal: Arc::clone(&self.journal),
             requests: Arc::clone(&self.requests),
-            evaluations: self.evaluations.clone(),
         }
     }
 }

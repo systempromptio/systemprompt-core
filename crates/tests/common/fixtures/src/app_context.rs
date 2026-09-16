@@ -119,6 +119,7 @@ pub fn fixture_config(database_url: &str) -> Config {
         content_negotiation: ContentNegotiationConfig::default(),
         security_headers: SecurityHeadersConfig::default(),
         allow_registration: false,
+        allow_dynamic_client_registration: true,
         login_page_url: None,
     }
 }
@@ -270,7 +271,6 @@ fn fixture_app_context_assembled(
         app_paths.storage().root(),
     );
     let sqlx_pool = pool.pool_arc()?.as_ref().clone();
-    let evaluation_seams = crate::evaluation::fixture_evaluation_seams(pool)?;
     let ctx = AppContext::from_parts(
         DataPlane {
             database: Arc::clone(pool),
@@ -318,12 +318,6 @@ fn fixture_app_context_assembled(
             ),
             managed_repository: Arc::new(
                 systemprompt_marketplace::managed::ManagedRepository::new(pool)?,
-            ),
-            evaluation_repositories: Arc::new(
-                systemprompt_evaluation::repository::experiments::EvaluationRepositories::new(
-                    pool,
-                    evaluation_seams,
-                )?,
             ),
         },
         ConfigPlane {

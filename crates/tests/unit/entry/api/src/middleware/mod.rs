@@ -27,7 +27,7 @@ mod payload_context_source;
 mod rate_limit_config;
 mod router_ext;
 mod security_headers;
-mod security_trace_served_by;
+pub(crate) mod security_trace_served_by;
 mod session_tracking;
 mod should_redirect;
 mod site_auth;

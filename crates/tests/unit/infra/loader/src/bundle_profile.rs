@@ -39,7 +39,6 @@ pub fn profile(
 ) -> Profile {
     Profile {
         storage: Default::default(),
-        evaluator: None,
         name: "p".to_owned(),
         display_name: "Profile P".to_owned(),
         target: ProfileType::Local,
@@ -82,6 +81,7 @@ pub fn profile(
             audiences: vec![JwtAudience::Api],
             allowed_resource_audiences: default_resource_audiences(),
             allow_registration: true,
+            allow_dynamic_client_registration: true,
             login_page_url: None,
             signing_key_path: std::path::PathBuf::from("/tmp/test-signing-key.pem"),
             trusted_issuers: vec![],

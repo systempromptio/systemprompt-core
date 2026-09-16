@@ -33,7 +33,7 @@ Developer / Agent
 │ Governance Pipeline (App / Domain)           │
 │   crates/app/runtime, crates/domain/ai,      │
 │   crates/domain/mcp, crates/domain/agent,    │
-│   crates/domain/marketplace, /evaluation,    │
+│   crates/domain/marketplace,                 │
 │   crates/domain/slack, crates/domain/teams   │
 │   Authz hook chain, GovernanceEngine, quota, │
 │   tool allowlist, MCP policy, route select   │
@@ -124,7 +124,7 @@ Each threat is mapped to the component where it originates, the mitigation in co
 | Request flood at entry | `crates/entry/api` | A request body-size limit is wired at the API edge: `DefaultBodyLimit::max(2 MiB)` (`crates/entry/api/src/services/server/builder.rs:44`). Per-route rate limiting and bot/ban controls are applied as middleware. Both resolve the caller through the trusted-proxy client-IP resolver, so hop headers from an untrusted peer are ignored and a caller cannot select its own rate-limit bucket; a request carrying a signature-verified identity is bucketed by that identity rather than by address. No global tower `ConcurrencyLimit` or `TimeoutLayer` is wired in the builder; concurrency and timeout bounding is expected at the customer's reverse proxy / load balancer. | High-volume DoS mitigation is operational; the customer typically front-loads with a WAF / LB. |
 | Expensive rule evaluation | `crates/app/runtime` | Rule evaluator has bounded complexity; no user-supplied regex/eval. | Complex allowlist configurations increase p99 linearly — benchmark before large rollouts. |
 | Upstream provider slowness propagating back pressure | `crates/domain/ai` | Every provider is wrapped in a timeout/retry/circuit-breaker/bulkhead decorator (`crates/domain/ai/src/services/providers/provider_factory.rs`); timeouts are per-provider and configurable. | Governance correctness is preferred over availability — the binary fails closed. |
-| Budget exhaustion by a single subject | `crates/entry/api/src/services/gateway/quota/` | Subject-keyed windows reserve request counts at admission and record tokens and cost after completion. Subject-resolution failures follow `QuotaFaultMode`. | Concurrent in-flight requests can exceed token and cost ceilings. Evaluation reservations use a separate admission path. Configure fault behavior and size headroom for concurrency. |
+| Budget exhaustion by a single subject | `crates/entry/api/src/services/gateway/quota/` | Subject-keyed windows reserve request counts at admission and record tokens and cost after completion. Subject-resolution failures follow `QuotaFaultMode`. | Concurrent in-flight requests can exceed token and cost ceilings. Configure fault behavior and size headroom for concurrency. |
 | Audit write pressure | `crates/infra/events` | Batched writes where transactionally safe; async forwarding to SIEM so a slow SIEM cannot block the request path. | Postgres write saturation remains customer-sizeable. |
 
 ### 4.6 Elevation of Privilege

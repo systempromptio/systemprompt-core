@@ -24,9 +24,7 @@ pub fn profile_entries(inputs: &ProfileGenInputs) -> Vec<(&'static str, String)>
         ("inferenceGatewayBaseUrl", inputs.gateway_base_url.clone()),
         (
             "inferenceGatewayApiKey",
-            crate::install::mdm::policy::desktop_host_token(&inputs.api_key)
-                .as_str()
-                .to_owned(),
+            inputs.host_token.as_str().to_owned(),
         ),
         ("inferenceGatewayAuthScheme", "bearer".to_owned()),
         ("inferenceModels", models_json),

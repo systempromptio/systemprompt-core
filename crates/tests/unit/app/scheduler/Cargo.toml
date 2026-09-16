@@ -16,8 +16,6 @@ systemprompt-runtime = { workspace = true }
 systemprompt-analytics = { workspace = true }
 tokio-cron-scheduler = { workspace = true }
 systemprompt-database = { workspace = true }
-systemprompt-evaluation = { workspace = true }
-systemprompt-marketplace = { workspace = true }
 systemprompt-extension = { workspace = true }
 systemprompt-logging = { workspace = true }
 systemprompt-models = { workspace = true }

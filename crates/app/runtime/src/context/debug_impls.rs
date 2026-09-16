@@ -54,7 +54,6 @@ impl std::fmt::Debug for DataPlane {
             .field("file_repository", &"FileRepository")
             .field("mcp_session_repository", &"McpSessionRepository")
             .field("managed_repository", &"ManagedRepository")
-            .field("evaluation_repositories", &"EvaluationRepositories")
             .finish()
     }
 }

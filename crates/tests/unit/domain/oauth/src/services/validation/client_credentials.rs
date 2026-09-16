@@ -31,7 +31,8 @@ mod db_backed {
             .create(CreateClientParams {
                 client_id: client_id.clone(),
                 owner_user_id: owner,
-                client_secret_hash: hash_client_secret(SECRET).expect("hash"),
+                client_secret_hash: Some(hash_client_secret(SECRET).expect("hash")),
+                registration_token_hash: None,
                 client_name: "cc-test".to_owned(),
                 redirect_uris: vec!["http://127.0.0.1/cb".to_owned()],
                 grant_types: Some(vec!["client_credentials".to_owned()]),

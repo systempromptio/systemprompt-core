@@ -164,6 +164,7 @@ fn unknown_resource_attribution_preserves_authenticated_identity() {
             session_id: NativeSessionId::new("native-session"),
         },
         attribution: InvocationResourceAttribution::Unknown,
+        skill: None,
         succeeded: false,
         latency_micros: None,
     };
@@ -224,4 +225,44 @@ fn installation_host_aliases_preserve_existing_codex_and_opencode_names() {
     assert!(EvaluatorClient::OpenCode.accepts_host_name("opencode"));
     assert!(EvaluatorClient::OpenCode.accepts_host_name("open-code"));
     assert!(!EvaluatorClient::Codex.accepts_host_name("hermes"));
+}
+
+#[test]
+fn invocation_skill_identity_is_optional_on_the_wire_and_round_trips() {
+    use systemprompt_identifiers::{MarketplaceId, PluginId, ResourceInvocationId};
+    use systemprompt_models::feedback::analytics::{
+        InvocationConsumerIdentity, InvocationResourceAttribution, InvocationSkillIdentity,
+        NormalizedInvocationFact,
+    };
+    let legacy = serde_json::json!({
+        "invocation_id": "invocation",
+        "occurred_at": "2026-09-16T00:00:00Z",
+        "consumer": {"status": "historical_unknown"},
+        "attribution": {"status": "unknown"},
+        "succeeded": true,
+        "latency_micros": null
+    });
+    let fact: NormalizedInvocationFact = serde_json::from_value(legacy)
+        .expect("a fact written before the skill identity still reads");
+    assert!(fact.skill.is_none());
+
+    let fact = NormalizedInvocationFact {
+        invocation_id: ResourceInvocationId::new("invocation"),
+        occurred_at: Utc::now(),
+        consumer: InvocationConsumerIdentity::HistoricalUnknown,
+        attribution: InvocationResourceAttribution::Unknown,
+        skill: Some(InvocationSkillIdentity {
+            plugin_id: PluginId::new("astound-india-ba"),
+            skill: "astound-india-ba:ba-bug-logging".to_owned(),
+            marketplace_id: Some(MarketplaceId::new("astound-india-dev")),
+            source: Some("bundle:india".to_owned()),
+            source_hash: Some("abc".to_owned()),
+        }),
+        succeeded: true,
+        latency_micros: None,
+    };
+    let json = serde_json::to_value(&fact).expect("serialises");
+    assert_eq!(json["skill"]["source"], "bundle:india");
+    let back: NormalizedInvocationFact = serde_json::from_value(json).expect("round-trips");
+    assert_eq!(back, fact);
 }

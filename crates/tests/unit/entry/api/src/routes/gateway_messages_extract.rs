@@ -14,6 +14,9 @@ use axum::extract::Request;
 use axum::http::{HeaderMap, HeaderValue, StatusCode};
 use std::sync::Arc;
 use systemprompt_api::routes::gateway::messages::dispatch::errors::build_error_response;
+use systemprompt_api::routes::gateway::messages::extract::attribution::{
+    AttributionHeaders, classify_client, entry_origin,
+};
 use systemprompt_api::routes::gateway::messages::extract::headers::{
     optional_gateway_conversation_id, read_gateway_body, require_session_id,
 };
@@ -23,10 +26,24 @@ use systemprompt_api::services::gateway::protocol::canonical::{
 };
 use systemprompt_api::services::gateway::protocol::inbound::InboundAdapter;
 use systemprompt_api::services::gateway::protocol::inbound::anthropic_messages::AnthropicMessagesInbound;
-use systemprompt_identifiers::headers::{GATEWAY_CONVERSATION_ID, SESSION_ID};
+use systemprompt_identifiers::headers::{
+    CLIENT_ATTESTATION, CLIENT_KIND, GATEWAY_CONVERSATION_ID, SESSION_ID,
+};
 use systemprompt_identifiers::{
     ClientSessionId, ContextId, GatewayConversationId, ModelId, SessionId,
 };
+
+use systemprompt_models::wire::origin::{
+    ClientAttestation, ClientKind, InboundWireProtocol, RequestOrigin,
+};
+
+fn test_partial() -> RejectionPartial {
+    RejectionPartial::new(RequestOrigin::gateway(
+        ClientKind::Other,
+        InboundWireProtocol::AnthropicMessages,
+        ClientAttestation::None,
+    ))
+}
 
 fn headers_with(name: &'static str, value: &str) -> HeaderMap {
     let mut headers = HeaderMap::new();
@@ -148,7 +165,7 @@ fn a_conversation_header_that_is_not_a_ctx_id_is_a_400() {
 
 #[tokio::test]
 async fn an_unparseable_body_is_a_400_and_still_records_the_raw_bytes() {
-    let mut partial = RejectionPartial::default();
+    let mut partial = test_partial();
 
     let (status, message) = read_gateway_body(&inbound(), post("not json"), &mut partial)
         .await
@@ -165,7 +182,7 @@ async fn an_unparseable_body_is_a_400_and_still_records_the_raw_bytes() {
 
 #[tokio::test]
 async fn a_parsed_body_populates_the_audit_partial_from_the_canonical_request() {
-    let mut partial = RejectionPartial::default();
+    let mut partial = test_partial();
     let body = r#"{"model":"claude-test","max_tokens":16,"stream":true,
         "messages":[{"role":"user","content":"hi"}]}"#;
 
@@ -182,7 +199,7 @@ async fn a_parsed_body_populates_the_audit_partial_from_the_canonical_request() 
 
 #[test]
 fn a_header_supplied_conversation_id_wins_over_derivation() {
-    let mut partial = RejectionPartial::default();
+    let mut partial = test_partial();
     let supplied = GatewayConversationId::try_new("ctx_00000000deadbeef".to_owned())
         .expect("test conversation id must be valid");
 
@@ -201,7 +218,7 @@ fn a_header_supplied_conversation_id_wins_over_derivation() {
 
 #[test]
 fn a_conversation_id_is_derived_from_the_message_history_when_no_header_is_sent() {
-    let mut partial = RejectionPartial::default();
+    let mut partial = test_partial();
 
     let (conversation, _, _) = derive_conversation(
         &systemprompt_identifiers::UserId::new("owner-a"),
@@ -215,7 +232,7 @@ fn a_conversation_id_is_derived_from_the_message_history_when_no_header_is_sent(
         &systemprompt_identifiers::UserId::new("owner-a"),
         None,
         &canonical(vec![user_message("hello")]),
-        &mut RejectionPartial::default(),
+        &mut test_partial(),
     )
     .expect("derivation must succeed again");
 
@@ -236,7 +253,7 @@ fn canonical_from_claude_code(messages: Vec<CanonicalMessage>) -> CanonicalReque
 
 #[test]
 fn a_client_session_in_metadata_selects_the_hook_sessions_context() {
-    let mut partial = RejectionPartial::default();
+    let mut partial = test_partial();
 
     let (conversation, context, client_session) = derive_conversation(
         &systemprompt_identifiers::UserId::new("owner-a"),
@@ -268,7 +285,7 @@ fn a_client_session_in_metadata_selects_the_hook_sessions_context() {
 
 #[test]
 fn a_header_supplied_conversation_id_pins_the_context_even_with_a_client_session() {
-    let mut partial = RejectionPartial::default();
+    let mut partial = test_partial();
     let supplied = GatewayConversationId::try_new("ctx_00000000deadbeef".to_owned())
         .expect("test conversation id must be valid");
 
@@ -295,7 +312,7 @@ fn a_header_supplied_conversation_id_pins_the_context_even_with_a_client_session
 
 #[test]
 fn a_request_without_metadata_keeps_the_prefix_hash_context() {
-    let mut partial = RejectionPartial::default();
+    let mut partial = test_partial();
 
     let (conversation, context, client_session) = derive_conversation(
         &systemprompt_identifiers::UserId::new("owner-a"),
@@ -318,7 +335,7 @@ fn a_request_without_metadata_keeps_the_prefix_hash_context() {
 
 #[test]
 fn a_body_with_no_messages_cannot_derive_a_conversation() {
-    let mut partial = RejectionPartial::default();
+    let mut partial = test_partial();
 
     let (status, message) = derive_conversation(
         &systemprompt_identifiers::UserId::new("owner-a"),
@@ -409,7 +426,7 @@ async fn a_body_over_the_buffer_limit_is_rejected_rather_than_buffered() {
         .uri("/v1/messages")
         .body(Body::from(oversized))
         .expect("test request must build");
-    let mut partial = RejectionPartial::default();
+    let mut partial = test_partial();
 
     let (status, message) = read_gateway_body(&inbound(), request, &mut partial)
         .await
@@ -429,11 +446,85 @@ fn identical_fallback_conversations_have_distinct_authenticated_owner_contexts()
     let bob = systemprompt_identifiers::UserId::new(uuid::Uuid::new_v4().to_string());
     let request = canonical(vec![user_message("same opening message")]);
     let (alice_gateway, alice_context, _) =
-        derive_conversation(&alice, None, &request, &mut RejectionPartial::default())
+        derive_conversation(&alice, None, &request, &mut test_partial())
             .expect("alice conversation");
     let (bob_gateway, bob_context, _) =
-        derive_conversation(&bob, None, &request, &mut RejectionPartial::default())
-            .expect("bob conversation");
+        derive_conversation(&bob, None, &request, &mut test_partial()).expect("bob conversation");
     assert_eq!(alice_gateway, bob_gateway);
     assert_ne!(alice_context, bob_context);
+}
+
+#[test]
+fn a_malformed_client_declaration_is_a_400_that_keeps_the_value_as_evidence() {
+    let mut headers = headers_with(CLIENT_KIND, "Pi");
+    headers.insert("user-agent", HeaderValue::from_static("claude-cli/2.0"));
+    let attribution = AttributionHeaders::capture(&headers);
+    let mut partial = test_partial();
+    let (status, message) =
+        classify_client(&attribution, false, b"{}", &mut partial).expect_err("rejected");
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert!(message.contains("pi"), "{message}");
+    assert_eq!(partial.origin.client, ClientKind::Other);
+    assert_eq!(partial.origin.attestation, ClientAttestation::None);
+    let evidence = partial.evidence.expect("evidence retained");
+    assert_eq!(evidence.declared_client.as_deref(), Some("Pi"));
+    assert_eq!(evidence.ua_product.as_deref(), Some("claude-cli"));
+}
+
+#[test]
+fn an_attestation_header_from_a_non_bridge_principal_is_a_400() {
+    let mut headers = headers_with(CLIENT_ATTESTATION, "host-token");
+    headers.insert(CLIENT_KIND, HeaderValue::from_static("opencode"));
+    let attribution = AttributionHeaders::capture(&headers);
+    let mut partial = test_partial();
+    let (status, message) =
+        classify_client(&attribution, false, b"{}", &mut partial).expect_err("rejected");
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert!(message.contains("bridge only"), "{message}");
+
+    let mut bridge_partial = test_partial();
+    let evidence = classify_client(&attribution, true, b"{}", &mut bridge_partial)
+        .expect("the bridge may attest");
+    assert_eq!(bridge_partial.origin.client, ClientKind::OpenCode);
+    assert_eq!(
+        bridge_partial.origin.attestation,
+        ClientAttestation::HostToken
+    );
+    assert_eq!(evidence.attested_host, Some(ClientKind::OpenCode));
+}
+
+#[test]
+fn a_well_formed_declaration_sets_the_declared_tier() {
+    let headers = headers_with(CLIENT_KIND, "pi");
+    let attribution = AttributionHeaders::capture(&headers);
+    let mut partial = test_partial();
+    let evidence = classify_client(&attribution, false, b"{}", &mut partial).expect("declared");
+    assert_eq!(partial.origin.client, ClientKind::Pi);
+    assert_eq!(partial.origin.attestation, ClientAttestation::Declared);
+    assert_eq!(evidence.kind_source, ClientAttestation::Declared);
+}
+
+#[test]
+fn a_non_utf8_declaration_is_rejected_rather_than_dropped() {
+    let headers = raw_header(CLIENT_KIND, b"p\xffi");
+    let attribution = AttributionHeaders::capture(&headers);
+    assert!(attribution.declared_client.is_some());
+    let mut partial = test_partial();
+    assert!(classify_client(&attribution, false, b"{}", &mut partial).is_err());
+}
+
+#[test]
+fn the_entry_origin_is_never_unknown() {
+    assert_eq!(
+        entry_origin(&HeaderMap::new()),
+        (ClientKind::Other, ClientAttestation::None)
+    );
+    assert_eq!(
+        entry_origin(&headers_with("user-agent", "opencode/1.0")),
+        (ClientKind::OpenCode, ClientAttestation::UserAgent)
+    );
+    assert_eq!(
+        entry_origin(&headers_with("user-agent", "anthropic-sdk-python/0.40")),
+        (ClientKind::Other, ClientAttestation::None)
+    );
 }

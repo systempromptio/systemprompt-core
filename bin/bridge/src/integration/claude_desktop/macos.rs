@@ -169,13 +169,12 @@ fn render_profile(
     } else {
         inputs.models.clone()
     };
-    let host_token = crate::install::mdm::policy::desktop_host_token(&inputs.api_key);
     let models_json = serde_json::to_string(&models)
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
     let policy = crate::install::mdm::policy::claude_desktop_policy(
         &crate::install::mdm::policy::PolicyInputs {
             base_url: &inputs.gateway_base_url,
-            host_token: &host_token,
+            host_token: &inputs.host_token,
             models: Some(models_json),
             headers: &inputs.headers,
             egress_allowed_hosts: None,

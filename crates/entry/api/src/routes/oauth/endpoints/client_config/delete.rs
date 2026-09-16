@@ -7,7 +7,7 @@ use axum::extract::Path;
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 
-use super::validation::validate_registration_token;
+use super::validation::authenticate_client_configuration;
 use crate::routes::oauth::OAuthHttpError;
 use crate::routes::oauth::extractors::OAuthRepo;
 
@@ -16,13 +16,8 @@ pub async fn delete_client_configuration(
     Path(client_id): Path<String>,
     headers: HeaderMap,
 ) -> Result<Response, OAuthHttpError> {
-    validate_registration_token(&headers)?;
-
     let client_id = systemprompt_identifiers::ClientId::new(&client_id);
-    repository
-        .find_client_by_id(&client_id)
-        .await?
-        .ok_or_else(|| OAuthHttpError::invalid_client_metadata("Client not found"))?;
+    authenticate_client_configuration(&repository, &headers, &client_id).await?;
 
     repository.delete_client(&client_id).await?;
     Ok(StatusCode::NO_CONTENT.into_response())

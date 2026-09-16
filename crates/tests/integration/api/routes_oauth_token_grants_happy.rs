@@ -79,6 +79,7 @@ fn ensure_config() {
             content_negotiation: ContentNegotiationConfig::default(),
             security_headers: SecurityHeadersConfig::default(),
             allow_registration: false,
+            allow_dynamic_client_registration: true,
             login_page_url: None,
         });
     });
@@ -501,5 +502,155 @@ async fn a_code_grant_with_no_code_at_all_is_refused() -> anyhow::Result<()> {
         v["error"].as_str().is_some_and(|e| !e.is_empty()),
         "the rejection must carry an RFC 6749 error code: {v}"
     );
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Client authentication transport. `client_secret_basic` is advertised in
+// discovery and is the RFC 7591 default, so the token endpoint must read the
+// credentials from HTTP Basic as well as from the form body.
+// ---------------------------------------------------------------------------
+
+fn basic_auth(client_id: &str, secret: &str) -> String {
+    use base64::Engine;
+    let raw = format!("{}:{}", enc(client_id), enc(secret));
+    format!(
+        "Basic {}",
+        base64::engine::general_purpose::STANDARD.encode(raw)
+    )
+}
+
+#[tokio::test]
+async fn authorization_code_grant_accepts_http_basic_client_auth() -> anyhow::Result<()> {
+    let grant = seed_grant(None, None).await?;
+    let app = token_app().await?;
+    let body = urlencode(&[
+        ("grant_type", "authorization_code"),
+        ("code", grant.code.as_str()),
+        ("redirect_uri", grant.client.redirect_uri.as_str()),
+    ]);
+    let req = Request::builder()
+        .method(http::Method::POST)
+        .uri("/token")
+        .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
+        .header(
+            header::AUTHORIZATION,
+            basic_auth(grant.client.client_id.as_str(), &grant.client.client_secret),
+        )
+        .body(Body::from(body))?;
+    let resp = app.oneshot(req).await?;
+    let status = resp.status();
+    let v = read_json(resp).await?;
+    assert!(status.is_success(), "expected 200, got {status} {v}");
+    assert!(v["access_token"].as_str().is_some(), "{v}");
+    Ok(())
+}
+
+#[tokio::test]
+async fn http_basic_with_a_conflicting_body_client_id_is_refused() -> anyhow::Result<()> {
+    let grant = seed_grant(None, None).await?;
+    let app = token_app().await?;
+    let body = urlencode(&[
+        ("grant_type", "authorization_code"),
+        ("code", grant.code.as_str()),
+        ("client_id", "someone-else"),
+        ("redirect_uri", grant.client.redirect_uri.as_str()),
+    ]);
+    let req = Request::builder()
+        .method(http::Method::POST)
+        .uri("/token")
+        .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
+        .header(
+            header::AUTHORIZATION,
+            basic_auth(grant.client.client_id.as_str(), &grant.client.client_secret),
+        )
+        .body(Body::from(body))?;
+    let resp = app.oneshot(req).await?;
+    let status = resp.status();
+    let v = read_json(resp).await?;
+    assert_eq!(status, axum::http::StatusCode::BAD_REQUEST, "{v}");
+    assert_eq!(v["error"].as_str(), Some("invalid_request"), "{v}");
+    Ok(())
+}
+
+#[tokio::test]
+async fn malformed_http_basic_is_refused() -> anyhow::Result<()> {
+    let grant = seed_grant(None, None).await?;
+    let app = token_app().await?;
+    let body = urlencode(&[
+        ("grant_type", "authorization_code"),
+        ("code", grant.code.as_str()),
+        ("redirect_uri", grant.client.redirect_uri.as_str()),
+    ]);
+    let req = Request::builder()
+        .method(http::Method::POST)
+        .uri("/token")
+        .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
+        .header(header::AUTHORIZATION, "Basic not-base64!")
+        .body(Body::from(body))?;
+    let resp = app.oneshot(req).await?;
+    let status = resp.status();
+    let v = read_json(resp).await?;
+    assert_eq!(status, axum::http::StatusCode::BAD_REQUEST, "{v}");
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// A public client (`none`) has no secret binding the code to it; the
+// redirect_uri echo is the only proof of continuity and may not be omitted.
+// ---------------------------------------------------------------------------
+
+async fn seed_public_grant() -> anyhow::Result<SeededGrant> {
+    let grant = seed_grant(None, None).await?;
+    let b = ensure_test_bootstrap();
+    let pool = fixture_db_pool(&b.database_url).await?;
+    let p = pool.pool_arc().expect("read pool");
+    sqlx::query(
+        "UPDATE oauth_clients SET token_endpoint_auth_method = 'none', client_secret_hash = NULL \
+         WHERE client_id = $1",
+    )
+    .bind(grant.client.client_id.as_str())
+    .execute(p.as_ref())
+    .await?;
+    Ok(grant)
+}
+
+#[tokio::test]
+async fn public_client_must_echo_redirect_uri() -> anyhow::Result<()> {
+    let grant = seed_public_grant().await?;
+    let app = token_app().await?;
+    let body = urlencode(&[
+        ("grant_type", "authorization_code"),
+        ("code", grant.code.as_str()),
+        ("client_id", grant.client.client_id.as_str()),
+    ]);
+    let resp = app.oneshot(form_post(body)).await?;
+    let status = resp.status();
+    let v = read_json(resp).await?;
+    assert_eq!(status, axum::http::StatusCode::BAD_REQUEST, "{v}");
+    assert_eq!(v["error"].as_str(), Some("invalid_request"), "{v}");
+    assert!(
+        v["error_description"]
+            .as_str()
+            .is_some_and(|d| d.contains("redirect_uri")),
+        "{v}"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn public_client_with_matching_redirect_uri_redeems() -> anyhow::Result<()> {
+    let grant = seed_public_grant().await?;
+    let app = token_app().await?;
+    let body = urlencode(&[
+        ("grant_type", "authorization_code"),
+        ("code", grant.code.as_str()),
+        ("client_id", grant.client.client_id.as_str()),
+        ("redirect_uri", grant.client.redirect_uri.as_str()),
+    ]);
+    let resp = app.oneshot(form_post(body)).await?;
+    let status = resp.status();
+    let v = read_json(resp).await?;
+    assert!(status.is_success(), "expected 200, got {status} {v}");
     Ok(())
 }

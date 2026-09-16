@@ -5,6 +5,7 @@
 //! for a request that did not complete. All three are pinned here.
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
+use systemprompt_models::wire::origin::RequestOrigin;
 
 use clap::Parser;
 use systemprompt_ai::models::AiRequestRecord;
@@ -52,10 +53,15 @@ async fn seed_request(pool: &DbPool) -> AiRequestId {
     seed_user_row(pool, &user, &format!("{}@audit.invalid", user.as_str()))
         .await
         .expect("seed user");
-    let record = AiRequestRecord::builder(AiRequestId::generate(), user, ContextId::generate())
-        .provider("anthropic")
-        .model("claude-fixture-1")
-        .build();
+    let record = AiRequestRecord::builder(
+        AiRequestId::generate(),
+        user,
+        ContextId::generate(),
+        RequestOrigin::INTERNAL,
+    )
+    .provider("anthropic")
+    .model("claude-fixture-1")
+    .build();
     AiRequestRepository::new(pool)
         .expect("request repo")
         .insert(&record)

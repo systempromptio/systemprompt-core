@@ -23,13 +23,12 @@
 //! | `cli` | `systemprompt-cli` | The `systemprompt` CLI as a library entry point. |
 //! | `runtime` | `cli` + extension injection | `RuntimeBuilder` for embedding with custom extensions. |
 //! | `analytics` | `systemprompt-analytics` | Request, conversation, agent, tool, and cost metrics without the rest of `full`. |
-//! | `evaluation` | `systemprompt-evaluation` | Judge runs over production traffic, replay, auto-improve loop. |
 //! | `slack` | `systemprompt-slack` | Slack Events API, slash commands, interactivity. Opt-in: not part of `full`. |
 //! | `teams` | `systemprompt-teams` | Microsoft Teams Bot Framework activities. Opt-in: not part of `full`. |
-//! | `full` | `api`, `mcp`, `cloud`, `cli`, `config`, `logging`, `loader`, `events`, `storage`, `client`, `security`, `analytics`, `evaluation`, and the domain crates (`agent`, `ai`, `mcp`, `oauth`, `users`, `content`, `marketplace`, `scheduler`, `generator`, `files`) | Building a product binary. `slack` and `teams` stay opt-in. |
+//! | `full` | `api`, `mcp`, `cloud`, `cli`, `config`, `logging`, `loader`, `events`, `storage`, `client`, `security`, `analytics`, and the domain crates (`agent`, `ai`, `mcp`, `oauth`, `users`, `content`, `marketplace`, `scheduler`, `generator`, `files`) | Building a product binary. `slack` and `teams` stay opt-in. |
 //!
 //! ```toml
-//! systemprompt = { version = "0.53.0", features = ["full"] }
+//! systemprompt = { version = "0.54.0", features = ["full"] }
 //! ```
 //!
 //! Every crate is reachable as a module of the same name
@@ -199,12 +198,6 @@ pub mod content {
 #[cfg_attr(docsrs, doc(cfg(feature = "analytics")))]
 pub mod analytics {
     pub use systemprompt_analytics::*;
-}
-
-#[cfg(feature = "evaluation")]
-#[cfg_attr(docsrs, doc(cfg(feature = "evaluation")))]
-pub mod evaluation {
-    pub use systemprompt_evaluation::*;
 }
 
 #[cfg(feature = "full")]

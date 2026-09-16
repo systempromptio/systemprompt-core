@@ -4,7 +4,7 @@
 
 use std::path::Path;
 
-use systemprompt_bridge::ids::LoopbackSecret;
+use systemprompt_bridge::ids::HostToken;
 use systemprompt_bridge::integration::generated_profile::{self, profile_uuids};
 use systemprompt_bridge::integration::hermes::HERMES_HOST;
 use systemprompt_bridge::integration::host_app::{HostApp, ProfileGenInputs};
@@ -12,7 +12,7 @@ use systemprompt_bridge::integration::host_app::{HostApp, ProfileGenInputs};
 fn inputs() -> ProfileGenInputs {
     ProfileGenInputs {
         gateway_base_url: "http://127.0.0.1:48217".to_owned(),
-        api_key: LoopbackSecret::new("loopback-secret-value"),
+        host_token: HostToken::new("loopback-secret-value"),
         models: vec!["gpt-5".to_owned()],
         default_model: None,
         organization_uuid: None,

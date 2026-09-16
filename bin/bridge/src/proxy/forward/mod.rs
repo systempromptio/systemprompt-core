@@ -24,14 +24,16 @@ use crate::proxy::{keepalive, usage};
 
 mod body;
 mod error;
-mod headers;
+pub mod headers;
+mod hook;
 pub mod replay;
 mod route;
 
 use body::prepare_upstream_body;
 pub use body::{CHAT_COMPLETIONS_PATH, stamp_opencode_session};
 pub use error::{ForwardError, ForwardResult, is_client_disconnect};
-use headers::{build_upstream_headers, copy_response_headers};
+use headers::{UpstreamHeaderInputs, build_upstream_headers, copy_response_headers};
+use hook::{authenticate_hook_track, require_hook_credential};
 pub use replay::{Replay, describe, replay_policy, should_replay};
 use replay::{UpstreamRequest, send_with_replay};
 use route::{Route, RouteResolution, resolve_route, same_origin_as};
@@ -87,15 +89,19 @@ pub(crate) async fn forward(
     let request_path = parts.uri.path().to_owned();
 
     let mut hook_plugin = None;
+    let mut attest = None;
     let (route, upstream_bearer) = match resolve_route(&parts.uri, gateway_base, &mcp_registry) {
         RouteResolution::Unavailable(reason) => return Err(ForwardError::Routing(reason)),
-        RouteResolution::Gateway(url) => (
-            Route {
-                url,
-                extra_headers: BTreeMap::new(),
-            },
-            token.token.expose().to_owned(),
-        ),
+        RouteResolution::Gateway(url) => {
+            attest = Some(&credential);
+            (
+                Route {
+                    url,
+                    extra_headers: BTreeMap::new(),
+                },
+                token.token.expose().to_owned(),
+            )
+        },
         RouteResolution::Mcp(route) => (route, token.token.expose().to_owned()),
         RouteResolution::Hook { url, plugin_id } => {
             require_hook_credential(&credential, plugin_id.as_str())?;
@@ -133,19 +139,21 @@ pub(crate) async fn forward(
     let (buffered_body, gateway_conversation_id) =
         prepare_upstream_body(body, session_context, &parts.headers, &request_path).await?;
 
-    if let Err(error) = session_context
-        .native_sessions()
-        .observe(&parts.headers, &buffered_body)
-    {
+    if let Err(error) = session_context.native_sessions().observe(
+        credential.verified_host(),
+        &parts.headers,
+        &buffered_body,
+    ) {
         tracing::warn!(%error, "Native session could not be recorded for binding");
     }
-    let mut upstream_headers = build_upstream_headers(
-        &parts.headers,
-        &upstream_bearer,
-        session_context.session_id(),
-        gateway_conversation_id.as_ref(),
-        &route.extra_headers,
-    )?;
+    let mut upstream_headers = build_upstream_headers(&UpstreamHeaderInputs {
+        src: &parts.headers,
+        bearer: &upstream_bearer,
+        session_id: session_context.session_id(),
+        gateway_conversation_id: gateway_conversation_id.as_ref(),
+        extra: &route.extra_headers,
+        attest,
+    })?;
 
     headers::ensure_ingestion_delivery_id(&request_path, &mut upstream_headers)?;
     if hook_plugin.is_some() && request_path == "/api/public/hooks/track" {
@@ -225,64 +233,6 @@ pub(crate) async fn forward(
     };
 
     Ok(response_builder.body(body)?)
-}
-
-fn authenticate_hook_track(
-    gateway_base: &ValidatedUrl,
-    request_headers: &http::HeaderMap,
-    buffered_body: &[u8],
-    upstream_headers: &mut http::HeaderMap,
-) -> ForwardResult<()> {
-    let host = request_headers
-        .get("x-systemprompt-host")
-        .and_then(|value| value.to_str().ok());
-    if let Err(error) = crate::feedback::hooks::authenticate_forwarded_hook(
-        gateway_base.as_str(),
-        host,
-        upstream_headers,
-    ) && !matches!(error, crate::feedback::FeedbackError::EnrollmentRequired)
-    {
-        return Err(ForwardError::Auth(
-            "Device evidence authentication unavailable".to_owned(),
-        ));
-    }
-    // JSON: protocol boundary — the hook body is the host's own wire shape.
-    if let Ok(value) = serde_json::from_slice::<serde_json::Value>(buffered_body)
-        && let (Some(host), Some(session)) = (
-            host.and_then(crate::feedback::client_kind),
-            value.get("session_id").and_then(serde_json::Value::as_str),
-        )
-        && let Ok(root) = crate::feedback::metadata_root()
-        && let Ok(enrollment) =
-            crate::feedback::credentials::Enrollment::load(&root, gateway_base.as_str())
-    {
-        let outbox = crate::feedback::outbox::Outbox::new(
-            enrollment.outbox_path(&root),
-            crate::feedback::outbox::OutboxScope::from_enrollment(&enrollment),
-        );
-        if let Err(error) = outbox.queue_session(host, session) {
-            tracing::debug!(%error, "Hook native session awaits binding");
-        }
-    }
-    Ok(())
-}
-
-fn require_hook_credential(credential: &LoopbackCredential, plugin_id: &str) -> ForwardResult<()> {
-    match credential {
-        LoopbackCredential::Hook(plugin) if plugin.as_str() == plugin_id => Ok(()),
-        LoopbackCredential::Hook(_) => Err(ForwardError::Scope {
-            presented: "hook token of another plugin",
-            route: "this plugin's hook route",
-        }),
-        LoopbackCredential::Secret => Err(ForwardError::Scope {
-            presented: "loopback secret",
-            route: "a plugin hook route",
-        }),
-        LoopbackCredential::Host(_) => Err(ForwardError::Scope {
-            presented: "host token",
-            route: "a plugin hook route",
-        }),
-    }
 }
 
 fn not_found_response(body: &str) -> ForwardResult<Response<ProxyBody>> {

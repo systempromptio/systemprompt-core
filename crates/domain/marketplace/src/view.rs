@@ -24,7 +24,7 @@ pub fn render_marketplace_json(id: &str, marketplace: &MarketplaceConfig) -> ser
         })
         .collect();
 
-    serde_json::json!({
+    let mut body = serde_json::json!({
         "name": id,
         "owner": { "name": marketplace.author.name.clone() },
         "metadata": {
@@ -32,7 +32,15 @@ pub fn render_marketplace_json(id: &str, marketplace: &MarketplaceConfig) -> ser
             "version": marketplace.version.clone(),
         },
         "plugins": plugin_entries,
-    })
+    });
+    if !marketplace
+        .allow_cross_marketplace_dependencies_on
+        .is_empty()
+    {
+        body["allowCrossMarketplaceDependenciesOn"] =
+            serde_json::json!(marketplace.allow_cross_marketplace_dependencies_on);
+    }
+    body
 }
 
 #[must_use]

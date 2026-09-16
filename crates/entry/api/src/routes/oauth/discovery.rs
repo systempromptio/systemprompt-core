@@ -8,6 +8,7 @@ use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use serde::Serialize;
+use systemprompt_models::Config;
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_models::oauth::{OAuthServerConfig, ProtectedResourceMetadata};
 use systemprompt_oauth::services::validation::id_jag::ID_JAG_GRANT_PROFILE;
@@ -24,6 +25,7 @@ pub struct WellKnownResponse {
     pub userinfo_endpoint: String,
     pub introspection_endpoint: String,
     pub revocation_endpoint: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub registration_endpoint: Option<String>,
     pub scopes_supported: Vec<String>,
     pub response_types_supported: Vec<String>,
@@ -42,6 +44,9 @@ pub struct WellKnownResponse {
 
 pub async fn handle_well_known(base: RequestBaseUrl) -> impl IntoResponse {
     let config = OAuthServerConfig::from_api_server_url(base.as_str());
+    let registration_endpoint = Config::get()
+        .is_ok_and(|c| c.allow_dynamic_client_registration)
+        .then(|| format!("{}/api/v1/core/oauth/register", config.issuer));
 
     let response = WellKnownResponse {
         issuer: config.issuer.clone(),
@@ -50,7 +55,7 @@ pub async fn handle_well_known(base: RequestBaseUrl) -> impl IntoResponse {
         userinfo_endpoint: format!("{}/api/v1/core/oauth/userinfo", config.issuer),
         introspection_endpoint: format!("{}/api/v1/core/oauth/introspect", config.issuer),
         revocation_endpoint: format!("{}/api/v1/core/oauth/revoke", config.issuer),
-        registration_endpoint: Some(format!("{}/api/v1/core/oauth/register", config.issuer)),
+        registration_endpoint,
         scopes_supported: config.supported_scopes,
         response_types_supported: config.supported_response_types,
         response_modes_supported: vec!["query".to_owned()],

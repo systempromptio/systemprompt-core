@@ -4,6 +4,7 @@ mod authorize_validation;
 mod client_config;
 mod client_config_validation;
 mod client_credentials_grant;
+mod dcr_disabled;
 mod error_code;
 mod error_conversions;
 mod error_http;

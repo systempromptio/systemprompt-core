@@ -1,5 +1,12 @@
 //! RFC 7591 dynamic client registration endpoint.
 //!
+//! Registration is anonymous by design — MCP clients register on first
+//! connect — so everything a registrant may claim is policed here: redirect
+//! URIs by scheme and host, scopes by the self-registrable set, and a
+//! secret only for confidential auth methods. The returned registration
+//! access token is the only credential the RFC 7592 configuration endpoints
+//! accept; its hash is stored with the client.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -15,10 +22,15 @@ use systemprompt_models::{Config, RequestContext};
 use uuid::Uuid;
 
 use systemprompt_oauth::OauthError;
+use systemprompt_oauth::models::TokenAuthMethod;
 use systemprompt_oauth::oauth::dynamic_registration::{
     DynamicRegistrationRequest, DynamicRegistrationResponse,
 };
 use systemprompt_oauth::repository::{CreateClientParams, OAuthRepository};
+use systemprompt_oauth::services::validation::{
+    validate_client_metadata_uri, validate_registration_redirect_uris,
+};
+use systemprompt_oauth::services::{generate_registration_token, hash_registration_token};
 
 use crate::routes::oauth::OAuthHttpError;
 use crate::routes::oauth::extractors::OAuthRepo;
@@ -31,47 +43,98 @@ fn is_unique_violation(err: &OauthError) -> bool {
     }
 }
 
+fn metadata_error(err: &OauthError) -> OAuthHttpError {
+    OAuthHttpError::invalid_client_metadata(err.to_string())
+}
+
+struct ValidatedRegistration {
+    client_name: String,
+    application_type: String,
+    redirect_uris: Vec<String>,
+    grant_types: Vec<String>,
+    response_types: Vec<String>,
+    scopes: Vec<String>,
+    token_endpoint_auth_method: TokenAuthMethod,
+}
+
+fn validate_registration(
+    request: &DynamicRegistrationRequest,
+) -> Result<ValidatedRegistration, OAuthHttpError> {
+    let client_name = request.get_client_name().map_err(|e| metadata_error(&e))?;
+    let application_type = request
+        .get_application_type()
+        .map_err(|e| metadata_error(&e))?;
+    let redirect_uris = request
+        .get_redirect_uris()
+        .map_err(|e| metadata_error(&e))?;
+    validate_registration_redirect_uris(&application_type, &redirect_uris)
+        .map_err(|e| metadata_error(&e))?;
+    validate_client_metadata_uri("client_uri", request.client_uri.as_deref())
+        .map_err(|e| metadata_error(&e))?;
+    validate_client_metadata_uri("logo_uri", request.logo_uri.as_deref())
+        .map_err(|e| metadata_error(&e))?;
+    let scopes = determine_scopes(request)
+        .map_err(|e| OAuthHttpError::invalid_client_metadata(format!("Invalid scopes: {e}")))?;
+    let token_endpoint_auth_method = request
+        .get_token_endpoint_auth_method()
+        .map_err(|e| metadata_error(&e))?;
+
+    Ok(ValidatedRegistration {
+        client_name,
+        application_type,
+        redirect_uris,
+        grant_types: request.get_grant_types(),
+        response_types: request.get_response_types(),
+        scopes,
+        token_endpoint_auth_method,
+    })
+}
+
 pub async fn register_client(
     Extension(req_ctx): Extension<RequestContext>,
     OAuthRepo(repository): OAuthRepo,
     Json(request): Json<DynamicRegistrationRequest>,
 ) -> Result<Response, OAuthHttpError> {
-    let client_id = generate_client_id(&request);
-    let client_secret = generate_opaque_token(32);
-    let registration_access_token = format!("reg_{}", generate_opaque_token(32));
+    let config = Config::get()?;
+    if !config.allow_dynamic_client_registration {
+        return Err(OAuthHttpError::access_denied(
+            "Dynamic client registration is disabled on this server",
+        )
+        .with_status(StatusCode::FORBIDDEN));
+    }
 
-    let base_url = Config::get()?.api_server_url.clone();
-    let registration_client_uri = format!("{base_url}/api/v1/core/oauth/register/{client_id}");
+    let validated = validate_registration(&request)?;
 
-    let client_secret_hash = hash(&client_secret, 12)
+    let client_id = generate_client_id();
+    let client_secret = match validated.token_endpoint_auth_method {
+        TokenAuthMethod::None => None,
+        TokenAuthMethod::ClientSecretPost | TokenAuthMethod::ClientSecretBasic => {
+            Some(generate_opaque_token(32))
+        },
+    };
+    let client_secret_hash = client_secret
+        .as_deref()
+        .map(|secret| hash(secret, 12))
+        .transpose()
         .map_err(|e| OAuthHttpError::server_error(format!("Failed to hash client secret: {e}")))?;
-
-    let client_name = request
-        .get_client_name()
-        .map_err(|e| OAuthHttpError::invalid_client_metadata(e.to_string()))?;
-    let redirect_uris = request
-        .get_redirect_uris()
-        .map_err(|e| OAuthHttpError::invalid_client_metadata(e.to_string()))?;
-    let grant_types = request.get_grant_types();
-    let response_types = request.get_response_types();
-    let scopes = determine_scopes(&request)
-        .map_err(|e| OAuthHttpError::invalid_client_metadata(format!("Invalid scopes: {e}")))?;
-    let token_endpoint_auth_method = request.get_token_endpoint_auth_method();
-    let application_type = request
-        .get_application_type()
-        .map_err(|e| OAuthHttpError::invalid_client_metadata(e.to_string()))?;
+    let registration_access_token = generate_registration_token();
+    let registration_client_uri = format!(
+        "{}/api/v1/core/oauth/register/{client_id}",
+        config.api_server_url
+    );
 
     let params = CreateClientParams {
         client_id: systemprompt_identifiers::ClientId::new(client_id.clone()),
         owner_user_id: req_ctx.auth.actor.user_id.clone(),
         client_secret_hash,
-        client_name: client_name.clone(),
-        redirect_uris: redirect_uris.clone(),
-        grant_types: Some(grant_types.clone()),
-        response_types: Some(response_types.clone()),
-        scopes: scopes.clone(),
-        token_endpoint_auth_method: Some(token_endpoint_auth_method.clone()),
-        application_type: application_type.clone(),
+        registration_token_hash: Some(hash_registration_token(&registration_access_token)),
+        client_name: validated.client_name.clone(),
+        redirect_uris: validated.redirect_uris.clone(),
+        grant_types: Some(validated.grant_types.clone()),
+        response_types: Some(validated.response_types.clone()),
+        scopes: validated.scopes.clone(),
+        token_endpoint_auth_method: Some(validated.token_endpoint_auth_method.as_str().to_owned()),
+        application_type: validated.application_type.clone(),
         client_uri: request.client_uri.clone(),
         logo_uri: request.logo_uri.clone(),
         contacts: request.contacts.clone(),
@@ -87,19 +150,19 @@ pub async fn register_client(
     })?;
 
     let response = DynamicRegistrationResponse {
-        client_id: systemprompt_identifiers::ClientId::new(client_id.clone()),
+        client_id: systemprompt_identifiers::ClientId::new(client_id),
+        client_secret_expires_at: client_secret.as_ref().map(|_| 0),
         client_secret,
-        client_name,
-        redirect_uris,
-        grant_types,
-        response_types,
-        scope: scopes.join(" "),
-        token_endpoint_auth_method,
-        application_type,
+        client_name: validated.client_name,
+        redirect_uris: validated.redirect_uris,
+        grant_types: validated.grant_types,
+        response_types: validated.response_types,
+        scope: validated.scopes.join(" "),
+        token_endpoint_auth_method: validated.token_endpoint_auth_method.as_str().to_owned(),
+        application_type: validated.application_type,
         client_uri: request.client_uri,
         logo_uri: request.logo_uri,
         contacts: request.contacts,
-        client_secret_expires_at: 0,
         client_id_issued_at: Utc::now(),
         registration_access_token,
         registration_client_uri,
@@ -108,7 +171,7 @@ pub async fn register_client(
     Ok((StatusCode::CREATED, Json(response)).into_response())
 }
 
-fn generate_client_id(_request: &DynamicRegistrationRequest) -> String {
+fn generate_client_id() -> String {
     format!("client_{}", Uuid::new_v4().simple())
 }
 
@@ -124,10 +187,8 @@ fn determine_scopes(request: &DynamicRegistrationRequest) -> Result<Vec<String>,
             scope_string.split_whitespace().map(str::to_owned).collect();
 
         if !requested_scopes.is_empty() {
-            let valid_requested = OAuthRepository::validate_scopes(&requested_scopes)
-                .map_err(|e| format!("Invalid scopes requested: {e}"))?;
-
-            return Ok(valid_requested);
+            return OAuthRepository::validate_scopes_for_registration(&requested_scopes)
+                .map_err(|e| format!("Invalid scopes requested: {e}"));
         }
     }
 

@@ -220,7 +220,6 @@ mod all_jobs_inventory {
             "cleanup_empty_contexts",
             "cleanup_inactive_sessions",
             "database_cleanup",
-            "evaluation_supervisor",
             "ghost_session_cleanup",
             "malicious_ip_blacklist",
             "no_js_cleanup",

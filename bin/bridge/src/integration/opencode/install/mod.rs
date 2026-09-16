@@ -1,12 +1,14 @@
 //! `OpenCode` managed-profile installer: renders the bridge-owned provider
 //! block, merges it into the managed `opencode.json` preserving every
-//! admin-authored key, and writes the static API key into the user's
+//! admin-authored key, and writes the host token into the user's
 //! `auth.json`.
 //!
 //! The managed file is admin-owned, so the merge goes through
 //! [`crate::install::managed_file`], which writes directly when it can and
-//! escalates only when refused. The loopback secret is stable, so it is
-//! written once as a static key rather than through a helper subprocess.
+//! escalates only when refused. The host token is derived deterministically
+//! from the loopback secret, so it is written once as a static key rather
+//! than through a helper subprocess, and rotates with the secret via the
+//! stale-profile re-apply.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -118,6 +120,12 @@ pub(super) fn pretty(map: &Map<String, Value>) -> std::io::Result<Vec<u8>> {
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
     bytes.push(b'\n');
     Ok(bytes)
+}
+
+pub(super) fn installed_key_fingerprint(path: &Path) -> Option<String> {
+    let auth = read_object(path).ok()?;
+    let key = auth.get(config::PROVIDER_ID)?.get("key")?.as_str()?;
+    Some(crate::proxy::secret::fingerprint(key))
 }
 
 fn upsert_auth_key(path: &Path, key: &str) -> std::io::Result<()> {

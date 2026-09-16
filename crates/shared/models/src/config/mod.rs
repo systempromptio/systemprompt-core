@@ -81,6 +81,7 @@ pub struct Config {
     pub content_negotiation: ContentNegotiationConfig,
     pub security_headers: SecurityHeadersConfig,
     pub allow_registration: bool,
+    pub allow_dynamic_client_registration: bool,
     pub login_page_url: Option<String>,
     pub system_admin_username: String,
     pub system_admin_email: Option<systemprompt_identifiers::Email>,
@@ -142,6 +143,10 @@ impl std::fmt::Debug for Config {
             .field("content_negotiation", &self.content_negotiation)
             .field("security_headers", &self.security_headers)
             .field("allow_registration", &self.allow_registration)
+            .field(
+                "allow_dynamic_client_registration",
+                &self.allow_dynamic_client_registration,
+            )
             .field("login_page_url", &self.login_page_url)
             .field("system_admin_username", &self.system_admin_username)
             .field("system_admin_email", &self.system_admin_email)

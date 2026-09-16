@@ -1,6 +1,9 @@
-//! The `apiKeyHelper` the bridge hands Claude Code: a `sh` script that
-//! prints the loopback key on Unix, the bridge executable itself on Windows,
-//! and the shell command line each is invoked with.
+//! The `apiKeyHelper` the bridge hands Claude Code: a `sh` script that execs
+//! the bridge's credential helper on Unix, the bridge executable itself on
+//! Windows, and the shell command line each is invoked with.
+//!
+//! Both platforms present the `claude-code` host token, never the loopback
+//! secret, so the proxy can attribute the traffic to Claude Code.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -44,13 +47,13 @@ pub(super) fn key_helper_path() -> Option<PathBuf> {
 }
 
 #[cfg(unix)]
-fn key_helper_body(key_path: &Path) -> String {
+fn key_helper_body(executable: &Path) -> String {
     let bin = crate::brand::brand().binary_name;
     format!(
         "#!/bin/sh\n\
          # Written by `{bin} install --apply`. Rewritten on every apply — do not edit.\n\
-         exec cat \"{key}\"\n",
-        key = key_path.display(),
+         exec '{exe}' credential-helper --host claude-code\n",
+        exe = executable.display().to_string().replace('\'', "'\\''"),
     )
 }
 
@@ -87,8 +90,10 @@ fn set_executable(path: &Path) -> Result<(), MdmError> {
 }
 
 #[cfg(unix)]
-pub(super) fn prepare_helper(helper: &Path, key_path: &Path) -> Result<Vec<FileReceipt>, MdmError> {
-    let receipt = write_verified(helper, &key_helper_body(key_path))?;
+pub(super) fn prepare_helper(helper: &Path) -> Result<Vec<FileReceipt>, MdmError> {
+    let executable =
+        std::env::current_exe().map_err(io_error("resolve the bridge executable", helper))?;
+    let receipt = write_verified(helper, &key_helper_body(&executable))?;
     set_executable(helper)?;
     Ok(vec![receipt])
 }
@@ -99,10 +104,7 @@ pub(super) fn key_helper_path() -> Option<PathBuf> {
 }
 
 #[cfg(target_os = "windows")]
-pub(super) fn prepare_helper(
-    helper: &Path,
-    _key_path: &Path,
-) -> Result<Vec<FileReceipt>, MdmError> {
+pub(super) fn prepare_helper(helper: &Path) -> Result<Vec<FileReceipt>, MdmError> {
     fs::metadata(helper).map_err(io_error("read helper executable", helper))?;
     Ok(Vec::new())
 }

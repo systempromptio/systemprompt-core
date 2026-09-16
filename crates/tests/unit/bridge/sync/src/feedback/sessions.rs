@@ -1,22 +1,27 @@
 use super::*;
+use systemprompt_bridge::ids::HostId;
+
+fn host(id: &str) -> HostId {
+    HostId::new(id)
+}
 
 #[test]
 fn native_session_binding_does_not_invent_proxy_sessions_and_detects_conflicting_aliases() {
     let mut headers = http::HeaderMap::new();
     headers.insert("x-session-id", "synthesized-proxy-session".parse().unwrap());
-    assert!(native_session(&headers, b"{}").is_none());
+    assert!(native_session(None, &headers, b"{}").is_none());
     headers.insert("user-agent", "codex_cli_rs/1.0".parse().unwrap());
-    assert!(native_session(&headers, b"{}").is_none());
+    assert!(native_session(None, &headers, b"{}").is_none());
     headers.insert("session-id", "native-session".parse().unwrap());
     assert_eq!(
-        native_session(&headers, b"{}").unwrap().id.as_str(),
+        native_session(None, &headers, b"{}").unwrap().id.as_str(),
         "native-session"
     );
     headers.insert("session_id", "conflicting-native-session".parse().unwrap());
-    assert!(native_session(&headers, b"{}").is_none());
+    assert!(native_session(None, &headers, b"{}").is_none());
     let codex=serde_json::to_vec(&serde_json::json!({"client_metadata":{"x-codex-turn-metadata":"{\"thread_id\":\"thread-123\"}"}})).unwrap();
     assert_eq!(
-        native_session(&http::HeaderMap::new(), &codex)
+        native_session(None, &http::HeaderMap::new(), &codex)
             .unwrap()
             .id
             .as_str(),
@@ -26,16 +31,48 @@ fn native_session_binding_does_not_invent_proxy_sessions_and_detects_conflicting
     opencode.insert("user-agent", "opencode/1.0".parse().unwrap());
     opencode.insert("x-opencode-session", "ses_123".parse().unwrap());
     assert_eq!(
-        native_session(&opencode, b"{}").unwrap().host,
+        native_session(None, &opencode, b"{}").unwrap().host,
         EvaluatorClient::OpenCode
     );
-    let mut hermes = http::HeaderMap::new();
-    hermes.insert("user-agent", "HermesAgent/1.0".parse().unwrap());
+    let hermes = http::HeaderMap::new();
     assert_eq!(
-        native_session(&hermes, br#"{"session_id":"hermes-session"}"#)
-            .unwrap()
-            .host,
+        native_session(
+            Some(&host("hermes")),
+            &hermes,
+            br#"{"session_id":"hermes-session"}"#
+        )
+        .unwrap()
+        .host,
         EvaluatorClient::Hermes
+    );
+}
+
+#[test]
+fn a_verified_host_token_names_the_host_over_body_and_user_agent() {
+    let claude = serde_json::to_vec(&serde_json::json!({"metadata":{"user_id":
+        "user_ab12_account_3f2504e0-4f89-11d3-9a0c-0305e82c3301_session_6ba7b810-9dad-11d1-80b4-00c04fd430c8"}}))
+        .unwrap();
+    let mut headers = http::HeaderMap::new();
+    headers.insert("user-agent", "claude-cli/2.0".parse().unwrap());
+    headers.insert("x-opencode-session", "ses_123".parse().unwrap());
+    assert_eq!(
+        native_session(None, &headers, &claude).unwrap().host,
+        EvaluatorClient::ClaudeCode,
+        "on the secret path the body marker decides"
+    );
+    let bound = native_session(Some(&host("opencode")), &headers, &claude).unwrap();
+    assert_eq!(bound.host, EvaluatorClient::OpenCode);
+    assert_eq!(
+        bound.id.as_str(),
+        systemprompt_bridge::feedback::opencode_session::session_uuid("ses_123")
+            .unwrap()
+            .as_str(),
+        "the session is read in the attested host's own shape"
+    );
+    assert_eq!(
+        native_session(Some(&host("codex-cli")), &headers, &claude).map(|s| s.host),
+        None,
+        "an attested host whose session shape is absent binds nothing rather than guessing"
     );
 }
 
@@ -125,14 +162,14 @@ fn opencode_session_header_binds_the_uuid_or_maps_a_raw_native_id_onto_it() {
     let mut current = http::HeaderMap::new();
     current.insert("user-agent", "opencode/1.0".parse().unwrap());
     current.insert("x-opencode-session", mapped.as_str().parse().unwrap());
-    let session = native_session(&current, b"{}").unwrap();
+    let session = native_session(None, &current, b"{}").unwrap();
     assert_eq!(session.host, EvaluatorClient::OpenCode);
     assert_eq!(session.id.as_str(), mapped.as_str());
 
     let mut legacy = http::HeaderMap::new();
     legacy.insert("user-agent", "opencode/1.0".parse().unwrap());
     legacy.insert("x-opencode-session", "ses_x".parse().unwrap());
-    let session = native_session(&legacy, b"{}").unwrap();
+    let session = native_session(None, &legacy, b"{}").unwrap();
     assert_eq!(session.host, EvaluatorClient::OpenCode);
     assert_eq!(
         session.id.as_str(),
@@ -147,7 +184,7 @@ fn opencode_session_header_binds_the_uuid_or_maps_a_raw_native_id_onto_it() {
         mapped.as_str().to_ascii_uppercase().parse().unwrap(),
     );
     assert_ne!(
-        native_session(&upper, b"{}").unwrap().id.as_str(),
+        native_session(None, &upper, b"{}").unwrap().id.as_str(),
         mapped.as_str(),
         "only the canonical lowercase form is accepted as the uuid itself"
     );
@@ -245,8 +282,8 @@ fn observed_sessions_are_deduplicated_in_memory_and_written_only_by_flush() {
         let mut headers = http::HeaderMap::new();
         headers.insert("user-agent", "codex_cli_rs/1.0".parse().unwrap());
         headers.insert("session-id", "native-session".parse().unwrap());
-        ledger.observe(&headers, b"{}").unwrap();
-        ledger.observe(&headers, b"{}").unwrap();
+        ledger.observe(None, &headers, b"{}").unwrap();
+        ledger.observe(None, &headers, b"{}").unwrap();
         assert_eq!(ledger.unflushed(), 1);
         assert!(!path.exists(), "observation is not a write");
 
@@ -255,7 +292,7 @@ fn observed_sessions_are_deduplicated_in_memory_and_written_only_by_flush() {
         let before = snapshot(&path);
         std::thread::sleep(std::time::Duration::from_millis(20));
 
-        ledger.observe(&headers, b"{}").unwrap();
+        ledger.observe(None, &headers, b"{}").unwrap();
         ledger.flush("https://example.invalid").unwrap();
         assert_eq!(
             snapshot(&path),
@@ -277,7 +314,7 @@ fn a_flush_that_cannot_reach_the_outbox_keeps_the_session_for_the_next_tick() {
         let mut headers = http::HeaderMap::new();
         headers.insert("user-agent", "codex_cli_rs/1.0".parse().unwrap());
         headers.insert("session-id", "native-session".parse().unwrap());
-        ledger.observe(&headers, b"{}").unwrap();
+        ledger.observe(None, &headers, b"{}").unwrap();
         assert!(matches!(
             ledger.flush("https://example.invalid"),
             Err(FeedbackError::EnrollmentRequired)

@@ -118,6 +118,8 @@ async fn execute_with_pool_inner(
                 cursor,
                 user_id: r.user_id,
                 actor: format!("{}:{}", r.actor_kind, r.actor_id),
+                client: r.client_kind,
+                attestation: r.client_attestation,
                 provider: r.provider.unwrap_or_else(|| "-".to_owned()),
                 model: r.model.unwrap_or_else(|| "-".to_owned()),
                 tokens,

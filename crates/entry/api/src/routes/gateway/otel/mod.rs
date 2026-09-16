@@ -1,7 +1,7 @@
 //! OTLP telemetry ingest endpoint.
 //!
 //! [`handle`] authenticates the caller with the same gateway credential the
-//! inference routes accept (bridge JWT, API key or execution capability, plus
+//! inference routes accept (bridge JWT or API key, plus
 //! the attested `x-session-id`) and then hands the body to
 //! [`ingest_envelope`], which decodes a protobuf OTLP envelope (traces, logs,
 //! or metrics) and persists spans and log records to the logging repository
@@ -35,7 +35,6 @@ use opentelemetry_proto::tonic::collector::trace::v1::ExportTraceServiceRequest;
 
 use super::messages::auth::authenticate;
 use super::messages::extract::headers::{extract_credential, require_session_id};
-use crate::services::gateway::GatewayRepositories;
 use crate::services::middleware::JwtContextExtractor;
 use ingest::{ingest_logs, ingest_metrics, ingest_traces};
 
@@ -44,7 +43,6 @@ const MAX_BODY_BYTES: usize = 4 * 1024 * 1024;
 pub async fn handle(
     jwt_extractor: Arc<JwtContextExtractor>,
     ctx: AppContext,
-    repos: Arc<GatewayRepositories>,
     request: Request<Body>,
 ) -> Response<Body> {
     let Some(credential) = extract_credential(request.headers()) else {
@@ -58,15 +56,7 @@ pub async fn handle(
         Ok(session_id) => session_id,
         Err(rejection) => return rejection.into_response(),
     };
-    let principal = match authenticate(
-        &credential,
-        &session_id,
-        &jwt_extractor,
-        &ctx,
-        &repos.execution_capabilities,
-    )
-    .await
-    {
+    let principal = match authenticate(&credential, &session_id, &jwt_extractor, &ctx).await {
         Ok(principal) => principal,
         Err(rejection) => return rejection.into_response(),
     };

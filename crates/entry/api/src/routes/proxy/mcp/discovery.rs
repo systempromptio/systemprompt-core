@@ -26,6 +26,7 @@ struct McpAuthorizationServerMetadata {
     issuer: String,
     authorization_endpoint: String,
     token_endpoint: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     registration_endpoint: Option<String>,
     scopes_supported: Vec<String>,
     response_types_supported: Vec<String>,
@@ -82,8 +83,11 @@ pub(super) async fn handle_mcp_protected_resource(
 pub(super) async fn handle_mcp_authorization_server(
     Path(_service_name): Path<String>,
 ) -> impl IntoResponse {
-    let base_url = match Config::get() {
-        Ok(c) => c.api_external_url.clone(),
+    let (base_url, allow_dcr) = match Config::get() {
+        Ok(c) => (
+            c.api_external_url.clone(),
+            c.allow_dynamic_client_registration,
+        ),
         Err(e) => {
             tracing::error!(error = %e, "Failed to get config");
             return (
@@ -98,7 +102,8 @@ pub(super) async fn handle_mcp_authorization_server(
         issuer: base_url.clone(),
         authorization_endpoint: format!("{}/api/v1/core/oauth/authorize", base_url),
         token_endpoint: format!("{}/api/v1/core/oauth/token", base_url),
-        registration_endpoint: Some(format!("{}/api/v1/core/oauth/register", base_url)),
+        registration_endpoint: allow_dcr
+            .then(|| format!("{}/api/v1/core/oauth/register", base_url)),
         scopes_supported: vec!["user".to_owned(), "admin".to_owned()],
         response_types_supported: vec![ResponseType::Code.to_string()],
         grant_types_supported: vec![

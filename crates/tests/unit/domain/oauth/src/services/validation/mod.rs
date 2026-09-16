@@ -8,3 +8,4 @@ mod jwt_errors;
 mod mcp_oauth_flow;
 mod oauth_params;
 mod redirect_uri;
+mod registration_redirect;

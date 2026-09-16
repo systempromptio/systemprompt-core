@@ -47,7 +47,6 @@ impl Profile {
             governance: None,
             services: crate::profile::ServicesProfileConfig::default(),
             storage: crate::profile::StorageConfig::default(),
-            evaluator: None,
         })
     }
 }
@@ -165,6 +164,7 @@ fn security_config_from_env() -> ProfileResult<SecurityConfig> {
         audiences,
         allowed_resource_audiences: super::default_resource_audiences(),
         allow_registration,
+        allow_dynamic_client_registration: true,
         login_page_url: get_env("LOGIN_PAGE_URL"),
         signing_key_path: std::path::PathBuf::from("signing_key.pem"),
         trusted_issuers: Vec::new(),

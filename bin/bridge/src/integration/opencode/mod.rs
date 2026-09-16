@@ -63,7 +63,15 @@ impl HostApp for OpenCodeHost {
             read.keys.get(config::PROVIDER_BASE_URL).map(String::as_str),
             env.proxy_port,
         );
-        let secret = Freshness::Unchecked;
+        // Why: auth.json holds the opencode host token; a stale one means the
+        // proxy will attribute OpenCode traffic as an unverified secret holder
+        // until sync re-renders it, so it must surface as Stale.
+        let secret = Freshness::compare(
+            install::installed_key_fingerprint(&config::auth_json_path()).as_deref(),
+            env.host_token_fingerprint(&crate::ids::HostId::new(self.id()))
+                .as_deref(),
+            "opencode host token",
+        );
         let profile_state = ProfileState::classify(&ProfileProbe {
             required: config::REQUIRED_KEYS,
             present: &read.keys,

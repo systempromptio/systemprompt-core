@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.54.0] - 2026-09-16
+
+### Removed
+
+- **Breaking:** `admin evals` (`promote`) is removed.
+
+### Added
+
+- `infra logs request list` shows the `attestation` column; `infra logs request show` prints `client` as `<kind> (<attestation>)` and the recorded `client_evidence`.
+
 ## [0.53.0] - 2026-09-15
 
 ### Breaking

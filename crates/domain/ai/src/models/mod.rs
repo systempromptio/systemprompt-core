@@ -32,6 +32,9 @@ pub mod request_kind;
 
 pub use ai_request_record::{AiRequestRecord, AiRequestRecordBuilder, CacheInfo, TokenInfo};
 pub use request_kind::{RequestKind, RequestStatus};
+pub use systemprompt_models::wire::origin::{
+    ClientAttestation, ClientEvidence, ClientKind, InboundWireProtocol, NativeMarker, RequestOrigin,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct AiRequest {
@@ -61,6 +64,9 @@ pub struct AiRequest {
     pub reasoning_tokens: Option<i32>,
     pub is_streaming: bool,
     pub status: String,
+    pub client_kind: String,
+    pub wire_protocol: String,
+    pub client_attestation: String,
     pub error_message: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,

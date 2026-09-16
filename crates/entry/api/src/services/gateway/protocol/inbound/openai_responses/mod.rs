@@ -10,6 +10,7 @@
 use bytes::Bytes;
 use http::StatusCode;
 use serde_json::Value;
+use systemprompt_models::wire::origin::InboundWireProtocol;
 
 use super::super::canonical::CanonicalRequest;
 use super::super::canonical_response::{CanonicalEvent, CanonicalResponse};
@@ -24,8 +25,8 @@ pub mod render_terminal;
 pub struct OpenAiResponsesInbound;
 
 impl InboundAdapter for OpenAiResponsesInbound {
-    fn wire_name(&self) -> &'static str {
-        "openai.responses"
+    fn wire(&self) -> InboundWireProtocol {
+        InboundWireProtocol::OpenAiResponses
     }
 
     fn parse_request(&self, raw: &Bytes) -> Result<CanonicalRequest, InboundParseError> {

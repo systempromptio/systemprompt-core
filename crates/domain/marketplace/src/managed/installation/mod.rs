@@ -9,10 +9,11 @@ use std::collections::BTreeMap;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{
-    ConsumerInstallationId, DistributionId, EventOutboxId, InstallationReceiptId,
+    ConsumerInstallationId, DeviceId, DistributionId, EventOutboxId, InstallationReceiptId,
     InvocationAttributionId, ManagedResourceId, PublicationId, ResourceInvocationId,
     ResourceRevisionId, SessionId, UserId,
 };
+use systemprompt_models::feedback::receipts::ConsumerReceiptRequest;
 
 use super::{AssetDigest, ManagedError, ManagedRepository, PublicationDecision, Result};
 
@@ -103,7 +104,15 @@ pub struct InstallationReceipt {
     pub generation: i64,
     pub bundle_digest: AssetDigest,
     pub installed_manifest: Vec<InstalledFile>,
-    pub client_evidence: ClientEvidence,
+    // Why: owner-recorded receipts predate device-authenticated evidence and
+    // the consumer path writes an empty object here, so a stored value that no
+    // longer parses is history, not corruption.
+    pub client_evidence: Option<ClientEvidence>,
+    pub consumer_id: Option<UserId>,
+    pub device_id: Option<DeviceId>,
+    pub host: Option<String>,
+    pub consumer_evidence: Option<ConsumerReceiptRequest>,
+    pub fully_verified: bool,
     pub verified_at: DateTime<Utc>,
 }
 
@@ -112,9 +121,6 @@ pub struct InstallationReceipt {
 pub enum TrafficClass {
     Production,
     Fixture,
-    LiveEvaluation,
-    Suggestion,
-    Judge,
 }
 
 impl TrafficClass {
@@ -122,9 +128,6 @@ impl TrafficClass {
         match self {
             Self::Production => "production",
             Self::Fixture => "fixture",
-            Self::LiveEvaluation => "live_evaluation",
-            Self::Suggestion => "suggestion",
-            Self::Judge => "judge",
         }
     }
 }

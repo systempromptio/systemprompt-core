@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use systemprompt_bridge::ids::LoopbackSecret;
+use systemprompt_bridge::ids::HostToken;
 use systemprompt_bridge::integration::host_app::{HostApp, ProfileGenInputs};
 use systemprompt_bridge::integration::opencode::OPENCODE_HOST;
 use tempfile::TempDir;
@@ -32,7 +32,7 @@ fn sandbox<R>(f: impl FnOnce() -> R) -> R {
 fn rendered(models: &[&str], default_model: Option<&str>) -> serde_json::Value {
     let inputs = ProfileGenInputs {
         gateway_base_url: "http://127.0.0.1:48217".to_owned(),
-        api_key: LoopbackSecret::new("loopback-secret-value"),
+        host_token: HostToken::new("loopback-secret-value"),
         models: models.iter().map(|m| (*m).to_owned()).collect(),
         default_model: default_model.map(str::to_owned),
         organization_uuid: None,

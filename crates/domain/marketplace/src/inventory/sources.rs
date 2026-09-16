@@ -56,18 +56,21 @@ impl ManagedRepository {
         tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
         owner: &UserId,
         entries: &mut BTreeMap<InventoryEntryId, InventoryEntry>,
-    ) -> Result<()> {
-        let previous=sqlx::query!("SELECT entry_id,record FROM managed_inventory_membership WHERE owner_id=$1 AND effective_until IS NULL",owner.as_str()).fetch_all(&mut **tx).await?;
-        for row in previous {
-            let Entry::Vacant(slot) = entries.entry(InventoryEntryId::new(row.entry_id)) else {
-                continue;
-            };
-            let mut entry: InventoryEntry = serde_json::from_value(row.record)?;
-            entry.availability = Availability::Withdrawn;
-            entry.diagnostic =
-                Some("Entry is absent from the latest complete inventory observation".to_owned());
-            slot.insert(entry);
+    ) -> Result<BTreeMap<InventoryEntryId, serde_json::Value>> {
+        let rows=sqlx::query!("SELECT entry_id,record FROM managed_inventory_membership WHERE owner_id=$1 AND effective_until IS NULL",owner.as_str()).fetch_all(&mut **tx).await?;
+        let mut previous = BTreeMap::new();
+        for row in rows {
+            let id = InventoryEntryId::new(row.entry_id);
+            if let Entry::Vacant(slot) = entries.entry(id.clone()) {
+                let mut entry: InventoryEntry = serde_json::from_value(row.record.clone())?;
+                entry.availability = Availability::Withdrawn;
+                entry.diagnostic = Some(
+                    "Entry is absent from the latest complete inventory observation".to_owned(),
+                );
+                slot.insert(entry);
+            }
+            previous.insert(id, row.record);
         }
-        Ok(())
+        Ok(previous)
     }
 }

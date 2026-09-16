@@ -10,7 +10,6 @@ mod admin_services_refresh;
 mod agent;
 mod agent_responses;
 mod bridge_profile_models;
-mod evaluation_worker;
 mod gateway_auth_provision_client;
 mod gateway_auth_responses;
 mod gateway_auth_shapes;
@@ -23,7 +22,6 @@ mod gateway_extract_credential;
 mod gateway_manifest_grants;
 mod gateway_manifest_policy_reads;
 mod gateway_messages_auth;
-mod gateway_messages_auth_execution;
 mod gateway_messages_authenticate;
 mod gateway_messages_dispatch_errors;
 mod gateway_messages_extract;
@@ -49,6 +47,3 @@ mod feedback_stream;
 mod feedback_contracts;
 
 mod feedback_boundaries;
-
-#[cfg(test)]
-mod feedback_lifecycle;

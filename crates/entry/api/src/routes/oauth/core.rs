@@ -54,6 +54,18 @@ pub fn public_router() -> Router<OAuthState> {
         .route("/webauthn/link/start", get(webauthn::link::start_link))
         .route("/webauthn/link/finish", post(webauthn::link::finish_link))
         .route("/register", post(endpoints::register::register_client))
+        .route(
+            "/register/{client_id}",
+            get(endpoints::client_config::get_client_configuration),
+        )
+        .route(
+            "/register/{client_id}",
+            axum::routing::put(endpoints::client_config::update_client_configuration),
+        )
+        .route(
+            "/register/{client_id}",
+            axum::routing::delete(endpoints::client_config::delete_client_configuration),
+        )
 }
 
 pub fn authenticated_router() -> Router<OAuthState> {
@@ -68,16 +80,4 @@ pub fn authenticated_router() -> Router<OAuthState> {
         .route("/userinfo", get(endpoints::userinfo::handle_userinfo))
         .route("/consent", get(endpoints::consent::handle_consent_get))
         .route("/consent", post(endpoints::consent::handle_consent_post))
-        .route(
-            "/register/{client_id}",
-            get(endpoints::client_config::get_client_configuration),
-        )
-        .route(
-            "/register/{client_id}",
-            axum::routing::put(endpoints::client_config::update_client_configuration),
-        )
-        .route(
-            "/register/{client_id}",
-            axum::routing::delete(endpoints::client_config::delete_client_configuration),
-        )
 }

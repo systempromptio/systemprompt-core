@@ -3,12 +3,13 @@
 //! Turns an inbound HTTP request into a validated `PreparedRequest`:
 //! extracts the credential and required headers (see [`headers`]),
 //! authenticates the principal, enforces session binding, parses the canonical
-//! body, resolves the gateway route, and runs the pre-dispatch authz check (see
-//! [`authz`]).
+//! body, classifies the client (see [`attribution`]), resolves the gateway
+//! route, and runs the pre-dispatch authz check (see [`authz`]).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod attribution;
 pub mod authz;
 pub mod headers;
 
@@ -22,6 +23,7 @@ use systemprompt_identifiers::{
     ClientSessionId, ContextId, GatewayConversationId, SessionId, TraceId, UserId,
 };
 use systemprompt_models::services::gateway::{GatewayConfig, GatewayRoute};
+use systemprompt_models::wire::origin::{ClientEvidence, RequestOrigin};
 
 use super::RequestContext;
 use super::auth::{AuthedPrincipal, authenticate};
@@ -33,12 +35,21 @@ use headers::{
     require_session_id,
 };
 
+pub use attribution::AttributionHeaders;
+use attribution::classify_client;
 pub use authz::{GatewayAuthzRequestInput, build_gateway_authz_request};
 pub(super) use headers::ClientHeaders;
 pub use headers::extract_credential;
 
-#[derive(Debug, Default)]
+/// What is known about a request at the moment it is rejected.
+///
+/// `origin` is fixed at entry from the route and `User-Agent`, so a rejection
+/// row is never persisted without its client and wire protocol; `evidence` is
+/// filled once the attribution headers and body have been classified.
+#[derive(Debug)]
 pub struct RejectionPartial {
+    pub origin: RequestOrigin,
+    pub evidence: Option<ClientEvidence>,
     pub user_id: Option<UserId>,
     pub session_id: Option<SessionId>,
     pub context_id: Option<ContextId>,
@@ -52,7 +63,29 @@ pub struct RejectionPartial {
     pub body: Option<Bytes>,
 }
 
+impl RejectionPartial {
+    pub const fn new(origin: RequestOrigin) -> Self {
+        Self {
+            origin,
+            evidence: None,
+            user_id: None,
+            session_id: None,
+            context_id: None,
+            gateway_conversation_id: None,
+            client_session_id: None,
+            trace_id: None,
+            provider: None,
+            model: None,
+            max_tokens: None,
+            is_streaming: false,
+            body: None,
+        }
+    }
+}
+
 pub(super) struct PreparedRequest {
+    pub origin: RequestOrigin,
+    pub evidence: ClientEvidence,
     pub principal: AuthedPrincipal,
     pub body_bytes: Bytes,
     pub client_headers: ClientHeaders,
@@ -85,20 +118,15 @@ pub(super) async fn extract_request_context(
     partial.session_id = Some(session_id.clone());
     let header_gateway_conversation = optional_gateway_conversation_id(request.headers())?;
 
-    let principal = authenticate(
-        &presented,
-        &session_id,
-        rc.jwt_extractor,
-        rc.ctx,
-        &rc.repos.execution_capabilities,
-    )
-    .await?;
+    let principal = authenticate(&presented, &session_id, rc.jwt_extractor, rc.ctx).await?;
     partial.user_id = Some(principal.user_id().clone());
     partial.trace_id = Some(principal.trace_id().clone());
 
     principal.enforce_session_binding(&session_id)?;
 
+    let attribution = AttributionHeaders::capture(request.headers());
     let (body_bytes, mut gateway_request) = read_gateway_body(inbound, request, partial).await?;
+    let evidence = classify_client(&attribution, principal.is_bridge(), &body_bytes, partial)?;
 
     let (gateway_conversation_id, context_id, client_session_id) = derive_conversation(
         principal.user_id(),
@@ -138,6 +166,8 @@ pub(super) async fn extract_request_context(
     .await?;
 
     Ok(PreparedRequest {
+        origin: partial.origin,
+        evidence,
         principal,
         body_bytes,
         client_headers,

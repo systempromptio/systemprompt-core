@@ -25,16 +25,11 @@ workspace = true
 systemprompt-extension = { workspace = true }
 
 [dependencies]
-tempfile = { workspace = true }
 # Core dependencies
 tokio = { workspace = true }
 tracing = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-serde_jcs = { workspace = true }
-sha2 = { workspace = true }
-hex = { workspace = true }
-serde_yaml = { workspace = true }
 chrono = { workspace = true }
 tokio-cron-scheduler = { workspace = true }
 
@@ -49,7 +44,6 @@ sqlx = { workspace = true }
 systemprompt-ai = { workspace = true }
 systemprompt-analytics = { workspace = true }
 systemprompt-config = { workspace = true }
-systemprompt-evaluation = { workspace = true }
 systemprompt-loader = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-extension = { workspace = true }

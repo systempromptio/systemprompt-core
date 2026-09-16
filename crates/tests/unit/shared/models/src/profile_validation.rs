@@ -49,6 +49,7 @@ fn security_config() -> SecurityConfig {
         audiences: vec![JwtAudience::Api],
         allowed_resource_audiences: default_resource_audiences(),
         allow_registration: true,
+        allow_dynamic_client_registration: true,
         login_page_url: None,
         signing_key_path: std::path::PathBuf::from("/tmp/test-signing-key.pem"),
         trusted_issuers: vec![],
@@ -81,7 +82,6 @@ fn cloud_paths() -> PathsConfig {
 fn valid_profile() -> Profile {
     Profile {
         storage: Default::default(),
-        evaluator: None,
         name: "p".to_string(),
         display_name: "Profile P".to_string(),
         target: ProfileType::Local,

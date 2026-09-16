@@ -37,16 +37,21 @@ fn profile_path() -> Option<PathBuf> {
     Some(crate::basedirs::home_dir()?.join(".profile"))
 }
 
-fn env_file_body(gateway: &str, key_path: &Path) -> String {
+// Why: Claude Code ranks `ANTHROPIC_AUTH_TOKEN` above `apiKeyHelper`
+// (documented credential precedence), so the token exported here is the one
+// Claude Code presents and must be the `claude-code` host token.
+fn env_file_body(gateway: &str, executable: &Path) -> String {
     let bin = crate::brand::brand().binary_name;
     format!(
         "# Written by `{bin} install --apply`. Rewritten on every apply — do not edit.\n\
          export ANTHROPIC_BASE_URL=\"{gateway}\"\n\
-         if [ -r \"{key}\" ]; then\n    \
-             ANTHROPIC_AUTH_TOKEN=\"$(cat \"{key}\")\"\n    \
+         if ANTHROPIC_AUTH_TOKEN=\"$('{exe}' credential-helper --host claude-code 2>/dev/null)\" \
+         && [ -n \"$ANTHROPIC_AUTH_TOKEN\" ]; then\n    \
              export ANTHROPIC_AUTH_TOKEN\n\
+         else\n    \
+             unset ANTHROPIC_AUTH_TOKEN\n\
          fi\n",
-        key = key_path.display(),
+        exe = executable.display().to_string().replace('\'', "'\\''"),
     )
 }
 
@@ -84,9 +89,9 @@ fn splice(existing: &str, block: &str) -> Option<String> {
 
 pub(super) fn apply(gateway: &str) -> Result<super::MdmApplication, MdmError> {
     let env_file = env_file_path().ok_or(MdmError::Resolve("the user's config directory"))?;
-    let key_path =
-        crate::proxy::secret::secret_path().ok_or(MdmError::Resolve("the loopback secret path"))?;
-    let env_body = env_file_body(gateway, &key_path);
+    let executable =
+        std::env::current_exe().map_err(io_error("resolve the bridge executable", &env_file))?;
+    let env_body = env_file_body(gateway, &executable);
     write_atomic(&env_file, &env_body)?;
     let mut files = vec![
         crate::fsutil::FileReceipt::verify(&env_file, env_body.as_bytes())
@@ -116,7 +121,7 @@ pub(super) fn apply(gateway: &str) -> Result<super::MdmApplication, MdmError> {
             )),
         }
 
-        let settings = apply_managed_settings(gateway, &key_path)?;
+        let settings = apply_managed_settings(gateway)?;
         lines.extend(settings.lines);
         files.extend(settings.files);
         lines.push(

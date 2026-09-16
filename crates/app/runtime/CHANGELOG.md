@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.54.0] - 2026-09-16
+
+### Removed
+
+- **Breaking:** `optimization` is `managed`: `managed::{OrchestrationError, capture_authoring_input, git_sources::GitSourceOrchestrator, inventory}`. `SkillOptimizationOrchestrator`, `EvaluationEvidence`, `SourceAcceptance`, `holdout`, `OptimizationError::{Evaluation, Bundle, Json}` and `AppContext::evaluation_repositories` / `DataPlane::evaluation_repositories` are removed.
+
+### Added
+
+- **Breaking:** `services_reconcile::reconcile_fetched_services` returns `ReconcileOutcome::{Projected, NothingPending}` instead of `()`, so a caller can report whether an authz projection actually ran.
+- `AiRequestListItem::client_attestation`; `AiRequestDetail::{client_kind, client_attestation, client_evidence}` with the new `AiRequestClientEvidence` read model.
+
 ## [0.53.0] - 2026-09-15
 
 ### Breaking

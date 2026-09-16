@@ -54,6 +54,9 @@ pub struct SecurityConfig {
     #[serde(default = "default_allow_registration")]
     pub allow_registration: bool,
 
+    #[serde(default = "default_allow_registration")]
+    pub allow_dynamic_client_registration: bool,
+
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub login_page_url: Option<String>,
 

@@ -1,7 +1,9 @@
 //! Tests for DynamicRegistrationRequest and DynamicRegistrationResponse
 
 use systemprompt_identifiers::ClientId;
-use systemprompt_oauth::{DynamicRegistrationRequest, DynamicRegistrationResponse};
+use systemprompt_oauth::{
+    DynamicRegistrationRequest, DynamicRegistrationResponse, TokenAuthMethod,
+};
 
 fn create_valid_request() -> DynamicRegistrationRequest {
     serde_json::from_str(
@@ -152,7 +154,10 @@ fn test_get_response_types_empty_defaults_to_code() {
 fn test_get_token_endpoint_auth_method_none_accepted_for_pkce_public_client() {
     let json = r#"{"token_endpoint_auth_method": "none"}"#;
     let request: DynamicRegistrationRequest = serde_json::from_str(json).unwrap();
-    assert_eq!(request.get_token_endpoint_auth_method(), "none");
+    assert_eq!(
+        request.get_token_endpoint_auth_method().unwrap(),
+        TokenAuthMethod::None
+    );
 }
 
 #[test]
@@ -192,8 +197,8 @@ fn test_get_scopes_missing() {
 fn test_get_token_endpoint_auth_method_success() {
     let request = create_valid_request();
     assert_eq!(
-        request.get_token_endpoint_auth_method(),
-        "client_secret_post"
+        request.get_token_endpoint_auth_method().unwrap(),
+        TokenAuthMethod::ClientSecretPost
     );
 }
 
@@ -202,9 +207,17 @@ fn test_get_token_endpoint_auth_method_missing_defaults_to_basic() {
     let json = r#"{}"#;
     let request: DynamicRegistrationRequest = serde_json::from_str(json).unwrap();
     assert_eq!(
-        request.get_token_endpoint_auth_method(),
-        "client_secret_basic"
+        request.get_token_endpoint_auth_method().unwrap(),
+        TokenAuthMethod::ClientSecretBasic
     );
+}
+
+#[test]
+fn test_get_token_endpoint_auth_method_unknown_is_refused() {
+    let json = r#"{"token_endpoint_auth_method": "private_key_jwt"}"#;
+    let request: DynamicRegistrationRequest = serde_json::from_str(json).unwrap();
+    let err = request.get_token_endpoint_auth_method().unwrap_err();
+    assert!(err.to_string().contains("private_key_jwt"), "{err}");
 }
 
 #[test]
@@ -212,8 +225,8 @@ fn test_get_token_endpoint_auth_method_empty_defaults_to_basic() {
     let json = r#"{"token_endpoint_auth_method": ""}"#;
     let request: DynamicRegistrationRequest = serde_json::from_str(json).unwrap();
     assert_eq!(
-        request.get_token_endpoint_auth_method(),
-        "client_secret_basic"
+        request.get_token_endpoint_auth_method().unwrap(),
+        TokenAuthMethod::ClientSecretBasic
     );
 }
 
@@ -259,7 +272,7 @@ fn test_dynamic_registration_request_debug() {
 fn create_valid_response() -> DynamicRegistrationResponse {
     DynamicRegistrationResponse {
         client_id: ClientId::new("client_abc123"),
-        client_secret: "secret_xyz789".to_string(),
+        client_secret: Some("secret_xyz789".to_string()),
         client_name: "Test Client".to_string(),
         redirect_uris: vec!["https://example.com/callback".to_string()],
         grant_types: vec!["authorization_code".to_string()],
@@ -270,7 +283,7 @@ fn create_valid_response() -> DynamicRegistrationResponse {
         client_uri: Some("https://example.com".to_string()),
         logo_uri: Some("https://example.com/logo.png".to_string()),
         contacts: Some(vec!["admin@example.com".to_string()]),
-        client_secret_expires_at: 0,
+        client_secret_expires_at: Some(0),
         client_id_issued_at: chrono::Utc::now(),
         registration_access_token: "rat_token123".to_string(),
         registration_client_uri: "https://auth.example.com/register/client_abc123".to_string(),
@@ -281,7 +294,7 @@ fn create_valid_response() -> DynamicRegistrationResponse {
 fn test_dynamic_registration_response_creation() {
     let response = create_valid_response();
     assert_eq!(response.client_id.as_str(), "client_abc123");
-    assert_eq!(response.client_secret, "secret_xyz789");
+    assert_eq!(response.client_secret.as_deref(), Some("secret_xyz789"));
     assert_eq!(response.client_name, "Test Client");
 }
 
@@ -289,7 +302,7 @@ fn test_dynamic_registration_response_creation() {
 fn test_dynamic_registration_response_without_optional_fields() {
     let response = DynamicRegistrationResponse {
         client_id: ClientId::new("client_minimal"),
-        client_secret: "secret_minimal".to_string(),
+        client_secret: Some("secret_minimal".to_string()),
         client_name: "Minimal Client".to_string(),
         redirect_uris: vec!["https://example.com/callback".to_string()],
         grant_types: vec!["authorization_code".to_string()],
@@ -300,7 +313,7 @@ fn test_dynamic_registration_response_without_optional_fields() {
         client_uri: None,
         logo_uri: None,
         contacts: None,
-        client_secret_expires_at: 0,
+        client_secret_expires_at: Some(0),
         client_id_issued_at: chrono::Utc::now(),
         registration_access_token: "rat_minimal".to_string(),
         registration_client_uri: "https://auth.example.com/register/client_minimal".to_string(),
@@ -326,7 +339,7 @@ fn test_dynamic_registration_response_serialize() {
 fn test_dynamic_registration_response_serialize_skips_none_optional_fields() {
     let response = DynamicRegistrationResponse {
         client_id: ClientId::new("client_no_opt"),
-        client_secret: "secret_no_opt".to_string(),
+        client_secret: Some("secret_no_opt".to_string()),
         client_name: "No Optional".to_string(),
         redirect_uris: vec!["https://example.com/callback".to_string()],
         grant_types: vec!["authorization_code".to_string()],
@@ -337,7 +350,7 @@ fn test_dynamic_registration_response_serialize_skips_none_optional_fields() {
         client_uri: None,
         logo_uri: None,
         contacts: None,
-        client_secret_expires_at: 0,
+        client_secret_expires_at: Some(0),
         client_id_issued_at: chrono::Utc::now(),
         registration_access_token: "rat_no_opt".to_string(),
         registration_client_uri: "https://auth.example.com/register/client_no_opt".to_string(),
@@ -352,12 +365,12 @@ fn test_dynamic_registration_response_serialize_skips_none_optional_fields() {
 #[test]
 fn test_dynamic_registration_response_client_secret_expires_at_zero() {
     let response = create_valid_response();
-    assert_eq!(response.client_secret_expires_at, 0);
+    assert_eq!(response.client_secret_expires_at, Some(0));
 }
 
 #[test]
 fn test_dynamic_registration_response_with_expiry() {
     let mut response = create_valid_response();
-    response.client_secret_expires_at = 1735689600;
-    assert_eq!(response.client_secret_expires_at, 1735689600);
+    response.client_secret_expires_at = Some(1735689600);
+    assert_eq!(response.client_secret_expires_at, Some(1735689600));
 }

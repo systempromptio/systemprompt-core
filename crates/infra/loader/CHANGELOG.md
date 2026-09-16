@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.54.0] - 2026-09-16
+
+### Added
+
+- `bundle::provenance::{BundleProvenance, SourcesProvenance, sources_provenance, owning_bundle_hashes}`: the composed, base and per-bundle hashes behind the active services tree, read from the bundle cache's `state.json` and cached `bundle.json`, so an inventory observation can record where its declarations came from. Every degraded read (no profile, unreadable manifest, unreadable base tree) is logged.
+- `bundle::bootstrap::baked::{is_base, stage_baked_base}`: a profile that pins only kits composes the tree baked into the image as member zero, so ownership and the authz reconcile treat every pinned source as a kit.
+
+### Fixed
+
+- OCI blob pulls follow up to three registry redirects to the storage backend, re-sending the request bare so the registry credential never travels to a host the profile did not name; a longer chain is a fetch error.
+
 ## [0.53.0] - 2026-09-15
 
 ### Added

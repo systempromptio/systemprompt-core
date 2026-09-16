@@ -7,9 +7,11 @@ use axum::http::StatusCode;
 use bytes::Bytes;
 use systemprompt_ai::models::{AiRequestRecord, RequestKind, RequestStatus};
 use systemprompt_ai::repository::{
-    AiRequestPayloadRepository, AiRequestRepository, UpsertPayloadParams,
+    AiRequestClientEvidenceRepository, AiRequestPayloadRepository, AiRequestRepository,
+    UpsertPayloadParams,
 };
 use systemprompt_identifiers::AiRequestId;
+use systemprompt_models::wire::origin::ClientEvidence;
 
 use super::extract::RejectionPartial;
 
@@ -25,6 +27,9 @@ pub async fn persist_rejection(
     };
     write_rejection_record(&repos.requests, ai_request_id, &record, status, message).await;
 
+    if let Some(evidence) = partial.evidence.as_ref() {
+        write_rejection_evidence(&repos.client_evidence, ai_request_id, evidence).await;
+    }
     if let Some(body) = partial.body.as_ref() {
         write_rejection_payload(&repos.payloads, ai_request_id, body).await;
     }
@@ -48,10 +53,11 @@ pub fn build_rejection_record(
             systemprompt_identifiers::ContextId::derived_from_session,
         )
     });
-    let mut builder = AiRequestRecord::builder(ai_request_id.clone(), user_id, context_id)
-        .streaming(partial.is_streaming)
-        .request_kind(RequestKind::classify(partial.max_tokens))
-        .rejected();
+    let mut builder =
+        AiRequestRecord::builder(ai_request_id.clone(), user_id, context_id, partial.origin)
+            .streaming(partial.is_streaming)
+            .request_kind(RequestKind::classify(partial.max_tokens))
+            .rejected();
     if let Some(cs) = &partial.client_session_id {
         builder = builder.client_session_id(cs.clone());
     }
@@ -93,6 +99,16 @@ async fn write_rejection_record(
         .await
     {
         tracing::warn!(error = %e, ai_request_id = %ai_request_id, "rejection audit: update_error failed");
+    }
+}
+
+async fn write_rejection_evidence(
+    repo: &AiRequestClientEvidenceRepository,
+    ai_request_id: &AiRequestId,
+    evidence: &ClientEvidence,
+) {
+    if let Err(e) = repo.upsert(ai_request_id, evidence).await {
+        tracing::warn!(error = %e, ai_request_id = %ai_request_id, "rejection audit: evidence insert failed");
     }
 }
 

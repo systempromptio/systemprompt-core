@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.54.0] - 2026-09-16
+
+### Breaking
+
+- **Breaking:** `wire::origin::ClassificationRejection` variants carry `evidence: Box<ClientEvidence>`; `ClassificationRejection::evidence()` is unchanged.
+- **Breaking:** `wire::origin::RequestOrigin` gains `attestation: ClientAttestation`; `RequestOrigin::gateway` takes it as a third argument. `ClientKind::from_user_agent_and_body` is removed. Migrate by calling `wire::origin::classify` with a `ClassificationInput`.
+
+### Added
+
+- `wire::origin::{ClientAttestation, NativeMarker, ClientEvidence, ClassificationInput, StainlessHeaders, Classified, ClassificationRejection, classify, native_marker, ua_product}`: the evidence ladder behind `ai_requests.client_attestation`, documented in the module head. `ClientKind::Pi`, `ClientKind::DECLARABLE`, `ClientKind::from_bridge_host_id` / `bridge_host_id` and `ClientKind::from_ua_product`.
+
+- `mcp::connector::{ConnectorConfig, ConnectorIdentity}` (re-exported from `mcp::deployment`): `display_name`, `authorization_params` (validated against `ConnectorConfig::ALLOWED_AUTHORIZATION_PARAMS`) and `identity: userinfo`, which requires the `openid` scope.
+
+- `SecurityConfig::allow_dynamic_client_registration` / `Config::allow_dynamic_client_registration` (default `true`), the profile switch for RFC 7591 registration.
+
+### Fixed
+
+- `wire::origin::ClientKind::OpenCode` serialises as `opencode`.
+
+### Removed
+
+- **Breaking:** `profile::EvaluatorConfig` and `Profile::evaluator` are removed; a profile carrying an `evaluator:` block is rejected as an unknown key.
+
 ## [0.53.0] - 2026-09-15
 
 ### Breaking

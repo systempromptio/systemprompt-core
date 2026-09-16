@@ -6,8 +6,8 @@
 use crate::error::RepositoryError;
 use crate::models::{AiRequest, AiRequestRecord, RequestStatus};
 use systemprompt_identifiers::{
-    AiRequestId, ContextId, GatewayConversationId, InstanceId, ProviderRequestId, SessionId,
-    TaskId, TraceId, UserId,
+    AiRequestId, ClientSessionId, ContextId, GatewayConversationId, InstanceId, McpExecutionId,
+    ProviderRequestId, SessionId, TaskId, TraceId, UserId,
 };
 
 use super::AiRequestRepository;
@@ -43,7 +43,7 @@ impl AiRequestRepository {
                       provider, model, temperature, top_p, max_tokens, tokens_used,
                       input_tokens, output_tokens, cost_microdollars, latency_ms, upstream_latency_ms, cache_hit,
                       cache_read_tokens, cache_creation_tokens, reasoning_tokens,
-                      is_streaming, status,
+                      is_streaming, status, client_kind, wire_protocol, client_attestation,
                       error_message, created_at, updated_at, completed_at
             "#,
             status.as_str(),
@@ -110,18 +110,10 @@ impl AiRequestRepository {
         id: &AiRequestId,
         record: &AiRequestRecord,
     ) -> Result<AiRequestId, RepositoryError> {
-        use systemprompt_identifiers::{
-            ClientSessionId, GatewayConversationId, McpExecutionId, ProviderRequestId, SessionId,
-            TaskId, TraceId,
-        };
-
-        let status = record.status.as_str();
-
         let use_completed_at = matches!(
             record.status,
             RequestStatus::Completed | RequestStatus::Failed | RequestStatus::Rejected
         );
-
         let (actor_kind, actor_id) = record.actor.audit_columns();
 
         let inserted = sqlx::query!(
@@ -133,13 +125,13 @@ impl AiRequestRepository {
                 cache_hit, cache_read_tokens, cache_creation_tokens, is_streaming,
                 cost_microdollars, latency_ms, status, error_message,
                 actor_kind, actor_id, requested_model, instance_id, reasoning_tokens,
-                client_session_id, request_kind,
-                created_at, updated_at, completed_at
+                client_session_id, request_kind, client_kind, wire_protocol,
+                client_attestation, created_at, updated_at, completed_at
             )
             VALUES (
                 $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13,
                 $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24,
-                $25, $26, $27, $28, $29, $31, $32,
+                $25, $26, $27, $28, $29, $31, $32, $33, $34, $35,
                 CURRENT_TIMESTAMP, CURRENT_TIMESTAMP,
                 CASE WHEN $30 THEN CURRENT_TIMESTAMP ELSE NULL END
             )
@@ -168,7 +160,7 @@ impl AiRequestRepository {
             record.is_streaming,
             record.cost_microdollars,
             record.latency_ms,
-            status,
+            record.status.as_str(),
             record.error_message.as_deref(),
             actor_kind,
             actor_id,
@@ -177,7 +169,10 @@ impl AiRequestRepository {
             record.tokens.reasoning_tokens,
             use_completed_at,
             record.client_session_id.as_ref().map(ClientSessionId::as_str),
-            record.request_kind.as_str()
+            record.request_kind.as_str(),
+            record.origin.client.as_str(),
+            record.origin.wire.as_str(),
+            record.origin.attestation.as_str()
         )
         .fetch_optional(self.write_pool())
         .await?;

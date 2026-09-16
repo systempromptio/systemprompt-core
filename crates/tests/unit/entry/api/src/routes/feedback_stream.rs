@@ -23,12 +23,10 @@ async fn router() -> Router {
         AgentName::try_new("feedback-test").expect("valid fixture agent name"),
     );
     actor.auth.actor = Actor::user(UserId::new(format!("stream-{}", TraceId::generate())));
-    systemprompt_api::routes::evaluation::campaigns::router()
-        .with_state(
-            systemprompt_api::routes::evaluation::optimization_state::OptimizationState::new(
-                ctx.as_ref().clone(),
-            ),
-        )
+    systemprompt_api::routes::managed::router()
+        .with_state(systemprompt_api::routes::managed::state::ManagedState::new(
+            ctx.as_ref().clone(),
+        ))
         .layer(Extension(actor))
 }
 async fn call(router: &Router, after: Option<&str>) -> axum::response::Response {

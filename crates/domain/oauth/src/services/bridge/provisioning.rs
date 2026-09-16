@@ -48,7 +48,8 @@ pub async fn provision_bridge_oauth_client(
         let params = CreateClientParams {
             client_id: client_id.clone(),
             owner_user_id: user_id.clone(),
-            client_secret_hash: secret_hash,
+            client_secret_hash: Some(secret_hash),
+            registration_token_hash: None,
             client_name: format!("bridge hook client for {}", user_id.as_str()),
             redirect_uris: Vec::new(),
             grant_types: Some(vec!["client_credentials".to_owned()]),

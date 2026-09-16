@@ -6,17 +6,16 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::baseline::configured_files;
+use super::publish_provenance::{PassProvenance, inventory_request};
 use super::{BaselineScope, InventoryEntry, InventoryService};
-use crate::managed::{
-    AssetDigest, ComparisonEvidence, INVENTORY_REFRESH_SOURCE, ManagedResolution,
-    PublicationAction, PublicationAdmission, PublicationRequest, ResourceKind, Result,
-};
+use crate::managed::{AssetDigest, ManagedResolution, PublicationAdmission, ResourceKind, Result};
 use serde::Serialize;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 use systemprompt_identifiers::{InventoryEntryId, ManagedResourceId, ResourceRevisionId};
 use systemprompt_models::feedback::inventory::{InventoryAvailability, InventoryOrigin};
 
 const PAGE_SIZE: u32 = 100;
+
 
 /// Outcome of one inventory entry in a `publish_latest` pass.
 #[derive(Debug, Clone, Serialize, schemars::JsonSchema)]
@@ -47,10 +46,10 @@ pub struct PublishGuard {
     seen: HashMap<InventoryEntryId, AssetDigest>,
 }
 
-struct Managed {
-    resource_id: ManagedResourceId,
-    generation: i64,
-    published: Option<ResourceRevisionId>,
+pub(super) struct Managed {
+    pub(super) resource_id: ManagedResourceId,
+    pub(super) generation: i64,
+    pub(super) published: Option<ResourceRevisionId>,
 }
 
 impl InventoryService {
@@ -60,6 +59,11 @@ impl InventoryService {
         guard: &mut PublishGuard,
     ) -> Result<Vec<LatestPublication>> {
         let owner = scope.owner;
+        let provenance = PassProvenance {
+            composed_hash: systemprompt_loader::bundle::sources_provenance().composed_hash,
+            inventory_generation: self.repository.inventory_status(owner).await?.generation,
+            bundle_hashes: systemprompt_loader::bundle::owning_bundle_hashes(),
+        };
         let mut outcomes = Vec::new();
         let mut after: Option<InventoryEntryId> = None;
         loop {
@@ -75,7 +79,10 @@ impl InventoryService {
                 if entry.kind != "skill" || entry.origin != InventoryOrigin::Configured {
                     continue;
                 }
-                outcomes.push(self.publish_entry(scope, guard, &entry).await?);
+                outcomes.push(
+                    self.publish_entry(scope, guard, &entry, &provenance)
+                        .await?,
+                );
             }
             if page_len < PAGE_SIZE as usize {
                 break;
@@ -91,6 +98,7 @@ impl InventoryService {
         scope: &BaselineScope<'_>,
         guard: &mut PublishGuard,
         entry: &InventoryEntry,
+        provenance: &PassProvenance,
     ) -> Result<LatestPublication> {
         let owner = scope.owner;
         if let Some(status) = self.unavailable_status(scope, entry).await? {
@@ -140,7 +148,7 @@ impl InventoryService {
                 ..outcome(entry, LatestPublicationStatus::Unchanged)
             });
         }
-        let request = inventory_request(entry, &managed, &revision, &tree);
+        let request = inventory_request(entry, &managed, &revision, &tree, provenance);
         let decision = self
             .repository
             .publish_with_admission(
@@ -238,39 +246,5 @@ fn blocked(entry: &InventoryEntry, error: &crate::managed::ManagedError) -> Late
     LatestPublication {
         diagnostic: Some(error.to_string().chars().take(2000).collect()),
         ..outcome(entry, LatestPublicationStatus::Blocked)
-    }
-}
-
-fn inventory_request(
-    entry: &InventoryEntry,
-    managed: &Managed,
-    revision: &ResourceRevisionId,
-    tree: &AssetDigest,
-) -> PublicationRequest {
-    PublicationRequest {
-        resource_id: managed.resource_id.clone(),
-        revision_id: Some(revision.clone()),
-        action: if managed.generation == 0 {
-            PublicationAction::InitialAdoption
-        } else {
-            PublicationAction::PublishImprovement
-        },
-        expected_generation: managed.generation,
-        operation_key: format!("inventory-sync:{}:{revision}", entry.resource_key),
-        comparison_evidence: ComparisonEvidence {
-            experiment_id: None,
-            recorded: BTreeMap::from([
-                (
-                    "source".to_owned(),
-                    serde_json::json!(INVENTORY_REFRESH_SOURCE),
-                ),
-                (
-                    "previous_revision".to_owned(),
-                    serde_json::json!(managed.published),
-                ),
-                ("digest".to_owned(), serde_json::json!(tree)),
-            ]),
-        },
-        limitations: "Published automatically from the configured services tree".to_owned(),
     }
 }

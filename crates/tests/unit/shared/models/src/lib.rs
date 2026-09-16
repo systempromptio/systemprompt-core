@@ -99,6 +99,9 @@ mod wire_codec;
 mod wire_inspect;
 
 #[cfg(test)]
+mod wire_origin;
+
+#[cfg(test)]
 mod agui;
 #[cfg(test)]
 mod agui_events;

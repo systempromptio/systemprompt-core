@@ -4,15 +4,14 @@
 //! alone. Every path must refuse an unrecognised credential with 401 and
 //! nothing else: a 500 here would tell a caller that a bad token is a server
 //! problem, and a 200 would admit an unauthenticated request to a billed
-//! upstream. The prefixes must not bleed into one another either — an
-//! execution token that fails to verify must not fall through to the JWT
-//! decoder and be re-judged there.
+//! upstream. The prefixes must not bleed into one another either — an API
+//! key that fails to verify must not fall through to the JWT decoder and be
+//! re-judged there.
 
 use axum::http::StatusCode;
 use std::sync::Arc;
 use systemprompt_api::routes::gateway::messages::auth::authenticate;
 use systemprompt_api::services::middleware::{JtiRevocationChecker, JwtContextExtractor};
-use systemprompt_evaluation::repository::experiments::ExecutionCapabilityRepository;
 use systemprompt_identifiers::SessionId;
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_app_context, fixture_db_pool};
@@ -21,7 +20,6 @@ use systemprompt_traits::AppContext as _;
 struct Harness {
     ctx: Arc<AppContext>,
     extractor: JwtContextExtractor,
-    capabilities: ExecutionCapabilityRepository,
 }
 
 async fn harness() -> Harness {
@@ -35,14 +33,7 @@ async fn harness() -> Harness {
         ctx.user_provider().expect("user provider"),
         JtiRevocationChecker::from_repository(ctx.oauth_repositories().oauth.clone()),
     );
-    let capabilities = systemprompt_test_fixtures::fixture_evaluation_repositories(&pool)
-        .expect("evaluation repositories")
-        .capabilities;
-    Harness {
-        ctx,
-        extractor,
-        capabilities,
-    }
+    Harness { ctx, extractor }
 }
 
 async fn reject(credential: &str) -> (StatusCode, String) {
@@ -52,28 +43,9 @@ async fn reject(credential: &str) -> (StatusCode, String) {
         &SessionId::generate(),
         &harness.extractor,
         &harness.ctx,
-        &harness.capabilities,
     )
     .await
     .expect_err("an unissued credential must never authenticate")
-}
-
-#[tokio::test]
-async fn an_unissued_execution_token_is_unauthorized_not_a_server_error() {
-    let (status, _) = reject("spexec_deadbeef.not-a-real-capability").await;
-
-    assert_eq!(
-        status,
-        StatusCode::UNAUTHORIZED,
-        "a capability that matches no row is a rejected caller, not a broken server"
-    );
-}
-
-#[tokio::test]
-async fn an_oversized_execution_token_is_refused_without_a_lookup() {
-    let (status, _) = reject(&format!("spexec_{}", "a".repeat(200))).await;
-
-    assert_eq!(status, StatusCode::UNAUTHORIZED);
 }
 
 #[tokio::test]

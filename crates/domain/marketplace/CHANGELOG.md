@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.54.0] - 2026-09-16
+
+### Added
+
+- Inventory generations move only when an entry record changes; `managed_inventory_state.sources` and `managed_inventory_observations.sources` (migration `010_inventory_sources`) record the composed hash, base tree hash and pinned bundle digests behind each generation (`inventory::publish_provenance`). Publications record `composed_hash`, `bundle_content_hash` and `inventory_generation` in their review evidence. `inventory::catalog::resolve_services_root` accepts the loader's composed-root link as the inventory root. `MarketplaceView` carries `allowCrossMarketplaceDependenciesOn`.
+
+### Fixed
+
+- A reviewed publication whose comparison evidence names `inventory_refresh` as its source is a conflict: only the inventory-sync admission may claim the configured tree as its reviewer.
+- Installation receipts decode `consumer_evidence` and the consumer identity columns; the legacy `client_evidence` column is read leniently so a stored `{}` no longer fails the publication listing, and a value that does not decode is logged.
+
+### Removed
+
+- **Breaking:** the evaluation attestation seam is gone: `managed::evaluation` (`admit_improvement`, `attest_evaluation`, `EvaluationAttestation`), the `managed_evaluation_attestations` table and `managed_publication_reviews.experiment_id` (migration `011_drop_evaluation`, which also drops every `eval_*` table with CASCADE, deletes the engine's `live_evaluation`/`suggestion`/`judge` invocation attributions and `approval_decision` operation records, and removes the extension's `extension_migrations` rows). `ComparisonEvidence` is the flattened `recorded` map alone; `PublicationAdmission::Attested` is `Reviewed`; `TrafficClass` is `Production | Fixture`. `ManagedRepository` no longer implements `ManagedRevisionOwnership`.
+
 ## [0.53.0] - 2026-09-15
 
 ### Breaking

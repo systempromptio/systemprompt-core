@@ -16,8 +16,15 @@ pub use redirect::{RegisteredRedirect, resolve_registered_redirect};
 
 use super::AuthorizeQuery;
 use anyhow::Result;
+use systemprompt_oauth::models::clients::OAuthClient;
 use systemprompt_oauth::repository::OAuthRepository;
 use url::Origin;
+
+#[derive(Debug, Clone)]
+pub struct ValidatedAuthorizeRequest {
+    pub client: OAuthClient,
+    pub scope: String,
+}
 
 /// Origin pair the `resource` self-origin carve-out matches against.
 ///
@@ -46,7 +53,7 @@ pub async fn validate_authorize_request(
     state: &systemprompt_oauth::OAuthState,
     params: &AuthorizeQuery,
     repo: &OAuthRepository,
-) -> Result<String> {
+) -> Result<ValidatedAuthorizeRequest> {
     if params.response_type != "code" {
         return Err(anyhow::anyhow!(
             "Unsupported response_type. Only 'code' is supported"
@@ -91,8 +98,10 @@ pub async fn validate_authorize_request(
 
     OAuthRepository::validate_scopes(&requested_scopes)
         .map_err(|e| anyhow::anyhow!("Invalid scopes requested: {e}"))?;
+    OAuthRepository::validate_scopes_for_client(&client.scopes, &requested_scopes)
+        .map_err(|e| anyhow::anyhow!("Invalid scopes requested: {e}"))?;
 
-    Ok(scope)
+    Ok(ValidatedAuthorizeRequest { client, scope })
 }
 
 pub fn validate_oauth_parameters(

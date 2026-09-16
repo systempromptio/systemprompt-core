@@ -21,15 +21,9 @@ use super::{
     bridge_profile_usage, bridge_release, bridge_stream, bridge_whoami, messages, otel,
 };
 
-pub(super) fn otel_routes(
-    ctx: &AppContext,
-    jwt_extractor: &Arc<JwtContextExtractor>,
-    repos: &Arc<crate::services::gateway::GatewayRepositories>,
-) -> Router {
+pub(super) fn otel_routes(ctx: &AppContext, jwt_extractor: &Arc<JwtContextExtractor>) -> Router {
     let ctx_root = ctx.clone();
     let ctx_rest = ctx.clone();
-    let repos_root = Arc::clone(repos);
-    let repos_rest = Arc::clone(repos);
     let jwt_root = Arc::clone(jwt_extractor);
     let jwt_rest = Arc::clone(jwt_extractor);
 
@@ -39,8 +33,7 @@ pub(super) fn otel_routes(
             post(move |request| {
                 let extractor = Arc::clone(&jwt_root);
                 let context = ctx_root.clone();
-                let repos = Arc::clone(&repos_root);
-                async move { otel::handle(extractor, context, repos, request).await }
+                async move { otel::handle(extractor, context, request).await }
             }),
         )
         .route(
@@ -48,8 +41,7 @@ pub(super) fn otel_routes(
             post(move |request| {
                 let extractor = Arc::clone(&jwt_rest);
                 let context = ctx_rest.clone();
-                let repos = Arc::clone(&repos_rest);
-                async move { otel::handle(extractor, context, repos, request).await }
+                async move { otel::handle(extractor, context, request).await }
             }),
         )
 }

@@ -13,21 +13,14 @@ pub(super) fn dispatch_pricing(
     registry: &ProviderRegistry,
     request: &CanonicalRequest,
     upstream: &ResolvedUpstream<'_>,
-    evaluation_session: bool,
 ) -> Result<ModelPricing, DispatchError> {
-    let pricing = if evaluation_session {
-        model_pricing::resolve_selected(&upstream.route, upstream.provider, request.model.as_str())
-    } else {
-        model_pricing::resolve(
-            upstream.route.provider.as_str(),
-            &[request.model.as_str()],
-            Some(config),
-            registry,
-        )
-    }
-    .map_err(|error| DispatchError::PreAudit(error.into()))?;
-
-    Ok(pricing)
+    model_pricing::resolve(
+        upstream.route.provider.as_str(),
+        &[request.model.as_str()],
+        Some(config),
+        registry,
+    )
+    .map_err(|error| DispatchError::PreAudit(error.into()))
 }
 
 pub(super) fn trace_dispatch(
@@ -41,7 +34,8 @@ pub(super) fn trace_dispatch(
         model = %request.model,
         provider = %upstream.route.provider,
         upstream = %upstream.provider.endpoint,
-        wire_protocol = %ctx.wire_protocol,
+        wire_protocol = ctx.origin.wire.as_str(),
+        client_kind = ctx.origin.client.as_str(),
         streaming = request.stream,
         "Gateway request dispatched"
     );

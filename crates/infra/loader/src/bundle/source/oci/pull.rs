@@ -1,5 +1,13 @@
 //! Manifest and blob reads against an OCI registry.
 //!
+//! Registries answer a blob GET with a redirect to their storage backend
+//! (GHCR: `307` to `pkg-containers.githubusercontent.com`), so the blob read
+//! follows a bounded chain of redirects itself — the shared client is built
+//! without redirect following so the registry credential never travels to a
+//! host the profile did not name. The redirected request is sent bare: the
+//! target URL carries its own signed authorisation, and forwarding the
+//! registry token to a CDN would leak it.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -13,6 +21,7 @@ use super::RegistryClient;
 use crate::bundle::error::{BundleError, BundleResult};
 use crate::bundle::source::FetchedBundle;
 use crate::bundle::source::stream::stream_to_file;
+use systemprompt_models::net::{trusted_http_hosts_from_env, validate_outbound_url_with_trust};
 
 pub const OCI_MANIFEST_MEDIA_TYPE: &str = "application/vnd.oci.image.manifest.v1+json";
 pub const DOCKER_MANIFEST_MEDIA_TYPE: &str = "application/vnd.docker.distribution.manifest.v2+json";
@@ -111,6 +120,7 @@ pub async fn pull_bundle_layer(
 
     let url = registry.url(&format!("/blobs/{}", layer.digest))?;
     let response = registry.send(move |client| client.get(url.clone())).await?;
+    let response = follow_blob_redirects(registry, response).await?;
     let status = response.status();
     if !status.is_success() {
         return Err(BundleError::fetch(
@@ -138,4 +148,49 @@ pub async fn pull_bundle_layer(
         archive: into.to_path_buf(),
         digest: format!("sha256:{digest}"),
     })
+}
+
+// Why: bounded so a registry that redirects in a loop is a fetch error, not a
+// hang; three hops covers every known registry → CDN → signed-URL chain.
+const MAX_BLOB_REDIRECTS: usize = 3;
+
+async fn follow_blob_redirects(
+    registry: &RegistryClient,
+    mut response: reqwest::Response,
+) -> BundleResult<reqwest::Response> {
+    for _ in 0..MAX_BLOB_REDIRECTS {
+        if !response.status().is_redirection() {
+            return Ok(response);
+        }
+        let location = response
+            .headers()
+            .get(reqwest::header::LOCATION)
+            .and_then(|v| v.to_str().ok())
+            .ok_or_else(|| {
+                BundleError::fetch(
+                    &registry.name,
+                    format!("blob redirect ({}) without a Location", response.status()),
+                )
+            })?;
+        let target = match url::Url::parse(location) {
+            Ok(absolute) => absolute,
+            Err(_) => response
+                .url()
+                .join(location)
+                .map_err(|e| BundleError::fetch(&registry.name, format!("blob redirect: {e}")))?,
+        };
+        let target =
+            validate_outbound_url_with_trust(target.as_str(), &trusted_http_hosts_from_env())
+                .map_err(|e| BundleError::fetch(&registry.name, e))?;
+        response = registry
+            .client
+            .get(target)
+            .send()
+            .await
+            .map_err(|e| BundleError::fetch(&registry.name, e))?;
+    }
+    Err(BundleError::fetch(
+        &registry.name,
+        format!("blob redirected more than {MAX_BLOB_REDIRECTS} times"),
+    ))
 }

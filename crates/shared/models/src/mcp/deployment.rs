@@ -9,6 +9,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub use super::connector::{ConnectorConfig, ConnectorIdentity};
 use crate::ai::ToolModelConfig;
 use crate::auth::{JwtAudience, Permission};
 use crate::errors::ConfigValidationError;
@@ -181,6 +182,7 @@ impl Deployment {
                     "MCP server '{name}': connector client secret requires a client ID"
                 )));
             }
+            connector.validate(name)?;
         }
         if let Some(ext) = self.external_auth.as_ref() {
             if ext.token_endpoint.starts_with("http://")
@@ -243,23 +245,4 @@ const fn default_base_port() -> u16 {
 
 fn default_working_dir() -> String {
     "/app".to_owned()
-}
-
-/// Outbound personal-account OAuth settings, separate from inbound MCP access.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct ConnectorConfig {
-    #[serde(default = "generic_adapter")]
-    pub adapter: String,
-    #[serde(default)]
-    pub scopes: Vec<String>,
-    #[serde(default)]
-    pub authorization_origins: Vec<String>,
-    #[serde(default)]
-    pub client_id_secret: Option<String>,
-    #[serde(default)]
-    pub client_secret: Option<String>,
-}
-fn generic_adapter() -> String {
-    "generic".to_owned()
 }

@@ -103,12 +103,9 @@ pub(super) fn write_verified(path: &Path, body: &str) -> Result<FileReceipt, Mdm
 // Why: the standalone file lets `claude --settings <file>` route one session
 // through the gateway without touching `~/.claude/settings.json`, so a
 // developer who keeps their own Anthropic login can switch per terminal.
-pub(crate) fn write_standalone_settings(
-    gateway: &str,
-    key_path: &Path,
-) -> Result<MdmApplication, MdmError> {
+pub(crate) fn write_standalone_settings(gateway: &str) -> Result<MdmApplication, MdmError> {
     let helper = key_helper_path().ok_or(MdmError::Resolve("the user's config directory"))?;
-    let mut files = prepare_helper(&helper, key_path)?;
+    let mut files = prepare_helper(&helper)?;
     let standalone =
         standalone_settings_path().ok_or(MdmError::Resolve("the user's config directory"))?;
     let mut root = serde_json::Map::new();
@@ -140,15 +137,12 @@ pub(crate) fn write_standalone_settings(
     })
 }
 
-pub(crate) fn apply_managed_settings(
-    gateway: &str,
-    key_path: &Path,
-) -> Result<MdmApplication, MdmError> {
+pub(crate) fn apply_managed_settings(gateway: &str) -> Result<MdmApplication, MdmError> {
     let MdmApplication {
         mut lines,
         mut files,
         ..
-    } = write_standalone_settings(gateway, key_path)?;
+    } = write_standalone_settings(gateway)?;
     let helper = key_helper_path().ok_or(MdmError::Resolve("the user's config directory"))?;
     let outcome = (|| {
         let settings_path =

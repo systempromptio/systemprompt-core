@@ -62,9 +62,6 @@ pub enum RuntimeError {
     AiRepository(#[from] AiRepositoryError),
 
     #[error(transparent)]
-    Evaluation(#[from] systemprompt_evaluation::EvaluationError),
-
-    #[error(transparent)]
     Mcp(#[from] McpDomainError),
 
     #[error(transparent)]

@@ -9,7 +9,10 @@
 //! any challenge is minted. `/webauthn/complete` is driven end to end by
 //! pre-seeding a verified-authentication token directly into the process-wide
 //! `WebAuthnRegistry` singleton — the same instance the handler resolves — so
-//! no live ceremony is required.
+//! no live ceremony is required. Completion re-validates the client,
+//! redirect, scope and PKCE against the registration: the passkey ceremony
+//! proves who the user is, not that the request in the query string is the
+//! one `/authorize` admitted.
 
 use std::sync::Once;
 
@@ -25,7 +28,7 @@ use systemprompt_oauth::services::generate_secure_token;
 use systemprompt_oauth::services::webauthn::WebAuthnRegistry;
 use systemprompt_test_fixtures::{
     OAuthClientFixture, ensure_test_bootstrap, fixture_config, fixture_db_pool,
-    install_test_signing_key, seed_oauth_client,
+    install_test_signing_key, pkce_pair, seed_oauth_client,
 };
 use systemprompt_traits::AppContext as _;
 use tower::ServiceExt;
@@ -227,11 +230,12 @@ async fn webauthn_complete_success_issues_authorization_code() -> anyhow::Result
     let token = inject_verified_auth(&user).await?;
     let app = webauthn_app().await?;
     let uri = format!(
-        "/webauthn/complete?user_id={}&auth_token={}&client_id={}&redirect_uri={}&scope=user",
+        "/webauthn/complete?user_id={}&auth_token={}&client_id={}&redirect_uri={}&scope=user{}",
         user.as_str(),
         token,
         client.client_id.as_str(),
         "http%3A%2F%2F127.0.0.1%2Fcallback",
+        pkce_query(),
     );
     let resp = app.oneshot(empty_get(&uri)).await?;
     assert_eq!(resp.status(), StatusCode::OK, "{}", resp.status());
@@ -383,24 +387,44 @@ fn browser_get(uri: &str) -> Request<Body> {
         .expect("build")
 }
 
+fn pkce_query() -> String {
+    format!(
+        "&code_challenge={}&code_challenge_method=S256",
+        pkce_pair().challenge
+    )
+}
+
 async fn complete_uri(extra: &str) -> anyhow::Result<(UserId, OAuthClientFixture, String)> {
+    complete_uri_for(None, None, extra).await
+}
+
+async fn complete_uri_for(
+    client_id: Option<&str>,
+    redirect_uri: Option<&str>,
+    extra: &str,
+) -> anyhow::Result<(UserId, OAuthClientFixture, String)> {
     ensure_config();
     install_test_signing_key();
     let (user, client) = seed_user_and_client().await?;
     let token = inject_verified_auth(&user).await?;
+    let redirect: String = url::form_urlencoded::byte_serialize(
+        redirect_uri
+            .unwrap_or("http://127.0.0.1/callback")
+            .as_bytes(),
+    )
+    .collect();
     let uri = format!(
-        "/webauthn/complete?user_id={}&auth_token={}&client_id={}&redirect_uri={}{extra}",
+        "/webauthn/complete?user_id={}&auth_token={}&client_id={}&redirect_uri={redirect}{extra}",
         user.as_str(),
         token,
-        client.client_id.as_str(),
-        "http%3A%2F%2F127.0.0.1%2Fcallback",
+        client_id.unwrap_or(client.client_id.as_str()),
     );
     Ok((user, client, uri))
 }
 
 #[tokio::test]
 async fn webauthn_complete_omitting_scope_falls_back_to_the_default_roles() -> anyhow::Result<()> {
-    let (_user, _client, uri) = complete_uri("").await?;
+    let (_user, _client, uri) = complete_uri(&pkce_query()).await?;
     let app = webauthn_app().await?;
 
     let resp = app.oneshot(empty_get(&uri)).await?;
@@ -417,28 +441,94 @@ async fn webauthn_complete_omitting_scope_falls_back_to_the_default_roles() -> a
 }
 
 #[tokio::test]
-async fn webauthn_complete_binds_the_pkce_challenge_when_one_is_supplied() -> anyhow::Result<()> {
-    let (_user, _client, uri) =
-        complete_uri("&scope=user&code_challenge=abc123challenge&code_challenge_method=S256")
-            .await?;
+async fn webauthn_complete_requires_an_s256_pkce_challenge() -> anyhow::Result<()> {
+    for extra in [
+        "&scope=user",
+        "&scope=user&code_challenge=abc123challenge&code_challenge_method=plain",
+    ] {
+        let (_user, _client, uri) = complete_uri(extra).await?;
+        let app = webauthn_app().await?;
+        let resp = app.oneshot(empty_get(&uri)).await?;
+        let status = resp.status();
+        let v = read_json(resp).await?;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{extra}: {v}");
+        assert_eq!(v["error"].as_str(), Some("invalid_request"), "{v}");
+        assert!(v.get("authorization_code").is_none(), "{v}");
+    }
+    Ok(())
+}
+
+#[tokio::test]
+async fn webauthn_complete_refuses_an_unregistered_redirect_uri() -> anyhow::Result<()> {
+    let (_user, _client, uri) = complete_uri_for(
+        None,
+        Some("https://attacker.example/cb"),
+        &format!("&scope=user{}", pkce_query()),
+    )
+    .await?;
     let app = webauthn_app().await?;
-
-    let resp = app.oneshot(empty_get(&uri)).await?;
-
-    assert_eq!(resp.status(), StatusCode::OK, "{}", resp.status());
-    let v = read_json(resp).await?;
+    let resp = app.oneshot(browser_get(&uri)).await?;
     assert!(
-        v["authorization_code"]
-            .as_str()
-            .is_some_and(|c| !c.is_empty()),
-        "{v}"
+        resp.headers().get(header::LOCATION).is_none(),
+        "must never redirect to an unregistered URI"
     );
+    let status = resp.status();
+    let v = read_json(resp).await?;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{v}");
+    assert_eq!(v["error"].as_str(), Some("invalid_request"), "{v}");
+    Ok(())
+}
+
+#[tokio::test]
+async fn webauthn_complete_accepts_a_loopback_redirect_on_another_port() -> anyhow::Result<()> {
+    let (_user, _client, uri) = complete_uri_for(
+        None,
+        Some("http://127.0.0.1:53281/callback"),
+        &format!("&scope=user{}", pkce_query()),
+    )
+    .await?;
+    let app = webauthn_app().await?;
+    let resp = app.oneshot(empty_get(&uri)).await?;
+    assert_eq!(resp.status(), StatusCode::OK, "{}", resp.status());
+    Ok(())
+}
+
+#[tokio::test]
+async fn webauthn_complete_refuses_an_unknown_client() -> anyhow::Result<()> {
+    let (_user, _client, uri) = complete_uri_for(
+        Some("client_does_not_exist"),
+        None,
+        &format!("&scope=user{}", pkce_query()),
+    )
+    .await?;
+    let app = webauthn_app().await?;
+    let resp = app.oneshot(empty_get(&uri)).await?;
+    let status = resp.status();
+    let v = read_json(resp).await?;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{v}");
+    assert!(v.get("authorization_code").is_none(), "{v}");
+    Ok(())
+}
+
+#[tokio::test]
+async fn webauthn_complete_refuses_a_scope_outside_the_registration() -> anyhow::Result<()> {
+    let (_user, _client, uri) = complete_uri(&format!("&scope=admin{}", pkce_query())).await?;
+    let app = webauthn_app().await?;
+    let resp = app.oneshot(empty_get(&uri)).await?;
+    let status = resp.status();
+    let v = read_json(resp).await?;
+    assert!(status.is_client_error(), "{status} {v}");
+    assert_eq!(v["error"].as_str(), Some("invalid_scope"), "{v}");
     Ok(())
 }
 
 #[tokio::test]
 async fn webauthn_complete_redirects_a_browser_and_carries_the_state_back() -> anyhow::Result<()> {
-    let (_user, client, uri) = complete_uri("&scope=user&state=opaque-state-value").await?;
+    let (_user, client, uri) = complete_uri(&format!(
+        "&scope=user&state=opaque-state-value{}",
+        pkce_query()
+    ))
+    .await?;
     let app = webauthn_app().await?;
 
     let resp = app.oneshot(browser_get(&uri)).await?;

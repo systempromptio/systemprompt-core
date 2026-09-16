@@ -1,9 +1,11 @@
 //! WebAuthn-completion bridge into the authorization-code flow.
 //!
 //! Consumes a verified-authentication token, confirms it matches the claimed
-//! user, mints an authorization code bound to the request's PKCE/resource
-//! parameters, and returns it as a browser redirect or JSON depending on the
-//! caller.
+//! user, re-checks the client, redirect URI, scope and PKCE against the
+//! registration (the `/authorize` GET is a separate request and its result is
+//! not carried here), mints an authorization code bound to the request's
+//! PKCE/resource parameters, and returns it as a browser redirect or JSON
+//! depending on the caller.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -23,6 +25,7 @@ use systemprompt_models::oauth::OAuthServerConfig;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::{MintAuthCodeParams, OAuthRepository};
 use systemprompt_oauth::services::is_browser_request;
+use systemprompt_oauth::services::validation::validate_redirect_uri;
 use systemprompt_oauth::services::webauthn::WebAuthnRegistry;
 
 #[derive(Debug, Deserialize)]
@@ -68,16 +71,34 @@ async fn verify_completion(
         ));
     }
 
-    if params.client_id.is_none() {
+    let client_id = params
+        .client_id
+        .as_ref()
+        .ok_or_else(|| OAuthHttpError::invalid_request("Missing client_id parameter"))?;
+    let client = repo
+        .find_client_by_id(client_id)
+        .await?
+        .ok_or_else(|| OAuthHttpError::invalid_request("Unknown client_id"))?;
+
+    let redirect_uri = validate_redirect_uri(&client.redirect_uris, params.redirect_uri.as_deref())
+        .map_err(|_e| OAuthHttpError::invalid_request("redirect_uri not registered for client"))?;
+
+    let requested_scopes = OAuthRepository::parse_scopes(params.scope.as_deref().unwrap_or(""));
+    OAuthRepository::validate_scopes(&requested_scopes)
+        .and_then(|_valid| {
+            OAuthRepository::validate_scopes_for_client(&client.scopes, &requested_scopes)
+        })
+        .map_err(|e| OAuthHttpError::invalid_scope(e.to_string()))?;
+
+    let has_challenge = params
+        .code_challenge
+        .as_deref()
+        .is_some_and(|challenge| !challenge.is_empty());
+    if !has_challenge || params.code_challenge_method.as_deref() != Some("S256") {
         return Err(OAuthHttpError::invalid_request(
-            "Missing client_id parameter",
+            "PKCE code_challenge with method S256 is required",
         ));
     }
-
-    let redirect_uri = params
-        .redirect_uri
-        .clone()
-        .ok_or_else(|| OAuthHttpError::invalid_request("Missing redirect_uri parameter"))?;
 
     Ok((verified_user_id, redirect_uri))
 }

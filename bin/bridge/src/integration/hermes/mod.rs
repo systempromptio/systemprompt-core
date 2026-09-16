@@ -56,7 +56,16 @@ impl HostApp for HermesHost {
             read.keys.get(config::PROVIDER_BASE_URL).map(String::as_str),
             env.proxy_port,
         );
-        let secret = Freshness::Unchecked;
+        // Why: HERMES_HOME/.env holds the hermes host token; a stale one
+        // leaves Hermes traffic attributed as an unverified secret holder
+        // until sync re-renders it, so it must surface as Stale.
+        let secret = Freshness::compare(
+            install::installed_key_fingerprint(&config::env_path_in(&config::hermes_home()))
+                .as_deref(),
+            env.host_token_fingerprint(&crate::ids::HostId::new(self.id()))
+                .as_deref(),
+            "hermes host token",
+        );
         let profile_state = ProfileState::classify(&ProfileProbe {
             required: config::REQUIRED_KEYS,
             present: &read.keys,

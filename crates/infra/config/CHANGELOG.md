@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.54.0] - 2026-09-16
+
+### Added
+
+- `build_config` carries `profile.security.allow_dynamic_client_registration` into `Config::allow_dynamic_client_registration`.
+
 ## [0.53.0] - 2026-09-15
 
 ### Breaking

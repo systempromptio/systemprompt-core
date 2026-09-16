@@ -12,14 +12,31 @@ use systemprompt_identifiers::{
     InventoryEntryId, ManagedResourceId, ManagedSourceId, ResourceRevisionId, UserId,
 };
 
+// Why: `previous` is the open membership record this write replaces. It is
+// passed in rather than re-read here so the caller's generation decision and
+// this write cannot disagree about what moved.
+#[derive(Clone, Copy)]
+pub(super) struct StoredInventoryEntry<'a> {
+    pub(super) entry: &'a InventoryEntry,
+    pub(super) record: &'a serde_json::Value,
+    pub(super) previous: Option<&'a serde_json::Value>,
+    pub(super) generation: i64,
+    pub(super) observed: DateTime<Utc>,
+}
+
 impl ManagedRepository {
     pub(super) async fn store_inventory_entry(
         tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
         owner: &UserId,
-        entry: &InventoryEntry,
-        generation: i64,
-        observed: DateTime<Utc>,
+        stored: &StoredInventoryEntry<'_>,
     ) -> Result<()> {
+        let StoredInventoryEntry {
+            entry,
+            record,
+            previous,
+            generation,
+            observed,
+        } = *stored;
         let origin = serde_json::to_value(entry.origin)?
             .as_str()
             .ok_or_else(|| invalid("Invalid inventory origin"))?
@@ -28,10 +45,8 @@ impl ManagedRepository {
             .as_str()
             .ok_or_else(|| invalid("Invalid inventory availability"))?
             .to_owned();
-        let record = serde_json::to_value(entry)?;
-        let previous=sqlx::query_scalar!("SELECT record FROM managed_inventory_membership WHERE owner_id=$1 AND entry_id=$2 AND effective_until IS NULL",owner.as_str(),entry.entry_id.as_str()).fetch_optional(&mut **tx).await?;
         sqlx::query!("INSERT INTO managed_inventory_entries(owner_id,entry_id,kind,resource_key,origin,configured_key,resource_id,source_id,availability,latest_revision_id,published_revision_id,diagnostic,first_observed_at,last_observed_at,generation) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$13,$14) ON CONFLICT(owner_id,entry_id) DO UPDATE SET kind=EXCLUDED.kind,resource_key=EXCLUDED.resource_key,origin=EXCLUDED.origin,configured_key=EXCLUDED.configured_key,resource_id=EXCLUDED.resource_id,source_id=EXCLUDED.source_id,availability=EXCLUDED.availability,latest_revision_id=EXCLUDED.latest_revision_id,published_revision_id=EXCLUDED.published_revision_id,diagnostic=EXCLUDED.diagnostic,last_observed_at=EXCLUDED.last_observed_at,generation=EXCLUDED.generation",owner.as_str(),entry.entry_id.as_str(),&entry.kind,&entry.resource_key,origin,entry.configured_key.as_deref(),entry.resource_id.as_ref().map(ManagedResourceId::as_str),entry.source_id.as_ref().map(ManagedSourceId::as_str),availability,entry.latest_revision_id.as_ref().map(ResourceRevisionId::as_str),entry.published_revision_id.as_ref().map(ResourceRevisionId::as_str),entry.diagnostic.as_deref(),observed,generation).execute(&mut **tx).await?;
-        if previous.as_ref() != Some(&record) {
+        if previous != Some(record) {
             sqlx::query!("UPDATE managed_inventory_membership SET effective_until=$3 WHERE owner_id=$1 AND entry_id=$2 AND effective_until IS NULL",owner.as_str(),entry.entry_id.as_str(),observed).execute(&mut **tx).await?;
             sqlx::query!("INSERT INTO managed_inventory_membership(owner_id,entry_id,effective_from,record) VALUES($1,$2,$3,$4)",owner.as_str(),entry.entry_id.as_str(),observed,record).execute(&mut **tx).await?;
         }

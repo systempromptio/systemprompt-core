@@ -43,18 +43,15 @@ async fn issued_credential_enrolls_once_retry_omits_token_and_deliberate_rotatio
     .unwrap();
     let pool = db.write_pool_arc().unwrap();
     sqlx::query("INSERT INTO user_device_certs(id,user_id,fingerprint,label) VALUES($1,$2,$3,'HTTP issuance')").bind(cert.as_str()).bind(consumer.as_str()).bind(cert.as_str()).execute(pool.as_ref()).await.unwrap();
-    let router = systemprompt_api::routes::evaluation::campaigns::router()
-        .with_state(
-            systemprompt_api::routes::evaluation::optimization_state::OptimizationState::new(
-                ctx.as_ref().clone(),
-            ),
-        )
+    let router = systemprompt_api::routes::managed::router()
+        .with_state(systemprompt_api::routes::managed::state::ManagedState::new(
+            ctx.as_ref().clone(),
+        ))
         .merge(
-            systemprompt_api::routes::evaluation::consumer::router()
-                .with_state(ctx.as_ref().clone()),
+            systemprompt_api::routes::managed::consumer::router().with_state(ctx.as_ref().clone()),
         )
         .layer(axum::middleware::from_fn(
-            systemprompt_api::routes::evaluation::contract::normalize,
+            systemprompt_api::routes::managed::contract::normalize,
         ));
     let issue = |key: &TaskId| {
         Request::builder()

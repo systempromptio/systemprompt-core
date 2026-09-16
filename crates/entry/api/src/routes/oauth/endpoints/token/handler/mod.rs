@@ -13,7 +13,9 @@ use systemprompt_models::RequestContext;
 use systemprompt_oauth::{GrantType, OAuthState};
 use tracing::instrument;
 
-use super::{TokenError, TokenRequest};
+use base64::Engine;
+
+use super::{TokenError, TokenRequest, TokenResult};
 use crate::routes::oauth::OAuthHttpError;
 use crate::routes::oauth::extractors::OAuthRepo;
 use crate::services::middleware::client_addr::ClientIp;
@@ -37,9 +39,11 @@ pub async fn handle_token(
     OAuthRepo(repo): OAuthRepo,
     ClientIp(caller_ip): ClientIp,
     headers: HeaderMap,
-    Form(request): Form<TokenRequest>,
+    Form(mut request): Form<TokenRequest>,
 ) -> Result<Response, OAuthHttpError> {
     tracing::info!(grant_type = %request.grant_type, "Token request received");
+
+    apply_basic_client_auth(&headers, &mut request)?;
 
     let grant_type = request
         .grant_type
@@ -65,6 +69,49 @@ pub async fn handle_token(
         },
     };
     Ok((StatusCode::OK, Json(response)).into_response())
+}
+
+// Why: RFC 6749 §2.3.1 — `client_secret_basic` carries
+// `client_id:client_secret` percent-encoded inside HTTP Basic; a client must
+// not also send them in the body, so a conflicting pair is rejected rather than
+// silently preferred.
+fn apply_basic_client_auth(headers: &HeaderMap, request: &mut TokenRequest) -> TokenResult<()> {
+    let Some(encoded) = headers
+        .get(http::header::AUTHORIZATION)
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.strip_prefix("Basic "))
+    else {
+        return Ok(());
+    };
+
+    let invalid = || TokenError::InvalidRequest {
+        field: "authorization".to_owned(),
+        message: "malformed HTTP Basic client credentials".to_owned(),
+    };
+    let decoded = base64::engine::general_purpose::STANDARD
+        .decode(encoded.trim())
+        .map_err(|_e| invalid())?;
+    let decoded = String::from_utf8(decoded).map_err(|_e| invalid())?;
+    let (client_id, client_secret) = decoded.split_once(':').ok_or_else(invalid)?;
+    let client_id = urlencoding::decode(client_id).map_err(|_e| invalid())?;
+    let client_secret = urlencoding::decode(client_secret).map_err(|_e| invalid())?;
+
+    if request
+        .client_id
+        .as_deref()
+        .is_some_and(|body_id| body_id != client_id)
+        || request.client_secret.is_some()
+    {
+        return Err(TokenError::InvalidRequest {
+            field: "client_id".to_owned(),
+            message: "client credentials supplied both in the Authorization header and the body"
+                .to_owned(),
+        });
+    }
+
+    request.client_id = Some(client_id.into_owned());
+    request.client_secret = Some(client_secret.into_owned());
+    Ok(())
 }
 
 pub fn map_exchange_error(err: &anyhow::Error) -> TokenError {

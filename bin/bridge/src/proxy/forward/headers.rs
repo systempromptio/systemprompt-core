@@ -1,4 +1,13 @@
-//! Header hygiene for proxied requests: hop-by-hop stripping and auth stamping.
+//! Header hygiene for proxied requests: hop-by-hop stripping, auth stamping,
+//! and the client attestation the gateway records.
+//!
+//! The proxy is the only party that verified which host presented the
+//! loopback credential, so it is the only party allowed to say so: an inbound
+//! `x-systemprompt-client-attestation` is always dropped, and on the
+//! inference route the proxy stamps its own. A per-host token names the host
+//! outright (`host-token`) and overrides any `x-systemprompt-client` the
+//! caller sent; the raw secret only proves the channel (`bridge-secret`), so
+//! the caller's own declaration is passed through for the gateway to weigh.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -7,8 +16,10 @@ use std::collections::BTreeMap;
 
 use hyper::HeaderMap;
 use systemprompt_identifiers::{GatewayConversationId, SessionId, headers as sp_headers};
+use systemprompt_models::wire::origin::{ClientAttestation, ClientKind};
 
 use super::{ForwardError, ForwardResult};
+use crate::proxy::credential::LoopbackCredential;
 
 const HOP_BY_HOP: &[&str] = &[
     "host",
@@ -24,20 +35,34 @@ const HOP_BY_HOP: &[&str] = &[
     "x-api-key",
     "x-systemprompt-device-credential",
     "x-systemprompt-host",
+    sp_headers::CLIENT_ATTESTATION,
     // Why: the OpenCode session rides upstream inside `metadata.user_id`,
     // never as a header the gateway would have to trust from any client.
     crate::feedback::sessions::OPENCODE_SESSION_HEADER,
 ];
 
-pub(super) fn build_upstream_headers(
-    src: &HeaderMap,
-    bearer: &str,
-    session_id: &SessionId,
-    gateway_conversation_id: Option<&GatewayConversationId>,
-    extra: &BTreeMap<String, String>,
-) -> ForwardResult<HeaderMap> {
-    let mut headers = HeaderMap::with_capacity(src.len() + 4 + extra.len());
+#[derive(Debug, Clone, Copy)]
+pub struct UpstreamHeaderInputs<'a> {
+    pub src: &'a HeaderMap,
+    pub bearer: &'a str,
+    pub session_id: &'a SessionId,
+    pub gateway_conversation_id: Option<&'a GatewayConversationId>,
+    pub extra: &'a BTreeMap<String, String>,
+    pub attest: Option<&'a LoopbackCredential>,
+}
+
+pub fn build_upstream_headers(inputs: &UpstreamHeaderInputs<'_>) -> ForwardResult<HeaderMap> {
+    let UpstreamHeaderInputs {
+        src,
+        bearer,
+        session_id,
+        gateway_conversation_id,
+        extra,
+        attest,
+    } = *inputs;
+    let mut headers = HeaderMap::with_capacity(src.len() + 6 + extra.len());
     copy_request_headers(src, &mut headers);
+    stamp_attestation(&mut headers, attest)?;
 
     let bearer = reqwest::header::HeaderValue::try_from(format!("Bearer {bearer}"))
         .map_err(|e| ForwardError::BadHeader(format!("authorization: {e}")))?;
@@ -69,7 +94,40 @@ pub(super) fn build_upstream_headers(
     Ok(headers)
 }
 
-pub(super) fn copy_request_headers(src: &HeaderMap, dest: &mut HeaderMap) {
+pub fn stamp_attestation(
+    headers: &mut HeaderMap,
+    attest: Option<&LoopbackCredential>,
+) -> ForwardResult<()> {
+    let client_kind = reqwest::header::HeaderName::from_static(sp_headers::CLIENT_KIND);
+    let attestation = reqwest::header::HeaderName::from_static(sp_headers::CLIENT_ATTESTATION);
+    let tier = match attest {
+        None | Some(LoopbackCredential::Hook(_)) => {
+            headers.remove(&client_kind);
+            return Ok(());
+        },
+        Some(LoopbackCredential::Host(host)) => {
+            let Some(kind) = ClientKind::from_bridge_host_id(host.as_str()) else {
+                return Err(ForwardError::BadHeader(format!(
+                    "{}: no client kind for host {host}",
+                    sp_headers::CLIENT_KIND
+                )));
+            };
+            headers.insert(
+                client_kind,
+                reqwest::header::HeaderValue::from_static(kind.as_str()),
+            );
+            ClientAttestation::HostToken
+        },
+        Some(LoopbackCredential::Secret) => ClientAttestation::BridgeSecret,
+    };
+    headers.insert(
+        attestation,
+        reqwest::header::HeaderValue::from_static(tier.as_str()),
+    );
+    Ok(())
+}
+
+pub fn copy_request_headers(src: &HeaderMap, dest: &mut HeaderMap) {
     for (name, value) in src {
         if is_hop_by_hop(name.as_str()) {
             continue;

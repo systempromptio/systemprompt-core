@@ -4,9 +4,9 @@
 //! why" — including the failure text when the instance fell back to a cached
 //! or baked tree, so an instance running yesterday's bundle does not look
 //! healthy. `POST /refresh` re-runs the boot-time resolution against the
-//! configured sources and reports whether the composition changed; the
-//! running process keeps its old root either way, so `restart=true` asks the
-//! supervisor to bring the process back on the new composition.
+//! configured sources, recomposes, and when the composition changed projects
+//! it into the authz tables and the inventory in-process; `restart=true` is
+//! an opt-in for the static config a running process cannot re-read.
 //!
 //! Two refreshes must not fetch at once, so the router owns a single-flight
 //! lock and the second caller is refused rather than queued behind a
@@ -90,6 +90,8 @@ pub struct ServicesRefreshResponse {
     pub composed_hash: Option<String>,
 
     pub sources: Vec<SourceView>,
+    pub reconciled: bool,
+    pub restart_recommended: bool,
     pub restarting: bool,
 }
 

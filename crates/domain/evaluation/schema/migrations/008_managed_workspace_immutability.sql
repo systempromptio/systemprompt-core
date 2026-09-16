@@ -1,6 +1,0 @@
-CREATE OR REPLACE FUNCTION reject_eval_managed_workspace_change() RETURNS trigger AS $$
-BEGIN RAISE EXCEPTION 'managed evaluator workspace projections are immutable' USING ERRCODE='23514'; END $$ LANGUAGE plpgsql;
-DROP TRIGGER IF EXISTS eval_managed_workspace_projection_immutable ON eval_managed_workspace_projections;
-CREATE TRIGGER eval_managed_workspace_projection_immutable BEFORE UPDATE OR DELETE ON eval_managed_workspace_projections FOR EACH ROW EXECUTE FUNCTION reject_eval_managed_workspace_change();
-DROP TRIGGER IF EXISTS eval_managed_workspace_assets_immutable ON eval_managed_workspace_assets;
-CREATE TRIGGER eval_managed_workspace_assets_immutable BEFORE UPDATE OR DELETE ON eval_managed_workspace_assets FOR EACH ROW EXECUTE FUNCTION reject_eval_managed_workspace_change();

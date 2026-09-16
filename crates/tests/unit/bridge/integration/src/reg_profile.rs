@@ -1,5 +1,4 @@
-use systemprompt_bridge::ids::LoopbackSecret;
-use systemprompt_bridge::install::mdm::policy::desktop_host_token;
+use systemprompt_bridge::ids::HostToken;
 use systemprompt_bridge::install::reg_values::{parse_reg_entries, render_reg_values};
 use systemprompt_bridge::integration::claude_desktop::reg_profile::{profile_entries, render_reg};
 use systemprompt_bridge::integration::host_app::ProfileGenInputs;
@@ -7,7 +6,7 @@ use systemprompt_bridge::integration::host_app::ProfileGenInputs;
 fn inputs() -> ProfileGenInputs {
     ProfileGenInputs {
         gateway_base_url: "https://gateway.example.com".to_string(),
-        api_key: LoopbackSecret::new("sp-secret-key"),
+        host_token: HostToken::new("sp-secret-key"),
         models: vec!["claude-opus-4-7".to_string()],
         default_model: None,
         organization_uuid: Some("org-abc".to_string()),
@@ -39,10 +38,9 @@ fn profile_entries_carry_required_policy_keys() {
     );
     assert_eq!(
         value_of(&owned, "inferenceGatewayApiKey"),
-        desktop_host_token(&LoopbackSecret::new("sp-secret-key")).as_str(),
-        "the registry profile carries the desktop host token, never the raw secret"
+        "sp-secret-key",
+        "the registry profile carries the host token it was handed"
     );
-    assert_ne!(value_of(&owned, "inferenceGatewayApiKey"), "sp-secret-key");
     assert_eq!(value_of(&owned, "inferenceModels"), "[\"claude-opus-4-7\"]");
 }
 

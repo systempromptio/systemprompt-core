@@ -7,6 +7,8 @@ mod credential_scope;
 #[cfg(test)]
 mod derive_gateway_conversation_id;
 #[cfg(test)]
+mod forward_attestation;
+#[cfg(test)]
 mod forward_frames;
 #[cfg(test)]
 mod forward_replay;

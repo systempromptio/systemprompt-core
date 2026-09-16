@@ -57,7 +57,6 @@ async fn approved_removal_keeps_content_until_explicit_withdrawal_and_retains_bo
                 expected_generation: 1,
                 operation_key: "approved-source-removal".into(),
                 comparison_evidence: ComparisonEvidence {
-                    experiment_id: None,
                     recorded: std::collections::BTreeMap::from([(
                         "withdrawal_proposal".to_owned(),
                         serde_json::to_value(&proposal_id).unwrap(),

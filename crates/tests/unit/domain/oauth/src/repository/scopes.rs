@@ -78,3 +78,41 @@ fn generate_client_secret_is_nonempty_and_unique() {
     assert!(!a.is_empty());
     assert_ne!(a, b);
 }
+
+#[test]
+fn self_registration_may_not_claim_admin() {
+    let err =
+        OAuthRepository::validate_scopes_for_registration(&["user".to_owned(), "admin".to_owned()])
+            .unwrap_err();
+    assert!(err.to_string().contains("admin"), "{err}");
+    assert!(!err.to_string().contains("user,"), "{err}");
+}
+
+#[test]
+fn self_registration_accepts_user_and_anonymous() {
+    let out = OAuthRepository::validate_scopes_for_registration(&[
+        "user".to_owned(),
+        "anonymous".to_owned(),
+    ])
+    .expect("both are self-registrable");
+    assert_eq!(out, vec!["user".to_owned(), "anonymous".to_owned()]);
+}
+
+#[test]
+fn self_registration_still_refuses_unknown_scopes() {
+    assert!(OAuthRepository::validate_scopes_for_registration(&["superuser".to_owned()]).is_err());
+}
+
+#[test]
+fn a_request_outside_the_client_scopes_is_refused() {
+    let client = vec!["user".to_owned()];
+    OAuthRepository::validate_scopes_for_client(&client, &["user".to_owned()])
+        .expect("subset is fine");
+    OAuthRepository::validate_scopes_for_client(&client, &[]).expect("empty is a subset");
+    let err = OAuthRepository::validate_scopes_for_client(
+        &client,
+        &["user".to_owned(), "admin".to_owned()],
+    )
+    .unwrap_err();
+    assert!(err.to_string().contains("admin"), "{err}");
+}

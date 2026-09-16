@@ -4,10 +4,11 @@
 //!
 //! The `/clients` handlers read the authenticated `RequestContext` for the
 //! owning user, so the router is layered with a context-injection middleware
-//! (mirroring production's route-mount middleware). The `/register` handlers
-//! authenticate with a registration access token — validation only checks the
-//! `reg_` prefix, so the tests exercise the missing/mis-scheme/wrong-prefix
-//! rejections plus the found/not-found branches.
+//! (mirroring production's route-mount middleware). The `/register/{id}`
+//! handlers live on the public router and authenticate with the registration
+//! access token issued at registration: the presented token is hashed and
+//! compared with the hash stored on the client, so a well-formed but foreign
+//! token is refused exactly like a missing one.
 
 use std::sync::Once;
 
@@ -15,11 +16,12 @@ use axum::Router;
 use axum::body::{Body, to_bytes};
 use axum::http::{Request, Response, StatusCode, header};
 use axum::middleware::{self, Next};
-use systemprompt_api::routes::oauth::authenticated_router;
+use systemprompt_api::routes::oauth::{authenticated_router, public_router};
 use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, UserId};
 use systemprompt_models::Config;
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_oauth::OAuthState;
+use systemprompt_oauth::services::hash_registration_token;
 use systemprompt_test_fixtures::{
     OAuthClientFixture, ensure_test_bootstrap, fixture_config, fixture_db_pool,
     install_test_signing_key, seed_oauth_client,
@@ -70,6 +72,19 @@ async fn clients_app(user: UserId) -> anyhow::Result<Router> {
         .with_state(state))
 }
 
+async fn client_config_app() -> anyhow::Result<Router> {
+    ensure_config();
+    install_test_signing_key();
+    let (_pool, ctx) = setup_ctx().await?;
+    let state = OAuthState::new(
+        ctx.oauth_repositories().oauth.clone(),
+        ctx.analytics_provider().expect("analytics"),
+        ctx.session_provider().expect("sessions"),
+        ctx.user_provider().expect("user"),
+    );
+    Ok(public_router().with_state(state))
+}
+
 async fn seed_owner() -> anyhow::Result<UserId> {
     let b = ensure_test_bootstrap();
     let pool = fixture_db_pool(&b.database_url).await?;
@@ -89,6 +104,19 @@ async fn seed_existing_client() -> anyhow::Result<(UserId, OAuthClientFixture)> 
     let pool = fixture_db_pool(&b.database_url).await?;
     let client = seed_oauth_client(&pool, &owner).await?;
     Ok((owner, client))
+}
+
+async fn seed_dcr_client() -> anyhow::Result<OAuthClientFixture> {
+    let (_owner, client) = seed_existing_client().await?;
+    let b = ensure_test_bootstrap();
+    let pool = fixture_db_pool(&b.database_url).await?;
+    let p = pool.pool_arc().expect("read pool");
+    sqlx::query("UPDATE oauth_clients SET registration_token_hash = $2 WHERE client_id = $1")
+        .bind(client.client_id.as_str())
+        .bind(hash_registration_token(REG_TOKEN))
+        .execute(p.as_ref())
+        .await?;
+    Ok(client)
 }
 
 fn json_request(method: http::Method, uri: &str, body: serde_json::Value) -> Request<Body> {
@@ -295,11 +323,12 @@ async fn delete_unknown_client_returns_404() -> anyhow::Result<()> {
 }
 
 const REG_TOKEN: &str = "reg_test-registration-access-token";
+const FOREIGN_REG_TOKEN: &str = "reg_some-other-clients-token";
 
 #[tokio::test]
 async fn client_config_get_without_auth_returns_401() -> anyhow::Result<()> {
-    let (owner, client) = seed_existing_client().await?;
-    let app = clients_app(owner).await?;
+    let client = seed_dcr_client().await?;
+    let app = client_config_app().await?;
     let resp = app
         .oneshot(get_with_auth(
             &format!("/register/{}", client.client_id.as_str()),
@@ -312,8 +341,8 @@ async fn client_config_get_without_auth_returns_401() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn client_config_get_non_reg_prefix_returns_401() -> anyhow::Result<()> {
-    let (owner, client) = seed_existing_client().await?;
-    let app = clients_app(owner).await?;
+    let client = seed_dcr_client().await?;
+    let app = client_config_app().await?;
     let resp = app
         .oneshot(get_with_auth(
             &format!("/register/{}", client.client_id.as_str()),
@@ -325,9 +354,38 @@ async fn client_config_get_non_reg_prefix_returns_401() -> anyhow::Result<()> {
 }
 
 #[tokio::test]
+async fn client_config_get_with_foreign_token_returns_401() -> anyhow::Result<()> {
+    let client = seed_dcr_client().await?;
+    let app = client_config_app().await?;
+    let resp = app
+        .oneshot(get_with_auth(
+            &format!("/register/{}", client.client_id.as_str()),
+            Some(&format!("Bearer {FOREIGN_REG_TOKEN}")),
+        ))
+        .await?;
+    assert_eq!(resp.status(), StatusCode::UNAUTHORIZED, "{}", resp.status());
+    Ok(())
+}
+
+#[tokio::test]
+async fn client_config_get_admin_provisioned_client_has_no_token_returns_401() -> anyhow::Result<()>
+{
+    let (_owner, client) = seed_existing_client().await?;
+    let app = client_config_app().await?;
+    let resp = app
+        .oneshot(get_with_auth(
+            &format!("/register/{}", client.client_id.as_str()),
+            Some(&format!("Bearer {REG_TOKEN}")),
+        ))
+        .await?;
+    assert_eq!(resp.status(), StatusCode::UNAUTHORIZED, "{}", resp.status());
+    Ok(())
+}
+
+#[tokio::test]
 async fn client_config_get_returns_registration() -> anyhow::Result<()> {
-    let (owner, client) = seed_existing_client().await?;
-    let app = clients_app(owner).await?;
+    let client = seed_dcr_client().await?;
+    let app = client_config_app().await?;
     let resp = app
         .oneshot(get_with_auth(
             &format!("/register/{}", client.client_id.as_str()),
@@ -341,7 +399,10 @@ async fn client_config_get_returns_registration() -> anyhow::Result<()> {
         Some(client.client_id.as_str()),
         "{v}"
     );
-    assert_eq!(v["client_secret"].as_str(), Some("***REDACTED***"), "{v}");
+    assert!(
+        v.get("client_secret").is_none(),
+        "secret must not be re-issued: {v}"
+    );
     assert_eq!(
         v["registration_access_token"].as_str(),
         Some(REG_TOKEN),
@@ -351,23 +412,22 @@ async fn client_config_get_returns_registration() -> anyhow::Result<()> {
 }
 
 #[tokio::test]
-async fn client_config_get_unknown_client_returns_400() -> anyhow::Result<()> {
-    let owner = seed_owner().await?;
-    let app = clients_app(owner).await?;
+async fn client_config_get_unknown_client_returns_401() -> anyhow::Result<()> {
+    let app = client_config_app().await?;
     let resp = app
         .oneshot(get_with_auth(
             "/register/no-such-client",
             Some(&format!("Bearer {REG_TOKEN}")),
         ))
         .await?;
-    assert_eq!(resp.status(), StatusCode::BAD_REQUEST, "{}", resp.status());
+    assert_eq!(resp.status(), StatusCode::UNAUTHORIZED, "{}", resp.status());
     Ok(())
 }
 
 #[tokio::test]
 async fn client_config_update_returns_new_metadata() -> anyhow::Result<()> {
-    let (owner, client) = seed_existing_client().await?;
-    let app = clients_app(owner).await?;
+    let client = seed_dcr_client().await?;
+    let app = client_config_app().await?;
     let body = serde_json::json!({
         "client_name": "config-updated",
         "redirect_uris": ["https://cfg.example/callback"],
@@ -387,9 +447,29 @@ async fn client_config_update_returns_new_metadata() -> anyhow::Result<()> {
 }
 
 #[tokio::test]
+async fn client_config_update_refuses_non_https_redirect() -> anyhow::Result<()> {
+    let client = seed_dcr_client().await?;
+    let app = client_config_app().await?;
+    let body = serde_json::json!({
+        "client_name": "config-updated",
+        "redirect_uris": ["http://attacker.example/cb"],
+    });
+    let resp = app
+        .oneshot(body_with_auth(
+            http::Method::PUT,
+            &format!("/register/{}", client.client_id.as_str()),
+            Some(&format!("Bearer {REG_TOKEN}")),
+            Some(body),
+        ))
+        .await?;
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST, "{}", resp.status());
+    Ok(())
+}
+
+#[tokio::test]
 async fn client_config_update_without_auth_returns_401() -> anyhow::Result<()> {
-    let (owner, client) = seed_existing_client().await?;
-    let app = clients_app(owner).await?;
+    let client = seed_dcr_client().await?;
+    let app = client_config_app().await?;
     let body = serde_json::json!({ "client_name": "x" });
     let resp = app
         .oneshot(body_with_auth(
@@ -405,8 +485,8 @@ async fn client_config_update_without_auth_returns_401() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn client_config_delete_returns_204() -> anyhow::Result<()> {
-    let (owner, client) = seed_existing_client().await?;
-    let app = clients_app(owner).await?;
+    let client = seed_dcr_client().await?;
+    let app = client_config_app().await?;
     let resp = app
         .oneshot(body_with_auth(
             http::Method::DELETE,
@@ -420,9 +500,24 @@ async fn client_config_delete_returns_204() -> anyhow::Result<()> {
 }
 
 #[tokio::test]
-async fn client_config_delete_unknown_client_returns_400() -> anyhow::Result<()> {
-    let owner = seed_owner().await?;
-    let app = clients_app(owner).await?;
+async fn client_config_delete_with_foreign_token_returns_401() -> anyhow::Result<()> {
+    let client = seed_dcr_client().await?;
+    let app = client_config_app().await?;
+    let resp = app
+        .oneshot(body_with_auth(
+            http::Method::DELETE,
+            &format!("/register/{}", client.client_id.as_str()),
+            Some(&format!("Bearer {FOREIGN_REG_TOKEN}")),
+            None,
+        ))
+        .await?;
+    assert_eq!(resp.status(), StatusCode::UNAUTHORIZED, "{}", resp.status());
+    Ok(())
+}
+
+#[tokio::test]
+async fn client_config_delete_unknown_client_returns_401() -> anyhow::Result<()> {
+    let app = client_config_app().await?;
     let resp = app
         .oneshot(body_with_auth(
             http::Method::DELETE,
@@ -431,6 +526,6 @@ async fn client_config_delete_unknown_client_returns_400() -> anyhow::Result<()>
             None,
         ))
         .await?;
-    assert_eq!(resp.status(), StatusCode::BAD_REQUEST, "{}", resp.status());
+    assert_eq!(resp.status(), StatusCode::UNAUTHORIZED, "{}", resp.status());
     Ok(())
 }

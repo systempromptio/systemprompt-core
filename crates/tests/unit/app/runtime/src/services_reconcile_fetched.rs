@@ -21,7 +21,7 @@ use systemprompt_models::services::bundle::{
     ServicesBundleState, SignedBundleManifest,
 };
 use systemprompt_runtime::RuntimeError;
-use systemprompt_runtime::services_reconcile::reconcile_fetched_services;
+use systemprompt_runtime::services_reconcile::{ReconcileOutcome, reconcile_fetched_services};
 use systemprompt_test_fixtures::{
     DisposableDb, closed_db_pool, ensure_test_bootstrap, fixture_db_pool,
 };
@@ -235,9 +235,10 @@ async fn a_projected_composition_is_recorded_and_not_projected_again() {
         },
     };
 
-    reconcile_fetched_services(&f.profile, &root, services(), &db)
+    let outcome = reconcile_fetched_services(&f.profile, &root, services(), &db)
         .await
         .expect("a composition over a migrated database projects");
+    assert_eq!(outcome, ReconcileOutcome::Projected);
 
     assert_eq!(
         f.cache.read_state().last_reconciled_hash.as_deref(),
@@ -246,9 +247,10 @@ async fn a_projected_composition_is_recorded_and_not_projected_again() {
     );
 
     let closed = closed_db_pool().await;
-    reconcile_fetched_services(&f.profile, &root, services(), &closed)
+    let outcome = reconcile_fetched_services(&f.profile, &root, services(), &closed)
         .await
         .expect("the recorded composition makes the step a no-op on restart");
+    assert_eq!(outcome, ReconcileOutcome::NothingPending);
 
     disposable.drop_now().await;
 }

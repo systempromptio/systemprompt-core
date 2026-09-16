@@ -24,7 +24,6 @@ fn scripted(answers: &[&str]) -> ScriptedPrompter {
 fn make_profile() -> Profile {
     Profile {
         storage: Default::default(),
-        evaluator: None,
         name: "test".to_string(),
         display_name: "Test".to_string(),
         target: ProfileType::Local,
@@ -67,6 +66,7 @@ fn make_profile() -> Profile {
             audiences: vec![JwtAudience::Api],
             allowed_resource_audiences: vec![],
             allow_registration: true,
+            allow_dynamic_client_registration: true,
             login_page_url: None,
             signing_key_path: PathBuf::from("/tmp/test-signing-key.pem"),
             trusted_issuers: vec![],

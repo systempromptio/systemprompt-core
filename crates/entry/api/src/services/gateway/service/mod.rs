@@ -78,12 +78,11 @@ impl GatewayService {
             identity_headers,
             governance,
         } = inputs;
-        let (policy, evaluation_session) =
-            dispatch_policy(repos, &ctx, config.quota_fault_mode).await?;
+        let policy = dispatch_policy(repos, &ctx, config.quota_fault_mode).await?;
         let stream_usage = inbound.wants_stream_usage(&raw_body);
         let ai_request_id = ctx.ai_request_id.clone();
         let upstream = resolve_upstream(config, registry, &request, &ai_request_id).await?;
-        let pricing = dispatch_pricing(config, registry, &request, &upstream, evaluation_session)?;
+        let pricing = dispatch_pricing(config, registry, &request, &upstream)?;
 
         trace_dispatch(&ctx, &request, &upstream);
         let audit = open_audit(repos, &ctx, &request, &raw_body, &identity_headers).await?;
@@ -177,14 +176,8 @@ async fn dispatch_opened(opened: OpenedDispatch<'_>) -> Result<Response<Body>, D
     let scanned =
         ScannedDispatch::enforce(governed, repos, &ai_request_id, &policy.safety, &audit).await?;
 
-    let evaluation = scanned.admit_evaluation(repos, &ctx, &pricing).await?;
-    let retry_policy = if evaluation {
-        super::protocol::outbound::retry::RetryPolicy::none()
-    } else {
-        super::protocol::outbound::retry::current_policy()
-    };
     let outcome = super::protocol::outbound::retry::with_policy(
-        retry_policy,
+        super::protocol::outbound::retry::current_policy(),
         scanned.send(&upstream, &forward_headers, &audit),
     )
     .await?;
@@ -212,7 +205,7 @@ async fn dispatch_policy(
     repos: &super::GatewayRepositories,
     ctx: &GatewayRequestContext,
     fault_mode: QuotaFaultMode,
-) -> Result<(GatewayPolicySpec, bool), DispatchError> {
+) -> Result<GatewayPolicySpec, DispatchError> {
     if ctx.session_id.is_none() {
         return Err(DispatchError::PreAudit(anyhow!(
             "gateway dispatch missing authenticated session (session_id)"
@@ -224,10 +217,7 @@ async fn dispatch_policy(
         .resolve(fault_mode)
         .await
         .map_err(|e| DispatchError::PreAudit(anyhow!(PolicyDenied(e.to_string()))))?;
-    let evaluation_session = super::evaluation::preflight(repos, ctx, &policy)
-        .await
-        .map_err(DispatchError::PreAudit)?;
-    Ok((policy, evaluation_session))
+    Ok(policy)
 }
 
 async fn open_audit(

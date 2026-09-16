@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.54.0] - 2026-09-16
+
+### Removed
+
+- **Breaking:** `ManagedRevisionOwnership` / `DynManagedRevisionOwnership` are removed.
+
 ## [0.53.0] - 2026-09-15
 
 ### Breaking

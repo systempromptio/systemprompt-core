@@ -22,13 +22,6 @@ const UNKNOWN_SESSION_MESSAGE: &str =
 pub enum AuthedPrincipal {
     Jwt(JwtPrincipal),
     ApiKey(ApiKeyPrincipal),
-    Execution(ExecutionPrincipal),
-}
-
-#[derive(Debug)]
-pub struct ExecutionPrincipal {
-    pub principal: systemprompt_evaluation::repository::experiments::ExecutionPrincipal,
-    pub trace_id: TraceId,
 }
 
 #[derive(Debug)]
@@ -54,7 +47,6 @@ impl AuthedPrincipal {
         match self {
             Self::Jwt(p) => &p.user_id,
             Self::ApiKey(p) => &p.user_id,
-            Self::Execution(p) => &p.principal.identity.owner_id,
         }
     }
 
@@ -62,7 +54,6 @@ impl AuthedPrincipal {
         match self {
             Self::Jwt(p) => &p.trace_id,
             Self::ApiKey(p) => &p.trace_id,
-            Self::Execution(p) => &p.trace_id,
         }
     }
 
@@ -70,7 +61,6 @@ impl AuthedPrincipal {
         match self {
             Self::Jwt(p) => &p.attested_session,
             Self::ApiKey(p) => &p.attested_session,
-            Self::Execution(p) => &p.principal.session_id,
         }
     }
 
@@ -78,7 +68,6 @@ impl AuthedPrincipal {
         match self {
             Self::Jwt(p) => AccessScope::from_roles(&p.roles),
             Self::ApiKey(_) => AccessScope::Unknown,
-            Self::Execution(p) => AccessScope::from_roles(&p.principal.identity.roles),
         }
     }
 
@@ -88,21 +77,20 @@ impl AuthedPrincipal {
         match self {
             Self::Jwt(p) => (p.roles.clone(), p.attributes.clone(), p.act_chain.clone()),
             Self::ApiKey(_) => (Vec::new(), BTreeMap::new(), Vec::new()),
-            Self::Execution(p) => (
-                p.principal.identity.roles.clone(),
-                BTreeMap::new(),
-                vec![Actor::job(
-                    p.principal.identity.owner_id.clone(),
-                    format!("evaluation:{}", p.principal.identity.execution_id),
-                )],
-            ),
         }
     }
 
     pub const fn client_id(&self) -> Option<&ClientId> {
         match self {
             Self::Jwt(p) => p.client_id.as_ref(),
-            Self::ApiKey(_) | Self::Execution(_) => None,
+            Self::ApiKey(_) => None,
+        }
+    }
+
+    pub fn is_bridge(&self) -> bool {
+        match self {
+            Self::Jwt(p) => p.client_id.as_ref() == Some(&ClientId::bridge()),
+            Self::ApiKey(_) => false,
         }
     }
 
@@ -110,7 +98,6 @@ impl AuthedPrincipal {
         let (attested, credential) = match self {
             Self::Jwt(p) => (&p.attested_session, "bearer JWT session_id"),
             Self::ApiKey(p) => (&p.attested_session, "attested API-key session"),
-            Self::Execution(p) => (&p.principal.session_id, "execution capability session"),
         };
         if attested.as_str() == header.as_str() {
             return Ok(());
@@ -134,20 +121,7 @@ pub async fn authenticate(
     session_id: &SessionId,
     jwt_extractor: &JwtContextExtractor,
     ctx: &AppContext,
-    capabilities: &systemprompt_evaluation::repository::experiments::ExecutionCapabilityRepository,
 ) -> Result<AuthedPrincipal, (StatusCode, String)> {
-    if credential
-        .starts_with(systemprompt_evaluation::repository::experiments::EXECUTION_TOKEN_PREFIX)
-    {
-        let principal = capabilities
-            .authenticate(credential, &ctx.config().api_external_url)
-            .await
-            .map_err(execution_auth_error)?;
-        return Ok(AuthedPrincipal::Execution(ExecutionPrincipal {
-            principal,
-            trace_id: TraceId::generate(),
-        }));
-    }
     if credential.starts_with(API_KEY_PREFIX) {
         return authenticate_api_key(credential, session_id, ctx).await;
     }
@@ -218,17 +192,4 @@ async fn authenticate_jwt(
         attested_session: claims.session_id,
         client_id: claims.client_id,
     }))
-}
-
-fn execution_auth_error(error: systemprompt_evaluation::EvaluationError) -> (StatusCode, String) {
-    match error {
-        systemprompt_evaluation::EvaluationError::ResourceNotFound(_) => (
-            StatusCode::UNAUTHORIZED,
-            "Invalid or expired execution capability".to_owned(),
-        ),
-        other => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Execution authentication failed: {other}"),
-        ),
-    }
 }

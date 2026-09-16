@@ -133,6 +133,15 @@ impl OAuthRepository {
         client_repo.find_by_client_id(client_id).await
     }
 
+    pub async fn find_registration_token_hash(
+        &self,
+        client_id: &ClientId,
+    ) -> OauthResult<Option<String>> {
+        self.client_repo
+            .find_registration_token_hash(client_id)
+            .await
+    }
+
     pub async fn find_client_by_redirect_uri(
         &self,
         redirect_uri: &str,

@@ -11,7 +11,8 @@ CREATE TABLE IF NOT EXISTS oauth_clients (
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     last_used_at TIMESTAMPTZ,
-    owner_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE
+    owner_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    registration_token_hash TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_oauth_clients_active ON oauth_clients(is_active);
 CREATE INDEX IF NOT EXISTS idx_oauth_clients_owner_user_id ON oauth_clients(owner_user_id);

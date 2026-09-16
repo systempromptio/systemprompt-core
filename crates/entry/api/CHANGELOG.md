@@ -1,6 +1,20 @@
 # Changelog
 
-- Expose the evaluator capability registry at `GET /api/v1/evaluator-capabilities`.
+## [0.54.0] - 2026-09-16
+
+### Removed
+
+- The evaluation engine's HTTP surface is gone: `/api/v1/campaigns*`, `/campaign-runs`, `/campaign-diagnostics`, `/source-changes`, `/experiments*`, `/budgets*`, `/evaluation-revisions*`, `/evaluation-suggestions*`, `/evaluation-approvals*`, `/revisions/{id}/workspace`, `/evaluator-capabilities` and the `/api/v1/evaluation/worker/*` transport. The managed routes that shared the tree (`/sources*`, `/revisions/{id}/bundle`, `/source-verifications*`, `/operations/{id}`, `/inventory*`, `/publications`, `/resources/{id}/publications`, `/analytics/*`, `/consumer*`, `/consumer-devices*`) are unchanged on the wire and now live in `routes::managed` behind `ManagedState`; `OperationResult::ApprovalDecision` is no longer a variant.
+- The gateway no longer consults the evaluation engine: `dispatch_policy` returns the policy alone, pricing always resolves from the catalog, retries always follow `current_policy()`, and `Settlement`, `GatewayRepositories` and the audit opener carry no evaluation repositories. `AuthedPrincipal::Execution`, the `spexec_` credential path in `authenticate` and `McpContextMiddleware::with_execution_capabilities` are gone; `authenticate` takes four arguments and `otel::handle` three.
+
+### Breaking
+
+- **Breaking:** `GatewayRequestContext` gains `evidence: ClientEvidence` and `GatewayRepositories` gains `client_evidence`; `RejectionPartial` and `PreparedRequest` carry the evidence. `POST /v1/bridge/heartbeat` answers 401 when the body's `session_id` differs from the token's session.
+
+### Added
+
+- `POST /admin/services/refresh` imports a recomposed services bundle in place: a changed composition is loaded through the loader's `current` link, its entitlements reconciled into the authz tables and the skill inventory refreshed in the running process; the reply carries `reconciled` and `restart_recommended`, and a repeat import measures `changed` against the served composition. Two refreshes never fetch at once. `reconciled` is true only when a projection ran; the projected config is read from the recomposed tree's own path, not the boot-time root; an unreadable cached bundle manifest recommends a restart instead of being treated as owning nothing. The managed OpenAPI document is titled `Managed resources API` and no longer describes evaluation.
+- Gateway requests are classified through `wire::origin::classify` once the principal and body are known (`routes::gateway::messages::extract::attribution`); the evidence row is written beside every admitted and rejected request. `x-systemprompt-client` outside the vocabulary, or `x-systemprompt-client-attestation` from a non-bridge principal, is a 400. `AuthedPrincipal::is_bridge`.
 
 ## [0.53.0] - 2026-09-15
 

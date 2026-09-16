@@ -313,19 +313,12 @@ async fn historical_attribution_matches_exact_session_and_preserves_unknown_immu
             .id,
         verified.id
     );
-    for class in [
-        TrafficClass::Fixture,
-        TrafficClass::LiveEvaluation,
-        TrafficClass::Suggestion,
-        TrafficClass::Judge,
-    ] {
-        let mut changed = request.clone();
-        changed.traffic_class = class;
-        assert!(matches!(
-            f.repo.attribute_invocation(&f.owner, &changed).await,
-            Err(ManagedError::Conflict(_))
-        ));
-    }
+    let mut changed = request.clone();
+    changed.traffic_class = TrafficClass::Fixture;
+    assert!(matches!(
+        f.repo.attribute_invocation(&f.owner, &changed).await,
+        Err(ManagedError::Conflict(_))
+    ));
     for mismatch in 0..4 {
         let mut unknown = request.clone();
         unknown.invocation_id = ResourceInvocationId::new(format!("unknown-{mismatch}"));

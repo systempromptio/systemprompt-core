@@ -6,17 +6,33 @@
 use super::ConfiguredInventoryEntry;
 use crate::managed::{ManagedError, Result};
 use std::io::Read;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use systemprompt_models::feedback::inventory::InventoryAvailability;
 use systemprompt_models::services::ServicesConfig;
+
+// Why: a fetched services composition is served through the loader's atomic
+// `current` link, so the root itself may be that one link; it resolves to the
+// content-addressed composed directory, and every path beneath it is still
+// walked without following links.
+pub(crate) fn resolve_services_root(root: &Path) -> Result<PathBuf> {
+    if !std::fs::symlink_metadata(root)?.is_symlink() {
+        return Ok(root.to_path_buf());
+    }
+    let resolved = std::fs::canonicalize(root)?;
+    if !resolved.is_dir() {
+        return Err(invalid(
+            "Configured inventory root link does not name a directory",
+        ));
+    }
+    Ok(resolved)
+}
 
 pub fn scan_configured_inventory(
     root: &Path,
     services: &ServicesConfig,
 ) -> Result<Vec<ConfiguredInventoryEntry>> {
-    if std::fs::symlink_metadata(root)?.is_symlink() {
-        return Err(invalid("Configured inventory root is a symlink"));
-    }
+    let resolved = resolve_services_root(root)?;
+    let root = resolved.as_path();
     let mut entries = Vec::new();
     for (directory, kind) in [
         ("skills", "skill"),

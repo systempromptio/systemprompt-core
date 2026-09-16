@@ -20,6 +20,7 @@ impl GatewayAudit {
             self.ctx.ai_request_id.clone(),
             self.ctx.user_id.clone(),
             self.ctx.context_id.clone(),
+            self.ctx.origin,
         )
         .provider(self.ctx.provider.clone())
         .model(self.ctx.model.clone())
@@ -62,16 +63,7 @@ impl GatewayAudit {
                     .is_some_and(|id| !id.as_str().is_empty()),
             "Gateway identity requires an authenticated session and trace"
         );
-        let mut record = self.build_record();
-        if let Some(session) = &self.ctx.session_id
-            && let Some(actor) = self
-                .settlement
-                .evaluations
-                .execution_actor(&self.ctx.user_id, session)
-                .await?
-        {
-            record.actor = actor;
-        }
+        let record = self.build_record();
 
         self.context_materializer
             .ensure_context(systemprompt_traits::EnsureContextParams {
@@ -85,6 +77,9 @@ impl GatewayAudit {
 
         self.requests
             .insert_with_id(&self.ctx.ai_request_id, &record)
+            .await?;
+        self.client_evidence
+            .upsert(&self.ctx.ai_request_id, &self.ctx.evidence)
             .await?;
 
         let capture = slice_payload(request_body);

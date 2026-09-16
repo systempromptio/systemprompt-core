@@ -109,7 +109,8 @@ async fn seed_browser_flow() -> anyhow::Result<BrowserFlow> {
         .create(CreateClientParams {
             client_id: client_id.clone(),
             owner_user_id: user.clone(),
-            client_secret_hash: secret_hash,
+            client_secret_hash: Some(secret_hash),
+            registration_token_hash: None,
             client_name: "browser".to_owned(),
             redirect_uris: vec![redirect_uri.clone()],
             grant_types: Some(vec![

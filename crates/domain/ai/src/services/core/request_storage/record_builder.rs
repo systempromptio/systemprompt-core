@@ -4,7 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::models::ai::{AiRequest, AiResponse, MessageRole};
-use crate::models::{AiRequestRecord, AiRequestRecordBuilder, RequestStatus};
+use crate::models::{AiRequestRecord, AiRequestRecordBuilder, RequestOrigin, RequestStatus};
 use systemprompt_identifiers::{
     AiRequestId, AiToolCallId, McpExecutionId, SessionId, TaskId, TraceId, UserId,
 };
@@ -41,6 +41,7 @@ pub(super) fn build_record(params: &BuildRecordParams<'_>) -> AiRequestRecord {
         AiRequestId::new(params.response.request_id.to_string()),
         user_id,
         params.context.context_id().clone(),
+        RequestOrigin::INTERNAL,
     )
     .actor(params.context.actor().clone())
     .provider(&params.response.provider)

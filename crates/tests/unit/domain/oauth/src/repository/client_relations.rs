@@ -32,7 +32,8 @@ fn params_full(client_id: &ClientId, owner: &UserId) -> CreateClientParams {
     CreateClientParams {
         client_id: client_id.clone(),
         owner_user_id: owner.clone(),
-        client_secret_hash: "hash".to_owned(),
+        client_secret_hash: Some("hash".to_owned()),
+        registration_token_hash: None,
         client_name: "rel-full".to_owned(),
         redirect_uris: vec![
             "https://r.invalid/primary".to_owned(),
@@ -61,7 +62,8 @@ fn params_no_contacts(client_id: &ClientId, owner: &UserId) -> CreateClientParam
     CreateClientParams {
         client_id: client_id.clone(),
         owner_user_id: owner.clone(),
-        client_secret_hash: "hash".to_owned(),
+        client_secret_hash: Some("hash".to_owned()),
+        registration_token_hash: None,
         client_name: "rel-no-contacts".to_owned(),
         redirect_uris: vec!["https://nc.invalid/cb".to_owned()],
         grant_types: Some(vec!["authorization_code".to_owned()]),

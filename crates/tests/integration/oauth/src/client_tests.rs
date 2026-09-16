@@ -26,7 +26,8 @@ async fn test_client_lifecycle() {
     let params = CreateClientParams {
         client_id: client_id.clone(),
         owner_user_id: systemprompt_test_fixtures::fixture_user_id(),
-        client_secret_hash: "hash_of_secret".to_string(),
+        client_secret_hash: Some("hash_of_secret".to_string()),
+        registration_token_hash: None,
         client_name: "Test Client".to_string(),
         redirect_uris: redirect_uris.clone(),
         grant_types: Some(grant_types),
@@ -111,7 +112,8 @@ async fn test_client_update() {
     let create_params = CreateClientParams {
         client_id: client_id.clone(),
         owner_user_id: systemprompt_test_fixtures::fixture_user_id(),
-        client_secret_hash: "hash_of_secret".to_string(),
+        client_secret_hash: Some("hash_of_secret".to_string()),
+        registration_token_hash: None,
         client_name: "Original Name".to_string(),
         redirect_uris: vec!["http://localhost:3000/callback".to_string()],
         grant_types: None,
@@ -165,7 +167,8 @@ async fn test_client_secret_update() {
     let create_params = CreateClientParams {
         client_id: client_id.clone(),
         owner_user_id: systemprompt_test_fixtures::fixture_user_id(),
-        client_secret_hash: "original_hash".to_string(),
+        client_secret_hash: Some("original_hash".to_string()),
+        registration_token_hash: None,
         client_name: "Test Client".to_string(),
         redirect_uris: vec!["http://localhost:3000/callback".to_string()],
         grant_types: None,
@@ -209,7 +212,8 @@ async fn test_client_counting() {
     let create_params = CreateClientParams {
         client_id: client_id.clone(),
         owner_user_id: systemprompt_test_fixtures::fixture_user_id(),
-        client_secret_hash: "hash".to_string(),
+        client_secret_hash: Some("hash".to_string()),
+        registration_token_hash: None,
         client_name: "Count Test".to_string(),
         redirect_uris: vec!["http://localhost:3000/callback".to_string()],
         grant_types: None,
@@ -260,7 +264,8 @@ async fn test_application_type_round_trip() {
     let create_params = CreateClientParams {
         client_id: client_id.clone(),
         owner_user_id: systemprompt_test_fixtures::fixture_user_id(),
-        client_secret_hash: "hash".to_string(),
+        client_secret_hash: Some("hash".to_string()),
+        registration_token_hash: None,
         client_name: "Native App".to_string(),
         redirect_uris: vec!["myapp://callback".to_string()],
         grant_types: None,

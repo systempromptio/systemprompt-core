@@ -17,6 +17,19 @@ The authorization-code flow is hardened against code interception and replay:
 
 PKCE is required for the authorization-code flow. Authorization rejects a missing challenge and accepts only S256.
 
+## Dynamic client registration
+
+Remote MCP clients register themselves on first connect through RFC 7591 (`POST /api/v1/core/oauth/register`). Registration is open by default because the MCP authorization flow depends on it; `security.allow_dynamic_client_registration: false` closes the endpoint and removes `registration_endpoint` from discovery for deployments that pre-provision clients.
+
+A self-registered client is bounded at registration time:
+
+- **Redirect URIs** must be `https://`, or `http://` to a loopback address (`127.0.0.1`, `[::1]`, `localhost`, any port); a `native` client may also register a private-use scheme. Fragments and script-capable schemes are refused.
+- **Scopes** are limited to the self-registrable set; `admin` is granted only through the administrative client API.
+- **Client secrets** are issued only to confidential clients; a `none` (PKCE-only) client receives no secret.
+- **Registration access token** (RFC 7592) is the only credential for reading, updating or deleting the registration; it is stored hashed.
+
+Consent is explicit: after the passkey ceremony the user sees the registered client name, its website and the redirect destination, and must click **Authorize**. The code is minted only after the client, redirect URI, scope and PKCE challenge are re-checked against the registration.
+
 ## JWT validation
 
 Every JWT is validated by `AuthValidationService` (`crates/infra/security/src/auth/validation.rs`). The validation is deliberately narrow:

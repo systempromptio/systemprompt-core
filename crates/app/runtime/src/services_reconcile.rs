@@ -20,6 +20,7 @@
 use std::sync::Arc;
 
 use systemprompt_database::Database;
+use systemprompt_loader::bundle::bootstrap::baked::BASE_SOURCE_NAME;
 use systemprompt_loader::bundle::{BundleCache, cache_root};
 use systemprompt_loader::{ActiveServicesRoot, ServicesProvenance};
 use systemprompt_models::Profile;
@@ -47,23 +48,42 @@ pub fn pending_composed_hash<'a>(
     }
 }
 
+/// Whether a reconcile pass projected a composition or found none pending.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ReconcileOutcome {
+    Projected,
+    NothingPending,
+}
+
 pub async fn reconcile_fetched_services(
     profile: &Profile,
     root: &ActiveServicesRoot,
     services: &ServicesConfig,
     database: &Arc<Database>,
-) -> RuntimeResult<()> {
+) -> RuntimeResult<ReconcileOutcome> {
     let cache = BundleCache::new(cache_root(profile));
     let mut state = cache.read_state();
     let Some(composed_hash) = pending_composed_hash(root, state.last_reconciled_hash.as_deref())
     else {
-        return Ok(());
+        return Ok(ReconcileOutcome::NothingPending);
     };
     let composed_hash = composed_hash.to_owned();
 
+    // Why: when no pinned source is a base the loader composed the baked tree
+    // in as `base`; it is in the cache state but not in the profile, and it
+    // must stay member zero here too.
+    let mut names: Vec<&str> = profile
+        .services
+        .sources
+        .iter()
+        .map(|s| s.name.as_str())
+        .collect();
+    if state.sources.contains_key(BASE_SOURCE_NAME) && !names.contains(&BASE_SOURCE_NAME) {
+        names.insert(0, BASE_SOURCE_NAME);
+    }
+
     let mut signed: Vec<(String, SignedBundleManifest)> = Vec::new();
-    for source in &profile.services.sources {
-        let name = source.name.as_str();
+    for name in names {
         let fetched = state.sources.get(name).ok_or_else(|| {
             RuntimeError::Internal(format!("services bundle {name} has no cached fetch state"))
         })?;
@@ -71,7 +91,7 @@ pub async fn reconcile_fetched_services(
             tracing::error!(source = %name, error = %err, "Cached services bundle manifest is unreadable");
             RuntimeError::Internal(format!("services bundle {name} manifest: {err}"))
         })?;
-        signed.push((source.name.clone(), manifest));
+        signed.push((name.to_owned(), manifest));
     }
 
     let bundles: Vec<(&str, &_)> = signed
@@ -105,5 +125,5 @@ pub async fn reconcile_fetched_services(
         sources = reports.len(),
         "Projected the fetched services composition into the authz tables"
     );
-    Ok(())
+    Ok(ReconcileOutcome::Projected)
 }

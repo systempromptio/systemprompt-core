@@ -7,8 +7,8 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{
-    EvalExperimentId, EventOutboxId, ManagedResourceId, PublicationId, PublicationReviewId,
-    ResourceRevisionId, UserId,
+    EventOutboxId, ManagedResourceId, PublicationId, PublicationReviewId, ResourceRevisionId,
+    UserId,
 };
 
 use super::error::invalid;
@@ -49,14 +49,14 @@ impl PublicationAction {
 
 /// How a publication request earned its way past review.
 ///
-/// `Attested` is the reviewed path: an improvement must carry an evaluation
-/// attestation. `InventorySync` is the configured-tree path: the services tree
-/// on disk is the reviewed artefact, so evidence names `inventory_refresh` as
-/// its source instead of an experiment, and only forward actions are admitted.
+/// `Reviewed` is the human path: a reviewer attaches their comparison
+/// evidence verbatim. `InventorySync` is the configured-tree path: the
+/// services tree on disk is the reviewed artefact, so evidence names
+/// `inventory_refresh` as its source, and only forward actions are admitted.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[doc(hidden)]
 pub enum PublicationAdmission {
-    Attested,
+    Reviewed,
     InventorySync,
 }
 
@@ -75,12 +75,10 @@ pub struct PublicationRequest {
 }
 
 /// The reviewer's evidence for a publication. `PublishImprovement` requires
-/// `experiment_id` naming an attested experiment; everything else the
-/// reviewer attaches is retained verbatim with the review.
+/// some evidence; whatever the reviewer attaches is retained verbatim with the
+/// review.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct ComparisonEvidence {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub experiment_id: Option<EvalExperimentId>,
     #[serde(flatten)]
     // JSON: reviewer-attached evidence is retained verbatim, never interpreted
     pub recorded: BTreeMap<String, serde_json::Value>,
@@ -89,7 +87,7 @@ pub struct ComparisonEvidence {
 impl ComparisonEvidence {
     #[must_use]
     pub fn is_empty(&self) -> bool {
-        self.experiment_id.is_none() && self.recorded.is_empty()
+        self.recorded.is_empty()
     }
 }
 
@@ -148,8 +146,6 @@ fn validate_request(request: &PublicationRequest) -> Result<()> {
         || serde_jcs::to_vec(&request.comparison_evidence)?.len() > 65_536
         || (request.action == PublicationAction::PublishImprovement
             && request.comparison_evidence.is_empty())
-        || (request.action != PublicationAction::PublishImprovement
-            && request.comparison_evidence.experiment_id.is_some())
     {
         return Err(invalid("Invalid publication review input"));
     }
@@ -168,7 +164,18 @@ fn validate_request(request: &PublicationRequest) -> Result<()> {
 }
 
 fn validate_admission(request: &PublicationRequest, admission: PublicationAdmission) -> Result<()> {
+    let source = request
+        .comparison_evidence
+        .recorded
+        .get("source")
+        .and_then(serde_json::Value::as_str);
     if admission != PublicationAdmission::InventorySync {
+        if source == Some(INVENTORY_REFRESH_SOURCE) {
+            return Err(ManagedError::Conflict(
+                "A reviewed publication cannot name the inventory refresh as its evidence source"
+                    .to_owned(),
+            ));
+        }
         return Ok(());
     }
     if !matches!(
@@ -179,11 +186,6 @@ fn validate_admission(request: &PublicationRequest, admission: PublicationAdmiss
             "Inventory synchronisation only adopts or advances configured content".to_owned(),
         ));
     }
-    let source = request
-        .comparison_evidence
-        .recorded
-        .get("source")
-        .and_then(serde_json::Value::as_str);
     if source != Some(INVENTORY_REFRESH_SOURCE) {
         return Err(invalid(
             "Inventory synchronisation evidence must name the inventory refresh as its source",

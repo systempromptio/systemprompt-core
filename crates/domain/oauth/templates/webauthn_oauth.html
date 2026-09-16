@@ -173,6 +173,12 @@
             100% { transform: rotate(360deg); }
         }
 
+        .client-meta {
+            font-size: 0.85em;
+            opacity: 0.8;
+            word-break: break-all;
+        }
+
         .hidden {
             display: none !important;
         }
@@ -254,8 +260,11 @@
 
         <div class="oauth-info">
             <h3>Authorization Request</h3>
-            <p><strong>Client:</strong> <span id="client-name">{client_id}</span></p>
+            <p><strong id="client-name">{client_name}</strong> wants to access your account.</p>
+            <p class="client-meta">Client ID: <code id="client-id">{client_id}</code></p>
+            <p class="client-meta {client_uri_class}">Website: <a id="client-uri" href="{client_uri}" rel="noopener noreferrer nofollow" target="_blank">{client_uri}</a></p>
             <p><strong>Scopes:</strong> <span id="scopes">{scope}</span></p>
+            <p class="client-meta">After you authorize, you will be sent to <code id="redirect-host">{redirect_host}</code>.</p>
             <input type="hidden" id="oauth-client-id" value="{client_id}">
             <input type="hidden" id="oauth-response-type" value="{response_type}">
             <input type="hidden" id="oauth-redirect-uri" value="{redirect_uri}">
@@ -303,6 +312,23 @@
             <div class="spinner"></div>
             <p style="margin-top: 15px;">Authenticating...</p>
         </div>
+
+        <div id="consent-section" class="hidden">
+            <p>You are signed in. Allow <strong id="consent-client-name">{client_name}</strong> to access your account with the scopes above?</p>
+            <button id="authorize-btn" class="btn btn-primary">Authorize</button>
+            <form id="deny-form" method="post" action="/api/v1/core/oauth/authorize">
+                <input type="hidden" name="response_type" value="{response_type}">
+                <input type="hidden" name="client_id" value="{client_id}">
+                <input type="hidden" name="redirect_uri" value="{redirect_uri}">
+                <input type="hidden" name="scope" value="{scope}">
+                <input type="hidden" name="state" value="{state}">
+                <input type="hidden" name="code_challenge" value="{code_challenge}">
+                <input type="hidden" name="code_challenge_method" value="{code_challenge_method}">
+                <input type="hidden" name="resource" value="{resource}">
+                <input type="hidden" name="user_consent" value="deny">
+                <button type="submit" class="btn btn-secondary">Cancel</button>
+            </form>
+        </div>
     </div>
 
     <script>
@@ -326,23 +352,21 @@
         const successDiv = document.getElementById('success-message');
         const emailSection = document.getElementById('email-section');
         const loadingSection = document.getElementById('loading-section');
+        const consentSection = document.getElementById('consent-section');
+        const authorizeBtn = document.getElementById('authorize-btn');
 
         // Update UI with OAuth info - validate required parameters
         function initializeOAuthForm() {
             if (!oauthState.client_id) {
-                document.getElementById('client-name').textContent = 'Missing client_id';
                 showError('Missing client_id in authorization request');
                 return false;
             }
 
             if (!oauthState.scope) {
-                document.getElementById('scopes').textContent = 'Missing scope';
                 showError('Missing scope in authorization request');
                 return false;
             }
 
-            document.getElementById('client-name').textContent = oauthState.client_id;
-            document.getElementById('scopes').textContent = oauthState.scope;
             return true;
         }
 
@@ -375,6 +399,25 @@
         function hideLoading() {
             emailSection.classList.remove('hidden');
             loadingSection.classList.add('hidden');
+        }
+
+        // Consent is a separate, explicit step: signing in never issues a code by itself.
+        function requestConsent(userId, authToken) {
+            const completeParams = new URLSearchParams();
+            completeParams.append('user_id', userId);
+            if (authToken) completeParams.append('auth_token', authToken);
+            for (const key of ['response_type', 'client_id', 'redirect_uri', 'scope', 'state', 'code_challenge', 'code_challenge_method', 'resource']) {
+                if (oauthState[key]) completeParams.append(key, oauthState[key]);
+            }
+
+            emailSection.classList.add('hidden');
+            loadingSection.classList.add('hidden');
+            consentSection.classList.remove('hidden');
+
+            authorizeBtn.addEventListener('click', () => {
+                authorizeBtn.disabled = true;
+                window.location.href = `/api/v1/core/oauth/webauthn/complete?${completeParams.toString()}`;
+            }, { once: true });
         }
 
         function validateEmail(email) {
@@ -496,26 +539,8 @@
                     }
                 });
 
-                showSuccess('Passkey created successfully! Redirecting...');
-
-                // Complete OAuth flow - use user_id from registration
-                const completeParams = new URLSearchParams();
-                completeParams.append('user_id', finishResponse.data.user_id);
-                if (finishResponse.data.auth_token) completeParams.append('auth_token', finishResponse.data.auth_token);
-
-                // Pass through OAuth parameters individually
-                if (oauthState.response_type) completeParams.append('response_type', oauthState.response_type);
-                if (oauthState.client_id) completeParams.append('client_id', oauthState.client_id);
-                if (oauthState.redirect_uri) completeParams.append('redirect_uri', oauthState.redirect_uri);
-                if (oauthState.scope) completeParams.append('scope', oauthState.scope);
-                if (oauthState.state) completeParams.append('state', oauthState.state);
-                if (oauthState.code_challenge) completeParams.append('code_challenge', oauthState.code_challenge);
-                if (oauthState.code_challenge_method) completeParams.append('code_challenge_method', oauthState.code_challenge_method);
-                if (oauthState.resource) completeParams.append('resource', oauthState.resource);
-
-                setTimeout(() => {
-                    window.location.href = `/api/v1/core/oauth/webauthn/complete?${completeParams.toString()}`;
-                }, 1500);
+                showSuccess('Passkey created successfully.');
+                requestConsent(finishResponse.data.user_id, finishResponse.data.auth_token);
 
             } catch (error) {
                 hideLoading();
@@ -584,27 +609,8 @@
                     }
                 });
 
-                // Authentication successful - redirect to OAuth completion endpoint
-                showSuccess('Authentication successful! Redirecting...');
-
-                // Redirect to WebAuthn completion endpoint with OAuth parameters
-                const completeParams = new URLSearchParams();
-                completeParams.append('user_id', finishResponse.data.user_id);
-                if (finishResponse.data.auth_token) completeParams.append('auth_token', finishResponse.data.auth_token);
-
-                // Pass through OAuth parameters individually
-                if (oauthState.response_type) completeParams.append('response_type', oauthState.response_type);
-                if (oauthState.client_id) completeParams.append('client_id', oauthState.client_id);
-                if (oauthState.redirect_uri) completeParams.append('redirect_uri', oauthState.redirect_uri);
-                if (oauthState.scope) completeParams.append('scope', oauthState.scope);
-                if (oauthState.state) completeParams.append('state', oauthState.state);
-                if (oauthState.code_challenge) completeParams.append('code_challenge', oauthState.code_challenge);
-                if (oauthState.code_challenge_method) completeParams.append('code_challenge_method', oauthState.code_challenge_method);
-                if (oauthState.resource) completeParams.append('resource', oauthState.resource);
-
-                setTimeout(() => {
-                    window.location.href = `/api/v1/core/oauth/webauthn/complete?${completeParams.toString()}`;
-                }, 1500);
+                showSuccess('Authentication successful.');
+                requestConsent(finishResponse.data.user_id, finishResponse.data.auth_token);
 
             } catch (error) {
                 hideLoading();

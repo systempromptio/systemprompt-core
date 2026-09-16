@@ -30,6 +30,7 @@ pub mod gemini;
 pub mod inspect;
 pub mod openai_chat;
 pub mod openai_responses;
+pub mod origin;
 pub mod sse;
 
 #[must_use]

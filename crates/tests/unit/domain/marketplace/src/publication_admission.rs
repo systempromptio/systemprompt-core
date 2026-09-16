@@ -156,34 +156,3 @@ async fn inventory_sync_admission_requires_refresh_evidence() {
         .await;
     assert!(matches!(result, Err(ManagedError::Invalid(_))));
 }
-
-#[tokio::test]
-async fn an_experiment_id_is_only_accepted_on_an_improvement_review() {
-    let f = Fixture::new().await;
-    let (resource, published) = adopted(&f).await;
-    let result = f
-        .repository
-        .review_and_publish(
-            &f.owner,
-            &f.owner,
-            &request(
-                &resource,
-                Some(published),
-                PublicationAction::Rollback,
-                serde_json::json!({"experiment_id": "experiment-1"}),
-            ),
-        )
-        .await;
-    assert!(
-        matches!(result, Err(ManagedError::Invalid(_))),
-        "a rollback naming an experiment is malformed input, not a review: {result:?}"
-    );
-    assert_eq!(
-        f.repository
-            .list_publication_history(&f.owner, &resource)
-            .await
-            .expect("history")
-            .len(),
-        1
-    );
-}

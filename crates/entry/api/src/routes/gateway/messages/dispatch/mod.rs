@@ -38,6 +38,8 @@ pub(super) async fn dispatch_to_provider(
     prepared: PreparedRequest,
 ) -> Result<Response<Body>, RejectionError> {
     let PreparedRequest {
+        origin,
+        evidence,
         principal,
         body_bytes,
         client_headers,
@@ -68,7 +70,8 @@ pub(super) async fn dispatch_to_provider(
         model: upstream_model,
         max_tokens: Some(max_tokens),
         is_streaming,
-        wire_protocol: inbound.wire_name().to_owned(),
+        origin,
+        evidence,
         access_log: rc.access_log.clone(),
     };
 

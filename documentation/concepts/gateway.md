@@ -44,7 +44,7 @@ The gateway uses a shared outbound HTTP client and a bounded retry policy. Trans
 HTTP 429 and 503 responses allow up to four total attempts before response bytes are
 forwarded. Backoff starts at one second, caps its base delay at 30 seconds, adds jitter
 and honors longer `retry-after` values. Transport failures and other statuses follow their
-error paths. Attested evaluation dispatch disables retries. See
+error paths. See
 `crates/entry/api/src/services/gateway/protocol/outbound/retry.rs`.
 
 The gateway does not inherit the internal AI service’s circuit-breaker and bulkhead

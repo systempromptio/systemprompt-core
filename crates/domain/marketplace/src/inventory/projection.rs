@@ -34,18 +34,10 @@ impl ManagedRepository {
             return Err(invalid("Inventory exceeds 10000 configured entries"));
         }
         let mut tx = self.pool.begin().await?;
-        if let Some(operation) = operation {
-            let current=sqlx::query!("SELECT fence,state,result FROM managed_api_operations WHERE owner_id=$1 AND id=$2 FOR UPDATE",owner.as_str(),operation.id.as_str()).fetch_one(&mut *tx).await?;
-            if current.state == "completed" {
-                return Ok(serde_json::from_value(
-                    current
-                        .result
-                        .ok_or_else(|| invalid("Operation result unavailable"))?,
-                )?);
-            }
-            if current.fence != operation.fence || current.state != "pending" {
-                return Err(invalid("Operation lease was superseded"));
-            }
+        if let Some(operation) = operation
+            && let Some(completed) = Self::inventory_lease(&mut tx, owner, operation).await?
+        {
+            return Ok(completed);
         }
 
         sqlx::query!(
@@ -60,23 +52,34 @@ impl ManagedRepository {
         )
         .fetch_one(&mut *tx)
         .await?;
-        let generation = state
-            .generation
-            .checked_add(1)
-            .ok_or_else(|| invalid("Inventory generation overflow"))?;
         let observed = chrono::Utc::now();
         let mut entries = configured_entries(owner, configured)?;
         for resource in self.inventory_resources(&mut tx, owner).await? {
             merge_resource(owner, &mut entries, resource);
         }
-        Self::retire_missing_inventory(&mut tx, owner, &mut entries).await?;
-        for entry in entries.values() {
-            Self::store_inventory_entry(&mut tx, owner, entry, generation, observed).await?;
+        let previous = Self::retire_missing_inventory(&mut tx, owner, &mut entries).await?;
+        let records = inventory_records(&entries)?;
+        let generation = next_generation(state.generation, &records, &previous)?;
+        for (id, entry) in &entries {
+            let record = records
+                .get(id)
+                .ok_or_else(|| invalid("Inventory record lost"))?;
+            let stored = super::repository::StoredInventoryEntry {
+                entry,
+                record,
+                previous: previous.get(id),
+                generation,
+                observed,
+            };
+            Self::store_inventory_entry(&mut tx, owner, &stored).await?;
         }
         let count = i64::try_from(entries.len())
             .map_err(|error| ManagedError::Invalid(format!("Inventory count overflow: {error}")))?;
-        sqlx::query!("UPDATE managed_inventory_state SET generation=$2,observed_at=$3,entries=$4,last_error=NULL WHERE owner_id=$1",owner.as_str(),generation,observed,count).execute(&mut *tx).await?;
-        sqlx::query!("INSERT INTO managed_inventory_observations(owner_id,generation,observed_at,entries) VALUES($1,$2,$3,$4)",owner.as_str(),generation,observed,count).execute(&mut *tx).await?;
+        let sources = serde_json::to_value(systemprompt_loader::bundle::sources_provenance())?;
+        sqlx::query!("UPDATE managed_inventory_state SET generation=$2,observed_at=$3,entries=$4,sources=$5,last_error=NULL WHERE owner_id=$1",owner.as_str(),generation,observed,count,sources).execute(&mut *tx).await?;
+        // Why: membership rows join on this generation's mint time as
+        // `effective_from`; an unchanged pass must not move it.
+        sqlx::query!("INSERT INTO managed_inventory_observations(owner_id,generation,observed_at,entries,sources) VALUES($1,$2,$3,$4,$5) ON CONFLICT(owner_id,generation) DO NOTHING",owner.as_str(),generation,observed,count,sources).execute(&mut *tx).await?;
         let result = InventoryStatus {
             generation,
             observed_at: Some(observed),
@@ -89,6 +92,56 @@ impl ManagedRepository {
         tx.commit().await?;
         Ok(result)
     }
+}
+
+impl ManagedRepository {
+    async fn inventory_lease(
+        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+        owner: &UserId,
+        operation: &crate::managed::operations::ApiOperation,
+    ) -> Result<Option<InventoryStatus>> {
+        let current=sqlx::query!("SELECT fence,state,result FROM managed_api_operations WHERE owner_id=$1 AND id=$2 FOR UPDATE",owner.as_str(),operation.id.as_str()).fetch_one(&mut **tx).await?;
+        if current.state == "completed" {
+            return Ok(Some(serde_json::from_value(
+                current
+                    .result
+                    .ok_or_else(|| invalid("Operation result unavailable"))?,
+            )?));
+        }
+        if current.fence != operation.fence || current.state != "pending" {
+            return Err(invalid("Operation lease was superseded"));
+        }
+        Ok(None)
+    }
+}
+
+// Why: a generation is what a campaign, a publication and a diff are pinned to,
+// so it may only move when the observed inventory moved. Retirement puts every
+// vanished entry back into `entries` carrying a changed record, so comparing
+// records covers set changes as well as edits.
+fn next_generation(
+    current: i64,
+    records: &BTreeMap<InventoryEntryId, serde_json::Value>,
+    previous: &BTreeMap<InventoryEntryId, serde_json::Value>,
+) -> Result<i64> {
+    if records
+        .iter()
+        .all(|(id, record)| previous.get(id) == Some(record))
+    {
+        return Ok(current);
+    }
+    current
+        .checked_add(1)
+        .ok_or_else(|| invalid("Inventory generation overflow"))
+}
+
+fn inventory_records(
+    entries: &BTreeMap<InventoryEntryId, InventoryEntry>,
+) -> Result<BTreeMap<InventoryEntryId, serde_json::Value>> {
+    entries
+        .iter()
+        .map(|(id, entry)| Ok((id.clone(), serde_json::to_value(entry)?)))
+        .collect()
 }
 
 fn configured_entries(

@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.54.0] - 2026-09-16
+
+### Removed
+
+- **Breaking:** every `Eval*Id` (`EvalCaseId`, `EvalCampaignId`, `EvalExperimentId`, `EvalExecutionId`, `EvalRevisionId`, `EvalBudgetId`, `EvalReservationId`, `EvalSuggestionId`, `EvalApprovalId`, `EvalHoldoutProposalId`, `EvalWorkerId`) is removed.
+
+### Added
+
+- `headers::CLIENT_KIND` (`x-systemprompt-client`) and `headers::CLIENT_ATTESTATION` (`x-systemprompt-client-attestation`).
+
 ## [0.53.0] - 2026-09-15
 
 ### Breaking

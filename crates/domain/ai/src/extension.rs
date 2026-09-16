@@ -23,69 +23,65 @@ impl Extension for AiExtension {
             SchemaDefinition::sql_only(include_str!("../schema/reporting_privacy.sql")),
             SchemaDefinition::sql_only(include_str!("../schema/reporting_capture.sql")),
             SchemaDefinition::new("ai_requests", include_str!("../schema/ai_requests.sql"))
-                .with_required_columns(vec![
-                    "id".into(),
-                    "provider".into(),
-                    "model".into(),
-                    "created_at".into(),
-                ]),
+                .with_required_columns(columns(&[
+                    "id",
+                    "provider",
+                    "model",
+                    "created_at",
+                    "client_kind",
+                    "wire_protocol",
+                    "client_attestation",
+                ])),
+            SchemaDefinition::new(
+                "ai_request_client_evidence",
+                include_str!("../schema/ai_request_client_evidence.sql"),
+            )
+            .with_required_columns(columns(&["ai_request_id", "kind_source"])),
             SchemaDefinition::new(
                 "ai_request_messages",
                 include_str!("../schema/ai_request_messages.sql"),
             )
-            .with_required_columns(vec![
-                "id".into(),
-                "request_id".into(),
-                "role".into(),
-            ]),
+            .with_required_columns(columns(&["id", "request_id", "role"])),
             SchemaDefinition::new(
                 "ai_request_tool_calls",
                 include_str!("../schema/ai_request_tool_calls.sql"),
             )
-            .with_required_columns(vec![
-                "id".into(),
-                "request_id".into(),
-                "tool_name".into(),
-            ]),
+            .with_required_columns(columns(&["id", "request_id", "tool_name"])),
             SchemaDefinition::new(
                 "ai_request_payloads",
                 include_str!("../schema/ai_request_payloads.sql"),
             )
-            .with_required_columns(vec!["ai_request_id".into()]),
+            .with_required_columns(columns(&["ai_request_id"])),
             SchemaDefinition::new(
                 "ai_safety_findings",
                 include_str!("../schema/ai_safety_findings.sql"),
             )
-            .with_required_columns(vec![
-                "id".into(),
-                "ai_request_id".into(),
-                "severity".into(),
-            ]),
+            .with_required_columns(columns(&["id", "ai_request_id", "severity"])),
             SchemaDefinition::new(
                 "ai_quota_buckets",
                 include_str!("../schema/ai_quota_buckets.sql"),
             )
-            .with_required_columns(vec![
-                "id".into(),
-                "subject_kind".into(),
-                "subject_id".into(),
-                "window_start".into(),
-            ]),
+            .with_required_columns(columns(&[
+                "id",
+                "subject_kind",
+                "subject_id",
+                "window_start",
+            ])),
             SchemaDefinition::new(
                 "ai_gateway_policies",
                 include_str!("../schema/ai_gateway_policies.sql"),
             )
-            .with_required_columns(vec!["id".into(), "name".into(), "spec".into()]),
+            .with_required_columns(columns(&["id", "name", "spec"])),
             SchemaDefinition::new(
                 "ai_gateway_thought_signatures",
                 include_str!("../schema/ai_gateway_thought_signatures.sql"),
             )
-            .with_required_columns(vec![
-                "conversation_id".into(),
-                "tool_use_id".into(),
-                "signature".into(),
-                "expires_at".into(),
-            ]),
+            .with_required_columns(columns(&[
+                "conversation_id",
+                "tool_use_id",
+                "signature",
+                "expires_at",
+            ])),
         ]
     }
 
@@ -99,3 +95,7 @@ impl Extension for AiExtension {
 }
 
 register_extension!(AiExtension);
+
+fn columns(names: &[&str]) -> Vec<String> {
+    names.iter().map(|name| (*name).to_owned()).collect()
+}

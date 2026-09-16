@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::path::Path;
 
-use systemprompt_bridge::ids::LoopbackSecret;
+use systemprompt_bridge::ids::HostToken;
 use systemprompt_bridge::integration::host_app::{
     AppInstallState, ConfigFormat, HostApp, HostKind, ProbeEnv, ProfileGenInputs, ProfileState,
     StaleReason,
@@ -303,7 +303,7 @@ fn generating_a_profile_carries_the_provider_block_and_the_key_marker() {
         OPENCODE_HOST
             .generate_profile(&ProfileGenInputs {
                 gateway_base_url: "http://127.0.0.1:48217/".to_owned(),
-                api_key: LoopbackSecret::new("loopback-secret-value"),
+                host_token: HostToken::new("loopback-secret-value"),
                 models: vec!["claude-sonnet-5".to_owned(), "gpt-4.1".to_owned()],
                 default_model: None,
                 organization_uuid: None,

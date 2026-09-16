@@ -10,6 +10,9 @@ use parking_lot::Mutex;
 use std::collections::BTreeSet;
 use systemprompt_identifiers::{ClientSessionId, NativeSessionId};
 use systemprompt_models::feedback::EvaluatorClient;
+use systemprompt_models::wire::origin::{ClientKind, native_marker, ua_product};
+
+use crate::ids::HostId;
 
 pub const OPENCODE_SESSION_HEADER: &str = "x-opencode-session";
 
@@ -19,31 +22,17 @@ pub struct NativeSession {
     pub id: NativeSessionId,
 }
 
-pub fn native_session(headers: &http::HeaderMap, body: &[u8]) -> Option<NativeSession> {
+// Why: the host a request is bound to must be the host the gateway records
+// for it, so the same evidence decides both: the verified host token first,
+// then the shared native-marker and User-Agent helpers.
+pub fn native_session(
+    verified_host: Option<&HostId>,
+    headers: &http::HeaderMap,
+    body: &[u8],
+) -> Option<NativeSession> {
     // JSON: protocol boundary — the inference body is any host's wire shape.
     let value: serde_json::Value = serde_json::from_slice(body).ok()?;
-    let user_agent = headers
-        .get(http::header::USER_AGENT)
-        .and_then(|value| value.to_str().ok())
-        .unwrap_or("")
-        .to_ascii_lowercase();
-    let host = if user_agent.contains("hermes") {
-        EvaluatorClient::Hermes
-    } else if user_agent.contains("opencode") {
-        EvaluatorClient::OpenCode
-    } else if user_agent.contains("codex")
-        || value
-            .pointer("/client_metadata/x-codex-turn-metadata")
-            .is_some()
-    {
-        EvaluatorClient::Codex
-    } else if user_agent.contains("claude-desktop") {
-        EvaluatorClient::ClaudeDesktop
-    } else if user_agent.contains("claude-cli") || user_agent.contains("claude-code") {
-        EvaluatorClient::ClaudeCode
-    } else {
-        return None;
-    };
+    let host = EvaluatorClient::try_from(presenting_client(verified_host, headers, body)?).ok()?;
     let session = match host {
         EvaluatorClient::ClaudeCode | EvaluatorClient::ClaudeDesktop => {
             let metadata = value.pointer("/metadata/user_id")?.as_str()?;
@@ -101,6 +90,24 @@ pub fn native_session(headers: &http::HeaderMap, body: &[u8]) -> Option<NativeSe
     })
 }
 
+fn presenting_client(
+    verified_host: Option<&HostId>,
+    headers: &http::HeaderMap,
+    body: &[u8],
+) -> Option<ClientKind> {
+    if let Some(host) = verified_host {
+        return ClientKind::from_bridge_host_id(host.as_str());
+    }
+    if let Some(marker) = native_marker(body) {
+        return Some(marker.client());
+    }
+    let user_agent = headers
+        .get(http::header::USER_AGENT)
+        .and_then(|value| value.to_str().ok());
+    let (product, _) = ua_product(user_agent)?;
+    ClientKind::from_ua_product(&product)
+}
+
 /// Native sessions seen on the request path and not yet recorded in the outbox.
 ///
 /// Observation is an in-memory insert; the outbox write happens when the
@@ -114,8 +121,13 @@ pub struct NativeSessionLedger {
 const MAX_UNFLUSHED: usize = 1024;
 
 impl NativeSessionLedger {
-    pub fn observe(&self, headers: &http::HeaderMap, body: &[u8]) -> Result<()> {
-        let Some(session) = native_session(headers, body) else {
+    pub fn observe(
+        &self,
+        verified_host: Option<&HostId>,
+        headers: &http::HeaderMap,
+        body: &[u8],
+    ) -> Result<()> {
+        let Some(session) = native_session(verified_host, headers, body) else {
             return Ok(());
         };
         let key = (session.host, session.id);

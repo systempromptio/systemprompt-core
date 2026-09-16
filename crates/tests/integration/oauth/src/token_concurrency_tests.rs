@@ -48,7 +48,8 @@ async fn create_test_client_with_owner(
     let params = CreateClientParams {
         client_id: client_id.clone(),
         owner_user_id: owner.clone(),
-        client_secret_hash: "test_hash".to_string(),
+        client_secret_hash: Some("test_hash".to_string()),
+        registration_token_hash: None,
         client_name: "Test Client".to_string(),
         redirect_uris: vec!["http://localhost:3000/callback".to_string()],
         grant_types: None,
@@ -379,7 +380,8 @@ async fn test_dynamic_client_registration_owner_not_hijackable() {
         .create(CreateClientParams {
             client_id: client_id.clone(),
             owner_user_id: owner_b.clone(),
-            client_secret_hash: "alt_hash".to_string(),
+            client_secret_hash: Some("alt_hash".to_string()),
+            registration_token_hash: None,
             client_name: "Hijack Attempt".to_string(),
             redirect_uris: vec!["http://attacker.example/cb".to_string()],
             grant_types: None,
@@ -434,7 +436,8 @@ async fn test_concurrent_client_registration_race() {
             repo.create(CreateClientParams {
                 client_id,
                 owner_user_id: owner,
-                client_secret_hash: "h".to_string(),
+                client_secret_hash: Some("h".to_string()),
+                registration_token_hash: None,
                 client_name: "race".to_string(),
                 redirect_uris: vec!["http://localhost/cb".to_string()],
                 grant_types: None,

@@ -77,8 +77,10 @@ async fn dcr_client_resolves_when_registered_and_errors_when_absent() {
     repo.create(CreateClientParams {
         client_id: client_id.clone(),
         owner_user_id: owner,
-        client_secret_hash: hash_client_secret("cimd-validator-secret-32-chars-long")
-            .expect("hash"),
+        client_secret_hash: Some(
+            hash_client_secret("cimd-validator-secret-32-chars-long").expect("hash"),
+        ),
+        registration_token_hash: None,
         client_name: "cimd-validator-test".to_owned(),
         redirect_uris: vec!["http://127.0.0.1/cb".to_owned()],
         grant_types: Some(vec!["authorization_code".to_owned()]),

@@ -12,9 +12,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-mod evaluation;
 mod extension_mount;
 mod gateway;
+mod managed;
 mod protocol;
 mod static_setup;
 
@@ -50,10 +50,7 @@ pub(super) fn configure_routes(
     let public_middleware = PublicContextMiddleware::new();
     let user_middleware = UserOnlyContextMiddleware::new(jwt_extractor.clone());
     let a2a_middleware = A2AContextMiddleware::new(jwt_extractor.clone());
-    let mcp_middleware = McpContextMiddleware::new(jwt_extractor).with_execution_capabilities(
-        ctx.evaluation_repositories().capabilities.clone(),
-        ctx.config().api_external_url.clone(),
-    );
+    let mcp_middleware = McpContextMiddleware::new(jwt_extractor);
 
     let mount = protocol::MountCtx {
         ctx,

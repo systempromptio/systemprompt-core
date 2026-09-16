@@ -155,15 +155,15 @@ pub(crate) fn apply(
         files.push(receipt);
     }
 
-    let key_path =
-        crate::proxy::secret::secret_path().ok_or(MdmError::Resolve("the loopback secret path"))?;
-    let standalone = super::claude_code_settings::write_standalone_settings(gateway, &key_path)
-        .map_err(|source| MdmError::Partial {
-            completed: super::MdmApplication {
-                files: files.clone(),
-                ..Default::default()
-            },
-            source: Box::new(source),
+    let standalone =
+        super::claude_code_settings::write_standalone_settings(gateway).map_err(|source| {
+            MdmError::Partial {
+                completed: super::MdmApplication {
+                    files: files.clone(),
+                    ..Default::default()
+                },
+                source: Box::new(source),
+            }
         })?;
     let mut lines = apply_summary(dest_system, &dest_user, gateway, changed);
     lines.extend(standalone.lines);

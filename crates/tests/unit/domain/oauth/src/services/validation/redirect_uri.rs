@@ -221,3 +221,21 @@ fn test_validate_redirect_uri_relative_alongside_absolute() {
     let result = validate_redirect_uri(&registered, Some("https://prod.example.com/callback"));
     result.unwrap_err();
 }
+
+#[test]
+fn loopback_redirect_matches_any_port_but_same_path() {
+    let registered = vec!["http://127.0.0.1/callback".to_string()];
+    validate_redirect_uri(&registered, Some("http://127.0.0.1:53281/callback"))
+        .expect("RFC 8252 §7.3: loopback port varies per run");
+    assert!(validate_redirect_uri(&registered, Some("http://127.0.0.1:53281/other")).is_err());
+    assert!(validate_redirect_uri(&registered, Some("http://localhost:53281/callback")).is_err());
+    assert!(validate_redirect_uri(&registered, Some("https://127.0.0.1:53281/callback")).is_err());
+}
+
+#[test]
+fn port_tolerance_never_applies_to_remote_hosts() {
+    let registered = vec!["http://app.example/callback".to_string()];
+    assert!(validate_redirect_uri(&registered, Some("http://app.example:8080/callback")).is_err());
+    let registered = vec!["https://app.example/callback".to_string()];
+    assert!(validate_redirect_uri(&registered, Some("https://app.example:8443/callback")).is_err());
+}

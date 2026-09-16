@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use systemprompt_bridge::ids::LoopbackSecret;
+use systemprompt_bridge::ids::HostToken;
 use systemprompt_bridge::integration::hermes::HERMES_HOST;
 use systemprompt_bridge::integration::host_app::{HostApp, ProfileGenInputs, ProfileRemoval};
 
@@ -15,7 +15,7 @@ fn with_hermes_home<R>(body: impl FnOnce(&Path) -> R) -> R {
 fn inputs() -> ProfileGenInputs {
     ProfileGenInputs {
         gateway_base_url: "http://127.0.0.1:48217".to_owned(),
-        api_key: LoopbackSecret::new("loopback-secret-value"),
+        host_token: HostToken::new("loopback-secret-value"),
         models: vec!["gpt-5".to_owned(), "gpt-5-mini".to_owned()],
         default_model: None,
         organization_uuid: Some("00000000-0000-4000-8000-000000000009".to_owned()),
