@@ -6,11 +6,13 @@
 //! decide what an operator gets when they leave a block out of the YAML
 //! entirely. Both are only reachable through deserialisation and `validate`.
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::mcp::capabilities::ToolVisibility;
-use systemprompt_models::mcp::deployment::{ConnectorConfig, ToolMetadata, ToolUiConfig};
+use systemprompt_models::mcp::deployment::{
+    ConnectorConfig, ConnectorIdentity, ToolMetadata, ToolUiConfig,
+};
 use systemprompt_models::mcp::{Deployment, McpServerType, OAuthRequirement, Settings};
 
 fn deployment(endpoint: Option<&str>) -> Deployment {
@@ -44,8 +46,11 @@ fn deployment(endpoint: Option<&str>) -> Deployment {
 fn connector() -> ConnectorConfig {
     ConnectorConfig {
         adapter: "generic".to_owned(),
+        display_name: None,
         scopes: vec!["offline_access".to_owned()],
         authorization_origins: vec!["https://idp.example.com".to_owned()],
+        authorization_params: BTreeMap::new(),
+        identity: None,
         client_id_secret: Some("acme_client_id".to_owned()),
         client_secret: Some("acme_client_secret".to_owned()),
     }
@@ -180,6 +185,55 @@ fn a_declared_tool_ui_block_overrides_the_defaults() {
 
     assert_eq!(ui.resource_uri_template, "ui://acme/{artifact_id}");
     assert_eq!(ui.visibility, vec![ToolVisibility::App]);
+}
+
+#[test]
+fn allowlisted_authorization_params_validate_and_others_are_refused() {
+    let mut d = deployment(Some("https://example.com/mcp"));
+    let mut c = connector();
+    c.authorization_params = BTreeMap::from([
+        ("access_type".to_owned(), "offline".to_owned()),
+        ("prompt".to_owned(), "consent".to_owned()),
+    ]);
+    d.connector = Some(c.clone());
+    d.validate("acme")
+        .expect("Google's offline-access parameters are the motivating allowlist entries");
+
+    c.authorization_params
+        .insert("redirect_uri".to_owned(), "https://evil.example".to_owned());
+    d.connector = Some(c.clone());
+    d.validate("acme")
+        .expect_err("a parameter the generic flow owns cannot be overridden from YAML");
+
+    c.authorization_params = BTreeMap::from([("prompt".to_owned(), "a&b".to_owned())]);
+    d.connector = Some(c);
+    d.validate("acme")
+        .expect_err("a value carrying query delimiters is refused");
+}
+
+#[test]
+fn userinfo_identity_requires_the_openid_scope() {
+    let mut d = deployment(Some("https://example.com/mcp"));
+    let mut c = connector();
+    c.identity = Some(ConnectorIdentity::Userinfo);
+    d.connector = Some(c.clone());
+    d.validate("acme")
+        .expect_err("userinfo cannot be read without the openid scope");
+
+    c.scopes.push("openid".to_owned());
+    d.connector = Some(c);
+    d.validate("acme")
+        .expect("openid + userinfo is the supported identity shape");
+}
+
+#[test]
+fn identity_and_display_name_parse_from_yaml() {
+    let c: ConnectorConfig = serde_yaml::from_str(
+        "display_name: Google Drive knowledge\nscopes: [openid]\nidentity: userinfo\n",
+    )
+    .expect("the identity enum parses in snake_case");
+    assert_eq!(c.identity, Some(ConnectorIdentity::Userinfo));
+    assert_eq!(c.display_name.as_deref(), Some("Google Drive knowledge"));
 }
 
 #[test]
