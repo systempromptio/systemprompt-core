@@ -128,7 +128,7 @@ fn claim<'a>(
     Ok(())
 }
 
-fn copy_tree(source: &Path, dest: &Path, skip_manifest: bool) -> BundleResult<()> {
+pub(crate) fn copy_tree(source: &Path, dest: &Path, skip_manifest: bool) -> BundleResult<()> {
     for entry in fs::read_dir(source)? {
         let path = entry?.path();
         let Some(name) = path.file_name() else {

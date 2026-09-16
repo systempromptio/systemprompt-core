@@ -10,6 +10,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod baked;
 mod fetch;
 
 use std::collections::BTreeMap;
@@ -24,6 +25,7 @@ use super::compose::{BundleMember, compose};
 use super::error::{BundleError, BundleResult};
 use crate::services_root::{ActiveServicesRoot, ServicesProvenance, ServicesRootBootstrap};
 
+use baked::{is_base, stage_baked_base};
 use fetch::{ResolvedSource, SourceContext, resolve_source};
 
 const HTTP_TIMEOUT: Duration = Duration::from_secs(60);
@@ -90,6 +92,17 @@ impl ServicesSourceBootstrap {
         for source in &profile.services.sources {
             let auth = source.auth_secret().and_then(resolve_secret);
             resolved.push(resolve_source(source, &ctx, auth).await?);
+        }
+        // Why: a profile that pins only kits names no base; the tree baked
+        // into the image is the base, and it must be member zero so ownership
+        // and the authz reconcile treat every pinned source as a kit.
+        if !resolved.first().is_some_and(|r| is_base(&r.signed.manifest)) {
+            let base = stage_baked_base(
+                cache,
+                std::path::Path::new(&profile.paths.services),
+                core_version,
+            )?;
+            resolved.insert(0, base);
         }
 
         let members: Vec<BundleMember<'_>> = resolved

@@ -18,6 +18,7 @@ use axum::Json;
 use axum::extract::{Extension, Query, State};
 use serde::Deserialize;
 use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
+use systemprompt_loader::bundle::bootstrap::baked::BASE_SOURCE_NAME;
 use systemprompt_loader::bundle::{BundleCache, cache_root};
 use systemprompt_loader::services_root::ServicesRootBootstrap;
 use systemprompt_loader::{ConfigLoader, ServicesSourceBootstrap};
@@ -122,7 +123,7 @@ pub async fn refresh(
 // a bundle that ships hooks is the one case an in-process import cannot fully
 // serve, so the caller is told a restart would complete it.
 fn owns_static_config(cache: &BundleCache, state: &ServicesBundleState) -> bool {
-    state.sources.iter().skip(1).any(|(name, fetched)| {
+    state.sources.iter().filter(|(name, _)| name.as_str() != BASE_SOURCE_NAME).any(|(name, fetched)| {
         cache
             .read_manifest(name, &fetched.content_hash)
             .is_ok_and(|signed| !signed.manifest.owns.hooks.is_empty())
