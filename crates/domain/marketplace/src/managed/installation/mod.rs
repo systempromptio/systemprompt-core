@@ -121,9 +121,6 @@ pub struct InstallationReceipt {
 pub enum TrafficClass {
     Production,
     Fixture,
-    LiveEvaluation,
-    Suggestion,
-    Judge,
 }
 
 impl TrafficClass {
@@ -131,9 +128,6 @@ impl TrafficClass {
         match self {
             Self::Production => "production",
             Self::Fixture => "fixture",
-            Self::LiveEvaluation => "live_evaluation",
-            Self::Suggestion => "suggestion",
-            Self::Judge => "judge",
         }
     }
 }

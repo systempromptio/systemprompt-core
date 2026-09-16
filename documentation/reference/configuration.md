@@ -30,7 +30,6 @@ The top-level `Profile` struct and every nested config struct in this document c
 | `services` | object | no | all-defaults | Where the services tree comes from. See [`services`](#services). |
 | `extensions` | object | no | `{ disabled: [] }` | Extension enable/disable. See [`extensions`](#extensions). |
 | `governance` | object | no | absent | Authorization hook. See [`governance`](#governance). |
-| `evaluator` | object | no | absent | Evaluator worker identity and pinned images. See [`evaluator`](#evaluator). |
 
 `target` accepts the lowercase values `local` and `cloud` (`profile/mod.rs:91`).
 
@@ -124,21 +123,6 @@ The connection string itself is never in `profile.yaml`; it lives in the secrets
 | `shared` | bool | no | `false` | Declare that `paths.storage` is one mount every replica sees. Boot probes the root by writing a per-instance marker and reading it back (failure refuses to boot), and warns when `shared` disagrees with the markers other replicas left. With `false` those files are node-local, which only a single replica can serve. |
 
 File records hold the path relative to `paths.storage` (for example `files/uploads/contexts/<ctx>/images/<id>.png`); public URLs and the on-disk layout are unchanged.
-
-## `evaluator`
-
-`crates/shared/models/src/profile/evaluator.rs`. Optional. Present only on replicas that run evaluator assignments; without it the `evaluation_supervisor` job reports itself idle every tick. Unknown keys are rejected.
-
-| Key | Type | Required | Default | Meaning |
-|-----|------|----------|---------|---------|
-| `worker_id` | string | yes | — | The `eval_workers` identity this replica claims assignments under. |
-| `client_image` | string | yes | — | Digest-pinned image the native client runs in. |
-| `relay_image` | string | yes | — | Digest-pinned image of the gateway relay placed on the execution's internal network. |
-| `control_network` | string | yes | — | Docker network the relay uses to reach the gateway. |
-| `docker` | path | no | `/usr/bin/docker` | Absolute path of the Docker CLI. |
-| `workspace_root` | path | no | `/var/lib/systemprompt/evaluator` | Absolute directory under which per-execution workspaces are created. |
-
-Validation rejects empty strings and relative paths.
 
 ## `security`
 

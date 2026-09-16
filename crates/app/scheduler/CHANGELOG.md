@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Removed
+
+- **Breaking:** `EvaluationSupervisorJob`, `services::evaluator` and `SchedulerError::Evaluation` are removed; the `evaluation_supervisor` job name is no longer registered.
+
 ## [0.53.0] - 2026-09-15
 
 ### Added

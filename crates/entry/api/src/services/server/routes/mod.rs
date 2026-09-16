@@ -12,9 +12,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-mod evaluation;
 mod extension_mount;
 mod gateway;
+mod managed;
 mod protocol;
 mod static_setup;
 

@@ -27,7 +27,7 @@ fn router() -> Router {
         .route("/typed", post(typed))
         .route("/query", get(query))
         .layer(axum::middleware::from_fn(
-            systemprompt_api::routes::evaluation::contract::normalize,
+            systemprompt_api::routes::managed::contract::normalize,
         ))
 }
 async fn check(request: Request<Body>, status: StatusCode) {
@@ -110,7 +110,7 @@ async fn invalid_json_query_and_oversized_identifiers_share_problem_contract() {
 }
 #[test]
 fn openapi_references_resolve_and_consumer_admin_contracts_are_distinct() {
-    let document = systemprompt_api::routes::evaluation::contract::openapi::document();
+    let document = systemprompt_api::routes::managed::contract::openapi::document();
     assert_eq!(document["openapi"], "3.1.0");
     let paths = document["paths"].as_object().unwrap();
     assert!(paths.len() >= 45);

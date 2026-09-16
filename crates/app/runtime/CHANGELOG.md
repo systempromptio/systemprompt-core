@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Removed
+
+- **Breaking:** `optimization` is `managed`: `managed::{OrchestrationError, capture_authoring_input, git_sources::GitSourceOrchestrator, inventory}`. `SkillOptimizationOrchestrator`, `EvaluationEvidence`, `SourceAcceptance`, `holdout`, `OptimizationError::{Evaluation, Bundle, Json}` and `AppContext::evaluation_repositories` / `DataPlane::evaluation_repositories` are removed.
+
 ### Added
 
 - `AiRequestListItem::client_attestation`; `AiRequestDetail::{client_kind, client_attestation, client_evidence}` with the new `AiRequestClientEvidence` read model.

@@ -6,7 +6,7 @@ use systemprompt_marketplace::managed::{GitSyncRequest, ManagedRepository, Sourc
 use systemprompt_models::feedback::verification::{
     DependencyVerificationInput, DependencyVerificationRequest,
 };
-use systemprompt_runtime::optimization::git_sources::GitSourceOrchestrator;
+use systemprompt_runtime::managed::git_sources::GitSourceOrchestrator;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_db_pool, seed_user_row};
 
 #[tokio::test]

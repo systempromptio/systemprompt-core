@@ -56,9 +56,6 @@ pub enum SchedulerError {
     #[error("Users error: {0}")]
     Users(#[from] systemprompt_users::UserError),
 
-    #[error("Evaluation error: {0}")]
-    Evaluation(#[from] systemprompt_evaluation::EvaluationError),
-
     #[error("Cron scheduler error: {0}")]
     CronScheduler(#[from] tokio_cron_scheduler::JobSchedulerError),
 

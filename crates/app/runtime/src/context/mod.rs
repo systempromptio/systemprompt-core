@@ -17,7 +17,6 @@ use systemprompt_analytics::{AnalyticsService, FingerprintRepository, GeoIpReade
 use systemprompt_config::paths::AppPaths;
 use systemprompt_content::repository::ContentRepositories;
 use systemprompt_database::{DbPool, SchemaInstallReport, ServiceRepository};
-use systemprompt_evaluation::repository::experiments::EvaluationRepositories;
 use systemprompt_events::EventBridgeHandle;
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_files::FileRepository;
@@ -68,7 +67,6 @@ pub struct DataPlane {
     pub file_repository: Arc<FileRepository>,
     pub mcp_session_repository: Arc<McpSessionRepository>,
     pub managed_repository: Arc<ManagedRepository>,
-    pub evaluation_repositories: Arc<EvaluationRepositories>,
 }
 
 #[derive(Clone)]

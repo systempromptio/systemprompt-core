@@ -326,7 +326,6 @@ fn minimal_profile() -> systemprompt_models::Profile {
 
     Profile {
         storage: Default::default(),
-        evaluator: None,
         name: "ctxcmd".to_string(),
         display_name: "Ctx".to_string(),
         target: ProfileType::Local,

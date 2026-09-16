@@ -109,10 +109,6 @@ async fn plane_debug_impls_flag_optional_members() {
             systemprompt_marketplace::managed::ManagedRepository::new(&pool)
                 .expect("managed repository"),
         ),
-        evaluation_repositories: Arc::new(
-            systemprompt_test_fixtures::fixture_evaluation_repositories(&pool)
-                .expect("evaluation repositories"),
-        ),
     };
     let dbg = format!("{data:?}");
     assert!(dbg.contains("DataPlane"), "got: {dbg}");

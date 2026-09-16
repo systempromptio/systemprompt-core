@@ -1,11 +1,10 @@
 # Changelog
 
-- Expose the evaluator capability registry at `GET /api/v1/evaluator-capabilities`.
-
 ## [Unreleased]
 
 ### Removed
 
+- The evaluation engine's HTTP surface is gone: `/api/v1/campaigns*`, `/campaign-runs`, `/campaign-diagnostics`, `/source-changes`, `/experiments*`, `/budgets*`, `/evaluation-revisions*`, `/evaluation-suggestions*`, `/evaluation-approvals*`, `/revisions/{id}/workspace`, `/evaluator-capabilities` and the `/api/v1/evaluation/worker/*` transport. The managed routes that shared the tree (`/sources*`, `/revisions/{id}/bundle`, `/source-verifications*`, `/operations/{id}`, `/inventory*`, `/publications`, `/resources/{id}/publications`, `/analytics/*`, `/consumer*`, `/consumer-devices*`) are unchanged on the wire and now live in `routes::managed` behind `ManagedState`; `OperationResult::ApprovalDecision` is no longer a variant.
 - The gateway no longer consults the evaluation engine: `dispatch_policy` returns the policy alone, pricing always resolves from the catalog, retries always follow `current_policy()`, and `Settlement`, `GatewayRepositories` and the audit opener carry no evaluation repositories. `AuthedPrincipal::Execution`, the `spexec_` credential path in `authenticate` and `McpContextMiddleware::with_execution_capabilities` are gone; `authenticate` takes four arguments and `otel::handle` three.
 
 ### Breaking

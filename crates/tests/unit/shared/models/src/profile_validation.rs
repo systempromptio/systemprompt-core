@@ -82,7 +82,6 @@ fn cloud_paths() -> PathsConfig {
 fn valid_profile() -> Profile {
     Profile {
         storage: Default::default(),
-        evaluator: None,
         name: "p".to_string(),
         display_name: "Profile P".to_string(),
         target: ProfileType::Local,

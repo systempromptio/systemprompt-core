@@ -11,7 +11,6 @@ use systemprompt_ai::repository::AiRepositories;
 use systemprompt_analytics::repository::AnalyticsRepositories;
 use systemprompt_content::repository::ContentRepositories;
 use systemprompt_database::ServiceRepository;
-use systemprompt_evaluation::repository::experiments::EvaluationRepositories;
 use systemprompt_files::FileRepository;
 use systemprompt_marketplace::managed::ManagedRepository;
 use systemprompt_mcp::repository::McpSessionRepository;
@@ -71,9 +70,5 @@ impl AppContext {
 
     pub const fn managed_repository(&self) -> &Arc<ManagedRepository> {
         &self.data.managed_repository
-    }
-
-    pub const fn evaluation_repositories(&self) -> &Arc<EvaluationRepositories> {
-        &self.data.evaluation_repositories
     }
 }

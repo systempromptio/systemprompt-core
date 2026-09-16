@@ -25,24 +25,24 @@ async fn routers() -> (Router, Router, String) {
         .unwrap()
         .origin()
         .ascii_serialization();
-    let consumer = systemprompt_api::routes::evaluation::consumer::router()
+    let consumer = systemprompt_api::routes::managed::consumer::router()
         .layer(axum::middleware::from_fn_with_state(
             ctx.as_ref().clone(),
-            systemprompt_api::routes::evaluation::optimization_origin::protect,
+            systemprompt_api::routes::managed::origin::protect,
         ))
         .with_state(ctx.as_ref().clone())
         .layer(axum::middleware::from_fn(
-            systemprompt_api::routes::evaluation::contract::normalize,
+            systemprompt_api::routes::managed::contract::normalize,
         ));
-    let admin = systemprompt_api::routes::evaluation::campaigns::router()
+    let admin = systemprompt_api::routes::managed::router()
         .with_state(
-            systemprompt_api::routes::evaluation::optimization_state::OptimizationState::new(
+            systemprompt_api::routes::managed::state::ManagedState::new(
                 ctx.as_ref().clone(),
             ),
         )
         .layer(Extension(actor))
         .layer(axum::middleware::from_fn(
-            systemprompt_api::routes::evaluation::contract::normalize,
+            systemprompt_api::routes::managed::contract::normalize,
         ));
     (consumer, admin, origin)
 }
@@ -109,14 +109,9 @@ async fn submitted_identity_user_secret_and_unenrolled_credentials_do_not_authen
     }
 }
 #[tokio::test]
-async fn missing_job_is_not_null_success_and_collection_limits_are_enforced() {
+async fn missing_job_is_not_null_success_and_errors_are_problem_details() {
     let (_, admin, _) = routers().await;
-    for (uri, status) in [
-        ("/analytics/jobs/absent-job", StatusCode::NOT_FOUND),
-        ("/experiments?limit=0", StatusCode::BAD_REQUEST),
-        ("/experiments?limit=101", StatusCode::BAD_REQUEST),
-        ("/evaluator-capabilities?limit=101", StatusCode::BAD_REQUEST),
-    ] {
+    for (uri, status) in [("/analytics/jobs/absent-job", StatusCode::NOT_FOUND)] {
         let response = admin
             .clone()
             .oneshot(Request::builder().uri(uri).body(Body::empty()).unwrap())
@@ -148,7 +143,7 @@ async fn consumer_identity_does_not_confer_administrative_access() {
     let protected = admin
         .with_auth(PublicContextMiddleware::new(), AuthzPolicy::admin())
         .layer(axum::middleware::from_fn(
-            systemprompt_api::routes::evaluation::contract::normalize,
+            systemprompt_api::routes::managed::contract::normalize,
         ));
     let actor = RequestContext::new(
         SessionId::generate(),
@@ -183,14 +178,14 @@ async fn failed_capture_has_durable_status_and_conflicting_http_retry_is_rejecte
     )
     .await
     .unwrap();
-    let router = systemprompt_api::routes::evaluation::campaigns::router()
+    let router = systemprompt_api::routes::managed::router()
         .with_state(
-            systemprompt_api::routes::evaluation::optimization_state::OptimizationState::new(
+            systemprompt_api::routes::managed::state::ManagedState::new(
                 ctx.as_ref().clone(),
             ),
         )
         .layer(axum::middleware::from_fn(
-            systemprompt_api::routes::evaluation::contract::normalize,
+            systemprompt_api::routes::managed::contract::normalize,
         ));
     let key = systemprompt_identifiers::TaskId::generate();
     let uri = format!(
@@ -252,51 +247,3 @@ async fn failed_capture_has_durable_status_and_conflicting_http_retry_is_rejecte
     );
 }
 
-#[tokio::test]
-async fn capability_cursor_visits_each_client_once_and_preserves_serialized_names() {
-    let (_, admin, _) = routers().await;
-    let mut after = None;
-    let mut seen = std::collections::BTreeSet::new();
-    for _ in 0..10 {
-        let uri = after.as_ref().map_or_else(
-            || "/evaluator-capabilities?limit=1".to_owned(),
-            |cursor| format!("/evaluator-capabilities?limit=1&after={cursor}"),
-        );
-        let response = admin
-            .clone()
-            .oneshot(Request::builder().uri(uri).body(Body::empty()).unwrap())
-            .await
-            .unwrap();
-        assert_eq!(response.status(), StatusCode::OK);
-        let body = axum::body::to_bytes(response.into_body(), 16384)
-            .await
-            .unwrap();
-        let page: serde_json::Value = serde_json::from_slice(&body).unwrap();
-        let items = page["items"].as_array().unwrap();
-        assert!(items.len() <= 1);
-        for item in items {
-            assert!(
-                seen.insert(item["client"].as_str().unwrap().to_owned()),
-                "cursor duplicated a client"
-            );
-        }
-        after = page["next_cursor"].as_str().map(str::to_owned);
-        if after.is_none() {
-            break;
-        }
-    }
-    assert!(after.is_none(), "bounded traversal never terminated");
-    assert_eq!(
-        seen,
-        std::collections::BTreeSet::from(
-            [
-                "claude-code",
-                "claude-desktop",
-                "codex",
-                "hermes",
-                "open-code"
-            ]
-            .map(str::to_owned)
-        )
-    );
-}

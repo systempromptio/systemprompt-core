@@ -29,7 +29,6 @@ pub(super) fn build_data_plane(
         file_repository: repositories.files,
         mcp_session_repository: repositories.mcp_sessions,
         managed_repository: repositories.managed,
-        evaluation_repositories: repositories.evaluation,
     }
 }
 
@@ -58,7 +57,6 @@ pub(super) struct RepositoryBundles {
     files: Arc<systemprompt_files::FileRepository>,
     mcp_sessions: Arc<systemprompt_mcp::repository::McpSessionRepository>,
     managed: Arc<systemprompt_marketplace::managed::ManagedRepository>,
-    evaluation: Arc<systemprompt_evaluation::repository::experiments::EvaluationRepositories>,
 }
 
 impl RepositoryBundles {
@@ -91,20 +89,6 @@ pub(super) fn build_repositories(
         database,
     )?);
     let ai = Arc::new(systemprompt_ai::repository::AiRepositories::new(database)?);
-    let managed_revisions: systemprompt_traits::DynManagedRevisionOwnership =
-        Arc::new(managed.as_ref().clone());
-    let evaluation = Arc::new(
-        systemprompt_evaluation::repository::experiments::EvaluationRepositories::new(
-            database,
-            systemprompt_evaluation::repository::experiments::EvaluationSeams {
-                trace: Arc::new(ai.requests.clone()),
-                sessions: Arc::new(systemprompt_users::UsersAiSessionProvider::from_repository(
-                    systemprompt_users::SessionRepository::new(database)?,
-                )),
-                managed_revisions,
-            },
-        )?,
-    );
     let feedback_facts = Arc::new(
         systemprompt_analytics::feedback::FeedbackFactsRepository::new(
             database.write_pool_arc()?.as_ref().clone(),
@@ -151,6 +135,5 @@ pub(super) fn build_repositories(
             database,
         )?),
         managed,
-        evaluation,
     })
 }

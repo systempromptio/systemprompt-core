@@ -13,7 +13,6 @@ pub mod agents;
 pub mod bootstrap;
 pub mod bridge;
 pub mod config;
-pub mod evals;
 pub mod identity;
 pub mod keys;
 pub mod session;
@@ -37,8 +36,6 @@ pub enum AdminCommands {
     #[command(subcommand, about = "Configuration management and rate limits")]
     Config(config::ConfigCommands),
 
-    #[command(subcommand, about = "Evaluation runs over production AI traffic")]
-    Evals(evals::EvalsCommands),
 
     #[command(about = "Interactive setup wizard for local development environment")]
     Setup(setup::SetupArgs),
@@ -91,7 +88,6 @@ pub async fn execute(cmd: AdminCommands, ctx: &CommandContext) -> Result<()> {
         AdminCommands::Users(cmd) => users::execute(cmd, ctx).await,
         AdminCommands::Agents(cmd) => Box::pin(agents::execute(cmd, ctx)).await,
         AdminCommands::Config(cmd) => config::execute(cmd, ctx).await,
-        AdminCommands::Evals(cmd) => Box::pin(evals::execute(cmd, ctx)).await,
         AdminCommands::Setup(args) => {
             let result = Box::pin(setup::execute(args, ctx)).await?;
             render_result(&result, &ctx.cli);

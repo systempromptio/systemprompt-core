@@ -10,7 +10,6 @@ use systemprompt_marketplace::managed::{
 
 fn human_review() -> ComparisonEvidence {
     ComparisonEvidence {
-        experiment_id: None,
         recorded: std::collections::BTreeMap::from([(
             "review".to_owned(),
             serde_json::Value::from("independent human"),

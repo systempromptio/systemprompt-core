@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Removed
+
+- **Breaking:** `profile::EvaluatorConfig` and `Profile::evaluator` are removed; a profile carrying an `evaluator:` block is rejected as an unknown key.
+
 ## [0.54.0] - 2026-09-16
 
 ### Breaking

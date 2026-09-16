@@ -27,7 +27,6 @@ impl Profile {
         self.validate_rate_limits(&mut errors);
         self.validate_governance(&mut errors, is_cloud);
         self.validate_storage(&mut errors);
-        self.validate_evaluator(&mut errors);
         self.validate_external_url_is_reachable(&mut errors, is_cloud);
         self.validate_services_sources(&mut errors, is_cloud);
         self.validate_secrets(&mut errors);
@@ -51,31 +50,6 @@ impl Profile {
                     );
                 }
             },
-        }
-    }
-
-    pub(crate) fn validate_evaluator(&self, errors: &mut Vec<String>) {
-        let Some(evaluator) = &self.evaluator else {
-            return;
-        };
-        for (field, value) in [
-            ("evaluator.worker_id", evaluator.worker_id.as_str()),
-            ("evaluator.client_image", evaluator.client_image.as_str()),
-            ("evaluator.relay_image", evaluator.relay_image.as_str()),
-            (
-                "evaluator.control_network",
-                evaluator.control_network.as_str(),
-            ),
-        ] {
-            if value.trim().is_empty() {
-                errors.push(format!("{field} must not be empty"));
-            }
-        }
-        if !evaluator.docker.is_absolute() {
-            errors.push("evaluator.docker must be an absolute path".to_owned());
-        }
-        if !evaluator.workspace_root.is_absolute() {
-            errors.push("evaluator.workspace_root must be an absolute path".to_owned());
         }
     }
 

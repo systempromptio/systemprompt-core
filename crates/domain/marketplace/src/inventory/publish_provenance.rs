@@ -49,7 +49,6 @@ pub(super) fn inventory_request(
         expected_generation: managed.generation,
         operation_key: format!("inventory-sync:{}:{revision}", entry.resource_key),
         comparison_evidence: ComparisonEvidence {
-            experiment_id: None,
             recorded: BTreeMap::from([
                 (
                     "source".to_owned(),
