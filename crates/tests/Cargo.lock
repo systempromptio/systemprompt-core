@@ -8832,7 +8832,6 @@ dependencies = [
  "systemprompt-extension",
  "systemprompt-identifiers",
  "systemprompt-logging",
- "systemprompt-marketplace",
  "systemprompt-models",
  "systemprompt-oauth",
  "systemprompt-provider-contracts",

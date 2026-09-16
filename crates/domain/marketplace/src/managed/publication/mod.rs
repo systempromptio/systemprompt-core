@@ -164,7 +164,18 @@ fn validate_request(request: &PublicationRequest) -> Result<()> {
 }
 
 fn validate_admission(request: &PublicationRequest, admission: PublicationAdmission) -> Result<()> {
+    let source = request
+        .comparison_evidence
+        .recorded
+        .get("source")
+        .and_then(serde_json::Value::as_str);
     if admission != PublicationAdmission::InventorySync {
+        if source == Some(INVENTORY_REFRESH_SOURCE) {
+            return Err(ManagedError::Conflict(
+                "A reviewed publication cannot name the inventory refresh as its evidence source"
+                    .to_owned(),
+            ));
+        }
         return Ok(());
     }
     if !matches!(
@@ -175,11 +186,6 @@ fn validate_admission(request: &PublicationRequest, admission: PublicationAdmiss
             "Inventory synchronisation only adopts or advances configured content".to_owned(),
         ));
     }
-    let source = request
-        .comparison_evidence
-        .recorded
-        .get("source")
-        .and_then(serde_json::Value::as_str);
     if source != Some(INVENTORY_REFRESH_SOURCE) {
         return Err(invalid(
             "Inventory synchronisation evidence must name the inventory refresh as its source",

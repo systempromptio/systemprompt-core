@@ -86,9 +86,13 @@ pub async fn refresh(
     let unreconciled = new_hash.is_some() && previous.last_reconciled_hash != new_hash;
     let mut reconciled = false;
     if changed || unreconciled {
-        let services = ConfigLoader::load().map_err(|e| {
-            ApiHttpError::internal_error(format!("recomposed services config: {e}"))
-        })?;
+        // Why: the boot-time root is a static that still names the previous
+        // tree; the recomposed tree is the one whose config is projected.
+        let services =
+            ConfigLoader::reload_from_path(&resolved.path.join("config").join("config.yaml"))
+                .map_err(|e| {
+                    ApiHttpError::internal_error(format!("recomposed services config: {e}"))
+                })?;
         let outcome = reconcile_fetched_services(profile, &resolved, &services, ctx.db_pool())
             .await
             .map_err(|e| ApiHttpError::internal_error(format!("services reconcile: {e}")))?;

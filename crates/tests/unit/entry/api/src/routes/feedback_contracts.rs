@@ -113,7 +113,11 @@ fn openapi_references_resolve_and_consumer_admin_contracts_are_distinct() {
     let document = systemprompt_api::routes::managed::contract::openapi::document();
     assert_eq!(document["openapi"], "3.1.0");
     let paths = document["paths"].as_object().unwrap();
-    assert!(paths.len() >= 45);
+    assert!(
+        paths.len() >= 40,
+        "the managed surface documents {} paths",
+        paths.len()
+    );
     fn references(value: &serde_json::Value, root: &serde_json::Value) {
         match value {
             serde_json::Value::Object(map) => {

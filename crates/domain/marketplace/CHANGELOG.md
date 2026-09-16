@@ -8,6 +8,7 @@
 
 ### Fixed
 
+- A reviewed publication whose comparison evidence names `inventory_refresh` as its source is a conflict: only the inventory-sync admission may claim the configured tree as its reviewer.
 - Installation receipts decode `consumer_evidence` and the consumer identity columns; the legacy `client_evidence` column is read leniently so a stored `{}` no longer fails the publication listing, and a value that does not decode is logged.
 
 ### Removed

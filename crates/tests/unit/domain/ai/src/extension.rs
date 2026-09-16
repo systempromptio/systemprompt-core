@@ -34,6 +34,7 @@ mod ai_extension_tests {
             names,
             vec![
                 "ai_requests",
+                "ai_request_client_evidence",
                 "ai_request_messages",
                 "ai_request_tool_calls",
                 "ai_request_payloads",

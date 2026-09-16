@@ -1,7 +1,6 @@
 //! Mount-level contracts on the full `setup_api_server` router: the gateway
-//! group is rate-limited like every other route group, and an execution
-//! capability presented to the nested MCP proxy is scoped by the *original*
-//! request path (axum strips the mount prefix before the middleware runs).
+//! group is rate-limited like every other route group, and an unissued bearer
+//! presented to the nested MCP proxy is unauthorized on every server.
 
 use std::net::SocketAddr;
 
@@ -82,48 +81,33 @@ async fn gateway_mount_is_rate_limited_per_client_ip() -> anyhow::Result<()> {
 }
 
 // Why: the MCP router is nested at `/api/v1/mcp`, so inside its middleware
-// `request.uri()` reads `/evaluation_fixture/mcp`. Matching the stripped path
-// against the mount prefix refused every execution capability with 403 —
-// including the fixture server the capability exists to reach.
+// `request.uri()` reads `/<server>/mcp`. A credential nobody issued must be
+// refused as unauthenticated on every server, never classified by scope.
 #[tokio::test]
-async fn execution_capability_to_the_fixture_server_passes_the_scope_check() -> anyhow::Result<()> {
+async fn an_unissued_bearer_on_the_nested_mcp_proxy_is_unauthorized_on_every_server()
+-> anyhow::Result<()> {
     let app = full_router(RateLimitConfig::disabled()).await?;
 
-    let resp = app
-        .oneshot(post(
-            "/api/v1/mcp/evaluation_fixture/mcp",
-            "203.0.113.78:41000",
-            &[
-                ("authorization", "Bearer spexec_not-an-issued-capability"),
-                ("x-session-id", "sess-fixture"),
-            ],
-        ))
-        .await?;
-
-    assert_eq!(
-        resp.status(),
-        StatusCode::UNAUTHORIZED,
-        "the fixture server is inside the capability's scope; an unissued token is a 401, never \
-         the out-of-scope 403"
-    );
-    Ok(())
-}
-
-#[tokio::test]
-async fn execution_capability_outside_the_fixture_server_is_forbidden() -> anyhow::Result<()> {
-    let app = full_router(RateLimitConfig::disabled()).await?;
-
-    let resp = app
-        .oneshot(post(
-            "/api/v1/mcp/other-server/mcp",
-            "203.0.113.79:41000",
-            &[
-                ("authorization", "Bearer spexec_not-an-issued-capability"),
-                ("x-session-id", "sess-other"),
-            ],
-        ))
-        .await?;
-
-    assert_eq!(resp.status(), StatusCode::FORBIDDEN);
+    for (server, peer, session) in [
+        ("evaluation_fixture", "203.0.113.78:41000", "sess-fixture"),
+        ("other-server", "203.0.113.79:41000", "sess-other"),
+    ] {
+        let resp = app
+            .clone()
+            .oneshot(post(
+                &format!("/api/v1/mcp/{server}/mcp"),
+                peer,
+                &[
+                    ("authorization", "Bearer not-an-issued-credential"),
+                    ("x-session-id", session),
+                ],
+            ))
+            .await?;
+        assert_eq!(
+            resp.status(),
+            StatusCode::UNAUTHORIZED,
+            "an unissued bearer on {server} is a 401, never a scope verdict"
+        );
+    }
     Ok(())
 }
