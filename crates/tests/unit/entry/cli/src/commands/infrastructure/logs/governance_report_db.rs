@@ -6,6 +6,7 @@
 //! the CSV branch all run against rows rather than against an empty window.
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
+use systemprompt_models::wire::origin::RequestOrigin;
 
 use std::sync::Arc;
 
@@ -102,11 +103,15 @@ async fn seed_decision(
 async fn seed_finding(pool: &DbPool, user: &UserId, category: &str, blocked: bool) {
     let email = format!("{}@governance.invalid", user.as_str());
     seed_user_row(pool, user, &email).await.expect("seed user");
-    let record =
-        AiRequestRecord::builder(AiRequestId::generate(), user.clone(), ContextId::generate())
-            .provider("anthropic")
-            .model("claude-fixture-1")
-            .build();
+    let record = AiRequestRecord::builder(
+        AiRequestId::generate(),
+        user.clone(),
+        ContextId::generate(),
+        RequestOrigin::INTERNAL,
+    )
+    .provider("anthropic")
+    .model("claude-fixture-1")
+    .build();
     let request_id = AiRequestRepository::new(pool)
         .expect("request repo")
         .insert(&record)

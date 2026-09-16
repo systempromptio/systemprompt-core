@@ -41,7 +41,8 @@ pub(super) fn trace_dispatch(
         model = %request.model,
         provider = %upstream.route.provider,
         upstream = %upstream.provider.endpoint,
-        wire_protocol = %ctx.wire_protocol,
+        wire_protocol = ctx.origin.wire.as_str(),
+        client_kind = ctx.origin.client.as_str(),
         streaming = request.stream,
         "Gateway request dispatched"
     );

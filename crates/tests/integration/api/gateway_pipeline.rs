@@ -33,6 +33,7 @@ use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 use super::common::setup_ctx;
+use systemprompt_models::wire::origin::{ClientKind, InboundWireProtocol, RequestOrigin};
 use systemprompt_security::policy::types::AccessScope;
 
 fn gateway_journal() -> systemprompt_api::services::gateway::audit::journal::GatewayJournal {
@@ -175,7 +176,7 @@ pub(super) fn dispatch_ctx(
     cred: &AuthedFixture,
     model: &str,
     stream: bool,
-    wire_protocol: &str,
+    wire: InboundWireProtocol,
 ) -> GatewayRequestContext {
     GatewayRequestContext {
         ai_request_id: AiRequestId::generate(),
@@ -198,7 +199,7 @@ pub(super) fn dispatch_ctx(
         model: model.to_owned(),
         max_tokens: Some(256),
         is_streaming: stream,
-        wire_protocol: wire_protocol.to_owned(),
+        origin: RequestOrigin::gateway(ClientKind::Other, wire),
         access_log: None,
     }
 }
@@ -214,7 +215,7 @@ pub(super) fn inputs_with(
     inbound: Arc<dyn InboundAdapter>,
     raw_body: Bytes,
 ) -> DispatchInputs {
-    let ctx = dispatch_ctx(cred, request.model.as_str(), stream, inbound.wire_name());
+    let ctx = dispatch_ctx(cred, request.model.as_str(), stream, inbound.wire());
     DispatchInputs {
         request,
         raw_body,

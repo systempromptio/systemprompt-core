@@ -20,6 +20,7 @@ impl GatewayAudit {
             self.ctx.ai_request_id.clone(),
             self.ctx.user_id.clone(),
             self.ctx.context_id.clone(),
+            self.ctx.origin,
         )
         .provider(self.ctx.provider.clone())
         .model(self.ctx.model.clone())

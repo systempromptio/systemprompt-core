@@ -18,6 +18,7 @@ use systemprompt_models::services::QuotaFaultMode;
 use systemprompt_security::policy::types::AccessScope;
 
 use crate::support::{minimal_request, seed_user, setup_db};
+use systemprompt_models::wire::origin::{ClientKind, InboundWireProtocol, RequestOrigin};
 
 fn gateway_journal() -> systemprompt_api::services::gateway::audit::journal::GatewayJournal {
     systemprompt_api::services::gateway::audit::journal::GatewayJournal::open(
@@ -67,7 +68,7 @@ fn request_ctx(user_id: UserId, ai_request_id: AiRequestId) -> GatewayRequestCon
         model: "claude-test".to_owned(),
         max_tokens: Some(16),
         is_streaming: false,
-        wire_protocol: "anthropic-messages".to_owned(),
+        origin: RequestOrigin::gateway(ClientKind::Other, InboundWireProtocol::AnthropicMessages),
         access_log: None,
     }
 }

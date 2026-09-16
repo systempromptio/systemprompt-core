@@ -20,6 +20,7 @@ use systemprompt_identifiers::{AiRequestId, ContextId, UserId};
 use systemprompt_test_fixtures as fixtures;
 
 use crate::support::{minimal_request, seed_user, setup_db};
+use systemprompt_models::wire::origin::{ClientKind, InboundWireProtocol, RequestOrigin};
 use systemprompt_security::policy::types::AccessScope;
 
 fn gateway_journal() -> systemprompt_api::services::gateway::audit::journal::GatewayJournal {
@@ -94,7 +95,7 @@ async fn open_audit(db: &DbPool, user_id: UserId) -> (Arc<GatewayAudit>, AiReque
         model: "claude-test".to_string(),
         max_tokens: Some(16),
         is_streaming: true,
-        wire_protocol: "anthropic-messages".to_string(),
+        origin: RequestOrigin::gateway(ClientKind::Other, InboundWireProtocol::AnthropicMessages),
         access_log: None,
     };
     let audit = GatewayAudit::new(&gateway_repos(db), ctx);

@@ -129,6 +129,7 @@ pub struct AiRequestListItem {
     pub user_id: UserId,
     pub actor_kind: String,
     pub actor_id: String,
+    pub client_kind: String,
     pub provider: Option<String>,
     pub model: Option<String>,
     pub input_tokens: Option<i32>,

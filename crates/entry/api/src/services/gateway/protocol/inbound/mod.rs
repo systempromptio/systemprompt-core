@@ -16,6 +16,7 @@ pub mod openai_responses;
 use bytes::Bytes;
 use http::StatusCode;
 use systemprompt_models::services::WireProtocol;
+use systemprompt_models::wire::origin::InboundWireProtocol;
 
 use super::canonical::CanonicalRequest;
 use super::canonical_response::{CanonicalEvent, CanonicalResponse};
@@ -42,7 +43,11 @@ pub(crate) fn error_type_for_status(status: StatusCode) -> &'static str {
 }
 
 pub trait InboundAdapter: Send + Sync + std::fmt::Debug {
-    fn wire_name(&self) -> &'static str;
+    fn wire(&self) -> InboundWireProtocol;
+
+    fn wire_name(&self) -> &'static str {
+        self.wire().as_str()
+    }
 
     fn passthrough_wire(&self) -> Option<WireProtocol> {
         None

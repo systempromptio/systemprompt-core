@@ -28,6 +28,8 @@ impl Extension for AiExtension {
                     "provider".into(),
                     "model".into(),
                     "created_at".into(),
+                    "client_kind".into(),
+                    "wire_protocol".into(),
                 ]),
             SchemaDefinition::new(
                 "ai_request_messages",

@@ -22,6 +22,7 @@ use systemprompt_identifiers::{
     ClientSessionId, ContextId, GatewayConversationId, SessionId, TraceId, UserId,
 };
 use systemprompt_models::services::gateway::{GatewayConfig, GatewayRoute};
+use systemprompt_models::wire::origin::{ClientKind, RequestOrigin};
 
 use super::RequestContext;
 use super::auth::{AuthedPrincipal, authenticate};
@@ -37,8 +38,12 @@ pub use authz::{GatewayAuthzRequestInput, build_gateway_authz_request};
 pub(super) use headers::ClientHeaders;
 pub use headers::extract_credential;
 
-#[derive(Debug, Default)]
+/// What is known about a request at the moment it is rejected. `origin` is
+/// fixed at entry from the route and `User-Agent`, so a rejection row is never
+/// persisted without its client and wire protocol.
+#[derive(Debug)]
 pub struct RejectionPartial {
+    pub origin: RequestOrigin,
     pub user_id: Option<UserId>,
     pub session_id: Option<SessionId>,
     pub context_id: Option<ContextId>,
@@ -52,7 +57,27 @@ pub struct RejectionPartial {
     pub body: Option<Bytes>,
 }
 
+impl RejectionPartial {
+    pub const fn new(origin: RequestOrigin) -> Self {
+        Self {
+            origin,
+            user_id: None,
+            session_id: None,
+            context_id: None,
+            gateway_conversation_id: None,
+            client_session_id: None,
+            trace_id: None,
+            provider: None,
+            model: None,
+            max_tokens: None,
+            is_streaming: false,
+            body: None,
+        }
+    }
+}
+
 pub(super) struct PreparedRequest {
+    pub origin: RequestOrigin,
     pub principal: AuthedPrincipal,
     pub body_bytes: Bytes,
     pub client_headers: ClientHeaders,
@@ -98,7 +123,16 @@ pub(super) async fn extract_request_context(
 
     principal.enforce_session_binding(&session_id)?;
 
+    let user_agent = request
+        .headers()
+        .get(http::header::USER_AGENT)
+        .and_then(|value| value.to_str().ok())
+        .map(str::to_owned);
     let (body_bytes, mut gateway_request) = read_gateway_body(inbound, request, partial).await?;
+    // Why: only the Codex body marker can change the answer once the agent is
+    // known; the entry-time classification saw an empty body.
+    partial.origin.client =
+        ClientKind::from_user_agent_and_body(user_agent.as_deref(), &body_bytes);
 
     let (gateway_conversation_id, context_id, client_session_id) = derive_conversation(
         principal.user_id(),
@@ -138,6 +172,7 @@ pub(super) async fn extract_request_context(
     .await?;
 
     Ok(PreparedRequest {
+        origin: partial.origin,
         principal,
         body_bytes,
         client_headers,

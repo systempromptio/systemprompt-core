@@ -1,5 +1,15 @@
 # Changelog
 
+## [Unreleased]
+
+### Breaking
+
+- **AI:** `AiRequestRecord::builder` and `AiRequestRecordBuilder::new` take a fourth argument, `RequestOrigin` (client kind + inbound wire protocol); a producer that does not name its origin does not compile. `GatewayRequestContext.wire_protocol: String` is replaced by `origin: RequestOrigin`, and `InboundAdapter::wire_name` is a provided method over the new required `wire() -> InboundWireProtocol`.
+
+### Added
+
+- **AI:** every `ai_requests` row records `client_kind` (`claude-code`, `claude-desktop`, `codex`, `opencode`, `hermes`, `other`, `internal`, `unknown`) and `wire_protocol` (`anthropic.messages`, `openai.chat`, `openai.responses`, `internal`, `unknown`) as `NOT NULL` CHECK-constrained columns (migration `026_ai_requests_client_origin`, backfilled from the retained request body where it survives). `systemprompt_models::wire::origin::ClientKind::from_user_agent_and_body` is the one classifier the bridge and the gateway share. `infra logs request list` shows the client.
+
 ## [0.53.0] - 2026-09-15
 
 Three streams land together. The feedback program: native evaluator adapters

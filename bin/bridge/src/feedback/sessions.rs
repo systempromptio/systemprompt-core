@@ -10,6 +10,7 @@ use parking_lot::Mutex;
 use std::collections::BTreeSet;
 use systemprompt_identifiers::{ClientSessionId, NativeSessionId};
 use systemprompt_models::feedback::EvaluatorClient;
+use systemprompt_models::wire::origin::ClientKind;
 
 pub const OPENCODE_SESSION_HEADER: &str = "x-opencode-session";
 
@@ -24,26 +25,11 @@ pub fn native_session(headers: &http::HeaderMap, body: &[u8]) -> Option<NativeSe
     let value: serde_json::Value = serde_json::from_slice(body).ok()?;
     let user_agent = headers
         .get(http::header::USER_AGENT)
-        .and_then(|value| value.to_str().ok())
-        .unwrap_or("")
-        .to_ascii_lowercase();
-    let host = if user_agent.contains("hermes") {
-        EvaluatorClient::Hermes
-    } else if user_agent.contains("opencode") {
-        EvaluatorClient::OpenCode
-    } else if user_agent.contains("codex")
-        || value
-            .pointer("/client_metadata/x-codex-turn-metadata")
-            .is_some()
-    {
-        EvaluatorClient::Codex
-    } else if user_agent.contains("claude-desktop") {
-        EvaluatorClient::ClaudeDesktop
-    } else if user_agent.contains("claude-cli") || user_agent.contains("claude-code") {
-        EvaluatorClient::ClaudeCode
-    } else {
-        return None;
-    };
+        .and_then(|value| value.to_str().ok());
+    // Why: one classifier for bridge and gateway, so the native session the
+    // bridge reports and the client_kind the gateway records never disagree.
+    let host =
+        EvaluatorClient::try_from(ClientKind::from_user_agent_and_body(user_agent, body)).ok()?;
     let session = match host {
         EvaluatorClient::ClaudeCode | EvaluatorClient::ClaudeDesktop => {
             let metadata = value.pointer("/metadata/user_id")?.as_str()?;

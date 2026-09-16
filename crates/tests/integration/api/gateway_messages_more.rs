@@ -38,6 +38,15 @@ use systemprompt_users::{ApiKeyService, IssueApiKeyParams};
 
 use super::common::setup_ctx;
 
+use systemprompt_models::wire::origin::{ClientKind, InboundWireProtocol, RequestOrigin};
+
+fn test_partial() -> RejectionPartial {
+    RejectionPartial::new(RequestOrigin::gateway(
+        ClientKind::Other,
+        InboundWireProtocol::AnthropicMessages,
+    ))
+}
+
 fn gateway_journal() -> systemprompt_api::services::gateway::audit::journal::GatewayJournal {
     systemprompt_api::services::gateway::audit::journal::GatewayJournal::open(
         systemprompt_config::ProfileBootstrap::get_path().expect("profile bootstrapped"),
@@ -169,7 +178,7 @@ async fn read_gateway_body_parses_canonical_and_populates_partial() -> Result<()
         .uri("/v1/messages")
         .body(Body::from(body))
         .expect("request");
-    let mut partial = RejectionPartial::default();
+    let mut partial = test_partial();
     let (bytes, canonical) = read_gateway_body(&inbound, request, &mut partial)
         .await
         .expect("body parses");
@@ -189,7 +198,7 @@ async fn read_gateway_body_rejects_unparseable_json() -> Result<()> {
         .uri("/v1/messages")
         .body(Body::from("not json at all"))
         .expect("request");
-    let mut partial = RejectionPartial::default();
+    let mut partial = test_partial();
     let (status, _msg) = read_gateway_body(&inbound, request, &mut partial)
         .await
         .expect_err("garbage must fail");
@@ -203,7 +212,7 @@ fn derive_conversation_prefers_header_value() {
     use systemprompt_identifiers::GatewayConversationId;
     let header = GatewayConversationId::try_new("ctx_00000000deadbeef".to_owned()).expect("id");
     let request = canonical(vec![user_message("hello")]);
-    let mut partial = RejectionPartial::default();
+    let mut partial = test_partial();
     let (conv, ctx, _client) = derive_conversation(
         &systemprompt_identifiers::UserId::new("owner-a"),
         Some(header),
@@ -222,7 +231,7 @@ fn derive_conversation_prefers_header_value() {
 #[test]
 fn derive_conversation_derives_from_messages_when_header_absent() {
     let request = canonical(vec![user_message("derive me")]);
-    let mut partial = RejectionPartial::default();
+    let mut partial = test_partial();
     let (conv, _ctx, _client) = derive_conversation(
         &systemprompt_identifiers::UserId::new("owner-a"),
         None,
@@ -236,7 +245,7 @@ fn derive_conversation_derives_from_messages_when_header_absent() {
 #[test]
 fn derive_conversation_without_messages_is_bad_request() {
     let request = canonical(vec![]);
-    let mut partial = RejectionPartial::default();
+    let mut partial = test_partial();
     let (status, msg) = derive_conversation(
         &systemprompt_identifiers::UserId::new("owner-a"),
         None,
@@ -416,7 +425,7 @@ async fn authenticate_accepts_seeded_jwt() -> Result<()> {
 
 #[test]
 fn build_rejection_record_needs_user_id() {
-    let partial = RejectionPartial::default();
+    let partial = test_partial();
     let id = AiRequestId::generate();
     assert!(
         build_rejection_record(&id, &partial).is_none(),
@@ -426,7 +435,7 @@ fn build_rejection_record_needs_user_id() {
 
 #[test]
 fn build_rejection_record_leaves_unresolved_routing_absent() {
-    let mut partial = RejectionPartial::default();
+    let mut partial = test_partial();
     partial.user_id = Some(UserId::new("rej-user"));
     let id = AiRequestId::generate();
     let record = build_rejection_record(&id, &partial).expect("record built");
@@ -437,7 +446,7 @@ fn build_rejection_record_leaves_unresolved_routing_absent() {
 
 #[test]
 fn build_rejection_record_keeps_routing_it_did_resolve() {
-    let mut partial = RejectionPartial::default();
+    let mut partial = test_partial();
     partial.user_id = Some(UserId::new("rej-user"));
     partial.model = Some("claude-test".to_owned());
     let id = AiRequestId::generate();
@@ -451,7 +460,7 @@ async fn persist_rejection_writes_audit_row() -> Result<()> {
     let (pool, ctx) = setup_ctx().await?;
     let cred = seed_admin_credential(&pool, "rej-persist@example.invalid").await?;
     let id = AiRequestId::generate();
-    let mut partial = RejectionPartial::default();
+    let mut partial = test_partial();
     partial.user_id = Some(cred.user_id.clone());
     partial.provider = Some("anthropic".to_owned());
     partial.model = Some("claude-test".to_owned());
@@ -482,7 +491,7 @@ async fn persist_rejection_writes_an_audit_row_when_routing_never_resolved() -> 
     let (pool, ctx) = setup_ctx().await?;
     let cred = seed_admin_credential(&pool, "rej-unrouted@example.invalid").await?;
     let id = AiRequestId::generate();
-    let mut partial = RejectionPartial::default();
+    let mut partial = test_partial();
     partial.user_id = Some(cred.user_id.clone());
 
     persist_rejection(

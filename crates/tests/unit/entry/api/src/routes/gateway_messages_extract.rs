@@ -28,6 +28,15 @@ use systemprompt_identifiers::{
     ClientSessionId, ContextId, GatewayConversationId, ModelId, SessionId,
 };
 
+use systemprompt_models::wire::origin::{ClientKind, InboundWireProtocol, RequestOrigin};
+
+fn test_partial() -> RejectionPartial {
+    RejectionPartial::new(RequestOrigin::gateway(
+        ClientKind::Other,
+        InboundWireProtocol::AnthropicMessages,
+    ))
+}
+
 fn headers_with(name: &'static str, value: &str) -> HeaderMap {
     let mut headers = HeaderMap::new();
     headers.insert(
@@ -148,7 +157,7 @@ fn a_conversation_header_that_is_not_a_ctx_id_is_a_400() {
 
 #[tokio::test]
 async fn an_unparseable_body_is_a_400_and_still_records_the_raw_bytes() {
-    let mut partial = RejectionPartial::default();
+    let mut partial = test_partial();
 
     let (status, message) = read_gateway_body(&inbound(), post("not json"), &mut partial)
         .await
@@ -165,7 +174,7 @@ async fn an_unparseable_body_is_a_400_and_still_records_the_raw_bytes() {
 
 #[tokio::test]
 async fn a_parsed_body_populates_the_audit_partial_from_the_canonical_request() {
-    let mut partial = RejectionPartial::default();
+    let mut partial = test_partial();
     let body = r#"{"model":"claude-test","max_tokens":16,"stream":true,
         "messages":[{"role":"user","content":"hi"}]}"#;
 
@@ -182,7 +191,7 @@ async fn a_parsed_body_populates_the_audit_partial_from_the_canonical_request() 
 
 #[test]
 fn a_header_supplied_conversation_id_wins_over_derivation() {
-    let mut partial = RejectionPartial::default();
+    let mut partial = test_partial();
     let supplied = GatewayConversationId::try_new("ctx_00000000deadbeef".to_owned())
         .expect("test conversation id must be valid");
 
@@ -201,7 +210,7 @@ fn a_header_supplied_conversation_id_wins_over_derivation() {
 
 #[test]
 fn a_conversation_id_is_derived_from_the_message_history_when_no_header_is_sent() {
-    let mut partial = RejectionPartial::default();
+    let mut partial = test_partial();
 
     let (conversation, _, _) = derive_conversation(
         &systemprompt_identifiers::UserId::new("owner-a"),
@@ -215,7 +224,7 @@ fn a_conversation_id_is_derived_from_the_message_history_when_no_header_is_sent(
         &systemprompt_identifiers::UserId::new("owner-a"),
         None,
         &canonical(vec![user_message("hello")]),
-        &mut RejectionPartial::default(),
+        &mut test_partial(),
     )
     .expect("derivation must succeed again");
 
@@ -236,7 +245,7 @@ fn canonical_from_claude_code(messages: Vec<CanonicalMessage>) -> CanonicalReque
 
 #[test]
 fn a_client_session_in_metadata_selects_the_hook_sessions_context() {
-    let mut partial = RejectionPartial::default();
+    let mut partial = test_partial();
 
     let (conversation, context, client_session) = derive_conversation(
         &systemprompt_identifiers::UserId::new("owner-a"),
@@ -268,7 +277,7 @@ fn a_client_session_in_metadata_selects_the_hook_sessions_context() {
 
 #[test]
 fn a_header_supplied_conversation_id_pins_the_context_even_with_a_client_session() {
-    let mut partial = RejectionPartial::default();
+    let mut partial = test_partial();
     let supplied = GatewayConversationId::try_new("ctx_00000000deadbeef".to_owned())
         .expect("test conversation id must be valid");
 
@@ -295,7 +304,7 @@ fn a_header_supplied_conversation_id_pins_the_context_even_with_a_client_session
 
 #[test]
 fn a_request_without_metadata_keeps_the_prefix_hash_context() {
-    let mut partial = RejectionPartial::default();
+    let mut partial = test_partial();
 
     let (conversation, context, client_session) = derive_conversation(
         &systemprompt_identifiers::UserId::new("owner-a"),
@@ -318,7 +327,7 @@ fn a_request_without_metadata_keeps_the_prefix_hash_context() {
 
 #[test]
 fn a_body_with_no_messages_cannot_derive_a_conversation() {
-    let mut partial = RejectionPartial::default();
+    let mut partial = test_partial();
 
     let (status, message) = derive_conversation(
         &systemprompt_identifiers::UserId::new("owner-a"),
@@ -409,7 +418,7 @@ async fn a_body_over_the_buffer_limit_is_rejected_rather_than_buffered() {
         .uri("/v1/messages")
         .body(Body::from(oversized))
         .expect("test request must build");
-    let mut partial = RejectionPartial::default();
+    let mut partial = test_partial();
 
     let (status, message) = read_gateway_body(&inbound(), request, &mut partial)
         .await
@@ -429,11 +438,10 @@ fn identical_fallback_conversations_have_distinct_authenticated_owner_contexts()
     let bob = systemprompt_identifiers::UserId::new(uuid::Uuid::new_v4().to_string());
     let request = canonical(vec![user_message("same opening message")]);
     let (alice_gateway, alice_context, _) =
-        derive_conversation(&alice, None, &request, &mut RejectionPartial::default())
+        derive_conversation(&alice, None, &request, &mut test_partial())
             .expect("alice conversation");
     let (bob_gateway, bob_context, _) =
-        derive_conversation(&bob, None, &request, &mut RejectionPartial::default())
-            .expect("bob conversation");
+        derive_conversation(&bob, None, &request, &mut test_partial()).expect("bob conversation");
     assert_eq!(alice_gateway, bob_gateway);
     assert_ne!(alice_context, bob_context);
 }

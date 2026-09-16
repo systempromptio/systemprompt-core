@@ -34,6 +34,7 @@ use systemprompt_identifiers::{
     AiRequestId, ClientId, ClientSessionId, ContextId, GatewayConversationId, SessionId, TraceId,
     UserId,
 };
+use systemprompt_models::wire::origin::RequestOrigin;
 use systemprompt_security::policy::types::AccessScope;
 
 /// Method, path, and start instant captured by the gateway access-log
@@ -62,7 +63,7 @@ pub struct GatewayRequestContext {
     pub requested_model: Option<String>,
     pub max_tokens: Option<u32>,
     pub is_streaming: bool,
-    pub wire_protocol: String,
+    pub origin: RequestOrigin,
     pub access_log: Option<GatewayAccessLog>,
 }
 
@@ -175,7 +176,8 @@ impl GatewayAudit {
             provider = %self.ctx.provider,
             model = %self.effective_model(),
             requested_model = %self.ctx.model,
-            wire_protocol = %self.ctx.wire_protocol,
+            wire_protocol = self.ctx.origin.wire.as_str(),
+            client_kind = self.ctx.origin.client.as_str(),
             status = RequestStatus::Failed.as_str(),
             latency_ms,
             tokens_recorded = false,

@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            UPDATE ai_requests\n            SET status = $1, error_message = $2, completed_at = CURRENT_TIMESTAMP,\n                latency_ms = GREATEST(\n                    0,\n                    EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - created_at)) * 1000\n                )::int,\n                updated_at = CURRENT_TIMESTAMP\n            WHERE id = $3\n            RETURNING id as \"id!: AiRequestId\",\n                      request_id as \"request_id!: AiRequestId\",\n                      user_id as \"user_id!: UserId\",\n                      session_id as \"session_id: SessionId\",\n                      task_id as \"task_id: TaskId\",\n                      context_id as \"context_id: ContextId\",\n                      gateway_conversation_id as \"gateway_conversation_id: GatewayConversationId\",\n                      provider_request_id as \"provider_request_id: ProviderRequestId\",\n                      trace_id as \"trace_id: TraceId\",\n                      provider, model, temperature, top_p, max_tokens, tokens_used,\n                      input_tokens, output_tokens, cost_microdollars, latency_ms, upstream_latency_ms, cache_hit,\n                      cache_read_tokens, cache_creation_tokens, reasoning_tokens,\n                      is_streaming, status,\n                      error_message, created_at, updated_at, completed_at\n            ",
+  "query": "\n            SELECT id as \"id!: AiRequestId\",\n                   request_id as \"request_id!: AiRequestId\",\n                   user_id as \"user_id!: UserId\",\n                   session_id as \"session_id: SessionId\",\n                   task_id as \"task_id: TaskId\",\n                   context_id as \"context_id: ContextId\",\n                   gateway_conversation_id as \"gateway_conversation_id: GatewayConversationId\",\n                   provider_request_id as \"provider_request_id: ProviderRequestId\",\n                   trace_id as \"trace_id: TraceId\",\n                   provider, model, temperature, top_p, max_tokens, tokens_used,\n                   input_tokens, output_tokens, cost_microdollars, latency_ms, upstream_latency_ms, cache_hit,\n                   cache_read_tokens, cache_creation_tokens, reasoning_tokens,\n                   is_streaming, status, client_kind, wire_protocol,\n                   error_message, created_at, updated_at, completed_at\n            FROM ai_requests\n            WHERE id = $1\n            ",
   "describe": {
     "columns": [
       {
@@ -291,6 +291,28 @@
       },
       {
         "ordinal": 26,
+        "name": "client_kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "ai_requests",
+            "name": "client_kind"
+          }
+        }
+      },
+      {
+        "ordinal": 27,
+        "name": "wire_protocol",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "ai_requests",
+            "name": "wire_protocol"
+          }
+        }
+      },
+      {
+        "ordinal": 28,
         "name": "error_message",
         "type_info": "Text",
         "origin": {
@@ -301,7 +323,7 @@
         }
       },
       {
-        "ordinal": 27,
+        "ordinal": 29,
         "name": "created_at",
         "type_info": "Timestamptz",
         "origin": {
@@ -312,7 +334,7 @@
         }
       },
       {
-        "ordinal": 28,
+        "ordinal": 30,
         "name": "updated_at",
         "type_info": "Timestamptz",
         "origin": {
@@ -323,7 +345,7 @@
         }
       },
       {
-        "ordinal": 29,
+        "ordinal": 31,
         "name": "completed_at",
         "type_info": "Timestamptz",
         "origin": {
@@ -336,8 +358,6 @@
     ],
     "parameters": {
       "Left": [
-        "Varchar",
-        "Text",
         "Text"
       ]
     },
@@ -368,11 +388,13 @@
       true,
       false,
       false,
+      false,
+      false,
       true,
       false,
       false,
       true
     ]
   },
-  "hash": "54c128cf6b8615fefeb1d32549f0a3d945d6aab7c62c95d6c45632539334dd9d"
+  "hash": "4e51e34a167105186db039f8ebe38301737b73c799e1cb8bf5841289ec261e1a"
 }

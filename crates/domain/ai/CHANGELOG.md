@@ -1,5 +1,15 @@
 # Changelog
 
+## [Unreleased]
+
+### Breaking
+
+- **Breaking:** `AiRequestRecord::builder` / `AiRequestRecordBuilder::new` require a `RequestOrigin`; `AiRequestRecord.origin` and `AiRequest.{client_kind,wire_protocol}` are new fields. Internal producers pass `RequestOrigin::INTERNAL`.
+
+### Added
+
+- `ai_requests.client_kind` and `ai_requests.wire_protocol` (`NOT NULL`, CHECK-constrained, `DEFAULT 'unknown'` for the deploy window) with migration `026_ai_requests_client_origin` and its down file; `ClientKind`, `InboundWireProtocol` and `RequestOrigin` are re-exported from `models`.
+
 ## [0.53.0] - 2026-09-15
 
 ### Breaking

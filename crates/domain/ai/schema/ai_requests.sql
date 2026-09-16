@@ -39,6 +39,12 @@ CREATE TABLE IF NOT EXISTS ai_requests (
     synthetic BOOLEAN NOT NULL DEFAULT FALSE,
     request_kind TEXT NOT NULL DEFAULT 'turn'
         CONSTRAINT ai_requests_request_kind_check CHECK (request_kind IN ('turn', 'probe', 'utility')),
+    client_kind TEXT NOT NULL DEFAULT 'unknown'
+        CONSTRAINT ai_requests_client_kind_check CHECK (client_kind IN (
+            'claude-code', 'claude-desktop', 'codex', 'opencode', 'hermes', 'other', 'internal', 'unknown')),
+    wire_protocol TEXT NOT NULL DEFAULT 'unknown'
+        CONSTRAINT ai_requests_wire_protocol_check CHECK (wire_protocol IN (
+            'anthropic.messages', 'openai.chat', 'openai.responses', 'internal', 'unknown')),
     instance_id VARCHAR(255),
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,

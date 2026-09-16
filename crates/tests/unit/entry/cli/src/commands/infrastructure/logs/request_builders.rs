@@ -15,6 +15,7 @@ fn sample_row() -> RequestListRow {
         cursor: "2026-06-03T10:00:00.000000Z@req_abc123".to_owned(),
         user_id: UserId::new("user_abc123"),
         actor: "user:user_abc123".to_owned(),
+        client: "claude-code".to_owned(),
         provider: "anthropic".to_owned(),
         model: "claude".to_owned(),
         tokens: "10/20".to_owned(),

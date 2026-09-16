@@ -7,6 +7,7 @@ use systemprompt_identifiers::{
     Actor, ActorKind, AgentId, AiRequestId, ContextId, GatewayConversationId, McpExecutionId,
     ProviderRequestId, SessionId, TaskId, TraceId, UserId,
 };
+use systemprompt_models::wire::origin::RequestOrigin;
 use systemprompt_test_fixtures::{fixture_user_id, usage};
 
 const TEST_CONTEXT_ID_A: &str = "00000000-0000-4000-8000-000000000001";
@@ -101,6 +102,7 @@ mod ai_request_record_builder_tests {
             AiRequestId::new("req-123"),
             test_user_id(),
             ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
+            RequestOrigin::INTERNAL,
         )
         .model("gpt-4")
         .build();
@@ -115,6 +117,7 @@ mod ai_request_record_builder_tests {
             AiRequestId::new("req-123"),
             test_user_id(),
             ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
+            RequestOrigin::INTERNAL,
         )
         .provider("openai")
         .build();
@@ -131,6 +134,7 @@ mod ai_request_record_builder_tests {
             AiRequestId::new("req-123"),
             test_user_id(),
             ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
+            RequestOrigin::INTERNAL,
         )
         .rejected()
         .build();
@@ -147,6 +151,7 @@ mod ai_request_record_builder_tests {
             AiRequestId::new("req-123"),
             test_user_id(),
             ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
+            RequestOrigin::INTERNAL,
         )
         .provider("openai")
         .model("gpt-4")
@@ -165,6 +170,7 @@ mod ai_request_record_builder_tests {
             AiRequestId::new("req-123"),
             test_user_id(),
             ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
+            RequestOrigin::INTERNAL,
         )
         .provider("anthropic")
         .model("claude-3")
@@ -181,6 +187,7 @@ mod ai_request_record_builder_tests {
             AiRequestId::new("req-123"),
             test_user_id(),
             ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
+            RequestOrigin::INTERNAL,
         )
         .provider("gemini")
         .model("gemini-pro")
@@ -197,6 +204,7 @@ mod ai_request_record_builder_tests {
             AiRequestId::new("req-123"),
             test_user_id(),
             ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
+            RequestOrigin::INTERNAL,
         )
         .provider("openai")
         .model("gpt-4")
@@ -212,6 +220,7 @@ mod ai_request_record_builder_tests {
             AiRequestId::new("req-123"),
             test_user_id(),
             ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
+            RequestOrigin::INTERNAL,
         )
         .provider("openai")
         .model("gpt-4")
@@ -227,6 +236,7 @@ mod ai_request_record_builder_tests {
             AiRequestId::new("req-123"),
             test_user_id(),
             ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
+            RequestOrigin::INTERNAL,
         )
         .provider("openai")
         .model("gpt-4")
@@ -242,6 +252,7 @@ mod ai_request_record_builder_tests {
             AiRequestId::new("req-123"),
             test_user_id(),
             ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
+            RequestOrigin::INTERNAL,
         )
         .provider("openai")
         .model("gpt-4")
@@ -259,6 +270,7 @@ mod ai_request_record_builder_tests {
             AiRequestId::new("req-123"),
             test_user_id(),
             ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
+            RequestOrigin::INTERNAL,
         )
         .provider("openai")
         .model("gpt-4")
@@ -276,6 +288,7 @@ mod ai_request_record_builder_tests {
             AiRequestId::new("req-123"),
             test_user_id(),
             ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
+            RequestOrigin::INTERNAL,
         )
         .provider("openai")
         .model("gpt-4")
@@ -293,6 +306,7 @@ mod ai_request_record_builder_tests {
             AiRequestId::new("req-123"),
             test_user_id(),
             ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
+            RequestOrigin::INTERNAL,
         )
         .provider("anthropic")
         .model("claude-3")
@@ -310,6 +324,7 @@ mod ai_request_record_builder_tests {
             AiRequestId::new("req-123"),
             test_user_id(),
             ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
+            RequestOrigin::INTERNAL,
         )
         .provider("openai")
         .model("gpt-4")
@@ -325,6 +340,7 @@ mod ai_request_record_builder_tests {
             AiRequestId::new("req-123"),
             test_user_id(),
             ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
+            RequestOrigin::INTERNAL,
         )
         .provider("openai")
         .model("gpt-4")
@@ -340,6 +356,7 @@ mod ai_request_record_builder_tests {
             AiRequestId::new("req-123"),
             test_user_id(),
             ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
+            RequestOrigin::INTERNAL,
         )
         .provider("openai")
         .model("gpt-4")
@@ -355,6 +372,7 @@ mod ai_request_record_builder_tests {
             AiRequestId::new("req-123"),
             test_user_id(),
             ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
+            RequestOrigin::INTERNAL,
         )
         .provider("openai")
         .model("gpt-4")
@@ -371,6 +389,7 @@ mod ai_request_record_builder_tests {
             AiRequestId::new("req-123"),
             test_user_id(),
             ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
+            RequestOrigin::INTERNAL,
         )
         .provider("openai")
         .model("gpt-4")
@@ -395,6 +414,7 @@ mod ai_request_record_builder_tests {
             AiRequestId::new("req-full"),
             test_user_id(),
             context_id.clone(),
+            RequestOrigin::INTERNAL,
         )
         .provider("anthropic")
         .model("claude-3-opus")
@@ -438,6 +458,7 @@ mod builder_optional_ids_tests {
             AiRequestId::new("req-actor"),
             user.clone(),
             ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
+            RequestOrigin::INTERNAL,
         )
         .provider("openai")
         .model("gpt-4")
@@ -452,6 +473,7 @@ mod builder_optional_ids_tests {
             AiRequestId::new("req-d"),
             fixture_user_id(),
             ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
+            RequestOrigin::INTERNAL,
         )
         .provider("openai")
         .model("gpt-4")
@@ -467,6 +489,7 @@ mod builder_optional_ids_tests {
             AiRequestId::new("req-g"),
             fixture_user_id(),
             ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
+            RequestOrigin::INTERNAL,
         )
         .provider("openai")
         .model("gpt-4")
@@ -482,6 +505,7 @@ mod builder_optional_ids_tests {
             AiRequestId::new("req-p"),
             fixture_user_id(),
             ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
+            RequestOrigin::INTERNAL,
         )
         .provider("openai")
         .model("gpt-4")
@@ -497,6 +521,7 @@ mod builder_optional_ids_tests {
             AiRequestId::new("req-m"),
             fixture_user_id(),
             ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
+            RequestOrigin::INTERNAL,
         )
         .provider("openai")
         .model("gpt-4")
@@ -511,6 +536,7 @@ mod builder_optional_ids_tests {
             AiRequestId::new("req-n"),
             fixture_user_id(),
             ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
+            RequestOrigin::INTERNAL,
         )
         .provider("openai")
         .model("gpt-4")
@@ -530,6 +556,7 @@ mod ai_request_record_tests {
             AiRequestId::new("req-456"),
             user_id,
             ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
+            RequestOrigin::INTERNAL,
         );
 
         let record = builder.provider("test").model("test-model").build();

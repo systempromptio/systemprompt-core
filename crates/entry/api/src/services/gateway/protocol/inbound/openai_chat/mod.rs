@@ -12,6 +12,7 @@ use bytes::Bytes;
 use http::StatusCode;
 use serde_json::Value;
 use systemprompt_models::services::WireProtocol;
+use systemprompt_models::wire::origin::InboundWireProtocol;
 
 use super::super::canonical::CanonicalRequest;
 use super::super::canonical_response::{CanonicalEvent, CanonicalResponse};
@@ -25,8 +26,8 @@ pub mod render_terminal;
 pub struct OpenAiChatInbound;
 
 impl InboundAdapter for OpenAiChatInbound {
-    fn wire_name(&self) -> &'static str {
-        "openai.chat"
+    fn wire(&self) -> InboundWireProtocol {
+        InboundWireProtocol::OpenAiChat
     }
 
     fn passthrough_wire(&self) -> Option<WireProtocol> {

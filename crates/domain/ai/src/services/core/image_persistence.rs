@@ -4,8 +4,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::error::{AiError, Result};
-use crate::models::AiRequestRecordBuilder;
 use crate::models::image_generation::{ImageGenerationRequest, ImageGenerationResponse};
+use crate::models::{AiRequestRecordBuilder, RequestOrigin};
 use crate::repository::AiRequestRepository;
 use systemprompt_identifiers::{FileId, UserId};
 use systemprompt_traits::{
@@ -50,6 +50,7 @@ async fn persist_ai_request(
         response.request_id.clone(),
         request.user_id.clone(),
         context_id,
+        RequestOrigin::INTERNAL,
     )
     .provider(&response.provider)
     .model(&response.model)

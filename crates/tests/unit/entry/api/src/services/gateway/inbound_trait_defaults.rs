@@ -15,6 +15,7 @@ use systemprompt_api::services::gateway::protocol::canonical_response::{
 use systemprompt_api::services::gateway::protocol::inbound::anthropic_messages::AnthropicMessagesInbound;
 use systemprompt_api::services::gateway::protocol::inbound::openai_responses::OpenAiResponsesInbound;
 use systemprompt_api::services::gateway::protocol::inbound::{InboundAdapter, InboundParseError};
+use systemprompt_models::wire::origin::InboundWireProtocol;
 
 fn snapshot() -> CanonicalResponse {
     CanonicalResponse {
@@ -52,8 +53,8 @@ fn an_adapter_that_declares_no_passthrough_wire_reports_none() {
 struct BareInbound;
 
 impl InboundAdapter for BareInbound {
-    fn wire_name(&self) -> &'static str {
-        "test.bare"
+    fn wire(&self) -> InboundWireProtocol {
+        InboundWireProtocol::Unknown
     }
 
     fn parse_request(&self, _raw: &Bytes) -> Result<CanonicalRequest, InboundParseError> {

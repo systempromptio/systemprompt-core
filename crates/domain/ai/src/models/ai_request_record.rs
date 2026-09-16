@@ -4,6 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_models::wire::canonical::CanonicalUsage;
+use systemprompt_models::wire::origin::RequestOrigin;
 
 use super::request_kind::{RequestKind, RequestStatus};
 
@@ -38,6 +39,7 @@ pub struct AiRequestRecord {
     pub gateway_conversation_id: Option<GatewayConversationId>,
     pub client_session_id: Option<ClientSessionId>,
     pub request_kind: RequestKind,
+    pub origin: RequestOrigin,
     pub provider_request_id: Option<ProviderRequestId>,
     pub trace_id: Option<TraceId>,
     pub mcp_execution_id: Option<McpExecutionId>,
@@ -60,8 +62,9 @@ impl AiRequestRecord {
         request_id: AiRequestId,
         user_id: UserId,
         context_id: ContextId,
+        origin: RequestOrigin,
     ) -> AiRequestRecordBuilder {
-        AiRequestRecordBuilder::new(request_id, user_id, context_id)
+        AiRequestRecordBuilder::new(request_id, user_id, context_id, origin)
     }
 }
 
@@ -76,6 +79,7 @@ pub struct AiRequestRecordBuilder {
     gateway_conversation_id: Option<GatewayConversationId>,
     client_session_id: Option<ClientSessionId>,
     request_kind: RequestKind,
+    origin: RequestOrigin,
     provider_request_id: Option<ProviderRequestId>,
     trace_id: Option<TraceId>,
     mcp_execution_id: Option<McpExecutionId>,
@@ -94,7 +98,12 @@ pub struct AiRequestRecordBuilder {
 }
 
 impl AiRequestRecordBuilder {
-    pub fn new(request_id: AiRequestId, user_id: UserId, context_id: ContextId) -> Self {
+    pub fn new(
+        request_id: AiRequestId,
+        user_id: UserId,
+        context_id: ContextId,
+        origin: RequestOrigin,
+    ) -> Self {
         Self {
             request_id,
             user_id,
@@ -105,6 +114,7 @@ impl AiRequestRecordBuilder {
             gateway_conversation_id: None,
             client_session_id: None,
             request_kind: RequestKind::Turn,
+            origin,
             provider_request_id: None,
             trace_id: None,
             mcp_execution_id: None,
@@ -262,6 +272,7 @@ impl AiRequestRecordBuilder {
             gateway_conversation_id: self.gateway_conversation_id,
             client_session_id: self.client_session_id,
             request_kind: self.request_kind,
+            origin: self.origin,
             provider_request_id: self.provider_request_id,
             trace_id: self.trace_id,
             mcp_execution_id: self.mcp_execution_id,
