@@ -39,7 +39,8 @@ pub async fn seed_oauth_client(pool: &DbPool, user_id: &UserId) -> Result<OAuthC
     repo.create(CreateClientParams {
         client_id: client_id.clone(),
         owner_user_id: user_id.clone(),
-        client_secret_hash: TEST_CLIENT_SECRET_HASH.to_owned(),
+        client_secret_hash: Some(TEST_CLIENT_SECRET_HASH.to_owned()),
+        registration_token_hash: None,
         client_name: "test-client".to_owned(),
         redirect_uris: vec![TEST_REDIRECT_URI.to_owned()],
         grant_types: Some(vec![
@@ -48,7 +49,7 @@ pub async fn seed_oauth_client(pool: &DbPool, user_id: &UserId) -> Result<OAuthC
             "client_credentials".to_owned(),
         ]),
         response_types: Some(vec!["code".to_owned()]),
-        scopes: vec!["openid".to_owned(), "profile".to_owned()],
+        scopes: vec!["user".to_owned(), "anonymous".to_owned()],
         token_endpoint_auth_method: Some("client_secret_basic".to_owned()),
         application_type: "web".to_owned(),
         client_uri: None,

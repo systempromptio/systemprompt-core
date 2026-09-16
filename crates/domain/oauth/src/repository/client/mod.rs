@@ -33,7 +33,8 @@ impl ClientRepository {
 pub struct CreateClientParams {
     pub client_id: ClientId,
     pub owner_user_id: UserId,
-    pub client_secret_hash: String,
+    pub client_secret_hash: Option<String>,
+    pub registration_token_hash: Option<String>,
     pub client_name: String,
     pub redirect_uris: Vec<String>,
     pub grant_types: Option<Vec<String>>,

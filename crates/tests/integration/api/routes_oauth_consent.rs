@@ -72,6 +72,7 @@ fn ensure_config() {
             content_negotiation: ContentNegotiationConfig::default(),
             security_headers: SecurityHeadersConfig::default(),
             allow_registration: false,
+            allow_dynamic_client_registration: true,
             login_page_url: None,
         });
     });
@@ -121,7 +122,7 @@ async fn consent_get_renders_page_for_registered_scopes() -> anyhow::Result<()> 
     let client = seeded_client().await?;
     let app = consent_app().await?;
     let uri = format!(
-        "/consent?client_id={}&scope=openid%20profile&state=abc",
+        "/consent?client_id={}&scope=user%20anonymous&state=abc",
         client.client_id.as_str()
     );
     let resp = app.oneshot(empty_get(&uri)).await?;
@@ -133,7 +134,7 @@ async fn consent_get_renders_page_for_registered_scopes() -> anyhow::Result<()> 
         "missing consent header: {html}"
     );
     assert!(
-        html.contains("Access your openid data") && html.contains("Access your profile data"),
+        html.contains("Access your user data") && html.contains("Access your anonymous data"),
         "scope items not rendered: {html}"
     );
     Ok(())
@@ -143,7 +144,7 @@ async fn consent_get_renders_page_for_registered_scopes() -> anyhow::Result<()> 
 async fn consent_get_unknown_client_returns_invalid_client() -> anyhow::Result<()> {
     let app = consent_app().await?;
     let resp = app
-        .oneshot(empty_get("/consent?client_id=no-such-client&scope=openid"))
+        .oneshot(empty_get("/consent?client_id=no-such-client&scope=user"))
         .await?;
     let status = resp.status();
     let v = read_json(resp).await?;
@@ -187,7 +188,7 @@ async fn consent_post_allow_records_decision() -> anyhow::Result<()> {
     let app = consent_app().await?;
     let body = serde_json::json!({
         "client_id": client.client_id.as_str(),
-        "scope": "openid profile",
+        "scope": "user anonymous",
         "state": "abc",
         "decision": "allow",
     });

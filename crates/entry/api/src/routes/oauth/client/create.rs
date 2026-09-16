@@ -40,7 +40,8 @@ pub async fn create_client(
     let params = CreateClientParams {
         client_id: request.client_id.clone(),
         owner_user_id: req_ctx.auth.actor.user_id.clone(),
-        client_secret_hash,
+        client_secret_hash: Some(client_secret_hash),
+        registration_token_hash: None,
         client_name: request.name.clone(),
         redirect_uris: request.redirect_uris.clone(),
         grant_types: Some(vec![

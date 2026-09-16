@@ -78,6 +78,7 @@ fn ensure_config() {
             content_negotiation: ContentNegotiationConfig::default(),
             security_headers: SecurityHeadersConfig::default(),
             allow_registration: false,
+            allow_dynamic_client_registration: true,
             login_page_url: None,
         });
     });
@@ -538,7 +539,8 @@ async fn seed_client_for_owner(
     repo.create(CreateClientParams {
         client_id: client_id.clone(),
         owner_user_id: user.clone(),
-        client_secret_hash: secret_hash,
+        client_secret_hash: Some(secret_hash),
+        registration_token_hash: None,
         client_name: "test-client-cc".to_owned(),
         redirect_uris: vec![TEST_REDIRECT_URI.to_owned()],
         grant_types: Some(vec!["client_credentials".to_owned()]),

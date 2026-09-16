@@ -12,8 +12,8 @@ use super::response_builder::{
     convert_form_to_query, generate_webauthn_form, is_user_consent_granted,
 };
 use super::validation::{
-    RegisteredRedirect, SelfOrigins, resolve_registered_redirect, validate_authorize_request,
-    validate_oauth_parameters,
+    RegisteredRedirect, SelfOrigins, ValidatedAuthorizeRequest, resolve_registered_redirect,
+    validate_authorize_request, validate_oauth_parameters,
 };
 use super::{AuthorizeQuery, AuthorizeRequest};
 use crate::routes::oauth::OAuthHttpError;
@@ -156,7 +156,7 @@ async fn render_webauthn_form(
     repo: &OAuthRepository,
     params: &AuthorizeQuery,
     csrf_token: &CsrfToken,
-    resolved_scope: &str,
+    validated: &ValidatedAuthorizeRequest,
 ) -> Result<Response, OAuthHttpError> {
     let form_state = match same_origin_return_path(csrf_token.as_str()) {
         Some(return_to) => issue_server_state(repo, &return_to, params).await?,
@@ -164,7 +164,7 @@ async fn render_webauthn_form(
     };
     let mut form_params = params.clone();
     form_params.state = Some(form_state);
-    let webauthn_form = generate_webauthn_form(&form_params, resolved_scope);
+    let webauthn_form = generate_webauthn_form(&form_params, validated);
     Ok(Html(webauthn_form).into_response())
 }
 
@@ -204,10 +204,10 @@ pub async fn handle_authorize_get(
     }
 
     match validate_authorize_request(&state, &params, &repo).await {
-        Ok(resolved_scope) => {
+        Ok(validated) => {
             tracing::info!(
                 client_id = %params.client_id,
-                resolved_scopes = %resolved_scope,
+                resolved_scopes = %validated.scope,
                 redirect_uri = ?params.redirect_uri,
                 state = ?params.state,
                 "Authorization request validated"
@@ -217,7 +217,7 @@ pub async fn handle_authorize_get(
                 return Ok(redirect);
             }
 
-            render_webauthn_form(&repo, &params, &csrf_token, &resolved_scope).await
+            render_webauthn_form(&repo, &params, &csrf_token, &validated).await
         },
         Err(error) => {
             tracing::info!(

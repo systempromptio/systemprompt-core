@@ -8,6 +8,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::error::{OauthError, OauthResult};
+use crate::models::TokenAuthMethod;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::ClientId;
@@ -31,7 +32,8 @@ pub struct DynamicRegistrationRequest {
 #[derive(Debug, Serialize)]
 pub struct DynamicRegistrationResponse {
     pub client_id: ClientId,
-    pub client_secret: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub client_secret: Option<String>,
     pub client_name: String,
     pub redirect_uris: Vec<String>,
     pub grant_types: Vec<String>,
@@ -49,7 +51,8 @@ pub struct DynamicRegistrationResponse {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub contacts: Option<Vec<String>>,
 
-    pub client_secret_expires_at: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub client_secret_expires_at: Option<u64>,
 
     #[serde(with = "chrono::serde::ts_seconds")]
     pub client_id_issued_at: DateTime<Utc>,
@@ -103,12 +106,15 @@ impl DynamicRegistrationRequest {
         })
     }
 
-    pub fn get_token_endpoint_auth_method(&self) -> String {
-        self.token_endpoint_auth_method
-            .as_ref()
-            .filter(|m| !m.is_empty())
-            .cloned()
-            .unwrap_or_else(|| "client_secret_basic".to_owned())
+    pub fn get_token_endpoint_auth_method(&self) -> OauthResult<TokenAuthMethod> {
+        match self.token_endpoint_auth_method.as_deref() {
+            None | Some("") => Ok(TokenAuthMethod::ClientSecretBasic),
+            Some(method) => method.parse::<TokenAuthMethod>().map_err(|_e| {
+                OauthError::Validation(format!(
+                    "token_endpoint_auth_method must be one of none, client_secret_post,                      client_secret_basic, got {method:?}"
+                ))
+            }),
+        }
     }
 
     pub fn get_application_type(&self) -> OauthResult<String> {

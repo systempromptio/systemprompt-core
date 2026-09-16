@@ -1,14 +1,29 @@
 # Changelog
 
-## [Unreleased]
+## [0.54.0] - 2026-09-16
 
 ### Breaking
 
+- **OAuth:** `DynamicRegistrationRequest::get_token_endpoint_auth_method` returns `OauthResult<TokenAuthMethod>` (only `none`, `client_secret_post`, `client_secret_basic`); `DynamicRegistrationResponse::client_secret` and `client_secret_expires_at` are `Option`; `CreateClientParams::client_secret_hash` is `Option<String>` and the struct gains `registration_token_hash: Option<String>`; `validate_client_credentials` returns the authenticated `OAuthClient`. Migrate by wrapping the hash in `Some` and passing `registration_token_hash: None` for admin-provisioned clients.
 - **AI:** `AiRequestRecord::builder` and `AiRequestRecordBuilder::new` take a fourth argument, `RequestOrigin` (client kind + inbound wire protocol); a producer that does not name its origin does not compile. `GatewayRequestContext.wire_protocol: String` is replaced by `origin: RequestOrigin`, and `InboundAdapter::wire_name` is a provided method over the new required `wire() -> InboundWireProtocol`.
 
 ### Added
 
+- **OAuth:** `security.allow_dynamic_client_registration` (default `true`) closes RFC 7591 registration: `POST /oauth/register` answers 403 `access_denied` and discovery omits `registration_endpoint`.
+- **OAuth:** registration policy for self-registered clients — `redirect_uris` must be `https://`, loopback `http://`, or (for `application_type: native`) a private-use scheme; fragments and script schemes are refused; `client_uri` / `logo_uri` must be `http(s)`; the `admin` scope cannot be self-registered; a `none` client is issued no secret. `OAuthRepository::validate_scopes_for_registration` and `validate_scopes_for_client` carry the policy.
+- **OAuth:** the RFC 7592 registration access token is stored as a SHA-256 digest (`oauth_clients.registration_token_hash`, migration `016`) and is the sole credential for `GET/PUT/DELETE /oauth/register/{client_id}`, which move to the public router; a foreign or admin-provisioned client answers 401.
+- **OAuth:** `/oauth/token` reads `client_secret_basic` credentials from the `Authorization: Basic` header (RFC 6749 §2.3.1); credentials supplied in both the header and the body are refused.
+- **OAuth:** loopback redirect URIs match on any port at `/authorize`, `/webauthn/complete` and `/token` (RFC 8252 §7.3).
 - **AI:** every `ai_requests` row records `client_kind` (`claude-code`, `claude-desktop`, `codex`, `opencode`, `hermes`, `other`, `internal`, `unknown`) and `wire_protocol` (`anthropic.messages`, `openai.chat`, `openai.responses`, `internal`, `unknown`) as `NOT NULL` CHECK-constrained columns (migration `026_ai_requests_client_origin`, backfilled from the retained request body where it survives). `systemprompt_models::wire::origin::ClientKind::from_user_agent_and_body` is the one classifier the bridge and the gateway share. `infra logs request list` shows the client.
+
+### Changed
+
+- **OAuth:** the passkey consent page names the registered client (`client_name`, website, redirect host) and requires an explicit **Authorize** click after the ceremony; **Cancel** posts `user_consent=deny` and returns `access_denied` to the registered redirect URI.
+- **OAuth:** `/authorize` intersects the requested scope with the client's registered scopes; `/webauthn/complete` re-validates the client, redirect URI, scope and PKCE (S256 required) before minting a code; a public client must echo `redirect_uri` at `/token`.
+
+### Fixed
+
+- **AI:** `ClientKind::OpenCode` serialises as `opencode`, matching the `ai_requests.client_kind` CHECK constraint.
 
 ## [0.53.0] - 2026-09-15
 

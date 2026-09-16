@@ -65,6 +65,7 @@ fn test_config() -> Config {
         content_negotiation: ContentNegotiationConfig::default(),
         security_headers: SecurityHeadersConfig::default(),
         allow_registration: false,
+        allow_dynamic_client_registration: true,
         login_page_url: None,
     }
 }
@@ -210,6 +211,24 @@ async fn well_known_advertises_the_id_jag_grant_profile() -> anyhow::Result<()> 
             .iter()
             .any(|g| g == "urn:ietf:params:oauth:grant-type:jwt-bearer"),
         "the ID-JAG redemption grant must be advertised: {body}"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn well_known_advertises_registration_while_dcr_is_open() -> anyhow::Result<()> {
+    let app = discovery_app().await?;
+    let resp = app
+        .oneshot(empty_get("/.well-known/openid-configuration"))
+        .await?;
+    let (status, body) = body_to_string(resp).await?;
+    assert!(status.is_success(), "{status}");
+    let json: serde_json::Value = serde_json::from_str(&body)?;
+    assert!(
+        json["registration_endpoint"]
+            .as_str()
+            .is_some_and(|e| e.ends_with("/api/v1/core/oauth/register")),
+        "{json}"
     );
     Ok(())
 }

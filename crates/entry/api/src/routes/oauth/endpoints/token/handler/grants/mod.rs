@@ -48,9 +48,19 @@ pub(super) async fn handle_authorization_code_grant(
             })?
     };
 
-    validate_client_credentials(&repo, &client_id, request.client_secret.as_deref())
+    let client = validate_client_credentials(&repo, &client_id, request.client_secret.as_deref())
         .await
         .map_err(|_e| TokenError::InvalidClientSecret)?;
+
+    // Why: RFC 6749 §4.1.3 — a public client has no secret binding the code
+    // to it, so the redirect_uri echo is the only proof it is the same party
+    // that started the flow; it may not be omitted to skip the comparison.
+    if client.token_endpoint_auth_method == "none" && request.redirect_uri.is_none() {
+        return Err(TokenError::InvalidRequest {
+            field: "redirect_uri".to_owned(),
+            message: "required for public clients".to_owned(),
+        });
+    }
 
     let validation_result = validate_authorization_code(AuthCodeValidationParams {
         repo: &repo,

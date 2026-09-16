@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.54.0] - 2026-09-16
+
+### Breaking
+
+- **Breaking:** `DynamicRegistrationRequest::get_token_endpoint_auth_method` returns `OauthResult<TokenAuthMethod>`; `DynamicRegistrationResponse::client_secret` / `client_secret_expires_at` are `Option`; `CreateClientParams::client_secret_hash` is `Option<String>` and the struct gains `registration_token_hash`; `validate_client_credentials` returns the `OAuthClient`. Migrate by wrapping the hash in `Some` and passing `registration_token_hash: None`.
+
+### Added
+
+- `services::validation::validate_registration_redirect_uris` and `validate_client_metadata_uri` (RFC 7591 redirect and metadata URI policy), `OAuthRepository::validate_scopes_for_registration` / `validate_scopes_for_client`, and `services::registration_token` (`generate_registration_token`, `hash_registration_token`, `verify_registration_token`) with `OAuthRepository::find_registration_token_hash` over the new `oauth_clients.registration_token_hash` column (migration `016_oauth_client_registration_token`).
+- `validate_redirect_uri` matches a registered loopback `http://` redirect on any port (RFC 8252 §7.3).
+
+### Changed
+
+- The passkey consent template shows `client_name`, the client website and the redirect host, and separates signing in from an explicit Authorize / Cancel decision.
+
 ## [0.53.0] - 2026-09-15
 
 ### Breaking

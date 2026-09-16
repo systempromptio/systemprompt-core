@@ -183,6 +183,7 @@ fn build_config(
         content_negotiation: profile.server.content_negotiation.clone(),
         security_headers: profile.server.security_headers.clone(),
         allow_registration: profile.security.allow_registration,
+        allow_dynamic_client_registration: profile.security.allow_dynamic_client_registration,
         login_page_url: profile.security.login_page_url.clone(),
         system_admin_username,
         system_admin_email: profile.system_admin.email.clone(),

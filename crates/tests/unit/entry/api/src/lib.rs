@@ -15,7 +15,7 @@
 #[cfg(test)]
 mod messaging_helpers;
 #[cfg(test)]
-mod middleware;
+pub(crate) mod middleware;
 #[cfg(test)]
 mod probes;
 #[cfg(test)]

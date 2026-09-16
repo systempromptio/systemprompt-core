@@ -31,7 +31,8 @@ fn create_params(
     CreateClientParams {
         client_id: client_id.clone(),
         owner_user_id: owner.clone(),
-        client_secret_hash: "hash-placeholder".to_owned(),
+        client_secret_hash: Some("hash-placeholder".to_owned()),
+        registration_token_hash: None,
         client_name: "crud-client".to_owned(),
         redirect_uris: vec![
             "https://app.invalid/cb".to_owned(),

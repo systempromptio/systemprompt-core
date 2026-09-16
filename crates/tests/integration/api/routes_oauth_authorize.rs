@@ -76,6 +76,7 @@ fn ensure_config() {
             content_negotiation: ContentNegotiationConfig::default(),
             security_headers: SecurityHeadersConfig::default(),
             allow_registration: false,
+            allow_dynamic_client_registration: true,
             login_page_url: None,
         });
     });
@@ -175,7 +176,60 @@ async fn authorize_get_valid_request_renders_webauthn_form() -> anyhow::Result<(
     let resp = app.oneshot(empty_get(&uri)).await?;
     assert_eq!(resp.status(), StatusCode::OK, "{}", resp.status());
     let bytes = to_bytes(resp.into_body(), 1024 * 1024).await?;
-    assert!(!bytes.is_empty(), "empty webauthn form");
+    let html = String::from_utf8_lossy(&bytes);
+    assert!(
+        html.contains("<strong id=\"client-name\">test-client</strong>"),
+        "consent page must name the registered client, not just its id: {html}"
+    );
+    assert!(
+        html.contains(client.client_id.as_str()),
+        "client id still shown for auditability"
+    );
+    assert!(
+        html.contains("http://127.0.0.1"),
+        "redirect destination must be shown"
+    );
+    assert!(
+        html.contains("id=\"authorize-btn\"")
+            && html.contains("name=\"user_consent\" value=\"deny\""),
+        "explicit authorize/cancel step missing: {html}"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn authorize_get_scope_outside_client_registration_is_refused() -> anyhow::Result<()> {
+    let client = seeded_client().await?;
+    let app = authorize_app().await?;
+    let uri = format!(
+        "/authorize?response_type=code&client_id={}&redirect_uri={}&scope=admin&state={}&code_challenge={}&code_challenge_method=S256",
+        client.client_id.as_str(),
+        enc("http://127.0.0.1/callback"),
+        VALID_STATE,
+        VALID_CHALLENGE,
+    );
+    let resp = app.oneshot(empty_get(&uri)).await?;
+    let status = resp.status();
+    assert!(
+        !status.is_success(),
+        "a scope the client never registered must not reach consent: {status}"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn authorize_get_loopback_redirect_matches_any_port() -> anyhow::Result<()> {
+    let client = seeded_client().await?;
+    let app = authorize_app().await?;
+    let uri = format!(
+        "/authorize?response_type=code&client_id={}&redirect_uri={}&scope=user&state={}&code_challenge={}&code_challenge_method=S256",
+        client.client_id.as_str(),
+        enc("http://127.0.0.1:53281/callback"),
+        VALID_STATE,
+        VALID_CHALLENGE,
+    );
+    let resp = app.oneshot(empty_get(&uri)).await?;
+    assert_eq!(resp.status(), StatusCode::OK, "{}", resp.status());
     Ok(())
 }
 

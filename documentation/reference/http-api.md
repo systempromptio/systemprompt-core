@@ -113,10 +113,10 @@ Base path `/api/v1/core/oauth` (`crates/entry/api/src/routes/oauth/core.rs`). OA
 | GET | `/api/v1/core/oauth/userinfo` | User | OIDC userinfo. |
 | GET | `/api/v1/core/oauth/consent` | User | Render consent state. |
 | POST | `/api/v1/core/oauth/consent` | User | Submit consent decision. |
-| POST | `/api/v1/core/oauth/register` | User | Dynamic client registration (RFC 7591). |
-| GET | `/api/v1/core/oauth/register/{client_id}` | User | Read a registered client. |
-| PUT | `/api/v1/core/oauth/register/{client_id}` | User | Update a registered client. |
-| DELETE | `/api/v1/core/oauth/register/{client_id}` | User | Delete a registered client. |
+| POST | `/api/v1/core/oauth/register` | Public | Dynamic client registration (RFC 7591). Closed by `security.allow_dynamic_client_registration: false` (403; discovery then omits `registration_endpoint`). |
+| GET | `/api/v1/core/oauth/register/{client_id}` | Registration token | Read a registered client (RFC 7592; `Authorization: Bearer <registration_access_token>`). |
+| PUT | `/api/v1/core/oauth/register/{client_id}` | Registration token | Update a registered client. |
+| DELETE | `/api/v1/core/oauth/register/{client_id}` | Registration token | Delete a registered client. |
 | * | `/api/v1/core/oauth/clients/*` | User | Client management subtree. |
 
 ### Well-known documents

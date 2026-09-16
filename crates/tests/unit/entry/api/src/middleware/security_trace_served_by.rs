@@ -1,6 +1,10 @@
 //! Tests for `inject_security_headers`, `inject_trace_header`, and
 //! `inject_served_by` — all stateless `axum::middleware::from_fn` middlewares
 //! that mutate the outgoing response.
+//!
+//! This binary's one-shot `Config` is installed here with
+//! `allow_dynamic_client_registration: false`; `routes::oauth::dcr_disabled`
+//! relies on that to drive the closed-registration paths.
 
 use std::sync::Once;
 
@@ -17,13 +21,13 @@ use tower::ServiceExt;
 
 static CONFIG_INSTALL: Once = Once::new();
 
-fn ensure_config() {
+pub(crate) fn ensure_config() {
     CONFIG_INSTALL.call_once(|| {
         let _ = Config::install(test_config());
     });
 }
 
-fn test_config() -> Config {
+pub(crate) fn test_config() -> Config {
     Config {
         instance_id: "unit-test-instance".to_string(),
         metrics_port: None,
@@ -67,6 +71,7 @@ fn test_config() -> Config {
         content_negotiation: ContentNegotiationConfig::default(),
         security_headers: SecurityHeadersConfig::default(),
         allow_registration: false,
+        allow_dynamic_client_registration: false,
         login_page_url: None,
     }
 }

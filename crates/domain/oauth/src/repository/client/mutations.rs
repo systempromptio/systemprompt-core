@@ -19,7 +19,7 @@ fn build_created_client(
 ) -> OAuthClient {
     let row = OAuthClientRow {
         client_id: ClientId::new(params.client_id.as_str()),
-        client_secret_hash: Some(params.client_secret_hash),
+        client_secret_hash: params.client_secret_hash,
         client_name: params.client_name,
         name: None,
         token_endpoint_auth_method: Some(auth_method),
@@ -44,6 +44,13 @@ fn build_created_client(
     OAuthClient::from_row_with_relations(row, relations)
 }
 
+fn default_grant_types() -> Vec<String> {
+    crate::models::GrantType::default_grant_types()
+        .iter()
+        .map(|s| (*s).to_owned())
+        .collect()
+}
+
 impl ClientRepository {
     pub async fn create(&self, params: CreateClientParams) -> Result<OAuthClient> {
         let auth_method = params
@@ -52,10 +59,7 @@ impl ClientRepository {
             .unwrap_or_else(|| TokenAuthMethod::default().as_str().to_owned());
         let now = Utc::now();
 
-        let default_grant_types: Vec<String> = crate::models::GrantType::default_grant_types()
-            .iter()
-            .map(|s| (*s).to_owned())
-            .collect();
+        let default_grant_types = default_grant_types();
         let default_response_types = vec![crate::models::ResponseType::Code.to_string()];
 
         let grant_types_list = params
@@ -74,8 +78,9 @@ impl ClientRepository {
                 INSERT INTO oauth_clients (client_id, client_secret_hash, client_name,
                                            token_endpoint_auth_method, application_type,
                                            client_uri, logo_uri,
-                                           is_active, created_at, updated_at, owner_user_id)
-                VALUES ($1, $2, $3, $4, $14, $5, $6, true, $7, $7, $13)
+                                           is_active, created_at, updated_at, owner_user_id,
+                                           registration_token_hash)
+                VALUES ($1, $2, $3, $4, $14, $5, $6, true, $7, $7, $13, $15)
             ),
             new_uris AS (
                 INSERT INTO oauth_client_redirect_uris (client_id, redirect_uri, is_primary)
@@ -112,6 +117,7 @@ impl ClientRepository {
             contacts_list,
             params.owner_user_id.as_str(),
             params.application_type,
+            params.registration_token_hash,
         )
         .execute(&*self.write_pool)
         .await?;

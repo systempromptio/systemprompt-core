@@ -1,15 +1,42 @@
 //! OAuth scope helpers.
 //!
+//! The scope table carries two policy bits: whether a scope is granted by
+//! default, and whether a self-registering (RFC 7591) client may ask for it.
+//! `admin` is never self-registrable; an operator grants it through the
+//! admin client API.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use super::OAuthRepository;
 use crate::error::{OauthError, OauthResult};
 
-const VALID_SCOPES: &[(&str, &str, bool)] = &[
-    ("user", "Standard user access", true),
-    ("admin", "Administrative access", false),
-    ("anonymous", "Anonymous user access", false),
+struct ScopeDefinition {
+    name: &'static str,
+    description: &'static str,
+    is_default: bool,
+    self_registrable: bool,
+}
+
+const VALID_SCOPES: &[ScopeDefinition] = &[
+    ScopeDefinition {
+        name: "user",
+        description: "Standard user access",
+        is_default: true,
+        self_registrable: true,
+    },
+    ScopeDefinition {
+        name: "admin",
+        description: "Administrative access",
+        is_default: false,
+        self_registrable: false,
+    },
+    ScopeDefinition {
+        name: "anonymous",
+        description: "Anonymous user access",
+        is_default: false,
+        self_registrable: true,
+    },
 ];
 
 impl OAuthRepository {
@@ -39,15 +66,59 @@ impl OAuthRepository {
         Ok(valid_scopes)
     }
 
+    pub fn validate_scopes_for_registration(
+        requested_scopes: &[String],
+    ) -> OauthResult<Vec<String>> {
+        let valid = Self::validate_scopes(requested_scopes)?;
+        let refused: Vec<&str> = valid
+            .iter()
+            .map(String::as_str)
+            .filter(|scope| {
+                !VALID_SCOPES
+                    .iter()
+                    .any(|def| def.name == *scope && def.self_registrable)
+            })
+            .collect();
+
+        if !refused.is_empty() {
+            return Err(OauthError::Validation(format!(
+                "Scopes not available to self-registered clients: {}",
+                refused.join(", ")
+            )));
+        }
+
+        Ok(valid)
+    }
+
+    pub fn validate_scopes_for_client(
+        client_scopes: &[String],
+        requested_scopes: &[String],
+    ) -> OauthResult<()> {
+        let outside: Vec<&str> = requested_scopes
+            .iter()
+            .map(String::as_str)
+            .filter(|scope| !client_scopes.iter().any(|c| c == scope))
+            .collect();
+
+        if !outside.is_empty() {
+            return Err(OauthError::Validation(format!(
+                "Scopes not registered for this client: {}",
+                outside.join(", ")
+            )));
+        }
+
+        Ok(())
+    }
+
     pub fn get_available_scopes() -> Vec<(String, Option<String>)> {
         VALID_SCOPES
             .iter()
-            .map(|(name, desc, _)| ((*name).to_owned(), Some((*desc).to_owned())))
+            .map(|def| (def.name.to_owned(), Some(def.description.to_owned())))
             .collect()
     }
 
     pub fn scope_exists(scope_name: &str) -> bool {
-        VALID_SCOPES.iter().any(|(name, _, _)| *name == scope_name)
+        VALID_SCOPES.iter().any(|def| def.name == scope_name)
     }
 
     pub fn parse_scopes(scope_string: &str) -> Vec<String> {
@@ -65,8 +136,8 @@ impl OAuthRepository {
     pub fn get_default_roles() -> Vec<String> {
         VALID_SCOPES
             .iter()
-            .filter(|(_, _, is_default)| *is_default)
-            .map(|(name, _, _)| (*name).to_owned())
+            .filter(|def| def.is_default)
+            .map(|def| def.name.to_owned())
             .collect()
     }
 }

@@ -12,6 +12,7 @@ pub mod http;
 pub mod jwt;
 pub mod plugin_token;
 pub mod providers;
+pub mod registration_token;
 pub mod session;
 pub mod templating;
 pub mod validation;
@@ -26,6 +27,10 @@ pub use ema::{EnterprisePrincipal, LinkedSubject, link_enterprise_principal};
 pub use http::is_browser_request;
 pub use jwt::{AuthService, TokenValidator, extract_bearer_token, extract_cookie_token};
 pub use plugin_token::{IssuedPluginToken, PluginTokenService, PluginTokenSubject};
+pub use registration_token::{
+    REGISTRATION_TOKEN_PREFIX, generate_registration_token, hash_registration_token,
+    verify_registration_token,
+};
 pub use session::{
     AnonymousSessionInfo, CreateAnonymousSessionInput, SessionCreationError, SessionCreationService,
 };

@@ -75,13 +75,8 @@ async fn get_consent_info(
         },
     };
 
-    for scope in &requested_scopes {
-        if !client.scopes.contains(scope) {
-            return Err(OAuthHttpError::invalid_scope(format!(
-                "Invalid scope: {scope}"
-            )));
-        }
-    }
+    OAuthRepository::validate_scopes_for_client(&client.scopes, &requested_scopes)
+        .map_err(|e| OAuthHttpError::invalid_scope(e.to_string()))?;
 
     Ok(ConsentResponse {
         client_name: client.client_name,

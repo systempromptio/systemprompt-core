@@ -8608,6 +8608,7 @@ dependencies = [
  "thiserror 2.0.19",
  "tokio",
  "tracing",
+ "url",
  "uuid",
  "validator",
  "webauthn-rs",

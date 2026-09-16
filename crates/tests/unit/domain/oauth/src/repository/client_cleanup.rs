@@ -34,7 +34,8 @@ async fn make_client(ctx: &Ctx) -> ClientId {
         .create(CreateClientParams {
             client_id: client_id.clone(),
             owner_user_id: ctx.owner.clone(),
-            client_secret_hash: "hash".to_owned(),
+            client_secret_hash: Some("hash".to_owned()),
+            registration_token_hash: None,
             client_name: "cleanup".to_owned(),
             redirect_uris: vec!["https://c.invalid/cb".to_owned()],
             grant_types: Some(vec!["authorization_code".to_owned()]),

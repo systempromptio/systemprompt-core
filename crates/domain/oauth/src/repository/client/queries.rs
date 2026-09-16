@@ -137,3 +137,19 @@ impl ClientRepository {
         }
     }
 }
+
+impl ClientRepository {
+    pub async fn find_registration_token_hash(
+        &self,
+        client_id: &ClientId,
+    ) -> Result<Option<String>> {
+        let client_id_str = client_id.as_str();
+        let hash = sqlx::query_scalar!(
+            "SELECT registration_token_hash FROM oauth_clients WHERE client_id = $1",
+            client_id_str
+        )
+        .fetch_optional(&*self.pool)
+        .await?;
+        Ok(hash.flatten())
+    }
+}

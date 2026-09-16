@@ -4,6 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::error::OauthResult as Result;
+use crate::models::OAuthClient;
 use crate::repository::OAuthRepository;
 use crate::services::verify_client_secret;
 use systemprompt_identifiers::ClientId;
@@ -14,7 +15,7 @@ pub async fn validate_client_credentials(
     repo: &OAuthRepository,
     client_id: &ClientId,
     client_secret: Option<&str>,
-) -> Result<()> {
+) -> Result<OAuthClient> {
     let client = repo
         .find_client_by_id(client_id)
         .await?
@@ -24,7 +25,9 @@ pub async fn validate_client_credentials(
         client.token_endpoint_auth_method.as_str(),
         client.client_secret_hash.as_deref(),
         client_secret,
-    )
+    )?;
+
+    Ok(client)
 }
 
 pub fn verify_client_authentication(

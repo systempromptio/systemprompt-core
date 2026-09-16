@@ -6,6 +6,7 @@
 use super::{TokenError, TokenResult};
 use anyhow::Result;
 use systemprompt_identifiers::{AuthorizationCode, ClientId};
+use systemprompt_oauth::models::OAuthClient;
 use systemprompt_oauth::repository::{AuthCodeValidationResult, OAuthRepository};
 use systemprompt_oauth::services::validation::validate_client_credentials as validate_client_credentials_shared;
 
@@ -23,7 +24,7 @@ pub async fn validate_client_credentials(
     repo: &OAuthRepository,
     client_id: &ClientId,
     client_secret: Option<&str>,
-) -> Result<()> {
+) -> Result<OAuthClient> {
     validate_client_credentials_shared(repo, client_id, client_secret)
         .await
         .map_err(Into::into)

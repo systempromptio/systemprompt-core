@@ -67,6 +67,7 @@ fn make_profile() -> Profile {
             audiences: vec![JwtAudience::Api],
             allowed_resource_audiences: vec![],
             allow_registration: true,
+            allow_dynamic_client_registration: true,
             login_page_url: None,
             signing_key_path: PathBuf::from("/tmp/test-signing-key.pem"),
             trusted_issuers: vec![],

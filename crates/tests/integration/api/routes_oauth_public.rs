@@ -5,6 +5,8 @@
 use std::sync::Once;
 
 use axum::Router;
+use axum::body::Body;
+use axum::http::StatusCode;
 use systemprompt_api::routes::oauth::{authenticated_router, public_router};
 use systemprompt_models::Config;
 use systemprompt_models::config::RateLimitConfig;
@@ -67,6 +69,7 @@ fn test_config() -> Config {
         content_negotiation: ContentNegotiationConfig::default(),
         security_headers: SecurityHeadersConfig::default(),
         allow_registration: false,
+        allow_dynamic_client_registration: true,
         login_page_url: None,
     }
 }
@@ -496,5 +499,182 @@ async fn a_blank_scope_string_is_treated_as_no_request() -> anyhow::Result<()> {
         status, 201,
         "whitespace is not a scope request and must not fail registration: {json}"
     );
+    Ok(())
+}
+
+async fn register_body(body: serde_json::Value) -> anyhow::Result<(u16, serde_json::Value)> {
+    let resp = dcr_app()
+        .await?
+        .oneshot(json_post("/register", body))
+        .await?;
+    let status = resp.status().as_u16();
+    let (_, text) = super::common::body_to_string(resp).await?;
+    Ok((
+        status,
+        serde_json::from_str(&text).unwrap_or(serde_json::Value::String(text)),
+    ))
+}
+
+#[tokio::test]
+async fn self_registration_cannot_claim_admin_scope() -> anyhow::Result<()> {
+    let (status, json) = register_with(Some("user admin")).await?;
+    assert_eq!(status, 400, "{json}");
+    assert!(json.to_string().contains("admin"), "{json}");
+    Ok(())
+}
+
+#[tokio::test]
+async fn web_client_with_https_redirect_registers() -> anyhow::Result<()> {
+    let (status, json) = register_body(serde_json::json!({
+        "client_name": "probe-alpha",
+        "redirect_uris": ["https://attacker-alpha1.example.com/cb"],
+    }))
+    .await?;
+    assert_eq!(status, 201, "{json}");
+    assert!(
+        json["client_id"]
+            .as_str()
+            .is_some_and(|id| id.starts_with("client_")),
+        "{json}"
+    );
+    assert!(
+        json["registration_access_token"]
+            .as_str()
+            .is_some_and(|t| t.starts_with("reg_")),
+        "{json}"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn web_client_with_plain_http_remote_redirect_is_refused() -> anyhow::Result<()> {
+    let (status, json) = register_body(serde_json::json!({
+        "client_name": "probe",
+        "redirect_uris": ["http://attacker.example/cb"],
+    }))
+    .await?;
+    assert_eq!(status, 400, "{json}");
+    assert_eq!(
+        json["error"].as_str(),
+        Some("invalid_client_metadata"),
+        "{json}"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn script_scheme_and_fragment_redirects_are_refused() -> anyhow::Result<()> {
+    for uri in ["javascript:alert(1)", "https://app.example/cb#frag"] {
+        let (status, json) = register_body(serde_json::json!({
+            "client_name": "probe",
+            "redirect_uris": [uri],
+        }))
+        .await?;
+        assert_eq!(status, 400, "{uri}: {json}");
+    }
+    Ok(())
+}
+
+#[tokio::test]
+async fn native_client_may_register_a_private_use_scheme() -> anyhow::Result<()> {
+    let (status, json) = register_body(serde_json::json!({
+        "client_name": "desktop",
+        "application_type": "native",
+        "redirect_uris": ["com.example.desktop:/oauth/cb", "http://127.0.0.1/cb"],
+    }))
+    .await?;
+    assert_eq!(status, 201, "{json}");
+    Ok(())
+}
+
+#[tokio::test]
+async fn client_uri_must_be_http() -> anyhow::Result<()> {
+    let (status, json) = register_body(serde_json::json!({
+        "client_name": "probe",
+        "redirect_uris": ["https://app.example/cb"],
+        "client_uri": "javascript:alert(1)",
+    }))
+    .await?;
+    assert_eq!(status, 400, "{json}");
+    assert!(json.to_string().contains("client_uri"), "{json}");
+    Ok(())
+}
+
+#[tokio::test]
+async fn public_client_is_issued_no_secret() -> anyhow::Result<()> {
+    let (status, json) = register_body(serde_json::json!({
+        "client_name": "mcp-remote",
+        "redirect_uris": ["http://127.0.0.1/cb"],
+        "token_endpoint_auth_method": "none",
+    }))
+    .await?;
+    assert_eq!(status, 201, "{json}");
+    assert_eq!(
+        json["token_endpoint_auth_method"].as_str(),
+        Some("none"),
+        "{json}"
+    );
+    assert!(json.get("client_secret").is_none(), "{json}");
+    assert!(json.get("client_secret_expires_at").is_none(), "{json}");
+    Ok(())
+}
+
+#[tokio::test]
+async fn confidential_client_is_issued_a_secret() -> anyhow::Result<()> {
+    let (status, json) = register_body(serde_json::json!({
+        "client_name": "server-app",
+        "redirect_uris": ["https://app.example/cb"],
+        "token_endpoint_auth_method": "client_secret_post",
+    }))
+    .await?;
+    assert_eq!(status, 201, "{json}");
+    assert!(
+        json["client_secret"]
+            .as_str()
+            .is_some_and(|s| !s.is_empty()),
+        "{json}"
+    );
+    assert_eq!(json["client_secret_expires_at"].as_u64(), Some(0), "{json}");
+    Ok(())
+}
+
+#[tokio::test]
+async fn unsupported_auth_method_is_refused() -> anyhow::Result<()> {
+    let (status, json) = register_body(serde_json::json!({
+        "client_name": "probe",
+        "redirect_uris": ["https://app.example/cb"],
+        "token_endpoint_auth_method": "private_key_jwt",
+    }))
+    .await?;
+    assert_eq!(status, 400, "{json}");
+    assert!(json.to_string().contains("private_key_jwt"), "{json}");
+    Ok(())
+}
+
+#[tokio::test]
+async fn registration_token_manages_the_registered_client() -> anyhow::Result<()> {
+    use axum::http::{Request, header};
+
+    let (status, json) = register_body(serde_json::json!({
+        "client_name": "managed",
+        "redirect_uris": ["https://app.example/cb"],
+    }))
+    .await?;
+    assert_eq!(status, 201, "{json}");
+    let client_id = json["client_id"].as_str().expect("client_id").to_owned();
+    let token = json["registration_access_token"]
+        .as_str()
+        .expect("token")
+        .to_owned();
+
+    let get = Request::builder()
+        .uri(format!("/register/{client_id}"))
+        .header(header::AUTHORIZATION, format!("Bearer {token}"))
+        .body(Body::empty())?;
+    let resp = dcr_app().await?.oneshot(get).await?;
+    assert_eq!(resp.status(), StatusCode::OK, "{}", resp.status());
+    let (_, text) = super::common::body_to_string(resp).await?;
+    let v: serde_json::Value = serde_json::from_str(&text)?;
+    assert_eq!(v["client_name"].as_str(), Some("managed"), "{v}");
     Ok(())
 }

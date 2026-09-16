@@ -151,7 +151,8 @@ Validation rejects empty strings and relative paths.
 | `refresh_token_expiration` | `jwt_refresh_token_expiration` | i64 (seconds) | yes | — | Refresh token lifetime. |
 | `audiences` | `jwt_audiences` | list of audience | yes | — | Accepted JWT audiences. Each entry is one of `web`, `api`, `a2a`, `mcp`, `internal`, `bridge`, `hook`, or an arbitrary resource string (`auth/enums.rs:10`). |
 | `allowed_resource_audiences` | `allowed_resource_audiences` | list of string | no | `[]` | Additional resource audience identifiers permitted. |
-| `allow_registration` | `allow_registration` | bool | no | `true` | Whether self-service OAuth client/user registration is open. |
+| `allow_registration` | `allow_registration` | bool | no | `true` | Whether self-service passkey (user) registration is open. |
+| `allow_dynamic_client_registration` | `allow_dynamic_client_registration` | bool | no | `true` | Whether RFC 7591 dynamic client registration is open. Remote MCP clients depend on it; set `false` only when clients are pre-provisioned. |
 | `signing_key_path` | `signing_key_path` | path | no | `signing_key.pem` | Path to the RS256 signing key (PEM). |
 | `trusted_issuers` | `trusted_issuers` | list of object | no | `[]` | Federated issuers accepted in addition to `jwt_issuer`. |
 
