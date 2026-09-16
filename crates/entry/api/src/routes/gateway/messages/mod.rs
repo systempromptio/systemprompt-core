@@ -25,7 +25,7 @@ use std::sync::Arc;
 use systemprompt_identifiers::AiRequestId;
 use systemprompt_loader::ServicesBootstrap;
 use systemprompt_models::services::ServicesConfig;
-use systemprompt_models::wire::origin::{ClientKind, RequestOrigin};
+use systemprompt_models::wire::origin::RequestOrigin;
 use systemprompt_runtime::AppContext;
 
 use crate::services::gateway::audit::GatewayAccessLog;
@@ -55,14 +55,9 @@ pub async fn handle(
     let ai_request_id = AiRequestId::generate();
     // Why: the origin is fixed before anything can reject, so every persisted
     // row — admitted or rejected — carries its client and wire protocol.
-    let user_agent = request
-        .headers()
-        .get(http::header::USER_AGENT)
-        .and_then(|value| value.to_str().ok());
-    let mut partial = RejectionPartial::new(RequestOrigin::gateway(
-        ClientKind::from_user_agent_and_body(user_agent, &[]),
-        inbound.wire(),
-    ));
+    let (client, attestation) = extract::attribution::entry_origin(request.headers());
+    let mut partial =
+        RejectionPartial::new(RequestOrigin::gateway(client, inbound.wire(), attestation));
     let inner = HandleInner {
         inbound: Arc::clone(&inbound),
         jwt_extractor: &jwt_extractor,
@@ -84,6 +79,7 @@ pub async fn handle(
                 ai_request_id = %ai_request_id,
                 wire = inbound.wire_name(),
                 client_kind = partial.origin.client.as_str(),
+                client_attestation = partial.origin.attestation.as_str(),
                 "Gateway request rejected",
             );
             if persist {

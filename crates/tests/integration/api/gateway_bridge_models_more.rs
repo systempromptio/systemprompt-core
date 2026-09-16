@@ -31,7 +31,9 @@ use systemprompt_test_fixtures::{install_test_signing_key, seed_admin_credential
 use tower::ServiceExt;
 
 use super::common::setup_ctx;
-use systemprompt_models::wire::origin::{ClientKind, InboundWireProtocol, RequestOrigin};
+use systemprompt_models::wire::origin::{
+    ClientAttestation, ClientEvidence, ClientKind, InboundWireProtocol, RequestOrigin,
+};
 use systemprompt_security::policy::types::AccessScope;
 
 fn gateway_journal() -> systemprompt_api::services::gateway::audit::journal::GatewayJournal {
@@ -214,7 +216,12 @@ fn gateway_ctx(id: &AiRequestId, user: &UserId, upstream_model: &str) -> Gateway
         model: upstream_model.to_owned(),
         max_tokens: Some(64),
         is_streaming: false,
-        origin: RequestOrigin::gateway(ClientKind::Other, InboundWireProtocol::AnthropicMessages),
+        origin: RequestOrigin::gateway(
+            ClientKind::Other,
+            InboundWireProtocol::AnthropicMessages,
+            ClientAttestation::None,
+        ),
+        evidence: ClientEvidence::none(),
         access_log: None,
     }
 }

@@ -21,14 +21,14 @@ pub(super) fn cmd_credential_helper(ctx: &BridgeContext, args: &[String]) -> Exi
         return ExitCode::from(64);
     };
 
-    match host.as_str() {
-        "codex-cli" | "claude-code" => emit_host_token(ctx, &crate::ids::HostId::new(host)),
-        "claude-desktop" => emit_claude_via_chain(ctx),
-        other => {
-            stdio::eprint_line(&error_json(&format!("unknown host id: {other}")));
-            ExitCode::from(64)
-        },
+    if host == "claude-desktop" {
+        return emit_claude_via_chain(ctx);
     }
+    if systemprompt_models::bridge::profile::KNOWN_HOSTS.contains(&host.as_str()) {
+        return emit_host_token(ctx, &crate::ids::HostId::new(host));
+    }
+    stdio::eprint_line(&error_json(&format!("unknown host id: {host}")));
+    ExitCode::from(64)
 }
 
 fn emit_claude_via_chain(ctx: &BridgeContext) -> ExitCode {

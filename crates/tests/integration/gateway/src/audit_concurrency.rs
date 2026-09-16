@@ -6,7 +6,9 @@ use systemprompt_api::services::gateway::{
 use systemprompt_identifiers::{AiRequestId, ContextId, GatewayConversationId};
 
 use crate::support::{minimal_request, seed_user, setup_db};
-use systemprompt_models::wire::origin::{ClientKind, InboundWireProtocol, RequestOrigin};
+use systemprompt_models::wire::origin::{
+    ClientAttestation, ClientEvidence, ClientKind, InboundWireProtocol, RequestOrigin,
+};
 use systemprompt_security::policy::types::AccessScope;
 
 fn gateway_journal() -> systemprompt_api::services::gateway::audit::journal::GatewayJournal {
@@ -65,7 +67,9 @@ async fn gateway_audit_open_is_atomic_under_concurrent_same_request_id() {
             origin: RequestOrigin::gateway(
                 ClientKind::Other,
                 InboundWireProtocol::AnthropicMessages,
+                ClientAttestation::None,
             ),
+            evidence: ClientEvidence::none(),
             access_log: None,
         };
         let req_clone = request.clone();
@@ -146,7 +150,12 @@ async fn gateway_audit_open_persists_derived_context_id() {
         model: "claude-test".to_string(),
         max_tokens: Some(16),
         is_streaming: false,
-        origin: RequestOrigin::gateway(ClientKind::Other, InboundWireProtocol::AnthropicMessages),
+        origin: RequestOrigin::gateway(
+            ClientKind::Other,
+            InboundWireProtocol::AnthropicMessages,
+            ClientAttestation::None,
+        ),
+        evidence: ClientEvidence::none(),
         access_log: None,
     };
     let audit = GatewayAudit::new(&gateway_repos(&db), ctx);

@@ -87,6 +87,9 @@ impl GatewayAudit {
         self.requests
             .insert_with_id(&self.ctx.ai_request_id, &record)
             .await?;
+        self.client_evidence
+            .upsert(&self.ctx.ai_request_id, &self.ctx.evidence)
+            .await?;
 
         let capture = slice_payload(request_body);
         self.payloads

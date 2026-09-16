@@ -84,6 +84,16 @@ fn take_api_key_marker(source: &mut Value) -> Option<String> {
     }
 }
 
+pub(super) fn installed_key_fingerprint(path: &std::path::Path) -> Option<String> {
+    let existing = std::fs::read_to_string(path).ok()?;
+    let prefix = format!("{}=", config::ENV_API_KEY);
+    let value = existing
+        .lines()
+        .find_map(|line| line.trim_start().strip_prefix(&prefix))?
+        .trim();
+    Some(crate::proxy::secret::fingerprint(value))
+}
+
 fn write_env_key(path: &std::path::Path, key: &str, value: &str) -> std::io::Result<()> {
     let existing = match std::fs::read_to_string(path) {
         Ok(s) => s,

@@ -24,14 +24,14 @@ use crate::proxy::{keepalive, usage};
 
 mod body;
 mod error;
-mod headers;
+pub mod headers;
 pub mod replay;
 mod route;
 
 use body::prepare_upstream_body;
 pub use body::{CHAT_COMPLETIONS_PATH, stamp_opencode_session};
 pub use error::{ForwardError, ForwardResult, is_client_disconnect};
-use headers::{build_upstream_headers, copy_response_headers};
+use headers::{UpstreamHeaderInputs, build_upstream_headers, copy_response_headers};
 pub use replay::{Replay, describe, replay_policy, should_replay};
 use replay::{UpstreamRequest, send_with_replay};
 use route::{Route, RouteResolution, resolve_route, same_origin_as};
@@ -87,15 +87,19 @@ pub(crate) async fn forward(
     let request_path = parts.uri.path().to_owned();
 
     let mut hook_plugin = None;
+    let mut attest = None;
     let (route, upstream_bearer) = match resolve_route(&parts.uri, gateway_base, &mcp_registry) {
         RouteResolution::Unavailable(reason) => return Err(ForwardError::Routing(reason)),
-        RouteResolution::Gateway(url) => (
-            Route {
-                url,
-                extra_headers: BTreeMap::new(),
-            },
-            token.token.expose().to_owned(),
-        ),
+        RouteResolution::Gateway(url) => {
+            attest = Some(&credential);
+            (
+                Route {
+                    url,
+                    extra_headers: BTreeMap::new(),
+                },
+                token.token.expose().to_owned(),
+            )
+        },
         RouteResolution::Mcp(route) => (route, token.token.expose().to_owned()),
         RouteResolution::Hook { url, plugin_id } => {
             require_hook_credential(&credential, plugin_id.as_str())?;
@@ -133,19 +137,21 @@ pub(crate) async fn forward(
     let (buffered_body, gateway_conversation_id) =
         prepare_upstream_body(body, session_context, &parts.headers, &request_path).await?;
 
-    if let Err(error) = session_context
-        .native_sessions()
-        .observe(&parts.headers, &buffered_body)
+    if let Err(error) =
+        session_context
+            .native_sessions()
+            .observe(&credential, &parts.headers, &buffered_body)
     {
         tracing::warn!(%error, "Native session could not be recorded for binding");
     }
-    let mut upstream_headers = build_upstream_headers(
-        &parts.headers,
-        &upstream_bearer,
-        session_context.session_id(),
-        gateway_conversation_id.as_ref(),
-        &route.extra_headers,
-    )?;
+    let mut upstream_headers = build_upstream_headers(&UpstreamHeaderInputs {
+        src: &parts.headers,
+        bearer: &upstream_bearer,
+        session_id: session_context.session_id(),
+        gateway_conversation_id: gateway_conversation_id.as_ref(),
+        extra: &route.extra_headers,
+        attest,
+    })?;
 
     headers::ensure_ingestion_delivery_id(&request_path, &mut upstream_headers)?;
     if hook_plugin.is_some() && request_path == "/api/public/hooks/track" {

@@ -60,6 +60,21 @@ pub async fn handle(
         .await
         .map_err(|e| (StatusCode::UNAUTHORIZED, e.to_string()))?;
 
+    // Why: client attestation joins ai_requests.session_id to the bridge
+    // session it was reported under; a heartbeat that names another session
+    // would let one bridge vouch for traffic it never carried.
+    if claims.session_id.as_str() != payload.session_id.as_str() {
+        tracing::warn!(
+            claimed_session = %claims.session_id,
+            reported_session = %payload.session_id,
+            "bridge heartbeat session does not match the token session; rejecting",
+        );
+        return Err((
+            StatusCode::UNAUTHORIZED,
+            "heartbeat session_id must match the authenticated session".to_owned(),
+        ));
+    }
+
     let repo = &ctx.oauth_repositories().bridge_sessions;
 
     let floor = min_bridge_version();

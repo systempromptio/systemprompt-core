@@ -35,7 +35,9 @@ use wiremock::{Mock, MockServer, ResponseTemplate};
 #[path = "support/native_live_setup.rs"]
 mod native_live_setup;
 use systemprompt_evaluation::repository::experiments::ExecutionCapabilityRepository;
-use systemprompt_models::wire::origin::{ClientKind, InboundWireProtocol, RequestOrigin};
+use systemprompt_models::wire::origin::{
+    ClientAttestation, ClientEvidence, ClientKind, InboundWireProtocol, RequestOrigin,
+};
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt};
 fn wire(
     route: &str,
@@ -357,7 +359,8 @@ async fn dispatch(
         model: request.model.as_str().to_owned(),
         max_tokens: Some(request.max_tokens),
         is_streaming: request.stream,
-        origin: RequestOrigin::gateway(ClientKind::Other, inbound.wire()),
+        origin: RequestOrigin::gateway(ClientKind::Other, inbound.wire(), ClientAttestation::None),
+        evidence: ClientEvidence::none(),
         access_log: None,
     };
     let response = GatewayService::dispatch(
@@ -461,7 +464,9 @@ async fn verify_accounting_failure(
             origin: RequestOrigin::gateway(
                 ClientKind::Other,
                 InboundWireProtocol::AnthropicMessages,
+                ClientAttestation::None,
             ),
+            evidence: ClientEvidence::none(),
             access_log: None,
         },
     );

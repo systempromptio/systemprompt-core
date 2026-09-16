@@ -116,7 +116,7 @@ pub(super) fn apply(gateway: &str) -> Result<super::MdmApplication, MdmError> {
             )),
         }
 
-        let settings = apply_managed_settings(gateway, &key_path)?;
+        let settings = apply_managed_settings(gateway)?;
         lines.extend(settings.lines);
         files.extend(settings.files);
         lines.push(

@@ -11,7 +11,7 @@ use std::sync::Arc;
 
 use systemprompt_identifiers::{AiRequestId, TraceId, UserId};
 
-use super::models::{AiRequestDetail, AiRequestFilter, AiRequestListItem};
+use super::models::{AiRequestClientEvidence, AiRequestDetail, AiRequestFilter, AiRequestListItem};
 
 struct ListRow {
     id: AiRequestId,
@@ -21,6 +21,7 @@ struct ListRow {
     actor_kind: String,
     actor_id: String,
     client_kind: String,
+    client_attestation: String,
     provider: Option<String>,
     model: Option<String>,
     input_tokens: Option<i32>,
@@ -46,6 +47,20 @@ struct DetailRow {
     latency_ms: Option<i32>,
     status: String,
     error_message: Option<String>,
+    client_kind: String,
+    client_attestation: String,
+    evidence_kind_source: Option<String>,
+    evidence_attested_host: Option<String>,
+    evidence_declared_client: Option<String>,
+    evidence_native_marker: Option<String>,
+    evidence_ua_product: Option<String>,
+    evidence_ua_version: Option<String>,
+    evidence_sdk_lang: Option<String>,
+    evidence_sdk_package_version: Option<String>,
+    evidence_sdk_runtime: Option<String>,
+    evidence_sdk_runtime_version: Option<String>,
+    evidence_sdk_os: Option<String>,
+    evidence_sdk_arch: Option<String>,
 }
 
 pub(super) async fn list_ai_requests(
@@ -71,6 +86,7 @@ pub(super) async fn list_ai_requests(
             actor_kind as "actor_kind!",
             actor_id as "actor_id!",
             client_kind as "client_kind!",
+            client_attestation as "client_attestation!",
             provider, model,
             input_tokens, output_tokens,
             cache_read_tokens, cache_creation_tokens, reasoning_tokens,
@@ -109,6 +125,7 @@ pub(super) async fn list_ai_requests(
             actor_kind: r.actor_kind,
             actor_id: r.actor_id,
             client_kind: r.client_kind,
+            client_attestation: r.client_attestation,
             provider: r.provider,
             model: r.model,
             input_tokens: r.input_tokens,
@@ -132,20 +149,35 @@ pub(super) async fn find_ai_request_detail(
         DetailRow,
         r#"
         SELECT
-            id as "id!: AiRequestId",
-            user_id as "user_id!: UserId",
-            actor_kind as "actor_kind!",
-            actor_id as "actor_id!",
-            provider,
-            model,
-            input_tokens,
-            output_tokens,
-            cost_microdollars as "cost_microdollars!",
-            latency_ms,
-            status as "status!",
-            error_message
-        FROM ai_requests
-        WHERE id = $1 OR id LIKE $2
+            r.id as "id!: AiRequestId",
+            r.user_id as "user_id!: UserId",
+            r.actor_kind as "actor_kind!",
+            r.actor_id as "actor_id!",
+            r.provider,
+            r.model,
+            r.input_tokens,
+            r.output_tokens,
+            r.cost_microdollars as "cost_microdollars!",
+            r.latency_ms,
+            r.status as "status!",
+            r.error_message,
+            r.client_kind as "client_kind!",
+            r.client_attestation as "client_attestation!",
+            e.kind_source as "evidence_kind_source?",
+            e.attested_host as "evidence_attested_host?",
+            e.declared_client as "evidence_declared_client?",
+            e.native_marker as "evidence_native_marker?",
+            e.ua_product as "evidence_ua_product?",
+            e.ua_version as "evidence_ua_version?",
+            e.sdk_lang as "evidence_sdk_lang?",
+            e.sdk_package_version as "evidence_sdk_package_version?",
+            e.sdk_runtime as "evidence_sdk_runtime?",
+            e.sdk_runtime_version as "evidence_sdk_runtime_version?",
+            e.sdk_os as "evidence_sdk_os?",
+            e.sdk_arch as "evidence_sdk_arch?"
+        FROM ai_requests r
+        LEFT JOIN ai_request_client_evidence e ON e.ai_request_id = r.id
+        WHERE r.id = $1 OR r.id LIKE $2
         LIMIT 1
         "#,
         id,
@@ -167,5 +199,23 @@ pub(super) async fn find_ai_request_detail(
         latency_ms: r.latency_ms,
         status: r.status,
         error_message: r.error_message,
+        client_kind: r.client_kind,
+        client_attestation: r.client_attestation,
+        client_evidence: r
+            .evidence_kind_source
+            .map(|kind_source| AiRequestClientEvidence {
+                kind_source,
+                attested_host: r.evidence_attested_host,
+                declared_client: r.evidence_declared_client,
+                native_marker: r.evidence_native_marker,
+                ua_product: r.evidence_ua_product,
+                ua_version: r.evidence_ua_version,
+                sdk_lang: r.evidence_sdk_lang,
+                sdk_package_version: r.evidence_sdk_package_version,
+                sdk_runtime: r.evidence_sdk_runtime,
+                sdk_runtime_version: r.evidence_sdk_runtime_version,
+                sdk_os: r.evidence_sdk_os,
+                sdk_arch: r.evidence_sdk_arch,
+            }),
     }))
 }

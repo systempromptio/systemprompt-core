@@ -134,12 +134,13 @@ fn apply_writes_the_gateway_env_block_and_api_key_helper() {
         "the helper is a POSIX shell script: {helper_body}"
     );
     assert!(
-        helper_body.contains("exec cat \""),
-        "the helper reads the secret fresh on every request: {helper_body}"
+        helper_body.contains("credential-helper --host claude-code"),
+        "the helper presents the claude-code host token, so the proxy can attribute the \
+         traffic: {helper_body}"
     );
     assert!(
-        !helper_body.contains("sp-live"),
-        "the secret itself is never captured into the helper: {helper_body}"
+        !helper_body.contains("sp-live") && !helper_body.contains("exec cat"),
+        "neither the secret nor its path is captured into the helper: {helper_body}"
     );
 
     let mode = {

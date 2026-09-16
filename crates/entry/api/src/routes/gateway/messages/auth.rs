@@ -106,6 +106,13 @@ impl AuthedPrincipal {
         }
     }
 
+    pub fn is_bridge(&self) -> bool {
+        match self {
+            Self::Jwt(p) => p.client_id.as_ref() == Some(&ClientId::bridge()),
+            Self::ApiKey(_) | Self::Execution(_) => false,
+        }
+    }
+
     pub fn enforce_session_binding(&self, header: &SessionId) -> Result<(), (StatusCode, String)> {
         let (attested, credential) = match self {
             Self::Jwt(p) => (&p.attested_session, "bearer JWT session_id"),

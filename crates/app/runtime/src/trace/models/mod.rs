@@ -10,8 +10,9 @@ mod tool;
 mod trace;
 
 pub use ai::{
-    AiRequestDetail, AiRequestFilter, AiRequestInfo, AiRequestListItem, AiRequestStats, AuditPage,
-    ConversationMessage, ModelStatsRow, ProviderStatsRow, RequestCursor, RequestCursorError,
+    AiRequestClientEvidence, AiRequestDetail, AiRequestFilter, AiRequestInfo, AiRequestListItem,
+    AiRequestStats, AuditPage, ConversationMessage, ModelStatsRow, ProviderStatsRow, RequestCursor,
+    RequestCursorError,
 };
 pub use log::{LevelCount, LogSearchFilter, LogSearchItem, LogTimeRange, ModuleCount};
 pub use tool::{

@@ -24,7 +24,9 @@ use systemprompt_models::services::{
     ApiSurface, GatewayConfig, GatewayRoute, ModelPricing, ProviderEntry, ProviderModel,
     ProviderRegistry, QuotaFaultMode, WireProtocol,
 };
-use systemprompt_models::wire::origin::{ClientKind, InboundWireProtocol, RequestOrigin};
+use systemprompt_models::wire::origin::{
+    ClientAttestation, ClientEvidence, ClientKind, InboundWireProtocol, RequestOrigin,
+};
 use systemprompt_security::policy::types::AccessScope;
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, fixture_app_context, fixture_db_pool, seed_admin_credential,
@@ -144,7 +146,8 @@ fn context(
         model: model.to_owned(),
         max_tokens: Some(512),
         is_streaming: stream,
-        origin: RequestOrigin::gateway(ClientKind::Other, inbound.wire()),
+        origin: RequestOrigin::gateway(ClientKind::Other, inbound.wire(), ClientAttestation::None),
+        evidence: ClientEvidence::none(),
         access_log: None,
     }
 }

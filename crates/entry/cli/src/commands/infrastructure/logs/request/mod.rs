@@ -33,6 +33,7 @@ fn request_list_columns() -> Vec<Column> {
         Column::new("user_id", ColumnType::String),
         Column::new("actor", ColumnType::String),
         Column::new("client", ColumnType::String),
+        Column::new("attestation", ColumnType::String),
         Column::new("provider", ColumnType::String),
         Column::new("model", ColumnType::String),
         Column::new("tokens", ColumnType::String),
@@ -103,6 +104,7 @@ pub struct RequestListRow {
     pub user_id: UserId,
     pub actor: String,
     pub client: String,
+    pub attestation: String,
     pub provider: String,
     pub model: String,
     pub tokens: String,
@@ -118,6 +120,9 @@ pub struct RequestShowOutput {
     pub user_id: UserId,
     pub actor_kind: String,
     pub actor_id: String,
+    pub client: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub client_evidence: Option<ClientEvidenceOutput>,
     pub provider: Option<String>,
     pub model: Option<String>,
     pub input_tokens: i32,
@@ -129,6 +134,54 @@ pub struct RequestShowOutput {
     pub error_message: Option<String>,
     pub messages: Vec<MessageRow>,
     pub linked_mcp_calls: Vec<ToolCallRow>,
+}
+
+/// Only the evidence the wire presented is rendered; a field the request did
+/// not carry is omitted rather than shown empty.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct ClientEvidenceOutput {
+    pub kind_source: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub attested_host: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub declared_client: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub native_marker: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ua_product: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ua_version: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sdk_lang: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sdk_package_version: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sdk_runtime: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sdk_runtime_version: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sdk_os: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sdk_arch: Option<String>,
+}
+
+impl From<systemprompt_runtime::AiRequestClientEvidence> for ClientEvidenceOutput {
+    fn from(evidence: systemprompt_runtime::AiRequestClientEvidence) -> Self {
+        Self {
+            kind_source: evidence.kind_source,
+            attested_host: evidence.attested_host,
+            declared_client: evidence.declared_client,
+            native_marker: evidence.native_marker,
+            ua_product: evidence.ua_product,
+            ua_version: evidence.ua_version,
+            sdk_lang: evidence.sdk_lang,
+            sdk_package_version: evidence.sdk_package_version,
+            sdk_runtime: evidence.sdk_runtime,
+            sdk_runtime_version: evidence.sdk_runtime_version,
+            sdk_os: evidence.sdk_os,
+            sdk_arch: evidence.sdk_arch,
+        }
+    }
 }
 
 pub async fn execute(command: RequestCommands, ctx: &CommandContext) -> Result<()> {

@@ -29,12 +29,14 @@ use std::time::Instant;
 
 use anyhow::Result;
 use systemprompt_ai::models::RequestStatus;
-use systemprompt_ai::repository::{AiRequestPayloadRepository, AiRequestRepository};
+use systemprompt_ai::repository::{
+    AiRequestClientEvidenceRepository, AiRequestPayloadRepository, AiRequestRepository,
+};
 use systemprompt_identifiers::{
     AiRequestId, ClientId, ClientSessionId, ContextId, GatewayConversationId, SessionId, TraceId,
     UserId,
 };
-use systemprompt_models::wire::origin::RequestOrigin;
+use systemprompt_models::wire::origin::{ClientEvidence, RequestOrigin};
 use systemprompt_security::policy::types::AccessScope;
 
 /// Method, path, and start instant captured by the gateway access-log
@@ -64,6 +66,7 @@ pub struct GatewayRequestContext {
     pub max_tokens: Option<u32>,
     pub is_streaming: bool,
     pub origin: RequestOrigin,
+    pub evidence: ClientEvidence,
     pub access_log: Option<GatewayAccessLog>,
 }
 
@@ -77,6 +80,7 @@ pub struct GatewayAudit {
     pricing_snapshot: std::sync::OnceLock<systemprompt_models::services::ModelPricing>,
     requests: Arc<AiRequestRepository>,
     payloads: Arc<AiRequestPayloadRepository>,
+    client_evidence: Arc<AiRequestClientEvidenceRepository>,
     context_materializer: systemprompt_traits::DynContextMaterializer,
     pub ctx: GatewayRequestContext,
     served_model: Mutex<Option<String>>,
@@ -98,6 +102,7 @@ impl GatewayAudit {
             pricing_snapshot: std::sync::OnceLock::new(),
             requests: Arc::clone(&repos.requests),
             payloads: Arc::clone(&repos.payloads),
+            client_evidence: Arc::clone(&repos.client_evidence),
             context_materializer: Arc::clone(&repos.context_materializer),
             ctx,
             served_model: Mutex::new(None),

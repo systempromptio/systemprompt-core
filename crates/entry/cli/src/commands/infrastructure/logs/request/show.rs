@@ -12,7 +12,8 @@ use systemprompt_identifiers::AiRequestId;
 use systemprompt_runtime::{AiTraceService, TraceQueryService};
 
 use super::{
-    MessageRow, RequestShowOutput, ToolCallRow, build_request_show, request_show_not_found,
+    ClientEvidenceOutput, MessageRow, RequestShowOutput, ToolCallRow, build_request_show,
+    request_show_not_found,
 };
 use crate::shared::CommandOutput;
 
@@ -69,6 +70,8 @@ async fn execute_with_pool_inner(
         user_id: row.user_id,
         actor_kind: row.actor_kind,
         actor_id: row.actor_id,
+        client: format!("{} ({})", row.client_kind, row.client_attestation),
+        client_evidence: row.client_evidence.map(ClientEvidenceOutput::from),
         provider: row.provider,
         model: row.model,
         input_tokens: row.input_tokens.unwrap_or(0),

@@ -130,6 +130,7 @@ pub struct AiRequestListItem {
     pub actor_kind: String,
     pub actor_id: String,
     pub client_kind: String,
+    pub client_attestation: String,
     pub provider: Option<String>,
     pub model: Option<String>,
     pub input_tokens: Option<i32>,
@@ -156,6 +157,27 @@ pub struct AiRequestDetail {
     pub latency_ms: Option<i32>,
     pub status: String,
     pub error_message: Option<String>,
+    pub client_kind: String,
+    pub client_attestation: String,
+    pub client_evidence: Option<AiRequestClientEvidence>,
+}
+
+/// The `ai_request_client_evidence` row as stored; strings are the column
+/// values, so a reader that wants the closed enums parses them.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AiRequestClientEvidence {
+    pub kind_source: String,
+    pub attested_host: Option<String>,
+    pub declared_client: Option<String>,
+    pub native_marker: Option<String>,
+    pub ua_product: Option<String>,
+    pub ua_version: Option<String>,
+    pub sdk_lang: Option<String>,
+    pub sdk_package_version: Option<String>,
+    pub sdk_runtime: Option<String>,
+    pub sdk_runtime_version: Option<String>,
+    pub sdk_os: Option<String>,
+    pub sdk_arch: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]

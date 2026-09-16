@@ -9,7 +9,7 @@ use serde::Serialize;
 
 use systemprompt_models::services::ApiSurface;
 
-use crate::ids::{HostId, LoopbackSecret};
+use crate::ids::{HostId, HostToken, LoopbackSecret};
 pub use crate::integration::profile_state::{
     AppInstallState, Freshness, ProfileCode, ProfileProbe, ProfileState, StaleReason,
 };
@@ -97,13 +97,14 @@ impl ProbeEnv {
 /// Inputs a host renders its profile from.
 ///
 /// `default_model` is the gateway's configured default only when it is one
-/// of `models`. `api_key` is the raw loopback secret; a host whose profile
-/// other local accounts can read derives its own [`crate::ids::HostToken`]
-/// from it instead of writing it.
+/// of `models`. `host_token` is the [`crate::ids::HostToken`] derived for
+/// this host from the loopback secret; no renderer ever sees the secret
+/// itself, so every provisioned host presents a credential the proxy can
+/// attribute to it.
 #[derive(Debug, Clone)]
 pub struct ProfileGenInputs {
     pub gateway_base_url: String,
-    pub api_key: LoopbackSecret,
+    pub host_token: HostToken,
     pub models: Vec<String>,
     pub default_model: Option<String>,
     pub organization_uuid: Option<String>,

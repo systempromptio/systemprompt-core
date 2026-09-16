@@ -55,7 +55,7 @@ pub(super) fn managed_yaml(inputs: &ProfileGenInputs) -> std::io::Result<String>
     write_dotted(
         &mut value,
         API_KEY_MARKER,
-        serde_yaml::Value::String(inputs.api_key.as_str().to_owned()),
+        serde_yaml::Value::String(inputs.host_token.as_str().to_owned()),
     )?;
 
     serde_yaml::to_string(&value)

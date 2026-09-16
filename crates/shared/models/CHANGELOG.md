@@ -2,7 +2,13 @@
 
 ## [0.54.0] - 2026-09-16
 
+### Breaking
+
+- **Breaking:** `wire::origin::RequestOrigin` gains `attestation: ClientAttestation`; `RequestOrigin::gateway` takes it as a third argument. `ClientKind::from_user_agent_and_body` is removed. Migrate by calling `wire::origin::classify` with a `ClassificationInput`.
+
 ### Added
+
+- `wire::origin::{ClientAttestation, NativeMarker, ClientEvidence, ClassificationInput, StainlessHeaders, Classified, ClassificationRejection, classify, native_marker, ua_product}`: the evidence ladder behind `ai_requests.client_attestation`, documented in the module head. `ClientKind::Pi`, `ClientKind::DECLARABLE`, `ClientKind::from_bridge_host_id` / `bridge_host_id` and `ClientKind::from_ua_product`.
 
 - `SecurityConfig::allow_dynamic_client_registration` / `Config::allow_dynamic_client_registration` (default `true`), the profile switch for RFC 7591 registration.
 

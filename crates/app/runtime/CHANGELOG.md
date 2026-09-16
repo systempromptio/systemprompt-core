@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- `AiRequestListItem::client_attestation`; `AiRequestDetail::{client_kind, client_attestation, client_evidence}` with the new `AiRequestClientEvidence` read model.
+
 ## [0.53.0] - 2026-09-15
 
 ### Breaking

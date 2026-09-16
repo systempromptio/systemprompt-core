@@ -30,7 +30,13 @@ impl Extension for AiExtension {
                     "created_at".into(),
                     "client_kind".into(),
                     "wire_protocol".into(),
+                    "client_attestation".into(),
                 ]),
+            SchemaDefinition::new(
+                "ai_request_client_evidence",
+                include_str!("../schema/ai_request_client_evidence.sql"),
+            )
+            .with_required_columns(vec!["ai_request_id".into(), "kind_source".into()]),
             SchemaDefinition::new(
                 "ai_request_messages",
                 include_str!("../schema/ai_request_messages.sql"),

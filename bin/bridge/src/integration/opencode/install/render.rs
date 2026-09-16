@@ -1,7 +1,7 @@
 //! Render the bridge-owned provider block into `OpenCode` JSON.
 //!
-//! The generated artifact also carries the API key under a private top-level
-//! marker so the installer can lift it into `auth.json` without the
+//! The generated artifact also carries the host token under a private
+//! top-level marker so the installer can lift it into `auth.json` without the
 //! `generate` step touching the user's data directory.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -68,6 +68,6 @@ pub(super) fn managed_json(inputs: &ProfileGenInputs) -> Map<String, Value> {
             json!(format!("{PROVIDER_ID}/{model}")),
         );
     }
-    root.insert(API_KEY_MARKER.to_owned(), json!(inputs.api_key));
+    root.insert(API_KEY_MARKER.to_owned(), json!(inputs.host_token));
     root
 }

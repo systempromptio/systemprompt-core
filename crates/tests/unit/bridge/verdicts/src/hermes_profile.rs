@@ -14,7 +14,7 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-use systemprompt_bridge::ids::LoopbackSecret;
+use systemprompt_bridge::ids::HostToken;
 use systemprompt_bridge::integration::HostApp;
 use systemprompt_bridge::integration::hermes::{
     HERMES_HOST, contract, install_profile_into, remove_profile_from,
@@ -23,12 +23,12 @@ use systemprompt_bridge::integration::host_app::{ProfileGenInputs, ProfileRemova
 
 const GATEWAY: &str = "http://127.0.0.1:48217";
 const MODEL: &str = "claude-haiku-4-5";
-const SECRET: &str = "loopback-secret-value";
+const SECRET: &str = "hermes-host-token-value";
 
 fn inputs() -> ProfileGenInputs {
     ProfileGenInputs {
         gateway_base_url: GATEWAY.to_owned(),
-        api_key: LoopbackSecret::new(SECRET),
+        host_token: HostToken::new(SECRET),
         models: vec![MODEL.to_owned()],
         default_model: None,
         organization_uuid: None,

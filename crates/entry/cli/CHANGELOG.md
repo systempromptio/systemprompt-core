@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- `infra logs request list` shows the `attestation` column; `infra logs request show` prints `client` as `<kind> (<attestation>)` and the recorded `client_evidence`.
+
 ## [0.53.0] - 2026-09-15
 
 ### Breaking

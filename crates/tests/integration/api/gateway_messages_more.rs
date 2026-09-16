@@ -38,12 +38,15 @@ use systemprompt_users::{ApiKeyService, IssueApiKeyParams};
 
 use super::common::setup_ctx;
 
-use systemprompt_models::wire::origin::{ClientKind, InboundWireProtocol, RequestOrigin};
+use systemprompt_models::wire::origin::{
+    ClientAttestation, ClientKind, InboundWireProtocol, RequestOrigin,
+};
 
 fn test_partial() -> RejectionPartial {
     RejectionPartial::new(RequestOrigin::gateway(
         ClientKind::Other,
         InboundWireProtocol::AnthropicMessages,
+        ClientAttestation::None,
     ))
 }
 

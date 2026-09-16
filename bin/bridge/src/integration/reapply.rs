@@ -60,9 +60,11 @@ pub async fn build_profile_inputs(
         ));
     }
 
-    let api_key = loopback
+    let secret = loopback
         .secret()
         .map_err(|e| io_err("loopback secret", &e))?;
+    let host_token =
+        crate::proxy::scoped_token::host_token(&secret, &crate::ids::HostId::new(host.id()));
 
     let server_profile = bridge
         .gateway_client(config::gateway_url_or_default(&cfg))
@@ -95,7 +97,7 @@ pub async fn build_profile_inputs(
 
     Ok(ProfileGenInputs {
         gateway_base_url,
-        api_key,
+        host_token,
         models: view.compatible_models,
         default_model: server_profile.default_model,
         organization_uuid: server_profile.organization_uuid,

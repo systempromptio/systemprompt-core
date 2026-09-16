@@ -1,5 +1,5 @@
 use std::collections::BTreeMap;
-use systemprompt_bridge::ids::LoopbackSecret;
+use systemprompt_bridge::ids::HostToken;
 use systemprompt_bridge::integration::codex_cli::CODEX_CLI_HOST;
 use systemprompt_bridge::integration::host_app::{
     HostApp, ProbeEnv, ProfileGenInputs, ProfileState,
@@ -176,7 +176,7 @@ fn inputs() -> ProfileGenInputs {
     headers.insert("x-inference-protocol".to_owned(), "responses".to_owned());
     ProfileGenInputs {
         gateway_base_url: "http://127.0.0.1:48217".to_owned(),
-        api_key: LoopbackSecret::new("loopback-secret-value"),
+        host_token: HostToken::new("loopback-secret-value"),
         models: vec!["gpt-5".to_owned()],
         default_model: None,
         organization_uuid: Some("00000000-0000-4000-8000-000000000009".to_owned()),

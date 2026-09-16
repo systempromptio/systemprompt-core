@@ -33,7 +33,9 @@ use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 use super::common::setup_ctx;
-use systemprompt_models::wire::origin::{ClientKind, InboundWireProtocol, RequestOrigin};
+use systemprompt_models::wire::origin::{
+    ClientAttestation, ClientEvidence, ClientKind, InboundWireProtocol, RequestOrigin,
+};
 use systemprompt_security::policy::types::AccessScope;
 
 fn gateway_journal() -> systemprompt_api::services::gateway::audit::journal::GatewayJournal {
@@ -199,7 +201,8 @@ pub(super) fn dispatch_ctx(
         model: model.to_owned(),
         max_tokens: Some(256),
         is_streaming: stream,
-        origin: RequestOrigin::gateway(ClientKind::Other, wire),
+        origin: RequestOrigin::gateway(ClientKind::Other, wire, ClientAttestation::None),
+        evidence: ClientEvidence::none(),
         access_log: None,
     }
 }

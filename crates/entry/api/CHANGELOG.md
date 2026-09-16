@@ -2,6 +2,16 @@
 
 - Expose the evaluator capability registry at `GET /api/v1/evaluator-capabilities`.
 
+## [Unreleased]
+
+### Breaking
+
+- **Breaking:** `GatewayRequestContext` gains `evidence: ClientEvidence` and `GatewayRepositories` gains `client_evidence`; `RejectionPartial` and `PreparedRequest` carry the evidence. `POST /v1/bridge/heartbeat` answers 401 when the body's `session_id` differs from the token's session.
+
+### Added
+
+- Gateway requests are classified through `wire::origin::classify` once the principal and body are known (`routes::gateway::messages::extract::attribution`); the evidence row is written beside every admitted and rejected request. `x-systemprompt-client` outside the vocabulary, or `x-systemprompt-client-attestation` from a non-bridge principal, is a 400. `AuthedPrincipal::is_bridge`.
+
 ## [0.53.0] - 2026-09-15
 
 ### Breaking

@@ -11,11 +11,8 @@ pub(super) const ID: &str = "claude-code";
 pub(super) const LABEL: &str = "gateway keys merged into Claude Code's settings file";
 
 pub(super) fn enrol(bridge: &BridgeContext) -> Outcome {
-    let Some(key_path) = crate::proxy::secret::secret_path() else {
-        return Outcome::Failed("the loopback secret path could not be resolved".to_owned());
-    };
     let gateway = bridge.proxy.loopback().origin();
-    match crate::install::mdm::claude_code_settings::apply_managed_settings(&gateway, &key_path) {
+    match crate::install::mdm::claude_code_settings::apply_managed_settings(&gateway) {
         Ok(report) => {
             for line in report.lines {
                 tracing::info!(target: "bridge::install", detail = %line, "claude code settings");
