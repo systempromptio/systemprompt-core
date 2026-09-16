@@ -178,10 +178,10 @@ writes the equivalent environment instead:
   ~/.profile                             a managed block sourcing that file
 
 export ANTHROPIC_BASE_URL={gateway}
-export ANTHROPIC_AUTH_TOKEN=$(cat $XDG_CONFIG_HOME/{config_dir}/bridge-loopback.key)
+export ANTHROPIC_AUTH_TOKEN=$({bin} credential-helper --host claude-code)
 
-The token is read from the key file at eval time, so a rotated loopback secret
-needs no rewrite. Rerun with --apply to write these directly.
+The token is the claude-code host token, derived at eval time, so a rotated
+loopback secret needs no rewrite. Rerun with --apply to write these directly.
 "
             )
         },

@@ -5,7 +5,7 @@
 ### Breaking
 
 - **Breaking:** `ProfileGenInputs::api_key: LoopbackSecret` is replaced by `host_token: HostToken`, derived per host by `reapply::build_profile_inputs`; no renderer sees the loopback secret. `feedback::sessions::native_session` and `NativeSessionLedger::observe` take the `LoopbackCredential` the request presented.
-- **Breaking:** every provisioned host presents its own host token: OpenCode's `auth.json`, Hermes' `OPENAI_API_KEY` and the Unix Claude Code `apiKeyHelper` (now `credential-helper --host claude-code`) carry `host:<id>` tokens; `credential-helper` accepts every known host id. The Linux `env.sh` keeps the raw secret for other Anthropic-API clients. Run `sync` after upgrading: OpenCode and Hermes report `Stale` until re-rendered.
+- **Breaking:** every provisioned host presents its own host token: OpenCode's `auth.json`, Hermes' `OPENAI_API_KEY` and the Unix Claude Code `apiKeyHelper` (now `credential-helper --host claude-code`) carry `host:<id>` tokens; `credential-helper` accepts every known host id. The Linux `env.sh` exports the `claude-code` host token (Claude Code ranks `ANTHROPIC_AUTH_TOKEN` above `apiKeyHelper`), so an SDK that sources it is attested as Claude Code; use a PAT and `x-systemprompt-client` instead. Run `sync` after upgrading: OpenCode and Hermes report `Stale` until re-rendered.
 
 ### Added
 
