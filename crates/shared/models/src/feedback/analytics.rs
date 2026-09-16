@@ -12,7 +12,6 @@ use systemprompt_identifiers::{
 };
 
 use super::EvaluatorClient;
-use crate::bridge::ids::SkillId;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -59,14 +58,15 @@ pub enum InvocationResourceAttribution {
 /// Distinct from [`InvocationResourceAttribution`]: that is the revision
 /// proof (a managed resource this device verifiably installed), this is the
 /// identity every invocation has whether or not the skill is a managed
-/// resource. `source` is `base` or `bundle:<name>` and `source_hash` is that
-/// source's content hash at the time the fact was normalised, so a figure
-/// keyed on the skill can also say which published tree it ran from.
+/// resource. `skill` is the hook's `<plugin>:<skill>` string verbatim;
+/// `source` is `base` or `bundle:<name>` and `source_hash` is that source's
+/// content hash at the time the fact was normalised, so a figure keyed on
+/// the skill can also say which published tree it ran from.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct InvocationSkillIdentity {
     pub plugin_id: PluginId,
-    pub skill: SkillId,
+    pub skill: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub marketplace_id: Option<MarketplaceId>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

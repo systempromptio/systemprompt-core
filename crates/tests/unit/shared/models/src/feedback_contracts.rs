@@ -230,7 +230,6 @@ fn installation_host_aliases_preserve_existing_codex_and_opencode_names() {
 #[test]
 fn invocation_skill_identity_is_optional_on_the_wire_and_round_trips() {
     use systemprompt_identifiers::{MarketplaceId, PluginId, ResourceInvocationId};
-    use systemprompt_models::bridge::ids::SkillId;
     use systemprompt_models::feedback::analytics::{
         InvocationConsumerIdentity, InvocationResourceAttribution, InvocationSkillIdentity,
         NormalizedInvocationFact,
@@ -254,7 +253,7 @@ fn invocation_skill_identity_is_optional_on_the_wire_and_round_trips() {
         attribution: InvocationResourceAttribution::Unknown,
         skill: Some(InvocationSkillIdentity {
             plugin_id: PluginId::new("astound-india-ba"),
-            skill: SkillId::try_new("astound-india-ba:ba-bug-logging").expect("nonempty"),
+            skill: "astound-india-ba:ba-bug-logging".to_owned(),
             marketplace_id: Some(MarketplaceId::new("astound-india-dev")),
             source: Some("bundle:india".to_owned()),
             source_hash: Some("abc".to_owned()),
