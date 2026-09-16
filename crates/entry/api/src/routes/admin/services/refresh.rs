@@ -58,6 +58,19 @@ pub async fn refresh(
     let secrets = SecretsBootstrap::get()
         .map_err(|e| ApiHttpError::internal_error(format!("secrets not ready: {e}")))?;
 
+    // Why: the boot-time root is a static; after an in-place import the cache
+    // state names the composition actually being served, so "changed" is
+    // measured against that and a repeat import is a no-op.
+    let cache = BundleCache::new(cache_root(profile));
+    let previous = cache.read_state();
+    let served_hash = (!previous.composed_hash.is_empty())
+        .then_some(previous.composed_hash.clone())
+        .or_else(|| {
+            ServicesRootBootstrap::get()
+                .and_then(composed_hash_of)
+                .map(str::to_owned)
+        });
+
     let resolved = ServicesSourceBootstrap::resolve(
         profile,
         |name| secrets.get(name).cloned(),
@@ -65,13 +78,14 @@ pub async fn refresh(
     )
     .await?;
 
-    let active_hash = ServicesRootBootstrap::get().and_then(composed_hash_of);
     let new_hash = composed_hash_of(&resolved).map(str::to_owned);
-    let changed = new_hash.as_deref() != active_hash;
-
-    let cache = BundleCache::new(cache_root(profile));
+    let changed = new_hash != served_hash;
+    // Why: a composition that was swapped in but never projected (a failed
+    // earlier reconcile) is finished by the next import even though nothing
+    // else changed.
+    let unreconciled = new_hash.is_some() && previous.last_reconciled_hash != new_hash;
     let mut reconciled = false;
-    if changed {
+    if changed || unreconciled {
         let services = ConfigLoader::load().map_err(|e| {
             ApiHttpError::internal_error(format!("recomposed services config: {e}"))
         })?;
