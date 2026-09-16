@@ -23,7 +23,6 @@ use anyhow::{Context, Result};
 use chacha20poly1305::ChaCha20Poly1305;
 use chacha20poly1305::aead::KeyInit;
 use systemprompt_ai::repository::AiRequestRepository;
-use systemprompt_evaluation::repository::experiments::GatewayEvaluationRepository;
 use systemprompt_models::Secrets;
 use tokio::task::JoinHandle;
 
@@ -82,7 +81,6 @@ impl GatewayJournal {
 pub struct Settlement {
     pub journal: Arc<GatewayJournal>,
     pub requests: Arc<AiRequestRepository>,
-    pub evaluations: GatewayEvaluationRepository,
 }
 
 impl std::fmt::Debug for Settlement {

@@ -81,18 +81,3 @@ fn registry_pricing(
         .find_map(|entry| entry.find_model(model))
         .map(|m| m.pricing)
 }
-
-pub fn resolve_selected(
-    route: &systemprompt_models::services::GatewayRoute,
-    provider: &systemprompt_models::services::ProviderEntry,
-    requested_model: &str,
-) -> Result<ModelPricing, MissingPricing> {
-    let model = route.upstream_model.as_deref().unwrap_or(requested_model);
-    route
-        .pricing
-        .or_else(|| provider.find_model(model).map(|entry| entry.pricing))
-        .ok_or_else(|| MissingPricing {
-            provider: route.provider.to_string(),
-            models: vec![model.to_owned()],
-        })
-}

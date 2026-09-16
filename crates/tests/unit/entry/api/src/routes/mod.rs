@@ -23,7 +23,6 @@ mod gateway_extract_credential;
 mod gateway_manifest_grants;
 mod gateway_manifest_policy_reads;
 mod gateway_messages_auth;
-mod gateway_messages_auth_execution;
 mod gateway_messages_authenticate;
 mod gateway_messages_dispatch_errors;
 mod gateway_messages_extract;

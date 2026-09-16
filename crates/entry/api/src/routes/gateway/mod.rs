@@ -98,7 +98,7 @@ pub fn gateway_router(ctx: &AppContext) -> anyhow::Result<Option<Router>> {
             .merge(bridge_profile_routes(ctx, &jwt_extractor))
             .merge(bridge_session_routes(ctx, &jwt_extractor))
             .merge(bridge_release_routes(&jwt_extractor))
-            .merge(otel_routes(ctx, &jwt_extractor, &gateway_repos))
+            .merge(otel_routes(ctx, &jwt_extractor))
             .route("/models", get(models::list))
             .route("/", get(models::root))
             .layer(Extension(ctx.clone()))

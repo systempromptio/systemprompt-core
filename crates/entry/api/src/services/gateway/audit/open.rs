@@ -63,16 +63,7 @@ impl GatewayAudit {
                     .is_some_and(|id| !id.as_str().is_empty()),
             "Gateway identity requires an authenticated session and trace"
         );
-        let mut record = self.build_record();
-        if let Some(session) = &self.ctx.session_id
-            && let Some(actor) = self
-                .settlement
-                .evaluations
-                .execution_actor(&self.ctx.user_id, session)
-                .await?
-        {
-            record.actor = actor;
-        }
+        let record = self.build_record();
 
         self.context_materializer
             .ensure_context(systemprompt_traits::EnsureContextParams {

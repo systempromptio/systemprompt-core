@@ -4,6 +4,10 @@
 
 ## [Unreleased]
 
+### Removed
+
+- The gateway no longer consults the evaluation engine: `dispatch_policy` returns the policy alone, pricing always resolves from the catalog, retries always follow `current_policy()`, and `Settlement`, `GatewayRepositories` and the audit opener carry no evaluation repositories. `AuthedPrincipal::Execution`, the `spexec_` credential path in `authenticate` and `McpContextMiddleware::with_execution_capabilities` are gone; `authenticate` takes four arguments and `otel::handle` three.
+
 ### Breaking
 
 - **Breaking:** `GatewayRequestContext` gains `evidence: ClientEvidence` and `GatewayRepositories` gains `client_evidence`; `RejectionPartial` and `PreparedRequest` carry the evidence. `POST /v1/bridge/heartbeat` answers 401 when the body's `session_id` differs from the token's session.

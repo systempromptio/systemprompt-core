@@ -2,7 +2,6 @@ mod abandon_guard;
 mod audit_payload;
 mod canonical_request;
 mod canonical_response;
-mod evaluation_bound;
 mod google_credentials;
 mod image_fetch;
 mod inbound_anthropic;

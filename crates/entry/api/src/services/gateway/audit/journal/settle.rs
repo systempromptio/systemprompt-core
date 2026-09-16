@@ -1,5 +1,4 @@
-//! Maps a terminal receipt onto the domain settlement API and the evaluation
-//! reservation it may be bound to.
+//! Maps a terminal receipt onto the domain settlement API.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -73,10 +72,6 @@ pub(super) async fn settle(settlement: &Settlement, receipt: &Receipt) -> Result
     settlement
         .requests
         .settle(&receipt.request_id, &receipt.user_id, outcome)
-        .await?;
-    settlement
-        .evaluations
-        .settle_recorded(&receipt.user_id, &receipt.request_id)
         .await?;
     Ok(())
 }
