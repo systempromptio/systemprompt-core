@@ -1,7 +1,8 @@
-//! Managed-resource administration: sources, revisions, inventory,
-//! publications, analytics snapshots and the device-credential consumer
-//! surface. Authentication is supplied by the core admin middleware; actor
-//! identity is never accepted from JSON.
+//! Managed-resource administration.
+//!
+//! Sources, revisions, inventory, publications, analytics snapshots and the
+//! device-credential consumer surface. Authentication is supplied by the core
+//! admin middleware; actor identity is never accepted from JSON.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

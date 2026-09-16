@@ -47,13 +47,13 @@ pub struct Classified {
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum ClassificationRejection {
     #[error("x-systemprompt-client must be one of {}", declarable_vocabulary())]
-    MalformedDeclaredClient { evidence: ClientEvidence },
+    MalformedDeclaredClient { evidence: Box<ClientEvidence> },
     #[error("x-systemprompt-client-attestation is set by the bridge only")]
-    AttestationNotFromBridge { evidence: ClientEvidence },
+    AttestationNotFromBridge { evidence: Box<ClientEvidence> },
     #[error("x-systemprompt-client-attestation must be host-token or bridge-secret")]
-    MalformedAttestation { evidence: ClientEvidence },
+    MalformedAttestation { evidence: Box<ClientEvidence> },
     #[error("host-token attestation requires x-systemprompt-client")]
-    HostTokenWithoutClient { evidence: ClientEvidence },
+    HostTokenWithoutClient { evidence: Box<ClientEvidence> },
 }
 
 impl ClassificationRejection {
@@ -81,40 +81,50 @@ enum Channel {
     BridgeSecret,
 }
 
-pub fn classify(input: &ClassificationInput<'_>) -> Result<Classified, ClassificationRejection> {
-    let marker = native_marker(input.body);
-    let ua = ua_product(input.user_agent);
-    let ua_client = ua
-        .as_ref()
-        .and_then(|(product, _)| ClientKind::from_ua_product(product));
-    let mut evidence = ClientEvidence {
+fn initial_evidence(
+    input: &ClassificationInput<'_>,
+    marker: Option<NativeMarker>,
+    ua: Option<&(String, Option<String>)>,
+) -> ClientEvidence {
+    ClientEvidence {
         kind_source: ClientAttestation::None,
         attested_host: None,
         declared_client: bounded(input.declared_client, DECLARED_CLIENT_MAX),
         native_marker: marker,
-        ua_product: ua
-            .as_ref()
-            .and_then(|(p, _)| bounded(Some(p), UA_PRODUCT_MAX)),
-        ua_version: ua
-            .as_ref()
-            .and_then(|(_, v)| bounded(v.as_deref(), UA_VERSION_MAX)),
+        ua_product: ua.and_then(|(p, _)| bounded(Some(p), UA_PRODUCT_MAX)),
+        ua_version: ua.and_then(|(_, v)| bounded(v.as_deref(), UA_VERSION_MAX)),
         sdk_lang: bounded(input.stainless.lang, SDK_FIELD_MAX),
         sdk_package_version: bounded(input.stainless.package_version, SDK_FIELD_MAX),
         sdk_runtime: bounded(input.stainless.runtime, SDK_FIELD_MAX),
         sdk_runtime_version: bounded(input.stainless.runtime_version, SDK_FIELD_MAX),
         sdk_os: bounded(input.stainless.os, SDK_FIELD_MAX),
         sdk_arch: bounded(input.stainless.arch, SDK_FIELD_MAX),
-    };
+    }
+}
+
+pub fn classify(input: &ClassificationInput<'_>) -> Result<Classified, ClassificationRejection> {
+    let marker = native_marker(input.body);
+    let ua = ua_product(input.user_agent);
+    let ua_client = ua
+        .as_ref()
+        .and_then(|(product, _)| ClientKind::from_ua_product(product));
+    let mut evidence = initial_evidence(input, marker, ua.as_ref());
 
     let channel = match (input.principal_is_bridge, input.declared_attestation) {
         (_, None) => None,
         (false, Some(_)) => {
-            return Err(ClassificationRejection::AttestationNotFromBridge { evidence });
+            return Err(ClassificationRejection::AttestationNotFromBridge {
+                evidence: Box::new(evidence),
+            });
         },
         (true, Some(value)) => match ClientAttestation::parse(value) {
             Ok(ClientAttestation::HostToken) => Some(Channel::HostToken),
             Ok(ClientAttestation::BridgeSecret) => Some(Channel::BridgeSecret),
-            _ => return Err(ClassificationRejection::MalformedAttestation { evidence }),
+            _ => {
+                return Err(ClassificationRejection::MalformedAttestation {
+                    evidence: Box::new(evidence),
+                });
+            },
         },
     };
 
@@ -125,14 +135,20 @@ pub fn classify(input: &ClassificationInput<'_>) -> Result<Classified, Classific
             .find(|kind| kind.as_str() == value)
         {
             Some(kind) => Some(kind),
-            None => return Err(ClassificationRejection::MalformedDeclaredClient { evidence }),
+            None => {
+                return Err(ClassificationRejection::MalformedDeclaredClient {
+                    evidence: Box::new(evidence),
+                });
+            },
         },
     };
 
     let (client, source) = match channel {
         Some(Channel::HostToken) => {
             let Some(host) = declared else {
-                return Err(ClassificationRejection::HostTokenWithoutClient { evidence });
+                return Err(ClassificationRejection::HostTokenWithoutClient {
+                    evidence: Box::new(evidence),
+                });
             };
             evidence.attested_host = Some(host);
             (host, ClientAttestation::HostToken)

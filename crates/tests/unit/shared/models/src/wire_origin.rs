@@ -11,12 +11,13 @@ use systemprompt_models::bridge::profile::KNOWN_HOSTS;
 use systemprompt_models::feedback::EvaluatorClient;
 use systemprompt_models::wire::origin::{
     ClassificationInput, ClassificationRejection, ClientAttestation, ClientKind,
-    InboundWireProtocol, NativeMarker, OriginParseError, RequestOrigin, StainlessHeaders,
-    classify, native_marker, ua_product,
+    InboundWireProtocol, NativeMarker, OriginParseError, RequestOrigin, StainlessHeaders, classify,
+    native_marker, ua_product,
 };
 
 const CLAUDE_BODY: &[u8] = br#"{"metadata":{"user_id":"user_ab12_account_3f2504e0-4f89-11d3-9a0c-0305e82c3301_session_6ba7b810-9dad-11d1-80b4-00c04fd430c8"}}"#;
-const CODEX_BODY: &[u8] = br#"{"client_metadata":{"x-codex-turn-metadata":"{\"thread_id\":\"t\"}"}}"#;
+const CODEX_BODY: &[u8] =
+    br#"{"client_metadata":{"x-codex-turn-metadata":"{\"thread_id\":\"t\"}"}}"#;
 const OPENCODE_BODY: &[u8] =
     br#"{"metadata":{"user_id":"{\"session_id\":\"6ba7b810-9dad-11d1-80b4-00c04fd430c8\"}"}}"#;
 
@@ -34,7 +35,10 @@ fn input<'a>(body: &'a [u8]) -> ClassificationInput<'a> {
 #[test]
 fn user_agent_matches_the_exact_first_product_token_only() {
     let cases = [
-        ("claude-cli/2.0.1 (external, cli)", Some(ClientKind::ClaudeCode)),
+        (
+            "claude-cli/2.0.1 (external, cli)",
+            Some(ClientKind::ClaudeCode),
+        ),
         ("Claude-Code/1.0", Some(ClientKind::ClaudeCode)),
         ("claude-desktop/0.9", Some(ClientKind::ClaudeDesktop)),
         ("opencode/0.4.2", Some(ClientKind::OpenCode)),
@@ -50,10 +54,10 @@ fn user_agent_matches_the_exact_first_product_token_only() {
         let mut i = input(b"{}");
         i.user_agent = Some(agent);
         let classified = classify(&i).expect(agent);
-        let (client, attestation) = expected.map_or(
-            (ClientKind::Other, ClientAttestation::None),
-            |kind| (kind, ClientAttestation::UserAgent),
-        );
+        let (client, attestation) = expected
+            .map_or((ClientKind::Other, ClientAttestation::None), |kind| {
+                (kind, ClientAttestation::UserAgent)
+            });
         assert_eq!(classified.client, client, "{agent}");
         assert_eq!(classified.attestation, attestation, "{agent}");
         assert_eq!(classified.evidence.kind_source, attestation, "{agent}");
@@ -64,7 +68,10 @@ fn user_agent_matches_the_exact_first_product_token_only() {
     );
     assert_eq!(ua_product(Some("curl")), Some(("curl".to_owned(), None)));
     assert_eq!(ua_product(Some("")), None);
-    assert_eq!(ua_product(Some("bad token/1")), Some(("bad".to_owned(), None)));
+    assert_eq!(
+        ua_product(Some("bad token/1")),
+        Some(("bad".to_owned(), None))
+    );
     assert_eq!(ua_product(Some("\u{1F600}/1")), None);
 }
 
@@ -74,7 +81,10 @@ fn native_markers_are_structural() {
         native_marker(CLAUDE_BODY),
         Some(NativeMarker::ClaudeMetadataUserId)
     );
-    assert_eq!(native_marker(CODEX_BODY), Some(NativeMarker::CodexTurnMetadata));
+    assert_eq!(
+        native_marker(CODEX_BODY),
+        Some(NativeMarker::CodexTurnMetadata)
+    );
     assert_eq!(
         native_marker(OPENCODE_BODY),
         Some(NativeMarker::OpencodeSessionJson)
@@ -106,7 +116,10 @@ fn native_marker_beats_user_agent_and_records_the_tier() {
     let classified = classify(&i).expect("classified");
     assert_eq!(classified.client, ClientKind::ClaudeCode);
     assert_eq!(classified.attestation, ClientAttestation::NativeMarker);
-    assert_eq!(classified.evidence.ua_product.as_deref(), Some("claude-cli"));
+    assert_eq!(
+        classified.evidence.ua_product.as_deref(),
+        Some("claude-cli")
+    );
 }
 
 #[test]
@@ -186,8 +199,14 @@ fn host_token_wins_over_everything_and_names_the_attested_host() {
     let classified = classify(&i).expect("classified");
     assert_eq!(classified.client, ClientKind::OpenCode);
     assert_eq!(classified.attestation, ClientAttestation::HostToken);
-    assert_eq!(classified.evidence.kind_source, ClientAttestation::HostToken);
-    assert_eq!(classified.evidence.attested_host, Some(ClientKind::OpenCode));
+    assert_eq!(
+        classified.evidence.kind_source,
+        ClientAttestation::HostToken
+    );
+    assert_eq!(
+        classified.evidence.attested_host,
+        Some(ClientKind::OpenCode)
+    );
     assert_eq!(
         classified.evidence.native_marker,
         Some(NativeMarker::ClaudeMetadataUserId)
@@ -203,7 +222,10 @@ fn bridge_secret_is_a_channel_fact_beside_the_naming_tier() {
     let classified = classify(&i).expect("classified");
     assert_eq!(classified.client, ClientKind::ClaudeCode);
     assert_eq!(classified.attestation, ClientAttestation::BridgeSecret);
-    assert_eq!(classified.evidence.kind_source, ClientAttestation::NativeMarker);
+    assert_eq!(
+        classified.evidence.kind_source,
+        ClientAttestation::NativeMarker
+    );
     assert_eq!(classified.evidence.attested_host, None);
 
     i.declared_client = Some("pi");
@@ -236,9 +258,16 @@ fn evidence_strings_are_bounded_and_sdk_headers_are_kept() {
     };
     let classified = classify(&i).expect("classified");
     assert_eq!(classified.client, ClientKind::Other);
-    assert_eq!(classified.evidence.ua_product.as_deref().map(str::len), Some(64));
     assert_eq!(
-        classified.evidence.sdk_package_version.as_deref().map(str::len),
+        classified.evidence.ua_product.as_deref().map(str::len),
+        Some(64)
+    );
+    assert_eq!(
+        classified
+            .evidence
+            .sdk_package_version
+            .as_deref()
+            .map(str::len),
         Some(64)
     );
     assert_eq!(classified.evidence.sdk_runtime.as_deref(), Some("CPython"));
@@ -281,7 +310,11 @@ fn every_enum_round_trips_through_its_column_string() {
     );
     let strings: std::collections::BTreeSet<&str> =
         ClientKind::ALL.iter().map(|kind| kind.as_str()).collect();
-    assert_eq!(strings.len(), ClientKind::ALL.len(), "column strings collide");
+    assert_eq!(
+        strings.len(),
+        ClientKind::ALL.len(),
+        "column strings collide"
+    );
 
     for wire in InboundWireProtocol::ALL {
         assert_eq!(InboundWireProtocol::parse(wire.as_str()), Ok(wire));

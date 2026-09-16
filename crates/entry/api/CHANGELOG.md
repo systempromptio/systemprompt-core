@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.54.0] - 2026-09-16
 
 ### Removed
 
@@ -13,6 +13,7 @@
 
 ### Added
 
+- `POST /admin/services/refresh` imports a recomposed services bundle in place: a changed composition is loaded through the loader's `current` link, its entitlements reconciled into the authz tables and the skill inventory refreshed in the running process; the reply carries `reconciled` and `restart_recommended`, and a repeat import measures `changed` against the served composition. Two refreshes never fetch at once. `reconciled` is true only when a projection ran; an unreadable cached bundle manifest recommends a restart instead of being treated as owning nothing. The managed OpenAPI document is titled `Managed resources API` and no longer describes evaluation.
 - Gateway requests are classified through `wire::origin::classify` once the principal and body are known (`routes::gateway::messages::extract::attribution`); the evidence row is written beside every admitted and rejected request. `x-systemprompt-client` outside the vocabulary, or `x-systemprompt-client-attestation` from a non-bridge principal, is a 400. `AuthedPrincipal::is_bridge`.
 
 ## [0.53.0] - 2026-09-15

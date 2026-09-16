@@ -53,8 +53,6 @@ pub async fn handle(
     request: Request<Body>,
 ) -> Response<Body> {
     let ai_request_id = AiRequestId::generate();
-    // Why: the origin is fixed before anything can reject, so every persisted
-    // row — admitted or rejected — carries its client and wire protocol.
     let (client, attestation) = extract::attribution::entry_origin(request.headers());
     let mut partial =
         RejectionPartial::new(RequestOrigin::gateway(client, inbound.wire(), attestation));

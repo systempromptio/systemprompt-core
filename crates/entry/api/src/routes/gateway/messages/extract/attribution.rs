@@ -17,8 +17,10 @@ use systemprompt_models::wire::origin::{
 use super::RejectionPartial;
 
 /// Copies of the attribution headers, taken before `read_gateway_body`
-/// consumes the request. Values are decoded lossily so a non-ASCII
-/// declaration reaches the classifier and is rejected there, not dropped.
+/// consumes the request.
+///
+/// Values are decoded lossily so a non-ASCII declaration reaches the
+/// classifier and is rejected there, not dropped.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct AttributionHeaders {
     pub declared_client: Option<String>,

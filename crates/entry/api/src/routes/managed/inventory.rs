@@ -72,9 +72,7 @@ async fn list(
     };
     Ok(Json(Page { items, next_cursor }))
 }
-async fn status(
-    State(ctx): State<AppContext>,
-) -> Result<Json<InventoryStatus>, ManagedHttpError> {
+async fn status(State(ctx): State<AppContext>) -> Result<Json<InventoryStatus>, ManagedHttpError> {
     Ok(Json(
         ctx.managed_repository()
             .inventory_status(ctx.system_admin().id())
@@ -194,10 +192,8 @@ async fn reconciliations(
 async fn git_binding(
     State(ctx): State<AppContext>,
     Path(id): Path<InventoryEntryId>,
-) -> Result<
-    Json<Option<systemprompt_marketplace::inventory::InventoryGitBinding>>,
-    ManagedHttpError,
-> {
+) -> Result<Json<Option<systemprompt_marketplace::inventory::InventoryGitBinding>>, ManagedHttpError>
+{
     Ok(Json(
         ctx.managed_repository()
             .inventory_git_binding(ctx.system_admin().id(), &id)
@@ -207,10 +203,8 @@ async fn git_binding(
 
 async fn installation_status(
     State(ctx): State<AppContext>,
-) -> Result<
-    Json<systemprompt_marketplace::inventory::InstallationCoverageStatus>,
-    ManagedHttpError,
-> {
+) -> Result<Json<systemprompt_marketplace::inventory::InstallationCoverageStatus>, ManagedHttpError>
+{
     Ok(Json(
         ctx.managed_repository()
             .installation_coverage_status(ctx.system_admin().id())
@@ -220,10 +214,8 @@ async fn installation_status(
 async fn installation_coverage(
     State(ctx): State<AppContext>,
     Path(id): Path<InventoryEntryId>,
-) -> Result<
-    Json<Option<systemprompt_marketplace::inventory::InstallationCoverage>>,
-    ManagedHttpError,
-> {
+) -> Result<Json<Option<systemprompt_marketplace::inventory::InstallationCoverage>>, ManagedHttpError>
+{
     let entry = ctx
         .managed_repository()
         .inventory_entry(ctx.system_admin().id(), &id)

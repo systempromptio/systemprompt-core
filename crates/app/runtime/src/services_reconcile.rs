@@ -48,17 +48,24 @@ pub fn pending_composed_hash<'a>(
     }
 }
 
+/// Whether a reconcile pass projected a composition or found none pending.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ReconcileOutcome {
+    Projected,
+    NothingPending,
+}
+
 pub async fn reconcile_fetched_services(
     profile: &Profile,
     root: &ActiveServicesRoot,
     services: &ServicesConfig,
     database: &Arc<Database>,
-) -> RuntimeResult<()> {
+) -> RuntimeResult<ReconcileOutcome> {
     let cache = BundleCache::new(cache_root(profile));
     let mut state = cache.read_state();
     let Some(composed_hash) = pending_composed_hash(root, state.last_reconciled_hash.as_deref())
     else {
-        return Ok(());
+        return Ok(ReconcileOutcome::NothingPending);
     };
     let composed_hash = composed_hash.to_owned();
 
@@ -118,5 +125,5 @@ pub async fn reconcile_fetched_services(
         sources = reports.len(),
         "Projected the fetched services composition into the authz tables"
     );
-    Ok(())
+    Ok(ReconcileOutcome::Projected)
 }

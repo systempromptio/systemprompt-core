@@ -19,9 +19,9 @@ use systemprompt_models::services::bundle::BUNDLE_MEDIA_TYPE;
 
 use super::RegistryClient;
 use crate::bundle::error::{BundleError, BundleResult};
-use systemprompt_models::net::{trusted_http_hosts_from_env, validate_outbound_url_with_trust};
 use crate::bundle::source::FetchedBundle;
 use crate::bundle::source::stream::stream_to_file;
+use systemprompt_models::net::{trusted_http_hosts_from_env, validate_outbound_url_with_trust};
 
 pub const OCI_MANIFEST_MEDIA_TYPE: &str = "application/vnd.oci.image.manifest.v1+json";
 pub const DOCKER_MANIFEST_MEDIA_TYPE: &str = "application/vnd.docker.distribution.manifest.v2+json";
@@ -179,8 +179,9 @@ async fn follow_blob_redirects(
                 .join(location)
                 .map_err(|e| BundleError::fetch(&registry.name, format!("blob redirect: {e}")))?,
         };
-        let target = validate_outbound_url_with_trust(target.as_str(), &trusted_http_hosts_from_env())
-            .map_err(|e| BundleError::fetch(&registry.name, e))?;
+        let target =
+            validate_outbound_url_with_trust(target.as_str(), &trusted_http_hosts_from_env())
+                .map_err(|e| BundleError::fetch(&registry.name, e))?;
         response = registry
             .client
             .get(target)

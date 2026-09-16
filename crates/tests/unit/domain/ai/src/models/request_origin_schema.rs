@@ -9,13 +9,13 @@
 
 use systemprompt_ai::models::{ClientAttestation, ClientKind, InboundWireProtocol, NativeMarker};
 
-const BASE_SCHEMA: &str = include_str!("../../../../../domain/ai/schema/ai_requests.sql");
+const BASE_SCHEMA: &str = include_str!("../../../../../../domain/ai/schema/ai_requests.sql");
 const EVIDENCE_SCHEMA: &str =
-    include_str!("../../../../../domain/ai/schema/ai_request_client_evidence.sql");
+    include_str!("../../../../../../domain/ai/schema/ai_request_client_evidence.sql");
 const MIGRATION_026: &str =
-    include_str!("../../../../../domain/ai/schema/migrations/026_ai_requests_client_origin.sql");
+    include_str!("../../../../../../domain/ai/schema/migrations/026_ai_requests_client_origin.sql");
 const MIGRATION_027: &str = include_str!(
-    "../../../../../domain/ai/schema/migrations/027_ai_request_client_attestation.sql"
+    "../../../../../../domain/ai/schema/migrations/027_ai_request_client_attestation.sql"
 );
 
 fn check_list<'a>(sql: &'a str, constraint: &str) -> &'a str {
@@ -31,10 +31,17 @@ fn check_list<'a>(sql: &'a str, constraint: &str) -> &'a str {
 fn assert_list_is_exactly(list: &str, values: impl Iterator<Item = &'static str>, what: &str) {
     let mut count = 0;
     for value in values {
-        assert!(list.contains(&format!("'{value}'")), "{value} missing from {what}");
+        assert!(
+            list.contains(&format!("'{value}'")),
+            "{value} missing from {what}"
+        );
         count += 1;
     }
-    assert_eq!(list.matches('\'').count() / 2, count, "{what} has extra values");
+    assert_eq!(
+        list.matches('\'').count() / 2,
+        count,
+        "{what} has extra values"
+    );
 }
 
 #[test]
@@ -96,7 +103,10 @@ fn client_attestation_strings_are_all_in_every_check_list() {
 #[test]
 fn unknown_is_the_default_for_old_binaries_in_every_file() {
     for (sql, columns) in [
-        (BASE_SCHEMA, &["client_kind", "wire_protocol", "client_attestation"][..]),
+        (
+            BASE_SCHEMA,
+            &["client_kind", "wire_protocol", "client_attestation"][..],
+        ),
         (MIGRATION_026, &["client_kind", "wire_protocol"][..]),
         (MIGRATION_027, &["client_attestation"][..]),
     ] {

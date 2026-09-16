@@ -242,8 +242,8 @@ fn invocation_skill_identity_is_optional_on_the_wire_and_round_trips() {
         "succeeded": true,
         "latency_micros": null
     });
-    let fact: NormalizedInvocationFact =
-        serde_json::from_value(legacy).expect("a fact written before the skill identity still reads");
+    let fact: NormalizedInvocationFact = serde_json::from_value(legacy)
+        .expect("a fact written before the skill identity still reads");
     assert!(fact.skill.is_none());
 
     let fact = NormalizedInvocationFact {

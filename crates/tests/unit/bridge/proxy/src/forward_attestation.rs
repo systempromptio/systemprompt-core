@@ -126,9 +126,8 @@ fn hook_and_mcp_routes_stamp_nothing_and_strip_the_declaration() {
 
     let mut headers = HeaderMap::new();
     copy_request_headers(&src, &mut headers);
-    let hook = LoopbackCredential::Hook(
-        systemprompt_bridge::ids::PluginId::try_new("plugin").unwrap(),
-    );
+    let hook =
+        LoopbackCredential::Hook(systemprompt_bridge::ids::PluginId::try_new("plugin").unwrap());
     stamp_attestation(&mut headers, Some(&hook)).unwrap();
     assert_eq!(value(&headers, CLIENT_ATTESTATION), None);
     assert_eq!(value(&headers, CLIENT_KIND), None);

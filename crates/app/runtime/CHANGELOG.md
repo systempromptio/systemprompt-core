@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.54.0] - 2026-09-16
 
 ### Removed
 
@@ -8,6 +8,7 @@
 
 ### Added
 
+- **Breaking:** `services_reconcile::reconcile_fetched_services` returns `ReconcileOutcome::{Projected, NothingPending}` instead of `()`, so a caller can report whether an authz projection actually ran.
 - `AiRequestListItem::client_attestation`; `AiRequestDetail::{client_kind, client_attestation, client_evidence}` with the new `AiRequestClientEvidence` read model.
 
 ## [0.53.0] - 2026-09-15

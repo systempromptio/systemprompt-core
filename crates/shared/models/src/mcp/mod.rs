@@ -12,6 +12,7 @@ pub mod apps;
 mod call_tool_result_ext;
 pub mod capabilities;
 pub mod client_profile;
+pub mod connector;
 pub mod deployment;
 pub mod registry;
 pub mod registry_trait;

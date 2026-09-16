@@ -7,8 +7,8 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{
-    EventOutboxId, ManagedResourceId, PublicationId, PublicationReviewId,
-    ResourceRevisionId, UserId,
+    EventOutboxId, ManagedResourceId, PublicationId, PublicationReviewId, ResourceRevisionId,
+    UserId,
 };
 
 use super::error::invalid;

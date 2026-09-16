@@ -27,7 +27,7 @@ use systemprompt_models::api::ApiError;
 use systemprompt_models::services::bundle::ServicesBundleState;
 use systemprompt_runtime::AppContext;
 use systemprompt_runtime::managed::inventory::publish_latest;
-use systemprompt_runtime::services_reconcile::reconcile_fetched_services;
+use systemprompt_runtime::services_reconcile::{ReconcileOutcome, reconcile_fetched_services};
 
 use super::{
     RefreshLock, ServicesRefreshResponse, composed_hash_of, provenance_view, source_views,
@@ -89,10 +89,10 @@ pub async fn refresh(
         let services = ConfigLoader::load().map_err(|e| {
             ApiHttpError::internal_error(format!("recomposed services config: {e}"))
         })?;
-        reconcile_fetched_services(profile, &resolved, &services, ctx.db_pool())
+        let outcome = reconcile_fetched_services(profile, &resolved, &services, ctx.db_pool())
             .await
             .map_err(|e| ApiHttpError::internal_error(format!("services reconcile: {e}")))?;
-        reconciled = true;
+        reconciled = outcome == ReconcileOutcome::Projected;
 
         let system_admin = ctx.system_admin().id().clone();
         if let Err(error) = publish_latest(&ctx, &system_admin, req_ctx.user_id()).await {
@@ -135,11 +135,18 @@ pub async fn refresh(
 
 // Why: governance hooks are read once at boot into the static services config;
 // a bundle that ships hooks is the one case an in-process import cannot fully
-// serve, so the caller is told a restart would complete it.
+// serve, so the caller is told a restart would complete it. A manifest that
+// cannot be read may own hooks, so it recommends the restart too.
 fn owns_static_config(cache: &BundleCache, state: &ServicesBundleState) -> bool {
-    state.sources.iter().filter(|(name, _)| name.as_str() != BASE_SOURCE_NAME).any(|(name, fetched)| {
-        cache
-            .read_manifest(name, &fetched.content_hash)
-            .is_ok_and(|signed| !signed.manifest.owns.hooks.is_empty())
-    })
+    state
+        .sources
+        .iter()
+        .filter(|(name, _)| name.as_str() != BASE_SOURCE_NAME)
+        .any(|(name, fetched)| match cache.read_manifest(name, &fetched.content_hash) {
+            Ok(signed) => !signed.manifest.owns.hooks.is_empty(),
+            Err(error) => {
+                tracing::warn!(source = %name, %error, "Cached bundle manifest unreadable; recommending a restart");
+                true
+            },
+        })
 }

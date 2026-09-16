@@ -36,7 +36,6 @@ pub enum AdminCommands {
     #[command(subcommand, about = "Configuration management and rate limits")]
     Config(config::ConfigCommands),
 
-
     #[command(about = "Interactive setup wizard for local development environment")]
     Setup(setup::SetupArgs),
 

@@ -49,8 +49,12 @@ pub struct SourcesProvenance {
 
 #[must_use]
 pub fn sources_provenance() -> SourcesProvenance {
-    let Ok(profile) = ProfileBootstrap::get() else {
-        return SourcesProvenance::default();
+    let profile = match ProfileBootstrap::get() {
+        Ok(profile) => profile,
+        Err(error) => {
+            tracing::warn!(%error, "No bootstrapped profile; recording empty sources provenance");
+            return SourcesProvenance::default();
+        },
     };
     let cache = BundleCache::new(cache_root(profile));
     let state = cache.read_state();
@@ -83,10 +87,8 @@ pub fn sources_provenance() -> SourcesProvenance {
         .collect();
     let base = base_tree_hash(Path::new(&profile.paths.services));
     SourcesProvenance {
-        // Why: with no bundles pinned there is nothing to compose, so no boot
-        // records a composed hash. The composition is then the base tree alone,
-        // and saying so keeps "which tree produced this generation" answerable
-        // on every profile rather than only on ones that pin a kit.
+        // Why: with no bundles pinned no boot records a composed hash; the
+        // composition is the base tree alone.
         composed_hash: active_composed_hash()
             .or_else(|| (!state.composed_hash.is_empty()).then(|| state.composed_hash.clone()))
             .or_else(|| bundles.is_empty().then(|| base.clone()).flatten()),
@@ -100,8 +102,12 @@ pub fn sources_provenance() -> SourcesProvenance {
 // knows.
 #[must_use]
 pub fn owning_bundle_hashes() -> BTreeMap<String, String> {
-    let Ok(profile) = ProfileBootstrap::get() else {
-        return BTreeMap::new();
+    let profile = match ProfileBootstrap::get() {
+        Ok(profile) => profile,
+        Err(error) => {
+            tracing::warn!(%error, "No bootstrapped profile; no bundle owns any skill");
+            return BTreeMap::new();
+        },
     };
     let cache = BundleCache::new(cache_root(profile));
     let state = cache.read_state();
@@ -110,8 +116,12 @@ pub fn owning_bundle_hashes() -> BTreeMap<String, String> {
         let Some(active) = state.sources.get(&source.name) else {
             continue;
         };
-        let Ok(signed) = cache.read_manifest(&source.name, &active.content_hash) else {
-            continue;
+        let signed = match cache.read_manifest(&source.name, &active.content_hash) {
+            Ok(signed) => signed,
+            Err(error) => {
+                tracing::warn!(source = %source.name, %error, "Cached bundle manifest unreadable; its skills carry no bundle hash");
+                continue;
+            },
         };
         for skill in &signed.manifest.owns.skills {
             owners.insert(skill.clone(), active.content_hash.clone());
@@ -145,10 +155,19 @@ fn base_tree_hash(root: &Path) -> Option<String> {
     {
         return Some(hash.clone());
     }
-    let files = super::pack::collect_files(root, BUNDLE_ALLOWED_DIRS).ok()?;
+    let files = match super::pack::collect_files(root, BUNDLE_ALLOWED_DIRS) {
+        Ok(files) => files,
+        Err(error) => {
+            tracing::warn!(root = %root.display(), %error, "Base services tree unreadable; no base tree hash");
+            return None;
+        },
+    };
     let hash = ServicesBundleManifest::compute_content_hash(&files);
-    if let Ok(mut guard) = cache.lock() {
-        *guard = Some((fingerprint, hash.clone()));
+    match cache.lock() {
+        Ok(mut guard) => *guard = Some((fingerprint, hash.clone())),
+        Err(error) => {
+            tracing::warn!(%error, "Base tree hash memo poisoned; recomputing on every pass");
+        },
     }
     Some(hash)
 }

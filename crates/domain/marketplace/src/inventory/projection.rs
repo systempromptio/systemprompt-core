@@ -77,11 +77,8 @@ impl ManagedRepository {
             .map_err(|error| ManagedError::Invalid(format!("Inventory count overflow: {error}")))?;
         let sources = serde_json::to_value(systemprompt_loader::bundle::sources_provenance())?;
         sqlx::query!("UPDATE managed_inventory_state SET generation=$2,observed_at=$3,entries=$4,sources=$5,last_error=NULL WHERE owner_id=$1",owner.as_str(),generation,observed,count,sources).execute(&mut *tx).await?;
-        // Why: an observation row is the record of when its generation was minted,
-        // and the membership rows that pass wrote carry exactly that timestamp as
-        // `effective_from`. An unchanged pass must not move it — the state row
-        // carries "last checked" instead, and moving this one would break the join
-        // that reads what each generation added, removed and changed.
+        // Why: membership rows join on this generation's mint time as
+        // `effective_from`; an unchanged pass must not move it.
         sqlx::query!("INSERT INTO managed_inventory_observations(owner_id,generation,observed_at,entries,sources) VALUES($1,$2,$3,$4,$5) ON CONFLICT(owner_id,generation) DO NOTHING",owner.as_str(),generation,observed,count,sources).execute(&mut *tx).await?;
         let result = InventoryStatus {
             generation,

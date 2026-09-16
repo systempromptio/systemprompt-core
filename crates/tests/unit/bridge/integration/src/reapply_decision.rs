@@ -247,9 +247,12 @@ fn the_profile_inputs_carry_the_live_secret_port_and_the_hosts_own_surface() {
         "the profile points at the loopback proxy, never at the gateway itself"
     );
     assert_eq!(
-        inputs.api_key.as_str(),
-        "seeded-loopback-secret",
-        "the profile carries the loopback secret the proxy will actually check"
+        inputs.host_token,
+        systemprompt_bridge::proxy::scoped_token::host_token(
+            &systemprompt_bridge::ids::LoopbackSecret::new("seeded-loopback-secret"),
+            &systemprompt_bridge::ids::HostId::new(CODEX_CLI_HOST.id()),
+        ),
+        "the profile carries the host token derived from the loopback secret the proxy will check"
     );
     assert_eq!(inputs.organization_uuid, Some("org-1234".to_owned()));
     assert_eq!(

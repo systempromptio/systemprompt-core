@@ -38,7 +38,7 @@ The AI module uses dependency injection for tool operations via the `ToolProvide
 
 ```toml
 [dependencies]
-systemprompt-ai = "0.53"
+systemprompt-ai = "0.54"
 ```
 
 ```rust

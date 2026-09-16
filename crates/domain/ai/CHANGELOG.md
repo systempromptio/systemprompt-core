@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.54.0] - 2026-09-16
 
 ### Breaking
 
@@ -10,7 +10,7 @@
 ### Added
 
 - `ai_requests.client_kind` and `ai_requests.wire_protocol` (`NOT NULL`, CHECK-constrained, `DEFAULT 'unknown'` for the deploy window) with migration `026_ai_requests_client_origin` and its down file; `ClientKind`, `InboundWireProtocol` and `RequestOrigin` are re-exported from `models`.
-- `ai_requests.client_attestation` (`NOT NULL`, CHECK-constrained, `DEFAULT 'unknown'`), `client_kind` value `pi`, and the `ai_request_client_evidence` table (one row per request, cascade-deleted) with migration `027_ai_request_client_attestation` and its down file. `AiRequestClientEvidenceRepository` upserts and reads the evidence; `ClientAttestation`, `ClientEvidence` and `NativeMarker` are re-exported from `models`.
+- `ai_requests.client_attestation` (`NOT NULL`, CHECK-constrained, `DEFAULT 'unknown'`), `client_kind` value `pi`, and the `ai_request_client_evidence` table (one row per request, cascade-deleted) with migration `027_ai_request_client_attestation` and its down file. `AiRequestClientEvidenceRepository` upserts (write pool) and reads (read pool) the evidence; `ClientAttestation`, `ClientEvidence` and `NativeMarker` are re-exported from `models`.
 
 ## [0.53.0] - 2026-09-15
 

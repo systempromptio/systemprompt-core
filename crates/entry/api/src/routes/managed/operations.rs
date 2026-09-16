@@ -65,7 +65,9 @@ pub(super) fn key(headers: &HeaderMap) -> Result<TaskId, ManagedHttpError> {
                     .all(|byte| byte.is_ascii_alphanumeric() || b"-_.:".contains(&byte))
         })
         .ok_or_else(|| {
-            ManagedHttpError::Invalid("Idempotency-Key header of 1–200 bytes is required".to_owned())
+            ManagedHttpError::Invalid(
+                "Idempotency-Key header of 1–200 bytes is required".to_owned(),
+            )
         })?;
     Ok(TaskId::new(key))
 }
@@ -128,29 +130,25 @@ async fn status(
     let result = operation
         .result
         .clone()
-        .map(
-            |value| -> Result<OperationResult, ManagedHttpError> {
-                Ok(match operation.kind.as_str() {
-                    "inventory_refresh" => {
-                        OperationResult::InventoryRefresh(serde_json::from_value(value)?)
-                    },
-                    "source_capture" => {
-                        OperationResult::SourceCapture(serde_json::from_value(value)?)
-                    },
-                    "source_verification" => {
-                        OperationResult::SourceVerification(serde_json::from_value(value)?)
-                    },
-                    "credential_issue" => {
-                        OperationResult::CredentialIssue(serde_json::from_value(value)?)
-                    },
-                    _ => {
-                        return Err(ManagedHttpError::NotFound(
-                            "Operation kind unavailable".to_owned(),
-                        ));
-                    },
-                })
-            },
-        )
+        .map(|value| -> Result<OperationResult, ManagedHttpError> {
+            Ok(match operation.kind.as_str() {
+                "inventory_refresh" => {
+                    OperationResult::InventoryRefresh(serde_json::from_value(value)?)
+                },
+                "source_capture" => OperationResult::SourceCapture(serde_json::from_value(value)?),
+                "source_verification" => {
+                    OperationResult::SourceVerification(serde_json::from_value(value)?)
+                },
+                "credential_issue" => {
+                    OperationResult::CredentialIssue(serde_json::from_value(value)?)
+                },
+                _ => {
+                    return Err(ManagedHttpError::NotFound(
+                        "Operation kind unavailable".to_owned(),
+                    ));
+                },
+            })
+        })
         .transpose()?;
     Ok(Json(OperationResponse {
         operation: OperationStatus::from(&operation),

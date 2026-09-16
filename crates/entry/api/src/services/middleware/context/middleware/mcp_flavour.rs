@@ -1,4 +1,5 @@
-//! MCP request-context middleware: headers-only extraction with session fallback.
+//! MCP request-context middleware: headers-only extraction with session
+//! fallback.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

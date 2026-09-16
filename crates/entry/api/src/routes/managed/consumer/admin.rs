@@ -32,10 +32,7 @@ async fn issue(
     State(ctx): State<AppContext>,
     headers: HeaderMap,
     Path(id): Path<DeviceCertId>,
-) -> Result<
-    impl axum::response::IntoResponse,
-    super::super::error::ManagedHttpError,
-> {
+) -> Result<impl axum::response::IntoResponse, super::super::error::ManagedHttpError> {
     use systemprompt_marketplace::managed::operations::ApiOperationClaim;
     let claim = super::super::operations::begin(&ctx, &headers, "credential_issue", &id).await?;
     let response = match claim {

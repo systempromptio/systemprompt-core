@@ -111,7 +111,8 @@ impl DynamicRegistrationRequest {
             None | Some("") => Ok(TokenAuthMethod::ClientSecretBasic),
             Some(method) => method.parse::<TokenAuthMethod>().map_err(|_e| {
                 OauthError::Validation(format!(
-                    "token_endpoint_auth_method must be one of none, client_secret_post,                      client_secret_basic, got {method:?}"
+                    "token_endpoint_auth_method must be one of none, client_secret_post, \
+                     client_secret_basic, got {method:?}"
                 ))
             }),
         }

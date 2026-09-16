@@ -51,13 +51,20 @@ DROP FUNCTION IF EXISTS reject_eval_operation_receipt_change() CASCADE;
 DROP TABLE IF EXISTS managed_evaluation_attestations CASCADE;
 ALTER TABLE managed_publication_reviews DROP COLUMN IF EXISTS experiment_id;
 
--- Invocation traffic is production or fixture; the engine's classes had no
--- production writer.
+-- Invocation traffic is production or fixture. Rows the engine classed as
+-- live_evaluation, suggestion or judge were its own traffic and go with it;
+-- the constraint below is validated against every remaining row.
+DELETE FROM managed_invocation_attributions
+    WHERE traffic_class NOT IN ('production', 'fixture');
 ALTER TABLE managed_invocation_attributions
     DROP CONSTRAINT IF EXISTS managed_invocation_attributions_traffic_class_check;
 ALTER TABLE managed_invocation_attributions
     ADD CONSTRAINT managed_invocation_attributions_traffic_class_check
     CHECK (traffic_class IN ('production','fixture'));
+
+-- Retained operation records of the engine's approval decisions name a kind
+-- the operations surface no longer serves.
+DELETE FROM managed_api_operations WHERE kind = 'approval_decision';
 
 -- The migration runner is keyed by extension; with the extension gone its
 -- rows would otherwise be orphaned forever.

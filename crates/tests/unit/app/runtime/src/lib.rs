@@ -74,4 +74,3 @@ mod reporting;
 
 #[cfg(test)]
 mod git_credentials;
-

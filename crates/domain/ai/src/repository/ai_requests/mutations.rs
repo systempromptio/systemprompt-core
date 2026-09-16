@@ -6,8 +6,8 @@
 use crate::error::RepositoryError;
 use crate::models::{AiRequest, AiRequestRecord, RequestStatus};
 use systemprompt_identifiers::{
-    AiRequestId, ContextId, GatewayConversationId, InstanceId, ProviderRequestId, SessionId,
-    TaskId, TraceId, UserId,
+    AiRequestId, ClientSessionId, ContextId, GatewayConversationId, InstanceId, McpExecutionId,
+    ProviderRequestId, SessionId, TaskId, TraceId, UserId,
 };
 
 use super::AiRequestRepository;
@@ -110,18 +110,10 @@ impl AiRequestRepository {
         id: &AiRequestId,
         record: &AiRequestRecord,
     ) -> Result<AiRequestId, RepositoryError> {
-        use systemprompt_identifiers::{
-            ClientSessionId, GatewayConversationId, McpExecutionId, ProviderRequestId, SessionId,
-            TaskId, TraceId,
-        };
-
-        let status = record.status.as_str();
-
         let use_completed_at = matches!(
             record.status,
             RequestStatus::Completed | RequestStatus::Failed | RequestStatus::Rejected
         );
-
         let (actor_kind, actor_id) = record.actor.audit_columns();
 
         let inserted = sqlx::query!(
@@ -168,7 +160,7 @@ impl AiRequestRepository {
             record.is_streaming,
             record.cost_microdollars,
             record.latency_ms,
-            status,
+            record.status.as_str(),
             record.error_message.as_deref(),
             actor_kind,
             actor_id,

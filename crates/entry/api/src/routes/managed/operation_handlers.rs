@@ -2,8 +2,8 @@
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
-use super::operations::{self, OperationResponse};
 use super::error::ManagedHttpError;
+use super::operations::{self, OperationResponse};
 use super::state::ManagedState;
 use axum::Json;
 use axum::extract::{Path, State};
@@ -52,9 +52,7 @@ pub(super) async fn refresh(
                     })
                     .await
                     .map_err(|error| {
-                        ManagedHttpError::Invalid(format!(
-                            "Inventory scan unavailable: {error}"
-                        ))
+                        ManagedHttpError::Invalid(format!("Inventory scan unavailable: {error}"))
                     })??;
                     ctx.managed_repository()
                         .checkpoint_api_input(ctx.system_admin().id(), &operation, &configured)
@@ -168,13 +166,12 @@ pub(super) async fn verify(
     let response: OperationResponse<DependencyVerificationManifest> = match claim {
         ApiOperationClaim::Retained(operation) => operations::response(&operation)?,
         ApiOperationClaim::Acquired(operation) => {
-            let result =
-                systemprompt_runtime::managed::git_sources::GitSourceOrchestrator::new(
-                    ctx.managed_repository().as_ref().clone(),
-                )
-                .verify(ctx.system_admin().id(), &input)
-                .await
-                .map_err(Into::into);
+            let result = systemprompt_runtime::managed::git_sources::GitSourceOrchestrator::new(
+                ctx.managed_repository().as_ref().clone(),
+            )
+            .verify(ctx.system_admin().id(), &input)
+            .await
+            .map_err(Into::into);
             operations::finish(&ctx, &operation, result).await?
         },
     };

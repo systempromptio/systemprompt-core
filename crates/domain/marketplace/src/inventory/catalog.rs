@@ -20,7 +20,9 @@ pub(crate) fn resolve_services_root(root: &Path) -> Result<PathBuf> {
     }
     let resolved = std::fs::canonicalize(root)?;
     if !resolved.is_dir() {
-        return Err(invalid("Configured inventory root link does not name a directory"));
+        return Err(invalid(
+            "Configured inventory root link does not name a directory",
+        ));
     }
     Ok(resolved)
 }

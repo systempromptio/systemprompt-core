@@ -12,7 +12,7 @@ use systemprompt_identifiers::{ClientSessionId, NativeSessionId};
 use systemprompt_models::feedback::EvaluatorClient;
 use systemprompt_models::wire::origin::{ClientKind, native_marker, ua_product};
 
-use crate::proxy::credential::LoopbackCredential;
+use crate::ids::HostId;
 
 pub const OPENCODE_SESSION_HEADER: &str = "x-opencode-session";
 
@@ -26,13 +26,13 @@ pub struct NativeSession {
 // for it, so the same evidence decides both: the verified host token first,
 // then the shared native-marker and User-Agent helpers.
 pub fn native_session(
-    credential: &LoopbackCredential,
+    verified_host: Option<&HostId>,
     headers: &http::HeaderMap,
     body: &[u8],
 ) -> Option<NativeSession> {
     // JSON: protocol boundary — the inference body is any host's wire shape.
     let value: serde_json::Value = serde_json::from_slice(body).ok()?;
-    let host = EvaluatorClient::try_from(presenting_client(credential, headers, body)?).ok()?;
+    let host = EvaluatorClient::try_from(presenting_client(verified_host, headers, body)?).ok()?;
     let session = match host {
         EvaluatorClient::ClaudeCode | EvaluatorClient::ClaudeDesktop => {
             let metadata = value.pointer("/metadata/user_id")?.as_str()?;
@@ -91,11 +91,11 @@ pub fn native_session(
 }
 
 fn presenting_client(
-    credential: &LoopbackCredential,
+    verified_host: Option<&HostId>,
     headers: &http::HeaderMap,
     body: &[u8],
 ) -> Option<ClientKind> {
-    if let LoopbackCredential::Host(host) = credential {
+    if let Some(host) = verified_host {
         return ClientKind::from_bridge_host_id(host.as_str());
     }
     if let Some(marker) = native_marker(body) {
@@ -123,11 +123,11 @@ const MAX_UNFLUSHED: usize = 1024;
 impl NativeSessionLedger {
     pub fn observe(
         &self,
-        credential: &LoopbackCredential,
+        verified_host: Option<&HostId>,
         headers: &http::HeaderMap,
         body: &[u8],
     ) -> Result<()> {
-        let Some(session) = native_session(credential, headers, body) else {
+        let Some(session) = native_session(verified_host, headers, body) else {
             return Ok(());
         };
         let key = (session.host, session.id);

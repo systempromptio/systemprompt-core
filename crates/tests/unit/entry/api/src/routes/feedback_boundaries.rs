@@ -35,11 +35,9 @@ async fn routers() -> (Router, Router, String) {
             systemprompt_api::routes::managed::contract::normalize,
         ));
     let admin = systemprompt_api::routes::managed::router()
-        .with_state(
-            systemprompt_api::routes::managed::state::ManagedState::new(
-                ctx.as_ref().clone(),
-            ),
-        )
+        .with_state(systemprompt_api::routes::managed::state::ManagedState::new(
+            ctx.as_ref().clone(),
+        ))
         .layer(Extension(actor))
         .layer(axum::middleware::from_fn(
             systemprompt_api::routes::managed::contract::normalize,
@@ -179,11 +177,9 @@ async fn failed_capture_has_durable_status_and_conflicting_http_retry_is_rejecte
     .await
     .unwrap();
     let router = systemprompt_api::routes::managed::router()
-        .with_state(
-            systemprompt_api::routes::managed::state::ManagedState::new(
-                ctx.as_ref().clone(),
-            ),
-        )
+        .with_state(systemprompt_api::routes::managed::state::ManagedState::new(
+            ctx.as_ref().clone(),
+        ))
         .layer(axum::middleware::from_fn(
             systemprompt_api::routes::managed::contract::normalize,
         ));
@@ -246,4 +242,3 @@ async fn failed_capture_has_durable_status_and_conflicting_http_retry_is_rejecte
         "application/problem+json"
     );
 }
-

@@ -156,4 +156,3 @@ async fn inventory_sync_admission_requires_refresh_evidence() {
         .await;
     assert!(matches!(result, Err(ManagedError::Invalid(_))));
 }
-

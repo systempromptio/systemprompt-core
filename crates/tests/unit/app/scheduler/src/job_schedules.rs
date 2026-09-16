@@ -10,8 +10,8 @@
 
 use systemprompt_scheduler::jobs::{
     BackfillSessionGeoJob, BehavioralAnalysisJob, CleanupEmptyContextsJob,
-    CleanupInactiveSessionsJob, DatabaseCleanupJob, EvaluationSupervisorJob,
-    GhostSessionCleanupJob, MaliciousIpBlacklistJob, NoJsCleanupJob,
+    CleanupInactiveSessionsJob, DatabaseCleanupJob, GhostSessionCleanupJob,
+    MaliciousIpBlacklistJob, NoJsCleanupJob,
 };
 use systemprompt_traits::Job;
 use tokio_cron_scheduler::Job as CronJob;
@@ -23,7 +23,6 @@ fn all_jobs() -> Vec<Box<dyn Job>> {
         Box::new(CleanupEmptyContextsJob),
         Box::new(CleanupInactiveSessionsJob),
         Box::new(DatabaseCleanupJob),
-        Box::new(EvaluationSupervisorJob),
         Box::new(GhostSessionCleanupJob),
         Box::new(MaliciousIpBlacklistJob),
         Box::new(NoJsCleanupJob),

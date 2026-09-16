@@ -25,7 +25,7 @@ use systemprompt_models::services::{
     ProviderRegistry, QuotaFaultMode, WireProtocol,
 };
 use systemprompt_models::wire::origin::{
-    ClientAttestation, ClientEvidence, ClientKind, InboundWireProtocol, RequestOrigin,
+    ClientAttestation, ClientEvidence, ClientKind, RequestOrigin,
 };
 use systemprompt_security::policy::types::AccessScope;
 use systemprompt_test_fixtures::{

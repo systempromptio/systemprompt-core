@@ -41,10 +41,11 @@ pub use authz::{GatewayAuthzRequestInput, build_gateway_authz_request};
 pub(super) use headers::ClientHeaders;
 pub use headers::extract_credential;
 
-/// What is known about a request at the moment it is rejected. `origin` is
-/// fixed at entry from the route and `User-Agent`, so a rejection row is never
-/// persisted without its client and wire protocol; `evidence` is filled once
-/// the attribution headers and body have been classified.
+/// What is known about a request at the moment it is rejected.
+///
+/// `origin` is fixed at entry from the route and `User-Agent`, so a rejection
+/// row is never persisted without its client and wire protocol; `evidence` is
+/// filled once the attribution headers and body have been classified.
 #[derive(Debug)]
 pub struct RejectionPartial {
     pub origin: RequestOrigin,

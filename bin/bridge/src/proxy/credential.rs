@@ -21,6 +21,15 @@ pub enum LoopbackCredential {
     Host(HostId),
 }
 
+impl LoopbackCredential {
+    pub const fn verified_host(&self) -> Option<&HostId> {
+        match self {
+            Self::Host(host) => Some(host),
+            Self::Secret | Self::Hook(_) => None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RouteClass {
     Hook(Option<PluginId>),

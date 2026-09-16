@@ -29,21 +29,36 @@ impl ManagedRepository {
             owner.as_str(), resource.map(ManagedResourceId::as_str)).fetch_all(&self.pool).await?;
         rows.into_iter()
             .map(|row| {
+                let receipt_id = InstallationReceiptId::new(row.id);
                 Ok(InstallationReceipt {
-                    id: InstallationReceiptId::new(row.id),
+                    id: receipt_id.clone(),
                     installation_id: ConsumerInstallationId::new(row.installation_id),
                     publication_id: PublicationId::new(row.publication_id),
                     resource_id: ManagedResourceId::new(row.resource_id),
                     generation: row.generation,
                     bundle_digest: AssetDigest::try_from(row.bundle_digest)?,
                     installed_manifest: serde_json::from_value(row.installed_manifest)?,
-                    client_evidence: serde_json::from_value(row.client_evidence).ok(),
+                    client_evidence: serde_json::from_value(row.client_evidence)
+                        .inspect_err(|error| {
+                            tracing::warn!(receipt = %receipt_id, %error, "Installation receipt client_evidence does not decode");
+                        })
+                        .ok(),
                     consumer_id: row.consumer_id.map(UserId::new),
-                    device_id: row.device_id.and_then(|id| DeviceId::try_new(id).ok()),
+                    device_id: row.device_id.and_then(|id| {
+                        DeviceId::try_new(id)
+                            .inspect_err(|error| {
+                                tracing::warn!(receipt = %receipt_id, %error, "Installation receipt device_id is not a device id");
+                            })
+                            .ok()
+                    }),
                     host: row.host,
-                    consumer_evidence: row
-                        .consumer_evidence
-                        .and_then(|evidence| serde_json::from_value(evidence).ok()),
+                    consumer_evidence: row.consumer_evidence.and_then(|evidence| {
+                        serde_json::from_value(evidence)
+                            .inspect_err(|error| {
+                                tracing::warn!(receipt = %receipt_id, %error, "Installation receipt consumer_evidence does not decode");
+                            })
+                            .ok()
+                    }),
                     fully_verified: row.fully_verified.unwrap_or(false),
                     verified_at: row.verified_at,
                 })

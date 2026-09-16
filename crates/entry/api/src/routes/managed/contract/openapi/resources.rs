@@ -43,12 +43,7 @@ pub(super) fn register(d: &mut Document) {
     d.add::<(), DependencyVerificationManifest>("/source-verifications/{id}", "get", 200, false);
     d.add::<(), OperationResponse<OperationResult>>("/operations/{id}", "get", 200, false);
     d.add::<PublicationRequest, PublicationDecision>("/publications", "post", 200, false);
-    d.add::<(), Page<PublicationHistoryEntry>>(
-        "/resources/{id}/publications",
-        "get",
-        200,
-        false,
-    );
+    d.add::<(), Page<PublicationHistoryEntry>>("/resources/{id}/publications", "get", 200, false);
     d.query::<crate::routes::managed::publications::HistoryQuery>(
         "/resources/{id}/publications",
         "get",

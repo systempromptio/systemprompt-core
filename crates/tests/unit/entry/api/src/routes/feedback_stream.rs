@@ -24,11 +24,9 @@ async fn router() -> Router {
     );
     actor.auth.actor = Actor::user(UserId::new(format!("stream-{}", TraceId::generate())));
     systemprompt_api::routes::managed::router()
-        .with_state(
-            systemprompt_api::routes::managed::state::ManagedState::new(
-                ctx.as_ref().clone(),
-            ),
-        )
+        .with_state(systemprompt_api::routes::managed::state::ManagedState::new(
+            ctx.as_ref().clone(),
+        ))
         .layer(Extension(actor))
 }
 async fn call(router: &Router, after: Option<&str>) -> axum::response::Response {

@@ -38,11 +38,8 @@ fn profile_path() -> Option<PathBuf> {
 }
 
 // Why: Claude Code ranks `ANTHROPIC_AUTH_TOKEN` above `apiKeyHelper`
-// (documented credential precedence), and `.profile` sources this file in
-// every shell, so the token exported here is the one Claude Code presents.
-// It must therefore be the `claude-code` host token, or every Linux session
-// would be attributed as an unverified secret holder. An SDK that sources
-// this file is attested as Claude Code; the gateway documentation says not to.
+// (documented credential precedence), so the token exported here is the one
+// Claude Code presents and must be the `claude-code` host token.
 fn env_file_body(gateway: &str, executable: &Path) -> String {
     let bin = crate::brand::brand().binary_name;
     format!(
@@ -92,8 +89,8 @@ fn splice(existing: &str, block: &str) -> Option<String> {
 
 pub(super) fn apply(gateway: &str) -> Result<super::MdmApplication, MdmError> {
     let env_file = env_file_path().ok_or(MdmError::Resolve("the user's config directory"))?;
-    let executable = std::env::current_exe()
-        .map_err(io_error("resolve the bridge executable", &env_file))?;
+    let executable =
+        std::env::current_exe().map_err(io_error("resolve the bridge executable", &env_file))?;
     let env_body = env_file_body(gateway, &executable);
     write_atomic(&env_file, &env_body)?;
     let mut files = vec![

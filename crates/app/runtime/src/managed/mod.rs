@@ -1,5 +1,6 @@
-//! Application-owned orchestration over the managed marketplace domain:
-//! source capture, inventory refresh and Git credential resolution. The domain
+//! Application-owned orchestration over the managed marketplace domain.
+//!
+//! Source capture, inventory refresh and Git credential resolution. The domain
 //! owns content and storage; this layer binds it to configured roots and
 //! secrets.
 //!

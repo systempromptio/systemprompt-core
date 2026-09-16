@@ -4,8 +4,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::{
-    ManagedRepository, ManagedResourceId, PublicationHistoryEntry,
-    PublicationRow, Result, UserId, decision_from_row,
+    ManagedRepository, ManagedResourceId, PublicationHistoryEntry, PublicationRow, Result, UserId,
+    decision_from_row,
 };
 
 impl ManagedRepository {

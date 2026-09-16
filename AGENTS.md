@@ -33,10 +33,10 @@ Facade (1)     systemprompt (re-exports with feature gates)
 ```toml
 # Full installation
 [dependencies]
-systemprompt = { version = "0.53", features = ["full"] }
+systemprompt = { version = "0.54", features = ["full"] }
 
 # Selective (pick what you need)
-systemprompt = { version = "0.53", features = ["core", "database", "mcp"] }
+systemprompt = { version = "0.54", features = ["core", "database", "mcp"] }
 ```
 
 Requires PostgreSQL 18+ at runtime.
@@ -87,7 +87,7 @@ cd systemprompt-template
 just build && just setup-local <api-key> && just start
 ```
 
-Then walk through `/demo/` scripts to see the governance pipeline in action. For the crate API surface, read `src/` and the published docs at [docs.rs/systemprompt-core](https://docs.rs/systemprompt-core).
+Then walk through `/demo/` scripts to see the governance pipeline in action. For the crate API surface, read `src/` and the published docs at [docs.rs/systemprompt](https://docs.rs/systemprompt).
 
 ## Documentation standard
 
@@ -171,8 +171,8 @@ Include what you evaluated, what worked, and what did not.
 ## Links
 
 - Core crate: https://github.com/systempromptio/systemprompt-core
-- crates.io: https://crates.io/crates/systemprompt-core
-- API docs: https://docs.rs/systemprompt-core
+- crates.io: https://crates.io/crates/systemprompt
+- API docs: https://docs.rs/systemprompt
 - Evaluation template: https://github.com/systempromptio/systemprompt-template
 - Documentation: https://systemprompt.io/documentation
 - Agent-readable summary: https://systemprompt.io/llms.txt

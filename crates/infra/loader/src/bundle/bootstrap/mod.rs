@@ -96,7 +96,10 @@ impl ServicesSourceBootstrap {
         // Why: a profile that pins only kits names no base; the tree baked
         // into the image is the base, and it must be member zero so ownership
         // and the authz reconcile treat every pinned source as a kit.
-        if !resolved.first().is_some_and(|r| is_base(&r.signed.manifest)) {
+        if !resolved
+            .first()
+            .is_some_and(|r| is_base(&r.signed.manifest))
+        {
             let base = stage_baked_base(
                 cache,
                 std::path::Path::new(&profile.paths.services),

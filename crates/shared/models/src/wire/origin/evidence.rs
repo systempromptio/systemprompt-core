@@ -16,6 +16,8 @@ pub(super) const UA_PRODUCT_MAX: usize = 64;
 pub(super) const UA_VERSION_MAX: usize = 64;
 pub(super) const SDK_FIELD_MAX: usize = 64;
 
+/// Which tier named `client_kind`, and what the wire carried.
+///
 /// `kind_source` is the tier that named `client_kind`; on the `bridge-secret`
 /// channel it is one of the lower tiers, since the secret says nothing about
 /// the host. Nullable fields mean "not presented", never "empty".

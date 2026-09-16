@@ -54,7 +54,7 @@ impl Document {
             parameters.push(json!({"name":"Origin","in":"header","required":false,"schema":{"type":"string","format":"uri"},"description":"Required and exact-match validated whenever a Cookie header is present."}));
             operation["parameters"] = json!(parameters);
             operation["description"] = json!(
-                "Administrative cookie mutations require an exact Origin match. Device evidence derives consumer identity from the credential; organizational ownership is retained server-side. Human publication approval remains separate from evaluation."
+                "Administrative cookie mutations require an exact Origin match. Device evidence derives consumer identity from the credential; organizational ownership is retained server-side. Human publication approval remains a separate, explicit step."
             );
         }
         if std::any::type_name::<I>() != "()" {
@@ -112,6 +112,6 @@ impl Document {
         self.parameter(path,"get",json!({"name":"Last-Event-ID","in":"header","required":false,"schema":{"type":"string","maxLength":96,"pattern":"^[0-9]+[.][0-9]+[.][0-9]+$"}}));
     }
     pub(super) fn finish(self) -> Value {
-        json!({"openapi":"3.1.0","jsonSchemaDialect":"https://json-schema.org/draft/2020-12/schema","info":{"title":"Skill optimization feedback API","version":"1.0.0","description":"Organizational inventory, device-authenticated evidence, verified evaluation and snapshot analytics. Native targets remain disabled without verified isolation and metering. All errors use problem details; cookie writes require matching Origin. No automatic publication."},"servers":[{"url":"/api/v1"}],"paths":self.paths,"components":{"schemas":self.generator.definitions(),"securitySchemes":{"adminBearer":{"type":"http","scheme":"bearer","description":"Authenticated administrator credential; consumer grants do not confer administration."},"adminCookie":{"type":"apiKey","in":"cookie","name":"access_token","description":"Existing authenticated admin session; mutations require exact Origin."},"deviceCredential":{"type":"http","scheme":"bearer","bearerFormat":"sp_device_…","description":"Credential bound to an enrolled, non-revoked device. A user bridge secret or submitted device ID is insufficient."}}}})
+        json!({"openapi":"3.1.0","jsonSchemaDialect":"https://json-schema.org/draft/2020-12/schema","info":{"title":"Managed resources API","version":"1.0.0","description":"Organizational inventory, device-authenticated evidence, publication review and snapshot analytics. All errors use problem details; cookie writes require matching Origin. No automatic publication."},"servers":[{"url":"/api/v1"}],"paths":self.paths,"components":{"schemas":self.generator.definitions(),"securitySchemes":{"adminBearer":{"type":"http","scheme":"bearer","description":"Authenticated administrator credential; consumer grants do not confer administration."},"adminCookie":{"type":"apiKey","in":"cookie","name":"access_token","description":"Existing authenticated admin session; mutations require exact Origin."},"deviceCredential":{"type":"http","scheme":"bearer","bearerFormat":"sp_device_…","description":"Credential bound to an enrolled, non-revoked device. A user bridge secret or submitted device ID is insufficient."}}}})
     }
 }

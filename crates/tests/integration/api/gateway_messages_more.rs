@@ -333,14 +333,9 @@ async fn authenticate_accepts_seeded_api_key() -> Result<()> {
         .await?;
 
     let extractor = jwt_extractor(&ctx)?;
-    let principal = authenticate(
-        &issued.secret,
-        &cred.session_id,
-        &extractor,
-        &ctx,
-    )
-    .await
-    .expect("api key authenticates");
+    let principal = authenticate(&issued.secret, &cred.session_id, &extractor, &ctx)
+        .await
+        .expect("api key authenticates");
     assert_eq!(principal.user_id().as_str(), cred.user_id.as_str());
     assert_eq!(
         principal.attested_session().as_str(),
@@ -396,14 +391,9 @@ async fn authenticate_accepts_seeded_jwt() -> Result<()> {
     install_test_signing_key();
     let cred = seed_admin_credential(&pool, "auth-jwt@example.invalid").await?;
     let extractor = jwt_extractor(&ctx)?;
-    let principal = authenticate(
-        cred.jwt.as_str(),
-        &cred.session_id,
-        &extractor,
-        &ctx,
-    )
-    .await
-    .expect("jwt authenticates");
+    let principal = authenticate(cred.jwt.as_str(), &cred.session_id, &extractor, &ctx)
+        .await
+        .expect("jwt authenticates");
     assert_eq!(principal.user_id().as_str(), cred.user_id.as_str());
     assert_eq!(
         principal.attested_session().as_str(),

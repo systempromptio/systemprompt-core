@@ -15,6 +15,7 @@ use systemprompt_models::wire::origin::{
 #[must_use]
 #[derive(Debug, Clone)]
 pub struct AiRequestClientEvidenceRepository {
+    pool: Arc<PgPool>,
     write_pool: Arc<PgPool>,
 }
 
@@ -35,10 +36,13 @@ struct EvidenceRow {
 
 impl AiRequestClientEvidenceRepository {
     pub fn new(db: &DbPool) -> Result<Self, RepositoryError> {
+        let pool = db
+            .pool_arc()
+            .map_err(|e| RepositoryError::PoolInitialization(e.to_string()))?;
         let write_pool = db
             .write_pool_arc()
             .map_err(|e| RepositoryError::PoolInitialization(e.to_string()))?;
-        Ok(Self { write_pool })
+        Ok(Self { pool, write_pool })
     }
 
     pub async fn upsert(
@@ -102,7 +106,7 @@ impl AiRequestClientEvidenceRepository {
             "#,
             ai_request_id.as_str()
         )
-        .fetch_optional(self.write_pool.as_ref())
+        .fetch_optional(self.pool.as_ref())
         .await?;
         row.map(TryInto::try_into).transpose()
     }

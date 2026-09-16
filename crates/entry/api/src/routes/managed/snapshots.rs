@@ -91,9 +91,7 @@ async fn resource(
             .await?,
     ))
 }
-async fn health(
-    State(ctx): State<AppContext>,
-) -> Result<Json<SnapshotHealth>, ManagedHttpError> {
+async fn health(State(ctx): State<AppContext>) -> Result<Json<SnapshotHealth>, ManagedHttpError> {
     Ok(Json(
         ctx.feedback_snapshots_repository()
             .health(ctx.system_admin().id())
@@ -121,8 +119,6 @@ async fn job(
         ctx.feedback_snapshots_repository()
             .range_job(ctx.system_admin().id(), &operation)
             .await?
-            .ok_or_else(|| {
-                ManagedHttpError::NotFound("Analytics job unavailable".to_owned())
-            })?,
+            .ok_or_else(|| ManagedHttpError::NotFound("Analytics job unavailable".to_owned()))?,
     ))
 }

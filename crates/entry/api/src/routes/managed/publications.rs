@@ -1,5 +1,4 @@
-//! Human publication review remains explicit after evaluation and source
-//! checks.
+//! Human publication review remains explicit after the source checks.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
