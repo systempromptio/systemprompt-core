@@ -71,6 +71,7 @@ fn invocation(id: &str, revision: u64) -> AnalyticsChange {
                 occurred_at: now,
                 consumer: InvocationConsumerIdentity::HistoricalUnknown,
                 attribution: InvocationResourceAttribution::Unknown,
+                skill: None,
                 succeeded: true,
                 latency_micros: Some(100),
             }),

@@ -7,11 +7,12 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{
-    AnalyticsChangeId, AnalyticsFactId, DeviceId, ManagedResourceId, NativeSessionId,
-    ResourceInvocationId, ResourceRevisionId, UserId,
+    AnalyticsChangeId, AnalyticsFactId, DeviceId, ManagedResourceId, MarketplaceId,
+    NativeSessionId, PluginId, ResourceInvocationId, ResourceRevisionId, UserId,
 };
 
 use super::EvaluatorClient;
+use crate::bridge::ids::SkillId;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -52,6 +53,28 @@ pub enum InvocationResourceAttribution {
     },
 }
 
+/// The skill an invocation named, as the hook reported it, and the services
+/// source that shipped it.
+///
+/// Distinct from [`InvocationResourceAttribution`]: that is the revision
+/// proof (a managed resource this device verifiably installed), this is the
+/// identity every invocation has whether or not the skill is a managed
+/// resource. `source` is `base` or `bundle:<name>` and `source_hash` is that
+/// source's content hash at the time the fact was normalised, so a figure
+/// keyed on the skill can also say which published tree it ran from.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct InvocationSkillIdentity {
+    pub plugin_id: PluginId,
+    pub skill: SkillId,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub marketplace_id: Option<MarketplaceId>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_hash: Option<String>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct NormalizedInvocationFact {
@@ -59,6 +82,8 @@ pub struct NormalizedInvocationFact {
     pub occurred_at: DateTime<Utc>,
     pub consumer: InvocationConsumerIdentity,
     pub attribution: InvocationResourceAttribution,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub skill: Option<InvocationSkillIdentity>,
     pub succeeded: bool,
     pub latency_micros: Option<u64>,
 }
