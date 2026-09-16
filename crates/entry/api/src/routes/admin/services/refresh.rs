@@ -26,7 +26,7 @@ use systemprompt_models::RequestContext;
 use systemprompt_models::api::ApiError;
 use systemprompt_models::services::bundle::ServicesBundleState;
 use systemprompt_runtime::AppContext;
-use systemprompt_runtime::optimization::inventory::publish_latest;
+use systemprompt_runtime::managed::inventory::publish_latest;
 use systemprompt_runtime::services_reconcile::reconcile_fetched_services;
 
 use super::{

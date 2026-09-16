@@ -4,7 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::{
-    ComparisonEvidence, ManagedRepository, ManagedResourceId, PublicationHistoryEntry,
+    ManagedRepository, ManagedResourceId, PublicationHistoryEntry,
     PublicationRow, Result, UserId, decision_from_row,
 };
 

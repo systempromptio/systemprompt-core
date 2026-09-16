@@ -57,4 +57,3 @@ bin/bridge/src/obs/mod.rs  # <PREFIX>_LOG_FORMAT, RUST_LOG filter presence, LOCA
 bin/bridge/src/sync/manifest.rs  # <PREFIX>_CONFIG presence noted in the credential-location diagnostic
 bin/bridge/src/winproc.rs  # SystemRoot to address System32 binaries by absolute path from the elevated child (Windows)
 bin/bridge/src/sync/provision.rs  # USER as the chown target when the elevated provisioning script creates the workspace (macOS)
-crates/app/scheduler/src/services/evaluator/docker.rs  # preserve Docker socket transport and executable/system paths while isolating subprocess credentials

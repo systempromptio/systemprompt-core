@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT p.id,p.review_id,p.generation,p.action,p.revision_id,p.bundle_digest,p.created_at,r.reviewer_id,r.experiment_id,r.comparison_evidence,r.limitations,\n            EXISTS(SELECT 1 FROM managed_distribution_deliveries d WHERE d.owner_id=p.owner_id AND d.publication_id=p.id AND d.status='distributed') AS \"distributed!\",\n            EXISTS(SELECT 1 FROM managed_installation_receipts i WHERE i.owner_id=p.owner_id AND i.publication_id=p.id) AS \"installation_verified!\"\n            FROM managed_publications p JOIN managed_publication_reviews r ON r.id=p.review_id AND r.owner_id=p.owner_id WHERE p.owner_id=$1 AND p.resource_id=$2 AND ($3::bigint IS NULL OR p.generation<$3) ORDER BY p.generation DESC LIMIT $4",
+  "query": "SELECT p.id,p.review_id,p.generation,p.action,p.revision_id,p.bundle_digest,p.created_at,r.reviewer_id,r.comparison_evidence,r.limitations,\n            EXISTS(SELECT 1 FROM managed_distribution_deliveries d WHERE d.owner_id=p.owner_id AND d.publication_id=p.id AND d.status='distributed') AS \"distributed!\",\n            EXISTS(SELECT 1 FROM managed_installation_receipts i WHERE i.owner_id=p.owner_id AND i.publication_id=p.id) AS \"installation_verified!\"\n            FROM managed_publications p JOIN managed_publication_reviews r ON r.id=p.review_id AND r.owner_id=p.owner_id WHERE p.owner_id=$1 AND p.resource_id=$2 ORDER BY p.generation DESC",
   "describe": {
     "columns": [
       {
@@ -93,17 +93,6 @@
       },
       {
         "ordinal": 8,
-        "name": "experiment_id",
-        "type_info": "Text",
-        "origin": {
-          "Table": {
-            "table": "managed_publication_reviews",
-            "name": "experiment_id"
-          }
-        }
-      },
-      {
-        "ordinal": 9,
         "name": "comparison_evidence",
         "type_info": "Jsonb",
         "origin": {
@@ -114,7 +103,7 @@
         }
       },
       {
-        "ordinal": 10,
+        "ordinal": 9,
         "name": "limitations",
         "type_info": "Text",
         "origin": {
@@ -125,13 +114,13 @@
         }
       },
       {
-        "ordinal": 11,
+        "ordinal": 10,
         "name": "distributed!",
         "type_info": "Bool",
         "origin": "Expression"
       },
       {
-        "ordinal": 12,
+        "ordinal": 11,
         "name": "installation_verified!",
         "type_info": "Bool",
         "origin": "Expression"
@@ -140,9 +129,7 @@
     "parameters": {
       "Left": [
         "Text",
-        "Text",
-        "Int8",
-        "Int8"
+        "Text"
       ]
     },
     "nullable": [
@@ -154,12 +141,11 @@
       true,
       false,
       false,
-      true,
       false,
       false,
       null,
       null
     ]
   },
-  "hash": "e76877ea2bff222b35f8ac84fefe52584ad9f64fdcc614ca14bac57f7f1d7de5"
+  "hash": "6bd49431d7831688151f838bb4c5a53790b44d630f27884ae39fbab134f1e435"
 }

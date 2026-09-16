@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Removed
+
+- Profile authoring no longer writes an `evaluator` block (`Profile::evaluator` is gone from `systemprompt-models`).
+
 ## [0.53.0] - 2026-09-15
 
 ### Breaking

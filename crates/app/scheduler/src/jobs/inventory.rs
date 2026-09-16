@@ -9,7 +9,7 @@ use crate::SchedulerError;
 use async_trait::async_trait;
 use std::sync::Arc;
 use systemprompt_runtime::AppContext;
-use systemprompt_runtime::optimization::inventory::LatestPublicationStatus;
+use systemprompt_runtime::managed::inventory::LatestPublicationStatus;
 use systemprompt_traits::{Job, JobContext, JobResult, JobScope, ProviderResult};
 
 #[derive(Debug, Clone, Copy)]
@@ -35,7 +35,7 @@ impl Job for InventoryRefreshJob {
             .ok_or_else(|| SchedulerError::missing_context("AppContext"))?;
         // Why: the wrapper refreshes before publishing; the owner is the
         // system admin because that is who owns the configured inventory.
-        let outcomes = systemprompt_runtime::optimization::inventory::publish_latest(
+        let outcomes = systemprompt_runtime::managed::inventory::publish_latest(
             app,
             app.system_admin().id(),
             &ctx.actor().user_id,
