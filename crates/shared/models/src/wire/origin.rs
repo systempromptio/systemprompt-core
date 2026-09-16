@@ -27,6 +27,7 @@ pub enum ClientKind {
     ClaudeCode,
     ClaudeDesktop,
     Codex,
+    #[serde(rename = "opencode")]
     OpenCode,
     Hermes,
     Other,
@@ -94,7 +95,6 @@ impl ClientKind {
         }
     }
 
-    /// Human label for dashboards and CLI tables.
     #[must_use]
     pub const fn label(self) -> &'static str {
         match self {
@@ -116,12 +116,8 @@ impl ClientKind {
             .ok_or_else(|| OriginParseError::ClientKind(value.to_owned()))
     }
 
-    /// Classify a caller from its `User-Agent` and request body.
-    ///
-    /// Total: never panics and never returns [`Self::Internal`] or
-    /// [`Self::Unknown`]. Precedence follows the bridge's original sniffing
-    /// order. The body is parsed only when no user agent matched, to find the
-    /// Codex turn-metadata marker that Codex sends without a distinctive agent.
+    // Why: Codex sends no distinctive User-Agent; its turn-metadata marker in
+    // the body is the only signal, so the body is consulted after the agents.
     #[must_use]
     pub fn from_user_agent_and_body(user_agent: Option<&str>, body: &[u8]) -> Self {
         let user_agent = user_agent.unwrap_or_default().to_ascii_lowercase();

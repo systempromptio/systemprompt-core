@@ -90,6 +90,13 @@ pub(super) struct PreparedRequest {
     pub client_session_id: Option<ClientSessionId>,
 }
 
+fn user_agent_header(headers: &http::HeaderMap) -> Option<String> {
+    headers
+        .get(http::header::USER_AGENT)
+        .and_then(|value| value.to_str().ok())
+        .map(str::to_owned)
+}
+
 pub(super) async fn extract_request_context(
     rc: &RequestContext<'_>,
     inbound: &Arc<dyn InboundAdapter>,
@@ -123,11 +130,7 @@ pub(super) async fn extract_request_context(
 
     principal.enforce_session_binding(&session_id)?;
 
-    let user_agent = request
-        .headers()
-        .get(http::header::USER_AGENT)
-        .and_then(|value| value.to_str().ok())
-        .map(str::to_owned);
+    let user_agent = user_agent_header(request.headers());
     let (body_bytes, mut gateway_request) = read_gateway_body(inbound, request, partial).await?;
     // Why: only the Codex body marker can change the answer once the agent is
     // known; the entry-time classification saw an empty body.
