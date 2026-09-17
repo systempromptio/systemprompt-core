@@ -81,7 +81,7 @@ pub fn context_list_table(contexts: &[ContextSummary]) -> String {
 struct DbTableRow {
     #[tabled(rename = "Table")]
     name: String,
-    #[tabled(rename = "Rows")]
+    #[tabled(rename = "Rows (est.)")]
     row_count: i64,
     #[tabled(rename = "Size")]
     size: String,

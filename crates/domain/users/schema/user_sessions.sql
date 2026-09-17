@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS user_sessions (
     session_source VARCHAR(50) DEFAULT 'web'
         CHECK (session_source IN ('web', 'api', 'cli', 'oauth', 'mcp', 'bridge', 'unknown')),
     revoked_at TIMESTAMPTZ,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 COMMENT ON COLUMN user_sessions.behavioral_bot_score IS 'Cumulative behavioral bot score from multi-signal detection (0-100+)';

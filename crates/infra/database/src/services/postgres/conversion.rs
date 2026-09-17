@@ -99,7 +99,47 @@ fn column_to_json(row: &sqlx::postgres::PgRow, ordinal: usize) -> serde_json::Va
             serde_json::Value::String(STANDARD.encode(&bytes))
         });
     }
-    serde_json::Value::Null
+    row.try_get_raw(ordinal)
+        .ok()
+        .map_or(serde_json::Value::Null, raw_value_to_json)
+}
+
+/// A column of a type none of the typed decoders accept — `regclass`,
+/// `"char"`, `oid`, `name`, `interval` and the other catalog types an
+/// operator meets in `pg_*` queries. Rendering nothing hid whole columns; the
+/// wire bytes are always representable as text or, for the object-id family,
+/// a number.
+// JSON: the raw text, the oid as a number, or base64 when neither applies.
+fn raw_value_to_json(value: sqlx::postgres::PgValueRef<'_>) -> serde_json::Value {
+    use sqlx::{TypeInfo, ValueRef};
+    if value.is_null() {
+        return serde_json::Value::Null;
+    }
+    let type_name = value.type_info().name().to_ascii_uppercase();
+    match value.format() {
+        sqlx::postgres::PgValueFormat::Text => {
+            value.as_str().map_or(serde_json::Value::Null, |s| {
+                serde_json::Value::String(s.to_owned())
+            })
+        },
+        sqlx::postgres::PgValueFormat::Binary => {
+            let bytes = value.as_bytes().unwrap_or_default();
+            if bytes.len() == 4
+                && (type_name == "OID" || type_name.starts_with("REG"))
+                && let Ok(raw) = <[u8; 4]>::try_from(bytes)
+            {
+                return serde_json::Value::Number(u64::from(u32::from_be_bytes(raw)).into());
+            }
+            std::str::from_utf8(bytes).map_or_else(
+                |_| {
+                    use base64::Engine;
+                    use base64::engine::general_purpose::STANDARD;
+                    serde_json::Value::String(STANDARD.encode(bytes))
+                },
+                |s| serde_json::Value::String(s.to_owned()),
+            )
+        },
+    }
 }
 
 pub fn bind_params<'q>(

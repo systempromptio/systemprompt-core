@@ -36,28 +36,47 @@ pub(super) fn register(
 
     // Why: containers and WSL distributions without a user manager can
     // still hold the unit files; the operator activates them once systemd
-    // --user exists. The receipts for what was written must survive the
-    // activation failure.
-    if let Err(e) = activate(unit, &proxy_unit) {
-        return Err(InstallError::ScheduleActivation {
-            units: vec![service_path, timer_path, proxy_path],
-            reason: e.to_string(),
-        });
+    // --user exists. That is a degraded install, not a failed one — the
+    // receipts stand and the caller's `set -e` must not abort on it — so
+    // only an activation that a live user manager refused is an error.
+    match activate(unit, &proxy_unit) {
+        Ok(()) => {
+            lines.push(format!(
+                "systemd user timer: {unit}.timer (enabled, every 30m)"
+            ));
+            lines.push(format!(
+                "systemd user service: {proxy_unit}.service (enabled, restarts on failure)"
+            ));
+        },
+        Err(Activation::NoUserManager(reason)) => {
+            lines.push(format!(
+                "systemd --user is not available here ({reason}); units written but not \
+                 activated — run `systemctl --user daemon-reload && systemctl --user enable \
+                 --now {unit}.timer {proxy_unit}.service` where it is, or start `astound-bridge \
+                 proxy` by hand"
+            ));
+        },
+        Err(Activation::Refused(e)) => {
+            return Err(InstallError::ScheduleActivation {
+                units: vec![service_path, timer_path, proxy_path],
+                reason: e.to_string(),
+            });
+        },
     }
-
-    lines.push(format!(
-        "systemd user timer: {unit}.timer (enabled, every 30m)"
-    ));
-    lines.push(format!(
-        "systemd user service: {proxy_unit}.service (enabled, restarts on failure)"
-    ));
     Ok((timer_path, lines))
 }
 
-fn activate(unit: &str, proxy_unit: &str) -> Result<(), InstallError> {
-    systemctl(&["daemon-reload"])?;
-    systemctl(&["enable", "--now", &format!("{unit}.timer")])?;
-    systemctl(&["enable", "--now", &format!("{proxy_unit}.service")])
+/// Why activation did not happen: no user manager to talk to, or one that
+/// answered and refused.
+enum Activation {
+    NoUserManager(String),
+    Refused(InstallError),
+}
+
+fn activate(unit: &str, proxy_unit: &str) -> Result<(), Activation> {
+    systemctl(&["daemon-reload"]).map_err(|e| Activation::NoUserManager(e.to_string()))?;
+    systemctl(&["enable", "--now", &format!("{unit}.timer")]).map_err(Activation::Refused)?;
+    systemctl(&["enable", "--now", &format!("{proxy_unit}.service")]).map_err(Activation::Refused)
 }
 
 fn systemctl(args: &[&str]) -> Result<(), InstallError> {

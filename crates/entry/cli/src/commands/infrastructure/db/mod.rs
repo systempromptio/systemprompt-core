@@ -57,8 +57,8 @@ pub async fn execute(cmd: DbCommands, ctx: &CommandContext) -> Result<()> {
             run_query(&query_executor, &sql, limit, offset, config).await
         },
         DbCommands::Execute { sql } => run_write(&query_executor, &sql, config).await,
-        DbCommands::Tables { filter } => {
-            schema::execute_tables(&admin_service, filter, config).await
+        DbCommands::Tables { filter, exact } => {
+            schema::execute_tables(&admin_service, filter, exact, config).await
         },
         DbCommands::Describe { table_name } => {
             schema::execute_describe(&admin_service, &table_name, config).await

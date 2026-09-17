@@ -23,9 +23,15 @@ use super::types::{
 pub(super) async fn execute_tables(
     admin: &DatabaseAdminService,
     filter: Option<String>,
+    exact: bool,
     config: &CliConfig,
 ) -> Result<()> {
-    let tables = admin.list_tables().await.context("Failed to list tables")?;
+    let tables = if exact {
+        admin.list_tables_counted().await
+    } else {
+        admin.list_tables().await
+    }
+    .context("Failed to list tables")?;
 
     let filtered_tables: Vec<_> = if let Some(pattern) = &filter {
         let pattern = pattern.replace(['%', '*'], "");
@@ -63,6 +69,11 @@ pub(super) async fn execute_tables(
         } else {
             CliService::output(&db_tables_table(&output.tables));
             CliService::info(&format!("Total: {} table(s)", output.total));
+            if !exact {
+                CliService::info(
+                    "Row counts are planner estimates (pg_stat_user_tables); use --exact for COUNT(*)",
+                );
+            }
         }
     }
 

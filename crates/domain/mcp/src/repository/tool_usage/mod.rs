@@ -232,6 +232,65 @@ impl ToolUsageRepository {
         Ok(())
     }
 
+    /// The gateway intent — a `tool_use` the model emitted in this gateway
+    /// session — that no execution has claimed yet, for a tool whose wire
+    /// name is this bare name or ends in `__<name>` (a client host prefixes
+    /// MCP tools with the server, and a plugin-installed server with the
+    /// marketplace as well). This is how an in-process execution learns its
+    /// `tool_use_id` when the MCP client sends none: the intent landed on the
+    /// same session moments earlier. Newest first, bounded by a window.
+    pub async fn find_unclaimed_intent(
+        &self,
+        session_id: &str,
+        tool_name: &str,
+        window_seconds: i64,
+    ) -> McpDomainResult<Option<AiToolCallId>> {
+        let suffix = format!("%\\_\\_{tool_name}");
+        let result = sqlx::query_scalar!(
+            r#"
+            SELECT i.ai_tool_call_id AS "ai_tool_call_id!"
+            FROM ai_request_tool_calls i
+            JOIN ai_requests r ON r.id = i.request_id
+            LEFT JOIN mcp_tool_executions e ON e.ai_tool_call_id = i.ai_tool_call_id
+            WHERE r.session_id = $1
+              AND i.ai_tool_call_id IS NOT NULL
+              AND e.mcp_execution_id IS NULL
+              AND (i.tool_name = $2 OR i.tool_name LIKE $3)
+              AND i.created_at > NOW() - make_interval(secs => $4::double precision)
+            ORDER BY i.created_at DESC
+            LIMIT 1
+            "#,
+            session_id,
+            tool_name,
+            suffix,
+            window_seconds as f64
+        )
+        .fetch_optional(&*self.pool)
+        .await?;
+        Ok(result.map(AiToolCallId::new))
+    }
+
+    /// Records on the intent which execution carried it out. Idempotent: a
+    /// claimed intent is never re-pointed.
+    pub async fn claim_intent(
+        &self,
+        ai_tool_call_id: &AiToolCallId,
+        mcp_execution_id: &McpExecutionId,
+    ) -> McpDomainResult<()> {
+        sqlx::query!(
+            r#"
+            UPDATE ai_request_tool_calls
+            SET mcp_execution_id = $2, updated_at = NOW()
+            WHERE ai_tool_call_id = $1 AND mcp_execution_id IS NULL
+            "#,
+            ai_tool_call_id.as_str(),
+            mcp_execution_id.as_str()
+        )
+        .execute(&*self.write_pool)
+        .await?;
+        Ok(())
+    }
+
     /// The most recent execution in a session for a tool whose result digest
     /// matches, within a window — the last-resort join for a client host that
     /// dropped every id. Callers record the result as inferred.

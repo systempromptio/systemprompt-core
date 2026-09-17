@@ -28,6 +28,11 @@ use systemprompt_models::mcp::ClientProfile;
 
 use systemprompt_models::mcp::ExecutionSource;
 const TOOL_LIST_TTL_MS: u64 = 3_600_000;
+/// How far back an in-process execution looks for the gateway intent that
+/// asked for it: the model's turn completes, the host runs its hooks, then
+/// calls the tool — seconds, not minutes, but a slow governance hook must not
+/// orphan the call.
+const INTENT_CLAIM_WINDOW_SECONDS: i64 = 120;
 
 #[must_use]
 pub fn build_tool_list_result(tools: Vec<Tool>) -> ListToolsResult {
@@ -146,6 +151,7 @@ impl McpToolExecutor {
             McpError::internal_error(format!("Failed to serialize arguments: {e}"), None)
         })?;
 
+        let ctx = &self.with_claimed_intent(handler.tool_name(), ctx).await;
         let execution_request = ToolExecutionRequest {
             tool_name: handler.tool_name().to_owned(),
             server_name: self.server_name.clone(),
@@ -170,6 +176,12 @@ impl McpToolExecutor {
                 );
                 McpError::internal_error(format!("Failed to start execution tracking: {e}"), None)
             })?;
+
+        if let Some(call_id) = ctx.ai_tool_call_id()
+            && let Err(e) = self.tool_usage_repo.claim_intent(call_id, &exec_id).await
+        {
+            tracing::warn!(tool = handler.tool_name(), %exec_id, error = %e, "Intent not claimed");
+        }
 
         tracing::info!(tool = handler.tool_name(), %exec_id, "MCP execution started");
 
@@ -209,6 +221,30 @@ impl McpToolExecutor {
             .await;
 
         response
+    }
+
+    /// The context with the `tool_use_id` the model issued for this call.
+    /// MCP carries none, so when the caller supplied none the gateway intent
+    /// on the same session is claimed instead; an unclaimable call keeps the
+    /// context it arrived with and is later joined by fingerprint or not at
+    /// all.
+    async fn with_claimed_intent(&self, tool_name: &str, ctx: &RequestContext) -> RequestContext {
+        if ctx.ai_tool_call_id().is_some() {
+            return ctx.clone();
+        }
+        let session_id = ctx.session_id().to_string();
+        match self
+            .tool_usage_repo
+            .find_unclaimed_intent(&session_id, tool_name, INTENT_CLAIM_WINDOW_SECONDS)
+            .await
+        {
+            Ok(Some(call_id)) => ctx.clone().with_ai_tool_call_id(call_id),
+            Ok(None) => ctx.clone(),
+            Err(e) => {
+                tracing::warn!(tool = tool_name, error = %e, "Intent lookup failed");
+                ctx.clone()
+            },
+        }
     }
 
     fn build_execution_result(

@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS mcp_sessions (
     session_id TEXT PRIMARY KEY,
-    user_id VARCHAR(255) REFERENCES users(id) ON DELETE SET NULL,
+    user_id VARCHAR(255) REFERENCES users(id) ON DELETE CASCADE,
     mcp_server_id TEXT,
     last_event_id TEXT,
     initialize_params JSONB,

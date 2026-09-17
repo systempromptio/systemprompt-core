@@ -44,7 +44,7 @@ pub use scan::{ArtifactScanner, ScanOutcome};
 pub const MAX_PAYLOAD_BYTES: usize = 8 * 1024 * 1024;
 
 /// How far back the last-resort fingerprint join looks.
-pub const FINGERPRINT_WINDOW_SECONDS: i64 = 30;
+pub const FINGERPRINT_WINDOW_SECONDS: i64 = 120;
 
 #[derive(Debug)]
 pub struct IngestRequest {

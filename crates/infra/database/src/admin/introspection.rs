@@ -161,6 +161,19 @@ impl DatabaseAdminService {
         Ok(indexes)
     }
 
+    /// Every public table with an exact `COUNT(*)` — one statement per table,
+    /// so it is the slow form `list_tables` estimates are the substitute for.
+    pub async fn list_tables_counted(&self) -> DatabaseResult<Vec<TableInfo>> {
+        let mut tables = self.list_tables().await?;
+        for table in &mut tables {
+            let ident = SafeIdentifier::parse(&table.name).map_err(|e| {
+                RepositoryError::internal(format!("table name {}: {e}", table.name))
+            })?;
+            table.row_count = self.count_rows(&ident).await?;
+        }
+        Ok(tables)
+    }
+
     pub async fn count_rows(&self, table_name: &SafeIdentifier) -> DatabaseResult<i64> {
         let quoted_table = table_name.quoted();
         let count_query = format!("SELECT COUNT(*) as count FROM {quoted_table}");

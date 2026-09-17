@@ -203,7 +203,8 @@ fn typed_structured(output: &JsonValue, artifact_type: &str) -> JsonValue {
 
 /// The typed object inside a stored `tool_result` envelope, or the body
 /// itself when the ingest stored it as its declared type.
-// JSON: the value under `structured_content` of a tool_result body, else the input.
+// JSON: the value under `structured_content` of a tool_result body, else the
+// input.
 fn unwrap_tool_result(stored: &JsonValue) -> JsonValue {
     let is_envelope = stored.get("x-artifact-type").and_then(JsonValue::as_str)
         == Some(systemprompt_models::artifacts::ToolResultArtifact::ARTIFACT_TYPE_STR);
