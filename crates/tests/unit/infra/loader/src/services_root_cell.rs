@@ -28,6 +28,7 @@ fn the_cell_falls_back_before_installation_then_serves_the_installed_root() {
 
     let installed = ServicesRootBootstrap::install(ActiveServicesRoot {
         path: PathBuf::from("/cache/composed/abc"),
+        base: PathBuf::from("/services"),
         provenance: ServicesProvenance::Fetched {
             composed_hash: "abc".to_owned(),
             versions: BTreeMap::from([("base".to_owned(), "1.2.3".to_owned())]),
@@ -48,6 +49,7 @@ fn the_cell_falls_back_before_installation_then_serves_the_installed_root() {
 
     let second = ServicesRootBootstrap::install(ActiveServicesRoot {
         path: PathBuf::from("/cache/composed/def"),
+        base: PathBuf::from("/services"),
         provenance: ServicesProvenance::Bundled,
     });
 

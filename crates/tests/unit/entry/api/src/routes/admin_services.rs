@@ -31,6 +31,7 @@ fn staged_state() -> ServicesBundleState {
 fn no_sources_reports_bundled_with_no_source_rows() {
     let active = ActiveServicesRoot {
         path: PathBuf::from("/app/services"),
+        base: PathBuf::from("/app/services"),
         provenance: ServicesProvenance::Bundled,
     };
 
@@ -65,6 +66,7 @@ fn a_fetched_root_reports_its_sources_and_hash() {
     versions.insert("astound".to_owned(), "1.4.0".to_owned());
     let active = ActiveServicesRoot {
         path: PathBuf::from("/app/cache/current"),
+        base: PathBuf::from("/app/services"),
         provenance: ServicesProvenance::Fetched {
             composed_hash: "composed-1".to_owned(),
             versions,
@@ -93,6 +95,7 @@ fn a_fetched_root_reports_its_sources_and_hash() {
 fn a_last_good_root_carries_the_failure_text() {
     let active = ActiveServicesRoot {
         path: PathBuf::from("/app/cache/current"),
+        base: PathBuf::from("/app/services"),
         provenance: ServicesProvenance::LastGood {
             composed_hash: "composed-1".to_owned(),
             error: "source astound: fetch failed: connection refused".to_owned(),
@@ -112,6 +115,7 @@ fn a_last_good_root_carries_the_failure_text() {
 fn a_bundled_fallback_reports_bundled_and_keeps_the_error() {
     let active = ActiveServicesRoot {
         path: PathBuf::from("/app/services"),
+        base: PathBuf::from("/app/services"),
         provenance: ServicesProvenance::BundledFallback {
             error: "no cached bundle".to_owned(),
         },

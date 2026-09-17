@@ -53,8 +53,10 @@ impl ServicesSourceBootstrap {
         core_version: &str,
     ) -> BundleResult<ActiveServicesRoot> {
         if profile.services.sources.is_empty() {
+            let path = PathBuf::from(&profile.paths.services);
             return Ok(ActiveServicesRoot {
-                path: PathBuf::from(&profile.paths.services),
+                base: path.clone(),
+                path,
                 provenance: ServicesProvenance::Bundled,
             });
         }
@@ -138,6 +140,7 @@ impl ServicesSourceBootstrap {
 
         Ok(ActiveServicesRoot {
             path: cache.current_link(),
+            base: PathBuf::from(&profile.paths.services),
             provenance: ServicesProvenance::Fetched {
                 composed_hash,
                 versions,
@@ -155,14 +158,18 @@ impl ServicesSourceBootstrap {
                 "services.on_fetch_failure is fail_closed: {error}"
             ))),
             FetchFailurePolicy::UseLastGood => {
-                last_good(cache, error).map_or_else(|| bundled_fallback(profile, error), Ok)
+                last_good(profile, cache, error).map_or_else(|| bundled_fallback(profile, error), Ok)
             },
             FetchFailurePolicy::UseBundled => bundled_fallback(profile, error),
         }
     }
 }
 
-fn last_good(cache: &BundleCache, error: &BundleError) -> Option<ActiveServicesRoot> {
+fn last_good(
+    profile: &Profile,
+    cache: &BundleCache,
+    error: &BundleError,
+) -> Option<ActiveServicesRoot> {
     let current = cache.current_root()?;
     let state = cache.read_state();
     if state.composed_hash.is_empty() {
@@ -175,6 +182,7 @@ fn last_good(cache: &BundleCache, error: &BundleError) -> Option<ActiveServicesR
     );
     Some(ActiveServicesRoot {
         path: current,
+        base: PathBuf::from(&profile.paths.services),
         provenance: ServicesProvenance::LastGood {
             composed_hash: state.composed_hash,
             error: error.to_string(),
@@ -196,6 +204,7 @@ fn bundled_fallback(profile: &Profile, error: &BundleError) -> BundleResult<Acti
         "Serving the services tree baked into the image after a failed refresh"
     );
     Ok(ActiveServicesRoot {
+        base: root.clone(),
         path: root,
         provenance: ServicesProvenance::BundledFallback {
             error: error.to_string(),

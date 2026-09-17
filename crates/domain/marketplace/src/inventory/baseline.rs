@@ -49,7 +49,7 @@ impl InventoryService {
         }
         let canonical = std::fs::canonicalize(scope.root)?;
         if let Some(SourceSpec::LocalTree { root: bound }) = source_spec
-            && std::fs::canonicalize(bound)? != canonical
+            && !binding_names_active_root(Path::new(&bound), scope.root, &canonical)
         {
             return Err(invalid(
                 "Configured source binding does not match the active services root",
@@ -80,13 +80,8 @@ impl InventoryService {
                 ));
             }
         }
-        self.capture_incoming(
-            scope,
-            entry,
-            &canonical,
-            AuthoringCapture { files, previous },
-        )
-        .await
+        self.capture_incoming(scope, entry, AuthoringCapture { files, previous })
+            .await
     }
 
     async fn retained_baseline(
@@ -107,13 +102,12 @@ impl InventoryService {
         &self,
         scope: &BaselineScope<'_>,
         entry: &InventoryEntry,
-        canonical: &Path,
         capture: AuthoringCapture,
     ) -> Result<(ResourceRevisionId, Option<ManagedReconciliationId>)> {
         let AuthoringCapture { files, previous } = capture;
         let owner = scope.owner;
         let (source, resource) = self
-            .bind_authoring_resource(owner, scope.actor, entry, canonical)
+            .bind_authoring_resource(owner, scope.actor, entry, scope.root)
             .await?;
         let snapshot = self
             .repository
@@ -173,7 +167,7 @@ impl InventoryService {
         owner: &UserId,
         actor: &UserId,
         entry: &InventoryEntry,
-        canonical: &Path,
+        authoring_root: &Path,
     ) -> Result<(
         systemprompt_identifiers::ManagedSourceId,
         systemprompt_identifiers::ManagedResourceId,
@@ -181,7 +175,10 @@ impl InventoryService {
         let source = if let Some(source) = &entry.source_id {
             source.clone()
         } else {
-            let path = canonical
+            // Why: the binding is immutable provenance, so it records the root
+            // as configured. A composed root's resolved target is a tree keyed
+            // by its hash that rotates on every import and is then pruned.
+            let path = authoring_root
                 .to_str()
                 .ok_or_else(|| invalid("Services root must be UTF-8"))?;
             let name = format!(
@@ -295,4 +292,18 @@ fn same_files(a: &RevisionFiles, b: &RevisionFiles) -> bool {
                 file.bytes == other.bytes && file.executable == other.executable
             })
         })
+}
+
+/// A local-tree binding names the active root when it is the root as
+/// configured, resolves to the same directory, or is the base tree the active
+/// composition is layered on. The recorded path is never rewritten, so a root
+/// that rotates is recognised by what it resolves to rather than its spelling.
+fn binding_names_active_root(bound: &Path, configured: &Path, canonical: &Path) -> bool {
+    if bound == configured {
+        return true;
+    }
+    if std::fs::canonicalize(bound).is_ok_and(|resolved| resolved == canonical) {
+        return true;
+    }
+    systemprompt_loader::ServicesRootBootstrap::get().is_some_and(|active| active.base == bound)
 }

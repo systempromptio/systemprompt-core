@@ -7,6 +7,7 @@ use systemprompt_runtime::services_reconcile::pending_composed_hash;
 fn root(provenance: ServicesProvenance) -> ActiveServicesRoot {
     ActiveServicesRoot {
         path: PathBuf::from("/app/services-cache/current"),
+        base: PathBuf::from("/app/services"),
         provenance,
     }
 }

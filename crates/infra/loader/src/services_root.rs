@@ -43,7 +43,12 @@ pub enum ServicesProvenance {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ActiveServicesRoot {
+    /// The tree served: the profile's services path, or the cache's `current`
+    /// link when bundle sources are composed.
     pub path: PathBuf,
+    /// The tree the composition is layered on — the profile's services path.
+    /// Equal to `path` when nothing is composed.
+    pub base: PathBuf,
     pub provenance: ServicesProvenance,
 }
 
