@@ -23,7 +23,12 @@ fn read_settings(path: &Path) -> Result<Option<Map<String, Value>>, std::io::Err
     let bytes = match fs::read(path) {
         Ok(b) => b,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
-        Err(e) => return Err(e),
+        Err(e) => {
+            return Err(std::io::Error::new(
+                e.kind(),
+                format!("{}: {e}", path.display()),
+            ));
+        },
     };
     if bytes.iter().all(u8::is_ascii_whitespace) {
         return Ok(None);
@@ -41,6 +46,11 @@ fn read_settings(path: &Path) -> Result<Option<Map<String, Value>>, std::io::Err
             format!("{}: existing file is not a JSON object", path.display()),
         )),
     }
+}
+
+#[must_use]
+pub fn is_blank_file(path: &Path) -> bool {
+    fs::read(path).is_ok_and(|bytes| bytes.iter().all(u8::is_ascii_whitespace))
 }
 
 pub fn stripped_settings(path: &Path) -> Result<Option<String>, std::io::Error> {

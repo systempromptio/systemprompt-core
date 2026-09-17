@@ -406,6 +406,7 @@ fn governance_plugin(id: &str) -> PluginEntry {
         hooks: systemprompt_models::services::PluginHooksRef {
             governance: true,
             comms: false,
+            evaluation: false,
             include: vec![],
         },
     }

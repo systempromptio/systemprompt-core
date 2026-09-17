@@ -93,3 +93,27 @@ fn a_sentinel_from_the_configured_gateway_delivers_its_policy() {
     );
     assert!(in_sandbox(&state, automatic_enabled));
 }
+
+#[test]
+fn a_partial_sync_sentinel_still_delivers_the_auto_update_policy() {
+    let state = TempDir::new().expect("state");
+    seed_config(&state, "https://gateway.example.com");
+    let gateway = ValidatedUrl::try_new("https://gateway.example.com").expect("url");
+    seed_sentinel(
+        &state,
+        &serde_json::json!({
+            "gateway": gateway,
+            "auto_update": "staged",
+            "host_failures": ["claude-code: apply: io error in remove managed MCP policy"]
+        })
+        .to_string(),
+    );
+
+    let decision = in_sandbox(&state, auto_update_policy);
+    assert!(
+        matches!(decision, AutoUpdateDecision::Delivered(_)),
+        "one failed host must not withhold the delivered policy: {}",
+        decision.describe()
+    );
+    assert!(in_sandbox(&state, automatic_enabled));
+}

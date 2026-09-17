@@ -33,6 +33,7 @@ pub(crate) fn on_sync_requested(app: &mut GuiApp, reply_to: ReplyId) {
         }
         return;
     }
+    app.did_initial_sync = true;
     app.state.set_sync_in_flight(true);
     app.append_log("Sync started…");
     app.refresh_ui();

@@ -75,6 +75,11 @@ pub enum GatewayError {
         status: reqwest::StatusCode,
         endpoint: &'static str,
     },
+    #[error("gateway returned status {status} from bridge-latest: {body}")]
+    ReleaseRejected {
+        status: reqwest::StatusCode,
+        body: String,
+    },
     #[error("release manifest fetch failed: {0}")]
     ReleaseFetch(Box<reqwest::Error>),
     #[error("malformed release manifest response: {0}")]

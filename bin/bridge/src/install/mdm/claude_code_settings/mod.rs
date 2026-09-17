@@ -28,7 +28,7 @@ pub(crate) use self::removal::{remove_all, remove_managed_settings};
 
 pub fn managed_settings_path() -> Option<PathBuf> {
     let system = crate::config::paths::claude_code_policy_dir().join("managed-settings.json");
-    if can_write(&system) {
+    if adopts_machine_policy(&system) {
         return Some(system);
     }
     Some(
@@ -43,6 +43,18 @@ pub fn managed_settings_path() -> Option<PathBuf> {
 // policy that was never applied. An existing file is opened for write; a
 // missing one is judged by whether the nearest existing ancestor accepts a
 // temporary file, which the real write path creates and removes.
+// Why: on Windows, elevation is a property of how the tray was launched
+// (an installer, "Run as administrator"), not an administrator's decision to
+// manage the machine. A machine policy is adopted only when one already
+// exists; a clean elevated install manages the same user file the
+// unelevated tray will manage afterwards.
+fn adopts_machine_policy(system: &Path) -> bool {
+    if cfg!(windows) && !system.is_file() {
+        return false;
+    }
+    can_write(system)
+}
+
 fn can_write(path: &Path) -> bool {
     match fs::metadata(path) {
         Ok(meta) if meta.is_file() => fs::OpenOptions::new().write(true).open(path).is_ok(),

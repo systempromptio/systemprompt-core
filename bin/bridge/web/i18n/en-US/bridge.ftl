@@ -396,6 +396,7 @@ tray-sync-now = Sync now
 tray-syncing = Syncing…
 tray-validate = Re-check
 tray-check-updates = Check for updates
+tray-update-check-failed = Update check failed — retry
 tray-update-to = Update to v{ $version }
 tray-update-downloading = Downloading v{ $version }… { $percent }%
 tray-update-installing = Installing v{ $version }…

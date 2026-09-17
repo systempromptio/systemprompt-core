@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.55.0] - 2026-09-17
+
+### Added
+
+- **Gateway:** boot warns for every secret a gateway config names that the secrets source does not carry (`GatewayConfig::unresolved_secret_refs`; today `bridge_releases.token_secret`). The release feed logs the status and reason of every failed `/v1/bridge/latest` and `/v1/bridge/download/{platform}` resolution.
+
 ## [0.54.0] - 2026-09-16
 
 ### Breaking

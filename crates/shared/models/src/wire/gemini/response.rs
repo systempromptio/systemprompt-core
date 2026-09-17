@@ -39,8 +39,6 @@ pub fn stop_reason(finish: &str) -> CanonicalStopReason {
     }
 }
 
-/// The operator-facing sentence for a candidate that finished on a reason
-/// other than `STOP`/`MAX_TOKENS` without producing a single part.
 #[must_use]
 pub(super) fn empty_terminal_message(finish: &str, finish_message: Option<&str>) -> String {
     finish_message

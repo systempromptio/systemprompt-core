@@ -57,6 +57,10 @@ pub struct LastSyncState {
     pub host_model_protocols: BTreeMap<String, Vec<String>>,
     #[serde(default)]
     pub auto_update: AutoUpdatePolicy,
+    #[serde(default)]
+    pub host_failures: Vec<String>,
+    #[serde(default)]
+    pub malformed_plugins: Vec<String>,
 }
 
 impl LastSyncState {
@@ -68,13 +72,43 @@ impl LastSyncState {
     }
 
     #[must_use]
+    pub const fn is_partial(&self) -> bool {
+        !self.host_failures.is_empty() || !self.malformed_plugins.is_empty()
+    }
+
+    #[must_use]
     pub fn summary_line(&self) -> String {
         let when = self.synced_at.as_deref().unwrap_or("unknown");
         let version = self
             .manifest_version
             .as_ref()
             .map_or("?", ManifestVersion::as_str);
-        format!("{when} (manifest {version})")
+        if !self.is_partial() {
+            return format!("{when} (manifest {version})");
+        }
+        let hosts: Vec<&str> = self
+            .host_failures
+            .iter()
+            .map(|f| f.split_once(':').map_or(f.as_str(), |(host, _)| host))
+            .collect();
+        let mut detail = String::new();
+        if !hosts.is_empty() {
+            detail.push_str(&format!(
+                "{} host(s) failed ({})",
+                hosts.len(),
+                hosts.join(", ")
+            ));
+        }
+        if !self.malformed_plugins.is_empty() {
+            if !detail.is_empty() {
+                detail.push_str(", ");
+            }
+            detail.push_str(&format!(
+                "{} malformed plugin(s)",
+                self.malformed_plugins.len()
+            ));
+        }
+        format!("partial — {detail}; {when} (last applied manifest {version})")
     }
 }
 

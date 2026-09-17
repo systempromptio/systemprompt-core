@@ -171,13 +171,27 @@ impl GatewayClient {
             .map_err(|e| GatewayError::ReleaseFetch(Box::new(e)))?;
         record_span(&resp, started);
         if !resp.status().is_success() {
-            return Err(GatewayError::HttpStatus {
-                status: resp.status(),
-                endpoint: "bridge-latest",
-            });
+            let status = resp.status();
+            let body = rejection_excerpt(resp).await;
+            tracing::warn!(%status, body, "gateway refused the release lookup");
+            return Err(GatewayError::ReleaseRejected { status, body });
         }
         resp.json::<ReleaseManifest>()
             .await
             .map_err(|e| GatewayError::ReleaseDecode(Box::new(e)))
     }
+}
+
+const REJECTION_EXCERPT_CHARS: usize = 240;
+
+async fn rejection_excerpt(resp: reqwest::Response) -> String {
+    let body = resp.text().await.unwrap_or_else(|e| {
+        tracing::warn!(error = %e, "release rejection body unreadable");
+        String::new()
+    });
+    let trimmed = body.trim();
+    if trimmed.is_empty() {
+        return "no response body".to_owned();
+    }
+    trimmed.chars().take(REJECTION_EXCERPT_CHARS).collect()
 }

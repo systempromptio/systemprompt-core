@@ -202,3 +202,34 @@ fn a_sentinel_from_another_gateway_does_not_belong_to_this_one() {
         "an unstamped sentinel cannot prove which gateway wrote it"
     );
 }
+
+#[test]
+fn a_partial_sync_record_keeps_the_prior_checkpoint_so_the_retry_is_not_a_replay() {
+    let prior = version("2026-09-17T11:04:01Z-000001a0af09abc9");
+    let partial = version("2026-09-17T11:05:24Z-000001a0af0aee88");
+    let recorded = LastSyncState {
+        manifest_version: Some(prior.clone()),
+        host_failures: vec!["claude-code: apply: EOF while parsing a value".to_owned()],
+        ..LastSyncState::default()
+    };
+
+    assert!(recorded.is_partial());
+    check_replay(&recorded, &partial).expect("the partially applied manifest can be retried");
+    let err = check_replay(&recorded, &prior).expect_err("the prior manifest is still a replay");
+    assert!(matches!(err, SyncError::ReplayedManifest { .. }));
+}
+
+#[test]
+fn a_host_failure_folds_to_one_sentinel_line() {
+    let failure = systemprompt_bridge::sync::HostFailure {
+        host_id: systemprompt_bridge::ids::HostId::new("claude-code"),
+        emitter: "apply".to_owned(),
+        error: "io error in remove managed MCP policy: EOF\nsecond line".to_owned(),
+        needs_elevation: false,
+    };
+
+    assert_eq!(
+        failure.sentinel_line(),
+        "claude-code: apply: io error in remove managed MCP policy: EOF"
+    );
+}

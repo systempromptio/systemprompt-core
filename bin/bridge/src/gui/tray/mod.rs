@@ -222,7 +222,12 @@ pub fn update_menu(state: &UpdateUiState) -> (String, bool, UiEvent) {
             true,
             UiEvent::UpdateRestartRequested,
         ),
-        UpdateUiState::Unknown | UpdateUiState::Current | UpdateUiState::Failed { .. } => (
+        UpdateUiState::Failed { .. } => (
+            i18n::t("tray-update-check-failed"),
+            true,
+            UiEvent::UpdateCheckRequested { reply_to: None },
+        ),
+        UpdateUiState::Unknown | UpdateUiState::Current => (
             i18n::t("tray-check-updates"),
             true,
             UiEvent::UpdateCheckRequested { reply_to: None },

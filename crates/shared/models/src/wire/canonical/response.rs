@@ -50,9 +50,9 @@ impl CanonicalStopReason {
         }
     }
 
-    /// Whether a turn that ends on this reason with no output is the model
-    /// having nothing to say (`STOP`, an exhausted budget) or the provider
-    /// having cut it off — the latter must not relay as a clean empty turn.
+    // Why: a provider that cut the turn off (refusal, an unknown reason)
+    // must not relay as a clean empty turn; only "nothing to say" (`STOP`,
+    // an exhausted budget) is a legitimate empty terminal.
     #[must_use]
     pub const fn empty_terminal_is_error(self) -> bool {
         matches!(self, Self::Refusal | Self::Other)

@@ -82,13 +82,12 @@ pub(super) fn delete_values_at(
     let hive_label = hive.label();
     let target_hive = hive;
     let hive = hkey(hive);
-    tracing::info!(
-        hive = hive_label,
-        subkey,
-        value_count = names.len(),
-        "deleting managed policy values via in-process registry FFI"
-    );
     let Some(key) = open_key_for_write(hive, hive_label, subkey)? else {
+        tracing::debug!(
+            hive = hive_label,
+            subkey,
+            "no managed policy key to delete values from"
+        );
         return Ok(0);
     };
     let mut removed = 0;
@@ -107,6 +106,21 @@ pub(super) fn delete_values_at(
         }
     }
     drop(key);
+    if removed > 0 {
+        tracing::info!(
+            hive = hive_label,
+            subkey,
+            removed,
+            "deleted managed policy values via in-process registry FFI"
+        );
+    } else {
+        tracing::debug!(
+            hive = hive_label,
+            subkey,
+            value_count = names.len(),
+            "managed policy values already absent"
+        );
+    }
     for name in names {
         if super::windows_registry::read_string(hive, subkey, name)?.is_some() {
             return Err(ConfigStoreError::VerifyMismatch {

@@ -148,6 +148,7 @@ fn advance(app: &mut GuiApp) {
     app.state.set_first_run_phase(FirstRunPhase::Syncing);
     app.state.set_first_run_sync(StepStatus::Installing);
     progress(app);
+    app.did_initial_sync = true;
     app.proxy
         .send_event(UiEvent::SyncRequested { reply_to: None });
 }

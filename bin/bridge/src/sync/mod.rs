@@ -14,7 +14,6 @@ mod summary;
 
 use self::provision::{denied_inside_system_root, heal_org_plugins_scope, org_plugins_denied};
 use self::seed_model::seed_default_model_from_profile;
-use self::sentinel::persist_last_sync;
 pub use crate::last_sync::{
     LastSyncState, ReplayStateError, last_synced_auto_update_policy, last_synced_enabled_hosts,
     read_last_sync,
@@ -164,17 +163,9 @@ pub async fn run_once(
     let meta = paths::bridge_metadata_dir().ok_or(SyncError::PathUnresolvable)?;
     let last_sync_path = meta.join(paths::LAST_SYNC_SENTINEL);
     let now = chrono::Utc::now();
+    let last_state = prior_checkpoint(&last_sync_path, &run_gateway)?;
+    let prior_version = last_state.manifest_version.clone();
     if !force_replay {
-        let last_state = match read_last_sync(&last_sync_path) {
-            // Why: manifest versions are per gateway; the previous gateway's
-            // version says nothing about whether this one is a replay.
-            Ok(Some(s)) if s.belongs_to(&run_gateway) => s,
-            Ok(_) => LastSyncState::default(),
-            Err(e) => {
-                tracing::error!(error = %e, "replay state file is corrupt; refusing to apply");
-                return Err(SyncError::from(e));
-            },
-        };
         check_skew(synced.not_before, now)?;
         if last_state.manifest_version.as_ref() == Some(&synced.manifest_version) {
             ensure_not_superseded(&run_gateway)?;
@@ -224,10 +215,17 @@ pub async fn run_once(
         },
     };
 
+    let sentinel = sentinel::SentinelInputs {
+        manifest: &synced,
+        report: &report,
+        now,
+        gateway: &run_gateway,
+    };
     if !report.host_failures.is_empty() || !report.malformed.is_empty() {
+        sentinel.persist(&last_sync_path, prior_version)?;
         return Err(SyncError::Partial(Box::new(build_summary(&synced, report))));
     }
-    persist_last_sync(&last_sync_path, &synced, &report, now, &run_gateway)?;
+    sentinel.persist(&last_sync_path, Some(synced.manifest_version.clone()))?;
     seed_default_model_from_profile(&fetch.client).await?;
 
     bridge
@@ -240,6 +238,22 @@ pub async fn run_once(
             source,
         })?;
     Ok(build_summary(&synced, report))
+}
+
+fn prior_checkpoint(
+    last_sync_path: &std::path::Path,
+    run_gateway: &systemprompt_identifiers::ValidatedUrl,
+) -> Result<LastSyncState, SyncError> {
+    match read_last_sync(last_sync_path) {
+        // Why: manifest versions are per gateway; the previous gateway's
+        // version says nothing about whether this one is a replay.
+        Ok(Some(s)) if s.belongs_to(run_gateway) => Ok(s),
+        Ok(_) => Ok(LastSyncState::default()),
+        Err(e) => {
+            tracing::error!(error = %e, "replay state file is corrupt; refusing to apply");
+            Err(SyncError::from(e))
+        },
+    }
 }
 
 fn ensure_not_superseded(

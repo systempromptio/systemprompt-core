@@ -13,19 +13,19 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+/// The vantage point the platform saw a tool result from.
+///
+/// In-process executor, the HTTP proxy tapping an external server, a
+/// `tool_result` block replayed in a `/v1/messages` history, or a client
+/// host's tool-completion hook (`PostToolUse` for Claude Code and Cowork;
+/// `OpenCode`'s own hook).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecutionSource {
-    /// A server built on the in-process tool executor ran the tool.
     InProcess,
-    /// The HTTP gateway forwarded the call to an external MCP server and
-    /// tapped the response.
     Proxy,
-    /// A `tool_result` block replayed in a `/v1/messages` history.
     Gateway,
-    /// Claude Code or Cowork reported the result through `PostToolUse`.
     HookClaudeCode,
-    /// OpenCode reported the result through its tool-completion hook.
     HookOpenCode,
 }
 
@@ -54,16 +54,13 @@ impl ExecutionSource {
         Self::ALL.into_iter().find(|s| s.as_str() == value)
     }
 
-    /// Whether the platform itself observed the execution, as opposed to a
-    /// client reporting it after the fact.
     #[must_use]
     pub const fn is_server_observed(self) -> bool {
         matches!(self, Self::InProcess | Self::Proxy)
     }
 
-    /// The hook source for a client host name as sent in `x-systemprompt-host`.
     #[must_use]
-    pub fn from_hook_host(host: &str) -> Self {
+    pub const fn from_hook_host(host: &str) -> Self {
         if host.eq_ignore_ascii_case("opencode") {
             Self::HookOpenCode
         } else {
@@ -78,14 +75,15 @@ impl std::fmt::Display for ExecutionSource {
     }
 }
 
+/// How a tool result was joined to its invocation.
+///
+/// `Exact` by a key both sides carried (the client `tool_use_id` or the
+/// server `mcp_execution_id`); `Inferred` by session, tool name, payload
+/// digest and time — the only option when a client host dropped every id.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Correlation {
-    /// Joined by a key both sides carried: the client `tool_use_id` or the
-    /// server `mcp_execution_id`.
     Exact,
-    /// Joined by session, tool name, payload digest, and time — the only
-    /// option when a client host dropped every id.
     Inferred,
 }
 

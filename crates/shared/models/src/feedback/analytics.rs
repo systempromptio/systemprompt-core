@@ -147,10 +147,11 @@ pub struct NormalizedResourceAssociationFact {
     pub attribution: InvocationResourceAttribution,
 }
 
-/// One tool result stored as a typed artifact, joined to the invocation and
-/// request it belongs to where those are known. `source` is the vantage
-/// point the platform saw the result from and `correlation` says whether it
-/// was joined by an exact key or inferred.
+/// One tool result stored as a typed artifact.
+///
+/// It is joined to the invocation and request it belongs to where those are
+/// known. `source` is the vantage point the platform saw the result from and
+/// `correlation` says whether it was joined by an exact key or inferred.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct NormalizedArtifactFact {
@@ -184,7 +185,7 @@ pub enum NormalizedAnalyticsFact {
     Request(NormalizedRequestFact),
     Assessment(NormalizedAssessmentFact),
     ResourceAssociation(NormalizedResourceAssociationFact),
-    Artifact(NormalizedArtifactFact),
+    Artifact(Box<NormalizedArtifactFact>),
 }
 
 impl NormalizedAnalyticsFact {

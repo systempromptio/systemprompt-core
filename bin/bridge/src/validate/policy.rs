@@ -112,7 +112,17 @@ fn check_claude_code_policy_dir(report: &mut Report) {
         ),
     }
     if offenders.is_empty() {
-        report.ok("claude code policy dir", "no MCP policy files");
+        if crate::claude_policy::is_blank_file(&settings) {
+            report.ok(
+                "claude code policy dir",
+                &format!(
+                    "{} is empty (Claude Code reads it as {{}})",
+                    settings.display()
+                ),
+            );
+        } else {
+            report.ok("claude code policy dir", "no MCP policy files");
+        }
     } else {
         report.fail(
             "claude code policy dir",

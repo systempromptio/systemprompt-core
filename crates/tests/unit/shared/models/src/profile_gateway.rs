@@ -1267,3 +1267,53 @@ fn a_discovered_unpriced_model_would_fail_boot() {
         "unexpected: {err}"
     );
 }
+
+fn releases_spec(token_secret: Option<&str>) -> systemprompt_models::services::BridgeReleasesSpec {
+    serde_json::from_value(serde_json::json!({
+        "repo": "Astound-Digital/systemprompt-astound",
+        "token_secret": token_secret,
+        "tag_prefix": "v",
+        "assets": { "windows": "astound-bridge-windows.exe" }
+    }))
+    .expect("valid bridge_releases spec")
+}
+
+// Why: sp-dev shipped `token_secret: SYSTEMPROMPT_BRIDGE_RELEASES_TOKEN` while
+// the machine only carried `ASTOUND_RELEASE_TOKEN`; every bridge update check
+// on that tenant failed and nothing at boot said why.
+#[test]
+fn a_release_token_secret_that_is_not_configured_is_reported_by_name() {
+    let mut gateway = enabled_gateway(vec![]);
+    gateway.bridge_releases = Some(releases_spec(Some("SYSTEMPROMPT_BRIDGE_RELEASES_TOKEN")));
+
+    let unresolved = gateway.unresolved_secret_refs(|name| name == "ASTOUND_RELEASE_TOKEN");
+    assert_eq!(
+        unresolved,
+        vec!["bridge_releases.token_secret=SYSTEMPROMPT_BRIDGE_RELEASES_TOKEN".to_owned()]
+    );
+}
+
+#[test]
+fn a_configured_release_token_secret_is_not_reported() {
+    let mut gateway = enabled_gateway(vec![]);
+    gateway.bridge_releases = Some(releases_spec(Some("ASTOUND_RELEASE_TOKEN")));
+
+    assert!(
+        gateway
+            .unresolved_secret_refs(|name| name == "ASTOUND_RELEASE_TOKEN")
+            .is_empty()
+    );
+}
+
+#[test]
+fn a_public_release_feed_names_no_secret_and_is_not_reported() {
+    let mut gateway = enabled_gateway(vec![]);
+    gateway.bridge_releases = Some(releases_spec(None));
+
+    assert!(gateway.unresolved_secret_refs(|_| false).is_empty());
+    assert!(
+        enabled_gateway(vec![])
+            .unresolved_secret_refs(|_| false)
+            .is_empty()
+    );
+}

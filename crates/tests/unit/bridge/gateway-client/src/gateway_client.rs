@@ -594,3 +594,76 @@ async fn a_rejected_host_model_filter_maps_to_http_status() {
         other => panic!("expected HttpStatus, got {other:?}"),
     }
 }
+
+#[tokio::test]
+async fn a_refused_release_lookup_carries_the_gateway_reason() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/v1/bridge/latest"))
+        .and(header("authorization", format!("Bearer {BEARER}").as_str()))
+        .respond_with(ResponseTemplate::new(503).set_body_string(
+            "bridge release token secret SYSTEMPROMPT_BRIDGE_RELEASES_TOKEN is not configured",
+        ))
+        .mount(&server)
+        .await;
+
+    let err = client(&server)
+        .fetch_latest_release(&bearer(), "windows")
+        .await
+        .unwrap_err();
+    match &err {
+        GatewayError::ReleaseRejected { status, body } => {
+            assert_eq!(status.as_u16(), 503);
+            assert_eq!(
+                body,
+                "bridge release token secret SYSTEMPROMPT_BRIDGE_RELEASES_TOKEN is not configured"
+            );
+        },
+        other => panic!("expected ReleaseRejected, got {other:?}"),
+    }
+    assert_eq!(
+        err.to_string(),
+        "gateway returned status 503 Service Unavailable from bridge-latest: bridge release token secret SYSTEMPROMPT_BRIDGE_RELEASES_TOKEN is not configured"
+    );
+}
+
+#[tokio::test]
+async fn a_refused_release_lookup_with_no_body_says_so() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/v1/bridge/latest"))
+        .respond_with(ResponseTemplate::new(502))
+        .mount(&server)
+        .await;
+
+    let err = client(&server)
+        .fetch_latest_release(&bearer(), "windows")
+        .await
+        .unwrap_err();
+    match err {
+        GatewayError::ReleaseRejected { status, body } => {
+            assert_eq!(status.as_u16(), 502);
+            assert_eq!(body, "no response body");
+        },
+        other => panic!("expected ReleaseRejected, got {other:?}"),
+    }
+}
+
+#[tokio::test]
+async fn a_long_release_rejection_body_is_bounded() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/v1/bridge/latest"))
+        .respond_with(ResponseTemplate::new(502).set_body_string("x".repeat(10_000)))
+        .mount(&server)
+        .await;
+
+    let err = client(&server)
+        .fetch_latest_release(&bearer(), "windows")
+        .await
+        .unwrap_err();
+    match err {
+        GatewayError::ReleaseRejected { body, .. } => assert_eq!(body.len(), 240),
+        other => panic!("expected ReleaseRejected, got {other:?}"),
+    }
+}

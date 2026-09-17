@@ -165,6 +165,9 @@ pub(crate) struct GuiApp {
     // JSON: webview IPC envelope, the last `state.changed` projection compared before re-emitting
     pub(crate) last_semantic_state: Option<serde_json::Value>,
     pub(crate) current_mount: Option<u64>,
+    // Why: set at the moment a sync is *requested*, not when it is dispatched
+    // — the one-second tick runs between the two and would otherwise queue a
+    // second start-up sync behind the login-triggered one.
     pub(crate) did_initial_sync: bool,
     pub(crate) active_signals: HashSet<notify::Signal>,
 }
