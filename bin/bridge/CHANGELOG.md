@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.55.0] - 2026-09-17
+
+### Fixed
+
+- Windows: `create_dir_all_mode_0700` on an already-private directory no longer rewrites its protected DACL. `protect_directory` verifies with `READ_CONTROL` first and only takes `WRITE_DAC` (serialised process-wide) when the descriptor is not the private one, so concurrent writers into a shared brand directory (`generate_profile` from several threads) no longer observe a transient `PermissionDenied` while a sibling re-propagates the DACL.
+
 ## [0.54.0] - 2026-09-16
 
 ### Breaking
