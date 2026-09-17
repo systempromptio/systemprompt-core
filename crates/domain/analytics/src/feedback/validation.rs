@@ -88,6 +88,20 @@ pub(super) fn parse_state(value: &str) -> Result<super::FactChangeState> {
     }
 }
 
+fn spend_is_well_formed(spend: &RecordedSpend) -> Result<()> {
+    if let RecordedSpend::Known {
+        currency,
+        amount_micros,
+    } = spend
+    {
+        if currency.len() != 3 || !currency.bytes().all(|byte| byte.is_ascii_uppercase()) {
+            return Err(invalid());
+        }
+        bounded(Some(*amount_micros))?;
+    }
+    Ok(())
+}
+
 fn fact_occurred_at(
     fact: &NormalizedAnalyticsFact,
     key: &AnalyticsFactKey,
@@ -107,16 +121,7 @@ fn fact_occurred_at(
             bounded(value.input_tokens)?;
             bounded(value.output_tokens)?;
             bounded(value.latency_micros)?;
-            if let RecordedSpend::Known {
-                currency,
-                amount_micros,
-            } = &value.spend
-            {
-                if currency.len() != 3 || !currency.bytes().all(|byte| byte.is_ascii_uppercase()) {
-                    return Err(invalid());
-                }
-                bounded(Some(*amount_micros))?;
-            }
+            spend_is_well_formed(&value.spend)?;
             value.occurred_at
         },
         NormalizedAnalyticsFact::Assessment(value) => {

@@ -43,6 +43,25 @@ pub(super) struct CoreLayer {
     pub(super) file_storage: Arc<dyn FileStorage>,
 }
 
+async fn init_services(
+    secrets: &systemprompt_models::secrets::Secrets,
+) -> RuntimeResult<&'static systemprompt_models::services::ServicesConfig> {
+    let services = systemprompt_loader::ServicesBootstrap::try_init_with_discovery(|providers| {
+        Box::pin(discover_vertex_models(providers))
+    })
+    .await
+    .map_err(|err| RuntimeError::Internal(format!("services config init: {err}")))?;
+    if let Some(gateway) = services.gateway_config() {
+        for reference in gateway.unresolved_secret_refs(|name| secrets.get(name).is_some()) {
+            tracing::warn!(
+                reference = %reference,
+                "gateway config names a secret that is not configured; the dependent endpoint answers 503"
+            );
+        }
+    }
+    Ok(services)
+}
+
 pub(super) async fn init_core(
     authz_hook_override: Option<SharedAuthzHook>,
 ) -> RuntimeResult<CoreLayer> {
@@ -64,19 +83,7 @@ pub(super) async fn init_core(
     systemprompt_files::FilesConfig::init(&app_paths)?;
     systemprompt_config::try_init_config(Some(active_root.path.as_path()))
         .map_err(|err| RuntimeError::Internal(format!("config init: {err}")))?;
-    let services = systemprompt_loader::ServicesBootstrap::try_init_with_discovery(|providers| {
-        Box::pin(discover_vertex_models(providers))
-    })
-    .await
-    .map_err(|err| RuntimeError::Internal(format!("services config init: {err}")))?;
-    if let Some(gateway) = services.gateway_config() {
-        for reference in gateway.unresolved_secret_refs(|name| secrets.get(name).is_some()) {
-            tracing::warn!(
-                reference = %reference,
-                "gateway config names a secret that is not configured; the dependent endpoint answers 503"
-            );
-        }
-    }
+    let services = init_services(secrets).await?;
     let config = Arc::new(Config::get()?.clone());
     let instance_id = systemprompt_identifiers::InstanceId::new(&config.instance_id);
     systemprompt_logging::set_instance_id(instance_id.clone());

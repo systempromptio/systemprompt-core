@@ -19,7 +19,7 @@ use std::sync::{Arc, OnceLock};
 
 use systemprompt_database::MigrationConfig;
 use systemprompt_extension::ExtensionRegistry;
-use systemprompt_marketplace::{MarketplaceCache, MarketplaceFilter};
+use systemprompt_marketplace::MarketplaceFilter;
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_security::authz::{AuthzDecisionHook, SharedAuthzHook};
 use systemprompt_users::UserService;
@@ -131,7 +131,6 @@ impl AppContextBuilder {
             file_storage,
         } = init_core(self.authz_hook).await?;
 
-        let api_registry = Arc::new(ModuleApiRegistry::new());
         let (extension_registry, schema_install) = init_extensions(
             self.extension_registry,
             self.install_schemas,
@@ -163,32 +162,19 @@ impl AppContextBuilder {
             .marketplace_filter
             .unwrap_or_else(|| assembly::build_marketplace_filter(&database));
 
-        let ai_service = ai_service::build_ai_service(&database, &repositories, &mcp_registry)?;
-        let artifact_ingest = Arc::new(
-            systemprompt_mcp::ArtifactIngest::from_db(
-                &database,
-                governance
-                    .secret_scanner()
-                    .map(|scanner| Arc::new(scanner.clone())),
-            )
-            .map_err(|e| crate::RuntimeError::Internal(format!("artifact ingest: {e}")))?,
-        );
-
         let subsystems = Subsystems {
+            ai_service: ai_service::build_ai_service(&database, &repositories, &mcp_registry)?,
+            artifact_ingest: build_artifact_ingest(&database, &governance)?,
             system_admin,
             authz_hook,
             governance,
-            ai_service,
-            artifact_ingest,
             schema_install: Arc::new(schema_install),
             event_bridge: Arc::new(OnceLock::new()),
             geoip_reader,
             file_storage,
             shutdown,
-            publish_guard: Arc::new(tokio::sync::Mutex::new(
-                systemprompt_marketplace::inventory::PublishGuard::default(),
-            )),
-            snapshot_wakeup: Arc::new(crate::reporting::SnapshotWakeup::default()),
+            publish_guard: Arc::default(),
+            snapshot_wakeup: Arc::default(),
         };
 
         Ok(AppContext::from_parts(
@@ -207,14 +193,28 @@ impl AppContextBuilder {
             },
             Plugins {
                 extension_registry,
-                api_registry,
+                api_registry: Arc::new(ModuleApiRegistry::new()),
                 mcp_registry,
                 marketplace_filter,
-                marketplace_cache: Arc::new(MarketplaceCache::default()),
+                marketplace_cache: Arc::default(),
             },
             subsystems,
         ))
     }
+}
+
+fn build_artifact_ingest(
+    database: &systemprompt_database::DbPool,
+    governance: &systemprompt_security::policy::GovernanceEngine,
+) -> RuntimeResult<Arc<systemprompt_mcp::ArtifactIngest>> {
+    let ingest = systemprompt_mcp::ArtifactIngest::from_db(
+        database,
+        governance
+            .secret_scanner()
+            .map(|scanner| Arc::new(scanner.clone())),
+    )
+    .map_err(|e| crate::RuntimeError::Internal(format!("artifact ingest: {e}")))?;
+    Ok(Arc::new(ingest))
 }
 
 async fn build_domain_layer(

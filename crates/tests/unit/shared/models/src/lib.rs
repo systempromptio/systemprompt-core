@@ -76,6 +76,7 @@ mod profile_services_sources;
 
 #[cfg(test)]
 mod profile_audit;
+#[cfg(test)]
 mod profile_evaluation;
 #[cfg(test)]
 mod profile_observability;

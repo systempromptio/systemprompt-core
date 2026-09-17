@@ -5,7 +5,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::baseline::configured_files;
+use super::configured_files::configured_files;
 use super::publish_provenance::{PassProvenance, inventory_request};
 use super::{BaselineScope, InventoryEntry, InventoryService};
 use crate::managed::{AssetDigest, ManagedResolution, PublicationAdmission, ResourceKind, Result};

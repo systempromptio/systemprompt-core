@@ -6,6 +6,7 @@
 
 mod artifact;
 mod artifact_finding;
+mod artifact_ingest;
 mod artifact_payload;
 mod external_session;
 mod ownership;
@@ -19,6 +20,7 @@ pub use artifact::{
 pub use artifact_finding::{
     ArtifactFinding, ArtifactFindingRecord, ArtifactFindingRepository, PHASE_TOOL_RESULT,
 };
+pub use artifact_ingest::ArtifactIngestRepositories;
 pub use artifact_payload::{ArtifactPayloadRecord, ArtifactPayloadRepository};
 pub use external_session::ExternalSessionBinding;
 pub use ownership::McpOwnerReassignment;

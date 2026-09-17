@@ -55,8 +55,6 @@ pub struct GovernanceConfig {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct AuditConfig {
-    /// Largest request or response body stored whole; larger bodies keep a
-    /// digest and an excerpt. Default 1 MiB, minimum 64 KiB.
     #[serde(default = "default_payload_cap_bytes")]
     pub payload_cap_bytes: usize,
 }

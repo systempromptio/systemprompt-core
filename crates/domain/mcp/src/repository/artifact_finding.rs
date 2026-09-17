@@ -10,7 +10,6 @@ use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::ArtifactId;
 
-/// The ingestion phase every artifact finding is raised in.
 pub const PHASE_TOOL_RESULT: &str = "tool_result";
 
 #[derive(Debug, Clone, PartialEq, Eq)]

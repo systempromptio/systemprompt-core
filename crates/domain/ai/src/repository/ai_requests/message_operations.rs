@@ -116,8 +116,6 @@ impl AiRequestRepository {
         .map_err(RepositoryError::from)
     }
 
-    /// The intent row a client `tool_use_id` names: the model's call whose
-    /// result is being reported.
     pub async fn find_tool_call_by_ai_id(
         &self,
         ai_tool_call_id: &AiToolCallId,

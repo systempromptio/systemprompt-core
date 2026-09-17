@@ -94,7 +94,7 @@ fn canonical(messages: Vec<CanonicalMessage>) -> CanonicalRequest {
 fn user_message(text: &str) -> CanonicalMessage {
     CanonicalMessage {
         role: Role::User,
-        content: vec![CanonicalContent::text(text.into())],
+        content: vec![CanonicalContent::text(text)],
     }
 }
 

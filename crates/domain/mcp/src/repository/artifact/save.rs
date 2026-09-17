@@ -10,9 +10,6 @@ use systemprompt_identifiers::{AiToolCallId, ArtifactId, ContextId, SessionId, T
 use systemprompt_models::mcp::ExecutionSource;
 
 impl McpArtifactRepository {
-    /// Inserts an artifact. A repeat of the same `artifact_id` refreshes the
-    /// body and title — the in-process builder's own re-emission — and notes
-    /// the vantage point it was last seen from.
     pub async fn save(&self, artifact: &CreateMcpArtifact) -> McpDomainResult<()> {
         sqlx::query!(
             r#"
@@ -60,9 +57,6 @@ impl McpArtifactRepository {
         Ok(())
     }
 
-    /// Fills correlation keys the original vantage point did not have. Never
-    /// overwrites a key that is already set and never touches the body: a
-    /// client's copy of a result can be reshaped, the server's cannot.
     pub async fn enrich_correlation(
         &self,
         artifact_id: &ArtifactId,

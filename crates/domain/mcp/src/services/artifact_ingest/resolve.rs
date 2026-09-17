@@ -50,7 +50,7 @@ pub(super) async fn resolve_execution(
         && let Some(id) = ingest
             .executions
             .find_by_fingerprint(
-                request.ctx.session_id().as_str(),
+                request.ctx.session_id(),
                 &request.tool_name,
                 raw_sha256,
                 FINGERPRINT_WINDOW_SECONDS,
@@ -75,6 +75,21 @@ pub(super) async fn resolve_execution(
         Correlation::Inferred
     };
     let id = McpExecutionId::new(uuid::Uuid::new_v4().to_string());
+    let (execution, result) = new_execution(request, classified);
+    ingest
+        .executions
+        .log_execution_sync_with_id(&id, &execution, &result, correlation)
+        .await?;
+    Ok(ResolvedExecution {
+        mcp_execution_id: id,
+        correlation,
+    })
+}
+
+fn new_execution(
+    request: &IngestRequest,
+    classified: &Classified,
+) -> (ToolExecutionRequest, ToolExecutionResult) {
     let started_at = request.started_at.unwrap_or_else(Utc::now);
     let error_message = classified
         .is_error
@@ -101,14 +116,7 @@ pub(super) async fn resolve_execution(
         started_at,
         completed_at: Utc::now(),
     };
-    ingest
-        .executions
-        .log_execution_sync_with_id(&id, &execution, &result, correlation)
-        .await?;
-    Ok(ResolvedExecution {
-        mcp_execution_id: id,
-        correlation,
-    })
+    (execution, result)
 }
 
 const fn exact(id: McpExecutionId) -> ResolvedExecution {
@@ -118,8 +126,6 @@ const fn exact(id: McpExecutionId) -> ResolvedExecution {
     }
 }
 
-/// The execution already has its artifact: record what this vantage point
-/// knew that the first one did not. The body is never replaced.
 pub(super) async fn enrich_existing(
     ingest: &ArtifactIngest,
     request: &IngestRequest,

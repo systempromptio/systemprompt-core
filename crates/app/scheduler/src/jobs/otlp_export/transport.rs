@@ -30,16 +30,15 @@ pub const RETRY_DELAYS: [Duration; 3] = [
 // responses; every other 4xx is a request the collector will keep refusing.
 #[must_use]
 pub fn is_retryable(status: Option<StatusCode>) -> bool {
-    match status {
-        None => true,
-        Some(status) => matches!(
+    status.is_none_or(|status| {
+        matches!(
             status,
             StatusCode::TOO_MANY_REQUESTS
                 | StatusCode::BAD_GATEWAY
                 | StatusCode::SERVICE_UNAVAILABLE
                 | StatusCode::GATEWAY_TIMEOUT
-        ),
-    }
+        )
+    })
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -95,7 +94,7 @@ pub(super) async fn post_signal<M: Message>(
     let body = envelope.encode_to_vec();
 
     let mut delays = RETRY_DELAYS.iter();
-    let mut attempt = 0_usize;
+    let mut attempt = 0usize;
     loop {
         attempt += 1;
         let error = match send_once(&url, headers.clone(), body.clone()).await {

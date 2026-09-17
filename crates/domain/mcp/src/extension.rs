@@ -9,6 +9,68 @@ use systemprompt_extension::prelude::*;
 #[derive(Debug, Clone, Copy, Default)]
 pub struct McpExtension;
 
+const TABLES: &[(&str, &str, &[&str])] = &[
+    (
+        "mcp_external_sessions",
+        include_str!("../schema/mcp_external_sessions.sql"),
+        &[
+            "server_name",
+            "session_id",
+            "user_id",
+            "credential_hash",
+            "expires_at",
+        ],
+    ),
+    (
+        "mcp_tool_executions",
+        include_str!("../schema/mcp_tool_executions.sql"),
+        &[
+            "mcp_execution_id",
+            "tool_name",
+            "server_name",
+            "source",
+            "correlation",
+            "created_at",
+        ],
+    ),
+    (
+        "mcp_sessions",
+        include_str!("../schema/mcp_sessions.sql"),
+        &["session_id", "status", "created_at"],
+    ),
+    (
+        "mcp_proxy_identities",
+        include_str!("../schema/mcp_proxy_identities.sql"),
+        &["session_id", "user_id", "auth_token", "expires_at"],
+    ),
+    (
+        "artifact_payloads",
+        include_str!("../schema/artifact_payloads.sql"),
+        &["sha256", "byte_len", "body", "ref_count"],
+    ),
+    (
+        "mcp_artifacts",
+        include_str!("../schema/mcp_artifacts.sql"),
+        &[
+            "artifact_id",
+            "mcp_execution_id",
+            "server_name",
+            "artifact_type",
+            "source",
+            "ai_tool_call_id",
+            "payload_sha256",
+            "is_structured",
+            "data",
+            "created_at",
+        ],
+    ),
+    (
+        "mcp_artifact_findings",
+        include_str!("../schema/mcp_artifact_findings.sql"),
+        &["artifact_id", "phase", "category", "scanner"],
+    ),
+];
+
 impl Extension for McpExtension {
     fn metadata(&self) -> ExtensionMetadata {
         ExtensionMetadata {
@@ -19,84 +81,16 @@ impl Extension for McpExtension {
     }
 
     fn schemas(&self) -> Vec<SchemaDefinition> {
-        vec![
+        let mut schemas = vec![
             SchemaDefinition::sql_only(include_str!("../schema/reporting_privacy.sql")),
             SchemaDefinition::sql_only(include_str!("../schema/reporting_capture.sql")),
-            SchemaDefinition::new(
-                "mcp_external_sessions",
-                include_str!("../schema/mcp_external_sessions.sql"),
-            )
-            .with_required_columns(vec![
-                "server_name".into(),
-                "session_id".into(),
-                "user_id".into(),
-                "credential_hash".into(),
-                "expires_at".into(),
-            ]),
-            SchemaDefinition::new(
-                "mcp_tool_executions",
-                include_str!("../schema/mcp_tool_executions.sql"),
-            )
-            .with_required_columns(vec![
-                "mcp_execution_id".into(),
-                "tool_name".into(),
-                "server_name".into(),
-                "source".into(),
-                "correlation".into(),
-                "created_at".into(),
-            ]),
-            SchemaDefinition::new("mcp_sessions", include_str!("../schema/mcp_sessions.sql"))
-                .with_required_columns(vec![
-                    "session_id".into(),
-                    "status".into(),
-                    "created_at".into(),
-                ]),
-            SchemaDefinition::new(
-                "mcp_proxy_identities",
-                include_str!("../schema/mcp_proxy_identities.sql"),
-            )
-            .with_required_columns(vec![
-                "session_id".into(),
-                "user_id".into(),
-                "auth_token".into(),
-                "expires_at".into(),
-            ]),
-            SchemaDefinition::new(
-                "artifact_payloads",
-                include_str!("../schema/artifact_payloads.sql"),
-            )
-            .with_required_columns(vec![
-                "sha256".into(),
-                "byte_len".into(),
-                "body".into(),
-                "ref_count".into(),
-            ]),
-            SchemaDefinition::new("mcp_artifacts", include_str!("../schema/mcp_artifacts.sql"))
-                .with_required_columns(vec![
-                    "artifact_id".into(),
-                    "mcp_execution_id".into(),
-                    "server_name".into(),
-                    "artifact_type".into(),
-                    "source".into(),
-                    "ai_tool_call_id".into(),
-                    "payload_sha256".into(),
-                    "is_structured".into(),
-                    "data".into(),
-                    "created_at".into(),
-                ]),
-            SchemaDefinition::new(
-                "mcp_artifact_findings",
-                include_str!("../schema/mcp_artifact_findings.sql"),
-            )
-            .with_required_columns(vec![
-                "artifact_id".into(),
-                "phase".into(),
-                "category".into(),
-                "scanner".into(),
-            ]),
-        ]
+        ];
+        schemas.extend(TABLES.iter().map(|(name, sql, columns)| {
+            SchemaDefinition::new(*name, *sql)
+                .with_required_columns(columns.iter().map(|c| (*c).to_owned()).collect())
+        }));
+        schemas
     }
-
     fn dependencies(&self) -> Vec<&'static str> {
         vec!["users"]
     }

@@ -3,8 +3,8 @@
 //!
 //! Each tick, for every signal the profile's `observability.otlp` block
 //! names, the job reads the rows after that signal's watermark
-//! ([`state`]), converts them to OTLP ([`spans`], [`logs`]), POSTs the
-//! envelope ([`transport`]) and, only once the collector has acknowledged
+//! (`state`), converts them to OTLP (`spans`, `logs`), POSTs the
+//! envelope (`transport`) and, only once the collector has acknowledged
 //! it, advances the watermark. A batch that fails keeps its cursor and is
 //! retried at the next tick, so nothing is dropped and nothing is skipped;
 //! ids are digests of the row keys, so a re-sent batch overwrites rather

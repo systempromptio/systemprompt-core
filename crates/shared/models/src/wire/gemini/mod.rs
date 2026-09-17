@@ -14,6 +14,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod request;
+mod request_parts;
 mod response;
 mod streaming;
 mod streaming_parts;

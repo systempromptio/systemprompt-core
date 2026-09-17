@@ -6,16 +6,16 @@
 
 use super::captures::IncomingRevision;
 use super::catalog::invalid;
+use super::configured_files::configured_files;
 use super::{BaselineScope, InventoryEntry, InventoryService};
 use crate::managed::{
-    AssetDigest, AssetFile, ManagedError, NewResource, NewRevision, ResourceKind, Result,
-    RevisionFiles, SnapshotProvenance, SourceSpec, capture_inventory_files,
+    AssetDigest, NewResource, NewRevision, ResourceKind, Result, RevisionFiles, SnapshotProvenance,
+    SourceSpec,
 };
 use std::collections::BTreeMap;
 use std::path::Path;
 use systemprompt_identifiers::{ManagedReconciliationId, ResourceRevisionId, UserId};
 use systemprompt_models::feedback::inventory::InventoryAvailability;
-use systemprompt_models::services::ServicesConfig;
 
 struct AuthoringCapture {
     files: RevisionFiles,
@@ -233,58 +233,6 @@ impl InventoryService {
     }
 }
 
-pub(super) fn configured_files(
-    root: &Path,
-    entry: &InventoryEntry,
-    services: &ServicesConfig,
-) -> Result<RevisionFiles> {
-    let inline = match entry.kind.as_str() {
-        "agent" => Some(
-            serde_yaml::to_string(
-                services
-                    .agents
-                    .get(&entry.resource_key)
-                    .ok_or_else(|| invalid("Configured agent disappeared"))?,
-            )
-            .map_err(|error| {
-                ManagedError::Invalid(format!("Agent configuration cannot be captured: {error}"))
-            })?,
-        ),
-        "mcp" => Some(
-            serde_yaml::to_string(
-                services
-                    .mcp_servers
-                    .get(&entry.resource_key)
-                    .ok_or_else(|| invalid("Configured MCP server disappeared"))?,
-            )
-            .map_err(|error| {
-                ManagedError::Invalid(format!("MCP configuration cannot be captured: {error}"))
-            })?,
-        ),
-        _ => None,
-    };
-    if let Some(config) = inline {
-        let files = RevisionFiles(BTreeMap::from([(
-            "config.yaml".to_owned(),
-            AssetFile {
-                bytes: config.into_bytes(),
-                media_type: "application/yaml".to_owned(),
-                executable: false,
-            },
-        )]));
-        files.validate()?;
-        Ok(files)
-    } else {
-        capture_inventory_files(
-            root,
-            entry
-                .configured_key
-                .as_deref()
-                .ok_or_else(|| invalid("Missing authoring path"))?,
-        )
-    }
-}
-
 fn same_files(a: &RevisionFiles, b: &RevisionFiles) -> bool {
     a.0.len() == b.0.len()
         && a.0.iter().all(|(path, file)| {
@@ -294,10 +242,6 @@ fn same_files(a: &RevisionFiles, b: &RevisionFiles) -> bool {
         })
 }
 
-/// A local-tree binding names the active root when it is the root as
-/// configured, resolves to the same directory, or is the base tree the active
-/// composition is layered on. The recorded path is never rewritten, so a root
-/// that rotates is recognised by what it resolves to rather than its spelling.
 fn binding_names_active_root(bound: &Path, configured: &Path, canonical: &Path) -> bool {
     if bound == configured {
         return true;

@@ -39,7 +39,7 @@ pub(super) struct BuildRecordParams<'a> {
 // Why: a job never produces a conversational turn. Stamping its calls as
 // utility lets a dashboard exclude judge and housekeeping inference from user
 // figures by `request_kind` as well as by `actor_kind`.
-fn request_kind_of(context: &RequestContext) -> RequestKind {
+const fn request_kind_of(context: &RequestContext) -> RequestKind {
     match context.actor().kind {
         ActorKind::Job { .. } => RequestKind::Utility,
         _ => RequestKind::Turn,

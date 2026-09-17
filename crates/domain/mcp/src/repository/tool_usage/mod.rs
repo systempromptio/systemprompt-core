@@ -5,16 +5,16 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::error::McpDomainResult;
-use async_trait::async_trait;
+mod queries;
+
 use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{AiToolCallId, ContextId, McpExecutionId, UserId};
-use systemprompt_models::mcp::{Correlation, ExecutionSource};
-use systemprompt_traits::{RepositoryError, ToolExecutionLookup};
+use systemprompt_identifiers::{AiToolCallId, McpExecutionId, SessionId};
+use systemprompt_models::mcp::Correlation;
 use uuid::Uuid;
 
-use crate::models::{ExecutionStatus, ToolExecution, ToolExecutionRequest, ToolExecutionResult};
+use crate::models::{ExecutionStatus, ToolExecutionRequest, ToolExecutionResult};
 use systemprompt_models::RequestContext;
 
 fn extract_trace_id(ctx: &RequestContext) -> Option<String> {
@@ -141,8 +141,6 @@ impl ToolUsageRepository {
         Ok(id)
     }
 
-    /// Records a completed execution under an id the caller minted up front,
-    /// so the id can be stamped onto the response before the row exists.
     pub async fn log_execution_sync_with_id(
         &self,
         mcp_execution_id: &McpExecutionId,
@@ -205,8 +203,6 @@ impl ToolUsageRepository {
         Ok(())
     }
 
-    /// Stamps the correlation quality and payload digest on an execution that
-    /// was joined to its artifact after the fact.
     pub async fn mark_correlated(
         &self,
         mcp_execution_id: &McpExecutionId,
@@ -232,16 +228,9 @@ impl ToolUsageRepository {
         Ok(())
     }
 
-    /// The gateway intent — a `tool_use` the model emitted in this gateway
-    /// session — that no execution has claimed yet, for a tool whose wire
-    /// name is this bare name or ends in `__<name>` (a client host prefixes
-    /// MCP tools with the server, and a plugin-installed server with the
-    /// marketplace as well). This is how an in-process execution learns its
-    /// `tool_use_id` when the MCP client sends none: the intent landed on the
-    /// same session moments earlier. Newest first, bounded by a window.
     pub async fn find_unclaimed_intent(
         &self,
-        session_id: &str,
+        session_id: &SessionId,
         tool_name: &str,
         window_seconds: i64,
     ) -> McpDomainResult<Option<AiToolCallId>> {
@@ -260,7 +249,7 @@ impl ToolUsageRepository {
             ORDER BY i.created_at DESC
             LIMIT 1
             "#,
-            session_id,
+            session_id.as_str(),
             tool_name,
             suffix,
             window_seconds as f64
@@ -270,8 +259,6 @@ impl ToolUsageRepository {
         Ok(result.map(AiToolCallId::new))
     }
 
-    /// Records on the intent which execution carried it out. Idempotent: a
-    /// claimed intent is never re-pointed.
     pub async fn claim_intent(
         &self,
         ai_tool_call_id: &AiToolCallId,
@@ -291,103 +278,6 @@ impl ToolUsageRepository {
         Ok(())
     }
 
-    /// The most recent execution in a session for a tool whose result digest
-    /// matches, within a window — the last-resort join for a client host that
-    /// dropped every id. Callers record the result as inferred.
-    pub async fn find_by_fingerprint(
-        &self,
-        session_id: &str,
-        tool_name: &str,
-        payload_sha256: &str,
-        window_seconds: i64,
-    ) -> McpDomainResult<Option<McpExecutionId>> {
-        let result = sqlx::query_scalar!(
-            r#"
-            SELECT mcp_execution_id as "mcp_execution_id!"
-            FROM mcp_tool_executions
-            WHERE session_id = $1
-              AND tool_name = $2
-              AND payload_sha256 = $3
-              AND started_at > NOW() - make_interval(secs => $4::double precision)
-            ORDER BY started_at DESC
-            LIMIT 1
-            "#,
-            session_id,
-            tool_name,
-            payload_sha256,
-            window_seconds as f64
-        )
-        .fetch_optional(&*self.pool)
-        .await?;
-        Ok(result.map(McpExecutionId::new))
-    }
-
-    pub async fn find_by_id(&self, id: &McpExecutionId) -> McpDomainResult<Option<ToolExecution>> {
-        let id_str = id.as_str();
-        let row = sqlx::query!(
-            r#"SELECT
-                mcp_execution_id as "mcp_execution_id!",
-                tool_name as "tool_name!",
-                server_name as "server_name!",
-                context_id,
-                ai_tool_call_id,
-                user_id as "user_id!",
-                status as "status!",
-                input as "input!",
-                output,
-                error_message,
-                execution_time_ms,
-                started_at as "started_at!",
-                completed_at,
-                source as "source!",
-                correlation as "correlation!"
-            FROM mcp_tool_executions
-            WHERE mcp_execution_id = $1"#,
-            id_str
-        )
-        .fetch_optional(&*self.pool)
-        .await?;
-
-        Ok(row.map(|r| ToolExecution {
-            mcp_execution_id: McpExecutionId::new(r.mcp_execution_id),
-            tool_name: r.tool_name,
-            server_name: r.server_name,
-            context_id: r.context_id.and_then(|s| {
-                ContextId::try_new(&s)
-                    .map_err(|e| {
-                        tracing::warn!(error = %e, raw = %s, "Skipping non-UUID context_id from mcp_tool_executions row");
-                        e
-                    })
-                    .ok()
-            }),
-            ai_tool_call_id: r.ai_tool_call_id.map(AiToolCallId::new),
-            user_id: UserId::new(r.user_id),
-            status: r.status,
-            input: r.input,
-            output: r.output,
-            error_message: r.error_message,
-            execution_time_ms: r.execution_time_ms,
-            started_at: r.started_at,
-            completed_at: r.completed_at,
-            source: ExecutionSource::parse(&r.source).unwrap_or(ExecutionSource::InProcess),
-            correlation: Correlation::parse(&r.correlation).unwrap_or(Correlation::Exact),
-        }))
-    }
-
-    pub async fn find_by_ai_call_id(
-        &self,
-        ai_tool_call_id: &AiToolCallId,
-    ) -> McpDomainResult<Option<McpExecutionId>> {
-        let id_str = ai_tool_call_id.as_str();
-        let result = sqlx::query_scalar!(
-            r#"SELECT mcp_execution_id as "mcp_execution_id!" FROM mcp_tool_executions WHERE ai_tool_call_id = $1"#,
-            id_str
-        )
-        .fetch_optional(&*self.pool)
-        .await?;
-        Ok(result.map(McpExecutionId::new))
-    }
-
     async fn find_existing_execution(
         &self,
         request: &ToolExecutionRequest,
@@ -396,18 +286,5 @@ impl ToolUsageRepository {
             return Ok(None);
         };
         self.find_by_ai_call_id(ai_call_id).await
-    }
-}
-
-#[async_trait]
-impl ToolExecutionLookup for ToolUsageRepository {
-    async fn execution_exists(&self, id: &McpExecutionId) -> Result<bool, RepositoryError> {
-        sqlx::query_scalar!(
-            r#"SELECT EXISTS(SELECT 1 FROM mcp_tool_executions WHERE mcp_execution_id = $1) as "exists!""#,
-            id.as_str()
-        )
-        .fetch_one(&*self.pool)
-        .await
-        .map_err(RepositoryError::database)
     }
 }

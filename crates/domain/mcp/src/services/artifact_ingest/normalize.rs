@@ -53,14 +53,11 @@ pub fn from_hook_response(value: &JsonValue) -> CallToolResult {
     }
 }
 
-/// A client hook's `PostToolUseFailure`: the error the host reported, as an
-/// MCP error result.
 #[must_use]
 pub fn from_hook_failure(error: &str) -> CallToolResult {
     CallToolResult::error(vec![ContentBlock::text(error.to_owned())])
 }
 
-/// A canonical gateway `tool_result` block, as parsed from any inbound wire.
 #[must_use]
 pub fn from_canonical_tool_result(
     content: &[CanonicalContent],

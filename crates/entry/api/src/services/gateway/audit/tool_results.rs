@@ -23,8 +23,6 @@ use super::{GatewayAudit, GatewayRequestContext};
 use crate::services::gateway::protocol::canonical::{CanonicalContent, CanonicalRequest};
 
 impl GatewayAudit {
-    /// Hands every `tool_result` in the request history to the ingest, on a
-    /// background task so the provider dispatch is not held up.
     pub(super) fn ingest_tool_results(&self, request: &CanonicalRequest) {
         let Some(ingest) = self.artifact_ingest.clone() else {
             return;

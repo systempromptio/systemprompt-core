@@ -185,7 +185,7 @@ fn sample_response() -> CanonicalResponse {
         id: "chatcmpl_1".into(),
         model: "gpt-x".into(),
         content: vec![
-            CanonicalContent::text("answer".into()),
+            CanonicalContent::text("answer"),
             CanonicalContent::ToolUse {
                 id: "t1".into(),
                 name: "fn".into(),

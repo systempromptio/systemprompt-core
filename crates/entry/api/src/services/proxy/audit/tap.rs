@@ -94,8 +94,6 @@ impl SseAccumulator {
         }
     }
 
-    /// Buffers a chunk and returns every complete frame it closes, with the
-    /// matching result frame stamped.
     fn push(&mut self, chunk: &[u8]) -> Vec<Bytes> {
         self.buf.extend_from_slice(chunk);
         let mut out = Vec::new();

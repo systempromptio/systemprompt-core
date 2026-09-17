@@ -19,9 +19,7 @@ pub mod spawn_target;
 pub mod tool_provider;
 pub mod ui_renderer;
 
-pub use artifact_ingest::{
-    ArtifactIngest, ArtifactIngestRepositories, ArtifactScanner, IngestOutcome, IngestRequest,
-};
+pub use artifact_ingest::{ArtifactIngest, ArtifactScanner, IngestOutcome, IngestRequest};
 pub use database::{DatabaseService, ServiceInfo, ServiceLifecycleStatus};
 pub use deployment::DeploymentService;
 pub use lifecycle::LifecycleOrchestrator;

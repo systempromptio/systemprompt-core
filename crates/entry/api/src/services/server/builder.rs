@@ -43,8 +43,9 @@ pub fn setup_api_server(ctx: &AppContext, events: Option<&StartupEventSender>) -
 // scanner registry; the composition root closes the loop here so every tool
 // result — from any vantage point — is scanned by the installation's policy.
 fn register_artifact_scanner(ctx: &AppContext) -> Result<()> {
-    let policies = systemprompt_ai::repository::AiGatewayPolicyRepository::new(ctx.db_pool())?;
-    let resolver = crate::services::gateway::policy::PolicyResolver::from_repository(policies);
+    let resolver = crate::services::gateway::policy::PolicyResolver::from_repository(
+        ctx.ai_repositories().gateway_policies.clone(),
+    );
     ctx.artifact_ingest().register_scanner(std::sync::Arc::new(
         crate::services::gateway::GatewayArtifactScanner::new(resolver),
     ));

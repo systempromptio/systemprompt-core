@@ -26,11 +26,13 @@ pub(super) const SECRET_SCANNER_NAME: &str = "secret_scanner";
 pub(super) const SECRET_CATEGORY: &str = "secret";
 
 /// A content scanner run over the text surfaces of an artifact body.
+///
+/// `#[async_trait]` because scanners are registered as `Arc<dyn
+/// ArtifactScanner>`.
 #[async_trait]
 pub trait ArtifactScanner: Send + Sync {
     fn name(&self) -> &'static str;
 
-    /// Scans the given `(path, text)` surfaces. An error fails the ingest.
     async fn scan(&self, surfaces: &[(String, String)]) -> Result<Vec<ArtifactFinding>, String>;
 }
 
@@ -43,7 +45,7 @@ pub struct ScanOutcome {
 }
 
 impl ScanOutcome {
-    pub fn truncated(body: JsonValue, digest: PayloadDigest) -> Self {
+    pub fn truncated(body: JsonValue, digest: &PayloadDigest) -> Self {
         tracing::warn!(
             bytes = digest.byte_len,
             sha256 = %digest.sha256,
@@ -72,10 +74,9 @@ pub(super) async fn scan_body(
     }
 
     let mut findings = Vec::new();
-    let secret_redactions = match ingest.secrets.as_deref() {
-        Some(scanner) => redact_secrets(scanner, &mut body, &mut findings),
-        None => 0,
-    };
+    let secret_redactions = ingest.secrets.as_deref().map_or(0, |scanner| {
+        redact_secrets(scanner, &mut body, &mut findings)
+    });
 
     let surfaces = surfaces(&body);
     for scanner in ingest.scanners() {

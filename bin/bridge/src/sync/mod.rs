@@ -6,12 +6,14 @@
 pub mod apply;
 mod error;
 mod manifest;
+mod org_plugins_scope;
 mod provision;
 mod replay;
 mod seed_model;
 mod sentinel;
 mod summary;
 
+use self::org_plugins_scope::check_org_plugins_scope;
 use self::provision::{denied_inside_system_root, heal_org_plugins_scope, org_plugins_denied};
 use self::seed_model::seed_default_model_from_profile;
 pub use crate::last_sync::{
@@ -26,7 +28,6 @@ pub use summary::SyncSummary;
 use summary::build_summary;
 
 use crate::config::{self, paths};
-use crate::gateway::manifest::SignedManifest;
 use std::fs;
 
 pub const WATCH_FLOOR_SECS: u64 = 60;
@@ -273,32 +274,4 @@ fn apply_error_to_sync(e: apply::ApplyError) -> SyncError {
         },
         other => SyncError::ApplyFailed(Box::new(other)),
     }
-}
-
-#[cfg(target_os = "windows")]
-fn check_org_plugins_scope(
-    manifest: &SignedManifest,
-    location: &paths::OrgPluginsLocation,
-) -> Result<(), SyncError> {
-    if manifest.enabled_hosts.iter().any(|h| h == "claude-desktop")
-        && let paths::FallbackReason::SystemUnwritable { system_path } = &location.reason
-    {
-        return Err(SyncError::OrgPluginsNeedElevation {
-            bin: crate::brand::brand().binary_name,
-            system_path: system_path.display().to_string(),
-        });
-    }
-    Ok(())
-}
-
-#[cfg(not(target_os = "windows"))]
-#[expect(
-    clippy::unnecessary_wraps,
-    reason = "signature must match the windows variant so run_once stays cfg-free"
-)]
-const fn check_org_plugins_scope(
-    _manifest: &SignedManifest,
-    _location: &paths::OrgPluginsLocation,
-) -> Result<(), SyncError> {
-    Ok(())
 }

@@ -46,7 +46,7 @@ fn request() -> CanonicalRequest {
         system: Vec::new(),
         messages: vec![CanonicalMessage {
             role: Role::User,
-            content: vec![CanonicalContent::text("hi".into())],
+            content: vec![CanonicalContent::text("hi")],
         }],
         max_tokens: 64,
         temperature: None,

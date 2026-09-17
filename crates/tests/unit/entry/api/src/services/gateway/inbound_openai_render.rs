@@ -14,7 +14,7 @@ fn sample_response() -> CanonicalResponse {
         id: "resp_1".into(),
         model: "gpt-x".into(),
         content: vec![
-            CanonicalContent::text("answer".into()),
+            CanonicalContent::text("answer"),
             CanonicalContent::ToolUse {
                 id: "t1".into(),
                 name: "fn".into(),
@@ -243,7 +243,7 @@ fn render_terminal_completed_carries_full_output_list() {
 fn render_terminal_incomplete_maps_to_incomplete_status() {
     let inbound = OpenAiResponsesInbound;
     let mut snapshot = sample_response();
-    snapshot.content = vec![CanonicalContent::text("partial".into())];
+    snapshot.content = vec![CanonicalContent::text("partial")];
     let frame = inbound
         .render_terminal_event(
             &CanonicalEvent::MessageStop {

@@ -97,8 +97,6 @@ pub struct CreateMcpArtifact {
 }
 
 impl CreateMcpArtifact {
-    /// An artifact with only its identity and body set; correlation keys and
-    /// shape are filled by the caller that knows them.
     #[must_use]
     pub fn new(
         artifact_id: ArtifactId,

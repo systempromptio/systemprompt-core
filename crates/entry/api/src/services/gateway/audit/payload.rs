@@ -32,10 +32,6 @@ pub fn digest_hex(bytes: &[u8]) -> String {
     hex::encode(Sha256::digest(bytes))
 }
 
-/// The `tools` array of a prepared (provider-transformed) body, if the body is
-/// JSON and declares one. The wire shape is the provider's own — Anthropic and
-/// OpenAI tool objects, Gemini `functionDeclarations` groups — so what is
-/// returned is exactly what went upstream.
 #[must_use]
 pub fn prepared_tools(body: &[u8]) -> Option<Value> {
     let mut parsed = serde_json::from_slice::<Value>(body).ok()?;
@@ -43,8 +39,6 @@ pub fn prepared_tools(body: &[u8]) -> Option<Value> {
     tools.is_array().then_some(tools)
 }
 
-/// Captures `bytes` under `cap_bytes`; the default is
-/// [`AuditConfig::DEFAULT_PAYLOAD_CAP_BYTES`].
 #[must_use]
 pub fn slice_payload(bytes: &Bytes, cap_bytes: usize) -> PayloadCapture {
     let cap = cap_bytes.max(AuditConfig::MIN_PAYLOAD_CAP_BYTES);

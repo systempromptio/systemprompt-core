@@ -49,15 +49,15 @@ fn route(provider: &str) -> GatewayRoute {
 fn buffered_request() -> CanonicalRequest {
     CanonicalRequest {
         model: ModelId::new("m"),
-        system: vec![SystemBlock::text("be helpful".into())],
+        system: vec![SystemBlock::text("be helpful")],
         messages: vec![
             CanonicalMessage {
                 role: Role::User,
-                content: vec![CanonicalContent::text("hi".into())],
+                content: vec![CanonicalContent::text("hi")],
             },
             CanonicalMessage {
                 role: Role::Assistant,
-                content: vec![CanonicalContent::text("hello".into())],
+                content: vec![CanonicalContent::text("hello")],
             },
         ],
         max_tokens: 64,
@@ -561,7 +561,7 @@ async fn openai_chat_outbound_buffered_covers_messages_with_tools_and_images() {
         role: Role::Tool,
         content: vec![CanonicalContent::ToolResult {
             tool_use_id: "t1".into(),
-            content: vec![CanonicalContent::text("res".into())],
+            content: vec![CanonicalContent::text("res")],
             is_error: false,
             structured_content: None,
             meta: None,

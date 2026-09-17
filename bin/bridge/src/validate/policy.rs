@@ -179,7 +179,7 @@ fn check_workspace_folders(report: &mut Report, store: &dyn crate::config::store
             return;
         },
     };
-    let audit = match crate::install::mdm::policy::audit_workspace_folders(&raw) {
+    let audit = match crate::claude_policy::audit_workspace_folders(&raw) {
         Ok(audit) => audit,
         Err(e) => {
             report.fail(

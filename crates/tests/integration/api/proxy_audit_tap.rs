@@ -24,7 +24,7 @@ async fn record_tool_call(
     let invocation = parse_tool_call(request_body)
         .ok_or_else(|| "request body is not a tools/call".to_owned())?;
     let repo = tool_usage(pool).map_err(|e| e.to_string())?;
-    let audit = McpAudit::new(repo, context, server_name.to_owned(), invocation);
+    let audit = McpAudit::new(repo, None, context, server_name.to_owned(), invocation);
     tap::record(response, audit).await
 }
 

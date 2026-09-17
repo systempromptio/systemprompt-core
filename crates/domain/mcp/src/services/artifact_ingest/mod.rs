@@ -14,6 +14,7 @@
 
 mod classify;
 mod normalize;
+mod persist;
 mod resolve;
 mod scan;
 
@@ -24,13 +25,13 @@ use rmcp::model::CallToolResult;
 use serde_json::Value as JsonValue;
 use systemprompt_identifiers::{AiToolCallId, ArtifactId, McpExecutionId, SkillId};
 use systemprompt_models::RequestContext;
-use systemprompt_models::artifacts::{ExecutionMetadata, ToolResponse, payload_digest};
+use systemprompt_models::artifacts::payload_digest;
 use systemprompt_models::mcp::{Correlation, ExecutionSource};
 use systemprompt_security::policy::secrets::SecretScanner;
 
-use crate::error::{McpDomainError, McpDomainResult};
+use crate::error::McpDomainResult;
 use crate::repository::{
-    ArtifactFindingRepository, ArtifactPayloadRepository, ArtifactShape, CreateMcpArtifact,
+    ArtifactFindingRepository, ArtifactIngestRepositories, ArtifactPayloadRepository,
     McpArtifactRepository, ToolUsageRepository,
 };
 
@@ -40,10 +41,8 @@ pub use normalize::{
 };
 pub use scan::{ArtifactScanner, ScanOutcome};
 
-/// Largest body the platform keeps. Beyond this only the digest survives.
 pub const MAX_PAYLOAD_BYTES: usize = 8 * 1024 * 1024;
 
-/// How far back the last-resort fingerprint join looks.
 pub const FINGERPRINT_WINDOW_SECONDS: i64 = 120;
 
 #[derive(Debug)]
@@ -92,13 +91,6 @@ impl std::fmt::Debug for ArtifactIngest {
     }
 }
 
-#[derive(Debug)]
-pub struct ArtifactIngestRepositories {
-    pub artifacts: Arc<McpArtifactRepository>,
-    pub payloads: Arc<ArtifactPayloadRepository>,
-    pub findings: Arc<ArtifactFindingRepository>,
-    pub executions: Arc<ToolUsageRepository>,
-}
 
 impl ArtifactIngest {
     #[must_use]
@@ -113,25 +105,13 @@ impl ArtifactIngest {
         }
     }
 
-    /// All four repositories over one pool, for hosts that have no app
-    /// context: in-process MCP server binaries.
     pub fn from_db(
         db: &systemprompt_database::DbPool,
         secrets: Option<Arc<SecretScanner>>,
     ) -> McpDomainResult<Self> {
-        Ok(Self::new(
-            ArtifactIngestRepositories {
-                artifacts: Arc::new(McpArtifactRepository::new(db)?),
-                payloads: Arc::new(ArtifactPayloadRepository::new(db)?),
-                findings: Arc::new(ArtifactFindingRepository::new(db)?),
-                executions: Arc::new(ToolUsageRepository::new(db)?),
-            },
-            secrets,
-        ))
+        Ok(Self::new(ArtifactIngestRepositories::new(db)?, secrets))
     }
 
-    /// Adds a content scanner. The composition root registers the gateway's
-    /// safety scanners here once the ingest is shared.
     pub fn register_scanner(&self, scanner: Arc<dyn ArtifactScanner>) {
         match self.scanners.write() {
             Ok(mut scanners) => scanners.push(scanner),
@@ -185,7 +165,7 @@ impl ArtifactIngest {
         }
 
         let scanned = if raw_digest.byte_len > MAX_PAYLOAD_BYTES {
-            ScanOutcome::truncated(classified.header_only(&request), raw_digest)
+            ScanOutcome::truncated(classified.header_only(&request), &raw_digest)
         } else {
             scan::scan_body(self, &request, classified.body.clone(), &raw_digest).await?
         };
@@ -200,43 +180,15 @@ impl ArtifactIngest {
             .upsert_payload(&stored_digest.sha256, byte_len, &scanned.body)
             .await?;
 
-        let metadata = build_metadata(&request, &resolved.mcp_execution_id);
-        let envelope = ToolResponse::new(
-            artifact_id.clone(),
-            resolved.mcp_execution_id.clone(),
-            scanned.body.clone(),
-            metadata.clone(),
-        )
-        .to_json()
-        .map_err(|e| McpDomainError::Internal(format!("artifact envelope: {e}")))?;
-
-        let mut create = CreateMcpArtifact::new(
-            artifact_id.clone(),
-            resolved.mcp_execution_id.clone(),
-            request
-                .server_name
-                .clone()
-                .unwrap_or_else(|| request.source.to_string()),
-            classified.artifact_type.clone(),
-            envelope,
-        );
-        create.context_id = Some(request.ctx.context_id().clone());
-        create.user_id = (!request.ctx.is_anonymous()).then(|| request.ctx.user_id().clone());
-        create.session_id = Some(request.ctx.session_id().clone());
-        create.trace_id = Some(request.ctx.trace_id().clone());
-        create.ai_tool_call_id = request.ai_tool_call_id.clone();
-        create.tool_name = Some(request.tool_name.clone());
-        create.title = classified.title.clone();
-        create.source = request.source;
-        create.metadata = metadata.to_object().map(JsonValue::Object);
-        create.payload_sha256 = Some(stored_digest.sha256.clone());
-        create.payload_bytes = Some(byte_len);
-        create.shape = ArtifactShape {
-            is_structured: classified.is_structured,
-            has_ui_resource: classified.has_ui_resource,
-            is_error: classified.is_error,
-            secret_redactions: i32::try_from(scanned.secret_redactions).unwrap_or(i32::MAX),
-        };
+        let create = persist::create_record(&persist::NewArtifact {
+            request: &request,
+            classified: &classified,
+            resolved: &resolved,
+            scanned: &scanned,
+            artifact_id: &artifact_id,
+            stored_digest: &stored_digest,
+            byte_len,
+        })?;
         self.artifacts.save(&create).await?;
         if !scanned.findings.is_empty() {
             self.findings
@@ -271,14 +223,4 @@ impl ArtifactIngest {
             findings: scanned.findings.len(),
         })
     }
-}
-
-fn build_metadata(request: &IngestRequest, exec_id: &McpExecutionId) -> ExecutionMetadata {
-    let mut builder = ExecutionMetadata::builder(&request.ctx)
-        .with_tool(request.tool_name.clone())
-        .with_execution(exec_id.to_string());
-    if let Some((id, name)) = &request.skill {
-        builder = builder.with_skill(id.clone(), name.clone());
-    }
-    builder.build()
 }

@@ -35,14 +35,14 @@ fn req_with(messages: Vec<CanonicalMessage>, system: Option<&str>) -> CanonicalR
 fn user(text: &str) -> CanonicalMessage {
     CanonicalMessage {
         role: Role::User,
-        content: vec![CanonicalContent::text(text.into())],
+        content: vec![CanonicalContent::text(text)],
     }
 }
 
 fn assistant(text: &str) -> CanonicalMessage {
     CanonicalMessage {
         role: Role::Assistant,
-        content: vec![CanonicalContent::text(text.into())],
+        content: vec![CanonicalContent::text(text)],
     }
 }
 
@@ -108,7 +108,7 @@ fn flatten_parts_skips_images() {
         vec![CanonicalMessage {
             role: Role::User,
             content: vec![
-                CanonicalContent::text("look".into()),
+                CanonicalContent::text("look"),
                 CanonicalContent::image(ImageSource::Url {
                     url: "https://x".into(),
                     detail: None,

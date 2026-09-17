@@ -40,7 +40,7 @@ fn canonical() -> CanonicalRequest {
         system: Vec::new(),
         messages: vec![CanonicalMessage {
             role: Role::User,
-            content: vec![CanonicalContent::text("hi".into())],
+            content: vec![CanonicalContent::text("hi")],
         }],
         max_tokens: 64,
         ..CanonicalRequest::new(ModelId::new("m"), Vec::new(), 1024)

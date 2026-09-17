@@ -187,8 +187,9 @@ impl CanonicalRequest {
 
 pub(super) fn flatten_part(out: &mut String, part: &CanonicalContent) {
     match part {
-        CanonicalContent::Text { text, .. } => push_with_sep(out, text),
-        CanonicalContent::Thinking { text, .. } => push_with_sep(out, text),
+        CanonicalContent::Text { text, .. } | CanonicalContent::Thinking { text, .. } => {
+            push_with_sep(out, text);
+        },
         CanonicalContent::ToolUse { name, input, .. } => {
             push_with_sep(out, &format!("[tool_use:{name} {input}]"));
         },

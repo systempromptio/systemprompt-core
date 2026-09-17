@@ -24,7 +24,7 @@ fn req_with(text: &str) -> CanonicalRequest {
         system: Vec::new(),
         messages: vec![CanonicalMessage {
             role: Role::User,
-            content: vec![CanonicalContent::text(text.into())],
+            content: vec![CanonicalContent::text(text)],
         }],
         max_tokens: 1,
         temperature: None,
@@ -50,7 +50,7 @@ fn resp_with(text: &str) -> CanonicalResponse {
     CanonicalResponse {
         id: "r".into(),
         model: "m".into(),
-        content: vec![CanonicalContent::text(text.into())],
+        content: vec![CanonicalContent::text(text)],
         stop_reason: None,
         usage: CanonicalUsage::default(),
         grounding: None,

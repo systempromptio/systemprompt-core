@@ -79,8 +79,6 @@ impl ServicesRefresh {
         }
     }
 
-    /// Run one refresh on behalf of `actor`. Refuses with a conflict while
-    /// another refresh holds the lock.
     pub async fn run(
         &self,
         actor: &UserId,

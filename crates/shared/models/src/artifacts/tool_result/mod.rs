@@ -61,7 +61,6 @@ pub enum ToolResultBlock {
 }
 
 impl ToolResultBlock {
-    /// Whether the block is an embedded or linked MCP Apps `ui://` resource.
     #[must_use]
     pub fn is_ui_resource(&self) -> bool {
         match self {
@@ -81,7 +80,6 @@ pub struct ToolResultArtifact {
     pub server_name: Option<String>,
     #[serde(default)]
     pub is_error: bool,
-    /// The body exceeded the ingestion ceiling and only its digest was kept.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub truncated: bool,
     #[serde(default)]
@@ -131,7 +129,6 @@ impl ToolResultArtifact {
         self
     }
 
-    /// Whether any block is an MCP Apps `ui://` resource.
     #[must_use]
     pub fn has_ui_resource(&self) -> bool {
         self.blocks.iter().any(ToolResultBlock::is_ui_resource)

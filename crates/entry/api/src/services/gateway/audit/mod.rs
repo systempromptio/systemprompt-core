@@ -134,8 +134,6 @@ impl GatewayAudit {
         }
     }
 
-    /// Records the prepared (provider-transformed) body: its digest and the
-    /// exact `tools` array that went upstream.
     pub async fn set_served_provider(&self, provider: &str) {
         if let Ok(mut slot) = self.served_provider.lock() {
             *slot = Some(provider.to_owned());

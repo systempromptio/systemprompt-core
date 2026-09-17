@@ -62,16 +62,16 @@ fn route(provider: &str) -> GatewayRoute {
 fn rich_request() -> CanonicalRequest {
     CanonicalRequest {
         model: ModelId::new("m"),
-        system: vec![SystemBlock::text("be helpful".into())],
+        system: vec![SystemBlock::text("be helpful")],
         messages: vec![
             CanonicalMessage {
                 role: Role::System,
-                content: vec![CanonicalContent::text("system note".into())],
+                content: vec![CanonicalContent::text("system note")],
             },
             CanonicalMessage {
                 role: Role::User,
                 content: vec![
-                    CanonicalContent::text("look at this".into()),
+                    CanonicalContent::text("look at this"),
                     CanonicalContent::image(ImageSource::Base64 {
                         media_type: "image/png".into(),
                         data: "AAAA".into(),
@@ -92,7 +92,7 @@ fn rich_request() -> CanonicalRequest {
                         text: "let me think".into(),
                         signature: Some("sig".into()),
                     },
-                    CanonicalContent::text("here's my answer".into()),
+                    CanonicalContent::text("here's my answer"),
                     CanonicalContent::ToolUse {
                         id: "tu1".into(),
                         name: "search".into(),
@@ -106,7 +106,7 @@ fn rich_request() -> CanonicalRequest {
                 role: Role::Tool,
                 content: vec![CanonicalContent::ToolResult {
                     tool_use_id: "tu1".into(),
-                    content: vec![CanonicalContent::text("results".into())],
+                    content: vec![CanonicalContent::text("results")],
                     is_error: false,
                     structured_content: None,
                     meta: None,
@@ -310,7 +310,7 @@ async fn anthropic_outbound_no_system_no_tools() {
         system: Vec::new(),
         messages: vec![CanonicalMessage {
             role: Role::User,
-            content: vec![CanonicalContent::text("hi".into())],
+            content: vec![CanonicalContent::text("hi")],
         }],
         max_tokens: 16,
         temperature: None,

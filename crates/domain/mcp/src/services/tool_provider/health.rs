@@ -19,13 +19,12 @@ pub(super) async fn check_server_connection(
     let Ok(Some(server_config)) = registry.find_server(server_name) else {
         return;
     };
-    let result = match server_config.port {
-        Some(port) => validate_connection(server_name, &server_config.host, port).await,
-        None => {
-            let url = server_config.endpoint(api_server_url);
-            let url = rewrite_url_for_internal_use(&url);
-            validate_connection_by_url(server_name, &url).await
-        },
+    let result = if let Some(port) = server_config.port {
+        validate_connection(server_name, &server_config.host, port).await
+    } else {
+        let url = server_config.endpoint(api_server_url);
+        let url = rewrite_url_for_internal_use(&url);
+        validate_connection_by_url(server_name, &url).await
     };
 
     match result {

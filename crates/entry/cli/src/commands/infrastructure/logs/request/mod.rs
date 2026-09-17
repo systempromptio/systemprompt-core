@@ -113,8 +113,6 @@ pub struct RequestListRow {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub latency_ms: Option<i64>,
     pub status: String,
-    /// The upstream's own finish reason, unnormalised; `-` before the terminal
-    /// event or for rows older than the column.
     pub finish: String,
 }
 

@@ -34,7 +34,7 @@ pub struct TraceBatch {
 
 impl TraceBatch {
     #[must_use]
-    pub fn is_empty(&self) -> bool {
+    pub const fn is_empty(&self) -> bool {
         self.requests.is_empty()
     }
 

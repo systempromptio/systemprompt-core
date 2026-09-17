@@ -232,10 +232,9 @@ impl McpToolExecutor {
         if ctx.ai_tool_call_id().is_some() {
             return ctx.clone();
         }
-        let session_id = ctx.session_id().to_string();
         match self
             .tool_usage_repo
-            .find_unclaimed_intent(&session_id, tool_name, INTENT_CLAIM_WINDOW_SECONDS)
+            .find_unclaimed_intent(ctx.session_id(), tool_name, INTENT_CLAIM_WINDOW_SECONDS)
             .await
         {
             Ok(Some(call_id)) => ctx.clone().with_ai_tool_call_id(call_id),

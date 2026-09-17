@@ -60,8 +60,6 @@ pub struct PrincipalSnapshot {
 pub struct AuditTarget {
     pub tool_name: String,
     pub plugin_id: Option<PluginId>,
-    /// The client's `tool_use_id`, when the host supplied one: the key that
-    /// joins this decision to the execution and artifact of the same call.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_use_id: Option<String>,
 }

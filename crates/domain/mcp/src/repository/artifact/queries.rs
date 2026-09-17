@@ -95,8 +95,6 @@ impl McpArtifactRepository {
         .await?)
     }
 
-    /// The artifact of the execution a client `tool_use_id` names, whichever
-    /// vantage point recorded it.
     pub async fn find_by_ai_tool_call_id(
         &self,
         ai_tool_call_id: &AiToolCallId,

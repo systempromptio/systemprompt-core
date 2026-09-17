@@ -8,10 +8,10 @@
 
 use std::collections::BTreeMap;
 
+use systemprompt_bridge::claude_policy::audit_workspace_folders;
 use systemprompt_bridge::ids::HostToken;
 use systemprompt_bridge::install::mdm::policy::{
-    McpServerEntry, PolicyEntry, PolicyInputs, PolicyValue, audit_workspace_folders,
-    claude_desktop_policy, plist_body,
+    McpServerEntry, PolicyEntry, PolicyInputs, PolicyValue, claude_desktop_policy, plist_body,
 };
 
 fn entry(name: &str) -> McpServerEntry {

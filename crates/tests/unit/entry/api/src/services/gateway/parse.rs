@@ -40,7 +40,7 @@ fn extract_from_canonical_returns_usage_and_no_tools_for_empty() {
 fn extract_from_canonical_captures_tool_uses() {
     let mut r = empty_response();
     r.content = vec![
-        CanonicalContent::text("hi".into()),
+        CanonicalContent::text("hi"),
         CanonicalContent::ToolUse {
             id: "tu_1".into(),
             name: "search".into(),
@@ -74,7 +74,7 @@ fn extract_assistant_text_returns_none_when_no_text() {
 fn extract_assistant_text_joins_text_parts_with_newline() {
     let mut r = empty_response();
     r.content = vec![
-        CanonicalContent::text("hello".into()),
+        CanonicalContent::text("hello"),
         CanonicalContent::ToolUse {
             id: "x".into(),
             name: "y".into(),
@@ -82,7 +82,7 @@ fn extract_assistant_text_joins_text_parts_with_newline() {
             signature: None,
             cache_control: None,
         },
-        CanonicalContent::text("world".into()),
+        CanonicalContent::text("world"),
     ];
     assert_eq!(extract_assistant_text(&r).as_deref(), Some("hello\nworld"));
 }
@@ -90,7 +90,7 @@ fn extract_assistant_text_joins_text_parts_with_newline() {
 #[test]
 fn extract_assistant_text_single_text_no_newline() {
     let mut r = empty_response();
-    r.content = vec![CanonicalContent::text("solo".into())];
+    r.content = vec![CanonicalContent::text("solo")];
     assert_eq!(extract_assistant_text(&r).as_deref(), Some("solo"));
 }
 

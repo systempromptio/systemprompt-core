@@ -36,6 +36,7 @@ use systemprompt_users::{UserRepository, UserService};
 mod context_loaders;
 mod debug_impls;
 mod repositories;
+mod services;
 mod shutdown;
 
 pub use shutdown::ShutdownRequest;
@@ -258,37 +259,6 @@ impl AppContext {
 
     pub const fn authz_hook(&self) -> &SharedAuthzHook {
         &self.subsystems.authz_hook
-    }
-
-    #[must_use]
-    pub fn governance(&self) -> &GovernanceEngine {
-        &self.subsystems.governance
-    }
-
-    #[must_use]
-    pub fn governance_arc(&self) -> Arc<GovernanceEngine> {
-        Arc::clone(&self.subsystems.governance)
-    }
-
-    /// The narrow waist every tool result is ingested through.
-    #[must_use]
-    pub fn artifact_ingest(&self) -> &systemprompt_mcp::ArtifactIngest {
-        &self.subsystems.artifact_ingest
-    }
-
-    #[must_use]
-    pub fn artifact_ingest_arc(&self) -> Arc<systemprompt_mcp::ArtifactIngest> {
-        Arc::clone(&self.subsystems.artifact_ingest)
-    }
-
-    #[must_use]
-    pub const fn ai_service(&self) -> Option<&Arc<systemprompt_ai::AiService>> {
-        self.subsystems.ai_service.as_ref()
-    }
-
-    #[must_use]
-    pub fn ai_service_arc(&self) -> Option<Arc<systemprompt_ai::AiService>> {
-        self.subsystems.ai_service.clone()
     }
 
     #[must_use]

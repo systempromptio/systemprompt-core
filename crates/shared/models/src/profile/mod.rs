@@ -231,8 +231,6 @@ impl Profile {
         serde_yaml::to_string(self).map_err(ProfileError::SerializeYaml)
     }
 
-    /// `governance.audit.payload_cap_bytes`, or its default when the profile
-    /// carries no `governance` block.
     pub fn payload_cap_bytes(&self) -> usize {
         self.governance
             .as_ref()

@@ -1,7 +1,7 @@
 //! `observability.otlp`: the parsed shape, the defaults, the validator's
 //! refusals, and the per-signal URL the exporter posts to.
 
-use serde_yaml::{Mapping, Value};
+use serde_yaml::Value;
 use systemprompt_models::Profile;
 use systemprompt_models::profile::{OtlpExportConfig, OtlpProtocol, OtlpSignal};
 

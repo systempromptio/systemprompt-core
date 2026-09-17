@@ -31,7 +31,7 @@ fn url_image_request(url: &str) -> CanonicalRequest {
         messages: vec![CanonicalMessage {
             role: Role::User,
             content: vec![
-                CanonicalContent::text("what is this?".into()),
+                CanonicalContent::text("what is this?"),
                 CanonicalContent::image(ImageSource::Url {
                     url: url.to_owned(),
                     detail: None,

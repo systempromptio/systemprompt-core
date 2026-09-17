@@ -43,8 +43,6 @@ impl ArtifactPayloadRepository {
         Ok(Self { pool, write_pool })
     }
 
-    /// Stores a body under its digest, or bumps the reference count and
-    /// last-seen time of the one already there. Returns whether it was new.
     pub async fn upsert_payload(
         &self,
         sha256: &str,
@@ -98,7 +96,6 @@ impl ArtifactPayloadRepository {
         .await?)
     }
 
-    /// Drops one reference; the body is deleted when nothing references it.
     pub async fn release_payload(&self, sha256: &str) -> McpDomainResult<()> {
         sqlx::query!(
             r#"

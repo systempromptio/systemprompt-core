@@ -69,3 +69,65 @@ pub fn stripped_settings(path: &Path) -> Result<Option<String>, std::io::Error> 
         serde_json::to_string_pretty(&Value::Object(doc))?
     )))
 }
+
+/// One `allowedWorkspaceFolders` entry in the shape Claude Desktop validates:
+/// a folder path, an optional access mode and an optional boolean
+/// pre-selection flag. Anything else in an entry is malformed.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct WorkspaceFolder {
+    pub path: String,
+    #[serde(default)]
+    pub mode: Option<String>,
+    #[serde(default, rename = "isDefaultSelected")]
+    pub is_default_selected: Option<bool>,
+}
+
+/// The outcome of validating a published `allowedWorkspaceFolders` value the
+/// way Claude Desktop does: the entries it keeps and, per dropped entry, the
+/// JSON text and the reason.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct WorkspaceFoldersAudit {
+    pub kept: Vec<WorkspaceFolder>,
+    pub dropped: Vec<(String, String)>,
+}
+
+impl WorkspaceFoldersAudit {
+    #[must_use]
+    pub const fn blocks_all_folders(&self) -> bool {
+        self.kept.is_empty()
+    }
+
+    #[must_use]
+    pub fn allows_home(&self) -> bool {
+        self.kept.iter().any(|f| f.path == "~")
+    }
+}
+
+// Why: Claude Desktop drops a malformed entry and keeps going, and an empty
+// resulting list blocks every folder, so the audit reports per entry rather
+// than failing the list on the first bad one.
+pub fn audit_workspace_folders(raw: &str) -> Result<WorkspaceFoldersAudit, serde_json::Error> {
+    let entries: Vec<Value> = serde_json::from_str(raw)?;
+    let mut audit = WorkspaceFoldersAudit::default();
+    for entry in entries {
+        let folder = match &entry {
+            Value::String(path) => Ok(WorkspaceFolder {
+                path: path.clone(),
+                mode: None,
+                is_default_selected: None,
+            }),
+            other => serde_json::from_value::<WorkspaceFolder>(other.clone()),
+        };
+        match folder {
+            Ok(folder) if folder.path.trim().is_empty() => {
+                audit
+                    .dropped
+                    .push((entry.to_string(), "empty path".to_owned()));
+            },
+            Ok(folder) => audit.kept.push(folder),
+            Err(e) => audit.dropped.push((entry.to_string(), e.to_string())),
+        }
+    }
+    Ok(audit)
+}

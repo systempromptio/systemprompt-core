@@ -24,7 +24,6 @@ use super::IngestRequest;
 
 #[derive(Debug, Clone)]
 pub struct Classified {
-    /// The `mcp_artifacts.artifact_type` column value.
     pub artifact_type: String,
     // JSON: the typed body, shaped per `artifact_type`.
     pub body: JsonValue,
@@ -43,7 +42,7 @@ impl Classified {
     pub fn header_only(&self, request: &IngestRequest) -> JsonValue {
         let mut artifact =
             ToolResultArtifact::new(request.tool_name.clone()).with_error(self.is_error);
-        artifact.server_name = request.server_name.clone();
+        artifact.server_name.clone_from(&request.server_name);
         artifact.truncated = true;
         serde_json::to_value(artifact).unwrap_or(JsonValue::Null)
     }
@@ -75,7 +74,7 @@ pub(super) fn classify(request: &IngestRequest) -> Classified {
         .with_error(is_error)
         .with_blocks(blocks)
         .with_structured_content(result.structured_content.clone());
-    artifact.server_name = request.server_name.clone();
+    artifact.server_name.clone_from(&request.server_name);
     let is_structured = has_meta || result.structured_content.is_some();
     Classified {
         artifact_type: ToolResultArtifact::ARTIFACT_TYPE_STR.to_owned(),
@@ -113,13 +112,6 @@ fn execution_meta(result: &CallToolResult) -> (Option<ArtifactId>, Option<McpExe
     (artifact_id, execution_id)
 }
 
-/// A structured body that names its artifact type is stored as that type,
-/// exactly as the in-process builder stores it, so a table is a table
-/// whichever vantage point delivered it. A known type is re-serialised
-/// through its model when it deserialises as itself; when it does not, the
-/// declaration still wins — the body is stored as declared, verbatim, and the
-/// mismatch is logged — because demoting it to a `tool_result` envelope
-/// changed the shape the tool advertised and hid the server's mistake.
 fn typed_body(structured: Option<&JsonValue>) -> Option<(String, JsonValue, Option<String>)> {
     let value = structured?;
     let declared = value.get("x-artifact-type")?.as_str()?;
@@ -235,7 +227,6 @@ fn to_block(block: &ContentBlock) -> ToolResultBlock {
     }
 }
 
-/// Size and digest of a base64 blob, without decoding it.
 fn blob_digest(data: &str) -> (u64, String) {
     let digest = payload_digest(&JsonValue::String(data.to_owned()));
     (data.len() as u64, digest.sha256)

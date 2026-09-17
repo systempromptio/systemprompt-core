@@ -74,11 +74,8 @@ struct ToolCallResult {
 
 #[derive(Debug)]
 pub struct ToolCallOutcome {
-    /// The execution record's summary output: structured content when the
-    /// server declared one, otherwise the content blocks.
     pub output: Option<Value>,
     pub error_message: Option<String>,
-    /// The whole `result` object, for the artifact ingest.
     pub result: Option<Value>,
 }
 
@@ -107,15 +104,12 @@ pub fn parse_response_frame(data: &str, request_id: &Value) -> Option<ToolCallOu
     })
 }
 
-/// Whether a response frame is the reply to the audited request.
 pub fn frame_matches(data: &str, request_id: &Value) -> bool {
     serde_json::from_str::<Value>(data)
         .ok()
         .is_some_and(|frame| frame.get("id") == Some(request_id))
 }
 
-/// The frame with `result._meta["io.systemprompt/execution"].mcp_execution_id`
-/// set, or unchanged when it is not a result frame.
 pub fn stamp_execution(data: &str, mcp_execution_id: &str) -> Option<String> {
     let mut frame: Value = serde_json::from_str(data).ok()?;
     let result = frame.get_mut("result")?.as_object_mut()?;
@@ -146,7 +140,6 @@ pub fn extract_sse_data(frame: &str) -> Option<String> {
     (!data.is_empty()).then_some(data)
 }
 
-/// The SSE frame with its `data:` lines replaced by one line of new data.
 pub fn replace_sse_data(frame: &str, data: &str) -> String {
     let mut out = String::with_capacity(frame.len() + data.len());
     let mut wrote = false;

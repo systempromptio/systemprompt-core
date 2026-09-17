@@ -23,7 +23,7 @@ fn snapshot() -> CanonicalResponse {
     CanonicalResponse {
         id: "msg_1".into(),
         model: "test-model".into(),
-        content: vec![CanonicalContent::text("hi".into())],
+        content: vec![CanonicalContent::text("hi")],
         stop_reason: Some(CanonicalStopReason::EndTurn),
         usage: CanonicalUsage {
             input_tokens: 11,

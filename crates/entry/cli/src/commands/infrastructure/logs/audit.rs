@@ -90,8 +90,6 @@ impl AuditArgs {
 pub struct AuditOutput {
     pub request_id: AiRequestId,
     pub status: String,
-    /// The upstream's own finish reason (`STOP`, `MAX_TOKENS`, `SAFETY`,
-    /// `content_filter`, …), unnormalised; absent before the terminal event.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub finish_reason: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
