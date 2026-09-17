@@ -12,7 +12,6 @@ use super::request::{CanonicalContent, flatten_part};
 use super::usage::{CanonicalUsage, CanonicalUsageUpdate};
 use crate::wire::inspect::ForwardedSurface;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 /// Why the upstream model stopped, in provider-neutral terms.
 ///
 /// `Refusal` is the model (or its safety layer) declining to continue —

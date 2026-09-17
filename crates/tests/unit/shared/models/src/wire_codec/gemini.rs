@@ -3,8 +3,8 @@
 use serde_json::{Value, json};
 use systemprompt_models::services::ai::ModelLimits;
 use systemprompt_models::wire::canonical::{
-    CanonicalContent, CanonicalEvent, CanonicalMessage, CanonicalToolChoice, ContentBlockKind,
-    ResponseFormat, Role, SearchConfig, ThinkingConfig,
+    CanonicalContent, CanonicalEvent, CanonicalMessage, CanonicalStopReason, CanonicalToolChoice,
+    ContentBlockKind, ResponseFormat, Role, SearchConfig, ThinkingConfig,
 };
 use systemprompt_models::wire::gemini;
 
@@ -391,6 +391,68 @@ fn gemini_parse_surfaces_grounding_sources_and_queries() {
     assert_eq!(grounding.sources[0].uri, "https://example.com");
     assert_eq!(grounding.queries, vec!["rust async".to_owned()]);
     assert_eq!(response.usage.total_tokens, 7);
+}
+
+// A buffered candidate that finished on a reason other than STOP/MAX_TOKENS
+// without a single part is the provider ending the turn, and the parser
+// refuses to manufacture an empty success out of it.
+#[test]
+fn gemini_parse_rejects_a_non_stop_finish_without_parts() {
+    let value: Value = json!({
+        "candidates": [{
+            "finishReason": "MALFORMED_FUNCTION_CALL",
+            "finishMessage": "Malformed function call: print(x)"
+        }],
+        "usageMetadata": {"promptTokenCount": 3, "totalTokenCount": 3}
+    });
+    let err = gemini::parse_response(&value, "fallback").expect_err("empty terminal");
+    assert_eq!(
+        err.to_string(),
+        "upstream finished with MALFORMED_FUNCTION_CALL: Malformed function call: print(x)"
+    );
+}
+
+#[test]
+fn gemini_parse_rejects_a_blocked_prompt() {
+    let value: Value = json!({
+        "promptFeedback": {"blockReason": "PROHIBITED_CONTENT"},
+        "usageMetadata": {"promptTokenCount": 3, "totalTokenCount": 3}
+    });
+    let err = gemini::parse_response(&value, "fallback").expect_err("blocked prompt");
+    assert_eq!(
+        err.to_string(),
+        "upstream blocked the prompt: PROHIBITED_CONTENT"
+    );
+}
+
+#[test]
+fn gemini_parse_maps_safety_with_text_to_a_refusal_and_keeps_the_raw_reason() {
+    let value: Value = json!({
+        "candidates": [{
+            "content": {"role": "model", "parts": [{"text": "I cannot help with that."}]},
+            "finishReason": "SAFETY"
+        }],
+        "usageMetadata": {"promptTokenCount": 3, "candidatesTokenCount": 6, "totalTokenCount": 9}
+    });
+    let response = gemini::parse_response(&value, "fallback").expect("fixture parses");
+    assert_eq!(response.stop_reason, Some(CanonicalStopReason::Refusal));
+    assert_eq!(response.raw_finish_reason.as_deref(), Some("SAFETY"));
+}
+
+// The empty STOP Gemini 3.5 sends when it chooses not to answer is the
+// model's own decision and still parses as a turn.
+#[test]
+fn gemini_parse_keeps_an_empty_stop_as_a_turn() {
+    let value: Value = json!({
+        "candidates": [{
+            "content": {"role": "model", "parts": [{"text": ""}]},
+            "finishReason": "STOP"
+        }],
+        "usageMetadata": {"promptTokenCount": 3, "totalTokenCount": 3}
+    });
+    let response = gemini::parse_response(&value, "fallback").expect("fixture parses");
+    assert_eq!(response.stop_reason, Some(CanonicalStopReason::EndTurn));
+    assert!(response.content.is_empty());
 }
 
 #[test]

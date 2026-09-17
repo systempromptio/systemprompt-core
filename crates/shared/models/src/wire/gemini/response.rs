@@ -32,8 +32,9 @@ pub fn stop_reason(finish: &str) -> CanonicalStopReason {
     match finish {
         "STOP" => CanonicalStopReason::EndTurn,
         "MAX_TOKENS" => CanonicalStopReason::MaxTokens,
-        "SAFETY" | "RECITATION" | "BLOCKLIST" | "PROHIBITED_CONTENT" | "SPII"
-        | "IMAGE_SAFETY" => CanonicalStopReason::Refusal,
+        "SAFETY" | "RECITATION" | "BLOCKLIST" | "PROHIBITED_CONTENT" | "SPII" | "IMAGE_SAFETY" => {
+            CanonicalStopReason::Refusal
+        },
         _ => CanonicalStopReason::Other,
     }
 }
@@ -41,7 +42,7 @@ pub fn stop_reason(finish: &str) -> CanonicalStopReason {
 /// The operator-facing sentence for a candidate that finished on a reason
 /// other than `STOP`/`MAX_TOKENS` without producing a single part.
 #[must_use]
-pub fn empty_terminal_message(finish: &str, finish_message: Option<&str>) -> String {
+pub(super) fn empty_terminal_message(finish: &str, finish_message: Option<&str>) -> String {
     match finish_message.map(str::trim).filter(|m| !m.is_empty()) {
         Some(detail) => format!("upstream finished with {finish}: {detail}"),
         None => format!("upstream finished with {finish}"),
@@ -49,7 +50,7 @@ pub fn empty_terminal_message(finish: &str, finish_message: Option<&str>) -> Str
 }
 
 #[must_use]
-pub fn blocked_prompt_message(reason: &str, detail: Option<&str>) -> String {
+pub(super) fn blocked_prompt_message(reason: &str, detail: Option<&str>) -> String {
     match detail.map(str::trim).filter(|m| !m.is_empty()) {
         Some(detail) => format!("upstream blocked the prompt: {reason}: {detail}"),
         None => format!("upstream blocked the prompt: {reason}"),

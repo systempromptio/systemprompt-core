@@ -474,6 +474,41 @@ fn a_reason_less_stop_does_not_overwrite_the_reason_already_stated() {
     );
 }
 
+// The raw reason is what the audit row records; the normalised one is what
+// the wire renders. Anthropic states it on message_delta and follows with a
+// bare message_stop, which must not blank it.
+#[test]
+fn the_raw_finish_reason_is_recorded_and_survives_a_bare_message_stop() {
+    let mut state = TapState::default();
+    start(&mut state, "resp-1", "model-a");
+    accumulate_event(
+        &mut state,
+        &CanonicalEvent::MessageStop {
+            id: "resp-1".to_owned(),
+            stop_reason: Some(CanonicalStopReason::Refusal),
+            raw_finish_reason: Some("SAFETY".to_owned()),
+        },
+    );
+    accumulate_event(
+        &mut state,
+        &CanonicalEvent::MessageStop {
+            id: "resp-1".to_owned(),
+            stop_reason: None,
+            raw_finish_reason: None,
+        },
+    );
+
+    let summary = extract_summary(&mut state);
+    assert_eq!(
+        summary.response.raw_finish_reason.as_deref(),
+        Some("SAFETY")
+    );
+    assert_eq!(
+        summary.response.stop_reason,
+        Some(CanonicalStopReason::Refusal)
+    );
+}
+
 // Why: an upstream that states a generic reason beside a fully accumulated
 // tool-use block must not reach the terminal render as "stop".
 #[test]

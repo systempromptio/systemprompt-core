@@ -136,7 +136,7 @@ mod stop_reason_mapping {
         );
         assert_eq!(
             CanonicalStopReason::from_openai("content_filter"),
-            CanonicalStopReason::Other
+            CanonicalStopReason::Refusal
         );
     }
 }
