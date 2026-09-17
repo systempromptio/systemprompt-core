@@ -12,6 +12,8 @@
 use std::sync::Arc;
 
 use axum::body::{Body, to_bytes};
+
+use super::common::assert_forwarded_with_execution_stamp;
 use axum::http::Request;
 use http::StatusCode;
 use systemprompt_database::{CreateServiceInput, DbPool, ServiceRepository};
@@ -239,7 +241,7 @@ async fn external_tools_call_mints_bearer_forwards_and_audits() -> anyhow::Resul
         "{}",
         String::from_utf8_lossy(&bytes)
     );
-    assert_eq!(String::from_utf8_lossy(&bytes), upstream_body);
+    assert_forwarded_with_execution_stamp(&bytes, &upstream_body);
 
     let provider_reqs: Vec<_> = h
         .server

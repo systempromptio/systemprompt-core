@@ -120,7 +120,10 @@ async fn a_listed_server_carries_its_oauth_requirement_and_scopes() -> anyhow::R
     assert!(scopes.contains(&"user"), "{entry}");
     assert!(scopes.contains(&"mcp"), "{entry}");
     assert_eq!(entry["status"].as_str(), Some("enabled"), "{entry}");
-    assert_eq!(entry["port"].as_u64(), Some(5099), "{entry}");
+    assert!(
+        entry["port"].is_null(),
+        "an external server binds no port: {entry}"
+    );
     Ok(())
 }
 

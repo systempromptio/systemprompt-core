@@ -143,7 +143,7 @@ pub fn extract_sse_data(frame: &str) -> Option<String> {
 pub fn replace_sse_data(frame: &str, data: &str) -> String {
     let mut out = String::with_capacity(frame.len() + data.len());
     let mut wrote = false;
-    for line in frame.lines() {
+    for line in frame.trim_end_matches('\n').lines() {
         if line.starts_with("data:") {
             if !wrote {
                 out.push_str("data: ");

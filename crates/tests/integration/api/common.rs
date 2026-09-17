@@ -58,3 +58,25 @@ pub fn json_post(uri: &str, body: serde_json::Value) -> Request<Body> {
         .body(Body::from(body.to_string()))
         .expect("request build")
 }
+
+// Why: the proxy tap stamps `_meta.io.systemprompt/execution.mcp_execution_id`
+// into a matched tools/call result before forwarding it, so a forwarded body
+// equals the upstream body everywhere but under that key.
+pub fn assert_forwarded_with_execution_stamp(forwarded: &[u8], upstream_body: &str) {
+    let mut forwarded: serde_json::Value =
+        serde_json::from_slice(forwarded).expect("forwarded body is JSON");
+    let upstream: serde_json::Value =
+        serde_json::from_str(upstream_body).expect("upstream body is JSON");
+    let stamped = forwarded["result"]["_meta"]["io.systemprompt/execution"]["mcp_execution_id"]
+        .as_str()
+        .map(str::to_owned);
+    assert!(
+        stamped.is_some_and(|id| !id.is_empty()),
+        "forwarded result carries the execution stamp: {forwarded}"
+    );
+    forwarded["result"]
+        .as_object_mut()
+        .expect("result object")
+        .remove("_meta");
+    assert_eq!(forwarded, upstream);
+}
