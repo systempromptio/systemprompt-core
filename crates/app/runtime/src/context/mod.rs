@@ -91,6 +91,7 @@ pub struct Subsystems {
     pub system_admin: Arc<SystemAdmin>,
     pub authz_hook: SharedAuthzHook,
     pub governance: Arc<GovernanceEngine>,
+    pub ai_service: Option<Arc<systemprompt_ai::AiService>>,
     pub schema_install: Arc<SchemaInstallReport>,
     pub event_bridge: Arc<OnceLock<EventBridgeHandle>>,
     pub geoip_reader: Option<GeoIpReader>,
@@ -266,6 +267,16 @@ impl AppContext {
     #[must_use]
     pub fn governance_arc(&self) -> Arc<GovernanceEngine> {
         Arc::clone(&self.subsystems.governance)
+    }
+
+    #[must_use]
+    pub const fn ai_service(&self) -> Option<&Arc<systemprompt_ai::AiService>> {
+        self.subsystems.ai_service.as_ref()
+    }
+
+    #[must_use]
+    pub fn ai_service_arc(&self) -> Option<Arc<systemprompt_ai::AiService>> {
+        self.subsystems.ai_service.clone()
     }
 
     #[must_use]

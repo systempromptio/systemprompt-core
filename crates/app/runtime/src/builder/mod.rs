@@ -8,6 +8,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod ai_service;
 mod assembly;
 mod composition;
 mod core_layer;
@@ -162,10 +163,13 @@ impl AppContextBuilder {
             .marketplace_filter
             .unwrap_or_else(|| assembly::build_marketplace_filter(&database));
 
+        let ai_service = ai_service::build_ai_service(&database, &repositories, &mcp_registry)?;
+
         let subsystems = Subsystems {
             system_admin,
             authz_hook,
             governance,
+            ai_service,
             schema_install: Arc::new(schema_install),
             event_bridge: Arc::new(OnceLock::new()),
             geoip_reader,

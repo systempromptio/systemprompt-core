@@ -92,6 +92,7 @@ pub(super) fn build(params: &ProfileBuildParams<'_>) -> Result<Profile> {
         }),
         extensions: ExtensionsConfig::default(),
         governance: Some(governance),
+        evaluation: Default::default(),
         services: systemprompt_models::profile::ServicesProfileConfig {
             port_offset,
             ..Default::default()

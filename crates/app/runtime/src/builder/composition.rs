@@ -45,12 +45,12 @@ pub(super) async fn ensure_legacy_context(
 }
 
 pub(super) struct RepositoryBundles {
-    a2a: Arc<systemprompt_agent::repository::A2ARepositories>,
+    pub(super) a2a: Arc<systemprompt_agent::repository::A2ARepositories>,
     content: Arc<systemprompt_content::repository::ContentRepositories>,
     oauth: Arc<systemprompt_oauth::repository::OAuthRepositories>,
     pub(super) users: Arc<systemprompt_users::UserRepository>,
     services: Arc<systemprompt_database::ServiceRepository>,
-    ai: Arc<systemprompt_ai::repository::AiRepositories>,
+    pub(super) ai: Arc<systemprompt_ai::repository::AiRepositories>,
     analytics: Arc<systemprompt_analytics::repository::AnalyticsRepositories>,
     feedback_snapshots: Arc<systemprompt_analytics::snapshots::FeedbackSnapshotsRepository>,
     feedback_facts: Arc<systemprompt_analytics::feedback::FeedbackFactsRepository>,

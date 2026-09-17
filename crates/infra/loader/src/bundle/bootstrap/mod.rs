@@ -157,9 +157,8 @@ impl ServicesSourceBootstrap {
             FetchFailurePolicy::FailClosed => Err(BundleError::policy(format!(
                 "services.on_fetch_failure is fail_closed: {error}"
             ))),
-            FetchFailurePolicy::UseLastGood => {
-                last_good(profile, cache, error).map_or_else(|| bundled_fallback(profile, error), Ok)
-            },
+            FetchFailurePolicy::UseLastGood => last_good(profile, cache, error)
+                .map_or_else(|| bundled_fallback(profile, error), Ok),
             FetchFailurePolicy::UseBundled => bundled_fallback(profile, error),
         }
     }

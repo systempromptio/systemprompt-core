@@ -14,6 +14,7 @@
 mod cloud;
 mod database;
 mod error;
+mod evaluation;
 mod from_env;
 mod governance;
 mod info;
@@ -34,6 +35,7 @@ mod vault;
 pub use cloud::{CloudConfig, CloudValidationMode};
 pub use database::{DatabaseConfig, PoolConfig};
 pub use error::{ProfileError, ProfileResult};
+pub use evaluation::EvaluationProfile;
 pub use governance::{
     AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig, UNRESTRICTED_ACKNOWLEDGEMENT,
 };
@@ -142,6 +144,9 @@ pub struct Profile {
 
     #[serde(default)]
     pub governance: Option<GovernanceConfig>,
+
+    #[serde(default)]
+    pub evaluation: EvaluationProfile,
 
     #[serde(default)]
     pub services: ServicesProfileConfig,

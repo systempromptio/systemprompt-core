@@ -3,7 +3,10 @@
 //! Every extension router receives the process's one governance engine as
 //! an axum extension: an extension that enforces policy (the MCP governance
 //! webhook, say) must charge the same rate-limiter budget as the gateway, and
-//! the only way it can reach that engine is to be handed it here.
+//! the only way it can reach that engine is to be handed it here. The same
+//! layer carries the process's `Option<Arc<AiService>>`, so an extension
+//! handler that needs inference (a console-triggered evaluation) shares the
+//! one service instead of assembling its own.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -61,7 +64,8 @@ pub(super) fn mount_extension_routes(
         } else {
             ext_router_config.router
         }
-        .layer(Extension(ctx.governance_arc()));
+        .layer(Extension(ctx.governance_arc()))
+        .layer(Extension(ctx.ai_service_arc()));
 
         if let Some(frame_options) = ext_router_config.frame_options {
             tracing::debug!(
