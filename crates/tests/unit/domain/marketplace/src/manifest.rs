@@ -403,9 +403,9 @@ fn enabled_deployment(endpoint: Option<&str>) -> systemprompt_models::mcp::Deplo
     systemprompt_models::mcp::Deployment {
         connector: None,
         server_type: Default::default(),
-        binary: "server".into(),
+        binary: Some("server".to_owned()),
         package: None,
-        port: 3000,
+        port: Some(3000),
         endpoint: endpoint.map(ToOwned::to_owned),
         enabled: true,
         display_in_web: true,

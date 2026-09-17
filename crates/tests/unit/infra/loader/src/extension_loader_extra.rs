@@ -114,11 +114,11 @@ fn get_production_mcp_binary_names_excludes_dev_only() {
         "dev-ext-server".to_owned(),
         systemprompt_models::mcp::Deployment {
             connector: None,
-            binary: "dev-bin".to_owned(),
+            binary: Some("dev-bin".to_owned()),
             dev_only: true,
             server_type: systemprompt_models::mcp::deployment::McpServerType::Internal,
             package: None,
-            port: 5001,
+            port: Some(5001),
             endpoint: None,
             enabled: true,
             display_in_web: false,

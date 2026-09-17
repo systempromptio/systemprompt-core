@@ -10,9 +10,9 @@ fn deployment(required: bool, scopes: Vec<Permission>) -> Deployment {
     Deployment {
         connector: None,
         server_type: McpServerType::Internal,
-        binary: "bin".to_owned(),
+        binary: Some("bin".to_owned()),
         package: None,
-        port: 5001,
+        port: Some(5001),
         endpoint: None,
         enabled: true,
         display_in_web: true,

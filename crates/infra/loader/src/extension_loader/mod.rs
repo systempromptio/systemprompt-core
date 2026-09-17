@@ -201,7 +201,7 @@ impl ExtensionLoader {
                 let is_dev_only = services_config
                     .mcp_servers
                     .values()
-                    .find(|d| d.binary == binary)
+                    .find(|d| d.binary.as_deref() == Some(binary))
                     .is_some_and(|d| d.dev_only);
                 (!is_dev_only).then(|| binary.to_owned())
             })

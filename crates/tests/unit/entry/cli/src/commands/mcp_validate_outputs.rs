@@ -110,7 +110,7 @@ async fn run_connection_validation_reports_connection_error_for_closed_port() {
     let port = listener.local_addr().unwrap().port();
     drop(listener);
 
-    let out = run_connection_validation("svc", &deployment(port), 30).await;
+    let out = run_connection_validation("svc", &deployment(port), port, 30).await;
 
     assert!(!out.valid);
     assert_eq!(out.validation_type, "connection_failed");
@@ -132,7 +132,7 @@ async fn run_connection_validation_times_out_against_silent_listener() {
         }
     });
 
-    let out = run_connection_validation("svc", &deployment(port), 1).await;
+    let out = run_connection_validation("svc", &deployment(port), port, 1).await;
     hold.abort();
 
     assert!(!out.valid);

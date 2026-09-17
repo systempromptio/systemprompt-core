@@ -11,10 +11,10 @@ fn make_internal(name: &str, port: u16) -> McpServerConfig {
         name: name.to_owned(),
         owner: fixture_user_id(),
         server_type: McpServerType::Internal,
-        binary: format!("{name}-bin"),
+        binary: Some(format!("{name}-bin")),
         enabled: true,
         display_in_web: true,
-        port,
+        port: Some(port),
         crate_path: PathBuf::from("."),
         display_name: format!("{name} Display"),
         description: format!("{name} Description"),
@@ -45,10 +45,10 @@ fn make_external(name: &str, endpoint: &str) -> McpServerConfig {
         name: name.to_owned(),
         owner: fixture_user_id(),
         server_type: McpServerType::External,
-        binary: String::new(),
+        binary: None,
         enabled: true,
         display_in_web: true,
-        port: 0,
+        port: None,
         crate_path: PathBuf::new(),
         display_name: format!("{name} Display"),
         description: format!("{name} Description"),
@@ -107,7 +107,7 @@ fn three_servers_one_port_conflict() {
 fn disabled_server_not_checked_for_binary() {
     let mut srv = make_internal("srv", 5000);
     srv.enabled = false;
-    srv.binary = String::new();
+    srv.binary = None;
     let cfg = registry(vec![srv]);
     validate_registry(&cfg).expect("disabled server skips binary check");
 }

@@ -11,10 +11,10 @@ fn make_internal_server(name: &str, port: u16) -> McpServerConfig {
         name: name.to_string(),
         owner: fixture_user_id(),
         server_type: McpServerType::Internal,
-        binary: format!("{name}-bin"),
+        binary: Some(format!("{name}-bin")),
         enabled: true,
         display_in_web: true,
-        port,
+        port: Some(port),
         crate_path: PathBuf::from("."),
         display_name: format!("{name} Server"),
         description: format!("{name} MCP Server"),
@@ -45,10 +45,10 @@ fn make_external_server(name: &str, endpoint: &str) -> McpServerConfig {
         name: name.to_string(),
         owner: fixture_user_id(),
         server_type: McpServerType::External,
-        binary: String::new(),
+        binary: None,
         enabled: true,
         display_in_web: true,
-        port: 0,
+        port: None,
         crate_path: PathBuf::new(),
         display_name: format!("{name} Server"),
         description: format!("{name} MCP Server"),
@@ -200,7 +200,7 @@ fn validate_registry_oauth_not_required_empty_scopes_ok() {
 #[test]
 fn validate_registry_internal_server_no_binary() {
     let mut server = make_internal_server("server", 5000);
-    server.binary = String::new();
+    server.binary = None;
     let config = make_config(vec![server]);
     let result = validate_registry(&config);
     assert!(result.is_err());
@@ -228,12 +228,12 @@ fn validate_registry_external_server_no_endpoint() {
 #[test]
 fn validate_registry_external_server_with_binary_rejected() {
     let mut server = make_external_server("ext", "https://example.com/mcp");
-    server.binary = "some-binary".to_string();
+    server.binary = Some("some-binary".to_owned());
     let config = make_config(vec![server]);
     let result = validate_registry(&config);
     assert!(result.is_err());
     let err_msg = result.unwrap_err().to_string();
-    assert!(err_msg.contains("should not have a binary"));
+    assert!(err_msg.contains("must not declare a binary or a port"));
 }
 
 #[test]

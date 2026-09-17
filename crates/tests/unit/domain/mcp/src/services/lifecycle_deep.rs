@@ -70,10 +70,10 @@ fn make_config(name: &str, port: u16) -> McpServerConfig {
         name: name.to_owned(),
         owner: fixture_user_id(),
         server_type: McpServerType::Internal,
-        binary: format!("{name}-bin"),
+        binary: Some(format!("{name}-bin")),
         enabled: true,
         display_in_web: true,
-        port,
+        port: Some(port),
         crate_path: PathBuf::from("."),
         display_name: format!("{name} Server"),
         description: format!("{name}"),
@@ -115,7 +115,7 @@ async fn stop_server_cleans_up_stale_db_row() {
         name: &name,
         module_name: "mcp",
         status: "running",
-        port,
+        port: port,
         binary_mtime: None,
     })
     .await
@@ -143,7 +143,7 @@ async fn health_check_dead_port_returns_false_and_updates_status() {
         name: &name,
         module_name: "mcp",
         status: "running",
-        port,
+        port: port,
         binary_mtime: None,
     })
     .await
@@ -172,7 +172,7 @@ async fn cleanup_stale_services_marks_dead_port_rows_stopped() {
         name: &name,
         module_name: "mcp",
         status: "running",
-        port,
+        port: port,
         binary_mtime: None,
     })
     .await
@@ -198,7 +198,7 @@ async fn sync_database_state_marks_unhealthy_crashed() {
         name: &name,
         module_name: "mcp",
         status: "running",
-        port,
+        port: port,
         binary_mtime: None,
     })
     .await
@@ -225,7 +225,7 @@ async fn reconcile_running_processes_reports_dead_ports() {
         name: &name,
         module_name: "mcp",
         status: "running",
-        port,
+        port: port,
         binary_mtime: None,
     })
     .await
@@ -255,7 +255,7 @@ async fn repair_inconsistencies_marks_pidless_running_as_stopped() {
         name: &name,
         module_name: "mcp",
         status: "running",
-        port,
+        port: port,
         binary_mtime: None,
     })
     .await
@@ -280,7 +280,7 @@ async fn delete_crashed_services_runs() {
         name: &name,
         module_name: "mcp",
         status: "crashed",
-        port,
+        port: port,
         binary_mtime: None,
     })
     .await
@@ -304,7 +304,7 @@ async fn health_check_with_stale_pid_marks_stopped() {
         name: &name,
         module_name: "mcp",
         status: "running",
-        port,
+        port: port,
         binary_mtime: None,
     })
     .await
@@ -334,7 +334,7 @@ async fn stop_server_with_stale_db_pid_goes_through_stale_cleanup() {
         name: &name,
         module_name: "mcp",
         status: "running",
-        port,
+        port: port,
         binary_mtime: None,
     })
     .await

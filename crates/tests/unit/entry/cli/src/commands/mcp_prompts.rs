@@ -20,9 +20,9 @@ fn deployment(port: u16) -> Deployment {
     Deployment {
         connector: None,
         server_type: McpServerType::Internal,
-        binary: "bin".to_owned(),
+        binary: Some("bin".to_owned()),
         package: None,
-        port,
+        port: Some(port),
         endpoint: None,
         enabled: true,
         display_in_web: true,

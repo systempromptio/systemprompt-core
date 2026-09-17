@@ -68,8 +68,26 @@ pub async fn latest(
 ) -> Result<Json<ReleaseManifest>, (StatusCode, String)> {
     authenticate(&jwt_extractor, &headers).await?;
     let spec = releases_spec()?;
-    let resolved = feed.resolve(&spec, &query.platform).await?;
+    let resolved = feed
+        .resolve(&spec, &query.platform)
+        .await
+        .map_err(|err| logged_failure("latest", &query.platform, err))?;
     Ok(Json(resolved.manifest))
+}
+
+fn logged_failure(
+    endpoint: &'static str,
+    platform: &str,
+    (status, detail): (StatusCode, String),
+) -> (StatusCode, String) {
+    tracing::warn!(
+        endpoint,
+        platform,
+        status = status.as_u16(),
+        detail = %detail,
+        "bridge release feed request failed"
+    );
+    (status, detail)
 }
 
 pub async fn download(
@@ -80,7 +98,10 @@ pub async fn download(
 ) -> Result<Response, (StatusCode, String)> {
     authenticate(&jwt_extractor, &headers).await?;
     let spec = releases_spec()?;
-    let asset = feed.resolve_asset(&spec, &platform).await?;
+    let asset = feed
+        .resolve_asset(&spec, &platform)
+        .await
+        .map_err(|err| logged_failure("download", &platform, err))?;
 
     // Why: GitHub's asset API returns JSON metadata unless Accept is
     // application/octet-stream.

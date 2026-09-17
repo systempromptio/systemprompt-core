@@ -19,9 +19,9 @@ fn deployment(endpoint: Option<&str>) -> Deployment {
     Deployment {
         connector: None,
         server_type: McpServerType::External,
-        binary: "bin".to_owned(),
+        binary: None,
         package: None,
-        port: 5100,
+        port: None,
         endpoint: endpoint.map(str::to_owned),
         enabled: true,
         display_in_web: false,
@@ -84,7 +84,7 @@ fn a_connector_without_an_endpoint_is_rejected() {
 
     let msg = d.validate("acme").unwrap_err().to_string();
     assert!(
-        msg.contains("HTTPS resource"),
+        msg.contains("endpoint"),
         "there is no resource to authorise against without an endpoint: {msg}"
     );
 }
@@ -133,6 +133,8 @@ fn a_connector_with_neither_client_credential_validates() {
 fn a_connector_on_an_internal_server_is_rejected() {
     let mut d = deployment(Some("/api/v1/mcp/acme/mcp"));
     d.server_type = McpServerType::Internal;
+    d.binary = Some("acme-bin".to_owned());
+    d.port = Some(5100);
     d.connector = Some(connector());
 
     let msg = d.validate("acme").unwrap_err().to_string();

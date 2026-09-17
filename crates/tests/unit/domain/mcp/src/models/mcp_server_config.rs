@@ -12,10 +12,10 @@ fn create_test_config() -> McpServerConfig {
         name: "test-service".to_string(),
         owner: fixture_user_id(),
         server_type: Default::default(),
-        binary: "test-binary".to_string(),
+        binary: Some("test-binary".to_string()),
         enabled: true,
         display_in_web: true,
-        port: 8080,
+        port: Some(8080),
         crate_path: PathBuf::from("/path/to/crate"),
         display_name: "Test Service".to_string(),
         description: "A test MCP service".to_string(),
@@ -101,10 +101,10 @@ fn test_mcp_server_config_fields() {
     let config = create_test_config();
 
     assert_eq!(config.name, "test-service");
-    assert_eq!(config.binary, "test-binary");
+    assert_eq!(config.binary.as_deref(), Some("test-binary"));
     assert!(config.enabled);
     assert!(config.display_in_web);
-    assert_eq!(config.port, 8080);
+    assert_eq!(config.port, Some(8080));
     assert_eq!(config.display_name, "Test Service");
     assert_eq!(config.description, "A test MCP service");
     assert_eq!(config.version, "1.0.0");

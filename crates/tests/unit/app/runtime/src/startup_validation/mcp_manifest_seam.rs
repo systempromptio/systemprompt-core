@@ -21,9 +21,9 @@ fn deployment(
     Deployment {
         connector: None,
         server_type,
-        binary: binary.to_owned(),
+        binary: Some(binary.to_owned()),
         package: None,
-        port: 5100,
+        port: Some(5100),
         endpoint: None,
         enabled,
         display_in_web: false,

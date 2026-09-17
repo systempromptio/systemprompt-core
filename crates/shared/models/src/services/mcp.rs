@@ -14,7 +14,8 @@ pub struct McpServerSummary {
     #[serde(default)]
     pub server_type: String,
     pub enabled: bool,
-    pub port: u16,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub port: Option<u16>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub status: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

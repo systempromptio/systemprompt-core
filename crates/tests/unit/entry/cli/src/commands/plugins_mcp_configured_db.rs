@@ -41,11 +41,11 @@ fn services_yaml() -> String {
     let port = free_port_in_range(5900..6000).expect("a free port in the mcp range");
     format!(
         "mcp_servers:\n  \
-         {ENABLED}:\n    type: external\n    binary: \"\"\n    package: null\n    \
-         port: {port}\n    endpoint: http://127.0.0.1:{port}/mcp\n    enabled: true\n    \
+         {ENABLED}:\n    type: external\n    \
+         endpoint: http://127.0.0.1:{port}/mcp\n    enabled: true\n    \
          display_in_web: false\n    oauth:\n      required: \
          false\n      scopes: []\n      audience: mcp\n      client_id: null\n  \
-         {DISABLED}:\n    type: external\n    binary: \"\"\n    package: null\n    port: 0\n    \
+         {DISABLED}:\n    type: external\n    \
          endpoint: http://127.0.0.1:1/mcp\n    enabled: false\n    display_in_web: false\n    \
          oauth:\n      required: false\n      scopes: []\n      audience: mcp\n      client_id: \
          null\n"

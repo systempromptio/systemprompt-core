@@ -15,6 +15,7 @@ use crate::services::monitoring::health::{HealthStatus, perform_health_check};
 use crate::services::network::NetworkService;
 use crate::services::network::port::MAX_PORT_CLEANUP_ATTEMPTS;
 use crate::services::process::ProcessService;
+use crate::services::spawn_target::SpawnTarget;
 use std::time::Duration;
 use systemprompt_traits::{StartupEventExt, StartupEventSender};
 
@@ -23,29 +24,20 @@ pub async fn start_server(
     config: &McpServerConfig,
     events: Option<&StartupEventSender>,
 ) -> McpDomainResult<()> {
-    tracing::debug!(server = %config.name, port = config.port, "starting MCP server");
-
-    if config.is_external() {
-        return Err(crate::error::McpDomainError::Internal(format!(
-            "{}: external MCP server has no local process and must not be spawned",
-            config.name
-        )));
-    }
+    let port = config.spawn_port()?;
+    tracing::debug!(server = %config.name, port, "starting MCP server");
 
     if let Some(tx) = events {
-        tx.mcp_starting(&config.name, config.port);
+        tx.mcp_starting(&config.name, port);
     }
 
     ProcessService::verify_binary(manager.app_paths(), config)?;
 
-    manager
-        .network()
-        .prepare_port(config.port, &config.name)
-        .await?;
+    manager.network().prepare_port(port, &config.name).await?;
 
     manager
         .network()
-        .wait_for_port_release_with_retry(config.port, &config.name, MAX_PORT_CLEANUP_ATTEMPTS)
+        .wait_for_port_release_with_retry(port, &config.name, MAX_PORT_CLEANUP_ATTEMPTS)
         .await?;
 
     let pid = ProcessService::spawn_server(manager.app_paths(), config)?;
@@ -54,7 +46,7 @@ pub async fn start_server(
 
     manager.database().register_service(config, pid).await?;
 
-    tracing::info!(server = %config.name, port = config.port, "MCP server started");
+    tracing::info!(server = %config.name, port, "MCP server started");
 
     Ok(())
 }
@@ -84,7 +76,7 @@ pub async fn wait_for_startup(
             )));
         }
 
-        if !NetworkService::is_port_responsive(config.port).await {
+        if !NetworkService::is_port_responsive(config.spawn_port()?).await {
             continue;
         }
 
@@ -133,14 +125,15 @@ pub async fn check_health_status(
     };
 
     let startup_time_ms = start_time.elapsed().as_millis() as i32;
+    let port = config.spawn_port()?;
 
     match health_result.status {
         HealthStatus::Healthy => {
-            handle_healthy_status(config, &health_result, startup_time_ms, events);
+            handle_healthy_status(config, port, &health_result, startup_time_ms, events);
             Ok(Some(startup_time_ms))
         },
         HealthStatus::Degraded if attempt >= max_attempts - 2 => {
-            handle_degraded_status(config, &health_result, startup_time_ms, events);
+            handle_degraded_status(config, port, &health_result, startup_time_ms, events);
             Ok(Some(startup_time_ms))
         },
         _ => {
@@ -154,6 +147,7 @@ pub async fn check_health_status(
 
 fn handle_healthy_status(
     config: &McpServerConfig,
+    port: u16,
     health_result: &super::super::monitoring::health::HealthCheckResult,
     startup_time_ms: i32,
     events: Option<&StartupEventSender>,
@@ -163,7 +157,7 @@ fn handle_healthy_status(
     if let Some(tx) = events {
         tx.mcp_ready(
             &config.name,
-            config.port,
+            port,
             Duration::from_millis(startup_time_ms as u64),
             tools_count,
         );
@@ -191,6 +185,7 @@ fn handle_healthy_status(
 
 fn handle_degraded_status(
     config: &McpServerConfig,
+    port: u16,
     health_result: &super::super::monitoring::health::HealthCheckResult,
     startup_time_ms: i32,
     events: Option<&StartupEventSender>,
@@ -212,7 +207,7 @@ fn handle_degraded_status(
     if let Some(tx) = events {
         tx.mcp_ready(
             &config.name,
-            config.port,
+            port,
             Duration::from_millis(startup_time_ms as u64),
             None,
         );

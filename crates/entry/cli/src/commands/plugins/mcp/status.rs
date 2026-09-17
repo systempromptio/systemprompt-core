@@ -106,39 +106,39 @@ fn collect_status_entries(
             .is_some_and(|s| matches!(s.health, HealthStatus::Healthy | HealthStatus::Degraded));
         let pid = status.and_then(|s| s.pid);
 
-        let entry = match deployment.server_type {
-            McpServerType::External => McpStatusEntry {
-                name: name.clone(),
-                server_type: McpServerType::External.as_str().to_owned(),
-                port: 0,
-                enabled: deployment.enabled,
-                running,
-                health,
-                pid: None,
-                endpoint: status.and_then(|s| s.endpoint.clone()),
-                binary: String::new(),
-                release_binary: None,
-                debug_binary: None,
-            },
-            McpServerType::Internal => McpStatusEntry {
-                name: name.clone(),
-                server_type: McpServerType::Internal.as_str().to_owned(),
-                port: deployment.port,
-                enabled: deployment.enabled,
-                running,
-                health,
-                pid,
-                endpoint: None,
-                binary: deployment.binary.clone(),
-                release_binary: binary_display(
-                    bin_path,
-                    "release",
-                    &deployment.binary,
-                    args.detailed,
-                ),
-                debug_binary: binary_display(bin_path, "debug", &deployment.binary, args.detailed),
-            },
-        };
+        let entry =
+            match deployment.server_type {
+                McpServerType::External => McpStatusEntry {
+                    name: name.clone(),
+                    server_type: McpServerType::External.as_str().to_owned(),
+                    port: None,
+                    enabled: deployment.enabled,
+                    running,
+                    health,
+                    pid: None,
+                    endpoint: status.and_then(|s| s.endpoint.clone()),
+                    binary: None,
+                    release_binary: None,
+                    debug_binary: None,
+                },
+                McpServerType::Internal => McpStatusEntry {
+                    name: name.clone(),
+                    server_type: McpServerType::Internal.as_str().to_owned(),
+                    port: deployment.port,
+                    enabled: deployment.enabled,
+                    running,
+                    health,
+                    pid,
+                    endpoint: None,
+                    binary: deployment.binary.clone(),
+                    release_binary: deployment.binary.as_deref().and_then(|binary| {
+                        binary_display(bin_path, "release", binary, args.detailed)
+                    }),
+                    debug_binary: deployment.binary.as_deref().and_then(|binary| {
+                        binary_display(bin_path, "debug", binary, args.detailed)
+                    }),
+                },
+            };
 
         servers.push(entry);
     }

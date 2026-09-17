@@ -4,12 +4,13 @@ use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::mcp::{Deployment, ExternalAuth, McpServerType, OAuthRequirement};
 
 fn deployment(server_type: McpServerType, endpoint: Option<&str>) -> Deployment {
+    let spawned = server_type == McpServerType::Internal;
     Deployment {
         connector: None,
         server_type,
-        binary: "bin".to_owned(),
+        binary: spawned.then(|| "bin".to_owned()),
         package: None,
-        port: 5100,
+        port: spawned.then_some(5100),
         endpoint: endpoint.map(str::to_owned),
         enabled: true,
         display_in_web: false,
@@ -158,4 +159,57 @@ fn static_headers_on_internal_server_are_rejected() {
         msg.contains("external servers"),
         "static headers on an internal server must be rejected: {msg}"
     );
+}
+
+#[test]
+fn external_server_without_spawn_fields_parses_and_validates() {
+    let d: Deployment = serde_yaml::from_str(
+        "type: external\nendpoint: https://mcp.example.com/mcp\nenabled: true\n\
+         display_in_web: false\noauth:\n  required: false\n  scopes: []\n  audience: mcp\n  \
+         client_id: null\n",
+    )
+    .expect("external server needs no binary, package or port");
+    assert_eq!(d.binary, None);
+    assert_eq!(d.package, None);
+    assert_eq!(d.port, None);
+    d.validate("remote").expect("external server validates");
+}
+
+#[test]
+fn external_server_declaring_port_is_rejected() {
+    let mut d = deployment(McpServerType::External, Some("https://mcp.example.com/mcp"));
+    d.port = Some(5046);
+    let msg = d.validate("remote").unwrap_err().to_string();
+    assert!(msg.contains("remote") && msg.contains("port"), "{msg}");
+}
+
+#[test]
+fn external_server_declaring_binary_is_rejected() {
+    let mut d = deployment(McpServerType::External, Some("https://mcp.example.com/mcp"));
+    d.binary = Some(String::new());
+    let msg = d.validate("remote").unwrap_err().to_string();
+    assert!(msg.contains("binary"), "{msg}");
+}
+
+#[test]
+fn external_server_without_endpoint_is_rejected() {
+    let d = deployment(McpServerType::External, None);
+    let msg = d.validate("remote").unwrap_err().to_string();
+    assert!(msg.contains("endpoint"), "{msg}");
+}
+
+#[test]
+fn internal_server_without_port_is_rejected() {
+    let mut d = deployment(McpServerType::Internal, None);
+    d.port = None;
+    let msg = d.validate("local").unwrap_err().to_string();
+    assert!(msg.contains("local") && msg.contains("port"), "{msg}");
+}
+
+#[test]
+fn internal_server_without_binary_is_rejected() {
+    let mut d = deployment(McpServerType::Internal, None);
+    d.binary = Some("  ".to_owned());
+    let msg = d.validate("local").unwrap_err().to_string();
+    assert!(msg.contains("binary"), "{msg}");
 }

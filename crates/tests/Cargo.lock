@@ -7360,6 +7360,7 @@ dependencies = [
 name = "systemprompt-bridge-obs-tests"
 version = "0.0.11"
 dependencies = [
+ "chrono",
  "systemprompt-bridge",
  "temp-env",
  "tempfile",

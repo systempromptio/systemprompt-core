@@ -16,7 +16,8 @@ pub struct McpRegistryServer {
     pub name: String,
     pub version: String,
     pub description: String,
-    pub port: u16,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub port: Option<u16>,
     pub enabled: bool,
     pub display_in_web: bool,
     pub oauth_required: bool,

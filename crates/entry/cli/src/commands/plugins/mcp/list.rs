@@ -88,7 +88,7 @@ pub fn summarize_server(
             name: name.to_owned(),
             display_name: name.to_owned(),
             server_type: McpServerType::External.as_str().to_owned(),
-            port: 0,
+            port: None,
             enabled: server.enabled,
             status: Some(if server.enabled {
                 "remote".to_owned()
@@ -104,13 +104,13 @@ pub fn summarize_server(
         };
     }
 
-    let binary_name = if server.binary.is_empty() {
-        name.to_owned()
-    } else {
-        server.binary.clone()
-    };
-    let (binary_debug, debug_created_at) = get_binary_info(project_root, &binary_name, false);
-    let (binary_release, release_created_at) = get_binary_info(project_root, &binary_name, true);
+    let binary_name = server
+        .binary
+        .as_deref()
+        .filter(|binary| !binary.is_empty())
+        .unwrap_or(name);
+    let (binary_debug, debug_created_at) = get_binary_info(project_root, binary_name, false);
+    let (binary_release, release_created_at) = get_binary_info(project_root, binary_name, true);
 
     McpServerSummary {
         name: name.to_owned(),

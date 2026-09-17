@@ -9,6 +9,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::error::{McpDomainError, McpDomainResult};
+use crate::services::spawn_target::SpawnTarget;
 use std::collections::HashSet;
 use std::sync::Arc;
 use systemprompt_traits::StartupEventSender;
@@ -129,7 +130,7 @@ async fn publish_start_success(
             service_name: server.name.clone(),
             success: true,
             pid,
-            port: Some(server.port),
+            port: server.port,
             error: None,
             duration_ms,
         })
@@ -139,7 +140,7 @@ async fn publish_start_success(
         .publish(McpEvent::ServiceStarted {
             service_name: server.name.clone(),
             process_id: pid,
-            port: server.port,
+            port: server.spawn_port()?,
         })
         .await?;
     Ok(())
@@ -156,7 +157,7 @@ async fn publish_start_failure(
             service_name: server.name.clone(),
             success: false,
             pid: None,
-            port: Some(server.port),
+            port: server.port,
             error: Some(error_msg.to_owned()),
             duration_ms,
         })

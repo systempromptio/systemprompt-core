@@ -31,7 +31,7 @@ pub enum McpServerStatus {
 pub struct McpServerState {
     pub name: McpServerId,
     pub host: String,
-    pub port: u16,
+    pub port: Option<u16>,
     pub status: McpServerStatus,
 }
 

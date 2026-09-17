@@ -4,6 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::error::McpDomainResult;
+use crate::services::spawn_target::SpawnTarget;
 use tracing::Instrument;
 
 use crate::McpServerConfig;
@@ -33,8 +34,8 @@ async fn kill_orphaned_process(
     server: &McpServerConfig,
     database: &DatabaseService,
 ) -> McpDomainResult<bool> {
-    let Some(orphaned_pid) =
-        ProcessService::find_process_on_port_with_name(server.port, &server.name)?
+    let port = server.spawn_port()?;
+    let Some(orphaned_pid) = ProcessService::find_process_on_port_with_name(port, &server.name)?
     else {
         return Ok(false);
     };
@@ -46,7 +47,7 @@ async fn kill_orphaned_process(
     tracing::info!(
         service = %server.name,
         pid = orphaned_pid,
-        port = server.port,
+        port,
         "Found orphaned process"
     );
 
@@ -55,7 +56,7 @@ async fn kill_orphaned_process(
     tracing::info!(
         service_name = %server.name,
         pid = orphaned_pid,
-        port = server.port,
+        port,
         "Killed orphaned MCP process, will restart fresh"
     );
 

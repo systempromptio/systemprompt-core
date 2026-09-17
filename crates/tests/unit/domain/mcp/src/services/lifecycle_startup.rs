@@ -162,5 +162,5 @@ async fn start_server_rejects_external_servers() {
         .start_server(&config)
         .await
         .expect_err("external servers are not spawned");
-    assert!(err.to_string().contains("must not be spawned"));
+    assert!(err.to_string().contains("never spawned locally"), "{err}");
 }

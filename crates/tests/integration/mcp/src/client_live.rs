@@ -25,10 +25,10 @@ fn external_config(name: &str, remote_endpoint: &str) -> McpServerConfig {
         name: name.to_owned(),
         owner: fixture_user_id(),
         server_type: McpServerType::External,
-        binary: "echo".to_owned(),
+        binary: None,
         enabled: true,
         display_in_web: true,
-        port: 0,
+        port: None,
         crate_path: PathBuf::from("/tmp"),
         display_name: name.to_owned(),
         description: "live test server".to_owned(),
@@ -58,7 +58,7 @@ fn internal_config(name: &str, host: &str, port: u16) -> McpServerConfig {
     let mut config = external_config(name, "");
     config.server_type = McpServerType::Internal;
     config.host = host.to_owned();
-    config.port = port;
+    config.port = Some(port);
     config
 }
 

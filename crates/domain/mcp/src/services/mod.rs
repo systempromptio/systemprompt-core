@@ -15,6 +15,7 @@ pub mod orchestrator;
 pub mod process;
 pub mod registry;
 pub mod schema;
+pub mod spawn_target;
 pub mod tool_provider;
 pub mod ui_renderer;
 
@@ -30,6 +31,7 @@ pub use network::NetworkService;
 pub use orchestrator::McpOrchestrator;
 pub use process::ProcessService;
 pub use registry::RegistryService;
+pub use spawn_target::SpawnTarget;
 
 pub use orchestrator::{EventBus, McpEvent};
 pub use tool_provider::McpToolProvider;

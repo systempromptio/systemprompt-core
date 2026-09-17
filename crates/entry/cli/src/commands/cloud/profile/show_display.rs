@@ -145,8 +145,10 @@ pub fn render_mcp_section<S: BuildHasher>(
     ))];
     for (name, mcp) in mcp_servers {
         lines.push(DisplayLine::info(format!(
-            "  {} (port: {}, enabled: {})",
-            name, mcp.port, mcp.enabled
+            "  {} ({}, enabled: {})",
+            name,
+            mcp.server_type.as_str(),
+            mcp.enabled
         )));
         lines.push(DisplayLine::key_value(
             "    endpoint",
@@ -154,7 +156,12 @@ pub fn render_mcp_section<S: BuildHasher>(
                 .as_deref()
                 .unwrap_or("<derived from api_external_url>"),
         ));
-        lines.push(DisplayLine::key_value("    binary", &mcp.binary));
+        if let Some(port) = mcp.port {
+            lines.push(DisplayLine::key_value("    port", port.to_string()));
+        }
+        if let Some(binary) = mcp.binary.as_deref() {
+            lines.push(DisplayLine::key_value("    binary", binary));
+        }
     }
     lines
 }

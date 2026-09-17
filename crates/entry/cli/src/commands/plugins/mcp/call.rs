@@ -8,7 +8,7 @@ use std::sync::Arc;
 use anyhow::{Context, Result, anyhow};
 use clap::Args;
 use systemprompt_loader::ConfigLoader;
-use systemprompt_mcp::services::McpOrchestrator;
+use systemprompt_mcp::services::{McpOrchestrator, SpawnTarget};
 use systemprompt_models::ai::tools::CallToolResult;
 
 use super::call_client::{
@@ -120,11 +120,11 @@ async fn resolve_running_port(server_name: &str, ctx: &CommandContext) -> Result
         .await
         .context("Failed to get running servers")?;
 
-    running_servers
+    let server = running_servers
         .iter()
         .find(|s| s.name == server_name)
-        .map(|s| s.port)
-        .ok_or_else(|| anyhow!("MCP server '{}' is not running", server_name))
+        .ok_or_else(|| anyhow!("MCP server '{}' is not running", server_name))?;
+    Ok(server.spawn_port()?)
 }
 
 fn success_outcome(

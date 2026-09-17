@@ -120,7 +120,13 @@ fn from_openai_unknown_is_other() {
 
 #[test]
 fn anthropic_round_trip_for_known_codes() {
-    for code in ["end_turn", "max_tokens", "stop_sequence", "tool_use", "refusal"] {
+    for code in [
+        "end_turn",
+        "max_tokens",
+        "stop_sequence",
+        "tool_use",
+        "refusal",
+    ] {
         let rt = CanonicalStopReason::from_anthropic(code).anthropic_str();
         assert_eq!(rt, code);
     }

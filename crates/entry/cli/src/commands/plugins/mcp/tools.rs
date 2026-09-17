@@ -16,7 +16,7 @@ use crate::session::get_or_create_session;
 use crate::shared::CommandOutput;
 use systemprompt_identifiers::SessionToken;
 use systemprompt_loader::ConfigLoader;
-use systemprompt_mcp::services::McpOrchestrator;
+use systemprompt_mcp::services::{McpOrchestrator, SpawnTarget};
 use systemprompt_models::{McpServerConfig, ServicesConfig};
 use systemprompt_runtime::AppContext;
 
@@ -116,10 +116,12 @@ async fn collect_tools(
         let server_config = services_config.mcp_servers.get(&server.name);
         let requires_auth = server_config.is_some_and(|c| c.oauth.required);
 
-        let tools_result = if requires_auth {
-            list_tools_authenticated(&server.name, server.port, session_token, args.timeout).await
-        } else {
-            list_tools_unauthenticated(&server.name, server.port, args.timeout).await
+        let tools_result = match server.spawn_port() {
+            Ok(port) if requires_auth => {
+                list_tools_authenticated(&server.name, port, session_token, args.timeout).await
+            },
+            Ok(port) => list_tools_unauthenticated(&server.name, port, args.timeout).await,
+            Err(e) => Err(e.into()),
         };
 
         match tools_result {

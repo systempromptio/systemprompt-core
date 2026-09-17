@@ -56,10 +56,10 @@ fn make_config(binary: &str) -> McpServerConfig {
         name: "verify-bin".to_string(),
         owner: fixture_user_id(),
         server_type: McpServerType::Internal,
-        binary: binary.to_string(),
+        binary: Some(binary.to_string()),
         enabled: true,
         display_in_web: true,
-        port: 65500,
+        port: Some(65500),
         crate_path: PathBuf::from("."),
         display_name: "v".to_string(),
         description: "v".to_string(),
@@ -230,7 +230,7 @@ fn coverage_spawn_invalid_executable_returns_a_detached_start_error() {
     use systemprompt_mcp::services::process::spawner::spawn_server;
     let boot = systemprompt_test_fixtures::ensure_test_bootstrap();
     let config = make_config("invalid-executable");
-    let binary = boot.bin_path.join(&config.binary);
+    let binary = boot.bin_path.join(config.binary.as_deref().unwrap());
     std::fs::write(&binary, b"#!/no-such-interpreter-for-coverage\n").unwrap();
     std::fs::set_permissions(&binary, std::fs::Permissions::from_mode(0o755)).unwrap();
     let err = spawn_server(&boot.app_paths, &config).unwrap_err();

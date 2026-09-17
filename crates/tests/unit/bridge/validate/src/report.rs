@@ -119,6 +119,35 @@ fn summarise_last_sync_partial_record() {
 }
 
 #[test]
+fn summarise_last_sync_partial_sync_names_the_failed_hosts() {
+    let raw = r#"{
+        "synced_at": "2026-09-17T11:05:24Z",
+        "manifest_version": "2026-09-17T11:04:01Z-000001a0af09abc9",
+        "mcp_server_count": 2,
+        "host_failures": ["claude-code: apply: io error in remove managed MCP policy: EOF while parsing a value"]
+    }"#;
+
+    assert_eq!(
+        summarise_last_sync(raw),
+        "partial — 1 host(s) failed (claude-code); 2026-09-17T11:05:24Z (last applied manifest 2026-09-17T11:04:01Z-000001a0af09abc9, 2 MCP server(s))"
+    );
+}
+
+#[test]
+fn summarise_last_sync_partial_sync_counts_malformed_plugins() {
+    let raw = r#"{
+        "synced_at": "2026-09-17T11:05:24Z",
+        "host_failures": ["claude-code: apply: boom", "opencode: apply: boom"],
+        "malformed_plugins": ["astound-dev"]
+    }"#;
+
+    assert_eq!(
+        summarise_last_sync(raw),
+        "partial — 2 host(s) failed (claude-code, opencode), 1 malformed plugin(s); 2026-09-17T11:05:24Z (last applied manifest ?, 0 MCP server(s))"
+    );
+}
+
+#[test]
 fn summarise_last_sync_invalid_json_is_unparseable() {
     assert_eq!(summarise_last_sync("not json"), "unparseable");
 }

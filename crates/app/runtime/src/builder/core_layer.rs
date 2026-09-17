@@ -69,6 +69,14 @@ pub(super) async fn init_core(
     })
     .await
     .map_err(|err| RuntimeError::Internal(format!("services config init: {err}")))?;
+    if let Some(gateway) = services.gateway_config() {
+        for reference in gateway.unresolved_secret_refs(|name| secrets.get(name).is_some()) {
+            tracing::warn!(
+                reference = %reference,
+                "gateway config names a secret that is not configured; the dependent endpoint answers 503"
+            );
+        }
+    }
     let config = Arc::new(Config::get()?.clone());
     let instance_id = systemprompt_identifiers::InstanceId::new(&config.instance_id);
     systemprompt_logging::set_instance_id(instance_id.clone());

@@ -8,6 +8,7 @@ use crate::McpServerConfig;
 use crate::error::McpDomainResult;
 use crate::services::database::ServiceLifecycleStatus;
 use crate::services::process::ProcessService;
+use crate::services::spawn_target::SpawnTarget;
 
 pub async fn stop_server(
     manager: &LifecycleOrchestrator,
@@ -45,7 +46,7 @@ async fn find_running_process(
         return Ok(Some(db_pid as u32));
     }
 
-    ProcessService::find_pid_by_port(config.port)
+    ProcessService::find_pid_by_port(config.spawn_port()?)
 }
 
 async fn perform_graceful_shutdown(
@@ -57,7 +58,10 @@ async fn perform_graceful_shutdown(
 
     ProcessService::terminate_gracefully_verified(pid, &config.name).await?;
 
-    manager.network().wait_for_port_release(config.port).await?;
+    manager
+        .network()
+        .wait_for_port_release(config.spawn_port()?)
+        .await?;
 
     Ok(())
 }

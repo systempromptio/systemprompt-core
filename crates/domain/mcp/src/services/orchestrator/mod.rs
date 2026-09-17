@@ -123,7 +123,7 @@ impl McpOrchestrator {
             let health = perform_health_check(server).await?;
 
             let (port, endpoint, pid) = if server.is_external() {
-                (0, Some(server.remote_endpoint.clone()), None)
+                (None, Some(server.remote_endpoint.clone()), None)
             } else {
                 let pid = self
                     .database

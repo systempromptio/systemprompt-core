@@ -36,8 +36,9 @@ fn validate_port_conflicts(config: &RegistryConfig) -> McpDomainResult<()> {
         .servers
         .iter()
         .filter(|s| s.enabled && s.is_internal())
-        .filter(|s| !seen_ports.insert(s.port))
-        .map(|s| format!("{}:{}", s.name, s.port))
+        .filter_map(|s| s.port.map(|port| (s.name.as_str(), port)))
+        .filter(|(_, port)| !seen_ports.insert(*port))
+        .map(|(name, port)| format!("{name}:{port}"))
         .collect();
 
     if conflicts.is_empty() {
@@ -81,9 +82,16 @@ fn validate_single_server(
 
     match server_config.server_type {
         McpServerType::Internal => {
-            if server_config.port < 1024 {
-                errors.push(format!("{name}: invalid port {}", server_config.port));
-                return errors;
+            match server_config.port {
+                Some(port) if port < 1024 => {
+                    errors.push(format!("{name}: invalid port {port}"));
+                    return errors;
+                },
+                Some(_) => {},
+                None => {
+                    errors.push(format!("{name}: internal server has no port"));
+                    return errors;
+                },
             }
 
             if !server_config.crate_path.exists() {
@@ -150,7 +158,7 @@ fn validate_server_type_constraints(
 ) -> Option<String> {
     match server.server_type {
         McpServerType::Internal => {
-            if server.binary.is_empty() {
+            if server.binary.as_deref().is_none_or(str::is_empty) {
                 return Some(format!("{}: internal server has no binary", server.name));
             }
             None
@@ -162,9 +170,9 @@ fn validate_server_type_constraints(
                     server.name
                 ));
             }
-            if !server.binary.is_empty() {
+            if server.binary.is_some() || server.port.is_some() {
                 return Some(format!(
-                    "{}: external server should not have a binary",
+                    "{}: external server must not declare a binary or a port",
                     server.name
                 ));
             }

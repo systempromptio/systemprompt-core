@@ -470,7 +470,7 @@ async fn service_statuses_reports_external_endpoint_and_internal_port() {
         .iter()
         .find(|s| s.name == ext_name)
         .expect("external listed");
-    assert_eq!(ext.port, 0);
+    assert_eq!(ext.port, None);
     assert_eq!(
         ext.endpoint.as_deref(),
         Some(&*format!("{}/mcp", mock.uri()))
@@ -481,7 +481,7 @@ async fn service_statuses_reports_external_endpoint_and_internal_port() {
         .iter()
         .find(|s| s.name == int_name)
         .expect("internal listed");
-    assert_eq!(int.port, port);
+    assert_eq!(int.port, Some(port));
     assert!(int.endpoint.is_none());
     assert!(int.pid.is_none());
 }

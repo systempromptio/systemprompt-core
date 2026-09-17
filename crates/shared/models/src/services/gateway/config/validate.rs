@@ -10,6 +10,20 @@ use crate::services::gateway::route::GatewayRoute;
 use crate::services::providers::ProviderRegistry;
 
 impl GatewayConfig {
+    #[must_use]
+    pub fn unresolved_secret_refs(&self, has_secret: impl Fn(&str) -> bool) -> Vec<String> {
+        let mut unresolved = Vec::new();
+        if let Some(name) = self
+            .bridge_releases
+            .as_ref()
+            .and_then(|spec| spec.token_secret.as_deref())
+            && !has_secret(name)
+        {
+            unresolved.push(format!("bridge_releases.token_secret={name}"));
+        }
+        unresolved
+    }
+
     pub fn validate(&self, registry: &ProviderRegistry) -> GatewayResult<()> {
         let mut route_ids: std::collections::HashSet<&str> =
             std::collections::HashSet::with_capacity(self.routes.len());

@@ -9,6 +9,7 @@ use crate::error::McpDomainResult;
 use crate::services::database::ServiceLifecycleStatus;
 use crate::services::monitoring::health::{HealthCheckResult, HealthStatus, perform_health_check};
 use crate::services::process::ProcessService;
+use crate::services::spawn_target::SpawnTarget;
 
 pub async fn check_server_health(
     manager: &LifecycleOrchestrator,
@@ -37,7 +38,7 @@ async fn is_process_running(
     manager: &LifecycleOrchestrator,
     config: &McpServerConfig,
 ) -> McpDomainResult<bool> {
-    let Some(pid) = ProcessService::find_pid_by_port(config.port)? else {
+    let Some(pid) = ProcessService::find_pid_by_port(config.spawn_port()?)? else {
         manager
             .database()
             .update_service_status(&config.name, ServiceLifecycleStatus::Stopped)

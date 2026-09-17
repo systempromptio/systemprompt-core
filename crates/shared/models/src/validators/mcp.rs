@@ -5,6 +5,7 @@
 
 use super::ValidationConfigProvider;
 use crate::ServicesConfig;
+use crate::mcp::deployment::McpServerType;
 use std::collections::HashMap;
 use systemprompt_traits::validation_report::{ValidationIssue, ValidationReport};
 use systemprompt_traits::{ConfigProvider, DomainConfig, DomainConfigError};
@@ -55,7 +56,12 @@ impl DomainConfig for McpConfigValidator {
         let mut used_ports: HashMap<u16, String> = HashMap::new();
 
         for (name, deployment) in &config.mcp_servers {
-            let port = deployment.port;
+            if deployment.server_type == McpServerType::External {
+                continue;
+            }
+            let Some(port) = deployment.port else {
+                continue;
+            };
 
             if let Some(existing) = used_ports.get(&port) {
                 report.add_error(

@@ -152,7 +152,9 @@ impl ServicesConfig {
             if mcp.server_type == McpServerType::External {
                 continue;
             }
-            mcp.port = shift(mcp.port, &format!("MCP server '{name}'"))?;
+            if let Some(port) = mcp.port {
+                mcp.port = Some(shift(port, &format!("MCP server '{name}'"))?);
+            }
         }
 
         self.settings.agent_port_range = (

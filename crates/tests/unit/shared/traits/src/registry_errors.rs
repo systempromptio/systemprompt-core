@@ -75,10 +75,10 @@ fn agent_info_fields_accessible() {
 fn mcp_server_info_fields_accessible() {
     let s = McpServerInfo {
         name: "mcp-server".to_owned(),
-        port: 3000,
+        port: Some(3000),
         enabled: true,
         oauth: ServiceOAuthConfig::default(),
     };
     assert_eq!(s.name, "mcp-server");
-    assert_eq!(s.port, 3000);
+    assert_eq!(s.port, Some(3000));
 }

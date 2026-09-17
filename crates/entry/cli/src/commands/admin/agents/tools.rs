@@ -19,7 +19,7 @@ use crate::shared::CommandOutput;
 use systemprompt_identifiers::SessionToken;
 use systemprompt_loader::ConfigLoader;
 use systemprompt_mcp::McpServerConfig;
-use systemprompt_mcp::services::McpOrchestrator;
+use systemprompt_mcp::services::{McpOrchestrator, SpawnTarget};
 
 #[derive(Debug, Args)]
 pub struct ToolsArgs {
@@ -181,11 +181,13 @@ async fn collect_tools(configured_servers: &[String], query: &ToolQuery<'_>) -> 
         let server_config = query.services_config.mcp_servers.get(server_name);
         let requires_auth = server_config.is_some_and(|c| c.oauth.required);
 
-        let tools_result = if requires_auth {
-            list_tools_authenticated(server_name, server.port, query.session_token, query.timeout)
-                .await
-        } else {
-            list_tools_unauthenticated(server_name, server.port, query.timeout).await
+        let tools_result = match server.spawn_port() {
+            Ok(port) if requires_auth => {
+                list_tools_authenticated(server_name, port, query.session_token, query.timeout)
+                    .await
+            },
+            Ok(port) => list_tools_unauthenticated(server_name, port, query.timeout).await,
+            Err(e) => Err(e.into()),
         };
 
         match tools_result {

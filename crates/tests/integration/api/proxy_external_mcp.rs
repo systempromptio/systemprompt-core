@@ -43,8 +43,6 @@ fn services_yaml(provider_url: &str, ext_name: &str, int_name: &str) -> String {
         r#"mcp_servers:
   {ext_name}:
     type: external
-    binary: {ext_name}
-    port: 5990
     endpoint: {provider_url}
     enabled: true
     tool_policy: allow

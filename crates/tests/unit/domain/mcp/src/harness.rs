@@ -57,9 +57,6 @@ pub fn external_server_block(spec: &ExternalServerSpec<'_>) -> String {
     format!(
         r"  {name}:
     server_type: external
-    binary: {name}-bin
-    package: null
-    port: 0
     endpoint: {endpoint}
     enabled: {enabled}
     display_in_web: true
@@ -98,9 +95,6 @@ pub fn external_server_block_with_accessor(name: &str, endpoint: &str) -> String
     format!(
         r"  {name}:
     server_type: external
-    binary: {name}-bin
-    package: null
-    port: 0
     endpoint: {endpoint}
     enabled: true
     display_in_web: true
@@ -260,10 +254,10 @@ pub fn internal_mcp_config(name: &str, port: u16) -> systemprompt_models::mcp::M
         name: name.to_owned(),
         owner: systemprompt_test_fixtures::fixture_user_id(),
         server_type: McpServerType::Internal,
-        binary: format!("{name}-bin"),
+        binary: Some(format!("{name}-bin")),
         enabled: true,
         display_in_web: true,
-        port,
+        port: Some(port),
         crate_path: std::path::PathBuf::from("."),
         display_name: format!("{name} Server"),
         description: format!("{name} MCP Server"),
@@ -297,7 +291,7 @@ pub fn external_mcp_config(
 
     let mut config = internal_mcp_config(name, 0);
     config.server_type = McpServerType::External;
-    config.binary = String::new();
+    config.binary = None;
     config.crate_path = std::path::PathBuf::new();
     config.remote_endpoint = endpoint.to_owned();
     config

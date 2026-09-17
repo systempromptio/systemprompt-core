@@ -12,6 +12,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::error::McpDomainResult;
+use crate::services::spawn_target::SpawnTarget;
 use std::collections::HashSet;
 use std::sync::Arc;
 use systemprompt_traits::{StartupEvent, StartupEventSender};
@@ -142,7 +143,7 @@ async fn kill_all_running_servers(
     let running_servers = database.get_running_servers().await?;
 
     for server in running_servers {
-        let port = server.port;
+        let port = server.spawn_port()?;
         kill_single_server(database, &server.name, events).await?;
         if let Err(e) = port::wait_for_port_release(port).await {
             tracing::warn!(port = port, error = %e, "Port release wait failed, continuing");

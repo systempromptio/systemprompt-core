@@ -6,6 +6,7 @@
 use std::path::Path;
 
 use crate::error::McpDomainResult;
+use crate::services::spawn_target::SpawnTarget;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_database::{CreateServiceInput, ServiceRepository};
 
@@ -37,10 +38,11 @@ pub async fn register_service(
 ) -> McpDomainResult<String> {
     let binary_mtime = get_binary_mtime_for_service(paths, &config.name);
 
+    let port = config.spawn_port()?;
     tracing::debug!(
         service = %config.name,
         pid = pid,
-        port = config.port,
+        port,
         binary_mtime = ?binary_mtime,
         "Registering MCP service"
     );
@@ -49,7 +51,7 @@ pub async fn register_service(
         name: &config.name,
         module_name: "mcp",
         status: "running",
-        port: config.port,
+        port,
         binary_mtime,
     })
     .await
@@ -121,7 +123,7 @@ pub async fn register_existing_process(
         name: &config.name,
         module_name: "mcp",
         status: "running",
-        port: config.port,
+        port: config.spawn_port()?,
         binary_mtime,
     })
     .await?;
