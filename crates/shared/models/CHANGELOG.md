@@ -10,6 +10,7 @@
 
 ### Added
 
+- `ProviderEntry::upstream_model_for` maps a route override through the catalog (id or alias → the entry's wire `upstream_model`); an unlisted override still passes through verbatim.
 - `profile::{ObservabilityConfig, OtlpExportConfig, OtlpProtocol, OtlpSignal}`: the `observability.otlp` block (endpoint, protocol, headers, signals, batch_seconds) with `OtlpExportConfig::{exports, signal_url}` and `Profile::validate_observability` (http(s) endpoint, non-empty distinct signals, `batch_seconds` 1–3600, header names/values; `grpc` refused as not yet supported).
 - `GatewayRoute::fallback_view` — the route as its fallback provider serves it (provider and upstream model swapped, the primary `pricing:` override dropped). `GatewayConfig::validate` checks the fallback exists, differs from the primary, and satisfies the route's pricing and `requires`: `GatewayProfileError::{RouteFallbackProviderNotInRegistry, RouteFallbackIsPrimary, RouteFallbackModelWithoutProvider}`.
 - `profile::AuditConfig` under `governance.audit`: `payload_cap_bytes` (default `AuditConfig::DEFAULT_PAYLOAD_CAP_BYTES` = 1 MiB) bounds the request/response body stored whole in `ai_request_payloads`; validation rejects a value under `AuditConfig::MIN_PAYLOAD_CAP_BYTES` (64 KiB). `Profile::payload_cap_bytes()` returns the value or the default when the profile carries no `governance` block.

@@ -126,6 +126,30 @@ fn route_rewrite_outranks_the_catalog_mapping() {
 }
 
 #[test]
+fn a_route_override_naming_a_catalog_id_or_alias_resolves_to_the_wire_model() {
+    let mut catalog = model("vertex-gemini-3.8-flash");
+    catalog.aliases = vec![ModelId::new("gemini-flash")];
+    catalog.upstream_model = Some("gemini-3.8-flash".to_owned());
+    let provider = provider_entry("vertex", "https://example.invalid/v1", vec![catalog]);
+
+    assert_eq!(
+        provider.upstream_model_for(Some("vertex-gemini-3.8-flash"), "claude-opus-5"),
+        "gemini-3.8-flash",
+        "a catalog id must go upstream as the catalog's wire name"
+    );
+    assert_eq!(
+        provider.upstream_model_for(Some("gemini-flash"), "claude-opus-5"),
+        "gemini-3.8-flash",
+        "an alias resolves the same way"
+    );
+    assert_eq!(
+        provider.upstream_model_for(Some("gemini-3.8-flash"), "claude-opus-5"),
+        "gemini-3.8-flash",
+        "a plain wire name the catalog does not list passes through verbatim"
+    );
+}
+
+#[test]
 fn an_unmapped_model_passes_its_own_name_upstream() {
     let provider = provider_entry(
         "anthropic",
