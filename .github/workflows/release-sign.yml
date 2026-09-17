@@ -32,6 +32,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.bridge_tag || github.ref }}
       # keyring → dbus-secret-service → libdbus-sys builds from pkg-config;
       # ubuntu-latest no longer ships libdbus-1-dev.
       - run: |
@@ -74,6 +76,8 @@ jobs:
             asset: systemprompt-bridge-x86_64-pc-windows-msvc.exe
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.bridge_tag || github.ref }}
       - name: Install libdbus (linux)
         if: runner.os == 'Linux'
         run: |
@@ -142,33 +146,45 @@ jobs:
               "${f}"
           done
 
+      # Why: GitHub's asset store intermittently answers "Error saving asset"
+      # to the parallel uploads action-gh-release issues (three runs in a row
+      # for bridge-v0.55.0); one asset at a time, retried, and verified by
+      # listing the release afterwards.
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ steps.tag.outputs.tag }}
-          name: ${{ steps.tag.outputs.tag }}
-          body: |
-            ## systemprompt bridge ${{ steps.tag.outputs.tag }}
-
-            See the [bridge CHANGELOG](https://github.com/systempromptio/systemprompt-core/blob/main/bin/bridge/CHANGELOG.md) for the full list of changes.
-
-            ### Verifying a signature (cosign keyless)
-
-            ```bash
-            cosign verify-blob \
-              --certificate-identity-regexp='https://github.com/systempromptio/systemprompt-core/' \
-              --certificate-oidc-issuer='https://token.actions.githubusercontent.com' \
-              --signature systemprompt-bridge-x86_64-unknown-linux-gnu.sig \
-              --certificate systemprompt-bridge-x86_64-unknown-linux-gnu.pem \
-              systemprompt-bridge-x86_64-unknown-linux-gnu
-            ```
-          files: |
-            dist/systemprompt-bridge-*
-            dist/SHA256SUMS
-            dist/SHA256SUMS.sig
-            dist/SHA256SUMS.pem
+        working-directory: dist
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          cat > notes.md <<'NOTES'
+          ## systemprompt bridge ${{ steps.tag.outputs.tag }}
+
+          See the [bridge CHANGELOG](https://github.com/systempromptio/systemprompt-core/blob/main/bin/bridge/CHANGELOG.md) for the full list of changes.
+
+          ### Verifying a signature (cosign keyless)
+
+          ```bash
+          cosign verify-blob \
+            --certificate-identity-regexp='https://github.com/systempromptio/systemprompt-core/' \
+            --certificate-oidc-issuer='https://token.actions.githubusercontent.com' \
+            --signature systemprompt-bridge-x86_64-unknown-linux-gnu.sig \
+            --certificate systemprompt-bridge-x86_64-unknown-linux-gnu.pem \
+            systemprompt-bridge-x86_64-unknown-linux-gnu
+          ```
+          NOTES
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 \
+            || gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --title "$TAG" --notes-file notes.md --verify-tag
+          for f in systemprompt-bridge-* SHA256SUMS SHA256SUMS.sig SHA256SUMS.pem; do
+            n=0
+            until gh release upload "$TAG" "$f" --repo "$GITHUB_REPOSITORY" --clobber; do
+              n=$((n + 1))
+              [ "$n" -lt 5 ] || { echo "::error::upload of $f failed 5 times"; exit 1; }
+              sleep $((10 * n))
+            done
+          done
+          expected=$(ls systemprompt-bridge-* SHA256SUMS SHA256SUMS.sig SHA256SUMS.pem | sort)
+          actual=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' | sort)
+          diff <(echo "$expected") <(echo "$actual") || { echo "::error::release assets differ from dist/"; exit 1; }
 
   bump-scoop:
     name: Bump Scoop bucket (bridge)
