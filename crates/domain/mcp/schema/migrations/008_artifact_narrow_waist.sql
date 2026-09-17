@@ -18,14 +18,8 @@ ALTER TABLE mcp_tool_executions ADD CONSTRAINT mcp_tool_executions_source_check
 ALTER TABLE mcp_tool_executions DROP CONSTRAINT IF EXISTS mcp_tool_executions_correlation_check;
 ALTER TABLE mcp_tool_executions ADD CONSTRAINT mcp_tool_executions_correlation_check
     CHECK (correlation IN ('exact', 'inferred'));
--- Historical proxy-tapped rows share the in-process request method; the
--- in-process executor always persisted an artifact and the proxy tap never
--- did, so the artifact row is the discriminator.
-UPDATE mcp_tool_executions e
-SET source = 'proxy'
-WHERE e.request_method = 'mcp'
-  AND e.source = 'in_process'
-  AND NOT EXISTS (SELECT 1 FROM mcp_artifacts a WHERE a.mcp_execution_id = e.mcp_execution_id);
+-- Historical proxy-tapped rows are recognisable by their request method.
+UPDATE mcp_tool_executions SET source = 'proxy' WHERE request_method = 'mcp' AND source = 'in_process';
 
 -- Payload store must exist before artifacts can point at it.
 CREATE TABLE IF NOT EXISTS artifact_payloads (
@@ -104,7 +98,7 @@ ON CONFLICT DO NOTHING;
 DELETE FROM mcp_artifacts a
 USING mcp_artifacts b
 WHERE a.mcp_execution_id = b.mcp_execution_id
-  AND (a.created_at, a.id) < (b.created_at, b.id);
+  AND a.created_at < b.created_at;
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_mcp_artifacts_execution ON mcp_artifacts(mcp_execution_id);
 CREATE INDEX IF NOT EXISTS idx_mcp_artifacts_session_created ON mcp_artifacts(session_id, created_at DESC) WHERE session_id IS NOT NULL;
