@@ -233,3 +233,48 @@ fn a_host_failure_folds_to_one_sentinel_line() {
         "claude-code: apply: io error in remove managed MCP policy: EOF"
     );
 }
+
+#[test]
+fn a_partial_sync_record_keeps_the_prior_hosts_and_update_policy_not_the_half_applied_ones() {
+    use systemprompt_bridge::gateway::manifest::AutoUpdatePolicy;
+
+    let prior = LastSyncState {
+        manifest_version: Some(version("2026-09-17T11:04:01Z-000001a0af09abc9")),
+        enabled_hosts: vec!["claude-code".to_owned()],
+        host_model_protocols: [("claude-code".to_owned(), vec!["anthropic".to_owned()])]
+            .into_iter()
+            .collect(),
+        auto_update: AutoUpdatePolicy::default(),
+        ..LastSyncState::default()
+    };
+    let attempted = LastSyncState {
+        manifest_version: Some(version("2026-09-17T11:05:24Z-000001a0af0aee88")),
+        enabled_hosts: vec!["claude-code".to_owned(), "cowork".to_owned()],
+        host_model_protocols: [("cowork".to_owned(), vec!["openai".to_owned()])]
+            .into_iter()
+            .collect(),
+        auto_update: AutoUpdatePolicy::Disabled,
+        installed_plugins: vec!["kit".to_owned()],
+        host_failures: vec!["cowork: apply: permission denied".to_owned()],
+        ..LastSyncState::default()
+    };
+
+    let recorded = attempted.retaining_delivered_policy_of(&prior);
+
+    assert!(recorded.is_partial());
+    assert_eq!(recorded.manifest_version, prior.manifest_version);
+    assert_eq!(
+        recorded.enabled_hosts, prior.enabled_hosts,
+        "a host whose emitter failed is not enabled"
+    );
+    assert_eq!(recorded.host_model_protocols, prior.host_model_protocols);
+    assert_eq!(
+        recorded.auto_update, prior.auto_update,
+        "a policy from a manifest that did not apply is not in force"
+    );
+    assert_eq!(
+        recorded.installed_plugins,
+        vec!["kit".to_owned()],
+        "what did land is still recorded"
+    );
+}

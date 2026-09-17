@@ -71,26 +71,92 @@ enum Activation {
     Refused(InstallError),
 }
 
+// Why: only a genuinely absent user manager degrades — `systemctl` not on
+// PATH, or a reload that could not reach the user bus at all. A live manager
+// that refuses the reload (polkit, a unit it rejects) is an activation
+// failure, or the timer would be silently missing on a host that has one.
 fn activate(unit: &str, proxy_unit: &str) -> Result<(), Activation> {
-    systemctl(&["daemon-reload"]).map_err(|e| Activation::NoUserManager(e.to_string()))?;
-    systemctl(&["enable", "--now", &format!("{unit}.timer")]).map_err(Activation::Refused)?;
-    systemctl(&["enable", "--now", &format!("{proxy_unit}.service")]).map_err(Activation::Refused)
+    systemctl(&["daemon-reload"]).map_err(|e| {
+        if e.no_user_manager() {
+            Activation::NoUserManager(e.to_string())
+        } else {
+            Activation::Refused(e.into_install_error())
+        }
+    })?;
+    systemctl(&["enable", "--now", &format!("{unit}.timer")])
+        .map_err(|e| Activation::Refused(e.into_install_error()))?;
+    systemctl(&["enable", "--now", &format!("{proxy_unit}.service")])
+        .map_err(|e| Activation::Refused(e.into_install_error()))
 }
 
-fn systemctl(args: &[&str]) -> Result<(), InstallError> {
-    let status = std::process::Command::new("systemctl")
+enum SystemctlFailure {
+    Spawn {
+        command: String,
+        source: std::io::Error,
+    },
+    Exited {
+        command: String,
+        code: i32,
+        stderr: String,
+    },
+}
+
+impl SystemctlFailure {
+    fn no_user_manager(&self) -> bool {
+        match self {
+            Self::Spawn { source, .. } => source.kind() == std::io::ErrorKind::NotFound,
+            Self::Exited { stderr, .. } => {
+                stderr.contains("Failed to connect to bus")
+                    || stderr.contains("No such file or directory")
+                    || stderr.contains("not been booted with systemd")
+            },
+        }
+    }
+
+    fn into_install_error(self) -> InstallError {
+        InstallError::ScheduleApply(self.to_string())
+    }
+}
+
+impl std::fmt::Display for SystemctlFailure {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Spawn { command, source } => write!(f, "{command}: {source}"),
+            Self::Exited {
+                command,
+                code,
+                stderr,
+            } => {
+                let stderr = stderr.trim();
+                if stderr.is_empty() {
+                    write!(f, "{command} exited with {code}")
+                } else {
+                    write!(f, "{command} exited with {code}: {stderr}")
+                }
+            },
+        }
+    }
+}
+
+fn systemctl(args: &[&str]) -> Result<(), SystemctlFailure> {
+    let command = format!("systemctl --user {}", args.join(" "));
+    let output = std::process::Command::new("systemctl")
         .arg("--user")
         .args(args)
-        .status()
-        .map_err(|e| InstallError::ScheduleApply(format!("systemctl --user {}: {e}", args[0])))?;
-    if status.success() {
+        .stdin(std::process::Stdio::null())
+        .output()
+        .map_err(|source| SystemctlFailure::Spawn {
+            command: command.clone(),
+            source,
+        })?;
+    if output.status.success() {
         return Ok(());
     }
-    Err(InstallError::ScheduleApply(format!(
-        "systemctl --user {} exited with {}",
-        args.join(" "),
-        status.code().unwrap_or(-1)
-    )))
+    Err(SystemctlFailure::Exited {
+        command,
+        code: output.status.code().unwrap_or(-1),
+        stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
+    })
 }
 
 pub(super) fn schedule_registered() -> super::ScheduleStatus {

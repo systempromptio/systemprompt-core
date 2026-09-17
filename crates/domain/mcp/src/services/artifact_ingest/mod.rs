@@ -32,7 +32,7 @@ use systemprompt_security::policy::secrets::SecretScanner;
 use crate::error::McpDomainResult;
 use crate::repository::{
     ArtifactFindingRepository, ArtifactIngestRepositories, ArtifactPayloadRepository,
-    McpArtifactRepository, ToolUsageRepository,
+    McpArtifactRecord, McpArtifactRepository, ToolUsageRepository,
 };
 
 pub use classify::Classified;
@@ -60,6 +60,14 @@ pub struct IngestRequest {
     pub input: Option<JsonValue>,
 }
 
+/// What the ingest stored and, when the scanner rewrote the body, what the
+/// caller must put on the wire in place of its own copy.
+///
+/// `stored_body` is the artifact body as persisted (the header alone for a
+/// result over [`MAX_PAYLOAD_BYTES`]); `redacted_body` is `Some` only when
+/// `secret_redactions > 0` and then carries the whole scanned body, so a
+/// caller never has to re-read the row to learn whether its unredacted copy
+/// is safe to send.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IngestOutcome {
     pub mcp_execution_id: McpExecutionId,
@@ -68,6 +76,11 @@ pub struct IngestOutcome {
     pub is_structured: bool,
     pub correlation: Correlation,
     pub findings: usize,
+    pub secret_redactions: usize,
+    // JSON: the persisted artifact body.
+    pub stored_body: JsonValue,
+    // JSON: the scanned body when the scanner rewrote it.
+    pub redacted_body: Option<JsonValue>,
 }
 
 pub struct ArtifactIngest {
@@ -142,6 +155,7 @@ impl ArtifactIngest {
     }
 
     pub async fn ingest(&self, request: IngestRequest) -> McpDomainResult<IngestOutcome> {
+        let request = resolve::disown_foreign_call_id(self, request).await?;
         let classified = classify::classify(&request);
         let raw_digest = payload_digest(&classified.body);
 
@@ -154,20 +168,15 @@ impl ArtifactIngest {
             .await?
         {
             resolve::enrich_existing(self, &request, &resolved, &existing).await?;
-            return Ok(IngestOutcome {
-                mcp_execution_id: resolved.mcp_execution_id,
-                artifact_id: existing.artifact_id,
-                created: false,
-                is_structured: existing.is_structured,
-                correlation: resolved.correlation,
-                findings: 0,
-            });
+            return Ok(IngestOutcome::existing(resolved, existing));
         }
 
-        let scanned = if raw_digest.byte_len > MAX_PAYLOAD_BYTES {
-            ScanOutcome::truncated(classified.header_only(&request), &raw_digest)
+        let redacted =
+            scan::scan_body(self, &request, classified.body.clone(), &raw_digest).await?;
+        let (scanned, redacted_body) = if raw_digest.byte_len > MAX_PAYLOAD_BYTES {
+            redacted.truncate(classified.header_only(&request), &raw_digest)
         } else {
-            scan::scan_body(self, &request, classified.body.clone(), &raw_digest).await?
+            (redacted, None)
         };
 
         let artifact_id = classified
@@ -214,13 +223,60 @@ impl ArtifactIngest {
             "Artifact ingested"
         );
 
-        Ok(IngestOutcome {
+        Ok(IngestOutcome::created(
+            resolved,
+            artifact_id,
+            classified.is_structured,
+            scanned,
+            redacted_body,
+        ))
+    }
+}
+
+impl IngestOutcome {
+    fn existing(resolved: resolve::ResolvedExecution, existing: McpArtifactRecord) -> Self {
+        let secret_redactions = usize::try_from(existing.secret_redactions).unwrap_or(0);
+        let stored_body = existing
+            .data
+            .get("artifact")
+            .cloned()
+            .unwrap_or(JsonValue::Null);
+        Self {
+            mcp_execution_id: resolved.mcp_execution_id,
+            artifact_id: existing.artifact_id,
+            created: false,
+            is_structured: existing.is_structured,
+            correlation: resolved.correlation,
+            findings: 0,
+            secret_redactions,
+            redacted_body: (secret_redactions > 0).then(|| stored_body.clone()),
+            stored_body,
+        }
+    }
+
+    fn created(
+        resolved: resolve::ResolvedExecution,
+        artifact_id: ArtifactId,
+        is_structured: bool,
+        scanned: ScanOutcome,
+        redacted_body: Option<JsonValue>,
+    ) -> Self {
+        let ScanOutcome {
+            body: stored_body,
+            findings,
+            secret_redactions,
+        } = scanned;
+        Self {
             mcp_execution_id: resolved.mcp_execution_id,
             artifact_id,
             created: true,
-            is_structured: classified.is_structured,
+            is_structured,
             correlation: resolved.correlation,
-            findings: scanned.findings.len(),
-        })
+            findings: findings.len(),
+            secret_redactions,
+            redacted_body: (secret_redactions > 0)
+                .then(|| redacted_body.unwrap_or_else(|| stored_body.clone())),
+            stored_body,
+        }
     }
 }

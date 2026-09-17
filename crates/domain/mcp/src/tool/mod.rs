@@ -26,9 +26,8 @@ use serde_json::Value as JsonValue;
 use std::sync::Arc;
 use systemprompt_identifiers::McpExecutionId;
 use systemprompt_models::RequestContext;
-use systemprompt_models::mcp::ClientProfile;
+use systemprompt_models::mcp::{ClientProfile, Correlation, ExecutionSource};
 
-use systemprompt_models::mcp::ExecutionSource;
 const TOOL_LIST_TTL_MS: u64 = 3_600_000;
 const INTENT_CLAIM_WINDOW_SECONDS: i64 = 120;
 
@@ -73,7 +72,7 @@ impl McpToolExecutor {
             McpError::internal_error(format!("Failed to serialize arguments: {e}"), None)
         })?;
 
-        let ctx = &self.with_claimed_intent(handler.tool_name(), ctx).await;
+        let exec_id = McpExecutionId::generate();
         let execution_request = ToolExecutionRequest {
             tool_name: handler.tool_name().to_owned(),
             server_name: self.server_name.clone(),
@@ -86,9 +85,8 @@ impl McpToolExecutor {
             source: ExecutionSource::InProcess,
         };
 
-        let exec_id = self
-            .tool_usage_repo
-            .start_execution(&execution_request)
+        self.tool_usage_repo
+            .start_execution(&exec_id, &execution_request, Correlation::Exact)
             .await
             .map_err(|e| {
                 tracing::error!(
@@ -98,12 +96,9 @@ impl McpToolExecutor {
                 );
                 McpError::internal_error(format!("Failed to start execution tracking: {e}"), None)
             })?;
-
-        if let Some(call_id) = ctx.ai_tool_call_id()
-            && let Err(e) = self.tool_usage_repo.claim_intent(call_id, &exec_id).await
-        {
-            tracing::warn!(tool = handler.tool_name(), %exec_id, error = %e, "Intent not claimed");
-        }
+        let ctx = &self
+            .with_claimed_intent(handler.tool_name(), ctx, &exec_id)
+            .await;
 
         tracing::info!(tool = handler.tool_name(), %exec_id, "MCP execution started");
 
@@ -145,19 +140,35 @@ impl McpToolExecutor {
         response
     }
 
-    async fn with_claimed_intent(&self, tool_name: &str, ctx: &RequestContext) -> RequestContext {
-        if ctx.ai_tool_call_id().is_some() {
+    // Why: a client-supplied `tool_use_id` is an exact join and is claimed as
+    // such; with none, the newest unclaimed intent for this tool in the
+    // session is claimed atomically and recorded as inferred, never exact.
+    async fn with_claimed_intent(
+        &self,
+        tool_name: &str,
+        ctx: &RequestContext,
+        exec_id: &McpExecutionId,
+    ) -> RequestContext {
+        if let Some(call_id) = ctx.ai_tool_call_id() {
+            if let Err(e) = self.tool_usage_repo.claim_intent(call_id, exec_id).await {
+                tracing::warn!(tool = tool_name, %exec_id, error = %e, "Intent not claimed");
+            }
             return ctx.clone();
         }
         match self
             .tool_usage_repo
-            .find_unclaimed_intent(ctx.session_id(), tool_name, INTENT_CLAIM_WINDOW_SECONDS)
+            .claim_unclaimed_intent(
+                ctx.session_id(),
+                tool_name,
+                exec_id,
+                INTENT_CLAIM_WINDOW_SECONDS,
+            )
             .await
         {
             Ok(Some(call_id)) => ctx.clone().with_ai_tool_call_id(call_id),
             Ok(None) => ctx.clone(),
             Err(e) => {
-                tracing::warn!(tool = tool_name, error = %e, "Intent lookup failed");
+                tracing::warn!(tool = tool_name, %exec_id, error = %e, "Intent claim failed");
                 ctx.clone()
             },
         }

@@ -71,6 +71,22 @@ impl LastSyncState {
             .is_some_and(|g| crate::mcp_registry::same_origin(g, gateway))
     }
 
+    // Why: a manifest that only partially applied is not in force. The host
+    // set, protocol map and update policy the enroller and the updater read
+    // back must stay those of the last manifest that fully applied, and the
+    // replay checkpoint with them, or a host whose emitter failed is reported
+    // as enabled and a tightened update policy as delivered.
+    #[must_use]
+    pub fn retaining_delivered_policy_of(self, prior: &Self) -> Self {
+        Self {
+            manifest_version: prior.manifest_version.clone(),
+            enabled_hosts: prior.enabled_hosts.clone(),
+            host_model_protocols: prior.host_model_protocols.clone(),
+            auto_update: prior.auto_update,
+            ..self
+        }
+    }
+
     #[must_use]
     pub const fn is_partial(&self) -> bool {
         !self.host_failures.is_empty() || !self.malformed_plugins.is_empty()

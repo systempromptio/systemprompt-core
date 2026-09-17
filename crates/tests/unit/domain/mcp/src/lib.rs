@@ -21,6 +21,8 @@ mod artifact_ingest_classify;
 #[cfg(test)]
 mod artifact_ingest_db;
 #[cfg(test)]
+mod artifact_ingest_ownership_db;
+#[cfg(test)]
 mod capabilities;
 #[cfg(test)]
 mod capabilities_extended;
@@ -43,6 +45,8 @@ mod extension;
 #[cfg(test)]
 mod harness;
 #[cfg(test)]
+mod intent_claim_db;
+#[cfg(test)]
 mod jobs_cleanup;
 #[cfg(test)]
 mod lib_smoke;
@@ -64,6 +68,8 @@ mod resources_extended;
 mod response;
 #[cfg(test)]
 mod response_extended;
+#[cfg(test)]
+mod response_redaction_db;
 #[cfg(test)]
 mod response_ui;
 #[cfg(test)]

@@ -5,7 +5,8 @@
 //! safety scanners then run over the redacted text and report findings. A
 //! scanner that fails aborts the ingest: an unscanned artifact is not stored.
 //! Bodies are identified by content, so one that has already been through
-//! this pass is not scanned again.
+//! this pass is not scanned again. A body over the ingestion ceiling is
+//! scanned in full before only its header is kept for storage.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -45,17 +46,24 @@ pub struct ScanOutcome {
 }
 
 impl ScanOutcome {
-    pub fn truncated(body: JsonValue, digest: &PayloadDigest) -> Self {
+    #[must_use]
+    pub fn truncate(self, header: JsonValue, digest: &PayloadDigest) -> (Self, Option<JsonValue>) {
         tracing::warn!(
             bytes = digest.byte_len,
             sha256 = %digest.sha256,
-            "Tool result exceeded the ingestion ceiling; storing its digest only"
+            findings = self.findings.len(),
+            secret_redactions = self.secret_redactions,
+            "Tool result exceeded the ingestion ceiling; storing its header only"
         );
-        Self {
-            body,
-            findings: Vec::new(),
-            secret_redactions: 0,
-        }
+        let scanned_body = (self.secret_redactions > 0).then_some(self.body);
+        (
+            Self {
+                body: header,
+                findings: self.findings,
+                secret_redactions: self.secret_redactions,
+            },
+            scanned_body,
+        )
     }
 }
 

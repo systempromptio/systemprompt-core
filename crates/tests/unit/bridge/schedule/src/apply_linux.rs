@@ -57,6 +57,15 @@ fn refusing_sandbox<R>(f: impl FnOnce(&Path) -> R) -> R {
     )
 }
 
+// A live user manager that refuses the reload itself (polkit, a rejected
+// unit): not the absent-manager case, so it must not degrade.
+fn denying_sandbox<R>(f: impl FnOnce(&Path) -> R) -> R {
+    stub_sandbox(
+        "#!/bin/sh\necho \"Failed to reload daemon: Access denied\" >&2\nexit 1\n",
+        f,
+    )
+}
+
 fn stub_sandbox<R>(script: &str, f: impl FnOnce(&Path) -> R) -> R {
     let home = tempfile::TempDir::new().expect("home tempdir");
     let path = home.path().to_path_buf();
@@ -304,6 +313,34 @@ fn a_missing_user_manager_degrades_to_written_but_inert_units() {
         assert!(
             rendered.contains(schedule_label()),
             "the units are named in the message: {rendered}"
+        );
+    });
+}
+
+#[test]
+fn a_live_manager_that_refuses_the_reload_is_an_activation_error_not_a_degraded_install() {
+    denying_sandbox(|home| {
+        let err = apply_schedule(&ScheduleStatusCache::default(), Os::Linux, &binary())
+            .expect_err("a manager that answered and refused is not an absent manager");
+
+        let InstallError::ScheduleActivation { units, reason } = err else {
+            panic!("a refused reload is an activation failure, got {err:?}");
+        };
+
+        let unit = schedule_label();
+        let dir = units_dir(home);
+        assert_eq!(
+            units,
+            vec![
+                dir.join(format!("{unit}.service")),
+                dir.join(format!("{unit}.timer")),
+                dir.join(format!("{}.service", proxy_unit_name())),
+            ],
+            "the error lists exactly the three units that were written"
+        );
+        assert!(
+            reason.contains("daemon-reload") && reason.contains("Access denied"),
+            "the reason carries the reload's own stderr: {reason}"
         );
     });
 }

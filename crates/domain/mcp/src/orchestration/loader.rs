@@ -78,7 +78,7 @@ impl McpToolLoader {
     ) -> McpDomainResult<Vec<McpTool>> {
         // Why: an external server is proxied to its endpoint and never
         // spawned, so it has no service row to gate on.
-        if let Ok(Some(server_config)) = self.registry.find_server(server_name)
+        if let Some(server_config) = self.registry.find_server(server_name)?
             && server_config.is_external()
         {
             return McpClient::list_tools(&server_config, context).await;

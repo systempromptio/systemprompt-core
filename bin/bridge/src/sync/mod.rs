@@ -165,7 +165,6 @@ pub async fn run_once(
     let last_sync_path = meta.join(paths::LAST_SYNC_SENTINEL);
     let now = chrono::Utc::now();
     let last_state = prior_checkpoint(&last_sync_path, &run_gateway)?;
-    let prior_version = last_state.manifest_version.clone();
     if !force_replay {
         check_skew(synced.not_before, now)?;
         if last_state.manifest_version.as_ref() == Some(&synced.manifest_version) {
@@ -223,10 +222,16 @@ pub async fn run_once(
         gateway: &run_gateway,
     };
     if !report.host_failures.is_empty() || !report.malformed.is_empty() {
-        sentinel.persist(&last_sync_path, prior_version)?;
+        sentinel.persist(
+            &last_sync_path,
+            sentinel::Applied::Partially { prior: &last_state },
+        )?;
         return Err(SyncError::Partial(Box::new(build_summary(&synced, report))));
     }
-    sentinel.persist(&last_sync_path, Some(synced.manifest_version.clone()))?;
+    sentinel.persist(
+        &last_sync_path,
+        sentinel::Applied::Fully(synced.manifest_version.clone()),
+    )?;
     seed_default_model_from_profile(&fetch.client).await?;
 
     bridge

@@ -34,7 +34,8 @@
 //!   from `schema/migrations/*.sql` files, paired with the
 //!   [`extension_migrations!`] macro.
 //! - [`purge`] — the user-keyed tables a deleted user's rows leave with them,
-//!   declared per crate with [`user_purge_tables!`].
+//!   declared per crate with [`user_purge_tables!`], and the shared rows swept
+//!   once nothing references them, declared with [`orphan_sweeps!`].
 //! - [`registry`] — runtime store of registered extensions, built from
 //!   `inventory` submissions at startup.
 //! - [`capabilities`] — `Has*` capability traits the host context implements to

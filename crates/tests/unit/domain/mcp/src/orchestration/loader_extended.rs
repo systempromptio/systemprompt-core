@@ -50,6 +50,7 @@ async fn create_mcp_extensions_empty_returns_empty_vec() {
 
 #[tokio::test]
 async fn load_server_tools_missing_service_errors_after_retries() {
+    let _bootstrap = crate::harness::bootstrap_with_services("{}\n");
     let Some(db) = db_or_skip().await else { return };
     let registry = RegistryService::new(fixture_user_id());
     let loader = McpToolLoader::new(
@@ -64,12 +65,13 @@ async fn load_server_tools_missing_service_errors_after_retries() {
     let missing = format!("missing-{}", uuid::Uuid::new_v4().simple());
     let result = loader.load_server_tools(&missing, &ctx()).await;
 
-    // No services row exists, so after exhausting the DB-lag retries the loader
-    // surfaces a "not found in services database" error.
+    // The registry reads an empty services config and no services row exists,
+    // so after exhausting the DB-lag retries the loader surfaces a "not found
+    // in services database" error rather than a registry read error.
     let err = result.expect_err("missing service must error");
     let msg = err.to_string();
     assert!(
-        msg.contains("not found") || msg.contains(&missing),
+        msg.contains("not found in services database") && msg.contains(&missing),
         "unexpected: {msg}"
     );
 }

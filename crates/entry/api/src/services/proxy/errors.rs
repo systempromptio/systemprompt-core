@@ -64,6 +64,13 @@ pub enum ProxyError {
 
     #[error("Service name '{service}' is not a valid agent name: {reason}")]
     InvalidServiceName { service: String, reason: String },
+
+    #[error("MCP registry could not be read while resolving '{service}': {source}")]
+    RegistryUnavailable {
+        service: String,
+        #[source]
+        source: systemprompt_mcp::McpDomainError,
+    },
 }
 
 impl ProxyError {
@@ -73,9 +80,9 @@ impl ProxyError {
             Self::ServiceNotRunning { .. } => StatusCode::SERVICE_UNAVAILABLE,
             Self::ConnectionFailed { .. } | Self::InvalidResponse { .. } => StatusCode::BAD_GATEWAY,
             Self::Timeout { .. } => StatusCode::GATEWAY_TIMEOUT,
-            Self::UrlConstructionFailed { .. } | Self::DatabaseError { .. } => {
-                StatusCode::INTERNAL_SERVER_ERROR
-            },
+            Self::UrlConstructionFailed { .. }
+            | Self::DatabaseError { .. }
+            | Self::RegistryUnavailable { .. } => StatusCode::INTERNAL_SERVER_ERROR,
             Self::BodyExtractionFailed { .. }
             | Self::InvalidMethod { .. }
             | Self::InvalidServiceName { .. } => StatusCode::BAD_REQUEST,
@@ -115,6 +122,7 @@ impl IntoResponse for ProxyError {
                     Self::Forbidden { .. } => "forbidden",
                     Self::MissingContext { .. } => "missing_context",
                     Self::InvalidServiceName { .. } => "invalid_service_name",
+                    Self::RegistryUnavailable { .. } => "registry_unavailable",
                 };
 
                 if status.is_server_error() {

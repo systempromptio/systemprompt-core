@@ -5,12 +5,13 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::error::McpDomainResult;
+mod intent;
 mod queries;
 
 use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{AiToolCallId, McpExecutionId, SessionId};
+use systemprompt_identifiers::{AiToolCallId, McpExecutionId};
 use systemprompt_models::mcp::Correlation;
 use uuid::Uuid;
 
@@ -41,14 +42,11 @@ impl ToolUsageRepository {
 
     pub async fn start_execution(
         &self,
+        mcp_execution_id: &McpExecutionId,
         request: &ToolExecutionRequest,
-    ) -> McpDomainResult<McpExecutionId> {
-        if let Some(existing_id) = self.find_existing_execution(request).await? {
-            return Ok(existing_id);
-        }
-
-        let id = Uuid::new_v4().to_string();
-        let mcp_execution_id = McpExecutionId::new(id.clone());
+        correlation: Correlation,
+    ) -> McpDomainResult<()> {
+        let id = mcp_execution_id.as_str();
         let context_id = request.context.context_id().to_string();
         let user_id = request.context.user_id().to_string();
         let ai_tool_call_id = request.ai_tool_call_id.as_ref().map(ToString::to_string);
@@ -63,9 +61,9 @@ impl ToolUsageRepository {
             INSERT INTO mcp_tool_executions (
                 mcp_execution_id, tool_name, server_name, context_id, ai_tool_call_id,
                 user_id, task_id, session_id, trace_id, status, input, started_at,
-                request_method, request_source, actor_kind, actor_id, source
+                request_method, request_source, actor_kind, actor_id, source, correlation
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
             "#,
             id,
             request.tool_name,
@@ -83,12 +81,13 @@ impl ToolUsageRepository {
             request.request_source,
             actor_kind,
             actor_id,
-            request.source.as_str()
+            request.source.as_str(),
+            correlation.as_str()
         )
         .execute(&*self.write_pool)
         .await?;
 
-        Ok(mcp_execution_id)
+        Ok(())
     }
 
     pub async fn complete_execution(
@@ -226,65 +225,5 @@ impl ToolUsageRepository {
         .execute(&*self.write_pool)
         .await?;
         Ok(())
-    }
-
-    pub async fn find_unclaimed_intent(
-        &self,
-        session_id: &SessionId,
-        tool_name: &str,
-        window_seconds: i64,
-    ) -> McpDomainResult<Option<AiToolCallId>> {
-        let suffix = format!("%\\_\\_{tool_name}");
-        let result = sqlx::query_scalar!(
-            r#"
-            SELECT i.ai_tool_call_id AS "ai_tool_call_id!"
-            FROM ai_request_tool_calls i
-            JOIN ai_requests r ON r.id = i.request_id
-            LEFT JOIN mcp_tool_executions e ON e.ai_tool_call_id = i.ai_tool_call_id
-            WHERE r.session_id = $1
-              AND i.ai_tool_call_id IS NOT NULL
-              AND e.mcp_execution_id IS NULL
-              AND (i.tool_name = $2 OR i.tool_name LIKE $3)
-              AND i.created_at > NOW() - make_interval(secs => $4::double precision)
-            ORDER BY i.created_at DESC
-            LIMIT 1
-            "#,
-            session_id.as_str(),
-            tool_name,
-            suffix,
-            window_seconds as f64
-        )
-        .fetch_optional(&*self.pool)
-        .await?;
-        Ok(result.map(AiToolCallId::new))
-    }
-
-    pub async fn claim_intent(
-        &self,
-        ai_tool_call_id: &AiToolCallId,
-        mcp_execution_id: &McpExecutionId,
-    ) -> McpDomainResult<()> {
-        sqlx::query!(
-            r#"
-            UPDATE ai_request_tool_calls
-            SET mcp_execution_id = $2, updated_at = NOW()
-            WHERE ai_tool_call_id = $1 AND mcp_execution_id IS NULL
-            "#,
-            ai_tool_call_id.as_str(),
-            mcp_execution_id.as_str()
-        )
-        .execute(&*self.write_pool)
-        .await?;
-        Ok(())
-    }
-
-    async fn find_existing_execution(
-        &self,
-        request: &ToolExecutionRequest,
-    ) -> McpDomainResult<Option<McpExecutionId>> {
-        let Some(ai_call_id) = &request.ai_tool_call_id else {
-            return Ok(None);
-        };
-        self.find_by_ai_call_id(ai_call_id).await
     }
 }

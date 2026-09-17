@@ -1,7 +1,9 @@
 //! Content-addressed storage for artifact bodies (`artifact_payloads`).
 //!
 //! A body is keyed by the SHA-256 of its canonical JSON and stored once;
-//! artifacts reference it by digest and `ref_count` tracks how many do. The
+//! artifacts reference it by digest and `ref_count` counts the artifacts that
+//! took it at upsert time. A body no artifact references is deleted by the
+//! artifact repository together with the artifact row that released it. The
 //! digest doubles as the "already scanned" cache: a body that exists has been
 //! through the scanners once and is not scanned again.
 //!
@@ -94,25 +96,5 @@ impl ArtifactPayloadRepository {
         )
         .fetch_one(&*self.pool)
         .await?)
-    }
-
-    pub async fn release_payload(&self, sha256: &str) -> McpDomainResult<()> {
-        sqlx::query!(
-            r#"
-            UPDATE artifact_payloads
-            SET ref_count = GREATEST(ref_count - 1, 0)
-            WHERE sha256 = $1
-            "#,
-            sha256
-        )
-        .execute(&*self.write_pool)
-        .await?;
-        sqlx::query!(
-            r#"DELETE FROM artifact_payloads WHERE sha256 = $1 AND ref_count <= 0"#,
-            sha256
-        )
-        .execute(&*self.write_pool)
-        .await?;
-        Ok(())
     }
 }

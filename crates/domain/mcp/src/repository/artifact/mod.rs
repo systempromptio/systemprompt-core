@@ -7,7 +7,10 @@
 //! its correlation keys — session, trace, client `tool_use_id` — are columns,
 //! not JSON. Reads go through the read pool and writes through the write pool;
 //! expired artifacts are filtered on read and reaped via
-//! [`McpArtifactRepository::cleanup_expired`].
+//! [`McpArtifactRepository::cleanup_expired`]. Every delete sweeps
+//! `artifact_payloads` bodies no artifact references any more, in the same
+//! transaction, sparing bodies seen within the last hour that an in-flight
+//! ingest may be about to link.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -155,23 +158,52 @@ impl McpArtifactRepository {
     }
 
     pub async fn delete(&self, artifact_id: &ArtifactId) -> McpDomainResult<bool> {
+        let mut tx = self.write_pool.begin().await?;
         let result = sqlx::query!(
             r#"DELETE FROM mcp_artifacts WHERE artifact_id = $1"#,
             artifact_id.as_str()
         )
-        .execute(&*self.write_pool)
+        .execute(&mut *tx)
         .await?;
+        if result.rows_affected() > 0 {
+            delete_orphan_payloads(&mut tx).await?;
+        }
+        tx.commit().await?;
 
         Ok(result.rows_affected() > 0)
     }
 
     pub async fn cleanup_expired(&self) -> McpDomainResult<u64> {
+        let mut tx = self.write_pool.begin().await?;
         let result = sqlx::query!(
             r#"DELETE FROM mcp_artifacts WHERE expires_at IS NOT NULL AND expires_at < NOW()"#,
         )
-        .execute(&*self.write_pool)
+        .execute(&mut *tx)
         .await?;
+        if result.rows_affected() > 0 {
+            delete_orphan_payloads(&mut tx).await?;
+        }
+        tx.commit().await?;
 
         Ok(result.rows_affected())
     }
+}
+
+// Why: an ingest upserts the body before it saves the artifact that points
+// at it, so a body seen within the grace window is presumed in flight and
+// left for the next sweep rather than pulled out from under that save.
+const ORPHAN_GRACE_SECONDS: f64 = 3600.0;
+
+async fn delete_orphan_payloads(tx: &mut sqlx::PgTransaction<'_>) -> McpDomainResult<u64> {
+    let result = sqlx::query!(
+        r#"
+        DELETE FROM artifact_payloads p
+        WHERE NOT EXISTS (SELECT 1 FROM mcp_artifacts a WHERE a.payload_sha256 = p.sha256)
+          AND p.last_seen_at < NOW() - make_interval(secs => $1::double precision)
+        "#,
+        ORPHAN_GRACE_SECONDS
+    )
+    .execute(&mut **tx)
+    .await?;
+    Ok(result.rows_affected())
 }

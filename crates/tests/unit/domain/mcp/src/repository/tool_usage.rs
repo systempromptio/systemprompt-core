@@ -126,7 +126,14 @@ async fn start_and_complete_execution_roundtrip() {
         source: ExecutionSource::InProcess,
     };
 
-    let exec_id = repo.start_execution(&request).await.unwrap();
+    let exec_id = McpExecutionId::new(uuid::Uuid::new_v4().to_string());
+    repo.start_execution(
+        &exec_id,
+        &request,
+        systemprompt_models::mcp::Correlation::Exact,
+    )
+    .await
+    .unwrap();
 
     let fetched = repo
         .find_by_id(&exec_id)

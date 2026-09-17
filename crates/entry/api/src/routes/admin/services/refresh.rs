@@ -13,7 +13,9 @@
 //! router receives as an axum extension (see `extension_mount`), so a console
 //! that has authorised a caller by its own rule — a marketplace participant
 //! syncing their own kit, say — runs the same refresh the admin route runs
-//! without minting an admin token. One process-wide lock guards both.
+//! without minting an admin token. One process-wide lock guards both. The
+//! handle never restarts the process: an extension router is authorised by
+//! `AuthzPolicy::user()`, so the restart stays on the admin route alone.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -79,16 +81,14 @@ impl ServicesRefresh {
         }
     }
 
-    pub async fn run(
-        &self,
-        actor: &UserId,
-        restart: bool,
-    ) -> Result<ServicesRefreshResponse, ApiHttpError> {
-        let Some(_guard) = self.lock.try_acquire() else {
-            return Err(ApiError::conflict("a services refresh is already running").into());
-        };
-        run_refresh(&self.ctx, actor, restart).await
+    pub async fn run(&self, actor: &UserId) -> Result<ServicesRefreshResponse, ApiHttpError> {
+        let _guard = self.lock.try_acquire().ok_or_else(busy)?;
+        run_refresh(&self.ctx, actor, false).await
     }
+}
+
+fn busy() -> ApiHttpError {
+    ApiError::conflict("a services refresh is already running").into()
 }
 
 #[derive(Debug, Clone, Copy, Default, Deserialize)]
@@ -103,8 +103,8 @@ pub async fn refresh(
     Extension(req_ctx): Extension<RequestContext>,
     Query(query): Query<RefreshQuery>,
 ) -> Result<Json<ServicesRefreshResponse>, ApiHttpError> {
-    ServicesRefresh::with_lock(&ctx, lock)
-        .run(req_ctx.user_id(), query.restart)
+    let _guard = lock.try_acquire().ok_or_else(busy)?;
+    run_refresh(&ctx, req_ctx.user_id(), query.restart)
         .await
         .map(Json)
 }

@@ -5,7 +5,8 @@
 //! itself minted, then the client `tool_use_id`. With none of those, a
 //! server-observed result is a new execution; a client-reported one is
 //! matched by session, tool, digest and time as a last resort and recorded as
-//! inferred, or becomes a new execution the client alone attested.
+//! inferred, or becomes a new execution the client alone attested. A key a
+//! client supplied only resolves to an execution that client's user owns.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -17,7 +18,7 @@ use systemprompt_models::mcp::Correlation;
 use super::classify::Classified;
 use super::{ArtifactIngest, FINGERPRINT_WINDOW_SECONDS, IngestRequest};
 use crate::error::McpDomainResult;
-use crate::models::{ExecutionStatus, ToolExecutionRequest, ToolExecutionResult};
+use crate::models::{ExecutionStatus, ToolExecution, ToolExecutionRequest, ToolExecutionResult};
 use crate::repository::{ArtifactCorrelation, McpArtifactRecord};
 
 #[derive(Debug, Clone)]
@@ -33,7 +34,8 @@ pub(super) async fn resolve_execution(
     raw_sha256: &str,
 ) -> McpDomainResult<ResolvedExecution> {
     if let Some(id) = &classified.meta_execution_id
-        && ingest.executions.find_by_id(id).await?.is_some()
+        && let Some(execution) = ingest.executions.find_by_id(id).await?
+        && attributable(request, &execution)
     {
         return Ok(exact(id.clone()));
     }
@@ -91,6 +93,52 @@ pub(super) async fn resolve_execution(
         mcp_execution_id: id,
         correlation,
     })
+}
+
+// Why: a client-reported result carries keys the client chose. Joining it to
+// an execution the platform observed is only safe when the caller owns that
+// execution; an anonymous caller owns none.
+fn attributable(request: &IngestRequest, execution: &ToolExecution) -> bool {
+    if request.source.is_server_observed() {
+        return true;
+    }
+    let owned = !request.ctx.is_anonymous() && execution.user_id == *request.ctx.user_id();
+    if !owned {
+        tracing::debug!(
+            mcp_execution_id = %execution.mcp_execution_id,
+            execution_user_id = %execution.user_id,
+            caller_user_id = %request.ctx.user_id(),
+            source = %request.source,
+            "Client-supplied execution id belongs to another user; ignored"
+        );
+    }
+    owned
+}
+
+// Why: `mcp_tool_executions.ai_tool_call_id` is unique, so a client-supplied
+// `tool_use_id` that already names another user's execution can neither
+// join it nor be recorded on a new one — the result is ingested as if the
+// client had sent no key.
+pub(super) async fn disown_foreign_call_id(
+    ingest: &ArtifactIngest,
+    mut request: IngestRequest,
+) -> McpDomainResult<IngestRequest> {
+    if request.source.is_server_observed() {
+        return Ok(request);
+    }
+    let Some(call_id) = request.ai_tool_call_id.clone() else {
+        return Ok(request);
+    };
+    let Some(execution_id) = ingest.executions.find_by_ai_call_id(&call_id).await? else {
+        return Ok(request);
+    };
+    let Some(execution) = ingest.executions.find_by_id(&execution_id).await? else {
+        return Ok(request);
+    };
+    if !attributable(&request, &execution) {
+        request.ai_tool_call_id = None;
+    }
+    Ok(request)
 }
 
 fn new_execution(

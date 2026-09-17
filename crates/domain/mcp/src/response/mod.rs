@@ -28,7 +28,7 @@
 mod wire;
 
 use crate::schema::McpOutputSchema;
-use crate::services::artifact_ingest::{ArtifactIngest, IngestRequest};
+use crate::services::artifact_ingest::{ArtifactIngest, IngestOutcome, IngestRequest};
 use rmcp::ErrorData as McpError;
 use rmcp::model::{CallToolResult, ContentBlock};
 use schemars::JsonSchema;
@@ -134,7 +134,13 @@ impl<T: Serialize + JsonSchema + McpOutputSchema> McpResponseBuilder<T> {
                 tracing::error!(error = %e, tool = %tool_name, "Failed to persist artifact");
                 McpError::internal_error(format!("Failed to persist artifact: {e}"), None)
             })?;
-        let artifact_id = outcome.artifact_id;
+        let IngestOutcome {
+            artifact_id,
+            secret_redactions,
+            stored_body,
+            redacted_body,
+            ..
+        } = outcome;
 
         let metadata = ExecutionMetadata::builder(&self.ctx)
             .with_tool(tool_name.clone())
@@ -148,23 +154,15 @@ impl<T: Serialize + JsonSchema + McpOutputSchema> McpResponseBuilder<T> {
         // advertised `outputSchema` describes: the ingest may re-shape the
         // body (a `tool_result` envelope around an unrecognised type), and a
         // client that validates the schema rejects that envelope. Only a
-        // redaction substitutes the stored copy, unwrapped back to the typed
+        // redaction substitutes the scanned copy, unwrapped back to the typed
         // object, so a secret the scanner removed never reaches the model.
-        let stored = ingest
-            .artifacts()
-            .find_by_id(&artifact_id)
-            .await
-            .ok()
-            .flatten();
-        let redacted = stored.as_ref().is_some_and(|r| r.secret_redactions > 0);
+        let redacted = secret_redactions > 0;
         let typed_output = typed_structured(&structured_output, &artifact_type_str);
-        let stored_body = stored
-            .and_then(|record| record.data.get("artifact").cloned())
-            .unwrap_or_else(|| typed_output.clone());
-        let wire_output = if redacted {
-            unwrap_tool_result(&stored_body)
-        } else {
+        let wire_output = wire_output(redacted, redacted_body, &typed_output)?;
+        let stored_body = if stored_body.is_null() {
             typed_output
+        } else {
+            stored_body
         };
         let rendered = RenderedArtifact {
             artifact_id,
@@ -189,6 +187,23 @@ impl<T: Serialize + JsonSchema + McpOutputSchema> McpResponseBuilder<T> {
 /// A body that names its own artifact type, so the ingest stores it as that
 /// type rather than as a generic tool result.
 // JSON: the typed output object with `x-artifact-type` set when absent.
+// JSON: the `structuredContent` sent on the wire — the redacted body when
+// the scanner removed a secret, else the typed output.
+fn wire_output(
+    redacted: bool,
+    redacted_body: Option<JsonValue>,
+    typed_output: &JsonValue,
+) -> Result<JsonValue, McpError> {
+    match (redacted, redacted_body) {
+        (true, Some(body)) => Ok(unwrap_tool_result(&body)),
+        (true, None) => Err(McpError::internal_error(
+            "artifact was redacted but the ingest returned no redacted body",
+            None,
+        )),
+        (false, _) => Ok(typed_output.clone()),
+    }
+}
+
 fn typed_structured(output: &JsonValue, artifact_type: &str) -> JsonValue {
     let mut value = output.clone();
     if let Some(map) = value.as_object_mut()
