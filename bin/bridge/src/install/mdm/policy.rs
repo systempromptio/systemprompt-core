@@ -148,6 +148,68 @@ pub fn workspace_folders() -> serde_json::Value {
     serde_json::Value::Array(folders)
 }
 
+/// One `allowedWorkspaceFolders` entry in the shape Claude Desktop validates:
+/// a folder path, an optional access mode and an optional boolean
+/// pre-selection flag. Anything else in an entry is malformed.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct WorkspaceFolder {
+    pub path: String,
+    #[serde(default)]
+    pub mode: Option<String>,
+    #[serde(default, rename = "isDefaultSelected")]
+    pub is_default_selected: Option<bool>,
+}
+
+/// The outcome of validating a published `allowedWorkspaceFolders` value the
+/// way Claude Desktop does: the entries it keeps and, per dropped entry, the
+/// JSON text and the reason.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct WorkspaceFoldersAudit {
+    pub kept: Vec<WorkspaceFolder>,
+    pub dropped: Vec<(String, String)>,
+}
+
+impl WorkspaceFoldersAudit {
+    #[must_use]
+    pub const fn blocks_all_folders(&self) -> bool {
+        self.kept.is_empty()
+    }
+
+    #[must_use]
+    pub fn allows_home(&self) -> bool {
+        self.kept.iter().any(|f| f.path == "~")
+    }
+}
+
+// Why: Claude Desktop drops a malformed entry and keeps going, and an empty
+// resulting list blocks every folder, so the audit reports per entry rather
+// than failing the list on the first bad one.
+pub fn audit_workspace_folders(raw: &str) -> Result<WorkspaceFoldersAudit, serde_json::Error> {
+    let entries: Vec<serde_json::Value> = serde_json::from_str(raw)?;
+    let mut audit = WorkspaceFoldersAudit::default();
+    for entry in entries {
+        let folder = match &entry {
+            serde_json::Value::String(path) => Ok(WorkspaceFolder {
+                path: path.clone(),
+                mode: None,
+                is_default_selected: None,
+            }),
+            other => serde_json::from_value::<WorkspaceFolder>(other.clone()),
+        };
+        match folder {
+            Ok(folder) if folder.path.trim().is_empty() => {
+                audit
+                    .dropped
+                    .push((entry.to_string(), "empty path".to_owned()));
+            },
+            Ok(folder) => audit.kept.push(folder),
+            Err(e) => audit.dropped.push((entry.to_string(), e.to_string())),
+        }
+    }
+    Ok(audit)
+}
+
 fn mcp_value(servers: &[McpServerEntry], host_token: &HostToken) -> PolicyValue {
     let bearer = format!("Bearer {}", host_token.as_str());
     PolicyValue::Json(serde_json::Value::Array(
@@ -203,8 +265,8 @@ pub fn plist_body(policy: &[PolicyEntry], indent: &str) -> String {
     out
 }
 
-// Why: Claude's published preference encoding specifies string booleans, not
-// plist booleans.
+// Why: Claude's published preference encoding specifies string booleans for
+// the top-level policy keys, not plist booleans.
 fn plist_value(value: &PolicyValue, indent: &str) -> String {
     match value {
         PolicyValue::Str(s) => format!("{indent}<string>{}</string>\n", xml::escape(s)),
@@ -213,12 +275,21 @@ fn plist_value(value: &PolicyValue, indent: &str) -> String {
     }
 }
 
+// Why: inside an `object[]`/`dict` value Claude Desktop reads the native plist
+// as the equivalent JSON and validates each entry against the key's schema. A
+// field typed boolean (`allowedWorkspaceFolders[].isDefaultSelected`) written
+// as a string is a malformed entry, the entry is dropped, and an empty
+// resulting list blocks the Code tab from adding any folder.
 fn plist_json(value: &serde_json::Value, indent: &str) -> String {
     let inner = format!("{indent}  ");
     match value {
         serde_json::Value::Null => format!("{indent}<string></string>\n"),
-        serde_json::Value::Bool(b) => format!("{indent}<string>{b}</string>\n"),
-        serde_json::Value::Number(n) => format!("{indent}<string>{n}</string>\n"),
+        serde_json::Value::Bool(true) => format!("{indent}<true/>\n"),
+        serde_json::Value::Bool(false) => format!("{indent}<false/>\n"),
+        serde_json::Value::Number(n) if n.is_i64() || n.is_u64() => {
+            format!("{indent}<integer>{n}</integer>\n")
+        },
+        serde_json::Value::Number(n) => format!("{indent}<real>{n}</real>\n"),
         serde_json::Value::String(s) => {
             format!("{indent}<string>{}</string>\n", xml::escape(s))
         },

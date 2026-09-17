@@ -143,10 +143,13 @@ fn read_key_raw(plist_json: &serde_json::Value, _domain: &str, key: &str) -> Opt
     Some(trimmed.to_owned())
 }
 
+// Why: an array of objects (`allowedWorkspaceFolders`, `managedMcpServers`)
+// rendered through a strings-only join printed as empty, which hid a plist
+// whose entries Claude Desktop was dropping as malformed.
 fn format_plist_value(value: &serde_json::Value) -> String {
     match value {
         serde_json::Value::String(s) => s.clone(),
-        serde_json::Value::Array(items) => items
+        serde_json::Value::Array(items) if items.iter().all(serde_json::Value::is_string) => items
             .iter()
             .filter_map(|v| v.as_str().map(str::to_owned))
             .collect::<Vec<_>>()
