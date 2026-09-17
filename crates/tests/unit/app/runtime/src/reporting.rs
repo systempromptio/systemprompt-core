@@ -83,9 +83,14 @@ async fn fixture() -> (PgPool, DbPool, String) {
     // A user delete walks every registered purge table; mirror the ones the
     // reporting sources do not already cover so the walk finds them.
     let mirrored: Vec<&str> = SOURCE_DEFINITIONS.iter().map(|s| s.table).collect();
-    for entry in systemprompt_extension::purge::registered_user_purge_tables() {
-        if !mirrored.contains(&entry.table) && entry.table != "event_outbox" {
-            mirror_table(&admin, &pool, entry.table, None).await;
+    let purge_tables = systemprompt_extension::purge::registered_user_purge_tables()
+        .map(|entry| entry.table)
+        .chain(systemprompt_extension::purge::registered_orphan_sweeps().map(|sweep| sweep.table));
+    let mut seen: Vec<&str> = Vec::new();
+    for table in purge_tables {
+        if !mirrored.contains(&table) && table != "event_outbox" && !seen.contains(&table) {
+            mirror_table(&admin, &pool, table, None).await;
+            seen.push(table);
         }
     }
     sqlx::raw_sql(include_str!(
