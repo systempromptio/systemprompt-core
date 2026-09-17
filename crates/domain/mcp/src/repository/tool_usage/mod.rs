@@ -5,15 +5,17 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::error::McpDomainResult;
-use async_trait::async_trait;
+mod intent;
+mod queries;
+
 use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{AiToolCallId, ContextId, McpExecutionId, UserId};
-use systemprompt_traits::{RepositoryError, ToolExecutionLookup};
+use systemprompt_identifiers::{AiToolCallId, McpExecutionId};
+use systemprompt_models::mcp::Correlation;
 use uuid::Uuid;
 
-use crate::models::{ExecutionStatus, ToolExecution, ToolExecutionRequest, ToolExecutionResult};
+use crate::models::{ExecutionStatus, ToolExecutionRequest, ToolExecutionResult};
 use systemprompt_models::RequestContext;
 
 fn extract_trace_id(ctx: &RequestContext) -> Option<String> {
@@ -40,14 +42,11 @@ impl ToolUsageRepository {
 
     pub async fn start_execution(
         &self,
+        mcp_execution_id: &McpExecutionId,
         request: &ToolExecutionRequest,
-    ) -> McpDomainResult<McpExecutionId> {
-        if let Some(existing_id) = self.find_existing_execution(request).await? {
-            return Ok(existing_id);
-        }
-
-        let id = Uuid::new_v4().to_string();
-        let mcp_execution_id = McpExecutionId::new(id.clone());
+        correlation: Correlation,
+    ) -> McpDomainResult<()> {
+        let id = mcp_execution_id.as_str();
         let context_id = request.context.context_id().to_string();
         let user_id = request.context.user_id().to_string();
         let ai_tool_call_id = request.ai_tool_call_id.as_ref().map(ToString::to_string);
@@ -62,9 +61,9 @@ impl ToolUsageRepository {
             INSERT INTO mcp_tool_executions (
                 mcp_execution_id, tool_name, server_name, context_id, ai_tool_call_id,
                 user_id, task_id, session_id, trace_id, status, input, started_at,
-                request_method, request_source, actor_kind, actor_id
+                request_method, request_source, actor_kind, actor_id, source, correlation
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
             "#,
             id,
             request.tool_name,
@@ -81,12 +80,14 @@ impl ToolUsageRepository {
             request.request_method,
             request.request_source,
             actor_kind,
-            actor_id
+            actor_id,
+            request.source.as_str(),
+            correlation.as_str()
         )
         .execute(&*self.write_pool)
         .await?;
 
-        Ok(mcp_execution_id)
+        Ok(())
     }
 
     pub async fn complete_execution(
@@ -133,14 +134,26 @@ impl ToolUsageRepository {
         request: &ToolExecutionRequest,
         result: &ToolExecutionResult,
     ) -> McpDomainResult<McpExecutionId> {
-        let id = Uuid::new_v4().to_string();
-        let mcp_execution_id = McpExecutionId::new(id.clone());
+        let id = McpExecutionId::new(Uuid::new_v4().to_string());
+        self.log_execution_sync_with_id(&id, request, result, Correlation::Exact)
+            .await?;
+        Ok(id)
+    }
+
+    pub async fn log_execution_sync_with_id(
+        &self,
+        mcp_execution_id: &McpExecutionId,
+        request: &ToolExecutionRequest,
+        result: &ToolExecutionResult,
+        correlation: Correlation,
+    ) -> McpDomainResult<()> {
         let status = ExecutionStatus::from_error(result.error_message.is_some()).as_str();
         let context_id = request.context.context_id().to_string();
         let user_id = request.context.user_id().to_string();
         let task_id = request.context.task_id().map(ToString::to_string);
         let session_id = request.context.session_id().to_string();
         let trace_id = extract_trace_id(&request.context);
+        let ai_tool_call_id = request.ai_tool_call_id.as_ref().map(ToString::to_string);
         let duration_ms = (result.completed_at - request.started_at).num_milliseconds() as i32;
         let input_str = serde_json::to_string(&request.input)?;
         let output_str = result
@@ -154,12 +167,13 @@ impl ToolUsageRepository {
             INSERT INTO mcp_tool_executions (
                 mcp_execution_id, tool_name, server_name, context_id, user_id, task_id,
                 session_id, trace_id, status, input, output, error_message, execution_time_ms,
-                started_at, completed_at, request_method, request_source, actor_kind, actor_id
+                started_at, completed_at, request_method, request_source, actor_kind, actor_id,
+                ai_tool_call_id, source, correlation
             )
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17,
-                    $18, $19)
+                    $18, $19, $20, $21, $22)
             "#,
-            id,
+            mcp_execution_id.as_str(),
             request.tool_name,
             request.server_name,
             context_id,
@@ -177,96 +191,39 @@ impl ToolUsageRepository {
             request.request_method,
             request.request_source,
             actor_kind,
-            actor_id
+            actor_id,
+            ai_tool_call_id,
+            request.source.as_str(),
+            correlation.as_str()
         )
         .execute(&*self.write_pool)
         .await?;
 
-        Ok(mcp_execution_id)
+        Ok(())
     }
 
-    pub async fn find_by_id(&self, id: &McpExecutionId) -> McpDomainResult<Option<ToolExecution>> {
-        let id_str = id.as_str();
-        let row = sqlx::query!(
-            r#"SELECT
-                mcp_execution_id as "mcp_execution_id!",
-                tool_name as "tool_name!",
-                server_name as "server_name!",
-                context_id,
-                ai_tool_call_id,
-                user_id as "user_id!",
-                status as "status!",
-                input as "input!",
-                output,
-                error_message,
-                execution_time_ms,
-                started_at as "started_at!",
-                completed_at
-            FROM mcp_tool_executions
-            WHERE mcp_execution_id = $1"#,
-            id_str
-        )
-        .fetch_optional(&*self.pool)
-        .await?;
-
-        Ok(row.map(|r| ToolExecution {
-            mcp_execution_id: McpExecutionId::new(r.mcp_execution_id),
-            tool_name: r.tool_name,
-            server_name: r.server_name,
-            context_id: r.context_id.and_then(|s| {
-                ContextId::try_new(&s)
-                    .map_err(|e| {
-                        tracing::warn!(error = %e, raw = %s, "Skipping non-UUID context_id from mcp_tool_executions row");
-                        e
-                    })
-                    .ok()
-            }),
-            ai_tool_call_id: r.ai_tool_call_id.map(AiToolCallId::new),
-            user_id: UserId::new(r.user_id),
-            status: r.status,
-            input: r.input,
-            output: r.output,
-            error_message: r.error_message,
-            execution_time_ms: r.execution_time_ms,
-            started_at: r.started_at,
-            completed_at: r.completed_at,
-        }))
-    }
-
-    pub async fn find_by_ai_call_id(
+    pub async fn mark_correlated(
         &self,
-        ai_tool_call_id: &AiToolCallId,
-    ) -> McpDomainResult<Option<McpExecutionId>> {
-        let id_str = ai_tool_call_id.as_str();
-        let result = sqlx::query_scalar!(
-            r#"SELECT mcp_execution_id as "mcp_execution_id!" FROM mcp_tool_executions WHERE ai_tool_call_id = $1"#,
-            id_str
+        mcp_execution_id: &McpExecutionId,
+        ai_tool_call_id: Option<&AiToolCallId>,
+        correlation: Correlation,
+        payload_sha256: Option<&str>,
+    ) -> McpDomainResult<()> {
+        sqlx::query!(
+            r#"
+            UPDATE mcp_tool_executions
+            SET ai_tool_call_id = COALESCE(ai_tool_call_id, $2),
+                correlation = $3,
+                payload_sha256 = COALESCE($4, payload_sha256)
+            WHERE mcp_execution_id = $1
+            "#,
+            mcp_execution_id.as_str(),
+            ai_tool_call_id.map(AiToolCallId::as_str),
+            correlation.as_str(),
+            payload_sha256
         )
-        .fetch_optional(&*self.pool)
+        .execute(&*self.write_pool)
         .await?;
-        Ok(result.map(McpExecutionId::new))
-    }
-
-    async fn find_existing_execution(
-        &self,
-        request: &ToolExecutionRequest,
-    ) -> McpDomainResult<Option<McpExecutionId>> {
-        let Some(ai_call_id) = &request.ai_tool_call_id else {
-            return Ok(None);
-        };
-        self.find_by_ai_call_id(ai_call_id).await
-    }
-}
-
-#[async_trait]
-impl ToolExecutionLookup for ToolUsageRepository {
-    async fn execution_exists(&self, id: &McpExecutionId) -> Result<bool, RepositoryError> {
-        sqlx::query_scalar!(
-            r#"SELECT EXISTS(SELECT 1 FROM mcp_tool_executions WHERE mcp_execution_id = $1) as "exists!""#,
-            id.as_str()
-        )
-        .fetch_one(&*self.pool)
-        .await
-        .map_err(RepositoryError::database)
+        Ok(())
     }
 }

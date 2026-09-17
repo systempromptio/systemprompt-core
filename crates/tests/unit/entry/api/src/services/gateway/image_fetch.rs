@@ -31,8 +31,8 @@ fn url_image_request(url: &str) -> CanonicalRequest {
         messages: vec![CanonicalMessage {
             role: Role::User,
             content: vec![
-                CanonicalContent::Text("what is this?".into()),
-                CanonicalContent::Image(ImageSource::Url {
+                CanonicalContent::text("what is this?"),
+                CanonicalContent::image(ImageSource::Url {
                     url: url.to_owned(),
                     detail: None,
                 }),
@@ -69,9 +69,12 @@ async fn url_image_is_fetched_and_inlined() {
 
     assert_eq!(count, 1);
     let inlined = &request.messages[0].content[1];
-    let CanonicalContent::Image(ImageSource::Base64 {
-        media_type, data, ..
-    }) = inlined
+    let CanonicalContent::Image {
+        source: ImageSource::Base64 {
+            media_type, data, ..
+        },
+        ..
+    } = inlined
     else {
         panic!("url image was not rewritten to inline data: {inlined:?}");
     };
@@ -347,7 +350,10 @@ async fn item_02_a_refused_image_leaves_the_canonical_request_untouched() {
     assert!(
         matches!(
             &request.messages[0].content[1],
-            CanonicalContent::Image(ImageSource::Url { url: u, .. }) if u == &url
+            CanonicalContent::Image {
+                source: ImageSource::Url { url: u, .. },
+                ..
+            } if u == &url
         ),
         "a refused image is not rewritten: {:?}",
         request.messages[0].content[1]

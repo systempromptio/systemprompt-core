@@ -31,7 +31,7 @@ pub fn build_request_body(
     // JSON: OpenAI Chat Completions request body; upstream JSON is the contract.
 ) -> Value {
     let mut messages: Vec<Value> = Vec::new();
-    if let Some(sys) = &request.system {
+    if let Some(sys) = request.system_text() {
         messages.push(json!({ "role": "system", "content": sys }));
     }
     for msg in &request.messages {
@@ -176,7 +176,7 @@ fn render_assistant_message(content: &[CanonicalContent]) -> Vec<Value> {
     let mut tool_calls: Vec<Value> = Vec::new();
     for part in content {
         match part {
-            CanonicalContent::Text(t) => text.push_str(t),
+            CanonicalContent::Text { text: t, .. } => text.push_str(t),
             CanonicalContent::Thinking { text: t, .. } => reasoning.push_str(t),
             CanonicalContent::ToolUse {
                 id, name, input, ..
@@ -213,9 +213,9 @@ fn render_assistant_message(content: &[CanonicalContent]) -> Vec<Value> {
 // JSON: OpenAI Chat Completions request body; upstream JSON is the contract.
 fn content_to_chat_part(part: &CanonicalContent) -> Option<Value> {
     match part {
-        CanonicalContent::Text(t) => Some(json!({ "type": "text", "text": t })),
-        CanonicalContent::Image(src) => {
-            let (url, detail) = match src {
+        CanonicalContent::Text { text, .. } => Some(json!({ "type": "text", "text": text })),
+        CanonicalContent::Image { source, .. } => {
+            let (url, detail) = match source {
                 ImageSource::Url { url, detail } => (url.clone(), *detail),
                 ImageSource::Base64 {
                     media_type,
@@ -242,7 +242,7 @@ fn is_text_part(v: &Value) -> bool {
 fn flatten_text(parts: &[CanonicalContent]) -> String {
     let mut out = String::new();
     for p in parts {
-        if let CanonicalContent::Text(t) = p {
+        if let CanonicalContent::Text { text: t, .. } = p {
             if !out.is_empty() {
                 out.push('\n');
             }

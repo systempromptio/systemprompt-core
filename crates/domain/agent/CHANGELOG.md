@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.55.0] - 2026-09-17
+
+### Added
+
+- `artifact_transformer::type_inference` recognises `ArtifactType::ToolResult`.
+
 ## [0.53.0] - 2026-09-15
 
 ### Breaking

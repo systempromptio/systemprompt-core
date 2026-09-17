@@ -3,8 +3,9 @@
 use serde_json::{Value, json};
 use systemprompt_models::services::ai::ModelLimits;
 use systemprompt_models::wire::canonical::{
-    CanonicalContent, CanonicalEvent, CanonicalMessage, CanonicalToolChoice, ContentBlockKind,
-    ResponseFormat, Role, SearchConfig, ThinkingConfig,
+    CacheControl, CanonicalContent, CanonicalEvent, CanonicalMessage, CanonicalStopReason,
+    CanonicalToolChoice, ContentBlockKind, ResponseFormat, Role, SearchConfig, SystemBlock,
+    ThinkingConfig,
 };
 use systemprompt_models::wire::gemini;
 
@@ -48,7 +49,7 @@ fn gemini_clamps_max_output_tokens_down_to_model_cap() {
 #[test]
 fn gemini_request_emits_system_instruction() {
     let mut req = base_request();
-    req.system = Some("be terse".to_owned());
+    req.system = vec![SystemBlock::text("be terse".to_owned())];
     let body = gemini::build_request_body(&req, None);
     assert_eq!(body["systemInstruction"]["parts"][0]["text"], "be terse");
 }
@@ -303,6 +304,76 @@ fn gemini_request_omits_thought_signature_when_absent() {
     assert!(part.get("thoughtSignature").is_none());
 }
 
+fn model_parts(body: &Value) -> Vec<Value> {
+    body["contents"]
+        .as_array()
+        .and_then(|c| c.iter().find(|m| m["role"] == "model"))
+        .and_then(|m| m["parts"].as_array())
+        .cloned()
+        .expect("model parts present")
+}
+
+fn second_tool_use(signature: Option<&str>) -> CanonicalContent {
+    CanonicalContent::ToolUse {
+        id: "call_2".to_owned(),
+        name: "lookup".to_owned(),
+        input: json!({"q": "tokio"}),
+        signature: signature.map(str::to_owned),
+        cache_control: None,
+    }
+}
+
+// Vertex signs only the first parallel call of a turn and then refuses the
+// replay unless every call carries a signature, so the turn's signature is
+// copied onto the calls that arrived without one.
+#[test]
+fn gemini_request_shares_the_turn_signature_across_parallel_function_calls() {
+    let mut req = base_request();
+    req.messages.push(CanonicalMessage {
+        role: Role::Assistant,
+        content: vec![tool_use(Some("sig==")), second_tool_use(None)],
+    });
+    let parts = model_parts(&gemini::build_request_body(&req, None));
+    assert_eq!(parts.len(), 2);
+    assert_eq!(parts[0]["thoughtSignature"], "sig==");
+    assert_eq!(parts[1]["thoughtSignature"], "sig==");
+    assert_eq!(parts[1]["functionCall"]["args"]["q"], "tokio");
+}
+
+#[test]
+fn gemini_request_fills_unsigned_function_calls_from_the_thought_signature() {
+    let mut req = base_request();
+    req.messages.push(CanonicalMessage {
+        role: Role::Assistant,
+        content: vec![
+            CanonicalContent::Thinking {
+                text: "plan".to_owned(),
+                signature: Some("tsig==".to_owned()),
+                id: None,
+                encrypted_content: None,
+            },
+            tool_use(None),
+            second_tool_use(None),
+        ],
+    });
+    let parts = model_parts(&gemini::build_request_body(&req, None));
+    assert_eq!(parts.len(), 3);
+    assert_eq!(parts[0]["thoughtSignature"], "tsig==");
+    assert_eq!(parts[1]["thoughtSignature"], "tsig==");
+    assert_eq!(parts[2]["thoughtSignature"], "tsig==");
+}
+
+#[test]
+fn gemini_request_leaves_wholly_unsigned_parallel_calls_alone() {
+    let mut req = base_request();
+    req.messages.push(CanonicalMessage {
+        role: Role::Assistant,
+        content: vec![tool_use(None), second_tool_use(None)],
+    });
+    let parts = model_parts(&gemini::build_request_body(&req, None));
+    assert!(parts.iter().all(|p| p.get("thoughtSignature").is_none()));
+}
+
 #[test]
 fn gemini_parse_surfaces_grounding_sources_and_queries() {
     let value: Value = json!({
@@ -322,6 +393,68 @@ fn gemini_parse_surfaces_grounding_sources_and_queries() {
     assert_eq!(grounding.sources[0].uri, "https://example.com");
     assert_eq!(grounding.queries, vec!["rust async".to_owned()]);
     assert_eq!(response.usage.total_tokens, 7);
+}
+
+// A buffered candidate that finished on a reason other than STOP/MAX_TOKENS
+// without a single part is the provider ending the turn, and the parser
+// refuses to manufacture an empty success out of it.
+#[test]
+fn gemini_parse_rejects_a_non_stop_finish_without_parts() {
+    let value: Value = json!({
+        "candidates": [{
+            "finishReason": "MALFORMED_FUNCTION_CALL",
+            "finishMessage": "Malformed function call: print(x)"
+        }],
+        "usageMetadata": {"promptTokenCount": 3, "totalTokenCount": 3}
+    });
+    let err = gemini::parse_response(&value, "fallback").expect_err("empty terminal");
+    assert_eq!(
+        err.to_string(),
+        "upstream finished with MALFORMED_FUNCTION_CALL: Malformed function call: print(x)"
+    );
+}
+
+#[test]
+fn gemini_parse_rejects_a_blocked_prompt() {
+    let value: Value = json!({
+        "promptFeedback": {"blockReason": "PROHIBITED_CONTENT"},
+        "usageMetadata": {"promptTokenCount": 3, "totalTokenCount": 3}
+    });
+    let err = gemini::parse_response(&value, "fallback").expect_err("blocked prompt");
+    assert_eq!(
+        err.to_string(),
+        "upstream blocked the prompt: PROHIBITED_CONTENT"
+    );
+}
+
+#[test]
+fn gemini_parse_maps_safety_with_text_to_a_refusal_and_keeps_the_raw_reason() {
+    let value: Value = json!({
+        "candidates": [{
+            "content": {"role": "model", "parts": [{"text": "I cannot help with that."}]},
+            "finishReason": "SAFETY"
+        }],
+        "usageMetadata": {"promptTokenCount": 3, "candidatesTokenCount": 6, "totalTokenCount": 9}
+    });
+    let response = gemini::parse_response(&value, "fallback").expect("fixture parses");
+    assert_eq!(response.stop_reason, Some(CanonicalStopReason::Refusal));
+    assert_eq!(response.raw_finish_reason.as_deref(), Some("SAFETY"));
+}
+
+// The empty STOP Gemini 3.5 sends when it chooses not to answer is the
+// model's own decision and still parses as a turn.
+#[test]
+fn gemini_parse_keeps_an_empty_stop_as_a_turn() {
+    let value: Value = json!({
+        "candidates": [{
+            "content": {"role": "model", "parts": [{"text": ""}]},
+            "finishReason": "STOP"
+        }],
+        "usageMetadata": {"promptTokenCount": 3, "totalTokenCount": 3}
+    });
+    let response = gemini::parse_response(&value, "fallback").expect("fixture parses");
+    assert_eq!(response.stop_reason, Some(CanonicalStopReason::EndTurn));
+    assert!(response.content.is_empty());
 }
 
 #[test]
@@ -438,11 +571,12 @@ fn tool_result_message(
             tool_use_id: "call_1".to_owned(),
             content: texts
                 .iter()
-                .map(|t| CanonicalContent::Text((*t).to_owned()))
+                .map(|t| CanonicalContent::text((*t).to_owned()))
                 .collect(),
             is_error,
             structured_content: structured,
             meta: None,
+            cache_control: None,
         }],
     }
 }
@@ -481,12 +615,12 @@ fn gemini_tool_result_without_structure_flattens_text_result() {
 }
 
 #[test]
-fn gemini_drops_system_messages_and_replays_thinking_as_thought_parts() {
+fn gemini_carries_system_messages_as_user_text_and_replays_thinking_as_thought_parts() {
     let mut req = base_request();
     req.messages = vec![
         CanonicalMessage {
             role: Role::System,
-            content: vec![CanonicalContent::Text("sys".to_owned())],
+            content: vec![CanonicalContent::text("sys".to_owned())],
         },
         CanonicalMessage {
             role: Role::Assistant,
@@ -499,17 +633,78 @@ fn gemini_drops_system_messages_and_replays_thinking_as_thought_parts() {
         },
         CanonicalMessage {
             role: Role::Assistant,
-            content: vec![CanonicalContent::Text("visible".to_owned())],
+            content: vec![CanonicalContent::text("visible".to_owned())],
         },
     ];
     let body = gemini::build_request_body(&req, None);
     let contents = body["contents"].as_array().expect("contents array");
-    assert_eq!(contents.len(), 2);
-    let thought = &contents[0]["parts"][0];
+    assert_eq!(contents.len(), 3);
+    assert_eq!(contents[0]["role"], "user");
+    assert_eq!(contents[0]["parts"][0]["text"], "sys");
+    let thought = &contents[1]["parts"][0];
     assert_eq!(thought["text"], "hidden chain");
     assert_eq!(thought["thought"], true);
     assert_eq!(thought["thoughtSignature"], "tsig==");
-    assert_eq!(contents[1]["parts"][0]["text"], "visible");
+    assert_eq!(contents[2]["parts"][0]["text"], "visible");
+}
+
+// Claude Code sends its environment block — the available-skills listing
+// among it — as a `system` message after the first user turn, and a
+// `<total_tokens>` reminder after every tool result. Gemini must see both, in
+// place, as user text; dropping them is how a model ends up guessing skill
+// names it was never shown.
+#[test]
+fn gemini_folds_mid_history_system_text_into_the_neighbouring_user_turn() {
+    let mut req = base_request();
+    req.messages = vec![
+        CanonicalMessage {
+            role: Role::User,
+            content: vec![CanonicalContent::text("use the hello skill".to_owned())],
+        },
+        CanonicalMessage {
+            role: Role::System,
+            content: vec![CanonicalContent::text(
+                "# Environment\nThe following skills are available: hello".to_owned(),
+            )],
+        },
+        CanonicalMessage {
+            role: Role::Assistant,
+            content: vec![tool_use(None)],
+        },
+        tool_result_message(false, None, &["Launching skill: hello"]),
+        CanonicalMessage {
+            role: Role::System,
+            content: vec![CanonicalContent::text(
+                "<total_tokens>9</total_tokens>".to_owned(),
+            )],
+        },
+    ];
+    let body = gemini::build_request_body(&req, None);
+    let contents = body["contents"].as_array().expect("contents array");
+    assert_eq!(contents.len(), 3, "user+system, model, tool-result+system");
+    assert_eq!(contents[0]["role"], "user");
+    assert_eq!(contents[0]["parts"][0]["text"], "use the hello skill");
+    assert!(
+        contents[0]["parts"][1]["text"]
+            .as_str()
+            .is_some_and(|t| t.contains("skills are available")),
+        "the environment block rides in the first user turn"
+    );
+    assert_eq!(contents[1]["role"], "model");
+    assert_eq!(contents[2]["role"], "user");
+    let response = &contents[2]["parts"][0]["functionResponse"]["response"];
+    assert!(response.is_object());
+    assert_eq!(
+        contents[2]["parts"].as_array().map(Vec::len),
+        Some(1),
+        "the reminder folds into the function response rather than standing beside it"
+    );
+    assert!(
+        response
+            .to_string()
+            .contains("<total_tokens>9</total_tokens>"),
+        "{response}"
+    );
 }
 
 #[test]
@@ -563,7 +758,7 @@ fn gemini_parse_maps_thought_parts_to_thinking_with_signature() {
     }
     assert!(matches!(
         response.content.get(1),
-        Some(CanonicalContent::Text(t)) if t == "the answer"
+        Some(CanonicalContent::Text { text: t, .. }) if t == "the answer"
     ));
 }
 
@@ -860,5 +1055,110 @@ fn gemini_model_without_thinking_budget_emits_no_thinking_config() {
         cfg["maxOutputTokens"],
         json!(32),
         "no catalog thinking budget means the caller's number is forwarded as-is"
+    );
+}
+
+// Claude Code delivers a skill as a `tool_result` ("Launching skill: …")
+// followed by a text block holding the skill body. Gemini 3.5 answers a turn
+// whose text stands beside the function responses with an empty STOP, and
+// follows the skill once the body is inside the function result.
+#[test]
+fn gemini_folds_text_beside_function_responses_into_the_results_in_order() {
+    let mut req = base_request();
+    req.messages = vec![
+        CanonicalMessage {
+            role: Role::Assistant,
+            content: vec![tool_use(None)],
+        },
+        CanonicalMessage {
+            role: Role::User,
+            content: vec![
+                CanonicalContent::ToolResult {
+                    tool_use_id: "call_1".to_owned(),
+                    content: vec![CanonicalContent::text("Launching skill: hello".to_owned())],
+                    is_error: false,
+                    structured_content: None,
+                    meta: None,
+                    cache_control: None,
+                },
+                CanonicalContent::text("# Hello\nSay hello.".to_owned()),
+            ],
+        },
+        CanonicalMessage {
+            role: Role::System,
+            content: vec![CanonicalContent::text(
+                "<total_tokens>9</total_tokens>".to_owned(),
+            )],
+        },
+    ];
+    let body = gemini::build_request_body(&req, None);
+    let parts = body["contents"][1]["parts"].as_array().expect("parts");
+    assert_eq!(
+        parts.len(),
+        1,
+        "no text part survives beside the function response"
+    );
+    assert_eq!(
+        parts[0]["functionResponse"]["response"]["result"],
+        "Launching skill: hello\n\n# Hello\nSay hello.\n\n<total_tokens>9</total_tokens>"
+    );
+}
+
+#[test]
+fn gemini_folds_surplus_text_onto_the_last_function_response() {
+    let mut req = base_request();
+    req.messages = vec![CanonicalMessage {
+        role: Role::User,
+        content: vec![
+            CanonicalContent::ToolResult {
+                tool_use_id: "call_a".to_owned(),
+                content: vec![CanonicalContent::text("a".to_owned())],
+                is_error: false,
+                structured_content: Some(serde_json::json!({"ok": true})),
+                meta: None,
+                cache_control: None,
+            },
+            CanonicalContent::ToolResult {
+                tool_use_id: "call_b".to_owned(),
+                content: vec![CanonicalContent::text("b".to_owned())],
+                is_error: false,
+                structured_content: None,
+                meta: None,
+                cache_control: None,
+            },
+            CanonicalContent::text("body a".to_owned()),
+            CanonicalContent::text("body b".to_owned()),
+            CanonicalContent::text("trailing".to_owned()),
+        ],
+    }];
+    let body = gemini::build_request_body(&req, None);
+    let parts = body["contents"][0]["parts"].as_array().expect("parts");
+    assert_eq!(parts.len(), 2);
+    assert_eq!(
+        parts[0]["functionResponse"]["response"]["context"], "body a",
+        "a structured result keeps its shape and gains the text as context"
+    );
+    assert_eq!(
+        parts[1]["functionResponse"]["response"]["result"],
+        "b\n\nbody b\n\ntrailing"
+    );
+}
+
+#[test]
+fn cache_control_is_ignored_off_the_anthropic_wire() {
+    let mut req = base_request();
+    req.system = vec![SystemBlock {
+        text: "be terse".to_owned(),
+        cache_control: Some(CacheControl::EPHEMERAL),
+    }];
+    req.messages[0].content = vec![CanonicalContent::Text {
+        text: "hi".to_owned(),
+        cache_control: Some(CacheControl::EPHEMERAL),
+    }];
+    let body = gemini::build_request_body(&req, None);
+    assert_eq!(body["systemInstruction"]["parts"][0]["text"], "be terse");
+    assert!(
+        !body.to_string().contains("cache_control"),
+        "a wire without prompt caching must not leak the Anthropic breakpoint: {body}"
     );
 }

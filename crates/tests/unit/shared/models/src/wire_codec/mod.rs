@@ -32,6 +32,7 @@ fn tool_with_unsupported_keywords() -> CanonicalTool {
                 "count": {"type": "integer", "exclusiveMinimum": 0}
             }
         }),
+        cache_control: None,
     }
 }
 
@@ -69,6 +70,7 @@ fn claude_code_shaped_tool() -> CanonicalTool {
             },
             "required": ["query"]
         }),
+        cache_control: None,
     }
 }
 
@@ -80,6 +82,7 @@ fn plain_tool() -> CanonicalTool {
             "type": "object",
             "properties": {"q": {"type": "string"}}
         }),
+        cache_control: None,
     }
 }
 
@@ -89,11 +92,12 @@ fn tool_use(signature: Option<&str>) -> CanonicalContent {
         name: "lookup".to_owned(),
         input: json!({"q": "rust"}),
         signature: signature.map(str::to_owned),
+        cache_control: None,
     }
 }
 
 fn image_url(url: &str) -> CanonicalContent {
-    CanonicalContent::Image(ImageSource::Url {
+    CanonicalContent::image(ImageSource::Url {
         url: url.to_owned(),
         detail: None,
     })
@@ -109,8 +113,8 @@ fn user_message(content: Vec<CanonicalContent>) -> CanonicalMessage {
 fn base_request() -> CanonicalRequest {
     CanonicalRequest {
         model: ModelId::new("m"),
-        system: None,
-        messages: vec![user_message(vec![CanonicalContent::Text("hi".to_owned())])],
+        system: Vec::new(),
+        messages: vec![user_message(vec![CanonicalContent::text("hi".to_owned())])],
         max_tokens: 32,
         temperature: None,
         top_p: None,

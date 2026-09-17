@@ -161,6 +161,8 @@ pub fn add_route(file: &mut GatewayFile, args: &RouteAddArgs) -> Result<String> 
         pricing: None,
         when: None,
         requires: None,
+        fallback_provider: None,
+        fallback_upstream_model: None,
     };
     route.ensure_id();
     let spec = spec_mut(file)?;

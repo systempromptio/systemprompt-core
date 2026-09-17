@@ -22,6 +22,7 @@ use crate::harness::internal_mcp_config;
 fn spec_for<'a>(config: &'a systemprompt_models::mcp::McpServerConfig) -> SpawnEnvSpec<'a> {
     SpawnEnvSpec {
         config,
+        port: config.port.expect("internal fixture declares a port"),
         system_root: Path::new("/srv/systemprompt"),
         database_type: "postgres",
         profile_path: "/etc/systemprompt/profile.yaml",

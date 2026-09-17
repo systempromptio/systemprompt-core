@@ -27,9 +27,9 @@ pub fn render_terminal_event_frame(
 ) -> Option<Bytes> {
     match event {
         CanonicalEvent::ContentBlockStop { index } => render_item_done(*index, snapshot),
-        CanonicalEvent::MessageStop { id, stop_reason } => {
-            Some(render_completed(id, *stop_reason, snapshot))
-        },
+        CanonicalEvent::MessageStop {
+            id, stop_reason, ..
+        } => Some(render_completed(id, *stop_reason, snapshot)),
         _ => None,
     }
 }
@@ -111,7 +111,7 @@ const fn item_status(stop_reason: Option<CanonicalStopReason>) -> &'static str {
 
 fn output_item_value(index: u32, block: &CanonicalContent, status: &str) -> Option<Value> {
     match block {
-        CanonicalContent::Text(text) => Some(json!({
+        CanonicalContent::Text { text, .. } => Some(json!({
             "type": "message",
             "id": format!("msg_{index}"),
             "status": status,
@@ -142,7 +142,7 @@ fn output_item_value(index: u32, block: &CanonicalContent, status: &str) -> Opti
             text,
             encrypted_content.as_deref(),
         )),
-        CanonicalContent::Image(_) | CanonicalContent::ToolResult { .. } => None,
+        CanonicalContent::Image { .. } | CanonicalContent::ToolResult { .. } => None,
     }
 }
 

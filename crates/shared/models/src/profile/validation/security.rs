@@ -4,7 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::super::Profile;
-use super::super::governance::{AuthzMode, UNRESTRICTED_ACKNOWLEDGEMENT};
+use super::super::governance::{AuditConfig, AuthzMode, UNRESTRICTED_ACKNOWLEDGEMENT};
 use super::super::security::GATEWAY_REQUIRED_RESOURCE_AUDIENCES;
 use crate::auth::JwtAudience;
 
@@ -66,6 +66,14 @@ impl Profile {
     }
 
     pub(crate) fn validate_governance(&self, errors: &mut Vec<String>, is_cloud: bool) {
+        let cap = self.payload_cap_bytes();
+        if cap < AuditConfig::MIN_PAYLOAD_CAP_BYTES {
+            errors.push(format!(
+                "governance.audit.payload_cap_bytes must be at least {} (got {cap}) — below \
+                 that every ordinary request is stored as digest + excerpt only.",
+                AuditConfig::MIN_PAYLOAD_CAP_BYTES
+            ));
+        }
         if !is_cloud {
             return;
         }

@@ -57,7 +57,7 @@ fn text_block_accumulates_deltas() {
     assert_eq!(response.content.len(), 1);
     assert!(matches!(
         &response.content[0],
-        CanonicalContent::Text(t) if t == "Hello, world"
+        CanonicalContent::Text { text: t, .. } if t == "Hello, world"
     ));
 }
 
@@ -191,8 +191,8 @@ fn block_start_at_sparse_index_pads_with_empty_text_blocks() {
 
     let response = snapshot(&state);
     assert_eq!(response.content.len(), 3);
-    assert!(matches!(&response.content[0], CanonicalContent::Text(t) if t.is_empty()));
-    assert!(matches!(&response.content[2], CanonicalContent::Text(t) if t == "third"));
+    assert!(matches!(&response.content[0], CanonicalContent::Text { text: t, .. } if t.is_empty()));
+    assert!(matches!(&response.content[2], CanonicalContent::Text { text: t, .. } if t == "third"));
 }
 
 #[test]
@@ -224,7 +224,7 @@ fn deltas_for_unknown_or_mismatched_blocks_are_ignored() {
 
     let response = snapshot(&state);
     assert_eq!(response.content.len(), 1);
-    assert!(matches!(&response.content[0], CanonicalContent::Text(t) if t.is_empty()));
+    assert!(matches!(&response.content[0], CanonicalContent::Text { text: t, .. } if t.is_empty()));
 }
 
 #[test]
@@ -314,6 +314,7 @@ fn message_stop_without_reason_defaults_to_end_turn() {
         &CanonicalEvent::MessageStop {
             id: "resp-8".to_owned(),
             stop_reason: None,
+            raw_finish_reason: None,
         },
     );
 
@@ -366,6 +367,7 @@ fn extract_summary_reports_stop_error_model_and_tool_calls() {
         &CanonicalEvent::MessageStop {
             id: "resp-10".to_owned(),
             stop_reason: Some(CanonicalStopReason::ToolUse),
+            raw_finish_reason: None,
         },
     );
     accumulate_event(
@@ -453,6 +455,7 @@ fn a_reason_less_stop_does_not_overwrite_the_reason_already_stated() {
         &CanonicalEvent::MessageStop {
             id: "resp-1".to_owned(),
             stop_reason: Some(CanonicalStopReason::ToolUse),
+            raw_finish_reason: None,
         },
     );
     accumulate_event(
@@ -460,6 +463,7 @@ fn a_reason_less_stop_does_not_overwrite_the_reason_already_stated() {
         &CanonicalEvent::MessageStop {
             id: "resp-1".to_owned(),
             stop_reason: None,
+            raw_finish_reason: None,
         },
     );
 
@@ -467,6 +471,41 @@ fn a_reason_less_stop_does_not_overwrite_the_reason_already_stated() {
         snapshot(&state).stop_reason,
         Some(CanonicalStopReason::ToolUse),
         "the trailing message_stop frame must not weaken the reason message_delta gave"
+    );
+}
+
+// The raw reason is what the audit row records; the normalised one is what
+// the wire renders. Anthropic states it on message_delta and follows with a
+// bare message_stop, which must not blank it.
+#[test]
+fn the_raw_finish_reason_is_recorded_and_survives_a_bare_message_stop() {
+    let mut state = TapState::default();
+    start(&mut state, "resp-1", "model-a");
+    accumulate_event(
+        &mut state,
+        &CanonicalEvent::MessageStop {
+            id: "resp-1".to_owned(),
+            stop_reason: Some(CanonicalStopReason::Refusal),
+            raw_finish_reason: Some("SAFETY".to_owned()),
+        },
+    );
+    accumulate_event(
+        &mut state,
+        &CanonicalEvent::MessageStop {
+            id: "resp-1".to_owned(),
+            stop_reason: None,
+            raw_finish_reason: None,
+        },
+    );
+
+    let summary = extract_summary(&mut state);
+    assert_eq!(
+        summary.response.raw_finish_reason.as_deref(),
+        Some("SAFETY")
+    );
+    assert_eq!(
+        summary.response.stop_reason,
+        Some(CanonicalStopReason::Refusal)
     );
 }
 
@@ -499,6 +538,7 @@ fn an_end_turn_stop_beside_an_accumulated_tool_call_becomes_tool_use() {
         &CanonicalEvent::MessageStop {
             id: "resp-1".to_owned(),
             stop_reason: Some(CanonicalStopReason::EndTurn),
+            raw_finish_reason: None,
         },
     );
 
@@ -536,6 +576,7 @@ fn a_max_tokens_stop_survives_beside_a_truncated_tool_call() {
         &CanonicalEvent::MessageStop {
             id: "resp-1".to_owned(),
             stop_reason: Some(CanonicalStopReason::MaxTokens),
+            raw_finish_reason: None,
         },
     );
 

@@ -6,7 +6,11 @@
 //! from `(model_pattern, provider)` so `access_control_rules` can address the
 //! route by a name that survives reordering. A model's connectivity is never
 //! embedded here — [`GatewayRoute::resolve`] looks the provider up in the
-//! registry at use time.
+//! registry at use time. A route may also name a `fallback_provider`: when
+//! the primary upstream is unreachable or exhausts the transient-failure retry
+//! budget, dispatch re-binds the same request to that provider (optionally
+//! under `fallback_upstream_model`) — [`GatewayRoute::fallback_view`] is the
+//! route as the fallback provider sees it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -17,7 +21,7 @@ use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{ProviderId, RouteId};
 
 use super::error::{GatewayProfileError, GatewayResult};
-use crate::gateway_hash::fnv1a_segments;
+use super::route_id::{match_pattern, synthesize_route_id};
 use crate::services::ai::ModelPricing;
 use crate::services::providers::{ProviderEntry, ProviderRegistry};
 use crate::wire::canonical::{CanonicalContent, CanonicalRequest, ReasoningEffort, ResponseFormat};
@@ -43,6 +47,10 @@ pub struct GatewayRoute {
     pub when: Option<RouteMatch>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub requires: Option<RouteRequirements>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fallback_provider: Option<ProviderId>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fallback_upstream_model: Option<String>,
 }
 
 impl GatewayRoute {
@@ -70,6 +78,19 @@ impl GatewayRoute {
 
     pub fn resolve<'a>(&self, registry: &'a ProviderRegistry) -> Option<&'a ProviderEntry> {
         registry.find_provider(self.provider.as_str())
+    }
+
+    #[must_use]
+    pub fn fallback_view(&self) -> Option<Self> {
+        let fallback = self.fallback_provider.clone()?;
+        Some(Self {
+            provider: fallback,
+            upstream_model: self.fallback_upstream_model.clone(),
+            pricing: None,
+            fallback_provider: None,
+            fallback_upstream_model: None,
+            ..self.clone()
+        })
     }
 }
 
@@ -223,7 +244,11 @@ impl From<Option<&ResponseFormat>> for ResponseFormatKind {
 }
 
 fn estimate_input_tokens(request: &CanonicalRequest) -> u32 {
-    let mut chars = request.system.as_deref().map_or(0, str::len);
+    let mut chars = request
+        .system
+        .iter()
+        .map(|block| block.text.len())
+        .sum::<usize>();
     for message in &request.messages {
         for part in &message.content {
             accumulate_text_len(part, &mut chars);
@@ -234,66 +259,14 @@ fn estimate_input_tokens(request: &CanonicalRequest) -> u32 {
 
 fn accumulate_text_len(part: &CanonicalContent, acc: &mut usize) {
     match part {
-        CanonicalContent::Text(t) => *acc += t.len(),
-        CanonicalContent::Thinking { text, .. } => *acc += text.len(),
+        CanonicalContent::Text { text, .. } | CanonicalContent::Thinking { text, .. } => {
+            *acc += text.len();
+        },
         CanonicalContent::ToolResult { content, .. } => {
             for inner in content {
                 accumulate_text_len(inner, acc);
             }
         },
-        CanonicalContent::ToolUse { .. } | CanonicalContent::Image(_) => {},
+        CanonicalContent::ToolUse { .. } | CanonicalContent::Image { .. } => {},
     }
-}
-
-#[must_use]
-pub fn slugify_pattern(pattern: &str) -> String {
-    let mut out = String::with_capacity(pattern.len());
-    let mut last_dash = false;
-    for ch in pattern.chars() {
-        if ch == '*' {
-            out.push_str("star");
-            last_dash = false;
-        } else if ch.is_ascii_alphanumeric() {
-            for lc in ch.to_lowercase() {
-                out.push(lc);
-            }
-            last_dash = false;
-        } else if !last_dash && !out.is_empty() {
-            out.push('-');
-            last_dash = true;
-        }
-    }
-    while out.ends_with('-') {
-        out.pop();
-    }
-    while out.starts_with('-') {
-        out.remove(0);
-    }
-    if out.is_empty() {
-        out.push_str("route");
-    }
-    out
-}
-
-#[must_use]
-pub fn synthesize_route_id(model_pattern: &str, provider: &str) -> RouteId {
-    let h = fnv1a_segments(&[
-        ("model_pattern", model_pattern.as_bytes()),
-        ("provider", provider.as_bytes()),
-    ]);
-    let hash6: String = format!("{h:016x}").chars().take(6).collect();
-    RouteId::new(format!("{}-{}", slugify_pattern(model_pattern), hash6))
-}
-
-pub(crate) fn match_pattern(pattern: &str, model: &str) -> bool {
-    if pattern == "*" {
-        return true;
-    }
-    if let Some(prefix) = pattern.strip_suffix('*') {
-        return model.starts_with(prefix);
-    }
-    if let Some(suffix) = pattern.strip_prefix('*') {
-        return model.ends_with(suffix);
-    }
-    pattern == model
 }

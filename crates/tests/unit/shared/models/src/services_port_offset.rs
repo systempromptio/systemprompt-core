@@ -20,8 +20,6 @@ mcp_servers:
       client_id: null
   upstream:
     type: external
-    binary: unused
-    port: 5020
     endpoint: https://example.test/mcp
     enabled: true
     tool_policy: allow
@@ -44,7 +42,7 @@ fn offset_shifts_local_mcp_ports_and_the_range_together() {
 
     config.apply_port_offset(100).expect("offset applies");
 
-    assert_eq!(config.mcp_servers["systemprompt"].port, 5110);
+    assert_eq!(config.mcp_servers["systemprompt"].port, Some(5110));
     assert_eq!(config.settings.mcp_port_range, (5100, 6099));
     config
         .validate()
@@ -58,8 +56,8 @@ fn offset_leaves_external_servers_alone() {
     config.apply_port_offset(100).expect("offset applies");
 
     assert_eq!(
-        config.mcp_servers["upstream"].port, 5020,
-        "an external server's port names a remote listener this host never binds"
+        config.mcp_servers["upstream"].port, None,
+        "an external server binds no local port, so there is nothing to shift"
     );
 }
 

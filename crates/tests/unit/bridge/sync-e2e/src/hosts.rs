@@ -85,6 +85,12 @@ struct HostSandbox {
     session_org_dir: PathBuf,
 }
 
+impl HostSandbox {
+    fn state_home_path(&self) -> PathBuf {
+        PathBuf::from(&self.state_home)
+    }
+}
+
 fn sandbox(gateway_uri: &str) -> HostSandbox {
     let temp = tempfile::tempdir().unwrap();
     let base = temp.path();
@@ -442,6 +448,7 @@ fn each_host_copy_of_hooks_json_is_stamped_with_the_host_that_runs_it() {
     m.plugins[0].hooks = systemprompt_models::services::PluginHooksRef {
         governance: true,
         comms: false,
+        evaluation: false,
         include: vec![],
     };
     let (server, dirs) = rt.block_on(async {
@@ -867,4 +874,60 @@ fn claude_cli_mcp_projection_follows_the_user_manifest() {
             }
         }
     }
+}
+
+// Why: this is the 0.51.0 clean-install failure. With no bridge-owned Claude
+// Code settings file yet (no `install --apply`), the tool permission rules
+// have no carrier; that is a warning on the host, never a partial sync.
+#[test]
+fn a_clean_install_without_a_permissions_carrier_syncs_ok_with_a_host_warning() {
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .unwrap();
+    let mut m = manifest(vec!["claude-code".into()], true, "eeee0001");
+    m.managed_mcp_servers = vec![
+        serde_json::from_value(serde_json::json!({
+            "name": "knowledge-bank",
+            "url": "https://gateway.example/mcp/knowledge-bank",
+            "tool_policy": { "*": "allow" }
+        }))
+        .unwrap(),
+    ];
+    let (server, dirs) = rt.block_on(async {
+        let server = MockServer::start().await;
+        crate::mount_profile(&server).await;
+        mount_gateway(&server, &m).await;
+        let dirs = sandbox(&server.uri());
+        (server, dirs)
+    });
+
+    let summary = run_sync(&dirs).expect("a missing carrier is not a host failure");
+    assert!(
+        summary.host_failures.is_empty(),
+        "{:?}",
+        summary.host_failures
+    );
+    let warning = summary
+        .host_warnings
+        .iter()
+        .find(|w| w.host_id.as_str() == "claude-code")
+        .expect("the claude-code host warns about the missing carrier");
+    assert!(
+        warning
+            .message
+            .contains("tool permission rules not applied: no Claude Code settings file"),
+        "{}",
+        warning.message
+    );
+    assert!(
+        dirs.state_home_path()
+            .join("systemprompt-bridge")
+            .join("metadata")
+            .join("last-sync.json")
+            .exists(),
+        "a sync that only warned records its sentinel"
+    );
+    let _ = &server;
 }

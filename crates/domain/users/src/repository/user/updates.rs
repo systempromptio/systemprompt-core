@@ -184,14 +184,23 @@ impl UserRepository {
         Ok(row)
     }
 
-    pub async fn delete(&self, id: &UserId) -> Result<()> {
+    pub async fn delete(&self, id: &UserId) -> Result<Vec<super::PurgeCount>> {
         let mut tx = self.write_pool.begin().await?;
         sqlx::query!("SELECT public.begin_user_privacy() AS prepared")
             .fetch_one(&mut *tx)
             .await?;
-        sqlx::query!("DELETE FROM user_sessions WHERE user_id = $1", id.as_str())
+        let sessions = sqlx::query!("DELETE FROM user_sessions WHERE user_id = $1", id.as_str())
             .execute(&mut *tx)
             .await?;
+        let mut removed = Self::purge_user_rows(&mut tx, id).await?;
+        removed.insert(
+            0,
+            super::PurgeCount {
+                owner: "systemprompt-core",
+                table: "user_sessions",
+                rows: i64::try_from(sessions.rows_affected()).unwrap_or(i64::MAX),
+            },
+        );
         let result = sqlx::query!(r#"DELETE FROM users WHERE id = $1"#, id.as_str())
             .execute(&mut *tx)
             .await?;
@@ -205,7 +214,7 @@ impl UserRepository {
             .await?;
         tx.commit().await?;
 
-        Ok(())
+        Ok(removed)
     }
 
     pub async fn cleanup_old_anonymous(&self, days: i32) -> Result<u64> {

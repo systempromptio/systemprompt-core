@@ -36,15 +36,6 @@ const HARDENING: [(&str, &str); 6] = [
 
 const BASH_GATES: [&str; 2] = ["disabledBuiltinTools", "builtinToolPolicy"];
 
-#[derive(Debug, serde::Deserialize)]
-struct WorkspaceFolder {
-    path: String,
-}
-
-fn parse_workspace_folders(raw: &str) -> Result<Vec<WorkspaceFolder>, serde_json::Error> {
-    serde_json::from_str(raw)
-}
-
 pub(super) fn check_managed_policy(report: &mut Report) {
     let store = crate::config::store::managed_policy_store();
     for (key, remedy) in REQUIRED {
@@ -112,7 +103,17 @@ fn check_claude_code_policy_dir(report: &mut Report) {
         ),
     }
     if offenders.is_empty() {
-        report.ok("claude code policy dir", "no MCP policy files");
+        if crate::claude_policy::is_blank_file(&settings) {
+            report.ok(
+                "claude code policy dir",
+                &format!(
+                    "{} is empty (Claude Code reads it as {{}})",
+                    settings.display()
+                ),
+            );
+        } else {
+            report.ok("claude code policy dir", "no MCP policy files");
+        }
     } else {
         report.fail(
             "claude code policy dir",
@@ -162,7 +163,10 @@ fn check_workspace_dir(report: &mut Report) {
 }
 
 // Why: the Claude Desktop Code tab enforces this list as the only permitted
-// workspace roots; a brand-only list refuses every other folder.
+// workspace roots; a brand-only list refuses every other folder. Desktop also
+// drops each malformed entry, and an empty resulting list blocks every folder
+// ("Your administrator has disabled adding folders"), so the entries are
+// validated here the way Desktop validates them.
 fn check_workspace_folders(report: &mut Report, store: &dyn crate::config::store::ConfigStore) {
     let raw = match store.read_managed_policy("allowedWorkspaceFolders") {
         Ok(Some(raw)) => raw,
@@ -175,8 +179,8 @@ fn check_workspace_folders(report: &mut Report, store: &dyn crate::config::store
             return;
         },
     };
-    let folders = match parse_workspace_folders(&raw) {
-        Ok(folders) => folders,
+    let audit = match crate::claude_policy::audit_workspace_folders(&raw) {
+        Ok(audit) => audit,
         Err(e) => {
             report.fail(
                 "policy workspace roots",
@@ -185,8 +189,31 @@ fn check_workspace_folders(report: &mut Report, store: &dyn crate::config::store
             return;
         },
     };
-    let paths: Vec<String> = folders.into_iter().map(|f| f.path).collect();
-    if paths.iter().any(|p| p == "~") {
+    if !audit.dropped.is_empty() {
+        let dropped: Vec<String> = audit
+            .dropped
+            .iter()
+            .map(|(entry, reason)| format!("{entry} ({reason})"))
+            .collect();
+        report.fail(
+            "policy workspace roots",
+            &format!(
+                "{} entr{} Claude Desktop drops as malformed: {}. Sync.",
+                dropped.len(),
+                if dropped.len() == 1 { "y" } else { "ies" },
+                dropped.join("; ")
+            ),
+        );
+    }
+    if audit.blocks_all_folders() {
+        report.fail(
+            "policy workspace roots",
+            "no valid entry — the Claude Desktop Code tab blocks every folder. Sync.",
+        );
+        return;
+    }
+    let paths: Vec<&str> = audit.kept.iter().map(|f| f.path.as_str()).collect();
+    if audit.allows_home() {
         report.info("policy workspace roots", &paths.join(", "));
     } else {
         report.warn(

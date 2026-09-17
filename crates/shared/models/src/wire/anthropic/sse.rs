@@ -86,16 +86,18 @@ impl AnthropicStreamState {
                 events.push(CanonicalEvent::UsageDelta(update));
             }
         }
-        let stop_reason = value
+        let raw_finish_reason = value
             .get("delta")
             .and_then(|d| d.get("stop_reason"))
-            .and_then(Value::as_str)
+            .and_then(Value::as_str);
+        let stop_reason = raw_finish_reason
             .map(CanonicalStopReason::from_anthropic)
             .map(|r| r.with_tool_use(self.saw_tool_use));
         if stop_reason.is_some() {
             events.push(CanonicalEvent::MessageStop {
                 id: self.message_id.clone(),
                 stop_reason,
+                raw_finish_reason: raw_finish_reason.map(str::to_owned),
             });
         }
         events
@@ -114,6 +116,7 @@ fn single_event(kind: &str, value: &Value, msg_id: &str) -> Option<CanonicalEven
         "message_stop" => Some(CanonicalEvent::MessageStop {
             id: msg_id.to_owned(),
             stop_reason: None,
+            raw_finish_reason: None,
         }),
         "error" => Some(CanonicalEvent::Error(
             value

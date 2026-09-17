@@ -126,6 +126,7 @@ async fn execute_with_pool_inner(
                 cost: format!("${cost_dollars:.6}"),
                 latency_ms: r.latency_ms.map(i64::from),
                 status: r.status,
+                finish: r.finish_reason.unwrap_or_else(|| "-".to_owned()),
             }
         })
         .collect();

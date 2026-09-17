@@ -68,6 +68,7 @@ fn services() -> &'static ServicesConfig {
 fn fetched_root(path: &std::path::Path) -> ActiveServicesRoot {
     ActiveServicesRoot {
         path: path.to_path_buf(),
+        base: path.to_path_buf(),
         provenance: ServicesProvenance::Fetched {
             composed_hash: COMPOSED.to_owned(),
             versions: BTreeMap::new(),
@@ -133,6 +134,7 @@ async fn a_baked_tree_is_reconciled_without_touching_the_database() {
         &f.profile,
         &ActiveServicesRoot {
             path: PathBuf::from(&f.profile.paths.services),
+            base: PathBuf::from(&f.profile.paths.services),
             provenance: ServicesProvenance::Bundled,
         },
         services(),
@@ -229,6 +231,7 @@ async fn a_projected_composition_is_recorded_and_not_projected_again() {
         .expect("disposable pool");
     let root = ActiveServicesRoot {
         path: boot.services_path.clone(),
+        base: boot.services_path.clone(),
         provenance: ServicesProvenance::Fetched {
             composed_hash: COMPOSED.to_owned(),
             versions: BTreeMap::new(),

@@ -132,10 +132,11 @@ where
         let level = event.metadata().level();
         let unquoted = strip_debug_quotes(&visitor.message);
         let tag = crate::brand::brand().binary_name;
+        let ts = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
         if visitor.fields.is_empty() {
-            writeln!(writer, "[{tag}] {level} {unquoted}")
+            writeln!(writer, "{ts} [{tag}] {level} {unquoted}")
         } else {
-            writeln!(writer, "[{tag}] {level} {unquoted} {}", visitor.fields)
+            writeln!(writer, "{ts} [{tag}] {level} {unquoted} {}", visitor.fields)
         }
     }
 }

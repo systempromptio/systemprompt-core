@@ -69,3 +69,49 @@ fn a_non_object_document_names_its_path_in_the_error() {
     assert!(err.to_string().contains("managed-settings.json"), "{err}");
     assert!(err.to_string().contains("not a JSON object"), "{err}");
 }
+
+#[test]
+fn a_blank_file_is_recognised_as_blank_and_a_document_is_not() {
+    use systemprompt_bridge::claude_policy::is_blank_file;
+
+    let dir = tempfile::tempdir().expect("tempdir");
+    let path = dir.path().join("managed-settings.json");
+    assert!(!is_blank_file(&path), "a missing file is absent, not blank");
+    fs::write(&path, b"").expect("seed");
+    assert!(is_blank_file(&path));
+    fs::write(&path, b" \n").expect("seed");
+    assert!(is_blank_file(&path));
+    fs::write(&path, b"{}").expect("seed");
+    assert!(!is_blank_file(&path));
+}
+
+// Why: the 0.51.0 field log read `io error in remove managed MCP policy: EOF
+// while parsing a value at line 1 column 0` and named no file; every read
+// failure must carry the path so the operator can find the offender.
+#[cfg(unix)]
+#[test]
+fn an_unreadable_file_names_its_path_in_the_error() {
+    use std::os::unix::fs::PermissionsExt;
+
+    if nix_is_root() {
+        return;
+    }
+    let dir = tempfile::tempdir().expect("tempdir");
+    let path = dir.path().join("managed-settings.json");
+    fs::write(&path, b"{}").expect("seed");
+    fs::set_permissions(&path, fs::Permissions::from_mode(0o000)).expect("chmod");
+
+    let err = stripped_settings(&path).expect_err("unreadable");
+    assert_eq!(err.kind(), std::io::ErrorKind::PermissionDenied);
+    assert!(err.to_string().contains("managed-settings.json"), "{err}");
+
+    fs::set_permissions(&path, fs::Permissions::from_mode(0o600)).expect("restore");
+}
+
+#[cfg(unix)]
+fn nix_is_root() -> bool {
+    std::process::Command::new("id")
+        .arg("-u")
+        .output()
+        .is_ok_and(|o| String::from_utf8_lossy(&o.stdout).trim() == "0")
+}

@@ -22,6 +22,7 @@ pub struct TapState {
     usage: CanonicalUsage,
     blocks: Vec<BlockAccumulator>,
     final_stop_reason: Option<CanonicalStopReason>,
+    raw_finish_reason: Option<String>,
     saw_usage_delta: bool,
     pub(super) final_bytes: BytesMut,
     pub(super) error: Option<String>,
@@ -108,7 +109,7 @@ fn build_response(state: &TapState) -> CanonicalResponse {
         .blocks
         .iter()
         .map(|b| match b {
-            BlockAccumulator::Text(t) => CanonicalContent::Text(t.clone()),
+            BlockAccumulator::Text(t) => CanonicalContent::text(t.clone()),
             BlockAccumulator::Thinking {
                 id,
                 text,
@@ -131,6 +132,7 @@ fn build_response(state: &TapState) -> CanonicalResponse {
                 input: serde_json::from_str(partial)
                     .unwrap_or(serde_json::Value::Object(serde_json::Map::new())),
                 signature: signature.clone(),
+                cache_control: None,
             },
         })
         .collect();
@@ -140,6 +142,7 @@ fn build_response(state: &TapState) -> CanonicalResponse {
         content,
         stop_reason: state.final_stop_reason,
         usage: state.usage,
+        raw_finish_reason: state.raw_finish_reason.clone(),
         ..Default::default()
     }
 }
@@ -229,7 +232,14 @@ pub fn accumulate_event(state: &mut TapState, event: &CanonicalEvent) {
         CanonicalEvent::UsageDelta(u) => {
             apply_usage(state, u);
         },
-        CanonicalEvent::MessageStop { stop_reason, .. } => {
+        CanonicalEvent::MessageStop {
+            stop_reason,
+            raw_finish_reason,
+            ..
+        } => {
+            if raw_finish_reason.is_some() && state.raw_finish_reason.is_none() {
+                state.raw_finish_reason.clone_from(raw_finish_reason);
+            }
             apply_stop_reason(state, *stop_reason);
         },
         CanonicalEvent::Error(msg) => {

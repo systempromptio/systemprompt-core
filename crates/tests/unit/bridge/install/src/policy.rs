@@ -8,6 +8,7 @@
 
 use std::collections::BTreeMap;
 
+use systemprompt_bridge::claude_policy::audit_workspace_folders;
 use systemprompt_bridge::ids::HostToken;
 use systemprompt_bridge::install::mdm::policy::{
     McpServerEntry, PolicyEntry, PolicyInputs, PolicyValue, claude_desktop_policy, plist_body,
@@ -132,6 +133,69 @@ fn the_plist_renders_arrays_and_dicts_as_native_elements() {
     assert!(body.contains("<key>Authorization</key>"));
     assert!(body.contains("<string>Bearer desktop-host-token</string>"));
     assert!(body.contains("<key>inferenceProvider</key>\n  <string>gateway</string>"));
+}
+
+// Why: Claude Desktop validates each `allowedWorkspaceFolders` entry against
+// its schema, drops a malformed one, and an empty resulting list blocks every
+// folder ("Your administrator has disabled adding folders").
+// `isDefaultSelected` is typed boolean; rendering it as `<string>true</string>`
+// dropped both entries on every Mac and locked the Code tab out. The top-level
+// `disable*` keys are string booleans by Claude's published encoding and must
+// stay that way.
+#[test]
+fn the_plist_workspace_folders_carry_native_booleans() {
+    let body = plist_body(&policy_with(&[]), "  ");
+    let start = body
+        .find("<key>allowedWorkspaceFolders</key>")
+        .expect("workspace key rendered");
+    let end = body[start..].find("</array>").expect("array closed") + start;
+    let block = &body[start..end];
+
+    assert!(block.contains("<key>isDefaultSelected</key>\n      <true/>"));
+    assert!(block.contains("<key>isDefaultSelected</key>\n      <false/>"));
+    assert!(!block.contains("<string>true</string>"));
+    assert!(!block.contains("<string>false</string>"));
+    assert!(body.contains("<key>disableAutoUpdates</key>\n  <string>true</string>"));
+    assert!(body.contains("<key>disableNonessentialServices</key>\n  <string>false</string>"));
+}
+
+#[test]
+fn nested_numbers_render_as_plist_numbers() {
+    let entry: PolicyEntry = ("x", PolicyValue::Json(serde_json::json!([1, 2.5])));
+    let body = plist_body(&[entry], "");
+    assert!(body.contains("<integer>1</integer>"));
+    assert!(body.contains("<real>2.5</real>"));
+}
+
+#[test]
+fn the_audit_drops_string_booleans_and_reports_an_empty_list() {
+    let raw = r#"[{"path":"~/Astound","isDefaultSelected":"true"},{"path":"~","isDefaultSelected":"false"}]"#;
+    let audit = audit_workspace_folders(raw).expect("a list");
+    assert!(audit.kept.is_empty());
+    assert_eq!(audit.dropped.len(), 2);
+    assert!(audit.dropped[0].0.contains("~/Astound"));
+    assert!(audit.blocks_all_folders());
+    assert!(!audit.allows_home());
+}
+
+#[test]
+fn the_audit_keeps_valid_entries_and_plain_paths() {
+    let raw = r#"[{"path":"~/Astound","isDefaultSelected":true},"~",{"path":"/x","mode":"ro"},{"path":""},{"path":"/y","extra":1}]"#;
+    let audit = audit_workspace_folders(raw).expect("a list");
+    let kept: Vec<&str> = audit.kept.iter().map(|f| f.path.as_str()).collect();
+    assert_eq!(kept, ["~/Astound", "~", "/x"]);
+    assert_eq!(audit.dropped.len(), 2);
+    assert_eq!(audit.dropped[0].1, "empty path");
+    assert!(audit.dropped[1].1.contains("extra"));
+    assert!(!audit.blocks_all_folders());
+    assert!(audit.allows_home());
+}
+
+#[test]
+fn the_audit_of_an_empty_list_blocks_all_folders() {
+    let audit = audit_workspace_folders("[]").expect("a list");
+    assert!(audit.blocks_all_folders());
+    assert!(audit_workspace_folders("{}").is_err());
 }
 
 // Why: `macos::apply` compares rendered bytes against what is on disk to decide

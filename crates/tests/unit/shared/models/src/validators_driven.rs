@@ -278,6 +278,55 @@ mod mcp_validator {
         let mut v = McpConfigValidator::new();
         assert!(v.load(&config).is_err());
     }
+
+    fn services(yaml: &str) -> ServicesConfig {
+        serde_yaml::from_str(yaml).expect("services yaml parses")
+    }
+
+    const OAUTH: &str = "    oauth:\n      required: false\n      scopes: []\n      audience: mcp\n      \
+                         client_id: null\n";
+
+    fn internal(name: &str, port: u16) -> String {
+        format!(
+            "  {name}:\n    type: internal\n    binary: {name}-bin\n    port: {port}\n    \
+             enabled: true\n    display_in_web: false\n{OAUTH}"
+        )
+    }
+
+    fn external(name: &str) -> String {
+        format!(
+            "  {name}:\n    type: external\n    endpoint: https://{name}.example.com/mcp\n    \
+             enabled: true\n    display_in_web: false\n{OAUTH}"
+        )
+    }
+
+    #[test]
+    fn external_servers_never_collide_on_ports() {
+        let yaml = format!(
+            "mcp_servers:\n{}{}",
+            external("salesforce-uk"),
+            external("github")
+        );
+        let prov = provider(base_config(), services(&yaml));
+        let mut v = McpConfigValidator::new();
+        v.load(&prov).expect("load");
+        let report = v.validate().expect("validate");
+        assert!(!report.has_errors(), "{report:?}");
+    }
+
+    #[test]
+    fn internal_servers_sharing_a_port_are_reported() {
+        let yaml = format!(
+            "mcp_servers:\n{}{}",
+            internal("alpha", 5046),
+            internal("beta", 5046)
+        );
+        let prov = provider(base_config(), services(&yaml));
+        let mut v = McpConfigValidator::new();
+        v.load(&prov).expect("load");
+        let report = v.validate().expect("validate");
+        assert!(report.has_errors(), "{report:?}");
+    }
 }
 
 mod content_validator {

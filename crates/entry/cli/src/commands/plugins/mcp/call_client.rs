@@ -23,7 +23,7 @@ use crate::session::CliSessionContext;
 #[derive(Debug)]
 pub struct ToolCallParams<'a> {
     pub server_name: &'a str,
-    pub port: u16,
+    pub url: &'a str,
     pub tool_name: &'a str,
     pub arguments: Option<serde_json::Value>,
     pub session_ctx: &'a CliSessionContext,
@@ -33,19 +33,18 @@ pub struct ToolCallParams<'a> {
 pub async fn execute_tool_call(params: ToolCallParams<'_>) -> Result<CallToolResult> {
     let ToolCallParams {
         server_name,
-        port,
+        url,
         tool_name,
         arguments,
         session_ctx,
         timeout_secs,
     } = params;
-    let url = format!("http://127.0.0.1:{}/mcp", port);
 
     let agent_name = AgentName::try_new(format!("cli-{server_name}"))
         .context("MCP server name does not form a valid agent name")?;
     let request_context = session_ctx.to_request_context(agent_name);
     let http_client = HttpClientWithContext::new(request_context)?;
-    let config = StreamableHttpClientTransportConfig::with_uri(url.as_str())
+    let config = StreamableHttpClientTransportConfig::with_uri(url)
         .auth_header(session_ctx.session_token().as_str().to_owned());
     let transport = StreamableHttpClientTransport::with_client(http_client, config);
 
@@ -80,17 +79,15 @@ pub async fn execute_tool_call(params: ToolCallParams<'_>) -> Result<CallToolRes
 
 pub async fn list_available_tools(
     server_name: &str,
-    port: u16,
+    url: &str,
     session_ctx: &CliSessionContext,
     timeout_secs: u64,
 ) -> Result<Vec<String>> {
-    let url = format!("http://127.0.0.1:{}/mcp", port);
-
     let agent_name = AgentName::try_new(format!("cli-{server_name}"))
         .context("MCP server name does not form a valid agent name")?;
     let request_context = session_ctx.to_request_context(agent_name);
     let http_client = HttpClientWithContext::new(request_context)?;
-    let config = StreamableHttpClientTransportConfig::with_uri(url.as_str())
+    let config = StreamableHttpClientTransportConfig::with_uri(url)
         .auth_header(session_ctx.session_token().as_str().to_owned());
     let transport = StreamableHttpClientTransport::with_client(http_client, config);
 

@@ -71,7 +71,7 @@ AG-UI and A2A events route to both their primary broadcaster and the context bro
 
 ```toml
 [dependencies]
-systemprompt-events = "0.54"
+systemprompt-events = "0.55"
 ```
 
 ```rust

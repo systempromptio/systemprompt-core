@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.55.0] - 2026-09-17
+
+### Added
+
+- `purge` module: `UserPurgeTable`, `registered_user_purge_tables()` and the `user_purge_tables!("<owner>", [...])` macro — the `inventory` registry a crate uses to declare user-keyed tables that cannot carry a foreign key, cleared by the users crate inside the privacy transaction.
+
 ## [0.53.0] - 2026-09-15
 
 ### Breaking

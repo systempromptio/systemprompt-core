@@ -75,6 +75,13 @@ mod profile_secrets_vault;
 mod profile_services_sources;
 
 #[cfg(test)]
+mod profile_audit;
+#[cfg(test)]
+mod profile_evaluation;
+#[cfg(test)]
+mod profile_observability;
+
+#[cfg(test)]
 mod oci_reference;
 
 #[cfg(test)]

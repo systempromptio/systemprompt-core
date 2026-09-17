@@ -6,6 +6,12 @@
 //! `functionCall` parts emit a complete tool-use block (Gemini sends each call
 //! whole rather than as partial JSON).
 //!
+//! A candidate that finishes on a reason other than `STOP`/`MAX_TOKENS`
+//! without having emitted a part is an upstream error, not an empty turn, and
+//! a plain JSON `{"error": …}` body left unterminated at end of stream is
+//! drained and surfaced the same way — Vertex answers a rejected replay with
+//! exactly that shape and no SSE framing.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -14,21 +20,26 @@ use futures_util::stream::{self, BoxStream, Stream, StreamExt};
 use serde_json::Value;
 use uuid::Uuid;
 
-use super::response::stop_reason;
-use super::wire::{GeminiPart, GeminiResponse};
+use super::response::{blocked_prompt_message, empty_terminal_message, stop_reason};
+use super::streaming_parts::{close_text, close_thinking, emit_part};
+use super::wire::GeminiResponse;
 use crate::wire::canonical::{
-    CanonicalEvent, CanonicalStopReason, CanonicalUsage, CanonicalUsageUpdate, ContentBlockKind,
+    CanonicalEvent, CanonicalStopReason, CanonicalUsage, CanonicalUsageUpdate,
 };
 
-struct StreamState {
-    buf: Vec<u8>,
-    model: String,
-    message_id: String,
-    started: bool,
-    text_block: Option<u32>,
-    thinking_block: Option<u32>,
-    next_index: u32,
-    emitted_tool_use: bool,
+pub(super) struct StreamState {
+    pub(super) buf: Vec<u8>,
+    pub(super) model: String,
+    pub(super) message_id: String,
+    pub(super) started: bool,
+    pub(super) text_block: Option<u32>,
+    pub(super) thinking_block: Option<u32>,
+    pub(super) next_index: u32,
+    pub(super) emitted_tool_use: bool,
+    // Why: thoughts do not count — a turn that only thought and then finished
+    // on MALFORMED_FUNCTION_CALL is still an empty answer to the client.
+    pub(super) emitted_part: bool,
+    pub(super) stopped: bool,
 }
 
 pub fn sse_to_canonical_events<S, E>(
@@ -42,6 +53,8 @@ where
     let initial = StreamState {
         buf: Vec::new(),
         emitted_tool_use: false,
+        emitted_part: false,
+        stopped: false,
         model: fallback_model,
         message_id: format!("msg_{}", Uuid::new_v4().simple()),
         started: false,
@@ -51,16 +64,44 @@ where
     };
 
     stream
-        .map(|chunk| chunk.map_err(|e| e.to_string()))
+        .map(|chunk| Some(chunk.map_err(|e| e.to_string())))
+        .chain(stream::once(futures_util::future::ready(None)))
         .scan(initial, |state, item| {
             let res = match item {
-                Ok(bytes) => drain_buffer(state, &bytes),
-                Err(e) => vec![Err(e)],
+                Some(Ok(bytes)) => drain_buffer(state, &bytes),
+                Some(Err(e)) => vec![Err(e)],
+                None => drain_tail(state),
             };
             futures_util::future::ready(Some(res))
         })
         .flat_map(stream::iter)
         .boxed()
+}
+
+// Why: a body that never carried a frame terminator is not an SSE stream at
+// all; when it is a JSON error object it must surface as the upstream error
+// it is rather than finalising downstream as "empty upstream stream".
+fn drain_tail(state: &mut StreamState) -> Vec<Result<CanonicalEvent, String>> {
+    if state.stopped {
+        return Vec::new();
+    }
+    let tail = String::from_utf8_lossy(&state.buf);
+    let tail = tail.trim();
+    if tail.is_empty() {
+        return Vec::new();
+    }
+    let body = tail.strip_prefix("data:").map_or(tail, str::trim);
+    let Ok(value) = serde_json::from_str::<Value>(body) else {
+        return Vec::new();
+    };
+    let mut events = Vec::new();
+    if let Some(message) = crate::wire::sse::upstream_error_message(&value) {
+        events.push(Ok(CanonicalEvent::Error(message)));
+    } else {
+        handle_chunk(state, &value, &mut events);
+    }
+    state.buf.clear();
+    events
 }
 
 fn drain_buffer(state: &mut StreamState, bytes: &[u8]) -> Vec<Result<CanonicalEvent, String>> {
@@ -92,21 +133,25 @@ fn handle_chunk(
         events.push(Ok(CanonicalEvent::Error(message)));
         return;
     }
-    // Why: Gemini can report a blocked prompt with only `promptFeedback`,
-    // without candidates or a finish reason.
-    if let Some(reason) = value
-        .get("promptFeedback")
-        .and_then(|f| f.get("blockReason"))
-        .and_then(Value::as_str)
-    {
-        events.push(Ok(CanonicalEvent::Error(format!(
-            "upstream blocked the prompt: {reason}"
-        ))));
-        return;
-    }
     let Ok(chunk) = serde_json::from_value::<GeminiResponse>(value.clone()) else {
         return;
     };
+    // Why: Gemini can report a blocked prompt with only `promptFeedback`,
+    // without candidates or a finish reason.
+    if let Some(reason) = chunk
+        .prompt_feedback
+        .as_ref()
+        .and_then(|f| f.block_reason.as_deref())
+    {
+        let detail = chunk
+            .prompt_feedback
+            .as_ref()
+            .and_then(|f| f.block_reason_message.as_deref());
+        events.push(Ok(CanonicalEvent::Error(blocked_prompt_message(
+            reason, detail,
+        ))));
+        return;
+    }
     if !state.started {
         emit_start(state, &chunk, events);
     }
@@ -132,33 +177,32 @@ fn handle_chunk(
     if let Some(finish) = candidate.finish_reason.as_deref() {
         // Why: Gemini reports `finishReason: STOP` even for a `functionCall` candidate.
         let reason = stop_reason(finish).with_tool_use(state.emitted_tool_use);
-        emit_stop(state, reason, events);
+        if reason.empty_terminal_is_error() && !state.emitted_part {
+            state.stopped = true;
+            events.push(Ok(CanonicalEvent::Error(empty_terminal_message(
+                finish,
+                candidate.finish_message.as_deref(),
+            ))));
+            return;
+        }
+        emit_stop(state, reason, finish, events);
     }
 }
 
 fn emit_stop(
     state: &mut StreamState,
     reason: CanonicalStopReason,
+    finish: &str,
     events: &mut Vec<Result<CanonicalEvent, String>>,
 ) {
     close_thinking(state, events);
     close_text(state, events);
+    state.stopped = true;
     events.push(Ok(CanonicalEvent::MessageStop {
         id: state.message_id.clone(),
         stop_reason: Some(reason),
+        raw_finish_reason: Some(finish.to_owned()),
     }));
-}
-
-fn close_text(state: &mut StreamState, events: &mut Vec<Result<CanonicalEvent, String>>) {
-    if let Some(index) = state.text_block.take() {
-        events.push(Ok(CanonicalEvent::ContentBlockStop { index }));
-    }
-}
-
-fn close_thinking(state: &mut StreamState, events: &mut Vec<Result<CanonicalEvent, String>>) {
-    if let Some(index) = state.thinking_block.take() {
-        events.push(Ok(CanonicalEvent::ContentBlockStop { index }));
-    }
 }
 
 fn emit_start(
@@ -178,115 +222,4 @@ fn emit_start(
         usage: CanonicalUsage::default(),
     }));
     state.started = true;
-}
-
-fn emit_part(
-    state: &mut StreamState,
-    part: &GeminiPart,
-    events: &mut Vec<Result<CanonicalEvent, String>>,
-) {
-    match part {
-        GeminiPart::Text {
-            text,
-            thought: Some(true),
-            thought_signature,
-        } => emit_thought(state, text, thought_signature.clone(), events),
-        GeminiPart::Text { text, .. } if !text.is_empty() => emit_text(state, text, events),
-        GeminiPart::FunctionCall {
-            function_call,
-            thought_signature,
-        } => {
-            close_thinking(state, events);
-            state.emitted_tool_use = true;
-            emit_tool_use(
-                state,
-                &function_call.name,
-                &function_call.args,
-                thought_signature.clone(),
-                events,
-            );
-        },
-        _ => {},
-    }
-}
-
-fn emit_text(
-    state: &mut StreamState,
-    text: &str,
-    events: &mut Vec<Result<CanonicalEvent, String>>,
-) {
-    close_thinking(state, events);
-    let index = if let Some(index) = state.text_block {
-        index
-    } else {
-        let index = state.next_index;
-        state.next_index += 1;
-        state.text_block = Some(index);
-        events.push(Ok(CanonicalEvent::ContentBlockStart {
-            index,
-            block: ContentBlockKind::Text,
-        }));
-        index
-    };
-    events.push(Ok(CanonicalEvent::TextDelta {
-        index,
-        text: text.to_owned(),
-    }));
-}
-
-fn emit_thought(
-    state: &mut StreamState,
-    text: &str,
-    signature: Option<String>,
-    events: &mut Vec<Result<CanonicalEvent, String>>,
-) {
-    let index = if let Some(index) = state.thinking_block {
-        index
-    } else {
-        let index = state.next_index;
-        state.next_index += 1;
-        state.thinking_block = Some(index);
-        events.push(Ok(CanonicalEvent::ContentBlockStart {
-            index,
-            block: ContentBlockKind::Thinking {
-                id: None,
-                signature: None,
-            },
-        }));
-        index
-    };
-    if !text.is_empty() {
-        events.push(Ok(CanonicalEvent::ThinkingDelta {
-            index,
-            text: text.to_owned(),
-        }));
-    }
-    if let Some(signature) = signature {
-        events.push(Ok(CanonicalEvent::SignatureDelta { index, signature }));
-    }
-}
-
-fn emit_tool_use(
-    state: &mut StreamState,
-    name: &str,
-    // JSON: Gemini `functionCall.args` is the tool's own JSON argument object.
-    args: &Value,
-    signature: Option<String>,
-    events: &mut Vec<Result<CanonicalEvent, String>>,
-) {
-    let index = state.next_index;
-    state.next_index += 1;
-    events.push(Ok(CanonicalEvent::ContentBlockStart {
-        index,
-        block: ContentBlockKind::ToolUse {
-            id: format!("call_{}", Uuid::new_v4().simple()),
-            name: name.to_owned(),
-            signature,
-        },
-    }));
-    events.push(Ok(CanonicalEvent::ToolUseDelta {
-        index,
-        partial_json: args.to_string(),
-    }));
-    events.push(Ok(CanonicalEvent::ContentBlockStop { index }));
 }

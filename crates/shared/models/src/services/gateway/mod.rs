@@ -23,13 +23,12 @@ mod config;
 mod error;
 mod override_rule;
 mod route;
+mod route_id;
 mod state;
 
 pub use config::{BridgeReleasesSpec, GatewayConfig, GatewayConfigSpec, QuotaFaultMode};
 pub use error::{GatewayProfileError, GatewayResult};
 pub use override_rule::{OverrideRuleAction, SystemPromptRule};
-pub use route::{
-    GatewayRoute, ResponseFormatKind, RouteMatch, RouteRequirements, slugify_pattern,
-    synthesize_route_id,
-};
+pub use route::{GatewayRoute, ResponseFormatKind, RouteMatch, RouteRequirements};
+pub use route_id::{slugify_pattern, synthesize_route_id};
 pub use state::GatewayState;

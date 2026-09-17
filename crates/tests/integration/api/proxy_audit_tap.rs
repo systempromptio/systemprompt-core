@@ -12,7 +12,7 @@ use uuid::Uuid;
 use wiremock::matchers::method;
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
-use super::common::{request_context, setup_ctx};
+use super::common::{assert_forwarded_with_execution_stamp, request_context, setup_ctx};
 
 async fn record_tool_call(
     response: reqwest::Response,
@@ -24,7 +24,7 @@ async fn record_tool_call(
     let invocation = parse_tool_call(request_body)
         .ok_or_else(|| "request body is not a tools/call".to_owned())?;
     let repo = tool_usage(pool).map_err(|e| e.to_string())?;
-    let audit = McpAudit::new(repo, context, server_name.to_owned(), invocation);
+    let audit = McpAudit::new(repo, None, context, server_name.to_owned(), invocation);
     tap::record(response, audit).await
 }
 
@@ -93,7 +93,7 @@ async fn json_response_is_forwarded_and_audited_as_success() -> anyhow::Result<(
         .map_err(anyhow::Error::msg)?;
     assert_eq!(out.status(), axum::http::StatusCode::OK);
     let bytes = to_bytes(out.into_body(), 1024 * 1024).await?;
-    assert_eq!(String::from_utf8_lossy(&bytes), upstream_body);
+    assert_forwarded_with_execution_stamp(&bytes, &upstream_body);
 
     let (status, error) = wait_for_execution_row(&pool, &tool)
         .await
@@ -161,9 +161,15 @@ async fn sse_response_is_forwarded_and_matched_frame_audited() -> anyhow::Result
         .map_err(anyhow::Error::msg)?;
     assert_eq!(out.status(), axum::http::StatusCode::OK);
     let bytes = to_bytes(out.into_body(), 1024 * 1024).await?;
+    let forwarded = String::from_utf8_lossy(&bytes);
+    let data = forwarded
+        .lines()
+        .find_map(|line| line.strip_prefix("data: "))
+        .expect("the SSE frame is forwarded with its data line");
+    assert_forwarded_with_execution_stamp(data.as_bytes(), &frame);
     assert!(
-        String::from_utf8_lossy(&bytes).contains(&frame),
-        "SSE body must be forwarded verbatim"
+        forwarded.starts_with("event: message\n") && forwarded.ends_with("\n\n"),
+        "SSE framing is preserved: {forwarded:?}"
     );
 
     let (_status, error) = wait_for_execution_row(&pool, &tool)

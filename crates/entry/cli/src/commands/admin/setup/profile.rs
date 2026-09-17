@@ -60,6 +60,7 @@ pub(super) fn build(params: &ProfileBuildParams<'_>) -> Result<Profile> {
 
     let profile = Profile {
         storage: systemprompt_models::profile::StorageConfig::default(),
+        observability: systemprompt_models::profile::ObservabilityConfig::default(),
         name: env_name.to_owned(),
         display_name: generate_display_name(env_name),
         target: ProfileType::Local,
@@ -92,6 +93,7 @@ pub(super) fn build(params: &ProfileBuildParams<'_>) -> Result<Profile> {
         }),
         extensions: ExtensionsConfig::default(),
         governance: Some(governance),
+        evaluation: systemprompt_models::profile::EvaluationProfile::default(),
         services: systemprompt_models::profile::ServicesProfileConfig {
             port_offset,
             ..Default::default()

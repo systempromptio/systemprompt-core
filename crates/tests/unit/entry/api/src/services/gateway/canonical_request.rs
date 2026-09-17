@@ -3,14 +3,14 @@
 
 use serde_json::json;
 use systemprompt_api::services::gateway::protocol::canonical::{
-    CanonicalContent, CanonicalMessage, CanonicalRequest, Role,
+    CanonicalContent, CanonicalMessage, CanonicalRequest, Role, SystemBlock,
 };
 use systemprompt_identifiers::ModelId;
 
 fn req_with(messages: Vec<CanonicalMessage>, system: Option<&str>) -> CanonicalRequest {
     CanonicalRequest {
         model: ModelId::new("m"),
-        system: system.map(str::to_owned),
+        system: system.map(SystemBlock::text).into_iter().collect(),
         messages,
         max_tokens: 10,
         temperature: None,
@@ -35,14 +35,14 @@ fn req_with(messages: Vec<CanonicalMessage>, system: Option<&str>) -> CanonicalR
 fn user(text: &str) -> CanonicalMessage {
     CanonicalMessage {
         role: Role::User,
-        content: vec![CanonicalContent::Text(text.into())],
+        content: vec![CanonicalContent::text(text)],
     }
 }
 
 fn assistant(text: &str) -> CanonicalMessage {
     CanonicalMessage {
         role: Role::Assistant,
-        content: vec![CanonicalContent::Text(text.into())],
+        content: vec![CanonicalContent::text(text)],
     }
 }
 
@@ -87,6 +87,7 @@ fn flatten_parts_renders_tool_use_as_bracketed() {
             name: "search".into(),
             input: json!({"q": "rust"}),
             signature: None,
+            cache_control: None,
         }],
     });
     let s = r
@@ -107,8 +108,8 @@ fn flatten_parts_skips_images() {
         vec![CanonicalMessage {
             role: Role::User,
             content: vec![
-                CanonicalContent::Text("look".into()),
-                CanonicalContent::Image(ImageSource::Url {
+                CanonicalContent::text("look"),
+                CanonicalContent::image(ImageSource::Url {
                     url: "https://x".into(),
                     detail: None,
                 }),

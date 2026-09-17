@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.55.0] - 2026-09-17
+
+### Added
+
+- Every `bridge.log` line starts with an RFC 3339 UTC timestamp (millisecond precision).
+- A partial sync (a host emitter failed, a plugin was malformed) still records `last-sync.json`: the plugins that landed, the delivered policy, `host_failures` and `malformed_plugins`. The replay checkpoint (`manifest_version`) is carried forward from the previous full sync, so the same manifest can be retried and an older one is still refused. `validate` reports such a record as `last sync: partial — N host(s) failed (…)` instead of `never`, and the automatic-update policy is delivered rather than withheld.
+- The tray's "Check for updates" answers: a failed check sets `UpdateUiState::Failed`, logs at `WARN`, writes the activity log, shows a notification with the gateway's reason and relabels the tray item "Update check failed — retry"; an up-to-date check notifies "You are on the latest version". A refused `/v1/bridge/latest` is `GatewayError::ReleaseRejected { status, body }` carrying the first 240 characters of the gateway's answer.
+
+### Fixed
+
+- macOS: the Claude Desktop Code tab refused to add any folder ("Your administrator has disabled adding folders") and so could not start a session. `allowedWorkspaceFolders` was rendered with `isDefaultSelected` as `<string>true</string>`; Claude Desktop types the field boolean, drops each malformed entry, and an empty resulting list blocks every folder. Every Mac since the key was first written on macOS (0.45.0) was affected; Cowork survived only because it falls back to its own directory prompt. Nested policy values are now native plist types (`<true/>`, `<integer>`), the top-level `disable*` keys stay string booleans. `validate` reports the entries Claude Desktop would drop and an empty resulting list as `policy workspace roots` failures, and `state`/the host profile print the real value of an array-of-objects key instead of an empty string.
+- Windows: a clean install run elevated no longer creates an empty `C:\Program Files\ClaudeCode\managed-settings.json` (the 0.51.0 `remove managed MCP policy: EOF while parsing a value at line 1 column 0` on every later sync). On Windows the machine policy file is adopted as the permissions carrier only when one already exists; otherwise `~/.claude/settings.json` is managed, the same file the unelevated tray manages. A read failure on the policy file names the path; `validate` reports an empty file as ok (`Claude Code reads it as {}`).
+- Login no longer queues two syncs three seconds apart: the start-up tick's sync is marked done at the moment the login handler requests one.
+- The registry backend logs `deleted managed policy values` only when a value was actually removed.
+- Linux `install --apply-schedule` no longer fails where `systemctl --user` has no user manager (a container, WSL): the units are written, the install reports the activation commands as a warning, and only an activation a live user manager refused is `InstallError::ScheduleActivation`. A caller's `set -e` no longer aborts on a degraded install.
+
+- Windows: `create_dir_all_mode_0700` on an already-private directory no longer rewrites its protected DACL. `protect_directory` verifies with `READ_CONTROL` first and only takes `WRITE_DAC` (serialised process-wide) when the descriptor is not the private one, so concurrent writers into a shared brand directory (`generate_profile` from several threads) no longer observe a transient `PermissionDenied` while a sibling re-propagates the DACL.
+
 ## [0.54.0] - 2026-09-16
 
 ### Breaking

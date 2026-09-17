@@ -31,7 +31,11 @@ pub fn parse(value: &Value) -> Result<CanonicalRequest, InboundParseError> {
         .and_then(Value::as_u64)
         .ok_or(InboundParseError::MissingField("max_tokens"))? as u32;
 
-    let system = value.get("system").map(parse_system).transpose()?.flatten();
+    let system = value
+        .get("system")
+        .map(parse_system)
+        .transpose()?
+        .unwrap_or_default();
 
     let messages = value
         .get("messages")

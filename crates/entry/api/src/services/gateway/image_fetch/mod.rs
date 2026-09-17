@@ -89,15 +89,22 @@ pub async fn inline_url_images(
     let mut count = 0usize;
     for message in &mut request.messages {
         for content in &mut message.content {
-            let CanonicalContent::Image(ImageSource::Url { url, detail }) = content else {
+            let CanonicalContent::Image {
+                source: ImageSource::Url { url, detail },
+                cache_control,
+            } = content
+            else {
                 continue;
             };
             let fetched = fetch(url, policy).await?;
-            *content = CanonicalContent::Image(ImageSource::Base64 {
-                media_type: fetched.media_type,
-                data: fetched.base64,
-                detail: *detail,
-            });
+            *content = CanonicalContent::Image {
+                source: ImageSource::Base64 {
+                    media_type: fetched.media_type,
+                    data: fetched.base64,
+                    detail: *detail,
+                },
+                cache_control: *cache_control,
+            };
             count += 1;
         }
     }

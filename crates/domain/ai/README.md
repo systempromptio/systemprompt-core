@@ -38,7 +38,7 @@ The AI module uses dependency injection for tool operations via the `ToolProvide
 
 ```toml
 [dependencies]
-systemprompt-ai = "0.54"
+systemprompt-ai = "0.55"
 ```
 
 ```rust
@@ -79,6 +79,8 @@ let response = ai_service.generate(&request).await?;
 ## Database
 
 Tables: `ai_requests`, `ai_request_messages`, `ai_request_tool_calls`, `ai_request_payloads`, `ai_quota_buckets`, `ai_gateway_policies`, `ai_safety_findings`.
+
+`ai_request_payloads` keeps three views of one request: the body the client sent (`request_body`, `offered_tools`, `request_body_sha256`), the body the gateway forwarded (`prepared_body_sha256`, `prepared_tools` — the exact `tools` array in the provider's wire shape), and the response (`response_body`, `response_body_sha256`). A body over the profile's `governance.audit.payload_cap_bytes` (default 1 MiB) stores `NULL` for the JSON, a head+tail excerpt and the truncation flag; the digest always covers the full bytes.
 
 ## License
 

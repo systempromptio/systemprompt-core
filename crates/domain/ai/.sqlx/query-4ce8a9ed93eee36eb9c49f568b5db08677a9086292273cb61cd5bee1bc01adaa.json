@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT prepared_body_sha256, prepared_tools\n            FROM ai_request_payloads\n            WHERE ai_request_id = $1\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "prepared_body_sha256",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "ai_request_payloads",
+            "name": "prepared_body_sha256"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "prepared_tools",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "ai_request_payloads",
+            "name": "prepared_tools"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      true,
+      true
+    ]
+  },
+  "hash": "4ce8a9ed93eee36eb9c49f568b5db08677a9086292273cb61cd5bee1bc01adaa"
+}

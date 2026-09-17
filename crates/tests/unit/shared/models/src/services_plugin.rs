@@ -225,7 +225,7 @@ fn mcp_server_summary_serde_round_trip() {
         display_name: "Filesystem".to_owned(),
         server_type: "internal".to_owned(),
         enabled: true,
-        port: 5050,
+        port: Some(5050),
         status: Some("running".to_owned()),
         endpoint: None,
         binary_debug: None,
@@ -239,7 +239,7 @@ fn mcp_server_summary_serde_round_trip() {
     assert!(!json.contains("binary_debug"));
     let parsed: McpServerSummary = serde_json::from_str(&json).unwrap();
     assert_eq!(parsed.name, "fs");
-    assert_eq!(parsed.port, 5050);
+    assert_eq!(parsed.port, Some(5050));
 }
 
 #[test]
@@ -296,5 +296,23 @@ fn plugin_hooks_ref_declaring_only_comms_is_still_empty() {
 fn plugin_hooks_ref_pairing_comms_with_governance_is_not_empty() {
     let parsed: PluginHooksRef = serde_yaml::from_str("governance: true\ncomms: true").unwrap();
     assert!(parsed.comms);
+    assert!(!parsed.is_empty());
+}
+
+// Evaluation is a server-side switch: it installs no client hook, so on its
+// own it declares nothing for the bridge to build.
+#[test]
+fn plugin_hooks_ref_declaring_only_evaluation_is_still_empty() {
+    let parsed: PluginHooksRef = serde_yaml::from_str("evaluation: true").unwrap();
+    assert!(parsed.evaluation);
+    assert!(!parsed.governance);
+    assert!(parsed.is_empty());
+}
+
+#[test]
+fn plugin_hooks_ref_pairing_evaluation_with_governance_parses() {
+    let parsed: PluginHooksRef =
+        serde_yaml::from_str("governance: true\nevaluation: true").unwrap();
+    assert!(parsed.evaluation);
     assert!(!parsed.is_empty());
 }

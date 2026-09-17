@@ -88,9 +88,15 @@ fn check_last_sync(report: &mut Report, meta: &std::path::Path) {
         return;
     }
     match std::fs::read_to_string(&last_sync) {
+        Ok(s) if is_partial_last_sync(&s) => report.warn("last sync", &summarise_last_sync(&s)),
         Ok(s) => report.ok("last sync", &summarise_last_sync(&s)),
         Err(e) => report.warn("last sync", &format!("unreadable: {e}")),
     }
+}
+
+fn is_partial_last_sync(raw: &str) -> bool {
+    serde_json::from_str::<crate::last_sync::LastSyncState>(raw)
+        .is_ok_and(|record| record.is_partial())
 }
 
 async fn check_gateway(report: &mut Report, http: &reqwest::Client) {

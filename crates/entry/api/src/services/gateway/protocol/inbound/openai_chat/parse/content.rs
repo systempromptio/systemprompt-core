@@ -14,7 +14,7 @@ use super::super::super::super::canonical::{
 
 pub(super) fn parse_user_content(value: Option<&Value>) -> Vec<CanonicalContent> {
     match value {
-        Some(Value::String(s)) => vec![CanonicalContent::Text(s.clone())],
+        Some(Value::String(s)) => vec![CanonicalContent::text(s.clone())],
         Some(Value::Array(parts)) => parts.iter().filter_map(parse_user_part).collect(),
         _ => Vec::new(),
     }
@@ -25,7 +25,7 @@ fn parse_user_part(part: &Value) -> Option<CanonicalContent> {
         "text" => part
             .get("text")
             .and_then(Value::as_str)
-            .map(|t| CanonicalContent::Text(t.to_owned())),
+            .map(CanonicalContent::text),
         "image_url" => {
             let image = part.get("image_url")?;
             let url = image.get("url").and_then(Value::as_str)?.to_owned();
@@ -33,7 +33,7 @@ fn parse_user_part(part: &Value) -> Option<CanonicalContent> {
                 .get("detail")
                 .and_then(Value::as_str)
                 .and_then(parse_image_detail);
-            Some(CanonicalContent::Image(parse_image_source(url, detail)))
+            Some(CanonicalContent::image(parse_image_source(url, detail)))
         },
         _ => None,
     }
@@ -65,7 +65,7 @@ pub(super) fn parse_assistant_message(msg: &Value) -> CanonicalMessage {
     let mut content: Vec<CanonicalContent> = Vec::new();
     let text = flatten_content_text(msg.get("content"));
     if !text.is_empty() {
-        content.push(CanonicalContent::Text(text));
+        content.push(CanonicalContent::text(text));
     }
     if let Some(calls) = msg.get("tool_calls").and_then(Value::as_array) {
         for call in calls {
@@ -93,6 +93,7 @@ pub(super) fn parse_assistant_message(msg: &Value) -> CanonicalMessage {
                 name,
                 input,
                 signature: None,
+                cache_control: None,
             });
         }
     }

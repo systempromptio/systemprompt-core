@@ -115,4 +115,24 @@ impl AiRequestRepository {
         .await
         .map_err(RepositoryError::from)
     }
+
+    pub async fn find_tool_call_by_ai_id(
+        &self,
+        ai_tool_call_id: &AiToolCallId,
+    ) -> Result<Option<AiRequestToolCall>, RepositoryError> {
+        sqlx::query_as!(
+            AiRequestToolCall,
+            r#"
+            SELECT id, request_id as "request_id!: AiRequestId", tool_name, tool_input, mcp_execution_id as "mcp_execution_id: McpExecutionId", sequence_number, ai_tool_call_id as "ai_tool_call_id: AiToolCallId", created_at, updated_at
+            FROM ai_request_tool_calls
+            WHERE ai_tool_call_id = $1
+            ORDER BY created_at DESC
+            LIMIT 1
+            "#,
+            ai_tool_call_id.as_str()
+        )
+        .fetch_optional(self.pool())
+        .await
+        .map_err(RepositoryError::from)
+    }
 }

@@ -47,9 +47,9 @@ fn services_config_with_server(name: &str) -> ServicesConfig {
         systemprompt_models::mcp::Deployment {
             connector: None,
             server_type: systemprompt_models::mcp::McpServerType::Internal,
-            binary: "test-bin".to_owned(),
+            binary: Some("test-bin".to_owned()),
             package: None,
-            port: 5001,
+            port: Some(5001),
             endpoint: None,
             enabled: true,
             display_in_web: false,

@@ -17,10 +17,20 @@ pub enum DbCommands {
     },
     #[command(about = "Execute write operation (INSERT, UPDATE, DELETE)")]
     Execute { sql: String },
-    #[command(about = "List all tables with row counts and sizes")]
+    #[command(
+        about = "List all tables with row counts and sizes",
+        long_about = "List all tables. Row counts come from the planner statistics \
+                      (pg_stat_user_tables) and can lag or read zero on a table that \
+                      was never analysed; pass --exact to COUNT(*) every table instead."
+    )]
     Tables {
         #[arg(long, help = "Filter tables by pattern")]
         filter: Option<String>,
+        #[arg(
+            long,
+            help = "COUNT(*) each table instead of reading the statistics estimate"
+        )]
+        exact: bool,
     },
     #[command(about = "Describe table schema with columns and indexes")]
     Describe { table_name: String },

@@ -181,7 +181,7 @@ pub fn parse_response(
                         relevance: None,
                     });
                 }
-                content.push(CanonicalContent::Text(text));
+                content.push(CanonicalContent::text(text));
             },
             other => {
                 if let Some(part) = canonical_block(other) {
@@ -217,7 +217,7 @@ pub fn parse_response(
 
 fn canonical_block(block: AnthropicBlock) -> Option<CanonicalContent> {
     match block {
-        AnthropicBlock::Text { text, .. } => Some(CanonicalContent::Text(text)),
+        AnthropicBlock::Text { text, .. } => Some(CanonicalContent::text(text)),
         AnthropicBlock::Thinking {
             thinking,
             signature,
@@ -237,6 +237,7 @@ fn canonical_block(block: AnthropicBlock) -> Option<CanonicalContent> {
             name,
             input,
             signature,
+            cache_control: None,
         }),
         AnthropicBlock::Image { source } => canonical_image(source),
         AnthropicBlock::WebSearchToolResult { .. } | AnthropicBlock::Unknown => None,
@@ -246,13 +247,13 @@ fn canonical_block(block: AnthropicBlock) -> Option<CanonicalContent> {
 fn canonical_image(source: AnthropicImageSource) -> Option<CanonicalContent> {
     match source {
         AnthropicImageSource::Base64 { media_type, data } => {
-            Some(CanonicalContent::Image(ImageSource::Base64 {
+            Some(CanonicalContent::image(ImageSource::Base64 {
                 media_type: media_type.unwrap_or_else(|| "image/png".to_owned()),
                 data,
                 detail: None,
             }))
         },
-        AnthropicImageSource::Url { url } => Some(CanonicalContent::Image(ImageSource::Url {
+        AnthropicImageSource::Url { url } => Some(CanonicalContent::image(ImageSource::Url {
             url,
             detail: None,
         })),

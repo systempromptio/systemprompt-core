@@ -17,10 +17,10 @@ fn internal_server(name: &str, port: u16) -> McpServerConfig {
         name: name.to_owned(),
         owner: fixture_user_id(),
         server_type: McpServerType::Internal,
-        binary: format!("{name}-bin"),
+        binary: Some(format!("{name}-bin")),
         enabled: true,
         display_in_web: true,
-        port,
+        port: Some(port),
         // The crate path must exist or the field checks short-circuit before
         // display_name/description are ever looked at.
         crate_path: PathBuf::from("."),
@@ -51,7 +51,8 @@ fn internal_server(name: &str, port: u16) -> McpServerConfig {
 fn external_server(name: &str, endpoint: &str) -> McpServerConfig {
     let mut server = internal_server(name, 0);
     server.server_type = McpServerType::External;
-    server.binary = String::new();
+    server.binary = None;
+    server.port = None;
     server.remote_endpoint = endpoint.to_owned();
     server
 }
@@ -172,7 +173,7 @@ fn oauth_with_scopes_is_accepted() {
 #[test]
 fn an_internal_server_without_a_binary_is_rejected() {
     let mut server = internal_server("alpha", 5101);
-    server.binary = String::new();
+    server.binary = None;
 
     let err = validate_registry(&registry(vec![server]))
         .expect_err("an internal server must be runnable");
@@ -191,12 +192,13 @@ fn an_external_server_without_an_endpoint_is_rejected() {
 #[test]
 fn an_external_server_carrying_a_binary_is_rejected() {
     let mut server = external_server("gamma", "https://example.invalid/mcp");
-    server.binary = "gamma-bin".to_owned();
+    server.binary = Some("gamma-bin".to_owned());
 
     let err = validate_registry(&registry(vec![server]))
         .expect_err("an external server has no local process to run");
     assert!(
-        err.to_string().contains("should not have a binary"),
+        err.to_string()
+            .contains("must not declare a binary or a port"),
         "got: {err}"
     );
 }
@@ -205,11 +207,25 @@ fn an_external_server_carrying_a_binary_is_rejected() {
 fn disabled_servers_are_exempt_from_every_field_check() {
     let mut broken = internal_server("broken", 80);
     broken.enabled = false;
-    broken.binary = String::new();
+    broken.binary = None;
     broken.display_name = String::new();
     broken.description = String::new();
     broken.crate_path = PathBuf::from("/nonexistent");
 
     validate_registry(&registry(vec![broken]))
         .expect("a disabled server is never brought up, so it is never validated");
+}
+
+#[test]
+fn an_external_server_carrying_a_port_is_rejected() {
+    let mut server = external_server("gamma", "https://example.invalid/mcp");
+    server.port = Some(5046);
+
+    let err = validate_registry(&registry(vec![server]))
+        .expect_err("an external server binds no local port");
+    assert!(
+        err.to_string()
+            .contains("must not declare a binary or a port"),
+        "got: {err}"
+    );
 }

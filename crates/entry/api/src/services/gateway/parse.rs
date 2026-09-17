@@ -34,7 +34,7 @@ pub fn extract_from_canonical(
 pub fn extract_assistant_text(response: &CanonicalResponse) -> Option<String> {
     let mut out = String::new();
     for part in &response.content {
-        if let CanonicalContent::Text(t) = part {
+        if let CanonicalContent::Text { text: t, .. } = part {
             if !out.is_empty() {
                 out.push('\n');
             }

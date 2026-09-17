@@ -11,7 +11,9 @@ use clap::Args;
 use super::types::{AgentToolsOutput, AgentToolsSummary, UnavailableServer};
 use crate::CliConfig;
 use crate::commands::plugins::mcp::types::McpToolEntry;
-use crate::commands::shared::mcp_tools::{list_tools_authenticated, list_tools_unauthenticated};
+use crate::commands::shared::mcp_tools::{
+    direct_url, list_tools_authenticated, list_tools_unauthenticated,
+};
 use crate::context::CommandContext;
 use crate::interactive::Prompter;
 use crate::session::get_or_create_session;
@@ -181,11 +183,13 @@ async fn collect_tools(configured_servers: &[String], query: &ToolQuery<'_>) -> 
         let server_config = query.services_config.mcp_servers.get(server_name);
         let requires_auth = server_config.is_some_and(|c| c.oauth.required);
 
-        let tools_result = if requires_auth {
-            list_tools_authenticated(server_name, server.port, query.session_token, query.timeout)
-                .await
-        } else {
-            list_tools_unauthenticated(server_name, server.port, query.timeout).await
+        let tools_result = match direct_url(server) {
+            Ok(url) if requires_auth => {
+                list_tools_authenticated(server_name, &url, query.session_token, query.timeout)
+                    .await
+            },
+            Ok(url) => list_tools_unauthenticated(server_name, &url, query.timeout).await,
+            Err(e) => Err(e),
         };
 
         match tools_result {

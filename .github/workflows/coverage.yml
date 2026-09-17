@@ -138,18 +138,18 @@ jobs:
             crates/tests
       - uses: taiki-e/install-action@nextest
 
-      - name: Migrate coverage test database
+      - name: Build the test-database migrate tool
         env:
-          DATABASE_URL: postgres://test:test@localhost:5432/test
           # Build the migrate tool against the committed .sqlx cache: the schema
           # it is about to create does not exist yet, so live query verification
           # of its core-crate dependencies would fail on a cold build cache.
           SQLX_OFFLINE: "true"
         run: |
-          cargo run \
+          cargo build \
             --manifest-path crates/tests/Cargo.toml \
             -p systemprompt-test-migrate \
             --release
+          test -x /mnt/coverage-target/release/systemprompt-test-migrate
 
       - name: Build instrumented systemprompt binary
         env:
@@ -178,10 +178,26 @@ jobs:
           # step, so its counters land in the shared profraw directory.
           cargo build --manifest-path bin/bridge/Cargo.toml --bin systemprompt-bridge
 
+      # One fresh, freshly-migrated database per shard, exactly as ci.yml's
+      # shard matrix and `just test-shard` run them. This job used to run the
+      # whole test workspace against one database, and that was not a
+      # measurement: a user-privacy mutation first delivers the global pending
+      # reporting backlog, bounded at 10 000 rows (reporting_privacy.sql, a
+      # deliberate fail-closed limit), so after ~20k tests on one database the
+      # backlog exceeded the bound and every later user mutation was refused
+      # with `Reporting privacy change bound exceeded` (54000) — 24 red tests
+      # on every 0.53.0 and 0.54.0 SHA, none of them a defect in the code. The
+      # shard set is the measured set: it is what CI runs, with `--bins --tests`
+      # passed through so the integration binaries stay in the denominator.
+      # Continuous-mode profraws (%m%c) merge across nextest invocations, one
+      # file per binary regardless of how many shards produce it.
       - name: Run instrumented tests (RUSTFLAGS so path deps get instrumented)
         id: tests
         env:
-          DATABASE_URL: postgres://test:test@localhost:5432/test
+          PGPASSWORD: test
+          ADMIN_URL: postgres://test:test@localhost:5432/postgres
+          BASE_URL: postgres://test:test@localhost:5432
+          NEXTEST_PROFILE: coverage
           # Continuous mode: %c makes every process for a given binary mmap and
           # merge into ONE file keyed by %m (the binary signature), instead of
           # %p writing a fresh full-counter dump per process. The prior %p-%m
@@ -223,36 +239,63 @@ jobs:
           ' &
           WATCHDOG=$!
 
-          set +e
           # nextest runs each test in its own process; continuous mode (%c)
           # lets those processes share one mmap'd profile per binary instead of
           # each dumping a full-counter file.
-          cargo nextest run --profile coverage \
-            --manifest-path crates/tests/Cargo.toml \
-            --workspace --lib --bins --tests --no-fail-fast
-          status=$?
-          set -e
+          failed=()
+          for group in $(bash scripts/test-shard.sh --list); do
+            db="cov_${group//-/_}"
+            echo "::group::shard $group ($db)"
+            psql "$ADMIN_URL" -v ON_ERROR_STOP=1 \
+              -c "DROP DATABASE IF EXISTS \"$db\" WITH (FORCE);" \
+              -c "CREATE DATABASE \"$db\";"
+            DATABASE_URL="$BASE_URL/$db" /mnt/coverage-target/release/systemprompt-test-migrate
+            # The database dies with the runner, so durability buys nothing.
+            psql "$BASE_URL/$db" -c "ALTER DATABASE \"$db\" SET synchronous_commit = off;"
+            set +e
+            DATABASE_URL="$BASE_URL/$db" \
+              bash scripts/test-shard.sh "$group" --bins --tests --no-fail-fast
+            shard_status=$?
+            set -e
+            echo "::endgroup::"
+            if [ "$shard_status" -ne 0 ] && [ "$shard_status" -ne 100 ]; then
+              echo "::error::shard $group did not run to completion (nextest exit $shard_status)"
+              failed+=("$group!$shard_status")
+            elif [ "$shard_status" -eq 100 ]; then
+              echo "::error::shard $group has failing tests"
+              failed+=("$group")
+            fi
+            if [ -f /mnt/tmp/watchdog.log ]; then
+              break
+            fi
+          done
           kill "$WATCHDOG" 2>/dev/null || true
 
           echo "profraw count: $(find /mnt/profraw -name '*.profraw' | wc -l)"
           df -h / /mnt
 
           # Downstream render/ratchet/upload steps key off this, not on always():
-          # nextest exits 100 when tests ran and some failed (the counters are
-          # still complete enough to report) but 101 when the workspace failed to
-          # compile, in which case no instrumented binary ever ran and llvm-cov
-          # renders a spurious 0.00% that Codecov records as the branch number.
-          instrumented=false
-          if { [ "$status" -eq 0 ] || [ "$status" -eq 100 ]; } \
-             && [ ! -f /mnt/tmp/watchdog.log ]; then
-            instrumented=true
+          # a shard exits 100 when tests ran and some failed (the counters are
+          # still complete enough to report) but 101 when it failed to compile,
+          # in which case that shard's instrumented binaries never ran and
+          # llvm-cov would render a number missing a whole layer. Every shard
+          # must have run for the number to be a measurement.
+          instrumented=true
+          for entry in "${failed[@]}"; do
+            case "$entry" in *!*) instrumented=false ;; esac
+          done
+          if [ -f /mnt/tmp/watchdog.log ]; then
+            instrumented=false
           fi
           echo "instrumented=$instrumented" >> "$GITHUB_OUTPUT"
 
           if [ -f /mnt/tmp/watchdog.log ]; then
             echo "=== watchdog tripped ==="; cat /mnt/tmp/watchdog.log; exit 1
           fi
-          exit $status
+          if [ "${#failed[@]}" -ne 0 ]; then
+            echo "failed shards: ${failed[*]}"
+            exit 1
+          fi
 
       # --ignore-filename-regex below excludes sixteen process-entry files.
       # Twelve CLI ones (serve, deploy orchestrator/artifacts, tenant create

@@ -6,6 +6,7 @@
 
 use systemprompt_identifiers::{AiToolCallId, ContextId, McpExecutionId};
 use systemprompt_mcp::repository::ToolUsageRepository;
+use systemprompt_models::mcp::ExecutionSource;
 use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
 use systemprompt_traits::ToolExecutionLookup;
 
@@ -71,6 +72,7 @@ async fn execution_exists_answers_through_the_shared_lookup_seam() {
         request_method: Some("mcp".to_owned()),
         request_source: Some(server_name.clone()),
         ai_tool_call_id: None,
+        source: ExecutionSource::InProcess,
     };
     let result = ToolExecutionResult {
         output: Some(json!({"ok": true})),
@@ -121,9 +123,17 @@ async fn start_and_complete_execution_roundtrip() {
         request_method: Some("mcp".to_owned()),
         request_source: Some("srv-x".to_owned()),
         ai_tool_call_id: None,
+        source: ExecutionSource::InProcess,
     };
 
-    let exec_id = repo.start_execution(&request).await.unwrap();
+    let exec_id = McpExecutionId::new(uuid::Uuid::new_v4().to_string());
+    repo.start_execution(
+        &exec_id,
+        &request,
+        systemprompt_models::mcp::Correlation::Exact,
+    )
+    .await
+    .unwrap();
 
     let fetched = repo
         .find_by_id(&exec_id)
@@ -194,6 +204,7 @@ async fn log_execution_sync_writes_row() {
         request_method: Some("mcp".to_owned()),
         request_source: Some("sync-srv".to_owned()),
         ai_tool_call_id: None,
+        source: ExecutionSource::InProcess,
     };
     let result = ToolExecutionResult {
         output: None,

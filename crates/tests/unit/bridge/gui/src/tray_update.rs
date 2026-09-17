@@ -32,3 +32,25 @@ fn download_progress_disables_the_tray_action() {
     assert_eq!(label, "Downloading v0.52.0… 37%");
     assert!(!enabled);
 }
+
+#[test]
+fn a_failed_check_offers_a_retry_from_the_tray() {
+    let (label, enabled, event) = update_menu(&UpdateUiState::Failed {
+        message: "gateway returned status 503 from bridge-latest".to_owned(),
+    });
+    assert_eq!(label, "Update check failed — retry");
+    assert!(enabled, "a failed check must stay clickable");
+    assert!(matches!(
+        event,
+        UiEvent::UpdateCheckRequested { reply_to: None }
+    ));
+}
+
+#[test]
+fn an_unknown_or_current_state_offers_a_plain_check() {
+    for state in [UpdateUiState::Unknown, UpdateUiState::Current] {
+        let (label, enabled, _) = update_menu(&state);
+        assert_eq!(label, "Check for updates");
+        assert!(enabled);
+    }
+}

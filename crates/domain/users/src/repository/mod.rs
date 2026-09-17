@@ -25,7 +25,7 @@ pub use banned_ip::{
 pub use device_cert::EnrollDeviceCertParams;
 pub use rate_limit_bucket::UserRateLimitBucketRepository;
 pub use role_directory::UsersRoleDirectory;
-pub use user::{MERGE_EXCLUDED_SECURITY_TABLES, MergeResult, UpdateUserParams};
+pub use user::{MERGE_EXCLUDED_SECURITY_TABLES, MergeResult, PurgeCount, UpdateUserParams};
 
 use crate::error::Result;
 use sqlx::PgPool;

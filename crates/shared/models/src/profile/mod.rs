@@ -14,9 +14,11 @@
 mod cloud;
 mod database;
 mod error;
+mod evaluation;
 mod from_env;
 mod governance;
 mod info;
+mod observability;
 mod oci_reference;
 mod paths;
 mod rate_limits;
@@ -34,10 +36,13 @@ mod vault;
 pub use cloud::{CloudConfig, CloudValidationMode};
 pub use database::{DatabaseConfig, PoolConfig};
 pub use error::{ProfileError, ProfileResult};
+pub use evaluation::EvaluationProfile;
 pub use governance::{
-    AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig, UNRESTRICTED_ACKNOWLEDGEMENT,
+    AuditConfig, AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig,
+    UNRESTRICTED_ACKNOWLEDGEMENT,
 };
 pub use info::ProfileInfo;
+pub use observability::{ObservabilityConfig, OtlpExportConfig, OtlpProtocol, OtlpSignal};
 pub use oci_reference::{OciReference, OciReferenceError};
 pub use paths::{PathsConfig, expand_home, resolve_path, resolve_with_home};
 pub use rate_limits::{
@@ -144,10 +149,16 @@ pub struct Profile {
     pub governance: Option<GovernanceConfig>,
 
     #[serde(default)]
+    pub evaluation: EvaluationProfile,
+
+    #[serde(default)]
     pub services: ServicesProfileConfig,
 
     #[serde(default)]
     pub storage: StorageConfig,
+
+    #[serde(default)]
+    pub observability: ObservabilityConfig,
 }
 
 const MOVED_SECTIONS: &[(&str, &str)] = &[
@@ -218,6 +229,14 @@ impl Profile {
 
     pub fn to_yaml(&self) -> ProfileResult<String> {
         serde_yaml::to_string(self).map_err(ProfileError::SerializeYaml)
+    }
+
+    pub fn payload_cap_bytes(&self) -> usize {
+        self.governance
+            .as_ref()
+            .map_or(AuditConfig::DEFAULT_PAYLOAD_CAP_BYTES, |governance| {
+                governance.audit.payload_cap_bytes
+            })
     }
 
     pub fn profile_style(&self) -> ProfileStyle {

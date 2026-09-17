@@ -3,7 +3,8 @@
 use serde_json::{Value, json};
 use systemprompt_models::services::ai::ModelLimits;
 use systemprompt_models::wire::canonical::{
-    CanonicalContent, CanonicalMessage, CanonicalToolChoice, ReasoningEffort, ResponseFormat, Role,
+    CacheControl, CanonicalContent, CanonicalMessage, CanonicalToolChoice, ReasoningEffort,
+    ResponseFormat, Role, SystemBlock,
 };
 use systemprompt_models::wire::openai_chat;
 
@@ -12,10 +13,11 @@ use super::{base_request, image_url, plain_tool};
 fn tool_result(id: &str, text: &str) -> CanonicalContent {
     CanonicalContent::ToolResult {
         tool_use_id: id.to_owned(),
-        content: vec![CanonicalContent::Text(text.to_owned())],
+        content: vec![CanonicalContent::text(text.to_owned())],
         is_error: false,
         structured_content: None,
         meta: None,
+        cache_control: None,
     }
 }
 
@@ -27,6 +29,7 @@ fn assistant_tool_call(id: &str) -> CanonicalMessage {
             name: "lookup".to_owned(),
             input: json!({"q": "rust"}),
             signature: None,
+            cache_control: None,
         }],
     }
 }
@@ -92,7 +95,7 @@ fn openai_chat_keeps_caller_budget_when_no_model_limit() {
 #[test]
 fn openai_chat_prepends_system_message() {
     let mut req = base_request();
-    req.system = Some("be terse".to_owned());
+    req.system = vec![SystemBlock::text("be terse".to_owned())];
     let body = openai_chat::build_request_body(&req, "upstream", None);
     assert_eq!(body["messages"][0]["role"], "system");
     assert_eq!(body["messages"][0]["content"], "be terse");
@@ -139,7 +142,7 @@ fn openai_chat_renders_image_url_parts() {
     req.messages = vec![CanonicalMessage {
         role: Role::User,
         content: vec![
-            CanonicalContent::Text("look".to_owned()),
+            CanonicalContent::text("look".to_owned()),
             image_url("https://example.com/cat.png"),
         ],
     }];
@@ -240,7 +243,7 @@ fn openai_chat_tool_results_precede_trailing_user_text() {
         role: Role::User,
         content: vec![
             tool_result("call_A", "a"),
-            CanonicalContent::Text("and now this".to_owned()),
+            CanonicalContent::text("and now this".to_owned()),
         ],
     }];
     let body = openai_chat::build_request_body(&req, "upstream", None);
@@ -257,7 +260,7 @@ fn openai_chat_plain_user_text_still_collapses_to_string() {
     let mut req = base_request();
     req.messages = vec![CanonicalMessage {
         role: Role::User,
-        content: vec![CanonicalContent::Text("just text".to_owned())],
+        content: vec![CanonicalContent::text("just text".to_owned())],
     }];
     let body = openai_chat::build_request_body(&req, "upstream", None);
     let messages = body["messages"].as_array().expect("messages");
@@ -737,7 +740,7 @@ fn parse_response_survives_explicit_nulls() {
         .content
         .iter()
         .filter_map(|c| match c {
-            CanonicalContent::Text(text) => Some(text.as_str()),
+            CanonicalContent::Text { text, .. } => Some(text.as_str()),
             _ => None,
         })
         .collect();
@@ -815,5 +818,24 @@ fn openai_chat_zero_thinking_budget_is_not_a_reasoning_model() {
         body["max_completion_tokens"],
         json!(32),
         "a zero budget means the model does not spend completion tokens on thought"
+    );
+}
+
+#[test]
+fn cache_control_is_ignored_off_the_anthropic_wire() {
+    let mut req = base_request();
+    req.system = vec![SystemBlock {
+        text: "be terse".to_owned(),
+        cache_control: Some(CacheControl::EPHEMERAL),
+    }];
+    req.messages[0].content = vec![CanonicalContent::Text {
+        text: "hi".to_owned(),
+        cache_control: Some(CacheControl::EPHEMERAL),
+    }];
+    let body = openai_chat::build_request_body(&req, "upstream", None);
+    assert_eq!(body["messages"][0]["content"], "be terse");
+    assert!(
+        !body.to_string().contains("cache_control"),
+        "a wire without prompt caching must not leak the Anthropic breakpoint: {body}"
     );
 }

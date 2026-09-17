@@ -84,7 +84,13 @@ impl ProxyEngine {
             .map_err(|source| ProxyError::BodyExtractionFailed { source })?;
 
         super::external_governance::enforce(&ctx, &req_ctx, service_name, &body).await?;
-        let audit = build_audit(self.tool_usage_repo.as_ref(), &req_ctx, service_name, &body);
+        let audit = build_audit(
+            self.tool_usage_repo.as_ref(),
+            self.artifact_ingest.as_ref(),
+            &req_ctx,
+            service_name,
+            &body,
+        );
         let outbound = outbound_headers(&incoming_headers, target.headers);
 
         let method = RequestBuilder::parse_method(&method_str)
@@ -135,6 +141,7 @@ pub fn outbound_headers<S: std::hash::BuildHasher>(
 
 fn build_audit(
     repo: Option<&std::sync::Arc<ToolUsageRepository>>,
+    ingest: Option<&std::sync::Arc<systemprompt_mcp::ArtifactIngest>>,
     req_ctx: &RequestContext,
     service_name: &str,
     body: &[u8],
@@ -146,6 +153,7 @@ fn build_audit(
     };
     Some(McpAudit::new(
         std::sync::Arc::clone(repo),
+        ingest.map(std::sync::Arc::clone),
         req_ctx.clone(),
         service_name.to_owned(),
         invocation,

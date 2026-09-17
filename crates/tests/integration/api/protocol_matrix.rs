@@ -7,7 +7,8 @@ use bytes::Bytes;
 use futures::StreamExt;
 use systemprompt_api::services::gateway::protocol::{
     CanonicalContent, CanonicalEvent, CanonicalRequest, CanonicalStopReason, ContentBlockKind,
-    Role, anthropic_messages, openai_responses as openai_responses_in, outbound_anthropic,
+    Role, SystemBlock, anthropic_messages, openai_responses as openai_responses_in,
+    outbound_anthropic,
 };
 use systemprompt_identifiers::ModelId;
 
@@ -48,7 +49,7 @@ fn anthropic_messages_parses_system_prompt_and_temperature() {
         "messages": [{"role": "user", "content": "ping"}]
     });
     let req = anthropic_messages::parse::parse(&body).expect("parse");
-    assert_eq!(req.system.as_deref(), Some("You are helpful"));
+    assert_eq!(req.system_text().as_deref(), Some("You are helpful"));
     assert!((req.temperature.unwrap() - 0.7).abs() < 1e-5);
 }
 
@@ -72,11 +73,11 @@ fn openai_responses_parses_minimal_request() {
 fn fixture_request(model: &str, stream: bool) -> CanonicalRequest {
     CanonicalRequest {
         model: ModelId::new(model),
-        system: Some("be brief".to_owned()),
+        system: vec![SystemBlock::text("be brief".to_owned())],
         messages: vec![
             systemprompt_api::services::gateway::protocol::CanonicalMessage {
                 role: Role::User,
-                content: vec![CanonicalContent::Text("hello".to_owned())],
+                content: vec![CanonicalContent::text("hello".to_owned())],
             },
         ],
         max_tokens: 256,
@@ -156,7 +157,7 @@ fn anthropic_response_parser_extracts_text_and_usage() {
     ));
     assert!(matches!(
         canon.content.first(),
-        Some(CanonicalContent::Text(t)) if t == "ok"
+        Some(CanonicalContent::Text { text: t, .. }) if t == "ok"
     ));
 }
 
@@ -189,7 +190,7 @@ fn openai_chat_response_parser_extracts_choice_content() {
         canon
             .content
             .iter()
-            .any(|p| matches!(p, CanonicalContent::Text(t) if t == "answer"))
+            .any(|p| matches!(p, CanonicalContent::Text { text: t, .. } if t == "answer"))
     );
     assert_eq!(canon.usage.input_tokens, 5);
     assert_eq!(canon.usage.output_tokens, 7);
@@ -214,7 +215,7 @@ fn openai_responses_object_parser_extracts_output_text() {
         canon
             .content
             .iter()
-            .any(|p| matches!(p, CanonicalContent::Text(t) if t.contains("hello")))
+            .any(|p| matches!(p, CanonicalContent::Text { text: t, .. } if t.contains("hello")))
     );
 }
 
@@ -356,7 +357,7 @@ fn anthropic_render_response_value_emits_id_model_content() {
     let canon = systemprompt_api::services::gateway::protocol::CanonicalResponse {
         id: "msg_render_1".to_owned(),
         model: "claude-3-5".to_owned(),
-        content: vec![CanonicalContent::Text("done".to_owned())],
+        content: vec![CanonicalContent::text("done".to_owned())],
         stop_reason: Some(CanonicalStopReason::EndTurn),
         usage: systemprompt_api::services::gateway::protocol::CanonicalUsage {
             input_tokens: 1,

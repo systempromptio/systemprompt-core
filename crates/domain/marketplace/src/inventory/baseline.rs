@@ -6,16 +6,16 @@
 
 use super::captures::IncomingRevision;
 use super::catalog::invalid;
+use super::configured_files::configured_files;
 use super::{BaselineScope, InventoryEntry, InventoryService};
 use crate::managed::{
-    AssetDigest, AssetFile, ManagedError, NewResource, NewRevision, ResourceKind, Result,
-    RevisionFiles, SnapshotProvenance, SourceSpec, capture_inventory_files,
+    AssetDigest, NewResource, NewRevision, ResourceKind, Result, RevisionFiles, SnapshotProvenance,
+    SourceSpec,
 };
 use std::collections::BTreeMap;
 use std::path::Path;
 use systemprompt_identifiers::{ManagedReconciliationId, ResourceRevisionId, UserId};
 use systemprompt_models::feedback::inventory::InventoryAvailability;
-use systemprompt_models::services::ServicesConfig;
 
 struct AuthoringCapture {
     files: RevisionFiles,
@@ -49,7 +49,7 @@ impl InventoryService {
         }
         let canonical = std::fs::canonicalize(scope.root)?;
         if let Some(SourceSpec::LocalTree { root: bound }) = source_spec
-            && std::fs::canonicalize(bound)? != canonical
+            && !binding_names_active_root(Path::new(&bound), scope.root, &canonical)
         {
             return Err(invalid(
                 "Configured source binding does not match the active services root",
@@ -80,13 +80,8 @@ impl InventoryService {
                 ));
             }
         }
-        self.capture_incoming(
-            scope,
-            entry,
-            &canonical,
-            AuthoringCapture { files, previous },
-        )
-        .await
+        self.capture_incoming(scope, entry, AuthoringCapture { files, previous })
+            .await
     }
 
     async fn retained_baseline(
@@ -107,13 +102,12 @@ impl InventoryService {
         &self,
         scope: &BaselineScope<'_>,
         entry: &InventoryEntry,
-        canonical: &Path,
         capture: AuthoringCapture,
     ) -> Result<(ResourceRevisionId, Option<ManagedReconciliationId>)> {
         let AuthoringCapture { files, previous } = capture;
         let owner = scope.owner;
         let (source, resource) = self
-            .bind_authoring_resource(owner, scope.actor, entry, canonical)
+            .bind_authoring_resource(owner, scope.actor, entry, scope.root)
             .await?;
         let snapshot = self
             .repository
@@ -173,7 +167,7 @@ impl InventoryService {
         owner: &UserId,
         actor: &UserId,
         entry: &InventoryEntry,
-        canonical: &Path,
+        authoring_root: &Path,
     ) -> Result<(
         systemprompt_identifiers::ManagedSourceId,
         systemprompt_identifiers::ManagedResourceId,
@@ -181,7 +175,10 @@ impl InventoryService {
         let source = if let Some(source) = &entry.source_id {
             source.clone()
         } else {
-            let path = canonical
+            // Why: the binding is immutable provenance, so it records the root
+            // as configured. A composed root's resolved target is a tree keyed
+            // by its hash that rotates on every import and is then pruned.
+            let path = authoring_root
                 .to_str()
                 .ok_or_else(|| invalid("Services root must be UTF-8"))?;
             let name = format!(
@@ -236,58 +233,6 @@ impl InventoryService {
     }
 }
 
-pub(super) fn configured_files(
-    root: &Path,
-    entry: &InventoryEntry,
-    services: &ServicesConfig,
-) -> Result<RevisionFiles> {
-    let inline = match entry.kind.as_str() {
-        "agent" => Some(
-            serde_yaml::to_string(
-                services
-                    .agents
-                    .get(&entry.resource_key)
-                    .ok_or_else(|| invalid("Configured agent disappeared"))?,
-            )
-            .map_err(|error| {
-                ManagedError::Invalid(format!("Agent configuration cannot be captured: {error}"))
-            })?,
-        ),
-        "mcp" => Some(
-            serde_yaml::to_string(
-                services
-                    .mcp_servers
-                    .get(&entry.resource_key)
-                    .ok_or_else(|| invalid("Configured MCP server disappeared"))?,
-            )
-            .map_err(|error| {
-                ManagedError::Invalid(format!("MCP configuration cannot be captured: {error}"))
-            })?,
-        ),
-        _ => None,
-    };
-    if let Some(config) = inline {
-        let files = RevisionFiles(BTreeMap::from([(
-            "config.yaml".to_owned(),
-            AssetFile {
-                bytes: config.into_bytes(),
-                media_type: "application/yaml".to_owned(),
-                executable: false,
-            },
-        )]));
-        files.validate()?;
-        Ok(files)
-    } else {
-        capture_inventory_files(
-            root,
-            entry
-                .configured_key
-                .as_deref()
-                .ok_or_else(|| invalid("Missing authoring path"))?,
-        )
-    }
-}
-
 fn same_files(a: &RevisionFiles, b: &RevisionFiles) -> bool {
     a.0.len() == b.0.len()
         && a.0.iter().all(|(path, file)| {
@@ -295,4 +240,14 @@ fn same_files(a: &RevisionFiles, b: &RevisionFiles) -> bool {
                 file.bytes == other.bytes && file.executable == other.executable
             })
         })
+}
+
+fn binding_names_active_root(bound: &Path, configured: &Path, canonical: &Path) -> bool {
+    if bound == configured {
+        return true;
+    }
+    if std::fs::canonicalize(bound).is_ok_and(|resolved| resolved == canonical) {
+        return true;
+    }
+    systemprompt_loader::ServicesRootBootstrap::get().is_some_and(|active| active.base == bound)
 }

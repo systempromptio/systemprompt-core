@@ -2,13 +2,13 @@ use serde_json::json;
 use systemprompt_identifiers::ModelId;
 use systemprompt_models::wire::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalStopReason, ImageDetail,
-    ImageSource, ReasoningEffort, Role,
+    ImageSource, ReasoningEffort, Role, SystemBlock,
 };
 
 fn empty_request() -> CanonicalRequest {
     CanonicalRequest {
         model: ModelId::new("m"),
-        system: None,
+        system: Vec::new(),
         messages: Vec::new(),
         max_tokens: 16,
         temperature: None,
@@ -136,7 +136,7 @@ mod stop_reason_mapping {
         );
         assert_eq!(
             CanonicalStopReason::from_openai("content_filter"),
-            CanonicalStopReason::Other
+            CanonicalStopReason::Refusal
         );
     }
 }
@@ -162,10 +162,10 @@ mod flatten_parts {
     #[test]
     fn system_prompt_is_its_own_named_part() {
         let mut req = empty_request();
-        req.system = Some("you are helpful".to_owned());
+        req.system = vec![SystemBlock::text("you are helpful".to_owned())];
         req.messages = vec![msg(
             Role::User,
-            vec![CanonicalContent::Text("hi".to_owned())],
+            vec![CanonicalContent::text("hi".to_owned())],
         )];
         assert_eq!(
             req.flatten_parts(),
@@ -182,12 +182,12 @@ mod flatten_parts {
         req.messages = vec![msg(
             Role::User,
             vec![
-                CanonicalContent::Text("before".to_owned()),
-                CanonicalContent::Image(ImageSource::Url {
+                CanonicalContent::text("before".to_owned()),
+                CanonicalContent::image(ImageSource::Url {
                     url: "https://x".to_owned(),
                     detail: Some(ImageDetail::Auto),
                 }),
-                CanonicalContent::Text("after".to_owned()),
+                CanonicalContent::text("after".to_owned()),
             ],
         )];
         assert_eq!(joined(&req), "before\nafter");
@@ -221,6 +221,7 @@ mod flatten_parts {
                 name: "search".to_owned(),
                 input: json!({"q": "rust"}),
                 signature: None,
+                cache_control: None,
             }],
         )];
         let text = joined(&req);
@@ -235,10 +236,11 @@ mod flatten_parts {
             Role::Tool,
             vec![CanonicalContent::ToolResult {
                 tool_use_id: "c1".to_owned(),
-                content: vec![CanonicalContent::Text("result body".to_owned())],
+                content: vec![CanonicalContent::text("result body".to_owned())],
                 is_error: false,
                 structured_content: None,
                 meta: None,
+                cache_control: None,
             }],
         )];
         assert_eq!(joined(&req), "result body");
@@ -250,8 +252,8 @@ mod flatten_parts {
         req.messages = vec![msg(
             Role::User,
             vec![
-                CanonicalContent::Text(String::new()),
-                CanonicalContent::Text("only".to_owned()),
+                CanonicalContent::text(String::new()),
+                CanonicalContent::text("only".to_owned()),
             ],
         )];
         assert_eq!(joined(&req), "only");
@@ -262,7 +264,7 @@ mod flatten_parts {
         let mut req = empty_request();
         req.messages = vec![msg(
             Role::User,
-            vec![CanonicalContent::Image(ImageSource::Url {
+            vec![CanonicalContent::image(ImageSource::Url {
                 url: "https://x".to_owned(),
                 detail: Some(ImageDetail::Auto),
             })],
@@ -275,7 +277,7 @@ mod flatten_parts {
         let mut req = empty_request();
         req.messages = vec![msg(
             Role::User,
-            vec![CanonicalContent::Text("hi".to_owned())],
+            vec![CanonicalContent::text("hi".to_owned())],
         )];
         let body = json!({"tools": [{"description": "does things"}]});
         req.forwarded_surface = string_leaves(
@@ -301,7 +303,7 @@ mod flatten_message_text {
         let mut req = empty_request();
         req.messages = vec![msg(
             Role::User,
-            vec![CanonicalContent::Text("hi".to_owned())],
+            vec![CanonicalContent::text("hi".to_owned())],
         )];
         assert!(req.flatten_message_text(Role::Assistant).is_none());
     }
@@ -310,12 +312,12 @@ mod flatten_message_text {
     fn collects_only_matching_role() {
         let mut req = empty_request();
         req.messages = vec![
-            msg(Role::User, vec![CanonicalContent::Text("u1".to_owned())]),
+            msg(Role::User, vec![CanonicalContent::text("u1".to_owned())]),
             msg(
                 Role::Assistant,
-                vec![CanonicalContent::Text("a1".to_owned())],
+                vec![CanonicalContent::text("a1".to_owned())],
             ),
-            msg(Role::User, vec![CanonicalContent::Text("u2".to_owned())]),
+            msg(Role::User, vec![CanonicalContent::text("u2".to_owned())]),
         ];
         assert_eq!(
             req.flatten_message_text(Role::User),
@@ -332,7 +334,7 @@ mod flatten_message_text {
         let mut req = empty_request();
         req.messages = vec![msg(
             Role::User,
-            vec![CanonicalContent::Image(ImageSource::Base64 {
+            vec![CanonicalContent::image(ImageSource::Base64 {
                 media_type: "image/png".to_owned(),
                 data: "QQ==".to_owned(),
                 detail: None,
@@ -353,10 +355,10 @@ mod derived_gateway_conversation_id {
     #[test]
     fn deterministic_for_same_leading_message() {
         let mut req = empty_request();
-        req.system = Some("sys".to_owned());
+        req.system = vec![SystemBlock::text("sys".to_owned())];
         req.messages = vec![msg(
             Role::User,
-            vec![CanonicalContent::Text("hello".to_owned())],
+            vec![CanonicalContent::text("hello".to_owned())],
         )];
         let a = req.derived_gateway_conversation_id().expect("id");
         let b = req.derived_gateway_conversation_id().expect("id");
@@ -368,12 +370,12 @@ mod derived_gateway_conversation_id {
         let mut req_a = empty_request();
         req_a.messages = vec![msg(
             Role::User,
-            vec![CanonicalContent::Text("alpha".to_owned())],
+            vec![CanonicalContent::text("alpha".to_owned())],
         )];
         let mut req_b = empty_request();
         req_b.messages = vec![msg(
             Role::User,
-            vec![CanonicalContent::Text("beta".to_owned())],
+            vec![CanonicalContent::text("beta".to_owned())],
         )];
         assert_ne!(
             req_a.derived_gateway_conversation_id(),
@@ -417,14 +419,14 @@ mod latest_message_text {
     fn returns_only_the_newest_message_of_the_role() {
         let mut req = empty_request();
         req.messages = vec![
-            msg(Role::User, vec![CanonicalContent::Text("first".to_owned())]),
+            msg(Role::User, vec![CanonicalContent::text("first".to_owned())]),
             msg(
                 Role::Assistant,
-                vec![CanonicalContent::Text("reply".to_owned())],
+                vec![CanonicalContent::text("reply".to_owned())],
             ),
             msg(
                 Role::User,
-                vec![CanonicalContent::Text("second".to_owned())],
+                vec![CanonicalContent::text("second".to_owned())],
             ),
         ];
 
@@ -443,7 +445,7 @@ mod latest_message_text {
         let mut req = empty_request();
         req.messages = vec![msg(
             Role::Assistant,
-            vec![CanonicalContent::Text("hi".to_owned())],
+            vec![CanonicalContent::text("hi".to_owned())],
         )];
         assert_eq!(req.latest_message_text(Role::User), None);
     }
@@ -452,10 +454,10 @@ mod latest_message_text {
     fn is_none_when_the_newest_message_carries_no_text() {
         let mut req = empty_request();
         req.messages = vec![
-            msg(Role::User, vec![CanonicalContent::Text("older".to_owned())]),
+            msg(Role::User, vec![CanonicalContent::text("older".to_owned())]),
             msg(
                 Role::User,
-                vec![CanonicalContent::Image(ImageSource::Url {
+                vec![CanonicalContent::image(ImageSource::Url {
                     url: "https://x".to_owned(),
                     detail: Some(ImageDetail::Auto),
                 })],
@@ -471,10 +473,10 @@ mod message_units {
     #[test]
     fn keeps_each_message_separate_where_flatten_parts_names_them() {
         let mut req = empty_request();
-        req.system = Some("sys".to_owned());
+        req.system = vec![SystemBlock::text("sys".to_owned())];
         req.messages = vec![
-            msg(Role::User, vec![CanonicalContent::Text("one".to_owned())]),
-            msg(Role::User, vec![CanonicalContent::Text("two".to_owned())]),
+            msg(Role::User, vec![CanonicalContent::text("one".to_owned())]),
+            msg(Role::User, vec![CanonicalContent::text("two".to_owned())]),
         ];
 
         assert_eq!(req.message_units(), vec!["sys", "one", "two"]);
@@ -491,12 +493,12 @@ mod message_units {
         req.messages = vec![
             msg(
                 Role::User,
-                vec![CanonicalContent::Image(ImageSource::Url {
+                vec![CanonicalContent::image(ImageSource::Url {
                     url: "https://x".to_owned(),
                     detail: Some(ImageDetail::Auto),
                 })],
             ),
-            msg(Role::User, vec![CanonicalContent::Text("kept".to_owned())]),
+            msg(Role::User, vec![CanonicalContent::text("kept".to_owned())]),
         ];
 
         assert_eq!(req.message_units(), vec!["kept"]);

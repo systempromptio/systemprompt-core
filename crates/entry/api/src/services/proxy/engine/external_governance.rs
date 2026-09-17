@@ -73,6 +73,7 @@ pub(super) async fn enforce(
         target: AuditTarget {
             tool_name: target,
             plugin_id: None,
+            tool_use_id: None,
         },
         chain: evaluation.chain,
         approver: None,

@@ -192,10 +192,10 @@ async fn test_get_all_service_status_unreachable() {
         name: "unreach".to_owned(),
         owner: fixture_user_id(),
         server_type: McpServerType::Internal,
-        binary: "x".to_owned(),
+        binary: Some("x".to_owned()),
         enabled: true,
         display_in_web: true,
-        port: 65529,
+        port: Some(65529),
         crate_path: PathBuf::from("."),
         display_name: "x".to_owned(),
         description: "x".to_owned(),
@@ -229,7 +229,7 @@ fn mcp_service_status_managed_row_carries_pid_and_port() {
     let status = McpServiceStatus {
         name: "local".to_owned(),
         server_type: McpServerType::Internal,
-        port: 3010,
+        port: Some(3010),
         endpoint: None,
         health: HealthStatus::Healthy,
         pid: Some(4242),
@@ -239,7 +239,7 @@ fn mcp_service_status_managed_row_carries_pid_and_port() {
     };
 
     assert_eq!(status.server_type, McpServerType::Internal);
-    assert_eq!(status.port, 3010);
+    assert_eq!(status.port, Some(3010));
     assert_eq!(status.pid, Some(4242));
     assert!(status.endpoint.is_none());
     assert_eq!(status.health, HealthStatus::Healthy);
@@ -250,7 +250,7 @@ fn mcp_service_status_external_row_carries_endpoint_not_pid() {
     let status = McpServiceStatus {
         name: "remote".to_owned(),
         server_type: McpServerType::External,
-        port: 0,
+        port: None,
         endpoint: Some("https://example.com/mcp".to_owned()),
         health: HealthStatus::Unhealthy,
         pid: None,
@@ -260,7 +260,7 @@ fn mcp_service_status_external_row_carries_endpoint_not_pid() {
     };
 
     assert_eq!(status.server_type, McpServerType::External);
-    assert_eq!(status.port, 0);
+    assert_eq!(status.port, None);
     assert!(status.pid.is_none());
     assert_eq!(status.endpoint.as_deref(), Some("https://example.com/mcp"));
     assert_eq!(status.health, HealthStatus::Unhealthy);

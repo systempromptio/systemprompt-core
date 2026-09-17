@@ -326,6 +326,7 @@ fn minimal_profile() -> systemprompt_models::Profile {
 
     Profile {
         storage: Default::default(),
+        observability: Default::default(),
         name: "ctxcmd".to_string(),
         display_name: "Ctx".to_string(),
         target: ProfileType::Local,
@@ -380,6 +381,7 @@ fn minimal_profile() -> systemprompt_models::Profile {
         secrets: None,
         extensions: ExtensionsConfig::default(),
         governance: None,
+        evaluation: Default::default(),
         services: Default::default(),
         system_admin: SystemAdminConfig {
             username: "admin".to_string(),

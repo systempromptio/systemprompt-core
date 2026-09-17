@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::ProviderId;
 
 use super::error::{GatewayProfileError, GatewayResult};
-use super::route::match_pattern;
+use super::route_id::match_pattern;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]

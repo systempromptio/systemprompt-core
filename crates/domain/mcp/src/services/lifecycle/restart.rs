@@ -8,6 +8,7 @@ use crate::McpServerConfig;
 use crate::error::McpDomainResult;
 use crate::services::database::ServiceLifecycleStatus;
 use crate::services::process::ProcessService;
+use crate::services::spawn_target::SpawnTarget;
 
 pub async fn restart_server(
     manager: &LifecycleOrchestrator,
@@ -36,10 +37,10 @@ async fn verify_clean_state(
 ) -> McpDomainResult<()> {
     tracing::debug!(service = %config.name, "Verifying clean state");
 
-    if let Some(pid) = ProcessService::find_pid_by_port(config.port)? {
+    let port = config.spawn_port()?;
+    if let Some(pid) = ProcessService::find_pid_by_port(port)? {
         return Err(crate::error::McpDomainError::Internal(format!(
-            "Port {} still occupied by PID {}",
-            config.port, pid
+            "Port {port} still occupied by PID {pid}"
         )));
     }
 

@@ -23,6 +23,7 @@ fn anthropic_str_mapping() {
         "stop_sequence"
     );
     assert_eq!(CanonicalStopReason::ToolUse.anthropic_str(), "tool_use");
+    assert_eq!(CanonicalStopReason::Refusal.anthropic_str(), "refusal");
     assert_eq!(CanonicalStopReason::Other.anthropic_str(), "end_turn");
 }
 
@@ -32,6 +33,7 @@ fn openai_str_mapping() {
     assert_eq!(CanonicalStopReason::MaxTokens.openai_str(), "length");
     assert_eq!(CanonicalStopReason::StopSequence.openai_str(), "stop");
     assert_eq!(CanonicalStopReason::ToolUse.openai_str(), "tool_calls");
+    assert_eq!(CanonicalStopReason::Refusal.openai_str(), "content_filter");
     assert_eq!(CanonicalStopReason::Other.openai_str(), "stop");
 }
 
@@ -52,6 +54,10 @@ fn from_anthropic_known_codes() {
     assert_eq!(
         CanonicalStopReason::from_anthropic("tool_use"),
         CanonicalStopReason::ToolUse
+    );
+    assert_eq!(
+        CanonicalStopReason::from_anthropic("refusal"),
+        CanonicalStopReason::Refusal
     );
 }
 
@@ -85,6 +91,23 @@ fn from_openai_known_codes() {
         CanonicalStopReason::from_openai("function_call"),
         CanonicalStopReason::ToolUse
     );
+    assert_eq!(
+        CanonicalStopReason::from_openai("content_filter"),
+        CanonicalStopReason::Refusal
+    );
+}
+
+// A refusal or an unclassified reason with nothing behind it is the provider
+// cutting the turn off; the reasons that legitimately end an empty turn are
+// the model's own.
+#[test]
+fn only_refusal_and_other_make_an_empty_terminal_an_error() {
+    assert!(CanonicalStopReason::Refusal.empty_terminal_is_error());
+    assert!(CanonicalStopReason::Other.empty_terminal_is_error());
+    assert!(!CanonicalStopReason::EndTurn.empty_terminal_is_error());
+    assert!(!CanonicalStopReason::MaxTokens.empty_terminal_is_error());
+    assert!(!CanonicalStopReason::StopSequence.empty_terminal_is_error());
+    assert!(!CanonicalStopReason::ToolUse.empty_terminal_is_error());
 }
 
 #[test]
@@ -97,7 +120,13 @@ fn from_openai_unknown_is_other() {
 
 #[test]
 fn anthropic_round_trip_for_known_codes() {
-    for code in ["end_turn", "max_tokens", "stop_sequence", "tool_use"] {
+    for code in [
+        "end_turn",
+        "max_tokens",
+        "stop_sequence",
+        "tool_use",
+        "refusal",
+    ] {
         let rt = CanonicalStopReason::from_anthropic(code).anthropic_str();
         assert_eq!(rt, code);
     }

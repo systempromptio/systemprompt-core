@@ -9,6 +9,7 @@ pub mod chart;
 pub mod cli;
 pub mod copy_paste_text;
 pub mod dashboard;
+pub mod digest;
 pub mod image;
 pub mod list;
 pub mod message;
@@ -16,6 +17,7 @@ pub mod metadata;
 pub mod research;
 pub mod table;
 pub mod text;
+pub mod tool_result;
 pub mod traits;
 pub mod types;
 pub mod video;
@@ -32,12 +34,14 @@ pub use dashboard::{
     MetricCard, MetricStatus, MetricsCardsData, SectionLayout, SectionType, ServiceStatus,
     SortConfig, StatusSectionData, TableSectionData,
 };
+pub use digest::{PayloadDigest, payload_digest};
 pub use list::{ListArtifact, ListItem};
 pub use message::{MessageArtifact, NoticeLine};
 pub use metadata::{EXECUTION_META_KEY, ExecutionMetadata, ToolResponse};
 pub use research::{ResearchArtifact, SourceCitation};
 pub use table::{Column, TableArtifact, TableHints, TableResponse};
 pub use text::TextArtifact;
+pub use tool_result::{ToolResultArtifact, ToolResultBlock};
 pub use traits::{Artifact, ArtifactSchema};
 pub use types::{Alignment, ArtifactType, AxisType, ChartType, ColumnType, SortOrder};
 

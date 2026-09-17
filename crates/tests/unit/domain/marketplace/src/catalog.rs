@@ -52,9 +52,9 @@ fn make_deployment(_name: &str, enabled: bool, endpoint: Option<&str>) -> Deploy
     Deployment {
         connector: None,
         server_type: Default::default(),
-        binary: "server".into(),
+        binary: Some("server".to_owned()),
         package: None,
-        port: 3000,
+        port: Some(3000),
         endpoint: endpoint.map(ToOwned::to_owned),
         enabled,
         display_in_web: true,

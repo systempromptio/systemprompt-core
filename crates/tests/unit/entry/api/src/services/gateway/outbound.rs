@@ -9,6 +9,7 @@ use futures_util::StreamExt;
 use serde_json::json;
 use systemprompt_api::services::gateway::protocol::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalTool, CanonicalToolChoice, Role,
+    SystemBlock,
 };
 use systemprompt_api::services::gateway::protocol::canonical_response::CanonicalStopReason;
 use systemprompt_api::services::gateway::protocol::outbound::anthropic::AnthropicOutbound;
@@ -40,21 +41,23 @@ fn route(provider: &str) -> GatewayRoute {
         pricing: None,
         when: None,
         requires: None,
+        fallback_provider: None,
+        fallback_upstream_model: None,
     }
 }
 
 fn buffered_request() -> CanonicalRequest {
     CanonicalRequest {
         model: ModelId::new("m"),
-        system: Some("be helpful".into()),
+        system: vec![SystemBlock::text("be helpful")],
         messages: vec![
             CanonicalMessage {
                 role: Role::User,
-                content: vec![CanonicalContent::Text("hi".into())],
+                content: vec![CanonicalContent::text("hi")],
             },
             CanonicalMessage {
                 role: Role::Assistant,
-                content: vec![CanonicalContent::Text("hello".into())],
+                content: vec![CanonicalContent::text("hello")],
             },
         ],
         max_tokens: 64,
@@ -66,6 +69,7 @@ fn buffered_request() -> CanonicalRequest {
             name: "t".into(),
             description: Some("do".into()),
             input_schema: json!({"type":"object"}),
+            cache_control: None,
         }],
         tool_choice: Some(CanonicalToolChoice::Auto),
         stream: false,
@@ -122,7 +126,10 @@ async fn anthropic_outbound_buffered_parses_text() {
     match outcome {
         OutboundOutcome::Buffered(r) => {
             assert_eq!(r.id, "msg_a");
-            assert!(matches!(r.content.first(), Some(CanonicalContent::Text(_))));
+            assert!(matches!(
+                r.content.first(),
+                Some(CanonicalContent::Text { .. })
+            ));
         },
         _ => panic!("expected buffered"),
     }
@@ -475,7 +482,9 @@ async fn openai_chat_outbound_buffered_covers_tool_choice_variants() {
         assert_eq!(r.model, "upstream-1");
         assert_eq!(r.stop_reason, Some(CanonicalStopReason::EndTurn));
         assert_eq!(r.usage.total_tokens, 3);
-        assert!(matches!(r.content.first(), Some(CanonicalContent::Text(t)) if t == "hi"));
+        assert!(
+            matches!(r.content.first(), Some(CanonicalContent::Text { text: t, .. }) if t == "hi")
+        );
     }
 }
 
@@ -516,7 +525,9 @@ async fn anthropic_outbound_buffered_covers_tool_choice_variants() {
         assert_eq!(r.stop_reason, Some(CanonicalStopReason::EndTurn));
         assert_eq!(r.usage.input_tokens, 1);
         assert_eq!(r.usage.output_tokens, 2);
-        assert!(matches!(r.content.first(), Some(CanonicalContent::Text(t)) if t == "ok"));
+        assert!(
+            matches!(r.content.first(), Some(CanonicalContent::Text { text: t, .. }) if t == "ok")
+        );
     }
 }
 
@@ -539,7 +550,7 @@ async fn openai_chat_outbound_buffered_covers_messages_with_tools_and_images() {
     let mut req = buffered_request();
     req.messages.push(CanonicalMessage {
         role: Role::User,
-        content: vec![CanonicalContent::Image(
+        content: vec![CanonicalContent::image(
             systemprompt_api::services::gateway::protocol::canonical::ImageSource::Url {
                 url: "https://x".into(),
                 detail: None,
@@ -550,10 +561,11 @@ async fn openai_chat_outbound_buffered_covers_messages_with_tools_and_images() {
         role: Role::Tool,
         content: vec![CanonicalContent::ToolResult {
             tool_use_id: "t1".into(),
-            content: vec![CanonicalContent::Text("res".into())],
+            content: vec![CanonicalContent::text("res")],
             is_error: false,
             structured_content: None,
             meta: None,
+            cache_control: None,
         }],
     });
     let ctx = OutboundCtx {

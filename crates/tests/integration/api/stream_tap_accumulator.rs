@@ -64,6 +64,7 @@ fn accumulates_text_and_usage_and_stop() {
             CanonicalEvent::MessageStop {
                 id: "resp_1".to_owned(),
                 stop_reason: Some(CanonicalStopReason::EndTurn),
+                raw_finish_reason: None,
             },
         ],
     );
@@ -76,7 +77,7 @@ fn accumulates_text_and_usage_and_stop() {
     assert_eq!(response.usage.output_tokens, 5);
     assert_eq!(response.content.len(), 1);
     match &response.content[0] {
-        CanonicalContent::Text(t) => assert_eq!(t, "Hello, world"),
+        CanonicalContent::Text { text: t, .. } => assert_eq!(t, "Hello, world"),
         other => panic!("expected text block, got {other:?}"),
     }
 
@@ -127,6 +128,7 @@ fn empty_message_start_model_leaves_served_model_unset() {
             CanonicalEvent::MessageStop {
                 id: "r".to_owned(),
                 stop_reason: None,
+                raw_finish_reason: None,
             },
         ],
     );
@@ -176,6 +178,7 @@ fn accumulates_tool_use_block() {
             CanonicalEvent::MessageStop {
                 id: "resp_tool".to_owned(),
                 stop_reason: Some(CanonicalStopReason::ToolUse),
+                raw_finish_reason: None,
             },
         ],
     );
@@ -325,11 +328,11 @@ fn sparse_block_indices_backfill_with_empty_text() {
     let response = snapshot(&state);
     assert_eq!(response.content.len(), 3, "indices 0 and 1 backfilled");
     match &response.content[0] {
-        CanonicalContent::Text(t) => assert!(t.is_empty()),
+        CanonicalContent::Text { text: t, .. } => assert!(t.is_empty()),
         other => panic!("expected empty text placeholder, got {other:?}"),
     }
     match &response.content[2] {
-        CanonicalContent::Text(t) => assert_eq!(t, "third"),
+        CanonicalContent::Text { text: t, .. } => assert_eq!(t, "third"),
         other => panic!("expected text block, got {other:?}"),
     }
 }

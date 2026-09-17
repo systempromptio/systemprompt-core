@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.55.0] - 2026-09-17
+
+### Added
+
+- `AnalyticsFactKind::Artifact` and `NormalizedAnalyticsFact::Artifact(Box<NormalizedArtifactFact>)`: the feedback plane records every ingested MCP tool-result artifact (migration `011_artifact_fact_kind` widens the fact-kind CHECK); the feedback columns and validation carry the new kind.
+
 ## [0.53.0] - 2026-09-15
 
 ### Breaking

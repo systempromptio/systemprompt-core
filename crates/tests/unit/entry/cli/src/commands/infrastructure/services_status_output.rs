@@ -27,7 +27,7 @@ fn mcp_status(name: &str, health: HealthStatus, endpoint: Option<&str>) -> McpSe
     McpServiceStatus {
         name: name.to_string(),
         server_type: McpServerType::External,
-        port: 0,
+        port: None,
         endpoint: endpoint.map(str::to_string),
         health,
         pid: None,

@@ -202,3 +202,79 @@ fn a_sentinel_from_another_gateway_does_not_belong_to_this_one() {
         "an unstamped sentinel cannot prove which gateway wrote it"
     );
 }
+
+#[test]
+fn a_partial_sync_record_keeps_the_prior_checkpoint_so_the_retry_is_not_a_replay() {
+    let prior = version("2026-09-17T11:04:01Z-000001a0af09abc9");
+    let partial = version("2026-09-17T11:05:24Z-000001a0af0aee88");
+    let recorded = LastSyncState {
+        manifest_version: Some(prior.clone()),
+        host_failures: vec!["claude-code: apply: EOF while parsing a value".to_owned()],
+        ..LastSyncState::default()
+    };
+
+    assert!(recorded.is_partial());
+    check_replay(&recorded, &partial).expect("the partially applied manifest can be retried");
+    let err = check_replay(&recorded, &prior).expect_err("the prior manifest is still a replay");
+    assert!(matches!(err, SyncError::ReplayedManifest { .. }));
+}
+
+#[test]
+fn a_host_failure_folds_to_one_sentinel_line() {
+    let failure = systemprompt_bridge::sync::HostFailure {
+        host_id: systemprompt_bridge::ids::HostId::new("claude-code"),
+        emitter: "apply".to_owned(),
+        error: "io error in remove managed MCP policy: EOF\nsecond line".to_owned(),
+        needs_elevation: false,
+    };
+
+    assert_eq!(
+        failure.sentinel_line(),
+        "claude-code: apply: io error in remove managed MCP policy: EOF"
+    );
+}
+
+#[test]
+fn a_partial_sync_record_keeps_the_prior_hosts_and_update_policy_not_the_half_applied_ones() {
+    use systemprompt_bridge::gateway::manifest::AutoUpdatePolicy;
+
+    let prior = LastSyncState {
+        manifest_version: Some(version("2026-09-17T11:04:01Z-000001a0af09abc9")),
+        enabled_hosts: vec!["claude-code".to_owned()],
+        host_model_protocols: [("claude-code".to_owned(), vec!["anthropic".to_owned()])]
+            .into_iter()
+            .collect(),
+        auto_update: AutoUpdatePolicy::default(),
+        ..LastSyncState::default()
+    };
+    let attempted = LastSyncState {
+        manifest_version: Some(version("2026-09-17T11:05:24Z-000001a0af0aee88")),
+        enabled_hosts: vec!["claude-code".to_owned(), "cowork".to_owned()],
+        host_model_protocols: [("cowork".to_owned(), vec!["openai".to_owned()])]
+            .into_iter()
+            .collect(),
+        auto_update: AutoUpdatePolicy::Disabled,
+        installed_plugins: vec!["kit".to_owned()],
+        host_failures: vec!["cowork: apply: permission denied".to_owned()],
+        ..LastSyncState::default()
+    };
+
+    let recorded = attempted.retaining_delivered_policy_of(&prior);
+
+    assert!(recorded.is_partial());
+    assert_eq!(recorded.manifest_version, prior.manifest_version);
+    assert_eq!(
+        recorded.enabled_hosts, prior.enabled_hosts,
+        "a host whose emitter failed is not enabled"
+    );
+    assert_eq!(recorded.host_model_protocols, prior.host_model_protocols);
+    assert_eq!(
+        recorded.auto_update, prior.auto_update,
+        "a policy from a manifest that did not apply is not in force"
+    );
+    assert_eq!(
+        recorded.installed_plugins,
+        vec!["kit".to_owned()],
+        "what did land is still recorded"
+    );
+}

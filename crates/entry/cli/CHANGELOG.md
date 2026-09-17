@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.55.0] - 2026-09-17
+
+### Added
+
+- `admin users delete --dry-run` reports the per-table purge counts without deleting.
+- `infra db tables` labels planner estimates and gains `--exact` (`COUNT(*)` every table); `infra db query` renders `regclass`, `"char"` and `oid` columns instead of blank cells.
+- `infra logs request list` / `audit` print the upstream `finish_reason`.
+
+### Changed
+
+- `plugins mcp call|tools` and `admin agents tools` reach an `external` server by its direct URL (`shared::mcp_tools::direct_url`) instead of a loopback port; `mcp list` / `status` omit the port line for an external server.
+
 ## [0.54.0] - 2026-09-16
 
 ### Removed

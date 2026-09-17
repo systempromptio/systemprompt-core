@@ -13,6 +13,7 @@ use systemprompt_identifiers::AiRequestId;
 #[must_use]
 #[derive(Debug, Clone)]
 pub struct AiRequestPayloadRepository {
+    pool: Arc<PgPool>,
     write_pool: Arc<PgPool>,
 }
 
@@ -29,15 +30,27 @@ pub struct AiRequestPayload {
     pub response_bytes: Option<i32>,
     pub request_body_sha256: Option<String>,
     pub prepared_body_sha256: Option<String>,
+    pub prepared_tools: Option<Value>,
     pub response_body_sha256: Option<String>,
+}
+
+/// What the gateway sent upstream: the digest of the prepared body and the
+/// exact `tools` array it carried, in the provider's own wire shape.
+#[derive(Debug, Clone)]
+pub struct PreparedPayload {
+    pub prepared_body_sha256: Option<String>,
+    pub prepared_tools: Option<Value>,
 }
 
 impl AiRequestPayloadRepository {
     pub fn new(db: &DbPool) -> Result<Self, RepositoryError> {
+        let pool = db
+            .pool_arc()
+            .map_err(|e| RepositoryError::PoolInitialization(e.to_string()))?;
         let write_pool = db
             .write_pool_arc()
             .map_err(|e| RepositoryError::PoolInitialization(e.to_string()))?;
-        Ok(Self { write_pool })
+        Ok(Self { pool, write_pool })
     }
 
     pub async fn upsert_request(
@@ -96,27 +109,48 @@ impl AiRequestPayloadRepository {
         Ok(())
     }
 
-    pub async fn upsert_prepared_sha256(
+    pub async fn upsert_prepared(
         &self,
         ai_request_id: &AiRequestId,
         sha256: &str,
+        tools: Option<&Value>,
     ) -> Result<(), RepositoryError> {
         sqlx::query!(
             r#"
             INSERT INTO ai_request_payloads (
-                ai_request_id, prepared_body_sha256, created_at, updated_at
+                ai_request_id, prepared_body_sha256, prepared_tools, created_at, updated_at
             )
-            VALUES ($1, $2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            VALUES ($1, $2, $3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             ON CONFLICT (ai_request_id) DO UPDATE
             SET prepared_body_sha256 = EXCLUDED.prepared_body_sha256,
+                prepared_tools = EXCLUDED.prepared_tools,
                 updated_at = CURRENT_TIMESTAMP
             "#,
             ai_request_id.as_str(),
-            sha256
+            sha256,
+            tools
         )
         .execute(self.write_pool.as_ref())
         .await?;
         Ok(())
+    }
+
+    pub async fn find_prepared(
+        &self,
+        ai_request_id: &AiRequestId,
+    ) -> Result<Option<PreparedPayload>, RepositoryError> {
+        let row = sqlx::query_as!(
+            PreparedPayload,
+            r#"
+            SELECT prepared_body_sha256, prepared_tools
+            FROM ai_request_payloads
+            WHERE ai_request_id = $1
+            "#,
+            ai_request_id.as_str()
+        )
+        .fetch_optional(self.pool.as_ref())
+        .await?;
+        Ok(row)
     }
 }
 

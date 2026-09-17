@@ -31,6 +31,8 @@ impl Extension for AiExtension {
                     "client_kind",
                     "wire_protocol",
                     "client_attestation",
+                    "finish_reason",
+                    "served_provider",
                 ])),
             SchemaDefinition::new(
                 "ai_request_client_evidence",
@@ -82,6 +84,7 @@ impl Extension for AiExtension {
                 "signature",
                 "expires_at",
             ])),
+            SchemaDefinition::sql_only(include_str!("../schema/tool_call_ledger.sql")),
         ]
     }
 

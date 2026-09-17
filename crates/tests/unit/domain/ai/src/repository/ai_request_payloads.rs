@@ -8,6 +8,7 @@ use systemprompt_ai::repository::ai_requests::{
 use systemprompt_ai::repository::{
     AiRequestPayloadRepository, AiRequestRepository, UpsertPayloadParams,
 };
+use systemprompt_identifiers::AiRequestId;
 
 use super::{pool_or_skip, seed_request, user};
 
@@ -45,6 +46,7 @@ async fn upsert_request_then_response_coexist() {
                 cost_microdollars: 0,
                 latency_ms: 1,
                 upstream_latency_ms: None,
+                finish_reason: None,
                 payload: UpsertPayloadParams {
                     body: Some(&resp_body),
                     excerpt: Some("hi"),
@@ -133,7 +135,7 @@ async fn upsert_request_twice_updates_in_place() {
 }
 
 #[tokio::test]
-async fn upsert_prepared_sha256_does_not_clobber_request_payload() {
+async fn upsert_prepared_does_not_clobber_request_payload() {
     let Some(pool) = pool_or_skip().await else {
         return;
     };
@@ -155,13 +157,14 @@ async fn upsert_prepared_sha256_does_not_clobber_request_payload() {
     .await
     .expect("upsert request");
 
-    repo.upsert_prepared_sha256(&request_id, "prepared-digest")
+    let tools = json!([{"name": "read", "input_schema": {"type": "object"}}]);
+    repo.upsert_prepared(&request_id, "prepared-digest", Some(&tools))
         .await
         .expect("upsert prepared");
 
     let read = pool.pool_arc().expect("read pool");
     let row = sqlx::query!(
-        r#"SELECT request_body_sha256, prepared_body_sha256, request_bytes
+        r#"SELECT request_body_sha256, prepared_body_sha256, prepared_tools, request_bytes
            FROM ai_request_payloads WHERE ai_request_id = $1"#,
         request_id.as_str()
     )
@@ -170,5 +173,56 @@ async fn upsert_prepared_sha256_does_not_clobber_request_payload() {
     .expect("fetch");
     assert_eq!(row.request_body_sha256.as_deref(), Some("received-digest"));
     assert_eq!(row.prepared_body_sha256.as_deref(), Some("prepared-digest"));
+    assert_eq!(row.prepared_tools, Some(tools.clone()));
     assert_eq!(row.request_bytes, Some(20));
+
+    let prepared = repo
+        .find_prepared(&request_id)
+        .await
+        .expect("find prepared")
+        .expect("row present");
+    assert_eq!(
+        prepared.prepared_body_sha256.as_deref(),
+        Some("prepared-digest")
+    );
+    assert_eq!(prepared.prepared_tools, Some(tools));
+}
+
+#[tokio::test]
+async fn upsert_prepared_without_tools_clears_a_stale_slice() {
+    let Some(pool) = pool_or_skip().await else {
+        return;
+    };
+    let uid = user();
+    let request_id = seed_request(&pool, &uid).await;
+    let repo = AiRequestPayloadRepository::new(&pool).expect("repo");
+
+    let tools = json!([{"name": "read"}]);
+    repo.upsert_prepared(&request_id, "first", Some(&tools))
+        .await
+        .expect("first prepared");
+    repo.upsert_prepared(&request_id, "second", None)
+        .await
+        .expect("second prepared");
+
+    let prepared = repo
+        .find_prepared(&request_id)
+        .await
+        .expect("find prepared")
+        .expect("row present");
+    assert_eq!(prepared.prepared_body_sha256.as_deref(), Some("second"));
+    assert!(
+        prepared.prepared_tools.is_none(),
+        "a re-prepared body without tools must not keep the earlier slice"
+    );
+}
+
+#[tokio::test]
+async fn find_prepared_is_none_for_an_unknown_request() {
+    let Some(pool) = pool_or_skip().await else {
+        return;
+    };
+    let repo = AiRequestPayloadRepository::new(&pool).expect("repo");
+    let missing = AiRequestId::generate();
+    assert!(repo.find_prepared(&missing).await.expect("query").is_none());
 }

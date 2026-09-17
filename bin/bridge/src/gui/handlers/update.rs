@@ -59,10 +59,39 @@ pub(crate) fn on_update_check_finished(
     result: Result<UpdateUiState, Arc<GuiError>>,
     reply_to: ReplyId,
 ) {
+    let automatic = app.auto_update_pending;
+    // Why: a tray click has no reply channel — the toast and the activity
+    // log are the only places the person who clicked can see the answer.
+    let manual = reply_to.is_none() && !automatic;
     match &result {
+        Ok(UpdateUiState::Current) => {
+            app.state.set_update_state(UpdateUiState::Current);
+            if manual {
+                let version = crate::brand::brand().version;
+                app.append_log(format!("up to date (v{version})"));
+                crate::gui::window::notify_user(
+                    &format!("{} is up to date", crate::brand::brand().app_name),
+                    &format!("You are on the latest version, v{version}."),
+                );
+            }
+        },
         Ok(state) => app.state.set_update_state(state.clone()),
         Err(e) => {
-            tracing::debug!(error = %e, "update check failed");
+            let message = format!("{e:#}");
+            tracing::warn!(error = %message, automatic, "update check failed");
+            app.append_log(format!("update check failed: {message}"));
+            app.state.set_update_state(UpdateUiState::Failed {
+                message: message.clone(),
+            });
+            if manual {
+                crate::gui::window::notify_user(
+                    &format!(
+                        "{} could not check for updates",
+                        crate::brand::brand().app_name
+                    ),
+                    &message,
+                );
+            }
         },
     }
     let staging = std::mem::take(&mut app.auto_update_pending)

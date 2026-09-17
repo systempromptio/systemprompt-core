@@ -69,7 +69,7 @@ fn post(body: &'static str) -> Request<Body> {
 fn canonical(messages: Vec<CanonicalMessage>) -> CanonicalRequest {
     CanonicalRequest {
         model: ModelId::new("claude-test"),
-        system: None,
+        system: Vec::new(),
         messages,
         max_tokens: 16,
         temperature: None,
@@ -94,7 +94,7 @@ fn canonical(messages: Vec<CanonicalMessage>) -> CanonicalRequest {
 fn user_message(text: &str) -> CanonicalMessage {
     CanonicalMessage {
         role: Role::User,
-        content: vec![CanonicalContent::Text(text.into())],
+        content: vec![CanonicalContent::text(text)],
     }
 }
 

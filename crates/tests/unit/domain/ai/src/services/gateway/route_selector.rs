@@ -18,6 +18,8 @@ fn route(pattern: &str, provider: &str) -> GatewayRoute {
         pricing: None,
         when: None,
         requires: None,
+        fallback_provider: None,
+        fallback_upstream_model: None,
     };
     r.ensure_id();
     r
@@ -26,7 +28,7 @@ fn route(pattern: &str, provider: &str) -> GatewayRoute {
 fn req(model: &str) -> CanonicalRequest {
     CanonicalRequest {
         model: ModelId::new(model),
-        system: None,
+        system: Vec::new(),
         messages: Vec::new(),
         max_tokens: 0,
         temperature: None,

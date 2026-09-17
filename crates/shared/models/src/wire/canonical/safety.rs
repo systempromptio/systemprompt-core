@@ -25,8 +25,8 @@ impl CanonicalRequest {
                 .collect();
         }
         let mut parts = Vec::new();
-        if !history && let Some(system) = &self.system {
-            parts.push(("system".to_owned(), system.clone()));
+        if !history && let Some(system) = self.system_text() {
+            parts.push(("system".to_owned(), system));
         }
         for (index, message) in self.messages.iter().enumerate() {
             if (index + 1 < self.messages.len()) != history {

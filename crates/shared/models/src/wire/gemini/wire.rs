@@ -212,6 +212,8 @@ pub(crate) struct GeminiResponse {
     #[serde(default)]
     pub(crate) candidates: Vec<GeminiCandidate>,
     #[serde(default)]
+    pub(crate) prompt_feedback: Option<GeminiPromptFeedback>,
+    #[serde(default)]
     pub(crate) usage_metadata: Option<GeminiUsageMetadata>,
     #[serde(default)]
     pub(crate) response_id: Option<String>,
@@ -226,8 +228,21 @@ pub(crate) struct GeminiCandidate {
     pub(crate) content: Option<GeminiContent>,
     #[serde(default)]
     pub(crate) finish_reason: Option<String>,
+    // Why: Gemini explains a non-STOP finish here — the malformed call text,
+    // the safety category — and nowhere else.
+    #[serde(default)]
+    pub(crate) finish_message: Option<String>,
     #[serde(default)]
     pub(crate) grounding_metadata: Option<GeminiGroundingMetadata>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct GeminiPromptFeedback {
+    #[serde(default)]
+    pub(crate) block_reason: Option<String>,
+    #[serde(default)]
+    pub(crate) block_reason_message: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]

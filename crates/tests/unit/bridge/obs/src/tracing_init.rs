@@ -77,6 +77,20 @@ fn init_writes_formatted_events_to_the_log_file() {
 
         let text = std::fs::read_to_string(log_file(&dir).unwrap()).unwrap();
         assert!(text.contains("[systemprompt-bridge] INFO structured event fired"));
+        let line = text
+            .lines()
+            .find(|l| l.contains("bare message event"))
+            .expect("bare message line");
+        let (stamp, rest) = line.split_once(' ').expect("timestamp then tag");
+        assert!(
+            chrono::DateTime::parse_from_rfc3339(stamp).is_ok(),
+            "every log line starts with an RFC 3339 timestamp, got {stamp:?}"
+        );
+        assert!(
+            stamp.ends_with('Z') && stamp.len() == "2026-09-17T11:05:24.123Z".len(),
+            "UTC with millisecond precision, got {stamp:?}"
+        );
+        assert_eq!(rest, "[systemprompt-bridge] WARN bare message event");
         assert!(text.contains("count=3"));
         assert!(text.contains("size=4"));
         assert!(text.contains("enabled=true"));

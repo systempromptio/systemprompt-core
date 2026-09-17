@@ -43,6 +43,7 @@ fn install(provenance: ServicesProvenance) -> fx::ProfileTree {
         .expect("state written");
     ServicesRootBootstrap::install(ActiveServicesRoot {
         path: tree.root.join("services"),
+        base: tree.root.join("services"),
         provenance,
     });
     tree

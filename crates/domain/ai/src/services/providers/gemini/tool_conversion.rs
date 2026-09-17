@@ -56,6 +56,7 @@ pub(super) fn convert_tools(
             name: tool.name,
             description: Some(tool.description),
             input_schema: tool.input_schema,
+            cache_control: None,
         })
         .collect();
 
@@ -70,7 +71,7 @@ pub(super) fn resolve_response(
     let mut tool_calls = Vec::new();
     for part in &response.content {
         match part {
-            CanonicalContent::Text(text) => content.push_str(text),
+            CanonicalContent::Text { text, .. } => content.push_str(text),
             CanonicalContent::ToolUse { name, input, .. } => {
                 let (original_name, resolved_args) = mapper.resolve_tool_call(name, input.clone());
                 tool_calls.push(ToolCall {

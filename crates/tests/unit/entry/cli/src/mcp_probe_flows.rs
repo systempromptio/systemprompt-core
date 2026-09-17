@@ -39,11 +39,11 @@ async fn server(fail_list: bool) -> MockServer {
 #[tokio::test]
 async fn coverage_authenticated_mcp_probes_forward_identity_and_preserve_tool_schemas() {
     let server = server(false).await;
-    let port = server.address().port();
     let token = SessionToken::new("fixture-session-token");
-    let tools = probe::list_tools_authenticated("probe", port, &token, 2)
-        .await
-        .unwrap();
+    let tools =
+        probe::list_tools_authenticated("probe", &format!("{}/mcp", server.uri()), &token, 2)
+            .await
+            .unwrap();
     assert_eq!(tools.len(), 2);
     assert_eq!(tools[0].name, "search");
     assert_eq!(tools[0].parameters_count, 2);
@@ -71,8 +71,7 @@ async fn coverage_authenticated_mcp_probes_forward_identity_and_preserve_tool_sc
 #[tokio::test]
 async fn coverage_public_mcp_probes_do_not_invent_a_bearer_credential() {
     let server = server(false).await;
-    let port = server.address().port();
-    let tools = probe::list_tools_unauthenticated("public", port, 2)
+    let tools = probe::list_tools_unauthenticated("public", &format!("{}/mcp", server.uri()), 2)
         .await
         .unwrap();
     assert_eq!(tools[0].name, "search");
@@ -86,7 +85,8 @@ async fn coverage_public_mcp_probes_do_not_invent_a_bearer_credential() {
 async fn coverage_mcp_probe_tool_list_errors_are_not_reported_as_empty_catalogs() {
     let server = server(true).await;
     let token = SessionToken::new("fixture-session-token");
-    let result = probe::list_tools_authenticated("probe", server.address().port(), &token, 2).await;
+    let result =
+        probe::list_tools_authenticated("probe", &format!("{}/mcp", server.uri()), &token, 2).await;
     assert!(
         result
             .err()
@@ -104,7 +104,8 @@ async fn coverage_mcp_probe_initialization_rejection_is_a_connection_failure() {
         .mount(&server)
         .await;
     let token = SessionToken::new("rejected");
-    let result = probe::list_tools_authenticated("probe", server.address().port(), &token, 2).await;
+    let result =
+        probe::list_tools_authenticated("probe", &format!("{}/mcp", server.uri()), &token, 2).await;
     assert!(
         result
             .err()

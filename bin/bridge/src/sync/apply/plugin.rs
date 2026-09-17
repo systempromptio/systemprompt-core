@@ -53,6 +53,14 @@ pub struct HostFailure {
     pub needs_elevation: bool,
 }
 
+impl HostFailure {
+    #[must_use]
+    pub fn sentinel_line(&self) -> String {
+        let first_line = self.error.lines().next().unwrap_or_default();
+        format!("{}: {}: {first_line}", self.host_id, self.emitter)
+    }
+}
+
 #[tracing::instrument(level = "debug", skip(ctx, manifest))]
 pub(super) async fn apply_plugins(
     ctx: &PluginSyncCtx<'_>,

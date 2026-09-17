@@ -54,7 +54,7 @@ pub(super) fn strip_caller_identity(request: &mut CanonicalRequest) {
     }
 }
 
-pub(super) async fn audit_upstream_failure(
+pub(in crate::services::gateway::service) async fn audit_upstream_failure(
     audit: &GatewayAudit,
     provider: &str,
     model: &str,
@@ -100,7 +100,25 @@ pub(super) async fn resolve_url_images(
 
 // Why: the upstream bracket closes here only for a buffered outcome. A streamed
 // one is still running when the adapter returns; the tap closes it when the
-// upstream event stream terminates.
+// upstream event stream terminates. A failed attempt leaves the bracket open so
+// a failover attempt restarts it and the row reports the attempt that served.
+pub(super) async fn send_attempt(
+    upstream: &ResolvedUpstream<'_>,
+    ctx: OutboundCtx<'_>,
+    body: &PreparedBody,
+    audit: &GatewayAudit,
+) -> anyhow::Result<OutboundOutcome> {
+    audit.mark_upstream_start();
+    let outcome = upstream.adapter.send(ctx, body).await?;
+    if matches!(
+        outcome,
+        OutboundOutcome::Buffered(_) | OutboundOutcome::RawBuffered { .. }
+    ) {
+        audit.mark_upstream_end();
+    }
+    Ok(outcome)
+}
+
 pub(super) async fn send_bracketed(
     upstream: &ResolvedUpstream<'_>,
     ctx: OutboundCtx<'_>,
@@ -108,17 +126,8 @@ pub(super) async fn send_bracketed(
     request_model: &str,
     audit: &GatewayAudit,
 ) -> Result<OutboundOutcome, DispatchError> {
-    audit.mark_upstream_start();
-    match upstream.adapter.send(ctx, body).await {
-        Ok(outcome) => {
-            if matches!(
-                outcome,
-                OutboundOutcome::Buffered(_) | OutboundOutcome::RawBuffered { .. }
-            ) {
-                audit.mark_upstream_end();
-            }
-            Ok(outcome)
-        },
+    match send_attempt(upstream, ctx, body, audit).await {
+        Ok(outcome) => Ok(outcome),
         Err(e) => {
             audit.mark_upstream_end();
             audit_upstream_failure(audit, upstream.provider.name.as_str(), request_model, &e).await;

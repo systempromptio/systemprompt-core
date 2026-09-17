@@ -30,6 +30,7 @@ The top-level `Profile` struct and every nested config struct in this document c
 | `services` | object | no | all-defaults | Where the services tree comes from. See [`services`](#services). |
 | `extensions` | object | no | `{ disabled: [] }` | Extension enable/disable. See [`extensions`](#extensions). |
 | `governance` | object | no | absent | Authorization hook. See [`governance`](#governance). |
+| `observability` | object | no | `{ otlp: null }` | Where this instance exports its own telemetry. See [`observability`](#observability). |
 
 `target` accepts the lowercase values `local` and `cloud` (`profile/mod.rs:91`).
 
@@ -332,6 +333,8 @@ result against the merged registry, and never touch the profile.
 | `pricing` | object | no | absent | Route-level pricing override; otherwise the matching `providers[].models[].pricing` applies. |
 | `when` | object | no | absent | Request-type match (`RouteMatch`). |
 | `requires` | object | no | absent | Governance requirements the resolved model must satisfy (`RouteRequirements`). |
+| `fallback_provider` | string | no | absent | Provider to re-bind the request to when the primary exhausts its 429/503 retry budget, answers any other 5xx, or is unreachable. Must be declared in `providers` and differ from `provider`; validated against the route's pricing and `requires` like the primary. A per-provider circuit breaker (the provider's `resilience:` settings) skips a primary that keeps failing. The audit row records `served_provider`; cost is the serving provider's catalog rate. |
+| `fallback_upstream_model` | string | no | requested model | Model name sent to the fallback provider. Requires `fallback_provider`. |
 
 Every provider endpoint is validated through the shared outbound-URL guard
 (`validate_outbound_url`, `crates/shared/models/src/net/mod.rs`), which rejects loopback,
@@ -375,6 +378,36 @@ governance:
       url: http://localhost:8080/api/public/govern/authz
       timeout_ms: 500
 ```
+
+## `observability`
+
+`crates/shared/models/src/profile/observability.rs`. The gateway *ingests* OTLP at `POST /otel`; this block is the other direction. When `otlp` is set, the `otlp_export` scheduler job tails the audit tables and posts every completed AI request as a span — with a child span for each tool call in `tool_call_ledger` and each `governance_decisions` row under its trace — and every `logs` row as a log record, to the collector named here. Metrics are not exported; they stay on the Prometheus `/metrics` listener. Operating notes, including the `otlp_export_state` progress table: [operate.md §5](../guides/operate.md#5-ingest-and-export-opentelemetry-otlp).
+
+| Key | Type | Required | Default | Meaning |
+|-----|------|----------|---------|---------|
+| `otlp` | object | no | absent | The collector. Absent means nothing is exported and the job is a no-op. |
+
+### `observability.otlp`
+
+| Key | Type | Required | Default | Meaning |
+|-----|------|----------|---------|---------|
+| `endpoint` | string | yes | — | Collector base URL, `http://` or `https://` with a host. OTLP/HTTP appends `/v1/traces` and `/v1/logs`; an endpoint that already ends in that path is used as given. `${VAR}` interpolation applies. |
+| `protocol` | enum `http` \| `grpc` | no | `http` | `http` is OTLP/HTTP with protobuf bodies. `grpc` is reserved and **fails validation** as not yet supported — point the exporter at the collector's HTTP receiver (default port 4318). |
+| `headers` | map string → string | no | `{}` | Sent verbatim on every export request (`Authorization`, `DD-API-KEY`, `X-Scope-OrgID`, …). Names must be valid HTTP header names; values may not contain line breaks. |
+| `signals` | list of `traces` \| `logs` | no | `[traces, logs]` | Which signals to export. Must be non-empty with no repeats. |
+| `batch_seconds` | u64 | no | `15` | Minimum seconds between two exports of the same signal (`1`–`3600`). The job's cron tick (default every 15 s, overridable in the scheduler config) is the upper bound on how often it runs; this is the lower bound on how often it ships. |
+
+```yaml
+observability:
+  otlp:
+    endpoint: https://otlp.example.com:4318
+    headers:
+      Authorization: "Bearer ${OTLP_TOKEN}"
+    signals: [traces, logs]
+    batch_seconds: 30
+```
+
+The job must also be enabled in the scheduler config (`services/scheduler/config.yaml`) under the name `otlp_export`; the profile block alone configures *where*, the scheduler entry configures *whether* and *how often*.
 
 ## `${VAR}` interpolation
 

@@ -152,6 +152,14 @@ pub fn parse_response(
             .iter()
             .any(|c| matches!(c, CanonicalContent::ToolUse { .. }));
         stop_reason = stop_reason.map(|r| r.with_tool_use(has_tool_use));
+        if let (Some(finish), Some(reason)) = (raw_finish_reason.as_deref(), stop_reason)
+            && reason.empty_terminal_is_error()
+            && content.is_empty()
+        {
+            return Err(WireParseError::EmptyTerminal(format!(
+                "upstream finished with {finish}"
+            )));
+        }
     }
 
     Ok(CanonicalResponse {
@@ -181,7 +189,7 @@ fn collect_message_content(msg: ChatMessage, content: &mut Vec<CanonicalContent>
     if let Some(text) = msg.content
         && !text.is_empty()
     {
-        content.push(CanonicalContent::Text(text));
+        content.push(CanonicalContent::text(text));
     }
     for tc in msg.tool_calls {
         let args = if tc.function.arguments.is_empty() {
@@ -198,6 +206,7 @@ fn collect_message_content(msg: ChatMessage, content: &mut Vec<CanonicalContent>
             name: tc.function.name,
             input,
             signature: None,
+            cache_control: None,
         });
     }
 }

@@ -26,10 +26,7 @@ fn services_config() -> String {
         r#"mcp_servers:
   {ENABLED}:
     type: external
-    binary: ""
-    remote_endpoint: http://127.0.0.1:5099/mcp
-    package: fixture
-    port: 5099
+    endpoint: http://127.0.0.1:5099/mcp
     enabled: true
     tool_policy: allow
     display_in_web: true
@@ -44,10 +41,7 @@ fn services_config() -> String {
       client_id: null
   {DISABLED}:
     type: external
-    binary: ""
-    remote_endpoint: http://127.0.0.1:5098/mcp
-    package: fixture
-    port: 5098
+    endpoint: http://127.0.0.1:5098/mcp
     enabled: false
     tool_policy: allow
     display_in_web: false
@@ -126,7 +120,10 @@ async fn a_listed_server_carries_its_oauth_requirement_and_scopes() -> anyhow::R
     assert!(scopes.contains(&"user"), "{entry}");
     assert!(scopes.contains(&"mcp"), "{entry}");
     assert_eq!(entry["status"].as_str(), Some("enabled"), "{entry}");
-    assert_eq!(entry["port"].as_u64(), Some(5099), "{entry}");
+    assert!(
+        entry["port"].is_null(),
+        "an external server binds no port: {entry}"
+    );
     Ok(())
 }
 

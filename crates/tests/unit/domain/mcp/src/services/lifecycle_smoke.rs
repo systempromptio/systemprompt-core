@@ -57,10 +57,10 @@ async fn make_orchestrator_or_skip() -> Option<(LifecycleOrchestrator, McpServer
         name: format!("ghost-{}", uuid::Uuid::new_v4().simple()),
         owner: fixture_user_id(),
         server_type: McpServerType::Internal,
-        binary: "nonexistent-bin".to_string(),
+        binary: Some("nonexistent-bin".to_string()),
         enabled: true,
         display_in_web: true,
-        port: 65530,
+        port: Some(65530),
         crate_path: PathBuf::from("."),
         display_name: "ghost".to_string(),
         description: "no real server".to_string(),
@@ -132,8 +132,8 @@ async fn start_server_rejects_external_without_spawning() {
         return;
     };
     config.server_type = McpServerType::External;
-    config.binary = String::new();
-    config.port = 0;
+    config.binary = None;
+    config.port = None;
     config.remote_endpoint = "https://api.salesforce.com/platform/mcp/v1".to_string();
 
     let err = life

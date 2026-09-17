@@ -5,8 +5,8 @@
 //! surface to give the file at least one passing branch.
 
 use std::sync::Arc;
-use systemprompt_mcp::McpToolExecutor;
-use systemprompt_mcp::repository::{McpArtifactRepository, ToolUsageRepository};
+use systemprompt_mcp::repository::ToolUsageRepository;
+use systemprompt_mcp::{ArtifactIngest, McpToolExecutor};
 use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
 
 #[tokio::test]
@@ -18,7 +18,7 @@ async fn tool_executor_construction_and_clone() {
         return;
     };
     let tool_repo = Arc::new(ToolUsageRepository::new(&db).unwrap());
-    let art_repo = Arc::new(McpArtifactRepository::new(&db).unwrap());
+    let art_repo = Arc::new(ArtifactIngest::from_db(&db, None).unwrap());
     let exec = McpToolExecutor::new(tool_repo, art_repo, "srv-x");
     let _ = exec.clone();
     let _ = format!("{exec:?}");

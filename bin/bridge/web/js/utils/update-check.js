@@ -29,7 +29,7 @@ export function maybeCheckForUpdate(component) {
   const now = Date.now();
   if (component._checkedAt && now - component._checkedAt < UPDATE_RECHECK_MS) { return; }
   component._checkedAt = now;
-  bridge.updateCheck().catch((e) => console.debug("update check failed", e));
+  bridge.updateCheck().catch((e) => console.warn("update check failed", e));
 }
 
 export function installUpdate(component) {

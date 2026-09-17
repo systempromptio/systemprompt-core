@@ -2,17 +2,11 @@
 //! live tool listing against a scripted MCP endpoint, and gateway metadata
 //! assembly via `create_mcp_extensions`.
 
-use std::sync::Arc;
 
-use systemprompt_config::paths::AppPaths;
 use systemprompt_identifiers::UserId;
 use systemprompt_mcp::orchestration::McpToolLoader;
-use systemprompt_mcp::services::ServiceLifecycleStatus;
-use systemprompt_mcp::services::database::DatabaseService;
 use systemprompt_mcp::services::registry::RegistryService;
-use systemprompt_test_fixtures::{
-    TestBootstrap, fixture_database_url, fixture_db_pool, fixture_user_id,
-};
+use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool, fixture_user_id};
 use wiremock::MockServer;
 
 use crate::harness::{
@@ -22,8 +16,6 @@ use crate::harness::{
 
 struct Live {
     loader: McpToolLoader,
-    database: DatabaseService,
-    registry: RegistryService,
     server_name: String,
 }
 
@@ -49,70 +41,32 @@ async fn live_setup_scoped_or_skip(
         enabled: true,
     })])
     .replace("scopes: []", &format!("scopes: [{scopes}]"));
-    let bootstrap = bootstrap_with_services(&yaml);
+    bootstrap_with_services(&yaml);
 
     let registry = RegistryService::new(fixture_user_id());
-    let app_paths = Arc::new(
-        AppPaths::from_profile(
-            &profile_paths(bootstrap),
-            systemprompt_models::PathResolution::Canonicalize,
-            None,
-        )
-        .ok()?,
-    );
-    let database = DatabaseService::new(
-        systemprompt_database::ServiceRepository::new(
-            &db,
-            systemprompt_identifiers::InstanceId::new("test-instance"),
-        )
-        .expect("service repository"),
-        app_paths,
-        registry.clone(),
-    );
     let loader = McpToolLoader::new(
         systemprompt_database::ServiceRepository::new(
             &db,
             systemprompt_identifiers::InstanceId::new("test-instance"),
         )
         .expect("service repository"),
-        registry.clone(),
+        registry,
     );
 
     Some((
         Live {
             loader,
-            database,
-            registry,
             server_name,
         },
         mock,
     ))
 }
 
-fn profile_paths(bootstrap: &TestBootstrap) -> systemprompt_models::profile::PathsConfig {
-    systemprompt_models::profile::PathsConfig {
-        system: bootstrap.system_path.display().to_string(),
-        services: bootstrap.services_path.display().to_string(),
-        bin: bootstrap.bin_path.display().to_string(),
-        web_path: None,
-        storage: Some(bootstrap.storage_path.display().to_string()),
-        geoip_database: None,
-    }
-}
-
 #[tokio::test]
-async fn load_tools_for_running_server_returns_tools() {
+async fn external_server_loads_tools_without_a_service_row() {
     let Some((live, _mock)) = live_setup_or_skip(false).await else {
         return;
     };
-    let config = live
-        .registry
-        .get_server(&live.server_name)
-        .expect("server in registry");
-    live.database
-        .register_service(&config, std::process::id())
-        .await
-        .expect("service registered");
 
     let tools_by_server = live
         .loader
@@ -127,25 +81,21 @@ async fn load_tools_for_running_server_returns_tools() {
         .get(&live.server_name)
         .expect("server present");
     assert_eq!(tools.len(), 2);
-
-    live.database
-        .unregister_service(&live.server_name)
-        .await
-        .expect("cleanup");
 }
 
 #[tokio::test]
-async fn unregistered_server_exhausts_db_retry() {
+async fn stopped_internal_server_has_no_row_to_load_from() {
     let Some((live, _mock)) = live_setup_or_skip(false).await else {
         return;
     };
+    let internal = format!("ldr_int_{}", uuid::Uuid::new_v4().simple());
 
     let err = live
         .loader
-        .load_server_tools(&live.server_name, &request_context("ldr-miss"))
+        .load_server_tools(&internal, &request_context("ldr-miss"))
         .await
-        .expect_err("missing service row");
-    assert!(err.to_string().contains("not found in services database"));
+        .expect_err("unknown server");
+    assert!(err.to_string().contains(&internal), "{err}");
 }
 
 #[tokio::test]
@@ -185,14 +135,6 @@ async fn create_mcp_extensions_reports_status_and_unknown_servers() {
     let Some((live, _mock)) = live_setup_or_skip(false).await else {
         return;
     };
-    let config = live
-        .registry
-        .get_server(&live.server_name)
-        .expect("server in registry");
-    live.database
-        .register_service(&config, std::process::id())
-        .await
-        .expect("service registered");
 
     let unknown = format!("ghost_{}", uuid::Uuid::new_v4().simple());
     let servers = vec![live.server_name.clone(), unknown.clone()];
@@ -208,7 +150,7 @@ async fn create_mcp_extensions_reports_status_and_unknown_servers() {
         .find(|i| i.name == live.server_name)
         .expect("known server");
     assert_eq!(known.auth, "anon");
-    assert_eq!(known.status, "running");
+    assert_eq!(known.status, "external");
     assert!(known.endpoint.contains("/api/v1/mcp/"));
     assert_eq!(known.tools.as_ref().map(Vec::len), Some(2));
 
@@ -216,11 +158,6 @@ async fn create_mcp_extensions_reports_status_and_unknown_servers() {
     assert_eq!(ghost.auth, "unknown");
     assert_eq!(ghost.status, "not_in_config");
     assert!(ghost.tools.is_none());
-
-    live.database
-        .unregister_service(&live.server_name)
-        .await
-        .expect("cleanup");
 }
 
 #[tokio::test]
@@ -250,39 +187,6 @@ async fn create_mcp_extensions_empty_input_short_circuits() {
 }
 
 #[tokio::test]
-async fn stopped_service_row_is_reported_not_running() {
-    let Some((live, _mock)) = live_setup_or_skip(false).await else {
-        return;
-    };
-    let config = live
-        .registry
-        .get_server(&live.server_name)
-        .expect("server in registry");
-    live.database
-        .register_service(&config, std::process::id())
-        .await
-        .expect("service registered");
-    live.database
-        .update_service_status(&live.server_name, ServiceLifecycleStatus::Stopped)
-        .await
-        .expect("status updated");
-
-    let err = live
-        .loader
-        .load_server_tools(&live.server_name, &request_context("ldr-stop"))
-        .await
-        .expect_err("stopped service rejected");
-
-    live.database
-        .unregister_service(&live.server_name)
-        .await
-        .expect("cleanup");
-
-    assert!(err.to_string().contains("is not running"));
-    assert!(err.to_string().contains("stopped"));
-}
-
-#[tokio::test]
 async fn scoped_server_metadata_advertises_first_scope_without_tools() {
     let Some((live, _mock)) = live_setup_scoped_or_skip(true, "admin, user").await else {
         return;
@@ -300,6 +204,6 @@ async fn scoped_server_metadata_advertises_first_scope_without_tools() {
 
     assert_eq!(infos.len(), 1);
     assert_eq!(infos[0].auth, "admin");
-    assert_eq!(infos[0].status, "not_started");
+    assert_eq!(infos[0].status, "external");
     assert!(infos[0].tools.is_none());
 }

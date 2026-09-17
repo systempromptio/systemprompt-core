@@ -10,7 +10,8 @@
 
 use systemprompt_identifiers::{RouteId, TraceId};
 use systemprompt_models::profile::{
-    AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig, UNRESTRICTED_ACKNOWLEDGEMENT,
+    AuditConfig, AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig,
+    UNRESTRICTED_ACKNOWLEDGEMENT,
 };
 use systemprompt_security::authz::{
     AuthzBootstrapError, AuthzContext, AuthzDecision, AuthzError, AuthzRequest, ChainSources,
@@ -53,6 +54,7 @@ fn governance_with(mode: AuthzMode, url: Option<&str>, ack: Option<&str>) -> Gov
                 acknowledgement: ack.map(str::to_owned),
             },
         }),
+        audit: AuditConfig::default(),
     }
 }
 

@@ -12,6 +12,8 @@
 use std::sync::Arc;
 
 use axum::body::{Body, to_bytes};
+
+use super::common::assert_forwarded_with_execution_stamp;
 use axum::http::Request;
 use http::StatusCode;
 use systemprompt_database::{CreateServiceInput, DbPool, ServiceRepository};
@@ -43,8 +45,6 @@ fn services_yaml(provider_url: &str, ext_name: &str, int_name: &str) -> String {
         r#"mcp_servers:
   {ext_name}:
     type: external
-    binary: {ext_name}
-    port: 5990
     endpoint: {provider_url}
     enabled: true
     tool_policy: allow
@@ -241,7 +241,7 @@ async fn external_tools_call_mints_bearer_forwards_and_audits() -> anyhow::Resul
         "{}",
         String::from_utf8_lossy(&bytes)
     );
-    assert_eq!(String::from_utf8_lossy(&bytes), upstream_body);
+    assert_forwarded_with_execution_stamp(&bytes, &upstream_body);
 
     let provider_reqs: Vec<_> = h
         .server

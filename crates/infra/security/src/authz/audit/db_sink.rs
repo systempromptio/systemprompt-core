@@ -72,6 +72,7 @@ impl AuthzAuditSink for DbAuditSink {
             task_id: req.task_id.as_ref().map(TaskId::as_str),
             trace_id: Some(req.trace_id.as_str()),
             client_id: req.client_id.as_ref().map(ClientId::as_str),
+            tool_use_id: None,
         };
         if let Err(err) = self.repo.insert(&record).await {
             tracing::error!(

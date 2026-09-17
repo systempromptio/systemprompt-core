@@ -15,7 +15,9 @@ mod params;
 use self::content::{flatten_content_text, parse_assistant_message, parse_user_content};
 use self::params::{parse_reasoning_effort, parse_response_format, parse_tool, parse_tool_choice};
 
-use super::super::super::canonical::{CanonicalContent, CanonicalMessage, CanonicalRequest, Role};
+use super::super::super::canonical::{
+    CanonicalContent, CanonicalMessage, CanonicalRequest, Role, SystemBlock,
+};
 use super::super::InboundParseError;
 
 const DEFAULT_MAX_TOKENS: u32 = 4096;
@@ -103,9 +105,9 @@ pub fn parse(value: &Value) -> Result<CanonicalRequest, InboundParseError> {
 
 fn parse_messages(
     value: Option<&Value>,
-) -> Result<(Option<String>, Vec<CanonicalMessage>), InboundParseError> {
+) -> Result<(Vec<SystemBlock>, Vec<CanonicalMessage>), InboundParseError> {
     let Some(arr) = value.and_then(Value::as_array) else {
-        return Ok((None, Vec::new()));
+        return Ok((Vec::new(), Vec::new()));
     };
     let mut system_parts: Vec<String> = Vec::new();
     let mut messages: Vec<CanonicalMessage> = Vec::new();
@@ -134,10 +136,11 @@ fn parse_messages(
                     role: Role::Tool,
                     content: vec![CanonicalContent::ToolResult {
                         tool_use_id,
-                        content: vec![CanonicalContent::Text(text)],
+                        content: vec![CanonicalContent::text(text)],
                         is_error: false,
                         structured_content: None,
                         meta: None,
+                        cache_control: None,
                     }],
                 });
             },
@@ -150,9 +153,9 @@ fn parse_messages(
         }
     }
     let system = if system_parts.is_empty() {
-        None
+        Vec::new()
     } else {
-        Some(system_parts.join("\n"))
+        vec![SystemBlock::text(system_parts.join("\n"))]
     };
     Ok((system, messages))
 }

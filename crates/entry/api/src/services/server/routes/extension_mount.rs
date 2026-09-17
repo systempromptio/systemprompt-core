@@ -3,7 +3,12 @@
 //! Every extension router receives the process's one governance engine as
 //! an axum extension: an extension that enforces policy (the MCP governance
 //! webhook, say) must charge the same rate-limiter budget as the gateway, and
-//! the only way it can reach that engine is to be handed it here.
+//! the only way it can reach that engine is to be handed it here. The same
+//! layer carries the process's `Option<Arc<AiService>>`, so an extension
+//! handler that needs inference (a console-triggered evaluation) shares the
+//! one service instead of assembling its own, and a `ServicesRefresh` handle,
+//! so a console that authorises a caller by its own rule can run the services
+//! refresh in-process rather than minting an admin token for the admin route.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -13,6 +18,7 @@ use systemprompt_extension::LoaderError;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{StartupEvent, StartupEventSender};
 
+use crate::routes::admin::services::ServicesRefresh;
 use crate::services::middleware::authz::AuthzPolicy;
 use crate::services::middleware::{RouterExt, UserOnlyContextMiddleware};
 
@@ -61,7 +67,10 @@ pub(super) fn mount_extension_routes(
         } else {
             ext_router_config.router
         }
-        .layer(Extension(ctx.governance_arc()));
+        .layer(Extension(ctx.governance_arc()))
+        .layer(Extension(ctx.ai_service_arc()))
+        .layer(Extension(ctx.artifact_ingest_arc()))
+        .layer(Extension(ServicesRefresh::new(ctx)));
 
         if let Some(frame_options) = ext_router_config.frame_options {
             tracing::debug!(

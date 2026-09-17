@@ -203,8 +203,8 @@ pub fn plist_body(policy: &[PolicyEntry], indent: &str) -> String {
     out
 }
 
-// Why: Claude's published preference encoding specifies string booleans, not
-// plist booleans.
+// Why: Claude's published preference encoding specifies string booleans for
+// the top-level policy keys, not plist booleans.
 fn plist_value(value: &PolicyValue, indent: &str) -> String {
     match value {
         PolicyValue::Str(s) => format!("{indent}<string>{}</string>\n", xml::escape(s)),
@@ -213,12 +213,21 @@ fn plist_value(value: &PolicyValue, indent: &str) -> String {
     }
 }
 
+// Why: inside an `object[]`/`dict` value Claude Desktop reads the native plist
+// as the equivalent JSON and validates each entry against the key's schema. A
+// field typed boolean (`allowedWorkspaceFolders[].isDefaultSelected`) written
+// as a string is a malformed entry, the entry is dropped, and an empty
+// resulting list blocks the Code tab from adding any folder.
 fn plist_json(value: &serde_json::Value, indent: &str) -> String {
     let inner = format!("{indent}  ");
     match value {
         serde_json::Value::Null => format!("{indent}<string></string>\n"),
-        serde_json::Value::Bool(b) => format!("{indent}<string>{b}</string>\n"),
-        serde_json::Value::Number(n) => format!("{indent}<string>{n}</string>\n"),
+        serde_json::Value::Bool(true) => format!("{indent}<true/>\n"),
+        serde_json::Value::Bool(false) => format!("{indent}<false/>\n"),
+        serde_json::Value::Number(n) if n.is_i64() || n.is_u64() => {
+            format!("{indent}<integer>{n}</integer>\n")
+        },
+        serde_json::Value::Number(n) => format!("{indent}<real>{n}</real>\n"),
         serde_json::Value::String(s) => {
             format!("{indent}<string>{}</string>\n", xml::escape(s))
         },

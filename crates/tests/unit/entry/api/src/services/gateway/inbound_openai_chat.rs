@@ -51,7 +51,7 @@ fn parse_system_and_developer_fold_into_system() {
             {"role":"user","content":"hi"}
         ]}"#,
     );
-    assert_eq!(req.system.as_deref(), Some("one\ntwo"));
+    assert_eq!(req.system_text().as_deref(), Some("one\ntwo"));
     assert_eq!(req.messages.len(), 1);
     assert_eq!(req.messages[0].role, Role::User);
 }
@@ -96,7 +96,7 @@ fn parse_assistant_tool_calls_and_tool_result_round_trip() {
             ..
         } => {
             assert_eq!(tool_use_id, "call_1");
-            assert!(matches!(&content[0], CanonicalContent::Text(t) if t == "sunny"));
+            assert!(matches!(&content[0], CanonicalContent::Text { text: t, .. } if t == "sunny"));
         },
         other => panic!("expected ToolResult, got {other:?}"),
     }
@@ -164,13 +164,15 @@ fn parse_data_uri_image_becomes_base64_source() {
         ]}]}"#,
     );
     match &req.messages[0].content[1] {
-        CanonicalContent::Image(
-            systemprompt_api::services::gateway::protocol::canonical::ImageSource::Base64 {
-                media_type,
-                data,
-                ..
-            },
-        ) => {
+        CanonicalContent::Image {
+            source:
+                systemprompt_api::services::gateway::protocol::canonical::ImageSource::Base64 {
+                    media_type,
+                    data,
+                    ..
+                },
+            ..
+        } => {
             assert_eq!(media_type, "image/png");
             assert_eq!(data, "AAAA");
         },
@@ -183,12 +185,13 @@ fn sample_response() -> CanonicalResponse {
         id: "chatcmpl_1".into(),
         model: "gpt-x".into(),
         content: vec![
-            CanonicalContent::Text("answer".into()),
+            CanonicalContent::text("answer"),
             CanonicalContent::ToolUse {
                 id: "t1".into(),
                 name: "fn".into(),
                 input: json!({"a": 1}),
                 signature: None,
+                cache_control: None,
             },
         ],
         stop_reason: Some(CanonicalStopReason::ToolUse),
@@ -309,6 +312,7 @@ fn render_terminal_emits_the_finish_chunk_alone() {
             &CanonicalEvent::MessageStop {
                 id: "chatcmpl_1".into(),
                 stop_reason: Some(CanonicalStopReason::EndTurn),
+                raw_finish_reason: None,
             },
             &snapshot,
             "gpt-x",

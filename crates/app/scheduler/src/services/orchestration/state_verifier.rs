@@ -42,11 +42,13 @@ impl ServiceConfig {
             .mcp_servers
             .iter()
             .filter(|(_, mcp)| mcp.server_type != systemprompt_models::mcp::McpServerType::External)
-            .map(|(name, mcp)| Self {
-                name: name.clone(),
-                service_type: ServiceType::Mcp,
-                port: mcp.port,
-                enabled: mcp.enabled,
+            .filter_map(|(name, mcp)| {
+                Some(Self {
+                    name: name.clone(),
+                    service_type: ServiceType::Mcp,
+                    port: mcp.port?,
+                    enabled: mcp.enabled,
+                })
             });
         agents.chain(mcp_servers).collect()
     }

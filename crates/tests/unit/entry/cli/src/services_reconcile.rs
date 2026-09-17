@@ -39,6 +39,7 @@ async fn reconcile(provenance: ServicesProvenance, last_reconciled: Option<&str>
         .expect("state written");
     let root = ActiveServicesRoot {
         path: dir.path().join("services"),
+        base: dir.path().join("services"),
         provenance,
     };
     let (_tree, profile) = fx::loaded(&fx::https_sources_block(&[]));
@@ -110,6 +111,7 @@ async fn a_moved_composition_with_no_cached_fetch_state_refuses_to_guess() {
     )]));
     let root = ActiveServicesRoot {
         path: dir.path().join("services"),
+        base: dir.path().join("services"),
         provenance: ServicesProvenance::Fetched {
             composed_hash: "abc".to_owned(),
             versions: BTreeMap::new(),

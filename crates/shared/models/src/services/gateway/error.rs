@@ -18,6 +18,24 @@ pub enum GatewayProfileError {
     #[error("gateway default_provider '{provider}' is not declared in services providers")]
     DefaultProviderNotInRegistry { provider: String },
 
+    #[error(
+        "gateway route '{route}' fallback_provider '{provider}' is not declared in services \
+         providers"
+    )]
+    RouteFallbackProviderNotInRegistry { route: String, provider: String },
+
+    #[error(
+        "gateway route '{route}' names '{provider}' as both provider and fallback_provider; a \
+         fallback must be a different upstream"
+    )]
+    RouteFallbackIsPrimary { route: String, provider: String },
+
+    #[error(
+        "gateway route '{route}' sets fallback_upstream_model without a fallback_provider to \
+         apply it to"
+    )]
+    RouteFallbackModelWithoutProvider { route: String },
+
     #[error("system_prompt override with action 'replace' must set a 'prompt'")]
     OverrideReplaceMissingPrompt,
 

@@ -119,6 +119,7 @@ async fn a_composition_that_no_longer_resolves_is_a_change_and_restarts() {
     let ctx = context().await;
     ServicesRootBootstrap::install(ActiveServicesRoot {
         path: std::path::PathBuf::from("/app/services-cache/current"),
+        base: std::path::PathBuf::from("/app/services"),
         provenance: ServicesProvenance::Fetched {
             composed_hash: "composed-active".to_owned(),
             versions: std::collections::BTreeMap::new(),

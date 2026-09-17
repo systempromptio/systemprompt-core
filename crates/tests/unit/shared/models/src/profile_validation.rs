@@ -1,7 +1,7 @@
 use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::profile::{
-    AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig, UNRESTRICTED_ACKNOWLEDGEMENT,
-    default_resource_audiences,
+    AuditConfig, AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig,
+    UNRESTRICTED_ACKNOWLEDGEMENT, default_resource_audiences,
 };
 use systemprompt_models::services::SystemAdminConfig;
 use systemprompt_models::{
@@ -20,6 +20,7 @@ fn webhook_governance() -> GovernanceConfig {
                 acknowledgement: None,
             },
         }),
+        audit: AuditConfig::default(),
     }
 }
 
@@ -82,6 +83,7 @@ fn cloud_paths() -> PathsConfig {
 fn valid_profile() -> Profile {
     Profile {
         storage: Default::default(),
+        observability: Default::default(),
         name: "p".to_string(),
         display_name: "Profile P".to_string(),
         target: ProfileType::Local,
@@ -103,6 +105,7 @@ fn valid_profile() -> Profile {
         secrets: None,
         extensions: ExtensionsConfig::default(),
         governance: None,
+        evaluation: Default::default(),
         services: Default::default(),
         system_admin: SystemAdminConfig {
             username: "admin".to_string(),
@@ -495,7 +498,10 @@ mod governance_validation {
     #[test]
     fn cloud_profile_with_empty_authz_rejected() {
         let mut p = cloud_profile();
-        p.governance = Some(GovernanceConfig { authz: None });
+        p.governance = Some(GovernanceConfig {
+            authz: None,
+            audit: AuditConfig::default(),
+        });
         assert!(errors_of(&p).contains("governance.authz is required"));
     }
 
@@ -520,6 +526,7 @@ mod governance_validation {
                     acknowledgement: Some("wrong".to_string()),
                 },
             }),
+            audit: AuditConfig::default(),
         });
         assert!(errors_of(&p).contains("requires acknowledgement"));
     }
@@ -536,6 +543,7 @@ mod governance_validation {
                     acknowledgement: Some(UNRESTRICTED_ACKNOWLEDGEMENT.to_string()),
                 },
             }),
+            audit: AuditConfig::default(),
         });
         assert!(p.validate().is_ok());
     }

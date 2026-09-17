@@ -36,6 +36,7 @@ use systemprompt_users::{UserRepository, UserService};
 mod context_loaders;
 mod debug_impls;
 mod repositories;
+mod services;
 mod shutdown;
 
 pub use shutdown::ShutdownRequest;
@@ -91,6 +92,8 @@ pub struct Subsystems {
     pub system_admin: Arc<SystemAdmin>,
     pub authz_hook: SharedAuthzHook,
     pub governance: Arc<GovernanceEngine>,
+    pub ai_service: Option<Arc<systemprompt_ai::AiService>>,
+    pub artifact_ingest: Arc<systemprompt_mcp::ArtifactIngest>,
     pub schema_install: Arc<SchemaInstallReport>,
     pub event_bridge: Arc<OnceLock<EventBridgeHandle>>,
     pub geoip_reader: Option<GeoIpReader>,
@@ -256,16 +259,6 @@ impl AppContext {
 
     pub const fn authz_hook(&self) -> &SharedAuthzHook {
         &self.subsystems.authz_hook
-    }
-
-    #[must_use]
-    pub fn governance(&self) -> &GovernanceEngine {
-        &self.subsystems.governance
-    }
-
-    #[must_use]
-    pub fn governance_arc(&self) -> Arc<GovernanceEngine> {
-        Arc::clone(&self.subsystems.governance)
     }
 
     #[must_use]

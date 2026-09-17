@@ -25,7 +25,7 @@ pub struct ServiceStatus {
 pub struct McpServiceStatus {
     pub name: String,
     pub server_type: McpServerType,
-    pub port: u16,
+    pub port: Option<u16>,
     pub endpoint: Option<String>,
     pub health: HealthStatus,
     pub pid: Option<u32>,

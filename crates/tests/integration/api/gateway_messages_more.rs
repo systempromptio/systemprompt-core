@@ -89,7 +89,7 @@ fn inbound() -> Arc<dyn InboundAdapter> {
 fn canonical(messages: Vec<CanonicalMessage>) -> CanonicalRequest {
     CanonicalRequest {
         model: ModelId::new("claude-test"),
-        system: None,
+        system: Vec::new(),
         messages,
         max_tokens: 128,
         temperature: None,
@@ -114,7 +114,7 @@ fn canonical(messages: Vec<CanonicalMessage>) -> CanonicalRequest {
 fn user_message(text: &str) -> CanonicalMessage {
     CanonicalMessage {
         role: Role::User,
-        content: vec![CanonicalContent::Text(text.to_owned())],
+        content: vec![CanonicalContent::text(text.to_owned())],
     }
 }
 
@@ -278,6 +278,8 @@ fn gateway_route() -> systemprompt_models::services::GatewayRoute {
         pricing: None,
         when: None,
         requires: None,
+        fallback_provider: None,
+        fallback_upstream_model: None,
     };
     route.ensure_id();
     route

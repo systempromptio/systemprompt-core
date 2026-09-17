@@ -14,7 +14,7 @@ use systemprompt_api::routes::gateway::messages::dispatch::errors::{
 };
 use systemprompt_api::services::gateway::protocol::outbound::UpstreamError;
 use systemprompt_api::services::gateway::protocol::{
-    CanonicalContent, CanonicalMessage, CanonicalRequest, Role,
+    CanonicalContent, CanonicalMessage, CanonicalRequest, Role, SystemBlock,
 };
 use systemprompt_api::services::gateway::service::finalize::{
     apply_system_prompt_override, attach_request_id,
@@ -133,10 +133,10 @@ fn attach_request_id_stamps_header() {
 fn canonical() -> CanonicalRequest {
     CanonicalRequest {
         model: ModelId::new("claude-test"),
-        system: Some("keep it short".to_owned()),
+        system: vec![SystemBlock::text("keep it short".to_owned())],
         messages: vec![CanonicalMessage {
             role: Role::User,
-            content: vec![CanonicalContent::Text("hi".to_owned())],
+            content: vec![CanonicalContent::text("hi".to_owned())],
         }],
         max_tokens: 32,
         temperature: None,
@@ -202,7 +202,7 @@ async fn apply_system_prompt_override_replace_swaps_system_prompt() {
         descriptor.is_some(),
         "replace must produce an audit descriptor"
     );
-    assert_eq!(request.system.as_deref(), Some("governed prompt"));
+    assert_eq!(request.system_text().as_deref(), Some("governed prompt"));
 }
 
 #[tokio::test]
@@ -214,7 +214,7 @@ async fn apply_system_prompt_override_strip_clears_system_prompt() {
         prompt: None,
     });
     let mut request = canonical();
-    request.system = Some("to be removed".to_owned());
+    request.system = vec![SystemBlock::text("to be removed".to_owned())];
     let descriptor = apply_system_prompt_override(
         &config,
         &ProviderId::new("anthropic"),
@@ -226,7 +226,7 @@ async fn apply_system_prompt_override_strip_clears_system_prompt() {
         descriptor.is_some(),
         "strip must produce an audit descriptor"
     );
-    assert!(request.system.is_none());
+    assert!(request.system.is_empty());
 }
 
 #[tokio::test]

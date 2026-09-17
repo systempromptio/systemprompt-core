@@ -9,7 +9,7 @@ use systemprompt_identifiers::ModelId;
 use systemprompt_models::wire::inspect::ForwardedSurface;
 
 use super::super::super::canonical::{
-    CanonicalRequest, CanonicalTool, CanonicalToolChoice, ThinkingConfig,
+    CanonicalRequest, CanonicalTool, CanonicalToolChoice, SystemBlock, ThinkingConfig,
 };
 use super::super::InboundParseError;
 use super::input::parse_input;
@@ -47,7 +47,9 @@ pub fn parse(value: &Value) -> Result<CanonicalRequest, InboundParseError> {
         .get("instructions")
         .and_then(Value::as_str)
         .filter(|s| !s.is_empty())
-        .map(str::to_owned);
+        .map(SystemBlock::text)
+        .into_iter()
+        .collect();
     let messages = value
         .get("input")
         .map(parse_input)
@@ -129,6 +131,7 @@ fn parse_tool(value: &Value) -> Option<CanonicalTool> {
         name: name.to_owned(),
         description,
         input_schema: parameters,
+        cache_control: None,
     })
 }
 

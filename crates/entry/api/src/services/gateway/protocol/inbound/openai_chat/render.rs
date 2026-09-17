@@ -27,7 +27,7 @@ pub fn render_response_object(response: &CanonicalResponse) -> Value {
     let mut tool_calls: Vec<Value> = Vec::new();
     for part in &response.content {
         match part {
-            CanonicalContent::Text(t) => text.push_str(t),
+            CanonicalContent::Text { text: t, .. } => text.push_str(t),
             CanonicalContent::ToolUse {
                 id, name, input, ..
             } => {
@@ -42,7 +42,7 @@ pub fn render_response_object(response: &CanonicalResponse) -> Value {
                 }));
             },
             CanonicalContent::Thinking { .. }
-            | CanonicalContent::Image(_)
+            | CanonicalContent::Image { .. }
             | CanonicalContent::ToolResult { .. } => {},
         }
     }

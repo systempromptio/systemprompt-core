@@ -305,3 +305,76 @@ fn read_private_reports_a_missing_file() {
         Err(std::io::ErrorKind::NotFound)
     );
 }
+
+#[test]
+fn concurrent_private_writes_into_one_shared_dir_all_succeed() {
+    use std::collections::BTreeSet;
+    use std::sync::{Arc, Barrier};
+
+    let dir = tempdir().unwrap();
+    let shared = dir.path().join("brand");
+    let barrier = Arc::new(Barrier::new(8));
+    let handles: Vec<_> = (0..8)
+        .map(|i| {
+            let shared = shared.clone();
+            let barrier = Arc::clone(&barrier);
+            std::thread::spawn(move || {
+                barrier.wait();
+                let mut written = Vec::new();
+                for round in 0..20 {
+                    create_dir_all_mode_0700(&shared).unwrap();
+                    let path = shared.join(format!("w{i}-{round}.txt"));
+                    atomic_write_0600(&path, b"body").unwrap();
+                    written.push(path);
+                }
+                written
+            })
+        })
+        .collect();
+
+    let mut paths = BTreeSet::new();
+    for handle in handles {
+        for path in handle.join().expect("writer thread completed") {
+            assert_eq!(fs::read(&path).unwrap(), b"body");
+            assert!(paths.insert(path), "every write lands on its own path");
+        }
+    }
+    assert_eq!(paths.len(), 160);
+}
+
+#[test]
+fn concurrent_generated_profile_writes_all_succeed_with_unique_paths() {
+    use std::collections::BTreeSet;
+    use std::sync::{Arc, Barrier};
+    use systemprompt_bridge::integration::generated_profile;
+
+    let barrier = Arc::new(Barrier::new(6));
+    let handles: Vec<_> = (0..6)
+        .map(|i| {
+            let barrier = Arc::clone(&barrier);
+            std::thread::spawn(move || {
+                barrier.wait();
+                (0..10)
+                    .map(|round| {
+                        generated_profile::write(
+                            &format!("race-probe-{i}-{round}"),
+                            ".yaml",
+                            b"body: 1\n",
+                        )
+                        .expect("a concurrent profile write succeeds")
+                    })
+                    .collect::<Vec<_>>()
+            })
+        })
+        .collect();
+
+    let mut paths = BTreeSet::new();
+    for handle in handles {
+        for path in handle.join().expect("writer thread completed") {
+            assert_eq!(fs::read(&path).unwrap(), b"body: 1\n");
+            generated_profile::consume(&path.display().to_string()).unwrap();
+            assert!(paths.insert(path), "every profile lands on its own path");
+        }
+    }
+    assert_eq!(paths.len(), 60);
+}

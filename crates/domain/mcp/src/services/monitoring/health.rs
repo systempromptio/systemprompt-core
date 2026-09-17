@@ -14,6 +14,7 @@ use crate::McpServerConfig;
 use crate::error::McpDomainResult;
 use crate::models::ValidationResultType;
 use crate::services::client::McpConnectionResult;
+use crate::services::spawn_target::SpawnTarget;
 use std::time::Duration;
 use tokio::time::timeout;
 
@@ -152,7 +153,7 @@ pub async fn perform_health_check(config: &McpServerConfig) -> McpDomainResult<H
                 validate_connection_with_auth(
                     &config.name,
                     &config.host,
-                    config.port,
+                    config.spawn_port()?,
                     config.oauth.required,
                 ),
             )

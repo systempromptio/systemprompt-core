@@ -119,10 +119,9 @@ impl ProviderEntry {
         route_override: Option<&'a str>,
         requested: &'a str,
     ) -> &'a str {
-        route_override.unwrap_or_else(|| {
-            self.find_model(requested)
-                .map_or(requested, |model| model.effective_upstream_model(requested))
-        })
+        let name = route_override.unwrap_or(requested);
+        self.find_model(name)
+            .map_or(name, |model| model.effective_upstream_model(name))
     }
 
     #[must_use]

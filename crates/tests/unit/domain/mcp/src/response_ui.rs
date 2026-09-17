@@ -5,8 +5,7 @@
 
 use rmcp::model::{CallToolResult, ResourceContents};
 use systemprompt_identifiers::{AgentName, ContextId, McpExecutionId, SessionId, TraceId};
-use systemprompt_mcp::repository::McpArtifactRepository;
-use systemprompt_mcp::{ClientProfile, McpResponseBuilder, ToolIdentity};
+use systemprompt_mcp::{ArtifactIngest, ClientProfile, McpResponseBuilder, ToolIdentity};
 use systemprompt_models::RequestContext;
 use systemprompt_models::artifacts::{
     CardSection, CliArtifact, Column, ColumnType, PresentationCardArtifact, TableArtifact,
@@ -35,7 +34,7 @@ fn ctx() -> RequestContext {
     )
 }
 
-async fn build(artifact: CliArtifact, repo: &McpArtifactRepository) -> CallToolResult {
+async fn build(artifact: CliArtifact, repo: &ArtifactIngest) -> CallToolResult {
     let context = ctx();
     let exec_id = McpExecutionId::new(format!("exec-{}", uuid::Uuid::new_v4().simple()));
 
@@ -75,7 +74,7 @@ fn ui_resource(result: &CallToolResult) -> (String, String) {
 #[tokio::test]
 async fn table_tool_result_embeds_rendered_table_html() {
     let Some(db) = db_or_skip().await else { return };
-    let repo = McpArtifactRepository::new(&db).expect("repo");
+    let repo = ArtifactIngest::from_db(&db, None).expect("artifact ingest");
 
     let table = TableArtifact::new(vec![Column::new("email", ColumnType::String)])
         .with_rows(vec![serde_json::json!({"email": "ed@example.com"})]);
@@ -102,7 +101,7 @@ async fn table_tool_result_embeds_rendered_table_html() {
 #[tokio::test]
 async fn presentation_card_tool_result_embeds_rendered_card_html() {
     let Some(db) = db_or_skip().await else { return };
-    let repo = McpArtifactRepository::new(&db).expect("repo");
+    let repo = ArtifactIngest::from_db(&db, None).expect("artifact ingest");
 
     let card = PresentationCardArtifact::new("Platform Overview")
         .with_sections(vec![CardSection::new("Total users", "15")]);
@@ -119,7 +118,7 @@ async fn presentation_card_tool_result_embeds_rendered_card_html() {
 #[tokio::test]
 async fn rendered_artifact_reports_both_dimensions_to_the_host() {
     let Some(db) = db_or_skip().await else { return };
-    let repo = McpArtifactRepository::new(&db).expect("repo");
+    let repo = ArtifactIngest::from_db(&db, None).expect("artifact ingest");
 
     let table = TableArtifact::new(vec![Column::new("id", ColumnType::String)]);
     let result = build(CliArtifact::table(table), &repo).await;
@@ -134,7 +133,7 @@ async fn rendered_artifact_reports_both_dimensions_to_the_host() {
 #[tokio::test]
 async fn result_meta_names_the_ui_resource_uri() {
     let Some(db) = db_or_skip().await else { return };
-    let repo = McpArtifactRepository::new(&db).expect("repo");
+    let repo = ArtifactIngest::from_db(&db, None).expect("artifact ingest");
 
     let table = TableArtifact::new(vec![Column::new("id", ColumnType::String)]);
     let result = build(CliArtifact::table(table), &repo).await;
@@ -152,7 +151,7 @@ async fn result_meta_names_the_ui_resource_uri() {
 #[tokio::test]
 async fn structured_content_still_accompanies_the_rendered_resource() {
     let Some(db) = db_or_skip().await else { return };
-    let repo = McpArtifactRepository::new(&db).expect("repo");
+    let repo = ArtifactIngest::from_db(&db, None).expect("artifact ingest");
 
     let table = TableArtifact::new(vec![Column::new("id", ColumnType::String)]);
     let result = build(CliArtifact::table(table), &repo).await;

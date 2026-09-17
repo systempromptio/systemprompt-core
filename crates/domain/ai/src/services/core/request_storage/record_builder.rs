@@ -4,9 +4,11 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::models::ai::{AiRequest, AiResponse, MessageRole};
-use crate::models::{AiRequestRecord, AiRequestRecordBuilder, RequestOrigin, RequestStatus};
+use crate::models::{
+    AiRequestRecord, AiRequestRecordBuilder, RequestKind, RequestOrigin, RequestStatus,
+};
 use systemprompt_identifiers::{
-    AiRequestId, AiToolCallId, McpExecutionId, SessionId, TaskId, TraceId, UserId,
+    ActorKind, AiRequestId, AiToolCallId, McpExecutionId, SessionId, TaskId, TraceId, UserId,
 };
 use systemprompt_models::RequestContext;
 use systemprompt_models::wire::canonical::CanonicalUsage;
@@ -34,6 +36,16 @@ pub(super) struct BuildRecordParams<'a> {
     pub cost_microdollars: i64,
 }
 
+// Why: a job never produces a conversational turn. Stamping its calls as
+// utility lets a dashboard exclude judge and housekeeping inference from user
+// figures by `request_kind` as well as by `actor_kind`.
+const fn request_kind_of(context: &RequestContext) -> RequestKind {
+    match context.actor().kind {
+        ActorKind::Job { .. } => RequestKind::Utility,
+        _ => RequestKind::Turn,
+    }
+}
+
 pub(super) fn build_record(params: &BuildRecordParams<'_>) -> AiRequestRecord {
     let user_id = UserId::new(params.context.user_id().as_str());
 
@@ -44,6 +56,7 @@ pub(super) fn build_record(params: &BuildRecordParams<'_>) -> AiRequestRecord {
         RequestOrigin::INTERNAL,
     )
     .actor(params.context.actor().clone())
+    .request_kind(request_kind_of(params.context))
     .provider(&params.response.provider)
     .model(&params.response.model)
     .usage(response_usage(params.response))

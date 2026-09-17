@@ -31,23 +31,19 @@ fn deployment_accessors_resolve_configured_servers() {
 
     let deployment = DeploymentService::get_deployment("dep_on").expect("deployment resolves");
     assert!(deployment.enabled);
-    assert_eq!(deployment.binary, "dep_on-bin");
+    assert_eq!(deployment.binary, None);
+    assert_eq!(deployment.port, None);
+    assert_eq!(
+        deployment.endpoint.as_deref(),
+        Some("http://127.0.0.1:59999/mcp")
+    );
 
     let mut enabled = DeploymentService::list_enabled_servers().expect("enabled list");
     enabled.sort();
     assert_eq!(enabled, vec!["dep_on".to_owned()]);
 
-    assert_eq!(DeploymentService::get_server_port("dep_on").unwrap(), 0);
     assert!(DeploymentService::is_server_enabled("dep_on").unwrap());
     assert!(!DeploymentService::is_server_enabled("dep_off").unwrap());
-    assert_eq!(
-        DeploymentService::get_server_binary("dep_off").unwrap(),
-        "dep_off-bin"
-    );
-    assert_eq!(
-        DeploymentService::get_server_package("dep_on").unwrap(),
-        "dep_on"
-    );
 
     DeploymentService::validate_config().expect("config validates");
 }
@@ -57,7 +53,5 @@ fn deployment_accessors_error_for_unknown_server() {
     seed_config();
 
     assert!(DeploymentService::get_deployment("missing").is_err());
-    assert!(DeploymentService::get_server_port("missing").is_err());
     assert!(DeploymentService::is_server_enabled("missing").is_err());
-    assert!(DeploymentService::get_server_binary("missing").is_err());
 }

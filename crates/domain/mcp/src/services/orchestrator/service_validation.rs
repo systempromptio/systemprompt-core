@@ -4,6 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::error::McpDomainResult;
+use crate::services::spawn_target::SpawnTarget;
 
 use crate::services::client::{validate_connection_by_url, validate_connection_with_auth};
 use crate::services::database::DatabaseService;
@@ -23,6 +24,7 @@ pub(super) async fn validate_service(
     tracing::info!(
         service = %service_name,
         port = server.port,
+        endpoint = %server.remote_endpoint,
         enabled = server.enabled,
         oauth_required = server.oauth.required,
         "Validating MCP service"
@@ -61,7 +63,7 @@ pub(super) async fn validate_service(
     let validation_result = validate_connection_with_auth(
         &server.name,
         "127.0.0.1",
-        server.port,
+        server.spawn_port()?,
         server.oauth.required,
     )
     .await?;

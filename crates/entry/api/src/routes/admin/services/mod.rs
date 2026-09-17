@@ -8,9 +8,10 @@
 //! it into the authz tables and the inventory in-process; `restart=true` is
 //! an opt-in for the static config a running process cannot re-read.
 //!
-//! Two refreshes must not fetch at once, so the router owns a single-flight
-//! lock and the second caller is refused rather than queued behind a
-//! multi-megabyte download.
+//! Two refreshes must not fetch at once, so a process-wide single-flight
+//! lock guards the pipeline and the second caller is refused rather than
+//! queued behind a multi-megabyte download. [`ServicesRefresh`] is the
+//! in-process handle extensions run the same pipeline through.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -28,14 +29,14 @@ use systemprompt_loader::services_root::{ActiveServicesRoot, ServicesProvenance}
 use systemprompt_models::services::bundle::ServicesBundleState;
 use systemprompt_runtime::AppContext;
 
-pub use refresh::{RefreshQuery, refresh};
+pub use refresh::{RefreshQuery, ServicesRefresh, process_refresh_lock, refresh};
 pub use status::build_status;
 
 pub(super) fn router() -> Router<AppContext> {
     Router::new()
         .route("/status", get(status::status))
         .route("/refresh", post(refresh))
-        .layer(Extension(RefreshLock::default()))
+        .layer(Extension(process_refresh_lock()))
 }
 
 /// Single-flight guard around the fetch-verify-compose pipeline.

@@ -96,10 +96,13 @@ impl ServicesConfig {
             if mcp.server_type == McpServerType::External {
                 continue;
             }
-            if let Some(existing) = seen_ports.insert(mcp.port, ("mcp_server", name.as_str())) {
+            let Some(port) = mcp.port else {
+                continue;
+            };
+            if let Some(existing) = seen_ports.insert(port, ("mcp_server", name.as_str())) {
                 return Err(ConfigValidationError::port_conflict(format!(
                     "Port conflict: {} used by both {} '{}' and mcp_server '{}'",
-                    mcp.port, existing.0, existing.1, name
+                    port, existing.0, existing.1, name
                 )));
             }
         }
@@ -129,10 +132,13 @@ impl ServicesConfig {
             if mcp.server_type == McpServerType::External {
                 continue;
             }
-            if mcp.port < min || mcp.port > max {
+            let Some(port) = mcp.port else {
+                continue;
+            };
+            if port < min || port > max {
                 return Err(ConfigValidationError::invalid_field(format!(
                     "MCP server '{}' port {} is outside allowed range {}-{}",
-                    name, mcp.port, min, max
+                    name, port, min, max
                 )));
             }
         }

@@ -6,6 +6,7 @@ use systemprompt_identifiers::{AgentName, AiToolCallId, ContextId, SessionId, Tr
 use systemprompt_mcp::models::{ExecutionStatus, ToolExecutionRequest, ToolExecutionResult};
 use systemprompt_models::RequestContext;
 
+use systemprompt_models::mcp::ExecutionSource;
 const TEST_CONTEXT_ID_A: &str = "00000000-0000-4000-8000-000000000001";
 
 fn create_test_context() -> RequestContext {
@@ -27,6 +28,7 @@ fn create_test_request() -> ToolExecutionRequest {
         request_method: Some("POST".to_string()),
         request_source: Some("api".to_string()),
         ai_tool_call_id: Some(AiToolCallId::new("call-123".to_string())),
+        source: ExecutionSource::InProcess,
     }
 }
 
@@ -63,6 +65,7 @@ fn test_tool_execution_request_without_optionals() {
         request_method: None,
         request_source: None,
         ai_tool_call_id: None,
+        source: ExecutionSource::InProcess,
     };
 
     assert_eq!(request.tool_name, "minimal-tool");
@@ -104,6 +107,7 @@ fn test_tool_execution_request_with_complex_input() {
         request_method: None,
         request_source: None,
         ai_tool_call_id: None,
+        source: ExecutionSource::InProcess,
     };
 
     assert_eq!(request.input, complex_input);
@@ -120,6 +124,7 @@ fn test_tool_execution_request_with_empty_strings() {
         request_method: Some(String::new()),
         request_source: Some(String::new()),
         ai_tool_call_id: None,
+        source: ExecutionSource::InProcess,
     };
 
     assert!(request.tool_name.is_empty());

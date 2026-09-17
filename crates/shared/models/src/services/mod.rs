@@ -152,7 +152,9 @@ impl ServicesConfig {
             if mcp.server_type == McpServerType::External {
                 continue;
             }
-            mcp.port = shift(mcp.port, &format!("MCP server '{name}'"))?;
+            if let Some(port) = mcp.port {
+                mcp.port = Some(shift(port, &format!("MCP server '{name}'"))?);
+            }
         }
 
         self.settings.agent_port_range = (
@@ -187,6 +189,7 @@ impl ServicesConfig {
         }
 
         self.validate_single_governance_hook_owner()?;
+        self.validate_single_evaluation_hook_owner()?;
 
         for (id, marketplace) in &self.marketplaces {
             marketplace.validate(id.as_str())?;

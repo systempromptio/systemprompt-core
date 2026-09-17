@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.55.0] - 2026-09-17
+
+### Breaking
+
+- **Breaking:** `McpServerInfo.port` is `Option<u16>` (`None` for an `external` server).
+
 ## [0.54.0] - 2026-09-16
 
 ### Removed

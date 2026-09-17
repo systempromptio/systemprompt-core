@@ -1,6 +1,7 @@
 //! Unit tests for MCP repositories.
 
-mod artifact;
+pub(crate) mod artifact;
+mod artifact_payload_sweep;
 mod authoritative_reads_db;
 mod proxy_identity_corrupt_db;
 mod proxy_identity_db;

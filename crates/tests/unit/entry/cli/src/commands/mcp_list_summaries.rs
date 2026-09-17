@@ -20,7 +20,7 @@ fn internal(binary: &str, enabled: bool) -> Deployment {
 
 fn external(enabled: bool) -> Deployment {
     deployment(&format!(
-        "type: external\nbinary: \"\"\npackage: null\nport: 0\nendpoint: https://mcp.example.com/mcp\nenabled: {enabled}\ndisplay_in_web: false\noauth:\n  required: false\n  scopes: []\n  audience: mcp\n  client_id: null\n"
+        "type: external\nendpoint: https://mcp.example.com/mcp\nenabled: {enabled}\ndisplay_in_web: false\noauth:\n  required: false\n  scopes: []\n  audience: mcp\n  client_id: null\n"
     ))
 }
 
@@ -61,7 +61,7 @@ fn get_binary_info_reports_path_and_timestamp() {
 fn external_server_summary_reports_remote_or_disabled() {
     let running = summarize_server("ext", &external(true), None);
     assert_eq!(running.server_type, "external");
-    assert_eq!(running.port, 0);
+    assert_eq!(running.port, None);
     assert_eq!(running.status.as_deref(), Some("remote"));
     assert_eq!(
         running.endpoint.as_deref(),
@@ -93,7 +93,7 @@ fn internal_summary_reports_ready_when_both_builds_exist() {
 
     let summary = summarize_server("svc", &internal("svc-bin", true), Some(tmp.path()));
     assert_eq!(summary.status.as_deref(), Some("ready"));
-    assert_eq!(summary.port, 5010);
+    assert_eq!(summary.port, Some(5010));
     assert!(summary.debug_created_at.is_some());
     assert!(summary.release_created_at.is_some());
 }

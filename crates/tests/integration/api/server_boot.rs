@@ -131,6 +131,8 @@ async fn setup_api_server_assembles_full_router() -> anyhow::Result<()> {
             system_admin: Arc::new(fixture_system_admin("admin")),
             authz_hook: Arc::new(AllowAllHook::new(Arc::new(NullAuditSink))),
             governance: systemprompt_test_fixtures::default_governance_engine(),
+            ai_service: None,
+            artifact_ingest: systemprompt_test_fixtures::fixture_artifact_ingest(&pool)?,
             schema_install: Arc::new(systemprompt_database::SchemaInstallReport::default()),
             event_bridge: Arc::new(OnceLock::new()),
             geoip_reader: None,

@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.55.0] - 2026-09-17
+
+### Breaking
+
+- **Breaking:** `Profile` gains `observability: ObservabilityConfig` (`#[serde(default)]`); struct literals must name it.
+- **Breaking:** `services::gateway::GatewayRoute` gains `fallback_provider: Option<ProviderId>` and `fallback_upstream_model: Option<String>` (`#[serde(default)]`); struct literals must name them.
+- **Breaking:** `profile::GovernanceConfig` gains `audit: AuditConfig` (`#[serde(default)]`); struct literals must name it.
+- **Breaking:** `PluginHooksRef` gains `evaluation: bool` (`#[serde(default)]`); struct literals must name it. Validation requires one owner for `hooks.evaluation`, and that owner must also own the governance hooks.
+- **Breaking:** `mcp::Deployment.binary` / `.port` are `Option`; an `external` server declares none of `binary` / `package` / `port`, an internal one must declare `binary` and `port`.
+- **Breaking:** `wire::gemini::request_parts` is a module (`content_to_part`, `plain_text_part` moved out of `request.rs`); `wire::gemini::streaming_parts` holds the text/thought/function-call emitters. `services::gateway::{slugify_pattern, synthesize_route_id}` live in `route_id.rs` (re-exported unchanged). `CanonicalContent::text` / `SystemBlock::text` take `impl Into<String>`.
+
+### Added
+
+- `ProviderEntry::upstream_model_for` maps a route override through the catalog (id or alias → the entry's wire `upstream_model`); an unlisted override still passes through verbatim.
+- `profile::{ObservabilityConfig, OtlpExportConfig, OtlpProtocol, OtlpSignal}`: the `observability.otlp` block (endpoint, protocol, headers, signals, batch_seconds) with `OtlpExportConfig::{exports, signal_url}` and `Profile::validate_observability` (http(s) endpoint, non-empty distinct signals, `batch_seconds` 1–3600, header names/values; `grpc` refused as not yet supported).
+- `GatewayRoute::fallback_view` — the route as its fallback provider serves it (provider and upstream model swapped, the primary `pricing:` override dropped). `GatewayConfig::validate` checks the fallback exists, differs from the primary, and satisfies the route's pricing and `requires`: `GatewayProfileError::{RouteFallbackProviderNotInRegistry, RouteFallbackIsPrimary, RouteFallbackModelWithoutProvider}`.
+- `profile::AuditConfig` under `governance.audit`: `payload_cap_bytes` (default `AuditConfig::DEFAULT_PAYLOAD_CAP_BYTES` = 1 MiB) bounds the request/response body stored whole in `ai_request_payloads`; validation rejects a value under `AuditConfig::MIN_PAYLOAD_CAP_BYTES` (64 KiB). `Profile::payload_cap_bytes()` returns the value or the default when the profile carries no `governance` block.
+- `profile::EvaluationProfile` — `evaluation.automatic` (default `false`, `deny_unknown_fields`) declares whether closed sessions are queued for scoring without an operator's click.
+- `mcp::{ExecutionSource, Correlation}` (`ExecutionSource` is `in_process | proxy | gateway | hook_claude_code | hook_opencode`), `ArtifactType::ToolResult` (`tool_result`), and the feedback `NormalizedArtifactFact` / `AnalyticsFactKind::Artifact`.
+- `CanonicalStopReason` and `CanonicalEvent::MessageStop.raw_finish_reason`: every inbound wire codec surfaces the upstream's own terminal reason.
+- `services/evaluation` is on `BUNDLE_ALLOWED_DIRS`, so a bundle carries it into the composed tree.
+
+### Fixed
+
+- Mid-history `system` messages reach Gemini and Anthropic-wire upstreams instead of being dropped: Gemini folds the text as a user part into the neighbouring user turn, the Anthropic block mapper renders `System` as user. Text blocks beside function responses are folded into the Gemini function result (a `[functionResponse, text]` user turn returned `STOP` with an empty part on Vertex). `thinking: {type: adaptive}` parses as on with the budget left to the model and is re-emitted as `adaptive` on the Anthropic wire rather than an `enabled` block with no budget.
+
 ## [0.54.0] - 2026-09-16
 
 ### Breaking

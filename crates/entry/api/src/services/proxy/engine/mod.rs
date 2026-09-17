@@ -23,6 +23,7 @@ use axum::response::Response;
 use std::sync::Arc;
 use systemprompt_database::ServiceConfig;
 use systemprompt_identifiers::AgentName;
+use systemprompt_mcp::McpServerConfig;
 use systemprompt_mcp::repository::McpProxyIdentityRepository;
 use systemprompt_models::RequestContext;
 use systemprompt_runtime::AppContext;
@@ -50,6 +51,7 @@ pub struct ProxyEngine {
     client_pool: ClientPool,
     identities: Arc<McpProxyIdentityRepository>,
     tool_usage_repo: Option<Arc<systemprompt_mcp::repository::ToolUsageRepository>>,
+    artifact_ingest: Option<Arc<systemprompt_mcp::ArtifactIngest>>,
 }
 
 impl ProxyEngine {
@@ -58,6 +60,7 @@ impl ProxyEngine {
             client_pool: ClientPool::new(),
             identities,
             tool_usage_repo: None,
+            artifact_ingest: None,
         }
     }
 
@@ -67,6 +70,12 @@ impl ProxyEngine {
         repo: Arc<systemprompt_mcp::repository::ToolUsageRepository>,
     ) -> Self {
         self.tool_usage_repo = Some(repo);
+        self
+    }
+
+    #[must_use]
+    pub fn with_artifact_ingest(mut self, ingest: Arc<systemprompt_mcp::ArtifactIngest>) -> Self {
+        self.artifact_ingest = Some(ingest);
         self
     }
 
@@ -85,10 +94,7 @@ impl ProxyEngine {
             tracing::warn!("RequestContext missing from request extensions");
         }
 
-        if matches!(proxy_kind, ProxyKind::Mcp)
-            && let Ok(Some(server_config)) = ctx.mcp_registry().find_server(service_name)
-            && server_config.is_external()
-        {
+        if let Some(server_config) = external_server(proxy_kind, service_name, &ctx)? {
             return self
                 .proxy_external_mcp(service_name, request, ctx, server_config)
                 .await;
@@ -266,4 +272,22 @@ fn inject_forward_headers(
         has_auth_after = has_auth_after,
         "Proxy forwarding request"
     );
+}
+
+fn external_server(
+    proxy_kind: ProxyKind,
+    service_name: &str,
+    ctx: &AppContext,
+) -> Result<Option<McpServerConfig>, ProxyError> {
+    if !matches!(proxy_kind, ProxyKind::Mcp) {
+        return Ok(None);
+    }
+    let found = ctx
+        .mcp_registry()
+        .find_server(service_name)
+        .map_err(|source| ProxyError::RegistryUnavailable {
+            service: service_name.to_owned(),
+            source,
+        })?;
+    Ok(found.filter(McpServerConfig::is_external))
 }

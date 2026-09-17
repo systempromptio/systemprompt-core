@@ -13,6 +13,7 @@
 
 mod governance;
 mod outbound;
+mod rebind;
 pub mod recovery;
 
 use bytes::Bytes;
@@ -26,6 +27,7 @@ use systemprompt_security::policy::{ChainEntryResult, GovernanceEngine, SECRET_S
 
 pub(in crate::services::gateway::service) use self::governance::record_quota_warning;
 use self::governance::{PromptEvaluation, evaluate_prompt, record_governance_decision};
+pub(in crate::services::gateway::service) use self::outbound::audit_upstream_failure;
 use self::outbound::{
     CtxParts, outbound_ctx, resolve_url_images, send_bracketed, strip_caller_identity,
 };

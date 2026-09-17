@@ -20,14 +20,16 @@ fn agent_yaml(name: &str, port: u16, default: bool) -> String {
 }
 
 fn mcp_yaml(name: &str, port: u16, server_type: &str) -> String {
+    let spawn = if server_type == "internal" {
+        format!("    binary: bin\n    port: {port}\n")
+    } else {
+        "    endpoint: https://remote.example.com/mcp\n".to_owned()
+    };
     format!(
         r"
   {name}:
     server_type: {server_type}
-    binary: bin
-    package: null
-    port: {port}
-    enabled: true
+{spawn}    enabled: true
     display_in_web: false
     oauth:
       required: false
@@ -99,13 +101,15 @@ fn agent_and_internal_mcp_sharing_a_port_conflicts_only_in_range() {
 }
 
 #[test]
-fn external_mcp_servers_are_exempt_from_port_rules() {
+fn external_mcp_servers_bind_no_port_and_are_exempt_from_port_rules() {
     let yaml = format!(
         "agents:{}mcp_servers:{}",
         agent_yaml("agent_one", 9001, false),
-        mcp_yaml("remote", 9001, "external")
+        mcp_yaml("remote", 0, "external")
     );
-    assert!(parse(&yaml).validate().is_ok());
+    let config = parse(&yaml);
+    assert_eq!(config.mcp_servers["remote"].port, None);
+    assert!(config.validate().is_ok());
 }
 
 #[test]

@@ -14,6 +14,7 @@ use crate::error::McpDomainResult;
 use systemprompt_database::ServiceRepository;
 use systemprompt_models::RequestContext;
 use systemprompt_models::ai::tools::McpTool;
+use systemprompt_models::mcp::McpServerType;
 use tracing::{debug, error};
 
 use super::state::ServiceStateService;
@@ -75,6 +76,14 @@ impl McpToolLoader {
         server_name: &str,
         context: &RequestContext,
     ) -> McpDomainResult<Vec<McpTool>> {
+        // Why: an external server is proxied to its endpoint and never
+        // spawned, so it has no service row to gate on.
+        if let Some(server_config) = self.registry.find_server(server_name)?
+            && server_config.is_external()
+        {
+            return McpClient::list_tools(&server_config, context).await;
+        }
+
         let mut retries = 0;
         let max_retries = 3;
 
@@ -151,11 +160,14 @@ impl McpToolLoader {
                         .map_or_else(|| "user".to_owned(), ToString::to_string)
                 };
 
-                let runtime_status = self
-                    .service_manager
-                    .get_mcp_service(server_name)
-                    .await?
-                    .map_or_else(|| "not_started".to_owned(), |s| s.status);
+                let runtime_status = if deployment.server_type == McpServerType::External {
+                    "external".to_owned()
+                } else {
+                    self.service_manager
+                        .get_mcp_service(server_name)
+                        .await?
+                        .map_or_else(|| "not_started".to_owned(), |s| s.status)
+                };
 
                 let version = self
                     .registry

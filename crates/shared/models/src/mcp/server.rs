@@ -22,10 +22,10 @@ pub struct McpServerConfig {
     pub name: String,
     pub owner: UserId,
     pub server_type: McpServerType,
-    pub binary: String,
+    pub binary: Option<String>,
     pub enabled: bool,
     pub display_in_web: bool,
-    pub port: u16,
+    pub port: Option<u16>,
     #[serde(
         serialize_with = "serialize_path",
         deserialize_with = "deserialize_path"

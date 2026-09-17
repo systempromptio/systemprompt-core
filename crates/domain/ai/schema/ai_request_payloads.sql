@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS ai_request_payloads (
     response_bytes INTEGER,
     request_body_sha256 TEXT,
     prepared_body_sha256 TEXT,
+    prepared_tools JSONB,
     response_body_sha256 TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,

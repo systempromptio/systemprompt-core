@@ -23,6 +23,33 @@ pub(super) fn dispatch_pricing(
     .map_err(|error| DispatchError::PreAudit(error.into()))
 }
 
+// Why: the shared resolver walks the gateway routes first, and the route
+// matching the requested model is the primary one — its `pricing:` override
+// and its provider's catalog are the wrong rates for a failover. The served
+// provider's own catalog is the only source the fallback may bill from.
+pub(super) fn failover_pricing(
+    upstream: &ResolvedUpstream<'_>,
+    requested_model: &str,
+) -> Result<ModelPricing, model_pricing::MissingPricing> {
+    let candidates = [
+        upstream.route.upstream_model.as_deref(),
+        Some(requested_model),
+    ];
+    candidates
+        .into_iter()
+        .flatten()
+        .find_map(|model| upstream.provider.find_model(model))
+        .map(|model| model.pricing)
+        .ok_or_else(|| model_pricing::MissingPricing {
+            provider: upstream.provider.name.as_str().to_owned(),
+            models: candidates
+                .into_iter()
+                .flatten()
+                .map(ToOwned::to_owned)
+                .collect(),
+        })
+}
+
 pub(super) fn trace_dispatch(
     ctx: &GatewayRequestContext,
     request: &CanonicalRequest,

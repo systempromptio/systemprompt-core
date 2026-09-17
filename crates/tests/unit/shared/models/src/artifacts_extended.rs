@@ -583,6 +583,7 @@ fn artifact_type_display_round_trips_through_serde() {
         ArtifactType::Video,
         ArtifactType::Audio,
         ArtifactType::Message,
+        ArtifactType::ToolResult,
         ArtifactType::Custom("sparkline".to_string()),
     ];
     for variant in variants {

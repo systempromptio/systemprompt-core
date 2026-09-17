@@ -17,6 +17,7 @@ use std::io;
 use std::os::windows::io::{AsRawHandle, FromRawHandle};
 use std::path::Path;
 use std::ptr::null_mut;
+use std::sync::Mutex;
 use windows_sys::Win32::Foundation::{GENERIC_READ, GENERIC_WRITE, INVALID_HANDLE_VALUE};
 use windows_sys::Win32::Security::Authorization::{
     ConvertStringSecurityDescriptorToSecurityDescriptorW, GetSecurityInfo, SE_FILE_OBJECT,
@@ -199,10 +200,10 @@ fn set_dacl(file: &File, reader: &str, scope: Scope) -> io::Result<()> {
     }
 }
 
-fn open_for_dac(path: &Path, scope: Scope) -> io::Result<File> {
+fn open_for_dac(path: &Path, scope: Scope, access: u32) -> io::Result<File> {
     use std::os::windows::fs::OpenOptionsExt;
     let mut options = std::fs::OpenOptions::new();
-    options.access_mode(READ_CONTROL | WRITE_DAC);
+    options.access_mode(access);
     match scope {
         Scope::File => options.custom_flags(FILE_FLAG_OPEN_REPARSE_POINT),
         Scope::Directory => {
@@ -219,9 +220,27 @@ fn open_for_dac(path: &Path, scope: Scope) -> io::Result<File> {
     Ok(file)
 }
 
+// Why: SetSecurityInfo with a protected DACL on a directory re-propagates to
+// every child, and a sibling thread mid `CreateFileW`/`MoveFileEx` inside that
+// directory observes ACCESS_DENIED for the duration. Callers share brand-level
+// directories (the temp dir every generated profile lands in), so the DACL is
+// rewritten only when verification fails, and that write is serialised.
+static PROTECT: Mutex<()> = Mutex::new(());
+
 pub(crate) fn protect_directory(path: &Path) -> io::Result<()> {
     let reader = current_sid()?;
-    let file = open_for_dac(path, Scope::Directory)?;
+    let probe = open_for_dac(path, Scope::Directory, READ_CONTROL)?;
+    if verify_scope(&probe, &reader, Scope::Directory).is_ok() {
+        return Ok(());
+    }
+    drop(probe);
+    let _guard = PROTECT
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let file = open_for_dac(path, Scope::Directory, READ_CONTROL | WRITE_DAC)?;
+    if verify_scope(&file, &reader, Scope::Directory).is_ok() {
+        return Ok(());
+    }
     set_dacl(&file, &reader, Scope::Directory)?;
     verify_scope(&file, &reader, Scope::Directory)
 }

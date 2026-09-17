@@ -34,7 +34,7 @@ fn replace_json(value: &mut Value, replacements: &[(String, String)]) {
 fn replace_content(content: &mut [CanonicalContent], replacements: &[(String, String)]) {
     for part in content {
         match part {
-            CanonicalContent::Text(text) | CanonicalContent::Thinking { text, .. } => {
+            CanonicalContent::Text { text, .. } | CanonicalContent::Thinking { text, .. } => {
                 replace_text(text, replacements);
             },
             CanonicalContent::ToolUse { input, .. } => replace_json(input, replacements),
@@ -49,14 +49,14 @@ fn replace_content(content: &mut [CanonicalContent], replacements: &[(String, St
                     replace_json(value, replacements);
                 }
             },
-            CanonicalContent::Image(_) => {},
+            CanonicalContent::Image { .. } => {},
         }
     }
 }
 
 pub(super) fn replace_canonical(request: &mut CanonicalRequest, replacements: &[(String, String)]) {
-    if let Some(system) = &mut request.system {
-        replace_text(system, replacements);
+    for block in &mut request.system {
+        replace_text(&mut block.text, replacements);
     }
     for message in &mut request.messages {
         replace_content(&mut message.content, replacements);

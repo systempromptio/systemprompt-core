@@ -52,15 +52,21 @@ impl RegistryService {
                 continue;
             }
 
-            let crate_path = match deployment.server_type {
-                McpServerType::Internal => registry.get_path(&deployment.binary)?,
-                McpServerType::External => PathBuf::new(),
+            let crate_path = match (deployment.server_type, deployment.binary.as_deref()) {
+                (McpServerType::Internal, Some(binary)) => registry.get_path(binary)?,
+                (McpServerType::Internal, None) => {
+                    return Err(McpDomainError::Configuration(format!(
+                        "{server_name}: internal MCP server declares no binary"
+                    )));
+                },
+                (McpServerType::External, _) => PathBuf::new(),
             };
 
             let display_name = deployment
                 .package
                 .clone()
-                .unwrap_or_else(|| deployment.binary.clone());
+                .or_else(|| deployment.binary.clone())
+                .unwrap_or_else(|| server_name.clone());
 
             let config = crate::McpServerConfig {
                 name: server_name.clone(),

@@ -29,7 +29,7 @@ const GEMINI_CODE_OUTCOME_OK: &str = "OUTCOME_OK";
 pub fn text_content(response: &CanonicalResponse) -> String {
     let mut out = String::new();
     for part in &response.content {
-        if let CanonicalContent::Text(t) = part {
+        if let CanonicalContent::Text { text: t, .. } = part {
             out.push_str(t);
         }
     }

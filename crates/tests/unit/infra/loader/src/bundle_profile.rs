@@ -39,6 +39,7 @@ pub fn profile(
 ) -> Profile {
     Profile {
         storage: Default::default(),
+        observability: Default::default(),
         name: "p".to_owned(),
         display_name: "Profile P".to_owned(),
         target: ProfileType::Local,
@@ -93,6 +94,7 @@ pub fn profile(
         secrets: None,
         extensions: ExtensionsConfig::default(),
         governance: None,
+        evaluation: Default::default(),
         services: ServicesProfileConfig {
             port_offset: 0,
             sources,

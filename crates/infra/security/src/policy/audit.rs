@@ -60,6 +60,8 @@ pub struct PrincipalSnapshot {
 pub struct AuditTarget {
     pub tool_name: String,
     pub plugin_id: Option<PluginId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tool_use_id: Option<String>,
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -198,6 +200,7 @@ pub async fn record_decision(pool: &PgPool, audit: &DecisionAudit) -> Result<(),
         task_id: None,
         trace_id: audit.trace_id.as_deref(),
         client_id: audit.principal.client_id.as_ref().map(ClientId::as_str),
+        tool_use_id: audit.target.tool_use_id.as_deref(),
     };
 
     insert_governance_decision(pool, &record).await

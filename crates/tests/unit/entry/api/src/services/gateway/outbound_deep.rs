@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use serde_json::json;
 use systemprompt_api::services::gateway::protocol::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalTool, CanonicalToolChoice,
-    ImageSource, Role, ThinkingConfig,
+    ImageSource, Role, SystemBlock, ThinkingConfig,
 };
 use systemprompt_api::services::gateway::protocol::outbound::anthropic::AnthropicOutbound;
 use systemprompt_api::services::gateway::protocol::outbound::gemini::GeminiOutbound;
@@ -54,28 +54,30 @@ fn route(provider: &str) -> GatewayRoute {
         pricing: None,
         when: None,
         requires: None,
+        fallback_provider: None,
+        fallback_upstream_model: None,
     }
 }
 
 fn rich_request() -> CanonicalRequest {
     CanonicalRequest {
         model: ModelId::new("m"),
-        system: Some("be helpful".into()),
+        system: vec![SystemBlock::text("be helpful")],
         messages: vec![
             CanonicalMessage {
                 role: Role::System,
-                content: vec![CanonicalContent::Text("system note".into())],
+                content: vec![CanonicalContent::text("system note")],
             },
             CanonicalMessage {
                 role: Role::User,
                 content: vec![
-                    CanonicalContent::Text("look at this".into()),
-                    CanonicalContent::Image(ImageSource::Base64 {
+                    CanonicalContent::text("look at this"),
+                    CanonicalContent::image(ImageSource::Base64 {
                         media_type: "image/png".into(),
                         data: "AAAA".into(),
                         detail: None,
                     }),
-                    CanonicalContent::Image(ImageSource::Url {
+                    CanonicalContent::image(ImageSource::Url {
                         url: "https://x/y".into(),
                         detail: None,
                     }),
@@ -90,12 +92,13 @@ fn rich_request() -> CanonicalRequest {
                         text: "let me think".into(),
                         signature: Some("sig".into()),
                     },
-                    CanonicalContent::Text("here's my answer".into()),
+                    CanonicalContent::text("here's my answer"),
                     CanonicalContent::ToolUse {
                         id: "tu1".into(),
                         name: "search".into(),
                         input: json!({"q": "rust"}),
                         signature: None,
+                        cache_control: None,
                     },
                 ],
             },
@@ -103,10 +106,11 @@ fn rich_request() -> CanonicalRequest {
                 role: Role::Tool,
                 content: vec![CanonicalContent::ToolResult {
                     tool_use_id: "tu1".into(),
-                    content: vec![CanonicalContent::Text("results".into())],
+                    content: vec![CanonicalContent::text("results")],
                     is_error: false,
                     structured_content: None,
                     meta: None,
+                    cache_control: None,
                 }],
             },
         ],
@@ -119,6 +123,7 @@ fn rich_request() -> CanonicalRequest {
             name: "search".into(),
             description: Some("web search".into()),
             input_schema: json!({"type": "object"}),
+            cache_control: None,
         }],
         tool_choice: Some(CanonicalToolChoice::Tool("search".into())),
         stream: false,
@@ -302,10 +307,10 @@ async fn anthropic_outbound_no_system_no_tools() {
     let r = route("anthropic");
     let req = CanonicalRequest {
         model: ModelId::new("m"),
-        system: None,
+        system: Vec::new(),
         messages: vec![CanonicalMessage {
             role: Role::User,
-            content: vec![CanonicalContent::Text("hi".into())],
+            content: vec![CanonicalContent::text("hi")],
         }],
         max_tokens: 16,
         temperature: None,

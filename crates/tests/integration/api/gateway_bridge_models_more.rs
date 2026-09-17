@@ -138,7 +138,7 @@ fn humanize_model_id_title_cases_hyphen_segments() {
 #[test]
 fn flatten_message_content_covers_every_arm() {
     let parts = vec![
-        CanonicalContent::Text("first".to_owned()),
+        CanonicalContent::text("first".to_owned()),
         CanonicalContent::Thinking {
             text: "pondering".to_owned(),
             signature: None,
@@ -150,19 +150,21 @@ fn flatten_message_content_covers_every_arm() {
             name: "search".to_owned(),
             input: serde_json::json!({"q": "rust"}),
             signature: None,
+            cache_control: None,
         },
         CanonicalContent::ToolResult {
             tool_use_id: "call-1".to_owned(),
-            content: vec![CanonicalContent::Text("nested result".to_owned())],
+            content: vec![CanonicalContent::text("nested result".to_owned())],
             is_error: false,
             structured_content: None,
             meta: None,
+            cache_control: None,
         },
-        CanonicalContent::Image(ImageSource::Url {
+        CanonicalContent::image(ImageSource::Url {
             url: "https://example.invalid/x.png".to_owned(),
             detail: None,
         }),
-        CanonicalContent::Text(String::new()),
+        CanonicalContent::text(String::new()),
     ];
     let flat = flatten_message_content(&parts);
     assert!(flat.contains("first"));

@@ -10,8 +10,8 @@ use rmcp::model::CallToolRequestParams;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use systemprompt_identifiers::{AgentName, ContextId, McpExecutionId, SessionId, TraceId, UserId};
-use systemprompt_mcp::repository::{McpArtifactRepository, ToolUsageRepository};
-use systemprompt_mcp::{ClientProfile, McpToolExecutor, McpToolHandler};
+use systemprompt_mcp::repository::ToolUsageRepository;
+use systemprompt_mcp::{ArtifactIngest, ClientProfile, McpToolExecutor, McpToolHandler};
 use systemprompt_models::RequestContext;
 use systemprompt_models::artifacts::TextArtifact;
 use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
@@ -140,7 +140,7 @@ async fn execute_success_records_and_returns_result() {
         return;
     };
     let tool_repo = Arc::new(ToolUsageRepository::new(&db).unwrap());
-    let art_repo = Arc::new(McpArtifactRepository::new(&db).unwrap());
+    let art_repo = Arc::new(ArtifactIngest::from_db(&db, None).unwrap());
     let exec = McpToolExecutor::new(tool_repo, art_repo, "srv-echo");
 
     let ctx = test_ctx();
@@ -164,7 +164,7 @@ async fn execute_handler_error_propagates() {
         return;
     };
     let tool_repo = Arc::new(ToolUsageRepository::new(&db).unwrap());
-    let art_repo = Arc::new(McpArtifactRepository::new(&db).unwrap());
+    let art_repo = Arc::new(ArtifactIngest::from_db(&db, None).unwrap());
     let exec = McpToolExecutor::new(tool_repo, art_repo, "srv-fail");
 
     let ctx = test_ctx();
@@ -191,7 +191,7 @@ async fn execute_input_parse_error_returns_invalid_params() {
         return;
     };
     let tool_repo = Arc::new(ToolUsageRepository::new(&db).unwrap());
-    let art_repo = Arc::new(McpArtifactRepository::new(&db).unwrap());
+    let art_repo = Arc::new(ArtifactIngest::from_db(&db, None).unwrap());
     let exec = McpToolExecutor::new(tool_repo, art_repo, "srv-bad");
 
     let ctx = test_ctx();

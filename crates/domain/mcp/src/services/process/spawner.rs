@@ -11,6 +11,7 @@
 
 use crate::McpServerConfig;
 use crate::error::McpDomainResult;
+use crate::services::spawn_target::SpawnTarget;
 use std::fs;
 use std::path::Path;
 use std::process::Command;
@@ -23,6 +24,7 @@ const MAX_LOG_SIZE: u64 = 10 * 1024 * 1024;
 #[derive(Debug)]
 pub struct SpawnEnvSpec<'a> {
     pub config: &'a McpServerConfig,
+    pub port: u16,
     pub system_root: &'a Path,
     pub database_type: &'a str,
     pub profile_path: &'a str,
@@ -54,7 +56,7 @@ pub fn build_environment(
         systemprompt_models::subprocess::MCP_SERVICE_ID_ENV.to_owned(),
         spec.config.name.clone(),
     ));
-    env.push(("MCP_PORT".to_owned(), spec.config.port.to_string()));
+    env.push(("MCP_PORT".to_owned(), spec.port.to_string()));
     env.push((
         "MCP_TOOLS_CONFIG".to_owned(),
         spec.tools_config_json.to_owned(),
@@ -148,13 +150,13 @@ pub fn serialize_server_configs(config: &McpServerConfig) -> McpDomainResult<(St
 }
 
 pub fn spawn_server(paths: &AppPaths, config: &McpServerConfig) -> McpDomainResult<u32> {
-    let binary_path = paths.build().resolve_binary(&config.binary).map_err(|e| {
-        crate::error::McpDomainError::Internal(format!("{}: {e}", {
-            format!(
-                "Failed to find binary '{}' for {}",
-                config.binary, config.name
-            )
-        }))
+    let binary = config.spawn_binary()?;
+    let port = config.spawn_port()?;
+    let binary_path = paths.build().resolve_binary(binary).map_err(|e| {
+        crate::error::McpDomainError::Internal(format!(
+            "Failed to find binary '{binary}' for {}: {e}",
+            config.name
+        ))
     })?;
 
     let config_global = Config::get()?;
@@ -178,6 +180,7 @@ pub fn spawn_server(paths: &AppPaths, config: &McpServerConfig) -> McpDomainResu
         &mut child_command,
         &SpawnEnvSpec {
             config,
+            port,
             system_root: paths.system().root(),
             database_type: &config_global.database_type,
             profile_path,
@@ -204,7 +207,8 @@ pub fn spawn_server(paths: &AppPaths, config: &McpServerConfig) -> McpDomainResu
 }
 
 pub fn verify_binary(paths: &AppPaths, config: &McpServerConfig) -> McpDomainResult<()> {
-    let binary_path = paths.build().resolve_binary(&config.binary)?;
+    let binary = config.spawn_binary()?;
+    let binary_path = paths.build().resolve_binary(binary)?;
 
     let metadata = fs::metadata(&binary_path).map_err(|e| {
         crate::error::McpDomainError::Internal(format!(
@@ -215,7 +219,7 @@ pub fn verify_binary(paths: &AppPaths, config: &McpServerConfig) -> McpDomainRes
 
     tracing::debug!(
         service = %config.name,
-        binary = %config.binary,
+        binary,
         path = %binary_path.display(),
         size = metadata.len(),
         "Binary verified"
@@ -224,35 +228,28 @@ pub fn verify_binary(paths: &AppPaths, config: &McpServerConfig) -> McpDomainRes
 }
 
 pub fn build_server(config: &McpServerConfig) -> McpDomainResult<()> {
-    tracing::info!(service = %config.name, binary = %config.binary, "Building service (debug mode)");
+    let binary = config.spawn_binary()?;
+    tracing::info!(service = %config.name, binary, "Building service (debug mode)");
 
     let output = Command::new("cargo")
-        .args([
-            "build",
-            "--package",
-            &config.binary,
-            "--bin",
-            &config.binary,
-        ])
+        .args(["build", "--package", binary, "--bin", binary])
         .output()
         .map_err(|e| {
-            crate::error::McpDomainError::Internal(format!("{}: {e}", {
-                format!(
-                    "Failed to build {} (binary: {})",
-                    config.name, config.binary
-                )
-            }))
+            crate::error::McpDomainError::Internal(format!(
+                "Failed to build {} (binary: {binary}): {e}",
+                config.name
+            ))
         })?;
 
     if output.status.success() {
-        tracing::info!(service = %config.name, binary = %config.binary, "Build completed (debug)");
+        tracing::info!(service = %config.name, binary, "Build completed (debug)");
         Ok(())
     } else {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        tracing::error!(service = %config.name, binary = %config.binary, error = %stderr, "Build failed");
+        tracing::error!(service = %config.name, binary, error = %stderr, "Build failed");
         Err(crate::error::McpDomainError::Internal(format!(
-            "Build failed for {} (binary: {})",
-            config.name, config.binary
+            "Build failed for {} (binary: {binary})",
+            config.name
         )))
     }
 }

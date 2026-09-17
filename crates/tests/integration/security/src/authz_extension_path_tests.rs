@@ -10,7 +10,9 @@ use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
 use systemprompt_identifiers::{ContextId, RouteId, TaskId, TraceId};
-use systemprompt_models::profile::{AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig};
+use systemprompt_models::profile::{
+    AuditConfig, AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig,
+};
 use systemprompt_security::authz::{
     AuthzAuditSink, AuthzContext, AuthzDecision, AuthzDecisionHook, AuthzRequest, AuthzSource,
     ChainSources, EntityRef, SharedAuthzHook, build_authz_hook,
@@ -27,6 +29,7 @@ fn extension_governance() -> GovernanceConfig {
                 acknowledgement: None,
             },
         }),
+        audit: AuditConfig::default(),
     }
 }
 

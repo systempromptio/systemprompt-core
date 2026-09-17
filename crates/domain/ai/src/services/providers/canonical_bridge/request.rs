@@ -10,7 +10,7 @@ use serde_json::json;
 use systemprompt_identifiers::ModelId;
 use systemprompt_models::wire::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalTool, CanonicalToolChoice,
-    ImageSource, ReasoningEffort, ResponseFormat, Role, SearchConfig, ThinkingConfig,
+    ImageSource, ReasoningEffort, ResponseFormat, Role, SearchConfig, SystemBlock, ThinkingConfig,
 };
 use systemprompt_models::wire::inspect::ForwardedSurface;
 
@@ -192,11 +192,12 @@ pub fn tools_to_canonical(tools: Vec<McpTool>) -> Vec<CanonicalTool> {
             input_schema: t
                 .input_schema
                 .unwrap_or_else(|| json!({ "type": "object", "properties": {} })),
+            cache_control: None,
         })
         .collect()
 }
 
-fn messages_to_canonical(messages: &[AiMessage]) -> (Option<String>, Vec<CanonicalMessage>) {
+fn messages_to_canonical(messages: &[AiMessage]) -> (Vec<SystemBlock>, Vec<CanonicalMessage>) {
     let mut system: Option<String> = None;
     let mut out: Vec<CanonicalMessage> = Vec::new();
     for message in messages {
@@ -221,19 +222,19 @@ fn messages_to_canonical(messages: &[AiMessage]) -> (Option<String>, Vec<Canonic
             },
         }
     }
-    (system, out)
+    (system.map(SystemBlock::text).into_iter().collect(), out)
 }
 
 fn message_content(message: &AiMessage) -> Vec<CanonicalContent> {
     let mut content: Vec<CanonicalContent> = Vec::new();
     if !message.content.is_empty() {
-        content.push(CanonicalContent::Text(message.content.clone()));
+        content.push(CanonicalContent::text(message.content.clone()));
     }
     for part in &message.parts {
         match part {
-            AiContentPart::Text { text } => content.push(CanonicalContent::Text(text.clone())),
+            AiContentPart::Text { text } => content.push(CanonicalContent::text(text.clone())),
             AiContentPart::Image { mime_type, data } => {
-                content.push(CanonicalContent::Image(ImageSource::Base64 {
+                content.push(CanonicalContent::image(ImageSource::Base64 {
                     media_type: mime_type.clone(),
                     data: data.clone(),
                     detail: None,

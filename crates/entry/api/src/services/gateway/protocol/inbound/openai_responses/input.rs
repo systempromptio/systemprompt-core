@@ -14,7 +14,7 @@ pub(super) fn parse_input(value: &Value) -> Result<Vec<CanonicalMessage>, Inboun
         Value::String(s) => {
             return Ok(vec![CanonicalMessage {
                 role: Role::User,
-                content: vec![CanonicalContent::Text(s.clone())],
+                content: vec![CanonicalContent::text(s.clone())],
             }]);
         },
         Value::Array(a) => a,
@@ -76,6 +76,7 @@ fn parse_function_call(item: &Value) -> CanonicalMessage {
             name,
             input,
             signature: None,
+            cache_control: None,
         }],
     }
 }
@@ -95,10 +96,11 @@ fn parse_function_call_output(item: &Value) -> CanonicalMessage {
         role: Role::Tool,
         content: vec![CanonicalContent::ToolResult {
             tool_use_id,
-            content: vec![CanonicalContent::Text(output_text)],
+            content: vec![CanonicalContent::text(output_text)],
             is_error: false,
             structured_content: None,
             meta: None,
+            cache_control: None,
         }],
     }
 }
@@ -147,7 +149,7 @@ fn parse_message_item(value: &Value) -> Result<CanonicalMessage, InboundParseErr
     };
     let content_value = value.get("content").unwrap_or(&Value::Null);
     let content = match content_value {
-        Value::String(s) => vec![CanonicalContent::Text(s.clone())],
+        Value::String(s) => vec![CanonicalContent::text(s.clone())],
         Value::Array(parts) => parts.iter().filter_map(parse_content_part).collect(),
         Value::Null => Vec::new(),
         other => {
@@ -163,7 +165,7 @@ fn parse_message_item(value: &Value) -> Result<CanonicalMessage, InboundParseErr
 fn parse_content_part(value: &Value) -> Option<CanonicalContent> {
     let kind = value.get("type").and_then(Value::as_str).unwrap_or("");
     match kind {
-        "input_text" | "output_text" | "text" => Some(CanonicalContent::Text(
+        "input_text" | "output_text" | "text" => Some(CanonicalContent::text(
             value
                 .get("text")
                 .and_then(Value::as_str)
@@ -172,7 +174,7 @@ fn parse_content_part(value: &Value) -> Option<CanonicalContent> {
         )),
         "input_image" => {
             let url = value.get("image_url").and_then(Value::as_str)?;
-            Some(CanonicalContent::Image(ImageSource::Url {
+            Some(CanonicalContent::image(ImageSource::Url {
                 url: url.to_owned(),
                 detail: None,
             }))

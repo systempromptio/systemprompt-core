@@ -68,10 +68,10 @@ fn make_config(name: &str, port: u16) -> McpServerConfig {
         name: name.to_owned(),
         owner: fixture_user_id(),
         server_type: McpServerType::Internal,
-        binary: format!("{name}-bin"),
+        binary: Some(format!("{name}-bin")),
         enabled: true,
         display_in_web: true,
-        port,
+        port: Some(port),
         crate_path: PathBuf::from("."),
         display_name: format!("{name} Server"),
         description: name.to_owned(),
@@ -111,7 +111,7 @@ async fn seed_service(
         name,
         module_name: "mcp",
         status: "running",
-        port,
+        port: port,
         binary_mtime: None,
     })
     .await

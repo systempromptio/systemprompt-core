@@ -16,6 +16,7 @@ use super::list::ListArtifact;
 use super::message::MessageArtifact;
 use super::table::TableArtifact;
 use super::text::TextArtifact;
+use super::tool_result::ToolResultArtifact;
 use super::video::VideoArtifact;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -35,6 +36,8 @@ pub enum ArtifactType {
     Video,
     Audio,
     Message,
+    #[serde(rename = "tool_result")]
+    ToolResult,
     #[serde(untagged)]
     Custom(String),
 }
@@ -54,6 +57,7 @@ impl std::fmt::Display for ArtifactType {
             Self::Video => write!(f, "{}", VideoArtifact::ARTIFACT_TYPE_STR),
             Self::Audio => write!(f, "{}", AudioArtifact::ARTIFACT_TYPE_STR),
             Self::Message => write!(f, "{}", MessageArtifact::ARTIFACT_TYPE_STR),
+            Self::ToolResult => write!(f, "{}", ToolResultArtifact::ARTIFACT_TYPE_STR),
             Self::Custom(s) => write!(f, "{}", s),
         }
     }

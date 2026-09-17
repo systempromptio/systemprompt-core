@@ -20,10 +20,10 @@ fn make_config(name: &str, env_vars: Vec<String>) -> McpServerConfig {
         name: name.to_string(),
         owner: fixture_user_id(),
         server_type: McpServerType::Internal,
-        binary: "fake-bin".to_string(),
+        binary: Some("fake-bin".to_string()),
         enabled: true,
         display_in_web: true,
-        port: 65001,
+        port: Some(65001),
         crate_path: PathBuf::from("."),
         display_name: "spawn".to_string(),
         description: "spawn".to_string(),
@@ -52,6 +52,7 @@ fn make_config(name: &str, env_vars: Vec<String>) -> McpServerConfig {
 fn spec<'a>(config: &'a McpServerConfig, root: &'a Path) -> SpawnEnvSpec<'a> {
     SpawnEnvSpec {
         config,
+        port: config.port.expect("internal fixture declares a port"),
         system_root: root,
         database_type: "postgres",
         profile_path: "/profiles/local",

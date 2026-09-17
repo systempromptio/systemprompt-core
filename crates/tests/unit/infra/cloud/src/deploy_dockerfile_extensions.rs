@@ -32,9 +32,9 @@ fn deployment(binary: &str, dev_only: bool) -> Deployment {
     Deployment {
         connector: None,
         server_type: McpServerType::Internal,
-        binary: binary.to_owned(),
+        binary: Some(binary.to_owned()),
         package: None,
-        port: 5001,
+        port: Some(5001),
         endpoint: None,
         enabled: true,
         display_in_web: false,

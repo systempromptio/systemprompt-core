@@ -5,34 +5,41 @@
 
 // JSON: protocol boundary — Anthropic Messages wire format is dynamic JSON.
 use serde_json::Value;
+use systemprompt_models::wire::anthropic::cache_control_from_anthropic;
 
 use crate::services::gateway::protocol::canonical::{
-    CanonicalContent, CanonicalMessage, ImageSource, Role,
+    CacheControl, CanonicalContent, CanonicalMessage, ImageSource, Role, SystemBlock,
 };
 use crate::services::gateway::protocol::inbound::InboundParseError;
 
-pub(super) fn parse_system(value: &Value) -> Result<Option<String>, InboundParseError> {
+// Why: each system block keeps its own `cache_control`, so a rebuilt body
+// puts the cache breakpoints back exactly where the client set them.
+pub(super) fn parse_system(value: &Value) -> Result<Vec<SystemBlock>, InboundParseError> {
     match value {
-        Value::Null => Ok(None),
-        Value::String(s) if s.is_empty() => Ok(None),
-        Value::String(s) => Ok(Some(s.clone())),
-        Value::Array(arr) => {
-            let joined = arr
-                .iter()
-                .filter_map(|b| b.get("text").and_then(Value::as_str))
-                .collect::<Vec<_>>()
-                .join("\n");
-            Ok(if joined.is_empty() {
-                None
-            } else {
-                Some(joined)
+        Value::Null => Ok(Vec::new()),
+        Value::String(s) if s.is_empty() => Ok(Vec::new()),
+        Value::String(s) => Ok(vec![SystemBlock::text(s.clone())]),
+        Value::Array(arr) => Ok(arr
+            .iter()
+            .filter_map(|block| {
+                let text = block.get("text").and_then(Value::as_str)?;
+                Some(SystemBlock {
+                    text: text.to_owned(),
+                    cache_control: parse_cache_control(block),
+                })
             })
-        },
+            .collect()),
         other => Err(InboundParseError::Unsupported {
             field: "system",
             detail: format!("expected string or array, got {other}"),
         }),
     }
+}
+
+fn parse_cache_control(block: &Value) -> Option<CacheControl> {
+    block
+        .get("cache_control")
+        .and_then(cache_control_from_anthropic)
 }
 
 pub(super) fn parse_message(value: &Value) -> Result<CanonicalMessage, InboundParseError> {
@@ -61,7 +68,7 @@ pub(super) fn parse_message(value: &Value) -> Result<CanonicalMessage, InboundPa
 
 fn parse_content(value: &Value) -> Result<Vec<CanonicalContent>, InboundParseError> {
     match value {
-        Value::String(s) => Ok(vec![CanonicalContent::Text(s.clone())]),
+        Value::String(s) => Ok(vec![CanonicalContent::text(s.clone())]),
         Value::Array(blocks) => {
             let mut out = Vec::with_capacity(blocks.len());
             for block in blocks {
@@ -81,13 +88,14 @@ fn parse_content(value: &Value) -> Result<Vec<CanonicalContent>, InboundParseErr
 fn parse_content_block(value: &Value) -> Result<Option<CanonicalContent>, InboundParseError> {
     let kind = value.get("type").and_then(Value::as_str).unwrap_or("text");
     match kind {
-        "text" => Ok(Some(CanonicalContent::Text(
-            value
+        "text" => Ok(Some(CanonicalContent::Text {
+            text: value
                 .get("text")
                 .and_then(Value::as_str)
                 .unwrap_or("")
                 .to_owned(),
-        ))),
+            cache_control: parse_cache_control(value),
+        })),
         "image" => parse_image(value).map(Some),
         "tool_use" => Ok(Some(CanonicalContent::ToolUse {
             id: value
@@ -105,6 +113,7 @@ fn parse_content_block(value: &Value) -> Result<Option<CanonicalContent>, Inboun
                 .get("signature")
                 .and_then(Value::as_str)
                 .map(str::to_owned),
+            cache_control: parse_cache_control(value),
         })),
         "tool_result" => {
             let inner = value
@@ -123,6 +132,7 @@ fn parse_content_block(value: &Value) -> Result<Option<CanonicalContent>, Inboun
                     .unwrap_or(false),
                 structured_content: value.get("structuredContent").cloned(),
                 meta: value.get("_meta").cloned(),
+                cache_control: parse_cache_control(value),
             }))
         },
         "thinking" => Ok(Some(CanonicalContent::Thinking {
@@ -150,7 +160,7 @@ fn parse_content_block(value: &Value) -> Result<Option<CanonicalContent>, Inboun
 
 fn parse_tool_result_content(value: &Value) -> Vec<CanonicalContent> {
     match value {
-        Value::String(s) => vec![CanonicalContent::Text(s.clone())],
+        Value::String(s) => vec![CanonicalContent::text(s.clone())],
         Value::Array(arr) => arr
             .iter()
             .filter_map(|v| parse_content_block(v).ok().flatten())
@@ -167,8 +177,8 @@ fn parse_image(value: &Value) -> Result<CanonicalContent, InboundParseError> {
         .get("type")
         .and_then(Value::as_str)
         .unwrap_or("base64");
-    match kind {
-        "base64" => Ok(CanonicalContent::Image(ImageSource::Base64 {
+    let source = match kind {
+        "base64" => ImageSource::Base64 {
             media_type: source
                 .get("media_type")
                 .and_then(Value::as_str)
@@ -180,18 +190,24 @@ fn parse_image(value: &Value) -> Result<CanonicalContent, InboundParseError> {
                 .unwrap_or("")
                 .to_owned(),
             detail: None,
-        })),
-        "url" => Ok(CanonicalContent::Image(ImageSource::Url {
+        },
+        "url" => ImageSource::Url {
             url: source
                 .get("url")
                 .and_then(Value::as_str)
                 .unwrap_or("")
                 .to_owned(),
             detail: None,
-        })),
-        other => Err(InboundParseError::Unsupported {
-            field: "image.source.type",
-            detail: other.to_owned(),
-        }),
-    }
+        },
+        other => {
+            return Err(InboundParseError::Unsupported {
+                field: "image.source.type",
+                detail: other.to_owned(),
+            });
+        },
+    };
+    Ok(CanonicalContent::Image {
+        source,
+        cache_control: parse_cache_control(value),
+    })
 }

@@ -29,6 +29,7 @@ fn completion<'a>(
         cost_microdollars: 1_234,
         latency_ms: 80,
         upstream_latency_ms: Some(60),
+        finish_reason: Some("end_turn"),
         payload: UpsertPayloadParams {
             body: Some(body),
             excerpt: Some("hi"),
@@ -56,6 +57,17 @@ async fn row(pool: &DbPool, id: &AiRequestId) -> (String, Option<i32>, i64, Opti
         r.cost_microdollars,
         r.error_message,
     )
+}
+
+async fn finish_reason(pool: &DbPool, id: &AiRequestId) -> Option<String> {
+    let read = pool.pool_arc().expect("read pool");
+    sqlx::query_scalar!(
+        "SELECT finish_reason FROM ai_requests WHERE id = $1",
+        id.as_str()
+    )
+    .fetch_one(read.as_ref())
+    .await
+    .expect("request row")
 }
 
 async fn turn_counts(pool: &DbPool, id: &AiRequestId) -> (i64, i64) {
@@ -101,6 +113,11 @@ async fn a_completion_settles_usage_payload_and_turn_in_one_transaction() {
     assert_eq!(tokens, Some(15));
     assert_eq!(cost, 1_234);
     assert!(error.is_none());
+    assert_eq!(
+        finish_reason(&pool, &id).await.as_deref(),
+        Some("end_turn"),
+        "the upstream's own finish reason is persisted beside the status"
+    );
     assert_eq!(turn_counts(&pool, &id).await, (1, 1));
 }
 

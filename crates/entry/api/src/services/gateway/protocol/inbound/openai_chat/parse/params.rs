@@ -39,6 +39,7 @@ pub(super) fn parse_tool(value: &Value) -> Option<CanonicalTool> {
         name: name.to_owned(),
         description,
         input_schema: parameters,
+        cache_control: None,
     })
 }
 

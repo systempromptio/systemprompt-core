@@ -17,6 +17,11 @@
 //! bootstrap installs `DenyAllHook` (everything denied) so misconfiguration
 //! never silently grants access.
 //!
+//! `audit` bounds what the gateway retains per request. A body at or under
+//! `payload_cap_bytes` is stored whole in `ai_request_payloads`; over it, only
+//! the SHA-256 digest and a head+tail excerpt survive. The digest always covers
+//! the full bytes, so a capped capture still proves which body was sent.
+//!
 //! Example:
 //!
 //! ```yaml
@@ -26,6 +31,8 @@
 //!       mode: webhook
 //!       url: http://localhost:8080/api/public/govern/authz
 //!       timeout_ms: 500
+//!   audit:
+//!     payload_cap_bytes: 4194304
 //! ```
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -40,6 +47,33 @@ pub const UNRESTRICTED_ACKNOWLEDGEMENT: &str = "I understand this disables all a
 pub struct GovernanceConfig {
     #[serde(default)]
     pub authz: Option<AuthzConfig>,
+    #[serde(default)]
+    pub audit: AuditConfig,
+}
+
+/// Retention bounds for the gateway audit trail.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct AuditConfig {
+    #[serde(default = "default_payload_cap_bytes")]
+    pub payload_cap_bytes: usize,
+}
+
+impl AuditConfig {
+    pub const DEFAULT_PAYLOAD_CAP_BYTES: usize = 1024 * 1024;
+    pub const MIN_PAYLOAD_CAP_BYTES: usize = 64 * 1024;
+}
+
+impl Default for AuditConfig {
+    fn default() -> Self {
+        Self {
+            payload_cap_bytes: Self::DEFAULT_PAYLOAD_CAP_BYTES,
+        }
+    }
+}
+
+const fn default_payload_cap_bytes() -> usize {
+    AuditConfig::DEFAULT_PAYLOAD_CAP_BYTES
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]

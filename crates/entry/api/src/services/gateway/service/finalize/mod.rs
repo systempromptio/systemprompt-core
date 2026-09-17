@@ -69,13 +69,13 @@ pub async fn apply_system_prompt_override(
     }
     let ctx = OverrideContext::builder(provider.clone(), ModelId::new(&request.model))
         .upstream_model(ModelId::new(upstream_model))
-        .current_system(request.system.clone())
+        .current_system(request.system_text())
         .build();
     let resolution = engine.resolve(&config.system_prompt_overrides, &ctx).await;
     let descriptor = resolution.audit_descriptor();
     match resolution.action {
-        OverrideAction::Replace(prompt) => request.system = Some(prompt),
-        OverrideAction::Strip => request.system = None,
+        OverrideAction::Replace(prompt) => request.set_system_text(Some(prompt)),
+        OverrideAction::Strip => request.system.clear(),
         OverrideAction::Passthrough => {},
     }
     descriptor

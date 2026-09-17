@@ -3,6 +3,7 @@
 use chrono::Utc;
 use systemprompt_identifiers::{AiToolCallId, ContextId, McpExecutionId};
 use systemprompt_mcp::models::ToolExecution;
+use systemprompt_models::mcp::{Correlation, ExecutionSource};
 use systemprompt_test_fixtures::fixture_user_id;
 
 const TEST_CONTEXT_ID_A: &str = "00000000-0000-4000-8000-000000000001";
@@ -24,6 +25,8 @@ fn create_test_execution() -> ToolExecution {
         execution_time_ms: Some(150),
         started_at: Utc::now(),
         completed_at: Some(Utc::now()),
+        source: ExecutionSource::InProcess,
+        correlation: Correlation::Exact,
     }
 }
 

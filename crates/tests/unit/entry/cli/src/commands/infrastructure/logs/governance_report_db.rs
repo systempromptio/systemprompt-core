@@ -95,6 +95,7 @@ async fn seed_decision(
         task_id: None,
         trace_id: None,
         client_id: None,
+        tool_use_id: None,
     })
     .await
     .expect("seed a governance decision");

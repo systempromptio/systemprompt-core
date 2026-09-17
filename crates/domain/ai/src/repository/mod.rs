@@ -29,7 +29,9 @@ pub use ai_quota_buckets::{
     AiQuotaBucketRepository, IncrementParams, QuotaBucketDelta, QuotaBucketState,
 };
 pub use ai_request_client_evidence::AiRequestClientEvidenceRepository;
-pub use ai_request_payloads::{AiRequestPayload, AiRequestPayloadRepository, UpsertPayloadParams};
+pub use ai_request_payloads::{
+    AiRequestPayload, AiRequestPayloadRepository, PreparedPayload, UpsertPayloadParams,
+};
 pub use ai_requests::{AiRequestRepository, InsertToolCallParams};
 pub use ai_safety_findings::{
     AiSafetyFindingRepository, InsertSafetyFinding, SafetyFindingRollupRow,

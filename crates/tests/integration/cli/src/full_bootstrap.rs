@@ -365,10 +365,7 @@ agents:
 mcp_servers:
   @MCP_NAME@:
     type: external
-    binary: ""
-    remote_endpoint: http://127.0.0.1:@MCP_PORT@/mcp
-    package: fixture
-    port: @MCP_PORT@
+    endpoint: http://127.0.0.1:@MCP_PORT@/mcp
     enabled: true
     tool_policy: allow
     display_in_web: true

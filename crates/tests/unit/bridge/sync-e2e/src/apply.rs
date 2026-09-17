@@ -133,6 +133,7 @@ fn governance_plugin(id: &str, files: Vec<(&str, &[u8])>) -> PluginEntry {
         hooks: PluginHooksRef {
             governance: true,
             comms: false,
+            evaluation: false,
             include: vec![],
         },
         ..plugin(id, files)
@@ -144,6 +145,7 @@ fn comms_plugin(id: &str, files: Vec<(&str, &[u8])>) -> PluginEntry {
         hooks: PluginHooksRef {
             governance: true,
             comms: true,
+            evaluation: false,
             include: vec![],
         },
         ..plugin(id, files)
@@ -834,6 +836,7 @@ fn plugin_with_include(id: &str, include: Vec<String>) -> PluginEntry {
         hooks: PluginHooksRef {
             governance: false,
             comms: false,
+            evaluation: false,
             include,
         },
         ..plugin(id, vec![(".claude-plugin/plugin.json", PLUGIN_FILE_BODY)])
@@ -1051,11 +1054,25 @@ fn a_plugin_without_its_manifest_file_is_reported_as_malformed() {
         error.contains("sync PARTIAL") && error.contains("acme-plugin"),
         "{error}"
     );
-    assert!(
-        !b.dirs.metadata.join("last-sync.json").exists(),
+    let recorded = partial_sentinel(&b.dirs);
+    assert_eq!(recorded.malformed_plugins, vec!["acme-plugin".to_owned()]);
+    let _ = (&b.server, &b.pat_dir);
+}
+
+// Why: a partial apply still records what landed — the operator's health
+// page and the auto-update policy read the sentinel — but the replay
+// checkpoint stays where it was, so the same manifest can be retried.
+fn partial_sentinel(dirs: &SandboxDirs) -> systemprompt_bridge::sync::LastSyncState {
+    let raw = fs::read_to_string(dirs.metadata.join("last-sync.json"))
+        .expect("a partial application still records the sentinel");
+    let recorded: systemprompt_bridge::sync::LastSyncState =
+        serde_json::from_str(&raw).expect("sentinel parses");
+    assert!(recorded.is_partial(), "the record says it is partial");
+    assert_eq!(
+        recorded.manifest_version, None,
         "partial application must not advance replay state"
     );
-    let _ = (&b.server, &b.pat_dir);
+    recorded
 }
 
 #[test]
@@ -1089,10 +1106,8 @@ fn a_plugin_manifest_that_is_not_a_json_object_is_delivered_verbatim_and_reporte
         ARRAY_BODY,
         "a manifest that cannot be stamped is delivered verbatim"
     );
-    assert!(
-        !b.dirs.metadata.join("last-sync.json").exists(),
-        "partial application must not advance replay state"
-    );
+    let recorded = partial_sentinel(&b.dirs);
+    assert_eq!(recorded.malformed_plugins, vec!["acme-plugin".to_owned()]);
     let _ = (&b.server, &b.pat_dir);
 }
 

@@ -5,11 +5,14 @@ use systemprompt_models::services::ai::{ModelLimits, ModelPricing};
 use systemprompt_models::wire::anthropic;
 use systemprompt_models::wire::anthropic::AnthropicStreamState;
 use systemprompt_models::wire::canonical::{
-    CanonicalContent, CanonicalEvent, CanonicalMessage, CanonicalToolChoice, ContentBlockKind,
-    ImageSource, ResponseFormat, Role, SearchConfig,
+    CacheControl, CacheTtl, CanonicalContent, CanonicalEvent, CanonicalMessage,
+    CanonicalToolChoice, ContentBlockKind, ImageSource, ResponseFormat, Role, SearchConfig,
+    SystemBlock, ThinkingConfig,
 };
 
-use super::{base_request, image_url, plain_tool, tool_use, tool_with_unsupported_keywords};
+use super::{
+    base_request, image_url, plain_tool, tool_use, tool_with_unsupported_keywords, user_message,
+};
 
 #[test]
 fn anthropic_emits_max_tokens() {
@@ -39,9 +42,96 @@ fn anthropic_clamps_max_tokens_down_to_model_cap() {
 #[test]
 fn anthropic_sets_system_field() {
     let mut req = base_request();
-    req.system = Some("be terse".to_owned());
+    req.system = vec![SystemBlock::text("be terse".to_owned())];
     let body = anthropic::build_request_body(&req, "upstream", None);
     assert_eq!(body["system"], "be terse");
+}
+
+#[test]
+fn anthropic_system_blocks_keep_their_cache_breakpoints() {
+    let mut req = base_request();
+    req.system = vec![
+        SystemBlock::text("stable preamble"),
+        SystemBlock {
+            text: "cached tail".to_owned(),
+            cache_control: Some(CacheControl::with_ttl(CacheTtl::OneHour)),
+        },
+    ];
+    let body = anthropic::build_request_body(&req, "upstream", None);
+    assert_eq!(
+        body["system"],
+        json!([
+            { "type": "text", "text": "stable preamble" },
+            { "type": "text", "text": "cached tail", "cache_control": { "type": "ephemeral", "ttl": "1h" } },
+        ]),
+        "a cached system block forces the array form with the breakpoint on that block"
+    );
+}
+
+#[test]
+fn anthropic_content_blocks_carry_cache_control() {
+    let mut req = base_request();
+    req.messages = vec![user_message(vec![
+        CanonicalContent::text("context"),
+        CanonicalContent::Text {
+            text: "breakpoint".to_owned(),
+            cache_control: Some(CacheControl::EPHEMERAL),
+        },
+        CanonicalContent::ToolResult {
+            tool_use_id: "call_1".to_owned(),
+            content: vec![CanonicalContent::text("ok")],
+            is_error: false,
+            structured_content: None,
+            meta: None,
+            cache_control: Some(CacheControl::with_ttl(CacheTtl::FiveMinutes)),
+        },
+    ])];
+    let body = anthropic::build_request_body(&req, "upstream", None);
+    let blocks = body["messages"][0]["content"]
+        .as_array()
+        .expect("content array");
+    assert_eq!(blocks[0].get("cache_control"), None);
+    assert_eq!(blocks[1]["cache_control"], json!({ "type": "ephemeral" }));
+    assert_eq!(
+        blocks[2]["cache_control"],
+        json!({ "type": "ephemeral", "ttl": "5m" })
+    );
+}
+
+#[test]
+fn anthropic_tools_carry_cache_control() {
+    let mut req = base_request();
+    let mut tool = plain_tool();
+    tool.cache_control = Some(CacheControl::EPHEMERAL);
+    req.tools = vec![tool];
+    let body = anthropic::build_request_body(&req, "upstream", None);
+    assert_eq!(
+        body["tools"][0]["cache_control"],
+        json!({ "type": "ephemeral" })
+    );
+}
+
+#[test]
+fn anthropic_cache_control_round_trips_through_the_codec() {
+    let cases = [
+        (
+            json!({ "type": "ephemeral" }),
+            Some(CacheControl::EPHEMERAL),
+        ),
+        (
+            json!({ "type": "ephemeral", "ttl": "1h" }),
+            Some(CacheControl::with_ttl(CacheTtl::OneHour)),
+        ),
+        (json!({ "type": "persistent" }), None),
+        (json!("ephemeral"), None),
+    ];
+    for (wire, expected) in cases {
+        let parsed = anthropic::cache_control_from_anthropic(&wire);
+        assert_eq!(parsed, expected, "{wire}");
+        if let Some(cache_control) = parsed {
+            assert_eq!(anthropic::cache_control_to_anthropic(cache_control), wire);
+        }
+    }
 }
 
 #[test]
@@ -82,7 +172,7 @@ fn anthropic_renders_base64_and_url_image_blocks() {
     req.messages = vec![CanonicalMessage {
         role: Role::User,
         content: vec![
-            CanonicalContent::Image(ImageSource::Base64 {
+            CanonicalContent::image(ImageSource::Base64 {
                 media_type: "image/png".to_owned(),
                 data: "AAAA".to_owned(),
                 detail: None,
@@ -104,7 +194,7 @@ fn anthropic_tool_and_system_roles_map_to_user() {
     let mut req = base_request();
     req.messages = vec![CanonicalMessage {
         role: Role::Tool,
-        content: vec![CanonicalContent::Text("result".to_owned())],
+        content: vec![CanonicalContent::text("result".to_owned())],
     }];
     let body = anthropic::build_request_body(&req, "upstream", None);
     assert_eq!(body["messages"][0]["role"], "user");
@@ -334,10 +424,11 @@ fn anthropic_upstream_body_strips_vendor_extension_fields() {
             role: Role::Tool,
             content: vec![CanonicalContent::ToolResult {
                 tool_use_id: "call_1".to_owned(),
-                content: vec![CanonicalContent::Text("ok".to_owned())],
+                content: vec![CanonicalContent::text("ok".to_owned())],
                 is_error: false,
                 structured_content: Some(json!({"rows": 1})),
                 meta: Some(json!({"trace": "t1"})),
+                cache_control: None,
             }],
         },
     ];
@@ -375,7 +466,7 @@ fn anthropic_upstream_body_omits_unsigned_thinking_and_empty_messages() {
                     id: None,
                     encrypted_content: None,
                 },
-                CanonicalContent::Text("answer".to_owned()),
+                CanonicalContent::text("answer".to_owned()),
             ],
         },
     ];
@@ -766,4 +857,27 @@ fn anthropic_stream_tool_use_does_not_leak_into_a_later_message() {
         Some(Some(CanonicalStopReason::EndTurn)),
         "a text-only turn must not be reported as tool use"
     );
+}
+
+// The Messages API rejects `enabled` without `budget_tokens`; thinking with
+// the budget left to the model is `adaptive`, which is what Claude Code asked
+// for in the first place.
+#[test]
+fn anthropic_renders_thinking_without_a_budget_as_adaptive() {
+    let mut req = base_request();
+    req.thinking = Some(ThinkingConfig {
+        enabled: true,
+        budget_tokens: None,
+    });
+    let body = anthropic::build_request_body(&req, "claude-x", None);
+    assert_eq!(body["thinking"]["type"], "adaptive");
+    assert!(body["thinking"].get("budget_tokens").is_none());
+
+    req.thinking = Some(ThinkingConfig {
+        enabled: true,
+        budget_tokens: Some(2048),
+    });
+    let body = anthropic::build_request_body(&req, "claude-x", None);
+    assert_eq!(body["thinking"]["type"], "enabled");
+    assert_eq!(body["thinking"]["budget_tokens"], 2048);
 }

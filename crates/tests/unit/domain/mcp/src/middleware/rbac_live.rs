@@ -37,9 +37,6 @@ fn server_yaml(name: &str, oauth_required: bool, scopes: &str) -> String {
         r"mcp_servers:
   {name}:
     server_type: external
-    binary: {name}-bin
-    package: null
-    port: 0
     endpoint: http://127.0.0.1:1/mcp
     enabled: true
     tool_policy: allow

@@ -79,6 +79,7 @@ fn an_adapter_with_no_terminal_frame_falls_back_to_the_per_event_render() {
     let event = CanonicalEvent::MessageStop {
         id: "msg_default".to_owned(),
         stop_reason: Some(CanonicalStopReason::EndTurn),
+        raw_finish_reason: None,
     };
 
     assert!(

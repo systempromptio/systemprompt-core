@@ -72,6 +72,7 @@ content_sources:
 fn make_profile(services: &Path, web_path: &Path) -> Profile {
     Profile {
         storage: Default::default(),
+        observability: Default::default(),
         name: "test".to_string(),
         display_name: "Test".to_string(),
         target: ProfileType::Local,
@@ -126,6 +127,7 @@ fn make_profile(services: &Path, web_path: &Path) -> Profile {
         secrets: None,
         extensions: ExtensionsConfig::default(),
         governance: None,
+        evaluation: Default::default(),
         services: Default::default(),
         system_admin: SystemAdminConfig {
             username: "admin".to_string(),

@@ -45,14 +45,6 @@ impl DeploymentService {
             .collect())
     }
 
-    pub fn get_server_port(name: &str) -> McpDomainResult<u16> {
-        let config = Self::load_config()?;
-        config
-            .mcp_servers
-            .get(name)
-            .map(|d| d.port)
-            .ok_or_else(|| missing_deployment(name))
-    }
 
     pub fn is_server_enabled(name: &str) -> McpDomainResult<bool> {
         let config = Self::load_config()?;
@@ -66,24 +58,5 @@ impl DeploymentService {
     pub fn validate_config() -> McpDomainResult<()> {
         ConfigLoader::load()?;
         Ok(())
-    }
-
-    pub fn get_server_binary(name: &str) -> McpDomainResult<String> {
-        let config = Self::load_config()?;
-        config
-            .mcp_servers
-            .get(name)
-            .map(|d| d.binary.clone())
-            .ok_or_else(|| missing_deployment(name))
-    }
-
-    pub fn get_server_package(name: &str) -> McpDomainResult<String> {
-        let config = Self::load_config()?;
-        config
-            .mcp_servers
-            .get(name)
-            .and_then(|d| d.package.clone())
-            .or_else(|| Some(name.to_owned()))
-            .ok_or_else(|| missing_deployment(name))
     }
 }

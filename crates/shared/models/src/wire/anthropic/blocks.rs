@@ -6,7 +6,9 @@
 // JSON: protocol boundary — the Anthropic Messages wire format is dynamic JSON.
 use serde_json::{Map, Value, json};
 
-use crate::wire::canonical::{CanonicalContent, CanonicalMessage, ImageSource, Role};
+use crate::wire::canonical::{
+    CacheControl, CacheTtl, CanonicalContent, CanonicalMessage, ImageSource, Role,
+};
 
 // Why: Anthropic rejects unknown keys in upstream content blocks.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -21,10 +23,49 @@ pub fn content_to_anthropic_block(part: &CanonicalContent) -> Value {
     block_for_audience(part, BlockAudience::Client)
 }
 
+// JSON: Anthropic Messages API `cache_control` object; upstream JSON is the
+// contract.
+#[must_use]
+pub fn cache_control_to_anthropic(cache_control: CacheControl) -> Value {
+    let mut obj = Map::new();
+    obj.insert("type".into(), Value::String("ephemeral".into()));
+    if let Some(ttl) = cache_control.ttl {
+        obj.insert("ttl".into(), Value::String(ttl.as_str().into()));
+    }
+    Value::Object(obj)
+}
+
+// JSON: Anthropic Messages API `cache_control` object; upstream JSON is the
+// contract.
+#[must_use]
+pub fn cache_control_from_anthropic(value: &Value) -> Option<CacheControl> {
+    let obj = value.as_object()?;
+    if obj.get("type").and_then(Value::as_str) != Some("ephemeral") {
+        return None;
+    }
+    let ttl = obj
+        .get("ttl")
+        .and_then(Value::as_str)
+        .and_then(CacheTtl::parse);
+    Some(CacheControl { ttl })
+}
+
 // JSON: Anthropic Messages API content block; upstream JSON is the contract.
 pub(super) fn block_for_audience(part: &CanonicalContent, audience: BlockAudience) -> Value {
+    let mut block = untagged_block(part, audience);
+    if let (Some(obj), Some(cache_control)) = (block.as_object_mut(), part.cache_control()) {
+        obj.insert(
+            "cache_control".into(),
+            cache_control_to_anthropic(cache_control),
+        );
+    }
+    block
+}
+
+// JSON: Anthropic Messages API content block; upstream JSON is the contract.
+fn untagged_block(part: &CanonicalContent, audience: BlockAudience) -> Value {
     match part {
-        CanonicalContent::Text(t) => json!({ "type": "text", "text": t }),
+        CanonicalContent::Text { text, .. } => json!({ "type": "text", "text": text }),
         CanonicalContent::Thinking {
             text, signature, ..
         } => {
@@ -41,6 +82,7 @@ pub(super) fn block_for_audience(part: &CanonicalContent, audience: BlockAudienc
             name,
             input,
             signature,
+            ..
         } => {
             let mut obj = Map::new();
             obj.insert("type".into(), Value::String("tool_use".into()));
@@ -60,6 +102,7 @@ pub(super) fn block_for_audience(part: &CanonicalContent, audience: BlockAudienc
             is_error,
             structured_content,
             meta,
+            ..
         } => {
             let inner: Vec<Value> = content
                 .iter()
@@ -80,7 +123,7 @@ pub(super) fn block_for_audience(part: &CanonicalContent, audience: BlockAudienc
             }
             Value::Object(obj)
         },
-        CanonicalContent::Image(src) => match src {
+        CanonicalContent::Image { source, .. } => match source {
             ImageSource::Base64 {
                 media_type, data, ..
             } => json!({

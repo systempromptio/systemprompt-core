@@ -160,20 +160,30 @@ async fn validate_single_service(
         );
     }
 
-    run_connection_validation(service_name, server, timeout_secs).await
+    let Some(port) = server.port else {
+        return failure_output(
+            service_name,
+            FailureDetail {
+                health_status: "unknown",
+                validation_type: "config_error",
+                latency_ms: 0,
+                issue: "Server declares no local port; external servers are validated at their endpoint".to_owned(),
+                message: format!("MCP server '{}' has no local port", service_name),
+            },
+        );
+    };
+
+    run_connection_validation(service_name, server, port, timeout_secs).await
 }
 
 pub async fn run_connection_validation(
     service_name: &str,
     server: &Deployment,
+    port: u16,
     timeout_secs: u64,
 ) -> McpValidateOutput {
-    let validation_future = validate_connection_with_auth(
-        service_name,
-        "127.0.0.1",
-        server.port,
-        server.oauth.required,
-    );
+    let validation_future =
+        validate_connection_with_auth(service_name, "127.0.0.1", port, server.oauth.required);
 
     let validation_result =
         match tokio::time::timeout(Duration::from_secs(timeout_secs), validation_future).await {

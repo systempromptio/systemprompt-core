@@ -25,7 +25,7 @@ fn parses_system_array_joins_text_blocks() {
         "messages":[{"role":"user","content":"hi"}]
     }"#;
     let req = parse_ok(body);
-    assert_eq!(req.system.as_deref(), Some("a\nb"));
+    assert_eq!(req.system_text().as_deref(), Some("a\nb"));
 }
 
 #[test]
@@ -35,7 +35,7 @@ fn parses_empty_system_array_is_none() {
         "messages":[{"role":"user","content":"hi"}]
     }"#;
     let req = parse_ok(body);
-    assert!(req.system.is_none());
+    assert!(req.system.is_empty());
 }
 
 #[test]
@@ -45,7 +45,7 @@ fn parses_null_system_is_none() {
         "messages":[{"role":"user","content":"hi"}]
     }"#;
     let req = parse_ok(body);
-    assert!(req.system.is_none());
+    assert!(req.system.is_empty());
 }
 
 #[test]
@@ -55,7 +55,7 @@ fn parses_empty_system_string_is_none() {
         "messages":[{"role":"user","content":"hi"}]
     }"#;
     let req = parse_ok(body);
-    assert!(req.system.is_none());
+    assert!(req.system.is_empty());
 }
 
 #[test]
@@ -126,7 +126,7 @@ fn parse_content_block_text() {
     }"#;
     let req = parse_ok(body);
     match req.messages[0].content.first() {
-        Some(CanonicalContent::Text(t)) => assert_eq!(t, "hello"),
+        Some(CanonicalContent::Text { text: t, .. }) => assert_eq!(t, "hello"),
         other => panic!("expected text, got {other:?}"),
     }
 }
@@ -141,9 +141,12 @@ fn parse_content_block_image_base64() {
     }"#;
     let req = parse_ok(body);
     match req.messages[0].content.first() {
-        Some(CanonicalContent::Image(ImageSource::Base64 {
-            media_type, data, ..
-        })) => {
+        Some(CanonicalContent::Image {
+            source: ImageSource::Base64 {
+                media_type, data, ..
+            },
+            ..
+        }) => {
             assert_eq!(media_type, "image/png");
             assert_eq!(data, "AAA=");
         },
@@ -161,7 +164,10 @@ fn parse_content_block_image_url() {
     }"#;
     let req = parse_ok(body);
     match req.messages[0].content.first() {
-        Some(CanonicalContent::Image(ImageSource::Url { url, .. })) => {
+        Some(CanonicalContent::Image {
+            source: ImageSource::Url { url, .. },
+            ..
+        }) => {
             assert_eq!(url, "https://example.com/x.png");
         },
         other => panic!("expected url image, got {other:?}"),
@@ -224,7 +230,9 @@ fn parse_content_block_tool_result_text_content() {
         }) => {
             assert_eq!(tool_use_id, "tu_1");
             assert!(!is_error);
-            assert!(matches!(content.first(), Some(CanonicalContent::Text(t)) if t == "42"));
+            assert!(
+                matches!(content.first(), Some(CanonicalContent::Text { text: t, .. }) if t == "42")
+            );
         },
         other => panic!("expected tool_result, got {other:?}"),
     }
@@ -287,7 +295,7 @@ fn parse_unknown_content_block_is_dropped_not_rejected() {
     assert_eq!(req.messages[0].content.len(), 1);
     assert!(matches!(
         &req.messages[0].content[0],
-        CanonicalContent::Text(t) if t == "hi"
+        CanonicalContent::Text { text: t, .. } if t == "hi"
     ));
 }
 
@@ -362,6 +370,22 @@ fn parse_thinking_enabled() {
     let t = req.thinking.expect("thinking present");
     assert!(t.enabled);
     assert_eq!(t.budget_tokens, Some(1024));
+}
+
+// Claude Code sends `adaptive` on every turn: thinking on, budget left to the
+// model. Reading it as off switched thinking off for every non-Anthropic
+// upstream.
+#[test]
+fn parse_thinking_adaptive_is_enabled_without_a_budget() {
+    let body = br#"{
+        "model":"m","max_tokens":1,
+        "thinking":{"type":"adaptive","display":"omitted"},
+        "messages":[{"role":"user","content":"x"}]
+    }"#;
+    let req = parse_ok(body);
+    let t = req.thinking.expect("thinking present");
+    assert!(t.enabled);
+    assert_eq!(t.budget_tokens, None);
 }
 
 #[test]

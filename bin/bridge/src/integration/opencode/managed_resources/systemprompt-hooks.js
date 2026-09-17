@@ -51,7 +51,7 @@ const post = (body) => {
     authorization: AUTHORIZATION,
     "x-systemprompt-host": HOST,
   };
-  const eventId = body.tool_use_id || body.prompt_id;
+  const eventId = body.tool_use_id || body.prompt_id || body.event_id;
   if (eventId) headers["x-ingestion-event-id"] = String(eventId);
   return fetch(TRACK_URL, {
     method: "POST",
@@ -67,7 +67,37 @@ const text = (parts) =>
     .map((part) => part.text)
     .join("\n");
 
+// OpenCode's bus events, translated to the canonical hook vocabulary Claude
+// Code speaks natively, so the gateway sees one session lifecycle whichever
+// host produced it. `session.idle` is the end of an assistant turn (Stop);
+// `session.deleted` is the end of the session (SessionEnd).
+const LIFECYCLE = {
+  "session.created": "SessionStart",
+  "session.idle": "Stop",
+  "session.deleted": "SessionEnd",
+};
+
+const lifecycleSession = (event) => {
+  const props = (event && event.properties) || {};
+  if (typeof props.sessionID === "string") return props.sessionID;
+  if (props.info && typeof props.info.id === "string") return props.info.id;
+  return "";
+};
+
 export const SystempromptHooks = async ({ directory }) => ({
+  event: async ({ event }) => {
+    const name = event && LIFECYCLE[event.type];
+    const native = lifecycleSession(event);
+    if (!name || !native) return;
+    await post({
+      hook_event_name: name,
+      session_id: await sessionUuid(native),
+      native_session_id: native,
+      cwd: directory,
+      native_host: HOST,
+      event_id: `${native}:${event.type}:${Date.now()}`,
+    });
+  },
   // Whichever of these the pinned OpenCode supports carries the session to
   // the proxy, which moves it into `metadata.user_id` for the gateway.
   "chat.headers": async (input, output) => {
@@ -93,23 +123,35 @@ export const SystempromptHooks = async ({ directory }) => ({
       native_host: HOST,
     });
   },
+  // Every tool completion is reported, not only skills: the gateway ingests
+  // the result as an artifact keyed by the call id, so OpenCode's tool use
+  // counts the same as Claude Code's. The output travels whole — the server
+  // bounds, scans and stores it; nothing is trimmed on the way out.
   "tool.execute.after": async (input, output) => {
-    if (input.tool !== "skill") return;
+    const tool = typeof input.tool === "string" ? input.tool : "";
+    if (!tool) return;
     const args = input.args || {};
-    const name = typeof args.name === "string" ? args.name : "";
-    if (!name) return;
-    await post({
+    const isSkill = tool === "skill";
+    const name = isSkill && typeof args.name === "string" ? args.name : "";
+    if (isSkill && !name) return;
+    const body = {
       hook_event_name: "PostToolUse",
       session_id: await sessionUuid(input.sessionID),
       native_session_id: input.sessionID,
       cwd: directory,
-      tool_name: "skill",
-      tool_input: { name },
+      tool_name: tool,
+      tool_input: isSkill ? { name } : args,
       tool_use_id: input.callID,
       tool_response: {
         title: output && output.title,
-        output: String((output && output.output) || "").slice(0, 4096),
+        output: output && output.output !== undefined ? String(output.output) : "",
+        metadata: output && output.metadata,
       },
+      native_host: HOST,
+    };
+    if (isSkill) body.skill_ref = SKILL_MAP[name] || `opencode:${name}`;
+    await post(body);
+  },
       native_host: HOST,
       skill_ref: SKILL_MAP[name] || `opencode:${name}`,
     });

@@ -5,6 +5,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::error::{McpDomainError, McpDomainResult};
+use crate::services::spawn_target::SpawnTarget;
 use systemprompt_traits::StartupEventSender;
 
 use super::super::process::ProcessService;
@@ -54,7 +55,7 @@ impl McpOrchestrator {
                         .publish(McpEvent::ServiceStarted {
                             service_name: server.name.clone(),
                             process_id: stored_pid(service_info.pid),
-                            port: server.port,
+                            port: server.spawn_port()?,
                         })
                         .await?;
                 },

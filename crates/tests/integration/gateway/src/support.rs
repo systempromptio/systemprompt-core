@@ -1,5 +1,5 @@
 use systemprompt_api::services::gateway::protocol::canonical::{
-    CanonicalContent, CanonicalMessage, CanonicalRequest, Role,
+    CanonicalContent, CanonicalMessage, CanonicalRequest, Role, SystemBlock,
 };
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ModelId, UserId};
@@ -11,10 +11,10 @@ use uuid::Uuid;
 pub fn minimal_request(system: Option<&str>, first_user_text: &str) -> CanonicalRequest {
     CanonicalRequest {
         model: ModelId::new("claude-test"),
-        system: system.map(str::to_string),
+        system: system.map(SystemBlock::text).into_iter().collect(),
         messages: vec![CanonicalMessage {
             role: Role::User,
-            content: vec![CanonicalContent::Text(first_user_text.to_string())],
+            content: vec![CanonicalContent::text(first_user_text.to_string())],
         }],
         max_tokens: 16,
         temperature: None,

@@ -10,6 +10,20 @@ use crate::services::gateway::route::GatewayRoute;
 use crate::services::providers::ProviderRegistry;
 
 impl GatewayConfig {
+    #[must_use]
+    pub fn unresolved_secret_refs(&self, has_secret: impl Fn(&str) -> bool) -> Vec<String> {
+        let mut unresolved = Vec::new();
+        if let Some(name) = self
+            .bridge_releases
+            .as_ref()
+            .and_then(|spec| spec.token_secret.as_deref())
+            && !has_secret(name)
+        {
+            unresolved.push(format!("bridge_releases.token_secret={name}"));
+        }
+        unresolved
+    }
+
     pub fn validate(&self, registry: &ProviderRegistry) -> GatewayResult<()> {
         let mut route_ids: std::collections::HashSet<&str> =
             std::collections::HashSet::with_capacity(self.routes.len());
@@ -39,6 +53,7 @@ impl GatewayConfig {
             }
             self.validate_route_pricing(registry, route)?;
             validate_route_governance(registry, route)?;
+            self.validate_route_fallback(registry, route)?;
         }
         for rule in &self.system_prompt_overrides {
             rule.validate()?;
@@ -51,6 +66,39 @@ impl GatewayConfig {
             }
         }
         Ok(())
+    }
+
+    // Why: the fallback is validated as the route the fallback provider will
+    // actually serve, so a failover can never land on a model the primary
+    // route's pricing and governance checks would have refused at boot.
+    fn validate_route_fallback(
+        &self,
+        registry: &ProviderRegistry,
+        route: &GatewayRoute,
+    ) -> GatewayResult<()> {
+        let route_id = route.id.as_str().to_owned();
+        let Some(view) = route.fallback_view() else {
+            if route.fallback_upstream_model.is_some() {
+                return Err(GatewayProfileError::RouteFallbackModelWithoutProvider {
+                    route: route_id,
+                });
+            }
+            return Ok(());
+        };
+        if view.provider == route.provider {
+            return Err(GatewayProfileError::RouteFallbackIsPrimary {
+                route: route_id,
+                provider: view.provider.as_str().to_owned(),
+            });
+        }
+        if view.resolve(registry).is_none() {
+            return Err(GatewayProfileError::RouteFallbackProviderNotInRegistry {
+                route: route_id,
+                provider: view.provider.as_str().to_owned(),
+            });
+        }
+        self.validate_route_pricing(registry, &view)?;
+        validate_route_governance(registry, &view)
     }
 
     fn validate_route_pricing(

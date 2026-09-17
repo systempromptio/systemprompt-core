@@ -204,7 +204,7 @@ fn collect_output_item(
                 if matches!(part.kind.as_str(), "output_text" | "text")
                     && let Some(text) = part.text
                 {
-                    content.push(CanonicalContent::Text(text));
+                    content.push(CanonicalContent::text(text));
                 }
             }
         },
@@ -228,6 +228,7 @@ fn collect_output_item(
                 name: call.name,
                 input,
                 signature: None,
+                cache_control: None,
             });
         },
         OutputItem::Reasoning {

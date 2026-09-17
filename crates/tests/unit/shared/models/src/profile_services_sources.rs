@@ -21,6 +21,7 @@ pub(crate) fn valid_key_b64() -> String {
 pub(crate) fn local_profile() -> Profile {
     Profile {
         storage: Default::default(),
+        observability: Default::default(),
         name: "p".to_owned(),
         display_name: "Profile P".to_owned(),
         target: ProfileType::Local,
@@ -75,6 +76,7 @@ pub(crate) fn local_profile() -> Profile {
         secrets: None,
         extensions: ExtensionsConfig::default(),
         governance: None,
+        evaluation: Default::default(),
         services: ServicesProfileConfig::default(),
         system_admin: SystemAdminConfig {
             username: "admin".to_owned(),

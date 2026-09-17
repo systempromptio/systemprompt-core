@@ -33,6 +33,9 @@
 //! - [`build`] — build-script helper that generates `Extension::migrations()`
 //!   from `schema/migrations/*.sql` files, paired with the
 //!   [`extension_migrations!`] macro.
+//! - [`purge`] — the user-keyed tables a deleted user's rows leave with them,
+//!   declared per crate with [`user_purge_tables!`], and the shared rows swept
+//!   once nothing references them, declared with [`orphan_sweeps!`].
 //! - [`registry`] — runtime store of registered extensions, built from
 //!   `inventory` submissions at startup.
 //! - [`capabilities`] — `Has*` capability traits the host context implements to
@@ -62,6 +65,7 @@ pub mod frame_options;
 pub mod gateway_guard;
 pub mod metadata;
 pub mod migration;
+pub mod purge;
 pub mod registry;
 pub mod router;
 pub mod runtime_config;
@@ -78,6 +82,7 @@ pub use gateway_guard::{
 };
 pub use metadata::{ExtensionMetadata, ExtensionRole, SchemaDefinition};
 pub use migration::Migration;
+pub use purge::{UserPurgeTable, registered_user_purge_tables};
 pub use registry::{ExtensionRegistration, ExtensionRegistry, RESERVED_PATHS};
 pub use router::{ExtensionRouter, ExtensionRouterConfig, SiteAuthConfig};
 pub use seed::Seed;
@@ -98,7 +103,7 @@ pub mod prelude {
     pub use crate::{
         Extension, ExtensionMetadata, ExtensionRole, ExtensionRouter, FrameOptions, Migration,
         SchemaDefinition, SiteAuthConfig, extension_migrations, register_extension,
-        register_gateway_guard, stamp_frame_options,
+        register_gateway_guard, stamp_frame_options, user_purge_tables,
     };
 
     pub use systemprompt_provider_contracts::{

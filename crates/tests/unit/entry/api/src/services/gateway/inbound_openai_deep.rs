@@ -23,7 +23,7 @@ fn parse_input_as_string_becomes_single_user_message() {
     assert_eq!(req.messages.len(), 1);
     assert_eq!(req.messages[0].role, Role::User);
     assert!(
-        matches!(req.messages[0].content.first(), Some(CanonicalContent::Text(t)) if t == "hi there")
+        matches!(req.messages[0].content.first(), Some(CanonicalContent::Text { text: t, .. }) if t == "hi there")
     );
 }
 
@@ -44,7 +44,7 @@ fn parse_input_message_with_input_text_part() {
     let req = parse_ok(body);
     assert_eq!(req.messages.len(), 1);
     match req.messages[0].content.first() {
-        Some(CanonicalContent::Text(t)) => assert_eq!(t, "hi"),
+        Some(CanonicalContent::Text { text: t, .. }) => assert_eq!(t, "hi"),
         other => panic!("expected text, got {other:?}"),
     }
 }
@@ -57,7 +57,10 @@ fn parse_input_message_with_input_image_url() {
     }"#;
     let req = parse_ok(body);
     match req.messages[0].content.first() {
-        Some(CanonicalContent::Image(ImageSource::Url { url, .. })) => {
+        Some(CanonicalContent::Image {
+            source: ImageSource::Url { url, .. },
+            ..
+        }) => {
             assert_eq!(url, "https://x/y.png")
         },
         other => panic!("expected image url, got {other:?}"),
@@ -73,7 +76,7 @@ fn parse_input_message_string_content() {
     let req = parse_ok(body);
     assert_eq!(req.messages[0].role, Role::Assistant);
     assert!(
-        matches!(req.messages[0].content.first(), Some(CanonicalContent::Text(t)) if t == "hello")
+        matches!(req.messages[0].content.first(), Some(CanonicalContent::Text { text: t, .. }) if t == "hello")
     );
 }
 
@@ -148,7 +151,9 @@ fn parse_function_call_output_becomes_tool_result() {
         }) => {
             assert_eq!(tool_use_id, "call_1");
             assert!(!is_error);
-            assert!(matches!(content.first(), Some(CanonicalContent::Text(t)) if t == "42"));
+            assert!(
+                matches!(content.first(), Some(CanonicalContent::Text { text: t, .. }) if t == "42")
+            );
         },
         other => panic!("expected tool_result, got {other:?}"),
     }

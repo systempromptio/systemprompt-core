@@ -65,18 +65,28 @@ where
             continue;
         }
 
-        if let Err(e) = resolve(&deployment.binary) {
+        let Some(binary) = deployment.binary.as_deref() else {
             mcp_errors.push(
                 ValidationIssue::new(
                     format!("mcp_servers.{}.binary", name),
-                    format!(
-                        "Manifest not found for binary '{}': {}",
-                        deployment.binary, e
-                    ),
+                    "Internal server declares no binary".to_owned(),
                 )
                 .with_suggestion(format!(
-                    "Ensure manifest.yaml exists at extensions/mcp/{}/manifest.yaml",
-                    deployment.binary
+                    "Set binary: <extension binary> in services/mcp/{}.yaml",
+                    name
+                )),
+            );
+            continue;
+        };
+
+        if let Err(e) = resolve(binary) {
+            mcp_errors.push(
+                ValidationIssue::new(
+                    format!("mcp_servers.{}.binary", name),
+                    format!("Manifest not found for binary '{binary}': {e}"),
+                )
+                .with_suggestion(format!(
+                    "Ensure manifest.yaml exists at extensions/mcp/{binary}/manifest.yaml"
                 )),
             );
         }

@@ -6,15 +6,16 @@
 pub mod apply;
 mod error;
 mod manifest;
+mod org_plugins_scope;
 mod provision;
 mod replay;
 mod seed_model;
 mod sentinel;
 mod summary;
 
+use self::org_plugins_scope::check_org_plugins_scope;
 use self::provision::{denied_inside_system_root, heal_org_plugins_scope, org_plugins_denied};
 use self::seed_model::seed_default_model_from_profile;
-use self::sentinel::persist_last_sync;
 pub use crate::last_sync::{
     LastSyncState, ReplayStateError, last_synced_auto_update_policy, last_synced_enabled_hosts,
     read_last_sync,
@@ -27,7 +28,6 @@ pub use summary::SyncSummary;
 use summary::build_summary;
 
 use crate::config::{self, paths};
-use crate::gateway::manifest::SignedManifest;
 use std::fs;
 
 pub const WATCH_FLOOR_SECS: u64 = 60;
@@ -164,17 +164,8 @@ pub async fn run_once(
     let meta = paths::bridge_metadata_dir().ok_or(SyncError::PathUnresolvable)?;
     let last_sync_path = meta.join(paths::LAST_SYNC_SENTINEL);
     let now = chrono::Utc::now();
+    let last_state = prior_checkpoint(&last_sync_path, &run_gateway)?;
     if !force_replay {
-        let last_state = match read_last_sync(&last_sync_path) {
-            // Why: manifest versions are per gateway; the previous gateway's
-            // version says nothing about whether this one is a replay.
-            Ok(Some(s)) if s.belongs_to(&run_gateway) => s,
-            Ok(_) => LastSyncState::default(),
-            Err(e) => {
-                tracing::error!(error = %e, "replay state file is corrupt; refusing to apply");
-                return Err(SyncError::from(e));
-            },
-        };
         check_skew(synced.not_before, now)?;
         if last_state.manifest_version.as_ref() == Some(&synced.manifest_version) {
             ensure_not_superseded(&run_gateway)?;
@@ -224,10 +215,23 @@ pub async fn run_once(
         },
     };
 
+    let sentinel = sentinel::SentinelInputs {
+        manifest: &synced,
+        report: &report,
+        now,
+        gateway: &run_gateway,
+    };
     if !report.host_failures.is_empty() || !report.malformed.is_empty() {
+        sentinel.persist(
+            &last_sync_path,
+            sentinel::Applied::Partially { prior: &last_state },
+        )?;
         return Err(SyncError::Partial(Box::new(build_summary(&synced, report))));
     }
-    persist_last_sync(&last_sync_path, &synced, &report, now, &run_gateway)?;
+    sentinel.persist(
+        &last_sync_path,
+        sentinel::Applied::Fully(synced.manifest_version.clone()),
+    )?;
     seed_default_model_from_profile(&fetch.client).await?;
 
     bridge
@@ -240,6 +244,22 @@ pub async fn run_once(
             source,
         })?;
     Ok(build_summary(&synced, report))
+}
+
+fn prior_checkpoint(
+    last_sync_path: &std::path::Path,
+    run_gateway: &systemprompt_identifiers::ValidatedUrl,
+) -> Result<LastSyncState, SyncError> {
+    match read_last_sync(last_sync_path) {
+        // Why: manifest versions are per gateway; the previous gateway's
+        // version says nothing about whether this one is a replay.
+        Ok(Some(s)) if s.belongs_to(run_gateway) => Ok(s),
+        Ok(_) => Ok(LastSyncState::default()),
+        Err(e) => {
+            tracing::error!(error = %e, "replay state file is corrupt; refusing to apply");
+            Err(SyncError::from(e))
+        },
+    }
 }
 
 fn ensure_not_superseded(
@@ -259,32 +279,4 @@ fn apply_error_to_sync(e: apply::ApplyError) -> SyncError {
         },
         other => SyncError::ApplyFailed(Box::new(other)),
     }
-}
-
-#[cfg(target_os = "windows")]
-fn check_org_plugins_scope(
-    manifest: &SignedManifest,
-    location: &paths::OrgPluginsLocation,
-) -> Result<(), SyncError> {
-    if manifest.enabled_hosts.iter().any(|h| h == "claude-desktop")
-        && let paths::FallbackReason::SystemUnwritable { system_path } = &location.reason
-    {
-        return Err(SyncError::OrgPluginsNeedElevation {
-            bin: crate::brand::brand().binary_name,
-            system_path: system_path.display().to_string(),
-        });
-    }
-    Ok(())
-}
-
-#[cfg(not(target_os = "windows"))]
-#[expect(
-    clippy::unnecessary_wraps,
-    reason = "signature must match the windows variant so run_once stays cfg-free"
-)]
-const fn check_org_plugins_scope(
-    _manifest: &SignedManifest,
-    _location: &paths::OrgPluginsLocation,
-) -> Result<(), SyncError> {
-    Ok(())
 }

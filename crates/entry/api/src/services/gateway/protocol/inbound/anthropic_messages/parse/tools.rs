@@ -6,6 +6,7 @@
 
 // JSON: protocol boundary — Anthropic Messages wire format is dynamic JSON.
 use serde_json::{Map, Value};
+use systemprompt_models::wire::anthropic;
 
 use crate::services::gateway::protocol::canonical::{
     CanonicalTool, CanonicalToolChoice, ThinkingConfig,
@@ -29,6 +30,9 @@ pub(super) fn parse_tool(value: &Value) -> CanonicalTool {
             .get("input_schema")
             .cloned()
             .unwrap_or(Value::Object(Map::new())),
+        cache_control: value
+            .get("cache_control")
+            .and_then(anthropic::cache_control_from_anthropic),
     }
 }
 
@@ -69,7 +73,9 @@ fn parse_present_tool_choice(value: &Value) -> Result<CanonicalToolChoice, Inbou
 
 pub(super) fn parse_thinking(value: &Value) -> ThinkingConfig {
     let kind = value.get("type").and_then(Value::as_str).unwrap_or("");
-    let enabled = kind == "enabled";
+    // Why: `adaptive` is thinking on with the budget left to the model; Claude
+    // Code sends it on every turn, and reading it as off silenced Gemini.
+    let enabled = matches!(kind, "enabled" | "adaptive");
     let budget_tokens = value
         .get("budget_tokens")
         .and_then(Value::as_u64)

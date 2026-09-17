@@ -10,7 +10,9 @@ use clap::Args;
 
 use super::tools_schema::print_schema_view;
 use super::types::{McpToolEntry, McpToolsOutput, McpToolsSummary};
-use crate::commands::shared::mcp_tools::{list_tools_authenticated, list_tools_unauthenticated};
+use crate::commands::shared::mcp_tools::{
+    direct_url, list_tools_authenticated, list_tools_unauthenticated,
+};
 use crate::context::CommandContext;
 use crate::session::get_or_create_session;
 use crate::shared::CommandOutput;
@@ -116,10 +118,12 @@ async fn collect_tools(
         let server_config = services_config.mcp_servers.get(&server.name);
         let requires_auth = server_config.is_some_and(|c| c.oauth.required);
 
-        let tools_result = if requires_auth {
-            list_tools_authenticated(&server.name, server.port, session_token, args.timeout).await
-        } else {
-            list_tools_unauthenticated(&server.name, server.port, args.timeout).await
+        let tools_result = match direct_url(server) {
+            Ok(url) if requires_auth => {
+                list_tools_authenticated(&server.name, &url, session_token, args.timeout).await
+            },
+            Ok(url) => list_tools_unauthenticated(&server.name, &url, args.timeout).await,
+            Err(e) => Err(e),
         };
 
         match tools_result {

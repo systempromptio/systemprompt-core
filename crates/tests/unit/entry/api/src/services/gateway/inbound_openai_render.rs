@@ -14,12 +14,13 @@ fn sample_response() -> CanonicalResponse {
         id: "resp_1".into(),
         model: "gpt-x".into(),
         content: vec![
-            CanonicalContent::Text("answer".into()),
+            CanonicalContent::text("answer"),
             CanonicalContent::ToolUse {
                 id: "t1".into(),
                 name: "fn".into(),
                 input: json!({"a": 1}),
                 signature: None,
+                cache_control: None,
             },
             CanonicalContent::Thinking {
                 id: None,
@@ -33,6 +34,7 @@ fn sample_response() -> CanonicalResponse {
                 is_error: false,
                 structured_content: None,
                 meta: None,
+                cache_control: None,
             },
         ],
         stop_reason: Some(CanonicalStopReason::EndTurn),
@@ -74,6 +76,7 @@ fn render_response_omits_message_when_no_text() {
             name: "f".into(),
             input: json!({}),
             signature: None,
+            cache_control: None,
         }],
         stop_reason: None,
         usage: CanonicalUsage::default(),
@@ -160,6 +163,7 @@ fn render_event_skips_usage_and_terminal_events() {
         CanonicalEvent::MessageStop {
             id: "id".into(),
             stop_reason: Some(CanonicalStopReason::ToolUse),
+            raw_finish_reason: None,
         },
     ];
     for ev in skipped {
@@ -208,6 +212,7 @@ fn render_terminal_completed_carries_full_output_list() {
             &CanonicalEvent::MessageStop {
                 id: "resp_1".into(),
                 stop_reason: Some(CanonicalStopReason::ToolUse),
+                raw_finish_reason: None,
             },
             &snapshot,
             "m",
@@ -238,12 +243,13 @@ fn render_terminal_completed_carries_full_output_list() {
 fn render_terminal_incomplete_maps_to_incomplete_status() {
     let inbound = OpenAiResponsesInbound;
     let mut snapshot = sample_response();
-    snapshot.content = vec![CanonicalContent::Text("partial".into())];
+    snapshot.content = vec![CanonicalContent::text("partial")];
     let frame = inbound
         .render_terminal_event(
             &CanonicalEvent::MessageStop {
                 id: "resp_1".into(),
                 stop_reason: Some(CanonicalStopReason::MaxTokens),
+                raw_finish_reason: None,
             },
             &snapshot,
             "m",

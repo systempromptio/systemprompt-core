@@ -44,6 +44,7 @@ pub enum ServicesProvenance {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ActiveServicesRoot {
     pub path: PathBuf,
+    pub base: PathBuf,
     pub provenance: ServicesProvenance,
 }
 

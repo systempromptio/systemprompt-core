@@ -85,6 +85,7 @@ pub(crate) fn on_login_finished(
             if crate::gui::first_run::should_run(app) {
                 app.proxy.send_event(UiEvent::FirstRunStart);
             } else {
+                app.did_initial_sync = true;
                 app.proxy
                     .send_event(UiEvent::SyncRequested { reply_to: None });
                 crate::gui::hosts::tick::request_initial_probe(app);

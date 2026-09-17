@@ -14,8 +14,9 @@ mod safety;
 mod usage;
 
 pub use request::{
-    CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalTool, CanonicalToolChoice,
-    ImageDetail, ImageSource, ReasoningEffort, ResponseFormat, Role, SearchConfig, ThinkingConfig,
+    CacheControl, CacheTtl, CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalTool,
+    CanonicalToolChoice, ImageDetail, ImageSource, ReasoningEffort, ResponseFormat, Role,
+    SearchConfig, SystemBlock, ThinkingConfig,
 };
 pub use response::{
     CanonicalEvent, CanonicalResponse, CanonicalStopReason, CodeExecutionOutput, ContentBlockKind,
