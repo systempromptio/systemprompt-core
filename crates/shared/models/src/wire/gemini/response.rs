@@ -43,18 +43,21 @@ pub fn stop_reason(finish: &str) -> CanonicalStopReason {
 /// other than `STOP`/`MAX_TOKENS` without producing a single part.
 #[must_use]
 pub(super) fn empty_terminal_message(finish: &str, finish_message: Option<&str>) -> String {
-    match finish_message.map(str::trim).filter(|m| !m.is_empty()) {
-        Some(detail) => format!("upstream finished with {finish}: {detail}"),
-        None => format!("upstream finished with {finish}"),
-    }
+    finish_message
+        .map(str::trim)
+        .filter(|m| !m.is_empty())
+        .map_or_else(
+            || format!("upstream finished with {finish}"),
+            |detail| format!("upstream finished with {finish}: {detail}"),
+        )
 }
 
 #[must_use]
 pub(super) fn blocked_prompt_message(reason: &str, detail: Option<&str>) -> String {
-    match detail.map(str::trim).filter(|m| !m.is_empty()) {
-        Some(detail) => format!("upstream blocked the prompt: {reason}: {detail}"),
-        None => format!("upstream blocked the prompt: {reason}"),
-    }
+    detail.map(str::trim).filter(|m| !m.is_empty()).map_or_else(
+        || format!("upstream blocked the prompt: {reason}"),
+        |detail| format!("upstream blocked the prompt: {reason}: {detail}"),
+    )
 }
 
 pub fn parse_response(

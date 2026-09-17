@@ -15,7 +15,7 @@ use crate::wire::inspect::ForwardedSurface;
 /// Why the upstream model stopped, in provider-neutral terms.
 ///
 /// `Refusal` is the model (or its safety layer) declining to continue —
-/// Anthropic `refusal`, OpenAI `content_filter`, Gemini `SAFETY` and its
+/// Anthropic `refusal`, `OpenAI` `content_filter`, Gemini `SAFETY` and its
 /// siblings. `Other` is reserved for a reason no dialect classifies; a turn
 /// that ends on it *with* content still relays as a clean stop, while one
 /// that ends on it with nothing is an upstream error, and the raw reason is

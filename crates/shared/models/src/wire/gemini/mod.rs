@@ -16,6 +16,7 @@
 mod request;
 mod response;
 mod streaming;
+mod streaming_parts;
 mod thinking;
 mod wire;
 
