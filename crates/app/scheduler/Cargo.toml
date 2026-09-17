@@ -58,6 +58,14 @@ systemprompt-users = { workspace = true }
 # Job registration and discovery
 inventory = { workspace = true }
 
+# OTLP export (otlp_export job)
+opentelemetry-proto = { workspace = true }
+prost = { workspace = true }
+reqwest = { workspace = true }
+metrics = { workspace = true }
+sha2 = { workspace = true }
+hex = { workspace = true }
+
 # Panic isolation for spawned jobs
 futures = { workspace = true }
 

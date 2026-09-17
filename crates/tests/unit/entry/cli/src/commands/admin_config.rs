@@ -24,6 +24,7 @@ use systemprompt_scheduler::{JobConfig, SchedulerConfig};
 fn make_profile(services: &Path) -> Profile {
     Profile {
         storage: Default::default(),
+        observability: Default::default(),
         name: "test".to_string(),
         display_name: "Test".to_string(),
         target: ProfileType::Local,

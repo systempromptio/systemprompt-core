@@ -18,6 +18,7 @@ mod evaluation;
 mod from_env;
 mod governance;
 mod info;
+mod observability;
 mod oci_reference;
 mod paths;
 mod rate_limits;
@@ -41,6 +42,7 @@ pub use governance::{
     UNRESTRICTED_ACKNOWLEDGEMENT,
 };
 pub use info::ProfileInfo;
+pub use observability::{ObservabilityConfig, OtlpExportConfig, OtlpProtocol, OtlpSignal};
 pub use oci_reference::{OciReference, OciReferenceError};
 pub use paths::{PathsConfig, expand_home, resolve_path, resolve_with_home};
 pub use rate_limits::{
@@ -154,6 +156,9 @@ pub struct Profile {
 
     #[serde(default)]
     pub storage: StorageConfig,
+
+    #[serde(default)]
+    pub observability: ObservabilityConfig,
 }
 
 const MOVED_SECTIONS: &[(&str, &str)] = &[

@@ -32,6 +32,16 @@ impl Extension for SchedulerExtension {
                 "job_name".into(),
                 "created_at".into(),
             ]),
+            SchemaDefinition::new(
+                "otlp_export_state",
+                include_str!("../schema/otlp_export_state.sql"),
+            )
+            .with_required_columns(vec![
+                "signal".into(),
+                "watermark".into(),
+                "watermark_id".into(),
+                "batches_total".into(),
+            ]),
         ]
     }
 

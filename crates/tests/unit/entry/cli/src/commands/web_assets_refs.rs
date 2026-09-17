@@ -17,6 +17,7 @@ use systemprompt_models::{
 fn profile_with_services(services: &Path) -> Profile {
     Profile {
         storage: Default::default(),
+        observability: Default::default(),
         name: "test".to_string(),
         display_name: "Test".to_string(),
         target: ProfileType::Local,

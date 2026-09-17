@@ -1,6 +1,6 @@
 # Operate in production
 
-How to run a deployed systemprompt instance day to day: probe its health, scrape its metrics, read its logs, ingest OpenTelemetry (OTLP) data, troubleshoot common failures, and upgrade or roll back. For the deployment topology this guide assumes — replicas, Postgres, reverse proxy, secrets store — see [deploy-production.md](deploy-production.md).
+How to run a deployed systemprompt instance day to day: probe its health, scrape its metrics, read its logs, ingest and export OpenTelemetry (OTLP) data, troubleshoot common failures, and upgrade or roll back. For the deployment topology this guide assumes — replicas, Postgres, reverse proxy, secrets store — see [deploy-production.md](deploy-production.md).
 
 ## Prerequisites
 
@@ -101,14 +101,32 @@ Forward logs off-host by one of:
 - **Logical replication** — subscribe a downstream system to the `logs` table for high volume.
 - **Pull-based export** — periodic query against a read-only replica.
 
-## 5. Ingest OpenTelemetry (OTLP)
+## 5. Ingest and export OpenTelemetry (OTLP)
 
 The gateway exposes an OTLP ingest endpoint at `POST /otel` (and `POST /otel/{*rest}`) that decodes OTLP trace, log, and metric envelopes and persists spans and logs as rows in the `logs` table (`crates/entry/api/src/routes/gateway/otel/`). It accepts protobuf envelopes up to 4 MiB and auto-detects the envelope type. Review the gateway route authentication and restrict telemetry ingress to intended clients. The bridge enforces its local proxy origin before forwarding; that control does not restrict direct network access to the API.
 
-Two limits to account for when planning telemetry:
+### Export to a collector
 
-- **The server ingests OTLP but does not emit its own distributed traces.** There is no OTLP exporter in the binary. Cross-service correlation uses the `logs.trace_id` column and the ingested span rows, not an external collector (Jaeger/Tempo) fed by the server.
-- **OTLP-ingested metrics are not recorded.** The metrics path of the ingest endpoint counts and logs metric names only; values are discarded and never appear on `/metrics` or in the database. Only ingested traces and logs are persisted.
+The instance can also *emit* OTLP. With a `observability.otlp` block in the profile ([configuration.md §observability](../reference/configuration.md#observability)) and the `otlp_export` job enabled in the scheduler config, the server tails its own audit tables and posts OTLP/HTTP protobuf envelopes to the collector (`crates/app/scheduler/src/jobs/otlp_export/`):
+
+- **Traces** — one `ai_request <model>` span per completed `ai_requests` row (user, session, provider and `served_provider`, requested and served model, tokens, cache tokens, cost, latency, finish reason, client kind, wire protocol), with a `tool_call <name>` child span for every `tool_call_ledger` row of that request and a `governance_decision <policy>` child for every `governance_decisions` row under its trace. A denied decision, a failed tool or a failed request sets the span status to error. A request whose `trace_id` is a 32-hex W3C id keeps it, so client-side spans correlate; every other id is a digest of the row key, so a re-sent batch overwrites rather than duplicates.
+- **Logs** — one record per `logs` row (level → severity, module, message, metadata, user/session/context/client/instance ids), carrying the trace id and request span id when the row was written under a gateway request.
+- **Metrics** are not exported. They stay on `/metrics`; a collector that wants them scrapes it (`prometheusreceiver`).
+
+Any collector that speaks OTLP/HTTP works — the OpenTelemetry Collector fronting Datadog, Splunk, Grafana Tempo and Loki, Honeycomb, or the vendor agent directly. `protocol: grpc` is not yet supported and is refused at validation.
+
+Progress is in the `otlp_export_state` table, one row per signal:
+
+| Column | Meaning |
+|--------|---------|
+| `watermark`, `watermark_id` | The `(timestamp, id)` of the last row the collector acknowledged. The row is created with the watermark at the moment of the first export — enabling the exporter ships forward from then, never the history. Delete a row to restart that signal from now. |
+| `last_attempt_at`, `last_success_at` | When the job last tailed the signal and last got a 2xx. |
+| `last_error`, `last_error_at` | The most recent delivery failure, cleared on the next success. |
+| `batches_total`, `failures_total`, `rows_total` | Lifetime counters. |
+
+The job reads `lag_seconds` (now minus the watermark) alongside these; when the tail is caught up the watermark sits at the edge of the five-second settle window, so a healthy idle exporter reports a lag of roughly five seconds. A batch that fails is retried three times in-run with increasing backoff on transport errors and 429/502/503/504 (never on other 4xx), then keeps its watermark and is retried at the next tick — nothing is dropped, nothing is skipped. Each batch of up to 500 rows increments `otlp_export_batches_total{signal,status}` on `/metrics`, `status` being `ok` or `error`. Console integrations read the state through `systemprompt_scheduler::OtlpExportStateRepository::list_states` and trigger an unpaced run with `otlp_export_now`.
+
+One limit to account for when planning telemetry: **OTLP-ingested metrics are not recorded.** The metrics path of the ingest endpoint counts and logs metric names only; values are discarded and never appear on `/metrics` or in the database. Only ingested traces and logs are persisted.
 
 ## 6. Account for SSE delivery semantics
 

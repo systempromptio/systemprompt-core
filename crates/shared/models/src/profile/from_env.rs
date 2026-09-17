@@ -48,6 +48,7 @@ impl Profile {
             evaluation: crate::profile::EvaluationProfile::default(),
             services: crate::profile::ServicesProfileConfig::default(),
             storage: crate::profile::StorageConfig::default(),
+            observability: crate::profile::ObservabilityConfig::default(),
         })
     }
 }

@@ -7,6 +7,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod network;
+mod observability;
 mod security;
 mod services;
 
@@ -30,6 +31,7 @@ impl Profile {
         self.validate_external_url_is_reachable(&mut errors, is_cloud);
         self.validate_services_sources(&mut errors, is_cloud);
         self.validate_secrets(&mut errors);
+        self.validate_observability(&mut errors);
 
         if errors.is_empty() {
             Ok(())

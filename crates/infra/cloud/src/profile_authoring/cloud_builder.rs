@@ -87,6 +87,7 @@ impl CloudProfileBuilder {
 
         Profile {
             storage: systemprompt_models::profile::StorageConfig::default(),
+            observability: systemprompt_models::profile::ObservabilityConfig::default(),
             name: self.name,
             display_name,
             target: ProfileType::Cloud,
