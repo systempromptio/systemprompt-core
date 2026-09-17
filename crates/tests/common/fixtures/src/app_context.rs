@@ -338,6 +338,7 @@ fn fixture_app_context_assembled(
             authz_hook,
             governance,
             ai_service: None,
+            artifact_ingest: fixture_artifact_ingest(pool)?,
             schema_install: Arc::new(systemprompt_database::SchemaInstallReport::default()),
             event_bridge: Arc::new(OnceLock::new()),
             geoip_reader: None,
@@ -355,6 +356,14 @@ fn fixture_app_context_assembled(
 
 // The vendor-neutral warn-only chain: what a deployment without a
 // `<services>/governance/config.yaml` boots with.
+/// An ingest over the fixture pool with no scanners: the narrow waist itself,
+/// not the installation's policy.
+pub fn fixture_artifact_ingest(db: &DbPool) -> Result<Arc<systemprompt_mcp::ArtifactIngest>> {
+    Ok(Arc::new(systemprompt_mcp::ArtifactIngest::from_db(
+        db, None,
+    )?))
+}
+
 pub fn default_governance_engine() -> Arc<systemprompt_security::policy::GovernanceEngine> {
     Arc::new(
         systemprompt_security::policy::GovernanceEngine::from_config(

@@ -28,6 +28,7 @@ pub struct GatewayRepositories {
     pub gateway_policies: AiGatewayPolicyRepository,
     pub thought_signatures: Arc<ThoughtSignatureCache>,
     pub context_materializer: DynContextMaterializer,
+    pub artifact_ingest: Option<Arc<systemprompt_mcp::ArtifactIngest>>,
 }
 
 impl std::fmt::Debug for GatewayRepositories {
@@ -57,7 +58,16 @@ impl GatewayRepositories {
                 Arc::new(AiThoughtSignatureRepository::new(db)?),
             )),
             context_materializer,
+            artifact_ingest: None,
         })
+    }
+
+    /// Attaches the artifact ingest so replayed `tool_result` blocks become
+    /// linked artifacts.
+    #[must_use]
+    pub fn with_artifact_ingest(mut self, ingest: Arc<systemprompt_mcp::ArtifactIngest>) -> Self {
+        self.artifact_ingest = Some(ingest);
+        self
     }
 
     pub fn settlement(&self) -> Settlement {

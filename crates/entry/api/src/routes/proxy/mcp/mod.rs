@@ -144,7 +144,9 @@ pub fn router(ctx: &AppContext) -> Router {
             return Router::new();
         },
     };
-    let engine = ProxyEngine::new(identities).with_tool_usage_repo(Arc::clone(&repo));
+    let engine = ProxyEngine::new(identities)
+        .with_tool_usage_repo(Arc::clone(&repo))
+        .with_artifact_ingest(ctx.artifact_ingest_arc());
 
     let state = McpState {
         ctx: ctx.clone(),

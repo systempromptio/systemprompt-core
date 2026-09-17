@@ -1,7 +1,10 @@
 //! Client-aware MCP tool-response assembly.
 //!
-//! Every tool output is persisted as an artifact, then shaped for the wire
-//! according to the negotiated [`ClientProfile`]:
+//! Every tool output is persisted as an artifact through the ingestion
+//! narrow waist ([`ArtifactIngest`]) — the same path a proxied,
+//! gateway-replayed or hook-reported result takes, so in-process output is
+//! scanned, content- addressed and linked exactly like everything else — then
+//! shaped for the wire according to the negotiated [`ClientProfile`]:
 //!
 //! - Hosts that negotiated the MCP Apps UI extension receive the embedded
 //!   `ui://` resource and [`UI_RESOURCE_URI_META_KEY`] alongside the text
@@ -22,8 +25,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::repository::{CreateMcpArtifact, McpArtifactRepository};
 use crate::schema::McpOutputSchema;
+use crate::services::artifact_ingest::{ArtifactIngest, IngestRequest};
 use crate::services::ui_renderer::{
     RenderTarget, UiResource, artifact_resource_uri, artifact_ui_resource,
 };
@@ -34,8 +37,8 @@ use serde::Serialize;
 use serde_json::Value as JsonValue;
 use systemprompt_identifiers::{ArtifactId, McpExecutionId};
 use systemprompt_models::RequestContext;
-use systemprompt_models::artifacts::{EXECUTION_META_KEY, ExecutionMetadata, ToolResponse};
-use systemprompt_models::mcp::{ClientProfile, McpResourceUiMeta};
+use systemprompt_models::artifacts::{EXECUTION_META_KEY, ExecutionMetadata};
+use systemprompt_models::mcp::{ClientProfile, ExecutionSource, McpResourceUiMeta};
 
 pub const UI_RESOURCE_URI_META_KEY: &str = "io.systemprompt/ui-resource-uri";
 
@@ -92,11 +95,10 @@ impl<T: Serialize + JsonSchema + McpOutputSchema> McpResponseBuilder<T> {
     pub async fn build(
         self,
         summary: impl Into<String>,
-        repo: &McpArtifactRepository,
+        ingest: &ArtifactIngest,
         artifact_type: impl Into<String>,
         title: Option<String>,
     ) -> Result<CallToolResult, McpError> {
-        let artifact_id = ArtifactId::generate();
         let summary_str = summary.into();
         let artifact_type_str = artifact_type.into();
         let ToolIdentity {
@@ -105,58 +107,99 @@ impl<T: Serialize + JsonSchema + McpOutputSchema> McpResponseBuilder<T> {
         } = self.identity;
         let exec_id = self.mcp_execution_id;
 
-        let metadata = ExecutionMetadata::builder(&self.ctx)
-            .with_tool(tool_name.clone())
-            .with_execution(exec_id.to_string())
-            .build();
-
         let structured_output = serde_json::to_value(&self.output).map_err(|e| {
             tracing::error!(error = %e, tool = %tool_name, "Failed to serialize tool output");
             McpError::internal_error(format!("Serialization error: {e}"), None)
         })?;
         let text_body = self.output.text_body();
 
-        let stored_envelope = ToolResponse::new(
-            artifact_id.clone(),
-            exec_id.clone(),
-            self.output,
-            metadata.clone(),
-        )
-        .to_json()
-        .map_err(|e| {
-            tracing::error!(error = %e, tool = %tool_name, "Failed to serialize tool response");
-            McpError::internal_error(format!("Serialization error: {e}"), None)
-        })?;
+        let mut wire = CallToolResult::success(Vec::new());
+        wire.structured_content = Some(typed_structured(&structured_output, &artifact_type_str));
+        let outcome = ingest
+            .ingest(IngestRequest {
+                result: wire,
+                tool_name: tool_name.clone(),
+                server_name: Some(server_name.clone()),
+                ai_tool_call_id: self.ctx.ai_tool_call_id().cloned(),
+                mcp_execution_id: Some(exec_id.clone()),
+                ctx: self.ctx.clone(),
+                skill: None,
+                source: ExecutionSource::InProcess,
+                started_at: None,
+                input: None,
+            })
+            .await
+            .map_err(|e| {
+                tracing::error!(error = %e, tool = %tool_name, "Failed to persist artifact");
+                McpError::internal_error(format!("Failed to persist artifact: {e}"), None)
+            })?;
+        let artifact_id = outcome.artifact_id;
 
-        let create_artifact = CreateMcpArtifact {
-            artifact_id: artifact_id.clone(),
-            mcp_execution_id: exec_id.clone(),
-            context_id: Some(self.ctx.context_id().clone()),
-            user_id: (!self.ctx.is_anonymous()).then(|| self.ctx.user_id().clone()),
+        let metadata = ExecutionMetadata::builder(&self.ctx)
+            .with_tool(tool_name.clone())
+            .with_execution(exec_id.to_string())
+            .build();
+
+        tracing::info!(artifact_id = %artifact_id, server = %server_name, "Artifact persisted");
+
+        // Why: the wire carries what was stored — the scanned, redacted body —
+        // never the raw output, so a secret the scanner removed does not
+        // reach the model through the text or structured copy either.
+        let stored = ingest
+            .artifacts()
+            .find_by_id(&artifact_id)
+            .await
+            .ok()
+            .flatten();
+        let redacted = stored.as_ref().is_some_and(|r| r.secret_redactions > 0);
+        let payload = stored
+            .and_then(|record| record.data.get("artifact").cloned())
+            .unwrap_or(structured_output);
+        let rendered = RenderedArtifact {
+            artifact_id,
+            mcp_execution_id: exec_id,
             server_name,
             artifact_type: artifact_type_str,
             title,
-            data: stored_envelope,
-            metadata: metadata.to_object().map(JsonValue::Object),
-            expires_at: None,
+            payload: payload.clone(),
         };
-
-        repo.save(&create_artifact).await.map_err(|e| {
-            tracing::error!(error = %e, artifact_id = %artifact_id, "Failed to persist artifact");
-            McpError::internal_error(format!("Failed to persist artifact: {e}"), None)
-        })?;
-
-        tracing::info!(artifact_id = %artifact_id, server = %create_artifact.server_name, "Artifact persisted");
 
         let shape = WireShape {
             client: &self.client,
             summary: summary_str,
-            text_body,
-            structured_output,
+            text_body: if redacted { None } else { text_body },
+            structured_output: payload,
             metadata: &metadata,
         };
-        Ok(shape.into_result(&create_artifact, &self.ctx))
+        Ok(shape.into_result(&rendered, &self.ctx))
     }
+}
+
+/// A body that names its own artifact type, so the ingest stores it as that
+/// type rather than as a generic tool result.
+// JSON: the typed output object with `x-artifact-type` set when absent.
+fn typed_structured(output: &JsonValue, artifact_type: &str) -> JsonValue {
+    let mut value = output.clone();
+    if let Some(map) = value.as_object_mut()
+        && !map.contains_key("x-artifact-type")
+    {
+        map.insert(
+            "x-artifact-type".to_owned(),
+            JsonValue::String(artifact_type.to_owned()),
+        );
+    }
+    value
+}
+
+/// What the wire shaper needs to know about the persisted artifact.
+struct RenderedArtifact {
+    artifact_id: ArtifactId,
+    mcp_execution_id: McpExecutionId,
+    server_name: String,
+    artifact_type: String,
+    title: Option<String>,
+    // JSON: the stored (scanned, redacted) artifact body.
+    payload: JsonValue,
 }
 
 struct WireShape<'a> {
@@ -168,7 +211,7 @@ struct WireShape<'a> {
 }
 
 impl WireShape<'_> {
-    fn into_result(self, artifact: &CreateMcpArtifact, ctx: &RequestContext) -> CallToolResult {
+    fn into_result(self, artifact: &RenderedArtifact, ctx: &RequestContext) -> CallToolResult {
         let include_ui = self.client.supports_ui();
         let include_structured = self.client.supports_structured_content();
         let uri = artifact_resource_uri(&artifact.server_name, &artifact.artifact_id);
@@ -235,15 +278,14 @@ fn wire_meta(
 }
 
 fn ui_resource_block(
-    artifact: &CreateMcpArtifact,
+    artifact: &RenderedArtifact,
     ctx: &RequestContext,
     uri: &str,
 ) -> Option<ContentBlock> {
-    let payload = artifact.data.get("artifact")?;
     let target = RenderTarget {
         artifact_id: &artifact.artifact_id,
         artifact_type: &artifact.artifact_type,
-        payload,
+        payload: &artifact.payload,
         context_id: ctx.context_id().clone(),
         title: artifact.title.clone(),
     };

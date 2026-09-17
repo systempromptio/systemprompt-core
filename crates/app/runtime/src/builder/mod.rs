@@ -164,12 +164,22 @@ impl AppContextBuilder {
             .unwrap_or_else(|| assembly::build_marketplace_filter(&database));
 
         let ai_service = ai_service::build_ai_service(&database, &repositories, &mcp_registry)?;
+        let artifact_ingest = Arc::new(
+            systemprompt_mcp::ArtifactIngest::from_db(
+                &database,
+                governance
+                    .secret_scanner()
+                    .map(|scanner| Arc::new(scanner.clone())),
+            )
+            .map_err(|e| crate::RuntimeError::Internal(format!("artifact ingest: {e}")))?,
+        );
 
         let subsystems = Subsystems {
             system_admin,
             authz_hook,
             governance,
             ai_service,
+            artifact_ingest,
             schema_install: Arc::new(schema_install),
             event_bridge: Arc::new(OnceLock::new()),
             geoip_reader,

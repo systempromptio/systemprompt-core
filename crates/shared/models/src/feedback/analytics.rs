@@ -20,6 +20,7 @@ pub enum AnalyticsFactKind {
     Request,
     Assessment,
     ResourceAssociation,
+    Artifact,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
@@ -146,6 +147,36 @@ pub struct NormalizedResourceAssociationFact {
     pub attribution: InvocationResourceAttribution,
 }
 
+/// One tool result stored as a typed artifact, joined to the invocation and
+/// request it belongs to where those are known. `source` is the vantage
+/// point the platform saw the result from and `correlation` says whether it
+/// was joined by an exact key or inferred.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct NormalizedArtifactFact {
+    pub artifact_key: AnalyticsFactKey,
+    pub execution_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub invocation_key: Option<AnalyticsFactKey>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub request_key: Option<AnalyticsFactKey>,
+    pub occurred_at: DateTime<Utc>,
+    pub consumer: InvocationConsumerIdentity,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub skill: Option<InvocationSkillIdentity>,
+    pub tool_name: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub server_name: Option<String>,
+    pub artifact_type: String,
+    pub source: crate::mcp::ExecutionSource,
+    pub correlation: crate::mcp::Correlation,
+    pub is_structured: bool,
+    pub has_ui_resource: bool,
+    pub succeeded: bool,
+    pub payload_bytes: Option<u64>,
+    pub findings: u64,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(tag = "kind", content = "value", rename_all = "snake_case")]
 pub enum NormalizedAnalyticsFact {
@@ -153,6 +184,7 @@ pub enum NormalizedAnalyticsFact {
     Request(NormalizedRequestFact),
     Assessment(NormalizedAssessmentFact),
     ResourceAssociation(NormalizedResourceAssociationFact),
+    Artifact(NormalizedArtifactFact),
 }
 
 impl NormalizedAnalyticsFact {
@@ -162,6 +194,7 @@ impl NormalizedAnalyticsFact {
             Self::Request(_) => AnalyticsFactKind::Request,
             Self::Assessment(_) => AnalyticsFactKind::Assessment,
             Self::ResourceAssociation(_) => AnalyticsFactKind::ResourceAssociation,
+            Self::Artifact(_) => AnalyticsFactKind::Artifact,
         }
     }
 }

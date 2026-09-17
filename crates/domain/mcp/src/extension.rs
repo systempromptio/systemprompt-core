@@ -41,6 +41,8 @@ impl Extension for McpExtension {
                 "mcp_execution_id".into(),
                 "tool_name".into(),
                 "server_name".into(),
+                "source".into(),
+                "correlation".into(),
                 "created_at".into(),
             ]),
             SchemaDefinition::new("mcp_sessions", include_str!("../schema/mcp_sessions.sql"))
@@ -59,15 +61,39 @@ impl Extension for McpExtension {
                 "auth_token".into(),
                 "expires_at".into(),
             ]),
+            SchemaDefinition::new(
+                "artifact_payloads",
+                include_str!("../schema/artifact_payloads.sql"),
+            )
+            .with_required_columns(vec![
+                "sha256".into(),
+                "byte_len".into(),
+                "body".into(),
+                "ref_count".into(),
+            ]),
             SchemaDefinition::new("mcp_artifacts", include_str!("../schema/mcp_artifacts.sql"))
                 .with_required_columns(vec![
                     "artifact_id".into(),
                     "mcp_execution_id".into(),
                     "server_name".into(),
                     "artifact_type".into(),
+                    "source".into(),
+                    "ai_tool_call_id".into(),
+                    "payload_sha256".into(),
+                    "is_structured".into(),
                     "data".into(),
                     "created_at".into(),
                 ]),
+            SchemaDefinition::new(
+                "mcp_artifact_findings",
+                include_str!("../schema/mcp_artifact_findings.sql"),
+            )
+            .with_required_columns(vec![
+                "artifact_id".into(),
+                "phase".into(),
+                "category".into(),
+                "scanner".into(),
+            ]),
         ]
     }
 

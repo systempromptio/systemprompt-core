@@ -44,6 +44,7 @@ pub(super) async fn record_governance_decision(
         target: AuditTarget {
             tool_name: GovernedTarget::Prompt.as_str().to_owned(),
             plugin_id: None,
+            tool_use_id: None,
         },
         chain: evaluation.chain,
         approver: None,

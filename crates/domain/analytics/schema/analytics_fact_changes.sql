@@ -1,7 +1,7 @@
 CREATE TABLE IF NOT EXISTS analytics_fact_changes (
     owner_id TEXT NOT NULL REFERENCES users(id),
     change_id TEXT NOT NULL,
-    fact_kind TEXT NOT NULL CHECK (fact_kind IN ('invocation','request','assessment','resource_association')),
+    fact_kind TEXT NOT NULL CHECK (fact_kind IN ('invocation','request','assessment','resource_association','artifact')),
     source TEXT NOT NULL CHECK (length(source) BETWEEN 1 AND 128),
     fact_id TEXT NOT NULL,
     revision BIGINT NOT NULL CHECK (revision > 0),

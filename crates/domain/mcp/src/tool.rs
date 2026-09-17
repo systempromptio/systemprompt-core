@@ -10,9 +10,10 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::models::{ExecutionStatus, ToolExecutionRequest, ToolExecutionResult};
-use crate::repository::{McpArtifactRepository, ToolUsageRepository};
+use crate::repository::ToolUsageRepository;
 use crate::response::{McpResponseBuilder, ToolIdentity};
 use crate::schema::McpOutputSchema;
+use crate::services::artifact_ingest::ArtifactIngest;
 use chrono::Utc;
 use rmcp::ErrorData as McpError;
 use rmcp::model::{CacheScope, CallToolRequestParams, CallToolResult, ListToolsResult, Tool};
@@ -25,6 +26,7 @@ use systemprompt_identifiers::McpExecutionId;
 use systemprompt_models::RequestContext;
 use systemprompt_models::mcp::ClientProfile;
 
+use systemprompt_models::mcp::ExecutionSource;
 const TOOL_LIST_TTL_MS: u64 = 3_600_000;
 
 #[must_use]
@@ -113,19 +115,19 @@ pub fn object_input_schema(schema: &JsonValue) -> serde_json::Map<String, JsonVa
 #[derive(Clone, Debug)]
 pub struct McpToolExecutor {
     tool_usage_repo: Arc<ToolUsageRepository>,
-    artifact_repo: Arc<McpArtifactRepository>,
+    ingest: Arc<ArtifactIngest>,
     server_name: String,
 }
 
 impl McpToolExecutor {
     pub fn new(
         tool_usage_repo: Arc<ToolUsageRepository>,
-        artifact_repo: Arc<McpArtifactRepository>,
+        ingest: Arc<ArtifactIngest>,
         server_name: impl Into<String>,
     ) -> Self {
         Self {
             tool_usage_repo,
-            artifact_repo,
+            ingest,
             server_name: server_name.into(),
         }
     }
@@ -152,7 +154,8 @@ impl McpToolExecutor {
             context: ctx.clone(),
             request_method: Some("mcp".to_owned()),
             request_source: Some(self.server_name.clone()),
-            ai_tool_call_id: None,
+            ai_tool_call_id: ctx.ai_tool_call_id().cloned(),
+            source: ExecutionSource::InProcess,
         };
 
         let exec_id = self
@@ -194,7 +197,7 @@ impl McpToolExecutor {
                 };
                 let identity = ToolIdentity::new(&self.server_name, handler.tool_name());
                 let response = McpResponseBuilder::new(output, identity, ctx, &exec_id, client)
-                    .build(summary, &self.artifact_repo, &artifact_type, title)
+                    .build(summary, &self.ingest, &artifact_type, title)
                     .await;
                 (response, output_value)
             },

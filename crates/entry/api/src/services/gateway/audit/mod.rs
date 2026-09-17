@@ -23,6 +23,7 @@ pub mod journal;
 pub mod message_text;
 mod open;
 pub mod payload;
+mod tool_results;
 
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
@@ -82,6 +83,7 @@ pub struct GatewayAudit {
     payloads: Arc<AiRequestPayloadRepository>,
     client_evidence: Arc<AiRequestClientEvidenceRepository>,
     context_materializer: systemprompt_traits::DynContextMaterializer,
+    artifact_ingest: Option<Arc<systemprompt_mcp::ArtifactIngest>>,
     pub ctx: GatewayRequestContext,
     served_model: Mutex<Option<String>>,
     started_at: Instant,
@@ -104,6 +106,7 @@ impl GatewayAudit {
             payloads: Arc::clone(&repos.payloads),
             client_evidence: Arc::clone(&repos.client_evidence),
             context_materializer: Arc::clone(&repos.context_materializer),
+            artifact_ingest: repos.artifact_ingest.clone(),
             ctx,
             served_model: Mutex::new(None),
             started_at: Instant::now(),

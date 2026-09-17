@@ -25,6 +25,7 @@ fn sample_audit() -> DecisionAudit {
         target: AuditTarget {
             tool_name: "read_file".to_owned(),
             plugin_id: Some(PluginId::new("plug-1")),
+            tool_use_id: None,
         },
         chain: vec![ChainEntryOutcome {
             policy_id: PolicyId::new("secret_scan"),

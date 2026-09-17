@@ -101,6 +101,7 @@ impl GatewayAudit {
                 .await?;
         }
         self.persist_request_messages(request).await?;
+        self.ingest_tool_results(request);
         let lease = super::journal::reserve(
             &self.settlement.journal,
             super::journal::Receipt::pending(

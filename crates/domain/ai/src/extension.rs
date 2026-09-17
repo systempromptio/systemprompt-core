@@ -82,6 +82,7 @@ impl Extension for AiExtension {
                 "signature",
                 "expires_at",
             ])),
+            SchemaDefinition::sql_only(include_str!("../schema/tool_call_ledger.sql")),
         ]
     }
 

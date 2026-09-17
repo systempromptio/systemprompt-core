@@ -65,7 +65,8 @@ pub(super) fn mount_extension_routes(
             ext_router_config.router
         }
         .layer(Extension(ctx.governance_arc()))
-        .layer(Extension(ctx.ai_service_arc()));
+        .layer(Extension(ctx.ai_service_arc()))
+        .layer(Extension(ctx.artifact_ingest_arc()));
 
         if let Some(frame_options) = ext_router_config.frame_options {
             tracing::debug!(

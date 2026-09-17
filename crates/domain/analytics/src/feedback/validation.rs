@@ -16,6 +16,7 @@ pub(super) const fn kind(value: AnalyticsFactKind) -> &'static str {
         AnalyticsFactKind::Request => "request",
         AnalyticsFactKind::Assessment => "assessment",
         AnalyticsFactKind::ResourceAssociation => "resource_association",
+        AnalyticsFactKind::Artifact => "artifact",
     }
 }
 
@@ -71,6 +72,7 @@ pub(super) fn parse_kind(value: &str) -> Result<AnalyticsFactKind> {
         "request" => Ok(AnalyticsFactKind::Request),
         "assessment" => Ok(AnalyticsFactKind::Assessment),
         "resource_association" => Ok(AnalyticsFactKind::ResourceAssociation),
+        "artifact" => Ok(AnalyticsFactKind::Artifact),
         _ => Err(invalid()),
     }
 }
@@ -143,6 +145,31 @@ fn fact_occurred_at(
             {
                 return Err(invalid());
             }
+            value.occurred_at
+        },
+        NormalizedAnalyticsFact::Artifact(value) => {
+            if value.artifact_key != *key
+                || value.execution_id.is_empty()
+                || value.execution_id.len() > 512
+                || value.tool_name.is_empty()
+                || value.artifact_type.is_empty()
+            {
+                return Err(invalid());
+            }
+            if let Some(invocation) = &value.invocation_key {
+                reference(invocation)?;
+                if invocation.kind != AnalyticsFactKind::Invocation {
+                    return Err(invalid());
+                }
+            }
+            if let Some(request) = &value.request_key {
+                reference(request)?;
+                if request.kind != AnalyticsFactKind::Request {
+                    return Err(invalid());
+                }
+            }
+            bounded(value.payload_bytes)?;
+            bounded(Some(value.findings))?;
             value.occurred_at
         },
     })

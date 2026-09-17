@@ -1,16 +1,18 @@
-//! Observe-while-forwarding tap that captures an external MCP tool-call result.
+//! Observe-while-forwarding tap that captures an external MCP tool-call result
+//! and stamps the execution id into it.
 //!
-//! For an SSE response the tap forwards each chunk untouched while scanning the
-//! stream for the JSON-RPC frame matching the request id; for a single JSON
-//! response it buffers, parses, and forwards. Either way it finalizes the
-//! [`McpAudit`] exactly once, on stream EOF or drop.
+//! For an SSE response the tap forwards the stream frame by frame, scanning
+//! for the JSON-RPC frame matching the request id and rewriting that one
+//! frame's `_meta` before it goes out; for a single JSON response it buffers,
+//! parses, stamps, and forwards. Either way it finalizes the [`McpAudit`]
+//! exactly once, on stream EOF or drop.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::collections::VecDeque;
 use std::io;
 use std::pin::Pin;
-use std::sync::{Arc, Mutex};
 use std::task::{Context, Poll};
 
 use axum::body::Body;
@@ -22,7 +24,10 @@ use serde_json::Value;
 
 use super::super::backend::{ResponseHandler, SSE_KEEPALIVE_INTERVAL, SseKeepaliveStream};
 use super::McpAudit;
-use super::jsonrpc::{ToolCallOutcome, extract_sse_data, parse_response_frame};
+use super::jsonrpc::{
+    ToolCallOutcome, extract_sse_data, frame_matches, parse_response_frame, replace_sse_data,
+    stamp_execution,
+};
 
 pub async fn record(
     response: reqwest::Response,
@@ -34,62 +39,96 @@ pub async fn record(
     let is_sse = ResponseHandler::is_event_stream(&headers);
 
     if is_sse {
-        let accumulator = Arc::new(Mutex::new(SseAccumulator::new(audit.request_id().clone())));
+        let accumulator = SseAccumulator::new(
+            audit.request_id().clone(),
+            audit.mcp_execution_id().to_string(),
+        );
         let stream = response.bytes_stream().map_err(io::Error::other);
         let tapped = McpAuditTapStream {
             inner: stream,
             accumulator,
+            ready: VecDeque::new(),
             audit: Some(audit),
         };
         let body = Body::from_stream(SseKeepaliveStream::new(tapped, SSE_KEEPALIVE_INTERVAL));
         ResponseHandler::assemble(status, &headers, true, body)
     } else {
         let bytes = response.bytes().await.map_err(|e| e.to_string())?;
-        let outcome = match std::str::from_utf8(&bytes) {
-            Ok(text) => parse_response_frame(text, audit.request_id()),
+        let (outcome, body) = match std::str::from_utf8(&bytes) {
+            Ok(text) => {
+                let outcome = parse_response_frame(text, audit.request_id());
+                let body = if outcome.is_some() {
+                    stamp_execution(text, audit.mcp_execution_id().as_str())
+                        .map_or_else(|| Body::from(bytes.clone()), Body::from)
+                } else {
+                    Body::from(bytes.clone())
+                };
+                (outcome, body)
+            },
             Err(e) => {
                 tracing::warn!(error = %e, "external MCP response body was not valid UTF-8; not audited");
-                None
+                (None, Body::from(bytes.clone()))
             },
         };
         audit.finalize(outcome);
-        ResponseHandler::assemble(status, &headers, false, Body::from(bytes))
+        // Why: headers are reassembled by the handler, so a rewritten body
+        // never ships with the upstream content-length.
+        ResponseHandler::assemble(status, &headers, false, body)
     }
 }
 
 struct SseAccumulator {
     buf: Vec<u8>,
     request_id: Value,
+    mcp_execution_id: String,
     outcome: Option<ToolCallOutcome>,
 }
 
 impl SseAccumulator {
-    const fn new(request_id: Value) -> Self {
+    const fn new(request_id: Value, mcp_execution_id: String) -> Self {
         Self {
             buf: Vec::new(),
             request_id,
+            mcp_execution_id,
             outcome: None,
         }
     }
 
-    fn push(&mut self, chunk: &[u8]) {
-        if self.outcome.is_some() {
-            return;
-        }
+    /// Buffers a chunk and returns every complete frame it closes, with the
+    /// matching result frame stamped.
+    fn push(&mut self, chunk: &[u8]) -> Vec<Bytes> {
         self.buf.extend_from_slice(chunk);
+        let mut out = Vec::new();
         while let Some(end) = find_frame_end(&self.buf) {
             let frame: Vec<u8> = self.buf.drain(..end).collect();
-            self.consume(&frame);
-            if self.outcome.is_some() {
-                break;
-            }
+            out.push(self.consume(frame));
         }
+        out
     }
 
-    fn consume(&mut self, frame: &[u8]) {
-        let text = String::from_utf8_lossy(frame);
-        if let Some(data) = extract_sse_data(&text) {
-            self.outcome = parse_response_frame(&data, &self.request_id);
+    fn flush(&mut self) -> Option<Bytes> {
+        if self.buf.is_empty() {
+            return None;
+        }
+        let frame: Vec<u8> = self.buf.drain(..).collect();
+        Some(self.consume(frame))
+    }
+
+    fn consume(&mut self, frame: Vec<u8>) -> Bytes {
+        if self.outcome.is_some() {
+            return Bytes::from(frame);
+        }
+        let text = String::from_utf8_lossy(&frame).into_owned();
+        let Some(data) = extract_sse_data(&text) else {
+            return Bytes::from(frame);
+        };
+        if !frame_matches(&data, &self.request_id) {
+            return Bytes::from(frame);
+        }
+        self.outcome = parse_response_frame(&data, &self.request_id);
+        match stamp_execution(&data, &self.mcp_execution_id) {
+            Some(stamped) => Bytes::from(replace_sse_data(&text, &stamped)),
+            None => Bytes::from(frame),
         }
     }
 }
@@ -103,19 +142,15 @@ fn find_frame_end(buf: &[u8]) -> Option<usize> {
 
 struct McpAuditTapStream<S> {
     inner: S,
-    accumulator: Arc<Mutex<SseAccumulator>>,
+    accumulator: SseAccumulator,
+    ready: VecDeque<Bytes>,
     audit: Option<McpAudit>,
 }
 
 impl<S> McpAuditTapStream<S> {
     fn finish(&mut self) {
         if let Some(audit) = self.audit.take() {
-            let outcome = self
-                .accumulator
-                .lock()
-                .ok()
-                .and_then(|mut acc| acc.outcome.take());
-            audit.finalize(outcome);
+            audit.finalize(self.accumulator.outcome.take());
         }
     }
 }
@@ -127,19 +162,26 @@ where
     type Item = Result<Bytes, io::Error>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        match Pin::new(&mut self.inner).poll_next(cx) {
-            Poll::Ready(Some(Ok(bytes))) => {
-                if let Ok(mut acc) = self.accumulator.lock() {
-                    acc.push(&bytes);
-                }
-                Poll::Ready(Some(Ok(bytes)))
-            },
-            Poll::Ready(Some(Err(e))) => Poll::Ready(Some(Err(e))),
-            Poll::Ready(None) => {
-                self.finish();
-                Poll::Ready(None)
-            },
-            Poll::Pending => Poll::Pending,
+        loop {
+            if let Some(frame) = self.ready.pop_front() {
+                return Poll::Ready(Some(Ok(frame)));
+            }
+            match Pin::new(&mut self.inner).poll_next(cx) {
+                Poll::Ready(Some(Ok(bytes))) => {
+                    let frames = self.accumulator.push(&bytes);
+                    self.ready.extend(frames);
+                },
+                Poll::Ready(Some(Err(e))) => return Poll::Ready(Some(Err(e))),
+                Poll::Ready(None) => {
+                    if let Some(rest) = self.accumulator.flush() {
+                        self.ready.push_back(rest);
+                        continue;
+                    }
+                    self.finish();
+                    return Poll::Ready(None);
+                },
+                Poll::Pending => return Poll::Pending,
+            }
         }
     }
 }

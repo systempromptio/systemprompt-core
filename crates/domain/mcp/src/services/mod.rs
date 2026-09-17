@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod artifact_ingest;
 pub mod auth;
 pub mod client;
 pub mod database;
@@ -17,6 +18,9 @@ pub mod schema;
 pub mod tool_provider;
 pub mod ui_renderer;
 
+pub use artifact_ingest::{
+    ArtifactIngest, ArtifactIngestRepositories, ArtifactScanner, IngestOutcome, IngestRequest,
+};
 pub use database::{DatabaseService, ServiceInfo, ServiceLifecycleStatus};
 pub use deployment::DeploymentService;
 pub use lifecycle::LifecycleOrchestrator;

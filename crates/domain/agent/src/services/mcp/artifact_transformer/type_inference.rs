@@ -60,6 +60,7 @@ fn parse_artifact_type(type_str: &str) -> ArtifactType {
         "video" => ArtifactType::Video,
         "audio" => ArtifactType::Audio,
         "message" => ArtifactType::Message,
+        "tool_result" => ArtifactType::ToolResult,
         custom => ArtifactType::Custom(custom.to_owned()),
     }
 }

@@ -89,6 +89,18 @@ impl Columns {
                 columns.request_source = Some(value.request_key.source.clone());
                 columns.request = Some(value.request_key.id.clone());
             },
+            Some(NormalizedAnalyticsFact::Artifact(value)) => {
+                columns.identity(&value.consumer)?;
+                if let Some(invocation) = &value.invocation_key {
+                    columns.invocation_source = Some(invocation.source.clone());
+                    columns.invocation = Some(invocation.id.clone());
+                }
+                if let Some(request) = &value.request_key {
+                    columns.request_source = Some(request.source.clone());
+                    columns.request = Some(request.id.clone());
+                }
+                columns.succeeded = Some(value.succeeded);
+            },
             None => {},
         }
         Ok(columns)

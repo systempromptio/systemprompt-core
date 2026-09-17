@@ -14,6 +14,7 @@ pub mod capabilities;
 pub mod client_profile;
 pub mod connector;
 pub mod deployment;
+pub mod execution_source;
 pub mod registry;
 pub mod registry_trait;
 pub mod server;
@@ -34,6 +35,7 @@ pub use client_profile::ClientProfile;
 pub use deployment::{
     Deployment, DeploymentConfig, ExternalAuth, McpServerType, OAuthRequirement, Settings,
 };
+pub use execution_source::{Correlation, ExecutionSource};
 pub use registry::RegistryConfig;
 pub use registry_trait::{
     DynMcpDeploymentProvider, DynMcpRegistry, DynMcpToolProvider, McpDeploymentProvider,

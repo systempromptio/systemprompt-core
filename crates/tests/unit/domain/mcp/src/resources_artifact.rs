@@ -1,41 +1,40 @@
 use rmcp::model::ReadResourceRequestParams;
-use systemprompt_identifiers::{ArtifactId, ContextId, McpExecutionId};
+use systemprompt_identifiers::{ArtifactId, ContextId};
 use systemprompt_mcp::read_artifact_resource;
 use systemprompt_mcp::repository::{CreateMcpArtifact, McpArtifactRepository};
 use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
 
-async fn repo_or_skip() -> Option<McpArtifactRepository> {
+async fn db_or_skip() -> Option<systemprompt_database::DbPool> {
     let url = fixture_database_url().ok()?;
-    let db = fixture_db_pool(&url).await.ok()?;
-    McpArtifactRepository::new(&db).ok()
+    fixture_db_pool(&url).await.ok()
+}
+
+async fn repo_or_skip() -> Option<(systemprompt_database::DbPool, McpArtifactRepository)> {
+    let db = db_or_skip().await?;
+    let repo = McpArtifactRepository::new(&db).ok()?;
+    Some((db, repo))
 }
 
 fn fresh_id() -> ArtifactId {
     ArtifactId::new(format!("art-{}", uuid::Uuid::new_v4().simple()))
 }
 
-fn stored(
+async fn stored(
+    db: &systemprompt_database::DbPool,
     id: &ArtifactId,
     data: serde_json::Value,
     context_id: Option<ContextId>,
 ) -> CreateMcpArtifact {
-    CreateMcpArtifact {
-        artifact_id: id.clone(),
-        mcp_execution_id: McpExecutionId::new(format!("exec-{}", uuid::Uuid::new_v4().simple())),
-        context_id,
-        user_id: None,
-        server_name: "res-tests".to_owned(),
-        artifact_type: "message".to_owned(),
-        title: Some("Stored Message".to_owned()),
-        data,
-        metadata: None,
-        expires_at: None,
-    }
+    let exec = crate::repository::artifact::seed_execution(db, "res-tests").await;
+    let mut create = CreateMcpArtifact::new(id.clone(), exec, "res-tests", "message", data);
+    create.context_id = context_id;
+    create.title = Some("Stored Message".to_owned());
+    create
 }
 
 #[tokio::test]
 async fn read_artifact_rejects_non_artifact_uri() {
-    let Some(repo) = repo_or_skip().await else {
+    let Some((_db, repo)) = repo_or_skip().await else {
         return;
     };
     let request = ReadResourceRequestParams::new("ui://srv/artifact-viewer");
@@ -47,7 +46,7 @@ async fn read_artifact_rejects_non_artifact_uri() {
 
 #[tokio::test]
 async fn read_artifact_rejects_server_mismatch() {
-    let Some(repo) = repo_or_skip().await else {
+    let Some((_db, repo)) = repo_or_skip().await else {
         return;
     };
     let request = ReadResourceRequestParams::new("ui://other/artifact/abc");
@@ -60,7 +59,7 @@ async fn read_artifact_rejects_server_mismatch() {
 
 #[tokio::test]
 async fn read_artifact_unknown_id_is_invalid_params() {
-    let Some(repo) = repo_or_skip().await else {
+    let Some((_db, repo)) = repo_or_skip().await else {
         return;
     };
     let id = fresh_id();
@@ -73,11 +72,11 @@ async fn read_artifact_unknown_id_is_invalid_params() {
 
 #[tokio::test]
 async fn read_artifact_without_payload_key_is_internal_error() {
-    let Some(repo) = repo_or_skip().await else {
+    let Some((db, repo)) = repo_or_skip().await else {
         return;
     };
     let id = fresh_id();
-    repo.save(&stored(&id, serde_json::json!({"other": 1}), None))
+    repo.save(&stored(&db, &id, serde_json::json!({"other": 1}), None).await)
         .await
         .expect("save");
 
@@ -90,7 +89,7 @@ async fn read_artifact_without_payload_key_is_internal_error() {
 
 #[tokio::test]
 async fn read_artifact_renders_stored_payload_with_ui_meta() {
-    let Some(repo) = repo_or_skip().await else {
+    let Some((_db, repo)) = repo_or_skip().await else {
         return;
     };
     let id = fresh_id();
@@ -100,11 +99,18 @@ async fn read_artifact_renders_stored_payload_with_ui_meta() {
             "messages": [{"level": "info", "text": "stored artifact body"}]
         }
     });
-    repo.save(&stored(
-        &id,
-        payload,
-        Some(ContextId::try_new("00000000-0000-4000-8000-0000000000ab").expect("valid ContextId")),
-    ))
+    repo.save(
+        &stored(
+            &db,
+            &id,
+            payload,
+            Some(
+                ContextId::try_new("00000000-0000-4000-8000-0000000000ab")
+                    .expect("valid ContextId"),
+            ),
+        )
+        .await,
+    )
     .await
     .expect("save");
 
@@ -121,7 +127,7 @@ async fn read_artifact_renders_stored_payload_with_ui_meta() {
 
 #[tokio::test]
 async fn read_artifact_without_context_id_still_renders() {
-    let Some(repo) = repo_or_skip().await else {
+    let Some((db, repo)) = repo_or_skip().await else {
         return;
     };
     let id = fresh_id();
@@ -131,7 +137,9 @@ async fn read_artifact_without_context_id_still_renders() {
             "messages": [{"level": "warning", "text": "context-free render"}]
         }
     });
-    repo.save(&stored(&id, payload, None)).await.expect("save");
+    repo.save(&stored(&db, &id, payload, None).await)
+        .await
+        .expect("save");
 
     let request = ReadResourceRequestParams::new(format!("ui://srv/artifact/{id}"));
     let result = read_artifact_resource(&request, "srv", &repo)

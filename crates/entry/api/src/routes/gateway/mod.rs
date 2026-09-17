@@ -82,7 +82,8 @@ pub fn gateway_repositories(
         ctx.db_pool(),
         journal,
         ctx.context_materializer(),
-    )?)
+    )?
+    .with_artifact_ingest(ctx.artifact_ingest_arc()))
 }
 
 pub fn gateway_router(ctx: &AppContext) -> anyhow::Result<Option<Router>> {

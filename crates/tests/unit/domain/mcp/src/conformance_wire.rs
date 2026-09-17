@@ -6,9 +6,9 @@
 
 use rmcp::model::{CallToolResult, ProtocolVersion};
 use systemprompt_identifiers::{AgentName, ContextId, McpExecutionId, SessionId, TraceId};
-use systemprompt_mcp::repository::McpArtifactRepository;
 use systemprompt_mcp::{
-    ClientProfile, McpOutputSchema, McpResponseBuilder, McpToolHandler, ToolIdentity,
+    ArtifactIngest, ClientProfile, McpOutputSchema, McpResponseBuilder, McpToolHandler,
+    ToolIdentity,
 };
 use systemprompt_models::RequestContext;
 use systemprompt_models::artifacts::{
@@ -78,7 +78,7 @@ fn ctx() -> RequestContext {
 async fn build_or_skip(client: &ClientProfile, artifact: CliArtifact) -> Option<CallToolResult> {
     let url = fixture_database_url().ok()?;
     let db = fixture_db_pool(&url).await.ok()?;
-    let repo = McpArtifactRepository::new(&db).expect("repo");
+    let repo = ArtifactIngest::from_db(&db, None).expect("artifact ingest");
     let context = ctx();
     let exec_id = McpExecutionId::new(format!("exec-{}", uuid::Uuid::new_v4().simple()));
     let artifact_type = artifact.artifact_type_name();

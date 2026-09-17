@@ -123,23 +123,35 @@ export const SystempromptHooks = async ({ directory }) => ({
       native_host: HOST,
     });
   },
+  // Every tool completion is reported, not only skills: the gateway ingests
+  // the result as an artifact keyed by the call id, so OpenCode's tool use
+  // counts the same as Claude Code's. The output travels whole — the server
+  // bounds, scans and stores it; nothing is trimmed on the way out.
   "tool.execute.after": async (input, output) => {
-    if (input.tool !== "skill") return;
+    const tool = typeof input.tool === "string" ? input.tool : "";
+    if (!tool) return;
     const args = input.args || {};
-    const name = typeof args.name === "string" ? args.name : "";
-    if (!name) return;
-    await post({
+    const isSkill = tool === "skill";
+    const name = isSkill && typeof args.name === "string" ? args.name : "";
+    if (isSkill && !name) return;
+    const body = {
       hook_event_name: "PostToolUse",
       session_id: await sessionUuid(input.sessionID),
       native_session_id: input.sessionID,
       cwd: directory,
-      tool_name: "skill",
-      tool_input: { name },
+      tool_name: tool,
+      tool_input: isSkill ? { name } : args,
       tool_use_id: input.callID,
       tool_response: {
         title: output && output.title,
-        output: String((output && output.output) || "").slice(0, 4096),
+        output: output && output.output !== undefined ? String(output.output) : "",
+        metadata: output && output.metadata,
       },
+      native_host: HOST,
+    };
+    if (isSkill) body.skill_ref = SKILL_MAP[name] || `opencode:${name}`;
+    await post(body);
+  },
       native_host: HOST,
       skill_ref: SKILL_MAP[name] || `opencode:${name}`,
     });

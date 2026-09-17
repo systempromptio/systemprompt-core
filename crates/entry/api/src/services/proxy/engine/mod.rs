@@ -50,6 +50,7 @@ pub struct ProxyEngine {
     client_pool: ClientPool,
     identities: Arc<McpProxyIdentityRepository>,
     tool_usage_repo: Option<Arc<systemprompt_mcp::repository::ToolUsageRepository>>,
+    artifact_ingest: Option<Arc<systemprompt_mcp::ArtifactIngest>>,
 }
 
 impl ProxyEngine {
@@ -58,6 +59,7 @@ impl ProxyEngine {
             client_pool: ClientPool::new(),
             identities,
             tool_usage_repo: None,
+            artifact_ingest: None,
         }
     }
 
@@ -67,6 +69,12 @@ impl ProxyEngine {
         repo: Arc<systemprompt_mcp::repository::ToolUsageRepository>,
     ) -> Self {
         self.tool_usage_repo = Some(repo);
+        self
+    }
+
+    #[must_use]
+    pub fn with_artifact_ingest(mut self, ingest: Arc<systemprompt_mcp::ArtifactIngest>) -> Self {
+        self.artifact_ingest = Some(ingest);
         self
     }
 

@@ -35,6 +35,7 @@ fn record<'a>(
         task_id: None,
         trace_id: None,
         client_id: None,
+        tool_use_id: None,
     }
 }
 

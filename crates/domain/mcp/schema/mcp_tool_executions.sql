@@ -20,6 +20,10 @@ CREATE TABLE IF NOT EXISTS mcp_tool_executions (
     actor_kind TEXT,
     actor_id TEXT,
     ai_tool_call_id VARCHAR(255),
+    source VARCHAR(32) NOT NULL DEFAULT 'in_process'
+        CHECK (source IN ('in_process', 'proxy', 'gateway', 'hook_claude_code', 'hook_opencode')),
+    correlation VARCHAR(16) NOT NULL DEFAULT 'exact' CHECK (correlation IN ('exact', 'inferred')),
+    payload_sha256 CHAR(64),
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE (user_id, mcp_execution_id)
 );
@@ -45,3 +49,5 @@ CREATE INDEX IF NOT EXISTS idx_mcp_tool_executions_server_tool ON mcp_tool_execu
 CREATE INDEX IF NOT EXISTS idx_mcp_tool_executions_server_status ON mcp_tool_executions(server_name, status);
 CREATE INDEX IF NOT EXISTS idx_mcp_tool_executions_tool_started ON mcp_tool_executions(tool_name, started_at DESC);
 CREATE INDEX IF NOT EXISTS idx_mcp_tool_executions_actor ON mcp_tool_executions(actor_kind, actor_id);
+CREATE INDEX IF NOT EXISTS idx_mcp_tool_executions_session_started ON mcp_tool_executions(session_id, started_at DESC) WHERE session_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_mcp_tool_executions_source ON mcp_tool_executions(source, started_at DESC);

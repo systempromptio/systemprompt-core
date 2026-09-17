@@ -20,6 +20,8 @@ CREATE TABLE IF NOT EXISTS governance_decisions (
     -- made the trace join depend on an overloaded column; it is its own key now.
     trace_id TEXT,
     client_id TEXT,
+    -- The client's tool_use_id, when the host supplied one.
+    tool_use_id TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -60,3 +62,4 @@ CREATE OR REPLACE TRIGGER governance_decisions_append_only
     BEFORE UPDATE ON governance_decisions
     FOR EACH ROW
     EXECUTE FUNCTION governance_decisions_deny_update();
+CREATE INDEX IF NOT EXISTS idx_governance_decisions_tool_use_id ON governance_decisions(tool_use_id) WHERE tool_use_id IS NOT NULL;

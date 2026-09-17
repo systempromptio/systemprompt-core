@@ -92,6 +92,7 @@ pub struct Subsystems {
     pub authz_hook: SharedAuthzHook,
     pub governance: Arc<GovernanceEngine>,
     pub ai_service: Option<Arc<systemprompt_ai::AiService>>,
+    pub artifact_ingest: Arc<systemprompt_mcp::ArtifactIngest>,
     pub schema_install: Arc<SchemaInstallReport>,
     pub event_bridge: Arc<OnceLock<EventBridgeHandle>>,
     pub geoip_reader: Option<GeoIpReader>,
@@ -267,6 +268,17 @@ impl AppContext {
     #[must_use]
     pub fn governance_arc(&self) -> Arc<GovernanceEngine> {
         Arc::clone(&self.subsystems.governance)
+    }
+
+    /// The narrow waist every tool result is ingested through.
+    #[must_use]
+    pub fn artifact_ingest(&self) -> &systemprompt_mcp::ArtifactIngest {
+        &self.subsystems.artifact_ingest
+    }
+
+    #[must_use]
+    pub fn artifact_ingest_arc(&self) -> Arc<systemprompt_mcp::ArtifactIngest> {
+        Arc::clone(&self.subsystems.artifact_ingest)
     }
 
     #[must_use]

@@ -6,9 +6,9 @@
 use schemars::JsonSchema;
 use serde::Serialize;
 use systemprompt_identifiers::{AgentName, ContextId, McpExecutionId, SessionId, TraceId, UserId};
-use systemprompt_mcp::repository::McpArtifactRepository;
 use systemprompt_mcp::{
-    ClientProfile, McpOutputSchema, McpResponseBuilder, ToolIdentity, UI_RESOURCE_URI_META_KEY,
+    ArtifactIngest, ClientProfile, McpOutputSchema, McpResponseBuilder, ToolIdentity,
+    UI_RESOURCE_URI_META_KEY,
 };
 use systemprompt_models::RequestContext;
 use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
@@ -52,7 +52,7 @@ async fn an_artifact_with_no_renderer_still_produces_a_successful_result() {
     let Ok(db) = fixture_db_pool(&url).await else {
         return;
     };
-    let repo = McpArtifactRepository::new(&db).expect("artifact repo");
+    let repo = ArtifactIngest::from_db(&db, None).expect("artifact ingest");
     let ctx = test_ctx();
     let exec_id = McpExecutionId::generate();
 
@@ -103,7 +103,7 @@ async fn the_result_meta_names_the_ui_resource_even_when_rendering_failed() {
     let Ok(db) = fixture_db_pool(&url).await else {
         return;
     };
-    let repo = McpArtifactRepository::new(&db).expect("artifact repo");
+    let repo = ArtifactIngest::from_db(&db, None).expect("artifact ingest");
     let ctx = test_ctx();
     let exec_id = McpExecutionId::generate();
 

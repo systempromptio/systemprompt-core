@@ -54,6 +54,7 @@ pub use extension::McpExtension;
 
 pub use error::{McpDomainError, McpDomainResult};
 pub use rmcp::ErrorData as McpError;
+pub use rmcp::model::CallToolResult;
 
 pub type McpResult<T> = Result<T, McpError>;
 
@@ -63,13 +64,22 @@ pub use capabilities::{
 };
 pub use client_profile::{client_profile_from_peer, client_profile_from_stored};
 pub use progress::{ProgressCallback, create_progress_callback};
-pub use repository::{CreateMcpArtifact, McpArtifactRecord, McpArtifactRepository};
+pub use repository::{
+    ArtifactCorrelation, ArtifactFinding, ArtifactFindingRecord, ArtifactFindingRepository,
+    ArtifactPayloadRecord, ArtifactPayloadRepository, ArtifactShape, CreateMcpArtifact,
+    McpArtifactRecord, McpArtifactRepository, PHASE_TOOL_RESULT,
+};
 pub use resources::{
     ArtifactViewerConfig, build_artifact_viewer_resource, build_resource_template_list_result,
     default_server_icons, read_artifact_resource, read_artifact_viewer_resource,
 };
 pub use response::{McpResponseBuilder, ToolIdentity, UI_RESOURCE_URI_META_KEY};
 pub use schema::McpOutputSchema;
+pub use services::artifact_ingest::{
+    ArtifactIngest, ArtifactIngestRepositories, ArtifactScanner, FINGERPRINT_WINDOW_SECONDS,
+    IngestOutcome, IngestRequest, MAX_PAYLOAD_BYTES, ScanOutcome, from_canonical_tool_result,
+    from_hook_failure, from_hook_response, from_wire_value,
+};
 pub use services::ui_renderer::templates::html::artifact_shell_template;
 pub use services::ui_renderer::{artifact_resource_uri, parse_artifact_resource_uri};
 pub use systemprompt_models::mcp::ClientProfile;

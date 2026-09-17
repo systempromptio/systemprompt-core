@@ -150,6 +150,8 @@ async fn plane_debug_impls_flag_optional_members() {
         authz_hook: Arc::new(AllowAllHook::new(Arc::new(NullAuditSink))),
         governance: systemprompt_test_fixtures::default_governance_engine(),
         ai_service: None,
+        artifact_ingest: systemprompt_test_fixtures::fixture_artifact_ingest(&pool)
+            .expect("artifact ingest"),
         schema_install: Arc::new(systemprompt_database::SchemaInstallReport::default()),
         event_bridge: Arc::new(OnceLock::new()),
         geoip_reader: None,

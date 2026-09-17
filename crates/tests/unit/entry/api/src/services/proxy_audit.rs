@@ -75,3 +75,52 @@ fn extract_sse_data_joins_multiline_data_fields() {
 fn extract_sse_data_none_when_no_data_lines() {
     assert!(extract_sse_data("event: ping\n\n").is_none());
 }
+
+#[test]
+fn parse_response_frame_keeps_the_whole_result_for_ingest() {
+    let data = r#"{"jsonrpc":"2.0","id":7,"result":{"content":[{"type":"text","text":"hi"}],"structuredContent":{"rows":3},"_meta":{"x":1}}}"#;
+    let outcome = parse_response_frame(data, &json!(7)).expect("result parses");
+    let result = outcome.result.expect("result object retained");
+    assert_eq!(result["structuredContent"], json!({"rows": 3}));
+    assert_eq!(result["content"][0]["text"], json!("hi"));
+    assert_eq!(result["_meta"]["x"], json!(1));
+}
+
+#[test]
+fn stamp_execution_adds_the_server_key_under_the_systemprompt_meta() {
+    use systemprompt_api::services::proxy::audit::jsonrpc::stamp_execution;
+    let data = r#"{"jsonrpc":"2.0","id":7,"result":{"content":[]}}"#;
+    let stamped = stamp_execution(data, "exec-1").expect("stamped");
+    let frame: serde_json::Value = serde_json::from_str(&stamped).unwrap();
+    assert_eq!(
+        frame["result"]["_meta"]["io.systemprompt/execution"]["mcp_execution_id"],
+        json!("exec-1")
+    );
+}
+
+#[test]
+fn stamp_execution_never_overwrites_an_in_process_key() {
+    use systemprompt_api::services::proxy::audit::jsonrpc::stamp_execution;
+    let data = r#"{"jsonrpc":"2.0","id":7,"result":{"content":[],"_meta":{"io.systemprompt/execution":{"mcp_execution_id":"orig"}}}}"#;
+    let stamped = stamp_execution(data, "exec-1").expect("stamped");
+    let frame: serde_json::Value = serde_json::from_str(&stamped).unwrap();
+    assert_eq!(
+        frame["result"]["_meta"]["io.systemprompt/execution"]["mcp_execution_id"],
+        json!("orig")
+    );
+}
+
+#[test]
+fn stamp_execution_leaves_error_frames_alone() {
+    use systemprompt_api::services::proxy::audit::jsonrpc::stamp_execution;
+    let data = r#"{"jsonrpc":"2.0","id":7,"error":{"code":-1,"message":"no"}}"#;
+    assert!(stamp_execution(data, "exec-1").is_none());
+}
+
+#[test]
+fn replace_sse_data_swaps_only_the_data_lines() {
+    use systemprompt_api::services::proxy::audit::jsonrpc::replace_sse_data;
+    let frame = "event: message\nid: 3\ndata: {\"a\":1}\ndata: more\n\n";
+    let out = replace_sse_data(frame, "{\"b\":2}");
+    assert_eq!(out, "event: message\nid: 3\ndata: {\"b\":2}\n\n");
+}

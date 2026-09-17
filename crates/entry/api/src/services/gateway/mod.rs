@@ -20,6 +20,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod artifact_scanner;
 pub mod audit;
 pub mod captures;
 pub mod image_fetch;
@@ -34,6 +35,7 @@ pub mod signature_cache;
 pub mod stream_tap;
 
 pub use crate::repository::gateway::GatewayRepositories;
+pub use artifact_scanner::GatewayArtifactScanner;
 pub use audit::{GatewayAudit, GatewayRequestContext};
 pub use captures::CapturedToolUse;
 pub use protocol::{

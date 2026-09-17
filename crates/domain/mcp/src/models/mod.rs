@@ -7,6 +7,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use systemprompt_identifiers::{AiToolCallId, ContextId, McpExecutionId, UserId};
+use systemprompt_models::mcp::{Correlation, ExecutionSource};
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -90,6 +91,7 @@ pub struct ToolExecutionRequest {
     pub request_method: Option<String>,
     pub request_source: Option<String>,
     pub ai_tool_call_id: Option<AiToolCallId>,
+    pub source: ExecutionSource,
 }
 
 #[derive(Debug, Clone)]
@@ -144,4 +146,6 @@ pub struct ToolExecution {
     pub execution_time_ms: Option<i32>,
     pub started_at: DateTime<Utc>,
     pub completed_at: Option<DateTime<Utc>>,
+    pub source: ExecutionSource,
+    pub correlation: Correlation,
 }
