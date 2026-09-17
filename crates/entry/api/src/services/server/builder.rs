@@ -34,7 +34,7 @@ pub fn setup_api_server(ctx: &AppContext, events: Option<&StartupEventSender>) -
         tx.warning("Rate limiting disabled - development mode only");
     }
 
-    register_artifact_scanner(ctx)?;
+    register_artifact_scanner(ctx);
     let router = configure_routes(ctx, events)?;
     apply_global_middleware(router, ctx)
 }
@@ -42,14 +42,13 @@ pub fn setup_api_server(ctx: &AppContext, events: Option<&StartupEventSender>) -
 // Why: the ingest is built by the runtime, which cannot see the gateway's
 // scanner registry; the composition root closes the loop here so every tool
 // result — from any vantage point — is scanned by the installation's policy.
-fn register_artifact_scanner(ctx: &AppContext) -> Result<()> {
+fn register_artifact_scanner(ctx: &AppContext) {
     let resolver = crate::services::gateway::policy::PolicyResolver::from_repository(
         ctx.ai_repositories().gateway_policies.clone(),
     );
     ctx.artifact_ingest().register_scanner(std::sync::Arc::new(
         crate::services::gateway::GatewayArtifactScanner::new(resolver),
     ));
-    Ok(())
 }
 
 fn apply_global_middleware(router: Router, ctx: &AppContext) -> Result<Router> {

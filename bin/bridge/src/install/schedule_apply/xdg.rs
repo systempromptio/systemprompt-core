@@ -66,8 +66,6 @@ pub(super) fn register(
     Ok((timer_path, lines))
 }
 
-/// Why activation did not happen: no user manager to talk to, or one that
-/// answered and refused.
 enum Activation {
     NoUserManager(String),
     Refused(InstallError),

@@ -40,17 +40,30 @@ fn sandbox<R>(f: impl FnOnce(&Path) -> R) -> R {
 
 // Why: activation failure is a *partial* outcome, so a stub that refuses is
 // the only way to reach the branch that keeps the written units.
+// A host with no user manager: every `systemctl --user` call fails to reach
+// the bus, daemon-reload included.
 fn failing_sandbox<R>(f: impl FnOnce(&Path) -> R) -> R {
+    stub_sandbox(
+        "#!/bin/sh\necho \"Failed to connect to bus\" >&2\nexit 1\n",
+        f,
+    )
+}
+
+// A live user manager that answers daemon-reload and refuses the enable.
+fn refusing_sandbox<R>(f: impl FnOnce(&Path) -> R) -> R {
+    stub_sandbox(
+        "#!/bin/sh\nif [ \"$2\" = daemon-reload ]; then exit 0; fi\necho \"Failed to enable          unit\" >&2\nexit 1\n",
+        f,
+    )
+}
+
+fn stub_sandbox<R>(script: &str, f: impl FnOnce(&Path) -> R) -> R {
     let home = tempfile::TempDir::new().expect("home tempdir");
     let path = home.path().to_path_buf();
     let bin = path.join("bin");
     std::fs::create_dir_all(&bin).expect("stub bin dir");
     let stub = bin.join("systemctl");
-    std::fs::write(
-        &stub,
-        "#!/bin/sh\necho \"Failed to connect to bus\" >&2\nexit 1\n",
-    )
-    .expect("stub");
+    std::fs::write(&stub, script).expect("stub");
     std::fs::set_permissions(&stub, std::os::unix::fs::PermissionsExt::from_mode(0o755))
         .expect("stub mode");
     let path_var = format!(
@@ -244,7 +257,7 @@ fn the_schedule_label_is_brand_scoped_so_two_brands_do_not_collide() {
 
 #[test]
 fn a_refusing_systemctl_keeps_the_written_units_and_names_them_in_a_typed_error() {
-    failing_sandbox(|home| {
+    refusing_sandbox(|home| {
         let cache = ScheduleStatusCache::default();
         let err = apply_schedule(&cache, Os::Linux, &binary())
             .expect_err("activation failed, so the apply cannot report success");
@@ -279,11 +292,11 @@ fn a_refusing_systemctl_keeps_the_written_units_and_names_them_in_a_typed_error(
 }
 
 #[test]
-fn an_activation_failure_tells_the_operator_the_units_exist_but_are_inert() {
+fn a_missing_user_manager_degrades_to_written_but_inert_units() {
     failing_sandbox(|_| {
-        let err = apply_schedule(&ScheduleStatusCache::default(), Os::Linux, &binary())
-            .expect_err("activation fails");
-        let rendered = err.to_string();
+        let applied = apply_schedule(&ScheduleStatusCache::default(), Os::Linux, &binary())
+            .expect("no user manager is a degraded install, not a failed one");
+        let rendered = applied.lines.join("\n");
         assert!(
             rendered.contains("written") && rendered.contains("not activated"),
             "the operator is told what happened and what did not: {rendered}"
@@ -297,7 +310,7 @@ fn an_activation_failure_tells_the_operator_the_units_exist_but_are_inert() {
 
 #[test]
 fn an_unactivated_schedule_is_not_recorded_as_installed_in_the_cache() {
-    failing_sandbox(|_| {
+    refusing_sandbox(|_| {
         let cache = ScheduleStatusCache::default();
         let _ = apply_schedule(&cache, Os::Linux, &binary());
 

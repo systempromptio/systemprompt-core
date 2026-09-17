@@ -124,10 +124,10 @@ impl SseAccumulator {
             return Bytes::from(frame);
         }
         self.outcome = parse_response_frame(&data, &self.request_id);
-        match stamp_execution(&data, &self.mcp_execution_id) {
-            Some(stamped) => Bytes::from(replace_sse_data(&text, &stamped)),
-            None => Bytes::from(frame),
-        }
+        stamp_execution(&data, &self.mcp_execution_id).map_or_else(
+            || Bytes::from(frame),
+            |stamped| Bytes::from(replace_sse_data(&text, &stamped)),
+        )
     }
 }
 

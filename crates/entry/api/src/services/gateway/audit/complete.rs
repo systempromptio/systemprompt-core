@@ -104,6 +104,7 @@ impl GatewayAudit {
             .map_err(|_poisoned| anyhow::anyhow!("Gateway pricing snapshot poisoned"))?;
         anyhow::ensure!(slot.is_none(), "Gateway pricing already pinned");
         *slot = Some(pricing);
+        drop(slot);
         Ok(())
     }
 

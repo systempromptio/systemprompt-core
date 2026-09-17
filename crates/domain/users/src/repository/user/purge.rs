@@ -63,8 +63,6 @@ fn validated(entry: &UserPurgeTable) -> Result<(SafeIdentifier, SafeIdentifier)>
 }
 
 impl UserRepository {
-    /// Deletes the user's rows from every registered purge table, in
-    /// registration order, on the given transaction.
     pub(super) async fn purge_user_rows(
         tx: &mut Transaction<'_, Postgres>,
         id: &UserId,
@@ -92,9 +90,6 @@ impl UserRepository {
         Ok(removed)
     }
 
-    /// What deleting the user would remove, per registered table, without
-    /// removing anything. `user_sessions` is included because the delete
-    /// clears it too.
     pub async fn purge_preview(&self, id: &UserId) -> Result<Vec<PurgeCount>> {
         let mut counts = Vec::new();
         let sessions: i64 = sqlx::query_scalar!(

@@ -9,6 +9,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod handler;
+
+pub use handler::{McpToolHandler, object_input_schema};
+
 use crate::models::{ExecutionStatus, ToolExecutionRequest, ToolExecutionResult};
 use crate::repository::ToolUsageRepository;
 use crate::response::{McpResponseBuilder, ToolIdentity};
@@ -17,8 +21,6 @@ use crate::services::artifact_ingest::ArtifactIngest;
 use chrono::Utc;
 use rmcp::ErrorData as McpError;
 use rmcp::model::{CacheScope, CallToolRequestParams, CallToolResult, ListToolsResult, Tool};
-use schemars::JsonSchema;
-use serde::Serialize;
 use serde::de::DeserializeOwned;
 use serde_json::Value as JsonValue;
 use std::sync::Arc;
@@ -28,10 +30,6 @@ use systemprompt_models::mcp::ClientProfile;
 
 use systemprompt_models::mcp::ExecutionSource;
 const TOOL_LIST_TTL_MS: u64 = 3_600_000;
-/// How far back an in-process execution looks for the gateway intent that
-/// asked for it: the model's turn completes, the host runs its hooks, then
-/// calls the tool — seconds, not minutes, but a slow governance hook must not
-/// orphan the call.
 const INTENT_CLAIM_WINDOW_SECONDS: i64 = 120;
 
 #[must_use]
@@ -39,82 +37,6 @@ pub fn build_tool_list_result(tools: Vec<Tool>) -> ListToolsResult {
     ListToolsResult::with_all_items(tools)
         .with_ttl_ms(TOOL_LIST_TTL_MS)
         .with_cache_scope(CacheScope::Public)
-}
-
-pub trait McpToolHandler: Send + Sync {
-    type Input: DeserializeOwned + JsonSchema + Send;
-    type Output: Serialize + JsonSchema + McpOutputSchema + Send;
-
-    fn tool_name(&self) -> &'static str;
-
-    fn description(&self) -> &'static str {
-        ""
-    }
-
-    fn input_schema(&self) -> JsonValue {
-        let schema = schemars::schema_for!(Self::Input);
-        match serde_json::to_value(&schema) {
-            Ok(v) => v,
-            Err(e) => {
-                tracing::error!(error = %e, "Failed to serialize input schema");
-                JsonValue::Null
-            },
-        }
-    }
-
-    fn output_schema(&self) -> JsonValue {
-        Self::Output::validated_schema()
-    }
-
-    fn read_only(&self) -> bool {
-        false
-    }
-
-    fn tool_definition(&self, server_name: &str) -> Tool {
-        let input_obj = object_input_schema(&self.input_schema());
-        let output_obj = self
-            .output_schema()
-            .as_object()
-            .cloned()
-            .unwrap_or_default();
-
-        let mut tool = Tool::default();
-        tool.name = self.tool_name().to_owned().into();
-        tool.description = Some(self.description().to_owned().into());
-        tool.input_schema = Arc::new(input_obj);
-        tool.output_schema = Some(Arc::new(output_obj));
-        tool.annotations = self
-            .read_only()
-            .then(|| rmcp::model::ToolAnnotations::new().read_only(true));
-        tool.meta = Some(rmcp::model::MetaObject(crate::capabilities::tool_ui_meta(
-            server_name,
-            &crate::capabilities::default_tool_visibility(),
-        )));
-        tool
-    }
-
-    fn handle(
-        &self,
-        input: Self::Input,
-        ctx: &RequestContext,
-        exec_id: &McpExecutionId,
-    ) -> impl Future<Output = Result<(Self::Output, String), McpError>> + Send;
-}
-
-// Why: The MCP contract says a tool's `inputSchema` describes an object, and
-// clients hold it to that: Claude Code validates `inputSchema.type ==
-// "object"` for every tool and drops the whole server's tool list when one
-// fails ("tools fetch failed — Invalid input (at tools.N.inputSchema.type)").
-// schemars renders an internally tagged enum as a bare `oneOf` with no root
-// `type`, which is exactly that failure; the root gets `type: object` here so
-// no handler can ship it by accident.
-#[must_use]
-pub fn object_input_schema(schema: &JsonValue) -> serde_json::Map<String, JsonValue> {
-    let mut obj = schema.as_object().cloned().unwrap_or_default();
-    if !obj.contains_key("type") {
-        obj.insert("type".to_owned(), JsonValue::String("object".to_owned()));
-    }
-    obj
 }
 
 #[derive(Clone, Debug)]
@@ -223,11 +145,6 @@ impl McpToolExecutor {
         response
     }
 
-    /// The context with the `tool_use_id` the model issued for this call.
-    /// MCP carries none, so when the caller supplied none the gateway intent
-    /// on the same session is claimed instead; an unclaimable call keeps the
-    /// context it arrived with and is later joined by fingerprint or not at
-    /// all.
     async fn with_claimed_intent(&self, tool_name: &str, ctx: &RequestContext) -> RequestContext {
         if ctx.ai_tool_call_id().is_some() {
             return ctx.clone();

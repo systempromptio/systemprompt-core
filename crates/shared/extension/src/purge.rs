@@ -7,7 +7,14 @@
 //! user-keyed table declares it once, and `UserRepository::delete` runs the
 //! whole set inside the privacy transaction, in registration order, before
 //! the `users` row goes. An extension declares its own tables with
-//! [`user_purge_tables!`]; nothing else needs to know the list exists.
+//! `user_purge_tables!`; nothing else needs to know the list exists:
+//!
+//! ```ignore
+//! user_purge_tables!("my-extension", [
+//!     ("plugin_usage_events", "user_id"),
+//!     ("session_ratings", "user_id"),
+//! ]);
+//! ```
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -17,25 +24,15 @@
 pub struct UserPurgeTable {
     pub table: &'static str,
     pub column: &'static str,
-    /// The crate or extension that declared it, for the dry-run report.
     pub owner: &'static str,
 }
 
 inventory::collect!(UserPurgeTable);
 
-/// Every registered purge table, in registration order.
 pub fn registered_user_purge_tables() -> impl Iterator<Item = &'static UserPurgeTable> {
     inventory::iter::<UserPurgeTable>.into_iter()
 }
 
-/// Declares tables whose rows are deleted with their user.
-///
-/// ```ignore
-/// user_purge_tables!("my-extension", [
-///     ("plugin_usage_events", "user_id"),
-///     ("session_ratings", "user_id"),
-/// ]);
-/// ```
 #[macro_export]
 macro_rules! user_purge_tables {
     ($owner:literal, [ $( ($table:literal, $column:literal) ),* $(,)? ]) => {

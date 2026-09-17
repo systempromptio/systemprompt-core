@@ -692,10 +692,18 @@ fn gemini_folds_mid_history_system_text_into_the_neighbouring_user_turn() {
     );
     assert_eq!(contents[1]["role"], "model");
     assert_eq!(contents[2]["role"], "user");
-    assert!(contents[2]["parts"][0]["functionResponse"].is_object());
+    let response = &contents[2]["parts"][0]["functionResponse"]["response"];
+    assert!(response.is_object());
     assert_eq!(
-        contents[2]["parts"][1]["text"],
-        "<total_tokens>9</total_tokens>"
+        contents[2]["parts"].as_array().map(Vec::len),
+        Some(1),
+        "the reminder folds into the function response rather than standing beside it"
+    );
+    assert!(
+        response
+            .to_string()
+            .contains("<total_tokens>9</total_tokens>"),
+        "{response}"
     );
 }
 

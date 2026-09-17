@@ -101,7 +101,7 @@ fn column_to_json(row: &sqlx::postgres::PgRow, ordinal: usize) -> serde_json::Va
     }
     row.try_get_raw(ordinal)
         .ok()
-        .map_or(serde_json::Value::Null, raw_value_to_json)
+        .map_or(serde_json::Value::Null, |value| raw_value_to_json(&value))
 }
 
 /// A column of a type none of the typed decoders accept — `regclass`,
@@ -110,7 +110,7 @@ fn column_to_json(row: &sqlx::postgres::PgRow, ordinal: usize) -> serde_json::Va
 /// wire bytes are always representable as text or, for the object-id family,
 /// a number.
 // JSON: the raw text, the oid as a number, or base64 when neither applies.
-fn raw_value_to_json(value: sqlx::postgres::PgValueRef<'_>) -> serde_json::Value {
+fn raw_value_to_json(value: &sqlx::postgres::PgValueRef<'_>) -> serde_json::Value {
     use sqlx::{TypeInfo, ValueRef};
     if value.is_null() {
         return serde_json::Value::Null;

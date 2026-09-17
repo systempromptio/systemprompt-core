@@ -5,10 +5,11 @@
 
 use std::sync::Arc;
 
+use crate::commands::shared::mcp_tools::direct_url;
 use anyhow::{Context, Result, anyhow};
 use clap::Args;
 use systemprompt_loader::ConfigLoader;
-use systemprompt_mcp::services::{McpOrchestrator, SpawnTarget};
+use systemprompt_mcp::services::McpOrchestrator;
 use systemprompt_models::ai::tools::CallToolResult;
 
 use super::call_client::{
@@ -59,10 +60,10 @@ pub(super) async fn execute(args: CallArgs, ctx: &CommandContext) -> Result<Comm
         .get(&server_name)
         .ok_or_else(|| anyhow!("MCP server '{}' not found in configuration", server_name))?;
 
-    let port = resolve_running_port(&server_name, ctx).await?;
+    let url = resolve_running_url(&server_name, ctx).await?;
 
     let tool_name = resolve_required(tool_arg, "tool", config, || {
-        prompt_tool_selection(prompter, &server_name, port, &session_ctx, timeout_secs)
+        prompt_tool_selection(prompter, &server_name, &url, &session_ctx, timeout_secs)
     })?;
 
     let tool_args: Option<serde_json::Value> = args
@@ -76,7 +77,7 @@ pub(super) async fn execute(args: CallArgs, ctx: &CommandContext) -> Result<Comm
 
     let result = execute_tool_call(ToolCallParams {
         server_name: &server_name,
-        port,
+        url: &url,
         tool_name: &tool_name,
         arguments: tool_args,
         session_ctx: &session_ctx,
@@ -103,7 +104,7 @@ pub(super) async fn execute(args: CallArgs, ctx: &CommandContext) -> Result<Comm
     Ok(card)
 }
 
-async fn resolve_running_port(server_name: &str, ctx: &CommandContext) -> Result<u16> {
+async fn resolve_running_url(server_name: &str, ctx: &CommandContext) -> Result<String> {
     let app = ctx
         .app_context()
         .await
@@ -124,7 +125,7 @@ async fn resolve_running_port(server_name: &str, ctx: &CommandContext) -> Result
         .iter()
         .find(|s| s.name == server_name)
         .ok_or_else(|| anyhow!("MCP server '{}' is not running", server_name))?;
-    Ok(server.spawn_port()?)
+    direct_url(server)
 }
 
 fn success_outcome(
@@ -204,13 +205,13 @@ pub fn prompt_server_selection(
 fn prompt_tool_selection(
     prompter: &dyn Prompter,
     server_name: &str,
-    port: u16,
+    url: &str,
     session_ctx: &CliSessionContext,
     timeout_secs: u64,
 ) -> Result<String> {
     let rt = tokio::runtime::Handle::current();
     let tools = rt.block_on(async {
-        list_available_tools(server_name, port, session_ctx, timeout_secs).await
+        list_available_tools(server_name, url, session_ctx, timeout_secs).await
     })?;
 
     if tools.is_empty() {

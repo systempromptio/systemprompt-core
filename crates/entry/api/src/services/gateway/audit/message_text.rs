@@ -10,8 +10,9 @@ pub fn flatten_message_content(parts: &[CanonicalContent]) -> String {
     let mut out = String::new();
     for part in parts {
         match part {
-            CanonicalContent::Text { text, .. } => push_with_sep(&mut out, text),
-            CanonicalContent::Thinking { text, .. } => push_with_sep(&mut out, text),
+            CanonicalContent::Text { text, .. } | CanonicalContent::Thinking { text, .. } => {
+                push_with_sep(&mut out, text);
+            },
             CanonicalContent::ToolUse { name, input, .. } => {
                 push_with_sep(&mut out, &format!("[tool_use:{name} {input}]"));
             },

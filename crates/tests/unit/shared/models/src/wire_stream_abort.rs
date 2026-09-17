@@ -62,7 +62,7 @@ async fn gemini_error_chunk_becomes_a_canonical_error() {
     .await;
     assert_eq!(
         errors(&events),
-        vec!["quota exhausted".to_owned()],
+        vec!["upstream 429 RESOURCE_EXHAUSTED: quota exhausted".to_owned()],
         "a Gemini error chunk must surface, not be parsed as an empty candidate list"
     );
 }

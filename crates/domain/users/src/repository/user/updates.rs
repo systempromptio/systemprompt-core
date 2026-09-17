@@ -184,9 +184,6 @@ impl UserRepository {
         Ok(row)
     }
 
-    /// Deletes the user and every row registered as theirs
-    /// (`systemprompt_extension::purge`), in one privacy transaction. Returns
-    /// what each table gave up.
     pub async fn delete(&self, id: &UserId) -> Result<Vec<super::PurgeCount>> {
         let mut tx = self.write_pool.begin().await?;
         sqlx::query!("SELECT public.begin_user_privacy() AS prepared")

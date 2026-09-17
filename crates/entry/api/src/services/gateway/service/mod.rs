@@ -89,7 +89,7 @@ impl GatewayService {
         trace_dispatch(&ctx, &request, &upstream);
         let audit = open_audit(repos, &ctx, &request, &raw_body, &identity_headers).await?;
         let mut guard = AbandonGuard::arm(Arc::clone(&audit));
-        let result = dispatch_opened(OpenedDispatch {
+        let result = Box::pin(dispatch_opened(OpenedDispatch {
             config,
             registry,
             db,
@@ -106,7 +106,7 @@ impl GatewayService {
             inbound,
             forward_headers,
             governance,
-        })
+        }))
         .await;
         // Why: every `Err` from the opened dispatch has already recorded itself
         // on the audit row, and an `Ok` has handed the row to its completion

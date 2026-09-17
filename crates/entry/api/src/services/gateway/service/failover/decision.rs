@@ -58,9 +58,8 @@ pub const fn plan_attempts(
     fallback_tripped: bool,
 ) -> AttemptPlan {
     match (has_fallback, primary_tripped, fallback_tripped) {
-        (false, _, _) => AttemptPlan::PrimaryOnly,
         (true, true, false) => AttemptPlan::FallbackOnly,
-        (true, false, true) => AttemptPlan::PrimaryOnly,
+        (false, _, _) | (true, false, true) => AttemptPlan::PrimaryOnly,
         (true, false, false) | (true, true, true) => AttemptPlan::PrimaryThenFallback,
     }
 }

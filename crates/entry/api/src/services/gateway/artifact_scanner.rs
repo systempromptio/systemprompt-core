@@ -15,8 +15,10 @@ use async_trait::async_trait;
 use systemprompt_ai::Finding;
 use systemprompt_mcp::{ArtifactFinding, ArtifactScanner, PHASE_TOOL_RESULT};
 use systemprompt_models::services::QuotaFaultMode;
+use systemprompt_models::wire::inspect::ForwardedSurface;
 
 use super::policy::PolicyResolver;
+use super::protocol::CanonicalUsage;
 use super::protocol::canonical::CanonicalContent;
 use super::protocol::canonical_response::CanonicalResponse;
 use super::registry::SafetyScannerRegistry;
@@ -60,11 +62,11 @@ impl ArtifactScanner for GatewayArtifactScanner {
                 .map(|(_, text)| CanonicalContent::text(text.clone()))
                 .collect(),
             stop_reason: None,
-            usage: Default::default(),
+            usage: CanonicalUsage::default(),
             grounding: None,
             code_execution: None,
             raw_finish_reason: None,
-            received_surface: Default::default(),
+            received_surface: ForwardedSurface::default(),
         };
 
         let registry = SafetyScannerRegistry::global();

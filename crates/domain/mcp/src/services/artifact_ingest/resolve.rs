@@ -38,6 +38,13 @@ pub(super) async fn resolve_execution(
         return Ok(exact(id.clone()));
     }
     if let Some(id) = &request.mcp_execution_id {
+        if ingest.executions.find_by_id(id).await?.is_none() {
+            let (execution, result) = new_execution(request, classified);
+            ingest
+                .executions
+                .log_execution_sync_with_id(id, &execution, &result, Correlation::Exact)
+                .await?;
+        }
         return Ok(exact(id.clone()));
     }
     if let Some(call_id) = &request.ai_tool_call_id

@@ -20,7 +20,7 @@ fn test_dependencies_contains_users() {
 }
 
 #[test]
-fn test_schemas_five_tables() {
+fn test_schemas_seven_tables() {
     let ext = McpExtension;
     let schemas = ext.schemas();
     assert_eq!(
@@ -28,7 +28,7 @@ fn test_schemas_five_tables() {
             .iter()
             .filter(|schema| schema.table.is_some())
             .count(),
-        5
+        7
     );
 }
 

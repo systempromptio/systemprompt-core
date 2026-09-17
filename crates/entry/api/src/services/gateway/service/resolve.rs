@@ -1,5 +1,6 @@
 //! Pre-dispatch upstream resolution: model-exposure check, route and provider
 //! lookup, API-key secret, and outbound wire adapter.
+//!
 //! `resolve_fallback_upstream` binds the same request to a route's
 //! `fallback_provider` when the primary upstream has failed.
 //!

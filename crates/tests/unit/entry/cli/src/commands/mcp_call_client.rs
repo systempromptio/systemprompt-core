@@ -161,7 +161,7 @@ async fn execute_tool_call_fails_fast_against_closed_port() {
     let ctx = session_ctx();
     let err = execute_tool_call(ToolCallParams {
         server_name: "svc",
-        port: free_port(),
+        url: &format!("http://127.0.0.1:{}/mcp", free_port()),
         tool_name: "echo",
         arguments: Some(serde_json::json!({"x": 1})),
         session_ctx: &ctx,
@@ -176,9 +176,14 @@ async fn execute_tool_call_fails_fast_against_closed_port() {
 #[tokio::test]
 async fn list_available_tools_fails_fast_against_closed_port() {
     let ctx = session_ctx();
-    let err = list_available_tools("svc", free_port(), &ctx, 5)
-        .await
-        .unwrap_err();
+    let err = list_available_tools(
+        "svc",
+        &format!("http://127.0.0.1:{}/mcp", free_port()),
+        &ctx,
+        5,
+    )
+    .await
+    .unwrap_err();
 
     assert!(err.to_string().contains("Failed to connect to MCP server"));
 }

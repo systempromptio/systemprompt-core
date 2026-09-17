@@ -30,15 +30,16 @@ pub const RETRY_DELAYS: [Duration; 3] = [
 // responses; every other 4xx is a request the collector will keep refusing.
 #[must_use]
 pub fn is_retryable(status: Option<StatusCode>) -> bool {
-    status.is_none_or(|status| {
-        matches!(
-            status,
-            StatusCode::TOO_MANY_REQUESTS
-                | StatusCode::BAD_GATEWAY
-                | StatusCode::SERVICE_UNAVAILABLE
-                | StatusCode::GATEWAY_TIMEOUT
-        )
-    })
+    let Some(status) = status else {
+        return true;
+    };
+    matches!(
+        status,
+        StatusCode::TOO_MANY_REQUESTS
+            | StatusCode::BAD_GATEWAY
+            | StatusCode::SERVICE_UNAVAILABLE
+            | StatusCode::GATEWAY_TIMEOUT
+    )
 }
 
 #[derive(Debug, thiserror::Error)]

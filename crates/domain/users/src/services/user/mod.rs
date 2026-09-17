@@ -215,7 +215,6 @@ impl UserService {
         self.repository.delete(id).await
     }
 
-    /// What `delete` would remove, table by table, without removing it.
     pub async fn purge_preview(&self, id: &UserId) -> Result<Vec<PurgeCount>> {
         self.repository.purge_preview(id).await
     }

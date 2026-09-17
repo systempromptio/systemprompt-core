@@ -11,6 +11,8 @@ use rmcp::transport::streamable_http_client::{
 };
 use std::time::Duration;
 use systemprompt_identifiers::{AgentName, ContextId, SessionId, SessionToken, TraceId};
+use systemprompt_mcp::McpServerConfig;
+use systemprompt_mcp::services::SpawnTarget;
 use systemprompt_mcp::services::client::HttpClientWithContext;
 use systemprompt_models::execution::context::RequestContext;
 use tokio::time::timeout;
@@ -34,13 +36,21 @@ pub struct ToolInfo {
     pub output_schema: Option<serde_json::Value>,
 }
 
+// Why: an internal server is spawned on a local port and reached there
+// directly; an external one is never spawned and is reached at its endpoint.
+pub fn direct_url(server: &McpServerConfig) -> Result<String> {
+    if server.is_external() {
+        return Ok(server.remote_endpoint.clone());
+    }
+    Ok(format!("http://127.0.0.1:{}/mcp", server.spawn_port()?))
+}
+
 pub async fn list_tools_unauthenticated(
     server_name: &str,
-    port: u16,
+    url: &str,
     timeout_secs: u64,
 ) -> Result<Vec<ToolInfo>> {
-    let url = format!("http://127.0.0.1:{}/mcp", port);
-    let config = StreamableHttpClientTransportConfig::with_uri(url.as_str());
+    let config = StreamableHttpClientTransportConfig::with_uri(url);
     let transport = StreamableHttpClientTransport::with_client(
         HttpClientWithContext::new(probe_context(server_name))?,
         config,
@@ -76,14 +86,12 @@ pub async fn list_tools_unauthenticated(
 
 pub async fn list_tools_authenticated(
     server_name: &str,
-    port: u16,
+    url: &str,
     token: &SessionToken,
     timeout_secs: u64,
 ) -> Result<Vec<ToolInfo>> {
-    let url = format!("http://127.0.0.1:{}/mcp", port);
-
-    let config = StreamableHttpClientTransportConfig::with_uri(url.as_str())
-        .auth_header(token.as_str().to_owned());
+    let config =
+        StreamableHttpClientTransportConfig::with_uri(url).auth_header(token.as_str().to_owned());
     let context = probe_context(server_name).with_auth_token(token.as_str());
     let transport =
         StreamableHttpClientTransport::with_client(HttpClientWithContext::new(context)?, config);

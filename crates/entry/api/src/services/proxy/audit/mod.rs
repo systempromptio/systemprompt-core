@@ -65,7 +65,7 @@ impl McpAudit {
         &self.invocation.id
     }
 
-    pub fn mcp_execution_id(&self) -> &McpExecutionId {
+    pub const fn mcp_execution_id(&self) -> &McpExecutionId {
         &self.mcp_execution_id
     }
 
@@ -122,32 +122,40 @@ impl McpAudit {
                 );
                 return;
             }
-            let Some(ingest) = ingest else {
-                return;
-            };
-            let Some(wire) = result.as_ref().and_then(from_wire_value) else {
-                return;
-            };
-            let ingest_request = IngestRequest {
-                result: wire,
-                tool_name: request.tool_name.clone(),
-                server_name: Some(request.server_name.clone()),
-                ai_tool_call_id: request.ai_tool_call_id.clone(),
-                mcp_execution_id: Some(mcp_execution_id),
-                ctx: request.context.clone(),
-                skill: None,
-                source: ExecutionSource::Proxy,
-                started_at: Some(request.started_at),
-                input: Some(request.input.clone()),
-            };
-            if let Err(e) = ingest.ingest(ingest_request).await {
-                tracing::warn!(
-                    tool = %request.tool_name,
-                    server = %request.server_name,
-                    error = %e,
-                    "Failed to ingest external MCP tool result as an artifact"
-                );
+            if let Some(ingest) = ingest {
+                ingest_proxied_result(&ingest, &request, result, mcp_execution_id).await;
             }
         });
+    }
+}
+
+async fn ingest_proxied_result(
+    ingest: &ArtifactIngest,
+    request: &ToolExecutionRequest,
+    result: Option<Value>,
+    mcp_execution_id: McpExecutionId,
+) {
+    let Some(wire) = result.as_ref().and_then(from_wire_value) else {
+        return;
+    };
+    let ingest_request = IngestRequest {
+        result: wire,
+        tool_name: request.tool_name.clone(),
+        server_name: Some(request.server_name.clone()),
+        ai_tool_call_id: request.ai_tool_call_id.clone(),
+        mcp_execution_id: Some(mcp_execution_id),
+        ctx: request.context.clone(),
+        skill: None,
+        source: ExecutionSource::Proxy,
+        started_at: Some(request.started_at),
+        input: Some(request.input.clone()),
+    };
+    if let Err(e) = ingest.ingest(ingest_request).await {
+        tracing::warn!(
+            tool = %request.tool_name,
+            server = %request.server_name,
+            error = %e,
+            "Failed to ingest external MCP tool result as an artifact"
+        );
     }
 }

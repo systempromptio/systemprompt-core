@@ -161,8 +161,6 @@ impl DatabaseAdminService {
         Ok(indexes)
     }
 
-    /// Every public table with an exact `COUNT(*)` — one statement per table,
-    /// so it is the slow form `list_tables` estimates are the substitute for.
     pub async fn list_tables_counted(&self) -> DatabaseResult<Vec<TableInfo>> {
         let mut tables = self.list_tables().await?;
         for table in &mut tables {
