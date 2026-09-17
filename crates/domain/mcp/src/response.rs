@@ -142,9 +142,13 @@ impl<T: Serialize + JsonSchema + McpOutputSchema> McpResponseBuilder<T> {
 
         tracing::info!(artifact_id = %artifact_id, server = %server_name, "Artifact persisted");
 
-        // Why: the wire carries what was stored — the scanned, redacted body —
-        // never the raw output, so a secret the scanner removed does not
-        // reach the model through the text or structured copy either.
+        // Why: the embedded UI renders the stored body — the scanned, redacted
+        // artifact — while `structuredContent` must stay the typed output the
+        // advertised `outputSchema` describes: the ingest may re-shape the
+        // body (a `tool_result` envelope around an unrecognised type), and a
+        // client that validates the schema rejects that envelope. Only a
+        // redaction substitutes the stored copy, unwrapped back to the typed
+        // object, so a secret the scanner removed never reaches the model.
         let stored = ingest
             .artifacts()
             .find_by_id(&artifact_id)
@@ -152,23 +156,29 @@ impl<T: Serialize + JsonSchema + McpOutputSchema> McpResponseBuilder<T> {
             .ok()
             .flatten();
         let redacted = stored.as_ref().is_some_and(|r| r.secret_redactions > 0);
-        let payload = stored
+        let typed_output = typed_structured(&structured_output, &artifact_type_str);
+        let stored_body = stored
             .and_then(|record| record.data.get("artifact").cloned())
-            .unwrap_or(structured_output);
+            .unwrap_or_else(|| typed_output.clone());
+        let wire_output = if redacted {
+            unwrap_tool_result(&stored_body)
+        } else {
+            typed_output
+        };
         let rendered = RenderedArtifact {
             artifact_id,
             mcp_execution_id: exec_id,
             server_name,
             artifact_type: artifact_type_str,
             title,
-            payload: payload.clone(),
+            payload: stored_body,
         };
 
         let shape = WireShape {
             client: &self.client,
             summary: summary_str,
             text_body: if redacted { None } else { text_body },
-            structured_output: payload,
+            structured_output: wire_output,
             metadata: &metadata,
         };
         Ok(shape.into_result(&rendered, &self.ctx))
@@ -189,6 +199,18 @@ fn typed_structured(output: &JsonValue, artifact_type: &str) -> JsonValue {
         );
     }
     value
+}
+
+/// The typed object inside a stored `tool_result` envelope, or the body
+/// itself when the ingest stored it as its declared type.
+// JSON: the value under `structured_content` of a tool_result body, else the input.
+fn unwrap_tool_result(stored: &JsonValue) -> JsonValue {
+    let is_envelope = stored.get("x-artifact-type").and_then(JsonValue::as_str)
+        == Some(systemprompt_models::artifacts::ToolResultArtifact::ARTIFACT_TYPE_STR);
+    match stored.get("structured_content") {
+        Some(inner) if is_envelope && !inner.is_null() => inner.clone(),
+        _ => stored.clone(),
+    }
 }
 
 /// What the wire shaper needs to know about the persisted artifact.

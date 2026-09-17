@@ -115,8 +115,11 @@ fn execution_meta(result: &CallToolResult) -> (Option<ArtifactId>, Option<McpExe
 
 /// A structured body that names its artifact type is stored as that type,
 /// exactly as the in-process builder stores it, so a table is a table
-/// whichever vantage point delivered it. A known type must deserialise as
-/// itself; a server-declared custom type is stored as declared.
+/// whichever vantage point delivered it. A known type is re-serialised
+/// through its model when it deserialises as itself; when it does not, the
+/// declaration still wins — the body is stored as declared, verbatim, and the
+/// mismatch is logged — because demoting it to a `tool_result` envelope
+/// changed the shape the tool advertised and hid the server's mistake.
 fn typed_body(structured: Option<&JsonValue>) -> Option<(String, JsonValue, Option<String>)> {
     let value = structured?;
     let declared = value.get("x-artifact-type")?.as_str()?;
@@ -126,7 +129,19 @@ fn typed_body(structured: Option<&JsonValue>) -> Option<(String, JsonValue, Opti
         .get("title")
         .and_then(JsonValue::as_str)
         .map(str::to_owned);
-    let body = match &artifact_type {
+    let body = typed_round_trip(&artifact_type, value).unwrap_or_else(|| {
+        tracing::warn!(
+            artifact_type = %artifact_type,
+            "structured body declares a known artifact type but does not deserialise as it; stored as declared"
+        );
+        value.clone()
+    });
+    Some((artifact_type.to_string(), body, title))
+}
+
+// JSON: the declared type's canonical serialisation, when the body is one.
+fn typed_round_trip(artifact_type: &ArtifactType, value: &JsonValue) -> Option<JsonValue> {
+    match artifact_type {
         ArtifactType::Text => round_trip::<TextArtifact>(value),
         ArtifactType::Table => round_trip::<TableArtifact>(value),
         ArtifactType::Chart => round_trip::<ChartArtifact>(value),
@@ -140,8 +155,7 @@ fn typed_body(structured: Option<&JsonValue>) -> Option<(String, JsonValue, Opti
         ArtifactType::Audio => round_trip::<AudioArtifact>(value),
         ArtifactType::Form | ArtifactType::Custom(_) => Some(value.clone()),
         ArtifactType::ToolResult => round_trip::<ToolResultArtifact>(value),
-    }?;
-    Some((artifact_type.to_string(), body, title))
+    }
 }
 
 // JSON: proves the declared body deserialises as its type, then stores the
