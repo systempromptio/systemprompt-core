@@ -178,10 +178,12 @@ fn render_event_covers_all_variants() {
         CanonicalEvent::MessageStop {
             id: "m1".into(),
             stop_reason: Some(CanonicalStopReason::ToolUse),
+            raw_finish_reason: None,
         },
         CanonicalEvent::MessageStop {
             id: "m1".into(),
             stop_reason: None,
+            raw_finish_reason: None,
         },
         CanonicalEvent::Error("oops \"quoted\\backslash".into()),
     ];

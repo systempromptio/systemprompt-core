@@ -213,7 +213,7 @@ mod anthropic_events_from_sse {
         }))
         .expect("event");
         match ev {
-            CanonicalEvent::MessageStop { id, stop_reason } => {
+            CanonicalEvent::MessageStop { id, stop_reason, .. } => {
                 assert_eq!(id, "msg_1");
                 assert_eq!(stop_reason, Some(CanonicalStopReason::ToolUse));
             },
@@ -694,6 +694,38 @@ mod openai_chat_streaming {
         ));
     }
 
+    // `content_filter` with nothing streamed is the provider cutting the turn
+    // off; as a clean `stop` the client would render an empty answer.
+    #[tokio::test]
+    async fn content_filter_without_output_is_an_upstream_error() {
+        let sse = "data: {\"id\":\"c1\",\"model\":\"gpt\",\"choices\":[{\"delta\":{},\"finish_reason\":\"content_filter\"}]}\n\n\
+                   data: [DONE]\n\n"
+            .to_owned();
+        let events = run(sse).await;
+        assert!(events.iter().any(
+            |e| matches!(e, CanonicalEvent::Error(m) if m == "upstream finished with content_filter")
+        ), "got {events:?}");
+        assert!(
+            !events
+                .iter()
+                .any(|e| matches!(e, CanonicalEvent::MessageStop { .. }))
+        );
+    }
+
+    #[tokio::test]
+    async fn content_filter_after_text_is_a_refusal_stop() {
+        let sse = "data: {\"id\":\"c1\",\"model\":\"gpt\",\"choices\":[{\"delta\":{\"content\":\"partial\"}}]}\n\n\
+                   data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"content_filter\"}]}\n\n\
+                   data: [DONE]\n\n"
+            .to_owned();
+        let events = run(sse).await;
+        assert!(events.iter().any(
+            |e| matches!(e, CanonicalEvent::MessageStop { stop_reason, raw_finish_reason, .. }
+                    if *stop_reason == Some(CanonicalStopReason::Refusal)
+                        && raw_finish_reason.as_deref() == Some("content_filter"))
+        ), "got {events:?}");
+    }
+
     #[tokio::test]
     async fn empty_text_delta_does_not_open_block() {
         let sse = "data: {\"id\":\"c1\",\"model\":\"gpt\",\"choices\":[{\"delta\":{\"content\":\"\"}}]}\n\n"
@@ -1073,6 +1105,144 @@ mod gemini_streaming {
             !events
                 .iter()
                 .any(|e| matches!(e, CanonicalEvent::ContentBlockStart { .. }))
+        );
+    }
+
+    // The raw reason travels beside the normalised one so the audit row can
+    // say how the upstream really ended.
+    #[tokio::test]
+    async fn message_stop_carries_the_raw_finish_reason() {
+        let sse = "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"x\"}]},\"finishReason\":\"MAX_TOKENS\"}]}\n\n"
+            .to_owned();
+        let events = run(sse).await;
+        assert!(matches!(
+            events.last(),
+            Some(CanonicalEvent::MessageStop {
+                stop_reason: Some(CanonicalStopReason::MaxTokens),
+                raw_finish_reason: Some(raw),
+                ..
+            }) if raw == "MAX_TOKENS"
+        ));
+    }
+
+    // Vertex answers a turn it cannot continue with a terminal frame that
+    // carries a finish reason and no parts. Relayed as `end_turn` the client
+    // shows an empty answer and the audit row says completed; it is an
+    // upstream failure and must be reported as one, naming the reason.
+    #[tokio::test]
+    async fn a_non_stop_finish_without_parts_is_an_upstream_error() {
+        let sse = "data: {\"candidates\":[{\"finishReason\":\"MALFORMED_FUNCTION_CALL\",\"finishMessage\":\"Malformed function call: print(x)\"}],\"usageMetadata\":{\"promptTokenCount\":4}}\n\n"
+            .to_owned();
+        let events = run(sse).await;
+        assert!(
+            !events
+                .iter()
+                .any(|e| matches!(e, CanonicalEvent::MessageStop { .. })),
+            "got {events:?}"
+        );
+        assert!(events.iter().any(|e| matches!(
+            e,
+            CanonicalEvent::Error(m)
+                if m == "upstream finished with MALFORMED_FUNCTION_CALL: Malformed function call: print(x)"
+        )), "got {events:?}");
+    }
+
+    #[tokio::test]
+    async fn a_safety_finish_without_parts_names_the_reason_alone() {
+        let sse = "data: {\"candidates\":[{\"finishReason\":\"SAFETY\"}]}\n\n".to_owned();
+        let events = run(sse).await;
+        assert!(events.iter().any(
+            |e| matches!(e, CanonicalEvent::Error(m) if m == "upstream finished with SAFETY")
+        ));
+    }
+
+    // A refusal that still produced text is a stop the client can render.
+    #[tokio::test]
+    async fn a_safety_finish_after_text_is_a_refusal_stop() {
+        let sse = "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"I cannot\"}]},\"finishReason\":\"SAFETY\"}]}\n\n"
+            .to_owned();
+        let events = run(sse).await;
+        assert!(matches!(
+            events.last(),
+            Some(CanonicalEvent::MessageStop {
+                stop_reason: Some(CanonicalStopReason::Refusal),
+                raw_finish_reason: Some(raw),
+                ..
+            }) if raw == "SAFETY"
+        ));
+    }
+
+    // Thoughts are not an answer: a turn that only thought and then finished
+    // on an unclassified reason is still empty from the client's side.
+    #[tokio::test]
+    async fn a_thought_only_turn_with_a_non_stop_finish_is_an_upstream_error() {
+        let sse = "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"plan\",\"thought\":true}]}}]}\n\n\
+                   data: {\"candidates\":[{\"finishReason\":\"UNEXPECTED_TOOL_CALL\"}]}\n\n"
+            .to_owned();
+        let events = run(sse).await;
+        assert!(events.iter().any(|e| matches!(
+            e,
+            CanonicalEvent::Error(m) if m == "upstream finished with UNEXPECTED_TOOL_CALL"
+        )), "got {events:?}");
+    }
+
+    // The empty STOP Gemini 3.5 sends for a turn it chose not to answer stays
+    // a clean stop; that is the model's decision, not a provider failure.
+    #[tokio::test]
+    async fn an_empty_stop_is_still_a_stop() {
+        let sse = "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"\"}]},\"finishReason\":\"STOP\"}]}\n\n"
+            .to_owned();
+        let events = run(sse).await;
+        assert!(matches!(
+            events.last(),
+            Some(CanonicalEvent::MessageStop {
+                stop_reason: Some(CanonicalStopReason::EndTurn),
+                ..
+            })
+        ));
+    }
+
+    #[tokio::test]
+    async fn a_blocked_prompt_reports_its_reason_and_message() {
+        let sse = "data: {\"promptFeedback\":{\"blockReason\":\"PROHIBITED_CONTENT\",\"blockReasonMessage\":\"nope\"}}\n\n"
+            .to_owned();
+        let events = run(sse).await;
+        assert!(events.iter().any(|e| matches!(
+            e,
+            CanonicalEvent::Error(m) if m == "upstream blocked the prompt: PROHIBITED_CONTENT: nope"
+        )), "got {events:?}");
+    }
+
+    // Vertex rejects a bad replay with a plain JSON error body on a
+    // text/event-stream response — no `data:` prefix, no blank line, so no
+    // frame ever terminates. Finalised as "empty upstream stream" the real
+    // cause is lost; the tail is drained at end of stream instead.
+    #[tokio::test]
+    async fn an_unframed_json_error_body_surfaces_at_end_of_stream() {
+        let body = "{\n  \"error\": {\n    \"code\": 400,\n    \"message\": \"Invalid value at 'contents[1].parts[0].thought_signature'\",\n    \"status\": \"INVALID_ARGUMENT\"\n  }\n}\n"
+            .to_owned();
+        let events = run(body).await;
+        assert_eq!(events.len(), 1, "got {events:?}");
+        assert!(matches!(
+            &events[0],
+            CanonicalEvent::Error(m)
+                if m == "upstream 400 INVALID_ARGUMENT: Invalid value at 'contents[1].parts[0].thought_signature'"
+        ), "got {events:?}");
+    }
+
+    #[tokio::test]
+    async fn an_unframed_tail_after_a_stop_is_ignored() {
+        let sse = "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"x\"}]},\"finishReason\":\"STOP\"}]}\n\n{\"error\":{\"message\":\"late\"}}"
+            .to_owned();
+        let events = run(sse).await;
+        assert!(matches!(
+            events.last(),
+            Some(CanonicalEvent::MessageStop { .. })
+        ));
+        assert!(
+            !events
+                .iter()
+                .any(|e| matches!(e, CanonicalEvent::Error(_)))
         );
     }
 }

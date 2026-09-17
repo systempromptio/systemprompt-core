@@ -13,11 +13,21 @@ use super::usage::{CanonicalUsage, CanonicalUsageUpdate};
 use crate::wire::inspect::ForwardedSurface;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// Why the upstream model stopped, in provider-neutral terms.
+///
+/// `Refusal` is the model (or its safety layer) declining to continue —
+/// Anthropic `refusal`, OpenAI `content_filter`, Gemini `SAFETY` and its
+/// siblings. `Other` is reserved for a reason no dialect classifies; a turn
+/// that ends on it *with* content still relays as a clean stop, while one
+/// that ends on it with nothing is an upstream error, and the raw reason is
+/// carried beside it so nothing is masked on the way to the audit row.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CanonicalStopReason {
     EndTurn,
     MaxTokens,
     StopSequence,
     ToolUse,
+    Refusal,
     Other,
 }
 
@@ -27,6 +37,7 @@ impl CanonicalStopReason {
             Self::MaxTokens => "max_tokens",
             Self::StopSequence => "stop_sequence",
             Self::ToolUse => "tool_use",
+            Self::Refusal => "refusal",
             Self::EndTurn | Self::Other => "end_turn",
         }
     }
@@ -35,8 +46,17 @@ impl CanonicalStopReason {
         match self {
             Self::MaxTokens => "length",
             Self::ToolUse => "tool_calls",
+            Self::Refusal => "content_filter",
             Self::EndTurn | Self::StopSequence | Self::Other => "stop",
         }
+    }
+
+    /// Whether a turn that ends on this reason with no output is the model
+    /// having nothing to say (`STOP`, an exhausted budget) or the provider
+    /// having cut it off — the latter must not relay as a clean empty turn.
+    #[must_use]
+    pub const fn empty_terminal_is_error(self) -> bool {
+        matches!(self, Self::Refusal | Self::Other)
     }
 
     pub fn from_anthropic(s: &str) -> Self {
@@ -45,6 +65,7 @@ impl CanonicalStopReason {
             "max_tokens" => Self::MaxTokens,
             "stop_sequence" => Self::StopSequence,
             "tool_use" => Self::ToolUse,
+            "refusal" => Self::Refusal,
             _ => Self::Other,
         }
     }
@@ -64,6 +85,7 @@ impl CanonicalStopReason {
             "stop" => Self::EndTurn,
             "length" => Self::MaxTokens,
             "tool_calls" | "function_call" => Self::ToolUse,
+            "content_filter" => Self::Refusal,
             _ => Self::Other,
         }
     }
@@ -159,6 +181,7 @@ pub enum CanonicalEvent {
     MessageStop {
         id: String,
         stop_reason: Option<CanonicalStopReason>,
+        raw_finish_reason: Option<String>,
     },
     Error(String),
 }

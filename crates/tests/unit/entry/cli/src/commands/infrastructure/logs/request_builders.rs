@@ -23,6 +23,7 @@ fn sample_row() -> RequestListRow {
         cost: "$0.000100".to_owned(),
         latency_ms: Some(42),
         status: "success".to_owned(),
+        finish: "end_turn".to_owned(),
     }
 }
 

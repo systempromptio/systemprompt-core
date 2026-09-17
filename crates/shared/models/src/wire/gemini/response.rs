@@ -32,7 +32,27 @@ pub fn stop_reason(finish: &str) -> CanonicalStopReason {
     match finish {
         "STOP" => CanonicalStopReason::EndTurn,
         "MAX_TOKENS" => CanonicalStopReason::MaxTokens,
+        "SAFETY" | "RECITATION" | "BLOCKLIST" | "PROHIBITED_CONTENT" | "SPII"
+        | "IMAGE_SAFETY" => CanonicalStopReason::Refusal,
         _ => CanonicalStopReason::Other,
+    }
+}
+
+/// The operator-facing sentence for a candidate that finished on a reason
+/// other than `STOP`/`MAX_TOKENS` without producing a single part.
+#[must_use]
+pub fn empty_terminal_message(finish: &str, finish_message: Option<&str>) -> String {
+    match finish_message.map(str::trim).filter(|m| !m.is_empty()) {
+        Some(detail) => format!("upstream finished with {finish}: {detail}"),
+        None => format!("upstream finished with {finish}"),
+    }
+}
+
+#[must_use]
+pub fn blocked_prompt_message(reason: &str, detail: Option<&str>) -> String {
+    match detail.map(str::trim).filter(|m| !m.is_empty()) {
+        Some(detail) => format!("upstream blocked the prompt: {reason}: {detail}"),
+        None => format!("upstream blocked the prompt: {reason}"),
     }
 }
 
@@ -52,8 +72,22 @@ pub fn parse_response(
         .unwrap_or_else(|| fallback_model.to_owned());
 
     let usage = usage(parsed.usage_metadata);
+    if let Some(reason) = parsed
+        .prompt_feedback
+        .as_ref()
+        .and_then(|f| f.block_reason.as_deref())
+    {
+        let detail = parsed
+            .prompt_feedback
+            .as_ref()
+            .and_then(|f| f.block_reason_message.as_deref());
+        return Err(WireParseError::EmptyTerminal(blocked_prompt_message(
+            reason, detail,
+        )));
+    }
     let candidate = parsed.candidates.into_iter().next();
     let raw_finish_reason = candidate.as_ref().and_then(|c| c.finish_reason.clone());
+    let finish_message = candidate.as_ref().and_then(|c| c.finish_message.clone());
     let stop_reason = raw_finish_reason.as_deref().map(stop_reason);
     let grounding = candidate.as_ref().and_then(grounding_from_candidate);
     let parts = candidate.and_then(|c| c.content).map(|c| c.parts);
@@ -61,6 +95,17 @@ pub fn parse_response(
         || (Vec::new(), None),
         |parts| (parts_to_content(&parts), code_execution(&parts)),
     );
+    // Why: a candidate that ends on SAFETY or MALFORMED_FUNCTION_CALL with no
+    // parts is the provider cutting the turn off, not the model saying nothing.
+    if let (Some(finish), Some(reason)) = (raw_finish_reason.as_deref(), stop_reason)
+        && reason.empty_terminal_is_error()
+        && content.is_empty()
+    {
+        return Err(WireParseError::EmptyTerminal(empty_terminal_message(
+            finish,
+            finish_message.as_deref(),
+        )));
+    }
 
     // Why: Gemini reports `finishReason: STOP` even for a `functionCall` candidate.
     let has_tool_use = content

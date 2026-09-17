@@ -90,6 +90,10 @@ impl AuditArgs {
 pub struct AuditOutput {
     pub request_id: AiRequestId,
     pub status: String,
+    /// The upstream's own finish reason (`STOP`, `MAX_TOKENS`, `SAFETY`,
+    /// `content_filter`, …), unnormalised; absent before the terminal event.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub finish_reason: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error_message: Option<String>,
     pub provider: Option<String>,
@@ -160,6 +164,7 @@ async fn execute_with_pool_inner(
     let output = AuditOutput {
         request_id,
         status: row.status,
+        finish_reason: row.finish_reason,
         error_message: row.error_message,
         provider: row.provider,
         model: row.model,

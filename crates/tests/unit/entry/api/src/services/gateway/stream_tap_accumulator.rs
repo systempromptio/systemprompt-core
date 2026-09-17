@@ -314,6 +314,7 @@ fn message_stop_without_reason_defaults_to_end_turn() {
         &CanonicalEvent::MessageStop {
             id: "resp-8".to_owned(),
             stop_reason: None,
+            raw_finish_reason: None,
         },
     );
 
@@ -366,6 +367,7 @@ fn extract_summary_reports_stop_error_model_and_tool_calls() {
         &CanonicalEvent::MessageStop {
             id: "resp-10".to_owned(),
             stop_reason: Some(CanonicalStopReason::ToolUse),
+            raw_finish_reason: None,
         },
     );
     accumulate_event(
@@ -453,6 +455,7 @@ fn a_reason_less_stop_does_not_overwrite_the_reason_already_stated() {
         &CanonicalEvent::MessageStop {
             id: "resp-1".to_owned(),
             stop_reason: Some(CanonicalStopReason::ToolUse),
+            raw_finish_reason: None,
         },
     );
     accumulate_event(
@@ -460,6 +463,7 @@ fn a_reason_less_stop_does_not_overwrite_the_reason_already_stated() {
         &CanonicalEvent::MessageStop {
             id: "resp-1".to_owned(),
             stop_reason: None,
+            raw_finish_reason: None,
         },
     );
 
@@ -499,6 +503,7 @@ fn an_end_turn_stop_beside_an_accumulated_tool_call_becomes_tool_use() {
         &CanonicalEvent::MessageStop {
             id: "resp-1".to_owned(),
             stop_reason: Some(CanonicalStopReason::EndTurn),
+            raw_finish_reason: None,
         },
     );
 
@@ -536,6 +541,7 @@ fn a_max_tokens_stop_survives_beside_a_truncated_tool_call() {
         &CanonicalEvent::MessageStop {
             id: "resp-1".to_owned(),
             stop_reason: Some(CanonicalStopReason::MaxTokens),
+            raw_finish_reason: None,
         },
     );
 

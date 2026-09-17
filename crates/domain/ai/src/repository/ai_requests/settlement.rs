@@ -35,6 +35,7 @@ pub struct SettleCompletion<'a> {
     pub cost_microdollars: i64,
     pub latency_ms: i32,
     pub upstream_latency_ms: Option<i32>,
+    pub finish_reason: Option<&'a str>,
     pub payload: UpsertPayloadParams<'a>,
     pub assistant_text: Option<&'a str>,
     pub tool_calls: &'a [SettledToolCall],
@@ -178,7 +179,8 @@ async fn settle_completion(
         SET input_tokens = $2, output_tokens = $3, cache_read_tokens = $4,
             cache_creation_tokens = $5, reasoning_tokens = $6, tokens_used = $7,
             cost_microdollars = $8, latency_ms = $9, upstream_latency_ms = $10,
-            cache_hit = $11, status = CASE WHEN accounting_failed_at IS NULL THEN 'completed' ELSE 'failed' END,
+            cache_hit = $11, finish_reason = $12,
+            status = CASE WHEN accounting_failed_at IS NULL THEN 'completed' ELSE 'failed' END,
             completed_at = COALESCE(completed_at, CURRENT_TIMESTAMP),
             updated_at = CURRENT_TIMESTAMP
         WHERE id = $1
@@ -193,7 +195,8 @@ async fn settle_completion(
         completion.cost_microdollars,
         completion.latency_ms,
         completion.upstream_latency_ms,
-        usage.cache_read_tokens > 0
+        usage.cache_read_tokens > 0,
+        completion.finish_reason
     )
     .execute(&mut **tx)
     .await?;

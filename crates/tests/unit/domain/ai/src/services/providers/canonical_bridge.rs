@@ -437,6 +437,7 @@ fn event_to_chunk_message_stop_maps_finish_reason() {
     match event_to_chunk(CanonicalEvent::MessageStop {
         id: "m".to_owned(),
         stop_reason: Some(CanonicalStopReason::MaxTokens),
+        raw_finish_reason: None,
     }) {
         Some(StreamChunk::Usage { finish_reason, .. }) => {
             assert_eq!(finish_reason.as_deref(), Some("length"));
@@ -450,6 +451,7 @@ fn event_to_chunk_tool_use_stop_reason_maps_to_tool_calls() {
     match event_to_chunk(CanonicalEvent::MessageStop {
         id: "m".to_owned(),
         stop_reason: Some(CanonicalStopReason::ToolUse),
+        raw_finish_reason: None,
     }) {
         Some(StreamChunk::Usage { finish_reason, .. }) => {
             assert_eq!(finish_reason.as_deref(), Some("tool_calls"));
@@ -463,6 +465,7 @@ fn event_to_chunk_end_turn_maps_to_stop() {
     match event_to_chunk(CanonicalEvent::MessageStop {
         id: "m".to_owned(),
         stop_reason: Some(CanonicalStopReason::EndTurn),
+        raw_finish_reason: None,
     }) {
         Some(StreamChunk::Usage { finish_reason, .. }) => {
             assert_eq!(finish_reason.as_deref(), Some("stop"));

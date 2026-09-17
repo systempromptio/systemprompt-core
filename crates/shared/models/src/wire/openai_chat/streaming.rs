@@ -194,11 +194,19 @@ fn emit_message_stop(
     for tc in state.tool_calls.drain(..) {
         events.push(Ok(CanonicalEvent::ContentBlockStop { index: tc.index }));
     }
+    let reason = CanonicalStopReason::from_openai(finish).with_tool_use(state.saw_tool_call);
+    // Why: `content_filter` with nothing streamed is the provider cutting the
+    // turn off; relayed as a clean stop the client sees an empty answer.
+    if reason.empty_terminal_is_error() && state.next_index == 0 {
+        events.push(Ok(CanonicalEvent::Error(format!(
+            "upstream finished with {finish}"
+        ))));
+        return;
+    }
     events.push(Ok(CanonicalEvent::MessageStop {
         id: state.message_id.as_str().to_owned(),
-        stop_reason: Some(
-            CanonicalStopReason::from_openai(finish).with_tool_use(state.saw_tool_call),
-        ),
+        stop_reason: Some(reason),
+        raw_finish_reason: Some(finish.to_owned()),
     }));
 }
 

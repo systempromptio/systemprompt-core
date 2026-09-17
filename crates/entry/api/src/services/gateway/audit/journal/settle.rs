@@ -54,6 +54,7 @@ pub(super) async fn settle(settlement: &Settlement, receipt: &Receipt) -> Result
             cost_microdollars: completion.cost,
             latency_ms: completion.latency,
             upstream_latency_ms: completion.upstream_latency,
+            finish_reason: completion.finish_reason.as_deref(),
             payload: UpsertPayloadParams {
                 body: completion.payload.json.as_ref(),
                 excerpt: completion.payload.excerpt.as_deref(),

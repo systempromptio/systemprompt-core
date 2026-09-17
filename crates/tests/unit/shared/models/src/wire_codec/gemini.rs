@@ -303,6 +303,75 @@ fn gemini_request_omits_thought_signature_when_absent() {
     assert!(part.get("thoughtSignature").is_none());
 }
 
+fn model_parts(body: &Value) -> Vec<Value> {
+    body["contents"]
+        .as_array()
+        .and_then(|c| c.iter().find(|m| m["role"] == "model"))
+        .and_then(|m| m["parts"].as_array())
+        .cloned()
+        .expect("model parts present")
+}
+
+fn second_tool_use(signature: Option<&str>) -> CanonicalContent {
+    CanonicalContent::ToolUse {
+        id: "call_2".to_owned(),
+        name: "lookup".to_owned(),
+        input: json!({"q": "tokio"}),
+        signature: signature.map(str::to_owned),
+    }
+}
+
+// Vertex signs only the first parallel call of a turn and then refuses the
+// replay unless every call carries a signature, so the turn's signature is
+// copied onto the calls that arrived without one.
+#[test]
+fn gemini_request_shares_the_turn_signature_across_parallel_function_calls() {
+    let mut req = base_request();
+    req.messages.push(CanonicalMessage {
+        role: Role::Assistant,
+        content: vec![tool_use(Some("sig==")), second_tool_use(None)],
+    });
+    let parts = model_parts(&gemini::build_request_body(&req, None));
+    assert_eq!(parts.len(), 2);
+    assert_eq!(parts[0]["thoughtSignature"], "sig==");
+    assert_eq!(parts[1]["thoughtSignature"], "sig==");
+    assert_eq!(parts[1]["functionCall"]["args"]["q"], "tokio");
+}
+
+#[test]
+fn gemini_request_fills_unsigned_function_calls_from_the_thought_signature() {
+    let mut req = base_request();
+    req.messages.push(CanonicalMessage {
+        role: Role::Assistant,
+        content: vec![
+            CanonicalContent::Thinking {
+                text: "plan".to_owned(),
+                signature: Some("tsig==".to_owned()),
+                id: None,
+                encrypted_content: None,
+            },
+            tool_use(None),
+            second_tool_use(None),
+        ],
+    });
+    let parts = model_parts(&gemini::build_request_body(&req, None));
+    assert_eq!(parts.len(), 3);
+    assert_eq!(parts[0]["thoughtSignature"], "tsig==");
+    assert_eq!(parts[1]["thoughtSignature"], "tsig==");
+    assert_eq!(parts[2]["thoughtSignature"], "tsig==");
+}
+
+#[test]
+fn gemini_request_leaves_wholly_unsigned_parallel_calls_alone() {
+    let mut req = base_request();
+    req.messages.push(CanonicalMessage {
+        role: Role::Assistant,
+        content: vec![tool_use(None), second_tool_use(None)],
+    });
+    let parts = model_parts(&gemini::build_request_body(&req, None));
+    assert!(parts.iter().all(|p| p.get("thoughtSignature").is_none()));
+}
+
 #[test]
 fn gemini_parse_surfaces_grounding_sources_and_queries() {
     let value: Value = json!({

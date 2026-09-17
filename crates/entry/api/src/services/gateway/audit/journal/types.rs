@@ -20,6 +20,8 @@ pub(crate) struct Completion {
     pub cost: i64,
     pub latency: i32,
     pub upstream_latency: Option<i32>,
+    #[serde(default)]
+    pub finish_reason: Option<String>,
     pub payload: PayloadCapture,
     pub assistant: Option<String>,
     pub tools: Vec<CapturedToolCall>,

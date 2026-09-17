@@ -29,4 +29,11 @@ pub enum WireParseError {
     // represented as a canonical tool use.
     #[error("OpenAI responses body: function_call `{name}` carries neither call_id nor id")]
     OpenAiResponsesMissingToolCallId { name: String },
+    // Why: a well-formed body whose only candidate finished on a refusal or an
+    // unclassified reason without a single part is the provider ending the
+    // turn, and it must reach the client as an error rather than an empty
+    // success — the message names the raw reason and whatever the provider
+    // said about it.
+    #[error("{0}")]
+    EmptyTerminal(String),
 }

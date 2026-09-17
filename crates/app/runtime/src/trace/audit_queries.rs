@@ -27,6 +27,7 @@ struct AuditRow {
     cost_microdollars: i64,
     latency_ms: Option<i32>,
     status: String,
+    finish_reason: Option<String>,
     error_message: Option<String>,
     task_id: Option<TaskId>,
     trace_id: Option<TraceId>,
@@ -81,6 +82,7 @@ async fn find_audit_by_request_id(
             cost_microdollars as "cost_microdollars!",
             latency_ms,
             status as "status!",
+            finish_reason,
             error_message,
             task_id as "task_id: TaskId",
             trace_id as "trace_id: TraceId"
@@ -110,6 +112,7 @@ async fn find_audit_by_task_id(
             cost_microdollars as "cost_microdollars!",
             latency_ms,
             status as "status!",
+            finish_reason,
             error_message,
             task_id as "task_id: TaskId",
             trace_id as "trace_id: TraceId"
@@ -140,6 +143,7 @@ async fn find_audit_by_trace_id(
             cost_microdollars as "cost_microdollars!",
             latency_ms,
             status as "status!",
+            finish_reason,
             error_message,
             task_id as "task_id: TaskId",
             trace_id as "trace_id: TraceId"
@@ -169,6 +173,7 @@ fn audit_row_to_result(r: AuditRow) -> AuditLookupResult {
         cost_microdollars: r.cost_microdollars,
         latency_ms: r.latency_ms,
         status: r.status,
+        finish_reason: r.finish_reason,
         error_message: r.error_message,
         task_id: r.task_id,
         trace_id: r.trace_id,

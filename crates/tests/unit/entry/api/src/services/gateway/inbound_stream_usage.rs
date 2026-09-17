@@ -43,6 +43,7 @@ fn chat_finish_chunk_states_no_usage() {
     let event = CanonicalEvent::MessageStop {
         id: "msg_1".into(),
         stop_reason: Some(CanonicalStopReason::EndTurn),
+        raw_finish_reason: None,
     };
     let frame = OpenAiChatInbound
         .render_terminal_event(&event, &snapshot(), "test-model")
@@ -118,6 +119,7 @@ fn anthropic_terminal_delta_states_the_real_output_count() {
     let event = CanonicalEvent::MessageStop {
         id: "msg_1".into(),
         stop_reason: Some(CanonicalStopReason::EndTurn),
+        raw_finish_reason: None,
     };
     let frame = AnthropicMessagesInbound
         .render_terminal_event(&event, &snapshot(), "test-model")

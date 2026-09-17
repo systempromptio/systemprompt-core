@@ -64,6 +64,7 @@ pub struct AuditLookupResult {
     pub cost_microdollars: i64,
     pub latency_ms: Option<i32>,
     pub status: String,
+    pub finish_reason: Option<String>,
     pub error_message: Option<String>,
     pub task_id: Option<TaskId>,
     pub trace_id: Option<TraceId>,

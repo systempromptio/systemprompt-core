@@ -73,6 +73,7 @@ fn audit_output(status: &str) -> AuditOutput {
     AuditOutput {
         request_id: AiRequestId::generate(),
         status: status.to_owned(),
+        finish_reason: None,
         error_message: None,
         provider: Some("anthropic".to_owned()),
         model: Some("claude-fixture-1".to_owned()),

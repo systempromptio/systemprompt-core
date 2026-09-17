@@ -64,6 +64,7 @@ fn accumulates_text_and_usage_and_stop() {
             CanonicalEvent::MessageStop {
                 id: "resp_1".to_owned(),
                 stop_reason: Some(CanonicalStopReason::EndTurn),
+                raw_finish_reason: None,
             },
         ],
     );
@@ -127,6 +128,7 @@ fn empty_message_start_model_leaves_served_model_unset() {
             CanonicalEvent::MessageStop {
                 id: "r".to_owned(),
                 stop_reason: None,
+                raw_finish_reason: None,
             },
         ],
     );
@@ -176,6 +178,7 @@ fn accumulates_tool_use_block() {
             CanonicalEvent::MessageStop {
                 id: "resp_tool".to_owned(),
                 stop_reason: Some(CanonicalStopReason::ToolUse),
+                raw_finish_reason: None,
             },
         ],
     );

@@ -141,9 +141,50 @@ fn contents(request: &CanonicalRequest) -> Vec<GeminiContent> {
     for content in &mut contents {
         if content.role == "user" {
             fold_text_into_function_responses(&mut content.parts);
+        } else {
+            share_turn_signature(&mut content.parts);
         }
     }
     contents
+}
+
+// Why: Vertex signs only the first of a turn's parallel `functionCall` parts,
+// then rejects the replay with 400 unless every one of them carries a
+// signature. Copying the turn's signature onto the unsigned calls is accepted
+// upstream, and it stays on this wire alone — the canonical request and the
+// signature cache keep only what the model actually signed.
+fn share_turn_signature(parts: &mut [GeminiPart]) {
+    let turn_signature = parts
+        .iter()
+        .find_map(|part| match part {
+            GeminiPart::FunctionCall {
+                thought_signature: Some(signature),
+                ..
+            } => Some(signature.clone()),
+            _ => None,
+        })
+        .or_else(|| {
+            parts.iter().find_map(|part| match part {
+                GeminiPart::Text {
+                    thought: Some(true),
+                    thought_signature: Some(signature),
+                    ..
+                } => Some(signature.clone()),
+                _ => None,
+            })
+        });
+    let Some(signature) = turn_signature else {
+        return;
+    };
+    for part in parts.iter_mut() {
+        if let GeminiPart::FunctionCall {
+            thought_signature: slot @ None,
+            ..
+        } = part
+        {
+            *slot = Some(signature.clone());
+        }
+    }
 }
 
 // Why: a user turn that answers function calls may also carry text — Claude

@@ -53,6 +53,7 @@ impl GatewayAudit {
             cost,
             latency: latency_ms,
             upstream_latency: upstream_latency_ms,
+            finish_reason: response.raw_finish_reason.clone(),
             payload: slice_payload(response_body),
             assistant: super::super::parse::extract_assistant_text(response)
                 .map(|text| truncate_for_tool_input(&text)),
@@ -88,6 +89,7 @@ impl GatewayAudit {
             cost_microdollars = cost,
             latency_ms,
             upstream_latency_ms,
+            finish_reason = response.raw_finish_reason.as_deref().unwrap_or(""),
             gateway_overhead_ms = upstream_latency_ms.map(|u| latency_ms.saturating_sub(u)),
             tool_calls = tool_calls.len(),
             "Gateway audit: request completed"

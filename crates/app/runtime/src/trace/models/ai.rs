@@ -141,6 +141,7 @@ pub struct AiRequestListItem {
     pub cost_microdollars: i64,
     pub latency_ms: Option<i32>,
     pub status: String,
+    pub finish_reason: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

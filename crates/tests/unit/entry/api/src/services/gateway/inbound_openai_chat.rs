@@ -309,6 +309,7 @@ fn render_terminal_emits_the_finish_chunk_alone() {
             &CanonicalEvent::MessageStop {
                 id: "chatcmpl_1".into(),
                 stop_reason: Some(CanonicalStopReason::EndTurn),
+                raw_finish_reason: None,
             },
             &snapshot,
             "gpt-x",

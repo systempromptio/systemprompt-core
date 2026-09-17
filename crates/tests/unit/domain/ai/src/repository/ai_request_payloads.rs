@@ -45,6 +45,7 @@ async fn upsert_request_then_response_coexist() {
                 cost_microdollars: 0,
                 latency_ms: 1,
                 upstream_latency_ms: None,
+                finish_reason: None,
                 payload: UpsertPayloadParams {
                     body: Some(&resp_body),
                     excerpt: Some("hi"),

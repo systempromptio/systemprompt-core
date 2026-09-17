@@ -160,6 +160,7 @@ fn render_event_skips_usage_and_terminal_events() {
         CanonicalEvent::MessageStop {
             id: "id".into(),
             stop_reason: Some(CanonicalStopReason::ToolUse),
+            raw_finish_reason: None,
         },
     ];
     for ev in skipped {
@@ -208,6 +209,7 @@ fn render_terminal_completed_carries_full_output_list() {
             &CanonicalEvent::MessageStop {
                 id: "resp_1".into(),
                 stop_reason: Some(CanonicalStopReason::ToolUse),
+                raw_finish_reason: None,
             },
             &snapshot,
             "m",
@@ -244,6 +246,7 @@ fn render_terminal_incomplete_maps_to_incomplete_status() {
             &CanonicalEvent::MessageStop {
                 id: "resp_1".into(),
                 stop_reason: Some(CanonicalStopReason::MaxTokens),
+                raw_finish_reason: None,
             },
             &snapshot,
             "m",

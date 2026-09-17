@@ -50,6 +50,7 @@ const fn stop_reason_str(stop_reason: CanonicalStopReason) -> &'static str {
         CanonicalStopReason::MaxTokens => "length",
         CanonicalStopReason::ToolUse => "tool_calls",
         CanonicalStopReason::StopSequence => "stop_sequence",
+        CanonicalStopReason::Refusal => "content_filter",
         CanonicalStopReason::EndTurn | CanonicalStopReason::Other => "stop",
     }
 }

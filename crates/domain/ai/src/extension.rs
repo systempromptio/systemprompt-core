@@ -31,6 +31,7 @@ impl Extension for AiExtension {
                     "client_kind",
                     "wire_protocol",
                     "client_attestation",
+                    "finish_reason",
                 ])),
             SchemaDefinition::new(
                 "ai_request_client_evidence",

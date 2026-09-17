@@ -32,6 +32,7 @@ struct ListRow {
     cost_microdollars: i64,
     latency_ms: Option<i32>,
     status: String,
+    finish_reason: Option<String>,
 }
 
 struct DetailRow {
@@ -92,7 +93,8 @@ pub(super) async fn list_ai_requests(
             cache_read_tokens, cache_creation_tokens, reasoning_tokens,
             cost_microdollars as "cost_microdollars!",
             latency_ms,
-            status as "status!"
+            status as "status!",
+            finish_reason
         FROM ai_requests
         WHERE ($1::timestamptz IS NULL OR created_at >= $1)
           AND ($2::text IS NULL OR model ILIKE $2)
@@ -136,6 +138,7 @@ pub(super) async fn list_ai_requests(
             cost_microdollars: r.cost_microdollars,
             latency_ms: r.latency_ms,
             status: r.status,
+            finish_reason: r.finish_reason,
         })
         .collect())
 }

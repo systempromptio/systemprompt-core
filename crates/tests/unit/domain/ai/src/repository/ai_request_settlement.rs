@@ -29,6 +29,7 @@ fn completion<'a>(
         cost_microdollars: 1_234,
         latency_ms: 80,
         upstream_latency_ms: Some(60),
+        finish_reason: Some("end_turn"),
         payload: UpsertPayloadParams {
             body: Some(body),
             excerpt: Some("hi"),

@@ -35,9 +35,24 @@ pub fn upstream_error_message(value: &serde_json::Value) -> Option<String> {
     if error.is_null() {
         return None;
     }
+    if let Some(message) = error.as_str() {
+        return Some(message.to_owned());
+    }
     let message = error
         .get("message")
         .and_then(serde_json::Value::as_str)
         .unwrap_or("upstream error");
-    Some(message.to_owned())
+    // Why: Google's `{code, status, message}` shape names the failure class in
+    // `status`; without it "Invalid value at contents[1]…" reads as ours.
+    let code = error.get("code").and_then(serde_json::Value::as_u64);
+    let status = error
+        .get("status")
+        .and_then(serde_json::Value::as_str)
+        .filter(|s| !s.is_empty());
+    Some(match (code, status) {
+        (Some(code), Some(status)) => format!("upstream {code} {status}: {message}"),
+        (Some(code), None) => format!("upstream {code}: {message}"),
+        (None, Some(status)) => format!("upstream {status}: {message}"),
+        (None, None) => message.to_owned(),
+    })
 }

@@ -152,6 +152,14 @@ pub fn parse_response(
             .iter()
             .any(|c| matches!(c, CanonicalContent::ToolUse { .. }));
         stop_reason = stop_reason.map(|r| r.with_tool_use(has_tool_use));
+        if let (Some(finish), Some(reason)) = (raw_finish_reason.as_deref(), stop_reason)
+            && reason.empty_terminal_is_error()
+            && content.is_empty()
+        {
+            return Err(WireParseError::EmptyTerminal(format!(
+                "upstream finished with {finish}"
+            )));
+        }
     }
 
     Ok(CanonicalResponse {

@@ -195,6 +195,7 @@ async fn tap_renders_client_bytes_and_completes_audit_on_eof() {
         Ok(CanonicalEvent::MessageStop {
             id: "resp-tap-1".to_owned(),
             stop_reason: Some(CanonicalStopReason::EndTurn),
+            raw_finish_reason: None,
         }),
         Ok(CanonicalEvent::UsageDelta(output_only_usage(7))),
     ]);
@@ -361,6 +362,7 @@ async fn tap_completion_runs_response_safety_scan() {
         Ok(CanonicalEvent::MessageStop {
             id: "resp-tap-4".to_owned(),
             stop_reason: Some(CanonicalStopReason::EndTurn),
+            raw_finish_reason: None,
         }),
         Ok(CanonicalEvent::UsageDelta(output_only_usage(5))),
     ]);

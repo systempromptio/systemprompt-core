@@ -129,6 +129,7 @@ pub(super) fn handle_completed(
     events.push(Ok(CanonicalEvent::MessageStop {
         id,
         stop_reason: Some(stop_reason(&state.items, incomplete_reason)),
+        raw_finish_reason: incomplete_reason.map(str::to_owned),
     }));
 }
 

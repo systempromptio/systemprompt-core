@@ -27,7 +27,7 @@ pub fn render_terminal_event_frame(
 ) -> Option<Bytes> {
     match event {
         CanonicalEvent::ContentBlockStop { index } => render_item_done(*index, snapshot),
-        CanonicalEvent::MessageStop { id, stop_reason } => {
+        CanonicalEvent::MessageStop { id, stop_reason, .. } => {
             Some(render_completed(id, *stop_reason, snapshot))
         },
         _ => None,
