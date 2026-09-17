@@ -137,6 +137,17 @@
       },
       {
         "ordinal": 12,
+        "name": "finish_reason",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "ai_requests",
+            "name": "finish_reason"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
         "name": "error_message",
         "type_info": "Text",
         "origin": {
@@ -147,7 +158,7 @@
         }
       },
       {
-        "ordinal": 13,
+        "ordinal": 14,
         "name": "task_id: TaskId",
         "type_info": "Text",
         "origin": {
@@ -158,24 +169,13 @@
         }
       },
       {
-        "ordinal": 14,
+        "ordinal": 15,
         "name": "trace_id: TraceId",
         "type_info": "Varchar",
         "origin": {
           "Table": {
             "table": "ai_requests",
             "name": "trace_id"
-          }
-        }
-      },
-      {
-        "ordinal": 15,
-        "name": "finish_reason",
-        "type_info": "Text",
-        "origin": {
-          "Table": {
-            "table": "ai_requests",
-            "name": "finish_reason"
           }
         }
       }
@@ -205,5 +205,5 @@
       true
     ]
   },
-  "hash": "83f702ec139460b23f1b3718d429771d0190449af098c70052e7da00fc923e91"
+  "hash": "ecfe0ef03fdd622be9039c7f00fecf63599dbf23d52581f00b9febb8051b48ee"
 }

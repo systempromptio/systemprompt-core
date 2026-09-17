@@ -4023,7 +4023,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-bridge"
-version = "0.54.0"
+version = "0.55.0"
 dependencies = [
  "apple-native-keyring-store",
  "arc-swap",
@@ -4091,7 +4091,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-extension"
-version = "0.54.0"
+version = "0.55.0"
 dependencies = [
  "async-trait",
  "axum",
@@ -4108,7 +4108,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-identifiers"
-version = "0.54.0"
+version = "0.55.0"
 dependencies = [
  "chrono",
  "schemars",
@@ -4120,7 +4120,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-models"
-version = "0.54.0"
+version = "0.55.0"
 dependencies = [
  "async-trait",
  "base64 0.23.0",
@@ -4154,7 +4154,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-provider-contracts"
-version = "0.54.0"
+version = "0.55.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -4168,7 +4168,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-traits"
-version = "0.54.0"
+version = "0.55.0"
 dependencies = [
  "async-trait",
  "chrono",
