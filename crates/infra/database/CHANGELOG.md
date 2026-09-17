@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.55.0] - 2026-09-17
+
+### Added
+
+- `admin::introspection` counts rows exactly (`COUNT(*)`) on request beside the planner estimate.
+- `services::postgres::conversion` renders `regclass`, `"char"` and `oid` values (previously blank).
+
 ## [0.53.0] - 2026-09-15
 
 ### Breaking

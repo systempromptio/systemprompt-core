@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.55.0] - 2026-09-17
+
+### Breaking
+
+- **Breaking:** every tool result is ingested through `ArtifactIngest` (`services::artifact_ingest`): `McpToolExecutor::new` and `McpResponseBuilder::build` take `Arc<ArtifactIngest>` / `&ArtifactIngest` instead of `McpArtifactRepository`; `ArtifactIngest::new(ArtifactIngestRepositories, Option<Arc<SecretScanner>>)` with `repository::ArtifactIngestRepositories::new(&DbPool)`.
+- **Breaking:** `ToolExecutionRequest` gains `source: ExecutionSource`; `ToolExecution` gains `source` and `correlation: Correlation`. `ToolUsageRepository::find_by_fingerprint(&SessionId, tool_name, payload_sha256, window)` and `find_unclaimed_intent(&SessionId, ..)` take typed session ids; `log_execution_sync_with_id`, `mark_correlated` and `claim_intent` are new.
+- **Breaking:** `McpArtifactRecord` / `CreateMcpArtifact` carry keyed columns (`session_id`, `trace_id`, `ai_tool_call_id`, `tool_name`, `source`, `payload_sha256`, `payload_bytes`, `ArtifactShape`) instead of the JSON envelope; `mcp_artifacts(mcp_execution_id)` is unique.
+- **Breaking:** an `external` server declares no `binary` / `package` / `port` (`McpServerInfo.port`, `McpServerState.port`, `McpServiceStatus.port`, `McpServerSummary.port` are `Option<u16>`, `McpStatusEntry.binary` is `Option<String>`); spawn, port-probe and reconciliation resolve the pair through `services::SpawnTarget` (`spawn_port()` / `spawn_binary()`) and return `McpDomainError::Configuration` for a server with neither. `DeploymentService::get_server_{port,binary,package}` are removed.
+- **Breaking:** `McpToolHandler` and `object_input_schema` live in `tool::handler`.
+
+### Added
+
+- `ArtifactIngest` resolves the execution by exact key (`_meta` execution id, `ai_tool_call_id`) or by fingerprint within `FINGERPRINT_WINDOW_SECONDS` (120 s, recorded as `inferred`), runs the secret scanner (redacting in place) and the caller's `ArtifactScanner` before any row is written, stores the body once by digest in `artifact_payloads`, records a caller-minted `mcp_execution_id` unknown to `mcp_tool_executions` before the artifact references it, and enriches rather than duplicates a call seen from another vantage point. The executor claims the gateway's unclaimed intent for the same session and tool suffix and writes `ai_request_tool_calls.mcp_execution_id`, so one MCP call from a Claude Code session is one artifact.
+- The tool loader lists an `external` server's tools straight from its `endpoint` (registry metadata `status: external`) instead of looking for a service row it never has.
+- Migrations `008_artifact_narrow_waist` (`artifact_payloads`, `mcp_artifact_findings`, the keyed `mcp_artifacts` / `mcp_tool_executions` columns and CHECKs), `009_mcp_sessions_cascade` (`mcp_sessions.user_id` `ON DELETE CASCADE`) and `010_reporting_capture_contract`.
+
+### Fixed
+
+- The wire `structuredContent` carries the typed tool output again (`response::wire`; the stored artifact envelope was sent, so every call failed the client's `outputSchema` validation); the stored copy is substituted only under redaction and unwrapped first. A declared known artifact type that does not deserialise as itself is stored as declared and logged instead of being demoted to `tool_result`.
+- The `mcp_tool_executions` reporting capture emitted `source` / `correlation` / `payload_sha256`, which the reporting contract does not list, so `begin_user_privacy()` raised on any instance that had run an MCP tool; migration `010_reporting_capture_contract` restores the column list and repairs queued `event_outbox` facts in place.
+
 ## [0.53.0] - 2026-09-15
 
 ### Breaking

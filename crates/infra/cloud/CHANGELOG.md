@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.55.0] - 2026-09-17
+
+### Changed
+
+- Profile authoring names the `evaluation` and `observability` blocks (`Profile` struct literals).
+
 ## [0.54.0] - 2026-09-16
 
 ### Removed

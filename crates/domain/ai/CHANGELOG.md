@@ -10,6 +10,9 @@
 
 - `ai_requests.served_provider` (TEXT, migration `029_ai_requests_served_provider`): the provider that actually served a gateway request when a route failed over; NULL when the primary served. `AiRequestRepository::update_served_provider`.
 - `ai_request_payloads.prepared_tools` (JSONB, migration `030_prepared_tools`): the exact `tools` array of the prepared body the gateway sent upstream, in the provider's wire shape, beside `prepared_body_sha256`. `AiRequestPayloadRepository::find_prepared` returns `PreparedPayload { prepared_body_sha256, prepared_tools }` from the read pool.
+- `ai_requests.finish_reason` (migration `028_ai_requests_finish_reason`): the upstream's own terminal reason (Gemini `STOP`/`MAX_TOKENS`/`SAFETY`/`MALFORMED_FUNCTION_CALL`, OpenAI `content_filter`, Anthropic `refusal`) beside the normalised status; the settlement journal carries it to the row.
+- `RequestKind::Utility`: inference made as a job actor (`ActorKind::Job`) is recorded with `request_kind = utility`.
+- The `tool_call_ledger` view joins intent (`ai_request_tool_calls`), execution (`mcp_tool_executions`) and result (`mcp_artifacts`); `find_tool_call_by_ai_id` reads one intent by its `ai_tool_call_id`.
 
 ## [0.54.0] - 2026-09-16
 

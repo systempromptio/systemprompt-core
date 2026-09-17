@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.55.0] - 2026-09-17
+
+### Added
+
+- `governance_decisions.tool_use_id` (migration `019_governance_decisions_tool_use_id`): `GovernanceDecisionRecord` and `AuditTarget` gain `tool_use_id: Option<_>` so a decision keeps the client `tool_use_id` it governed.
+
 ## [0.53.0] - 2026-09-15
 
 ### Breaking

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.55.0] - 2026-09-17
+
+### Breaking
+
+- **Breaking:** `ActiveServicesRoot` gains `base: PathBuf` — the profile services path the composition is layered on (equal to `path` when nothing is composed); struct literals must name it. `bundle::bootstrap` binds the base root beside the composed one.
+
 ## [0.54.0] - 2026-09-16
 
 ### Added

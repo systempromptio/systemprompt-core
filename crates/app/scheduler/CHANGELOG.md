@@ -6,6 +6,10 @@
 
 - `otlp_export` job (`OtlpExportJob`, `jobs::otlp_export`): tails `ai_requests` (with `tool_call_ledger` and `governance_decisions` children) and `logs` by watermark and POSTs OTLP/HTTP protobuf to the collector in the profile's `observability.otlp` block; a no-op when the block is absent. New `otlp_export_state` table (declared by `SchedulerExtension`), `OtlpExportStateRepository` (`list_states`, `get_or_start`, `advance`, `record_failure`, `mark_caught_up`), `otlp_export_now` for an unpaced run, and the `otlp_export_batches_total{signal,status}` counter. New dependencies: `opentelemetry-proto`, `prost`, `reqwest`, `metrics`, `sha2`, `hex`.
 
+### Changed
+
+- `state_verifier` reads an MCP server's port as `Option<u16>`; an `external` server has none.
+
 ## [0.54.0] - 2026-09-16
 
 ### Removed

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.55.0] - 2026-09-17
+
+### Fixed
+
+- A `local_tree` source captured while bundle sources were composed recorded the hash-keyed composed directory, which rotates on every import; every configured resource on that source then failed capture and `publish_latest` blocked them all while plugin manifests advanced. The binding records the root as configured (the cache's `current` link under composition, the profile path otherwise) and matches the active root by path, resolved directory or base tree (`inventory::configured_files`); migration `012_local_tree_roots_follow_current` repoints existing bindings, lifting the `managed_sources_immutable` trigger for that one rewrite.
+
 ## [0.54.0] - 2026-09-16
 
 ### Added

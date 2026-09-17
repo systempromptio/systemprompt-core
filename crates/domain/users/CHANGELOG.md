@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.55.0] - 2026-09-17
+
+### Breaking
+
+- **Breaking:** `UserRepository::delete` and `UserService::delete` return `Vec<PurgeCount>` (rows removed per table). `user_sessions.user_id` is `ON DELETE CASCADE` instead of `SET NULL` (migration `016_user_sessions_cascade`).
+
+### Added
+
+- `UserRepository::purge_preview(&UserId)` counts what `delete` would remove without deleting. `repository::user::purge` walks the `systemprompt_extension::purge` inventory (`user_purge_tables!`) so every crate's user-keyed table without a foreign key is cleared inside the privacy transaction.
+
 ## [0.53.0] - 2026-09-15
 
 ### Added

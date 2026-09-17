@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.55.0] - 2026-09-17
+
+### Breaking
+
+- **Breaking:** `AppContext` owns the process's `AiService` and `ArtifactIngest`: `ai_service()` / `ai_service_arc()` return `Option<Arc<AiService>>` (assembled at boot from the services catalog, `None` with a warning when no default provider is usable) and `artifact_ingest()` / `artifact_ingest_arc()` return the one tool-result ingest path (`context::services`). Every extension router receives `Extension<Option<Arc<AiService>>>`, `Extension<Arc<ArtifactIngest>>` and `Extension<ServicesRefresh>` beside the governance engine.
+- **Breaking:** `ActiveServicesRoot.base` is propagated through the loader bootstrap; the composed root binds the profile services path it is layered on.
+
+### Added
+
+- `trace`: `AiRequestListItem` / `AiRequestDetail` and the tool-call read model carry `finish_reason`.
+- `startup_validation::mcp_validator` checks each server by type: an `external` server must declare none of `binary` / `package` / `port`, an internal one must declare `binary` and `port`; port uniqueness is checked over internal servers only.
+
 ## [0.54.0] - 2026-09-16
 
 ### Removed
