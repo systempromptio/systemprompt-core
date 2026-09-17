@@ -481,7 +481,7 @@ fn gemini_tool_result_without_structure_flattens_text_result() {
 }
 
 #[test]
-fn gemini_drops_system_messages_and_replays_thinking_as_thought_parts() {
+fn gemini_carries_system_messages_as_user_text_and_replays_thinking_as_thought_parts() {
     let mut req = base_request();
     req.messages = vec![
         CanonicalMessage {
@@ -504,12 +504,65 @@ fn gemini_drops_system_messages_and_replays_thinking_as_thought_parts() {
     ];
     let body = gemini::build_request_body(&req, None);
     let contents = body["contents"].as_array().expect("contents array");
-    assert_eq!(contents.len(), 2);
-    let thought = &contents[0]["parts"][0];
+    assert_eq!(contents.len(), 3);
+    assert_eq!(contents[0]["role"], "user");
+    assert_eq!(contents[0]["parts"][0]["text"], "sys");
+    let thought = &contents[1]["parts"][0];
     assert_eq!(thought["text"], "hidden chain");
     assert_eq!(thought["thought"], true);
     assert_eq!(thought["thoughtSignature"], "tsig==");
-    assert_eq!(contents[1]["parts"][0]["text"], "visible");
+    assert_eq!(contents[2]["parts"][0]["text"], "visible");
+}
+
+// Claude Code sends its environment block — the available-skills listing
+// among it — as a `system` message after the first user turn, and a
+// `<total_tokens>` reminder after every tool result. Gemini must see both, in
+// place, as user text; dropping them is how a model ends up guessing skill
+// names it was never shown.
+#[test]
+fn gemini_folds_mid_history_system_text_into_the_neighbouring_user_turn() {
+    let mut req = base_request();
+    req.messages = vec![
+        CanonicalMessage {
+            role: Role::User,
+            content: vec![CanonicalContent::Text("use the hello skill".to_owned())],
+        },
+        CanonicalMessage {
+            role: Role::System,
+            content: vec![CanonicalContent::Text(
+                "# Environment\nThe following skills are available: hello".to_owned(),
+            )],
+        },
+        CanonicalMessage {
+            role: Role::Assistant,
+            content: vec![tool_use(None)],
+        },
+        tool_result_message(false, None, &["Launching skill: hello"]),
+        CanonicalMessage {
+            role: Role::System,
+            content: vec![CanonicalContent::Text(
+                "<total_tokens>9</total_tokens>".to_owned(),
+            )],
+        },
+    ];
+    let body = gemini::build_request_body(&req, None);
+    let contents = body["contents"].as_array().expect("contents array");
+    assert_eq!(contents.len(), 3, "user+system, model, tool-result+system");
+    assert_eq!(contents[0]["role"], "user");
+    assert_eq!(contents[0]["parts"][0]["text"], "use the hello skill");
+    assert!(
+        contents[0]["parts"][1]["text"]
+            .as_str()
+            .is_some_and(|t| t.contains("skills are available")),
+        "the environment block rides in the first user turn"
+    );
+    assert_eq!(contents[1]["role"], "model");
+    assert_eq!(contents[2]["role"], "user");
+    assert!(contents[2]["parts"][0]["functionResponse"].is_object());
+    assert_eq!(
+        contents[2]["parts"][1]["text"],
+        "<total_tokens>9</total_tokens>"
+    );
 }
 
 #[test]

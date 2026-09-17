@@ -119,13 +119,26 @@ fn tool_config(choice: &CanonicalToolChoice) -> GeminiToolConfig {
     }
 }
 
+// Why: Gemini has no system role inside `contents`, and a mid-history system
+// message is harness context the model must see — Claude Code sends its
+// environment block and the available-skills listing that way. It travels as
+// user text, folded into the neighbouring user turn so the history keeps
+// alternating; model turns are left as sent so thought replay keeps its shape.
 fn contents(request: &CanonicalRequest) -> Vec<GeminiContent> {
     let call_names = tool_call_names(request);
-    request
-        .messages
-        .iter()
-        .filter_map(|msg| message_to_content(msg, &call_names))
-        .collect()
+    let mut contents: Vec<GeminiContent> = Vec::new();
+    for msg in &request.messages {
+        let Some(content) = message_to_content(msg, &call_names) else {
+            continue;
+        };
+        match contents.last_mut() {
+            Some(last) if last.role == "user" && content.role == "user" => {
+                last.parts.extend(content.parts);
+            },
+            _ => contents.push(content),
+        }
+    }
+    contents
 }
 
 // Why: Gemini requires `functionResponse.name` to be the declared function
@@ -147,9 +160,8 @@ fn message_to_content(
     call_names: &HashMap<&str, &str>,
 ) -> Option<GeminiContent> {
     let role = match msg.role {
-        Role::System => return None,
         Role::Assistant => "model",
-        Role::User | Role::Tool => "user",
+        Role::User | Role::Tool | Role::System => "user",
     };
     let parts: Vec<GeminiPart> = msg
         .content

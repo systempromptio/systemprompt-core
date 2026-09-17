@@ -32,7 +32,7 @@ use crate::schema::SchemaSanitizer;
 use crate::services::WireProtocol;
 use crate::services::ai::ModelLimits;
 use crate::wire::canonical::{
-    CanonicalRequest, CanonicalTool, CanonicalToolChoice, ResponseFormat, Role, SearchConfig,
+    CanonicalRequest, CanonicalTool, CanonicalToolChoice, ResponseFormat, SearchConfig,
 };
 
 #[must_use]
@@ -42,10 +42,12 @@ pub fn build_request_body(
     limits: Option<ModelLimits>,
     // JSON: Anthropic Messages API request body; upstream JSON is the contract.
 ) -> Value {
+    // Why: a mid-history system message is harness context (Claude Code's
+    // environment block and available-skills listing); the block mapper
+    // renders it as a user turn, which the Messages API accepts consecutively.
     let messages: Vec<Value> = request
         .messages
         .iter()
-        .filter(|m| !matches!(m.role, Role::System))
         .filter_map(|m| canonical_message_to_anthropic(m, BlockAudience::Upstream))
         .collect();
 
