@@ -89,7 +89,7 @@ async fn read_artifact_without_payload_key_is_internal_error() {
 
 #[tokio::test]
 async fn read_artifact_renders_stored_payload_with_ui_meta() {
-    let Some((_db, repo)) = repo_or_skip().await else {
+    let Some((db, repo)) = repo_or_skip().await else {
         return;
     };
     let id = fresh_id();

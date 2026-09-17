@@ -77,7 +77,6 @@ pub(crate) fn local_profile() -> Profile {
         governance: None,
         evaluation: Default::default(),
         services: ServicesProfileConfig::default(),
-        evaluation: Default::default(),
         system_admin: SystemAdminConfig {
             username: "admin".to_owned(),
             email: None,

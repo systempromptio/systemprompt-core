@@ -213,7 +213,9 @@ mod anthropic_events_from_sse {
         }))
         .expect("event");
         match ev {
-            CanonicalEvent::MessageStop { id, stop_reason, .. } => {
+            CanonicalEvent::MessageStop {
+                id, stop_reason, ..
+            } => {
                 assert_eq!(id, "msg_1");
                 assert_eq!(stop_reason, Some(CanonicalStopReason::ToolUse));
             },
@@ -308,7 +310,11 @@ mod anthropic_events_from_sse {
         let ev = event(json!({"type": "message_stop"})).expect("event");
         assert!(matches!(
             ev,
-            CanonicalEvent::MessageStop { id, stop_reason: None } if id == "msg_1"
+            CanonicalEvent::MessageStop {
+                id,
+                stop_reason: None,
+                raw_finish_reason: None
+            } if id == "msg_1"
         ));
     }
 
@@ -719,11 +725,14 @@ mod openai_chat_streaming {
                    data: [DONE]\n\n"
             .to_owned();
         let events = run(sse).await;
-        assert!(events.iter().any(
-            |e| matches!(e, CanonicalEvent::MessageStop { stop_reason, raw_finish_reason, .. }
+        assert!(
+            events.iter().any(
+                |e| matches!(e, CanonicalEvent::MessageStop { stop_reason, raw_finish_reason, .. }
                     if *stop_reason == Some(CanonicalStopReason::Refusal)
                         && raw_finish_reason.as_deref() == Some("content_filter"))
-        ), "got {events:?}");
+            ),
+            "got {events:?}"
+        );
     }
 
     #[tokio::test]
@@ -1180,10 +1189,13 @@ mod gemini_streaming {
                    data: {\"candidates\":[{\"finishReason\":\"UNEXPECTED_TOOL_CALL\"}]}\n\n"
             .to_owned();
         let events = run(sse).await;
-        assert!(events.iter().any(|e| matches!(
-            e,
-            CanonicalEvent::Error(m) if m == "upstream finished with UNEXPECTED_TOOL_CALL"
-        )), "got {events:?}");
+        assert!(
+            events.iter().any(|e| matches!(
+                e,
+                CanonicalEvent::Error(m) if m == "upstream finished with UNEXPECTED_TOOL_CALL"
+            )),
+            "got {events:?}"
+        );
     }
 
     // The empty STOP Gemini 3.5 sends for a turn it chose not to answer stays
@@ -1223,11 +1235,14 @@ mod gemini_streaming {
             .to_owned();
         let events = run(body).await;
         assert_eq!(events.len(), 1, "got {events:?}");
-        assert!(matches!(
-            &events[0],
-            CanonicalEvent::Error(m)
-                if m == "upstream 400 INVALID_ARGUMENT: Invalid value at 'contents[1].parts[0].thought_signature'"
-        ), "got {events:?}");
+        assert!(
+            matches!(
+                &events[0],
+                CanonicalEvent::Error(m)
+                    if m == "upstream 400 INVALID_ARGUMENT: Invalid value at 'contents[1].parts[0].thought_signature'"
+            ),
+            "got {events:?}"
+        );
     }
 
     #[tokio::test]
@@ -1239,11 +1254,7 @@ mod gemini_streaming {
             events.last(),
             Some(CanonicalEvent::MessageStop { .. })
         ));
-        assert!(
-            !events
-                .iter()
-                .any(|e| matches!(e, CanonicalEvent::Error(_)))
-        );
+        assert!(!events.iter().any(|e| matches!(e, CanonicalEvent::Error(_))));
     }
 }
 
