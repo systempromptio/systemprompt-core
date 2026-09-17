@@ -6,7 +6,7 @@ use systemprompt_models::wire::anthropic;
 use systemprompt_models::wire::anthropic::AnthropicStreamState;
 use systemprompt_models::wire::canonical::{
     CanonicalContent, CanonicalEvent, CanonicalMessage, CanonicalToolChoice, ContentBlockKind,
-    ImageSource, ResponseFormat, Role, SearchConfig,
+    ImageSource, ResponseFormat, Role, SearchConfig, ThinkingConfig,
 };
 
 use super::{base_request, image_url, plain_tool, tool_use, tool_with_unsupported_keywords};
@@ -766,4 +766,27 @@ fn anthropic_stream_tool_use_does_not_leak_into_a_later_message() {
         Some(Some(CanonicalStopReason::EndTurn)),
         "a text-only turn must not be reported as tool use"
     );
+}
+
+// The Messages API rejects `enabled` without `budget_tokens`; thinking with
+// the budget left to the model is `adaptive`, which is what Claude Code asked
+// for in the first place.
+#[test]
+fn anthropic_renders_thinking_without_a_budget_as_adaptive() {
+    let mut req = base_request();
+    req.thinking = Some(ThinkingConfig {
+        enabled: true,
+        budget_tokens: None,
+    });
+    let body = anthropic::build_request_body(&req, "claude-x", None);
+    assert_eq!(body["thinking"]["type"], "adaptive");
+    assert!(body["thinking"].get("budget_tokens").is_none());
+
+    req.thinking = Some(ThinkingConfig {
+        enabled: true,
+        budget_tokens: Some(2048),
+    });
+    let body = anthropic::build_request_body(&req, "claude-x", None);
+    assert_eq!(body["thinking"]["type"], "enabled");
+    assert_eq!(body["thinking"]["budget_tokens"], 2048);
 }

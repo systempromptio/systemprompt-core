@@ -915,3 +915,86 @@ fn gemini_model_without_thinking_budget_emits_no_thinking_config() {
         "no catalog thinking budget means the caller's number is forwarded as-is"
     );
 }
+
+// Claude Code delivers a skill as a `tool_result` ("Launching skill: …")
+// followed by a text block holding the skill body. Gemini 3.5 answers a turn
+// whose text stands beside the function responses with an empty STOP, and
+// follows the skill once the body is inside the function result.
+#[test]
+fn gemini_folds_text_beside_function_responses_into_the_results_in_order() {
+    let mut req = base_request();
+    req.messages = vec![
+        CanonicalMessage {
+            role: Role::Assistant,
+            content: vec![tool_use(None)],
+        },
+        CanonicalMessage {
+            role: Role::User,
+            content: vec![
+                CanonicalContent::ToolResult {
+                    tool_use_id: "call_1".to_owned(),
+                    content: vec![CanonicalContent::Text("Launching skill: hello".to_owned())],
+                    is_error: false,
+                    structured_content: None,
+                    meta: None,
+                },
+                CanonicalContent::Text("# Hello\nSay hello.".to_owned()),
+            ],
+        },
+        CanonicalMessage {
+            role: Role::System,
+            content: vec![CanonicalContent::Text(
+                "<total_tokens>9</total_tokens>".to_owned(),
+            )],
+        },
+    ];
+    let body = gemini::build_request_body(&req, None);
+    let parts = body["contents"][1]["parts"].as_array().expect("parts");
+    assert_eq!(
+        parts.len(),
+        1,
+        "no text part survives beside the function response"
+    );
+    assert_eq!(
+        parts[0]["functionResponse"]["response"]["result"],
+        "Launching skill: hello\n\n# Hello\nSay hello.\n\n<total_tokens>9</total_tokens>"
+    );
+}
+
+#[test]
+fn gemini_folds_surplus_text_onto_the_last_function_response() {
+    let mut req = base_request();
+    req.messages = vec![CanonicalMessage {
+        role: Role::User,
+        content: vec![
+            CanonicalContent::ToolResult {
+                tool_use_id: "call_a".to_owned(),
+                content: vec![CanonicalContent::Text("a".to_owned())],
+                is_error: false,
+                structured_content: Some(serde_json::json!({"ok": true})),
+                meta: None,
+            },
+            CanonicalContent::ToolResult {
+                tool_use_id: "call_b".to_owned(),
+                content: vec![CanonicalContent::Text("b".to_owned())],
+                is_error: false,
+                structured_content: None,
+                meta: None,
+            },
+            CanonicalContent::Text("body a".to_owned()),
+            CanonicalContent::Text("body b".to_owned()),
+            CanonicalContent::Text("trailing".to_owned()),
+        ],
+    }];
+    let body = gemini::build_request_body(&req, None);
+    let parts = body["contents"][0]["parts"].as_array().expect("parts");
+    assert_eq!(parts.len(), 2);
+    assert_eq!(
+        parts[0]["functionResponse"]["response"]["context"], "body a",
+        "a structured result keeps its shape and gains the text as context"
+    );
+    assert_eq!(
+        parts[1]["functionResponse"]["response"]["result"],
+        "b\n\nbody b\n\ntrailing"
+    );
+}

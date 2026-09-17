@@ -364,6 +364,22 @@ fn parse_thinking_enabled() {
     assert_eq!(t.budget_tokens, Some(1024));
 }
 
+// Claude Code sends `adaptive` on every turn: thinking on, budget left to the
+// model. Reading it as off switched thinking off for every non-Anthropic
+// upstream.
+#[test]
+fn parse_thinking_adaptive_is_enabled_without_a_budget() {
+    let body = br#"{
+        "model":"m","max_tokens":1,
+        "thinking":{"type":"adaptive","display":"omitted"},
+        "messages":[{"role":"user","content":"x"}]
+    }"#;
+    let req = parse_ok(body);
+    let t = req.thinking.expect("thinking present");
+    assert!(t.enabled);
+    assert_eq!(t.budget_tokens, None);
+}
+
 #[test]
 fn parse_metadata_is_preserved() {
     let body = br#"{

@@ -138,7 +138,70 @@ fn contents(request: &CanonicalRequest) -> Vec<GeminiContent> {
             _ => contents.push(content),
         }
     }
+    for content in &mut contents {
+        if content.role == "user" {
+            fold_text_into_function_responses(&mut content.parts);
+        }
+    }
     contents
+}
+
+// Why: a user turn that answers function calls may also carry text — Claude
+// Code delivers a skill as a `tool_result` saying "Launching skill" followed
+// by a text block holding the skill body. Gemini 3.5 answers such a turn with
+// an empty STOP every time the text stands beside the function responses,
+// and follows it once the text is inside the function result, so the texts
+// join the responses in order; any surplus lands on the last one.
+fn fold_text_into_function_responses(parts: &mut Vec<GeminiPart>) {
+    let has_response = parts
+        .iter()
+        .any(|part| matches!(part, GeminiPart::FunctionResponse { .. }));
+    if !has_response {
+        return;
+    }
+    let mut texts: Vec<String> = Vec::new();
+    let mut kept: Vec<GeminiPart> = Vec::with_capacity(parts.len());
+    for part in parts.drain(..) {
+        match part {
+            GeminiPart::Text {
+                text,
+                thought: None | Some(false),
+                ..
+            } => texts.push(text),
+            other => kept.push(other),
+        }
+    }
+    let mut responses: Vec<&mut GeminiFunctionResponse> = kept
+        .iter_mut()
+        .filter_map(|part| match part {
+            GeminiPart::FunctionResponse { function_response } => Some(function_response),
+            _ => None,
+        })
+        .collect();
+    let last = responses.len() - 1;
+    for (i, text) in texts.into_iter().enumerate() {
+        append_context(responses[i.min(last)], &text);
+    }
+    *parts = kept;
+}
+
+fn append_context(response: &mut GeminiFunctionResponse, text: &str) {
+    if let Some(Value::String(result)) = response.response.get_mut("result") {
+        result.push_str("\n\n");
+        result.push_str(text);
+        return;
+    }
+    if let Some(map) = response.response.as_object_mut() {
+        match map.get_mut("context") {
+            Some(Value::String(existing)) => {
+                existing.push_str("\n\n");
+                existing.push_str(text);
+            },
+            _ => {
+                map.insert("context".to_owned(), Value::String(text.to_owned()));
+            },
+        }
+    }
 }
 
 // Why: Gemini requires `functionResponse.name` to be the declared function

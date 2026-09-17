@@ -137,10 +137,17 @@ fn insert_thinking(
     if !thinking.enabled {
         return;
     }
+    // Why: `enabled` requires a budget on the Messages API; thinking with no
+    // budget is `adaptive`, the model choosing how much to think.
     let mut t = Map::new();
-    t.insert("type".into(), Value::String("enabled".into()));
-    if let Some(b) = thinking.budget_tokens {
-        t.insert("budget_tokens".into(), Value::from(b));
+    match thinking.budget_tokens {
+        Some(b) => {
+            t.insert("type".into(), Value::String("enabled".into()));
+            t.insert("budget_tokens".into(), Value::from(b));
+        },
+        None => {
+            t.insert("type".into(), Value::String("adaptive".into()));
+        },
     }
     obj.insert("thinking".into(), Value::Object(t));
 }
