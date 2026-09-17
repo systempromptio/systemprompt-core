@@ -43,12 +43,14 @@ fn hook_string_response_becomes_one_text_block() {
 
 #[test]
 fn hook_mcp_shaped_response_is_parsed_as_the_wire_result() {
-    let value = json!({
+    let mut value = json!({
         "content": [{"type": "text", "text": "ok"}],
         "structuredContent": {"rows": 2},
         "isError": false,
-        "_meta": {EXECUTION_META_KEY: {"mcp_execution_id": "exec-9", "artifact_id": "art-9"}}
+        "_meta": {}
     });
+    value["_meta"][EXECUTION_META_KEY] =
+        json!({"mcp_execution_id": "exec-9", "artifact_id": "art-9"});
     let result = from_hook_response(&value);
     assert_eq!(result.structured_content, Some(json!({"rows": 2})));
     let meta = result.meta.expect("meta kept");
@@ -102,12 +104,12 @@ fn ingest_request_carries_a_ui_resource_result() {
             meta: None,
         },
     )]);
-    result.meta = Some(MetaObject(
-        json!({EXECUTION_META_KEY: {"artifact_id": "art-1"}})
-            .as_object()
-            .cloned()
-            .unwrap(),
-    ));
+    let mut meta = serde_json::Map::new();
+    meta.insert(
+        EXECUTION_META_KEY.to_owned(),
+        json!({"artifact_id": "art-1"}),
+    );
+    result.meta = Some(MetaObject(meta));
     let request = request(result);
     assert_eq!(request.source, ExecutionSource::HookClaudeCode);
     assert!(request.result.meta.is_some());

@@ -19,6 +19,8 @@ mod apps_wire_shape;
 #[cfg(test)]
 mod artifact_ingest_classify;
 #[cfg(test)]
+mod artifact_ingest_db;
+#[cfg(test)]
 mod capabilities;
 #[cfg(test)]
 mod capabilities_extended;
