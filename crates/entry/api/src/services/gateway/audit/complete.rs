@@ -54,7 +54,7 @@ impl GatewayAudit {
             latency: latency_ms,
             upstream_latency: upstream_latency_ms,
             finish_reason: response.raw_finish_reason.clone(),
-            payload: slice_payload(response_body),
+            payload: slice_payload(response_body, self.payload_cap_bytes()),
             assistant: super::super::parse::extract_assistant_text(response)
                 .map(|text| truncate_for_tool_input(&text)),
             tools: tool_calls
@@ -76,7 +76,7 @@ impl GatewayAudit {
         tracing::info!(
             ai_request_id = %self.ctx.ai_request_id,
             user_id = %self.ctx.user_id,
-            provider = %self.ctx.provider,
+            provider = %self.served_provider(),
             model = %effective_model,
             wire_protocol = self.ctx.origin.wire.as_str(),
             client_kind = self.ctx.origin.client.as_str(),
@@ -98,22 +98,37 @@ impl GatewayAudit {
     }
 
     pub fn pin_pricing(&self, pricing: systemprompt_models::services::ModelPricing) -> Result<()> {
-        self.pricing_snapshot
-            .set(pricing)
-            .map_err(|_rejected_pricing| anyhow::anyhow!("Gateway pricing already pinned"))
+        let mut slot = self
+            .pricing_snapshot
+            .lock()
+            .map_err(|_poisoned| anyhow::anyhow!("Gateway pricing snapshot poisoned"))?;
+        anyhow::ensure!(slot.is_none(), "Gateway pricing already pinned");
+        *slot = Some(pricing);
+        Ok(())
+    }
+
+    // Why: a failover serves the request from a different provider, whose
+    // catalog rate is the one the row must be costed at; the pin taken for the
+    // primary is replaced rather than guarded so the served provider always
+    // wins.
+    pub fn reprice(&self, pricing: systemprompt_models::services::ModelPricing) {
+        match self.pricing_snapshot.lock() {
+            Ok(mut slot) => *slot = Some(pricing),
+            Err(e) => tracing::warn!(error = %e, "pricing snapshot mutex poisoned"),
+        }
     }
 
     fn completion_pricing(
         &self,
         effective_model: &str,
     ) -> Result<systemprompt_models::services::ModelPricing> {
-        if let Some(pricing) = self.pricing_snapshot.get() {
-            return Ok(*pricing);
+        if let Some(pricing) = self.pricing_snapshot.lock().ok().and_then(|slot| *slot) {
+            return Ok(pricing);
         }
         let services = systemprompt_loader::ServicesBootstrap::get()?;
         let candidates = [effective_model, self.ctx.model.as_str()];
         Ok(pricing::resolve(
-            &self.ctx.provider,
+            &self.served_provider(),
             &candidates,
             services.gateway_config(),
             &services.providers,

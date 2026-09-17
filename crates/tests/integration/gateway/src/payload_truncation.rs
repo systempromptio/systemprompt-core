@@ -10,7 +10,7 @@ fn slice_payload_at_cap_preserves_parsed_json() {
     let pad_len = PAYLOAD_CAP - 32;
     let body = format!(r#"{{"k":"{}"}}"#, "a".repeat(pad_len));
     assert!(body.len() <= PAYLOAD_CAP);
-    let capture = slice_payload(&Bytes::from(body.clone()));
+    let capture = slice_payload(&Bytes::from(body.clone()), PAYLOAD_CAP);
     let (json, excerpt, truncated, bytes) = (
         capture.json,
         capture.excerpt,
@@ -29,7 +29,7 @@ fn slice_payload_at_cap_preserves_parsed_json() {
 #[test]
 fn slice_payload_one_over_cap_truncates_and_records_size() {
     let body = vec![b'x'; PAYLOAD_CAP + 1];
-    let capture = slice_payload(&Bytes::from(body.clone()));
+    let capture = slice_payload(&Bytes::from(body.clone()), PAYLOAD_CAP);
     let (json, excerpt, truncated, bytes) = (
         capture.json,
         capture.excerpt,
@@ -53,7 +53,7 @@ fn slice_payload_one_over_cap_truncates_and_records_size() {
 #[test]
 fn slice_payload_invalid_json_within_cap_records_excerpt_not_silent_drop() {
     let body = Bytes::from_static(b"definitely not json {[");
-    let capture = slice_payload(&body);
+    let capture = slice_payload(&body, PAYLOAD_CAP);
     let (json, excerpt, truncated, bytes) = (
         capture.json,
         capture.excerpt,
@@ -70,7 +70,7 @@ fn slice_payload_invalid_json_within_cap_records_excerpt_not_silent_drop() {
 #[test]
 fn slice_payload_oversized_invalid_json_keeps_head_and_tail() {
     let body = vec![b'q'; PAYLOAD_CAP * 2];
-    let capture = slice_payload(&Bytes::from(body.clone()));
+    let capture = slice_payload(&Bytes::from(body.clone()), PAYLOAD_CAP);
     let (json, excerpt, truncated, bytes) = (
         capture.json,
         capture.excerpt,

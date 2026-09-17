@@ -6,6 +6,7 @@
 
 // JSON: protocol boundary — Anthropic Messages wire format is dynamic JSON.
 use serde_json::{Map, Value};
+use systemprompt_models::wire::anthropic;
 
 use crate::services::gateway::protocol::canonical::{
     CanonicalTool, CanonicalToolChoice, ThinkingConfig,
@@ -29,6 +30,9 @@ pub(super) fn parse_tool(value: &Value) -> CanonicalTool {
             .get("input_schema")
             .cloned()
             .unwrap_or(Value::Object(Map::new())),
+        cache_control: value
+            .get("cache_control")
+            .and_then(anthropic::cache_control_from_anthropic),
     }
 }
 

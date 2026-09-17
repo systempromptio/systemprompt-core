@@ -3,8 +3,9 @@
 use serde_json::{Value, json};
 use systemprompt_models::services::ai::ModelLimits;
 use systemprompt_models::wire::canonical::{
-    CanonicalContent, CanonicalEvent, CanonicalMessage, CanonicalStopReason, CanonicalToolChoice,
-    ContentBlockKind, ResponseFormat, Role, SearchConfig, ThinkingConfig,
+    CacheControl, CanonicalContent, CanonicalEvent, CanonicalMessage, CanonicalStopReason,
+    CanonicalToolChoice, ContentBlockKind, ResponseFormat, Role, SearchConfig, SystemBlock,
+    ThinkingConfig,
 };
 use systemprompt_models::wire::gemini;
 
@@ -48,7 +49,7 @@ fn gemini_clamps_max_output_tokens_down_to_model_cap() {
 #[test]
 fn gemini_request_emits_system_instruction() {
     let mut req = base_request();
-    req.system = Some("be terse".to_owned());
+    req.system = vec![SystemBlock::text("be terse".to_owned())];
     let body = gemini::build_request_body(&req, None);
     assert_eq!(body["systemInstruction"]["parts"][0]["text"], "be terse");
 }
@@ -318,6 +319,7 @@ fn second_tool_use(signature: Option<&str>) -> CanonicalContent {
         name: "lookup".to_owned(),
         input: json!({"q": "tokio"}),
         signature: signature.map(str::to_owned),
+        cache_control: None,
     }
 }
 
@@ -569,11 +571,12 @@ fn tool_result_message(
             tool_use_id: "call_1".to_owned(),
             content: texts
                 .iter()
-                .map(|t| CanonicalContent::Text((*t).to_owned()))
+                .map(|t| CanonicalContent::text((*t).to_owned()))
                 .collect(),
             is_error,
             structured_content: structured,
             meta: None,
+            cache_control: None,
         }],
     }
 }
@@ -617,7 +620,7 @@ fn gemini_carries_system_messages_as_user_text_and_replays_thinking_as_thought_p
     req.messages = vec![
         CanonicalMessage {
             role: Role::System,
-            content: vec![CanonicalContent::Text("sys".to_owned())],
+            content: vec![CanonicalContent::text("sys".to_owned())],
         },
         CanonicalMessage {
             role: Role::Assistant,
@@ -630,7 +633,7 @@ fn gemini_carries_system_messages_as_user_text_and_replays_thinking_as_thought_p
         },
         CanonicalMessage {
             role: Role::Assistant,
-            content: vec![CanonicalContent::Text("visible".to_owned())],
+            content: vec![CanonicalContent::text("visible".to_owned())],
         },
     ];
     let body = gemini::build_request_body(&req, None);
@@ -656,11 +659,11 @@ fn gemini_folds_mid_history_system_text_into_the_neighbouring_user_turn() {
     req.messages = vec![
         CanonicalMessage {
             role: Role::User,
-            content: vec![CanonicalContent::Text("use the hello skill".to_owned())],
+            content: vec![CanonicalContent::text("use the hello skill".to_owned())],
         },
         CanonicalMessage {
             role: Role::System,
-            content: vec![CanonicalContent::Text(
+            content: vec![CanonicalContent::text(
                 "# Environment\nThe following skills are available: hello".to_owned(),
             )],
         },
@@ -671,7 +674,7 @@ fn gemini_folds_mid_history_system_text_into_the_neighbouring_user_turn() {
         tool_result_message(false, None, &["Launching skill: hello"]),
         CanonicalMessage {
             role: Role::System,
-            content: vec![CanonicalContent::Text(
+            content: vec![CanonicalContent::text(
                 "<total_tokens>9</total_tokens>".to_owned(),
             )],
         },
@@ -747,7 +750,7 @@ fn gemini_parse_maps_thought_parts_to_thinking_with_signature() {
     }
     assert!(matches!(
         response.content.get(1),
-        Some(CanonicalContent::Text(t)) if t == "the answer"
+        Some(CanonicalContent::Text { text: t, .. }) if t == "the answer"
     ));
 }
 
@@ -1064,17 +1067,18 @@ fn gemini_folds_text_beside_function_responses_into_the_results_in_order() {
             content: vec![
                 CanonicalContent::ToolResult {
                     tool_use_id: "call_1".to_owned(),
-                    content: vec![CanonicalContent::Text("Launching skill: hello".to_owned())],
+                    content: vec![CanonicalContent::text("Launching skill: hello".to_owned())],
                     is_error: false,
                     structured_content: None,
                     meta: None,
+                    cache_control: None,
                 },
-                CanonicalContent::Text("# Hello\nSay hello.".to_owned()),
+                CanonicalContent::text("# Hello\nSay hello.".to_owned()),
             ],
         },
         CanonicalMessage {
             role: Role::System,
-            content: vec![CanonicalContent::Text(
+            content: vec![CanonicalContent::text(
                 "<total_tokens>9</total_tokens>".to_owned(),
             )],
         },
@@ -1100,21 +1104,23 @@ fn gemini_folds_surplus_text_onto_the_last_function_response() {
         content: vec![
             CanonicalContent::ToolResult {
                 tool_use_id: "call_a".to_owned(),
-                content: vec![CanonicalContent::Text("a".to_owned())],
+                content: vec![CanonicalContent::text("a".to_owned())],
                 is_error: false,
                 structured_content: Some(serde_json::json!({"ok": true})),
                 meta: None,
+                cache_control: None,
             },
             CanonicalContent::ToolResult {
                 tool_use_id: "call_b".to_owned(),
-                content: vec![CanonicalContent::Text("b".to_owned())],
+                content: vec![CanonicalContent::text("b".to_owned())],
                 is_error: false,
                 structured_content: None,
                 meta: None,
+                cache_control: None,
             },
-            CanonicalContent::Text("body a".to_owned()),
-            CanonicalContent::Text("body b".to_owned()),
-            CanonicalContent::Text("trailing".to_owned()),
+            CanonicalContent::text("body a".to_owned()),
+            CanonicalContent::text("body b".to_owned()),
+            CanonicalContent::text("trailing".to_owned()),
         ],
     }];
     let body = gemini::build_request_body(&req, None);
@@ -1127,5 +1133,24 @@ fn gemini_folds_surplus_text_onto_the_last_function_response() {
     assert_eq!(
         parts[1]["functionResponse"]["response"]["result"],
         "b\n\nbody b\n\ntrailing"
+    );
+}
+
+#[test]
+fn cache_control_is_ignored_off_the_anthropic_wire() {
+    let mut req = base_request();
+    req.system = vec![SystemBlock {
+        text: "be terse".to_owned(),
+        cache_control: Some(CacheControl::EPHEMERAL),
+    }];
+    req.messages[0].content = vec![CanonicalContent::Text {
+        text: "hi".to_owned(),
+        cache_control: Some(CacheControl::EPHEMERAL),
+    }];
+    let body = gemini::build_request_body(&req, None);
+    assert_eq!(body["systemInstruction"]["parts"][0]["text"], "be terse");
+    assert!(
+        !body.to_string().contains("cache_control"),
+        "a wire without prompt caching must not leak the Anthropic breakpoint: {body}"
     );
 }

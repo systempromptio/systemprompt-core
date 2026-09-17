@@ -202,7 +202,7 @@ async fn accounting_failure_recovers_durably_before_and_after_provider_completio
         };
         let response = CanonicalResponse {
             model: "claude-test".to_owned(),
-            content: vec![CanonicalContent::Text("native fixture response".to_owned())],
+            content: vec![CanonicalContent::text("native fixture response".to_owned())],
             usage,
             ..Default::default()
         };

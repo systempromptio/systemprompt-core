@@ -366,7 +366,7 @@ mod anthropic_parse_response {
         assert_eq!(resp.usage.total_tokens, 7);
         assert!(matches!(
             resp.content.first(),
-            Some(CanonicalContent::Text(t)) if t == "hi there"
+            Some(CanonicalContent::Text { text: t, .. }) if t == "hi there"
         ));
         assert_eq!(resp.raw_finish_reason.as_deref(), Some("end_turn"));
     }
@@ -461,11 +461,13 @@ mod anthropic_parse_response {
         )
         .expect("fixture parses");
         match resp.content.first() {
-            Some(CanonicalContent::Image(
-                systemprompt_models::wire::canonical::ImageSource::Base64 {
-                    media_type, data, ..
-                },
-            )) => {
+            Some(CanonicalContent::Image {
+                source:
+                    systemprompt_models::wire::canonical::ImageSource::Base64 {
+                        media_type, data, ..
+                    },
+                ..
+            }) => {
                 assert_eq!(media_type, "image/png");
                 assert_eq!(data, "QQ==");
             },

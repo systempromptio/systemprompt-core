@@ -113,7 +113,7 @@ fn system_messages_are_hoisted_and_joined() {
     ];
     let req = CanonicalBuild::new(BridgeProvider::Anthropic, &messages, "claude-3-opus", 256)
         .into_request();
-    assert_eq!(req.system.as_deref(), Some("be brief\nbe kind"));
+    assert_eq!(req.system_text().as_deref(), Some("be brief\nbe kind"));
     assert_eq!(req.messages.len(), 1);
 }
 
@@ -132,10 +132,13 @@ fn image_parts_become_base64_canonical_content() {
     )
     .into_request();
     let content = &req.messages[0].content;
-    assert!(matches!(content[0], CanonicalContent::Text(_)));
+    assert!(matches!(content[0], CanonicalContent::Text { .. }));
     assert!(matches!(
         content[1],
-        CanonicalContent::Image(ImageSource::Base64 { .. })
+        CanonicalContent::Image {
+            source: ImageSource::Base64 { .. },
+            ..
+        }
     ));
 }
 
@@ -143,7 +146,7 @@ fn response_with(usage: CanonicalUsage) -> CanonicalResponse {
     CanonicalResponse {
         id: "r".to_owned(),
         model: "m".to_owned(),
-        content: vec![CanonicalContent::Text("answer".to_owned())],
+        content: vec![CanonicalContent::text("answer".to_owned())],
         stop_reason: None,
         usage,
         grounding: None,
@@ -276,14 +279,15 @@ fn text_content_concatenates_only_text_parts() {
         id: "r".to_owned(),
         model: "m".to_owned(),
         content: vec![
-            CanonicalContent::Text("hello ".to_owned()),
+            CanonicalContent::text("hello ".to_owned()),
             CanonicalContent::ToolUse {
                 id: "t1".to_owned(),
                 name: "search".to_owned(),
                 input: json!({}),
                 signature: None,
+                cache_control: None,
             },
-            CanonicalContent::Text("world".to_owned()),
+            CanonicalContent::text("world".to_owned()),
         ],
         stop_reason: None,
         usage: CanonicalUsage::default(),
@@ -301,12 +305,13 @@ fn tool_calls_extracts_tool_use_parts() {
         id: "r".to_owned(),
         model: "m".to_owned(),
         content: vec![
-            CanonicalContent::Text("ignored".to_owned()),
+            CanonicalContent::text("ignored".to_owned()),
             CanonicalContent::ToolUse {
                 id: "call-1".to_owned(),
                 name: "lookup".to_owned(),
                 input: json!({"q": "x"}),
                 signature: None,
+                cache_control: None,
             },
         ],
         stop_reason: None,

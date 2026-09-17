@@ -57,7 +57,7 @@ fn text_block_accumulates_deltas() {
     assert_eq!(response.content.len(), 1);
     assert!(matches!(
         &response.content[0],
-        CanonicalContent::Text(t) if t == "Hello, world"
+        CanonicalContent::Text { text: t, .. } if t == "Hello, world"
     ));
 }
 
@@ -191,8 +191,8 @@ fn block_start_at_sparse_index_pads_with_empty_text_blocks() {
 
     let response = snapshot(&state);
     assert_eq!(response.content.len(), 3);
-    assert!(matches!(&response.content[0], CanonicalContent::Text(t) if t.is_empty()));
-    assert!(matches!(&response.content[2], CanonicalContent::Text(t) if t == "third"));
+    assert!(matches!(&response.content[0], CanonicalContent::Text { text: t, .. } if t.is_empty()));
+    assert!(matches!(&response.content[2], CanonicalContent::Text { text: t, .. } if t == "third"));
 }
 
 #[test]
@@ -224,7 +224,7 @@ fn deltas_for_unknown_or_mismatched_blocks_are_ignored() {
 
     let response = snapshot(&state);
     assert_eq!(response.content.len(), 1);
-    assert!(matches!(&response.content[0], CanonicalContent::Text(t) if t.is_empty()));
+    assert!(matches!(&response.content[0], CanonicalContent::Text { text: t, .. } if t.is_empty()));
 }
 
 #[test]

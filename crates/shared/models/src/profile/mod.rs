@@ -37,7 +37,8 @@ pub use database::{DatabaseConfig, PoolConfig};
 pub use error::{ProfileError, ProfileResult};
 pub use evaluation::EvaluationProfile;
 pub use governance::{
-    AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig, UNRESTRICTED_ACKNOWLEDGEMENT,
+    AuditConfig, AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig,
+    UNRESTRICTED_ACKNOWLEDGEMENT,
 };
 pub use info::ProfileInfo;
 pub use oci_reference::{OciReference, OciReferenceError};
@@ -223,6 +224,16 @@ impl Profile {
 
     pub fn to_yaml(&self) -> ProfileResult<String> {
         serde_yaml::to_string(self).map_err(ProfileError::SerializeYaml)
+    }
+
+    /// `governance.audit.payload_cap_bytes`, or its default when the profile
+    /// carries no `governance` block.
+    pub fn payload_cap_bytes(&self) -> usize {
+        self.governance
+            .as_ref()
+            .map_or(AuditConfig::DEFAULT_PAYLOAD_CAP_BYTES, |governance| {
+                governance.audit.payload_cap_bytes
+            })
     }
 
     pub fn profile_style(&self) -> ProfileStyle {

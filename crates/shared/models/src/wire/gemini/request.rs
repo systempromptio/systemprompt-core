@@ -25,8 +25,8 @@ use crate::wire::canonical::{
 pub fn build_request_body(request: &CanonicalRequest, limits: Option<ModelLimits>) -> Value {
     let body = GeminiRequest {
         contents: contents(request),
-        system_instruction: request.system.as_ref().map(|s| GeminiSystemInstruction {
-            parts: vec![plain_text_part(s.clone())],
+        system_instruction: request.system_text().map(|s| GeminiSystemInstruction {
+            parts: vec![plain_text_part(s)],
         }),
         generation_config: Some(generation_config(request, limits)),
         tools: tools(request),
@@ -283,8 +283,8 @@ fn message_to_content(
 
 fn content_to_part(part: &CanonicalContent, call_names: &HashMap<&str, &str>) -> GeminiPart {
     match part {
-        CanonicalContent::Text(t) => plain_text_part(t.clone()),
-        CanonicalContent::Image(src) => image_part(src),
+        CanonicalContent::Text { text, .. } => plain_text_part(text.clone()),
+        CanonicalContent::Image { source, .. } => image_part(source),
         CanonicalContent::ToolUse {
             name,
             input,
@@ -377,7 +377,7 @@ fn tool_result_part(
 fn flatten_text(parts: &[CanonicalContent]) -> String {
     let mut out = String::new();
     for p in parts {
-        if let CanonicalContent::Text(t) = p {
+        if let CanonicalContent::Text { text: t, .. } = p {
             if !out.is_empty() {
                 out.push('\n');
             }

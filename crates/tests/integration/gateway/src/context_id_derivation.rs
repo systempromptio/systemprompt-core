@@ -73,11 +73,11 @@ fn context_id_derivation_ignores_later_messages() {
     };
     b.messages.push(CanonicalMessage {
         role: Role::Assistant,
-        content: vec![CanonicalContent::Text("assistant reply".into())],
+        content: vec![CanonicalContent::text("assistant reply".into())],
     });
     a.messages.push(CanonicalMessage {
         role: Role::Assistant,
-        content: vec![CanonicalContent::Text("different assistant reply".into())],
+        content: vec![CanonicalContent::text("different assistant reply".into())],
     });
 
     let gw_a = a.derived_gateway_conversation_id().unwrap();

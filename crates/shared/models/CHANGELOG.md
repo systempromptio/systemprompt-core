@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.55.0] - 2026-09-17
+
+### Breaking
+
+- **Breaking:** `services::gateway::GatewayRoute` gains `fallback_provider: Option<ProviderId>` and `fallback_upstream_model: Option<String>` (`#[serde(default)]`); struct literals must name them.
+- **Breaking:** `profile::GovernanceConfig` gains `audit: AuditConfig` (`#[serde(default)]`); struct literals must name it.
+
+### Added
+
+- `GatewayRoute::fallback_view` — the route as its fallback provider serves it (provider and upstream model swapped, the primary `pricing:` override dropped). `GatewayConfig::validate` checks the fallback exists, differs from the primary, and satisfies the route's pricing and `requires`: `GatewayProfileError::{RouteFallbackProviderNotInRegistry, RouteFallbackIsPrimary, RouteFallbackModelWithoutProvider}`.
+- `profile::AuditConfig` under `governance.audit`: `payload_cap_bytes` (default `AuditConfig::DEFAULT_PAYLOAD_CAP_BYTES` = 1 MiB) bounds the request/response body stored whole in `ai_request_payloads`; validation rejects a value under `AuditConfig::MIN_PAYLOAD_CAP_BYTES` (64 KiB). `Profile::payload_cap_bytes()` returns the value or the default when the profile carries no `governance` block.
+
 ## [0.54.0] - 2026-09-16
 
 ### Breaking

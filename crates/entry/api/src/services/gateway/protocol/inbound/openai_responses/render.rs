@@ -20,8 +20,8 @@ pub fn render_response_object(response: &CanonicalResponse) -> Value {
 
     for part in &response.content {
         match part {
-            CanonicalContent::Text(t) => {
-                text_parts.push(json!({ "type": "output_text", "text": t, "annotations": [] }));
+            CanonicalContent::Text { text, .. } => {
+                text_parts.push(json!({ "type": "output_text", "text": text, "annotations": [] }));
             },
             CanonicalContent::ToolUse {
                 id, name, input, ..
@@ -47,7 +47,7 @@ pub fn render_response_object(response: &CanonicalResponse) -> Value {
                 text,
                 encrypted_content.as_deref(),
             )),
-            CanonicalContent::Image(_) | CanonicalContent::ToolResult { .. } => {},
+            CanonicalContent::Image { .. } | CanonicalContent::ToolResult { .. } => {},
         }
     }
 

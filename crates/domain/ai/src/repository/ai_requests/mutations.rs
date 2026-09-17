@@ -84,6 +84,22 @@ impl AiRequestRepository {
     }
 
     #[must_use = "this returns a Result that should not be ignored"]
+    pub async fn update_served_provider(
+        &self,
+        id: &AiRequestId,
+        provider: &str,
+    ) -> Result<(), RepositoryError> {
+        sqlx::query!(
+            r#"UPDATE ai_requests SET served_provider = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2"#,
+            provider,
+            id.as_str()
+        )
+        .execute(self.write_pool())
+        .await?;
+        Ok(())
+    }
+
+    #[must_use = "this returns a Result that should not be ignored"]
     pub async fn update_route_match(
         &self,
         id: &AiRequestId,

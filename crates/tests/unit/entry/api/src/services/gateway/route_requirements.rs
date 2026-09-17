@@ -27,6 +27,8 @@ fn route(requires: Option<RouteRequirements>) -> GatewayRoute {
         pricing: None,
         when: None,
         requires,
+        fallback_provider: None,
+        fallback_upstream_model: None,
     }
 }
 

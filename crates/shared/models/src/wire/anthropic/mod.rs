@@ -14,7 +14,9 @@ mod parse;
 mod sse;
 mod strict;
 
-pub use blocks::content_to_anthropic_block;
+pub use blocks::{
+    cache_control_from_anthropic, cache_control_to_anthropic, content_to_anthropic_block,
+};
 pub use headers::{
     ANTHROPIC_VERSION, REDACTED, auth_headers, is_credential_request_header,
     is_forwardable_request_header, is_identity_request_header, recordable_header_value,
@@ -61,8 +63,8 @@ pub fn build_request_body(
         )),
     );
     obj.insert("messages".into(), Value::Array(messages));
-    if let Some(sys) = &request.system {
-        obj.insert("system".into(), Value::String(sys.clone()));
+    if !request.system.is_empty() {
+        obj.insert("system".into(), system_to_anthropic(request));
     }
     insert_sampling_params(&mut obj, request);
     let mut tools: Vec<Value> = request.tools.iter().map(tool_to_anthropic).collect();
@@ -111,6 +113,35 @@ pub fn build_request_body(
         obj.insert("metadata".into(), meta.clone());
     }
     Value::Object(obj)
+}
+
+// Why: a single uncached block is emitted as the plain string the client most
+// likely sent, so a same-wire rebuild stays byte-comparable with the original.
+// JSON: Anthropic Messages API `system` field; upstream JSON is the contract.
+fn system_to_anthropic(request: &CanonicalRequest) -> Value {
+    if let [only] = request.system.as_slice()
+        && only.cache_control.is_none()
+    {
+        return Value::String(only.text.clone());
+    }
+    Value::Array(
+        request
+            .system
+            .iter()
+            .map(|block| {
+                let mut obj = Map::new();
+                obj.insert("type".into(), Value::String("text".into()));
+                obj.insert("text".into(), Value::String(block.text.clone()));
+                if let Some(cache_control) = block.cache_control {
+                    obj.insert(
+                        "cache_control".into(),
+                        cache_control_to_anthropic(cache_control),
+                    );
+                }
+                Value::Object(obj)
+            })
+            .collect(),
+    )
 }
 
 // JSON: Anthropic Messages API request body; upstream JSON is the contract.
@@ -192,6 +223,12 @@ fn tool_to_anthropic(tool: &CanonicalTool) -> Value {
         "input_schema".into(),
         sanitizer.sanitize(tool.input_schema.clone()),
     );
+    if let Some(cache_control) = tool.cache_control {
+        tobj.insert(
+            "cache_control".into(),
+            cache_control_to_anthropic(cache_control),
+        );
+    }
     Value::Object(tobj)
 }
 

@@ -189,7 +189,7 @@ fn collect_message_content(msg: ChatMessage, content: &mut Vec<CanonicalContent>
     if let Some(text) = msg.content
         && !text.is_empty()
     {
-        content.push(CanonicalContent::Text(text));
+        content.push(CanonicalContent::text(text));
     }
     for tc in msg.tool_calls {
         let args = if tc.function.arguments.is_empty() {
@@ -206,6 +206,7 @@ fn collect_message_content(msg: ChatMessage, content: &mut Vec<CanonicalContent>
             name: tc.function.name,
             input,
             signature: None,
+            cache_control: None,
         });
     }
 }

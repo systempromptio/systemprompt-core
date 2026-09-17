@@ -40,18 +40,20 @@ fn extract_from_canonical_returns_usage_and_no_tools_for_empty() {
 fn extract_from_canonical_captures_tool_uses() {
     let mut r = empty_response();
     r.content = vec![
-        CanonicalContent::Text("hi".into()),
+        CanonicalContent::text("hi".into()),
         CanonicalContent::ToolUse {
             id: "tu_1".into(),
             name: "search".into(),
             input: json!({"query": "rust"}),
             signature: None,
+            cache_control: None,
         },
         CanonicalContent::ToolUse {
             id: "tu_2".into(),
             name: "fetch".into(),
             input: json!({"url": "https://x"}),
             signature: None,
+            cache_control: None,
         },
     ];
     let (_, tools) = extract_from_canonical(&r);
@@ -72,14 +74,15 @@ fn extract_assistant_text_returns_none_when_no_text() {
 fn extract_assistant_text_joins_text_parts_with_newline() {
     let mut r = empty_response();
     r.content = vec![
-        CanonicalContent::Text("hello".into()),
+        CanonicalContent::text("hello".into()),
         CanonicalContent::ToolUse {
             id: "x".into(),
             name: "y".into(),
             input: json!({}),
             signature: None,
+            cache_control: None,
         },
-        CanonicalContent::Text("world".into()),
+        CanonicalContent::text("world".into()),
     ];
     assert_eq!(extract_assistant_text(&r).as_deref(), Some("hello\nworld"));
 }
@@ -87,7 +90,7 @@ fn extract_assistant_text_joins_text_parts_with_newline() {
 #[test]
 fn extract_assistant_text_single_text_no_newline() {
     let mut r = empty_response();
-    r.content = vec![CanonicalContent::Text("solo".into())];
+    r.content = vec![CanonicalContent::text("solo".into())];
     assert_eq!(extract_assistant_text(&r).as_deref(), Some("solo"));
 }
 
@@ -106,6 +109,7 @@ fn extract_assistant_text_skips_non_text_variants() {
             name: "n".into(),
             input: json!({}),
             signature: None,
+            cache_control: None,
         },
     ];
     assert!(extract_assistant_text(&r).is_none());

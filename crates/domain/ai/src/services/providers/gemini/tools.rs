@@ -93,6 +93,7 @@ pub(super) async fn generate_with_tool_results(
             name: tc.name.clone(),
             input: tc.arguments.clone(),
             signature: None,
+            cache_control: None,
         })
         .collect();
     if !assistant.is_empty() {
@@ -112,6 +113,7 @@ pub(super) async fn generate_with_tool_results(
             is_error: tr.is_error.unwrap_or(false),
             structured_content: tr.structured_content.clone(),
             meta: tool_result_meta(tr),
+            cache_control: None,
         })
         .collect();
     if !results.is_empty() {
@@ -141,7 +143,7 @@ fn tool_result_content(result: &CallToolResult) -> Vec<CanonicalContent> {
         .content
         .iter()
         .filter_map(|c| match c {
-            ContentBlock::Text(text) => Some(CanonicalContent::Text(text.text.clone())),
+            ContentBlock::Text(text) => Some(CanonicalContent::text(text.text.clone())),
             _ => None,
         })
         .collect()

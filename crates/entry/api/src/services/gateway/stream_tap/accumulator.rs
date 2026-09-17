@@ -109,7 +109,7 @@ fn build_response(state: &TapState) -> CanonicalResponse {
         .blocks
         .iter()
         .map(|b| match b {
-            BlockAccumulator::Text(t) => CanonicalContent::Text(t.clone()),
+            BlockAccumulator::Text(t) => CanonicalContent::text(t.clone()),
             BlockAccumulator::Thinking {
                 id,
                 text,
@@ -132,6 +132,7 @@ fn build_response(state: &TapState) -> CanonicalResponse {
                 input: serde_json::from_str(partial)
                     .unwrap_or(serde_json::Value::Object(serde_json::Map::new())),
                 signature: signature.clone(),
+                cache_control: None,
             },
         })
         .collect();

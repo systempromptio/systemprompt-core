@@ -41,7 +41,7 @@ fn parse_request_minimal_model_only_uses_defaults() {
     let req = a.parse_request(&Bytes::from_static(body)).expect("parse");
     assert_eq!(req.model, "gpt-4o");
     assert_eq!(req.max_tokens, 4096);
-    assert!(req.system.is_none());
+    assert!(req.system.is_empty());
     assert!(req.messages.is_empty());
     assert!(!req.stream);
 }
@@ -51,7 +51,7 @@ fn parse_request_with_instructions_populates_system() {
     let a = OpenAiResponsesInbound;
     let body = br#"{"model":"gpt-4o","instructions":"be brief"}"#;
     let req = a.parse_request(&Bytes::from_static(body)).expect("parse");
-    assert_eq!(req.system.as_deref(), Some("be brief"));
+    assert_eq!(req.system_text().as_deref(), Some("be brief"));
 }
 
 #[test]
@@ -59,7 +59,7 @@ fn parse_request_empty_instructions_is_none() {
     let a = OpenAiResponsesInbound;
     let body = br#"{"model":"gpt-4o","instructions":""}"#;
     let req = a.parse_request(&Bytes::from_static(body)).expect("parse");
-    assert!(req.system.is_none());
+    assert!(req.system.is_empty());
 }
 
 #[test]

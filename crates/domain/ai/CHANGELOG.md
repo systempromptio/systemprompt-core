@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.55.0] - 2026-09-17
+
+### Breaking
+
+- **Breaking:** `AiRequestPayloadRepository::upsert_prepared_sha256` is `upsert_prepared(ai_request_id, sha256, tools: Option<&Value>)`; `AiRequestPayload` gains `prepared_tools`.
+
+### Added
+
+- `ai_requests.served_provider` (TEXT, migration `029_ai_requests_served_provider`): the provider that actually served a gateway request when a route failed over; NULL when the primary served. `AiRequestRepository::update_served_provider`.
+- `ai_request_payloads.prepared_tools` (JSONB, migration `030_prepared_tools`): the exact `tools` array of the prepared body the gateway sent upstream, in the provider's wire shape, beside `prepared_body_sha256`. `AiRequestPayloadRepository::find_prepared` returns `PreparedPayload { prepared_body_sha256, prepared_tools }` from the read pool.
+
 ## [0.54.0] - 2026-09-16
 
 ### Breaking

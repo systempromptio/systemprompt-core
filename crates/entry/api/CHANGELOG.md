@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.55.0] - 2026-09-17
+
+### Breaking
+
+- **Breaking:** `services::gateway::audit::payload::slice_payload(bytes, cap_bytes)` takes the retention cap; `GatewayRepositories` gains `payload_cap_bytes` and `with_payload_cap`, set from `governance.audit.payload_cap_bytes` in `gateway_repositories`.
+
+### Added
+
+- Gateway provider failover (`services::gateway::service::failover`): a route's `fallback_provider` serves the request when the primary exhausts its 429/503 retries, answers any other 5xx, or is unreachable — the governed request is re-bound (`ScannedDispatch::rebind`) and sent once more under the same retry policy. `ProviderBreakers` keeps a per-provider circuit breaker from the provider's `resilience:` settings so a failing primary is skipped without spending its budget. The audit row records `served_provider`, `route_match` appends `failover:<from>-><to>`, and `GatewayAudit::reprice` bills at the serving provider's catalog rate. Metric `gateway_upstream_failovers_total{from,to,reason}`.
+- Gateway audit stores the prepared body's `tools` array in `ai_request_payloads.prepared_tools` whenever it records `prepared_body_sha256` (`audit::payload::prepared_tools`), including after a secret-sanitising re-prepare; a re-prepared body without tools clears the earlier slice. The stored-body cap is the profile's `governance.audit.payload_cap_bytes` instead of a 1 MiB constant.
+
 ## [0.54.0] - 2026-09-16
 
 ### Removed

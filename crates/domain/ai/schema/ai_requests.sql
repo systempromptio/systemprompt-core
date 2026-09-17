@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS ai_requests (
     trace_id VARCHAR(255),
     mcp_execution_id VARCHAR(255),
     provider TEXT,
+    served_provider TEXT,
     model TEXT,
     requested_model TEXT,
     system_prompt_override TEXT,

@@ -82,7 +82,7 @@ impl GatewayAudit {
             .upsert(&self.ctx.ai_request_id, &self.ctx.evidence)
             .await?;
 
-        let capture = slice_payload(request_body);
+        let capture = slice_payload(request_body, self.payload_cap_bytes());
         self.payloads
             .upsert_request(
                 &self.ctx.ai_request_id,
@@ -118,11 +118,9 @@ impl GatewayAudit {
 
     async fn persist_request_messages(&self, request: &CanonicalRequest) -> Result<()> {
         let mut seq = 0i32;
-        if let Some(system) = &request.system
-            && !system.is_empty()
-        {
+        if let Some(system) = request.system_text() {
             self.requests
-                .insert_message(&self.ctx.ai_request_id, "system", system, seq)
+                .insert_message(&self.ctx.ai_request_id, "system", &system, seq)
                 .await?;
             seq += 1;
         }

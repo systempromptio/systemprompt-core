@@ -81,6 +81,7 @@ Each route maps a model name pattern to one upstream (`crates/shared/models/src/
 | `extra_headers` | no | Additional headers added to the upstream request. |
 | `pricing` | no | Per-token pricing used for usage accounting. |
 | `id` | no | Stable route id; synthesised from pattern/provider/endpoint if omitted. |
+| `fallback_provider` | no | A second provider the request is re-sent to when this one exhausts its transient-failure retries, returns a 5xx, or cannot be reached. Pair with `fallback_upstream_model` when the fallback names the model differently. |
 
 The first matching route wins, so order specific patterns before general ones. The API key is referenced by name, not inlined: `api_key_secret: anthropic` reads the `anthropic` key from your secrets document (see [configure.md](configure.md) §5).
 

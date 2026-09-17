@@ -11,6 +11,7 @@
 pub mod abandon;
 pub mod credentials;
 mod error;
+pub mod failover;
 pub mod finalize;
 mod guards;
 mod pricing;
@@ -33,6 +34,7 @@ use systemprompt_database::DbPool;
 use systemprompt_models::services::{GatewayConfig, ProviderRegistry, QuotaFaultMode};
 
 use self::abandon::AbandonGuard;
+use self::failover::{FailoverSend, send_with_failover};
 use self::finalize::{FinalizeCtx, attach_request_id, finalize};
 use self::guards::{enforce_quota, enforce_request_guards};
 use self::pricing::{dispatch_pricing, trace_dispatch};
@@ -89,6 +91,7 @@ impl GatewayService {
         let mut guard = AbandonGuard::arm(Arc::clone(&audit));
         let result = dispatch_opened(OpenedDispatch {
             config,
+            registry,
             db,
             repos,
             audit,
@@ -116,6 +119,7 @@ impl GatewayService {
 
 struct OpenedDispatch<'a> {
     config: &'a GatewayConfig,
+    registry: &'a ProviderRegistry,
     db: &'a DbPool,
     repos: &'a super::GatewayRepositories,
     audit: Arc<GatewayAudit>,
@@ -135,6 +139,7 @@ struct OpenedDispatch<'a> {
 async fn dispatch_opened(opened: OpenedDispatch<'_>) -> Result<Response<Body>, DispatchError> {
     let OpenedDispatch {
         config,
+        registry,
         db,
         repos,
         audit,
@@ -173,12 +178,18 @@ async fn dispatch_opened(opened: OpenedDispatch<'_>) -> Result<Response<Body>, D
     )
     .await?;
     let governed = GovernedDispatch::enforce(prepared, db, &ctx, &audit, &governance).await?;
-    let scanned =
+    let mut scanned =
         ScannedDispatch::enforce(governed, repos, &ai_request_id, &policy.safety, &audit).await?;
 
-    let outcome = super::protocol::outbound::retry::with_policy(
-        super::protocol::outbound::retry::current_policy(),
-        scanned.send(&upstream, &forward_headers, &audit),
+    let outcome = send_with_failover(
+        &mut scanned,
+        FailoverSend {
+            registry,
+            primary: &upstream,
+            forward_headers: &forward_headers,
+            ai_request_id: &ai_request_id,
+            audit: &audit,
+        },
     )
     .await?;
 

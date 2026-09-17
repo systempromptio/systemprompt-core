@@ -78,14 +78,16 @@ pub struct GatewayRequestContext {
 pub struct GatewayAudit {
     settlement: journal::Settlement,
     journal_lease: std::sync::OnceLock<std::fs::File>,
-    pricing_snapshot: std::sync::OnceLock<systemprompt_models::services::ModelPricing>,
+    pricing_snapshot: Mutex<Option<systemprompt_models::services::ModelPricing>>,
     requests: Arc<AiRequestRepository>,
     payloads: Arc<AiRequestPayloadRepository>,
     client_evidence: Arc<AiRequestClientEvidenceRepository>,
     context_materializer: systemprompt_traits::DynContextMaterializer,
     artifact_ingest: Option<Arc<systemprompt_mcp::ArtifactIngest>>,
     pub ctx: GatewayRequestContext,
+    payload_cap_bytes: usize,
     served_model: Mutex<Option<String>>,
+    served_provider: Mutex<Option<String>>,
     started_at: Instant,
     upstream: Mutex<UpstreamClock>,
 }
@@ -101,14 +103,16 @@ impl GatewayAudit {
         Self {
             settlement: repos.settlement(),
             journal_lease: std::sync::OnceLock::new(),
-            pricing_snapshot: std::sync::OnceLock::new(),
+            pricing_snapshot: Mutex::new(None),
             requests: Arc::clone(&repos.requests),
             payloads: Arc::clone(&repos.payloads),
             client_evidence: Arc::clone(&repos.client_evidence),
             context_materializer: Arc::clone(&repos.context_materializer),
             artifact_ingest: repos.artifact_ingest.clone(),
             ctx,
+            payload_cap_bytes: repos.payload_cap_bytes,
             served_model: Mutex::new(None),
+            served_provider: Mutex::new(None),
             started_at: Instant::now(),
             upstream: Mutex::new(UpstreamClock::default()),
         }
@@ -130,15 +134,43 @@ impl GatewayAudit {
         }
     }
 
+    /// Records the prepared (provider-transformed) body: its digest and the
+    /// exact `tools` array that went upstream.
+    pub async fn set_served_provider(&self, provider: &str) {
+        if let Ok(mut slot) = self.served_provider.lock() {
+            *slot = Some(provider.to_owned());
+        }
+        if let Err(e) = self
+            .requests
+            .update_served_provider(&self.ctx.ai_request_id, provider)
+            .await
+        {
+            tracing::warn!(error = %e, "update_served_provider failed");
+        }
+    }
+
+    pub(crate) fn served_provider(&self) -> String {
+        self.served_provider
+            .lock()
+            .ok()
+            .and_then(|slot| slot.clone())
+            .unwrap_or_else(|| self.ctx.provider.clone())
+    }
+
     pub async fn set_prepared_body_digest(&self, body: &[u8]) {
         let sha256 = payload::digest_hex(body);
+        let tools = payload::prepared_tools(body);
         if let Err(e) = self
             .payloads
-            .upsert_prepared_sha256(&self.ctx.ai_request_id, &sha256)
+            .upsert_prepared(&self.ctx.ai_request_id, &sha256, tools.as_ref())
             .await
         {
             tracing::warn!(error = %e, ai_request_id = %self.ctx.ai_request_id, "prepared body digest write failed");
         }
+    }
+
+    pub(super) const fn payload_cap_bytes(&self) -> usize {
+        self.payload_cap_bytes
     }
 
     pub async fn set_system_prompt_override(&self, descriptor: &str) {
@@ -181,7 +213,7 @@ impl GatewayAudit {
         tracing::warn!(
             ai_request_id = %self.ctx.ai_request_id,
             user_id = %self.ctx.user_id,
-            provider = %self.ctx.provider,
+            provider = %self.served_provider(),
             model = %self.effective_model(),
             requested_model = %self.ctx.model,
             wire_protocol = self.ctx.origin.wire.as_str(),

@@ -21,10 +21,10 @@ use systemprompt_api::services::gateway::registry::SafetyScannerRegistry;
 fn req_with(text: &str) -> CanonicalRequest {
     CanonicalRequest {
         model: ModelId::new("m"),
-        system: None,
+        system: Vec::new(),
         messages: vec![CanonicalMessage {
             role: Role::User,
-            content: vec![CanonicalContent::Text(text.into())],
+            content: vec![CanonicalContent::text(text.into())],
         }],
         max_tokens: 1,
         temperature: None,
@@ -50,7 +50,7 @@ fn resp_with(text: &str) -> CanonicalResponse {
     CanonicalResponse {
         id: "r".into(),
         model: "m".into(),
-        content: vec![CanonicalContent::Text(text.into())],
+        content: vec![CanonicalContent::text(text.into())],
         stop_reason: None,
         usage: CanonicalUsage::default(),
         grounding: None,

@@ -75,6 +75,7 @@ mod profile_secrets_vault;
 mod profile_services_sources;
 
 #[cfg(test)]
+mod profile_audit;
 mod profile_evaluation;
 
 #[cfg(test)]

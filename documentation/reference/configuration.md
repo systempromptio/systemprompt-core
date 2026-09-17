@@ -332,6 +332,8 @@ result against the merged registry, and never touch the profile.
 | `pricing` | object | no | absent | Route-level pricing override; otherwise the matching `providers[].models[].pricing` applies. |
 | `when` | object | no | absent | Request-type match (`RouteMatch`). |
 | `requires` | object | no | absent | Governance requirements the resolved model must satisfy (`RouteRequirements`). |
+| `fallback_provider` | string | no | absent | Provider to re-bind the request to when the primary exhausts its 429/503 retry budget, answers any other 5xx, or is unreachable. Must be declared in `providers` and differ from `provider`; validated against the route's pricing and `requires` like the primary. A per-provider circuit breaker (the provider's `resilience:` settings) skips a primary that keeps failing. The audit row records `served_provider`; cost is the serving provider's catalog rate. |
+| `fallback_upstream_model` | string | no | requested model | Model name sent to the fallback provider. Requires `fallback_provider`. |
 
 Every provider endpoint is validated through the shared outbound-URL guard
 (`validate_outbound_url`, `crates/shared/models/src/net/mod.rs`), which rejects loopback,

@@ -5,11 +5,14 @@
 
 use serde_json::Value;
 
+use super::content::CacheControl;
+
 #[derive(Debug, Clone)]
 pub struct CanonicalTool {
     pub name: String,
     pub description: Option<String>,
     pub input_schema: Value,
+    pub cache_control: Option<CacheControl>,
 }
 
 #[derive(Debug, Clone)]

@@ -11,7 +11,7 @@ use serde_json::{Value, json};
 use systemprompt_models::services::ai::ModelLimits;
 use systemprompt_models::wire::canonical::{
     CanonicalContent, CanonicalEvent, CanonicalMessage, CanonicalStopReason, CanonicalToolChoice,
-    ReasoningEffort, ResponseFormat, Role, SearchConfig, ThinkingConfig,
+    ReasoningEffort, ResponseFormat, Role, SearchConfig, SystemBlock, ThinkingConfig,
 };
 use systemprompt_models::wire::openai_responses;
 
@@ -88,6 +88,7 @@ fn openai_responses_emits_function_call_output_for_user_tool_result() {
                 name: "lookup".to_owned(),
                 input: json!({"q": "rust"}),
                 signature: None,
+                cache_control: None,
             }],
         },
         CanonicalMessage {
@@ -95,12 +96,13 @@ fn openai_responses_emits_function_call_output_for_user_tool_result() {
             content: vec![
                 CanonicalContent::ToolResult {
                     tool_use_id: "call_X".to_owned(),
-                    content: vec![CanonicalContent::Text("42".to_owned())],
+                    content: vec![CanonicalContent::text("42".to_owned())],
                     is_error: false,
                     structured_content: None,
                     meta: None,
+                    cache_control: None,
                 },
-                CanonicalContent::Text("thanks".to_owned()),
+                CanonicalContent::text("thanks".to_owned()),
             ],
         },
     ];
@@ -119,7 +121,7 @@ fn openai_responses_emits_function_call_output_for_user_tool_result() {
 #[test]
 fn openai_responses_uses_input_array_and_instructions() {
     let mut req = base_request();
-    req.system = Some("be terse".to_owned());
+    req.system = vec![SystemBlock::text("be terse".to_owned())];
     let body = openai_responses::build_request_body(&req, "upstream", None);
     assert_eq!(body["instructions"], "be terse");
     assert!(body.get("messages").is_none());
@@ -131,7 +133,7 @@ fn openai_responses_system_message_maps_to_developer_role() {
     let mut req = base_request();
     req.messages = vec![CanonicalMessage {
         role: Role::System,
-        content: vec![CanonicalContent::Text("rules".to_owned())],
+        content: vec![CanonicalContent::text("rules".to_owned())],
     }];
     let body = openai_responses::build_request_body(&req, "upstream", None);
     assert_eq!(body["input"][0]["role"], "developer");
@@ -279,7 +281,7 @@ fn openai_responses_parse_extracts_text_tool_and_usage() {
         response
             .content
             .iter()
-            .any(|c| matches!(c, CanonicalContent::Text(t) if t == "hello"))
+            .any(|c| matches!(c, CanonicalContent::Text { text: t, .. } if t == "hello"))
     );
     assert!(response.content.iter().any(|c| matches!(
         c,

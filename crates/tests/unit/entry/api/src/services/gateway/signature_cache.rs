@@ -85,13 +85,14 @@ fn tool_use(id: &str, signature: Option<&str>) -> CanonicalContent {
         name: "lookup".to_owned(),
         input: serde_json::json!({"q": "x"}),
         signature: signature.map(str::to_owned),
+        cache_control: None,
     }
 }
 
 fn request_with(content: Vec<CanonicalContent>) -> CanonicalRequest {
     CanonicalRequest {
         model: ModelId::new("m"),
-        system: None,
+        system: Vec::new(),
         messages: vec![CanonicalMessage {
             role: Role::Assistant,
             content,
@@ -271,7 +272,7 @@ async fn store_from_response_caches_only_signed_tool_use() {
     let cache = h.cache();
     let conv = conv();
     let response = response_with(vec![
-        CanonicalContent::Text("hi".to_owned()),
+        CanonicalContent::text("hi".to_owned()),
         tool_use("call_signed", Some("sig-a")),
         tool_use("call_unsigned", None),
     ]);
@@ -351,13 +352,13 @@ async fn hydration_is_identical_for_every_wire() {
 #[test]
 fn only_signed_tool_use_blocks_make_a_response_worth_caching() {
     let unsigned = response_with(vec![
-        CanonicalContent::Text("hi".to_owned()),
+        CanonicalContent::text("hi".to_owned()),
         tool_use("call_1", None),
     ]);
     assert_eq!(ThoughtSignatureCache::signed_tool_use_count(&unsigned), 0);
 
     let signed = response_with(vec![
-        CanonicalContent::Text("hi".to_owned()),
+        CanonicalContent::text("hi".to_owned()),
         tool_use("call_1", Some("sig-a")),
         tool_use("call_2", None),
         tool_use("call_3", Some("sig-c")),
@@ -498,7 +499,7 @@ fn uncacheable_response_records_only_when_signatures_are_present() {
         ("reason", "no_conversation_id"),
         || {
             let response = response_with(vec![
-                CanonicalContent::Text("hi".to_owned()),
+                CanonicalContent::text("hi".to_owned()),
                 tool_use("call_1", None),
             ]);
             ThoughtSignatureCache::note_uncacheable_response(&response, "no_conversation_id");

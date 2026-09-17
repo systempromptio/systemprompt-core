@@ -16,12 +16,13 @@ fn sample_response() -> CanonicalResponse {
         id: "msg_1".into(),
         model: "claude-x".into(),
         content: vec![
-            CanonicalContent::Text("hi".into()),
+            CanonicalContent::text("hi".into()),
             CanonicalContent::ToolUse {
                 id: "t1".into(),
                 name: "ls".into(),
                 input: json!({"path": "/"}),
                 signature: None,
+                cache_control: None,
             },
         ],
         stop_reason: Some(CanonicalStopReason::EndTurn),
@@ -53,7 +54,7 @@ fn render_response_serializes_into_anthropic_shape() {
 #[test]
 fn content_block_helpers_cover_all_variants() {
     let cases = vec![
-        CanonicalContent::Text("hello".into()),
+        CanonicalContent::text("hello".into()),
         CanonicalContent::Thinking {
             id: None,
             encrypted_content: None,
@@ -71,20 +72,22 @@ fn content_block_helpers_cover_all_variants() {
             name: "y".into(),
             input: json!({}),
             signature: None,
+            cache_control: None,
         },
         CanonicalContent::ToolResult {
             tool_use_id: "tu".into(),
-            content: vec![CanonicalContent::Text("ok".into())],
+            content: vec![CanonicalContent::text("ok".into())],
             is_error: false,
             structured_content: None,
             meta: None,
+            cache_control: None,
         },
-        CanonicalContent::Image(ImageSource::Base64 {
+        CanonicalContent::image(ImageSource::Base64 {
             media_type: "image/png".into(),
             data: "AA".into(),
             detail: None,
         }),
-        CanonicalContent::Image(ImageSource::Url {
+        CanonicalContent::image(ImageSource::Url {
             url: "https://x".into(),
             detail: None,
         }),

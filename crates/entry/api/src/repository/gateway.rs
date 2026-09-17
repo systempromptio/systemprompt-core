@@ -12,6 +12,7 @@ use systemprompt_ai::repository::{
     AiThoughtSignatureRepository,
 };
 use systemprompt_database::DbPool;
+use systemprompt_models::profile::AuditConfig;
 use systemprompt_traits::DynContextMaterializer;
 
 use crate::services::gateway::audit::journal::{GatewayJournal, Settlement};
@@ -29,6 +30,8 @@ pub struct GatewayRepositories {
     pub thought_signatures: Arc<ThoughtSignatureCache>,
     pub context_materializer: DynContextMaterializer,
     pub artifact_ingest: Option<Arc<systemprompt_mcp::ArtifactIngest>>,
+    /// `governance.audit.payload_cap_bytes`: the largest body stored whole.
+    pub payload_cap_bytes: usize,
 }
 
 impl std::fmt::Debug for GatewayRepositories {
@@ -59,7 +62,15 @@ impl GatewayRepositories {
             )),
             context_materializer,
             artifact_ingest: None,
+            payload_cap_bytes: AuditConfig::DEFAULT_PAYLOAD_CAP_BYTES,
         })
+    }
+
+    /// Sets the payload cap from the profile's `governance.audit` block.
+    #[must_use]
+    pub const fn with_payload_cap(mut self, payload_cap_bytes: usize) -> Self {
+        self.payload_cap_bytes = payload_cap_bytes;
+        self
     }
 
     /// Attaches the artifact ingest so replayed `tool_result` blocks become

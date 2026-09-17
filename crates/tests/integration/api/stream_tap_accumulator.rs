@@ -77,7 +77,7 @@ fn accumulates_text_and_usage_and_stop() {
     assert_eq!(response.usage.output_tokens, 5);
     assert_eq!(response.content.len(), 1);
     match &response.content[0] {
-        CanonicalContent::Text(t) => assert_eq!(t, "Hello, world"),
+        CanonicalContent::Text { text: t, .. } => assert_eq!(t, "Hello, world"),
         other => panic!("expected text block, got {other:?}"),
     }
 
@@ -328,11 +328,11 @@ fn sparse_block_indices_backfill_with_empty_text() {
     let response = snapshot(&state);
     assert_eq!(response.content.len(), 3, "indices 0 and 1 backfilled");
     match &response.content[0] {
-        CanonicalContent::Text(t) => assert!(t.is_empty()),
+        CanonicalContent::Text { text: t, .. } => assert!(t.is_empty()),
         other => panic!("expected empty text placeholder, got {other:?}"),
     }
     match &response.content[2] {
-        CanonicalContent::Text(t) => assert_eq!(t, "third"),
+        CanonicalContent::Text { text: t, .. } => assert_eq!(t, "third"),
         other => panic!("expected text block, got {other:?}"),
     }
 }

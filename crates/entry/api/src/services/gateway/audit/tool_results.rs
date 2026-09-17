@@ -63,6 +63,7 @@ impl ReplayedResult {
             is_error,
             structured_content,
             meta,
+            ..
         } = content
         else {
             return None;

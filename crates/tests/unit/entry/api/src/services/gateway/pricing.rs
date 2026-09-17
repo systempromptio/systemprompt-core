@@ -16,6 +16,8 @@ fn route(pattern: &str, provider: &str, pricing: Option<ModelPricing>) -> Gatewa
         pricing,
         when: None,
         requires: None,
+        fallback_provider: None,
+        fallback_upstream_model: None,
     }
 }
 

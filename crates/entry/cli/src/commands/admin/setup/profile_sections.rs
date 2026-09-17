@@ -15,7 +15,8 @@ use systemprompt_cloud::ProjectContext;
 use systemprompt_loader::ExtensionLoader;
 use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::profile::{
-    AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig, default_resource_audiences,
+    AuditConfig, AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig,
+    default_resource_audiences,
 };
 use systemprompt_models::{
     ContentNegotiationConfig, Environment, LogLevel, OutputFormat, PathsConfig, RuntimeConfig,
@@ -116,5 +117,6 @@ pub(super) fn governance(api_internal_url: &str) -> GovernanceConfig {
                 acknowledgement: None,
             },
         }),
+        audit: AuditConfig::default(),
     }
 }

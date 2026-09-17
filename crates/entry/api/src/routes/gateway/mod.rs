@@ -78,12 +78,14 @@ pub fn gateway_repositories(
         systemprompt_config::ProfileBootstrap::get_path()?,
         systemprompt_config::SecretsBootstrap::get()?,
     )?;
+    let payload_cap_bytes = systemprompt_config::ProfileBootstrap::get()?.payload_cap_bytes();
     Ok(crate::services::gateway::GatewayRepositories::new(
         ctx.db_pool(),
         journal,
         ctx.context_materializer(),
     )?
-    .with_artifact_ingest(ctx.artifact_ingest_arc()))
+    .with_artifact_ingest(ctx.artifact_ingest_arc())
+    .with_payload_cap(payload_cap_bytes))
 }
 
 pub fn gateway_router(ctx: &AppContext) -> anyhow::Result<Option<Router>> {

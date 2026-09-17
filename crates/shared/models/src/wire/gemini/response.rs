@@ -204,7 +204,7 @@ pub(super) fn parts_to_content(parts: &[GeminiPart]) -> Vec<CanonicalContent> {
                 encrypted_content: None,
             }),
             GeminiPart::Text { text, .. } if !text.is_empty() => {
-                Some(CanonicalContent::Text(text.clone()))
+                Some(CanonicalContent::text(text.clone()))
             },
             GeminiPart::FunctionCall {
                 function_call,
@@ -214,6 +214,7 @@ pub(super) fn parts_to_content(parts: &[GeminiPart]) -> Vec<CanonicalContent> {
                 name: function_call.name.clone(),
                 input: function_call.args.clone(),
                 signature: thought_signature.clone(),
+                cache_control: None,
             }),
             _ => None,
         })

@@ -80,6 +80,8 @@ let response = ai_service.generate(&request).await?;
 
 Tables: `ai_requests`, `ai_request_messages`, `ai_request_tool_calls`, `ai_request_payloads`, `ai_quota_buckets`, `ai_gateway_policies`, `ai_safety_findings`.
 
+`ai_request_payloads` keeps three views of one request: the body the client sent (`request_body`, `offered_tools`, `request_body_sha256`), the body the gateway forwarded (`prepared_body_sha256`, `prepared_tools` — the exact `tools` array in the provider's wire shape), and the response (`response_body`, `response_body_sha256`). A body over the profile's `governance.audit.payload_cap_bytes` (default 1 MiB) stores `NULL` for the JSON, a head+tail excerpt and the truncation flag; the digest always covers the full bytes.
+
 ## License
 
 BSL-1.1 (Business Source License). Source-available for evaluation, testing, and non-production use. Production use requires a commercial license. Each version converts to Apache 2.0 four years after publication. See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE).

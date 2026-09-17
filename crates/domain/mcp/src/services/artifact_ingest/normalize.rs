@@ -83,13 +83,17 @@ pub fn from_canonical_tool_result(
 
 fn canonical_block(content: &CanonicalContent) -> Option<ContentBlock> {
     match content {
-        CanonicalContent::Text(text) => Some(ContentBlock::text(text.clone())),
-        CanonicalContent::Image(ImageSource::Base64 {
-            media_type, data, ..
-        }) => Some(ContentBlock::image(data.clone(), media_type.clone())),
-        CanonicalContent::Image(ImageSource::Url { url, .. }) => {
-            Some(ContentBlock::text(url.clone()))
-        },
+        CanonicalContent::Text { text, .. } => Some(ContentBlock::text(text.clone())),
+        CanonicalContent::Image {
+            source: ImageSource::Base64 {
+                media_type, data, ..
+            },
+            ..
+        } => Some(ContentBlock::image(data.clone(), media_type.clone())),
+        CanonicalContent::Image {
+            source: ImageSource::Url { url, .. },
+            ..
+        } => Some(ContentBlock::text(url.clone())),
         CanonicalContent::ToolUse { .. }
         | CanonicalContent::ToolResult { .. }
         | CanonicalContent::Thinking { .. } => None,

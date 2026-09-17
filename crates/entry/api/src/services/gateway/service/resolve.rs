@@ -1,5 +1,7 @@
 //! Pre-dispatch upstream resolution: model-exposure check, route and provider
 //! lookup, API-key secret, and outbound wire adapter.
+//! [`resolve_fallback_upstream`] binds the same request to a route's
+//! `fallback_provider` when the primary upstream has failed.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -70,7 +72,52 @@ pub(super) async fn resolve_upstream<'a>(
     };
 
     let route_match_descriptor = describe_route_match(&route, declarative, selector);
+    bind_route(
+        registry,
+        route,
+        request.model.as_str(),
+        ai_request_id,
+        route_match_descriptor,
+    )
+    .await
+}
 
+pub(super) async fn resolve_fallback_upstream<'a>(
+    registry: &'a ProviderRegistry,
+    primary: &ResolvedUpstream<'a>,
+    requested_model: &str,
+    ai_request_id: &AiRequestId,
+) -> Result<Option<ResolvedUpstream<'a>>, DispatchError> {
+    let Some(view) = primary.route.fallback_view() else {
+        return Ok(None);
+    };
+    let failover = format!(
+        "failover:{}->{}",
+        primary.provider.name.as_str(),
+        view.provider.as_str()
+    );
+    let descriptor = Some(match primary.route_match_descriptor.as_deref() {
+        Some(existing) => format!("{existing};{failover}"),
+        None => failover,
+    });
+    bind_route(
+        registry,
+        Cow::Owned(view),
+        requested_model,
+        ai_request_id,
+        descriptor,
+    )
+    .await
+    .map(Some)
+}
+
+async fn bind_route<'a>(
+    registry: &'a ProviderRegistry,
+    route: Cow<'a, GatewayRoute>,
+    requested_model: &str,
+    ai_request_id: &AiRequestId,
+    route_match_descriptor: Option<String>,
+) -> Result<ResolvedUpstream<'a>, DispatchError> {
     let provider = route.resolve(registry).ok_or_else(|| {
         DispatchError::PreAudit(anyhow!(
             "Gateway route '{}' provider '{}' is not declared in services providers",
@@ -79,7 +126,7 @@ pub(super) async fn resolve_upstream<'a>(
         ))
     })?;
 
-    enforce_route_requirements(&route, provider, request.model.as_str(), ai_request_id)?;
+    enforce_route_requirements(&route, provider, requested_model, ai_request_id)?;
 
     let credential = super::credentials::resolve(provider).await?;
     let endpoint =

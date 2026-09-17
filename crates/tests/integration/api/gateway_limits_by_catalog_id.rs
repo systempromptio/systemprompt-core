@@ -81,6 +81,8 @@ fn config() -> GatewayConfig {
         pricing: None,
         when: None,
         requires: None,
+        fallback_provider: None,
+        fallback_upstream_model: None,
     };
     route.ensure_id();
     GatewayConfig {

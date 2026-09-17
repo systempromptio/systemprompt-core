@@ -10,19 +10,19 @@ pub fn flatten_message_content(parts: &[CanonicalContent]) -> String {
     let mut out = String::new();
     for part in parts {
         match part {
-            CanonicalContent::Text(t) => push_with_sep(&mut out, t),
+            CanonicalContent::Text { text, .. } => push_with_sep(&mut out, text),
             CanonicalContent::Thinking { text, .. } => push_with_sep(&mut out, text),
             CanonicalContent::ToolUse { name, input, .. } => {
                 push_with_sep(&mut out, &format!("[tool_use:{name} {input}]"));
             },
             CanonicalContent::ToolResult { content, .. } => {
                 for inner in content {
-                    if let CanonicalContent::Text(t) = inner {
-                        push_with_sep(&mut out, t);
+                    if let CanonicalContent::Text { text, .. } = inner {
+                        push_with_sep(&mut out, text);
                     }
                 }
             },
-            CanonicalContent::Image(_) => {},
+            CanonicalContent::Image { .. } => {},
         }
     }
     out

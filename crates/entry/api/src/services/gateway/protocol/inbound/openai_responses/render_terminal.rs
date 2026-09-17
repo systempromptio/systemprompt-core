@@ -111,7 +111,7 @@ const fn item_status(stop_reason: Option<CanonicalStopReason>) -> &'static str {
 
 fn output_item_value(index: u32, block: &CanonicalContent, status: &str) -> Option<Value> {
     match block {
-        CanonicalContent::Text(text) => Some(json!({
+        CanonicalContent::Text { text, .. } => Some(json!({
             "type": "message",
             "id": format!("msg_{index}"),
             "status": status,
@@ -142,7 +142,7 @@ fn output_item_value(index: u32, block: &CanonicalContent, status: &str) -> Opti
             text,
             encrypted_content.as_deref(),
         )),
-        CanonicalContent::Image(_) | CanonicalContent::ToolResult { .. } => None,
+        CanonicalContent::Image { .. } | CanonicalContent::ToolResult { .. } => None,
     }
 }
 

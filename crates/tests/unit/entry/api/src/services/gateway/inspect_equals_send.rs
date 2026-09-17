@@ -38,6 +38,8 @@ fn route() -> GatewayRoute {
         pricing: None,
         when: None,
         requires: None,
+        fallback_provider: None,
+        fallback_upstream_model: None,
     }
 }
 
@@ -47,7 +49,7 @@ fn clean_request() -> CanonicalRequest {
         model: ModelId::new("m"),
         messages: vec![CanonicalMessage {
             role: Role::User,
-            content: vec![CanonicalContent::Text("summarise this".into())],
+            content: vec![CanonicalContent::text("summarise this".into())],
         }],
         max_tokens: 64,
         ..CanonicalRequest::new(ModelId::new("m"), Vec::new(), 1024)

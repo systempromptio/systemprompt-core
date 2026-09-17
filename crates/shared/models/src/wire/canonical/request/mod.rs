@@ -9,7 +9,10 @@
 mod content;
 mod options;
 
-pub use content::{CanonicalContent, CanonicalMessage, ImageDetail, ImageSource, Role};
+pub use content::{
+    CacheControl, CacheTtl, CanonicalContent, CanonicalMessage, ImageDetail, ImageSource, Role,
+    SystemBlock,
+};
 pub use options::{
     CanonicalTool, CanonicalToolChoice, ReasoningEffort, ResponseFormat, SearchConfig,
     ThinkingConfig,
@@ -24,7 +27,9 @@ use systemprompt_identifiers::{ClientSessionId, GatewayConversationId, ModelId};
 #[derive(Debug, Clone)]
 pub struct CanonicalRequest {
     pub model: ModelId,
-    pub system: Option<String>,
+    // Why: Anthropic's system prompt is an array of blocks, each its own cache
+    // breakpoint; flattening to one string would drop the breakpoints.
+    pub system: Vec<SystemBlock>,
     pub messages: Vec<CanonicalMessage>,
     pub max_tokens: u32,
     pub temperature: Option<f32>,
@@ -51,7 +56,7 @@ impl CanonicalRequest {
     pub fn new(model: ModelId, messages: Vec<CanonicalMessage>, max_tokens: u32) -> Self {
         Self {
             model,
-            system: None,
+            system: Vec::new(),
             messages,
             max_tokens,
             temperature: None,
@@ -73,12 +78,30 @@ impl CanonicalRequest {
         }
     }
 
+    // Why: the system blocks join on a newline, the same view the flat string
+    // gave before the array shape, so conversation ids derived from it hold.
+    #[must_use]
+    pub fn system_text(&self) -> Option<String> {
+        if self.system.is_empty() {
+            return None;
+        }
+        let joined = self
+            .system
+            .iter()
+            .map(|block| block.text.as_str())
+            .collect::<Vec<_>>()
+            .join("\n");
+        (!joined.is_empty()).then_some(joined)
+    }
+
+    pub fn set_system_text(&mut self, text: Option<String>) {
+        self.system = text.map(SystemBlock::text).into_iter().collect();
+    }
+
     pub fn flatten_parts(&self) -> Vec<(String, String)> {
         let mut parts = Vec::with_capacity(self.messages.len() + self.forwarded_surface.len() + 1);
-        if let Some(sys) = &self.system
-            && !sys.is_empty()
-        {
-            parts.push(("system".to_owned(), sys.clone()));
+        if let Some(sys) = self.system_text() {
+            parts.push(("system".to_owned(), sys));
         }
         for (index, msg) in self.messages.iter().enumerate() {
             let mut out = String::new();
@@ -101,7 +124,8 @@ impl CanonicalRequest {
         for part in &first.content {
             flatten_part(&mut content, part);
         }
-        let hash = conversation_prefix_hash(self.system.as_deref(), first.role.as_str(), &content);
+        let system = self.system_text();
+        let hash = conversation_prefix_hash(system.as_deref(), first.role.as_str(), &content);
         Some(GatewayConversationId::from_prefix_hash(hash))
     }
 
@@ -142,8 +166,8 @@ impl CanonicalRequest {
 
     pub fn message_units(&self) -> Vec<String> {
         let mut units = Vec::with_capacity(self.messages.len() + self.forwarded_surface.len() + 1);
-        if let Some(sys) = &self.system {
-            units.push(sys.clone());
+        if let Some(sys) = self.system_text() {
+            units.push(sys);
         }
         for msg in &self.messages {
             let mut out = String::new();
@@ -163,7 +187,7 @@ impl CanonicalRequest {
 
 pub(super) fn flatten_part(out: &mut String, part: &CanonicalContent) {
     match part {
-        CanonicalContent::Text(t) => push_with_sep(out, t),
+        CanonicalContent::Text { text, .. } => push_with_sep(out, text),
         CanonicalContent::Thinking { text, .. } => push_with_sep(out, text),
         CanonicalContent::ToolUse { name, input, .. } => {
             push_with_sep(out, &format!("[tool_use:{name} {input}]"));
@@ -173,7 +197,7 @@ pub(super) fn flatten_part(out: &mut String, part: &CanonicalContent) {
                 flatten_part(out, inner);
             }
         },
-        CanonicalContent::Image(_) => {},
+        CanonicalContent::Image { .. } => {},
     }
 }
 

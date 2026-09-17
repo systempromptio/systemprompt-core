@@ -87,7 +87,7 @@ fn parse_request_minimal_valid_body() {
     assert_eq!(req.messages[0].role, Role::User);
     assert!(!req.stream);
     assert!(
-        matches!(req.messages[0].content.first(), Some(CanonicalContent::Text(t)) if t == "hi")
+        matches!(req.messages[0].content.first(), Some(CanonicalContent::Text { text: t, .. }) if t == "hi")
     );
 }
 
@@ -121,7 +121,7 @@ fn parse_request_with_system_string() {
         "messages":[{"role":"user","content":"x"}]
     }"#;
     let req = a.parse_request(&Bytes::from_static(body)).expect("parse");
-    assert_eq!(req.system.as_deref(), Some("you are helpful"));
+    assert_eq!(req.system_text().as_deref(), Some("you are helpful"));
 }
 
 // The `Unsupported` rejection arms: a body whose shape the wire does not
@@ -147,7 +147,7 @@ fn a_system_prompt_may_be_a_string_or_an_array_of_blocks() {
     let parsed = AnthropicMessagesInbound
         .parse_request(&Bytes::from(as_string))
         .expect("a string system prompt is the common form");
-    assert_eq!(parsed.system.as_deref(), Some("be brief"));
+    assert_eq!(parsed.system_text().as_deref(), Some("be brief"));
 
     let as_blocks = r#"{"model":"m","max_tokens":8,
         "system":[{"type":"text","text":"be"},{"type":"text","text":"brief"}],
@@ -156,7 +156,10 @@ fn a_system_prompt_may_be_a_string_or_an_array_of_blocks() {
         .parse_request(&Bytes::from(as_blocks))
         .expect("an array of text blocks is the cacheable form");
     assert!(
-        parsed.system.as_deref().is_some_and(|s| s.contains("be")),
+        parsed
+            .system_text()
+            .as_deref()
+            .is_some_and(|s| s.contains("be")),
         "{:?}",
         parsed.system
     );
@@ -171,7 +174,7 @@ fn an_empty_system_block_array_yields_no_system_prompt() {
         .expect("an empty array is well-formed");
 
     assert!(
-        parsed.system.is_none(),
+        parsed.system.is_empty(),
         "an empty array must not become an empty system prompt"
     );
 }
@@ -219,6 +222,6 @@ fn a_plain_string_message_content_is_accepted() {
 
     assert!(matches!(
         parsed.messages[0].content.first(),
-        Some(CanonicalContent::Text(t)) if t == "hi"
+        Some(CanonicalContent::Text { text: t, .. }) if t == "hi"
     ));
 }

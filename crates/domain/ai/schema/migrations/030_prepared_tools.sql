@@ -1,0 +1,11 @@
+-- Keep the tool schema the provider actually saw, not only its digest.
+--
+-- `offered_tools` is what the client sent; the outbound adapter may rename,
+-- sanitise or regroup those definitions (Gemini `functionDeclarations`, the
+-- declaration-rule fixes) before the body goes upstream, and until now only
+-- `prepared_body_sha256` proved that anything changed. `prepared_tools` is the
+-- exact `tools` array of the prepared body, in the provider's wire shape, so a
+-- client-vs-provider schema diff can be shown from the audit row alone. NULL
+-- for rows written before this migration and for requests that carried no
+-- tools.
+ALTER TABLE ai_request_payloads ADD COLUMN IF NOT EXISTS prepared_tools JSONB;

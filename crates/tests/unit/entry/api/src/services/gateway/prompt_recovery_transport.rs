@@ -78,6 +78,8 @@ async fn recovery_sends_only_sanitized_bytes_for_every_adapter_and_transport_mod
                     pricing: None,
                     when: None,
                     requires: None,
+                    fallback_provider: None,
+                    fallback_upstream_model: None,
                 };
                 let endpoint = server.uri();
                 let mut request = request();

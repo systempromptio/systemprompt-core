@@ -44,8 +44,8 @@ pub fn build_request_body(
             limits,
         )),
     );
-    if let Some(sys) = &request.system {
-        obj.insert("instructions".into(), Value::String(sys.clone()));
+    if let Some(sys) = request.system_text() {
+        obj.insert("instructions".into(), Value::String(sys));
     }
     if let Some(t) = request.temperature {
         obj.insert("temperature".into(), json!(t));
@@ -167,7 +167,7 @@ fn render_assistant_message(msg: &CanonicalMessage, input: &mut Vec<Value>) {
     let mut reasoning_items: Vec<Value> = Vec::new();
     for part in &msg.content {
         match part {
-            CanonicalContent::Text(t) => text.push_str(t),
+            CanonicalContent::Text { text: t, .. } => text.push_str(t),
             CanonicalContent::ToolUse {
                 id,
                 name,
@@ -243,9 +243,9 @@ fn render_user_or_system(msg: &CanonicalMessage, input: &mut Vec<Value>) {
 // JSON: OpenAI Responses API request body; upstream JSON is the contract.
 fn content_to_input_part(part: &CanonicalContent) -> Option<Value> {
     match part {
-        CanonicalContent::Text(t) => Some(json!({ "type": "input_text", "text": t })),
-        CanonicalContent::Image(src) => {
-            let (url, detail) = match src {
+        CanonicalContent::Text { text, .. } => Some(json!({ "type": "input_text", "text": text })),
+        CanonicalContent::Image { source, .. } => {
+            let (url, detail) = match source {
                 ImageSource::Url { url, detail } => (url.clone(), *detail),
                 ImageSource::Base64 {
                     media_type,
@@ -268,7 +268,7 @@ fn content_to_input_part(part: &CanonicalContent) -> Option<Value> {
 fn flatten_text_parts(parts: &[CanonicalContent]) -> String {
     let mut out = String::new();
     for p in parts {
-        if let CanonicalContent::Text(t) = p {
+        if let CanonicalContent::Text { text: t, .. } = p {
             if !out.is_empty() {
                 out.push('\n');
             }

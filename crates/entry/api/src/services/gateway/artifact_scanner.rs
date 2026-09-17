@@ -57,7 +57,7 @@ impl ArtifactScanner for GatewayArtifactScanner {
             model: "artifact".to_owned(),
             content: surfaces
                 .iter()
-                .map(|(_, text)| CanonicalContent::Text(text.clone()))
+                .map(|(_, text)| CanonicalContent::text(text.clone()))
                 .collect(),
             stop_reason: None,
             usage: Default::default(),

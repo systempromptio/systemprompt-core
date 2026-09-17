@@ -11,13 +11,13 @@ use systemprompt_models::services::{
 };
 use systemprompt_models::wire::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalTool, ReasoningEffort,
-    ResponseFormat, Role, ThinkingConfig,
+    ResponseFormat, Role, SystemBlock, ThinkingConfig,
 };
 
 fn req(model: &str) -> CanonicalRequest {
     CanonicalRequest {
         model: ModelId::new(model),
-        system: None,
+        system: Vec::new(),
         messages: Vec::new(),
         max_tokens: 0,
         temperature: None,
@@ -49,6 +49,8 @@ fn route(pattern: &str) -> GatewayRoute {
         pricing: None,
         when: None,
         requires: None,
+        fallback_provider: None,
+        fallback_upstream_model: None,
     }
 }
 
@@ -82,6 +84,8 @@ fn route_finds_matching_model() {
             pricing: None,
             when: None,
             requires: None,
+            fallback_provider: None,
+            fallback_upstream_model: None,
         }],
         ..GatewayConfig::default()
     };
@@ -368,6 +372,8 @@ fn route_to(pattern: &str, provider: &str) -> GatewayRoute {
         pricing: None,
         when: None,
         requires: None,
+        fallback_provider: None,
+        fallback_upstream_model: None,
     };
     r.ensure_id();
     r
@@ -795,6 +801,7 @@ fn route_match_predicates_evaluate_against_request() {
         name: "t".to_owned(),
         description: None,
         input_schema: serde_json::Value::Null,
+        cache_control: None,
     }];
     assert!(
         RouteMatch {
@@ -816,10 +823,10 @@ fn route_match_predicates_evaluate_against_request() {
 #[test]
 fn route_match_min_input_tokens_uses_text_estimate() {
     let mut r = req("m");
-    r.system = Some("a".repeat(40));
+    r.system = vec![SystemBlock::text("a".repeat(40))];
     r.messages = vec![CanonicalMessage {
         role: Role::User,
-        content: vec![CanonicalContent::Text("b".repeat(40))],
+        content: vec![CanonicalContent::text("b".repeat(40))],
     }];
     // ~80 chars / 4 + 1 ≈ 21 estimated tokens.
     assert!(
@@ -982,10 +989,11 @@ fn route_match_token_estimate_counts_thinking_and_nested_tool_result_text() {
             },
             CanonicalContent::ToolResult {
                 tool_use_id: "call_1".to_owned(),
-                content: vec![CanonicalContent::Text("y".repeat(40))],
+                content: vec![CanonicalContent::text("y".repeat(40))],
                 is_error: false,
                 structured_content: None,
                 meta: None,
+                cache_control: None,
             },
         ],
     }];
@@ -1315,5 +1323,163 @@ fn a_public_release_feed_names_no_secret_and_is_not_reported() {
         enabled_gateway(vec![])
             .unresolved_secret_refs(|_| false)
             .is_empty()
+    );
+}
+
+fn priced_provider(name: &str, wire: WireProtocol, models: Vec<ProviderModel>) -> ProviderEntry {
+    ProviderEntry {
+        name: ProviderId::new(name),
+        wire,
+        surface: ApiSurface::Anthropic,
+        endpoint: "https://api.anthropic.com/v1".to_owned(),
+        api_key_secret: SecretName::new(name),
+        governance: Default::default(),
+        extra_headers: HashMap::new(),
+        models,
+    }
+}
+
+fn failover_registry() -> ProviderRegistry {
+    ProviderRegistry {
+        providers: vec![
+            priced_provider(
+                "anthropic",
+                WireProtocol::Anthropic,
+                vec![priced_model("claude-opus-5", token_rates(5.0, 25.0))],
+            ),
+            priced_provider(
+                "vertex",
+                WireProtocol::Anthropic,
+                vec![priced_model("claude-opus-5", token_rates(6.0, 30.0))],
+            ),
+            priced_provider(
+                "gemini",
+                WireProtocol::Gemini,
+                vec![priced_model("gemini-3.5-flash", token_rates(0.3, 2.5))],
+            ),
+        ],
+    }
+}
+
+fn failover_route(fallback: &str) -> GatewayRoute {
+    let mut r = route_to("claude-*", "anthropic");
+    r.fallback_provider = Some(ProviderId::new(fallback));
+    r
+}
+
+#[test]
+fn fallback_view_is_the_route_as_the_fallback_provider_serves_it() {
+    let mut r = failover_route("vertex");
+    r.fallback_upstream_model = Some("claude-opus-5@20260501".to_owned());
+    r.pricing = Some(token_rates(1.0, 2.0));
+    let view = r.fallback_view().expect("route names a fallback");
+    assert_eq!(view.provider.as_str(), "vertex");
+    assert_eq!(
+        view.upstream_model.as_deref(),
+        Some("claude-opus-5@20260501")
+    );
+    assert_eq!(view.model_pattern, "claude-*");
+    assert_eq!(view.id, r.id);
+    assert!(
+        view.pricing.is_none(),
+        "a primary pricing override is not the fallback's rate"
+    );
+    assert!(view.fallback_provider.is_none());
+    assert!(view.fallback_upstream_model.is_none());
+    assert!(route_to("claude-*", "anthropic").fallback_view().is_none());
+}
+
+#[test]
+fn validate_accepts_a_fallback_declared_in_the_registry() {
+    let gw = enabled_gateway(vec![failover_route("vertex")]);
+    assert!(gw.validate(&failover_registry()).is_ok());
+}
+
+#[test]
+fn validate_accepts_a_fallback_on_a_different_wire_with_its_own_upstream_model() {
+    let mut r = failover_route("gemini");
+    r.fallback_upstream_model = Some("gemini-3.5-flash".to_owned());
+    let gw = enabled_gateway(vec![r]);
+    assert!(gw.validate(&failover_registry()).is_ok());
+}
+
+#[test]
+fn validate_rejects_a_fallback_absent_from_the_registry() {
+    let gw = enabled_gateway(vec![failover_route("ghost")]);
+    match gw.validate(&failover_registry()) {
+        Err(GatewayProfileError::RouteFallbackProviderNotInRegistry { provider, .. }) => {
+            assert_eq!(provider, "ghost");
+        },
+        other => panic!("expected RouteFallbackProviderNotInRegistry, got {other:?}"),
+    }
+}
+
+#[test]
+fn validate_rejects_a_fallback_that_is_the_primary() {
+    let gw = enabled_gateway(vec![failover_route("anthropic")]);
+    match gw.validate(&failover_registry()) {
+        Err(GatewayProfileError::RouteFallbackIsPrimary { provider, .. }) => {
+            assert_eq!(provider, "anthropic");
+        },
+        other => panic!("expected RouteFallbackIsPrimary, got {other:?}"),
+    }
+}
+
+#[test]
+fn validate_rejects_a_fallback_upstream_model_without_a_fallback_provider() {
+    let mut r = route_to("claude-*", "anthropic");
+    r.fallback_upstream_model = Some("claude-opus-5".to_owned());
+    let gw = enabled_gateway(vec![r]);
+    assert!(matches!(
+        gw.validate(&failover_registry()),
+        Err(GatewayProfileError::RouteFallbackModelWithoutProvider { .. })
+    ));
+}
+
+#[test]
+fn validate_rejects_a_fallback_that_reaches_no_priced_model() {
+    let gw = enabled_gateway(vec![failover_route("gemini")]);
+    match gw.validate(&failover_registry()) {
+        Err(GatewayProfileError::RouteReachesNoPricedModel { provider, .. }) => {
+            assert_eq!(provider, "gemini");
+        },
+        other => panic!("expected RouteReachesNoPricedModel for the fallback, got {other:?}"),
+    }
+}
+
+#[test]
+fn validate_rejects_a_fallback_that_breaks_the_route_governance_requirement() {
+    let mut registry = failover_registry();
+    registry.providers[0].governance = ModelGovernance {
+        european: false,
+        no_retain: true,
+    };
+    let mut r = failover_route("vertex");
+    r.requires = Some(requires_no_retain());
+    match enabled_gateway(vec![r]).validate(&registry) {
+        Err(GatewayProfileError::RouteGovernanceUnsatisfied { requirements, .. }) => {
+            assert_eq!(requirements, "no_retain");
+        },
+        other => panic!("expected RouteGovernanceUnsatisfied for the fallback, got {other:?}"),
+    }
+}
+
+#[test]
+fn yaml_route_parses_fallback_fields() {
+    let yaml = "model_pattern: claude-*\nprovider: anthropic\nfallback_provider: vertex\n\
+                fallback_upstream_model: claude-opus-5@20260501\n";
+    let r: GatewayRoute = serde_yaml::from_str(yaml).expect("route parses");
+    assert_eq!(
+        r.fallback_provider.as_ref().map(ProviderId::as_str),
+        Some("vertex")
+    );
+    assert_eq!(
+        r.fallback_upstream_model.as_deref(),
+        Some("claude-opus-5@20260501")
+    );
+    let back = serde_yaml::to_string(&route_to("claude-*", "anthropic")).expect("serialize");
+    assert!(
+        !back.contains("fallback"),
+        "absent fallback is not serialized: {back}"
     );
 }

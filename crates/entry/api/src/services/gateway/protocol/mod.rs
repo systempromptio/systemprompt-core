@@ -15,8 +15,8 @@ pub mod inbound;
 pub mod outbound;
 
 pub use canonical::{
-    CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalTool, CanonicalToolChoice,
-    ImageSource, Role, ThinkingConfig,
+    CacheControl, CacheTtl, CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalTool,
+    CanonicalToolChoice, ImageSource, Role, SystemBlock, ThinkingConfig,
 };
 pub use canonical_response::{
     CanonicalEvent, CanonicalResponse, CanonicalStopReason, CanonicalUsage, CanonicalUsageUpdate,

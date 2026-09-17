@@ -1,7 +1,7 @@
 use bytes::Bytes;
 use serde_json::{Value, json};
 use systemprompt_api::services::gateway::protocol::canonical::{
-    CanonicalContent, CanonicalMessage, CanonicalRequest, Role,
+    CanonicalContent, CanonicalMessage, CanonicalRequest, Role, SystemBlock,
 };
 use systemprompt_api::services::gateway::protocol::outbound::PreparedBody;
 use systemprompt_api::services::gateway::service::stages::recovery::{
@@ -55,10 +55,10 @@ fn body(value: Value) -> PreparedBody {
 pub(super) fn request() -> CanonicalRequest {
     CanonicalRequest {
         model: ModelId::new("test-model"),
-        system: Some(format!("Use this key {KEY} carefully")),
+        system: vec![SystemBlock::text(format!("Use this key {KEY} carefully"))],
         messages: vec![CanonicalMessage {
             role: Role::User,
-            content: vec![CanonicalContent::Text(format!("Inspect {KEY}"))],
+            content: vec![CanonicalContent::text(format!("Inspect {KEY}"))],
         }],
         max_tokens: 64,
         ..CanonicalRequest::new(ModelId::new("m"), Vec::new(), 1024)

@@ -911,7 +911,9 @@ fn validate_rejects_trusted_issuer_malformed_issuer() {
 
 #[test]
 fn validate_rejects_governance_webhook_malformed_url() {
-    use systemprompt_models::profile::{AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig};
+    use systemprompt_models::profile::{
+        AuditConfig, AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig,
+    };
     let mut profile = valid_profile("bad-webhook");
     profile.governance = Some(GovernanceConfig {
         authz: Some(AuthzConfig {
@@ -922,6 +924,7 @@ fn validate_rejects_governance_webhook_malformed_url() {
                 acknowledgement: None,
             },
         }),
+        audit: AuditConfig::default(),
     });
     let err = profile
         .validate()

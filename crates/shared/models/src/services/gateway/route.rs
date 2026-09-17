@@ -6,7 +6,11 @@
 //! from `(model_pattern, provider)` so `access_control_rules` can address the
 //! route by a name that survives reordering. A model's connectivity is never
 //! embedded here — [`GatewayRoute::resolve`] looks the provider up in the
-//! registry at use time.
+//! registry at use time. A route may also name a `fallback_provider`: when
+//! the primary upstream is unreachable or exhausts the transient-failure retry
+//! budget, dispatch re-binds the same request to that provider (optionally
+//! under `fallback_upstream_model`) — [`GatewayRoute::fallback_view`] is the
+//! route as the fallback provider sees it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -43,6 +47,10 @@ pub struct GatewayRoute {
     pub when: Option<RouteMatch>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub requires: Option<RouteRequirements>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fallback_provider: Option<ProviderId>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fallback_upstream_model: Option<String>,
 }
 
 impl GatewayRoute {
@@ -70,6 +78,19 @@ impl GatewayRoute {
 
     pub fn resolve<'a>(&self, registry: &'a ProviderRegistry) -> Option<&'a ProviderEntry> {
         registry.find_provider(self.provider.as_str())
+    }
+
+    #[must_use]
+    pub fn fallback_view(&self) -> Option<Self> {
+        let fallback = self.fallback_provider.clone()?;
+        Some(Self {
+            provider: fallback,
+            upstream_model: self.fallback_upstream_model.clone(),
+            pricing: None,
+            fallback_provider: None,
+            fallback_upstream_model: None,
+            ..self.clone()
+        })
     }
 }
 
@@ -223,7 +244,11 @@ impl From<Option<&ResponseFormat>> for ResponseFormatKind {
 }
 
 fn estimate_input_tokens(request: &CanonicalRequest) -> u32 {
-    let mut chars = request.system.as_deref().map_or(0, str::len);
+    let mut chars = request
+        .system
+        .iter()
+        .map(|block| block.text.len())
+        .sum::<usize>();
     for message in &request.messages {
         for part in &message.content {
             accumulate_text_len(part, &mut chars);
@@ -234,14 +259,14 @@ fn estimate_input_tokens(request: &CanonicalRequest) -> u32 {
 
 fn accumulate_text_len(part: &CanonicalContent, acc: &mut usize) {
     match part {
-        CanonicalContent::Text(t) => *acc += t.len(),
+        CanonicalContent::Text { text, .. } => *acc += text.len(),
         CanonicalContent::Thinking { text, .. } => *acc += text.len(),
         CanonicalContent::ToolResult { content, .. } => {
             for inner in content {
                 accumulate_text_len(inner, acc);
             }
         },
-        CanonicalContent::ToolUse { .. } | CanonicalContent::Image(_) => {},
+        CanonicalContent::ToolUse { .. } | CanonicalContent::Image { .. } => {},
     }
 }
 

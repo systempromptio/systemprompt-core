@@ -1,13 +1,17 @@
 //! Capped request/response payload capture for gateway audit rows.
 //!
+//! The cap is `governance.audit.payload_cap_bytes` from the profile
+//! ([`AuditConfig`]); a body at or under it is stored whole, over it only the
+//! digest and a head+tail excerpt survive.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use bytes::Bytes;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
+use systemprompt_models::profile::AuditConfig;
 
-const PAYLOAD_CAP_BYTES: usize = 1024 * 1024;
 const EXCERPT_BYTES: usize = 8 * 1024;
 
 /// What a captured request or response body contributes to an audit row.
@@ -28,12 +32,26 @@ pub fn digest_hex(bytes: &[u8]) -> String {
     hex::encode(Sha256::digest(bytes))
 }
 
+/// The `tools` array of a prepared (provider-transformed) body, if the body is
+/// JSON and declares one. The wire shape is the provider's own — Anthropic and
+/// OpenAI tool objects, Gemini `functionDeclarations` groups — so what is
+/// returned is exactly what went upstream.
 #[must_use]
-pub fn slice_payload(bytes: &Bytes) -> PayloadCapture {
+pub fn prepared_tools(body: &[u8]) -> Option<Value> {
+    let mut parsed = serde_json::from_slice::<Value>(body).ok()?;
+    let tools = parsed.get_mut("tools")?.take();
+    tools.is_array().then_some(tools)
+}
+
+/// Captures `bytes` under `cap_bytes`; the default is
+/// [`AuditConfig::DEFAULT_PAYLOAD_CAP_BYTES`].
+#[must_use]
+pub fn slice_payload(bytes: &Bytes, cap_bytes: usize) -> PayloadCapture {
+    let cap = cap_bytes.max(AuditConfig::MIN_PAYLOAD_CAP_BYTES);
     let len = bytes.len();
     let byte_len = len.min(i32::MAX as usize) as i32;
     let sha256 = digest_hex(bytes);
-    if len <= PAYLOAD_CAP_BYTES {
+    if len <= cap {
         serde_json::from_slice::<Value>(bytes).map_or_else(
             |_| PayloadCapture {
                 json: None,
