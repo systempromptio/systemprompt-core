@@ -187,6 +187,7 @@ impl ServicesConfig {
         }
 
         self.validate_single_governance_hook_owner()?;
+        self.validate_single_evaluation_hook_owner()?;
 
         for (id, marketplace) in &self.marketplaces {
             marketplace.validate(id.as_str())?;

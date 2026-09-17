@@ -249,4 +249,43 @@ impl ServicesConfig {
             ))),
         }
     }
+
+    pub(crate) fn validate_single_evaluation_hook_owner(
+        &self,
+    ) -> Result<(), ConfigValidationError> {
+        let owners: Vec<&str> = self
+            .plugins
+            .values()
+            .filter(|p| p.enabled && p.hooks.evaluation)
+            .map(|p| p.id.as_str())
+            .collect();
+
+        if let Some(orphan) = self
+            .plugins
+            .values()
+            .find(|p| p.enabled && p.hooks.evaluation && !p.hooks.governance)
+        {
+            return Err(ConfigValidationError::business_rule(format!(
+                "Plugin '{}' sets 'hooks.evaluation: true' without 'hooks.governance: true'. \
+                 Evaluation consumes the track hook that only the governance owner installs",
+                orphan.id
+            )));
+        }
+
+        match owners.len() {
+            0 => {
+                tracing::warn!(
+                    "no enabled plugin sets 'hooks.evaluation: true' — sessions will not be \
+                     scored"
+                );
+                Ok(())
+            },
+            1 => Ok(()),
+            _ => Err(ConfigValidationError::business_rule(format!(
+                "Multiple plugins set 'hooks.evaluation: true': {}. The evaluation engine has \
+                 one owner",
+                owners.join(", ")
+            ))),
+        }
+    }
 }

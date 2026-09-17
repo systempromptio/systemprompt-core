@@ -160,6 +160,11 @@ impl PluginDependency {
 /// the `UserPromptSubmit`/`Stop` hooks that drain gateway announcements into
 /// the session. Off by default — a tenant that publishes no announcements has
 /// no reason to run a command on every prompt.
+///
+/// `evaluation` is server-side only: it switches on the session-evaluation
+/// engine for the sessions this plugin's track hook reports, and installs no
+/// client hook of its own. Like `comms` it rides on the governance owner, so
+/// `is_empty` ignores it.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PluginHooksRef {
@@ -167,6 +172,8 @@ pub struct PluginHooksRef {
     pub governance: bool,
     #[serde(default)]
     pub comms: bool,
+    #[serde(default)]
+    pub evaluation: bool,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub include: Vec<String>,
 }

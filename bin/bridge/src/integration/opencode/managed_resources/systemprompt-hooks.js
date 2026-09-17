@@ -51,7 +51,7 @@ const post = (body) => {
     authorization: AUTHORIZATION,
     "x-systemprompt-host": HOST,
   };
-  const eventId = body.tool_use_id || body.prompt_id;
+  const eventId = body.tool_use_id || body.prompt_id || body.event_id;
   if (eventId) headers["x-ingestion-event-id"] = String(eventId);
   return fetch(TRACK_URL, {
     method: "POST",
@@ -67,7 +67,37 @@ const text = (parts) =>
     .map((part) => part.text)
     .join("\n");
 
+// OpenCode's bus events, translated to the canonical hook vocabulary Claude
+// Code speaks natively, so the gateway sees one session lifecycle whichever
+// host produced it. `session.idle` is the end of an assistant turn (Stop);
+// `session.deleted` is the end of the session (SessionEnd).
+const LIFECYCLE = {
+  "session.created": "SessionStart",
+  "session.idle": "Stop",
+  "session.deleted": "SessionEnd",
+};
+
+const lifecycleSession = (event) => {
+  const props = (event && event.properties) || {};
+  if (typeof props.sessionID === "string") return props.sessionID;
+  if (props.info && typeof props.info.id === "string") return props.info.id;
+  return "";
+};
+
 export const SystempromptHooks = async ({ directory }) => ({
+  event: async ({ event }) => {
+    const name = event && LIFECYCLE[event.type];
+    const native = lifecycleSession(event);
+    if (!name || !native) return;
+    await post({
+      hook_event_name: name,
+      session_id: await sessionUuid(native),
+      native_session_id: native,
+      cwd: directory,
+      native_host: HOST,
+      event_id: `${native}:${event.type}:${Date.now()}`,
+    });
+  },
   // Whichever of these the pinned OpenCode supports carries the session to
   // the proxy, which moves it into `metadata.user_id` for the gateway.
   "chat.headers": async (input, output) => {
