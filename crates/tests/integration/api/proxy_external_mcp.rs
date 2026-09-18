@@ -34,13 +34,14 @@ struct Harness {
     app: axum::Router,
     pool: DbPool,
     server: MockServer,
+    backend: MockServer,
     ctx: Arc<AppContext>,
     ext_name: String,
     int_name: String,
     _bootstrap: systemprompt_test_fixtures::TestBootstrap,
 }
 
-fn services_yaml(provider_url: &str, ext_name: &str, int_name: &str) -> String {
+fn services_yaml(provider_url: &str, ext_name: &str, int_name: &str, int_port: u16) -> String {
     format!(
         r#"mcp_servers:
   {ext_name}:
@@ -60,7 +61,7 @@ fn services_yaml(provider_url: &str, ext_name: &str, int_name: &str) -> String {
   {int_name}:
     type: internal
     binary: {int_name}-bin
-    port: 5321
+    port: {int_port}
     enabled: true
     tool_policy: allow
     display_in_web: false
@@ -83,6 +84,18 @@ const ENFORCED_SECRET_SCAN_GOVERNANCE: &str = "governance:
           redact_whole_value: true
 ";
 
+// Why: the services validator only admits MCP ports in 5000-5999, and the
+// resolver proxies to the port the registry declares, so the backend mock
+// must listen inside that range.
+fn mcp_range_listener() -> anyhow::Result<std::net::TcpListener> {
+    for port in 5000..6000u16 {
+        if let Ok(listener) = std::net::TcpListener::bind(("127.0.0.1", port)) {
+            return Ok(listener);
+        }
+    }
+    anyhow::bail!("no free port in the MCP range 5000-5999")
+}
+
 async fn harness() -> anyhow::Result<Harness> {
     harness_with_governance(None).await
 }
@@ -93,11 +106,20 @@ async fn harness_with_governance(governance_yaml: Option<&str>) -> anyhow::Resul
         BROKER_SECRET,
     );
     let server = MockServer::start().await;
+    let backend = MockServer::builder()
+        .listener(mcp_range_listener()?)
+        .start()
+        .await;
     let suffix = Uuid::new_v4().simple().to_string();
     let ext_name = format!("cov-ext-{}", &suffix[..8]);
     let int_name = format!("cov-int-{}", &suffix[..8]);
     let provider_url = format!("{}/provider/mcp", server.uri());
-    let yaml = services_yaml(&provider_url, &ext_name, &int_name);
+    let yaml = services_yaml(
+        &provider_url,
+        &ext_name,
+        &int_name,
+        backend.address().port(),
+    );
     let b = systemprompt_test_fixtures::bootstrap::init_isolated_bootstrap(&server.uri(), &yaml);
     if let Some(governance) = governance_yaml {
         let governance_dir = b.services_path.join("governance");
@@ -132,6 +154,7 @@ async fn harness_with_governance(governance_yaml: Option<&str>) -> anyhow::Resul
         app,
         pool,
         server,
+        backend,
         ctx,
         ext_name,
         int_name,
@@ -384,16 +407,19 @@ async fn external_with_anonymous_context_is_unauthorized() -> anyhow::Result<()>
 #[tokio::test]
 async fn internal_registry_server_forwards_to_backend_with_context_headers() -> anyhow::Result<()> {
     let h = harness().await?;
-    let backend_port = h.server.address().port();
+    let backend_port = h.backend.address().port();
     let repo = ServiceRepository::new(
         h.ctx.db_pool(),
         systemprompt_identifiers::InstanceId::new("test-instance"),
     )?;
+    // Why: the row carries a port from an earlier run under another offset;
+    // the resolver must trust the port this instance spawns, not the row.
+    let stale_port = 5321;
     repo.create_service(CreateServiceInput {
         name: &h.int_name,
         module_name: "mcp",
         status: "running",
-        port: backend_port,
+        port: stale_port,
         binary_mtime: None,
     })
     .await?;
@@ -412,7 +438,7 @@ async fn internal_registry_server_forwards_to_backend_with_context_headers() -> 
                 .insert_header("mcp-session-id", "sess-int-9")
                 .set_body_raw(upstream_body.clone(), "application/json"),
         )
-        .mount(&h.server)
+        .mount(&h.backend)
         .await;
 
     let resp = h
@@ -434,7 +460,7 @@ async fn internal_registry_server_forwards_to_backend_with_context_headers() -> 
     assert_eq!(String::from_utf8_lossy(&bytes), upstream_body);
 
     let backend_reqs: Vec<_> = h
-        .server
+        .backend
         .received_requests()
         .await
         .expect("recorded requests")
@@ -454,6 +480,15 @@ async fn internal_registry_server_forwards_to_backend_with_context_headers() -> 
         Some("proxy-test-agent"),
         "the caller's agent name reaches the backend; the reverse proxy does not \
          substitute the callee server's name for it"
+    );
+    let row = repo
+        .find_service_by_name(&h.int_name)
+        .await?
+        .expect("service row");
+    assert_eq!(
+        row.port,
+        i32::from(backend_port),
+        "the stale row is rewritten to the port this instance spawns"
     );
     Ok(())
 }
