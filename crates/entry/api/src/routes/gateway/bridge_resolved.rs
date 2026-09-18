@@ -2,8 +2,8 @@
 //!
 //! The disk catalogue with the managed overlay, the filtered candidate and
 //! the plugin bundles, memoised in the application context's
-//! [`MarketplaceCache`] and shared by the manifest route and every
-//! plugin-file download that follows it.
+//! [`MarketplaceCache`](systemprompt_marketplace::MarketplaceCache) and shared
+//! by the manifest route and every plugin-file download that follows it.
 //!
 //! A hit costs one query (the managed stamp) and no catalogue work; a miss
 //! does what the two routes used to do independently on every request.

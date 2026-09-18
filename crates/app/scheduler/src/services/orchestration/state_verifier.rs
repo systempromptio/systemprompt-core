@@ -17,34 +17,9 @@ use systemprompt_database::{DatabaseProvider, DatabaseQuery, DbPool};
 use systemprompt_identifiers::InstanceId;
 
 const FETCH_DB_SERVICES: DatabaseQuery = DatabaseQuery::new(
-    "SELECT name, module_name as service_type, status, pid, port, \
-     EXTRACT(EPOCH FROM updated_at) AS updated_at_epoch FROM services WHERE instance_id \
+    "SELECT name, module_name as service_type, status, pid, port FROM services WHERE instance_id \
      = $1 AND status IN ('running', 'starting', 'stopped')",
 );
-
-const STARTUP_GRACE: Duration = Duration::from_secs(45);
-
-fn now_epoch() -> Option<f64> {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .ok()
-        .map(|d| d.as_secs_f64())
-}
-
-pub fn is_wedged(
-    port_up: bool,
-    updated_at_epoch: Option<f64>,
-    now_epoch: Option<f64>,
-    grace: Duration,
-) -> bool {
-    if port_up {
-        return false;
-    }
-    match (updated_at_epoch, now_epoch) {
-        (Some(updated), Some(now)) => now - updated > grace.as_secs_f64(),
-        _ => false,
-    }
-}
 
 #[derive(Debug, Clone)]
 pub struct ServiceConfig {
@@ -86,7 +61,6 @@ pub struct DbServiceRecord {
     pub status: String,
     pub pid: Option<i64>,
     pub port: i32,
-    pub updated_at_epoch: Option<f64>,
 }
 
 #[derive(Debug)]
@@ -172,23 +146,8 @@ impl ServiceStateVerifier {
             Some(record) if record.status == "running" => {
                 if let Some(pid) = record.pid.map(|p| p as u32) {
                     if ProcessCleanup::process_exists(pid) {
-                        let port_up = self.is_port_responsive(port).await;
-                        if port_up {
+                        if self.is_port_responsive(port).await {
                             (RuntimeStatus::Running, Some(pid))
-                        } else if is_wedged(
-                            port_up,
-                            record.updated_at_epoch,
-                            now_epoch(),
-                            STARTUP_GRACE,
-                        ) {
-                            tracing::warn!(
-                                service = %record.name,
-                                pid,
-                                port,
-                                "Service process is alive but its port is unresponsive past the \
-                                 startup grace window; treating as crashed for restart"
-                            );
-                            (RuntimeStatus::Crashed, Some(pid))
                         } else {
                             (RuntimeStatus::Starting, Some(pid))
                         }
@@ -266,9 +225,6 @@ impl ServiceStateVerifier {
                     tracing::warn!(service_name = %name, "Service record missing port field");
                     0
                 }) as i32;
-            let updated_at_epoch = row
-                .get("updated_at_epoch")
-                .and_then(serde_json::Value::as_f64);
 
             records.push(DbServiceRecord {
                 name,
@@ -276,7 +232,6 @@ impl ServiceStateVerifier {
                 status,
                 pid,
                 port,
-                updated_at_epoch,
             });
         }
 

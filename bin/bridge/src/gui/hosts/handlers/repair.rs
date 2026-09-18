@@ -60,10 +60,10 @@ pub(crate) fn repair_stale_unattended(
     });
 }
 
-pub(crate) fn on_unattended_repair_finished(app: &mut GuiApp, host_id: &HostId, report: &Report) {
+pub(crate) fn on_unattended_repair_finished(app: &GuiApp, host_id: &HostId, report: &Report) {
     match &report.outcome {
         Outcome::Reapplied => {
-            app.append_log(format!("[{host_id}] configuration profile refreshed"))
+            app.append_log(format!("[{host_id}] configuration profile refreshed"));
         },
         Outcome::Pending => app.append_log(format!(
             "[{host_id}] configuration profile handed to the OS; approve it to finish ({})",

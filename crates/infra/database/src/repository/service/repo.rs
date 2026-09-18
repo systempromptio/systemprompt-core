@@ -139,20 +139,6 @@ impl ServiceRepository {
         Ok(())
     }
 
-    pub async fn update_service_port(&self, service_name: &str, port: u16) -> DatabaseResult<()> {
-        let port_i32 = i32::from(port);
-        sqlx::query!(
-            r#"UPDATE services SET port = $1, updated_at = CURRENT_TIMESTAMP
-               WHERE instance_id = $2 AND name = $3"#,
-            port_i32,
-            self.instance_id.as_str(),
-            service_name
-        )
-        .execute(&*self.write_pool)
-        .await?;
-        Ok(())
-    }
-
     pub async fn clear_service_pid(&self, service_name: &str) -> DatabaseResult<()> {
         sqlx::query!(
             r#"UPDATE services SET pid = NULL, updated_at = CURRENT_TIMESTAMP

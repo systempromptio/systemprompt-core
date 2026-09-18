@@ -142,7 +142,8 @@ pub async fn fetch_external_bearer(
             tracing::warn!(
                 server,
                 status = status.as_u16(),
-                "token accessor refused the user's provider bearer{reason}"
+                reason = reason.trim_start_matches(": "),
+                "token accessor refused the user's provider bearer"
             );
             Err(McpDomainError::ExternalAuthUnavailable {
                 server: server.to_owned(),

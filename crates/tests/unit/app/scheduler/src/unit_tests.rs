@@ -653,7 +653,6 @@ fn test_db_service_record_running() {
         status: "running".to_string(),
         pid: Some(1234),
         port: 8080,
-        updated_at_epoch: None,
     };
 
     assert_eq!(record.name, "api-server");
@@ -669,7 +668,6 @@ fn test_db_service_record_stopped() {
         status: "stopped".to_string(),
         pid: None,
         port: 3000,
-        updated_at_epoch: None,
     };
 
     assert_eq!(record.status, "stopped");
@@ -684,54 +682,10 @@ fn test_db_service_record_starting() {
         status: "starting".to_string(),
         pid: Some(5678),
         port: 9000,
-        updated_at_epoch: None,
     };
 
     assert_eq!(record.status, "starting");
     assert_eq!(record.pid, Some(5678));
-}
-
-#[test]
-fn test_is_wedged_port_up_is_never_wedged() {
-    use systemprompt_scheduler::services::orchestration::state_verifier::is_wedged;
-    let grace = std::time::Duration::from_secs(45);
-    assert!(!is_wedged(true, Some(0.0), Some(1_000_000.0), grace));
-}
-
-#[test]
-fn test_is_wedged_port_dead_within_grace_is_not_wedged() {
-    use systemprompt_scheduler::services::orchestration::state_verifier::is_wedged;
-    let grace = std::time::Duration::from_secs(45);
-    assert!(!is_wedged(false, Some(1000.0), Some(1010.0), grace));
-}
-
-#[test]
-fn test_is_wedged_port_dead_past_grace_is_wedged() {
-    use systemprompt_scheduler::services::orchestration::state_verifier::is_wedged;
-    let grace = std::time::Duration::from_secs(45);
-    assert!(is_wedged(false, Some(1000.0), Some(1100.0), grace));
-}
-
-#[test]
-fn test_is_wedged_missing_timestamp_is_not_wedged() {
-    use systemprompt_scheduler::services::orchestration::state_verifier::is_wedged;
-    let grace = std::time::Duration::from_secs(45);
-    assert!(!is_wedged(false, None, Some(1100.0), grace));
-    assert!(!is_wedged(false, Some(1000.0), None, grace));
-}
-
-#[test]
-fn test_wedged_service_restarts_via_action() {
-    let state = VerifiedServiceState::builder(
-        "wedged".to_string(),
-        ServiceType::Mcp,
-        DesiredStatus::Enabled,
-        RuntimeStatus::Crashed,
-        5110,
-    )
-    .with_pid(4321)
-    .build();
-    assert_eq!(state.needs_action, ServiceAction::Restart);
 }
 
 #[test]
@@ -1361,7 +1315,6 @@ fn test_db_service_record_debug() {
         status: "crashed".to_string(),
         pid: None,
         port: 3000,
-        updated_at_epoch: None,
     };
 
     let debug_str = format!("{:?}", record);
@@ -1381,8 +1334,7 @@ fn test_db_service_record_all_statuses() {
             status: status.to_string(),
             pid: Some(123),
             port: 8080,
-        updated_at_epoch: None,
-    };
+        };
         assert_eq!(record.status, status);
     }
 }
