@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.55.1] - 2026-09-18
+
+### Fixed
+
+- Migration `008_artifact_narrow_waist` is restored to its applied text (0.55.0 edited it; databases that had run it refused to start on checksum drift). Migration `012_artifact_source_repair` returns executions whose artifact is stamped `in_process` to that source.
+
 ## [0.55.0] - 2026-09-17
 
 ### Breaking

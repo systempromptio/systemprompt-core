@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.55.1] - 2026-09-18
+
+### Fixed
+
+- **MCP:** migration `008_artifact_narrow_waist` keeps the text it was applied with. 0.55.0 edited it (scoping the `source = 'proxy'` relabel and tie-breaking the dedupe), so every database that had already run 008 refused to start on checksum drift — astound production, which had taken 008 from a preview deploy, crash-looped and was rolled back. The relabel repair is migration `012_artifact_source_repair`: executions whose artifact carries the `in_process` stamp 008 gave every pre-existing row go back to `in_process`; artifacts the 0.55 proxy tap ingested (`source = 'proxy'`) leave their execution alone. Rule: a migration pushed to `next` may have run on a preview deploy — it is never edited again, only followed.
+- **Feedback:** `InvocationSkillIdentity` gains an optional `marketplace_hash` (the marketplace version hash the plugin was served from); the astound projection already emitted it, and `deny_unknown_fields` made every invocation fact a normalization retry.
+
 ## [0.55.0] - 2026-09-17
 
 ### Breaking
