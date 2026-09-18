@@ -172,8 +172,16 @@ jobs:
             systemprompt-bridge-x86_64-unknown-linux-gnu
           ```
           NOTES
+          # Why: the repository publishes immutable releases — once a release is
+          # published no asset can be added or replaced — so the release is
+          # created as a draft, filled, checked and only then published. A
+          # published release that already exists for this tag cannot be
+          # completed and is a hard stop.
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq '.isDraft' 2>/dev/null | grep -q false; then
+            echo "::error::a published release already exists for $TAG; delete it before re-running"; exit 1
+          fi
           gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 \
-            || gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --title "$TAG" --notes-file notes.md --verify-tag
+            || gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --title "$TAG" --notes-file notes.md --verify-tag --draft
           for f in systemprompt-bridge-* SHA256SUMS SHA256SUMS.sig SHA256SUMS.pem; do
             n=0
             until gh release upload "$TAG" "$f" --repo "$GITHUB_REPOSITORY" --clobber; do
@@ -185,6 +193,9 @@ jobs:
           expected=$(ls systemprompt-bridge-* SHA256SUMS SHA256SUMS.sig SHA256SUMS.pem | sort)
           actual=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' | sort)
           diff <(echo "$expected") <(echo "$actual") || { echo "::error::release assets differ from dist/"; exit 1; }
+          gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false
+          [ "$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq '.isDraft')" = false ] \
+            || { echo "::error::$TAG is still a draft after publishing"; exit 1; }
 
   bump-scoop:
     name: Bump Scoop bucket (bridge)

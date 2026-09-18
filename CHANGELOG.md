@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.56.1] - 2026-09-18
+
+### Fixed
+
+- **Release:** `bridge-v0.56.0` was created as a published, asset-less GitHub release before its binaries uploaded — the repository publishes immutable releases, which refuse every later upload and never release a tag name — so the 0.56.0 bridge could not be signed under its own tag. `release-sign.yml` now fills the release as a draft and publishes it only once every asset is verified; the same crates and bridge ship again as 0.56.1 under `v0.56.1` / `bridge-v0.56.1`. No code change.
+
 ## [0.56.0] - 2026-09-18
 
 ### Breaking
