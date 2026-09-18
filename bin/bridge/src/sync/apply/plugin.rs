@@ -221,7 +221,7 @@ async fn sync_one_plugin(
     let target = ctx.root.join(plugin.id.as_str());
 
     let stage = ctx.staging_root.join(plugin.id.as_str());
-    fetch_plugin_into_staging(ctx.client, ctx.bearer, plugin, &stage).await?;
+    fetch_plugin_into_staging(ctx.client, ctx.bearer, plugin, &stage, &target).await?;
     super::check_not_superseded(ctx.client.base_url())?;
 
     let was_present = promote_staged(&stage, &target, plugin.id.as_str())?;

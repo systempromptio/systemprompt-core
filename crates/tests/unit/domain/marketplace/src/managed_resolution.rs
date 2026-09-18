@@ -25,7 +25,7 @@ pub(super) struct Fixture {
     pub(super) revision: systemprompt_identifiers::ResourceRevisionId,
 }
 
-fn skill_files(key: &str, body: &str) -> RevisionFiles {
+pub(super) fn skill_files(key: &str, body: &str) -> RevisionFiles {
     let mut files = BTreeMap::new();
     files.insert(
         "config.yaml".to_owned(),

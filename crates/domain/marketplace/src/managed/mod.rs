@@ -34,6 +34,7 @@ pub use provenance::{SnapshotProvenance, SourceSpec};
 pub use publication::{
     ComparisonEvidence, INVENTORY_REFRESH_SOURCE, ManagedResolution, PublicationAction,
     PublicationAdmission, PublicationDecision, PublicationHistoryEntry, PublicationRequest,
+    SkillResolutionRow,
 };
 pub use reconciliation::{
     ConflictDecision, ConflictResolution, ReconciliationConflict, ReconciliationRecord,
@@ -43,6 +44,7 @@ pub use repository::{
     ManagedRepository, NewResource, NewRevision, Page, ResourceKind, ResourceSummary,
     RevisionComparison, RevisionSummary, TextCandidate,
 };
+pub(crate) use resolver::managed_skill_from_bundle;
 pub use resolver::{
     ManagedResourceResolver, ManagedSkill, ManagedSkillResolution, ResolvedManagedResource,
 };

@@ -9,6 +9,8 @@ mod candidate;
 #[cfg(test)]
 mod catalog;
 #[cfg(test)]
+mod catalog_batch;
+#[cfg(test)]
 mod catalog_rules;
 #[cfg(test)]
 mod errors;
@@ -34,6 +36,8 @@ mod managed_resolution;
 mod manifest;
 #[cfg(test)]
 mod registry;
+#[cfg(test)]
+mod resolved_cache;
 #[cfg(test)]
 mod scope;
 #[cfg(test)]
