@@ -161,6 +161,7 @@ async fn fetch(pool: &systemprompt_database::DbPool, id: &str) -> Row {
 
 #[tokio::test]
 async fn allow_decision_records_default_allow_policy_and_empty_reason() {
+    // skip-ok: no fixture database on this machine
     let Some(pool) = pool_or_skip().await else {
         return;
     };
@@ -188,6 +189,7 @@ async fn allow_decision_records_default_allow_policy_and_empty_reason() {
 
 #[tokio::test]
 async fn deny_decision_records_the_first_failing_policy() {
+    // skip-ok: no fixture database on this machine
     let Some(pool) = pool_or_skip().await else {
         return;
     };
@@ -238,6 +240,7 @@ async fn deny_decision_records_the_first_failing_policy() {
 
 #[tokio::test]
 async fn deny_without_a_failing_chain_entry_records_unknown() {
+    // skip-ok: no fixture database on this machine
     let Some(pool) = pool_or_skip().await else {
         return;
     };
@@ -270,6 +273,7 @@ async fn deny_without_a_failing_chain_entry_records_unknown() {
 
 #[tokio::test]
 async fn agentless_audit_records_a_user_actor() {
+    // skip-ok: no fixture database on this machine
     let Some(pool) = pool_or_skip().await else {
         return;
     };
@@ -292,6 +296,7 @@ async fn agentless_audit_records_a_user_actor() {
 
 #[tokio::test]
 async fn an_approved_allow_names_the_policy_that_held_it() {
+    // skip-ok: no fixture database on this machine
     let Some(pool) = pool_or_skip().await else {
         return;
     };
@@ -335,6 +340,7 @@ async fn an_approved_allow_names_the_policy_that_held_it() {
 
 #[tokio::test]
 async fn an_unapproved_allow_still_reports_default_allow() {
+    // skip-ok: no fixture database on this machine
     let Some(pool) = pool_or_skip().await else {
         return;
     };

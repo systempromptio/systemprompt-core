@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.56.0] - 2026-09-18
+
+### Changed
+
+- The two A2A stream emitters (`processing::ai_executor::emit`, `ExecutionContext::emit`) annotate their `map_err(|_closed| StreamClosed)` with `// Why: discard-ok` for `lint-swallowed-errors`; no behaviour change.
+
 ## [0.55.0] - 2026-09-17
 
 ### Added

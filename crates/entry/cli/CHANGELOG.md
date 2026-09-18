@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.56.0] - 2026-09-18
+
+### Fixed
+
+- `plugins mcp call|tools`, `admin agents tools` and `shared::mcp_tools::list_tools_{unauthenticated,authenticated}` send `tools/list` with `params: {}` instead of the `"params": null` rmcp emits for `None`; a strict server (Google's Discovery Engine MCP) refused the latter with `-32602`.
+
+### Changed
+
+- `admin config gateway route add` and `admin setup` build `GatewayRoute` with `name: None`, `description: None`.
+
 ## [0.55.0] - 2026-09-17
 
 ### Added

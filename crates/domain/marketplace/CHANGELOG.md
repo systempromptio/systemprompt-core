@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.56.0] - 2026-09-18
+
+### Added
+
+- `MarketplaceCache` memoises one resolved catalogue per user: `ResolvedCatalog { catalog, candidate, bundles }` under `ResolvedKey { catalog: [u8; 32], user, managed_stamp }` (`RESOLVED_CAPACITY` 16 entries, `RESOLVED_TTL` 60 s); `catalog_with_fingerprint`, `resolved` / `resolved_at`, `store_resolved` / `store_resolved_at`, `resolved_len`. `BundleMap`, `ResolvedCatalog`, `ResolvedKey`, `RESOLVED_CAPACITY`, `RESOLVED_TTL` are re-exported from the crate root. `MarketplaceCache::first_sighting(kind, id)` is the warn-once set the manifest scoping uses.
+- `ManagedRepository::list_skill_resolutions(owner)` (every managed skill of a principal joined to its publication selection in one query; row type `SkillResolutionRow`), `managed_catalog_stamp(owner, consumer)` (one-query digest of the managed tables the overlay reads), `revoked_skill_keys` and `get_revision_bundles` (published revision closures in two queries).
+
+### Changed
+
+- `CatalogContent::with_managed_skills` / `with_organization_skills` resolve the managed overlay through the batched queries — ≤ 5 round-trips where 67 skills cost ~800 — and admit a published skill through the same `managed_skill_from_bundle` the per-key `ManagedResourceResolver` uses.
+- `manifest::scoping` logs each "skill/artifact not selected by any enabled plugin" and "plugin selects a missing skill/artifact" warning once per (kind, id) per cache and at `debug` thereafter; the set is owned by the `MarketplaceCache` on the `AssembleRequest`, not by the process.
+
+### Fixed
+
+- `catalog::load_managed_mcp_servers` publishes a server declared with a `connector:` block through the gateway (`{base}/api/v1/mcp/{name}/mcp`), as it already did for `external_auth`; the raw upstream endpoint was published, so the bridge sent the gateway JWT straight to the provider and every tool call failed 401.
+
 ## [0.55.0] - 2026-09-17
 
 ### Fixed

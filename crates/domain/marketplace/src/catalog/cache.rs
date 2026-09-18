@@ -10,14 +10,18 @@
 //! resolution instead of each rebuilding it. An entry is keyed by the disk
 //! fingerprint, the user and a stamp of the managed tables it read, and
 //! expires after [`RESOLVED_TTL`] regardless, so a state the stamp does not
-//! cover can never be served for longer than that.
+//! cover — the user's `MarketplaceFilter` (a DB-backed ACL) and a grant that
+//! is new rather than revoked — can never be served for longer than that.
+//!
+//! The cache also remembers which catalogue-shape warnings it has logged, so
+//! a resolution that runs once per user per minute reports each once.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::collections::{BTreeMap, VecDeque};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::path::Path;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Mutex, RwLock};
 use std::time::{Duration, Instant};
 
 use systemprompt_identifiers::UserId;
@@ -67,7 +71,10 @@ pub struct MarketplaceCache {
     catalog: Slot<CatalogContent>,
     bundles: Slot<BundleMap>,
     resolved: RwLock<VecDeque<ResolvedEntry>>,
+    sighted: Mutex<BTreeSet<String>>,
 }
+
+const SIGHTED_CAPACITY: usize = 4096;
 
 impl std::fmt::Debug for MarketplaceCache {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -76,6 +83,20 @@ impl std::fmt::Debug for MarketplaceCache {
 }
 
 impl MarketplaceCache {
+    // Why: a resolution runs once per user per minute, and every one of them
+    // would repeat the same catalogue-shape warnings; the first sighting of a
+    // (kind, id) is the operator's signal, the rest is noise at debug.
+    pub fn first_sighting(&self, kind: &str, id: &str) -> bool {
+        let mut seen = self
+            .sighted
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if seen.len() >= SIGHTED_CAPACITY {
+            seen.clear();
+        }
+        seen.insert(format!("{kind}:{id}"))
+    }
+
     pub fn catalog(
         &self,
         services: &ServicesConfig,

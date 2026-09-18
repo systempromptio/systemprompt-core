@@ -4,7 +4,6 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::collections::BTreeSet;
-use std::sync::{Mutex, OnceLock};
 
 use systemprompt_models::bridge::ids::{LibraryArtifactId, SkillId};
 use systemprompt_models::bridge::manifest::{ArtifactEntry, SkillEntry};
@@ -12,6 +11,7 @@ use systemprompt_models::bridge::manifest::{ArtifactEntry, SkillEntry};
 use systemprompt_models::services::{MarketplaceConfig, MarketplaceMemberKind};
 
 use crate::candidate::MarketplaceCandidate;
+use crate::catalog::MarketplaceCache;
 use crate::scope::union_include;
 use crate::trace::{TraceEvent, TraceKind, TraceSink, TraceStage};
 
@@ -116,29 +116,15 @@ where
     kept
 }
 
-// Why: a resolution runs once per user per minute, and every one of them
-// would repeat the same catalogue-shape warnings; the first sighting of a
-// (kind, id) is the operator's signal, the rest is noise at debug.
-fn first_sighting(kind: &str, id: &str) -> bool {
-    static SEEN: OnceLock<Mutex<BTreeSet<String>>> = OnceLock::new();
-    let mut seen = SEEN
-        .get_or_init(|| Mutex::new(BTreeSet::new()))
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner);
-    if seen.len() >= 4096 {
-        seen.clear();
-    }
-    seen.insert(format!("{kind}:{id}"))
-}
-
 pub(super) fn gate_skills_by_plugin(
     skills: Vec<SkillEntry>,
     selected: &BTreeSet<SkillId>,
+    cache: &MarketplaceCache,
     trace: &mut dyn TraceSink,
 ) -> Vec<SkillEntry> {
     for id in selected {
         if !skills.iter().any(|s| &s.id == id) {
-            if first_sighting("skill-missing", id.as_str()) {
+            if cache.first_sighting("skill-missing", id.as_str()) {
                 tracing::warn!(
                     skill_id = %id,
                     "marketplace: a plugin selects a skill that does not exist or was dropped \
@@ -159,7 +145,7 @@ pub(super) fn gate_skills_by_plugin(
         .filter(|s| {
             let kept = selected.contains(&s.id);
             if !kept {
-                if first_sighting("skill-unselected", s.id.as_str()) {
+                if cache.first_sighting("skill-unselected", s.id.as_str()) {
                     tracing::warn!(
                         skill_id = %s.id.as_str(),
                         "marketplace: skill is not selected by any enabled plugin; it will not \
@@ -186,11 +172,12 @@ pub(super) fn gate_skills_by_plugin(
 pub(super) fn gate_artifacts_by_plugin(
     artifacts: Vec<ArtifactEntry>,
     selected: &BTreeSet<LibraryArtifactId>,
+    cache: &MarketplaceCache,
     trace: &mut dyn TraceSink,
 ) -> Vec<ArtifactEntry> {
     for id in selected {
         if !artifacts.iter().any(|a| &a.id == id) {
-            if first_sighting("artifact-missing", id.as_str()) {
+            if cache.first_sighting("artifact-missing", id.as_str()) {
                 tracing::warn!(
                     artifact_id = %id,
                     "marketplace: plugin artifacts.include names an artifact that does not \
@@ -211,7 +198,7 @@ pub(super) fn gate_artifacts_by_plugin(
         .filter(|a| {
             let kept = selected.contains(&a.id);
             if !kept {
-                if first_sighting("artifact-unselected", a.id.as_str()) {
+                if cache.first_sighting("artifact-unselected", a.id.as_str()) {
                     tracing::warn!(
                         artifact_id = %a.id.as_str(),
                         "marketplace: artifact is not selected by any enabled plugin; skipping"

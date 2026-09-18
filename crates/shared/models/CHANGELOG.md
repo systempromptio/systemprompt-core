@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.56.0] - 2026-09-18
+
+### Breaking
+
+- **Breaking:** `services::gateway::GatewayRoute` gains `name: Option<String>` and `description: Option<String>`; `services::providers::ProviderEntry` gains `display_name: Option<String>` and `description: Option<String>` (all `#[serde(default, skip_serializing_if = "Option::is_none")]`, so existing YAML parses unchanged and absent values are not written); struct literals must name them. `GatewayConfig`'s default route sets both to `None`.
+
 ## [0.55.1] - 2026-09-18
 
 ### Added

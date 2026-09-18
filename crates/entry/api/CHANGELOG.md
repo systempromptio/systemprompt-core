@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.56.0] - 2026-09-18
+
+### Added
+
+- `routes::gateway::bridge_resolved::resolve_for_user(ctx, services, profile, user_id)`: one catalogue resolution per user — disk catalogue with the managed overlay, filtered candidate, plugin bundles — memoised in `MarketplaceCache` under `ResolvedKey` (disk fingerprint + user + managed stamp). `bridge_manifest` and `bridge_plugin_file` both call it; the file route is authenticate → resolve → `candidate.plugins.any(id)` → `bundles.get(id).get(path)`, and `plugin_is_granted` is removed.
+
+### Fixed
+
+- `services::proxy::ServiceResolver::resolve` reconciles a running internal MCP server's stored port against `McpServerConfig::spawn_port()` (`stale_port(db_port, config_port)`), rewrites the row via `ServiceRepository::update_service_port` on a mismatch and proxies to the real port; a row left by an earlier run under a different `services.port_offset` no longer 502/503s forever.
+- `services::proxy::backend::ResponseHandler` drops the upstream `content-length`, `transfer-encoding` and `content-encoding` from an external MCP response: the audit tap rewrites the buffered body and reqwest has already decoded it, so carrying the upstream length made hyper panic on the mismatch and drop every stamped `tools/call` result from an external server.
+
 ## [0.55.0] - 2026-09-17
 
 ### Breaking

@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.56.0] - 2026-09-18
+
+### Fixed
+
+- `services::client::validation` sends `tools/list` with `params: {}` (`Some(PaginatedRequestParams::default())`) instead of the `"params": null` rmcp emits for `None`, which a strict server (Google's Discovery Engine MCP) refuses with `-32602`.
+- `fetch_external_bearer`: a non-2xx from the token accessor carries the body's `error` (first 240 characters, `ACCESSOR_ERROR_MAX_CHARS`) into `McpDomainError::ExternalAuthUnavailable.message` — "token accessor returned status 401 Unauthorized: Connector grant rejected (unauthorized_client); reconnect required" — and logs it at `warn` with `server`, `status` and `reason` fields.
+- `services::network::proxy::forward_request` logs the upstream error (`target: "mcp::proxy"`) before answering 502 instead of discarding it.
+
 ## [0.55.1] - 2026-09-18
 
 ### Fixed

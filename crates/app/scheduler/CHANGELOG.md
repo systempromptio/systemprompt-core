@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.56.0] - 2026-09-18
+
+### Fixed
+
+- `services::orchestration::state_verifier`: a `running` service whose PID is alive but whose port is unresponsive is `Crashed` — and restarted by the reconciler — once the row's `updated_at` is older than the 45 s startup grace (`STARTUP_GRACE`, `is_wedged(port_up, updated_at_epoch, now_epoch, grace)`); within the grace it is still `Starting`. Previously it read as `Starting` indefinitely. `DbServiceRecord` gains `updated_at_epoch: Option<f64>` and the row fetch selects `EXTRACT(EPOCH FROM updated_at)`.
+
+### Changed
+
+- `ServiceConfig` and `DbServiceRecord` live in `services::orchestration::service_records`; both are still re-exported from `services::orchestration`.
+
 ## [0.55.0] - 2026-09-17
 
 ### Added
