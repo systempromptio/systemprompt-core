@@ -154,6 +154,8 @@ pub fn set_enabled(file: &mut GatewayFile, enabled: bool) -> Result<String> {
 pub fn add_route(file: &mut GatewayFile, args: &RouteAddArgs) -> Result<String> {
     let mut route = GatewayRoute {
         id: RouteId::new(""),
+        name: None,
+        description: None,
         model_pattern: args.model_pattern.clone(),
         provider: ProviderId::new(&args.provider),
         upstream_model: args.upstream_model.clone(),

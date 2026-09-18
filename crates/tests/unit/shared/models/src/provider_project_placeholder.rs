@@ -15,6 +15,8 @@ use systemprompt_models::services::{ApiSurface, ProviderEntry, ProviderRegistry,
 fn vertex(endpoint: &str) -> ProviderEntry {
     ProviderEntry {
         name: ProviderId::new("vertex"),
+        display_name: None,
+        description: None,
         wire: WireProtocol::Gemini,
         surface: ApiSurface::Gemini,
         endpoint: endpoint.to_owned(),

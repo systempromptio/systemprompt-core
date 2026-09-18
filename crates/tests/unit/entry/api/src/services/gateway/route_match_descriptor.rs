@@ -14,6 +14,8 @@ use systemprompt_models::services::{GatewayRoute, RouteRequirements};
 fn route(requires: Option<RouteRequirements>) -> GatewayRoute {
     GatewayRoute {
         id: RouteId::new("eu-route"),
+        name: None,
+        description: None,
         model_pattern: "model-*".to_owned(),
         provider: ProviderId::new("acme"),
         upstream_model: None,

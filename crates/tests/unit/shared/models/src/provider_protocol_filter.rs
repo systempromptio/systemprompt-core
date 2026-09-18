@@ -37,6 +37,8 @@ fn provider(
 ) -> ProviderEntry {
     ProviderEntry {
         name: ProviderId::new(name),
+        display_name: None,
+        description: None,
         wire,
         surface,
         endpoint: "https://example.invalid/v1".to_owned(),

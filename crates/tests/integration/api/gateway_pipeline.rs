@@ -82,6 +82,8 @@ pub(super) fn provider_registry(
     ProviderRegistry {
         providers: vec![ProviderEntry {
             name: ProviderId::new(provider),
+            display_name: None,
+            description: None,
             wire,
             surface,
             endpoint: endpoint.to_owned(),
@@ -104,6 +106,8 @@ pub(super) fn provider_registry(
 pub(super) fn gateway_config(route_provider: &str) -> GatewayConfig {
     let mut route = GatewayRoute {
         id: RouteId::new(""),
+        name: None,
+        description: None,
         model_pattern: "claude-*".to_owned(),
         provider: ProviderId::new(route_provider),
         upstream_model: None,

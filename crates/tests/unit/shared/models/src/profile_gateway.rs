@@ -42,6 +42,8 @@ fn req(model: &str) -> CanonicalRequest {
 fn route(pattern: &str) -> GatewayRoute {
     GatewayRoute {
         id: RouteId::new(""),
+        name: None,
+        description: None,
         model_pattern: pattern.to_owned(),
         provider: ProviderId::new("test"),
         upstream_model: None,
@@ -77,6 +79,8 @@ fn route_finds_matching_model() {
         enabled: true,
         routes: vec![GatewayRoute {
             id: RouteId::new(""),
+            name: None,
+            description: None,
             model_pattern: "kimi-*".to_owned(),
             provider: ProviderId::new("moonshot"),
             upstream_model: Some("moonshot-v1-32k".to_owned()),
@@ -228,6 +232,8 @@ fn registry_with_endpoint(endpoint: &str) -> ProviderRegistry {
     ProviderRegistry {
         providers: vec![ProviderEntry {
             name: ProviderId::new("test"),
+            display_name: None,
+            description: None,
             wire: WireProtocol::Anthropic,
             surface: ApiSurface::Anthropic,
             endpoint: endpoint.to_owned(),
@@ -329,6 +335,8 @@ fn validate_rejects_duplicate_route_id() {
 fn provider_entry(name: &str, endpoint: &str, models: Vec<ProviderModel>) -> ProviderEntry {
     ProviderEntry {
         name: ProviderId::new(name),
+        display_name: None,
+        description: None,
         wire: WireProtocol::Anthropic,
         surface: ApiSurface::Anthropic,
         endpoint: endpoint.to_owned(),
@@ -389,6 +397,8 @@ fn two_provider_config(default_provider: Option<&str>) -> GatewayConfig {
 fn route_to(pattern: &str, provider: &str) -> GatewayRoute {
     let mut r = GatewayRoute {
         id: RouteId::new(""),
+        name: None,
+        description: None,
         model_pattern: pattern.to_owned(),
         provider: ProviderId::new(provider),
         upstream_model: None,
@@ -1046,6 +1056,8 @@ fn priced_registry(models: Vec<ProviderModel>) -> ProviderRegistry {
     ProviderRegistry {
         providers: vec![ProviderEntry {
             name: ProviderId::new("test"),
+            display_name: None,
+            description: None,
             wire: WireProtocol::Anthropic,
             surface: ApiSurface::Anthropic,
             endpoint: "https://api.anthropic.com/v1".to_owned(),
@@ -1353,6 +1365,8 @@ fn a_public_release_feed_names_no_secret_and_is_not_reported() {
 fn priced_provider(name: &str, wire: WireProtocol, models: Vec<ProviderModel>) -> ProviderEntry {
     ProviderEntry {
         name: ProviderId::new(name),
+        display_name: None,
+        description: None,
         wire,
         surface: ApiSurface::Anthropic,
         endpoint: "https://api.anthropic.com/v1".to_owned(),

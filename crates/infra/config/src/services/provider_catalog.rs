@@ -43,15 +43,24 @@ pub struct ProviderCatalogService;
 
 impl ProviderCatalogService {
     pub fn upsert_provider(registry: &mut ProviderRegistry, spec: ProviderSpec) {
-        let (models, governance) = registry
+        let (models, governance, display_name, description) = registry
             .find_provider(spec.name.as_str())
-            .map(|p| (p.models.clone(), p.governance))
+            .map(|p| {
+                (
+                    p.models.clone(),
+                    p.governance,
+                    p.display_name.clone(),
+                    p.description.clone(),
+                )
+            })
             .unwrap_or_default();
         registry
             .providers
             .retain(|p| p.name.as_str() != spec.name.as_str());
         registry.providers.push(ProviderEntry {
             name: spec.name,
+            display_name,
+            description,
             wire: spec.wire,
             surface: spec.surface,
             endpoint: spec.endpoint,

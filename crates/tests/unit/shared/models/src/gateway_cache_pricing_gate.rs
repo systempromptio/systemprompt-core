@@ -36,6 +36,8 @@ fn registry(cache_read: Option<f64>) -> ProviderRegistry {
     ProviderRegistry {
         providers: vec![ProviderEntry {
             name: ProviderId::new("gemini"),
+            display_name: None,
+            description: None,
             wire: WireProtocol::Gemini,
             surface: ApiSurface::Gemini,
             endpoint: "https://example.invalid/v1beta".to_owned(),
@@ -60,6 +62,8 @@ fn config() -> GatewayConfig {
         enabled: true,
         routes: vec![GatewayRoute {
             id: RouteId::new("gemini-pro"),
+            name: None,
+            description: None,
             model_pattern: "gemini-2.5-*".to_owned(),
             provider: ProviderId::new("gemini"),
             upstream_model: None,

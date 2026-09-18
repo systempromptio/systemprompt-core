@@ -52,6 +52,8 @@ fn registry(
     ProviderRegistry {
         providers: vec![ProviderEntry {
             name: ProviderId::new(PROVIDER),
+            display_name: None,
+            description: None,
             wire,
             surface,
             endpoint: endpoint.to_owned(),
@@ -74,6 +76,8 @@ fn registry(
 fn config() -> GatewayConfig {
     let mut route = GatewayRoute {
         id: RouteId::new(""),
+        name: None,
+        description: None,
         model_pattern: CATALOG_ID.to_owned(),
         provider: ProviderId::new(PROVIDER),
         upstream_model: None,

@@ -71,6 +71,8 @@ async fn recovery_sends_only_sanitized_bytes_for_every_adapter_and_transport_mod
                     .await;
                 let route = GatewayRoute {
                     id: RouteId::new("recovery-route"),
+                    name: None,
+                    description: None,
                     model_pattern: "*".to_owned(),
                     provider: ProviderId::new(provider),
                     upstream_model: Some("upstream-1".to_owned()),

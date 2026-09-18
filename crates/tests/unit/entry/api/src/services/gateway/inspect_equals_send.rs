@@ -31,6 +31,8 @@ const LEAKED_KEY: &str = "AKIAIOSFODNN7EXAMPLE";
 fn route() -> GatewayRoute {
     GatewayRoute {
         id: RouteId::new("r1"),
+        name: None,
+        description: None,
         model_pattern: "*".into(),
         provider: ProviderId::new("anthropic"),
         upstream_model: Some("upstream-1".into()),

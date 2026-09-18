@@ -61,6 +61,8 @@ pub fn build_routes(secrets: &SecretsData) -> Vec<GatewayRoute> {
         .map(|d| {
             let mut route = GatewayRoute {
                 id: RouteId::new(""),
+                name: None,
+                description: None,
                 model_pattern: d.route_pattern.to_owned(),
                 provider: ProviderId::new(d.name),
                 upstream_model: d.default_upstream.map(str::to_owned),

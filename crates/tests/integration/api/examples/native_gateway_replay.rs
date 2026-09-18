@@ -74,6 +74,8 @@ fn wire(
 fn config() -> GatewayConfig {
     let mut route = GatewayRoute {
         id: RouteId::new(""),
+        name: None,
+        description: None,
         model_pattern: "*".to_owned(),
         provider: ProviderId::new("native-fixture"),
         upstream_model: None,

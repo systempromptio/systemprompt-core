@@ -81,6 +81,8 @@ fn registry(name: &str) -> ProviderRegistry {
     ProviderRegistry {
         providers: vec![ProviderEntry {
             name: ProviderId::new(name),
+            display_name: None,
+            description: None,
             wire: WireProtocol::Anthropic,
             surface: ApiSurface::Anthropic,
             endpoint: "https://example.test/v1".to_owned(),

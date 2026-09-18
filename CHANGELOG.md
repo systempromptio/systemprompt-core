@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Breaking
+
+- **Gateway:** `GatewayRoute` gains `name: Option<String>` and `description: Option<String>`, and `ProviderEntry` gains `display_name: Option<String>` and `description: Option<String>` — human-facing metadata the console shows in place of the generated route id and the provider id (`name` on a provider is and stays the id). All four default to `None` and are omitted when absent, so no YAML changes; struct literals must name them. `ProviderCatalogService::upsert_provider` preserves an existing provider's `display_name` / `description` the way it preserves `models` and `governance`.
+
 ## [0.55.1] - 2026-09-18
 
 ### Fixed

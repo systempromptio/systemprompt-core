@@ -87,7 +87,16 @@ impl ProviderModel {
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ProviderEntry {
+    /// The provider id routes and secrets address; not a display string.
     pub name: ProviderId,
+
+    /// Human-facing label the console shows in place of `name`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub display_name: Option<String>,
+
+    /// One or two sentences on what the provider hosts and how it is reached.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
 
     pub wire: WireProtocol,
 
