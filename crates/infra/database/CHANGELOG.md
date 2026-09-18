@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.56.0] - 2026-09-18
+
+### Added
+
+- `ServiceRepository::update_service_port(service_name, port: u16)`: rewrites `services.port` (and `updated_at`) for this instance's row; used by the API proxy resolver to reconcile a stale port.
+
 ## [0.55.0] - 2026-09-17
 
 ### Added

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.56.0] - 2026-09-18
+
+### Changed
+
+- `ProviderCatalogService::upsert_provider` preserves an existing provider's `display_name` and `description` across a re-upsert, the way it preserves `models` and `governance`.
+
 ## [0.54.0] - 2026-09-16
 
 ### Added

@@ -210,3 +210,33 @@ fn tracing_messages_are_constant() {
         assert!(findings.is_empty(), "{source}: {findings:?}");
     }
 }
+
+#[test]
+fn a_silent_map_err_on_a_network_result_is_a_swallowed_boundary_error() {
+    let silent = "async fn call(c: reqwest::Client) -> Result<(), E> {\n let r = c.get(u).send().await.map_err(|_redacted| E::Upstream)?;\n let body: T = r.json().await.map_err(|_| E::Upstream)?;\n Ok(())\n}";
+    let findings = inspect(silent, "swallowed-errors").unwrap();
+    assert_eq!(
+        findings.iter().map(|f| f.line).collect::<Vec<_>>(),
+        vec![2, 3]
+    );
+    assert!(
+        findings
+            .iter()
+            .all(|f| f.rule == "swallowed-boundary-error")
+    );
+}
+
+#[test]
+fn a_map_err_that_names_or_logs_the_error_is_not_swallowed() {
+    let named = "async fn call() -> Result<(), E> {\n c.send().await.map_err(|error| E::Upstream(error.to_string()))?;\n Ok(())\n}";
+    assert!(inspect(named, "swallowed-errors").unwrap().is_empty());
+    let logged = "async fn call() -> Result<(), E> {\n c.send().await.map_err(|_e| { tracing::warn!(\"refused\"); E::Upstream })?;\n Ok(())\n}";
+    assert!(inspect(logged, "swallowed-errors").unwrap().is_empty());
+    let local = "fn compute() -> Result<u8, E> {\n parse(text).map_err(|_| E::Bad)\n}";
+    assert!(
+        inspect(local, "swallowed-errors").unwrap().is_empty(),
+        "only boundary results are gated"
+    );
+    let annotated = "async fn emit() -> Result<(), E> {\n tx.send(e).await\n // Why: discard-ok: a closed mpsc carries only the unsent event\n .map_err(|_closed| E::Closed)\n}";
+    assert!(inspect(annotated, "swallowed-errors").unwrap().is_empty());
+}

@@ -75,7 +75,10 @@ pub use bundle::{
     BundleContent, BundleFile, PluginBundle, build_plugin_bundle, bundle_has_content,
 };
 pub use candidate::{EntryKeepSets, FilterContext, ManifestEntries, MarketplaceCandidate};
-pub use catalog::{CatalogContent, MarketplaceCache, plugin_bundles};
+pub use catalog::{
+    BundleMap, CatalogContent, MarketplaceCache, RESOLVED_CAPACITY, RESOLVED_TTL, ResolvedCatalog,
+    ResolvedKey, plugin_bundles,
+};
 pub use error::{MarketplaceError, MarketplaceFilterError};
 pub use extension::ManagedResourcesExtension;
 pub use filter::{AllowAllFilter, MarketplaceFilter};

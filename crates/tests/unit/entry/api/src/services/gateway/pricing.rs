@@ -9,6 +9,8 @@ use systemprompt_test_fixtures::usage;
 fn route(pattern: &str, provider: &str, pricing: Option<ModelPricing>) -> GatewayRoute {
     GatewayRoute {
         id: RouteId::new(format!("{pattern}-{provider}")),
+        name: None,
+        description: None,
         model_pattern: pattern.to_owned(),
         provider: ProviderId::new(provider),
         upstream_model: None,
@@ -66,6 +68,8 @@ fn registry_pricing_used_when_no_route_override() {
     let registry = ProviderRegistry {
         providers: vec![ProviderEntry {
             name: ProviderId::new("anthropic"),
+            display_name: None,
+            description: None,
             wire: WireProtocol::Anthropic,
             surface: ApiSurface::Anthropic,
             endpoint: "https://api.anthropic.com".to_owned(),
@@ -99,6 +103,8 @@ fn resolve_falls_back_to_configured_model_when_served_alias_unknown() {
     let registry = ProviderRegistry {
         providers: vec![ProviderEntry {
             name: ProviderId::new("openai"),
+            display_name: None,
+            description: None,
             wire: WireProtocol::OpenAiResponses,
             surface: ApiSurface::OpenAi,
             endpoint: "https://api.openai.com/v1".to_owned(),

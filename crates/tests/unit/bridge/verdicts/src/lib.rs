@@ -5,6 +5,8 @@ mod agent_health;
 #[cfg(test)]
 mod agent_health_i18n;
 #[cfg(test)]
+mod external_url;
+#[cfg(test)]
 mod fixture_verdicts;
 #[cfg(test)]
 mod force_dark;
@@ -16,7 +18,6 @@ mod host_reapply;
 mod inconclusive_state;
 #[cfg(test)]
 mod wire_hosts;
-#[cfg(test)]
 mod wire_ipc;
 #[cfg(test)]
 mod wire_payloads;

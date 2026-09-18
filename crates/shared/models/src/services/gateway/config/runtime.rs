@@ -98,6 +98,8 @@ impl GatewayConfig {
         registry.find_provider(provider.as_str())?;
         let mut route = GatewayRoute {
             id: RouteId::new(""),
+            name: None,
+            description: None,
             model_pattern: DEFAULT_ROUTE_PATTERN.to_owned(),
             provider: provider.clone(),
             upstream_model: None,

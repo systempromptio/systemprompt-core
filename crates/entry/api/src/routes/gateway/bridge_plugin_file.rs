@@ -17,13 +17,11 @@ use axum::http::{HeaderMap, StatusCode, header};
 use axum::response::Response;
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::JwtToken;
-use systemprompt_marketplace::{AssembleRequest, CatalogContent, ManifestService, NoopTrace};
 use systemprompt_models::bridge::ids::PluginId;
-use systemprompt_models::services::ServicesConfig;
 use systemprompt_runtime::AppContext;
 
-use super::bridge_data;
 use super::messages::extract_credential;
+use super::{bridge_data, bridge_resolved};
 use crate::services::middleware::JwtContextExtractor;
 
 type HttpError = (StatusCode, String);
@@ -52,25 +50,11 @@ pub async fn handle(
 
     let services = bridge_data::load_services_config().map_err(|e| internal("services", &e))?;
     let profile = ProfileBootstrap::get().map_err(|e| internal("profile", &e))?;
-    let disk_catalog = ctx
-        .marketplace_cache()
-        .catalog(
-            &services,
-            ctx.app_paths().system().services(),
-            &profile.server.api_external_url,
-        )
-        .map_err(|e| internal("catalog", &e))?;
-    let catalog = (*disk_catalog)
-        .clone()
-        .with_organization_skills(
-            ctx.managed_repository().as_ref().clone(),
-            ctx.system_admin().id(),
-            &user.id,
-        )
+    let resolved = bridge_resolved::resolve_for_user(&ctx, &services, profile, &user.id)
         .await
-        .map_err(|error| internal("managed-catalog", &error))?;
+        .map_err(|e| internal("resolve", &e))?;
 
-    if !plugin_is_granted(&ctx, &services, &catalog, &id, &user.id).await? {
+    if !resolved.candidate.plugins.iter().any(|p| p.id == id) {
         tracing::warn!(
             plugin_id = %plugin_id,
             user_id = %user.id,
@@ -79,11 +63,8 @@ pub async fn handle(
         return Err((StatusCode::NOT_FOUND, "Plugin not found".to_owned()));
     }
 
-    let bundles = ctx
-        .marketplace_cache()
-        .bundles(&services, &catalog.as_content())
-        .map_err(|e| internal("bundle", &e))?;
-    let bundle = bundles
+    let bundle = resolved
+        .bundles
         .get(&id)
         .ok_or_else(|| (StatusCode::NOT_FOUND, "Plugin not found".to_owned()))?;
     let file = bundle
@@ -121,30 +102,6 @@ async fn authenticate(
         .await
         .map(|(_, user)| user)
         .map_err(|e| (StatusCode::UNAUTHORIZED, e.to_string()))
-}
-
-async fn plugin_is_granted(
-    ctx: &AppContext,
-    services: &ServicesConfig,
-    catalog: &CatalogContent,
-    plugin_id: &PluginId,
-    user_id: &systemprompt_identifiers::UserId,
-) -> Result<bool, HttpError> {
-    let candidate = ManifestService::assemble_candidate_from_catalog(
-        catalog.clone(),
-        &AssembleRequest {
-            services,
-            services_root: ctx.app_paths().system().services(),
-            filter: ctx.marketplace_filter().as_ref(),
-            user_id,
-            cache: ctx.marketplace_cache(),
-        },
-        &mut NoopTrace,
-    )
-    .await
-    .map_err(|e| internal("candidate", &e))?;
-
-    Ok(candidate.plugins.iter().any(|p| &p.id == plugin_id))
 }
 
 pub fn relative_path_is_safe(relative: &str) -> bool {

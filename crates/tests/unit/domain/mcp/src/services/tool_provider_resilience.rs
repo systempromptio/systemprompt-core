@@ -75,9 +75,9 @@ async fn provider_for_endpoint_or_skip(
 async fn mount_delayed_tool_call(mock: &MockServer, delay: Duration) {
     Mock::given(method("POST"))
         .and(path("/mcp"))
-        .and(body_partial_json(serde_json::json!({
-            "method": "tools/call"
-        })))
+        .and(body_partial_json(
+            serde_json::json!({"jsonrpc": "2.0", "method": "tools/call", "params": {}}),
+        ))
         .respond_with(
             ResponseTemplate::new(200)
                 .insert_header("content-type", "application/json")

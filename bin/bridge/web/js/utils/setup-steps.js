@@ -29,13 +29,21 @@ export function stepsFromSnapshot(snap, { leftSetup, finished }) {
   const probeable = hosts.filter((h) => h.can_verify !== false);
   const settled = probeable.length > 0 && probeable.every((h) => h.health);
   const anyInstalled = hosts.some(isInstalled);
+  // A machine that has been through setup once is not a new machine. The
+  // bridge records that on disk (the Finish button, or a completed first-use
+  // run) and carries it in every snapshot; a profile the next release reads as
+  // stale — an upgrade changed what it should contain — is the Agents tab's
+  // Repair, not a reason to start over. Before this read, an auto-update
+  // reopened the wizard on every configured machine.
+  const onboarded = !!snap.agents_onboarded || !!(snap.first_run && snap.first_run.done);
   const model = {
     settled,
     anyInstalled,
+    onboarded,
     // Agents are managed in the Agents tab (and first-run auto-installs detected
     // hosts), so the onboarding agents step only earns its place when nothing is
     // configured yet. Once any agent exists, sign-in drops straight into the app.
-    step: configured && !anyInstalled ? "agents" : "connect",
+    step: configured && !anyInstalled && !onboarded ? "agents" : "connect",
     firstRunActive: !!(snap.first_run && snap.first_run.active),
     leftSetup,
     setupMode: null,
@@ -51,10 +59,10 @@ export function stepsFromSnapshot(snap, { leftSetup, finished }) {
   // snapshots are still arriving, so those guards would return early and let
   // the app show over a half-installed machine.
   if (model.firstRunActive) { return { ...model, finalizing, leftSetup: false, setupMode: true }; }
-  return { ...model, finalizing, ...overlayDecision(snap, { configured, settled, anyInstalled, leftSetup, finished }) };
+  return { ...model, finalizing, ...overlayDecision(snap, { configured, settled, anyInstalled, onboarded, leftSetup, finished }) };
 }
 
-function overlayDecision(snap, { configured, settled, anyInstalled, leftSetup, finished }) {
+function overlayDecision(snap, { configured, settled, anyInstalled, onboarded, leftSetup, finished }) {
   // Signing out is the one thing that legitimately sends us back to the
   // splash. Clear the latch so it can.
   const signedIn = !!(snap.verified_identity && snap.verified_identity.user_id);
@@ -69,7 +77,7 @@ function overlayDecision(snap, { configured, settled, anyInstalled, leftSetup, f
   // One-way latch: once the app proper has been shown, a later probe result
   // must not yank the user back into onboarding mid-session.
   if (latch) { return { leftSetup: true, setupMode: null }; }
-  const needAgents = !anyInstalled && !finished;
+  const needAgents = !anyInstalled && !finished && !onboarded;
   const inSetup = !configured || needAgents;
   return { leftSetup: !inSetup, setupMode: inSetup };
 }

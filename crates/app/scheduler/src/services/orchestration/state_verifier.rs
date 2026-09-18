@@ -10,6 +10,7 @@ use tokio::net::TcpStream;
 use tokio::time::timeout;
 
 use super::process_cleanup::ProcessCleanup;
+use super::service_records::{DbServiceRecord, ServiceConfig};
 use super::state_types::{DesiredStatus, RuntimeStatus, ServiceType};
 use super::verified_state::VerifiedServiceState;
 use crate::error::SchedulerResult;
@@ -17,50 +18,33 @@ use systemprompt_database::{DatabaseProvider, DatabaseQuery, DbPool};
 use systemprompt_identifiers::InstanceId;
 
 const FETCH_DB_SERVICES: DatabaseQuery = DatabaseQuery::new(
-    "SELECT name, module_name as service_type, status, pid, port FROM services WHERE instance_id \
+    "SELECT name, module_name as service_type, status, pid, port, \
+     EXTRACT(EPOCH FROM updated_at) AS updated_at_epoch FROM services WHERE instance_id \
      = $1 AND status IN ('running', 'starting', 'stopped')",
 );
 
-#[derive(Debug, Clone)]
-pub struct ServiceConfig {
-    pub name: String,
-    pub service_type: ServiceType,
-    pub port: u16,
-    pub enabled: bool,
+const STARTUP_GRACE: Duration = Duration::from_secs(45);
+
+fn now_epoch() -> Option<f64> {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .ok()
+        .map(|d| d.as_secs_f64())
 }
 
-impl ServiceConfig {
-    #[must_use]
-    pub fn list_from_manifest(services: &systemprompt_models::ServicesConfig) -> Vec<Self> {
-        let agents = services.agents.iter().map(|(name, agent)| Self {
-            name: name.clone(),
-            service_type: ServiceType::Agent,
-            port: agent.port,
-            enabled: agent.enabled,
-        });
-        let mcp_servers = services
-            .mcp_servers
-            .iter()
-            .filter(|(_, mcp)| mcp.server_type != systemprompt_models::mcp::McpServerType::External)
-            .filter_map(|(name, mcp)| {
-                Some(Self {
-                    name: name.clone(),
-                    service_type: ServiceType::Mcp,
-                    port: mcp.port?,
-                    enabled: mcp.enabled,
-                })
-            });
-        agents.chain(mcp_servers).collect()
+pub fn is_wedged(
+    port_up: bool,
+    updated_at_epoch: Option<f64>,
+    now_epoch: Option<f64>,
+    grace: Duration,
+) -> bool {
+    if port_up {
+        return false;
     }
-}
-
-#[derive(Debug, Clone)]
-pub struct DbServiceRecord {
-    pub name: String,
-    pub service_type: String,
-    pub status: String,
-    pub pid: Option<i64>,
-    pub port: i32,
+    match (updated_at_epoch, now_epoch) {
+        (Some(updated), Some(now)) => now - updated > grace.as_secs_f64(),
+        _ => false,
+    }
 }
 
 #[derive(Debug)]
@@ -146,8 +130,23 @@ impl ServiceStateVerifier {
             Some(record) if record.status == "running" => {
                 if let Some(pid) = record.pid.map(|p| p as u32) {
                     if ProcessCleanup::process_exists(pid) {
-                        if self.is_port_responsive(port).await {
+                        let port_up = self.is_port_responsive(port).await;
+                        if port_up {
                             (RuntimeStatus::Running, Some(pid))
+                        } else if is_wedged(
+                            port_up,
+                            record.updated_at_epoch,
+                            now_epoch(),
+                            STARTUP_GRACE,
+                        ) {
+                            tracing::warn!(
+                                service = %record.name,
+                                pid,
+                                port,
+                                "Service process is alive but its port is unresponsive past the \
+                                 startup grace window; treating as crashed for restart"
+                            );
+                            (RuntimeStatus::Crashed, Some(pid))
                         } else {
                             (RuntimeStatus::Starting, Some(pid))
                         }
@@ -225,6 +224,9 @@ impl ServiceStateVerifier {
                     tracing::warn!(service_name = %name, "Service record missing port field");
                     0
                 }) as i32;
+            let updated_at_epoch = row
+                .get("updated_at_epoch")
+                .and_then(serde_json::Value::as_f64);
 
             records.push(DbServiceRecord {
                 name,
@@ -232,6 +234,7 @@ impl ServiceStateVerifier {
                 status,
                 pid,
                 port,
+                updated_at_epoch,
             });
         }
 

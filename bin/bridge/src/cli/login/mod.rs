@@ -234,7 +234,9 @@ fn reapply_after_login(ctx: &BridgeContext, opted_out: bool) {
     }
     let overrides = crate::integration::reapply::ModelProtocolOverrides::new();
     let reports = ctx.block_on(crate::integration::reapply::reapply_stale_profiles(
-        ctx, &overrides,
+        ctx,
+        &overrides,
+        crate::integration::reapply::Attendance::Attended,
     ));
     if !reports.is_empty() {
         stdio::print_str(&crate::integration::reapply::render(&reports));

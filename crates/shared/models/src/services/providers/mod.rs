@@ -89,6 +89,12 @@ impl ProviderModel {
 pub struct ProviderEntry {
     pub name: ProviderId,
 
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub display_name: Option<String>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+
     pub wire: WireProtocol,
 
     pub surface: ApiSurface,

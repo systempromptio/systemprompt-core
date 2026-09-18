@@ -72,4 +72,8 @@ pub enum HostUiEvent {
         result: Result<(), Arc<GuiError>>,
         reply_to: ReplyId,
     },
+    UnattendedRepairFinished {
+        host_id: HostId,
+        report: crate::integration::reapply::Report,
+    },
 }

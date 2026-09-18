@@ -16,7 +16,7 @@ use crate::integration::profile_state::ProfileState;
 
 pub type ModelProtocolOverrides = BTreeMap<String, Vec<String>>;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Outcome {
     Reapplied,
     Pending,
@@ -24,7 +24,7 @@ pub enum Outcome {
     Failed(String),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Report {
     pub display_name: &'static str,
     pub install_action_label: &'static str,
@@ -106,9 +106,22 @@ pub async fn build_profile_inputs(
     })
 }
 
+/// Whether the user asked for this repair.
+///
+/// An attended repair may raise the operating system's own prompts (an
+/// administrator approval, a profile to accept in System Settings); an
+/// unattended one never does, and reports `Declined` for a host that would
+/// need one.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Attendance {
+    Attended,
+    Unattended,
+}
+
 pub async fn reapply_stale_profiles(
     bridge: &BridgeContext,
     overrides: &ModelProtocolOverrides,
+    attendance: Attendance,
 ) -> Vec<Report> {
     let env = ProbeEnv::new(
         bridge.proxy.loopback(),
@@ -119,15 +132,25 @@ pub async fn reapply_stale_profiles(
         if !matches!(host.probe(&env).profile_state, ProfileState::Stale { .. }) {
             continue;
         }
-        let (outcome, warnings) = reapply_one(bridge, host, overrides, &env).await;
-        reports.push(Report {
-            display_name: host.display_name(),
-            install_action_label: host.install_action_label(),
-            outcome,
-            warnings,
-        });
+        reports.push(reapply_host(bridge, host, overrides, &env, attendance).await);
     }
     reports
+}
+
+pub async fn reapply_host(
+    bridge: &BridgeContext,
+    host: &'static dyn HostApp,
+    overrides: &ModelProtocolOverrides,
+    env: &ProbeEnv,
+    attendance: Attendance,
+) -> Report {
+    let (outcome, warnings) = reapply_one(bridge, host, overrides, env, attendance).await;
+    Report {
+        display_name: host.display_name(),
+        install_action_label: host.install_action_label(),
+        outcome,
+        warnings,
+    }
 }
 
 async fn reapply_one(
@@ -135,6 +158,7 @@ async fn reapply_one(
     host: &'static dyn HostApp,
     overrides: &ModelProtocolOverrides,
     env: &ProbeEnv,
+    attendance: Attendance,
 ) -> (Outcome, Vec<String>) {
     let inputs = match build_profile_inputs(bridge, host, overrides).await {
         Ok(i) => i,
@@ -144,7 +168,11 @@ async fn reapply_one(
         Ok(g) => g,
         Err(e) => return (Outcome::Failed(e.to_string()), Vec::new()),
     };
-    match host.install_profile(&generated.path) {
+    let installed = match attendance {
+        Attendance::Attended => host.install_profile(&generated.path),
+        Attendance::Unattended => host.install_profile_unattended(&generated.path),
+    };
+    match installed {
         Ok(installed) => (verify(host, env), installed.warnings),
         Err(e) if is_declined(&e) => (Outcome::Declined, Vec::new()),
         Err(e) => (Outcome::Failed(e.to_string()), Vec::new()),

@@ -65,7 +65,10 @@ async fn forward_request(req: Request, target_url: String) -> Result<Response, S
         proxied = proxied.body(body_bytes.to_vec());
     }
 
-    let upstream = proxied.send().await.map_err(|_e| StatusCode::BAD_GATEWAY)?;
+    let upstream = proxied.send().await.map_err(|error| {
+        tracing::warn!(target: "mcp::proxy", %error, "upstream MCP request failed");
+        StatusCode::BAD_GATEWAY
+    })?;
 
     let status =
         StatusCode::from_u16(upstream.status().as_u16()).map_err(|_e| StatusCode::BAD_GATEWAY)?;

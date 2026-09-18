@@ -36,12 +36,13 @@ function railProfileMenuItems(update, signedIn) {
   if (update.can_install && update.notes_url) {
     items.push(`<a class="sp-rail-profile__menu-item" role="menuitem" href="${escapeHtml(update.notes_url)}" data-href="${escapeHtml(update.notes_url)}" data-action="open-external">${escapeHtml(t("rail-profile-release-notes") || "Release notes")}</a>`);
   }
+  // Disconnecting, resetting and removing the application are the tray's:
+  // they end or tear down the session this window belongs to, and the tray
+  // is what remains once it is gone. Signing out is the one account action
+  // the window offers.
   if (signedIn) {
     items.push(`<button class="sp-rail-profile__menu-item" type="button" role="menuitem" data-action="logout" data-l10n-id="rail-profile-logout">${escapeHtml(t("rail-profile-logout") || "Log out")}</button>`);
   }
-  items.push(menuItem("device-disconnect", t("rail-profile-disconnect") || "Disconnect this computer…"));
-  items.push(menuItem("device-purge", t("rail-profile-purge") || "Reset Bridge completely…"));
-  items.push(menuItem("device-remove", t("rail-profile-remove-application") || "Remove Bridge application…"));
   return items;
 }
 

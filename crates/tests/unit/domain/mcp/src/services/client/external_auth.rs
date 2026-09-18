@@ -115,6 +115,33 @@ async fn fetch_bearer_surfaces_other_statuses() {
     assert!(err.to_string().contains("503"));
 }
 
+// The accessor's `{"error": …}` names why the bearer was refused (a retired
+// grant, a held outage); the console must see that, not a bare status.
+#[tokio::test]
+async fn fetch_bearer_carries_the_accessor_error_reason() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/token"))
+        .respond_with(ResponseTemplate::new(401).set_body_json(serde_json::json!({
+            "error": "Connector grant rejected (unauthorized_client); reconnect required"
+        })))
+        .mount(&server)
+        .await;
+
+    let err = fetch_external_bearer(
+        &format!("{}/token", server.uri()),
+        "jwt",
+        "broker-secret",
+        "srv",
+    )
+    .await
+    .expect_err("401 surfaces");
+    let text = err.to_string();
+    assert!(text.contains("401"), "{text}");
+    assert!(text.contains("unauthorized_client"), "{text}");
+    assert!(text.contains("reconnect required"), "{text}");
+}
+
 #[tokio::test]
 async fn fetch_bearer_rejects_unreadable_body() {
     let server = MockServer::start().await;

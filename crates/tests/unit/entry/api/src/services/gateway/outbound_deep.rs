@@ -47,6 +47,8 @@ fn route(provider: &str) -> GatewayRoute {
     extra.insert("x-custom".to_owned(), "value".to_owned());
     GatewayRoute {
         id: RouteId::new("r1"),
+        name: None,
+        description: None,
         model_pattern: "*".into(),
         provider: ProviderId::new(provider),
         upstream_model: Some("upstream-1".into()),

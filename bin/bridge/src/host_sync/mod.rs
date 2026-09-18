@@ -20,12 +20,29 @@ pub(crate) mod hooks_schema;
 pub use error::{ApplyError, ForeignShape, TomlError};
 pub use hooks::stamp_hooks_file;
 
+/// What a host warning is about. Control flow (the Cowork re-sync tick, the
+/// health verdict) reads this, never the message text.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+#[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
+#[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
+pub enum HostWarningKind {
+    CoworkSessionMissing,
+    PluginDependencies,
+    EvidenceUnacknowledged,
+    PermissionRules,
+    ToolCatalog,
+    NodePackages,
+    Manifest,
+}
+
 /// A host sync that completed but could not do everything it exists to do —
 /// the run is not partial, yet the operator has something to act on.
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
 #[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
 pub struct HostWarning {
+    pub kind: HostWarningKind,
     #[cfg_attr(feature = "ts-export", ts(type = "string"))]
     pub host_id: HostId,
     pub message: String,
@@ -42,14 +59,16 @@ impl HostWarnings {
         Self(std::sync::Mutex::new(Vec::new()))
     }
 
-    pub fn push(&self, host_id: &str, message: impl Into<String>) {
+    pub fn push(&self, kind: HostWarningKind, host_id: &str, message: impl Into<String>) {
         let warning = HostWarning {
+            kind,
             host_id: HostId::new(host_id),
             message: message.into(),
         };
         tracing::warn!(
             target: "bridge::sync::host",
             host = %warning.host_id,
+            kind = ?warning.kind,
             warning = %warning.message,
             "host sync warning"
         );

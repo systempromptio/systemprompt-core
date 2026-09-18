@@ -112,6 +112,23 @@ impl IpcRequest {
     }
 }
 
+/// The part of a request envelope that can still be read when the whole
+/// cannot: enough to address a rejection back at the promise that is waiting.
+#[derive(Debug, Clone, Copy, Deserialize)]
+pub struct IpcEnvelopeHead {
+    #[serde(default)]
+    pub id: Option<u64>,
+    #[serde(default)]
+    pub mount: Option<u64>,
+}
+
+impl IpcEnvelopeHead {
+    #[must_use]
+    pub fn of(raw: &str) -> Option<Self> {
+        serde_json::from_str(raw).ok()
+    }
+}
+
 #[derive(Debug, Serialize)]
 #[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
 #[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]

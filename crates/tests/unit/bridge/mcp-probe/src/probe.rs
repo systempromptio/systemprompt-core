@@ -20,6 +20,30 @@ use wiremock::{Mock, MockServer, ResponseTemplate};
 const SLUG: &str = "myslug";
 const BEARER: &str = "Bearer test";
 
+// The exact JSON-RPC frames the probe sends, as the servers see them. A mount
+// that matched on `method` alone let `"params": null` ship — Google's MCP
+// refuses it — so every mount holds the whole request shape.
+fn initialize_wire() -> serde_json::Value {
+    serde_json::json!({
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "initialize",
+        "params": {
+            "protocolVersion": "2025-06-18",
+            "capabilities": {},
+            "clientInfo": { "name": "systemprompt-bridge-probe" }
+        }
+    })
+}
+
+fn initialized_wire() -> serde_json::Value {
+    serde_json::json!({ "jsonrpc": "2.0", "method": "notifications/initialized" })
+}
+
+fn tools_list_wire() -> serde_json::Value {
+    serde_json::json!({ "jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {} })
+}
+
 fn target(server: &MockServer) -> String {
     format!("{}/mcp/{SLUG}", server.uri())
 }
@@ -35,9 +59,7 @@ async fn authenticated_json() {
 
     Mock::given(method("POST"))
         .and(path(format!("/mcp/{SLUG}")))
-        .and(body_partial_json(
-            serde_json::json!({ "method": "initialize" }),
-        ))
+        .and(body_partial_json(initialize_wire()))
         .respond_with(
             ResponseTemplate::new(200)
                 .insert_header("mcp-session-id", "sess-123")
@@ -48,18 +70,14 @@ async fn authenticated_json() {
 
     Mock::given(method("POST"))
         .and(path(format!("/mcp/{SLUG}")))
-        .and(body_partial_json(
-            serde_json::json!({ "method": "notifications/initialized" }),
-        ))
+        .and(body_partial_json(initialized_wire()))
         .respond_with(ResponseTemplate::new(202))
         .mount(&server)
         .await;
 
     Mock::given(method("POST"))
         .and(path(format!("/mcp/{SLUG}")))
-        .and(body_partial_json(
-            serde_json::json!({ "method": "tools/list" }),
-        ))
+        .and(body_partial_json(tools_list_wire()))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
             "jsonrpc": "2.0",
             "id": 2,
@@ -91,9 +109,7 @@ async fn authenticated_sse() {
 
     Mock::given(method("POST"))
         .and(path(format!("/mcp/{SLUG}")))
-        .and(body_partial_json(
-            serde_json::json!({ "method": "initialize" }),
-        ))
+        .and(body_partial_json(initialize_wire()))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
             "jsonrpc": "2.0", "id": 1, "result": {}
         })))
@@ -102,9 +118,7 @@ async fn authenticated_sse() {
 
     Mock::given(method("POST"))
         .and(path(format!("/mcp/{SLUG}")))
-        .and(body_partial_json(
-            serde_json::json!({ "method": "notifications/initialized" }),
-        ))
+        .and(body_partial_json(initialized_wire()))
         .respond_with(ResponseTemplate::new(202))
         .mount(&server)
         .await;
@@ -113,9 +127,7 @@ async fn authenticated_sse() {
                data: {\"jsonrpc\":\"2.0\",\"id\":2,\"result\":{\"tools\":[{\"name\":\"sse_tool\"}]}}\n\n";
     Mock::given(method("POST"))
         .and(path(format!("/mcp/{SLUG}")))
-        .and(body_partial_json(
-            serde_json::json!({ "method": "tools/list" }),
-        ))
+        .and(body_partial_json(tools_list_wire()))
         .respond_with(ResponseTemplate::new(200).set_body_raw(sse, "text/event-stream"))
         .mount(&server)
         .await;
@@ -198,9 +210,7 @@ async fn tools_list_failure_reports_protocol_error() {
 
     Mock::given(method("POST"))
         .and(path(format!("/mcp/{SLUG}")))
-        .and(body_partial_json(
-            serde_json::json!({ "method": "initialize" }),
-        ))
+        .and(body_partial_json(initialize_wire()))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
             "jsonrpc": "2.0", "id": 1, "result": {}
         })))
@@ -209,18 +219,14 @@ async fn tools_list_failure_reports_protocol_error() {
 
     Mock::given(method("POST"))
         .and(path(format!("/mcp/{SLUG}")))
-        .and(body_partial_json(
-            serde_json::json!({ "method": "notifications/initialized" }),
-        ))
+        .and(body_partial_json(initialized_wire()))
         .respond_with(ResponseTemplate::new(202))
         .mount(&server)
         .await;
 
     Mock::given(method("POST"))
         .and(path(format!("/mcp/{SLUG}")))
-        .and(body_partial_json(
-            serde_json::json!({ "method": "tools/list" }),
-        ))
+        .and(body_partial_json(tools_list_wire()))
         .respond_with(ResponseTemplate::new(500))
         .mount(&server)
         .await;
@@ -228,6 +234,95 @@ async fn tools_list_failure_reports_protocol_error() {
     let auth = probe(&server).await;
     assert_eq!(auth.state, McpAuthState::ProtocolError);
     assert!(auth.tools.is_empty());
+}
+
+// Google's Discovery Engine MCP answers `"params": null` with
+// `-32602 Invalid params` at HTTP 200; the probe must send an object, and a
+// JSON-RPC error must be named rather than reported as a missing tools array.
+#[tokio::test]
+async fn tools_list_params_is_an_object_not_null() {
+    let server = MockServer::start().await;
+
+    Mock::given(method("POST"))
+        .and(path(format!("/mcp/{SLUG}")))
+        .and(body_partial_json(initialize_wire()))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "jsonrpc": "2.0", "id": 1, "result": {}
+        })))
+        .mount(&server)
+        .await;
+
+    Mock::given(method("POST"))
+        .and(path(format!("/mcp/{SLUG}")))
+        .and(body_partial_json(initialized_wire()))
+        .respond_with(ResponseTemplate::new(202))
+        .mount(&server)
+        .await;
+
+    Mock::given(method("POST"))
+        .and(path(format!("/mcp/{SLUG}")))
+        .and(body_partial_json(tools_list_wire()))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": 2,
+            "result": { "tools": [{ "name": "search" }] }
+        })))
+        .mount(&server)
+        .await;
+
+    let auth = probe(&server).await;
+    assert_eq!(auth.state, McpAuthState::Authenticated, "{:?}", auth.error);
+    assert_eq!(auth.tools.len(), 1);
+
+    let received = server.received_requests().await.expect("requests recorded");
+    let tools_list = received
+        .iter()
+        .find_map(|r| {
+            let body: serde_json::Value = serde_json::from_slice(&r.body).ok()?;
+            (body["method"] == "tools/list").then_some(body)
+        })
+        .expect("tools/list was sent");
+    assert_eq!(tools_list["params"], serde_json::json!({}));
+}
+
+#[tokio::test]
+async fn tools_list_json_rpc_error_is_named() {
+    let server = MockServer::start().await;
+
+    Mock::given(method("POST"))
+        .and(path(format!("/mcp/{SLUG}")))
+        .and(body_partial_json(initialize_wire()))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "jsonrpc": "2.0", "id": 1, "result": {}
+        })))
+        .mount(&server)
+        .await;
+
+    Mock::given(method("POST"))
+        .and(path(format!("/mcp/{SLUG}")))
+        .and(body_partial_json(initialized_wire()))
+        .respond_with(ResponseTemplate::new(202))
+        .mount(&server)
+        .await;
+
+    Mock::given(method("POST"))
+        .and(path(format!("/mcp/{SLUG}")))
+        .and(body_partial_json(tools_list_wire()))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": 2,
+            "error": { "code": -32602, "message": "Invalid params" }
+        })))
+        .mount(&server)
+        .await;
+
+    let auth = probe(&server).await;
+    assert_eq!(auth.state, McpAuthState::ProtocolError);
+    let error = auth.error.expect("error is reported");
+    assert!(
+        error.contains("-32602") && error.contains("Invalid params"),
+        "the JSON-RPC error is named: {error}"
+    );
 }
 
 #[tokio::test]

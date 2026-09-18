@@ -112,6 +112,8 @@ fn registry() -> ProviderRegistry {
             .into_iter()
             .map(|row| ProviderEntry {
                 name: ProviderId::new(row.provider),
+                display_name: None,
+                description: None,
                 wire: row.wire,
                 surface: row.surface,
                 endpoint: format!("https://{}.example.invalid/v1", row.provider),

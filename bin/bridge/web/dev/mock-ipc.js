@@ -13,9 +13,13 @@
 const params = new URLSearchParams(location.search);
 const fixtureName = params.get("fixture") || "healthy";
 
+// The bus is the real one from /assets/js/ipc-bootstrap.js, which index.html
+// loads before this module. Building a stand-in here would let the preview
+// pass on an envelope the native side rejects.
 function ensureBus() {
-  if (!window.__bridge) { window.__bridge = { seq: 0, pending: new Map(), subs: new Map() }; }
-  return window.__bridge;
+  const bus = window.__bridge;
+  if (!bus || !bus.__installed) { throw new Error("mock-ipc: ipc-bootstrap.js not loaded"); }
+  return bus;
 }
 
 function emit(channel, payload) {
@@ -30,11 +34,7 @@ function emit(channel, payload) {
 // the contract cannot evidence the contract.
 function reply(id, payload) {
   const bus = ensureBus();
-  const entry = bus.pending.get(id);
-  if (!entry) { return; }
-  bus.pending.delete(id);
-  if (payload && payload.ok) { entry.resolve(payload.value); }
-  else { entry.reject(payload && payload.error); }
+  bus.reply(bus.mount, id, payload);
 }
 
 let state = null;
@@ -367,11 +367,6 @@ const COMMANDS = {
     emit("state.changed", state);
     return {};
   },
-  "device.action.open": ({ action }) => {
-    state.pending_device_action = action;
-    emit("state.changed", state);
-    return {};
-  },
   "device.action.dismiss": () => {
     state.pending_device_action = null;
     emit("state.changed", state);
@@ -473,7 +468,12 @@ function failureFor(cmd) {
 
 window.ipc = {
   postMessage(raw) {
-    const { id, cmd, args } = JSON.parse(raw);
+    const { id, mount, cmd, args } = JSON.parse(raw);
+    // The native side deserialises into `IpcRequest`, where every one of these
+    // is required; an envelope short of one never reaches a handler there.
+    if (!Number.isInteger(id) || !Number.isInteger(mount) || typeof cmd !== "string") {
+      throw new Error(`mock-ipc: bad request envelope ${raw}`);
+    }
     const handler = COMMANDS[cmd];
     const run = () => {
       if (failing.has(cmd)) {

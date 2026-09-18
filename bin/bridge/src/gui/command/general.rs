@@ -11,14 +11,10 @@ use crate::gui::{GuiApp, server_json};
 use crate::wire::ipc::{BridgeError, ErrorCode, ErrorScope};
 
 use super::args::{
-    CancelArgs, DeviceActionArgs, GatewaySetArgs, LoginArgs, McpProbeArgs, OpenExternalUrlArgs,
-    RecentArgs, SessionLoginArgs,
+    CancelArgs, GatewaySetArgs, LoginArgs, McpProbeArgs, OpenExternalUrlArgs, RecentArgs,
+    SessionLoginArgs,
 };
 use super::{CommandOutcome, parse, send};
-
-fn is_safe_external_url(url: &str) -> bool {
-    url.starts_with("https://")
-}
 
 const DEFAULT_RECENT_LIMIT: usize = 500;
 const MAX_RECENT_LIMIT: usize = 2000;
@@ -166,14 +162,6 @@ pub(super) fn auth_dispatch(
             send(app, UiEvent::DisconnectRequested { reply_to: reply_id });
             CommandOutcome::Async
         },
-        "device.action.open" => match parse::<DeviceActionArgs>(args) {
-            Ok(a) => {
-                app.state.set_pending_device_action(Some(a.action));
-                send(app, UiEvent::StateRefreshed);
-                CommandOutcome::Sync(Ok(json!({})))
-            },
-            Err(e) => CommandOutcome::Sync(Err(e)),
-        },
         "device.action.dismiss" => {
             app.state.set_pending_device_action(None);
             send(app, UiEvent::StateRefreshed);
@@ -254,16 +242,18 @@ fn cancel_scope(label: Option<&str>) -> Result<Option<CancelScope>, BridgeError>
 
 fn open_external_url(args: Value) -> CommandOutcome {
     match parse::<OpenExternalUrlArgs>(args) {
-        Ok(a) if !is_safe_external_url(&a.url) => CommandOutcome::Sync(Err(
-            BridgeError::invalid_args(format!("refusing to open non-https url: {}", a.url)),
-        )),
-        Ok(a) => match opener::open(&a.url) {
-            Ok(()) => CommandOutcome::Sync(Ok(json!({}))),
-            Err(e) => CommandOutcome::Sync(Err(BridgeError::new(
-                ErrorScope::Internal,
-                ErrorCode::Internal,
-                format!("open url failed: {e}"),
-            ))),
+        Ok(a) => match crate::wire::external_url::ExternalUrl::parse(&a.url) {
+            Err(rejected) => {
+                CommandOutcome::Sync(Err(BridgeError::invalid_args(rejected.to_string())))
+            },
+            Ok(url) => match opener::open(url.as_str()) {
+                Ok(()) => CommandOutcome::Sync(Ok(json!({}))),
+                Err(e) => CommandOutcome::Sync(Err(BridgeError::new(
+                    ErrorScope::Internal,
+                    ErrorCode::Internal,
+                    format!("open url failed: {e}"),
+                ))),
+            },
         },
         Err(e) => CommandOutcome::Sync(Err(e)),
     }

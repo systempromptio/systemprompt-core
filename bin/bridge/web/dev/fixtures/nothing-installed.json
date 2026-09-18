@@ -6,7 +6,7 @@
   "config_present": true,
   "pat_present": true,
   "plugins_dir": "C:\\Users\\ejb50\\Systemprompt\\org-plugins",
-  "last_sync_summary": "12 skills, 3 plugins",
+  "last_sync_summary": null,
   "skill_count": 12,
   "agent_count": 0,
   "plugin_count": 3,
@@ -325,14 +325,14 @@
       "model_protocols_overridden": false,
       "surface": "sync-only",
       "verdict": {
-        "state": "working",
-        "tone": "ok",
+        "state": "checking",
+        "tone": "unknown",
         "reason": {
-          "code": "cloud-managed"
+          "code": "never-probed"
         },
         "action": null,
-        "is_set_up": true,
-        "is_installed": true,
+        "is_set_up": false,
+        "is_installed": false,
         "is_running": false
       }
     }
@@ -350,11 +350,11 @@
     },
     "governing": true
   },
-  "hosts_gated": true,
-  "agents_onboarded": true,
+  "hosts_gated": false,
+  "agents_onboarded": false,
   "first_run": {
     "active": false,
-    "done": true,
+    "done": false,
     "phase": "done",
     "sync": "done",
     "error": null,
@@ -436,27 +436,27 @@
   "agent_fleet": {
     "all": {
       "total": 5,
-      "working": 1,
+      "working": 0,
       "ready": 0,
       "attention": 3,
       "not_set_up": 1,
       "down": 0,
-      "checking": 0,
+      "checking": 1,
       "running": 0,
       "state": "warn",
       "headline": "needs-attention"
     },
     "set_up": {
-      "total": 1,
-      "working": 1,
+      "total": 0,
+      "working": 0,
       "ready": 0,
       "attention": 0,
       "not_set_up": 0,
       "down": 0,
       "checking": 0,
       "running": 0,
-      "state": "ok",
-      "headline": "all-working"
+      "state": "unknown",
+      "headline": "none-enabled"
     }
   },
   "identity": {

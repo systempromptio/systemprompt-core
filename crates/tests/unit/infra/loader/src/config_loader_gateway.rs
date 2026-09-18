@@ -29,6 +29,8 @@ fn spec_with(rules: Vec<SystemPromptRule>) -> GatewayConfigSpec {
 fn route(id: &str) -> GatewayRoute {
     GatewayRoute {
         id: RouteId::new(id),
+        name: None,
+        description: None,
         model_pattern: "claude-*".to_owned(),
         provider: ProviderId::new("cerebras"),
         upstream_model: None,

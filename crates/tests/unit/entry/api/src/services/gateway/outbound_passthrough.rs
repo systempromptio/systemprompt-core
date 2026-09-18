@@ -38,6 +38,8 @@ async fn send_via<A: OutboundAdapter>(
 fn route() -> GatewayRoute {
     GatewayRoute {
         id: RouteId::new("r1"),
+        name: None,
+        description: None,
         model_pattern: "*".into(),
         provider: ProviderId::new("anthropic"),
         upstream_model: Some("upstream-1".into()),

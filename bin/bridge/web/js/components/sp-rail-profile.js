@@ -56,20 +56,12 @@ export class SpRailProfile extends SpElement {
     this.registerAction("logout", () => this._onLogout());
     this.registerAction("update-install", () => installUpdate(this));
     this.registerAction("update-restart", () => restartForUpdate());
-    this.registerAction("device-disconnect", () => this._openDeviceAction("disconnect"));
-    this.registerAction("device-purge", () => this._openDeviceAction("purge"));
-    this.registerAction("device-remove", () => this._openDeviceAction("remove-application"));
     this.registerAction("open-external", (el, ev) => {
       const url = el && el.dataset && el.dataset.href;
       if (!url) { return; }
       if (ev && typeof ev.preventDefault === "function") { ev.preventDefault(); }
       bridge.openExternalUrl(url).catch((e) => notifyErr(e, url));
     });
-  }
-
-  _openDeviceAction(action) {
-    this.menuOpen = false;
-    bridge.deviceActionOpen(action).catch((e) => notifyErr(e, action));
   }
 
   onConnect() {

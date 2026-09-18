@@ -6,6 +6,7 @@
 mod model_filter;
 mod probe;
 mod profile;
+mod repair;
 
 pub(crate) use model_filter::{on_model_filter_set_finished, on_model_filter_set_requested};
 pub(crate) use probe::{
@@ -16,6 +17,7 @@ pub(crate) use profile::{
     on_profile_generate_finished, on_profile_generate_requested, on_profile_install_finished,
     on_profile_install_requested,
 };
+pub(crate) use repair::{on_unattended_repair_finished, repair_stale_unattended};
 
 use crate::gui::events::ReplyId;
 use crate::gui::{GuiApp, emit};

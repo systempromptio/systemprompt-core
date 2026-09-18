@@ -27,6 +27,13 @@ struct AccessorResponse {
     access_token: String,
 }
 
+#[derive(serde::Deserialize)]
+struct AccessorError {
+    error: String,
+}
+
+const ACCESSOR_ERROR_MAX_CHARS: usize = 240;
+
 pub(super) async fn resolve_external_bearer(
     ext: &ExternalAuth,
     context: &RequestContext,
@@ -116,10 +123,33 @@ pub async fn fetch_external_bearer(
             server: server.to_owned(),
             message: "no token banked for this user; connect the provider account first".to_owned(),
         }),
-        status => Err(McpDomainError::ExternalAuthUnavailable {
-            server: server.to_owned(),
-            message: format!("token accessor returned status {status}"),
-        }),
+        status => {
+            let reason = response
+                .json::<AccessorError>()
+                .await
+                .ok()
+                .map(|body| body.error)
+                .filter(|reason| !reason.trim().is_empty())
+                .map_or_else(String::new, |reason| {
+                    format!(
+                        ": {}",
+                        reason
+                            .chars()
+                            .take(ACCESSOR_ERROR_MAX_CHARS)
+                            .collect::<String>()
+                    )
+                });
+            tracing::warn!(
+                server,
+                status = status.as_u16(),
+                reason = reason.trim_start_matches(": "),
+                "token accessor refused the user's provider bearer"
+            );
+            Err(McpDomainError::ExternalAuthUnavailable {
+                server: server.to_owned(),
+                message: format!("token accessor returned status {status}{reason}"),
+            })
+        },
     }
 }
 

@@ -19,6 +19,8 @@ const UPSTREAM: &str = "gemini-2.5-pro";
 fn entry() -> ProviderEntry {
     ProviderEntry {
         name: ProviderId::new("vertex"),
+        display_name: None,
+        description: None,
         wire: WireProtocol::Gemini,
         surface: ApiSurface::Gemini,
         endpoint: "https://example.invalid/v1".to_owned(),

@@ -18,7 +18,7 @@ use crate::auth::plugin_oauth::PluginTokenCache;
 use crate::gateway::GatewayClient;
 use crate::gateway::manifest::{HookEntry, PluginEntry, SignedManifest};
 use crate::hash::safe_plugin_id;
-use crate::host_sync::{HostWarning, HostWarnings};
+use crate::host_sync::{HostWarning, HostWarningKind, HostWarnings};
 use crate::ids::{BearerToken, HostId};
 use crate::proxy::LoopbackEndpoint;
 use std::collections::{BTreeMap, HashSet};
@@ -90,6 +90,7 @@ pub(super) async fn apply_plugins(
         receipts.push(applied.hooks_receipt);
         if let NodeInstall::Skipped { reason } = &applied.node_install {
             warnings.push(
+                HostWarningKind::NodePackages,
                 NODE_WARNING_HOST,
                 format!(
                     "plugin {}: Node packages not installed — {reason}",
@@ -221,7 +222,7 @@ async fn sync_one_plugin(
     let target = ctx.root.join(plugin.id.as_str());
 
     let stage = ctx.staging_root.join(plugin.id.as_str());
-    fetch_plugin_into_staging(ctx.client, ctx.bearer, plugin, &stage).await?;
+    fetch_plugin_into_staging(ctx.client, ctx.bearer, plugin, &stage, &target).await?;
     super::check_not_superseded(ctx.client.base_url())?;
 
     let was_present = promote_staged(&stage, &target, plugin.id.as_str())?;

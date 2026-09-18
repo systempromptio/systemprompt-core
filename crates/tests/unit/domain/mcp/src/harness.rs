@@ -175,9 +175,11 @@ pub async fn mount_mcp_endpoint(server: &MockServer, tools: serde_json::Value) {
 
     Mock::given(method("POST"))
         .and(path("/mcp"))
-        .and(body_partial_json(
-            serde_json::json!({"method": "initialize"}),
-        ))
+        .and(body_partial_json(serde_json::json!({
+            "jsonrpc": "2.0",
+            "method": "initialize",
+            "params": { "clientInfo": {} }
+        })))
         .respond_with(
             ResponseTemplate::new(200)
                 .insert_header("content-type", "application/json")
@@ -190,6 +192,7 @@ pub async fn mount_mcp_endpoint(server: &MockServer, tools: serde_json::Value) {
     Mock::given(method("POST"))
         .and(path("/mcp"))
         .and(body_partial_json(serde_json::json!({
+            "jsonrpc": "2.0",
             "method": "notifications/initialized"
         })))
         .respond_with(ResponseTemplate::new(202))
@@ -199,7 +202,9 @@ pub async fn mount_mcp_endpoint(server: &MockServer, tools: serde_json::Value) {
     Mock::given(method("POST"))
         .and(path("/mcp"))
         .and(body_partial_json(serde_json::json!({
-            "method": "tools/list"
+            "jsonrpc": "2.0",
+            "method": "tools/list",
+            "params": {}
         })))
         .respond_with(
             ResponseTemplate::new(200)
@@ -216,7 +221,9 @@ pub async fn mount_mcp_endpoint(server: &MockServer, tools: serde_json::Value) {
     Mock::given(method("POST"))
         .and(path("/mcp"))
         .and(body_partial_json(serde_json::json!({
-            "method": "tools/call"
+            "jsonrpc": "2.0",
+            "method": "tools/call",
+            "params": { "name": "echo" }
         })))
         .respond_with(
             ResponseTemplate::new(200)

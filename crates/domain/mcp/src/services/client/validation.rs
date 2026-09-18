@@ -178,7 +178,12 @@ async fn connect_and_validate(
         protocol_version: peer_info.protocol_version.to_string(),
     };
 
-    let validation_result = match client.list_tools(None).await {
+    // Why: rmcp serialises a `None` params as `"params": null`, which a
+    // strict server (Google's MCP) refuses with -32602; send `{}`.
+    let validation_result = match client
+        .list_tools(Some(rmcp::model::PaginatedRequestParams::default()))
+        .await
+    {
         Ok(tools_response) => {
             let tools_count = tools_response.tools.len();
 

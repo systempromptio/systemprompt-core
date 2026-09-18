@@ -145,56 +145,64 @@ impl ManagedResourceResolver {
             )),
             ResolvedManagedResource::IntegrityFailure(_) => Err(ManagedError::Integrity),
             ResolvedManagedResource::Published { state, bundle } => {
-                let ManagedResolution::Published {
-                    publication_id,
-                    resource_id,
-                    revision_id,
-                    generation,
-                    bundle_digest,
-                    ..
-                } = state
-                else {
-                    return Err(ManagedError::Integrity);
-                };
-                let files = bundle.revision_files(&bundle.root)?;
-                let config_file = files.0.get("config.yaml").ok_or(ManagedError::Integrity)?;
-                let config: DiskSkillConfig = serde_yaml::from_slice(&config_file.bytes)
-                    .map_err(|_corrupt| ManagedError::Integrity)?;
-                if !config.enabled || (!config.id.as_str().is_empty() && config.id.as_str() != key)
-                {
-                    return Err(ManagedError::Integrity);
-                }
-                let content = files
-                    .0
-                    .get(config.content_file())
-                    .ok_or(ManagedError::Integrity)?;
-                let raw = std::str::from_utf8(&content.bytes)
-                    .map_err(|_corrupt| ManagedError::Integrity)?;
-                Ok(ManagedSkillResolution::Published(Box::new(ManagedSkill {
-                    publication_id,
-                    resource_id,
-                    revision_id,
-                    hosts: config.hosts.clone(),
-                    tags: config.tags.clone(),
-                    id: if config.id.as_str().is_empty() {
-                        SkillId::new(key.to_owned())
-                    } else {
-                        config.id
-                    },
-                    name: if config.name.is_empty() {
-                        key.to_owned()
-                    } else {
-                        config.name
-                    },
-                    description: config.description,
-                    instructions: strip_frontmatter(raw),
-                    files,
-                    generation,
-                    bundle_digest,
-                })))
+                managed_skill_from_bundle(key, state, &bundle)
+                    .map(Box::new)
+                    .map(ManagedSkillResolution::Published)
             },
         }
     }
+}
+
+pub(crate) fn managed_skill_from_bundle(
+    key: &str,
+    state: ManagedResolution,
+    bundle: &RevisionBundle,
+) -> Result<ManagedSkill> {
+    let ManagedResolution::Published {
+        publication_id,
+        resource_id,
+        revision_id,
+        generation,
+        bundle_digest,
+        ..
+    } = state
+    else {
+        return Err(ManagedError::Integrity);
+    };
+    let files = bundle.revision_files(&bundle.root)?;
+    let config_file = files.0.get("config.yaml").ok_or(ManagedError::Integrity)?;
+    let config: DiskSkillConfig =
+        serde_yaml::from_slice(&config_file.bytes).map_err(|_corrupt| ManagedError::Integrity)?;
+    if !config.enabled || (!config.id.as_str().is_empty() && config.id.as_str() != key) {
+        return Err(ManagedError::Integrity);
+    }
+    let content = files
+        .0
+        .get(config.content_file())
+        .ok_or(ManagedError::Integrity)?;
+    let raw = std::str::from_utf8(&content.bytes).map_err(|_corrupt| ManagedError::Integrity)?;
+    Ok(ManagedSkill {
+        publication_id,
+        resource_id,
+        revision_id,
+        hosts: config.hosts.clone(),
+        tags: config.tags.clone(),
+        id: if config.id.as_str().is_empty() {
+            SkillId::new(key.to_owned())
+        } else {
+            config.id
+        },
+        name: if config.name.is_empty() {
+            key.to_owned()
+        } else {
+            config.name
+        },
+        description: config.description,
+        instructions: strip_frontmatter(raw),
+        files,
+        generation,
+        bundle_digest,
+    })
 }
 
 pub(super) fn runtime_resolution(

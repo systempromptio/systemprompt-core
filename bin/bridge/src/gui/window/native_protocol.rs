@@ -15,33 +15,8 @@ use wry::http::header::CONTENT_TYPE;
 use super::native::SP_HOST;
 use crate::web_assets::{self, Asset};
 
-pub(super) const BRIDGE_BOOTSTRAP: &str = r#"
-(function () {
-  if (window.__bridge && window.__bridge.__installed) { return; }
-  const pending = new Map();
-  const subs = new Map();
-  const bridge = {
-    __installed: true,
-    pending,
-    subs,
-    reply(id, payload) {
-      const p = pending.get(id);
-      if (!p) { return; }
-      pending.delete(id);
-      if (payload && payload.ok) { p.resolve(payload.value); }
-      else { p.reject(payload && payload.error ? payload.error : { scope: "internal", code: "internal", message: "no payload" }); }
-    },
-    emit(channel, payload) {
-      const set = subs.get(channel);
-      if (!set) { return; }
-      for (const cb of Array.from(set)) {
-        try { cb(payload); } catch (e) { console.error("bridge subscriber threw", e); }
-      }
-    },
-  };
-  window.__bridge = bridge;
-})();
-"#;
+pub(super) const BRIDGE_BOOTSTRAP: &str = include_str!("../../../web/js/ipc-bootstrap.js");
+
 pub(super) fn serve_custom_asset(request: &http::Request<Vec<u8>>) -> Response<Cow<'static, [u8]>> {
     let uri = request.uri();
     let host_match = uri.host().is_none_or(|h| h == SP_HOST);

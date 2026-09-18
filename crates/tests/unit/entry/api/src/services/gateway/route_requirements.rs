@@ -20,6 +20,8 @@ use systemprompt_models::services::{
 fn route(requires: Option<RouteRequirements>) -> GatewayRoute {
     GatewayRoute {
         id: RouteId::new("eu-route"),
+        name: None,
+        description: None,
         model_pattern: "model-*".to_owned(),
         provider: ProviderId::new("acme"),
         upstream_model: None,
@@ -35,6 +37,8 @@ fn route(requires: Option<RouteRequirements>) -> GatewayRoute {
 fn provider(governance: ModelGovernance, models: Vec<ProviderModel>) -> ProviderEntry {
     ProviderEntry {
         name: ProviderId::new("acme"),
+        display_name: None,
+        description: None,
         wire: WireProtocol::Anthropic,
         surface: ApiSurface::Anthropic,
         endpoint: "https://acme.invalid".to_owned(),

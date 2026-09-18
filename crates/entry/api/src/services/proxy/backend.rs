@@ -240,11 +240,23 @@ impl ResponseHandler {
             .map_err(|e| format!("Failed to build response body: {}", e))
     }
 
+    // Why: the audit tap rewrites a buffered JSON body (execution stamp) and
+    // reqwest has already decoded any content-encoding, so the upstream framing
+    // headers describe a body that no longer exists. Carrying content-length
+    // through made hyper panic ("payload claims content-length of N, custom
+    // content-length header claims M") on every stamped tools/call response
+    // from an external server, which dropped the connection on the client.
     fn should_preserve_header(key: &str) -> bool {
-        match key.to_lowercase().as_str() {
-            "host" | "authorization" | "proxy-authorization" | "upgrade" | "te" => false,
-            header if header.starts_with("x-mcp-") => true,
-            _ => true,
-        }
+        !matches!(
+            key.to_lowercase().as_str(),
+            "host"
+                | "authorization"
+                | "proxy-authorization"
+                | "upgrade"
+                | "te"
+                | "content-length"
+                | "transfer-encoding"
+                | "content-encoding"
+        )
     }
 }

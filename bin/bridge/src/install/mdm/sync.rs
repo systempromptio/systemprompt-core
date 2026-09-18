@@ -65,6 +65,7 @@ async fn refresh_tool_catalog(ctx: &crate::host_sync::HostSyncCtx<'_>) {
                 "mcp tool catalog not written; desktop tool policy keeps its last names"
             );
             ctx.warnings.push(
+                crate::host_sync::HostWarningKind::ToolCatalog,
                 "claude-desktop",
                 format!("tool catalog not updated ({e}); the tool policy keeps its last names"),
             );

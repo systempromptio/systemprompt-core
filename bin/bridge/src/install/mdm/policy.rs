@@ -173,7 +173,6 @@ pub(super) fn json_of<T: serde::Serialize>(value: &T) -> serde_json::Value {
     serde_json::to_value(value).unwrap_or(serde_json::Value::Null)
 }
 
-#[cfg(target_os = "windows")]
 #[must_use]
 pub fn reg_values(policy: &[PolicyEntry]) -> Vec<(&'static str, &'static str, String)> {
     policy
@@ -184,7 +183,6 @@ pub fn reg_values(policy: &[PolicyEntry]) -> Vec<(&'static str, &'static str, St
 
 // Why: Claude's registry encoding requires strings, with arrays and objects
 // encoded as JSON text.
-#[cfg(target_os = "windows")]
 fn reg_encode(value: &PolicyValue) -> String {
     match value {
         PolicyValue::Str(s) => s.clone(),

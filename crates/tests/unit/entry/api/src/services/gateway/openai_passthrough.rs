@@ -22,6 +22,8 @@ use systemprompt_models::services::ai::ModelLimits;
 fn route() -> GatewayRoute {
     GatewayRoute {
         id: RouteId::new("r1"),
+        name: None,
+        description: None,
         model_pattern: "*".into(),
         provider: ProviderId::new("openai"),
         upstream_model: Some("upstream-1".into()),

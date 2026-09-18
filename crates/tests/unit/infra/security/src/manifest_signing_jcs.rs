@@ -202,6 +202,7 @@ fn sign_bytes_round_trips_through_verifier() {
     let pubkey = match manifest_signing::pubkey_b64() {
         Ok(k) => k,
         Err(e) => {
+            // skip-ok: secrets bootstrap is process-global and another suite may own it
             eprintln!("skipping: secrets bootstrap unavailable in this env: {e}");
             return;
         },
@@ -217,6 +218,7 @@ fn tamper_with_payload_breaks_signature() {
     let pubkey = match manifest_signing::pubkey_b64() {
         Ok(k) => k,
         Err(e) => {
+            // skip-ok: secrets bootstrap is process-global and another suite may own it
             eprintln!("skipping: secrets bootstrap unavailable in this env: {e}");
             return;
         },
@@ -238,6 +240,7 @@ fn signing_key_is_cached_across_calls() {
     let first = match manifest_signing::signing_key() {
         Ok(k) => k,
         Err(e) => {
+            // skip-ok: secrets bootstrap is process-global and another suite may own it
             eprintln!("skipping: secrets bootstrap unavailable in this env: {e}");
             return;
         },

@@ -11,6 +11,7 @@ use systemprompt_models::bridge::manifest::{ArtifactEntry, SkillEntry};
 use systemprompt_models::services::{MarketplaceConfig, MarketplaceMemberKind};
 
 use crate::candidate::MarketplaceCandidate;
+use crate::catalog::MarketplaceCache;
 use crate::scope::union_include;
 use crate::trace::{TraceEvent, TraceKind, TraceSink, TraceStage};
 
@@ -118,15 +119,24 @@ where
 pub(super) fn gate_skills_by_plugin(
     skills: Vec<SkillEntry>,
     selected: &BTreeSet<SkillId>,
+    cache: &MarketplaceCache,
     trace: &mut dyn TraceSink,
 ) -> Vec<SkillEntry> {
     for id in selected {
         if !skills.iter().any(|s| &s.id == id) {
-            tracing::warn!(
-                skill_id = %id,
-                "marketplace: a plugin selects a skill that does not exist or was dropped as \
-                 invalid"
-            );
+            if cache.first_sighting("skill-missing", id.as_str()) {
+                tracing::warn!(
+                    skill_id = %id,
+                    "marketplace: a plugin selects a skill that does not exist or was dropped \
+                     as invalid"
+                );
+            } else {
+                tracing::debug!(
+                    skill_id = %id,
+                    "marketplace: a plugin selects a skill that does not exist or was dropped \
+                     as invalid"
+                );
+            }
         }
     }
 
@@ -135,11 +145,18 @@ pub(super) fn gate_skills_by_plugin(
         .filter(|s| {
             let kept = selected.contains(&s.id);
             if !kept {
-                tracing::warn!(
-                    skill_id = %s.id.as_str(),
-                    "marketplace: skill is not selected by any enabled plugin; it will not be \
-                     installed on any host; skipping"
-                );
+                if cache.first_sighting("skill-unselected", s.id.as_str()) {
+                    tracing::warn!(
+                        skill_id = %s.id.as_str(),
+                        "marketplace: skill is not selected by any enabled plugin; it will not \
+                         be installed on any host; skipping"
+                    );
+                } else {
+                    tracing::debug!(
+                        skill_id = %s.id.as_str(),
+                        "marketplace: skill is not selected by any enabled plugin; skipping"
+                    );
+                }
                 trace.record(TraceEvent {
                     kind: TraceKind::Skill,
                     id: s.id.as_str().to_owned(),
@@ -155,15 +172,24 @@ pub(super) fn gate_skills_by_plugin(
 pub(super) fn gate_artifacts_by_plugin(
     artifacts: Vec<ArtifactEntry>,
     selected: &BTreeSet<LibraryArtifactId>,
+    cache: &MarketplaceCache,
     trace: &mut dyn TraceSink,
 ) -> Vec<ArtifactEntry> {
     for id in selected {
         if !artifacts.iter().any(|a| &a.id == id) {
-            tracing::warn!(
-                artifact_id = %id,
-                "marketplace: plugin artifacts.include names an artifact that does not exist \
-                 or was dropped as invalid"
-            );
+            if cache.first_sighting("artifact-missing", id.as_str()) {
+                tracing::warn!(
+                    artifact_id = %id,
+                    "marketplace: plugin artifacts.include names an artifact that does not \
+                     exist or was dropped as invalid"
+                );
+            } else {
+                tracing::debug!(
+                    artifact_id = %id,
+                    "marketplace: plugin artifacts.include names an artifact that does not \
+                     exist or was dropped as invalid"
+                );
+            }
         }
     }
 
@@ -172,10 +198,17 @@ pub(super) fn gate_artifacts_by_plugin(
         .filter(|a| {
             let kept = selected.contains(&a.id);
             if !kept {
-                tracing::warn!(
-                    artifact_id = %a.id.as_str(),
-                    "marketplace: artifact is not selected by any enabled plugin; skipping"
-                );
+                if cache.first_sighting("artifact-unselected", a.id.as_str()) {
+                    tracing::warn!(
+                        artifact_id = %a.id.as_str(),
+                        "marketplace: artifact is not selected by any enabled plugin; skipping"
+                    );
+                } else {
+                    tracing::debug!(
+                        artifact_id = %a.id.as_str(),
+                        "marketplace: artifact is not selected by any enabled plugin; skipping"
+                    );
+                }
                 trace.record(TraceEvent {
                     kind: TraceKind::Artifact,
                     id: a.id.as_str().to_owned(),

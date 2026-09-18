@@ -27,6 +27,7 @@ use crate::services::shared::{AgentServiceError, Result};
 async fn emit(tx: &mpsc::Sender<StreamEvent>, event: StreamEvent) -> Result<()> {
     tx.send(event)
         .await
+        // Why: discard-ok: a closed mpsc carries only the unsent event.
         .map_err(|_closed| AgentServiceError::StreamClosed)
 }
 

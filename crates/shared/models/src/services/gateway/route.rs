@@ -35,6 +35,10 @@ fn default_route_id() -> RouteId {
 pub struct GatewayRoute {
     #[serde(default = "default_route_id")]
     pub id: RouteId,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
     pub model_pattern: String,
     pub provider: ProviderId,
     #[serde(default, skip_serializing_if = "Option::is_none")]

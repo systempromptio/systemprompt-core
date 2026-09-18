@@ -209,6 +209,14 @@ pub trait HostApp: Send + Sync + 'static {
     fn install_profile(&self, path: &str) -> std::io::Result<ProfileInstalled>;
     fn install_action_label(&self) -> &'static str;
 
+    // Why: a repair the bridge starts on its own — at launch, after an upgrade
+    // changed what a profile must contain — may not raise an operating-system
+    // prompt the user did not ask for. A host whose install needs one answers
+    // `PermissionDenied` here and is left for the user's own Repair.
+    fn install_profile_unattended(&self, path: &str) -> std::io::Result<ProfileInstalled> {
+        self.install_profile(path)
+    }
+
     fn remove_profile(&self) -> std::io::Result<ProfileRemoval> {
         Ok(ProfileRemoval::ManualStepRequired {
             instruction: format!(

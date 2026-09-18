@@ -195,6 +195,26 @@ impl Outbox {
         })
     }
 
+    // Why: a receipt the gateway has already acknowledged for this exact
+    // publication is evidence on file; re-planning it on every sync is one
+    // bundle round-trip per skill per host for nothing.
+    pub fn has_acknowledged_receipt(
+        &self,
+        host: systemprompt_models::feedback::EvaluatorClient,
+        publication: &systemprompt_models::bridge::manifest::SkillPublication,
+    ) -> Result<bool> {
+        self.read_locked(|state| {
+            Ok(state.entries.values().any(|entry| {
+                matches!(entry.delivery, Delivery::Acknowledged(_))
+                    && entry.request.host == host
+                    && entry.request.publication_id == publication.publication_id
+                    && entry.request.revision_id == publication.revision_id
+                    && entry.request.generation == publication.generation
+                    && entry.request.bundle_digest.as_str() == publication.bundle_digest.as_str()
+            }))
+        })
+    }
+
     pub fn delivery(
         &self,
         key: &str,

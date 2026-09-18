@@ -70,7 +70,9 @@ pub async fn list_tools_unauthenticated(
     .context("Failed to connect to MCP server")?;
 
     let tools_response = client
-        .list_tools(None)
+        // Why: rmcp serialises a `None` params as `"params": null`, which a
+        // strict server (Google's MCP) refuses with -32602; send `{}`.
+        .list_tools(Some(rmcp::model::PaginatedRequestParams::default()))
         .await
         .context("Failed to list tools")?;
 
@@ -110,7 +112,9 @@ pub async fn list_tools_authenticated(
     .context("Failed to connect to MCP server")?;
 
     let tools_response = client
-        .list_tools(None)
+        // Why: rmcp serialises a `None` params as `"params": null`, which a
+        // strict server (Google's MCP) refuses with -32602; send `{}`.
+        .list_tools(Some(rmcp::model::PaginatedRequestParams::default()))
         .await
         .context("Failed to list tools")?;
 

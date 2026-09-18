@@ -16,7 +16,7 @@ use axum::http::{HeaderMap, StatusCode};
 use chrono::{DateTime, Duration, Utc};
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::{JwtToken, UserId};
-use systemprompt_marketplace::{AssembleRequest, ManifestService, MarketplaceCandidate, NoopTrace};
+use systemprompt_marketplace::{ManifestService, MarketplaceCandidate};
 use systemprompt_models::bridge::manifest::{
     MANIFEST_SCHEMA_VERSION, SignedManifest, SignedManifestEnvelope, min_bridge_version,
 };
@@ -25,8 +25,8 @@ use systemprompt_models::services::BridgePolicyConfig;
 use systemprompt_runtime::AppContext;
 
 use super::bridge::instance_enabled_hosts;
-use super::bridge_data;
 use super::messages::extract_credential;
+use super::{bridge_data, bridge_resolved};
 use crate::services::middleware::JwtContextExtractor;
 use per_user::{PerUserContext, load_per_user_context, record_catalog_grants};
 
@@ -113,48 +113,17 @@ pub(crate) async fn assemble_candidate(
     services: systemprompt_models::services::ServicesConfig,
 ) -> Result<(MarketplaceCandidate, BridgePolicyConfig), (StatusCode, String)> {
     let bridge_policy = services.bridge_policy.unwrap_or_default();
-
-    let services_root = ctx.app_paths().system().services();
-    let disk_catalog = ctx
-        .marketplace_cache()
-        .catalog(&services, services_root, &profile.server.api_external_url)
-        .map_err(|e| {
-            tracing::warn!(error = %e, "manifest: catalog load failed");
-            (StatusCode::INTERNAL_SERVER_ERROR, format!("manifest: {e}"))
-        })?;
-    let catalog = (*disk_catalog)
-        .clone()
-        .with_organization_skills(
-            ctx.managed_repository().as_ref().clone(),
-            ctx.system_admin().id(),
-            user_id,
-        )
+    let resolved = bridge_resolved::resolve_for_user(ctx, &services, profile, user_id)
         .await
         .map_err(|error| {
-            tracing::warn!(%error, "manifest: managed catalogue resolution failed");
+            tracing::warn!(%error, "manifest: catalogue resolution failed");
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 format!("manifest: {error}"),
             )
         })?;
-    let candidate = ManifestService::assemble_candidate_from_catalog(
-        catalog,
-        &AssembleRequest {
-            services: &services,
-            services_root,
-            filter: ctx.marketplace_filter().as_ref(),
-            user_id,
-            cache: ctx.marketplace_cache(),
-        },
-        &mut NoopTrace,
-    )
-    .await
-    .map_err(|e| {
-        tracing::warn!(error = %e, "manifest: candidate assembly failed");
-        (StatusCode::INTERNAL_SERVER_ERROR, format!("manifest: {e}"))
-    })?;
-    record_catalog_grants(ctx, user_id, &candidate).await?;
-    Ok((candidate, bridge_policy))
+    record_catalog_grants(ctx, user_id, &resolved.candidate).await?;
+    Ok(((*resolved.candidate).clone(), bridge_policy))
 }
 
 fn seal_manifest(

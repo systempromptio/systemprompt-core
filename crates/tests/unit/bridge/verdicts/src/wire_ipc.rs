@@ -6,8 +6,8 @@
 
 use serde_json::{Value, json};
 use systemprompt_bridge::wire::ipc::{
-    BridgeError, ErrorCode, ErrorScope, IpcReplyPayload, IpcRequest, ReplyTarget, emit_script,
-    reply_script,
+    BridgeError, ErrorCode, ErrorScope, IpcEnvelopeHead, IpcReplyPayload, IpcRequest, ReplyTarget,
+    emit_script, reply_script,
 };
 
 fn json_of<T: serde::Serialize>(v: &T) -> Value {
@@ -113,6 +113,34 @@ fn an_ipc_request_missing_its_id_is_rejected() {
     let parsed = serde_json::from_str::<IpcRequest>(r#"{"cmd":"state.refresh"}"#);
 
     assert!(parsed.is_err(), "a request with no id must not parse");
+}
+
+#[test]
+fn an_ipc_request_missing_its_mount_is_rejected_but_its_head_still_names_the_reply() {
+    let raw = r#"{"id":7,"cmd":"state.snapshot","args":{}}"#;
+
+    assert!(serde_json::from_str::<IpcRequest>(raw).is_err());
+    let head = IpcEnvelopeHead::of(raw).expect("the head parses");
+    assert_eq!(head.id, Some(7));
+    assert_eq!(head.mount, None);
+}
+
+#[test]
+fn the_envelope_head_of_garbage_addresses_nothing() {
+    assert!(IpcEnvelopeHead::of("not json").is_none());
+    assert!(
+        IpcEnvelopeHead::of(r#"{"id":"seven","mount":3}"#).is_none(),
+        "a malformed id is not an address"
+    );
+}
+
+#[test]
+fn the_bootstrap_the_webview_injects_mints_a_mount_and_takes_replies_addressed_by_it() {
+    let bootstrap = include_str!("../../../../../../bin/bridge/web/js/ipc-bootstrap.js");
+
+    assert!(bootstrap.contains("mount: mintMount()"));
+    assert!(bootstrap.contains("reply(mount, id, payload)"));
+    assert!(bootstrap.contains("if (mount !== bus.mount) { return; }"));
 }
 
 #[test]

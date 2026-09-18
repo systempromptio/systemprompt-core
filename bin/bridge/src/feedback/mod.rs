@@ -14,8 +14,8 @@ mod sync;
 pub mod transport;
 
 pub use sync::{
-    deliver, recover_current_manifest, recover_manifest_installations, recover_pending,
-    retry_pending,
+    RecoveryProgress, deliver, recover_current_manifest, recover_manifest_installations,
+    recover_pending, retry_pending,
 };
 
 #[derive(Debug, thiserror::Error)]

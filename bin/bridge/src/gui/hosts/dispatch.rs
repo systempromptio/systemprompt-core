@@ -69,5 +69,8 @@ pub(crate) fn handle(app: &mut GuiApp, event: HostUiEvent) {
             result,
             reply_to,
         } => handlers::on_model_filter_set_finished(app, &host_id, result, reply_to),
+        HostUiEvent::UnattendedRepairFinished { host_id, report } => {
+            handlers::on_unattended_repair_finished(app, &host_id, &report);
+        },
     }
 }

@@ -72,7 +72,9 @@ pub(super) fn cmd_install(ctx: &BridgeContext, args: &[String]) -> ExitCode {
             if apply {
                 let overrides = crate::integration::reapply::ModelProtocolOverrides::new();
                 let reports = ctx.block_on(crate::integration::reapply::reapply_stale_profiles(
-                    ctx, &overrides,
+                    ctx,
+                    &overrides,
+                    crate::integration::reapply::Attendance::Attended,
                 ));
                 stdio::print_str(&crate::integration::reapply::render(&reports));
             }

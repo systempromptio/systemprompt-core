@@ -117,11 +117,11 @@ impl ManifestService {
             MarketplaceMembership::from_services(services, &agents, &managed_mcp_servers);
 
         let mut diagnostics = plugin_inclusion_diagnostics(services, &skills, &agents);
-        let skills = gate_skills_by_plugin(skills, &selected_skills, trace);
+        let skills = gate_skills_by_plugin(skills, &selected_skills, cache, trace);
 
         let owners = artifact_owners(services, &artifacts)?;
         let selected_artifacts: BTreeSet<LibraryArtifactId> = owners.keys().cloned().collect();
-        let artifacts = gate_artifacts_by_plugin(artifacts, &selected_artifacts, trace);
+        let artifacts = gate_artifacts_by_plugin(artifacts, &selected_artifacts, cache, trace);
 
         let candidate = MarketplaceCandidate {
             plugins,

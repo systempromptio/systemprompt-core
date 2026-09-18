@@ -35,7 +35,12 @@ pub fn load_managed_mcp_servers(
             tracing::warn!(server = %name, "MCP server has no tool_policy and is withheld from the bridge manifest");
             continue;
         };
-        let url_str = if deployment.external_auth.is_some() {
+        // Why: a `connector:` server has its per-user accessor synthesised by
+        // the registry resolver, so like an `external_auth` server it must be
+        // reached through the gateway, which swaps the caller's JWT for their
+        // grant. Publishing its raw endpoint sent the gateway token straight to
+        // Google and every tool call came back 401.
+        let url_str = if deployment.external_auth.is_some() || deployment.connector.is_some() {
             format!("{base}/api/v1/mcp/{name}/mcp")
         } else {
             match deployment.endpoint.as_deref() {

@@ -61,3 +61,39 @@ test("every fixture produces a coherent step model", () => {
     );
   }
 });
+
+// A configured machine whose profiles an upgrade now reads as stale went back
+// to "Step 2 of 2" on every launch (0.53.0–0.55.1): the overlay was decided on
+// `is_installed` alone, and the on-disk record that setup had been completed
+// was on the wire but never read.
+function allStale(snap) {
+  for (const host of snap.host_apps) {
+    if (host.verdict) { host.verdict = { ...host.verdict, state: "attention", is_installed: false, reason: { code: "stale-secret" } }; }
+  }
+  return snap;
+}
+
+test("an onboarded machine with only stale profiles stays in the app", () => {
+  const snap = allStale(fixture("healthy"));
+  assert.equal(snap.agents_onboarded, true);
+  const model = stepsFromSnapshot(snap, LATCHES);
+  assert.equal(model.settled, true);
+  assert.equal(model.setupMode, false, "no overlay for a machine that has finished setup");
+  assert.equal(model.step, "connect");
+});
+
+test("a first-use record counts as onboarded even without the Finish sentinel", () => {
+  const snap = allStale(fixture("healthy"));
+  snap.agents_onboarded = false;
+  snap.first_run.done = true;
+  assert.equal(stepsFromSnapshot(snap, LATCHES).setupMode, false);
+});
+
+test("a new machine with nothing installed gets the agents step", () => {
+  const snap = fixture("nothing-installed");
+  assert.equal(snap.agents_onboarded, false);
+  assert.equal(snap.first_run.done, false);
+  const model = stepsFromSnapshot(snap, LATCHES);
+  assert.equal(model.setupMode, true);
+  assert.equal(model.step, "agents");
+});
