@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.56.1] - 2026-09-18
+
+### Changed
+
+- The 0.56.0 bridge, re-cut. `bridge-v0.56.0` was created as an empty published release before its assets uploaded — the repository now publishes immutable releases, which refuse every later upload — and an immutable release's tag name cannot be reused, so the same binaries ship as `bridge-v0.56.1`. No code change beyond the version.
+
 ## [0.56.0] - 2026-09-18
 
 ### Fixed
