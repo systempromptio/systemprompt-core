@@ -9,6 +9,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod evidence;
 mod fetch;
 mod hooks;
 mod loopback;
@@ -18,7 +19,8 @@ pub mod safe_path;
 pub mod swap;
 
 pub(crate) use crate::host_sync::ApplyError;
-pub use crate::host_sync::HostWarning;
+pub use crate::host_sync::{HostWarning, HostWarningKind};
+
 pub use plugin::HostFailure;
 
 pub const PLUGIN_INSTALLATION_PREFERENCE: &str = "required";
@@ -151,39 +153,7 @@ pub(crate) async fn apply_manifest(req: &ApplyRequest<'_>) -> Result<ApplyOutcom
         }
         host_sync::log_outcome(*emitter, enabled, outcome);
     }
-    let hosts: std::collections::BTreeSet<_> =
-        emitters.iter().map(|emitter| emitter.host_id()).collect();
-    for host_id in hosts {
-        if !manifest_for_write
-            .enabled_hosts
-            .iter()
-            .any(|host| host == host_id)
-            || report
-                .host_failures
-                .iter()
-                .any(|failure| failure.host_id.as_str() == host_id)
-        {
-            continue;
-        }
-        if let Err(error) = crate::feedback_capture::capture_host(host_id, &ctx).await {
-            warnings.push(
-                host_id,
-                format!("Installation evidence unacknowledged: {error}"),
-            );
-            if matches!(
-                error,
-                crate::feedback::FeedbackError::Readback
-                    | crate::feedback::FeedbackError::Contract(_)
-            ) {
-                report.host_failures.push(HostFailure {
-                    host_id: HostId::new(host_id),
-                    emitter: "installation-evidence".to_owned(),
-                    error: format!("verify installed skill evidence: {error}"),
-                    needs_elevation: false,
-                });
-            }
-        }
-    }
+    evidence::capture(emitters, &manifest_for_write, &ctx, &warnings, &mut report).await;
     report.host_warnings.extend(warnings.drain());
 
     Ok(ApplyOutcome::Applied(report))

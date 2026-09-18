@@ -115,7 +115,7 @@ async fn mount_mcp_mocks(server: &MockServer) {
     Mock::given(method("POST"))
         .and(path("/mcp"))
         .and(body_partial_json(
-            serde_json::json!({"method": "initialize"}),
+            serde_json::json!({"jsonrpc": "2.0", "method": "initialize", "params": {"clientInfo": {}}}),
         ))
         .respond_with(
             ResponseTemplate::new(200)
@@ -136,18 +136,18 @@ async fn mount_mcp_mocks(server: &MockServer) {
 
     Mock::given(method("POST"))
         .and(path("/mcp"))
-        .and(body_partial_json(serde_json::json!({
-            "method": "notifications/initialized"
-        })))
+        .and(body_partial_json(
+            serde_json::json!({"jsonrpc": "2.0", "method": "notifications/initialized"}),
+        ))
         .respond_with(ResponseTemplate::new(202))
         .mount(server)
         .await;
 
     Mock::given(method("POST"))
         .and(path("/mcp"))
-        .and(body_partial_json(serde_json::json!({
-            "method": "tools/list"
-        })))
+        .and(body_partial_json(
+            serde_json::json!({"jsonrpc": "2.0", "method": "tools/list", "params": {}}),
+        ))
         .respond_with(
             ResponseTemplate::new(200)
                 .insert_header("content-type", "application/json")
@@ -218,9 +218,9 @@ async fn mount_mcp_mocks(server: &MockServer) {
 
     Mock::given(method("POST"))
         .and(path("/mcp"))
-        .and(body_partial_json(serde_json::json!({
-            "method": "tools/call"
-        })))
+        .and(body_partial_json(
+            serde_json::json!({"jsonrpc": "2.0", "method": "tools/call", "params": {}}),
+        ))
         .respond_with(
             ResponseTemplate::new(200)
                 .insert_header("content-type", "application/json")

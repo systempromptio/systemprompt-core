@@ -143,6 +143,7 @@ fn gateway_diagnostics_are_appended_to_the_summary_line() {
 fn a_host_warning_keeps_the_line_ok_but_names_the_host_and_its_first_line() {
     let mut s = summary();
     s.host_warnings = vec![systemprompt_bridge::sync::HostWarning {
+        kind: systemprompt_bridge::sync::HostWarningKind::CoworkSessionMissing,
         host_id: HostId::new("claude-desktop"),
         message: "open Cowork once, then Re-sync\nsecond line".into(),
     }];

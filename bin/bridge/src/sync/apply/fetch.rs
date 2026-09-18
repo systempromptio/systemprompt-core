@@ -60,14 +60,14 @@ pub(super) async fn fetch_plugin_into_staging(
         .zip(outputs)
         .map(|(file, out)| {
             let reuse = installed_copy(installed, file);
-            fetch_one_file(
-                client.clone(),
-                bearer.clone(),
-                plugin.id.to_string(),
-                file.clone(),
+            fetch_one_file(FileFetch {
+                client: client.clone(),
+                bearer: bearer.clone(),
+                plugin_id: plugin.id.to_string(),
+                file: file.clone(),
                 out,
                 reuse,
-            )
+            })
         })
         .collect();
     let mut fetches =
@@ -87,14 +87,24 @@ fn installed_copy(installed: &Path, file: &PluginFile) -> Option<Vec<u8>> {
     sha256_matches(&sha256_hex(&bytes), &file.sha256).then_some(bytes)
 }
 
-async fn fetch_one_file(
+struct FileFetch {
     client: GatewayClient,
     bearer: BearerToken,
     plugin_id: String,
     file: PluginFile,
     out: PathBuf,
     reuse: Option<Vec<u8>>,
-) -> Result<(), ApplyError> {
+}
+
+async fn fetch_one_file(fetch: FileFetch) -> Result<(), ApplyError> {
+    let FileFetch {
+        client,
+        bearer,
+        plugin_id,
+        file,
+        out,
+        reuse,
+    } = fetch;
     if let Some(bytes) = reuse {
         tracing::debug!(
             target: "bridge::sync::fetch",

@@ -153,9 +153,6 @@ impl ManagedResourceResolver {
     }
 }
 
-/// Builds the catalogue's view of a published skill from its pinned state and
-/// verified bundle: the same admission the runtime applies, shared with the
-/// batched overlay so one key resolved alone or among sixty resolves alike.
 pub(crate) fn managed_skill_from_bundle(
     key: &str,
     state: ManagedResolution,

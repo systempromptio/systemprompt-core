@@ -2,8 +2,13 @@
 
 ## [0.56.0] - 2026-09-18
 
+### Added
+
+- Two source gates. `just lint-swallowed-errors` (`scripts/rust-contracts` mode `swallowed-errors`) fails a `map_err(|_…| …)` on a network or database result (`.send()`, `.json()`, `.execute()`, `.fetch_*()` …) whose closure neither names the error nor logs it; `// Why: discard-ok: <reason>` is the only exemption. `just lint-bridge-typed-warnings` fails bridge control flow that reads a host warning's message text or a `host_warnings` predicate that never reads `.kind`. `scripts/check-test-value.sh` additionally rejects a `wiremock` JSON-RPC mount that matches on `method` alone; the frame is the contract.
+
 ### Fixed
 
+- **MCP:** the connection validator and the CLI's `tools/list` sent `"params": null` (rmcp serialises a `None` page as null); a strict server such as Google's Discovery Engine MCP refuses that with `-32602`. Both send `{}`.
 - **Marketplace:** a bridge sync no longer rebuilds the per-user catalogue for every plugin file. The manifest route and `GET /v1/bridge/plugins/{id}/{path}` share one resolution per user — disk catalogue with the managed overlay, the filtered candidate and the plugin bundles — memoised in `MarketplaceCache` (`ResolvedKey` = disk fingerprint + user + a one-query stamp of the managed tables the overlay reads; 16 users, 60 s TTL). On astound local the manifest went from 3.4 s to 70 ms warm and every file from ~3 s to ~15 ms. The miss is cheap too: `CatalogContent::with_managed_skills` / `with_organization_skills` resolve every managed skill of a principal in one query (`ManagedRepository::list_skill_resolutions`, which carries the publication row the runtime re-checks), the consumer's revocations in one (`revoked_skill_keys`) and the published revision closures in two (`get_revision_bundles`) — ≤ 5 queries and ~0.5 s where 67 skills used to cost ~800 round-trips; the per-key resolver is unchanged and the batched path admits a published skill through the same `managed_skill_from_bundle`. The "skill is not selected by any enabled plugin" family of warnings is logged once per (kind, id) per process and at debug thereafter.
 - **MCP:** when the token accessor of an external server refuses a bearer, the accessor's `error` message is carried into the `ExternalAuthUnavailable` reason (bounded to 240 characters) and logged, so a console shows "token accessor returned status 401 Unauthorized: Connector grant rejected (unauthorized_client); reconnect required" instead of a bare status.
 

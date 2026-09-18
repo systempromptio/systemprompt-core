@@ -247,11 +247,16 @@ impl ResponseHandler {
     // content-length header claims M") on every stamped tools/call response
     // from an external server, which dropped the connection on the client.
     fn should_preserve_header(key: &str) -> bool {
-        match key.to_lowercase().as_str() {
-            "host" | "authorization" | "proxy-authorization" | "upgrade" | "te" => false,
-            "content-length" | "transfer-encoding" | "content-encoding" => false,
-            header if header.starts_with("x-mcp-") => true,
-            _ => true,
-        }
+        !matches!(
+            key.to_lowercase().as_str(),
+            "host"
+                | "authorization"
+                | "proxy-authorization"
+                | "upgrade"
+                | "te"
+                | "content-length"
+                | "transfer-encoding"
+                | "content-encoding"
+        )
     }
 }

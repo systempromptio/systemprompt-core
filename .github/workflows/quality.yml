@@ -202,9 +202,13 @@ jobs:
         if: ${{ !cancelled() }}
       - run: just lint-bridge-verdicts
         if: ${{ !cancelled() }}
+      - run: just lint-bridge-typed-warnings
+        if: ${{ !cancelled() }}
       - run: just lint-discarded-results
         if: ${{ !cancelled() }}
       - run: just lint-fail-open
+        if: ${{ !cancelled() }}
+      - run: just lint-swallowed-errors
         if: ${{ !cancelled() }}
       - run: just lint-tracing-messages
         if: ${{ !cancelled() }}

@@ -29,6 +29,17 @@ pub struct SyncSummary {
 }
 
 impl SyncSummary {
+    // Why: only the "open Cowork once" outcome is answered by a later
+    // re-sync; any other warning under the host (evidence pending, plugin
+    // dependencies) would otherwise re-request a sync on every tick.
+    #[must_use]
+    pub fn cowork_enable_deferred(&self, host_id: &crate::ids::HostId) -> bool {
+        self.host_warnings.iter().any(|w| {
+            w.host_id == *host_id
+                && w.kind == crate::host_sync::HostWarningKind::CoworkSessionMissing
+        })
+    }
+
     #[must_use]
     pub fn one_line(&self) -> String {
         let status = if self.host_failures.is_empty() && self.malformed.is_empty() {

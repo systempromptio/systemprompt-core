@@ -137,11 +137,11 @@ fn cowork_session_now_available(app: &GuiApp, host_id: &HostId) -> bool {
     if snap.sync_in_flight {
         return false;
     }
-    let outstanding = snap
+    let deferred = snap
         .last_sync_report
         .as_ref()
-        .is_some_and(|report| report.host_warnings.iter().any(|w| w.host_id == *host_id));
-    outstanding
+        .is_some_and(|report| report.cowork_enable_deferred(host_id));
+    deferred
         && matches!(
             crate::integration::cowork_plugins::resolve_target(),
             Ok(Some(_))

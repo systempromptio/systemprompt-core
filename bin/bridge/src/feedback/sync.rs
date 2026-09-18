@@ -107,14 +107,27 @@ async fn recover_installation(
     Ok(())
 }
 
+/// What one recovery pass achieved against its deadline. `remaining` counts
+/// the due installations the pass did not reach or did not finish; they stay
+/// in the outbox for the next pass.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct RecoveryProgress {
+    pub recovered: usize,
+    pub remaining: usize,
+}
+
+// Why: a bundle plan is one gateway round-trip plus a readback; below this
+// budget an item cannot finish and would only burn its retry backoff.
+const MIN_ITEM_BUDGET: std::time::Duration = std::time::Duration::from_secs(2);
+
 pub async fn recover_pending(
     enrollment: &Enrollment,
     outbox: &Outbox,
     host: systemprompt_models::feedback::EvaluatorClient,
     manifest: &crate::gateway::manifest::SignedManifest,
-) -> Result<()> {
-    let mut failure = None;
-    for (key, pending) in outbox
+    deadline: std::time::Instant,
+) -> Result<RecoveryProgress> {
+    let due: Vec<_> = outbox
         .pending_installations()?
         .into_iter()
         .filter(|(_, pending)| {
@@ -124,16 +137,40 @@ pub async fn recover_pending(
                 && pending.next_attempt <= chrono::Utc::now()
         })
         .take(16)
-    {
+        .collect();
+    let mut progress = RecoveryProgress::default();
+    let mut failure = None;
+    let mut items = due.into_iter();
+    while let Some((key, pending)) = items.next() {
+        let left = deadline.saturating_duration_since(std::time::Instant::now());
+        if left < MIN_ITEM_BUDGET {
+            progress.remaining += 1 + items.len();
+            break;
+        }
         outbox.begin_installation_attempt(&key)?;
-        match recover_installation(enrollment, outbox, &pending).await {
-            Ok(()) => outbox.complete_installation(&key)?,
-            Err(error) => {
+        match tokio::time::timeout(left, recover_installation(enrollment, outbox, &pending)).await {
+            Ok(Ok(())) => {
+                outbox.complete_installation(&key)?;
+                progress.recovered += 1;
+            },
+            Ok(Err(error)) => {
+                progress.remaining += 1;
                 failure = Some(error);
+            },
+            Err(_elapsed) => {
+                progress.remaining += 1 + items.len();
+                break;
             },
         }
     }
-    failure.map_or(Ok(()), Err)
+    tracing::info!(
+        target: "bridge::feedback",
+        host = ?host,
+        recovered = progress.recovered,
+        remaining = progress.remaining,
+        "installation evidence recovery pass"
+    );
+    failure.map_or(Ok(progress), Err)
 }
 
 fn current_installation(
@@ -183,13 +220,11 @@ pub async fn recover_manifest_installations(
         return Err(FeedbackError::Scope);
     }
     let _lock = super::installation_lock().await?;
-    tokio::time::timeout(std::time::Duration::from_secs(30), async {
-        for host in &manifest.enabled_hosts {
-            if let Some(kind) = super::client_kind(host) {
-                recover_pending(enrollment, outbox, kind, manifest).await?;
-            }
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+    for host in &manifest.enabled_hosts {
+        if let Some(kind) = super::client_kind(host) {
+            recover_pending(enrollment, outbox, kind, manifest, deadline).await?;
         }
-        Ok(())
-    })
-    .await?
+    }
+    Ok(())
 }

@@ -49,7 +49,7 @@ async fn a_slow_but_reachable_endpoint_is_still_reported_running_and_marked_degr
     Mock::given(method("POST"))
         .and(path("/mcp"))
         .and(body_partial_json(
-            serde_json::json!({"method": "initialize"}),
+            serde_json::json!({"jsonrpc": "2.0", "method": "initialize", "params": {"clientInfo": {}}}),
         ))
         .respond_with(
             ResponseTemplate::new(200)
@@ -70,16 +70,16 @@ async fn a_slow_but_reachable_endpoint_is_still_reported_running_and_marked_degr
         .await;
     Mock::given(method("POST"))
         .and(path("/mcp"))
-        .and(body_partial_json(serde_json::json!({
-            "method": "notifications/initialized"
-        })))
+        .and(body_partial_json(
+            serde_json::json!({"jsonrpc": "2.0", "method": "notifications/initialized"}),
+        ))
         .respond_with(ResponseTemplate::new(202))
         .mount(&mock)
         .await;
     Mock::given(method("POST"))
         .and(path("/mcp"))
         .and(body_partial_json(
-            serde_json::json!({"method": "tools/list"}),
+            serde_json::json!({"jsonrpc": "2.0", "method": "tools/list", "params": {}}),
         ))
         .respond_with(
             ResponseTemplate::new(200)

@@ -61,6 +61,7 @@ impl ExecutionContext {
         self.tx
             .send(event)
             .await
+            // Why: discard-ok: a closed mpsc carries only the unsent event.
             .map_err(|_closed| crate::services::shared::AgentServiceError::StreamClosed)
     }
 }

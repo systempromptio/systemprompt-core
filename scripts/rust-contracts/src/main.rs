@@ -40,12 +40,12 @@ fn scan(path: &Path, mode: &str, count: &mut usize) -> Result<bool, Box<dyn std:
 
 fn main() -> Result<std::process::ExitCode, Box<dyn std::error::Error>> {
     let mut args = std::env::args().skip(1);
-    let mode = args
-        .next()
-        .ok_or("expected discarded, fail-open or tracing-messages and source roots")?;
+    let mode = args.next().ok_or(
+        "expected discarded, fail-open, tracing-messages or swallowed-errors and source roots",
+    )?;
     if !matches!(
         mode.as_str(),
-        "discarded" | "fail-open" | "tracing-messages"
+        "discarded" | "fail-open" | "tracing-messages" | "swallowed-errors"
     ) {
         return Err("unknown scan mode".into());
     }

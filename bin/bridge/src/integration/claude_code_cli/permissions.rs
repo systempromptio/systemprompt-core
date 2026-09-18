@@ -24,6 +24,7 @@ pub(super) fn apply_tool_permissions(ctx: &HostSyncCtx<'_>) -> Result<(), ApplyE
         },
         permissions::PermissionOutcome::NoCarrier { rules, standalone } => {
             ctx.warnings.push(
+                crate::host_sync::HostWarningKind::PermissionRules,
                 "claude-code",
                 format!(
                     "{rules} tool permission rules not applied: no Claude Code settings file is \

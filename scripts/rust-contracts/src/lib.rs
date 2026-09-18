@@ -241,6 +241,65 @@ fn fallible_receiver(receiver: &Expr) -> bool {
 
 const TRACING_LEVELS: &[&str] = &["trace", "debug", "info", "warn", "error"];
 
+// Why: a network or database result whose error is discarded on the way to a
+// constant message is exactly how a provider's `403 unauthorized_client`
+// spent a day looking like an outage; the closure must say what it saw.
+const BOUNDARY_METHODS: [&str; 11] = [
+    "send",
+    "json",
+    "text",
+    "bytes",
+    "chunk",
+    "error_for_status",
+    "execute",
+    "fetch_one",
+    "fetch_all",
+    "fetch_optional",
+    "fetch",
+];
+
+fn boundary_receiver(expr: &Expr) -> bool {
+    match expr {
+        Expr::MethodCall(call) => {
+            BOUNDARY_METHODS.contains(&call.method.to_string().as_str())
+                || boundary_receiver(&call.receiver)
+        },
+        Expr::Await(inner) => boundary_receiver(&inner.base),
+        Expr::Try(inner) => boundary_receiver(&inner.expr),
+        Expr::Paren(inner) => boundary_receiver(&inner.expr),
+        _ => false,
+    }
+}
+
+fn silent_closure(expr: &Expr) -> bool {
+    let Expr::Closure(closure) = expr else {
+        return false;
+    };
+    let unnamed = closure.inputs.iter().any(|input| match input {
+        Pat::Wild(_) => true,
+        Pat::Ident(ident) => ident.ident.to_string().starts_with('_'),
+        Pat::Type(typed) => matches!(typed.pat.as_ref(), Pat::Wild(_))
+            || matches!(typed.pat.as_ref(), Pat::Ident(ident) if ident.ident.to_string().starts_with('_')),
+        _ => false,
+    });
+    unnamed && !mentions_tracing(&closure.body)
+}
+
+fn mentions_tracing(expr: &Expr) -> bool {
+    struct Finder(bool);
+    impl<'ast> Visit<'ast> for Finder {
+        fn visit_macro(&mut self, node: &'ast syn::Macro) {
+            if tracing_macro(&node.path) {
+                self.0 = true;
+            }
+            visit::visit_macro(self, node);
+        }
+    }
+    let mut finder = Finder(false);
+    finder.visit_expr(expr);
+    finder.0
+}
+
 fn tracing_macro(path: &syn::Path) -> bool {
     let level = path
         .segments
@@ -395,6 +454,13 @@ impl<'ast> Visit<'ast> for Scanner<'_> {
             && fallible_receiver(&node.receiver)
         {
             self.report(node.span(), "fallible-default");
+        }
+        if self.mode == "swallowed-errors"
+            && node.method == "map_err"
+            && boundary_receiver(&node.receiver)
+            && node.args.first().is_some_and(silent_closure)
+        {
+            self.report(node.span(), "swallowed-boundary-error");
         }
         visit::visit_expr_method_call(self, node);
     }

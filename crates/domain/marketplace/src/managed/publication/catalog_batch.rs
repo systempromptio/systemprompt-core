@@ -99,13 +99,6 @@ impl ManagedRepository {
             .collect()
     }
 
-    /// A digest of everything the overlay for `(owner, consumer)` reads —
-    /// the managed skill set of both principals, their publication
-    /// selections and the consumer's revocations — so a per-user memo can
-    /// tell in one round-trip whether its entry still describes the database.
-    /// Only revocations count on the grants side: the manifest records a
-    /// grant for every skill it serves, and that write must not invalidate
-    /// the entry it was just built from.
     pub async fn managed_catalog_stamp(&self, owner: &UserId, consumer: &UserId) -> Result<String> {
         let principals = vec![owner.as_str().to_owned(), consumer.as_str().to_owned()];
         let stamp = sqlx::query_scalar!(
@@ -138,9 +131,6 @@ impl ManagedRepository {
         Ok(keys.into_iter().collect())
     }
 
-    /// Assembles the verified closure of every `(owner, root)` pair, keyed by
-    /// root. Manifests and files come back one query per dependency round —
-    /// two for a skill without dependencies — regardless of how many roots.
     pub async fn get_revision_bundles(
         &self,
         roots: &[(UserId, ResourceRevisionId)],

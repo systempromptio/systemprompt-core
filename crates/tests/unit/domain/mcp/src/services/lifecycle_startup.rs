@@ -93,7 +93,7 @@ async fn check_health_status_accepts_degraded_near_exhaustion() {
     Mock::given(method("POST"))
         .and(path("/mcp"))
         .and(body_partial_json(
-            serde_json::json!({"method": "initialize"}),
+            serde_json::json!({"jsonrpc": "2.0", "method": "initialize", "params": {"clientInfo": {}}}),
         ))
         .respond_with(
             ResponseTemplate::new(200)

@@ -107,6 +107,7 @@ fn apply_install(ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
     if marketplaces.is_empty() {
         if !manifest.plugins.is_empty() {
             ctx.warnings.push(
+                crate::host_sync::HostWarningKind::Manifest,
                 HOST_ID,
                 "the manifest carries plugins but names no marketplace; nothing was mirrored \
                  for the Claude Code CLI — upgrade the gateway",
@@ -177,6 +178,7 @@ fn mirror_marketplace(
     for id in &marketplace.plugin_ids {
         let Some(version) = versions.get(id.as_str()) else {
             ctx.warnings.push(
+                crate::host_sync::HostWarningKind::Manifest,
                 HOST_ID,
                 format!(
                     "marketplace {} lists plugin {} which the manifest does not carry; skipped",

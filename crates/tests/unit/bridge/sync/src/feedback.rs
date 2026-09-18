@@ -91,6 +91,7 @@ fn publication() -> systemprompt_models::bridge::manifest::SkillPublication {
 }
 
 
+mod budget;
 mod opencode_session;
 mod pending;
 mod readback_outbox;

@@ -18,7 +18,7 @@ use crate::auth::plugin_oauth::PluginTokenCache;
 use crate::gateway::GatewayClient;
 use crate::gateway::manifest::{HookEntry, PluginEntry, SignedManifest};
 use crate::hash::safe_plugin_id;
-use crate::host_sync::{HostWarning, HostWarnings};
+use crate::host_sync::{HostWarning, HostWarningKind, HostWarnings};
 use crate::ids::{BearerToken, HostId};
 use crate::proxy::LoopbackEndpoint;
 use std::collections::{BTreeMap, HashSet};
@@ -90,6 +90,7 @@ pub(super) async fn apply_plugins(
         receipts.push(applied.hooks_receipt);
         if let NodeInstall::Skipped { reason } = &applied.node_install {
             warnings.push(
+                HostWarningKind::NodePackages,
                 NODE_WARNING_HOST,
                 format!(
                     "plugin {}: Node packages not installed — {reason}",

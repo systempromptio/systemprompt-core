@@ -34,11 +34,8 @@ pub type BundleMap = BTreeMap<PluginId, PluginBundle>;
 
 type Slot<T> = RwLock<Option<([u8; 32], Arc<T>)>>;
 
-/// How long a resolved entry may be served before it is rebuilt even when
-/// its key still matches.
 pub const RESOLVED_TTL: Duration = Duration::from_secs(60);
 
-/// How many users' resolutions are retained at once; the oldest is evicted.
 pub const RESOLVED_CAPACITY: usize = 16;
 
 /// What a resolved entry was built from. Two requests share an entry only
@@ -143,6 +140,7 @@ impl MarketplaceCache {
         while guard.len() > RESOLVED_CAPACITY {
             guard.pop_front();
         }
+        drop(guard);
     }
 
     pub fn resolved_len(&self) -> usize {

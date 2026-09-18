@@ -1,6 +1,6 @@
 use serde_json::json;
 use systemprompt_bridge::ids::HostId;
-use systemprompt_bridge::sync::{HostFailure, SyncSummary};
+use systemprompt_bridge::sync::{HostFailure, HostWarning, HostWarningKind, SyncSummary};
 
 fn summary() -> SyncSummary {
     SyncSummary {
@@ -76,4 +76,83 @@ fn diagnostics_are_carried_verbatim() {
         value["diagnostics"][0],
         json!("a skill is missing from every plugin's skills.include")
     );
+}
+
+fn warning(kind: HostWarningKind, host: &str) -> HostWarning {
+    HostWarning {
+        kind,
+        host_id: HostId::new(host),
+        message: "detail".into(),
+    }
+}
+
+// Why: the GUI's 30 s tick re-requests a sync when Claude Desktop had not
+// opened Cowork yet. It must key on that outcome alone: the feedback-timeout
+// warning under the same host re-armed the tick on every cycle for the life
+// of the window (one sync every 30 s, each ~110 s long).
+#[test]
+fn cowork_enable_is_deferred_only_by_the_session_missing_warning() {
+    let desktop = HostId::new("claude-desktop");
+    let mut s = summary();
+
+    s.host_warnings = vec![warning(
+        HostWarningKind::EvidenceUnacknowledged,
+        "claude-desktop",
+    )];
+    assert!(
+        !s.cowork_enable_deferred(&desktop),
+        "evidence pending is not a deferral"
+    );
+
+    s.host_warnings = vec![warning(
+        HostWarningKind::PluginDependencies,
+        "claude-desktop",
+    )];
+    assert!(
+        !s.cowork_enable_deferred(&desktop),
+        "a dependency note is not a deferral"
+    );
+
+    s.host_warnings = vec![warning(
+        HostWarningKind::CoworkSessionMissing,
+        "claude-code",
+    )];
+    assert!(
+        !s.cowork_enable_deferred(&desktop),
+        "another host's warning is not this host's"
+    );
+
+    s.host_warnings = vec![
+        warning(HostWarningKind::EvidenceUnacknowledged, "claude-desktop"),
+        warning(HostWarningKind::CoworkSessionMissing, "claude-desktop"),
+    ];
+    assert!(s.cowork_enable_deferred(&desktop));
+
+    s.host_warnings = Vec::new();
+    assert!(
+        !s.cowork_enable_deferred(&desktop),
+        "a clean report clears the deferral"
+    );
+}
+
+#[test]
+fn a_host_warning_carries_its_kind_on_the_wire() {
+    let mut s = summary();
+    s.host_warnings = vec![warning(
+        HostWarningKind::CoworkSessionMissing,
+        "claude-desktop",
+    )];
+    let value = serde_json::to_value(&s).expect("summary serialises");
+    assert_eq!(
+        value["host_warnings"][0]["kind"],
+        json!("cowork_session_missing")
+    );
+    assert_eq!(
+        value["host_warnings"][0]["host_id"],
+        json!("claude-desktop")
+    );
+
+    let back: HostWarning =
+        serde_json::from_value(value["host_warnings"][0].clone()).expect("warning round-trips");
+    assert_eq!(back.kind, HostWarningKind::CoworkSessionMissing);
 }

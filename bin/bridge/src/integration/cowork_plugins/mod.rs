@@ -56,6 +56,7 @@ impl HostSync for CoworkSync {
             // Cowork has been opened once.
             if crate::integration::claude_desktop::is_app_installed(ctx.start_menu) {
                 ctx.warnings.push(
+                    crate::host_sync::HostWarningKind::CoworkSessionMissing,
                     self.host_id(),
                     "Claude Desktop is installed but has not opened Cowork on this machine yet, \
                      so its plugins are not enabled — open Cowork once, then Re-sync",
@@ -77,6 +78,7 @@ impl HostSync for CoworkSync {
                 .is_some_and(|manifest| !manifest.dependencies.is_empty());
             if declares_dependencies {
                 ctx.warnings.push(
+                    crate::host_sync::HostWarningKind::PluginDependencies,
                     self.host_id(),
                     format!(
                         "plugin {id} declares plugin dependencies; Claude Desktop does not \

@@ -81,13 +81,11 @@ impl CatalogContent {
         Ok(self)
     }
 
-    async fn overlay_managed(
+    fn admit_published(
         &mut self,
-        repository: &ManagedRepository,
-        principal: &UserId,
         rows: Vec<SkillResolutionRow>,
         revoked: &BTreeSet<String>,
-    ) -> Result<(), MarketplaceError> {
+    ) -> Result<Vec<(String, ManagedResolution)>, MarketplaceError> {
         let mut published: Vec<(String, ManagedResolution)> = Vec::new();
         for row in rows {
             self.remove_managed_key(&row.resource_key);
@@ -128,6 +126,17 @@ impl CatalogContent {
                 },
             }
         }
+        Ok(published)
+    }
+
+    async fn overlay_managed(
+        &mut self,
+        repository: &ManagedRepository,
+        principal: &UserId,
+        rows: Vec<SkillResolutionRow>,
+        revoked: &BTreeSet<String>,
+    ) -> Result<(), MarketplaceError> {
+        let published = self.admit_published(rows, revoked)?;
         if published.is_empty() {
             return Ok(());
         }
