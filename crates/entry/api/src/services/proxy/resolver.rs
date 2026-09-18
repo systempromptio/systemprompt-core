@@ -7,12 +7,21 @@ use std::sync::Arc;
 
 use systemprompt_database::ServiceConfig;
 use systemprompt_mcp::services::McpOrchestrator;
+use systemprompt_mcp::services::spawn_target::SpawnTarget;
 use systemprompt_runtime::AppContext;
 
 use super::backend::ProxyError;
 
 #[derive(Debug, Clone, Copy)]
 pub struct ServiceResolver;
+
+pub fn stale_port(db_port: i32, config_port: u16) -> Option<u16> {
+    if db_port == i32::from(config_port) {
+        None
+    } else {
+        Some(config_port)
+    }
+}
 
 impl ServiceResolver {
     pub async fn resolve(
@@ -73,7 +82,45 @@ impl ServiceResolver {
             });
         }
 
-        Ok(service)
+        Ok(Self::reconcile_internal_port(service_name, service, ctx).await)
+    }
+
+    async fn reconcile_internal_port(
+        service_name: &str,
+        mut service: ServiceConfig,
+        ctx: &AppContext,
+    ) -> ServiceConfig {
+        let config = match ctx.mcp_registry().find_server(service_name) {
+            Ok(Some(config)) => config,
+            Ok(None) => return service,
+            Err(e) => {
+                tracing::debug!(service = %service_name, error = %e, "Registry lookup failed while reconciling service port");
+                return service;
+            },
+        };
+
+        let Ok(config_port) = config.spawn_port() else {
+            return service;
+        };
+
+        if let Some(new_port) = stale_port(service.port, config_port) {
+            tracing::warn!(
+                service = %service_name,
+                db_port = service.port,
+                config_port = new_port,
+                "DB service port is stale; reconciling to the port this instance spawns before proxying"
+            );
+            if let Err(e) = ctx
+                .service_repository()
+                .update_service_port(service_name, new_port)
+                .await
+            {
+                tracing::error!(service = %service_name, error = %e, "Failed to persist reconciled service port");
+            }
+            service.port = i32::from(new_port);
+        }
+
+        service
     }
 
     async fn attempt_restart(service_name: &str, ctx: &AppContext) -> Result<(), ProxyError> {

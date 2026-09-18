@@ -233,3 +233,15 @@ async fn a_read_failure_on_the_restart_recheck_is_reported_as_a_database_error()
         "an outage during the re-check must stay a database error; got {error:?}"
     );
 }
+
+#[test]
+fn stale_port_returns_none_when_db_matches_config() {
+    use systemprompt_api::services::proxy::resolver::stale_port;
+    assert_eq!(stale_port(5110, 5110), None);
+}
+
+#[test]
+fn stale_port_returns_config_port_when_db_is_stale() {
+    use systemprompt_api::services::proxy::resolver::stale_port;
+    assert_eq!(stale_port(5310, 5110), Some(5110));
+}
