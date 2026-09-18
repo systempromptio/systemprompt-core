@@ -44,7 +44,9 @@ pub(super) async fn list_tools(
             jsonrpc: "2.0",
             id: 2,
             method: "tools/list",
-            params: EmptyParams {},
+            // JSON: `params` must be an object; `null` is answered with
+            // `-32602 Invalid params` by Google's MCP endpoint.
+            params: serde_json::Map::<String, Value>::new(),
         })
         .send()
         .await?
@@ -92,8 +94,6 @@ pub(super) struct ClientInfo {
     pub version: &'static str,
 }
 
-#[derive(Debug, serde::Serialize)]
-pub(super) struct EmptyParams;
 
 #[derive(Debug, serde::Serialize)]
 struct JsonRpcNotification {
@@ -120,6 +120,13 @@ pub(super) fn initialize_body() -> JsonRpcRequest<InitializeParams> {
 #[derive(Debug, serde::Deserialize)]
 struct ToolsListResponse {
     result: Option<ToolsListResult>,
+    error: Option<JsonRpcError>,
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct JsonRpcError {
+    code: i64,
+    message: String,
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -139,6 +146,8 @@ pub(super) enum RpcError {
     Transport(#[from] reqwest::Error),
     #[error("MCP tools/list response: {0}")]
     Decode(#[from] serde_json::Error),
+    #[error("MCP tools/list returned JSON-RPC error {code}: {message}")]
+    Rpc { code: i64, message: String },
     #[error("MCP tools/list response did not contain a result.tools array")]
     MissingTools,
 }
@@ -157,6 +166,12 @@ fn parse_tools(content_type: &str, body: &str) -> Result<Vec<McpTool>, RpcError>
         body
     };
     let response: ToolsListResponse = serde_json::from_str(body)?;
+    if let Some(error) = response.error {
+        return Err(RpcError::Rpc {
+            code: error.code,
+            message: error.message,
+        });
+    }
     let tools = response
         .result
         .and_then(|result| result.tools)

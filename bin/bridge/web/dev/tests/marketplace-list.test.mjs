@@ -1,13 +1,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { placeholderMarkup } from "/assets/js/components/marketplace-list-placeholder.js";
+import { freshPage } from "./page.mjs";
 
 // Rendering these components only needs the element's event interface. The
 // browser smoke check exercises connection, reconciliation and child updates.
 globalThis.HTMLElement = class extends EventTarget {
   querySelectorAll() { return []; }
 };
-globalThis.window = {};
+freshPage();
 globalThis.customElements = { define() {} };
 const { SpMarketplaceList } = await import("/assets/js/components/sp-marketplace-list.js");
 

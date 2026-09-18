@@ -1,11 +1,37 @@
 import { SpElement, reactive } from "/assets/js/components/sp-element.js";
 import { escapeHtml } from "/assets/js/utils/escape.js";
 import { bridge } from "/assets/js/bridge.js";
-import { isInstalled } from "/assets/js/utils/verdict.js";
+import { isInstalled, isSetUp } from "/assets/js/utils/verdict.js";
 import { t } from "/assets/js/i18n.js";
 import { announce } from "/assets/js/utils/announce.js";
 import { repairHost } from "/assets/js/utils/host-actions.js";
 import { notifyOk, notifyErr } from "/assets/js/utils/notify.js";
+
+// A card is one of three things: still being probed (no control — a button
+// that offers to install what may already be there is the wrong answer),
+// installed, or in need of the profile. That last case is "install" for a
+// host with nothing, "repair" for one whose profile is there but out of date.
+function cardState(host) {
+  if (isInstalled(host)) { return "installed"; }
+  // `health` is populated by the first completed probe (the wizard's settle
+  // gate reads the same field); before it there is nothing to offer a button for.
+  if (host.can_verify !== false && !host.health) { return "checking"; }
+  return isSetUp(host) ? "repair" : "absent";
+}
+
+function cardControl(host, state) {
+  if (state === "checking") {
+    return `<span class="sp-setup-agent__checking sp-u-muted" role="status">${escapeHtml(t("agent-state-checking") || "Checking…")}</span>`;
+  }
+  const labels = {
+    installed: t("setup-agents-installed") || "Installed",
+    repair: t("agent-action-repair") || "Repair",
+    absent: t("setup-agents-install") || "Install profile",
+  };
+  const installed = state === "installed";
+  const cls = installed ? "sp-btn-ghost" : "sp-btn-primary";
+  return `<button type="button" class="${cls}" ${installed ? "disabled" : ""} data-action="install-host" data-host-id="${escapeHtml(host.id)}" data-host-name="${escapeHtml(host.display_name)}">${escapeHtml(labels[state])}</button>`;
+}
 
 export class SpSetupAgents extends SpElement {
   constructor() {
@@ -26,6 +52,10 @@ export class SpSetupAgents extends SpElement {
         // generating a profile and installing it fail for different reasons.
         trigger.dataset.failedStage = e.stage || "install";
         notifyErr(e, t(`setup-install-stage-${e.stage || "install"}`) || (e.stage || "install"));
+      } finally {
+        // The re-render after `host.changed` decides whether the button stays;
+        // a success whose probe still reads the old state must not leave a
+        // dimmed control the user cannot press again.
         trigger.disabled = false;
       }
     });
@@ -101,19 +131,15 @@ export class SpSetupAgents extends SpElement {
       return `<div class="sp-u-muted">${escapeHtml(t("setup-agents-empty") || "No agents detected on this device.")}</div>`;
     }
     return hosts.map((host) => {
-      const installed = isInstalled(host);
+      const state = cardState(host);
       const suffix = ` · ${t(`agent-kind-${host.kind}`) || ""}`;
-      const cls = installed ? "sp-btn-ghost" : "sp-btn-primary";
-      const label = installed
-        ? (t("setup-agents-installed") || "Installed")
-        : (t("setup-agents-install") || "Install profile");
       return `
-        <div class="sp-setup-agent" data-state="${installed ? "installed" : "absent"}">
+        <div class="sp-setup-agent" data-state="${state}">
           <div class="sp-setup-agent__meta">
             <div class="sp-setup-agent__name">${escapeHtml(host.display_name + suffix)}</div>
             <div class="sp-setup-agent__desc">${escapeHtml(host.description || "")}</div>
           </div>
-          <button type="button" class="${cls}" ${installed ? "disabled" : ""} data-action="install-host" data-host-id="${escapeHtml(host.id)}" data-host-name="${escapeHtml(host.display_name)}">${escapeHtml(label)}</button>
+          ${cardControl(host, state)}
         </div>
       `;
     }).join("");

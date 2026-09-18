@@ -7,7 +7,6 @@ use serde::Deserialize;
 
 use crate::auth::secret::Secret;
 use crate::ids::HostId;
-use crate::wire::DeviceAction;
 
 #[derive(Debug, Deserialize)]
 pub(super) struct GatewaySetArgs {
@@ -57,11 +56,6 @@ pub(super) struct HostInstallArgs {
 #[derive(Debug, Deserialize)]
 pub(super) struct OpenExternalUrlArgs {
     pub(super) url: String,
-}
-
-#[derive(Debug, Deserialize)]
-pub(super) struct DeviceActionArgs {
-    pub(super) action: DeviceAction,
 }
 
 #[derive(Debug, Deserialize)]

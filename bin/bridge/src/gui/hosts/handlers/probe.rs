@@ -118,6 +118,9 @@ pub(crate) fn on_probe_finished(app: &mut GuiApp, result: &ProbeResult<'_>, repl
         app.proxy
             .send_event(UiEvent::SyncRequested { reply_to: None });
     }
+    if cause == ProbeCause::Tick {
+        super::repair_stale_unattended(app, host_id, snapshot);
+    }
     let snap = app.state.snapshot();
     let value = crate::gui::server_json::single_host_value(&snap, host_id.as_str());
     if app.state.first_run_active() {

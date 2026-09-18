@@ -97,6 +97,13 @@ pub(super) fn install_profile(path: &str) -> std::io::Result<ProfileInstalled> {
     Ok(ProfileInstalled::ok())
 }
 
+pub(super) fn install_profile_unattended(_path: &str) -> std::io::Result<ProfileInstalled> {
+    Err(std::io::Error::new(
+        std::io::ErrorKind::PermissionDenied,
+        "a configuration profile is approved by the user in System Settings; use Repair",
+    ))
+}
+
 fn candidates(domain: &str) -> Vec<PathBuf> {
     let mut out = Vec::new();
     if let Ok(user) = std::env::var("USER")

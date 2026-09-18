@@ -11,6 +11,7 @@
   display: none;
   min-height: 0;
   padding: 0;
+  overflow: hidden;
 }
 body.is-setup-mode .sp-topbar { display: none; }
 body.is-setup-mode .sp-footer { display: none; }
@@ -36,8 +37,8 @@ body.is-setup-mode .sp-setup {
 
 .sp-setup__split {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(420px, 44%);
-  min-height: 100%;
+  grid-template-columns: minmax(0, 1fr) minmax(460px, 46%);
+  height: 100%;
 }
 
 /* Left: brand panel ------------------------------------------------------- */
@@ -103,14 +104,20 @@ body.is-setup-mode .sp-setup {
 
 /* Right: form panel ------------------------------------------------------- */
 
+/* The panel is the one scroll container of the wizard. The body never scrolls,
+ * so a step taller than the window — four agent cards and a Finish button on
+ * a laptop — must scroll here or its tail is simply gone. `safe center` keeps
+ * the short connect step centred and lets a tall step start at the top. */
 .sp-setup__panel {
   display: flex;
-  align-items: center;
+  align-items: safe center;
   justify-content: center;
-  padding: clamp(40px, 3.2vw, 110px) clamp(32px, 2.6vw, 90px);
+  min-height: 0;
+  overflow-y: auto;
+  padding: clamp(32px, 3.2vw, 110px) clamp(28px, 2.6vw, 90px);
   background: var(--sp-bg);
 }
-.sp-setup__panel-inner { width: 100%; max-width: clamp(440px, 26vw, 760px); }
+.sp-setup__panel-inner { width: 100%; max-width: clamp(460px, 30vw, 760px); }
 
 .sp-setup__heading { margin-bottom: var(--sp-space-6); }
 .sp-setup__eyebrow {

@@ -230,6 +230,107 @@ async fn tools_list_failure_reports_protocol_error() {
     assert!(auth.tools.is_empty());
 }
 
+// Google's Discovery Engine MCP answers `"params": null` with
+// `-32602 Invalid params` at HTTP 200; the probe must send an object, and a
+// JSON-RPC error must be named rather than reported as a missing tools array.
+#[tokio::test]
+async fn tools_list_params_is_an_object_not_null() {
+    let server = MockServer::start().await;
+
+    Mock::given(method("POST"))
+        .and(path(format!("/mcp/{SLUG}")))
+        .and(body_partial_json(
+            serde_json::json!({ "method": "initialize" }),
+        ))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "jsonrpc": "2.0", "id": 1, "result": {}
+        })))
+        .mount(&server)
+        .await;
+
+    Mock::given(method("POST"))
+        .and(path(format!("/mcp/{SLUG}")))
+        .and(body_partial_json(
+            serde_json::json!({ "method": "notifications/initialized" }),
+        ))
+        .respond_with(ResponseTemplate::new(202))
+        .mount(&server)
+        .await;
+
+    Mock::given(method("POST"))
+        .and(path(format!("/mcp/{SLUG}")))
+        .and(body_partial_json(
+            serde_json::json!({ "method": "tools/list", "params": {} }),
+        ))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": 2,
+            "result": { "tools": [{ "name": "search" }] }
+        })))
+        .mount(&server)
+        .await;
+
+    let auth = probe(&server).await;
+    assert_eq!(auth.state, McpAuthState::Authenticated, "{:?}", auth.error);
+    assert_eq!(auth.tools.len(), 1);
+
+    let received = server.received_requests().await.expect("requests recorded");
+    let tools_list = received
+        .iter()
+        .find_map(|r| {
+            let body: serde_json::Value = serde_json::from_slice(&r.body).ok()?;
+            (body["method"] == "tools/list").then_some(body)
+        })
+        .expect("tools/list was sent");
+    assert_eq!(tools_list["params"], serde_json::json!({}));
+}
+
+#[tokio::test]
+async fn tools_list_json_rpc_error_is_named() {
+    let server = MockServer::start().await;
+
+    Mock::given(method("POST"))
+        .and(path(format!("/mcp/{SLUG}")))
+        .and(body_partial_json(
+            serde_json::json!({ "method": "initialize" }),
+        ))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "jsonrpc": "2.0", "id": 1, "result": {}
+        })))
+        .mount(&server)
+        .await;
+
+    Mock::given(method("POST"))
+        .and(path(format!("/mcp/{SLUG}")))
+        .and(body_partial_json(
+            serde_json::json!({ "method": "notifications/initialized" }),
+        ))
+        .respond_with(ResponseTemplate::new(202))
+        .mount(&server)
+        .await;
+
+    Mock::given(method("POST"))
+        .and(path(format!("/mcp/{SLUG}")))
+        .and(body_partial_json(
+            serde_json::json!({ "method": "tools/list" }),
+        ))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": 2,
+            "error": { "code": -32602, "message": "Invalid params" }
+        })))
+        .mount(&server)
+        .await;
+
+    let auth = probe(&server).await;
+    assert_eq!(auth.state, McpAuthState::ProtocolError);
+    let error = auth.error.expect("error is reported");
+    assert!(
+        error.contains("-32602") && error.contains("Invalid params"),
+        "the JSON-RPC error is named: {error}"
+    );
+}
+
 #[tokio::test]
 async fn probe_all_empty_registry_yields_no_servers() {
     let results = probe_all(&loopback(), &std::collections::HashMap::new()).await;

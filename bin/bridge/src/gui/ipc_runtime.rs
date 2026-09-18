@@ -6,13 +6,15 @@
 use crate::gui::GuiApp;
 use crate::gui::command::{self, CommandOutcome};
 use crate::gui::emit::send_reply_payload;
-use crate::wire::ipc::IpcRequest;
+use crate::wire::ipc::{
+    BridgeError, ErrorCode, ErrorScope, IpcEnvelopeHead, IpcReplyPayload, IpcRequest, ReplyTarget,
+};
 
 pub(crate) fn handle_inbound(app: &mut GuiApp, raw: &str) {
     let req: IpcRequest = match serde_json::from_str(raw) {
         Ok(r) => r,
         Err(e) => {
-            app.append_log_error(format!("ipc: bad request: {e}"));
+            reject_unparsed(app, raw, &e.to_string());
             return;
         },
     };
@@ -26,4 +28,20 @@ pub(crate) fn handle_inbound(app: &mut GuiApp, raw: &str) {
         },
         CommandOutcome::Async => {},
     }
+}
+
+fn reject_unparsed(app: &mut GuiApp, raw: &str, reason: &str) {
+    let message = format!("ipc: bad request: {reason}");
+    app.append_log_error(message.clone());
+    let Some((id, sent_mount)) =
+        IpcEnvelopeHead::of(raw).and_then(|head| Some((head.id?, head.mount)))
+    else {
+        return;
+    };
+    if let Some(mount) = sent_mount {
+        app.note_mount(mount);
+    }
+    let mount = sent_mount.or(app.current_mount).unwrap_or_default();
+    let error = BridgeError::new(ErrorScope::Internal, ErrorCode::InvalidFormat, message);
+    send_reply_payload(app, ReplyTarget { mount, id }, &IpcReplyPayload::err(error));
 }

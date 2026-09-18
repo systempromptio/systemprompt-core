@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { bridge } from "/assets/js/bridge.js";
 import { createListingFetcher } from "/assets/js/services/marketplace-service.js";
 import { fixture } from "./fixtures.mjs";
+import { answerLast, freshPage } from "./page.mjs";
 
 const listing = { plugins: [{ id: "plugin" }], skills: [{ id: "skill", name: "Skill" }] };
 const snapshot = (overrides = {}) => ({ ...fixture("healthy"), ...overrides });
@@ -167,7 +168,7 @@ test("failed background refresh retains the listing and retries without syncing"
 });
 
 test("a missing initial IPC reply times out and Retry recovers", async (t) => {
-  globalThis.window = { ipc: { postMessage: t.mock.fn() } };
+  const posted = freshPage();
   t.mock.timers.enable({ apis: ["setTimeout"] });
   const fetcher = createListingFetcher();
   const pending = fetcher.maybeFetch(snapshot());
@@ -178,8 +179,7 @@ test("a missing initial IPC reply times out and Retry recovers", async (t) => {
   assert.match(fetcher.error, /did not reply within 30s/);
   assert.equal(window.__bridge.pending.size, 0);
   const retry = fetcher.refresh();
-  const { id } = JSON.parse(window.ipc.postMessage.mock.calls.at(-1).arguments[0]);
-  window.__bridge.reply(id, { ok: true, value: listing });
+  answerLast(posted, { ok: true, value: listing });
   await retry;
   assert.equal(fetcher.state, "ok");
   assert.equal(fetcher.listing, listing);

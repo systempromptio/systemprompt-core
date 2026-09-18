@@ -106,6 +106,10 @@ impl HostApp for ClaudeDesktopHost {
         os::install_profile(path)
     }
 
+    fn install_profile_unattended(&self, path: &str) -> std::io::Result<ProfileInstalled> {
+        os::install_profile_unattended(path)
+    }
+
     fn remove_profile(&self) -> std::io::Result<ProfileRemoval> {
         os::remove_profile()
     }

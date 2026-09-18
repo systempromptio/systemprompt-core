@@ -39,12 +39,12 @@
 .sp-scroll   { overflow-y: auto; overflow-x: hidden; }
 .sp-scroll-x { overflow-x: auto; overflow-y: hidden; }
 
-:is(.sp-scroll, .sp-rail, .sp-log-virtual, .sp-activity .sp-log,
+:is(.sp-scroll, .sp-rail, .sp-log-virtual, .sp-activity .sp-log, .sp-setup__panel,
      .sp-drawer__body, .sp-mkt-items, .sp-mkt-detail, .sp-mkt-detail__readme, .sp-scroll-x) {
   scrollbar-width: thin;
   scrollbar-color: var(--sp-scroll-thumb) transparent;
 }
-:is(.sp-scroll, .sp-rail, .sp-log-virtual, .sp-activity .sp-log,
+:is(.sp-scroll, .sp-rail, .sp-log-virtual, .sp-activity .sp-log, .sp-setup__panel,
      .sp-drawer__body, .sp-mkt-items, .sp-mkt-detail, .sp-mkt-detail__readme, .sp-scroll-x):hover {
   scrollbar-color: var(--sp-scroll-thumb-hover) transparent;
 }

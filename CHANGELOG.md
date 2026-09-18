@@ -1,6 +1,10 @@
 # Changelog
 
-## [Unreleased]
+## [0.56.0] - 2026-09-18
+
+### Fixed
+
+- **MCP:** when the token accessor of an external server refuses a bearer, the accessor's `error` message is carried into the `ExternalAuthUnavailable` reason (bounded to 240 characters) and logged, so a console shows "token accessor returned status 401 Unauthorized: Connector grant rejected (unauthorized_client); reconnect required" instead of a bare status.
 
 ### Breaking
 

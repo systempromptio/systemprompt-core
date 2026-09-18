@@ -11,8 +11,8 @@ use crate::gui::{GuiApp, server_json};
 use crate::wire::ipc::{BridgeError, ErrorCode, ErrorScope};
 
 use super::args::{
-    CancelArgs, DeviceActionArgs, GatewaySetArgs, LoginArgs, McpProbeArgs, OpenExternalUrlArgs,
-    RecentArgs, SessionLoginArgs,
+    CancelArgs, GatewaySetArgs, LoginArgs, McpProbeArgs, OpenExternalUrlArgs, RecentArgs,
+    SessionLoginArgs,
 };
 use super::{CommandOutcome, parse, send};
 
@@ -165,14 +165,6 @@ pub(super) fn auth_dispatch(
         "system.disconnect" => {
             send(app, UiEvent::DisconnectRequested { reply_to: reply_id });
             CommandOutcome::Async
-        },
-        "device.action.open" => match parse::<DeviceActionArgs>(args) {
-            Ok(a) => {
-                app.state.set_pending_device_action(Some(a.action));
-                send(app, UiEvent::StateRefreshed);
-                CommandOutcome::Sync(Ok(json!({})))
-            },
-            Err(e) => CommandOutcome::Sync(Err(e)),
         },
         "device.action.dismiss" => {
             app.state.set_pending_device_action(None);

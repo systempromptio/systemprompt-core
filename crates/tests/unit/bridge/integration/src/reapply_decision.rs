@@ -5,9 +5,14 @@ use std::sync::Arc;
 
 use systemprompt_bridge::context::{BridgeContext, ProxyMode};
 use systemprompt_bridge::integration::codex_cli::CODEX_CLI_HOST;
-use systemprompt_bridge::integration::host_app::{HostApp, ProbeEnv, ProfileState};
+use systemprompt_bridge::integration::host_app::{
+    AppInstallState, GeneratedProfile, HostApp, HostAppSnapshot, HostConfigSchema, ProbeEnv,
+    ProfileGenInputs, ProfileInstalled, ProfileState,
+};
 use systemprompt_bridge::integration::host_apps;
-use systemprompt_bridge::integration::reapply::{build_profile_inputs, reapply_stale_profiles};
+use systemprompt_bridge::integration::reapply::{
+    Attendance, Outcome, build_profile_inputs, reapply_host, reapply_stale_profiles,
+};
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -154,7 +159,11 @@ fn a_host_that_was_never_set_up_is_left_alone_by_a_reapply() {
             matches!(probe_state_of_codex(), ProfileState::Absent),
             "the sandbox starts with no host profile at all"
         );
-        let reports = ctx.block_on(reapply_stale_profiles(ctx, &BTreeMap::new()));
+        let reports = ctx.block_on(reapply_stale_profiles(
+            ctx,
+            &BTreeMap::new(),
+            Attendance::Attended,
+        ));
         assert!(
             !managed.exists(),
             "repairing must not enrol a host the user never set up: {}",
@@ -176,7 +185,11 @@ fn a_profile_baked_for_a_dead_port_is_repaired_and_reported_reapplied() {
                 matches!(probe_state_of_codex(), ProfileState::Stale { .. }),
                 "the seeded profile points at a port the proxy does not hold"
             );
-            let reports = ctx.block_on(reapply_stale_profiles(ctx, &BTreeMap::new()));
+            let reports = ctx.block_on(reapply_stale_profiles(
+                ctx,
+                &BTreeMap::new(),
+                Attendance::Attended,
+            ));
             let rewritten = fs::read_to_string(managed).expect("managed config still readable");
             let names: Vec<&'static str> = reports.iter().map(|r| r.display_name).collect();
             let outcomes: Vec<String> =
@@ -218,7 +231,11 @@ fn a_fresh_profile_is_not_rewritten_by_a_reapply() {
             matches!(probe_state_of_codex(), ProfileState::Installed),
             "a profile on the live port is installed, not stale"
         );
-        let reports = ctx.block_on(reapply_stale_profiles(ctx, &BTreeMap::new()));
+        let reports = ctx.block_on(reapply_stale_profiles(
+            ctx,
+            &BTreeMap::new(),
+            Attendance::Attended,
+        ));
         let after = fs::read_to_string(managed).expect("still readable");
         (reports.len(), before, after)
     });
@@ -302,4 +319,120 @@ fn every_registered_host_is_probed_before_a_repair_is_considered() {
         ids.contains(&"codex-cli") && ids.contains(&"hermes") && ids.contains(&"opencode"),
         "the reapply sweep walks the whole host registry: {ids:?}"
     );
+}
+
+#[test]
+fn an_unattended_reapply_repairs_a_host_that_needs_no_prompt() {
+    let outcomes = with_gateway(Some(stale_managed_config()), |ctx, _managed| {
+        let reports = ctx.block_on(reapply_stale_profiles(
+            ctx,
+            &BTreeMap::new(),
+            Attendance::Unattended,
+        ));
+        reports
+            .iter()
+            .map(|r| format!("{:?}", r.outcome))
+            .collect::<Vec<_>>()
+    });
+    assert_eq!(
+        outcomes,
+        vec!["Reapplied".to_owned()],
+        "a CLI host writes its own file; no prompt stands between the bridge and the repair"
+    );
+}
+
+// A host whose install raises an operating-system prompt — the machine
+// policy on Windows, the profile approval on macOS — refuses an unattended
+// install with `PermissionDenied` and installs when attended.
+struct PromptingHost;
+
+static PROMPTING_SCHEMA: HostConfigSchema = HostConfigSchema {
+    required_keys: &["alpha"],
+    display_keys: &["alpha"],
+};
+
+impl HostApp for PromptingHost {
+    fn id(&self) -> &'static str {
+        "prompting-host"
+    }
+
+    fn display_name(&self) -> &'static str {
+        "Prompting Host"
+    }
+
+    fn config_schema(&self) -> &'static HostConfigSchema {
+        &PROMPTING_SCHEMA
+    }
+
+    fn probe(&self, env: &ProbeEnv) -> HostAppSnapshot {
+        HostAppSnapshot {
+            host_id: self.id(),
+            display_name: self.display_name(),
+            profile_state: ProfileState::Installed,
+            profile_source: None,
+            profile_keys: BTreeMap::new(),
+            probe_error: None,
+            host_running: Some(false),
+            host_processes: Vec::new(),
+            app_installed: AppInstallState::Unknown,
+            probed_at_unix: u64::from(env.proxy_port),
+        }
+    }
+
+    fn generate_profile(&self, _inputs: &ProfileGenInputs) -> std::io::Result<GeneratedProfile> {
+        Ok(GeneratedProfile {
+            path: "prompting-host.profile".to_owned(),
+            bytes: 0,
+            payload_uuid: String::new(),
+            profile_uuid: String::new(),
+        })
+    }
+
+    fn install_profile(&self, _path: &str) -> std::io::Result<ProfileInstalled> {
+        Ok(ProfileInstalled::ok())
+    }
+
+    fn install_profile_unattended(&self, _path: &str) -> std::io::Result<ProfileInstalled> {
+        Err(std::io::Error::new(
+            std::io::ErrorKind::PermissionDenied,
+            "needs the user's approval",
+        ))
+    }
+
+    fn install_action_label(&self) -> &'static str {
+        "approve"
+    }
+}
+
+#[test]
+fn a_host_that_would_prompt_is_declined_unattended_and_repaired_attended() {
+    let host: &'static dyn HostApp = &PromptingHost;
+    let (unattended, attended) = with_gateway(None, |ctx, _managed| {
+        let env = ProbeEnv {
+            proxy_port: systemprompt_bridge::proxy::DEFAULT_PROXY_PORT,
+            loopback_secret: None,
+            start_menu: Arc::default(),
+        };
+        let unattended = ctx.block_on(reapply_host(
+            ctx,
+            host,
+            &BTreeMap::new(),
+            &env,
+            Attendance::Unattended,
+        ));
+        let attended = ctx.block_on(reapply_host(
+            ctx,
+            host,
+            &BTreeMap::new(),
+            &env,
+            Attendance::Attended,
+        ));
+        (unattended.outcome, attended.outcome)
+    });
+    assert_eq!(
+        unattended,
+        Outcome::Declined,
+        "an unattended repair never raises the prompt; it leaves the host for the user's Repair"
+    );
+    assert_eq!(attended, Outcome::Reapplied);
 }

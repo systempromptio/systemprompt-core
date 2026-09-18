@@ -72,7 +72,8 @@ fn is_cli_image(path: Option<&str>) -> bool {
 
 pub(super) fn write_profile(inputs: &ProfileGenInputs) -> std::io::Result<GeneratedProfile> {
     let uuids = crate::integration::generated_profile::profile_uuids();
-    let body = super::reg_profile::render_reg(winproc::is_elevated(), inputs);
+    let body = super::reg_profile::render_reg(winproc::is_elevated(), inputs)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
     let path =
         crate::integration::generated_profile::write("claude-bridge", ".reg", body.as_bytes())?;
 
@@ -85,6 +86,20 @@ pub(super) fn write_profile(inputs: &ProfileGenInputs) -> std::io::Result<Genera
 }
 
 pub(super) fn install_profile(path: &str) -> std::io::Result<ProfileInstalled> {
+    install_profile_with(path, Attendance::Attended)
+}
+
+pub(super) fn install_profile_unattended(path: &str) -> std::io::Result<ProfileInstalled> {
+    install_profile_with(path, Attendance::Unattended)
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Attendance {
+    Attended,
+    Unattended,
+}
+
+fn install_profile_with(path: &str, attendance: Attendance) -> std::io::Result<ProfileInstalled> {
     let elevated = winproc::is_elevated();
     tracing::info!(path, elevated, "installing Claude Desktop profile");
     let body = std::fs::read_to_string(path)?;
@@ -111,6 +126,18 @@ pub(super) fn install_profile(path: &str) -> std::io::Result<ProfileInstalled> {
         Err(crate::config::store::ConfigStoreError::HiveConflict { differing, .. })
             if !elevated =>
         {
+            if attendance == Attendance::Unattended {
+                tracing::warn!(
+                    path,
+                    differing = ?differing,
+                    "machine policy holds other values; an unattended repair cannot replace it"
+                );
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::PermissionDenied,
+                    "the machine policy holds other values; replacing it needs administrator \
+                     approval — use Repair",
+                ));
+            }
             tracing::warn!(
                 path,
                 differing = ?differing,
