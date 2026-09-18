@@ -10,6 +10,7 @@ use tokio::net::TcpStream;
 use tokio::time::timeout;
 
 use super::process_cleanup::ProcessCleanup;
+use super::service_records::{DbServiceRecord, ServiceConfig};
 use super::state_types::{DesiredStatus, RuntimeStatus, ServiceType};
 use super::verified_state::VerifiedServiceState;
 use crate::error::SchedulerResult;
@@ -44,49 +45,6 @@ pub fn is_wedged(
         (Some(updated), Some(now)) => now - updated > grace.as_secs_f64(),
         _ => false,
     }
-}
-
-#[derive(Debug, Clone)]
-pub struct ServiceConfig {
-    pub name: String,
-    pub service_type: ServiceType,
-    pub port: u16,
-    pub enabled: bool,
-}
-
-impl ServiceConfig {
-    #[must_use]
-    pub fn list_from_manifest(services: &systemprompt_models::ServicesConfig) -> Vec<Self> {
-        let agents = services.agents.iter().map(|(name, agent)| Self {
-            name: name.clone(),
-            service_type: ServiceType::Agent,
-            port: agent.port,
-            enabled: agent.enabled,
-        });
-        let mcp_servers = services
-            .mcp_servers
-            .iter()
-            .filter(|(_, mcp)| mcp.server_type != systemprompt_models::mcp::McpServerType::External)
-            .filter_map(|(name, mcp)| {
-                Some(Self {
-                    name: name.clone(),
-                    service_type: ServiceType::Mcp,
-                    port: mcp.port?,
-                    enabled: mcp.enabled,
-                })
-            });
-        agents.chain(mcp_servers).collect()
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct DbServiceRecord {
-    pub name: String,
-    pub service_type: String,
-    pub status: String,
-    pub pid: Option<i64>,
-    pub port: i32,
-    pub updated_at_epoch: Option<f64>,
 }
 
 #[derive(Debug)]

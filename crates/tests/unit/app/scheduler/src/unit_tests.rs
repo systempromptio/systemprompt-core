@@ -1381,8 +1381,8 @@ fn test_db_service_record_all_statuses() {
             status: status.to_string(),
             pid: Some(123),
             port: 8080,
-        updated_at_epoch: None,
-    };
+            updated_at_epoch: None,
+        };
         assert_eq!(record.status, status);
     }
 }

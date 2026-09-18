@@ -1,8 +1,7 @@
 //! `.reg` serialisation for the Claude Desktop managed-policy profile.
 //!
 //! The profile *is* the policy: the same
-//! [`claude_desktop_policy`](crate::install::mdm::policy::claude_desktop_policy)
-//! the machine sync enforces, so a repair that replaces the hive never leaves
+//! [`claude_desktop_policy`] the machine sync enforces, so a repair that
 //! a key the sync will then report as different. [`render_reg`] and
 //! [`crate::install::reg_values::parse_reg_entries`] are inverses, kept
 //! platform-independent so the round-trip is testable on every target.
