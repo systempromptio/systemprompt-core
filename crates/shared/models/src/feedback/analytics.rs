@@ -63,6 +63,9 @@ pub enum InvocationResourceAttribution {
 /// `source` is `base` or `bundle:<name>` and `source_hash` is that source's
 /// content hash at the time the fact was normalised, so a figure keyed on
 /// the skill can also say which published tree it ran from.
+/// `marketplace_hash` is the content hash of the marketplace version the
+/// plugin was served from, so a figure can be pinned to one published
+/// marketplace even after the source moves on.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct InvocationSkillIdentity {
@@ -74,6 +77,8 @@ pub struct InvocationSkillIdentity {
     pub source: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source_hash: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub marketplace_hash: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]

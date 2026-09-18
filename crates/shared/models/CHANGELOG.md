@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.55.1] - 2026-09-18
+
+### Added
+
+- `feedback::InvocationSkillIdentity.marketplace_hash: Option<String>` (`#[serde(default)]`), the marketplace version hash the plugin was served from.
+
 ## [0.55.0] - 2026-09-17
 
 ### Breaking

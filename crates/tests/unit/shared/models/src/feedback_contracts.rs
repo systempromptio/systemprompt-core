@@ -257,6 +257,7 @@ fn invocation_skill_identity_is_optional_on_the_wire_and_round_trips() {
             marketplace_id: Some(MarketplaceId::new("astound-india-dev")),
             source: Some("bundle:india".to_owned()),
             source_hash: Some("abc".to_owned()),
+            marketplace_hash: Some("def".to_owned()),
         }),
         succeeded: true,
         latency_micros: None,
