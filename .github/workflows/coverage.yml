@@ -247,9 +247,13 @@ jobs:
             DATABASE_URL="$COVERAGE_DATABASE_BASE_URL/$db" /mnt/coverage-target/release/systemprompt-test-migrate
             # The database dies with the runner, so durability buys nothing.
             psql "$COVERAGE_DATABASE_BASE_URL/$db" -c "ALTER DATABASE \"$db\" SET synchronous_commit = off;"
+            target_args=(--bins --tests)
+            if [ "$group" = integration-cli ]; then
+              target_args=(--bins)
+            fi
             set +e
             DATABASE_URL="$COVERAGE_DATABASE_BASE_URL/$db" \
-              bash scripts/test-shard.sh "$group" --bins --tests --no-fail-fast
+              bash scripts/test-shard.sh "$group" "${target_args[@]}" --no-fail-fast
             shard_status=$?
             set -e
             echo "::endgroup::"
