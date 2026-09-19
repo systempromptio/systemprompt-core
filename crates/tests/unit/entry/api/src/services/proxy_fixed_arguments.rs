@@ -8,7 +8,10 @@ use systemprompt_models::mcp::deployment::ToolMetadata;
 
 fn tools() -> HashMap<String, ToolMetadata> {
     let mut arguments = serde_json::Map::new();
-    arguments.insert("servingConfig".to_owned(), json!("projects/1/servingConfigs/default"));
+    arguments.insert(
+        "servingConfig".to_owned(),
+        json!("projects/1/servingConfigs/default"),
+    );
     HashMap::from([(
         "search".to_owned(),
         ToolMetadata {
@@ -32,7 +35,10 @@ fn arguments_of(body: &[u8]) -> serde_json::Value {
 
 #[test]
 fn fixed_argument_replaces_whatever_the_client_sent() {
-    let mut body = call("search", json!({"servingConfig": "projects/*/x", "query": "q"}));
+    let mut body = call(
+        "search",
+        json!({"servingConfig": "projects/*/x", "query": "q"}),
+    );
     apply(&tools(), &mut body);
     assert_eq!(
         arguments_of(&body),
@@ -44,7 +50,10 @@ fn fixed_argument_replaces_whatever_the_client_sent() {
 fn fixed_argument_is_added_when_the_client_omits_it() {
     let mut body = call("search", json!({"query": "q"}));
     apply(&tools(), &mut body);
-    assert_eq!(arguments_of(&body)["servingConfig"], json!("projects/1/servingConfigs/default"));
+    assert_eq!(
+        arguments_of(&body)["servingConfig"],
+        json!("projects/1/servingConfigs/default")
+    );
 }
 
 #[test]

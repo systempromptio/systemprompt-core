@@ -26,7 +26,10 @@ pub fn apply(tools: &HashMap<String, ToolMetadata>, body: &mut Vec<u8>) {
     if value.get("method").and_then(serde_json::Value::as_str) != Some("tools/call") {
         return;
     }
-    let Some(params) = value.get_mut("params").and_then(serde_json::Value::as_object_mut) else {
+    let Some(params) = value
+        .get_mut("params")
+        .and_then(serde_json::Value::as_object_mut)
+    else {
         return;
     };
     let Some(fixed) = params
