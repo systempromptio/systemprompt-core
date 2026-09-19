@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.57.0] - 2026-09-19
+
+### Fixed
+
+- **Bridge:** a sync that could not write the machine-wide Claude Desktop policy without UAC listed the host as "down" on Setup health and offered nothing to press. The error toast's "Repair as administrator" button was wiped by the same failure arriving a second time as the rejected request (the de-duplicated toast cleared the action before it checked the duplicate); it now survives. Every host failure row on Setup health carries its repair — "Repair as administrator" when the write needs elevation — and the `permission_rules` warning (no managed Claude Code settings file yet) carries a plain Repair; an `info` validation line (the binary version) reads as info, not as a check of unknown outcome, and sorts last; the row model is `web/js/utils/health-rows.js` under node:test. The wire `CheckLinePayload` gains `level`.
+- **Bridge:** the MCP auth probe (`probe_all`) walks the registry concurrently. A sync probes every server for the desktop tool policy and each probe is a vendor round-trip through the gateway, so four servers cost the sum of their latencies (≈ 12 s of a 15 s sync); it now costs the slowest.
+
 ## [0.56.1] - 2026-09-18
 
 ### Fixed

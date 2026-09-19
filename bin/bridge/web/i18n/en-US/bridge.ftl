@@ -501,6 +501,7 @@ setup-health-checked = checked { $ago }
 setup-health-credential = credential
 setup-health-diagnostic = gateway diagnostic
 setup-health-failures-only = Failures only
+setup-health-info = info
 setup-health-label-attention = attention
 setup-health-label-failing = failing
 setup-health-label-healthy = healthy

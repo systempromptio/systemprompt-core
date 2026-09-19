@@ -8,6 +8,8 @@ use crate::verdict::{Tone, Verdict};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 #[serde(rename_all = "lowercase")]
+#[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
+#[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
 pub enum CheckLevel {
     Ok,
     Warn,
