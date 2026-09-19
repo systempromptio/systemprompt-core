@@ -30,7 +30,21 @@ fn fixtures_dir() -> PathBuf {
     repo_path("bin/bridge/web/dev/fixtures")
 }
 
-fn profile_state_of(health: &Value) -> ProfileState {
+// Why: the health block carries no stale cause; the verdict's reason does,
+// and a server-list drift verdicts differently (Update, not Repair), so the
+// fixture reads it back from where the front end sees it.
+fn stale_reason_of(host: &Value) -> StaleReason {
+    match host
+        .pointer("/verdict/reason/cause")
+        .and_then(Value::as_str)
+    {
+        Some("managed_servers") => StaleReason::ManagedServers,
+        Some("proxy_port") => StaleReason::ProxyPort,
+        _ => StaleReason::LoopbackSecret,
+    }
+}
+
+fn profile_state_of(host: &Value, health: &Value) -> ProfileState {
     let code = health
         .get("profile")
         .and_then(|p| p.get("code"))
@@ -41,10 +55,8 @@ fn profile_state_of(health: &Value) -> ProfileState {
         "partial" => ProfileState::Partial {
             missing_required: strings(health.get("missing_required")),
         },
-        // Why: the stale *cause* is not on the wire; either cause yields the
-        // same verdict, so the fixture cannot tell them apart and need not.
         "stale" => ProfileState::Stale {
-            reason: StaleReason::LoopbackSecret,
+            reason: stale_reason_of(host),
         },
         _ => ProfileState::Absent,
     }
@@ -52,11 +64,11 @@ fn profile_state_of(health: &Value) -> ProfileState {
 
 // Why: the wire carries `health` — verdicts and facts — not the raw probe
 // snapshot, so the snapshot is rebuilt from what the front end actually sees.
-fn snapshot_of(v: &Value) -> HostAppSnapshot {
+fn snapshot_of(host: &Value, v: &Value) -> HostAppSnapshot {
     HostAppSnapshot {
         host_id: "fixture",
         display_name: "fixture",
-        profile_state: profile_state_of(v),
+        profile_state: profile_state_of(host, v),
         profile_source: None,
         profile_keys: BTreeMap::new(),
         probe_error: None,
@@ -120,7 +132,12 @@ fn recompute(doc: &Value) -> Option<Value> {
     let mut verdicts: Vec<AgentVerdict> = Vec::with_capacity(hosts.len());
 
     for host in hosts {
-        let snap = host.get("health").filter(|s| !s.is_null()).map(snapshot_of);
+        let snap = host
+            .get("health")
+            .filter(|s| !s.is_null())
+            .map(|health| snapshot_of(&host, health));
+        let update_needs_approval =
+            host.pointer("/verdict/action/code").and_then(Value::as_str) == Some("update-admin");
         let unconfigured = strings(host.get("unconfigured_providers"));
         let v = verdict(&HostHealthInputs {
             snapshot: snap.as_ref(),
@@ -146,6 +163,7 @@ fn recompute(doc: &Value) -> Option<Value> {
                 .get("can_open")
                 .and_then(Value::as_bool)
                 .unwrap_or(true),
+            update_needs_approval,
         });
 
         let mut host = host.clone();
@@ -183,6 +201,7 @@ fn recompute(doc: &Value) -> Option<Value> {
             surface: AgentSurface::SyncOnly,
             manifest_synced,
             can_open: false,
+            update_needs_approval: false,
         });
         // Why: read from the same `HostCapabilities` the real payload uses
         // rather than five more literals here. This block is already a mirror

@@ -217,10 +217,7 @@ impl GuiApp {
     }
 
     pub(crate) fn probe_env(&self) -> crate::integration::host_app::ProbeEnv {
-        crate::integration::host_app::ProbeEnv::new(
-            self.ctx.proxy.loopback(),
-            Arc::clone(&self.ctx.start_menu),
-        )
+        crate::integration::host_app::ProbeEnv::for_bridge(&self.ctx)
     }
 
     pub(crate) fn refresh_ui(&mut self) {

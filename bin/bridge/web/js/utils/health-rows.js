@@ -19,13 +19,15 @@ const TONE_BY_LEVEL = { info: "info" };
 // profile is what creates it.
 const REPAIRABLE_WARNINGS = new Set(["permission_rules"]);
 
+// A host the sync could not write is behind the gateway, not broken: the
+// row offers the update, and says when the write will ask an administrator.
 function repairAction(hostId, elevated) {
   return {
     kind: "repair",
     hostId,
     label: elevated
-      ? (t("toast-action-repair-admin") || "Repair as administrator")
-      : (t("agent-action-repair") || "Repair"),
+      ? (t("toast-action-update-admin") || "Update as administrator")
+      : (t("agent-action-update") || "Update"),
   };
 }
 

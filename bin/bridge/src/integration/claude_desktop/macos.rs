@@ -17,6 +17,14 @@ use crate::integration::host_app::{GeneratedProfile, ProfileInstalled};
 const MANAGED_PREFS_ROOT: &str = "/Library/Managed Preferences";
 const PROFILE_TMPL: &str = include_str!("templates/claude_desktop_profile.mobileconfig.tmpl");
 
+// Why: the managed preferences domain is root-owned; every rewrite goes
+// through the administrator prompt.
+pub(super) const fn update_needs_approval(
+    _snapshot: &crate::integration::host_app::HostAppSnapshot,
+) -> bool {
+    true
+}
+
 pub(super) fn read_domain(domain: &str) -> DomainRead {
     let mut out = DomainRead::default();
 

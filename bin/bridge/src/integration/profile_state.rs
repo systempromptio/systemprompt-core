@@ -22,6 +22,7 @@ use crate::verdict::{Tone, Verdict};
 pub enum StaleReason {
     LoopbackSecret,
     ProxyPort,
+    ManagedServers,
 }
 
 /// Whether one fact a fresh profile depends on could be checked, and what it
@@ -60,6 +61,7 @@ pub struct ProfileProbe<'a> {
     pub read_error: Option<&'a str>,
     pub secret: Freshness,
     pub endpoint: Freshness,
+    pub managed_servers: Freshness,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -134,15 +136,19 @@ impl ProfileState {
             };
         }
         match Self::from_keys(probe.required, probe.present) {
-            Self::Installed => match (&probe.secret, &probe.endpoint) {
-                (Freshness::Stale, _) => Self::Stale {
+            Self::Installed => match (&probe.secret, &probe.endpoint, &probe.managed_servers) {
+                (Freshness::Stale, _, _) => Self::Stale {
                     reason: StaleReason::LoopbackSecret,
                 },
-                (_, Freshness::Stale) => Self::Stale {
+                (_, Freshness::Stale, _) => Self::Stale {
                     reason: StaleReason::ProxyPort,
                 },
-                (Freshness::Unverifiable { reason }, _)
-                | (_, Freshness::Unverifiable { reason }) => Self::Unverifiable {
+                (_, _, Freshness::Stale) => Self::Stale {
+                    reason: StaleReason::ManagedServers,
+                },
+                (Freshness::Unverifiable { reason }, _, _)
+                | (_, Freshness::Unverifiable { reason }, _)
+                | (_, _, Freshness::Unverifiable { reason }) => Self::Unverifiable {
                     reason: reason.clone(),
                 },
                 _ => Self::Installed,
@@ -168,6 +174,46 @@ impl ProfileState {
             PortMatch::Unparseable => Freshness::Unverifiable {
                 reason: format!("configured gateway url {url} cannot be parsed"),
             },
+        }
+    }
+
+    // Why: the policy names the servers Claude Desktop may reach, and a
+    // registry the bridge has never loaded says nothing about them — an
+    // unknown expectation is Unchecked, never Stale, so a launch before the
+    // first sync cannot re-apply an empty list over a good one.
+    #[must_use]
+    pub fn managed_servers_freshness(installed: Option<&str>, expected: Option<&[String]>) -> Freshness {
+        let Some(expected) = expected else {
+            return Freshness::Unchecked;
+        };
+        let mut want: Vec<&str> = expected.iter().map(String::as_str).collect();
+        want.sort_unstable();
+        want.dedup();
+        let Some(installed) = installed.map(str::trim).filter(|s| !s.is_empty()) else {
+            return if want.is_empty() {
+                Freshness::Fresh
+            } else {
+                Freshness::Stale
+            };
+        };
+        let parsed: Vec<serde_json::Value> = match serde_json::from_str(installed) {
+            Ok(list) => list,
+            Err(e) => {
+                return Freshness::Unverifiable {
+                    reason: format!("the installed managed MCP server list is not a JSON array: {e}"),
+                };
+            },
+        };
+        let mut have: Vec<&str> = parsed
+            .iter()
+            .filter_map(|entry| entry.get("name").and_then(serde_json::Value::as_str))
+            .collect();
+        have.sort_unstable();
+        have.dedup();
+        if have == want {
+            Freshness::Fresh
+        } else {
+            Freshness::Stale
         }
     }
 

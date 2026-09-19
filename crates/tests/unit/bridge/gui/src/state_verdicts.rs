@@ -207,13 +207,56 @@ fn a_host_failure_in_the_last_report_reads_as_degraded_even_with_a_summary() {
     snap.last_sync_report = Some(report(vec![HostFailure {
         host_id: HostId::new("claude-desktop"),
         emitter: "claude-desktop".to_owned(),
-        error: "mdm refresh: HKLM shadows HKCU".into(),
-        needs_elevation: true,
+        error: "mdm refresh: policy store unreadable".into(),
+        needs_elevation: false,
     }]));
     let verdict = snap.overall_verdict();
     assert_eq!(verdict.code, OverallCode::Degraded);
     assert_eq!(verdict.tone, Tone::Warn);
     assert!(snap.last_sync_degraded());
+}
+
+// Why: a run that applied everywhere except the machine policy is one
+// approval short, and the badge names that gesture rather than "failures"
+// the user then hunts for; it stays a warning, never "synced".
+#[test]
+fn a_run_whose_only_failures_need_an_administrator_reads_as_needs_approval() {
+    let mut snap = signed_in_after_sync();
+    snap.last_sync_report = Some(report(vec![HostFailure {
+        host_id: HostId::new("claude-desktop"),
+        emitter: "claude-desktop".to_owned(),
+        error: "mdm refresh: HKLM shadows HKCU".into(),
+        needs_elevation: true,
+    }]));
+    let verdict = snap.overall_verdict();
+    assert_eq!(verdict.code, OverallCode::NeedsApproval);
+    assert_eq!(verdict.tone, Tone::Warn);
+    assert!(snap.last_sync_needs_approval());
+    assert!(
+        snap.last_sync_degraded(),
+        "an unapproved write still counts as degraded for the health fold"
+    );
+}
+
+#[test]
+fn a_run_with_an_elevation_failure_beside_another_failure_stays_degraded() {
+    let mut snap = signed_in_after_sync();
+    snap.last_sync_report = Some(report(vec![
+        HostFailure {
+            host_id: HostId::new("claude-desktop"),
+            emitter: "claude-desktop".to_owned(),
+            error: "mdm refresh: HKLM shadows HKCU".into(),
+            needs_elevation: true,
+        },
+        HostFailure {
+            host_id: HostId::new("opencode"),
+            emitter: "config".to_owned(),
+            error: "write failed".into(),
+            needs_elevation: false,
+        },
+    ]));
+    assert_eq!(snap.overall_verdict().code, OverallCode::Degraded);
+    assert!(!snap.last_sync_needs_approval());
 }
 
 #[test]

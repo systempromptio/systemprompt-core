@@ -47,6 +47,7 @@ impl HostApp for CodexCliHost {
             read_error: read.probe_error.as_deref(),
             secret,
             endpoint,
+            managed_servers: Freshness::Unchecked,
         });
         let found = HostProcesses::from_enumeration(probe::list_codex_processes());
         HostAppSnapshot {

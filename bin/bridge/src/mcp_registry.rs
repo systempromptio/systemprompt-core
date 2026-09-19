@@ -90,6 +90,12 @@ pub fn clear(slot: &McpRegistrySlot) {
     tracing::info!(target: "bridge::proxy", "managed MCP server registry cleared");
 }
 
+#[must_use]
+pub fn fragment_exists() -> bool {
+    crate::config::paths::bridge_metadata_dir()
+        .is_some_and(|dir| dir.join(crate::config::paths::MCP_SERVERS_FRAGMENT).is_file())
+}
+
 pub fn rehydrate_from_disk(slot: &McpRegistrySlot, gateway: &ValidatedUrl) -> std::io::Result<()> {
     let meta_dir = crate::config::paths::bridge_metadata_dir()
         .ok_or_else(|| std::io::Error::other("MCP registry metadata path unresolvable"))?;

@@ -40,6 +40,9 @@ export class SpAgentRow extends SpElement {
         if (kind === "repair" || kind === "add") {
           notifyOk(t("toast-agent-repaired", { name, path: path || "" })
             || `${name} re-configured — wrote ${path || ""}. Restart ${name} to pick it up.`);
+        } else if (kind === "update" || kind === "update-admin") {
+          notifyOk(t("toast-agent-updated", { name, path: path || "" })
+            || `${name} updated — wrote ${path || ""}. Quit and relaunch ${name} to load the new connectors.`);
         } else if (kind === "verify") {
           notifyOk(t("toast-agent-verified", { name }) || `${name} re-checked.`);
         }

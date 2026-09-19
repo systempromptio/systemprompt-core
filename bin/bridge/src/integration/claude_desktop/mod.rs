@@ -73,12 +73,17 @@ impl HostApp for ClaudeDesktopHost {
             env.proxy_port,
         );
         let secret = shared::secret_freshness(read.api_key_fp.as_deref(), env);
+        let managed_servers = ProfileState::managed_servers_freshness(
+            read.keys.get("managedMcpServers").map(String::as_str),
+            env.expected_managed_servers.as_deref(),
+        );
         let profile_state = ProfileState::classify(&ProfileProbe {
             required: shared::REQUIRED_KEYS,
             present: &read.keys,
             read_error: read.probe_error.as_deref(),
             secret,
             endpoint,
+            managed_servers,
         });
         let found = HostProcesses::from_enumeration(os::list_claude_processes());
         HostAppSnapshot {
@@ -141,6 +146,10 @@ impl HostApp for ClaudeDesktopHost {
 
     fn profile_carries_managed_servers(&self) -> bool {
         true
+    }
+
+    fn update_needs_approval(&self, snapshot: &HostAppSnapshot) -> bool {
+        os::update_needs_approval(snapshot)
     }
 
     fn config_format(&self) -> ConfigFormat {

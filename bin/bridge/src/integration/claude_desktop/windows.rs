@@ -40,6 +40,19 @@ pub(super) fn read_domain(domain: &str) -> DomainRead {
     out
 }
 
+// Why: Claude Desktop reads the machine hive whenever it exists, so a
+// profile that lives there can only be rewritten elevated; a user-hive
+// profile, or an already elevated bridge, rewrites without a prompt.
+pub(super) fn update_needs_approval(
+    snapshot: &crate::integration::host_app::HostAppSnapshot,
+) -> bool {
+    snapshot
+        .profile_source
+        .as_deref()
+        .is_some_and(|source| source.starts_with("HKLM"))
+        && !winproc::is_elevated()
+}
+
 pub(super) fn list_claude_processes() -> Result<Vec<String>, crate::sysproc::SysprocError> {
     let mut hits: Vec<String> = crate::sysproc::list_processes()?
         .into_iter()

@@ -50,6 +50,7 @@ pub fn check_host_profile_secrets(env: &crate::integration::host_app::ProbeEnv) 
 
     let mut stale: Vec<&'static str> = Vec::new();
     let mut wrong_port: Vec<&'static str> = Vec::new();
+    let mut behind: Vec<&'static str> = Vec::new();
     let mut any_installed = false;
     let mut unverifiable: Vec<(&'static str, String)> = Vec::new();
     for host in crate::integration::host_apps() {
@@ -60,6 +61,9 @@ pub fn check_host_profile_secrets(env: &crate::integration::host_app::ProbeEnv) 
             ProfileState::Stale {
                 reason: StaleReason::ProxyPort,
             } => wrong_port.push(host.display_name()),
+            ProfileState::Stale {
+                reason: StaleReason::ManagedServers,
+            } => behind.push(host.display_name()),
             ProfileState::Installed => any_installed = true,
             ProfileState::Unverifiable { reason } => {
                 unverifiable.push((host.display_name(), reason));
@@ -97,6 +101,16 @@ pub fn check_host_profile_secrets(env: &crate::integration::host_app::ProbeEnv) 
                  secret); {}",
                 stale.join(", "),
                 proxy_secret::reapply_hint()
+            ),
+        ));
+    }
+    if !behind.is_empty() {
+        return Some(Check::warn(
+            "host profile secret",
+            format!(
+                "{} names a managed MCP server list behind the one the gateway grants; update the \
+                 agent (Agents tab) so it sees the current connectors",
+                behind.join(", ")
             ),
         ));
     }

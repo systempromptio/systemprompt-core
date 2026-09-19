@@ -35,6 +35,7 @@ fn build_entry<'a>(
         surface: AgentSurface::LocalProfile,
         manifest_synced: snap.manifest_synced(),
         can_open: host.can_open(),
+        update_needs_approval: snapshot.is_some_and(|s| host.update_needs_approval(s)),
     });
     let caps = HostCapabilities::for_surface(AgentSurface::LocalProfile, host.can_open());
     HostEntryPayload {
@@ -82,6 +83,7 @@ fn build_sync_only_entry<'a>(
         surface: AgentSurface::SyncOnly,
         manifest_synced: snap.manifest_synced(),
         can_open: false,
+        update_needs_approval: false,
     });
     let caps = HostCapabilities::for_surface(AgentSurface::SyncOnly, false);
     HostEntryPayload {

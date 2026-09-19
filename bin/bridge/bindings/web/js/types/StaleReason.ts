@@ -7,4 +7,4 @@
  * loopback secret" — and an identical fix, so they share a state. They are
  * distinguished only so the message can name the cause.
  */
-export type StaleReason = "loopback_secret" | "proxy_port";
+export type StaleReason = "loopback_secret" | "proxy_port" | "managed_servers";

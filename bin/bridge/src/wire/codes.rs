@@ -42,6 +42,7 @@ pub enum OverallCode {
     Syncing,
     Offline,
     Synced,
+    NeedsApproval,
     Degraded,
     Ready,
     NeedsSignIn,

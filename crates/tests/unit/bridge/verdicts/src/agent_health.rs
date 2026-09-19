@@ -14,8 +14,9 @@
 use std::collections::BTreeMap;
 
 use systemprompt_bridge::integration::agent_health::{
-    AgentAction, AgentFleetSummary, AgentState, AgentSurface, AgentVerdict, FleetHeadline,
-    FleetState, HostCapabilities, HostHealthInputs, HostModelViewRef, SYNC_ONLY_AGENTS, verdict,
+    AgentAction, AgentFleetSummary, AgentReason, AgentState, AgentSurface, AgentVerdict,
+    FleetHeadline, FleetState, HostCapabilities, HostHealthInputs, HostModelViewRef,
+    SYNC_ONLY_AGENTS, verdict,
 };
 use systemprompt_bridge::integration::host_app::{
     AppInstallState, HostAppSnapshot, ProfileState, StaleReason,
@@ -60,6 +61,7 @@ const fn inputs<'a>(
         surface: AgentSurface::LocalProfile,
         manifest_synced: true,
         can_open: true,
+        update_needs_approval: false,
     }
 }
 
@@ -194,6 +196,7 @@ fn a_host_that_cannot_be_opened_gets_no_open_action() {
     let snap = snapshot(ProfileState::Installed, AppInstallState::Installed);
     let v = verdict(&HostHealthInputs {
         can_open: false,
+        update_needs_approval: false,
         ..inputs(Some(&snap), &px)
     });
     assert_eq!(v.state, AgentState::Working);
@@ -202,6 +205,7 @@ fn a_host_that_cannot_be_opened_gets_no_open_action() {
     let px_idle = proxy(ProxyProbeState::Unconfigured);
     let ready = verdict(&HostHealthInputs {
         can_open: false,
+        update_needs_approval: false,
         ..inputs(Some(&snap), &px_idle)
     });
     assert_eq!(ready.state, AgentState::Ready);
@@ -335,4 +339,55 @@ fn every_declared_sync_only_agent_is_covered() {
             agent.id
         );
     }
+}
+
+// Why: a profile whose connector list is behind the gateway is not broken;
+// the verb is Update, and it says up front when the write will ask for an
+// administrator so the user is not surprised by the prompt — or by its
+// absence.
+#[test]
+fn a_server_list_behind_the_gateway_offers_update_and_names_the_approval() {
+    let px = proxy(ProxyProbeState::Listening);
+    let behind = snapshot(
+        ProfileState::Stale {
+            reason: StaleReason::ManagedServers,
+        },
+        AppInstallState::Installed,
+    );
+
+    let plain = verdict(&inputs(Some(&behind), &px));
+    assert_eq!(plain.state, AgentState::Attention);
+    assert_eq!(plain.action, Some(AgentAction::Update));
+    assert!(
+        matches!(
+            plain.reason,
+            AgentReason::Stale {
+                cause: StaleReason::ManagedServers
+            }
+        ),
+        "the reason carries the cause the label selects on: {:?}",
+        plain.reason
+    );
+
+    let mut elevated = inputs(Some(&behind), &px);
+    elevated.update_needs_approval = true;
+    assert_eq!(
+        verdict(&elevated).action,
+        Some(AgentAction::UpdateAdmin),
+        "a write into the machine policy is announced as administrator work"
+    );
+
+    let secret = snapshot(
+        ProfileState::Stale {
+            reason: StaleReason::LoopbackSecret,
+        },
+        AppInstallState::Installed,
+    );
+    let mut secret_inputs = inputs(Some(&secret), &px);
+    secret_inputs.update_needs_approval = true;
+    assert_eq!(
+        verdict(&secret_inputs).action,
+        Some(AgentAction::Repair),
+        "only a server-list drift is an update; a stale credential is still a repair"
+    );
 }

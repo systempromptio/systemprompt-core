@@ -95,6 +95,7 @@ fn missing_required_keys_are_listed_only_for_a_partial_profile() {
         read_error: None,
         secret: Freshness::Unchecked,
         endpoint: Freshness::Unchecked,
+        managed_servers: Freshness::Unchecked,
     });
     assert_eq!(partial.missing_required(), ["b".to_owned()]);
     assert!(ProfileState::Installed.missing_required().is_empty());

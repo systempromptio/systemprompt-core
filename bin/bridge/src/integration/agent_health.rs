@@ -74,6 +74,8 @@ pub enum AgentReason {
 pub enum AgentAction {
     Download,
     Repair,
+    Update,
+    UpdateAdmin,
     Verify,
     Open,
     Add,
@@ -162,6 +164,7 @@ pub struct HostHealthInputs<'a> {
     pub surface: AgentSurface,
     pub manifest_synced: bool,
     pub can_open: bool,
+    pub update_needs_approval: bool,
 }
 
 /// The model-availability facts, borrowed.
@@ -222,6 +225,25 @@ pub fn verdict(input: &HostHealthInputs<'_>) -> AgentVerdict {
     }
 
     match &snap.profile_state {
+        // Why: a profile behind the gateway's server list is not broken, it
+        // is out of date; the verb says so, and says when the write will ask
+        // for an administrator.
+        ProfileState::Stale {
+            reason: StaleReason::ManagedServers,
+        } => {
+            let action = if input.update_needs_approval {
+                AgentAction::UpdateAdmin
+            } else {
+                AgentAction::Update
+            };
+            return finish(
+                AgentState::Attention,
+                AgentReason::Stale {
+                    cause: StaleReason::ManagedServers,
+                },
+                Some(action),
+            );
+        },
         ProfileState::Stale { reason } => {
             return finish(
                 AgentState::Attention,
