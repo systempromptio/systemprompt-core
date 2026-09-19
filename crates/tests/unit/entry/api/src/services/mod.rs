@@ -8,6 +8,7 @@ mod analytics_detection;
 mod gateway;
 mod health;
 mod proxy_audit;
+mod proxy_fixed_arguments;
 mod proxy_oauth_challenge;
 mod proxy_resolver;
 mod request_base_url;

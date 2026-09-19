@@ -79,9 +79,10 @@ impl ProxyEngine {
             )
                 .into_response());
         }
-        let body = RequestBuilder::extract_body(request.into_body())
+        let mut body = RequestBuilder::extract_body(request.into_body())
             .await
             .map_err(|source| ProxyError::BodyExtractionFailed { source })?;
+        super::fixed_arguments::apply(&server_config.tools, &mut body);
 
         super::external_governance::enforce(&ctx, &req_ctx, service_name, &body).await?;
         let audit = build_audit(
