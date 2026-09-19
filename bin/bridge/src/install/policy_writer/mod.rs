@@ -1,33 +1,13 @@
-//! The elevated policy writer: how a Claude Desktop machine policy is
-//! rewritten on Windows without a UAC prompt per change.
-//!
-//! Claude Desktop reads its connector list from `HKLM\SOFTWARE\Policies\
-//! Claude`, which only an elevated process may write. The bridge's sync runs
-//! as the user and never self-elevates, so until now every change to the
-//! servers a user was entitled to — a connector linked, a group joined —
-//! was a new administrator prompt, and until it was approved Cowork ran on
-//! the old list. The elevated install registers a Task Scheduler task that
-//! runs this binary's admin-owned copy as SYSTEM; a later sync drops a
-//! request in a spool, runs the task, and reads the result back.
-//!
-//! What makes that safe is what the writer will and will not believe. A
-//! request carries the gateway-signed manifest envelope verbatim; the writer
-//! verifies the signature against the trust anchor the elevated install
-//! pinned in the machine hive (`manifestTrust`, which no user can write) and
-//! derives the server list from the manifest it verified, never from the
-//! request's say-so. The request's own fields are the loopback port and host
-//! token, the inference headers, the organisation uuid and the tool names —
-//! each already the user's to choose, since the proxy the policy points at
-//! is their own process. The binary the task runs lives under `ProgramData`
-//! with an administrator-only DACL, so a user cannot swap it; the spool
-//! inbox lets a user add a request and read only their own; results are
-//! written for their requester alone. No trust anchor, no task.
+//! Verified requests for the Windows machine policy writer.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 #[cfg(target_os = "windows")]
 mod child;
+#[cfg(target_os = "windows")]
+mod paths;
+pub mod request;
 #[cfg(target_os = "windows")]
 mod spool;
 #[cfg(target_os = "windows")]
@@ -75,11 +55,6 @@ pub struct PolicyWriteRequest {
     pub tool_catalog: ToolCatalog,
 }
 
-/// The inference-side facts a request carries beside the manifest.
-///
-/// The custom headers, the model list (`None` keeps what the hive holds)
-/// and the organisation uuid. A sync leaves the models alone; a generate
-/// from the GUI carries the list it just fetched.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct RequestFacts {
     pub headers: BTreeMap<String, String>,
@@ -103,7 +78,9 @@ impl Layout {
     #[must_use]
     pub fn under(program_data: &Path) -> Self {
         let brand = crate::brand::brand();
-        let root = program_data.join(brand.working_dir_name).join("policy-writer");
+        let root = program_data
+            .join(brand.working_dir_name)
+            .join("policy-writer");
         let bin = root.join("bin");
         Self {
             binary: bin.join(format!("{}.exe", brand.binary_name)),
@@ -125,14 +102,10 @@ impl Layout {
     }
 }
 
-// Why: SYSTEM and Administrators own everything; users may traverse and
-// list, and in the inbox add a file that is then theirs alone (CREATOR
-// OWNER). No user reads another user's request, and no user can replace the
-// binary the task runs.
 pub const BIN_SDDL: &str = "D:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;OICI;0x1200a9;;;AU)";
 pub const INBOX_SDDL: &str =
-    "D:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;;0x100007;;;AU)(A;OIIO;FA;;;CO)";
-pub const OUTBOX_SDDL: &str = "D:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;;0x100005;;;AU)";
+    "D:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;;0x120007;;;AU)(A;OIIO;FA;;;CO)";
+pub const OUTBOX_SDDL: &str = "D:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;;0x120005;;;AU)";
 
 // Why: a task registered by an administrator runs for nobody else unless
 // its own descriptor says so; read + execute for authenticated users is
@@ -141,7 +114,12 @@ pub const TASK_SDDL: &str = "D:(A;;FA;;;SY)(A;;FA;;;BA)(A;;GRGX;;;AU)";
 
 #[must_use]
 pub fn task_name() -> String {
-    format!("{}PolicyWriter", crate::brand::brand().schedule_task_name.trim_end_matches("Sync"))
+    format!(
+        "{}PolicyWriter",
+        crate::brand::brand()
+            .schedule_task_name
+            .trim_end_matches("Sync")
+    )
 }
 
 #[expect(
@@ -172,9 +150,13 @@ pub fn expected_steps() -> Vec<CompletedStep> {
 pub enum PolicyWriterError {
     #[error("policy write request protocol {actual} is unsupported; expected {REQUEST_VERSION}")]
     Version { actual: u32 },
-    #[error("no signing trust anchor in the machine policy; the writer refuses an unverifiable manifest")]
+    #[error(
+        "no signing trust anchor in the machine policy; the writer refuses an unverifiable manifest"
+    )]
     NoAnchor,
-    #[error("the request names gateway {requested} but the machine anchor is pinned for {anchored}")]
+    #[error(
+        "the request names gateway {requested} but the machine anchor is pinned for {anchored}"
+    )]
     GatewayMismatch { requested: String, anchored: String },
     #[error("manifest signature: {0}")]
     Signature(#[from] crate::gateway::manifest::ManifestError),
@@ -200,9 +182,6 @@ pub enum PolicyWriterError {
     Protocol(#[from] super::elevated_protocol::ProtocolError),
 }
 
-// Why: pure, so the unelevated bridge derives the same values the writer
-// does and can compare the hive against them after the writer reports
-// success — the report alone is never taken as the write.
 pub fn derive_policy(
     request: &PolicyWriteRequest,
     manifest: &SignedManifest,
@@ -210,8 +189,7 @@ pub fn derive_policy(
 ) -> Result<Vec<(&'static str, &'static str, String)>, MdmError> {
     let loopback = crate::proxy::LoopbackEndpoint::new(request.loopback_port, None);
     let registry = crate::mcp_registry::from_servers(&manifest.managed_mcp_servers);
-    let servers =
-        super::mdm::policy::mcp_entries_with(&loopback, &registry, &request.tool_catalog);
+    let servers = super::mdm::policy::mcp_entries_with(&loopback, &registry, &request.tool_catalog);
     let policy = super::mdm::policy::claude_desktop_policy(&super::mdm::policy::PolicyInputs {
         base_url: &loopback.origin(),
         host_token: &request.host_token,
@@ -224,14 +202,14 @@ pub fn derive_policy(
     Ok(super::mdm::policy::reg_values(&policy))
 }
 
-// Why: the anchor's gateway must be the request's and the signature must
-// verify with the anchor's key before anything in the request is believed.
 pub fn verify_against_anchor(
     request: &PolicyWriteRequest,
     anchor: &crate::config::TrustRecord,
 ) -> Result<SignedManifest, PolicyWriterError> {
-    let requested = systemprompt_identifiers::ValidatedUrl::try_new(&request.gateway)
-        .map_err(|e| PolicyWriterError::Anchor(crate::config::TrustError::InvalidPolicy(e.to_string())))?;
+    let requested =
+        systemprompt_identifiers::ValidatedUrl::try_new(&request.gateway).map_err(|e| {
+            PolicyWriterError::Anchor(crate::config::TrustError::InvalidPolicy(e.to_string()))
+        })?;
     let requested = crate::config::GatewayIdentity::new(&requested)?;
     if requested != anchor.gateway {
         return Err(PolicyWriterError::GatewayMismatch {
@@ -243,10 +221,6 @@ pub fn verify_against_anchor(
     Ok(crate::gateway::manifest::decode_payload(&request.envelope)?)
 }
 
-// Why: the request is assembled from what the bridge already holds — the
-// envelope the last sync verified, the loopback it serves on, the tool names
-// it probed — never from a fresh fetch, so a writer request is exactly what
-// an elevated sync would have written itself.
 #[must_use]
 pub fn build_request(
     loopback: Loopback,
@@ -270,8 +244,6 @@ pub fn build_request(
     }
 }
 
-/// The proxy a policy points Claude Desktop at: its port and the token
-/// scoped to the desktop host.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Loopback {
     pub port: u16,
@@ -287,13 +259,11 @@ impl Loopback {
         })
     }
 
-    // Why: a staged `.reg` profile already names the proxy and carries the
-    // host token the GUI derived; the writer request repeats them rather
-    // than re-deriving from a secret the install path does not hold.
     pub fn from_entries(entries: &[(String, String)]) -> std::io::Result<Self> {
         let value = |name: &str| entry_value(entries, name);
-        let base_url = value("inferenceGatewayBaseUrl")
-            .ok_or_else(|| std::io::Error::other("staged profile has no inferenceGatewayBaseUrl"))?;
+        let base_url = value("inferenceGatewayBaseUrl").ok_or_else(|| {
+            std::io::Error::other("staged profile has no inferenceGatewayBaseUrl")
+        })?;
         let port = url::Url::parse(&base_url)
             .ok()
             .and_then(|u| u.port())
@@ -316,9 +286,6 @@ fn entry_value(entries: &[(String, String)], name: &str) -> Option<String> {
         .map(|(_, value)| value.clone())
 }
 
-// Why: a staged `.reg` profile is what the GUI generated for this user; the
-// facts the writer needs from it are the three inference values the
-// manifest does not carry. Everything else it derives itself.
 #[must_use]
 pub fn facts_from_entries(entries: &[(String, String)]) -> RequestFacts {
     RequestFacts {

@@ -6,6 +6,9 @@
 #![cfg(target_os = "windows")]
 
 
+mod writer;
+
+use self::writer::install_through_writer;
 use super::shared::{
     API_KEY_KEY, DESKTOP_DOMAIN, DomainRead, KEYS_OF_INTEREST, ProfileGenInputs,
     redact_if_sensitive,
@@ -196,64 +199,6 @@ fn install_profile_with(path: &str, attendance: Attendance) -> std::io::Result<P
         "Claude Desktop profile installed"
     );
     Ok(outcome)
-}
-
-// Why: the writer takes the manifest from the envelope the last sync kept
-// and the inference facts from the staged profile, so what lands in the
-// machine hive is what the GUI generated — with a verified server list.
-fn install_through_writer(
-    entries: &[(String, String)],
-) -> Result<Option<ProfileInstalled>, crate::install::policy_writer::PolicyWriterError> {
-    use crate::install::policy_writer::{self, PolicyWriterError, WriterStatus};
-    match policy_writer::status() {
-        WriterStatus::Ready => {},
-        WriterStatus::NotRegistered => return Ok(None),
-        WriterStatus::Unavailable(why) => return Err(PolicyWriterError::Unavailable(why)),
-    }
-    let Some(fragment) = crate::mcp_registry::read_envelope().map_err(|source| {
-        PolicyWriterError::Io {
-            context: "read the last verified manifest envelope".to_owned(),
-            source,
-        }
-    })?
-    else {
-        return Err(PolicyWriterError::Unavailable(
-            "no verified manifest envelope has been kept yet; sync once first".to_owned(),
-        ));
-    };
-    let catalog =
-        crate::install::mdm::tool_catalog::read().map_err(|source| PolicyWriterError::Io {
-            context: "read the tool catalog".to_owned(),
-            source,
-        })?;
-    let requester = crate::windows_acl::current_sid().map_err(|source| PolicyWriterError::Io {
-        context: "resolve the requesting account".to_owned(),
-        source,
-    })?;
-    let loopback = policy_writer::Loopback::from_entries(entries).map_err(|source| {
-        PolicyWriterError::Io {
-            context: "read the proxy from the staged profile".to_owned(),
-            source,
-        }
-    })?;
-    let request = policy_writer::build_request(
-        loopback,
-        &fragment,
-        catalog,
-        policy_writer::facts_from_entries(entries),
-        requester,
-    );
-    policy_writer::write_policy(&request)?;
-    let outcome = require_org_plugins_provisioned(false).map_err(|e| {
-        PolicyWriterError::Unavailable(format!(
-            "policy written through the elevated writer, but org-plugins is not usable: {e}"
-        ))
-    })?;
-    tracing::info!(
-        value_count = entries.len(),
-        "Claude Desktop profile installed through the elevated policy writer"
-    );
-    Ok(Some(outcome))
 }
 
 fn install_profile_elevated(path: &str) -> std::io::Result<ProfileInstalled> {

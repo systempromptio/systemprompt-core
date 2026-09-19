@@ -149,7 +149,10 @@ async fn fetch_manifest_ok() {
         .mount(&server)
         .await;
 
-    let envelope = client(&server).fetch_manifest(&bearer(), Freshness::Memo).await.unwrap();
+    let envelope = client(&server)
+        .fetch_manifest(&bearer(), Freshness::Memo)
+        .await
+        .unwrap();
     assert!(envelope.signature.as_str().is_empty());
     let manifest = decode_payload(&envelope).unwrap();
     assert_eq!(manifest.user_id.as_str(), "user_abc");
@@ -203,7 +206,10 @@ async fn fetch_manifest_401_maps_to_http_status() {
         .mount(&server)
         .await;
 
-    let err = client(&server).fetch_manifest(&bearer(), Freshness::Memo).await.unwrap_err();
+    let err = client(&server)
+        .fetch_manifest(&bearer(), Freshness::Memo)
+        .await
+        .unwrap_err();
     match err {
         GatewayError::HttpStatus { status, endpoint } => {
             assert_eq!(status.as_u16(), 401);
@@ -222,7 +228,10 @@ async fn fetch_manifest_malformed_body_maps_to_envelope_shape_with_snippet() {
         .mount(&server)
         .await;
 
-    let err = client(&server).fetch_manifest(&bearer(), Freshness::Memo).await.unwrap_err();
+    let err = client(&server)
+        .fetch_manifest(&bearer(), Freshness::Memo)
+        .await
+        .unwrap_err();
     match err {
         GatewayError::ManifestEnvelopeShape { snippet, .. } => {
             assert_eq!(snippet, "{ not a manifest }");
@@ -241,7 +250,10 @@ async fn fetch_manifest_html_body_names_the_shape_mismatch() {
         .mount(&server)
         .await;
 
-    let err = client(&server).fetch_manifest(&bearer(), Freshness::Memo).await.unwrap_err();
+    let err = client(&server)
+        .fetch_manifest(&bearer(), Freshness::Memo)
+        .await
+        .unwrap_err();
     match err {
         GatewayError::ManifestEnvelopeShape { snippet, .. } => {
             assert_eq!(
@@ -555,7 +567,9 @@ async fn each_endpoint_maps_a_connection_failure_to_its_own_fetch_variant() {
         GatewayError::PubkeyFetch(_)
     ));
     assert!(matches!(
-        c.fetch_manifest(&bearer(), Freshness::Memo).await.unwrap_err(),
+        c.fetch_manifest(&bearer(), Freshness::Memo)
+            .await
+            .unwrap_err(),
         GatewayError::ManifestFetch(_)
     ));
     assert!(matches!(

@@ -229,7 +229,11 @@ pub(crate) fn on_profile_install_finished(
                 },
                 Err(line) => {
                     app.append_log_error(&line);
-                    Err(BridgeError::new(ErrorScope::Host, ErrorCode::Internal, line))
+                    Err(BridgeError::new(
+                        ErrorScope::Host,
+                        ErrorCode::Internal,
+                        line,
+                    ))
                 },
             }
         },

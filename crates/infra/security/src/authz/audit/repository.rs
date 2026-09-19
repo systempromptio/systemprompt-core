@@ -11,7 +11,7 @@
 
 use sqlx::PgPool;
 use systemprompt_database::RepositoryError;
-use systemprompt_identifiers::Actor;
+use systemprompt_identifiers::{Actor, UserId};
 
 use crate::authz::types::DecisionTag;
 use crate::policy::types::AccessScope;
@@ -125,7 +125,7 @@ pub async fn insert_governance_decision(
 pub struct GovernanceWarningRow {
     pub policy: String,
     pub tool_name: String,
-    pub user_id: String,
+    pub user_id: UserId,
     pub count: i64,
     pub first_seen: chrono::DateTime<chrono::Utc>,
     pub last_seen: chrono::DateTime<chrono::Utc>,
@@ -140,7 +140,7 @@ pub async fn list_governance_warnings(
     sqlx::query_as!(
         GovernanceWarningRow,
         r#"
-        SELECT policy AS "policy!", tool_name AS "tool_name!", user_id AS "user_id!",
+        SELECT policy AS "policy!", tool_name AS "tool_name!", user_id AS "user_id!: UserId",
                COUNT(*) AS "count!", MIN(created_at) AS "first_seen!",
                MAX(created_at) AS "last_seen!",
                (ARRAY_AGG(reason ORDER BY created_at DESC))[1] AS "example_reason!"

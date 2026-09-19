@@ -16,8 +16,6 @@ use crate::install::xml;
 
 pub const CLAUDE_DESKTOP_HOST_ID: &str = "claude-desktop";
 
-/// A managed-policy value in the shape the policy declares, before any
-/// platform's encoding is applied.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PolicyValue {
     Str(String),
@@ -27,8 +25,6 @@ pub enum PolicyValue {
 
 pub type PolicyEntry = (&'static str, PolicyValue);
 
-// Why: removal is scoped to exactly the keys the bridge writes, so a value
-// another administrator placed in the same hive survives an uninstall.
 pub const WRITTEN_POLICY_KEYS: &[&str] = &[
     "inferenceProvider",
     "inferenceGatewayBaseUrl",
@@ -265,8 +261,6 @@ pub fn mcp_entries(
     Ok(mcp_entries_with(loopback, registry, &catalog))
 }
 
-// Why: the elevated policy writer runs as SYSTEM, whose profile holds no
-// tool catalog; it takes the names from the request instead of the file.
 pub fn mcp_entries_with(
     loopback: &crate::proxy::LoopbackEndpoint,
     registry: &crate::mcp_registry::McpRegistry,

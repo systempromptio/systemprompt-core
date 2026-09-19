@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT policy AS \"policy!\", tool_name AS \"tool_name!\", user_id AS \"user_id!\",\n               COUNT(*) AS \"count!\", MIN(created_at) AS \"first_seen!\",\n               MAX(created_at) AS \"last_seen!\",\n               (ARRAY_AGG(reason ORDER BY created_at DESC))[1] AS \"example_reason!\"\n        FROM governance_decisions\n        WHERE decision = 'warn' AND ($1::timestamptz IS NULL OR created_at >= $1)\n        GROUP BY policy, tool_name, user_id\n        ORDER BY COUNT(*) DESC, MAX(created_at) DESC\n        LIMIT $2\n        ",
+  "query": "\n        SELECT policy AS \"policy!\", tool_name AS \"tool_name!\", user_id AS \"user_id!: UserId\",\n               COUNT(*) AS \"count!\", MIN(created_at) AS \"first_seen!\",\n               MAX(created_at) AS \"last_seen!\",\n               (ARRAY_AGG(reason ORDER BY created_at DESC))[1] AS \"example_reason!\"\n        FROM governance_decisions\n        WHERE decision = 'warn' AND ($1::timestamptz IS NULL OR created_at >= $1)\n        GROUP BY policy, tool_name, user_id\n        ORDER BY COUNT(*) DESC, MAX(created_at) DESC\n        LIMIT $2\n        ",
   "describe": {
     "columns": [
       {
@@ -27,7 +27,7 @@
       },
       {
         "ordinal": 2,
-        "name": "user_id!",
+        "name": "user_id!: UserId",
         "type_info": "Text",
         "origin": {
           "Table": {
@@ -77,5 +77,5 @@
       null
     ]
   },
-  "hash": "a0bb16dea2b5dcdd3b0e8fa63b9c969bce0becc52764d18086352bcf8b74737a"
+  "hash": "5fc620856faa6a18cc03c42006cd59589267165d52528bb5d9abaab28bbdf972"
 }

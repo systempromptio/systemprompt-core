@@ -46,7 +46,7 @@ bin/bridge/src/install/bootstrap/unix.rs  # SUDO_USER to resolve the invoking us
 bin/bridge/src/install/mdm/egress.rs  # <PREFIX>_EGRESS_ALLOWED_HOSTS Cowork egress allowlist when --egress-allowed-hosts is absent
 bin/bridge/src/install/mdm/macos.rs  # USER for the per-user managed-preferences plist (macOS MDM apply)
 bin/bridge/src/install/mdm/macos_remove.rs  # USER for the per-user managed-preferences plist (macOS MDM remove)
-bin/bridge/src/install/mdm/windows.rs  # USERPROFILE Windows home probe for the MDM payload
+bin/bridge/src/install/mdm/windows/mod.rs  # USERPROFILE Windows home probe for the MDM payload
 bin/bridge/src/integration/app_launch/mod.rs  # PATH lookup for the host app binary
 bin/bridge/src/integration/claude_desktop/macos.rs  # USER for the Claude Desktop per-user managed preferences (macOS)
 bin/bridge/src/integration/claude_desktop/mod.rs  # LOCALAPPDATA Claude Desktop install probe (Windows)

@@ -21,6 +21,7 @@ use clap::{Args, ValueEnum};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use systemprompt_ai::AiSafetyFindingRepository;
+use systemprompt_identifiers::UserId;
 use systemprompt_security::authz::list_governance_warnings;
 
 use crate::CliConfig;
@@ -109,7 +110,7 @@ crate::define_pool_command!(ReportArgs => (), with_config);
 struct GroupAccumulator {
     warnings: i64,
     tools: std::collections::BTreeSet<String>,
-    users: std::collections::BTreeSet<String>,
+    users: std::collections::BTreeSet<UserId>,
     last_seen: Option<chrono::DateTime<chrono::Utc>>,
     example_reason: String,
 }
@@ -125,7 +126,7 @@ async fn gather(args: &ReportArgs, pool: &Arc<sqlx::PgPool>) -> Result<Governanc
         let key = match args.group_by {
             GroupBy::Policy => row.policy.clone(),
             GroupBy::Tool => row.tool_name.clone(),
-            GroupBy::User => row.user_id.clone(),
+            GroupBy::User => row.user_id.to_string(),
         };
         let acc = groups.entry(key).or_default();
         acc.warnings += row.count;

@@ -53,7 +53,7 @@ agents-status-proxy-:proxy_probe/mod.rs:ProxyProbeState
 mcp-auth-:proxy/mcp_probe/types.rs:McpAuthState
 host-profile-:integration/profile_state.rs:ProfileCode
 host-app-:integration/profile_state.rs:AppInstallState
-agent-kind-:integration/host_app.rs:HostKind
+agent-kind-:integration/host_app/mod.rs:HostKind
 settings-schedule-:schedule/status.rs:ScheduleStatus"
 
 # This reimplements `rename_all = "kebab-case"` in awk, so it is only correct

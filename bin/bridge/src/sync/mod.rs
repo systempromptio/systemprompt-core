@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod acceptance;
 pub mod apply;
 mod error;
 mod manifest;
@@ -141,7 +142,6 @@ pub async fn run_once(
     let synced = manifest::verify_and_decode(&fetch, allow_unsigned, allow_tofu).await?;
     let run_gateway = fetch.client.base_url().clone();
     ensure_device_enrolled(bridge, &fetch, &synced.user_id).await;
-    persist_envelope(&fetch)?;
 
     #[cfg_attr(
         not(target_os = "windows"),
@@ -182,9 +182,8 @@ pub async fn run_once(
     let meta = paths::bridge_metadata_dir().ok_or(SyncError::PathUnresolvable)?;
     let last_sync_path = meta.join(paths::LAST_SYNC_SENTINEL);
     let now = chrono::Utc::now();
-    let last_state = prior_checkpoint(&last_sync_path, &run_gateway)?;
+    let last_state = acceptance::accept(&synced, &run_gateway, force_replay)?;
     if !force_replay {
-        check_skew(synced.not_before, now)?;
         if last_state.manifest_version.as_ref() == Some(&synced.manifest_version) {
             ensure_not_superseded(&run_gateway)?;
             if let Err(error) =
@@ -197,6 +196,7 @@ pub async fn run_once(
         check_replay(&last_state, &synced.manifest_version)?;
     }
     ensure_not_superseded(&run_gateway)?;
+    persist_envelope(&fetch)?;
 
     let request = apply::ApplyRequest {
         client: &fetch.client,

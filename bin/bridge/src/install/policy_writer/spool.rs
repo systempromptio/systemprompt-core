@@ -8,14 +8,14 @@
 #![cfg(target_os = "windows")]
 
 use std::io;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
 
 use super::{
-    BIN_SDDL, INBOX_SDDL, Layout, OUTBOX_SDDL, PolicyWriteRequest, PolicyWriterError,
-    REQUEST_VERSION, RESULT_TIMEOUT_SECS, derive_policy, expected_steps, task,
+    BIN_SDDL, Layout, PolicyWriteRequest, PolicyWriterError, REQUEST_VERSION, RESULT_TIMEOUT_SECS,
+    derive_policy, expected_steps, task,
 };
 use crate::config::store::{self, ConfigStore, PolicyHive, PolicyTarget};
 use crate::install::elevated_protocol::{CompletedStep, ElevatedResult};
@@ -43,10 +43,10 @@ fn io_ctx(context: impl Into<String>) -> impl FnOnce(io::Error) -> PolicyWriterE
     move |source| PolicyWriterError::Io { context, source }
 }
 
-pub(crate) fn layout() -> Layout {
-    let program_data = std::env::var_os("ProgramData")
-        .map_or_else(|| PathBuf::from(r"C:\ProgramData"), PathBuf::from);
-    Layout::under(&program_data)
+pub(crate) fn layout() -> Result<Layout, PolicyWriterError> {
+    crate::windows_acl::program_data()
+        .map(|root| Layout::under(&root))
+        .map_err(io_ctx("resolve machine ProgramData"))
 }
 
 pub(crate) fn install(exe: &Path) -> Result<Vec<String>, PolicyWriterError> {
@@ -56,17 +56,9 @@ pub(crate) fn install(exe: &Path) -> Result<Vec<String>, PolicyWriterError> {
         ));
     }
     require_anchor()?;
-    let layout = layout();
-    for (dir, sddl) in [
-        (&layout.root, BIN_SDDL),
-        (&layout.bin, BIN_SDDL),
-        (&layout.inbox, INBOX_SDDL),
-        (&layout.outbox, OUTBOX_SDDL),
-    ] {
-        std::fs::create_dir_all(dir).map_err(io_ctx(format!("create {}", dir.display())))?;
-        crate::windows_acl::apply_directory_sddl(dir, sddl)
-            .map_err(io_ctx(format!("protect {}", dir.display())))?;
-    }
+    let layout = layout()?;
+    let _directories = super::paths::secure_directories(&layout, true)
+        .map_err(io_ctx("secure machine writer directories"))?;
     let bytes = std::fs::read(exe).map_err(io_ctx(format!("read {}", exe.display())))?;
     crate::fsutil::atomic_write_0644(&layout.binary, &bytes)
         .map_err(io_ctx(format!("install {}", layout.binary.display())))?;
@@ -77,6 +69,12 @@ pub(crate) fn install(exe: &Path) -> Result<Vec<String>, PolicyWriterError> {
     .map_err(|e| io_ctx("encode writer stamp")(io::Error::other(e)))?;
     crate::fsutil::atomic_write_0644(&layout.bin.join(STAMP_FILE), &stamp)
         .map_err(io_ctx("write writer stamp"))?;
+    for path in [&layout.binary, &layout.bin.join(STAMP_FILE)] {
+        let _file = crate::windows_acl::lock_machine_path(path, false)
+            .map_err(io_ctx("verify machine file owner"))?;
+        crate::windows_acl::apply_directory_sddl(path, BIN_SDDL)
+            .map_err(io_ctx("protect machine file"))?;
+    }
     task::register(&layout.binary, &layout.root).map_err(io_ctx("register writer task"))?;
     Ok(vec![
         format!("policy writer: {}", layout.binary.display()),
@@ -89,12 +87,15 @@ pub(crate) fn install(exe: &Path) -> Result<Vec<String>, PolicyWriterError> {
 
 pub(crate) fn remove() -> Result<Vec<String>, PolicyWriterError> {
     task::remove().map_err(io_ctx("remove writer task"))?;
-    let layout = layout();
+    let layout = layout()?;
     if layout.root.exists() {
         std::fs::remove_dir_all(&layout.root)
             .map_err(io_ctx(format!("remove {}", layout.root.display())))?;
     }
-    Ok(vec![format!("removed policy writer {}", super::task_name())])
+    Ok(vec![format!(
+        "removed policy writer {}",
+        super::task_name()
+    )])
 }
 
 // Why: a status is what the bridge trusts before it delegates a write, so
@@ -102,7 +103,10 @@ pub(crate) fn remove() -> Result<Vec<String>, PolicyWriterError> {
 // the binary it runs, the DACLs that keep users out of it, and the protocol
 // the copy speaks.
 pub(crate) fn status() -> WriterStatus {
-    let layout = layout();
+    let layout = match layout() {
+        Ok(layout) => layout,
+        Err(e) => return WriterStatus::Unavailable(e.to_string()),
+    };
     match task::exists() {
         Ok(true) => {},
         Ok(false) => return WriterStatus::NotRegistered,
@@ -111,13 +115,15 @@ pub(crate) fn status() -> WriterStatus {
     if let Err(e) = task::verify_registered(&layout.binary) {
         return WriterStatus::Unavailable(e.to_string());
     }
-    for (dir, sddl) in [
-        (&layout.bin, BIN_SDDL),
-        (&layout.inbox, INBOX_SDDL),
-        (&layout.outbox, OUTBOX_SDDL),
-    ] {
-        if let Err(e) = crate::windows_acl::verify_directory_sddl(dir, sddl) {
-            return WriterStatus::Unavailable(format!("{}: {e}", dir.display()));
+    let _directories = match super::paths::secure_directories(&layout, false) {
+        Ok(handles) => handles,
+        Err(e) => return WriterStatus::Unavailable(e.to_string()),
+    };
+    for path in [&layout.binary, &layout.bin.join(STAMP_FILE)] {
+        if let Err(e) = crate::windows_acl::lock_machine_path(path, false)
+            .and_then(|_file| crate::windows_acl::verify_directory_sddl(path, BIN_SDDL))
+        {
+            return WriterStatus::Unavailable(format!("{}: {e}", path.display()));
         }
     }
     match read_stamp(&layout) {
@@ -173,7 +179,7 @@ pub(crate) fn write_policy(
         WriterStatus::NotRegistered => return Err(PolicyWriterError::NotRegistered),
         WriterStatus::Unavailable(why) => return Err(PolicyWriterError::Unavailable(why)),
     }
-    let layout = layout();
+    let layout = layout()?;
     let request_path = layout.request_path(request.job_id);
     let result_path = layout.result_path(request.job_id);
     let body = serde_json::to_vec(request)

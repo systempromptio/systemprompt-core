@@ -14,6 +14,8 @@ mod elevation_script;
 mod linux_managed_settings;
 #[cfg(test)]
 mod linux_settings;
+#[cfg(all(test, target_os = "windows"))]
+mod machine_path_guard;
 #[cfg(test)]
 mod managed_file_writes;
 #[cfg(test)]

@@ -31,17 +31,20 @@ pub async fn refresh_registry_for(
 }
 
 pub async fn refresh_registry(bridge: &BridgeContext) -> Result<usize, SyncError> {
+    let _operation = bridge.sync_lock.lock().await;
     let allow_tofu = matches!(
         config::pinned_pubkey_state(),
         Ok(config::PinnedPubkeyState::Unpinned)
     );
     let fetch = manifest::fetch_authenticated_manifest(&bridge.http, Freshness::Fresh).await?;
     let synced = manifest::verify_and_decode(&fetch, false, allow_tofu).await?;
+    super::acceptance::accept(&synced, fetch.client.base_url(), false)?;
     let servers = apply::loopback::rewrite_loopback_urls(
         &synced.managed_mcp_servers,
         fetch.client.base_url(),
     );
     let meta_dir = apply::metadata_dir().map_err(|e| SyncError::ApplyFailed(Box::new(e)))?;
+    super::ensure_not_superseded(fetch.client.base_url())?;
     let envelope_receipt =
         apply::write_envelope(&meta_dir, fetch.client.base_url(), &fetch.envelope)
             .map_err(|e| SyncError::ApplyFailed(Box::new(e)))?;

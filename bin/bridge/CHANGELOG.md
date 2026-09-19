@@ -2,16 +2,20 @@
 
 ## [0.57.0] - 2026-09-19
 
+### Breaking
+
+- **Bridge Rust API:** `GatewayClient::fetch_manifest` requires `Freshness`, and `SyncOptions` gains `freshness`. Use `Freshness::Memo` for scheduled/default reads or `Freshness::Fresh` for an explicit refresh. `HostAppSnapshot` gains `update_needs_approval`; `ProbeEnv` gains `expected_managed_servers` and `policy_writer_ready`. Update affected struct literals; `SyncOptions` also supports `..Default::default()`.
+
 ### Added
 
-- Windows: an elevated policy writer. An elevated `install --apply` with a pinned gateway key registers a SYSTEM Task Scheduler task that runs an administrator-owned copy of the bridge; a sync or a Claude Desktop update hands it the gateway-signed manifest and it rewrites `HKLM\SOFTWARE\Policies\Claude` after verifying the signature against the machine trust anchor — so linking a connector no longer raises a UAC prompt, and Cowork follows the gateway on the next sync. Without an anchor the writer is not registered and the approval prompt remains; `doctor` says which.
+- **Bridge (Windows):** an elevated `install --apply` with a pinned gateway key installs an administrator-owned policy writer and a SYSTEM scheduled task. Sync and Claude Desktop updates can request machine-policy writes without a separate elevation prompt for each change. The writer verifies the manifest envelope against the machine trust anchor and derives the managed server policy from that manifest. Without an anchor, installation retains the administrator-approval flow; writer failures produce a host warning and fall back to approval. `doctor` reports writer status.
 
 ### Fixed
 
-- Setup health rows carry their repair. A host the sync could not write without UAC (the machine-wide Claude Desktop policy) read "down" with nothing to press: the error toast's "Repair as administrator" was cleared by the same failure arriving again as the rejected request before the duplicate was recognised. The button survives, every host-failure row offers Repair (as administrator when elevation is needed), the `permission_rules` warning offers the Repair that creates the managed Claude Code settings file, and an info validation line reads as info rather than "unknown". `CheckLinePayload` gains `level`.
-- A pressed sync, `sync --fresh` and every Claude Desktop generate/Update ask the gateway for a fresh catalogue (`Cache-Control: no-cache`) instead of its 60 s per-user memo, and generate republishes the managed servers from that manifest before writing the profile — an Update pressed right after linking a connector no longer writes the previous server set.
-- The Claude Desktop probe notices a connector list behind the gateway (installed `managedMcpServers` vs the registry) and verdicts it as **Update** — "Update (administrator)" when the write needs the machine policy — rather than Repair; a sync whose only failures need an administrator reads "Claude Desktop needs approval" instead of "synced with failures"; an install reads the policy back and refuses to report success while the list still differs; the success toast says to quit and relaunch Claude Desktop. `needs-approval` preview fixture.
-- The MCP auth probe runs every server concurrently instead of one after another; a four-server sync no longer waits ≈ 12 s on the vendors in series.
+- **Bridge:** user-triggered sync, `sync --fresh`, and Claude Desktop profile generation or updates fetch a fresh manifest. Profile generation republishes managed server state before writing the profile.
+- **Bridge:** Claude Desktop probes identify an outdated managed server list as Update and indicate when administrator approval is required. Installation reads back the policy before reporting success; the UI requests an application restart.
+- **Bridge:** Setup health rows expose repair actions, duplicate error toasts preserve their action, and informational validation lines retain their severity. `CheckLinePayload` gains `level`.
+- **Bridge:** MCP authentication probes run concurrently across registered servers.
 
 ## [0.56.1] - 2026-09-18
 

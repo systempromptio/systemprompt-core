@@ -345,7 +345,9 @@ fn the_task_runs_the_admin_owned_copy_as_system_with_no_triggers() {
     let layout = Layout::under(program_data);
     assert_eq!(
         layout.root,
-        program_data.join("systemprompt-bridge").join("policy-writer")
+        program_data
+            .join("systemprompt-bridge")
+            .join("policy-writer")
     );
     assert_eq!(layout.bin, layout.root.join("bin"));
     assert_eq!(
@@ -413,7 +415,7 @@ fn the_descriptors_keep_users_out_of_the_binary_and_each_others_requests() {
         "users read and execute the copy"
     );
     assert!(
-        INBOX_SDDL.contains("0x100007;;;AU"),
+        INBOX_SDDL.contains("0x120007;;;AU"),
         "users add a file and list, no more"
     );
     assert!(
@@ -421,7 +423,7 @@ fn the_descriptors_keep_users_out_of_the_binary_and_each_others_requests() {
         "a request is its creator's alone"
     );
     assert!(
-        OUTBOX_SDDL.contains("0x100005;;;AU"),
+        OUTBOX_SDDL.contains("0x120005;;;AU"),
         "users list the outbox; results carry their own reader"
     );
     assert!(
@@ -436,4 +438,63 @@ fn the_writer_answers_with_exactly_one_policy_step_at_the_machine_key() {
     assert_eq!(steps.len(), 1);
     assert_eq!(steps[0].operation, "policy");
     assert_eq!(steps[0].target, r"HKLM\SOFTWARE\Policies\Claude");
+}
+
+#[test]
+fn request_reader_accepts_complete_input_and_refuses_oversized_or_wrong_protocol_input() {
+    use systemprompt_bridge::install::policy_writer::request::read_request;
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("request.json");
+    let key = signing_key(1);
+    let mut req = request(&key, &manifest(vec![]), &[]);
+    std::fs::write(&path, serde_json::to_vec(&req).unwrap()).unwrap();
+    assert_eq!(read_request(&path).unwrap().job_id, req.job_id);
+    req.version = REQUEST_VERSION + 1;
+    std::fs::write(&path, serde_json::to_vec(&req).unwrap()).unwrap();
+    assert!(matches!(
+        read_request(&path),
+        Err(PolicyWriterError::Version { .. })
+    ));
+    std::fs::write(&path, vec![b' '; MAX_REQUEST_BYTES as usize + 1]).unwrap();
+    assert!(
+        read_request(&path)
+            .unwrap_err()
+            .to_string()
+            .contains("size limit")
+    );
+    assert!(read_request(dir.path()).is_err());
+}
+
+#[cfg(unix)]
+#[test]
+fn request_reader_never_follows_a_symbolic_link() {
+    use systemprompt_bridge::install::policy_writer::request::read_request;
+    let dir = tempfile::tempdir().unwrap();
+    let target = dir.path().join("private.json");
+    let path = dir.path().join("request.json");
+    let key = signing_key(1);
+    let req = request(&key, &manifest(vec![]), &[]);
+    std::fs::write(&target, serde_json::to_vec(&req).unwrap()).unwrap();
+    std::os::unix::fs::symlink(&target, &path).unwrap();
+    assert!(read_request(&path).is_err());
+    assert_eq!(read_request(&target).unwrap().job_id, req.job_id);
+}
+
+#[cfg(target_os = "windows")]
+#[test]
+fn request_reader_refuses_an_existing_writer_handle() {
+    use std::io::Write;
+    use systemprompt_bridge::install::policy_writer::request::read_request;
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("request.json");
+    let key = signing_key(1);
+    let req = request(&key, &manifest(vec![]), &[]);
+    let mut writer = std::fs::File::create(&path).unwrap();
+    writer
+        .write_all(&serde_json::to_vec(&req).unwrap())
+        .unwrap();
+    writer.sync_all().unwrap();
+    assert!(read_request(&path).is_err());
+    drop(writer);
+    assert_eq!(read_request(&path).unwrap().job_id, req.job_id);
 }

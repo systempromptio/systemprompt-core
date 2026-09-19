@@ -539,6 +539,7 @@ fn allow_unsigned_applies_an_unsigned_manifest_when_nothing_is_pinned() {
 fn refresh_registry_publishes_the_servers_of_a_fresh_verified_manifest() {
     let key = signing_key();
     let mut with_server = manifest();
+    with_server.not_before = chrono::Utc::now();
     with_server.managed_mcp_servers =
         vec![systemprompt_bridge::gateway::manifest::ManagedMcpServer {
             id: systemprompt_identifiers::McpServerId::try_new("salesforce-crm-dev").unwrap(),
@@ -602,4 +603,193 @@ fn refresh_registry_publishes_the_servers_of_a_fresh_verified_manifest() {
 
     assert_eq!(published.0, 1);
     assert_eq!(published.1, vec!["salesforce-crm-dev".to_owned()]);
+}
+
+fn with_verify_sandbox<T>(dirs: &VerifySandbox, f: impl FnOnce() -> T) -> T {
+    temp_env::with_vars(
+        dirs.vars
+            .iter()
+            .map(|(k, v)| (*k, v.as_deref()))
+            .collect::<Vec<_>>(),
+        f,
+    )
+}
+
+#[test]
+fn refresh_rejects_skew_and_replay_without_overwriting_accepted_envelope() {
+    for stale_clock in [false, true] {
+        let key = signing_key();
+        let mut incoming = manifest();
+        if !stale_clock {
+            incoming.not_before = chrono::Utc::now();
+        }
+        let envelope = signed_envelope_of(&key, &incoming);
+        let (server, dirs) = block_on(async {
+            let server = MockServer::start().await;
+            mount_gateway(&server, &envelope, None).await;
+            let dirs = sandbox(&server.uri(), Some(&pubkey_b64(&key)));
+            (server, dirs)
+        });
+        with_verify_sandbox(&dirs, || {
+            let mut accepted = incoming.clone();
+            accepted.manifest_version =
+                ManifestVersion::try_new("2026-07-03T00:00:00Z-cafecafe").unwrap();
+            let meta = systemprompt_bridge::config::paths::bridge_metadata_dir().unwrap();
+            fs::create_dir_all(&meta).unwrap();
+            let path = meta.join(systemprompt_bridge::config::paths::MANIFEST_ENVELOPE_FRAGMENT);
+            let previous =
+                serde_json::to_vec(&systemprompt_bridge::mcp_registry::EnvelopeFragment {
+                    gateway: systemprompt_identifiers::ValidatedUrl::try_new(server.uri()).unwrap(),
+                    envelope: signed_envelope_of(&key, &accepted),
+                })
+                .unwrap();
+            fs::write(&path, &previous).unwrap();
+            let bridge = bridge();
+            let error = block_on(systemprompt_bridge::sync::refresh_registry(&bridge)).unwrap_err();
+            if stale_clock {
+                assert!(
+                    matches!(
+                        error,
+                        systemprompt_bridge::sync::SyncError::ManifestSkew { .. }
+                    ),
+                    "{error:?}"
+                );
+            } else {
+                assert!(
+                    matches!(
+                        error,
+                        systemprompt_bridge::sync::SyncError::ReplayedManifest { .. }
+                    ),
+                    "{error:?}"
+                );
+            }
+            assert_eq!(fs::read(&path).unwrap(), previous);
+            assert!(bridge.mcp_registry().is_empty());
+        });
+    }
+}
+
+#[test]
+fn full_sync_rejection_keeps_the_previously_accepted_envelope() {
+    let key = signing_key();
+    let envelope = signed_envelope(&key);
+    let (server, dirs) = block_on(async {
+        let server = MockServer::start().await;
+        crate::mount_profile(&server).await;
+        mount_gateway(&server, &envelope, None).await;
+        let dirs = sandbox(&server.uri(), Some(&pubkey_b64(&key)));
+        (server, dirs)
+    });
+    with_verify_sandbox(&dirs, || {
+        let meta = systemprompt_bridge::config::paths::bridge_metadata_dir().unwrap();
+        fs::create_dir_all(&meta).unwrap();
+        let path = meta.join(systemprompt_bridge::config::paths::MANIFEST_ENVELOPE_FRAGMENT);
+        let previous = b"previous accepted fragment must survive skew rejection";
+        fs::write(&path, previous).unwrap();
+        let error = block_on(systemprompt_bridge::sync::run_once(
+            &bridge(),
+            &SyncOptions::default(),
+        ))
+        .unwrap_err();
+        assert!(
+            matches!(
+                error,
+                systemprompt_bridge::sync::SyncError::ManifestSkew { .. }
+            ),
+            "{error:?}"
+        );
+        assert_eq!(fs::read(path).unwrap(), previous);
+    });
+    let _ = server;
+}
+
+#[test]
+fn refresh_waits_for_sync_lock_and_accepts_identical_current_manifest() {
+    let key = signing_key();
+    let mut incoming = manifest();
+    incoming.not_before = chrono::Utc::now();
+    let envelope = signed_envelope_of(&key, &incoming);
+    let (server, dirs) = block_on(async {
+        let server = MockServer::start().await;
+        mount_gateway(&server, &envelope, None).await;
+        let dirs = sandbox(&server.uri(), Some(&pubkey_b64(&key)));
+        (server, dirs)
+    });
+    with_verify_sandbox(&dirs, || {
+        block_on(async {
+            let bridge = bridge();
+            let guard = bridge.sync_lock.lock().await;
+            assert!(
+                tokio::time::timeout(
+                    std::time::Duration::from_millis(30),
+                    systemprompt_bridge::sync::refresh_registry(&bridge)
+                )
+                .await
+                .is_err()
+            );
+            assert!(server.received_requests().await.unwrap().is_empty());
+            drop(guard);
+            systemprompt_bridge::sync::refresh_registry(&bridge)
+                .await
+                .unwrap();
+            systemprompt_bridge::sync::refresh_registry(&bridge)
+                .await
+                .unwrap();
+        })
+    });
+}
+
+#[test]
+fn refresh_does_not_publish_a_response_after_gateway_switch() {
+    let key = signing_key();
+    let mut incoming = manifest();
+    incoming.not_before = chrono::Utc::now();
+    let envelope = signed_envelope_of(&key, &incoming);
+    let (server, dirs) = block_on(async {
+        let server = MockServer::start().await;
+        let dirs = sandbox(&server.uri(), Some(&pubkey_b64(&key)));
+        Mock::given(method("POST"))
+            .and(path("/v1/auth/bridge/pat"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_json(serde_json::json!({"token":"test-bearer-token","ttl":3600})),
+            )
+            .mount(&server)
+            .await;
+        let config_file = dirs.config_file.clone();
+        let original = server.uri();
+        Mock::given(method("GET"))
+            .and(path("/v1/bridge/manifest"))
+            .respond_with(move |_: &wiremock::Request| {
+                let config = fs::read_to_string(&config_file).unwrap();
+                fs::write(
+                    &config_file,
+                    config.replace(&original, "https://different.invalid"),
+                )
+                .unwrap();
+                ResponseTemplate::new(200).set_body_json(serde_json::to_value(&envelope).unwrap())
+            })
+            .mount(&server)
+            .await;
+        (server, dirs)
+    });
+    with_verify_sandbox(&dirs, || {
+        let bridge = bridge();
+        let error = block_on(systemprompt_bridge::sync::refresh_registry(&bridge)).unwrap_err();
+        assert!(
+            matches!(
+                error,
+                systemprompt_bridge::sync::SyncError::Superseded { .. }
+            ),
+            "{error:?}"
+        );
+        assert!(bridge.mcp_registry().is_empty());
+        let meta = systemprompt_bridge::config::paths::bridge_metadata_dir().unwrap();
+        assert!(
+            !meta
+                .join(systemprompt_bridge::config::paths::MANIFEST_ENVELOPE_FRAGMENT)
+                .exists()
+        );
+    });
+    let _ = server;
 }

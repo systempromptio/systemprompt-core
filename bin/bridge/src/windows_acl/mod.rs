@@ -7,12 +7,15 @@
 
 mod access;
 mod describe;
+mod machine;
 mod private;
 mod privilege;
 mod repair;
 
 pub(crate) use self::access::{elevation_summary, verify_modify_tree};
 pub(crate) use self::describe::describe;
+pub use self::machine::open_read_guard;
+pub(crate) use self::machine::{lock_machine_path, program_data};
 pub(crate) use self::private::{
     apply_directory_sddl, create_private, protect_directory, verify_directory_sddl, verify_private,
 };

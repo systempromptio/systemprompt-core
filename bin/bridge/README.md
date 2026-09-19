@@ -14,7 +14,7 @@ Diagnostics on stderr. `tracing` JSON via `SP_BRIDGE_LOG_FORMAT=json`. Exit 0 on
 
 ## Status
 
-Independent semver, separate from the systemprompt-core workspace. The version is declared in `Cargo.toml`. See [`CHANGELOG.md`](CHANGELOG.md) for what each release changed.
+Built outside the systemprompt-core workspace, with the same release version. The version is declared in `Cargo.toml` and checked against the workspace version by `build.rs`. See [`CHANGELOG.md`](CHANGELOG.md) for what each release changed.
 
 Released artifacts: macOS (arm64, x86_64), Windows (x86_64), Linux (x86_64). The release workflow defines artifact checksums and Sigstore signing; inspect a release’s attachments for available verification material.
 

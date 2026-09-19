@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.57.0] - 2026-09-19
+
+### Changed
+
+- Governance warning reports retain typed user IDs while grouping and counting users; displayed keys and counts are unchanged.
+
 ## [0.56.0] - 2026-09-18
 
 ### Fixed

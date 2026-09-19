@@ -87,7 +87,7 @@ fn credential_dir_override_note() -> String {
     }
 }
 
-fn map_manifest_error(err: ManifestError) -> SyncError {
+pub(super) fn map_manifest_error(err: ManifestError) -> SyncError {
     match err {
         ManifestError::SchemaTooNew {
             required,

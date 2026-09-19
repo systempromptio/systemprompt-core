@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.57.0] - 2026-09-19
+
+### Breaking
+
+- `authz::GovernanceWarningRow.user_id` is `UserId` and decodes directly from the database. Rust callers use `UserId::new` when constructing a row and `as_str()` or `to_string()` at text boundaries. Stored values and governance report grouping are unchanged.
+
 ## [0.55.0] - 2026-09-17
 
 ### Added

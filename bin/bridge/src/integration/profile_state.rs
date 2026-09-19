@@ -182,7 +182,10 @@ impl ProfileState {
     // unknown expectation is Unchecked, never Stale, so a launch before the
     // first sync cannot re-apply an empty list over a good one.
     #[must_use]
-    pub fn managed_servers_freshness(installed: Option<&str>, expected: Option<&[String]>) -> Freshness {
+    pub fn managed_servers_freshness(
+        installed: Option<&str>,
+        expected: Option<&[String]>,
+    ) -> Freshness {
         let Some(expected) = expected else {
             return Freshness::Unchecked;
         };
@@ -200,7 +203,9 @@ impl ProfileState {
             Ok(list) => list,
             Err(e) => {
                 return Freshness::Unverifiable {
-                    reason: format!("the installed managed MCP server list is not a JSON array: {e}"),
+                    reason: format!(
+                        "the installed managed MCP server list is not a JSON array: {e}"
+                    ),
                 };
             },
         };

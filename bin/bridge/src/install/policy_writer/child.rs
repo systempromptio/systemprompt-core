@@ -13,10 +13,7 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use super::spool::read_anchor;
-use super::{
-    Layout, MAX_REQUEST_BYTES, PolicyWriteRequest, PolicyWriterError, REQUEST_VERSION,
-    derive_policy, verify_against_anchor,
-};
+use super::{Layout, PolicyWriteRequest, PolicyWriterError, derive_policy, verify_against_anchor};
 use crate::config::store::{self, PolicyHive, PolicyTarget};
 use crate::install::elevated_protocol::{
     CompletedStep, ElevatedResult, ElevatedState, PROTOCOL_VERSION,
@@ -30,7 +27,13 @@ pub(crate) fn perform_task(spool_root: &str) -> ExitCode {
     // Why: the root is recomputed from the machine's ProgramData rather than
     // taken from the argument; the argument only has to agree, so a task
     // whose action was edited to another directory refuses to run.
-    let layout = super::spool::layout();
+    let layout = match super::spool::layout() {
+        Ok(layout) => layout,
+        Err(e) => {
+            tracing::error!(target: "bridge::policy_writer", error = %e, "cannot resolve writer root");
+            return ExitCode::FAILURE;
+        },
+    };
     if Path::new(spool_root) != layout.root {
         tracing::error!(
             target: "bridge::policy_writer",
@@ -40,6 +43,13 @@ pub(crate) fn perform_task(spool_root: &str) -> ExitCode {
         );
         return ExitCode::FAILURE;
     }
+    let _directories = match super::paths::secure_directories(&layout, false) {
+        Ok(handles) => handles,
+        Err(e) => {
+            tracing::error!(target: "bridge::policy_writer", error = %e, "unsafe writer directories");
+            return ExitCode::FAILURE;
+        },
+    };
     let mut failed = false;
     for request_path in pending_requests(&layout) {
         if let Err(e) = process(&layout, &request_path) {
@@ -71,56 +81,17 @@ fn pending_requests(layout: &Layout) -> Vec<PathBuf> {
             path.file_name()
                 .and_then(|n| n.to_str())
                 .is_some_and(|n| n.starts_with("request-"))
-                && path.extension().is_some_and(|ext| ext.eq_ignore_ascii_case("json"))
+                && path
+                    .extension()
+                    .is_some_and(|ext| ext.eq_ignore_ascii_case("json"))
         })
         .collect();
     out.sort();
     out
 }
 
-// Why: a request is read through a symlink-refusing open with a size cap
-// before it is parsed: the inbox admits any user's file, and a link into
-// another account's data or a file the size of a disk must not reach the
-// parser.
-fn read_request(path: &Path) -> Result<PolicyWriteRequest, PolicyWriterError> {
-    let meta = std::fs::symlink_metadata(path).map_err(|source| PolicyWriterError::Io {
-        context: format!("stat {}", path.display()),
-        source,
-    })?;
-    if !meta.is_file() {
-        return Err(PolicyWriterError::Io {
-            context: path.display().to_string(),
-            source: io::Error::other("request is not a regular file"),
-        });
-    }
-    if meta.len() > MAX_REQUEST_BYTES {
-        return Err(PolicyWriterError::Io {
-            context: path.display().to_string(),
-            source: io::Error::other(format!(
-                "request is {} bytes; the cap is {MAX_REQUEST_BYTES}",
-                meta.len()
-            )),
-        });
-    }
-    let bytes = std::fs::read(path).map_err(|source| PolicyWriterError::Io {
-        context: format!("read {}", path.display()),
-        source,
-    })?;
-    let request: PolicyWriteRequest =
-        serde_json::from_slice(&bytes).map_err(|e| PolicyWriterError::Io {
-            context: format!("decode {}", path.display()),
-            source: io::Error::other(e),
-        })?;
-    if request.version != REQUEST_VERSION {
-        return Err(PolicyWriterError::Version {
-            actual: request.version,
-        });
-    }
-    Ok(request)
-}
-
 fn process(layout: &Layout, request_path: &Path) -> Result<(), PolicyWriterError> {
-    let request = read_request(request_path)?;
+    let request = super::request::read_request(request_path)?;
     let result_path = layout.result_path(request.job_id);
     let mut result = ElevatedResult {
         version: PROTOCOL_VERSION,

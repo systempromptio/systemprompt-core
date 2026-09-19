@@ -16,6 +16,8 @@ concurrency:
 permissions:
   contents: write
   id-token: write
+  actions: read
+  pull-requests: read
 
 env:
   # Why: transient TLS resets from static.rust-lang.org and crates.io fail a run
@@ -34,26 +36,10 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.inputs.bridge_tag || github.ref }}
-      # keyring → dbus-secret-service → libdbus-sys builds from pkg-config;
-      # ubuntu-latest no longer ships libdbus-1-dev.
-      - run: |
-          # A mirror hiccup is infrastructure, not a code failure; three
-          # bounded attempts, then the step still fails.
-          n=0
-          until sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config; do
-              n=$((n + 1))
-              [ "$n" -lt 3 ] || exit 1
-              sleep 15
-          done
-      - run: rustup show
-      # Scope the gate to the bridge package: `--all` formats/lints the whole
-      # enclosing workspace, so unrelated crates (committed by other work, and
-      # subject to nightly rustfmt churn) would block a bridge release.
-      - run: cargo fmt --manifest-path bin/bridge/Cargo.toml -p systemprompt-bridge -- --check
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: bin/bridge
-      - run: cargo clippy --manifest-path bin/bridge/Cargo.toml -p systemprompt-bridge --all-targets -- -D warnings
+      - name: Verify merged promotion proof
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/release-proof.py merged HEAD
 
   build:
     name: Build ${{ matrix.target }}
@@ -198,59 +184,99 @@ jobs:
             || { echo "::error::$TAG is still a draft after publishing"; exit 1; }
 
   bump-scoop:
-    name: Bump Scoop bucket (bridge)
+    name: Propose Scoop bucket update (bridge)
     needs: release
     runs-on: ubuntu-latest
     steps:
       - name: Resolve tag
         id: tag
-        run: |
-          tag="${{ github.event.inputs.bridge_tag || github.ref_name }}"
-          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
-          echo "version=${tag#bridge-v}" >> "$GITHUB_OUTPUT"
-
-      - name: Update bucket/bridge.json
         env:
-          BUCKET_TOKEN: ${{ secrets.SCOOP_BUCKET_TOKEN }}
+          RELEASE_TAG: ${{ github.event.inputs.bridge_tag || github.ref_name }}
         run: |
-          if [ -z "$BUCKET_TOKEN" ]; then
-            echo "::error::SCOOP_BUCKET_TOKEN not set — the Scoop bucket cannot be bumped"
+          [[ "$RELEASE_TAG" =~ ^bridge-v[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
+            echo "::error::Expected a bridge-vX.Y.Z release tag"; exit 1; }
+          echo "tag=${RELEASE_TAG}" >> "$GITHUB_OUTPUT"
+          echo "version=${RELEASE_TAG#bridge-v}" >> "$GITHUB_OUTPUT"
+
+      - name: Open or update Scoop manifest proposal
+        id: proposal
+        env:
+          GH_TOKEN: ${{ secrets.SCOOP_BUCKET_TOKEN }}
+          RELEASE_TAG: ${{ steps.tag.outputs.tag }}
+          RELEASE_VERSION: ${{ steps.tag.outputs.version }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::SCOOP_BUCKET_TOKEN not set — the Scoop update requires a distribution PR"
             exit 1
           fi
-          tag="${{ steps.tag.outputs.tag }}"
-          version="${{ steps.tag.outputs.version }}"
-          url="https://github.com/systempromptio/systemprompt-core/releases/download/${tag}/systemprompt-bridge-x86_64-pc-windows-msvc.exe"
+          repo=systempromptio/scoop-bucket
+          branch="release/bridge-${RELEASE_VERSION}"
+          base=$(gh repo view "$repo" --json defaultBranchRef --jq .defaultBranchRef.name)
+          [ -n "$base" ] && [ "$base" != null ] || {
+            echo "::error::Scoop default branch is unavailable"; exit 1; }
+          url="https://github.com/systempromptio/systemprompt-core/releases/download/${RELEASE_TAG}/systemprompt-bridge-x86_64-pc-windows-msvc.exe"
           curl -fsSL "$url" -o bridge.exe
           hash=$(sha256sum bridge.exe | cut -d' ' -f1)
-          git clone "https://x-access-token:${BUCKET_TOKEN}@github.com/systempromptio/scoop-bucket.git" bucket
-          python3 - "$version" "$url" "$hash" <<'EOF'
-          import json, sys
-          version, url, hash_ = sys.argv[1:4]
-          p = 'bucket/bucket/bridge.json'
-          m = json.load(open(p))
-          m['version'] = version
-          m['architecture']['64bit']['url'] = url + '#/systemprompt-bridge.exe'
-          m['architecture']['64bit']['hash'] = hash_
-          json.dump(m, open(p, 'w'), indent=2)
-          open(p, 'a').write('\n')
-          EOF
+          gh auth setup-git
+          gh repo clone "https://github.com/$repo.git" bucket -- --branch "$base"
           cd bucket
+          if git ls-remote --exit-code --heads origin "refs/heads/$branch" >/dev/null; then
+            git fetch origin "refs/heads/$branch:refs/remotes/origin/$branch"
+            git switch --create "$branch" --track "origin/$branch"
+          else
+            git switch --create "$branch"
+          fi
+          python3 - "$RELEASE_VERSION" "$url" "$hash" <<'EOF'
+          import json, sys
+          from pathlib import Path
+          version, url, hash_ = sys.argv[1:4]
+          path = Path('bucket/bridge.json')
+          manifest = json.loads(path.read_text())
+          manifest['version'] = version
+          manifest['architecture']['64bit']['url'] = url + '#/systemprompt-bridge.exe'
+          manifest['architecture']['64bit']['hash'] = hash_
+          path.write_text(json.dumps(manifest, indent=2) + '\n')
+          EOF
           git config user.name "systemprompt-bot"
           git config user.email "bot@systemprompt.io"
           git add bucket/bridge.json
-          git diff --cached --quiet || { git commit -m "bridge: update to ${version}"; git push; }
+          if ! git diff --cached --quiet; then
+            git commit -m "bridge: update to ${RELEASE_VERSION}"
+          fi
+          git push origin "HEAD:refs/heads/$branch"
+          pr=$(gh pr list --repo "$repo" --base "$base" --head "$branch" --state open --json url --jq '.[0].url // empty')
+          if [ -z "$pr" ]; then
+            body_file=$(mktemp)
+            printf 'Update the bridge manifest to %s using the released Windows executable and its SHA-256 digest.\n\nThis is a proposal; the default branch changes only after this PR is reviewed and merged.\n' "$RELEASE_VERSION" > "$body_file"
+            pr=$(gh pr create --repo "$repo" --base "$base" --head "$branch" \
+              --title "bridge: update to ${RELEASE_VERSION}" --body-file "$body_file")
+            rm "$body_file"
+          fi
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+          echo "url=$url#/systemprompt-bridge.exe" >> "$GITHUB_OUTPUT"
+          echo "hash=$hash" >> "$GITHUB_OUTPUT"
+          echo "pr=$pr" >> "$GITHUB_OUTPUT"
+          echo "Scoop proposal awaits review and merge: $pr"
 
-      # The published manifest is read back through the contents API rather than
-      # raw.githubusercontent, which serves a cached blob for minutes after a
-      # push and would confirm the bump that did not happen.
-      - name: Verify published manifest
+      - name: Verify proposed manifest contents
         env:
           GH_TOKEN: ${{ secrets.SCOOP_BUCKET_TOKEN }}
+          PROPOSAL_BRANCH: ${{ steps.proposal.outputs.branch }}
+          RELEASE_VERSION: ${{ steps.tag.outputs.version }}
+          RELEASE_URL: ${{ steps.proposal.outputs.url }}
+          RELEASE_HASH: ${{ steps.proposal.outputs.hash }}
+          PROPOSAL_URL: ${{ steps.proposal.outputs.pr }}
         run: |
-          version="${{ steps.tag.outputs.version }}"
-          published=$(gh api repos/systempromptio/scoop-bucket/contents/bucket/bridge.json --jq .content | base64 -d | python3 -c 'import json,sys; print(json.load(sys.stdin)["version"])')
-          if [ "$published" != "$version" ]; then
-            echo "::error::Scoop bucket publishes $published, expected $version"
-            exit 1
-          fi
-          echo "Scoop bucket publishes $published"
+          gh api --method GET repos/systempromptio/scoop-bucket/contents/bucket/bridge.json \
+            -f ref="$PROPOSAL_BRANCH" --jq .content | base64 -d > proposed-manifest.json
+          python3 - <<'EOF'
+          import json, os
+          from pathlib import Path
+          manifest = json.loads(Path('proposed-manifest.json').read_text())
+          artifact = manifest['architecture']['64bit']
+          expected = (os.environ['RELEASE_VERSION'], os.environ['RELEASE_URL'], os.environ['RELEASE_HASH'])
+          actual = (manifest['version'], artifact['url'], artifact['hash'])
+          if actual != expected:
+              raise SystemExit(f'Scoop proposal contents differ: {actual!r} != {expected!r}')
+          EOF
+          echo "Verified Scoop proposal version, URL and SHA-256; pending merge: $PROPOSAL_URL"

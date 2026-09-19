@@ -9,8 +9,6 @@ on:
         required: false
   pull_request:
     branches: [main, next]
-  push:
-    branches: [main, next]
 
 concurrency:
   group: quality-${{ inputs.ref || github.ref }}
@@ -32,7 +30,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.ref || github.ref }}
+          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.ref }}
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
@@ -50,7 +48,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.ref || github.ref }}
+          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.ref }}
       # `just lint` covers bin/bridge, whose keyring backend pulls
       # libdbus-sys through pkg-config; ubuntu-latest no longer ships
       # libdbus-1-dev.
@@ -66,8 +64,50 @@ jobs:
       - run: rustup show
       - uses: mozilla-actions/sccache-action@v0.0.9
       - uses: extractions/setup-just@v2
-      - run: just lint
+      - run: cargo clippy --workspace --all-targets --all-features --keep-going --locked -- -D warnings
+      - run: cargo clippy --manifest-path bin/bridge/Cargo.toml --all-targets --all-features --keep-going --locked -- -D warnings
       - run: sccache --show-stats
+
+  lint-tests:
+    name: Test workspace all-targets clippy
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      SQLX_OFFLINE: "false"
+      DATABASE_URL: postgres://test:test@localhost:5432/test
+      CARGO_BUILD_JOBS: "2"
+      CARGO_PROFILE_DEV_DEBUG: "0"
+      SCCACHE_GHA_ENABLED: "true"
+      RUSTC_WRAPPER: sccache
+      CARGO_INCREMENTAL: "0"
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: test
+          POSTGRES_USER: test
+          POSTGRES_DB: test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.ref }}
+      - run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
+      - run: python3 scripts/ci-strip-cargo-config.py
+      - run: rustup show
+      - uses: mozilla-actions/sccache-action@v0.0.9
+      - name: Migrate disposable database
+        env:
+          SQLX_OFFLINE: "true"
+        run: cargo run --locked --manifest-path crates/tests/Cargo.toml -p systemprompt-test-migrate
+      - run: cargo clippy --manifest-path crates/tests/Cargo.toml --workspace --all-targets --all-features --keep-going --locked -- -D warnings
+      - run: sccache --show-stats
+        if: ${{ !cancelled() }}
 
   bridge-native:
     # The bridge's GUI, winproc, and keystore backends are cfg-gated to
@@ -86,7 +126,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.ref || github.ref }}
+          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.ref }}
       - run: rustup show
       - uses: Swatinem/rust-cache@v2
         with:
@@ -113,7 +153,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.ref || github.ref }}
+          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.ref }}
       # bin/bridge's linux keyring backend pulls libdbus-sys via pkg-config.
       - run: |
           # A mirror hiccup is infrastructure, not a code failure; three
@@ -141,7 +181,7 @@ jobs:
       # is what keeps it green for the right reason.
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.ref || github.ref }}
+          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.ref }}
           fetch-depth: 0
       # bridge-bindings-check compiles the bridge to run the ts-rs export, so
       # this job needs the keyring backend's libdbus-sys like every other job
@@ -245,6 +285,8 @@ jobs:
         if: ${{ !cancelled() }}
       - run: just lint-repo-construction
         if: ${{ !cancelled() }}
+      - run: python3 scripts/test-release-proof.py
+        if: ${{ !cancelled() }}
       - run: just check-release-tag
         if: ${{ !cancelled() }}
       - run: just check-crate-changelogs
@@ -293,7 +335,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.ref || github.ref }}
+          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.ref }}
       # bin/bridge's linux keyring backend pulls libdbus-sys via pkg-config.
       - run: |
           # A mirror hiccup is infrastructure, not a code failure; three
@@ -327,7 +369,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.ref || github.ref }}
+          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.ref }}
       - uses: extractions/setup-just@v2
       - run: just file-size
 
@@ -335,7 +377,7 @@ jobs:
   quality-passed:
     name: Quality passed
     runs-on: ubuntu-latest
-    needs: [bridge-web, lint, bridge-native, docs, source-gates, msrv, file-size]
+    needs: [bridge-web, lint, lint-tests, bridge-native, docs, source-gates, msrv, file-size]
     if: always()
     steps:
       - run: |
