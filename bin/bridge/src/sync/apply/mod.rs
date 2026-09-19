@@ -12,7 +12,7 @@
 mod evidence;
 mod fetch;
 mod hooks;
-mod loopback;
+pub(super) mod loopback;
 pub mod node_deps;
 mod plugin;
 pub mod safe_path;
@@ -174,11 +174,7 @@ pub(crate) fn check_not_superseded(run_gateway: &ValidatedUrl) -> Result<(), App
     })
 }
 
-pub fn prepare_dirs(root: &Path) -> Result<(std::path::PathBuf, std::path::PathBuf), ApplyError> {
-    fs::create_dir_all(root).map_err(|e| ApplyError::Io {
-        context: format!("create {}", root.display()),
-        source: e,
-    })?;
+pub fn metadata_dir() -> Result<std::path::PathBuf, ApplyError> {
     let meta_dir = paths::bridge_metadata_dir().ok_or_else(|| ApplyError::Io {
         context: "resolve bridge metadata dir".into(),
         source: std::io::Error::other("no LOCALAPPDATA / state dir resolvable"),
@@ -187,6 +183,15 @@ pub fn prepare_dirs(root: &Path) -> Result<(std::path::PathBuf, std::path::PathB
         context: format!("create metadata dir at {}", meta_dir.display()),
         source: e,
     })?;
+    Ok(meta_dir)
+}
+
+pub fn prepare_dirs(root: &Path) -> Result<(std::path::PathBuf, std::path::PathBuf), ApplyError> {
+    fs::create_dir_all(root).map_err(|e| ApplyError::Io {
+        context: format!("create {}", root.display()),
+        source: e,
+    })?;
+    let meta_dir = metadata_dir()?;
     let staging_root = paths::bridge_staging_dir().ok_or_else(|| ApplyError::Io {
         context: "resolve bridge staging dir".into(),
         source: std::io::Error::other("no LOCALAPPDATA / state dir resolvable"),
@@ -216,6 +221,26 @@ pub fn write_user(meta_dir: &Path, user: Option<&UserInfo>) -> Result<FileReceip
         })?,
         None => b"null".to_vec(),
     };
+    write_fragment(&path, &bytes)
+}
+
+// Why: the Windows policy writer accepts only a gateway-signed manifest and
+// re-verifies it under SYSTEM, so the envelope is kept verbatim rather than
+// the decoded manifest — a decoded copy could not be re-verified.
+pub fn write_envelope(
+    meta_dir: &Path,
+    gateway: &ValidatedUrl,
+    envelope: &systemprompt_models::bridge::manifest::SignedManifestEnvelope,
+) -> Result<FileReceipt, ApplyError> {
+    let path = meta_dir.join(paths::MANIFEST_ENVELOPE_FRAGMENT);
+    let fragment = crate::mcp_registry::EnvelopeFragment {
+        gateway: gateway.clone(),
+        envelope: envelope.clone(),
+    };
+    let bytes = serde_json::to_vec_pretty(&fragment).map_err(|e| ApplyError::Serialize {
+        what: "manifest envelope".into(),
+        source: e,
+    })?;
     write_fragment(&path, &bytes)
 }
 

@@ -191,9 +191,9 @@ check-gates: check-version-strings check-lockfile-registry lint-env-vars lint-na
 check: check-gates
     cargo check --workspace --keep-going
 
-# Check offline (uses cached .sqlx metadata, no database required)
+# Verify publishable caches without the development cache or warm workspace outputs.
 check-offline:
-    SQLX_OFFLINE=true cargo check --workspace
+    bash scripts/check-offline.sh
 
 # Format code (nightly: rustfmt.toml uses unstable options).
 # Covers the separate `crates/tests` and `bin/bridge` workspaces too — `--all`
@@ -1004,7 +1004,7 @@ test-rust *args:
     psql "${base}/postgres" -v ON_ERROR_STOP=1 -c "CREATE DATABASE \"${name}\";" >/dev/null
     echo "▶ applying extension schemas (offline build)"
     SQLX_OFFLINE=true DATABASE_URL="${db}" \
-        cargo run --manifest-path crates/tests/Cargo.toml -p systemprompt-test-migrate --release
+        cargo run --manifest-path crates/tests/Cargo.toml -p systemprompt-test-migrate
     echo "▶ running Rust test workspace (live against migrated schema)"
     SQLX_OFFLINE=false DATABASE_URL="${db}" \
         cargo test --manifest-path crates/tests/Cargo.toml --workspace --lib {{args}}
@@ -1040,7 +1040,7 @@ test-shard GROUP *args:
     psql "${base}/postgres" -v ON_ERROR_STOP=1 -c "CREATE DATABASE \"${name}\";" >/dev/null
     echo "▶ applying extension schemas (offline build)"
     SQLX_OFFLINE=true DATABASE_URL="${db}" \
-        cargo run --manifest-path crates/tests/Cargo.toml -p systemprompt-test-migrate --release
+        cargo run --manifest-path crates/tests/Cargo.toml -p systemprompt-test-migrate
     echo "▶ running shard {{GROUP}} (live against migrated schema)"
     SQLX_OFFLINE=false DATABASE_URL="${db}" \
         bash scripts/test-shard.sh {{GROUP}} {{args}}
@@ -1754,60 +1754,11 @@ webauthn-admin EMAIL="admin@localhost":
 
     $CLI admin users webauthn generate-setup-token --email "{{EMAIL}}"
 
-# Run every pre-release gate against a ref (default: the tip of `next`).
-#
-# Every push to `next` already runs these same workflows on that exact SHA,
-# and a green push run is a gate run: the recipe first looks for completed
-# CI / Quality / Supply Chain runs on the commit and dispatches only what is
-# missing or red. `just gate SHA --force` re-dispatches everything. Dispatched
-# runs carry an explicit ref, so they are pinned to the SHA you are about to
-# promote rather than to whatever `next` points at now. Coverage is not a
-# gate (it measures `main` after the merge) and is not dispatched here.
-gate REF="" FORCE="":
-    #!/usr/bin/env bash
-    set -euo pipefail
-    REPO=$(gh repo view --json nameWithOwner --jq .nameWithOwner)
-    REF="{{REF}}"; [ -n "$REF" ] || REF=$(git rev-parse origin/next)
-    REF=$(git rev-parse "$REF")
-    echo "Gating ${REF:0:9} on $REPO"
-    WFS=(ci.yml quality.yml)
-    [ -f .github/workflows/supply-chain.yml ] && WFS+=(supply-chain.yml)
-    declare -A RUN_ID
-    NEED=()
-    for wf in "${WFS[@]}"; do
-        ID=""
-        if [ "{{FORCE}}" != "--force" ]; then
-            ID=$(gh run list -R "$REPO" --workflow="$wf" --commit "$REF" --status success \
-                    --limit 1 --json databaseId --jq '.[0].databaseId // empty')
-        fi
-        if [ -n "$ID" ]; then
-            RUN_ID[$wf]=$ID
-            printf "  %-18s already green (run %s)\n" "$wf" "$ID"
-        else
-            NEED+=("$wf")
-        fi
-    done
-    for wf in "${NEED[@]}"; do
-        gh workflow run "$wf" -R "$REPO" --ref "$(git rev-parse --abbrev-ref HEAD)" -f ref="$REF"
-        echo "  dispatched $wf"
-    done
-    if [ "${#NEED[@]}" -gt 0 ]; then
-        echo "Waiting for results (ctrl-c is safe; the runs continue)..."
-        sleep 15
-        for wf in "${NEED[@]}"; do
-            RUN_ID[$wf]=$(gh run list -R "$REPO" --workflow="$wf" --event workflow_dispatch \
-                            --limit 1 --json databaseId --jq '.[0].databaseId')
-        done
-    fi
-    FAIL=0
-    for wf in "${NEED[@]}"; do
-        gh run watch "${RUN_ID[$wf]}" -R "$REPO" --exit-status >/dev/null 2>&1 && R=pass || { R=FAIL; FAIL=1; }
-        printf "  %-18s %s\n" "$wf" "$R"
-    done
-    [ "$FAIL" = 0 ] && echo "All gates green for ${REF:0:9} — 'just promote ${REF:0:9}' to open the release PR." \
-                    || { echo "Gates failed; main untouched."; exit 1; }
+# Read candidate readiness or the existing promotion PR proof; never dispatch.
+gate REF="origin/next":
+    python3 scripts/release-proof.py gate "{{REF}}"
 
-# Open the release pull request from a gated commit onto the protected `main`.
+# Open the release pull request that proves a frozen candidate for protected `main`.
 #
 # `main` refuses direct pushes, so a PR is the only way in. The commit is frozen
 # on the `promote` ref first: a PR headed at `next` would merge whatever `next`
@@ -1816,17 +1767,18 @@ gate REF="" FORCE="":
 promote SHA="":
     #!/usr/bin/env bash
     set -euo pipefail
-    REPO=$(gh repo view --json nameWithOwner --jq .nameWithOwner)
+    REPO=systempromptio/systemprompt-core
     SHA="{{SHA}}"; [ -n "$SHA" ] || SHA=$(git rev-parse origin/next)
     SHA=$(git rev-parse "$SHA")
     git fetch -q origin main
     if git merge-base --is-ancestor "$SHA" origin/main; then
         echo "main already contains ${SHA:0:9} — nothing to promote."; exit 0
     fi
+    python3 scripts/release-proof.py candidate "$SHA"
     echo "Release PR will carry ${SHA:0:9} onto main:"
     git log --oneline origin/main.."$SHA" | sed 's/^/    /'
     git push --force origin "$SHA:refs/heads/promote"
-    NUM=$(gh pr list --base main --head promote --state open --json number --jq '.[0].number // empty')
+    NUM=$(gh pr list -R "$REPO" --base main --head promote --state open --json number --jq '.[0].number // empty')
     if [ -z "$NUM" ]; then
         NUM=$(gh api -X POST "repos/$REPO/pulls" -f title="Release: promote next to main" \
                 -f head=promote -f base=main \

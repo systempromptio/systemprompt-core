@@ -96,6 +96,34 @@ fn needs_elevation_notice(
     }
 }
 
+// Why: an install that returned Ok has written a file or a hive; whether the
+// host now reads the server list we meant is a separate fact, and the one
+// the user is waiting on. Read it back before reporting success. A profile
+// the OS holds for approval is not read back — it is not installed yet.
+fn verify_managed_servers(app: &GuiApp, host_id: &HostId) -> Result<Option<usize>, String> {
+    let Some(host) = find_host_by_id(host_id.as_str()) else {
+        return Ok(None);
+    };
+    if !host.profile_carries_managed_servers() || manual_approval_notice(host).is_some() {
+        return Ok(None);
+    }
+    let env = app.probe_env();
+    let expected = env.expected_managed_servers.as_ref().map(Vec::len);
+    let snapshot = host.probe(&env);
+    match snapshot.profile_state {
+        crate::integration::ProfileState::Stale {
+            reason: crate::integration::StaleReason::ManagedServers,
+        } => Err(format!(
+            "[{host_id}] the profile was written, but the installed managed MCP server list still \
+             differs from the {} server(s) the gateway grants; the write did not reach the policy \
+             {} reads",
+            expected.unwrap_or(0),
+            host.display_name()
+        )),
+        _ => Ok(expected),
+    }
+}
+
 fn manual_approval_notice(host: &dyn crate::integration::HostApp) -> Option<String> {
     (cfg!(target_os = "macos") && host.config_format() == crate::integration::ConfigFormat::Plist)
         .then(|| {
@@ -195,7 +223,19 @@ pub(crate) fn on_profile_install_finished(
             for warning in &warnings {
                 app.append_log_warn(format!("[{host_id}] {warning}"));
             }
-            Ok(json!({ "path": path, "warnings": warnings }))
+            match verify_managed_servers(app, host_id) {
+                Ok(connectors) => {
+                    Ok(json!({ "path": path, "warnings": warnings, "connectors": connectors }))
+                },
+                Err(line) => {
+                    app.append_log_error(&line);
+                    Err(BridgeError::new(
+                        ErrorScope::Host,
+                        ErrorCode::Internal,
+                        line,
+                    ))
+                },
+            }
         },
         Err(e) => {
             let (code, line) = match e.as_ref() {
@@ -231,6 +271,12 @@ async fn generate_profile_for(
     bridge: &crate::context::BridgeContext,
     overrides: &std::collections::BTreeMap<String, Vec<String>>,
 ) -> GuiResult<GeneratedProfile> {
+    crate::sync::refresh_registry_for(bridge, host)
+        .await
+        .map_err(|e| GuiError::Profile {
+            context: "refresh managed MCP servers from the gateway".into(),
+            source: std::io::Error::other(e.to_string()),
+        })?;
     let inputs = crate::integration::reapply::build_profile_inputs(bridge, host, overrides)
         .await
         .map_err(|e| GuiError::Profile {

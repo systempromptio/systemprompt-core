@@ -8,6 +8,7 @@ use std::time::Duration;
 
 use crate::cli::args::{has_flag, parse_opt_flag};
 use crate::context::BridgeContext;
+use crate::gateway::Freshness;
 use crate::{stdio, sync};
 
 pub fn cmd_sync(ctx: &BridgeContext, args: &[String]) -> ExitCode {
@@ -28,6 +29,11 @@ pub fn cmd_sync(ctx: &BridgeContext, args: &[String]) -> ExitCode {
         allow_unsigned: has_flag(args, "--allow-unsigned"),
         force_replay: has_flag(args, "--force-replay"),
         allow_tofu: has_flag(args, "--allow-tofu"),
+        freshness: if has_flag(args, "--fresh") {
+            Freshness::Fresh
+        } else {
+            Freshness::Memo
+        },
         cancel: tokio_util::sync::CancellationToken::new(),
     };
 

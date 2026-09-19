@@ -9,7 +9,7 @@ use std::sync::atomic::Ordering;
 use serde::Serialize;
 
 use crate::proxy::mcp_probe::{McpAuthState, McpServerAuth};
-use crate::validate::{CheckLine, ValidationCode, ValidationReport};
+use crate::validate::{CheckLevel, CheckLine, ValidationCode, ValidationReport};
 use crate::verdict::{Tone, Verdict};
 use crate::wire::codes::GatewayCode;
 
@@ -43,6 +43,7 @@ impl<'a> From<&'a McpServerAuth> for McpServerAuthPayload<'a> {
 #[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
 pub struct CheckLinePayload<'a> {
     pub tone: Tone,
+    pub level: CheckLevel,
     pub label: &'a str,
     pub value: &'a str,
 }
@@ -69,6 +70,7 @@ impl<'a> From<&'a ValidationReport> for ValidationPayload<'a> {
                          value,
                      }| CheckLinePayload {
                         tone: level.tone(),
+                        level: *level,
                         label,
                         value,
                     },

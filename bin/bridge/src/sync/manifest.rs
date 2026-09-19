@@ -7,11 +7,11 @@
 use super::error::SyncError;
 use crate::auth::secret::Secret;
 use crate::config;
-use crate::gateway::GatewayClient;
 use crate::gateway::errors::GatewayError;
 use crate::gateway::manifest::{
     ManifestError, SignedManifest, SignedManifestEnvelope, decode_payload, verify_envelope,
 };
+use crate::gateway::{Freshness, GatewayClient};
 use crate::ids::PinnedPubKey;
 
 struct RejectedCredential<'a> {
@@ -87,7 +87,7 @@ fn credential_dir_override_note() -> String {
     }
 }
 
-fn map_manifest_error(err: ManifestError) -> SyncError {
+pub(super) fn map_manifest_error(err: ManifestError) -> SyncError {
     match err {
         ManifestError::SchemaTooNew {
             required,
@@ -140,6 +140,7 @@ pub(super) struct ManifestFetch {
 
 pub(super) async fn fetch_authenticated_manifest(
     http: &reqwest::Client,
+    freshness: Freshness,
 ) -> Result<ManifestFetch, SyncError> {
     let cfg = config::load()?;
     let gateway = config::gateway_url_or_default(&cfg);
@@ -154,13 +155,13 @@ pub(super) async fn fetch_authenticated_manifest(
         None => fetch_fresh_token(http, &cfg).await?,
     };
 
-    let mut envelope = client.fetch_manifest(&bearer).await;
+    let mut envelope = client.fetch_manifest(&bearer, freshness).await;
 
     if is_unauthorized(&envelope) && was_cached {
         tracing::warn!("gateway refused the cached token; discarding it and re-authenticating");
         crate::auth::cache::clear().map_err(SyncError::CredentialCache)?;
         bearer = fetch_fresh_token(http, &cfg).await?;
-        envelope = client.fetch_manifest(&bearer).await;
+        envelope = client.fetch_manifest(&bearer, freshness).await;
     }
 
     if is_unauthorized(&envelope) {

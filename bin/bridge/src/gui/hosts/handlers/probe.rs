@@ -194,6 +194,10 @@ fn describe_snapshot(snap: &HostAppSnapshot, proxy_port: u16) -> String {
                 "profile points at the wrong proxy port — this proxy is on {proxy_port} \
                  (re-apply required)"
             ),
+            StaleReason::ManagedServers => {
+                "profile's managed MCP server list is behind the gateway (update required)"
+                    .to_owned()
+            },
         },
     };
     let process = match snap.host_running {

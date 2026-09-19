@@ -33,10 +33,10 @@ Facade (1)     systemprompt (re-exports with feature gates)
 ```toml
 # Full installation
 [dependencies]
-systemprompt = { version = "0.56", features = ["full"] }
+systemprompt = { version = "0.57", features = ["full"] }
 
 # Selective (pick what you need)
-systemprompt = { version = "0.56", features = ["core", "database", "mcp"] }
+systemprompt = { version = "0.57", features = ["core", "database", "mcp"] }
 ```
 
 Requires PostgreSQL 18+ at runtime.
@@ -131,14 +131,15 @@ and Rustdoc placement; assess necessity and accuracy during code review.
 
 If you are an agent working in this repository:
 
-- **All work lands on `next`** — the default branch. Pushes and pull requests targeting `next` run
-  the configured CI, Quality and Supply Chain workflows.
+- **All work lands on `next`** — the default branch. Pushes to `next` run candidate ancestry checks. Pull requests run the configured
+  CI, Quality and Supply Chain workflows.
 - **`main` is protected and release-only.** A ruleset requires a pull request
   and grants no bypass to anyone; a direct `git push origin main` is refused
   for agents and admins alike. Never target `main`.
-- Releases are deliberate: `just gate` runs the CI/Quality/Supply Chain
-  workflows against a `next` commit on remote runners; `just promote` freezes
-  that gated commit on the `promote` ref and opens the release PR onto `main`.
+- Releases are deliberate: `just gate` reads candidate readiness or existing PR
+  proof without dispatching workflows; `just promote` freezes the candidate
+  on `promote` and opens the release PR onto `main`. The PR runs the complete
+  matrix once and requires `CI passed`, `Quality passed` and `Supply Chain passed`.
   After merge, `main` is tagged (`vX.Y.Z`) and the workspace is published to
   crates.io.
 - Downstream repos (`systemprompt-template`, `systemprompt-demo`, and private

@@ -54,9 +54,16 @@ export class SpToast extends SpElement {
     this._unsubs.push(onBridgeEvent("sp:toast", (e) => {
       const d = (e && e.detail) || {};
       if (!d.message) { return; }
+      // Why: the same failure arrives twice — on the error channel, with its
+      // action, and then as the rejected request. Clearing the action before
+      // `show` de-duplicated the second left the visible toast with no button:
+      // "needs administrator approval" and nothing to press. Only a toast that
+      // actually replaces the last one drops its predecessor's action.
+      if (!this.show(d.message, d.kind || "info", d.durationMs === undefined ? 6000 : d.durationMs, d.key || d.message)) {
+        return;
+      }
       this.action = null;
       this.gatewayError = false;
-      this.show(d.message, d.kind || "info", d.durationMs === undefined ? 6000 : d.durationMs, d.key || d.message);
     }));
   }
 
@@ -71,9 +78,10 @@ export class SpToast extends SpElement {
     await action.run();
   }
 
+  // Returns whether the toast was shown: false when de-duplicated.
   show(message, kind = "info", durationMs = 6000, key = message) {
     const now = Date.now();
-    if (key === this._lastMessage && now - this._lastAt < DEDUPE_MS) { return; }
+    if (key === this._lastMessage && now - this._lastAt < DEDUPE_MS) { return false; }
     this._lastMessage = key;
     this._lastAt = now;
     this.message = message;
@@ -83,6 +91,7 @@ export class SpToast extends SpElement {
     if (durationMs > 0) {
       this._timer = setTimeout(() => this.hide(), durationMs);
     }
+    return true;
   }
 
   hide() {

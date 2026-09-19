@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.57.0] - 2026-09-19
+
+### Added
+
+- **MCP proxy:** external server configuration accepts `tools.<name>.arguments`. Configured values replace matching client arguments before governance, audit and upstream dispatch; other arguments are preserved. Missing or non-object argument containers are replaced with an object containing the configured values.
+
+### Fixed
+
+- **Gateway:** `GET /v1/bridge/manifest` honours `Cache-Control: no-cache` by rebuilding the resolved catalogue instead of using the 60-second per-user memo.
+
 ## [0.56.0] - 2026-09-18
 
 ### Added

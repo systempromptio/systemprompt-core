@@ -72,6 +72,7 @@ impl HostApp for HermesHost {
             read_error: read.probe_error.as_deref(),
             secret,
             endpoint,
+            managed_servers: Freshness::Unchecked,
         });
         let found = HostProcesses::from_enumeration(probe::list_hermes_processes());
         HostAppSnapshot {
@@ -88,6 +89,7 @@ impl HostApp for HermesHost {
                 &env.start_menu,
             ),
             probed_at_unix: config::now_unix(),
+            update_needs_approval: false,
         }
     }
 

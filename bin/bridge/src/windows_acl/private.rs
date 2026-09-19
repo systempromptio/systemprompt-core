@@ -52,11 +52,13 @@ pub(super) fn private_descriptor(reader: &str, scope: Scope) -> io::Result<Descr
         Scope::File => "",
         Scope::Directory => "OICI",
     };
-    let sddl: Vec<u16> =
-        format!("D:P(A;{flags};FA;;;{reader})(A;{flags};FA;;;SY)(A;{flags};FA;;;BA)")
-            .encode_utf16()
-            .chain(Some(0))
-            .collect();
+    descriptor_from_sddl(&format!(
+        "D:P(A;{flags};FA;;;{reader})(A;{flags};FA;;;SY)(A;{flags};FA;;;BA)"
+    ))
+}
+
+pub(super) fn descriptor_from_sddl(sddl: &str) -> io::Result<Descriptor> {
+    let sddl: Vec<u16> = sddl.encode_utf16().chain(Some(0)).collect();
     let mut descriptor = null_mut();
     // SAFETY: SDDL is NUL terminated and output lives through this call.
     unsafe {
@@ -68,6 +70,62 @@ pub(super) fn private_descriptor(reader: &str, scope: Scope) -> io::Result<Descr
         ))?;
     }
     Ok(Descriptor(descriptor))
+}
+
+// Why: the policy writer's spool and binary directories carry DACLs the
+// private-file shape cannot express (users may add a request, never read
+// another's); the descriptor is the caller's SDDL, applied protected and
+// verified byte for byte the way a private file is.
+pub(crate) fn apply_directory_sddl(path: &Path, sddl: &str) -> io::Result<()> {
+    let expected = descriptor_from_sddl(sddl)?;
+    let file = open_for_dac(path, Scope::Directory, READ_CONTROL | WRITE_DAC)?;
+    if verify_against(&file, &expected).is_ok() {
+        return Ok(());
+    }
+    let _guard = PROTECT
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let acl = descriptor_dacl(&expected)?;
+    // SAFETY: descriptor and handle remain live throughout the call.
+    unsafe {
+        status(SetSecurityInfo(
+            file.as_raw_handle(),
+            SE_FILE_OBJECT,
+            DACL_SECURITY_INFORMATION | PROTECTED_DACL_SECURITY_INFORMATION,
+            null_mut(),
+            null_mut(),
+            acl,
+            null_mut(),
+        ))?;
+    }
+    verify_against(&file, &expected)
+}
+
+pub(crate) fn verify_directory_sddl(path: &Path, sddl: &str) -> io::Result<()> {
+    let expected = descriptor_from_sddl(sddl)?;
+    let file = open_for_dac(path, Scope::Directory, READ_CONTROL)?;
+    verify_against(&file, &expected)
+}
+
+fn verify_against(file: &File, expected: &Descriptor) -> io::Result<()> {
+    let mut actual = null_mut();
+    let mut actual_acl = null_mut();
+    // SAFETY: file handle is live; Windows allocates a descriptor owned by
+    // Descriptor.
+    unsafe {
+        status(GetSecurityInfo(
+            file.as_raw_handle(),
+            SE_FILE_OBJECT,
+            DACL_SECURITY_INFORMATION,
+            null_mut(),
+            null_mut(),
+            &raw mut actual_acl,
+            null_mut(),
+            &raw mut actual,
+        ))?;
+    }
+    let actual = Descriptor(actual);
+    compare_dacl(&actual, actual_acl, expected)
 }
 
 pub(super) fn descriptor_dacl(descriptor: &Descriptor) -> io::Result<*mut ACL> {
@@ -123,25 +181,7 @@ pub(crate) fn verify_private(file: &File, reader: &str) -> io::Result<()> {
 }
 
 fn verify_scope(file: &File, reader: &str, scope: Scope) -> io::Result<()> {
-    let expected = private_descriptor(reader, scope)?;
-    let mut actual = null_mut();
-    let mut actual_acl = null_mut();
-    // SAFETY: file handle is live; Windows allocates a descriptor owned by
-    // Descriptor.
-    unsafe {
-        status(GetSecurityInfo(
-            file.as_raw_handle(),
-            SE_FILE_OBJECT,
-            DACL_SECURITY_INFORMATION,
-            null_mut(),
-            null_mut(),
-            &raw mut actual_acl,
-            null_mut(),
-            &raw mut actual,
-        ))?;
-    }
-    let actual = Descriptor(actual);
-    compare_dacl(&actual, actual_acl, &expected)
+    verify_against(file, &private_descriptor(reader, scope)?)
 }
 
 pub(super) fn compare_dacl(
@@ -177,7 +217,7 @@ pub(super) fn compare_dacl(
     };
     if actual_bytes != expected_bytes {
         return Err(io::Error::other(
-            "private file DACL did not match requested reader, SYSTEM and Administrators",
+            "DACL did not match the expected protected descriptor",
         ));
     }
     Ok(())

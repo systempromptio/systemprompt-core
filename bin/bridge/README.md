@@ -14,7 +14,7 @@ Diagnostics on stderr. `tracing` JSON via `SP_BRIDGE_LOG_FORMAT=json`. Exit 0 on
 
 ## Status
 
-Independent semver, separate from the systemprompt-core workspace. The version is declared in `Cargo.toml`. See [`CHANGELOG.md`](CHANGELOG.md) for what each release changed.
+Built outside the systemprompt-core workspace, with the same release version. The version is declared in `Cargo.toml` and checked against the workspace version by `build.rs`. See [`CHANGELOG.md`](CHANGELOG.md) for what each release changed.
 
 Released artifacts: macOS (arm64, x86_64), Windows (x86_64), Linux (x86_64). The release workflow defines artifact checksums and Sigstore signing; inspect a release’s attachments for available verification material.
 
@@ -53,7 +53,7 @@ The modules are layered bottom-up and `just lint-bridge-layers` refuses an upwar
 | `status` | Show config paths and what is currently set up |
 | `whoami` | Print authenticated identity from the gateway |
 | `install [--apply] [--pubkey <base64>] …` | Bootstrap integration; pin manifest signing pubkey |
-| `sync [--watch [--interval <secs>]] [--allow-tofu] [--force-replay] …` | Pull plugins + MCP allowlist into `org-plugins/`; an unparseable `--interval` exits `64` |
+| `sync [--watch [--interval <secs>]] [--fresh] [--allow-tofu] [--force-replay] …` | Pull plugins + MCP allowlist into `org-plugins/`; `--fresh` bypasses the gateway's per-user catalogue memo; an unparseable `--interval` exits `64` |
 | `oauth-client {status\|rotate}` | Manage the per-tenant OAuth client that mints plugin-scoped hook tokens |
 | `validate` | End-to-end self-check (paths, gateway, creds, signatures) |
 | `doctor` | Diagnose common failure modes (config, creds, gateway, loopback secret, pinned pubkey), one line per check |
@@ -70,6 +70,7 @@ A bare invocation with no subcommand is `run`; the GUI opens by default only whe
 ## Security posture
 
 - **Manifest trust.** `install --apply --pubkey <base64>` provisions administrator trust in the brand’s policy location. Operator trust uses a gateway-bound `[sync.trust]` record; a key that is not bound to the configured gateway is never adopted. `sync --allow-unsigned` is refused once a pin exists for the gateway.
+- **Windows machine policy without a prompt per change.** Claude Desktop reads its connector list from `HKLM\SOFTWARE\Policies\Claude`, which only an elevated process may write. An elevated `install --apply` that holds a pinned gateway key (`--pubkey`, or the operator pin carried up into `manifestTrust` in the machine hive) also registers a Task Scheduler task — `<Brand>BridgePolicyWriter`, principal SYSTEM, no triggers, runnable by authenticated users but editable only by administrators — that runs an administrator-owned copy of the bridge under `%ProgramData%\<brand>\policy-writer\bin`. A later sync or a Claude Desktop update drops a request in the writer's inbox and runs the task; the writer verifies the request's manifest envelope against the machine anchor and derives the server list from what it verified, so a user cannot add a server, change a tool policy, or point the task at another binary. The result is read back and the hive compared against the same derivation before success is reported. No anchor, no writer: the install says so, and connector changes fall back to the approval prompt. `doctor` reports the writer's state.
 - **Distinct JWT audience.** Bridge tokens use the audiences selected by the gateway credential exchange. Acceptance is determined by the receiving route’s audience and authorization policies.
 - **Replay protection.** Manifests carry a signed `not_before` field; sync rejects `manifest_version` ≤ last applied or `not_before` outside ±5 min skew.
 - **RFC 8785 (JCS) canonical JSON** for signature input. Field-order stability is contract, not coincidence.

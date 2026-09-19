@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.57.0] - 2026-09-19
+
+### Breaking
+
+- **Models:** `mcp::deployment::ToolMetadata` gains `arguments: serde_json::Map<String, serde_json::Value>`. Existing configuration defaults to an empty map; Rust struct literals must supply `arguments` or use `..Default::default()`.
+
 ## [0.56.0] - 2026-09-18
 
 ### Breaking

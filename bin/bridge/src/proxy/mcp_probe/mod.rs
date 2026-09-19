@@ -63,11 +63,12 @@ pub async fn probe_all(loopback: &LoopbackEndpoint, registry: &McpRegistry) -> V
         },
     };
 
-    let mut out = Vec::with_capacity(slugs.len());
-    for slug in slugs {
-        out.push(probe_one(loopback, &client, slug).await);
-    }
-    out
+    // Why: each probe is a round-trip to that server's vendor through the
+    // gateway, and a sync walks every server before it can write the desktop
+    // tool policy. In series that was the sum of every vendor's latency (12s
+    // for four servers); together it is the slowest one. Order is preserved.
+    futures_util::future::join_all(slugs.iter().map(|slug| probe_one(loopback, &client, slug)))
+        .await
 }
 
 pub fn build_client() -> reqwest::Result<reqwest::Client> {

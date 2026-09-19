@@ -9,7 +9,11 @@ use serde::Serialize;
 
 use systemprompt_models::services::ApiSurface;
 
-use crate::ids::{HostId, HostToken, LoopbackSecret};
+mod probe;
+
+pub use probe::ProbeEnv;
+
+use crate::ids::HostToken;
 pub use crate::integration::profile_state::{
     AppInstallState, Freshness, ProfileCode, ProfileProbe, ProfileState, StaleReason,
 };
@@ -42,57 +46,6 @@ impl HostProcesses {
     }
 }
 
-
-/// What a host probe needs to know about the proxy to judge a profile fresh:
-/// the port the proxy is on and the secret it accepts, from which the
-/// per-host token a desktop policy carries is derived.
-///
-/// A value built by the caller from the [`crate::proxy::LoopbackEndpoint`],
-/// so a probe never reaches for process state and a test can hand it any
-/// port it likes.
-#[derive(Debug, Clone)]
-pub struct ProbeEnv {
-    pub proxy_port: u16,
-    pub loopback_secret: Option<LoopbackSecret>,
-    pub start_menu: std::sync::Arc<crate::probe_cache::StartMenuCache>,
-}
-
-impl ProbeEnv {
-    #[must_use]
-    pub fn new(
-        loopback: &crate::proxy::LoopbackEndpoint,
-        start_menu: std::sync::Arc<crate::probe_cache::StartMenuCache>,
-    ) -> Self {
-        let loopback_secret = match loopback.secret() {
-            Ok(secret) => Some(secret),
-            Err(error) => {
-                tracing::warn!(error = %error, "loopback secret is unreadable; host probes report it as unverifiable");
-                None
-            },
-        };
-        Self {
-            proxy_port: loopback.port(),
-            loopback_secret,
-            start_menu,
-        }
-    }
-
-    #[must_use]
-    pub fn loopback_secret_fingerprint(&self) -> Option<String> {
-        self.loopback_secret
-            .as_ref()
-            .map(|s| crate::proxy::secret::fingerprint(s.as_str()))
-    }
-
-    #[must_use]
-    pub fn host_token_fingerprint(&self, host: &HostId) -> Option<String> {
-        self.loopback_secret.as_ref().map(|s| {
-            crate::proxy::secret::fingerprint(
-                crate::proxy::scoped_token::host_token(s, host).as_str(),
-            )
-        })
-    }
-}
 
 /// Inputs a host renders its profile from.
 ///
@@ -130,6 +83,7 @@ pub struct HostAppSnapshot {
     pub host_processes: Vec<String>,
     pub app_installed: AppInstallState,
     pub probed_at_unix: u64,
+    pub update_needs_approval: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -259,5 +213,12 @@ pub trait HostApp: Send + Sync + 'static {
 
     fn accepted_surfaces(&self) -> &'static [ApiSurface] {
         &[]
+    }
+
+    // Why: only a host whose profile itself names the managed MCP servers
+    // (Claude Desktop's policy) needs the registry refreshed before a
+    // generate; every other host reaches them through the synced org-plugins.
+    fn profile_carries_managed_servers(&self) -> bool {
+        false
     }
 }

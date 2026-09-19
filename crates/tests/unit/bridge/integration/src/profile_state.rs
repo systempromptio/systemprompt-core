@@ -21,6 +21,7 @@ fn classify(
         read_error: None,
         secret,
         endpoint,
+        managed_servers: Freshness::Unchecked,
     })
 }
 
@@ -192,6 +193,7 @@ fn a_read_error_with_no_keys_is_unverifiable_not_absent() {
         read_error: Some("config.toml: permission denied"),
         secret: Freshness::Unchecked,
         endpoint: Freshness::Unchecked,
+        managed_servers: Freshness::Unchecked,
     });
     assert!(
         matches!(&s, ProfileState::Unverifiable { reason } if reason.contains("permission denied")),
@@ -245,4 +247,108 @@ fn endpoint_freshness_is_unchecked_for_an_absent_url_and_unverifiable_otherwise(
         ProfileState::endpoint_freshness(Some("http://127.0.0.1:48218"), 48217),
         Freshness::Stale
     );
+}
+
+fn classify_with_servers(managed_servers: Freshness) -> ProfileState {
+    ProfileState::classify(&ProfileProbe {
+        required: &["a"],
+        present: &keys(&[("a", "1")]),
+        read_error: None,
+        secret: Freshness::Fresh,
+        endpoint: Freshness::Fresh,
+        managed_servers,
+    })
+}
+
+#[test]
+fn a_server_list_behind_the_registry_is_stale_for_that_reason() {
+    assert!(matches!(
+        classify_with_servers(Freshness::Stale),
+        ProfileState::Stale {
+            reason: StaleReason::ManagedServers
+        }
+    ));
+    assert!(classify_with_servers(Freshness::Fresh).is_installed());
+    assert!(classify_with_servers(Freshness::Unchecked).is_installed());
+}
+
+#[test]
+fn a_stale_secret_outranks_a_stale_server_list() {
+    let s = ProfileState::classify(&ProfileProbe {
+        required: &["a"],
+        present: &keys(&[("a", "1")]),
+        read_error: None,
+        secret: Freshness::Stale,
+        endpoint: Freshness::Fresh,
+        managed_servers: Freshness::Stale,
+    });
+    assert!(matches!(
+        s,
+        ProfileState::Stale {
+            reason: StaleReason::LoopbackSecret
+        }
+    ));
+}
+
+fn names(list: &[&str]) -> Vec<String> {
+    list.iter().map(|s| (*s).to_owned()).collect()
+}
+
+const TWO: &str = r#"[{"name":"atlassian","url":"http://127.0.0.1:1/mcp/atlassian"},{"name":"systemprompt","url":"http://127.0.0.1:1/mcp/systemprompt"}]"#;
+
+// Why: this is the fact behind "Cowork shows two connectors, the bridge
+// shows four": the policy names the servers Claude Desktop may reach, and
+// only a comparison against the registry says the write did not land.
+#[test]
+fn managed_servers_compare_by_name_regardless_of_order() {
+    let expected = names(&["systemprompt", "atlassian"]);
+    assert_eq!(
+        ProfileState::managed_servers_freshness(Some(TWO), Some(&expected)),
+        Freshness::Fresh
+    );
+    let four = names(&[
+        "atlassian",
+        "google_workspace",
+        "salesforce-crm-dev",
+        "systemprompt",
+    ]);
+    assert_eq!(
+        ProfileState::managed_servers_freshness(Some(TWO), Some(&four)),
+        Freshness::Stale
+    );
+}
+
+#[test]
+fn an_unknown_expectation_is_unchecked_never_stale() {
+    assert_eq!(
+        ProfileState::managed_servers_freshness(Some(TWO), None),
+        Freshness::Unchecked,
+        "a registry the bridge has not loaded says nothing; a launch before the first sync must \
+         not read a good policy as stale and re-apply an empty list over it"
+    );
+    assert_eq!(
+        ProfileState::managed_servers_freshness(None, None),
+        Freshness::Unchecked
+    );
+}
+
+#[test]
+fn a_missing_list_is_fresh_only_when_nothing_is_expected() {
+    assert_eq!(
+        ProfileState::managed_servers_freshness(None, Some(&[])),
+        Freshness::Fresh
+    );
+    assert_eq!(
+        ProfileState::managed_servers_freshness(Some("  "), Some(&names(&["atlassian"]))),
+        Freshness::Stale
+    );
+}
+
+#[test]
+fn an_unparsable_list_is_unverifiable() {
+    let expected = names(&["atlassian"]);
+    assert!(matches!(
+        ProfileState::managed_servers_freshness(Some("not json"), Some(&expected)),
+        Freshness::Unverifiable { .. }
+    ));
 }

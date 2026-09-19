@@ -4,4 +4,4 @@
  * What a host warning is about. Control flow (the Cowork re-sync tick, the
  * health verdict) reads this, never the message text.
  */
-export type HostWarningKind = "cowork_session_missing" | "plugin_dependencies" | "evidence_unacknowledged" | "permission_rules" | "tool_catalog" | "node_packages" | "manifest";
+export type HostWarningKind = "cowork_session_missing" | "plugin_dependencies" | "evidence_unacknowledged" | "permission_rules" | "tool_catalog" | "node_packages" | "manifest" | "policy_writer";

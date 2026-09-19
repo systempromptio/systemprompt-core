@@ -150,7 +150,10 @@ Commands (plugin + MCP sync):
                                           session directory to sync into instead of
                                           resolving it. See README.
   sync                       Pull plugins + MCP allowlist from gateway into org-plugins
-    [--watch] [--interval <secs>] [--allow-unsigned] [--force-replay] [--allow-tofu]
+    [--watch] [--interval <secs>] [--fresh] [--allow-unsigned] [--force-replay] [--allow-tofu]
+                                          --fresh asks the gateway to rebuild the
+                                          catalogue instead of answering from its
+                                          per-user memo (a connector linked just now).
                                           --allow-tofu opts back into trust-on-first-use
                                           pubkey fetch when no pinned key is available;
                                           required only if MDM rollout is unavailable.

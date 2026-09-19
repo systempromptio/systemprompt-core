@@ -16,13 +16,8 @@ on:
   # published number for the commit that was released, which is the baseline
   # the ratchet below reads back.
   #
-  # `next` runs too. Measuring only the released line meant coverage spoke
-  # once per release — so a 0.93pt erosion across four releases went unseen
-  # until the moment it was most expensive to discover. The `next` run is the
-  # erosion signal, off the critical path; the concurrency group below is
-  # cancel-in-progress, so a burst of pushes collapses to one live run.
   push:
-    branches: [main, next]
+    branches: [main]
 
 concurrency:
   # Keyed by event as well as ref: without the event, the release PR's run and

@@ -120,10 +120,7 @@ pub async fn enrol_hosts(
     enabled: Option<Vec<String>>,
 ) -> Result<Vec<Report>, String> {
     let targets = resolve(selection)?;
-    let env = ProbeEnv::new(
-        bridge.proxy.loopback(),
-        std::sync::Arc::clone(&bridge.start_menu),
-    );
+    let env = ProbeEnv::for_bridge(bridge);
     let mut reports = Vec::with_capacity(targets.len());
     for target in targets {
         reports.push(match target {

@@ -13,6 +13,7 @@
 pub mod external;
 mod external_governance;
 mod external_sessions;
+pub mod fixed_arguments;
 mod handlers;
 pub mod mcp_session;
 

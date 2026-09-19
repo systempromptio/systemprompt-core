@@ -3,11 +3,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod acceptance;
 pub mod apply;
 mod error;
 mod manifest;
 mod org_plugins_scope;
 mod provision;
+mod registry_refresh;
 mod replay;
 mod seed_model;
 mod sentinel;
@@ -23,11 +25,13 @@ pub use crate::last_sync::{
 pub use apply::{HostFailure, HostWarning, HostWarningKind, PLUGIN_INSTALLATION_PREFERENCE};
 pub use error::{CredentialRejection, SyncError};
 pub use provision::ProvisionError;
+pub use registry_refresh::{refresh_registry, refresh_registry_for};
 pub use replay::{SKEW_WINDOW_MINUTES, check_replay, check_skew};
 pub use summary::SyncSummary;
 use summary::build_summary;
 
 use crate::config::{self, paths};
+use crate::gateway::Freshness;
 use std::fs;
 
 pub const WATCH_FLOOR_SECS: u64 = 60;
@@ -57,6 +61,7 @@ pub struct SyncOptions {
     pub allow_unsigned: bool,
     pub force_replay: bool,
     pub allow_tofu: bool,
+    pub freshness: Freshness,
     pub cancel: tokio_util::sync::CancellationToken,
 }
 
@@ -86,20 +91,7 @@ async fn ensure_device_enrolled(
     }
 }
 
-#[tracing::instrument(level = "info", skip(bridge))]
-pub async fn run_once(
-    bridge: &crate::context::BridgeContext,
-    options: &SyncOptions,
-) -> Result<SyncSummary, SyncError> {
-    let SyncOptions {
-        allow_unsigned,
-        force_replay,
-        allow_tofu,
-        cancel,
-    } = options;
-    let (allow_unsigned, force_replay, allow_tofu) = (*allow_unsigned, *force_replay, *allow_tofu);
-    let operation =
-        std::sync::Arc::new(std::sync::Arc::clone(&bridge.sync_lock).lock_owned().await);
+async fn prepare_run(bridge: &crate::context::BridgeContext) -> Result<(), SyncError> {
     bridge
         .activity
         .ensure_persistence()
@@ -120,7 +112,33 @@ pub async fn run_once(
             tracing::debug!(%error,"Installation receipts remain unacknowledged before sync");
         }
     }
-    let fetch = manifest::fetch_authenticated_manifest(&bridge.http).await?;
+    Ok(())
+}
+
+fn persist_envelope(fetch: &manifest::ManifestFetch) -> Result<(), SyncError> {
+    let meta_dir = apply::metadata_dir().map_err(|e| SyncError::ApplyFailed(Box::new(e)))?;
+    apply::write_envelope(&meta_dir, fetch.client.base_url(), &fetch.envelope)
+        .map(|_| ())
+        .map_err(|e| SyncError::ApplyFailed(Box::new(e)))
+}
+
+#[tracing::instrument(level = "info", skip(bridge))]
+pub async fn run_once(
+    bridge: &crate::context::BridgeContext,
+    options: &SyncOptions,
+) -> Result<SyncSummary, SyncError> {
+    let SyncOptions {
+        allow_unsigned,
+        force_replay,
+        allow_tofu,
+        freshness,
+        cancel,
+    } = options;
+    let (allow_unsigned, force_replay, allow_tofu) = (*allow_unsigned, *force_replay, *allow_tofu);
+    let operation =
+        std::sync::Arc::new(std::sync::Arc::clone(&bridge.sync_lock).lock_owned().await);
+    prepare_run(bridge).await?;
+    let fetch = manifest::fetch_authenticated_manifest(&bridge.http, *freshness).await?;
     let synced = manifest::verify_and_decode(&fetch, allow_unsigned, allow_tofu).await?;
     let run_gateway = fetch.client.base_url().clone();
     ensure_device_enrolled(bridge, &fetch, &synced.user_id).await;
@@ -164,9 +182,8 @@ pub async fn run_once(
     let meta = paths::bridge_metadata_dir().ok_or(SyncError::PathUnresolvable)?;
     let last_sync_path = meta.join(paths::LAST_SYNC_SENTINEL);
     let now = chrono::Utc::now();
-    let last_state = prior_checkpoint(&last_sync_path, &run_gateway)?;
+    let last_state = acceptance::accept(&synced, &run_gateway, force_replay)?;
     if !force_replay {
-        check_skew(synced.not_before, now)?;
         if last_state.manifest_version.as_ref() == Some(&synced.manifest_version) {
             ensure_not_superseded(&run_gateway)?;
             if let Err(error) =
@@ -179,6 +196,7 @@ pub async fn run_once(
         check_replay(&last_state, &synced.manifest_version)?;
     }
     ensure_not_superseded(&run_gateway)?;
+    persist_envelope(&fetch)?;
 
     let request = apply::ApplyRequest {
         client: &fetch.client,

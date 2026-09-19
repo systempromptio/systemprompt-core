@@ -11,14 +11,7 @@ use crate::integration::host_app::{AppInstallState, ProfileState, StaleReason};
 use crate::proxy_probe::{ProxyHealth, ProxyProbeState};
 use crate::verdict::Tone;
 
-/// What the reader is told about one agent.
-///
-/// `Working` is governed and proven (profile installed, app present, proxy
-/// answering); `Ready` is installed and
-/// correct but never launched; `Attention` is a specific, fixable local fault;
-/// `NotSetUp` means no profile here — a thing you may add, not a thing that is
-/// broken; `Down` should work but the local proxy is not answering; `Checking`
-/// is never probed, or a probe in flight — NOT evidence of absence.
+/// Host configuration, application and proxy health state.
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
 #[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
@@ -74,6 +67,8 @@ pub enum AgentReason {
 pub enum AgentAction {
     Download,
     Repair,
+    Update,
+    UpdateAdmin,
     Verify,
     Open,
     Add,
@@ -93,14 +88,7 @@ pub enum AgentSurface {
     SyncOnly,
 }
 
-/// What the GUI may offer for one agent, derived from its surface.
-///
-/// The front end renders these; it does not decide them. Before this existed
-/// the agent drawer offered Open / Repair / Verify / Show config file / Remove
-/// for every row unconditionally, so a [`AgentSurface::SyncOnly`] agent — which
-/// installs nothing on this computer and implements no `HostApp` — offered all
-/// five, and each one reached a handler whose only possible answer was
-/// `unknown host: claude-code`.
+/// Actions available for a host surface.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct HostCapabilities {
     pub can_open: bool,
@@ -152,7 +140,6 @@ pub struct AgentVerdict {
     pub is_running: bool,
 }
 
-/// Everything `verdict` needs about one host.
 #[derive(Debug, Clone, Copy)]
 pub struct HostHealthInputs<'a> {
     pub snapshot: Option<&'a crate::integration::HostAppSnapshot>,
@@ -164,7 +151,6 @@ pub struct HostHealthInputs<'a> {
     pub can_open: bool,
 }
 
-/// The model-availability facts, borrowed.
 #[derive(Debug, Clone, Copy)]
 pub struct HostModelViewRef<'a> {
     pub checked: bool,
@@ -222,6 +208,25 @@ pub fn verdict(input: &HostHealthInputs<'_>) -> AgentVerdict {
     }
 
     match &snap.profile_state {
+        // Why: a profile behind the gateway's server list is not broken, it
+        // is out of date; the verb says so, and says when the write will ask
+        // for an administrator.
+        ProfileState::Stale {
+            reason: StaleReason::ManagedServers,
+        } => {
+            let action = if snap.update_needs_approval {
+                AgentAction::UpdateAdmin
+            } else {
+                AgentAction::Update
+            };
+            return finish(
+                AgentState::Attention,
+                AgentReason::Stale {
+                    cause: StaleReason::ManagedServers,
+                },
+                Some(action),
+            );
+        },
         ProfileState::Stale { reason } => {
             return finish(
                 AgentState::Attention,

@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.57.0] - 2026-09-19
+
+### Breaking
+
+- **Bridge Rust API:** `GatewayClient::fetch_manifest` requires `Freshness`, and `SyncOptions` gains `freshness`. Use `Freshness::Memo` for scheduled/default reads or `Freshness::Fresh` for an explicit refresh. `HostAppSnapshot` gains `update_needs_approval`; `ProbeEnv` gains `expected_managed_servers` and `policy_writer_ready`. Update affected struct literals; `SyncOptions` also supports `..Default::default()`.
+
+### Added
+
+- **Bridge (Windows):** an elevated `install --apply` with a pinned gateway key installs an administrator-owned policy writer and a SYSTEM scheduled task. Sync and Claude Desktop updates can request machine-policy writes without a separate elevation prompt for each change. The writer verifies the manifest envelope against the machine trust anchor and derives the managed server policy from that manifest. Without an anchor, installation retains the administrator-approval flow; writer failures produce a host warning and fall back to approval. `doctor` reports writer status.
+
+### Fixed
+
+- **Bridge:** user-triggered sync, `sync --fresh`, and Claude Desktop profile generation or updates fetch a fresh manifest. Profile generation republishes managed server state before writing the profile.
+- **Bridge:** Claude Desktop probes identify an outdated managed server list as Update and indicate when administrator approval is required. Installation reads back the policy before reporting success; the UI requests an application restart.
+- **Bridge:** Setup health rows expose repair actions, duplicate error toasts preserve their action, and informational validation lines retain their severity. `CheckLinePayload` gains `level`.
+- **Bridge:** MCP authentication probes run concurrently across registered servers.
+
 ## [0.56.1] - 2026-09-18
 
 ### Changed

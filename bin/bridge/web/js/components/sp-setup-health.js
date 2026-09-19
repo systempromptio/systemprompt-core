@@ -4,51 +4,13 @@ import { bridge } from "/assets/js/bridge.js";
 import { t } from "/assets/js/i18n.js";
 import { fmtRelative, publishSectionState } from "/assets/js/utils/format.js";
 import { runAction } from "/assets/js/utils/action.js";
+import { repairHost } from "/assets/js/utils/host-actions.js";
+import { healthRows, isFailure } from "/assets/js/utils/health-rows.js";
 import { toneBadge, toneSection } from "/assets/js/utils/verdict.js";
 
-const RANK = { err: 0, warn: 1, unknown: 2, probing: 3, ok: 4 };
-
-// One row per thing that can be wrong, worst first. `validate` has produced this
-// structure all along; it was flattened to a text blob at the IPC boundary.
-export function healthRows(snapshot) {
-  const rows = [];
-  const report = snapshot && snapshot.last_validation;
-  for (const line of (report && report.lines) || []) {
-    rows.push({ tone: line.tone, label: line.label, value: line.value });
-  }
-  for (const p of (snapshot && snapshot.provider_health) || []) {
-    if (p.configured) { continue; }
-    rows.push({
-      tone: "warn",
-      label: p.name,
-      value: p.config_issue || (t("setup-health-provider-unconfigured") || "not configured"),
-    });
-  }
-  for (const f of (snapshot && snapshot.startup_faults) || []) {
-    rows.push({ tone: "err", label: `${t("setup-health-startup") || "startup"}: ${f.component}`, value: f.error });
-  }
-  if (snapshot && snapshot.credential_error) {
-    rows.push({ tone: "err", label: t("setup-health-credential") || "credential", value: snapshot.credential_error });
-  }
-  const malformed = snapshot && snapshot.malformed_plugin_count;
-  if (malformed) {
-    rows.push({
-      tone: "err",
-      label: t("setup-health-malformed-plugins") || "malformed plugins",
-      value: String(malformed),
-    });
-  }
-  for (const f of ((snapshot && snapshot.last_sync_report && snapshot.last_sync_report.host_failures) || [])) {
-    rows.push({ tone: "err", label: f.host_id, value: f.error });
-  }
-  for (const w of ((snapshot && snapshot.last_sync_report && snapshot.last_sync_report.host_warnings) || [])) {
-    rows.push({ tone: "warn", label: w.host_id, value: w.message });
-  }
-  for (const d of ((snapshot && snapshot.last_sync_report && snapshot.last_sync_report.diagnostics) || [])) {
-    rows.push({ tone: "warn", label: t("setup-health-diagnostic") || "gateway diagnostic", value: d });
-  }
-  rows.sort((a, b) => (RANK[a.tone] ?? 5) - (RANK[b.tone] ?? 5));
-  return rows;
+function badgeWord(tone) {
+  if (tone === "info") { return t("setup-health-info") || "info"; }
+  return toneSection(tone);
 }
 
 export class SpSetupHealth extends SpElement {
@@ -67,6 +29,18 @@ export class SpSetupHealth extends SpElement {
       this._failuresOnly = !this._failuresOnly;
       this.invalidate();
     });
+    // A row's repair is the host's own: generate, install (UAC when the
+    // target is the machine policy), re-probe. Same sequence as the Agents tab.
+    this.registerAction("repair", (trigger) => {
+      const hostId = trigger && trigger.dataset.host;
+      if (!hostId) { return undefined; }
+      return runAction(trigger, {
+        run: () => repairHost(hostId),
+        success: (path) => t("toast-agent-repaired", { name: hostId, path: path || "" })
+          || `${hostId} re-configured — wrote ${path}.`,
+        context: trigger.textContent.trim(),
+      });
+    });
   }
 
   onConnect() {
@@ -76,19 +50,25 @@ export class SpSetupHealth extends SpElement {
   render() {
     const snap = this.snapshot || {};
     const all = healthRows(snap);
-    const rows = this._failuresOnly ? all.filter((r) => r.tone === "err" || r.tone === "warn") : all;
+    const rows = this._failuresOnly ? all.filter(isFailure) : all;
     const at = snap.last_validation_at_unix;
     const checked = at
       ? (t("setup-health-checked", { ago: fmtRelative(at) }) || `checked ${fmtRelative(at)}`)
       : (t("setup-health-never") || "not checked yet");
 
     const body = rows.length
-      ? rows.map((r) => `
-        <tr data-key="${escapeHtml(`${r.tone}:${r.label}`)}">
-          <th scope="row"><span class="sp-badge sp-badge--${toneBadge(r.tone)}">${escapeHtml(toneSection(r.tone))}</span> ${escapeHtml(r.label)}</th>
-          <td>${escapeHtml(r.value)}</td>
-        </tr>`).join("")
-      : `<tr><td colspan="2" class="sp-health__empty">${escapeHtml(
+      ? rows.map((r) => {
+        const action = r.action
+          ? `<button type="button" class="sp-btn-ghost" data-action="repair" data-host="${escapeHtml(r.action.hostId)}">${escapeHtml(r.action.label)}</button>`
+          : "";
+        return `
+        <tr data-key="${escapeHtml(`${r.tone}:${r.label}:${r.value}`)}">
+          <th scope="row"><span class="sp-badge sp-badge--${toneBadge(r.tone)}">${escapeHtml(badgeWord(r.tone))}</span> <span class="sp-health__label">${escapeHtml(r.label)}</span></th>
+          <td class="sp-health__value">${escapeHtml(r.value)}</td>
+          <td class="sp-status__actions">${action}</td>
+        </tr>`;
+      }).join("")
+      : `<tr><td colspan="3" class="sp-health__empty">${escapeHtml(
         at ? (t("setup-health-all-passed") || "All checks passed.") : (t("setup-health-never") || "not checked yet")
       )}</td></tr>`;
 
@@ -99,7 +79,7 @@ export class SpSetupHealth extends SpElement {
     return `
       <div class="sp-health__controls">
         <span class="sp-health__checked">${escapeHtml(checked)}</span>
-        <button type="button" class="sp-btn-ghost" data-action="toggle-failures" aria-pressed="${this._failuresOnly}">${escapeHtml(filterLabel)}</button>
+        <button type="button" class="sp-btn-ghost sp-health__filter" data-action="toggle-failures" aria-pressed="${this._failuresOnly}">${escapeHtml(filterLabel)}</button>
         <button type="button" class="sp-btn-ghost" data-action="run">${escapeHtml(t("setup-health-run") || "Re-check")}</button>
       </div>
       <table class="sp-status__board sp-health__table"><tbody>${body}</tbody></table>

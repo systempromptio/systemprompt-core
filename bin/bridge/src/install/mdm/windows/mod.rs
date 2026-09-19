@@ -5,6 +5,10 @@
 
 #![cfg(target_os = "windows")]
 
+mod apply;
+
+pub(super) use self::apply::apply;
+
 use super::error::MdmError;
 use super::windows_policy;
 use crate::config::store::{PolicyHive, PolicyWrite};
@@ -57,6 +61,61 @@ fn require_org_plugins() -> Result<(), MdmError> {
     Err(MdmError::Windows(format!(
         "{} is not provisioned; run install --apply as Administrator before using Cowork",
         org.path.display()
+    )))
+}
+
+// Why: the writer is tried before the per-user write so an unelevated sync
+// reaches the machine hive without a prompt; `Ok(None)` means the writer is
+// not on this computer and the caller takes the ordinary path, an `Err` is
+// a writer that exists and failed, which the caller reports and then falls
+// back on — a failed delegation is never a silent success.
+pub(super) fn delegate_to_writer(
+    inputs: &super::MdmPayloadInputs<'_>,
+    facts: crate::install::policy_writer::RequestFacts,
+) -> Result<Option<String>, crate::install::policy_writer::PolicyWriterError> {
+    use crate::install::policy_writer::{self, PolicyWriterError, WriterStatus};
+    if crate::winproc::is_elevated() {
+        return Ok(None);
+    }
+    match policy_writer::status() {
+        WriterStatus::Ready => {},
+        WriterStatus::NotRegistered => return Ok(None),
+        WriterStatus::Unavailable(why) => return Err(PolicyWriterError::Unavailable(why)),
+    }
+    let Some(fragment) =
+        crate::mcp_registry::read_envelope().map_err(|source| PolicyWriterError::Io {
+            context: "read the last verified manifest envelope".to_owned(),
+            source,
+        })?
+    else {
+        return Err(PolicyWriterError::Unavailable(
+            "no verified manifest envelope has been kept yet; sync once first".to_owned(),
+        ));
+    };
+    let catalog = super::tool_catalog::read().map_err(|source| PolicyWriterError::Io {
+        context: "read the tool catalog".to_owned(),
+        source,
+    })?;
+    let requester = crate::windows_acl::current_sid().map_err(|source| PolicyWriterError::Io {
+        context: "resolve the requesting account".to_owned(),
+        source,
+    })?;
+    let loopback =
+        policy_writer::Loopback::of(inputs.loopback).map_err(|source| PolicyWriterError::Io {
+            context: "read the loopback secret".to_owned(),
+            source,
+        })?;
+    let request = policy_writer::build_request(loopback, &fragment, catalog, facts, requester);
+    let steps = policy_writer::write_policy(&request)?;
+    let receipts: Vec<String> = steps
+        .iter()
+        .flat_map(|step| step.policies.iter())
+        .map(crate::config::store::verified::PolicyReceipt::describe)
+        .collect();
+    Ok(Some(format!(
+        "{} ← full policy via the elevated writer ({})",
+        crate::cowork_compat::HKLM_POLICY_KEY,
+        receipts.join("; ")
     )))
 }
 
@@ -209,65 +268,4 @@ fn validate_gateway(gateway: &str) -> Result<(), MdmError> {
         });
     }
     Ok(())
-}
-
-pub(super) fn apply(
-    inputs: &super::MdmPayloadInputs<'_>,
-    gateway: &str,
-    pubkey: Option<&str>,
-) -> Result<super::MdmApplication, MdmError> {
-    validate_gateway(gateway)?;
-    let elevated = crate::winproc::is_elevated();
-    let values = policy_values(inputs, gateway)?;
-    let bridge = super::bridge_policy_values(
-        pubkey,
-        &crate::config::gateway_url_or_default(&crate::config::load()?),
-    )?;
-    let plan = windows_policy::WritePlan::new(&values, &bridge, elevated, inputs.policy_store);
-    let key = policy_key(plan.hive());
-    let mut summary = Vec::with_capacity(values.len() + bridge.len() + 4);
-    summary.push(format!("registry key: {key}"));
-    summary.extend(ensure_workspace_dir()?);
-    let policies = plan.write()?;
-    summary.extend(
-        policies
-            .iter()
-            .map(crate::config::store::verified::PolicyReceipt::describe),
-    );
-    let provisioning = (|| {
-        if elevated {
-            {
-                let org = crate::install::elevated_job::ElevatedJob::org_plugins_for_current_user()
-                    .map_err(|e| MdmError::Windows(e.to_string()))?;
-                crate::install::elevated_job::provision_org_plugins(&org.path, &org.grant_user)
-                    .map_err(|e| {
-                        MdmError::Windows(format!("org-plugins provisioning failed: {e}"))
-                    })?;
-                crate::windows_acl::verify_modify_tree(&org.path)
-                    .map_err(|e| MdmError::Windows(e.to_string()))?;
-                summary.push(format!(
-                    "provisioned {} with a Modify grant for {}",
-                    org.path.display(),
-                    org.grant_user
-                ));
-            }
-        } else {
-            require_org_plugins()?;
-        }
-        Ok::<_, MdmError>(())
-    })();
-    provisioning.map_err(|source| MdmError::Partial {
-        completed: super::MdmApplication {
-            lines: summary.clone(),
-            policies: policies.clone(),
-            files: Vec::new(),
-        },
-        source: Box::new(source),
-    })?;
-    summary.push("Fully quit Bridge (tray icon → Quit) and relaunch to pick up new policy.".into());
-    Ok(super::MdmApplication {
-        lines: summary,
-        policies,
-        files: Vec::new(),
-    })
 }

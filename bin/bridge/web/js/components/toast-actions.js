@@ -45,7 +45,7 @@ function repairConfigDir() {
 
 function repairHostAction(hostId) {
   return {
-    label: repairLabel(),
+    label: t("toast-action-update-admin") || "Update as administrator",
     run: async () => {
       try {
         await repairHost(hostId);

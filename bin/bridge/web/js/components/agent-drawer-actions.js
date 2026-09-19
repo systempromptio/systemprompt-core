@@ -31,7 +31,8 @@ export function actionButtons(drawer, host, status) {
   if (primaryKind !== "open" && host.can_open !== false && appInstallState(host) !== APP_NOT_INSTALLED) {
     buttons.push(ghostButton("open", t("host-action-open") || "Open"));
   }
-  if (primaryKind !== "repair" && primaryKind !== "add" && host.can_repair !== false) {
+  const rewrites = primaryKind === "repair" || primaryKind === "add" || primaryKind === "update" || primaryKind === "update-admin";
+  if (!rewrites && host.can_repair !== false) {
     buttons.push(ghostButton("repair", t("agent-action-repair") || "Repair", busy));
   }
   if (primaryKind !== "verify" && host.can_verify !== false) {
@@ -49,6 +50,10 @@ export function warnings(drawer, host, status) {
   if (status.action && status.action.code === "repair") {
     out.push(t("agent-repair-explainer")
       || "Repair rewrites this agent's configuration profile and re-applies it. Restart the agent afterwards.");
+  }
+  if (status.action && (status.action.code === "update" || status.action.code === "update-admin")) {
+    out.push(t("agent-update-explainer")
+      || "Update rewrites this agent's connector list from the gateway and re-applies it. Quit and relaunch the agent afterwards.");
   }
   if (snap.cached_token && snap.cached_token.ttl_seconds < 600 && isSetUp(host)) {
     const ttl = fmtDurationLong(snap.cached_token.ttl_seconds);

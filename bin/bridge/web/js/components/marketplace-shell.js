@@ -27,11 +27,19 @@ function listingSummary(listing) {
   return parts.length ? parts.join(", ") : t("marketplace-empty-generic") || "Nothing here yet";
 }
 
+// The overall codes that name a sync outcome the marketplace badge shows in
+// its own words; every other code falls through to the summary check.
+const OVERALL_BADGE = {
+  "degraded": { key: "marketplace-badge-degraded", fallback: "synced with failures", cls: "sp-badge--warn" },
+  "needs-approval": { key: "marketplace-badge-needs-approval", fallback: "Claude Desktop needs approval", cls: "sp-badge--warn" },
+};
+
 function badgeView(snap) {
   if (!snap.signed_in) { return { text: t("marketplace-badge-signin") || "sign in", cls: "sp-badge--warn" }; }
   if (snap.sync_in_flight) { return { text: t("marketplace-badge-syncing") || "syncing", cls: "sp-badge--warn" }; }
-  if (snap.overall && snap.overall.code === "degraded") {
-    return { text: t("marketplace-badge-degraded") || "synced with failures", cls: "sp-badge--warn" };
+  const outcome = snap.overall && OVERALL_BADGE[snap.overall.code];
+  if (outcome) {
+    return { text: t(outcome.key) || outcome.fallback, cls: outcome.cls };
   }
   if (snap.last_sync_summary) { return { text: t("marketplace-badge-synced") || "synced", cls: "sp-badge--ok" }; }
   return { text: t("marketplace-badge-never") || "never synced", cls: "sp-badge--muted" };

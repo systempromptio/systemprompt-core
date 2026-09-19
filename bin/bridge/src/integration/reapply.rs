@@ -123,10 +123,7 @@ pub async fn reapply_stale_profiles(
     overrides: &ModelProtocolOverrides,
     attendance: Attendance,
 ) -> Vec<Report> {
-    let env = ProbeEnv::new(
-        bridge.proxy.loopback(),
-        std::sync::Arc::clone(&bridge.start_menu),
-    );
+    let env = ProbeEnv::for_bridge(bridge);
     let mut reports = Vec::new();
     for &host in crate::integration::host_apps() {
         if !matches!(host.probe(&env).profile_state, ProfileState::Stale { .. }) {

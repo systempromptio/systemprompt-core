@@ -1,0 +1,41 @@
+.sp-health__controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-space-2);
+  margin-bottom: var(--sp-space-3);
+}
+.sp-health__checked {
+  font-size: 12px;
+  color: var(--sp-muted);
+  margin-right: auto;
+}
+.sp-health__controls .sp-btn-ghost {
+  padding: var(--sp-space-1-5) var(--sp-space-3);
+  font-size: 12px;
+}
+.sp-health__filter[aria-pressed="true"] {
+  background: color-mix(in oklch, var(--sp-accent) 22%, transparent);
+  border-color: color-mix(in oklch, var(--sp-accent) 45%, transparent);
+  color: var(--sp-accent-text);
+}
+.sp-health__table th {
+  width: 220px;
+  white-space: nowrap;
+}
+.sp-health__table th .sp-badge { margin-right: var(--sp-space-1-5); }
+.sp-health__label { color: var(--sp-text); }
+.sp-health__value {
+  font-size: 13px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.sp-health__table .sp-status__actions { width: 1%; }
+.sp-health__table .sp-status__actions .sp-btn-ghost {
+  padding: var(--sp-space-1-5) var(--sp-space-3);
+  font-size: 12px;
+}
+.sp-health__empty {
+  color: var(--sp-muted);
+  text-align: center;
+}

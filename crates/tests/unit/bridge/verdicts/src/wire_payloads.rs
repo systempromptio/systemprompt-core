@@ -126,6 +126,11 @@ fn validation_payload_maps_each_level_to_its_tone_and_folds_the_worst() {
     assert_eq!(v["lines"][0]["label"], json!("binary"));
     assert_eq!(v["lines"][0]["value"], json!("v1"));
     assert_eq!(v["lines"][1]["tone"], json!("unknown"));
+    assert_eq!(
+        v["lines"][1]["level"],
+        json!("info"),
+        "the GUI tells an info line from an unknown check by its level"
+    );
     assert_eq!(v["lines"][2]["tone"], json!("warn"));
     assert_eq!(v["any_failed"], json!(false));
     assert_eq!(v["verdict"]["tone"], json!("warn"));
@@ -165,12 +170,14 @@ fn an_empty_validation_report_reads_healthy() {
 fn check_line_payload_serialises_tone_label_and_value() {
     let line = CheckLinePayload {
         tone: Tone::Err,
+        level: CheckLevel::Fail,
         label: "pinned manifest pubkey",
         value: "absent",
     };
     let v = json_of(&line);
 
     assert_eq!(v["tone"], json!("err"));
+    assert_eq!(v["level"], json!("fail"));
     assert_eq!(v["label"], json!("pinned manifest pubkey"));
     assert_eq!(v["value"], json!("absent"));
 }

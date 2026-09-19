@@ -199,3 +199,7 @@ rustc-ice-*.txt
 !scripts/lint-bridge-typed-warnings.sh
 !scripts/rust-contracts/
 scripts/rust-contracts/target/
+
+!scripts/release-proof.py
+!scripts/test-release-proof.py
+!scripts/check-offline.sh

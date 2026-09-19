@@ -14,6 +14,8 @@ fn probe_env() -> ProbeEnv {
         proxy_port: systemprompt_bridge::proxy::DEFAULT_PROXY_PORT,
         loopback_secret: None,
         start_menu: std::sync::Arc::default(),
+        expected_managed_servers: None,
+        policy_writer_ready: false,
     }
 }
 

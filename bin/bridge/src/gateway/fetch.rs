@@ -13,6 +13,18 @@ use crate::gateway::manifest::SignedManifestEnvelope;
 use crate::gateway::types::ReleaseManifest;
 use crate::gateway::{GatewayClient, record_span};
 
+/// Whether the gateway may answer a manifest fetch from its per-user memo.
+///
+/// The memo cannot see a connector the user has just linked, so a sync the
+/// user pressed and a Claude Desktop update ask for `Fresh`; the scheduled
+/// tick and the login sync take the memo.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Freshness {
+    #[default]
+    Memo,
+    Fresh,
+}
+
 impl GatewayClient {
     #[tracing::instrument(
         level = "debug",
@@ -55,13 +67,15 @@ impl GatewayClient {
     pub async fn fetch_manifest(
         &self,
         bearer: &BearerToken,
+        freshness: Freshness,
     ) -> Result<SignedManifestEnvelope, GatewayError> {
         let url = self.url("/v1/bridge/manifest");
         let started = Instant::now();
-        let resp = self
-            .http()
-            .get(&url)
-            .bearer_auth(bearer.expose())
+        let mut request = self.http().get(&url).bearer_auth(bearer.expose());
+        if freshness == Freshness::Fresh {
+            request = request.header(reqwest::header::CACHE_CONTROL, "no-cache");
+        }
+        let resp = request
             .send()
             .await
             .map_err(|e| GatewayError::ManifestFetch(Box::new(e)))?;

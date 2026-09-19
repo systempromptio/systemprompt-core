@@ -81,6 +81,12 @@ impl AppStateSnapshot {
             return Verdict::new(Tone::Err, OverallCode::Offline);
         }
         if self.signed_in() {
+            // Why: a sync that applied everywhere except a host whose write
+            // needs an administrator is not "synced with failures" — it is one
+            // approval short, and the badge says which gesture is missing.
+            if self.last_sync_needs_approval() {
+                return Verdict::new(Tone::Warn, OverallCode::NeedsApproval);
+            }
             if self.last_sync_degraded() {
                 return Verdict::new(Tone::Warn, OverallCode::Degraded);
             }
@@ -102,6 +108,15 @@ impl AppStateSnapshot {
             },
             Some(_) => Verdict::new(Tone::Ok, TokenCode::Valid),
         }
+    }
+
+    #[must_use]
+    pub fn last_sync_needs_approval(&self) -> bool {
+        self.last_sync_report.as_ref().is_some_and(|sync| {
+            sync.malformed.is_empty()
+                && !sync.host_failures.is_empty()
+                && sync.host_failures.iter().all(|f| f.needs_elevation)
+        })
     }
 
     #[must_use]

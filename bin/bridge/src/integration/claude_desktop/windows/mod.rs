@@ -6,6 +6,9 @@
 #![cfg(target_os = "windows")]
 
 
+mod writer;
+
+use self::writer::install_through_writer;
 use super::shared::{
     API_KEY_KEY, DESKTOP_DOMAIN, DomainRead, KEYS_OF_INTEREST, ProfileGenInputs,
     redact_if_sensitive,
@@ -38,6 +41,19 @@ pub(super) fn read_domain(domain: &str) -> DomainRead {
             .insert(name.clone(), redact_if_sensitive(&name, value));
     }
     out
+}
+
+// Why: Claude Desktop reads the machine hive whenever it exists, so a
+// profile that lives there is rewritten either elevated or through the
+// registered policy writer; only when neither applies does an update raise
+// the administrator prompt.
+pub(super) fn update_needs_approval(
+    profile_source: Option<&str>,
+    env: &crate::integration::host_app::ProbeEnv,
+) -> bool {
+    profile_source.is_some_and(|source| source.starts_with("HKLM"))
+        && !winproc::is_elevated()
+        && !env.policy_writer_ready
 }
 
 pub(super) fn list_claude_processes() -> Result<Vec<String>, crate::sysproc::SysprocError> {
@@ -126,6 +142,15 @@ fn install_profile_with(path: &str, attendance: Attendance) -> std::io::Result<P
         Err(crate::config::store::ConfigStoreError::HiveConflict { differing, .. })
             if !elevated =>
         {
+            match install_through_writer(&entries) {
+                Ok(Some(installed)) => return Ok(installed),
+                Ok(None) => {},
+                Err(e) => tracing::warn!(
+                    path,
+                    error = %e,
+                    "the elevated policy writer did not apply the profile; asking for approval"
+                ),
+            }
             if attendance == Attendance::Unattended {
                 tracing::warn!(
                     path,

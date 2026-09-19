@@ -9,8 +9,6 @@ on:
         required: false
   pull_request:
     branches: [main, next]
-  push:
-    branches: [main, next]
   schedule:
     - cron: "17 6 * * *"
 
@@ -28,7 +26,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.ref || github.ref }}
+          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.ref }}
       - run: rustup show
       - uses: extractions/setup-just@v2
       - uses: taiki-e/install-action@v2
@@ -42,7 +40,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.ref || github.ref }}
+          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.ref }}
       - run: rustup show
       - uses: extractions/setup-just@v2
       - uses: taiki-e/install-action@v2

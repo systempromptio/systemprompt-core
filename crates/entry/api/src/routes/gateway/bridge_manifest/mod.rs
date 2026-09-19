@@ -56,8 +56,14 @@ pub async fn manifest(
     })?;
     let instance_hosts = instance_enabled_hosts(&services);
 
-    let (candidate, bridge_policy) =
-        assemble_candidate(&ctx, profile, &claims.user_id, services).await?;
+    let (candidate, bridge_policy) = assemble_candidate(
+        &ctx,
+        profile,
+        &claims.user_id,
+        services,
+        bridge_resolved::Freshness::from_headers(&headers),
+    )
+    .await?;
     let (entries, _filter_context) = candidate.into_manifest_parts();
     let systemprompt_marketplace::ManifestEntries {
         plugins,
@@ -111,9 +117,10 @@ pub(crate) async fn assemble_candidate(
     profile: &systemprompt_models::Profile,
     user_id: &UserId,
     services: systemprompt_models::services::ServicesConfig,
+    freshness: bridge_resolved::Freshness,
 ) -> Result<(MarketplaceCandidate, BridgePolicyConfig), (StatusCode, String)> {
     let bridge_policy = services.bridge_policy.unwrap_or_default();
-    let resolved = bridge_resolved::resolve_for_user(ctx, &services, profile, user_id)
+    let resolved = bridge_resolved::resolve_for_user(ctx, &services, profile, user_id, freshness)
         .await
         .map_err(|error| {
             tracing::warn!(%error, "manifest: catalogue resolution failed");

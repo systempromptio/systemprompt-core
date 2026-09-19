@@ -52,6 +52,14 @@ fn default_visibility_enum() -> Vec<ToolVisibility> {
     vec![ToolVisibility::Model, ToolVisibility::App]
 }
 
+/// Per-tool settings the instance layers over a server's own tool contract.
+///
+/// `arguments` are values the instance fixes for an external tool: the gateway
+/// writes them into every `tools/call` for that tool, replacing whatever the
+/// client sent. They exist for parameters that identify infrastructure rather
+/// than intent — the Agent Search `servingConfig`, a tenant, a project — which
+/// a model cannot know and, left to guess, invents (`projects/*`). The skill
+/// text stops carrying them and the connector works from a bare prompt.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ToolMetadata {
     #[serde(default)]
@@ -60,6 +68,8 @@ pub struct ToolMetadata {
     pub model_config: Option<ToolModelConfig>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ui: Option<ToolUiConfig>,
+    #[serde(default, skip_serializing_if = "serde_json::Map::is_empty")]
+    pub arguments: serde_json::Map<String, serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

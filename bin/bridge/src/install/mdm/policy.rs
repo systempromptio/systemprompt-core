@@ -16,8 +16,6 @@ use crate::install::xml;
 
 pub const CLAUDE_DESKTOP_HOST_ID: &str = "claude-desktop";
 
-/// A managed-policy value in the shape the policy declares, before any
-/// platform's encoding is applied.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PolicyValue {
     Str(String),
@@ -27,8 +25,6 @@ pub enum PolicyValue {
 
 pub type PolicyEntry = (&'static str, PolicyValue);
 
-// Why: removal is scoped to exactly the keys the bridge writes, so a value
-// another administrator placed in the same hive survives an uninstall.
 pub const WRITTEN_POLICY_KEYS: &[&str] = &[
     "inferenceProvider",
     "inferenceGatewayBaseUrl",
@@ -262,6 +258,17 @@ pub fn mcp_entries(
         return Ok(Some(Vec::new()));
     }
     let catalog = super::tool_catalog::read()?;
+    Ok(mcp_entries_with(loopback, registry, &catalog))
+}
+
+pub fn mcp_entries_with(
+    loopback: &crate::proxy::LoopbackEndpoint,
+    registry: &crate::mcp_registry::McpRegistry,
+    catalog: &super::tool_catalog::ToolCatalog,
+) -> Option<Vec<McpServerEntry>> {
+    if registry.is_empty() {
+        return Some(Vec::new());
+    }
     let mut slugs: Vec<&String> = registry.keys().collect();
     slugs.sort();
     let mut out = Vec::with_capacity(slugs.len());
@@ -281,7 +288,7 @@ pub fn mcp_entries(
             catalog.get(slug).map_or(&[][..], Vec::as_slice),
         ) else {
             tracing::warn!(target: "bridge::mdm", slug = %slug, "tool catalog has no names for a wildcard tool policy; managedMcpServers withheld");
-            return Ok(None);
+            return None;
         };
         out.push(McpServerEntry {
             name: slug.clone(),
@@ -289,5 +296,5 @@ pub fn mcp_entries(
             tool_policy,
         });
     }
-    Ok(Some(out))
+    Some(out)
 }

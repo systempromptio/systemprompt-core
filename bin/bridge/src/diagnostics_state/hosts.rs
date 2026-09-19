@@ -54,10 +54,7 @@ fn append_tree(out: &mut Vec<String>, root: &Path) {
 
 pub(super) fn append_host_profiles(out: &mut Vec<String>, ctx: &BridgeContext) {
     out.push("host profiles:".to_owned());
-    let env = crate::integration::host_app::ProbeEnv::new(
-        ctx.proxy.loopback(),
-        std::sync::Arc::clone(&ctx.start_menu),
-    );
+    let env = crate::integration::host_app::ProbeEnv::for_bridge(ctx);
     for host in crate::integration::host_apps() {
         let snapshot = host.probe(&env);
         out.push(format!(

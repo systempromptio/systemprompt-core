@@ -122,6 +122,7 @@ fn dispatch(command: Option<&str>, args: &[String], ctx: Arc<BridgeContext>) -> 
         Some("whoami") => whoami::cmd_whoami(&ctx),
         Some("install") => install::cmd_install(&ctx, args),
         Some("__install-claude-policy") => install_claude_policy::cmd(args),
+        Some("__apply-policy-task") => install_claude_policy::cmd_apply_policy_task(args),
         Some("sync") => sync::cmd_sync(&ctx, args),
         Some("update") => update::cmd_update(&ctx, args),
         Some("oauth-client") => oauth_client::cmd_oauth_client(&ctx, args),

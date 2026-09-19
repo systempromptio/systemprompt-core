@@ -5,7 +5,6 @@
 
 use std::process::ExitCode;
 
-use std::sync::Arc;
 
 use crate::context::BridgeContext;
 use crate::integration::host_app::ProbeEnv;
@@ -77,7 +76,7 @@ pub async fn run_checks(bridge: &BridgeContext) -> (Vec<Check>, bool) {
         },
     };
     let proxy = &bridge.proxy;
-    let env = ProbeEnv::new(proxy.loopback(), Arc::clone(&bridge.start_menu));
+    let env = ProbeEnv::for_bridge(bridge);
     let mut checks: Vec<Check> = bridge
         .startup_faults
         .iter()
@@ -108,6 +107,8 @@ pub async fn run_checks(bridge: &BridgeContext) -> (Vec<Check>, bool) {
     checks.push(auth::check_pinned_pubkey());
     #[cfg(target_os = "windows")]
     checks.push(registry::check_policy_hives());
+    #[cfg(target_os = "windows")]
+    checks.push(registry::check_policy_writer());
     #[cfg(target_os = "windows")]
     checks.push(filesystem::check_config_dir_owner());
     checks.push(check_version_agreement());

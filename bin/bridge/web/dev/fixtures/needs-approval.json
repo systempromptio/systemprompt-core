@@ -1,0 +1,524 @@
+{
+  "gateway_url": "https://internal.systemprompt.io",
+  "gateway_configured": true,
+  "config_file": "C:\\Users\\ejb50\\AppData\\Roaming\\systemprompt-internal\\systemprompt-internal-bridge.toml",
+  "pat_file": "C:\\Users\\ejb50\\AppData\\Roaming\\systemprompt-internal\\systemprompt-internal-bridge.pat",
+  "config_present": true,
+  "pat_present": true,
+  "plugins_dir": "C:\\Users\\ejb50\\Systemprompt\\org-plugins",
+  "last_sync_summary": "12 skills, 3 plugins",
+  "skill_count": 12,
+  "agent_count": 0,
+  "plugin_count": 3,
+  "sync_in_flight": false,
+  "cached_token": {
+    "ttl_seconds": 3600,
+    "length": 812
+  },
+  "gateway_status": {
+    "tone": "ok",
+    "code": "reachable",
+    "settled": true,
+    "latency_ms": 42
+  },
+  "verified_identity": {
+    "email": "admin@localhost.dev",
+    "user_id": "user_1",
+    "tenant_id": "tenant_1",
+    "exp_unix": 1787909417,
+    "verified_at_unix": 1787905757
+  },
+  "signed_in": true,
+  "last_probe_at_unix": 1787905757,
+  "proxy_stats": {
+    "forwarded_total": 128,
+    "messages_total": 96,
+    "tokens_in_total": 41233,
+    "tokens_out_total": 8801,
+    "last_status": 200,
+    "last_latency_ms": 193,
+    "last_forwarded_at_unix": 1787905787
+  },
+  "mcp_auth": [],
+  "mcp_auth_probe_in_flight": false,
+  "update": {
+    "phase": "unknown",
+    "tone": "unknown",
+    "can_install": false,
+    "can_restart": false,
+    "in_progress": false
+  },
+  "sign_in_label": "Sign in with systemprompt",
+  "sign_in_hint": "Opens your browser \u2014 sign in there with your Odoo email and password.",
+  "host_apps": [
+    {
+      "id": "claude-desktop",
+      "display_name": "Claude Desktop",
+      "kind": "desktop-app",
+      "description": "Anthropic's desktop client",
+      "icon": "claude-desktop",
+      "config_format": "reg",
+      "download_url": "https://claude.ai/download",
+      "install_action_label": "imported into Windows Registry",
+      "can_open": true,
+      "can_verify": true,
+      "can_repair": true,
+      "can_open_config": true,
+      "can_remove": true,
+      "probe_in_flight": false,
+      "enabled": true,
+      "last_generated_profile": {
+        "path": "C:\\Users\\ejb50\\AppData\\Local\\Temp\\systemprompt-internal-bridge\\claude-desktop-1787902828-38012-0.reg",
+        "bytes": 712,
+        "payload_uuid": "ce0a6a91-3b6c-4cwk-cwk0-deadbeefa06f",
+        "profile_uuid": "ce0b78a5-6d14-4cwk-cwk0-feedfaceb43c"
+      },
+      "health": {
+        "profile": {
+          "tone": "warn",
+          "code": "stale"
+        },
+        "missing_required": [],
+        "app": {
+          "tone": "ok",
+          "code": "installed"
+        },
+        "host_running": true,
+        "host_processes": [
+          "claude.exe"
+        ],
+        "inference_models": [],
+        "probed_at_unix": 1787905697
+      },
+      "compatible_models": [
+        "claude-opus-5",
+        "claude-sonnet-5",
+        "claude-fable-5",
+        "claude-opus-4-8",
+        "claude-haiku-4-5",
+        "claude-sonnet-4-5"
+      ],
+      "models_checked": true,
+      "compatible_models_available": true,
+      "unconfigured_providers": [],
+      "model_protocols": [
+        "anthropic"
+      ],
+      "model_protocols_overridden": false,
+      "surface": "local-profile",
+      "verdict": {
+        "state": "attention",
+        "tone": "warn",
+        "reason": {
+          "code": "stale",
+          "cause": "managed_servers"
+        },
+        "action": {
+          "code": "update-admin"
+        },
+        "is_set_up": true,
+        "is_installed": false,
+        "is_running": true
+      }
+    },
+    {
+      "id": "codex-cli",
+      "display_name": "Codex CLI",
+      "kind": "cli-tool",
+      "description": "OpenAI's terminal coding agent",
+      "icon": "codex-cli",
+      "config_format": "toml",
+      "download_url": "https://github.com/openai/codex",
+      "install_action_label": "written to config file",
+      "can_open": true,
+      "can_verify": true,
+      "can_repair": true,
+      "can_open_config": true,
+      "can_remove": true,
+      "probe_in_flight": false,
+      "enabled": true,
+      "last_generated_profile": {
+        "path": "C:\\Users\\ejb50\\AppData\\Local\\Temp\\systemprompt-internal-bridge\\codex-cli-1787902828-38012-0.toml",
+        "bytes": 712,
+        "payload_uuid": "ce0a6a91-3b6c-4cwk-cwk0-deadbeefa06f",
+        "profile_uuid": "ce0b78a5-6d14-4cwk-cwk0-feedfaceb43c"
+      },
+      "health": {
+        "profile": {
+          "tone": "ok",
+          "code": "installed"
+        },
+        "missing_required": [],
+        "app": {
+          "tone": "ok",
+          "code": "installed"
+        },
+        "host_running": true,
+        "host_processes": [
+          "codex"
+        ],
+        "inference_models": [],
+        "probed_at_unix": 1787905697
+      },
+      "compatible_models": [
+        "claude-opus-5",
+        "claude-sonnet-5",
+        "claude-fable-5",
+        "claude-opus-4-8",
+        "claude-haiku-4-5",
+        "claude-sonnet-4-5"
+      ],
+      "models_checked": true,
+      "compatible_models_available": true,
+      "unconfigured_providers": [],
+      "model_protocols": [
+        "anthropic"
+      ],
+      "model_protocols_overridden": false,
+      "surface": "local-profile",
+      "verdict": {
+        "state": "working",
+        "tone": "ok",
+        "reason": {
+          "code": "governed",
+          "when_unix": 1787905697
+        },
+        "action": {
+          "code": "open"
+        },
+        "is_set_up": true,
+        "is_installed": true,
+        "is_running": true
+      }
+    },
+    {
+      "id": "hermes",
+      "display_name": "Hermes",
+      "kind": "desktop-app",
+      "description": "Nous Research's Hermes Agent Desktop. systemprompt-bridge writes managed configuration that routes inference through the gateway, registers MCP connectors, and publishes managed skills.",
+      "icon": "hermes",
+      "config_format": "yaml",
+      "download_url": "https://nousresearch.com/",
+      "install_action_label": "merged into HERMES_HOME/config.yaml as a named `providers:` entry (with OPENAI_API_KEY written to HERMES_HOME/.env)",
+      "can_open": true,
+      "can_verify": true,
+      "can_repair": true,
+      "can_open_config": true,
+      "can_remove": true,
+      "probe_in_flight": false,
+      "enabled": true,
+      "last_generated_profile": {
+        "path": "C:\\Users\\ejb50\\AppData\\Local\\Temp\\systemprompt-internal-bridge\\hermes-1787902828-38012-0.yaml",
+        "bytes": 418,
+        "payload_uuid": "ce0a6a91-3b6c-4cwk-cwk0-deadbeefa07a",
+        "profile_uuid": "ce0b78a5-6d14-4cwk-cwk0-feedfaceb54d"
+      },
+      "health": {
+        "profile": {
+          "tone": "ok",
+          "code": "installed"
+        },
+        "missing_required": [],
+        "app": {
+          "tone": "ok",
+          "code": "installed"
+        },
+        "host_running": true,
+        "host_processes": [
+          "hermes"
+        ],
+        "inference_models": [],
+        "probed_at_unix": 1787905697
+      },
+      "compatible_models": [
+        "claude-opus-5",
+        "claude-sonnet-5",
+        "claude-fable-5",
+        "claude-opus-4-8",
+        "claude-haiku-4-5",
+        "claude-sonnet-4-5"
+      ],
+      "models_checked": true,
+      "compatible_models_available": true,
+      "unconfigured_providers": [],
+      "model_protocols": [
+        "openai"
+      ],
+      "model_protocols_overridden": false,
+      "surface": "local-profile",
+      "verdict": {
+        "state": "working",
+        "tone": "ok",
+        "reason": {
+          "code": "governed",
+          "when_unix": 1787905697
+        },
+        "action": {
+          "code": "open"
+        },
+        "is_set_up": true,
+        "is_installed": true,
+        "is_running": true
+      }
+    },
+    {
+      "id": "opencode",
+      "display_name": "OpenCode",
+      "kind": "cli-tool",
+      "description": "The open-source OpenCode coding agent (terminal, desktop and IDE). systemprompt-bridge installs admin-managed configuration that routes inference through the gateway, registers MCP connectors, and publishes managed skills.",
+      "icon": "opencode",
+      "config_format": "json",
+      "download_url": "https://opencode.ai/",
+      "install_action_label": "merged into %ProgramData%\\opencode\\opencode.json (API key in %USERPROFILE%\\.local\\share\\opencode\\auth.json)",
+      "can_open": false,
+      "can_verify": true,
+      "can_repair": true,
+      "can_open_config": true,
+      "can_remove": true,
+      "probe_in_flight": false,
+      "enabled": true,
+      "last_generated_profile": {
+        "path": "C:\\Users\\ejb50\\AppData\\Local\\Temp\\systemprompt-internal-bridge\\opencode-bridge-1787902828-38012-0-opencode.json",
+        "bytes": 418,
+        "payload_uuid": "ce0c6a91-0pc0-40pc-0pc0-deadbeefa07a",
+        "profile_uuid": "ce0d78a5-0pc0-40pc-0pc0-feedfaceb54d"
+      },
+      "health": {
+        "profile": {
+          "tone": "ok",
+          "code": "installed"
+        },
+        "missing_required": [],
+        "app": {
+          "tone": "ok",
+          "code": "installed"
+        },
+        "host_running": true,
+        "host_processes": [
+          "opencode"
+        ],
+        "inference_models": [],
+        "probed_at_unix": 1787905697
+      },
+      "compatible_models": [
+        "claude-opus-5",
+        "claude-sonnet-5",
+        "claude-fable-5",
+        "claude-opus-4-8",
+        "claude-haiku-4-5",
+        "claude-sonnet-4-5"
+      ],
+      "models_checked": true,
+      "compatible_models_available": true,
+      "unconfigured_providers": [],
+      "model_protocols": [
+        "openai"
+      ],
+      "model_protocols_overridden": false,
+      "surface": "local-profile",
+      "verdict": {
+        "state": "working",
+        "tone": "ok",
+        "reason": {
+          "code": "governed",
+          "when_unix": 1787905697
+        },
+        "action": null,
+        "is_set_up": true,
+        "is_installed": true,
+        "is_running": true
+      }
+    },
+    {
+      "id": "claude-code",
+      "display_name": "Claude Code",
+      "kind": "cli-tool",
+      "description": "Governed through the gateway; skills and plugins sync from here.",
+      "icon": "claude-code",
+      "config_format": "json",
+      "download_url": "",
+      "install_action_label": "",
+      "can_open": false,
+      "can_verify": false,
+      "can_repair": false,
+      "can_open_config": false,
+      "can_remove": false,
+      "probe_in_flight": false,
+      "enabled": true,
+      "last_generated_profile": null,
+      "health": null,
+      "compatible_models": [],
+      "models_checked": false,
+      "compatible_models_available": false,
+      "unconfigured_providers": [],
+      "model_protocols": [],
+      "model_protocols_overridden": false,
+      "surface": "sync-only",
+      "verdict": {
+        "state": "working",
+        "tone": "ok",
+        "reason": {
+          "code": "cloud-managed"
+        },
+        "action": null,
+        "is_set_up": true,
+        "is_installed": true,
+        "is_running": false
+      }
+    }
+  ],
+  "local_proxy": {
+    "url": "http://127.0.0.1:48217",
+    "state": "listening",
+    "http_status": 200,
+    "latency_ms": 2,
+    "error": null,
+    "probed_at_unix": 1787905787,
+    "verdict": {
+      "tone": "ok",
+      "code": "listening"
+    },
+    "governing": true
+  },
+  "hosts_gated": true,
+  "agents_onboarded": true,
+  "first_run": {
+    "active": false,
+    "done": true,
+    "phase": "done",
+    "sync": "done",
+    "error": null,
+    "hosts": []
+  },
+  "last_validation": {
+    "lines": [
+      {
+        "label": "binary",
+        "value": "systemprompt-bridge v0.31.0 (windows-x86_64)",
+        "tone": "unknown"
+      },
+      {
+        "label": "org-plugins path",
+        "value": "C:\\ProgramData\\systemprompt\\org-plugins (scope: system)",
+        "tone": "ok"
+      },
+      {
+        "label": "metadata dir",
+        "value": "C:\\ProgramData\\systemprompt\\bridge",
+        "tone": "ok"
+      },
+      {
+        "label": "last sync",
+        "value": "12 skills, 3 plugins",
+        "tone": "ok"
+      },
+      {
+        "label": "gateway /health",
+        "value": "reachable",
+        "tone": "ok"
+      },
+      {
+        "label": "cached token",
+        "value": "absent, expired, or minted for another gateway",
+        "tone": "warn"
+      }
+    ],
+    "any_failed": false,
+    "verdict": {
+      "tone": "warn",
+      "code": "attention"
+    }
+  },
+  "last_validation_at_unix": 1787905637,
+  "malformed_plugin_count": 0,
+  "provider_health": [
+    {
+      "name": "anthropic",
+      "surface": "messages",
+      "configured": true,
+      "models": [
+        "claude-opus-4-6",
+        "claude-sonnet-4-6"
+      ]
+    },
+    {
+      "name": "openai",
+      "surface": "chat",
+      "configured": false,
+      "models": [],
+      "config_issue": "no API key configured for this provider"
+    }
+  ],
+  "last_sync_report": {
+    "identity": "admin@localhost.dev",
+    "manifest_version": "41",
+    "plugin_count": 3,
+    "skill_count": 12,
+    "agent_count": 0,
+    "hook_count": 2,
+    "mcp_count": 0,
+    "installed": [
+      "governance-pack"
+    ],
+    "updated": [
+      "review-standards"
+    ],
+    "removed": [],
+    "malformed": [],
+    "host_failures": [
+      {
+        "host_id": "claude-desktop",
+        "emitter": "claude-desktop",
+        "error": "the Claude Desktop machine policy needs administrator approval: HKLM\\SOFTWARE\\Policies\\Claude holds different values for managedMcpServers",
+        "needs_elevation": true
+      }
+    ],
+    "diagnostics": [
+      "manifest lists 14 skill(s) but plugin bundles install only 12"
+    ]
+  },
+  "agent_fleet": {
+    "all": {
+      "total": 5,
+      "working": 4,
+      "ready": 0,
+      "attention": 1,
+      "not_set_up": 0,
+      "down": 0,
+      "checking": 0,
+      "running": 4,
+      "state": "warn",
+      "headline": "needs-attention"
+    },
+    "set_up": {
+      "total": 5,
+      "working": 4,
+      "ready": 0,
+      "attention": 1,
+      "not_set_up": 0,
+      "down": 0,
+      "checking": 0,
+      "running": 4,
+      "state": "warn",
+      "headline": "needs-attention"
+    }
+  },
+  "identity": {
+    "tone": "ok",
+    "code": "signed-in"
+  },
+  "cloud_tone": "ok",
+  "overall": {
+    "tone": "warn",
+    "code": "needs-approval"
+  },
+  "token": {
+    "tone": "ok",
+    "code": "valid"
+  },
+  "health": {
+    "tone": "err",
+    "code": "failing"
+  },
+  "mcp_auth_tone": "warn"
+}

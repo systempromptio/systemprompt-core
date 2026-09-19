@@ -79,6 +79,8 @@ export async function runHostAction(kind, host) {
   if (!id) { return; }
   switch (kind) {
     case "repair":
+    case "update":
+    case "update-admin":
     case "add":      return repairHost(id);
     case "verify":   return verifyHost(id);
     case "open":     return openHost(id);
