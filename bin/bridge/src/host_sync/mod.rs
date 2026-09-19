@@ -34,6 +34,7 @@ pub enum HostWarningKind {
     ToolCatalog,
     NodePackages,
     Manifest,
+    PolicyWriter,
 }
 
 /// A host sync that completed but could not do everything it exists to do —

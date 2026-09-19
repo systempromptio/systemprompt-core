@@ -84,6 +84,8 @@ fn snapshot_of(host: &Value, v: &Value) -> HostAppSnapshot {
             _ => AppInstallState::Unknown,
         },
         probed_at_unix: v.get("probed_at_unix").and_then(Value::as_u64).unwrap_or(0),
+        update_needs_approval: host.pointer("/verdict/action/code").and_then(Value::as_str)
+            == Some("update-admin"),
     }
 }
 
@@ -136,8 +138,6 @@ fn recompute(doc: &Value) -> Option<Value> {
             .get("health")
             .filter(|s| !s.is_null())
             .map(|health| snapshot_of(&host, health));
-        let update_needs_approval =
-            host.pointer("/verdict/action/code").and_then(Value::as_str) == Some("update-admin");
         let unconfigured = strings(host.get("unconfigured_providers"));
         let v = verdict(&HostHealthInputs {
             snapshot: snap.as_ref(),
@@ -163,7 +163,6 @@ fn recompute(doc: &Value) -> Option<Value> {
                 .get("can_open")
                 .and_then(Value::as_bool)
                 .unwrap_or(true),
-            update_needs_approval,
         });
 
         let mut host = host.clone();
@@ -201,7 +200,6 @@ fn recompute(doc: &Value) -> Option<Value> {
             surface: AgentSurface::SyncOnly,
             manifest_synced,
             can_open: false,
-            update_needs_approval: false,
         });
         // Why: read from the same `HostCapabilities` the real payload uses
         // rather than five more literals here. This block is already a mirror

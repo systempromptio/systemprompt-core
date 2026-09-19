@@ -112,6 +112,7 @@ impl HostApp for DummyHost {
             host_processes: Vec::new(),
             app_installed: AppInstallState::NotInstalled,
             probed_at_unix: 0,
+            update_needs_approval: false,
         }
     }
     fn generate_profile(&self, _inputs: &ProfileGenInputs) -> std::io::Result<GeneratedProfile> {
@@ -166,6 +167,7 @@ impl HostApp for ShadowCodexHost {
             host_processes: Vec::new(),
             app_installed: AppInstallState::NotInstalled,
             probed_at_unix: 0,
+            update_needs_approval: false,
         }
     }
     fn generate_profile(&self, _inputs: &ProfileGenInputs) -> std::io::Result<GeneratedProfile> {
@@ -270,6 +272,7 @@ impl HostApp for SuppressedHost {
             host_processes: Vec::new(),
             app_installed: AppInstallState::NotInstalled,
             probed_at_unix: 0,
+            update_needs_approval: false,
         }
     }
     fn generate_profile(&self, _inputs: &ProfileGenInputs) -> std::io::Result<GeneratedProfile> {

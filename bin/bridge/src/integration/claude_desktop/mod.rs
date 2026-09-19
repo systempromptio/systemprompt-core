@@ -86,6 +86,7 @@ impl HostApp for ClaudeDesktopHost {
             managed_servers,
         });
         let found = HostProcesses::from_enumeration(os::list_claude_processes());
+        let update_needs_approval = os::update_needs_approval(read.source_path.as_deref(), env);
         HostAppSnapshot {
             host_id: self.id(),
             display_name: self.display_name(),
@@ -100,6 +101,7 @@ impl HostApp for ClaudeDesktopHost {
                 &env.start_menu,
             ),
             probed_at_unix: shared::now_unix(),
+            update_needs_approval,
         }
     }
 
@@ -146,10 +148,6 @@ impl HostApp for ClaudeDesktopHost {
 
     fn profile_carries_managed_servers(&self) -> bool {
         true
-    }
-
-    fn update_needs_approval(&self, snapshot: &HostAppSnapshot) -> bool {
-        os::update_needs_approval(snapshot)
     }
 
     fn config_format(&self) -> ConfigFormat {

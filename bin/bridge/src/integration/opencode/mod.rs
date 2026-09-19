@@ -95,6 +95,7 @@ impl HostApp for OpenCodeHost {
                 &config::extra_bin_dirs(),
             ),
             probed_at_unix: config::now_unix(),
+            update_needs_approval: false,
         }
     }
 

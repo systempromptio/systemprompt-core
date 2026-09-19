@@ -31,6 +31,9 @@ pub(super) fn remove(store: &crate::config::store::PolicyStore) -> super::Manage
     // Why: the machine policy carries the inference gateway and secret as
     // well as the connector list; a purge that left those behind kept Claude
     // Desktop pointed at a proxy that no longer exists.
+    if let Err(e) = super::policy_writer::remove() {
+        crate::stdio::diag(&format!("policy writer: {e}"));
+    }
     match remove_machine_claude_policy(store) {
         Ok(true) => {
             super::ManagedProfileOutcome::Removed("HKLM Policies\\Claude (+ any HKCU copy)")

@@ -20,7 +20,8 @@ const PROFILE_TMPL: &str = include_str!("templates/claude_desktop_profile.mobile
 // Why: the managed preferences domain is root-owned; every rewrite goes
 // through the administrator prompt.
 pub(super) const fn update_needs_approval(
-    _snapshot: &crate::integration::host_app::HostAppSnapshot,
+    _profile_source: Option<&str>,
+    _env: &crate::integration::host_app::ProbeEnv,
 ) -> bool {
     true
 }

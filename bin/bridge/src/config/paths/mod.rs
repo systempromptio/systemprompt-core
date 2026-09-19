@@ -26,6 +26,7 @@ pub const WINDOW_STATE_SENTINEL: &str = "window-state.json";
 pub const TRAY_NOTICE_SENTINEL: &str = "tray-notice.json";
 pub const USER_FRAGMENT: &str = "user.json";
 pub const MCP_SERVERS_FRAGMENT: &str = "mcp-servers.json";
+pub const MANIFEST_ENVELOPE_FRAGMENT: &str = "manifest-envelope.json";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OrgPluginsLocation {

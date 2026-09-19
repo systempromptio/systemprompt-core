@@ -134,12 +134,42 @@ impl crate::host_sync::HostSync for ClaudeDesktopMdmSync {
         ctx: &crate::host_sync::HostSyncCtx<'_>,
     ) -> Result<(), crate::host_sync::ApplyError> {
         refresh_tool_catalog(ctx).await;
-        match enforce_managed_policy(&super::MdmPayloadInputs {
+        let inputs = super::MdmPayloadInputs {
             policy_store: ctx.policy_store,
             loopback: ctx.loopback,
             registry: ctx.mcp_registry,
             egress_allowed_hosts: None,
-        }) {
+        };
+        #[cfg(target_os = "windows")]
+        {
+            let facts = crate::install::policy_writer::RequestFacts {
+                org_uuid: crate::config::load()
+                    .ok()
+                    .and_then(|cfg| cfg.deployment_organization_uuid)
+                    .map(|uuid| uuid.as_str().to_owned()),
+                ..Default::default()
+            };
+            match super::windows::delegate_to_writer(&inputs, facts) {
+                Ok(Some(line)) => {
+                    tracing::info!(
+                        target: "bridge::mdm",
+                        written = %line,
+                        "managed policy enforced on sync through the elevated writer"
+                    );
+                    return Ok(());
+                },
+                Ok(None) => {},
+                Err(e) => ctx.warnings.push(
+                    crate::host_sync::HostWarningKind::PolicyWriter,
+                    "claude-desktop",
+                    format!(
+                        "the elevated policy writer did not apply the policy ({e}); falling back \
+                         to the write that needs administrator approval"
+                    ),
+                ),
+            }
+        }
+        match enforce_managed_policy(&inputs) {
             Ok(line) => {
                 tracing::info!(
                     target: "bridge::mdm",

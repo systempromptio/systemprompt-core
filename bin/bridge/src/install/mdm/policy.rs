@@ -262,6 +262,19 @@ pub fn mcp_entries(
         return Ok(Some(Vec::new()));
     }
     let catalog = super::tool_catalog::read()?;
+    Ok(mcp_entries_with(loopback, registry, &catalog))
+}
+
+// Why: the elevated policy writer runs as SYSTEM, whose profile holds no
+// tool catalog; it takes the names from the request instead of the file.
+pub fn mcp_entries_with(
+    loopback: &crate::proxy::LoopbackEndpoint,
+    registry: &crate::mcp_registry::McpRegistry,
+    catalog: &super::tool_catalog::ToolCatalog,
+) -> Option<Vec<McpServerEntry>> {
+    if registry.is_empty() {
+        return Some(Vec::new());
+    }
     let mut slugs: Vec<&String> = registry.keys().collect();
     slugs.sort();
     let mut out = Vec::with_capacity(slugs.len());
@@ -281,7 +294,7 @@ pub fn mcp_entries(
             catalog.get(slug).map_or(&[][..], Vec::as_slice),
         ) else {
             tracing::warn!(target: "bridge::mdm", slug = %slug, "tool catalog has no names for a wildcard tool policy; managedMcpServers withheld");
-            return Ok(None);
+            return None;
         };
         out.push(McpServerEntry {
             name: slug.clone(),
@@ -289,5 +302,5 @@ pub fn mcp_entries(
             tool_policy,
         });
     }
-    Ok(Some(out))
+    Some(out)
 }

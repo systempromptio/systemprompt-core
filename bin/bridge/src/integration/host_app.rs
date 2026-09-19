@@ -56,6 +56,7 @@ pub struct ProbeEnv {
     pub loopback_secret: Option<LoopbackSecret>,
     pub start_menu: std::sync::Arc<crate::probe_cache::StartMenuCache>,
     pub expected_managed_servers: Option<Vec<String>>,
+    pub policy_writer_ready: bool,
 }
 
 impl ProbeEnv {
@@ -76,6 +77,7 @@ impl ProbeEnv {
             loopback_secret,
             start_menu,
             expected_managed_servers: None,
+            policy_writer_ready: false,
         }
     }
 
@@ -86,6 +88,26 @@ impl ProbeEnv {
             std::sync::Arc::clone(&bridge.start_menu),
         )
         .with_managed_servers(bridge.proxy.loopback(), &bridge.mcp_registry())
+        .with_policy_writer()
+    }
+
+    // Why: whether a rewrite of the machine policy will raise the
+    // administrator prompt depends on the writer being registered and
+    // usable; the probe records it so the verb the GUI offers is right.
+    #[cfg(target_os = "windows")]
+    #[must_use]
+    pub fn with_policy_writer(mut self) -> Self {
+        self.policy_writer_ready = matches!(
+            crate::install::policy_writer::status(),
+            crate::install::policy_writer::WriterStatus::Ready
+        );
+        self
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    #[must_use]
+    pub const fn with_policy_writer(self) -> Self {
+        self
     }
 
     // Why: the registry is authoritative only once a sync has published it
@@ -164,6 +186,7 @@ pub struct HostAppSnapshot {
     pub host_processes: Vec<String>,
     pub app_installed: AppInstallState,
     pub probed_at_unix: u64,
+    pub update_needs_approval: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -302,11 +325,4 @@ pub trait HostApp: Send + Sync + 'static {
         false
     }
 
-    // Why: whether rewriting this host's installed profile will raise the
-    // operating system's administrator prompt — the machine policy hive on
-    // Windows, the managed-preferences write on macOS. The verb the GUI
-    // offers says so before the user presses it.
-    fn update_needs_approval(&self, _snapshot: &HostAppSnapshot) -> bool {
-        false
-    }
 }

@@ -47,3 +47,4 @@ pub(super) fn check_config_dir_owner(report: &mut Report) {
         ),
     }
 }
+

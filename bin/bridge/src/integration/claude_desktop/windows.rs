@@ -41,16 +41,16 @@ pub(super) fn read_domain(domain: &str) -> DomainRead {
 }
 
 // Why: Claude Desktop reads the machine hive whenever it exists, so a
-// profile that lives there can only be rewritten elevated; a user-hive
-// profile, or an already elevated bridge, rewrites without a prompt.
+// profile that lives there is rewritten either elevated or through the
+// registered policy writer; only when neither applies does an update raise
+// the administrator prompt.
 pub(super) fn update_needs_approval(
-    snapshot: &crate::integration::host_app::HostAppSnapshot,
+    profile_source: Option<&str>,
+    env: &crate::integration::host_app::ProbeEnv,
 ) -> bool {
-    snapshot
-        .profile_source
-        .as_deref()
-        .is_some_and(|source| source.starts_with("HKLM"))
+    profile_source.is_some_and(|source| source.starts_with("HKLM"))
         && !winproc::is_elevated()
+        && !env.policy_writer_ready
 }
 
 pub(super) fn list_claude_processes() -> Result<Vec<String>, crate::sysproc::SysprocError> {
@@ -139,6 +139,15 @@ fn install_profile_with(path: &str, attendance: Attendance) -> std::io::Result<P
         Err(crate::config::store::ConfigStoreError::HiveConflict { differing, .. })
             if !elevated =>
         {
+            match install_through_writer(&entries) {
+                Ok(Some(installed)) => return Ok(installed),
+                Ok(None) => {},
+                Err(e) => tracing::warn!(
+                    path,
+                    error = %e,
+                    "the elevated policy writer did not apply the profile; asking for approval"
+                ),
+            }
             if attendance == Attendance::Unattended {
                 tracing::warn!(
                     path,
@@ -187,6 +196,64 @@ fn install_profile_with(path: &str, attendance: Attendance) -> std::io::Result<P
         "Claude Desktop profile installed"
     );
     Ok(outcome)
+}
+
+// Why: the writer takes the manifest from the envelope the last sync kept
+// and the inference facts from the staged profile, so what lands in the
+// machine hive is what the GUI generated — with a verified server list.
+fn install_through_writer(
+    entries: &[(String, String)],
+) -> Result<Option<ProfileInstalled>, crate::install::policy_writer::PolicyWriterError> {
+    use crate::install::policy_writer::{self, PolicyWriterError, WriterStatus};
+    match policy_writer::status() {
+        WriterStatus::Ready => {},
+        WriterStatus::NotRegistered => return Ok(None),
+        WriterStatus::Unavailable(why) => return Err(PolicyWriterError::Unavailable(why)),
+    }
+    let Some(fragment) = crate::mcp_registry::read_envelope().map_err(|source| {
+        PolicyWriterError::Io {
+            context: "read the last verified manifest envelope".to_owned(),
+            source,
+        }
+    })?
+    else {
+        return Err(PolicyWriterError::Unavailable(
+            "no verified manifest envelope has been kept yet; sync once first".to_owned(),
+        ));
+    };
+    let catalog =
+        crate::install::mdm::tool_catalog::read().map_err(|source| PolicyWriterError::Io {
+            context: "read the tool catalog".to_owned(),
+            source,
+        })?;
+    let requester = crate::windows_acl::current_sid().map_err(|source| PolicyWriterError::Io {
+        context: "resolve the requesting account".to_owned(),
+        source,
+    })?;
+    let loopback = policy_writer::Loopback::from_entries(entries).map_err(|source| {
+        PolicyWriterError::Io {
+            context: "read the proxy from the staged profile".to_owned(),
+            source,
+        }
+    })?;
+    let request = policy_writer::build_request(
+        loopback,
+        &fragment,
+        catalog,
+        policy_writer::facts_from_entries(entries),
+        requester,
+    );
+    policy_writer::write_policy(&request)?;
+    let outcome = require_org_plugins_provisioned(false).map_err(|e| {
+        PolicyWriterError::Unavailable(format!(
+            "policy written through the elevated writer, but org-plugins is not usable: {e}"
+        ))
+    })?;
+    tracing::info!(
+        value_count = entries.len(),
+        "Claude Desktop profile installed through the elevated policy writer"
+    );
+    Ok(Some(outcome))
 }
 
 fn install_profile_elevated(path: &str) -> std::io::Result<ProfileInstalled> {

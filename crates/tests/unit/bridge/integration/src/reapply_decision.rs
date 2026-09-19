@@ -121,6 +121,7 @@ fn probe_state_of_codex() -> ProfileState {
         loopback_secret: None,
         start_menu: Arc::default(),
         expected_managed_servers: None,
+        policy_writer_ready: false,
     };
     CODEX_CLI_HOST.probe(&env).profile_state
 }
@@ -377,6 +378,7 @@ impl HostApp for PromptingHost {
             host_processes: Vec::new(),
             app_installed: AppInstallState::Unknown,
             probed_at_unix: u64::from(env.proxy_port),
+            update_needs_approval: false,
         }
     }
 
@@ -414,6 +416,7 @@ fn a_host_that_would_prompt_is_declined_unattended_and_repaired_attended() {
             loopback_secret: None,
             start_menu: Arc::default(),
             expected_managed_servers: None,
+            policy_writer_ready: false,
         };
         let unattended = ctx.block_on(reapply_host(
             ctx,

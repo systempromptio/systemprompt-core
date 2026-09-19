@@ -26,6 +26,7 @@ fn snapshot(probed_at_unix: u64) -> HostAppSnapshot {
         host_processes: Vec::new(),
         app_installed: AppInstallState::Installed,
         probed_at_unix,
+        update_needs_approval: false,
     }
 }
 

@@ -164,7 +164,6 @@ pub struct HostHealthInputs<'a> {
     pub surface: AgentSurface,
     pub manifest_synced: bool,
     pub can_open: bool,
-    pub update_needs_approval: bool,
 }
 
 /// The model-availability facts, borrowed.
@@ -231,7 +230,7 @@ pub fn verdict(input: &HostHealthInputs<'_>) -> AgentVerdict {
         ProfileState::Stale {
             reason: StaleReason::ManagedServers,
         } => {
-            let action = if input.update_needs_approval {
+            let action = if snap.update_needs_approval {
                 AgentAction::UpdateAdmin
             } else {
                 AgentAction::Update

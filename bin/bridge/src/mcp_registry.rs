@@ -51,6 +51,17 @@ pub fn empty_slot() -> Arc<McpRegistrySlot> {
 }
 
 pub(crate) fn publish(slot: &McpRegistrySlot, servers: &[ManagedMcpServer]) {
+    let next = from_servers(servers);
+    slot.store(Arc::new(next));
+    tracing::info!(
+        target: "bridge::proxy",
+        count = servers.len(),
+        "managed MCP server registry updated"
+    );
+}
+
+#[must_use]
+pub fn from_servers(servers: &[ManagedMcpServer]) -> McpRegistry {
     let mut next: McpRegistry = HashMap::with_capacity(servers.len());
     for s in servers {
         next.insert(
@@ -69,12 +80,7 @@ pub(crate) fn publish(slot: &McpRegistrySlot, servers: &[ManagedMcpServer]) {
             },
         );
     }
-    slot.store(Arc::new(next));
-    tracing::info!(
-        target: "bridge::proxy",
-        count = servers.len(),
-        "managed MCP server registry updated"
-    );
+    next
 }
 
 #[must_use]
@@ -88,6 +94,27 @@ pub fn clear(slot: &McpRegistrySlot) {
     }
     slot.store(Arc::new(HashMap::new()));
     tracing::info!(target: "bridge::proxy", "managed MCP server registry cleared");
+}
+
+/// The last verified manifest as the gateway signed it, kept beside the
+/// registry it was decoded into so the Windows policy writer can re-verify it.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct EnvelopeFragment {
+    pub gateway: ValidatedUrl,
+    pub envelope: systemprompt_models::bridge::manifest::SignedManifestEnvelope,
+}
+
+pub fn read_envelope() -> std::io::Result<Option<EnvelopeFragment>> {
+    let Some(meta_dir) = crate::config::paths::bridge_metadata_dir() else {
+        return Ok(None);
+    };
+    match std::fs::read(meta_dir.join(crate::config::paths::MANIFEST_ENVELOPE_FRAGMENT)) {
+        Ok(bytes) => serde_json::from_slice(&bytes)
+            .map(Some)
+            .map_err(std::io::Error::other),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(e) => Err(e),
+    }
 }
 
 #[must_use]

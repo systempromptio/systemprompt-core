@@ -114,6 +114,13 @@ async fn prepare_run(bridge: &crate::context::BridgeContext) -> Result<(), SyncE
     Ok(())
 }
 
+fn persist_envelope(fetch: &manifest::ManifestFetch) -> Result<(), SyncError> {
+    let meta_dir = apply::metadata_dir().map_err(|e| SyncError::ApplyFailed(Box::new(e)))?;
+    apply::write_envelope(&meta_dir, fetch.client.base_url(), &fetch.envelope)
+        .map(|_| ())
+        .map_err(|e| SyncError::ApplyFailed(Box::new(e)))
+}
+
 #[tracing::instrument(level = "info", skip(bridge))]
 pub async fn run_once(
     bridge: &crate::context::BridgeContext,
@@ -134,6 +141,7 @@ pub async fn run_once(
     let synced = manifest::verify_and_decode(&fetch, allow_unsigned, allow_tofu).await?;
     let run_gateway = fetch.client.base_url().clone();
     ensure_device_enrolled(bridge, &fetch, &synced.user_id).await;
+    persist_envelope(&fetch)?;
 
     #[cfg_attr(
         not(target_os = "windows"),

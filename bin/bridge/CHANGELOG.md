@@ -2,6 +2,10 @@
 
 ## [0.57.0] - 2026-09-19
 
+### Added
+
+- Windows: an elevated policy writer. An elevated `install --apply` with a pinned gateway key registers a SYSTEM Task Scheduler task that runs an administrator-owned copy of the bridge; a sync or a Claude Desktop update hands it the gateway-signed manifest and it rewrites `HKLM\SOFTWARE\Policies\Claude` after verifying the signature against the machine trust anchor — so linking a connector no longer raises a UAC prompt, and Cowork follows the gateway on the next sync. Without an anchor the writer is not registered and the approval prompt remains; `doctor` says which.
+
 ### Fixed
 
 - Setup health rows carry their repair. A host the sync could not write without UAC (the machine-wide Claude Desktop policy) read "down" with nothing to press: the error toast's "Repair as administrator" was cleared by the same failure arriving again as the rejected request before the duplicate was recognised. The button survives, every host-failure row offers Repair (as administrator when elevation is needed), the `permission_rules` warning offers the Repair that creates the managed Claude Code settings file, and an info validation line reads as info rather than "unknown". `CheckLinePayload` gains `level`.

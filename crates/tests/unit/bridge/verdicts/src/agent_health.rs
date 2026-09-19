@@ -35,6 +35,7 @@ const fn snapshot(profile_state: ProfileState, app: AppInstallState) -> HostAppS
         host_processes: Vec::new(),
         app_installed: app,
         probed_at_unix: 1_700_000_000,
+        update_needs_approval: false,
     }
 }
 
@@ -61,7 +62,6 @@ const fn inputs<'a>(
         surface: AgentSurface::LocalProfile,
         manifest_synced: true,
         can_open: true,
-        update_needs_approval: false,
     }
 }
 
@@ -196,7 +196,6 @@ fn a_host_that_cannot_be_opened_gets_no_open_action() {
     let snap = snapshot(ProfileState::Installed, AppInstallState::Installed);
     let v = verdict(&HostHealthInputs {
         can_open: false,
-        update_needs_approval: false,
         ..inputs(Some(&snap), &px)
     });
     assert_eq!(v.state, AgentState::Working);
@@ -205,7 +204,6 @@ fn a_host_that_cannot_be_opened_gets_no_open_action() {
     let px_idle = proxy(ProxyProbeState::Unconfigured);
     let ready = verdict(&HostHealthInputs {
         can_open: false,
-        update_needs_approval: false,
         ..inputs(Some(&snap), &px_idle)
     });
     assert_eq!(ready.state, AgentState::Ready);
@@ -369,24 +367,23 @@ fn a_server_list_behind_the_gateway_offers_update_and_names_the_approval() {
         plain.reason
     );
 
-    let mut elevated = inputs(Some(&behind), &px);
+    let mut elevated = behind.clone();
     elevated.update_needs_approval = true;
     assert_eq!(
-        verdict(&elevated).action,
+        verdict(&inputs(Some(&elevated), &px)).action,
         Some(AgentAction::UpdateAdmin),
         "a write into the machine policy is announced as administrator work"
     );
 
-    let secret = snapshot(
+    let mut secret = snapshot(
         ProfileState::Stale {
             reason: StaleReason::LoopbackSecret,
         },
         AppInstallState::Installed,
     );
-    let mut secret_inputs = inputs(Some(&secret), &px);
-    secret_inputs.update_needs_approval = true;
+    secret.update_needs_approval = true;
     assert_eq!(
-        verdict(&secret_inputs).action,
+        verdict(&inputs(Some(&secret), &px)).action,
         Some(AgentAction::Repair),
         "only a server-list drift is an update; a stale credential is still a repair"
     );

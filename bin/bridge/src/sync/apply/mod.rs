@@ -224,6 +224,26 @@ pub fn write_user(meta_dir: &Path, user: Option<&UserInfo>) -> Result<FileReceip
     write_fragment(&path, &bytes)
 }
 
+// Why: the Windows policy writer accepts only a gateway-signed manifest and
+// re-verifies it under SYSTEM, so the envelope is kept verbatim rather than
+// the decoded manifest — a decoded copy could not be re-verified.
+pub fn write_envelope(
+    meta_dir: &Path,
+    gateway: &ValidatedUrl,
+    envelope: &systemprompt_models::bridge::manifest::SignedManifestEnvelope,
+) -> Result<FileReceipt, ApplyError> {
+    let path = meta_dir.join(paths::MANIFEST_ENVELOPE_FRAGMENT);
+    let fragment = crate::mcp_registry::EnvelopeFragment {
+        gateway: gateway.clone(),
+        envelope: envelope.clone(),
+    };
+    let bytes = serde_json::to_vec_pretty(&fragment).map_err(|e| ApplyError::Serialize {
+        what: "manifest envelope".into(),
+        source: e,
+    })?;
+    write_fragment(&path, &bytes)
+}
+
 pub fn write_mcp_servers(
     meta_dir: &Path,
     gateway: &ValidatedUrl,

@@ -60,6 +60,63 @@ fn require_org_plugins() -> Result<(), MdmError> {
     )))
 }
 
+// Why: the writer is tried before the per-user write so an unelevated sync
+// reaches the machine hive without a prompt; `Ok(None)` means the writer is
+// not on this computer and the caller takes the ordinary path, an `Err` is
+// a writer that exists and failed, which the caller reports and then falls
+// back on — a failed delegation is never a silent success.
+pub(super) fn delegate_to_writer(
+    inputs: &super::MdmPayloadInputs<'_>,
+    facts: crate::install::policy_writer::RequestFacts,
+) -> Result<Option<String>, crate::install::policy_writer::PolicyWriterError> {
+    use crate::install::policy_writer::{self, PolicyWriterError, WriterStatus};
+    if crate::winproc::is_elevated() {
+        return Ok(None);
+    }
+    match policy_writer::status() {
+        WriterStatus::Ready => {},
+        WriterStatus::NotRegistered => return Ok(None),
+        WriterStatus::Unavailable(why) => return Err(PolicyWriterError::Unavailable(why)),
+    }
+    let Some(fragment) = crate::mcp_registry::read_envelope().map_err(|source| {
+        PolicyWriterError::Io {
+            context: "read the last verified manifest envelope".to_owned(),
+            source,
+        }
+    })?
+    else {
+        return Err(PolicyWriterError::Unavailable(
+            "no verified manifest envelope has been kept yet; sync once first".to_owned(),
+        ));
+    };
+    let catalog = super::tool_catalog::read().map_err(|source| PolicyWriterError::Io {
+        context: "read the tool catalog".to_owned(),
+        source,
+    })?;
+    let requester = crate::windows_acl::current_sid().map_err(|source| PolicyWriterError::Io {
+        context: "resolve the requesting account".to_owned(),
+        source,
+    })?;
+    let loopback = policy_writer::Loopback::of(inputs.loopback).map_err(|source| {
+        PolicyWriterError::Io {
+            context: "read the loopback secret".to_owned(),
+            source,
+        }
+    })?;
+    let request = policy_writer::build_request(loopback, &fragment, catalog, facts, requester);
+    let steps = policy_writer::write_policy(&request)?;
+    let receipts: Vec<String> = steps
+        .iter()
+        .flat_map(|step| step.policies.iter())
+        .map(crate::config::store::verified::PolicyReceipt::describe)
+        .collect();
+    Ok(Some(format!(
+        "{} ← full policy via the elevated writer ({})",
+        crate::cowork_compat::HKLM_POLICY_KEY,
+        receipts.join("; ")
+    )))
+}
+
 pub(super) fn enforce_managed_policy(
     inputs: &super::MdmPayloadInputs<'_>,
 ) -> Result<String, MdmError> {
@@ -219,10 +276,24 @@ pub(super) fn apply(
     validate_gateway(gateway)?;
     let elevated = crate::winproc::is_elevated();
     let values = policy_values(inputs, gateway)?;
-    let bridge = super::bridge_policy_values(
-        pubkey,
-        &crate::config::gateway_url_or_default(&crate::config::load()?),
-    )?;
+    let cfg = crate::config::load()?;
+    let gateway_url = crate::config::gateway_url_or_default(&cfg);
+    // Why: the machine anchor is what the policy writer verifies manifests
+    // against, and an elevated install is the one moment it can be written.
+    // A pin the operator already holds is carried up rather than asking for
+    // --pubkey again; no pin at all leaves the anchor unwritten and the
+    // writer unregistered.
+    let pinned = match pubkey {
+        Some(key) => Some(key.to_owned()),
+        None if elevated => match crate::config::trust::pinned_pubkey_state_for(&cfg, &gateway_url)?
+        {
+            crate::config::PinnedPubkeyState::Pinned { key, .. } => Some(key.as_str().to_owned()),
+            crate::config::PinnedPubkeyState::Unpinned
+            | crate::config::PinnedPubkeyState::StaleForGateway { .. } => None,
+        },
+        None => None,
+    };
+    let bridge = super::bridge_policy_values(pinned.as_deref(), &gateway_url)?;
     let plan = windows_policy::WritePlan::new(&values, &bridge, elevated, inputs.policy_store);
     let key = policy_key(plan.hive());
     let mut summary = Vec::with_capacity(values.len() + bridge.len() + 4);
@@ -250,6 +321,27 @@ pub(super) fn apply(
                     org.path.display(),
                     org.grant_user
                 ));
+            }
+            // Why: registering the writer is what makes every later sync
+            // prompt-free; without a machine trust anchor it cannot verify a
+            // manifest, so it is not registered and the install says so.
+            match std::env::current_exe()
+                .map_err(|e| crate::install::policy_writer::PolicyWriterError::Io {
+                    context: "locate this binary".to_owned(),
+                    source: e,
+                })
+                .and_then(|exe| crate::install::policy_writer::install(&exe))
+            {
+                Ok(lines) => summary.extend(lines),
+                Err(crate::install::policy_writer::PolicyWriterError::NoAnchor) => {
+                    summary.push(
+                        "policy writer not registered: no signing trust anchor in the machine \
+                         policy (pass --pubkey, or pin the gateway key first); later connector \
+                         changes will ask for administrator approval"
+                            .to_owned(),
+                    );
+                },
+                Err(e) => return Err(MdmError::Windows(format!("policy writer: {e}"))),
             }
         } else {
             require_org_plugins()?;
