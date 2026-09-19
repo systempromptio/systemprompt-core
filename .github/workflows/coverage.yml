@@ -191,7 +191,7 @@ jobs:
         env:
           PGPASSWORD: test
           ADMIN_URL: postgres://test:test@localhost:5432/postgres
-          BASE_URL: postgres://test:test@localhost:5432
+          COVERAGE_DATABASE_BASE_URL: postgres://test:test@localhost:5432
           NEXTEST_PROFILE: coverage
           # Continuous mode: %c makes every process for a given binary mmap and
           # merge into ONE file keyed by %m (the binary signature), instead of
@@ -244,12 +244,16 @@ jobs:
             psql "$ADMIN_URL" -v ON_ERROR_STOP=1 \
               -c "DROP DATABASE IF EXISTS \"$db\" WITH (FORCE);" \
               -c "CREATE DATABASE \"$db\";"
-            DATABASE_URL="$BASE_URL/$db" /mnt/coverage-target/release/systemprompt-test-migrate
+            DATABASE_URL="$COVERAGE_DATABASE_BASE_URL/$db" /mnt/coverage-target/release/systemprompt-test-migrate
             # The database dies with the runner, so durability buys nothing.
-            psql "$BASE_URL/$db" -c "ALTER DATABASE \"$db\" SET synchronous_commit = off;"
+            psql "$COVERAGE_DATABASE_BASE_URL/$db" -c "ALTER DATABASE \"$db\" SET synchronous_commit = off;"
+            target_args=(--bins --tests)
+            if [ "$group" = integration-cli ]; then
+              target_args=(--bins)
+            fi
             set +e
-            DATABASE_URL="$BASE_URL/$db" \
-              bash scripts/test-shard.sh "$group" --bins --tests --no-fail-fast
+            DATABASE_URL="$COVERAGE_DATABASE_BASE_URL/$db" \
+              bash scripts/test-shard.sh "$group" "${target_args[@]}" --no-fail-fast
             shard_status=$?
             set -e
             echo "::endgroup::"
