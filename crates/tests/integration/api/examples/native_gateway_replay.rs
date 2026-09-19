@@ -103,6 +103,8 @@ fn registry(
     ProviderRegistry {
         providers: vec![ProviderEntry {
             name: ProviderId::new("native-fixture"),
+            display_name: None,
+            description: None,
             wire,
             surface,
             endpoint: endpoint.to_owned(),

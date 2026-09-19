@@ -116,9 +116,12 @@ async fn fetch(harness: &Harness, cache_control: Option<&str>) {
             value.parse().expect("cache-control header"),
         );
     }
-    bridge_manifest::manifest(Arc::clone(&harness.extractor), harness.ctx.clone(), headers)
-        .await
-        .expect("a signed-in consumer receives a manifest");
+    let axum::Json(envelope) =
+        bridge_manifest::manifest(Arc::clone(&harness.extractor), harness.ctx.clone(), headers)
+            .await
+            .expect("a signed-in consumer receives a manifest");
+    assert!(!envelope.payload.is_empty());
+    assert!(!envelope.signature.as_str().is_empty());
 }
 
 #[test]
