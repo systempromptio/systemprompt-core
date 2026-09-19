@@ -5,6 +5,7 @@
 ### Fixed
 
 - Setup health rows carry their repair. A host the sync could not write without UAC (the machine-wide Claude Desktop policy) read "down" with nothing to press: the error toast's "Repair as administrator" was cleared by the same failure arriving again as the rejected request before the duplicate was recognised. The button survives, every host-failure row offers Repair (as administrator when elevation is needed), the `permission_rules` warning offers the Repair that creates the managed Claude Code settings file, and an info validation line reads as info rather than "unknown". `CheckLinePayload` gains `level`.
+- A pressed sync, `sync --fresh` and every Claude Desktop generate/Update ask the gateway for a fresh catalogue (`Cache-Control: no-cache`) instead of its 60 s per-user memo, and generate republishes the managed servers from that manifest before writing the profile — an Update pressed right after linking a connector no longer writes the previous server set.
 - The MCP auth probe runs every server concurrently instead of one after another; a four-server sync no longer waits ≈ 12 s on the vendors in series.
 
 ## [0.56.1] - 2026-09-18

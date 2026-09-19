@@ -21,6 +21,7 @@ use reqwest::dns::{Addrs, Name, Resolve, Resolving};
 use systemprompt_identifiers::ValidatedUrl;
 
 pub use errors::GatewayError;
+pub use fetch::Freshness;
 pub use types::{BridgeOAuthClientResponse, HookTokenResponse, WhoamiResponse};
 
 // Why: WSL2 localhost forwarding can stall IPv6 connections; resolve IPv4

@@ -8,6 +8,7 @@ mod error;
 mod manifest;
 mod org_plugins_scope;
 mod provision;
+mod registry_refresh;
 mod replay;
 mod seed_model;
 mod sentinel;
@@ -23,11 +24,13 @@ pub use crate::last_sync::{
 pub use apply::{HostFailure, HostWarning, HostWarningKind, PLUGIN_INSTALLATION_PREFERENCE};
 pub use error::{CredentialRejection, SyncError};
 pub use provision::ProvisionError;
+pub use registry_refresh::{refresh_registry, refresh_registry_for};
 pub use replay::{SKEW_WINDOW_MINUTES, check_replay, check_skew};
 pub use summary::SyncSummary;
 use summary::build_summary;
 
 use crate::config::{self, paths};
+use crate::gateway::Freshness;
 use std::fs;
 
 pub const WATCH_FLOOR_SECS: u64 = 60;
@@ -57,6 +60,7 @@ pub struct SyncOptions {
     pub allow_unsigned: bool,
     pub force_replay: bool,
     pub allow_tofu: bool,
+    pub freshness: Freshness,
     pub cancel: tokio_util::sync::CancellationToken,
 }
 
@@ -86,20 +90,7 @@ async fn ensure_device_enrolled(
     }
 }
 
-#[tracing::instrument(level = "info", skip(bridge))]
-pub async fn run_once(
-    bridge: &crate::context::BridgeContext,
-    options: &SyncOptions,
-) -> Result<SyncSummary, SyncError> {
-    let SyncOptions {
-        allow_unsigned,
-        force_replay,
-        allow_tofu,
-        cancel,
-    } = options;
-    let (allow_unsigned, force_replay, allow_tofu) = (*allow_unsigned, *force_replay, *allow_tofu);
-    let operation =
-        std::sync::Arc::new(std::sync::Arc::clone(&bridge.sync_lock).lock_owned().await);
+async fn prepare_run(bridge: &crate::context::BridgeContext) -> Result<(), SyncError> {
     bridge
         .activity
         .ensure_persistence()
@@ -120,7 +111,26 @@ pub async fn run_once(
             tracing::debug!(%error,"Installation receipts remain unacknowledged before sync");
         }
     }
-    let fetch = manifest::fetch_authenticated_manifest(&bridge.http).await?;
+    Ok(())
+}
+
+#[tracing::instrument(level = "info", skip(bridge))]
+pub async fn run_once(
+    bridge: &crate::context::BridgeContext,
+    options: &SyncOptions,
+) -> Result<SyncSummary, SyncError> {
+    let SyncOptions {
+        allow_unsigned,
+        force_replay,
+        allow_tofu,
+        freshness,
+        cancel,
+    } = options;
+    let (allow_unsigned, force_replay, allow_tofu) = (*allow_unsigned, *force_replay, *allow_tofu);
+    let operation =
+        std::sync::Arc::new(std::sync::Arc::clone(&bridge.sync_lock).lock_owned().await);
+    prepare_run(bridge).await?;
+    let fetch = manifest::fetch_authenticated_manifest(&bridge.http, *freshness).await?;
     let synced = manifest::verify_and_decode(&fetch, allow_unsigned, allow_tofu).await?;
     let run_gateway = fetch.client.base_url().clone();
     ensure_device_enrolled(bridge, &fetch, &synced.user_id).await;

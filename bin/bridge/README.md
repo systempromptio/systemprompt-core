@@ -53,7 +53,7 @@ The modules are layered bottom-up and `just lint-bridge-layers` refuses an upwar
 | `status` | Show config paths and what is currently set up |
 | `whoami` | Print authenticated identity from the gateway |
 | `install [--apply] [--pubkey <base64>] …` | Bootstrap integration; pin manifest signing pubkey |
-| `sync [--watch [--interval <secs>]] [--allow-tofu] [--force-replay] …` | Pull plugins + MCP allowlist into `org-plugins/`; an unparseable `--interval` exits `64` |
+| `sync [--watch [--interval <secs>]] [--fresh] [--allow-tofu] [--force-replay] …` | Pull plugins + MCP allowlist into `org-plugins/`; `--fresh` bypasses the gateway's per-user catalogue memo; an unparseable `--interval` exits `64` |
 | `oauth-client {status\|rotate}` | Manage the per-tenant OAuth client that mints plugin-scoped hook tokens |
 | `validate` | End-to-end self-check (paths, gateway, creds, signatures) |
 | `doctor` | Diagnose common failure modes (config, creds, gateway, loopback secret, pinned pubkey), one line per check |

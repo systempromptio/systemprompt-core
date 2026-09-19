@@ -66,6 +66,7 @@ pub(super) async fn resource(
         profile,
         &identity.consumer_id,
         services,
+        crate::routes::gateway::bridge_resolved::Freshness::Memo,
     )
     .await
     .map_err(|(status, detail)| {

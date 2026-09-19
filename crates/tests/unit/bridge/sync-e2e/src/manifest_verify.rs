@@ -61,7 +61,11 @@ fn manifest() -> SignedManifest {
 }
 
 fn signed_envelope(key: &SigningKey) -> SignedManifestEnvelope {
-    let payload = serde_json::to_string(&manifest()).unwrap();
+    signed_envelope_of(key, &manifest())
+}
+
+fn signed_envelope_of(key: &SigningKey, manifest: &SignedManifest) -> SignedManifestEnvelope {
+    let payload = serde_json::to_string(manifest).unwrap();
     let sig = key.sign(payload.as_bytes());
     SignedManifestEnvelope {
         payload,
@@ -526,4 +530,76 @@ fn allow_unsigned_applies_an_unsigned_manifest_when_nothing_is_pinned() {
     let _ = &server;
 
     run_sync_with(&dirs, true, false).expect("an unpinned install may sync unsigned");
+}
+
+// The registry refresh behind a Claude Desktop update: a fresh, verified
+// manifest republishes the managed servers without a full sync. The mock
+// insists on `Cache-Control: no-cache`, so a memo-tolerant fetch would 404.
+#[test]
+fn refresh_registry_publishes_the_servers_of_a_fresh_verified_manifest() {
+    let key = signing_key();
+    let mut with_server = manifest();
+    with_server.managed_mcp_servers =
+        vec![systemprompt_bridge::gateway::manifest::ManagedMcpServer {
+            id: systemprompt_identifiers::McpServerId::try_new("salesforce-crm-dev").unwrap(),
+            name: systemprompt_models::bridge::ids::ManagedMcpServerName::try_new(
+                "salesforce-crm-dev",
+            )
+            .unwrap(),
+            url: systemprompt_identifiers::ValidatedUrl::try_new(
+                "https://gateway.invalid/api/v1/mcp/salesforce-crm-dev/mcp",
+            )
+            .unwrap(),
+            transport: Some("http".into()),
+            headers: None,
+            oauth: None,
+            tool_policy: None,
+        }];
+    let env = signed_envelope_of(&key, &with_server);
+    let (server, dirs) = block_on(async {
+        let server = MockServer::start().await;
+        crate::mount_profile(&server).await;
+        Mock::given(method("POST"))
+            .and(path("/v1/auth/bridge/pat"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "token": "test-bearer-token",
+                "ttl": 3600,
+            })))
+            .mount(&server)
+            .await;
+        Mock::given(method("GET"))
+            .and(path("/v1/bridge/manifest"))
+            .and(wiremock::matchers::header("cache-control", "no-cache"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(serde_json::to_value(&env).unwrap()),
+            )
+            .mount(&server)
+            .await;
+        let dirs = sandbox(&server.uri(), Some(&pubkey_b64(&key)));
+        (server, dirs)
+    });
+    let _ = &server;
+
+    let published = temp_env::with_vars(
+        dirs.vars
+            .iter()
+            .map(|(k, v)| (*k, v.as_deref()))
+            .collect::<Vec<_>>(),
+        || {
+            let bridge = bridge();
+            assert!(
+                bridge.mcp_registry().is_empty(),
+                "nothing has been synced into this sandbox yet"
+            );
+            let count = block_on(systemprompt_bridge::sync::refresh_registry(&bridge))
+                .expect("a pinned, signed manifest refreshes the registry");
+            (
+                count,
+                bridge.mcp_registry().keys().cloned().collect::<Vec<_>>(),
+            )
+        },
+    );
+
+    assert_eq!(published.0, 1);
+    assert_eq!(published.1, vec!["salesforce-crm-dev".to_owned()]);
 }

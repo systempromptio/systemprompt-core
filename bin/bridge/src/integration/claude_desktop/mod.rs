@@ -139,6 +139,10 @@ impl HostApp for ClaudeDesktopHost {
         "claude-desktop"
     }
 
+    fn profile_carries_managed_servers(&self) -> bool {
+        true
+    }
+
     fn config_format(&self) -> ConfigFormat {
         if cfg!(target_os = "windows") {
             ConfigFormat::Reg

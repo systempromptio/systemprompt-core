@@ -112,6 +112,15 @@ fn enrol_selected(ctx: &BridgeContext, selection: &Selection) -> ExitCode {
             return ExitCode::from(1);
         },
     };
+    // Why: a host profile that names the managed servers (Claude Desktop) is
+    // written from the registry; a fresh fetch keeps it from repeating the
+    // server set of a sync that ran before the user linked a connector.
+    if let Err(e) = ctx.block_on(crate::sync::refresh_registry(ctx)) {
+        diag(&format!(
+            "managed MCP servers not refreshed from the gateway ({e}); the profiles are written \
+             from the last sync's server list"
+        ));
+    }
     match ctx.block_on(enrol::enrol_hosts(ctx, selection, &overrides, enabled)) {
         Ok(reports) => {
             stdio::print_str(&enrol::render(&reports));

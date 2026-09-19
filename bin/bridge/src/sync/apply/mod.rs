@@ -12,7 +12,7 @@
 mod evidence;
 mod fetch;
 mod hooks;
-mod loopback;
+pub(super) mod loopback;
 pub mod node_deps;
 mod plugin;
 pub mod safe_path;
@@ -174,11 +174,7 @@ pub(crate) fn check_not_superseded(run_gateway: &ValidatedUrl) -> Result<(), App
     })
 }
 
-pub fn prepare_dirs(root: &Path) -> Result<(std::path::PathBuf, std::path::PathBuf), ApplyError> {
-    fs::create_dir_all(root).map_err(|e| ApplyError::Io {
-        context: format!("create {}", root.display()),
-        source: e,
-    })?;
+pub fn metadata_dir() -> Result<std::path::PathBuf, ApplyError> {
     let meta_dir = paths::bridge_metadata_dir().ok_or_else(|| ApplyError::Io {
         context: "resolve bridge metadata dir".into(),
         source: std::io::Error::other("no LOCALAPPDATA / state dir resolvable"),
@@ -187,6 +183,15 @@ pub fn prepare_dirs(root: &Path) -> Result<(std::path::PathBuf, std::path::PathB
         context: format!("create metadata dir at {}", meta_dir.display()),
         source: e,
     })?;
+    Ok(meta_dir)
+}
+
+pub fn prepare_dirs(root: &Path) -> Result<(std::path::PathBuf, std::path::PathBuf), ApplyError> {
+    fs::create_dir_all(root).map_err(|e| ApplyError::Io {
+        context: format!("create {}", root.display()),
+        source: e,
+    })?;
+    let meta_dir = metadata_dir()?;
     let staging_root = paths::bridge_staging_dir().ok_or_else(|| ApplyError::Io {
         context: "resolve bridge staging dir".into(),
         source: std::io::Error::other("no LOCALAPPDATA / state dir resolvable"),

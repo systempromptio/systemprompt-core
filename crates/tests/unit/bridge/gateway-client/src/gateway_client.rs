@@ -5,10 +5,10 @@
 //! the success-decode path and the relevant `GatewayError` variant on failure.
 
 use systemprompt_bridge::gateway::manifest::decode_payload;
-use systemprompt_bridge::gateway::{GatewayClient, GatewayError};
+use systemprompt_bridge::gateway::{Freshness, GatewayClient, GatewayError};
 use systemprompt_bridge::ids::BearerToken;
 use systemprompt_identifiers::ValidatedUrl;
-use wiremock::matchers::{header, method, path};
+use wiremock::matchers::{header, header_exists, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 fn client(server: &MockServer) -> GatewayClient {
@@ -149,11 +149,49 @@ async fn fetch_manifest_ok() {
         .mount(&server)
         .await;
 
-    let envelope = client(&server).fetch_manifest(&bearer()).await.unwrap();
+    let envelope = client(&server).fetch_manifest(&bearer(), Freshness::Memo).await.unwrap();
     assert!(envelope.signature.as_str().is_empty());
     let manifest = decode_payload(&envelope).unwrap();
     assert_eq!(manifest.user_id.as_str(), "user_abc");
     assert!(manifest.plugins.is_empty());
+}
+
+#[tokio::test]
+async fn a_fresh_fetch_asks_the_gateway_not_to_answer_from_its_memo() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/v1/bridge/manifest"))
+        .and(header("cache-control", "no-cache"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(manifest_json()))
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    client(&server)
+        .fetch_manifest(&bearer(), Freshness::Fresh)
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+async fn a_memo_fetch_sends_no_cache_control_header() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/v1/bridge/manifest"))
+        .and(header_exists("cache-control"))
+        .respond_with(ResponseTemplate::new(500))
+        .mount(&server)
+        .await;
+    Mock::given(method("GET"))
+        .and(path("/v1/bridge/manifest"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(manifest_json()))
+        .mount(&server)
+        .await;
+
+    client(&server)
+        .fetch_manifest(&bearer(), Freshness::Memo)
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -165,7 +203,7 @@ async fn fetch_manifest_401_maps_to_http_status() {
         .mount(&server)
         .await;
 
-    let err = client(&server).fetch_manifest(&bearer()).await.unwrap_err();
+    let err = client(&server).fetch_manifest(&bearer(), Freshness::Memo).await.unwrap_err();
     match err {
         GatewayError::HttpStatus { status, endpoint } => {
             assert_eq!(status.as_u16(), 401);
@@ -184,7 +222,7 @@ async fn fetch_manifest_malformed_body_maps_to_envelope_shape_with_snippet() {
         .mount(&server)
         .await;
 
-    let err = client(&server).fetch_manifest(&bearer()).await.unwrap_err();
+    let err = client(&server).fetch_manifest(&bearer(), Freshness::Memo).await.unwrap_err();
     match err {
         GatewayError::ManifestEnvelopeShape { snippet, .. } => {
             assert_eq!(snippet, "{ not a manifest }");
@@ -203,7 +241,7 @@ async fn fetch_manifest_html_body_names_the_shape_mismatch() {
         .mount(&server)
         .await;
 
-    let err = client(&server).fetch_manifest(&bearer()).await.unwrap_err();
+    let err = client(&server).fetch_manifest(&bearer(), Freshness::Memo).await.unwrap_err();
     match err {
         GatewayError::ManifestEnvelopeShape { snippet, .. } => {
             assert_eq!(
@@ -517,7 +555,7 @@ async fn each_endpoint_maps_a_connection_failure_to_its_own_fetch_variant() {
         GatewayError::PubkeyFetch(_)
     ));
     assert!(matches!(
-        c.fetch_manifest(&bearer()).await.unwrap_err(),
+        c.fetch_manifest(&bearer(), Freshness::Memo).await.unwrap_err(),
         GatewayError::ManifestFetch(_)
     ));
     assert!(matches!(

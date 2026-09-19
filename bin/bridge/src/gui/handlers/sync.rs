@@ -7,6 +7,7 @@ use std::sync::Arc;
 
 use serde_json::json;
 
+use crate::gateway::Freshness;
 use crate::gui::error::GuiError;
 use crate::gui::events::{ReplyId, UiEvent};
 use crate::gui::state::CancelScope;
@@ -52,10 +53,18 @@ pub(crate) fn on_sync_requested(app: &mut GuiApp, reply_to: ReplyId) {
             config::pinned_pubkey_state(),
             Ok(config::PinnedPubkeyState::Unpinned)
         );
+        // Why: a sync the user pressed usually follows something they just
+        // did on the gateway (linking a connector); the memo cannot see it.
+        let freshness = if reply_to.is_some() {
+            Freshness::Fresh
+        } else {
+            Freshness::Memo
+        };
         let options = sync::SyncOptions {
             allow_unsigned: false,
             force_replay: false,
             allow_tofu,
+            freshness,
             cancel: token,
         };
         let result = sync::run_once(&bridge, &options)

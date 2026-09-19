@@ -231,6 +231,12 @@ async fn generate_profile_for(
     bridge: &crate::context::BridgeContext,
     overrides: &std::collections::BTreeMap<String, Vec<String>>,
 ) -> GuiResult<GeneratedProfile> {
+    crate::sync::refresh_registry_for(bridge, host)
+        .await
+        .map_err(|e| GuiError::Profile {
+            context: "refresh managed MCP servers from the gateway".into(),
+            source: std::io::Error::other(e.to_string()),
+        })?;
     let inputs = crate::integration::reapply::build_profile_inputs(bridge, host, overrides)
         .await
         .map_err(|e| GuiError::Profile {

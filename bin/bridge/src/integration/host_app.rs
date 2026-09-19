@@ -260,4 +260,11 @@ pub trait HostApp: Send + Sync + 'static {
     fn accepted_surfaces(&self) -> &'static [ApiSurface] {
         &[]
     }
+
+    // Why: only a host whose profile itself names the managed MCP servers
+    // (Claude Desktop's policy) needs the registry refreshed before a
+    // generate; every other host reaches them through the synced org-plugins.
+    fn profile_carries_managed_servers(&self) -> bool {
+        false
+    }
 }

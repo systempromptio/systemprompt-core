@@ -13,6 +13,9 @@
 
 use std::sync::Arc;
 
+use axum::http::HeaderMap;
+use axum::http::header::CACHE_CONTROL;
+
 use systemprompt_identifiers::UserId;
 use systemprompt_marketplace::{
     AssembleRequest, ManifestService, MarketplaceError, NoopTrace, ResolvedCatalog, ResolvedKey,
@@ -21,11 +24,39 @@ use systemprompt_models::Profile;
 use systemprompt_models::services::ServicesConfig;
 use systemprompt_runtime::AppContext;
 
+/// Whether a resolution may be served from the per-user memo.
+///
+/// `Fresh` is what a user-initiated sync or a Claude Desktop update asks
+/// for: the memo's key does not cover a connector the user has just
+/// linked, so within its TTL a memo answers with the server set from
+/// before the link. The rebuild is still stored, so the plugin-file
+/// downloads that follow the manifest stay warm.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Freshness {
+    Memo,
+    Fresh,
+}
+
+impl Freshness {
+    // Why: `Cache-Control: no-cache` is the HTTP spelling of "do not answer
+    // from a store without revalidating"; the bridge sends it on a Sync now.
+    pub fn from_headers(headers: &HeaderMap) -> Self {
+        let no_cache = headers
+            .get_all(CACHE_CONTROL)
+            .iter()
+            .filter_map(|v| v.to_str().ok())
+            .flat_map(|v| v.split(','))
+            .any(|directive| directive.trim().eq_ignore_ascii_case("no-cache"));
+        if no_cache { Self::Fresh } else { Self::Memo }
+    }
+}
+
 pub async fn resolve_for_user(
     ctx: &AppContext,
     services: &ServicesConfig,
     profile: &Profile,
     user_id: &UserId,
+    freshness: Freshness,
 ) -> Result<Arc<ResolvedCatalog>, MarketplaceError> {
     let cache = ctx.marketplace_cache();
     let services_root = ctx.app_paths().system().services();
@@ -45,7 +76,9 @@ pub async fn resolve_for_user(
         user: user_id.clone(),
         managed_stamp,
     };
-    if let Some(hit) = cache.resolved(&key) {
+    if freshness == Freshness::Memo
+        && let Some(hit) = cache.resolved(&key)
+    {
         tracing::debug!(user_id = %user_id, "bridge: resolved catalogue served from memo");
         return Ok(hit);
     }

@@ -9,7 +9,7 @@ use url::{Host, Url};
 
 use crate::gateway::manifest::{ManagedMcpServer, SignedManifest};
 
-pub(super) fn rewrite_loopback_urls(
+pub(crate) fn rewrite_loopback_urls(
     servers: &[ManagedMcpServer],
     gateway: &ValidatedUrl,
 ) -> Vec<ManagedMcpServer> {

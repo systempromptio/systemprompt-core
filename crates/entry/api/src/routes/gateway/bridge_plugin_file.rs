@@ -50,9 +50,15 @@ pub async fn handle(
 
     let services = bridge_data::load_services_config().map_err(|e| internal("services", &e))?;
     let profile = ProfileBootstrap::get().map_err(|e| internal("profile", &e))?;
-    let resolved = bridge_resolved::resolve_for_user(&ctx, &services, profile, &user.id)
-        .await
-        .map_err(|e| internal("resolve", &e))?;
+    let resolved = bridge_resolved::resolve_for_user(
+        &ctx,
+        &services,
+        profile,
+        &user.id,
+        bridge_resolved::Freshness::Memo,
+    )
+    .await
+    .map_err(|e| internal("resolve", &e))?;
 
     if !resolved.candidate.plugins.iter().any(|p| p.id == id) {
         tracing::warn!(
