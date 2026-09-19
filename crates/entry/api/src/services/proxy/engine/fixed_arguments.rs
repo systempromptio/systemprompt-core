@@ -10,13 +10,14 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::collections::HashMap;
+use std::hash::BuildHasher;
 
 use systemprompt_models::mcp::deployment::ToolMetadata;
 
-/// Rewrites `body` in place when it is a `tools/call` whose tool has fixed
-/// arguments. Anything that is not such a call, including an unparsable body,
-/// is left untouched for the upstream to reject on its own terms.
-pub fn apply(tools: &HashMap<String, ToolMetadata>, body: &mut Vec<u8>) {
+// Why: anything that is not a `tools/call` with fixed arguments, including
+// an unparsable body, is left untouched for the upstream to reject on its
+// own terms; the proxy never invents a JSON-RPC error of its own here.
+pub fn apply<S: BuildHasher>(tools: &HashMap<String, ToolMetadata, S>, body: &mut Vec<u8>) {
     if tools.values().all(|tool| tool.arguments.is_empty()) || body.is_empty() {
         return;
     }

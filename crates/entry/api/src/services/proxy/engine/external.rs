@@ -33,6 +33,29 @@ const MCP_PASSTHROUGH_HEADERS: [&str; 4] = [
     "mcp-protocol-version",
 ];
 
+// Why: takes the headers and the context rather than the request — a
+// `Body` is not `Sync`, so holding `&Request` across the await would make
+// the proxy future `!Send` and the router refuse it.
+async fn authorised_context(
+    ctx: &AppContext,
+    service_name: &str,
+    headers: &HeaderMap,
+    req_ctx: Option<RequestContext>,
+) -> Result<RequestContext, ProxyError> {
+    let req_ctx = req_ctx.ok_or_else(|| ProxyError::MissingContext {
+        message: "external MCP proxy requires an authenticated request context".to_owned(),
+    })?;
+    let requirement = mcp_oauth_requirement(ctx, service_name).await?;
+    AccessValidator::validate_with_requirement(
+        headers,
+        service_name,
+        &requirement,
+        ctx,
+        Some(&req_ctx),
+    )?;
+    Ok(req_ctx)
+}
+
 impl ProxyEngine {
     pub(super) async fn proxy_external_mcp(
         &self,
@@ -41,22 +64,13 @@ impl ProxyEngine {
         ctx: AppContext,
         server_config: McpServerConfig,
     ) -> Result<Response<Body>, ProxyError> {
-        let req_ctx = request
-            .extensions()
-            .get::<RequestContext>()
-            .cloned()
-            .ok_or_else(|| ProxyError::MissingContext {
-                message: "external MCP proxy requires an authenticated request context".to_owned(),
-            })?;
-
-        let requirement = mcp_oauth_requirement(&ctx, service_name).await?;
-        AccessValidator::validate_with_requirement(
-            request.headers(),
-            service_name,
-            &requirement,
+        let req_ctx = authorised_context(
             &ctx,
-            Some(&req_ctx),
-        )?;
+            service_name,
+            request.headers(),
+            request.extensions().get::<RequestContext>().cloned(),
+        )
+        .await?;
 
         let target = McpClient::resolve_external_proxy_target(&server_config, &req_ctx)
             .await
