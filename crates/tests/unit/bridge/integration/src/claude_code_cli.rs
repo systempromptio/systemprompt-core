@@ -339,3 +339,79 @@ fn host_projection_removes_cowork_setup_without_changing_the_source_bundle() {
     filter_skills_for_host(source.path(), &skills, "cowork").expect("cowork");
     assert!(source.path().join("skills/setup-admin/SKILL.md").exists());
 }
+#[test]
+fn host_projection_removes_an_excluded_file_skill_without_touching_foreign_skills() {
+    use systemprompt_bridge::gateway::manifest::SkillEntry;
+    use systemprompt_bridge::integration::claude_code_cli::filter_skills_for_host;
+
+    let excluded: SkillEntry = serde_json::from_value(serde_json::json!({
+        "id":"setup_admin","name":"setup_admin","description":"test","file_path":"SKILL.md",
+        "sha256":"0".repeat(64),"instructions":"test","hosts":["cowork"]
+    }))
+    .expect("skill");
+    let destination = tempfile::tempdir().expect("destination");
+    std::fs::create_dir_all(destination.path().join("skills/foreign-skill")).unwrap();
+    std::fs::write(
+        destination.path().join("skills/setup-admin"),
+        "mirrored bytes",
+    )
+    .unwrap();
+    std::fs::write(
+        destination.path().join("skills/foreign-skill/SKILL.md"),
+        "foreign",
+    )
+    .unwrap();
+
+    filter_skills_for_host(destination.path(), &[excluded], "claude-code")
+        .expect("file-shaped exclusion is removable");
+
+    assert!(!destination.path().join("skills/setup-admin").exists());
+    assert_eq!(
+        std::fs::read_to_string(destination.path().join("skills/foreign-skill/SKILL.md")).unwrap(),
+        "foreign",
+        "a skill absent from the manifest is foreign and retained"
+    );
+}
+
+#[test]
+fn whitespace_only_known_marketplaces_recovers_to_an_owned_object() {
+    let d = tempdir().unwrap();
+    let plugins = d.path().join("plugins");
+    std::fs::create_dir_all(&plugins).unwrap();
+    let path = plugins.join("known_marketplaces.json");
+    std::fs::write(&path, " \n\t").unwrap();
+
+    upsert_known_marketplace(
+        &plugins,
+        &MarketplaceId::new("org-provisioned"),
+        "2026-09-20T00:00:00Z",
+    )
+    .expect("blank optional document initializes as an object");
+    let value = read(&path);
+    assert_eq!(
+        value["org-provisioned"]["lastUpdated"],
+        json!("2026-09-20T00:00:00Z")
+    );
+
+    let mut with_foreign = value.as_object().unwrap().clone();
+    with_foreign.insert(
+        "operator-market".into(),
+        json!({"source": {"source": "git", "url": "x"}}),
+    );
+    std::fs::write(&path, serde_json::to_vec(&with_foreign).unwrap()).unwrap();
+    upsert_known_marketplace(
+        &plugins,
+        &MarketplaceId::new("org-provisioned"),
+        "2026-09-21T00:00:00Z",
+    )
+    .expect("subsequent update preserves foreign marketplace");
+    let updated = read(&path);
+    assert_eq!(
+        updated["operator-market"],
+        json!({"source": {"source": "git", "url": "x"}})
+    );
+    assert_eq!(
+        updated["org-provisioned"]["lastUpdated"],
+        json!("2026-09-21T00:00:00Z")
+    );
+}

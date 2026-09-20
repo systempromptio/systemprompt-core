@@ -573,29 +573,15 @@ loadtest-distributed NODES *ARGS:
 
 # Generate line-coverage summary for the workspace.
 #
-# Mirrors .github/workflows/coverage.yml so local + CI numbers stay
-# comparable. Runs entirely in dedicated target dirs under
-# coverage-report/ (override with COVERAGE_TARGET_DIR) so concurrent
-# sessions sharing this checkout can neither clobber the instrumented
-# artifacts nor be broken by this run — never builds in the shared
-# crates/tests/target or ./target, and never mutates shared files.
-# Works around three local-only sabotage points the CI runner
-# doesn't have:
-#
-#   1. sccache via [build] rustc-wrapper in ~/.cargo/config.toml
-#      (returns uninstrumented cached rlibs) — neutralised by
-#      CARGO_BUILD_RUSTC_WRAPPER="" on the cargo invocation.
-#   2. The mold linker pinned by target.<triple>.rustflags — mold
-#      drops the profile-runtime constructors and instrumented
-#      binaries skip the atexit registration, silently producing
-#      zero profraw files. Setting the RUSTFLAGS env replaces
-#      target rustflags entirely (cargo's flag-resolution order),
-#      so the default linker is used, with --jobs 4 to cap RAM use
-#      on the 2GB+ instrumented binaries.
-#   3. Historically, a Cranelift [unstable]/[profile.dev] section in
-#      the cargo configs (silently strips -C instrument-coverage).
-#      Those sections are gone; if a coverage run ever produces
-#      profraws but a 0% report again, check they haven't returned.
+# Uses the workflow's test shards and source exclusions. Instrumented binaries
+# share coverage-report/target (override with COVERAGE_TARGET_DIR); the migration
+# tool uses crates/tests/target unless COVERAGE_MIGRATE_BIN supplies an executable.
+# DATABASE_URL supplies connection settings and a disposable database prefix.
+# Each run resets <database>_cov_build and <database>_cov_<shard> databases.
+# Tests compile once against the migrated build database, then run from nextest
+# metadata against isolated shard databases. Reports include text, JSON and LCOV.
+# Instrumentation bypasses compiler wrappers and configured linker rustflags.
+# CARGO_BUILD_JOBS defaults to 2 to limit concurrent compiler/linker memory use.
 #
 # --ignore-filename-regex also excludes sixteen process-entry files (twelve
 # CLI, three domain supervisors, one bridge installer) — see the matching
@@ -607,7 +593,7 @@ loadtest-distributed NODES *ARGS:
 # which is why the interactive dialoguer paths stay in the denominator.
 # They are listed explicitly rather than by directory so that ordinary
 # testable code added alongside them still counts. Keep this list in
-# sync with .github/workflows/coverage.yml (3 sites each):
+# sync with the report and HTML filters and .github/workflows/coverage.yml:
 #
 #   commands/infrastructure/services/serve.rs      — blocking API server boot
 #   commands/cloud/deploy/pipeline/orchestrator.rs — drives a live Fly deploy
@@ -626,7 +612,10 @@ coverage:
     ROOT="$(pwd)"
     PROFDIR="$ROOT/coverage-report/profraw"
     TDIR="${COVERAGE_TARGET_DIR:-$ROOT/coverage-report/target}"
-    MAINTDIR="$TDIR-main"
+    : "${CARGO_BUILD_JOBS:=2}"
+    : "${CARGO_PROFILE_DEV_DEBUG:=line-tables-only}"
+    : "${CARGO_INCREMENTAL:=0}"
+    export CARGO_BUILD_JOBS CARGO_PROFILE_DEV_DEBUG CARGO_INCREMENTAL
     rm -rf "$PROFDIR" "$ROOT/coverage-report/tests.profdata"
     mkdir -p "$PROFDIR"
 
@@ -645,7 +634,7 @@ coverage:
     # returns cached uninstrumented rlibs and the test binaries link
     # __llvm_profile_runtime but record no counters).
     #
-    # --jobs 4 caps concurrent linker invocations: instrumented test
+    # CARGO_BUILD_JOBS caps concurrent linker invocations: instrumented test
     # binaries can exceed 2GB and the default ld OOM-kills under
     # 32-way parallelism even on 23GB RAM.
     # Build the `systemprompt` binary from the main workspace under the same
@@ -654,11 +643,11 @@ coverage:
     # `--bins` flag would not otherwise produce the binary.
     echo "==> Building instrumented systemprompt binary from main workspace"
     (cd "$ROOT" && CARGO_BUILD_RUSTC_WRAPPER="" RUSTC_WRAPPER="" \
-        CARGO_TARGET_DIR="$MAINTDIR" \
+        CARGO_TARGET_DIR="$TDIR" \
         LLVM_PROFILE_FILE="$PROFDIR/%m%c.profraw" \
         RUSTFLAGS="-C instrument-coverage -C llvm-args=--runtime-counter-relocation" \
-        cargo build -p systemprompt-cli --bin systemprompt --jobs 4)
-    export SYSTEMPROMPT_BIN="$MAINTDIR/debug/systemprompt"
+        cargo build -p systemprompt-cli --bin systemprompt --jobs "$CARGO_BUILD_JOBS")
+    export SYSTEMPROMPT_BIN="$TDIR/debug/systemprompt"
 
     # bin/bridge is its own workspace, so neither build above produces it. The
     # black-box suite spawns it via SP_BRIDGE_BIN and skips silently when the
@@ -666,11 +655,11 @@ coverage:
     # process inherits LLVM_PROFILE_FILE, so its counters pool with the rest.
     echo "==> Building instrumented systemprompt-bridge binary"
     (cd "$ROOT" && CARGO_BUILD_RUSTC_WRAPPER="" RUSTC_WRAPPER="" \
-        CARGO_TARGET_DIR="$MAINTDIR-bridge" \
+        CARGO_TARGET_DIR="$TDIR" \
         LLVM_PROFILE_FILE="$PROFDIR/%m%c.profraw" \
         RUSTFLAGS="-C instrument-coverage -C llvm-args=--runtime-counter-relocation" \
-        cargo build --manifest-path bin/bridge/Cargo.toml --bin systemprompt-bridge --jobs 4)
-    export SP_BRIDGE_BIN="$MAINTDIR-bridge/debug/systemprompt-bridge"
+        cargo build --manifest-path bin/bridge/Cargo.toml --bin systemprompt-bridge --jobs "$CARGO_BUILD_JOBS")
+    export SP_BRIDGE_BIN="$TDIR/debug/systemprompt-bridge"
 
     # DATABASE_URL is required by subprocess_full.rs and other tests that
     # invoke the systemprompt binary through full SecretsBootstrap; without
@@ -690,24 +679,84 @@ coverage:
     : "${DATABASE_URL:=postgres://systemprompt_admin:3e00fcdac26b5b731829e8737515db8f@localhost:5432/systemprompt_coverage}"
     cov_base="${DATABASE_URL%/*}"
     cov_name="${DATABASE_URL##*/}"
-    echo "==> Resetting coverage database: $cov_name"
-    psql "${cov_base}/postgres" -v ON_ERROR_STOP=1 -c "DROP DATABASE IF EXISTS \"${cov_name}\" WITH (FORCE);" >/dev/null
-    psql "${cov_base}/postgres" -v ON_ERROR_STOP=1 -c "CREATE DATABASE \"${cov_name}\";" >/dev/null
-    echo "==> Applying extension schemas (offline build)"
-    SQLX_OFFLINE=true DATABASE_URL="$DATABASE_URL" \
-        cargo run --manifest-path "$ROOT/crates/tests/Cargo.toml" -p systemprompt-test-migrate --release
-    CARGO_BUILD_RUSTC_WRAPPER="" \
-        RUSTC_WRAPPER="" \
-        CARGO_TARGET_DIR="$TDIR" \
-        LLVM_PROFILE_FILE="$PROFDIR/%m%c.profraw" \
-        RUSTFLAGS="-C instrument-coverage -C llvm-args=--runtime-counter-relocation" \
-        SYSTEMPROMPT_BIN="$SYSTEMPROMPT_BIN" \
-        DATABASE_URL="$DATABASE_URL" \
-        cargo nextest run --workspace --lib --bins --tests --build-jobs 4 --no-fail-fast --profile coverage \
-        || TEST_STATUS=$?
-    if [ "${TEST_STATUS:-0}" -ne 0 ]; then
-        echo "warning: test failures/timeouts above — continuing to coverage report"
+    cov_db_prefix="${cov_name}_cov"
+    if [ -n "${COVERAGE_MIGRATE_BIN:-}" ]; then
+        MIGRATE_BIN="$COVERAGE_MIGRATE_BIN"
+        test -x "$MIGRATE_BIN"
+    else
+        echo "==> Building migration tool"
+        (cd "$ROOT/crates/tests" && SQLX_OFFLINE=true \
+            CARGO_TARGET_DIR="$ROOT/crates/tests/target" \
+            CARGO_BUILD_RUSTC_WRAPPER="" RUSTC_WRAPPER="" \
+            cargo build -p systemprompt-test-migrate --release \
+            --jobs "$CARGO_BUILD_JOBS")
+        MIGRATE_BIN="$ROOT/crates/tests/target/release/systemprompt-test-migrate"
     fi
+    COVERAGE_BINARIES_METADATA="$ROOT/coverage-report/binaries.json"
+    COVERAGE_CARGO_METADATA="$ROOT/coverage-report/cargo-metadata.json"
+    build_db="${cov_db_prefix}_build"
+    build_url="${cov_base}/${build_db}"
+    echo "==> Preparing metadata build database: $build_db"
+    psql "${cov_base}/postgres" -v ON_ERROR_STOP=1 \
+        -c "DROP DATABASE IF EXISTS \"${build_db}\" WITH (FORCE);" \
+        -c "CREATE DATABASE \"${build_db}\";" >/dev/null
+    SQLX_OFFLINE=true DATABASE_URL="$build_url" "$MIGRATE_BIN"
+    echo "==> Recording reusable nextest metadata"
+    CARGO_BUILD_RUSTC_WRAPPER="" RUSTC_WRAPPER="" \
+        CARGO_TARGET_DIR="$TDIR" DATABASE_URL="$build_url" \
+        SQLX_OFFLINE=false cargo metadata \
+        --manifest-path "$ROOT/crates/tests/Cargo.toml" --format-version 1 \
+        > "$COVERAGE_CARGO_METADATA"
+    CARGO_BUILD_RUSTC_WRAPPER="" RUSTC_WRAPPER="" \
+        CARGO_TARGET_DIR="$TDIR" DATABASE_URL="$build_url" \
+        SQLX_OFFLINE=false \
+        RUSTFLAGS="-C instrument-coverage -C llvm-args=--runtime-counter-relocation" \
+        cargo nextest list --manifest-path "$ROOT/crates/tests/Cargo.toml" \
+        --workspace --lib --bins --tests --list-type binaries-only \
+        --message-format json > "$COVERAGE_BINARIES_METADATA"
+    echo "==> Running each test shard against a fresh disposable database"
+    FALLBACK_PROFILE_ARCHIVE=$(mktemp -d "$ROOT/coverage-report/preexisting-fallback.XXXXXX")
+    QUARANTINED_PROFILE_COUNT=$(bash "$ROOT/scripts/quarantine-fallback-profraw.sh" \
+        "$ROOT/crates/tests" "$FALLBACK_PROFILE_ARCHIVE" \
+        "$ROOT/crates/tests/target" "$TDIR")
+    echo "==> Quarantined $QUARANTINED_PROFILE_COUNT pre-run fallback profraw files in $FALLBACK_PROFILE_ARCHIVE"
+    FALLBACK_PROFILE_MARKER="$ROOT/coverage-report/profile-run-start"
+    touch "$FALLBACK_PROFILE_MARKER"
+    for group in $(bash "$ROOT/scripts/test-shard.sh" --list); do
+        db="${cov_db_prefix}_${group//-/_}"
+        shard_url="${cov_base}/${db}"
+        echo "==> Resetting coverage database: $db"
+        psql "${cov_base}/postgres" -v ON_ERROR_STOP=1 \
+            -c "DROP DATABASE IF EXISTS \"${db}\" WITH (FORCE);" \
+            -c "CREATE DATABASE \"${db}\";" >/dev/null
+        echo "==> Applying extension schemas for $group"
+        SQLX_OFFLINE=true DATABASE_URL="$shard_url" "$MIGRATE_BIN"
+        set +e
+        CARGO_BUILD_RUSTC_WRAPPER="" \
+            RUSTC_WRAPPER="" \
+            CARGO_TARGET_DIR="$TDIR" \
+            LLVM_PROFILE_FILE="$PROFDIR/%m%c.profraw" \
+            RUSTFLAGS="-C instrument-coverage -C llvm-args=--runtime-counter-relocation" \
+            SYSTEMPROMPT_BIN="$SYSTEMPROMPT_BIN" \
+            SP_BRIDGE_BIN="$SP_BRIDGE_BIN" \
+            COVERAGE_BINARIES_METADATA="$COVERAGE_BINARIES_METADATA" \
+            COVERAGE_CARGO_METADATA="$COVERAGE_CARGO_METADATA" \
+            NEXTEST_PROFILE=coverage \
+            DATABASE_URL="$shard_url" \
+            bash "$ROOT/scripts/test-shard.sh" "$group" \
+            --bins --tests --no-fail-fast
+        shard_status=$?
+        set -e
+        if [ "$shard_status" -ne 0 ]; then
+            echo "warning: shard $group failed with status $shard_status"
+            TEST_STATUS=1
+        fi
+    done
+
+    FALLBACK_PROFILE_COUNT=$(bash "$ROOT/scripts/collect-fallback-profraw.sh" \
+        "$ROOT/crates/tests" "$FALLBACK_PROFILE_MARKER" "$PROFDIR" \
+        "$ROOT/crates/tests/target" "$TDIR")
+    echo "==> Collected $FALLBACK_PROFILE_COUNT run-scoped fallback profraw files"
 
     PROFRAW_COUNT=$(find "$PROFDIR" -name "*.profraw" | wc -l)
     echo "==> Generated $PROFRAW_COUNT profraw files"
@@ -719,34 +768,40 @@ coverage:
     find "$PROFDIR" -name '*.profraw' > "$ROOT/coverage-report/profraw-list.txt"
     "$LLVM_PROFDATA" merge -sparse -f "$ROOT/coverage-report/profraw-list.txt" -o "$ROOT/coverage-report/tests.profdata"
 
-    # Test binaries land in deps/; the `systemprompt` cli bin lands one level
-    # up in debug/ (cargo writes named binaries there, not under deps/).
-    BINS=$(find "$TDIR/debug/deps" -maxdepth 1 -executable -type f \
-        \( -name 'systemprompt_*' -o -name 'systemprompt-*' \) ! -name '*.d' -printf '%T@ %p\n' \
-        | sort -rn \
-        | awk '{ base=$2; sub(".*/", "", base); sub(/-[0-9a-f]+$/, "", base); if (!seen[base]++) print $2 }')
-    SP_BIN="$MAINTDIR/debug/systemprompt"
+    BINS=$(jq -r '."rust-binaries"[]."binary-path"' "$ROOT/coverage-report/binaries.json" | sort -u)
+    SP_BIN="$TDIR/debug/systemprompt"
     [ -x "$SP_BIN" ] && BINS="$BINS $SP_BIN"
-    BRIDGE_BIN="$MAINTDIR-bridge/debug/systemprompt-bridge"
+    BRIDGE_BIN="$TDIR/debug/systemprompt-bridge"
     [ -x "$BRIDGE_BIN" ] && BINS="$BINS $BRIDGE_BIN"
     OBJ_ARGS=""
     for b in $BINS; do OBJ_ARGS="$OBJ_ARGS --object $b"; done
+    IGNORE_REGEX="(\.cargo|rustc|crates/tests|/debug/build/[^/]+/out/|$HOME/\.cargo|crates/domain/(agent/src/services/(a2a_server/standalone|agent_orchestration/orchestrator/daemon)|mcp/src/services/orchestrator/daemon)\.rs|crates/entry/cli/src/commands/(infrastructure/services/serve|cloud/deploy/pipeline/(orchestrator|artifacts)|cloud/tenant/create/cloud|admin/setup/docker(_database|_compose)?|cloud/tenant/docker/container|cloud/backup/(client|mod)|plugins/run|admin/agents/run)\.rs|bin/bridge/src/update/install/linux\.rs)"
 
     echo "==> Coverage report"
     "$LLVM_COV" report \
         --instr-profile="$ROOT/coverage-report/tests.profdata" \
         $OBJ_ARGS \
-        --ignore-filename-regex="(\.cargo|rustc|crates/tests|/debug/build/[^/]+/out/|$HOME/\.cargo|crates/domain/(agent/src/services/(a2a_server/standalone|agent_orchestration/orchestrator/daemon)|mcp/src/services/orchestrator/daemon)\.rs|crates/entry/cli/src/commands/(infrastructure/services/serve|cloud/deploy/pipeline/(orchestrator|artifacts)|cloud/tenant/create/cloud|admin/setup/docker(_database|_compose)?|cloud/tenant/docker/container|cloud/backup/(client|mod)|plugins/run|admin/agents/run)\.rs|bin/bridge/src/update/install/linux\.rs)" \
-        --summary-only
+        --ignore-filename-regex="$IGNORE_REGEX" \
+        --summary-only \
+        | tee "$ROOT/coverage-report/coverage-summary.txt"
 
     "$LLVM_COV" export \
         --instr-profile="$ROOT/coverage-report/tests.profdata" \
         $OBJ_ARGS \
-        --ignore-filename-regex="(\.cargo|rustc|crates/tests|/debug/build/[^/]+/out/|$HOME/\.cargo|crates/domain/(agent/src/services/(a2a_server/standalone|agent_orchestration/orchestrator/daemon)|mcp/src/services/orchestrator/daemon)\.rs|crates/entry/cli/src/commands/(infrastructure/services/serve|cloud/deploy/pipeline/(orchestrator|artifacts)|cloud/tenant/create/cloud|admin/setup/docker(_database|_compose)?|cloud/tenant/docker/container|cloud/backup/(client|mod)|plugins/run|admin/agents/run)\.rs|bin/bridge/src/update/install/linux\.rs)" \
+        --ignore-filename-regex="$IGNORE_REGEX" \
+        --format=text --summary-only \
+        > "$ROOT/coverage-report/coverage-summary.json"
+
+    "$LLVM_COV" export \
+        --instr-profile="$ROOT/coverage-report/tests.profdata" \
+        $OBJ_ARGS \
+        --ignore-filename-regex="$IGNORE_REGEX" \
         --format=lcov \
         > "$ROOT/coverage-report/lcov.info"
 
     echo ""
+    echo "coverage-summary.txt: coverage-report/coverage-summary.txt"
+    echo "coverage-summary.json: coverage-report/coverage-summary.json"
     echo "lcov.info: coverage-report/lcov.info"
     echo "For HTML report: just coverage-html"
 
@@ -769,16 +824,10 @@ coverage-html:
     fi
     LLVM_COV=$(rustc --print sysroot)/lib/rustlib/x86_64-unknown-linux-gnu/bin/llvm-cov
     TDIR="${COVERAGE_TARGET_DIR:-$ROOT/coverage-report/target}"
-    MAINTDIR="$TDIR-main"
-    # Test binaries land in deps/; the `systemprompt` cli bin lands one level
-    # up in debug/ (cargo writes named binaries there, not under deps/).
-    BINS=$(find "$TDIR/debug/deps" -maxdepth 1 -executable -type f \
-        \( -name 'systemprompt_*' -o -name 'systemprompt-*' \) ! -name '*.d' -printf '%T@ %p\n' \
-        | sort -rn \
-        | awk '{ base=$2; sub(".*/", "", base); sub(/-[0-9a-f]+$/, "", base); if (!seen[base]++) print $2 }')
-    SP_BIN="$MAINTDIR/debug/systemprompt"
+    BINS=$(jq -r '."rust-binaries"[]."binary-path"' "$ROOT/coverage-report/binaries.json" | sort -u)
+    SP_BIN="$TDIR/debug/systemprompt"
     [ -x "$SP_BIN" ] && BINS="$BINS $SP_BIN"
-    BRIDGE_BIN="$MAINTDIR-bridge/debug/systemprompt-bridge"
+    BRIDGE_BIN="$TDIR/debug/systemprompt-bridge"
     [ -x "$BRIDGE_BIN" ] && BINS="$BINS $BRIDGE_BIN"
     OBJ_ARGS=""
     for b in $BINS; do OBJ_ARGS="$OBJ_ARGS --object $b"; done

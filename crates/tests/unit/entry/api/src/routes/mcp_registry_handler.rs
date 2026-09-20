@@ -17,10 +17,12 @@ use axum::response::IntoResponse;
 use systemprompt_api::routes::mcp::registry::handle_mcp_registry;
 use systemprompt_test_fixtures::{fixture_app_context, fixture_database_url, fixture_db_pool};
 
-async fn ctx() -> Option<systemprompt_runtime::AppContext> {
-    let url = fixture_database_url().ok()?;
-    let pool = fixture_db_pool(&url).await.ok()?;
-    Some((*fixture_app_context(&pool, &url).ok()?).clone())
+async fn ctx() -> systemprompt_runtime::AppContext {
+    let url = fixture_database_url().expect("MCP registry database URL");
+    let pool = fixture_db_pool(&url)
+        .await
+        .expect("MCP registry database pool");
+    (*fixture_app_context(&pool, &url).expect("MCP registry app context")).clone()
 }
 
 struct Reply {
@@ -29,8 +31,8 @@ struct Reply {
     body: String,
 }
 
-async fn call() -> Option<Reply> {
-    let response = handle_mcp_registry(State(ctx().await?))
+async fn call() -> Reply {
+    let response = handle_mcp_registry(State(ctx().await))
         .await
         .into_response();
     let status = response.status();
@@ -43,19 +45,16 @@ async fn call() -> Option<Reply> {
     let bytes = axum::body::to_bytes(response.into_body(), 1 << 20)
         .await
         .expect("body");
-    Some(Reply {
+    Reply {
         status,
         content_type,
         body: String::from_utf8_lossy(&bytes).into_owned(),
-    })
+    }
 }
 
 #[tokio::test]
 async fn the_response_is_always_json() {
-    // skip-ok: the API harness could not bind a port here
-    let Some(reply) = call().await else {
-        return;
-    };
+    let reply = call().await;
 
     assert!(
         reply.content_type.contains("json"),
@@ -71,10 +70,7 @@ async fn the_response_is_always_json() {
 
 #[tokio::test]
 async fn a_failure_names_the_registry_and_is_never_an_empty_list() {
-    // skip-ok: the API harness could not bind a port here
-    let Some(reply) = call().await else {
-        return;
-    };
+    let reply = call().await;
 
     if reply.status.is_success() {
         let value: serde_json::Value = serde_json::from_str(&reply.body).expect("json");

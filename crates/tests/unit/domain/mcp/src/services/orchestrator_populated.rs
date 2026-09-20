@@ -32,13 +32,10 @@ fn profile_paths(bootstrap: &TestBootstrap) -> PathsConfig {
     }
 }
 
-async fn orchestrator_with_config_or_skip(
-    blocks: &[String],
-    internal: &[&str],
-) -> Option<McpOrchestrator> {
-    let url = fixture_database_url().ok()?;
-    let db = fixture_db_pool(&url).await.ok()?;
+async fn orchestrator_with_config(blocks: &[String], internal: &[&str]) -> McpOrchestrator {
     let bootstrap = bootstrap_with_services(&config_with_servers(blocks));
+    let url = fixture_database_url().expect("fixture database URL");
+    let db = fixture_db_pool(&url).await.expect("fixture database pool");
     for name in internal {
         register_internal_extension(bootstrap, name);
     }
@@ -48,15 +45,15 @@ async fn orchestrator_with_config_or_skip(
             systemprompt_models::PathResolution::Canonicalize,
             None,
         )
-        .ok()?,
+        .expect("application paths"),
     );
     let registry = RegistryService::new(fixture_user_id());
     let service_repo = ServiceRepository::new(
         &db,
         systemprompt_identifiers::InstanceId::new("test-instance"),
     )
-    .ok()?;
-    McpOrchestrator::new(service_repo, app_paths, registry).ok()
+    .expect("service repository");
+    McpOrchestrator::new(service_repo, app_paths, registry).expect("MCP orchestrator")
 }
 
 // Internal MCP servers are validated against the 5000-5999 range, so a port
@@ -92,7 +89,7 @@ async fn validate_external_server_probe_succeeds_against_scripted_endpoint() {
     let mock = MockServer::start().await;
     mount_mcp_endpoint(&mock, default_tools_json()).await;
     let name = unique("valext");
-    let Some(o) = orchestrator_with_config_or_skip(
+    let o = orchestrator_with_config(
         &[external_server_block(&ExternalServerSpec {
             name: &name,
             endpoint: &format!("{}/mcp", mock.uri()),
@@ -101,11 +98,7 @@ async fn validate_external_server_probe_succeeds_against_scripted_endpoint() {
         })],
         &[],
     )
-    .await
-    // skip-ok: no live MCP server on this host
-    else {
-        return;
-    };
+    .await;
 
     o.validate_service(&name).await.expect("probe succeeds");
     let received = mock.received_requests().await.expect("requests recorded");
@@ -120,7 +113,7 @@ async fn validate_external_server_probe_succeeds_against_scripted_endpoint() {
 #[tokio::test]
 async fn validate_external_server_unreachable_endpoint_is_reported_not_fatal() {
     let name = unique("valdown");
-    let Some(o) = orchestrator_with_config_or_skip(
+    let o = orchestrator_with_config(
         &[external_server_block(&ExternalServerSpec {
             name: &name,
             endpoint: "http://127.0.0.1:9/mcp",
@@ -129,11 +122,7 @@ async fn validate_external_server_unreachable_endpoint_is_reported_not_fatal() {
         })],
         &[],
     )
-    .await
-    // skip-ok: no live MCP server on this host
-    else {
-        return;
-    };
+    .await;
 
     o.validate_service(&name)
         .await
@@ -145,18 +134,14 @@ async fn validate_external_server_with_accessor_skips_the_probe() {
     let mock = MockServer::start().await;
     mount_mcp_endpoint(&mock, default_tools_json()).await;
     let name = unique("valacc");
-    let Some(o) = orchestrator_with_config_or_skip(
+    let o = orchestrator_with_config(
         &[external_server_block_with_accessor(
             &name,
             &format!("{}/mcp", mock.uri()),
         )],
         &[],
     )
-    .await
-    // skip-ok: no live MCP server on this host
-    else {
-        return;
-    };
+    .await;
 
     o.validate_service(&name).await.expect("accessor skip");
     let received = mock.received_requests().await.expect("requests recorded");
@@ -170,11 +155,7 @@ async fn validate_external_server_with_accessor_skips_the_probe() {
 async fn validate_internal_server_without_running_row_is_ok() {
     let port = free_port();
     let name = unique("valint");
-    let Some(o) =
-        orchestrator_with_config_or_skip(&[internal_server_block(&name, port)], &[&name]).await
-    else {
-        return;
-    };
+    let o = orchestrator_with_config(&[internal_server_block(&name, port)], &[&name]).await;
 
     o.validate_service(&name)
         .await
@@ -189,14 +170,8 @@ async fn validate_internal_running_server_probes_local_port() {
     let mock = MockServer::builder().listener(listener).start().await;
     mount_mcp_endpoint(&mock, default_tools_json()).await;
     let name = unique("valrun");
-    let Some(o) =
-        orchestrator_with_config_or_skip(&[internal_server_block(&name, port)], &[&name]).await
-    else {
-        return;
-    };
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
+    let o = orchestrator_with_config(&[internal_server_block(&name, port)], &[&name]).await;
+    let url = fixture_database_url().expect("fixture database URL");
     let db = fixture_db_pool(&url).await.expect("pool");
     let repo = ServiceRepository::new(
         &db,
@@ -230,11 +205,7 @@ async fn validate_internal_running_server_probes_local_port() {
 async fn start_services_named_with_missing_binary_fails_and_publishes_failure() {
     let port = free_port();
     let name = unique("startfail");
-    let Some(o) =
-        orchestrator_with_config_or_skip(&[internal_server_block(&name, port)], &[&name]).await
-    else {
-        return;
-    };
+    let o = orchestrator_with_config(&[internal_server_block(&name, port)], &[&name]).await;
     let mut rx = o.subscribe_events();
 
     let err = o
@@ -265,11 +236,7 @@ async fn start_services_named_with_missing_binary_fails_and_publishes_failure() 
 async fn start_services_unknown_name_matches_nothing_and_succeeds() {
     let port = free_port();
     let name = unique("startnone");
-    let Some(o) =
-        orchestrator_with_config_or_skip(&[internal_server_block(&name, port)], &[&name]).await
-    else {
-        return;
-    };
+    let o = orchestrator_with_config(&[internal_server_block(&name, port)], &[&name]).await;
 
     o.start_services(Some(unique("absent")))
         .await
@@ -280,11 +247,7 @@ async fn start_services_unknown_name_matches_nothing_and_succeeds() {
 async fn reconcile_with_failing_internal_server_aggregates_the_failure() {
     let port = free_port();
     let name = unique("recfail");
-    let Some(o) =
-        orchestrator_with_config_or_skip(&[internal_server_block(&name, port)], &[&name]).await
-    else {
-        return;
-    };
+    let o = orchestrator_with_config(&[internal_server_block(&name, port)], &[&name]).await;
 
     let err = o.reconcile().await.expect_err("startup failure surfaces");
     assert!(
@@ -299,7 +262,7 @@ async fn reconcile_external_only_registry_starts_nothing() {
     let mock = MockServer::start().await;
     mount_mcp_endpoint(&mock, default_tools_json()).await;
     let name = unique("recext");
-    let Some(o) = orchestrator_with_config_or_skip(
+    let o = orchestrator_with_config(
         &[external_server_block(&ExternalServerSpec {
             name: &name,
             endpoint: &format!("{}/mcp", mock.uri()),
@@ -308,11 +271,7 @@ async fn reconcile_external_only_registry_starts_nothing() {
         })],
         &[],
     )
-    .await
-    // skip-ok: no live MCP server on this host
-    else {
-        return;
-    };
+    .await;
 
     let started = o.reconcile().await.expect("nothing to start");
     assert_eq!(started, 0, "external servers are excluded from reconcile");
@@ -322,11 +281,7 @@ async fn reconcile_external_only_registry_starts_nothing() {
 async fn restart_services_sync_missing_binary_fails_after_clean_stop() {
     let port = free_port();
     let name = unique("restart");
-    let Some(o) =
-        orchestrator_with_config_or_skip(&[internal_server_block(&name, port)], &[&name]).await
-    else {
-        return;
-    };
+    let o = orchestrator_with_config(&[internal_server_block(&name, port)], &[&name]).await;
 
     let err = o
         .restart_services_sync(Some("all".to_owned()))
@@ -337,9 +292,7 @@ async fn restart_services_sync_missing_binary_fails_after_clean_stop() {
         "restart of 'all' over the DB running set is empty and succeeds"
     );
 
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
+    let url = fixture_database_url().expect("fixture database URL");
     let db = fixture_db_pool(&url).await.expect("pool");
     let repo = ServiceRepository::new(
         &db,
@@ -369,18 +322,9 @@ async fn restart_services_sync_missing_binary_fails_after_clean_stop() {
 async fn restart_services_publishes_restart_requested_event() {
     let port = free_port();
     let name = unique("restartreq");
-    let Some(o) =
-        orchestrator_with_config_or_skip(&[internal_server_block(&name, port)], &[&name]).await
-    else {
-        return;
-    };
-    // Why: publishing the event *is* the restart — `LifecycleHandler` handles
-    // `ServiceRestartRequested` by restarting the process — so the service has
-    // to be spawnable for the publish to return.
+    let o = orchestrator_with_config(&[internal_server_block(&name, port)], &[&name]).await;
     install_stub_binary(installed_bootstrap(), &name);
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
+    let url = fixture_database_url().expect("fixture database URL");
     let db = fixture_db_pool(&url).await.expect("pool");
     let repo = ServiceRepository::new(
         &db,
@@ -418,11 +362,7 @@ async fn restart_services_publishes_restart_requested_event() {
 async fn stop_services_named_internal_without_row_publishes_stopped() {
     let port = free_port();
     let name = unique("stopper");
-    let Some(o) =
-        orchestrator_with_config_or_skip(&[internal_server_block(&name, port)], &[&name]).await
-    else {
-        return;
-    };
+    let o = orchestrator_with_config(&[internal_server_block(&name, port)], &[&name]).await;
     let mut rx = o.subscribe_events();
 
     o.stop_services(Some(name.clone()))
@@ -447,7 +387,7 @@ async fn service_statuses_reports_external_endpoint_and_internal_port() {
     mount_mcp_endpoint(&mock, default_tools_json()).await;
     let ext_name = unique("stext");
     let int_name = unique("stint");
-    let Some(o) = orchestrator_with_config_or_skip(
+    let o = orchestrator_with_config(
         &[
             external_server_block(&ExternalServerSpec {
                 name: &ext_name,
@@ -459,11 +399,7 @@ async fn service_statuses_reports_external_endpoint_and_internal_port() {
         ],
         &[&int_name],
     )
-    .await
-    // skip-ok: no live MCP server on this host
-    else {
-        return;
-    };
+    .await;
 
     let statuses = o.service_statuses().await.expect("statuses");
     let ext = statuses
@@ -491,7 +427,7 @@ async fn list_services_and_show_status_render_the_populated_registry() {
     let mock = MockServer::start().await;
     mount_mcp_endpoint(&mock, default_tools_json()).await;
     let name = unique("display");
-    let Some(o) = orchestrator_with_config_or_skip(
+    let o = orchestrator_with_config(
         &[external_server_block(&ExternalServerSpec {
             name: &name,
             endpoint: &format!("{}/mcp", mock.uri()),
@@ -500,11 +436,7 @@ async fn list_services_and_show_status_render_the_populated_registry() {
         })],
         &[],
     )
-    .await
-    // skip-ok: no live MCP server on this host
-    else {
-        return;
-    };
+    .await;
 
     o.list_services().await.expect("list renders");
     o.show_status().await.expect("status renders");
@@ -514,14 +446,8 @@ async fn list_services_and_show_status_render_the_populated_registry() {
 async fn reconcile_with_events_kills_running_row_and_reports_cleanup() {
     let port = free_port();
     let name = unique("reckill");
-    let Some(o) =
-        orchestrator_with_config_or_skip(&[internal_server_block(&name, port)], &[&name]).await
-    else {
-        return;
-    };
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
+    let o = orchestrator_with_config(&[internal_server_block(&name, port)], &[&name]).await;
+    let url = fixture_database_url().expect("fixture database URL");
     let db = fixture_db_pool(&url).await.expect("pool");
     let repo = ServiceRepository::new(
         &db,

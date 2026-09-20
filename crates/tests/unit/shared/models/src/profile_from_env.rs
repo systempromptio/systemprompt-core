@@ -40,6 +40,8 @@ fn set_required_env() {
         "ALLOW_REGISTRATION",
         "RATE_LIMIT_DISABLED",
         "RATE_LIMIT_TASKS_PER_SECOND",
+        "SYSTEM_ADMIN_EMAIL",
+        "LOGIN_PAGE_URL",
         "SYSTEMPROMPT_ENV",
         "SYSTEMPROMPT_LOG_LEVEL",
         "SYSTEMPROMPT_OUTPUT_FORMAT",
@@ -136,6 +138,58 @@ fn non_numeric_jwt_expiration_is_invalid_env_var() {
 }
 
 #[test]
+fn non_numeric_refresh_expiration_is_invalid_env_var() {
+    set_required_env();
+    set("JWT_REFRESH_TOKEN_EXPIRATION", "later");
+
+    let err = Profile::from_env("p", "P").expect_err("must fail");
+    assert!(matches!(
+        err,
+        ProfileError::InvalidEnvVar {
+            name: "JWT_REFRESH_TOKEN_EXPIRATION",
+            ..
+        }
+    ));
+}
+
+#[test]
+fn system_admin_email_is_trimmed_before_validation() {
+    set_required_env();
+    set("SYSTEM_ADMIN_EMAIL", "  owner@example.com  ");
+    set("LOGIN_PAGE_URL", "https://console.example.com/login");
+
+    let profile = Profile::from_env("p", "P").expect("profile builds");
+    assert_eq!(
+        profile
+            .system_admin
+            .email
+            .expect("configured email")
+            .as_str(),
+        "owner@example.com"
+    );
+    assert_eq!(
+        profile.security.login_page_url.as_deref(),
+        Some("https://console.example.com/login")
+    );
+}
+
+#[test]
+fn malformed_system_admin_email_is_rejected_without_echoing_value() {
+    set_required_env();
+    set("SYSTEM_ADMIN_EMAIL", "invalid-email");
+
+    let err = Profile::from_env("p", "P").expect_err("must fail");
+    match err {
+        ProfileError::InvalidEnvVar { name, message } => {
+            assert_eq!(name, "SYSTEM_ADMIN_EMAIL");
+            assert!(message.contains("exactly one '@'"));
+            assert!(!message.contains("invalid-email"));
+        },
+        other => panic!("expected invalid email error, got {other:?}"),
+    }
+}
+
+#[test]
 fn optional_server_flags_are_honoured() {
     set_required_env();
     set("USE_HTTPS", "TRUE");
@@ -213,6 +267,36 @@ fn invalid_runtime_environment_is_rejected() {
         err,
         ProfileError::InvalidEnvVar {
             name: "SYSTEMPROMPT_ENV",
+            ..
+        }
+    ));
+}
+
+#[test]
+fn invalid_runtime_log_level_is_rejected() {
+    set_required_env();
+    set("SYSTEMPROMPT_LOG_LEVEL", "loud");
+
+    let err = Profile::from_env("p", "P").expect_err("must fail");
+    assert!(matches!(
+        err,
+        ProfileError::InvalidEnvVar {
+            name: "SYSTEMPROMPT_LOG_LEVEL",
+            ..
+        }
+    ));
+}
+
+#[test]
+fn invalid_runtime_output_format_is_rejected() {
+    set_required_env();
+    set("SYSTEMPROMPT_OUTPUT_FORMAT", "toml");
+
+    let err = Profile::from_env("p", "P").expect_err("must fail");
+    assert!(matches!(
+        err,
+        ProfileError::InvalidEnvVar {
+            name: "SYSTEMPROMPT_OUTPUT_FORMAT",
             ..
         }
     ));

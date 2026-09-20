@@ -2,11 +2,14 @@
 
 mod db_app_ctx;
 mod db_commands_db;
+mod db_doctor_repair_lifecycle;
 mod db_migrate_fresh_db;
 mod db_migrate_repair_db;
+mod db_migrate_status_collision_orphan;
 mod db_migration_drift_db;
 mod jobs_cleanup_history_db;
 mod jobs_logs_app_ctx;
+mod jobs_run_lifecycle;
 mod jobs_toggle_db;
 mod logs;
 mod logs_audit_db;
@@ -18,9 +21,11 @@ mod logs_stream_cleanup_db;
 mod logs_trace_ai_mcp_db;
 mod logs_trace_render_db;
 mod services_app_ctx;
+mod services_cleanup_owned_lifecycle;
 mod services_cleanup_reporting;
 mod services_commands;
 mod services_restart_ctx;
 mod services_start_ctx;
 mod services_status_exec_ctx;
 mod services_status_output;
+mod services_stop_populated_lifecycle;

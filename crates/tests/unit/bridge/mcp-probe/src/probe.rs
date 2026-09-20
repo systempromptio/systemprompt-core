@@ -530,3 +530,165 @@ fn coverage_probe_unwritable_secret_is_a_local_error_without_a_network_attempt()
         assert!(results[0].latency_ms.is_none());
     });
 }
+
+async fn mount_successful_probe(server: &MockServer, session: &str, tool: &str) {
+    Mock::given(method("POST"))
+        .and(path(format!("/mcp/{SLUG}")))
+        .and(wiremock::matchers::header("authorization", BEARER))
+        .and(body_partial_json(initialize_wire()))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("mcp-session-id", session)
+                .set_body_json(serde_json::json!({"jsonrpc":"2.0","id":1,"result":{}})),
+        )
+        .expect(1)
+        .mount(server)
+        .await;
+    for body in [initialized_wire(), tools_list_wire()] {
+        let response = if body["method"] == "tools/list" {
+            ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "jsonrpc":"2.0","id":2,"result":{"tools":[{"name":tool}]}
+            }))
+        } else {
+            ResponseTemplate::new(202)
+        };
+        Mock::given(method("POST"))
+            .and(path(format!("/mcp/{SLUG}")))
+            .and(wiremock::matchers::header("authorization", BEARER))
+            .and(wiremock::matchers::header("mcp-session-id", session))
+            .and(body_partial_json(body))
+            .respond_with(response)
+            .expect(1)
+            .mount(server)
+            .await;
+    }
+}
+
+async fn assert_successful_probe_wire(server: &MockServer, session: &str) {
+    let requests = server.received_requests().await.expect("probe requests");
+    assert_eq!(requests.len(), 3, "initialize, initialized, tools/list");
+    assert!(requests.iter().all(|request| {
+        request
+            .headers
+            .get("authorization")
+            .and_then(|value| value.to_str().ok())
+            == Some(BEARER)
+    }));
+    for request in requests {
+        let body: serde_json::Value = serde_json::from_slice(&request.body).unwrap();
+        let carried = request
+            .headers
+            .get("mcp-session-id")
+            .and_then(|value| value.to_str().ok());
+        if body["method"] == "initialize" {
+            assert_eq!(
+                carried, None,
+                "initialize cannot claim a session before it exists"
+            );
+        } else {
+            assert_eq!(
+                carried,
+                Some(session),
+                "followup frame is scoped to initialized session"
+            );
+        }
+    }
+}
+
+#[tokio::test]
+async fn initialized_notification_failure_stops_before_tools_then_a_retry_recovers() {
+    tokio::time::timeout(std::time::Duration::from_secs(10), async {
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(body_partial_json(initialize_wire()))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .insert_header("mcp-session-id", "retry-session")
+                    .set_body_json(serde_json::json!({"jsonrpc":"2.0","id":1,"result":{}})),
+            )
+            .expect(1)
+            .mount(&server)
+            .await;
+        Mock::given(method("POST"))
+            .and(body_partial_json(initialized_wire()))
+            .respond_with(ResponseTemplate::new(503))
+            .expect(1)
+            .mount(&server)
+            .await;
+        Mock::given(method("POST"))
+            .and(body_partial_json(tools_list_wire()))
+            .respond_with(ResponseTemplate::new(200))
+            .expect(0)
+            .mount(&server)
+            .await;
+        let failed = probe(&server).await;
+        assert_eq!(failed.state, McpAuthState::ProtocolError);
+        assert!(failed.error.as_deref().is_some_and(|e| e.contains("503")));
+        assert!(failed.tools.is_empty());
+
+        server.reset().await;
+        mount_successful_probe(&server, "retry-session", "recovered-tool").await;
+        let recovered = probe(&server).await;
+        assert_eq!(recovered.state, McpAuthState::Authenticated);
+        assert_eq!(recovered.tools[0].name, "recovered-tool");
+        assert_eq!(
+            recovered.session_id.as_ref().map(McpSessionId::as_str),
+            Some("retry-session")
+        );
+        assert_successful_probe_wire(&server, "retry-session").await;
+    })
+    .await
+    .expect("probe recovery completes within ten seconds");
+}
+
+#[tokio::test]
+async fn malformed_tools_response_does_not_reuse_partial_tools_and_retry_recovers() {
+    tokio::time::timeout(std::time::Duration::from_secs(10), async {
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(body_partial_json(initialize_wire()))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_json(serde_json::json!({"jsonrpc":"2.0","id":1,"result":{}})),
+            )
+            .expect(1)
+            .mount(&server)
+            .await;
+        Mock::given(method("POST"))
+            .and(body_partial_json(initialized_wire()))
+            .respond_with(ResponseTemplate::new(202))
+            .expect(1)
+            .mount(&server)
+            .await;
+        Mock::given(method("POST"))
+            .and(body_partial_json(tools_list_wire()))
+            .respond_with(ResponseTemplate::new(200).set_body_string("{truncated"))
+            .expect(1)
+            .mount(&server)
+            .await;
+        let failed = probe(&server).await;
+        assert_eq!(failed.state, McpAuthState::ProtocolError);
+        assert!(
+            failed
+                .error
+                .as_deref()
+                .is_some_and(|e| e.contains("response"))
+        );
+        assert!(failed.tools.is_empty());
+
+        server.reset().await;
+        mount_successful_probe(&server, "clean-session", "clean-tool").await;
+        let recovered = probe(&server).await;
+        assert_eq!(
+            recovered
+                .tools
+                .iter()
+                .map(|t| t.name.as_str())
+                .collect::<Vec<_>>(),
+            ["clean-tool"]
+        );
+        assert_successful_probe_wire(&server, "clean-session").await;
+    })
+    .await
+    .expect("malformed response recovery completes within ten seconds");
+}

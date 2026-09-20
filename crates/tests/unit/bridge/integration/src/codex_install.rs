@@ -11,6 +11,20 @@ struct Paths {
     blocking_file: PathBuf,
 }
 
+struct GeneratedProfileGuard(PathBuf);
+
+impl GeneratedProfileGuard {
+    fn retain(path: &str) -> Self {
+        Self(PathBuf::from(path))
+    }
+}
+
+impl Drop for GeneratedProfileGuard {
+    fn drop(&mut self) {
+        let _ = fs::remove_file(&self.0);
+    }
+}
+
 fn with_managed_path<R>(managed: impl Fn(&Path) -> PathBuf, body: impl FnOnce(&Paths) -> R) -> R {
     let temp = tempfile::tempdir().expect("tempdir");
     let base = temp.path();
@@ -179,6 +193,49 @@ fn a_managed_path_with_no_parent_is_refused_before_anything_is_written() {
             assert!(
                 err.to_string().contains("cannot resolve parent"),
                 "got {err}"
+            );
+        },
+    );
+}
+
+#[cfg(not(target_os = "macos"))]
+#[test]
+fn a_malformed_managed_codex_target_keeps_the_generated_profile_for_repair_and_retry() {
+    with_managed_path(
+        |base| base.join("etc").join("config.toml"),
+        |paths| {
+            fs::create_dir_all(paths.managed.parent().expect("managed parent")).unwrap();
+            let malformed = "[operator\n";
+            fs::write(&paths.managed, malformed).unwrap();
+            let generated = CODEX_CLI_HOST
+                .generate_profile(&inputs())
+                .expect("generate");
+            let _generated_profile_guard = GeneratedProfileGuard::retain(&generated.path);
+            let generated_bytes = fs::read(&generated.path).expect("generated profile bytes");
+
+            CODEX_CLI_HOST
+                .install_profile(&generated.path)
+                .expect_err("malformed target must not merge");
+            assert_eq!(
+                fs::read(&generated.path).expect("retained generated profile"),
+                generated_bytes,
+                "a failed merge retains the exact generated source for retry"
+            );
+            assert_eq!(fs::read_to_string(&paths.managed).unwrap(), malformed);
+
+            fs::write(&paths.managed, "operator_key = \"keep\"\n").unwrap();
+            CODEX_CLI_HOST
+                .install_profile(&generated.path)
+                .expect("repaired target retries the generated profile");
+            assert!(!std::path::Path::new(&generated.path).exists());
+            let raw = fs::read_to_string(&paths.managed).expect("merged config");
+            let merged: toml::Value =
+                toml::from_str(&raw).expect("merged config remains valid TOML");
+            assert_eq!(merged["operator_key"].as_str(), Some("keep"));
+            assert_eq!(merged["model_provider"].as_str(), Some("systemprompt"));
+            assert_eq!(
+                merged["model_providers"]["systemprompt"]["base_url"].as_str(),
+                Some("http://127.0.0.1:48217/v1")
             );
         },
     );

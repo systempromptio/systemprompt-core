@@ -27,7 +27,7 @@ impl GitTreeReader for Reader {
             deadline,
             ..
         } = *request;
-        assert!(repository.starts_with("https://git.example.com/"));
+        assert!(repository.starts_with("https://git.example.invalid/"));
         assert!(deadline > std::time::Instant::now());
         if credential != self.credentials.get(&input.source_id).map(String::as_str) {
             return Err(ManagedError::Unavailable);
@@ -50,6 +50,7 @@ impl GitTreeReader for Reader {
 }
 
 struct Fixture {
+    db: systemprompt_database::DbPool,
     repository: ManagedRepository,
     owner: UserId,
     request: DependencyVerificationRequest,
@@ -82,7 +83,7 @@ impl Fixture {
                     &owner,
                     name,
                     &SourceSpec::Git {
-                        repository: format!("https://git.example.com/{name}.git"),
+                        repository: format!("https://git.example.invalid/{name}.git"),
                         reference: "main".to_owned(),
                         subdirectory: None,
                         credential_reference: Some(format!("git-{name}")),
@@ -183,6 +184,7 @@ impl Fixture {
             revisions: inputs,
         };
         Self {
+            db,
             repository,
             owner,
             request,
@@ -275,6 +277,76 @@ async fn byte_and_executable_mode_mismatch_never_attest() {
             .await
             .is_err()
     );
+}
+
+#[tokio::test]
+async fn rejected_provenance_candidates_leave_no_proof_then_preserve_trusted_verification() {
+    let f = Fixture::new().await;
+    let service = f.service(false, false);
+    let commit = "a".repeat(40);
+
+    let mut wrong_commit = f.request.clone();
+    wrong_commit
+        .revisions
+        .last_mut()
+        .expect("root input")
+        .exact_commit = "b".repeat(40);
+    let error = service
+        .verify(&f.owner, &wrong_commit, &f.credentials)
+        .await
+        .expect_err("candidate provenance must match retained content");
+    assert!(matches!(error, ManagedError::Conflict(_)));
+
+    let mut unknown_source = f.request.clone();
+    unknown_source
+        .revisions
+        .first_mut()
+        .expect("dependency input")
+        .source_id = ManagedSourceId::generate();
+    let error = service
+        .verify(&f.owner, &unknown_source, &f.credentials)
+        .await
+        .expect_err("an unbound source cannot provide dependency evidence");
+    assert!(matches!(error, ManagedError::Conflict(_)));
+    f.repository
+        .require_verified_git_content(&f.owner, &f.request.root_revision_id, &commit)
+        .await
+        .expect_err("failed candidates must not retain a trusted proof");
+
+    let trusted = service
+        .verify(&f.owner, &f.request, &f.credentials)
+        .await
+        .expect("valid provenance creates trusted verification");
+    trusted.validate_complete().expect("complete trusted proof");
+
+    service
+        .verify(&f.owner, &wrong_commit, &f.credentials)
+        .await
+        .expect_err("later invalid provenance remains rejected");
+    service
+        .verify(&f.owner, &unknown_source, &f.credentials)
+        .await
+        .expect_err("later unbound source remains rejected");
+
+    let retained = f
+        .repository
+        .git_verification(&f.owner, &trusted.id)
+        .await
+        .expect("trusted proof remains readable");
+    assert_eq!(retained, trusted);
+    retained
+        .validate_complete()
+        .expect("retained proof remains complete");
+    f.repository
+        .require_verified_git_content(&f.owner, &f.request.root_revision_id, &commit)
+        .await
+        .expect("rejected candidates do not revoke trusted content");
+
+    let retry = service
+        .verify(&f.owner, &f.request, &f.credentials)
+        .await
+        .expect("valid provenance still verifies after rejection");
+    assert_eq!(retry.id, trusted.id, "identical trusted proof is retained");
 }
 
 #[tokio::test]
@@ -455,4 +527,74 @@ fn git_request_debug_redacts_credentials_in_normal_and_pretty_output() {
         ..read
     };
     assert!(format!("{public_read:?}").contains("credential: None"));
+}
+
+#[tokio::test]
+async fn public_native_verification_wrappers_reject_untrusted_inputs_before_network_or_proof() {
+    let f = Fixture::new().await;
+    let leaf = f
+        .request
+        .revisions
+        .first()
+        .expect("leaf verification input");
+    assert!(
+        leaf.dependencies.is_empty(),
+        "single-content wrapper requires a leaf"
+    );
+    let wrong_commit = systemprompt_marketplace::managed::GitContentVerification {
+        revision_id: leaf.revision_id.clone(),
+        source_id: leaf.source_id.clone(),
+        upstream_root: leaf.relative_root.clone(),
+        commit: "b".repeat(40),
+    };
+    let error = tokio::time::timeout(
+        std::time::Duration::from_secs(5),
+        f.repository.verify_git_content(&f.owner, &wrong_commit),
+    )
+    .await
+    .expect("invalid provenance is rejected without network delay")
+    .expect_err("retained provenance rejects a different commit before native Git capture");
+    assert!(
+        matches!(&error, ManagedError::Conflict(message) if message.contains("matching immutable Git provenance")),
+        "{error}"
+    );
+
+    let error = tokio::time::timeout(
+        std::time::Duration::from_secs(5),
+        f.repository
+            .verify_git_dependencies(&f.owner, &f.request, &BTreeMap::new()),
+    )
+    .await
+    .expect("missing credentials are rejected without network delay")
+    .expect_err("credential-required sources fail before native Git capture");
+    assert!(matches!(error, ManagedError::Unavailable), "{error}");
+
+    let foreign = UserId::new(uuid::Uuid::new_v4().to_string());
+    seed_user_row(
+        &f.db,
+        &foreign,
+        &format!("{foreign}@foreign-verification.invalid"),
+    )
+    .await
+    .expect("foreign owner");
+    let error = tokio::time::timeout(
+        std::time::Duration::from_secs(5),
+        f.repository
+            .verify_git_dependencies(&foreign, &f.request, &f.credentials),
+    )
+    .await
+    .expect("foreign ownership is rejected without network delay")
+    .expect_err("another owner cannot verify retained revisions or reach Git capture");
+    assert!(matches!(error, ManagedError::Unavailable), "{error}");
+
+    let pool = f.db.pool_arc().expect("verification pool");
+    let proofs: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM managed_dependency_verifications WHERE owner_id IN ($1,$2)",
+    )
+    .bind(f.owner.as_str())
+    .bind(foreign.as_str())
+    .fetch_one(pool.as_ref())
+    .await
+    .expect("count retained proofs");
+    assert_eq!(proofs, 0, "rejected wrapper calls retain no trusted proof");
 }

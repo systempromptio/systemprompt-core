@@ -253,10 +253,14 @@ async fn manifest_without_credential_is_unauthorized() -> Result<()> {
 // Only the rejections are driven here. The authenticated path opens a live SSE
 // stream, which is not something to hold open in a unit test.
 mod bridge_stream_auth {
+    use std::time::Duration;
+
     use super::{jwt_extractor, setup_ctx};
     use anyhow::Result;
     use axum::http::{HeaderMap, HeaderValue, StatusCode};
     use systemprompt_api::routes::gateway::bridge_stream;
+    use systemprompt_events::{AGUI_BROADCASTER, Broadcaster};
+    use systemprompt_test_fixtures::seed_bridge_credential;
 
     // Note: this asserts the outcome, not the guard. Removing the
     // missing-credential short-circuit leaves it green, because an empty
@@ -309,6 +313,51 @@ mod bridge_stream_auth {
         let response = bridge_stream::handle(jwt_extractor(&ctx)?, headers).await;
 
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn an_authenticated_bridge_stream_registers_and_releases_the_users_live_connection()
+    -> Result<()> {
+        let (pool, ctx) = setup_ctx().await?;
+        let credential = seed_bridge_credential(&pool, "bridge-stream@example.invalid").await?;
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            "authorization",
+            HeaderValue::from_str(&format!("Bearer {}", credential.jwt.as_str()))?,
+        );
+
+        let response = bridge_stream::handle(jwt_extractor(&ctx)?, headers).await;
+        assert_eq!(response.status(), StatusCode::OK);
+        assert!(
+            response
+                .headers()
+                .get("content-type")
+                .and_then(|value| value.to_str().ok())
+                .is_some_and(|value| value.starts_with("text/event-stream"))
+        );
+        tokio::time::timeout(Duration::from_secs(1), async {
+            loop {
+                if AGUI_BROADCASTER.connection_count(&credential.user_id).await == 1 {
+                    break;
+                }
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("authenticated stream registers under its user");
+
+        drop(response);
+        tokio::time::timeout(Duration::from_secs(1), async {
+            loop {
+                if AGUI_BROADCASTER.connection_count(&credential.user_id).await == 0 {
+                    break;
+                }
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("dropping the stream releases its broadcaster connection");
         Ok(())
     }
 }

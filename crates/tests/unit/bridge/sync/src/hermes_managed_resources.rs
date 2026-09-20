@@ -172,6 +172,15 @@ fn apply(m: &SignedManifest, home: &Path) {
     block_on(HermesSync.apply(&ctx(m, home, &client, &EMPTY_BEARER, &plugin_mcp_servers))).unwrap();
 }
 
+fn try_apply(
+    m: &SignedManifest,
+    home: &Path,
+) -> Result<(), systemprompt_bridge::host_sync::ApplyError> {
+    let client = stub_client();
+    let plugin_mcp_servers = std::collections::BTreeMap::new();
+    block_on(HermesSync.apply(&ctx(m, home, &client, &EMPTY_BEARER, &plugin_mcp_servers)))
+}
+
 fn skills_dir(home: &Path) -> PathBuf {
     home.join("skills")
 }
@@ -291,6 +300,71 @@ fn user_authored_config_keys_survive_apply_and_clear() {
             !cfg.contains("primary:"),
             "bridge MCP survived clear: {cfg}"
         );
+    });
+}
+
+#[test]
+fn a_foreign_mcp_scalar_blocks_connector_write_without_clobbering_it_and_repair_retries() {
+    with_hermes_home(|home| {
+        let original = b"owner_secret: keep-me\nmcp_servers: managed-elsewhere\n";
+        fs::write(home.join("config.yaml"), original).expect("seed foreign config");
+        let manifest = full_manifest();
+
+        let error = try_apply(&manifest, home).expect_err("foreign MCP shape must be rejected");
+        let message = error.to_string();
+        assert!(
+            message.contains("mcp_servers") && message.contains("a string"),
+            "{message}"
+        );
+        assert_eq!(
+            fs::read(home.join("config.yaml")).expect("config retained"),
+            original,
+            "the bridge must not replace another owner's MCP scalar"
+        );
+        assert!(
+            !message.contains("keep-me"),
+            "foreign values must not enter diagnostics: {message}"
+        );
+
+        fs::write(
+            home.join("config.yaml"),
+            "owner_secret: keep-me\nmcp_servers:\n  mine:\n    url: https://mine.example/mcp\n",
+        )
+        .expect("repair config shape");
+        try_apply(&manifest, home).expect("the same manifest succeeds after owner repair");
+        let repaired = read_cfg(home);
+        assert!(repaired.contains("owner_secret: keep-me"), "{repaired}");
+        assert!(repaired.contains("mine:"), "{repaired}");
+        assert!(repaired.contains("primary:"), "{repaired}");
+        assert_eq!(sidecar_ids(home), vec!["research".to_owned()]);
+    });
+}
+
+#[test]
+fn a_nonmapping_hermes_root_is_rejected_byte_exact_then_a_mapping_can_be_synced() {
+    with_hermes_home(|home| {
+        let original = b"- owned\n- by-user\n";
+        fs::write(home.join("config.yaml"), original).expect("seed foreign root");
+        let manifest = full_manifest();
+
+        let error = try_apply(&manifest, home).expect_err("sequence root must be rejected");
+        let message = error.to_string();
+        assert!(
+            message.contains("<root>") && message.contains("a mapping"),
+            "{message}"
+        );
+        assert_eq!(
+            fs::read(home.join("config.yaml")).expect("config retained"),
+            original,
+            "an unsupported user document must remain byte exact"
+        );
+
+        fs::write(home.join("config.yaml"), "user_setting: retained\n").expect("repair root shape");
+        try_apply(&manifest, home).expect("retry succeeds after root repair");
+        let repaired = read_cfg(home);
+        assert!(repaired.contains("user_setting: retained"), "{repaired}");
+        assert!(repaired.contains("primary:"), "{repaired}");
+        assert!(skill_md(home, "research").is_file());
     });
 }
 

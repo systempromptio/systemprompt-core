@@ -96,3 +96,35 @@ async fn build_file_storage_local_writes_under_the_root() {
     );
     assert!(storage.public_url(&id).is_none());
 }
+
+#[tokio::test]
+async fn metadata_reports_wire_mime_types_for_supported_upload_extensions() {
+    let (_dir, storage) = storage();
+    for (extension, expected) in [
+        ("JPG", "image/jpeg"),
+        ("jpeg", "image/jpeg"),
+        ("gif", "image/gif"),
+        ("webp", "image/webp"),
+        ("svg", "image/svg+xml"),
+        ("pdf", "application/pdf"),
+        ("json", "application/json"),
+        ("md", "text/plain"),
+        ("csv", "text/csv"),
+        ("mp3", "audio/mpeg"),
+        ("mp4", "video/mp4"),
+        ("bin", "application/octet-stream"),
+    ] {
+        let id = storage
+            .store(
+                Path::new(&format!("uploads/artifact.{extension}")),
+                b"fixture",
+            )
+            .await
+            .expect("store typed artifact");
+        let metadata = storage.metadata(&id).await.expect("stored metadata");
+        assert_eq!(
+            metadata.mime_type, expected,
+            "extension {extension} must retain its download content type"
+        );
+    }
+}

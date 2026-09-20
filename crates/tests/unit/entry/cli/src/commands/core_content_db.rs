@@ -28,6 +28,19 @@ fn card_title(out: &systemprompt_cli::shared::CommandOutput) -> String {
         .unwrap_or_default()
 }
 
+fn card_section(out: &systemprompt_cli::shared::CommandOutput, heading: &str) -> serde_json::Value {
+    let artifact = serde_json::to_value(out.artifact()).expect("serialize card artifact");
+    artifact["sections"]
+        .as_array()
+        .and_then(|sections| {
+            sections
+                .iter()
+                .find(|section| section["heading"] == heading)
+        })
+        .map(|section| section["content"].clone())
+        .unwrap_or_else(|| panic!("missing card section {heading:?}: {artifact}"))
+}
+
 fn cfg() -> CliConfig {
     CliConfig::new().with_interactive(false)
 }
@@ -229,6 +242,43 @@ async fn edit_clears_image_and_category() {
 }
 
 #[tokio::test]
+async fn edit_assigns_an_existing_category_and_persists_it() {
+    let pool = pool().await;
+    let source = unique("src");
+    let content = seed_content(&pool, &source, &slug()).await;
+    let category = unique("category");
+    sqlx::query("INSERT INTO markdown_categories (id, name, slug) VALUES ($1, $2, $3)")
+        .bind(&category)
+        .bind(format!("Category {category}"))
+        .bind(format!("slug-{category}"))
+        .execute(pool.pool_arc().expect("read pool").as_ref())
+        .await
+        .expect("seed category");
+
+    let mut args = edit_args(Some(content.id.as_str().to_owned()));
+    args.set_values = vec![format!("category={category}")];
+    edit::execute_with_pool(
+        args,
+        &ScriptedPrompter::new(Vec::<String>::new()),
+        &pool,
+        &cfg(),
+    )
+    .await
+    .expect("assign an existing category");
+
+    let updated = ContentRepository::new(&pool)
+        .unwrap()
+        .get_by_id(&content.id)
+        .await
+        .unwrap()
+        .expect("updated content");
+    assert_eq!(
+        updated.category_id.as_ref().map(|id| id.as_str()),
+        Some(category.as_str())
+    );
+}
+
+#[tokio::test]
 async fn show_finds_content_by_id_and_slug() {
     let pool = pool().await;
     let source = unique("src");
@@ -257,6 +307,26 @@ async fn show_finds_content_by_id_and_slug() {
     )
     .await
     .unwrap();
+}
+
+#[tokio::test]
+async fn show_resolves_a_unique_slug_without_requiring_its_source() {
+    let pool = pool().await;
+    let slug = slug();
+    let first_source = unique("src");
+    let first = seed_content(&pool, &first_source, &slug).await;
+
+    let unique = show::execute_with_pool(
+        show::ShowArgs {
+            identifier: slug.clone(),
+            source: None,
+        },
+        &pool,
+        &cfg(),
+    )
+    .await
+    .expect("a slug present in one source resolves without --source");
+    assert_eq!(card_section(&unique, "id"), first.id.as_str());
 }
 
 #[tokio::test]
@@ -511,6 +581,51 @@ async fn verify_reports_database_and_prerender_state() {
     .await
     .unwrap_err();
     assert!(err.to_string().contains("--source required"));
+}
+
+#[tokio::test]
+async fn verify_reports_the_prerendered_path_and_owned_http_status() {
+    use wiremock::matchers::{method, path};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    let pool = pool().await;
+    let source = unique("src");
+    let slug = slug();
+    let content = seed_content(&pool, &source, &slug).await;
+    let ctx = db_ctx(&pool, cfg());
+    let dist = tempfile::tempdir().unwrap();
+    let relative = format!("articles/{slug}");
+    let html = dist.path().join(&relative).join("index.html");
+    std::fs::create_dir_all(html.parent().unwrap()).unwrap();
+    std::fs::write(&html, "<h1>published</h1>").unwrap();
+
+    let server = MockServer::start().await;
+    Mock::given(method("HEAD"))
+        .and(path(format!("/{relative}")))
+        .respond_with(ResponseTemplate::new(204))
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let output = verify::execute(
+        verify::VerifyArgs {
+            identifier: content.id.as_str().to_owned(),
+            source: None,
+            web_dist: Some(dist.path().to_path_buf()),
+            base_url: Some(server.uri()),
+            url_pattern: Some("/articles/{slug}".to_owned()),
+        },
+        &ctx,
+    )
+    .await
+    .expect("verify owned publication surfaces");
+    assert_eq!(card_section(&output, "url"), format!("/articles/{slug}"));
+    assert_eq!(
+        card_section(&output, "prerender_path"),
+        html.to_string_lossy().as_ref()
+    );
+    assert_eq!(card_section(&output, "http_status"), 204);
+    assert_eq!(card_section(&output, "prerendered"), true);
 }
 
 #[tokio::test]

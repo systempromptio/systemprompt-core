@@ -5,7 +5,7 @@
 
 use std::sync::Arc;
 
-use rmcp::model::{CallToolResult, ContentBlock, MetaObject};
+use rmcp::model::{CallToolResult, ContentBlock, MetaObject, ResourceContents};
 use serde_json::json;
 use systemprompt_identifiers::{
     Actor, AgentName, AiToolCallId, ContextId, SessionId, TraceId, UserId,
@@ -272,4 +272,62 @@ async fn an_identical_body_is_stored_once_by_digest() {
         .unwrap()
         .unwrap();
     assert_eq!(payload.ref_count, 2);
+}
+
+#[tokio::test]
+async fn typed_error_result_keeps_declared_shape_title_ui_resource_and_client_artifact_id() {
+    let db = db_or_skip()
+        .await
+        .expect("artifact ingest fixture database");
+    let ingest = ArtifactIngest::from_db(&db, None).expect("ingest");
+    let artifact_id = unique("artifact");
+    let mut result = CallToolResult::error(vec![
+        ContentBlock::text("tool reported an error"),
+        ContentBlock::image("aGVsbG8=", "image/png"),
+        ContentBlock::audio("YXVkaW8=", "audio/wav"),
+        ContentBlock::resource(ResourceContents::TextResourceContents {
+            uri: "ui://tests/result".to_owned(),
+            mime_type: Some("text/html".to_owned()),
+            text: "<strong>result</strong>".to_owned(),
+            meta: None,
+        }),
+    ]);
+    result.structured_content = Some(json!({
+        "x-artifact-type": "vendor_report",
+        "title": "Gateway report",
+        "status": "degraded"
+    }));
+    let mut meta = serde_json::Map::new();
+    meta.insert(
+        EXECUTION_META_KEY.to_owned(),
+        json!({"artifact_id": artifact_id.clone()}),
+    );
+    result.meta = Some(MetaObject(meta));
+
+    let outcome = ingest
+        .ingest(request(
+            result,
+            &unique("sess"),
+            None,
+            ExecutionSource::Gateway,
+        ))
+        .await
+        .expect("typed tool result ingests");
+
+    assert!(outcome.created);
+    assert!(outcome.is_structured);
+    assert_eq!(outcome.artifact_id.as_str(), artifact_id);
+    assert_eq!(outcome.stored_body["x-artifact-type"], "vendor_report");
+    assert_eq!(outcome.stored_body["title"], "Gateway report");
+    let stored = ingest
+        .artifacts()
+        .find_by_id(&outcome.artifact_id)
+        .await
+        .unwrap()
+        .expect("typed artifact stored");
+    assert_eq!(stored.artifact_type, "vendor_report");
+    assert_eq!(stored.title.as_deref(), Some("Gateway report"));
+    assert!(stored.is_structured);
+    assert!(stored.has_ui_resource);
+    assert!(stored.is_error);
 }

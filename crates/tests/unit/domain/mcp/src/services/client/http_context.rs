@@ -606,3 +606,55 @@ async fn item_02_get_stream_redirected_to_cloud_metadata_is_refused() {
     let rendered = transport_error(err);
     assert!(rendered.contains("169.254.169.254"), "{rendered}");
 }
+
+#[tokio::test]
+async fn malformed_protected_resource_metadata_preserves_the_typed_challenge() {
+    let server = MockServer::start().await;
+    let metadata_path = "/.well-known/oauth-protected-resource";
+    let metadata_url = format!("{}{metadata_path}", server.uri());
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(401).insert_header(
+            "www-authenticate",
+            format!(
+                "Bearer error=\"invalid_token\", error_description=\"renew this grant\", resource_metadata=\"{metadata_url}\""
+            )
+            .as_str(),
+        ))
+        .expect(1)
+        .mount(&server)
+        .await;
+    Mock::given(method("GET"))
+        .and(path(metadata_path))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .set_body_raw("{not protected-resource metadata}", "application/json"),
+        )
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let client = HttpClientWithContext::forwarding(ctx(), HashMap::new()).expect("guarded client");
+    let err = client
+        .post_message(uri(&server), ping(), None, None, HashMap::new())
+        .await
+        .expect_err("401 must remain a typed authorization challenge");
+
+    let StreamableHttpError::Client(McpTransportError::AuthorizationRequired {
+        reason,
+        resource,
+        metadata_url: advertised_metadata_url,
+        authorization_servers,
+        enterprise_managed,
+    }) = err
+    else {
+        panic!("expected a typed authorization challenge, got {err:?}");
+    };
+    assert_eq!(reason, "renew this grant");
+    assert_eq!(
+        advertised_metadata_url.as_deref(),
+        Some(metadata_url.as_str())
+    );
+    assert!(resource.is_none());
+    assert!(authorization_servers.is_empty());
+    assert!(!enterprise_managed);
+}

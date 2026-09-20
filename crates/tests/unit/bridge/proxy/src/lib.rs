@@ -15,6 +15,8 @@ mod forward_replay;
 #[cfg(test)]
 mod identity;
 #[cfg(test)]
+mod keepalive;
+#[cfg(test)]
 mod loopback_host;
 #[cfg(test)]
 mod opencode_body;

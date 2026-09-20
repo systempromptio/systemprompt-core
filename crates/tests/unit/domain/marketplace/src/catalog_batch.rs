@@ -226,3 +226,194 @@ async fn the_overlay_withholds_revoked_keys_for_that_consumer_only() {
         .expect("withdrawn catalogue");
     assert!(gone.as_content().skills.is_empty());
 }
+#[tokio::test]
+async fn rejects_mismatched_selection_until_exact_publication_digest_is_restored() {
+    use systemprompt_identifiers::UserId;
+    use systemprompt_marketplace::CatalogContent;
+    use systemprompt_marketplace::managed::ManagedRepository;
+    use systemprompt_models::services::ServicesConfig;
+    use systemprompt_test_fixtures::{DisposableDb, seed_user_row};
+    use uuid::Uuid;
+
+    let database = DisposableDb::installed("managed_catalog_integrity_recovery")
+        .await
+        .expect("isolated managed catalog database");
+    let pool = database.pool().await.expect("managed catalog pool");
+    let owner = UserId::new(format!("catalog-owner-{}", Uuid::new_v4().simple()));
+    seed_user_row(
+        &pool,
+        &owner,
+        &format!("{}@catalog.invalid", owner.as_str()),
+    )
+    .await
+    .expect("seed catalog owner");
+    let repository = ManagedRepository::new(&pool).expect("managed repository");
+    let source = repository
+        .register_source(&owner, "catalog-authoring", &SourceSpec::Managed)
+        .await
+        .expect("register managed source");
+    let snapshot = repository
+        .capture_snapshot(
+            &owner,
+            &source,
+            &SnapshotProvenance {
+                source_kind: "managed".to_owned(),
+                commit: None,
+                tree_digest: AssetDigest::of(b"catalog-integrity-tree"),
+                importer_version: "test".to_owned(),
+            },
+        )
+        .await
+        .expect("capture managed snapshot");
+
+    let mut published = Vec::new();
+    for (label, body) in [
+        ("corrupt", "# selected publication\n"),
+        ("healthy", "# healthy publication\n"),
+    ] {
+        let key = format!("catalog_{label}_{}", Uuid::new_v4().simple());
+        let resource = repository
+            .bind_resource(
+                &owner,
+                &NewResource {
+                    source_id: source.clone(),
+                    upstream_key: key.clone(),
+                    kind: ResourceKind::Skill,
+                    resource_key: key.clone(),
+                },
+            )
+            .await
+            .expect("bind managed skill");
+        let revision = repository
+            .create_revision(
+                &owner,
+                &NewRevision {
+                    resource_id: resource.clone(),
+                    snapshot_id: snapshot.clone(),
+                    parent_id: None,
+                    files: skill_files(&key, body),
+                    dependencies: BTreeMap::new(),
+                    rationale: "catalog integrity fixture".to_owned(),
+                },
+            )
+            .await
+            .expect("create managed revision");
+        repository
+            .review_and_publish(
+                &owner,
+                &owner,
+                &PublicationRequest {
+                    resource_id: resource.clone(),
+                    revision_id: Some(revision),
+                    action: PublicationAction::InitialAdoption,
+                    expected_generation: 0,
+                    operation_key: format!("publish-{key}"),
+                    comparison_evidence: Default::default(),
+                    limitations: String::new(),
+                },
+            )
+            .await
+            .expect("publish managed skill");
+        published.push((key, resource));
+    }
+
+    let baseline = repository
+        .list_skill_resolutions(&owner)
+        .await
+        .expect("baseline catalog resolutions");
+    let digest_for = |key: &str| {
+        baseline
+            .iter()
+            .find(|row| row.resource_key == key)
+            .and_then(|row| match &row.resolution {
+                ManagedResolution::Published { bundle_digest, .. } => {
+                    Some(bundle_digest.as_str().to_owned())
+                },
+                _ => None,
+            })
+            .expect("published bundle digest")
+    };
+    let corrupt_digest = digest_for(&published[0].0);
+    let healthy_digest = digest_for(&published[1].0);
+    assert_ne!(corrupt_digest, healthy_digest);
+    let raw = pool.write_pool_arc().expect("managed write pool");
+    sqlx::query(
+        "UPDATE managed_publication_selections SET bundle_digest=$1 \
+         WHERE owner_id=$2 AND resource_id=$3",
+    )
+    .bind(&healthy_digest)
+    .bind(owner.as_str())
+    .bind(published[0].1.as_str())
+    .execute(raw.as_ref())
+    .await
+    .expect("diverge selected digest from publication");
+
+    let divergent = repository
+        .list_skill_resolutions(&owner)
+        .await
+        .expect("divergent catalog resolutions");
+    assert!(divergent.iter().any(|row| {
+        row.resource_key == published[0].0
+            && matches!(
+                &row.resolution,
+                ManagedResolution::IntegrityFailure {
+                    resource_id,
+                    generation: 1,
+                } if resource_id == &published[0].1
+            )
+    }));
+    assert!(divergent.iter().any(|row| {
+        row.resource_key == published[1].0
+            && matches!(row.resolution, ManagedResolution::Published { .. })
+    }));
+
+    let services = tempfile::tempdir().expect("services root");
+    for (key, _) in &published {
+        crate::helpers::write_skill_on_disk(services.path(), key);
+    }
+    let disk = CatalogContent::load(
+        &ServicesConfig::default(),
+        services.path(),
+        "https://api.example.invalid",
+    )
+    .expect("filesystem catalog");
+    let error = disk
+        .clone()
+        .with_managed_skills(repository.clone(), &owner)
+        .await
+        .expect_err("catalog must refuse a selection not backed by its publication");
+    assert!(matches!(
+        error,
+        systemprompt_marketplace::MarketplaceError::Managed(
+            systemprompt_marketplace::managed::ManagedError::Integrity
+        )
+    ));
+
+    sqlx::query(
+        "UPDATE managed_publication_selections SET bundle_digest=$1 \
+         WHERE owner_id=$2 AND resource_id=$3",
+    )
+    .bind(&corrupt_digest)
+    .bind(owner.as_str())
+    .bind(published[0].1.as_str())
+    .execute(raw.as_ref())
+    .await
+    .expect("restore selected publication digest");
+    let recovered = disk
+        .with_managed_skills(repository.clone(), &owner)
+        .await
+        .expect("matching selection restores catalog");
+    assert_eq!(recovered.as_content().skills.len(), 2);
+    assert!(recovered.as_content().skills.iter().any(|skill| {
+        skill.id.as_str() == published[0].0 && skill.instructions.contains("selected publication")
+    }));
+    assert!(recovered.as_content().skills.iter().any(|skill| {
+        skill.id.as_str() == published[1].0 && skill.instructions.contains("healthy publication")
+    }));
+
+    drop(repository);
+    drop(raw);
+    pool.write_pool_arc().expect("write pool").close().await;
+    drop(pool);
+    database.drop_now().await;
+}

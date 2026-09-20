@@ -36,6 +36,8 @@ mod routes_agent_registry;
 #[path = "routes_agent_registry_populated.rs"]
 mod routes_agent_registry_populated;
 
+#[path = "routes_agent_read_outage.rs"]
+mod routes_agent_read_outage;
 #[cfg(test)]
 #[path = "routes_agent_tasks.rs"]
 mod routes_agent_tasks;
@@ -201,6 +203,10 @@ mod routes_agent_webhook;
 mod routes_proxy_forward;
 
 #[cfg(test)]
+#[path = "proxy_internal_session.rs"]
+mod proxy_internal_session;
+
+#[cfg(test)]
 #[path = "routes_sync_files.rs"]
 mod routes_sync_files;
 
@@ -263,6 +269,14 @@ mod static_files_serving;
 #[cfg(test)]
 #[path = "gateway_pipeline.rs"]
 mod gateway_pipeline;
+
+#[cfg(test)]
+#[path = "gateway_failover.rs"]
+mod gateway_failover;
+
+#[cfg(test)]
+#[path = "gateway_tool_result_artifacts.rs"]
+mod gateway_tool_result_artifacts;
 
 #[cfg(test)]
 #[path = "gateway_matrix.rs"]
@@ -424,6 +438,8 @@ mod gateway_bridge_models_more;
 #[path = "gateway_dispatch_more.rs"]
 mod gateway_dispatch_more;
 
+#[path = "server_readiness_db_loss.rs"]
+mod server_readiness_db_loss;
 #[cfg(test)]
 #[path = "server_readiness_metrics.rs"]
 mod server_readiness_metrics;

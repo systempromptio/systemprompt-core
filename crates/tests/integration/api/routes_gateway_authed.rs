@@ -3,13 +3,19 @@
 //! `seed_admin_credential`, which inserts the user row + active session row +
 //! mints a matching JWT in one call so `decode_for_gateway` returns Ok.
 
+use std::time::Duration;
+
 use axum::Router;
 use axum::body::{Body, to_bytes};
 use axum::http::{Request, Response, header};
 use http::StatusCode;
 use systemprompt_api::routes::gateway::gateway_router;
 use systemprompt_database::DbPool;
-use systemprompt_test_fixtures::{AuthedFixture, install_test_signing_key, seed_admin_credential};
+use systemprompt_marketplace::managed::ManagedRepository;
+use systemprompt_oauth::repository::BridgeSessionRepository;
+use systemprompt_test_fixtures::{
+    AuthedFixture, install_test_signing_key, seed_admin_credential, seed_bridge_credential,
+};
 use tower::ServiceExt;
 
 use super::common::setup_ctx;
@@ -21,6 +27,228 @@ async fn router_and_pool() -> anyhow::Result<(Router, DbPool)> {
         .expect("gateway journal opens")
         .expect("gateway router available");
     Ok((router, pool))
+}
+
+async fn read_text(resp: Response<Body>) -> anyhow::Result<String> {
+    Ok(String::from_utf8(
+        to_bytes(resp.into_body(), 1024 * 1024).await?.to_vec(),
+    )?)
+}
+
+#[tokio::test]
+async fn heartbeat_rejects_a_session_claimed_by_another_token_without_recording_liveness()
+-> anyhow::Result<()> {
+    let (app, pool) = router_and_pool().await?;
+    let credential = seed_bridge_credential(&pool, "heartbeat-mismatch@example.invalid").await?;
+    let foreign_session = systemprompt_identifiers::SessionId::generate();
+    let response = app
+        .oneshot(authed_post(
+            "/bridge/heartbeat",
+            credential.jwt.as_str(),
+            serde_json::json!({
+                "session_id": foreign_session.as_str(),
+                "bridge_version": "1.0.0",
+                "os": "linux",
+                "hostname": "spoofed-host",
+                "forwarded_total": 99
+            }),
+        ))
+        .await?;
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    let body = read_text(response).await?;
+    assert!(body.contains("session_id must match"), "{body}");
+    let active = BridgeSessionRepository::new(&pool)?
+        .list_active_for_user(&credential.user_id, Duration::from_secs(60))
+        .await?;
+    assert!(
+        active
+            .iter()
+            .all(|session| session.session_id != foreign_session),
+        "a rejected heartbeat must not create liveness for a foreign session"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn incompatible_heartbeat_is_recorded_with_its_usage_and_reported_incompatible()
+-> anyhow::Result<()> {
+    let (app, pool) = router_and_pool().await?;
+    let credential = seed_bridge_credential(&pool, "heartbeat-old@example.invalid").await?;
+    let response = app
+        .oneshot(authed_post(
+            "/bridge/heartbeat",
+            credential.jwt.as_str(),
+            serde_json::json!({
+                "session_id": credential.session_id.as_str(),
+                "bridge_version": "0.1.0",
+                "os": "linux",
+                "hostname": "old-bridge",
+                "forwarded_total": 7,
+                "tokens_in_total": 11,
+                "tokens_out_total": 13
+            }),
+        ))
+        .await?;
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = read_body(response).await?;
+    assert_eq!(body["compatible"], false);
+    assert_eq!(body["min_bridge_version"], "0.28.0");
+    let active = BridgeSessionRepository::new(&pool)?
+        .list_active_for_user(&credential.user_id, Duration::from_secs(60))
+        .await?;
+    let persisted = active
+        .iter()
+        .find(|session| session.session_id == credential.session_id)
+        .expect("incompatible bridge remains visible for upgrade diagnostics");
+    assert_eq!(persisted.bridge_version, "0.1.0");
+    assert_eq!(persisted.hostname, "old-bridge");
+    assert_eq!(persisted.forwarded_total, 7);
+    assert_eq!(persisted.tokens_in_total, 11);
+    assert_eq!(persisted.tokens_out_total, 13);
+    Ok(())
+}
+
+#[tokio::test]
+async fn heartbeat_storage_failure_is_reported_and_a_retry_records_the_session()
+-> anyhow::Result<()> {
+    let database =
+        systemprompt_test_fixtures::DisposableDb::installed("heartbeat_persistence_recovery")
+            .await?;
+    let pool = database.pool().await?;
+    systemprompt_test_fixtures::ensure_test_bootstrap();
+    let ctx = systemprompt_test_fixtures::fixture_app_context(&pool, database.url())?;
+    install_test_signing_key();
+    let app = gateway_router(&ctx)
+        .expect("gateway journal opens")
+        .expect("gateway router available");
+    let credential = seed_bridge_credential(&pool, "heartbeat-retry@example.invalid").await?;
+    let payload = serde_json::json!({
+        "session_id": credential.session_id.as_str(),
+        "bridge_version": "1.0.0",
+        "os": "linux",
+        "hostname": "retrying-bridge",
+        "forwarded_total": 17,
+        "tokens_in_total": 19,
+        "tokens_out_total": 23
+    });
+
+    let write_pool = pool.write_pool();
+    sqlx::query("ALTER TABLE bridge_sessions RENAME TO bridge_sessions_unavailable")
+        .execute(write_pool.as_ref())
+        .await?;
+    let failed = app
+        .clone()
+        .oneshot(authed_post(
+            "/bridge/heartbeat",
+            credential.jwt.as_str(),
+            payload.clone(),
+        ))
+        .await;
+    sqlx::query("ALTER TABLE bridge_sessions_unavailable RENAME TO bridge_sessions")
+        .execute(write_pool.as_ref())
+        .await?;
+
+    let failed = failed?;
+    assert_eq!(failed.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    let body = read_text(failed).await?;
+    assert!(
+        body.starts_with("bridge heartbeat upsert failed:"),
+        "{body}"
+    );
+
+    let recovered = app
+        .oneshot(authed_post(
+            "/bridge/heartbeat",
+            credential.jwt.as_str(),
+            payload,
+        ))
+        .await?;
+    assert_eq!(recovered.status(), StatusCode::OK);
+    let active = BridgeSessionRepository::new(&pool)?
+        .list_active_for_user(&credential.user_id, Duration::from_secs(60))
+        .await?;
+    let persisted = active
+        .iter()
+        .find(|session| session.session_id == credential.session_id)
+        .expect("retry records the authenticated bridge session");
+    assert_eq!(persisted.hostname, "retrying-bridge");
+    assert_eq!(persisted.forwarded_total, 17);
+    assert_eq!(persisted.tokens_in_total, 19);
+    assert_eq!(persisted.tokens_out_total, 23);
+
+    drop(write_pool);
+    drop(pool);
+    drop(ctx);
+    database.drop_now().await;
+    Ok(())
+}
+
+#[tokio::test]
+async fn device_fingerprint_cannot_move_between_users_and_the_owner_can_still_rotate()
+-> anyhow::Result<()> {
+    let (app, pool) = router_and_pool().await?;
+    let owner = seed_bridge_credential(&pool, "device-owner@example.invalid").await?;
+    let other = seed_bridge_credential(&pool, "device-other@example.invalid").await?;
+    let fingerprint = systemprompt_models::feedback::ContentDigest::of(
+        format!("device-{}", uuid::Uuid::new_v4()).as_bytes(),
+    )
+    .as_str()
+    .to_owned();
+    let request = |token: &str| {
+        authed_post(
+            "/bridge/device",
+            token,
+            serde_json::json!({"fingerprint": fingerprint, "label": "owned laptop"}),
+        )
+    };
+
+    let first = app.clone().oneshot(request(owner.jwt.as_str())).await?;
+    assert_eq!(first.status(), StatusCode::OK);
+    let first = read_body(first).await?;
+    assert_eq!(first["consumer_id"], owner.user_id.as_str());
+    let device_id = first["device_id"].clone();
+    let first_credential = first["credential"].as_str().unwrap().to_owned();
+    let repository = ManagedRepository::new(&pool)?;
+    let first_identity = repository
+        .authenticate_consumer_device(&first_credential)
+        .await?;
+    assert_eq!(first_identity.consumer_id, owner.user_id);
+
+    let conflict = app.clone().oneshot(request(other.jwt.as_str())).await?;
+    assert_eq!(conflict.status(), StatusCode::CONFLICT);
+    let conflict_body = read_text(conflict).await?;
+    assert!(conflict_body.contains("another user"), "{conflict_body}");
+    assert!(
+        repository
+            .authenticate_consumer_device(&first_credential)
+            .await
+            .is_ok(),
+        "a rejected foreign claim must not revoke the owner's credential"
+    );
+
+    let rotated = app.oneshot(request(owner.jwt.as_str())).await?;
+    assert_eq!(rotated.status(), StatusCode::OK);
+    let rotated = read_body(rotated).await?;
+    assert_eq!(rotated["device_id"], device_id);
+    assert_eq!(rotated["consumer_id"], owner.user_id.as_str());
+    let rotated_credential = rotated["credential"].as_str().unwrap();
+    assert_ne!(rotated_credential, first_credential);
+    assert!(
+        repository
+            .authenticate_consumer_device(&first_credential)
+            .await
+            .is_err(),
+        "rotation must revoke the previously issued credential"
+    );
+    let rotated_identity = repository
+        .authenticate_consumer_device(rotated_credential)
+        .await?;
+    assert_eq!(rotated_identity.consumer_id, owner.user_id);
+    assert_eq!(
+        rotated_identity.device_id.as_str(),
+        device_id.as_str().unwrap()
+    );
+    Ok(())
 }
 
 fn authed_get(uri: &str, token: &str) -> Request<Body> {

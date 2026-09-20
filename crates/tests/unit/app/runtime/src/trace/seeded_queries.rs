@@ -24,10 +24,16 @@ struct Seed {
 }
 
 impl Seed {
-    async fn new_or_skip() -> Option<Self> {
-        let url = fixture_database_url().ok()?;
-        let db = fixture_db_pool(&url).await.ok()?;
-        let pool = db.pool_arc().ok()?.as_ref().clone();
+    async fn new() -> Self {
+        let url = fixture_database_url().expect("trace fixture prerequisite");
+        let db = fixture_db_pool(&url)
+            .await
+            .expect("trace fixture prerequisite");
+        let pool = db
+            .pool_arc()
+            .expect("trace fixture prerequisite")
+            .as_ref()
+            .clone();
 
         let tag = uuid::Uuid::new_v4().simple().to_string();
         let user_id = format!("seed_user_{tag}");
@@ -43,7 +49,7 @@ impl Seed {
             .bind(format!("{user_id}@test.invalid"))
             .execute(&pool)
             .await
-            .ok()?;
+            .expect("trace fixture prerequisite");
 
         sqlx::query("INSERT INTO user_contexts (context_id, user_id, name) VALUES ($1, $2, $3)")
             .bind(&context_id)
@@ -51,7 +57,7 @@ impl Seed {
             .bind(format!("ctx-{tag}"))
             .execute(&pool)
             .await
-            .ok()?;
+            .expect("trace fixture prerequisite");
 
         sqlx::query(
             "INSERT INTO agent_tasks (task_id, context_id, user_id, session_id, trace_id, \
@@ -65,9 +71,9 @@ impl Seed {
         .bind(&agent_name)
         .execute(&pool)
         .await
-        .ok()?;
+        .expect("trace fixture prerequisite");
 
-        Some(Self {
+        Self {
             pool,
             user_id,
             context_id,
@@ -75,7 +81,7 @@ impl Seed {
             trace_id,
             agent_name,
             tool_name,
-        })
+        }
     }
 
     async fn insert_mcp(&self, status: &str, error: Option<&str>, elapsed: i32) -> String {
@@ -200,9 +206,7 @@ impl Seed {
 
 #[tokio::test]
 async fn step_queries_map_seeded_mcp_and_step_rows() {
-    let Some(seed) = Seed::new_or_skip().await else {
-        return;
-    };
+    let seed = Seed::new().await;
 
     let long_error: String = "e".repeat(120);
     seed.insert_mcp("failed", Some(&long_error), 42).await;
@@ -290,9 +294,7 @@ async fn step_queries_map_seeded_mcp_and_step_rows() {
 
 #[tokio::test]
 async fn mcp_trace_queries_map_seeded_rows() {
-    let Some(seed) = Seed::new_or_skip().await else {
-        return;
-    };
+    let seed = Seed::new().await;
 
     let mcp_id = seed.insert_mcp("success", None, 11).await;
     seed.insert_linked_ai_request(&mcp_id).await;
@@ -338,9 +340,7 @@ async fn mcp_trace_queries_map_seeded_rows() {
 
 #[tokio::test]
 async fn filtered_lists_surface_seeded_rows() {
-    let Some(seed) = Seed::new_or_skip().await else {
-        return;
-    };
+    let seed = Seed::new().await;
 
     seed.insert_mcp("success", None, 21).await;
     seed.insert_tool_log().await;

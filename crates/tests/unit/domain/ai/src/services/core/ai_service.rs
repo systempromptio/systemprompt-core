@@ -1,5 +1,7 @@
 // AiService pipeline tests against wiremock provider endpoints.
 
+use std::sync::atomic::{AtomicUsize, Ordering};
+
 use futures::StreamExt;
 use serde_json::json;
 use systemprompt_ai::models::ai::{AiMessage, AiRequest, GenerateResponseParams, StreamChunk};
@@ -650,4 +652,295 @@ async fn google_search_uses_search_capable_provider_and_surfaces_sources() {
     assert_eq!(response.sources.len(), 1);
     assert_eq!(response.sources[0].uri, "https://example.com/a");
     assert_eq!(response.web_search_queries, vec!["test query".to_owned()]);
+}
+
+#[derive(Clone)]
+struct ToolThenSynthesis {
+    calls: std::sync::Arc<AtomicUsize>,
+}
+
+impl wiremock::Respond for ToolThenSynthesis {
+    fn respond(&self, _request: &wiremock::Request) -> wiremock::ResponseTemplate {
+        let invocation = self.calls.fetch_add(1, Ordering::SeqCst);
+        let body = if invocation == 0 {
+            json!({
+                "id": "msg_tool_only",
+                "type": "message",
+                "role": "assistant",
+                "content": [{
+                    "type": "tool_use",
+                    "id": "toolu_synthesis",
+                    "name": "lookup",
+                    "input": {"query": "retained evidence"}
+                }],
+                "model": ANTHROPIC_MODEL,
+                "stop_reason": "tool_use",
+                "stop_sequence": null,
+                "usage": {"input_tokens": 12, "output_tokens": 8}
+            })
+        } else {
+            mock_http::anthropic_response_body("synthesized from tool outcome")
+        };
+        wiremock::ResponseTemplate::new(200).set_body_json(body)
+    }
+}
+
+#[tokio::test]
+async fn tools_only_response_synthesizes_and_audits_both_provider_calls() {
+    use wiremock::matchers::{method, path};
+    use wiremock::{Mock, MockServer};
+
+    let pool = pool_or_skip()
+        .await
+        .expect("AI database fixture must be configured");
+    let server = MockServer::start().await;
+    let calls = std::sync::Arc::new(AtomicUsize::new(0));
+    Mock::given(method("POST"))
+        .and(path("/messages"))
+        .respond_with(ToolThenSynthesis {
+            calls: std::sync::Arc::clone(&calls),
+        })
+        .mount(&server)
+        .await;
+    let svc = service(&pool, ANTHROPIC, server.uri());
+    let (user, ctx) = seeded_context(&pool).await;
+    let request = AiRequest::builder(
+        vec![AiMessage::user("look up retained evidence")],
+        ANTHROPIC,
+        ANTHROPIC_MODEL,
+        128,
+        ctx,
+    )
+    .with_tools(vec![McpTool::new(
+        "lookup",
+        McpServerId::try_new("synthesis-fixture").expect("valid MCP server id"),
+    )])
+    .build();
+
+    let response = svc
+        .generate_with_tools(&request)
+        .await
+        .expect("tools-only provider turn synthesizes a final response");
+    assert_eq!(response.content, "synthesized from tool outcome");
+    assert_eq!(response.tool_calls.len(), 1);
+    assert_eq!(response.tool_calls[0].name, "lookup");
+    assert_eq!(response.tool_results.len(), 1);
+    assert_eq!(response.tool_results[0].is_error, Some(true));
+    let tool_diagnosis = serde_json::to_string(&response.tool_results[0].content)
+        .expect("tool failure content serializes");
+    assert!(
+        tool_diagnosis.contains("NoopToolProvider cannot execute tool: lookup"),
+        "synthesis must consume the real tool failure: {tool_diagnosis}"
+    );
+    assert_eq!(calls.load(Ordering::SeqCst), 2);
+
+    let rows: Vec<(String, Option<i32>, Option<i32>)> = sqlx::query_as(
+        "SELECT status, input_tokens, output_tokens FROM ai_requests WHERE user_id = $1 ORDER BY created_at, id",
+    )
+    .bind(user.as_str())
+    .fetch_all(pool.pool_arc().expect("AI read pool").as_ref())
+    .await
+    .expect("durable primary and synthesis audit rows");
+    assert_eq!(rows.len(), 2);
+    assert!(rows.iter().all(|row| row.0 == "completed"));
+    assert!(rows.contains(&("completed".to_owned(), Some(10), Some(20))));
+    assert!(rows.contains(&("completed".to_owned(), Some(12), Some(8))));
+}
+
+#[derive(Clone)]
+struct ToolThenProviderFailures {
+    calls: std::sync::Arc<AtomicUsize>,
+}
+
+impl wiremock::Respond for ToolThenProviderFailures {
+    fn respond(&self, _request: &wiremock::Request) -> wiremock::ResponseTemplate {
+        let invocation = self.calls.fetch_add(1, Ordering::SeqCst);
+        if invocation == 0 {
+            return wiremock::ResponseTemplate::new(200).set_body_json(json!({
+                "id": "msg_tool_before_failure",
+                "type": "message",
+                "role": "assistant",
+                "content": [{
+                    "type": "tool_use",
+                    "id": "toolu_failure",
+                    "name": "lookup",
+                    "input": {"query": "failure evidence"}
+                }],
+                "model": ANTHROPIC_MODEL,
+                "stop_reason": "tool_use",
+                "stop_sequence": null,
+                "usage": {"input_tokens": 12, "output_tokens": 8}
+            }));
+        }
+        wiremock::ResponseTemplate::new(503)
+            .set_body_json(json!({"error":{"message":"synthesis upstream unavailable"}}))
+    }
+}
+
+#[tokio::test]
+async fn failed_tool_synthesis_returns_diagnostic_fallback_without_fabricated_audit_calls() {
+    use wiremock::matchers::{method, path};
+    use wiremock::{Mock, MockServer};
+
+    let pool = pool_or_skip()
+        .await
+        .expect("AI database fixture must be configured");
+    let server = MockServer::start().await;
+    let calls = std::sync::Arc::new(AtomicUsize::new(0));
+    Mock::given(method("POST"))
+        .and(path("/messages"))
+        .respond_with(ToolThenProviderFailures {
+            calls: std::sync::Arc::clone(&calls),
+        })
+        .mount(&server)
+        .await;
+    let svc = service(&pool, ANTHROPIC, server.uri());
+    let (user, ctx) = seeded_context(&pool).await;
+    let request = AiRequest::builder(
+        vec![AiMessage::user("look up failure evidence")],
+        ANTHROPIC,
+        ANTHROPIC_MODEL,
+        128,
+        ctx,
+    )
+    .with_tools(vec![McpTool::new(
+        "lookup",
+        McpServerId::try_new("synthesis-failure-fixture").expect("valid MCP server id"),
+    )])
+    .build();
+
+    let response = svc
+        .generate_with_tools(&request)
+        .await
+        .expect("failed synthesis returns an explicit tool-result fallback");
+    assert!(response.content.contains("Tool execution completed"));
+    assert!(response.content.contains("Synthesis error"));
+    assert!(
+        response
+            .content
+            .contains("Provider anthropic returned HTTP 503"),
+        "fallback must carry the upstream diagnosis: {}",
+        response.content
+    );
+    assert!(
+        response.content.contains("synthesis upstream unavailable"),
+        "fallback must retain the upstream response body: {}",
+        response.content
+    );
+    assert_eq!(response.tool_calls.len(), 1);
+    assert_eq!(response.tool_results.len(), 1);
+    assert_eq!(response.tool_results[0].is_error, Some(true));
+    let raw_tool_error = serde_json::to_string(&response.tool_results[0].content)
+        .expect("tool failure content serializes");
+    assert!(
+        raw_tool_error.contains("NoopToolProvider cannot execute tool: lookup"),
+        "raw tool result must retain the execution failure: {raw_tool_error}"
+    );
+    assert_eq!(
+        calls.load(Ordering::SeqCst),
+        7,
+        "one initial tool turn plus three configured attempts for each failed synthesis stage"
+    );
+
+    let rows: Vec<(String, Option<i32>, Option<i32>)> = sqlx::query_as(
+        "SELECT status, input_tokens, output_tokens FROM ai_requests WHERE user_id = $1",
+    )
+    .bind(user.as_str())
+    .fetch_all(pool.pool_arc().expect("AI read pool").as_ref())
+    .await
+    .expect("durable audit rows after synthesis failure");
+    assert_eq!(
+        rows,
+        vec![("completed".to_owned(), Some(12), Some(8))],
+        "failed upstream synthesis attempts must not fabricate completed provider-call audits"
+    );
+}
+
+#[derive(Clone)]
+struct ToolThenEmptyThenGuidance {
+    calls: std::sync::Arc<AtomicUsize>,
+}
+
+impl wiremock::Respond for ToolThenEmptyThenGuidance {
+    fn respond(&self, _request: &wiremock::Request) -> wiremock::ResponseTemplate {
+        let invocation = self.calls.fetch_add(1, Ordering::SeqCst);
+        let body = match invocation {
+            0 => json!({
+                "id": "msg_tool_before_guidance",
+                "type": "message",
+                "role": "assistant",
+                "content": [{
+                    "type": "tool_use",
+                    "id": "toolu_guidance",
+                    "name": "lookup",
+                    "input": {"query": "guidance evidence"}
+                }],
+                "model": ANTHROPIC_MODEL,
+                "stop_reason": "tool_use",
+                "stop_sequence": null,
+                "usage": {"input_tokens": 12, "output_tokens": 8}
+            }),
+            1 => mock_http::anthropic_response_body(""),
+            _ => mock_http::anthropic_response_body("recovered through guidance"),
+        };
+        wiremock::ResponseTemplate::new(200).set_body_json(body)
+    }
+}
+
+#[tokio::test]
+async fn empty_tool_synthesis_retries_guidance_and_audits_every_completed_provider_call() {
+    use wiremock::matchers::{method, path};
+    use wiremock::{Mock, MockServer};
+
+    let pool = pool_or_skip()
+        .await
+        .expect("AI database fixture must be configured");
+    let server = MockServer::start().await;
+    let calls = std::sync::Arc::new(AtomicUsize::new(0));
+    Mock::given(method("POST"))
+        .and(path("/messages"))
+        .respond_with(ToolThenEmptyThenGuidance {
+            calls: std::sync::Arc::clone(&calls),
+        })
+        .mount(&server)
+        .await;
+    let svc = service(&pool, ANTHROPIC, server.uri());
+    let (user, ctx) = seeded_context(&pool).await;
+    let request = AiRequest::builder(
+        vec![AiMessage::user("look up guidance evidence")],
+        ANTHROPIC,
+        ANTHROPIC_MODEL,
+        128,
+        ctx,
+    )
+    .with_tools(vec![McpTool::new(
+        "lookup",
+        McpServerId::try_new("guidance-fixture").expect("valid MCP server id"),
+    )])
+    .build();
+
+    let response = svc
+        .generate_with_tools(&request)
+        .await
+        .expect("empty first synthesis retries with guidance");
+    assert_eq!(response.content, "recovered through guidance");
+    assert_eq!(calls.load(Ordering::SeqCst), 3);
+
+    let rows: Vec<(String, Option<i32>, Option<i32>)> = sqlx::query_as(
+        "SELECT status, input_tokens, output_tokens FROM ai_requests WHERE user_id = $1",
+    )
+    .bind(user.as_str())
+    .fetch_all(pool.pool_arc().expect("AI read pool").as_ref())
+    .await
+    .expect("durable audit rows after guidance retry");
+    assert_eq!(rows.len(), 3);
+    assert!(rows.iter().all(|row| row.0 == "completed"));
+    assert_eq!(
+        rows.iter()
+            .filter(|row| row.1 == Some(10) && row.2 == Some(20))
+            .count(),
+        2,
+        "empty synthesis and successful guidance are both billable completed calls"
+    );
+    assert!(rows.contains(&("completed".to_owned(), Some(12), Some(8))));
 }

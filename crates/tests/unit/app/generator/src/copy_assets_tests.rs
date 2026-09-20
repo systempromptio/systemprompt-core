@@ -78,3 +78,39 @@ async fn copy_asset_missing_source_errors() {
     let res = copy_asset(&dist, "ext-under-test", &asset).await;
     assert!(res.is_err(), "missing source must error");
 }
+
+#[tokio::test]
+async fn copy_asset_reports_a_destination_parent_that_is_a_file() {
+    let tmp = TempDir::new().unwrap();
+    let src = tmp.path().join("source.css");
+    std::fs::write(&src, b"body { color: blue; }").unwrap();
+    let dist = tmp.path().join("dist");
+    std::fs::create_dir_all(&dist).unwrap();
+    let collision = dist.join("nested");
+    std::fs::write(&collision, b"owned sentinel").unwrap();
+    let asset = AssetDefinition::css(src.clone(), "nested/style.css");
+
+    let error = copy_asset(&dist, "ext-under-test", &asset)
+        .await
+        .expect_err("a file cannot be used as a destination directory");
+
+    let message = error.to_string();
+    assert!(message.contains("Failed to create directory"), "{message}");
+    assert!(
+        message.contains(&collision.display().to_string()),
+        "{message}"
+    );
+    assert_eq!(std::fs::read(&src).unwrap(), b"body { color: blue; }");
+    assert_eq!(std::fs::read(&collision).unwrap(), b"owned sentinel");
+    assert!(!dist.join("nested/style.css").exists());
+
+    std::fs::remove_file(&collision).unwrap();
+    copy_asset(&dist, "ext-under-test", &asset)
+        .await
+        .expect("copy succeeds after the destination parent is repaired");
+    assert_eq!(
+        std::fs::read(dist.join("nested/style.css")).unwrap(),
+        b"body { color: blue; }"
+    );
+    assert_eq!(std::fs::read(&src).unwrap(), b"body { color: blue; }");
+}

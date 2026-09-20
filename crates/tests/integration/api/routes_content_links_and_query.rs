@@ -16,6 +16,7 @@ use axum::{Extension, Router};
 use systemprompt_api::routes::content;
 use systemprompt_database::DbPool;
 use systemprompt_runtime::AppContext;
+use systemprompt_test_fixtures::{DisposableDb, fixture_app_context};
 use tower::ServiceExt;
 use uuid::Uuid;
 
@@ -223,5 +224,244 @@ async fn an_unknown_campaign_has_no_performance() -> Result<()> {
     .await?;
 
     assert_eq!(status.as_u16(), 404, "{body}");
+    Ok(())
+}
+
+#[tokio::test]
+async fn search_database_failure_is_a_json_500_and_recovers_after_schema_repair() -> Result<()> {
+    let owned = DisposableDb::installed("content_query_failure").await?;
+    let db = owned.pool().await?;
+    let ctx = fixture_app_context(&db, owned.url())?;
+    let raw = db.pool_arc()?;
+    sqlx::query("ALTER TABLE markdown_content RENAME TO markdown_content_unavailable")
+        .execute(raw.as_ref())
+        .await?;
+
+    let (status, body) = body_to_string(
+        public(&ctx)
+            .oneshot(json_post("/query", serde_json::json!({"query": "failure"})))
+            .await?,
+    )
+    .await?;
+    assert_eq!(status.as_u16(), 500, "{body}");
+    let error: serde_json::Value = serde_json::from_str(&body)?;
+    assert!(
+        error["error"]
+            .as_str()
+            .is_some_and(|value| !value.is_empty()),
+        "{body}"
+    );
+
+    sqlx::query("ALTER TABLE markdown_content_unavailable RENAME TO markdown_content")
+        .execute(raw.as_ref())
+        .await?;
+    let (status, body) = body_to_string(
+        public(&ctx)
+            .oneshot(json_post(
+                "/query",
+                serde_json::json!({"query": "repaired"}),
+            ))
+            .await?,
+    )
+    .await?;
+    assert_eq!(status.as_u16(), 200, "{body}");
+    drop(ctx);
+    raw.close().await;
+    drop(raw);
+    drop(db);
+    owned.drop_now().await;
+    Ok(())
+}
+
+async fn response_json(
+    app: Router,
+    request: axum::http::Request<axum::body::Body>,
+) -> Result<(http::StatusCode, serde_json::Value)> {
+    let (status, body) = body_to_string(app.oneshot(request).await?).await?;
+    let value = serde_json::from_str(&body)?;
+    Ok((status, value))
+}
+
+async fn assert_link_reads_live(
+    ctx: &AppContext,
+    link: &str,
+    campaign: &str,
+    source: &str,
+) -> Result<()> {
+    let (status, performance) = response_json(
+        public(ctx),
+        empty_get(&format!("/links/{link}/performance")),
+    )
+    .await?;
+    assert_eq!(status.as_u16(), 200, "{performance}");
+    assert_eq!(performance["link_id"], link);
+    assert_eq!(performance["click_count"], 1);
+
+    let (status, performance) = response_json(
+        public(ctx),
+        empty_get(&format!("/links/campaigns/{campaign}/performance")),
+    )
+    .await?;
+    assert_eq!(status.as_u16(), 200, "{performance}");
+    assert_eq!(performance["campaign_id"], campaign);
+    assert_eq!(performance["total_clicks"], 1);
+    assert_eq!(performance["link_count"], 1);
+
+    let (status, clicks) = response_json(
+        public(ctx),
+        empty_get(&format!("/links/{link}/clicks?limit=10&offset=0")),
+    )
+    .await?;
+    assert_eq!(status.as_u16(), 200, "{clicks}");
+    let clicks = clicks.as_array().expect("click response array");
+    assert_eq!(clicks.len(), 1);
+    assert_eq!(clicks[0]["link_id"], link);
+    assert!(clicks[0]["id"].as_str().is_some_and(|id| !id.is_empty()));
+
+    for uri in [
+        format!("/links?campaign_id={campaign}"),
+        format!("/links?source_content_id={source}"),
+    ] {
+        let (status, links) = response_json(public(ctx), empty_get(&uri)).await?;
+        assert_eq!(status.as_u16(), 200, "{uri}: {links}");
+        let links = links.as_array().expect("links response array");
+        assert_eq!(links.len(), 1, "{uri}: {links:?}");
+        assert_eq!(links[0]["id"], link);
+        assert_eq!(links[0]["campaign_id"], campaign);
+        assert_eq!(links[0]["source_content_id"], source);
+    }
+
+    let (status, journey) =
+        response_json(public(ctx), empty_get("/links/journey?limit=10&offset=0")).await?;
+    assert_eq!(status.as_u16(), 200, "{journey}");
+    let journey = journey.as_array().expect("journey response array");
+    assert_eq!(journey.len(), 1);
+    assert_eq!(journey[0]["source_content_id"], source);
+    assert_eq!(journey[0]["click_count"], 1);
+    Ok(())
+}
+
+async fn assert_link_reads_outage(
+    ctx: &AppContext,
+    link: &str,
+    campaign: &str,
+    source: &str,
+    database_url: &str,
+) -> Result<()> {
+    for uri in [
+        format!("/links/{link}/performance"),
+        format!("/links/campaigns/{campaign}/performance"),
+        format!("/links/{link}/clicks?limit=10&offset=0"),
+        format!("/links?campaign_id={campaign}"),
+        format!("/links?source_content_id={source}"),
+        "/links/journey?limit=10&offset=0".to_owned(),
+    ] {
+        let (status, body) = response_json(public(ctx), empty_get(&uri)).await?;
+        assert_eq!(status.as_u16(), 500, "{uri}: {body}");
+        assert!(
+            body["message"]
+                .as_str()
+                .is_some_and(|message| !message.is_empty()),
+            "{uri}: {body}"
+        );
+        let rendered = body.to_string();
+        assert!(!rendered.contains(database_url));
+        assert!(!rendered.contains("postgres://"));
+        assert!(!rendered.contains("password"));
+    }
+    Ok(())
+}
+
+#[tokio::test]
+async fn link_analytics_reads_report_database_outage_and_recover_without_false_empty_results()
+-> Result<()> {
+    systemprompt_test_fixtures::ensure_test_bootstrap();
+    let owned = DisposableDb::installed("link_read_outage").await?;
+    let db = owned.pool().await?;
+    let ctx = fixture_app_context(&db, owned.url())?;
+    let click_user = systemprompt_identifiers::UserId::new("content_user");
+    let click_session = systemprompt_identifiers::SessionId::generate();
+    systemprompt_test_fixtures::seed_user_row(&db, &click_user, "content-user@outage.invalid")
+        .await?;
+    systemprompt_test_fixtures::seed_user_session(&db, &click_user, &click_session).await?;
+    let click_context = systemprompt_models::RequestContext::new(
+        click_session,
+        systemprompt_identifiers::TraceId::generate(),
+        systemprompt_identifiers::ContextId::generate(),
+        systemprompt_identifiers::AgentName::try_new("link-outage").unwrap(),
+    )
+    .with_actor(systemprompt_identifiers::Actor::user(click_user));
+    let campaign = format!("campaign-{}", Uuid::new_v4().simple());
+    let source = systemprompt_content::repository::ContentRepository::new(&db)?
+        .create(&systemprompt_content::models::CreateContentParams {
+            slug: format!("outage-source-{}", Uuid::new_v4().simple()),
+            locale: systemprompt_identifiers::LocaleCode::english(),
+            title: "Outage source".to_owned(),
+            description: "Source for link outage recovery".to_owned(),
+            body: "Retained source body".to_owned(),
+            author: "Test".to_owned(),
+            published_at: chrono::Utc::now(),
+            keywords: String::new(),
+            kind: "article".to_owned(),
+            image: None,
+            category_id: None,
+            source_id: systemprompt_identifiers::SourceId::new(format!(
+                "outage-source-{}",
+                Uuid::new_v4().simple()
+            )),
+            version_hash: format!("outage-hash-{}", Uuid::new_v4().simple()),
+            links: serde_json::json!([]),
+            public: true,
+        })
+        .await?
+        .id
+        .to_string();
+    let (status, generated) = response_json(
+        authenticated(&ctx),
+        json_post(
+            "/links/generate",
+            serde_json::json!({
+                "target_url": "https://example.test/outage-target",
+                "link_type": "both",
+                "campaign_id": campaign,
+                "campaign_name": "outage campaign",
+                "source_content_id": source,
+                "source_page": "/outage-source",
+                "utm_source": "test"
+            }),
+        ),
+    )
+    .await?;
+    assert_eq!(status.as_u16(), 200, "{generated}");
+    let link = generated["link_id"].as_str().expect("link id").to_owned();
+    let short = generated["short_code"]
+        .as_str()
+        .expect("short code")
+        .to_owned();
+    let redirect = content::redirect_router(ctx.content_repositories())
+        .layer(Extension(click_context))
+        .oneshot(empty_get(&format!("/r/{short}")))
+        .await?;
+    assert!(redirect.status().is_redirection());
+    assert_link_reads_live(&ctx, &link, &campaign, &source).await?;
+
+    let raw = db.pool_arc()?;
+    raw.close().await;
+    assert_link_reads_outage(&ctx, &link, &campaign, &source, owned.url()).await?;
+    drop(ctx);
+    drop(raw);
+    drop(db);
+
+    let recovered = owned.pool().await?;
+    let recovered_ctx = fixture_app_context(&recovered, owned.url())?;
+    assert_link_reads_live(&recovered_ctx, &link, &campaign, &source).await?;
+    let row: i64 = sqlx::query_scalar("SELECT count(*) FROM campaign_links WHERE id=$1")
+        .bind(&link)
+        .fetch_one(recovered.pool_arc()?.as_ref())
+        .await?;
+    assert_eq!(row, 1);
+    drop(recovered_ctx);
+    drop(recovered);
+    owned.drop_now().await;
     Ok(())
 }

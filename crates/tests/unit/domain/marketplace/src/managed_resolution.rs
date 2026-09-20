@@ -7,9 +7,9 @@ use std::collections::BTreeMap;
 use systemprompt_identifiers::{ManagedResourceId, UserId};
 use systemprompt_marketplace::CatalogContent;
 use systemprompt_marketplace::managed::{
-    AssetDigest, AssetFile, ManagedRepository, ManagedResourceResolver, ManagedSkillResolution,
-    NewResource, NewRevision, PublicationAction, PublicationRequest, ResourceKind, RevisionFiles,
-    SnapshotProvenance, SourceSpec,
+    AssetDigest, AssetFile, ManagedRepository, ManagedResolution, ManagedResourceResolver,
+    ManagedSkillResolution, NewResource, NewRevision, PublicationAction, PublicationRequest,
+    ResourceKind, RevisionFiles, SnapshotProvenance, SourceSpec,
 };
 use systemprompt_models::services::ServicesConfig;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_db_pool, seed_user_row};
@@ -284,4 +284,52 @@ async fn a_withdrawn_managed_skill_is_withheld_after_publication() {
         .await
         .expect("overlay");
     assert!(overlaid.as_content().skills.is_empty());
+}
+
+#[tokio::test]
+async fn resolve_state_tracks_unmanaged_withheld_published_and_withdrawn_transitions() {
+    let f = fixture()
+        .await
+        .expect("managed resolution database required");
+    assert!(matches!(
+        f.resolver
+            .resolve_state(&f.owner, ResourceKind::Skill, "never-registered")
+            .await
+            .expect("unmanaged state"),
+        ManagedResolution::NotManaged
+    ));
+    assert!(matches!(
+        f.resolver
+            .resolve_state(&f.owner, ResourceKind::Skill, &f.key)
+            .await
+            .expect("registered state"),
+        ManagedResolution::NeverAdopted { resource_id } if resource_id == f.resource
+    ));
+
+    publish(&f).await;
+    assert!(matches!(
+        f.resolver
+            .resolve_state(&f.owner, ResourceKind::Skill, &f.key)
+            .await
+            .expect("published state"),
+        ManagedResolution::Published {
+            resource_id,
+            revision_id,
+            generation: 1,
+            ..
+        } if resource_id == f.resource && revision_id == f.revision
+    ));
+
+    withdraw(&f).await;
+    assert!(matches!(
+        f.resolver
+            .resolve_state(&f.owner, ResourceKind::Skill, &f.key)
+            .await
+            .expect("withdrawn state"),
+        ManagedResolution::Withdrawn {
+            resource_id,
+            generation: 2,
+            ..
+        } if resource_id == f.resource
+    ));
 }

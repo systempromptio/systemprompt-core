@@ -36,6 +36,8 @@ mod error_extra;
 #[cfg(test)]
 mod jwt;
 #[cfg(test)]
+mod logout;
+#[cfg(test)]
 mod oauth_flow;
 #[cfg(test)]
 mod paths;

@@ -224,3 +224,172 @@ async fn failing_tool_and_failing_synthesis_surface_tool_errors() {
         "got {error}"
     );
 }
+
+#[tokio::test]
+async fn multiple_successful_tools_persist_one_completed_batch_summary_and_stream_result() {
+    use systemprompt_models::{StepContent, StepStatus};
+
+    let provider = StubAiProvider::new()
+        .with_plan(PlanningResult::tool_calls(
+            "combine both sources",
+            vec![
+                PlannedToolCall::new("alpha", json!({"q": 1})),
+                PlannedToolCall::new("beta", json!({"q": 2})),
+            ],
+        ))
+        .with_tool_result("alpha", success_result(json!({"answer": "a"})))
+        .with_tool_result("beta", success_result(json!({"answer": "b"})))
+        .with_response("combined answer");
+    let Harness { context, mut rx } = harness_or_skip(provider)
+        .await
+        .expect("planned strategy database fixture");
+    let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
+    let task_id = context.task_id.clone();
+    let steps = Arc::clone(&context.execution_step_repo);
+
+    let result = PlannedAgenticStrategy::new()
+        .execute(context, Vec::new())
+        .await
+        .expect("multi-tool execution succeeds");
+
+    assert_eq!(result.accumulated_text, "combined answer");
+    assert_eq!(
+        result
+            .tool_calls
+            .iter()
+            .map(|call| call.name.as_str())
+            .collect::<Vec<_>>(),
+        vec!["alpha", "beta"]
+    );
+    assert_eq!(result.tool_results.len(), 2);
+    assert!(
+        result
+            .tool_results
+            .iter()
+            .all(|result| result.is_error == Some(false))
+    );
+
+    let persisted = steps.list_by_task(&task_id).await.expect("persisted steps");
+    let tool_steps = persisted
+        .iter()
+        .filter(|step| matches!(step.content, StepContent::ToolExecution { .. }))
+        .collect::<Vec<_>>();
+    assert_eq!(tool_steps.len(), 1, "one batch produces one tool step");
+    let tool_step = tool_steps[0];
+    assert_eq!(tool_step.status, StepStatus::Completed);
+    let StepContent::ToolExecution {
+        tool_name,
+        tool_arguments,
+        tool_result,
+    } = &tool_step.content
+    else {
+        unreachable!()
+    };
+    assert_eq!(tool_name, "2 tools");
+    assert_eq!(
+        tool_arguments,
+        &json!([
+            {"tool": "alpha", "arguments": {"q": 1}},
+            {"tool": "beta", "arguments": {"q": 2}}
+        ])
+    );
+    let recorded = tool_result
+        .as_ref()
+        .and_then(|value| value["results"].as_array())
+        .expect("multi-tool result summary");
+    assert_eq!(recorded.len(), 2);
+    assert_eq!(recorded[0]["tool"], "alpha");
+    assert_eq!(recorded[0]["output"], json!({"answer": "a"}));
+    assert_eq!(recorded[1]["tool"], "beta");
+    assert_eq!(recorded[1]["output"], json!({"answer": "b"}));
+
+    let events = drain(&mut rx);
+    assert!(
+        events
+            .iter()
+            .any(|event| matches!(event, StreamEvent::Text(text) if text == "combined answer")),
+        "final synthesis is emitted: {events:?}"
+    );
+}
+
+#[tokio::test]
+async fn successful_then_failed_tool_persists_failed_batch_with_exact_diagnosis() {
+    use systemprompt_models::{StepContent, StepStatus};
+
+    let provider = StubAiProvider::new()
+        .with_plan(PlanningResult::tool_calls(
+            "try the dependent operations",
+            vec![
+                PlannedToolCall::new("alpha", json!({"q": 1})),
+                PlannedToolCall::new("broken", json!({"q": 2})),
+                PlannedToolCall::new("never-run", json!({})),
+            ],
+        ))
+        .with_tool_result("alpha", success_result(json!({"answer": 42})))
+        .with_tool_result("broken", error_result("upstream unavailable"))
+        .with_tool_result("never-run", success_result(json!({"unexpected": true})))
+        .with_response("partial answer with failure guidance");
+    let Harness { context, mut rx } = harness_or_skip(provider)
+        .await
+        .expect("planned strategy database fixture");
+    let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
+    let task_id = context.task_id.clone();
+    let steps = Arc::clone(&context.execution_step_repo);
+
+    let result = PlannedAgenticStrategy::new()
+        .execute(context, Vec::new())
+        .await
+        .expect("tool failure is synthesized for the caller");
+
+    assert_eq!(
+        result.accumulated_text,
+        "partial answer with failure guidance"
+    );
+    assert_eq!(
+        result
+            .tool_calls
+            .iter()
+            .map(|call| call.name.as_str())
+            .collect::<Vec<_>>(),
+        vec!["alpha", "broken", "never-run"],
+        "the wire result retains the declared plan"
+    );
+    assert_eq!(
+        result.tool_results.len(),
+        2,
+        "execution halts after failure"
+    );
+    assert_eq!(result.tool_results[0].is_error, Some(false));
+    assert_eq!(result.tool_results[1].is_error, Some(true));
+
+    let persisted = steps.list_by_task(&task_id).await.expect("persisted steps");
+    let tool_steps = persisted
+        .iter()
+        .filter(|step| matches!(step.content, StepContent::ToolExecution { .. }))
+        .collect::<Vec<_>>();
+    assert_eq!(tool_steps.len(), 1, "one batch produces one tool step");
+    let tool_step = tool_steps[0];
+    assert_eq!(tool_step.status, StepStatus::Failed);
+    assert_eq!(
+        tool_step.error_message.as_deref(),
+        Some("internal error: Tool broken failed: upstream unavailable")
+    );
+    assert!(
+        matches!(
+            &tool_step.content,
+            StepContent::ToolExecution { tool_name, tool_arguments, tool_result }
+                if tool_name == "3 tools"
+                    && tool_arguments.as_array().is_some_and(|items| items.len() == 3)
+                    && tool_result.is_none()
+        ),
+        "failed batch records its declared tools without fabricating a success result: {tool_step:?}"
+    );
+
+    let events = drain(&mut rx);
+    assert!(
+        events
+            .iter()
+            .any(|event| matches!(event, StreamEvent::Text(text) if text == "partial answer with failure guidance")),
+        "failure-aware synthesis is emitted: {events:?}"
+    );
+}

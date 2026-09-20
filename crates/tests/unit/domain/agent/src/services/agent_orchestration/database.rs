@@ -275,3 +275,76 @@ async fn remove_unknown_service_is_ok() {
         .await
         .expect("remove ok");
 }
+
+#[tokio::test]
+async fn status_rejects_corrupt_persisted_process_identifiers_without_rewriting_the_row() {
+    let pool = try_pool_or_skip()
+        .await
+        .expect("agent database fixture must be configured");
+    let svc = service(&pool).await;
+    let raw = pool.pool_arc().expect("raw database pool");
+    let name = unique_name("orch-corrupt-process");
+    svc.register_agent(&name, std::process::id(), 9309)
+        .await
+        .expect("register owned process identity");
+
+    sqlx::query("UPDATE services SET pid = -1 WHERE instance_id = $1 AND name = $2")
+        .bind("test-instance")
+        .bind(&name)
+        .execute(raw.as_ref())
+        .await
+        .expect("inject negative persisted pid");
+    let error = svc
+        .get_status(&name)
+        .await
+        .expect_err("negative persisted pid must be rejected");
+    assert_eq!(
+        error.to_string(),
+        "Database error: stored pid -1 is not a process id"
+    );
+    let state: (Option<i32>, i32, String) = sqlx::query_as(
+        "SELECT pid, port, status FROM services WHERE instance_id = $1 AND name = $2",
+    )
+    .bind("test-instance")
+    .bind(&name)
+    .fetch_one(raw.as_ref())
+    .await
+    .expect("persisted corrupt row");
+    assert_eq!(state, (Some(-1), 9309, "running".to_owned()));
+
+    sqlx::query("UPDATE services SET pid = $1, port = 70000 WHERE instance_id = $2 AND name = $3")
+        .bind(i32::try_from(std::process::id()).expect("current pid fits database"))
+        .bind("test-instance")
+        .bind(&name)
+        .execute(raw.as_ref())
+        .await
+        .expect("inject out-of-range persisted port");
+    let error = svc
+        .get_status(&name)
+        .await
+        .expect_err("out-of-range persisted port must be rejected");
+    assert_eq!(
+        error.to_string(),
+        "Database error: stored port 70000 is not a TCP port"
+    );
+    let state: (Option<i32>, i32, String) = sqlx::query_as(
+        "SELECT pid, port, status FROM services WHERE instance_id = $1 AND name = $2",
+    )
+    .bind("test-instance")
+    .bind(&name)
+    .fetch_one(raw.as_ref())
+    .await
+    .expect("persisted corrupt row");
+    assert_eq!(
+        state,
+        (
+            Some(i32::try_from(std::process::id()).unwrap()),
+            70000,
+            "running".to_owned()
+        )
+    );
+
+    svc.remove_agent_service(&name)
+        .await
+        .expect("fixture cleanup");
+}

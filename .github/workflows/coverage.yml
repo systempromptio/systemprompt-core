@@ -234,9 +234,28 @@ jobs:
           ' &
           WATCHDOG=$!
 
+          psql "$ADMIN_URL" -v ON_ERROR_STOP=1 \
+            -c 'CREATE DATABASE cov_build;'
+          export DATABASE_URL="$BASE_URL/cov_build"
+          /mnt/coverage-target/release/systemprompt-test-migrate
+          export COVERAGE_BINARIES_METADATA="$GITHUB_WORKSPACE/coverage-binaries.json"
+          export COVERAGE_CARGO_METADATA="$GITHUB_WORKSPACE/coverage-cargo-metadata.json"
+          cargo metadata --manifest-path crates/tests/Cargo.toml --format-version 1 \
+            > "$COVERAGE_CARGO_METADATA"
+          cargo nextest list --manifest-path crates/tests/Cargo.toml \
+            --workspace --lib --bins --tests --list-type binaries-only \
+            --message-format json > "$COVERAGE_BINARIES_METADATA"
+
           # nextest runs each test in its own process; continuous mode (%c)
           # lets those processes share one mmap'd profile per binary instead of
           # each dumping a full-counter file.
+          FALLBACK_PROFILE_ARCHIVE=$(mktemp -d "/mnt/tmp/preexisting-fallback.XXXXXX")
+          QUARANTINED_PROFILE_COUNT=$(bash scripts/quarantine-fallback-profraw.sh \
+            "$GITHUB_WORKSPACE/crates/tests" "$FALLBACK_PROFILE_ARCHIVE" \
+            "$GITHUB_WORKSPACE/crates/tests/target" "/mnt/coverage-target")
+          echo "quarantined pre-run fallback profraw count: $QUARANTINED_PROFILE_COUNT ($FALLBACK_PROFILE_ARCHIVE)"
+          FALLBACK_PROFILE_MARKER="$GITHUB_WORKSPACE/coverage-profile-run-start"
+          touch "$FALLBACK_PROFILE_MARKER"
           failed=()
           for group in $(bash scripts/test-shard.sh --list); do
             db="cov_${group//-/_}"
@@ -269,6 +288,11 @@ jobs:
             fi
           done
           kill "$WATCHDOG" 2>/dev/null || true
+
+          FALLBACK_PROFILE_COUNT=$(bash scripts/collect-fallback-profraw.sh \
+            "$GITHUB_WORKSPACE/crates/tests" "$FALLBACK_PROFILE_MARKER" "/mnt/profraw" \
+            "$GITHUB_WORKSPACE/crates/tests/target" "/mnt/coverage-target")
+          echo "collected fallback profraw count: $FALLBACK_PROFILE_COUNT"
 
           echo "profraw count: $(find /mnt/profraw -name '*.profraw' | wc -l)"
           df -h / /mnt
@@ -322,10 +346,7 @@ jobs:
             "/mnt/profraw"/*.profraw \
             -o coverage-merged.profdata
 
-          # Collect every test binary produced (strip dedup-by-cratename).
-          BINS=$(find /mnt/coverage-target/debug/deps -maxdepth 1 -executable -type f -name 'systemprompt_*' ! -name '*.d' -printf '%T@ %p\n' \
-            | sort -rn \
-            | awk '{ base=$2; sub(".*/", "", base); sub(/-[0-9a-f]+$/, "", base); if (!seen[base]++) print $2 }')
+          BINS=$(jq -r '."rust-binaries"[]."binary-path"' coverage-binaries.json | sort -u)
           SP_BIN="/mnt/coverage-target/debug/systemprompt"
           [ -x "$SP_BIN" ] && BINS="$BINS $SP_BIN"
           BRIDGE_BIN="/mnt/coverage-target/debug/systemprompt-bridge"

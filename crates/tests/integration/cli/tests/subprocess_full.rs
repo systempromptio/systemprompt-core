@@ -376,11 +376,6 @@ fn infra_services_status_all() {
     run(&["infra", "services", "status", "--all"]);
 }
 
-#[test]
-fn infra_services_cleanup() {
-    run(&["infra", "services", "cleanup"]);
-}
-
 // ============================================================================
 // infra db (full bootstrap, not --database-url)
 // ============================================================================

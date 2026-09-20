@@ -4,7 +4,8 @@
 //! per-grant rule table (`access_control_rules`) against the shared fixture
 //! database. Every test scopes itself to a unique `entity_id` so concurrent
 //! runs against the shared `DATABASE_URL` never collide, and removes its rows
-//! on the way out. Tests skip cleanly when no fixture database is reachable.
+//! on the way out. Fixture construction fails visibly when the migrated
+//! database is unavailable.
 
 use std::str::FromStr;
 
@@ -18,11 +19,14 @@ use uuid::Uuid;
 
 const KIND: EntityKind = EntityKind::Skill;
 
-async fn repo_or_skip() -> Option<(AccessControlRepository, DbPool)> {
-    let url = fixture_database_url().ok()?;
-    let db = fixture_db_pool(&url).await.ok()?;
-    let repo = AccessControlRepository::new(&db).ok()?;
-    Some((repo, db))
+async fn fixture_repository() -> (AccessControlRepository, DbPool) {
+    let url = fixture_database_url().expect("authz database fixture URL");
+    let db = fixture_db_pool(&url)
+        .await
+        .expect("connect to migrated authz database fixture");
+    let repo = AccessControlRepository::new(&db)
+        .expect("construct access-control repository from fixture database");
+    (repo, db)
 }
 
 fn unique_entity() -> String {
@@ -47,9 +51,7 @@ async fn cleanup(db: &DbPool, entity_id: &str) {
 
 #[tokio::test]
 async fn upsert_entity_then_get_roundtrips() {
-    let Some((repo, db)) = repo_or_skip().await else {
-        return;
-    };
+    let (repo, db) = fixture_repository().await;
     let id = unique_entity();
 
     assert!(
@@ -86,9 +88,7 @@ async fn upsert_entity_then_get_roundtrips() {
 
 #[tokio::test]
 async fn upsert_rule_requires_an_entity_then_persists_and_lists() {
-    let Some((repo, db)) = repo_or_skip().await else {
-        return;
-    };
+    let (repo, db) = fixture_repository().await;
     let id = unique_entity();
 
     let orphan = repo
@@ -140,9 +140,7 @@ async fn upsert_rule_requires_an_entity_then_persists_and_lists() {
 
 #[tokio::test]
 async fn upsert_rule_conflict_updates_access_in_place() {
-    let Some((repo, db)) = repo_or_skip().await else {
-        return;
-    };
+    let (repo, db) = fixture_repository().await;
     let id = unique_entity();
     repo.upsert_entity(KIND, &id, false, "test")
         .await
@@ -190,9 +188,7 @@ async fn upsert_rule_conflict_updates_access_in_place() {
 
 #[tokio::test]
 async fn list_rules_bulk_groups_by_entity_and_seeds_empty_ids() {
-    let Some((repo, db)) = repo_or_skip().await else {
-        return;
-    };
+    let (repo, db) = fixture_repository().await;
     let with_rule = unique_entity();
     let without_rule = unique_entity();
     repo.upsert_entity(KIND, &with_rule, false, "test")
@@ -234,9 +230,7 @@ async fn list_rules_bulk_groups_by_entity_and_seeds_empty_ids() {
 
 #[tokio::test]
 async fn set_justification_and_delete_rule_report_affected_rows() {
-    let Some((repo, db)) = repo_or_skip().await else {
-        return;
-    };
+    let (repo, db) = fixture_repository().await;
     let id = unique_entity();
     repo.upsert_entity(KIND, &id, false, "test")
         .await
@@ -300,9 +294,7 @@ async fn set_justification_and_delete_rule_report_affected_rows() {
 
 #[tokio::test]
 async fn list_role_rules_for_export_includes_role_grants_only() {
-    let Some((repo, db)) = repo_or_skip().await else {
-        return;
-    };
+    let (repo, db) = fixture_repository().await;
     let id = unique_entity();
     repo.upsert_entity(KIND, &id, false, "test")
         .await
@@ -343,9 +335,7 @@ async fn list_role_rules_for_export_includes_role_grants_only() {
 
 #[tokio::test]
 async fn chain_fingerprint_moves_with_rule_and_entity_writes() {
-    let Some((repo, db)) = repo_or_skip().await else {
-        return;
-    };
+    let (repo, db) = fixture_repository().await;
     let id = unique_entity();
 
     let empty = repo.chain_fingerprint().await.expect("fingerprint");

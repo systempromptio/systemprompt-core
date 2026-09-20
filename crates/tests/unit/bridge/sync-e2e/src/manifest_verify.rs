@@ -359,6 +359,66 @@ fn run_once_tofu_rejects_wrong_key_signature() {
     );
 }
 
+fn incompatible_then_repaired_manifest(incompatible: SignedManifest, expected_error: &str) {
+    let key = signing_key();
+    let invalid = signed_envelope_of(&key, &incompatible);
+    let valid = signed_envelope(&key);
+    let (server, dirs) = block_on(async {
+        let server = MockServer::start().await;
+        crate::mount_profile(&server).await;
+        mount_gateway(&server, &invalid, None).await;
+        let dirs = sandbox(&server.uri(), Some(&pubkey_b64(&key)));
+        (server, dirs)
+    });
+    let error = run_verified_sync(&dirs, false).expect_err("incompatible manifest must fail");
+    assert!(error.contains(expected_error), "{error}");
+    let sentinel = dirs
+        ._temp
+        .path()
+        .join("state/systemprompt-bridge/metadata/last-sync.json");
+    assert!(
+        !sentinel.exists(),
+        "a rejected manifest cannot advance durable sync state"
+    );
+
+    block_on(async {
+        server.reset().await;
+        crate::mount_profile(&server).await;
+        mount_gateway(&server, &valid, None).await;
+    });
+    let summary = run_verified_sync(&dirs, false).expect("compatible retry succeeds");
+    assert_eq!(
+        summary.manifest_version,
+        manifest().manifest_version.to_string()
+    );
+    assert!(
+        sentinel.is_file(),
+        "the successful retry advances durable sync state"
+    );
+}
+
+#[test]
+fn signed_schema_floor_failure_preserves_state_and_a_compatible_retry_recovers() {
+    incompatible_then_repaired_manifest(
+        SignedManifest {
+            min_schema_version: MANIFEST_SCHEMA_VERSION + 1,
+            ..manifest()
+        },
+        "schema",
+    );
+}
+
+#[test]
+fn signed_bridge_floor_failure_preserves_state_and_a_compatible_retry_recovers() {
+    incompatible_then_repaired_manifest(
+        SignedManifest {
+            min_bridge_version: Some(semver::Version::new(999, 0, 0)),
+            ..manifest()
+        },
+        "999.0.0",
+    );
+}
+
 #[test]
 fn decode_reports_bridge_too_old_before_shape_errors() {
     let env = SignedManifestEnvelope {
@@ -792,4 +852,108 @@ fn refresh_does_not_publish_a_response_after_gateway_switch() {
         );
     });
     let _ = server;
+}
+
+fn resolved_last_sync_path(dirs: &VerifySandbox) -> PathBuf {
+    let vars: Vec<_> = dirs
+        .vars
+        .iter()
+        .map(|(key, value)| (*key, value.as_deref()))
+        .collect();
+    temp_env::with_vars(&vars, || {
+        systemprompt_bridge::config::paths::bridge_metadata_dir()
+            .expect("metadata path")
+            .join("last-sync.json")
+    })
+}
+
+#[test]
+fn tofu_pubkey_unauthorized_preserves_unpinned_state_then_retry_pins_and_syncs() {
+    let key = signing_key();
+    let envelope = signed_envelope(&key);
+    let expected_key = pubkey_b64(&key);
+    let (server, dirs) = block_on(async {
+        let server = MockServer::start().await;
+        crate::mount_profile(&server).await;
+        mount_gateway(&server, &envelope, None).await;
+        Mock::given(method("GET"))
+            .and(path("/v1/bridge/pubkey"))
+            .respond_with(ResponseTemplate::new(401))
+            .expect(1)
+            .mount(&server)
+            .await;
+        let dirs = sandbox(&server.uri(), None);
+        (server, dirs)
+    });
+    let initial_config = fs::read(&dirs.config_file).unwrap();
+    let error = run_verified_sync(&dirs, true).expect_err("pubkey request is unauthorized");
+    assert!(error.contains("pubkey") && error.contains("401"), "{error}");
+    assert_eq!(fs::read(&dirs.config_file).unwrap(), initial_config);
+    assert!(!resolved_last_sync_path(&dirs).exists());
+
+    block_on(async {
+        server.reset().await;
+        crate::mount_profile(&server).await;
+        mount_gateway(&server, &envelope, Some(&expected_key)).await;
+    });
+    let summary = run_verified_sync(&dirs, true).expect("authorized retry succeeds");
+    assert_eq!(
+        summary.manifest_version,
+        manifest().manifest_version.to_string()
+    );
+    let vars: Vec<_> = dirs
+        .vars
+        .iter()
+        .map(|(key, value)| (*key, value.as_deref()))
+        .collect();
+    let parsed = temp_env::with_vars(&vars, systemprompt_bridge::config::load).unwrap();
+    let trust = parsed.sync.unwrap().trust.unwrap();
+    assert_eq!(trust.key.as_str(), expected_key);
+    assert_eq!(trust.gateway.as_str(), server.uri());
+    assert!(resolved_last_sync_path(&dirs).is_file());
+}
+
+#[test]
+fn gateway_switch_refuses_an_old_policy_pin_then_policy_repair_recovers() {
+    let key = signing_key();
+    let envelope = signed_envelope(&key);
+    let expected_key = pubkey_b64(&key);
+    let (old_server, new_server, mut dirs) = block_on(async {
+        let old_server = MockServer::start().await;
+        let new_server = MockServer::start().await;
+        crate::mount_profile(&new_server).await;
+        mount_gateway(&new_server, &envelope, Some(&expected_key)).await;
+        let dirs = sandbox(&new_server.uri(), None);
+        (old_server, new_server, dirs)
+    });
+    let policy = |gateway: &str| {
+        serde_json::json!({"gateway":gateway,"key":expected_key,"source":"policy"}).to_string()
+    };
+    dirs.vars.push((
+        "SP_BRIDGE_POLICY_TRUST",
+        Some(policy(&old_server.uri()).into()),
+    ));
+    let error = run_verified_sync(&dirs, false)
+        .expect_err("an old-origin policy pin cannot cross gateways");
+    assert!(
+        error.contains(&old_server.uri()) && error.contains(&new_server.uri()),
+        "{error}"
+    );
+    assert!(!resolved_last_sync_path(&dirs).exists());
+
+    dirs.vars.last_mut().unwrap().1 = Some(policy(&new_server.uri()).into());
+    let summary = run_verified_sync(&dirs, false).expect("policy repair recovers sync");
+    assert_eq!(
+        summary.manifest_version,
+        manifest().manifest_version.to_string()
+    );
+    assert!(resolved_last_sync_path(&dirs).is_file());
+    let requests = block_on(new_server.received_requests()).expect("new gateway requests");
+    assert_eq!(
+        requests
+            .iter()
+            .filter(|r| r.url.path() == "/v1/bridge/pubkey")
+            .count(),
+        0
+    );
 }

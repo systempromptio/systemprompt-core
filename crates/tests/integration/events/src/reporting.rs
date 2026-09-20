@@ -73,21 +73,26 @@ pub(crate) async fn verify_capture(pool: &PgPool, outbox: &OutboxConsumer) {
     let mut rollback = pool.begin().await.unwrap();
     sqlx::query("INSERT INTO logs(id,level,module,message,user_id) VALUES ('rolled-back','INFO','capture','rollback',$1)")
         .bind(user.as_str()).execute(&mut *rollback).await.unwrap();
+    let rolled_back_notification: String = sqlx::query_scalar(
+        "SELECT id FROM event_outbox WHERE consumer = 'analytics_reporting' AND fact->'data'->>'key' = 'rolled-back'",
+    )
+    .fetch_one(&mut *rollback)
+    .await
+    .unwrap();
     assert!(outbox.claim("analytics_reporting").await.unwrap().is_none());
     rollback.rollback().await.unwrap();
     assert!(outbox.claim("analytics_reporting").await.unwrap().is_none());
-    assert!(
-        tokio::time::timeout(Duration::from_millis(100), notifications.recv())
-            .await
-            .is_err()
-    );
+    assert_no_notification(&mut notifications, &rolled_back_notification).await;
 
     sqlx::query("INSERT INTO logs(id,level,module,message,user_id,metadata) VALUES ('captured','INFO','capture','committed',$1,'private metadata')")
         .bind(user.as_str()).execute(pool).await.unwrap();
-    tokio::time::timeout(Duration::from_secs(2), notifications.recv())
-        .await
-        .unwrap()
-        .unwrap();
+    let committed_notification: String = sqlx::query_scalar(
+        "SELECT id FROM event_outbox WHERE consumer = 'analytics_reporting' AND fact->'data'->>'key' = 'captured'",
+    )
+    .fetch_one(pool)
+    .await
+    .unwrap();
+    recv_notification(&mut notifications, &committed_notification).await;
     drop(notifications);
     let first = next_fact(outbox).await;
     assert_eq!(first["source"], "logs");
@@ -172,6 +177,36 @@ pub(crate) async fn verify_capture(pool: &PgPool, outbox: &OutboxConsumer) {
     AGUI_BROADCASTER.unregister(&user, &connection).await;
     ANALYTICS_BROADCASTER.unregister(&user, &connection).await;
     CONTEXT_BROADCASTER.unregister(&user, &connection).await;
+}
+
+async fn assert_no_notification(notifications: &mut sqlx::postgres::PgListener, rejected: &str) {
+    let deadline = tokio::time::Instant::now() + Duration::from_millis(100);
+    loop {
+        let Some(remaining) = deadline.checked_duration_since(tokio::time::Instant::now()) else {
+            return;
+        };
+        match tokio::time::timeout(remaining, notifications.recv()).await {
+            Err(_) => return,
+            Ok(Ok(notification)) => assert_ne!(notification.payload(), rejected),
+            Ok(Err(error)) => panic!("notification receive failed: {error}"),
+        }
+    }
+}
+
+async fn recv_notification(notifications: &mut sqlx::postgres::PgListener, expected: &str) {
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(2);
+    loop {
+        let remaining = deadline
+            .checked_duration_since(tokio::time::Instant::now())
+            .expect("matching reporting notification was not delivered");
+        let notification = tokio::time::timeout(remaining, notifications.recv())
+            .await
+            .expect("matching reporting notification was not delivered")
+            .expect("notification receive failed");
+        if notification.payload() == expected {
+            return;
+        }
+    }
 }
 
 async fn next_fact(outbox: &OutboxConsumer) -> Value {

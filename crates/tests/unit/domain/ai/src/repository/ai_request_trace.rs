@@ -1,8 +1,10 @@
 // DB-backed tests for the `AiRequestTrace` seam over `AiRequestRepository`:
 // usage reads are owner-scoped and sampling hydrates the stored turns.
 
-use systemprompt_ai::repository::AiRequestRepository;
-use systemprompt_traits::{AiRequestTrace, TraceRequestStatus, TraceSampleFilter};
+use serde_json::json;
+use systemprompt_ai::repository::{AiRequestPayloadRepository, AiRequestRepository};
+use systemprompt_identifiers::ContextId;
+use systemprompt_traits::{AiRequestTrace, TraceRequestStatus, TraceSampleFilter, TraceSampleMode};
 
 use super::{completed_record, pool_or_skip, seed_request, user};
 
@@ -81,4 +83,69 @@ async fn sample_by_id_hydrates_turns_and_splits_the_response() {
     assert_eq!(sample.messages.len(), 1);
     assert_eq!(sample.messages[0].content, "hello");
     assert_eq!(sample.response_text.as_deref(), Some("hi there"));
+}
+
+#[tokio::test]
+async fn conversation_sampling_selects_the_latest_turn_and_keeps_its_wire_evidence() {
+    let pool = pool_or_skip().await.expect("AI trace fixture database");
+    let repo = AiRequestRepository::new(&pool).unwrap();
+    let owner = user();
+    systemprompt_test_fixtures::seed_user_row(&pool, &owner, &format!("{owner}@ai.invalid"))
+        .await
+        .unwrap();
+    let context = ContextId::generate();
+    let mut earlier = completed_record(&owner);
+    earlier.context_id = context.clone();
+    let earlier_id = repo.insert(&earlier).await.unwrap();
+    let mut latest = completed_record(&owner);
+    latest.context_id = context.clone();
+    let latest_id = repo.insert(&latest).await.unwrap();
+    sqlx::query("UPDATE ai_requests SET created_at = NOW() - INTERVAL '1 minute' WHERE id = $1")
+        .bind(earlier_id.as_str())
+        .execute(pool.write_pool_arc().unwrap().as_ref())
+        .await
+        .unwrap();
+    repo.insert_message(&latest_id, "user", "latest question", 0)
+        .await
+        .unwrap();
+    repo.insert_message(&latest_id, "assistant", "latest answer", 1)
+        .await
+        .unwrap();
+    repo.update_system_prompt_override(&latest_id, "policy-v2")
+        .await
+        .unwrap();
+    let tools = json!([{"name":"lookup"}]);
+    AiRequestPayloadRepository::new(&pool)
+        .unwrap()
+        .upsert_offered_tools(&latest_id, &tools)
+        .await
+        .unwrap();
+    AiRequestPayloadRepository::new(&pool)
+        .unwrap()
+        .upsert_prepared(&latest_id, "prepared-latest", None)
+        .await
+        .unwrap();
+
+    let samples = repo
+        .sample(
+            &TraceSampleFilter::with_limit(5)
+                .mode(TraceSampleMode::Conversation)
+                .context_id(context),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(samples.len(), 1);
+    assert_eq!(samples[0].ai_request_id, latest_id);
+    assert_eq!(samples[0].messages[0].content, "latest question");
+    assert_eq!(samples[0].response_text.as_deref(), Some("latest answer"));
+    assert_eq!(samples[0].offered_tools, Some(tools));
+    assert_eq!(
+        samples[0].prepared_body_sha256.as_deref(),
+        Some("prepared-latest")
+    );
+    assert_eq!(
+        samples[0].system_prompt_override.as_deref(),
+        Some("policy-v2")
+    );
 }

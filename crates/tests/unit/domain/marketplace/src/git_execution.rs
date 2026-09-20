@@ -101,3 +101,74 @@ fn rejects_header_injection_before_spawning() {
             .contains("Invalid resolved Git credential")
     );
 }
+
+#[cfg(unix)]
+#[test]
+fn invalid_execution_bounds_are_rejected_before_command_spawn() {
+    for limits in [
+        GitExecutionLimits {
+            deadline: Duration::ZERO,
+            output_bytes: 1,
+        },
+        GitExecutionLimits {
+            deadline: Duration::from_secs(61),
+            output_bytes: 1,
+        },
+        GitExecutionLimits {
+            deadline: Duration::from_secs(1),
+            output_bytes: 0,
+        },
+        GitExecutionLimits {
+            deadline: Duration::from_secs(1),
+            output_bytes: 8 * 1024 * 1024 + 1,
+        },
+    ] {
+        let marker_root = tempfile::tempdir().expect("marker root");
+        let path = marker_root.path().join("spawned");
+        let mut command = Command::new("/bin/sh");
+        command.args(["-c", "touch \"$1\"", "fixture"]);
+        command.arg(&path);
+        let error = execute(&mut command, None, limits).expect_err("invalid bounds rejected");
+        assert!(error.to_string().contains("Invalid Git execution bounds"));
+        assert!(!path.exists(), "rejected command must never spawn");
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn stderr_overflow_and_symlinked_working_tree_abort_owned_processes() {
+    let started = Instant::now();
+    let mut stderr = Command::new("/bin/sh");
+    stderr.args(["-c", "while :; do echo excessive-error-output >&2; done"]);
+    let error = execute(
+        &mut stderr,
+        None,
+        GitExecutionLimits {
+            deadline: Duration::from_secs(2),
+            output_bytes: 1024,
+        },
+    )
+    .expect_err("stderr is bounded independently");
+    assert!(error.to_string().contains("execution/output limit"));
+    assert!(started.elapsed() < Duration::from_secs(3));
+
+    use std::os::unix::fs::symlink;
+    let directory = tempfile::tempdir().expect("isolated working tree");
+    symlink("/tmp", directory.path().join("escape")).expect("fixture symlink");
+    let started = Instant::now();
+    let mut sleeper = Command::new("/bin/sh");
+    sleeper
+        .current_dir(directory.path())
+        .args(["-c", "sleep 10"]);
+    let error = execute(
+        &mut sleeper,
+        None,
+        GitExecutionLimits {
+            deadline: Duration::from_secs(5),
+            output_bytes: 1024,
+        },
+    )
+    .expect_err("symlinked checkout is rejected by disk bounds");
+    assert!(error.to_string().contains("execution/output limit"));
+    assert!(started.elapsed() < Duration::from_secs(2));
+}

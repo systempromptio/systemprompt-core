@@ -21,6 +21,8 @@ mod artifact_ingest_classify;
 #[cfg(test)]
 mod artifact_ingest_db;
 #[cfg(test)]
+mod artifact_ingest_mixed;
+#[cfg(test)]
 mod artifact_ingest_ownership_db;
 #[cfg(test)]
 mod capabilities;
@@ -56,6 +58,8 @@ mod middleware;
 mod models;
 #[cfg(test)]
 mod orchestration;
+#[cfg(test)]
+mod owner_reassignment_db;
 #[cfg(test)]
 mod repository;
 #[cfg(test)]

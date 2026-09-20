@@ -18,6 +18,7 @@ use systemprompt_database::{
 use systemprompt_extension::{
     Extension, ExtensionMetadata, LoaderError, Migration, SchemaDefinition,
 };
+use systemprompt_test_fixtures::DisposableDb;
 
 #[test]
 fn test_applied_migration_creation() {
@@ -34,7 +35,6 @@ fn test_applied_migration_creation() {
     assert_eq!(migration.name, "create_users_table");
     assert_eq!(migration.checksum, "abc123");
 }
-
 
 #[test]
 fn test_applied_migration_with_high_version() {
@@ -82,7 +82,6 @@ fn test_migration_result_with_values() {
     assert_eq!(result.migrations_skipped, 3);
 }
 
-
 #[test]
 fn test_migration_result_zero_values() {
     let result = MigrationResult {
@@ -121,7 +120,6 @@ fn test_migration_status_creation() {
     assert_eq!(status.total_applied, 8);
     assert_eq!(status.pending_count, 2);
 }
-
 
 #[test]
 fn test_migration_status_all_applied() {
@@ -200,6 +198,9 @@ fn test_migration_status_no_migrations() {
 struct CallLog {
     events: Mutex<Vec<String>>,
     fail_on_statement: Mutex<Option<usize>>,
+    fail_begin: Mutex<bool>,
+    fail_commit: Mutex<bool>,
+    fail_rollback: Mutex<bool>,
 }
 
 impl CallLog {
@@ -269,10 +270,17 @@ impl DatabaseProvider for RecordingProvider {
 
     async fn begin_transaction(&self) -> DatabaseResult<Box<dyn DatabaseTransaction>> {
         self.log.push("begin");
+        if *self.log.fail_begin.lock().expect("lock") {
+            return Err(systemprompt_database::RepositoryError::internal(
+                "begin refused",
+            ));
+        }
         Ok(Box::new(RecordingTx {
             log: Arc::clone(&self.log),
             statement_index: 0,
             fail_on_statement: *self.log.fail_on_statement.lock().expect("lock"),
+            fail_commit: *self.log.fail_commit.lock().expect("lock"),
+            fail_rollback: *self.log.fail_rollback.lock().expect("lock"),
         }))
     }
 
@@ -311,6 +319,8 @@ struct RecordingTx {
     log: Arc<CallLog>,
     statement_index: usize,
     fail_on_statement: Option<usize>,
+    fail_commit: bool,
+    fail_rollback: bool,
 }
 
 #[async_trait]
@@ -360,11 +370,21 @@ impl DatabaseTransaction for RecordingTx {
 
     async fn commit(self: Box<Self>) -> DatabaseResult<()> {
         self.log.push("commit");
+        if self.fail_commit {
+            return Err(systemprompt_database::RepositoryError::internal(
+                "commit refused",
+            ));
+        }
         Ok(())
     }
 
     async fn rollback(self: Box<Self>) -> DatabaseResult<()> {
         self.log.push("rollback");
+        if self.fail_rollback {
+            return Err(systemprompt_database::RepositoryError::internal(
+                "rollback refused",
+            ));
+        }
         Ok(())
     }
 }
@@ -466,6 +486,50 @@ async fn execute_migration_rolls_back_and_skips_recording_on_failure() {
             .any(|e| e.starts_with("execute_raw:INSERT INTO extension_migrations")),
         "bookkeeping write must not run when the migration tx rolled back: {events:?}"
     );
+}
+
+#[tokio::test]
+async fn transactional_boundary_failures_never_commit_partial_migrations() {
+    for failure in ["begin", "tracking", "commit", "rollback"] {
+        let log = Arc::new(CallLog::default());
+        match failure {
+            "begin" => *log.fail_begin.lock().expect("lock") = true,
+            "tracking" => *log.fail_on_statement.lock().expect("lock") = Some(3),
+            "commit" => *log.fail_commit.lock().expect("lock") = true,
+            "rollback" => {
+                *log.fail_on_statement.lock().expect("lock") = Some(2);
+                *log.fail_rollback.lock().expect("lock") = true;
+            },
+            _ => unreachable!(),
+        }
+        let provider = RecordingProvider::new(Arc::clone(&log));
+        let extension = StubExtension {
+            id: "transaction_boundary_ext",
+            migrations: vec![Migration::new(
+                7,
+                "boundary",
+                "CREATE TABLE x (id TEXT); CREATE TABLE y (id TEXT);",
+            )],
+        };
+        let message = MigrationService::new(&provider)
+            .run_pending_migrations(&extension)
+            .await
+            .expect_err("boundary failure rejects migration")
+            .to_string();
+        assert!(message.contains('7'), "{failure}: {message}");
+        match failure {
+            "begin" => assert!(message.contains("begin transaction"), "{message}"),
+            "tracking" => assert!(message.contains("tracking write"), "{message}"),
+            "commit" => assert!(message.contains("commit migration"), "{message}"),
+            "rollback" => assert!(message.contains("rollback also failed"), "{message}"),
+            _ => unreachable!(),
+        }
+        let events = log.snapshot();
+        assert_eq!(
+            events.iter().filter(|event| *event == "commit").count(),
+            usize::from(failure == "commit")
+        );
+    }
 }
 
 #[tokio::test]
@@ -921,6 +985,8 @@ impl DatabaseProvider for AppliedVersionsProvider {
             log: Arc::clone(&self.log),
             statement_index: 0,
             fail_on_statement: None,
+            fail_commit: false,
+            fail_rollback: false,
         }))
     }
 
@@ -1089,6 +1155,109 @@ async fn run_down_migrations_rejects_unparseable_down_sql_before_deleting_the_re
     );
 }
 
+#[tokio::test]
+async fn run_down_migrations_rejects_a_corrupt_ledger_version_without_writing() {
+    let database = DisposableDb::installed("down_corrupt_version")
+        .await
+        .expect("private database");
+    let db = database.pool().await.expect("private pool");
+    let raw = db.write_pool();
+    let extension_id = "down_corrupt_version_ext";
+    sqlx::query(
+        "INSERT INTO extension_migrations (id, extension_id, version, name, checksum) \
+         VALUES ($1, $2, -1, 'corrupt', 'unchanged')",
+    )
+    .bind(format!("row-{}", uuid::Uuid::new_v4().simple()))
+    .bind(extension_id)
+    .execute(raw.as_ref())
+    .await
+    .expect("corrupt ledger fixture");
+    let extension = StubExtension {
+        id: extension_id,
+        migrations: vec![Migration::with_down(
+            1,
+            "reversible",
+            "SELECT 1;",
+            "SELECT 1;",
+        )],
+    };
+
+    let error = MigrationService::new(db.write())
+        .run_down_migrations(&extension, 1)
+        .await
+        .expect_err("negative ledger version must be rejected");
+
+    assert_eq!(
+        error.to_string(),
+        format!(
+            "Migration failed for extension '{}': extension_migrations row has a malformed `version` column",
+            extension_id
+        )
+    );
+    let row: (i32, String) = sqlx::query_as(
+        "SELECT version, checksum FROM extension_migrations WHERE extension_id = $1",
+    )
+    .bind(extension_id)
+    .fetch_one(raw.as_ref())
+    .await
+    .expect("ledger row remains");
+    assert_eq!(row, (-1, "unchanged".to_owned()));
+
+    raw.close().await;
+    drop(raw);
+    drop(db);
+    database.drop_now().await;
+}
+
+#[tokio::test]
+async fn run_down_migrations_refuses_an_applied_tombstone_without_writing() {
+    let database = DisposableDb::installed("down_tombstone")
+        .await
+        .expect("private database");
+    let db = database.pool().await.expect("private pool");
+    let raw = db.write_pool();
+    let extension_id = "down_tombstone_ext";
+    sqlx::query(
+        "INSERT INTO extension_migrations (id, extension_id, version, name, checksum) \
+         VALUES ($1, $2, 34, 'deleted_slot', 'unchanged')",
+    )
+    .bind(format!("row-{}", uuid::Uuid::new_v4().simple()))
+    .bind(extension_id)
+    .execute(raw.as_ref())
+    .await
+    .expect("applied tombstone fixture");
+    let extension = StubExtension {
+        id: extension_id,
+        migrations: vec![Migration::tombstone(34, "deleted_slot")],
+    };
+
+    let error = MigrationService::new(db.write())
+        .run_down_migrations(&extension, 1)
+        .await
+        .expect_err("an applied tombstone cannot be reverted");
+
+    assert_eq!(
+        error.to_string(),
+        format!(
+            "Migration failed for extension '{}': Cannot revert migration 34 ('deleted_slot'): the slot is tombstoned — its file was deleted, so there is no down SQL to run",
+            extension_id
+        )
+    );
+    let row: (i32, String) = sqlx::query_as(
+        "SELECT version, checksum FROM extension_migrations WHERE extension_id = $1",
+    )
+    .bind(extension_id)
+    .fetch_one(raw.as_ref())
+    .await
+    .expect("ledger row remains");
+    assert_eq!(row, (34, "unchanged".to_owned()));
+
+    raw.close().await;
+    drop(raw);
+    drop(db);
+    database.drop_now().await;
+}
+
 // A provider returning fully-populated `extension_migrations` rows, so the
 // row-to-`AppliedMigration` mapping runs. `AppliedVersionsProvider` reports
 // versions only, which is enough for the down-migration query but leaves the
@@ -1182,6 +1351,8 @@ impl DatabaseProvider for AppliedRowsProvider {
             log: Arc::clone(&self.log),
             statement_index: 0,
             fail_on_statement: None,
+            fail_commit: false,
+            fail_rollback: false,
         }))
     }
 
@@ -1394,7 +1565,6 @@ fn tombstoned_slot_reports_whether_the_database_ever_ran_it() {
     assert!(!untracked.tracked);
     assert_eq!(untracked.version, 34);
 }
-
 
 // ---------------------------------------------------------------------------
 // Drift repair: slot collisions are refused, reconcile-only executes no SQL.
@@ -1864,4 +2034,72 @@ async fn persisted_users001_checksum_matches_exact_historical_release_bytes() {
     assert_eq!(status.applied[0].checksum, HISTORICAL);
     assert_ne!(extension.migrations[0].checksum(), HISTORICAL);
     assert!(!log.snapshot().iter().any(|entry| entry == "begin"));
+}
+
+#[tokio::test]
+async fn repair_drift_rejects_unparseable_replacement_without_changing_trusted_checksum() {
+    let db = pool_or_skip()
+        .await
+        .expect("migration repair database fixture must be configured");
+    let log = Arc::new(CallLog::default());
+    let broken_sql = "THIS IS NOT SQL";
+    let broken = StubExtension {
+        id: "repair_ext",
+        migrations: vec![Migration::new(34, "034_knowledge_bank", broken_sql)],
+    };
+    let provider = HealingRowsProvider {
+        log: Arc::clone(&log),
+        pool: db.pool(),
+        state: Arc::new(AppliedRows {
+            rows: Mutex::new(vec![(
+                34,
+                "034_knowledge_bank".to_owned(),
+                "trusted_stale_checksum".to_owned(),
+            )]),
+            healed_checksum: Migration::new(34, "034_knowledge_bank", REPAIR_SQL).checksum(),
+        }),
+    };
+    let service = MigrationService::new(&provider);
+
+    let error = service
+        .repair_drift(&broken)
+        .await
+        .expect_err("invalid replacement SQL must not repair trusted migration history");
+    let message = error.to_string();
+    assert!(
+        message.contains("Failed to parse migration 34"),
+        "{message}"
+    );
+    assert!(message.contains("034_knowledge_bank"), "{message}");
+    assert!(
+        !log.snapshot()
+            .iter()
+            .any(|event| { event == "begin" || event == "commit" || event == "execute" }),
+        "parse rejection must happen before transaction or checksum update: {:?}",
+        log.snapshot()
+    );
+    let retained = provider.state.rows.lock().expect("rows lock").clone();
+    assert_eq!(
+        retained,
+        vec![(
+            34,
+            "034_knowledge_bank".to_owned(),
+            "trusted_stale_checksum".to_owned()
+        )]
+    );
+
+    let recovered = service
+        .repair_drift(&repair_extension("034_knowledge_bank"))
+        .await
+        .expect("a valid replacement can recover after rejected SQL");
+    assert_eq!(recovered.reapplied, 1);
+    assert_eq!(recovered.repaired.len(), 1);
+    let events = log.snapshot();
+    assert!(events.iter().any(|event| event == "begin"));
+    assert!(events.iter().any(|event| event == "commit"));
+    assert!(!events.iter().any(|event| event == "rollback"));
+    assert_eq!(
+        provider.state.rows.lock().expect("rows lock")[0].2,
+        Migration::new(34, "034_knowledge_bank", REPAIR_SQL).checksum()
+    );
 }

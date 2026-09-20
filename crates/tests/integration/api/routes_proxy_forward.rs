@@ -14,7 +14,7 @@
 //! process-wide test signing key — satisfies the bearer check for any service
 //! name (`validate_service_access` accepts the standard audience set).
 
-use std::sync::{Arc, Once};
+use std::sync::Once;
 
 use axum::body::Body;
 use axum::http::{Request, header};
@@ -41,6 +41,50 @@ fn ensure_config() {
         let b = ensure_test_bootstrap();
         let _ = Config::install(fixture_config(&b.database_url));
     });
+}
+#[tokio::test]
+async fn proxy_reports_a_dead_registered_backend_and_recovers_when_that_backend_returns()
+-> anyhow::Result<()> {
+    let (pool, ctx) = setup_ctx().await?;
+    let reservation = std::net::TcpListener::bind(("127.0.0.1", 0))?;
+    let address = reservation.local_addr()?;
+    drop(reservation);
+
+    let name = unique_name("recovering-agent");
+    register_running_service(&pool, &name, "custom", address.port()).await?;
+    let token = ctx_token();
+    let app = agents::router(&ctx).layer(middleware::from_fn_with_state(token.clone(), inject_ctx));
+
+    let unavailable = app
+        .clone()
+        .oneshot(authed_get(&format!("/{name}/health"), &token))
+        .await?;
+    let (status, body) = body_to_string(unavailable).await?;
+    assert_eq!(status, http::StatusCode::BAD_GATEWAY, "{body}");
+    assert!(
+        body.is_empty(),
+        "the proxy does not expose transport internals: {body}"
+    );
+    assert!(
+        !body.contains(&token),
+        "a connection diagnostic must not echo the caller credential: {body}"
+    );
+
+    let listener = std::net::TcpListener::bind(address)?;
+    let backend = MockServer::builder().listener(listener).start().await;
+    Mock::given(method("GET"))
+        .and(path("/health"))
+        .respond_with(ResponseTemplate::new(200).set_body_string("recovered"))
+        .expect(1)
+        .mount(&backend)
+        .await;
+    let recovered = app
+        .oneshot(authed_get(&format!("/{name}/health"), &token))
+        .await?;
+    let (status, body) = body_to_string(recovered).await?;
+    assert_eq!(status, http::StatusCode::OK, "{body}");
+    assert_eq!(body, "recovered");
+    Ok(())
 }
 
 fn ctx_token() -> String {
@@ -233,18 +277,6 @@ async fn mcp_proxy_unknown_service_emits_challenge() -> anyhow::Result<()> {
         .await?;
     // ServiceNotFound on the MCP path yields an RFC 9728 challenge or a 4xx.
     assert!(resp.status().as_u16() >= 400, "{}", resp.status());
-    Ok(())
-}
-
-#[tokio::test]
-async fn proxy_engine_constructs_over_the_identity_repository() -> anyhow::Result<()> {
-    let (pool, _ctx) = setup_ctx().await?;
-    let identities =
-        Arc::new(systemprompt_mcp::repository::McpProxyIdentityRepository::new(&pool)?);
-    let engine = systemprompt_api::services::proxy::ProxyEngine::new(identities);
-    let cloned = engine.clone();
-    drop(cloned);
-    drop(engine);
     Ok(())
 }
 

@@ -220,3 +220,156 @@ fn feedback_http_errors_remove_request_urls_from_entire_error_chain() {
     );
     assert!(std::error::Error::source(&error).is_some());
 }
+
+#[tokio::test]
+async fn credential_rejection_is_persisted_and_a_later_delivery_recovers_the_same_receipt() {
+    let (dir, request) = prepared(EvaluatorClient::Codex);
+    let receipt = ConsumerReceiptResponse {
+        receipt_id: InstallationReceiptId::new("recovered-after-credential-rotation"),
+        acknowledgement: ReceiptAcknowledgement::IdenticalRetry,
+        acknowledged_at: Utc::now(),
+        fully_verified: true,
+    };
+    let (gateway, server) = mock_server(vec![
+        (401, String::new(), "{}".to_owned()),
+        (200, String::new(), serde_json::to_string(&receipt).unwrap()),
+    ]);
+    let enrollment = Enrollment::new(
+        &gateway,
+        DeviceId::try_new("device").expect("fixture device"),
+        UserId::new("consumer"),
+        systemprompt_bridge::ids::BearerToken::new("sp_device_rotated"),
+    )
+    .unwrap();
+    let outbox = Outbox::new(
+        enrollment.outbox_path(dir.path()),
+        OutboxScope::from_enrollment(&enrollment),
+    );
+    let key = outbox.enqueue(request).expect("durable evidence");
+
+    assert!(
+        systemprompt_bridge::feedback::deliver(&enrollment, &outbox)
+            .await
+            .is_err()
+    );
+    let rejected = outbox.entries().unwrap().remove(0).1;
+    assert!(matches!(rejected.delivery, Delivery::CredentialRejected));
+    assert!(rejected.next_attempt > Utc::now());
+
+    tokio::time::sleep(
+        (rejected.next_attempt - Utc::now())
+            .to_std()
+            .unwrap_or_default()
+            + std::time::Duration::from_millis(20),
+    )
+    .await;
+    systemprompt_bridge::feedback::deliver(&enrollment, &outbox)
+        .await
+        .expect("the persisted receipt retries after its due time");
+    let recovered = outbox.entries().unwrap().remove(0).1;
+    assert!(
+        matches!(recovered.delivery, Delivery::Acknowledged(ref response) if response.receipt_id == receipt.receipt_id)
+    );
+    assert_eq!(server.join().unwrap().len(), 2);
+    assert!(
+        outbox
+            .entries()
+            .unwrap()
+            .iter()
+            .any(|(stored, _)| stored == &key)
+    );
+}
+// Append to crates/tests/unit/bridge/sync/src/feedback/transport.rs.
+#[derive(Clone)]
+struct BindingRetryResponder(std::sync::Arc<std::sync::atomic::AtomicUsize>);
+
+impl wiremock::Respond for BindingRetryResponder {
+    fn respond(&self, _request: &wiremock::Request) -> wiremock::ResponseTemplate {
+        let attempt = self.0.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        wiremock::ResponseTemplate::new(if attempt == 0 { 503 } else { 200 })
+            .set_body_json(serde_json::json!({}))
+    }
+}
+
+#[tokio::test]
+async fn acknowledged_receipt_retries_only_its_unbound_session_without_resending_evidence() {
+    use wiremock::matchers::{header, method, path};
+    use wiremock::{Mock, MockServer};
+
+    let (dir, request) = prepared(EvaluatorClient::Codex);
+    let response = ConsumerReceiptResponse {
+        receipt_id: InstallationReceiptId::new("already-acknowledged"),
+        acknowledgement: ReceiptAcknowledgement::Accepted,
+        acknowledged_at: Utc::now(),
+        fully_verified: true,
+    };
+    let gateway = MockServer::start().await;
+    let attempts = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    Mock::given(method("POST"))
+        .and(path("/api/v1/consumer/session-bindings"))
+        .and(header("authorization", "Bearer sp_device_binding"))
+        .respond_with(BindingRetryResponder(std::sync::Arc::clone(&attempts)))
+        .expect(2)
+        .mount(&gateway)
+        .await;
+    let enrollment = Enrollment::new(
+        &gateway.uri(),
+        DeviceId::try_new("binding-device").unwrap(),
+        UserId::new("consumer"),
+        systemprompt_bridge::ids::BearerToken::new("sp_device_binding"),
+    )
+    .unwrap();
+    let outbox = Outbox::new(
+        enrollment.outbox_path(dir.path()),
+        OutboxScope::from_enrollment(&enrollment),
+    );
+    let key = outbox.enqueue(request).unwrap();
+    outbox.delivery(&key, Ok(response.clone())).unwrap();
+    outbox
+        .queue_session(EvaluatorClient::Codex, "native-session")
+        .unwrap();
+
+    assert!(
+        systemprompt_bridge::feedback::deliver(&enrollment, &outbox)
+            .await
+            .is_err()
+    );
+    let retained = outbox.entries().unwrap().remove(0).1;
+    assert!(
+        matches!(retained.delivery, Delivery::Acknowledged(ref ack) if ack.receipt_id == response.receipt_id)
+    );
+    assert_eq!(
+        retained.session_bindings.get("native-session"),
+        Some(&false)
+    );
+
+    systemprompt_bridge::feedback::deliver(&enrollment, &outbox)
+        .await
+        .expect("binding-only retry succeeds");
+    let completed = outbox.entries().unwrap().remove(0).1;
+    assert!(
+        matches!(completed.delivery, Delivery::Acknowledged(ref ack) if ack.receipt_id == response.receipt_id)
+    );
+    assert!(completed.session_bindings.is_empty());
+    assert_eq!(attempts.load(std::sync::atomic::Ordering::SeqCst), 2);
+
+    let requests = gateway
+        .received_requests()
+        .await
+        .expect("recorded bindings");
+    assert_eq!(requests.len(), 2);
+    for request in requests {
+        assert_eq!(request.url.path(), "/api/v1/consumer/session-bindings");
+        assert_eq!(
+            request
+                .headers
+                .get("authorization")
+                .and_then(|value| value.to_str().ok()),
+            Some("Bearer sp_device_binding")
+        );
+        let body: serde_json::Value = serde_json::from_slice(&request.body).unwrap();
+        assert_eq!(body["receipt_id"], "already-acknowledged");
+        assert_eq!(body["session_id"], "native-session");
+        assert_eq!(body["host"], serde_json::json!(EvaluatorClient::Codex));
+    }
+}

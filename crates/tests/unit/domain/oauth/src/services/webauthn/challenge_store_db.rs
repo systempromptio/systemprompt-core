@@ -309,6 +309,45 @@ async fn store_link_token(repo: &OAuthRepository, user_id: &UserId) -> String {
 }
 
 #[tokio::test]
+async fn non_uuid_link_user_fails_before_reservation_without_consuming_token() {
+    use systemprompt_oauth::repository::TokenValidationResult;
+
+    let Some(ctx) = setup_or_skip().await else {
+        return;
+    };
+    let user_id = UserId::new(format!("legacy-user-{}", Uuid::new_v4().simple()));
+    let email = format!("{}@wastore.invalid", user_id.as_str());
+    seed_user_row(&ctx.pool, &user_id, &email)
+        .await
+        .expect("legacy user");
+    let raw = store_link_token(&ctx.repo, &user_id).await;
+    let before = link_rows(&ctx.pool, &user_id).await;
+
+    let error = ctx
+        .replica_a
+        .start_registration_with_token(&raw)
+        .await
+        .expect_err("passkey user handle requires a UUID");
+    assert!(
+        matches!(&error, OauthError::Validation(message)
+            if message.contains("Invalid user UUID") && message.contains(user_id.as_str())),
+        "{error}"
+    );
+    assert_eq!(
+        link_rows(&ctx.pool, &user_id).await,
+        before,
+        "UUID validation must precede challenge reservation"
+    );
+    assert!(matches!(
+        ctx.repo
+            .validate_setup_token(&hash_token(&raw))
+            .await
+            .expect("validate retained token"),
+        TokenValidationResult::Valid(record) if record.user_id == user_id
+    ));
+}
+
+#[tokio::test]
 async fn link_started_on_replica_a_finishes_on_replica_b() {
     let Some(ctx) = setup_or_skip().await else {
         return;

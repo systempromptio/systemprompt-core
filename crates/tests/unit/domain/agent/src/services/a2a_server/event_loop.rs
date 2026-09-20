@@ -27,6 +27,17 @@ use tokio_util::sync::CancellationToken;
 use super::a2a_helpers::{StubAiProvider, request_context};
 use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try_pool_or_skip};
 
+async fn persisted_task_error(pool: &systemprompt_database::DbPool, task_id: &TaskId) -> String {
+    sqlx::query_scalar::<_, Option<String>>(
+        "SELECT error_message FROM agent_tasks WHERE task_id = $1",
+    )
+    .bind(task_id.as_str())
+    .fetch_one(pool.pool_arc().expect("pool").as_ref())
+    .await
+    .expect("task error query")
+    .expect("failed task error")
+}
+
 fn user_message(ctx: &ContextId, task_id: &TaskId) -> Message {
     Message {
         role: MessageRole::User,
@@ -245,6 +256,10 @@ async fn process_events_error_path_fails_task_and_broadcasts() {
         .expect("get task")
         .expect("task row");
     assert_eq!(stored.status.state, TaskState::Failed);
+    assert_eq!(
+        persisted_task_error(&ctx.pool, &ctx.task_id).await,
+        "model exploded"
+    );
 
     let a2a = a2a_for(&ctx.rec, &ctx.task_id);
     assert_eq!(
@@ -384,6 +399,9 @@ async fn completion_with_an_empty_agent_name_fails_the_task_before_persistence()
         TaskState::Failed,
         "nothing marks the task completed before its messages are committed"
     );
+    let diagnosis = persisted_task_error(&ctx.pool, &ctx.task_id).await;
+    assert!(diagnosis.contains("agent_name"), "{diagnosis}");
+    assert!(diagnosis.contains("is empty"), "{diagnosis}");
 
     let frames = drain_frames(&mut ctx.sse_rx);
     let finals = final_frames(&frames);
@@ -437,6 +455,10 @@ async fn completion_of_an_unpersisted_task_reports_a_persistence_error() {
     let frames = drain_frames(&mut ctx.sse_rx);
     let finals = final_frames(&frames);
     assert_eq!(finals.len(), 1, "exactly one final frame: {frames:?}");
+    assert!(
+        finals[0].contains("TASK_STATE_FAILED"),
+        "persistence failure must terminate as failed: {finals:?}"
+    );
 
     let agui = agui_all(&ctx.rec);
     assert!(

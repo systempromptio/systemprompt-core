@@ -133,3 +133,30 @@ async fn an_auth_gated_service_reports_auth_required_even_when_unreachable() {
     );
     assert_eq!(status.state, "stopped");
 }
+
+#[tokio::test]
+async fn invalid_internal_endpoint_is_reported_unreachable_without_aborting_other_statuses() {
+    let live = MockServer::start().await;
+    mount_mcp_endpoint(&live, default_tools_json()).await;
+    let healthy = external_mcp_config("status-neighbor", &format!("{}/mcp", live.uri()));
+    let mut invalid = external_mcp_config("status-invalid-internal", "");
+    invalid.server_type = systemprompt_models::mcp::McpServerType::Internal;
+    invalid.port = None;
+    invalid.oauth.required = true;
+
+    let statuses = get_all_service_status(&[invalid, healthy])
+        .await
+        .expect("one malformed service is represented rather than aborting aggregation");
+    let unreachable = statuses
+        .get("status-invalid-internal")
+        .expect("invalid service entry");
+    assert_eq!(unreachable.state, "stopped");
+    assert_eq!(unreachable.health, "unreachable");
+    assert_eq!(unreachable.tools_count, None);
+    assert_eq!(unreachable.latency_ms, None);
+    assert!(unreachable.auth_required);
+    let neighbor = statuses.get("status-neighbor").expect("healthy neighbor");
+    assert_eq!(neighbor.state, "running");
+    assert_eq!(neighbor.health, "healthy");
+    assert_eq!(neighbor.tools_count, Some(2));
+}

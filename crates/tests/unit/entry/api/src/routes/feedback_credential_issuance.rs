@@ -98,4 +98,17 @@ async fn issued_credential_enrolls_once_retry_omits_token_and_deliberate_rotatio
         json(&router, enroll(new_token), StatusCode::OK).await,
         identity
     );
+    let revoked = router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!("/consumer-devices/{cert}/revocation"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(revoked.status(), StatusCode::NO_CONTENT);
+    json(&router, enroll(new_token), StatusCode::UNAUTHORIZED).await;
 }

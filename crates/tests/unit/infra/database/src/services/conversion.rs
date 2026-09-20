@@ -369,3 +369,53 @@ async fn bind_params_handles_null_variants() {
     assert_eq!(row.get("i"), Some(&serde_json::Value::Null));
     assert_eq!(row.get("b"), Some(&serde_json::Value::Null));
 }
+
+#[tokio::test]
+async fn query_raw_preserves_postgres_catalog_and_unknown_binary_values() {
+    let db = pool_or_skip()
+        .await
+        .expect("database conversion fixture must be configured");
+    let result = db
+        .read()
+        .query_raw(
+            &"SELECT 'pg_class'::regclass AS relation_oid, 23::oid AS type_oid, \
+              'catalog_name'::name AS catalog_name, interval '2 days 03:04:05' AS span, \
+              NULL::interval AS null_span",
+        )
+        .await
+        .expect("query PostgreSQL catalog-specific values");
+
+    assert_eq!(result.row_count, 1);
+    assert_eq!(
+        result.columns,
+        vec![
+            "relation_oid",
+            "type_oid",
+            "catalog_name",
+            "span",
+            "null_span"
+        ]
+    );
+    let row = &result.rows[0];
+    assert!(
+        row["relation_oid"].as_u64().is_some_and(|value| value > 0),
+        "regclass must remain its numeric object identity: {row:?}"
+    );
+    assert_eq!(row["type_oid"].as_u64(), Some(23));
+    assert_eq!(row["catalog_name"].as_str(), Some("catalog_name"));
+    assert_eq!(row["null_span"], serde_json::Value::Null);
+    let encoded_interval = row["span"]
+        .as_str()
+        .expect("unknown binary interval must remain representable");
+    assert_eq!(
+        encoded_interval.len(),
+        24,
+        "a 16-byte PostgreSQL interval must use padded base64 wire text"
+    );
+    assert!(
+        encoded_interval
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'+' | b'/' | b'=')),
+        "unknown binary value must use the JSON-safe base64 alphabet: {encoded_interval}"
+    );
+}

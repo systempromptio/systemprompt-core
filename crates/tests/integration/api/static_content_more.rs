@@ -117,3 +117,44 @@ async fn ensure_session_mints_anonymous_session_without_token() -> anyhow::Resul
     assert!(!info.user_id.as_str().is_empty());
     Ok(())
 }
+
+#[tokio::test]
+async fn ensure_session_reuses_a_valid_browser_token_without_creating_another_session()
+-> anyhow::Result<()> {
+    let b = ensure_test_bootstrap();
+    let _ = systemprompt_models::Config::install(fixture_config(&b.database_url));
+    install_test_signing_key();
+    let (_tmp, state) = state_with_dist().await?;
+    let mut first_headers = HeaderMap::new();
+    first_headers.insert(
+        "user-agent",
+        format!("session-reuse/{}", uuid::Uuid::new_v4()).parse()?,
+    );
+    let first = ensure_session(&first_headers, None, None, &state.ctx).await?;
+    let raw = state.ctx.db_pool().pool_arc()?;
+    let before: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM user_sessions WHERE user_id = $1")
+        .bind(first.user_id.as_str())
+        .fetch_one(raw.as_ref())
+        .await?;
+
+    let token = first.jwt_token.as_deref().expect("anonymous session token");
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        header::COOKIE,
+        format!("access_token={token}")
+            .parse()
+            .expect("cookie header"),
+    );
+    let reused = ensure_session(&headers, None, None, &state.ctx).await?;
+
+    assert_eq!(reused.session_id, first.session_id);
+    assert_eq!(reused.user_id, first.user_id);
+    assert!(!reused.is_new);
+    assert_eq!(reused.jwt_token.as_deref(), Some(token));
+    let after: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM user_sessions WHERE user_id = $1")
+        .bind(first.user_id.as_str())
+        .fetch_one(raw.as_ref())
+        .await?;
+    assert_eq!(after, before, "token reuse must not mint another session");
+    Ok(())
+}

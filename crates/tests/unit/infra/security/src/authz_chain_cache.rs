@@ -16,11 +16,14 @@ use uuid::Uuid;
 const KIND: EntityKind = EntityKind::Plugin;
 const LONG: Duration = Duration::from_secs(3600);
 
-async fn repo_or_skip() -> Option<(AccessControlRepository, DbPool)> {
-    let url = fixture_database_url().ok()?;
-    let db = fixture_db_pool(&url).await.ok()?;
-    let repo = AccessControlRepository::new(&db).ok()?;
-    Some((repo, db))
+async fn fixture_repository() -> (AccessControlRepository, DbPool) {
+    let url = fixture_database_url().expect("authz database fixture URL");
+    let db = fixture_db_pool(&url)
+        .await
+        .expect("connect to migrated authz database fixture");
+    let repo = AccessControlRepository::new(&db)
+        .expect("construct access-control repository from fixture database");
+    (repo, db)
 }
 
 fn unique_entity() -> String {
@@ -57,9 +60,7 @@ async fn upsert_rule(repo: &AccessControlRepository, entity_id: &str, value: &st
 
 #[tokio::test]
 async fn within_the_recheck_window_the_same_index_is_served_without_a_reload() {
-    let Some((repo, db)) = repo_or_skip().await else {
-        return;
-    };
+    let (repo, db) = fixture_repository().await;
     let id = unique_entity();
     repo.upsert_entity(KIND, &id, false, "test")
         .await
@@ -79,9 +80,7 @@ async fn within_the_recheck_window_the_same_index_is_served_without_a_reload() {
 
 #[tokio::test]
 async fn an_upserted_rule_moves_the_fingerprint_and_forces_a_reload() {
-    let Some((repo, db)) = repo_or_skip().await else {
-        return;
-    };
+    let (repo, db) = fixture_repository().await;
     let id = unique_entity();
     repo.upsert_entity(KIND, &id, false, "test")
         .await
@@ -102,9 +101,7 @@ async fn an_upserted_rule_moves_the_fingerprint_and_forces_a_reload() {
 
 #[tokio::test]
 async fn a_deleted_rule_moves_the_fingerprint_and_forces_a_reload() {
-    let Some((repo, db)) = repo_or_skip().await else {
-        return;
-    };
+    let (repo, db) = fixture_repository().await;
     let id = unique_entity();
     repo.upsert_entity(KIND, &id, false, "test")
         .await
@@ -136,9 +133,7 @@ async fn a_deleted_rule_moves_the_fingerprint_and_forces_a_reload() {
 
 #[tokio::test]
 async fn ttl_expiry_reloads_even_when_the_fingerprint_is_unchanged() {
-    let Some((repo, _db)) = repo_or_skip().await else {
-        return;
-    };
+    let (repo, _db) = fixture_repository().await;
     let cache = ChainIndexCache::new(Duration::ZERO, Duration::ZERO);
 
     let first = cache.get(&repo, sources()).await.expect("first load");

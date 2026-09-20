@@ -75,6 +75,42 @@ fn skills_list_filters_enabled_and_disabled() {
 }
 
 #[test]
+fn skills_list_sorts_directory_ids_and_preserves_summary_metadata() {
+    let tmp = tempfile::tempdir().unwrap();
+    for (id, name, enabled) in [
+        ("zeta", "Zeta Skill", false),
+        ("alpha", "Alpha Skill", true),
+    ] {
+        let dir = tmp.path().join(id);
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(
+            dir.join("config.yaml"),
+            format!(
+                "id: configured-{id}\nname: {name}\ndescription: {id} description\nenabled: {enabled}\ntags: [operator, review]\ncategory: governance\n"
+            ),
+        )
+        .unwrap();
+    }
+
+    let json = artifact_json(execute_with_path(list_args(&[]), tmp.path()).unwrap());
+    let alpha = json.find("alpha").unwrap();
+    let zeta = json.find("zeta").unwrap();
+    assert!(
+        alpha < zeta,
+        "skills must be ordered by directory ID: {json}"
+    );
+    assert!(json.contains("Alpha Skill"), "{json}");
+    assert!(
+        json.contains("operator") && json.contains("review"),
+        "{json}"
+    );
+    assert!(
+        json.contains("config.yaml"),
+        "the source config path is displayed: {json}"
+    );
+}
+
+#[test]
 fn skills_list_skips_unparseable_config() {
     let tmp = tempfile::tempdir().unwrap();
     write_skill(tmp.path(), "good", true, None);

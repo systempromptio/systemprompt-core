@@ -301,6 +301,15 @@ async fn nonconflicting_deletions_additions_and_identical_changes_merge_without_
         .complete_reconciliation(&f.owner, &f.owner, &opened.id, &resolved)
         .await
         .unwrap();
+    let retained = f.repo.begin_reconciliation(&f.owner, &input).await.unwrap();
+    assert_eq!(retained.status, ReconciliationStatus::Resolved);
+    assert_eq!(retained.resolved_revision_id, Some(resolved.clone()));
+    assert!(matches!(
+        f.repo
+            .complete_reconciliation(&f.owner, &f.owner, &opened.id, &resolved)
+            .await,
+        Err(ManagedError::Unavailable)
+    ));
     let retained_files = f
         .repo
         .get_revision_files(&f.owner, &resolved)

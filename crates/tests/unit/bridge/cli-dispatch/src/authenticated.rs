@@ -308,3 +308,50 @@ fn a_sync_whose_manifest_is_refused_leaves_no_sentinel() {
     );
     drop(server);
 }
+
+#[test]
+fn failed_oauth_client_rotation_preserves_the_last_working_client() {
+    use_headless_keystore();
+    let healthy = gateway();
+    let sb = Sandbox::new();
+    authenticated(&healthy, &sb, || {
+        let status = run_with_args(&argv(&["oauth-client", "rotate"]));
+        assert_eq!(status, std::process::ExitCode::SUCCESS);
+    });
+    let before = sb.run(|| {
+        systemprompt_bridge::auth::plugin_oauth::load_creds()
+            .expect("credential read")
+            .expect("healthy rotation stores credentials")
+    });
+
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("runtime");
+    let rejected = runtime.block_on(MockServer::start());
+    runtime.block_on(async {
+        Mock::given(method("POST"))
+            .and(path("/v1/auth/bridge/pat"))
+            .respond_with(ResponseTemplate::new(401))
+            .expect(1)
+            .mount(&rejected)
+            .await;
+    });
+    sb.write_gateway(&rejected.uri());
+    let mut vars = sb.vars();
+    vars.push((
+        "SP_BRIDGE_PAT",
+        Some("sp-live-testprefix.secretsecretsecretsecretsecret012345".to_owned()),
+    ));
+    let status = temp_env::with_vars(vars, || run_with_args(&argv(&["oauth-client", "rotate"])));
+    assert_eq!(status, std::process::ExitCode::from(1));
+
+    let after = sb.run(|| {
+        systemprompt_bridge::auth::plugin_oauth::load_creds()
+            .expect("credential read after refusal")
+            .expect("last working credential remains")
+    });
+    assert_eq!(after.client_id, before.client_id);
+    assert_eq!(after.client_secret, before.client_secret);
+    assert_eq!(after.scopes, before.scopes);
+}

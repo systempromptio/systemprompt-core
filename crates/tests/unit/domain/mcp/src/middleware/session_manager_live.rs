@@ -128,3 +128,72 @@ async fn session_manager_drives_full_streamable_http_lifecycle() {
 
     service.abort();
 }
+
+#[tokio::test]
+async fn database_only_session_requires_reconnect_and_is_closed_durably() {
+    use systemprompt_mcp::middleware::session_handler::DatabaseSessionManagerError;
+    use systemprompt_test_fixtures::DisposableDb;
+
+    let database = DisposableDb::installed("mcp_session_reconnect")
+        .await
+        .expect("isolated MCP session database");
+    let db = database.pool().await.expect("isolated MCP session pool");
+    let repository = std::sync::Arc::new(
+        systemprompt_mcp::repository::McpSessionRepository::new(&db)
+            .expect("MCP session repository"),
+    );
+    let original = DatabaseSessionHandler::new(std::sync::Arc::clone(&repository));
+    let (id, transport) = original.create_session().await.expect("session created");
+    drop(transport);
+
+    let restarted = DatabaseSessionHandler::new(std::sync::Arc::clone(&repository));
+    assert!(
+        !restarted
+            .has_session(&id)
+            .await
+            .expect("database-only lookup"),
+        "a persisted session cannot masquerade as a live in-memory transport"
+    );
+    assert!(
+        repository
+            .find_active(&systemprompt_identifiers::SessionId::new(id.as_ref()))
+            .await
+            .expect("active persisted session")
+            .is_some(),
+        "the first lookup must not close the persisted session"
+    );
+
+    let error = match restarted
+        .resume(&id, "event-before-restart".to_owned())
+        .await
+    {
+        Err(error) => error,
+        Ok(_) => panic!("database-only session must instruct the client to reconnect"),
+    };
+    assert!(matches!(
+        error,
+        DatabaseSessionManagerError::SessionNeedsReconnect(ref value) if value == id.as_ref()
+    ));
+    assert!(
+        repository
+            .find_active(&systemprompt_identifiers::SessionId::new(id.as_ref()))
+            .await
+            .expect("closed persisted session")
+            .is_none(),
+        "reconnect signal must retire the unusable persisted session"
+    );
+    let status: String =
+        sqlx::query_scalar("SELECT status FROM mcp_sessions WHERE session_id = $1")
+            .bind(id.as_ref())
+            .fetch_one(db.pool_arc().expect("raw MCP pool").as_ref())
+            .await
+            .expect("durable session status");
+    assert_eq!(status, "closed");
+
+    drop(restarted);
+    drop(original);
+    drop(repository);
+    db.write_pool_arc().expect("write pool").close().await;
+    drop(db);
+    database.drop_now().await;
+}

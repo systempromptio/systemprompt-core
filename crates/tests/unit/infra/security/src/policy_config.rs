@@ -1,6 +1,7 @@
 use std::path::Path;
 
 use systemprompt_security::policy::{GovernanceConfig, GovernanceConfigError, PolicyMode};
+use tempfile::{NamedTempFile, tempdir};
 
 #[test]
 fn defaults_declare_the_four_builtins_in_order() {
@@ -85,6 +86,17 @@ fn parse_rejects_entries_without_an_id() {
 }
 
 #[test]
+fn parse_rejects_non_string_and_unknown_policy_modes() {
+    for mode in ["7", "enforce-ish"] {
+        let yaml = format!("governance:\n  mode: {mode}\n  policies:\n    - id: secret_scan\n");
+        assert!(matches!(
+            GovernanceConfig::parse(&yaml),
+            Err(GovernanceConfigError::InvalidMode { .. })
+        ));
+    }
+}
+
+#[test]
 fn parse_rejects_invalid_yaml() {
     assert!(matches!(
         GovernanceConfig::parse(": : :"),
@@ -150,4 +162,38 @@ fn load_rejects_a_present_but_broken_file_instead_of_downgrading_enforcement() {
     assert_eq!(cfg.mode, PolicyMode::Enforce);
 
     std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn engine_uses_defaults_when_services_root_has_no_governance_config() {
+    let root = tempdir().unwrap();
+
+    let engine = systemprompt_security::policy::GovernanceEngine::from_services_root(root.path())
+        .expect("an absent config uses the documented warn-only defaults");
+    let policies: Vec<_> = engine
+        .policies()
+        .filter(|(config, _)| config.enabled)
+        .map(|(config, _)| (config.id.as_str(), config.enabled, config.mode))
+        .collect();
+    assert_eq!(
+        policies,
+        vec![
+            ("scope_check", true, PolicyMode::Warn),
+            ("secret_scan", true, PolicyMode::Warn),
+            ("tool_blocklist", true, PolicyMode::Warn),
+            ("rate_limit", true, PolicyMode::Warn),
+        ]
+    );
+}
+
+#[test]
+fn engine_reports_non_directory_services_root_without_falling_back() {
+    let root = NamedTempFile::new().unwrap();
+
+    let error = systemprompt_security::policy::GovernanceEngine::from_services_root(root.path())
+        .expect_err("a non-directory services root must not silently use defaults");
+    assert!(matches!(
+        error,
+        systemprompt_security::policy::GovernanceEngineError::ConfigRejected { .. }
+    ));
 }

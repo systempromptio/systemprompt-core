@@ -11,7 +11,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use systemprompt_loader::ServicesProvenance;
-use systemprompt_loader::bundle::ServicesSourceBootstrap;
+use systemprompt_loader::bundle::{BundleCache, ServicesSourceBootstrap};
 use systemprompt_models::profile::FetchFailurePolicy;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -255,4 +255,115 @@ async fn use_bundled_falls_back_to_the_baked_tree_when_it_exists() {
         active.provenance,
         ServicesProvenance::BundledFallback { .. }
     ));
+}
+
+#[tokio::test]
+async fn a_marketplace_only_pin_stages_the_baked_base_and_tracks_a_changed_baked_tree() {
+    let work = tempfile::tempdir().expect("tempdir");
+    let services = tempfile::tempdir().expect("tempdir");
+    let cache_dir = tempfile::tempdir().expect("tempdir");
+    base_tree(services.path());
+    let kit = serve(
+        packed_bytes(
+            |root| marketplace_tree(root, "support", "answer"),
+            work.path(),
+            "support.tar.gz",
+        ),
+        "support-v1",
+        "/support.tar.gz",
+    )
+    .await;
+    let profile = profile(
+        services.path(),
+        cache_dir.path(),
+        vec![https_source(
+            "support",
+            &format!("{}/support.tar.gz", kit.server.uri()),
+            vec![pubkey()],
+        )],
+        FetchFailurePolicy::FailClosed,
+    );
+
+    let first = ServicesSourceBootstrap::resolve(&profile, no_secrets, CORE)
+        .await
+        .expect("a marketplace kit composes over the baked base");
+    let first_hash = match &first.provenance {
+        ServicesProvenance::Fetched { composed_hash, .. } => composed_hash.clone(),
+        other => panic!("expected fetched provenance, got {other:?}"),
+    };
+    assert!(first.path.join("config/config.yaml").is_file());
+    assert!(
+        first
+            .path
+            .join("marketplaces/support/config.yaml")
+            .is_file()
+    );
+    let cache = BundleCache::new(cache_dir.path());
+    let first_state = cache.read_state();
+    let baked = first_state
+        .sources
+        .get("base")
+        .expect("baked base recorded");
+    assert_eq!(baked.version, "baked");
+    assert!(
+        cache
+            .read_manifest("base", &baked.content_hash)
+            .expect("synthesised baked manifest")
+            .signature
+            .is_none()
+    );
+
+    std::fs::write(services.path().join("config/config.yaml"), "version: 2\n").unwrap();
+    let second = ServicesSourceBootstrap::resolve(&profile, no_secrets, CORE)
+        .await
+        .expect("changed baked declarations are restaged and composed");
+    let second_hash = match &second.provenance {
+        ServicesProvenance::Fetched { composed_hash, .. } => composed_hash.clone(),
+        other => panic!("expected fetched provenance, got {other:?}"),
+    };
+    assert_ne!(first_hash, second_hash);
+    assert_eq!(
+        std::fs::read_to_string(second.path.join("config/config.yaml")).unwrap(),
+        "version: 2\n"
+    );
+    let second_state = cache.read_state();
+    assert_ne!(
+        first_state.sources["base"].content_hash,
+        second_state.sources["base"].content_hash
+    );
+    assert_eq!(kit.hits.load(Ordering::SeqCst), 1, "kit bytes stay cached");
+}
+
+#[tokio::test]
+async fn a_marketplace_only_pin_refuses_to_boot_without_a_baked_base_tree() {
+    let work = tempfile::tempdir().expect("tempdir");
+    let services = tempfile::tempdir().expect("tempdir");
+    let cache = tempfile::tempdir().expect("tempdir");
+    let kit = serve(
+        packed_bytes(
+            |root| marketplace_tree(root, "support", "answer"),
+            work.path(),
+            "support.tar.gz",
+        ),
+        "support-v1",
+        "/support.tar.gz",
+    )
+    .await;
+    let profile = profile(
+        services.path(),
+        cache.path(),
+        vec![https_source(
+            "support",
+            &format!("{}/support.tar.gz", kit.server.uri()),
+            vec![pubkey()],
+        )],
+        FetchFailurePolicy::FailClosed,
+    );
+
+    let err = ServicesSourceBootstrap::resolve(&profile, no_secrets, CORE)
+        .await
+        .expect_err("a kit cannot supply the required base configuration");
+
+    assert!(err.to_string().contains("no baked services tree"), "{err}");
+    assert_eq!(kit.hits.load(Ordering::SeqCst), 1);
 }

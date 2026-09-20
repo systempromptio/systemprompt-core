@@ -12,16 +12,18 @@ use systemprompt_test_fixtures::{
     closed_db_pool, fixture_database_url, fixture_db_pool, unique_user_id,
 };
 
-async fn pool_or_skip() -> Option<sqlx::PgPool> {
-    let url = fixture_database_url().ok()?;
-    let db: DbPool = fixture_db_pool(&url).await.ok()?;
-    let arc = db.pool_arc().ok()?;
+async fn fixture_pool() -> sqlx::PgPool {
+    let url = fixture_database_url().expect("events database fixture URL");
+    let db: DbPool = fixture_db_pool(&url)
+        .await
+        .expect("connect to migrated events database fixture");
+    let arc = db.pool_arc().expect("events database fixture pool");
     let pool = (*arc).clone();
     sqlx::query("SELECT 1 FROM event_outbox LIMIT 0")
         .execute(&pool)
         .await
-        .ok()?;
-    Some(pool)
+        .expect("event_outbox migration prerequisite");
+    pool
 }
 
 async fn cleanup(pool: &sqlx::PgPool, user: &UserId) {
@@ -33,9 +35,7 @@ async fn cleanup(pool: &sqlx::PgPool, user: &UserId) {
 
 #[tokio::test]
 async fn install_relay_second_call_is_ignored_and_routing_persists_one_row() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = fixture_pool().await;
     let user = unique_user_id("relay-idempotent");
 
     EventRouter::install_relay(

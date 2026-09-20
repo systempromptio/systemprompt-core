@@ -69,3 +69,86 @@ async fn bind_and_serve_fails_when_port_is_taken() -> anyhow::Result<()> {
     assert!(err.to_string().contains("Failed to bind"), "{err}");
     Ok(())
 }
+
+#[tokio::test]
+async fn owned_shutdown_request_drains_listener_when_requested_before_or_after_bind()
+-> anyhow::Result<()> {
+    for request_before_bind in [true, false] {
+        let shutdown = systemprompt_runtime::ShutdownRequest::default();
+        if request_before_bind {
+            shutdown.request("fixture requested before listener wait");
+        }
+        let server = bind_and_serve("127.0.0.1:0", None, shutdown.clone()).await?;
+        let address = server.local_addr();
+        if !request_before_bind {
+            let response = reqwest::get(format!("http://{address}/health")).await?;
+            assert_eq!(response.status().as_u16(), 200);
+            assert!(response.text().await?.contains("starting"));
+            shutdown.request("fixture requested after listener wait");
+        }
+        tokio::time::timeout(std::time::Duration::from_secs(5), server.join())
+            .await
+            .expect("owned shutdown request must drain listener")?;
+        let reconnect = tokio::net::TcpStream::connect(address).await;
+        assert!(
+            reconnect.is_err(),
+            "listener still accepted connections after {} shutdown request",
+            if request_before_bind {
+                "retained"
+            } else {
+                "live"
+            }
+        );
+    }
+    Ok(())
+}
+
+#[tokio::test]
+async fn early_bind_emits_typed_binding_and_listening_events_before_shutdown() -> anyhow::Result<()>
+{
+    use systemprompt_traits::StartupEvent;
+
+    let shutdown = systemprompt_runtime::ShutdownRequest::default();
+    let (tx, mut rx) = futures::channel::mpsc::unbounded();
+    let server = bind_and_serve("127.0.0.1:0", Some(tx), shutdown.clone()).await?;
+    let local = server.local_addr();
+    let binding = rx.try_recv().expect("binding event");
+    let listening = rx.try_recv().expect("listening event");
+    assert!(matches!(binding, StartupEvent::ServerBinding { address } if address == "127.0.0.1:0"));
+    assert!(matches!(
+        listening,
+        StartupEvent::ServerListening { address, pid }
+            if address == "127.0.0.1:0" && pid == std::process::id()
+    ));
+    assert_eq!(
+        reqwest::get(format!("http://{local}/livez"))
+            .await?
+            .status()
+            .as_u16(),
+        200
+    );
+    shutdown.request("typed event fixture complete");
+    tokio::time::timeout(std::time::Duration::from_secs(5), server.join())
+        .await
+        .expect("typed event listener drains")?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn dropped_startup_observer_does_not_prevent_binding_or_shutdown() -> anyhow::Result<()> {
+    let shutdown = systemprompt_runtime::ShutdownRequest::default();
+    let (tx, rx) = futures::channel::mpsc::unbounded();
+    drop(rx);
+    let server = bind_and_serve("127.0.0.1:0", Some(tx), shutdown.clone()).await?;
+    let address = server.local_addr();
+    let response = reqwest::get(format!("http://{address}/readyz")).await?;
+    assert_eq!(response.status().as_u16(), 503);
+    let body = response.text().await?;
+    assert!(body.contains("starting"), "{body}");
+    shutdown.request("observer-disconnect fixture complete");
+    tokio::time::timeout(std::time::Duration::from_secs(5), server.join())
+        .await
+        .expect("listener drains without startup observer")?;
+    assert!(tokio::net::TcpStream::connect(address).await.is_err());
+    Ok(())
+}

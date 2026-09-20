@@ -130,3 +130,34 @@ fn a_clean_purge_has_no_leftovers() {
 
     assert!(report(summary, None).leftovers().is_empty());
 }
+#[test]
+fn proxy_state_removal_failure_reports_partial_progress_and_repair_retry_converges() {
+    let config = TempDir::new().expect("config tempdir");
+    in_sandbox(&config, || {
+        let secret = secret::secret_path().expect("secret path");
+        let identity = identity::install_id_path().expect("identity path");
+        let port = portfile::portfile_path().expect("port path");
+        seed(&secret);
+        std::fs::create_dir_all(&identity).expect("directory blocks identity removal");
+        seed(&identity.join("operator-note"));
+        seed(&port);
+
+        let error = remove_proxy_state().expect_err("directory cannot be removed as a state file");
+        assert!(
+            matches!(error, systemprompt_bridge::install::InstallError::Remove { ref path, .. } if path == &identity)
+        );
+        assert!(
+            !secret.exists(),
+            "earlier successful removal remains durable"
+        );
+        assert!(identity.join("operator-note").is_file());
+        assert!(port.is_file(), "later state is untouched after the failure");
+
+        std::fs::remove_dir_all(&identity).expect("repair identity path");
+        let removed = remove_proxy_state().expect("retry removes remaining state");
+        assert_eq!(removed, vec![port.clone()]);
+        assert!(!port.exists());
+        assert!(!secret.exists());
+        assert!(!identity.exists());
+    });
+}

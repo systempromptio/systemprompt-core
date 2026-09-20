@@ -123,3 +123,40 @@ fn the_user_tier_is_not_read_where_elevation_exists() {
         snapshot.profile_state
     );
 }
+
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
+#[test]
+fn removal_treats_an_identical_managed_and_user_path_as_one_tier() {
+    let root = TempDir::new().expect("sandbox");
+    let config_home = root.path().join("config");
+    let shared = config_home.join("opencode");
+    std::fs::create_dir_all(&shared).unwrap();
+    std::fs::write(
+        shared.join("opencode.json"),
+        r#"{
+          "operator": {"retain": true},
+          "provider": {"systemprompt": {
+            "npm": "@ai-sdk/openai-compatible",
+            "options": {"baseURL": "http://127.0.0.1:48217/v1"}
+          }}
+        }"#,
+    )
+    .unwrap();
+    write_bridge_config(&config_home, &shared);
+    let vars = [
+        ("HOME", Some(root.path().display().to_string())),
+        ("USERPROFILE", Some(root.path().display().to_string())),
+        ("XDG_CONFIG_HOME", Some(config_home.display().to_string())),
+        ("SP_BRIDGE_CONFIG", None),
+    ];
+
+    let removal = temp_env::with_vars(vars, || OPENCODE_HOST.remove_profile())
+        .expect("the single physical tier is cleaned once");
+    assert!(matches!(
+        removal,
+        systemprompt_bridge::integration::host_app::ProfileRemoval::Removed { .. }
+    ));
+    let retained: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(shared.join("opencode.json")).unwrap()).unwrap();
+    assert_eq!(retained, serde_json::json!({"operator": {"retain": true}}));
+}

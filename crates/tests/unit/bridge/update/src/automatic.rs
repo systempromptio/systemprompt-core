@@ -1,7 +1,10 @@
+use std::io::Read as _;
 use systemprompt_bridge::ids::BearerToken;
 use systemprompt_bridge::update::{
     AutoUpdateDecision, auto_update_policy, automatic_enabled, run_automatic,
 };
+
+use sha2::{Digest as _, Sha256};
 use systemprompt_identifiers::ValidatedUrl;
 use tempfile::TempDir;
 use wiremock::matchers::{method, path};
@@ -63,6 +66,20 @@ fn release_server(version: &str) -> MockServer {
 
 fn requests(server: &MockServer) -> Vec<wiremock::Request> {
     block_on(server.received_requests()).unwrap_or_default()
+}
+
+fn file_digest(path: &std::path::Path) -> [u8; 32] {
+    let mut file = std::fs::File::open(path).expect("open current executable");
+    let mut hasher = Sha256::new();
+    let mut buffer = [0_u8; 8192];
+    loop {
+        let read = file.read(&mut buffer).expect("read current executable");
+        if read == 0 {
+            break;
+        }
+        hasher.update(&buffer[..read]);
+    }
+    hasher.finalize().into()
 }
 
 #[test]
@@ -155,5 +172,67 @@ fn an_unsynced_bridge_withholds_automatic_updates() {
     assert!(
         !decision.stages(),
         "an unsynced bridge never stages a download on its own"
+    );
+}
+
+#[test]
+fn a_staged_policy_rejects_a_bad_artifact_without_staging_or_relaunching() {
+    let state = TempDir::new().expect("state");
+    let server = block_on(async {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/v1/bridge/latest"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "version": "99.0.0",
+                "sha256": "0".repeat(64),
+                "size": 3,
+            })))
+            .expect(1)
+            .mount(&server)
+            .await;
+        Mock::given(method("GET"))
+            .and(path(format!(
+                "/v1/bridge/download/{}",
+                systemprompt_bridge::update::platform_slug().expect("supported test platform")
+            )))
+            .respond_with(ResponseTemplate::new(200).set_body_bytes(b"bad"))
+            .expect(1)
+            .mount(&server)
+            .await;
+        server
+    });
+    let gateway = ValidatedUrl::try_new(&server.uri()).expect("gateway url");
+    seed_last_sync(&state, &gateway, "staged");
+    let executable = std::env::current_exe().expect("running executable");
+    let before = file_digest(&executable);
+    let staging = in_sandbox(&state, || {
+        systemprompt_bridge::config::paths::bridge_staging_dir().expect("owned staging resolves")
+    });
+
+    in_sandbox(&state, || {
+        block_on(run_automatic(
+            &gateway,
+            &BearerToken::new("bearer"),
+            &reqwest::Client::new(),
+        ));
+    });
+
+    assert_eq!(
+        requests(&server).len(),
+        2,
+        "one manifest and one artifact request"
+    );
+    let actual = file_digest(&executable);
+    assert!(
+        actual == before,
+        "a failed digest never replaces or launches over the running binary"
+    );
+    assert!(
+        !staging.exists()
+            || std::fs::read_dir(&staging)
+                .expect("owned staging")
+                .next()
+                .is_none(),
+        "a mismatched artifact leaves no staged executable"
     );
 }

@@ -1,17 +1,58 @@
-//! The pure half of the `otlp_export` job: cursor arithmetic, pacing, id
-//! derivation, and the audit-row → OTLP conversion. Nothing here touches the
-//! database or the network.
+//! OTLP export coverage: cursor arithmetic and conversion alongside durable
+//! database-to-collector delivery behavior.
 
 use chrono::{DateTime, Duration, TimeZone, Utc};
 use opentelemetry_proto::tonic::common::v1::any_value::Value;
 use opentelemetry_proto::tonic::trace::v1::Span;
+use prost::Message;
+use std::sync::{Arc, Mutex};
 use systemprompt_identifiers::{ContextId, SessionId, TraceId, UserId};
+use systemprompt_models::profile::{OtlpExportConfig, OtlpProtocol, OtlpSignal};
 use systemprompt_scheduler::jobs::otlp_export::{
     GOVERNANCE_SPAN, GovernanceRow, LedgerRow, LogRow, OtlpExportJob, REQUEST_SPAN, RETRY_DELAYS,
     RequestRow, TOOL_SPAN, TraceBatch, Watermark, is_retryable, pacing_elapsed, severity_number,
     span_id_bytes, to_log_record, to_spans, trace_id_bytes, unix_nanos,
 };
+use systemprompt_test_fixtures::DisposableDb;
 use systemprompt_traits::Job;
+use tracing_subscriber::layer::SubscriberExt;
+use wiremock::matchers::{method, path};
+use wiremock::{Mock, MockServer, ResponseTemplate};
+
+#[derive(Clone, Default)]
+struct DiagnosticWriter(Arc<Mutex<Vec<u8>>>);
+
+impl std::io::Write for DiagnosticWriter {
+    fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+        self.0
+            .lock()
+            .expect("diagnostic buffer")
+            .extend_from_slice(bytes);
+        Ok(bytes.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+impl<'a> tracing_subscriber::fmt::MakeWriter<'a> for DiagnosticWriter {
+    type Writer = Self;
+
+    fn make_writer(&'a self) -> Self::Writer {
+        self.clone()
+    }
+}
+
+impl DiagnosticWriter {
+    fn events(&self) -> Vec<serde_json::Value> {
+        String::from_utf8(self.0.lock().expect("diagnostic buffer").clone())
+            .expect("JSON diagnostics are UTF-8")
+            .lines()
+            .map(|line| serde_json::from_str(line).expect("JSON diagnostic"))
+            .collect()
+    }
+}
 
 // Why: OTLP `Status.code` — 0 UNSET, 1 OK, 2 ERROR.
 const STATUS_OK: i32 = 1;
@@ -165,6 +206,370 @@ fn unix_nanos_is_epoch_based_and_never_negative() {
         unix_nanos(Utc.timestamp_opt(-5, 0).single().expect("valid")),
         0
     );
+}
+
+fn export_config(endpoint: String) -> OtlpExportConfig {
+    OtlpExportConfig {
+        endpoint,
+        protocol: OtlpProtocol::Http,
+        headers: Default::default(),
+        signals: vec![OtlpSignal::Logs],
+        batch_seconds: 1,
+    }
+}
+
+async fn seed_log(pool: &sqlx::PgPool, id: &str) {
+    sqlx::query(
+        "INSERT INTO logs (id, timestamp, level, module, message) \
+         VALUES ($1, NOW() - INTERVAL '10 seconds', 'INFO', 'otlp-test', 'durable export')",
+    )
+    .bind(id)
+    .execute(pool)
+    .await
+    .unwrap();
+    sqlx::query(
+        "INSERT INTO otlp_export_state (signal, watermark, watermark_id) \
+         VALUES ('logs', to_timestamp(0), '') \
+         ON CONFLICT (signal) DO UPDATE SET watermark = EXCLUDED.watermark, watermark_id = ''",
+    )
+    .execute(pool)
+    .await
+    .unwrap();
+}
+
+async fn seed_trace_request(pool: &sqlx::PgPool, id: &str, trace: &str) {
+    sqlx::query(
+        "INSERT INTO ai_requests (id, request_id, user_id, context_id, trace_id, provider, model, \
+         actor_kind, actor_id, client_kind, wire_protocol, status, completed_at) \
+         VALUES ($1, $2, 'otlp-user', '3f2a1c4e-8b7d-4c2a-9e1f-0a1b2c3d4e5f', $3, 'anthropic', \
+         'claude-test', 'user', 'otlp-user', 'claude-code', 'anthropic.messages', 'completed', \
+         NOW() - INTERVAL '10 seconds')",
+    )
+    .bind(id)
+    .bind(format!("request-{id}"))
+    .bind(trace)
+    .execute(pool)
+    .await
+    .unwrap();
+    sqlx::query(
+        "INSERT INTO governance_decisions (id, user_id, session_id, tool_name, decision, policy, reason, \
+         actor_kind, actor_id, context_id, trace_id, created_at) VALUES ($1, 'otlp-user', \
+         'otlp-session', 'read_file', 'deny', 'scope', 'outside scope', 'user', 'otlp-user', \
+         '3f2a1c4e-8b7d-4c2a-9e1f-0a1b2c3d4e5f', $2, NOW() - INTERVAL '10 seconds')",
+    )
+    .bind(format!("decision-{id}"))
+    .bind(trace)
+    .execute(pool)
+    .await
+    .unwrap();
+    sqlx::query(
+        "INSERT INTO otlp_export_state (signal, watermark, watermark_id) VALUES ('traces', to_timestamp(0), '') \
+         ON CONFLICT (signal) DO UPDATE SET watermark = EXCLUDED.watermark, watermark_id = ''",
+    )
+    .execute(pool)
+    .await
+    .unwrap();
+}
+
+#[tokio::test]
+async fn traces_export_keeps_request_and_governance_decision_correlated_in_one_protobuf_batch() {
+    let db = DisposableDb::installed("otlp_export_traces").await.unwrap();
+    let pool = db.pool().await.unwrap();
+    let raw = pool.pool_arc().unwrap();
+    seed_trace_request(raw.as_ref(), "otlp-trace-row", "trace-otlp-correlation").await;
+    let collector = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/v1/traces"))
+        .respond_with(ResponseTemplate::new(200))
+        .expect(1)
+        .mount(&collector)
+        .await;
+    let mut config = export_config(collector.uri());
+    config.signals = vec![OtlpSignal::Traces];
+    let report = systemprompt_scheduler::otlp_export_now(&raw, &config, None)
+        .await
+        .unwrap();
+    assert_eq!(report.signals[0].rows, 1);
+    let request = &collector.received_requests().await.unwrap()[0];
+    let decoded =
+        opentelemetry_proto::tonic::collector::trace::v1::ExportTraceServiceRequest::decode(
+            request.body.as_slice(),
+        )
+        .unwrap();
+    let spans = &decoded.resource_spans[0].scope_spans[0].spans;
+    assert_eq!(spans.len(), 2, "request plus its governance decision");
+    assert_eq!(spans[0].trace_id, spans[1].trace_id);
+    assert_eq!(spans[1].parent_span_id, spans[0].span_id);
+    let state = systemprompt_scheduler::OtlpExportStateRepository::new(raw.as_ref().clone())
+        .get_or_start(OtlpSignal::Traces)
+        .await
+        .unwrap();
+    assert_eq!(state.watermark_id, "otlp-trace-row");
+    raw.close().await;
+    drop(raw);
+    drop(pool);
+    db.drop_now().await;
+}
+
+#[tokio::test]
+async fn export_now_posts_a_decodable_log_batch_and_advances_the_durable_watermark() {
+    let db = DisposableDb::installed("otlp_export_ack").await.unwrap();
+    let pool = db.pool().await.unwrap();
+    let raw = pool.pool_arc().unwrap();
+    seed_log(raw.as_ref(), "otlp-log-ack").await;
+    let collector = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/v1/logs"))
+        .respond_with(ResponseTemplate::new(200))
+        .expect(1)
+        .mount(&collector)
+        .await;
+
+    let report = systemprompt_scheduler::otlp_export_now(
+        &raw,
+        &export_config(collector.uri()),
+        Some("scheduler-test"),
+    )
+    .await
+    .unwrap();
+    assert_eq!(report.signals.len(), 1);
+    assert_eq!(report.signals[0].rows, 1);
+    assert!(report.signals[0].error.is_none());
+
+    let requests = collector.received_requests().await.unwrap();
+    let request = &requests[0];
+    assert_eq!(
+        request
+            .headers
+            .get("content-type")
+            .and_then(|value| value.to_str().ok()),
+        Some("application/x-protobuf")
+    );
+    let decoded =
+        opentelemetry_proto::tonic::collector::logs::v1::ExportLogsServiceRequest::decode(
+            request.body.as_slice(),
+        )
+        .expect("collector receives a protobuf OTLP log envelope");
+    assert_eq!(decoded.resource_logs.len(), 1);
+    let state = systemprompt_scheduler::OtlpExportStateRepository::new(raw.as_ref().clone())
+        .get_or_start(OtlpSignal::Logs)
+        .await
+        .unwrap();
+    assert_eq!(state.watermark_id, "otlp-log-ack");
+    assert_eq!(state.rows_total, 1);
+    assert_eq!(state.failures_total, 0);
+    raw.close().await;
+    drop(raw);
+    drop(pool);
+    db.drop_now().await;
+}
+
+#[tokio::test]
+async fn rejected_collector_keeps_the_cursor_then_a_retry_ships_the_identical_batch() {
+    let db = DisposableDb::installed("otlp_export_retry").await.unwrap();
+    let pool = db.pool().await.unwrap();
+    let raw = pool.pool_arc().unwrap();
+    seed_log(raw.as_ref(), "otlp-log-retry").await;
+    let collector = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/v1/logs"))
+        .respond_with(ResponseTemplate::new(400).set_body_string("schema rejected"))
+        .up_to_n_times(1)
+        .mount(&collector)
+        .await;
+
+    let config = export_config(collector.uri());
+    let failed = systemprompt_scheduler::otlp_export_now(&raw, &config, None)
+        .await
+        .unwrap();
+    assert!(failed.signals[0].error.as_deref().unwrap().contains("400"));
+    let repository = systemprompt_scheduler::OtlpExportStateRepository::new(raw.as_ref().clone());
+    let after_failure = repository.get_or_start(OtlpSignal::Logs).await.unwrap();
+    assert_eq!(after_failure.watermark_id, "");
+    assert_eq!(after_failure.failures_total, 1);
+
+    Mock::given(method("POST"))
+        .and(path("/v1/logs"))
+        .respond_with(ResponseTemplate::new(200))
+        .expect(1)
+        .mount(&collector)
+        .await;
+    let retried = systemprompt_scheduler::otlp_export_now(&raw, &config, None)
+        .await
+        .unwrap();
+    assert_eq!(retried.signals[0].rows, 1);
+    let requests = collector.received_requests().await.unwrap();
+    assert_eq!(requests.len(), 2);
+    assert_eq!(
+        requests[0].body, requests[1].body,
+        "cursor failure retries the same batch"
+    );
+    let after_success = repository.get_or_start(OtlpSignal::Logs).await.unwrap();
+    assert_eq!(after_success.watermark_id, "otlp-log-retry");
+    assert_eq!(after_success.rows_total, 1);
+    assert_eq!(after_success.failures_total, 1);
+    assert!(after_success.last_error.is_none());
+    drop(repository);
+    raw.close().await;
+    drop(raw);
+    drop(pool);
+    db.drop_now().await;
+}
+
+#[tokio::test]
+async fn invalid_header_keeps_the_cursor_then_repaired_config_delivers_the_batch() {
+    let diagnostics = DiagnosticWriter::default();
+    let subscriber = tracing_subscriber::registry().with(
+        tracing_subscriber::fmt::layer()
+            .json()
+            .with_target(false)
+            .with_writer(diagnostics.clone()),
+    );
+    let _subscriber = tracing::subscriber::set_default(subscriber);
+    let db = DisposableDb::installed("otlp_invalid_header")
+        .await
+        .unwrap();
+    let pool = db.pool().await.unwrap();
+    let raw = pool.pool_arc().unwrap();
+    seed_log(raw.as_ref(), "otlp-log-invalid-header").await;
+    let collector = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/v1/logs"))
+        .respond_with(ResponseTemplate::new(200))
+        .expect(1)
+        .mount(&collector)
+        .await;
+    let mut config = export_config(collector.uri());
+    config.headers.insert(
+        "invalid header name".to_owned(),
+        "credential-sentinel".to_owned(),
+    );
+
+    let failed = systemprompt_scheduler::otlp_export_now(&raw, &config, None)
+        .await
+        .expect("signal failures are reported, not returned");
+    assert_eq!(failed.failed(), 1);
+    assert_eq!(failed.rows(), 0);
+    assert!(
+        failed.signals[0]
+            .error
+            .as_deref()
+            .is_some_and(|message| message.contains("invalid header invalid header name"))
+    );
+    assert!(collector.received_requests().await.unwrap().is_empty());
+    let repository = systemprompt_scheduler::OtlpExportStateRepository::new(raw.as_ref().clone());
+    let after_failure = repository.get_or_start(OtlpSignal::Logs).await.unwrap();
+    assert_eq!(after_failure.watermark_id, "");
+    assert_eq!(after_failure.failures_total, 1);
+    let failed_event = diagnostics
+        .events()
+        .into_iter()
+        .find(|event| event["fields"]["message"] == "OTLP export batch failed")
+        .expect("failure diagnostic");
+    assert_eq!(failed_event["fields"]["signal"], "logs");
+    assert!(
+        failed_event["fields"]["error"]
+            .as_str()
+            .is_some_and(|error| error.contains("invalid header invalid header name"))
+    );
+    assert!(!failed_event.to_string().contains("credential-sentinel"));
+
+    config.headers.clear();
+    let repaired = systemprompt_scheduler::otlp_export_now(&raw, &config, None)
+        .await
+        .expect("repaired collector config");
+    assert_eq!(repaired.failed(), 0);
+    assert_eq!(repaired.rows(), 1);
+    let requests = collector.received_requests().await.unwrap();
+    assert_eq!(requests.len(), 1);
+    let after_repair = repository.get_or_start(OtlpSignal::Logs).await.unwrap();
+    assert_eq!(after_repair.watermark_id, "otlp-log-invalid-header");
+    assert_eq!(after_repair.rows_total, 1);
+    assert_eq!(after_repair.failures_total, 1);
+    assert!(after_repair.last_error.is_none());
+    let exported_event = diagnostics
+        .events()
+        .into_iter()
+        .find(|event| event["fields"]["message"] == "OTLP batch exported")
+        .expect("recovery diagnostic");
+    assert_eq!(exported_event["fields"]["signal"], "logs");
+    assert_eq!(exported_event["fields"]["rows"], 1);
+
+    drop(repository);
+    raw.close().await;
+    drop(raw);
+    drop(pool);
+    db.drop_now().await;
+}
+
+#[tokio::test]
+async fn a_retryable_503_retries_the_same_protobuf_payload_before_advancing() {
+    let db = DisposableDb::installed("otlp_export_503").await.unwrap();
+    let pool = db.pool().await.unwrap();
+    let raw = pool.pool_arc().unwrap();
+    seed_log(raw.as_ref(), "otlp-log-503").await;
+    let collector = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/v1/logs"))
+        .respond_with(ResponseTemplate::new(503).set_body_string("collector busy"))
+        .with_priority(1)
+        .up_to_n_times(1)
+        .mount(&collector)
+        .await;
+    Mock::given(method("POST"))
+        .and(path("/v1/logs"))
+        .respond_with(ResponseTemplate::new(200))
+        .with_priority(10)
+        .expect(1)
+        .mount(&collector)
+        .await;
+
+    let report =
+        systemprompt_scheduler::otlp_export_now(&raw, &export_config(collector.uri()), None)
+            .await
+            .unwrap();
+    assert_eq!(report.signals[0].rows, 1);
+    let requests = collector.received_requests().await.unwrap();
+    assert_eq!(requests.len(), 2, "one retry follows the 503");
+    assert_eq!(requests[0].body, requests[1].body);
+    let state = systemprompt_scheduler::OtlpExportStateRepository::new(raw.as_ref().clone())
+        .get_or_start(OtlpSignal::Logs)
+        .await
+        .unwrap();
+    assert_eq!(state.watermark_id, "otlp-log-503");
+    assert_eq!(
+        state.failures_total, 0,
+        "in-run recovery is not a durable failure"
+    );
+    raw.close().await;
+    drop(raw);
+    drop(pool);
+    db.drop_now().await;
+}
+
+#[tokio::test]
+async fn an_empty_signal_marks_the_cursor_caught_up_without_posting_to_the_collector() {
+    let db = DisposableDb::installed("otlp_export_empty").await.unwrap();
+    let pool = db.pool().await.unwrap();
+    let raw = pool.pool_arc().unwrap();
+    let collector = MockServer::start().await;
+
+    let report =
+        systemprompt_scheduler::otlp_export_now(&raw, &export_config(collector.uri()), None)
+            .await
+            .unwrap();
+    assert_eq!(report.signals[0].rows, 0);
+    assert!(collector.received_requests().await.unwrap().is_empty());
+    let state = systemprompt_scheduler::OtlpExportStateRepository::new(raw.as_ref().clone())
+        .get_or_start(OtlpSignal::Logs)
+        .await
+        .unwrap();
+    assert!(state.last_success_at.is_some());
+    assert_eq!(state.batches_total, 0);
+    raw.close().await;
+    drop(raw);
+    drop(pool);
+    db.drop_now().await;
 }
 
 #[test]
@@ -322,4 +727,57 @@ fn retry_policy_backs_off_and_only_retries_transient_failures() {
     assert!(!is_retryable(Some(reqwest::StatusCode::UNAUTHORIZED)));
     assert!(!is_retryable(Some(reqwest::StatusCode::BAD_REQUEST)));
     assert!(!is_retryable(Some(reqwest::StatusCode::NOT_FOUND)));
+}
+
+#[tokio::test]
+async fn state_inventory_reports_each_signal_failure_and_acknowledged_progress() {
+    let db = DisposableDb::installed("otlp_state_inventory")
+        .await
+        .unwrap();
+    let pool = db.pool().await.unwrap();
+    let raw = pool.pool_arc().expect("raw pool");
+    let repository = systemprompt_scheduler::OtlpExportStateRepository::new(raw.as_ref().clone());
+
+    repository
+        .get_or_start(OtlpSignal::Traces)
+        .await
+        .expect("start traces cursor");
+    repository
+        .get_or_start(OtlpSignal::Logs)
+        .await
+        .expect("start logs cursor");
+    repository
+        .advance(OtlpSignal::Logs, &Watermark::new(at(7), "log-7"), 4)
+        .await
+        .expect("acknowledge logs batch");
+    repository
+        .record_failure(OtlpSignal::Traces, "collector unavailable")
+        .await
+        .expect("record traces failure");
+
+    let states = repository.list_states().await.expect("list durable state");
+    assert_eq!(states.len(), 2);
+    assert_eq!(states[0].signal, "logs");
+    assert_eq!(states[0].watermark_id, "log-7");
+    assert_eq!(states[0].batches_total, 1);
+    assert_eq!(states[0].rows_total, 4);
+    assert_eq!(states[0].failures_total, 0);
+    assert!(states[0].last_success_at.is_some());
+    assert!(states[0].last_error.is_none());
+    assert_eq!(states[1].signal, "traces");
+    assert_eq!(states[1].watermark_id, "");
+    assert_eq!(states[1].batches_total, 0);
+    assert_eq!(states[1].rows_total, 0);
+    assert_eq!(states[1].failures_total, 1);
+    assert_eq!(
+        states[1].last_error.as_deref(),
+        Some("collector unavailable")
+    );
+    assert!(states[1].last_error_at.is_some());
+
+    drop(repository);
+    raw.close().await;
+    drop(raw);
+    drop(pool);
+    db.drop_now().await;
 }

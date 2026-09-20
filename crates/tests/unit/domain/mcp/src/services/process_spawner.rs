@@ -239,3 +239,146 @@ fn coverage_spawn_invalid_executable_returns_a_detached_start_error() {
         "{err}"
     );
 }
+
+#[tokio::test]
+async fn spawned_server_receives_service_environment_and_verified_termination_stops_it() {
+    use std::os::unix::fs::PermissionsExt;
+    use std::time::Duration;
+    use systemprompt_mcp::services::process::ProcessService;
+    use systemprompt_mcp::services::process::utils::{kill_process, process_exists};
+
+    struct OwnedPid {
+        pid: Option<u32>,
+        service_name: String,
+    }
+    impl Drop for OwnedPid {
+        fn drop(&mut self) {
+            if let Some(pid) = self.pid
+                && process_exists(pid)
+                && systemprompt_loader::subprocess::live_pid_is_subprocess(
+                    pid,
+                    systemprompt_models::subprocess::MCP_SERVICE_ID_ENV,
+                    &self.service_name,
+                )
+            {
+                let _ = kill_process(pid);
+            }
+        }
+    }
+
+    let boot = systemprompt_test_fixtures::ensure_test_bootstrap();
+    let unique = uuid::Uuid::new_v4().simple().to_string();
+    let binary_name = format!("mcp-spawn-fixture-{unique}");
+    let marker = std::env::temp_dir().join(format!("mcp-spawn-marker-{unique}"));
+    let binary = boot.bin_path.join(&binary_name);
+    std::fs::write(
+        &binary,
+        format!(
+            "#!/bin/sh\nprintf '%s|%s|%s' \"$SYSTEMPROMPT_SUBPROCESS\" \"$MCP_SERVICE_ID\" \"$MCP_PORT\" > '{}'\nexec /bin/sleep 60\n",
+            marker.display()
+        ),
+    )
+    .unwrap();
+    std::fs::set_permissions(&binary, std::fs::Permissions::from_mode(0o755)).unwrap();
+    let mut config = make_config(&binary_name);
+    config.name = format!("spawn-{unique}");
+    config.port = Some(65431);
+
+    let pid = ProcessService::spawn_server(&boot.app_paths, &config).expect("spawn fixture");
+    let mut cleanup = OwnedPid {
+        pid: Some(pid),
+        service_name: config.name.clone(),
+    };
+    assert!(process_exists(pid));
+    for _ in 0..80 {
+        if marker.exists() {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(25)).await;
+    }
+    assert_eq!(
+        std::fs::read_to_string(&marker).expect("child environment marker"),
+        format!("1|{}|65431", config.name)
+    );
+
+    ProcessService::terminate_gracefully_verified(pid, &config.name)
+        .await
+        .expect("verified termination");
+    for _ in 0..80 {
+        if !ProcessService::is_running(pid) {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(25)).await;
+    }
+    assert!(
+        !ProcessService::is_running(pid),
+        "verified graceful termination must leave no live owned fixture child"
+    );
+    cleanup.pid = None;
+    std::fs::remove_file(binary).ok();
+    std::fs::remove_file(marker).ok();
+}
+
+#[cfg(unix)]
+fn with_cargo_shim(exit_code: i32, test: impl FnOnce(&std::path::Path)) {
+    use std::os::unix::fs::PermissionsExt;
+    struct PathGuard(Option<std::ffi::OsString>);
+    impl Drop for PathGuard {
+        fn drop(&mut self) {
+            match self.0.take() {
+                Some(value) => unsafe { std::env::set_var("PATH", value) },
+                None => unsafe { std::env::remove_var("PATH") },
+            }
+        }
+    }
+    let dir = tempfile::tempdir().expect("private cargo shim directory");
+    let invocation = dir.path().join("invocation");
+    let cargo = dir.path().join("cargo");
+    std::fs::write(
+        &cargo,
+        format!(
+            "#!/bin/sh\nprintf '%s' \"$*\" > '{}'\nexit {exit_code}\n",
+            invocation.display()
+        ),
+    )
+    .expect("write cargo shim");
+    std::fs::set_permissions(&cargo, std::fs::Permissions::from_mode(0o700))
+        .expect("make cargo shim executable");
+    let _guard = PathGuard(std::env::var_os("PATH"));
+    unsafe { std::env::set_var("PATH", dir.path()) };
+    test(&invocation);
+}
+
+#[cfg(unix)]
+#[test]
+fn build_server_invokes_cargo_for_the_exact_configured_package_and_binary() {
+    use systemprompt_mcp::services::process::spawner::build_server;
+    let config = make_config("owned-mcp-fixture");
+    with_cargo_shim(0, |invocation| {
+        build_server(&config).expect("successful cargo build exit is accepted");
+        assert_eq!(
+            std::fs::read_to_string(invocation).expect("captured cargo invocation"),
+            "build --package owned-mcp-fixture --bin owned-mcp-fixture"
+        );
+    });
+}
+
+#[cfg(unix)]
+#[test]
+fn build_server_surfaces_failed_cargo_exit_without_claiming_success() {
+    use systemprompt_mcp::services::process::spawner::build_server;
+    let config = make_config("failing-mcp-fixture");
+    with_cargo_shim(23, |invocation| {
+        let error = build_server(&config).expect_err("failed cargo exit must reject the build");
+        assert!(
+            error
+                .to_string()
+                .contains("Build failed for verify-bin (binary: failing-mcp-fixture)"),
+            "{error}"
+        );
+        assert_eq!(
+            std::fs::read_to_string(invocation).expect("captured cargo invocation"),
+            "build --package failing-mcp-fixture --bin failing-mcp-fixture"
+        );
+    });
+}

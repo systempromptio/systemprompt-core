@@ -29,22 +29,28 @@ struct Harness {
 }
 
 impl Harness {
-    async fn open_or_skip() -> Option<Self> {
-        let url = fixture_database_url().ok()?;
-        let pool = fixture_db_pool(&url).await.ok()?;
+    async fn open() -> Self {
+        let url = fixture_database_url().expect("signature cache database URL");
+        let pool = fixture_db_pool(&url)
+            .await
+            .expect("signature cache database pool");
         let repository = Arc::new(AiThoughtSignatureRepository::new(&pool).expect("repository"));
         let user_id = UserId::new(uuid::Uuid::new_v4().to_string());
         sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2)")
             .bind(user_id.as_str())
             .bind(format!("{}@signature.test", user_id.as_str()))
-            .execute(pool.write_pool_arc().ok()?.as_ref())
+            .execute(
+                pool.write_pool_arc()
+                    .expect("signature cache write pool")
+                    .as_ref(),
+            )
             .await
-            .ok()?;
-        Some(Self {
+            .expect("seed signature cache user");
+        Self {
             pool,
             user_id,
             repository,
-        })
+        }
     }
 
     fn cache(&self) -> ThoughtSignatureCache {
@@ -142,9 +148,7 @@ fn signature_of(request: &CanonicalRequest) -> Option<String> {
 
 #[tokio::test]
 async fn hydrate_injects_cached_signature_when_none() {
-    let Some(h) = Harness::open_or_skip().await else {
-        return;
-    };
+    let h = Harness::open().await;
     let cache = h.cache();
     let conv = conv();
     cache.store(&h.user_id, &conv, "call_1", "sig-a").await;
@@ -157,9 +161,7 @@ async fn hydrate_injects_cached_signature_when_none() {
 
 #[tokio::test]
 async fn hydrate_passthrough_on_miss() {
-    let Some(h) = Harness::open_or_skip().await else {
-        return;
-    };
+    let h = Harness::open().await;
     let cache = h.cache();
     let mut request = request_with(vec![tool_use("call_unknown", None)]);
     cache
@@ -170,9 +172,7 @@ async fn hydrate_passthrough_on_miss() {
 
 #[tokio::test]
 async fn inbound_signature_wins_and_rewarms() {
-    let Some(h) = Harness::open_or_skip().await else {
-        return;
-    };
+    let h = Harness::open().await;
     let cache = h.cache();
     let conv = conv();
     cache.store(&h.user_id, &conv, "call_1", "cached").await;
@@ -197,9 +197,7 @@ async fn inbound_signature_wins_and_rewarms() {
 
 #[tokio::test]
 async fn a_signature_stored_by_one_instance_is_found_by_another() {
-    let Some(h) = Harness::open_or_skip().await else {
-        return;
-    };
+    let h = Harness::open().await;
     let conv = conv();
     let replica_a = h.cache();
     let replica_b = h.cache();
@@ -221,9 +219,7 @@ async fn a_signature_stored_by_one_instance_is_found_by_another() {
 
 #[tokio::test]
 async fn db_expiry_drops_entry_for_a_fresh_instance() {
-    let Some(h) = Harness::open_or_skip().await else {
-        return;
-    };
+    let h = Harness::open().await;
     let conv = conv();
     h.cache().store(&h.user_id, &conv, "call_1", "sig-a").await;
     h.expire_in_db(&conv, "call_1").await;
@@ -232,9 +228,7 @@ async fn db_expiry_drops_entry_for_a_fresh_instance() {
 
 #[tokio::test]
 async fn local_ttl_expiry_falls_through_to_the_database() {
-    let Some(h) = Harness::open_or_skip().await else {
-        return;
-    };
+    let h = Harness::open().await;
     let conv = conv();
     let cache = h.cache_with_ttl(Duration::from_millis(1));
     cache.store(&h.user_id, &conv, "call_1", "sig-a").await;
@@ -244,9 +238,7 @@ async fn local_ttl_expiry_falls_through_to_the_database() {
 
 #[tokio::test]
 async fn lookup_refreshes_ttl() {
-    let Some(h) = Harness::open_or_skip().await else {
-        return;
-    };
+    let h = Harness::open().await;
     let conv = conv();
     // Two waits of 600 ms exceed the 1 s TTL only if the first lookup did not
     // refresh it; 400 ms of slack absorbs scheduler oversleep under a loaded shard.
@@ -266,9 +258,7 @@ async fn lookup_refreshes_ttl() {
 
 #[tokio::test]
 async fn store_from_response_caches_only_signed_tool_use() {
-    let Some(h) = Harness::open_or_skip().await else {
-        return;
-    };
+    let h = Harness::open().await;
     let cache = h.cache();
     let conv = conv();
     let response = response_with(vec![
@@ -291,9 +281,7 @@ async fn store_from_response_caches_only_signed_tool_use() {
 
 #[tokio::test]
 async fn response_signatures_survive_a_stripped_replay() {
-    let Some(h) = Harness::open_or_skip().await else {
-        return;
-    };
+    let h = Harness::open().await;
     let cache = h.cache();
     let conv = conv();
     cache
@@ -312,9 +300,7 @@ async fn response_signatures_survive_a_stripped_replay() {
 
 #[tokio::test]
 async fn signatures_are_scoped_to_their_conversation() {
-    let Some(h) = Harness::open_or_skip().await else {
-        return;
-    };
+    let h = Harness::open().await;
     let cache = h.cache();
     let scoped = conv();
     cache.store(&h.user_id, &scoped, "call_1", "sig-a").await;
@@ -329,9 +315,7 @@ async fn signatures_are_scoped_to_their_conversation() {
 
 #[tokio::test]
 async fn hydration_is_identical_for_every_wire() {
-    let Some(h) = Harness::open_or_skip().await else {
-        return;
-    };
+    let h = Harness::open().await;
     for wire in [
         GEMINI,
         Some(WireProtocol::Anthropic),
@@ -401,9 +385,7 @@ fn block_on_db(body: impl AsyncFnOnce(Harness)) {
         .build()
         .expect("runtime")
         .block_on(async {
-            if let Some(h) = Harness::open_or_skip().await {
-                body(h).await;
-            }
+            body(Harness::open().await).await;
         });
 }
 

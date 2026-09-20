@@ -16,7 +16,9 @@ use systemprompt_bridge::gateway::manifest::{
 };
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
 use systemprompt_bridge::ids::{LibraryArtifactId, PluginId, Sha256Digest};
+use systemprompt_bridge::integration::claude_code_cli::sidecar;
 use systemprompt_bridge::sync::{SyncOptions, run_once};
+use systemprompt_models::services::{ExternalMarketplace, ExternalMarketplaceSource};
 use systemprompt_test_fixtures::fixture_user_id;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -930,4 +932,564 @@ fn a_clean_install_without_a_permissions_carrier_syncs_ok_with_a_host_warning() 
         "a sync that only warned records its sentinel"
     );
     let _ = &server;
+}
+
+fn seed_owned_settings_carrier(dirs: &HostSandbox, body: serde_json::Value) -> PathBuf {
+    let config_file_os: OsString = dirs.config_file.clone().into();
+    temp_env::with_vars(
+        [
+            ("SP_BRIDGE_CONFIG", Some(&config_file_os)),
+            ("XDG_CONFIG_HOME", Some(&dirs.config_home)),
+            ("XDG_CACHE_HOME", Some(&dirs.cache_home)),
+            ("XDG_DATA_HOME", Some(&dirs.data_home)),
+            ("XDG_STATE_HOME", Some(&dirs.state_home)),
+            ("HOME", Some(&dirs.home)),
+            (
+                "SP_BRIDGE_ORG_PLUGINS_SYSTEM",
+                Some(&dirs.system_org_plugins),
+            ),
+        ],
+        || {
+            let expected = dirs.claude_home.join("settings.json");
+            assert_eq!(
+                systemprompt_bridge::install::mdm::claude_code_settings::managed_settings_path(),
+                Some(expected.clone()),
+                "the fixture must never write Claude Code machine policy"
+            );
+            fs::write(&expected, serde_json::to_vec_pretty(&body).unwrap()).unwrap();
+            expected
+        },
+    )
+}
+
+#[test]
+fn permission_ownership_withdrawal_preserves_foreign_rules_and_recovers_after_sidecar_repair() {
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .unwrap();
+    let mut granted = manifest(vec!["claude-code".into()], true, "ffff0001");
+    granted.managed_mcp_servers = vec![
+        serde_json::from_value(serde_json::json!({
+            "name": "knowledge-bank",
+            "url": "https://gateway.example/mcp/knowledge-bank",
+            "tool_policy": { "*": "allow" }
+        }))
+        .unwrap(),
+    ];
+    let (server, dirs) = rt.block_on(async {
+        let server = MockServer::start().await;
+        crate::mount_profile(&server).await;
+        mount_gateway(&server, &granted).await;
+        let dirs = sandbox(&server.uri());
+        (server, dirs)
+    });
+    let settings = seed_owned_settings_carrier(
+        &dirs,
+        serde_json::json!({
+            "apiKeyHelper": "foreign-helper",
+            "permissions": {
+                "defaultMode": "plan",
+                "allow": ["Bash(git status)"],
+                "deny": ["Read(./private/**)"]
+            }
+        }),
+    );
+
+    run_sync(&dirs).expect("the initial permission grant applies");
+    let sidecar = dirs
+        .state_home_path()
+        .join("systemprompt-bridge/metadata/claude-code-permissions.json");
+    assert_eq!(
+        serde_json::from_slice::<serde_json::Value>(&fs::read(&sidecar).unwrap()).unwrap(),
+        serde_json::json!({"allow": ["mcp__knowledge-bank"], "deny": []}),
+        "the sidecar durably records only the bridge-owned rule"
+    );
+    let installed: serde_json::Value =
+        serde_json::from_slice(&fs::read(&settings).unwrap()).unwrap();
+    assert_eq!(
+        installed["permissions"]["allow"],
+        serde_json::json!(["Bash(git status)", "mcp__knowledge-bank"])
+    );
+    assert_eq!(
+        installed["permissions"]["deny"],
+        serde_json::json!(["Read(./private/**)"])
+    );
+    assert_eq!(installed["permissions"]["defaultMode"], "plan");
+
+    let mut withdrawn = manifest(vec!["claude-code".into()], true, "ffff0002");
+    withdrawn.managed_mcp_servers.clear();
+    rt.block_on(async {
+        server.reset().await;
+        crate::mount_profile(&server).await;
+        mount_gateway(&server, &withdrawn).await;
+    });
+    fs::write(&sidecar, "{broken").unwrap();
+    let error = run_sync(&dirs).expect_err("a corrupt permission sidecar must fail the host apply");
+    assert!(
+        error.contains("claude code tool permissions") || error.contains("permissions"),
+        "unexpected diagnostic: {error}"
+    );
+    assert_eq!(
+        serde_json::from_slice::<serde_json::Value>(&fs::read(&settings).unwrap()).unwrap()["permissions"],
+        installed["permissions"],
+        "an unreadable ownership record must not guess which rules to remove"
+    );
+
+    fs::write(
+        &sidecar,
+        "{\n  \"allow\": [\"mcp__knowledge-bank\"],\n  \"deny\": []\n}\n",
+    )
+    .unwrap();
+    run_sync(&dirs).expect("repairing the sidecar makes withdrawal retryable");
+    let final_settings: serde_json::Value =
+        serde_json::from_slice(&fs::read(&settings).unwrap()).unwrap();
+    assert_eq!(
+        final_settings["permissions"],
+        serde_json::json!({
+            "defaultMode": "plan",
+            "allow": ["Bash(git status)"],
+            "deny": ["Read(./private/**)"]
+        }),
+        "withdrawal removes only the bridge-owned grant"
+    );
+    assert_eq!(
+        serde_json::from_slice::<serde_json::Value>(&fs::read(&sidecar).unwrap()).unwrap(),
+        serde_json::json!({"allow": [], "deny": []})
+    );
+}
+
+#[test]
+fn enabled_host_without_a_marketplace_clears_only_owned_cli_state() {
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .unwrap();
+    let initial = manifest(vec!["claude-code".into()], true, "11110001");
+    let (server, dirs) = rt.block_on(async {
+        let server = MockServer::start().await;
+        crate::mount_profile(&server).await;
+        mount_gateway(&server, &initial).await;
+        let dirs = sandbox(&server.uri());
+        (server, dirs)
+    });
+    seed_unowned_and_foreign_marketplaces(&dirs.claude_home);
+    run_sync(&dirs).expect("initial marketplace applies");
+    let mut withdrawn = manifest(vec!["claude-code".into()], true, "11110002");
+    withdrawn.marketplaces.clear();
+    rt.block_on(async {
+        server.reset().await;
+        crate::mount_profile(&server).await;
+        mount_gateway(&server, &withdrawn).await;
+    });
+    let summary = run_sync(&dirs).expect("missing marketplace warns and cleans up");
+    assert!(summary.host_failures.is_empty());
+    assert!(summary.host_warnings.iter().any(|warning| {
+        warning.host_id.as_str() == "claude-code"
+            && warning.message.contains("names no marketplace")
+    }));
+    let plugins = dirs.claude_home.join("plugins");
+    assert!(!plugins.join("marketplaces/org-provisioned").exists());
+    assert!(!plugins.join("cache/org-provisioned").exists());
+    assert!(
+        plugins
+            .join("marketplaces/someones-mp/plugins/old-plugin")
+            .is_dir()
+    );
+    assert!(plugins.join("cache/someones-mp/old-plugin").is_dir());
+    let known: serde_json::Value =
+        serde_json::from_slice(&fs::read(plugins.join("known_marketplaces.json")).unwrap())
+            .unwrap();
+    assert!(known["org-provisioned"].is_null());
+    assert_eq!(known["someones-mp"]["source"]["repo"], "a/b");
+    let settings: serde_json::Value =
+        serde_json::from_slice(&fs::read(dirs.claude_home.join("settings.json")).unwrap()).unwrap();
+    assert!(settings["enabledPlugins"][format!("{PLUGIN_ID}@org-provisioned")].is_null());
+    assert_eq!(settings["enabledPlugins"]["old-plugin@someones-mp"], true);
+}
+
+#[test]
+fn absent_marketplace_plugin_warns_and_withdraws_its_stale_bundle() {
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .unwrap();
+    let initial = manifest(vec!["claude-code".into()], true, "22220001");
+    let (server, dirs) = rt.block_on(async {
+        let server = MockServer::start().await;
+        crate::mount_profile(&server).await;
+        mount_gateway(&server, &initial).await;
+        let dirs = sandbox(&server.uri());
+        (server, dirs)
+    });
+    run_sync(&dirs).expect("initial marketplace applies");
+    let mut inconsistent = manifest(vec!["claude-code".into()], true, "22220002");
+    inconsistent.marketplaces[0].plugin_ids = vec![PluginId::try_new("missing-plugin").unwrap()];
+    rt.block_on(async {
+        server.reset().await;
+        crate::mount_profile(&server).await;
+        mount_gateway(&server, &inconsistent).await;
+    });
+    let summary = run_sync(&dirs).expect("inconsistent marketplace is contained");
+    assert!(summary.host_failures.is_empty());
+    assert!(summary.host_warnings.iter().any(|warning| {
+        warning.host_id.as_str() == "claude-code"
+            && warning.message.contains("missing-plugin")
+            && warning.message.contains("skipped")
+    }));
+    let plugins = dirs.claude_home.join("plugins");
+    assert!(
+        !plugins
+            .join(format!("marketplaces/org-provisioned/plugins/{PLUGIN_ID}"))
+            .exists()
+    );
+    assert!(
+        !plugins
+            .join(format!("cache/org-provisioned/{PLUGIN_ID}"))
+            .exists()
+    );
+    let marketplace: serde_json::Value = serde_json::from_slice(
+        &fs::read(plugins.join("marketplaces/org-provisioned/.claude-plugin/marketplace.json"))
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(marketplace["plugins"], serde_json::json!([]));
+}
+
+#[test]
+fn minimal_plugin_without_skills_or_authored_hooks_mirrors_through_run_once() {
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .unwrap();
+    let mut minimal = manifest(vec!["claude-code".into()], true, "33330001");
+    minimal.plugins[0]
+        .files
+        .retain(|file| file.path == ".claude-plugin/plugin.json");
+    minimal.skills.clear();
+    minimal.managed_mcp_servers.clear();
+    let (_server, dirs) = rt.block_on(async {
+        let server = MockServer::start().await;
+        crate::mount_profile(&server).await;
+        mount_gateway(&server, &minimal).await;
+        let dirs = sandbox(&server.uri());
+        (server, dirs)
+    });
+    let summary = run_sync(&dirs).expect("minimal plugin mirrors cleanly");
+    assert!(summary.host_failures.is_empty());
+    for bundle in [
+        dirs.claude_home
+            .join("plugins/marketplaces/org-provisioned/plugins/plugin-a"),
+        dirs.claude_home
+            .join("plugins/cache/org-provisioned/plugin-a/current"),
+    ] {
+        assert!(bundle.join(".claude-plugin/plugin.json").is_file());
+        assert!(!bundle.join("skills").exists());
+        assert!(bundle.join("hooks/hooks.json").is_file());
+        let mcp: serde_json::Value =
+            serde_json::from_slice(&fs::read(bundle.join(".mcp.json")).unwrap()).unwrap();
+        assert_eq!(mcp["mcpServers"], serde_json::json!({}));
+    }
+}
+fn manifest_with_plugin_json(body: &[u8], suffix: &str) -> SignedManifest {
+    let mut manifest = manifest(vec!["claude-code".into()], true, suffix);
+    let file = manifest.plugins[0]
+        .files
+        .iter_mut()
+        .find(|file| file.path == ".claude-plugin/plugin.json")
+        .expect("plugin manifest file");
+    file.sha256 = Sha256Digest::try_new(sha_hex(body)).unwrap();
+    file.size = body.len() as u64;
+    manifest
+}
+
+async fn mount_plugin_json_override(server: &MockServer, body: &[u8]) {
+    Mock::given(method("GET"))
+        .and(path(format!(
+            "/v1/bridge/plugins/{PLUGIN_ID}/.claude-plugin/plugin.json"
+        )))
+        .respond_with(ResponseTemplate::new(200).set_body_bytes(body.to_vec()))
+        .with_priority(1)
+        .expect(1)
+        .mount(server)
+        .await;
+}
+
+#[test]
+fn claude_code_bundle_drops_only_the_redundant_standard_hooks_pointer() {
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .unwrap();
+    let body =
+        br#"{"name":"plugin-a","version":"1.0.0","hooks":"./hooks/hooks.json","foreign":"retain"}"#;
+    let manifest = manifest_with_plugin_json(body, "44440001");
+    let (_server, dirs) = rt.block_on(async {
+        let server = MockServer::start().await;
+        crate::mount_profile(&server).await;
+        mount_gateway(&server, &manifest).await;
+        mount_plugin_json_override(&server, body).await;
+        let dirs = sandbox(&server.uri());
+        (server, dirs)
+    });
+
+    run_sync(&dirs).expect("plugin with standard hooks pointer syncs");
+    let source: serde_json::Value = serde_json::from_slice(
+        &fs::read(
+            PathBuf::from(&dirs.data_home)
+                .join("Claude/org-plugins/plugin-a/.claude-plugin/plugin.json"),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(source["hooks"], "./hooks/hooks.json");
+    assert_eq!(source["foreign"], "retain");
+    let source_hooks: serde_json::Value = serde_json::from_slice(
+        &fs::read(
+            PathBuf::from(&dirs.data_home).join("Claude/org-plugins/plugin-a/hooks/hooks.json"),
+        )
+        .expect("managed source hooks"),
+    )
+    .unwrap();
+    assert_eq!(source_hooks["hooks"], serde_json::json!({}));
+    for mirrored in [
+        dirs.claude_home
+            .join("plugins/marketplaces/org-provisioned/plugins/plugin-a"),
+        dirs.claude_home
+            .join("plugins/cache/org-provisioned/plugin-a/current"),
+    ] {
+        let plugin: serde_json::Value =
+            serde_json::from_slice(&fs::read(mirrored.join(".claude-plugin/plugin.json")).unwrap())
+                .unwrap();
+        assert!(plugin.get("hooks").is_none());
+        assert_eq!(plugin["foreign"], "retain");
+        assert_eq!(
+            serde_json::from_slice::<serde_json::Value>(
+                &fs::read(mirrored.join("hooks/hooks.json")).unwrap(),
+            )
+            .unwrap(),
+            source_hooks,
+            "removing the redundant plugin pointer does not alter the actual hook document"
+        );
+    }
+}
+
+#[test]
+fn malformed_plugin_manifest_is_mirrored_verbatim_then_repaired_by_next_sync() {
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .unwrap();
+    let malformed = b"{ malformed plugin manifest";
+    let initial = manifest_with_plugin_json(malformed, "44440002");
+    let (server, dirs) = rt.block_on(async {
+        let server = MockServer::start().await;
+        crate::mount_profile(&server).await;
+        mount_gateway(&server, &initial).await;
+        mount_plugin_json_override(&server, malformed).await;
+        let dirs = sandbox(&server.uri());
+        (server, dirs)
+    });
+
+    let error = run_sync(&dirs).expect_err("malformed plugin is delivered but reported partial");
+    assert!(
+        error.contains("PARTIAL") && error.contains(PLUGIN_ID),
+        "{error}"
+    );
+    let source_manifest = PathBuf::from(&dirs.data_home)
+        .join("Claude/org-plugins/plugin-a/.claude-plugin/plugin.json");
+    assert_eq!(
+        fs::read(&source_manifest).unwrap(),
+        malformed,
+        "the managed source also retains the gateway's malformed evidence verbatim"
+    );
+    for mirrored in [
+        dirs.claude_home
+            .join("plugins/marketplaces/org-provisioned/plugins/plugin-a"),
+        dirs.claude_home
+            .join("plugins/cache/org-provisioned/plugin-a/current"),
+    ] {
+        assert_eq!(
+            fs::read(mirrored.join(".claude-plugin/plugin.json")).unwrap(),
+            malformed,
+            "the host mirror does not invent ownership of a malformed manifest"
+        );
+    }
+
+    let repaired = br#"{"name":"plugin-a","version":"2.0.0","foreign":"retained"}"#;
+    let next = manifest_with_plugin_json(repaired, "44440003");
+    rt.block_on(async {
+        server.reset().await;
+        crate::mount_profile(&server).await;
+        mount_gateway(&server, &next).await;
+        mount_plugin_json_override(&server, repaired).await;
+    });
+    let summary = run_sync(&dirs).expect("repaired manifest converges");
+    assert!(summary.malformed.is_empty());
+    let repaired_source: serde_json::Value =
+        serde_json::from_slice(&fs::read(&source_manifest).unwrap()).unwrap();
+    assert_eq!(repaired_source["name"], "plugin-a");
+    assert_eq!(repaired_source["version"], "2.0.0");
+    assert_eq!(repaired_source["foreign"], "retained");
+    assert_eq!(repaired_source["installationPreference"], "required");
+    for mirrored in [
+        dirs.claude_home
+            .join("plugins/marketplaces/org-provisioned/plugins/plugin-a"),
+        dirs.claude_home
+            .join("plugins/cache/org-provisioned/plugin-a/current"),
+    ] {
+        let plugin: serde_json::Value =
+            serde_json::from_slice(&fs::read(mirrored.join(".claude-plugin/plugin.json")).unwrap())
+                .unwrap();
+        assert_eq!(plugin["version"], "2.0.0");
+        assert_eq!(plugin["foreign"], "retained");
+        assert_eq!(plugin["installationPreference"], "required");
+    }
+}
+
+fn foreign_plugin_files(plugin_id: &str, dependency: &str) -> Vec<(String, Vec<u8>)> {
+    vec![
+        (
+            ".claude-plugin/plugin.json".to_owned(),
+            format!(
+                r#"{{"name":"{plugin_id}","version":"1.0.0","dependencies":[{{"name":"{dependency}","marketplace":"vendor"}}]}}"#
+            )
+            .into_bytes(),
+        ),
+        ("SKILL.md".to_owned(), b"# managed\n".to_vec()),
+    ]
+}
+
+fn foreign_plugin_entry(plugin_id: &str, files: &[(String, Vec<u8>)]) -> PluginEntry {
+    PluginEntry {
+        id: PluginId::try_new(plugin_id).unwrap(),
+        version: "1.0.0".into(),
+        sha256: Sha256Digest::try_new("0".repeat(64)).unwrap(),
+        files: files
+            .iter()
+            .map(|(path, bytes)| PluginFile {
+                path: path.clone(),
+                sha256: Sha256Digest::try_new(sha_hex(bytes)).unwrap(),
+                size: bytes.len() as u64,
+            })
+            .collect(),
+        hooks: systemprompt_models::services::PluginHooksRef::default(),
+    }
+}
+
+async fn mount_gateway_files(
+    server: &MockServer,
+    manifest: &SignedManifest,
+    files: &[(String, Vec<(String, Vec<u8>)>)],
+) {
+    Mock::given(method("POST"))
+        .and(path("/v1/auth/bridge/pat"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "token": "test-bearer-token", "ttl": 3600,
+        })))
+        .mount(server)
+        .await;
+    for (plugin_id, plugin_files) in files {
+        for (relative, bytes) in plugin_files {
+            Mock::given(method("GET"))
+                .and(path(format!("/v1/bridge/plugins/{plugin_id}/{relative}")))
+                .respond_with(ResponseTemplate::new(200).set_body_bytes(bytes.clone()))
+                .mount(server)
+                .await;
+        }
+    }
+    Mock::given(method("GET"))
+        .and(path("/v1/bridge/manifest"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(
+            serde_json::json!({"payload": serde_json::to_string(manifest).unwrap(), "signature": ""}),
+        ))
+        .mount(server)
+        .await;
+}
+
+#[test]
+fn claude_code_sync_aggregates_shared_foreign_marketplaces_once() {
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .unwrap();
+    let first_files = foreign_plugin_files("research-plugin", "search");
+    let second_files = foreign_plugin_files("commerce-plugin", "billing");
+    let mut m = manifest(vec!["claude-code".into()], false, "face0001");
+    m.plugins = vec![
+        foreign_plugin_entry("research-plugin", &first_files),
+        foreign_plugin_entry("commerce-plugin", &second_files),
+    ];
+    let vendor = ExternalMarketplace {
+        name: "vendor".into(),
+        source: ExternalMarketplaceSource::Github {
+            repo: "acme/vendor".into(),
+        },
+    };
+    m.marketplaces = vec![
+        ManifestMarketplace {
+            id: systemprompt_identifiers::MarketplaceId::new("research"),
+            name: "Research".into(),
+            plugin_ids: vec![PluginId::try_new("research-plugin").unwrap()],
+            allow_cross_marketplace_dependencies_on: vec!["vendor".into()],
+            external_marketplaces: vec![vendor.clone()],
+        },
+        ManifestMarketplace {
+            id: systemprompt_identifiers::MarketplaceId::new("commerce"),
+            name: "Commerce".into(),
+            plugin_ids: vec![PluginId::try_new("commerce-plugin").unwrap()],
+            allow_cross_marketplace_dependencies_on: vec!["vendor".into()],
+            external_marketplaces: vec![vendor],
+        },
+    ];
+    let (server, dirs) = rt.block_on(async {
+        let server = MockServer::start().await;
+        crate::mount_profile(&server).await;
+        mount_gateway_files(&server, &m, &[("research-plugin".into(), first_files), ("commerce-plugin".into(), second_files)]).await;
+        let dirs = sandbox(&server.uri());
+        fs::write(dirs.claude_home.join("settings.json"), serde_json::json!({
+            "enabledPlugins": { "operator@personal": true },
+            "extraKnownMarketplaces": { "personal": { "source": { "source": "github", "repo": "operator/personal" } } }
+        }).to_string()).unwrap();
+        (server, dirs)
+    });
+    let _ = &server;
+    let summary = run_sync(&dirs).expect("public sync succeeds");
+    assert!(
+        summary.host_failures.is_empty(),
+        "{:#?}",
+        summary.host_failures
+    );
+    let settings: serde_json::Value =
+        serde_json::from_slice(&fs::read(dirs.claude_home.join("settings.json")).unwrap()).unwrap();
+    assert_eq!(settings["enabledPlugins"]["search@vendor"], true);
+    assert_eq!(settings["enabledPlugins"]["billing@vendor"], true);
+    assert_eq!(settings["enabledPlugins"]["operator@personal"], true);
+    assert_eq!(
+        settings["extraKnownMarketplaces"]["personal"]["source"]["repo"],
+        "operator/personal"
+    );
+    assert_eq!(
+        settings["extraKnownMarketplaces"]["vendor"]["source"]["repo"],
+        "acme/vendor"
+    );
+    let owned: serde_json::Value = serde_json::from_slice(
+        &fs::read(dirs.claude_home.join("plugins").join(sidecar::SIDECAR)).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(
+        owned["dependency_keys"],
+        serde_json::json!(["billing@vendor", "search@vendor"])
+    );
+    assert_eq!(
+        owned["external_marketplaces"],
+        serde_json::json!(["vendor"])
+    );
 }

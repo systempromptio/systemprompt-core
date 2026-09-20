@@ -19,6 +19,34 @@ struct Live {
     server_name: String,
 }
 
+async fn reserve_mcp_listener() -> tokio::net::TcpListener {
+    for port in 5000..6000 {
+        if let Ok(listener) =
+            tokio::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, port)).await
+        {
+            return listener;
+        }
+    }
+    panic!("no isolated MCP test port available in 5000..5999");
+}
+
+
+fn register_internal_server_extension(
+    bootstrap: &systemprompt_test_fixtures::TestBootstrap,
+    server_name: &str,
+) {
+    let binary = format!("{server_name}-bin");
+    let extension = bootstrap.system_path.join("extensions").join(server_name);
+    std::fs::create_dir_all(&extension).expect("internal extension directory");
+    std::fs::write(
+        extension.join("manifest.yaml"),
+        format!(
+            "extension:\n  type: mcp\n  name: {server_name}\n  binary: {binary}\n  description: loader boundary fixture\n  enabled: true\n"
+        ),
+    )
+    .expect("internal extension manifest");
+}
+
 async fn live_setup_or_skip(oauth_required: bool) -> Option<(Live, MockServer)> {
     live_setup_scoped_or_skip(oauth_required, "").await
 }
@@ -206,4 +234,96 @@ async fn scoped_server_metadata_advertises_first_scope_without_tools() {
     assert_eq!(infos[0].auth, "admin");
     assert_eq!(infos[0].status, "external");
     assert!(infos[0].tools.is_none());
+}
+
+#[tokio::test]
+async fn configured_internal_server_with_stopped_row_is_rejected_without_transport_dispatch() {
+    use crate::harness::{config_with_servers, internal_server_block};
+    use systemprompt_database::{CreateServiceInput, ServiceRepository};
+
+    let server_name = format!("stopped_{}", uuid::Uuid::new_v4().simple());
+    let listener = reserve_mcp_listener().await;
+    let port = listener.local_addr().expect("listener address").port();
+    let yaml = config_with_servers(&[internal_server_block(&server_name, port)]);
+    let bootstrap = bootstrap_with_services(&yaml);
+    register_internal_server_extension(bootstrap, &server_name);
+    let url = fixture_database_url().expect("fixture database URL");
+    let db = fixture_db_pool(&url).await.expect("fixture pool");
+    let repo = ServiceRepository::new(
+        &db,
+        systemprompt_identifiers::InstanceId::new("loader-stopped-instance"),
+    )
+    .expect("service repository");
+    repo.create_service(CreateServiceInput {
+        name: &server_name,
+        module_name: "mcp",
+        status: "stopped",
+        port,
+        binary_mtime: None,
+    })
+    .await
+    .expect("stopped service row");
+    let loader = McpToolLoader::new(repo.clone(), RegistryService::new(fixture_user_id()));
+
+    let error = loader
+        .load_server_tools(&server_name, &request_context("ldr-stopped"))
+        .await
+        .expect_err("stopped internal server must not dispatch a tool-list request");
+    let message = error.to_string();
+    assert!(message.contains(&server_name), "{message}");
+    assert!(
+        message.contains("not running") && message.contains("stopped"),
+        "{message}"
+    );
+    assert!(
+        tokio::time::timeout(std::time::Duration::from_millis(25), listener.accept())
+            .await
+            .is_err(),
+        "a stopped service must be rejected before transport dispatch"
+    );
+    repo.delete_service(&server_name)
+        .await
+        .expect("fixture cleanup");
+}
+
+#[tokio::test]
+async fn internal_server_database_failure_is_distinguished_from_replication_lag() {
+    use crate::harness::{config_with_servers, internal_server_block};
+
+    let server_name = format!("db_error_{}", uuid::Uuid::new_v4().simple());
+    let listener = reserve_mcp_listener().await;
+    let port = listener.local_addr().expect("listener address").port();
+    let bootstrap = bootstrap_with_services(&config_with_servers(&[internal_server_block(
+        &server_name,
+        port,
+    )]));
+    register_internal_server_extension(bootstrap, &server_name);
+    let db = systemprompt_test_fixtures::closed_db_pool().await;
+    let loader = McpToolLoader::new(
+        systemprompt_database::ServiceRepository::new(
+            &db,
+            systemprompt_identifiers::InstanceId::new("loader-closed-instance"),
+        )
+        .expect("service repository"),
+        RegistryService::new(fixture_user_id()),
+    );
+
+    let error = loader
+        .load_server_tools(&server_name, &request_context("ldr-db-error"))
+        .await
+        .expect_err("closed database must fail without lag retries");
+    let message = error.to_string();
+    assert!(message.contains(&server_name), "{message}");
+    assert!(
+        message.contains("Database error querying MCP server"),
+        "{message}"
+    );
+    assert!(message.contains("not replication lag"), "{message}");
+    assert!(!message.contains("after 3 retries"), "{message}");
+    assert!(
+        tokio::time::timeout(std::time::Duration::from_millis(25), listener.accept())
+            .await
+            .is_err(),
+        "database failure must be returned before transport dispatch"
+    );
 }

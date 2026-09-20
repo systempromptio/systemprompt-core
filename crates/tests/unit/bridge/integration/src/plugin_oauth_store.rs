@@ -456,3 +456,116 @@ fn a_stored_client_with_no_recorded_gateway_is_reprovisioned() {
 
 static TOKENS: std::sync::LazyLock<systemprompt_bridge::auth::plugin_oauth::PluginTokenCache> =
     std::sync::LazyLock::new(Default::default);
+#[test]
+fn corrupt_oauth_metadata_blocks_network_provisioning_until_operator_repair() {
+    let id = unique("client-corrupt-repair");
+    let ((), _temp) = with_cache_home(|| {
+        block_on(async {
+            let server = MockServer::start().await;
+            Mock::given(method("POST"))
+                .and(path("/v1/auth/bridge/oauth-client"))
+                .respond_with(ResponseTemplate::new(200).set_body_json(provision_body(
+                    &server.uri(),
+                    &id,
+                    "repaired-secret",
+                )))
+                .expect(1)
+                .mount(&server)
+                .await;
+            let metadata = plugin_oauth::creds_path().expect("cache path");
+            std::fs::create_dir_all(metadata.parent().unwrap()).unwrap();
+            let corrupt = b"{ operator must repair";
+            std::fs::write(&metadata, corrupt).unwrap();
+            let client = GatewayClient::new(
+                ValidatedUrl::try_new(server.uri()).expect("gateway"),
+                reqwest::Client::new(),
+            );
+
+            let error = plugin_oauth::ensure_creds(&client, &BearerToken::new("bridge-jwt"))
+                .await
+                .expect_err("corrupt durable identity must fail closed");
+            assert!(matches!(
+                error,
+                plugin_oauth::PluginOAuthError::CredsDecode(_)
+            ));
+            assert_eq!(std::fs::read(&metadata).unwrap(), corrupt);
+            assert!(
+                server
+                    .received_requests()
+                    .await
+                    .expect("record requests")
+                    .is_empty(),
+                "no second OAuth identity is provisioned while ownership metadata is unreadable"
+            );
+
+            std::fs::remove_file(&metadata).expect("operator repairs corrupt metadata");
+            let repaired = plugin_oauth::ensure_creds(&client, &BearerToken::new("bridge-jwt"))
+                .await
+                .expect("repair permits provisioning");
+            assert_eq!(repaired.client_id.as_str(), id);
+            assert_eq!(repaired.client_secret, "repaired-secret");
+            let stored: serde_json::Value =
+                serde_json::from_slice(&std::fs::read(&metadata).unwrap()).unwrap();
+            assert_eq!(stored["client_id"], id);
+            assert!(stored.get("client_secret").is_none());
+            let requests = server
+                .received_requests()
+                .await
+                .expect("record repaired provisioning request");
+            assert_eq!(requests.len(), 1);
+            assert_eq!(
+                requests[0]
+                    .headers
+                    .get("authorization")
+                    .and_then(|value| value.to_str().ok()),
+                Some("Bearer bridge-jwt")
+            );
+            assert_eq!(requests[0].body, b"{}");
+            plugin_oauth::delete_creds().unwrap();
+        });
+    });
+}
+#[test]
+fn keyring_write_failure_publishes_no_metadata_and_retry_persists_one_usable_identity() {
+    let cache = tempfile::tempdir().expect("cache");
+    temp_env::with_var("XDG_CACHE_HOME", Some(cache.path().as_os_str()), || {
+        keyring_core::set_default_store(
+            keyring_core::mock::Store::new().expect("isolated mock keyring"),
+        );
+        let id = unique("client-keyring-retry");
+        let credential =
+            keyring_core::Entry::new(systemprompt_bridge::brand::brand().keyring_service, &id)
+                .expect("mock credential");
+        let mock = credential
+            .as_any()
+            .downcast_ref::<keyring_core::mock::Cred>()
+            .expect("mock backend credential");
+        mock.set_error(keyring_core::Error::Invalid(
+            "locked".to_owned(),
+            "synthetic write refusal".to_owned(),
+        ));
+        let expected = creds(&id);
+
+        let error = plugin_oauth::store_creds(&expected)
+            .expect_err("keyring refusal must stop credential publication");
+        assert!(matches!(error, plugin_oauth::PluginOAuthError::Keyring(_)));
+        let metadata = plugin_oauth::creds_path().expect("metadata path");
+        assert!(
+            !metadata.exists(),
+            "metadata must never name a client whose secret was not stored"
+        );
+        assert!(plugin_oauth::load_creds().unwrap().is_none());
+
+        plugin_oauth::store_creds(&expected).expect("one-shot keyring fault clears for retry");
+        let loaded = plugin_oauth::load_creds()
+            .expect("read retried identity")
+            .expect("identity exists");
+        assert_eq!(loaded.client_id.as_str(), id);
+        assert_eq!(loaded.client_secret, "super-secret");
+        let stored: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&metadata).unwrap()).unwrap();
+        assert_eq!(stored["client_id"], id);
+        assert!(stored.get("client_secret").is_none());
+        plugin_oauth::delete_creds().unwrap();
+    });
+}

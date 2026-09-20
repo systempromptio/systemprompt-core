@@ -156,11 +156,6 @@ fn services_restart_mcp_fixture() {
 }
 
 #[test]
-fn services_cleanup_confirmed() {
-    run(&["infra", "services", "cleanup", "--yes"]);
-}
-
-#[test]
 fn mcp_status_and_list() {
     run_with_formats(&["plugins", "mcp", "status"]);
     run_with_formats(&["plugins", "mcp", "list"]);

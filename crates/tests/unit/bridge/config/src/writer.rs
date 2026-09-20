@@ -185,3 +185,68 @@ fn failed_mutation_does_not_commit_earlier_mutations() {
     );
     assert_eq!(fs::read_to_string(path).unwrap(), "sync = false\n");
 }
+
+#[test]
+fn first_write_creates_private_parents_then_later_edits_preserve_unknown_operator_state() {
+    let dir = TempDir::new().expect("tempdir");
+    let path = dir.path().join("new/private/tree/bridge.toml");
+
+    write::edit_file(&path, |doc| {
+        write::set(doc, &["gateway_url"], "https://gateway.example.com")?;
+        write::set(doc, &["future", "operator_key"], "retain")
+    })
+    .expect("first write creates its missing private directory tree");
+    write::edit_file(&path, |doc| write::set(doc, &["session", "enabled"], true))
+        .expect("created config remains editable");
+
+    let after: toml::Value =
+        toml::from_str(&fs::read_to_string(&path).expect("read created config"))
+            .expect("created config remains valid TOML");
+    assert_eq!(
+        after["gateway_url"].as_str(),
+        Some("https://gateway.example.com")
+    );
+    assert_eq!(after["future"]["operator_key"].as_str(), Some("retain"));
+    assert_eq!(after["session"]["enabled"].as_bool(), Some(true));
+    assert!(path.with_extension("toml.lock").is_file());
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        assert_eq!(
+            fs::metadata(path.parent().unwrap())
+                .unwrap()
+                .permissions()
+                .mode()
+                & 0o777,
+            0o700
+        );
+        assert_eq!(
+            fs::metadata(&path).unwrap().permissions().mode() & 0o777,
+            0o600
+        );
+    }
+}
+
+#[test]
+fn concurrent_replacement_by_a_directory_is_reported_without_writing_into_it() {
+    let dir = TempDir::new().expect("tempdir");
+    let path = write_file(&dir, "operator_key = \"retain\"\n");
+
+    let error = write::edit_file(&path, |doc| {
+        write::set(doc, &["session", "enabled"], true)?;
+        fs::remove_file(&path).unwrap();
+        fs::create_dir(&path).unwrap();
+        fs::write(path.join("operator-note"), "retain").unwrap();
+        Ok(())
+    })
+    .expect_err("a target replaced during editing is not overwritten");
+
+    assert!(matches!(
+        error,
+        write::ConfigWriteError::Read { path: ref failed, .. } if failed == &path
+    ));
+    assert_eq!(
+        fs::read_to_string(path.join("operator-note")).unwrap(),
+        "retain"
+    );
+}

@@ -176,3 +176,40 @@ async fn a_tool_name_with_an_underscore_does_not_match_another_tool_by_wildcard(
         .unwrap();
     assert!(none.is_none(), "`axb` is not `a_b`");
 }
+
+#[tokio::test]
+async fn an_explicit_intent_claim_is_first_writer_wins() {
+    let Some(db) = db_or_skip().await else { return };
+    let repo = ToolUsageRepository::new(&db).expect("repository");
+    let session = unique("explicit-claim");
+    let seeded = seed_intents(&db, &session, &["Read", "Write"]).await;
+    let first = systemprompt_identifiers::AiToolCallId::new(&seeded[0]);
+    let second = systemprompt_identifiers::AiToolCallId::new(&seeded[1]);
+    let exec_one = started_execution(&repo, &session).await;
+    let exec_two = started_execution(&repo, &session).await;
+
+    repo.claim_intent(&first, &exec_one)
+        .await
+        .expect("first claim");
+    repo.claim_intent(&first, &exec_two)
+        .await
+        .expect("competing claim is a no-op");
+
+    let raw = db.pool_arc().expect("raw pool");
+    let owner: Option<String> = sqlx::query_scalar(
+        "SELECT mcp_execution_id FROM ai_request_tool_calls WHERE ai_tool_call_id = $1",
+    )
+    .bind(first.as_str())
+    .fetch_one(raw.as_ref())
+    .await
+    .expect("claimed intent");
+    assert_eq!(owner.as_deref(), Some(exec_one.as_str()));
+    let unrelated: Option<String> = sqlx::query_scalar(
+        "SELECT mcp_execution_id FROM ai_request_tool_calls WHERE ai_tool_call_id = $1",
+    )
+    .bind(second.as_str())
+    .fetch_one(raw.as_ref())
+    .await
+    .expect("unrelated intent");
+    assert_eq!(unrelated, None);
+}

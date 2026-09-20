@@ -136,6 +136,14 @@ pub fn run_with_formats(args: &[&str]) {
 }
 
 fn build() -> FullBootstrap {
+    build_files(8080, None, true)
+}
+
+pub fn isolated_fixture(api_port: u16) -> FullBootstrap {
+    build_files(api_port, Some(api_port), false)
+}
+
+fn build_files(api_port: u16, url_port: Option<u16>, bootstrap_admin: bool) -> FullBootstrap {
     let tmp = tempfile::tempdir().expect("create profile tempdir");
     let root = tmp.path().to_path_buf();
 
@@ -196,7 +204,8 @@ fn build() -> FullBootstrap {
 
     std::fs::create_dir_all(root.join("covfix")).expect("mkdir profile dir");
     let profile_path = root.join("covfix/profile.yaml");
-    std::fs::write(&profile_path, render_profile(&root)).expect("write profile.yaml");
+    std::fs::write(&profile_path, render_profile(&root, api_port, url_port))
+        .expect("write profile.yaml");
 
     let fixture = FullBootstrap {
         _tmp: tmp,
@@ -204,7 +213,9 @@ fn build() -> FullBootstrap {
         services_dir,
         system_dir,
     };
-    bootstrap_system_admin(&fixture);
+    if bootstrap_admin {
+        bootstrap_system_admin(&fixture);
+    }
     fixture
 }
 
@@ -261,6 +272,28 @@ pub fn rewrite_services_config(fixture: &FullBootstrap, mcp_port: u16) {
         render_services_config(mcp_port),
     )
     .expect("rewrite services config");
+}
+
+pub fn enable_fixture_agent(fixture: &FullBootstrap, agent_port: u16) {
+    let config_path = fixture.services_dir.join("config/config.yaml");
+    let config = std::fs::read_to_string(&config_path).expect("read services config");
+    let config = config
+        .replacen("port: 4777", &format!("port: {agent_port}"), 1)
+        .replacen("enabled: false", "enabled: true", 1)
+        .replacen(
+            "agent_port_range: [4000, 4999]",
+            "agent_port_range: [4000, 9999]",
+            1,
+        );
+    assert!(
+        config.contains(&format!("port: {agent_port}")),
+        "fixture agent port was not replaced"
+    );
+    assert!(
+        config.contains("agent_port_range: [4000, 9999]"),
+        "fixture agent range was not expanded"
+    );
+    std::fs::write(config_path, config).expect("enable fixture agent");
 }
 
 fn render_services_config(mcp_port: u16) -> String {
@@ -444,7 +477,11 @@ fonts:
     fallback: sans-serif
 "#;
 
-fn render_profile(root: &Path) -> String {
+fn render_profile(root: &Path, api_port: u16, url_port: Option<u16>) -> String {
+    let api_base = url_port.map_or_else(
+        || "http://127.0.0.1".to_owned(),
+        |port| format!("http://127.0.0.1:{port}"),
+    );
     format!(
         r#"name: subprocess_full
 display_name: Subprocess Full Bootstrap Profile
@@ -457,10 +494,10 @@ database:
   external_db_access: false
 server:
   host: 127.0.0.1
-  port: 8080
-  api_server_url: http://127.0.0.1
-  api_internal_url: http://127.0.0.1
-  api_external_url: http://127.0.0.1
+  port: {api_port}
+  api_server_url: {api_base}
+  api_internal_url: {api_base}
+  api_external_url: {api_base}
   use_https: false
   cors_allowed_origins:
     - http://127.0.0.1
@@ -531,6 +568,8 @@ governance:
         bin = root.join("bin").display(),
         web = root.join("system/web").display(),
         storage = root.join("storage").display(),
+        api_port = api_port,
+        api_base = api_base,
         ack = UNRESTRICTED_ACKNOWLEDGEMENT,
         instance_id = fixture_instance_id(),
     )

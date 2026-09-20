@@ -190,6 +190,93 @@ async fn capture_restart_reuses_snapshot_and_revisions_after_source_changes() {
 }
 
 #[tokio::test]
+async fn capture_rejects_stale_lease_and_changed_restart_without_replacing_retained_snapshot() {
+    use systemprompt_marketplace::managed::{ManagedError, capture_skills};
+
+    let f = fixture().await;
+    let root = tempfile::tempdir().unwrap();
+    let skill = root.path().join("skills/fenced");
+    std::fs::create_dir_all(&skill).unwrap();
+    std::fs::write(
+        skill.join("config.yaml"),
+        "id: fenced\nname: Fenced\ndescription: test\n",
+    )
+    .unwrap();
+    std::fs::write(skill.join("index.md"), "# retained").unwrap();
+    let source = f
+        .repo
+        .register_source(
+            &f.owner,
+            "fenced-capture",
+            &SourceSpec::LocalTree {
+                root: root.path().to_string_lossy().into_owned(),
+            },
+        )
+        .await
+        .unwrap();
+    let key = TaskId::generate();
+    let first = acquired(
+        f.repo
+            .begin_api_operation(&f.owner, &key, "source_capture", &source)
+            .await
+            .unwrap(),
+    );
+    let retained = capture_skills(root.path(), &["fenced".to_owned()]).unwrap();
+    let imported = f
+        .repo
+        .import_api_capture(&f.owner, &first, &source, &retained)
+        .await
+        .unwrap();
+    let row_count: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM managed_source_snapshots WHERE owner_id=$1 AND source_id=$2",
+    )
+    .bind(f.owner.as_str())
+    .bind(source.as_str())
+    .fetch_one(&f.pool)
+    .await
+    .unwrap();
+    assert_eq!(row_count, 1);
+
+    std::fs::write(skill.join("index.md"), "# altered restart").unwrap();
+    let altered = capture_skills(root.path(), &["fenced".to_owned()]).unwrap();
+    assert!(matches!(
+        f.repo.import_api_capture(&f.owner, &first, &source, &altered).await,
+        Err(ManagedError::Conflict(message)) if message == "Retained capture differs from restart input"
+    ));
+    assert_eq!(
+        f.repo
+            .snapshot_provenance(&f.owner, &imported.snapshot_id)
+            .await
+            .unwrap()
+            .tree_digest,
+        retained.tree_digest().clone()
+    );
+
+    sqlx::query("UPDATE managed_api_operations SET lease_until=clock_timestamp()-interval '1 second' WHERE owner_id=$1 AND id=$2")
+        .bind(f.owner.as_str()).bind(key.as_str()).execute(&f.pool).await.unwrap();
+    let successor = acquired(
+        f.repo
+            .begin_api_operation(&f.owner, &key, "source_capture", &source)
+            .await
+            .unwrap(),
+    );
+    assert!(successor.fence > first.fence);
+    assert!(matches!(
+        f.repo.import_api_capture(&f.owner, &first, &source, &retained).await,
+        Err(ManagedError::Conflict(message)) if message == "Operation lease was superseded"
+    ));
+    let after_count: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM managed_source_snapshots WHERE owner_id=$1 AND source_id=$2",
+    )
+    .bind(f.owner.as_str())
+    .bind(source.as_str())
+    .fetch_one(&f.pool)
+    .await
+    .unwrap();
+    assert_eq!(after_count, 1);
+}
+
+#[tokio::test]
 async fn inventory_completion_and_generation_are_atomic_across_response_loss() {
     let f = fixture().await;
     let key = TaskId::generate();

@@ -42,6 +42,96 @@ fn completion<'a>(
     })
 }
 
+#[tokio::test]
+async fn payload_write_fault_rolls_back_the_entire_completion_settlement() {
+    systemprompt_test_fixtures::ensure_test_bootstrap();
+    let database =
+        systemprompt_test_fixtures::DisposableDb::installed("ai_settlement_payload_fault")
+            .await
+            .expect("private AI database");
+    let pool = database.pool().await.expect("private AI pool");
+    let owner = user();
+    let request_id = seed_request(&pool, &owner).await;
+    let repo = AiRequestRepository::new(&pool).expect("AI request repository");
+    let writer = pool.pool_arc().expect("private SQL pool");
+    sqlx::raw_sql(sqlx::AssertSqlSafe(
+        "CREATE FUNCTION reject_settlement_payload() RETURNS trigger LANGUAGE plpgsql AS $$ \
+         BEGIN RAISE EXCEPTION 'fixture payload persistence rejection'; END $$; \
+         CREATE TRIGGER reject_settlement_payload BEFORE INSERT ON ai_request_payloads \
+         FOR EACH ROW EXECUTE FUNCTION reject_settlement_payload()",
+    ))
+    .execute(writer.as_ref())
+    .await
+    .expect("install private payload-write fault");
+    let body = json!({"content": "must not partially settle"});
+    let tools = vec![SettledToolCall {
+        id: AiToolCallId::new("toolu_rollback"),
+        name: "lookup".to_owned(),
+        input: "{}".to_owned(),
+    }];
+
+    let error = repo
+        .settle(
+            &request_id,
+            &owner,
+            completion(&body, "rollback-sha", &tools),
+        )
+        .await
+        .expect_err("payload fault rejects completion settlement");
+    assert!(
+        error
+            .to_string()
+            .contains("fixture payload persistence rejection"),
+        "{error}"
+    );
+    assert_eq!(row(&pool, &request_id).await.0, "pending");
+    assert_eq!(turn_counts(&pool, &request_id).await, (0, 0));
+    let payload_rows: i64 =
+        sqlx::query_scalar("SELECT count(*) FROM ai_request_payloads WHERE ai_request_id = $1")
+            .bind(request_id.as_str())
+            .fetch_one(writer.as_ref())
+            .await
+            .expect("payload row count");
+    assert_eq!(payload_rows, 0);
+
+    sqlx::raw_sql(sqlx::AssertSqlSafe(
+        "DROP TRIGGER reject_settlement_payload ON ai_request_payloads; \
+         DROP FUNCTION reject_settlement_payload()",
+    ))
+    .execute(writer.as_ref())
+    .await
+    .expect("remove private payload-write fault");
+    repo.settle(
+        &request_id,
+        &owner,
+        completion(&body, "rollback-sha", &tools),
+    )
+    .await
+    .expect("the same operation recovers after the payload store is repaired");
+    repo.settle(
+        &request_id,
+        &owner,
+        completion(&body, "rollback-sha", &tools),
+    )
+    .await
+    .expect("replaying the recovered completion is idempotent");
+    assert_eq!(row(&pool, &request_id).await.0, "completed");
+    assert_eq!(turn_counts(&pool, &request_id).await, (1, 1));
+    let payload_rows: i64 =
+        sqlx::query_scalar("SELECT count(*) FROM ai_request_payloads WHERE ai_request_id = $1")
+            .bind(request_id.as_str())
+            .fetch_one(writer.as_ref())
+            .await
+            .expect("recovered payload row count");
+    assert_eq!(payload_rows, 1);
+
+    drop(writer);
+    drop(repo);
+    pool.pool_arc().expect("private SQL pool").close().await;
+    drop(pool);
+    database.drop_now().await;
+}
+
 async fn row(pool: &DbPool, id: &AiRequestId) -> (String, Option<i32>, i64, Option<String>) {
     let read = pool.pool_arc().expect("read pool");
     let r = sqlx::query!(

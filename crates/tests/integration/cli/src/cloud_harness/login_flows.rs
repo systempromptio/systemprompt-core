@@ -95,3 +95,43 @@ async fn complete_login_without_tenants_writes_empty_store() {
 
     assert!(stored_tenants().tenants.is_empty());
 }
+
+#[tokio::test]
+async fn invalid_account_email_preserves_existing_credentials_and_tenants() {
+    let env = enter().await;
+    let credentials_path = get_cloud_paths().resolve(CloudPath::Credentials);
+    let tenants_path = get_cloud_paths().resolve(CloudPath::Tenants);
+    let credentials_before = std::fs::read(&credentials_path).expect("seeded credentials");
+    let tenants_before = std::fs::read(&tenants_path).expect("seeded tenants");
+    env.server().reset().await;
+    mount_auth_me(
+        env.server(),
+        json!({
+            "user": { "id": "user_bad_email", "email": "not-an-email", "name": "Bad Account" },
+            "tenants": [{
+                "id": "replacement",
+                "name": "Must Not Persist",
+                "database_url": "postgres://invalid/replacement"
+            }]
+        }),
+    )
+    .await;
+
+    let error = complete_login(&env.server().uri(), FAR_FUTURE_JWT.to_owned())
+        .await
+        .expect_err("invalid cloud account email must reject login");
+    assert!(
+        format!("{error:#}").contains("Cloud account email is not a valid address"),
+        "unexpected error: {error:#}"
+    );
+    assert_eq!(
+        std::fs::read(&credentials_path).unwrap(),
+        credentials_before,
+        "failed validation must not replace working credentials"
+    );
+    assert_eq!(
+        std::fs::read(&tenants_path).unwrap(),
+        tenants_before,
+        "failed validation must not partially replace the tenant cache"
+    );
+}

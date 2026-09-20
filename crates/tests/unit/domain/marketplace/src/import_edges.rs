@@ -829,6 +829,61 @@ fn a_declared_script_is_copied_under_the_plugin() {
 }
 
 #[test]
+fn a_plugin_node_package_and_lockfile_are_copied_together() {
+    let tree = Tree::new();
+    tree.write(
+        ".claude-plugin/marketplace.json",
+        &marketplace_json(r#"{"name":"alpha","source":"./plugins/alpha"}"#),
+    );
+    minimal_plugin(
+        &tree,
+        "plugins/alpha",
+        r#"{"name":"alpha","version":"1.0.0"}"#,
+    );
+    tree.write(
+        "plugins/alpha/.claude-plugin/systemprompt.yaml",
+        "schema: 1\nplugin:\n  category: ops\n",
+    );
+    tree.write("plugins/alpha/package.json", "{\"name\":\"alpha\"}\n");
+    tree.write(
+        "plugins/alpha/package-lock.json",
+        "{\"lockfileVersion\":3}\n",
+    );
+
+    let (dest, _report) = expect_ok(&tree);
+    assert_eq!(
+        std::fs::read_to_string(dest.path().join("plugins/alpha/package.json")).unwrap(),
+        "{\"name\":\"alpha\"}\n"
+    );
+    assert_eq!(
+        std::fs::read_to_string(dest.path().join("plugins/alpha/package-lock.json")).unwrap(),
+        "{\"lockfileVersion\":3}\n"
+    );
+}
+
+#[test]
+fn a_package_without_a_lockfile_is_not_copied() {
+    let tree = Tree::new();
+    tree.write(
+        ".claude-plugin/marketplace.json",
+        &marketplace_json(r#"{"name":"alpha","source":"./plugins/alpha"}"#),
+    );
+    minimal_plugin(
+        &tree,
+        "plugins/alpha",
+        r#"{"name":"alpha","version":"1.0.0"}"#,
+    );
+    tree.write(
+        "plugins/alpha/.claude-plugin/systemprompt.yaml",
+        "schema: 1\nplugin:\n  category: ops\n",
+    );
+    tree.write("plugins/alpha/package.json", "{\"name\":\"alpha\"}\n");
+
+    let (dest, _report) = expect_ok(&tree);
+    assert!(!dest.path().join("plugins/alpha/package.json").exists());
+}
+
+#[test]
 fn a_sidecar_without_a_schema_key_is_refused() {
     let tree = tree_with_skill("---\ndescription: d\n---\nB.\n");
     tree.write(

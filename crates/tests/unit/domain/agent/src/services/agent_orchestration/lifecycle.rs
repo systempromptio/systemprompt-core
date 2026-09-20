@@ -6,6 +6,7 @@
 use std::sync::Arc;
 
 use systemprompt_agent::repository::agent_service::AgentServiceRepository;
+use systemprompt_agent::services::agent_orchestration::AgentStatus;
 use systemprompt_agent::services::agent_orchestration::database::AgentDatabaseService;
 use systemprompt_agent::services::agent_orchestration::lifecycle::AgentLifecycle;
 use systemprompt_config::paths::AppPaths;
@@ -58,6 +59,39 @@ async fn start_agent_unknown_agent_fails_before_spawn() {
     let name = unique_name("lc_missing");
     let result = lifecycle.start_agent(&name, None).await;
     assert!(result.is_err(), "unregistered agent must not start");
+}
+
+#[tokio::test]
+async fn start_agent_unknown_agent_emits_request_without_creating_service_state() {
+    let pool = try_pool_or_skip()
+        .await
+        .expect("agent lifecycle fixture database");
+    let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
+    let bus = Arc::new(
+        systemprompt_agent::services::agent_orchestration::event_bus::AgentEventBus::new(8),
+    );
+    let mut events = bus.subscribe();
+    let lifecycle = lifecycle(&pool).with_event_bus(bus);
+    let db = db_service(&pool);
+    let name = unique_name("lc_unknown_event");
+
+    let err = lifecycle
+        .start_agent(&name, None)
+        .await
+        .expect_err("an unknown agent cannot start");
+    assert!(err.to_string().contains(&name));
+    assert!(!db.agent_exists(&name).await.expect("service lookup"));
+
+    let event = events.try_recv().expect("start request event");
+    assert!(matches!(
+        event,
+        systemprompt_agent::services::agent_orchestration::events::AgentEvent::AgentStartRequested { agent_id }
+            if agent_id.as_str() == name
+    ));
+    assert!(
+        events.try_recv().is_err(),
+        "config lookup fails before a process transition"
+    );
 }
 
 #[tokio::test]
@@ -129,6 +163,44 @@ async fn cleanup_crashed_agent_without_record_is_noop() {
         .cleanup_crashed_agent(&name)
         .await
         .expect("cleanup is a no-op without a record");
+}
+
+#[tokio::test]
+async fn cleanup_crashed_agent_transitions_dead_running_record_to_failed() {
+    let pool = try_pool_or_skip()
+        .await
+        .expect("agent lifecycle fixture database");
+    let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
+    let lifecycle = lifecycle(&pool);
+    let db = db_service(&pool);
+    let name = unique_name("lc_crashed");
+
+    db.register_agent(&name, DEAD_PID, 9413)
+        .await
+        .expect("register running record");
+    let row = sqlx::query_as::<_, (String, Option<i32>, Option<i32>)>(
+        "SELECT status, pid, port FROM services WHERE instance_id = $1 AND name = $2",
+    )
+    .bind("test-instance")
+    .bind(&name)
+    .fetch_one(pool.pool_arc().expect("pool").as_ref())
+    .await
+    .expect("raw running service row");
+    assert_eq!(
+        row,
+        ("running".to_owned(), Some(DEAD_PID as i32), Some(9413))
+    );
+
+    lifecycle
+        .cleanup_crashed_agent(&name)
+        .await
+        .expect("cleanup");
+
+    assert!(matches!(
+        db.get_status(&name).await.expect("failed status"),
+        AgentStatus::Failed { .. }
+    ));
+    db.remove_agent_service(&name).await.ok();
 }
 
 #[tokio::test]

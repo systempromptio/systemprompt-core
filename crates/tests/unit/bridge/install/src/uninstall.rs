@@ -211,3 +211,64 @@ fn purging_removes_the_stored_credential_and_names_the_file() {
         "the stored PAT is deleted by a purge"
     );
 }
+#[test]
+fn corrupt_ownership_checkpoint_blocks_uninstall_until_repaired_without_touching_foreign_state() {
+    let sandbox = Sandbox::new();
+    let owned = sandbox.org_plugins().join("owned/plugin.json");
+    let foreign = sandbox.org_plugins().join("foreign/plugin.json");
+    let brand = systemprompt_bridge::brand::brand();
+    let config = sandbox
+        .config
+        .path()
+        .join(brand.config_dir)
+        .join(brand.config_file);
+    seed_file(&owned, "owned");
+    seed_file(&foreign, "foreign");
+    seed_file(&sandbox.metadata().join("last-sync.json"), "{broken");
+    seed_file(&sandbox.metadata().join("operator-note"), "retain");
+    seed_file(&sandbox.pat_file(), "sp-live-retained");
+    seed_file(&config, "operator_key = \"retained\"\n");
+
+    let error = sandbox
+        .run(|| uninstall(false, &bridge()))
+        .expect_err("unknown ownership must stop deletion");
+    assert!(matches!(
+        error,
+        systemprompt_bridge::install::InstallError::LastSync(_)
+    ));
+    assert_eq!(std::fs::read_to_string(&owned).unwrap(), "owned");
+    assert_eq!(std::fs::read_to_string(&foreign).unwrap(), "foreign");
+    assert_eq!(
+        std::fs::read_to_string(sandbox.metadata().join("operator-note")).unwrap(),
+        "retain"
+    );
+    assert_eq!(
+        std::fs::read_to_string(sandbox.pat_file()).unwrap(),
+        "sp-live-retained"
+    );
+    assert_eq!(
+        std::fs::read_to_string(&config).unwrap(),
+        "operator_key = \"retained\"\n"
+    );
+
+    seed_file(
+        &sandbox.metadata().join("last-sync.json"),
+        r#"{"present_plugins":["owned"]}"#,
+    );
+    let summary = sandbox
+        .run(|| uninstall(false, &bridge()))
+        .expect("repair makes ownership explicit");
+    assert!(!sandbox.org_plugins().join("owned").exists());
+    assert_eq!(std::fs::read_to_string(&foreign).unwrap(), "foreign");
+    assert!(!sandbox.metadata().exists());
+    assert_eq!(summary.foreign_plugins, vec!["foreign".to_owned()]);
+    assert!(matches!(summary.credentials, CredentialsOutcome::Kept));
+    assert_eq!(
+        std::fs::read_to_string(sandbox.pat_file()).unwrap(),
+        "sp-live-retained"
+    );
+    assert_eq!(
+        std::fs::read_to_string(&config).unwrap(),
+        "operator_key = \"retained\"\n"
+    );
+}

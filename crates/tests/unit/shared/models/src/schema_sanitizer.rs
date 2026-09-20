@@ -629,3 +629,76 @@ mod typed_items {
         assert!(ProviderCapabilities::openai().features.loose_items);
     }
 }
+
+mod provider_variant_boundaries {
+    use super::*;
+
+    #[test]
+    fn gemini_normalizes_type_lists_without_duplicating_existing_variants() {
+        let sanitizer = SchemaSanitizer::new(ProviderCapabilities::gemini());
+
+        let merged = sanitizer.sanitize(json!({
+            "type": ["array", "string", "array"],
+            "items": {"type": "integer"},
+            "anyOf": [{"type": "string", "minLength": 1}]
+        }));
+        assert_eq!(
+            merged,
+            json!({
+                "anyOf": [
+                    {"type": "string", "minLength": 1},
+                    {"type": "array", "items": {"type": "integer"}}
+                ]
+            })
+        );
+
+        assert_eq!(
+            sanitizer.sanitize(json!({"type": [17, "string"]})),
+            json!({"type": "string"}),
+            "a single valid member remains a provider-supported scalar type"
+        );
+        assert_eq!(
+            sanitizer.sanitize(json!({"type": [17, false]})),
+            json!({}),
+            "a type list with no valid JSON Schema type does not reach Gemini"
+        );
+    }
+
+    #[test]
+    fn gemini_infers_constrained_variants_and_normalizes_tuple_item_forms() {
+        let sanitizer = SchemaSanitizer::new(ProviderCapabilities::gemini());
+        let inferred = sanitizer.sanitize(json!({
+            "anyOf": [
+                7,
+                {"minimum": 0},
+                {"pattern": "^[a-z]+$"},
+                {"enum": [true, false]},
+                {}
+            ]
+        }));
+        assert_eq!(
+            inferred,
+            json!({
+                "anyOf": [
+                    {"minimum": 0, "type": "number"},
+                    {"pattern": "^[a-z]+$", "type": "string"},
+                    {"enum": [true, false], "type": "boolean"}
+                ]
+            })
+        );
+
+        assert_eq!(
+            sanitizer.sanitize(json!({
+                "type": "array",
+                "items": [{"type": "string"}, {"type": "integer"}]
+            })),
+            json!({"type": "array", "items": {}}),
+            "heterogeneous draft-4 tuples become an unconstrained Gemini item schema"
+        );
+        assert_eq!(
+            sanitizer.sanitize(json!({"type": "array", "items": false})),
+            json!({"type": "array", "items": {}}),
+            "boolean item schemas become the provider's untyped item object"
+        );
+    }
+}

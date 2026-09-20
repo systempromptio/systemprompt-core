@@ -159,6 +159,52 @@ fn a_malformed_hermes_config_is_unverifiable_not_absent() {
 }
 
 #[test]
+fn structured_owned_values_are_reported_without_panicking_and_repair_becomes_installed() {
+    let home = TempDir::new().expect("hermes home");
+    let config = home.path().join("config.yaml");
+    std::fs::write(
+        &config,
+        "model:\n  provider: [foreign, shape]\nproviders:\n  systemprompt-gateway:\n    base_url: {nested: value}\n    api_mode: true\n    key_env: null\n",
+    )
+    .expect("seed structured values");
+    let root = home.path().display().to_string();
+    temp_env::with_var("HERMES_HOME", Some(root.as_str()), || {
+        let snapshot = HERMES_HOST.probe(&probe_env());
+        assert_eq!(
+            snapshot.profile_keys["model.provider"],
+            "- foreign\n- shape"
+        );
+        assert!(
+            snapshot.profile_keys["providers.systemprompt-gateway.base_url"].contains("nested")
+        );
+        assert_eq!(
+            snapshot.profile_keys["providers.systemprompt-gateway.api_mode"],
+            "true"
+        );
+        assert_eq!(
+            snapshot.profile_keys["providers.systemprompt-gateway.key_env"],
+            "null"
+        );
+        assert!(!matches!(snapshot.profile_state, ProfileState::Absent));
+
+        std::fs::write(
+            &config,
+            format!(
+                "model:\n  provider: systemprompt-gateway\nproviders:\n  systemprompt-gateway:\n    base_url: {}\n    api_mode: chat_completions\n    key_env: OPENAI_API_KEY\n",
+                loopback_v1()
+            ),
+        )
+        .expect("repair the same config");
+        let repaired = HERMES_HOST.probe(&probe_env());
+        assert!(matches!(repaired.profile_state, ProfileState::Installed));
+        assert_eq!(
+            repaired.profile_source.as_deref(),
+            Some(config.display().to_string().as_str())
+        );
+    });
+}
+
+#[test]
 fn the_hermes_host_describes_itself_as_a_yaml_desktop_app() {
     assert_eq!(HERMES_HOST.id(), "hermes");
     assert_eq!(HERMES_HOST.display_name(), "Hermes");

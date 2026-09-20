@@ -16,6 +16,8 @@ mod bootstrap;
 #[cfg(test)]
 mod bootstrap_dispatch_db;
 #[cfg(test)]
+mod cancelled_cluster_job_db;
+#[cfg(test)]
 mod dispatch_instance_stamp_db;
 #[cfg(test)]
 mod dispatch_scope_db;
@@ -41,6 +43,8 @@ mod jobs_seeded_db;
 mod models;
 #[cfg(test)]
 mod multi_replica_jobs_db;
+#[cfg(test)]
+mod oauth_cleanup_job;
 #[cfg(test)]
 mod orchestration;
 #[cfg(test)]
@@ -71,3 +75,5 @@ mod state_verifier_seeded_db;
 mod test_jobs;
 #[cfg(test)]
 mod unit_tests;
+#[cfg(test)]
+mod vertex_discovery_lifecycle;

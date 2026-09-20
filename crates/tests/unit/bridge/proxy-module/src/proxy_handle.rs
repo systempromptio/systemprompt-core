@@ -1,3 +1,5 @@
+use systemprompt_bridge::cli::doctor::Status;
+use systemprompt_bridge::cli::doctor::proxy::check_proxy_listening;
 use systemprompt_bridge::context::{BridgeContext, ProxyMode};
 use systemprompt_bridge::proxy::peer::PeerIdentity;
 use systemprompt_bridge::proxy::{self, ProxyRole};
@@ -21,6 +23,11 @@ fn a_serving_proxy_identifies_itself_on_its_own_port() {
 
         assert!(ctx.proxy.is_serving());
         assert!(ctx.proxy.served().is_some());
+
+        let check = check_proxy_listening(&ctx.proxy);
+        assert_eq!(check.status, Status::Ok);
+        assert!(check.detail.contains(&format!("127.0.0.1:{port}")));
+        assert!(!check.detail.contains("secret"));
 
         let rendered = format!("{:?}", ctx.proxy);
         assert!(
@@ -82,14 +89,13 @@ fn a_recorded_port_now_held_by_another_install_is_abandoned() {
 
     // Push the foreign proxy off the default port so the assertion below can
     // tell "kept the record" from "fell back to the default".
-    let squatter = std::net::TcpListener::bind(("127.0.0.1", proxy::DEFAULT_PROXY_PORT));
-    let Ok(squatter) = squatter else {
-        eprintln!(
-            "skipping: port {} is already in use",
-            proxy::DEFAULT_PROXY_PORT
-        );
-        return;
-    };
+    let squatter = std::net::TcpListener::bind(("127.0.0.1", proxy::DEFAULT_PROXY_PORT))
+        .unwrap_or_else(|error| {
+            panic!(
+                "serialized proxy fixture requires port {}: {error}",
+                proxy::DEFAULT_PROXY_PORT
+            )
+        });
 
     // A bridge from a different install (a different config dir) holding a port.
     let foreign = temp_env::with_var("XDG_CONFIG_HOME", Some(other.path().as_os_str()), || {
@@ -100,6 +106,14 @@ fn a_recorded_port_now_held_by_another_install_is_abandoned() {
     };
     let foreign_port = served.port;
     assert_ne!(foreign_port, proxy::DEFAULT_PROXY_PORT);
+    let fallback = check_proxy_listening(&foreign.proxy);
+    assert_eq!(fallback.status, Status::Warn);
+    assert!(fallback.detail.contains("fallback port"));
+    assert!(
+        fallback
+            .detail
+            .contains(&proxy::DEFAULT_PROXY_PORT.to_string())
+    );
 
     temp_env::with_var("XDG_CONFIG_HOME", Some(ours.path().as_os_str()), || {
         let install = systemprompt_bridge::proxy::identity::InstallId::establish()

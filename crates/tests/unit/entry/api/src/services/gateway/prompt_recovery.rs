@@ -1,7 +1,7 @@
 use bytes::Bytes;
 use serde_json::{Value, json};
 use systemprompt_api::services::gateway::protocol::canonical::{
-    CanonicalContent, CanonicalMessage, CanonicalRequest, Role, SystemBlock,
+    CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalTool, Role, SystemBlock,
 };
 use systemprompt_api::services::gateway::protocol::outbound::PreparedBody;
 use systemprompt_api::services::gateway::service::stages::recovery::{
@@ -115,6 +115,108 @@ fn passthrough_tool_results_metadata_and_json_arguments_are_sanitized() {
     )
     .unwrap();
     assert_eq!(args["credential"], REDACTION_MARKER);
+}
+
+#[test]
+fn nested_canonical_tool_state_and_forwarded_json_are_repaired_together() {
+    let mut request = CanonicalRequest::new(
+        ModelId::new("m"),
+        vec![CanonicalMessage {
+            role: Role::Assistant,
+            content: vec![
+                CanonicalContent::ToolUse {
+                    id: "call-1".to_owned(),
+                    name: "lookup".to_owned(),
+                    input: json!({"nested": [{"credential": KEY}], "safe": 7}),
+                    signature: None,
+                    cache_control: None,
+                },
+                CanonicalContent::ToolResult {
+                    tool_use_id: "call-1".to_owned(),
+                    content: vec![CanonicalContent::Thinking {
+                        text: format!("tool considered {KEY}"),
+                        signature: None,
+                        id: None,
+                        encrypted_content: None,
+                    }],
+                    is_error: false,
+                    structured_content: Some(json!({"credential": KEY, "safe": true})),
+                    meta: Some(json!({"vendor": {"credential": KEY}})),
+                    cache_control: None,
+                },
+            ],
+        }],
+        1024,
+    );
+    request.tools.push(CanonicalTool {
+        name: "lookup".to_owned(),
+        description: Some(format!("Use {KEY}")),
+        input_schema: json!({"properties": {"credential": {"example": KEY}}}),
+        cache_control: None,
+    });
+    request.metadata = Some(json!({"nested": [KEY], "number": 4}));
+    let mut wire = body(json!({
+        "messages": [{"role": "user", "content": KEY}],
+        "tools": [{"name": "lookup", "description": format!("Use {KEY}"),
+            "input_schema": {"properties": {"credential": {"example": KEY}}}}],
+        "metadata": {"nested": [KEY], "number": 4}
+    }));
+
+    let result = govern(&engine(POLICY), &mut request, &mut wire);
+    assert!(matches!(result.evaluation.decision, Decision::Warn { .. }));
+    assert!(result.recovery_count >= 1);
+    assert!(!String::from_utf8_lossy(&wire.bytes).contains(KEY));
+    assert_eq!(request.metadata.as_ref().unwrap()["number"], 4);
+    assert_eq!(
+        request.metadata.as_ref().unwrap()["nested"][0],
+        REDACTION_MARKER
+    );
+    assert_eq!(
+        request.tools[0].description,
+        Some(format!("Use {REDACTION_MARKER}"))
+    );
+    assert_eq!(
+        request.tools[0].input_schema["properties"]["credential"]["example"],
+        REDACTION_MARKER
+    );
+    match &request.messages[0].content[0] {
+        CanonicalContent::ToolUse { input, .. } => {
+            assert_eq!(input["nested"][0]["credential"], REDACTION_MARKER);
+            assert_eq!(input["safe"], 7);
+        },
+        other => panic!("tool use retained its canonical variant: {other:?}"),
+    }
+    match &request.messages[0].content[1] {
+        CanonicalContent::ToolResult {
+            structured_content,
+            meta,
+            ..
+        } => {
+            assert_eq!(
+                structured_content.as_ref().unwrap()["credential"],
+                REDACTION_MARKER
+            );
+            assert_eq!(structured_content.as_ref().unwrap()["safe"], true);
+            assert_eq!(
+                meta.as_ref().unwrap()["vendor"]["credential"],
+                REDACTION_MARKER
+            );
+            match &request.messages[0].content[1] {
+                CanonicalContent::ToolResult { content, .. } => match &content[0] {
+                    CanonicalContent::Thinking { text, .. } => {
+                        assert_eq!(text, &format!("tool considered {REDACTION_MARKER}"))
+                    },
+                    other => panic!("thinking retained its canonical variant: {other:?}"),
+                },
+                _ => unreachable!(),
+            }
+        },
+        other => panic!("tool result retained its canonical variant: {other:?}"),
+    }
+    let forwarded: Value = serde_json::from_slice(&wire.bytes).unwrap();
+    assert_eq!(forwarded["metadata"]["number"], 4);
+    assert_eq!(forwarded["messages"][0]["role"], "user");
+    assert_eq!(forwarded["tools"][0]["name"], "lookup");
 }
 
 #[test]

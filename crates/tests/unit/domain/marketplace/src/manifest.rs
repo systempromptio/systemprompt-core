@@ -302,6 +302,14 @@ fn write_artifact_on_disk(root: &std::path::Path, id: &str) {
     std::fs::write(dir.join("content.html"), "<table></table>").expect("write html");
 }
 
+fn set_artifact_tool(root: &std::path::Path, id: &str, tool: &str) {
+    std::fs::write(
+        root.join("artifacts").join(id).join("config.yaml"),
+        format!("id: {id}\nname: {id}\ndescription: d\nmcp_tools:\n  - {tool}\n"),
+    )
+    .expect("write artifact tool dependency");
+}
+
 #[tokio::test]
 async fn assemble_candidate_drops_artifacts_no_plugin_selects() {
     let _guard = warn_subscriber_guard();
@@ -358,6 +366,54 @@ async fn assemble_candidate_keeps_artifacts_a_plugin_includes() {
 
     let ids: Vec<&str> = candidate.artifacts.iter().map(|a| a.id.as_str()).collect();
     assert_eq!(ids, vec!["pipeline"]);
+}
+
+#[tokio::test]
+async fn assemble_candidate_rejects_an_unknown_artifact_server_until_repaired() {
+    let _guard = warn_subscriber_guard();
+    let dir = tempfile::tempdir().expect("temp services root");
+    write_artifact_on_disk(dir.path(), "pipeline");
+    set_artifact_tool(dir.path(), "pipeline", "mcp__missing__query");
+    write_skill_on_disk(dir.path(), "owned_skill");
+    let mut config = config_with_plugins(vec![plugin_shipping_artifacts(
+        "sfdc",
+        "owned_skill",
+        &["pipeline"],
+    )]);
+
+    let error = ManifestService::assemble_candidate(
+        &AssembleRequest {
+            services: &config,
+            services_root: dir.path(),
+            filter: &AllowAllFilter,
+            user_id: &fixture_user_id(),
+            cache: &MarketplaceCache::default(),
+        },
+        "https://api.example.com",
+    )
+    .await
+    .expect_err("a manifest must not ship an artifact whose MCP server is absent");
+    let diagnostic = error.to_string();
+    assert!(diagnostic.contains("pipeline"), "{diagnostic}");
+    assert!(diagnostic.contains("missing"), "{diagnostic}");
+
+    register_artifact_mcp_server(&mut config);
+    set_artifact_tool(dir.path(), "pipeline", "mcp__x__query");
+    let repaired = ManifestService::assemble_candidate(
+        &AssembleRequest {
+            services: &config,
+            services_root: dir.path(),
+            filter: &AllowAllFilter,
+            user_id: &fixture_user_id(),
+            cache: &MarketplaceCache::default(),
+        },
+        "https://api.example.com",
+    )
+    .await
+    .expect("repairing the MCP dependency restores the artifact to the manifest");
+    assert_eq!(repaired.artifacts.len(), 1);
+    assert_eq!(repaired.artifacts[0].id.as_str(), "pipeline");
+    assert_eq!(repaired.artifacts[0].mcp_tools, ["mcp__x__query"]);
 }
 
 #[tokio::test]
@@ -813,4 +869,349 @@ async fn assemble_candidate_records_which_plugins_own_each_skill() {
             .any(|s| s.id.as_str() == "shared_skill"),
         "ownership keys are exactly the skills the manifest carries"
     );
+}
+
+#[tokio::test]
+async fn plugin_missing_explicit_agent_is_reported_without_dropping_valid_skill_content() {
+    let dir = tempfile::tempdir().expect("temp services root");
+    write_skill_on_disk(dir.path(), "retained_skill");
+    let mut plugin = plugin_shipping_artifacts("agent-ref-plugin", "retained_skill", &[]);
+    plugin.agents = include(&["absent-agent"]);
+    let config = config_with_plugins(vec![plugin]);
+
+    let candidate = ManifestService::assemble_candidate(
+        &AssembleRequest {
+            services: &config,
+            services_root: dir.path(),
+            filter: &AllowAllFilter,
+            user_id: &fixture_user_id(),
+            cache: &MarketplaceCache::default(),
+        },
+        "https://api.example.com",
+    )
+    .await
+    .expect("assemble candidate with unresolved explicit agent");
+
+    assert_eq!(
+        candidate
+            .skills
+            .iter()
+            .map(|skill| skill.id.as_str())
+            .collect::<Vec<_>>(),
+        vec!["retained_skill"],
+        "an invalid optional agent reference must not erase valid plugin skill content"
+    );
+    assert!(candidate.agents.is_empty());
+    assert_eq!(
+        candidate.diagnostics,
+        vec![
+            "plugin 'agent-ref-plugin' agents.include names 'absent-agent', which does not exist or \
+             is outside the marketplace agents scope"
+                .to_owned()
+        ]
+    );
+}
+
+#[tokio::test]
+async fn traced_manifest_scopes_mcp_servers_and_names_the_dropped_server() {
+    use systemprompt_marketplace::{ManifestTrace, TraceKind, TraceStage};
+
+    let dir = tempfile::tempdir().expect("temp services root");
+    let mut market = marketplace("market");
+    market.mcp_servers = include(&["kept-mcp"]);
+    let mut config = config_with(vec![market]);
+    config.mcp_servers.insert(
+        "kept-mcp".to_owned(),
+        enabled_deployment(Some("https://kept.example.com/mcp")),
+    );
+    config.mcp_servers.insert(
+        "dropped-mcp".to_owned(),
+        enabled_deployment(Some("https://dropped.example.com/mcp")),
+    );
+    let mut trace = ManifestTrace::default();
+
+    let candidate = ManifestService::assemble_candidate_traced(
+        &AssembleRequest {
+            services: &config,
+            services_root: dir.path(),
+            filter: &AllowAllFilter,
+            user_id: &fixture_user_id(),
+            cache: &MarketplaceCache::default(),
+        },
+        "https://api.example.com",
+        &mut trace,
+    )
+    .await
+    .expect("assemble scoped MCP candidate");
+
+    assert_eq!(
+        candidate
+            .managed_mcp_servers
+            .iter()
+            .map(|server| server.name.as_str())
+            .collect::<Vec<_>>(),
+        vec!["kept-mcp"]
+    );
+    let scoped = trace
+        .events
+        .iter()
+        .filter(|event| event.stage == TraceStage::MarketplaceScope)
+        .collect::<Vec<_>>();
+    assert_eq!(scoped.len(), 1, "unexpected trace: {:?}", trace.events);
+    assert_eq!(scoped[0].kind, TraceKind::McpServer);
+    assert_eq!(scoped[0].id, "dropped-mcp");
+    assert_eq!(
+        scoped[0].reason,
+        "not in any enabled marketplace's include list"
+    );
+}
+
+#[tokio::test]
+async fn traced_manifest_scopes_artifacts_before_plugin_selection() {
+    use systemprompt_marketplace::{ManifestTrace, TraceKind, TraceStage};
+
+    let _guard = warn_subscriber_guard();
+    let dir = tempfile::tempdir().expect("temp services root");
+    write_artifact_on_disk(dir.path(), "kept-artifact");
+    write_artifact_on_disk(dir.path(), "outside-marketplace");
+    write_skill_on_disk(dir.path(), "owned_skill");
+    let mut market = marketplace("market");
+    market.artifacts = include(&["kept-artifact"]);
+    let mut config = config_with_plugins(vec![plugin_shipping_artifacts(
+        "artifact-owner",
+        "owned_skill",
+        &["kept-artifact"],
+    )]);
+    config.marketplaces.insert(market.id.clone(), market);
+    register_artifact_mcp_server(&mut config);
+    let mut trace = ManifestTrace::default();
+
+    let candidate = ManifestService::assemble_candidate_traced(
+        &AssembleRequest {
+            services: &config,
+            services_root: dir.path(),
+            filter: &AllowAllFilter,
+            user_id: &fixture_user_id(),
+            cache: &MarketplaceCache::default(),
+        },
+        "https://api.example.com",
+        &mut trace,
+    )
+    .await
+    .expect("assemble scoped artifact candidate");
+
+    assert_eq!(
+        candidate
+            .artifacts
+            .iter()
+            .map(|artifact| artifact.id.as_str())
+            .collect::<Vec<_>>(),
+        vec!["kept-artifact"]
+    );
+    let event = trace
+        .events
+        .iter()
+        .find(|event| event.id == "outside-marketplace")
+        .unwrap_or_else(|| panic!("artifact scope event missing: {:?}", trace.events));
+    assert_eq!(event.kind, TraceKind::Artifact);
+    assert_eq!(event.stage, TraceStage::MarketplaceScope);
+    assert_eq!(
+        event.reason,
+        "not in any enabled marketplace's include list"
+    );
+}
+
+#[tokio::test]
+async fn traced_manifest_names_an_unselected_artifact_dropped_from_output() {
+    use systemprompt_marketplace::{ManifestTrace, TraceKind, TraceStage};
+
+    let _guard = warn_subscriber_guard();
+    let dir = tempfile::tempdir().expect("temp services root");
+    write_artifact_on_disk(dir.path(), "unowned-artifact");
+    let mut config = config_with(vec![]);
+    register_artifact_mcp_server(&mut config);
+    let mut trace = ManifestTrace::default();
+
+    let candidate = ManifestService::assemble_candidate_traced(
+        &AssembleRequest {
+            services: &config,
+            services_root: dir.path(),
+            filter: &AllowAllFilter,
+            user_id: &fixture_user_id(),
+            cache: &MarketplaceCache::default(),
+        },
+        "https://api.example.com",
+        &mut trace,
+    )
+    .await
+    .expect("assemble plugin-gated artifact candidate");
+
+    assert!(candidate.artifacts.is_empty());
+    let event = trace
+        .events
+        .iter()
+        .find(|event| event.id == "unowned-artifact")
+        .unwrap_or_else(|| panic!("artifact selection event missing: {:?}", trace.events));
+    assert_eq!(event.kind, TraceKind::Artifact);
+    assert_eq!(event.stage, TraceStage::PluginSelection);
+    assert_eq!(
+        event.reason,
+        "no enabled, marketplace-included plugin selects this artifact"
+    );
+}
+
+#[derive(Debug)]
+struct PluginOnlyFilter;
+
+#[async_trait::async_trait]
+impl MarketplaceFilter for PluginOnlyFilter {
+    async fn filter(
+        &self,
+        _user_id: &UserId,
+        mut candidate: MarketplaceCandidate,
+    ) -> Result<MarketplaceCandidate, MarketplaceFilterError> {
+        candidate
+            .plugins
+            .retain(|plugin| plugin.id.as_str() != "plugin-alpha");
+        Ok(candidate)
+    }
+}
+
+#[tokio::test]
+async fn traced_manifest_prunes_only_resources_orphaned_by_the_access_filter() {
+    use systemprompt_marketplace::{ManifestTrace, TraceKind, TraceStage};
+
+    let _guard = warn_subscriber_guard();
+    let dir = tempfile::tempdir().expect("temp services root");
+    write_skill_on_disk(dir.path(), "owned_skill");
+    for id in ["orphan-artifact", "shared-artifact"] {
+        write_artifact_on_disk(dir.path(), id);
+    }
+    for id in ["orphan-rule", "shared-rule"] {
+        let rule_dir = dir.path().join("rules").join(id);
+        std::fs::create_dir_all(&rule_dir).expect("create rule directory");
+        std::fs::write(
+            rule_dir.join("config.yaml"),
+            format!("id: {id}\nname: {id}\ndescription: d\nenabled: true\n"),
+        )
+        .expect("write rule config");
+        std::fs::write(rule_dir.join("index.md"), "rule instructions\n").expect("write rule");
+    }
+
+    let mut alpha = plugin_shipping_artifacts(
+        "plugin-alpha",
+        "owned_skill",
+        &["orphan-artifact", "shared-artifact"],
+    );
+    alpha.rules = include(&["orphan-rule", "shared-rule"]);
+    let mut beta = plugin_shipping_artifacts("plugin-beta", "owned_skill", &["shared-artifact"]);
+    beta.rules = include(&["shared-rule"]);
+    let mut config = config_with_plugins(vec![alpha, beta]);
+    register_artifact_mcp_server(&mut config);
+    let mut trace = ManifestTrace::default();
+
+    let candidate = ManifestService::assemble_candidate_traced(
+        &AssembleRequest {
+            services: &config,
+            services_root: dir.path(),
+            filter: &PluginOnlyFilter,
+            user_id: &fixture_user_id(),
+            cache: &MarketplaceCache::default(),
+        },
+        "https://api.example.com",
+        &mut trace,
+    )
+    .await
+    .expect("assemble filtered candidate");
+
+    assert_eq!(
+        candidate
+            .artifacts
+            .iter()
+            .map(|artifact| artifact.id.as_str())
+            .collect::<Vec<_>>(),
+        vec!["shared-artifact"],
+    );
+    assert_eq!(
+        candidate
+            .rules
+            .iter()
+            .map(|rule| rule.id.as_str())
+            .collect::<Vec<_>>(),
+        vec!["shared-rule"],
+    );
+
+    let orphaned = trace
+        .events
+        .iter()
+        .filter(|event| event.stage == TraceStage::OrphanPrune)
+        .map(|event| (event.kind, event.id.as_str()))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        orphaned,
+        vec![
+            (TraceKind::Artifact, "orphan-artifact"),
+            (TraceKind::Rule, "orphan-rule"),
+        ],
+        "only entries with no surviving plugin owner are pruned"
+    );
+}
+#[test]
+fn marketplace_agent_include_is_exact_while_empty_include_admits_the_catalogue() {
+    use systemprompt_marketplace::MarketplaceMembership;
+    use systemprompt_marketplace::catalog::load_agents;
+    use systemprompt_models::services::{
+        AgentCardConfig, AgentConfig, AgentMetadataConfig, OAuthConfig, ServicesConfig,
+    };
+
+    fn agent(name: &str) -> AgentConfig {
+        AgentConfig {
+            name: name.to_owned(),
+            port: 8080,
+            endpoint: String::new(),
+            enabled: true,
+            dev_only: false,
+            is_primary: false,
+            default: false,
+            tags: vec![],
+            card: AgentCardConfig {
+                protocol_version: "0.2.5".into(),
+                name: Some(name.to_owned()),
+                display_name: name.to_owned(),
+                description: format!("{name} agent"),
+                version: "1.0.0".into(),
+                preferred_transport: "http".into(),
+                icon_url: None,
+                documentation_url: None,
+                provider: None,
+                capabilities: Default::default(),
+                default_input_modes: vec!["text".into()],
+                default_output_modes: vec!["text".into()],
+                security_schemes: None,
+                security: None,
+                supports_authenticated_extended_card: false,
+            },
+            metadata: AgentMetadataConfig::default(),
+            oauth: OAuthConfig::default(),
+        }
+    }
+
+    let mut services = ServicesConfig::default();
+    services.agents.insert("alpha".into(), agent("alpha"));
+    services.agents.insert("beta".into(), agent("beta"));
+    let entries = load_agents(&services, "https://api.example.com");
+
+    let mut exact = marketplace("exact");
+    exact.agents = include(&["alpha"]);
+    let all = marketplace("all");
+    let configured = config_with(vec![exact, all]);
+    let membership = MarketplaceMembership::from_services(&configured, &entries, &[]);
+
+    let alpha = &membership.agents[&systemprompt_identifiers::AgentId::new("alpha")];
+    let beta = &membership.agents[&systemprompt_identifiers::AgentId::new("beta")];
+    assert_eq!(
+        alpha,
+        &BTreeSet::from([MarketplaceId::new("all"), MarketplaceId::new("exact")])
+    );
+    assert_eq!(beta, &BTreeSet::from([MarketplaceId::new("all")]));
 }

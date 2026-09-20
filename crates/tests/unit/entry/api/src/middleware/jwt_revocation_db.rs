@@ -165,3 +165,25 @@ async fn a_token_admitted_before_revocation_keeps_working_until_the_cache_ages_o
          was the cache rather than a missing row: {result:?}"
     );
 }
+
+#[tokio::test]
+async fn a_revocation_store_failure_rejects_the_token_without_disclosing_its_jti() {
+    let pool = pool().await;
+    let checker = checker(&pool);
+    pool.write_pool_arc().expect("write pool").close().await;
+    let private_jti = jti();
+
+    let result = checker.ensure_not_revoked(&private_jti).await;
+
+    let Err(ContextExtractionError::DatabaseError { message }) = result else {
+        panic!("an unavailable revocation store must fail closed, got {result:?}");
+    };
+    assert!(
+        message.contains("JTI revocation lookup failed"),
+        "{message}"
+    );
+    assert!(
+        !message.contains(&private_jti),
+        "the token identifier leaked: {message}"
+    );
+}

@@ -38,6 +38,7 @@ impl GitSourceCapture for Capture {
 }
 
 pub(super) struct Fixture {
+    pub db: systemprompt_database::DbPool,
     pub repo: ManagedRepository,
     pub owner: UserId,
     pub request: GitSyncRequest,
@@ -86,6 +87,7 @@ impl Fixture {
         });
         let service = GitSynchronizationService::new(repo.clone(), capture.clone());
         Self {
+            db,
             repo,
             owner,
             request: GitSyncRequest {

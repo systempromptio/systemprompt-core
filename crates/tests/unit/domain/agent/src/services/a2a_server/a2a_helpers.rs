@@ -63,6 +63,7 @@ pub(crate) struct StubAiProvider {
     provider: String,
     model: String,
     max_tokens: u32,
+    seen_messages: Mutex<Vec<Vec<AiMessage>>>,
 }
 
 impl std::fmt::Debug for StubAiProvider {
@@ -84,6 +85,7 @@ impl StubAiProvider {
             provider: "mock-provider".to_owned(),
             model: "mock-model".to_owned(),
             max_tokens: 4096,
+            seen_messages: Mutex::new(Vec::new()),
         }
     }
 
@@ -124,6 +126,16 @@ impl StubAiProvider {
         self
     }
 
+    pub(crate) fn with_partial_stream_failure(mut self, text: &str) -> Self {
+        self.stream_chunks.get_mut().expect("lock").push(vec![
+            Ok(StreamChunk::Text(text.to_owned())),
+            Err(AiInferenceError::Internal(
+                "stub partial stream failure".to_owned(),
+            )),
+        ]);
+        self
+    }
+
     pub(crate) fn with_stalled_stream(mut self) -> Self {
         self.stall_stream = true;
         self
@@ -150,6 +162,10 @@ impl StubAiProvider {
                 "stub response failure".to_owned(),
             )));
         self
+    }
+
+    pub(crate) fn seen_messages(&self) -> Vec<Vec<AiMessage>> {
+        self.seen_messages.lock().expect("lock").clone()
     }
 
     pub(crate) fn with_tool_result(mut self, tool_name: &str, result: CallToolResult) -> Self {
@@ -194,9 +210,13 @@ impl AiProvider for StubAiProvider {
 
     async fn generate_stream(
         &self,
-        _request: &AiRequest,
+        request: &AiRequest,
     ) -> ProviderResult<Pin<Box<dyn futures::Stream<Item = ProviderResult<StreamChunk>> + Send>>>
     {
+        self.seen_messages
+            .lock()
+            .expect("lock")
+            .push(request.messages.clone());
         if self.fail_stream {
             return Err(AiInferenceError::Internal("stub stream failure".to_owned()));
         }

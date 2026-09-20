@@ -275,6 +275,80 @@ fn coverage_manifest_plugins_are_listed_by_type_and_shown_case_insensitively() {
     );
 }
 
+const LOGOUT_CONFIRM_HELPER: &str = "session_lifecycle_flows::logout_confirmation_helper";
+
+#[tokio::test]
+#[ignore = "re-executed by logout_confirmation_preserves_sessions_and_reports_cancellation"]
+async fn logout_confirmation_helper() {
+    let user = admin().await;
+    let project = Project::new(user.as_str(), false);
+    get_or_create_session(&project.context(false))
+        .await
+        .unwrap();
+    let before = load_session_store().unwrap().len();
+
+    let mut single = project
+        .context(true)
+        .with_prompter(Box::new(systemprompt_cli::ScriptedPrompter::new(["no"])));
+    single.cli = single.cli.clone().with_assume_terminal(true);
+    println!("BEGIN_SINGLE_CANCEL");
+    let parsed = Args::try_parse_from(["session", "logout", "--profile", "coverage"]).unwrap();
+    execute(parsed.command, &single).await.unwrap();
+    println!("END_SINGLE_CANCEL");
+    assert_eq!(load_session_store().unwrap().len(), before);
+
+    let mut all = project
+        .context(true)
+        .with_prompter(Box::new(systemprompt_cli::ScriptedPrompter::new(["no"])));
+    all.cli = all.cli.clone().with_assume_terminal(true);
+    println!("BEGIN_ALL_CANCEL");
+    let parsed = Args::try_parse_from(["session", "logout", "--all"]).unwrap();
+    execute(parsed.command, &all).await.unwrap();
+    println!("END_ALL_CANCEL");
+    assert_eq!(load_session_store().unwrap().len(), before);
+
+    let parsed = Args::try_parse_from(["session", "logout", "--all"]).unwrap();
+    let error = execute(parsed.command, &project.context(false))
+        .await
+        .expect_err("non-interactive --all requires explicit confirmation");
+    println!("NONINTERACTIVE_ERROR={error:#}");
+    assert_eq!(load_session_store().unwrap().len(), before);
+}
+
+#[test]
+fn logout_confirmation_preserves_sessions_and_reports_cancellation() {
+    let output =
+        std::process::Command::new(std::env::current_exe().expect("unit-test binary path"))
+            .args(["--exact", LOGOUT_CONFIRM_HELPER, "--ignored", "--nocapture"])
+            .output()
+            .expect("re-execute logout confirmation helper");
+
+    assert!(
+        output.status.success(),
+        "logout helper failed\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8(output.stdout).expect("logout output is UTF-8");
+    for (begin, end, target) in [
+        ("BEGIN_SINGLE_CANCEL", "END_SINGLE_CANCEL", "local"),
+        ("BEGIN_ALL_CANCEL", "END_ALL_CANCEL", "all"),
+    ] {
+        let section = stdout
+            .split_once(begin)
+            .and_then(|(_, tail)| tail.split_once(end))
+            .map(|(section, _)| section)
+            .unwrap_or_else(|| panic!("missing {begin}/{end} in {stdout}"));
+        assert!(section.contains("cancelled"), "{section}");
+        assert!(section.contains("Operation cancelled"), "{section}");
+        assert!(section.contains(target), "{section}");
+    }
+    assert!(
+        stdout.contains("NONINTERACTIVE_ERROR=--yes is required in non-interactive mode for --all"),
+        "{stdout}"
+    );
+}
+
 #[test]
 fn coverage_deploy_selection_excludes_local_profiles_and_resolves_named_profiles() {
     use systemprompt_cli::ScriptedPrompter;
@@ -412,4 +486,62 @@ async fn coverage_profile_edit_persists_server_security_and_runtime_choices() {
     assert_eq!(after.security.access_token_expiration, 600);
     assert_eq!(after.security.refresh_token_expiration, 1200);
     assert_eq!(after.runtime.environment.to_string(), "staging");
+}
+#[tokio::test]
+async fn malformed_active_profile_fails_without_replacing_the_bound_session() {
+    use chrono::Duration;
+    use systemprompt_cli::paths::ResolvedPaths;
+    use systemprompt_cloud::{CliSession, SessionBinding, SessionIdentity, SessionStore};
+    use systemprompt_identifiers::{ContextId, ProfileName, SessionId, SessionToken};
+    use systemprompt_models::auth::UserType;
+
+    let project = Project::new("unused", false);
+    let malformed = project.profile.parent().unwrap().join("malformed.yaml");
+    std::fs::write(&malformed, "name: incomplete\ntarget: local\n")
+        .expect("write malformed owned profile");
+    let key = SessionKey::Local;
+    let session = CliSession::builder(
+        SessionBinding::new(
+            ProfileName::try_new("malformed").expect("valid profile name"),
+            "https://issuer.invalid".to_owned(),
+        ),
+        SessionToken::new("preserved-token"),
+        SessionId::new("preserved-session"),
+        ContextId::generate(),
+        SessionIdentity::new(
+            UserId::new("preserved-user"),
+            Email::try_new("preserved@example.invalid").expect("valid email"),
+            UserType::Admin,
+        ),
+    )
+    .with_session_key(&key)
+    .with_profile_path(&malformed)
+    .with_ttl(Duration::hours(1))
+    .build();
+    let sessions_dir = ResolvedPaths::discover().sessions_dir();
+    let mut store = SessionStore::new();
+    store.upsert_session(&key, session);
+    store.set_active_with_profile(&key, "malformed");
+    store
+        .save(&sessions_dir)
+        .expect("persist malformed-profile session");
+    let session_file = sessions_dir.join("index.json");
+    let before = std::fs::read(&session_file).expect("stored session bytes");
+    let ctx = CommandContext::new(
+        CliConfig::new().with_interactive(false),
+        EnvOverrides::default(),
+    );
+
+    let error = get_or_create_session(&ctx)
+        .await
+        .expect_err("a malformed bound profile must stop session resolution");
+    assert!(
+        format!("{error:#}").contains("Failed to load profile from stored path"),
+        "the error must identify the persisted profile boundary: {error:#}"
+    );
+    assert_eq!(
+        std::fs::read(session_file).expect("store after malformed profile"),
+        before,
+        "profile parse failure must preserve the bound session for repair"
+    );
 }
