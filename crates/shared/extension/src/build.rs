@@ -1,16 +1,10 @@
 //! Build-script support for extension crates.
 //!
-//! Extensions keep their schema migrations as
-//! `schema/migrations/NNN_<name>.sql` files. [`emit_migrations`] is called from
-//! an extension crate's `build.rs`: it discovers those files, derives each
-//! migration's version and name from the filename, and writes the body of
-//! [`Extension::migrations`](crate::Extension) to `OUT_DIR`. The extension
-//! consumes the generated body with the
-//! [`extension_migrations!`](crate::extension_migrations) macro.
-//!
-//! Because the filename is the single source of version and name, those values
-//! cannot drift from the SQL they label, and `cargo:rerun-if-changed` makes a
-//! newly added file retrigger the build.
+//! [`emit_migrations`] discovers an extension crate's
+//! `schema/migrations/NNN_<name>.sql` files and writes the body of
+//! [`Extension::migrations`](crate::Extension) to `OUT_DIR` for
+//! [`extension_migrations!`](crate::extension_migrations). Filenames define
+//! versions and names, while `cargo:rerun-if-changed` tracks additions.
 //!
 //! # Conventions
 //!
@@ -32,11 +26,8 @@
 //!   established databases still carry its tracking row. A tombstone declares
 //!   the number so it can never be refilled, and its body is prose, never SQL.
 //!
-//! Tombstones are what make `ls` the truth: a number is free only if no file
-//! claims it. Because `reject_duplicate_versions` treats a tombstoned range
-//! exactly like an occupied one, refilling a spent slot fails the **build**,
-//! long before a deployment discovers it as a checksum mismatch naming a
-//! migration nobody recognises.
+//! Tombstones make `ls` authoritative: `reject_duplicate_versions` treats their
+//! ranges as occupied, so refilling a spent slot fails the build.
 //!
 //! [`emit_migrations`] panics when invoked outside a build script, when a file
 //! in the migrations directory is not named `NNN_<name>.sql` or
@@ -245,8 +236,7 @@ fn parse_version(text: &str, prefix: &str, path: &Path) -> u32 {
 }
 
 // Why: the directive must sit in the leading comment block, before any SQL,
-// so it is read as part of the file's head and never mistaken for a comment
-// on a statement further down.
+// so it is not confused with a statement-level comment.
 fn supersedes_directive(path: &Path) -> Option<String> {
     let content = std::fs::read_to_string(path)
         .unwrap_or_else(|e| panic!("failed to read migration {}: {e}", path.display()));
