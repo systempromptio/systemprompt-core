@@ -89,7 +89,7 @@ impl CatalogSource for FakeCatalog {
         assert_eq!(scope, &CredentialScope::empty());
         Ok(CatalogListing {
             models: vec![DiscoveredModel {
-                upstream: "google/gemini-2.5-pro".to_owned(),
+                upstream: "google/gemini-3.5-flash".to_owned(),
                 launch_stage: LaunchStage::GenerallyAvailable,
                 serverless: true,
             }],
@@ -123,14 +123,14 @@ async fn a_second_catalog_source_can_be_registered() {
     )
     .await;
 
-    assert_eq!(report.discovered_priced, vec!["vertex-gemini-2.5-pro"]);
+    assert_eq!(report.discovered_priced, vec!["vertex-gemini-3.5-flash"]);
     assert_eq!(
         report.failed_publishers,
         vec!["vertex/fake: one publisher did not list"]
     );
     assert!(
         providers.providers[0]
-            .find_model("vertex-gemini-2.5-pro")
+            .find_model("vertex-gemini-3.5-flash")
             .is_some(),
         "the discovered model is appended to the registry"
     );
@@ -138,7 +138,7 @@ async fn a_second_catalog_source_can_be_registered() {
         report
             .priced_not_published
             .iter()
-            .all(|id| id != "vertex-gemini-2.5-pro"),
+            .all(|id| id != "vertex-gemini-3.5-flash"),
         "a model that listed is not also reported as unseen"
     );
 }
@@ -197,7 +197,7 @@ async fn publisher_error_and_timeout_preserve_the_last_discovered_catalog() {
     )
     .await;
     let retained = providers.providers[0]
-        .find_model("vertex-gemini-2.5-pro")
+        .find_model("vertex-gemini-3.5-flash")
         .expect("successful discovery publishes priced model")
         .clone();
 
@@ -224,7 +224,7 @@ async fn publisher_error_and_timeout_preserve_the_last_discovered_catalog() {
             assert!(failure.contains("refused catalog listing"), "{failure}");
         }
         let after = providers.providers[0]
-            .find_model("vertex-gemini-2.5-pro")
+            .find_model("vertex-gemini-3.5-flash")
             .expect("failed refresh preserves served catalog");
         assert_eq!(after.id, retained.id);
         assert_eq!(after.upstream_model, retained.upstream_model);
@@ -267,7 +267,7 @@ impl CatalogSource for MixedPolicyCatalog {
         Ok(CatalogListing {
             models: vec![
                 DiscoveredModel {
-                    upstream: "qwen/qwen3-235b-a22b-instruct-2507-maas".to_owned(),
+                    upstream: "qwen/qwen3-coder-480b-a35b-instruct-maas".to_owned(),
                     launch_stage: LaunchStage::GenerallyAvailable,
                     serverless: true,
                 },
@@ -351,7 +351,7 @@ async fn discovery_filters_the_mixed_listing_and_isolates_a_malformed_provider_c
     )
     .await;
 
-    assert_eq!(report.discovered_priced, vec!["qwen.qwen3-235b"]);
+    assert_eq!(report.discovered_priced, vec!["qwen.qwen3-coder-480b"]);
     assert_eq!(
         report.discovered_unpriced,
         vec!["qwen/unpriced-fixture-maas"]
@@ -369,7 +369,7 @@ async fn discovery_filters_the_mixed_listing_and_isolates_a_malformed_provider_c
         .collect::<std::collections::BTreeSet<_>>();
     assert_eq!(
         resulting_ids,
-        std::collections::BTreeSet::from(["configured.vertex", "qwen.qwen3-235b"])
+        std::collections::BTreeSet::from(["configured.vertex", "qwen.qwen3-coder-480b"])
     );
     assert_eq!(
         serde_json::to_value(&providers.providers[0].models[0])
