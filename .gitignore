@@ -128,6 +128,8 @@ scripts/*
 # ...and the source-gate linters run by CI (.github/workflows/quality.yml) via
 # the `just lint-*` recipes.
 !scripts/lint-schema.sh
+!scripts/lint-migration-refs.sh
+!scripts/lint-migration-refs-allow.txt
 !scripts/lint-extensions.sh
 !scripts/lint-raw-ids.sh
 !scripts/lint-authoritative-reads.sh

@@ -132,6 +132,10 @@ release BUMP="patch":
 lint-schema:
     ./scripts/lint-schema.sh crates
 
+# Reject migrations that reference objects only the declarative schema creates
+lint-migration-refs:
+    ./scripts/lint-migration-refs.sh crates
+
 # Reject inline SQL and hand-built migrations in extension.rs files
 lint-extensions:
     ./scripts/lint-extensions.sh crates
@@ -184,7 +188,7 @@ check-lockfile-registry:
 # too. `check-release-tag`, `check-crate-changelogs`, `machete` and
 # `bridge-bindings-check` are release-shaped (full history, cargo-machete, a
 # bridge build) and stay CI-only by design.
-check-gates: check-version-strings check-lockfile-registry lint-env-vars lint-native-test-deps sqlx-audit-caches lint-discarded-results lint-fail-open lint-swallowed-errors lint-tracing-messages lint-async-trait lint-json-value lint-table-ownership lint-silent-skips lint-schema lint-extensions lint-comments lint-inline-tests lint-test-seams lint-test-value lint-raw-ids lint-sqlx lint-http-errors lint-no-untyped-admin check-headers lint-layers lint-repo-construction lint-authoritative-reads lint-bridge-lints-sync lint-bridge-css-tokens lint-bridge-i18n lint-bridge-js-imports lint-bridge-no-window lint-bridge-verdicts lint-bridge-typed-warnings lint-bridge-layers lint-bridge-globals lint-bridge-file-size
+check-gates: check-version-strings check-lockfile-registry lint-env-vars lint-native-test-deps sqlx-audit-caches lint-discarded-results lint-fail-open lint-swallowed-errors lint-tracing-messages lint-async-trait lint-json-value lint-table-ownership lint-silent-skips lint-schema lint-migration-refs lint-extensions lint-comments lint-inline-tests lint-test-seams lint-test-value lint-raw-ids lint-sqlx lint-http-errors lint-no-untyped-admin check-headers lint-layers lint-repo-construction lint-authoritative-reads lint-bridge-lints-sync lint-bridge-css-tokens lint-bridge-i18n lint-bridge-js-imports lint-bridge-no-window lint-bridge-verdicts lint-bridge-typed-warnings lint-bridge-layers lint-bridge-globals lint-bridge-file-size
     cargo test --locked --manifest-path scripts/rust-contracts/Cargo.toml
 
 # Every source gate, then a workspace check

@@ -1,0 +1,7 @@
+# lint-migration-refs allowlist: <migration path>:<object> — reason.
+# Only for migrations that have already shipped and cannot be edited. A new
+# migration fixes its reference instead of landing here.
+crates/domain/marketplace/schema/migrations/002_managed_resolution.sql:reject_managed_content_update  shipped in 0.52 in the same schema file as the extension's first tables; no database has the tables without it
+crates/domain/marketplace/schema/migrations/004_consumer_evidence.sql:reject_managed_content_update  as 002
+crates/domain/marketplace/schema/migrations/005_dependency_verification.sql:reject_managed_content_update  as 002
+crates/domain/marketplace/schema/migrations/006_inventory.sql:reject_managed_content_update  as 002
