@@ -1,12 +1,4 @@
-//! Staged dispatch pipeline: `PreparedDispatch` → `GovernedDispatch` →
-//! `ScannedDispatch` → upstream send.
-//!
-//! Each stage owns the request by value and is only constructible from the
-//! previous one, so the ordering the gateway's audit trail depends on —
-//! build the exact wire payload, then govern it, then scan it, then send it —
-//! is enforced by the types rather than by call-site discipline. Governance
-//! ahead of the scanner plane also keeps first-deny-wins across both: a
-//! denied request produces exactly one audit row and one 403.
+//! Owned dispatch stages enforce prepare → govern → scan → send ordering.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
