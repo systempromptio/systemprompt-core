@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- Migration `010_reporting_capture_contract` recreated the `mcp_tool_executions` capture trigger with `EXECUTE FUNCTION sp_capture_reporting_change()`, a function only the events extension's declarative schema defines, in the dependent phase after every migration. A database that had never booted on a reporting-era core (any self-host upgrade from before 0.55) failed to start on `function sp_capture_reporting_change() does not exist`. The slot is tombstoned — the view and trigger are declarative state and re-established on every boot — and the outbox fact repair moved to `013_reporting_fact_repair`, guarded on `event_outbox.fact` existing so it also runs ahead of the events migrations.
+
 ## [0.56.0] - 2026-09-18
 
 ### Fixed

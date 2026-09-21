@@ -1,0 +1,17 @@
+Slot 010 is spent, not free.
+
+010_reporting_capture_contract.sql restored the mcp_tool_executions reporting
+capture to the versioned contract's column list and stripped the three
+off-contract keys from queued outbox facts. It recreated the capture trigger
+with EXECUTE FUNCTION sp_capture_reporting_change(), a function that only the
+events extension's declarative schema defines -- in the dependent phase, after
+every migration has run. On a database that had never booted on a
+reporting-era core the function did not exist yet, and the migration failed
+every upgrade at "function sp_capture_reporting_change() does not exist".
+
+The view and trigger are declarative state (schema/reporting_capture.sql) and
+need no migration; the outbox repair moved to 013_reporting_fact_repair.sql,
+guarded so it runs only where the facts can exist. Deployments that applied
+010 keep their tracking row; 013 is a no-op for them.
+
+Numbering continues at the highest slot ever used, never at the first gap.
