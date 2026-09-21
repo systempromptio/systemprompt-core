@@ -249,9 +249,12 @@ mod batch3_auth;
 mod batch3_profile;
 mod batch3_tenant;
 mod doctor_deploy;
+mod init_clone_lifecycle;
 mod init_cmds;
 mod login_flows;
 mod profile_cmds;
+mod status_partial_output;
+mod tenant_failure_recovery;
 mod tenant_flows;
 mod tenant_sync;
 

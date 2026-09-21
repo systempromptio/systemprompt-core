@@ -7,7 +7,12 @@
 use super::error::MdmError;
 use super::policy::{PolicyEntry, PolicyInputs, PolicyValue};
 
-const DEFAULT_INFERENCE_MODELS: &[&str] = &["claude-opus-5", "claude-sonnet-5", "claude-haiku-4-5"];
+const DEFAULT_INFERENCE_MODELS: &[&str] = &[
+    "claude-opus-5",
+    "claude-sonnet-5",
+    "claude-fable-5-1",
+    "claude-haiku-4-5-20251001",
+];
 
 pub(super) const INFERENCE_MODELS_KEY: &str = "inferenceModels";
 

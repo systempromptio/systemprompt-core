@@ -119,6 +119,7 @@ impl<'a> CanonicalBuild<'a> {
         }
         CanonicalRequest {
             model: ModelId::new(self.model),
+            cache_control: None,
             system,
             messages,
             max_tokens: self.max_output_tokens,

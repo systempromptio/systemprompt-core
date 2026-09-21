@@ -74,10 +74,8 @@ pub fn provider_health(
                 models: entry
                     .models
                     .iter()
-                    .flat_map(|m| {
-                        std::iter::once(m.id.as_str().to_owned())
-                            .chain(m.aliases.iter().map(|a| a.as_str().to_owned()))
-                    })
+                    .filter(|model| !model.hidden)
+                    .map(|model| model.id.as_str().to_owned())
                     .collect(),
                 config_issue: (!configured)
                     .then(|| format!("API key secret '{secret}' is not configured")),

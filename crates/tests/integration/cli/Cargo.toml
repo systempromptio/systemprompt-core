@@ -21,6 +21,7 @@ systemprompt-users = { workspace = true }
 systemprompt-cloud = { workspace = true }
 systemprompt-loader = { workspace = true }
 systemprompt-models = { workspace = true }
+systemprompt-oauth = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-config = { workspace = true }
 systemprompt-test-fixtures = { workspace = true }
@@ -33,5 +34,8 @@ sqlx = { workspace = true }
 uuid = { workspace = true }
 wiremock = { workspace = true }
 url = { workspace = true }
+reqwest = { workspace = true }
+nix = { version = "0.31", features = ["process", "signal"] }
+systemprompt-scheduler = { workspace = true }
 assert_cmd = "2"
 predicates = "3"

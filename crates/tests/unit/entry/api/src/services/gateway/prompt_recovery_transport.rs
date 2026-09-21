@@ -94,6 +94,7 @@ async fn recovery_sends_only_sanitized_bytes_for_every_adapter_and_transport_mod
                     request: &request,
                     upstream_model: "upstream-1",
                     model_limits: None,
+                    automatic_prompt_caching: false,
                     forward_headers: &[],
                     raw_body: None,
                 };
@@ -120,6 +121,7 @@ async fn recovery_sends_only_sanitized_bytes_for_every_adapter_and_transport_mod
                             request: &request,
                             upstream_model: "upstream-1",
                             model_limits: None,
+                            automatic_prompt_caching: false,
                             forward_headers: &[],
                             raw_body: None,
                         },

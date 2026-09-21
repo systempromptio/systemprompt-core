@@ -187,6 +187,14 @@ async fn restarting_an_unknown_agent_by_name_is_an_error_naming_the_agent() {
         err.to_string().contains("no-such-agent-anywhere"),
         "the failure must name the agent that was asked for, got {err}"
     );
+
+    let text_err = restart::execute_agent(&ctx, "no-such-agent-anywhere", &text_config())
+        .await
+        .expect_err("text output must retain target resolution failures");
+    assert!(
+        text_err.to_string().contains("no-such-agent-anywhere"),
+        "the human-output path must retain the requested name, got {text_err}"
+    );
 }
 
 #[tokio::test]
@@ -204,6 +212,13 @@ async fn restarting_an_unknown_mcp_server_by_name_is_an_error() {
         Some("no-such-mcp-server"),
         "the report must still name the server the operator asked for"
     );
+
+    let text = restart::execute_mcp(&ctx, "no-such-mcp-server", false, &text_config())
+        .await
+        .expect("text restart of an unmatched name selects no services");
+    assert_eq!(service_type(&text), "mcp");
+    assert_eq!(restarted_count(&text), 1);
+    assert!(message(&text).contains("no-such-mcp-server"));
 
     let with_build = restart::execute_mcp(&ctx, "no-such-mcp-server", true, &json_config()).await;
     assert!(

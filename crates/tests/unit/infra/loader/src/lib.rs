@@ -25,6 +25,10 @@ mod bundle_pack_extract;
 #[cfg(test)]
 mod bundle_profile;
 #[cfg(test)]
+mod bundle_provenance_configured;
+#[cfg(test)]
+mod bundle_provenance_lifecycle;
+#[cfg(test)]
 mod bundle_source_select;
 #[cfg(test)]
 mod bundle_support;

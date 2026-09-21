@@ -45,6 +45,7 @@ fn route() -> GatewayRoute {
 fn request() -> CanonicalRequest {
     CanonicalRequest {
         model: ModelId::new("m"),
+        cache_control: None,
         system: Vec::new(),
         messages: vec![CanonicalMessage {
             role: Role::User,
@@ -96,6 +97,7 @@ async fn send_once(endpoint: &str) -> anyhow::Result<OutboundOutcome> {
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
+        automatic_prompt_caching: false,
         forward_headers: &[],
         raw_body: None,
     };

@@ -147,3 +147,58 @@ async fn late_resource_correction_preserves_authenticated_identity() {
         1
     );
 }
+
+#[tokio::test]
+async fn background_worker_applies_committed_change_and_stops_on_shutdown() {
+    let f = Fixture::new().await;
+    let change = invocation("background-worker", 1);
+    f.repository
+        .submit(&f.owner, &change)
+        .await
+        .expect("submit committed change");
+
+    let service = FactsProcessingService::new(f.repository.clone());
+    let owner = f.owner.clone();
+    let worker = AnalyticsWorkerId::generate();
+    let (shutdown_tx, shutdown_rx) = tokio::sync::watch::channel(false);
+    let worker_task = tokio::spawn(async move { service.run(&owner, &worker, shutdown_rx).await });
+
+    tokio::time::timeout(std::time::Duration::from_secs(5), async {
+        loop {
+            if f.repository
+                .get_fact(&f.owner, &change.key)
+                .await
+                .expect("read processed fact")
+                .is_some()
+            {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(25)).await;
+        }
+    })
+    .await
+    .expect("background worker must process the committed queue");
+
+    shutdown_tx.send(true).expect("worker still owns receiver");
+    tokio::time::timeout(std::time::Duration::from_secs(2), worker_task)
+        .await
+        .expect("shutdown must stop worker promptly")
+        .expect("worker task must not panic")
+        .expect("worker must exit cleanly");
+
+    let fact = f
+        .repository
+        .get_fact(&f.owner, &change.key)
+        .await
+        .expect("read durable fact")
+        .expect("background worker persisted fact");
+    assert_eq!(fact.revision, 1);
+    assert_eq!(
+        f.repository
+            .health(&f.owner)
+            .await
+            .expect("health")
+            .generation,
+        1
+    );
+}

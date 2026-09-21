@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.58.0] - 2026-09-21
+
+### Added
+
+- Routine pre-pass: every extension's declarative `CREATE OR REPLACE FUNCTION` is applied (with `check_function_bodies = off`) after the structural phase and before any migration runs, so a migration may reference a function only a declarative schema defines. The dependent phase re-issues each routine with bodies checked against the migrated schema. A declarative `CREATE FUNCTION` without `OR REPLACE` is refused at prepare time. A function that already exists with another signature (`42P13`) is left untouched by the pre-pass — the migration that reshapes it runs next, and the dependent phase fails if none did.
+- The cross-extension ALTER check counts a table an earlier migration of the same extension created as the extension's own, so a chain that creates, alters and later drops a table replays on a database older than all three (web 074/077/085 refused at 077 on a 0.52 database).
+- Verified checksum transition honours `Migration::supersedes`: a tracking row holding the superseded checksum is moved to the current one without running SQL, and `verify_checksum` accepts either.
+- `check_migration_references`: before any database write, a migration that names a trigger or view only a declarative schema file creates — `ALTER TABLE … ENABLE/DISABLE TRIGGER`, `DROP TRIGGER`/`DROP VIEW` without `IF EXISTS`, or a query over the view — fails with `LoaderError::MigrationReferencesDeclarativeObject`. `DO $$ … $$` bodies are not scanned, which makes a catalog-guarded reference inside one the sanctioned form. Replaces the `lint-migration-refs` shell gate. Two shipped migrations (mcp 010, marketplace 012) had this shape and broke self-host upgrades from a database that had never booted on the schema defining the object.
+
 ## [0.56.0] - 2026-09-18
 
 ### Added

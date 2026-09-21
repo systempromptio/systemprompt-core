@@ -74,6 +74,40 @@ async fn wait_for_port_available_held_port_times_out() {
 }
 
 #[tokio::test]
+async fn wait_for_port_available_observes_release_during_the_poll_window() {
+    let service = PortService::new();
+    let (listener, port) = held_port().await;
+    let release = tokio::spawn(async move {
+        tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+        drop(listener);
+    });
+
+    service
+        .wait_for_port_available(port, 2)
+        .await
+        .expect("the released port must become available before timeout");
+    release.await.expect("release task");
+
+    let rebound = TcpListener::bind(("127.0.0.1", port))
+        .await
+        .expect("successful wait means the port is bindable");
+    drop(rebound);
+}
+
+#[tokio::test]
+async fn wait_for_port_available_timeout_names_port_and_deadline() {
+    let service = PortService::new();
+    let (listener, port) = held_port().await;
+    let err = service
+        .wait_for_port_available(port, 1)
+        .await
+        .expect_err("timeout");
+    assert!(err.to_string().contains(&format!("Port {port}")));
+    assert!(err.to_string().contains("within 1 seconds"));
+    drop(listener);
+}
+
+#[tokio::test]
 async fn cleanup_agent_ports_skips_free_and_fails_on_held() {
     let service = PortService::new();
 

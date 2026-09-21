@@ -14,6 +14,18 @@ use systemprompt_traits::{
 use systemprompt_users::SessionRepository;
 use uuid::Uuid;
 
+type PersistedSessionRow = (
+    String,
+    Option<String>,
+    String,
+    bool,
+    bool,
+    Option<String>,
+    Option<String>,
+    Option<String>,
+    chrono::DateTime<Utc>,
+);
+
 fn unique_session_id() -> SessionId {
     SessionId::new(format!("sess-prov-{}", Uuid::new_v4()))
 }
@@ -61,6 +73,116 @@ async fn seed(pool: &DbPool, session_id: &SessionId, fingerprint: &str) {
 
 mod analytics_provider {
     use super::*;
+
+    #[tokio::test]
+    async fn authenticated_mcp_session_preserves_classification_and_analytics() {
+        let database =
+            systemprompt_test_fixtures::DisposableDb::installed("classified_session_roundtrip")
+                .await
+                .expect("private users database");
+        let pool = database.pool().await.expect("users pool");
+        let raw = pool.write_pool_arc().expect("write pool");
+        let owner = UserId::new(format!("owner-{}", Uuid::new_v4().simple()));
+        systemprompt_test_fixtures::seed_user_row(
+            &pool,
+            &owner,
+            &format!("owner-{}@session.invalid", Uuid::new_v4().simple()),
+        )
+        .await
+        .expect("seed session owner");
+        let repository = SessionRepository::new(&pool).expect("session repository");
+        let authenticated = unique_session_id();
+        let anonymous = unique_session_id();
+        let authenticated_expiry = chrono::TimeZone::timestamp_opt(&Utc, 1_900_000_000, 0)
+            .single()
+            .expect("fixed authenticated expiry");
+        let anonymous_expiry = chrono::TimeZone::timestamp_opt(&Utc, 1_900_003_600, 0)
+            .single()
+            .expect("fixed anonymous expiry");
+        let authenticated_analytics = TraitSessionAnalytics {
+            fingerprint_hash: Some("authenticated-fingerprint".to_owned()),
+            user_agent: Some("classified-mcp-agent".to_owned()),
+            preferred_locale: Some("en-GB".to_owned()),
+            ..TraitSessionAnalytics::default()
+        };
+        let anonymous_analytics = TraitSessionAnalytics {
+            fingerprint_hash: Some("anonymous-fingerprint".to_owned()),
+            user_agent: Some("anonymous-web-agent".to_owned()),
+            ..TraitSessionAnalytics::default()
+        };
+
+        SessionProvider::create_session(
+            &repository,
+            CreateSessionInput::new(
+                &authenticated,
+                &authenticated_analytics,
+                SessionSource::Mcp,
+                authenticated_expiry,
+            )
+            .with_user_id(&owner)
+            .with_classification(true, true),
+        )
+        .await
+        .expect("authenticated MCP session");
+        SessionProvider::create_session(
+            &repository,
+            CreateSessionInput::new(
+                &anonymous,
+                &anonymous_analytics,
+                SessionSource::Web,
+                anonymous_expiry,
+            ),
+        )
+        .await
+        .expect("anonymous default session");
+
+        let rows: Vec<PersistedSessionRow> = sqlx::query_as(
+            "SELECT session_id, user_id, session_source, is_bot, is_ai_crawler, \
+             fingerprint_hash, user_agent, preferred_locale, expires_at FROM user_sessions \
+             WHERE session_id = ANY($1) ORDER BY session_id",
+        )
+        .bind(vec![authenticated.to_string(), anonymous.to_string()])
+        .fetch_all(raw.as_ref())
+        .await
+        .expect("persisted sessions");
+        assert_eq!(rows.len(), 2);
+        let classified = rows
+            .iter()
+            .find(|row| row.0 == authenticated.as_str())
+            .unwrap();
+        assert_eq!(classified.1.as_deref(), Some(owner.as_str()));
+        assert_eq!(classified.2, "mcp");
+        assert!(classified.3);
+        assert!(classified.4);
+        assert_eq!(classified.5.as_deref(), Some("authenticated-fingerprint"));
+        assert_eq!(classified.6.as_deref(), Some("classified-mcp-agent"));
+        assert_eq!(classified.7.as_deref(), Some("en-GB"));
+        assert_eq!(classified.8, authenticated_expiry);
+        let defaulted = rows.iter().find(|row| row.0 == anonymous.as_str()).unwrap();
+        assert!(
+            defaulted.1.is_none(),
+            "owner must not bleed into anonymous session"
+        );
+        assert_eq!(defaulted.2, "web");
+        assert!(
+            !defaulted.3,
+            "bot classification must not bleed between sessions"
+        );
+        assert!(
+            !defaulted.4,
+            "crawler classification must not bleed between sessions"
+        );
+        assert_eq!(defaulted.5.as_deref(), Some("anonymous-fingerprint"));
+        assert_eq!(defaulted.6.as_deref(), Some("anonymous-web-agent"));
+        assert!(defaulted.7.is_none());
+        assert_eq!(defaulted.8, anonymous_expiry);
+
+        raw.close().await;
+        drop(raw);
+        drop(repository);
+        drop(pool);
+        database.drop_now().await;
+    }
 
     #[tokio::test]
     async fn create_and_find_session_by_id_translates_row() {

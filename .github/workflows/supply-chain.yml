@@ -24,11 +24,11 @@ jobs:
     name: cargo deny
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.ref }}
       - run: rustup show
-      - uses: extractions/setup-just@v2
+      - uses: extractions/setup-just@v4
       - uses: taiki-e/install-action@v2
         with:
           tool: cargo-deny
@@ -38,11 +38,11 @@ jobs:
     name: cargo audit
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.ref }}
       - run: rustup show
-      - uses: extractions/setup-just@v2
+      - uses: extractions/setup-just@v4
       - uses: taiki-e/install-action@v2
         with:
           tool: cargo-audit

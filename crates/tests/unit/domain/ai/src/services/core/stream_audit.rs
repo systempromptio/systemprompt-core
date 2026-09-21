@@ -22,8 +22,113 @@ const MODEL: &str = "claude-sonnet-4-6";
 // A well-formed stream carrying both a text delta and a usage report.
 const COMPLETE_SSE: &str = "data: {\"type\":\"message_start\",\"message\":{\"id\":\"x\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude\",\"content\":[],\"stop_reason\":null,\"stop_sequence\":null,\"usage\":{\"input_tokens\":7,\"output_tokens\":1}}}\n\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"streamed body\"}}\n\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"},\"usage\":{\"output_tokens\":19}}\n\n";
 
-// Starts cleanly, then emits a frame the parser cannot decode.
-const BROKEN_SSE: &str = "data: {\"type\":\"message_start\",\"message\":{\"id\":\"x\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude\",\"content\":[],\"stop_reason\":null,\"stop_sequence\":null,\"usage\":{\"input_tokens\":3,\"output_tokens\":1}}}\n\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"partial\"}}\n\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\n\n";
+const TRUNCATED_SSE: &str = "data: {\"type\":\"message_start\",\"message\":{\"id\":\"x\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude\",\"content\":[],\"stop_reason\":null,\"stop_sequence\":null,\"usage\":{\"input_tokens\":3,\"output_tokens\":1}}}\n\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"partial\"}}\n\n";
+
+struct OwnedSseServer(Option<tokio::task::JoinHandle<()>>);
+
+impl OwnedSseServer {
+    async fn wait(&mut self) {
+        let task = self.0.as_mut().expect("owned provider task");
+        tokio::time::timeout(Duration::from_secs(10), task)
+            .await
+            .expect("owned provider finishes within timeout")
+            .expect("owned provider task succeeds");
+        self.0.take();
+    }
+}
+
+impl Drop for OwnedSseServer {
+    fn drop(&mut self) {
+        if let Some(task) = self.0.take() {
+            task.abort();
+        }
+    }
+}
+
+async fn truncated_sse_server() -> (String, OwnedSseServer) {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+    let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0))
+        .await
+        .expect("bind owned truncated-SSE server");
+    let address = listener.local_addr().expect("owned server address");
+    let task = tokio::spawn(async move {
+        let (mut socket, _) = tokio::time::timeout(Duration::from_secs(10), listener.accept())
+            .await
+            .expect("provider request arrives")
+            .expect("accept provider request");
+        let mut request = Vec::new();
+        let header_end = tokio::time::timeout(Duration::from_secs(10), async {
+            loop {
+                let mut chunk = [0_u8; 4096];
+                let read = socket
+                    .read(&mut chunk)
+                    .await
+                    .expect("read provider request");
+                assert!(read > 0, "provider closed before sending request headers");
+                request.extend_from_slice(&chunk[..read]);
+                if let Some(end) = request.windows(4).position(|part| part == b"\r\n\r\n") {
+                    assert!(
+                        end + 4 <= 64 * 1024,
+                        "provider request headers exceed 64 KiB"
+                    );
+                    break end + 4;
+                }
+                assert!(
+                    request.len() <= 64 * 1024,
+                    "provider request headers exceed 64 KiB"
+                );
+            }
+        })
+        .await
+        .expect("provider headers arrive within timeout");
+        let headers = String::from_utf8_lossy(&request[..header_end]);
+        let content_length = headers
+            .lines()
+            .find_map(|line| {
+                let (name, value) = line.split_once(':')?;
+                name.eq_ignore_ascii_case("content-length").then(|| {
+                    value
+                        .trim()
+                        .parse::<usize>()
+                        .expect("numeric content length")
+                })
+            })
+            .expect("provider request declares content length");
+        tokio::time::timeout(Duration::from_secs(10), async {
+            while request.len() < header_end + content_length {
+                let mut chunk = [0_u8; 4096];
+                let read = socket.read(&mut chunk).await.expect("read provider body");
+                assert!(read > 0, "provider closed before sending full request body");
+                request.extend_from_slice(&chunk[..read]);
+            }
+        })
+        .await
+        .expect("provider body arrives within timeout");
+        assert!(
+            String::from_utf8_lossy(&request).starts_with("POST "),
+            "AI provider request uses POST"
+        );
+        let declared = TRUNCATED_SSE.len() + 128;
+        let headers = format!(
+            "HTTP/1.1 200 OK\r\ncontent-type: text/event-stream\r\ncontent-length: {declared}\r\nconnection: close\r\n\r\n"
+        );
+        tokio::time::timeout(Duration::from_secs(10), async {
+            socket
+                .write_all(headers.as_bytes())
+                .await
+                .expect("write response headers");
+            socket
+                .write_all(TRUNCATED_SSE.as_bytes())
+                .await
+                .expect("write partial SSE frames");
+            socket.shutdown().await.expect("truncate response body");
+        })
+        .await
+        .expect("provider response writes within timeout");
+    });
+    (format!("http://{address}"), OwnedSseServer(Some(task)))
+}
 
 fn request(context: systemprompt_models::RequestContext) -> AiRequest {
     AiRequest::builder(
@@ -107,45 +212,88 @@ async fn a_completed_stream_audits_once_with_the_accumulated_text_and_usage() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn a_stream_that_errors_midway_audits_the_failure_not_a_completion() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
-    let server = mock_http::anthropic_messages_stream(BROKEN_SSE).await;
-    let svc = service(&pool, ANTHROPIC, server.uri());
+async fn a_truncated_stream_surfaces_the_error_and_persists_failed_zero_cost_usage() {
+    let pool = pool_or_skip()
+        .await
+        .expect("AI stream audit database fixture");
+    let (endpoint, mut provider) = truncated_sse_server().await;
+    let svc = service(&pool, ANTHROPIC, endpoint);
     let (user, context) = seeded_context(&pool).await;
 
     let mut stream = svc
         .generate_stream(&request(context))
         .await
-        .expect("the stream opens before it breaks");
+        .expect("the stream opens before the provider truncates it");
 
-    let mut saw_error = false;
     let mut text = String::new();
-    while let Some(item) = stream.next().await {
-        match item {
-            Ok(StreamChunk::Text(t)) => text.push_str(&t),
-            Ok(StreamChunk::Usage { .. }) => {},
-            Err(_) => {
-                saw_error = true;
-                break;
-            },
+    let error = tokio::time::timeout(Duration::from_secs(10), async {
+        loop {
+            match stream.next().await {
+                Some(Ok(StreamChunk::Text(delta))) => text.push_str(&delta),
+                Some(Ok(StreamChunk::Usage { .. })) => {
+                    panic!("usage is absorbed by the audit wrapper")
+                },
+                Some(Err(error)) => break error,
+                None => panic!("a short content-length body must not complete successfully"),
+            }
         }
-    }
+    })
+    .await
+    .expect("provider truncation reaches the stream consumer");
+    assert_eq!(text, "partial");
+    let diagnosis = error.to_string();
+    assert!(
+        diagnosis.contains("Stream error:") && diagnosis.contains("body"),
+        "transport truncation retains the response-body diagnosis: {diagnosis}"
+    );
+    drop(stream);
+    provider.wait().await;
+    svc.audit_tasks().close();
+    tokio::time::timeout(Duration::from_secs(10), svc.audit_tasks().wait())
+        .await
+        .expect("stream audit tasks drain within timeout");
 
-    if saw_error {
-        assert_eq!(
-            wait_for_audit(&pool, &user, "failed").await,
-            1,
-            "a stream that breaks partway must audit the failure"
-        );
-    } else {
-        assert_eq!(
-            wait_for_audit(&pool, &user, "completed").await,
-            1,
-            "a stream the parser tolerated must still audit exactly once"
-        );
-    }
+    let row = sqlx::query_as::<
+        _,
+        (
+            String,
+            Option<String>,
+            Option<i32>,
+            Option<i32>,
+            Option<i32>,
+            i64,
+            bool,
+        ),
+    >(
+        "SELECT status,error_message,input_tokens,output_tokens,tokens_used,cost_microdollars,is_streaming \
+         FROM ai_requests WHERE user_id=$1",
+    )
+    .bind(user.as_str())
+    .fetch_one(pool.pool_arc().expect("read pool").as_ref())
+    .await
+    .expect("failed stream audit row");
+    assert_eq!(row.0, "failed");
+    assert_eq!(row.1.as_deref(), Some(diagnosis.as_str()));
+    assert_eq!(
+        (row.2, row.3, row.4),
+        (None, None, None),
+        "usage remains unknown because truncation occurred before Anthropic emitted its canonical usage chunk"
+    );
+    assert_eq!(row.5, 0, "provider stream errors record zero cost");
+    assert!(row.6);
+
+    let assistant_messages: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM ai_request_messages m JOIN ai_requests r ON r.id=m.request_id \
+         WHERE r.user_id=$1 AND m.role='assistant'",
+    )
+    .bind(user.as_str())
+    .fetch_one(pool.pool_arc().expect("read pool").as_ref())
+    .await
+    .expect("count assistant messages");
+    assert_eq!(
+        assistant_messages, 0,
+        "partial output reaches the consumer but is not fabricated as a completed assistant turn"
+    );
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

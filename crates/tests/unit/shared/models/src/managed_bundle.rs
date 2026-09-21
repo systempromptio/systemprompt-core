@@ -2,8 +2,8 @@ use std::collections::BTreeMap;
 
 use systemprompt_identifiers::{ResourceRevisionId, SourceSnapshotId};
 use systemprompt_models::managed::{
-    ASSEMBLER_VERSION, AssetDigest, AssetFile, RevisionBundle, RevisionBundleError, RevisionFiles,
-    RevisionManifest,
+    ASSEMBLER_VERSION, AssetDigest, AssetFile, DependencyRef, FileEntry, RevisionBundle,
+    RevisionBundleError, RevisionFiles, RevisionManifest,
 };
 
 fn bundle() -> RevisionBundle {
@@ -149,4 +149,251 @@ fn same_content_requires_identical_paths_bytes_and_executable_bits() {
         !RevisionFiles::default().same_content(&retained),
         "an empty import never matches a retained revision"
     );
+}
+
+#[test]
+fn orphan_asset_is_rejected_by_verify_and_every_canonical_export() {
+    let mut candidate = bundle();
+    candidate
+        .assets
+        .insert(AssetDigest::of(b"unreferenced"), b"unreferenced".to_vec());
+
+    assert!(matches!(
+        candidate.verify(),
+        Err(RevisionBundleError::Integrity)
+    ));
+    assert!(matches!(
+        candidate.canonical_bytes(),
+        Err(RevisionBundleError::Integrity)
+    ));
+    assert!(matches!(
+        candidate.digest(),
+        Err(RevisionBundleError::Integrity)
+    ));
+
+    candidate.assets.remove(&AssetDigest::of(b"unreferenced"));
+    candidate
+        .verify()
+        .expect("removing the orphan repairs the bundle");
+}
+
+#[test]
+fn disconnected_revision_is_rejected_even_when_its_manifest_and_assets_are_valid() {
+    let mut candidate = bundle();
+    let disconnected = ResourceRevisionId::new("revision-disconnected");
+    let valid_manifest = candidate
+        .revisions
+        .get(&candidate.root)
+        .expect("root manifest")
+        .clone();
+    candidate
+        .revisions
+        .insert(disconnected.clone(), valid_manifest);
+
+    assert!(matches!(
+        candidate.verify(),
+        Err(RevisionBundleError::Integrity)
+    ));
+    assert!(matches!(
+        candidate.revision_files(&disconnected),
+        Err(RevisionBundleError::Integrity)
+    ));
+}
+
+#[test]
+fn dependency_digest_mismatch_rejects_the_whole_closure_before_files_are_exposed() {
+    let mut candidate = bundle();
+    let dependency_id = ResourceRevisionId::new("revision-dependency");
+    let dependency = candidate
+        .revisions
+        .get(&candidate.root)
+        .expect("root manifest")
+        .clone();
+    candidate
+        .revisions
+        .insert(dependency_id.clone(), dependency);
+    candidate
+        .revisions
+        .get_mut(&candidate.root)
+        .expect("root manifest")
+        .dependencies
+        .insert(
+            "required-skill".to_owned(),
+            DependencyRef {
+                revision_id: dependency_id,
+                digest: AssetDigest::of(b"forged dependency manifest"),
+            },
+        );
+
+    assert!(matches!(
+        candidate.verify(),
+        Err(RevisionBundleError::Integrity)
+    ));
+    assert!(matches!(
+        candidate.revision_files(&candidate.root),
+        Err(RevisionBundleError::Integrity)
+    ));
+
+    let dependency_digest = candidate.revisions[&ResourceRevisionId::new("revision-dependency")]
+        .digest()
+        .expect("dependency manifest digest");
+    candidate
+        .revisions
+        .get_mut(&candidate.root)
+        .expect("root manifest")
+        .dependencies
+        .get_mut("required-skill")
+        .expect("dependency edge")
+        .digest = dependency_digest;
+    candidate
+        .verify()
+        .expect("restoring the exact dependency digest repairs the closure");
+    let root_files = candidate
+        .revision_files(&candidate.root)
+        .expect("verified root files");
+    assert_eq!(root_files.0["SKILL.md"].bytes, b"# skill");
+}
+
+#[test]
+fn unsupported_revision_schema_is_rejected_until_the_manifest_is_repaired() {
+    let mut candidate = bundle();
+    candidate
+        .revisions
+        .get_mut(&candidate.root)
+        .expect("root manifest")
+        .schema_version = 2;
+
+    let error = candidate
+        .verify()
+        .expect_err("unknown revision schema must fail closed");
+    assert!(
+        matches!(&error, RevisionBundleError::Invalid(message) if message.contains("Unsupported revision manifest")),
+        "{error}"
+    );
+
+    candidate
+        .revisions
+        .get_mut(&candidate.root)
+        .expect("root manifest")
+        .schema_version = 1;
+    candidate.verify().expect("supported schema repairs bundle");
+}
+
+#[test]
+fn bundle_rejects_the_two_hundred_fifty_seventh_file_before_exposing_any_files() {
+    let mut candidate = bundle();
+    let template = candidate.revisions[&candidate.root].files["SKILL.md"].clone();
+    let root = candidate
+        .revisions
+        .get_mut(&candidate.root)
+        .expect("root manifest");
+    for index in 0..256 {
+        root.files
+            .insert(format!("generated/{index:03}.txt"), template.clone());
+    }
+
+    let error = candidate
+        .verify()
+        .expect_err("257 expanded files exceed the closure bound");
+    assert!(
+        matches!(&error, RevisionBundleError::Invalid(message) if message.contains("Bundle exceeds 256 files")),
+        "{error}"
+    );
+    assert!(candidate.revision_files(&candidate.root).is_err());
+
+    candidate
+        .revisions
+        .get_mut(&candidate.root)
+        .expect("root manifest")
+        .files
+        .remove("generated/255.txt");
+    candidate.verify().expect("exactly 256 files are accepted");
+    assert_eq!(
+        candidate
+            .revision_files(&candidate.root)
+            .expect("bounded files are exposed")
+            .0
+            .len(),
+        256
+    );
+}
+
+#[test]
+fn expanded_content_counts_repeated_assets_per_path_and_enforces_the_eight_mib_bound() {
+    let mut candidate = bundle();
+    let repeated = vec![b'x'; 1024 * 1024];
+    let repeated_digest = AssetDigest::of(&repeated);
+    candidate.assets.clear();
+    candidate.assets.insert(repeated_digest.clone(), repeated);
+    let root = candidate
+        .revisions
+        .get_mut(&candidate.root)
+        .expect("root manifest");
+    root.files.clear();
+    let repeated_entry = FileEntry {
+        digest: repeated_digest,
+        bytes: (1024 * 1024) as u64,
+        media_type: "application/octet-stream".to_owned(),
+        executable: false,
+    };
+    for index in 0..8 {
+        root.files
+            .insert(format!("payload/{index}.bin"), repeated_entry.clone());
+    }
+
+    candidate
+        .verify()
+        .expect("eight references to a shared 1 MiB asset are exactly 8 MiB expanded");
+    assert_eq!(
+        candidate.assets.values().map(Vec::len).sum::<usize>(),
+        1024 * 1024
+    );
+    assert_eq!(
+        candidate
+            .revision_files(&candidate.root)
+            .expect("bounded expanded files")
+            .0
+            .values()
+            .map(|file| file.bytes.len())
+            .sum::<usize>(),
+        8 * 1024 * 1024
+    );
+
+    let one_byte = vec![b'!'];
+    let one_byte_digest = AssetDigest::of(&one_byte);
+    candidate.assets.insert(one_byte_digest.clone(), one_byte);
+    candidate
+        .revisions
+        .get_mut(&candidate.root)
+        .expect("root manifest")
+        .files
+        .insert(
+            "payload/overflow.bin".to_owned(),
+            FileEntry {
+                digest: one_byte_digest.clone(),
+                bytes: 1,
+                media_type: "application/octet-stream".to_owned(),
+                executable: false,
+            },
+        );
+
+    let error = candidate
+        .verify()
+        .expect_err("8 MiB plus one expanded byte must be rejected");
+    assert!(
+        matches!(&error, RevisionBundleError::Invalid(message) if message.contains("Bundle exceeds 8 MiB expanded content")),
+        "{error}"
+    );
+    assert!(candidate.revision_files(&candidate.root).is_err());
+
+    candidate
+        .revisions
+        .get_mut(&candidate.root)
+        .expect("root manifest")
+        .files
+        .remove("payload/overflow.bin");
+    candidate.assets.remove(&one_byte_digest);
+    candidate
+        .verify()
+        .expect("removing the extra expanded byte restores the exact limit");
 }

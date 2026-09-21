@@ -34,6 +34,7 @@ rand = { workspace = true }
 sqlx = { workspace = true }
 url = { workspace = true }
 chrono = { workspace = true }
+inventory = { workspace = true }
 
 [dev-dependencies]
 systemprompt-agent = { workspace = true }
@@ -54,4 +55,8 @@ wiremock = { workspace = true }
 uuid = { workspace = true }
 
 [package.metadata.cargo-machete]
-ignored = ["thiserror"]
+ignored = ["inventory", "thiserror"]
+
+[[test]]
+name = "plugin_validation_inventory"
+path = "tests/plugin_validation_inventory.rs"

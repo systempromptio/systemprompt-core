@@ -1491,3 +1491,567 @@ fn an_ipv6_loopback_mcp_url_is_also_rehomed_onto_the_gateway() {
     }
     let _ = (&server, &pat_dir);
 }
+
+#[test]
+fn cancelled_run_once_leaves_no_promoted_plugin_and_a_following_run_recovers_cleanly() {
+    let manifest = manifest_of(
+        vec![plugin(
+            "acme-plugin",
+            vec![(".claude-plugin/plugin.json", PLUGIN_FILE_BODY)],
+        )],
+        vec![],
+    );
+    let fixture = serve_plugins(
+        &manifest,
+        &[(
+            "acme-plugin",
+            ".claude-plugin/plugin.json",
+            PLUGIN_FILE_BODY,
+        )],
+        "pat-cancel-recover",
+    );
+    let recovered = with_sandbox(&fixture.dirs, || {
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        let cancelled_options = SyncOptions {
+            allow_unsigned: true,
+            force_replay: true,
+            allow_tofu: true,
+            ..SyncOptions::default()
+        };
+        cancelled_options.cancel.cancel();
+        let cancelled = runtime.block_on(run_once(&bridge(), &cancelled_options));
+        assert!(matches!(
+            cancelled,
+            Err(systemprompt_bridge::sync::SyncError::Cancelled { applied: 0 })
+        ));
+        assert!(
+            !fixture.dirs.org_plugins.join("acme-plugin").exists(),
+            "a cancelled staging pass must not promote a partial plugin"
+        );
+        let recovered = runtime.block_on(run_once(
+            &bridge(),
+            &SyncOptions {
+                allow_unsigned: true,
+                force_replay: true,
+                allow_tofu: true,
+                ..SyncOptions::default()
+            },
+        ));
+        let summary = recovered
+            .as_ref()
+            .expect("a run after cancellation applies the complete plugin");
+        assert_eq!(summary.installed, vec!["acme-plugin".to_owned()]);
+        let recovered_manifest: serde_json::Value = serde_json::from_slice(
+            &fs::read(
+                fixture
+                    .dirs
+                    .org_plugins
+                    .join("acme-plugin/.claude-plugin/plugin.json"),
+            )
+            .expect("the recovered plugin manifest is present"),
+        )
+        .expect("the recovered plugin manifest is JSON");
+        assert_eq!(recovered_manifest["name"], "acme-plugin");
+        assert_eq!(recovered_manifest["version"], "1.0.0");
+        assert_eq!(recovered_manifest["hooks"], "./hooks/hooks.json");
+        assert_eq!(recovered_manifest["installationPreference"], "required");
+        assert!(
+            !fixture
+                .dirs
+                .metadata
+                .parent()
+                .expect("metadata has a bridge state directory")
+                .join("staging")
+                .exists(),
+            "the apply transaction removes its staging area after recovery"
+        );
+        recovered.map_err(|error| error.to_string())
+    })
+    .expect("the recovered sync succeeds");
+
+    assert_eq!(recovered.installed, vec!["acme-plugin".to_owned()]);
+}
+
+async fn mount_profile_with_models(
+    server: &MockServer,
+    models: &[&str],
+    default_model: Option<&str>,
+) {
+    Mock::given(method("GET"))
+        .and(path("/v1/bridge/profile"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "inference_gateway_base_url": server.uri(),
+            "auth_scheme": "bearer",
+            "models": models,
+            "default_model": default_model,
+            "providers": [{
+                "name": "google",
+                "surface": "gemini",
+                "configured": true,
+                "models": models
+            }]
+        })))
+        .mount(server)
+        .await;
+}
+
+async fn remount_settings_gateway(
+    server: &MockServer,
+    manifest: &SignedManifest,
+    models: &[&str],
+    default_model: Option<&str>,
+) {
+    server.reset().await;
+    mount_profile_with_models(server, models, default_model).await;
+    pat_mock().mount(server).await;
+    Mock::given(method("GET"))
+        .and(path("/v1/bridge/manifest"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(manifest_json(manifest)))
+        .mount(server)
+        .await;
+}
+
+#[test]
+fn model_picker_owned_rows_survive_restart_and_withdraw_without_touching_foreign_rows() {
+    let rt = setup_runtime();
+    let manifest = manifest_with(vec![], vec![]);
+    let (server, dirs, pat_dir) = rt.block_on(async {
+        let server = MockServer::start().await;
+        remount_settings_gateway(&server, &manifest, &["gemini-old", "claude-sonnet"], None).await;
+        let pat_dir = fresh_dir("picker-owned-lifecycle");
+        let pat_file = pat_dir.join("pat.txt");
+        fs::write(&pat_file, "sp-live-test-pat").unwrap();
+        let dirs = sandbox(&server.uri(), &pat_file, None);
+        (server, dirs, pat_dir)
+    });
+    let settings = PathBuf::from(dirs.home.clone()).join(".claude/settings.json");
+    with_sandbox(&dirs, || {
+        assert_eq!(
+            systemprompt_bridge::install::mdm::claude_code_settings::managed_settings_path(),
+            Some(settings.clone()),
+            "the fixture must never write Claude Code machine policy"
+        );
+        fs::create_dir_all(settings.parent().unwrap()).unwrap();
+        fs::write(
+            &settings,
+            serde_json::to_vec_pretty(&serde_json::json!({
+                "apiKeyHelper": "foreign-helper",
+                "modelPicker": {
+                    "mode": "compact",
+                    "options": [{"model": "local-foreign", "label": "Local foreign"}]
+                }
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap()
+            .block_on(run_once(
+                &bridge(),
+                &SyncOptions {
+                    allow_unsigned: true,
+                    force_replay: true,
+                    allow_tofu: true,
+                    ..SyncOptions::default()
+                },
+            ))
+            .map_err(|error| error.to_string())
+    })
+    .expect("the initial catalog applies");
+    let sidecar = dirs.metadata.join("claude-code-model-picker.json");
+    assert_eq!(
+        serde_json::from_slice::<serde_json::Value>(&fs::read(&sidecar).unwrap()).unwrap(),
+        serde_json::json!(["gemini-old"]),
+        "the durable ownership record excludes Claude's native catalog rows"
+    );
+    let installed: serde_json::Value =
+        serde_json::from_slice(&fs::read(&settings).unwrap()).unwrap();
+    assert_eq!(installed["modelPicker"]["mode"], "compact");
+    assert_eq!(
+        installed["modelPicker"]["options"],
+        serde_json::json!([
+            {"model": "local-foreign", "label": "Local foreign"},
+            {"model": "gemini-old", "label": "Gemini Old"}
+        ])
+    );
+
+    rt.block_on(remount_settings_gateway(
+        &server,
+        &manifest,
+        &["gemini-new"],
+        None,
+    ));
+    fs::write(&sidecar, "{broken").unwrap();
+    let error = run_sync(&dirs).expect_err("a corrupt ownership record must stop replacement");
+    assert!(
+        error.contains("model picker"),
+        "unexpected diagnostic: {error}"
+    );
+    assert_eq!(
+        serde_json::from_slice::<serde_json::Value>(&fs::read(&settings).unwrap()).unwrap()["modelPicker"]
+            ["options"],
+        installed["modelPicker"]["options"],
+        "a failed ownership read must leave durable settings untouched"
+    );
+
+    fs::write(&sidecar, "[\"gemini-old\"]\n").unwrap();
+    run_sync(&dirs).expect("repairing the sidecar makes the same sync retryable");
+    let withdrawn: serde_json::Value =
+        serde_json::from_slice(&fs::read(&settings).unwrap()).unwrap();
+    assert_eq!(
+        withdrawn["modelPicker"]["options"],
+        serde_json::json!([
+            {"model": "local-foreign", "label": "Local foreign"},
+            {"model": "gemini-new", "label": "Gemini New"}
+        ]),
+        "the old owned row is withdrawn while the foreign row survives"
+    );
+    assert_eq!(
+        serde_json::from_slice::<serde_json::Value>(&fs::read(&sidecar).unwrap()).unwrap(),
+        serde_json::json!(["gemini-new"])
+    );
+    let _ = (&pat_dir, &server);
+}
+
+#[test]
+fn sync_seeds_a_gateway_default_without_overwriting_a_later_operator_choice() {
+    let rt = setup_runtime();
+    let manifest = manifest_with(vec![], vec![]);
+    let (server, dirs, pat_dir) = rt.block_on(async {
+        let server = MockServer::start().await;
+        remount_settings_gateway(
+            &server,
+            &manifest,
+            &["gemini-default"],
+            Some("gemini-default"),
+        )
+        .await;
+        let pat_dir = tempfile::tempdir().unwrap();
+        let pat_file = pat_dir.path().join("pat.txt");
+        fs::write(&pat_file, "sp-live-test-pat").unwrap();
+        let dirs = sandbox(&server.uri(), &pat_file, None);
+        (server, dirs, pat_dir)
+    });
+    let settings = PathBuf::from(dirs.home.clone()).join(".claude/settings.json");
+    fs::create_dir_all(settings.parent().expect("Claude settings parent")).unwrap();
+    fs::write(
+        &settings,
+        serde_json::to_vec_pretty(&serde_json::json!({
+            "apiKeyHelper": "foreign-helper",
+            "theme": "dark",
+        }))
+        .unwrap(),
+    )
+    .unwrap();
+
+    run_sync(&dirs).expect("the initial profile seeds its default");
+    let mut seeded: serde_json::Value =
+        serde_json::from_slice(&fs::read(&settings).expect("read seeded settings")).unwrap();
+    assert_eq!(
+        seeded["model"], "gemini-default",
+        "the gateway default fills an empty Claude Code choice"
+    );
+    assert_eq!(seeded["apiKeyHelper"], "foreign-helper");
+    assert_eq!(seeded["theme"], "dark");
+
+    seeded["model"] = serde_json::json!("operator-choice");
+    fs::write(&settings, serde_json::to_vec_pretty(&seeded).unwrap()).unwrap();
+    rt.block_on(remount_settings_gateway(
+        &server,
+        &manifest,
+        &["gemini-next"],
+        Some("gemini-next"),
+    ));
+
+    run_sync(&dirs).expect("the refreshed profile still applies");
+    let after: serde_json::Value =
+        serde_json::from_slice(&fs::read(&settings).expect("read refreshed settings")).unwrap();
+    assert_eq!(
+        after["model"], "operator-choice",
+        "a later gateway default never overwrites the operator's Claude Code choice"
+    );
+    assert_eq!(
+        after["modelPicker"]["options"],
+        serde_json::json!([{"model": "gemini-next", "label": "Gemini Next"}]),
+        "the second sync refreshed the profile-derived owned picker rows"
+    );
+    assert_eq!(
+        after["apiKeyHelper"], "foreign-helper",
+        "sync preserves unrelated settings while refreshing the owned picker"
+    );
+    assert_eq!(after["theme"], "dark");
+    let _ = (&server, &pat_dir);
+}
+
+#[test]
+fn metadata_fragment_failure_keeps_promoted_plugin_retryable_and_repair_converges() {
+    let manifest = manifest_of(
+        vec![plugin(
+            "metadata-recovery",
+            vec![
+                ("payload.txt", b"durable"),
+                (".claude-plugin/plugin.json", PLUGIN_FILE_BODY),
+            ],
+        )],
+        vec![],
+    );
+    let fixture = serve_plugins(
+        &manifest,
+        &[
+            ("metadata-recovery", "payload.txt", b"durable"),
+            (
+                "metadata-recovery",
+                ".claude-plugin/plugin.json",
+                PLUGIN_FILE_BODY,
+            ),
+        ],
+        "metadata-fragment-recovery",
+    );
+    fs::create_dir_all(&fixture.dirs.metadata).unwrap();
+    let blocked = fixture.dirs.metadata.join("user.json");
+    fs::create_dir(&blocked).unwrap();
+    let foreign = fixture.dirs.metadata.join("operator-note");
+    fs::write(&foreign, b"retain").unwrap();
+
+    let error = run_sync(&fixture.dirs).expect_err("metadata fragment write must fail the sync");
+    assert!(error.contains("user.json"), "{error}");
+    assert_eq!(
+        fs::read(
+            fixture
+                .dirs
+                .org_plugins
+                .join("metadata-recovery/payload.txt")
+        )
+        .unwrap(),
+        b"durable",
+        "plugin promotion precedes metadata publication and remains valid"
+    );
+    assert_eq!(fs::read(&foreign).unwrap(), b"retain");
+    assert!(
+        !fixture.dirs.metadata.join("last-sync.json").exists(),
+        "publication failure does not claim that the manifest was delivered"
+    );
+
+    fs::remove_dir(&blocked).unwrap();
+    let recovered = run_sync(&fixture.dirs).expect("repair retries the same manifest");
+    assert!(
+        recovered.updated.contains(&"metadata-recovery".to_owned()),
+        "the already-promoted plugin is recognized and safely refreshed"
+    );
+    assert_eq!(fs::read(&blocked).unwrap(), b"null");
+    assert_eq!(fs::read(&foreign).unwrap(), b"retain");
+    let final_state: systemprompt_bridge::sync::LastSyncState =
+        serde_json::from_slice(&fs::read(fixture.dirs.metadata.join("last-sync.json")).unwrap())
+            .unwrap();
+    assert!(!final_state.is_partial());
+    assert_eq!(
+        final_state.manifest_version.as_ref(),
+        Some(&manifest.manifest_version)
+    );
+}
+
+#[derive(Clone)]
+struct ReleasePluginFile {
+    observed: std::sync::mpsc::SyncSender<()>,
+    release: std::sync::Arc<std::sync::Mutex<Option<std::sync::mpsc::Receiver<()>>>>,
+    bytes: Vec<u8>,
+}
+impl wiremock::Respond for ReleasePluginFile {
+    fn respond(&self, _request: &wiremock::Request) -> ResponseTemplate {
+        self.observed
+            .send(())
+            .expect("publish observed plugin request");
+        self.release
+            .lock()
+            .unwrap()
+            .take()
+            .expect("single plugin response")
+            .recv_timeout(Duration::from_secs(10))
+            .expect("release plugin response");
+        ResponseTemplate::new(200).set_body_bytes(self.bytes.clone())
+    }
+}
+
+#[test]
+fn gateway_switch_during_download_refuses_publication_and_original_gateway_retry_converges() {
+    let manifest = manifest_of(
+        vec![plugin(
+            "superseded-plugin",
+            vec![
+                ("payload.txt", b"new-owned"),
+                (".claude-plugin/plugin.json", PLUGIN_FILE_BODY),
+            ],
+        )],
+        vec![],
+    );
+    let fixture = serve_plugins(
+        &manifest,
+        &[
+            ("superseded-plugin", "payload.txt", b"new-owned"),
+            (
+                "superseded-plugin",
+                ".claude-plugin/plugin.json",
+                PLUGIN_FILE_BODY,
+            ),
+        ],
+        "gateway-switch-apply",
+    );
+    let existing = fixture.dirs.org_plugins.join("stale-plugin/payload.txt");
+    fs::create_dir_all(existing.parent().unwrap()).unwrap();
+    fs::write(&existing, b"stale").unwrap();
+    let (observed_tx, observed_rx) = std::sync::mpsc::sync_channel(1);
+    let (release_tx, release_rx) = std::sync::mpsc::sync_channel(1);
+    setup_runtime().block_on(async {
+        Mock::given(method("GET"))
+            .and(path("/v1/bridge/plugins/superseded-plugin/payload.txt"))
+            .respond_with(ReleasePluginFile {
+                observed: observed_tx,
+                release: std::sync::Arc::new(std::sync::Mutex::new(Some(release_rx))),
+                bytes: b"new-owned".to_vec(),
+            })
+            .with_priority(1)
+            .expect(1)
+            .mount(&fixture.server)
+            .await;
+    });
+
+    std::thread::scope(|scope| {
+        let run = scope.spawn(|| run_sync(&fixture.dirs));
+        observed_rx
+            .recv_timeout(Duration::from_secs(10))
+            .expect("plugin request observed");
+        let pat = fixture.pat_dir.join("pat.txt");
+        fs::write(
+            &fixture.dirs.config_file,
+            format!(
+                "gateway_url = 'https://replacement.invalid'\n[pat]\nfile = '{}'\n",
+                pat.display()
+            ),
+        )
+        .unwrap();
+        release_tx.send(()).unwrap();
+        let error = run
+            .join()
+            .expect("sync thread")
+            .expect_err("gateway switch supersedes run");
+        assert!(
+            error.contains("superseded") && error.contains("replacement.invalid"),
+            "{error}"
+        );
+    });
+    assert!(!fixture.dirs.org_plugins.join("superseded-plugin").exists());
+    assert_eq!(fs::read(&existing).unwrap(), b"stale");
+    assert!(!fixture.dirs.metadata.join("user.json").exists());
+    assert!(
+        !fixture.dirs.metadata.join("last-sync.json").exists(),
+        "a superseded run does not advance the delivery checkpoint"
+    );
+    let superseded_requests = setup_runtime().block_on(async {
+        fixture
+            .server
+            .received_requests()
+            .await
+            .expect("record superseded gateway requests")
+    });
+    assert_eq!(
+        superseded_requests
+            .iter()
+            .filter(|request| {
+                request.url.path() == "/v1/bridge/plugins/superseded-plugin/payload.txt"
+            })
+            .count(),
+        1,
+        "the explicit download barrier was reached exactly once before reset"
+    );
+
+    fs::write(
+        &fixture.dirs.config_file,
+        format!(
+            "gateway_url = {:?}\n[pat]\nfile = '{}'\n",
+            fixture.server.uri(),
+            fixture.pat_dir.join("pat.txt").display()
+        ),
+    )
+    .unwrap();
+    setup_runtime().block_on(async {
+        fixture.server.reset().await;
+        crate::mount_profile(&fixture.server).await;
+        pat_mock().mount(&fixture.server).await;
+        Mock::given(method("GET"))
+            .and(path("/v1/bridge/manifest"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(manifest_json(&manifest)))
+            .mount(&fixture.server)
+            .await;
+        Mock::given(method("GET"))
+            .and(path("/v1/bridge/plugins/superseded-plugin/payload.txt"))
+            .respond_with(ResponseTemplate::new(200).set_body_bytes(b"new-owned".to_vec()))
+            .expect(1)
+            .mount(&fixture.server)
+            .await;
+        Mock::given(method("GET"))
+            .and(path(
+                "/v1/bridge/plugins/superseded-plugin/.claude-plugin/plugin.json",
+            ))
+            .respond_with(ResponseTemplate::new(200).set_body_bytes(PLUGIN_FILE_BODY.to_vec()))
+            .expect(1)
+            .mount(&fixture.server)
+            .await;
+    });
+    let recovered = run_sync(&fixture.dirs).expect("original gateway retry succeeds");
+    assert!(
+        recovered
+            .installed
+            .contains(&"superseded-plugin".to_owned())
+    );
+    assert_eq!(recovered.removed, vec!["stale-plugin".to_owned()]);
+    assert_eq!(
+        fs::read(
+            fixture
+                .dirs
+                .org_plugins
+                .join("superseded-plugin/payload.txt")
+        )
+        .unwrap(),
+        b"new-owned"
+    );
+    assert!(
+        !existing.exists(),
+        "successful sync prunes stale managed plugins"
+    );
+    let final_state: systemprompt_bridge::sync::LastSyncState =
+        serde_json::from_slice(&fs::read(fixture.dirs.metadata.join("last-sync.json")).unwrap())
+            .unwrap();
+    assert!(!final_state.is_partial());
+    assert_eq!(
+        final_state.manifest_version.as_ref(),
+        Some(&manifest.manifest_version)
+    );
+}
+
+#[test]
+fn an_absolute_manifest_file_path_is_refused_without_touching_external_state() {
+    let external = tempfile::tempdir().unwrap();
+    let sentinel = external.path().join("operator-owned.json");
+    fs::write(&sentinel, b"retain").unwrap();
+    let absolute = external.path().join("escape.json");
+    let absolute = absolute.to_string_lossy().into_owned();
+    let m = manifest_of(
+        vec![plugin(
+            "acme-plugin",
+            vec![(absolute.as_str(), PLUGIN_FILE_BODY)],
+        )],
+        vec![],
+    );
+    let b = serve_plugins(&m, &[], "pat-absolute-path");
+
+    let err = run_sync(&b.dirs).expect_err("an absolute path must abort before file download");
+    assert!(err.contains(&absolute), "the rejected path is named: {err}");
+    assert!(!external.path().join("escape.json").exists());
+    assert_eq!(fs::read(&sentinel).unwrap(), b"retain");
+    let _ = (&b.server, &b.pat_dir);
+}

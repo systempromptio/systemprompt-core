@@ -88,6 +88,8 @@ mod services_reconcile;
 #[cfg(test)]
 mod services_refresh;
 #[cfg(test)]
+mod services_refresh_changed_exit;
+#[cfg(test)]
 mod services_refresh_flows;
 #[cfg(test)]
 mod services_validate;

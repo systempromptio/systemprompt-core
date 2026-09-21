@@ -187,3 +187,299 @@ async fn list_available_tools_fails_fast_against_closed_port() {
 
     assert!(err.to_string().contains("Failed to connect to MCP server"));
 }
+
+struct JsonRpcMethod(&'static str);
+
+impl wiremock::Match for JsonRpcMethod {
+    fn matches(&self, request: &wiremock::Request) -> bool {
+        serde_json::from_slice::<serde_json::Value>(&request.body)
+            .ok()
+            .and_then(|body| {
+                body.get("method")
+                    .and_then(serde_json::Value::as_str)
+                    .map(str::to_owned)
+            })
+            .as_deref()
+            == Some(self.0)
+    }
+}
+
+struct ExactAuthorization(&'static str);
+
+impl wiremock::Match for ExactAuthorization {
+    fn matches(&self, request: &wiremock::Request) -> bool {
+        let values = request.headers.get_all("authorization");
+        let values = values.iter().collect::<Vec<_>>();
+        !values.is_empty()
+            && values
+                .iter()
+                .all(|value| value.to_str().ok() == Some(self.0))
+    }
+}
+
+async fn mount_protocol(server: &wiremock::MockServer) {
+    use wiremock::matchers::{body_json, header, method, path};
+    use wiremock::{Mock, ResponseTemplate};
+
+    Mock::given(method("POST"))
+        .and(path("/mcp"))
+        .and(ExactAuthorization("Bearer tok"))
+        .and(body_json(serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": 0,
+            "method": "initialize",
+            "params": {
+                "protocolVersion": "2025-11-25",
+                "capabilities": {},
+                "clientInfo": {
+                    "name": "systemprompt-cli-strict",
+                    "version": "1.0.0"
+                }
+            }
+        })))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("content-type", "application/json")
+                .insert_header("mcp-session-id", "sess-cli-live")
+                .set_body_json(serde_json::json!({
+                    "jsonrpc": "2.0",
+                    "id": 0,
+                    "result": {
+                        "protocolVersion": "2025-11-25",
+                        "capabilities": {"tools": {}},
+                        "serverInfo": {"name": "strict-fixture", "version": "1.0.0"}
+                    }
+                })),
+        )
+        .expect(1)
+        .mount(server)
+        .await;
+    Mock::given(method("POST"))
+        .and(path("/mcp"))
+        .and(ExactAuthorization("Bearer tok"))
+        .and(header("mcp-session-id", "sess-cli-live"))
+        .and(body_json(serde_json::json!({
+            "jsonrpc": "2.0",
+            "method": "notifications/initialized"
+        })))
+        .respond_with(ResponseTemplate::new(202))
+        .expect(1)
+        .mount(server)
+        .await;
+    Mock::given(method("DELETE"))
+        .and(path("/mcp"))
+        .respond_with(ResponseTemplate::new(200))
+        .mount(server)
+        .await;
+}
+
+async fn assert_initialize_frame(server: &wiremock::MockServer) {
+    let requests = server
+        .received_requests()
+        .await
+        .expect("recorded MCP requests");
+    let initialize_request = requests
+        .iter()
+        .find(|request| wiremock::Match::matches(&JsonRpcMethod("initialize"), request))
+        .expect("recorded initialize request");
+    let authorization = initialize_request
+        .headers
+        .get_all("authorization")
+        .iter()
+        .map(|value| value.to_str().expect("ASCII authorization value"))
+        .collect::<Vec<_>>();
+    assert!(
+        !authorization.is_empty(),
+        "authorization must be propagated"
+    );
+    assert!(
+        authorization.iter().all(|value| *value == "Bearer tok"),
+        "every propagated credential must equal the session token: {authorization:?}"
+    );
+    let initialize: serde_json::Value =
+        serde_json::from_slice(&initialize_request.body).expect("initialize JSON-RPC body");
+    assert_eq!(
+        initialize,
+        serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": 0,
+            "method": "initialize",
+            "params": {
+                "protocolVersion": "2025-11-25",
+                "capabilities": {},
+                "clientInfo": {
+                    "name": "systemprompt-cli-strict",
+                    "version": "1.0.0"
+                }
+            }
+        })
+    );
+}
+
+#[tokio::test]
+async fn list_available_tools_sends_non_null_object_params_and_preserves_names() {
+    use wiremock::matchers::{body_json, header, method, path};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    let server = MockServer::start().await;
+    mount_protocol(&server).await;
+    Mock::given(method("POST"))
+        .and(path("/mcp"))
+        .and(ExactAuthorization("Bearer tok"))
+        .and(header("mcp-session-id", "sess-cli-live"))
+        .and(body_json(serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "tools/list",
+            "params": {"_meta": {"progressToken": 0}}
+        })))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("content-type", "application/json")
+                .set_body_json(serde_json::json!({
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "result": {"tools": [
+                        {"name": "alpha", "description": "A", "inputSchema": {"type": "object"}},
+                        {"name": "zeta", "description": "Z", "inputSchema": {"type": "object"}}
+                    ]}
+                })),
+        )
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let tools_result = tokio::time::timeout(
+        std::time::Duration::from_secs(10),
+        list_available_tools(
+            "strict",
+            &format!("{}/mcp", server.uri()),
+            &session_ctx(),
+            5,
+        ),
+    )
+    .await
+    .expect("tools/list must finish within ten seconds");
+    assert_initialize_frame(&server).await;
+    let tools = tools_result.expect("strict tools/list succeeds");
+    assert_eq!(tools, vec!["alpha", "zeta"]);
+    let requests = server
+        .received_requests()
+        .await
+        .expect("recorded MCP requests");
+    let list_request = requests
+        .iter()
+        .map(|request| serde_json::from_slice::<serde_json::Value>(&request.body))
+        .find_map(|body| {
+            let body = body.ok()?;
+            (body["method"] == "tools/list").then_some(body)
+        })
+        .expect("recorded tools/list request");
+    assert_eq!(
+        list_request["params"],
+        serde_json::json!({"_meta": {"progressToken": 0}})
+    );
+    assert!(
+        list_request["params"].get("cursor").is_none(),
+        "the initial list request must not invent a pagination cursor: {list_request}"
+    );
+}
+
+#[tokio::test]
+async fn execute_tool_call_sends_arguments_and_surfaces_jsonrpc_rejection() {
+    use wiremock::matchers::{body_partial_json, header, method, path};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    let success = MockServer::start().await;
+    mount_protocol(&success).await;
+    Mock::given(method("POST"))
+        .and(path("/mcp"))
+        .and(ExactAuthorization("Bearer tok"))
+        .and(header("mcp-session-id", "sess-cli-live"))
+        .and(body_partial_json(serde_json::json!({
+            "method": "tools/call",
+            "params": {"name": "echo", "arguments": {"message": "owned-value"}}
+        })))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("content-type", "application/json")
+                .set_body_json(serde_json::json!({
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "result": {
+                        "content": [{"type": "text", "text": "owned-result"}],
+                        "isError": false
+                    }
+                })),
+        )
+        .expect(1)
+        .mount(&success)
+        .await;
+    let success_ctx = session_ctx();
+    let result = tokio::time::timeout(
+        std::time::Duration::from_secs(10),
+        execute_tool_call(ToolCallParams {
+            server_name: "strict",
+            url: &format!("{}/mcp", success.uri()),
+            tool_name: "echo",
+            arguments: Some(serde_json::json!({"message": "owned-value"})),
+            session_ctx: &success_ctx,
+            timeout_secs: 5,
+        }),
+    )
+    .await
+    .expect("tools/call must finish within ten seconds");
+    assert_initialize_frame(&success).await;
+    let result = result.expect("strict tools/call succeeds");
+    assert_eq!(result.is_error, Some(false));
+    assert_eq!(result.content.len(), 1);
+    assert_eq!(
+        convert_content(&result.content[0]).text.as_deref(),
+        Some("owned-result")
+    );
+
+    let rejected = MockServer::start().await;
+    mount_protocol(&rejected).await;
+    Mock::given(method("POST"))
+        .and(path("/mcp"))
+        .and(ExactAuthorization("Bearer tok"))
+        .and(header("mcp-session-id", "sess-cli-live"))
+        .and(body_partial_json(serde_json::json!({
+            "method": "tools/call",
+            "params": {"name": "denied"}
+        })))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("content-type", "application/json")
+                .set_body_json(serde_json::json!({
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "error": {"code": -32602, "message": "owned rejection"}
+                })),
+        )
+        .expect(1)
+        .mount(&rejected)
+        .await;
+    let ctx = session_ctx();
+    let error = tokio::time::timeout(
+        std::time::Duration::from_secs(10),
+        execute_tool_call(ToolCallParams {
+            server_name: "strict",
+            url: &format!("{}/mcp", rejected.uri()),
+            tool_name: "denied",
+            arguments: None,
+            session_ctx: &ctx,
+            timeout_secs: 5,
+        }),
+    )
+    .await
+    .expect("rejected tools/call must finish within ten seconds");
+    assert_initialize_frame(&rejected).await;
+    let error = error.expect_err("JSON-RPC rejection must fail the call");
+    let chain = format!("{error:#}");
+    assert!(
+        chain.contains("MCP tool 'denied' on 'strict' rejected the call"),
+        "{chain}"
+    );
+    assert!(chain.contains("owned rejection"), "{chain}");
+}

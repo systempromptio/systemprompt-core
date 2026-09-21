@@ -22,6 +22,17 @@ use systemprompt_models::ServicesConfig;
 use super::a2a_helpers::{StubAiProvider, agent_config, make_handler_state, request_context};
 use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try_pool_or_skip};
 
+async fn persisted_task_error(pool: &systemprompt_database::DbPool, task_id: &TaskId) -> String {
+    sqlx::query_scalar::<_, Option<String>>(
+        "SELECT error_message FROM agent_tasks WHERE task_id = $1",
+    )
+    .bind(task_id.as_str())
+    .fetch_one(pool.pool_arc().expect("pool").as_ref())
+    .await
+    .expect("task error query")
+    .expect("failed task error")
+}
+
 fn registry_with(agent_name: &str) -> AgentRegistry {
     let mut agents = HashMap::new();
     agents.insert(agent_name.to_owned(), agent_config(agent_name));
@@ -116,6 +127,31 @@ async fn run_stream_with_injected_registry_streams_text_and_completes_task() {
         wait_for_state(&repos_handle, &task_id, TaskState::Completed).await,
         "task must reach Completed after the stream drains"
     );
+    let stored = repos_handle
+        .tasks
+        .get_task(&task_id)
+        .await
+        .expect("completed task lookup")
+        .expect("completed task persisted");
+    let history = stored
+        .history
+        .expect("completed turn persists its messages");
+    assert_eq!(history.len(), 2, "one user request and one agent response");
+    assert_eq!(history[0].role, MessageRole::User);
+    assert_eq!(history[1].role, MessageRole::Agent);
+    assert_eq!(history[0].task_id.as_ref(), Some(&task_id));
+    assert_eq!(history[1].task_id.as_ref(), Some(&task_id));
+    assert_eq!(history[0].context_id, ctx);
+    assert_eq!(history[1].context_id, ctx);
+    assert!(matches!(
+        history[0].parts.as_slice(),
+        [Part::Text(TextPart { text })] if text == "run"
+    ));
+    assert!(matches!(
+        history[1].parts.as_slice(),
+        [Part::Text(TextPart { text })] if text == "stream done"
+    ));
+    assert!(stored.status.message.is_none());
 }
 
 #[tokio::test]
@@ -159,6 +195,22 @@ async fn run_stream_with_injected_registry_failure_fails_task_and_emits_error() 
         wait_for_state(&repos_handle, &task_id, TaskState::Failed).await,
         "task must be marked Failed when the registry cannot be loaded"
     );
+    let stored = repos_handle
+        .tasks
+        .get_task(&task_id)
+        .await
+        .expect("failed task lookup")
+        .expect("failed task persisted");
+    assert!(
+        stored.history.as_ref().is_none_or(Vec::is_empty),
+        "registry failure occurs before a response and must not fabricate conversation history"
+    );
+    let failure = persisted_task_error(&pool, &task_id).await;
+    assert!(
+        failure.contains("Failed to load agent registry"),
+        "{failure}"
+    );
+    assert!(failure.contains("injected registry failure"), "{failure}");
 }
 
 #[tokio::test]
@@ -197,4 +249,16 @@ async fn run_stream_with_failing_model_stream_fails_task() {
         wait_for_state(&repos_handle, &task_id, TaskState::Failed).await,
         "task must be marked Failed when the model stream errors"
     );
+    let stored = repos_handle
+        .tasks
+        .get_task(&task_id)
+        .await
+        .expect("failed task lookup")
+        .expect("failed task persisted");
+    assert!(
+        stored.history.as_ref().is_none_or(Vec::is_empty),
+        "a failed generation must not be stored as an assistant response"
+    );
+    let diagnosis = persisted_task_error(&pool, &task_id).await;
+    assert!(diagnosis.contains("stub stream failure"), "{diagnosis}");
 }

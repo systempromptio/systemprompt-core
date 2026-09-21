@@ -20,7 +20,7 @@ use axum::Router;
 use axum::body::{Body, to_bytes};
 use axum::http::{Request, Response, StatusCode, header};
 use systemprompt_api::routes::oauth::public_router;
-use systemprompt_identifiers::{ChallengeId, UserId};
+use systemprompt_identifiers::{ChallengeId, SessionId, UserId};
 use systemprompt_models::Config;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::OAuthRepository;
@@ -28,11 +28,15 @@ use systemprompt_oauth::services::generate_secure_token;
 use systemprompt_oauth::services::webauthn::WebAuthnRegistry;
 use systemprompt_test_fixtures::{
     OAuthClientFixture, ensure_test_bootstrap, fixture_config, fixture_db_pool,
-    install_test_signing_key, pkce_pair, seed_oauth_client,
+    install_test_signing_key, pkce_pair, seed_oauth_client, seed_user_row_with_roles,
+    seed_user_session,
 };
 use systemprompt_traits::AppContext as _;
 use tower::ServiceExt;
 use uuid::Uuid;
+use webauthn_authenticator_rs::WebauthnAuthenticator;
+use webauthn_authenticator_rs::softtoken::SoftToken;
+use webauthn_rs::prelude::*;
 
 use super::common::setup_ctx;
 
@@ -580,5 +584,170 @@ async fn webauthn_complete_without_a_client_id_is_rejected() -> anyhow::Result<(
     assert_eq!(resp.status(), StatusCode::BAD_REQUEST, "{}", resp.status());
     let v = read_json(resp).await?;
     assert_eq!(v["error"].as_str(), Some("invalid_request"), "{v}");
+    Ok(())
+}
+
+#[tokio::test]
+async fn completed_registration_migrates_anonymous_session_to_the_new_account() -> anyhow::Result<()>
+{
+    ensure_config();
+    let bootstrap = ensure_test_bootstrap();
+    let pool = fixture_db_pool(&bootstrap.database_url).await?;
+    let anonymous = UserId::new(Uuid::new_v4().to_string());
+    seed_user_row_with_roles(
+        &pool,
+        &anonymous,
+        &format!("anon-{}@webauthn.invalid", Uuid::new_v4().simple()),
+        &["anonymous".to_owned()],
+    )
+    .await?;
+    let session = SessionId::generate();
+    seed_user_session(&pool, &anonymous, &session).await?;
+
+    let app = webauthn_app().await?;
+    let username = format!("registered{}", Uuid::new_v4().simple());
+    let email = format!("{username}@webauthn.invalid");
+    let start = app
+        .clone()
+        .oneshot(empty_post(&format!(
+            "/webauthn/register/start?username={username}&email={email}"
+        )))
+        .await?;
+    assert_eq!(start.status(), StatusCode::OK);
+    let challenge_id = start
+        .headers()
+        .get("x-challenge-id")
+        .expect("challenge id")
+        .to_str()?
+        .to_owned();
+    let challenge: CreationChallengeResponse = serde_json::from_value(read_json(start).await?)?;
+    let (token, _ca) = SoftToken::new(true).expect("softtoken");
+    let mut authenticator = WebauthnAuthenticator::new(token);
+    let credential = authenticator
+        .do_registration(url::Url::parse("http://localhost")?, challenge)
+        .expect("softtoken registration");
+
+    let finish = app
+        .oneshot(json_post(
+            "/webauthn/register/finish",
+            serde_json::json!({
+                "challenge_id": challenge_id,
+                "username": username,
+                "email": email,
+                "credential": credential,
+                "session_id": session.as_str(),
+            }),
+        ))
+        .await?;
+    assert_eq!(finish.status(), StatusCode::OK);
+    let body = read_json(finish).await?;
+    assert_eq!(body["success"], true);
+    assert!(
+        body["auth_token"]
+            .as_str()
+            .is_some_and(|token| !token.is_empty())
+    );
+    let registered = body["user_id"].as_str().expect("registered user id");
+
+    let db = pool.pool_arc()?;
+    let session_owner: String =
+        sqlx::query_scalar("SELECT user_id FROM user_sessions WHERE session_id = $1")
+            .bind(session.as_str())
+            .fetch_one(db.as_ref())
+            .await?;
+    assert_eq!(session_owner, registered);
+    let anonymous_exists: bool =
+        sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM users WHERE id = $1)")
+            .bind(anonymous.as_str())
+            .fetch_one(db.as_ref())
+            .await?;
+    assert!(!anonymous_exists, "anonymous source account is merged away");
+    Ok(())
+}
+
+#[tokio::test]
+async fn registration_cannot_take_over_an_existing_registered_users_session() -> anyhow::Result<()>
+{
+    ensure_config();
+    let bootstrap = ensure_test_bootstrap();
+    let pool = fixture_db_pool(&bootstrap.database_url).await?;
+    let existing = UserId::new(Uuid::new_v4().to_string());
+    systemprompt_test_fixtures::seed_user_row(
+        &pool,
+        &existing,
+        &format!("existing-{}@webauthn.invalid", Uuid::new_v4().simple()),
+    )
+    .await?;
+    let session = SessionId::generate();
+    seed_user_session(&pool, &existing, &session).await?;
+
+    let app = webauthn_app().await?;
+    let username = format!("newaccount{}", Uuid::new_v4().simple());
+    let email = format!("{username}@webauthn.invalid");
+    let start = app
+        .clone()
+        .oneshot(empty_post(&format!(
+            "/webauthn/register/start?username={username}&email={email}"
+        )))
+        .await?;
+    assert_eq!(start.status(), StatusCode::OK);
+    let challenge_id = start
+        .headers()
+        .get("x-challenge-id")
+        .expect("challenge id")
+        .to_str()?
+        .to_owned();
+    let challenge: CreationChallengeResponse = serde_json::from_value(read_json(start).await?)?;
+    let (token, _ca) = SoftToken::new(true).expect("softtoken");
+    let mut authenticator = WebauthnAuthenticator::new(token);
+    let credential = authenticator
+        .do_registration(url::Url::parse("http://localhost")?, challenge)
+        .expect("softtoken registration");
+
+    let finish = app
+        .oneshot(json_post(
+            "/webauthn/register/finish",
+            serde_json::json!({
+                "challenge_id": challenge_id,
+                "username": username,
+                "email": email,
+                "credential": credential,
+                "session_id": session.as_str(),
+            }),
+        ))
+        .await?;
+    assert_eq!(finish.status(), StatusCode::OK);
+    let body = read_json(finish).await?;
+    assert_eq!(body["success"], true);
+    assert!(
+        body["auth_token"]
+            .as_str()
+            .is_some_and(|token| !token.is_empty())
+    );
+    let new_user = body["user_id"].as_str().expect("new user id");
+    assert_ne!(new_user, existing.as_str());
+
+    let db = pool.pool_arc()?;
+    let session_owner: String =
+        sqlx::query_scalar("SELECT user_id FROM user_sessions WHERE session_id = $1")
+            .bind(session.as_str())
+            .fetch_one(db.as_ref())
+            .await?;
+    assert_eq!(session_owner, existing.as_str());
+    let owners: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM users WHERE id = $1 OR id = $2")
+        .bind(existing.as_str())
+        .bind(new_user)
+        .fetch_one(db.as_ref())
+        .await?;
+    assert_eq!(
+        owners, 2,
+        "registration creates its owner without merging the existing account"
+    );
+    let credential_owner: String =
+        sqlx::query_scalar("SELECT user_id FROM webauthn_credentials WHERE user_id = $1 LIMIT 1")
+            .bind(new_user)
+            .fetch_one(db.as_ref())
+            .await?;
+    assert_eq!(credential_owner, new_user);
     Ok(())
 }

@@ -33,7 +33,9 @@ impl OutboundAdapter for AnthropicOutbound {
                 raw_lane: true,
             });
         }
-        let body = request::build_request_body(ctx.request, ctx.upstream_model, ctx.model_limits);
+        let mut body =
+            request::build_request_body(ctx.request, ctx.upstream_model, ctx.model_limits);
+        request::enable_automatic_prompt_caching(&mut body, ctx);
         Ok(PreparedBody {
             bytes: bytes::Bytes::from(
                 serde_json::to_vec(&body).map_err(|e| anyhow!("render Anthropic request: {e}"))?,

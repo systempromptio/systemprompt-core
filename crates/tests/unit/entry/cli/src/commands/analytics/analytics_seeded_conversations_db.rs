@@ -212,3 +212,144 @@ fn the_conversation_listing_refuses_a_non_positive_limit() {
         );
     }
 }
+
+#[tokio::test]
+async fn gateway_conversations_project_exact_owners_counts_and_global_order() {
+    use systemprompt_test_fixtures::{DisposableDb, install_test_signing_key};
+
+    systemprompt_test_fixtures::ensure_test_bootstrap();
+    install_test_signing_key();
+    let database = DisposableDb::installed("cli_gateway_conversation_projection")
+        .await
+        .expect("private gateway conversation database");
+    let pool = database.pool().await.expect("private gateway pool");
+    let raw = pool.pool_arc().expect("private SQL pool");
+    let older_owner = unique_user_id("gwconvo_old");
+    let newer_owner = unique_user_id("gwconvo_new");
+    let older_session = SessionId::generate();
+    let newer_session = SessionId::generate();
+    for (owner, session) in [
+        (&older_owner, &older_session),
+        (&newer_owner, &newer_session),
+    ] {
+        seed_user_row(
+            &pool,
+            owner,
+            &format!("{}@gateway-conversations.invalid", owner.as_str()),
+        )
+        .await
+        .expect("seed gateway owner");
+        seed_user_session(&pool, owner, session)
+            .await
+            .expect("seed gateway session");
+    }
+    for (owner, session, age_minutes, messages) in [
+        (&older_owner, &older_session, 10_i32, 1_i32),
+        (&newer_owner, &newer_session, 2_i32, 2_i32),
+    ] {
+        let request_id = Uuid::new_v4().to_string();
+        sqlx::query(
+            "INSERT INTO ai_requests (id, request_id, user_id, session_id, context_id, provider, \
+             model, status, actor_kind, actor_id, created_at, completed_at) \
+             VALUES ($1, $1, $2, $3, '00000000-0000-0000-0000-00000000c0de', 'fixture', \
+             'fixture-model', 'completed', 'user', $2, NOW() - make_interval(mins => $4), \
+             NOW() - make_interval(mins => $4))",
+        )
+        .bind(&request_id)
+        .bind(owner.as_str())
+        .bind(session.as_str())
+        .bind(age_minutes)
+        .execute(raw.as_ref())
+        .await
+        .expect("seed gateway AI request");
+        for sequence in 0..messages {
+            sqlx::query(
+                "INSERT INTO ai_request_messages (request_id, role, content, sequence_number) \
+                 VALUES ($1, 'user', $2, $3)",
+            )
+            .bind(&request_id)
+            .bind(format!("gateway message {sequence}"))
+            .bind(sequence)
+            .execute(raw.as_ref())
+            .await
+            .expect("seed gateway request message");
+        }
+    }
+    systemprompt_test_fixtures::refresh_reporting(&pool)
+        .await
+        .expect("refresh gateway reporting projection");
+    let context = CommandContext::with_database(
+        CliConfig::new()
+            .with_interactive(false)
+            .with_output_format(OutputFormat::Json),
+        EnvOverrides::default(),
+        DatabaseContext::from_pool(pool.clone()),
+        database.url().to_owned(),
+    );
+    let output = tempfile::tempdir().expect("gateway CSV directory");
+    let all_path = output.path().join("gateway.csv");
+    analytics::execute(
+        parse(&[
+            "conversations",
+            "list",
+            "--source",
+            "gateway",
+            "--since",
+            "1h",
+            "--limit",
+            "2",
+            "--export",
+            all_path.to_str().expect("gateway CSV path"),
+        ]),
+        &context,
+    )
+    .await
+    .expect("export gateway conversations");
+    let rows = std::fs::read_to_string(&all_path).expect("read gateway CSV");
+    let rows = rows.lines().skip(1).collect::<Vec<_>>();
+    assert_eq!(rows.len(), 2, "{rows:?}");
+    fn fields(row: &str) -> Vec<&str> {
+        row.split(',').collect()
+    }
+    let newest = fields(rows[0]);
+    let oldest = fields(rows[1]);
+    assert_eq!(newest[0], newer_session.as_str(), "{newest:?}");
+    assert_eq!(newest[1], "gateway", "{newest:?}");
+    assert_eq!(newest[2], newer_owner.as_str(), "{newest:?}");
+    assert_eq!(newest[4], "0", "{newest:?}");
+    assert_eq!(newest[5], "2", "{newest:?}");
+    assert_eq!(oldest[0], older_session.as_str(), "{oldest:?}");
+    assert_eq!(oldest[2], older_owner.as_str(), "{oldest:?}");
+    assert_eq!(oldest[5], "1", "{oldest:?}");
+
+    let filtered_path = output.path().join("owner.csv");
+    analytics::execute(
+        parse(&[
+            "conversations",
+            "list",
+            "--source",
+            "all",
+            "--since",
+            "1h",
+            "--user",
+            older_owner.as_str(),
+            "--limit",
+            "1",
+            "--export",
+            filtered_path.to_str().expect("owner CSV path"),
+        ]),
+        &context,
+    )
+    .await
+    .expect("filter gateway conversation by owner");
+    let filtered = std::fs::read_to_string(filtered_path).expect("read owner CSV");
+    let filtered = filtered.lines().skip(1).collect::<Vec<_>>();
+    assert_eq!(filtered.len(), 1, "{filtered:?}");
+    assert_eq!(fields(filtered[0])[0], older_session.as_str());
+
+    drop(raw);
+    drop(context);
+    pool.write_pool_arc().expect("write pool").close().await;
+    drop(pool);
+    database.drop_now().await;
+}

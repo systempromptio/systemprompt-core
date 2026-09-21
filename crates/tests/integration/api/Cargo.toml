@@ -41,6 +41,8 @@ systemprompt-marketplace = { workspace = true }
 systemprompt-mcp = { workspace = true }
 systemprompt-files = { workspace = true }
 systemprompt-users = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["json"] }
 systemprompt-slack = { workspace = true }
 
 axum = { workspace = true }

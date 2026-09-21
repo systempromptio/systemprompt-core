@@ -16,6 +16,7 @@ mod exchange_code;
 mod expiry_cleanup;
 mod id_jag_replay;
 mod jti_revocation;
+mod oauth_contact_atomicity;
 mod oauth_facade;
 mod refresh_token;
 mod scopes;

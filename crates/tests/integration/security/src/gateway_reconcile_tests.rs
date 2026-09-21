@@ -92,6 +92,7 @@ fn registry(name: &str) -> ProviderRegistry {
             models: vec![ProviderModel {
                 id: ModelId::new("any"),
                 aliases: Vec::new(),
+                hidden: false,
                 governance: None,
                 upstream_model: None,
                 pricing: Default::default(),

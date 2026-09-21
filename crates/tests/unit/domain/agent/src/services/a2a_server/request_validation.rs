@@ -55,7 +55,7 @@ async fn parse_a2a_request_accepts_valid_send_message() {
 
 #[tokio::test]
 async fn parse_a2a_request_missing_context_id_is_bad_request() {
-    let request = rpc("message/send", {
+    let request = rpc(systemprompt_models::a2a::methods::SEND_STREAMING_MESSAGE, {
         let mut value =
             serde_json::to_value(user_message(&ContextId::generate())).expect("serialize");
         value.as_object_mut().expect("object").remove("contextId");
@@ -67,6 +67,32 @@ async fn parse_a2a_request_missing_context_id_is_bad_request() {
         .await
         .expect_err("missing contextId must be rejected");
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let body = axum::body::to_bytes(response.into_body(), 1_048_576)
+        .await
+        .expect("read JSON-RPC error body");
+    let payload: serde_json::Value =
+        serde_json::from_slice(&body).expect("valid JSON-RPC error response");
+    assert_eq!(
+        payload
+            .pointer("/error/data/error")
+            .and_then(serde_json::Value::as_str),
+        Some("contextId is required"),
+        "unexpected JSON-RPC remediation envelope: {payload}"
+    );
+    assert_eq!(
+        payload
+            .pointer("/error/data/instructions/step1/endpoint")
+            .and_then(serde_json::Value::as_str),
+        Some("POST /api/v1/core/oauth/session"),
+        "unexpected JWT acquisition instruction: {payload}"
+    );
+    assert_eq!(
+        payload
+            .pointer("/error/data/instructions/step2/endpoint")
+            .and_then(serde_json::Value::as_str),
+        Some("POST /api/v1/core/contexts"),
+        "unexpected context creation instruction: {payload}"
+    );
 }
 
 #[tokio::test]

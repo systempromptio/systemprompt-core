@@ -125,3 +125,123 @@ async fn a_moved_composition_with_no_cached_fetch_state_refuses_to_guess() {
     assert!(rendered.contains("base"), "{rendered}");
     assert!(rendered.contains("cached fetch state"), "{rendered}");
 }
+
+#[tokio::test]
+async fn a_fetched_composition_is_projected_once_and_records_its_hash() {
+    use chrono::Utc;
+    use systemprompt_models::profile::ServicesSource;
+    use systemprompt_models::services::bundle::{
+        BundleOwnership, BundleSourceInfo, BundleSourceState, ServicesBundleManifest,
+        SignedBundleManifest,
+    };
+    use systemprompt_runtime::DatabaseContext;
+    use systemprompt_test_fixtures::DisposableDb;
+
+    const SOURCE: &str = "cli-positive";
+    const CONTENT_HASH: &str = "cli-content-hash";
+    const COMPOSED_HASH: &str = "cli-composed-hash";
+
+    let database = DisposableDb::installed("cli_services_reconcile")
+        .await
+        .expect("isolated migrated database");
+    let pool = database.pool().await.expect("isolated database pool");
+    let boot = systemprompt_test_fixtures::ensure_test_bootstrap();
+    let temp = tempfile::tempdir().expect("reconciliation fixture");
+    let cache = BundleCache::new(temp.path().join("cache"));
+    let mut sources = BTreeMap::new();
+    sources.insert(
+        SOURCE.to_owned(),
+        BundleSourceState {
+            digest: "sha256:cli".to_owned(),
+            version: "1.0.0".to_owned(),
+            content_hash: CONTENT_HASH.to_owned(),
+            fetched_at: Utc::now(),
+        },
+    );
+    cache
+        .write_state(&ServicesBundleState {
+            composed_hash: COMPOSED_HASH.to_owned(),
+            last_reconciled_hash: None,
+            sources,
+        })
+        .expect("seed pending composition state");
+    let bundle_dir = cache.bundle_dir(SOURCE, CONTENT_HASH);
+    std::fs::create_dir_all(&bundle_dir).unwrap();
+    let signed = SignedBundleManifest {
+        manifest: ServicesBundleManifest {
+            format: 1,
+            version: "1.0.0".to_owned(),
+            created_at: Utc::now(),
+            requires_core: ">=0.0.1".to_owned(),
+            source: BundleSourceInfo::default(),
+            files: Vec::new(),
+            content_hash: CONTENT_HASH.to_owned(),
+            total_size: 0,
+            owns: BundleOwnership::default(),
+        },
+        signature: None,
+    };
+    std::fs::write(
+        bundle_dir.join("bundle.json"),
+        serde_json::to_vec_pretty(&signed).unwrap(),
+    )
+    .unwrap();
+
+    let mut profile = systemprompt_config::ProfileBootstrap::get()
+        .expect("bootstrap profile")
+        .clone();
+    profile.services.sources = vec![ServicesSource {
+        name: SOURCE.to_owned(),
+        https: None,
+        oci: None,
+    }];
+    let root = ActiveServicesRoot {
+        path: boot.services_path.clone(),
+        base: boot.services_path.clone(),
+        provenance: ServicesProvenance::Fetched {
+            composed_hash: COMPOSED_HASH.to_owned(),
+            versions: BTreeMap::new(),
+        },
+    };
+    let command = CommandContext::with_database(
+        CliConfig::new()
+            .with_interactive(false)
+            .with_output_format(OutputFormat::Json),
+        EnvOverrides::default(),
+        DatabaseContext::from_pool(pool.clone()),
+        database.url().to_owned(),
+    );
+
+    let rows = reconcile_after_swap(&profile, &root, &cache, &command)
+        .await
+        .expect("project fetched composition");
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].bundle, SOURCE);
+    assert_eq!(rows[0].inserted, 0);
+    assert_eq!(rows[0].updated, 0);
+    assert_eq!(rows[0].deleted, 0);
+    assert_eq!(rows[0].protected, 0);
+    assert!(rows[0].inert_role_rules.is_empty());
+    assert_eq!(
+        cache.read_state().last_reconciled_hash.as_deref(),
+        Some(COMPOSED_HASH),
+        "successful projection durably acknowledges the exact composition"
+    );
+
+    drop(command);
+    pool.write_pool_arc().expect("write pool").close().await;
+    drop(pool);
+    let closed = systemprompt_test_fixtures::closed_db_pool().await;
+    let no_database_needed = CommandContext::with_database(
+        CliConfig::new().with_interactive(false),
+        EnvOverrides::default(),
+        DatabaseContext::from_pool(closed),
+        "postgresql://closed.invalid/test".to_owned(),
+    );
+    let repeated = reconcile_after_swap(&profile, &root, &cache, &no_database_needed)
+        .await
+        .expect("recorded composition is a no-op without database access");
+    assert!(repeated.is_empty());
+    drop(no_database_needed);
+    database.drop_now().await;
+}

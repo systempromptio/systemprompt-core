@@ -244,3 +244,33 @@ async fn a_trusted_issuer_id_jag_whose_jwks_is_unreachable_is_refused() {
     // the failure has to be the JWKS resolution itself.
     assert!(message.contains("JWKS resolution failed"), "{message}");
 }
+#[tokio::test]
+async fn a_signed_id_jag_with_an_unrepresentable_expiry_is_rejected_without_burning_its_jti() {
+    let config = config();
+    let pool = pool().await;
+    let jti = Uuid::new_v4().to_string();
+    let mut body = claims(&config, &jti, "admin");
+    body["exp"] = serde_json::json!(i64::MAX);
+    let token = sign_id_jag(&config, Some(ID_JAG_TYP), Algorithm::RS256, body);
+
+    let first = validate(&token, &pool, &config)
+        .await
+        .expect_err("an expiry outside chrono's timestamp range must fail closed");
+    assert!(first.to_string().contains("exp is out of range"), "{first}");
+    let second = validate(&token, &pool, &config)
+        .await
+        .expect_err("invalid expiry must fail consistently rather than consume replay state");
+    assert!(
+        second.to_string().contains("exp is out of range"),
+        "{second}"
+    );
+    let replay_rows: i64 = sqlx::query_scalar("SELECT count(*) FROM id_jag_replay WHERE jti = $1")
+        .bind(&jti)
+        .fetch_one(pool.pool_arc().expect("OAuth read pool").as_ref())
+        .await
+        .expect("read ID-JAG replay state");
+    assert_eq!(
+        replay_rows, 0,
+        "invalid expiry must not consume replay state"
+    );
+}

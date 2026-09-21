@@ -1,4 +1,5 @@
 use crate::consumer_fixture::fixture_with_metadata;
+use systemprompt_marketplace::managed::ManagedError;
 use systemprompt_models::feedback::EvaluatorClient;
 
 #[tokio::test]
@@ -44,4 +45,38 @@ async fn every_host_plan_preserves_multiline_quoted_and_backslash_yaml_scalars()
         assert_eq!(value["name"], expected_name);
         assert!(text.ends_with("# Skill\n"));
     }
+
+    fixture.grant(false).await;
+    let denied = fixture
+        .repo
+        .consumer_installation_plan(
+            &fixture.credential.credential,
+            &fixture.request.resource_id,
+            &fixture.request.publication_id,
+            EvaluatorClient::Codex,
+        )
+        .await
+        .expect_err("a revoked consumer must not receive the publication plan");
+    assert!(matches!(denied, ManagedError::Unavailable));
+
+    fixture.grant(true).await;
+    let restored = fixture
+        .repo
+        .consumer_installation_plan(
+            &fixture.credential.credential,
+            &fixture.request.resource_id,
+            &fixture.request.publication_id,
+            EvaluatorClient::Codex,
+        )
+        .await
+        .expect("restoring the grant recovers the same publication plan");
+    assert_eq!(restored.resource_id, fixture.request.resource_id);
+    assert_eq!(restored.publication_id, fixture.request.publication_id);
+    assert_eq!(restored.generation, fixture.request.generation);
+    assert!(
+        restored
+            .runtime_files
+            .iter()
+            .any(|file| file.path == "SKILL.md")
+    );
 }

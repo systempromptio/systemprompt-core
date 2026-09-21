@@ -16,14 +16,21 @@ struct AuditSeed {
     task_id: String,
     trace_id: String,
     request_id: String,
+    session_id: String,
     model: String,
 }
 
 impl AuditSeed {
-    async fn new_or_skip() -> Option<Self> {
-        let url = fixture_database_url().ok()?;
-        let db = fixture_db_pool(&url).await.ok()?;
-        let pool = db.pool_arc().ok()?.as_ref().clone();
+    async fn new() -> Self {
+        let url = fixture_database_url().expect("trace fixture prerequisite");
+        let db = fixture_db_pool(&url)
+            .await
+            .expect("trace fixture prerequisite");
+        let pool = db
+            .pool_arc()
+            .expect("trace fixture prerequisite")
+            .as_ref()
+            .clone();
 
         let tag = uuid::Uuid::new_v4().simple().to_string();
         let user_id = format!("audit_user_{tag}");
@@ -31,6 +38,7 @@ impl AuditSeed {
         let task_id = format!("audit_task_{tag}");
         let trace_id = format!("audit_trace_{tag}");
         let request_id = format!("audit_req_{tag}");
+        let session_id = format!("audit_session_{tag}");
         let model = format!("model-{tag}");
 
         sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $2, $3)")
@@ -39,7 +47,14 @@ impl AuditSeed {
             .bind(format!("{user_id}@test.invalid"))
             .execute(&pool)
             .await
-            .ok()?;
+            .expect("trace fixture prerequisite");
+
+        sqlx::query("INSERT INTO user_sessions (session_id, user_id) VALUES ($1, $2)")
+            .bind(&session_id)
+            .bind(&user_id)
+            .execute(&pool)
+            .await
+            .expect("trace fixture prerequisite");
 
         sqlx::query("INSERT INTO user_contexts (context_id, user_id, name) VALUES ($1, $2, $3)")
             .bind(&context_id)
@@ -47,48 +62,51 @@ impl AuditSeed {
             .bind(format!("ctx-{tag}"))
             .execute(&pool)
             .await
-            .ok()?;
+            .expect("trace fixture prerequisite");
 
         sqlx::query(
             "INSERT INTO agent_tasks (task_id, context_id, user_id, session_id, trace_id, \
-             agent_name, status, execution_time_ms, error_message) VALUES ($1, $2, $3, 'sess', \
-             $4, 'auditor', 'TASK_STATE_COMPLETED', 77, 'boom')",
+             agent_name, status, execution_time_ms, error_message) VALUES ($1, $2, $3, $4, \
+             $5, 'auditor', 'TASK_STATE_COMPLETED', 77, 'boom')",
         )
         .bind(&task_id)
         .bind(&context_id)
         .bind(&user_id)
+        .bind(&session_id)
         .bind(&trace_id)
         .execute(&pool)
         .await
-        .ok()?;
+        .expect("trace fixture prerequisite");
 
         sqlx::query(
             "INSERT INTO ai_requests \
              (id, request_id, user_id, session_id, task_id, context_id, trace_id, provider, \
               model, requested_model, max_tokens, actor_kind, actor_id, status, error_message, \
               input_tokens, output_tokens, cost_microdollars, latency_ms) \
-             VALUES ($1, $1, $2, 'sess', $3, $4, $5, 'anthropic', $6, 'requested-alias', 4096, \
+             VALUES ($1, $1, $2, $3, $4, $5, $6, 'anthropic', $7, 'requested-alias', 4096, \
                      'user', $2, 'completed', 'partial failure', 100, 50, 250, 900)",
         )
         .bind(&request_id)
         .bind(&user_id)
+        .bind(&session_id)
         .bind(&task_id)
         .bind(&context_id)
         .bind(&trace_id)
         .bind(&model)
         .execute(&pool)
         .await
-        .ok()?;
+        .expect("trace fixture prerequisite");
 
-        Some(Self {
+        Self {
             pool,
             user_id,
             context_id,
             task_id,
             trace_id,
             request_id,
+            session_id,
             model,
-        })
+        }
     }
 
     async fn insert_rejected_request(&self) -> String {
@@ -129,10 +147,11 @@ impl AuditSeed {
              (mcp_execution_id, tool_name, server_name, started_at, execution_time_ms, input, \
               output, status, user_id, session_id, task_id, context_id, trace_id) \
              VALUES ($1, 'linked_tool', 'linked_srv', now(), 33, '{}', 'out', 'success', $2, \
-                     'sess', $3, $4, $5)",
+                     $3, $4, $5, $6)",
         )
         .bind(&mcp_id)
         .bind(&self.user_id)
+        .bind(&self.session_id)
         .bind(&self.task_id)
         .bind(&self.context_id)
         .bind(&self.trace_id)
@@ -199,7 +218,7 @@ impl AuditSeed {
     async fn insert_log(&self, level: &str, message: &str, metadata: Option<&str>) -> String {
         let id: String = sqlx::query_scalar(
             "INSERT INTO logs (level, module, message, metadata, trace_id, task_id, context_id, \
-             user_id, session_id) VALUES ($1, 'audit_seed_mod', $2, $3, $4, $5, $6, $7, 'sess') \
+             user_id, session_id) VALUES ($1, 'audit_seed_mod', $2, $3, $4, $5, $6, $7, $8) \
              RETURNING id",
         )
         .bind(level)
@@ -209,6 +228,7 @@ impl AuditSeed {
         .bind(&self.task_id)
         .bind(&self.context_id)
         .bind(&self.user_id)
+        .bind(&self.session_id)
         .fetch_one(&self.pool)
         .await
         .unwrap();
@@ -237,9 +257,7 @@ impl AuditSeed {
 
 #[tokio::test]
 async fn ai_trace_service_maps_seeded_task_and_message_rows() {
-    let Some(seed) = AuditSeed::new_or_skip().await else {
-        return;
-    };
+    let seed = AuditSeed::new().await;
 
     seed.insert_task_message("user", 0, "what time is it").await;
     seed.insert_task_message("agent", 1, "it is late").await;
@@ -318,9 +336,7 @@ async fn ai_trace_service_maps_seeded_task_and_message_rows() {
 
 #[tokio::test]
 async fn audit_and_request_queries_map_seeded_rows() {
-    let Some(seed) = AuditSeed::new_or_skip().await else {
-        return;
-    };
+    let seed = AuditSeed::new().await;
 
     seed.insert_request_message("user", "audit me", 0).await;
     seed.insert_tool_call_with_mcp().await;
@@ -488,9 +504,7 @@ async fn audit_and_request_queries_map_seeded_rows() {
 // of recording it — while the per-provider and per-model aggregates skip it.
 #[tokio::test]
 async fn pre_routing_rejections_are_listed_but_excluded_from_provider_and_model_stats() {
-    let Some(seed) = AuditSeed::new_or_skip().await else {
-        return;
-    };
+    let seed = AuditSeed::new().await;
     let rejected_id = seed.insert_rejected_request().await;
     let svc = TraceQueryService::new(std::sync::Arc::new(seed.pool.clone()));
 
@@ -531,9 +545,7 @@ async fn pre_routing_rejections_are_listed_but_excluded_from_provider_and_model_
 
 #[tokio::test]
 async fn log_lookup_search_and_summaries_map_seeded_rows() {
-    let Some(seed) = AuditSeed::new_or_skip().await else {
-        return;
-    };
+    let seed = AuditSeed::new().await;
 
     let since = Utc::now() - ChronoDuration::minutes(5);
     let good_id = seed
@@ -631,18 +643,17 @@ async fn log_lookup_search_and_summaries_map_seeded_rows() {
 // next page holds strictly older rows, with `--until` as the plain time bound.
 #[tokio::test]
 async fn request_list_pages_backwards_with_until_and_before_cursor() {
-    let Some(seed) = AuditSeed::new_or_skip().await else {
-        return;
-    };
+    let seed = AuditSeed::new().await;
     let mut ids = Vec::new();
     for offset in 1..=3 {
         let id = format!("{}_page{offset}", seed.request_id);
         sqlx::query(
             "INSERT INTO ai_requests \
-             (id, request_id, user_id, context_id, trace_id, actor_kind, actor_id, status, \
-              cost_microdollars, created_at) \
-             VALUES ($1, $1, $2, '00000000-0000-0000-0000-00000000c0de', $3, 'user', $2, \
-                     'completed', 0, now() - make_interval(mins => $4))",
+             (id, request_id, user_id, context_id, trace_id, provider, model, actor_kind, actor_id, \
+              status, cost_microdollars, created_at) \
+             VALUES ($1, $1, $2, '00000000-0000-0000-0000-00000000c0de', $3, 'anthropic', \
+                     'pagination-model', 'user', $2, 'completed', 0, \
+                     now() - make_interval(mins => $4))",
         )
         .bind(&id)
         .bind(&seed.user_id)

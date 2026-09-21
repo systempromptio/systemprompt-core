@@ -35,3 +35,5 @@ mod workspace_sink_errors;
 
 #[cfg(test)]
 mod feedback;
+#[cfg(test)]
+mod feedback_capture_lifecycle;

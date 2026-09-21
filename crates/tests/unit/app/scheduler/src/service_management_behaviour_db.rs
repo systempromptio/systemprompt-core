@@ -1,17 +1,13 @@
-//! Behavioural DB-backed tests for [`ServiceManagementService`] stop/cleanup
-//! paths that mutate the shared `services` table.
+//! Behavioural DB-backed tests for [`ServiceManagementService`] stop and
+//! cleanup paths.
 //!
-//! These drive the decision logic in `services/service_management.rs` without
-//! ever signalling a real, unrelated process: every seeded PID is either absent
-//! (no stored PID) or a guaranteed-dead PID (`i32::MAX`), so the
-//! `process_exists` / `pid_is_our_service` guards short-circuit before any
-//! `kill(2)`. We then assert the observable outcome — the DB row is marked
-//! `stopped` and the returned [`OrphanCleanupReport`] records the disposition.
-//!
-//! Tests seed and tear down their own rows and join the serialized
-//! `scheduler-services-db` nextest group (the `services` table is shared and
-//! `cleanup_all_orphans` sweeps it). They early-return when `DATABASE_URL` is
-//! unset.
+//! Direct stop cases use unique rows in the shared fixture database and only
+//! dead PIDs. Bulk orphan sweeps use a private disposable database so they
+//! cannot discover another test's owned child. Their API-wide fallback runs
+//! through a PATH-scoped recording `pkill` shim, while the live-service case
+//! may signal only the exact marked child process that the test spawned and
+//! reaps during teardown. Assertions cover both durable service state and
+//! cleanup dispositions.
 
 use systemprompt_database::{CreateServiceInput, ServiceConfig, ServiceRepository};
 use systemprompt_scheduler::{OrphanDisposition, ServiceManagementService};
@@ -19,6 +15,62 @@ use systemprompt_test_fixtures::fixture_database_url;
 
 // A PID that is never a live process: kill(2) on i32::MAX fails with ESRCH.
 const DEAD_PID: i32 = i32::MAX;
+
+#[cfg(unix)]
+struct PkillShim {
+    original_path: Option<std::ffi::OsString>,
+    invocation: std::path::PathBuf,
+    _directory: tempfile::TempDir,
+}
+
+#[cfg(unix)]
+impl PkillShim {
+    fn install() -> Self {
+        use std::os::unix::fs::PermissionsExt;
+        let directory = tempfile::tempdir().expect("private pkill shim directory");
+        let invocation = directory.path().join("pkill-invocation");
+        let executable = directory.path().join("pkill");
+        std::fs::write(
+            &executable,
+            format!(
+                "#!/bin/sh\nprintf '%s\\n' \"$*\" >> '{}'\nexit 1\n",
+                invocation.display()
+            ),
+        )
+        .expect("write pkill shim");
+        std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o700))
+            .expect("make pkill shim executable");
+        let original_path = std::env::var_os("PATH");
+        let mut paths = vec![directory.path().to_path_buf()];
+        if let Some(path) = &original_path {
+            paths.extend(std::env::split_paths(path));
+        }
+        let path = std::env::join_paths(paths).expect("compose shim PATH");
+        unsafe { std::env::set_var("PATH", path) };
+        Self {
+            original_path,
+            invocation,
+            _directory: directory,
+        }
+    }
+
+    fn assert_unsafe_api_pattern_was_not_dispatched(&self) {
+        assert!(
+            !self.invocation.exists(),
+            "the space-containing API process pattern must be rejected as unsafe before invoking pkill"
+        );
+    }
+}
+
+#[cfg(unix)]
+impl Drop for PkillShim {
+    fn drop(&mut self) {
+        match self.original_path.take() {
+            Some(path) => unsafe { std::env::set_var("PATH", path) },
+            None => unsafe { std::env::remove_var("PATH") },
+        }
+    }
+}
 
 fn unique_name(prefix: &str) -> String {
     use std::sync::atomic::{AtomicU64, Ordering};
@@ -242,9 +294,15 @@ mod service_management_behaviour_db {
         repo.delete_service(&name).await.expect("cleanup");
     }
 
+    #[cfg(unix)]
     #[tokio::test]
     async fn cleanup_all_orphans_reports_stale_entry_for_dead_pid_row() {
-        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
+        let pkill = PkillShim::install();
+        let database =
+            systemprompt_test_fixtures::DisposableDb::installed("scheduler_orphans_stale")
+                .await
+                .expect("isolated scheduler database");
+        let pool = database.pool().await.expect("isolated scheduler pool");
         let svc = ServiceManagementService::new(
             systemprompt_database::ServiceRepository::new(
                 &pool,
@@ -267,6 +325,7 @@ mod service_management_behaviour_db {
             .cleanup_all_orphans(0)
             .await
             .expect("cleanup_all_orphans must succeed");
+        pkill.assert_unsafe_api_pattern_was_not_dispatched();
 
         let outcome = report
             .outcomes
@@ -297,6 +356,11 @@ mod service_management_behaviour_db {
         );
 
         repo.delete_service(&name).await.expect("cleanup");
+        drop(svc);
+        drop(repo);
+        pool.write_pool_arc().expect("write pool").close().await;
+        drop(pool);
+        database.drop_now().await;
     }
 
     #[tokio::test]
@@ -516,7 +580,12 @@ mod live_child_stop_paths {
 
     #[tokio::test]
     async fn cleanup_all_orphans_stops_a_row_with_a_live_marked_pid() {
-        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
+        let pkill = PkillShim::install();
+        let database =
+            systemprompt_test_fixtures::DisposableDb::installed("scheduler_orphans_live")
+                .await
+                .expect("isolated scheduler database");
+        let pool = database.pool().await.expect("isolated scheduler pool");
         let svc = ServiceManagementService::new(
             systemprompt_database::ServiceRepository::new(
                 &pool,
@@ -536,9 +605,10 @@ mod live_child_stop_paths {
         seed_running_row(&repo, &name, "agent", 27205, Some(pid)).await;
 
         let report = svc
-            .cleanup_all_orphans(27206)
+            .cleanup_all_orphans(0)
             .await
             .expect("cleanup_all_orphans");
+        pkill.assert_unsafe_api_pattern_was_not_dispatched();
 
         let outcome = report
             .outcomes
@@ -553,6 +623,11 @@ mod live_child_stop_paths {
 
         wait_until_dead(&mut child).await;
         repo.delete_service(&name).await.expect("cleanup row");
+        drop(svc);
+        drop(repo);
+        pool.write_pool_arc().expect("write pool").close().await;
+        drop(pool);
+        database.drop_now().await;
     }
 
     fn spawn_port_holder() -> (Child, u16) {

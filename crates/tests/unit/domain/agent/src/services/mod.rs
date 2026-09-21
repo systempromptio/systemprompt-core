@@ -6,6 +6,7 @@ mod agent_orchestration;
 mod artifact_publishing;
 mod auth_validation;
 mod config_authoring;
+mod context_history;
 mod context_provider;
 mod context_provider_faults;
 mod execution_tracking_service;

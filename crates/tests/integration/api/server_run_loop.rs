@@ -4,7 +4,9 @@
 
 use std::time::Duration;
 
+use futures::StreamExt;
 use systemprompt_api::services::server::{bind_and_serve, run_server, wait_for_ready};
+use systemprompt_traits::{Phase, StartupEvent};
 use tokio::time::sleep;
 
 use systemprompt_test_fixtures::{
@@ -27,7 +29,8 @@ async fn run_server_reconciles_activates_and_drains_on_sigterm() -> anyhow::Resu
     .await?;
     let base = format!("http://{}", early.local_addr());
 
-    let mut server = tokio::spawn(run_server((*ctx).clone(), None, early));
+    let (events_tx, mut events_rx) = futures::channel::mpsc::unbounded();
+    let mut server = tokio::spawn(run_server((*ctx).clone(), Some(events_tx), early));
 
     tokio::select! {
         ready = wait_for_ready(60) => {
@@ -50,6 +53,103 @@ async fn run_server_reconciles_activates_and_drains_on_sigterm() -> anyhow::Resu
         sleep(Duration::from_millis(50)).await;
     }
     assert!(activated, "full router was never swapped in");
+
+    let events = tokio::time::timeout(Duration::from_secs(5), async {
+        let mut events = Vec::new();
+        while let Some(event) = events_rx.next().await {
+            let startup_complete = matches!(event, StartupEvent::StartupComplete { .. });
+            events.push(event);
+            if startup_complete {
+                return events;
+            }
+        }
+        panic!("startup event sender closed before StartupComplete: {events:?}");
+    })
+    .await
+    .expect("StartupComplete follows readiness within the bounded wait");
+    let position = |predicate: &dyn Fn(&StartupEvent) -> bool| {
+        events
+            .iter()
+            .position(predicate)
+            .unwrap_or_else(|| panic!("expected startup event missing from {events:?}"))
+    };
+    let agents_started = position(&|event| {
+        matches!(
+            event,
+            StartupEvent::PhaseStarted {
+                phase: Phase::Agents
+            }
+        )
+    });
+    let reconciled = position(&|event| {
+        matches!(
+            event,
+            StartupEvent::AgentReconciliationComplete {
+                running: 0,
+                total: 0
+            }
+        )
+    });
+    let agents_completed = position(&|event| {
+        matches!(
+            event,
+            StartupEvent::PhaseCompleted {
+                phase: Phase::Agents
+            }
+        )
+    });
+    let scheduler_started = position(&|event| {
+        matches!(
+            event,
+            StartupEvent::PhaseStarted {
+                phase: Phase::Scheduler
+            }
+        )
+    });
+    let scheduler_completed = position(&|event| {
+        matches!(
+            event,
+            StartupEvent::PhaseCompleted {
+                phase: Phase::Scheduler
+            }
+        )
+    });
+    let api_started = position(&|event| {
+        matches!(
+            event,
+            StartupEvent::PhaseStarted {
+                phase: Phase::ApiServer
+            }
+        )
+    });
+    let api_completed = position(&|event| {
+        matches!(
+            event,
+            StartupEvent::PhaseCompleted {
+                phase: Phase::ApiServer
+            }
+        )
+    });
+    let startup_complete = position(&|event| {
+        matches!(
+            event,
+            StartupEvent::StartupComplete {
+                api_url,
+                services,
+                ..
+            } if api_url == &format!("http://{}", ctx.server_address()) && services.is_empty()
+        )
+    });
+    assert!(
+        agents_started < reconciled
+            && reconciled < agents_completed
+            && agents_completed < scheduler_started
+            && scheduler_started < scheduler_completed
+            && scheduler_completed < api_started
+            && api_started < api_completed
+            && api_completed < startup_complete,
+        "startup UI events must follow completed lifecycle work: {events:?}"
+    );
 
     let status = std::process::Command::new("kill")
         .args(["-TERM", &std::process::id().to_string()])

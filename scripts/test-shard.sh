@@ -49,12 +49,17 @@ case "$group" in
 esac
 
 prefixes="$(group_prefixes "$group")"
-PKGS=$(cargo metadata --no-deps --format-version 1 --manifest-path crates/tests/Cargo.toml \
-  | jq -r --arg ps "$prefixes" '
+PACKAGE_JSON=$(cargo metadata --no-deps --format-version 1 --manifest-path crates/tests/Cargo.toml)
+PKGS=$(printf '%s' "$PACKAGE_JSON" | jq -r --arg ps "$prefixes" '
       ($ps | split(" ") | map(select(length > 0))) as $prefixes
       | .packages[] | .manifest_path as $m
       | select($prefixes | any(. as $p | $m | contains($p)))
       | "-p \(.name)"' | tr '\n' ' ')
+PACKAGE_FILTER=$(printf '%s' "$PACKAGE_JSON" | jq -r --arg ps "$prefixes" '
+      ($ps | split(" ") | map(select(length > 0))) as $prefixes
+      | [.packages[] | .manifest_path as $m
+         | select($prefixes | any(. as $p | $m | contains($p)))
+         | "package(=\(.name))"] | join(" | ")')
 test -n "$PKGS" || { echo "no packages matched group $group" >&2; exit 1; }
 echo "shard $group: $PKGS"
 
@@ -69,10 +74,15 @@ if [ -n "${SYSTEMPROMPT_BIN:-}" ]; then
 fi
 case "$group" in
   bridge)
-    echo "==> Prebuilding bridge binary for subprocess tests"
-    cargo build --manifest-path bin/bridge/Cargo.toml --bin systemprompt-bridge
-    bridge_target_dir=$(cargo metadata --manifest-path bin/bridge/Cargo.toml --no-deps --format-version 1 | jq -r .target_directory)
-    export SP_BRIDGE_BIN="$bridge_target_dir/debug/systemprompt-bridge"
+    if [ -n "${SP_BRIDGE_BIN:-}" ]; then
+      test -x "$SP_BRIDGE_BIN" || { echo "SP_BRIDGE_BIN=$SP_BRIDGE_BIN is not executable" >&2; exit 1; }
+      echo "==> Using prebuilt bridge binary: $SP_BRIDGE_BIN"
+    else
+      echo "==> Prebuilding bridge binary for subprocess tests"
+      cargo build --manifest-path bin/bridge/Cargo.toml --bin systemprompt-bridge
+      bridge_target_dir=$(cargo metadata --manifest-path bin/bridge/Cargo.toml --no-deps --format-version 1 | jq -r .target_directory)
+      export SP_BRIDGE_BIN="$bridge_target_dir/debug/systemprompt-bridge"
+    fi
     ;;
   entry-cli|integration-api|integration-cli|integration-rest*)
     if [ -z "${SYSTEMPROMPT_BIN:-}" ]; then
@@ -89,17 +99,60 @@ esac
 cores="$(nproc 2>/dev/null || echo 4)"
 threads="${TEST_THREADS:-$(( cores < 8 ? cores : 8 ))}"
 
-# `--lib` alone skips every `tests/*.rs` integration binary. Only integration/cli
-# ships them (17 of them), and they were running nowhere: the shards build
-# `--lib`, so they executed solely under the coverage job — which was red for ten
-# days, long enough for a broken `admin setup` fixture to reach a release PR
-# through a fully green gate. That group gets `--tests` as well; it already
-# prebuilds the `systemprompt` binary those targets spawn.
-targets="--lib"
+# `--lib` alone skips every `tests/*.rs` integration binary. The integration-cli
+# shard includes those targets by default; coverage adds all target kinds to
+# every shard, so target flags must be deduplicated before invoking nextest.
+targets=(--lib)
+nextest_args=()
 case "$group" in
-  integration-cli) targets="--lib --tests" ;;
+  integration-cli) targets+=(--tests) ;;
 esac
+while [ "$#" -gt 0 ]; do
+  arg="$1"
+  shift
+  case "$arg" in
+    --) nextest_args+=("--" "$@"); break ;;
+    --lib|--bins|--tests|--examples|--benches)
+      if [[ " ${targets[*]} " != *" $arg "* ]]; then
+        targets+=("$arg")
+      fi
+      ;;
+    *) nextest_args+=("$arg") ;;
+  esac
+done
 
-cargo nextest run --profile "${NEXTEST_PROFILE:-default}" \
-  --manifest-path crates/tests/Cargo.toml \
-  $targets $PKGS "${PARTITION[@]}" --test-threads "$threads" "$@"
+if [ -n "${COVERAGE_BINARIES_METADATA:-}" ] || [ -n "${COVERAGE_CARGO_METADATA:-}" ]; then
+  test -n "${COVERAGE_BINARIES_METADATA:-}" && test -n "${COVERAGE_CARGO_METADATA:-}" || {
+    echo "coverage metadata reuse requires both metadata paths" >&2
+    exit 2
+  }
+  test -f "$COVERAGE_BINARIES_METADATA" && test -f "$COVERAGE_CARGO_METADATA" || {
+    echo "coverage metadata reuse files are missing" >&2
+    exit 2
+  }
+  reuse_filter="$PACKAGE_FILTER"
+  reuse_args=()
+  for ((index = 0; index < ${#nextest_args[@]}; index++)); do
+    arg="${nextest_args[index]}"
+    if [[ "$arg" == "--" ]]; then
+      reuse_args+=("${nextest_args[@]:index}")
+      break
+    elif [[ "$arg" == "-E" || "$arg" == "--filterset" || "$arg" == "--filter-expr" ]]; then
+      index=$((index + 1))
+      test "$index" -lt "${#nextest_args[@]}"
+      reuse_filter="($reuse_filter) & (${nextest_args[index]})"
+    else
+      reuse_args+=("$arg")
+    fi
+  done
+  cargo nextest run --profile "${NEXTEST_PROFILE:-coverage}" \
+    --binaries-metadata "$COVERAGE_BINARIES_METADATA" \
+    --cargo-metadata "$COVERAGE_CARGO_METADATA" \
+    -E "$reuse_filter" "${PARTITION[@]}" --test-threads "$threads" \
+    "${reuse_args[@]}"
+else
+  cargo nextest run --profile "${NEXTEST_PROFILE:-default}" \
+    --manifest-path crates/tests/Cargo.toml \
+    "${targets[@]}" $PKGS "${PARTITION[@]}" --test-threads "$threads" \
+    "${nextest_args[@]}"
+fi

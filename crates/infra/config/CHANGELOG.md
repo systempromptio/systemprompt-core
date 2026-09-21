@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.58.0] - 2026-09-21
+
+### Changed
+
+- Models added through `ProviderCatalogService` default to visible discovery entries under the new `ProviderModel::hidden` contract.
+
 ## [0.56.0] - 2026-09-18
 
 ### Changed

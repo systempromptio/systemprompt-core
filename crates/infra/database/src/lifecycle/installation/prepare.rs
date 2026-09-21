@@ -1,6 +1,9 @@
 //! Parse, lint, and phase-classify an extension's declarative schema before
 //! any database I/O. The resulting [`PreparedSchema`] is executed by the
-//! installer in the correct global phase.
+//! installer in the correct global phase. Routines (`CREATE OR REPLACE
+//! FUNCTION`) are kept in a phase of their own as well as in the dependent
+//! phase: the installer applies them before any migration runs, so a
+//! migration can reference a function only the declarative schema defines.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -15,6 +18,7 @@ use crate::services::schema_linter::{created_table_names, lint_declarative_schem
 pub(super) struct PreparedSchema {
     pub(super) extension_id: String,
     pub(super) structural: Vec<String>,
+    pub(super) routines: Vec<String>,
     pub(super) dependent: Vec<String>,
     pub(super) foreign_keys: Vec<DeferredForeignKey>,
     pub(super) columns_to_validate: Vec<ColumnsToValidate>,
@@ -62,6 +66,7 @@ pub(super) fn prepare_extension_schema(ext: &dyn Extension) -> Result<PreparedSc
 
     let Phased {
         structural,
+        routines,
         dependent,
         foreign_keys,
     } = phase_statements(&extension_id, parsed)?;
@@ -69,6 +74,7 @@ pub(super) fn prepare_extension_schema(ext: &dyn Extension) -> Result<PreparedSc
     Ok(PreparedSchema {
         extension_id,
         structural,
+        routines,
         dependent,
         foreign_keys,
         columns_to_validate,
@@ -111,6 +117,7 @@ fn lint_schemas(
 
 struct Phased {
     structural: Vec<String>,
+    routines: Vec<String>,
     dependent: Vec<String>,
     foreign_keys: Vec<DeferredForeignKey>,
 }
@@ -118,6 +125,7 @@ struct Phased {
 fn phase_statements(extension_id: &str, parsed: Vec<String>) -> Result<Phased, LoaderError> {
     let mut phased = Phased {
         structural: Vec::new(),
+        routines: Vec::new(),
         dependent: Vec::new(),
         foreign_keys: Vec::new(),
     };
@@ -130,6 +138,13 @@ fn phase_statements(extension_id: &str, parsed: Vec<String>) -> Result<Phased, L
         })?;
         match classified {
             Classified::Structural => phased.structural.push(statement),
+            // Why: applied twice — before migrations with function bodies
+            // unchecked, and again in the dependent phase where the final
+            // body is validated against the migrated schema.
+            Classified::Routine => {
+                phased.routines.push(statement.clone());
+                phased.dependent.push(statement);
+            },
             Classified::Dependent => phased.dependent.push(statement),
             Classified::CreateTable(split) => {
                 phased.structural.push(split.create_table_sql);
@@ -166,8 +181,51 @@ fn require_declarative_schema(
 
 enum Classified {
     Structural,
+    Routine,
     Dependent,
     CreateTable(SplitCreateTable),
+}
+
+fn node_phase(node: &pg_query::NodeEnum) -> Result<StatementPhase, String> {
+    use pg_query::NodeEnum;
+
+    Ok(match node {
+        NodeEnum::CreateSchemaStmt(_)
+        | NodeEnum::CreateStmt(_)
+        | NodeEnum::CreateExtensionStmt(_)
+        | NodeEnum::CompositeTypeStmt(_)
+        | NodeEnum::CreateEnumStmt(_)
+        | NodeEnum::CreateRangeStmt(_)
+        | NodeEnum::CreateSeqStmt(_)
+        | NodeEnum::CreateDomainStmt(_)
+        | NodeEnum::DefineStmt(_)
+        | NodeEnum::CreateForeignTableStmt(_) => StatementPhase::Structural,
+
+        NodeEnum::IndexStmt(_)
+        | NodeEnum::ViewStmt(_)
+        | NodeEnum::CreateTableAsStmt(_)
+        | NodeEnum::CreateTrigStmt(_)
+        | NodeEnum::CreateFunctionStmt(_)
+        | NodeEnum::CreatePolicyStmt(_)
+        | NodeEnum::AlterPolicyStmt(_)
+        | NodeEnum::RuleStmt(_)
+        | NodeEnum::CreateStatsStmt(_)
+        | NodeEnum::CreateCastStmt(_)
+        | NodeEnum::CreateTransformStmt(_)
+        | NodeEnum::AlterTableStmt(_)
+        | NodeEnum::AlterEnumStmt(_)
+        | NodeEnum::AlterSeqStmt(_)
+        | NodeEnum::AlterDomainStmt(_)
+        | NodeEnum::AlterOwnerStmt(_)
+        | NodeEnum::AlterObjectSchemaStmt(_)
+        | NodeEnum::RenameStmt(_)
+        | NodeEnum::GrantStmt(_)
+        | NodeEnum::GrantRoleStmt(_)
+        | NodeEnum::CommentStmt(_)
+        | NodeEnum::DropStmt(_) => StatementPhase::Dependent,
+
+        other => return Err(format!("{other:?}")),
+    })
 }
 
 fn classify_statement(statement: &str) -> Result<Classified, String> {
@@ -178,10 +236,20 @@ fn classify_statement(statement: &str) -> Result<Classified, String> {
 
     let mut phase: Option<StatementPhase> = None;
     let mut create_table: Option<SplitCreateTable> = None;
+    let mut routine = false;
     for raw in parsed.protobuf.stmts {
         let Some(node) = raw.stmt.and_then(|s| s.node) else {
             continue;
         };
+        if let NodeEnum::CreateFunctionStmt(create) = &node {
+            if !create.replace {
+                return Err(format!(
+                    "declarative functions must be CREATE OR REPLACE: the installer applies them \
+                     before migrations and again after\nSQL:\n{statement}"
+                ));
+            }
+            routine = true;
+        }
         if let NodeEnum::CreateStmt(create) = &node
             && create_table.is_none()
         {
@@ -190,48 +258,12 @@ fn classify_statement(statement: &str) -> Result<Classified, String> {
                     .map_err(|e| format!("{e}\nSQL:\n{statement}"))?,
             );
         }
-        let node_phase = match node {
-            NodeEnum::CreateSchemaStmt(_)
-            | NodeEnum::CreateStmt(_)
-            | NodeEnum::CreateExtensionStmt(_)
-            | NodeEnum::CompositeTypeStmt(_)
-            | NodeEnum::CreateEnumStmt(_)
-            | NodeEnum::CreateRangeStmt(_)
-            | NodeEnum::CreateSeqStmt(_)
-            | NodeEnum::CreateDomainStmt(_)
-            | NodeEnum::DefineStmt(_)
-            | NodeEnum::CreateForeignTableStmt(_) => StatementPhase::Structural,
-
-            NodeEnum::IndexStmt(_)
-            | NodeEnum::ViewStmt(_)
-            | NodeEnum::CreateTableAsStmt(_)
-            | NodeEnum::CreateTrigStmt(_)
-            | NodeEnum::CreateFunctionStmt(_)
-            | NodeEnum::CreatePolicyStmt(_)
-            | NodeEnum::AlterPolicyStmt(_)
-            | NodeEnum::RuleStmt(_)
-            | NodeEnum::CreateStatsStmt(_)
-            | NodeEnum::CreateCastStmt(_)
-            | NodeEnum::CreateTransformStmt(_)
-            | NodeEnum::AlterTableStmt(_)
-            | NodeEnum::AlterEnumStmt(_)
-            | NodeEnum::AlterSeqStmt(_)
-            | NodeEnum::AlterDomainStmt(_)
-            | NodeEnum::AlterOwnerStmt(_)
-            | NodeEnum::AlterObjectSchemaStmt(_)
-            | NodeEnum::RenameStmt(_)
-            | NodeEnum::GrantStmt(_)
-            | NodeEnum::GrantRoleStmt(_)
-            | NodeEnum::CommentStmt(_)
-            | NodeEnum::DropStmt(_) => StatementPhase::Dependent,
-
-            other => {
-                return Err(format!(
-                    "unrecognised statement type {other:?} in declarative schema; classify it as \
-                     structural or dependent in classify_statement()\nSQL:\n{statement}"
-                ));
-            },
-        };
+        let node_phase = node_phase(&node).map_err(|kind| {
+            format!(
+                "unrecognised statement type {kind} in declarative schema; classify it as \
+                 structural or dependent in classify_statement()\nSQL:\n{statement}"
+            )
+        })?;
         phase = Some(match phase {
             None | Some(StatementPhase::Structural) => node_phase,
             Some(StatementPhase::Dependent) => StatementPhase::Dependent,
@@ -242,6 +274,7 @@ fn classify_statement(statement: &str) -> Result<Classified, String> {
         match (phase.unwrap_or(StatementPhase::Dependent), create_table) {
             (StatementPhase::Structural, Some(split)) => Classified::CreateTable(split),
             (StatementPhase::Structural, None) => Classified::Structural,
+            (StatementPhase::Dependent, _) if routine => Classified::Routine,
             (StatementPhase::Dependent, _) => Classified::Dependent,
         },
     )

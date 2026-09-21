@@ -265,3 +265,62 @@ fn purge_device_returns_the_machine_to_a_never_installed_state() {
         "config (gateway url) removed, unlike `uninstall --purge`"
     );
 }
+
+#[test]
+fn install_host_fails_closed_on_a_corrupt_last_sync_policy_after_bootstrap() {
+    let sb = Sandbox::new();
+    let settings = sb.home.path().join(".claude/settings.json");
+    let foreign = b"{\"theme\":\"dark\"}";
+    std::fs::create_dir_all(settings.parent().expect("settings parent")).expect(".claude dir");
+    std::fs::write(&settings, foreign).expect("foreign settings");
+    std::fs::create_dir_all(sb.metadata()).expect("metadata");
+    let sentinel = sb.metadata().join("last-sync.json");
+    std::fs::write(&sentinel, "{ corrupt").expect("corrupt sentinel");
+
+    let status = sb.run(|| run_with_args(&argv(&["install", "--host", "claude-code"])));
+
+    assert_eq!(status, std::process::ExitCode::from(1));
+    assert!(
+        sb.org_plugins().is_dir(),
+        "binary and scheduled-sync bootstrap completes before host enrollment"
+    );
+    assert_eq!(
+        std::fs::read_to_string(&sentinel).expect("sentinel retained"),
+        "{ corrupt",
+        "install must not replace unreadable delivered policy with an empty host set"
+    );
+    assert_eq!(
+        std::fs::read(&settings).expect("foreign settings retained"),
+        foreign,
+        "host enrollment cannot modify settings while delivered host policy is unreadable"
+    );
+
+    std::fs::write(&sentinel, "{}").expect("repair sentinel");
+    let recovered = sb.run(|| run_with_args(&argv(&["install", "--host", "claude-code"])));
+    assert_eq!(recovered, std::process::ExitCode::SUCCESS);
+
+    let settings: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&settings).expect("recovered settings"))
+            .expect("recovered settings are JSON");
+    assert_eq!(
+        settings["theme"], "dark",
+        "foreign setting survives enrollment"
+    );
+    assert!(
+        settings["env"]["ANTHROPIC_BASE_URL"]
+            .as_str()
+            .is_some_and(|origin| origin.starts_with("http://127.0.0.1:")),
+        "recovered enrollment routes Claude Code through its loopback proxy: {settings}"
+    );
+    assert_eq!(
+        settings["apiKeyHelper"].as_str(),
+        Some(
+            sb.config
+                .path()
+                .join("systemprompt/claude-key-helper.sh")
+                .to_string_lossy()
+                .as_ref()
+        ),
+        "the recovered profile obtains credentials only through the bridge helper"
+    );
+}

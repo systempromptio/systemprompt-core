@@ -10,7 +10,9 @@ use std::net::TcpListener;
 use std::process::Command;
 use std::time::{Duration, Instant};
 
-use systemprompt_agent::services::agent_orchestration::port_service::PortService;
+use systemprompt_agent::services::agent_orchestration::port_service::{
+    PortService, find_process_using_port,
+};
 
 fn held_port() -> (TcpListener, u16) {
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind ephemeral");
@@ -178,4 +180,159 @@ fn verifying_ports_reports_each_blocked_port_with_its_holder() {
 
     drop(first);
     drop(second);
+}
+#[cfg(unix)]
+#[tokio::test]
+async fn malformed_lsof_identity_fails_closed_without_disturbing_the_listener() {
+    struct PathGuard(Option<std::ffi::OsString>);
+    impl Drop for PathGuard {
+        fn drop(&mut self) {
+            match self.0.take() {
+                Some(path) => unsafe { std::env::set_var("PATH", path) },
+                None => unsafe { std::env::remove_var("PATH") },
+            }
+        }
+    }
+
+    let (listener, port) = held_port();
+    let shim = tempfile::tempdir().expect("private lsof shim directory");
+    let lsof = shim.path().join("lsof");
+    std::fs::write(&lsof, "#!/bin/sh\nprintf 'not-a-pid\\n'\n").expect("write lsof shim");
+    use std::os::unix::fs::PermissionsExt;
+    std::fs::set_permissions(&lsof, std::fs::Permissions::from_mode(0o700))
+        .expect("make lsof shim executable");
+    let _path = PathGuard(std::env::var_os("PATH"));
+    unsafe { std::env::set_var("PATH", shim.path()) };
+
+    let error = PortService::new()
+        .cleanup_port_if_needed(port)
+        .await
+        .expect_err("an unparseable holder identity must fail closed");
+    let diagnosis = error.to_string();
+    assert!(
+        diagnosis.contains(&format!("Failed to check port {port}")),
+        "{diagnosis}"
+    );
+    assert!(
+        diagnosis.contains("Failed to parse PID from lsof output"),
+        "{diagnosis}"
+    );
+    assert!(
+        std::net::TcpStream::connect(listener.local_addr().expect("listener address")).is_ok(),
+        "identity failure must not terminate or disturb the unverified listener"
+    );
+}
+
+#[cfg(unix)]
+struct PathGuard(Option<std::ffi::OsString>);
+
+#[cfg(unix)]
+impl Drop for PathGuard {
+    fn drop(&mut self) {
+        match self.0.take() {
+            Some(path) => unsafe { std::env::set_var("PATH", path) },
+            None => unsafe { std::env::remove_var("PATH") },
+        }
+    }
+}
+
+#[cfg(unix)]
+fn listener_is_alive(listener: &TcpListener) -> bool {
+    std::net::TcpStream::connect_timeout(
+        &listener.local_addr().expect("listener address"),
+        Duration::from_secs(1),
+    )
+    .is_ok()
+}
+
+#[cfg(unix)]
+fn lsof_on_path() -> std::path::PathBuf {
+    std::env::var_os("PATH")
+        .into_iter()
+        .flat_map(|path| std::env::split_paths(&path).collect::<Vec<_>>())
+        .map(|directory| directory.join("lsof"))
+        .find(|candidate| candidate.is_file())
+        .expect("lsof is available before isolating PATH")
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn missing_lsof_fails_closed_and_restored_probe_still_refuses_the_listener() {
+    let (listener, port) = held_port();
+    let unavailable = tempfile::tempdir().expect("empty probe directory");
+    let path = PathGuard(std::env::var_os("PATH"));
+    unsafe { std::env::set_var("PATH", unavailable.path()) };
+
+    let error = PortService::new()
+        .cleanup_port_if_needed(port)
+        .await
+        .expect_err("a missing port probe must fail closed");
+    let diagnosis = error.to_string();
+    assert!(
+        diagnosis.contains(&format!("Failed to check port {port}")),
+        "{diagnosis}"
+    );
+    assert!(diagnosis.contains("failed to run `lsof -ti"), "{diagnosis}");
+    assert!(
+        listener_is_alive(&listener),
+        "a missing probe must not disturb the listener"
+    );
+
+    drop(path);
+    let restored = PortService::new()
+        .cleanup_port_if_needed(port)
+        .await
+        .expect_err("the restored probe must still refuse the non-agent listener");
+    assert!(
+        restored.to_string().contains("non-agent process"),
+        "{restored}"
+    );
+    assert!(
+        listener_is_alive(&listener),
+        "restoring a probe must not turn a bystander listener into a cleanup target"
+    );
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn missing_ps_fails_identity_check_without_reclaiming_the_listener() {
+    let (listener, port) = held_port();
+    let shim = tempfile::tempdir().expect("private probe shim directory");
+    let lsof = shim.path().join("lsof");
+    assert_eq!(
+        find_process_using_port(port).expect("lsof identifies listener"),
+        Some(std::process::id()),
+        "the real lsof must identify the listener before PATH is isolated"
+    );
+    std::os::unix::fs::symlink(lsof_on_path(), &lsof).expect("link real lsof into owned PATH");
+    let path = PathGuard(std::env::var_os("PATH"));
+    unsafe { std::env::set_var("PATH", shim.path()) };
+
+    let error = PortService::new()
+        .cleanup_port_if_needed(port)
+        .await
+        .expect_err("an unavailable identity probe must fail closed");
+    let diagnosis = error.to_string();
+    assert!(
+        diagnosis.contains(&format!(
+            "failed to identify process (PID {})",
+            std::process::id()
+        )),
+        "{diagnosis}"
+    );
+    assert!(diagnosis.contains("failed to run `ps -p"), "{diagnosis}");
+    assert!(
+        listener_is_alive(&listener),
+        "an unavailable identity probe must not reclaim the listener"
+    );
+
+    drop(path);
+    let restored = PortService::new()
+        .cleanup_port_if_needed(port)
+        .await
+        .expect_err("the restored probe must classify the listener as non-agent");
+    assert!(
+        restored.to_string().contains("non-agent process"),
+        "{restored}"
+    );
 }

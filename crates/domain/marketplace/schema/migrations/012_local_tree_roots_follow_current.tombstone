@@ -1,0 +1,14 @@
+Slot 012 is spent, not free.
+
+012_local_tree_roots_follow_current.sql pointed local-tree source roots at
+the cache's `current` link. It lifted the managed_sources_immutable trigger
+around the rewrite with ALTER TABLE ... DISABLE TRIGGER, and that trigger is
+declarative state (managed_sources.sql) first shipped in 0.53 -- a database
+last booted on 0.52.0 does not have it, and the migration failed every
+upgrade at "trigger managed_sources_immutable does not exist".
+
+The rewrite moved to 013_local_tree_roots_follow_current.sql, which lifts
+the trigger only where it exists. Deployments that applied 012 keep their
+tracking row; 013 is a no-op for them.
+
+Numbering continues at the highest slot ever used, never at the first gap.

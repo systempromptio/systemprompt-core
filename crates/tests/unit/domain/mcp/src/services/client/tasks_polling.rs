@@ -7,7 +7,8 @@
 //! The responder echoes the request's own id and walks a queue of payloads,
 //! repeating the last one once the queue is down to its final entry.
 
-use std::sync::Mutex;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc, Mutex};
 
 use serde_json::{Value, json};
 use systemprompt_mcp::services::client::McpClient;
@@ -284,4 +285,95 @@ async fn a_task_whose_ttl_has_already_elapsed_times_out_instead_of_polling_forev
         msg.to_lowercase().contains("timed out") || msg.contains("Timeout"),
         "an exhausted ttl budget must surface as a timeout, got: {msg}"
     );
+}
+
+
+#[derive(Clone)]
+struct DirectInputRequiredServer {
+    tool_calls: Arc<AtomicUsize>,
+    requests: Arc<Mutex<Vec<Value>>>,
+}
+
+impl Respond for DirectInputRequiredServer {
+    fn respond(&self, request: &Request) -> ResponseTemplate {
+        let body: Value = serde_json::from_slice(&request.body).unwrap_or(Value::Null);
+        let method = body
+            .get("method")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        if method.starts_with("notifications/") {
+            return ResponseTemplate::new(202);
+        }
+        let id = body.get("id").cloned().unwrap_or_else(|| json!(0));
+        let payload = match method {
+            "initialize" => json!({
+                "protocolVersion": "2026-07-28",
+                "capabilities": {"tools": {}},
+                "serverInfo": {"name": "direct-input-required", "version": "1.0.0"}
+            }),
+            "tools/call" => {
+                self.requests.lock().expect("requests").push(body.clone());
+                if self.tool_calls.fetch_add(1, Ordering::SeqCst) == 0 {
+                    json!({"resultType": "input_required", "requestState": "retry-state"})
+                } else {
+                    text_result("completed after direct input-required")
+                }
+            },
+            _ => json!({}),
+        };
+        ResponseTemplate::new(200)
+            .insert_header("content-type", "application/json")
+            .insert_header("mcp-session-id", "direct-input-session")
+            .set_body_json(json!({"jsonrpc": "2.0", "id": id, "result": payload}))
+    }
+}
+
+#[tokio::test]
+async fn a_direct_input_required_tool_response_is_reissued_once_with_the_original_arguments() {
+    let _ = ensure_test_bootstrap();
+    let server = MockServer::start().await;
+    let scripted = DirectInputRequiredServer {
+        tool_calls: Arc::new(AtomicUsize::new(0)),
+        requests: Arc::new(Mutex::new(Vec::new())),
+    };
+    Mock::given(method("POST"))
+        .and(path("/mcp"))
+        .respond_with(scripted.clone())
+        .mount(&server)
+        .await;
+    Mock::given(method("DELETE"))
+        .and(path("/mcp"))
+        .respond_with(ResponseTemplate::new(200))
+        .mount(&server)
+        .await;
+
+    let config = external_mcp_config("direct_input_required", &format!("{}/mcp", server.uri()));
+    let result = tokio::time::timeout(
+        std::time::Duration::from_secs(5),
+        McpClient::call_tool(
+            &config,
+            "echo".to_owned(),
+            Some(json!({"message": "preserve this"})),
+            &request_context("direct-input-required"),
+        ),
+    )
+    .await
+    .expect("direct input-required retry stays bounded")
+    .expect("second tools/call completes");
+
+    assert_eq!(
+        result.content[0].as_text().expect("text content").text,
+        "completed after direct input-required"
+    );
+    assert_eq!(scripted.tool_calls.load(Ordering::SeqCst), 2);
+    let requests = scripted.requests.lock().expect("requests");
+    assert_eq!(requests.len(), 2);
+    assert_ne!(requests[0]["id"], requests[1]["id"]);
+    for request in requests.iter() {
+        assert_eq!(request["method"], "tools/call");
+        assert_eq!(
+            request["params"]["arguments"],
+            json!({"message": "preserve this"})
+        );
+    }
 }

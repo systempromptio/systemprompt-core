@@ -75,6 +75,120 @@ fn find<'a>(checks: &'a [Check], name: &str) -> &'a Check {
 }
 
 #[test]
+fn claude_settings_doctor_diagnoses_corrupt_mismatched_and_recoverable_profiles_without_leaking_helper()
+ {
+    use systemprompt_bridge::cli::doctor::claude_code::check_file;
+
+    sandbox(|root| {
+        let settings = root.join("claude-settings.json");
+        std::fs::write(&settings, "{ not json").unwrap();
+        let corrupt = check_file(&settings, "http://127.0.0.1:8123");
+        assert_eq!(corrupt.status, Status::Fail);
+        assert!(corrupt.detail.contains("invalid settings JSON"));
+
+        std::fs::write(
+            &settings,
+            r#"{"env":{"ANTHROPIC_BASE_URL":"http://127.0.0.1:9999"},"apiKeyHelper":"private-helper-value"}"#,
+        )
+        .unwrap();
+        let mismatched = check_file(&settings, "http://127.0.0.1:8123");
+        assert_eq!(mismatched.status, Status::Fail);
+        assert!(mismatched.detail.contains("routing differs"));
+        assert!(!mismatched.detail.contains("private-helper-value"));
+
+        std::fs::write(
+            &settings,
+            r#"{"env":{"ANTHROPIC_BASE_URL":"http://127.0.0.1:8123"},"apiKeyHelper":"private-helper-value"}"#,
+        )
+        .unwrap();
+        let recovered = check_file(&settings, "http://127.0.0.1:8123");
+        assert_eq!(recovered.status, Status::Ok);
+        assert!(!recovered.detail.contains("private-helper-value"));
+    });
+}
+
+#[test]
+fn host_profile_secret_doctor_reports_stale_opencode_credentials_then_a_repaired_profile() {
+    use systemprompt_bridge::cli::doctor::auth::check_host_profile_secrets;
+    use systemprompt_bridge::ids::{HostId, LoopbackSecret};
+    use systemprompt_bridge::integration::host_app::ProbeEnv;
+    use systemprompt_bridge::proxy::scoped_token::host_token;
+
+    sandbox(|root| {
+        let managed = root.join("managed");
+        std::fs::create_dir_all(&managed).expect("managed directory");
+        let config = root.join("systemprompt/systemprompt-bridge.toml");
+        std::fs::create_dir_all(config.parent().expect("config parent")).expect("config directory");
+        std::fs::write(
+            config,
+            format!("[opencode]\nmanaged_dir = '{}'\n", managed.display()),
+        )
+        .expect("bridge config");
+        let profile = managed.join("opencode.json");
+        std::fs::write(
+            &profile,
+            r#"{"provider":{"systemprompt":{"npm":"@ai-sdk/openai-compatible","options":{"baseURL":"http://127.0.0.1:1/v1","headers":{"x-inference-protocol":"openai"}},"models":{"gpt-4.1":{"name":"gpt-4.1"}}}},"model":"systemprompt/gpt-4.1"}"#,
+        )
+        .expect("stale profile");
+        let auth = root.join("opencode/auth.json");
+        std::fs::create_dir_all(auth.parent().expect("auth parent")).expect("auth directory");
+        let host = HostId::new("opencode");
+        let stale_token = host_token(&LoopbackSecret::new("retired-loopback-secret"), &host);
+        std::fs::write(
+            &auth,
+            serde_json::json!({ "systemprompt": { "type": "api", "key": stale_token.as_str() } })
+                .to_string(),
+        )
+        .expect("stale auth token");
+
+        let env = ProbeEnv {
+            proxy_port: 48217,
+            loopback_secret: Some(LoopbackSecret::new("live-loopback-secret")),
+            start_menu: std::sync::Arc::default(),
+            expected_managed_servers: None,
+            policy_writer_ready: false,
+        };
+        let stale = check_host_profile_secrets(&env).expect("stale installed profile is diagnosed");
+        assert_eq!(stale.status, Status::Fail);
+        assert!(stale.detail.contains("OpenCode"), "{}", stale.detail);
+        assert!(
+            stale.detail.contains("out-of-date loopback secret"),
+            "{}",
+            stale.detail
+        );
+        assert!(
+            !stale.detail.contains(stale_token.as_str()),
+            "{}",
+            stale.detail
+        );
+
+        let live_token = host_token(env.loopback_secret.as_ref().expect("live secret"), &host);
+        std::fs::write(
+            &auth,
+            serde_json::json!({ "systemprompt": { "type": "api", "key": live_token.as_str() } })
+                .to_string(),
+        )
+        .expect("repair auth token");
+        let wrong_port = check_host_profile_secrets(&env).expect("port mismatch is diagnosed");
+        assert_eq!(wrong_port.status, Status::Fail);
+        assert!(
+            wrong_port.detail.contains("OpenCode"),
+            "{}",
+            wrong_port.detail
+        );
+        assert!(wrong_port.detail.contains("48217"), "{}", wrong_port.detail);
+
+        let repaired = std::fs::read_to_string(&profile)
+            .expect("read stale profile")
+            .replace("127.0.0.1:1", "127.0.0.1:48217");
+        std::fs::write(&profile, repaired).expect("repair profile");
+        let healthy = check_host_profile_secrets(&env).expect("installed profile is reported");
+        assert_eq!(healthy.status, Status::Ok, "{}", healthy.detail);
+        assert!(healthy.detail.contains("match the live loopback secret"));
+    });
+}
+
+#[test]
 fn mint_jwt_fails_with_a_login_hint_when_no_provider_is_configured() {
     sandbox(|_| {
         let cfg = config::load().expect("valid config");

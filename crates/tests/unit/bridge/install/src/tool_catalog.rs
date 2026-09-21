@@ -71,3 +71,55 @@ fn retain_drops_servers_that_left_the_manifest_and_keeps_the_rest() {
         assert_eq!(catalog["atlassian"], vec!["read_issue"]);
     });
 }
+
+#[test]
+fn authenticated_probe_replaces_sorted_tools_while_failures_preserve_last_good_catalog() {
+    use systemprompt_bridge::proxy::mcp_probe::{McpAuthState, McpServerAuth, McpTool};
+
+    let state = TempDir::new().expect("state");
+    let result = |state, tools: &[&str]| McpServerAuth {
+        id: "atlassian".to_owned(),
+        url: "http://127.0.0.1/mcp/atlassian".to_owned(),
+        state,
+        tools: tools
+            .iter()
+            .map(|name| McpTool {
+                name: (*name).to_owned(),
+                description: None,
+            })
+            .collect(),
+        http_status: None,
+        latency_ms: None,
+        error: None,
+        session_id: None,
+        probed_at_unix: 1,
+    };
+
+    in_sandbox(&state, || {
+        let recorded = tool_catalog::record(&[
+            result(
+                McpAuthState::Authenticated,
+                &["write_issue", "read_issue", "read_issue"],
+            ),
+            McpServerAuth {
+                id: String::new(),
+                ..result(McpAuthState::Authenticated, &["ignored"])
+            },
+        ])
+        .expect("record authenticated tools");
+        assert_eq!(recorded.len(), 1);
+        assert!(!recorded.contains_key(""));
+        assert_eq!(recorded["atlassian"], vec!["read_issue", "write_issue"]);
+
+        let after_failure = tool_catalog::record(&[result(McpAuthState::UpstreamError, &[])])
+            .expect("failed probe preserves catalog");
+        assert_eq!(
+            after_failure["atlassian"],
+            vec!["read_issue", "write_issue"]
+        );
+        assert_eq!(
+            tool_catalog::read().expect("durable catalog"),
+            after_failure
+        );
+    });
+}

@@ -394,3 +394,40 @@ fn clearing_a_host_removes_the_managed_dirs_and_the_sidecar() {
         assert!(!sidecar.exists(), "the sidecar goes with them");
     });
 }
+
+#[test]
+fn a_corrupt_managed_skill_sidecar_preserves_existing_skills_until_repaired() {
+    with_sandbox(|sb| {
+        let first = manifest(vec![skill("managed", &["hermes"], "# Managed\n")]);
+        apply(&HermesSync, &first, sb).expect("first apply");
+        let sidecar = sb.hermes_skills.join(".systemprompt-managed.json");
+        let saved_sidecar = fs::read(&sidecar).expect("valid managed sidecar");
+        fs::write(&sidecar, b"{ corrupt").expect("corrupt sidecar");
+
+        let next = manifest(vec![skill("replacement", &["hermes"], "# Replacement\n")]);
+        let error =
+            apply(&HermesSync, &next, sb).expect_err("corrupt ownership state fails closed");
+        assert!(matches!(error, ApplyError::Serialize { .. }));
+        assert_eq!(
+            fs::read(sb.hermes_skills.join("managed/SKILL.md")).expect("old skill bytes"),
+            b"---\nname: managed\ndescription: desc for managed\n---\n\n# Managed\n",
+            "the prior managed skill remains byte-for-byte while ownership state is unreadable"
+        );
+        assert!(
+            !sb.hermes_skills.join("replacement").exists(),
+            "the failed pass must not publish a partial replacement"
+        );
+
+        fs::write(&sidecar, saved_sidecar).expect("repair sidecar");
+        apply(&HermesSync, &next, sb).expect("repaired sidecar retries");
+        assert!(!sb.hermes_skills.join("managed").exists());
+        assert_eq!(
+            fs::read(sb.hermes_skills.join("replacement/SKILL.md")).expect("replacement bytes"),
+            b"---\nname: replacement\ndescription: desc for replacement\n---\n\n# Replacement\n"
+        );
+        assert_eq!(
+            sidecar_ids(&sb.hermes_skills),
+            vec!["replacement".to_owned()]
+        );
+    });
+}

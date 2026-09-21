@@ -17,6 +17,13 @@ fn deployment(port: u16) -> Deployment {
     .unwrap()
 }
 
+fn oauth_deployment(port: u16) -> Deployment {
+    serde_yaml::from_str(&format!(
+        "binary: test-server\npackage: null\nport: {port}\nenabled: true\ndisplay_in_web: false\noauth:\n  required: true\n  scopes: []\n  audience: mcp\n  client_id: null\n"
+    ))
+    .unwrap()
+}
+
 #[test]
 fn failure_output_maps_detail_fields() {
     let out = failure_output(
@@ -139,6 +146,40 @@ async fn run_connection_validation_times_out_against_silent_listener() {
     assert_eq!(out.validation_type, "timeout");
     assert_eq!(out.latency_ms, 1000);
     assert!(out.issues[0].contains("timed out after 1 seconds"));
+}
+
+#[tokio::test]
+async fn run_connection_validation_accepts_an_oauth_protected_reachable_service() {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let accepted = tokio::spawn(async move {
+        let (_socket, peer) = listener.accept().await.unwrap();
+        peer
+    });
+
+    let out = run_connection_validation("oauth-svc", &oauth_deployment(port), port, 1).await;
+    let peer = accepted.await.unwrap();
+
+    assert!(peer.ip().is_loopback());
+    assert!(out.valid);
+    assert_eq!(out.health_status, "auth_required");
+    assert_eq!(out.validation_type, "auth_required");
+    assert_eq!(out.server, "oauth-svc");
+    assert_eq!(out.server_info.unwrap().name, "oauth-svc");
+}
+
+#[tokio::test]
+async fn run_connection_validation_reports_an_unavailable_oauth_port() {
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    drop(listener);
+
+    let out = run_connection_validation("oauth-svc", &oauth_deployment(port), port, 1).await;
+
+    assert!(!out.valid);
+    assert_eq!(out.health_status, "unhealthy");
+    assert_eq!(out.validation_type, "port_unavailable");
+    assert!(out.issues[0].contains("Port not responding"));
 }
 
 #[test]

@@ -64,6 +64,7 @@ fn route(provider: &str) -> GatewayRoute {
 fn rich_request() -> CanonicalRequest {
     CanonicalRequest {
         model: ModelId::new("m"),
+        cache_control: None,
         system: vec![SystemBlock::text("be helpful")],
         messages: vec![
             CanonicalMessage {
@@ -168,6 +169,7 @@ async fn anthropic_outbound_with_rich_request_and_extra_headers() {
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
+        automatic_prompt_caching: false,
         forward_headers: &[],
         raw_body: None,
     };
@@ -202,6 +204,7 @@ async fn openai_chat_outbound_with_rich_request() {
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
+        automatic_prompt_caching: false,
         forward_headers: &[],
         raw_body: None,
     };
@@ -237,6 +240,7 @@ async fn openai_responses_outbound_with_rich_request_buffered() {
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
+        automatic_prompt_caching: false,
         forward_headers: &[],
         raw_body: None,
     };
@@ -262,6 +266,7 @@ async fn openai_responses_outbound_propagates_upstream_error() {
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
+        automatic_prompt_caching: false,
         forward_headers: &[],
         raw_body: None,
     };
@@ -287,6 +292,7 @@ async fn openai_responses_outbound_handles_invalid_json() {
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
+        automatic_prompt_caching: false,
         forward_headers: &[],
         raw_body: None,
     };
@@ -309,6 +315,7 @@ async fn anthropic_outbound_no_system_no_tools() {
     let r = route("anthropic");
     let req = CanonicalRequest {
         model: ModelId::new("m"),
+        cache_control: None,
         system: Vec::new(),
         messages: vec![CanonicalMessage {
             role: Role::User,
@@ -340,6 +347,7 @@ async fn anthropic_outbound_no_system_no_tools() {
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
+        automatic_prompt_caching: false,
         forward_headers: &[],
         raw_body: None,
     };
@@ -371,6 +379,7 @@ async fn openai_chat_outbound_streaming_with_extra_headers() {
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
+        automatic_prompt_caching: false,
         forward_headers: &[],
         raw_body: None,
     };
@@ -406,6 +415,7 @@ async fn gemini_outbound_with_rich_request_buffered() {
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
+        automatic_prompt_caching: false,
         forward_headers: &[],
         raw_body: None,
     };
@@ -440,6 +450,7 @@ async fn gemini_outbound_sends_the_api_key_as_a_header_not_a_query_parameter() {
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
+        automatic_prompt_caching: false,
         forward_headers: &[],
         raw_body: None,
     };
@@ -477,6 +488,7 @@ async fn gemini_outbound_streams_from_the_sse_endpoint() {
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
+        automatic_prompt_caching: false,
         forward_headers: &[],
         raw_body: None,
     };
@@ -509,6 +521,7 @@ async fn a_gemini_upstream_rejection_is_reported_as_an_upstream_status_error() {
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
+        automatic_prompt_caching: false,
         forward_headers: &[],
         raw_body: None,
     };
@@ -536,6 +549,7 @@ async fn an_unreachable_gemini_endpoint_is_a_transport_error() {
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
+        automatic_prompt_caching: false,
         forward_headers: &[],
         raw_body: None,
     };
@@ -569,6 +583,7 @@ async fn a_gemini_response_that_is_not_json_is_refused() {
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
+        automatic_prompt_caching: false,
         forward_headers: &[],
         raw_body: None,
     };

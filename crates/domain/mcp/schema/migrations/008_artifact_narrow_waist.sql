@@ -1,3 +1,9 @@
+-- @supersedes-checksum: d302df7a15b20288
+-- @supersedes-checksum: 5c3aeda8ce9903ae
+-- d302df7a15b20288 is this text as it shipped in 0.54 and again from 0.55.1;
+-- 5c3aeda8ce9903ae is the edited text 0.55.0 shipped, which fresh 0.55.0
+-- installs were stamped with and which then refused every later boot on
+-- checksum drift. Both rows move to this text without running anything.
 -- Make every tool result a first-class, linked artifact.
 --
 -- Artifacts were persisted only for in-process tools, keyed by artifact id,

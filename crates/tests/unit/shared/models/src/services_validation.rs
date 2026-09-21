@@ -394,3 +394,27 @@ fn skill_referencing_unknown_mcp_server_is_rejected() {
         "{err}"
     );
 }
+
+#[test]
+fn enabled_evaluation_hook_requires_the_same_plugin_to_own_governance() {
+    let orphan = plugin_yaml("score-only", false, "{}", "{}").replace(
+        "hooks:\n      governance: false",
+        "hooks:\n      governance: false\n      evaluation: true",
+    );
+    let err = parse(&format!("plugins:{orphan}"))
+        .validate()
+        .expect_err("evaluation cannot consume a track hook nobody installs");
+    let diagnosis = err.to_string();
+    assert!(diagnosis.contains("score-only"), "{diagnosis}");
+    assert!(diagnosis.contains("evaluation: true"), "{diagnosis}");
+    assert!(diagnosis.contains("governance: true"), "{diagnosis}");
+
+    let disabled_orphan = orphan.replace("enabled: true", "enabled: false");
+    let owner = plugin_yaml("active-owner", true, "{}", "{}").replace(
+        "hooks:\n      governance: true",
+        "hooks:\n      governance: true\n      evaluation: true",
+    );
+    parse(&format!("plugins:{owner}{disabled_orphan}"))
+        .validate()
+        .expect("a disabled plugin neither installs nor consumes session hooks");
+}

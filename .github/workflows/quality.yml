@@ -28,7 +28,7 @@ jobs:
     name: Bridge web regression tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.ref }}
       - uses: actions/setup-node@v4
@@ -46,7 +46,7 @@ jobs:
       RUSTC_WRAPPER: sccache
       CARGO_INCREMENTAL: "0"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.ref }}
       # `just lint` covers bin/bridge, whose keyring backend pulls
@@ -63,7 +63,7 @@ jobs:
           done
       - run: rustup show
       - uses: mozilla-actions/sccache-action@v0.0.9
-      - uses: extractions/setup-just@v2
+      - uses: extractions/setup-just@v4
       - run: cargo clippy --workspace --all-targets --all-features --keep-going --locked -- -D warnings
       - run: cargo clippy --manifest-path bin/bridge/Cargo.toml --all-targets --all-features --keep-going --locked -- -D warnings
       - run: sccache --show-stats
@@ -89,12 +89,12 @@ jobs:
           POSTGRES_DB: test
         ports: ["5432:5432"]
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "pg_isready -U test -d test"
           --health-interval 5s
           --health-timeout 3s
           --health-retries 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.ref }}
       - run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
@@ -124,7 +124,7 @@ jobs:
       matrix:
         os: [windows-latest, macos-latest]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.ref }}
       - run: rustup show
@@ -151,7 +151,7 @@ jobs:
       RUSTC_WRAPPER: sccache
       CARGO_INCREMENTAL: "0"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.ref }}
       # bin/bridge's linux keyring backend pulls libdbus-sys via pkg-config.
@@ -179,7 +179,7 @@ jobs:
       # history, and every crate would read as unchanged -- a gate that passes
       # because it could not run. It exits 2 rather than 0 in that case, so this
       # is what keeps it green for the right reason.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.ref }}
           fetch-depth: 0
@@ -196,7 +196,7 @@ jobs:
               [ "$n" -lt 3 ] || exit 1
               sleep 15
           done
-      - uses: extractions/setup-just@v2
+      - uses: extractions/setup-just@v4
       - uses: taiki-e/install-action@v2
         with:
           tool: cargo-machete
@@ -333,7 +333,7 @@ jobs:
       RUSTC_WRAPPER: sccache
       CARGO_INCREMENTAL: "0"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.ref }}
       # bin/bridge's linux keyring backend pulls libdbus-sys via pkg-config.
@@ -367,10 +367,10 @@ jobs:
     name: Source file size guard
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.ref }}
-      - uses: extractions/setup-just@v2
+      - uses: extractions/setup-just@v4
       - run: just file-size
 
   # One stable context for the `main` ruleset (see ci.yml `ci-passed`).

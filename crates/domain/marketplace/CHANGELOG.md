@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- Migration `012_local_tree_roots_follow_current` lifted the `managed_sources_immutable` trigger with `ALTER TABLE … DISABLE TRIGGER`; that trigger is declarative state first shipped in 0.53, so a database last booted on 0.52.0 failed every upgrade at `trigger "managed_sources_immutable" … does not exist`. The slot is tombstoned and the rewrite moved to `013_local_tree_roots_follow_current`, which lifts the trigger only where it exists.
+
 ## [0.56.0] - 2026-09-18
 
 ### Added

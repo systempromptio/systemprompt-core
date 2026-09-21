@@ -39,6 +39,7 @@ fn route() -> GatewayRoute {
 fn canonical() -> CanonicalRequest {
     CanonicalRequest {
         model: ModelId::new("caller-model"),
+        cache_control: None,
         system: Vec::new(),
         messages: vec![CanonicalMessage {
             role: Role::User,
@@ -65,6 +66,7 @@ fn normalize_for(upstream_model: &str, body: &Value, limits: Option<ModelLimits>
         request: &request,
         upstream_model,
         model_limits: limits,
+        automatic_prompt_caching: false,
         forward_headers: &[],
         raw_body: Some(&raw),
     };
@@ -231,6 +233,7 @@ fn a_body_that_is_not_a_json_object_declines_the_passthrough() {
         request: &request,
         upstream_model: "upstream-1",
         model_limits: None,
+        automatic_prompt_caching: false,
         forward_headers: &[],
         raw_body: Some(&raw),
     };

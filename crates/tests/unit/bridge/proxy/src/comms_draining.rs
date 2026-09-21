@@ -101,3 +101,52 @@ fn inbox_paths_flatten_session_ids_to_one_safe_filename() {
         "a session id with no safe characters names no file"
     );
 }
+
+#[test]
+fn an_unreadable_inbox_root_fails_without_replacing_it_then_recovers() {
+    let temp = tempfile::tempdir().expect("sandbox");
+    let dir = inbox_dir(&temp);
+    std::fs::create_dir_all(dir.parent().unwrap()).unwrap();
+    std::fs::write(&dir, b"foreign config bytes").unwrap();
+
+    let error = in_sandbox(&temp, systemprompt_bridge::proxy::comms::sweep_draining)
+        .expect_err("a file cannot be enumerated as an inbox");
+    assert!(error.to_string().contains("enumerate"), "{error}");
+    assert_eq!(std::fs::read(&dir).unwrap(), b"foreign config bytes");
+
+    std::fs::remove_file(&dir).unwrap();
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join("sess-a.jsonl.crash.draining"), b"one\n").unwrap();
+    assert_eq!(
+        in_sandbox(&temp, systemprompt_bridge::proxy::comms::sweep_draining).unwrap(),
+        1
+    );
+    assert_eq!(std::fs::read(dir.join("sess-a.jsonl")).unwrap(), b"one\n");
+}
+
+#[test]
+fn an_unreadable_draining_entry_is_retained_until_a_later_sweep() {
+    let temp = tempfile::tempdir().expect("sandbox");
+    let dir = inbox_dir(&temp);
+    std::fs::create_dir_all(&dir).unwrap();
+    let stranded = dir.join("sess-b.jsonl.crash.draining");
+    std::fs::create_dir(&stranded).unwrap();
+
+    let error = in_sandbox(&temp, systemprompt_bridge::proxy::comms::sweep_draining)
+        .expect_err("a directory cannot be restored as message bytes");
+    assert!(error.to_string().contains("read"), "{error}");
+    assert!(
+        stranded.is_dir(),
+        "failed evidence remains available for retry"
+    );
+    assert!(!dir.join("sess-b.jsonl").exists());
+
+    std::fs::remove_dir(&stranded).unwrap();
+    std::fs::write(&stranded, b"two\n").unwrap();
+    assert_eq!(
+        in_sandbox(&temp, systemprompt_bridge::proxy::comms::sweep_draining).unwrap(),
+        1
+    );
+    assert_eq!(std::fs::read(dir.join("sess-b.jsonl")).unwrap(), b"two\n");
+    assert!(!stranded.exists());
+}

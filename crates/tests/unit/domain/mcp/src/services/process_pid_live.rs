@@ -18,12 +18,6 @@ fn held_port() -> (TcpListener, u16) {
     (listener, port)
 }
 
-fn free_port() -> u16 {
-    let (listener, port) = held_port();
-    drop(listener);
-    port
-}
-
 // A child whose argv carries a unique marker, so `pgrep -f` can single it out
 // without matching this test binary or a sibling test's child.
 fn spawn_marked_child(marker: &str) -> Option<Child> {
@@ -66,11 +60,8 @@ fn find_pid_by_port_resolves_a_listener_to_its_owning_process() {
 }
 
 #[test]
-fn find_pid_by_port_reports_none_for_an_unbound_port() {
-    assert_eq!(
-        find_pid_by_port(free_port()).expect("lookup succeeds"),
-        None
-    );
+fn find_pid_by_port_reports_none_for_the_unbindable_zero_port() {
+    assert_eq!(find_pid_by_port(0).expect("lookup succeeds"), None);
 }
 
 #[test]
@@ -151,9 +142,9 @@ fn find_process_on_port_with_name_matches_only_the_expected_command() {
 }
 
 #[test]
-fn find_process_on_port_with_name_reports_none_for_an_unbound_port() {
+fn find_process_on_port_with_name_reports_none_for_the_unbindable_zero_port() {
     assert_eq!(
-        find_process_on_port_with_name(free_port(), "anything").expect("lookup succeeds"),
+        find_process_on_port_with_name(0, "anything").expect("lookup succeeds"),
         None
     );
 }

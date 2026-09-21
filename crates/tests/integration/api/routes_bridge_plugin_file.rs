@@ -115,7 +115,7 @@ const PLUGIN_CONFIG: &str = r#"plugins:
       source: explicit
 "#;
 
-fn seed_plugin_tree() {
+pub(crate) fn seed_plugin_tree() {
     let b = systemprompt_test_fixtures::ensure_test_bootstrap();
     let skills = b.services_path.join("skills/covskill");
     std::fs::create_dir_all(&skills).expect("mkdir skill");

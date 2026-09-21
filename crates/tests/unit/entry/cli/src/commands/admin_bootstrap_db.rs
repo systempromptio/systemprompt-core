@@ -58,3 +58,66 @@ async fn bootstrap_refuses_a_name_that_is_not_the_configured_admin() {
 
     assert!(format!("{err:#}").contains("refusing to bootstrap the wrong user"));
 }
+
+#[tokio::test]
+async fn inactive_existing_admin_is_refused_without_granting_a_role() {
+    use systemprompt_test_fixtures::DisposableDb;
+
+    let database = DisposableDb::installed("cli_bootstrap_inactive")
+        .await
+        .expect("private bootstrap database");
+    // SAFETY: nextest runs this test in its own process and the bootstrap singleton
+    // has not been initialized; the private URL is installed before any
+    // configuration is read.
+    unsafe {
+        std::env::set_var("DATABASE_URL", database.url());
+        std::env::set_var("TEST_DATABASE_URL", database.url());
+    }
+    systemprompt_test_fixtures::ensure_test_bootstrap();
+    let config = CliConfig::new().with_interactive(false);
+    let configured = systemprompt_models::Config::get()
+        .expect("fixture config")
+        .system_admin_username
+        .clone();
+    execute(
+        BootstrapArgs {
+            name: Some(configured.clone()),
+            email: Some("inactive-admin@example.invalid".to_owned()),
+            full_name: "Inactive Coverage Admin".to_owned(),
+        },
+        &config,
+    )
+    .await
+    .expect("create initial bootstrap administrator");
+
+    let pool = database.pool().await.expect("private bootstrap pool");
+    let raw = pool.pool_arc().expect("private SQL pool");
+    sqlx::query("UPDATE users SET status = 'inactive', roles = ARRAY['user'] WHERE name = $1")
+        .bind(&configured)
+        .execute(raw.as_ref())
+        .await
+        .expect("make existing administrator inactive and non-admin");
+
+    let error = execute(args(Some(&configured)), &config)
+        .await
+        .expect_err("inactive bootstrap account must be refused");
+    let rendered = format!("{error:#}");
+    assert!(
+        rendered.contains("exists but has status 'inactive'"),
+        "{rendered}"
+    );
+    assert!(rendered.contains("Re-activate it"), "{rendered}");
+    let (status, roles): (Option<String>, Vec<String>) =
+        sqlx::query_as("SELECT status, roles FROM users WHERE name = $1")
+            .bind(&configured)
+            .fetch_one(raw.as_ref())
+            .await
+            .expect("read refused bootstrap account");
+    assert_eq!(status.as_deref(), Some("inactive"));
+    assert_eq!(roles, ["user"]);
+
+    drop(raw);
+    pool.write_pool_arc().expect("write pool").close().await;
+    drop(pool);
+    database.drop_now().await;
+}

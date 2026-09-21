@@ -248,9 +248,14 @@ fn the_gateway_block_is_written_as_one_complete_unit() {
     else {
         panic!("inferenceModels must be a JSON value");
     };
-    assert!(
-        models.as_array().is_some_and(|m| !m.is_empty()),
-        "the default model list must not be empty"
+    assert_eq!(
+        models,
+        &serde_json::json!([
+            "claude-opus-5",
+            "claude-sonnet-5",
+            "claude-fable-5-1",
+            "claude-haiku-4-5-20251001"
+        ])
     );
 }
 

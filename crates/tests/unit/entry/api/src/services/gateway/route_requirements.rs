@@ -53,6 +53,7 @@ fn model(id: &str, governance: Option<ModelGovernance>) -> ProviderModel {
     ProviderModel {
         id: ModelId::new(id),
         aliases: Vec::new(),
+        hidden: false,
         upstream_model: None,
         pricing: Default::default(),
         capabilities: Default::default(),

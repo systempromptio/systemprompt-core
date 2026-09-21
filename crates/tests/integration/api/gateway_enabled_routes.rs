@@ -74,6 +74,83 @@ static BOOT: OnceLock<TestBootstrap> = OnceLock::new();
 fn boot() -> &'static TestBootstrap {
     BOOT.get_or_init(|| init_services_bootstrap(GATEWAY_YAML))
 }
+#[tokio::test]
+async fn openai_catalog_shape_keeps_the_same_complete_model_set() -> anyhow::Result<()> {
+    let (status, body) =
+        body_to_string(app().await?.oneshot(get("/models?format=openai")).await?).await?;
+    assert_eq!(status, http::StatusCode::OK, "{body}");
+    let listing: serde_json::Value = serde_json::from_str(&body)?;
+    assert_eq!(listing["object"], "list");
+    assert!(
+        listing.get("has_more").is_none(),
+        "OpenAI shape must not mix formats: {body}"
+    );
+    let entries = listing["data"].as_array().expect("OpenAI data array");
+    assert_eq!(entries.len(), 3);
+    assert!(entries.iter().all(|entry| {
+        entry["object"] == "model" && entry["owned_by"] == "systemprompt" && entry["created"] == 0
+    }));
+    Ok(())
+}
+
+#[tokio::test]
+async fn protocol_header_is_validated_but_does_not_hide_transcodable_models() -> anyhow::Result<()>
+{
+    let request = Request::builder()
+        .uri("/models")
+        .header("x-inference-protocol", "anthropic")
+        .body(Body::empty())?;
+    let (status, body) = body_to_string(app().await?.oneshot(request).await?).await?;
+    assert_eq!(status, http::StatusCode::OK, "{body}");
+    let listing: serde_json::Value = serde_json::from_str(&body)?;
+    let ids: Vec<_> = listing["data"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|entry| entry["id"].as_str())
+        .collect();
+    assert!(ids.contains(&"claude-fixture-1"), "{body}");
+    assert!(
+        ids.contains(&"gpt-fixture-1"),
+        "transcoding keeps OpenAI models visible: {body}"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn unknown_and_backend_protocol_headers_fail_before_catalog_disclosure() -> anyhow::Result<()>
+{
+    for protocol in ["cohere", "backend"] {
+        let request = Request::builder()
+            .uri("/models")
+            .header("x-inference-protocol", protocol)
+            .body(Body::empty())?;
+        let (status, body) = body_to_string(app().await?.oneshot(request).await?).await?;
+        assert_eq!(status, http::StatusCode::BAD_REQUEST, "{protocol}: {body}");
+        assert!(
+            body.contains(protocol),
+            "the rejected protocol is actionable: {body}"
+        );
+        assert!(
+            !body.contains("claude-fixture-1"),
+            "rejection must not return a catalog: {body}"
+        );
+    }
+    Ok(())
+}
+
+#[tokio::test]
+async fn zero_limit_is_an_explicit_empty_page_with_more_available() -> anyhow::Result<()> {
+    let (status, body) =
+        body_to_string(app().await?.oneshot(get("/models?limit=0")).await?).await?;
+    assert_eq!(status, http::StatusCode::OK, "{body}");
+    let listing: serde_json::Value = serde_json::from_str(&body)?;
+    assert_eq!(listing["data"].as_array().map(Vec::len), Some(0));
+    assert_eq!(listing["has_more"], true);
+    assert!(listing.get("first_id").is_none());
+    assert!(listing.get("last_id").is_none());
+    Ok(())
+}
 
 async fn app() -> anyhow::Result<Router> {
     let b = boot();

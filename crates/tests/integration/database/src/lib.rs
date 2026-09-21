@@ -31,6 +31,18 @@ mod migration_slot_reuse;
 mod interrupted_install;
 
 #[cfg(test)]
+#[path = "../declarative_object_refs.rs"]
+mod declarative_object_refs;
+
+#[cfg(test)]
+#[path = "../migration_refs_static.rs"]
+mod migration_refs_static;
+
+#[cfg(test)]
+#[path = "../migration_supersedes.rs"]
+mod migration_supersedes;
+
+#[cfg(test)]
 #[path = "../advisory_lock.rs"]
 mod advisory_lock;
 

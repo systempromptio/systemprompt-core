@@ -31,6 +31,10 @@ mod import_warnings;
 #[cfg(test)]
 mod keep;
 #[cfg(test)]
+mod managed_import_lifecycle;
+#[cfg(test)]
+mod managed_repository_integrity;
+#[cfg(test)]
 mod managed_resolution;
 #[cfg(test)]
 mod manifest;
@@ -200,12 +204,18 @@ mod api_consumer_status;
 mod organization_resolution;
 
 #[cfg(test)]
+mod publication_transaction_fault;
+#[cfg(test)]
 mod reconciliation_persistence;
 #[cfg(test)]
 mod retained_distribution;
+#[cfg(test)]
+mod text_normalization;
 
 #[cfg(test)]
 mod authoring_capture;
+#[cfg(test)]
+mod source_sync_failure_recovery;
 #[cfg(test)]
 mod source_sync_fixture;
 #[cfg(test)]

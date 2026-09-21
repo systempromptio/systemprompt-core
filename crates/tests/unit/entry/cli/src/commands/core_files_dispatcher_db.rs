@@ -41,6 +41,15 @@ fn ctx(pool: &DbPool) -> CommandContext {
     )
 }
 
+fn profile_ctx() -> CommandContext {
+    CommandContext::new(
+        CliConfig::new()
+            .with_interactive(false)
+            .with_output_format(OutputFormat::Json),
+        EnvOverrides::default(),
+    )
+}
+
 #[tokio::test]
 async fn read_only_file_arms_run_against_the_database() {
     let pool = pool().await;
@@ -88,4 +97,40 @@ async fn profile_only_file_arms_are_refused_under_a_database_scope() {
             "{args:?}: {err:#}"
         );
     }
+}
+
+#[tokio::test]
+async fn file_validation_reports_supported_and_rejected_files_without_uploading_them() {
+    systemprompt_test_fixtures::ensure_test_bootstrap();
+    let temp = tempfile::tempdir().unwrap();
+    let accepted = temp.path().join("operator-notes.txt");
+    let rejected = temp.path().join("unknown-payload.exe");
+    std::fs::write(&accepted, "review notes\n").unwrap();
+    std::fs::write(&rejected, [0_u8, 159, 146, 150]).unwrap();
+
+    let ctx = profile_ctx();
+    core::execute(
+        parse(&["files", "validate", accepted.to_str().unwrap()]),
+        &ctx,
+    )
+    .await
+    .expect("an allowed text file produces a validation report");
+    core::execute(
+        parse(&["files", "validate", rejected.to_str().unwrap()]),
+        &ctx,
+    )
+    .await
+    .expect("a rejected file is reported as invalid rather than uploaded or rejected as a command error");
+
+    let missing = core::execute(
+        parse(&[
+            "files",
+            "validate",
+            temp.path().join("missing.txt").to_str().unwrap(),
+        ]),
+        &ctx,
+    )
+    .await
+    .expect_err("a missing path cannot be validated");
+    assert!(format!("{missing:#}").contains("File not found"));
 }

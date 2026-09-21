@@ -314,14 +314,15 @@ async fn message_service_creates_tool_execution_message() -> Result<()> {
 }
 
 #[tokio::test]
-async fn context_service_loads_history_with_messages() -> Result<()> {
+async fn context_service_loads_ordered_user_and_agent_history_across_tasks() -> Result<()> {
     use systemprompt_agent::models::a2a::{Message, MessageRole, Part, TextPart};
     use systemprompt_agent::services::context::ContextService;
     use systemprompt_agent::services::message::{MessageService, PersistMessagesParams};
     use systemprompt_identifiers::MessageId;
 
     let fx = ServicesFixture::new().await?;
-    let task_id = fx.insert_task().await?;
+    let first_task = fx.insert_task().await?;
+    let second_task = fx.insert_task().await?;
     let msg_svc = MessageService::new(TaskRepository::new(
         &fx.db,
         crate::common::session_usage(&fx.db)?,
@@ -333,15 +334,51 @@ async fn context_service_loads_history_with_messages() -> Result<()> {
 
     msg_svc
         .persist_messages(PersistMessagesParams {
-            task_id: &task_id,
+            task_id: &first_task,
+            context_id: &fx.context_id,
+            messages: vec![
+                Message {
+                    role: MessageRole::User,
+                    message_id: MessageId::new(format!("h1_{}", fx.tag)),
+                    task_id: Some(first_task.clone()),
+                    context_id: fx.context_id.clone(),
+                    parts: vec![Part::Text(TextPart {
+                        text: "first question".into(),
+                    })],
+                    metadata: None,
+                    extensions: None,
+                    reference_task_ids: None,
+                },
+                Message {
+                    role: MessageRole::Agent,
+                    message_id: MessageId::new(format!("h2_{}", fx.tag)),
+                    task_id: Some(first_task.clone()),
+                    context_id: fx.context_id.clone(),
+                    parts: vec![Part::Text(TextPart {
+                        text: "first answer".into(),
+                    })],
+                    metadata: None,
+                    extensions: None,
+                    reference_task_ids: None,
+                },
+            ],
+            user_id: Some(&fx.user_id),
+            session_id: &fx.session_id,
+            trace_id: &fx.trace_id,
+        })
+        .await?;
+
+    msg_svc
+        .persist_messages(PersistMessagesParams {
+            task_id: &second_task,
             context_id: &fx.context_id,
             messages: vec![Message {
                 role: MessageRole::User,
-                message_id: MessageId::new(format!("h1_{}", fx.tag)),
-                task_id: Some(task_id.clone()),
+                message_id: MessageId::new(format!("h3_{}", fx.tag)),
+                task_id: Some(second_task.clone()),
                 context_id: fx.context_id.clone(),
                 parts: vec![Part::Text(TextPart {
-                    text: "history user msg".into(),
+                    text: "follow-up question".into(),
                 })],
                 metadata: None,
                 extensions: None,
@@ -353,9 +390,23 @@ async fn context_service_loads_history_with_messages() -> Result<()> {
         })
         .await?;
 
-    let _history = context_svc
+    let history = context_svc
         .load_conversation_history(&fx.context_id)
         .await?;
+    assert_eq!(history.len(), 3);
+    assert_eq!(history[0].role, systemprompt_models::MessageRole::User);
+    assert_eq!(history[0].content, "first question");
+    assert_eq!(history[1].role, systemprompt_models::MessageRole::Assistant);
+    assert_eq!(history[1].content, "first answer");
+    assert_eq!(history[2].role, systemprompt_models::MessageRole::User);
+    assert_eq!(history[2].content, "follow-up question");
+    assert_eq!(
+        history
+            .iter()
+            .map(|message| message.parts.len())
+            .collect::<Vec<_>>(),
+        vec![1, 1, 1]
+    );
 
     fx.cleanup().await?;
     Ok(())

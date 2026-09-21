@@ -9,12 +9,16 @@ use std::sync::Arc;
 use futures::StreamExt;
 use systemprompt_ai::models::ai::{AiMessage, AiRequest};
 use systemprompt_ai::models::tools::McpTool;
+use systemprompt_ai::{AiService, NoopToolProvider};
 use systemprompt_identifiers::{AgentName, McpServerId};
 use systemprompt_models::ai::{
     AiProvider, GenerateResponseParams, GoogleSearchParams, StreamChunk,
 };
+use systemprompt_models::errors::AiInferenceError;
 
-use super::{pool_or_skip, seeded_context, service};
+use super::{
+    ai_config, noop_session_provider, pool_or_skip, registry_with_endpoint, seeded_context, service,
+};
 use crate::services::providers::mock_http;
 
 const ANTHROPIC: &str = "anthropic";
@@ -76,23 +80,182 @@ async fn generate_through_the_trait_returns_the_upstream_content() {
 
 #[tokio::test]
 async fn an_upstream_failure_surfaces_as_a_boxed_provider_error() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = pool_or_skip()
+        .await
+        .expect("AI provider trait database fixture");
     let server =
         mock_http::anthropic_messages_error(500, serde_json::json!({"error":{"message":"boom"}}))
             .await;
-    let svc: Arc<dyn AiProvider> = Arc::new(service(&pool, ANTHROPIC, server.uri()));
-    let (_user, context) = seeded_context(&pool).await;
+    let registry = registry_with_endpoint(ANTHROPIC, server.uri());
+    let mut config = ai_config(ANTHROPIC);
+    config
+        .providers
+        .get_mut(ANTHROPIC)
+        .expect("configured anthropic policy")
+        .resilience
+        .retry_attempts = 1;
+    let service = Arc::new(
+        AiService::new(
+            &pool,
+            &registry,
+            &config,
+            systemprompt_ai::AiServiceProviders {
+                tools: Arc::new(NoopToolProvider::new()),
+                sessions: noop_session_provider(),
+            },
+            &systemprompt_ai::repository::AiRepositories::new(&pool).expect("AI repositories"),
+        )
+        .expect("service with one-attempt provider builds"),
+    );
+    let svc: Arc<dyn AiProvider> = service.clone();
+    let (user, context) = seeded_context(&pool).await;
 
     let err = svc
         .generate(&request(context))
         .await
         .expect_err("an upstream 500 must not be swallowed");
-    assert!(
-        !err.to_string().is_empty(),
-        "the boxed error must carry the domain error's message"
+    assert!(matches!(
+        err,
+        AiInferenceError::Unavailable { provider, message }
+            if provider == ANTHROPIC && message.contains("HTTP 500") && message.contains("boom")
+    ));
+    assert_eq!(
+        server
+            .received_requests()
+            .await
+            .expect("recorded requests")
+            .len(),
+        1,
+        "the service provider seam must surface this failed upstream call instead of dispatching a second request"
     );
+    service.audit_tasks().close();
+    tokio::time::timeout(
+        std::time::Duration::from_secs(10),
+        service.audit_tasks().wait(),
+    )
+    .await
+    .expect("failed audit tasks finish within 10 seconds");
+    let failed: i64 = sqlx::query_scalar!(
+        "SELECT COUNT(*) FROM ai_requests WHERE user_id = $1 AND status = 'failed'",
+        user.as_str()
+    )
+    .fetch_one(pool.pool_arc().expect("read pool").as_ref())
+    .await
+    .expect("failed audit count")
+    .unwrap_or(0);
+    assert_eq!(
+        failed, 1,
+        "the provider-facing error must still leave exactly one failed audit row"
+    );
+}
+
+#[tokio::test]
+async fn trait_rejects_an_unpriced_explicit_model_before_dispatch_or_audit() {
+    let pool = pool_or_skip()
+        .await
+        .expect("AI provider trait database fixture");
+    let server = mock_http::anthropic_messages_stream(SSE).await;
+    let service = Arc::new(service(&pool, ANTHROPIC, server.uri()));
+    let provider: Arc<dyn AiProvider> = service.clone();
+    let (user, context) = seeded_context(&pool).await;
+    let request = AiRequest::builder(
+        vec![AiMessage::user("hi")],
+        ANTHROPIC,
+        "not-priced-by-the-catalogue",
+        128,
+        context,
+    )
+    .build();
+
+    let Err(err) = provider.generate_stream(&request).await else {
+        panic!("an unpriced model must be rejected before opening a stream");
+    };
+    assert!(matches!(
+        err,
+        AiInferenceError::Configuration(message)
+            if message.contains("anthropic") && message.contains("not-priced-by-the-catalogue")
+    ));
+    assert!(
+        server
+            .received_requests()
+            .await
+            .expect("recorded requests")
+            .is_empty(),
+        "pricing validation must reject the request before the upstream stream is opened"
+    );
+    service.audit_tasks().close();
+    tokio::time::timeout(
+        std::time::Duration::from_secs(10),
+        service.audit_tasks().wait(),
+    )
+    .await
+    .expect("rejected stream audit tasks finish within 10 seconds");
+    let rows: i64 = sqlx::query_scalar!(
+        "SELECT COUNT(*) FROM ai_requests WHERE user_id = $1",
+        user.as_str()
+    )
+    .fetch_one(pool.pool_arc().expect("read pool").as_ref())
+    .await
+    .expect("audit row count")
+    .unwrap_or(0);
+    assert_eq!(
+        rows, 0,
+        "a request rejected before dispatch has no audit row"
+    );
+}
+
+#[tokio::test]
+async fn trait_rejects_an_unconfigured_provider_without_dispatch_or_audit() {
+    let pool = pool_or_skip()
+        .await
+        .expect("AI provider trait database fixture");
+    let server =
+        mock_http::anthropic_messages_success(mock_http::anthropic_response_body("unused")).await;
+    let service = Arc::new(service(&pool, ANTHROPIC, server.uri()));
+    let provider: Arc<dyn AiProvider> = service.clone();
+    let (user, context) = seeded_context(&pool).await;
+    let request = AiRequest::builder(
+        vec![AiMessage::user("hi")],
+        "not-configured",
+        MODEL,
+        128,
+        context,
+    )
+    .build();
+
+    let err = provider
+        .generate(&request)
+        .await
+        .expect_err("an unconfigured provider cannot be dispatched");
+    assert!(matches!(
+        err,
+        AiInferenceError::Internal(message)
+            if message.contains("Provider not-configured not found")
+    ));
+    assert!(
+        server
+            .received_requests()
+            .await
+            .expect("recorded requests")
+            .is_empty(),
+        "provider lookup must fail locally without sending the request to another configured provider"
+    );
+    service.audit_tasks().close();
+    tokio::time::timeout(
+        std::time::Duration::from_secs(10),
+        service.audit_tasks().wait(),
+    )
+    .await
+    .expect("rejected provider audit tasks finish within 10 seconds");
+    let rows: i64 = sqlx::query_scalar!(
+        "SELECT COUNT(*) FROM ai_requests WHERE user_id = $1",
+        user.as_str()
+    )
+    .fetch_one(pool.pool_arc().expect("read pool").as_ref())
+    .await
+    .expect("audit row count")
+    .unwrap_or(0);
+    assert_eq!(rows, 0, "a provider lookup rejection has no audit row");
 }
 
 #[tokio::test]

@@ -8,7 +8,8 @@
 //! before the process bootstrap.
 
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::io::Write;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use axum::body::to_bytes;
@@ -29,6 +30,7 @@ use systemprompt_models::services::{
     WireProtocol,
 };
 use systemprompt_test_fixtures::{AuthedFixture, seed_admin_credential};
+use tracing_subscriber::prelude::*;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -37,6 +39,7 @@ use systemprompt_models::wire::origin::{
     ClientAttestation, ClientEvidence, ClientKind, InboundWireProtocol, RequestOrigin,
 };
 use systemprompt_security::policy::types::AccessScope;
+use systemprompt_security::policy::{GovernanceConfig, GovernanceEngine};
 
 fn gateway_journal() -> systemprompt_api::services::gateway::audit::journal::GatewayJournal {
     systemprompt_api::services::gateway::audit::journal::GatewayJournal::open(
@@ -64,6 +67,50 @@ const API_KEY_ENV: &str = "ANTHROPIC_API_KEY";
 const API_KEY_SECRET: &str = "anthropic";
 pub(super) const PROVIDER: &str = "anthropic";
 pub(super) const MODEL: &str = "claude-test-model";
+
+#[derive(Clone, Default)]
+struct JsonLogWriter(Arc<Mutex<Vec<u8>>>);
+
+struct JsonLogGuard(Arc<Mutex<Vec<u8>>>);
+
+impl Write for JsonLogGuard {
+    fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+        self.0.lock().expect("log buffer").extend_from_slice(bytes);
+        Ok(bytes.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+impl<'a> tracing_subscriber::fmt::MakeWriter<'a> for JsonLogWriter {
+    type Writer = JsonLogGuard;
+
+    fn make_writer(&'a self) -> Self::Writer {
+        JsonLogGuard(Arc::clone(&self.0))
+    }
+}
+
+impl JsonLogWriter {
+    fn events(&self) -> Vec<serde_json::Value> {
+        String::from_utf8(self.0.lock().expect("log buffer").clone())
+            .expect("UTF-8 logs")
+            .lines()
+            .map(|line| serde_json::from_str(line).expect("JSON log event"))
+            .collect()
+    }
+
+    fn completion_events(&self, request_id: &AiRequestId) -> Vec<serde_json::Value> {
+        self.events()
+            .into_iter()
+            .filter(|event| {
+                event["fields"]["message"] == "Gateway audit: request completed"
+                    && event["fields"]["ai_request_id"] == request_id.as_str()
+            })
+            .collect()
+    }
+}
 
 pub(super) fn install_provider_api_key() {
     // SAFETY: set before the process's first `SecretsBootstrap::try_init` (driven
@@ -93,6 +140,7 @@ pub(super) fn provider_registry(
             models: vec![ProviderModel {
                 id: ModelId::new(MODEL),
                 aliases: Vec::new(),
+                hidden: false,
                 governance: None,
                 upstream_model: None,
                 pricing: Default::default(),
@@ -126,9 +174,10 @@ pub(super) fn gateway_config(route_provider: &str) -> GatewayConfig {
     }
 }
 
-fn canonical_request(model: &str, stream: bool) -> CanonicalRequest {
+pub(super) fn canonical_request(model: &str, stream: bool) -> CanonicalRequest {
     CanonicalRequest {
         model: ModelId::new(model),
+        cache_control: None,
         system: vec![SystemBlock::text("be brief".to_owned())],
         messages: vec![CanonicalMessage {
             role: Role::User,
@@ -236,9 +285,29 @@ pub(super) fn inputs_with(
     }
 }
 
-fn inputs(cred: &AuthedFixture, request: CanonicalRequest, stream: bool) -> DispatchInputs {
+pub(super) fn inputs(
+    cred: &AuthedFixture,
+    request: CanonicalRequest,
+    stream: bool,
+) -> DispatchInputs {
     let body = raw_body(&request);
     inputs_with(cred, request, stream, inbound(), body)
+}
+
+fn governance_inputs(
+    cred: &AuthedFixture,
+    request: CanonicalRequest,
+    stream: bool,
+    yaml: &str,
+) -> DispatchInputs {
+    let mut dispatch = inputs(cred, request, stream);
+    dispatch.governance = Arc::new(
+        GovernanceEngine::from_config(
+            &GovernanceConfig::parse(yaml).expect("valid governance fixture"),
+        )
+        .expect("governance fixture builds"),
+    );
+    dispatch
 }
 
 fn buffered_response_json() -> serde_json::Value {
@@ -282,8 +351,15 @@ async fn poll_completion(pool: &DbPool, id: &AiRequestId) -> Option<i32> {
     None
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "current_thread")]
 async fn buffered_dispatch_returns_rendered_response_and_completes_audit() -> anyhow::Result<()> {
+    let logs = JsonLogWriter::default();
+    let subscriber = tracing_subscriber::registry().with(
+        tracing_subscriber::fmt::layer()
+            .json()
+            .with_writer(logs.clone()),
+    );
+    let _subscriber = tracing::subscriber::set_default(subscriber);
     install_provider_api_key();
     let (pool, _ctx) = setup_ctx().await?;
     let cred = seed_admin_credential(&pool, "gw-buffered@example.invalid").await?;
@@ -323,6 +399,140 @@ async fn buffered_dispatch_returns_rendered_response_and_completes_audit() -> an
         Some(18),
         "input+output tokens recorded on completion"
     );
+    let pg = pool.pool_arc()?;
+    type DurableRequest = (
+        String,
+        String,
+        String,
+        String,
+        Option<i32>,
+        Option<i32>,
+        Option<i32>,
+        i64,
+    );
+    let durable: DurableRequest = sqlx::query_as(
+        "SELECT user_id, COALESCE(served_provider, provider), model, wire_protocol, \
+         input_tokens, output_tokens, tokens_used, cost_microdollars \
+         FROM ai_requests WHERE id=$1",
+    )
+    .bind(request_id.as_str())
+    .fetch_one(pg.as_ref())
+    .await?;
+    let completions = logs.completion_events(&request_id);
+    assert_eq!(
+        completions.len(),
+        1,
+        "one SIEM completion event per request"
+    );
+    let fields = &completions[0]["fields"];
+    assert_eq!(fields["user_id"], durable.0);
+    assert_eq!(fields["provider"], durable.1);
+    assert_eq!(fields["model"], durable.2);
+    assert_eq!(fields["wire_protocol"], durable.3);
+    assert_eq!(fields["input_tokens"].as_i64(), durable.4.map(i64::from));
+    assert_eq!(fields["output_tokens"].as_i64(), durable.5.map(i64::from));
+    assert_eq!(fields["tokens_used"].as_i64(), durable.6.map(i64::from));
+    assert_eq!(fields["cost_microdollars"].as_i64(), Some(durable.7));
+    assert_eq!(fields["finish_reason"], "end_turn");
+    assert_eq!(fields["tool_calls"], 0);
+    let encoded = completions[0].to_string();
+    assert!(!encoded.contains("hello from upstream"));
+    assert!(!encoded.contains("sk-test-anthropic-key"));
+    Ok(())
+}
+
+#[tokio::test]
+async fn audit_admission_failure_blocks_provider_dispatch_and_a_retry_recovers()
+-> anyhow::Result<()> {
+    install_provider_api_key();
+    systemprompt_test_fixtures::ensure_test_bootstrap();
+    let database =
+        systemprompt_test_fixtures::DisposableDb::installed("gateway_audit_admission").await?;
+    let pool = database.pool().await?;
+    let credential = seed_admin_credential(&pool, "audit-admission@example.invalid").await?;
+    let upstream = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/messages"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(buffered_response_json()))
+        .expect(1)
+        .mount(&upstream)
+        .await;
+    let raw = pool.pool_arc().expect("private database pool");
+    sqlx::query(
+        "CREATE FUNCTION reject_gateway_audit() RETURNS trigger LANGUAGE plpgsql AS $$ \
+         BEGIN RAISE EXCEPTION 'injected audit admission failure'; END $$",
+    )
+    .execute(raw.as_ref())
+    .await?;
+    sqlx::query(
+        "CREATE TRIGGER reject_gateway_audit BEFORE INSERT ON ai_requests \
+         FOR EACH ROW EXECUTE FUNCTION reject_gateway_audit()",
+    )
+    .execute(raw.as_ref())
+    .await?;
+
+    let config = gateway_config(PROVIDER);
+    let registry = provider_registry(
+        &upstream.uri(),
+        PROVIDER,
+        WireProtocol::Anthropic,
+        ApiSurface::Anthropic,
+    );
+    let repositories = gw_repos(&pool);
+    let rejected_id = AiRequestId::generate();
+    let mut rejected = inputs(&credential, canonical_request(MODEL, false), false);
+    rejected.ctx.ai_request_id = rejected_id.clone();
+    let context_id = rejected.ctx.context_id.clone();
+    let failure =
+        GatewayService::dispatch(&config, &registry, &pool, &repositories, rejected).await;
+    assert!(matches!(failure, Err(DispatchError::PreAudit(_))));
+    assert!(
+        upstream
+            .received_requests()
+            .await
+            .expect("requests")
+            .is_empty(),
+        "an unrecordable request must never reach the provider"
+    );
+    let partial: i64 = sqlx::query_scalar(
+        "SELECT (SELECT COUNT(*) FROM ai_requests WHERE id=$1) + \
+         (SELECT COUNT(*) FROM ai_request_payloads WHERE ai_request_id=$1)",
+    )
+    .bind(rejected_id.as_str())
+    .fetch_one(raw.as_ref())
+    .await?;
+    assert_eq!(
+        partial, 0,
+        "failed audit admission stores no request payload"
+    );
+    let context_persisted: bool =
+        sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM user_contexts WHERE context_id=$1)")
+            .bind(context_id.as_str())
+            .fetch_one(raw.as_ref())
+            .await?;
+    assert!(
+        context_persisted,
+        "context establishment commits before audit admission and remains available for retry"
+    );
+
+    sqlx::query("DROP TRIGGER reject_gateway_audit ON ai_requests")
+        .execute(raw.as_ref())
+        .await?;
+    sqlx::query("DROP FUNCTION reject_gateway_audit()")
+        .execute(raw.as_ref())
+        .await?;
+    let retry = inputs(&credential, canonical_request(MODEL, false), false);
+    let retry_id = retry.ctx.ai_request_id.clone();
+    let response =
+        GatewayService::dispatch(&config, &registry, &pool, &repositories, retry).await?;
+    assert_eq!(response.status(), http::StatusCode::OK);
+    to_bytes(response.into_body(), 1024 * 1024).await?;
+    assert_eq!(poll_completion(&pool, &retry_id).await, Some(18));
+
+    drop(repositories);
+    drop(raw);
+    drop(pool);
+    database.drop_now().await;
     Ok(())
 }
 
@@ -378,6 +588,123 @@ async fn streaming_dispatch_taps_events_and_completes_audit() -> anyhow::Result<
         tokens.is_some(),
         "streaming completion must record a token count"
     );
+    Ok(())
+}
+
+#[tokio::test]
+async fn enforcing_secret_scan_denies_before_upstream_and_persists_the_decision()
+-> anyhow::Result<()> {
+    install_provider_api_key();
+    let (pool, _ctx) = setup_ctx().await?;
+    let cred = seed_admin_credential(&pool, "gw-governance-deny@example.invalid").await?;
+    let upstream = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/messages"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(buffered_response_json()))
+        .expect(0)
+        .mount(&upstream)
+        .await;
+
+    let config = gateway_config(PROVIDER);
+    let registry = provider_registry(
+        &upstream.uri(),
+        PROVIDER,
+        WireProtocol::Anthropic,
+        ApiSurface::Anthropic,
+    );
+    let secret = format!("{}{}", "XGATE-", 12345678);
+    let mut request = canonical_request(MODEL, false);
+    request.messages[0].content = vec![CanonicalContent::text(secret)];
+    let dispatch = governance_inputs(
+        &cred,
+        request,
+        false,
+        "governance:\n  policies:\n    - id: secret_scan\n      mode: enforce\n      patterns:\n        - id: gate-secret\n          name: Gate Secret\n          regex: 'XGATE-[0-9]+'\n        - id: gate-redacted\n          name: Redaction Marker\n          regex: 'REDACTED_BY_GOVERNANCE'\n",
+    );
+    let request_id = dispatch.ctx.ai_request_id.clone();
+    let session_id = dispatch.ctx.session_id.clone().expect("fixture session");
+    let context_id = dispatch.ctx.context_id.clone();
+    let trace_id = dispatch.ctx.trace_id.clone().expect("fixture trace");
+
+    let error = GatewayService::dispatch(&config, &registry, &pool, &gw_repos(&pool), dispatch)
+        .await
+        .expect_err("an unsanitizable secret must stop dispatch");
+    let DispatchError::Recorded(inner) = error else {
+        panic!("governance denial must already be audited");
+    };
+    let repair = inner
+        .downcast_ref::<systemprompt_api::services::gateway::service::PromptRepairRequired>()
+        .expect("secret denial must request prompt repair");
+    assert_eq!(repair.locations, ["forwarded.$.messages[0].content"]);
+
+    let row: (String, String, String, Option<String>, serde_json::Value) = sqlx::query_as(
+        "SELECT decision, session_id, context_id, trace_id, evaluated_rules \
+         FROM governance_decisions WHERE user_id=$1 AND policy='secret_scan' \
+         ORDER BY created_at DESC LIMIT 1",
+    )
+    .bind(cred.user_id.as_str())
+    .fetch_one(pool.pool_arc().unwrap().as_ref())
+    .await?;
+    assert_eq!(row.0, "deny");
+    assert_eq!(row.1, session_id.as_str());
+    assert_eq!(row.2, context_id.as_str());
+    assert_eq!(row.3.as_deref(), Some(trace_id.as_str()));
+    assert_eq!(row.4["call_id"], request_id.as_str());
+    assert_eq!(row.4["chain"][0]["policy_id"], "secret_scan");
+    assert!(upstream.received_requests().await.unwrap().is_empty());
+    upstream.verify().await;
+    Ok(())
+}
+
+#[tokio::test]
+async fn warn_secret_scan_allows_upstream_and_persists_a_correlated_warning() -> anyhow::Result<()>
+{
+    install_provider_api_key();
+    let (pool, _ctx) = setup_ctx().await?;
+    let cred = seed_admin_credential(&pool, "gw-governance-warn@example.invalid").await?;
+    let upstream = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/messages"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(buffered_response_json()))
+        .expect(1)
+        .mount(&upstream)
+        .await;
+
+    let config = gateway_config(PROVIDER);
+    let registry = provider_registry(
+        &upstream.uri(),
+        PROVIDER,
+        WireProtocol::Anthropic,
+        ApiSurface::Anthropic,
+    );
+    let mut request = canonical_request(MODEL, false);
+    request.messages[0].content = vec![CanonicalContent::text(format!("{}{}", "XGATE-", 87654321))];
+    let dispatch = governance_inputs(
+        &cred,
+        request,
+        false,
+        "governance:\n  policies:\n    - id: secret_scan\n      mode: warn\n      patterns:\n        - id: gate-secret-warn\n          name: Gate Secret Warn\n          regex: 'XGATE-[0-9]+'\n",
+    );
+    let request_id = dispatch.ctx.ai_request_id.clone();
+    let session_id = dispatch.ctx.session_id.clone().expect("fixture session");
+    let response = GatewayService::dispatch(&config, &registry, &pool, &gw_repos(&pool), dispatch)
+        .await
+        .expect("warn mode must allow dispatch");
+    assert_eq!(response.status(), http::StatusCode::OK);
+    let _ = to_bytes(response.into_body(), 1024 * 1024).await?;
+
+    let row: (String, String, serde_json::Value) = sqlx::query_as(
+        "SELECT decision, session_id, evaluated_rules FROM governance_decisions \
+         WHERE user_id=$1 AND policy='secret_scan' ORDER BY created_at DESC LIMIT 1",
+    )
+    .bind(cred.user_id.as_str())
+    .fetch_one(pool.pool_arc().unwrap().as_ref())
+    .await?;
+    assert_eq!(row.0, "warn");
+    assert_eq!(row.1, session_id.as_str());
+    assert_eq!(row.2["call_id"], request_id.as_str());
+    assert_eq!(row.2["chain"][0]["policy_id"], "secret_scan");
+    upstream.verify().await;
     Ok(())
 }
 
@@ -1144,4 +1471,364 @@ async fn coverage_gateway_credit_guard_denial_keeps_its_retry_after() -> anyhow:
         http::StatusCode::TOO_MANY_REQUESTS,
     )
     .await
+}
+// Draft for crates/tests/integration/api/gateway_pipeline.rs
+
+fn owned_gateway_repos(
+    pool: &DbPool,
+    profile_dir: &tempfile::TempDir,
+) -> systemprompt_api::services::gateway::GatewayRepositories {
+    let profile = profile_dir.path().join("profile.yaml");
+    std::fs::write(&profile, "version: 1\n").expect("profile marker");
+    let journal = systemprompt_api::services::gateway::audit::journal::GatewayJournal::open(
+        profile.to_str().expect("UTF-8 profile path"),
+        systemprompt_config::SecretsBootstrap::get().expect("secrets bootstrapped"),
+    )
+    .expect("owned gateway journal");
+    systemprompt_api::services::gateway::GatewayRepositories::new(
+        pool,
+        journal,
+        Arc::new(systemprompt_agent::services::ContextProviderService::new(
+            systemprompt_agent::repository::ContextRepository::new(pool)
+                .expect("context repository"),
+        )),
+    )
+    .expect("owned gateway repositories")
+}
+
+struct AbortOnDrop<T>(Option<tokio::task::JoinHandle<T>>);
+
+impl<T> Drop for AbortOnDrop<T> {
+    fn drop(&mut self) {
+        if let Some(task) = &self.0 {
+            task.abort();
+        }
+    }
+}
+
+async fn admitted_receipt_fixture(
+    label: &str,
+) -> anyhow::Result<(
+    systemprompt_test_fixtures::DisposableDb,
+    systemprompt_api::services::gateway::GatewayRepositories,
+    tempfile::TempDir,
+    std::path::PathBuf,
+)> {
+    install_provider_api_key();
+    systemprompt_test_fixtures::ensure_test_bootstrap();
+    let database = systemprompt_test_fixtures::DisposableDb::installed(label).await?;
+    let pool = database.pool().await?;
+    let credential = seed_admin_credential(&pool, &format!("{label}@journal.invalid")).await?;
+    let upstream = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/messages"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .set_delay(Duration::from_secs(30))
+                .set_body_json(buffered_response_json()),
+        )
+        .mount(&upstream)
+        .await;
+    let profile_dir = tempfile::tempdir()?;
+    let repositories = owned_gateway_repos(&pool, &profile_dir);
+    let config = gateway_config(PROVIDER);
+    let registry = provider_registry(
+        &upstream.uri(),
+        PROVIDER,
+        WireProtocol::Anthropic,
+        ApiSurface::Anthropic,
+    );
+    let request = canonical_request(MODEL, false);
+    let dispatch = inputs(&credential, request, false);
+    let spawned_repositories = repositories.clone();
+    let mut task = AbortOnDrop(Some(tokio::spawn(async move {
+        GatewayService::dispatch(&config, &registry, &pool, &spawned_repositories, dispatch).await
+    })));
+    let root = profile_dir.path().join("gateway-journal");
+    let receipt = tokio::time::timeout(Duration::from_secs(5), async {
+        loop {
+            if let Some(path) = std::fs::read_dir(&root)
+                .expect("journal directory")
+                .collect::<std::io::Result<Vec<_>>>()
+                .expect("enumerate journal directory")
+                .into_iter()
+                .map(|entry| entry.path())
+                .find(|path| {
+                    path.extension()
+                        .is_some_and(|extension| extension == "receipt")
+                })
+            {
+                break path;
+            }
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .expect("admission receipt created");
+    let handle = task.0.take().expect("dispatch task");
+    handle.abort();
+    let error = handle.await.expect_err("dispatch task aborted");
+    assert!(error.is_cancelled(), "dispatch must be cancelled: {error}");
+    Ok((database, repositories, profile_dir, receipt))
+}
+
+#[tokio::test]
+async fn recovery_quarantines_a_tampered_receipt_without_touching_foreign_files()
+-> anyhow::Result<()> {
+    let (database, repositories, profile_dir, receipt) =
+        admitted_receipt_fixture("gateway_journal_tampered").await?;
+    let foreign = profile_dir.path().join("gateway-journal/operator-note");
+    std::fs::write(&foreign, b"retain")?;
+    let mut bytes = std::fs::read(&receipt)?;
+    let last = bytes.last_mut().expect("nonempty encrypted receipt");
+    *last ^= 0x80;
+    std::fs::write(&receipt, bytes)?;
+
+    let settled =
+        systemprompt_api::services::gateway::audit::journal::recover(&repositories.settlement())
+            .await?;
+    assert_eq!(settled, 0);
+    assert!(!receipt.exists());
+    assert!(receipt.with_extension("receipt.bad").exists());
+    assert_eq!(std::fs::read(&foreign)?, b"retain");
+    database.drop_now().await;
+    Ok(())
+}
+
+#[tokio::test]
+async fn recovery_quarantines_a_truncated_receipt_and_removes_interrupted_temp_files()
+-> anyhow::Result<()> {
+    let (database, repositories, profile_dir, receipt) =
+        admitted_receipt_fixture("gateway_journal_truncated").await?;
+    std::fs::write(&receipt, b"short")?;
+    let temp = profile_dir.path().join("gateway-journal/interrupted.tmp");
+    std::fs::write(&temp, b"partial")?;
+
+    let settled =
+        systemprompt_api::services::gateway::audit::journal::recover(&repositories.settlement())
+            .await?;
+    assert_eq!(settled, 0);
+    assert!(!receipt.exists());
+    assert!(receipt.with_extension("receipt.bad").exists());
+    assert!(!temp.exists());
+    database.drop_now().await;
+    Ok(())
+}
+// Append after owned_gateway_repos in gateway_pipeline.rs.
+#[tokio::test(flavor = "current_thread")]
+async fn terminal_receipt_survives_accounting_failure_and_recovery_settles_exactly_once()
+-> anyhow::Result<()> {
+    let logs = JsonLogWriter::default();
+    let subscriber = tracing_subscriber::registry().with(
+        tracing_subscriber::fmt::layer()
+            .json()
+            .with_writer(logs.clone()),
+    );
+    let _subscriber = tracing::subscriber::set_default(subscriber);
+    install_provider_api_key();
+    systemprompt_test_fixtures::ensure_test_bootstrap();
+    let database =
+        systemprompt_test_fixtures::DisposableDb::installed("gateway_journal_settlement_retry")
+            .await?;
+    let pool = database.pool().await?;
+    let credential = seed_admin_credential(&pool, "journal-retry@example.invalid").await?;
+    let write = pool.write_pool_arc()?;
+    sqlx::raw_sql(
+        "CREATE FUNCTION reject_journal_completion() RETURNS trigger LANGUAGE plpgsql AS $$ \
+         BEGIN RAISE EXCEPTION 'owned journal completion fault'; END $$; \
+         CREATE TRIGGER reject_journal_completion BEFORE UPDATE ON ai_requests \
+         FOR EACH ROW EXECUTE FUNCTION reject_journal_completion()",
+    )
+    .execute(write.as_ref())
+    .await?;
+
+    let upstream = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/messages"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(buffered_response_json()))
+        .expect(1)
+        .mount(&upstream)
+        .await;
+    let profile_dir = tempfile::tempdir()?;
+    let repositories = owned_gateway_repos(&pool, &profile_dir);
+    let config = gateway_config(PROVIDER);
+    let registry = provider_registry(
+        &upstream.uri(),
+        PROVIDER,
+        WireProtocol::Anthropic,
+        ApiSurface::Anthropic,
+    );
+    let dispatch = inputs(&credential, canonical_request(MODEL, false), false);
+    let request_id = dispatch.ctx.ai_request_id.clone();
+    let response = GatewayService::dispatch(&config, &registry, &pool, &repositories, dispatch)
+        .await
+        .expect("provider response remains available when accounting is retained for recovery");
+    assert_eq!(response.status(), http::StatusCode::OK);
+    assert_eq!(
+        upstream
+            .received_requests()
+            .await
+            .expect("recorded requests")
+            .len(),
+        1
+    );
+
+    let journal_root = profile_dir.path().join("gateway-journal");
+    let receipts = std::fs::read_dir(&journal_root)?
+        .collect::<std::io::Result<Vec<_>>>()?
+        .into_iter()
+        .map(|entry| entry.path())
+        .filter(|path| {
+            path.extension()
+                .is_some_and(|extension| extension == "receipt")
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(receipts.len(), 1, "one terminal receipt is retained");
+    let before: (Option<i32>, Option<String>) =
+        sqlx::query_as("SELECT tokens_used, status FROM ai_requests WHERE id = $1")
+            .bind(request_id.as_str())
+            .fetch_one(write.as_ref())
+            .await?;
+    assert_eq!(before.0, None);
+    assert_eq!(before.1.as_deref(), Some("pending"));
+    let payload_before: (Option<serde_json::Value>, Option<serde_json::Value>, i64) =
+        sqlx::query_as(
+            "SELECT request_body, response_body, COUNT(*) OVER() \
+             FROM ai_request_payloads WHERE ai_request_id = $1",
+        )
+        .bind(request_id.as_str())
+        .fetch_one(write.as_ref())
+        .await?;
+    assert!(
+        payload_before.0.is_some(),
+        "admission stores the request payload"
+    );
+    assert_eq!(
+        payload_before.1, None,
+        "failed completion stores no response"
+    );
+    assert_eq!(payload_before.2, 1);
+    assert!(
+        logs.completion_events(&request_id).is_empty(),
+        "failed settlement must not claim successful completion"
+    );
+    assert_eq!(
+        systemprompt_api::services::gateway::audit::journal::recover(&repositories.settlement())
+            .await?,
+        0,
+        "recovery retains a terminal receipt while settlement is still faulted"
+    );
+    assert!(receipts[0].exists());
+    let response_while_faulted: Option<serde_json::Value> = sqlx::query_scalar(
+        "SELECT response_body FROM ai_request_payloads WHERE ai_request_id = $1",
+    )
+    .bind(request_id.as_str())
+    .fetch_one(write.as_ref())
+    .await?;
+    assert_eq!(
+        response_while_faulted, None,
+        "failed recovery rolls back response payload"
+    );
+
+    sqlx::raw_sql(
+        "DROP TRIGGER reject_journal_completion ON ai_requests; \
+         DROP FUNCTION reject_journal_completion()",
+    )
+    .execute(write.as_ref())
+    .await?;
+    assert_eq!(
+        systemprompt_api::services::gateway::audit::journal::recover(&repositories.settlement())
+            .await?,
+        1
+    );
+    assert!(!receipts[0].exists());
+    let after: (Option<i32>, Option<i32>, Option<i32>, Option<String>) = sqlx::query_as(
+        "SELECT tokens_used, input_tokens, output_tokens, status FROM ai_requests WHERE id = $1",
+    )
+    .bind(request_id.as_str())
+    .fetch_one(write.as_ref())
+    .await?;
+    assert_eq!(after.0, Some(18));
+    assert_eq!(after.1, Some(11));
+    assert_eq!(after.2, Some(7));
+    assert_eq!(after.3.as_deref(), Some("completed"));
+    assert!(
+        logs.completion_events(&request_id).is_empty(),
+        "journal recovery settles durable accounting without replaying the live completion event"
+    );
+    let payload_after: (Option<serde_json::Value>, i64) = sqlx::query_as(
+        "SELECT response_body, COUNT(*) OVER() FROM ai_request_payloads WHERE ai_request_id = $1",
+    )
+    .bind(request_id.as_str())
+    .fetch_one(write.as_ref())
+    .await?;
+    assert_eq!(payload_after.0, Some(buffered_response_json()));
+    assert_eq!(
+        payload_after.1, 1,
+        "terminal payload settles into the admission row"
+    );
+    assert_eq!(
+        systemprompt_api::services::gateway::audit::journal::recover(&repositories.settlement())
+            .await?,
+        0
+    );
+    assert_eq!(
+        upstream
+            .received_requests()
+            .await
+            .expect("recorded requests")
+            .len(),
+        1
+    );
+    database.drop_now().await;
+    Ok(())
+}
+#[tokio::test]
+async fn exposed_registry_model_without_a_matching_route_fails_before_audit_or_dispatch()
+-> anyhow::Result<()> {
+    install_provider_api_key();
+    let (pool, _ctx) = setup_ctx().await?;
+    let cred = seed_admin_credential(&pool, "gw-no-route@example.invalid").await?;
+    let mut config = gateway_config(PROVIDER);
+    config.routes.clear();
+    let upstream = MockServer::start().await;
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(500))
+        .expect(0)
+        .mount(&upstream)
+        .await;
+    let registry = provider_registry(
+        &upstream.uri(),
+        PROVIDER,
+        WireProtocol::Anthropic,
+        ApiSurface::Anthropic,
+    );
+    let dispatch = inputs(&cred, canonical_request(MODEL, false), false);
+    let request_id = dispatch.ctx.ai_request_id.clone();
+
+    let error = GatewayService::dispatch(&config, &registry, &pool, &gw_repos(&pool), dispatch)
+        .await
+        .expect_err("a registry-exposed model still requires a matching gateway route");
+    match error {
+        DispatchError::PreAudit(inner) => assert_eq!(
+            inner.to_string(),
+            format!("No gateway route matches model '{MODEL}'")
+        ),
+        other => panic!("expected pre-audit route failure, got {other:?}"),
+    }
+    let persisted: i64 = sqlx::query_scalar("SELECT count(*) FROM ai_requests WHERE id = $1")
+        .bind(request_id.as_str())
+        .fetch_one(pool.pool_arc().expect("read pool").as_ref())
+        .await?;
+    assert_eq!(persisted, 0, "route resolution precedes audit creation");
+    assert!(
+        upstream
+            .received_requests()
+            .await
+            .expect("recorded upstream requests")
+            .is_empty(),
+        "route resolution failure must not contact the configured provider"
+    );
+    upstream.verify().await;
+    Ok(())
 }

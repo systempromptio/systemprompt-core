@@ -1,11 +1,15 @@
 //! Schema installation for compile-time-registered
 //! [`systemprompt_extension::Extension`] instances.
 //!
-//! Installation runs globally in four phases — structural DDL, then
-//! migrations, then dependent DDL, then the foreign keys deferred out of the
-//! structural `CREATE TABLE`s — so a legacy database reaches its target shape
-//! before any `CREATE INDEX`/`VIEW` references a migration-added column, and
-//! before any foreign key needs a unique index a migration introduces.
+//! Installation runs globally in five phases — structural DDL, then the
+//! declarative routines, then migrations, then dependent DDL, then the
+//! foreign keys deferred out of the structural `CREATE TABLE`s — so a legacy
+//! database reaches its target shape before any `CREATE INDEX`/`VIEW`
+//! references a migration-added column, and before any foreign key needs a
+//! unique index a migration introduces. Routines go first so a migration can
+//! reference a function only the declarative schema defines; a migration
+//! that names a declarative-only trigger or view is refused before any
+//! statement runs (`migration_refs`).
 //! A fresh database (no migration history, no owned tables) skips migration
 //! execution entirely: the declarative schema is the baseline, and every
 //! defined migration is stamped as applied without running — in the same
@@ -19,6 +23,7 @@
 
 mod foreign_keys;
 pub(crate) mod lock;
+mod routine_prepass;
 mod validation;
 
 use systemprompt_extension::{Extension, ExtensionRegistry, LoaderError};
@@ -26,7 +31,9 @@ use tracing::{debug, info};
 
 use self::foreign_keys::apply_foreign_keys;
 use self::lock::BootstrapLockGuard;
+use self::routine_prepass::apply_routine_prepass;
 use self::validation::{validate_extension_columns, validate_table_ownership};
+use super::migration_refs::check_migration_references;
 use super::prepare::{PreparedSchema, prepare_extension_schema};
 use super::report::SchemaInstallReport;
 use super::seeds::apply_seeds;
@@ -102,6 +109,7 @@ async fn run_install(
     }
 
     validate_table_ownership(&prepared, schema_extensions)?;
+    check_migration_references(schema_extensions)?;
 
     let mut fresh_extensions: std::collections::HashSet<String> = std::collections::HashSet::new();
     for (ext, p) in schema_extensions.iter().zip(&prepared) {
@@ -130,6 +138,8 @@ async fn run_install(
         }
         execute_phase(db, &p.structural, &stamp, &p.extension_id).await?;
     }
+
+    apply_routine_prepass(db, &prepared).await?;
 
     for ext in schema_extensions {
         if ext.has_migrations() && !fresh_extensions.contains(ext.id()) {

@@ -44,6 +44,8 @@ mod files_validator_load;
 mod files_validator_storage_errors;
 #[cfg(test)]
 mod files_validator_tests;
+#[cfg(all(test, unix))]
+mod managed_inventory_lifecycle;
 #[cfg(test)]
 mod module_type_serde;
 #[cfg(test)]
@@ -71,6 +73,8 @@ mod wellknown;
 
 #[cfg(test)]
 mod reporting;
+#[cfg(test)]
+mod snapshot_wakeup;
 
 #[cfg(test)]
 mod git_credentials;

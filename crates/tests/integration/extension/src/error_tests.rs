@@ -175,6 +175,13 @@ fn test_loader_error_variant_matching() {
             stored_name: "knowledge_bank".to_string(),
             current_name: "skill_invocation_view".to_string(),
         },
+        LoaderError::MigrationReferencesDeclarativeObject {
+            extension: "k".to_string(),
+            migration: "012_view_dependency.sql".to_string(),
+            kind: "view".to_string(),
+            object: "current_items".to_string(),
+            how: "FROM reference".to_string(),
+        },
     ];
 
     for err in errors {
@@ -207,6 +214,19 @@ fn test_loader_error_variant_matching() {
             LoaderError::MigrationFailed { extension, message } => {
                 assert!(!extension.is_empty());
                 assert!(!message.is_empty());
+            },
+            LoaderError::MigrationReferencesDeclarativeObject {
+                extension,
+                migration,
+                kind,
+                object,
+                how,
+            } => {
+                assert!(!extension.is_empty());
+                assert!(!migration.is_empty());
+                assert!(!kind.is_empty());
+                assert!(!object.is_empty());
+                assert!(!how.is_empty());
             },
             LoaderError::ConfigValidationFailed { extension, message } => {
                 assert!(!extension.is_empty());

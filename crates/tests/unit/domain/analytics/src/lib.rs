@@ -20,4 +20,7 @@ mod repository;
 mod projection;
 
 #[cfg(test)]
+mod resource_metrics;
+
+#[cfg(test)]
 mod feedback_facts;

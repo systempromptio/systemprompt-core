@@ -119,3 +119,45 @@ fn build_server_surfaces_stub_failure() {
     let err = build_server(&internal_mcp_config("buildfail", 0)).expect_err("stub build fails");
     assert!(err.to_string().contains("Build failed"));
 }
+
+#[test]
+fn spawn_server_permission_failure_creates_no_process_and_retains_its_diagnostic_log() {
+    let bootstrap = ensure_test_bootstrap();
+    let unique = uuid::Uuid::new_v4().simple().to_string();
+    let name = format!("spawn-denied-{unique}");
+    let binary_name = format!("{name}-bin");
+    let binary = bootstrap.bin_path.join(&binary_name);
+    std::fs::write(&binary, b"#!/bin/sh\nexec /bin/sleep 60\n")
+        .expect("write non-executable fixture");
+    std::fs::set_permissions(&binary, std::fs::Permissions::from_mode(0o600))
+        .expect("remove execute permission");
+    let mut config = internal_mcp_config(&name, 59323);
+    config.binary = Some(binary_name);
+
+    let error = spawn_server(&app_paths(bootstrap), &config)
+        .expect_err("a non-executable binary cannot create a detached service");
+    let diagnosis = error.to_string();
+    assert!(
+        diagnosis.contains("Failed to start detached"),
+        "{diagnosis}"
+    );
+    assert!(
+        diagnosis.contains("Permission denied"),
+        "the operator receives the executable-permission cause: {diagnosis}"
+    );
+    assert!(
+        systemprompt_mcp::services::process::pid::find_pids_by_name(&name)
+            .expect("process search")
+            .is_empty(),
+        "failed spawn leaves no process carrying the unique service identity"
+    );
+    let log = bootstrap
+        .app_paths
+        .system()
+        .logs()
+        .join(format!("mcp-{name}.log"));
+    assert!(log.is_file(), "the per-service diagnostic log is retained");
+    assert_eq!(std::fs::metadata(&log).expect("log metadata").len(), 0);
+    std::fs::remove_file(binary).expect("remove fixture binary");
+    std::fs::remove_file(log).expect("remove fixture log");
+}

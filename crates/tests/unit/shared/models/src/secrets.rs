@@ -279,3 +279,54 @@ fn has_ai_provider_is_false_only_when_every_provider_is_absent() {
         );
     }
 }
+
+#[test]
+fn debug_exposes_secret_names_and_presence_without_any_secret_values() {
+    let mut secrets = full_secrets();
+    secrets.oauth_at_rest_pepper = "pepper-secret-marker-0123456789abcdef".to_owned();
+    secrets.manifest_signing_secret_seed = Some("manifest-seed-secret-marker".to_owned());
+    secrets.signing_key_pem = Some("signing-pem-secret-marker".to_owned());
+    secrets.database_url = "postgres://primary-secret-marker".to_owned();
+    secrets.database_write_url = Some("postgres://write-secret-marker".to_owned());
+    secrets.external_database_url = Some("postgres://external-secret-marker".to_owned());
+    secrets.internal_database_url = Some("postgres://internal-secret-marker".to_owned());
+    secrets.gemini = Some("gemini-secret-marker".to_owned());
+    secrets.anthropic = Some("anthropic-secret-marker".to_owned());
+    secrets.openai = Some("openai-secret-marker".to_owned());
+    secrets.github = Some("github-secret-marker".to_owned());
+    secrets.moonshot = Some("moonshot-secret-marker".to_owned());
+    secrets.qwen = Some("qwen-secret-marker".to_owned());
+    secrets
+        .custom
+        .insert("STRIPE_KEY".to_owned(), "stripe-secret-marker".to_owned());
+    secrets
+        .custom
+        .insert("intercom".to_owned(), "intercom-secret-marker".to_owned());
+
+    let rendered = format!("{secrets:?}");
+    assert!(rendered.contains("ai_providers: true"), "{rendered}");
+    assert!(rendered.contains("STRIPE_KEY"), "{rendered}");
+    assert!(rendered.contains("intercom"), "{rendered}");
+    for secret in [
+        secrets.oauth_at_rest_pepper.as_str(),
+        secrets.manifest_signing_secret_seed.as_deref().unwrap(),
+        secrets.signing_key_pem.as_deref().unwrap(),
+        secrets.database_url.as_str(),
+        secrets.database_write_url.as_deref().unwrap(),
+        secrets.external_database_url.as_deref().unwrap(),
+        secrets.internal_database_url.as_deref().unwrap(),
+        secrets.gemini.as_deref().unwrap(),
+        secrets.anthropic.as_deref().unwrap(),
+        secrets.openai.as_deref().unwrap(),
+        secrets.github.as_deref().unwrap(),
+        secrets.moonshot.as_deref().unwrap(),
+        secrets.qwen.as_deref().unwrap(),
+        secrets.custom["STRIPE_KEY"].as_str(),
+        secrets.custom["intercom"].as_str(),
+    ] {
+        assert!(
+            !rendered.contains(secret),
+            "debug output leaked secret value {secret:?}: {rendered}"
+        );
+    }
+}

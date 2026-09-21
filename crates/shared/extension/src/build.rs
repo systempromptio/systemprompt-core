@@ -1,16 +1,10 @@
 //! Build-script support for extension crates.
 //!
-//! Extensions keep their schema migrations as
-//! `schema/migrations/NNN_<name>.sql` files. [`emit_migrations`] is called from
-//! an extension crate's `build.rs`: it discovers those files, derives each
-//! migration's version and name from the filename, and writes the body of
-//! [`Extension::migrations`](crate::Extension) to `OUT_DIR`. The extension
-//! consumes the generated body with the
-//! [`extension_migrations!`](crate::extension_migrations) macro.
-//!
-//! Because the filename is the single source of version and name, those values
-//! cannot drift from the SQL they label, and `cargo:rerun-if-changed` makes a
-//! newly added file retrigger the build.
+//! [`emit_migrations`] discovers an extension crate's
+//! `schema/migrations/NNN_<name>.sql` files and writes the body of
+//! [`Extension::migrations`](crate::Extension) to `OUT_DIR` for
+//! [`extension_migrations!`](crate::extension_migrations). Filenames define
+//! versions and names, while `cargo:rerun-if-changed` tracks additions.
 //!
 //! # Conventions
 //!
@@ -19,16 +13,18 @@
 //! - `NNN_<name>.down.sql` — the paired down migration (optional).
 //! - A migration whose first non-blank line is `-- @no-transaction` is emitted
 //!   with [`Migration::new_no_transaction`](crate::Migration::new_no_transaction).
+//! - Each leading `-- @supersedes-checksum: <16 hex>` names replaced migration
+//!   text. Its tracking row moves to the new checksum without rerunning SQL.
+//!   This corrects text only when the old and new forms produce the same state;
+//!   changes that must execute on established databases require a new
+//!   migration.
 //! - `NNN_<name>.tombstone` / `NNN-MMM_<name>.tombstone` — a spent slot. The
 //!   migration once lived here, shipped, and its file has since been deleted;
 //!   established databases still carry its tracking row. A tombstone declares
 //!   the number so it can never be refilled, and its body is prose, never SQL.
 //!
-//! Tombstones are what make `ls` the truth: a number is free only if no file
-//! claims it. Because `reject_duplicate_versions` treats a tombstoned range
-//! exactly like an occupied one, refilling a spent slot fails the **build**,
-//! long before a deployment discovers it as a checksum mismatch naming a
-//! migration nobody recognises.
+//! Tombstones make `ls` authoritative: `reject_duplicate_versions` treats their
+//! ranges as occupied, so refilling a spent slot fails the build.
 //!
 //! [`emit_migrations`] panics when invoked outside a build script, when a file
 //! in the migrations directory is not named `NNN_<name>.sql` or
@@ -65,6 +61,7 @@ struct DiscoveredMigration {
     up_path: Option<PathBuf>,
     down_path: Option<PathBuf>,
     no_transaction: bool,
+    supersedes: Vec<String>,
 }
 
 impl DiscoveredMigration {
@@ -73,6 +70,10 @@ impl DiscoveredMigration {
             return self.render_tombstone();
         };
         let up = path_literal(up_path);
+        let mut supersedes = String::new();
+        for old in &self.supersedes {
+            supersedes.push_str(&format!(".superseding({old:?})"));
+        }
         match (&self.down_path, self.no_transaction) {
             (Some(_), true) => panic!(
                 "migration {:03} ({}): a `-- @no-transaction` migration cannot declare a \
@@ -81,18 +82,19 @@ impl DiscoveredMigration {
             ),
             (Some(down), false) => format!(
                 "    ::systemprompt_extension::Migration::with_down({}, {:?}, include_str!({up}), \
-                 include_str!({})),\n",
+                 include_str!({})){supersedes},\n",
                 self.version,
                 self.name,
                 path_literal(down),
             ),
             (None, true) => format!(
                 "    ::systemprompt_extension::Migration::new_no_transaction({}, {:?}, \
-                 include_str!({up})),\n",
+                 include_str!({up})){supersedes},\n",
                 self.version, self.name,
             ),
             (None, false) => format!(
-                "    ::systemprompt_extension::Migration::new({}, {:?}, include_str!({up})),\n",
+                "    ::systemprompt_extension::Migration::new({}, {:?}, \
+                 include_str!({up})){supersedes},\n",
                 self.version, self.name,
             ),
         }
@@ -164,6 +166,7 @@ fn discover(dir: &Path) -> Vec<DiscoveredMigration> {
                 name,
                 down_path: downs.remove(&stem),
                 no_transaction: has_no_transaction_directive(up),
+                supersedes: supersedes_directive(up),
                 up_path: Some(up.clone()),
             }
         })
@@ -185,6 +188,7 @@ fn discover(dir: &Path) -> Vec<DiscoveredMigration> {
             name,
             down_path: None,
             no_transaction: false,
+            supersedes: Vec::new(),
             up_path: None,
         }
     }));
@@ -226,6 +230,29 @@ fn parse_version(text: &str, prefix: &str, path: &Path) -> u32 {
             path.display()
         )
     })
+}
+
+// Why: the directive must sit in the leading comment block, before any SQL,
+// so it is not confused with a statement-level comment.
+fn supersedes_directive(path: &Path) -> Vec<String> {
+    let content = std::fs::read_to_string(path)
+        .unwrap_or_else(|e| panic!("failed to read migration {}: {e}", path.display()));
+    content
+        .lines()
+        .map(str::trim)
+        .take_while(|line| line.is_empty() || line.starts_with("--"))
+        .filter_map(|line| line.strip_prefix("-- @supersedes-checksum:"))
+        .map(str::trim)
+        .map(|old| {
+            assert!(
+                old.len() == 16 && old.chars().all(|c| c.is_ascii_hexdigit()),
+                "migration {}: `@supersedes-checksum` must name a 16-hex-digit checksum, got \
+                 `{old}`",
+                path.display()
+            );
+            old.to_owned()
+        })
+        .collect()
 }
 
 fn has_no_transaction_directive(path: &Path) -> bool {

@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.58.0] - 2026-09-21
+
+### Breaking
+
+- **Gateway/model contracts:** `CanonicalRequest` gains top-level `cache_control`, `ModelCapabilities` gains `prompt_caching`, and `GatewayConfigSpec` / `GatewayConfig` gain `automatic_prompt_caching`. Existing YAML defaults automatic caching on and model capability off; Rust struct literals must supply the new fields.
+- **Provider catalog:** `ProviderModel` gains `hidden`. Existing YAML defaults it to `false`; Rust struct literals must supply the field.
+
+### Added
+
+- The default Anthropic catalog declares prompt-caching support for every active Claude model. The canonical Anthropic codec preserves top-level automatic-cache directives as well as explicit block breakpoints.
+
+### Fixed
+
+- Model discovery and Bridge profiles advertise canonical IDs only. Aliases remain accepted for routing without producing duplicate picker entries.
+- The default Anthropic catalog advertises the current Fable 5.1, Opus 5, Sonnet 5 and Haiku 4.5 lineup and hides active legacy generations. Retired Opus 4.1, Opus 4 and Sonnet 4 entries are removed; configured routes must migrate to Opus 4.8 or Sonnet 4.6.
+
 ## [0.57.0] - 2026-09-19
 
 ### Breaking

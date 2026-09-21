@@ -134,6 +134,26 @@ pub(super) fn check_cross_extension_alters(
     for t in extension.cross_extension_tables() {
         allowed.insert(t.to_owned());
     }
+    // Why: a table this extension created in an earlier migration and has
+    // since dropped is still its own while the chain between those two
+    // points replays on an older database.
+    for earlier in extension
+        .migrations()
+        .iter()
+        .filter(|m| !m.tombstone && m.version <= migration.version)
+    {
+        let created =
+            crate::services::schema_linter::created_table_names(earlier.sql).map_err(|e| {
+                LoaderError::MigrationFailed {
+                    extension: ext_id.to_owned(),
+                    message: format!(
+                        "Failed to parse migration {} ({}) for ownership check: {e}",
+                        earlier.version, earlier.name
+                    ),
+                }
+            })?;
+        allowed.extend(created);
+    }
     for table in &altered {
         if !allowed.contains(table.as_str()) {
             return Err(LoaderError::CrossExtensionAlterUndeclared {

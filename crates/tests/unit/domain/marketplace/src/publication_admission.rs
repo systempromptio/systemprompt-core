@@ -156,3 +156,146 @@ async fn inventory_sync_admission_requires_refresh_evidence() {
         .await;
     assert!(matches!(result, Err(ManagedError::Invalid(_))));
 }
+
+#[tokio::test]
+async fn publication_operation_key_replays_same_decision_and_rejects_changed_request() {
+    let f = Fixture::new().await;
+    let (resource, _) = adopted(&f).await;
+    let revision = edited_revision(&f).await;
+    let evidence = serde_json::json!({"source": "inventory_refresh"});
+    let request = request(
+        &resource,
+        Some(revision.clone()),
+        PublicationAction::PublishImprovement,
+        evidence,
+    );
+    let first = f
+        .repository
+        .publish_with_admission(
+            &f.owner,
+            &f.owner,
+            &request,
+            PublicationAdmission::InventorySync,
+        )
+        .await
+        .expect("first publication");
+    let replay = f
+        .repository
+        .publish_with_admission(
+            &f.owner,
+            &f.owner,
+            &request,
+            PublicationAdmission::InventorySync,
+        )
+        .await
+        .expect("same operation is idempotent");
+    assert_eq!(replay, first);
+    assert_eq!(
+        f.repository
+            .list_publication_history(&f.owner, &resource)
+            .await
+            .expect("publication history")
+            .len(),
+        2
+    );
+    let published_before_conflict = f
+        .repository
+        .resolve_managed(&f.owner, ResourceKind::Skill, "local")
+        .await
+        .expect("published resolution");
+
+    let mut changed = request.clone();
+    changed.limitations = "reviewed after replay".into();
+    assert!(matches!(
+        f.repository
+            .publish_with_admission(
+                &f.owner,
+                &f.owner,
+                &changed,
+                PublicationAdmission::InventorySync,
+            )
+            .await,
+        Err(ManagedError::Conflict(_))
+    ));
+    assert_eq!(
+        f.repository
+            .resolve_managed(&f.owner, ResourceKind::Skill, "local")
+            .await
+            .expect("published resolution after rejected replay"),
+        published_before_conflict
+    );
+    assert_eq!(
+        f.repository
+            .list_publication_history(&f.owner, &resource)
+            .await
+            .expect("publication history after rejected replay")
+            .len(),
+        2
+    );
+}
+
+#[tokio::test]
+async fn publication_operation_keys_are_scoped_to_the_resource_owner() {
+    let first_owner = Fixture::new().await;
+    let (first_resource, _) = adopted(&first_owner).await;
+    let first_revision = edited_revision(&first_owner).await;
+    let first_request = request(
+        &first_resource,
+        Some(first_revision),
+        PublicationAction::PublishImprovement,
+        serde_json::json!({"source": "inventory_refresh"}),
+    );
+    let first_decision = first_owner
+        .repository
+        .publish_with_admission(
+            &first_owner.owner,
+            &first_owner.owner,
+            &first_request,
+            PublicationAdmission::InventorySync,
+        )
+        .await
+        .expect("first owner's publication");
+
+    let second_owner = Fixture::new().await;
+    let (second_resource, _) = adopted(&second_owner).await;
+    let second_revision = edited_revision(&second_owner).await;
+    let mut second_request = request(
+        &second_resource,
+        Some(second_revision),
+        PublicationAction::PublishImprovement,
+        serde_json::json!({"source": "inventory_refresh"}),
+    );
+    second_request.operation_key = first_request.operation_key.clone();
+    let second_decision = second_owner
+        .repository
+        .publish_with_admission(
+            &second_owner.owner,
+            &second_owner.owner,
+            &second_request,
+            PublicationAdmission::InventorySync,
+        )
+        .await
+        .expect("same key is valid for an independent owner");
+    assert_ne!(
+        second_decision.publication_id,
+        first_decision.publication_id
+    );
+    assert_eq!(
+        first_owner
+            .repository
+            .list_publication_history(&first_owner.owner, &first_resource)
+            .await
+            .expect("first owner's history")
+            .len(),
+        2
+    );
+    assert_eq!(
+        second_owner
+            .repository
+            .list_publication_history(&second_owner.owner, &second_resource)
+            .await
+            .expect("second owner's history")
+            .len(),
+        2
+    );
+}

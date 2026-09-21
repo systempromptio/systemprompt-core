@@ -147,6 +147,72 @@ async fn a_manifest_without_exactly_one_bundle_layer_is_refused() {
 }
 
 #[tokio::test]
+async fn an_unparseable_manifest_is_refused_before_any_blob_is_requested() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/v2/org/bundle/manifests/v1"))
+        .respond_with(ResponseTemplate::new(200).set_body_string("not an OCI manifest"))
+        .mount(&server)
+        .await;
+
+    let error = fetcher(&server)
+        .head()
+        .await
+        .expect_err("invalid manifest must not yield a remote reference");
+
+    assert!(
+        error.to_string().contains("manifest does not parse"),
+        "{error}"
+    );
+}
+
+#[tokio::test]
+async fn a_manifest_layer_over_the_configured_limit_is_refused_before_download() {
+    let server = MockServer::start().await;
+    mount_manifest(&server, one_layer(BODY)).await;
+    let dir = tempfile::tempdir().unwrap();
+
+    let error = fetcher(&server)
+        .with_max_bytes(4)
+        .fetch(&dir.path().join("bundle.tar.gz"))
+        .await
+        .expect_err("declared layer size must be bounded before streaming");
+
+    assert!(
+        error.to_string().contains("exceeds the 4 byte limit"),
+        "{error}"
+    );
+    assert!(!dir.path().join("bundle.tar.gz").exists());
+}
+
+#[tokio::test]
+async fn a_blob_redirect_loop_is_refused_after_the_bounded_hop_limit() {
+    let server = MockServer::start().await;
+    mount_manifest(&server, one_layer(BODY)).await;
+    Mock::given(method("GET"))
+        .and(path(format!("/v2/org/bundle/blobs/{}", digest_of(BODY))))
+        .respond_with(ResponseTemplate::new(307).insert_header("location", "/loop"))
+        .mount(&server)
+        .await;
+    Mock::given(method("GET"))
+        .and(path("/loop"))
+        .respond_with(ResponseTemplate::new(307).insert_header("location", "/loop"))
+        .mount(&server)
+        .await;
+    let dir = tempfile::tempdir().unwrap();
+
+    let error = fetcher(&server)
+        .fetch(&dir.path().join("bundle.tar.gz"))
+        .await
+        .expect_err("redirect loop must not keep the fetch alive");
+
+    assert!(
+        error.to_string().contains("redirected more than 3 times"),
+        "{error}"
+    );
+}
+
+#[tokio::test]
 async fn a_blob_whose_content_does_not_match_its_digest_is_refused() {
     let server = MockServer::start().await;
     mount_manifest(&server, one_layer(BODY)).await;
@@ -165,5 +231,211 @@ async fn a_blob_whose_content_does_not_match_its_digest_is_refused() {
     assert!(
         err.to_string().contains("blob digest"),
         "the refusal names the digest mismatch: {err}"
+    );
+}
+
+#[tokio::test]
+async fn a_blob_redirect_does_not_forward_the_registry_credential_to_storage() {
+    let storage = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/archive"))
+        .respond_with(ResponseTemplate::new(200).set_body_bytes(BODY))
+        .mount(&storage)
+        .await;
+    let registry = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/v2/org/bundle/manifests/v1"))
+        .and(header("authorization", "Bearer registry-token"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(manifest_body(one_layer(BODY))))
+        .mount(&registry)
+        .await;
+    Mock::given(method("GET"))
+        .and(path(format!("/v2/org/bundle/blobs/{}", digest_of(BODY))))
+        .and(header("authorization", "Bearer registry-token"))
+        .respond_with(
+            ResponseTemplate::new(307)
+                .insert_header("location", &format!("{}/archive", storage.uri())),
+        )
+        .mount(&registry)
+        .await;
+    let host = registry.uri().replace("http://", "");
+    let fetcher = OciFetcher::new(
+        "base",
+        &format!("{host}/org/bundle:v1"),
+        Some("registry-token".to_owned()),
+        client(),
+    )
+    .unwrap();
+    let dir = tempfile::tempdir().unwrap();
+
+    let fetched = fetcher
+        .fetch(&dir.path().join("bundle.tar.gz"))
+        .await
+        .unwrap();
+    let storage_requests = storage.received_requests().await.unwrap();
+
+    assert_eq!(std::fs::read(fetched.archive).unwrap(), BODY);
+    assert_eq!(storage_requests.len(), 1);
+    assert!(!storage_requests[0].headers.contains_key("authorization"));
+}
+#[tokio::test]
+async fn manifest_outage_writes_nothing_and_a_later_pull_recovers() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/v2/org/bundle/manifests/v1"))
+        .respond_with(ResponseTemplate::new(503))
+        .with_priority(1)
+        .up_to_n_times(1)
+        .mount(&server)
+        .await;
+    mount_manifest(&server, one_layer(BODY)).await;
+    Mock::given(method("GET"))
+        .and(path(format!("/v2/org/bundle/blobs/{}", digest_of(BODY))))
+        .respond_with(ResponseTemplate::new(200).set_body_bytes(BODY))
+        .mount(&server)
+        .await;
+    let dir = tempfile::tempdir().expect("owned output directory");
+    let output = dir.path().join("bundle.tar.gz");
+
+    let error = fetcher(&server)
+        .fetch(&output)
+        .await
+        .expect_err("registry outage must fail the pull");
+    assert!(error.to_string().contains("manifest request failed: 503"));
+    assert!(
+        !output.exists(),
+        "manifest failure must not create an archive"
+    );
+
+    let fetched = fetcher(&server)
+        .fetch(&output)
+        .await
+        .expect("the next pull recovers");
+    assert_eq!(fetched.archive, output);
+    assert_eq!(fetched.digest, digest_of(BODY));
+    assert_eq!(std::fs::read(&output).unwrap(), BODY);
+    let requests = server.received_requests().await.unwrap();
+    assert_eq!(
+        requests
+            .iter()
+            .filter(|request| request.url.path() == "/v2/org/bundle/manifests/v1")
+            .count(),
+        2
+    );
+    assert_eq!(
+        requests
+            .iter()
+            .filter(|request| request.url.path().contains("/blobs/"))
+            .count(),
+        1
+    );
+}
+
+#[tokio::test]
+async fn blob_outage_preserves_no_archive_and_a_later_pull_recovers() {
+    let server = MockServer::start().await;
+    mount_manifest(&server, one_layer(BODY)).await;
+    let blob_path = format!("/v2/org/bundle/blobs/{}", digest_of(BODY));
+    Mock::given(method("GET"))
+        .and(path(blob_path.clone()))
+        .respond_with(ResponseTemplate::new(502))
+        .with_priority(1)
+        .up_to_n_times(1)
+        .mount(&server)
+        .await;
+    Mock::given(method("GET"))
+        .and(path(blob_path))
+        .respond_with(ResponseTemplate::new(200).set_body_bytes(BODY))
+        .with_priority(10)
+        .mount(&server)
+        .await;
+    let dir = tempfile::tempdir().expect("owned output directory");
+    let output = dir.path().join("bundle.tar.gz");
+
+    let error = fetcher(&server)
+        .fetch(&output)
+        .await
+        .expect_err("blob outage must fail the pull");
+    assert!(error.to_string().contains("blob request failed: 502"));
+    assert!(
+        !output.exists(),
+        "failed response must not create an archive"
+    );
+
+    let fetched = fetcher(&server)
+        .fetch(&output)
+        .await
+        .expect("the next pull recovers");
+    assert_eq!(fetched.digest, digest_of(BODY));
+    assert_eq!(std::fs::read(&output).unwrap(), BODY);
+    let requests = server.received_requests().await.unwrap();
+    assert_eq!(
+        requests
+            .iter()
+            .filter(|request| request.url.path() == "/v2/org/bundle/manifests/v1")
+            .count(),
+        2
+    );
+    assert_eq!(
+        requests
+            .iter()
+            .filter(|request| request.url.path().contains("/blobs/"))
+            .count(),
+        2
+    );
+}
+
+#[tokio::test]
+async fn redirect_without_location_writes_nothing_and_direct_retry_recovers() {
+    let server = MockServer::start().await;
+    mount_manifest(&server, one_layer(BODY)).await;
+    let blob_path = format!("/v2/org/bundle/blobs/{}", digest_of(BODY));
+    Mock::given(method("GET"))
+        .and(path(blob_path.clone()))
+        .respond_with(ResponseTemplate::new(307))
+        .with_priority(1)
+        .up_to_n_times(1)
+        .mount(&server)
+        .await;
+    Mock::given(method("GET"))
+        .and(path(blob_path))
+        .respond_with(ResponseTemplate::new(200).set_body_bytes(BODY))
+        .with_priority(10)
+        .mount(&server)
+        .await;
+    let dir = tempfile::tempdir().expect("owned output directory");
+    let output = dir.path().join("bundle.tar.gz");
+
+    let error = fetcher(&server)
+        .fetch(&output)
+        .await
+        .expect_err("redirect without Location must be refused");
+    assert!(
+        error
+            .to_string()
+            .contains("redirect (307 Temporary Redirect) without a Location")
+    );
+    assert!(!output.exists());
+
+    let fetched = fetcher(&server)
+        .fetch(&output)
+        .await
+        .expect("direct blob retry recovers");
+    assert_eq!(fetched.digest, digest_of(BODY));
+    assert_eq!(std::fs::read(&output).unwrap(), BODY);
+    let requests = server.received_requests().await.unwrap();
+    assert_eq!(
+        requests
+            .iter()
+            .filter(|request| request.url.path() == "/v2/org/bundle/manifests/v1")
+            .count(),
+        2
+    );
+    assert_eq!(
+        requests
+            .iter()
+            .filter(|request| request.url.path().contains("/blobs/"))
+            .count(),
+        2
     );
 }

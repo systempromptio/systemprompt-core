@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use systemprompt_bridge::gateway::manifest::ArtifactEntry;
 use systemprompt_bridge::ids::{LibraryArtifactId, Sha256Digest};
 use systemprompt_bridge::integration::cowork_artifacts::workspace_sink::{
-    BUNDLE_MANIFEST_FILE, bundle_is_current, remove_bundle, write_bundle,
+    BUNDLE_MANIFEST_FILE, bundle_is_current, remove_bundle, stage_bundle, write_bundle,
 };
 
 fn tempdir() -> PathBuf {
@@ -92,4 +92,84 @@ fn an_empty_dir_is_never_current() {
     let dir = tempdir();
     assert!(!bundle_is_current(&dir, &[artifact("a", "1")]));
     fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
+fn an_empty_gateway_artifact_set_preserves_the_existing_workspace_bundle() {
+    let home = tempfile::tempdir().unwrap();
+    temp_env::with_vars(
+        [
+            ("HOME", Some(home.path())),
+            ("USERPROFILE", Some(home.path())),
+        ],
+        || {
+            let dir = systemprompt_bridge::config::paths::workspace_artifacts_dir()
+                .expect("workspace path from sandbox home");
+            assert!(
+                dir.starts_with(home.path()),
+                "workspace escaped the sandbox: {}",
+                dir.display()
+            );
+            let artifacts = [artifact("dashboard", "1")];
+            write_bundle(&dir, &artifacts).expect("seed bundle");
+            let manifest = fs::read(dir.join(BUNDLE_MANIFEST_FILE)).expect("manifest bytes");
+            let page = fs::read(dir.join("dashboard.html")).expect("page bytes");
+
+            stage_bundle(&[]).expect("empty artifact set is a preservation event");
+
+            assert_eq!(fs::read(dir.join(BUNDLE_MANIFEST_FILE)).unwrap(), manifest);
+            assert_eq!(fs::read(dir.join("dashboard.html")).unwrap(), page);
+            assert!(bundle_is_current(&dir, &artifacts));
+        },
+    );
+}
+
+#[test]
+fn a_nonempty_gateway_artifact_set_stages_once_and_skips_an_unchanged_bundle() {
+    let home = tempfile::tempdir().unwrap();
+    temp_env::with_vars(
+        [
+            ("HOME", Some(home.path())),
+            ("USERPROFILE", Some(home.path())),
+        ],
+        || {
+            let dir = systemprompt_bridge::config::paths::workspace_artifacts_dir()
+                .expect("workspace path from sandbox home");
+            assert!(
+                dir.starts_with(home.path()),
+                "workspace escaped the sandbox: {}",
+                dir.display()
+            );
+            let artifacts = [artifact("dashboard", "1")];
+            stage_bundle(&artifacts).expect("the public staging entry point writes a bundle");
+            assert_eq!(
+                fs::read_to_string(dir.join("dashboard.html")).unwrap(),
+                artifacts[0].content
+            );
+            assert!(bundle_is_current(&dir, &artifacts));
+
+            let manifest = dir.join(BUNDLE_MANIFEST_FILE);
+            let manifest_file = fs::File::open(&manifest).expect("open staged manifest");
+            manifest_file
+                .set_times(fs::FileTimes::new().set_modified(
+                    std::time::SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(1),
+                ))
+                .expect("make the manifest visibly old");
+            let before = fs::metadata(&manifest)
+                .expect("stat staged manifest")
+                .modified()
+                .expect("manifest modification time");
+
+            stage_bundle(&artifacts).expect("an unchanged bundle is skipped");
+
+            assert_eq!(
+                fs::metadata(&manifest)
+                    .expect("stat unchanged manifest")
+                    .modified()
+                    .expect("manifest modification time"),
+                before,
+                "the current-bundle fast path leaves the manifest untouched"
+            );
+        },
+    );
 }

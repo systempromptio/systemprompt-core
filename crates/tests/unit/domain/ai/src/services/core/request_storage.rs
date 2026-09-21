@@ -405,3 +405,82 @@ async fn a_failed_status_with_no_message_falls_back_to_a_placeholder() {
         "a failed row must never carry an empty reason — it would read as a success"
     );
 }
+
+type MaterializerCall = (String, String, Option<String>, String, String);
+
+#[derive(Default)]
+struct FailingContextMaterializer {
+    calls: Mutex<Vec<MaterializerCall>>,
+}
+
+#[async_trait::async_trait]
+impl systemprompt_traits::ContextMaterializer for FailingContextMaterializer {
+    async fn ensure_context(
+        &self,
+        params: systemprompt_traits::EnsureContextParams<'_>,
+    ) -> Result<(), systemprompt_traits::ContextProviderError> {
+        self.calls.lock().expect("lock").push((
+            params.context_id.as_str().to_owned(),
+            params.user_id.as_str().to_owned(),
+            params.session_id.map(|session| session.as_str().to_owned()),
+            params.name.to_owned(),
+            params.kind.to_owned(),
+        ));
+        Err(systemprompt_traits::ContextProviderError::Database(
+            "derived context store unavailable".to_owned(),
+        ))
+    }
+}
+
+#[tokio::test]
+async fn failed_derived_context_materialization_preserves_the_audit_and_messages() {
+    let pool = pool_or_skip()
+        .await
+        .expect("AI request storage database fixture");
+    let (user, ctx) = seeded_context(&pool).await;
+    let expected = (
+        ctx.context_id().as_str().to_owned(),
+        user.as_str().to_owned(),
+        Some(ctx.session_id().as_str().to_owned()),
+        ctx.agent_name().as_str().to_owned(),
+        "derived".to_owned(),
+    );
+    let materializer = Arc::new(FailingContextMaterializer::default());
+    let storage = storage(&pool, Arc::new(RecordingSessionProvider::default()))
+        .with_context_materializer(materializer.clone());
+    let request_id = Uuid::new_v4();
+    let request = request(ctx);
+    let response = response(request_id, "durable despite materialization failure");
+
+    store(&storage, &request, &response, 17).await;
+
+    assert_eq!(*materializer.calls.lock().expect("lock"), vec![expected]);
+    let read = pool.pool_arc().expect("read pool");
+    let stored: (String, i64) =
+        sqlx::query_as("SELECT status, cost_microdollars FROM ai_requests WHERE request_id = $1")
+            .bind(request_id.to_string())
+            .fetch_one(read.as_ref())
+            .await
+            .expect("durable audit");
+    assert_eq!(stored.0, "completed");
+    assert_eq!(stored.1, 17);
+    let messages: Vec<(String, String)> = sqlx::query_as(
+        "SELECT m.role, m.content FROM ai_request_messages m JOIN ai_requests r \
+         ON r.id = m.request_id WHERE r.request_id = $1 ORDER BY m.sequence_number",
+    )
+    .bind(request_id.to_string())
+    .fetch_all(read.as_ref())
+    .await
+    .expect("durable messages");
+    assert_eq!(
+        messages,
+        vec![
+            ("system".to_owned(), "sys".to_owned()),
+            ("user".to_owned(), "hi".to_owned()),
+            (
+                "assistant".to_owned(),
+                "durable despite materialization failure".to_owned(),
+            ),
+        ]
+    );
+}

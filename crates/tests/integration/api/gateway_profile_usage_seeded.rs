@@ -231,6 +231,38 @@ async fn a_user_with_no_history_gets_an_empty_report_not_an_error() -> Result<()
 }
 
 #[tokio::test]
+async fn zero_token_models_keep_finite_zero_shares_and_preserve_usage_rows() -> Result<()> {
+    let (app, pool) = app().await?;
+    let cred = seed_admin_credential(
+        &pool,
+        &format!("usage-zero-{}@example.invalid", Uuid::new_v4()),
+    )
+    .await?;
+    let context = ContextId::generate();
+    seed_request(&pool, &cred.user_id, &context, "zero-model-a", 0, 11).await?;
+    seed_request(&pool, &cred.user_id, &context, "zero-model-b", 0, 13).await?;
+    drain_reporting(&pool).await?;
+
+    let report = usage(app, &cred).await?;
+    let models = report["top_models"].as_array().expect("top models");
+    assert_eq!(models.len(), 2, "{report}");
+    for model in models {
+        let share = model["token_share"].as_f64().expect("numeric share");
+        assert_eq!(share, 0.0, "zero total tokens must not yield NaN: {model}");
+        assert!(share.is_finite());
+        assert_eq!(model["requests"].as_i64(), Some(1));
+    }
+    assert_eq!(
+        models
+            .iter()
+            .filter_map(|m| m["cost_microdollars"].as_i64())
+            .sum::<i64>(),
+        24
+    );
+    Ok(())
+}
+
+#[tokio::test]
 async fn one_users_usage_is_not_visible_to_another() -> Result<()> {
     let (app, pool) = app().await?;
     let busy = seed_history(

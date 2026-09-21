@@ -10,6 +10,7 @@ use systemprompt_identifiers::ModelId;
 fn req_with(messages: Vec<CanonicalMessage>, system: Option<&str>) -> CanonicalRequest {
     CanonicalRequest {
         model: ModelId::new("m"),
+        cache_control: None,
         system: system.map(SystemBlock::text).into_iter().collect(),
         messages,
         max_tokens: 10,

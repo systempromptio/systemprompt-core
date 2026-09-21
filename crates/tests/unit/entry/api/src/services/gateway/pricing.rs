@@ -30,6 +30,7 @@ fn gateway_with(routes: Vec<GatewayRoute>) -> GatewayConfig {
         default_provider: None,
         default_model: None,
         allow_unlisted_models: false,
+        automatic_prompt_caching: true,
         auth_scheme: "bearer".to_owned(),
         inference_path_prefix: "/v1".to_owned(),
         system_prompt_overrides: Vec::new(),
@@ -79,6 +80,7 @@ fn registry_pricing_used_when_no_route_override() {
             models: vec![ProviderModel {
                 id: ModelId::new("claude-sonnet-4-rare"),
                 aliases: Vec::new(),
+                hidden: false,
                 governance: None,
                 upstream_model: None,
                 pricing: custom,
@@ -114,6 +116,7 @@ fn resolve_falls_back_to_configured_model_when_served_alias_unknown() {
             models: vec![ProviderModel {
                 id: ModelId::new("gpt-5-mini"),
                 aliases: Vec::new(),
+                hidden: false,
                 governance: None,
                 upstream_model: None,
                 pricing: custom,

@@ -39,6 +39,7 @@ struct Harness {
     ext_name: String,
     int_name: String,
     _bootstrap: systemprompt_test_fixtures::TestBootstrap,
+    _database: Option<systemprompt_test_fixtures::DisposableDb>,
 }
 
 fn services_yaml(provider_url: &str, ext_name: &str, int_name: &str, int_port: u16) -> String {
@@ -101,6 +102,19 @@ async fn harness() -> anyhow::Result<Harness> {
 }
 
 async fn harness_with_governance(governance_yaml: Option<&str>) -> anyhow::Result<Harness> {
+    harness_with_database(governance_yaml, None, None).await
+}
+
+async fn private_harness(label: &str) -> anyhow::Result<Harness> {
+    let database = systemprompt_test_fixtures::DisposableDb::installed(label).await?;
+    harness_with_database(None, Some(database), None).await
+}
+
+async fn harness_with_database(
+    governance_yaml: Option<&str>,
+    database: Option<systemprompt_test_fixtures::DisposableDb>,
+    provider_url_override: Option<&str>,
+) -> anyhow::Result<Harness> {
     systemprompt_test_fixtures::install_named_secret(
         systemprompt_mcp::services::client::external_auth::BROKER_SECRET_KEY,
         BROKER_SECRET,
@@ -113,7 +127,8 @@ async fn harness_with_governance(governance_yaml: Option<&str>) -> anyhow::Resul
     let suffix = Uuid::new_v4().simple().to_string();
     let ext_name = format!("cov-ext-{}", &suffix[..8]);
     let int_name = format!("cov-int-{}", &suffix[..8]);
-    let provider_url = format!("{}/provider/mcp", server.uri());
+    let provider_url = provider_url_override
+        .map_or_else(|| format!("{}/provider/mcp", server.uri()), str::to_owned);
     let yaml = services_yaml(
         &provider_url,
         &ext_name,
@@ -134,7 +149,15 @@ async fn harness_with_governance(governance_yaml: Option<&str>) -> anyhow::Resul
         format!("extension:\n  type: mcp\n  name: {int_name}\n  binary: {int_name}-bin\n"),
     )?;
 
-    let pool = systemprompt_test_fixtures::fixture_db_pool(&b.database_url).await?;
+    let database_url = database.as_ref().map_or(
+        b.database_url.as_str(),
+        systemprompt_test_fixtures::DisposableDb::url,
+    );
+    let pool = if let Some(database) = &database {
+        database.pool().await?
+    } else {
+        systemprompt_test_fixtures::fixture_db_pool(database_url).await?
+    };
     let paths = PathsConfig {
         system: b.system_path.to_string_lossy().into_owned(),
         services: b.services_path.to_string_lossy().into_owned(),
@@ -145,7 +168,7 @@ async fn harness_with_governance(governance_yaml: Option<&str>) -> anyhow::Resul
     };
     let ctx = systemprompt_test_fixtures::fixture_app_context_with(
         &pool,
-        &b.database_url,
+        database_url,
         paths,
         Arc::new(systemprompt_marketplace::AllowAllFilter),
     )?;
@@ -159,6 +182,7 @@ async fn harness_with_governance(governance_yaml: Option<&str>) -> anyhow::Resul
         ext_name,
         int_name,
         _bootstrap: b,
+        _database: database,
     })
 }
 
@@ -658,5 +682,402 @@ async fn external_initialized_session_survives_failed_delete_and_rejects_other_u
         StatusCode::NOT_FOUND,
         "successful DELETE invalidates the binding"
     );
+    Ok(())
+}
+
+#[tokio::test]
+async fn external_session_insert_failure_is_fail_closed_and_retry_persists_one_binding()
+-> anyhow::Result<()> {
+    let mut h = private_harness("external_session_insert_recovery").await?;
+    mount_accessor(&h.server).await;
+    Mock::given(method("POST"))
+        .and(path("/provider/mcp"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("mcp-session-id", "durable-session")
+                .set_body_json(serde_json::json!({"jsonrpc":"2.0","id":1,"result":{}})),
+        )
+        .mount(&h.server)
+        .await;
+    let write = h.pool.write_pool_arc()?;
+    sqlx::raw_sql(
+        "CREATE FUNCTION reject_external_session_insert() RETURNS trigger LANGUAGE plpgsql AS $$ \
+         BEGIN RAISE EXCEPTION 'owned external session fault'; END $$; \
+         CREATE TRIGGER reject_external_session_insert BEFORE INSERT ON mcp_external_sessions \
+         FOR EACH ROW EXECUTE FUNCTION reject_external_session_insert()",
+    )
+    .execute(write.as_ref())
+    .await?;
+    let initialize = || {
+        proxied_post(
+            &h.ext_name,
+            serde_json::json!({"jsonrpc":"2.0","id":1,"method":"initialize","params":{}})
+                .to_string(),
+            Some(caller_context("durable-session-owner")),
+        )
+    };
+
+    let failed = h.app.clone().oneshot(initialize()).await?;
+    assert_eq!(failed.status(), StatusCode::FORBIDDEN);
+    let count: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM mcp_external_sessions WHERE server_name = $1 AND session_id = $2",
+    )
+    .bind(&h.ext_name)
+    .bind("durable-session")
+    .fetch_one(write.as_ref())
+    .await?;
+    assert_eq!(count, 0, "a failed binding write leaves no session");
+
+    sqlx::raw_sql(
+        "DROP TRIGGER reject_external_session_insert ON mcp_external_sessions; \
+         DROP FUNCTION reject_external_session_insert()",
+    )
+    .execute(write.as_ref())
+    .await?;
+    let retry = h.app.clone().oneshot(initialize()).await?;
+    assert_eq!(retry.status(), StatusCode::OK);
+    assert_eq!(retry.headers()["mcp-session-id"], "durable-session");
+    let count: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM mcp_external_sessions WHERE server_name = $1 AND session_id = $2",
+    )
+    .bind(&h.ext_name)
+    .bind("durable-session")
+    .fetch_one(write.as_ref())
+    .await?;
+    assert_eq!(count, 1, "retry creates exactly one durable binding");
+
+    Mock::given(method("GET"))
+        .and(path("/provider/mcp"))
+        .respond_with(ResponseTemplate::new(200))
+        .expect(1)
+        .mount(&h.server)
+        .await;
+    let mut followup = proxied_post(
+        &h.ext_name,
+        String::new(),
+        Some(caller_context("durable-session-owner")),
+    );
+    *followup.method_mut() = http::Method::GET;
+    followup
+        .headers_mut()
+        .insert("mcp-session-id", "durable-session".parse()?);
+    assert_eq!(
+        h.app.clone().oneshot(followup).await?.status(),
+        StatusCode::OK
+    );
+    let provider_posts = h
+        .server
+        .received_requests()
+        .await
+        .expect("recorded provider requests")
+        .into_iter()
+        .filter(|request| {
+            request.method == http::Method::POST && request.url.path() == "/provider/mcp"
+        })
+        .count();
+    assert_eq!(
+        provider_posts, 2,
+        "failed persistence and retry each dispatch once"
+    );
+    drop(write);
+    h._database
+        .take()
+        .expect("private external-session database")
+        .drop_now()
+        .await;
+    Ok(())
+}
+// Apply after the private-database harness refactor in proxy_external_mcp.rs.
+fn caller_context_with_token(user: &str, token: &str) -> RequestContext {
+    RequestContext::new(
+        SessionId::generate(),
+        TraceId::generate(),
+        ContextId::generate(),
+        AgentName::try_new("proxy-test-agent").expect("valid AgentName"),
+    )
+    .with_actor(systemprompt_identifiers::Actor::user(UserId::new(user)))
+    .with_auth_token(token)
+}
+
+async fn mount_accessor_token(server: &MockServer, caller: &str, provider: &str) {
+    Mock::given(method("GET"))
+        .and(path("/ext-token"))
+        .and(header("authorization", format!("Bearer {caller}")))
+        .and(header("x-systemprompt-credential-broker", BROKER_SECRET))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "access_token": provider
+        })))
+        .mount(server)
+        .await;
+}
+
+#[tokio::test]
+async fn external_session_is_bound_to_provider_credential_and_rotation_does_not_steal_it()
+-> anyhow::Result<()> {
+    let mut h = private_harness("external_session_credential_rotation").await?;
+    const CALLER_A: &str = "caller-jwt-a";
+    const CALLER_B: &str = "caller-jwt-b";
+    mount_accessor_token(&h.server, CALLER_A, "provider-bearer-a").await;
+    mount_accessor_token(&h.server, CALLER_B, "provider-bearer-b").await;
+    Mock::given(method("POST"))
+        .and(path("/provider/mcp"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("mcp-session-id", "credential-bound-session")
+                .set_body_json(serde_json::json!({"jsonrpc":"2.0","id":1,"result":{}})),
+        )
+        .expect(1)
+        .mount(&h.server)
+        .await;
+    let initialize = proxied_post(
+        &h.ext_name,
+        serde_json::json!({"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}).to_string(),
+        Some(caller_context_with_token("stable-owner", CALLER_A)),
+    );
+    let initialized = h.app.clone().oneshot(initialize).await?;
+    assert_eq!(initialized.status(), StatusCode::OK);
+    let binding_before: (String, Vec<u8>) = sqlx::query_as(
+        "SELECT user_id, credential_hash FROM mcp_external_sessions \
+         WHERE server_name = $1 AND session_id = $2",
+    )
+    .bind(&h.ext_name)
+    .bind("credential-bound-session")
+    .fetch_one(h.pool.pool_arc()?.as_ref())
+    .await?;
+    assert_eq!(binding_before.0, "stable-owner");
+    assert_eq!(binding_before.1.len(), 32);
+
+    Mock::given(method("GET"))
+        .and(path("/provider/mcp"))
+        .respond_with(ResponseTemplate::new(200))
+        .expect(1)
+        .mount(&h.server)
+        .await;
+    let followup = |caller: &str| {
+        let mut request = proxied_post(
+            &h.ext_name,
+            String::new(),
+            Some(caller_context_with_token("stable-owner", caller)),
+        );
+        *request.method_mut() = http::Method::GET;
+        request.headers_mut().insert(
+            "mcp-session-id",
+            "credential-bound-session".parse().expect("session header"),
+        );
+        request
+    };
+    let rotated = h.app.clone().oneshot(followup(CALLER_B)).await?;
+    assert_eq!(rotated.status(), StatusCode::NOT_FOUND);
+    let original = h.app.clone().oneshot(followup(CALLER_A)).await?;
+    assert_eq!(original.status(), StatusCode::OK);
+
+    let provider_requests = h
+        .server
+        .received_requests()
+        .await
+        .expect("recorded requests")
+        .into_iter()
+        .filter(|request| request.url.path() == "/provider/mcp")
+        .collect::<Vec<_>>();
+    assert_eq!(
+        provider_requests.len(),
+        2,
+        "rotated credential is rejected before forwarding"
+    );
+    assert_eq!(
+        provider_requests[0].headers["authorization"],
+        "Bearer provider-bearer-a"
+    );
+    assert_eq!(
+        provider_requests[1].headers["authorization"],
+        "Bearer provider-bearer-a"
+    );
+
+    let binding_after: (String, Vec<u8>) = sqlx::query_as(
+        "SELECT user_id, credential_hash FROM mcp_external_sessions \
+         WHERE server_name = $1 AND session_id = $2",
+    )
+    .bind(&h.ext_name)
+    .bind("credential-bound-session")
+    .fetch_one(h.pool.pool_arc()?.as_ref())
+    .await?;
+    assert_eq!(binding_after.0, binding_before.0);
+    assert_eq!(
+        binding_after.1, binding_before.1,
+        "rejected rotation leaves the durable credential identity unchanged"
+    );
+    h._database
+        .take()
+        .expect("private external-session database")
+        .drop_now()
+        .await;
+    Ok(())
+}
+async fn private_harness_with_provider(label: &str, provider_url: &str) -> anyhow::Result<Harness> {
+    let database = systemprompt_test_fixtures::DisposableDb::installed(label).await?;
+    harness_with_database(None, Some(database), Some(provider_url)).await
+}
+
+
+struct RawProviderTask(Option<tokio::task::JoinHandle<anyhow::Result<usize>>>);
+
+impl Drop for RawProviderTask {
+    fn drop(&mut self) {
+        if let Some(task) = &self.0 {
+            task.abort();
+        }
+    }
+}
+
+impl RawProviderTask {
+    async fn join(mut self) -> anyhow::Result<usize> {
+        let joined = tokio::time::timeout(
+            std::time::Duration::from_secs(10),
+            self.0.as_mut().expect("raw provider task"),
+        )
+        .await
+        .map_err(|_| anyhow::anyhow!("raw provider join timed out"))?;
+        self.0.take();
+        joined?
+    }
+}
+
+async fn raw_session_provider() -> anyhow::Result<(String, RawProviderTask)> {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
+    let url = format!("http://{}/mcp", listener.local_addr()?);
+    let task = tokio::spawn(async move {
+        let body = br#"{"jsonrpc":"2.0","id":1,"result":{}}"#;
+        for attempt in 0..2 {
+            let (mut stream, _) =
+                tokio::time::timeout(std::time::Duration::from_secs(10), listener.accept())
+                    .await
+                    .map_err(|_| anyhow::anyhow!("provider accept timed out"))??;
+            let mut request = Vec::new();
+            let (header_end, content_length) = loop {
+                let mut chunk = [0_u8; 1024];
+                let read = tokio::time::timeout(
+                    std::time::Duration::from_secs(10),
+                    stream.read(&mut chunk),
+                )
+                .await
+                .map_err(|_| anyhow::anyhow!("provider request read timed out"))??;
+                anyhow::ensure!(read != 0, "provider request ended before headers");
+                request.extend_from_slice(&chunk[..read]);
+                if let Some(offset) = request.windows(4).position(|window| window == b"\r\n\r\n") {
+                    let header_end = offset + 4;
+                    let headers = std::str::from_utf8(&request[..header_end])?;
+                    let content_length = headers
+                        .lines()
+                        .filter_map(|line| line.split_once(':'))
+                        .find(|(name, _)| name.eq_ignore_ascii_case("content-length"))
+                        .map(|(_, value)| value.trim().parse::<usize>())
+                        .transpose()?
+                        .unwrap_or(0);
+                    break (header_end, content_length);
+                }
+                anyhow::ensure!(
+                    request.len() <= 64 * 1024,
+                    "provider request headers too large"
+                );
+            };
+            while request.len() < header_end + content_length {
+                let mut chunk = [0_u8; 1024];
+                let read = tokio::time::timeout(
+                    std::time::Duration::from_secs(10),
+                    stream.read(&mut chunk),
+                )
+                .await
+                .map_err(|_| anyhow::anyhow!("provider body read timed out"))??;
+                anyhow::ensure!(read != 0, "provider request ended before body");
+                request.extend_from_slice(&chunk[..read]);
+            }
+            anyhow::ensure!(request.starts_with(b"POST /mcp HTTP/1.1\r\n"));
+            let mut response = format!(
+                "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\nmcp-session-id: ",
+                body.len()
+            )
+            .into_bytes();
+            if attempt == 0 {
+                response.push(0xff);
+            } else {
+                response.extend_from_slice(b"repaired-session");
+            }
+            response.extend_from_slice(b"\r\n\r\n");
+            response.extend_from_slice(body);
+            tokio::time::timeout(
+                std::time::Duration::from_secs(10),
+                stream.write_all(&response),
+            )
+            .await
+            .map_err(|_| anyhow::anyhow!("provider response write timed out"))??;
+            stream.shutdown().await?;
+        }
+        Ok(2)
+    });
+    Ok((url, RawProviderTask(Some(task))))
+}
+
+#[tokio::test]
+async fn invalid_external_session_header_is_fail_closed_and_valid_retry_binds() -> anyhow::Result<()>
+{
+    let (provider_url, provider) = raw_session_provider().await?;
+    let mut h =
+        private_harness_with_provider("external_invalid_session_header", &provider_url).await?;
+    mount_accessor(&h.server).await;
+    let initialize = || {
+        proxied_post(
+            &h.ext_name,
+            serde_json::json!({"jsonrpc":"2.0","id":1,"method":"initialize","params":{}})
+                .to_string(),
+            Some(caller_context("invalid-header-owner")),
+        )
+    };
+
+    let invalid = tokio::time::timeout(
+        std::time::Duration::from_secs(10),
+        h.app.clone().oneshot(initialize()),
+    )
+    .await
+    .map_err(|_| anyhow::anyhow!("invalid-header request timed out"))??;
+    assert_eq!(invalid.status(), StatusCode::FORBIDDEN);
+    let write = h.pool.write_pool_arc()?;
+    let count: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM mcp_external_sessions WHERE server_name = $1")
+            .bind(&h.ext_name)
+            .fetch_one(write.as_ref())
+            .await?;
+    assert_eq!(count, 0);
+
+    let repaired = tokio::time::timeout(
+        std::time::Duration::from_secs(10),
+        h.app.clone().oneshot(initialize()),
+    )
+    .await
+    .map_err(|_| anyhow::anyhow!("valid retry timed out"))??;
+    assert_eq!(repaired.status(), StatusCode::OK);
+    assert_eq!(repaired.headers()["mcp-session-id"], "repaired-session");
+    let binding: (String, String, i64) = sqlx::query_as(
+        "SELECT user_id, session_id, COUNT(*) OVER() FROM mcp_external_sessions \
+         WHERE server_name = $1",
+    )
+    .bind(&h.ext_name)
+    .fetch_one(write.as_ref())
+    .await?;
+    assert_eq!(
+        binding,
+        (
+            "invalid-header-owner".to_owned(),
+            "repaired-session".to_owned(),
+            1
+        )
+    );
+    assert_eq!(provider.join().await?, 2);
+    drop(write);
+    h._database
+        .take()
+        .expect("private database")
+        .drop_now()
+        .await;
     Ok(())
 }

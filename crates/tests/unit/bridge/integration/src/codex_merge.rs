@@ -233,3 +233,56 @@ fn base64_decode(input: &str) -> Vec<u8> {
     }
     out
 }
+
+#[test]
+fn install_round_trips_future_profile_value_types_while_preserving_operator_config() {
+    if cfg!(target_os = "macos") {
+        return;
+    }
+    with_codex_home(|home| {
+        let target = if cfg!(target_os = "windows") {
+            home.join("managed_config.toml")
+        } else {
+            home.join("system_config.toml")
+        };
+        fs::write(&target, "operator_key = \"retain\"\n").unwrap();
+
+        let host = find_host_by_id("codex-cli").expect("codex host registered");
+        let profile = host.generate_profile(&codex_inputs()).expect("generate");
+        let mut generated: toml::Value =
+            toml::from_str(&fs::read_to_string(&profile.path).expect("generated TOML")).unwrap();
+        let future: toml::Value = toml::from_str(
+            "future_ratio = 1.25\n\
+             [[future_labels]]\nname = \"a\"\nenabled = true\n\
+             [[future_labels]]\nname = \"b\"\nenabled = false\n",
+        )
+        .unwrap();
+        generated
+            .as_table_mut()
+            .unwrap()
+            .extend(future.as_table().unwrap().clone());
+        fs::write(&profile.path, toml::to_string(&generated).unwrap())
+            .expect("extend generated profile fixture at the root");
+
+        host.install_profile(&profile.path)
+            .expect("newer profile value types merge into the current host config");
+        let merged: toml::Value = toml::from_str(&fs::read_to_string(&target).unwrap()).unwrap();
+        assert_eq!(merged["operator_key"].as_str(), Some("retain"));
+        assert_eq!(merged["future_ratio"].as_float(), Some(1.25));
+        assert_eq!(
+            merged["future_labels"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|value| {
+                    (
+                        value["name"].as_str().unwrap(),
+                        value["enabled"].as_bool().unwrap(),
+                    )
+                })
+                .collect::<Vec<_>>(),
+            vec![("a", true), ("b", false)]
+        );
+        assert_eq!(merged["model_provider"].as_str(), Some("systemprompt"));
+    });
+}

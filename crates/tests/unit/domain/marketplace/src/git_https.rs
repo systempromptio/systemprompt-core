@@ -427,3 +427,75 @@ fn explicit_certificate_authority_is_bounded_regular_and_copied_without_ambient_
             .is_err()
     );
 }
+
+#[test]
+fn native_fetch_rejects_file_count_and_total_byte_limits() {
+    use systemprompt_marketplace::managed::{GitTreeRead, GitTreeReader};
+
+    let f = Fixture::start();
+    let deadline = || std::time::Instant::now() + std::time::Duration::from_secs(30);
+    let small = f.git_object(&["hash-object", "-w", "--stdin"], "bounded\n");
+    let many_entries = (0..257)
+        .map(|index| format!("100644 blob {small}\tfile-{index:03}.txt\n"))
+        .collect::<String>();
+    let many_root = f.git_object(&["mktree"], &many_entries);
+    let many_outer = f.git_object(&["mktree"], &format!("040000 tree {many_root}\troot\n"));
+    let many_commit = f.git_object(&["commit-tree", &many_outer], "too many files\n");
+    f.git_object(&["update-ref", "refs/heads/main", &many_commit], "");
+
+    let error = f
+        .tree_reader()
+        .read(&GitTreeRead {
+            input: &f.input(many_commit),
+            repository: &f.tree_url(),
+            subdirectory: None,
+            credential: Some("first-token"),
+            deadline: deadline(),
+        })
+        .expect_err("a retained source cannot exceed the file-count boundary");
+    assert!(
+        error.to_string().contains("duplicate targets"),
+        "unexpected file-count rejection: {error}"
+    );
+
+    let bounded_blob_bytes = vec![b'x'; 256 * 1024 + 1];
+    let mut child = Command::new("git")
+        .current_dir(f.directory.path().join("repo.git"))
+        .args(["hash-object", "-w", "--stdin"])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()
+        .expect("bounded owned Git object");
+    use std::io::Write;
+    child
+        .stdin
+        .take()
+        .expect("bounded object stdin")
+        .write_all(&bounded_blob_bytes)
+        .expect("write bounded object");
+    let output = child.wait_with_output().expect("hash bounded object");
+    assert!(output.status.success());
+    let blob = String::from_utf8(output.stdout).unwrap().trim().to_owned();
+    let large_entries = (0..33)
+        .map(|index| format!("100644 blob {blob}\tpart-{index:02}.bin\n"))
+        .collect::<String>();
+    let large_root = f.git_object(&["mktree"], &large_entries);
+    let large_outer = f.git_object(&["mktree"], &format!("040000 tree {large_root}\troot\n"));
+    let large_commit = f.git_object(&["commit-tree", &large_outer], "too many aggregate bytes\n");
+    f.git_object(&["update-ref", "refs/heads/main", &large_commit], "");
+
+    let error = f
+        .tree_reader()
+        .read(&GitTreeRead {
+            input: &f.input(large_commit),
+            repository: &f.tree_url(),
+            subdirectory: None,
+            credential: Some("first-token"),
+            deadline: deadline(),
+        })
+        .expect_err("a retained source cannot exceed the aggregate byte boundary");
+    assert!(
+        error.to_string().contains("Git tree exceeds 8 MiB"),
+        "unexpected byte-limit rejection: {error}"
+    );
+}

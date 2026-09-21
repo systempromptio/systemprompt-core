@@ -3,5 +3,6 @@ mod full_profile_errors;
 mod full_profile_verbose;
 mod mcp_manifest_seam;
 mod reports_and_errors;
+mod startup_validator_failures;
 mod validate_invocation;
 mod validator_and_patterns;

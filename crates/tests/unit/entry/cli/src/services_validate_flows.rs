@@ -11,6 +11,8 @@ use std::path::{Path, PathBuf};
 
 use systemprompt_cli::core::services::bundle::{BundleArgs, pack_bundle};
 use systemprompt_cli::core::services::validate::{ValidateArgs, execute, run};
+use systemprompt_cli::core::services::{self, ServicesCommands};
+use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 
 fn write(root: &Path, relative: &str, body: &str) {
     let path = root.join(relative);
@@ -56,6 +58,15 @@ fn args(root: &Path, base: Option<PathBuf>, strict: bool) -> ValidateArgs {
         against: None,
         strict,
     }
+}
+
+fn ctx() -> CommandContext {
+    CommandContext::new(
+        CliConfig::new()
+            .with_interactive(false)
+            .with_output_format(OutputFormat::Json),
+        EnvOverrides::default(),
+    )
 }
 
 fn finding(
@@ -157,4 +168,26 @@ fn a_clean_tree_passes_and_strictness_does_not_change_that() {
 
     assert!(execute(&args(&tree, None, false)).expect("validate runs").1);
     assert!(execute(&args(&tree, None, true)).expect("validate runs").1);
+}
+
+#[tokio::test]
+async fn services_dispatcher_returns_success_for_a_clean_tree_and_fails_the_ci_gate_for_invalid_input()
+ {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let clean = dir.path().join("clean");
+    platform_tree(&clean);
+
+    services::execute(ServicesCommands::Validate(args(&clean, None, true)), &ctx())
+        .await
+        .expect("a clean services tree passes through the CLI dispatcher");
+
+    let marketplace = dir.path().join("marketplace");
+    marketplace_tree(&marketplace);
+    let err = services::execute(
+        ServicesCommands::Validate(args(&marketplace, None, true)),
+        &ctx(),
+    )
+    .await
+    .expect_err("the strict CLI validation gate must fail a marketplace-only tree without a base");
+    assert!(format!("{err:#}").contains("Services validation failed"));
 }

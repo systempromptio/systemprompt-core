@@ -6,6 +6,7 @@
 //! on the trait's `enabled`) never picks them up; dispatch and bootstrap run
 //! them by explicit name regardless.
 
+use std::sync::OnceLock;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use async_trait::async_trait;
@@ -18,10 +19,43 @@ pub const EMPTY_SCHEDULE_JOB: &str = "sp_test_empty_schedule_job";
 pub const NODE_JOB: &str = "sp_test_node_job";
 pub const STAMP_FAIL_JOB: &str = "sp_test_stamp_fail_job";
 pub const STAMP_PANIC_JOB: &str = "sp_test_stamp_panic_job";
+pub const CANCELLABLE_CLUSTER_JOB: &str = "sp_test_cancellable_cluster_job";
 
 pub static SLOW_JOB_STARTS: AtomicU64 = AtomicU64::new(0);
 pub static NODE_JOB_RUNS: AtomicU64 = AtomicU64::new(0);
 pub static STAMP_FAIL_JOB_RUNS: AtomicU64 = AtomicU64::new(0);
+pub static CANCELLABLE_CLUSTER_JOB_RUNS: AtomicU64 = AtomicU64::new(0);
+static CANCELLABLE_CLUSTER_JOB_STARTED: OnceLock<tokio::sync::Notify> = OnceLock::new();
+
+pub fn cancellable_cluster_job_started() -> &'static tokio::sync::Notify {
+    CANCELLABLE_CLUSTER_JOB_STARTED.get_or_init(tokio::sync::Notify::new)
+}
+
+struct CancellableClusterJob;
+
+#[async_trait]
+impl Job for CancellableClusterJob {
+    fn name(&self) -> &'static str {
+        CANCELLABLE_CLUSTER_JOB
+    }
+    fn schedule(&self) -> &'static str {
+        ""
+    }
+    fn enabled(&self) -> bool {
+        false
+    }
+
+    async fn execute(
+        &self,
+        _ctx: &JobContext,
+    ) -> systemprompt_provider_contracts::ProviderResult<JobResult> {
+        if CANCELLABLE_CLUSTER_JOB_RUNS.fetch_add(1, Ordering::SeqCst) == 0 {
+            cancellable_cluster_job_started().notify_one();
+            std::future::pending::<()>().await;
+        }
+        Ok(JobResult::success())
+    }
+}
 
 struct PanicJob;
 
@@ -206,3 +240,4 @@ systemprompt_provider_contracts::submit_job!(&PanicJob);
 systemprompt_provider_contracts::submit_job!(&FailingJob);
 systemprompt_provider_contracts::submit_job!(&SlowJob);
 systemprompt_provider_contracts::submit_job!(&EmptyScheduleJob);
+systemprompt_provider_contracts::submit_job!(&CancellableClusterJob);

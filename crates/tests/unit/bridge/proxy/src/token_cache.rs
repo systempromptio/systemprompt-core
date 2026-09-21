@@ -672,3 +672,272 @@ fn a_credential_that_becomes_unreadable_is_never_served_from_the_cache() {
         );
     })
 }
+
+fn runtime_cache_sandbox_vars(
+    home: &tempfile::TempDir,
+    config: &std::path::Path,
+) -> Vec<(&'static str, Option<std::ffi::OsString>)> {
+    vec![
+        ("HOME", Some(home.path().as_os_str().to_owned())),
+        (
+            "XDG_CONFIG_HOME",
+            Some(home.path().join("config").into_os_string()),
+        ),
+        (
+            "XDG_CACHE_HOME",
+            Some(home.path().join("cache").into_os_string()),
+        ),
+        ("SP_BRIDGE_CONFIG", Some(config.as_os_str().to_owned())),
+        (PAT_ENV, None),
+        ("SUDO_USER", None),
+    ]
+}
+
+fn runtime_auth_response(request: &wiremock::Request) -> wiremock::ResponseTemplate {
+    let session = request
+        .headers
+        .get("x-session-id")
+        .and_then(|value| value.to_str().ok())
+        .expect("runtime mint has a session identity");
+    wiremock::ResponseTemplate::new(200).set_body_json(serde_json::json!({
+        "token": format!("sp-bearer-deadbeef-{session}-token-value"),
+        "ttl": 3600,
+        "headers": { "x-session-id": session }
+    }))
+}
+
+fn with_runtime_cache<F, T>(f: impl FnOnce(TokenCache, wiremock::MockServer) -> F) -> T
+where
+    F: std::future::Future<Output = T>,
+{
+    let home = tempfile::tempdir().expect("runtime cache sandbox");
+    let config = home.path().join("bridge.toml");
+    temp_env::with_vars(runtime_cache_sandbox_vars(&home, &config), || {
+        tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("runtime")
+            .block_on(async {
+                let server = wiremock::MockServer::start().await;
+                let pat = home.path().join("pat.txt");
+                std::fs::write(&pat, "sp-live-runtime-cache-pat").expect("PAT");
+                std::fs::write(
+                    &config,
+                    format!(
+                        "gateway_url = {:?}\n[pat]\nfile = {:?}\n",
+                        server.uri(),
+                        pat.display().to_string()
+                    ),
+                )
+                .expect("runtime config");
+                let cache = TokenCache::default_for_runtime(
+                    systemprompt_identifiers::SessionId::new("runtime-cache-session"),
+                    reqwest::Client::new(),
+                );
+                tokio::time::timeout(std::time::Duration::from_secs(10), f(cache, server))
+                    .await
+                    .expect("runtime token-cache workflow completed within 10 seconds")
+            })
+    })
+}
+
+#[test]
+fn runtime_cache_retries_a_gateway_outage_then_reuses_the_recovered_token() {
+    with_runtime_cache(|cache, server| async move {
+        wiremock::Mock::given(wiremock::matchers::method("POST"))
+            .and(wiremock::matchers::path("/v1/auth/bridge/pat"))
+            .and(wiremock::matchers::header(
+                "authorization",
+                "Bearer sp-live-runtime-cache-pat",
+            ))
+            .and(wiremock::matchers::header(
+                "x-session-id",
+                "runtime-cache-session",
+            ))
+            .and(wiremock::matchers::body_json(serde_json::json!({})))
+            .respond_with(wiremock::ResponseTemplate::new(503).set_body_string("maintenance"))
+            .expect(1)
+            .mount(&server)
+            .await;
+
+        let first = cache.current(300).await.expect_err("gateway is offline");
+        assert!(matches!(first, ForwardError::AuthRetryable(_)), "{first:?}");
+        assert!(
+            !cache.sign_in_required(),
+            "an outage is retryable without login"
+        );
+
+        server.reset().await;
+        wiremock::Mock::given(wiremock::matchers::method("POST"))
+            .and(wiremock::matchers::path("/v1/auth/bridge/pat"))
+            .and(wiremock::matchers::header(
+                "authorization",
+                "Bearer sp-live-runtime-cache-pat",
+            ))
+            .and(wiremock::matchers::header(
+                "x-session-id",
+                "runtime-cache-session",
+            ))
+            .and(wiremock::matchers::body_json(serde_json::json!({})))
+            .respond_with(runtime_auth_response)
+            .expect(1)
+            .mount(&server)
+            .await;
+        let recovered = cache.current(300).await.expect("gateway recovered");
+        let cached = cache.current(300).await.expect("recovered token is cached");
+        assert_eq!(
+            recovered.token.expose(),
+            "sp-bearer-deadbeef-runtime-cache-session-token-value"
+        );
+        assert_eq!(recovered.token.expose(), cached.token.expose());
+        let requests = server.received_requests().await.expect("mint requests");
+        assert_eq!(requests.len(), 1);
+        assert_eq!(
+            serde_json::from_slice::<serde_json::Value>(&requests[0].body).unwrap(),
+            serde_json::json!({})
+        );
+        assert_eq!(
+            requests[0]
+                .headers
+                .get("x-session-id")
+                .and_then(|v| v.to_str().ok()),
+            Some("runtime-cache-session")
+        );
+    })
+}
+
+#[test]
+fn runtime_cache_terminal_rejection_stays_local_until_credentials_are_proven() {
+    with_runtime_cache(|cache, server| async move {
+        wiremock::Mock::given(wiremock::matchers::method("POST"))
+            .and(wiremock::matchers::path("/v1/auth/bridge/pat"))
+            .and(wiremock::matchers::header(
+                "authorization",
+                "Bearer sp-live-runtime-cache-pat",
+            ))
+            .and(wiremock::matchers::header(
+                "x-session-id",
+                "runtime-cache-session",
+            ))
+            .and(wiremock::matchers::body_json(serde_json::json!({})))
+            .respond_with(wiremock::ResponseTemplate::new(401).set_body_string("revoked"))
+            .expect(1)
+            .mount(&server)
+            .await;
+        let rejected = cache.current(300).await.expect_err("PAT is rejected");
+        assert!(matches!(rejected, ForwardError::Auth(_)), "{rejected:?}");
+        assert!(cache.sign_in_required());
+
+        server.reset().await;
+        wiremock::Mock::given(wiremock::matchers::method("POST"))
+            .and(wiremock::matchers::path("/v1/auth/bridge/pat"))
+            .and(wiremock::matchers::header(
+                "authorization",
+                "Bearer sp-live-runtime-cache-pat",
+            ))
+            .and(wiremock::matchers::header(
+                "x-session-id",
+                "runtime-cache-session",
+            ))
+            .and(wiremock::matchers::body_json(serde_json::json!({})))
+            .respond_with(runtime_auth_response)
+            .expect(1)
+            .mount(&server)
+            .await;
+        let latched = cache.current(300).await.expect_err("latch answers locally");
+        assert!(matches!(latched, ForwardError::Auth(_)), "{latched:?}");
+        assert!(
+            server
+                .received_requests()
+                .await
+                .expect("requests")
+                .is_empty()
+        );
+
+        cache.credential_proven();
+        let repaired = cache.current(300).await.expect("live proof releases latch");
+        assert_eq!(
+            repaired.token.expose(),
+            "sp-bearer-deadbeef-runtime-cache-session-token-value"
+        );
+        assert_eq!(
+            server
+                .received_requests()
+                .await
+                .expect("one repaired mint")
+                .len(),
+            1
+        );
+    })
+}
+
+#[test]
+fn credential_rotation_during_refresh_discards_the_minted_token_then_retries() {
+    let temp = tempfile::tempdir().expect("credential sandbox");
+    temp_env::with_vars(
+        [
+            ("XDG_CONFIG_HOME", Some(temp.path().as_os_str().to_owned())),
+            ("HOME", Some(temp.path().as_os_str().to_owned())),
+            ("SP_BRIDGE_CONFIG", None),
+            ("SUDO_USER", None),
+            (PAT_ENV, None),
+        ],
+        || {
+            tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .expect("runtime")
+                .block_on(async {
+                    tokio::time::timeout(std::time::Duration::from_secs(10), async {
+                    let paths = systemprompt_bridge::auth::setup::resolve_paths().expect("paths");
+                    std::fs::create_dir_all(&paths.config_dir).expect("config dir");
+                    std::fs::write(&paths.pat_file, "sp-live-before-refresh").expect("PAT");
+                    std::fs::write(
+                        &paths.config_file,
+                        format!("[pat]\nfile = {:?}\n", paths.pat_file.display().to_string()),
+                    )
+                    .expect("config");
+                    let calls = Arc::new(AtomicUsize::new(0));
+                    let refresh_calls = Arc::clone(&calls);
+                    let pat = paths.pat_file.clone();
+                    let refresh: RefreshFn = Arc::new(move |_| {
+                        let attempt = refresh_calls.fetch_add(1, Ordering::SeqCst);
+                        let pat = pat.clone();
+                        Box::pin(async move {
+                            if attempt == 0 {
+                                std::fs::write(pat, "sp-live-rotated-during-refresh")
+                                    .expect("rotate PAT");
+                            }
+                            Ok(HelperOutput {
+                                token: BearerToken::new(if attempt == 0 {
+                                    "discarded-old-identity-token"
+                                } else {
+                                    "accepted-new-identity-token"
+                                }),
+                                ttl: 3600,
+                                headers: Default::default(),
+                            })
+                        })
+                    });
+                    let cache = TokenCache::new(refresh);
+
+                    let error = cache
+                        .current(300)
+                        .await
+                        .expect_err("a token minted across identities is discarded");
+                    assert!(
+                        matches!(&error, ForwardError::Auth(detail) if detail == "credentials changed during token refresh"),
+                        "{error:?}"
+                    );
+                    let recovered = cache.current(300).await.expect("retry uses one identity");
+                    assert_eq!(recovered.token.expose(), "accepted-new-identity-token");
+                    let cached = cache.current(300).await.expect("the retry is cached");
+                    assert_eq!(cached.token.expose(), "accepted-new-identity-token");
+                    assert_eq!(calls.load(Ordering::SeqCst), 2);
+                    })
+                    .await
+                    .expect("credential-rotation workflow completed within 10 seconds");
+                });
+        },
+    );
+}

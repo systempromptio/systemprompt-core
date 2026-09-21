@@ -40,6 +40,7 @@ fn model(id: &str, aliases: &[&str]) -> ProviderModel {
     ProviderModel {
         id: ModelId::new(id),
         aliases: aliases.iter().map(|a| ModelId::new(*a)).collect(),
+        hidden: false,
         governance: None,
         upstream_model: None,
         pricing: Default::default(),
@@ -83,7 +84,7 @@ fn provider_with_surface(
 }
 
 #[test]
-fn includes_anthropic_ids_and_aliases() {
+fn advertises_canonical_ids_without_aliases() {
     let registry = ProviderRegistry {
         providers: vec![provider(
             "anthropic",
@@ -101,10 +102,10 @@ fn includes_anthropic_ids_and_aliases() {
         models,
         vec![
             "claude-sonnet-4-6".to_owned(),
-            "claude-sonnet".to_owned(),
             "claude-haiku-4-5".to_owned(),
         ]
     );
+    assert!(registry.contains_model("claude-sonnet"));
 }
 
 #[test]
@@ -133,9 +134,7 @@ fn includes_every_advertised_surface() {
 
     for expected in [
         "claude-sonnet-4-6",
-        "claude-sonnet",
         "gemini-3.1-flash-lite-preview",
-        "gemini-flash",
         "gpt-5",
     ] {
         assert!(
@@ -143,6 +142,8 @@ fn includes_every_advertised_surface() {
             "{expected} missing from {models:?}"
         );
     }
+    assert!(!models.iter().any(|model| model == "claude-sonnet"));
+    assert!(!models.iter().any(|model| model == "gemini-flash"));
 }
 
 #[test]
@@ -242,11 +243,7 @@ fn model_entries_returns_the_whole_catalog() {
     let ids: Vec<&str> = entries.iter().map(|e| e.id.as_str()).collect();
     assert_eq!(
         ids,
-        vec![
-            "claude-sonnet-4-6",
-            "gemini-3.1-flash-lite-preview",
-            "gemini-flash",
-        ]
+        vec!["claude-sonnet-4-6", "gemini-3.1-flash-lite-preview"]
     );
     assert!(entries.iter().all(|e| e.kind == "model"));
 }
@@ -316,10 +313,27 @@ fn provider_health_reports_configured_and_models() {
     assert_eq!(entry.surface, ApiSurface::Anthropic);
     assert!(entry.configured);
     assert!(entry.config_issue.is_none());
-    assert_eq!(
-        entry.models,
-        vec!["claude-sonnet-4-6".to_owned(), "claude-sonnet".to_owned()]
-    );
+    assert_eq!(entry.models, vec!["claude-sonnet-4-6".to_owned()]);
+}
+
+#[test]
+fn hidden_models_remain_routable_but_are_not_advertised() {
+    let mut legacy = model("claude-opus-4-8", &["claude-opus-legacy"]);
+    legacy.hidden = true;
+    let registry = ProviderRegistry {
+        providers: vec![provider(
+            "anthropic",
+            WireProtocol::Anthropic,
+            vec![model("claude-opus-5", &[]), legacy],
+        )],
+    };
+
+    let profile = build_profile(&registry);
+
+    assert_eq!(profile.models, vec!["claude-opus-5".to_owned()]);
+    assert_eq!(profile.providers[0].models, profile.models);
+    assert!(registry.contains_model("claude-opus-4-8"));
+    assert!(registry.contains_model("claude-opus-legacy"));
 }
 
 #[test]

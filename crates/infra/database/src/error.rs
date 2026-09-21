@@ -77,6 +77,18 @@ impl RepositoryError {
         }
     }
 
+    // Why: Postgres refuses CREATE OR REPLACE FUNCTION that changes the return
+    // type or parameter names of an existing function (42P13); only DROP then
+    // CREATE reshapes it.
+    pub fn is_invalid_function_definition(&self) -> bool {
+        match self {
+            Self::Database(sqlx_error) => sqlx_error
+                .as_database_error()
+                .is_some_and(|db_error| db_error.code().as_deref() == Some("42P13")),
+            _ => false,
+        }
+    }
+
     pub fn constraint<T: Into<String>>(message: T) -> Self {
         Self::Constraint(message.into())
     }

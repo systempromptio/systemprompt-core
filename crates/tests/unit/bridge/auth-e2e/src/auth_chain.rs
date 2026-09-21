@@ -334,3 +334,160 @@ fn no_credential_source_fails_before_the_chain_runs() {
         });
     });
 }
+// Append to crates/tests/unit/bridge/auth-e2e/src/auth_chain.rs.
+fn pat_config(home: &TempDir, gateway: &str) -> Config {
+    let pat_path = home.path().join("pat.txt");
+    std::fs::write(&pat_path, "sp-live-session-bound-pat").unwrap();
+    Config {
+        gateway_url: Some(ValidatedUrl::try_new(gateway).unwrap()),
+        pat: Some(PatConfig {
+            file: Some(pat_path.to_string_lossy().into_owned()),
+        }),
+        ..Config::default()
+    }
+}
+
+fn cache_file(home: &TempDir) -> std::path::PathBuf {
+    home.path()
+        .join(".cache")
+        .join(systemprompt_bridge::brand::brand().working_dir_name)
+        .join("cache.json")
+}
+
+fn session_bound_auth_response(request: &wiremock::Request) -> ResponseTemplate {
+    let session = request
+        .headers
+        .get("x-session-id")
+        .and_then(|value| value.to_str().ok())
+        .expect("PAT exchange carries x-session-id");
+    ResponseTemplate::new(200).set_body_json(serde_json::json!({
+        "token": format!("sp-bearer-deadbeef-{session}-token-value"),
+        "ttl": 3600,
+        "headers": { "x-session-id": session }
+    }))
+}
+
+#[test]
+fn read_or_refresh_reuses_only_the_session_that_minted_the_cached_token() {
+    let home = TempDir::new().unwrap();
+    temp_env::with_vars(sandbox_vars(&home), || {
+        block_on(async {
+            let server = MockServer::start().await;
+            Mock::given(method("POST"))
+                .and(path("/v1/auth/bridge/pat"))
+                .respond_with(session_bound_auth_response)
+                .expect(2)
+                .mount(&server)
+                .await;
+            let cfg = pat_config(&home, &server.uri());
+            let first_session = SessionId::new("session-a");
+            let second_session = SessionId::new("session-b");
+            let first = auth::read_or_refresh(&cfg, 30, &first_session, &reqwest::Client::new())
+                .await
+                .expect("first session mints");
+            let cached = auth::read_or_refresh(&cfg, 30, &first_session, &reqwest::Client::new())
+                .await
+                .expect("same session reuses cache");
+            assert_eq!(cached.token.expose(), first.token.expose());
+            let second = auth::read_or_refresh(&cfg, 30, &second_session, &reqwest::Client::new())
+                .await
+                .expect("different session remints");
+            assert_ne!(second.token.expose(), first.token.expose());
+            let requests = server.received_requests().await.expect("recorded mints");
+            assert_eq!(requests.len(), 2);
+            assert_eq!(
+                requests[0]
+                    .headers
+                    .get("x-session-id")
+                    .and_then(|value| value.to_str().ok()),
+                Some("session-a")
+            );
+            assert_eq!(
+                requests[1]
+                    .headers
+                    .get("x-session-id")
+                    .and_then(|value| value.to_str().ok()),
+                Some("session-b")
+            );
+            for request in requests {
+                assert_eq!(
+                    serde_json::from_slice::<serde_json::Value>(&request.body).unwrap(),
+                    serde_json::json!({})
+                );
+            }
+        });
+    });
+}
+
+#[test]
+fn read_or_refresh_replaces_a_corrupt_cache_with_a_fresh_session_bound_entry() {
+    let home = TempDir::new().unwrap();
+    temp_env::with_vars(sandbox_vars(&home), || {
+        block_on(async {
+            let server = MockServer::start().await;
+            Mock::given(method("POST"))
+                .and(path("/v1/auth/bridge/pat"))
+                .respond_with(session_bound_auth_response)
+                .expect(2)
+                .mount(&server)
+                .await;
+            let cfg = pat_config(&home, &server.uri());
+            let original = SessionId::new("corrupt-original");
+            auth::read_or_refresh(&cfg, 30, &original, &reqwest::Client::new())
+                .await
+                .expect("seed cache");
+            let path = cache_file(&home);
+            std::fs::write(&path, b"{broken").unwrap();
+            let repaired_session = SessionId::new("corrupt-repair");
+            auth::read_or_refresh(&cfg, 30, &repaired_session, &reqwest::Client::new())
+                .await
+                .expect("corrupt cache is replaced");
+            serde_json::from_slice::<serde_json::Value>(&std::fs::read(path).unwrap())
+                .expect("repaired JSON cache");
+            let repaired = cache::read_for(&cfg, &ValidatedUrl::try_new(server.uri()).unwrap(), 30)
+                .expect("cache readable")
+                .expect("fresh entry cached");
+            assert!(repaired.headers.iter().any(|(name, value)| {
+                name.as_str() == "x-session-id" && value.to_str().ok() == Some("corrupt-repair")
+            }));
+            assert_eq!(server.received_requests().await.expect("mints").len(), 2);
+        });
+    });
+}
+
+#[test]
+fn unreadable_cache_fails_closed_before_contacting_the_gateway() {
+    let home = TempDir::new().unwrap();
+    temp_env::with_vars(sandbox_vars(&home), || {
+        block_on(async {
+            let server = MockServer::start().await;
+            Mock::given(method("POST"))
+                .and(path("/v1/auth/bridge/pat"))
+                .respond_with(ResponseTemplate::new(200).set_body_json(auth_response_body()))
+                .expect(0)
+                .mount(&server)
+                .await;
+            let cfg = pat_config(&home, &server.uri());
+            let cache_dir = home.path().join(".cache");
+            std::fs::create_dir_all(&cache_dir).unwrap();
+            let expected = cache_dir.join(systemprompt_bridge::brand::brand().working_dir_name);
+            std::fs::create_dir_all(expected.join("cache.json")).unwrap();
+            let error = auth::read_or_refresh(
+                &cfg,
+                30,
+                &SessionId::new("io-failure"),
+                &reqwest::Client::new(),
+            )
+            .await
+            .expect_err("cache read I/O failure must stop before minting");
+            assert!(error.to_string().contains("cache.json"), "{error}");
+            assert!(
+                server
+                    .received_requests()
+                    .await
+                    .expect("requests")
+                    .is_empty()
+            );
+        });
+    });
+}

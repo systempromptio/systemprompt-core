@@ -202,20 +202,6 @@ async fn listing_configured_servers_reads_the_same_config() {
 }
 
 #[tokio::test]
-async fn validating_every_server_reports_each_one_unreachable() {
-    run(&["validate", "--all", "--timeout", "1"])
-        .await
-        .expect("validation of unreachable servers reports failures rather than erroring");
-}
-
-#[tokio::test]
-async fn validating_one_named_server_runs_only_that_check() {
-    run(&["validate", ENABLED, "--timeout", "1"])
-        .await
-        .expect("a named server validates on its own");
-}
-
-#[tokio::test]
 async fn the_service_alias_selects_the_same_server_as_the_positional_name() {
     run(&["validate", "--service", ENABLED, "--timeout", "1"])
         .await
@@ -263,4 +249,301 @@ async fn listing_tools_for_a_named_server_that_is_not_running_names_it() {
         "the refusal should name the server asked for, got: {}",
         message(&err)
     );
+}
+
+const VALIDATE_EXTERNAL_HELPER: &str =
+    "commands::plugins_mcp_configured_db::validate_running_external_helper";
+
+#[tokio::test]
+#[ignore = "re-executed by running_external_validation_reports_its_configuration_error"]
+async fn validate_running_external_helper() {
+    use systemprompt_database::CreateServiceInput;
+    use systemprompt_test_fixtures::DisposableDb;
+
+    boot();
+    assert_configured();
+    let database = DisposableDb::installed("cli_mcp_validate_external")
+        .await
+        .expect("isolated installed database");
+    let pool = database.pool().await.expect("isolated database pool");
+    let app = fixture_app_context(&pool, database.url()).expect("fixture app context");
+    app.service_repository()
+        .create_service(CreateServiceInput {
+            name: ENABLED,
+            module_name: "mcp",
+            status: "running",
+            port: 1,
+            binary_mtime: None,
+        })
+        .await
+        .expect("register the external MCP service as running");
+
+    let context = ctx(&app);
+    println!("BEGIN_VALIDATE_EXTERNAL");
+    mcp::execute(parse(&["validate", ENABLED, "--timeout", "1"]), &context)
+        .await
+        .expect("validation reports a structured configuration failure");
+    println!("END_VALIDATE_EXTERNAL");
+
+    drop(context);
+    drop(app);
+    drop(pool);
+    database.drop_now().await;
+}
+
+#[test]
+fn running_external_validation_reports_its_configuration_error() {
+    let stdout = capture_validate_helper(VALIDATE_EXTERNAL_HELPER);
+    let artifact = marked_json(&stdout, "BEGIN_VALIDATE_EXTERNAL", "END_VALIDATE_EXTERNAL");
+    assert_eq!(artifact["title"], format!("MCP Validation: {ENABLED}"));
+    let sections = artifact["sections"]
+        .as_array()
+        .expect("validation card sections");
+    let content = |heading: &str| {
+        &sections
+            .iter()
+            .find(|section| section["heading"] == heading)
+            .unwrap_or_else(|| panic!("missing {heading}: {artifact}"))["content"]
+    };
+    assert_eq!(
+        content("summary"),
+        &serde_json::json!({
+            "total": 1,
+            "valid": 0,
+            "invalid": 1,
+            "healthy": 0,
+            "unhealthy": 1
+        }),
+        "{artifact}"
+    );
+    let results = content("results")
+        .as_array()
+        .expect("validation result rows");
+    assert_eq!(results.len(), 1, "{artifact}");
+    assert_eq!(
+        results[0],
+        serde_json::json!({
+            "server": ENABLED,
+            "valid": false,
+            "health_status": "unknown",
+            "validation_type": "config_error",
+            "latency_ms": 0,
+            "issues": ["Server declares no local port; external servers are validated at their endpoint"],
+            "message": format!("MCP server '{ENABLED}' has no local port")
+        }),
+        "{artifact}"
+    );
+}
+const VALIDATE_CLOSED_DATABASE_HELPER: &str =
+    "commands::plugins_mcp_configured_db::validate_closed_database_helper";
+const VALIDATE_STOPPED_HELPER: &str =
+    "commands::plugins_mcp_configured_db::validate_stopped_outputs_helper";
+
+struct ValidateChild(std::process::Child);
+
+impl Drop for ValidateChild {
+    fn drop(&mut self) {
+        let _ = self.0.kill();
+        let _ = self.0.wait();
+    }
+}
+
+fn capture_validate_helper(name: &str) -> String {
+    use std::io::{Read, Seek, SeekFrom};
+    use std::process::{Command, Stdio};
+    use std::time::{Duration, Instant};
+
+    let stdout = tempfile::tempfile().expect("owned stdout capture");
+    let stderr = tempfile::tempfile().expect("owned stderr capture");
+    let mut child = ValidateChild(
+        Command::new(std::env::current_exe().expect("unit-test binary path"))
+            .args(["--exact", name, "--ignored", "--nocapture"])
+            .stdin(Stdio::null())
+            .stdout(Stdio::from(
+                stdout.try_clone().expect("clone stdout capture"),
+            ))
+            .stderr(Stdio::from(
+                stderr.try_clone().expect("clone stderr capture"),
+            ))
+            .spawn()
+            .expect("spawn isolated validation helper"),
+    );
+    let deadline = Instant::now() + Duration::from_secs(30);
+    let status = loop {
+        if let Some(status) = child.0.try_wait().expect("poll validation helper") {
+            break status;
+        }
+        if Instant::now() >= deadline {
+            let _ = child.0.kill();
+            let _ = child.0.wait();
+            panic!("validation helper exceeded thirty seconds");
+        }
+        std::thread::sleep(Duration::from_millis(20));
+    };
+    let read_capture = |mut file: std::fs::File| {
+        file.seek(SeekFrom::Start(0)).expect("rewind capture");
+        let mut text = String::new();
+        file.read_to_string(&mut text).expect("read capture");
+        text
+    };
+    let stdout = read_capture(stdout);
+    let stderr = read_capture(stderr);
+    assert!(
+        status.success(),
+        "validation helper failed; stdout={stdout:?}; stderr={stderr:?}"
+    );
+    stdout
+}
+
+fn marked_json(stdout: &str, begin: &str, end: &str) -> serde_json::Value {
+    let body = stdout
+        .split_once(begin)
+        .and_then(|(_, tail)| tail.split_once(end))
+        .map(|(body, _)| body.trim())
+        .unwrap_or_else(|| panic!("missing {begin}/{end}: {stdout}"));
+    serde_json::from_str(body).expect("validation JSON artifact")
+}
+
+fn validation_content<'a>(artifact: &'a serde_json::Value, heading: &str) -> &'a serde_json::Value {
+    &artifact["sections"]
+        .as_array()
+        .expect("validation sections")
+        .iter()
+        .find(|section| section["heading"] == heading)
+        .unwrap_or_else(|| panic!("missing {heading}: {artifact}"))["content"]
+}
+
+#[tokio::test]
+#[ignore = "re-executed by validation_reports_database_lookup_failure"]
+async fn validate_closed_database_helper() {
+    use systemprompt_test_fixtures::DisposableDb;
+
+    boot();
+    assert_configured();
+    let database = DisposableDb::installed("cli_mcp_validate_closed_database")
+        .await
+        .expect("isolated installed database");
+    let pool = database.pool().await.expect("isolated database pool");
+    let app = fixture_app_context(&pool, database.url()).expect("fixture app context");
+    pool.pool_arc()
+        .expect("initialized SQLx pool")
+        .close()
+        .await;
+    println!("BEGIN_VALIDATE_CLOSED_DATABASE");
+    mcp::execute(parse(&["validate", ENABLED, "--timeout", "1"]), &ctx(&app))
+        .await
+        .expect("database lookup failure renders structured validation output");
+    println!("END_VALIDATE_CLOSED_DATABASE");
+    drop(app);
+    database.drop_now().await;
+}
+
+#[test]
+fn validation_reports_database_lookup_failure() {
+    let stdout = capture_validate_helper(VALIDATE_CLOSED_DATABASE_HELPER);
+    let artifact = marked_json(
+        &stdout,
+        "BEGIN_VALIDATE_CLOSED_DATABASE",
+        "END_VALIDATE_CLOSED_DATABASE",
+    );
+    assert_eq!(artifact["title"], format!("MCP Validation: {ENABLED}"));
+    assert_eq!(
+        validation_content(&artifact, "summary"),
+        &serde_json::json!({
+            "total": 1, "valid": 0, "invalid": 1, "healthy": 0, "unhealthy": 1
+        })
+    );
+    let results = validation_content(&artifact, "results")
+        .as_array()
+        .expect("validation result rows");
+    assert_eq!(results.len(), 1);
+    let result = &results[0];
+    assert_eq!(result["server"], ENABLED);
+    assert_eq!(result["valid"], false);
+    assert_eq!(result["health_status"], "unknown");
+    assert_eq!(result["validation_type"], "database_error");
+    assert_eq!(result["latency_ms"], 0);
+    assert!(
+        result["issues"]
+            .to_string()
+            .contains("Failed to check service status")
+    );
+}
+
+#[tokio::test]
+#[ignore = "re-executed by validation_reports_exact_named_and_batch_stopped_results"]
+async fn validate_stopped_outputs_helper() {
+    use systemprompt_test_fixtures::DisposableDb;
+
+    boot();
+    assert_configured();
+    let database = DisposableDb::installed("cli_mcp_validate_stopped_outputs")
+        .await
+        .expect("isolated installed database");
+    let pool = database.pool().await.expect("isolated database pool");
+    let app = fixture_app_context(&pool, database.url()).expect("fixture app context");
+    let context = ctx(&app);
+    println!("BEGIN_VALIDATE_NAMED_STOPPED");
+    mcp::execute(parse(&["validate", ENABLED, "--timeout", "1"]), &context)
+        .await
+        .expect("named stopped validation renders structured output");
+    println!("END_VALIDATE_NAMED_STOPPED");
+    println!("BEGIN_VALIDATE_BATCH_STOPPED");
+    mcp::execute(parse(&["validate", "--all", "--timeout", "1"]), &context)
+        .await
+        .expect("batch stopped validation renders structured output");
+    println!("END_VALIDATE_BATCH_STOPPED");
+    drop(context);
+    drop(app);
+    drop(pool);
+    database.drop_now().await;
+}
+
+#[test]
+fn validation_reports_exact_named_and_batch_stopped_results() {
+    let stdout = capture_validate_helper(VALIDATE_STOPPED_HELPER);
+    let named = marked_json(
+        &stdout,
+        "BEGIN_VALIDATE_NAMED_STOPPED",
+        "END_VALIDATE_NAMED_STOPPED",
+    );
+    assert_eq!(named["title"], format!("MCP Validation: {ENABLED}"));
+    assert_eq!(
+        validation_content(&named, "summary"),
+        &serde_json::json!({
+            "total": 1, "valid": 0, "invalid": 1, "healthy": 0, "unhealthy": 1
+        })
+    );
+    let named_results = validation_content(&named, "results").as_array().unwrap();
+    assert_eq!(named_results.len(), 1);
+    assert_eq!(named_results[0]["server"], ENABLED);
+    assert_eq!(named_results[0]["health_status"], "stopped");
+    assert_eq!(named_results[0]["validation_type"], "not_running");
+
+    let batch = marked_json(
+        &stdout,
+        "BEGIN_VALIDATE_BATCH_STOPPED",
+        "END_VALIDATE_BATCH_STOPPED",
+    );
+    assert_eq!(batch["title"], "MCP Batch Validation Results");
+    assert_eq!(
+        validation_content(&batch, "summary"),
+        &serde_json::json!({
+            "total": 2, "valid": 0, "invalid": 2, "healthy": 0, "unhealthy": 2
+        })
+    );
+    let results = validation_content(&batch, "results").as_array().unwrap();
+    assert_eq!(results.len(), 2);
+    let by_name = results
+        .iter()
+        .map(|row| (row["server"].as_str().unwrap(), row))
+        .collect::<std::collections::HashMap<_, _>>();
+    for server in [ENABLED, DISABLED] {
+        assert_eq!(by_name[server]["health_status"], "stopped");
+        assert_eq!(by_name[server]["validation_type"], "not_running");
+        assert_eq!(
+            by_name[server]["issues"],
+            serde_json::json!(["Service is not currently running"])
+        );
+    }
 }

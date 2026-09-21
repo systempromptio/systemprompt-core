@@ -118,3 +118,139 @@ fn configured_mcp_servers_are_advertised_with_gateway_relative_endpoints() {
         "the advertised protocol list must not be empty"
     );
 }
+
+const TWO_AGENTS: &str = r#"agents:
+  a_secondary:
+    name: a_secondary
+    port: 9322
+    endpoint: /api/v1/agents/a_secondary/
+    enabled: true
+    dev_only: false
+    is_primary: false
+    default: false
+    tags: []
+    card:
+      protocolVersion: 0.3.0
+      name: a_secondary
+      displayName: Secondary Agent
+      description: Secondary registry fixture
+      version: 1.0.0
+      preferredTransport: JSONRPC
+      capabilities: { streaming: true, pushNotifications: false, stateTransitionHistory: false }
+      defaultInputModes: [text/plain]
+      defaultOutputModes: [text/plain]
+      supportsAuthenticatedExtendedCard: false
+    metadata:
+      systemPrompt: Secondary.
+      mcpServers: { source: explicit }
+      skills: { source: explicit }
+      toolModelOverrides: {}
+    oauth: { required: false, scopes: [], audience: a2a }
+  z_default:
+    name: z_default
+    port: 9321
+    endpoint: /api/v1/agents/z_default/
+    enabled: true
+    dev_only: false
+    is_primary: true
+    default: true
+    tags: []
+    card:
+      protocolVersion: 0.3.0
+      name: z_default
+      displayName: Default Agent
+      description: Default registry fixture
+      version: 1.0.0
+      preferredTransport: JSONRPC
+      capabilities: { streaming: true, pushNotifications: false, stateTransitionHistory: false }
+      defaultInputModes: [text/plain]
+      defaultOutputModes: [text/plain]
+      supportsAuthenticatedExtendedCard: false
+    metadata:
+      systemPrompt: Default.
+      mcpServers: { source: explicit, include: [fixture_tools] }
+      skills: { source: explicit }
+      toolModelOverrides: {}
+    oauth: { required: false, scopes: [], audience: a2a }
+settings:
+  agent_port_range: [9000, 9999]
+  mcp_port_range: [5000, 5999]
+"#;
+
+fn service_status(card: &serde_json::Value) -> &serde_json::Value {
+    card["capabilities"]["extensions"]
+        .as_array()
+        .expect("card extensions")
+        .iter()
+        .find(|extension| extension["uri"] == "systemprompt:service-status")
+        .and_then(|extension| extension.get("params"))
+        .expect("service status extension")
+}
+
+#[tokio::test]
+async fn multi_agent_registry_sorts_default_first_and_retains_runtime_and_mcp_metadata()
+-> anyhow::Result<()> {
+    let boot = systemprompt_test_fixtures::init_isolated_bootstrap(
+        "https://registry.example.test",
+        TWO_AGENTS,
+    );
+    let pool = fixture_db_pool(&boot.database_url).await?;
+    let ctx = fixture_app_context(&pool, &boot.database_url)?;
+    seed_running_service(&pool, "a_secondary", "agent", 9322).await?;
+    let app = registry_router(&ctx).layer(Extension(request_context("registry_order")));
+    let response = app.oneshot(empty_get("/")).await?;
+    let (status, body) = body_to_string(response).await?;
+    assert_eq!(status.as_u16(), 200, "{body}");
+    let listing: serde_json::Value = serde_json::from_str(&body)?;
+    let cards = listing["data"].as_array().expect("registry cards");
+    assert_eq!(cards.len(), 2, "{listing}");
+    assert_eq!(cards[0]["name"], "z_default");
+    assert_eq!(service_status(&cards[0])["default"], true);
+    assert_eq!(service_status(&cards[0])["status"], "NotStarted");
+    assert_eq!(service_status(&cards[1])["default"], false);
+    assert_eq!(service_status(&cards[1])["status"], "running");
+    assert_eq!(service_status(&cards[1])["port"], 9322);
+    let mcp = cards[0]["capabilities"]["extensions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|extension| extension["uri"] == "systemprompt:mcp-tools")
+        .expect("configured MCP metadata");
+    assert_eq!(mcp["params"]["servers"][0]["name"], "fixture_tools");
+    assert_eq!(
+        mcp["params"]["servers"][0]["endpoint"],
+        "http://127.0.0.1/api/v1/mcp/fixture_tools/mcp"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn registry_preserves_configured_cards_with_unknown_status_when_database_is_unavailable()
+-> anyhow::Result<()> {
+    let boot = systemprompt_test_fixtures::init_isolated_bootstrap(
+        "https://registry.example.test",
+        TWO_AGENTS,
+    );
+    let pool = fixture_db_pool(&boot.database_url).await?;
+    let ctx = fixture_app_context(&pool, &boot.database_url)?;
+    pool.pool_arc()?.close().await;
+    let app = registry_router(&ctx).layer(Extension(request_context("registry_db_fault")));
+    let response = app.oneshot(empty_get("/")).await?;
+    let (status, body) = body_to_string(response).await?;
+    assert_eq!(status.as_u16(), 200, "{body}");
+    let listing: serde_json::Value = serde_json::from_str(&body)?;
+    let cards = listing["data"].as_array().expect("registry cards");
+    assert_eq!(
+        cards.len(),
+        2,
+        "database failure cannot erase configured agents"
+    );
+    assert!(
+        cards
+            .iter()
+            .all(|card| service_status(card)["status"] == "Unknown"),
+        "each card reports unavailable runtime state explicitly: {listing}"
+    );
+    assert_eq!(cards[0]["name"], "z_default");
+    Ok(())
+}

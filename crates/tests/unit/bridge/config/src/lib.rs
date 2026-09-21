@@ -17,5 +17,7 @@ mod trust;
 mod verified_policy;
 #[cfg(test)]
 mod writer;
+#[cfg(test)]
+mod writer_error_paths;
 
 mod release_parity;

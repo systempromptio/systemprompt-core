@@ -54,6 +54,7 @@ fn registry(endpoint: &str, limits: ModelLimits) -> ProviderRegistry {
             models: vec![ProviderModel {
                 id: ModelId::new(CATALOG_ID),
                 aliases: Vec::new(),
+                hidden: false,
                 governance: None,
                 upstream_model: Some(UPSTREAM_NAME.to_owned()),
                 pricing: Default::default(),

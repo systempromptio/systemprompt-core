@@ -12,7 +12,54 @@ use systemprompt_cli_integration_tests::full_bootstrap::{
 };
 use systemprompt_cli_integration_tests::mcp_stub::stub_port;
 use wiremock::matchers::{method, path};
-use wiremock::{Mock, MockServer, ResponseTemplate};
+use wiremock::{Match, Mock, MockServer, Request, ResponseTemplate};
+
+struct StreamFrameMatcher {
+    text: &'static str,
+}
+
+impl Match for StreamFrameMatcher {
+    fn matches(&self, request: &Request) -> bool {
+        let Ok(body) = serde_json::from_slice::<serde_json::Value>(&request.body) else {
+            return false;
+        };
+        let Ok(accept_headers) = request
+            .headers
+            .get_all("accept")
+            .iter()
+            .map(|value| value.to_str())
+            .collect::<Result<Vec<_>, _>>()
+        else {
+            return false;
+        };
+        let accepts = accept_headers
+            .into_iter()
+            .flat_map(|value| value.split(',').map(str::trim))
+            .collect::<Vec<_>>();
+        let Ok(authorizations) = request
+            .headers
+            .get_all("authorization")
+            .iter()
+            .map(|value| value.to_str())
+            .collect::<Result<Vec<_>, _>>()
+        else {
+            return false;
+        };
+        let one_session_token = authorizations
+            .first()
+            .is_some_and(|first| authorizations.iter().all(|value| value == first));
+        body["jsonrpc"] == "2.0"
+            && body["method"] == "SendStreamingMessage"
+            && body["params"]["message"]["parts"] == json!([{"text": self.text}])
+            && !accepts.is_empty()
+            && accepts.iter().all(|value| *value == "text/event-stream")
+            && !authorizations.is_empty()
+            && one_session_token
+            && authorizations
+                .iter()
+                .all(|value| value.starts_with("Bearer ") && value.len() > "Bearer ".len())
+    }
+}
 
 fn spawn_server_from(build: impl FnOnce() -> Vec<Mock> + Send + 'static) -> u16 {
     spawn_server(build())
@@ -595,4 +642,217 @@ fn delete_all_and_validate() {
         "--force",
     ]);
     delete.assert().success();
+}
+
+async fn assert_stream_request(server: &MockServer, expected_text: &str) {
+    let requests = server
+        .received_requests()
+        .await
+        .expect("recorded stream request");
+    let request = requests
+        .iter()
+        .find(|request| request.method.as_str() == "POST")
+        .expect("stream POST request");
+    let body: serde_json::Value =
+        serde_json::from_slice(&request.body).expect("JSON-RPC request body");
+    assert_eq!(
+        request.url.path(),
+        format!("/api/v1/agents/{FIXTURE_AGENT}")
+    );
+    let accept_headers = request
+        .headers
+        .get_all("accept")
+        .iter()
+        .map(|value| value.to_str())
+        .collect::<Result<Vec<_>, _>>()
+        .expect("Accept header values must be valid text");
+    let accepts = accept_headers
+        .into_iter()
+        .flat_map(|value| value.split(',').map(str::trim))
+        .collect::<Vec<_>>();
+    assert!(
+        !accepts.is_empty() && accepts.iter().all(|value| *value == "text/event-stream"),
+        "all Accept values must request SSE: {:?}",
+        request.headers
+    );
+    let authorizations = request
+        .headers
+        .get_all("authorization")
+        .iter()
+        .map(|value| value.to_str())
+        .collect::<Result<Vec<_>, _>>()
+        .expect("Authorization header values must be valid text");
+    assert!(
+        !authorizations.is_empty()
+            && authorizations
+                .first()
+                .is_some_and(|first| authorizations.iter().all(|value| value == first))
+            && authorizations
+                .iter()
+                .all(|value| value.starts_with("Bearer ") && value.len() > "Bearer ".len()),
+        "all authorization values must carry the owned session token: {:?}",
+        request.headers
+    );
+    assert_eq!(body["jsonrpc"], "2.0");
+    assert_eq!(body["method"], "SendStreamingMessage");
+    assert_eq!(body["params"]["message"]["parts"][0]["text"], expected_text);
+    assert!(
+        body["params"]["message"]["contextId"]
+            .as_str()
+            .is_some_and(|value| !value.is_empty()),
+        "session context must be carried in the streamed message: {body}"
+    );
+}
+
+fn configure_owned_web_paths() {
+    let fixture = fixture_or_skip().expect("full CLI fixture requires DATABASE_URL");
+    let templates = fixture.services_dir.join("web/templates");
+    let assets = fixture.services_dir.join("web/assets");
+    std::fs::create_dir_all(&templates).expect("create owned web templates");
+    std::fs::create_dir_all(&assets).expect("create owned web assets");
+    let config_path = fixture.services_dir.join("web/config.yaml");
+    let mut config = std::fs::read_to_string(&config_path).expect("read owned web config");
+    config.push_str(&format!(
+        "\npaths:\n  templates: {}\n  assets: {}\n",
+        templates.display(),
+        assets.display()
+    ));
+    std::fs::write(config_path, config).expect("write owned web paths");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn message_streaming_skips_invalid_frame_then_reports_jsonrpc_error_details() {
+    tokio::task::spawn_blocking(|| {
+        fixture_or_skip().expect("full CLI fixture requires DATABASE_URL");
+        configure_owned_web_paths();
+    })
+    .await
+    .expect("initialize full CLI fixture");
+    let home = tempfile::tempdir().expect("home");
+    let server = MockServer::start().await;
+    let error = json!({
+        "jsonrpc": "2.0",
+        "error": {
+            "code": -32041,
+            "message": "stream rejected",
+            "data": {"reason": "owned-policy"}
+        },
+        "id": "stream-error"
+    });
+    let sse = format!("data: not-json\n\ndata: {error}\n\n");
+    Mock::given(method("POST"))
+        .and(path(format!("/api/v1/agents/{FIXTURE_AGENT}")))
+        .and(StreamFrameMatcher {
+            text: "trigger stream error",
+        })
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("content-type", "text/event-stream")
+                .set_body_raw(sse, "text/event-stream"),
+        )
+        .expect(1)
+        .mount(&server)
+        .await;
+    let url = server.uri();
+    let mut command = home_cmd_or_skip(
+        home.path(),
+        &[
+            "admin",
+            "agents",
+            "message",
+            FIXTURE_AGENT,
+            "-m",
+            "trigger stream error",
+            "--stream",
+            "--url",
+            &url,
+        ],
+    )
+    .expect("systemprompt test binary and full fixture");
+    let output = tokio::task::spawn_blocking(move || command.output().expect("bounded CLI output"))
+        .await
+        .expect("join CLI subprocess");
+    assert_stream_request(&server, "trigger stream error").await;
+    assert!(!output.status.success(), "JSON-RPC stream error must fail");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("Agent returned error (-32041): stream rejected"),
+        "{stderr}"
+    );
+    assert!(stderr.contains("owned-policy"), "{stderr}");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn message_streaming_rejects_eof_without_a_final_task() {
+    tokio::task::spawn_blocking(|| {
+        fixture_or_skip().expect("full CLI fixture requires DATABASE_URL");
+        configure_owned_web_paths();
+    })
+    .await
+    .expect("initialize full CLI fixture");
+    let home = tempfile::tempdir().expect("home");
+    let server = MockServer::start().await;
+    let partial = json!({
+        "jsonrpc": "2.0",
+        "result": {
+            "kind": "status-update",
+            "taskId": "task-incomplete",
+            "contextId": "b8a7c0de-1111-2222-3333-444455556666",
+            "status": {
+                "state": "TASK_STATE_WORKING",
+                "message": {
+                    "role": "ROLE_AGENT",
+                    "parts": [{"text": "partial response"}],
+                    "messageId": "msg-incomplete",
+                    "contextId": "b8a7c0de-1111-2222-3333-444455556666",
+                    "metadata": null,
+                    "extensions": null
+                },
+                "timestamp": null
+            },
+            "final": false
+        },
+        "id": "stream-incomplete"
+    });
+    Mock::given(method("POST"))
+        .and(path(format!("/api/v1/agents/{FIXTURE_AGENT}")))
+        .and(StreamFrameMatcher {
+            text: "expect complete response",
+        })
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("content-type", "text/event-stream")
+                .set_body_raw(format!("data: {partial}\n\n"), "text/event-stream"),
+        )
+        .expect(1)
+        .mount(&server)
+        .await;
+    let url = server.uri();
+    let mut command = home_cmd_or_skip(
+        home.path(),
+        &[
+            "admin",
+            "agents",
+            "message",
+            FIXTURE_AGENT,
+            "-m",
+            "expect complete response",
+            "--stream",
+            "--url",
+            &url,
+        ],
+    )
+    .expect("systemprompt test binary and full fixture");
+    let output = tokio::task::spawn_blocking(move || command.output().expect("bounded CLI output"))
+        .await
+        .expect("join CLI subprocess");
+    assert_stream_request(&server, "expect complete response").await;
+    assert!(!output.status.success(), "unterminated stream must fail");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stdout.contains("partial response"), "{stdout}");
+    assert!(
+        stderr.contains("Stream ended without final task"),
+        "{stderr}"
+    );
 }

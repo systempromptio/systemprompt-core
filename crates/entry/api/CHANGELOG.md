@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.58.0] - 2026-09-21
+
+### Fixed
+
+- **Gateway:** Anthropic routes whose catalog model declares `prompt_caching` receive a five-minute top-level automatic-cache directive by default, including OpenAI-compatible OpenCode requests translated to the Messages API. Client cache directives take precedence, fallback eligibility is recalculated, and `gateway.automatic_prompt_caching: false` disables injection.
+- **Gateway:** `/v1/models` and `/v1/bridge/profile` advertise canonical visible model IDs only; aliases and hidden legacy models remain routable without appearing in managed agent pickers.
+
 ## [0.57.0] - 2026-09-19
 
 ### Added

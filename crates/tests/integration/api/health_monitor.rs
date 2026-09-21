@@ -207,6 +207,50 @@ async fn health_checker_fails_after_retries_on_500() -> anyhow::Result<()> {
     Ok(())
 }
 
+#[tokio::test]
+async fn health_checker_bounds_transport_retries_then_recovers_on_same_endpoint()
+-> anyhow::Result<()> {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+    let socket = tokio::net::TcpSocket::new_v4()?;
+    socket.bind("127.0.0.1:0".parse()?)?;
+    let address = socket.local_addr()?;
+    let checker = HealthChecker::new(format!("http://{address}/health"))
+        .with_max_retries(2)
+        .with_retry_delay(Duration::ZERO);
+
+    let error = tokio::time::timeout(Duration::from_secs(5), checker.check())
+        .await
+        .expect("refused transport attempts remain bounded")
+        .expect_err("a bound socket that is not listening refuses connections");
+    assert!(
+        error.to_string().contains("failed after 2 attempts"),
+        "{error:#}"
+    );
+
+    let listener = socket.listen(1)?;
+    let server = tokio::spawn(async move {
+        let (mut stream, _) = listener.accept().await?;
+        let mut request = [0_u8; 1024];
+        let read = tokio::time::timeout(Duration::from_secs(5), stream.read(&mut request))
+            .await
+            .map_err(std::io::Error::other)??;
+        assert!(request[..read].starts_with(b"GET /health HTTP/1.1"));
+        stream
+            .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok")
+            .await?;
+        Ok::<_, std::io::Error>(())
+    });
+
+    tokio::time::timeout(Duration::from_secs(5), checker.check())
+        .await
+        .expect("repaired endpoint responds within the bound")?;
+    tokio::time::timeout(Duration::from_secs(5), server)
+        .await
+        .expect("owned server completes")??;
+    Ok(())
+}
+
 #[test]
 fn health_summary_arithmetic_and_flags() {
     let mut summary = HealthSummary::default();

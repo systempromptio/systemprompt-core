@@ -98,14 +98,13 @@ fn a_taken_default_port_moves_the_proxy_instead_of_failing() {
 
     // Stand in for the other machine's bridge (or, in the real bug, WSL2's
     // relay mirroring a Linux bind onto the Windows loopback).
-    let squatter = std::net::TcpListener::bind(("127.0.0.1", proxy::DEFAULT_PROXY_PORT));
-    let Ok(squatter) = squatter else {
-        eprintln!(
-            "skipping: port {} is already in use",
-            proxy::DEFAULT_PROXY_PORT
-        );
-        return;
-    };
+    let squatter = std::net::TcpListener::bind(("127.0.0.1", proxy::DEFAULT_PROXY_PORT))
+        .unwrap_or_else(|error| {
+            panic!(
+                "serialized proxy fixture requires port {}: {error}",
+                proxy::DEFAULT_PROXY_PORT
+            )
+        });
 
     temp_env::with_var("XDG_CONFIG_HOME", Some(temp.path().as_os_str()), || {
         let ctx = BridgeContext::start(ProxyMode::Serve).expect("runtime builds");

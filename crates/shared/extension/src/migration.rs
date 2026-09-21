@@ -18,6 +18,7 @@ pub struct Migration {
     pub down: Option<&'static str>,
     pub no_transaction: bool,
     pub tombstone: bool,
+    pub supersedes: Vec<&'static str>,
 }
 
 impl Migration {
@@ -30,6 +31,7 @@ impl Migration {
             down: None,
             no_transaction: false,
             tombstone: false,
+            supersedes: Vec::new(),
         }
     }
 
@@ -47,6 +49,7 @@ impl Migration {
             down: Some(down_sql),
             no_transaction: false,
             tombstone: false,
+            supersedes: Vec::new(),
         }
     }
 
@@ -59,6 +62,7 @@ impl Migration {
             down: None,
             no_transaction: true,
             tombstone: false,
+            supersedes: Vec::new(),
         }
     }
 
@@ -71,7 +75,17 @@ impl Migration {
             down: None,
             no_transaction: false,
             tombstone: true,
+            supersedes: Vec::new(),
         }
+    }
+
+    // Why: a checksum of a text this one replaces; a tracking row holding it
+    // is moved to the current checksum without executing anything. One per
+    // shipped text, so a slot corrected twice still recognises every row.
+    #[must_use]
+    pub fn superseding(mut self, old_checksum: &'static str) -> Self {
+        self.supersedes.push(old_checksum);
+        self
     }
 
     // Why: the digest is persisted in `extension_migrations.checksum` and

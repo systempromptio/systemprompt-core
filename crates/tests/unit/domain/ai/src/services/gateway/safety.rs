@@ -12,6 +12,7 @@ use systemprompt_models::wire::inspect::{SurfaceBudget, string_leaves};
 fn request(system: Option<&str>, texts: &[&str]) -> CanonicalRequest {
     CanonicalRequest {
         model: ModelId::new("test-model"),
+        cache_control: None,
         system: system.map(SystemBlock::text).into_iter().collect(),
         messages: texts
             .iter()

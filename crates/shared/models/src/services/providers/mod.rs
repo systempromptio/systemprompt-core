@@ -56,6 +56,9 @@ pub struct ProviderModel {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub aliases: Vec<ModelId>,
 
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub hidden: bool,
+
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub upstream_model: Option<String>,
 
@@ -175,12 +178,9 @@ impl ProviderRegistry {
     pub fn advertised_model_ids(&self, surfaces: &[ApiSurface]) -> Vec<String> {
         self.advertised_providers()
             .filter(|entry| surfaces.is_empty() || surfaces.contains(&entry.surface))
-            .flat_map(|entry| {
-                entry.models.iter().flat_map(|m| {
-                    std::iter::once(m.id.as_str().to_owned())
-                        .chain(m.aliases.iter().map(|a| a.as_str().to_owned()))
-                })
-            })
+            .flat_map(|entry| entry.models.iter())
+            .filter(|model| !model.hidden)
+            .map(|model| model.id.as_str().to_owned())
             .collect()
     }
 

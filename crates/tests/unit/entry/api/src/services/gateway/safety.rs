@@ -21,6 +21,7 @@ use systemprompt_api::services::gateway::registry::SafetyScannerRegistry;
 fn req_with(text: &str) -> CanonicalRequest {
     CanonicalRequest {
         model: ModelId::new("m"),
+        cache_control: None,
         system: Vec::new(),
         messages: vec![CanonicalMessage {
             role: Role::User,

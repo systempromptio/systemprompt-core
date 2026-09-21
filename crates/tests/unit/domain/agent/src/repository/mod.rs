@@ -94,3 +94,6 @@ pub(crate) fn make_task(
         last_modified: Some(chrono::Utc::now()),
     }
 }
+
+#[cfg(test)]
+mod owner_reassignment_db;

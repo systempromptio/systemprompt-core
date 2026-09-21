@@ -1,14 +1,23 @@
+use async_trait::async_trait;
+use futures::{StreamExt, stream};
+use std::any::Any;
+use std::pin::Pin;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use crate::services::providers::mock_http;
-use systemprompt_ai::models::ai::{AiMessage, ResponseFormat};
-use systemprompt_ai::models::tools::McpTool;
+use systemprompt_ai::error::{AiError, Result};
+use systemprompt_ai::models::ai::{
+    AiMessage, AiResponse, ResponseFormat, SamplingParams, StreamChunk,
+};
+use systemprompt_ai::models::tools::{McpTool, ToolCall};
 use systemprompt_ai::services::providers::anthropic::AnthropicProvider;
 use systemprompt_ai::services::providers::resilient_provider::ResilientProvider;
 use systemprompt_ai::services::providers::{
-    AiProvider, GenerationParams, SchemaGenerationParams, StructuredGenerationParams,
+    AiProvider, GenerationParams, ModelPricing, SchemaGenerationParams, StructuredGenerationParams,
     ToolGenerationParams, ToolResultsParams,
 };
+use systemprompt_ai::services::schema::ProviderCapabilities;
 use systemprompt_identifiers::McpServerId;
 use systemprompt_models::services::ResilienceSettings;
 
@@ -293,4 +302,114 @@ async fn the_debug_rendering_names_the_provider_without_leaking_the_inner_client
         !rendered.contains("secret-api-key"),
         "the wrapper must not render the inner provider's credentials: {rendered}"
     );
+}
+
+struct SequencedStreamProvider {
+    opens: AtomicUsize,
+}
+
+#[async_trait]
+impl AiProvider for SequencedStreamProvider {
+    fn name(&self) -> &str {
+        "sequenced"
+    }
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+    fn capabilities(&self) -> ProviderCapabilities {
+        ProviderCapabilities::anthropic()
+    }
+    fn supports_model(&self, _: &str) -> bool {
+        true
+    }
+    fn supports_sampling(&self, _: Option<&SamplingParams>) -> bool {
+        true
+    }
+    fn default_model(&self) -> &str {
+        "sequenced-model"
+    }
+    fn get_pricing(&self, _: &str) -> Option<ModelPricing> {
+        Some(ModelPricing::default())
+    }
+    fn supports_streaming(&self) -> bool {
+        true
+    }
+
+    async fn generate(&self, _: GenerationParams<'_>) -> Result<AiResponse> {
+        Ok(AiResponse::default())
+    }
+
+    async fn generate_with_tools(
+        &self,
+        _: ToolGenerationParams<'_>,
+    ) -> Result<(AiResponse, Vec<ToolCall>)> {
+        Ok((AiResponse::default(), Vec::new()))
+    }
+
+    async fn generate_with_schema(&self, _: SchemaGenerationParams<'_>) -> Result<AiResponse> {
+        Ok(AiResponse::default())
+    }
+
+    async fn generate_stream(
+        &self,
+        _: GenerationParams<'_>,
+    ) -> Result<Pin<Box<dyn futures::Stream<Item = Result<StreamChunk>> + Send>>> {
+        let sequence = self.opens.fetch_add(1, Ordering::SeqCst);
+        if sequence == 0 {
+            Ok(Box::pin(stream::pending()))
+        } else {
+            Ok(Box::pin(stream::iter([Ok(StreamChunk::Text(
+                "recovered".to_owned(),
+            ))])))
+        }
+    }
+}
+
+#[tokio::test(start_paused = true)]
+async fn idle_stream_timeout_releases_the_provider_bulkhead_for_a_later_stream() {
+    let settings = ResilienceSettings {
+        stream_idle_timeout_ms: 20,
+        max_concurrent: 1,
+        ..ResilienceSettings::default()
+    };
+    let inner = Arc::new(SequencedStreamProvider {
+        opens: AtomicUsize::new(0),
+    });
+    let provider = ResilientProvider::new("sequenced", inner.clone(), &settings);
+    let messages = vec![AiMessage::user("wait")];
+
+    let stream = provider
+        .generate_stream(GenerationParams::new(&messages, "sequenced-model", 16))
+        .await
+        .expect("the first stream opens");
+    let timed_out = tokio::spawn(async move {
+        let mut stream = stream;
+        let item = stream.next().await.expect("idle timeout item");
+        (stream, item)
+    });
+    tokio::task::yield_now().await;
+    tokio::time::advance(std::time::Duration::from_millis(21)).await;
+    let (mut first_stream, error) = timed_out.await.expect("stream task");
+    let error = error.expect_err("stream must time out");
+    assert!(matches!(
+        error,
+        AiError::Timeout {
+            ref provider,
+            after_ms: 20
+        } if provider == "sequenced"
+    ));
+
+    let mut recovered = provider
+        .generate_stream(GenerationParams::new(&messages, "sequenced-model", 16))
+        .await
+        .expect("the timeout must release the sole bulkhead permit");
+    assert!(matches!(
+        recovered.next().await,
+        Some(Ok(StreamChunk::Text(ref text))) if text == "recovered"
+    ));
+    assert!(
+        first_stream.next().await.is_none(),
+        "a timed-out stream is terminal even while its handle remains alive"
+    );
+    assert_eq!(inner.opens.load(Ordering::SeqCst), 2);
 }

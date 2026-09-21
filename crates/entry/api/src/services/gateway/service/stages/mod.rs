@@ -1,12 +1,4 @@
-//! Staged dispatch pipeline: `PreparedDispatch` → `GovernedDispatch` →
-//! `ScannedDispatch` → upstream send.
-//!
-//! Each stage owns the request by value and is only constructible from the
-//! previous one, so the ordering the gateway's audit trail depends on —
-//! build the exact wire payload, then govern it, then scan it, then send it —
-//! is enforced by the types rather than by call-site discipline. Governance
-//! ahead of the scanner plane also keeps first-deny-wins across both: a
-//! denied request produces exactly one audit row and one 403.
+//! Owned dispatch stages enforce prepare → govern → scan → send ordering.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -55,6 +47,7 @@ pub(super) struct PreparedDispatch {
     request: CanonicalRequest,
     upstream_model: String,
     model_limits: Option<ModelLimits>,
+    automatic_prompt_caching_enabled: bool,
     body: PreparedBody,
     recovery_count: usize,
 }
@@ -106,6 +99,11 @@ impl PreparedDispatch {
             CtxParts {
                 upstream_model: &upstream_model,
                 model_limits,
+                automatic_prompt_caching: automatic_prompt_caching(
+                    config.automatic_prompt_caching,
+                    upstream,
+                    &upstream_model,
+                ),
                 forward_headers: &[],
                 raw_body,
             },
@@ -120,10 +118,25 @@ impl PreparedDispatch {
             request,
             upstream_model,
             model_limits,
+            automatic_prompt_caching_enabled: config.automatic_prompt_caching,
             body,
             recovery_count: 0,
         })
     }
+}
+
+fn automatic_prompt_caching(
+    enabled: bool,
+    upstream: &ResolvedUpstream<'_>,
+    upstream_model: &str,
+) -> bool {
+    enabled
+        && upstream.provider.wire
+            == systemprompt_models::services::providers::WireProtocol::Anthropic
+        && upstream
+            .provider
+            .find_model(upstream_model)
+            .is_some_and(|model| model.capabilities.prompt_caching)
 }
 
 impl GovernedDispatch {
@@ -269,6 +282,7 @@ impl ScannedDispatch {
             CtxParts {
                 upstream_model: &prepared.upstream_model,
                 model_limits: prepared.model_limits,
+                automatic_prompt_caching: false,
                 forward_headers,
                 raw_body: None,
             },

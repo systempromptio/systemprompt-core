@@ -98,6 +98,7 @@ impl ProviderCatalogService {
         provider.models.push(ProviderModel {
             id: spec.id,
             aliases: spec.aliases,
+            hidden: false,
             upstream_model: spec.upstream_model,
             pricing: ModelPricing::default(),
             capabilities: ModelCapabilities::default(),

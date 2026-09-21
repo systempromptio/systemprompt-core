@@ -113,6 +113,7 @@ fn user_message(content: Vec<CanonicalContent>) -> CanonicalMessage {
 fn base_request() -> CanonicalRequest {
     CanonicalRequest {
         model: ModelId::new("m"),
+        cache_control: None,
         system: Vec::new(),
         messages: vec![user_message(vec![CanonicalContent::text("hi".to_owned())])],
         max_tokens: 32,

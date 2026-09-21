@@ -123,6 +123,7 @@ fn registry() -> ProviderRegistry {
                 models: vec![ProviderModel {
                     id: ModelId::new(row.model),
                     aliases: Vec::new(),
+                    hidden: false,
                     governance: None,
                     upstream_model: None,
                     pricing: row.pricing,

@@ -33,7 +33,7 @@ jobs:
     name: Quality gate
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.inputs.bridge_tag || github.ref }}
       - name: Verify merged promotion proof
@@ -61,7 +61,7 @@ jobs:
             runner: windows-latest
             asset: systemprompt-bridge-x86_64-pc-windows-msvc.exe
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.inputs.bridge_tag || github.ref }}
       - name: Install libdbus (linux)

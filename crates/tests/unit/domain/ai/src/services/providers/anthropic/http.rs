@@ -57,8 +57,28 @@ async fn generate_returns_error_on_4xx() {
     let messages = msgs();
     let params = GenerationParams::new(&messages, "claude-sonnet-4-6", 32);
     let err = p.generate(params).await.expect_err("must fail");
-    assert!(
-        format!("{err:?}").to_lowercase().contains("anthropic") || !format!("{err:?}").is_empty()
+    match err {
+        systemprompt_ai::error::AiError::HttpStatus {
+            provider,
+            status,
+            retry_after,
+            body,
+        } => {
+            assert_eq!(provider, "anthropic");
+            assert_eq!(status, 429);
+            assert_eq!(retry_after, None);
+            assert!(body.contains("slow down"));
+        },
+        other => panic!("provider 429 must retain its HTTP identity, got {other:?}"),
+    }
+    assert_eq!(
+        server
+            .received_requests()
+            .await
+            .expect("recorded requests")
+            .len(),
+        1,
+        "the concrete provider must return the first HTTP failure; retry policy belongs to its resilience wrapper"
     );
 }
 

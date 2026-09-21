@@ -749,6 +749,24 @@ fn a_request_that_cannot_mint_a_token_is_reported_as_service_unavailable() {
             "authentication unavailable: no credential provider produced a token\n",
             "the body carries the provider's reason so the caller can act on it"
         );
+        let mcp = reqwest::Client::new()
+            .post(format!("http://127.0.0.1:{port}/mcp/github/mcp"))
+            .header("authorization", format!("Bearer {SECRET}"))
+            .body(r#"{"jsonrpc":"2.0","id":1,"method":"tools/list"}"#)
+            .send()
+            .await
+            .expect("MCP request to proxy");
+        assert_eq!(mcp.status().as_u16(), 401);
+        let challenge = format!(
+            "Bearer resource_metadata=\"{}/.well-known/oauth-protected-resource/api/v1/mcp/github/mcp\"",
+            gateway.uri()
+        );
+        assert_eq!(
+            mcp.headers()
+                .get(reqwest::header::WWW_AUTHENTICATE)
+                .and_then(|value| value.to_str().ok()),
+            Some(challenge.as_str())
+        );
         assert!(
             gateway
                 .received_requests()
@@ -822,13 +840,15 @@ fn a_registered_mcp_server_is_routed_to_with_its_own_headers() {
                 )
                 .mount(&upstream)
                 .await;
+            let h = spawn_harness().await;
+            systemprompt_bridge::mcp_registry::clear(&REGISTRY);
 
             let meta = state.path().join("systemprompt-bridge").join("metadata");
             std::fs::create_dir_all(&meta).expect("metadata dir");
             std::fs::write(
                 meta.join("mcp-servers.json"),
                 serde_json::json!({
-                    "gateway": SEED_GATEWAY,
+                    "gateway": h.gateway.uri(),
                     "servers": [{
                         "name": "Salesforce MCP",
                         "url": format!("{}/mcp", upstream.uri()),
@@ -839,13 +859,7 @@ fn a_registered_mcp_server_is_routed_to_with_its_own_headers() {
                 .to_string(),
             )
             .expect("mcp fragment");
-            systemprompt_bridge::mcp_registry::rehydrate_from_disk(
-                &REGISTRY,
-                &ValidatedUrl::try_new(SEED_GATEWAY).expect("valid ValidatedUrl"),
-            )
-            .expect("the seeded fragment rehydrates");
 
-            let h = spawn_harness().await;
             let resp = h.authed_post("/mcp/salesforce-mcp", "{}").await;
             assert_eq!(resp.status().as_u16(), 200);
             assert_eq!(resp.text().await.expect("body"), r#"{"tools":[]}"#);
@@ -868,6 +882,7 @@ fn a_registered_mcp_server_is_routed_to_with_its_own_headers() {
                 "Bearer upstream-jwt-1",
                 "the connector is reached with the gateway JWT"
             );
+            systemprompt_bridge::mcp_registry::clear(&REGISTRY);
         });
     });
 }
@@ -952,6 +967,246 @@ fn a_hook_route_mints_a_plugin_scoped_token_and_a_401_spares_the_shared_jwt() {
                 "a 401 on a hook route must not invalidate the shared gateway JWT"
             );
         });
+    });
+}
+
+#[test]
+fn a_tracked_native_hook_replaces_caller_evidence_and_persists_its_session() {
+    use_headless_keystore();
+    let state = tempfile::tempdir().expect("state dir");
+    state_sandbox(&state, || {
+        block_on(async {
+            let gateway = MockServer::start().await;
+            let token_endpoint = format!("{}/v1/oauth/token", gateway.uri());
+            Mock::given(method("POST"))
+                .and(path("/v1/auth/bridge/oauth-client"))
+                .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                    "client_id": "hook-client",
+                    "client_secret": "hook-secret",
+                    "scopes": ["hook:track"],
+                    "token_endpoint": token_endpoint,
+                })))
+                .mount(&gateway)
+                .await;
+            Mock::given(method("POST"))
+                .and(path("/v1/oauth/token"))
+                .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                    "access_token": "hook-access-token",
+                    "token_type": "Bearer",
+                    "expires_in": 3600,
+                })))
+                .mount(&gateway)
+                .await;
+            Mock::given(method("POST"))
+                .and(path("/api/public/hooks/track"))
+                .respond_with(
+                    ResponseTemplate::new(200).set_body_json(serde_json::json!({"ok": true})),
+                )
+                .mount(&gateway)
+                .await;
+
+            let root = systemprompt_bridge::feedback::metadata_root().expect("feedback root");
+            std::fs::create_dir_all(&root).expect("feedback directory");
+            let enrollment = systemprompt_bridge::feedback::credentials::Enrollment::new(
+                &gateway.uri(),
+                systemprompt_identifiers::DeviceId::try_new("hook-device").unwrap(),
+                systemprompt_identifiers::UserId::new("hook-consumer"),
+                systemprompt_bridge::ids::BearerToken::new("sp_device_private"),
+            )
+            .unwrap();
+            enrollment.save(&root).expect("enrollment saved");
+
+            let h = spawn_with_base(gateway, None).await;
+            let hook_token = systemprompt_bridge::proxy::scoped_token::hook_token(
+                &systemprompt_bridge::ids::LoopbackSecret::new(SECRET),
+                &systemprompt_bridge::ids::PluginId::try_new("acme-plugin").unwrap(),
+            );
+            let response = Harness::client()
+                .post(h.url("/api/public/hooks/track?plugin_id=acme-plugin"))
+                .header("authorization", format!("Bearer {}", hook_token.as_str()))
+                .header("content-type", "application/json")
+                .header("x-systemprompt-host", "claude-code")
+                .header("x-systemprompt-device-credential", "caller-supplied")
+                .body(r#"{"session_id":"native-session-42"}"#)
+                .send()
+                .await
+                .expect("hook response");
+            assert_eq!(response.status().as_u16(), 200);
+
+            let requests = h.upstream_requests().await;
+            let track = requests
+                .iter()
+                .find(|request| request.url.path() == "/api/public/hooks/track")
+                .expect("track request forwarded");
+            assert_eq!(bearer_of(track), "Bearer hook-access-token");
+            assert_eq!(
+                track
+                    .headers
+                    .get("x-systemprompt-device-credential")
+                    .and_then(|value| value.to_str().ok()),
+                Some("sp_device_private"),
+                "the protected enrollment credential replaces caller input"
+            );
+            assert_eq!(
+                track
+                    .headers
+                    .get("x-systemprompt-host")
+                    .and_then(|value| value.to_str().ok()),
+                Some("claude-code")
+            );
+            let delivery_id = track
+                .headers
+                .get("x-ingestion-event-id")
+                .and_then(|value| value.to_str().ok())
+                .expect("the proxy stamps every hook delivery");
+            uuid::Uuid::parse_str(delivery_id).expect("delivery identity is a UUID");
+
+            let stored = std::fs::read_to_string(enrollment.outbox_path(&root)).unwrap();
+            assert!(
+                stored.contains("native-session-42"),
+                "session was queued: {stored}"
+            );
+            assert!(!stored.contains("caller-supplied"));
+        });
+    });
+}
+
+#[test]
+fn an_oversized_inference_request_returns_413_without_contacting_gateway() {
+    with_credentials(async {
+        let h = spawn_harness().await;
+        let response = Harness::client()
+            .post(h.url("/v1/messages"))
+            .header("authorization", format!("Bearer {SECRET}"))
+            .header("content-type", "application/json")
+            .body(vec![b'x'; 8 * 1024 * 1024 + 1])
+            .send()
+            .await
+            .expect("oversized request reaches loopback proxy");
+
+        assert_eq!(response.status().as_u16(), 413);
+        assert_eq!(
+            response.text().await.expect("413 body"),
+            "request body exceeds 8388608 bytes\n"
+        );
+        assert!(
+            h.upstream_requests().await.is_empty(),
+            "the proxy rejects oversized input before it could send a JWT upstream"
+        );
+    });
+}
+
+#[test]
+fn a_malformed_persisted_mcp_registry_fails_closed_without_forwarding_a_jwt() {
+    let state = tempfile::tempdir().expect("state dir");
+    state_sandbox(&state, || {
+        block_on(async {
+            let meta = state.path().join("systemprompt-bridge").join("metadata");
+            std::fs::create_dir_all(&meta).expect("metadata directory");
+            std::fs::write(meta.join("mcp-servers.json"), b"not json")
+                .expect("malformed persisted registry");
+            systemprompt_bridge::mcp_registry::clear(&REGISTRY);
+
+            let h = spawn_harness().await;
+            let response = h
+                .authed_post("/mcp/unavailable-from-corrupt-cache", "{}")
+                .await;
+            assert_eq!(response.status().as_u16(), 503);
+            assert!(
+                response
+                    .text()
+                    .await
+                    .expect("routing error body")
+                    .contains("routing unavailable"),
+                "a corrupt cache is surfaced as local routing failure"
+            );
+            assert!(
+                h.upstream_requests().await.is_empty(),
+                "the proxy must not risk forwarding a fresh gateway JWT after registry parse failure"
+            );
+            systemprompt_bridge::mcp_registry::clear(&REGISTRY);
+        });
+    });
+}
+
+#[test]
+fn a_hook_oauth_client_failure_is_local_and_does_not_forward_the_hook() {
+    use_headless_keystore();
+    let state = tempfile::tempdir().expect("state dir");
+    state_sandbox(&state, || {
+        block_on(async {
+            let gateway = MockServer::start().await;
+            Mock::given(method("POST"))
+                .and(path("/v1/auth/bridge/oauth-client"))
+                .respond_with(ResponseTemplate::new(503).set_body_string("temporarily unavailable"))
+                .expect(1)
+                .mount(&gateway)
+                .await;
+            let h = spawn_with_base(gateway, None).await;
+            let hook_token = systemprompt_bridge::proxy::scoped_token::hook_token(
+                &systemprompt_bridge::ids::LoopbackSecret::new(SECRET),
+                &systemprompt_bridge::ids::PluginId::try_new("acme-plugin").unwrap(),
+            );
+
+            let response = h
+                .post_with(
+                    "/api/public/hooks/govern?plugin_id=acme-plugin",
+                    hook_token.as_str(),
+                    "{}",
+                )
+                .await;
+            assert_eq!(response.status().as_u16(), 503);
+            let requests = h.upstream_requests().await;
+            assert!(
+                !requests
+                    .iter()
+                    .any(|request| request.url.path() == "/api/public/hooks/govern"),
+                "a hook is never forwarded using the shared gateway JWT when scoped token setup fails"
+            );
+            assert_eq!(h.mints.load(Ordering::Relaxed), 1);
+        });
+    });
+}
+
+#[test]
+fn a_host_token_forwards_verified_attestation_instead_of_caller_claims() {
+    with_credentials(async {
+        let h = spawn_harness().await;
+        Mock::given(method("POST"))
+            .and(path("/v1/messages"))
+            .respond_with(ResponseTemplate::new(200).set_body_string("{}"))
+            .mount(&h.gateway)
+            .await;
+        let host_token = systemprompt_bridge::proxy::scoped_token::host_token(
+            &systemprompt_bridge::ids::LoopbackSecret::new(SECRET),
+            &systemprompt_bridge::ids::HostId::new("claude-desktop"),
+        );
+
+        let response = Harness::client()
+            .post(h.url("/v1/messages"))
+            .header("authorization", format!("Bearer {}", host_token.as_str()))
+            .header("x-systemprompt-client", "spoofed-client")
+            .header("x-systemprompt-client-attestation", "bridge-secret")
+            .body("{}")
+            .send()
+            .await
+            .expect("host request");
+        assert_eq!(response.status().as_u16(), 200);
+        let request = h.upstream_requests().await.remove(0);
+        assert_eq!(
+            request
+                .headers
+                .get("x-systemprompt-client")
+                .and_then(|value| value.to_str().ok()),
+            Some("claude-desktop")
+        );
+        assert_eq!(
+            request
+                .headers
+                .get("x-systemprompt-client-attestation")
+                .and_then(|value| value.to_str().ok()),
+            Some("host-token")
+        );
     });
 }
 

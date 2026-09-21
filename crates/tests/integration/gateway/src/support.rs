@@ -11,6 +11,7 @@ use uuid::Uuid;
 pub fn minimal_request(system: Option<&str>, first_user_text: &str) -> CanonicalRequest {
     CanonicalRequest {
         model: ModelId::new("claude-test"),
+        cache_control: None,
         system: system.map(SystemBlock::text).into_iter().collect(),
         messages: vec![CanonicalMessage {
             role: Role::User,

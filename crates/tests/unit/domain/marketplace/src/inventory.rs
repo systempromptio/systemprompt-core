@@ -142,6 +142,8 @@ impl Fixture {
 mod admission;
 #[path = "inventory_capture.rs"]
 mod capture;
+#[path = "inventory_configured_boundaries.rs"]
+mod configured_boundaries;
 #[path = "inventory_projection.rs"]
 mod projection;
 #[path = "inventory_publish_latest.rs"]

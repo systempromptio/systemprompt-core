@@ -28,7 +28,6 @@ pub fn parse(value: &Value) -> Result<CanonicalRequest, InboundParseError> {
         .and_then(Value::as_str)
         .ok_or(InboundParseError::MissingField("model"))?
         .to_owned();
-
     let max_tokens = value
         .get("max_completion_tokens")
         .or_else(|| value.get("max_tokens"))
@@ -60,10 +59,7 @@ pub fn parse(value: &Value) -> Result<CanonicalRequest, InboundParseError> {
             arr.iter().filter_map(parse_tool).collect::<Vec<_>>()
         });
     let tool_choice = parse_tool_choice(value)?;
-    let stream = value
-        .get("stream")
-        .and_then(Value::as_bool)
-        .unwrap_or(false);
+    let stream = parse_stream(value);
     let reasoning_effort = value
         .get("reasoning_effort")
         .and_then(Value::as_str)
@@ -81,6 +77,7 @@ pub fn parse(value: &Value) -> Result<CanonicalRequest, InboundParseError> {
 
     Ok(CanonicalRequest {
         model: ModelId::new(model),
+        cache_control: None,
         system,
         messages,
         max_tokens,
@@ -101,6 +98,13 @@ pub fn parse(value: &Value) -> Result<CanonicalRequest, InboundParseError> {
         frequency_penalty,
         forwarded_surface: ForwardedSurface::default(),
     })
+}
+
+fn parse_stream(value: &Value) -> bool {
+    value
+        .get("stream")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
 }
 
 fn parse_messages(

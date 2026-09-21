@@ -30,6 +30,7 @@ fn entry() -> ProviderEntry {
         models: vec![ProviderModel {
             id: ModelId::new(CATALOG_ID),
             aliases: vec![ModelId::new(ALIAS)],
+            hidden: false,
             governance: None,
             upstream_model: Some(UPSTREAM.to_owned()),
             pricing: Default::default(),

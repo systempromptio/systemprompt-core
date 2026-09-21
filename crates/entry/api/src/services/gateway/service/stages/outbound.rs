@@ -19,6 +19,7 @@ use super::super::resolve::ResolvedUpstream;
 pub(super) struct CtxParts<'a> {
     pub(super) upstream_model: &'a str,
     pub(super) model_limits: Option<ModelLimits>,
+    pub(super) automatic_prompt_caching: bool,
     pub(super) forward_headers: &'a [(String, String)],
     pub(super) raw_body: Option<&'a Bytes>,
 }
@@ -36,6 +37,7 @@ pub(super) fn outbound_ctx<'a>(
         request,
         upstream_model: parts.upstream_model,
         model_limits: parts.model_limits,
+        automatic_prompt_caching: parts.automatic_prompt_caching,
         forward_headers: parts.forward_headers,
         raw_body: parts.raw_body,
     }

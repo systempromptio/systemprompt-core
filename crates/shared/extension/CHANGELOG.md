@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.58.0] - 2026-09-21
+
+### Added
+
+- `LoaderError::MigrationReferencesDeclarativeObject { extension, migration, kind, object, how }`, raised by the installer's static migration reference check.
+- `-- @supersedes-checksum: <16 hex>` migration directive, one per replaced text (`Migration::supersedes`, `Migration::superseding`): names the checksum of a text this migration replaces, so an applied migration can be corrected for the upgrade paths it failed on while every database that ran the old text keeps booting — its tracking row moves to the new checksum without executing anything.
+
 ## [0.55.0] - 2026-09-17
 
 ### Added

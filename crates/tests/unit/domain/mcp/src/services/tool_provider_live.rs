@@ -236,3 +236,72 @@ async fn list_tools_tolerates_unreachable_server() {
         "the failed server is named in the inventory: {tools:?}"
     );
 }
+
+#[tokio::test]
+async fn list_tools_keeps_healthy_server_inventory_when_another_assigned_server_is_unreachable() {
+    let url = fixture_database_url().expect("MCP tool-provider database URL");
+    let db = fixture_db_pool(&url)
+        .await
+        .expect("MCP tool-provider database");
+    let mock = MockServer::start().await;
+    mount_mcp_endpoint(&mock, default_tools_json()).await;
+    let healthy = format!("tp_up_{}", uuid::Uuid::new_v4().simple());
+    let unavailable = format!("tp_down_{}", uuid::Uuid::new_v4().simple());
+    let yaml = format!(
+        "{}{}",
+        agent_block("tp_agent_partial", &[&healthy, &unavailable]),
+        config_with_servers(&[
+            external_server_block(&ExternalServerSpec {
+                name: &healthy,
+                endpoint: &format!("{}/mcp", mock.uri()),
+                oauth_required: false,
+                enabled: true,
+            }),
+            external_server_block(&ExternalServerSpec {
+                name: &unavailable,
+                endpoint: "http://127.0.0.1:1/mcp",
+                oauth_required: false,
+                enabled: true,
+            }),
+        ])
+    );
+    let _bootstrap = bootstrap_with_services(&yaml);
+    let provider = McpToolProvider::new(db, RegistryService::new(fixture_user_id()), &resilience());
+
+    let inventory = provider
+        .list_tools(
+            &AgentName::try_new("tp_agent_partial").expect("valid AgentName"),
+            &tool_context(),
+        )
+        .await
+        .expect("one server failure is represented in the inventory");
+    assert_eq!(
+        inventory
+            .tools
+            .iter()
+            .map(|tool| tool.name.as_str())
+            .collect::<Vec<_>>(),
+        vec!["echo", "shout"]
+    );
+    assert!(
+        inventory
+            .tools
+            .iter()
+            .all(|tool| tool.service_id.as_str() == healthy)
+    );
+    assert_eq!(
+        inventory.tools[0].input_schema,
+        Some(serde_json::json!({"type": "object", "properties": {"message": {"type": "string"}}}))
+    );
+    assert_eq!(
+        inventory.tools[1].output_schema,
+        Some(serde_json::json!({"type": "object"}))
+    );
+    assert_eq!(inventory.failed_servers.len(), 1);
+    assert_eq!(inventory.failed_servers[0].server.as_str(), unavailable);
+    assert!(
+        inventory.failed_servers[0].message.contains("127.0.0.1:1"),
+        "failed server retains its transport endpoint diagnosis: {:?}",
+        inventory.failed_servers[0]
+    );
+}

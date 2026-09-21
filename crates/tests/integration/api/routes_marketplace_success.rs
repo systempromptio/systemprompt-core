@@ -114,3 +114,43 @@ async fn serve_plugin_file_unknown_plugin_returns_not_found() -> anyhow::Result<
     assert_eq!(resp.status().as_u16(), 404);
     Ok(())
 }
+
+#[tokio::test]
+async fn public_plugin_file_serves_catalog_bytes_and_known_plugin_missing_file_is_404()
+-> anyhow::Result<()> {
+    super::routes_bridge_plugin_file::seed_plugin_tree();
+    let app = router_with_marketplace().await?;
+    let served = app
+        .clone()
+        .oneshot(empty_get("/plugins/cov-plugin/skills/covskill/SKILL.md"))
+        .await?;
+    assert_eq!(served.status().as_u16(), 200);
+    assert_eq!(
+        served
+            .headers()
+            .get(axum::http::header::CONTENT_TYPE)
+            .and_then(|value| value.to_str().ok()),
+        Some("text/markdown; charset=utf-8")
+    );
+    assert_eq!(
+        served
+            .headers()
+            .get(axum::http::header::CACHE_CONTROL)
+            .and_then(|value| value.to_str().ok()),
+        Some("public, max-age=300")
+    );
+    let (_, body) = body_to_string(served).await?;
+    assert!(body.contains("name: covskill"), "{body}");
+    assert!(body.contains("Cov skill instructions."), "{body}");
+
+    let missing = app
+        .oneshot(empty_get(
+            "/plugins/cov-plugin/skills/covskill/DOES_NOT_EXIST.md",
+        ))
+        .await?;
+    let (status, body) = body_to_string(missing).await?;
+    assert_eq!(status.as_u16(), 404);
+    assert!(body.contains("File not found"), "{body}");
+    assert!(!body.contains("Cov skill instructions."), "{body}");
+    Ok(())
+}
