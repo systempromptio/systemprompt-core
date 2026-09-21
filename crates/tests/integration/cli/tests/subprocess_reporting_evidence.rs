@@ -40,9 +40,10 @@ fn json_success(database_url: &str, args: &[&str]) -> Value {
         redact(&output.stdout, database_url),
         redact(&output.stderr, database_url),
     );
-    let stdout = redact(&output.stdout, database_url);
-    serde_json::from_str(&stdout)
-        .unwrap_or_else(|error| panic!("stdout must be one JSON artifact: {error}\n{stdout}"))
+    serde_json::from_slice(&output.stdout).unwrap_or_else(|error| {
+        let stdout = redact(&output.stdout, database_url);
+        panic!("stdout must be one JSON artifact: {error}\n{stdout}")
+    })
 }
 
 fn card_field<'a>(card: &'a Value, heading: &str) -> &'a Value {

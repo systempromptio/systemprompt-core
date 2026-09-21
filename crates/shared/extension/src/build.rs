@@ -13,15 +13,11 @@
 //! - `NNN_<name>.down.sql` — the paired down migration (optional).
 //! - A migration whose first non-blank line is `-- @no-transaction` is emitted
 //!   with [`Migration::new_no_transaction`](crate::Migration::new_no_transaction).
-//! - A leading comment line `-- @supersedes-checksum: <16 hex>` (one per
-//!   replaced text) names the checksum of a text this migration replaces. A
-//!   database that applied the old text has its tracking row moved to the new
-//!   checksum without running anything, so an applied migration can be
-//!   corrected for the upgrade paths it failed on (a guard added, a dropped
-//!   table tolerated) while every database that ran it keeps booting. It is for
-//!   corrections that leave a database which ran the old text in the state the
-//!   new text produces; a change that needs to execute on those databases is a
-//!   new migration.
+//! - Each leading `-- @supersedes-checksum: <16 hex>` names replaced migration
+//!   text. Its tracking row moves to the new checksum without rerunning SQL.
+//!   This corrects text only when the old and new forms produce the same state;
+//!   changes that must execute on established databases require a new
+//!   migration.
 //! - `NNN_<name>.tombstone` / `NNN-MMM_<name>.tombstone` — a spent slot. The
 //!   migration once lived here, shipped, and its file has since been deleted;
 //!   established databases still carry its tracking row. A tombstone declares

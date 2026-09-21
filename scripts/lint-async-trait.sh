@@ -43,7 +43,7 @@ while IFS=: read -r file line; do
     trait_line[$name]="$line"
     order+=("$name")
     uses=$(rg -c --no-messages -g '*.rs' -g '!**/target/**' \
-        -e "dyn[[:space:]]+([A-Za-z0-9_]+::)*${name}\b" \
+        -e "dyn[[:space:]]+([A-Za-z0-9_]+::)*${name}([^A-Za-z0-9_]|$)" \
         "${ALL_ROOTS[@]}" | awk -F: '{ n += $NF } END { print n + 0 }')
     [ "$uses" -gt 0 ] && dyn_used[$name]=1
 done < <(rg -n --no-heading --color=never "${PROD_GLOBS[@]}" \
@@ -60,7 +60,7 @@ while [ "$changed" -eq 1 ]; do
         [ -z "${dyn_used[$name]:-}" ] || continue
         for sub in "${!dyn_used[@]}"; do
             if rg -q --no-messages -g '*.rs' -g '!**/target/**' \
-                -e "trait[[:space:]]+${sub}[[:space:]]*(<[^>]*>)?[[:space:]]*:[^{]*\b${name}\b" "${ALL_ROOTS[@]}"; then
+                -e "trait[[:space:]]+${sub}[[:space:]]*(<[^>]*>)?[[:space:]]*:[^{]*([^A-Za-z0-9_]|^)${name}([^A-Za-z0-9_]|$)" "${ALL_ROOTS[@]}"; then
                 dyn_used[$name]=1; changed=1; break
             fi
         done
