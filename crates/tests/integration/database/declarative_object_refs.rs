@@ -339,3 +339,57 @@ async fn a_do_block_guarding_the_same_trigger_is_accepted() {
         "the dependent phase must still create the trigger afterwards"
     );
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_function_whose_signature_a_migration_reshapes_is_left_to_that_migration() {
+    let fx = connect().await;
+    let s = &fx.suffix;
+    let table: &'static str = leak_str(format!("reshape_{s}"));
+    let function: &'static str = leak_str(format!("reshape_fn_{s}"));
+    let ext_id: &'static str = leak_str(format!("reshape-{s}"));
+
+    sqlx::query(sqlx::AssertSqlSafe(format!(
+        "CREATE TABLE {table} (id TEXT PRIMARY KEY)"
+    )))
+    .execute(&fx.pool)
+    .await
+    .expect("create established table");
+    sqlx::query(sqlx::AssertSqlSafe(format!(
+        "CREATE FUNCTION {function}() RETURNS integer LANGUAGE sql AS 'SELECT 1'"
+    )))
+    .execute(&fx.pool)
+    .await
+    .expect("create the old shape of the function");
+
+    let _cleanup = Cleanup {
+        pool: fx.pool.clone(),
+        tables: vec![table],
+        functions: vec![function],
+        extension_ids: vec![ext_id],
+    };
+
+    let ext = CanaryExtension {
+        id: ext_id,
+        schema_sql: leak_str(format!(
+            "CREATE TABLE IF NOT EXISTS {table} (id TEXT PRIMARY KEY);\n\
+             CREATE OR REPLACE FUNCTION {function}() RETURNS text LANGUAGE sql AS 'SELECT ''new''';"
+        )),
+        table,
+        migration_sql: Some(leak_str(format!("DROP FUNCTION {function}();"))),
+    };
+    let mut registry = ExtensionRegistry::new();
+    registry.register(Arc::new(ext)).expect("register");
+
+    install_extension_schemas(&registry, fx.db.as_ref())
+        .await
+        .expect("the pre-pass must not fail on a signature only a migration can change");
+
+    let return_type: String = sqlx::query_scalar(
+        "SELECT pg_get_function_result(p.oid) FROM pg_proc p WHERE p.proname = $1",
+    )
+    .bind(function)
+    .fetch_one(&fx.pool)
+    .await
+    .expect("function present after install");
+    assert_eq!(return_type, "text");
+}
