@@ -208,8 +208,6 @@ jobs:
       # `always()` so a superseding push still cancels the run.
       - run: just lint-schema
         if: ${{ !cancelled() }}
-      - run: just lint-migration-refs
-        if: ${{ !cancelled() }}
       - run: just lint-extensions
         if: ${{ !cancelled() }}
       - run: just lint-comments

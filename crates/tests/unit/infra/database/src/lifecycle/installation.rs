@@ -932,3 +932,33 @@ async fn a_dropped_bootstrap_lock_guard_releases_the_advisory_lock() {
         "dropping the guard must close its session and free the lock"
     );
 }
+
+#[tokio::test]
+async fn a_declarative_function_without_or_replace_is_refused() {
+    let Some((provider, db)) = provider_and_db_or_skip().await else {
+        return;
+    };
+    let table = unique_id("install_fn");
+    let sql = format!(
+        "CREATE TABLE IF NOT EXISTS \"{table}\" (id BIGINT PRIMARY KEY);\n\
+         CREATE FUNCTION \"{table}_fn\"() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN \
+         NEW; END $$;"
+    );
+    let registry = registry_with(StubExtension {
+        id: unique_id("ext_fn"),
+        schemas: vec![SchemaDefinition::new(table, sql)],
+        seeds: vec![],
+        migrations: vec![],
+    });
+
+    let err = install_extension_schemas_with_config(&registry, &provider, &[])
+        .await
+        .expect_err("a routine the installer applies twice must be CREATE OR REPLACE");
+    match err {
+        LoaderError::SchemaInstallationFailed { message, .. } => {
+            assert!(message.contains("CREATE OR REPLACE"), "{message}");
+        },
+        other => panic!("expected SchemaInstallationFailed, got {other:?}"),
+    }
+    assert!(!table_exists(&db, table).await);
+}

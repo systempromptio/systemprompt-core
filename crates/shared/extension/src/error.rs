@@ -78,6 +78,21 @@ pub enum LoaderError {
     CrossExtensionAlterUndeclared { extension: String, table: String },
 
     #[error(
+        "Extension '{extension}' migration {migration} references {kind} '{object}' via {how}, \
+         which only a declarative schema file creates; the dependent phase runs after \
+         migrations, so a database that has not booted on that schema fails here. Create it in \
+         a migration, guard the reference in a DO $$ block that tests pg_trigger/pg_views, or \
+         leave it to the declarative schema"
+    )]
+    MigrationReferencesDeclarativeObject {
+        extension: String,
+        migration: String,
+        kind: String,
+        object: String,
+        how: String,
+    },
+
+    #[error(
         "Table '{table}' is created by both extension '{extension_a}' and '{extension_b}'; every \
          table must be declared by exactly one extension"
     )]

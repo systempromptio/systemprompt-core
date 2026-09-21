@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.58.0] - 2026-09-21
+
+### Added
+
+- `LoaderError::MigrationReferencesDeclarativeObject { extension, migration, kind, object, how }`, raised by the installer's static migration reference check.
+
 ## [0.55.0] - 2026-09-17
 
 ### Added

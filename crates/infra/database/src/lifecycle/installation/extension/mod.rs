@@ -1,11 +1,15 @@
 //! Schema installation for compile-time-registered
 //! [`systemprompt_extension::Extension`] instances.
 //!
-//! Installation runs globally in four phases — structural DDL, then
-//! migrations, then dependent DDL, then the foreign keys deferred out of the
-//! structural `CREATE TABLE`s — so a legacy database reaches its target shape
-//! before any `CREATE INDEX`/`VIEW` references a migration-added column, and
-//! before any foreign key needs a unique index a migration introduces.
+//! Installation runs globally in five phases — structural DDL, then the
+//! declarative routines, then migrations, then dependent DDL, then the
+//! foreign keys deferred out of the structural `CREATE TABLE`s — so a legacy
+//! database reaches its target shape before any `CREATE INDEX`/`VIEW`
+//! references a migration-added column, and before any foreign key needs a
+//! unique index a migration introduces. Routines go first so a migration can
+//! reference a function only the declarative schema defines; a migration
+//! that names a declarative-only trigger or view is refused before any
+//! statement runs (`migration_refs`).
 //! A fresh database (no migration history, no owned tables) skips migration
 //! execution entirely: the declarative schema is the baseline, and every
 //! defined migration is stamped as applied without running — in the same
@@ -27,6 +31,7 @@ use tracing::{debug, info};
 use self::foreign_keys::apply_foreign_keys;
 use self::lock::BootstrapLockGuard;
 use self::validation::{validate_extension_columns, validate_table_ownership};
+use super::migration_refs::check_migration_references;
 use super::prepare::{PreparedSchema, prepare_extension_schema};
 use super::report::SchemaInstallReport;
 use super::seeds::apply_seeds;
@@ -102,6 +107,7 @@ async fn run_install(
     }
 
     validate_table_ownership(&prepared, schema_extensions)?;
+    check_migration_references(schema_extensions)?;
 
     let mut fresh_extensions: std::collections::HashSet<String> = std::collections::HashSet::new();
     for (ext, p) in schema_extensions.iter().zip(&prepared) {
@@ -130,6 +136,8 @@ async fn run_install(
         }
         execute_phase(db, &p.structural, &stamp, &p.extension_id).await?;
     }
+
+    apply_routine_prepass(db, &prepared).await?;
 
     for ext in schema_extensions {
         if ext.has_migrations() && !fresh_extensions.contains(ext.id()) {
@@ -164,6 +172,42 @@ async fn run_install(
     }
 
     Ok(report)
+}
+
+// Why: migrations run before the dependent phase, so a trigger a migration
+// creates would otherwise reference a function only schema/*.sql defines.
+// Bodies are not checked here: a SQL-language body may name a column a later
+// migration adds; the dependent phase re-issues every routine with bodies
+// checked against the migrated schema.
+async fn apply_routine_prepass(
+    db: &dyn DatabaseProvider,
+    prepared: &[PreparedSchema],
+) -> Result<(), LoaderError> {
+    for p in prepared {
+        if p.routines.is_empty() {
+            continue;
+        }
+        debug!(
+            extension = %p.extension_id,
+            routines = p.routines.len(),
+            "Pre-applying declarative routines"
+        );
+        let mut statements = Vec::with_capacity(p.routines.len() + 1);
+        statements.push("SET LOCAL check_function_bodies = off".to_owned());
+        statements.extend(p.routines.iter().cloned());
+        execute_phase(db, &statements, &[], &p.extension_id)
+            .await
+            .map_err(|e| match e {
+                LoaderError::SchemaInstallationFailed { extension, message } => {
+                    LoaderError::SchemaInstallationFailed {
+                        extension,
+                        message: format!("routine pre-pass: {message}"),
+                    }
+                },
+                other => other,
+            })?;
+    }
+    Ok(())
 }
 
 async fn execute_phase(
