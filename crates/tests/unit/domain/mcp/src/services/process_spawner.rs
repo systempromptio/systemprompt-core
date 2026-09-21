@@ -304,14 +304,22 @@ async fn spawned_server_receives_service_environment_and_verified_termination_st
     ProcessService::terminate_gracefully_verified(pid, &config.name)
         .await
         .expect("verified termination");
+    let fixture_is_running = || {
+        ProcessService::is_running(pid)
+            && systemprompt_loader::subprocess::live_pid_is_subprocess(
+                pid,
+                systemprompt_models::subprocess::MCP_SERVICE_ID_ENV,
+                &config.name,
+            )
+    };
     for _ in 0..80 {
-        if !ProcessService::is_running(pid) {
+        if !fixture_is_running() {
             break;
         }
         tokio::time::sleep(Duration::from_millis(25)).await;
     }
     assert!(
-        !ProcessService::is_running(pid),
+        !fixture_is_running(),
         "verified graceful termination must leave no live owned fixture child"
     );
     cleanup.pid = None;
