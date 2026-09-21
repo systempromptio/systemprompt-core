@@ -19,6 +19,14 @@
 //! - `NNN_<name>.down.sql` — the paired down migration (optional).
 //! - A migration whose first non-blank line is `-- @no-transaction` is emitted
 //!   with [`Migration::new_no_transaction`](crate::Migration::new_no_transaction).
+//! - A leading comment line `-- @supersedes-checksum: <16 hex>` names the
+//!   checksum of the text this migration replaces. A database that applied the
+//!   old text has its tracking row moved to the new checksum without running
+//!   anything, so an applied migration can be corrected for the upgrade paths
+//!   it failed on (a guard added, a dropped table tolerated) while every
+//!   database that ran it keeps booting. It is for corrections that leave a
+//!   database which ran the old text in the state the new text produces; a
+//!   change that needs to execute on those databases is a new migration.
 //! - `NNN_<name>.tombstone` / `NNN-MMM_<name>.tombstone` — a spent slot. The
 //!   migration once lived here, shipped, and its file has since been deleted;
 //!   established databases still carry its tracking row. A tombstone declares
@@ -65,6 +73,7 @@ struct DiscoveredMigration {
     up_path: Option<PathBuf>,
     down_path: Option<PathBuf>,
     no_transaction: bool,
+    supersedes: Option<String>,
 }
 
 impl DiscoveredMigration {
@@ -73,6 +82,10 @@ impl DiscoveredMigration {
             return self.render_tombstone();
         };
         let up = path_literal(up_path);
+        let supersedes = self
+            .supersedes
+            .as_ref()
+            .map_or(String::new(), |old| format!(".superseding({old:?})"));
         match (&self.down_path, self.no_transaction) {
             (Some(_), true) => panic!(
                 "migration {:03} ({}): a `-- @no-transaction` migration cannot declare a \
@@ -81,18 +94,19 @@ impl DiscoveredMigration {
             ),
             (Some(down), false) => format!(
                 "    ::systemprompt_extension::Migration::with_down({}, {:?}, include_str!({up}), \
-                 include_str!({})),\n",
+                 include_str!({})){supersedes},\n",
                 self.version,
                 self.name,
                 path_literal(down),
             ),
             (None, true) => format!(
                 "    ::systemprompt_extension::Migration::new_no_transaction({}, {:?}, \
-                 include_str!({up})),\n",
+                 include_str!({up})){supersedes},\n",
                 self.version, self.name,
             ),
             (None, false) => format!(
-                "    ::systemprompt_extension::Migration::new({}, {:?}, include_str!({up})),\n",
+                "    ::systemprompt_extension::Migration::new({}, {:?}, \
+                 include_str!({up})){supersedes},\n",
                 self.version, self.name,
             ),
         }
@@ -164,6 +178,7 @@ fn discover(dir: &Path) -> Vec<DiscoveredMigration> {
                 name,
                 down_path: downs.remove(&stem),
                 no_transaction: has_no_transaction_directive(up),
+                supersedes: supersedes_directive(up),
                 up_path: Some(up.clone()),
             }
         })
@@ -185,6 +200,7 @@ fn discover(dir: &Path) -> Vec<DiscoveredMigration> {
             name,
             down_path: None,
             no_transaction: false,
+            supersedes: None,
             up_path: None,
         }
     }));
@@ -226,6 +242,26 @@ fn parse_version(text: &str, prefix: &str, path: &Path) -> u32 {
             path.display()
         )
     })
+}
+
+// Why: the directive must sit in the leading comment block, before any SQL,
+// so it is read as part of the file's head and never mistaken for a comment
+// on a statement further down.
+fn supersedes_directive(path: &Path) -> Option<String> {
+    let content = std::fs::read_to_string(path)
+        .unwrap_or_else(|e| panic!("failed to read migration {}: {e}", path.display()));
+    let old = content
+        .lines()
+        .map(str::trim)
+        .take_while(|line| line.is_empty() || line.starts_with("--"))
+        .find_map(|line| line.strip_prefix("-- @supersedes-checksum:"))
+        .map(str::trim)?;
+    assert!(
+        old.len() == 16 && old.chars().all(|c| c.is_ascii_hexdigit()),
+        "migration {}: `@supersedes-checksum` must name a 16-hex-digit checksum, got `{old}`",
+        path.display()
+    );
+    Some(old.to_owned())
 }
 
 fn has_no_transaction_directive(path: &Path) -> bool {

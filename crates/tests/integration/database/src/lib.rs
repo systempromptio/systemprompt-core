@@ -39,6 +39,10 @@ mod declarative_object_refs;
 mod migration_refs_static;
 
 #[cfg(test)]
+#[path = "../migration_supersedes.rs"]
+mod migration_supersedes;
+
+#[cfg(test)]
 #[path = "../advisory_lock.rs"]
 mod advisory_lock;
 

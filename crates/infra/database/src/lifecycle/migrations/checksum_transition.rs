@@ -1,9 +1,12 @@
-//! Verified bookkeeping transition for checksums written before core 8374d3210.
+//! Verified bookkeeping transitions for checksums: rows written before core
+//! 8374d3210, and rows holding the checksum a migration declares it
+//! supersedes (`-- @supersedes-checksum`).
 //!
 //! Historical writers used `DefaultHasher::new()`, Rust `Hash` for `str`
 //! (including its terminator), and unpadded lowercase hexadecimal. Only an
-//! exact match for the currently declared SQL is eligible; this is not drift
-//! repair and never executes migration SQL. Slot identity is checked first.
+//! exact match for the currently declared SQL, or the exact superseded
+//! checksum, is eligible; this is not drift repair and never executes
+//! migration SQL. Slot identity is checked first.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -19,7 +22,9 @@ pub(super) fn historical_checksum(sql: &str) -> String {
 }
 
 pub(super) fn matches_checksum(migration: &Migration, stored: &str) -> bool {
-    stored == migration.checksum() || stored == historical_checksum(migration.sql)
+    stored == migration.checksum()
+        || stored == historical_checksum(migration.sql)
+        || migration.supersedes == Some(stored)
 }
 
 impl MigrationService<'_> {
@@ -38,7 +43,8 @@ impl MigrationService<'_> {
             self.verify_checksum(extension, migration, &row.checksum)?;
             if row.name == migration.name
                 && row.checksum != migration.checksum()
-                && row.checksum == historical_checksum(migration.sql)
+                && (row.checksum == historical_checksum(migration.sql)
+                    || migration.supersedes == Some(row.checksum.as_str()))
             {
                 transitions.push((migration, row));
             }

@@ -18,6 +18,7 @@ pub struct Migration {
     pub down: Option<&'static str>,
     pub no_transaction: bool,
     pub tombstone: bool,
+    pub supersedes: Option<&'static str>,
 }
 
 impl Migration {
@@ -30,6 +31,7 @@ impl Migration {
             down: None,
             no_transaction: false,
             tombstone: false,
+            supersedes: None,
         }
     }
 
@@ -47,6 +49,7 @@ impl Migration {
             down: Some(down_sql),
             no_transaction: false,
             tombstone: false,
+            supersedes: None,
         }
     }
 
@@ -59,6 +62,7 @@ impl Migration {
             down: None,
             no_transaction: true,
             tombstone: false,
+            supersedes: None,
         }
     }
 
@@ -71,7 +75,16 @@ impl Migration {
             down: None,
             no_transaction: false,
             tombstone: true,
+            supersedes: None,
         }
+    }
+
+    // Why: the checksum of the text this one replaces; a tracking row holding
+    // it is moved to the current checksum without executing anything.
+    #[must_use]
+    pub const fn superseding(mut self, old_checksum: &'static str) -> Self {
+        self.supersedes = Some(old_checksum);
+        self
     }
 
     // Why: the digest is persisted in `extension_migrations.checksum` and
