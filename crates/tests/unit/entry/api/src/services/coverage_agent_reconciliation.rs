@@ -243,13 +243,12 @@ async fn malformed_agent_registry_fails_startup_and_emits_correlated_fatal_event
     );
     let (message, fatal) = tokio::time::timeout(std::time::Duration::from_secs(5), async {
         loop {
-            match receiver
+            if let StartupEvent::Error { message, fatal } = receiver
                 .next()
                 .await
                 .expect("startup event channel remains open")
             {
-                StartupEvent::Error { message, fatal } => break (message, fatal),
-                _ => {},
+                break (message, fatal);
             }
         }
     })

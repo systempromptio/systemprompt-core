@@ -36,6 +36,7 @@ mod routes_agent_registry;
 #[path = "routes_agent_registry_populated.rs"]
 mod routes_agent_registry_populated;
 
+#[cfg(test)]
 #[path = "routes_agent_read_outage.rs"]
 mod routes_agent_read_outage;
 #[cfg(test)]
@@ -438,6 +439,7 @@ mod gateway_bridge_models_more;
 #[path = "gateway_dispatch_more.rs"]
 mod gateway_dispatch_more;
 
+#[cfg(test)]
 #[path = "server_readiness_db_loss.rs"]
 mod server_readiness_db_loss;
 #[cfg(test)]

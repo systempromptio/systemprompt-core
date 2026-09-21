@@ -400,7 +400,7 @@ async fn buffered_dispatch_returns_rendered_response_and_completes_audit() -> an
         "input+output tokens recorded on completion"
     );
     let pg = pool.pool_arc()?;
-    let durable: (
+    type DurableRequest = (
         String,
         String,
         String,
@@ -409,7 +409,8 @@ async fn buffered_dispatch_returns_rendered_response_and_completes_audit() -> an
         Option<i32>,
         Option<i32>,
         i64,
-    ) = sqlx::query_as(
+    );
+    let durable: DurableRequest = sqlx::query_as(
         "SELECT user_id, COALESCE(served_provider, provider), model, wire_protocol, \
          input_tokens, output_tokens, tokens_used, cost_microdollars \
          FROM ai_requests WHERE id=$1",

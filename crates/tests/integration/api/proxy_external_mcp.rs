@@ -938,7 +938,7 @@ impl RawProviderTask {
         .await
         .map_err(|_| anyhow::anyhow!("raw provider join timed out"))?;
         self.0.take();
-        Ok(joined??)
+        joined?
     }
 }
 

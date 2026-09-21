@@ -406,9 +406,11 @@ async fn a_failed_status_with_no_message_falls_back_to_a_placeholder() {
     );
 }
 
+type MaterializerCall = (String, String, Option<String>, String, String);
+
 #[derive(Default)]
 struct FailingContextMaterializer {
-    calls: Mutex<Vec<(String, String, Option<String>, String, String)>>,
+    calls: Mutex<Vec<MaterializerCall>>,
 }
 
 #[async_trait::async_trait]

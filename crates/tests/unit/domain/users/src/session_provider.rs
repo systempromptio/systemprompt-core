@@ -14,6 +14,18 @@ use systemprompt_traits::{
 use systemprompt_users::SessionRepository;
 use uuid::Uuid;
 
+type PersistedSessionRow = (
+    String,
+    Option<String>,
+    String,
+    bool,
+    bool,
+    Option<String>,
+    Option<String>,
+    Option<String>,
+    chrono::DateTime<Utc>,
+);
+
 fn unique_session_id() -> SessionId {
     SessionId::new(format!("sess-prov-{}", Uuid::new_v4()))
 }
@@ -124,17 +136,7 @@ mod analytics_provider {
         .await
         .expect("anonymous default session");
 
-        let rows: Vec<(
-            String,
-            Option<String>,
-            String,
-            bool,
-            bool,
-            Option<String>,
-            Option<String>,
-            Option<String>,
-            chrono::DateTime<Utc>,
-        )> = sqlx::query_as(
+        let rows: Vec<PersistedSessionRow> = sqlx::query_as(
             "SELECT session_id, user_id, session_source, is_bot, is_ai_crawler, \
              fingerprint_hash, user_agent, preferred_locale, expires_at FROM user_sessions \
              WHERE session_id = ANY($1) ORDER BY session_id",
