@@ -133,6 +133,7 @@ fn attach_request_id_stamps_header() {
 fn canonical() -> CanonicalRequest {
     CanonicalRequest {
         model: ModelId::new("claude-test"),
+        cache_control: None,
         system: vec![SystemBlock::text("keep it short".to_owned())],
         messages: vec![CanonicalMessage {
             role: Role::User,

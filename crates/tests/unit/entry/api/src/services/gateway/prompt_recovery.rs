@@ -55,6 +55,7 @@ fn body(value: Value) -> PreparedBody {
 pub(super) fn request() -> CanonicalRequest {
     CanonicalRequest {
         model: ModelId::new("test-model"),
+        cache_control: None,
         system: vec![SystemBlock::text(format!("Use this key {KEY} carefully"))],
         messages: vec![CanonicalMessage {
             role: Role::User,

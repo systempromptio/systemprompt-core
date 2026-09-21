@@ -63,6 +63,12 @@ pub fn build_request_body(
         )),
     );
     obj.insert("messages".into(), Value::Array(messages));
+    if let Some(cache_control) = request.cache_control {
+        obj.insert(
+            "cache_control".into(),
+            cache_control_to_anthropic(cache_control),
+        );
+    }
     if !request.system.is_empty() {
         obj.insert("system".into(), system_to_anthropic(request));
     }

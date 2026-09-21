@@ -57,6 +57,9 @@ pub struct ModelCapabilities {
 
     #[serde(default)]
     pub reasoning: bool,
+
+    #[serde(default)]
+    pub prompt_caching: bool,
 }
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, schemars::JsonSchema)]

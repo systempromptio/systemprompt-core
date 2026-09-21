@@ -21,6 +21,7 @@ fn model(id: &str, aliases: &[&str]) -> ProviderModel {
     ProviderModel {
         id: ModelId::new(id),
         aliases: aliases.iter().map(|a| ModelId::new(*a)).collect(),
+        hidden: false,
         governance: None,
         upstream_model: None,
         pricing: Default::default(),
@@ -101,7 +102,7 @@ fn advertised_scopes_to_surface() {
 
     assert_eq!(
         registry.advertised_model_ids(&[ApiSurface::Anthropic]),
-        vec!["claude-sonnet-4-6".to_owned(), "claude-sonnet".to_owned()]
+        vec!["claude-sonnet-4-6".to_owned()]
     );
     assert_eq!(
         registry.advertised_model_ids(&[ApiSurface::Gemini]),
@@ -291,9 +292,29 @@ fn empty_surface_slice_returns_whole_catalog_minus_backend() {
         models,
         vec![
             "claude-sonnet-4-6".to_owned(),
-            "claude-sonnet".to_owned(),
             "gpt-5".to_owned(),
             "gemini-3.1-flash-lite-preview".to_owned(),
         ]
     );
+}
+
+#[test]
+fn hidden_models_are_routable_but_not_advertised() {
+    let mut hidden = model("claude-opus-4-8", &["claude-opus-legacy"]);
+    hidden.hidden = true;
+    let registry = ProviderRegistry {
+        providers: vec![provider(
+            "anthropic",
+            WireProtocol::Anthropic,
+            ApiSurface::Anthropic,
+            vec![model("claude-opus-5", &[]), hidden],
+        )],
+    };
+
+    assert_eq!(
+        registry.advertised_model_ids(&[]),
+        vec!["claude-opus-5".to_owned()]
+    );
+    assert!(registry.contains_model("claude-opus-4-8"));
+    assert!(registry.contains_model("claude-opus-legacy"));
 }

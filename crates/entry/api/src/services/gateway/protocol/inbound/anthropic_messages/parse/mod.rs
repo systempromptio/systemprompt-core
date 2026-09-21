@@ -81,6 +81,9 @@ pub fn parse(value: &Value) -> Result<CanonicalRequest, InboundParseError> {
 
     Ok(CanonicalRequest {
         model: ModelId::new(model),
+        cache_control: value
+            .get("cache_control")
+            .and_then(systemprompt_models::wire::anthropic::cache_control_from_anthropic),
         system,
         messages,
         max_tokens,

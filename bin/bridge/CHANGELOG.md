@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.58.0] - 2026-09-21
+
+### Fixed
+
+- **Bridge:** managed host profiles consume the canonical visible model catalog, removing alias duplicates and hidden legacy models from Claude Desktop, OpenCode, Codex CLI and Hermes configuration.
+
 ## [0.57.0] - 2026-09-19
 
 ### Breaking

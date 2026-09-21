@@ -124,6 +124,7 @@ impl VertexRateCardEntry {
         ProviderModel {
             id: self.id.clone(),
             aliases: self.aliases.clone(),
+            hidden: false,
             upstream_model: Some(self.upstream_model.clone()),
             pricing: self.pricing,
             capabilities: self.capabilities,

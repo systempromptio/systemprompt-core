@@ -44,6 +44,7 @@ fn route() -> GatewayRoute {
 fn request(stream: bool) -> CanonicalRequest {
     CanonicalRequest {
         model: ModelId::new("m"),
+        cache_control: None,
         system: Vec::new(),
         messages: vec![CanonicalMessage {
             role: Role::User,
@@ -142,6 +143,7 @@ async fn relay_buffered(upstream: &Value) -> Bytes {
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
+        automatic_prompt_caching: false,
         forward_headers: &[],
         raw_body: Some(&raw),
     };
@@ -174,6 +176,7 @@ async fn relay_streaming(sse: &str) -> String {
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
+        automatic_prompt_caching: false,
         forward_headers: &[],
         raw_body: Some(&raw),
     };

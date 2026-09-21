@@ -28,6 +28,7 @@ fn policy_trusting_mock() -> ImageFetchPolicy {
 fn url_image_request(url: &str) -> CanonicalRequest {
     CanonicalRequest {
         model: ModelId::new("gemini-2.5-pro"),
+        cache_control: None,
         messages: vec![CanonicalMessage {
             role: Role::User,
             content: vec![

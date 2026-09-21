@@ -73,6 +73,7 @@ fn openai_responses_parses_minimal_request() {
 fn fixture_request(model: &str, stream: bool) -> CanonicalRequest {
     CanonicalRequest {
         model: ModelId::new(model),
+        cache_control: None,
         system: vec![SystemBlock::text("be brief".to_owned())],
         messages: vec![
             systemprompt_api::services::gateway::protocol::CanonicalMessage {

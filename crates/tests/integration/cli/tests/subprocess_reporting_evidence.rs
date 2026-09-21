@@ -98,7 +98,7 @@ async fn request_show_preserves_complete_client_evidence() {
          (ai_request_id, kind_source, attested_host, declared_client, native_marker, ua_product, \
           ua_version, sdk_lang, sdk_package_version, sdk_runtime, sdk_runtime_version, sdk_os, sdk_arch) \
          VALUES ($1, 'host-token', 'codex', 'fixture-client', 'codex-turn-metadata', 'fixture-agent', \
-          '1.2.3', 'rust', '0.57.0', 'tokio', '1.0', 'linux', 'x86_64')",
+          '1.2.3', 'rust', '0.58.0', 'tokio', '1.0', 'linux', 'x86_64')",
     )
     .bind(&request)
     .execute(&pool)
@@ -127,7 +127,7 @@ async fn request_show_preserves_complete_client_evidence() {
             "ua_product": "fixture-agent",
             "ua_version": "1.2.3",
             "sdk_lang": "rust",
-            "sdk_package_version": "0.57.0",
+            "sdk_package_version": "0.58.0",
             "sdk_runtime": "tokio",
             "sdk_runtime_version": "1.0",
             "sdk_os": "linux",

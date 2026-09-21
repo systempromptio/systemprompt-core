@@ -94,7 +94,7 @@ fn bridge_row(
     UpsertBridgeSession {
         session_id: SessionId::new(session),
         user_id: user_id.clone(),
-        bridge_version: "0.57.0-test".to_owned(),
+        bridge_version: "0.58.0-test".to_owned(),
         os: "linux-test".to_owned(),
         hostname: hostname.to_owned(),
         last_activity_at: Some(chrono::Utc::now()),

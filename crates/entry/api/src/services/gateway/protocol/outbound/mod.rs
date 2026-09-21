@@ -107,6 +107,7 @@ pub struct OutboundCtx<'a> {
     pub request: &'a CanonicalRequest,
     pub upstream_model: &'a str,
     pub model_limits: Option<ModelLimits>,
+    pub automatic_prompt_caching: bool,
     pub forward_headers: &'a [(String, String)],
     pub raw_body: Option<&'a bytes::Bytes>,
 }

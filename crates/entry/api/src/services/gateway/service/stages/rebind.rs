@@ -7,8 +7,8 @@
 
 use systemprompt_models::services::providers::WireProtocol;
 
-use super::ScannedDispatch;
 use super::outbound::{CtxParts, outbound_ctx, send_attempt};
+use super::{ScannedDispatch, automatic_prompt_caching};
 use crate::services::gateway::audit::GatewayAudit;
 use crate::services::gateway::image_fetch::{ImageFetchPolicy, inline_url_images};
 use crate::services::gateway::protocol::outbound::OutboundOutcome;
@@ -28,6 +28,7 @@ impl ScannedDispatch {
             CtxParts {
                 upstream_model: &prepared.upstream_model,
                 model_limits: prepared.model_limits,
+                automatic_prompt_caching: false,
                 forward_headers,
                 raw_body: None,
             },
@@ -61,6 +62,11 @@ impl ScannedDispatch {
             CtxParts {
                 upstream_model: &upstream_model,
                 model_limits,
+                automatic_prompt_caching: automatic_prompt_caching(
+                    prepared.automatic_prompt_caching_enabled,
+                    upstream,
+                    &upstream_model,
+                ),
                 forward_headers: &[],
                 raw_body: None,
             },

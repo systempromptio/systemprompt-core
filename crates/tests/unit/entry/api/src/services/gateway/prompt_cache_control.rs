@@ -14,6 +14,7 @@ use systemprompt_api::services::gateway::protocol::canonical::{
 };
 use systemprompt_api::services::gateway::protocol::inbound::InboundAdapter;
 use systemprompt_api::services::gateway::protocol::inbound::anthropic_messages::AnthropicMessagesInbound;
+use systemprompt_api::services::gateway::protocol::inbound::openai_chat::OpenAiChatInbound;
 use systemprompt_api::services::gateway::protocol::outbound::anthropic::{
     AnthropicOutbound, request,
 };
@@ -98,6 +99,51 @@ fn anthropic_rebuild_is_lossless_for_cache_control() {
 }
 
 #[test]
+fn top_level_cache_control_round_trips_through_a_rebuild() {
+    let mut original = cached_body();
+    original["cache_control"] = json!({ "type": "ephemeral", "ttl": "1h" });
+    let req = parse(&original);
+
+    let rebuilt = request::build_request_body(&req, "claude-x", None);
+
+    assert_eq!(rebuilt["cache_control"], original["cache_control"]);
+}
+
+#[test]
+fn automatic_caching_marks_an_unmarked_rebuilt_request() {
+    let original = json!({
+        "model": "claude-x",
+        "max_tokens": 64,
+        "messages": [
+            { "role": "system", "content": "stable instructions" },
+            { "role": "user", "content": "hello" }
+        ]
+    });
+    let bytes = Bytes::from(serde_json::to_vec(&original).expect("serialize"));
+    let req = OpenAiChatInbound
+        .parse_request(&bytes)
+        .expect("OpenAI-compatible request parses");
+    let route = route();
+    let ctx = OutboundCtx {
+        route: &route,
+        endpoint: "http://unused.invalid",
+        api_key: "k",
+        api_key_is_bearer: false,
+        request: &req,
+        upstream_model: "claude-x",
+        model_limits: None,
+        automatic_prompt_caching: true,
+        forward_headers: &[],
+        raw_body: None,
+    };
+
+    let prepared = AnthropicOutbound.build_body(&ctx).expect("build");
+    let body: Value = serde_json::from_slice(&prepared.bytes).expect("prepared JSON");
+
+    assert_eq!(body["cache_control"], json!({ "type": "ephemeral" }));
+}
+
+#[test]
 fn a_system_prompt_override_keeps_the_message_breakpoints() {
     let mut req = parse(&cached_body());
     req.set_system_text(Some("governed prompt".to_owned()));
@@ -129,6 +175,7 @@ fn passthrough_prepared_body_digest_equals_request_body_digest() {
         request: &req,
         upstream_model: "claude-x",
         model_limits: None,
+        automatic_prompt_caching: true,
         forward_headers: &[],
         raw_body: Some(&raw),
     };

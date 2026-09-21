@@ -30,6 +30,7 @@ fn route(pattern: &str, provider: &str) -> GatewayRoute {
 fn req(model: &str) -> CanonicalRequest {
     CanonicalRequest {
         model: ModelId::new(model),
+        cache_control: None,
         system: Vec::new(),
         messages: Vec::new(),
         max_tokens: 0,

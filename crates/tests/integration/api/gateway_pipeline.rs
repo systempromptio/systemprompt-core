@@ -140,6 +140,7 @@ pub(super) fn provider_registry(
             models: vec![ProviderModel {
                 id: ModelId::new(MODEL),
                 aliases: Vec::new(),
+                hidden: false,
                 governance: None,
                 upstream_model: None,
                 pricing: Default::default(),
@@ -176,6 +177,7 @@ pub(super) fn gateway_config(route_provider: &str) -> GatewayConfig {
 pub(super) fn canonical_request(model: &str, stream: bool) -> CanonicalRequest {
     CanonicalRequest {
         model: ModelId::new(model),
+        cache_control: None,
         system: vec![SystemBlock::text("be brief".to_owned())],
         messages: vec![CanonicalMessage {
             role: Role::User,

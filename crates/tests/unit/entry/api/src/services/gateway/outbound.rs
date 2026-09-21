@@ -51,6 +51,7 @@ fn route(provider: &str) -> GatewayRoute {
 fn buffered_request() -> CanonicalRequest {
     CanonicalRequest {
         model: ModelId::new("m"),
+        cache_control: None,
         system: vec![SystemBlock::text("be helpful")],
         messages: vec![
             CanonicalMessage {
@@ -121,6 +122,7 @@ async fn anthropic_outbound_buffered_parses_text() {
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
+        automatic_prompt_caching: false,
         forward_headers: &[],
         raw_body: None,
     };
@@ -157,6 +159,7 @@ async fn anthropic_outbound_buffered_propagates_upstream_error() {
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
+        automatic_prompt_caching: false,
         forward_headers: &[],
         raw_body: None,
     };
@@ -189,6 +192,7 @@ async fn anthropic_outbound_streaming_returns_stream() {
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
+        automatic_prompt_caching: false,
         forward_headers: &[],
         raw_body: None,
     };
@@ -237,6 +241,7 @@ async fn openai_chat_outbound_buffered_parses_response() {
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
+        automatic_prompt_caching: false,
         forward_headers: &[],
         raw_body: None,
     };
@@ -270,6 +275,7 @@ async fn openai_chat_outbound_streaming_returns_stream() {
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
+        automatic_prompt_caching: false,
         forward_headers: &[],
         raw_body: None,
     };
@@ -306,6 +312,7 @@ async fn openai_chat_outbound_buffered_propagates_upstream_error() {
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
+        automatic_prompt_caching: false,
         forward_headers: &[],
         raw_body: None,
     };
@@ -344,6 +351,7 @@ async fn openai_responses_outbound_buffered_parses_response() {
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
+        automatic_prompt_caching: false,
         forward_headers: &[],
         raw_body: None,
     };
@@ -397,6 +405,7 @@ async fn anthropic_outbound_buffered_handles_rich_request() {
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
+        automatic_prompt_caching: false,
         forward_headers: &[],
         raw_body: None,
     };
@@ -431,6 +440,7 @@ async fn anthropic_outbound_buffered_handles_invalid_json() {
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
+        automatic_prompt_caching: false,
         forward_headers: &[],
         raw_body: None,
     };
@@ -473,6 +483,7 @@ async fn openai_chat_outbound_buffered_covers_tool_choice_variants() {
             request: &req,
             upstream_model: "upstream-1",
             model_limits: None,
+            automatic_prompt_caching: false,
             forward_headers: &[],
             raw_body: None,
         };
@@ -515,6 +526,7 @@ async fn anthropic_outbound_buffered_covers_tool_choice_variants() {
             request: &req,
             upstream_model: "upstream-1",
             model_limits: None,
+            automatic_prompt_caching: false,
             forward_headers: &[],
             raw_body: None,
         };
@@ -578,6 +590,7 @@ async fn openai_chat_outbound_buffered_covers_messages_with_tools_and_images() {
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
+        automatic_prompt_caching: false,
         forward_headers: &[],
         raw_body: None,
     };
@@ -617,6 +630,7 @@ async fn anthropic_outbound_buffered_rejects_a_body_that_does_not_parse() {
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
+        automatic_prompt_caching: false,
         forward_headers: &[],
         raw_body: None,
     };

@@ -68,14 +68,43 @@ fn anthropic_pricing_baseline() {
         3.0,
         15.0,
     );
-    assert_pricing(
-        &registry,
-        "anthropic",
-        "claude-opus-4-1-20250805",
-        15.0,
-        75.0,
+}
+
+#[test]
+fn anthropic_advertises_current_lineup_and_keeps_active_legacy_routable() {
+    let registry = seed();
+    assert_eq!(
+        registry.advertised_model_ids(&[systemprompt_models::services::ApiSurface::Anthropic]),
+        vec![
+            "claude-opus-5".to_owned(),
+            "claude-sonnet-5".to_owned(),
+            "claude-fable-5-1".to_owned(),
+            "claude-haiku-4-5-20251001".to_owned(),
+        ]
     );
-    assert_pricing(&registry, "anthropic", "claude-opus-4-20250514", 15.0, 75.0);
+
+    for legacy in [
+        "claude-sonnet-4-6",
+        "claude-fable-5",
+        "claude-opus-4-8",
+        "claude-opus-4-7",
+        "claude-opus-4-6",
+        "claude-opus-4-5-20251101",
+        "claude-sonnet-4-5-20250929",
+    ] {
+        assert!(
+            registry.contains_model(legacy),
+            "{legacy} must remain routable"
+        );
+    }
+
+    for retired in [
+        "claude-opus-4-1-20250805",
+        "claude-sonnet-4-20250514",
+        "claude-opus-4-20250514",
+    ] {
+        assert!(!registry.contains_model(retired), "{retired} is retired");
+    }
 }
 
 #[test]
@@ -166,6 +195,32 @@ fn anthropic_seed_covers_the_current_generation() {
     assert_pricing(&registry, "anthropic", "claude-sonnet-5", 2.0, 10.0);
     assert_pricing(&registry, "anthropic", "claude-fable-5-1", 10.0, 50.0);
     assert_pricing(&registry, "anthropic", "claude-fable-5", 10.0, 50.0);
+}
+
+#[test]
+fn anthropic_seed_declares_prompt_caching_support() {
+    let registry = seed();
+    let anthropic = registry
+        .find_provider("anthropic")
+        .expect("Anthropic provider is seeded");
+
+    assert!(
+        anthropic
+            .models
+            .iter()
+            .all(|model| model.capabilities.prompt_caching),
+        "every active seeded Claude model supports prompt caching"
+    );
+    assert!(
+        !registry
+            .find_provider("openai")
+            .expect("OpenAI provider is seeded")
+            .find_model("gpt-5")
+            .expect("GPT-5 is seeded")
+            .capabilities
+            .prompt_caching,
+        "automatic Anthropic cache control is not inferred from cache pricing"
+    );
 }
 
 /// Dated ids are still sent by pinned clients, and matching is

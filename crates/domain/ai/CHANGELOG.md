@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.58.0] - 2026-09-21
+
+### Changed
+
+- Canonical provider requests carry top-level cache-control metadata through the domain bridge for provider-native prompt caching.
+
 ## [0.55.0] - 2026-09-17
 
 ### Breaking

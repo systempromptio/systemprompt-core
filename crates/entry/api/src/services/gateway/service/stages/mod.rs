@@ -55,6 +55,7 @@ pub(super) struct PreparedDispatch {
     request: CanonicalRequest,
     upstream_model: String,
     model_limits: Option<ModelLimits>,
+    automatic_prompt_caching_enabled: bool,
     body: PreparedBody,
     recovery_count: usize,
 }
@@ -106,6 +107,11 @@ impl PreparedDispatch {
             CtxParts {
                 upstream_model: &upstream_model,
                 model_limits,
+                automatic_prompt_caching: automatic_prompt_caching(
+                    config.automatic_prompt_caching,
+                    upstream,
+                    &upstream_model,
+                ),
                 forward_headers: &[],
                 raw_body,
             },
@@ -120,10 +126,25 @@ impl PreparedDispatch {
             request,
             upstream_model,
             model_limits,
+            automatic_prompt_caching_enabled: config.automatic_prompt_caching,
             body,
             recovery_count: 0,
         })
     }
+}
+
+fn automatic_prompt_caching(
+    enabled: bool,
+    upstream: &ResolvedUpstream<'_>,
+    upstream_model: &str,
+) -> bool {
+    enabled
+        && upstream.provider.wire
+            == systemprompt_models::services::providers::WireProtocol::Anthropic
+        && upstream
+            .provider
+            .find_model(upstream_model)
+            .is_some_and(|model| model.capabilities.prompt_caching)
 }
 
 impl GovernedDispatch {
@@ -269,6 +290,7 @@ impl ScannedDispatch {
             CtxParts {
                 upstream_model: &prepared.upstream_model,
                 model_limits: prepared.model_limits,
+                automatic_prompt_caching: false,
                 forward_headers,
                 raw_body: None,
             },

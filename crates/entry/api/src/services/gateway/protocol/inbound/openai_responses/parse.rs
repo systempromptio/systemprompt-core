@@ -88,6 +88,7 @@ pub fn parse(value: &Value) -> Result<CanonicalRequest, InboundParseError> {
     let metadata = value.get("metadata").cloned();
     Ok(CanonicalRequest {
         model: ModelId::new(model),
+        cache_control: None,
         system,
         messages,
         max_tokens,

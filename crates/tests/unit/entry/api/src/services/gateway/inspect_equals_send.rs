@@ -49,6 +49,7 @@ fn route() -> GatewayRoute {
 fn clean_request() -> CanonicalRequest {
     CanonicalRequest {
         model: ModelId::new("m"),
+        cache_control: None,
         messages: vec![CanonicalMessage {
             role: Role::User,
             content: vec![CanonicalContent::text("summarise this")],
@@ -90,6 +91,7 @@ fn ctx<'a>(
         request,
         upstream_model: "upstream-1",
         model_limits: limits,
+        automatic_prompt_caching: false,
         forward_headers: &[],
         raw_body: raw,
     }

@@ -31,6 +31,14 @@ pub(super) fn normalize_raw_body(raw: &Bytes, ctx: &OutboundCtx<'_>) -> Option<B
     );
     clamp_max_tokens(&mut obj, ctx.model_limits);
     anthropic::strip_user_id(&mut obj);
+    if ctx.automatic_prompt_caching && !ctx.request.has_cache_control() {
+        obj.insert(
+            "cache_control".to_owned(),
+            anthropic::cache_control_to_anthropic(
+                super::super::super::canonical::CacheControl::EPHEMERAL,
+            ),
+        );
+    }
     match serde_json::to_vec(&Value::Object(obj)) {
         Ok(bytes) => Some(Bytes::from(bytes)),
         Err(e) => {
@@ -38,6 +46,21 @@ pub(super) fn normalize_raw_body(raw: &Bytes, ctx: &OutboundCtx<'_>) -> Option<B
             None
         },
     }
+}
+
+pub(super) fn enable_automatic_prompt_caching(body: &mut Value, ctx: &OutboundCtx<'_>) {
+    if !ctx.automatic_prompt_caching || ctx.request.has_cache_control() {
+        return;
+    }
+    let Some(obj) = body.as_object_mut() else {
+        return;
+    };
+    obj.insert(
+        "cache_control".to_owned(),
+        anthropic::cache_control_to_anthropic(
+            super::super::super::canonical::CacheControl::EPHEMERAL,
+        ),
+    );
 }
 
 fn clamp_max_tokens(obj: &mut Map<String, Value>, limits: Option<ModelLimits>) {

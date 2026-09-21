@@ -27,6 +27,7 @@ use systemprompt_identifiers::{ClientSessionId, GatewayConversationId, ModelId};
 #[derive(Debug, Clone)]
 pub struct CanonicalRequest {
     pub model: ModelId,
+    pub cache_control: Option<CacheControl>,
     // Why: Anthropic's system prompt is an array of blocks, each its own cache
     // breakpoint; flattening to one string would drop the breakpoints.
     pub system: Vec<SystemBlock>,
@@ -56,6 +57,7 @@ impl CanonicalRequest {
     pub fn new(model: ModelId, messages: Vec<CanonicalMessage>, max_tokens: u32) -> Self {
         Self {
             model,
+            cache_control: None,
             system: Vec::new(),
             messages,
             max_tokens,
@@ -96,6 +98,22 @@ impl CanonicalRequest {
 
     pub fn set_system_text(&mut self, text: Option<String>) {
         self.system = text.map(SystemBlock::text).into_iter().collect();
+    }
+
+    #[must_use]
+    pub fn has_cache_control(&self) -> bool {
+        self.cache_control.is_some()
+            || self
+                .system
+                .iter()
+                .any(|block| block.cache_control.is_some())
+            || self.tools.iter().any(|tool| tool.cache_control.is_some())
+            || self.messages.iter().any(|message| {
+                message
+                    .content
+                    .iter()
+                    .any(|content| content.cache_control().is_some())
+            })
     }
 
     pub fn flatten_parts(&self) -> Vec<(String, String)> {

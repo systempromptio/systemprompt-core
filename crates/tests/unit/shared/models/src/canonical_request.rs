@@ -8,6 +8,7 @@ use systemprompt_models::wire::canonical::{
 fn empty_request() -> CanonicalRequest {
     CanonicalRequest {
         model: ModelId::new("m"),
+        cache_control: None,
         system: Vec::new(),
         messages: Vec::new(),
         max_tokens: 16,

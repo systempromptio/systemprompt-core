@@ -98,6 +98,7 @@ fn tool_use(id: &str, signature: Option<&str>) -> CanonicalContent {
 fn request_with(content: Vec<CanonicalContent>) -> CanonicalRequest {
     CanonicalRequest {
         model: ModelId::new("m"),
+        cache_control: None,
         system: Vec::new(),
         messages: vec![CanonicalMessage {
             role: Role::Assistant,

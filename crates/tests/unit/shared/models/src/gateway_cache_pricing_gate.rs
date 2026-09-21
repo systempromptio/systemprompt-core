@@ -47,6 +47,7 @@ fn registry(cache_read: Option<f64>) -> ProviderRegistry {
             models: vec![ProviderModel {
                 id: ModelId::new("gemini-2.5-pro"),
                 aliases: Vec::new(),
+                hidden: false,
                 governance: None,
                 upstream_model: None,
                 pricing: priced(cache_read),

@@ -69,6 +69,7 @@ fn post(body: &'static str) -> Request<Body> {
 fn canonical(messages: Vec<CanonicalMessage>) -> CanonicalRequest {
     CanonicalRequest {
         model: ModelId::new("claude-test"),
+        cache_control: None,
         system: Vec::new(),
         messages,
         max_tokens: 16,

@@ -17,6 +17,7 @@ use systemprompt_models::wire::canonical::{
 fn req(model: &str) -> CanonicalRequest {
     CanonicalRequest {
         model: ModelId::new(model),
+        cache_control: None,
         system: Vec::new(),
         messages: Vec::new(),
         max_tokens: 0,
@@ -243,6 +244,7 @@ fn registry_with_endpoint(endpoint: &str) -> ProviderRegistry {
             models: vec![ProviderModel {
                 id: ModelId::new("any"),
                 aliases: Vec::new(),
+                hidden: false,
                 governance: None,
                 upstream_model: None,
                 pricing: Default::default(),
@@ -351,6 +353,7 @@ fn model(id: &str) -> ProviderModel {
     ProviderModel {
         id: ModelId::new(id),
         aliases: Vec::new(),
+        hidden: false,
         governance: None,
         upstream_model: None,
         pricing: ModelPricing {
@@ -596,6 +599,18 @@ fn quota_fault_mode_defaults_to_open_and_parses_closed() {
         serde_yaml::from_str("enabled: true\nquota_fault_mode: closed\n").expect("parse");
     assert_eq!(closed.quota_fault_mode, QuotaFaultMode::Closed);
     assert!(closed.resolve().quota_fault_mode.is_closed());
+}
+
+#[test]
+fn automatic_prompt_caching_defaults_on_and_accepts_an_opt_out() {
+    let defaulted: GatewayConfigSpec =
+        serde_yaml::from_str("enabled: true\n").expect("default parses");
+    assert!(defaulted.automatic_prompt_caching);
+
+    let disabled: GatewayConfigSpec =
+        serde_yaml::from_str("enabled: true\nautomatic_prompt_caching: false\n")
+            .expect("opt-out parses");
+    assert!(!disabled.resolve().automatic_prompt_caching);
 }
 
 #[test]
@@ -1073,6 +1088,7 @@ fn priced_model(id: &str, pricing: ModelPricing) -> ProviderModel {
     ProviderModel {
         id: ModelId::new(id),
         aliases: Vec::new(),
+        hidden: false,
         governance: None,
         upstream_model: None,
         pricing,
@@ -1098,6 +1114,7 @@ fn enabled_gateway(routes: Vec<GatewayRoute>) -> GatewayConfig {
         default_model: None,
         allow_unlisted_models: false,
         quota_fault_mode: QuotaFaultMode::Open,
+        automatic_prompt_caching: true,
         auth_scheme: "bearer".to_owned(),
         inference_path_prefix: "/v1".to_owned(),
         system_prompt_overrides: Vec::new(),
