@@ -14,7 +14,7 @@ fn fact(
         user_id: UserId::new(user),
         session_id: SessionId::new(session),
         invoked_at: Utc.timestamp_opt(at, 0).single().unwrap(),
-        request_id: request.map(|id| AiRequestId::new(id)),
+        request_id: request.map(AiRequestId::new),
         input_tokens: None,
         output_tokens: None,
         cache_read_tokens: None,

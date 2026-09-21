@@ -77,7 +77,7 @@ async fn configured_default_named_and_list_cards_share_the_public_agent_contract
     assert_eq!(named_status, StatusCode::OK);
     assert_eq!(list_status, StatusCode::OK);
     assert_eq!(default, named);
-    assert_eq!(list.as_array().unwrap(), &[named.clone()]);
+    assert_eq!(list.as_array().unwrap(), std::slice::from_ref(&named));
     assert_eq!(named["name"], "configured_agent");
     assert_eq!(named["description"], "Governed configured agent");
     assert_eq!(named["version"], "2.1.0");

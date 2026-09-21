@@ -31,10 +31,10 @@ fn doctor(profile: &std::path::Path, database_url: &str) -> std::process::Output
 
 fn redact(output: &[u8], database_url: &str) -> String {
     let mut sanitized = String::from_utf8_lossy(output).replace(database_url, "<database-url>");
-    if let Ok(parsed) = url::Url::parse(database_url) {
-        if let Some(password) = parsed.password().filter(|value| !value.is_empty()) {
-            sanitized = sanitized.replace(password, "<database-password>");
-        }
+    if let Ok(parsed) = url::Url::parse(database_url)
+        && let Some(password) = parsed.password().filter(|value| !value.is_empty())
+    {
+        sanitized = sanitized.replace(password, "<database-password>");
     }
     sanitized
 }

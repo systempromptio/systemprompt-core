@@ -55,7 +55,7 @@ wiremock = { workspace = true }
 uuid = { workspace = true }
 
 [package.metadata.cargo-machete]
-ignored = ["thiserror"]
+ignored = ["inventory", "thiserror"]
 
 [[test]]
 name = "plugin_validation_inventory"
