@@ -24,7 +24,7 @@ pub(super) fn historical_checksum(sql: &str) -> String {
 pub(super) fn matches_checksum(migration: &Migration, stored: &str) -> bool {
     stored == migration.checksum()
         || stored == historical_checksum(migration.sql)
-        || migration.supersedes == Some(stored)
+        || migration.supersedes.contains(&stored)
 }
 
 impl MigrationService<'_> {
@@ -44,7 +44,7 @@ impl MigrationService<'_> {
             if row.name == migration.name
                 && row.checksum != migration.checksum()
                 && (row.checksum == historical_checksum(migration.sql)
-                    || migration.supersedes == Some(row.checksum.as_str()))
+                    || migration.supersedes.contains(&row.checksum.as_str()))
             {
                 transitions.push((migration, row));
             }
