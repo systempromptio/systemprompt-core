@@ -393,3 +393,95 @@ async fn a_function_whose_signature_a_migration_reshapes_is_left_to_that_migrati
     .expect("function present after install");
     assert_eq!(return_type, "text");
 }
+
+// Why: a table an extension created in one migration and dropped in a later
+// one is nowhere in schemas(); the ALTER between those two must still be
+// recognised as the extension's own when the chain replays on an old database.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_migration_may_alter_a_table_an_earlier_migration_of_its_own_created() {
+    let fx = connect().await;
+    let s = &fx.suffix;
+    let table: &'static str = leak_str(format!("own_{s}"));
+    let transient: &'static str = leak_str(format!("own_transient_{s}"));
+    let ext_id: &'static str = leak_str(format!("own-{s}"));
+
+    sqlx::query(sqlx::AssertSqlSafe(format!(
+        "CREATE TABLE {table} (id TEXT PRIMARY KEY)"
+    )))
+    .execute(&fx.pool)
+    .await
+    .expect("create established table");
+
+    let _cleanup = Cleanup {
+        pool: fx.pool.clone(),
+        tables: vec![table, transient],
+        functions: vec![],
+        extension_ids: vec![ext_id],
+    };
+
+    struct ChainExtension {
+        id: &'static str,
+        table: &'static str,
+        transient: &'static str,
+    }
+    impl Extension for ChainExtension {
+        fn metadata(&self) -> ExtensionMetadata {
+            ExtensionMetadata {
+                id: self.id,
+                name: "chain-test",
+                version: "0.0.0",
+            }
+        }
+
+        fn schemas(&self) -> Vec<SchemaDefinition> {
+            vec![SchemaDefinition::new(
+                self.table.to_string(),
+                format!(
+                    "CREATE TABLE IF NOT EXISTS {} (id TEXT PRIMARY KEY);",
+                    self.table
+                ),
+            )]
+        }
+
+        fn migrations(&self) -> Vec<Migration> {
+            vec![
+                Migration::new(
+                    1,
+                    "create",
+                    leak_str(format!(
+                        "CREATE TABLE IF NOT EXISTS {} (id TEXT PRIMARY KEY);",
+                        self.transient
+                    )),
+                ),
+                Migration::new(
+                    2,
+                    "alter",
+                    leak_str(format!(
+                        "ALTER TABLE {} ADD COLUMN IF NOT EXISTS note TEXT;",
+                        self.transient
+                    )),
+                ),
+                Migration::new(
+                    3,
+                    "drop",
+                    leak_str(format!("DROP TABLE IF EXISTS {};", self.transient)),
+                ),
+            ]
+        }
+    }
+
+    let mut registry = ExtensionRegistry::new();
+    registry
+        .register(Arc::new(ChainExtension {
+            id: ext_id,
+            table,
+            transient,
+        }))
+        .expect("register");
+
+    install_extension_schemas(&registry, fx.db.as_ref())
+        .await
+        .expect("an ALTER on a table an earlier migration created is the extension's own");
+    assert_eq!(applied_versions(&fx.pool, ext_id).await, vec![1, 2, 3]);
+    assert!(!table_exists(&fx.pool, transient).await);
+}
