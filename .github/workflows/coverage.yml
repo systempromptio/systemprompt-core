@@ -17,7 +17,7 @@ on:
   # the ratchet below reads back.
   #
   push:
-    branches: [main]
+    branches: [main, next]
 
 concurrency:
   # Keyed by event as well as ref: without the event, the release PR's run and
@@ -70,13 +70,13 @@ jobs:
           POSTGRES_DB: test
         ports: ["5432:5432"]
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "pg_isready -U test -d test"
           --health-interval 5s
           --health-timeout 3s
           --health-retries 10
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.ref || github.ref }}
 

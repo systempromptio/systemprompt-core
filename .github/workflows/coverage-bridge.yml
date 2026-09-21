@@ -47,7 +47,7 @@ jobs:
         os: [macos-latest, windows-latest]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Drop the Cranelift codegen-backend and sccache wrapper from the cargo
       # configs: Cranelift is not available on these hosts and sccache serves
