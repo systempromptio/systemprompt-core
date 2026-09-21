@@ -236,7 +236,7 @@ jobs:
 
           psql "$ADMIN_URL" -v ON_ERROR_STOP=1 \
             -c 'CREATE DATABASE cov_build;'
-          export DATABASE_URL="$BASE_URL/cov_build"
+          export DATABASE_URL="$COVERAGE_DATABASE_BASE_URL/cov_build"
           /mnt/coverage-target/release/systemprompt-test-migrate
           export COVERAGE_BINARIES_METADATA="$GITHUB_WORKSPACE/coverage-binaries.json"
           export COVERAGE_CARGO_METADATA="$GITHUB_WORKSPACE/coverage-cargo-metadata.json"
