@@ -8,7 +8,7 @@ mod snapshot_wakeup;
 mod status;
 mod worker;
 
-pub use rebuild::{initialize, rebuild};
+pub use rebuild::{RebuildOutcome, initialize, rebuild};
 pub use snapshot_wakeup::SnapshotWakeup;
 pub use status::{ReportingStatus, status};
 pub use worker::{process_pending, spawn};

@@ -30,7 +30,5 @@ CREATE TABLE IF NOT EXISTS artifact_parts (
         CHECK (part_kind != 'data' OR data_content IS NOT NULL)
 );
 
-CREATE INDEX IF NOT EXISTS idx_artifact_parts_artifact_id ON artifact_parts(artifact_id);
 CREATE INDEX IF NOT EXISTS idx_artifact_parts_context_id ON artifact_parts(context_id);
 CREATE INDEX IF NOT EXISTS idx_artifact_parts_kind ON artifact_parts(part_kind);
-CREATE INDEX IF NOT EXISTS idx_artifact_parts_sequence ON artifact_parts(artifact_id, sequence_number);

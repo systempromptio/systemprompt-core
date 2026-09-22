@@ -69,6 +69,7 @@ impl GatewayAudit {
         let mut receipt = super::journal::Receipt::pending(
             self.ctx.ai_request_id.clone(),
             self.ctx.user_id.clone(),
+            self.ctx.session_id.clone(),
         );
         receipt.completion = Some(completion);
         super::journal::record(&self.settlement, receipt).await?;
@@ -119,7 +120,7 @@ impl GatewayAudit {
         }
     }
 
-    fn completion_pricing(
+    pub(super) fn completion_pricing(
         &self,
         effective_model: &str,
     ) -> Result<systemprompt_models::services::ModelPricing> {

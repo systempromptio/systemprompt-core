@@ -35,6 +35,7 @@ struct TrackingParams<'a> {
     user_agent: Option<String>,
     referer: Option<String>,
     is_scanner: bool,
+    html_response: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -89,6 +90,11 @@ impl AnalyticsMiddleware {
         let response = next.run(request).await;
         let response_time_ms = start_time.elapsed().as_millis() as u64;
         let status_code = response.status();
+        let html_response = response
+            .headers()
+            .get(http::header::CONTENT_TYPE)
+            .and_then(|v| v.to_str().ok())
+            .is_some_and(|ct| ct.trim_start().starts_with("text/html"));
 
         let should_track = self
             .route_classifier
@@ -107,6 +113,7 @@ impl AnalyticsMiddleware {
                 user_agent,
                 referer,
                 is_scanner,
+                html_response,
             });
         }
 
@@ -122,6 +129,7 @@ impl AnalyticsMiddleware {
         let user_agent = params.user_agent;
         let referer = params.referer;
         let is_scanner = params.is_scanner;
+        let html_response = params.html_response;
         let endpoint = format!("{} {}", method, uri.path());
         let path = uri.path().to_owned();
 
@@ -154,6 +162,7 @@ impl AnalyticsMiddleware {
                 response_time_ms,
                 user_agent,
                 referer,
+                html_response,
             },
         );
     }

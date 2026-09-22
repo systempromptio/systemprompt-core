@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.59.0] - 2026-09-22
+
+### Changed
+
+- `sp_capture_reporting_change` keeps its name and contract but runs once per statement over transition tables, so a bulk insert, a settlement update or a retention delete costs one `INSERT … SELECT` into the outbox instead of one trigger firing per row; the unchanged-projected-columns rule and the tombstone-plus-row pair for a key change are preserved as set operations. It no longer calls `pg_notify` — the worker polls, and the SSE bridge only ever loaded a reporting row to discard it. A row-level branch remains because the installer replaces function bodies before it runs migrations, so a database mid-upgrade still fires the old trigger shape into this body.
+- The outbox worker claims and applies in batches of 1 000 under one transaction instead of one transaction per fact. A batch that fails is re-driven in halves until the offending fact stands alone; that fact stays pending, is skipped for the rest of the drain and is named in the error, so one poison fact no longer blocks the queue.
+- `prepare_reporting_privacy` fences claims and delivers the pending facts itself rather than raising, and raises `55000` only for a claim still in flight or a backlog above 100 000. The compaction jobs stop failing under load.
+
+### Fixed
+
+- `event_outbox.actor_id` no longer carries the same CHECK twice on an established database (migration `007_drop_duplicate_actor_id_check`).
+
 ## [0.53.0] - 2026-09-15
 
 ### Breaking

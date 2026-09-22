@@ -51,22 +51,15 @@ fn seed_parses_and_validates() {
 #[test]
 fn anthropic_pricing_baseline() {
     let registry = seed();
-    assert_pricing(&registry, "anthropic", "claude-sonnet-4-6", 3.0, 15.0);
-    assert_pricing(&registry, "anthropic", "claude-opus-4-8", 5.0, 25.0);
-    assert_pricing(&registry, "anthropic", "claude-opus-4-6", 5.0, 25.0);
+    assert_pricing(&registry, "anthropic", "claude-sonnet-5", 2.0, 10.0);
+    assert_pricing(&registry, "anthropic", "claude-opus-5-5", 4.0, 20.0);
+    assert_pricing(&registry, "anthropic", "claude-opus-5", 5.0, 25.0);
     assert_pricing(
         &registry,
         "anthropic",
         "claude-haiku-4-5-20251001",
         1.0,
         5.0,
-    );
-    assert_pricing(
-        &registry,
-        "anthropic",
-        "claude-sonnet-4-5-20250929",
-        3.0,
-        15.0,
     );
 }
 
@@ -76,32 +69,29 @@ fn anthropic_advertises_current_lineup_and_keeps_active_legacy_routable() {
     assert_eq!(
         registry.advertised_model_ids(&[systemprompt_models::services::ApiSurface::Anthropic]),
         vec![
-            "claude-opus-5".to_owned(),
             "claude-sonnet-5".to_owned(),
+            "claude-opus-5-5".to_owned(),
+            "claude-opus-5".to_owned(),
             "claude-fable-5-1".to_owned(),
             "claude-haiku-4-5-20251001".to_owned(),
         ]
     );
 
-    for legacy in [
-        "claude-sonnet-4-6",
-        "claude-fable-5",
-        "claude-opus-4-8",
-        "claude-opus-4-7",
-        "claude-opus-4-6",
-        "claude-opus-4-5-20251101",
-        "claude-sonnet-4-5-20250929",
-    ] {
-        assert!(
-            registry.contains_model(legacy),
-            "{legacy} must remain routable"
-        );
-    }
+    assert!(
+        registry.contains_model("claude-fable-5"),
+        "claude-fable-5 is hidden but must remain routable"
+    );
 
     for retired in [
         "claude-opus-4-1-20250805",
         "claude-sonnet-4-20250514",
         "claude-opus-4-20250514",
+        "claude-sonnet-4-6",
+        "claude-opus-4-8",
+        "claude-opus-4-7",
+        "claude-opus-4-6",
+        "claude-opus-4-5-20251101",
+        "claude-sonnet-4-5-20250929",
     ] {
         assert!(!registry.contains_model(retired), "{retired} is retired");
     }
@@ -138,7 +128,7 @@ fn gemini_pricing_baseline() {
 fn provider_default_models_are_stable() {
     let registry = seed();
     for (provider, expected_default) in [
-        ("anthropic", "claude-sonnet-4-6"),
+        ("anthropic", "claude-sonnet-5"),
         ("openai", "gpt-4.1"),
         ("gemini", "gemini-3.1-flash-lite-preview"),
     ] {
@@ -191,6 +181,7 @@ fn unknown_model_is_not_in_seed() {
 #[test]
 fn anthropic_seed_covers_the_current_generation() {
     let registry = seed();
+    assert_pricing(&registry, "anthropic", "claude-opus-5-5", 4.0, 20.0);
     assert_pricing(&registry, "anthropic", "claude-opus-5", 5.0, 25.0);
     assert_pricing(&registry, "anthropic", "claude-sonnet-5", 2.0, 10.0);
     assert_pricing(&registry, "anthropic", "claude-fable-5-1", 10.0, 50.0);
@@ -235,20 +226,7 @@ fn anthropic_dated_ids_resolve_through_aliases() {
         1.0,
         5.0,
     );
-    assert_pricing(
-        &registry,
-        "anthropic",
-        "claude-opus-4-5-20251101",
-        5.0,
-        25.0,
-    );
-    assert_pricing(
-        &registry,
-        "anthropic",
-        "claude-sonnet-4-5-20250929",
-        3.0,
-        15.0,
-    );
+    assert_pricing(&registry, "anthropic", "claude-haiku-4-5", 1.0, 5.0);
 }
 
 #[test]

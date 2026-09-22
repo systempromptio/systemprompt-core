@@ -65,10 +65,20 @@ pub async fn execute(command: AnalyticsCommands, ctx: &CommandContext) -> Result
         let status = systemprompt_runtime::reporting::status(database.db_pool())
             .await
             .context("Reporting schema unavailable; apply database migrations first")?;
-        anyhow::ensure!(
-            status.initialized,
-            "Reporting baseline is not initialized; run analytics projection rebuild"
-        );
+        if !status.initialized {
+            match status.rebuild_source.as_deref() {
+                Some(source) => anyhow::bail!(
+                    "Reporting baseline rebuild in progress: {source} ({} rows written, last heartbeat {}); retry shortly",
+                    status.rebuild_rows,
+                    status
+                        .rebuild_heartbeat_at
+                        .map_or_else(|| "never".to_owned(), |at| at.to_rfc3339())
+                ),
+                None => anyhow::bail!(
+                    "Reporting baseline is not initialized; the server builds it at startup, or run analytics projection rebuild"
+                ),
+            }
+        }
     }
     match command {
         AnalyticsCommands::Projection(command) => projection::execute(command, ctx).await,

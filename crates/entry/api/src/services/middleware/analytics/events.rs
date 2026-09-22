@@ -1,5 +1,12 @@
 //! Request-analytics event emission.
 //!
+//! A page view is an HTML page being served. The route classifier knows only
+//! the path, so an XHR under an HTML prefix (`/admin/auth/me` answered as
+//! JSON) or a form post answered with a redirect would count as one; on a
+//! production instance that XHR was 45% of every recorded page view. The
+//! classification is therefore corrected against whether the response
+//! actually carried an HTML body.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -7,6 +14,7 @@ use serde_json::json;
 use std::sync::Arc;
 
 use systemprompt_logging::{AnalyticsEvent, AnalyticsRepository};
+use systemprompt_models::routing::EventMetadata;
 use systemprompt_models::{RequestContext, RouteClassifier};
 
 #[derive(Debug)]
@@ -20,6 +28,16 @@ pub struct AnalyticsEventParams {
     pub response_time_ms: u64,
     pub user_agent: Option<String>,
     pub referer: Option<String>,
+    pub html_response: bool,
+}
+
+#[must_use]
+pub fn event_metadata_for(classified: EventMetadata, html_response: bool) -> EventMetadata {
+    if classified == EventMetadata::HTML_CONTENT && !html_response {
+        EventMetadata::API_REQUEST
+    } else {
+        classified
+    }
 }
 
 pub(super) fn spawn_analytics_event_task(
@@ -44,7 +62,10 @@ pub(super) fn spawn_analytics_event_task(
             "referer": params.referer
         });
 
-        let event_metadata = route_classifier.get_event_metadata(&params.path, &params.method);
+        let event_metadata = event_metadata_for(
+            route_classifier.get_event_metadata(&params.path, &params.method),
+            params.html_response,
+        );
 
         let severity = if params.status_code >= 500 {
             "error"

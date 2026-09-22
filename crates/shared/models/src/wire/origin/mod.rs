@@ -19,7 +19,7 @@
 //! | `host-token` | bridge principal with `x-systemprompt-client-attestation: host-token`; the bridge verified a per-host HMAC token on its loopback and stamped `x-systemprompt-client` itself | cryptographic on the device, channel-bound to the bridge |
 //! | `bridge-secret` | bridge principal with `x-systemprompt-client-attestation: bridge-secret`; the caller presented the raw loopback secret, so the host is taken from the lower tiers | channel verified, host not |
 //! | `declared` | `x-systemprompt-client: <kind>` from any principal (or passed through on the secret path) | client-asserted, closed vocabulary |
-//! | `native-marker` | a structural marker of one harness in the body ([`NativeMarker`]) | structural, unforged in practice |
+//! | `native-marker` | a structural marker of one harness in the body ([`NativeMarker`]): Claude Code's billing entrypoint or `metadata.user_id` grammars, Codex turn metadata | structural, unforged in practice |
 //! | `user-agent` | the exact first product token of `User-Agent` ([`ua_product`]) | weakest tier kept |
 //! | `none` | nothing matched; `client_kind` is `other` | honest fallback |
 //!
@@ -202,6 +202,20 @@ impl ClientKind {
             "hermes-agent" => Some(Self::Hermes),
             _ => None,
         }
+    }
+
+    // Why: Claude Desktop runs the Claude Code runtime, so its requests wear
+    // the `claude-cli` User-Agent and the CLI's metadata grammar; a signal
+    // naming either is agreement, not a conflict.
+    #[must_use]
+    pub const fn same_runtime(self, other: Self) -> bool {
+        matches!(
+            (self, other),
+            (
+                Self::ClaudeCode | Self::ClaudeDesktop,
+                Self::ClaudeCode | Self::ClaudeDesktop
+            )
+        ) || (self as u8) == (other as u8)
     }
 
     #[must_use]

@@ -1,6 +1,16 @@
 # Changelog
 
-## [Unreleased]
+## [0.59.0] - 2026-09-22
+
+### Fixed
+
+- Migration `014` re-judges stored receipt evidence by the plain-file mode rule: a file that is not meant to be executable has no POSIX mode to satisfy, so a host without mode bits no longer leaves every receipt unverified.
+
+### Removed
+
+- The plane's prefix-duplicate indexes, each a strict column prefix of a non-partial covering index; the `CREATE INDEX` lines go from the base schema in the same change.
+
+## [0.58.0] - 2026-09-21
 
 ### Fixed
 

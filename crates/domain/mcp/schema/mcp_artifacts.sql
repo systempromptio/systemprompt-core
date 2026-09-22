@@ -35,10 +35,7 @@ CREATE TABLE IF NOT EXISTS mcp_artifacts (
     FOREIGN KEY (mcp_execution_id) REFERENCES mcp_tool_executions(mcp_execution_id) ON DELETE CASCADE,
     FOREIGN KEY (payload_sha256) REFERENCES artifact_payloads(sha256) ON DELETE SET NULL
 );
-CREATE INDEX IF NOT EXISTS idx_mcp_artifacts_artifact_id ON mcp_artifacts(artifact_id);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_mcp_artifacts_execution ON mcp_artifacts(mcp_execution_id);
-CREATE INDEX IF NOT EXISTS idx_mcp_artifacts_server_name ON mcp_artifacts(server_name);
-CREATE INDEX IF NOT EXISTS idx_mcp_artifacts_artifact_type ON mcp_artifacts(artifact_type);
 CREATE INDEX IF NOT EXISTS idx_mcp_artifacts_created_at ON mcp_artifacts(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_mcp_artifacts_expires_at ON mcp_artifacts(expires_at) WHERE expires_at IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_mcp_artifacts_user_id ON mcp_artifacts(user_id) WHERE user_id IS NOT NULL;

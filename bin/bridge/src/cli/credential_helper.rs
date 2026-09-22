@@ -10,7 +10,6 @@
 
 use std::process::ExitCode;
 
-use systemprompt_identifiers::SessionId;
 
 use crate::context::BridgeContext;
 use crate::{auth, config, stdio};
@@ -41,7 +40,7 @@ fn emit_claude_via_chain(ctx: &BridgeContext) -> ExitCode {
     };
     let acquired = ctx.block_on(auth::acquire_bearer(
         &cfg,
-        &SessionId::generate(),
+        &auth::session_identity::stable_session_id(&cfg),
         &ctx.http,
     ));
     let out = match acquired {

@@ -7,6 +7,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod columns;
 mod proxy;
 mod visitor;
 
@@ -24,9 +25,9 @@ use tracing_subscriber::registry::LookupSpan;
 pub use proxy::ProxyDatabaseLayer;
 use proxy::{build_log_entry, record_span_fields, update_span_fields};
 
+use self::columns::LogColumns;
 use crate::models::{LogEntry, LogLevel};
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{ClientId, ContextId, TaskId};
 
 const BUFFER_FLUSH_SIZE: usize = 100;
 const BUFFER_FLUSH_INTERVAL_SECS: u64 = 10;
@@ -164,46 +165,48 @@ impl DatabaseLayer {
             .execute(&mut *tx)
             .await?;
 
-        for entry in entries {
-            let metadata_json: Option<String> = entry
-                .metadata
-                .as_ref()
-                .map(serde_json::to_string)
-                .transpose()?;
-
-            let entry_id = entry.id.as_str();
-            let level_str = entry.level.to_string();
-            let user_id = entry.user_id.as_str();
-            let session_id = entry.session_id.as_str();
-            let task_id = entry.task_id.as_ref().map(TaskId::as_str);
-            let trace_id = entry.trace_id.as_str();
-            let context_id = entry.context_id.as_ref().map(ContextId::as_str);
-            let client_id = entry.client_id.as_ref().map(ClientId::as_str);
-
-            sqlx::query!(
-                r"
-                INSERT INTO logs (id, timestamp, level, module, message, metadata, user_id, session_id, task_id, trace_id, context_id, client_id, instance_id)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-                ",
-                entry_id,
-                entry.timestamp,
-                level_str,
-                entry.module,
-                entry.message,
-                metadata_json,
-                user_id,
-                session_id,
-                task_id,
-                trace_id,
-                context_id,
-                client_id,
-                entry.instance_id.as_ref().map(systemprompt_identifiers::InstanceId::as_str)
-            )
-            .execute(&mut *tx)
-            .await?;
-        }
-
+        Self::insert_batch(&mut tx, entries).await?;
         tx.commit().await?;
+        Ok(())
+    }
+
+    async fn insert_batch(
+        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+        entries: &[LogEntry],
+    ) -> Result<(), crate::models::LoggingError> {
+        // Why: one INSERT per flush. The logs table carries a statement-level
+        // reporting capture trigger, so a hundred rows cost one outbox write
+        // here and a hundred with a row-per-INSERT loop.
+        let columns = LogColumns::gather(entries)?;
+        // Why: sqlx infers `&[String]` for a text[] bind; the nullable
+        // columns need their element type stated once, without a cast.
+        let metadata: &[Option<String>] = &columns.metadata;
+        let task_ids: &[Option<String>] = &columns.task_ids;
+        let context_ids: &[Option<String>] = &columns.context_ids;
+        let client_ids: &[Option<String>] = &columns.client_ids;
+        let instance_ids: &[Option<String>] = &columns.instance_ids;
+        sqlx::query!(
+            r"
+            INSERT INTO logs (id, timestamp, level, module, message, metadata, user_id, session_id, task_id, trace_id, context_id, client_id, instance_id)
+            SELECT * FROM UNNEST($1::text[], $2::timestamptz[], $3::text[], $4::text[], $5::text[], $6::text[], $7::text[], $8::text[], $9::text[], $10::text[], $11::text[], $12::text[], $13::text[])
+            ",
+            &columns.ids,
+            &columns.timestamps,
+            &columns.levels,
+            &columns.modules,
+            &columns.messages,
+            metadata as _,
+            &columns.user_ids,
+            &columns.session_ids,
+            task_ids as _,
+            &columns.trace_ids,
+            context_ids as _,
+            client_ids as _,
+            instance_ids as _
+        )
+        .execute(&mut **tx)
+        .await?;
+
         Ok(())
     }
 }

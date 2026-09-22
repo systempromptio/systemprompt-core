@@ -6,6 +6,7 @@
 use anyhow::Result;
 use clap::Subcommand;
 use systemprompt_runtime::reporting;
+use systemprompt_runtime::reporting::RebuildOutcome;
 
 use crate::context::CommandContext;
 use crate::shared::{CommandOutput, render_result};
@@ -28,7 +29,23 @@ pub async fn execute(command: ProjectionCommands, ctx: &CommandContext) -> Resul
     let pool = database.db_pool();
     match command {
         ProjectionCommands::Status => {},
-        ProjectionCommands::Rebuild => reporting::rebuild(pool).await?,
+        ProjectionCommands::Rebuild => {
+            // Why: a forced rebuild can be superseded by another replica that
+            // owns the generation, in which case nothing was rebuilt here. The
+            // status card below reads the same either way, so the outcome has
+            // to be said out loud or the operator reads someone else's rebuild
+            // as their own.
+            let outcome = reporting::rebuild(pool).await?;
+            if outcome != RebuildOutcome::Rebuilt {
+                render_result(
+                    &CommandOutput::card_value(
+                        "Reporting projection",
+                        &format!("not rebuilt here: {outcome:?}"),
+                    ),
+                    &ctx.cli,
+                );
+            }
+        },
         ProjectionCommands::Sync { limit } => {
             reporting::process_pending(pool, limit).await?;
         },

@@ -34,7 +34,7 @@ pub async fn generate_feed(content_repo: ContentRepository, paths: &AppPaths) ->
         let feed_path = web_dir.join(&feed.filename);
         ensure_parent_exists(&feed_path).await?;
         fs::write(&feed_path, &feed.xml).await?;
-        tracing::info!(
+        tracing::debug!(
             path = %feed_path.display(),
             items = feed.item_count,
             "Generated RSS feed"

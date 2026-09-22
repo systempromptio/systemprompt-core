@@ -18,8 +18,12 @@ use systemprompt_models::wire::origin::{
 const CLAUDE_BODY: &[u8] = br#"{"metadata":{"user_id":"user_ab12_account_3f2504e0-4f89-11d3-9a0c-0305e82c3301_session_6ba7b810-9dad-11d1-80b4-00c04fd430c8"}}"#;
 const CODEX_BODY: &[u8] =
     br#"{"client_metadata":{"x-codex-turn-metadata":"{\"thread_id\":\"t\"}"}}"#;
-const OPENCODE_BODY: &[u8] =
-    br#"{"metadata":{"user_id":"{\"session_id\":\"6ba7b810-9dad-11d1-80b4-00c04fd430c8\"}"}}"#;
+/// Claude Code ≥ 2.1.25x: the session rides as a JSON string.
+const CLAUDE_JSON_BODY: &[u8] = br#"{"metadata":{"user_id":"{\"account_uuid\":\"\",\"device_id\":\"3c2a1f\",\"session_id\":\"6ba7b810-9dad-11d1-80b4-00c04fd430c8\"}"}}"#;
+/// A Cowork (Claude Desktop local agent) turn on a third-party gateway.
+const COWORK_BODY: &[u8] = br#"{"system":[{"type":"text","text":"x-anthropic-billing-header: cc_version=2.1.260.07b; cc_entrypoint=local-agent;\nYou are Claude Code"}],"metadata":{"user_id":"{\"account_uuid\":\"\",\"device_id\":\"3c2a1f\",\"session_id\":\"6ba7b810-9dad-11d1-80b4-00c04fd430c8\"}"}}"#;
+const DESKTOP_BODY: &[u8] = br#"{"system":"x-anthropic-billing-header: cc_version=2.1.270.0e5; cc_entrypoint=claude-desktop-3p;","messages":[]}"#;
+const CLI_BODY: &[u8] = br#"{"system":[{"type":"text","text":"x-anthropic-billing-header: cc_version=2.1.274.1a2; cc_entrypoint=cli;"}],"messages":[]}"#;
 
 fn input<'a>(body: &'a [u8]) -> ClassificationInput<'a> {
     ClassificationInput {
@@ -86,8 +90,34 @@ fn native_markers_are_structural() {
         Some(NativeMarker::CodexTurnMetadata)
     );
     assert_eq!(
-        native_marker(OPENCODE_BODY),
-        Some(NativeMarker::OpencodeSessionJson)
+        native_marker(CLAUDE_JSON_BODY),
+        Some(NativeMarker::ClaudeMetadataJson)
+    );
+    assert_eq!(
+        native_marker(COWORK_BODY),
+        Some(NativeMarker::ClaudeDesktopEntrypoint)
+    );
+    assert_eq!(
+        native_marker(DESKTOP_BODY),
+        Some(NativeMarker::ClaudeDesktopEntrypoint)
+    );
+    assert_eq!(
+        native_marker(CLI_BODY),
+        Some(NativeMarker::ClaudeCliEntrypoint)
+    );
+    assert_eq!(
+        native_marker(
+            br#"{"system":"x-anthropic-billing-header: cc_version=1; cc_entrypoint=sdk-py;"}"#
+        ),
+        None
+    );
+    assert_eq!(
+        native_marker(br#"{"system":"Hi. x-anthropic-billing-header: cc_entrypoint=cli;"}"#),
+        None
+    );
+    assert_eq!(
+        native_marker(br#"{"metadata":{"user_id":"{\"session_id\":\"6ba7b810-9dad-11d1-80b4-00c04fd430c8\"}"}}"#),
+        None
     );
     assert_eq!(
         native_marker(br#"{"metadata":{"user_id":"user_x_account_notauuid_session_y"}}"#),
@@ -120,6 +150,22 @@ fn native_marker_beats_user_agent_and_records_the_tier() {
         classified.evidence.ua_product.as_deref(),
         Some("claude-cli")
     );
+
+    // A Cowork turn wears the CLI User-Agent; the entrypoint names the host.
+    let mut i = input(COWORK_BODY);
+    i.user_agent = Some("claude-cli/2.1.260");
+    let classified = classify(&i).expect("classified");
+    assert_eq!(classified.client, ClientKind::ClaudeDesktop);
+    assert_eq!(classified.attestation, ClientAttestation::NativeMarker);
+    assert_eq!(
+        classified.evidence.native_marker,
+        Some(NativeMarker::ClaudeDesktopEntrypoint)
+    );
+    assert!(!classified.conflicting);
+
+    let classified = classify(&input(CLAUDE_JSON_BODY)).expect("classified");
+    assert_eq!(classified.client, ClientKind::ClaudeCode);
+    assert_eq!(classified.attestation, ClientAttestation::NativeMarker);
 }
 
 #[test]

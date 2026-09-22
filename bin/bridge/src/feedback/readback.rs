@@ -76,8 +76,14 @@ pub fn verify(
         }
         #[cfg(unix)]
         let mode_check = verify_mode(&metadata, expected.executable)?;
+        // Why: no mode bits to read here; a plain file has nothing to verify
+        // and an executable cannot be confirmed.
         #[cfg(not(unix))]
-        let mode_check = ReadbackStatus::Unavailable;
+        let mode_check = if expected.executable {
+            ReadbackStatus::Unavailable
+        } else {
+            ReadbackStatus::Verified
+        };
         runtime_files.push(RuntimeFileReadback {
             path: expected.path.clone(),
             digest: ContentDigest::of(&bytes),

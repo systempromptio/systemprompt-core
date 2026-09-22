@@ -10,7 +10,6 @@ use crate::ids::BearerToken;
 use std::io::{IsTerminal as _, Write as _};
 use std::process::ExitCode;
 
-use systemprompt_identifiers::SessionId;
 
 use crate::context::BridgeContext;
 use crate::gateway::GatewayClient;
@@ -65,7 +64,13 @@ async fn run(ctx: &BridgeContext, args: &Args) -> ExitCode {
         },
     };
     let gateway = config::gateway_url_or_default(&cfg);
-    let bearer = match auth::acquire_bearer(&cfg, &SessionId::generate(), &ctx.http).await {
+    let bearer = match auth::acquire_bearer(
+        &cfg,
+        &auth::session_identity::stable_session_id(&cfg),
+        &ctx.http,
+    )
+    .await
+    {
         Ok(out) => out,
         Err(e) => {
             let (code, message) = e.exit_report();

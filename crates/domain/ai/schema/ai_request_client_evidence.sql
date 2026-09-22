@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS ai_request_client_evidence (
     declared_client TEXT CHECK (length(declared_client) <= 64),
     native_marker TEXT
         CONSTRAINT ai_request_client_evidence_native_marker_check CHECK (native_marker IS NULL OR native_marker IN (
-            'claude-metadata-user-id', 'codex-turn-metadata', 'opencode-session-json')),
+            'claude-desktop-entrypoint', 'claude-cli-entrypoint', 'claude-metadata-user-id', 'claude-metadata-json', 'codex-turn-metadata')),
     ua_product TEXT CHECK (length(ua_product) <= 64),
     ua_version TEXT CHECK (length(ua_version) <= 64),
     sdk_lang TEXT CHECK (length(sdk_lang) <= 64),

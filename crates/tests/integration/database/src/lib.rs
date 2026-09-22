@@ -23,6 +23,10 @@ mod migration_plan_status;
 mod fresh_install_stamp;
 
 #[cfg(test)]
+#[path = "../fresh_install_retirement.rs"]
+mod fresh_install_retirement;
+
+#[cfg(test)]
 #[path = "../migration_slot_reuse.rs"]
 mod migration_slot_reuse;
 
@@ -33,6 +37,10 @@ mod interrupted_install;
 #[cfg(test)]
 #[path = "../declarative_object_refs.rs"]
 mod declarative_object_refs;
+
+#[cfg(test)]
+#[path = "../migration_cost_static.rs"]
+mod migration_cost_static;
 
 #[cfg(test)]
 #[path = "../migration_refs_static.rs"]

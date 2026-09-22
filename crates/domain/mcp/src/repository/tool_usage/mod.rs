@@ -7,7 +7,9 @@
 use crate::error::McpDomainResult;
 mod intent;
 mod queries;
+pub use queries::ProximityProbe;
 
+use chrono::Utc;
 use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
@@ -96,7 +98,8 @@ impl ToolUsageRepository {
         result: &ToolExecutionResult,
     ) -> McpDomainResult<()> {
         let id = mcp_execution_id.as_str();
-        let duration_ms = (result.completed_at - result.started_at).num_milliseconds() as i32;
+        let completed_at = result.completed_at.unwrap_or_else(Utc::now);
+        let duration_ms = (completed_at - result.started_at).num_milliseconds() as i32;
         let output_str = result.output.as_ref().and_then(|v| {
             serde_json::to_string(v)
                 .map_err(|e| {
@@ -120,7 +123,7 @@ impl ToolUsageRepository {
             output_str,
             result.error_message,
             duration_ms,
-            result.completed_at,
+            completed_at,
             id
         )
         .execute(&*self.write_pool)
@@ -154,7 +157,10 @@ impl ToolUsageRepository {
         let session_id = request.context.session_id().to_string();
         let trace_id = extract_trace_id(&request.context);
         let ai_tool_call_id = request.ai_tool_call_id.as_ref().map(ToString::to_string);
-        let duration_ms = (result.completed_at - request.started_at).num_milliseconds() as i32;
+        // Why: a hook-only row has no measured end; NULL keeps it out of AVG.
+        let duration_ms = result
+            .completed_at
+            .map(|done| (done - request.started_at).num_milliseconds() as i32);
         let input_str = serde_json::to_string(&request.input)?;
         let output_str = result
             .output

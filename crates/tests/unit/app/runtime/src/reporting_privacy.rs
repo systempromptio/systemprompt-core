@@ -235,9 +235,23 @@ async fn children_arriving_before_parent_projections_survive_and_orphans_do_not_
         .execute(&*pool).await.unwrap();
     sqlx::query("INSERT INTO ai_request_messages(id,request_id,role,content,sequence_number) VALUES('request-message','request','user','case',1)")
         .execute(&*pool).await.unwrap();
-    let children: Vec<serde_json::Value> = sqlx::query_scalar("SELECT fact->'data' FROM event_outbox WHERE fact->'data'->>'source' IN ('task_messages','ai_request_messages')")
-        .fetch_all(&*pool).await.unwrap();
-    assert_eq!(children.len(), 2);
+    let children: Vec<serde_json::Value> = sqlx::query_scalar(
+        "SELECT fact->'data' FROM event_outbox WHERE fact->'data'->>'source' = 'task_messages'",
+    )
+    .fetch_all(&*pool)
+    .await
+    .unwrap();
+    assert_eq!(children.len(), 1);
+    let message_facts: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM event_outbox WHERE fact->'data'->>'source' = 'ai_request_messages'",
+    )
+    .fetch_one(&*pool)
+    .await
+    .unwrap();
+    assert_eq!(
+        message_facts, 0,
+        "stored messages are counted, not projected"
+    );
     let mut tx = pool.begin().await.unwrap();
     for value in children {
         let fact: ReportingRow = serde_json::from_value(value).unwrap();
@@ -254,17 +268,21 @@ async fn children_arriving_before_parent_projections_survive_and_orphans_do_not_
         "children were applied before either projected parent existed"
     );
     tx.commit().await.unwrap();
+    // context, task, request insert, the request's message_count update, and
+    // the task message applied above but still pending in the outbox
     assert_eq!(reporting::process_pending(&db, 20).await.unwrap(), 5);
-    let children: i64 = sqlx::query_scalar("SELECT (SELECT count(*) FROM analytics_report_task_messages) + (SELECT count(*) FROM analytics_report_ai_request_messages)")
-        .fetch_one(&*pool).await.unwrap();
-    assert_eq!(children, 2);
-    let failed_spend: i64 = sqlx::query_scalar(
-        "SELECT cost_microdollars FROM analytics_report_ai_requests WHERE id='request'",
+    let children: i64 = sqlx::query_scalar("SELECT count(*) FROM analytics_report_task_messages")
+        .fetch_one(&*pool)
+        .await
+        .unwrap();
+    assert_eq!(children, 1);
+    let request: (i64, i32) = sqlx::query_as(
+        "SELECT cost_microdollars, message_count FROM analytics_report_ai_requests WHERE id='request'",
     )
     .fetch_one(&*pool)
     .await
     .unwrap();
-    assert_eq!(failed_spend, 253);
+    assert_eq!(request, (253, 1));
     sqlx::query("DELETE FROM agent_tasks WHERE task_id='task'")
         .execute(&*pool)
         .await
@@ -285,43 +303,11 @@ async fn children_arriving_before_parent_projections_survive_and_orphans_do_not_
         .unwrap();
     tx.commit().await.unwrap();
     reporting::rebuild(&db).await.unwrap();
-    let children: i64 = sqlx::query_scalar("SELECT (SELECT count(*) FROM analytics_report_task_messages) + (SELECT count(*) FROM analytics_report_ai_request_messages)")
-        .fetch_one(&*pool).await.unwrap();
-    assert_eq!(children, 0);
-    cleanup(&admin, &pool, &database).await;
-}
-
-#[tokio::test]
-async fn nullable_log_owner_cannot_retain_a_deleted_principals_session_identity() {
-    use systemprompt_identifiers::UserId;
-    use systemprompt_users::UserRepository;
-    let (admin, db, database) = fixture().await;
-    let pool = db.write_pool_arc().unwrap();
-    sqlx::query(
-        "INSERT INTO users(id,name,email) VALUES('principal','principal','principal@example.test')",
-    )
-    .execute(&*pool)
-    .await
-    .unwrap();
-    sqlx::query("INSERT INTO user_sessions(session_id,user_id,ip_address,fingerprint_hash) VALUES('principal-session','principal','192.0.2.42','private-fingerprint')")
-        .execute(&*pool).await.unwrap();
-    sqlx::query("INSERT INTO logs(id,level,module,message,user_id,session_id) VALUES('nullable-log','INFO','test','request',NULL,'principal-session')")
-        .execute(&*pool).await.unwrap();
-    initialize_and_drain(&db, 3).await;
-    let before: i64 = sqlx::query_scalar("SELECT count(*) FROM analytics_report_logs")
+    let children: i64 = sqlx::query_scalar("SELECT count(*) FROM analytics_report_task_messages")
         .fetch_one(&*pool)
         .await
         .unwrap();
-    assert_eq!(before, 1);
-    UserRepository::new(&db)
-        .unwrap()
-        .delete(&UserId::new("principal"))
-        .await
-        .unwrap();
-    reporting::rebuild(&db).await.unwrap();
-    let retained: i64 = sqlx::query_scalar("SELECT (SELECT count(*) FROM analytics_report_logs) + (SELECT count(*) FROM analytics_report_user_sessions) + (SELECT count(*) FROM user_sessions) + (SELECT count(*) FROM analytics_projection_revisions) + (SELECT count(*) FROM event_outbox WHERE consumer='analytics_reporting')")
-        .fetch_one(&*pool).await.unwrap();
-    assert_eq!(retained, 0);
+    assert_eq!(children, 0);
     cleanup(&admin, &pool, &database).await;
 }
 

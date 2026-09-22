@@ -90,6 +90,7 @@ async fn update_job_execution_records_status_and_error() {
         JobRunRecord {
             status: JobStatus::Failed,
             error: Some("boom"),
+            message: None,
             next_run: Some(next_run),
             instance_id: &InstanceId::new("test-node"),
         },

@@ -10,13 +10,13 @@ use axum::extract::ConnectInfo;
 use axum::http::{Request, StatusCode, header};
 use http::Method;
 use systemprompt_api::services::server::setup_api_server;
-use systemprompt_models::config::RateLimitConfig;
+use systemprompt_models::profile::RateLimitsConfig;
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, fixture_app_context_with_config, fixture_config, fixture_db_pool,
 };
 use tower::ServiceExt;
 
-async fn full_router(rate_limits: RateLimitConfig) -> anyhow::Result<Router> {
+async fn full_router(rate_limits: RateLimitsConfig) -> anyhow::Result<Router> {
     let bootstrap = ensure_test_bootstrap();
     let pool = fixture_db_pool(&bootstrap.database_url).await?;
     let mut config = fixture_config(&bootstrap.database_url);
@@ -52,11 +52,11 @@ fn post(uri: &str, peer: &str, headers: &[(&str, &str)]) -> Request<Body> {
 // storage-fill and credential-guessing surfaces the server exposes.
 #[tokio::test]
 async fn gateway_mount_is_rate_limited_per_client_ip() -> anyhow::Result<()> {
-    let app = full_router(RateLimitConfig {
+    let app = full_router(RateLimitsConfig {
         gateway_per_second: 1,
         burst_multiplier: 1,
         disabled: false,
-        ..RateLimitConfig::testing()
+        ..RateLimitsConfig::testing()
     })
     .await?;
 
@@ -86,7 +86,7 @@ async fn gateway_mount_is_rate_limited_per_client_ip() -> anyhow::Result<()> {
 #[tokio::test]
 async fn an_unissued_bearer_on_the_nested_mcp_proxy_is_unauthorized_on_every_server()
 -> anyhow::Result<()> {
-    let app = full_router(RateLimitConfig::disabled()).await?;
+    let app = full_router(RateLimitsConfig::disabled()).await?;
 
     for (server, peer, session) in [
         ("evaluation_fixture", "203.0.113.78:41000", "sess-fixture"),

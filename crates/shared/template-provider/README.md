@@ -37,7 +37,7 @@ The rendering pipeline talks to templates through traits, never through a concre
 
 ```toml
 [dependencies]
-systemprompt-template-provider = "0.58"
+systemprompt-template-provider = "0.59"
 ```
 
 ```rust

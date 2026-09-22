@@ -490,14 +490,21 @@ async fn execute_migration_rolls_back_and_skips_recording_on_failure() {
 
 #[tokio::test]
 async fn transactional_boundary_failures_never_commit_partial_migrations() {
+    // Every migration transaction opens with `SET LOCAL statement_timeout` and
+    // `SET LOCAL lock_timeout`, so the migration's own statements start at 3
+    // and the tracking write follows the two CREATE TABLEs below.
+    const BOUND_STATEMENTS: usize = 2;
+    const SECOND_MIGRATION_STATEMENT: usize = BOUND_STATEMENTS + 2;
+    const TRACKING_WRITE: usize = BOUND_STATEMENTS + 3;
+
     for failure in ["begin", "tracking", "commit", "rollback"] {
         let log = Arc::new(CallLog::default());
         match failure {
             "begin" => *log.fail_begin.lock().expect("lock") = true,
-            "tracking" => *log.fail_on_statement.lock().expect("lock") = Some(3),
+            "tracking" => *log.fail_on_statement.lock().expect("lock") = Some(TRACKING_WRITE),
             "commit" => *log.fail_commit.lock().expect("lock") = true,
             "rollback" => {
-                *log.fail_on_statement.lock().expect("lock") = Some(2);
+                *log.fail_on_statement.lock().expect("lock") = Some(SECOND_MIGRATION_STATEMENT);
                 *log.fail_rollback.lock().expect("lock") = true;
             },
             _ => unreachable!(),
@@ -1056,8 +1063,9 @@ async fn run_down_migrations_reverts_the_applied_version_in_a_transaction() {
             .iter()
             .filter(|e| e.starts_with("tx_execute"))
             .count(),
-        2,
-        "the down SQL and the ledger delete must both run inside the transaction: {events:?}"
+        4,
+        "the revert runs inside the transaction under its own bound: the two `SET LOCAL` \
+         timeout statements, the down SQL, then the ledger delete: {events:?}"
     );
     assert!(
         !events.iter().any(|e| e == "execute"),
@@ -1125,8 +1133,9 @@ async fn run_down_migrations_reverts_newest_first_and_honours_the_count() {
             .iter()
             .filter(|e| e.starts_with("tx_execute"))
             .count(),
-        4,
-        "each revert carries its down SQL and its ledger delete in-transaction: {events:?}"
+        8,
+        "each revert carries its two `SET LOCAL` timeout statements, its down SQL and its \
+         ledger delete in-transaction: {events:?}"
     );
 }
 

@@ -201,10 +201,19 @@ fn trusted_private_peer_with_xff_is_not_flagged() {
 }
 
 #[test]
-fn untrusted_public_peer_with_xff_is_not_flagged() {
+fn untrusted_public_peer_with_xff_is_flagged_and_trust_is_what_clears_it() {
     let mut headers = HeaderMap::new();
     headers.insert("x-forwarded-for", HeaderValue::from_static("203.0.113.7"));
-    assert!(!forwarded_headers_ignored(&headers, ip("203.0.113.5"), &[]));
+    // A reverse proxy on a host network has a public address, so gating this on
+    // the peer being in a private range meant the deployment that most needed
+    // the warning was the one that never got it. Trust decides, not range.
+    assert!(forwarded_headers_ignored(&headers, ip("203.0.113.5"), &[]));
+    let trusted = nets(&["203.0.113.0/24"]);
+    assert!(!forwarded_headers_ignored(
+        &headers,
+        ip("203.0.113.5"),
+        &trusted
+    ));
 }
 
 #[test]

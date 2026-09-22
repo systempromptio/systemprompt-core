@@ -101,7 +101,7 @@ impl SessionMiddleware {
         {
             tracing::warn!(
                 peer_ip = %peer.0.ip(),
-                "ignoring forwarded client-IP headers from untrusted private peer; if this \
+                "ignoring forwarded client-IP headers from an untrusted peer; if this \
                  server runs behind a proxy, add the peer's range to server.trusted_proxies"
             );
         }

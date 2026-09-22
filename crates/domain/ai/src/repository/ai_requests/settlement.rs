@@ -41,10 +41,26 @@ pub struct SettleCompletion<'a> {
     pub tool_calls: &'a [SettledToolCall],
 }
 
+/// What a failed request still consumed.
+///
+/// A provider bills the tokens it streamed before the stream broke, so a
+/// failure that carries usage is settled with it: recording only the error
+/// leaves that spend invisible to every cost view, quota bucket and rollup.
+/// `usage` is `None` when nothing was observed, and then the stored columns
+/// are left untouched.
+#[derive(Debug, Default)]
+pub struct SettledFailure<'a> {
+    pub error: &'a str,
+    pub usage: Option<SettlementUsage>,
+    pub cost_microdollars: i64,
+    pub latency_ms: Option<i32>,
+    pub upstream_latency_ms: Option<i32>,
+}
+
 #[derive(Debug)]
 pub enum SettlementOutcome<'a> {
     Completed(SettleCompletion<'a>),
-    Failed { error: &'a str },
+    Failed(SettledFailure<'a>),
 }
 
 impl AiRequestRepository {
@@ -102,17 +118,38 @@ impl AiRequestRepository {
             SettlementOutcome::Completed(completion) => {
                 settle_completion(&mut tx, request_id, &completion).await?;
             },
-            SettlementOutcome::Failed { error } => {
+            SettlementOutcome::Failed(failure) => {
+                let usage = failure.usage.unwrap_or_default();
+                let billed = failure.usage.is_some();
                 sqlx::query!(
                     r#"
                     UPDATE ai_requests
                     SET status = 'failed', error_message = $2,
+                        input_tokens = CASE WHEN $3 THEN $4 ELSE input_tokens END,
+                        output_tokens = CASE WHEN $3 THEN $5 ELSE output_tokens END,
+                        cache_read_tokens = CASE WHEN $3 THEN $6 ELSE cache_read_tokens END,
+                        cache_creation_tokens = CASE WHEN $3 THEN $7 ELSE cache_creation_tokens END,
+                        reasoning_tokens = CASE WHEN $3 THEN $8 ELSE reasoning_tokens END,
+                        tokens_used = CASE WHEN $3 THEN $9 ELSE tokens_used END,
+                        cost_microdollars = CASE WHEN $3 THEN $10 ELSE cost_microdollars END,
+                        latency_ms = COALESCE($11, latency_ms),
+                        upstream_latency_ms = COALESCE($12, upstream_latency_ms),
                         completed_at = COALESCE(completed_at, CURRENT_TIMESTAMP),
                         updated_at = CURRENT_TIMESTAMP
                     WHERE id = $1 AND status <> 'completed' AND accounting_failed_at IS NULL
                     "#,
                     request_id.as_str(),
-                    error
+                    failure.error,
+                    billed,
+                    i32::try_from(usage.input_tokens).unwrap_or(i32::MAX),
+                    i32::try_from(usage.output_tokens).unwrap_or(i32::MAX),
+                    i32::try_from(usage.cache_read_tokens).unwrap_or(i32::MAX),
+                    i32::try_from(usage.cache_creation_tokens).unwrap_or(i32::MAX),
+                    i32::try_from(usage.reasoning_tokens).unwrap_or(i32::MAX),
+                    i32::try_from(usage.tokens_used).unwrap_or(i32::MAX),
+                    failure.cost_microdollars,
+                    failure.latency_ms,
+                    failure.upstream_latency_ms,
                 )
                 .execute(&mut *tx)
                 .await?;

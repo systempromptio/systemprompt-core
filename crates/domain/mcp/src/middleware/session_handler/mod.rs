@@ -24,6 +24,7 @@ use rmcp::transport::streamable_http_server::session::SessionId;
 use rmcp::transport::streamable_http_server::session::local::{
     LocalSessionManager, LocalSessionManagerError,
 };
+use systemprompt_identifiers::McpServerId;
 
 #[derive(Debug)]
 pub enum DatabaseSessionManagerError {
@@ -65,6 +66,7 @@ impl From<LocalSessionManagerError> for DatabaseSessionManagerError {
 pub struct DatabaseSessionHandler {
     local_manager: LocalSessionManager,
     repository: Arc<McpSessionRepository>,
+    server_id: Option<McpServerId>,
 }
 
 impl fmt::Debug for DatabaseSessionHandler {
@@ -72,18 +74,20 @@ impl fmt::Debug for DatabaseSessionHandler {
         f.debug_struct("DatabaseSessionHandler")
             .field("local_manager", &self.local_manager)
             .field("repository", &self.repository)
+            .field("server_id", &self.server_id)
             .finish()
     }
 }
 
 impl DatabaseSessionHandler {
     pub fn new(repository: Arc<McpSessionRepository>) -> Self {
-        Self::with_timeouts(repository, crate::SessionTimeouts::default())
+        Self::with_timeouts(repository, crate::SessionTimeouts::default(), None)
     }
 
     pub fn with_timeouts(
         repository: Arc<McpSessionRepository>,
         timeouts: crate::SessionTimeouts,
+        server_id: Option<McpServerId>,
     ) -> Self {
         let mut local_manager = LocalSessionManager::default();
         let cfg = &mut local_manager.session_config;
@@ -92,6 +96,7 @@ impl DatabaseSessionHandler {
         Self {
             local_manager,
             repository,
+            server_id,
         }
     }
 
@@ -101,7 +106,7 @@ impl DatabaseSessionHandler {
             .create(
                 &systemprompt_identifiers::SessionId::new(session_id.as_ref()),
                 None,
-                None,
+                self.server_id.as_ref().map(McpServerId::as_str),
             )
             .await
         {

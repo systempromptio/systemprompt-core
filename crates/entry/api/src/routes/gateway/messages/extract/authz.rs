@@ -9,13 +9,21 @@
 
 use axum::http::StatusCode;
 use std::collections::BTreeMap;
-use systemprompt_identifiers::{Actor, ClientId, ModelId, RouteId, SessionId, TraceId, UserId};
+use systemprompt_identifiers::{
+    Actor, ClientId, ContextId, ModelId, RouteId, SessionId, TraceId, UserId,
+};
 use systemprompt_security::authz::{
     AuthzContext, AuthzDecision, AuthzRequest, EntityRef, SharedAuthzHook,
 };
 
 use super::super::auth::AuthedPrincipal;
 
+/// The inputs to a pre-dispatch gateway authorization decision.
+///
+/// `context_id` is the context the request was already resolved into. Leaving
+/// it unset made the audit sink re-derive one from the bridge session, so every
+/// pre-dispatch decision landed in a different context from the request it
+/// authorized.
 #[derive(Debug, Clone)]
 pub struct GatewayAuthzRequestInput {
     pub user_id: UserId,
@@ -27,6 +35,7 @@ pub struct GatewayAuthzRequestInput {
     pub model: ModelId,
     pub session_id: Option<SessionId>,
     pub client_id: Option<ClientId>,
+    pub context_id: ContextId,
 }
 
 #[must_use]
@@ -41,6 +50,7 @@ pub fn build_gateway_authz_request(input: GatewayAuthzRequestInput) -> AuthzRequ
         model,
         session_id,
         client_id,
+        context_id,
     } = input;
     AuthzRequest {
         entity: EntityRef::GatewayRoute(route_id),
@@ -54,7 +64,7 @@ pub fn build_gateway_authz_request(input: GatewayAuthzRequestInput) -> AuthzRequ
         session_id,
         context: AuthzContext::gateway_invocation(&model),
         act_chain,
-        context_id: None,
+        context_id: Some(context_id),
         task_id: None,
     }
 }
@@ -63,6 +73,7 @@ pub async fn enforce_authz_pre_dispatch(
     principal: &AuthedPrincipal,
     route: &systemprompt_models::services::GatewayRoute,
     model: &str,
+    context_id: &ContextId,
     hook: &SharedAuthzHook,
 ) -> Result<(), (StatusCode, String)> {
     let route_id = if route.id.as_str().trim().is_empty() {
@@ -84,6 +95,7 @@ pub async fn enforce_authz_pre_dispatch(
         model: ModelId::new(model),
         session_id: Some(principal.attested_session().clone()),
         client_id: principal.client_id().cloned(),
+        context_id: context_id.clone(),
     });
     match hook.evaluate(req).await {
         AuthzDecision::Allow => Ok(()),

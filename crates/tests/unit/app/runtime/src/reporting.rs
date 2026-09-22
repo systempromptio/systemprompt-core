@@ -80,9 +80,13 @@ async fn fixture() -> (PgPool, DbPool, String) {
     for source in SOURCE_DEFINITIONS {
         mirror_table(&admin, &pool, source.table, Some(source.key)).await;
     }
+    // Stored messages are not a source, but the ai owner's capture file
+    // maintains ai_requests.message_count from them.
+    mirror_table(&admin, &pool, "ai_request_messages", Some("id")).await;
     // A user delete walks every registered purge table; mirror the ones the
     // reporting sources do not already cover so the walk finds them.
-    let mirrored: Vec<&str> = SOURCE_DEFINITIONS.iter().map(|s| s.table).collect();
+    let mut mirrored: Vec<&str> = SOURCE_DEFINITIONS.iter().map(|s| s.table).collect();
+    mirrored.push("ai_request_messages");
     let purge_tables = systemprompt_extension::purge::registered_user_purge_tables()
         .map(|entry| entry.table)
         .chain(systemprompt_extension::purge::registered_orphan_sweeps().map(|sweep| sweep.table));
@@ -353,3 +357,6 @@ mod privacy;
 
 #[path = "reporting_user_privacy.rs"]
 mod user_privacy;
+
+#[path = "reporting_rebuild.rs"]
+mod rebuild;

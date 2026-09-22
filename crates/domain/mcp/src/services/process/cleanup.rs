@@ -10,6 +10,7 @@
 
 use crate::error::McpDomainResult;
 use std::process::Command;
+use std::time::Duration;
 
 use super::utils::process_exists;
 
@@ -118,6 +119,9 @@ pub fn force_kill(pid: u32) -> McpDomainResult<()> {
     Ok(())
 }
 
+const GRACEFUL_EXIT_WAIT: Duration = Duration::from_millis(500);
+const FORCED_EXIT_WAIT: Duration = Duration::from_secs(5);
+
 pub async fn terminate_gracefully_verified(pid: u32, service_name: &str) -> McpDomainResult<()> {
     if !process_exists(pid) {
         return Ok(());
@@ -137,8 +141,40 @@ pub async fn terminate_gracefully_verified(pid: u32, service_name: &str) -> McpD
     }
 
     terminate_gracefully(pid)?;
-    tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
-    force_kill(pid)
+    if wait_until_gone(pid, service_name, GRACEFUL_EXIT_WAIT).await {
+        return Ok(());
+    }
+    force_kill(pid)?;
+    // Why: SIGKILL is asynchronous — the kernel marks the process for death
+    // and returns, so without this wait the function reports a termination it
+    // has not observed, and a caller that restarts the service on the same
+    // port races the child it believes it stopped.
+    if wait_until_gone(pid, service_name, FORCED_EXIT_WAIT).await {
+        return Ok(());
+    }
+    Err(crate::error::McpDomainError::Internal(format!(
+        "process {pid} for service {service_name} is still running after SIGKILL"
+    )))
+}
+
+async fn wait_until_gone(pid: u32, service_name: &str, budget: Duration) -> bool {
+    // Why: a killed child that its parent has not reaped stays visible to
+    // `process_exists`, so waiting on that would never return. A zombie has no
+    // readable environment, which is what this predicate reads.
+    let deadline = tokio::time::Instant::now() + budget;
+    loop {
+        if !systemprompt_loader::subprocess::live_pid_is_subprocess(
+            pid,
+            systemprompt_models::subprocess::MCP_SERVICE_ID_ENV,
+            service_name,
+        ) {
+            return true;
+        }
+        if tokio::time::Instant::now() >= deadline {
+            return false;
+        }
+        tokio::time::sleep(Duration::from_millis(25)).await;
+    }
 }
 
 #[cfg(unix)]
@@ -167,7 +203,7 @@ pub async fn cleanup_port_processes(port: u16) -> McpDomainResult<Vec<u32>> {
 
             terminate_gracefully(pid)?;
 
-            tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+            tokio::time::sleep(Duration::from_millis(100)).await;
 
             force_kill(pid)?;
 
@@ -175,7 +211,7 @@ pub async fn cleanup_port_processes(port: u16) -> McpDomainResult<Vec<u32>> {
         }
     }
 
-    tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
+    tokio::time::sleep(Duration::from_millis(200)).await;
 
     Ok(killed_pids)
 }
@@ -206,7 +242,7 @@ pub async fn cleanup_port_processes(port: u16) -> McpDomainResult<Vec<u32>> {
 
                     terminate_gracefully(pid)?;
 
-                    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+                    tokio::time::sleep(Duration::from_millis(100)).await;
 
                     force_kill(pid)?;
 
@@ -216,7 +252,7 @@ pub async fn cleanup_port_processes(port: u16) -> McpDomainResult<Vec<u32>> {
         }
     }
 
-    tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
+    tokio::time::sleep(Duration::from_millis(200)).await;
 
     Ok(killed_pids)
 }

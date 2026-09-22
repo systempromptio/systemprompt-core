@@ -99,6 +99,7 @@ pub async fn build_profile_inputs(
         gateway_base_url,
         host_token,
         models: view.compatible_models,
+        model_limits: server_profile.model_limits,
         default_model: server_profile.default_model,
         organization_uuid: server_profile.organization_uuid,
         headers,

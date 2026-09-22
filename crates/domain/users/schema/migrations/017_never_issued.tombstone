@@ -1,0 +1,13 @@
+Slot 017 is spent, not free.
+
+No migration was ever written here. The author of
+018_prune_prefix_duplicate_indexes.sql numbered from 018 while the highest
+slot in use was 016, so 017 was skipped rather than deleted -- there is no
+017 in this directory's history and no database has a tracking row for it.
+
+The slot is tombstoned rather than filled, because 018 and 019 are already
+pushed and a migration that has shipped cannot be renumbered: the runner
+keys a tracking row on the version and refuses the checksum change, so a
+deployment that applied 018 would reject its replacement at the next boot.
+
+Numbering continues at the highest slot ever used, never at the first gap.

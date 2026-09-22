@@ -14,7 +14,7 @@ use super::{pool_or_skip, seeded_context, service};
 use crate::services::providers::mock_http;
 
 const ANTHROPIC: &str = "anthropic";
-const ANTHROPIC_MODEL: &str = "claude-sonnet-4-6";
+const ANTHROPIC_MODEL: &str = "claude-sonnet-5";
 const OPENAI: &str = "openai";
 const OPENAI_MODEL: &str = "gpt-4.1";
 

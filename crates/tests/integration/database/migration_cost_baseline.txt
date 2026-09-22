@@ -1,0 +1,24 @@
+# Migrations that rewrite a hot table and predate the cost gate.
+# They cannot be annotated: the checksum covers the whole body, so adding a
+# comment makes every established database refuse to boot. This list may only
+# shrink -- an entry whose migration no longer trips the detector fails the gate.
+agent/004_ai_requests_task_fk
+ai/001_gateway_governance
+ai/002_split_context_id
+ai/004_actor_attribution
+ai/009_ai_requests_session_fk
+ai/010_nullable_rejection_routing
+ai/014_ai_requests_context_not_null
+ai/021_ai_requests_client_session_kind
+ai/026_ai_requests_client_origin
+ai/027_ai_request_client_attestation
+ai/032_ai_requests_message_count
+ai/035_backfill_session_ai_counters
+events/001_actor_attribution
+events/004_durable_consumption
+logging/001_split_context_id
+mcp/014_pair_hook_attestations
+users/002_add_user_sessions_is_ai_crawler
+users/004_user_sessions_revoked_at
+users/007_drop_session_throttle
+users/019_backfill_ghost_session_flags

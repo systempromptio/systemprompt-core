@@ -53,10 +53,14 @@ impl std::fmt::Display for JobStatus {
 
 /// One completed (or started) run of a scheduled job, as written to its
 /// `scheduled_jobs` row.
+///
+/// `message` is what a successful run reports about itself
+/// (`JobResult::message`), kept across later runs that say nothing.
 #[derive(Debug, Clone, Copy)]
 pub struct JobRunRecord<'a> {
     pub status: JobStatus,
     pub error: Option<&'a str>,
+    pub message: Option<&'a str>,
     pub next_run: Option<DateTime<Utc>>,
     pub instance_id: &'a InstanceId,
 }

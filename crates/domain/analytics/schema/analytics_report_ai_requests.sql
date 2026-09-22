@@ -37,7 +37,8 @@ CREATE TABLE IF NOT EXISTS analytics_report_ai_requests (
     instance_id VARCHAR(255),
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL,
-    completed_at TIMESTAMPTZ
+    completed_at TIMESTAMPTZ,
+    message_count INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_ar_ai_requests_request_id ON analytics_report_ai_requests (request_id);
 CREATE INDEX IF NOT EXISTS idx_ar_ai_requests_user_id ON analytics_report_ai_requests (user_id);

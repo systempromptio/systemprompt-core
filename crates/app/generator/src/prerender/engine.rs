@@ -30,7 +30,7 @@ pub async fn prerender_content(
 ) -> Result<()> {
     let ctx = load_prerender_context(db_pool, content_repo, paths).await?;
     let total_rendered = process_all_sources(&ctx).await?;
-    tracing::info!(items_rendered = total_rendered, "Prerendering completed");
+    tracing::debug!(items_rendered = total_rendered, "Prerendering completed");
     Ok(())
 }
 
@@ -59,7 +59,7 @@ async fn prerender_pages_with_context(ctx: &PrerenderContext) -> Result<Vec<Page
 
     let prerenderer_count = prerenderers.len();
     let page_types: Vec<_> = prerenderers.iter().map(|p| p.page_type()).collect();
-    tracing::info!(
+    tracing::debug!(
         count = prerenderer_count,
         page_types = ?page_types,
         "Discovered page prerenderers"
@@ -166,7 +166,7 @@ async fn render_prerenderer_page(
 
     fs::write(&output_path, html).await?;
 
-    tracing::info!(
+    tracing::debug!(
         page_type = %page_type,
         locale = %locale,
         path = %output_path.display(),

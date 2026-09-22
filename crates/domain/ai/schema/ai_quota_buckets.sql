@@ -18,5 +18,3 @@ CREATE TABLE IF NOT EXISTS ai_quota_buckets (
         UNIQUE (subject_kind, subject_id, window_seconds, window_start)
 );
 CREATE INDEX IF NOT EXISTS idx_ai_quota_buckets_window ON ai_quota_buckets(window_start);
-CREATE INDEX IF NOT EXISTS idx_ai_quota_buckets_subject
-    ON ai_quota_buckets(subject_kind, subject_id);

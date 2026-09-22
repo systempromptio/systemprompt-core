@@ -32,7 +32,7 @@ pub async fn generate_sitemap(content_repo: ContentRepository, paths: &AppPaths)
     let ctx = load_sitemap_context(content_repo, paths).await?;
     let urls = collect_sitemap_urls(&ctx).await?;
     write_sitemap_files(&ctx.web_dir, &urls, &ctx.base_url).await?;
-    tracing::info!(url_count = urls.len(), "Sitemap generation completed");
+    tracing::debug!(url_count = urls.len(), "Sitemap generation completed");
     Ok(())
 }
 

@@ -96,6 +96,7 @@ async fn router_honours_disabled_host_allow_list() {
         allowed_hosts: None,
         allowed_origins: vec!["http://ok.example".to_owned()],
         session: SessionTimeouts::default(),
+        server_id: None,
     };
     let router = create_router(
         NullHandler,

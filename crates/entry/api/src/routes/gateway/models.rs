@@ -38,6 +38,13 @@ pub struct ModelEntry {
     pub id: String,
     pub display_name: String,
     pub created_at: String,
+    // Why: Claude Code's gateway model discovery sizes its context window from
+    // these, as it does against Anthropic's Models API; without them every
+    // model is treated as 200k even when the catalog serves 1M.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_input_tokens: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_tokens: Option<u32>,
 }
 
 #[derive(Debug, Serialize)]
@@ -165,12 +172,19 @@ pub fn surfaces_from_header(headers: &HeaderMap) -> Result<Vec<ApiSurface>, (Sta
 pub fn model_entries(registry: &ProviderRegistry, surfaces: &[ApiSurface]) -> Vec<ModelEntry> {
     let mut by_id: BTreeMap<String, ModelEntry> = BTreeMap::new();
     for id in registry.advertised_model_ids(surfaces) {
+        let limits = registry
+            .providers
+            .iter()
+            .find_map(|p| p.find_model(&id))
+            .map(|m| &m.limits);
         by_id.insert(
             id.clone(),
             ModelEntry {
                 kind: "model",
                 display_name: humanize_model_id(&id),
                 created_at: model_created_at(&id),
+                max_input_tokens: limits.map(|l| l.context_window).filter(|n| *n > 0),
+                max_tokens: limits.map(|l| l.max_output_tokens).filter(|n| *n > 0),
                 id,
             },
         );

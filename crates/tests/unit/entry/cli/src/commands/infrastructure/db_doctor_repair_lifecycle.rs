@@ -47,23 +47,35 @@ async fn db_doctor_repair_helper() {
         .await
         .expect("introduce undeclared table drift");
 
+    // Residue is a failure, not a note: `db doctor` renders the report and then
+    // exits non-zero for as long as a live table no extension declares is still
+    // there. Both renderers must take that exit, or a drifted schema passes a
+    // deploy gate that is there to stop it.
     println!("BEGIN_DRIFT");
-    db::execute(
+    let json_drift = db::execute(
         doctor(),
         &context(pool.clone(), database.url(), OutputFormat::Json),
     )
     .await
-    .expect("doctor diagnoses drift as JSON");
+    .expect_err("doctor exits non-zero while undeclared residue is live");
     println!("END_DRIFT");
+    assert!(
+        format!("{json_drift:#}").contains("undeclared table(s)"),
+        "{json_drift:#}"
+    );
 
     println!("BEGIN_DRIFT_TEXT");
-    db::execute(
+    let text_drift = db::execute(
         doctor(),
         &context(pool.clone(), database.url(), OutputFormat::Table),
     )
     .await
-    .expect("doctor diagnoses drift for a terminal");
+    .expect_err("doctor exits non-zero for a terminal too");
     println!("END_DRIFT_TEXT");
+    assert!(
+        format!("{text_drift:#}").contains("undeclared table(s)"),
+        "{text_drift:#}"
+    );
 
     sqlx::query("DROP TABLE doctor_fixture_undeclared")
         .execute(raw.as_ref())
@@ -82,7 +94,7 @@ async fn db_doctor_repair_helper() {
         &context(pool.clone(), database.url(), OutputFormat::Json),
     )
     .await
-    .expect("doctor verifies repair as JSON");
+    .expect("doctor exits zero once the residue is gone");
     println!("END_REPAIRED");
 
     drop(raw);
@@ -167,13 +179,13 @@ fn doctor_reports_and_clears_repairable_schema_drift() {
             .as_array()
             .expect("undeclared table list")
             .iter()
-            .any(|table| table == TABLE),
+            .any(|table| table.as_str().is_some_and(|name| name.contains(TABLE))),
         "{drift}"
     );
 
     let terminal = String::from_utf8(output.stderr).expect("doctor terminal output UTF-8");
     assert!(
-        terminal.contains("live table(s) not declared"),
+        terminal.contains("live table(s) declared by no registered extension"),
         "{terminal}"
     );
     assert!(terminal.contains(TABLE), "{terminal}");
@@ -184,7 +196,7 @@ fn doctor_reports_and_clears_repairable_schema_drift() {
             .as_array()
             .expect("repaired undeclared table list")
             .iter()
-            .all(|table| table != TABLE),
+            .all(|table| table.as_str().is_none_or(|name| !name.contains(TABLE))),
         "{repaired}"
     );
 }

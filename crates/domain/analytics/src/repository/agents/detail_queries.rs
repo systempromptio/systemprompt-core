@@ -95,17 +95,13 @@ impl AgentAnalyticsRepository {
             AgentErrorRow,
             r#"
             SELECT
-                COALESCE(
-                    SUBSTRING(l.message FROM 1 FOR 100),
-                    'Unknown error'
-                ) as "error_type",
+                COALESCE(SUBSTRING(error_message FROM 1 FOR 100), 'Unknown error') as "error_type",
                 COUNT(*)::bigint as "error_count!"
-            FROM analytics_report_agent_tasks at
-            LEFT JOIN analytics_report_logs l ON l.task_id = at.task_id AND l.level = 'ERROR'
-            WHERE at.agent_name ILIKE $1
-              AND at.started_at >= $2 AND at.started_at < $3
-              AND at.status = 'TASK_STATE_FAILED'
-            GROUP BY SUBSTRING(l.message FROM 1 FOR 100)
+            FROM analytics_report_agent_tasks
+            WHERE agent_name ILIKE $1
+              AND started_at >= $2 AND started_at < $3
+              AND status = 'TASK_STATE_FAILED'
+            GROUP BY SUBSTRING(error_message FROM 1 FOR 100)
             ORDER BY 2 DESC
             LIMIT 10
             "#,

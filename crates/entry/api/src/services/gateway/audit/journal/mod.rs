@@ -1,10 +1,13 @@
 //! Encrypted terminal receipts retained until database settlement succeeds.
 //!
 //! [`GatewayJournal`] is built once at the gateway composition root from the
-//! profile directory and the `encryption_master_key` secret, and injected
-//! into every audit. Admission only reserves a receipt; settlement of
-//! receipts left behind by a crash runs from [`spawn_recovery`], an owned
-//! task, never on the request path.
+//! storage data directory and the `encryption_master_key` secret, and injected
+//! into every audit. It lives under `paths.storage`, never beside the profile:
+//! the profile is configuration and is mounted read-only in the self-host
+//! bundle, and receipts belong to the node that admitted them, so the data
+//! directory must be a per-node writable volume. Admission only reserves a
+//! receipt; settlement of receipts left behind by a crash runs from
+//! [`spawn_recovery`], an owned task, never on the request path.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -13,7 +16,7 @@ mod files;
 mod settle;
 mod types;
 
-pub(super) use types::{CapturedToolCall, Completion, Receipt};
+pub(super) use types::{CapturedToolCall, Completion, PartialUsage, Receipt};
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -27,7 +30,7 @@ use systemprompt_models::Secrets;
 use tokio::task::JoinHandle;
 
 pub const RECOVERY_INTERVAL: Duration = Duration::from_secs(30);
-pub const ORPHAN_AGE: Duration = Duration::from_hours(1);
+pub use systemprompt_ai::repository::ai_requests::ORPHAN_AGE;
 
 #[derive(Clone)]
 pub struct GatewayJournal {
@@ -44,7 +47,7 @@ impl std::fmt::Debug for GatewayJournal {
 }
 
 impl GatewayJournal {
-    pub fn open(profile_path: &str, secrets: &Secrets) -> Result<Self> {
+    pub fn open(state_dir: &Path, secrets: &Secrets) -> Result<Self> {
         let key = secrets.get("encryption_master_key").context(
             "Gateway accounting journal requires the `encryption_master_key` secret (32 bytes \
              as 64 hex characters); with `secrets.source: env` it must also be listed in \
@@ -54,12 +57,9 @@ impl GatewayJournal {
         let cipher = ChaCha20Poly1305::new_from_slice(&decoded).map_err(|error| {
             anyhow::anyhow!("encryption_master_key is not a 32-byte key: {error}")
         })?;
-        let root = Path::new(profile_path)
-            .parent()
-            .context("Profile has no directory")?
-            .join("gateway-journal");
+        let root = state_dir.join("gateway-journal");
         std::fs::create_dir_all(&root)
-            .with_context(|| format!("Cannot create {}", root.display()))?;
+            .with_context(|| format!("Cannot create gateway journal at {}", root.display()))?;
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
@@ -77,10 +77,15 @@ impl GatewayJournal {
     }
 }
 
+/// The collaborators a terminal receipt is settled through.
+///
+/// `sessions` is absent only where the analytics layer is unavailable;
+/// settlement then records the request and skips the session counters.
 #[derive(Clone)]
 pub struct Settlement {
     pub journal: Arc<GatewayJournal>,
     pub requests: Arc<AiRequestRepository>,
+    pub sessions: Option<systemprompt_traits::DynSessionStore>,
 }
 
 impl std::fmt::Debug for Settlement {

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.59.0] - 2026-09-22
+
+### Added
+
+- `Extension::cross_extension_tables()` (default empty) declares the tables of *other* extensions this extension's migrations may `ALTER`. Schema installation refuses an undeclared mutation (`LoaderError::CrossExtensionAlterUndeclared`), a declaration naming a table no other loaded extension creates (`CrossExtensionTableNotOwned`), and a table two extensions both create (`DuplicateTableOwner`).
+- `cost`: the `-- @cost: rows=<n> measured=<duration> triggers=<suspended|live>` migration directive (`CostDirective`, `TriggerPolicy`, `CostDirectiveError`, `cost::parse`), emitted by the build script and read by the installer to bound a migration's `statement_timeout`. A malformed directive fails the build. The module documents why each detected statement form counts as a bulk rewrite.
+
 ## [0.58.0] - 2026-09-21
 
 ### Added

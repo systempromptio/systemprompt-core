@@ -30,6 +30,7 @@ pub struct GatewayRepositories {
     pub thought_signatures: Arc<ThoughtSignatureCache>,
     pub context_materializer: DynContextMaterializer,
     pub artifact_ingest: Option<Arc<systemprompt_mcp::ArtifactIngest>>,
+    pub sessions: Option<systemprompt_traits::DynSessionStore>,
     pub payload_cap_bytes: usize,
 }
 
@@ -61,6 +62,7 @@ impl GatewayRepositories {
             )),
             context_materializer,
             artifact_ingest: None,
+            sessions: None,
             payload_cap_bytes: AuditConfig::DEFAULT_PAYLOAD_CAP_BYTES,
         })
     }
@@ -77,10 +79,17 @@ impl GatewayRepositories {
         self
     }
 
+    #[must_use]
+    pub fn with_session_store(mut self, sessions: systemprompt_traits::DynSessionStore) -> Self {
+        self.sessions = Some(sessions);
+        self
+    }
+
     pub fn settlement(&self) -> Settlement {
         Settlement {
             journal: Arc::clone(&self.journal),
             requests: Arc::clone(&self.requests),
+            sessions: self.sessions.clone(),
         }
     }
 }

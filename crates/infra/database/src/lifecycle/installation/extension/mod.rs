@@ -21,25 +21,28 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod cost_warning;
 mod foreign_keys;
 pub(crate) mod lock;
+mod phase;
 mod routine_prepass;
 mod validation;
 
 use systemprompt_extension::{Extension, ExtensionRegistry, LoaderError};
-use tracing::{debug, info};
+use tracing::{debug, info, warn};
 
+use self::cost_warning::warn_unmeasured_migrations;
 use self::foreign_keys::apply_foreign_keys;
 use self::lock::BootstrapLockGuard;
+use self::phase::execute_phase;
 use self::routine_prepass::apply_routine_prepass;
 use self::validation::{validate_extension_columns, validate_table_ownership};
 use super::migration_refs::check_migration_references;
 use super::prepare::{PreparedSchema, prepare_extension_schema};
 use super::report::SchemaInstallReport;
 use super::seeds::apply_seeds;
-use crate::lifecycle::migrations::{
-    BaselineStamp, MigrationConfig, MigrationService, RECORD_MIGRATION_SQL,
-};
+use super::undeclared::audit_schema_residue;
+use crate::lifecycle::migrations::{MigrationConfig, MigrationService};
 use crate::services::DatabaseProvider;
 
 pub async fn install_extension_schemas(
@@ -91,8 +94,25 @@ pub async fn install_extension_schemas_full(
 
     info!(
         foreign_key_drift = report.foreign_key_drift.len(),
+        undeclared_tables = report.residue.undeclared_tables.len(),
+        orphan_migration_ledgers = report.residue.orphan_migration_ledgers.len(),
         "Extension schema installation complete"
     );
+    for table in &report.residue.undeclared_tables {
+        warn!(
+            schema = table.schema,
+            table = table.table,
+            live_rows = table.live_rows,
+            "live table declared by no registered extension — add a DROP TABLE migration"
+        );
+    }
+    for ledger in &report.residue.orphan_migration_ledgers {
+        warn!(
+            extension = ledger.extension_id,
+            rows = ledger.rows,
+            "extension_migrations ledger for an extension that no longer exists"
+        );
+    }
     Ok(report)
 }
 
@@ -110,6 +130,7 @@ async fn run_install(
 
     validate_table_ownership(&prepared, schema_extensions)?;
     check_migration_references(schema_extensions)?;
+    warn_unmeasured_migrations(db, &migration_service, schema_extensions).await;
 
     let mut fresh_extensions: std::collections::HashSet<String> = std::collections::HashSet::new();
     for (ext, p) in schema_extensions.iter().zip(&prepared) {
@@ -137,6 +158,14 @@ async fn run_install(
             );
         }
         execute_phase(db, &p.structural, &stamp, &p.extension_id).await?;
+    }
+
+    for ext in schema_extensions {
+        if fresh_extensions.contains(ext.id()) {
+            migration_service
+                .run_stamped_retirements(ext.as_ref())
+                .await?;
+        }
     }
 
     apply_routine_prepass(db, &prepared).await?;
@@ -173,74 +202,12 @@ async fn run_install(
         apply_seeds(ext.as_ref(), db).await?;
     }
 
+    let owned: Vec<String> = prepared
+        .iter()
+        .flat_map(|p| p.owned_tables.clone())
+        .collect();
+    let ids: Vec<String> = prepared.iter().map(|p| p.extension_id.clone()).collect();
+    report.residue = audit_schema_residue(db, &owned, &ids).await?;
+
     Ok(report)
-}
-
-async fn execute_phase(
-    db: &dyn DatabaseProvider,
-    statements: &[String],
-    stamp: &[BaselineStamp],
-    extension_id: &str,
-) -> Result<(), LoaderError> {
-    if statements.is_empty() && stamp.is_empty() {
-        return Ok(());
-    }
-
-    let mut tx =
-        db.begin_transaction()
-            .await
-            .map_err(|e| LoaderError::SchemaInstallationFailed {
-                extension: extension_id.to_owned(),
-                message: format!("Failed to begin transaction: {e}"),
-            })?;
-
-    let total = statements.len();
-    for (idx, statement) in statements.iter().enumerate() {
-        let sql_str: &str = statement.as_str();
-        if let Err(e) = tx.execute(&sql_str, &[]).await {
-            let rollback_note = match tx.rollback().await {
-                Ok(()) => String::new(),
-                Err(rb) => format!(" (rollback also failed: {rb})"),
-            };
-            return Err(LoaderError::SchemaInstallationFailed {
-                extension: extension_id.to_owned(),
-                message: format!(
-                    "Statement {n}/{total} failed: {e}{rollback_note}\nSQL:\n{statement}",
-                    n = idx + 1,
-                ),
-            });
-        }
-    }
-
-    for row in stamp {
-        let params: [&dyn systemprompt_identifiers::ToDbValue; 5] = [
-            &row.id,
-            &extension_id,
-            &row.version,
-            &row.name,
-            &row.checksum,
-        ];
-        if let Err(e) = tx.execute(&RECORD_MIGRATION_SQL, &params).await {
-            let rollback_note = match tx.rollback().await {
-                Ok(()) => String::new(),
-                Err(rb) => format!(" (rollback also failed: {rb})"),
-            };
-            return Err(LoaderError::SchemaInstallationFailed {
-                extension: extension_id.to_owned(),
-                message: format!(
-                    "Failed to stamp migration {} ({}) as applied: {e}{rollback_note}",
-                    row.version, row.name
-                ),
-            });
-        }
-    }
-
-    tx.commit()
-        .await
-        .map_err(|e| LoaderError::SchemaInstallationFailed {
-            extension: extension_id.to_owned(),
-            message: format!("Failed to commit transaction: {e}"),
-        })?;
-
-    Ok(())
 }

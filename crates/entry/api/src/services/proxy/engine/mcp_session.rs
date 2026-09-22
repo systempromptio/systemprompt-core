@@ -217,12 +217,25 @@ async fn cache_identity_from_response(
         auth_token: req_context.auth_token().clone(),
     };
     match identities.upsert(&session_id, &row).await {
-        Ok(()) => tracing::info!(
-            service = %service_name,
-            session_id = %session_id,
-            user_id = %user.id,
-            "Stored session identity for MCP session"
-        ),
+        Ok(()) => {
+            tracing::info!(
+                service = %service_name,
+                session_id = %session_id,
+                user_id = %user.id,
+                "Stored session identity for MCP session"
+            );
+            if let Err(e) = identities
+                .attribute_session(&session_id, service_name, &row.user_id)
+                .await
+            {
+                tracing::warn!(
+                    service = %service_name,
+                    session_id = %session_id,
+                    error = %e,
+                    "Failed to attribute MCP session to its server and user"
+                );
+            }
+        },
         Err(e) => tracing::error!(
             service = %service_name,
             session_id = %session_id,

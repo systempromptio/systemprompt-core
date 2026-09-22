@@ -8,11 +8,11 @@ CREATE TABLE IF NOT EXISTS scheduled_jobs (
     last_status TEXT,
     last_error TEXT,
     last_instance_id TEXT,
+    last_message TEXT,
     run_count INTEGER NOT NULL DEFAULT 0,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX IF NOT EXISTS idx_scheduled_jobs_job_name ON scheduled_jobs(job_name);
 CREATE INDEX IF NOT EXISTS idx_scheduled_jobs_enabled ON scheduled_jobs(enabled);
 CREATE INDEX IF NOT EXISTS idx_scheduled_jobs_next_run ON scheduled_jobs(next_run);

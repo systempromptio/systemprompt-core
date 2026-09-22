@@ -11,7 +11,7 @@ use systemprompt_ai::repository::UpsertPayloadParams;
 
 use super::GatewayAudit;
 use super::message_text::flatten_message_content;
-use super::payload::slice_payload;
+use super::payload::{excerpt_payload, slice_payload, tools_array};
 use crate::services::gateway::protocol::canonical::{CanonicalRequest, Role};
 
 impl GatewayAudit {
@@ -82,7 +82,11 @@ impl GatewayAudit {
             .upsert(&self.ctx.ai_request_id, &self.ctx.evidence)
             .await?;
 
-        let capture = slice_payload(request_body, self.payload_cap_bytes());
+        let capture = if record.request_kind == RequestKind::Probe {
+            excerpt_payload(request_body)
+        } else {
+            slice_payload(request_body, self.payload_cap_bytes())
+        };
         self.payloads
             .upsert_request(
                 &self.ctx.ai_request_id,
@@ -95,9 +99,14 @@ impl GatewayAudit {
                 },
             )
             .await?;
-        if let Some(tools) = capture.json.as_ref().and_then(|body| body.get("tools")) {
+        let offered = capture
+            .json
+            .as_ref()
+            .and_then(|body| body.get("tools").filter(|t| t.is_array()).cloned())
+            .or_else(|| tools_array(request_body));
+        if let Some(tools) = offered {
             self.payloads
-                .upsert_offered_tools(&self.ctx.ai_request_id, tools)
+                .upsert_offered_tools(&self.ctx.ai_request_id, &tools)
                 .await?;
         }
         self.persist_request_messages(request).await?;
@@ -107,6 +116,7 @@ impl GatewayAudit {
             super::journal::Receipt::pending(
                 self.ctx.ai_request_id.clone(),
                 self.ctx.user_id.clone(),
+                self.ctx.session_id.clone(),
             ),
         )
         .await?;

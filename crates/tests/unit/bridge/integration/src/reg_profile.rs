@@ -10,6 +10,7 @@ const ORG_UUID: &str = "6f1d2c3a-4b5e-4f60-8a71-9b0c1d2e3f40";
 
 fn inputs() -> ProfileGenInputs {
     ProfileGenInputs {
+        model_limits: Default::default(),
         gateway_base_url: "https://gateway.example.com".to_string(),
         host_token: HostToken::new("sp-secret-key"),
         models: vec!["claude-opus-4-7".to_string()],

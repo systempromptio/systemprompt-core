@@ -3,7 +3,7 @@
 //! Defines the persisted [`User`] record and its projections
 //! ([`UserActivity`], [`UserWithSessions`], [`UserStats`],
 //! [`UserCountBreakdown`], [`UserExport`]), session rows
-//! ([`UserSession`], [`UserSessionRow`]), and the credential records
+//! ([`UserSession`]), and the credential records
 //! [`UserApiKey`] / [`NewApiKey`] and [`UserDeviceCert`]. Role and status
 //! enums are re-exported from `systemprompt_models::auth`.
 //!
@@ -78,7 +78,7 @@ pub struct UserWithSessions {
     pub last_session_at: Option<DateTime<Utc>>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct UserSession {
     pub session_id: SessionId,
     pub user_id: Option<UserId>,
@@ -88,34 +88,6 @@ pub struct UserSession {
     pub started_at: Option<DateTime<Utc>>,
     pub last_activity_at: Option<DateTime<Utc>>,
     pub ended_at: Option<DateTime<Utc>>,
-}
-
-#[derive(Debug, Clone, FromRow)]
-pub struct UserSessionRow {
-    #[sqlx(try_from = "String")]
-    pub session_id: SessionId,
-    pub user_id: Option<UserId>,
-    pub ip_address: Option<String>,
-    pub user_agent: Option<String>,
-    pub device_type: Option<String>,
-    pub started_at: Option<DateTime<Utc>>,
-    pub last_activity_at: Option<DateTime<Utc>>,
-    pub ended_at: Option<DateTime<Utc>>,
-}
-
-impl From<UserSessionRow> for UserSession {
-    fn from(row: UserSessionRow) -> Self {
-        Self {
-            session_id: row.session_id,
-            user_id: row.user_id,
-            ip_address: row.ip_address,
-            user_agent: row.user_agent,
-            device_type: row.device_type,
-            started_at: row.started_at,
-            last_activity_at: row.last_activity_at,
-            ended_at: row.ended_at,
-        }
-    }
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]

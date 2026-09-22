@@ -397,8 +397,8 @@
       "surface": "messages",
       "configured": true,
       "models": [
-        "claude-opus-4-6",
-        "claude-sonnet-4-6"
+        "claude-opus-5",
+        "claude-sonnet-5"
       ]
     },
     {

@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.59.0] - 2026-09-22
+
+### Fixed
+
+- **Bridge:** a session id is derived from the credential and the UTC date instead of generated per call. Every call site minted a fresh `SessionId::generate()` before `adopt_or_mint_session`, and the server adopts an unknown id rather than rejecting it, so the hourly token refresh created another `user_sessions` row each time — exactly 24 per user per day on one customer instance, 1,070 bridge sessions for 20 users. The id now comes from the `CredentialBinding` this install already computes for its token cache, so a refresh renews the session it owns and the id rotates only when the credential, gateway or day changes. Sign-in has no credential to bind to yet and still falls back to a generated id.
+- **Bridge:** a plain file whose POSIX mode cannot be read is reported as verified on non-unix hosts. Windows has no mode bits, so the bridge reported every file's mode check as unavailable and no receipt from such a host was ever fully verified: the installation counted for nothing in adoption and every invocation on it was attributed as `revision_unknown`. A file that is not meant to be executable has no mode to satisfy — the content digest is the whole check — and the stored evidence is re-judged by the same rule.
+
+### Changed
+- A `[1m]` default from the gateway resolves to its catalog id before the host config is written. OpenCode and Hermes match the declared model instead of failing the membership test and falling back to first-listed; Claude Code's managed settings raise a bare-form seed to the variant and leave any other existing `/model` choice alone.
+
+
+- OpenCode's managed provider config declares each model's `limit.context` and `limit.output` from the server's `model_limits`, instead of leaving OpenCode to size every gateway model with its own default. `ProfileGenInputs` carries the map.
+- The MDM default inference model list leads with `claude-opus-5-5`, and the sonnet-4-6 examples in the macOS apply summary follow the catalog.
+
 ## [0.58.0] - 2026-09-21
 
 ### Fixed
@@ -59,7 +73,6 @@
 - Login no longer queues two syncs three seconds apart: the start-up tick's sync is marked done at the moment the login handler requests one.
 - The registry backend logs `deleted managed policy values` only when a value was actually removed.
 - Linux `install --apply-schedule` no longer fails where `systemctl --user` has no user manager (a container, WSL): the units are written, the install reports the activation commands as a warning, and only an activation a live user manager refused is `InstallError::ScheduleActivation`. A caller's `set -e` no longer aborts on a degraded install.
-
 - Windows: `create_dir_all_mode_0700` on an already-private directory no longer rewrites its protected DACL. `protect_directory` verifies with `READ_CONTROL` first and only takes `WRITE_DAC` (serialised process-wide) when the descriptor is not the private one, so concurrent writers into a shared brand directory (`generate_profile` from several threads) no longer observe a transient `PermissionDenied` while a sibling re-propagates the DACL.
 
 ## [0.54.0] - 2026-09-16
@@ -105,7 +118,6 @@
 - `ErrorCode::{ElevationRequired, Partial}`; a partial sync's toast names the agents that did not update and carries `host_failures` / `host_warnings` in `BridgeError.detail`; the `config.repairDir` command and `StatePayload.elevated`.
 - `ElevatedJob.private_dirs` (`PrivateDirJob { path, owner_sid }`) reassigns a private directory and its files to the requesting account from the elevated child (`own` step).
 - `config::store::hive_report` / `HiveReport` classify which registry hive holds the Claude policy; `doctor` and the GUI health table both report it, and `doctor` gains a `config dir owner` check and covers the config lock file in `private files`.
-
 - `login --stdin` reads the PAT from standard input; `sync --watch --interval <secs>` exits `64` on a value that is not a number.
 - `install::uninstall` records the host-cleanup warnings in the printed summary (`Warning: …` lines) and in the GUI disconnect result.
 - **Windows:** `remove_profile` run unelevated reports `ManualStepRequired` naming the HKLM values that still route Claude Desktop through the proxy instead of `NothingToRemove`.
@@ -139,7 +151,6 @@
 - Claude Code permission rules with no bridge-managed settings file to carry them are a host warning naming the file `install --apply` creates, not a host failure; `apply_permissions` returns `PermissionOutcome::{Written, NoCarrier}`.
 - A zero-byte or whitespace-only `managed-settings.json` no longer aborts managed MCP policy removal with `EOF while parsing a value`; a malformed file's error names its path.
 - The header pill and the Marketplace badge read a partial sync as `degraded` (`OverallCode::Degraded`, "synced with failures") instead of `synced` or `never synced`.
-
 - A user's scalar at a key the bridge merges a table into (Codex `config.toml`, Hermes `config.yaml`, Claude Code `settings.json`) is refused as `ForeignShape` naming the key; the file is never rewritten around the conflict.
 - `plugin_oauth::store_creds` writes the secret to the keystore before the metadata names it, so a keystore failure keeps the previous, still-usable pair; a stored gateway spelled with a trailing slash is recognised as the same gateway, and a malformed recorded gateway is an error rather than a silent re-provision.
 - Uninstall removes only the plugin directories, policy values and marketplace entries the bridge's sidecars record; a marketplace the bridge has no record of writing is never removed.
@@ -229,9 +240,7 @@
 
 - Credential refresh defers transport and gateway 5xx failures until the next tick. Explicit 401/403 responses and unreadable local credentials require sign-in. Proxy errors distinguish service unavailability from authentication rejection.
 - "Session expires soon — sign in again" no longer fires seconds after every sign-in. It was raised on the short-lived access JWT, which a stored PAT renews unattended; it now only warns when there is nothing left to renew from.
-
 - **Restart to finish updating** no longer races its own successor. The proxy stops accepting and drains in-flight requests before the new process is spawned, and the new process waits for the old one to release the single-instance lock. Previously the successor could lose the lock race and merely focus the dying window, or bind a fallback port that every host profile written for 48217 rejects.
-
 - Marketplace skills and counts remain visible during gateway probes and temporary outages. Signing back in reloads an unchanged manifest, stale listing replies cannot overwrite a newer session, and failed refreshes retain the previous list with a retry action.
 - `alert_user` no longer holds its caller until the dialog is dismissed. The macOS `osascript` dialog and the Windows `MessageBoxW` were both modal and blocking, so an installer path that raised one on an unattended host, or the native test job on a CI runner, waited forever; the dialog is now raised and reaped on its own thread. The Quality workflow's native bridge job also carries a 45-minute timeout.
 
@@ -332,7 +341,6 @@
 - Browser sign-in tries `LOOPBACK_PORTS`, starting with 8767 and skipping only addresses already in use. Callback URLs use the bound port. Exhaustion reports the attempted ports; other bind errors identify their port.
 - A sign-in failure that never reached the log file. The bind error was mapped straight into `AuthError` and rendered as a GUI toast, so a wedged sign-in left no trace in `bridge.<date>.log` — the only artefact available when nobody is at the machine. `capture_device_link_code` now diagnoses it the way the neighbouring browser-launch failure already did.
 - Sign-out and device purge cancel in-flight login before clearing credentials. Cancellation closes the callback listener and prevents login completion from restoring removed credentials.
-
 - Validation runs after sync completion on success or failure. Checks during provisioning report a warning while the requested configuration is still being applied.
 - Trust-on-first-use persistence failures return configuration errors and record their cause in the activity log. Validation distinguishes fetched-but-unpersisted trust from missing provisioning.
 - macOS managed preferences support JSON serialization of property-list values, including arrays. Plain strings retain their existing representation.
@@ -410,7 +418,6 @@
 - `just bridge-bindings-check` regenerates the ts-rs bindings into scratch and diffs them against `bindings/`; a variant renamed in Rust used to leave them stale with nothing to say so.
 - The whole GUI wire has a type. `StatePayload` and every payload it carries live in an unconditional `wire` module (`wire::{payloads, hosts, codes, first_run, ipc}`), so ts-rs exports them on Linux CI too — 47 bindings under `bindings/web/js/types/` instead of the five IPC envelope types, and `bridge-bindings-check` now covers the payload the front end is actually written against. `bridge.js` types `stateSnapshot()` as `Promise<StatePayload>` for editors. `gui::ipc` moved to `wire::ipc`; the Linux-only `ipc_types` alias is gone; `HostModelView` and the surface helpers are no longer GUI-gated.
 - The `comms-drain` hooks (`UserPromptSubmit`, `Stop`) are installed only when the governance-owning plugin sets `hooks.comms: true` in the manifest. They rode along with every governance owner before.
-
 - OpenCode is a supported host. The bridge writes a `provider.systemprompt` block (the OpenAI-compatible wire, the loopback `baseURL`, the negotiated model list and the `x-inference-protocol` header) and the default `model` into OpenCode's admin-managed configuration — `/etc/opencode/opencode.json`, `/Library/Application Support/opencode/opencode.json` or `%ProgramData%\opencode\opencode.json` — which OpenCode layers above every user and project file, so no local config can route inference around the gateway. The write is direct where the process may, escalates through the existing `sudo`/`osascript` path on macOS and the UAC child on Windows only when refused, and is skipped entirely when the file already says what it would say. The API key goes to the user's `auth.json` (0600); MCP connectors go to the user's global `opencode.json` and skills to `~/.config/opencode/skills`, both user-owned because unattended sync can never prompt. Skill folders are kebab-cased and the front matter `name` is forced to match, since OpenCode rejects a skill whose name differs from its folder; two ids that collapse to one folder are refused before anything is written. The probe reads the managed file and the `ai.opencode.managed` MDM domain, never user scope, and finds the `opencode` binary in the usual install prefixes even when the GUI's PATH lacks them.
 - `HostApp::can_open` lets a terminal-only host say so, and the verdict then offers no Open button — Codex on Linux and every CLI host used to get one whose only outcome was an error toast.
 - The Hermes card has a logo; it rendered an empty glyph. Hermes also gained the unit coverage it shipped without: probe, install/merge/remove, `.env` handling and the sync emitter.
@@ -436,7 +443,6 @@
 
 - The stale-profile remediation named `install --apply`, which installed the MDM payload and the scheduled task and never touched a host profile. The advice is now true, rather than the command being wrong.
 - The macOS build. `mod macos;` in the Claude Desktop host carried both a windows and a macos cfg, which are ANDed and so never true; `gui/window` used `Path` without importing it; `install/mdm/macos.rs` bound an unused `loopback` and exposed `build_prefs_plist` more publicly than its `MdmPayloadInputs` parameter. `lib.rs` gates the GUI on windows/macos, so none of it is reachable from a Linux check.
-
 - The ts-rs bindings under `bindings/web/js/types/` were never in git — the repository's blanket `*.ts` ignore swallowed them — so `bridge-bindings-check` had nothing committed to compare against. They are un-ignored and committed.
 - The Hermes host profile never routed anything. Verified against Hermes Agent 0.21.0: `model.base_url` is only consulted after `model.provider` selects a provider, and the profile left `provider` at its default `auto`, so Hermes answered "No LLM provider configured". The profile is now a named `providers:` entry selected by `model.provider`, which is how Hermes reaches any non-built-in endpoint.
 - `model.api_mode` was written as `openai`, which is not a value Hermes knows — its vocabulary is `chat_completions`, `codex_responses`, `anthropic_messages` and `bedrock_converse`. The key was silently discarded. The wire format the gateway serves is now named explicitly as `chat_completions`.
@@ -966,7 +972,6 @@
 
 - Loopback `GET`/`HEAD /healthz` and `POST /otel` paths bypass the loopback bearer check after host validation. Health is served locally; OTLP forwarding injects the gateway bearer. Shared response helpers and single-prefix bearer parsing handle the remaining proxy routes.
 - **`///` rustdoc and TODO/FIXME flags purged from binary modules** (`bin/bridge/**` is a binary — `///` is banned). ~50 paraphrase blocks removed; ~20 load-bearing why-lines preserved as `//`. The `obs.rs` panic-hook ordering note is retained as a `// Why:` comment; the `gui/server.rs` focus-IPC FIXME was reworded as a deliberate-trade-off explanation (TCP+CSRF works identically across all three platforms in <100 lines).
-
 - **Breaking — `cowork` rename completed end-to-end.** Bridge sends canonical `x-session-id` / `x-context-id` headers (issued from the new `SessionContext`) and uses the renamed gateway routes (`/v1/bridge/*`, `/v1/auth/bridge/*`). Internal macros are now `bridge_define_id!` / `bridge_define_token!`. Env vars: `SP_COWORK_*` → `SP_BRIDGE_*`. Config file: `~/.config/systemprompt/systemprompt-cowork.toml` → `systemprompt-bridge.toml`. A `0.7.x` bridge cannot talk to a `0.8.0` gateway and vice versa.
 
 ### Added

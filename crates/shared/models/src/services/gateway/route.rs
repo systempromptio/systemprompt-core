@@ -59,7 +59,10 @@ pub struct GatewayRoute {
 
 impl GatewayRoute {
     pub fn matches(&self, model: &str) -> bool {
-        match_pattern(&self.model_pattern, model)
+        match_pattern(
+            &self.model_pattern,
+            crate::services::providers::without_context_variant(model),
+        )
     }
 
     pub fn matches_request(&self, request: &CanonicalRequest) -> bool {
@@ -71,7 +74,9 @@ impl GatewayRoute {
     }
 
     pub fn effective_upstream_model<'a>(&'a self, requested: &'a str) -> &'a str {
-        self.upstream_model.as_deref().unwrap_or(requested)
+        self.upstream_model
+            .as_deref()
+            .unwrap_or_else(|| crate::services::providers::without_context_variant(requested))
     }
 
     pub fn ensure_id(&mut self) {

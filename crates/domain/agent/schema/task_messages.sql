@@ -27,9 +27,6 @@ CREATE TABLE IF NOT EXISTS task_messages (
     UNIQUE(task_id, sequence_number)
 );
 
-CREATE INDEX IF NOT EXISTS idx_task_messages_task_id ON task_messages(task_id);
-CREATE INDEX IF NOT EXISTS idx_task_messages_message_id ON task_messages(message_id);
-CREATE INDEX IF NOT EXISTS idx_task_messages_sequence ON task_messages(task_id, sequence_number);
 CREATE INDEX IF NOT EXISTS idx_task_messages_client_id ON task_messages(client_message_id) WHERE client_message_id IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_task_messages_user_id ON task_messages(user_id);

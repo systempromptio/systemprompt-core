@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.59.0] - 2026-09-22
+
+### Changed
+
+- Authored profiles carry the new `retention` block at its defaults, so a profile this crate writes governs its own deletion windows rather than leaving them to an operator's memory.
+- The authored `evaluation` block is `judge`, following the profile rename (`JudgeProfile`).
+
 ## [0.55.0] - 2026-09-17
 
 ### Changed

@@ -8,6 +8,7 @@ use super::error::MdmError;
 use super::policy::{PolicyEntry, PolicyInputs, PolicyValue};
 
 const DEFAULT_INFERENCE_MODELS: &[&str] = &[
+    "claude-opus-5-5",
     "claude-opus-5",
     "claude-sonnet-5",
     "claude-fable-5-1",

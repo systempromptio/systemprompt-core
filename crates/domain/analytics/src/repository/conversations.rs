@@ -80,11 +80,10 @@ impl ConversationAnalyticsRepository {
             SELECT
                 ar.session_id as "session_id!: systemprompt_identifiers::SessionId",
                 MIN(ar.user_id) as "user_id!: systemprompt_identifiers::UserId",
-                COUNT(arm.id)::bigint as "message_count!",
+                COALESCE(SUM(ar.message_count), 0)::bigint as "message_count!",
                 MIN(ar.created_at) as "created_at!",
                 MAX(ar.created_at) as "updated_at!"
             FROM analytics_report_ai_requests ar
-            LEFT JOIN analytics_report_ai_request_messages arm ON arm.request_id = ar.id
             WHERE ar.task_id IS NULL
               AND ar.session_id IS NOT NULL
               AND ar.created_at >= $1 AND ar.created_at < $2

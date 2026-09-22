@@ -15,7 +15,7 @@ fn the_anthropic_default_constructor_targets_the_vendor_api_with_no_seeded_model
 
     assert_eq!(provider.name(), "anthropic");
     assert!(
-        !provider.supports_model("claude-sonnet-4-6"),
+        !provider.supports_model("claude-sonnet-5"),
         "a provider built without a catalog must advertise no models until one is seeded"
     );
     assert!(

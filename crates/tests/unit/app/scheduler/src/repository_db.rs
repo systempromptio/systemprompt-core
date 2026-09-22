@@ -110,6 +110,7 @@ mod scheduler_repository {
             JobRunRecord {
                 status: JobStatus::Failed,
                 error: Some("boom"),
+                message: None,
                 next_run: None,
                 instance_id: &InstanceId::new("test-node"),
             },
@@ -141,6 +142,7 @@ mod scheduler_repository {
             JobRunRecord {
                 status: JobStatus::Failed,
                 error: Some("boom"),
+                message: None,
                 next_run: None,
                 instance_id: &InstanceId::new("test-node"),
             },
@@ -152,6 +154,7 @@ mod scheduler_repository {
             JobRunRecord {
                 status: JobStatus::Success,
                 error: None,
+                message: None,
                 next_run: None,
                 instance_id: &InstanceId::new("test-node"),
             },
@@ -288,6 +291,7 @@ mod job_repository {
             JobRunRecord {
                 status: JobStatus::Success,
                 error: None,
+                message: None,
                 next_run: None,
                 instance_id: &InstanceId::new("test-node"),
             },

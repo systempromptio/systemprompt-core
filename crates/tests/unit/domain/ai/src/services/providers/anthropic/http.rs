@@ -40,8 +40,7 @@ async fn generate_parses_text_response() {
     let p = provider(server.uri());
     let messages = msgs();
     let sampling = sampling();
-    let params =
-        GenerationParams::new(&messages, "claude-sonnet-4-6", 256).with_sampling(&sampling);
+    let params = GenerationParams::new(&messages, "claude-sonnet-5", 256).with_sampling(&sampling);
     let resp = p.generate(params).await.expect("ok");
     assert!(resp.content.contains("hello there"));
 }
@@ -55,7 +54,7 @@ async fn generate_returns_error_on_4xx() {
     .await;
     let p = provider(server.uri());
     let messages = msgs();
-    let params = GenerationParams::new(&messages, "claude-sonnet-4-6", 32);
+    let params = GenerationParams::new(&messages, "claude-sonnet-5", 32);
     let err = p.generate(params).await.expect_err("must fail");
     match err {
         systemprompt_ai::error::AiError::HttpStatus {
@@ -100,7 +99,7 @@ async fn generate_with_tools_extracts_tool_calls() {
         .with_input_schema(json!({"type": "object"})),
     ];
     let params = ToolGenerationParams::new(
-        GenerationParams::new(&messages, "claude-sonnet-4-6", 64),
+        GenerationParams::new(&messages, "claude-sonnet-5", 64),
         tools,
     );
     let (resp, calls) = p.generate_with_tools(params).await.expect("ok");
@@ -120,7 +119,7 @@ async fn generate_with_schema_returns_structured_output() {
     let messages = msgs();
     let schema = json!({ "type": "object", "properties": { "name": {"type":"string"}, "age": {"type":"integer"} } });
     let params = SchemaGenerationParams {
-        base: GenerationParams::new(&messages, "claude-sonnet-4-6", 64),
+        base: GenerationParams::new(&messages, "claude-sonnet-5", 64),
         response_schema: schema,
     };
     let resp = p.generate_with_schema(params).await.expect("ok");
@@ -139,7 +138,7 @@ async fn generate_stream_yields_text_chunks() {
     let server = mock_http::anthropic_messages_stream(sse).await;
     let p = provider(server.uri());
     let messages = msgs();
-    let params = GenerationParams::new(&messages, "claude-sonnet-4-6", 64);
+    let params = GenerationParams::new(&messages, "claude-sonnet-5", 64);
     let mut stream = p.generate_stream(params).await.expect("ok");
     let mut count = 0_usize;
     let mut text = String::new();
@@ -165,7 +164,7 @@ async fn generate_with_web_search_returns_grounded() {
         "id": "msg_search",
         "type": "message",
         "role": "assistant",
-        "model": "claude-sonnet-4-6",
+        "model": "claude-sonnet-5",
         "content": [
             { "type": "text", "text": "answer with sources" },
             {
@@ -183,7 +182,7 @@ async fn generate_with_web_search_returns_grounded() {
     let p = provider(server.uri()).with_web_search();
     let messages = msgs();
     let params =
-        SearchGenerationParams::new(GenerationParams::new(&messages, "claude-sonnet-4-6", 64));
+        SearchGenerationParams::new(GenerationParams::new(&messages, "claude-sonnet-5", 64));
     let resp = p.generate_with_google_search(params).await;
     assert!(resp.is_ok() || resp.is_err());
 }
@@ -192,7 +191,7 @@ async fn generate_with_web_search_returns_grounded() {
 async fn search_params_builder_covers_setters() {
     let messages = msgs();
     let s = sampling();
-    let p = anthropic_search::SearchParams::new(&messages, 64, "claude-sonnet-4-6")
+    let p = anthropic_search::SearchParams::new(&messages, 64, "claude-sonnet-5")
         .with_sampling(&s)
         .with_max_uses(3);
     assert_eq!(p.max_output_tokens, 64);
@@ -204,9 +203,9 @@ async fn provider_metadata_is_consistent() {
     let p = provider("http://localhost".to_owned());
     assert_eq!(p.name(), "anthropic");
     assert!(p.supports_streaming());
-    assert!(p.supports_model("claude-sonnet-4-6"));
+    assert!(p.supports_model("claude-sonnet-5"));
     assert!(!p.supports_model("gpt-5"));
-    assert_eq!(p.default_model(), "claude-sonnet-4-6");
+    assert_eq!(p.default_model(), "claude-sonnet-5");
     let _ = p.get_pricing("claude-opus-4-6");
     let _ = p.get_pricing("claude-opus-4-8");
     let _ = p.get_pricing("claude-haiku-4-5-20251001");

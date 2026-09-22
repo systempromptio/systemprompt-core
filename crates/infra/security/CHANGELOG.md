@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.59.0] - 2026-09-22
+
+### Added
+
+- `at_rest::seal` / `at_rest::open` (ChaCha20-Poly1305 under the deployment's `encryption_master_key`, a random nonce per call, lowercase hex) for a stored secret that has to be replayed upstream rather than merely matched, where a digest is no use. It is the same key and AEAD the gateway accounting journal already uses on disk, so a deployment holds one at-rest key rather than two. `AtRestCipherError` names the operator or key fault and carries neither the value nor the key.
+
+### Fixed
+
+- Migration `020` realigns `governance_decisions.context_id` on `trace_id`, the one identifier both sides always recorded: a pre-dispatch authz decision was audited against a context re-derived from the bridge session rather than the one it authorized — 8,784 rows on one customer dump. The table is append-only since migration `018` and the guard is a row trigger, so the backfill lifts it for its own statement and restores it in the same transaction. No decision, policy, reason or actor is touched.
+
+### Removed
+
+- The plane's prefix-duplicate indexes, each a strict column prefix of a non-partial covering index; the `CREATE INDEX` lines go from the base schema in the same change.
+
 ## [0.57.0] - 2026-09-19
 
 ### Breaking

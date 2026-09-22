@@ -83,7 +83,10 @@ pub use services::artifact_ingest::{
 pub use services::ui_renderer::templates::html::artifact_shell_template;
 pub use services::ui_renderer::{artifact_resource_uri, parse_artifact_resource_uri};
 pub use systemprompt_models::mcp::ClientProfile;
-pub use tool::{McpToolExecutor, McpToolHandler, build_tool_list_result, object_input_schema};
+pub use tool::{
+    INTENT_CLAIM_WINDOW_SECONDS, McpToolExecutor, McpToolHandler, build_tool_list_result,
+    object_input_schema,
+};
 
 pub use systemprompt_models::mcp::{
     Deployment, DeploymentConfig, ERROR, McpAuthState, McpServerConfig, OAuthRequirement, RUNNING,
@@ -128,6 +131,7 @@ pub(crate) mod state;
 
 use std::sync::Arc;
 use std::time::Duration;
+use systemprompt_identifiers::McpServerId;
 
 use crate::middleware::DatabaseSessionHandler;
 use crate::repository::McpSessionRepository;
@@ -147,6 +151,10 @@ pub struct McpHttpConfig {
     pub allowed_hosts: Option<Vec<String>>,
     pub allowed_origins: Vec<String>,
     pub session: SessionTimeouts,
+    // Why: the server stamps its own id on every `mcp_sessions` row it opens,
+    // so the console can attribute a session to a server without waiting for
+    // the proxy to learn who is behind it.
+    pub server_id: Option<McpServerId>,
 }
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -168,6 +176,7 @@ impl Default for McpHttpConfig {
             ]),
             allowed_origins: Vec::new(),
             session: SessionTimeouts::default(),
+            server_id: None,
         }
     }
 }
@@ -244,6 +253,7 @@ where
         allowed_hosts,
         allowed_origins,
         session,
+        server_id,
     } = http;
 
     let host_policy = StreamableHttpServerConfig::default().with_allowed_origins(allowed_origins);
@@ -261,7 +271,8 @@ where
     )));
     config.session_store = Some(session_store);
 
-    let session_manager = DatabaseSessionHandler::with_timeouts(session_repository, session);
+    let session_manager =
+        DatabaseSessionHandler::with_timeouts(session_repository, session, server_id);
 
     let service =
         StreamableHttpService::new(move || Ok(server.clone()), session_manager.into(), config);

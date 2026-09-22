@@ -19,6 +19,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
 
 use crate::services::{ApiSurface, ProviderRegistry};
@@ -35,6 +37,34 @@ pub struct BridgeProfileResponse {
     pub organization_uuid: Option<String>,
     #[serde(default)]
     pub providers: Vec<ProviderHealth>,
+    // Why: hosts that take per-model limits (OpenCode) otherwise size every
+    // gateway model with their own default and cut a 1M model short. Absent
+    // from an older server, so it defaults to empty.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub model_limits: BTreeMap<String, AdvertisedLimits>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AdvertisedLimits {
+    pub context_window: u32,
+    pub max_output_tokens: u32,
+}
+
+fn advertised_limits(registry: &ProviderRegistry) -> BTreeMap<String, AdvertisedLimits> {
+    registry
+        .advertised_providers()
+        .flat_map(|entry| entry.models.iter())
+        .filter(|model| !model.hidden && model.limits.context_window > 0)
+        .map(|model| {
+            (
+                model.id.as_str().to_owned(),
+                AdvertisedLimits {
+                    context_window: model.limits.context_window,
+                    max_output_tokens: model.limits.max_output_tokens,
+                },
+            )
+        })
+        .collect()
 }
 
 pub const KNOWN_HOSTS: &[&str] = &[
@@ -112,5 +142,6 @@ pub fn build(
         default_model,
         organization_uuid,
         providers: provider_health(registry, secret_present),
+        model_limits: advertised_limits(registry),
     }
 }

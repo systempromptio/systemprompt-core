@@ -45,8 +45,8 @@ mod create_tests {
             false,
         );
         assert_eq!(provider.name(), "anthropic");
-        assert!(provider.supports_model("claude-sonnet-4-6"));
-        assert_eq!(provider.default_model(), "claude-sonnet-4-6");
+        assert!(provider.supports_model("claude-sonnet-5"));
+        assert_eq!(provider.default_model(), "claude-sonnet-5");
         assert!(!provider.supports_model("gpt-4.1"));
     }
 

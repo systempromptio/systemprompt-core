@@ -7,7 +7,7 @@ use std::collections::BTreeMap;
 use systemprompt_api::routes::gateway::messages::{
     GatewayAuthzRequestInput, build_gateway_authz_request,
 };
-use systemprompt_identifiers::{ModelId, RouteId, TraceId, UserId};
+use systemprompt_identifiers::{ContextId, ModelId, RouteId, TraceId, UserId};
 use systemprompt_security::authz::{AuthzContext, EntityRef};
 
 #[test]
@@ -25,6 +25,7 @@ fn forwards_roles_and_attributes_to_authz_request() {
         model: ModelId::new("claude-3"),
         session_id: None,
         client_id: None,
+        context_id: ContextId::legacy(),
     });
 
     assert_eq!(req.user_id.as_str(), "user_1");
@@ -39,6 +40,6 @@ fn forwards_roles_and_attributes_to_authz_request() {
             .as_str(),
         "claude-3"
     );
-    assert!(req.context_id.is_none());
+    assert_eq!(req.context_id.as_ref(), Some(&ContextId::legacy()));
     assert!(req.task_id.is_none());
 }

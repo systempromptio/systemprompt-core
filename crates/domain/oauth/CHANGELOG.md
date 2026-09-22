@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.59.0] - 2026-09-22
+
+### Breaking
+
+- **Breaking:** `OauthCleanupCounts` gains `bridge_exchange_codes`; struct literals must name it.
+
+### Added
+
+- `oauth_cleanup` sweeps consumed and expired `bridge_exchange_codes`, which nothing deleted.
+
+### Removed
+
+- The plane's prefix-duplicate indexes, each a strict column prefix of a non-partial covering index; the `CREATE INDEX` lines go from the base schema in the same change.
+
 ## [0.54.0] - 2026-09-16
 
 ### Breaking

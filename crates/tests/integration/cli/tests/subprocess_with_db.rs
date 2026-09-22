@@ -200,7 +200,7 @@ fn db_indexes() {
 fn db_indexes_with_table() {
     db_stderr_fmt(
         &["infra", "db", "indexes", "--table", "users"],
-        "idx_users_email",
+        "idx_users_name",
     );
 }
 

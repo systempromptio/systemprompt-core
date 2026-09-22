@@ -8,6 +8,5 @@ CREATE TABLE IF NOT EXISTS webauthn_setup_tokens (
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
-CREATE INDEX IF NOT EXISTS idx_webauthn_setup_tokens_token_hash ON webauthn_setup_tokens(token_hash);
 CREATE INDEX IF NOT EXISTS idx_webauthn_setup_tokens_user_id ON webauthn_setup_tokens(user_id);
 CREATE INDEX IF NOT EXISTS idx_webauthn_setup_tokens_expires_at ON webauthn_setup_tokens(expires_at);

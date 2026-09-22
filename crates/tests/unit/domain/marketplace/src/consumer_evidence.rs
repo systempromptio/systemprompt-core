@@ -126,20 +126,55 @@ async fn tampered_content_modes_partial_installs_and_wrong_generations_fail() {
 #[tokio::test]
 async fn unavailable_platform_checks_are_retained_without_verified_session_binding() {
     let mut f = fixture().await;
-    f.request.files[0].mode_check = ReadbackStatus::Unavailable;
+    let executable = f
+        .request
+        .files
+        .iter()
+        .position(|file| file.executable)
+        .expect("the fixture bundle ships an executable file");
+    f.request.files[executable].mode_check = ReadbackStatus::Unavailable;
     let binding = f.receipt_binding().await;
     let receipt = f
         .repo
         .consumer_receipt_status(&f.credential.credential, &binding.receipt_id)
         .await
         .unwrap();
-    assert!(!receipt.fully_verified);
+    assert!(
+        !receipt.fully_verified,
+        "an executable whose mode bit was never confirmed leaves the receipt unverified"
+    );
     assert!(
         f.repo
             .bind_consumer_session(&f.credential.credential, &binding)
             .await
             .is_err()
     );
+}
+
+// A host without POSIX mode bits reports every mode as unavailable. A file
+// that is not meant to be executable has no mode to satisfy, so its content
+// digest is the whole check and the receipt still verifies.
+#[tokio::test]
+async fn an_unavailable_mode_on_a_non_executable_file_still_verifies_and_binds() {
+    let mut f = fixture().await;
+    let plain = f
+        .request
+        .files
+        .iter()
+        .position(|file| !file.executable)
+        .expect("the fixture bundle ships a non-executable file");
+    f.request.files[plain].mode_check = ReadbackStatus::Unavailable;
+    let binding = f.receipt_binding().await;
+    let receipt = f
+        .repo
+        .consumer_receipt_status(&f.credential.credential, &binding.receipt_id)
+        .await
+        .unwrap();
+    assert!(receipt.fully_verified);
+    f.repo
+        .bind_consumer_session(&f.credential.credential, &binding)
+        .await
+        .expect("a verified receipt binds its native session");
 }
 
 #[tokio::test]

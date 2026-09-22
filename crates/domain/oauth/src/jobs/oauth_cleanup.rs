@@ -51,6 +51,7 @@ impl Job for OauthCleanupJob {
             oauth_state_bindings = counts.state_bindings,
             oauth_jti_revocations = counts.jti_revocations,
             id_jag_replays = counts.id_jag_replays,
+            bridge_exchange_codes = counts.bridge_exchange_codes,
             duration_ms,
             "Job completed"
         );

@@ -31,9 +31,20 @@ pub(crate) async fn verify_capture(pool: &PgPool, outbox: &OutboxConsumer) {
     .execute(pool)
     .await
     .unwrap();
-    sqlx::raw_sql(include_str!(
-        "../../../../infra/logging/schema/reporting_capture.sql"
-    ))
+    // `logs` is no longer a production reporting source; it stays the
+    // capture fixture here because it has columns the projection omits
+    // (`metadata`), which is what the unchanged-projection rule needs.
+    sqlx::raw_sql(
+        "CREATE TRIGGER reporting_capture_insert AFTER INSERT ON logs \
+         REFERENCING NEW TABLE AS new_rows FOR EACH STATEMENT EXECUTE FUNCTION \
+         sp_capture_reporting_change('logs', 'id', 'id,timestamp,level,module,message,user_id,session_id,task_id'); \
+         CREATE TRIGGER reporting_capture_update AFTER UPDATE ON logs \
+         REFERENCING OLD TABLE AS old_rows NEW TABLE AS new_rows FOR EACH STATEMENT EXECUTE FUNCTION \
+         sp_capture_reporting_change('logs', 'id', 'id,timestamp,level,module,message,user_id,session_id,task_id'); \
+         CREATE TRIGGER reporting_capture_delete AFTER DELETE ON logs \
+         REFERENCING OLD TABLE AS old_rows FOR EACH STATEMENT EXECUTE FUNCTION \
+         sp_capture_reporting_change('logs', 'id', 'id,timestamp,level,module,message,user_id,session_id,task_id');",
+    )
     .execute(pool)
     .await
     .unwrap();
@@ -92,7 +103,9 @@ pub(crate) async fn verify_capture(pool: &PgPool, outbox: &OutboxConsumer) {
     .fetch_one(pool)
     .await
     .unwrap();
-    recv_notification(&mut notifications, &committed_notification).await;
+    // Capture is polled, never notified: the SSE bridge would only load the
+    // row to discard it.
+    assert_no_notification(&mut notifications, &committed_notification).await;
     drop(notifications);
     let first = next_fact(outbox).await;
     assert_eq!(first["source"], "logs");
@@ -189,22 +202,6 @@ async fn assert_no_notification(notifications: &mut sqlx::postgres::PgListener, 
             Err(_) => return,
             Ok(Ok(notification)) => assert_ne!(notification.payload(), rejected),
             Ok(Err(error)) => panic!("notification receive failed: {error}"),
-        }
-    }
-}
-
-async fn recv_notification(notifications: &mut sqlx::postgres::PgListener, expected: &str) {
-    let deadline = tokio::time::Instant::now() + Duration::from_secs(2);
-    loop {
-        let remaining = deadline
-            .checked_duration_since(tokio::time::Instant::now())
-            .expect("matching reporting notification was not delivered");
-        let notification = tokio::time::timeout(remaining, notifications.recv())
-            .await
-            .expect("matching reporting notification was not delivered")
-            .expect("notification receive failed");
-        if notification.payload() == expected {
-            return;
         }
     }
 }

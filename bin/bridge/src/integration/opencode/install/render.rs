@@ -35,11 +35,23 @@ pub(super) fn managed_json(inputs: &ProfileGenInputs) -> Map<String, Value> {
     }
 
     // Why: OpenCode has no models.dev catalogue for custom providers, so models
-    // must be declared.
+    // must be declared — limits included, or it sizes a 1M model with its own
+    // default.
     let models: Map<String, Value> = inputs
         .models
         .iter()
-        .map(|m| (m.clone(), json!({ "name": m })))
+        .map(|m| {
+            let entry = inputs.model_limits.get(m).map_or_else(
+                || json!({ "name": m }),
+                |l| {
+                    json!({
+                        "name": m,
+                        "limit": { "context": l.context_window, "output": l.max_output_tokens },
+                    })
+                },
+            );
+            (m.clone(), entry)
+        })
         .collect();
 
     let mut provider = Map::new();
@@ -56,11 +68,13 @@ pub(super) fn managed_json(inputs: &ProfileGenInputs) -> Map<String, Value> {
     // Why: with the whole catalog advertised, the first entry is whichever
     // provider happens to sort first — not a choice. Prefer the gateway's own
     // default when it is one of the models we just declared, since a default
-    // OpenCode cannot resolve leaves the picker broken on first launch.
+    // OpenCode cannot resolve leaves the picker broken on first launch. A `[1m]`
+    // default is Claude Code's context marker, so it is matched as its catalog id.
     let default = inputs
         .default_model
-        .as_ref()
-        .filter(|m| inputs.models.contains(m))
+        .as_deref()
+        .map(systemprompt_models::services::providers::without_context_variant)
+        .and_then(|d| inputs.models.iter().find(|m| m.as_str() == d))
         .or_else(|| inputs.models.first());
     if let Some(model) = default {
         root.insert(

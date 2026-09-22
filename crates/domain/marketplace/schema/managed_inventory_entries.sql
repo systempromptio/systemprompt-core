@@ -18,4 +18,3 @@ CREATE TABLE IF NOT EXISTS managed_inventory_entries (
     FOREIGN KEY(owner_id,resource_id) REFERENCES managed_resources(owner_id,id),
     FOREIGN KEY(owner_id,source_id) REFERENCES managed_sources(owner_id,id)
 );
-CREATE INDEX IF NOT EXISTS managed_inventory_list ON managed_inventory_entries(owner_id,entry_id);

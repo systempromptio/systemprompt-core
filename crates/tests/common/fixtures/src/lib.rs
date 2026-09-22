@@ -28,7 +28,8 @@ pub use app_context::{
     default_governance_engine, drain_reporting, fixture_analytics_repositories,
     fixture_app_context, fixture_app_context_with, fixture_app_context_with_config,
     fixture_app_context_with_hook, fixture_app_context_with_user_repository,
-    fixture_artifact_ingest, fixture_config, fixture_fingerprint_repository, refresh_reporting,
+    fixture_artifact_ingest, fixture_config, fixture_fingerprint_repository, hold_reporting_lock,
+    refresh_reporting,
 };
 pub use bootstrap::{
     ensure_messaging_bootstrap, ensure_test_bootstrap, init_isolated_bootstrap,

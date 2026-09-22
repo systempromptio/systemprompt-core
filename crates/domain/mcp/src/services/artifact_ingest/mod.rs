@@ -45,6 +45,8 @@ pub const MAX_PAYLOAD_BYTES: usize = 8 * 1024 * 1024;
 
 pub const FINGERPRINT_WINDOW_SECONDS: i64 = 120;
 
+pub const PROXIMITY_WINDOW_SECONDS: i64 = 30;
+
 #[derive(Debug)]
 pub struct IngestRequest {
     pub result: CallToolResult,

@@ -10,7 +10,7 @@ use axum::http::{HeaderMap, HeaderValue};
 use systemprompt_api::routes::gateway::messages::{
     GatewayAuthzRequestInput, build_gateway_authz_request, extract_credential,
 };
-use systemprompt_identifiers::{Actor, ModelId, RouteId, TraceId, UserId};
+use systemprompt_identifiers::{Actor, ContextId, ModelId, RouteId, TraceId, UserId};
 use systemprompt_security::authz::EntityRef;
 
 fn headers(pairs: &[(&str, &str)]) -> HeaderMap {
@@ -82,6 +82,7 @@ fn build_authz_request_carries_user_route_and_model() {
         model: model.clone(),
         session_id: None,
         client_id: None,
+        context_id: ContextId::legacy(),
     });
 
     assert_eq!(req.user_id, user_id);
@@ -111,6 +112,7 @@ fn build_authz_request_preserves_act_chain_and_attributes() {
         model: ModelId::new("gpt-5"),
         session_id: None,
         client_id: None,
+        context_id: ContextId::legacy(),
     });
 
     assert_eq!(req.act_chain, vec![actor]);

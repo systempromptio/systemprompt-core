@@ -223,12 +223,20 @@ pub(super) fn read_or_empty(path: &Path) -> Result<String, MdmError> {
 }
 
 // Why: Claude Code stores the user's /model selection in this same settings
-// file.
+// file, so an existing choice is kept. The one exception is the bare form of a
+// `[1m]` default (`claude-sonnet-5` for `claude-sonnet-5[1m]`): that is what an
+// earlier seed wrote, and it is the same model at a 200k budget, so it is
+// raised to the context variant rather than left capped.
 pub fn seed_default_model(model: &str) -> Result<bool, MdmError> {
     let settings_path =
         managed_settings_path().ok_or(MdmError::Resolve("the managed settings path"))?;
     let mut root = read_settings(&settings_path)?;
-    if root.contains_key("model") {
+    if let Some(existing) = root.get("model").and_then(serde_json::Value::as_str) {
+        let base = systemprompt_models::services::providers::without_context_variant(model);
+        if existing == model || existing != base {
+            return Ok(false);
+        }
+    } else if root.contains_key("model") {
         return Ok(false);
     }
     root.insert(

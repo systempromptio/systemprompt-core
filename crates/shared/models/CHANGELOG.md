@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.59.0] - 2026-09-22
+
+### Breaking
+
+- **Profile:** the `evaluation:` block is `judge:` (`JudgeProfile { automatic }`) — what it has configured since the evaluation engine was removed. `Profile.evaluation` is `Profile.judge` and `PluginHooksRef.evaluation` is `PluginHooksRef.judge`; Rust field accesses must be renamed. Both structs deny unknown fields, so both keep `alias = "evaluation"` and a deployed `profile.yaml` or a plugin kit still on the old key continues to load. The aliases go once every pinned kit has been republished.
+- **Rate limiting:** `config::RateLimitConfig` is deleted and `Config.rate_limits` holds `profile::RateLimitsConfig`, as its `retention`, `content_negotiation` and `security_headers` neighbours already held their profile types; `production()`, `testing()` and `disabled()` move onto `RateLimitsConfig`. No value changes — the twin's literals and the wire type's `const fn` defaults agreed pairwise.
+- **Wire origin:** `NativeMarker` is re-cut around what Claude Code sends: `ClaudeDesktopEntrypoint`, `ClaudeCliEntrypoint`, `ClaudeMetadataUserId`, `ClaudeMetadataJson`, `CodexTurnMetadata`. `OpencodeSessionJson` is gone; it never matched OpenCode traffic. `ClientKind::same_runtime` is new.
+
+### Added
+
+- **Profile:** a `retention:` block carries every deletion window in one place — `logs` 30 d, `analytics_events` 90 d, stored AI request messages following `ai.history.retention_days`, `mcp_tool_executions` 365 d, processed outbox rows 7 d, raw payload bodies 7 d, `governance_decisions` 180 d. Retention was previously an operator's memory.
+- **Rate limiting:** `RateLimitsConfig::per_second_budgets` is the list both validators iterate, so a new budget is validated by existing code. The two validators had drifted — the profile-side one checked `gateway_per_second` but neither registry budget, the runtime-side one checked both registries but not the gateway, and neither checked `bridge_auth_per_second` — so a zero in the wrong field passed whichever validator did not name it. `bridge_auth_per_second` (default 20) is new.
+- `without_context_variant` strips Claude Code's `[1m]` context marker so `claude-sonnet-5[1m]` resolves to the base catalog entry; `ProviderModel::matches`, `effective_upstream_model` and `GatewayRoute::matches` all read through it.
+- `BridgeProfileResponse.model_limits` advertises each visible model's context window and max output tokens, with `AdvertisedLimits`. Absent from an older server, so it defaults to empty.
+
+### Changed
+
+- **Rate limiting:** every `rate_limits.*_per_second` field documents the route group it governs. All thirteen stay: each is wired to a distinct mount site, so collapsing them would remove real operator control, and nobody could previously tell what `contexts_per_second` covered without reading the router.
+- **MCP:** `ToolExecutionResult.completed_at` is `Option`. A hook-only row — an in-process call no server observed — stores no completion time rather than the ~0 ms its own timestamps implied, so averages and percentiles ignore it by construction.
+- The default Anthropic catalog adds Opus 5.5 and drops the retired Opus 4.6, 4.7, 4.8 and Sonnet 4.6 entries; pricing reconciled 2026-09-22.
+
+### Fixed
+
+- **Feedback:** a receipt whose file is not meant to be executable verifies on a host with no POSIX mode bits. The bridge reported every file's mode check as unavailable on Windows, so no receipt from such a host was ever fully verified: the installation counted for nothing in adoption and every invocation on it was attributed as `revision_unknown`. The content digest is the whole check for a plain file.
+
 ## [0.58.0] - 2026-09-21
 
 ### Breaking
@@ -70,9 +95,7 @@
 ### Added
 
 - `wire::origin::{ClientAttestation, NativeMarker, ClientEvidence, ClassificationInput, StainlessHeaders, Classified, ClassificationRejection, classify, native_marker, ua_product}`: the evidence ladder behind `ai_requests.client_attestation`, documented in the module head. `ClientKind::Pi`, `ClientKind::DECLARABLE`, `ClientKind::from_bridge_host_id` / `bridge_host_id` and `ClientKind::from_ua_product`.
-
 - `mcp::connector::{ConnectorConfig, ConnectorIdentity}` (re-exported from `mcp::deployment`): `display_name`, `authorization_params` (validated against `ConnectorConfig::ALLOWED_AUTHORIZATION_PARAMS`) and `identity: userinfo`, which requires the `openid` scope.
-
 - `SecurityConfig::allow_dynamic_client_registration` / `Config::allow_dynamic_client_registration` (default `true`), the profile switch for RFC 7591 registration.
 
 ### Fixed
@@ -102,7 +125,6 @@
 - `services::PluginDependency` and `PluginConfig::dependencies` (validated: non-empty name, semver-range `version`, no duplicates); `services::{ExternalMarketplace, ExternalMarketplaceSource}` and `MarketplaceConfig::{allow_cross_marketplace_dependencies_on, external_marketplaces}` (validated: `owner/repo` GitHub repos, https git URLs through the outbound-URL guard, no self-reference, unique names); `ServicesConfig::validate` refuses a plugin dependency on a marketplace the carrying marketplace does not allowlist and declare (or configure locally). `bridge::plugin_bundle::ManifestDependency` is Claude Code's `dependencies` wire shape on `PluginManifest`; `NODE_PACKAGE_FILE`, `NODE_LOCKFILES` and `node_lockfile` are the shared Node-install contract. `ManifestMarketplace` carries both marketplace fields.
 - `rate_limits.gateway_per_second` (default `100`) governs the `/v1` gateway route group; `RATE_LIMIT_GATEWAY_PER_SECOND` in the env profile source.
 - `RevisionFiles::same_content` compares two file sets by path, bytes and executable bit.
-
 - `managed` module: `RevisionBundle`, `RevisionManifest`, `FileEntry`, `DependencyRef`, `AssetDigest`, `AssetFile`, `RevisionFiles`, `RevisionBundleError` and the `validate_path` / `validate_key` validators — the verified managed-resource revision closure shared by the marketplace, evaluation and scheduler domains (previously `systemprompt_marketplace::managed`).
 - `bridge::manifest` is a directory module (`entries`, `managed_mcp`); `wire::canonical::request` likewise (`content`, `options`). Re-exports are unchanged.
 - `Config` implements `Debug` by hand, redacting `database_url`, `database_write_url` and `github_token`.
@@ -125,7 +147,6 @@
 ### Breaking
 
 - **Breaking:** `CanonicalRequest::client_session_id` returns `Result<Option<ClientSessionId>, IdValidationError>` instead of a `String` error.
-
 - **Breaking:** `config::Environment` and `config::VerbosityLevel` are removed. They classified the process from `SYSTEMPROMPT_ENV`, `RAILWAY_ENVIRONMENT`, `NODE_ENV`, `DOCKER_CONTAINER`, `SYSTEMPROMPT_QUIET`, `SYSTEMPROMPT_VERBOSE`, `SYSTEMPROMPT_DEBUG` and `SYSTEMPROMPT_LOG_LEVEL`; the profile's `runtime.environment` and `runtime.log_level` plus the CLI's `-v`/`-q`/`--debug` flags already carry both, and none of those variables is read any more.
 - **Breaking:** `config::stable_instance_id` takes the environment lookup closure (`|name| std::env::var(name).ok()` at the composition root) instead of reading `HOSTNAME` itself; `config::default_instance_id` is removed (unused).
 - **Breaking:** `BridgeReleasesSpec.token_env` is renamed `token_secret` and names a key in the profile's secrets document rather than a process environment variable. A gateway config still carrying `token_env` is a parse error (`deny_unknown_fields`). On a deployment whose secrets come from the environment, list the variable in `SYSTEMPROMPT_CUSTOM_SECRETS` and name it in `token_secret`.

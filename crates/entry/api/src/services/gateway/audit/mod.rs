@@ -19,6 +19,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod complete;
+mod fail;
 pub mod journal;
 pub mod message_text;
 mod open;
@@ -28,8 +29,6 @@ mod tool_results;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
-use anyhow::Result;
-use systemprompt_ai::models::RequestStatus;
 use systemprompt_ai::repository::{
     AiRequestClientEvidenceRepository, AiRequestPayloadRepository, AiRequestRepository,
 };
@@ -189,40 +188,6 @@ impl GatewayAudit {
         {
             tracing::warn!(error = %e, "update_route_match failed");
         }
-    }
-
-    pub async fn accounting_failed(&self, error: &str) -> Result<()> {
-        let mut receipt =
-            journal::Receipt::pending(self.ctx.ai_request_id.clone(), self.ctx.user_id.clone());
-        receipt.accounting_failure = Some(error.to_owned());
-        journal::record_accounting_failure(&self.settlement, receipt).await
-    }
-
-    pub async fn fail(&self, error: &str) -> Result<()> {
-        let latency_ms = self.elapsed_ms();
-        let mut receipt =
-            journal::Receipt::pending(self.ctx.ai_request_id.clone(), self.ctx.user_id.clone());
-        receipt.failure = Some(error.to_owned());
-        if self.journal_lease.get().is_some() {
-            journal::record(&self.settlement, receipt).await?;
-        } else {
-            journal::settle_unadmitted_failure(&self.settlement, &receipt).await?;
-        }
-        tracing::warn!(
-            ai_request_id = %self.ctx.ai_request_id,
-            user_id = %self.ctx.user_id,
-            provider = %self.served_provider(),
-            model = %self.effective_model(),
-            requested_model = %self.ctx.model,
-            wire_protocol = self.ctx.origin.wire.as_str(),
-            client_kind = self.ctx.origin.client.as_str(),
-            status = RequestStatus::Failed.as_str(),
-            latency_ms,
-            tokens_recorded = false,
-            error,
-            "Gateway audit: request failed"
-        );
-        Ok(())
     }
 
     pub fn mark_upstream_start(&self) {

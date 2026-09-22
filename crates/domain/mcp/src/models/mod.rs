@@ -94,6 +94,8 @@ pub struct ToolExecutionRequest {
     pub source: ExecutionSource,
 }
 
+/// The outcome of one tool execution. `completed_at` is `None` when no
+/// vantage point measured the call's end.
 #[derive(Debug, Clone)]
 pub struct ToolExecutionResult {
     pub output: Option<serde_json::Value>,
@@ -101,7 +103,7 @@ pub struct ToolExecutionResult {
     pub status: String,
     pub error_message: Option<String>,
     pub started_at: DateTime<Utc>,
-    pub completed_at: DateTime<Utc>,
+    pub completed_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]

@@ -43,7 +43,10 @@ use systemprompt_security::policy::{GovernanceConfig, GovernanceEngine};
 
 fn gateway_journal() -> systemprompt_api::services::gateway::audit::journal::GatewayJournal {
     systemprompt_api::services::gateway::audit::journal::GatewayJournal::open(
-        systemprompt_config::ProfileBootstrap::get_path().expect("profile bootstrapped"),
+        systemprompt_test_fixtures::ensure_test_bootstrap()
+            .app_paths
+            .storage()
+            .data(),
         systemprompt_config::SecretsBootstrap::get().expect("secrets bootstrapped"),
     )
     .expect("gateway journal opens")
@@ -1476,12 +1479,10 @@ async fn coverage_gateway_credit_guard_denial_keeps_its_retry_after() -> anyhow:
 
 fn owned_gateway_repos(
     pool: &DbPool,
-    profile_dir: &tempfile::TempDir,
+    state_dir: &tempfile::TempDir,
 ) -> systemprompt_api::services::gateway::GatewayRepositories {
-    let profile = profile_dir.path().join("profile.yaml");
-    std::fs::write(&profile, "version: 1\n").expect("profile marker");
     let journal = systemprompt_api::services::gateway::audit::journal::GatewayJournal::open(
-        profile.to_str().expect("UTF-8 profile path"),
+        state_dir.path(),
         systemprompt_config::SecretsBootstrap::get().expect("secrets bootstrapped"),
     )
     .expect("owned gateway journal");
@@ -1529,8 +1530,8 @@ async fn admitted_receipt_fixture(
         )
         .mount(&upstream)
         .await;
-    let profile_dir = tempfile::tempdir()?;
-    let repositories = owned_gateway_repos(&pool, &profile_dir);
+    let state_dir = tempfile::tempdir()?;
+    let repositories = owned_gateway_repos(&pool, &state_dir);
     let config = gateway_config(PROVIDER);
     let registry = provider_registry(
         &upstream.uri(),
@@ -1544,7 +1545,7 @@ async fn admitted_receipt_fixture(
     let mut task = AbortOnDrop(Some(tokio::spawn(async move {
         GatewayService::dispatch(&config, &registry, &pool, &spawned_repositories, dispatch).await
     })));
-    let root = profile_dir.path().join("gateway-journal");
+    let root = state_dir.path().join("gateway-journal");
     let receipt = tokio::time::timeout(Duration::from_secs(5), async {
         loop {
             if let Some(path) = std::fs::read_dir(&root)
@@ -1569,15 +1570,15 @@ async fn admitted_receipt_fixture(
     handle.abort();
     let error = handle.await.expect_err("dispatch task aborted");
     assert!(error.is_cancelled(), "dispatch must be cancelled: {error}");
-    Ok((database, repositories, profile_dir, receipt))
+    Ok((database, repositories, state_dir, receipt))
 }
 
 #[tokio::test]
 async fn recovery_quarantines_a_tampered_receipt_without_touching_foreign_files()
 -> anyhow::Result<()> {
-    let (database, repositories, profile_dir, receipt) =
+    let (database, repositories, state_dir, receipt) =
         admitted_receipt_fixture("gateway_journal_tampered").await?;
-    let foreign = profile_dir.path().join("gateway-journal/operator-note");
+    let foreign = state_dir.path().join("gateway-journal/operator-note");
     std::fs::write(&foreign, b"retain")?;
     let mut bytes = std::fs::read(&receipt)?;
     let last = bytes.last_mut().expect("nonempty encrypted receipt");
@@ -1598,10 +1599,10 @@ async fn recovery_quarantines_a_tampered_receipt_without_touching_foreign_files(
 #[tokio::test]
 async fn recovery_quarantines_a_truncated_receipt_and_removes_interrupted_temp_files()
 -> anyhow::Result<()> {
-    let (database, repositories, profile_dir, receipt) =
+    let (database, repositories, state_dir, receipt) =
         admitted_receipt_fixture("gateway_journal_truncated").await?;
     std::fs::write(&receipt, b"short")?;
-    let temp = profile_dir.path().join("gateway-journal/interrupted.tmp");
+    let temp = state_dir.path().join("gateway-journal/interrupted.tmp");
     std::fs::write(&temp, b"partial")?;
 
     let settled =
@@ -1633,11 +1634,15 @@ async fn terminal_receipt_survives_accounting_failure_and_recovery_settles_exact
     let pool = database.pool().await?;
     let credential = seed_admin_credential(&pool, "journal-retry@example.invalid").await?;
     let write = pool.write_pool_arc()?;
+    // The fault is scoped to the status transition settlement performs:
+    // admission also updates ai_requests, through the message_count trigger on
+    // ai_request_messages, and an unscoped BEFORE UPDATE would fault there.
     sqlx::raw_sql(
         "CREATE FUNCTION reject_journal_completion() RETURNS trigger LANGUAGE plpgsql AS $$ \
          BEGIN RAISE EXCEPTION 'owned journal completion fault'; END $$; \
          CREATE TRIGGER reject_journal_completion BEFORE UPDATE ON ai_requests \
-         FOR EACH ROW EXECUTE FUNCTION reject_journal_completion()",
+         FOR EACH ROW WHEN (NEW.status IS DISTINCT FROM OLD.status) \
+         EXECUTE FUNCTION reject_journal_completion()",
     )
     .execute(write.as_ref())
     .await?;
@@ -1649,8 +1654,8 @@ async fn terminal_receipt_survives_accounting_failure_and_recovery_settles_exact
         .expect(1)
         .mount(&upstream)
         .await;
-    let profile_dir = tempfile::tempdir()?;
-    let repositories = owned_gateway_repos(&pool, &profile_dir);
+    let state_dir = tempfile::tempdir()?;
+    let repositories = owned_gateway_repos(&pool, &state_dir);
     let config = gateway_config(PROVIDER);
     let registry = provider_registry(
         &upstream.uri(),
@@ -1673,7 +1678,7 @@ async fn terminal_receipt_survives_accounting_failure_and_recovery_settles_exact
         1
     );
 
-    let journal_root = profile_dir.path().join("gateway-journal");
+    let journal_root = state_dir.path().join("gateway-journal");
     let receipts = std::fs::read_dir(&journal_root)?
         .collect::<std::io::Result<Vec<_>>>()?
         .into_iter()

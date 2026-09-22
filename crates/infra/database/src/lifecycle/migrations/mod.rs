@@ -7,28 +7,28 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub(crate) mod budget;
 mod checksum_transition;
 mod down;
 mod exec;
 mod mark_applied;
 mod repair;
+mod run;
 mod stamp;
 mod status;
 mod verify;
 
 pub use mark_applied::MarkAppliedOutcome;
 pub use repair::RepairResult;
-pub use stamp::{BaselineStamp, FreshnessCheck};
+pub use stamp::{BaselineStamp, FreshnessCheck, is_retirement};
 pub use status::{
     AppliedMigration, ChecksumDrift, ExtensionMigrationStatus, MigrationResult, MigrationStatus,
     OrphanedMigration, PendingMigration, SlotCollision, TombstonedSlot,
 };
 
 use crate::services::{DatabaseProvider, SqlExecutor};
-use exec::{TrackingWrite, check_cross_extension_alters, execute_statements_transactional};
 use std::collections::HashSet;
 use systemprompt_extension::{Extension, LoaderError, Migration};
-use systemprompt_identifiers::ToDbValue;
 use tracing::{debug, info, warn};
 
 pub(crate) const RECORD_MIGRATION_SQL: &str = "INSERT INTO extension_migrations (id, extension_id, version, \
@@ -167,71 +167,6 @@ impl<'a> MigrationService<'a> {
             migrations_run,
             migrations_skipped,
         })
-    }
-
-    async fn execute_migration(
-        &self,
-        extension: &dyn Extension,
-        migration: &Migration,
-    ) -> Result<(), LoaderError> {
-        let ext_id = extension.metadata().id;
-
-        check_cross_extension_alters(extension, migration)?;
-
-        info!(
-            extension = %ext_id,
-            version = migration.version,
-            name = %migration.name,
-            no_transaction = migration.no_transaction,
-            "Running migration"
-        );
-
-        let id = format!("{}_{:03}", ext_id, migration.version);
-        let checksum = migration.checksum();
-        let record_params: [&dyn ToDbValue; 5] =
-            [&id, &ext_id, &migration.version, &migration.name, &checksum];
-
-        if migration.no_transaction {
-            SqlExecutor::execute_statements_parsed(self.db, migration.sql)
-                .await
-                .map_err(|e| LoaderError::MigrationFailed {
-                    extension: ext_id.to_owned(),
-                    message: format!(
-                        "Failed to execute migration {} ({}): {e}",
-                        migration.version, migration.name
-                    ),
-                })?;
-            self.db
-                .execute(&RECORD_MIGRATION_SQL, &record_params)
-                .await
-                .map_err(|e| LoaderError::MigrationFailed {
-                    extension: ext_id.to_owned(),
-                    message: format!("Failed to record migration: {e}"),
-                })?;
-        } else {
-            let statements = SqlExecutor::parse_sql_statements(migration.sql).map_err(|e| {
-                LoaderError::MigrationFailed {
-                    extension: ext_id.to_owned(),
-                    message: format!(
-                        "Failed to parse migration {} ({}): {e}",
-                        migration.version, migration.name
-                    ),
-                }
-            })?;
-            execute_statements_transactional(
-                self.db,
-                &statements,
-                ext_id,
-                migration,
-                Some(TrackingWrite {
-                    sql: RECORD_MIGRATION_SQL,
-                    params: &record_params,
-                }),
-            )
-            .await?;
-        }
-
-        Ok(())
     }
 }
 

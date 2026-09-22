@@ -516,7 +516,7 @@ fn the_agent_path_records_the_same_tokens_used_the_gateway_would() {
     };
     let ai = to_ai_response(
         "anthropic",
-        "claude-sonnet-4-6",
+        "claude-sonnet-5",
         Uuid::nil(),
         Instant::now(),
         &response_with(usage),

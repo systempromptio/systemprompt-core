@@ -8,5 +8,3 @@ CREATE TABLE IF NOT EXISTS extension_migrations (
     UNIQUE(extension_id, version)
 );
 
-CREATE INDEX IF NOT EXISTS idx_extension_migrations_ext_id ON extension_migrations(extension_id);
-CREATE INDEX IF NOT EXISTS idx_extension_migrations_ext_version ON extension_migrations(extension_id, version);

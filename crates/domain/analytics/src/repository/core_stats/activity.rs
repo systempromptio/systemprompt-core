@@ -47,6 +47,7 @@ impl CoreStatsRepository {
             LEFT JOIN (
                 SELECT date_trunc('day', created_at) as day, COUNT(*) as tool_executions
                 FROM analytics_report_mcp_tool_executions WHERE created_at > $1
+                  AND server_name NOT IN ('in_process', 'proxy', 'gateway', 'hook_claude_code', 'hook_opencode')
                 GROUP BY 1
             ) e ON e.day = date_trunc('day', gs.date)
             ORDER BY date ASC

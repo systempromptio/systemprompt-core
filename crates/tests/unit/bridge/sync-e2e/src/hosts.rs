@@ -450,7 +450,7 @@ fn each_host_copy_of_hooks_json_is_stamped_with_the_host_that_runs_it() {
     m.plugins[0].hooks = systemprompt_models::services::PluginHooksRef {
         governance: true,
         comms: false,
-        evaluation: false,
+        judge: false,
         include: vec![],
     };
     let (server, dirs) = rt.block_on(async {

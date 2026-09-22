@@ -81,6 +81,7 @@ pub(super) async fn execute_job(dispatch: JobDispatch) {
             JobRunRecord {
                 status: JobStatus::Running,
                 error: None,
+                message: None,
                 next_run: None,
                 instance_id: &instance_id,
             },
@@ -185,6 +186,7 @@ async fn record_success(
             JobRunRecord {
                 status: JobStatus::Success,
                 error: None,
+                message: job_result.message.as_deref(),
                 next_run: None,
                 instance_id,
             },
@@ -213,6 +215,7 @@ async fn record_failure(
             JobRunRecord {
                 status: JobStatus::Failed,
                 error: message,
+                message: None,
                 next_run: None,
                 instance_id,
             },

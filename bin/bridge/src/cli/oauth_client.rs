@@ -6,7 +6,6 @@
 
 use std::process::ExitCode;
 
-use systemprompt_identifiers::SessionId;
 
 use crate::auth::plugin_oauth;
 use crate::context::BridgeContext;
@@ -67,7 +66,12 @@ fn cmd_rotate(ctx: &BridgeContext) -> ExitCode {
 
     let http = ctx.http.clone();
     let outer = ctx.block_on(async move {
-        let bearer = auth::obtain_live_token(&cfg, &SessionId::generate(), &http).await?;
+        let bearer = auth::obtain_live_token(
+            &cfg,
+            &auth::session_identity::stable_session_id(&cfg),
+            &http,
+        )
+        .await?;
         let creds = plugin_oauth::refresh_creds(&client, &bearer.token).await?;
         Ok::<_, Box<dyn std::error::Error>>(creds)
     });

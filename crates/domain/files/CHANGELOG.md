@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.59.0] - 2026-09-22
+
+### Removed
+
+- The prefix-duplicate index on `content_files` (migration `002_prune_prefix_duplicate_indexes`), a strict column prefix of a non-partial covering index; the `CREATE INDEX` line goes from the base schema in the same change.
+
 ## [0.53.0] - 2026-09-15
 
 ### Changed

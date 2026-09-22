@@ -13,6 +13,10 @@ use systemprompt_config::SecretsBootstrap;
 
 const TEST_OAUTH_AT_REST_PEPPER: &str = "test_oauth_at_rest_pepper_for_integration_tests_zzz";
 const TEST_MANIFEST_SIGNING_SEED: &str = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+// The at-rest cipher key, as the full fixture bootstrap also installs it.
+// Anything sealing a column (`systemprompt_security::at_rest`) needs it
+// resolvable, so the secrets-only bootstrap must install it too.
+const TEST_ENCRYPTION_MASTER_KEY_BYTE: &str = "11";
 
 pub fn block_on_secrets_init() -> Result<(), String> {
     // The bootstrap is async only for the Vault source; these fixtures use the
@@ -86,6 +90,12 @@ pub fn ensure_test_secrets_bootstrap() {
                 env::set_var("MANIFEST_SIGNING_SECRET_SEED", TEST_MANIFEST_SIGNING_SEED);
             }
             install_test_provider_keys();
+        }
+        if env::var("encryption_master_key").is_err() {
+            install_named_secret(
+                "encryption_master_key",
+                &TEST_ENCRYPTION_MASTER_KEY_BYTE.repeat(32),
+            );
         }
         block_on_secrets_init().expect("SecretsBootstrap::try_init should succeed in tests");
     });

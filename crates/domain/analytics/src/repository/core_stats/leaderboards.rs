@@ -74,6 +74,7 @@ impl CoreStatsRepository {
                 ) as "success_rate!",
                 COALESCE(AVG(execution_time_ms), 0)::bigint as "avg_duration_ms!"
             FROM analytics_report_mcp_tool_executions
+            WHERE server_name NOT IN ('in_process', 'proxy', 'gateway', 'hook_claude_code', 'hook_opencode')
             GROUP BY tool_name
             ORDER BY "execution_count!" DESC
             LIMIT $1

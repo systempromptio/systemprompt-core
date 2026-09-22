@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.59.0] - 2026-09-22
+
+### Breaking
+
+- **Breaking:** `AppContext::build()` no longer builds the analytics reporting baseline; `reporting::spawn` (the server's reporting task) builds it in the background and then drains, so a large upgraded database boots and serves while the baseline is paged in. `reporting::initialize` returns `RebuildOutcome` (`Rebuilt`, `AlreadyInitialized`, `InProgressElsewhere`) and, like `rebuild`, runs the phased rebuild synchronously for tests and the CLI.
+
+### Added
+
+- `AppContext::session_store()` beside `session_usage()`: the gateway needs `SessionStore::increment_ai_usage`, which the narrowed `SessionUsageCounters` view does not expose. The underlying owner already returns `DynSessionStore`, so no second repository is constructed.
+
+### Changed
+
+- Reporting retention is a profile default rather than an operator's memory: the `retention:` block carries every window and `database_cleanup` enforces all of them in batches under a per-run time budget.
+
 ## [0.55.0] - 2026-09-17
 
 ### Breaking

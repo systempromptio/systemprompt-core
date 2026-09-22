@@ -113,15 +113,25 @@ impl ConsumerReceiptRequest {
     pub fn fully_verified(&self) -> bool {
         self.validate().is_ok()
             && !self.runtime_files.is_empty()
-            && self.runtime_files.iter().all(|file| {
-                file.content_check == ReadbackStatus::Verified
-                    && file.mode_check == ReadbackStatus::Verified
-            })
-            && self.files.iter().all(|file| {
-                file.content_check == ReadbackStatus::Verified
-                    && file.mode_check == ReadbackStatus::Verified
-            })
+            && self
+                .runtime_files
+                .iter()
+                .all(|file| file_verified(file.executable, file.content_check, file.mode_check))
+            && self
+                .files
+                .iter()
+                .all(|file| file_verified(file.executable, file.content_check, file.mode_check))
     }
+}
+
+// Why: a file that is not meant to be executable has no mode to satisfy, so a
+// host without POSIX mode bits (Windows) reporting the mode as unavailable
+// leaves nothing unchecked; the content digest is the whole check. An
+// executable still needs its bit confirmed.
+fn file_verified(executable: bool, content: ReadbackStatus, mode: ReadbackStatus) -> bool {
+    content == ReadbackStatus::Verified
+        && (mode == ReadbackStatus::Verified
+            || (!executable && mode == ReadbackStatus::Unavailable))
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]

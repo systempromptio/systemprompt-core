@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.59.0] - 2026-09-22
+
+### Added
+
+- `infra db doctor` audits schema residue — live tables no loaded extension declares, and migration ledgers of extensions that no longer exist — and exits non-zero when it finds any. Residue is the schema a deleted crate left behind and the signal that a drop migration is due; boot runs the same audit as a warning.
+
+### Changed
+
+- The tool leaderboards, overview and activity series exclude host-native pseudo-servers (`tool_call_ledger.is_builtin`) wherever "tools" or "servers" is meant; a `Bash` or `AskUserQuestion` call is recorded under the vantage point's own name and is not an MCP server.
+- `infra db indexes --table users` output no longer names `idx_users_email`, which the prefix-duplicate prune removed.
+- `--model` help names a current catalog model.
+
 ## [0.57.0] - 2026-09-19
 
 ### Changed
@@ -66,7 +78,6 @@
 - `cloud init` and `cloud profile` scaffolding fail when the embedded provider catalog is unreadable instead of writing empty default models; `admin config catalog discovery` fails when the embedded Vertex rate card is unreadable.
 - `admin agents validate` fails when secrets are not initialised instead of reporting every provider key as missing.
 - `cloud profile show` prints a warning when the profile or services config cannot be loaded; a failed container cleanup after a failed `cloud tenant create` start is reported.
-
 - `core files upload --context` and `core artifacts list --context` validate the id and report an error instead of aborting the process on a malformed value.
 - `core services refresh` requires the secrets store up front and fails before contacting any source when it is unavailable, instead of resolving every credential to `None`.
 

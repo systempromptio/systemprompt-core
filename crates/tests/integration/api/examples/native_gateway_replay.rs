@@ -222,7 +222,7 @@ async fn replay() -> Result<()> {
     let db = fixture_db_pool(&bootstrap.database_url).await?;
     let _context = fixture_app_context(&db, &bootstrap.database_url)?;
     let journal = systemprompt_api::services::gateway::audit::journal::GatewayJournal::open(
-        systemprompt_config::ProfileBootstrap::get_path()?,
+        bootstrap.app_paths.storage().data(),
         systemprompt_config::SecretsBootstrap::get()?,
     )?;
     let repos = GatewayRepositories::new(

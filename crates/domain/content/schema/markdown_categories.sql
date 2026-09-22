@@ -11,5 +11,4 @@ CREATE TABLE IF NOT EXISTS markdown_categories (
     FOREIGN KEY (parent_id) REFERENCES markdown_categories(id) ON DELETE CASCADE
 );
 
-CREATE INDEX IF NOT EXISTS idx_markdown_categories_slug ON markdown_categories(slug);
 CREATE INDEX IF NOT EXISTS idx_markdown_categories_parent ON markdown_categories(parent_id);

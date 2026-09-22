@@ -15,8 +15,9 @@ use systemprompt_database::DbPool;
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_marketplace::{AllowAllFilter, MarketplaceCache, MarketplaceFilter};
 use systemprompt_mcp::services::registry::RegistryService;
-use systemprompt_models::config::RateLimitConfig;
-use systemprompt_models::profile::{ContentNegotiationConfig, PathsConfig, SecurityHeadersConfig};
+use systemprompt_models::profile::{
+    ContentNegotiationConfig, PathsConfig, RateLimitsConfig, SecurityHeadersConfig,
+};
 use systemprompt_models::{Config, RouteClassifier};
 use systemprompt_runtime::{
     AppContext, ConfigPlane, DataPlane, ModuleApiRegistry, Plugins, Subsystems,
@@ -48,9 +49,104 @@ pub fn fixture_fingerprint_repository(db: &DbPool) -> Result<FingerprintReposito
     )?)
 }
 
+// A forced rebuild of the one projection singleton is exclusive for the whole
+// database, and not only for the duration of the rebuild: `begin_rebuild`
+// clears `initialized` and `clear_targets` truncates every projection table,
+// so a rebuild one test starts erases the baseline another test is already
+// querying. Serialising the rebuilds alone is therefore not enough -- the
+// exclusion has to outlive the reads that follow the rebuild. Nextest runs one
+// test per process, so the fixture takes a Postgres session advisory lock on a
+// connection owned by a parked thread and never unlocks it: the process owns
+// the projection for the rest of its life and gives it up by exiting.
+const REBUILD_LOCK_KEY: i64 = 0x5350_5250_524A_4C44;
+// With the lock held across the reads, a superseded outcome is a surprise
+// rather than the norm, so the retry is only a backstop for a rebuild the
+// *production* scheduler started. It stays bounded and its exhaustion is an
+// error: a fixture that quietly retried forever is what made this look like a
+// hang.
+const REBUILD_ATTEMPTS: u32 = 5;
+
+static REBUILD_LOCK: OnceLock<Result<(), String>> = OnceLock::new();
+
+// A rebuild truncates every projection target, so a process that only *reads*
+// the projection is exposed to one that rebuilds it: the reader's rows vanish
+// mid-query. Holding the same lock is what makes a read safe, so every fixture
+// that touches the projection takes it, not only the ones that rebuild.
+pub fn hold_reporting_lock() -> Result<()> {
+    let url = crate::fixture_database_url()?;
+    REBUILD_LOCK
+        .get_or_init(|| acquire_rebuild_lock(&url))
+        .clone()
+        .map_err(|error| anyhow::anyhow!("Reporting rebuild lock unavailable: {error}"))
+}
+
 pub async fn refresh_reporting(db: &DbPool) -> Result<()> {
-    systemprompt_runtime::reporting::rebuild(db).await?;
-    Ok(())
+    hold_reporting_lock()?;
+    rebuild_while_locked(db).await
+}
+
+fn acquire_rebuild_lock(database_url: &str) -> Result<(), String> {
+    let (acquired, wait) = std::sync::mpsc::channel();
+    let url = database_url.to_string();
+    std::thread::Builder::new()
+        .name("fixture-reporting-lock".to_string())
+        .spawn(move || {
+            let runtime = match tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+            {
+                Ok(runtime) => runtime,
+                Err(error) => {
+                    let _ = acquired.send(Err(error.to_string()));
+                    return;
+                },
+            };
+            runtime.block_on(async move {
+                let held = async {
+                    let mut connection =
+                        <sqlx::PgConnection as sqlx::Connection>::connect(&url).await?;
+                    sqlx::query("SELECT pg_advisory_lock($1)")
+                        .bind(REBUILD_LOCK_KEY)
+                        .execute(&mut connection)
+                        .await?;
+                    Ok::<_, sqlx::Error>(connection)
+                }
+                .await;
+                match held {
+                    Ok(connection) => {
+                        let _ = acquired.send(Ok(()));
+                        // Why: a session advisory lock lives in its connection's
+                        // session, so the connection has to outlive every test in
+                        // this process. Postgres releases it when the process exits
+                        // and the socket closes.
+                        std::future::pending::<()>().await;
+                        drop(connection);
+                    },
+                    Err(error) => {
+                        let _ = acquired.send(Err(error.to_string()));
+                    },
+                }
+            });
+        })
+        .map_err(|error| error.to_string())?;
+    wait.recv().map_err(|error| error.to_string())?
+}
+
+async fn rebuild_while_locked(db: &DbPool) -> Result<()> {
+    for attempt in 1..=REBUILD_ATTEMPTS {
+        if systemprompt_runtime::reporting::rebuild(db).await?
+            == systemprompt_runtime::reporting::RebuildOutcome::Rebuilt
+        {
+            return Ok(());
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(100 * u64::from(attempt))).await;
+    }
+    anyhow::bail!(
+        "Reporting baseline was not rebuilt by this call within {REBUILD_ATTEMPTS} attempts, \
+         even holding the fixture's rebuild lock: every attempt was superseded by a rebuild \
+         this fixture did not start and returned InProgressElsewhere. Returning here would let \
+         the caller assert against a projection that predates the rows it seeded."
+    )
 }
 
 /// Deliver captured reporting evidence through the production projector.
@@ -107,10 +203,11 @@ pub fn fixture_config(database_url: &str) -> Config {
         id_jag_ttl_secs: systemprompt_models::profile::DEFAULT_ID_JAG_TTL_SECS,
         signing_key_path: std::path::PathBuf::from("signing_key.pem"),
         use_https: false,
-        rate_limits: RateLimitConfig {
+        rate_limits: RateLimitsConfig {
             disabled: true,
-            ..RateLimitConfig::default()
+            ..RateLimitsConfig::default()
         },
+        retention: systemprompt_models::profile::RetentionConfig::default(),
         cors_allowed_origins: vec!["http://localhost:3000".to_string()],
         trusted_proxies: vec![],
         is_cloud: false,

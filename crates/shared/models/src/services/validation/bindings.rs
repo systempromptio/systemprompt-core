@@ -256,18 +256,18 @@ impl ServicesConfig {
         let owners: Vec<&str> = self
             .plugins
             .values()
-            .filter(|p| p.enabled && p.hooks.evaluation)
+            .filter(|p| p.enabled && p.hooks.judge)
             .map(|p| p.id.as_str())
             .collect();
 
         if let Some(orphan) = self
             .plugins
             .values()
-            .find(|p| p.enabled && p.hooks.evaluation && !p.hooks.governance)
+            .find(|p| p.enabled && p.hooks.judge && !p.hooks.governance)
         {
             return Err(ConfigValidationError::business_rule(format!(
-                "Plugin '{}' sets 'hooks.evaluation: true' without 'hooks.governance: true'. \
-                 Evaluation consumes the track hook that only the governance owner installs",
+                "Plugin '{}' sets 'hooks.judge: true' without 'hooks.governance: true'. \
+                 The judge consumes the track hook that only the governance owner installs",
                 orphan.id
             )));
         }
@@ -275,14 +275,14 @@ impl ServicesConfig {
         match owners.len() {
             0 => {
                 tracing::warn!(
-                    "no enabled plugin sets 'hooks.evaluation: true' — sessions will not be \
+                    "no enabled plugin sets 'hooks.judge: true' — conversations will not be \
                      scored"
                 );
                 Ok(())
             },
             1 => Ok(()),
             _ => Err(ConfigValidationError::business_rule(format!(
-                "Multiple plugins set 'hooks.evaluation: true': {}. The evaluation engine has \
+                "Multiple plugins set 'hooks.judge: true': {}. The judge has \
                  one owner",
                 owners.join(", ")
             ))),

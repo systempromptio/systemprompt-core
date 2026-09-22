@@ -8,7 +8,5 @@ CREATE TABLE IF NOT EXISTS oauth_client_grant_types (
     PRIMARY KEY (client_id, grant_type),
     FOREIGN KEY (client_id) REFERENCES oauth_clients(client_id) ON DELETE CASCADE
 );
-CREATE INDEX IF NOT EXISTS idx_oauth_client_grant_types_client_id
-    ON oauth_client_grant_types(client_id);
 CREATE INDEX IF NOT EXISTS idx_oauth_client_grant_types_type
     ON oauth_client_grant_types(grant_type);

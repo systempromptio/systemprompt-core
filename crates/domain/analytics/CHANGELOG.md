@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.59.0] - 2026-09-22
+
+### Breaking
+
+- **Breaking:** the reporting baseline rebuild is phased, not one transaction. `ReportingProjector::begin_rebuild(conn, cutoff)` opens the generation and records the cutoff; `clear_targets(conn, generation)` truncates the report tables; `write_snapshot_page(conn, definition, after, limit)` writes one keyset page set-based from the owner view; `finish_rebuild(conn, generation)` flips `initialized` without touching the cutoff. `apply_snapshot` and the `SnapshotCursor` are removed. `analytics_projection_state` gains `rebuild_started_at`, `rebuild_heartbeat_at`, `rebuild_source`, `rebuild_rows` (migration `012_projection_rebuild_progress`), surfaced on `ProjectionStatus`; `AnalyticsError::RebuildSuperseded` fences a run whose generation moved. A large upgraded database no longer spends minutes holding every source lock in one backend that can run out of memory.
+- **Breaking:** the `logs` and `ai_request_messages` reporting projections are dropped. They were the bulk of every rebuild and one outbox fact per log line, for two readers: agent top errors now group on `analytics_report_agent_tasks.error_message`, exactly as the tools twin already did, and gateway session message counts read a new `message_count` on `analytics_report_ai_requests`, sourced from a counter on `ai_requests` that a statement trigger over `ai_request_messages` maintains. Both replacements sit on parents the retention rules already govern.
+
+### Changed
+
+- A `page_view` is recorded only for an HTML response; an XHR or a redirect under an HTML route is an `http_request`. `GET /admin/auth/me` alone was 45% of all recorded page views on one instance.
+- `analytics_report_ai_requests` gains `message_count`, and the tool projections exclude host-native pseudo-servers through `tool_call_ledger.is_builtin`.
+- `applied_last_minute` joins the projection status, so the outbox worker's batched drain is observable.
+
+### Removed
+
+- The plane's prefix-duplicate indexes, each a strict column prefix of a non-partial covering index; the `CREATE INDEX` lines go from the base schema in the same change.
+
 ## [0.55.0] - 2026-09-17
 
 ### Added

@@ -16,7 +16,7 @@ use super::{
 use crate::services::providers::mock_http;
 
 const ANTHROPIC: &str = "anthropic";
-const MODEL: &str = "claude-sonnet-4-6";
+const MODEL: &str = "claude-sonnet-5";
 
 fn request(context: systemprompt_models::RequestContext) -> AiRequest {
     AiRequest::builder(vec![AiMessage::user("hi")], ANTHROPIC, MODEL, 128, context).build()

@@ -4,10 +4,17 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::DatabaseTransaction;
 use crate::services::DatabaseProvider;
 use std::collections::HashSet;
+use std::time::Instant;
 use systemprompt_extension::{Extension, LoaderError, Migration};
 use systemprompt_identifiers::ToDbValue;
+use tracing::{info, warn};
+
+use super::budget;
+
+const SLOW_STATEMENT: std::time::Duration = std::time::Duration::from_secs(5);
 
 pub(super) struct TrackingWrite<'a> {
     pub sql: &'a str,
@@ -52,42 +59,20 @@ pub(super) async fn execute_statements_transactional(
             ),
         })?;
 
+    let started = Instant::now();
     let total = statements.len();
-    for (idx, statement) in statements.iter().enumerate() {
-        let sql_str: &str = statement.as_str();
-        if let Err(e) = tx.execute(&sql_str, &[]).await {
+    match apply_in_transaction(tx.as_mut(), statements, ext_id, migration, tracking).await {
+        Ok(()) => {},
+        Err(message) => {
             let rollback_note = match tx.rollback().await {
                 Ok(()) => String::new(),
                 Err(rb) => format!(" (rollback also failed: {rb})"),
             };
             return Err(LoaderError::MigrationFailed {
                 extension: ext_id.to_owned(),
-                message: format!(
-                    "Migration {ver} ({name}) statement {n}/{total} failed: \
-                     {e}{rollback_note}\nSQL:\n{statement}",
-                    ver = migration.version,
-                    name = migration.name,
-                    n = idx + 1,
-                ),
+                message: format!("{message}{rollback_note}"),
             });
-        }
-    }
-
-    if let Some(write) = tracking
-        && let Err(e) = tx.execute(&write.sql, write.params).await
-    {
-        let rollback_note = match tx.rollback().await {
-            Ok(()) => String::new(),
-            Err(rb) => format!(" (rollback also failed: {rb})"),
-        };
-        return Err(LoaderError::MigrationFailed {
-            extension: ext_id.to_owned(),
-            message: format!(
-                "Migration {ver} ({name}) tracking write failed: {e}{rollback_note}",
-                ver = migration.version,
-                name = migration.name,
-            ),
-        });
+        },
     }
 
     tx.commit()
@@ -99,6 +84,71 @@ pub(super) async fn execute_statements_transactional(
                 migration.version, migration.name
             ),
         })?;
+
+    info!(
+        extension = ext_id,
+        version = migration.version,
+        name = migration.name,
+        statements = total,
+        elapsed_ms = started.elapsed().as_millis(),
+        "Migration applied",
+    );
+    Ok(())
+}
+
+async fn apply_in_transaction(
+    tx: &mut dyn DatabaseTransaction,
+    statements: &[String],
+    ext_id: &str,
+    migration: &Migration,
+    tracking: Option<TrackingWrite<'_>>,
+) -> Result<(), String> {
+    // Why: LOCAL, so the bound dies with this transaction and never leaks
+    // onto a pooled connection the application later reuses.
+    for setting in budget::timeout_statements(budget::statement_timeout(migration), true) {
+        if let Err(e) = tx.execute(&setting.as_str(), &[]).await {
+            return Err(format!(
+                "Failed to bound migration {} ({}) with `{setting}`: {e}",
+                migration.version, migration.name
+            ));
+        }
+    }
+
+    let total = statements.len();
+    for (idx, statement) in statements.iter().enumerate() {
+        let sql_str: &str = statement.as_str();
+        let statement_started = Instant::now();
+        if let Err(e) = tx.execute(&sql_str, &[]).await {
+            return Err(format!(
+                "Migration {ver} ({name}) statement {n}/{total} failed: {e}\nSQL:\n{statement}",
+                ver = migration.version,
+                name = migration.name,
+                n = idx + 1,
+            ));
+        }
+        let elapsed = statement_started.elapsed();
+        if elapsed >= SLOW_STATEMENT {
+            warn!(
+                extension = ext_id,
+                version = migration.version,
+                name = migration.name,
+                statement = idx + 1,
+                total,
+                elapsed_ms = elapsed.as_millis(),
+                "Slow migration statement",
+            );
+        }
+    }
+
+    if let Some(write) = tracking
+        && let Err(e) = tx.execute(&write.sql, write.params).await
+    {
+        return Err(format!(
+            "Migration {ver} ({name}) tracking write failed: {e}",
+            ver = migration.version,
+            name = migration.name,
+        ));
+    }
 
     Ok(())
 }

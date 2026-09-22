@@ -22,6 +22,8 @@ mod settlement;
 mod trace;
 
 pub use message_operations::InsertToolCallParams;
-pub use orphans::{ORPHANED_REASON, OrphanedRequest};
+pub use orphans::{ORPHAN_AGE, ORPHANED_REASON, OrphanedRequest};
 pub use repository::AiRequestRepository;
-pub use settlement::{SettleCompletion, SettledToolCall, SettlementOutcome, SettlementUsage};
+pub use settlement::{
+    SettleCompletion, SettledFailure, SettledToolCall, SettlementOutcome, SettlementUsage,
+};

@@ -1,5 +1,6 @@
 //! Expiry sweeps over the OAuth-owned tables: refresh tokens, authorization
-//! codes, state bindings, JTI revocations and ID-JAG replay markers.
+//! codes, state bindings, JTI revocations, ID-JAG replay markers and bridge
+//! exchange codes.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -24,12 +25,18 @@ pub struct OauthCleanupCounts {
     pub state_bindings: u64,
     pub jti_revocations: u64,
     pub id_jag_replays: u64,
+    pub bridge_exchange_codes: u64,
 }
 
 impl OauthCleanupCounts {
     #[must_use]
     pub const fn total(&self) -> u64 {
-        self.codes + self.tokens + self.state_bindings + self.jti_revocations + self.id_jag_replays
+        self.codes
+            + self.tokens
+            + self.state_bindings
+            + self.jti_revocations
+            + self.id_jag_replays
+            + self.bridge_exchange_codes
     }
 }
 
@@ -47,6 +54,7 @@ impl OauthCleanupRepository {
             state_bindings: self.delete_expired_state_bindings().await?,
             jti_revocations: self.delete_expired_jti_revocations().await?,
             id_jag_replays: self.delete_expired_id_jag_replays().await?,
+            bridge_exchange_codes: self.delete_spent_bridge_exchange_codes().await?,
         })
     }
 
@@ -84,6 +92,15 @@ impl OauthCleanupRepository {
         let result = sqlx::query!("DELETE FROM id_jag_replay WHERE expires_at < NOW()")
             .execute(&*self.write_pool)
             .await?;
+        Ok(result.rows_affected())
+    }
+
+    pub async fn delete_spent_bridge_exchange_codes(&self) -> OauthResult<u64> {
+        let result = sqlx::query!(
+            "DELETE FROM bridge_exchange_codes WHERE expires_at < NOW() OR consumed_at IS NOT NULL"
+        )
+        .execute(&*self.write_pool)
+        .await?;
         Ok(result.rows_affected())
     }
 }

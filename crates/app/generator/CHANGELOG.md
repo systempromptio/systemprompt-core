@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.59.0] - 2026-09-22
+
+### Changed
+
+- Prerendering, RSS and sitemap generation report completion at `debug` rather than `info`. Five lines fired on every generation run on every boot, and none of them says anything an operator acts on; a failure still reports at its own level.
+
 ## [0.53.0] - 2026-09-15
 
 ### Changed

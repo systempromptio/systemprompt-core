@@ -38,6 +38,9 @@ impl Job for NoJsCleanupJob {
 
         let pool = db_pool.write_pool_arc().map_err(SchedulerError::from)?;
 
+        // Why: a browser heuristic. Bridge, OAuth and API sessions never load
+        // a landing page or run JavaScript, so without the source filter every
+        // desktop-client session was marked a bot (1,203 of them in production).
         let result = sqlx::query_scalar!(
             r#"
             WITH cleaned AS (
@@ -49,6 +52,7 @@ impl Job for NoJsCleanupJob {
                   AND is_ai_crawler = false
                   AND is_scanner = false
                   AND is_behavioral_bot = false
+                  AND session_source = 'web'
                   AND request_count > 0
                   AND started_at < NOW() - INTERVAL '10 minutes'
                   AND session_id NOT IN (

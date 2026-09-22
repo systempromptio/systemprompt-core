@@ -10,8 +10,9 @@ use std::sync::Mutex;
 
 use systemprompt_logging::set_startup_mode;
 use systemprompt_models::Config;
-use systemprompt_models::config::RateLimitConfig;
-use systemprompt_models::profile::{ContentNegotiationConfig, SecurityHeadersConfig};
+use systemprompt_models::profile::{
+    ContentNegotiationConfig, RateLimitsConfig, SecurityHeadersConfig,
+};
 use systemprompt_runtime::{FilesConfigValidator, StartupValidator};
 
 static STARTUP_MODE_LOCK: Mutex<()> = Mutex::new(());
@@ -51,7 +52,8 @@ fn minimal_config() -> Config {
         id_jag_ttl_secs: 300,
         signing_key_path: PathBuf::new(),
         use_https: false,
-        rate_limits: RateLimitConfig::default(),
+        rate_limits: RateLimitsConfig::default(),
+        retention: systemprompt_models::profile::RetentionConfig::default(),
         cors_allowed_origins: Vec::new(),
         trusted_proxies: Vec::new(),
         is_cloud: false,

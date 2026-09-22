@@ -14,14 +14,15 @@
 mod cloud;
 mod database;
 mod error;
-mod evaluation;
 mod from_env;
 mod governance;
 mod info;
+mod judge;
 mod observability;
 mod oci_reference;
 mod paths;
 mod rate_limits;
+mod retention;
 mod runtime;
 mod secrets;
 mod security;
@@ -36,20 +37,22 @@ mod vault;
 pub use cloud::{CloudConfig, CloudValidationMode};
 pub use database::{DatabaseConfig, PoolConfig};
 pub use error::{ProfileError, ProfileResult};
-pub use evaluation::EvaluationProfile;
 pub use governance::{
     AuditConfig, AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig,
     UNRESTRICTED_ACKNOWLEDGEMENT,
 };
 pub use info::ProfileInfo;
+pub use judge::JudgeProfile;
 pub use observability::{ObservabilityConfig, OtlpExportConfig, OtlpProtocol, OtlpSignal};
 pub use oci_reference::{OciReference, OciReferenceError};
 pub use paths::{PathsConfig, expand_home, resolve_path, resolve_with_home};
 pub use rate_limits::{
-    RateLimitsConfig, default_agent_registry, default_agents, default_artifacts, default_burst,
-    default_content, default_contexts, default_gateway, default_mcp, default_mcp_registry,
-    default_oauth_auth, default_oauth_public, default_stream, default_tasks,
+    RateLimitsConfig, default_agent_registry, default_agents, default_artifacts,
+    default_bridge_auth, default_burst, default_content, default_contexts, default_gateway,
+    default_mcp, default_mcp_registry, default_oauth_auth, default_oauth_public, default_stream,
+    default_tasks,
 };
+pub use retention::RetentionConfig;
 pub use runtime::{Environment, LogLevel, OutputFormat, RuntimeConfig};
 pub use secrets::{SecretsConfig, SecretsSource, SecretsValidationMode};
 pub use security::{
@@ -148,8 +151,14 @@ pub struct Profile {
     #[serde(default)]
     pub governance: Option<GovernanceConfig>,
 
+    // Why: renamed from `evaluation` in 5c8d3ae9e; the profile denies unknown
+    // fields, so a deployed profile.yaml still on the old key would refuse to
+    // boot. See the same alias on PluginHooksRef.
+    #[serde(default, alias = "evaluation")]
+    pub judge: JudgeProfile,
+
     #[serde(default)]
-    pub evaluation: EvaluationProfile,
+    pub retention: RetentionConfig,
 
     #[serde(default)]
     pub services: ServicesProfileConfig,

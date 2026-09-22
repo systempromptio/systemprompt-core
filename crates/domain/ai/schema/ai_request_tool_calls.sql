@@ -13,7 +13,6 @@ CREATE TABLE IF NOT EXISTS ai_request_tool_calls (
     FOREIGN KEY (mcp_execution_id) REFERENCES mcp_tool_executions(mcp_execution_id) ON DELETE SET NULL,
     UNIQUE(request_id, sequence_number)
 );
-CREATE INDEX IF NOT EXISTS idx_ai_request_tool_calls_request_id ON ai_request_tool_calls(request_id);
 CREATE INDEX IF NOT EXISTS idx_ai_request_tool_calls_tool_name ON ai_request_tool_calls(tool_name);
 CREATE INDEX IF NOT EXISTS idx_ai_request_tool_calls_mcp_execution_id ON ai_request_tool_calls(mcp_execution_id);
 CREATE INDEX IF NOT EXISTS idx_ai_request_tool_calls_ai_tool_call_id ON ai_request_tool_calls(ai_tool_call_id) WHERE ai_tool_call_id IS NOT NULL;

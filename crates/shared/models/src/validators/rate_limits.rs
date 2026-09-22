@@ -4,7 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::ValidationConfigProvider;
-use crate::config::RateLimitConfig;
+use crate::profile::RateLimitsConfig;
 use systemprompt_traits::validation_report::{
     ValidationIssue, ValidationReport, ValidationWarning,
 };
@@ -12,7 +12,7 @@ use systemprompt_traits::{ConfigProvider, DomainConfig, DomainConfigError};
 
 #[derive(Debug, Default, Clone, Copy)]
 pub struct RateLimitsConfigValidator {
-    config: Option<RateLimitConfig>,
+    config: Option<RateLimitsConfig>,
 }
 
 impl RateLimitsConfigValidator {
@@ -64,7 +64,7 @@ impl DomainConfig for RateLimitsConfigValidator {
 }
 
 impl RateLimitsConfigValidator {
-    fn validate_quota_limits(report: &mut ValidationReport, config: &RateLimitConfig) {
+    fn validate_quota_limits(report: &mut ValidationReport, config: &RateLimitsConfig) {
         if config.burst_multiplier == 0 {
             report.add_error(ValidationIssue::new(
                 "rate_limits.burst_multiplier",
@@ -72,24 +72,7 @@ impl RateLimitsConfigValidator {
             ));
         }
 
-        let limits: [(&str, u64); 11] = [
-            ("oauth_public_per_second", config.oauth_public_per_second),
-            ("oauth_auth_per_second", config.oauth_auth_per_second),
-            ("contexts_per_second", config.contexts_per_second),
-            ("tasks_per_second", config.tasks_per_second),
-            ("artifacts_per_second", config.artifacts_per_second),
-            (
-                "agent_registry_per_second",
-                config.agent_registry_per_second,
-            ),
-            ("agents_per_second", config.agents_per_second),
-            ("mcp_registry_per_second", config.mcp_registry_per_second),
-            ("mcp_per_second", config.mcp_per_second),
-            ("stream_per_second", config.stream_per_second),
-            ("content_per_second", config.content_per_second),
-        ];
-
-        for (field, per_second) in limits {
+        for (field, per_second) in config.per_second_budgets() {
             if per_second == 0 {
                 report.add_error(ValidationIssue::new(
                     format!("rate_limits.{field}"),
@@ -112,7 +95,7 @@ impl RateLimitsConfigValidator {
         }
     }
 
-    fn validate_stream_limits(report: &mut ValidationReport, config: &RateLimitConfig) {
+    fn validate_stream_limits(report: &mut ValidationReport, config: &RateLimitsConfig) {
         if config.stream_per_second < 10 {
             report.add_warning(
                 ValidationWarning::new(
@@ -127,7 +110,7 @@ impl RateLimitsConfigValidator {
             );
         }
     }
-    fn validate_agent_limits(report: &mut ValidationReport, config: &RateLimitConfig) {
+    fn validate_agent_limits(report: &mut ValidationReport, config: &RateLimitsConfig) {
         if config.agents_per_second < 5 {
             report.add_warning(
                 ValidationWarning::new(

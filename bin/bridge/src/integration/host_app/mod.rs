@@ -59,6 +59,7 @@ pub struct ProfileGenInputs {
     pub gateway_base_url: String,
     pub host_token: HostToken,
     pub models: Vec<String>,
+    pub model_limits: BTreeMap<String, systemprompt_models::bridge::profile::AdvertisedLimits>,
     pub default_model: Option<String>,
     pub organization_uuid: Option<String>,
     pub headers: BTreeMap<String, String>,

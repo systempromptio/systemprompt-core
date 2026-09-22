@@ -95,6 +95,7 @@ impl JobRepository {
         let JobRunRecord {
             status,
             error,
+            message,
             next_run,
             instance_id,
         } = record;
@@ -109,7 +110,8 @@ impl JobRepository {
                 last_error = $3,
                 next_run = $4,
                 last_instance_id = $5,
-                updated_at = $6
+                updated_at = $6,
+                last_message = COALESCE($8, last_message)
             WHERE job_name = $7
             "#,
             now,
@@ -118,7 +120,8 @@ impl JobRepository {
             next_run,
             instance_id.as_str(),
             now,
-            job_name
+            job_name,
+            message
         )
         .execute(&*self.write_pool)
         .await?;

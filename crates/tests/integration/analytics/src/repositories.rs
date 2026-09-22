@@ -46,6 +46,11 @@ struct Fixture {
 
 impl Fixture {
     async fn new() -> Result<Self> {
+        // The in-process guard below orders tests inside one process; under
+        // nextest that is a single test. The projection is shared across
+        // processes and a rebuild truncates it, so the cross-process lock is
+        // what actually keeps another test's rebuild out of these reads.
+        systemprompt_test_fixtures::hold_reporting_lock()?;
         let guard = acquire_serial().await;
         let url = fixture_database_url()?;
         let db = fixture_db_pool(&url).await?;

@@ -3,6 +3,8 @@ mod asset;
 #[cfg(test)]
 mod build;
 #[cfg(test)]
+mod cost;
+#[cfg(test)]
 mod discovery;
 #[cfg(test)]
 mod error;

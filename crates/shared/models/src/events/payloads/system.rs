@@ -42,16 +42,12 @@ pub struct ContextSummary {
     pub task_count: i64,
 }
 
+// Why: the owned impl delegates rather than repeating the field list. Both
+// were written out in full, so a field added to `ContextSummary` had to be
+// added in two places and the compiler flagged only one of them.
 impl From<UserContextWithStats> for ContextSummary {
     fn from(c: UserContextWithStats) -> Self {
-        Self {
-            context_id: c.context_id,
-            name: c.name,
-            created_at: c.created_at,
-            updated_at: c.updated_at,
-            message_count: c.message_count,
-            task_count: c.task_count,
-        }
+        Self::from(&c)
     }
 }
 
@@ -70,14 +66,7 @@ impl From<&UserContextWithStats> for ContextSummary {
 
 impl From<ContextWithStats> for ContextSummary {
     fn from(c: ContextWithStats) -> Self {
-        Self {
-            context_id: c.context_id,
-            name: c.name,
-            created_at: c.created_at,
-            updated_at: c.updated_at,
-            message_count: c.message_count,
-            task_count: c.task_count,
-        }
+        Self::from(&c)
     }
 }
 

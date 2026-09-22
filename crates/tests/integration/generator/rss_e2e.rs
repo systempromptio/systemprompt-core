@@ -12,7 +12,7 @@ use systemprompt_generator::generate_feed_with_providers;
 use systemprompt_identifiers::SourceId;
 use systemprompt_models::Config;
 use systemprompt_models::auth::JwtAudience;
-use systemprompt_models::config::RateLimitConfig;
+use systemprompt_models::profile::RateLimitsConfig;
 use systemprompt_provider_contracts::{
     ProviderResult, RssFeedContext, RssFeedItem, RssFeedMetadata, RssFeedProvider, RssFeedSpec,
 };
@@ -55,7 +55,8 @@ fn install_test_config() {
             id_jag_ttl_secs: 300,
             signing_key_path: PathBuf::new(),
             use_https: false,
-            rate_limits: RateLimitConfig::default(),
+            rate_limits: RateLimitsConfig::default(),
+            retention: systemprompt_models::profile::RetentionConfig::default(),
             cors_allowed_origins: Vec::new(),
             trusted_proxies: Vec::new(),
             is_cloud: false,

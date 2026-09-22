@@ -56,7 +56,7 @@ fn request(ctx: systemprompt_models::RequestContext) -> AiRequest {
     AiRequest::builder(
         vec![AiMessage::system("sys"), AiMessage::user("hi")],
         "anthropic",
-        "claude-sonnet-4-6",
+        "claude-sonnet-5",
         64,
         ctx,
     )
@@ -68,7 +68,7 @@ fn response(request_id: Uuid, content: &str) -> AiResponse {
         request_id,
         content.to_owned(),
         "anthropic".to_owned(),
-        "claude-sonnet-4-6".to_owned(),
+        "claude-sonnet-5".to_owned(),
     );
     response.tokens_used = Some(42);
     response.input_tokens = Some(30);

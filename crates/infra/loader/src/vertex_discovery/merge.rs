@@ -11,10 +11,16 @@
 //! not published however Vertex lists it. Retirement is announced on the
 //! model page months ahead and the listing never reflects it, so the rate
 //! card's lifecycle fields decide, against today's date, with no call to the
-//! model. An explicit declaration past that line is the operator's and is
-//! kept — reported and warned about, not deleted. "Already declared" means
-//! the provider lists the entry's id or any of its aliases under any of its
-//! declared models.
+//! model. An explicit declaration inside the retirement notice window is the
+//! operator's and is kept — reported and warned about, not deleted.
+//!
+//! Past the retirement date itself there is nothing left to keep: the
+//! upstream has switched the model off, so every request routed to it is a
+//! 404 charged to the caller's latency budget. A declaration of a retired
+//! model is therefore removed from the provider rather than warned about, and
+//! the removal is logged at error so the operator knows to delete the entry
+//! from the catalog. "Already declared" means the provider lists the entry's
+//! id or any of its aliases under any of its declared models.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -34,6 +40,15 @@ fn already_declared(provider: &ProviderEntry, entry: &VertexRateCardEntry) -> bo
         .any(|name| provider.find_model(name).is_some())
 }
 
+fn deselect(provider: &mut ProviderEntry, entry: &VertexRateCardEntry) {
+    let names: Vec<&str> = std::iter::once(entry.id.as_str())
+        .chain(entry.aliases.iter().map(ModelId::as_str))
+        .collect();
+    provider
+        .models
+        .retain(|model| !names.iter().any(|name| model.matches(name)));
+}
+
 pub fn publish(
     provider: &mut ProviderEntry,
     entry: &VertexRateCardEntry,
@@ -43,7 +58,16 @@ pub fn publish(
     let id = entry.id.as_str().to_owned();
     let declared = already_declared(provider, entry);
     if !entry.is_supported(today) {
-        if declared {
+        if declared && entry.is_retired(today) {
+            tracing::error!(
+                model = %id,
+                retires_on = ?entry.retires_on,
+                docs = %entry.docs,
+                "declared Vertex model is past its retirement date and no longer exists \
+                 upstream; deselecting it so nothing routes to it. Remove it from the catalog"
+            );
+            deselect(provider, entry);
+        } else if declared {
             tracing::warn!(
                 model = %id,
                 retires_on = ?entry.retires_on,

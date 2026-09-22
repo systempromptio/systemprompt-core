@@ -26,7 +26,7 @@ pub use external_session::ExternalSessionBinding;
 pub use ownership::McpOwnerReassignment;
 pub use proxy_identity::{McpProxyIdentityRepository, ProxyIdentityRow};
 pub use session::{McpSessionRecord, McpSessionRepository};
-pub use tool_usage::ToolUsageRepository;
+pub use tool_usage::{ProximityProbe, ToolUsageRepository};
 
 pub mod prelude {
     pub use super::{CreateMcpArtifact, McpArtifactRecord, McpArtifactRepository};

@@ -78,13 +78,29 @@ pub struct ProviderModel {
 impl ProviderModel {
     #[must_use]
     pub fn matches(&self, requested: &str) -> bool {
+        let requested = without_context_variant(requested);
         self.id.as_str() == requested || self.aliases.iter().any(|a| a.as_str() == requested)
     }
 
     #[must_use]
     pub fn effective_upstream_model<'a>(&'a self, requested: &'a str) -> &'a str {
-        self.upstream_model.as_deref().unwrap_or(requested)
+        self.upstream_model
+            .as_deref()
+            .unwrap_or_else(|| without_context_variant(requested))
     }
+}
+
+// Why: Claude Code budgets a gateway model at 200k unless the user picks its
+// `[1m]` variant (`claude-sonnet-5[1m]`). The suffix is a client-side context
+// marker, not a vendor id: it resolves to the base catalog entry and never
+// reaches the upstream.
+const CONTEXT_VARIANT_SUFFIX: &str = "[1m]";
+
+#[must_use]
+pub fn without_context_variant(requested: &str) -> &str {
+    requested
+        .strip_suffix(CONTEXT_VARIANT_SUFFIX)
+        .unwrap_or(requested)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
@@ -129,8 +145,10 @@ impl ProviderEntry {
         requested: &'a str,
     ) -> &'a str {
         let name = route_override.unwrap_or(requested);
-        self.find_model(name)
-            .map_or(name, |model| model.effective_upstream_model(name))
+        self.find_model(name).map_or_else(
+            || without_context_variant(name),
+            |model| model.effective_upstream_model(name),
+        )
     }
 
     #[must_use]

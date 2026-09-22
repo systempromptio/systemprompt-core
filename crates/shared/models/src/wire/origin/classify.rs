@@ -167,7 +167,7 @@ pub fn classify(input: &ClassificationInput<'_>) -> Result<Classified, Classific
     let conflicting = [declared, marker.map(NativeMarker::client), ua_client]
         .into_iter()
         .flatten()
-        .any(|named| named != client);
+        .any(|named| !named.same_runtime(client));
 
     Ok(Classified {
         client,
@@ -190,14 +190,47 @@ pub fn native_marker(body: &[u8]) -> Option<NativeMarker> {
     {
         return Some(NativeMarker::CodexTurnMetadata);
     }
+    claude_entrypoint(&value).or_else(|| claude_metadata_user_id(&value))
+}
+
+// Why: Claude Code puts the billing header in the first system block on a
+// third-party gateway; a Cowork session runs the same runtime as the CLI and
+// this prefix is the one place the body says which of the two it is.
+fn claude_entrypoint(value: &serde_json::Value) -> Option<NativeMarker> {
+    let system = value.get("system")?;
+    let text = match system {
+        serde_json::Value::String(text) => text.as_str(),
+        serde_json::Value::Array(blocks) => blocks.first()?.get("text")?.as_str()?,
+        _ => return None,
+    };
+    let rest = text
+        .trim_start()
+        .strip_prefix("x-anthropic-billing-header:")?;
+    let entrypoint = rest
+        .split(';')
+        .map(str::trim)
+        .find_map(|field| field.strip_prefix("cc_entrypoint="))?;
+    match entrypoint {
+        "cli" => Some(NativeMarker::ClaudeCliEntrypoint),
+        "local-agent" => Some(NativeMarker::ClaudeDesktopEntrypoint),
+        entry if entry.starts_with("claude-desktop") => Some(NativeMarker::ClaudeDesktopEntrypoint),
+        _ => None,
+    }
+}
+
+fn claude_metadata_user_id(value: &serde_json::Value) -> Option<NativeMarker> {
     let user_id = value.pointer("/metadata/user_id")?.as_str()?.trim();
     if user_id.starts_with('{') {
-        // JSON: protocol boundary — OpenCode's session rides as a JSON string.
-        return serde_json::from_str::<serde_json::Value>(user_id)
-            .ok()?
-            .get("session_id")
-            .is_some()
-            .then_some(NativeMarker::OpencodeSessionJson);
+        // JSON: protocol boundary — Claude Code ≥ 2.1.25x stamps its session
+        // as a JSON string; `device_id` beside `session_id` is the shape.
+        let metadata: serde_json::Value = serde_json::from_str(user_id).ok()?;
+        return (metadata
+            .get("device_id")
+            .is_some_and(serde_json::Value::is_string)
+            && metadata
+                .get("session_id")
+                .is_some_and(serde_json::Value::is_string))
+        .then_some(NativeMarker::ClaudeMetadataJson);
     }
     // Why: `user_<hex>_account_<uuid>_session_<uuid>` is the grammar Claude
     // Code and Claude Desktop stamp; the checks are structural, not a match on

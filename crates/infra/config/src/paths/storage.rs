@@ -1,5 +1,10 @@
 //! Storage path layout for uploaded and generated files.
 //!
+//! `data` is the one sanctioned root for runtime state the server writes for
+//! itself (the gateway accounting journal). It sits under `paths.storage`
+//! because that is the mount every deployment already makes writable; the
+//! profile directory is configuration and may be mounted read-only.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -13,6 +18,7 @@ pub struct StoragePaths {
     root: PathBuf,
     files: PathBuf,
     exports: PathBuf,
+    data: PathBuf,
     css: PathBuf,
     js: PathBuf,
     fonts: PathBuf,
@@ -37,6 +43,7 @@ impl StoragePaths {
 
         Ok(Self {
             exports: root.join("exports"),
+            data: root.join("data"),
             css: files.join("css"),
             js: files.join("js"),
             fonts: files.join("fonts"),
@@ -62,6 +69,10 @@ impl StoragePaths {
 
     pub fn exports(&self) -> &Path {
         &self.exports
+    }
+
+    pub fn data(&self) -> &Path {
+        &self.data
     }
 
     pub fn css(&self) -> &Path {

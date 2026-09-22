@@ -9,6 +9,10 @@
 -- join keeps intent without execution (a call the client never reported) and
 -- execution without intent (a call that bypassed the gateway), and `state`
 -- names which of those a row is. Every dashboard tool count reads this view.
+-- `mcp_artifacts.mcp_execution_id` is unique, so one execution is exactly
+-- one ledger row. `is_builtin` marks a host-native tool (Bash, Read, …) a
+-- hook reported with no MCP server behind it, recorded under the vantage
+-- point's own name; consumers that mean "MCP tools" exclude it.
 CREATE OR REPLACE VIEW tool_call_ledger AS
 SELECT
     COALESCE(i.ai_tool_call_id, e.ai_tool_call_id) AS ai_tool_call_id,
@@ -43,7 +47,8 @@ SELECT
         WHEN e.mcp_execution_id IS NULL THEN 'intended'
         ELSE 'executed'
     END AS state,
-    COALESCE(e.started_at, i.created_at) AS occurred_at
+    COALESCE(e.started_at, i.created_at) AS occurred_at,
+    (e.mcp_execution_id IS NOT NULL AND e.server_name = e.source) AS is_builtin
 FROM ai_request_tool_calls i
 FULL OUTER JOIN mcp_tool_executions e
     ON e.ai_tool_call_id = i.ai_tool_call_id

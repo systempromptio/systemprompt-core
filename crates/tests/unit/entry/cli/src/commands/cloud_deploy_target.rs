@@ -71,7 +71,8 @@ fn profile(cloud: Option<CloudConfig>) -> Profile {
         secrets: None,
         extensions: ExtensionsConfig::default(),
         governance: None,
-        evaluation: Default::default(),
+        judge: Default::default(),
+        retention: Default::default(),
         services: Default::default(),
         system_admin: SystemAdminConfig {
             username: "admin".to_string(),

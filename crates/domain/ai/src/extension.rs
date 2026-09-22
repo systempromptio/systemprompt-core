@@ -50,10 +50,15 @@ impl Extension for AiExtension {
             )
             .with_required_columns(columns(&["id", "request_id", "tool_name"])),
             SchemaDefinition::new(
+                "ai_tool_catalogs",
+                include_str!("../schema/ai_tool_catalogs.sql"),
+            )
+            .with_required_columns(columns(&["sha256", "tools"])),
+            SchemaDefinition::new(
                 "ai_request_payloads",
                 include_str!("../schema/ai_request_payloads.sql"),
             )
-            .with_required_columns(columns(&["ai_request_id"])),
+            .with_required_columns(columns(&["ai_request_id", "offered_tools_sha256"])),
             SchemaDefinition::new(
                 "ai_safety_findings",
                 include_str!("../schema/ai_safety_findings.sql"),

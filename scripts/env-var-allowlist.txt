@@ -13,11 +13,12 @@ crates/infra/config/src/bootstrap/secrets/loader.rs  # deployment-host / SYSTEMP
 crates/infra/config/src/bootstrap/secrets/sources/env.rs  # the secrets `env` source itself
 crates/infra/config/src/config_loader.rs  # SYSTEMPROMPT_SYSTEM_ADMIN cloud-boot variable; HOSTNAME replica identity when server.instance_id is absent
 crates/infra/loader/src/config_loader/mod.rs  # SYSTEMPROMPT_SERVICES_PATH / SKILLS_PATH / CONFIG_PATH subprocess boot variables
+crates/infra/database/src/lifecycle/migrations/budget.rs  # SYSTEMPROMPT_MIGRATION_STATEMENT_TIMEOUT_SECS — the attended-operator escape hatch from the per-migration statement timeout; it applies to one run of an already-deployed image, which a profile field cannot express, and migrations are awaited before the profile-driven server binds
 crates/entry/cli/src/env_overrides.rs  # the single CLI reader of SYSTEMPROMPT_* overrides (EnvOverrides)
 crates/infra/logging/src/lib.rs  # RUST_LOG via EnvFilter::try_from_default_env — the tracing-subscriber convention every operator and every `cargo run` expects; a profile field cannot be read before the subscriber that reports profile errors exists
 crates/shared/models/src/profile/from_env.rs  # `${VAR}` interpolation in profile YAML
 crates/shared/models/src/profile/paths.rs  # HOME / USERPROFILE for `~` expansion in profile paths
-crates/shared/extension/src/build.rs  # cargo build-script environment (OUT_DIR, CARGO_MANIFEST_DIR)
+crates/shared/extension/src/build/mod.rs  # cargo build-script environment (OUT_DIR, CARGO_MANIFEST_DIR)
 crates/infra/cloud/src/credentials_bootstrap/mod.rs  # deployment-host detection for cloud credentials; SYSTEMPROMPT_ALLOW_UNVALIDATED_CREDS tenant-pod boot bypass (deployment host only, audited)
 crates/shared/models/src/env.rs  # read_env_optional: the one primitive behind `${VAR}` profile interpolation, the secrets `env` source and cloud credentials bootstrap
 crates/shared/models/src/net/mod.rs  # SYSTEMPROMPT_TRUSTED_HTTP_HOSTS — documented operator SSRF opt-in (documentation/security/outbound-egress-controls.md), forwarded to subprocesses by inherited_parent_env

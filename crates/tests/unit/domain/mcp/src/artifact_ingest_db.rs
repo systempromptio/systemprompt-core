@@ -36,22 +36,29 @@ fn scanner() -> Arc<SecretScanner> {
     Arc::new(SecretScanner::from_policy_yaml(&yaml).unwrap())
 }
 
-fn ctx(session: &str) -> RequestContext {
+// Every test mints its own caller: a client-reported result is paired with
+// the server-observed execution the same user ran on the same server and tool
+// moments before, so tests sharing one user id would pair with each other's
+// executions.
+fn caller() -> UserId {
+    UserId::new(uuid::Uuid::new_v4().to_string())
+}
+
+fn ctx(session: &str, user: &UserId) -> RequestContext {
     RequestContext::new(
         SessionId::new(session),
         TraceId::new(session),
         ContextId::generate(),
         AgentName::try_new("ingest-tests").expect("valid AgentName"),
     )
-    .with_actor(Actor::user(UserId::new(
-        "11111111-1111-4111-8111-111111111abc",
-    )))
+    .with_actor(Actor::user(user.clone()))
     .with_user_type(UserType::User)
 }
 
 fn request(
     result: CallToolResult,
     session: &str,
+    user: &UserId,
     call: Option<&AiToolCallId>,
     source: ExecutionSource,
 ) -> IngestRequest {
@@ -61,7 +68,7 @@ fn request(
         server_name: Some("tests".to_owned()),
         ai_tool_call_id: call.cloned(),
         mcp_execution_id: None,
-        ctx: ctx(session),
+        ctx: ctx(session, user),
         skill: None,
         source,
         started_at: None,
@@ -74,6 +81,7 @@ async fn a_call_seen_from_two_vantage_points_is_one_execution_and_one_artifact()
     let Some(db) = db_or_skip().await else { return };
     let ingest = ArtifactIngest::from_db(&db, None).expect("ingest");
     let session = unique("sess");
+    let user = caller();
     let call = AiToolCallId::new(unique("toolu"));
 
     let mut structured = CallToolResult::success(vec![ContentBlock::text("ok")]);
@@ -82,6 +90,7 @@ async fn a_call_seen_from_two_vantage_points_is_one_execution_and_one_artifact()
         .ingest(request(
             structured,
             &session,
+            &user,
             Some(&call),
             ExecutionSource::Gateway,
         ))
@@ -96,6 +105,7 @@ async fn a_call_seen_from_two_vantage_points_is_one_execution_and_one_artifact()
         .ingest(request(
             hook,
             &session,
+            &user,
             Some(&call),
             ExecutionSource::HookClaudeCode,
         ))
@@ -125,12 +135,14 @@ async fn a_server_execution_key_in_meta_joins_exactly() {
     let Some(db) = db_or_skip().await else { return };
     let ingest = ArtifactIngest::from_db(&db, None).expect("ingest");
     let session = unique("sess");
+    let user = caller();
     let call = AiToolCallId::new(unique("toolu"));
 
     let first = ingest
         .ingest(request(
             CallToolResult::success(vec![ContentBlock::text("proxied")]),
             &session,
+            &user,
             Some(&call),
             ExecutionSource::Proxy,
         ))
@@ -145,7 +157,13 @@ async fn a_server_execution_key_in_meta_joins_exactly() {
     );
     hook.meta = Some(MetaObject(meta));
     let second = ingest
-        .ingest(request(hook, &session, None, ExecutionSource::HookOpenCode))
+        .ingest(request(
+            hook,
+            &session,
+            &user,
+            None,
+            ExecutionSource::HookOpenCode,
+        ))
         .await
         .expect("hook ingest");
     assert!(!second.created);
@@ -158,12 +176,14 @@ async fn a_hook_with_no_key_is_matched_by_fingerprint_and_marked_inferred() {
     let Some(db) = db_or_skip().await else { return };
     let ingest = ArtifactIngest::from_db(&db, None).expect("ingest");
     let session = unique("sess");
+    let user = caller();
     let body = unique("same-body");
 
     let first = ingest
         .ingest(request(
             CallToolResult::success(vec![ContentBlock::text(body.clone())]),
             &session,
+            &user,
             None,
             ExecutionSource::Proxy,
         ))
@@ -173,6 +193,7 @@ async fn a_hook_with_no_key_is_matched_by_fingerprint_and_marked_inferred() {
         .ingest(request(
             CallToolResult::success(vec![ContentBlock::text(body)]),
             &session,
+            &user,
             None,
             ExecutionSource::HookClaudeCode,
         ))
@@ -188,12 +209,14 @@ async fn a_secret_in_the_result_is_redacted_before_the_body_is_stored() {
     let Some(db) = db_or_skip().await else { return };
     let ingest = ArtifactIngest::from_db(&db, Some(scanner())).expect("ingest");
     let session = unique("sess");
+    let user = caller();
     let call = AiToolCallId::new(unique("toolu"));
 
     let outcome = ingest
         .ingest(request(
             CallToolResult::success(vec![ContentBlock::text(format!("token {KEY} here"))]),
             &session,
+            &user,
             Some(&call),
             ExecutionSource::HookClaudeCode,
         ))
@@ -244,6 +267,7 @@ async fn an_identical_body_is_stored_once_by_digest() {
             .ingest(request(
                 CallToolResult::success(vec![ContentBlock::text(body.clone())]),
                 &unique("sess"),
+                &caller(),
                 Some(&AiToolCallId::new(unique("toolu"))),
                 ExecutionSource::Gateway,
             ))
@@ -308,6 +332,7 @@ async fn typed_error_result_keeps_declared_shape_title_ui_resource_and_client_ar
         .ingest(request(
             result,
             &unique("sess"),
+            &caller(),
             None,
             ExecutionSource::Gateway,
         ))

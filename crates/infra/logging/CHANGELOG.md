@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.59.0] - 2026-09-22
+
+### Changed
+
+- The `logs` writer inserts a whole flush in one statement, which is what turns N capture-trigger firings into one now that reporting capture is statement-level.
+
+### Removed
+
+- The `logs` reporting projection (migration `007_drop_logs_projection`). It was the bulk of every baseline rebuild and one outbox fact per log line, for a single reader: agent top errors now group on `analytics_report_agent_tasks.error_message`.
+
+### Fixed
+
+- `logs.level` no longer carries the same CHECK twice on an established database (migration `008_drop_duplicate_level_check`).
+
 ## [0.53.0] - 2026-09-15
 
 ### Breaking

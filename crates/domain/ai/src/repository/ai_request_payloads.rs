@@ -1,5 +1,10 @@
 //! Repository for stored AI request/response payloads.
 //!
+//! Offered tool lists are filed under their canonical-JSON digest and the
+//! payload row points at it. The digest is computed by Postgres from the
+//! JSONB text, so two clients sending the same catalogue with different key
+//! order or whitespace share one row.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -93,12 +98,18 @@ impl AiRequestPayloadRepository {
     ) -> Result<(), RepositoryError> {
         sqlx::query!(
             r#"
-            INSERT INTO ai_request_payloads (
-                ai_request_id, offered_tools, created_at, updated_at
+            WITH catalog AS (
+                INSERT INTO ai_tool_catalogs (sha256, tools)
+                VALUES (encode(sha256(convert_to($2::jsonb::text, 'UTF8')), 'hex'), $2)
+                ON CONFLICT (sha256) DO UPDATE SET sha256 = EXCLUDED.sha256
+                RETURNING sha256
             )
-            VALUES ($1, $2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            INSERT INTO ai_request_payloads (
+                ai_request_id, offered_tools_sha256, created_at, updated_at
+            )
+            SELECT $1, catalog.sha256, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP FROM catalog
             ON CONFLICT (ai_request_id) DO UPDATE
-            SET offered_tools = EXCLUDED.offered_tools,
+            SET offered_tools_sha256 = EXCLUDED.offered_tools_sha256,
                 updated_at = CURRENT_TIMESTAMP
             "#,
             ai_request_id.as_str(),
@@ -117,13 +128,20 @@ impl AiRequestPayloadRepository {
     ) -> Result<(), RepositoryError> {
         sqlx::query!(
             r#"
-            INSERT INTO ai_request_payloads (
-                ai_request_id, prepared_body_sha256, prepared_tools, created_at, updated_at
+            WITH catalog AS (
+                INSERT INTO ai_tool_catalogs (sha256, tools)
+                SELECT encode(sha256(convert_to($3::jsonb::text, 'UTF8')), 'hex'), $3
+                WHERE $3::jsonb IS NOT NULL
+                ON CONFLICT (sha256) DO UPDATE SET sha256 = EXCLUDED.sha256
+                RETURNING sha256
             )
-            VALUES ($1, $2, $3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            INSERT INTO ai_request_payloads (
+                ai_request_id, prepared_body_sha256, prepared_tools_sha256, created_at, updated_at
+            )
+            VALUES ($1, $2, (SELECT sha256 FROM catalog), CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             ON CONFLICT (ai_request_id) DO UPDATE
             SET prepared_body_sha256 = EXCLUDED.prepared_body_sha256,
-                prepared_tools = EXCLUDED.prepared_tools,
+                prepared_tools_sha256 = EXCLUDED.prepared_tools_sha256,
                 updated_at = CURRENT_TIMESTAMP
             "#,
             ai_request_id.as_str(),
@@ -142,9 +160,10 @@ impl AiRequestPayloadRepository {
         let row = sqlx::query_as!(
             PreparedPayload,
             r#"
-            SELECT prepared_body_sha256, prepared_tools
-            FROM ai_request_payloads
-            WHERE ai_request_id = $1
+            SELECT p.prepared_body_sha256, c.tools AS prepared_tools
+            FROM ai_request_payloads p
+            LEFT JOIN ai_tool_catalogs c ON c.sha256 = p.prepared_tools_sha256
+            WHERE p.ai_request_id = $1
             "#,
             ai_request_id.as_str()
         )
