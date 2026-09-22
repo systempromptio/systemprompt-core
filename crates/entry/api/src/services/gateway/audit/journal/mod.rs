@@ -16,7 +16,7 @@ mod files;
 mod settle;
 mod types;
 
-pub(super) use types::{CapturedToolCall, Completion, Receipt};
+pub(super) use types::{CapturedToolCall, Completion, PartialUsage, Receipt};
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -81,6 +81,9 @@ impl GatewayJournal {
 pub struct Settlement {
     pub journal: Arc<GatewayJournal>,
     pub requests: Arc<AiRequestRepository>,
+    /// Absent only where the analytics layer is unavailable; settlement then
+    /// records the request and skips the session counters.
+    pub sessions: Option<systemprompt_traits::DynSessionStore>,
 }
 
 impl std::fmt::Debug for Settlement {

@@ -6,7 +6,7 @@
 use anyhow::Result;
 use systemprompt_ai::repository::UpsertPayloadParams;
 use systemprompt_ai::repository::ai_requests::{
-    SettleCompletion, SettledToolCall, SettlementOutcome, SettlementUsage,
+    SettleCompletion, SettledFailure, SettledToolCall, SettlementOutcome, SettlementUsage,
 };
 
 use super::{Receipt, Settlement};
@@ -24,6 +24,7 @@ pub(super) async fn settle(settlement: &Settlement, receipt: &Receipt) -> Result
         return Ok(());
     }
     let tools: Vec<SettledToolCall>;
+    let mut session_usage: Option<(i32, i64)> = None;
     let outcome = if let Some(completion) = &receipt.completion {
         tools = completion
             .tools
@@ -42,6 +43,7 @@ pub(super) async fn settle(settlement: &Settlement, receipt: &Receipt) -> Result
             reasoning_tokens,
             tokens_used,
         ] = completion.usage;
+        session_usage = Some((i32::try_from(tokens_used).unwrap_or(i32::MAX), completion.cost));
         SettlementOutcome::Completed(SettleCompletion {
             usage: SettlementUsage {
                 input_tokens,
@@ -66,7 +68,31 @@ pub(super) async fn settle(settlement: &Settlement, receipt: &Receipt) -> Result
             tool_calls: &tools,
         })
     } else if let Some(error) = &receipt.failure {
-        SettlementOutcome::Failed { error }
+        let partial = receipt.partial.as_ref();
+        SettlementOutcome::Failed(SettledFailure {
+            error,
+            usage: partial.map(|p| {
+                let [
+                    input_tokens,
+                    output_tokens,
+                    cache_read_tokens,
+                    cache_creation_tokens,
+                    reasoning_tokens,
+                    tokens_used,
+                ] = p.usage;
+                SettlementUsage {
+                    input_tokens,
+                    output_tokens,
+                    cache_read_tokens,
+                    cache_creation_tokens,
+                    reasoning_tokens,
+                    tokens_used,
+                }
+            }),
+            cost_microdollars: partial.map_or(0, |p| p.cost),
+            latency_ms: partial.map(|p| p.latency),
+            upstream_latency_ms: partial.and_then(|p| p.upstream_latency),
+        })
     } else {
         anyhow::bail!("A pending receipt has nothing to settle");
     };
@@ -74,5 +100,36 @@ pub(super) async fn settle(settlement: &Settlement, receipt: &Receipt) -> Result
         .requests
         .settle(&receipt.request_id, &receipt.user_id, outcome)
         .await?;
+    if let Some((tokens, cost)) = session_usage {
+        increment_session_usage(settlement, receipt, tokens, cost).await;
+    }
     Ok(())
+}
+
+/// Bumps the session counters a settled completion consumed. Fire-and-forget:
+/// the request is already settled, so a counter failure is logged, never
+/// propagated. System traffic has no session to account against.
+async fn increment_session_usage(
+    settlement: &Settlement,
+    receipt: &Receipt,
+    tokens: i32,
+    cost_microdollars: i64,
+) {
+    if receipt.user_id.as_str() == "system" {
+        return;
+    }
+    let (Some(sessions), Some(session_id)) = (&settlement.sessions, &receipt.session_id) else {
+        return;
+    };
+    if let Err(e) = sessions
+        .increment_ai_usage(session_id, tokens, cost_microdollars)
+        .await
+    {
+        tracing::warn!(
+            error = %e,
+            session_id = %session_id,
+            ai_request_id = %receipt.request_id,
+            "increment_ai_usage failed"
+        );
+    }
 }
