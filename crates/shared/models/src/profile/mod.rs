@@ -151,7 +151,10 @@ pub struct Profile {
     #[serde(default)]
     pub governance: Option<GovernanceConfig>,
 
-    #[serde(default)]
+    // Why: renamed from `evaluation` in 5c8d3ae9e; the profile denies unknown
+    // fields, so a deployed profile.yaml still on the old key would refuse to
+    // boot. See the same alias on PluginHooksRef.
+    #[serde(default, alias = "evaluation")]
     pub judge: JudgeProfile,
 
     #[serde(default)]
