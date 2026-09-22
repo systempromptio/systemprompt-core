@@ -31,7 +31,7 @@ use systemprompt_api::services::gateway::protocol::{
 };
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::headers::{GATEWAY_CONVERSATION_ID, SESSION_ID};
-use systemprompt_identifiers::{AiRequestId, ModelId, SessionId, TraceId, UserId};
+use systemprompt_identifiers::{AiRequestId, ContextId, ModelId, SessionId, TraceId, UserId};
 use systemprompt_security::authz::{AllowAllHook, DenyAllHook, SharedAuthzHook};
 use systemprompt_test_fixtures::{install_test_signing_key, seed_admin_credential};
 use systemprompt_users::{ApiKeyService, IssueApiKeyParams};
@@ -293,7 +293,13 @@ async fn enforce_authz_allows_under_allow_all_hook() {
     let hook: SharedAuthzHook = Arc::new(AllowAllHook::null());
     let route = gateway_route();
     let principal = api_key_principal("authz-allow-user");
-    enforce_authz_pre_dispatch(&principal, &route, "claude-test", &hook)
+    enforce_authz_pre_dispatch(
+        &principal,
+        &route,
+        "claude-test",
+        &ContextId::legacy(),
+        &hook,
+    )
         .await
         .expect("allow hook permits");
 }
@@ -303,7 +309,13 @@ async fn enforce_authz_denies_under_deny_all_hook() {
     let hook: SharedAuthzHook = Arc::new(DenyAllHook::null());
     let route = gateway_route();
     let principal = api_key_principal("authz-deny-user");
-    let (status, msg) = enforce_authz_pre_dispatch(&principal, &route, "claude-test", &hook)
+    let (status, msg) = enforce_authz_pre_dispatch(
+        &principal,
+        &route,
+        "claude-test",
+        &ContextId::legacy(),
+        &hook,
+    )
         .await
         .expect_err("deny hook rejects");
     assert_eq!(status, StatusCode::FORBIDDEN);
