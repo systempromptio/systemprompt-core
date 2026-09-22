@@ -119,22 +119,27 @@ fn classify(error: &AnalyticsError) -> Outcome {
 /// Phase A. Under every source lock, so no writer is mid-flight: mint the
 /// cutoff and open the generation. Returns `None` when there is nothing to do.
 async fn fence(pool: &Arc<PgPool>, mode: Mode) -> Result<Option<Plan>, AnalyticsError> {
-    retry_async(&retry_config(), "reporting-rebuild-fence", classify, || async {
-        let mut tx = pool.begin().await?;
-        projection::lock_user_deletion(&mut tx).await?;
-        projection::lock_sources(&mut tx).await?;
-        projection::lock_projector(&mut tx).await?;
-        let state = projection::rebuild_state(&mut tx).await?;
-        if mode == Mode::IfNeeded && (state.initialized || heartbeat_is_fresh(&state)) {
+    retry_async(
+        &retry_config(),
+        "reporting-rebuild-fence",
+        classify,
+        || async {
+            let mut tx = pool.begin().await?;
+            projection::lock_user_deletion(&mut tx).await?;
+            projection::lock_sources(&mut tx).await?;
+            projection::lock_projector(&mut tx).await?;
+            let state = projection::rebuild_state(&mut tx).await?;
+            if mode == Mode::IfNeeded && (state.initialized || heartbeat_is_fresh(&state)) {
+                tx.commit().await?;
+                return Ok(None);
+            }
+            let cutoff = projection::next_cutoff_revision(&mut tx).await?;
+            let generation = ReportingProjector::begin_rebuild(&mut tx, cutoff).await?;
             tx.commit().await?;
-            return Ok(None);
-        }
-        let cutoff = projection::next_cutoff_revision(&mut tx).await?;
-        let generation = ReportingProjector::begin_rebuild(&mut tx, cutoff).await?;
-        tx.commit().await?;
-        tracing::info!(generation, cutoff, "Analytics baseline rebuild started");
-        Ok(Some(Plan { generation }))
-    })
+            tracing::info!(generation, cutoff, "Analytics baseline rebuild started");
+            Ok(Some(Plan { generation }))
+        },
+    )
     .await
 }
 
@@ -152,13 +157,18 @@ async fn in_progress_elsewhere(pool: &Arc<PgPool>) -> Result<bool, AnalyticsErro
 
 /// Phase A2: empty the targets in their own transaction.
 async fn clear(pool: &Arc<PgPool>, plan: Plan) -> Result<(), AnalyticsError> {
-    retry_async(&retry_config(), "reporting-rebuild-clear", classify, || async {
-        let mut tx = pool.begin().await?;
-        projection::lock_projector(&mut tx).await?;
-        ReportingProjector::clear_targets(&mut tx, plan.generation).await?;
-        tx.commit().await?;
-        Ok(())
-    })
+    retry_async(
+        &retry_config(),
+        "reporting-rebuild-clear",
+        classify,
+        || async {
+            let mut tx = pool.begin().await?;
+            projection::lock_projector(&mut tx).await?;
+            ReportingProjector::clear_targets(&mut tx, plan.generation).await?;
+            tx.commit().await?;
+            Ok(())
+        },
+    )
     .await
 }
 
@@ -173,17 +183,31 @@ async fn snapshot_source(
     let mut after: Option<String> = None;
     let mut written = 0;
     loop {
-        let page = retry_async(&retry_config(), "reporting-rebuild-page", classify, || async {
-            let mut tx = pool.begin().await?;
-            projection::lock_projector(&mut tx).await?;
-            let page =
-                projection::write_snapshot_page(&mut tx, definition, after.as_deref(), PAGE_ROWS)
-                    .await?;
-            projection::heartbeat_rebuild(&mut tx, plan.generation, definition.table, page.written)
+        let page = retry_async(
+            &retry_config(),
+            "reporting-rebuild-page",
+            classify,
+            || async {
+                let mut tx = pool.begin().await?;
+                projection::lock_projector(&mut tx).await?;
+                let page = projection::write_snapshot_page(
+                    &mut tx,
+                    definition,
+                    after.as_deref(),
+                    PAGE_ROWS,
+                )
                 .await?;
-            tx.commit().await?;
-            Ok(page)
-        })
+                projection::heartbeat_rebuild(
+                    &mut tx,
+                    plan.generation,
+                    definition.table,
+                    page.written,
+                )
+                .await?;
+                tx.commit().await?;
+                Ok(page)
+            },
+        )
         .await?;
         written += page.written;
         if page.fetched < PAGE_ROWS {
@@ -202,12 +226,17 @@ async fn snapshot_source(
 
 /// Phase C: flip `initialized` if this generation is still the live one.
 async fn finish(pool: &Arc<PgPool>, plan: Plan) -> Result<(), AnalyticsError> {
-    retry_async(&retry_config(), "reporting-rebuild-finish", classify, || async {
-        let mut tx = pool.begin().await?;
-        projection::lock_projector(&mut tx).await?;
-        ReportingProjector::finish_rebuild(&mut tx, plan.generation).await?;
-        tx.commit().await?;
-        Ok(())
-    })
+    retry_async(
+        &retry_config(),
+        "reporting-rebuild-finish",
+        classify,
+        || async {
+            let mut tx = pool.begin().await?;
+            projection::lock_projector(&mut tx).await?;
+            ReportingProjector::finish_rebuild(&mut tx, plan.generation).await?;
+            tx.commit().await?;
+            Ok(())
+        },
+    )
     .await
 }

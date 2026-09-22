@@ -183,7 +183,8 @@ impl ReportingProjector {
 
     async fn verify_generation(connection: &mut PgConnection, generation: i64) -> Result<()> {
         let state = rebuild_state(connection).await?;
-        if state.generation != generation || state.initialized || state.rebuild_started_at.is_none() {
+        if state.generation != generation || state.initialized || state.rebuild_started_at.is_none()
+        {
             return Err(AnalyticsError::rebuild_superseded());
         }
         Ok(())
