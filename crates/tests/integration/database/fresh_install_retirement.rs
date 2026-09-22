@@ -129,9 +129,17 @@ fn retirement_is_only_idempotent_drops_and_ledger_deletes() {
         "DROP TABLE IF EXISTS eval_runs CASCADE; DROP VIEW IF EXISTS eval_summary; \
          DELETE FROM extension_migrations WHERE extension_id = 'evaluation';"
     ));
-    assert!(retire("DROP FUNCTION IF EXISTS gone(); DROP TRIGGER IF EXISTS t ON x;"));
-    assert!(!retire("DROP TABLE eval_runs;"), "a drop without IF EXISTS is not idempotent");
-    assert!(!retire("DELETE FROM eval_runs;"), "only the ledger may be deleted from");
+    assert!(retire(
+        "DROP FUNCTION IF EXISTS gone(); DROP TRIGGER IF EXISTS t ON x;"
+    ));
+    assert!(
+        !retire("DROP TABLE eval_runs;"),
+        "a drop without IF EXISTS is not idempotent"
+    );
+    assert!(
+        !retire("DELETE FROM eval_runs;"),
+        "only the ledger may be deleted from"
+    );
     assert!(
         !retire("DROP TABLE IF EXISTS a; ALTER TABLE b ADD COLUMN c TEXT;"),
         "any non-retiring statement disqualifies the migration"

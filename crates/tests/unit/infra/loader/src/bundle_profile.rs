@@ -94,7 +94,7 @@ pub fn profile(
         secrets: None,
         extensions: ExtensionsConfig::default(),
         governance: None,
-        evaluation: Default::default(),
+        judge: Default::default(),
         services: ServicesProfileConfig {
             port_offset: 0,
             sources,

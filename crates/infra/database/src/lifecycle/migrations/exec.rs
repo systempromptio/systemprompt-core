@@ -6,8 +6,16 @@
 
 use crate::services::DatabaseProvider;
 use std::collections::HashSet;
+use std::time::Instant;
 use systemprompt_extension::{Extension, LoaderError, Migration};
 use systemprompt_identifiers::ToDbValue;
+use tracing::{info, warn};
+
+use super::budget;
+
+/// A statement slower than this is reported on its own, so the log names the
+/// one that cost the boot its time rather than only the total.
+const SLOW_STATEMENT: std::time::Duration = std::time::Duration::from_secs(5);
 
 pub(super) struct TrackingWrite<'a> {
     pub sql: &'a str,
@@ -52,9 +60,29 @@ pub(super) async fn execute_statements_transactional(
             ),
         })?;
 
+    // Why: LOCAL, so the bound dies with this transaction and never leaks
+    // onto a pooled connection the application later reuses.
+    for setting in budget::timeout_statements(budget::statement_timeout(migration), true) {
+        if let Err(e) = tx.execute(&setting.as_str(), &[]).await {
+            let rollback_note = match tx.rollback().await {
+                Ok(()) => String::new(),
+                Err(rb) => format!(" (rollback also failed: {rb})"),
+            };
+            return Err(LoaderError::MigrationFailed {
+                extension: ext_id.to_owned(),
+                message: format!(
+                    "Failed to bound migration {} ({}) with `{setting}`: {e}{rollback_note}",
+                    migration.version, migration.name
+                ),
+            });
+        }
+    }
+
+    let started = Instant::now();
     let total = statements.len();
     for (idx, statement) in statements.iter().enumerate() {
         let sql_str: &str = statement.as_str();
+        let statement_started = Instant::now();
         if let Err(e) = tx.execute(&sql_str, &[]).await {
             let rollback_note = match tx.rollback().await {
                 Ok(()) => String::new(),
@@ -70,6 +98,18 @@ pub(super) async fn execute_statements_transactional(
                     n = idx + 1,
                 ),
             });
+        }
+        let elapsed = statement_started.elapsed();
+        if elapsed >= SLOW_STATEMENT {
+            warn!(
+                extension = ext_id,
+                version = migration.version,
+                name = migration.name,
+                statement = idx + 1,
+                total,
+                elapsed_ms = elapsed.as_millis(),
+                "Slow migration statement",
+            );
         }
     }
 
@@ -100,6 +140,14 @@ pub(super) async fn execute_statements_transactional(
             ),
         })?;
 
+    info!(
+        extension = ext_id,
+        version = migration.version,
+        name = migration.name,
+        statements = total,
+        elapsed_ms = started.elapsed().as_millis(),
+        "Migration applied",
+    );
     Ok(())
 }
 

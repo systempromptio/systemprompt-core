@@ -37,6 +37,10 @@ rsa = { workspace = true }
 sha2 = { workspace = true }
 hmac = { workspace = true }
 hex = { workspace = true }
+# At-rest sealing of credentials that must be replayed upstream, under the
+# same `encryption_master_key` and AEAD as the gateway accounting journal.
+chacha20poly1305 = { workspace = true }
+rand = { workspace = true }
 lru = { workspace = true }
 url = { workspace = true }
 

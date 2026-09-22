@@ -27,16 +27,18 @@ mod routine_prepass;
 mod validation;
 
 use systemprompt_extension::{Extension, ExtensionRegistry, LoaderError};
-use tracing::{debug, info};
+use tracing::{debug, info, warn};
 
 use self::foreign_keys::apply_foreign_keys;
 use self::lock::BootstrapLockGuard;
 use self::routine_prepass::apply_routine_prepass;
 use self::validation::{validate_extension_columns, validate_table_ownership};
+use super::migration_cost::{HOT_TABLES, audit_migration_cost};
 use super::migration_refs::check_migration_references;
 use super::prepare::{PreparedSchema, prepare_extension_schema};
 use super::report::SchemaInstallReport;
 use super::seeds::apply_seeds;
+use super::undeclared::audit_schema_residue;
 use crate::lifecycle::migrations::{
     BaselineStamp, MigrationConfig, MigrationService, RECORD_MIGRATION_SQL,
 };
@@ -91,8 +93,25 @@ pub async fn install_extension_schemas_full(
 
     info!(
         foreign_key_drift = report.foreign_key_drift.len(),
+        undeclared_tables = report.residue.undeclared_tables.len(),
+        orphan_migration_ledgers = report.residue.orphan_migration_ledgers.len(),
         "Extension schema installation complete"
     );
+    for table in &report.residue.undeclared_tables {
+        warn!(
+            schema = table.schema,
+            table = table.table,
+            live_rows = table.live_rows,
+            "live table declared by no registered extension — add a DROP TABLE migration"
+        );
+    }
+    for ledger in &report.residue.orphan_migration_ledgers {
+        warn!(
+            extension = ledger.extension_id,
+            rows = ledger.rows,
+            "extension_migrations ledger for an extension that no longer exists"
+        );
+    }
     Ok(report)
 }
 
@@ -110,6 +129,7 @@ async fn run_install(
 
     validate_table_ownership(&prepared, schema_extensions)?;
     check_migration_references(schema_extensions)?;
+    warn_unmeasured_migrations(schema_extensions);
 
     let mut fresh_extensions: std::collections::HashSet<String> = std::collections::HashSet::new();
     for (ext, p) in schema_extensions.iter().zip(&prepared) {
@@ -181,6 +201,13 @@ async fn run_install(
         apply_seeds(ext.as_ref(), db).await?;
     }
 
+    let owned: Vec<String> = prepared
+        .iter()
+        .flat_map(|p| p.owned_tables.clone())
+        .collect();
+    let ids: Vec<String> = prepared.iter().map(|p| p.extension_id.clone()).collect();
+    report.residue = audit_schema_residue(db, &owned, &ids).await?;
+
     Ok(report)
 }
 
@@ -251,4 +278,28 @@ async fn execute_phase(
         })?;
 
     Ok(())
+}
+
+// Why: a warning, never a refusal. A migration that rewrites a hot table
+// without declaring what it measured is a review failure, and the repos'
+// test suites fail on it; refusing it here would turn a missing comment into
+// a customer's instance that will not boot. What bounds the damage at
+// runtime is the statement timeout the runner derives from `@cost`.
+fn warn_unmeasured_migrations(extensions: &[std::sync::Arc<dyn Extension>]) {
+    for cost in audit_migration_cost(extensions, HOT_TABLES) {
+        if let Some(reason) = cost.malformed.as_deref() {
+            warn!(
+                migration = %cost.label(),
+                reason,
+                "Migration declares a malformed @cost directive",
+            );
+        }
+        if cost.is_undeclared() {
+            warn!(
+                migration = %cost.label(),
+                statements = %cost.statement_summary(),
+                "Migration rewrites a hot table without a measured @cost directive",
+            );
+        }
+    }
 }

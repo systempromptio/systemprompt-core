@@ -345,6 +345,7 @@ mod distributed_lock_arms {
             JobRunRecord {
                 status: JobStatus::Success,
                 error: None,
+                message: None,
                 next_run: None,
                 instance_id: &InstanceId::new("fixture"),
             },

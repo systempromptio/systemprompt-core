@@ -60,6 +60,7 @@ mod asset;
 pub mod build;
 pub mod capabilities;
 pub mod context;
+pub mod cost;
 pub mod error;
 pub mod frame_options;
 pub mod gateway_guard;
@@ -74,6 +75,7 @@ mod traits;
 
 pub use asset::{AssetDefinition, AssetDefinitionBuilder, AssetPaths, AssetType};
 pub use context::{DynExtensionContext, ExtensionContext};
+pub use cost::{CostDirective, CostDirectiveError, TriggerPolicy};
 pub use error::{ExtensionConfigError, LoaderError};
 pub use frame_options::{FrameOptions, FrameOptionsOverride, stamp_frame_options};
 pub use gateway_guard::{

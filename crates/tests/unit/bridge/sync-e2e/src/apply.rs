@@ -133,7 +133,7 @@ fn governance_plugin(id: &str, files: Vec<(&str, &[u8])>) -> PluginEntry {
         hooks: PluginHooksRef {
             governance: true,
             comms: false,
-            evaluation: false,
+            judge: false,
             include: vec![],
         },
         ..plugin(id, files)
@@ -145,7 +145,7 @@ fn comms_plugin(id: &str, files: Vec<(&str, &[u8])>) -> PluginEntry {
         hooks: PluginHooksRef {
             governance: true,
             comms: true,
-            evaluation: false,
+            judge: false,
             include: vec![],
         },
         ..plugin(id, files)
@@ -836,7 +836,7 @@ fn plugin_with_include(id: &str, include: Vec<String>) -> PluginEntry {
         hooks: PluginHooksRef {
             governance: false,
             comms: false,
-            evaluation: false,
+            judge: false,
             include,
         },
         ..plugin(id, vec![(".claude-plugin/plugin.json", PLUGIN_FILE_BODY)])

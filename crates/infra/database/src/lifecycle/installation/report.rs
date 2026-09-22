@@ -8,6 +8,8 @@
 
 use serde::Serialize;
 
+use super::undeclared::SchemaResidue;
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct ForeignKeyDrift {
     pub extension: String,
@@ -22,15 +24,24 @@ pub struct ForeignKeyDrift {
 /// `foreign_key_drift` is non-empty only for an established extension whose
 /// declarative foreign key cannot be created; the install still committed
 /// every other statement. A fresh database never reports drift — the same
-/// condition fails the install there.
+/// condition fails the install there. `residue` is what the database holds
+/// that no registered extension declares (tables and migration ledgers a
+/// deleted crate left behind); it never fails an install and is reported so
+/// a drop migration can be written.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
 pub struct SchemaInstallReport {
     pub foreign_key_drift: Vec<ForeignKeyDrift>,
+    pub residue: SchemaResidue,
 }
 
 impl SchemaInstallReport {
     #[must_use]
     pub const fn is_clean(&self) -> bool {
         self.foreign_key_drift.is_empty()
+    }
+
+    #[must_use]
+    pub const fn is_tidy(&self) -> bool {
+        self.residue.is_empty()
     }
 }

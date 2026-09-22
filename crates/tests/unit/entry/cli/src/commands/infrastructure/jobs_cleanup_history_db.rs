@@ -146,6 +146,7 @@ async fn seed_job_run(pool: &DbPool, status: JobStatus, error: Option<&str>) -> 
         JobRunRecord {
             status: status,
             error: error,
+            message: None,
             next_run: None,
             instance_id: &InstanceId::new("test-node"),
         },

@@ -18,6 +18,11 @@
 //!   This corrects text only when the old and new forms produce the same state;
 //!   changes that must execute on established databases require a new
 //!   migration.
+//! - A leading `-- @cost: rows=<n> measured=<dur> triggers=<suspended|live>`
+//!   states what the author measured for a migration that rewrites a hot table.
+//!   The runner derives that migration's `statement_timeout` from `measured`,
+//!   so a malformed directive fails the build rather than leaving the migration
+//!   unbounded. See [`crate::cost`].
 //! - `NNN_<name>.tombstone` / `NNN-MMM_<name>.tombstone` — a spent slot. The
 //!   migration once lived here, shipped, and its file has since been deleted;
 //!   established databases still carry its tracking row. A tombstone declares
@@ -154,6 +159,7 @@ fn discover(dir: &Path) -> Vec<DiscoveredMigration> {
         .map(|up| {
             let stem = file_stem(up);
             let (version, end_version, name) = parse_stem(&stem, up);
+            reject_malformed_cost_directive(up);
             assert!(
                 version == end_version,
                 "migration file {} may not name a version range — only a `.tombstone` covers \
@@ -253,6 +259,18 @@ fn supersedes_directive(path: &Path) -> Vec<String> {
             old.to_owned()
         })
         .collect()
+}
+
+// Why: the directive is load-bearing at runtime — the runner derives this
+// migration's statement timeout from `measured` — so a malformed one must
+// stop the build, exactly as a malformed `@supersedes-checksum` does, rather
+// than be silently ignored and leave the migration unbounded.
+fn reject_malformed_cost_directive(path: &Path) {
+    let content = std::fs::read_to_string(path)
+        .unwrap_or_else(|e| panic!("failed to read migration {}: {e}", path.display()));
+    if let Err(e) = crate::cost::parse(&content) {
+        panic!("migration {}: {e}", path.display());
+    }
 }
 
 fn has_no_transaction_directive(path: &Path) -> bool {

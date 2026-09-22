@@ -24,12 +24,25 @@ pub enum ClientAttestation {
 }
 
 /// A structural marker of one harness found in the request body.
+///
+/// Claude Code stamps `metadata.user_id` in one of two grammars —
+/// `user_<hex>_account_<uuid>_session_<uuid>` before 2.1.25x and a JSON
+/// object `{"account_uuid","device_id","session_id"}` from then on — and,
+/// on a third-party gateway, opens the system prompt with
+/// `x-anthropic-billing-header: cc_version=…; cc_entrypoint=<entry>;`. The
+/// entrypoint is the only body signal that tells Claude Desktop (Cowork:
+/// `claude-desktop-3p`, `local-agent`) from the CLI (`cli`), so it outranks
+/// the metadata grammars. Neither grammar was ever sent by OpenCode; a
+/// former `opencode-session-json` marker matched the JSON one and mislabelled
+/// every modern Claude Code request.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum NativeMarker {
+    ClaudeDesktopEntrypoint,
+    ClaudeCliEntrypoint,
     ClaudeMetadataUserId,
+    ClaudeMetadataJson,
     CodexTurnMetadata,
-    OpencodeSessionJson,
 }
 
 impl ClientAttestation {
@@ -86,18 +99,22 @@ impl ClientAttestation {
 }
 
 impl NativeMarker {
-    pub const ALL: [Self; 3] = [
+    pub const ALL: [Self; 5] = [
+        Self::ClaudeDesktopEntrypoint,
+        Self::ClaudeCliEntrypoint,
         Self::ClaudeMetadataUserId,
+        Self::ClaudeMetadataJson,
         Self::CodexTurnMetadata,
-        Self::OpencodeSessionJson,
     ];
 
     #[must_use]
     pub const fn as_str(self) -> &'static str {
         match self {
+            Self::ClaudeDesktopEntrypoint => "claude-desktop-entrypoint",
+            Self::ClaudeCliEntrypoint => "claude-cli-entrypoint",
             Self::ClaudeMetadataUserId => "claude-metadata-user-id",
+            Self::ClaudeMetadataJson => "claude-metadata-json",
             Self::CodexTurnMetadata => "codex-turn-metadata",
-            Self::OpencodeSessionJson => "opencode-session-json",
         }
     }
 
@@ -111,12 +128,14 @@ impl NativeMarker {
     #[must_use]
     pub const fn client(self) -> super::ClientKind {
         match self {
-            // Why: the Claude metadata.user_id grammar is shared by Claude
-            // Code and Claude Desktop; the tier records that it is a marker,
-            // not a verified host, and the historical default stands.
-            Self::ClaudeMetadataUserId => super::ClientKind::ClaudeCode,
+            Self::ClaudeDesktopEntrypoint => super::ClientKind::ClaudeDesktop,
+            // Why: both metadata.user_id grammars are shared by Claude Code
+            // and Claude Desktop; without an entrypoint the tier records a
+            // marker, not a verified host, and the historical default stands.
+            Self::ClaudeCliEntrypoint | Self::ClaudeMetadataUserId | Self::ClaudeMetadataJson => {
+                super::ClientKind::ClaudeCode
+            },
             Self::CodexTurnMetadata => super::ClientKind::Codex,
-            Self::OpencodeSessionJson => super::ClientKind::OpenCode,
         }
     }
 }

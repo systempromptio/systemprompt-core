@@ -14,9 +14,10 @@ mod migrations;
 mod validation;
 
 pub use installation::{
-    BOOTSTRAP_ADVISORY_LOCK_KEY, BootstrapLockGuard, DeferredForeignKey, FkDeferralError,
-    ForeignKeyDrift, OrphanMigrationLedger, SchemaInstallReport, SchemaResidue, SplitCreateTable,
-    UndeclaredTable, audit_schema_residue, check_migration_references, install_extension_schemas,
+    BOOTSTRAP_ADVISORY_LOCK_KEY, BootstrapLockGuard, DeferredForeignKey, ExpensiveStatement,
+    FkDeferralError, ForeignKeyDrift, HOT_TABLES, MigrationCost, OrphanMigrationLedger,
+    SchemaInstallReport, SchemaResidue, SplitCreateTable, UndeclaredTable, audit_migration_cost,
+    audit_one, audit_schema_residue, check_migration_references, install_extension_schemas,
     install_extension_schemas_full, install_extension_schemas_with_config,
     split_create_table_foreign_keys,
 };

@@ -39,6 +39,10 @@ mod interrupted_install;
 mod declarative_object_refs;
 
 #[cfg(test)]
+#[path = "../migration_cost_static.rs"]
+mod migration_cost_static;
+
+#[cfg(test)]
 #[path = "../migration_refs_static.rs"]
 mod migration_refs_static;
 
