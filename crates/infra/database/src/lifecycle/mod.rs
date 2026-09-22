@@ -15,14 +15,16 @@ mod validation;
 
 pub use installation::{
     BOOTSTRAP_ADVISORY_LOCK_KEY, BootstrapLockGuard, DeferredForeignKey, FkDeferralError,
-    ForeignKeyDrift, SchemaInstallReport, SplitCreateTable, check_migration_references,
-    install_extension_schemas, install_extension_schemas_full,
-    install_extension_schemas_with_config, split_create_table_foreign_keys,
+    ForeignKeyDrift, OrphanMigrationLedger, SchemaInstallReport, SchemaResidue, SplitCreateTable,
+    UndeclaredTable, audit_schema_residue, check_migration_references, install_extension_schemas,
+    install_extension_schemas_full, install_extension_schemas_with_config,
+    split_create_table_foreign_keys,
 };
 pub use migrations::{
     AppliedMigration, BaselineStamp, ChecksumDrift, ExtensionMigrationStatus, FreshnessCheck,
     MarkAppliedOutcome, MigrationConfig, MigrationResult, MigrationService, MigrationStatus,
     OrphanedMigration, PendingMigration, RepairResult, SlotCollision, TombstonedSlot,
+    is_retirement,
 };
 pub use validation::{
     ReplicaStatus, replica_status, validate_column_exists, validate_database_connection,

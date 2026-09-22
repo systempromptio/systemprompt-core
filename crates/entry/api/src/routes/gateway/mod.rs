@@ -30,7 +30,7 @@ pub mod models;
 pub mod otel;
 pub mod sessions;
 
-mod access_log;
+pub mod access_log;
 mod routers;
 
 use axum::routing::get;
@@ -86,6 +86,7 @@ pub fn gateway_repositories(
         ctx.context_materializer(),
     )?
     .with_artifact_ingest(ctx.artifact_ingest_arc())
+    .with_session_store(ctx.session_store())
     .with_payload_cap(payload_cap_bytes))
 }
 

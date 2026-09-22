@@ -10,12 +10,25 @@
 //! than executing their SQL. Established databases (any tracking history, or
 //! any owned table already present) take the normal incremental path.
 //!
+//! One class of migration is stamped **and** executed: a retirement, whose
+//! every statement is a `DROP … IF EXISTS` or a `DELETE FROM
+//! extension_migrations`. Such a migration retires relations that another,
+//! since-deleted extension left behind, and an extension whose own tables are
+//! all absent says nothing about theirs — a production database kept nineteen
+//! `eval_*` tables and three orphaned ledger rows because the migration that
+//! dropped them belonged to an extension the database was meeting for the
+//! first time. Every statement of a retirement is idempotent, so running it
+//! on a truly fresh database is a no-op.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use super::MigrationService;
-use systemprompt_extension::{Extension, LoaderError};
-use tracing::warn;
+use super::exec::execute_statements_transactional;
+use crate::services::SqlExecutor;
+use pg_query::NodeEnum;
+use systemprompt_extension::{Extension, LoaderError, Migration};
+use tracing::{info, warn};
 
 /// One `extension_migrations` row recording a migration as applied without
 /// having executed it.
@@ -91,6 +104,40 @@ impl MigrationService<'_> {
         Ok(check)
     }
 
+    /// Executes every retirement migration of a freshly stamped extension.
+    /// Returns how many ran.
+    pub async fn run_stamped_retirements(
+        &self,
+        extension: &dyn Extension,
+    ) -> Result<usize, LoaderError> {
+        let ext_id = extension.metadata().id;
+        let mut ran = 0usize;
+        for migration in extension
+            .migrations()
+            .iter()
+            .filter(|migration| !migration.tombstone && is_retirement(migration))
+        {
+            let statements = SqlExecutor::parse_sql_statements(migration.sql).map_err(|e| {
+                LoaderError::MigrationFailed {
+                    extension: ext_id.to_owned(),
+                    message: format!(
+                        "Failed to parse retirement migration {} ({}): {e}",
+                        migration.version, migration.name
+                    ),
+                }
+            })?;
+            info!(
+                extension = %ext_id,
+                version = migration.version,
+                name = %migration.name,
+                "Fresh install: executing stamped retirement migration"
+            );
+            execute_statements_transactional(self.db, &statements, ext_id, migration, None).await?;
+            ran += 1;
+        }
+        Ok(ran)
+    }
+
     #[must_use]
     pub fn baseline_stamp_rows(extension: &dyn Extension) -> Vec<BaselineStamp> {
         let ext_id = extension.metadata().id;
@@ -106,4 +153,33 @@ impl MigrationService<'_> {
             })
             .collect()
     }
+}
+
+/// Whether a migration only retires objects: every statement is a
+/// `DROP … IF EXISTS` or a `DELETE FROM extension_migrations`. Anything else,
+/// or an unparsable body, is not a retirement.
+#[must_use]
+pub fn is_retirement(migration: &Migration) -> bool {
+    let Ok(parsed) = pg_query::parse(migration.sql) else {
+        return false;
+    };
+    let mut statements = 0usize;
+    for raw in parsed.protobuf.stmts {
+        let Some(node) = raw.stmt.and_then(|s| s.node) else {
+            continue;
+        };
+        statements += 1;
+        let retires = match &node {
+            NodeEnum::DropStmt(drop) => drop.missing_ok,
+            NodeEnum::DeleteStmt(delete) => delete
+                .relation
+                .as_ref()
+                .is_some_and(|relation| relation.relname == "extension_migrations"),
+            _ => false,
+        };
+        if !retires {
+            return false;
+        }
+    }
+    statements > 0
 }

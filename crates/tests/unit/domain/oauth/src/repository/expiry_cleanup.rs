@@ -239,3 +239,52 @@ async fn delete_expired_sweeps_every_table_and_totals_the_counts() {
     assert!(counts.id_jag_replays >= 1);
     assert!(counts.total() >= counts.id_jag_replays);
 }
+
+#[tokio::test]
+async fn bridge_exchange_codes_are_swept_once_spent_or_expired() {
+    let Some((repo, pg)) = repo_and_pool_or_skip().await else {
+        return;
+    };
+    let (user_id, client_id) = seed_user_and_client(&pg).await;
+    let live = unique("code_live");
+    let consumed = unique("code_consumed");
+    let expired = unique("code_expired");
+    for (hash, expires_in, consumed_at) in [
+        (&live, Duration::minutes(10), None),
+        (&consumed, Duration::minutes(10), Some(Utc::now())),
+        (&expired, Duration::minutes(-1), None),
+    ] {
+        sqlx::query(
+            "INSERT INTO bridge_exchange_codes (code_hash, user_id, expires_at, consumed_at) \
+             VALUES ($1, $2, $3, $4)",
+        )
+        .bind(hash)
+        .bind(&user_id)
+        .bind(Utc::now() + expires_in)
+        .bind(consumed_at)
+        .execute(&pg)
+        .await
+        .expect("insert exchange code fixture");
+    }
+
+    let removed = repo
+        .delete_spent_bridge_exchange_codes()
+        .await
+        .expect("sweep");
+    assert!(removed >= 2);
+
+    let remaining: Vec<String> = sqlx::query_scalar(
+        "SELECT code_hash FROM bridge_exchange_codes WHERE user_id = $1 ORDER BY code_hash",
+    )
+    .bind(&user_id)
+    .fetch_all(&pg)
+    .await
+    .expect("remaining codes");
+    assert_eq!(remaining, vec![live.clone()], "only the live, unconsumed code survives");
+
+    let _ = sqlx::query("DELETE FROM bridge_exchange_codes WHERE user_id = $1")
+        .bind(&user_id)
+        .execute(&pg)
+        .await;
+    remove_user_and_client(&pg, &user_id, &client_id).await;
+}

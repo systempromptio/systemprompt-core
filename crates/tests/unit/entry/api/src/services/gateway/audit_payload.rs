@@ -7,7 +7,7 @@ use bytes::Bytes;
 use serde_json::json;
 use sha2::{Digest, Sha256};
 use systemprompt_api::services::gateway::audit::payload::{
-    prepared_tools, slice_payload, truncate_for_tool_input,
+    excerpt_payload, prepared_tools, slice_payload, truncate_for_tool_input,
 };
 use systemprompt_models::profile::AuditConfig;
 
@@ -148,6 +148,27 @@ fn prepared_tools_is_none_without_an_array() {
     assert!(prepared_tools(br#"{"model":"m","messages":[]}"#).is_none());
     assert!(prepared_tools(br#"{"tools":{"not":"an array"}}"#).is_none());
     assert!(prepared_tools(b"not json").is_none());
+}
+
+#[test]
+fn excerpt_payload_never_keeps_the_body() {
+    let body = json!({"model": "m", "max_tokens": 1, "messages": [{"role": "user", "content": "hi"}]});
+    let bytes = Bytes::from(serde_json::to_vec(&body).unwrap());
+    let capture = excerpt_payload(&bytes);
+    assert!(capture.json.is_none());
+    assert!(capture.truncated);
+    assert_eq!(capture.byte_len as usize, bytes.len());
+    assert_eq!(capture.sha256, slice_payload(&bytes, 1 << 20).sha256);
+    let excerpt = capture.excerpt.expect("excerpt");
+    assert_eq!(excerpt.as_bytes(), &bytes[..], "a small body is excerpted whole");
+}
+
+#[test]
+fn excerpt_payload_keeps_head_and_tail_of_a_large_body() {
+    let bytes = Bytes::from(vec![b'x'; 40 * 1024]);
+    let excerpt = excerpt_payload(&bytes).excerpt.expect("excerpt");
+    assert!(excerpt.contains("...<truncated 24576 bytes>..."));
+    assert!(excerpt.len() < bytes.len());
 }
 
 #[test]

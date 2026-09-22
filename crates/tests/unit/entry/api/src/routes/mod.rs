@@ -10,6 +10,7 @@ mod admin_services_refresh;
 mod agent;
 mod agent_responses;
 mod bridge_profile_models;
+mod gateway_access_log_polling;
 mod gateway_auth_provision_client;
 mod gateway_auth_responses;
 mod gateway_auth_shapes;

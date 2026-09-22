@@ -8,6 +8,17 @@
 //! error. Without the second record a stream that fails mid-body is logged as
 //! the 200 its headers promised.
 //!
+//! Timer-driven bridge routes are the exception. A bridge polls `profile`,
+//! `profile/usage` and `heartbeat` on a fixed interval and checks `latest` and
+//! `manifest` on its own schedule, so a successful hit on one of those is
+//! evidence of nothing: persisting every one of them made those five routes
+//! nine of every ten rows in a production `logs` table (392k of 439k in three
+//! weeks) while the ten thousand inference calls the table exists to record sat
+//! underneath. Successes on a polling route are emitted to the tracing
+//! subscriber at debug and never reach the database; failures on the same
+//! routes still persist, because a 401 heartbeat or a 502 update check is the
+//! signal an operator looks for.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -22,6 +33,21 @@ use crate::services::gateway::audit::GatewayAccessLog;
 
 pub(crate) const PHASE_HEADERS: &str = "headers";
 pub(crate) const PHASE_TERMINAL: &str = "terminal";
+
+/// Gateway routes a bridge hits on a timer with no user action behind them.
+const POLLING_ROUTES: [&str; 5] = [
+    "/v1/bridge/profile",
+    "/v1/bridge/profile/usage",
+    "/v1/bridge/heartbeat",
+    "/v1/bridge/latest",
+    "/v1/bridge/manifest",
+];
+
+/// Whether an access record is worth a `logs` row: everything except a
+/// successful response on a polling route.
+pub fn persists_access_record(path: &str, status: u16) -> bool {
+    status >= 400 || !POLLING_ROUTES.contains(&path)
+}
 
 #[derive(Debug, Clone)]
 pub(crate) struct GatewayLogIdentity {
@@ -84,13 +110,20 @@ pub(super) async fn log_gateway_request(req: Request, next: Next) -> Response {
     });
 
     let level = level_for(status);
+    let persist = persists_access_record(&path, status);
 
     if status >= 500 {
         tracing::error!(method = %method, path = %path, status, elapsed_ms, "gateway request failed");
     } else if status >= 400 {
         tracing::warn!(method = %method, path = %path, status, elapsed_ms, "gateway request rejected");
-    } else {
+    } else if persist {
         tracing::info!(method = %method, path = %path, status, elapsed_ms, "gateway request");
+    } else {
+        tracing::debug!(method = %method, path = %path, status, elapsed_ms, "gateway poll");
+    }
+
+    if !persist {
+        return resp;
     }
 
     if let Some(actor) = gateway_log_actor(&resp) {
@@ -135,6 +168,7 @@ pub(crate) fn log_gateway_terminal(outcome: TerminalOutcome<'_>) {
     let elapsed_ms = access.started.elapsed().as_millis() as u64;
     let method = access.method.as_str();
     let path = access.path.as_str();
+    let persist = persists_access_record(path, status);
 
     if status >= 500 {
         tracing::error!(
@@ -154,10 +188,15 @@ pub(crate) fn log_gateway_terminal(outcome: TerminalOutcome<'_>) {
             error,
             "gateway stream aborted"
         );
-    } else {
+    } else if persist {
         tracing::info!(method, path, status, elapsed_ms, "gateway stream completed");
+    } else {
+        tracing::debug!(method, path, status, elapsed_ms, "gateway poll completed");
     }
 
+    if !persist {
+        return;
+    }
     let Some(actor) = actor else {
         return;
     };

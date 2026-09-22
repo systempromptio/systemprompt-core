@@ -164,8 +164,10 @@ async fn upsert_prepared_does_not_clobber_request_payload() {
 
     let read = pool.pool_arc().expect("read pool");
     let row = sqlx::query!(
-        r#"SELECT request_body_sha256, prepared_body_sha256, prepared_tools, request_bytes
-           FROM ai_request_payloads WHERE ai_request_id = $1"#,
+        r#"SELECT p.request_body_sha256, p.prepared_body_sha256, c.tools AS prepared_tools, p.request_bytes
+           FROM ai_request_payloads p
+           LEFT JOIN ai_tool_catalogs c ON c.sha256 = p.prepared_tools_sha256
+           WHERE p.ai_request_id = $1"#,
         request_id.as_str()
     )
     .fetch_one(read.as_ref())
@@ -186,6 +188,59 @@ async fn upsert_prepared_does_not_clobber_request_payload() {
         Some("prepared-digest")
     );
     assert_eq!(prepared.prepared_tools, Some(tools));
+}
+
+#[tokio::test]
+async fn identical_tool_lists_share_one_catalog_row() {
+    let Some(pool) = pool_or_skip().await else {
+        return;
+    };
+    let uid = user();
+    let first = seed_request(&pool, &uid).await;
+    let second = seed_request(&pool, &uid).await;
+    let repo = AiRequestPayloadRepository::new(&pool).expect("repo");
+
+    let tools = json!([{"name": "read", "input_schema": {"type": "object"}}]);
+    // Same list, different key order: the JSONB text is canonical, so the
+    // digest — and the catalog row — is the same.
+    let reordered = json!([{"input_schema": {"type": "object"}, "name": "read"}]);
+    repo.upsert_offered_tools(&first, &tools)
+        .await
+        .expect("first offered");
+    repo.upsert_offered_tools(&second, &reordered)
+        .await
+        .expect("second offered");
+    repo.upsert_prepared(&second, "prepared", Some(&tools))
+        .await
+        .expect("second prepared");
+
+    let read = pool.pool_arc().expect("read pool");
+    let digests = sqlx::query!(
+        r#"SELECT offered_tools_sha256, prepared_tools_sha256
+           FROM ai_request_payloads WHERE ai_request_id IN ($1, $2) ORDER BY ai_request_id"#,
+        first.as_str(),
+        second.as_str()
+    )
+    .fetch_all(read.as_ref())
+    .await
+    .expect("fetch digests");
+    assert_eq!(digests.len(), 2);
+    let offered: Vec<_> = digests.iter().map(|d| d.offered_tools_sha256.clone()).collect();
+    assert_eq!(offered[0], offered[1], "one list, one digest");
+    let prepared = digests
+        .iter()
+        .find_map(|d| d.prepared_tools_sha256.clone())
+        .expect("prepared digest");
+    assert_eq!(Some(prepared), offered[0].clone());
+
+    let rows = sqlx::query_scalar!(
+        r#"SELECT COUNT(*) AS "count!" FROM ai_tool_catalogs WHERE sha256 = $1"#,
+        offered[0].as_deref().expect("digest")
+    )
+    .fetch_one(read.as_ref())
+    .await
+    .expect("count");
+    assert_eq!(rows, 1);
 }
 
 #[tokio::test]

@@ -5,10 +5,23 @@
 ### Breaking
 
 - **Gateway Rust API:** `GatewayJournal::open` takes the writable state directory (`&Path`) instead of the profile file path; the journal is created at `<state_dir>/gateway-journal`. `StoragePaths` gains `data()` (`{paths.storage}/data`), which is what the server passes.
+- **AI schema:** `ai_request_payloads.offered_tools` and `prepared_tools` are replaced by `offered_tools_sha256` / `prepared_tools_sha256` referencing the new `ai_tool_catalogs(sha256, tools)` table (migration `ai/033`). Readers join the catalog; `AiRequestPayloadRepository` keeps its API. Views outside core that tested `offered_tools IS NOT NULL` are dropped by the CASCADE and must be re-declared against the digest column.
+- **OAuth Rust API:** `OauthCleanupCounts` gains `bridge_exchange_codes`.
+- **Wire-origin Rust API:** `NativeMarker` is re-cut around what Claude Code sends: `ClaudeDesktopEntrypoint`, `ClaudeCliEntrypoint`, `ClaudeMetadataUserId`, `ClaudeMetadataJson`, `CodexTurnMetadata`. `OpencodeSessionJson` is gone (it never matched OpenCode traffic). `ClientKind::same_runtime` is new. The `ai_request_client_evidence.native_marker` CHECK follows (migration `ai/034`).
+
+### Added
+
+- **Database:** a fresh extension's *retirement* migrations — every statement a `DROP … IF EXISTS` or a `DELETE FROM extension_migrations` — are executed as well as stamped, so a relation left behind by a deleted extension is dropped on the first boot that carries the drop. `is_retirement` is exported.
+- **OAuth:** `oauth_cleanup` sweeps consumed and expired `bridge_exchange_codes`.
 
 ### Fixed
 
+- **Gateway:** Claude Code ≥ 2.1.25x stamps `metadata.user_id` as a JSON string (`{"account_uuid","device_id","session_id"}`); the classifier read any JSON there as OpenCode's session marker, so every Claude Code and Claude Desktop (Cowork) request that did not carry a bridge host token was recorded as `opencode` on `openai.chat` — all 3,644 marker-bearing rows on one production instance. The JSON grammar is now a Claude marker, the `cc_entrypoint` in Claude Code's billing header tells Claude Desktop (`local-agent`, `claude-desktop-*`) from the CLI, and migration `ai/034` re-derives `client_kind` / `wire_protocol` for every row whose body was retained. A `claude-cli` User-Agent under a Claude Desktop marker is no longer logged as a conflict.
 - **Gateway:** the accounting receipt journal lives in `{paths.storage}/data/gateway-journal`, not beside the profile. A profile directory mounted read-only (the self-host bundle's default) no longer fails boot with `Cannot create .../gateway-journal`, and receipts survive container recreation when `storage/data` is a volume.
+- **Gateway:** a successful response on a timer-driven bridge route (`/v1/bridge/profile`, `/profile/usage`, `/heartbeat`, `/latest`, `/manifest`) is no longer written to the `logs` table; it is emitted at debug. Failures on those routes still persist. Those five routes were 392k of the 439k rows in a three-week production `logs` table.
+- **Gateway:** the tool catalogue is stored once per distinct list instead of once per request (4,392 copies of 152 lists, 433 MB, on one instance), and a probe (`max_tokens <= 1`) keeps its digest and excerpt but not its body.
+- **Analytics:** a `page_view` is recorded only for an HTML response; an XHR or a redirect under an HTML route (`GET /admin/auth/me` was 45% of all recorded page views) is an `http_request`.
+- **Schema:** `logs.level` and `event_outbox.actor_id` no longer carry the same CHECK twice on established databases (migrations `logging/008`, `events/007`).
 
 ## [0.57.0] - 2026-09-19
 

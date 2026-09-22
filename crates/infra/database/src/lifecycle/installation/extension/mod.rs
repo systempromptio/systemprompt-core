@@ -139,6 +139,14 @@ async fn run_install(
         execute_phase(db, &p.structural, &stamp, &p.extension_id).await?;
     }
 
+    for ext in schema_extensions {
+        if fresh_extensions.contains(ext.id()) {
+            migration_service
+                .run_stamped_retirements(ext.as_ref())
+                .await?;
+        }
+    }
+
     apply_routine_prepass(db, &prepared).await?;
 
     for ext in schema_extensions {

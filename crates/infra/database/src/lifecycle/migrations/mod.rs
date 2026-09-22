@@ -18,7 +18,7 @@ mod verify;
 
 pub use mark_applied::MarkAppliedOutcome;
 pub use repair::RepairResult;
-pub use stamp::{BaselineStamp, FreshnessCheck};
+pub use stamp::{BaselineStamp, FreshnessCheck, is_retirement};
 pub use status::{
     AppliedMigration, ChecksumDrift, ExtensionMigrationStatus, MigrationResult, MigrationStatus,
     OrphanedMigration, PendingMigration, SlotCollision, TombstonedSlot,

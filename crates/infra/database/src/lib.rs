@@ -81,12 +81,13 @@ pub use lifecycle::{
     AppliedMigration, BOOTSTRAP_ADVISORY_LOCK_KEY, BaselineStamp, BootstrapLockGuard,
     ChecksumDrift, DeferredForeignKey, ExtensionMigrationStatus, FkDeferralError, ForeignKeyDrift,
     FreshnessCheck, MarkAppliedOutcome, MigrationConfig, MigrationResult, MigrationService,
-    MigrationStatus, OrphanedMigration, PendingMigration, RepairResult, ReplicaStatus,
-    SchemaInstallReport, SlotCollision, SplitCreateTable, TombstonedSlot,
-    check_migration_references, install_extension_schemas, install_extension_schemas_full,
-    install_extension_schemas_with_config, replica_status, split_create_table_foreign_keys,
-    validate_column_exists, validate_database_connection, validate_table_exists,
-    validate_write_pool_is_primary,
+    MigrationStatus, OrphanMigrationLedger, OrphanedMigration, PendingMigration, RepairResult,
+    ReplicaStatus, SchemaInstallReport, SchemaResidue, SlotCollision, SplitCreateTable,
+    TombstonedSlot, UndeclaredTable, audit_schema_residue, check_migration_references,
+    install_extension_schemas, install_extension_schemas_full,
+    install_extension_schemas_with_config, is_retirement, replica_status,
+    split_create_table_foreign_keys, validate_column_exists, validate_database_connection,
+    validate_table_exists, validate_write_pool_is_primary,
 };
 pub use repository::{CreateServiceInput, PgDbPool, ServiceConfig, ServiceRepository};
 

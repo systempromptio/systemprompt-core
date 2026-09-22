@@ -15,7 +15,10 @@ use axum::extract::ConnectInfo;
 use axum::http::{Request, StatusCode};
 use axum::routing::get;
 use axum::{Extension, Router, middleware};
-use systemprompt_api::services::middleware::analytics::events::{is_sensitive_key, sanitize_uri};
+use systemprompt_api::services::middleware::analytics::events::{
+    event_metadata_for, is_sensitive_key, sanitize_uri,
+};
+use systemprompt_models::routing::EventMetadata;
 use systemprompt_api::services::middleware::{
     BotMarker, BotType, JtiRevocationChecker, detect_bots_early, ip_ban_middleware,
     is_datacenter_ip, is_known_bot, is_outdated_browser, is_scanner_request, login_redirect,
@@ -351,6 +354,24 @@ fn analytics_sanitiser_redacts_sensitive_keys() {
 
     let plain: http::Uri = "/no-query".parse().unwrap();
     assert_eq!(sanitize_uri(&plain), "/no-query");
+}
+
+#[test]
+fn page_view_requires_an_html_response() {
+    assert_eq!(
+        event_metadata_for(EventMetadata::HTML_CONTENT, true),
+        EventMetadata::HTML_CONTENT
+    );
+    assert_eq!(
+        event_metadata_for(EventMetadata::HTML_CONTENT, false),
+        EventMetadata::API_REQUEST,
+        "an XHR or a redirect under an HTML route is not a page view"
+    );
+    assert_eq!(
+        event_metadata_for(EventMetadata::API_REQUEST, true),
+        EventMetadata::API_REQUEST,
+        "only the HTML classification is revisited"
+    );
 }
 
 #[test]

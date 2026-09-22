@@ -1,7 +1,6 @@
 CREATE TABLE IF NOT EXISTS ai_request_payloads (
     ai_request_id TEXT PRIMARY KEY,
     request_body JSONB,
-    offered_tools JSONB,
     response_body JSONB,
     request_excerpt TEXT,
     response_excerpt TEXT,
@@ -11,8 +10,9 @@ CREATE TABLE IF NOT EXISTS ai_request_payloads (
     response_bytes INTEGER,
     request_body_sha256 TEXT,
     prepared_body_sha256 TEXT,
-    prepared_tools JSONB,
     response_body_sha256 TEXT,
+    offered_tools_sha256 TEXT REFERENCES ai_tool_catalogs(sha256),
+    prepared_tools_sha256 TEXT REFERENCES ai_tool_catalogs(sha256),
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (ai_request_id) REFERENCES ai_requests(id) ON DELETE CASCADE
