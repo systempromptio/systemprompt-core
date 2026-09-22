@@ -12,22 +12,23 @@ BEGIN
     SELECT evidence_cutoff INTO cutoff FROM public.analytics_projection_state WHERE singleton;
     occurred := CASE source_name
         WHEN 'user_sessions' THEN (source_row->>'last_activity_at')::timestamptz
-        WHEN 'logs' THEN (source_row->>'timestamp')::timestamptz
         WHEN 'analytics_events' THEN (source_row->>'timestamp')::timestamptz
         ELSE (source_row->>'created_at')::timestamptz END;
     IF cutoff IS NOT NULL AND (occurred IS NULL OR occurred < cutoff) THEN RETURN FALSE; END IF;
     IF source_name IN ('agent_tasks', 'task_messages') THEN
         RETURN public.reporting_task_is_retained(source_row->>'task_id', cutoff);
-    ELSIF source_name = 'ai_request_messages' THEN
-        RETURN public.reporting_request_is_retained(source_row->>'request_id', cutoff);
-    END IF;
-    IF source_name = 'logs' AND source_row->>'user_id' IS NULL THEN
-        RETURN public.reporting_session_is_retained(source_row->>'session_id');
     END IF;
     RETURN TRUE;
 END
 $$;
 
+-- Compaction's entry point. Pending captured facts are delivered here, in
+-- this transaction, instead of being a reason to fail: under sustained load
+-- the worker is always a little behind, and a retention job that raised on
+-- every non-empty queue never ran. The raise survives only for a backlog the
+-- worker should have drained (REPORTING_PRIVACY_BACKLOG_CAP in
+-- deliver_reporting_privacy_backlog) and for a claim still in flight, which
+-- a short lock wait detects without blocking on the worker's row lock.
 CREATE OR REPLACE FUNCTION public.prepare_reporting_privacy()
 RETURNS BOOLEAN LANGUAGE plpgsql VOLATILE SECURITY INVOKER
 SET search_path = pg_catalog, public AS $$
@@ -44,7 +45,9 @@ BEGIN
     PERFORM public.lock_logging_reporting_sources();
     INSERT INTO public.analytics_projection_state(singleton) VALUES(TRUE) ON CONFLICT DO NOTHING;
     PERFORM set_config('systemprompt.reporting_privacy_sources', txid_current()::text, true);
+    PERFORM public.fence_reporting_outbox_claims();
     PERFORM pg_advisory_xact_lock(6003370107643648340);
+    PERFORM public.deliver_reporting_privacy_backlog();
     PERFORM public.begin_reporting_outbox_privacy();
     RETURN COALESCE((SELECT initialized FROM public.analytics_projection_state WHERE singleton), FALSE);
 END
@@ -74,11 +77,9 @@ BEGIN
         WHEN 'agent_tasks' THEN target_name := 'analytics_report_agent_tasks'; key_name := 'task_id'; key_type := 'TEXT'; columns := ARRAY['task_id','context_id','status','status_timestamp','user_id','session_id','trace_id','agent_name','started_at','completed_at','execution_time_ms','error_message','version','created_at','updated_at'];
         WHEN 'task_messages' THEN target_name := 'analytics_report_task_messages'; key_name := 'id'; key_type := 'INTEGER'; columns := ARRAY['id','task_id','created_at'];
         WHEN 'user_contexts' THEN target_name := 'analytics_report_user_contexts'; key_name := 'context_id'; key_type := 'TEXT'; columns := ARRAY['context_id','user_id','session_id','name','kind','created_at','updated_at'];
-        WHEN 'ai_requests' THEN target_name := 'analytics_report_ai_requests'; key_name := 'id'; key_type := 'TEXT'; columns := ARRAY['id','request_id','user_id','session_id','task_id','context_id','gateway_conversation_id','client_session_id','provider_request_id','trace_id','mcp_execution_id','provider','model','requested_model','route_match','temperature','top_p','max_tokens','tokens_used','input_tokens','output_tokens','cost_microdollars','latency_ms','upstream_latency_ms','cache_hit','cache_read_tokens','cache_creation_tokens','reasoning_tokens','is_streaming','status','error_message','actor_kind','actor_id','synthetic','request_kind','instance_id','created_at','updated_at','completed_at'];
-        WHEN 'ai_request_messages' THEN target_name := 'analytics_report_ai_request_messages'; key_name := 'id'; key_type := 'TEXT'; columns := ARRAY['id','request_id','created_at'];
+        WHEN 'ai_requests' THEN target_name := 'analytics_report_ai_requests'; key_name := 'id'; key_type := 'TEXT'; columns := ARRAY['id','request_id','user_id','session_id','task_id','context_id','gateway_conversation_id','client_session_id','provider_request_id','trace_id','mcp_execution_id','provider','model','requested_model','route_match','temperature','top_p','max_tokens','tokens_used','input_tokens','output_tokens','cost_microdollars','latency_ms','upstream_latency_ms','cache_hit','cache_read_tokens','cache_creation_tokens','reasoning_tokens','is_streaming','status','error_message','actor_kind','actor_id','synthetic','request_kind','instance_id','created_at','updated_at','completed_at','message_count'];
         WHEN 'mcp_tool_executions' THEN target_name := 'analytics_report_mcp_tool_executions'; key_name := 'mcp_execution_id'; key_type := 'TEXT'; columns := ARRAY['mcp_execution_id','tool_name','server_name','started_at','completed_at','execution_time_ms','status','error_message','user_id','session_id','context_id','task_id','trace_id','request_method','request_source','actor_kind','actor_id','ai_tool_call_id','created_at'];
         WHEN 'markdown_content' THEN target_name := 'analytics_report_markdown_content'; key_name := 'id'; key_type := 'TEXT'; columns := ARRAY['id','slug','title','source_id'];
-        WHEN 'logs' THEN target_name := 'analytics_report_logs'; key_name := 'id'; key_type := 'TEXT'; columns := ARRAY['id','timestamp','level','module','message','user_id','session_id','task_id'];
         WHEN 'analytics_events' THEN target_name := 'analytics_report_analytics_events'; key_name := 'id'; key_type := 'TEXT'; columns := ARRAY['id','user_id','session_id','context_id','gateway_conversation_id','provider_request_id','event_type','event_category','severity','endpoint','error_code','response_time_ms','agent_id','task_id','message','metadata','event_data','timestamp'];
         ELSE RAISE EXCEPTION 'Unknown reporting source' USING ERRCODE = '22023';
     END CASE;
@@ -118,7 +119,9 @@ BEGIN
 END
 $$;
 
-CREATE OR REPLACE FUNCTION public.deliver_reporting_privacy_changes()
+-- One page of pending facts applied in claim order: at most 10 000 rows, the
+-- bound of reporting_privacy_changes(); returns how many it applied.
+CREATE OR REPLACE FUNCTION public.deliver_reporting_privacy_page()
 RETURNS BIGINT LANGUAGE plpgsql VOLATILE SECURITY INVOKER
 SET search_path = pg_catalog, public AS $$
 DECLARE item RECORD; count_processed BIGINT := 0;
@@ -126,14 +129,8 @@ BEGIN
     IF current_setting('systemprompt.reporting_privacy_sources', true) IS DISTINCT FROM txid_current()::text THEN
         RAISE EXCEPTION 'Reporting privacy sources were not fenced' USING ERRCODE = '55000';
     END IF;
-    IF (SELECT count(*) FROM (SELECT 1 FROM public.reporting_privacy_changes() LIMIT 10001) bounded) > 10000 THEN
-        RAISE EXCEPTION 'Reporting privacy change bound exceeded' USING ERRCODE = '54000';
-    END IF;
-    FOR item IN SELECT * FROM public.reporting_privacy_changes() LOOP
+    FOR item IN SELECT * FROM public.reporting_privacy_changes() LIMIT 10000 LOOP
         count_processed := count_processed + 1;
-        IF count_processed > 10000 THEN
-            RAISE EXCEPTION 'Reporting privacy change bound exceeded' USING ERRCODE = '54000';
-        END IF;
         IF jsonb_typeof(item.envelope->'version') IS DISTINCT FROM 'number'
             OR item.envelope->>'consumer' IS DISTINCT FROM 'analytics_reporting' OR item.envelope->>'kind' IS DISTINCT FROM 'reporting.row'
             OR item.envelope->>'version' IS DISTINCT FROM '1' THEN
@@ -143,6 +140,46 @@ BEGIN
         PERFORM public.acknowledge_reporting_privacy(item.event_id);
     END LOOP;
     RETURN count_processed;
+END
+$$;
+
+-- The user-deletion path: one bounded page, and a backlog above it is the
+-- caller's signal to wait for the worker (54000).
+CREATE OR REPLACE FUNCTION public.deliver_reporting_privacy_changes()
+RETURNS BIGINT LANGUAGE plpgsql VOLATILE SECURITY INVOKER
+SET search_path = pg_catalog, public AS $$
+BEGIN
+    IF current_setting('systemprompt.reporting_privacy_sources', true) IS DISTINCT FROM txid_current()::text THEN
+        RAISE EXCEPTION 'Reporting privacy sources were not fenced' USING ERRCODE = '55000';
+    END IF;
+    IF (SELECT count(*) FROM (SELECT 1 FROM public.reporting_privacy_changes() LIMIT 10001) bounded) > 10000 THEN
+        RAISE EXCEPTION 'Reporting privacy change bound exceeded' USING ERRCODE = '54000';
+    END IF;
+    RETURN public.deliver_reporting_privacy_page();
+END
+$$;
+
+-- The compaction path: every pending fact, page by page, unless the backlog
+-- says the worker has stopped (100 000 facts is hours of capture; a privacy
+-- transaction is not where that gets repaired).
+CREATE OR REPLACE FUNCTION public.deliver_reporting_privacy_backlog()
+RETURNS BIGINT LANGUAGE plpgsql VOLATILE SECURITY INVOKER
+SET search_path = pg_catalog, public AS $$
+DECLARE total BIGINT := 0; page BIGINT;
+BEGIN
+    IF current_setting('systemprompt.reporting_privacy_sources', true) IS DISTINCT FROM txid_current()::text THEN
+        RAISE EXCEPTION 'Reporting privacy sources were not fenced' USING ERRCODE = '55000';
+    END IF;
+    IF (SELECT count(*) FROM (SELECT 1 FROM public.event_outbox
+            WHERE consumer = 'analytics_reporting' AND processed_at IS NULL LIMIT 100001) bounded) > 100000 THEN
+        RAISE EXCEPTION 'Reporting privacy waits for the reporting worker to drain its backlog' USING ERRCODE = '55000';
+    END IF;
+    LOOP
+        page := public.deliver_reporting_privacy_page();
+        total := total + page;
+        EXIT WHEN page = 0;
+    END LOOP;
+    RETURN total;
 END
 $$;
 
@@ -169,9 +206,7 @@ BEGIN
     DELETE FROM public.analytics_report_task_messages AS retained_row WHERE NOT public.reporting_row_retained('task_messages', to_jsonb(retained_row));
     DELETE FROM public.analytics_report_user_contexts AS retained_row WHERE NOT public.reporting_row_retained('user_contexts', to_jsonb(retained_row));
     DELETE FROM public.analytics_report_ai_requests AS retained_row WHERE NOT public.reporting_row_retained('ai_requests', to_jsonb(retained_row));
-    DELETE FROM public.analytics_report_ai_request_messages AS retained_row WHERE NOT public.reporting_row_retained('ai_request_messages', to_jsonb(retained_row));
     DELETE FROM public.analytics_report_mcp_tool_executions AS retained_row WHERE NOT public.reporting_row_retained('mcp_tool_executions', to_jsonb(retained_row));
-    DELETE FROM public.analytics_report_logs AS retained_row WHERE NOT public.reporting_row_retained('logs', to_jsonb(retained_row));
     DELETE FROM public.analytics_report_analytics_events AS retained_row WHERE NOT public.reporting_row_retained('analytics_events', to_jsonb(retained_row));
     revision_cutoff := public.finish_reporting_outbox_privacy();
     UPDATE public.analytics_projection_state SET cutoff_revision = GREATEST(cutoff_revision, revision_cutoff),

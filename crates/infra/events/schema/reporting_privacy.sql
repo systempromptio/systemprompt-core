@@ -69,3 +69,23 @@ BEGIN
     RETURN TRUE;
 END
 $$;
+
+-- Compaction's claim fence. EXCLUSIVE waits for a worker batch in flight to
+-- acknowledge, but only briefly: a claim that outlives the wait is a stalled
+-- worker, reported as 55000 rather than blocked on for the whole job.
+CREATE OR REPLACE FUNCTION public.fence_reporting_outbox_claims()
+RETURNS BOOLEAN LANGUAGE plpgsql VOLATILE SECURITY INVOKER
+SET search_path = pg_catalog, public AS $$
+DECLARE previous_timeout TEXT := current_setting('lock_timeout', true);
+BEGIN
+    PERFORM set_config('lock_timeout', '1000', true);
+    BEGIN
+        LOCK TABLE public.event_outbox IN EXCLUSIVE MODE;
+    EXCEPTION WHEN lock_not_available THEN
+        RAISE EXCEPTION 'Reporting privacy waits for a claimed reporting fact' USING ERRCODE = '55000';
+    END;
+    PERFORM set_config('lock_timeout', COALESCE(previous_timeout, '0'), true);
+    PERFORM set_config('systemprompt.reporting_privacy', txid_current()::text, true);
+    RETURN TRUE;
+END
+$$;

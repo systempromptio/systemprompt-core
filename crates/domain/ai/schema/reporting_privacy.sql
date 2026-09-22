@@ -2,7 +2,7 @@ CREATE OR REPLACE FUNCTION public.lock_ai_reporting_sources()
 RETURNS BOOLEAN LANGUAGE plpgsql VOLATILE SECURITY INVOKER
 SET search_path = pg_catalog, public AS $$
 BEGIN
-    LOCK TABLE ai_requests, ai_request_messages IN SHARE MODE;
+    LOCK TABLE ai_requests IN SHARE MODE;
     RETURN TRUE;
 END
 $$;

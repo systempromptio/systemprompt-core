@@ -115,7 +115,8 @@ impl LocalProfileBuilder {
             extensions: ExtensionsConfig::default(),
             governance: Some(webhook_governance(&internal_url)),
             services: systemprompt_models::profile::ServicesProfileConfig::default(),
-            evaluation: systemprompt_models::profile::EvaluationProfile::default(),
+            judge: systemprompt_models::profile::JudgeProfile::default(),
+            retention: systemprompt_models::profile::RetentionConfig::default(),
             system_admin: SystemAdminConfig {
                 username: "admin".to_owned(),
                 email: Some(Email::local_admin()),

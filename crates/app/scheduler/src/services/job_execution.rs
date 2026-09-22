@@ -259,6 +259,10 @@ impl JobExecutionService {
                 JobRunRecord {
                     status,
                     error,
+                    message: report
+                        .success
+                        .then_some(report.message.as_deref())
+                        .flatten(),
                     next_run,
                     instance_id: &InstanceId::new(&self.ctx.config().instance_id),
                 },

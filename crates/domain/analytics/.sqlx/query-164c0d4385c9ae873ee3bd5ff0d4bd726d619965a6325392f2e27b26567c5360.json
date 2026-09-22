@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT\n                ar.session_id as \"session_id!: systemprompt_identifiers::SessionId\",\n                MIN(ar.user_id) as \"user_id!: systemprompt_identifiers::UserId\",\n                COUNT(arm.id)::bigint as \"message_count!\",\n                MIN(ar.created_at) as \"created_at!\",\n                MAX(ar.created_at) as \"updated_at!\"\n            FROM analytics_report_ai_requests ar\n            LEFT JOIN analytics_report_ai_request_messages arm ON arm.request_id = ar.id\n            WHERE ar.task_id IS NULL\n              AND ar.session_id IS NOT NULL\n              AND ar.created_at >= $1 AND ar.created_at < $2\n              AND ($4::text IS NULL OR ar.user_id = $4)\n              AND NOT EXISTS (\n                  SELECT 1 FROM analytics_report_user_contexts uc2 WHERE uc2.context_id::text = ar.session_id\n              )\n            GROUP BY ar.session_id\n            ORDER BY MAX(ar.created_at) DESC\n            LIMIT $3\n            ",
+  "query": "\n            SELECT\n                ar.session_id as \"session_id!: systemprompt_identifiers::SessionId\",\n                MIN(ar.user_id) as \"user_id!: systemprompt_identifiers::UserId\",\n                COALESCE(SUM(ar.message_count), 0)::bigint as \"message_count!\",\n                MIN(ar.created_at) as \"created_at!\",\n                MAX(ar.created_at) as \"updated_at!\"\n            FROM analytics_report_ai_requests ar\n            WHERE ar.task_id IS NULL\n              AND ar.session_id IS NOT NULL\n              AND ar.created_at >= $1 AND ar.created_at < $2\n              AND ($4::text IS NULL OR ar.user_id = $4)\n              AND NOT EXISTS (\n                  SELECT 1 FROM analytics_report_user_contexts uc2 WHERE uc2.context_id::text = ar.session_id\n              )\n            GROUP BY ar.session_id\n            ORDER BY MAX(ar.created_at) DESC\n            LIMIT $3\n            ",
   "describe": {
     "columns": [
       {
@@ -55,5 +55,5 @@
       null
     ]
   },
-  "hash": "2f077491084f4f8a5e0ce1fe69202d6c8b3079210dbb3f3415eeafa335931571"
+  "hash": "164c0d4385c9ae873ee3bd5ff0d4bd726d619965a6325392f2e27b26567c5360"
 }

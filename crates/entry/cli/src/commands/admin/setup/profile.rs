@@ -93,7 +93,8 @@ pub(super) fn build(params: &ProfileBuildParams<'_>) -> Result<Profile> {
         }),
         extensions: ExtensionsConfig::default(),
         governance: Some(governance),
-        evaluation: systemprompt_models::profile::EvaluationProfile::default(),
+        judge: systemprompt_models::profile::JudgeProfile::default(),
+        retention: systemprompt_models::profile::RetentionConfig::default(),
         services: systemprompt_models::profile::ServicesProfileConfig {
             port_offset,
             ..Default::default()

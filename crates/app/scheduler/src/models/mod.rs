@@ -57,6 +57,9 @@ impl std::fmt::Display for JobStatus {
 pub struct JobRunRecord<'a> {
     pub status: JobStatus,
     pub error: Option<&'a str>,
+    /// What a successful run reports about itself (`JobResult::message`);
+    /// kept across later runs that say nothing.
+    pub message: Option<&'a str>,
     pub next_run: Option<DateTime<Utc>>,
     pub instance_id: &'a InstanceId,
 }

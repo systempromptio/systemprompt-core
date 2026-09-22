@@ -45,7 +45,7 @@ impl Profile {
             secrets: None,
             extensions: ExtensionsConfig::default(),
             governance: None,
-            evaluation: crate::profile::EvaluationProfile::default(),
+            judge: crate::profile::JudgeProfile::default(),
             retention: crate::profile::RetentionConfig::default(),
             services: crate::profile::ServicesProfileConfig::default(),
             storage: crate::profile::StorageConfig::default(),

@@ -50,6 +50,7 @@ CREATE TABLE IF NOT EXISTS ai_requests (
     client_attestation TEXT NOT NULL DEFAULT 'unknown'
         CONSTRAINT ai_requests_client_attestation_check CHECK (client_attestation IN (
             'host-token', 'bridge-secret', 'declared', 'native-marker', 'user-agent', 'none', 'internal', 'unknown')),
+    message_count INTEGER NOT NULL DEFAULT 0,
     instance_id VARCHAR(255),
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,

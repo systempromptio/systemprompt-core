@@ -2,7 +2,7 @@
 //!
 //! [`Config`] is the resolved, flat configuration installed once at
 //! startup into a process-wide `OnceLock` and read via [`Config::get`].
-//! Submodules cover postgres-URL validation and rate-limit shapes.
+//! Submodules cover postgres-URL validation.
 //! Accessors return [`crate::errors::ConfigError`] when not initialized.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -16,11 +16,9 @@ use crate::auth::JwtAudience;
 use crate::profile::{ContentNegotiationConfig, SecurityHeadersConfig, TrustedIssuer};
 
 mod paths;
-mod rate_limits;
 mod validation;
 
 pub use paths::PathNotConfiguredError;
-pub use rate_limits::RateLimitConfig;
 pub use validation::validate_postgres_url;
 
 static CONFIG: OnceLock<Config> = OnceLock::new();
@@ -74,7 +72,8 @@ pub struct Config {
     pub id_jag_ttl_secs: i64,
     pub signing_key_path: PathBuf,
     pub use_https: bool,
-    pub rate_limits: RateLimitConfig,
+    pub rate_limits: crate::profile::RateLimitsConfig,
+    pub retention: crate::profile::RetentionConfig,
     pub cors_allowed_origins: Vec<String>,
     pub trusted_proxies: Vec<ipnet::IpNet>,
     pub is_cloud: bool,
@@ -137,6 +136,7 @@ impl std::fmt::Debug for Config {
             .field("signing_key_path", &self.signing_key_path)
             .field("use_https", &self.use_https)
             .field("rate_limits", &self.rate_limits)
+            .field("retention", &self.retention)
             .field("cors_allowed_origins", &self.cors_allowed_origins)
             .field("trusted_proxies", &self.trusted_proxies)
             .field("is_cloud", &self.is_cloud)

@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS scheduled_jobs (
     last_status TEXT,
     last_error TEXT,
     last_instance_id TEXT,
+    last_message TEXT,
     run_count INTEGER NOT NULL DEFAULT 0,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP

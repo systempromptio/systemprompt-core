@@ -118,15 +118,22 @@ fn owner_capture_and_privacy_contracts_are_registered() {
         1,
         "owner capture SQL must be registered exactly once"
     );
-    for view in [
-        "reporting_source_ai_requests",
-        "reporting_source_ai_request_messages",
-    ] {
-        assert!(
-            capture[0].sql.contains(view),
-            "missing reporting view: {view}"
-        );
-    }
+    assert!(
+        capture[0].sql.contains("reporting_source_ai_requests"),
+        "missing reporting view: reporting_source_ai_requests"
+    );
+    assert!(
+        !capture[0]
+            .sql
+            .contains("reporting_source_ai_request_messages"),
+        "stored messages are counted on ai_requests, not projected"
+    );
+    assert!(
+        capture[0]
+            .sql
+            .contains("EXECUTE FUNCTION sp_ai_request_message_count"),
+        "message_count must be maintained by the statement trigger"
+    );
     let privacy: Vec<_> = schemas
         .iter()
         .filter(|schema| {

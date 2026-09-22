@@ -85,12 +85,14 @@ fn owner_capture_and_privacy_contracts_are_registered() {
         1,
         "owner capture SQL must be registered exactly once"
     );
-    for view in ["reporting_source_logs", "reporting_source_analytics_events"] {
-        assert!(
-            capture[0].sql.contains(view),
-            "missing reporting view: {view}"
-        );
-    }
+    assert!(
+        capture[0].sql.contains("reporting_source_analytics_events"),
+        "missing reporting view: reporting_source_analytics_events"
+    );
+    assert!(
+        !capture[0].sql.contains("reporting_source_logs"),
+        "logs is no longer a reporting source"
+    );
     let privacy: Vec<_> = schemas
         .iter()
         .filter(|schema| {

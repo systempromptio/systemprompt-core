@@ -232,25 +232,28 @@ async fn wait_for_relation(pool: &sqlx::PgPool, pid: i32) -> String {
 }
 
 #[tokio::test]
-async fn user_migration_before_analytics_keeps_strict_pending_barrier() {
+async fn user_migration_before_analytics_falls_back_to_the_delivering_barrier() {
     let (database, db, repository) = fixture().await;
     let pool = db.write_pool_arc().unwrap();
     let user = seed(&db, "partial-upgrade").await;
-    // Simulate users015 installed while analytics010 is not yet present.
+    // Simulate users015 installed while analytics010 is not yet present: the
+    // users side falls back to prepare_reporting_privacy(), which now
+    // delivers the pending evidence itself instead of refusing on it.
     sqlx::query("DROP FUNCTION public.prepare_user_reporting_privacy()")
         .execute(&*pool)
         .await
         .unwrap();
-    let error = sqlx::query("SELECT public.begin_user_privacy()")
-        .execute(&*pool)
+    let mut probe = pool.begin().await.unwrap();
+    sqlx::query("SELECT public.begin_user_privacy()")
+        .execute(&mut *probe)
         .await
-        .unwrap_err();
-    assert_eq!(
-        error.as_database_error().unwrap().code().as_deref(),
-        Some("55000")
-    );
+        .unwrap();
+    let pending: i64 = sqlx::query_scalar("SELECT count(*) FROM event_outbox WHERE consumer='analytics_reporting' AND processed_at IS NULL")
+        .fetch_one(&mut *probe).await.unwrap();
+    assert_eq!(pending, 0);
+    probe.rollback().await.unwrap();
     sqlx::raw_sql(sqlx::AssertSqlSafe(include_str!(
-        "../../../../../domain/analytics/schema/migrations/010_user_privacy_delivery.sql"
+        "../../../../../domain/analytics/schema/reporting_privacy.sql"
     )))
     .execute(&*pool)
     .await

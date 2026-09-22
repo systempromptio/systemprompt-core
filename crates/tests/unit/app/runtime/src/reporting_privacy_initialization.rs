@@ -12,14 +12,18 @@ async fn committed_preinitialization_evidence_requires_real_baseline_and_deliver
     .unwrap();
     sqlx::query("INSERT INTO user_sessions(session_id,user_id,last_activity_at,ended_at,expires_at,ip_address) VALUES('pending-session','pending','2020-01-01','2020-01-02','2020-01-02','192.0.2.41')")
         .execute(&*pool).await.unwrap();
-    let error = sqlx::query("SELECT public.prepare_reporting_privacy()")
-        .execute(&*pool)
+    // Pending evidence is delivered by the privacy transaction itself, even
+    // before a baseline exists; nothing about it is a reason to fail.
+    let mut early = pool.begin().await.unwrap();
+    let initialized: bool = sqlx::query_scalar("SELECT public.prepare_reporting_privacy()")
+        .fetch_one(&mut *early)
         .await
-        .unwrap_err();
-    assert_eq!(
-        error.as_database_error().unwrap().code().as_deref(),
-        Some("55000")
-    );
+        .unwrap();
+    assert!(!initialized);
+    let delivered: (bool, i64, i64) = sqlx::query_as("SELECT initialized,(SELECT count(*) FROM event_outbox WHERE consumer='analytics_reporting' AND processed_at IS NULL),(SELECT count(*) FROM user_sessions WHERE session_id='pending-session') FROM analytics_projection_state WHERE singleton")
+        .fetch_one(&mut *early).await.unwrap();
+    assert_eq!(delivered, (false, 0, 1));
+    early.rollback().await.unwrap();
     let retained: (bool, i64, i64) = sqlx::query_as("SELECT initialized,(SELECT count(*) FROM event_outbox WHERE consumer='analytics_reporting' AND processed_at IS NULL),(SELECT count(*) FROM user_sessions WHERE session_id='pending-session') FROM analytics_projection_state WHERE singleton")
         .fetch_one(&*pool).await.unwrap();
     assert_eq!(retained, (false, 2, 1));

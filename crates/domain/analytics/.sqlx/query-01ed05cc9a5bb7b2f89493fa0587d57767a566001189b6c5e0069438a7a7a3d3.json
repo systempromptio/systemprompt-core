@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT initialized, generation, rebuilt_at,\n            rebuild_started_at, rebuild_heartbeat_at, rebuild_source, rebuild_rows,\n            (SELECT COUNT(*) FROM event_outbox WHERE consumer = $1 AND processed_at IS NULL) AS \"pending_count!\",\n            (SELECT MIN(created_at) FROM event_outbox WHERE consumer = $1 AND processed_at IS NULL) AS oldest_pending_at,\n            (SELECT MAX(processed_at) FROM event_outbox WHERE consumer = $1) AS last_processed_at\n         FROM analytics_projection_state WHERE singleton",
+  "query": "SELECT initialized, generation, rebuilt_at,\n            rebuild_started_at, rebuild_heartbeat_at, rebuild_source, rebuild_rows,\n            (SELECT COUNT(*) FROM event_outbox WHERE consumer = $1 AND processed_at IS NULL) AS \"pending_count!\",\n            (SELECT COUNT(*) FROM event_outbox WHERE consumer = $1 AND processed_at >= NOW() - INTERVAL '1 minute') AS \"applied_last_minute!\",\n            (SELECT MIN(created_at) FROM event_outbox WHERE consumer = $1 AND processed_at IS NULL) AS oldest_pending_at,\n            (SELECT MAX(processed_at) FROM event_outbox WHERE consumer = $1) AS last_processed_at\n         FROM analytics_projection_state WHERE singleton",
   "describe": {
     "columns": [
       {
@@ -88,12 +88,18 @@
       },
       {
         "ordinal": 8,
+        "name": "applied_last_minute!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 9,
         "name": "oldest_pending_at",
         "type_info": "Timestamptz",
         "origin": "Expression"
       },
       {
-        "ordinal": 9,
+        "ordinal": 10,
         "name": "last_processed_at",
         "type_info": "Timestamptz",
         "origin": "Expression"
@@ -114,8 +120,9 @@
       false,
       null,
       null,
+      null,
       null
     ]
   },
-  "hash": "bbff3844dff84549c15ff94d3886d4e586be38a915fad41fa397fcf3fa953fd5"
+  "hash": "01ed05cc9a5bb7b2f89493fa0587d57767a566001189b6c5e0069438a7a7a3d3"
 }

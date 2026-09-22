@@ -23,6 +23,7 @@ pub struct ProjectionStatus {
     pub rebuild_source: Option<String>,
     pub rebuild_rows: i64,
     pub pending_count: i64,
+    pub applied_last_minute: i64,
     pub oldest_pending_at: Option<DateTime<Utc>>,
     pub last_processed_at: Option<DateTime<Utc>>,
 }
@@ -107,6 +108,7 @@ pub async fn status(pool: &PgPool, consumer: &str) -> Result<ProjectionStatus> {
         r#"SELECT initialized, generation, rebuilt_at,
             rebuild_started_at, rebuild_heartbeat_at, rebuild_source, rebuild_rows,
             (SELECT COUNT(*) FROM event_outbox WHERE consumer = $1 AND processed_at IS NULL) AS "pending_count!",
+            (SELECT COUNT(*) FROM event_outbox WHERE consumer = $1 AND processed_at >= NOW() - INTERVAL '1 minute') AS "applied_last_minute!",
             (SELECT MIN(created_at) FROM event_outbox WHERE consumer = $1 AND processed_at IS NULL) AS oldest_pending_at,
             (SELECT MAX(processed_at) FROM event_outbox WHERE consumer = $1) AS last_processed_at
          FROM analytics_projection_state WHERE singleton"#,

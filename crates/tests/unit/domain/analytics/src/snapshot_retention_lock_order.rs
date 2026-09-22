@@ -80,20 +80,9 @@ async fn owner_deletion_precedes_both_retention_entry_points_without_child_lock_
             .await
             .expect("retention must leave the owner barrier after deletion commits")
             .unwrap();
-        let error = result.expect_err("the committed deletion must remain pending evidence");
-        assert!(
-            error
-                .to_string()
-                .contains("Reporting privacy waits for pending committed evidence")
-        );
-        let error = sqlx::query("SELECT public.prepare_reporting_privacy()")
-            .execute(&f.pool)
-            .await
-            .unwrap_err();
-        assert_eq!(
-            error.as_database_error().unwrap().code().as_deref(),
-            Some("55000")
-        );
+        // The committed deletion is pending evidence; retention delivers it
+        // itself instead of failing on it, and nothing is left for the worker.
+        result.expect("retention delivers the committed deletion in its own transaction");
         assert_eq!(drain_reporting(&db).await.unwrap(), 1);
         let mut retry = f.pool.begin().await.unwrap();
         if all_owners {

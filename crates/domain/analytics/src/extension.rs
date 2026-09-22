@@ -153,20 +153,12 @@ fn projection_schemas() -> Vec<SchemaDefinition> {
             include_str!("../schema/analytics_report_ai_requests.sql"),
         ),
         SchemaDefinition::new(
-            "analytics_report_ai_request_messages",
-            include_str!("../schema/analytics_report_ai_request_messages.sql"),
-        ),
-        SchemaDefinition::new(
             "analytics_report_mcp_tool_executions",
             include_str!("../schema/analytics_report_mcp_tool_executions.sql"),
         ),
         SchemaDefinition::new(
             "analytics_report_markdown_content",
             include_str!("../schema/analytics_report_markdown_content.sql"),
-        ),
-        SchemaDefinition::new(
-            "analytics_report_logs",
-            include_str!("../schema/analytics_report_logs.sql"),
         ),
         SchemaDefinition::new(
             "analytics_report_analytics_events",

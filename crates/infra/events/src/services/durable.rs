@@ -123,6 +123,37 @@ impl OutboxConsumer {
         Self { pool }
     }
 
+    /// Claims up to `limit` pending rows in claim order under one
+    /// transaction; `None` when nothing is pending. Every row is applied
+    /// and acknowledged together, so one commit covers the batch.
+    /// `skipped` names rows the caller has already found undeliverable, so
+    /// one bad fact at the head of the queue does not stop the rest.
+    pub async fn claim_batch(
+        &self,
+        consumer: &str,
+        limit: i64,
+        skipped: &[EventOutboxId],
+    ) -> Result<Option<DeliveryBatch>, sqlx::Error> {
+        let mut tx = self.pool.begin().await?;
+        let skipped: Vec<String> = skipped.iter().map(ToString::to_string).collect();
+        let rows = sqlx::query_as!(
+            FactRow,
+            r#"SELECT id AS "id: EventOutboxId", fact AS "fact!" FROM event_outbox
+             WHERE consumer = $1 AND processed_at IS NULL AND id <> ALL($3)
+             ORDER BY created_at, id LIMIT $2 FOR UPDATE SKIP LOCKED"#,
+            consumer,
+            limit,
+            &skipped
+        )
+        .fetch_all(&mut *tx)
+        .await?;
+        if rows.is_empty() {
+            tx.rollback().await?;
+            return Ok(None);
+        }
+        Ok(Some(DeliveryBatch { tx, rows }))
+    }
+
     pub async fn claim(&self, consumer: &str) -> Result<Option<Delivery>, sqlx::Error> {
         let mut tx = self.pool.begin().await?;
         let row = sqlx::query_as!(
@@ -187,6 +218,56 @@ impl Delivery {
         sqlx::query!(
             "UPDATE event_outbox SET processed_at = now() WHERE id = $1",
             self.row.id.as_str()
+        )
+        .execute(&mut *self.tx)
+        .await?;
+        self.tx.commit().await
+    }
+
+    pub async fn rollback(self) -> Result<(), sqlx::Error> {
+        self.tx.rollback().await
+    }
+}
+
+#[must_use]
+#[derive(Debug)]
+pub struct DeliveryBatch {
+    tx: Transaction<'static, Postgres>,
+    rows: Vec<FactRow>,
+}
+
+impl DeliveryBatch {
+    pub const fn len(&self) -> usize {
+        self.rows.len()
+    }
+
+    pub const fn is_empty(&self) -> bool {
+        self.rows.is_empty()
+    }
+
+    pub fn ids(&self) -> impl Iterator<Item = &EventOutboxId> {
+        self.rows.iter().map(|row| &row.id)
+    }
+
+    /// Decodes every claimed fact in claim order, paired with its row id.
+    pub fn facts<T: DeserializeOwned>(
+        &self,
+    ) -> Result<Vec<(EventOutboxId, ReportingFact<T>)>, serde_json::Error> {
+        self.rows
+            .iter()
+            .map(|row| Ok((row.id.clone(), serde_json::from_value(row.fact.clone())?)))
+            .collect()
+    }
+
+    pub fn connection(&mut self) -> &mut PgConnection {
+        &mut self.tx
+    }
+
+    pub async fn acknowledge_all(mut self) -> Result<(), sqlx::Error> {
+        let ids: Vec<String> = self.rows.iter().map(|row| row.id.to_string()).collect();
+        sqlx::query!(
+            "UPDATE event_outbox SET processed_at = now() WHERE id = ANY($1)",
+            &ids
         )
         .execute(&mut *self.tx)
         .await?;

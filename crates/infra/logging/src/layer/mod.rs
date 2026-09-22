@@ -164,46 +164,49 @@ impl DatabaseLayer {
             .execute(&mut *tx)
             .await?;
 
-        for entry in entries {
-            let metadata_json: Option<String> = entry
-                .metadata
-                .as_ref()
-                .map(serde_json::to_string)
-                .transpose()?;
-
-            let entry_id = entry.id.as_str();
-            let level_str = entry.level.to_string();
-            let user_id = entry.user_id.as_str();
-            let session_id = entry.session_id.as_str();
-            let task_id = entry.task_id.as_ref().map(TaskId::as_str);
-            let trace_id = entry.trace_id.as_str();
-            let context_id = entry.context_id.as_ref().map(ContextId::as_str);
-            let client_id = entry.client_id.as_ref().map(ClientId::as_str);
-
-            sqlx::query!(
-                r"
-                INSERT INTO logs (id, timestamp, level, module, message, metadata, user_id, session_id, task_id, trace_id, context_id, client_id, instance_id)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-                ",
-                entry_id,
-                entry.timestamp,
-                level_str,
-                entry.module,
-                entry.message,
-                metadata_json,
-                user_id,
-                session_id,
-                task_id,
-                trace_id,
-                context_id,
-                client_id,
-                entry.instance_id.as_ref().map(systemprompt_identifiers::InstanceId::as_str)
-            )
-            .execute(&mut *tx)
-            .await?;
-        }
-
+        Self::insert_batch(&mut tx, entries).await?;
         tx.commit().await?;
+        Ok(())
+    }
+
+    /// One INSERT per flush over parallel column arrays.
+    async fn insert_batch(
+        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+        entries: &[LogEntry],
+    ) -> Result<(), crate::models::LoggingError> {
+        // Why: one INSERT per flush. The logs table carries a statement-level
+        // reporting capture trigger, so a hundred rows cost one outbox write
+        // here and a hundred with a row-per-INSERT loop.
+        let columns = LogColumns::gather(entries)?;
+        // Why: sqlx infers `&[String]` for a text[] bind; the nullable
+        // columns need their element type stated once, without a cast.
+        let metadata: &[Option<String>] = &columns.metadata;
+        let task_ids: &[Option<String>] = &columns.task_ids;
+        let context_ids: &[Option<String>] = &columns.context_ids;
+        let client_ids: &[Option<String>] = &columns.client_ids;
+        let instance_ids: &[Option<String>] = &columns.instance_ids;
+        sqlx::query!(
+            r"
+            INSERT INTO logs (id, timestamp, level, module, message, metadata, user_id, session_id, task_id, trace_id, context_id, client_id, instance_id)
+            SELECT * FROM UNNEST($1::text[], $2::timestamptz[], $3::text[], $4::text[], $5::text[], $6::text[], $7::text[], $8::text[], $9::text[], $10::text[], $11::text[], $12::text[], $13::text[])
+            ",
+            &columns.ids,
+            &columns.timestamps,
+            &columns.levels,
+            &columns.modules,
+            &columns.messages,
+            metadata as _,
+            &columns.user_ids,
+            &columns.session_ids,
+            task_ids as _,
+            &columns.trace_ids,
+            context_ids as _,
+            client_ids as _,
+            instance_ids as _
+        )
+        .execute(&mut **tx)
+        .await?;
+
         Ok(())
     }
 }
@@ -244,5 +247,100 @@ where
         if let Some(entry) = build_log_entry(event, &ctx) {
             self.send_entry(entry);
         }
+    }
+}
+
+/// `logs` rows as parallel column arrays, the shape `UNNEST` binds.
+struct LogColumns {
+    ids: Vec<String>,
+    timestamps: Vec<chrono::DateTime<chrono::Utc>>,
+    levels: Vec<String>,
+    modules: Vec<String>,
+    messages: Vec<String>,
+    metadata: Vec<Option<String>>,
+    user_ids: Vec<String>,
+    session_ids: Vec<String>,
+    task_ids: Vec<Option<String>>,
+    trace_ids: Vec<String>,
+    context_ids: Vec<Option<String>>,
+    client_ids: Vec<Option<String>>,
+    instance_ids: Vec<Option<String>>,
+}
+
+impl LogColumns {
+    fn gather(entries: &[LogEntry]) -> Result<Self, crate::models::LoggingError> {
+        let mut ids = Vec::with_capacity(entries.len());
+        let mut timestamps = Vec::with_capacity(entries.len());
+        let mut levels = Vec::with_capacity(entries.len());
+        let mut modules = Vec::with_capacity(entries.len());
+        let mut messages = Vec::with_capacity(entries.len());
+        let mut metadata = Vec::with_capacity(entries.len());
+        let mut user_ids = Vec::with_capacity(entries.len());
+        let mut session_ids = Vec::with_capacity(entries.len());
+        let mut task_ids = Vec::with_capacity(entries.len());
+        let mut trace_ids = Vec::with_capacity(entries.len());
+        let mut context_ids = Vec::with_capacity(entries.len());
+        let mut client_ids = Vec::with_capacity(entries.len());
+        let mut instance_ids = Vec::with_capacity(entries.len());
+        for entry in entries {
+            ids.push(entry.id.as_str().to_owned());
+            timestamps.push(entry.timestamp);
+            levels.push(entry.level.to_string());
+            modules.push(entry.module.clone());
+            messages.push(entry.message.clone());
+            metadata.push(
+                entry
+                    .metadata
+                    .as_ref()
+                    .map(serde_json::to_string)
+                    .transpose()?,
+            );
+            user_ids.push(entry.user_id.as_str().to_owned());
+            session_ids.push(entry.session_id.as_str().to_owned());
+            task_ids.push(
+                entry
+                    .task_id
+                    .as_ref()
+                    .map(TaskId::as_str)
+                    .map(str::to_owned),
+            );
+            trace_ids.push(entry.trace_id.as_str().to_owned());
+            context_ids.push(
+                entry
+                    .context_id
+                    .as_ref()
+                    .map(ContextId::as_str)
+                    .map(str::to_owned),
+            );
+            client_ids.push(
+                entry
+                    .client_id
+                    .as_ref()
+                    .map(ClientId::as_str)
+                    .map(str::to_owned),
+            );
+            instance_ids.push(
+                entry
+                    .instance_id
+                    .as_ref()
+                    .map(systemprompt_identifiers::InstanceId::as_str)
+                    .map(str::to_owned),
+            );
+        }
+        Ok(Self {
+            ids,
+            timestamps,
+            levels,
+            modules,
+            messages,
+            metadata,
+            user_ids,
+            session_ids,
+            task_ids,
+            trace_ids,
+            context_ids,
+            client_ids,
+            instance_ids,
+        })
     }
 }

@@ -34,10 +34,8 @@ pub enum ReportingSource {
     TaskMessages,
     UserContexts,
     AiRequests,
-    AiRequestMessages,
     McpToolExecutions,
     MarkdownContent,
-    Logs,
     AnalyticsEvents,
 }
 
@@ -71,11 +69,9 @@ impl ReportingSource {
             Self::TaskMessages => 3,
             Self::UserContexts => 4,
             Self::AiRequests => 5,
-            Self::AiRequestMessages => 6,
-            Self::McpToolExecutions => 7,
-            Self::MarkdownContent => 8,
-            Self::Logs => 9,
-            Self::AnalyticsEvents => 10,
+            Self::McpToolExecutions => 6,
+            Self::MarkdownContent => 7,
+            Self::AnalyticsEvents => 8,
         }]
     }
 }
