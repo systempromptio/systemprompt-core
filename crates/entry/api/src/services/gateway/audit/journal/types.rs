@@ -1,5 +1,13 @@
 //! Durable gateway accounting records.
 //!
+//! `PartialUsage` is the usage a request consumed before it failed. The
+//! provider bills what it streamed, so a truncated stream that reported a
+//! usage delta is settled with that usage instead of at zero.
+//!
+//! A receipt carries the session whose AI counters settling a completion
+//! bumps. That field is defaulted so a journal written before 0.59.0 still
+//! replays on recovery.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -27,9 +35,6 @@ pub(crate) struct Completion {
     pub tools: Vec<CapturedToolCall>,
 }
 
-/// Usage a request consumed before it failed. The provider bills what it
-/// streamed, so a truncated stream that reported a usage delta is settled
-/// with that usage instead of at zero.
 #[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct PartialUsage {
     pub usage: [u32; 6],
@@ -42,8 +47,6 @@ pub(crate) struct PartialUsage {
 pub(crate) struct Receipt {
     pub request_id: AiRequestId,
     pub user_id: UserId,
-    /// Settling a completion bumps this session's AI counters. Defaulted so a
-    /// journal written before 0.59.0 still replays on recovery.
     #[serde(default)]
     pub session_id: Option<SessionId>,
     pub created_at: chrono::DateTime<chrono::Utc>,

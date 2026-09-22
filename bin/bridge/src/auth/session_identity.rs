@@ -11,7 +11,8 @@
 //! every process on one machine talking to one gateway with one credential,
 //! so a refresh renews the session it already owns, and it rotates when the
 //! credential, the gateway or the day changes — each of which genuinely is a
-//! new session.
+//! new session. With no credential identity configured yet, sign-in has
+//! nothing to bind to and a generated id is correct.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -25,10 +26,6 @@ use crate::config;
 
 use super::cache::CredentialBinding;
 
-/// The stable session id for this install, gateway, credential and day.
-///
-/// Falls back to a generated id when no credential identity is configured yet
-/// — sign-in has nothing to bind to, and one extra session there is correct.
 #[must_use]
 pub fn stable_session_id(cfg: &config::Config) -> SessionId {
     derive(cfg).unwrap_or_else(|_| SessionId::generate())

@@ -224,8 +224,12 @@ fn claude_metadata_user_id(value: &serde_json::Value) -> Option<NativeMarker> {
         // JSON: protocol boundary — Claude Code ≥ 2.1.25x stamps its session
         // as a JSON string; `device_id` beside `session_id` is the shape.
         let metadata: serde_json::Value = serde_json::from_str(user_id).ok()?;
-        return (metadata.get("device_id").is_some_and(serde_json::Value::is_string)
-            && metadata.get("session_id").is_some_and(serde_json::Value::is_string))
+        return (metadata
+            .get("device_id")
+            .is_some_and(serde_json::Value::is_string)
+            && metadata
+                .get("session_id")
+                .is_some_and(serde_json::Value::is_string))
         .then_some(NativeMarker::ClaudeMetadataJson);
     }
     // Why: `user_<hex>_account_<uuid>_session_<uuid>` is the grammar Claude

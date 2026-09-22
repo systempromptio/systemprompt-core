@@ -34,7 +34,6 @@ use crate::services::gateway::audit::GatewayAccessLog;
 pub(crate) const PHASE_HEADERS: &str = "headers";
 pub(crate) const PHASE_TERMINAL: &str = "terminal";
 
-/// Gateway routes a bridge hits on a timer with no user action behind them.
 const POLLING_ROUTES: [&str; 5] = [
     "/v1/bridge/profile",
     "/v1/bridge/profile/usage",
@@ -43,8 +42,6 @@ const POLLING_ROUTES: [&str; 5] = [
     "/v1/bridge/manifest",
 ];
 
-/// Whether an access record is worth a `logs` row: everything except a
-/// successful response on a polling route.
 pub fn persists_access_record(path: &str, status: u16) -> bool {
     status >= 400 || !POLLING_ROUTES.contains(&path)
 }

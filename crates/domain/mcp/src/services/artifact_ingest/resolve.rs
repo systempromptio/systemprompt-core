@@ -22,7 +22,7 @@ use super::classify::Classified;
 use super::{ArtifactIngest, FINGERPRINT_WINDOW_SECONDS, IngestRequest, PROXIMITY_WINDOW_SECONDS};
 use crate::error::McpDomainResult;
 use crate::models::{ExecutionStatus, ToolExecution, ToolExecutionRequest, ToolExecutionResult};
-use crate::repository::{ArtifactCorrelation, McpArtifactRecord};
+use crate::repository::{ArtifactCorrelation, McpArtifactRecord, ProximityProbe};
 
 #[derive(Debug, Clone)]
 pub(super) struct ResolvedExecution {
@@ -58,51 +58,8 @@ pub(super) async fn resolve_execution(
         return Ok(exact(id));
     }
 
-    if !request.source.is_server_observed()
-        && let Some(id) = find_by_proximity(ingest, request).await?
-    {
-        ingest
-            .executions
-            .mark_correlated(
-                &id,
-                request.ai_tool_call_id.as_ref(),
-                Correlation::Inferred,
-                None,
-            )
-            .await?;
-        tracing::info!(
-            mcp_execution_id = %id,
-            tool = %request.tool_name,
-            source = %request.source,
-            "Client attestation paired with the execution the server observed"
-        );
-        return Ok(ResolvedExecution {
-            mcp_execution_id: id,
-            correlation: Correlation::Inferred,
-        });
-    }
-
-    if !request.source.is_server_observed()
-        && let Some(id) = ingest
-            .executions
-            .find_by_fingerprint(
-                request.ctx.session_id(),
-                &request.tool_name,
-                raw_sha256,
-                FINGERPRINT_WINDOW_SECONDS,
-            )
-            .await?
-    {
-        tracing::info!(
-            mcp_execution_id = %id,
-            tool = %request.tool_name,
-            source = %request.source,
-            "Tool result joined to its execution by fingerprint"
-        );
-        return Ok(ResolvedExecution {
-            mcp_execution_id: id,
-            correlation: Correlation::Inferred,
-        });
+    if let Some(resolved) = pair_client_attestation(ingest, request, raw_sha256).await? {
+        return Ok(resolved);
     }
 
     let correlation = if request.ai_tool_call_id.is_some() || request.source.is_server_observed() {
@@ -122,6 +79,66 @@ pub(super) async fn resolve_execution(
     })
 }
 
+// Why: a client-reported result carries no key the server shares, so it is
+// joined to the execution the server observed — first by proximity, then by
+// payload fingerprint. A server-observed row is already its own record and
+// never pairs with another.
+async fn pair_client_attestation(
+    ingest: &ArtifactIngest,
+    request: &IngestRequest,
+    raw_sha256: &str,
+) -> McpDomainResult<Option<ResolvedExecution>> {
+    if request.source.is_server_observed() {
+        return Ok(None);
+    }
+
+    if let Some(id) = find_by_proximity(ingest, request).await? {
+        ingest
+            .executions
+            .mark_correlated(
+                &id,
+                request.ai_tool_call_id.as_ref(),
+                Correlation::Inferred,
+                None,
+            )
+            .await?;
+        tracing::info!(
+            mcp_execution_id = %id,
+            tool = %request.tool_name,
+            source = %request.source,
+            "Client attestation paired with the execution the server observed"
+        );
+        return Ok(Some(ResolvedExecution {
+            mcp_execution_id: id,
+            correlation: Correlation::Inferred,
+        }));
+    }
+
+    if let Some(id) = ingest
+        .executions
+        .find_by_fingerprint(
+            request.ctx.session_id(),
+            &request.tool_name,
+            raw_sha256,
+            FINGERPRINT_WINDOW_SECONDS,
+        )
+        .await?
+    {
+        tracing::info!(
+            mcp_execution_id = %id,
+            tool = %request.tool_name,
+            source = %request.source,
+            "Tool result joined to its execution by fingerprint"
+        );
+        return Ok(Some(ResolvedExecution {
+            mcp_execution_id: id,
+            correlation: Correlation::Inferred,
+        }));
+    }
+
+    Ok(None)
+}
+
 async fn find_by_proximity(
     ingest: &ArtifactIngest,
     request: &IngestRequest,
@@ -134,13 +151,13 @@ async fn find_by_proximity(
     };
     ingest
         .executions
-        .find_unattested_by_proximity(
-            request.ctx.user_id(),
+        .find_unattested_by_proximity(&ProximityProbe {
+            user_id: request.ctx.user_id(),
             server_name,
-            &request.tool_name,
-            request.started_at.unwrap_or_else(Utc::now),
-            PROXIMITY_WINDOW_SECONDS,
-        )
+            tool_name: &request.tool_name,
+            at: request.started_at.unwrap_or_else(Utc::now),
+            window_seconds: PROXIMITY_WINDOW_SECONDS,
+        })
         .await
 }
 

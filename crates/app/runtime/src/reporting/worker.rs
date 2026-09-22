@@ -3,6 +3,15 @@
 //! (building it in the background while the server serves), then drains
 //! captured facts into the projection a batch at a time.
 //!
+//! `BATCH_SIZE` facts are applied and acknowledged per transaction and
+//! `TICK_LIMIT` facts drained per tick before yielding to the metrics gauge.
+//! Waiting for the baseline blocks this task, never the server: a node that
+//! finds another one mid-rebuild waits for it, and a failed attempt is
+//! retried rather than taking the process down. A batch that fails to apply
+//! is re-driven in halves until the failing fact stands alone; that fact
+//! stays pending, is skipped for the rest of the drain, and is reported in
+//! the returned error after everything else applied.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -22,14 +31,12 @@ use super::rebuild::RebuildOutcome;
 use crate::RuntimeResult;
 
 const BASELINE_RETRY: Duration = Duration::from_secs(30);
-/// Facts applied and acknowledged per transaction.
 const BATCH_SIZE: usize = 1000;
-/// Facts one tick drains before yielding to the metrics gauge.
 const TICK_LIMIT: usize = 10_000;
 
 pub fn spawn(db: &DbPool) -> RuntimeResult<JoinHandle<()>> {
     let pool = db.write_pool_arc()?;
-    let db = db.clone();
+    let db = DbPool::clone(db);
     Ok(tokio::spawn(async move {
         ensure_baseline(&db).await;
         let mut interval = tokio::time::interval(Duration::from_secs(1));
@@ -76,9 +83,6 @@ pub fn spawn(db: &DbPool) -> RuntimeResult<JoinHandle<()>> {
     }))
 }
 
-/// Blocks this task, never the server, until the projection has a baseline:
-/// a node that finds another one mid-rebuild waits for it, and a failed
-/// attempt is retried rather than taking the process down.
 async fn ensure_baseline(db: &DbPool) {
     loop {
         match super::rebuild::initialize(db).await {
@@ -100,10 +104,6 @@ pub async fn process_pending(db: &DbPool, limit: usize) -> RuntimeResult<usize> 
     drain(&pool, limit).await.map_err(Into::into)
 }
 
-/// Applies up to `limit` pending facts in batches, one transaction each.
-/// A batch that fails is re-driven in halves until the failing fact stands
-/// alone; that fact stays pending, is skipped for the rest of this drain,
-/// and is reported in the returned error after everything else applied.
 async fn drain(pool: &PgPool, limit: usize) -> Result<usize, AnalyticsError> {
     let outbox = OutboxConsumer::new(pool.clone());
     let mut processed = 0;
@@ -139,13 +139,19 @@ async fn drain(pool: &PgPool, limit: usize) -> Result<usize, AnalyticsError> {
                 batch_size = claimed / 2;
             },
             Err(error) => {
-                let id = head.expect("a failed batch holds at least one row");
-                tracing::error!(
-                    error = %error,
-                    outbox_id = %id,
-                    "Reporting fact cannot be applied; left pending and skipped"
-                );
-                poisoned.push(id);
+                if let Some(id) = head {
+                    tracing::error!(
+                        error = %error,
+                        outbox_id = %id,
+                        "Reporting fact cannot be applied; left pending and skipped"
+                    );
+                    poisoned.push(id);
+                } else {
+                    tracing::error!(
+                        error = %error,
+                        "Reporting batch failed with no fact to isolate"
+                    );
+                }
                 batch_size = BATCH_SIZE;
             },
         }

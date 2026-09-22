@@ -47,8 +47,6 @@ impl SchemaResidue {
     }
 }
 
-/// `owned` is every `schema.table` (or bare `table`, meaning `public`) the
-/// registered extensions declare; `extension_ids` every registered id.
 pub async fn audit_schema_residue(
     db: &dyn DatabaseProvider,
     owned: &[String],

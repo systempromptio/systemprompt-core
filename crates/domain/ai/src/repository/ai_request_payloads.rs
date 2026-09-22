@@ -1,5 +1,10 @@
 //! Repository for stored AI request/response payloads.
 //!
+//! Offered tool lists are filed under their canonical-JSON digest and the
+//! payload row points at it. The digest is computed by Postgres from the
+//! JSONB text, so two clients sending the same catalogue with different key
+//! order or whitespace share one row.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -86,10 +91,6 @@ impl AiRequestPayloadRepository {
         Ok(())
     }
 
-    /// Files the tool list under its canonical-JSON digest and points the
-    /// payload row at it. The digest is computed by Postgres from the JSONB
-    /// text, so two clients sending the same catalogue with different key
-    /// order or whitespace share one row.
     pub async fn upsert_offered_tools(
         &self,
         ai_request_id: &AiRequestId,

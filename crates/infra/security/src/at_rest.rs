@@ -33,7 +33,7 @@ const NONCE_BYTES: usize = 12;
 
 /// Why a sealed value could not be produced or read back. Every variant is an
 /// operator or key fault; none of them carries the value or the key.
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, Clone, Copy, thiserror::Error)]
 pub enum AtRestCipherError {
     #[error(
         "at-rest encryption requires the `encryption_master_key` secret (32 bytes as 64 hex \
@@ -59,16 +59,9 @@ fn cipher() -> Result<ChaCha20Poly1305, AtRestCipherError> {
         .get("encryption_master_key")
         .ok_or(AtRestCipherError::KeyUnavailable)?;
     let decoded = hex::decode(key).map_err(|_e| AtRestCipherError::KeyInvalid)?;
-    // Fully qualified: `KeyInit` is also in scope from `hmac` above, and the
-    // two crates need not agree on which `crypto_common` re-export it is.
-    <ChaCha20Poly1305 as chacha20poly1305::KeyInit>::new_from_slice(&decoded)
-        .map_err(|_e| AtRestCipherError::KeyInvalid)
+    ChaCha20Poly1305::new_from_slice(&decoded).map_err(|_e| AtRestCipherError::KeyInvalid)
 }
 
-/// Encrypts `plaintext` for storage, returning lowercase hex of the random
-/// nonce followed by the ciphertext-and-tag. A fresh nonce per call means the
-/// same plaintext seals differently every time, so the column leaks no
-/// equality relation between rows.
 pub fn seal(plaintext: &str) -> Result<String, AtRestCipherError> {
     let nonce: [u8; NONCE_BYTES] = rand::random();
     let sealed = cipher()?
@@ -80,9 +73,6 @@ pub fn seal(plaintext: &str) -> Result<String, AtRestCipherError> {
     Ok(hex::encode(out))
 }
 
-/// Reverses [`seal`]. A value that is not hex, is too short to carry a nonce,
-/// or does not authenticate is an error rather than a fallback to treating it
-/// as cleartext: a stored credential is either ours or it is not trusted.
 pub fn open(sealed: &str) -> Result<String, AtRestCipherError> {
     let bytes = hex::decode(sealed).map_err(|_e| AtRestCipherError::Malformed)?;
     if bytes.len() <= NONCE_BYTES {

@@ -22,6 +22,20 @@
 //! an invalid entry fails boot rather than being silently dropped, so this
 //! resolver only ever sees a validated set.
 //!
+//! A request arriving through a proxy the server does not trust has its
+//! forwarded client-IP headers discarded and the peer's own address used
+//! instead. That is almost always a misconfiguration: something is adding
+//! `X-Forwarded-For`, so a proxy is in the path, but its address is absent
+//! from `server.trusted_proxies`, and every client behind it then resolves to
+//! one address and shares one rate-limit bucket, one ban entry and one set of
+//! abuse heuristics. Until 2026-09-22 this was additionally gated on the peer
+//! being in a private range, on the assumption that a misconfigured proxy is
+//! always a local one. A reverse proxy on a host network has a public address,
+//! so the one deployment that most needed the warning never got it: a
+//! production instance refused every bridge sign-in for weeks with a saturated
+//! shared bucket and logged nothing. Whether the peer is public or private has
+//! no bearing on whether the operator wants to know.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -77,23 +91,6 @@ pub fn resolve_client_ip(
     Some(peer_ip)
 }
 
-/// Whether this request arrived through a proxy the server does not trust, so
-/// its forwarded client-IP headers were discarded and the peer's own address
-/// used instead.
-///
-/// This is almost always a misconfiguration: something is adding
-/// `X-Forwarded-For`, which means a proxy is in the path, but its address is
-/// absent from `server.trusted_proxies`. The consequence is that every client
-/// behind that proxy resolves to one address and therefore shares one
-/// rate-limit bucket, one ban entry and one set of abuse heuristics.
-///
-/// Until 2026-09-22 this was additionally gated on the peer being in a private
-/// range, on the assumption that a misconfigured proxy is always a local one.
-/// A reverse proxy on a host network has a public address, so the one
-/// deployment that most needed the warning was the one that never got it: a
-/// production instance refused every bridge sign-in for weeks with a saturated
-/// shared rate-limit bucket and logged nothing. Whether the peer is public or
-/// private has no bearing on whether the operator wants to know.
 #[must_use]
 pub fn forwarded_headers_ignored(headers: &HeaderMap, peer_ip: IpAddr, trusted: &[IpNet]) -> bool {
     !is_trusted(peer_ip, trusted) && headers.contains_key("x-forwarded-for")

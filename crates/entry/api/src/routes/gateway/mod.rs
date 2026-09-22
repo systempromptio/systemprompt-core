@@ -12,7 +12,17 @@
 //!
 //! The surface is assembled in two halves so that the server can give each its
 //! own rate-limit budget: [`gateway_mount_router`] is what the server mounts,
-//! while [`gateway_router`] returns the same routes unlimited for tests.
+//! while [`gateway_router`] returns the same routes unlimited for tests. The
+//! bridge credential-exchange half is budgeted apart from inference traffic
+//! because the two have opposite shapes: inference is high-volume and elastic,
+//! sign-in is a handful of requests that must succeed. Sharing one budget let
+//! a saturated gateway refuse every credential exchange, which presents to the
+//! user as a rejected token rather than as the rate limit it is.
+//!
+//! The access log layer is outside both limiters so that a refused request
+//! still produces a record. It sat inside the limiter until 2026-09-22, which
+//! is why an instance that was 429ing every sign-in showed nothing at all in
+//! its logs.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -96,13 +106,6 @@ pub fn gateway_repositories(
     .with_payload_cap(payload_cap_bytes))
 }
 
-/// The gateway surface split by rate-limit budget.
-///
-/// `bridge_auth` is separate from `traffic` because the two have opposite
-/// shapes: inference is high-volume and elastic, sign-in is a handful of
-/// requests that must succeed. Sharing one budget let a saturated gateway
-/// refuse every credential exchange, which presents to the user as a rejected
-/// token rather than as the rate limit it is.
 struct GatewayParts {
     traffic: Router,
     bridge_auth: Router,
@@ -127,15 +130,10 @@ fn gateway_parts(ctx: &AppContext) -> anyhow::Result<Option<GatewayParts>> {
     }))
 }
 
-/// The whole gateway with no rate limiting, for tests and for callers that
-/// mount it behind their own limiter.
 pub fn gateway_router(ctx: &AppContext) -> anyhow::Result<Option<Router>> {
     Ok(gateway_parts(ctx)?.map(|parts| common_layers(ctx, parts.traffic.merge(parts.bridge_auth))))
 }
 
-/// The gateway as the server mounts it: each half behind its own rate-limit
-/// budget, with the access log outside both so a refusal is recorded rather
-/// than discarded.
 pub fn gateway_mount_router(
     ctx: &AppContext,
     limits: &RateLimitState,
@@ -158,12 +156,6 @@ pub fn gateway_mount_router(
     Ok(Some(common_layers(ctx, traffic.merge(bridge_auth))))
 }
 
-/// Layers every gateway route carries whatever its budget.
-///
-/// The access log is outermost so that a request refused by the rate limiter
-/// still produces a record. It sat inside the limiter until 2026-09-22, which
-/// is why an instance that was 429ing every sign-in showed nothing at all in
-/// its logs.
 fn common_layers(ctx: &AppContext, router: Router) -> Router {
     router
         .layer(Extension(ctx.clone()))

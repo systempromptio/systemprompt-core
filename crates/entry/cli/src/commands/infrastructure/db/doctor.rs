@@ -64,15 +64,15 @@ pub(super) async fn execute_doctor(db_pool: &DbPool, config: &CliConfig) -> Resu
     // Why: the residue audit parses every extension's CREATE TABLEs, so a
     // schema file registered without a table name still declares its
     // tables; the `schema.table` list above is only for required columns.
-    let mut owned: Vec<String> = Vec::new();
+    let mut created_tables: Vec<String> = Vec::new();
     let mut ids: Vec<String> = Vec::new();
     for ext in registry.schema_extensions() {
         ids.push(ext.id().to_owned());
         for schema in ext.schemas() {
-            owned.extend(created_table_names(&schema.sql).unwrap_or_default());
+            created_tables.extend(created_table_names(&schema.sql).unwrap_or_default());
         }
     }
-    let residue = audit_schema_residue(write_provider, &owned, &ids).await?;
+    let residue = audit_schema_residue(write_provider, &created_tables, &ids).await?;
     let undeclared: Vec<String> = residue
         .undeclared_tables
         .iter()

@@ -24,7 +24,9 @@ pub fn cmd_whoami(ctx: &BridgeContext) -> ExitCode {
             &cfg,
             &auth::session_identity::stable_session_id(&cfg),
             &ctx.http,
-        ).await {
+        )
+        .await
+        {
             Ok(out) => out,
             Err(e) => {
                 let (code, message) = e.exit_report();

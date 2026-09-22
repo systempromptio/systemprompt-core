@@ -41,11 +41,13 @@ pub struct SettleCompletion<'a> {
     pub tool_calls: &'a [SettledToolCall],
 }
 
-/// What a failed request still consumed. A provider bills the tokens it
-/// streamed before the stream broke, so a failure that carries usage is
-/// settled with it: recording only the error leaves that spend invisible to
-/// every cost view, quota bucket and rollup. `usage` is `None` when nothing
-/// was observed, and then the stored columns are left untouched.
+/// What a failed request still consumed.
+///
+/// A provider bills the tokens it streamed before the stream broke, so a
+/// failure that carries usage is settled with it: recording only the error
+/// leaves that spend invisible to every cost view, quota bucket and rollup.
+/// `usage` is `None` when nothing was observed, and then the stored columns
+/// are left untouched.
 #[derive(Debug, Default)]
 pub struct SettledFailure<'a> {
     pub error: &'a str,

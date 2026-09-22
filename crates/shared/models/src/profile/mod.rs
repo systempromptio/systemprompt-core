@@ -14,10 +14,10 @@
 mod cloud;
 mod database;
 mod error;
-mod judge;
 mod from_env;
 mod governance;
 mod info;
+mod judge;
 mod observability;
 mod oci_reference;
 mod paths;
@@ -37,12 +37,12 @@ mod vault;
 pub use cloud::{CloudConfig, CloudValidationMode};
 pub use database::{DatabaseConfig, PoolConfig};
 pub use error::{ProfileError, ProfileResult};
-pub use judge::JudgeProfile;
 pub use governance::{
     AuditConfig, AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig,
     UNRESTRICTED_ACKNOWLEDGEMENT,
 };
 pub use info::ProfileInfo;
+pub use judge::JudgeProfile;
 pub use observability::{ObservabilityConfig, OtlpExportConfig, OtlpProtocol, OtlpSignal};
 pub use oci_reference::{OciReference, OciReferenceError};
 pub use paths::{PathsConfig, expand_home, resolve_path, resolve_with_home};

@@ -9,6 +9,12 @@
 //! the tap over the upstream body; the tap owns an [`McpAudit`] and finalizes
 //! it (once) on stream EOF or drop.
 //!
+//! The newest unclaimed intent for the tool in the calling session is claimed
+//! to pair the execution, mirroring [`systemprompt_mcp::McpToolExecutor`]. A
+//! claim makes the pairing inferred, never exact; failing to claim leaves the
+//! execution unpaired rather than failing the call, which has already returned
+//! to the client.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -137,10 +143,6 @@ impl McpAudit {
     }
 }
 
-/// Claims the newest unclaimed intent for this tool in the calling session,
-/// mirroring [`systemprompt_mcp::McpToolExecutor`]. A claim makes the pairing
-/// inferred, never exact; failing to claim leaves the execution unpaired
-/// rather than failing the call, which has already returned to the client.
 async fn claim_intent(
     repo: &ToolUsageRepository,
     request: &mut ToolExecutionRequest,

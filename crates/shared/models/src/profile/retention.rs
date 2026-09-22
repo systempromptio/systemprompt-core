@@ -12,6 +12,17 @@
 
 use serde::{Deserialize, Serialize};
 
+/// Retention windows, in days, for the high-volume operational tables.
+///
+/// Each field names the table it bounds and rows older than the window are
+/// deleted, with two exceptions worth knowing:
+///
+/// - `ai_request_messages_days` drops the stored messages and keeps the request
+///   row; `None` follows `ai.history.retention_days` from the services
+///   configuration instead.
+/// - `ai_request_payload_raw_days` sets the raw request and response bodies on
+///   `ai_request_payloads` to NULL rather than deleting the row; the excerpts,
+///   hashes and sizes stay.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 #[expect(
@@ -19,34 +30,18 @@ use serde::{Deserialize, Serialize};
     reason = "every field is a window in days; the unit belongs in the name"
 )]
 pub struct RetentionConfig {
-    /// `logs` rows older than this are deleted.
     #[serde(default = "default_logs_days")]
     pub logs_days: u32,
-
-    /// `analytics_events` rows older than this are deleted.
     #[serde(default = "default_analytics_events_days")]
     pub analytics_events_days: u32,
-
-    /// Stored AI request messages (`ai_request_messages`) older than this are
-    /// deleted; the request row itself stays. `None` follows
-    /// `ai.history.retention_days` from the services configuration.
     #[serde(default)]
     pub ai_request_messages_days: Option<u32>,
-
-    /// `mcp_tool_executions` rows older than this are deleted.
     #[serde(default = "default_mcp_tool_executions_days")]
     pub mcp_tool_executions_days: u32,
-
-    /// Processed `event_outbox` rows older than this are deleted.
     #[serde(default = "default_outbox_processed_days")]
     pub outbox_processed_days: u32,
-
-    /// Raw request and response bodies on `ai_request_payloads` older than
-    /// this are set to NULL; the excerpts, hashes and sizes stay.
     #[serde(default = "default_ai_request_payload_raw_days")]
     pub ai_request_payload_raw_days: u32,
-
-    /// `governance_decisions` rows older than this are deleted.
     #[serde(default = "default_governance_decisions_days")]
     pub governance_decisions_days: u32,
 }

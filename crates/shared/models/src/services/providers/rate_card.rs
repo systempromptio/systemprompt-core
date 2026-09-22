@@ -118,9 +118,6 @@ impl VertexRateCardEntry {
         stage_ok && !self.is_retiring(today)
     }
 
-    /// Whether the announced retirement date has passed. Unlike
-    /// [`Self::is_retiring`] this has no notice window: the model is gone
-    /// upstream and nothing can route to it.
     #[must_use]
     pub fn is_retired(&self, today: NaiveDate) -> bool {
         self.retires_on.is_some_and(|retires| retires <= today)

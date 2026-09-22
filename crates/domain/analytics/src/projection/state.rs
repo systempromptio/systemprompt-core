@@ -1,6 +1,11 @@
 //! Projection bookkeeping: the singleton state row, the projector lock, the
 //! rebuild-in-progress marker and the durable-queue lag behind it.
 //!
+//! `heartbeat_rebuild` records a page of the running rebuild, and its
+//! predicate is the fence: a forced rebuild or a privacy compaction that
+//! moved the generation, or a finished baseline, makes the write affect
+//! nothing and the caller stops.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -69,9 +74,6 @@ pub async fn rebuild_state(connection: &mut PgConnection) -> Result<RebuildState
     .await?)
 }
 
-/// Records a page of the running rebuild. The predicate is the fence: a
-/// forced rebuild or a privacy compaction that moved the generation, or a
-/// finished baseline, makes this write nothing and the caller stops.
 pub async fn heartbeat_rebuild(
     connection: &mut PgConnection,
     generation: i64,

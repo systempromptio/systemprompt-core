@@ -40,8 +40,6 @@ fn already_declared(provider: &ProviderEntry, entry: &VertexRateCardEntry) -> bo
         .any(|name| provider.find_model(name).is_some())
 }
 
-/// Removes the declared model — and any alias declared in its place — that a
-/// rate-card entry names, so routing cannot reach a retired upstream.
 fn deselect(provider: &mut ProviderEntry, entry: &VertexRateCardEntry) {
     let names: Vec<&str> = std::iter::once(entry.id.as_str())
         .chain(entry.aliases.iter().map(ModelId::as_str))

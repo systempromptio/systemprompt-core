@@ -7,6 +7,14 @@
 //! later job was silently dropped — and, because the error reached the server
 //! lifecycle, took the whole boot with it.
 //!
+//! `Registered::NotInInventory` is separated from the other skips because it
+//! is the only one that means the operator is looking at a stale deployment:
+//! the configuration names a job this binary was not built with. It is
+//! reported, not merely logged, because the registration warning never
+//! reaches the `logs` table — the database log layer drops any event whose
+//! span carries no user, session and trace, and boot-time registration runs
+//! outside one.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -20,22 +28,12 @@ use systemprompt_traits::Job as JobTrait;
 use tokio_cron_scheduler::Job;
 use tracing::{Instrument, debug, info, warn};
 
-/// What became of one configured job.
-///
-/// `NotInInventory` is separated from the other skips because it is the only
-/// one that means the operator is looking at a stale deployment: the
-/// configuration names a job this binary was not built with. It is reported,
-/// not merely logged, because the registration warning never reaches the
-/// `logs` table — the database log layer drops any event whose span carries no
-/// user, session and trace, and boot-time registration runs outside one.
 enum Registered {
     Yes,
     No,
     NotInInventory,
 }
 
-/// What a registration pass achieved: the jobs now on the cron loop, and the
-/// ones that could not be put there.
 pub(super) struct RegistrationOutcome {
     pub(super) registered: usize,
     pub(super) skipped: Vec<SkippedJob>,

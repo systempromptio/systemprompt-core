@@ -211,7 +211,10 @@ impl ClientKind {
     pub const fn same_runtime(self, other: Self) -> bool {
         matches!(
             (self, other),
-            (Self::ClaudeCode | Self::ClaudeDesktop, Self::ClaudeCode | Self::ClaudeDesktop)
+            (
+                Self::ClaudeCode | Self::ClaudeDesktop,
+                Self::ClaudeCode | Self::ClaudeDesktop
+            )
         ) || (self as u8) == (other as u8)
     }
 

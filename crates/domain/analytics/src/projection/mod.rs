@@ -119,13 +119,20 @@ impl ReportingRow {
 }
 
 /// Applies reporting facts inside the caller's transaction and projector lock.
+///
+/// `begin_rebuild` opens a new generation with its cutoff and the in-progress
+/// marker; callers hold the source locks, so every fact minted before the
+/// cutoff has committed and every later one is above it and will be applied.
+/// `clear_targets` empties every report table and the revision guard for that
+/// generation, in a separate transaction so no source lock is held while the
+/// targets are truncated. `finish_rebuild` marks the baseline complete,
+/// leaving the cutoff as recorded by `begin_rebuild` or raised since by a
+/// privacy compaction — lowering it would replay facts that compaction has
+/// already delivered.
 #[derive(Debug, Clone, Copy)]
 pub struct ReportingProjector;
 
 impl ReportingProjector {
-    /// Opens a new generation with its cutoff and the in-progress marker.
-    /// Callers hold the source locks: every fact minted before `cutoff`
-    /// has committed, every later one is above it and will be applied.
     pub async fn begin_rebuild(connection: &mut PgConnection, cutoff: i64) -> Result<i64> {
         Ok(sqlx::query_scalar!(
             r#"UPDATE analytics_projection_state
@@ -139,9 +146,6 @@ impl ReportingProjector {
         .await?)
     }
 
-    /// Empties every report table and the revision guard for the generation
-    /// opened by `begin_rebuild`; a separate transaction so no source lock is
-    /// held while the targets are truncated.
     pub async fn clear_targets(connection: &mut PgConnection, generation: i64) -> Result<()> {
         Self::verify_generation(connection, generation).await?;
         let targets = SOURCE_DEFINITIONS
@@ -158,9 +162,6 @@ impl ReportingProjector {
         Ok(())
     }
 
-    /// Marks the baseline complete. The cutoff is left as recorded by
-    /// `begin_rebuild` or raised since by a privacy compaction; lowering it
-    /// would replay facts that compaction already delivered.
     pub async fn finish_rebuild(connection: &mut PgConnection, generation: i64) -> Result<()> {
         let result = sqlx::query!(
             "UPDATE analytics_projection_state

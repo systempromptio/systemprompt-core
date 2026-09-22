@@ -34,7 +34,6 @@ pub fn digest_hex(bytes: &[u8]) -> String {
     hex::encode(Sha256::digest(bytes))
 }
 
-/// The `tools` array of a JSON request body, if it carries one.
 #[must_use]
 pub fn tools_array(body: &[u8]) -> Option<Value> {
     let mut parsed = serde_json::from_slice::<Value>(body).ok()?;
@@ -47,7 +46,6 @@ pub fn prepared_tools(body: &[u8]) -> Option<Value> {
     tools_array(body)
 }
 
-/// Digest plus head+tail excerpt, never the body.
 #[must_use]
 pub fn excerpt_payload(bytes: &Bytes) -> PayloadCapture {
     let len = bytes.len();

@@ -5,71 +5,70 @@
 
 use serde::{Deserialize, Serialize};
 
+/// Per-route-group request budgets, in requests per second.
+///
+/// Each `*_per_second` field governs one route group:
+///
+/// - `oauth_public` — `/api/v1/core/oauth` public endpoints,
+///   `/auth/link-passkey`, and the public gateway session routes under
+///   `/api/public/gateway`.
+/// - `oauth_auth` — the authenticated half of `/api/v1/core/oauth`, plus
+///   `/api/v1/core/users`.
+/// - `contexts` — `/api/v1/core/contexts` and the inbound `/api/v1/webhook`
+///   mount.
+/// - `tasks` — `/api/v1/core/tasks`.
+/// - `artifacts` — `/api/v1/core/artifacts`.
+/// - `agent_registry` — `/api/v1/agents/registry`, discovery only, kept apart
+///   from `agents_per_second` so listing agents cannot spend an execution
+///   budget.
+/// - `agents` — `/api/v1/agents` execution, and the Slack and Teams inbound
+///   mounts that dispatch to an agent.
+/// - `mcp_registry` — `/api/v1/mcp/registry`, the MCP server catalog, discovery
+///   only.
+/// - `mcp` — `/api/v1/mcp` tool calls, the busiest protocol route group.
+/// - `stream` — `/api/v1/stream`, long-lived SSE connections, so this is a
+///   connection budget rather than a request one and is set high.
+/// - `content` — `/api/v1/content`, `/api/v1/sync`, `/api/v1/marketplace`,
+///   `/api/v1/analytics` and `/track/engagement`.
+/// - `gateway` — inference traffic under `/v1`: `/v1/messages` and the
+///   OpenAI-shaped `/v1/chat/completions`.
+/// - `bridge_auth` — `/v1/auth/bridge/*`, deliberately separate from
+///   `gateway_per_second`: sign-in is low-volume and must stay reachable on an
+///   instance whose inference traffic is saturating its own budget. Sharing one
+///   bucket let a busy gateway lock every user out of authenticating.
+///
+/// `per_second_budgets` projects those fields as a list; both validators
+/// iterate it rather than naming the fields themselves, which had already let
+/// them drift apart and let a zero in an unnamed field through.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct RateLimitsConfig {
     #[serde(default)]
     pub disabled: bool,
-
-    /// `/api/v1/core/oauth` public endpoints, `/auth/link-passkey`, and the
-    /// public gateway session routes under `/api/public/gateway`.
     #[serde(default = "default_oauth_public")]
     pub oauth_public_per_second: u64,
-
-    /// The authenticated half of `/api/v1/core/oauth`, plus `/api/v1/core/users`.
     #[serde(default = "default_oauth_auth")]
     pub oauth_auth_per_second: u64,
-
-    /// `/api/v1/core/contexts` and the inbound `/api/v1/webhook` mount.
     #[serde(default = "default_contexts")]
     pub contexts_per_second: u64,
-
-    /// `/api/v1/core/tasks`.
     #[serde(default = "default_tasks")]
     pub tasks_per_second: u64,
-
-    /// `/api/v1/core/artifacts`.
     #[serde(default = "default_artifacts")]
     pub artifacts_per_second: u64,
-
-    /// `/api/v1/agents/registry` — discovery only, kept apart from
-    /// `agents_per_second` so listing agents cannot spend an execution budget.
     #[serde(default = "default_agent_registry")]
     pub agent_registry_per_second: u64,
-
-    /// `/api/v1/agents` execution, and the Slack and Teams inbound mounts that
-    /// dispatch to an agent.
     #[serde(default = "default_agents")]
     pub agents_per_second: u64,
-
-    /// `/api/v1/mcp/registry` — the MCP server catalog, discovery only.
     #[serde(default = "default_mcp_registry")]
     pub mcp_registry_per_second: u64,
-
-    /// `/api/v1/mcp` — MCP tool calls, the busiest protocol route group.
     #[serde(default = "default_mcp")]
     pub mcp_per_second: u64,
-
-    /// `/api/v1/stream` — long-lived SSE connections, so this is a connection
-    /// budget rather than a request one and is set high.
     #[serde(default = "default_stream")]
     pub stream_per_second: u64,
-
-    /// `/api/v1/content`, `/api/v1/sync`, `/api/v1/marketplace`,
-    /// `/api/v1/analytics` and `/track/engagement`.
     #[serde(default = "default_content")]
     pub content_per_second: u64,
-
-    /// Inference traffic under `/v1` — `/v1/messages` and the OpenAI-shaped
-    /// `/v1/chat/completions`.
     #[serde(default = "default_gateway")]
     pub gateway_per_second: u64,
-
-    /// Budget for `/v1/auth/bridge/*`, kept separate from `gateway_per_second`.
-    ///
-    /// Why: sign-in is low-volume and must stay reachable on an instance whose
-    /// inference traffic is saturating its own budget. Sharing one bucket let a
-    /// busy gateway lock every user out of authenticating.
     #[serde(default = "default_bridge_auth")]
     pub bridge_auth_per_second: u64,
 
@@ -121,16 +120,6 @@ pub const fn default_burst() -> u64 {
 }
 
 impl RateLimitsConfig {
-    /// Every per-second budget, paired with the field name an operator would
-    /// have to edit to change it.
-    ///
-    /// Both validators iterate this rather than listing the fields themselves.
-    /// They used to keep their own lists and had already drifted apart: the
-    /// profile-side one checked `gateway_per_second` but neither registry
-    /// budget, the runtime one checked both registries but not the gateway,
-    /// and so a zero in the wrong field passed whichever validator did not
-    /// name it. A list derived from the struct cannot fall out of step with
-    /// the struct.
     #[must_use]
     pub const fn per_second_budgets(&self) -> [(&'static str, u64); 13] {
         [
@@ -150,14 +139,11 @@ impl RateLimitsConfig {
         ]
     }
 
-    /// The shipped limits. Production runs the defaults.
     #[must_use]
     pub fn production() -> Self {
         Self::default()
     }
 
-    /// Limits high enough that a test never trips one, while leaving the
-    /// limiter itself in the stack so its wiring is still exercised.
     #[must_use]
     pub const fn testing() -> Self {
         Self {
@@ -179,7 +165,6 @@ impl RateLimitsConfig {
         }
     }
 
-    /// No limiter at all: `with_rate_limit` returns the router untouched.
     #[must_use]
     pub const fn disabled() -> Self {
         let mut config = Self::testing();

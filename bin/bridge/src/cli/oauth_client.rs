@@ -70,7 +70,8 @@ fn cmd_rotate(ctx: &BridgeContext) -> ExitCode {
             &cfg,
             &auth::session_identity::stable_session_id(&cfg),
             &http,
-        ).await?;
+        )
+        .await?;
         let creds = plugin_oauth::refresh_creds(&client, &bearer.token).await?;
         Ok::<_, Box<dyn std::error::Error>>(creds)
     });

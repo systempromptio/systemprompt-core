@@ -32,7 +32,7 @@ pub enum ClientAttestation {
 /// `x-anthropic-billing-header: cc_version=…; cc_entrypoint=<entry>;`. The
 /// entrypoint is the only body signal that tells Claude Desktop (Cowork:
 /// `claude-desktop-3p`, `local-agent`) from the CLI (`cli`), so it outranks
-/// the metadata grammars. Neither grammar was ever sent by OpenCode; a
+/// the metadata grammars. Neither grammar was ever sent by `OpenCode`; a
 /// former `opencode-session-json` marker matched the JSON one and mislabelled
 /// every modern Claude Code request.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]

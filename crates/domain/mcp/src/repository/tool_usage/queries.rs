@@ -13,6 +13,17 @@ use super::ToolUsageRepository;
 use crate::error::McpDomainResult;
 use crate::models::ToolExecution;
 
+/// The identifying fields of a proximity lookup: which user's call, on which
+/// server and tool, as at what moment, and how far back to look.
+#[derive(Debug, Clone, Copy)]
+pub struct ProximityProbe<'a> {
+    pub user_id: &'a UserId,
+    pub server_name: &'a str,
+    pub tool_name: &'a str,
+    pub at: DateTime<Utc>,
+    pub window_seconds: i64,
+}
+
 impl ToolUsageRepository {
     pub async fn find_by_fingerprint(
         &self,
@@ -48,12 +59,15 @@ impl ToolUsageRepository {
     // execution of that tool by that user inside the window is the call.
     pub async fn find_unattested_by_proximity(
         &self,
-        user_id: &UserId,
-        server_name: &str,
-        tool_name: &str,
-        at: DateTime<Utc>,
-        window_seconds: i64,
+        probe: &ProximityProbe<'_>,
     ) -> McpDomainResult<Option<McpExecutionId>> {
+        let ProximityProbe {
+            user_id,
+            server_name,
+            tool_name,
+            at,
+            window_seconds,
+        } = *probe;
         let result = sqlx::query_scalar!(
             r#"
             SELECT mcp_execution_id as "mcp_execution_id!"

@@ -6,6 +6,18 @@
 //! recording execution start/completion in the tool-usage repository and
 //! building the [`CallToolResult`] (including any artifact) from the output.
 //!
+//! `INTENT_CLAIM_WINDOW_SECONDS` is how far back an execution may reach for
+//! an unclaimed intent. It is shared with the gateway's external-server audit
+//! so both correlate over one window.
+//!
+//! A window that matches no intent is logged, and at info: on the 2026-09-22
+//! customer instance 303 in-process executions carried no `ai_tool_call_id`
+//! while 138 had a claimable intent, and no offline hypothesis explains it —
+//! the session the claim reads is written from this same `RequestContext`,
+//! the `LIKE` suffix matches, and the pool is shared. The session id and tool
+//! are what an instrumented run needs to tell a genuinely empty window from a
+//! mismatched key, and a miss is cheap to log because it is meant to be rare.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -29,8 +41,6 @@ use systemprompt_models::RequestContext;
 use systemprompt_models::mcp::{ClientProfile, Correlation, ExecutionSource};
 
 const TOOL_LIST_TTL_MS: u64 = 3_600_000;
-/// How far back an execution may reach for an unclaimed intent. Shared with
-/// the gateway's external-server audit so both correlate over one window.
 pub const INTENT_CLAIM_WINDOW_SECONDS: i64 = 120;
 
 #[must_use]
@@ -177,14 +187,6 @@ impl McpToolExecutor {
                 );
                 ctx.clone().with_ai_tool_call_id(call_id)
             },
-            // Why logged, and at info: on the 2026-09-22 customer instance 303
-            // in-process executions carried no ai_tool_call_id while 138 had a
-            // claimable intent, and no offline hypothesis explains it — the
-            // session the claim reads is written from this same RequestContext,
-            // the LIKE suffix matches, and the pool is shared. The session id
-            // and tool are what an instrumented run needs to tell a genuinely
-            // empty window from a mismatched key, and a miss is cheap to log
-            // because it is meant to be rare.
             Ok(None) => {
                 tracing::info!(
                     tool = tool_name,

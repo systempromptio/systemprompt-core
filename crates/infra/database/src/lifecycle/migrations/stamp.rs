@@ -104,8 +104,6 @@ impl MigrationService<'_> {
         Ok(check)
     }
 
-    /// Executes every retirement migration of a freshly stamped extension.
-    /// Returns how many ran.
     pub async fn run_stamped_retirements(
         &self,
         extension: &dyn Extension,
@@ -155,9 +153,6 @@ impl MigrationService<'_> {
     }
 }
 
-/// Whether a migration only retires objects: every statement is a
-/// `DROP … IF EXISTS` or a `DELETE FROM extension_migrations`. Anything else,
-/// or an unparsable body, is not a retirement.
 #[must_use]
 pub fn is_retirement(migration: &Migration) -> bool {
     let Ok(parsed) = pg_query::parse(migration.sql) else {

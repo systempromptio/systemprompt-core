@@ -1,5 +1,9 @@
 //! Maps a terminal receipt onto the domain settlement API.
 //!
+//! Bumping the session counters a settled completion consumed is
+//! fire-and-forget: the request is already settled, so a counter failure is
+//! logged, never propagated. System traffic has no session to account against.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -9,7 +13,7 @@ use systemprompt_ai::repository::ai_requests::{
     SettleCompletion, SettledFailure, SettledToolCall, SettlementOutcome, SettlementUsage,
 };
 
-use super::{Receipt, Settlement};
+use super::{PartialUsage, Receipt, Settlement};
 
 pub(super) async fn settle(settlement: &Settlement, receipt: &Receipt) -> Result<()> {
     if let Some(error) = &receipt.accounting_failure {
@@ -35,24 +39,13 @@ pub(super) async fn settle(settlement: &Settlement, receipt: &Receipt) -> Result
                 input: tool.input.clone(),
             })
             .collect();
-        let [
-            input_tokens,
-            output_tokens,
-            cache_read_tokens,
-            cache_creation_tokens,
-            reasoning_tokens,
-            tokens_used,
-        ] = completion.usage;
-        session_usage = Some((i32::try_from(tokens_used).unwrap_or(i32::MAX), completion.cost));
+        let usage = settlement_usage(completion.usage);
+        session_usage = Some((
+            i32::try_from(usage.tokens_used).unwrap_or(i32::MAX),
+            completion.cost,
+        ));
         SettlementOutcome::Completed(SettleCompletion {
-            usage: SettlementUsage {
-                input_tokens,
-                output_tokens,
-                cache_read_tokens,
-                cache_creation_tokens,
-                reasoning_tokens,
-                tokens_used,
-            },
+            usage,
             cost_microdollars: completion.cost,
             latency_ms: completion.latency,
             upstream_latency_ms: completion.upstream_latency,
@@ -68,31 +61,7 @@ pub(super) async fn settle(settlement: &Settlement, receipt: &Receipt) -> Result
             tool_calls: &tools,
         })
     } else if let Some(error) = &receipt.failure {
-        let partial = receipt.partial.as_ref();
-        SettlementOutcome::Failed(SettledFailure {
-            error,
-            usage: partial.map(|p| {
-                let [
-                    input_tokens,
-                    output_tokens,
-                    cache_read_tokens,
-                    cache_creation_tokens,
-                    reasoning_tokens,
-                    tokens_used,
-                ] = p.usage;
-                SettlementUsage {
-                    input_tokens,
-                    output_tokens,
-                    cache_read_tokens,
-                    cache_creation_tokens,
-                    reasoning_tokens,
-                    tokens_used,
-                }
-            }),
-            cost_microdollars: partial.map_or(0, |p| p.cost),
-            latency_ms: partial.map(|p| p.latency),
-            upstream_latency_ms: partial.and_then(|p| p.upstream_latency),
-        })
+        failed_outcome(error, receipt.partial.as_ref())
     } else {
         anyhow::bail!("A pending receipt has nothing to settle");
     };
@@ -106,9 +75,38 @@ pub(super) async fn settle(settlement: &Settlement, receipt: &Receipt) -> Result
     Ok(())
 }
 
-/// Bumps the session counters a settled completion consumed. Fire-and-forget:
-/// the request is already settled, so a counter failure is logged, never
-/// propagated. System traffic has no session to account against.
+const fn settlement_usage(raw: [u32; 6]) -> SettlementUsage {
+    let [
+        input_tokens,
+        output_tokens,
+        cache_read_tokens,
+        cache_creation_tokens,
+        reasoning_tokens,
+        tokens_used,
+    ] = raw;
+    SettlementUsage {
+        input_tokens,
+        output_tokens,
+        cache_read_tokens,
+        cache_creation_tokens,
+        reasoning_tokens,
+        tokens_used,
+    }
+}
+
+// Why: a provider bills what it streamed before the stream broke, so a
+// failure carrying partial usage settles with it; absent usage leaves the
+// stored columns untouched rather than writing zeroes over them.
+fn failed_outcome<'a>(error: &'a str, partial: Option<&'a PartialUsage>) -> SettlementOutcome<'a> {
+    SettlementOutcome::Failed(SettledFailure {
+        error,
+        usage: partial.map(|p| settlement_usage(p.usage)),
+        cost_microdollars: partial.map_or(0, |p| p.cost),
+        latency_ms: partial.map(|p| p.latency),
+        upstream_latency_ms: partial.and_then(|p| p.upstream_latency),
+    })
+}
+
 async fn increment_session_usage(
     settlement: &Settlement,
     receipt: &Receipt,

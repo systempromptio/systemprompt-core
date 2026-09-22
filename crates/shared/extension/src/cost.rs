@@ -30,9 +30,11 @@
 use std::time::Duration;
 
 /// Whether the author suspended the table's per-row triggers for the bulk
-/// statement. `live` is a deliberate declaration, not a default: it says the
-/// fan-out was considered and is wanted (a correction the projections must
-/// see), rather than overlooked.
+/// statement.
+///
+/// `live` is a deliberate declaration, not a default: it says the fan-out was
+/// considered and is wanted (a correction the projections must see), rather
+/// than overlooked.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TriggerPolicy {
     Suspended,
@@ -49,12 +51,11 @@ impl TriggerPolicy {
     }
 }
 
-/// A parsed `-- @cost:` line.
+/// A parsed `-- @cost:` line: `rows` is what the migration wrote in a real
+/// run, `measured` the wall clock of the slowest single statement in that run.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CostDirective {
-    /// Rows the migration wrote, from a real run.
     pub rows: u64,
-    /// Wall clock of the slowest single statement in that run.
     pub measured: Duration,
     pub triggers: TriggerPolicy,
 }
@@ -81,11 +82,6 @@ pub enum CostDirectiveError {
 
 const DIRECTIVE: &str = "-- @cost:";
 
-/// Reads the directive out of a migration body.
-///
-/// `Ok(None)` means the migration does not declare a cost, which is correct
-/// for the great majority — only bulk work on a hot table needs one, and that
-/// requirement is enforced by the migration-cost gate, not here.
 pub fn parse(sql: &str) -> Result<Option<CostDirective>, CostDirectiveError> {
     let lines: Vec<&str> = sql
         .lines()
@@ -116,7 +112,8 @@ fn parse_fields(rest: &str) -> Result<CostDirective, CostDirectiveError> {
                 rows = Some(
                     value
                         .parse()
-                        .map_err(|_| CostDirectiveError::Rows(value.to_owned()))?,
+                        .ok()
+                        .ok_or_else(|| CostDirectiveError::Rows(value.to_owned()))?,
                 );
             },
             "measured" => {
@@ -158,7 +155,7 @@ fn parse_duration(value: &str) -> Result<Duration, CostDirectiveError> {
     } else {
         return Err(malformed());
     };
-    let parsed: f64 = number.parse().map_err(|_| malformed())?;
+    let parsed: f64 = number.parse().ok().ok_or_else(malformed)?;
     if !parsed.is_finite() || parsed < 0.0 {
         return Err(malformed());
     }

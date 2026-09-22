@@ -253,12 +253,12 @@ async fn client_and_bearer(
         &crate::auth::session_identity::stable_session_id(&cfg),
         &http,
     )
-        .await
-        .map(|out| out.token)
-        .map_err(|e| GuiError::Profile {
-            context: "update authentication".into(),
-            source: std::io::Error::other(e),
-        })?;
+    .await
+    .map(|out| out.token)
+    .map_err(|e| GuiError::Profile {
+        context: "update authentication".into(),
+        source: std::io::Error::other(e),
+    })?;
     Ok((
         crate::gateway::GatewayClient::new(gateway_url, http),
         bearer,

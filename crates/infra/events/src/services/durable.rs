@@ -123,11 +123,6 @@ impl OutboxConsumer {
         Self { pool }
     }
 
-    /// Claims up to `limit` pending rows in claim order under one
-    /// transaction; `None` when nothing is pending. Every row is applied
-    /// and acknowledged together, so one commit covers the batch.
-    /// `skipped` names rows the caller has already found undeliverable, so
-    /// one bad fact at the head of the queue does not stop the rest.
     pub async fn claim_batch(
         &self,
         consumer: &str,
@@ -249,7 +244,6 @@ impl DeliveryBatch {
         self.rows.iter().map(|row| &row.id)
     }
 
-    /// Decodes every claimed fact in claim order, paired with its row id.
     pub fn facts<T: DeserializeOwned>(
         &self,
     ) -> Result<Vec<(EventOutboxId, ReportingFact<T>)>, serde_json::Error> {

@@ -1,5 +1,12 @@
 //! Request-analytics event emission.
 //!
+//! A page view is an HTML page being served. The route classifier knows only
+//! the path, so an XHR under an HTML prefix (`/admin/auth/me` answered as
+//! JSON) or a form post answered with a redirect would count as one; on a
+//! production instance that XHR was 45% of every recorded page view. The
+//! classification is therefore corrected against whether the response
+//! actually carried an HTML body.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -21,14 +28,9 @@ pub struct AnalyticsEventParams {
     pub response_time_ms: u64,
     pub user_agent: Option<String>,
     pub referer: Option<String>,
-    /// Whether the response carried an HTML body.
     pub html_response: bool,
 }
 
-/// A page view is an HTML page being served. The route classifier knows only
-/// the path, so an XHR under an HTML prefix (`/admin/auth/me` answered as
-/// JSON) or a form post answered with a redirect would count as one; on a
-/// production instance that XHR was 45% of every recorded page view.
 #[must_use]
 pub fn event_metadata_for(classified: EventMetadata, html_response: bool) -> EventMetadata {
     if classified == EventMetadata::HTML_CONTENT && !html_response {

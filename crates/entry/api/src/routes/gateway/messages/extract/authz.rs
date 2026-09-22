@@ -18,6 +18,12 @@ use systemprompt_security::authz::{
 
 use super::super::auth::AuthedPrincipal;
 
+/// The inputs to a pre-dispatch gateway authorization decision.
+///
+/// `context_id` is the context the request was already resolved into. Leaving
+/// it unset made the audit sink re-derive one from the bridge session, so every
+/// pre-dispatch decision landed in a different context from the request it
+/// authorized.
 #[derive(Debug, Clone)]
 pub struct GatewayAuthzRequestInput {
     pub user_id: UserId,
@@ -29,10 +35,6 @@ pub struct GatewayAuthzRequestInput {
     pub model: ModelId,
     pub session_id: Option<SessionId>,
     pub client_id: Option<ClientId>,
-    /// The context the request was already resolved into. Leaving this unset
-    /// made the audit sink re-derive one from the bridge session, so every
-    /// pre-dispatch decision landed in a different context from the request
-    /// it authorized.
     pub context_id: ContextId,
 }
 

@@ -2,6 +2,15 @@
 //! source's reporting view, so the rebuild never holds a cursor across
 //! transactions and never round-trips per row.
 //!
+//! `lock_sources` blocks every writer of every reporting source until the
+//! caller's transaction ends; it is taken only for the cutoff fence, never
+//! across a page. `write_snapshot_page` writes the next `limit` retained rows
+//! after a key from the live view straight into the target. Reading live rows
+//! under the projector lock is what keeps a privacy delivery made between
+//! pages from being undone by a stale snapshot: the newest committed version
+//! always wins, and anything newer still has a fact above the cutoff to
+//! apply.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -18,8 +27,6 @@ pub struct SnapshotPage {
     pub written: i64,
 }
 
-/// Blocks every writer of every reporting source until the caller's
-/// transaction ends. Taken only for the cutoff fence, never across a page.
 pub async fn lock_sources(connection: &mut PgConnection) -> Result<()> {
     let tables = SOURCE_DEFINITIONS
         .iter()
@@ -34,11 +41,6 @@ pub async fn lock_sources(connection: &mut PgConnection) -> Result<()> {
     Ok(())
 }
 
-/// Writes the next `limit` retained rows after `after` (by entity key) from
-/// the live view straight into the target. Reading live rows under the
-/// projector lock is what keeps a privacy delivery made between pages from
-/// being undone by a stale snapshot; the newest committed version always
-/// wins, and anything newer still has a fact above the cutoff to apply.
 pub async fn write_snapshot_page(
     connection: &mut PgConnection,
     definition: &SourceDefinition,

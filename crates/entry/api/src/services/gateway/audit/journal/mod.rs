@@ -5,9 +5,9 @@
 //! into every audit. It lives under `paths.storage`, never beside the profile:
 //! the profile is configuration and is mounted read-only in the self-host
 //! bundle, and receipts belong to the node that admitted them, so the data
-//! directory must be a per-node writable volume. Admission only reserves a receipt; settlement of
-//! receipts left behind by a crash runs from [`spawn_recovery`], an owned
-//! task, never on the request path.
+//! directory must be a per-node writable volume. Admission only reserves a
+//! receipt; settlement of receipts left behind by a crash runs from
+//! [`spawn_recovery`], an owned task, never on the request path.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -77,12 +77,14 @@ impl GatewayJournal {
     }
 }
 
+/// The collaborators a terminal receipt is settled through.
+///
+/// `sessions` is absent only where the analytics layer is unavailable;
+/// settlement then records the request and skips the session counters.
 #[derive(Clone)]
 pub struct Settlement {
     pub journal: Arc<GatewayJournal>,
     pub requests: Arc<AiRequestRepository>,
-    /// Absent only where the analytics layer is unavailable; settlement then
-    /// records the request and skips the session counters.
     pub sessions: Option<systemprompt_traits::DynSessionStore>,
 }
 

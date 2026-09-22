@@ -1,6 +1,8 @@
 //! Fails `pending` audit rows whose settlement can no longer arrive: the
 //! replica that held their receipt is gone, so their usage is unknown and is
-//! recorded as such rather than left open forever.
+//! recorded as such rather than left open forever. `ORPHAN_AGE` is how long
+//! a `pending` row may stay open before its settlement is treated as lost:
+//! one hour, comfortably past the longest provider stream.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -14,8 +16,6 @@ use crate::error::RepositoryError;
 
 pub const ORPHANED_REASON: &str = "settlement never arrived; usage unknown";
 
-/// How long a `pending` row may stay open before its settlement is treated as
-/// lost. One hour is comfortably past the longest provider stream.
 pub const ORPHAN_AGE: Duration = Duration::from_hours(1);
 
 #[derive(Debug, Clone, PartialEq, Eq)]

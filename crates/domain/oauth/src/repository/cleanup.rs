@@ -95,8 +95,6 @@ impl OauthCleanupRepository {
         Ok(result.rows_affected())
     }
 
-    /// A connect code is single-use with a ten-minute life; once consumed or
-    /// expired it proves nothing and nothing reads it again.
     pub async fn delete_spent_bridge_exchange_codes(&self) -> OauthResult<u64> {
         let result = sqlx::query!(
             "DELETE FROM bridge_exchange_codes WHERE expires_at < NOW() OR consumed_at IS NOT NULL"

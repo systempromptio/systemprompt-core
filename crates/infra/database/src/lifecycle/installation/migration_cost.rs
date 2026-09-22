@@ -81,7 +81,7 @@ pub struct MigrationCost {
 
 impl MigrationCost {
     #[must_use]
-    pub fn is_undeclared(&self) -> bool {
+    pub const fn is_undeclared(&self) -> bool {
         !self.statements.is_empty() && self.declared.is_none()
     }
 
@@ -155,14 +155,14 @@ fn expensive_statements(sql: &str, hot: &[&str]) -> Vec<ExpensiveStatement> {
         .enumerate()
     {
         let position = index + 1;
-        if let Some((table, form)) = classify(node) {
-            if hot.contains(&table.as_str()) {
-                out.push(ExpensiveStatement {
-                    position,
-                    table,
-                    form,
-                });
-            }
+        if let Some((table, form)) = classify(node)
+            && hot.contains(&table.as_str())
+        {
+            out.push(ExpensiveStatement {
+                position,
+                table,
+                form,
+            });
         }
     }
     out
@@ -210,7 +210,7 @@ fn classify(node: &NodeEnum) -> Option<(String, &'static str)> {
 
 // Why: both forms read every existing row before they can be recorded, and
 // both take an ACCESS EXCLUSIVE or SHARE UPDATE EXCLUSIVE lock while doing it.
-fn scanning_alter(subtype: i32) -> Option<&'static str> {
+const fn scanning_alter(subtype: i32) -> Option<&'static str> {
     if subtype == AlterTableType::AtValidateConstraint as i32 {
         return Some("ALTER TABLE … VALIDATE CONSTRAINT on");
     }
