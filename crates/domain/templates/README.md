@@ -19,7 +19,7 @@ This crate provides the core template system for discovering, loading, and rende
 
 ```toml
 [dependencies]
-systemprompt-templates = "0.58"
+systemprompt-templates = "0.59"
 ```
 
 ```rust
