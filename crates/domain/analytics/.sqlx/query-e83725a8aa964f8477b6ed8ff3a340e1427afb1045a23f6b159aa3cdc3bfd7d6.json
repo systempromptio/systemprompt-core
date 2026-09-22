@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT\n                tool_name as \"tool_name!\",\n                server_name as \"server_name!\",\n                COUNT(*)::bigint as \"execution_count!\",\n                COUNT(*) FILTER (WHERE status = 'success')::bigint as \"success_count!\",\n                COALESCE(AVG(execution_time_ms)::float8, 0) as \"avg_time!\",\n                MAX(created_at) as \"last_used!\"\n            FROM analytics_report_mcp_tool_executions\n            WHERE created_at >= $1 AND created_at < $2 AND server_name ILIKE $3\n            GROUP BY tool_name, server_name\n            ORDER BY CASE WHEN COUNT(*) > 0\n                THEN COUNT(*) FILTER (WHERE status = 'success')::float / COUNT(*)::float\n                ELSE 0 END DESC\n            LIMIT $4\n            ",
+  "query": "\n            SELECT\n                tool_name as \"tool_name!\",\n                server_name as \"server_name!\",\n                COUNT(*)::bigint as \"execution_count!\",\n                COUNT(*) FILTER (WHERE status = 'success')::bigint as \"success_count!\",\n                COALESCE(AVG(execution_time_ms)::float8, 0) as \"avg_time!\",\n                MAX(created_at) as \"last_used!\"\n            FROM analytics_report_mcp_tool_executions\n            WHERE created_at >= $1 AND created_at < $2\n              AND server_name NOT IN ('in_process', 'proxy', 'gateway', 'hook_claude_code', 'hook_opencode')\n            GROUP BY tool_name, server_name\n            ORDER BY COUNT(*) DESC\n            LIMIT $3\n            ",
   "describe": {
     "columns": [
       {
@@ -54,7 +54,6 @@
       "Left": [
         "Timestamptz",
         "Timestamptz",
-        "Text",
         "Int8"
       ]
     },
@@ -67,5 +66,5 @@
       null
     ]
   },
-  "hash": "f4cd9bb805375998fa01a564a5bd55d12401050fbe8ec945a0ba0788f79d2dfe"
+  "hash": "e83725a8aa964f8477b6ed8ff3a340e1427afb1045a23f6b159aa3cdc3bfd7d6"
 }

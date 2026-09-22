@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT\n                tool_name,\n                COUNT(*) as \"execution_count!\",\n                COALESCE(\n                    COUNT(*) FILTER (WHERE status = 'success')::float / NULLIF(COUNT(*), 0),\n                    0.0\n                ) as \"success_rate!\",\n                COALESCE(AVG(execution_time_ms), 0)::bigint as \"avg_duration_ms!\"\n            FROM analytics_report_mcp_tool_executions\n            GROUP BY tool_name\n            ORDER BY \"execution_count!\" DESC\n            LIMIT $1\n            ",
+  "query": "\n            SELECT\n                tool_name,\n                COUNT(*) as \"execution_count!\",\n                COALESCE(\n                    COUNT(*) FILTER (WHERE status = 'success')::float / NULLIF(COUNT(*), 0),\n                    0.0\n                ) as \"success_rate!\",\n                COALESCE(AVG(execution_time_ms), 0)::bigint as \"avg_duration_ms!\"\n            FROM analytics_report_mcp_tool_executions\n            WHERE server_name NOT IN ('in_process', 'proxy', 'gateway', 'hook_claude_code', 'hook_opencode')\n            GROUP BY tool_name\n            ORDER BY \"execution_count!\" DESC\n            LIMIT $1\n            ",
   "describe": {
     "columns": [
       {
@@ -45,5 +45,5 @@
       null
     ]
   },
-  "hash": "8401295b31ffae3d1782e04fa7a038b25793ffa98cb45843f967e818cbb1cf80"
+  "hash": "15616cb327187b6322022aa1080d4bf9a98fa217be746eb1f9e92d3c537fdf00"
 }

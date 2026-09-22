@@ -4,6 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use async_trait::async_trait;
+use chrono::{DateTime, Utc};
 use systemprompt_identifiers::{AiToolCallId, ContextId, McpExecutionId, SessionId, UserId};
 use systemprompt_models::mcp::{Correlation, ExecutionSource};
 use systemprompt_traits::{RepositoryError, ToolExecutionLookup};
@@ -34,6 +35,43 @@ impl ToolUsageRepository {
             session_id.as_str(),
             tool_name,
             payload_sha256,
+            window_seconds as f64
+        )
+        .fetch_optional(&*self.pool)
+        .await?;
+        Ok(result.map(McpExecutionId::new))
+    }
+
+    // Why: a client hook attests the call it just saw; the server observed
+    // the same call moments earlier under the server's own session. Neither
+    // shares a key with the other, so the newest unattested server-observed
+    // execution of that tool by that user inside the window is the call.
+    pub async fn find_unattested_by_proximity(
+        &self,
+        user_id: &UserId,
+        server_name: &str,
+        tool_name: &str,
+        at: DateTime<Utc>,
+        window_seconds: i64,
+    ) -> McpDomainResult<Option<McpExecutionId>> {
+        let result = sqlx::query_scalar!(
+            r#"
+            SELECT mcp_execution_id as "mcp_execution_id!"
+            FROM mcp_tool_executions
+            WHERE source IN ('in_process', 'proxy')
+              AND ai_tool_call_id IS NULL
+              AND user_id = $1
+              AND server_name = $2
+              AND tool_name = $3
+              AND started_at BETWEEN $4::timestamptz - make_interval(secs => $5::double precision)
+                                 AND $4::timestamptz
+            ORDER BY started_at DESC
+            LIMIT 1
+            "#,
+            user_id.as_str(),
+            server_name,
+            tool_name,
+            at,
             window_seconds as f64
         )
         .fetch_optional(&*self.pool)

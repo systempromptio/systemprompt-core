@@ -80,7 +80,7 @@ async fn execution_exists_answers_through_the_shared_lookup_seam() {
         status: ExecutionStatus::Success.as_str().to_owned(),
         error_message: None,
         started_at,
-        completed_at: Utc::now(),
+        completed_at: Some(Utc::now()),
     };
     let execution_id = repo.log_execution_sync(&request, &result).await.unwrap();
 
@@ -150,7 +150,7 @@ async fn start_and_complete_execution_roundtrip() {
         status: ExecutionStatus::Success.as_str().to_owned(),
         error_message: None,
         started_at,
-        completed_at,
+        completed_at: Some(completed_at),
     };
     repo.complete_execution(&exec_id, &result).await.unwrap();
 
@@ -212,7 +212,7 @@ async fn log_execution_sync_writes_row() {
         status: ExecutionStatus::Failed.as_str().to_owned(),
         error_message: Some("boom".to_owned()),
         started_at,
-        completed_at: Utc::now(),
+        completed_at: Some(Utc::now()),
     };
     let id = repo.log_execution_sync(&request, &result).await.unwrap();
     let row = repo.find_by_id(&id).await.unwrap().unwrap();

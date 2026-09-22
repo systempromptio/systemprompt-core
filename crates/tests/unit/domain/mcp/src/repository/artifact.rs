@@ -54,7 +54,7 @@ pub async fn seed_execution(db: &systemprompt_database::DbPool, server: &str) ->
         status: ExecutionStatus::Success.as_str().to_owned(),
         error_message: None,
         started_at,
-        completed_at: Utc::now(),
+        completed_at: Some(Utc::now()),
     };
     ToolUsageRepository::new(db)
         .expect("tool usage repo")

@@ -101,7 +101,8 @@ pub struct ToolExecutionResult {
     pub status: String,
     pub error_message: Option<String>,
     pub started_at: DateTime<Utc>,
-    pub completed_at: DateTime<Utc>,
+    // None when no vantage point measured the call's end.
+    pub completed_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]

@@ -1,5 +1,7 @@
 //! Tool execution leaderboard queries (filtered + unfiltered) for the
-//! analytics CLI surface.
+//! analytics CLI surface. A host-native tool a client hook reported (Bash,
+//! Read, …) is recorded under the vantage point's own name as its server;
+//! those pseudo-servers are not MCP tools and stay out of every list.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -70,6 +72,7 @@ impl ToolAnalyticsRepository {
                 MAX(created_at) as "last_used!"
             FROM analytics_report_mcp_tool_executions
             WHERE created_at >= $1 AND created_at < $2 AND server_name ILIKE $3
+              AND server_name NOT IN ('in_process', 'proxy', 'gateway', 'hook_claude_code', 'hook_opencode')
             GROUP BY tool_name, server_name
             ORDER BY CASE WHEN COUNT(*) > 0
                 THEN COUNT(*) FILTER (WHERE status = 'success')::float / COUNT(*)::float
@@ -105,6 +108,7 @@ impl ToolAnalyticsRepository {
                 MAX(created_at) as "last_used!"
             FROM analytics_report_mcp_tool_executions
             WHERE created_at >= $1 AND created_at < $2 AND server_name ILIKE $3
+              AND server_name NOT IN ('in_process', 'proxy', 'gateway', 'hook_claude_code', 'hook_opencode')
             GROUP BY tool_name, server_name
             ORDER BY COALESCE(AVG(execution_time_ms), 0) DESC
             LIMIT $4
@@ -138,6 +142,7 @@ impl ToolAnalyticsRepository {
                 MAX(created_at) as "last_used!"
             FROM analytics_report_mcp_tool_executions
             WHERE created_at >= $1 AND created_at < $2 AND server_name ILIKE $3
+              AND server_name NOT IN ('in_process', 'proxy', 'gateway', 'hook_claude_code', 'hook_opencode')
             GROUP BY tool_name, server_name
             ORDER BY COUNT(*) DESC
             LIMIT $4
@@ -185,6 +190,7 @@ impl ToolAnalyticsRepository {
                 MAX(created_at) as "last_used!"
             FROM analytics_report_mcp_tool_executions
             WHERE created_at >= $1 AND created_at < $2
+              AND server_name NOT IN ('in_process', 'proxy', 'gateway', 'hook_claude_code', 'hook_opencode')
             GROUP BY tool_name, server_name
             ORDER BY CASE WHEN COUNT(*) > 0
                 THEN COUNT(*) FILTER (WHERE status = 'success')::float / COUNT(*)::float
@@ -218,6 +224,7 @@ impl ToolAnalyticsRepository {
                 MAX(created_at) as "last_used!"
             FROM analytics_report_mcp_tool_executions
             WHERE created_at >= $1 AND created_at < $2
+              AND server_name NOT IN ('in_process', 'proxy', 'gateway', 'hook_claude_code', 'hook_opencode')
             GROUP BY tool_name, server_name
             ORDER BY COALESCE(AVG(execution_time_ms), 0) DESC
             LIMIT $3
@@ -249,6 +256,7 @@ impl ToolAnalyticsRepository {
                 MAX(created_at) as "last_used!"
             FROM analytics_report_mcp_tool_executions
             WHERE created_at >= $1 AND created_at < $2
+              AND server_name NOT IN ('in_process', 'proxy', 'gateway', 'hook_claude_code', 'hook_opencode')
             GROUP BY tool_name, server_name
             ORDER BY COUNT(*) DESC
             LIMIT $3

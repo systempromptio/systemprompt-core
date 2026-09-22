@@ -1,18 +1,9 @@
--- The tool-call ledger: one row per tool call from any client, joining the
--- three entities that each mean one thing.
---
---   intent     ai_request_tool_calls   the model emitted a tool_use (gateway, all clients)
---   execution  mcp_tool_executions     the call ran (in-process, proxy, or client hook)
---   result     mcp_artifacts           the typed artifact the execution produced
---
--- They join on `ai_tool_call_id`, the client's `tool_use_id`. A FULL OUTER
--- join keeps intent without execution (a call the client never reported) and
--- execution without intent (a call that bypassed the gateway), and `state`
--- names which of those a row is. Every dashboard tool count reads this view.
--- `mcp_artifacts.mcp_execution_id` is unique, so one execution is exactly
--- one ledger row. `is_builtin` marks a host-native tool (Bash, Read, …) a
--- hook reported with no MCP server behind it, recorded under the vantage
--- point's own name; consumers that mean "MCP tools" exclude it.
+-- `tool_call_ledger` gains `is_builtin`: a host-native tool (Bash, Read, …)
+-- a client hook reported with no MCP server behind it is recorded under the
+-- vantage point's own name (`server_name = source`), and every consumer that
+-- means "MCP tools" was re-deriving that predicate. The declarative view
+-- (tool_call_ledger.sql) is the same text; this rung exists so a database
+-- upgraded between boots never serves the old shape to a dependent view.
 CREATE OR REPLACE VIEW tool_call_ledger AS
 SELECT
     COALESCE(i.ai_tool_call_id, e.ai_tool_call_id) AS ai_tool_call_id,

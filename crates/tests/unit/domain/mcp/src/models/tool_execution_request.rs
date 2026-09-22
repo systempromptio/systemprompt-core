@@ -39,7 +39,7 @@ fn create_test_result() -> ToolExecutionResult {
         status: ExecutionStatus::Success.as_str().to_string(),
         error_message: None,
         started_at: Utc::now(),
-        completed_at: Utc::now(),
+        completed_at: Some(Utc::now()),
     }
 }
 
@@ -159,7 +159,7 @@ fn test_tool_execution_result_failure() {
         status: ExecutionStatus::Failed.as_str().to_string(),
         error_message: Some("Connection timeout".to_string()),
         started_at: Utc::now(),
-        completed_at: Utc::now(),
+        completed_at: Some(Utc::now()),
     };
 
     assert!(result.output.is_none());
@@ -175,7 +175,7 @@ fn test_tool_execution_result_pending() {
         status: ExecutionStatus::Pending.as_str().to_string(),
         error_message: None,
         started_at: Utc::now(),
-        completed_at: Utc::now(),
+        completed_at: Some(Utc::now()),
     };
 
     assert_eq!(result.status, "pending");
@@ -192,7 +192,7 @@ fn test_tool_execution_result_with_large_output() {
         status: "success".to_string(),
         error_message: None,
         started_at: Utc::now(),
-        completed_at: Utc::now(),
+        completed_at: Some(Utc::now()),
     };
 
     assert_eq!(result.output, Some(large_output));
@@ -210,10 +210,10 @@ fn test_tool_execution_result_duration() {
         status: "success".to_string(),
         error_message: None,
         started_at: start,
-        completed_at: end,
+        completed_at: Some(end),
     };
 
-    let duration = result.completed_at - result.started_at;
+    let duration = result.completed_at.unwrap_or(result.started_at) - result.started_at;
     assert!(duration.num_milliseconds() >= 10);
 }
 
@@ -225,7 +225,7 @@ fn test_tool_execution_result_with_unicode_error() {
         status: "failed".to_string(),
         error_message: Some("错误信息: Failed to process 文件".to_string()),
         started_at: Utc::now(),
-        completed_at: Utc::now(),
+        completed_at: Some(Utc::now()),
     };
 
     assert!(result.error_message.as_ref().unwrap().contains("错误信息"));
@@ -240,7 +240,7 @@ fn test_tool_execution_result_empty_error_message() {
         status: "failed".to_string(),
         error_message: Some(String::new()),
         started_at: Utc::now(),
-        completed_at: Utc::now(),
+        completed_at: Some(Utc::now()),
     };
 
     assert_eq!(result.error_message, Some(String::new()));
@@ -252,5 +252,9 @@ fn test_request_result_consistency() {
     let result = create_test_result();
 
     assert!(result.started_at >= request.started_at || result.started_at <= request.started_at);
-    assert!(result.completed_at >= result.started_at);
+    assert!(
+        result
+            .completed_at
+            .is_some_and(|done| done >= result.started_at)
+    );
 }
