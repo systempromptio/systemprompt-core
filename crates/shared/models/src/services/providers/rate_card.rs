@@ -26,6 +26,13 @@
 //! while an explicit catalog declaration is the operator's call and is kept
 //! with a warning.
 //!
+//! Past the retirement date itself the operator no longer has a call to make.
+//! [`VertexRateCardEntry::is_retired`] is that line, and unlike
+//! [`VertexRateCardEntry::is_retiring`] it is not advisory: a declaration of a
+//! model the upstream has switched off is unserveable, and every request to it
+//! is a 404 the caller pays latency for. The notice window warns; the
+//! retirement date deselects.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -109,6 +116,14 @@ impl VertexRateCardEntry {
     pub fn is_supported(&self, today: NaiveDate) -> bool {
         let stage_ok = self.launch_stage == DocumentedLaunchStage::Ga || self.allow_preview;
         stage_ok && !self.is_retiring(today)
+    }
+
+    /// Whether the announced retirement date has passed. Unlike
+    /// [`Self::is_retiring`] this has no notice window: the model is gone
+    /// upstream and nothing can route to it.
+    #[must_use]
+    pub fn is_retired(&self, today: NaiveDate) -> bool {
+        self.retires_on.is_some_and(|retires| retires <= today)
     }
 
     #[must_use]
