@@ -167,8 +167,34 @@ impl McpToolExecutor {
             )
             .await
         {
-            Ok(Some(call_id)) => ctx.clone().with_ai_tool_call_id(call_id),
-            Ok(None) => ctx.clone(),
+            Ok(Some(call_id)) => {
+                tracing::debug!(
+                    tool = tool_name,
+                    %exec_id,
+                    session_id = %ctx.session_id(),
+                    %call_id,
+                    "Intent claimed"
+                );
+                ctx.clone().with_ai_tool_call_id(call_id)
+            },
+            // Why logged, and at info: on the 2026-09-22 customer instance 303
+            // in-process executions carried no ai_tool_call_id while 138 had a
+            // claimable intent, and no offline hypothesis explains it — the
+            // session the claim reads is written from this same RequestContext,
+            // the LIKE suffix matches, and the pool is shared. The session id
+            // and tool are what an instrumented run needs to tell a genuinely
+            // empty window from a mismatched key, and a miss is cheap to log
+            // because it is meant to be rare.
+            Ok(None) => {
+                tracing::info!(
+                    tool = tool_name,
+                    %exec_id,
+                    session_id = %ctx.session_id(),
+                    window_seconds = INTENT_CLAIM_WINDOW_SECONDS,
+                    "No unclaimed intent matched this execution"
+                );
+                ctx.clone()
+            },
             Err(e) => {
                 tracing::warn!(tool = tool_name, %exec_id, error = %e, "Intent claim failed");
                 ctx.clone()
