@@ -10,7 +10,9 @@ use systemprompt_scheduler::{
     BehavioralAnalysisJob, CleanupEmptyContextsJob, CleanupInactiveSessionsJob, DatabaseCleanupJob,
     GhostSessionCleanupJob, MaliciousIpBlacklistJob, NoJsCleanupJob,
 };
-use systemprompt_test_fixtures::{fixture_actor, fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::{
+    fixture_actor, fixture_app_context, fixture_database_url, fixture_db_pool,
+};
 use systemprompt_traits::{Job, JobContext};
 
 async fn try_pool_or_skip() -> Option<DbPool> {
@@ -25,14 +27,59 @@ fn make_ctx(pool: &DbPool) -> JobContext {
     JobContext::new(fixture_actor(), pool_any, ctx_any, paths_any)
 }
 
+// database_cleanup reads its per-table windows from `profile.retention`, so
+// unlike the other jobs here it needs a real AppContext rather than the unit
+// placeholder `make_ctx` supplies.
+async fn make_ctx_with_app(pool: &DbPool) -> JobContext {
+    let url = fixture_database_url().expect("database url");
+    let app = fixture_app_context(pool, &url).expect("app context");
+    let pool_any: Arc<dyn std::any::Any + Send + Sync> = Arc::new(Arc::clone(pool));
+    let ctx_any: Arc<dyn std::any::Any + Send + Sync> = Arc::new(app);
+    let paths_any: Arc<dyn std::any::Any + Send + Sync> = Arc::new(());
+    JobContext::new(fixture_actor(), pool_any, ctx_any, paths_any)
+}
+
 #[tokio::test]
 async fn database_cleanup_job_execute_succeeds() {
     let Some(pool) = try_pool_or_skip().await else {
         return;
     };
-    let ctx = make_ctx(&pool);
+    let ctx = make_ctx_with_app(&pool).await;
     let result = DatabaseCleanupJob.execute(&ctx).await.expect("job runs");
     assert!(result.success);
+    let message = result.message.as_deref().expect("job records what it did");
+    for table in [
+        "orphaned_logs",
+        "logs",
+        "analytics_events",
+        "ai_request_messages",
+        "mcp_tool_executions",
+        "event_outbox",
+        "ai_request_payloads",
+        "governance_decisions",
+        "ai_quota_buckets",
+    ] {
+        assert!(
+            message.contains(&format!("{table}=")),
+            "retention pass for {table} missing from {message}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn database_cleanup_job_without_an_app_context_fails() {
+    let Some(pool) = try_pool_or_skip().await else {
+        return;
+    };
+    let ctx = make_ctx(&pool);
+    let error = DatabaseCleanupJob
+        .execute(&ctx)
+        .await
+        .expect_err("retention windows come from the profile, so there is nothing to fall back to");
+    assert!(
+        error.to_string().contains("AppContext"),
+        "unexpected error: {error}"
+    );
 }
 
 #[tokio::test]

@@ -157,10 +157,10 @@ pub async fn terminate_gracefully_verified(pid: u32, service_name: &str) -> McpD
     )))
 }
 
-// A reaped-but-unwaited child stays visible to `process_exists`, so the
-// liveness test is the one the signalling path already trusts: a zombie has no
-// readable environment, so it is no longer our running child.
 async fn wait_until_gone(pid: u32, service_name: &str, budget: Duration) -> bool {
+    // Why: a killed child that its parent has not reaped stays visible to
+    // `process_exists`, so waiting on that would never return. A zombie has no
+    // readable environment, which is what this predicate reads.
     let deadline = tokio::time::Instant::now() + budget;
     loop {
         if !systemprompt_loader::subprocess::live_pid_is_subprocess(
