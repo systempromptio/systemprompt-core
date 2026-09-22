@@ -14,7 +14,6 @@ use crate::gui::events::{InstalledUpdate, ReplyId, UiEvent};
 use crate::gui::{GuiApp, emit};
 use crate::update::{self, UpdateUiState};
 use crate::wire::ipc::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload};
-use systemprompt_identifiers::SessionId;
 
 const AUTO_UPDATE_INTERVAL: Duration = Duration::from_hours(6);
 
@@ -249,7 +248,11 @@ async fn client_and_bearer(
 ) -> Result<(crate::gateway::GatewayClient, crate::ids::BearerToken), GuiError> {
     let cfg = crate::config::load()?;
     let gateway_url = crate::config::gateway_url_or_default(&cfg);
-    let bearer = crate::auth::obtain_live_token(&cfg, &SessionId::generate(), &http)
+    let bearer = crate::auth::obtain_live_token(
+        &cfg,
+        &crate::auth::session_identity::stable_session_id(&cfg),
+        &http,
+    )
         .await
         .map(|out| out.token)
         .map_err(|e| GuiError::Profile {

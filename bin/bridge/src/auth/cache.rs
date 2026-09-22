@@ -18,6 +18,14 @@ pub struct CredentialBinding {
 }
 
 impl CredentialBinding {
+    pub fn gateway(&self) -> &str {
+        &self.gateway
+    }
+
+    pub fn digest(&self) -> &str {
+        &self.digest
+    }
+
     pub fn capture(cfg: &config::Config) -> io::Result<Self> {
         let gateway = config::trust::GatewayIdentity::new(&config::gateway_url_or_default(cfg))
             .map_err(io::Error::other)?

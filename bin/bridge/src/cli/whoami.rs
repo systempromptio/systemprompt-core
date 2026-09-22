@@ -5,7 +5,6 @@
 
 use std::process::ExitCode;
 
-use systemprompt_identifiers::SessionId;
 
 use crate::context::BridgeContext;
 use crate::stdio::diag;
@@ -21,7 +20,11 @@ pub fn cmd_whoami(ctx: &BridgeContext) -> ExitCode {
             },
         };
         let gateway = config::gateway_url_or_default(&cfg);
-        let out = match auth::acquire_bearer(&cfg, &SessionId::generate(), &ctx.http).await {
+        let out = match auth::acquire_bearer(
+            &cfg,
+            &auth::session_identity::stable_session_id(&cfg),
+            &ctx.http,
+        ).await {
             Ok(out) => out,
             Err(e) => {
                 let (code, message) = e.exit_report();

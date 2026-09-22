@@ -30,7 +30,7 @@ use systemprompt_models::Secrets;
 use tokio::task::JoinHandle;
 
 pub const RECOVERY_INTERVAL: Duration = Duration::from_secs(30);
-pub const ORPHAN_AGE: Duration = Duration::from_hours(1);
+pub use systemprompt_ai::repository::ai_requests::ORPHAN_AGE;
 
 #[derive(Clone)]
 pub struct GatewayJournal {

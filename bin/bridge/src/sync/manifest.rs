@@ -255,7 +255,11 @@ async fn fetch_fresh_token(
     http: &reqwest::Client,
     cfg: &config::Config,
 ) -> Result<Secret, SyncError> {
-    let out = crate::auth::mint_fresh(cfg, &systemprompt_identifiers::SessionId::generate(), http)
+    let out = crate::auth::mint_fresh(
+        cfg,
+        &crate::auth::session_identity::stable_session_id(cfg),
+        http,
+    )
         .await
         .map_err(|e| match e {
             crate::auth::ChainError::NoneSucceeded => SyncError::NoCredential {

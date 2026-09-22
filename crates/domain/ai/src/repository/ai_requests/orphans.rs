@@ -14,6 +14,10 @@ use crate::error::RepositoryError;
 
 pub const ORPHANED_REASON: &str = "settlement never arrived; usage unknown";
 
+/// How long a `pending` row may stay open before its settlement is treated as
+/// lost. One hour is comfortably past the longest provider stream.
+pub const ORPHAN_AGE: Duration = Duration::from_hours(1);
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OrphanedRequest {
     pub id: AiRequestId,

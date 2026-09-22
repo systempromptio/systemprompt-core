@@ -9,6 +9,7 @@ pub mod loopback;
 pub mod plugin_oauth;
 pub mod providers;
 pub mod secret;
+pub mod session_identity;
 pub mod setup;
 
 use crate::auth::providers::{AuthError, AuthProvider, AuthProviderRegistration};
