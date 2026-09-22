@@ -76,7 +76,7 @@ pub fn gateway_repositories(
     ctx: &AppContext,
 ) -> anyhow::Result<crate::services::gateway::GatewayRepositories> {
     let journal = crate::services::gateway::audit::journal::GatewayJournal::open(
-        systemprompt_config::ProfileBootstrap::get_path()?,
+        ctx.app_paths().storage().data(),
         systemprompt_config::SecretsBootstrap::get()?,
     )?;
     let payload_cap_bytes = systemprompt_config::ProfileBootstrap::get()?.payload_cap_bytes();

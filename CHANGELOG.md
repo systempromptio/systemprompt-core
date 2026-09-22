@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.58.0] - Unreleased
+
+### Breaking
+
+- **Gateway Rust API:** `GatewayJournal::open` takes the writable state directory (`&Path`) instead of the profile file path; the journal is created at `<state_dir>/gateway-journal`. `StoragePaths` gains `data()` (`{paths.storage}/data`), which is what the server passes.
+
+### Fixed
+
+- **Gateway:** the accounting receipt journal lives in `{paths.storage}/data/gateway-journal`, not beside the profile. A profile directory mounted read-only (the self-host bundle's default) no longer fails boot with `Cannot create .../gateway-journal`, and receipts survive container recreation when `storage/data` is a volume.
+
 ## [0.57.0] - 2026-09-19
 
 ### Breaking
