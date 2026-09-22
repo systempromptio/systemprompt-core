@@ -184,13 +184,13 @@ async fn projection_rebuild_status_and_bounded_sync_track_durable_backlog() {
 
     for ordinal in 1..=2 {
         sqlx::query(
-            "INSERT INTO logs (id, level, module, message, user_id, session_id, trace_id) \
-             VALUES ($1, 'INFO', 'coverage.projection', 'pending projection fact', $2, $3, $4)",
+            "INSERT INTO ai_requests \
+             (id, request_id, user_id, context_id, provider, model, actor_kind, actor_id, status) \
+             VALUES ($1, $1, $2, '00000000-0000-0000-0000-00000000c0de', 'openai', 'gpt-fixture', \
+              'user', $2, 'completed')",
         )
-        .bind(format!("projection_log_{suffix}_{ordinal}"))
+        .bind(format!("projection_request_{suffix}_{ordinal}"))
         .bind(&user)
-        .bind(format!("projection_session_{suffix}_{ordinal}"))
-        .bind(format!("projection_trace_{suffix}_{ordinal}"))
         .execute(&pool)
         .await
         .expect("seed pending reporting fact");
@@ -211,10 +211,10 @@ async fn projection_rebuild_status_and_bounded_sync_track_durable_backlog() {
     let processed: i64 = sqlx::query_scalar(
         "SELECT COUNT(*) FROM event_outbox \
          WHERE consumer = 'analytics_reporting' AND processed_at IS NOT NULL \
-           AND fact #>> '{data,source}' = 'logs' \
+           AND fact #>> '{data,source}' = 'ai_requests' \
            AND fact #>> '{data,key}' LIKE $1",
     )
-    .bind(format!("projection_log_{suffix}_%"))
+    .bind(format!("projection_request_{suffix}_%"))
     .fetch_one(&pool)
     .await
     .expect("count durably acknowledged reporting facts");
@@ -228,10 +228,10 @@ async fn projection_rebuild_status_and_bounded_sync_track_durable_backlog() {
     let processed: i64 = sqlx::query_scalar(
         "SELECT COUNT(*) FROM event_outbox \
          WHERE consumer = 'analytics_reporting' AND processed_at IS NOT NULL \
-           AND fact #>> '{data,source}' = 'logs' \
+           AND fact #>> '{data,source}' = 'ai_requests' \
            AND fact #>> '{data,key}' LIKE $1",
     )
-    .bind(format!("projection_log_{suffix}_%"))
+    .bind(format!("projection_request_{suffix}_%"))
     .fetch_one(&pool)
     .await
     .expect("count all durably acknowledged reporting facts");

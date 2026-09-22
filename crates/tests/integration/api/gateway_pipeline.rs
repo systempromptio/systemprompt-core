@@ -1634,11 +1634,15 @@ async fn terminal_receipt_survives_accounting_failure_and_recovery_settles_exact
     let pool = database.pool().await?;
     let credential = seed_admin_credential(&pool, "journal-retry@example.invalid").await?;
     let write = pool.write_pool_arc()?;
+    // The fault is scoped to the status transition settlement performs:
+    // admission also updates ai_requests, through the message_count trigger on
+    // ai_request_messages, and an unscoped BEFORE UPDATE would fault there.
     sqlx::raw_sql(
         "CREATE FUNCTION reject_journal_completion() RETURNS trigger LANGUAGE plpgsql AS $$ \
          BEGIN RAISE EXCEPTION 'owned journal completion fault'; END $$; \
          CREATE TRIGGER reject_journal_completion BEFORE UPDATE ON ai_requests \
-         FOR EACH ROW EXECUTE FUNCTION reject_journal_completion()",
+         FOR EACH ROW WHEN (NEW.status IS DISTINCT FROM OLD.status) \
+         EXECUTE FUNCTION reject_journal_completion()",
     )
     .execute(write.as_ref())
     .await?;
