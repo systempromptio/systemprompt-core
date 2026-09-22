@@ -12,6 +12,5 @@ CREATE TABLE IF NOT EXISTS content_files (
     CONSTRAINT content_files_unique UNIQUE (content_id, file_id, role)
 );
 
-CREATE INDEX IF NOT EXISTS idx_content_files_content_id ON content_files(content_id);
 CREATE INDEX IF NOT EXISTS idx_content_files_file_id ON content_files(file_id);
 CREATE INDEX IF NOT EXISTS idx_content_files_role ON content_files(role);

@@ -10,7 +10,6 @@ CREATE TABLE IF NOT EXISTS funnel_progress (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX IF NOT EXISTS idx_funnel_progress_funnel_id ON funnel_progress(funnel_id);
 CREATE INDEX IF NOT EXISTS idx_funnel_progress_session_id ON funnel_progress(session_id);
 CREATE INDEX IF NOT EXISTS idx_funnel_progress_created_at ON funnel_progress(created_at);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_funnel_progress_unique ON funnel_progress(funnel_id, session_id);

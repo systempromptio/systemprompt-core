@@ -28,7 +28,6 @@ CREATE TABLE IF NOT EXISTS governance_decisions (
 CREATE INDEX IF NOT EXISTS idx_governance_decisions_act_chain ON governance_decisions USING GIN (act_chain);
 
 CREATE INDEX IF NOT EXISTS idx_governance_decisions_user ON governance_decisions(user_id);
-CREATE INDEX IF NOT EXISTS idx_governance_decisions_session ON governance_decisions(session_id);
 CREATE INDEX IF NOT EXISTS idx_governance_decisions_decision ON governance_decisions(decision);
 CREATE INDEX IF NOT EXISTS idx_governance_decisions_created ON governance_decisions(created_at);
 CREATE INDEX IF NOT EXISTS idx_governance_decisions_rate_limit ON governance_decisions(session_id, user_id, created_at DESC);

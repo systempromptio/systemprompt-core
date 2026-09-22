@@ -33,7 +33,6 @@ CREATE TABLE IF NOT EXISTS agent_tasks (
     FOREIGN KEY (context_id) REFERENCES user_contexts(context_id) ON DELETE CASCADE
 );
 
-CREATE INDEX IF NOT EXISTS idx_agent_tasks_context_id ON agent_tasks(context_id);
 CREATE INDEX IF NOT EXISTS idx_agent_tasks_status ON agent_tasks(status);
 CREATE INDEX IF NOT EXISTS idx_agent_tasks_status_timestamp ON agent_tasks(status_timestamp);
 CREATE INDEX IF NOT EXISTS idx_agent_tasks_created_at ON agent_tasks(created_at);
@@ -41,7 +40,6 @@ CREATE INDEX IF NOT EXISTS idx_agent_tasks_updated_at ON agent_tasks(updated_at)
 
 CREATE INDEX IF NOT EXISTS idx_agent_tasks_context_status ON agent_tasks(context_id, status);
 
-CREATE INDEX IF NOT EXISTS idx_agent_tasks_user_id ON agent_tasks(user_id);
 CREATE INDEX IF NOT EXISTS idx_agent_tasks_session_id ON agent_tasks(session_id);
 CREATE INDEX IF NOT EXISTS idx_agent_tasks_trace_id ON agent_tasks(trace_id);
 CREATE INDEX IF NOT EXISTS idx_agent_tasks_user_created ON agent_tasks(user_id, created_at);

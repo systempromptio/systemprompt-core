@@ -22,7 +22,6 @@ CREATE TABLE IF NOT EXISTS user_contexts (
         ON DELETE CASCADE
 );
 
-CREATE INDEX IF NOT EXISTS idx_user_contexts_user ON user_contexts(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_contexts_user_updated ON user_contexts(user_id, updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_user_contexts_session ON user_contexts(session_id);
 

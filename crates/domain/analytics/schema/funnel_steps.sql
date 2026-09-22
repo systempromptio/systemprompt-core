@@ -7,4 +7,3 @@ CREATE TABLE IF NOT EXISTS funnel_steps (
     PRIMARY KEY (funnel_id, step_order)
 );
 
-CREATE INDEX IF NOT EXISTS idx_funnel_steps_funnel_id ON funnel_steps(funnel_id);

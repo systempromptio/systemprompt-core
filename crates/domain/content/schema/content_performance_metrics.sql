@@ -19,7 +19,6 @@ CREATE TABLE IF NOT EXISTS content_performance_metrics (
     FOREIGN KEY (content_id) REFERENCES markdown_content(id) ON DELETE CASCADE
 );
 
-CREATE INDEX IF NOT EXISTS idx_content_performance_metrics_content_id ON content_performance_metrics(content_id);
 CREATE INDEX IF NOT EXISTS idx_content_performance_metrics_total_views ON content_performance_metrics(total_views DESC);
 CREATE INDEX IF NOT EXISTS idx_content_performance_metrics_views_7d ON content_performance_metrics(views_last_7_days DESC);
 CREATE INDEX IF NOT EXISTS idx_content_performance_metrics_updated ON content_performance_metrics(updated_at DESC);

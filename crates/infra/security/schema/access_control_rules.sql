@@ -36,6 +36,5 @@ CREATE TABLE IF NOT EXISTS access_control_rules (
         ON DELETE CASCADE
 );
 
-CREATE INDEX IF NOT EXISTS idx_acl_entity ON access_control_rules(entity_type, entity_id);
 CREATE INDEX IF NOT EXISTS idx_acl_rule ON access_control_rules(rule_type, rule_value);
 CREATE INDEX IF NOT EXISTS idx_access_control_rules_source ON access_control_rules(source);

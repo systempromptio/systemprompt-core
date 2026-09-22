@@ -29,7 +29,6 @@ CREATE TABLE IF NOT EXISTS campaign_links (
     FOREIGN KEY (source_content_id) REFERENCES markdown_content(id) ON DELETE SET NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_campaign_links_short_code ON campaign_links(short_code);
 CREATE INDEX IF NOT EXISTS idx_campaign_links_campaign_id ON campaign_links(campaign_id);
 CREATE INDEX IF NOT EXISTS idx_campaign_links_source_content ON campaign_links(source_content_id);
 CREATE INDEX IF NOT EXISTS idx_campaign_links_target_url ON campaign_links(target_url);
