@@ -40,6 +40,7 @@ async fn handler_with_timeouts_succeeds() {
                 .expect("mcp session repository"),
         ),
         timeouts,
+        None,
     );
     let _ = format!("{handler:?}");
 }

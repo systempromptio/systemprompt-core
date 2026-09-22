@@ -105,6 +105,30 @@ impl McpProxyIdentityRepository {
         .transpose()
     }
 
+    // Why: the backend opens the `mcp_sessions` row before it knows who is
+    // calling; the proxy is the first party that knows both the server it
+    // routed to and the verified user, so it fills the two attribution columns
+    // the console groups by. `COALESCE` keeps whatever the server stamped.
+    pub async fn attribute_session(
+        &self,
+        session_id: &SessionId,
+        server_name: &str,
+        user_id: &UserId,
+    ) -> McpDomainResult<()> {
+        sqlx::query!(
+            r#"UPDATE mcp_sessions
+               SET mcp_server_id = COALESCE(mcp_server_id, $2),
+                   user_id = COALESCE(user_id, $3)
+               WHERE session_id = $1"#,
+            session_id.as_str(),
+            server_name,
+            user_id.as_str(),
+        )
+        .execute(&*self.write_pool)
+        .await?;
+        Ok(())
+    }
+
     pub async fn delete(&self, session_id: &SessionId) -> McpDomainResult<()> {
         sqlx::query!(
             r#"DELETE FROM mcp_proxy_identities WHERE session_id = $1"#,
