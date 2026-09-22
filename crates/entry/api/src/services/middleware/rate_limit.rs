@@ -27,6 +27,7 @@ use ipnet::IpNet;
 use std::future::Future;
 use std::net::SocketAddr;
 use std::sync::Arc;
+use std::time::Duration;
 use systemprompt_extension::LoaderError;
 use systemprompt_models::auth::UserType;
 use systemprompt_models::config::RateLimitConfig;
@@ -88,6 +89,14 @@ fn too_many_requests(now: DateTime<Utc>, start: DateTime<Utc>) -> Response {
         .into_response()
 }
 
+/// Per-user budget over a ten-second window, backed by the database so it holds
+/// across processes.
+///
+/// It applies only to routers that carry `with_auth`: the identity comes from a
+/// [`RequestContext`] in the request's extensions, and a router that
+/// authenticates inside its handlers never puts one there. On those routers
+/// every request is anonymous to this layer and passes straight through, so the
+/// per-address governor is the only limit in force.
 async fn global_user_rate_limit(
     State(limit): State<GlobalUserLimit>,
     req: Request,
@@ -128,14 +137,58 @@ async fn global_user_rate_limit(
     }
 }
 
+/// How often to repeat the untrusted-proxy warning, per process.
+const UNTRUSTED_PROXY_WARN_INTERVAL_SECS: u64 = 300;
+
+/// Buckets a request by authenticated identity where one is available, and by
+/// resolved client address otherwise.
+///
+/// The identity branch only fires on routers that carry `with_auth`, because
+/// that is what puts a [`RequestContext`] in the request's extensions. A router
+/// rate-limited without it — the gateway is one, since it authenticates inside
+/// each handler instead — buckets every caller by address. That is sound, but
+/// it means a whole office behind one NAT shares a budget, so those routers
+/// need a budget sized for a network rather than for a person.
 #[derive(Clone, Debug)]
 pub struct IdentityOrTrustedIpKey {
     trusted_proxies: Arc<Vec<IpNet>>,
+    untrusted_proxy_warn: Arc<systemprompt_logging::LogThrottle>,
 }
 
 impl IdentityOrTrustedIpKey {
-    const fn new(trusted_proxies: Arc<Vec<IpNet>>) -> Self {
-        Self { trusted_proxies }
+    fn new(trusted_proxies: Arc<Vec<IpNet>>) -> Self {
+        Self {
+            trusted_proxies,
+            untrusted_proxy_warn: Arc::new(systemprompt_logging::LogThrottle::new(
+                UNTRUSTED_PROXY_WARN_INTERVAL_SECS,
+            )),
+        }
+    }
+
+    /// Warns when a proxy is in the path but is not trusted, because every
+    /// client behind it then collapses onto a single bucket.
+    ///
+    /// This is the failure that hides itself: the limiter behaves exactly as
+    /// configured, the instance simply runs out of budget for everyone at once
+    /// and refuses requests that look like credential failures to the caller.
+    fn warn_if_proxy_untrusted<T>(&self, req: &Request<T>) {
+        let Some(peer) = req.extensions().get::<ConnectInfo<SocketAddr>>() else {
+            return;
+        };
+        if super::client_addr::forwarded_headers_ignored(
+            req.headers(),
+            peer.0.ip(),
+            &self.trusted_proxies,
+        ) && self.untrusted_proxy_warn.allow()
+        {
+            tracing::warn!(
+                peer_ip = %peer.0.ip(),
+                "rate limiting by proxy address: this request carried forwarded client-IP \
+                 headers but the peer is absent from server.trusted_proxies, so every client \
+                 behind that proxy shares one rate-limit bucket and will exhaust it together; \
+                 add the peer's range to server.trusted_proxies"
+            );
+        }
     }
 }
 
@@ -148,6 +201,8 @@ impl tower_governor::key_extractor::KeyExtractor for IdentityOrTrustedIpKey {
         {
             return Ok(format!("u:{}", ctx.user_id()));
         }
+
+        self.warn_if_proxy_untrusted(req);
 
         resolve_client_ip(
             req.headers(),
@@ -217,8 +272,14 @@ where
         let burst_u32 = u32::try_from(burst).unwrap_or(u32::MAX).max(1);
         let per_second_clamped = per_second.max(1);
 
+        // `GovernorConfigBuilder::per_second(n)` replenishes one element every
+        // n seconds, the inverse of a rate; `period` takes 1/per_second directly.
+        let replenish = Duration::from_secs(1)
+            .checked_div(u32::try_from(per_second_clamped).unwrap_or(u32::MAX))
+            .filter(|d| !d.is_zero())
+            .unwrap_or(Duration::from_nanos(1));
         let rate_limit = tower_governor::governor::GovernorConfigBuilder::default()
-            .per_second(per_second_clamped)
+            .period(replenish)
             .burst_size(burst_u32)
             .key_extractor(IdentityOrTrustedIpKey::new(Arc::clone(
                 &limits.trusted_proxies,

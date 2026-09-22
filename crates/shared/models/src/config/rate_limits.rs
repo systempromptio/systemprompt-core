@@ -19,6 +19,7 @@ pub struct RateLimitConfig {
     pub stream_per_second: u64,
     pub content_per_second: u64,
     pub gateway_per_second: u64,
+    pub bridge_auth_per_second: u64,
     pub burst_multiplier: u64,
     pub disabled: bool,
 }
@@ -38,6 +39,7 @@ impl Default for RateLimitConfig {
             stream_per_second: 100,
             content_per_second: 50,
             gateway_per_second: 100,
+            bridge_auth_per_second: 20,
             burst_multiplier: 3,
             disabled: false,
         }
@@ -63,6 +65,7 @@ impl RateLimitConfig {
             stream_per_second: 10000,
             content_per_second: 10000,
             gateway_per_second: 10000,
+            bridge_auth_per_second: 10000,
             burst_multiplier: 100,
             disabled: false,
         }
@@ -90,6 +93,7 @@ impl From<&RateLimitsConfig> for RateLimitConfig {
             stream_per_second: config.stream_per_second,
             content_per_second: config.content_per_second,
             gateway_per_second: config.gateway_per_second,
+            bridge_auth_per_second: config.bridge_auth_per_second,
             burst_multiplier: config.burst_multiplier,
             disabled: config.disabled,
         }

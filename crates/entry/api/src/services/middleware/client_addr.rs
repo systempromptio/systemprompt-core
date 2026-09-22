@@ -77,26 +77,26 @@ pub fn resolve_client_ip(
     Some(peer_ip)
 }
 
+/// Whether this request arrived through a proxy the server does not trust, so
+/// its forwarded client-IP headers were discarded and the peer's own address
+/// used instead.
+///
+/// This is almost always a misconfiguration: something is adding
+/// `X-Forwarded-For`, which means a proxy is in the path, but its address is
+/// absent from `server.trusted_proxies`. The consequence is that every client
+/// behind that proxy resolves to one address and therefore shares one
+/// rate-limit bucket, one ban entry and one set of abuse heuristics.
+///
+/// Until 2026-09-22 this was additionally gated on the peer being in a private
+/// range, on the assumption that a misconfigured proxy is always a local one.
+/// A reverse proxy on a host network has a public address, so the one
+/// deployment that most needed the warning was the one that never got it: a
+/// production instance refused every bridge sign-in for weeks with a saturated
+/// shared rate-limit bucket and logged nothing. Whether the peer is public or
+/// private has no bearing on whether the operator wants to know.
 #[must_use]
 pub fn forwarded_headers_ignored(headers: &HeaderMap, peer_ip: IpAddr, trusted: &[IpNet]) -> bool {
-    !is_trusted(peer_ip, trusted)
-        && is_private_range(peer_ip)
-        && headers.contains_key("x-forwarded-for")
-}
-
-const fn is_private_range(ip: IpAddr) -> bool {
-    match ip {
-        IpAddr::V4(v4) => {
-            let is_cgnat = v4.octets()[0] == 100 && (v4.octets()[1] & 0xc0) == 64;
-            v4.is_loopback() || v4.is_private() || v4.is_link_local() || is_cgnat
-        },
-        IpAddr::V6(v6) => {
-            let seg0 = v6.segments()[0];
-            let is_unique_local = (seg0 & 0xfe00) == 0xfc00;
-            let is_link_local = (seg0 & 0xffc0) == 0xfe80;
-            v6.is_loopback() || is_unique_local || is_link_local
-        },
-    }
+    !is_trusted(peer_ip, trusted) && headers.contains_key("x-forwarded-for")
 }
 
 #[must_use]

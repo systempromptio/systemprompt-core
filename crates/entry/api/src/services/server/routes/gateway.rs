@@ -17,21 +17,15 @@ pub(super) fn mount_gateway(
     mount: &MountCtx<'_>,
 ) -> Result<Router, LoaderError> {
     let ctx = mount.ctx;
-    let gateway = crate::routes::gateway::gateway_router(ctx).map_err(|error| {
-        LoaderError::InitializationFailed {
-            extension: "gateway".to_owned(),
-            message: error.to_string(),
-        }
-    })?;
+    let gateway =
+        crate::routes::gateway::gateway_mount_router(ctx, mount.limits).map_err(|error| {
+            LoaderError::InitializationFailed {
+                extension: "gateway".to_owned(),
+                message: error.to_string(),
+            }
+        })?;
     if let Some(gateway) = gateway {
-        router = router.nest(
-            ApiPaths::GATEWAY_BASE,
-            gateway.with_rate_limit(
-                mount.limits,
-                ctx.config().rate_limits.gateway_per_second,
-                "gateway",
-            )?,
-        );
+        router = router.nest(ApiPaths::GATEWAY_BASE, gateway);
         router = router.nest(
             ApiPaths::GATEWAY_PUBLIC_BASE,
             crate::routes::gateway::sessions::public_router(ctx)

@@ -47,6 +47,14 @@ pub struct RateLimitsConfig {
     #[serde(default = "default_gateway")]
     pub gateway_per_second: u64,
 
+    /// Budget for `/v1/auth/bridge/*`, kept separate from `gateway_per_second`.
+    ///
+    /// Why: sign-in is low-volume and must stay reachable on an instance whose
+    /// inference traffic is saturating its own budget. Sharing one bucket let a
+    /// busy gateway lock every user out of authenticating.
+    #[serde(default = "default_bridge_auth")]
+    pub bridge_auth_per_second: u64,
+
     #[serde(default = "default_burst")]
     pub burst_multiplier: u64,
 }
@@ -87,6 +95,9 @@ pub const fn default_content() -> u64 {
 pub const fn default_gateway() -> u64 {
     100
 }
+pub const fn default_bridge_auth() -> u64 {
+    20
+}
 pub const fn default_burst() -> u64 {
     3
 }
@@ -107,6 +118,7 @@ impl Default for RateLimitsConfig {
             stream_per_second: default_stream(),
             content_per_second: default_content(),
             gateway_per_second: default_gateway(),
+            bridge_auth_per_second: default_bridge_auth(),
             burst_multiplier: default_burst(),
         }
     }

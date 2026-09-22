@@ -186,6 +186,7 @@ pub fn get_preset_config(name: &str) -> Result<RateLimitsConfig> {
             stream_per_second: 50,
             content_per_second: 200,
             gateway_per_second: 200,
+            bridge_auth_per_second: 50,
             burst_multiplier: 5,
         }),
         "production" => Ok(RateLimitsConfig::default()),
@@ -203,6 +204,7 @@ pub fn get_preset_config(name: &str) -> Result<RateLimitsConfig> {
             stream_per_second: 5,
             content_per_second: 20,
             gateway_per_second: 20,
+            bridge_auth_per_second: 20,
             burst_multiplier: 2,
         }),
         _ => bail!(

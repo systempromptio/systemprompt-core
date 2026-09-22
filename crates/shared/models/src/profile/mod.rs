@@ -22,6 +22,7 @@ mod observability;
 mod oci_reference;
 mod paths;
 mod rate_limits;
+mod retention;
 mod runtime;
 mod secrets;
 mod security;
@@ -46,10 +47,12 @@ pub use observability::{ObservabilityConfig, OtlpExportConfig, OtlpProtocol, Otl
 pub use oci_reference::{OciReference, OciReferenceError};
 pub use paths::{PathsConfig, expand_home, resolve_path, resolve_with_home};
 pub use rate_limits::{
-    RateLimitsConfig, default_agent_registry, default_agents, default_artifacts, default_burst,
-    default_content, default_contexts, default_gateway, default_mcp, default_mcp_registry,
-    default_oauth_auth, default_oauth_public, default_stream, default_tasks,
+    RateLimitsConfig, default_agent_registry, default_agents, default_artifacts,
+    default_bridge_auth, default_burst, default_content, default_contexts, default_gateway,
+    default_mcp, default_mcp_registry, default_oauth_auth, default_oauth_public, default_stream,
+    default_tasks,
 };
+pub use retention::RetentionConfig;
 pub use runtime::{Environment, LogLevel, OutputFormat, RuntimeConfig};
 pub use secrets::{SecretsConfig, SecretsSource, SecretsValidationMode};
 pub use security::{
@@ -150,6 +153,9 @@ pub struct Profile {
 
     #[serde(default)]
     pub evaluation: EvaluationProfile,
+
+    #[serde(default)]
+    pub retention: RetentionConfig,
 
     #[serde(default)]
     pub services: ServicesProfileConfig,
