@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.59.0] - 2026-09-22
+
+### Changed
+
+- A Vertex model whose retirement date has passed is removed from the provider, together with any alias declared in its place, rather than kept with a warning, so routing cannot reach a retired upstream at all. Past the retirement date the upstream has switched the model off, so an explicit declaration is not a preference the operator is entitled to keep — it is a route to a guaranteed 404 the caller pays latency for. The removal logs at `error`, because the operator has a catalog entry to delete; inside the notice window (`is_retiring`) nothing changes. 15 requests on one customer instance failed this way.
+
 ## [0.55.0] - 2026-09-17
 
 ### Breaking

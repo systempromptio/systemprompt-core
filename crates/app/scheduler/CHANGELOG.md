@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.59.0] - 2026-09-22
+
+### Added
+
+- `scheduled_jobs.last_message` (migration `002_scheduled_jobs_last_message`) records what a run achieved — which tables `database_cleanup` pruned and by how much — and is what the console reads.
+- `database_cleanup` enforces every window of the profile's `retention:` block in 5 000-row batches under a per-run time budget, so no statement takes a long lock and each capture trigger writes one outbox row per batch. It also closes orphaned pending gateway requests under `enforce`, and reports what it would do otherwise; `fail_orphaned_pending` was reachable only from `journal::recover()` at boot, so a long-lived server never closed a row whose settlement was lost.
+
+### Fixed
+
+- `register_jobs` is per-job. It propagated `?` from `create_job_from_trait` and `scheduler.add`, so one failing entry aborted the loop and every later job was silently dropped. A failure is now collected as a `SkippedJob` and written to `logs` through the logging repository, the remaining jobs register normally, and `SchedulerStartup.scheduled` reports the jobs actually on the cron loop instead of `self.config.jobs.len()`, which was a count of configuration. A job the configuration names and this build does not contain is reported as degraded — the one skip that means the deployment is stale, and one whose warning never reached anyone, because the database log layer drops any event whose span carries no user, session and trace and boot-time registration runs outside such a span.
+- `ghost_session_cleanup` flagged any session with no page views as a behavioural bot, and a bridge, API or MCP session has no page views by construction. The predicate is scoped to `session_source = 'web'`; migration `users/019` is the matching backfill.
+
 ## [0.56.0] - 2026-09-18
 
 ### Fixed

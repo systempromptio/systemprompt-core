@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.59.0] - 2026-09-22
+
+### Added
+
+- Migration cost budgets: a migration declaring `-- @cost: rows=<n> measured=<duration> triggers=<suspended|live>` runs under a `statement_timeout` derived from what its author measured (ten times it, with a floor), and one declaring nothing runs under 5 minutes; every migration also runs under a 10 s `lock_timeout`. Each statement's elapsed time is logged past 5 s, with the migration's total on completion, and `SYSTEMPROMPT_MIGRATION_STATEMENT_TIMEOUT_SECS=0` disables the bound for an attended one-off. Migrations are awaited before the HTTP listener binds, so an unbounded one is not a slow boot but an instance that never opens its port — a production instance spent 27 minutes there on a 3,644-row UPDATE.
+- `audit_migration_cost` (pg_query AST, beside `check_migration_references`) warns at boot for a migration that rewrites a hot table without declaring a cost, and is a hard failure in the integration suite against a static baseline.
+- Undeclared cross-extension writes are refused: a migration that `ALTER`s a table its extension neither creates in `schemas()` nor declares in `Extension::cross_extension_tables()` fails with `CrossExtensionAlterUndeclared`, a declaration naming a table no other loaded extension creates fails with `CrossExtensionTableNotOwned`, and a table two extensions both create fails with `DuplicateTableOwner`.
+- `audit_schema_residue` / `SchemaResidue`: live tables no loaded extension declares, and migration ledgers of extensions that no longer exist. Boot warns; `infra db doctor` exits non-zero.
+- Retirement migrations are executed as well as stamped on a fresh install — every statement of one is a `DROP … IF EXISTS` or a `DELETE FROM extension_migrations`, so a truly fresh database runs it as a no-op while a database meeting the extension for the first time actually drops what a deleted extension left behind. `is_retirement` is exported.
+
+### Removed
+
+- The two redundant indexes on `extension_migrations` (migration `001_prune_prefix_duplicate_indexes`): `(extension_id)` inside `(extension_id, version)` inside the `UNIQUE` constraint on the same columns. Every extension install writes this table, so both extras were write cost with no read they served alone.
+
 ## [0.58.0] - 2026-09-21
 
 ### Added

@@ -1,6 +1,32 @@
 # Changelog
 
-## [Unreleased]
+## [0.59.0] - 2026-09-22
+
+### Breaking
+
+- **Breaking:** `ToolExecutionResult.completed_at` is `Option`. A hook-only row — an in-process call no server observed — stores `execution_time_ms` NULL rather than the ~0 ms its own timestamps implied, so averages and percentiles ignore it by construction.
+
+### Added
+
+- `tool_call_ledger.is_builtin` (`server_name = source`): a host-native tool such as `Bash` or `AskUserQuestion` is recorded under the vantage point's own name and is not an MCP server, so consumers stop re-deriving that predicate.
+- `INTENT_CLAIM_WINDOW_SECONDS` is exported, so the in-process and proxy correlators share one window instead of each duplicating 120.
+
+### Changed
+
+- The server stamps its own id on its transport sessions (`McpHttpConfig.server_id`) and the gateway proxy stamps the verified user and the routed service as it caches the session's identity. `mcp_sessions` rows were created with `mcp_server_id` and `user_id` both NULL, so nothing downstream could say which server a session belonged to or who was on it. Existing rows are left alone; `COALESCE` keeps whichever side wrote first.
+- An in-process execution that finds no intent to claim records the session id, the tool and the window at `info`, and a successful claim logs at `debug`. The `Ok(None)` arm was silent, so a missed claim and a genuinely empty window were indistinguishable — 303 in-process executions on one instance carried no `ai_tool_call_id`, 138 of them with a claimable intent. No behaviour changes; this is instrumentation until a run says what is happening.
+
+### Fixed
+
+- A tool call is recorded once. The proxy recorded a call as it ran and the client's `PostToolUse` hook wrote a second row for the same call, and the fingerprint step meant to join them never matched — the hook's `session_id` is the Claude Code uuid while the proxy's is the JWT `sess_…`, and the payload digests differ — so 0 of 34 proxy rows carried an `ai_tool_call_id` and every consumer of `mcp_tool_executions`, `tool_call_ledger` and the reporting projection double-counted. A client-reported result now pairs with the newest unattested server-observed execution of the same tool by the same user inside 30 s (`PROXIMITY_WINDOW_SECONDS`) before the fingerprint step runs; on a hit the hook's artifact attaches to that execution, its `tool_use_id` is stamped `inferred`, and no second row is written. The fingerprint step stays for OpenCode and other hosts, and migration `014` folds the duplicated history, re-pointing gateway intents and any artifact the server row lacked.
+- An external-server execution claims the tool-call intent that asked for it. `with_claimed_intent` was reachable only from `McpToolExecutor::execute`, so a proxied call wrote `ai_tool_call_id: None` — 247 proxy executions, none paired, on a dump where eight of nine configured servers are `type: external`. The claim runs at finalize, makes the pairing `inferred` and never `exact`, and a claim failure leaves the execution unpaired rather than failing a call that has already returned.
+- `mcp_proxy_identities.auth_token` held the caller's bearer JWT in clear — 18 live tokens readable from a backup. It cannot be hashed, because the proxy replays it upstream, so it is sealed with the at-rest cipher and a row that will not open is dropped rather than trusted. Migration `016` deletes the existing rows: this migration has no key, they must not stay readable, and the table is a 24-hour cache the next authenticated `initialize` rebuilds.
+
+### Removed
+
+- The plane's prefix-duplicate indexes, each a strict column prefix of a non-partial covering index; the `CREATE INDEX` lines go from the base schema in the same change.
+
+## [0.58.0] - 2026-09-21
 
 ### Fixed
 

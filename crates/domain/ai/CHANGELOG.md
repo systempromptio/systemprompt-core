@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.59.0] - 2026-09-22
+
+### Breaking
+
+- **Breaking:** `SettlementOutcome::Failed` carries a `SettledFailure` — the usage the stream tap observed, priced the way a completion is — instead of only an error string. The failed-path UPDATE writes the token columns, cost and latencies only when usage was actually seen. 34 production requests that ended "stream ended without stop event" were recorded at zero, and every cost view, quota bucket and rollup counted them as free.
+
+### Added
+
+- `ai_tool_catalogs(sha256, tools)`: `ai_request_payloads.offered_tools` / `prepared_tools` become `offered_tools_sha256` / `prepared_tools_sha256` digests into it (migration `033`), keyed by the sha256 of the canonical JSONB text so the backfill and the runtime writer agree. One instance held 4,392 copies of 152 distinct lists, 433 MB. A probe (`max_tokens <= 1`) keeps its digest and excerpt but not its body.
+- `ai_requests.message_count`, maintained by a statement trigger over `ai_request_messages`, so gateway session message counts survive the removal of that table's reporting projection.
+
+### Fixed
+
+- Migration `033` survives a re-run after a partial apply. Its backfill names `offered_tools` and `prepared_tools`, which the migration's own last statement drops, and Postgres resolves column names at plan time, before any `WHERE` guard can skip the statement — so a database that reached the end state without recording the tracking row failed the whole migration on `column offered_tools does not exist`. The three backfill statements now run through `EXECUTE` inside a guard that returns early when the columns are gone.
+- Migration `035` recovers `user_sessions.ai_request_count`, `total_tokens_used` and `total_ai_cost_microdollars` from `ai_requests`, the ledger those counters summarise; the gateway never incremented them, so all 105 sessions with AI requests on one production dump sat at their defaults.
+- Migration `034` re-derives `client_kind` / `wire_protocol` for every `ai_request_client_evidence` row whose body was retained, and widens the `native_marker` CHECK for the re-cut Claude markers.
+- The committed sqlx offline cache was missing the query the failure-settlement path issues. The failed-path UPDATE was changed to write the token and cost columns without the cache being regenerated, so the old entry was orphaned and the new query had none, and the crate did not build offline from the registry.
+
+### Removed
+
+- Four prefix-duplicate indexes on `ai_requests` and the rest of the ai plane's prefix duplicates, each a strict column prefix of a non-partial covering index; the `CREATE INDEX` lines go from the base schema in the same change.
+
 ## [0.58.0] - 2026-09-21
 
 ### Changed

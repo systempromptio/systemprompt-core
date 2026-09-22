@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.59.0] - 2026-09-22
+
+### Removed
+
+- Eight prefix-duplicate indexes across `agent_tasks`, `artifact_parts`, `context_agents`, `message_parts`, `task_artifacts`, `task_messages` and `user_contexts` (migration `013_prune_prefix_duplicate_indexes`), each a strict column prefix of a non-partial covering index on the same table. The `CREATE INDEX` lines go from the base schema in the same change, because the declarative phase runs after migrations and would otherwise recreate them before the server finished starting.
+
+### Changed
+
+- `reporting_capture` runs once per statement over transition tables rather than once per row, and agent top errors are grouped on `analytics_report_agent_tasks.error_message` now that the `logs` projection is gone.
+
 ## [0.56.0] - 2026-09-18
 
 ### Changed

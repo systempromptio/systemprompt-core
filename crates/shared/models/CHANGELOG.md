@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.59.0] - 2026-09-22
+
+### Breaking
+
+- **Profile:** the `evaluation:` block is `judge:` (`JudgeProfile { automatic }`) — what it has configured since the evaluation engine was removed. `Profile.evaluation` is `Profile.judge` and `PluginHooksRef.evaluation` is `PluginHooksRef.judge`; Rust field accesses must be renamed. Both structs deny unknown fields, so both keep `alias = "evaluation"` and a deployed `profile.yaml` or a plugin kit still on the old key continues to load. The aliases go once every pinned kit has been republished.
+- **Rate limiting:** `config::RateLimitConfig` is deleted and `Config.rate_limits` holds `profile::RateLimitsConfig`, as its `retention`, `content_negotiation` and `security_headers` neighbours already held their profile types; `production()`, `testing()` and `disabled()` move onto `RateLimitsConfig`. No value changes — the twin's literals and the wire type's `const fn` defaults agreed pairwise.
+- **Wire origin:** `NativeMarker` is re-cut around what Claude Code sends: `ClaudeDesktopEntrypoint`, `ClaudeCliEntrypoint`, `ClaudeMetadataUserId`, `ClaudeMetadataJson`, `CodexTurnMetadata`. `OpencodeSessionJson` is gone; it never matched OpenCode traffic. `ClientKind::same_runtime` is new.
+
+### Added
+
+- **Profile:** a `retention:` block carries every deletion window in one place — `logs` 30 d, `analytics_events` 90 d, stored AI request messages following `ai.history.retention_days`, `mcp_tool_executions` 365 d, processed outbox rows 7 d, raw payload bodies 7 d, `governance_decisions` 180 d. Retention was previously an operator's memory.
+- **Rate limiting:** `RateLimitsConfig::per_second_budgets` is the list both validators iterate, so a new budget is validated by existing code. The two validators had drifted — the profile-side one checked `gateway_per_second` but neither registry budget, the runtime-side one checked both registries but not the gateway, and neither checked `bridge_auth_per_second` — so a zero in the wrong field passed whichever validator did not name it. `bridge_auth_per_second` (default 20) is new.
+
+### Changed
+
+- **Rate limiting:** every `rate_limits.*_per_second` field documents the route group it governs. All thirteen stay: each is wired to a distinct mount site, so collapsing them would remove real operator control, and nobody could previously tell what `contexts_per_second` covered without reading the router.
+- **MCP:** `ToolExecutionResult.completed_at` is `Option`. A hook-only row — an in-process call no server observed — stores no completion time rather than the ~0 ms its own timestamps implied, so averages and percentiles ignore it by construction.
+
+### Fixed
+
+- **Feedback:** a receipt whose file is not meant to be executable verifies on a host with no POSIX mode bits. The bridge reported every file's mode check as unavailable on Windows, so no receipt from such a host was ever fully verified: the installation counted for nothing in adoption and every invocation on it was attributed as `revision_unknown`. The content digest is the whole check for a plain file.
+
 ## [0.58.0] - 2026-09-21
 
 ### Breaking

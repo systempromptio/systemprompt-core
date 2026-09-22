@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.59.0] - 2026-09-22
+
+### Breaking
+
+- **Breaking:** `UserSessionRow` is removed. `UserSession` derives `FromRow` and the three session queries select into it directly; the two types had the same eight fields and a `From` that copied each across. Callers name `UserSession`.
+
+### Added
+
+- `SessionStore::increment_ai_usage` is reached from the gateway through the new `AppContext::session_store()`, so `ai_request_count`, `total_tokens_used` and `total_ai_cost_microdollars` are maintained instead of sitting at their defaults on every session that ran inference.
+
+### Fixed
+
+- Migration `019` unflags the sessions `ghost_session_cleanup` marked as behavioural bots for having no page views — a bridge, API or MCP session has none by construction. On one restore it clears 1,199 rows (1,068 bridge, 129 oauth, 2 api) and leaves the 32 genuinely web ghost sessions flagged.
+
+### Removed
+
+- The plane's prefix-duplicate indexes, including `idx_users_email`, each a strict column prefix of a non-partial covering index; the `CREATE INDEX` lines go from the base schema in the same change.
+
 ## [0.55.0] - 2026-09-17
 
 ### Breaking

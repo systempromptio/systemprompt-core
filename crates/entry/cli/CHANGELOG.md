@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.59.0] - 2026-09-22
+
+### Added
+
+- `infra db doctor` audits schema residue — live tables no loaded extension declares, and migration ledgers of extensions that no longer exist — and exits non-zero when it finds any. Residue is the schema a deleted crate left behind and the signal that a drop migration is due; boot runs the same audit as a warning.
+
+### Changed
+
+- The tool leaderboards, overview and activity series exclude host-native pseudo-servers (`tool_call_ledger.is_builtin`) wherever "tools" or "servers" is meant; a `Bash` or `AskUserQuestion` call is recorded under the vantage point's own name and is not an MCP server.
+- `infra db indexes --table users` output no longer names `idx_users_email`, which the prefix-duplicate prune removed.
+
 ## [0.57.0] - 2026-09-19
 
 ### Changed

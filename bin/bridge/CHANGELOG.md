@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.59.0] - 2026-09-22
+
+### Fixed
+
+- **Bridge:** a session id is derived from the credential and the UTC date instead of generated per call. Every call site minted a fresh `SessionId::generate()` before `adopt_or_mint_session`, and the server adopts an unknown id rather than rejecting it, so the hourly token refresh created another `user_sessions` row each time — exactly 24 per user per day on one customer instance, 1,070 bridge sessions for 20 users. The id now comes from the `CredentialBinding` this install already computes for its token cache, so a refresh renews the session it owns and the id rotates only when the credential, gateway or day changes. Sign-in has no credential to bind to yet and still falls back to a generated id.
+- **Bridge:** a plain file whose POSIX mode cannot be read is reported as verified on non-unix hosts. Windows has no mode bits, so the bridge reported every file's mode check as unavailable and no receipt from such a host was ever fully verified: the installation counted for nothing in adoption and every invocation on it was attributed as `revision_unknown`. A file that is not meant to be executable has no mode to satisfy — the content digest is the whole check — and the stored evidence is re-judged by the same rule.
+
 ## [0.58.0] - 2026-09-21
 
 ### Fixed

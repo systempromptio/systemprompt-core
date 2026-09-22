@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.59.0] - 2026-09-22
+
+### Breaking
+
+- **Gateway:** `GatewayJournal::open` takes the writable state directory (`&Path`) rather than the profile file path, and the journal is created at `<state_dir>/gateway-journal`. `GatewayAudit::fail_with_usage` is the new entry point for a failure that observed usage; `fail` keeps its signature.
+- **Rate limiting:** `Config.rate_limits` is `profile::RateLimitsConfig`; `config::RateLimitConfig` is deleted and `production()`, `testing()` and `disabled()` move onto the profile type. `gateway_router` keeps its signature and returns the whole surface unlimited; `gateway_mount_router` is what the server mounts.
+
+### Added
+
+- **Rate limiting:** `rate_limits.bridge_auth_per_second` (default 20, env `RATE_LIMIT_BRIDGE_AUTH_PER_SECOND`) gives `/v1/auth/bridge/*` a budget separate from `gateway_per_second`. Inference is high-volume and elastic; sign-in is a handful of requests that must succeed, and one saturated bucket locked every user out of authenticating.
+
+### Fixed
+
+- **Rate limiting:** every `*_per_second` limit was wrong by a factor of its own magnitude. `GovernorConfigBuilder::per_second(n)` sets a period of *n seconds per token*, the inverse of a rate, so `gateway_per_second: 100` refilled one token every 100 seconds. Limits are built with `period(1s / per_second)`.
+- **Rate limiting:** the access log sat inside the limiter, so a refused request produced no record at all; it now wraps both limiters. `forwarded_headers_ignored` is no longer gated on the peer being in a private range — a reverse proxy on a host network has a public address — and the key extractor warns (throttled) when it buckets by an untrusted proxy address, naming the peer to add to `server.trusted_proxies`.
+- **Gateway:** settlement increments the session counters that paid for the request, after the settlement transaction commits and fire-and-forget; system traffic is skipped.
+- **Gateway:** the accounting journal lives under `{paths.storage}/data`, so a read-only profile mount no longer fails boot and receipts survive container recreation.
+- **Gateway:** a successful response on a timer-driven bridge route (`/v1/bridge/profile`, `/profile/usage`, `/heartbeat`, `/latest`, `/manifest`) is emitted at debug rather than written to `logs`; failures still persist. A 5xx from `/v1/bridge/latest` is logged at `error`.
+- **Authz:** `extract/authz.rs` passes the resolved `context_id` into `enforce_authz_pre_dispatch` instead of `None`, so a pre-dispatch decision is recorded against the context it authorized rather than one re-derived from the bridge session.
+- **MCP proxy:** a proxied external-server execution claims the tool-call intent that asked for it and stamps the verified user and routed service on the cached session identity.
+
 ## [0.58.0] - 2026-09-21
 
 ### Fixed

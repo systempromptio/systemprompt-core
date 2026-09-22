@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.59.0] - 2026-09-22
+
+### Added
+
+- `StoragePaths::data()` (`{paths.storage}/data`) is the writable runtime-state directory the server passes to the gateway accounting journal, which previously derived its root from the profile file path and failed boot on a read-only profile mount.
+
+### Changed
+
+- `Config.rate_limits` is `profile::RateLimitsConfig`; the conversion in `config_loader` is an assignment rather than a hand-written `From` between two field-for-field twins whose defaults nothing kept in step.
+
 ## [0.58.0] - 2026-09-21
 
 ### Changed
