@@ -11,39 +11,57 @@ pub struct RateLimitsConfig {
     #[serde(default)]
     pub disabled: bool,
 
+    /// `/api/v1/core/oauth` public endpoints, `/auth/link-passkey`, and the
+    /// public gateway session routes under `/api/public/gateway`.
     #[serde(default = "default_oauth_public")]
     pub oauth_public_per_second: u64,
 
+    /// The authenticated half of `/api/v1/core/oauth`, plus `/api/v1/core/users`.
     #[serde(default = "default_oauth_auth")]
     pub oauth_auth_per_second: u64,
 
+    /// `/api/v1/core/contexts` and the inbound `/api/v1/webhook` mount.
     #[serde(default = "default_contexts")]
     pub contexts_per_second: u64,
 
+    /// `/api/v1/core/tasks`.
     #[serde(default = "default_tasks")]
     pub tasks_per_second: u64,
 
+    /// `/api/v1/core/artifacts`.
     #[serde(default = "default_artifacts")]
     pub artifacts_per_second: u64,
 
+    /// `/api/v1/agents/registry` — discovery only, kept apart from
+    /// `agents_per_second` so listing agents cannot spend an execution budget.
     #[serde(default = "default_agent_registry")]
     pub agent_registry_per_second: u64,
 
+    /// `/api/v1/agents` execution, and the Slack and Teams inbound mounts that
+    /// dispatch to an agent.
     #[serde(default = "default_agents")]
     pub agents_per_second: u64,
 
+    /// `/api/v1/mcp/registry` — the MCP server catalog, discovery only.
     #[serde(default = "default_mcp_registry")]
     pub mcp_registry_per_second: u64,
 
+    /// `/api/v1/mcp` — MCP tool calls, the busiest protocol route group.
     #[serde(default = "default_mcp")]
     pub mcp_per_second: u64,
 
+    /// `/api/v1/stream` — long-lived SSE connections, so this is a connection
+    /// budget rather than a request one and is set high.
     #[serde(default = "default_stream")]
     pub stream_per_second: u64,
 
+    /// `/api/v1/content`, `/api/v1/sync`, `/api/v1/marketplace`,
+    /// `/api/v1/analytics` and `/track/engagement`.
     #[serde(default = "default_content")]
     pub content_per_second: u64,
 
+    /// Inference traffic under `/v1` — `/v1/messages` and the OpenAI-shaped
+    /// `/v1/chat/completions`.
     #[serde(default = "default_gateway")]
     pub gateway_per_second: u64,
 

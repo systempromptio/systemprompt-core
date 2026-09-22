@@ -177,6 +177,10 @@ check-version-strings:
 check-lockfile-registry:
     ./scripts/check-lockfile-registry.sh
 
+# Reject `From` impls that only restate the same fields, which say two types are one
+lint-field-copy-from:
+    python3 ./scripts/lint-field-copy-from.py
+
 # Every source gate, in one list. quality.yml's `source-gates` job runs each
 # recipe listed here as its own step (so one red gate cannot hide the rest)
 # and asserts that its step list equals this line — a gate added here without
@@ -184,7 +188,7 @@ check-lockfile-registry:
 # too. `check-release-tag`, `check-crate-changelogs`, `machete` and
 # `bridge-bindings-check` are release-shaped (full history, cargo-machete, a
 # bridge build) and stay CI-only by design.
-check-gates: check-version-strings check-lockfile-registry lint-env-vars lint-native-test-deps sqlx-audit-caches lint-discarded-results lint-fail-open lint-swallowed-errors lint-tracing-messages lint-async-trait lint-json-value lint-table-ownership lint-silent-skips lint-schema lint-extensions lint-comments lint-inline-tests lint-test-seams lint-test-value lint-raw-ids lint-sqlx lint-http-errors lint-no-untyped-admin check-headers lint-layers lint-repo-construction lint-authoritative-reads lint-bridge-lints-sync lint-bridge-css-tokens lint-bridge-i18n lint-bridge-js-imports lint-bridge-no-window lint-bridge-verdicts lint-bridge-typed-warnings lint-bridge-layers lint-bridge-globals lint-bridge-file-size
+check-gates: check-version-strings check-lockfile-registry lint-field-copy-from lint-env-vars lint-native-test-deps sqlx-audit-caches lint-discarded-results lint-fail-open lint-swallowed-errors lint-tracing-messages lint-async-trait lint-json-value lint-table-ownership lint-silent-skips lint-schema lint-extensions lint-comments lint-inline-tests lint-test-seams lint-test-value lint-raw-ids lint-sqlx lint-http-errors lint-no-untyped-admin check-headers lint-layers lint-repo-construction lint-authoritative-reads lint-bridge-lints-sync lint-bridge-css-tokens lint-bridge-i18n lint-bridge-js-imports lint-bridge-no-window lint-bridge-verdicts lint-bridge-typed-warnings lint-bridge-layers lint-bridge-globals lint-bridge-file-size
     cargo test --locked --manifest-path scripts/rust-contracts/Cargo.toml
 
 # Every source gate, then a workspace check

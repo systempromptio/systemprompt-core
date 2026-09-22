@@ -15,7 +15,13 @@
 - **Migrations:** every migration now runs under a `statement_timeout` (5 min by default, or ten times a declared `measured`) and a 10 s `lock_timeout`, and each statement's elapsed time is logged when it exceeds 5 s, with the migration's total on completion. `SYSTEMPROMPT_MIGRATION_STATEMENT_TIMEOUT_SECS=0` disables the bound for an attended one-off. Migrations are awaited before the HTTP listener binds, so an unbounded one was an instance that never opened its port — one spent 27 minutes there.
 - **Database:** a fresh extension's *retirement* migrations — every statement a `DROP … IF EXISTS` or a `DELETE FROM extension_migrations` — are executed as well as stamped, so a relation left behind by a deleted extension is dropped on the first boot that carries the drop. `is_retirement` is exported.
 - **OAuth:** `oauth_cleanup` sweeps consumed and expired `bridge_exchange_codes`.
+- **Gates:** `just lint-field-copy-from` (`scripts/lint-field-copy-from.py`, also in the `check-gates` list and the `source-gates` CI job) rejects a `From` impl that only restates the same fields name for name — two types written twice, which the compiler cannot keep in step. A projection that renames or drops fields is not reported; a deliberate pair is annotated `// lint-ok: field-copy-from` with a reason.
 - **Gateway:** `rate_limits.bridge_auth_per_second` (default 20, env `RATE_LIMIT_BRIDGE_AUTH_PER_SECOND`) gives `/v1/auth/bridge/*` a budget separate from `gateway_per_second`. Inference is high-volume and elastic; sign-in is a handful of requests that must succeed. Sharing one bucket let a saturated gateway refuse every credential exchange, which reaches the user as a rejected token rather than as the rate limit it is.
+
+### Changed
+
+- **Users Rust API:** `UserSessionRow` is gone. `UserSession` derives `FromRow` and the session queries select into it directly; the two types had eight identical fields and a `From` that copied each one across.
+- **Profile:** every `rate_limits.*_per_second` field documents the route group it governs, so `contexts_per_second` can be sized without reading the router. All thirteen stay: each is wired to a distinct mount site.
 
 ### Fixed
 

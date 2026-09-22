@@ -295,6 +295,8 @@ jobs:
         if: ${{ !cancelled() }}
       - run: just check-lockfile-registry
         if: ${{ !cancelled() }}
+      - run: just lint-field-copy-from
+        if: ${{ !cancelled() }}
       - run: just machete
         if: ${{ !cancelled() }}
       # Why: `just check-gates` is the local gate list; this job is the CI one.

@@ -1,4 +1,4 @@
-//! Unit tests for UserSessionRow -> UserSession conversion.
+//! Unit tests for the `UserSession` record.
 
 use chrono::Utc;
 use systemprompt_identifiers::{SessionId, UserId};

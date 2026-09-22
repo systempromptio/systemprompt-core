@@ -167,6 +167,12 @@ pub struct ClientEvidenceOutput {
     pub sdk_arch: Option<String>,
 }
 
+// lint-ok: field-copy-from — the two types differ in wire shape, not in
+// fields. This one omits absent evidence (`skip_serializing_if` on eleven
+// fields) and derives `JsonSchema` for the CLI's output contract; the runtime
+// model does neither, and `systemprompt-runtime` carries no schemars
+// dependency, so collapsing them would push a CLI rendering concern down a
+// layer to get there.
 impl From<systemprompt_runtime::AiRequestClientEvidence> for ClientEvidenceOutput {
     fn from(evidence: systemprompt_runtime::AiRequestClientEvidence) -> Self {
         Self {

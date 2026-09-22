@@ -7,15 +7,15 @@ use chrono::Utc;
 use systemprompt_identifiers::{SessionId, UserId};
 
 use crate::error::Result;
-use crate::models::{UserSession, UserSessionRow};
+use crate::models::UserSession;
 use crate::repository::{MAX_PAGE_SIZE, UserRepository};
 
 impl UserRepository {
     pub async fn list_sessions(&self, user_id: &UserId) -> Result<Vec<UserSession>> {
         let rows = sqlx::query_as!(
-            UserSessionRow,
+            UserSession,
             r#"
-            SELECT session_id, user_id as "user_id: UserId", ip_address, user_agent, device_type,
+            SELECT session_id as "session_id: SessionId", user_id as "user_id: UserId", ip_address, user_agent, device_type,
                    started_at, last_activity_at, ended_at
             FROM user_sessions
             WHERE user_id = $1
@@ -26,14 +26,14 @@ impl UserRepository {
         .fetch_all(&*self.pool)
         .await?;
 
-        Ok(rows.into_iter().map(UserSession::from).collect())
+        Ok(rows)
     }
 
     pub async fn list_active_sessions(&self, user_id: &UserId) -> Result<Vec<UserSession>> {
         let rows = sqlx::query_as!(
-            UserSessionRow,
+            UserSession,
             r#"
-            SELECT session_id, user_id as "user_id: UserId", ip_address, user_agent, device_type,
+            SELECT session_id as "session_id: SessionId", user_id as "user_id: UserId", ip_address, user_agent, device_type,
                    started_at, last_activity_at, ended_at
             FROM user_sessions
             WHERE user_id = $1 AND ended_at IS NULL
@@ -44,7 +44,7 @@ impl UserRepository {
         .fetch_all(&*self.write_pool)
         .await?;
 
-        Ok(rows.into_iter().map(UserSession::from).collect())
+        Ok(rows)
     }
 
     pub async fn list_recent_sessions(
@@ -54,9 +54,9 @@ impl UserRepository {
     ) -> Result<Vec<UserSession>> {
         let safe_limit = limit.min(MAX_PAGE_SIZE);
         let rows = sqlx::query_as!(
-            UserSessionRow,
+            UserSession,
             r#"
-            SELECT session_id, user_id as "user_id: UserId", ip_address, user_agent, device_type,
+            SELECT session_id as "session_id: SessionId", user_id as "user_id: UserId", ip_address, user_agent, device_type,
                    started_at, last_activity_at, ended_at
             FROM user_sessions
             WHERE user_id = $1
@@ -69,7 +69,7 @@ impl UserRepository {
         .fetch_all(&*self.pool)
         .await?;
 
-        Ok(rows.into_iter().map(UserSession::from).collect())
+        Ok(rows)
     }
 
     pub async fn session_exists(&self, session_id: &SessionId) -> Result<bool> {
