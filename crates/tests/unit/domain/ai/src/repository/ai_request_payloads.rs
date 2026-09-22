@@ -225,7 +225,10 @@ async fn identical_tool_lists_share_one_catalog_row() {
     .await
     .expect("fetch digests");
     assert_eq!(digests.len(), 2);
-    let offered: Vec<_> = digests.iter().map(|d| d.offered_tools_sha256.clone()).collect();
+    let offered: Vec<_> = digests
+        .iter()
+        .map(|d| d.offered_tools_sha256.clone())
+        .collect();
     assert_eq!(offered[0], offered[1], "one list, one digest");
     let prepared = digests
         .iter()

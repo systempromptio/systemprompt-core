@@ -77,6 +77,7 @@ pub(crate) fn local_profile() -> Profile {
         extensions: ExtensionsConfig::default(),
         governance: None,
         judge: Default::default(),
+        retention: Default::default(),
         services: ServicesProfileConfig::default(),
         system_admin: SystemAdminConfig {
             username: "admin".to_owned(),

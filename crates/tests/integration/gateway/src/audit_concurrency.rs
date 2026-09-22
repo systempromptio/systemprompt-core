@@ -13,7 +13,10 @@ use systemprompt_security::policy::types::AccessScope;
 
 fn gateway_journal() -> systemprompt_api::services::gateway::audit::journal::GatewayJournal {
     systemprompt_api::services::gateway::audit::journal::GatewayJournal::open(
-        systemprompt_test_fixtures::ensure_test_bootstrap().app_paths.storage().data(),
+        systemprompt_test_fixtures::ensure_test_bootstrap()
+            .app_paths
+            .storage()
+            .data(),
         systemprompt_config::SecretsBootstrap::get().expect("secrets bootstrapped"),
     )
     .expect("gateway journal opens")

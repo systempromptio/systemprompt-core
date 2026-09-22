@@ -7,8 +7,9 @@ use std::path::PathBuf;
 
 use systemprompt_config::paths::AppPaths;
 use systemprompt_models::Config;
-use systemprompt_models::profile::RateLimitsConfig;
-use systemprompt_models::profile::{ContentNegotiationConfig, PathsConfig, SecurityHeadersConfig};
+use systemprompt_models::profile::{
+    ContentNegotiationConfig, PathsConfig, RateLimitsConfig, SecurityHeadersConfig,
+};
 use systemprompt_runtime::AppContext;
 use tempfile::tempdir;
 

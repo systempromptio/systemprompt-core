@@ -18,7 +18,6 @@ use axum::{Extension, Router, middleware};
 use systemprompt_api::services::middleware::analytics::events::{
     event_metadata_for, is_sensitive_key, sanitize_uri,
 };
-use systemprompt_models::routing::EventMetadata;
 use systemprompt_api::services::middleware::{
     BotMarker, BotType, JtiRevocationChecker, detect_bots_early, ip_ban_middleware,
     is_datacenter_ip, is_known_bot, is_outdated_browser, is_scanner_request, login_redirect,
@@ -26,6 +25,7 @@ use systemprompt_api::services::middleware::{
 };
 use systemprompt_extension::SiteAuthConfig;
 use systemprompt_models::modules::ApiPaths;
+use systemprompt_models::routing::EventMetadata;
 use systemprompt_users::{BanDuration, BanIpParams, BannedIpRepository};
 use tower::ServiceExt;
 use uuid::Uuid;

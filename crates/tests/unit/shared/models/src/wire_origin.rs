@@ -106,7 +106,9 @@ fn native_markers_are_structural() {
         Some(NativeMarker::ClaudeCliEntrypoint)
     );
     assert_eq!(
-        native_marker(br#"{"system":"x-anthropic-billing-header: cc_version=1; cc_entrypoint=sdk-py;"}"#),
+        native_marker(
+            br#"{"system":"x-anthropic-billing-header: cc_version=1; cc_entrypoint=sdk-py;"}"#
+        ),
         None
     );
     assert_eq!(

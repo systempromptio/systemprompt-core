@@ -7,8 +7,9 @@ use std::path::PathBuf;
 
 use systemprompt_config::{ConfigError, validate_database_config};
 use systemprompt_models::Config;
-use systemprompt_models::profile::RateLimitsConfig;
-use systemprompt_models::profile::{ContentNegotiationConfig, SecurityHeadersConfig};
+use systemprompt_models::profile::{
+    ContentNegotiationConfig, RateLimitsConfig, SecurityHeadersConfig,
+};
 
 fn base_config() -> Config {
     Config {

@@ -274,7 +274,10 @@ async fn another_owner_cannot_settle_the_request() {
         .settle(
             &id,
             &UserId::new("someone-else"),
-            SettlementOutcome::Failed(SettledFailure { error: "boom", ..Default::default() }),
+            SettlementOutcome::Failed(SettledFailure {
+                error: "boom",
+                ..Default::default()
+            }),
         )
         .await
         .expect_err("owner mismatch");
@@ -297,7 +300,10 @@ async fn a_missing_request_row_is_a_settlement_conflict_not_a_database_error() {
         .settle(
             &AiRequestId::generate(),
             &user(),
-            SettlementOutcome::Failed(SettledFailure { error: "boom", ..Default::default() }),
+            SettlementOutcome::Failed(SettledFailure {
+                error: "boom",
+                ..Default::default()
+            }),
         )
         .await
         .expect_err("no row");

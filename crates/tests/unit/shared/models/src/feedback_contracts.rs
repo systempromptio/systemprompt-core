@@ -96,7 +96,7 @@ fn manifest_requires_byte_and_mode_evidence_for_every_revision() {
 }
 
 #[test]
-fn unavailable_modes_and_empty_or_duplicate_readback_cannot_pass() {
+fn an_executable_unavailable_mode_or_empty_or_duplicate_readback_cannot_pass() {
     let mut receipt = ConsumerReceiptRequest {
         installation_id: ConsumerInstallationId::generate(),
         publication_id: PublicationId::generate(),
@@ -128,9 +128,21 @@ fn unavailable_modes_and_empty_or_duplicate_readback_cannot_pass() {
         content_check: ReadbackStatus::Verified,
         mode_check: ReadbackStatus::Unavailable,
     });
+    // A plain file has no mode to satisfy, so a host without POSIX mode bits
+    // reporting it unavailable leaves nothing unchecked.
+    assert!(receipt.fully_verified());
+
+    // An executable still needs its bit confirmed: the same unavailable mode
+    // is now an unverified file, which is what a Windows host must not pass.
+    receipt.files[0].executable = true;
     assert!(!receipt.fully_verified());
     receipt.files[0].mode_check = ReadbackStatus::Verified;
     assert!(receipt.fully_verified());
+
+    receipt.files[0].content_check = ReadbackStatus::Unavailable;
+    assert!(!receipt.fully_verified());
+    receipt.files[0].content_check = ReadbackStatus::Verified;
+
     receipt.files.push(receipt.files[0].clone());
     assert!(!receipt.fully_verified());
 }

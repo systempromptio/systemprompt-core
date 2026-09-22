@@ -37,6 +37,7 @@ mod ai_extension_tests {
                 "ai_request_client_evidence",
                 "ai_request_messages",
                 "ai_request_tool_calls",
+                "ai_tool_catalogs",
                 "ai_request_payloads",
                 "ai_safety_findings",
                 "ai_quota_buckets",

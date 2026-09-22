@@ -406,7 +406,7 @@ fn enabled_evaluation_hook_requires_the_same_plugin_to_own_governance() {
         .expect_err("evaluation cannot consume a track hook nobody installs");
     let diagnosis = err.to_string();
     assert!(diagnosis.contains("score-only"), "{diagnosis}");
-    assert!(diagnosis.contains("evaluation: true"), "{diagnosis}");
+    assert!(diagnosis.contains("judge: true"), "{diagnosis}");
     assert!(diagnosis.contains("governance: true"), "{diagnosis}");
 
     let disabled_orphan = orphan.replace("enabled: true", "enabled: false");

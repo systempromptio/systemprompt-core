@@ -80,6 +80,7 @@ fn make_profile(services: &Path) -> Profile {
         extensions: ExtensionsConfig::default(),
         governance: None,
         judge: Default::default(),
+        retention: Default::default(),
         services: Default::default(),
         system_admin: SystemAdminConfig {
             username: "admin".to_string(),

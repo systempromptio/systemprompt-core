@@ -25,8 +25,8 @@ use systemprompt_api::services::middleware::{
 };
 use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId, UserId};
 use systemprompt_models::auth::UserType;
-use systemprompt_models::profile::RateLimitsConfig;
 use systemprompt_models::execution::ContextExtractionError;
+use systemprompt_models::profile::RateLimitsConfig;
 use systemprompt_models::{Config, RequestContext};
 use systemprompt_test_fixtures::{fixture_config, fixture_database_url, fixture_db_pool};
 use systemprompt_users::UserRateLimitBucketRepository;

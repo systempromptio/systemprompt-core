@@ -304,7 +304,7 @@ fn plugin_hooks_ref_pairing_comms_with_governance_is_not_empty() {
 #[test]
 fn plugin_hooks_ref_declaring_only_evaluation_is_still_empty() {
     let parsed: PluginHooksRef = serde_yaml::from_str("evaluation: true").unwrap();
-    assert!(parsed.evaluation);
+    assert!(parsed.judge);
     assert!(!parsed.governance);
     assert!(parsed.is_empty());
 }
@@ -313,6 +313,6 @@ fn plugin_hooks_ref_declaring_only_evaluation_is_still_empty() {
 fn plugin_hooks_ref_pairing_evaluation_with_governance_parses() {
     let parsed: PluginHooksRef =
         serde_yaml::from_str("governance: true\nevaluation: true").unwrap();
-    assert!(parsed.evaluation);
+    assert!(parsed.judge);
     assert!(!parsed.is_empty());
 }

@@ -3,9 +3,14 @@
 use systemprompt_identifiers::{JwtToken, SessionId, UserId};
 use systemprompt_mcp::repository::{McpProxyIdentityRepository, ProxyIdentityRow};
 use systemprompt_models::auth::{Permission, UserType};
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::{
+    ensure_test_secrets_bootstrap, fixture_database_url, fixture_db_pool,
+};
 
+// `auth_token` is sealed with the at-rest cipher on write, so the
+// `encryption_master_key` secret must resolve before the first upsert.
 async fn db_or_skip() -> Option<systemprompt_database::DbPool> {
+    ensure_test_secrets_bootstrap();
     let url = fixture_database_url().ok()?;
     fixture_db_pool(&url).await.ok()
 }

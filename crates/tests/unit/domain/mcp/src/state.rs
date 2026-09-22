@@ -73,6 +73,7 @@ fn mcp_http_config_custom_origins() {
         allowed_hosts: Some(vec!["example.com".to_owned()]),
         allowed_origins: vec!["https://app.example.com".to_owned()],
         session: SessionTimeouts::default(),
+        server_id: None,
     };
     assert_eq!(config.allowed_origins.len(), 1);
     assert_eq!(config.allowed_origins[0], "https://app.example.com");
@@ -84,6 +85,7 @@ fn mcp_http_config_no_allowed_hosts() {
         allowed_hosts: None,
         allowed_origins: vec![],
         session: SessionTimeouts::default(),
+        server_id: None,
     };
     assert!(config.allowed_hosts.is_none());
 }
@@ -97,6 +99,7 @@ fn mcp_http_config_multiple_origins() {
             "https://b.example.com".to_owned(),
         ],
         session: SessionTimeouts::default(),
+        server_id: None,
     };
     assert_eq!(config.allowed_origins.len(), 2);
 }

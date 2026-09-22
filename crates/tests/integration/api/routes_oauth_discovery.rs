@@ -7,8 +7,9 @@ use axum::routing::get;
 use std::sync::Once;
 use systemprompt_api::routes::oauth;
 use systemprompt_models::Config;
-use systemprompt_models::profile::RateLimitsConfig;
-use systemprompt_models::profile::{ContentNegotiationConfig, SecurityHeadersConfig};
+use systemprompt_models::profile::{
+    ContentNegotiationConfig, RateLimitsConfig, SecurityHeadersConfig,
+};
 use tower::ServiceExt;
 
 use super::common::{body_to_string, empty_get, setup_ctx};

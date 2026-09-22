@@ -29,8 +29,7 @@ fn secrets_without_key() -> Secrets {
 #[test]
 fn a_missing_key_names_the_secret_and_the_env_source_rule() {
     let dir = tempfile::tempdir().expect("tempdir");
-    let error =
-        GatewayJournal::open(dir.path(), &secrets_without_key()).expect_err("no key");
+    let error = GatewayJournal::open(dir.path(), &secrets_without_key()).expect_err("no key");
     let message = error.to_string();
     assert!(message.contains("encryption_master_key"), "{message}");
     assert!(message.contains("SYSTEMPROMPT_CUSTOM_SECRETS"), "{message}");
@@ -39,8 +38,7 @@ fn a_missing_key_names_the_secret_and_the_env_source_rule() {
 #[test]
 fn a_key_of_the_wrong_length_is_rejected() {
     let dir = tempfile::tempdir().expect("tempdir");
-    let error = GatewayJournal::open(dir.path(), &secrets_with_key("abcd"))
-        .expect_err("short key");
+    let error = GatewayJournal::open(dir.path(), &secrets_with_key("abcd")).expect_err("short key");
     assert!(error.to_string().contains("32-byte"), "{error}");
 }
 
@@ -55,8 +53,7 @@ fn a_non_hex_key_is_rejected() {
 #[test]
 fn a_valid_key_creates_the_journal_directory_inside_the_state_dir() {
     let dir = tempfile::tempdir().expect("tempdir");
-    GatewayJournal::open(dir.path(), &secrets_with_key(&"ab".repeat(32)))
-        .expect("valid key");
+    GatewayJournal::open(dir.path(), &secrets_with_key(&"ab".repeat(32))).expect("valid key");
     let journal_dir = dir.path().join("gateway-journal");
     assert!(journal_dir.is_dir());
     #[cfg(unix)]

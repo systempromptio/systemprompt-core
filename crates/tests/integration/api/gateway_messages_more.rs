@@ -52,7 +52,10 @@ fn test_partial() -> RejectionPartial {
 
 fn gateway_journal() -> systemprompt_api::services::gateway::audit::journal::GatewayJournal {
     systemprompt_api::services::gateway::audit::journal::GatewayJournal::open(
-        systemprompt_test_fixtures::ensure_test_bootstrap().app_paths.storage().data(),
+        systemprompt_test_fixtures::ensure_test_bootstrap()
+            .app_paths
+            .storage()
+            .data(),
         systemprompt_config::SecretsBootstrap::get().expect("secrets bootstrapped"),
     )
     .expect("gateway journal opens")
@@ -300,8 +303,8 @@ async fn enforce_authz_allows_under_allow_all_hook() {
         &ContextId::legacy(),
         &hook,
     )
-        .await
-        .expect("allow hook permits");
+    .await
+    .expect("allow hook permits");
 }
 
 #[tokio::test]
@@ -316,8 +319,8 @@ async fn enforce_authz_denies_under_deny_all_hook() {
         &ContextId::legacy(),
         &hook,
     )
-        .await
-        .expect_err("deny hook rejects");
+    .await
+    .expect_err("deny hook rejects");
     assert_eq!(status, StatusCode::FORBIDDEN);
     assert!(msg.contains("authz denied"), "{msg}");
 }

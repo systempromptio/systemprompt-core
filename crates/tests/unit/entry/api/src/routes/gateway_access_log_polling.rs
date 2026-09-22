@@ -29,6 +29,12 @@ fn user_driven_routes_always_persist() {
     assert!(persists_access_record("/v1/messages", 200));
     assert!(persists_access_record("/v1/chat/completions", 200));
     assert!(persists_access_record("/v1/bridge/stream", 200));
-    assert!(persists_access_record("/v1/bridge/plugins/p/skills/s/reference", 200));
-    assert!(persists_access_record("/v1/bridge/profile/enabled_hosts", 200));
+    assert!(persists_access_record(
+        "/v1/bridge/plugins/p/skills/s/reference",
+        200
+    ));
+    assert!(persists_access_record(
+        "/v1/bridge/profile/enabled_hosts",
+        200
+    ));
 }

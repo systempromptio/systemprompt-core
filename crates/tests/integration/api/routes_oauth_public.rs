@@ -9,8 +9,9 @@ use axum::body::Body;
 use axum::http::StatusCode;
 use systemprompt_api::routes::oauth::{authenticated_router, public_router};
 use systemprompt_models::Config;
-use systemprompt_models::profile::RateLimitsConfig;
-use systemprompt_models::profile::{ContentNegotiationConfig, SecurityHeadersConfig};
+use systemprompt_models::profile::{
+    ContentNegotiationConfig, RateLimitsConfig, SecurityHeadersConfig,
+};
 use systemprompt_oauth::OAuthState;
 use systemprompt_traits::AppContext as _;
 use tower::ServiceExt;

@@ -5,8 +5,9 @@
 use std::path::PathBuf;
 
 use systemprompt_models::Config;
-use systemprompt_models::profile::RateLimitsConfig;
-use systemprompt_models::profile::{ContentNegotiationConfig, SecurityHeadersConfig};
+use systemprompt_models::profile::{
+    ContentNegotiationConfig, RateLimitsConfig, SecurityHeadersConfig,
+};
 use systemprompt_runtime::AppContext;
 
 fn cfg_without_geoip() -> Config {

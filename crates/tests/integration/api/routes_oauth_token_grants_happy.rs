@@ -17,9 +17,10 @@ use systemprompt_identifiers::{
     AgentName, AuthorizationCode, ContextId, SessionId, TraceId, UserId,
 };
 use systemprompt_models::Config;
-use systemprompt_models::profile::RateLimitsConfig;
 use systemprompt_models::execution::context::RequestContext;
-use systemprompt_models::profile::{ContentNegotiationConfig, SecurityHeadersConfig};
+use systemprompt_models::profile::{
+    ContentNegotiationConfig, RateLimitsConfig, SecurityHeadersConfig,
+};
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::{AuthCodeParams, OAuthRepository};
 use systemprompt_test_fixtures::{

@@ -3,8 +3,9 @@
 //! `FilesConfig::get_optional().is_some()` — both code paths (with and
 //! without a globally-initialised FilesConfig) are stable to call.
 
-use systemprompt_models::profile::RateLimitsConfig;
-use systemprompt_models::profile::{ContentNegotiationConfig, SecurityHeadersConfig};
+use systemprompt_models::profile::{
+    ContentNegotiationConfig, RateLimitsConfig, SecurityHeadersConfig,
+};
 use systemprompt_models::validators::ValidationConfigProvider;
 use systemprompt_models::{Config, ServicesConfig};
 use systemprompt_runtime::FilesConfigValidator;

@@ -87,8 +87,7 @@ fn a_directive_after_the_sql_is_not_a_declaration() {
 #[test]
 fn an_ordinary_migration_declares_nothing() {
     assert_eq!(
-        cost::parse("-- adds a column\nALTER TABLE t ADD COLUMN c TEXT;")
-            .expect("parses"),
+        cost::parse("-- adds a column\nALTER TABLE t ADD COLUMN c TEXT;").expect("parses"),
         None
     );
     assert_eq!(cost::parse("").expect("parses"), None);

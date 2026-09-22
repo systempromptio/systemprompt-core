@@ -17,9 +17,10 @@ use systemprompt_api::routes::oauth::public_router;
 use systemprompt_identifiers::{AgentName, ClientId, ContextId, SessionId, TraceId, UserId};
 use systemprompt_models::Config;
 use systemprompt_models::auth::{AuthenticatedUser, Permission};
-use systemprompt_models::profile::RateLimitsConfig;
 use systemprompt_models::execution::context::RequestContext;
-use systemprompt_models::profile::{ContentNegotiationConfig, SecurityHeadersConfig};
+use systemprompt_models::profile::{
+    ContentNegotiationConfig, RateLimitsConfig, SecurityHeadersConfig,
+};
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::services::generation::{IdJagGrant, mint_id_jag};
 use systemprompt_oauth::services::validation::id_jag::ID_JAG_TOKEN_TYPE;

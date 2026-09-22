@@ -152,7 +152,8 @@ fn prepared_tools_is_none_without_an_array() {
 
 #[test]
 fn excerpt_payload_never_keeps_the_body() {
-    let body = json!({"model": "m", "max_tokens": 1, "messages": [{"role": "user", "content": "hi"}]});
+    let body =
+        json!({"model": "m", "max_tokens": 1, "messages": [{"role": "user", "content": "hi"}]});
     let bytes = Bytes::from(serde_json::to_vec(&body).unwrap());
     let capture = excerpt_payload(&bytes);
     assert!(capture.json.is_none());
@@ -160,7 +161,11 @@ fn excerpt_payload_never_keeps_the_body() {
     assert_eq!(capture.byte_len as usize, bytes.len());
     assert_eq!(capture.sha256, slice_payload(&bytes, 1 << 20).sha256);
     let excerpt = capture.excerpt.expect("excerpt");
-    assert_eq!(excerpt.as_bytes(), &bytes[..], "a small body is excerpted whole");
+    assert_eq!(
+        excerpt.as_bytes(),
+        &bytes[..],
+        "a small body is excerpted whole"
+    );
 }
 
 #[test]

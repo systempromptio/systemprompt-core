@@ -2,15 +2,22 @@
 //!
 //! `find` filters on `expires_at > NOW()`, so it cannot witness a deletion:
 //! the expiry tests here count rows with SQL instead.
+//!
+//! `auth_token` is sealed at rest, and `find` opens it before it decodes
+//! anything else, so a row planted here carries a properly sealed token —
+//! otherwise every corrupt-column case would be masked by the token gate.
 
 use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::SessionId;
 use systemprompt_mcp::repository::McpProxyIdentityRepository;
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::{
+    ensure_test_secrets_bootstrap, fixture_database_url, fixture_db_pool,
+};
 
 async fn pool() -> (DbPool, Arc<PgPool>) {
+    ensure_test_secrets_bootstrap();
     let url = fixture_database_url().expect("DATABASE_URL must be set");
     let db = fixture_db_pool(&url).await.expect("pool");
     let write = db.write_pool_arc().expect("write pool");
@@ -28,15 +35,28 @@ async fn insert_raw(
     permissions: serde_json::Value,
     expires_in: &str,
 ) {
+    let token = systemprompt_security::at_rest::seal("tok").expect("seal token");
+    insert_raw_token(write, id, user_type, permissions, expires_in, &token).await;
+}
+
+async fn insert_raw_token(
+    write: &PgPool,
+    id: &SessionId,
+    user_type: &str,
+    permissions: serde_json::Value,
+    expires_in: &str,
+    auth_token: &str,
+) {
     sqlx::query(
         "INSERT INTO mcp_proxy_identities \
          (session_id, user_id, user_type, permissions, auth_token, expires_at) \
-         VALUES ($1, $2, $3, $4, 'tok', NOW() + $5::interval)",
+         VALUES ($1, $2, $3, $4, $5, NOW() + $6::interval)",
     )
     .bind(id.as_str())
     .bind(uuid::Uuid::new_v4().to_string())
     .bind(user_type)
     .bind(permissions)
+    .bind(auth_token)
     .bind(expires_in)
     .execute(write)
     .await
@@ -128,4 +148,30 @@ async fn cleanup_expired_physically_removes_expired_rows_and_spares_live_ones() 
     assert_eq!(row_count(&write, &live).await, 1);
 
     repo.delete(&live).await.expect("delete");
+}
+
+#[tokio::test]
+async fn find_drops_a_row_whose_token_does_not_open() {
+    let (db, write) = pool().await;
+    let repo = McpProxyIdentityRepository::new(&db).expect("repo");
+    let id = session("pid-cleartoken");
+    insert_raw_token(
+        &write,
+        &id,
+        "admin",
+        serde_json::json!([]),
+        "1 hour",
+        "not-a-sealed-token",
+    )
+    .await;
+
+    assert!(
+        repo.find(&id).await.expect("find").is_none(),
+        "a token that does not open must never resolve an identity"
+    );
+    assert_eq!(
+        row_count(&write, &id).await,
+        0,
+        "the unopenable row must be dropped, not left for the next lookup"
+    );
 }

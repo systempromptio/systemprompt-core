@@ -17,6 +17,9 @@ const MIGRATION_026: &str =
 const MIGRATION_027: &str = include_str!(
     "../../../../../../domain/ai/schema/migrations/027_ai_request_client_attestation.sql"
 );
+const MIGRATION_034: &str = include_str!(
+    "../../../../../../domain/ai/schema/migrations/034_claude_metadata_json_marker.sql"
+);
 
 fn check_list<'a>(sql: &'a str, constraint: &str) -> &'a str {
     let start = sql
@@ -92,12 +95,22 @@ fn client_attestation_strings_are_all_in_every_check_list() {
             ClientAttestation::ALL.iter().map(|tier| tier.as_str()),
             "kind_source CHECK",
         );
+    }
+    for sql in [EVIDENCE_SCHEMA, MIGRATION_034] {
         assert_list_is_exactly(
             check_list(sql, "ai_request_client_evidence_native_marker_check"),
             NativeMarker::ALL.iter().map(|marker| marker.as_str()),
             "native_marker CHECK",
         );
     }
+    assert!(
+        !check_list(
+            MIGRATION_027,
+            "ai_request_client_evidence_native_marker_check"
+        )
+        .contains("'claude-metadata-json'"),
+        "027 is history; the marker vocabulary was re-cut in 034"
+    );
 }
 
 #[test]

@@ -10,8 +10,9 @@ use std::sync::Mutex;
 
 use systemprompt_logging::set_startup_mode;
 use systemprompt_models::Config;
-use systemprompt_models::profile::RateLimitsConfig;
-use systemprompt_models::profile::{ContentNegotiationConfig, SecurityHeadersConfig};
+use systemprompt_models::profile::{
+    ContentNegotiationConfig, RateLimitsConfig, SecurityHeadersConfig,
+};
 use systemprompt_runtime::{FilesConfigValidator, StartupValidator};
 
 static STARTUP_MODE_LOCK: Mutex<()> = Mutex::new(());

@@ -14,8 +14,9 @@ use axum::http::{Request, StatusCode};
 use axum::middleware::from_fn;
 use axum::routing::get;
 use systemprompt_api::services::middleware::{inject_security_headers, inject_trace_header};
-use systemprompt_models::profile::RateLimitsConfig;
-use systemprompt_models::profile::{ContentNegotiationConfig, SecurityHeadersConfig};
+use systemprompt_models::profile::{
+    ContentNegotiationConfig, RateLimitsConfig, SecurityHeadersConfig,
+};
 use systemprompt_models::{Config, RequestContext};
 use tower::ServiceExt;
 

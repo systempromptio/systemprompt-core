@@ -15,9 +15,10 @@ use axum::middleware::{self, Next};
 use systemprompt_api::routes::oauth::public_router;
 use systemprompt_identifiers::{AgentName, ClientId, ContextId, SessionId, TraceId, UserId};
 use systemprompt_models::Config;
-use systemprompt_models::profile::RateLimitsConfig;
 use systemprompt_models::execution::context::RequestContext;
-use systemprompt_models::profile::{ContentNegotiationConfig, SecurityHeadersConfig};
+use systemprompt_models::profile::{
+    ContentNegotiationConfig, RateLimitsConfig, SecurityHeadersConfig,
+};
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::{ClientRepository, CreateClientParams};
 use systemprompt_oauth::services::hash_client_secret;

@@ -59,7 +59,8 @@ fn migrations_come_from_the_schema_migrations_directory() {
             "outbox_origin_instance",
             "durable_consumption",
             "reporting_privacy",
-            "user_privacy_delivery"
+            "user_privacy_delivery",
+            "drop_duplicate_actor_id_check"
         ],
         "every file in schema/migrations must be discovered by the build script, \
          in order, under its on-disk stem"

@@ -280,7 +280,11 @@ async fn bridge_exchange_codes_are_swept_once_spent_or_expired() {
     .fetch_all(&pg)
     .await
     .expect("remaining codes");
-    assert_eq!(remaining, vec![live.clone()], "only the live, unconsumed code survives");
+    assert_eq!(
+        remaining,
+        vec![live.clone()],
+        "only the live, unconsumed code survives"
+    );
 
     let _ = sqlx::query("DELETE FROM bridge_exchange_codes WHERE user_id = $1")
         .bind(&user_id)
