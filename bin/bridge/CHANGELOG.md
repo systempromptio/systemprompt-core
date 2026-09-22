@@ -8,6 +8,8 @@
 - **Bridge:** a plain file whose POSIX mode cannot be read is reported as verified on non-unix hosts. Windows has no mode bits, so the bridge reported every file's mode check as unavailable and no receipt from such a host was ever fully verified: the installation counted for nothing in adoption and every invocation on it was attributed as `revision_unknown`. A file that is not meant to be executable has no mode to satisfy — the content digest is the whole check — and the stored evidence is re-judged by the same rule.
 
 ### Changed
+- A `[1m]` default from the gateway resolves to its catalog id before the host config is written. OpenCode and Hermes match the declared model instead of failing the membership test and falling back to first-listed; Claude Code's managed settings raise a bare-form seed to the variant and leave any other existing `/model` choice alone.
+
 
 - OpenCode's managed provider config declares each model's `limit.context` and `limit.output` from the server's `model_limits`, instead of leaving OpenCode to size every gateway model with its own default. `ProfileGenInputs` carries the map.
 - The MDM default inference model list leads with `claude-opus-5-5`, and the sonnet-4-6 examples in the macOS apply summary follow the catalog.

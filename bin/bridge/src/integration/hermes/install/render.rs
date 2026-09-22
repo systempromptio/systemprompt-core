@@ -40,10 +40,13 @@ pub(super) fn managed_yaml(inputs: &ProfileGenInputs) -> std::io::Result<String>
         PROVIDER_KEY_ENV,
         serde_yaml::Value::String(KEY_ENV_VALUE.to_owned()),
     )?;
+    // Why: a `[1m]` default is Claude Code's context marker; this host names
+    // the catalog id.
     let default = inputs
         .default_model
-        .as_ref()
-        .filter(|m| inputs.models.contains(m))
+        .as_deref()
+        .map(systemprompt_models::services::providers::without_context_variant)
+        .and_then(|d| inputs.models.iter().find(|m| m.as_str() == d))
         .or_else(|| inputs.models.first());
     if let Some(model) = default {
         write_dotted(

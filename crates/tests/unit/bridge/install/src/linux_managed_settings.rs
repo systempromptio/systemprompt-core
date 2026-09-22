@@ -164,3 +164,27 @@ fn seeding_twice_is_idempotent_because_the_second_run_sees_its_own_write() {
         );
     });
 }
+
+#[test]
+fn a_bare_seed_is_raised_to_its_context_variant_but_other_choices_are_not() {
+    sandbox(|home| {
+        write_settings(home, r#"{"model": "claude-sonnet-5"}"#);
+        if managed_settings_path().as_deref() != Some(&user_settings(home)) {
+            return;
+        }
+
+        assert!(
+            seed_default_model("claude-sonnet-5[1m]").expect("seed"),
+            "the bare form is the same model at a 200k budget"
+        );
+        let text = std::fs::read_to_string(user_settings(home)).expect("read back");
+        let parsed: serde_json::Value = serde_json::from_str(&text).expect("valid json");
+        assert_eq!(parsed["model"], "claude-sonnet-5[1m]");
+
+        write_settings(home, r#"{"model": "claude-haiku-4-5"}"#);
+        assert!(
+            !seed_default_model("claude-sonnet-5[1m]").expect("seed"),
+            "a different model is the user's choice and survives"
+        );
+    });
+}

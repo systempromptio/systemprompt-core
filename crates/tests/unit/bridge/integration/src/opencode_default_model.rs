@@ -79,3 +79,17 @@ fn first_listed_when_default_is_not_advertised() {
     let no_default = rendered(&["claude-sonnet-5", "gpt-5"], None);
     assert_eq!(no_default["model"], "systemprompt/claude-sonnet-5");
 }
+
+#[test]
+fn a_context_variant_default_resolves_to_its_catalog_id() {
+    let doc = rendered(
+        &["claude-opus-5-5", "claude-sonnet-5"],
+        Some("claude-sonnet-5[1m]"),
+    );
+
+    assert_eq!(
+        doc["model"], "systemprompt/claude-sonnet-5",
+        "`[1m]` is Claude Code's marker; OpenCode must get the catalog id, not \
+         fall back to whichever model is listed first"
+    );
+}
