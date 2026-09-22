@@ -1,44 +1,132 @@
 //! Job registration: turning configured jobs into cron entries.
 //!
+//! Registration is fault-isolated per job: a job that fails to upsert, parse
+//! its schedule, or join the cron scheduler is collected as a [`SkippedJob`],
+//! recorded as an `ERROR` in the `logs` table, and the remaining jobs are
+//! registered as normal. Before this, one bad entry aborted the loop and every
+//! later job was silently dropped — and, because the error reached the server
+//! lifecycle, took the whole boot with it.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use super::{RegistrationCtx, SchedulerService, dispatch};
 use crate::error::{SchedulerError, SchedulerResult};
-use crate::models::JobConfig;
+use crate::models::{JobConfig, SkippedJob};
 use std::sync::Arc;
-use systemprompt_identifiers::{Actor, InstanceId};
-use systemprompt_logging::SystemSpan;
+use systemprompt_identifiers::{Actor, InstanceId, SessionId, TraceId};
+use systemprompt_logging::{LogActor, LogEntry, LogLevel, SystemSpan};
 use systemprompt_traits::Job as JobTrait;
 use tokio_cron_scheduler::Job;
 use tracing::{Instrument, debug, info, warn};
 
+/// What became of one configured job.
+///
+/// `NotInInventory` is separated from the other skips because it is the only
+/// one that means the operator is looking at a stale deployment: the
+/// configuration names a job this binary was not built with. It is reported,
+/// not merely logged, because the registration warning never reaches the
+/// `logs` table — the database log layer drops any event whose span carries no
+/// user, session and trace, and boot-time registration runs outside one.
+enum Registered {
+    Yes,
+    No,
+    NotInInventory,
+}
+
+/// What a registration pass achieved: the jobs now on the cron loop, and the
+/// ones that could not be put there.
+pub(super) struct RegistrationOutcome {
+    pub(super) registered: usize,
+    pub(super) skipped: Vec<SkippedJob>,
+}
+
 impl SchedulerService {
-    pub(super) async fn register_jobs(&self, ctx: &RegistrationCtx<'_>) -> SchedulerResult<()> {
+    pub(super) async fn register_jobs(&self, ctx: &RegistrationCtx<'_>) -> RegistrationOutcome {
+        let mut registered = 0;
+        let mut skipped = Vec::new();
         for job_config in &self.config.jobs {
-            self.register_single_job(ctx, job_config).await?;
+            match self.register_single_job(ctx, job_config).await {
+                Ok(Registered::Yes) => registered += 1,
+                Ok(Registered::NotInInventory) => skipped.push(SkippedJob {
+                    job_name: job_config.name.clone(),
+                    owner: job_config
+                        .owner
+                        .as_ref()
+                        .map_or_else(|| "system admin".to_owned(), |o| o.as_str().to_owned()),
+                    reason: "this build has no job by that name; the configuration is ahead of                              the deployed binary"
+                        .to_owned(),
+                }),
+                Ok(Registered::No) => {},
+                Err(error) => {
+                    warn!(
+                        job = %job_config.name,
+                        error = %error,
+                        "job registration failed; continuing with the remaining jobs"
+                    );
+                    skipped.push(SkippedJob {
+                        job_name: job_config.name.clone(),
+                        owner: job_config
+                            .owner
+                            .as_ref()
+                            .map_or_else(|| "system admin".to_owned(), |o| o.as_str().to_owned()),
+                        reason: error.to_string(),
+                    });
+                },
+            }
         }
-        Ok(())
+        if !skipped.is_empty() {
+            self.persist_registration_errors(&skipped).await;
+        }
+        RegistrationOutcome {
+            registered,
+            skipped,
+        }
+    }
+
+    async fn persist_registration_errors(&self, skipped: &[SkippedJob]) {
+        let repository = &self.logging_repository;
+        let system_admin_id = self.app_context.system_admin().id().clone();
+        for job in skipped {
+            let actor = LogActor::new(
+                system_admin_id.clone(),
+                SessionId::system(),
+                TraceId::generate(),
+            );
+            let entry = LogEntry::new(
+                LogLevel::Error,
+                "scheduler",
+                format!(
+                    "Job '{}' could not be registered and will not run: {}. \
+                     Every other job was registered normally.",
+                    job.job_name, job.reason
+                ),
+                actor,
+            );
+            if let Err(error) = repository.log(entry).await {
+                warn!(error = %error, job_name = %job.job_name, "failed to persist scheduler registration error to logs");
+            }
+        }
     }
 
     async fn register_single_job(
         &self,
         ctx: &RegistrationCtx<'_>,
         job_config: &JobConfig,
-    ) -> SchedulerResult<()> {
+    ) -> SchedulerResult<Registered> {
         if !job_config.enabled {
             debug!(job = %job_config.name, "Skipping disabled job");
-            return Ok(());
+            return Ok(Registered::No);
         }
 
         let Some(registered_job) = ctx.registered_jobs.get(job_config.name.as_str()) else {
             warn!(job = %job_config.name, "Job not found in inventory, skipping");
-            return Ok(());
+            return Ok(Registered::NotInInventory);
         };
 
         let Some(owner_id) = ctx.owners.get(&job_config.name).cloned() else {
             warn!(job = %job_config.name, "no resolved owner for job, skipping");
-            return Ok(());
+            return Ok(Registered::No);
         };
         let actor = Actor::job(owner_id, job_config.name.clone());
 
@@ -53,7 +141,7 @@ impl SchedulerService {
                 job = %job_config.name,
                 "Job has an empty schedule; bootstrap/manual-only, not cron-scheduled"
             );
-            return Ok(());
+            return Ok(Registered::No);
         }
 
         self.repository
@@ -62,7 +150,7 @@ impl SchedulerService {
 
         let job = self.create_job_from_trait(ctx, job_config, &schedule, actor)?;
         ctx.scheduler.add(job).await?;
-        Ok(())
+        Ok(Registered::Yes)
     }
 
     fn create_job_from_trait(

@@ -54,9 +54,9 @@ impl SchedulerHandle {
 /// Outcome of [`SchedulerService::start`].
 ///
 /// `handle` is `None` when the scheduler is disabled; `degraded` lists jobs
-/// dropped because their explicit owner did not resolve, for the caller to
-/// surface as a health signal. `scheduled` is how many jobs carry a
-/// `scheduler.jobs` entry — the number that will actually run, as distinct
+/// dropped because their explicit owner did not resolve or because
+/// registration failed, for the caller to surface as a health signal.
+/// `scheduled` is how many jobs are actually on the cron loop, as distinct
 /// from the inventory total the build happens to contain.
 #[derive(Debug)]
 pub struct SchedulerStartup {
@@ -169,14 +169,23 @@ impl SchedulerService {
             running_jobs: &running_jobs,
             owners: resolved.owner_map(),
         };
-        self.register_jobs(&ctx).await?;
+        let outcome = self.register_jobs(&ctx).await;
         scheduler.start().await?;
+
+        let mut degraded = resolved.into_degraded();
+        if !outcome.skipped.is_empty() {
+            warn!(
+                count = outcome.skipped.len(),
+                "jobs were skipped because they could not be registered"
+            );
+            degraded.extend(outcome.skipped);
+        }
 
         info!("Scheduler started");
         Ok(SchedulerStartup {
             handle: Some(SchedulerHandle { scheduler }),
-            degraded: resolved.into_degraded(),
-            scheduled: self.config.jobs.len(),
+            degraded,
+            scheduled: outcome.registered,
         })
     }
 
