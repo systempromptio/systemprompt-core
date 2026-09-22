@@ -68,12 +68,20 @@ const REBUILD_ATTEMPTS: u32 = 5;
 
 static REBUILD_LOCK: OnceLock<Result<(), String>> = OnceLock::new();
 
-pub async fn refresh_reporting(db: &DbPool) -> Result<()> {
+// A rebuild truncates every projection target, so a process that only *reads*
+// the projection is exposed to one that rebuilds it: the reader's rows vanish
+// mid-query. Holding the same lock is what makes a read safe, so every fixture
+// that touches the projection takes it, not only the ones that rebuild.
+pub fn hold_reporting_lock() -> Result<()> {
     let url = crate::fixture_database_url()?;
     REBUILD_LOCK
         .get_or_init(|| acquire_rebuild_lock(&url))
         .clone()
-        .map_err(|error| anyhow::anyhow!("Reporting rebuild lock unavailable: {error}"))?;
+        .map_err(|error| anyhow::anyhow!("Reporting rebuild lock unavailable: {error}"))
+}
+
+pub async fn refresh_reporting(db: &DbPool) -> Result<()> {
+    hold_reporting_lock()?;
     rebuild_while_locked(db).await
 }
 
