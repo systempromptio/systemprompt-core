@@ -3,7 +3,7 @@
 //! `FilesConfig::get_optional().is_some()` — both code paths (with and
 //! without a globally-initialised FilesConfig) are stable to call.
 
-use systemprompt_models::config::RateLimitConfig;
+use systemprompt_models::profile::RateLimitsConfig;
 use systemprompt_models::profile::{ContentNegotiationConfig, SecurityHeadersConfig};
 use systemprompt_models::validators::ValidationConfigProvider;
 use systemprompt_models::{Config, ServicesConfig};
@@ -45,7 +45,8 @@ fn fixture_config() -> Config {
         id_jag_ttl_secs: 300,
         signing_key_path: std::path::PathBuf::new(),
         use_https: false,
-        rate_limits: RateLimitConfig::default(),
+        rate_limits: RateLimitsConfig::default(),
+        retention: systemprompt_models::profile::RetentionConfig::default(),
         cors_allowed_origins: Vec::new(),
         trusted_proxies: Vec::new(),
         is_cloud: false,

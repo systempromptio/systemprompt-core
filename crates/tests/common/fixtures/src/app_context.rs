@@ -15,7 +15,7 @@ use systemprompt_database::DbPool;
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_marketplace::{AllowAllFilter, MarketplaceCache, MarketplaceFilter};
 use systemprompt_mcp::services::registry::RegistryService;
-use systemprompt_models::config::RateLimitConfig;
+use systemprompt_models::profile::RateLimitsConfig;
 use systemprompt_models::profile::{ContentNegotiationConfig, PathsConfig, SecurityHeadersConfig};
 use systemprompt_models::{Config, RouteClassifier};
 use systemprompt_runtime::{
@@ -107,10 +107,11 @@ pub fn fixture_config(database_url: &str) -> Config {
         id_jag_ttl_secs: systemprompt_models::profile::DEFAULT_ID_JAG_TTL_SECS,
         signing_key_path: std::path::PathBuf::from("signing_key.pem"),
         use_https: false,
-        rate_limits: RateLimitConfig {
+        rate_limits: RateLimitsConfig {
             disabled: true,
-            ..RateLimitConfig::default()
+            ..RateLimitsConfig::default()
         },
+        retention: systemprompt_models::profile::RetentionConfig::default(),
         cors_allowed_origins: vec!["http://localhost:3000".to_string()],
         trusted_proxies: vec![],
         is_cloud: false,

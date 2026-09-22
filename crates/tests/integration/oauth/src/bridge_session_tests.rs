@@ -12,7 +12,7 @@ use systemprompt_analytics::AnalyticsService;
 use systemprompt_identifiers::SessionId;
 use systemprompt_models::Config;
 use systemprompt_models::auth::JwtAudience;
-use systemprompt_models::config::RateLimitConfig;
+use systemprompt_models::profile::RateLimitsConfig;
 use systemprompt_oauth::services::{BridgeAccessRequest, issue_bridge_access};
 use systemprompt_security::keys::authority;
 
@@ -70,7 +70,8 @@ fn test_config() -> Config {
         id_jag_ttl_secs: 300,
         signing_key_path: PathBuf::new(),
         use_https: false,
-        rate_limits: RateLimitConfig::default(),
+        rate_limits: RateLimitsConfig::default(),
+        retention: systemprompt_models::profile::RetentionConfig::default(),
         cors_allowed_origins: Vec::new(),
         trusted_proxies: Vec::new(),
         is_cloud: false,

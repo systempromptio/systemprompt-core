@@ -7,7 +7,7 @@ use std::path::PathBuf;
 
 use systemprompt_config::paths::AppPaths;
 use systemprompt_models::Config;
-use systemprompt_models::config::RateLimitConfig;
+use systemprompt_models::profile::RateLimitsConfig;
 use systemprompt_models::profile::{ContentNegotiationConfig, PathsConfig, SecurityHeadersConfig};
 use systemprompt_runtime::AppContext;
 use tempfile::tempdir;
@@ -52,7 +52,8 @@ fn minimal_config(
         id_jag_ttl_secs: 300,
         signing_key_path: PathBuf::new(),
         use_https: false,
-        rate_limits: RateLimitConfig::default(),
+        rate_limits: RateLimitsConfig::default(),
+        retention: systemprompt_models::profile::RetentionConfig::default(),
         cors_allowed_origins: Vec::new(),
         trusted_proxies: Vec::new(),
         is_cloud: false,

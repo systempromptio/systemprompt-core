@@ -154,7 +154,7 @@ mod rate_limits_validator {
     use super::*;
 
     fn config_with_rate_limits(
-        f: impl FnOnce(&mut systemprompt_models::config::RateLimitConfig),
+        f: impl FnOnce(&mut systemprompt_models::profile::RateLimitsConfig),
     ) -> Config {
         let mut config = base_config();
         config.rate_limits.disabled = false;
