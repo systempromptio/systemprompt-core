@@ -139,8 +139,6 @@ impl AppContextBuilder {
         )
         .await?;
 
-        crate::reporting::initialize(&database).await?;
-
         let assembly::ContentAnalytics {
             geoip_reader,
             content_config,

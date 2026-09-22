@@ -156,6 +156,18 @@ async fn projection_rebuild_status_and_bounded_sync_track_durable_backlog() {
         .await
         .expect("seed projection owner");
 
+    // A report against an uninitialized baseline is refused, and refusing must
+    // not itself build one: only the server task and an explicit rebuild do.
+    let refused = command(database.url(), &["analytics", "costs"]);
+    assert!(!refused.status.success(), "report ran without a baseline");
+    assert!(
+        redact(&refused.stderr, database.url()).contains("not initialized"),
+        "refusal names the missing baseline"
+    );
+    let untouched = json_success(database.url(), &["analytics", "projection", "status"]);
+    assert_eq!(card_field(&untouched, "initialized"), false);
+    assert!(card_field(&untouched, "rebuild_source").is_null());
+
     let rebuilt = json_success(database.url(), &["analytics", "projection", "rebuild"]);
     assert_eq!(rebuilt["artifact_type"], "presentation_card");
     assert_eq!(rebuilt["title"], "Reporting projection");

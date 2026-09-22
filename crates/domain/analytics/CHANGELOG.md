@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- **Breaking:** the reporting baseline rebuild is phased, not one transaction. `ReportingProjector::begin_rebuild(conn, cutoff)` opens the generation and records the cutoff; `clear_targets(conn, generation)` truncates the report tables; `write_snapshot_page(conn, definition, after, limit)` writes one keyset page set-based from the owner view; `finish_rebuild(conn, generation)` flips `initialized` without touching the cutoff. `apply_snapshot` and the `SnapshotCursor` are removed. `analytics_projection_state` gains `rebuild_started_at`, `rebuild_heartbeat_at`, `rebuild_source`, `rebuild_rows` (migration `012_projection_rebuild_progress`), surfaced on `ProjectionStatus`; `AnalyticsError::RebuildSuperseded` fences a run whose generation moved. A large upgraded database no longer spends minutes holding every source lock in one backend that can run out of memory.
+
 ## [0.55.0] - 2026-09-17
 
 ### Added

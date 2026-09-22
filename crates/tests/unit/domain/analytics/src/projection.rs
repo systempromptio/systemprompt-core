@@ -1,7 +1,8 @@
 use serde_json::{Value, json};
 use sqlx::{PgPool, Postgres, Transaction};
 use systemprompt_analytics::projection::{
-    ReportingProjector, ReportingRow, ReportingSource, SOURCE_DEFINITIONS,
+    ReportingProjector, ReportingRow, ReportingSource, SOURCE_DEFINITIONS, heartbeat_rebuild,
+    write_snapshot_page,
 };
 
 async fn isolated_projection() -> Transaction<'static, Postgres> {
@@ -36,7 +37,16 @@ async fn isolated_projection() -> Transaction<'static, Postgres> {
             .await
             .unwrap();
     }
-    sqlx::query("INSERT INTO users(id,name,email) VALUES ('u','u','u@example.test'), ('replacement','replacement','replacement@example.test')")
+    let capture = include_str!("../../../../../domain/users/schema/reporting_capture.sql");
+    let view = capture
+        .split("CREATE OR REPLACE TRIGGER")
+        .next()
+        .expect("users reporting view precedes its trigger");
+    sqlx::raw_sql(sqlx::AssertSqlSafe(view.to_owned()))
+        .execute(&mut *tx)
+        .await
+        .unwrap();
+    sqlx::query("INSERT INTO users(id,name,email) VALUES ('u','baseline','u@example.test'), ('replacement','replacement','replacement@example.test')")
         .execute(&mut *tx).await.unwrap();
     sqlx::query(systemprompt_analytics::projection::REPORTING_STATE_SEED)
         .execute(&mut *tx)
@@ -55,6 +65,35 @@ fn user(key: &str, revision: i64, name: &str) -> ReportingRow {
     }
 }
 
+/// Opens a generation at `cutoff`, clears the targets and pages the users
+/// source in one-row pages, returning the generation and the keys paged.
+async fn snapshot_users(tx: &mut Transaction<'_, Postgres>, cutoff: i64) -> (i64, Vec<String>) {
+    let generation = ReportingProjector::begin_rebuild(&mut *tx, cutoff)
+        .await
+        .unwrap();
+    ReportingProjector::clear_targets(&mut *tx, generation)
+        .await
+        .unwrap();
+    let users = ReportingSource::Users.definition();
+    let mut after: Option<String> = None;
+    let mut keys = Vec::new();
+    loop {
+        let page = write_snapshot_page(&mut *tx, users, after.as_deref(), 1)
+            .await
+            .unwrap();
+        heartbeat_rebuild(&mut *tx, generation, users.table, page.written)
+            .await
+            .unwrap();
+        if page.fetched < 1 {
+            break;
+        }
+        assert_eq!((page.fetched, page.written), (1, 1));
+        after = page.last_key;
+        keys.push(after.clone().unwrap());
+    }
+    (generation, keys)
+}
+
 async fn name(tx: &mut Transaction<'_, Postgres>, key: &str) -> Option<String> {
     sqlx::query_scalar("SELECT name FROM analytics_report_users WHERE id = $1")
         .bind(key)
@@ -71,13 +110,17 @@ async fn revisions_tombstones_and_baseline_prevent_resurrection() {
             .await
             .is_err()
     );
-    let generation = ReportingProjector::begin_rebuild(&mut tx).await.unwrap();
-    ReportingProjector::apply_snapshot(&mut tx, &user("u", 10, "baseline"))
+    let (generation, keys) = snapshot_users(&mut tx, 10).await;
+    assert_eq!(keys, vec!["replacement".to_owned(), "u".to_owned()]);
+    ReportingProjector::finish_rebuild(&mut tx, generation)
         .await
         .unwrap();
-    ReportingProjector::finish_rebuild(&mut tx, generation, 10)
-        .await
-        .unwrap();
+    assert!(
+        heartbeat_rebuild(&mut tx, generation, "users", 0)
+            .await
+            .unwrap_err()
+            .is_rebuild_superseded()
+    );
     assert!(
         !ReportingProjector::apply_fact(&mut tx, &user("u", 9, "stale"))
             .await
@@ -132,30 +175,41 @@ async fn revisions_tombstones_and_baseline_prevent_resurrection() {
 }
 
 #[tokio::test]
-async fn rebuild_failure_preserves_previous_projection_and_validates_contracts() {
+async fn rebuild_primitives_roll_back_and_fence_and_validate_contracts() {
     let mut tx = isolated_projection().await;
-    let generation = ReportingProjector::begin_rebuild(&mut tx).await.unwrap();
-    ReportingProjector::apply_snapshot(&mut tx, &user("u", 10, "original"))
+    let (generation, _) = snapshot_users(&mut tx, 10).await;
+    ReportingProjector::finish_rebuild(&mut tx, generation)
         .await
         .unwrap();
-    ReportingProjector::finish_rebuild(&mut tx, generation, 10)
-        .await
-        .unwrap();
+    assert_eq!(name(&mut tx, "u").await.as_deref(), Some("baseline"));
     sqlx::query("SAVEPOINT rebuild")
         .execute(&mut *tx)
         .await
         .unwrap();
-    let generation = ReportingProjector::begin_rebuild(&mut tx).await.unwrap();
-    ReportingProjector::apply_snapshot(&mut tx, &user("replacement", 20, "replacement"))
+    let generation = ReportingProjector::begin_rebuild(&mut tx, 20)
+        .await
+        .unwrap();
+    ReportingProjector::clear_targets(&mut tx, generation)
         .await
         .unwrap();
     assert!(name(&mut tx, "u").await.is_none());
+    assert!(
+        ReportingProjector::clear_targets(&mut tx, generation - 1)
+            .await
+            .unwrap_err()
+            .is_rebuild_superseded()
+    );
+    assert!(
+        ReportingProjector::finish_rebuild(&mut tx, generation - 1)
+            .await
+            .unwrap_err()
+            .is_rebuild_superseded()
+    );
     sqlx::query("ROLLBACK TO SAVEPOINT rebuild")
         .execute(&mut *tx)
         .await
         .unwrap();
-    assert_eq!(name(&mut tx, "u").await.as_deref(), Some("original"));
-    assert!(name(&mut tx, "replacement").await.is_none());
+    assert_eq!(name(&mut tx, "u").await.as_deref(), Some("baseline"));
     assert_eq!(generation, 2);
     let mut mismatch = user("u", 11, "invalid");
     mismatch.row["id"] = json!("different");

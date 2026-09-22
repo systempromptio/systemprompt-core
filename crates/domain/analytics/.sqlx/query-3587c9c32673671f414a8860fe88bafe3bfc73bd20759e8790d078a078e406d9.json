@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE analytics_projection_state\n         SET rebuild_heartbeat_at = NOW(), rebuild_source = $2, rebuild_rows = rebuild_rows + $3\n         WHERE singleton AND generation = $1 AND NOT initialized AND rebuild_started_at IS NOT NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "3587c9c32673671f414a8860fe88bafe3bfc73bd20759e8790d078a078e406d9"
+}

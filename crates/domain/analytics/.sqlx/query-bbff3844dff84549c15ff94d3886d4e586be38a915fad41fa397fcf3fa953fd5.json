@@ -1,0 +1,121 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT initialized, generation, rebuilt_at,\n            rebuild_started_at, rebuild_heartbeat_at, rebuild_source, rebuild_rows,\n            (SELECT COUNT(*) FROM event_outbox WHERE consumer = $1 AND processed_at IS NULL) AS \"pending_count!\",\n            (SELECT MIN(created_at) FROM event_outbox WHERE consumer = $1 AND processed_at IS NULL) AS oldest_pending_at,\n            (SELECT MAX(processed_at) FROM event_outbox WHERE consumer = $1) AS last_processed_at\n         FROM analytics_projection_state WHERE singleton",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "initialized",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "analytics_projection_state",
+            "name": "initialized"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "generation",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "analytics_projection_state",
+            "name": "generation"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "rebuilt_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "analytics_projection_state",
+            "name": "rebuilt_at"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "rebuild_started_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "analytics_projection_state",
+            "name": "rebuild_started_at"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "rebuild_heartbeat_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "analytics_projection_state",
+            "name": "rebuild_heartbeat_at"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "rebuild_source",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "analytics_projection_state",
+            "name": "rebuild_source"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "rebuild_rows",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "analytics_projection_state",
+            "name": "rebuild_rows"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "pending_count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 8,
+        "name": "oldest_pending_at",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 9,
+        "name": "last_processed_at",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      false,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "bbff3844dff84549c15ff94d3886d4e586be38a915fad41fa397fcf3fa953fd5"
+}

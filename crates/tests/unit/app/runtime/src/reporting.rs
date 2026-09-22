@@ -353,3 +353,6 @@ mod privacy;
 
 #[path = "reporting_user_privacy.rs"]
 mod user_privacy;
+
+#[path = "reporting_rebuild.rs"]
+mod rebuild;

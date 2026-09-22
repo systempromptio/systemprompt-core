@@ -50,15 +50,33 @@ not depend on receiving them.
 
 ## Initialization and rebuild
 
-`systemprompt_runtime::reporting::initialize` installs owner capture contracts and
-builds a baseline when none exists. `rebuild` refreshes the baseline explicitly.
-Both use the primary database. Rebuild takes the projector advisory lock and
-shared locks on source tables, reads owner views, and replaces projection rows
-inside one transaction. Source writes wait while those table locks are held.
-Readers retain PostgreSQL snapshot visibility of the previous committed data
-until commit; a failed rebuild rolls back all projection changes. The generation
-counter records successful rebuilds but does not retain a separate historical
-table generation for rollback.
+`systemprompt_runtime::reporting::initialize` builds a baseline when none exists;
+`rebuild` refreshes it explicitly. Both use the primary database. The server
+does not wait for the baseline: it binds and serves while its reporting task
+builds it, and reports refuse with an in-progress message until it lands.
+
+A rebuild runs in fenced, committed phases rather than one transaction:
+
+1. **Fence.** Under the projector advisory lock and shared locks on every source
+   table, mint the cutoff revision and open a new generation. Source writes
+   wait only for this step, which takes milliseconds.
+2. **Clear.** Truncate the projection tables in their own transaction.
+3. **Snapshot.** For each source, write the retained rows of its owner view in
+   keyset pages of 10 000, one transaction and one set-based statement per
+   page, heartbeating the state row after each. Pages read live committed
+   rows under the projector lock, so a privacy delivery made between pages is
+   never undone by a stale snapshot. A change captured after the fence also
+   has a fact above the cutoff, which the worker re-applies afterwards.
+4. **Finish.** Flip `initialized` if the generation is still the live one.
+
+`analytics projection status` shows the phase (`rebuild_source`,
+`rebuild_rows`, `rebuild_heartbeat_at`). A node that finds a fresh heartbeat
+leaves the running rebuild alone; a heartbeat older than two minutes is taken
+over from the fence. A failed or interrupted rebuild leaves the projection
+uninitialized (and its tables empty) until the retry succeeds — the projection
+is a derived cache, and the server retries automatically. The generation
+counter records every fence but does not keep a historical generation for
+rollback.
 
 Rebuild needs the source tables and views. The outbox is a delivery queue, not
 permanent reporting history. Upgrade all SSE relays to understand durable

@@ -12,11 +12,11 @@ use crate::{AnalyticsError, Result};
 mod snapshot;
 mod sources;
 mod state;
-pub use snapshot::{SnapshotCursor, SnapshotRow};
+pub use snapshot::{SnapshotPage, lock_sources, write_snapshot_page};
 pub use sources::SOURCE_DEFINITIONS;
 pub use state::{
-    ProjectionStatus, is_initialized, lock_projector, lock_user_deletion, next_cutoff_revision,
-    status,
+    ProjectionStatus, RebuildState, heartbeat_rebuild, is_initialized, lock_projector,
+    lock_user_deletion, next_cutoff_revision, rebuild_state, status,
 };
 
 pub const REPORTING_CONSUMER: &str = "analytics_reporting";
@@ -127,61 +127,64 @@ impl ReportingRow {
 pub struct ReportingProjector;
 
 impl ReportingProjector {
-    pub async fn begin_rebuild(connection: &mut PgConnection) -> Result<i64> {
-        let generation = sqlx::query_scalar!(
-            r#"SELECT generation + 1 AS "generation!" FROM analytics_projection_state WHERE singleton FOR UPDATE"#
+    /// Opens a new generation with its cutoff and the in-progress marker.
+    /// Callers hold the source locks: every fact minted before `cutoff`
+    /// has committed, every later one is above it and will be applied.
+    pub async fn begin_rebuild(connection: &mut PgConnection, cutoff: i64) -> Result<i64> {
+        Ok(sqlx::query_scalar!(
+            r#"UPDATE analytics_projection_state
+               SET generation = generation + 1, initialized = FALSE, cutoff_revision = $1,
+                   rebuild_started_at = NOW(), rebuild_heartbeat_at = NOW(),
+                   rebuild_source = NULL, rebuild_rows = 0
+               WHERE singleton RETURNING generation AS "generation!""#,
+            cutoff
         )
         .fetch_one(&mut *connection)
-        .await?;
-        for definition in SOURCE_DEFINITIONS {
-            sqlx::query(sqlx::AssertSqlSafe(format!(
-                "DELETE FROM {}",
-                definition.target
-            )))
+        .await?)
+    }
+
+    /// Empties every report table and the revision guard for the generation
+    /// opened by `begin_rebuild`; a separate transaction so no source lock is
+    /// held while the targets are truncated.
+    pub async fn clear_targets(connection: &mut PgConnection, generation: i64) -> Result<()> {
+        Self::verify_generation(connection, generation).await?;
+        let targets = SOURCE_DEFINITIONS
+            .iter()
+            .map(|definition| definition.target)
+            .collect::<Vec<_>>()
+            .join(", ");
+        sqlx::query(sqlx::AssertSqlSafe(format!("TRUNCATE TABLE {targets}")))
             .execute(&mut *connection)
             .await?;
-        }
         sqlx::query!("DELETE FROM analytics_projection_revisions")
             .execute(&mut *connection)
             .await?;
-        Ok(generation)
-    }
-
-    pub async fn apply_snapshot(connection: &mut PgConnection, fact: &ReportingRow) -> Result<()> {
-        fact.validate()?;
-        if fact.deleted {
-            return Err(AnalyticsError::invalid_argument(
-                "a snapshot cannot contain deleted rows",
-            ));
-        }
-        if Self::retained(connection, fact).await? {
-            Self::write_row(connection, fact).await?;
-        }
         Ok(())
     }
 
-    pub async fn finish_rebuild(
-        connection: &mut PgConnection,
-        generation: i64,
-        cutoff_revision: i64,
-    ) -> Result<()> {
-        if generation < 1 || cutoff_revision < 0 {
-            return Err(AnalyticsError::invalid_argument(
-                "invalid projection generation or cutoff",
-            ));
-        }
+    /// Marks the baseline complete. The cutoff is left as recorded by
+    /// `begin_rebuild` or raised since by a privacy compaction; lowering it
+    /// would replay facts that compaction already delivered.
+    pub async fn finish_rebuild(connection: &mut PgConnection, generation: i64) -> Result<()> {
         let result = sqlx::query!(
-            "UPDATE analytics_projection_state SET generation = $1::BIGINT, cutoff_revision = $2,
-             initialized = TRUE, rebuilt_at = NOW() WHERE singleton AND generation = $1::BIGINT - 1",
-            generation,
-            cutoff_revision
+            "UPDATE analytics_projection_state
+             SET initialized = TRUE, rebuilt_at = NOW(), rebuild_started_at = NULL,
+                 rebuild_heartbeat_at = NULL, rebuild_source = NULL
+             WHERE singleton AND generation = $1 AND NOT initialized",
+            generation
         )
         .execute(&mut *connection)
         .await?;
         if result.rows_affected() != 1 {
-            return Err(AnalyticsError::invalid_argument(
-                "projection generation changed during rebuild",
-            ));
+            return Err(AnalyticsError::rebuild_superseded());
+        }
+        Ok(())
+    }
+
+    async fn verify_generation(connection: &mut PgConnection, generation: i64) -> Result<()> {
+        let state = rebuild_state(connection).await?;
+        if state.generation != generation || state.initialized || state.rebuild_started_at.is_none() {
+            return Err(AnalyticsError::rebuild_superseded());
         }
         Ok(())
     }

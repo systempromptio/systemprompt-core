@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- **Breaking:** `AppContext::build()` no longer builds the analytics reporting baseline; `reporting::spawn` (the server's reporting task) builds it in the background and then drains, so a large upgraded database boots and serves while the baseline is paged in. `reporting::initialize` returns `RebuildOutcome` (`Rebuilt`, `AlreadyInitialized`, `InProgressElsewhere`) and, like `rebuild`, runs the phased rebuild synchronously for tests and the CLI.
+
 ## [0.55.0] - 2026-09-17
 
 ### Breaking
