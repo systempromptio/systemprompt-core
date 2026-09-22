@@ -161,10 +161,10 @@ impl PluginDependency {
 /// the session. Off by default — a tenant that publishes no announcements has
 /// no reason to run a command on every prompt.
 ///
-/// `evaluation` is server-side only: it switches on the session-evaluation
-/// engine for the sessions this plugin's track hook reports, and installs no
-/// client hook of its own. Like `comms` it rides on the governance owner, so
-/// `is_empty` ignores it.
+/// `judge` is server-side only: it switches on the conversation judge for the
+/// sessions this plugin's track hook reports, and installs no client hook of
+/// its own. Like `comms` it rides on the governance owner, so `is_empty`
+/// ignores it.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PluginHooksRef {
@@ -172,8 +172,14 @@ pub struct PluginHooksRef {
     pub governance: bool,
     #[serde(default)]
     pub comms: bool,
-    #[serde(default)]
-    pub evaluation: bool,
+    // Why: `judge` was `evaluation` until 5c8d3ae9e. The struct denies unknown
+    // fields, so a published kit or a customer config still using the old key
+    // is a fatal load failure, not a warning — and kits are pinned OCI
+    // artifacts we do not get to edit in lockstep with a core release. The
+    // alias keeps them loading; drop it once every pinned kit has been
+    // republished on the new name.
+    #[serde(default, alias = "evaluation")]
+    pub judge: bool,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub include: Vec<String>,
 }
