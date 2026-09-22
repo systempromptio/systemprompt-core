@@ -21,27 +21,28 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod cost_warning;
 mod foreign_keys;
 pub(crate) mod lock;
+mod phase;
 mod routine_prepass;
 mod validation;
 
 use systemprompt_extension::{Extension, ExtensionRegistry, LoaderError};
 use tracing::{debug, info, warn};
 
+use self::cost_warning::warn_unmeasured_migrations;
 use self::foreign_keys::apply_foreign_keys;
 use self::lock::BootstrapLockGuard;
+use self::phase::execute_phase;
 use self::routine_prepass::apply_routine_prepass;
 use self::validation::{validate_extension_columns, validate_table_ownership};
-use super::migration_cost::{HOT_TABLES, audit_migration_cost};
 use super::migration_refs::check_migration_references;
 use super::prepare::{PreparedSchema, prepare_extension_schema};
 use super::report::SchemaInstallReport;
 use super::seeds::apply_seeds;
 use super::undeclared::audit_schema_residue;
-use crate::lifecycle::migrations::{
-    BaselineStamp, MigrationConfig, MigrationService, RECORD_MIGRATION_SQL,
-};
+use crate::lifecycle::migrations::{MigrationConfig, MigrationService};
 use crate::services::DatabaseProvider;
 
 pub async fn install_extension_schemas(
@@ -129,7 +130,7 @@ async fn run_install(
 
     validate_table_ownership(&prepared, schema_extensions)?;
     check_migration_references(schema_extensions)?;
-    warn_unmeasured_migrations(schema_extensions);
+    warn_unmeasured_migrations(db, &migration_service, schema_extensions).await;
 
     let mut fresh_extensions: std::collections::HashSet<String> = std::collections::HashSet::new();
     for (ext, p) in schema_extensions.iter().zip(&prepared) {
@@ -209,97 +210,4 @@ async fn run_install(
     report.residue = audit_schema_residue(db, &owned, &ids).await?;
 
     Ok(report)
-}
-
-async fn execute_phase(
-    db: &dyn DatabaseProvider,
-    statements: &[String],
-    stamp: &[BaselineStamp],
-    extension_id: &str,
-) -> Result<(), LoaderError> {
-    if statements.is_empty() && stamp.is_empty() {
-        return Ok(());
-    }
-
-    let mut tx =
-        db.begin_transaction()
-            .await
-            .map_err(|e| LoaderError::SchemaInstallationFailed {
-                extension: extension_id.to_owned(),
-                message: format!("Failed to begin transaction: {e}"),
-            })?;
-
-    let total = statements.len();
-    for (idx, statement) in statements.iter().enumerate() {
-        let sql_str: &str = statement.as_str();
-        if let Err(e) = tx.execute(&sql_str, &[]).await {
-            let rollback_note = match tx.rollback().await {
-                Ok(()) => String::new(),
-                Err(rb) => format!(" (rollback also failed: {rb})"),
-            };
-            return Err(LoaderError::SchemaInstallationFailed {
-                extension: extension_id.to_owned(),
-                message: format!(
-                    "Statement {n}/{total} failed: {e}{rollback_note}\nSQL:\n{statement}",
-                    n = idx + 1,
-                ),
-            });
-        }
-    }
-
-    for row in stamp {
-        let params: [&dyn systemprompt_identifiers::ToDbValue; 5] = [
-            &row.id,
-            &extension_id,
-            &row.version,
-            &row.name,
-            &row.checksum,
-        ];
-        if let Err(e) = tx.execute(&RECORD_MIGRATION_SQL, &params).await {
-            let rollback_note = match tx.rollback().await {
-                Ok(()) => String::new(),
-                Err(rb) => format!(" (rollback also failed: {rb})"),
-            };
-            return Err(LoaderError::SchemaInstallationFailed {
-                extension: extension_id.to_owned(),
-                message: format!(
-                    "Failed to stamp migration {} ({}) as applied: {e}{rollback_note}",
-                    row.version, row.name
-                ),
-            });
-        }
-    }
-
-    tx.commit()
-        .await
-        .map_err(|e| LoaderError::SchemaInstallationFailed {
-            extension: extension_id.to_owned(),
-            message: format!("Failed to commit transaction: {e}"),
-        })?;
-
-    Ok(())
-}
-
-// Why: a warning, never a refusal. A migration that rewrites a hot table
-// without declaring what it measured is a review failure, and the repos'
-// test suites fail on it; refusing it here would turn a missing comment into
-// a customer's instance that will not boot. What bounds the damage at
-// runtime is the statement timeout the runner derives from `@cost`.
-fn warn_unmeasured_migrations(extensions: &[std::sync::Arc<dyn Extension>]) {
-    for cost in audit_migration_cost(extensions, HOT_TABLES) {
-        if let Some(reason) = cost.malformed.as_deref() {
-            warn!(
-                migration = %cost.label(),
-                reason,
-                "Migration declares a malformed @cost directive",
-            );
-        }
-        if cost.is_undeclared() {
-            warn!(
-                migration = %cost.label(),
-                statements = %cost.statement_summary(),
-                "Migration rewrites a hot table without a measured @cost directive",
-            );
-        }
-    }
 }

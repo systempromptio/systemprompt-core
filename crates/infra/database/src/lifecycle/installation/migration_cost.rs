@@ -16,11 +16,26 @@
 //! something a parser can do — the author is the one who can measure it, and
 //! [`CostDirective`] is where they say so.
 //!
-//! Two consumers, one detector. At boot this warns: a missing comment must
-//! never brick an upgrade, and the statement timeout derived from `measured`
-//! is what actually bounds the damage. In each repo's test suite the same
-//! findings are a hard failure, which is where an unmeasured backfill is
-//! supposed to be caught — in the pull request, not on a customer's server.
+//! [`HOT_TABLES`] is the core-shipped list: row counts are from the 2026-09-22
+//! production analysis, and every one of them grows with traffic while none is
+//! ever pruned to a bounded size. It is passed in rather than read directly so
+//! an installation can add the tables it owns — core cannot know about a
+//! downstream repo's hottest table.
+//!
+//! Two consumers, one detector, and they read it over different populations.
+//!
+//! Each repo's test suite runs it over the whole catalogue, where the findings
+//! are a hard failure against a baseline of migrations that predate the gate.
+//! That is where an unmeasured backfill is supposed to be caught — in the pull
+//! request, not on a customer's server.
+//!
+//! The boot runs it over the migrations that are about to execute against a
+//! table that already holds rows, and only warns: a missing comment must never
+//! brick an upgrade, and the statement timeout derived from `measured` is what
+//! actually bounds the damage. It is deliberately not the whole catalogue. A
+//! migration that has already run cannot be made cheaper by a comment, so
+//! reporting it says nothing the operator can act on, and the grandfathered
+//! set is large enough that doing so buried the one finding that mattered.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -32,9 +47,6 @@ use pg_query::protobuf::AlterTableType;
 use systemprompt_extension::Extension;
 use systemprompt_extension::cost::{self, CostDirective};
 
-/// The tables core ships that are large enough for a blind rewrite to matter.
-/// Row counts are from the 2026-09-22 production analysis; every one of them
-/// grows with traffic and none is ever pruned to a bounded size.
 pub const HOT_TABLES: &[&str] = &[
     "ai_requests",
     "ai_request_messages",
@@ -47,28 +59,27 @@ pub const HOT_TABLES: &[&str] = &[
     "user_sessions",
 ];
 
-/// One statement that rewrites or rescans a hot table.
+/// One statement that rewrites or rescans a hot table. `position` is 1-based,
+/// matching how the runner numbers statements when one fails.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExpensiveStatement {
-    /// 1-based, matching how the runner numbers statements when one fails.
     pub position: usize,
     pub table: String,
     pub form: &'static str,
 }
 
 /// One migration's expensive statements and what it declared about them.
+/// `malformed` is set when the body carries a `@cost` line that does not parse.
 #[derive(Debug, Clone)]
 pub struct MigrationCost {
     pub extension: String,
     pub migration: String,
     pub statements: Vec<ExpensiveStatement>,
     pub declared: Option<CostDirective>,
-    /// Set when the body carries a `@cost` line that does not parse.
     pub malformed: Option<String>,
 }
 
 impl MigrationCost {
-    /// The migration does bulk work and never says what it costs.
     #[must_use]
     pub fn is_undeclared(&self) -> bool {
         !self.statements.is_empty() && self.declared.is_none()
@@ -89,11 +100,6 @@ impl MigrationCost {
     }
 }
 
-/// Audits every non-tombstone migration of every extension.
-///
-/// `hot` is passed rather than read from [`HOT_TABLES`] so an installation
-/// can add the tables it owns — core cannot know about a downstream repo's
-/// hottest table.
 #[must_use]
 pub fn audit_migration_cost(extensions: &[Arc<dyn Extension>], hot: &[&str]) -> Vec<MigrationCost> {
     let mut out = Vec::new();
@@ -109,8 +115,6 @@ pub fn audit_migration_cost(extensions: &[Arc<dyn Extension>], hot: &[&str]) -> 
     out
 }
 
-/// Audits one migration body. `None` when it neither does bulk work nor
-/// declares a cost, which is the ordinary case.
 #[must_use]
 pub fn audit_one(
     extension: &str,
