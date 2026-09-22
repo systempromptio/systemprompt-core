@@ -40,9 +40,9 @@ fn anthropic_haiku_cost_is_exact() {
 fn anthropic_sonnet_cost_is_exact() {
     let models = seed_models("anthropic");
     assert_eq!(
-        microdollars(&models, "claude-sonnet-4-6", 1_000_000, 1_000_000),
-        18_000_000,
-        "1M in @ 3/M + 1M out @ 15/M = 3 + 15 dollars"
+        microdollars(&models, "claude-sonnet-5", 1_000_000, 1_000_000),
+        12_000_000,
+        "1M in @ 2/M + 1M out @ 10/M = 2 + 10 dollars"
     );
 }
 
@@ -69,7 +69,7 @@ fn gemini_flash_cost_is_exact() {
 #[test]
 fn cache_tokens_are_billed_by_the_shared_cost_function() {
     let models = seed_models("anthropic");
-    let pricing = catalog_pricing(&models, "claude-sonnet-4-6").expect("model is priced");
+    let pricing = catalog_pricing(&models, "claude-sonnet-5").expect("model is priced");
     let cached = usage()
         .input(1_000)
         .output(500)

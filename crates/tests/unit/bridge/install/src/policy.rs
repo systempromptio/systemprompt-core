@@ -251,6 +251,7 @@ fn the_gateway_block_is_written_as_one_complete_unit() {
     assert_eq!(
         models,
         &serde_json::json!([
+            "claude-opus-5-5",
             "claude-opus-5",
             "claude-sonnet-5",
             "claude-fable-5-1",

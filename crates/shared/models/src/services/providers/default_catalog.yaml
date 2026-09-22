@@ -17,7 +17,8 @@
 #
 # Model sets are reconciled against each vendor's live `/models` endpoint and
 # their published rate cards. Anthropic lifecycle and visibility were last
-# reconciled on 2026-09-21; other providers were last reconciled on 2026-06-01:
+# reconciled on 2026-09-22 (Opus 5.5 added, Claude 4.x Opus/Sonnet dropped);
+# other providers were last reconciled on 2026-06-01:
 #   - Anthropic: https://platform.claude.com/docs/en/about-claude/pricing
 #   - OpenAI:    https://openai.com/api/pricing/
 #   - Google:    https://ai.google.dev/gemini-api/docs/pricing
@@ -31,17 +32,16 @@ providers:
     endpoint: https://api.anthropic.com/v1
     api_key_secret: anthropic
     models:
-      - id: claude-sonnet-4-6
-        hidden: true
-        pricing: { input_per_million: 3.0, output_per_million: 15.0, cache_read_per_million: 0.3, cache_write_per_million: 3.75 }
+      - id: claude-sonnet-5
+        pricing: { input_per_million: 2.0, output_per_million: 10.0, cache_read_per_million: 0.2, cache_write_per_million: 2.5 }
+        capabilities: { vision: true, streaming: true, tools: true, structured_output: true, system_prompts: true, prompt_caching: true }
+        limits: { context_window: 1000000, max_output_tokens: 128000 }
+      - id: claude-opus-5-5
+        pricing: { input_per_million: 4.0, output_per_million: 20.0, cache_read_per_million: 0.2, cache_write_per_million: 5.0 }
         capabilities: { vision: true, streaming: true, tools: true, structured_output: true, system_prompts: true, prompt_caching: true }
         limits: { context_window: 1000000, max_output_tokens: 128000 }
       - id: claude-opus-5
         pricing: { input_per_million: 5.0, output_per_million: 25.0, cache_read_per_million: 0.5, cache_write_per_million: 6.25 }
-        capabilities: { vision: true, streaming: true, tools: true, structured_output: true, system_prompts: true, prompt_caching: true }
-        limits: { context_window: 1000000, max_output_tokens: 128000 }
-      - id: claude-sonnet-5
-        pricing: { input_per_million: 2.0, output_per_million: 10.0, cache_read_per_million: 0.2, cache_write_per_million: 2.5 }
         capabilities: { vision: true, streaming: true, tools: true, structured_output: true, system_prompts: true, prompt_caching: true }
         limits: { context_window: 1000000, max_output_tokens: 128000 }
       - id: claude-fable-5-1
@@ -53,36 +53,9 @@ providers:
         pricing: { input_per_million: 10.0, output_per_million: 50.0, cache_read_per_million: 1.0, cache_write_per_million: 12.5 }
         capabilities: { vision: true, streaming: true, tools: true, structured_output: true, system_prompts: true, prompt_caching: true }
         limits: { context_window: 1000000, max_output_tokens: 128000 }
-      - id: claude-opus-4-8
-        hidden: true
-        pricing: { input_per_million: 5.0, output_per_million: 25.0, cache_read_per_million: 0.5, cache_write_per_million: 6.25 }
-        capabilities: { vision: true, streaming: true, tools: true, structured_output: true, system_prompts: true, prompt_caching: true }
-        limits: { context_window: 1000000, max_output_tokens: 128000 }
-      - id: claude-opus-4-7
-        hidden: true
-        pricing: { input_per_million: 5.0, output_per_million: 25.0, cache_read_per_million: 0.5, cache_write_per_million: 6.25 }
-        capabilities: { vision: true, streaming: true, tools: true, structured_output: true, system_prompts: true, prompt_caching: true }
-        limits: { context_window: 1000000, max_output_tokens: 128000 }
-      - id: claude-opus-4-6
-        hidden: true
-        pricing: { input_per_million: 5.0, output_per_million: 25.0, cache_read_per_million: 0.5, cache_write_per_million: 6.25 }
-        capabilities: { vision: true, streaming: true, tools: true, structured_output: true, system_prompts: true, prompt_caching: true }
-        limits: { context_window: 1000000, max_output_tokens: 128000 }
       - id: claude-haiku-4-5-20251001
         aliases: [claude-haiku-4-5]
         pricing: { input_per_million: 1.0, output_per_million: 5.0, cache_read_per_million: 0.1, cache_write_per_million: 1.25 }
-        capabilities: { vision: true, streaming: true, tools: true, structured_output: true, system_prompts: true, prompt_caching: true }
-        limits: { context_window: 200000, max_output_tokens: 64000 }
-      - id: claude-opus-4-5-20251101
-        aliases: [claude-opus-4-5]
-        hidden: true
-        pricing: { input_per_million: 5.0, output_per_million: 25.0, cache_read_per_million: 0.5, cache_write_per_million: 6.25 }
-        capabilities: { vision: true, streaming: true, tools: true, structured_output: true, system_prompts: true, prompt_caching: true }
-        limits: { context_window: 200000, max_output_tokens: 64000 }
-      - id: claude-sonnet-4-5-20250929
-        aliases: [claude-sonnet-4-5]
-        hidden: true
-        pricing: { input_per_million: 3.0, output_per_million: 15.0, cache_read_per_million: 0.3, cache_write_per_million: 3.75 }
         capabilities: { vision: true, streaming: true, tools: true, structured_output: true, system_prompts: true, prompt_caching: true }
         limits: { context_window: 200000, max_output_tokens: 64000 }
   - name: openai

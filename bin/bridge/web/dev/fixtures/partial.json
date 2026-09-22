@@ -96,9 +96,9 @@
         "claude-opus-5",
         "claude-sonnet-5",
         "claude-fable-5",
-        "claude-opus-4-8",
+        "claude-opus-5-5",
         "claude-haiku-4-5",
-        "claude-sonnet-4-5"
+        "claude-fable-5-1"
       ],
       "models_checked": true,
       "compatible_models_available": true,
@@ -166,9 +166,9 @@
         "claude-opus-5",
         "claude-sonnet-5",
         "claude-fable-5",
-        "claude-opus-4-8",
+        "claude-opus-5-5",
         "claude-haiku-4-5",
-        "claude-sonnet-4-5"
+        "claude-fable-5-1"
       ],
       "models_checked": true,
       "compatible_models_available": true,
@@ -236,9 +236,9 @@
         "claude-opus-5",
         "claude-sonnet-5",
         "claude-fable-5",
-        "claude-opus-4-8",
+        "claude-opus-5-5",
         "claude-haiku-4-5",
-        "claude-sonnet-4-5"
+        "claude-fable-5-1"
       ],
       "models_checked": true,
       "compatible_models_available": true,
@@ -306,9 +306,9 @@
         "claude-opus-5",
         "claude-sonnet-5",
         "claude-fable-5",
-        "claude-opus-4-8",
+        "claude-opus-5-5",
         "claude-haiku-4-5",
-        "claude-sonnet-4-5"
+        "claude-fable-5-1"
       ],
       "models_checked": true,
       "compatible_models_available": true,
@@ -439,8 +439,8 @@
       "surface": "messages",
       "configured": true,
       "models": [
-        "claude-opus-4-6",
-        "claude-sonnet-4-6"
+        "claude-opus-5",
+        "claude-sonnet-5"
       ]
     },
     {

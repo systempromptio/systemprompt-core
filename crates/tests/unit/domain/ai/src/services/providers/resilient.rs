@@ -37,7 +37,7 @@ async fn delegates_generate_to_inner() {
         Arc::new(ResilientProvider::new("anthropic", Arc::new(inner), &s));
 
     let messages = vec![AiMessage::user("hi")];
-    let params = GenerationParams::new(&messages, "claude-sonnet-4-6", 32);
+    let params = GenerationParams::new(&messages, "claude-sonnet-5", 32);
     let resp = resilient.generate(params).await.expect("ok");
     assert!(resp.content.contains("ok via guard"));
 }
@@ -52,10 +52,10 @@ async fn delegates_metadata() {
     let r = ResilientProvider::new("anthropic", Arc::new(inner), &s);
     assert_eq!(r.name(), "anthropic");
     assert!(r.supports_streaming());
-    assert!(r.supports_model("claude-sonnet-4-6"));
+    assert!(r.supports_model("claude-sonnet-5"));
     assert!(!r.supports_model("nope"));
-    assert_eq!(r.default_model(), "claude-sonnet-4-6");
-    let _ = r.get_pricing("claude-sonnet-4-6");
+    assert_eq!(r.default_model(), "claude-sonnet-5");
+    let _ = r.get_pricing("claude-sonnet-5");
     let _ = r.capabilities();
     let _ = r.supports_json_mode();
     let _ = r.supports_structured_output();
@@ -74,7 +74,7 @@ async fn maps_inner_error() {
     let s = settings();
     let r = ResilientProvider::new("anthropic", Arc::new(inner), &s);
     let messages = vec![AiMessage::user("hi")];
-    let params = GenerationParams::new(&messages, "claude-sonnet-4-6", 16);
+    let params = GenerationParams::new(&messages, "claude-sonnet-5", 16);
     let res = r.generate(params).await;
     assert!(res.is_err());
 }
@@ -96,7 +96,7 @@ async fn delegates_generate_with_tools() {
         McpServerId::try_new("svc").expect("valid McpServerId"),
     )];
     let params = ToolGenerationParams::new(
-        GenerationParams::new(&messages, "claude-sonnet-4-6", 16),
+        GenerationParams::new(&messages, "claude-sonnet-5", 16),
         tools,
     );
     let (resp, _calls) = r.generate_with_tools(params).await.expect("ok");
@@ -115,7 +115,7 @@ async fn delegates_generate_with_schema() {
     let s = settings();
     let r = ResilientProvider::new("anthropic", Arc::new(inner), &s);
     let messages = vec![AiMessage::user("hi")];
-    let base = GenerationParams::new(&messages, "claude-sonnet-4-6", 32);
+    let base = GenerationParams::new(&messages, "claude-sonnet-5", 32);
     let params = SchemaGenerationParams::new(
         base,
         serde_json::json!({"type": "object", "properties": {"answer": {"type": "number"}}}),
@@ -133,7 +133,7 @@ async fn delegates_generate_structured() {
     let s = settings();
     let r = ResilientProvider::new("anthropic", Arc::new(inner), &s);
     let messages = vec![AiMessage::user("hi")];
-    let base = GenerationParams::new(&messages, "claude-sonnet-4-6", 32);
+    let base = GenerationParams::new(&messages, "claude-sonnet-5", 32);
     let fmt = ResponseFormat::json_object();
     let params = StructuredGenerationParams::new(base, &fmt);
     let resp = r.generate_structured(params).await.expect("ok");
@@ -150,7 +150,7 @@ async fn delegates_generate_with_tool_results() {
     let s = settings();
     let r = ResilientProvider::new("anthropic", Arc::new(inner), &s);
     let messages = vec![AiMessage::user("hi")];
-    let base = GenerationParams::new(&messages, "claude-sonnet-4-6", 32);
+    let base = GenerationParams::new(&messages, "claude-sonnet-5", 32);
     let calls: Vec<systemprompt_ai::models::tools::ToolCall> = Vec::new();
     let results: Vec<systemprompt_ai::models::tools::CallToolResult> = Vec::new();
     let params = ToolResultsParams::new(base, &calls, &results);
@@ -168,7 +168,7 @@ async fn delegates_generate_with_tools_stream() {
     let s = settings();
     let r = ResilientProvider::new("anthropic", Arc::new(inner), &s);
     let messages = vec![AiMessage::user("hi")];
-    let base = GenerationParams::new(&messages, "claude-sonnet-4-6", 16);
+    let base = GenerationParams::new(&messages, "claude-sonnet-5", 16);
     let tools = vec![McpTool::new(
         "f",
         McpServerId::try_new("svc").expect("valid McpServerId"),
@@ -191,7 +191,7 @@ async fn stream_open_failure_releases_permit() {
     let s = settings();
     let r = ResilientProvider::new("anthropic", Arc::new(inner), &s);
     let messages = vec![AiMessage::user("hi")];
-    let params = GenerationParams::new(&messages, "claude-sonnet-4-6", 16);
+    let params = GenerationParams::new(&messages, "claude-sonnet-5", 16);
     let res = r.generate_stream(params).await;
     assert!(res.is_err());
 }
@@ -206,7 +206,7 @@ async fn stream_call_guards_path() {
     let s = settings();
     let r = ResilientProvider::new("anthropic", Arc::new(inner), &s);
     let messages = vec![AiMessage::user("hi")];
-    let params = GenerationParams::new(&messages, "claude-sonnet-4-6", 16);
+    let params = GenerationParams::new(&messages, "claude-sonnet-5", 16);
     drop(r.generate_stream(params).await.expect("ok stream"));
 }
 
@@ -227,7 +227,7 @@ async fn a_tripped_breaker_reports_circuit_open_instead_of_the_inner_error() {
     let messages = vec![AiMessage::user("hi")];
 
     let first = r
-        .generate(GenerationParams::new(&messages, "claude-sonnet-4-6", 16))
+        .generate(GenerationParams::new(&messages, "claude-sonnet-5", 16))
         .await
         .expect_err("upstream 500 must surface as an error");
     assert!(
@@ -236,7 +236,7 @@ async fn a_tripped_breaker_reports_circuit_open_instead_of_the_inner_error() {
     );
 
     let second = r
-        .generate(GenerationParams::new(&messages, "claude-sonnet-4-6", 16))
+        .generate(GenerationParams::new(&messages, "claude-sonnet-5", 16))
         .await
         .expect_err("the breaker must now be open");
     let message = second.to_string();
@@ -267,14 +267,14 @@ async fn an_open_breaker_also_short_circuits_the_streaming_path() {
     let messages = vec![AiMessage::user("hi")];
 
     assert!(
-        r.generate_stream(GenerationParams::new(&messages, "claude-sonnet-4-6", 16))
+        r.generate_stream(GenerationParams::new(&messages, "claude-sonnet-5", 16))
             .await
             .is_err(),
         "the upstream failure trips the breaker"
     );
 
     let Err(err) = r
-        .generate_stream(GenerationParams::new(&messages, "claude-sonnet-4-6", 16))
+        .generate_stream(GenerationParams::new(&messages, "claude-sonnet-5", 16))
         .await
     else {
         panic!("the open breaker must refuse to open a second stream");

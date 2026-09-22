@@ -17,7 +17,7 @@ use super::{pool_or_skip, seeded_context, service};
 use crate::services::providers::mock_http;
 
 const ANTHROPIC: &str = "anthropic";
-const MODEL: &str = "claude-sonnet-4-6";
+const MODEL: &str = "claude-sonnet-5";
 
 // A well-formed stream carrying both a text delta and a usage report.
 const COMPLETE_SSE: &str = "data: {\"type\":\"message_start\",\"message\":{\"id\":\"x\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude\",\"content\":[],\"stop_reason\":null,\"stop_sequence\":null,\"usage\":{\"input_tokens\":7,\"output_tokens\":1}}}\n\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"streamed body\"}}\n\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"},\"usage\":{\"output_tokens\":19}}\n\n";

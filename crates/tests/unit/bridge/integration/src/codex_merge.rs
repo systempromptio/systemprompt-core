@@ -24,6 +24,7 @@ fn with_codex_home<R>(body: impl FnOnce(&Path) -> R) -> R {
 
 fn codex_inputs() -> ProfileGenInputs {
     ProfileGenInputs {
+        model_limits: Default::default(),
         gateway_base_url: "https://gateway.example.com".to_string(),
         host_token: HostToken::new("sp-test-key"),
         models: vec!["claude-opus-4-7".to_string()],

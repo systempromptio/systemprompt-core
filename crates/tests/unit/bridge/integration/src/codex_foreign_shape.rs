@@ -26,6 +26,7 @@ fn with_codex_home<R>(body: impl FnOnce(&Path) -> R) -> R {
 
 fn inputs() -> ProfileGenInputs {
     ProfileGenInputs {
+        model_limits: Default::default(),
         gateway_base_url: "https://gateway.example.com".to_string(),
         host_token: HostToken::new("sp-test-key"),
         models: vec!["gpt-5".to_string()],

@@ -10,6 +10,7 @@
 ### Added
 
 - **Rate limiting:** `rate_limits.bridge_auth_per_second` (default 20, env `RATE_LIMIT_BRIDGE_AUTH_PER_SECOND`) gives `/v1/auth/bridge/*` a budget separate from `gateway_per_second`. Inference is high-volume and elastic; sign-in is a handful of requests that must succeed, and one saturated bucket locked every user out of authenticating.
+- `/v1/models` entries carry `max_input_tokens` and `max_tokens` from the catalog's declared limits, omitted when a model declares none, so a client sizes a 1M model as 1M rather than assuming 200k.
 
 ### Fixed
 
@@ -127,7 +128,6 @@
 ### Removed
 
 - `POST /v1/auth/bridge/mtls`, `auth::mtls`, `auth::MtlsRequestBody` and the `mtls` entry in `GET /v1/auth/bridge/capabilities`; the bridge no longer has a device-certificate provider.
-
 - `GET /bridge/profile` answers 503 and `POST /admin/services/refresh` answers 500 when the secrets store is not initialised, instead of treating every secret as absent.
 - An upstream error body that cannot be read is recorded as `<unreadable body: …>` in the gateway error.
 - A gateway deployment that registers request guards but has no database pool denies the request with `503` (`GatewayDenyKind::Unavailable`) instead of skipping the guards.
@@ -152,7 +152,6 @@
 - Terminal gateway accounting uses encrypted, bounded, profile-scoped receipts with replayable database settlement through `AiRequestRepository::settle`. Failed storage preserves terminal evidence for recovery; abandoned admissions retain an explicit unknown-usage failure.
 - Receipt recovery runs once at server start and every 30 s on a task owned by the run loop and aborted at shutdown; admission only reserves a receipt. An unreadable receipt is quarantined as `<name>.bad` and a receipt whose settlement fails is retained for the next pass, neither blocks other receipts or the request path. The journal bound is 4096 receipts per replica.
 - Captured tool calls in a receipt carry a typed `AiToolCallId`.
-
 - The bridge release feed authenticates to GitHub with the secret named by `gateway.bridge_releases.token_secret`, resolved through `SecretsBootstrap`, instead of reading the process variable named by the former `token_env`.
 - The recovery task also fails `pending` `ai_requests` rows older than one hour with `settlement never arrived; usage unknown`: a receipt lives on its replica's disk, so a replaced machine can no longer settle its in-flight requests and they must not stay open.
 
@@ -208,7 +207,6 @@
 - The bridge release feed caches its GitHub resolution per platform for five minutes behind one shared HTTP client, and serves the last resolved release when GitHub fails. A fleet checking for updates on a timer used to cost two GitHub calls per bridge per check, and an upstream blip was a 502 for every bridge at once.
 - `/bridge/manifest` carries the instance's `bridge_policy.auto_update`.
 - Authenticated evaluation workers can retrieve frozen assignments and submit ordered execution events through `/assignment` and `/events`; assignment responses disable caching.
-
 - Added the authenticated evaluation worker access endpoint and execution-only gateway authentication. Evaluation audit records carry job attribution.
 - Environment-scoped evaluation worker endpoints authenticate credentials and reject foreign or stale lease mutations.
 

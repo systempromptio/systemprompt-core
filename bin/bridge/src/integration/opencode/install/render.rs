@@ -35,11 +35,23 @@ pub(super) fn managed_json(inputs: &ProfileGenInputs) -> Map<String, Value> {
     }
 
     // Why: OpenCode has no models.dev catalogue for custom providers, so models
-    // must be declared.
+    // must be declared — limits included, or it sizes a 1M model with its own
+    // default.
     let models: Map<String, Value> = inputs
         .models
         .iter()
-        .map(|m| (m.clone(), json!({ "name": m })))
+        .map(|m| {
+            let entry = inputs.model_limits.get(m).map_or_else(
+                || json!({ "name": m }),
+                |l| {
+                    json!({
+                        "name": m,
+                        "limit": { "context": l.context_window, "output": l.max_output_tokens },
+                    })
+                },
+            );
+            (m.clone(), entry)
+        })
         .collect();
 
     let mut provider = Map::new();

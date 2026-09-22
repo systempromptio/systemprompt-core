@@ -204,7 +204,7 @@ function settingsPayload() {
     ...prefs,
     gateway_url: state.gateway_url,
     auth_scheme: "bearer",
-    models: ["claude-opus-4", "claude-sonnet-4"],
+    models: ["claude-opus-5", "claude-sonnet-5"],
     cert_keystore_ref: null,
     // Exercises the provenance badge: a device policy has replaced whatever the
     // operator pinned, which the app must say out loud.

@@ -206,7 +206,7 @@ fn apply_summary(
     summary.push("  Pointing Bridge at the gateway is half the flow. The gateway must also".into());
     summary.push("  have a provider+model route that accepts the model id Bridge requests".into());
     summary
-        .push("  (e.g. claude-sonnet-4-6). If the gateway rejects the model, Bridge shows:".into());
+        .push("  (e.g. claude-sonnet-5). If the gateway rejects the model, Bridge shows:".into());
     summary.push(
         "    \"There's an issue with the selected model (<id>). It may not exist...\"".into(),
     );

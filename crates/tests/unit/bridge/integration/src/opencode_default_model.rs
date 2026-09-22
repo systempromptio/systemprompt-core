@@ -31,6 +31,7 @@ fn sandbox<R>(f: impl FnOnce() -> R) -> R {
 
 fn rendered(models: &[&str], default_model: Option<&str>) -> serde_json::Value {
     let inputs = ProfileGenInputs {
+        model_limits: Default::default(),
         gateway_base_url: "http://127.0.0.1:48217".to_owned(),
         host_token: HostToken::new("loopback-secret-value"),
         models: models.iter().map(|m| (*m).to_owned()).collect(),

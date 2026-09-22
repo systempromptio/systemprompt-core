@@ -177,6 +177,7 @@ fn inputs() -> ProfileGenInputs {
     let mut headers = BTreeMap::new();
     headers.insert("x-inference-protocol".to_owned(), "responses".to_owned());
     ProfileGenInputs {
+        model_limits: Default::default(),
         gateway_base_url: "http://127.0.0.1:48217".to_owned(),
         host_token: HostToken::new("loopback-secret-value"),
         models: vec!["gpt-5".to_owned()],
