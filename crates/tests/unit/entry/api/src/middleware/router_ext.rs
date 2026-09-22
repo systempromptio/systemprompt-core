@@ -25,7 +25,7 @@ use systemprompt_api::services::middleware::{
 };
 use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId, UserId};
 use systemprompt_models::auth::UserType;
-use systemprompt_models::config::RateLimitConfig;
+use systemprompt_models::profile::RateLimitsConfig;
 use systemprompt_models::execution::ContextExtractionError;
 use systemprompt_models::{Config, RequestContext};
 use systemprompt_test_fixtures::{fixture_config, fixture_database_url, fixture_db_pool};
@@ -104,15 +104,15 @@ fn extractor(context: Option<RequestContext>) -> StubExtractor {
     StubExtractor { context }
 }
 
-fn limited() -> RateLimitConfig {
-    RateLimitConfig {
+fn limited() -> RateLimitsConfig {
+    RateLimitsConfig {
         disabled: false,
         burst_multiplier: 1,
-        ..RateLimitConfig::default()
+        ..RateLimitsConfig::default()
     }
 }
 
-fn config_with(rate_limits: RateLimitConfig) -> Config {
+fn config_with(rate_limits: RateLimitsConfig) -> Config {
     let mut config = fixture_config("postgres://localhost/router-ext");
     config.rate_limits = rate_limits;
     config.trusted_proxies = Vec::new();
@@ -127,7 +127,7 @@ async fn buckets_or_skip() -> Option<Arc<UserRateLimitBucketRepository>> {
     ))
 }
 
-async fn limits_with_or_skip(rate_limits: RateLimitConfig) -> Option<RateLimitState> {
+async fn limits_with_or_skip(rate_limits: RateLimitsConfig) -> Option<RateLimitState> {
     Some(RateLimitState::new(
         &config_with(rate_limits),
         buckets_or_skip().await?,
@@ -141,9 +141,9 @@ fn window_start(now: DateTime<Utc>) -> DateTime<Utc> {
 
 #[tokio::test]
 async fn a_disabled_rate_limit_leaves_the_router_untouched() {
-    let Some(limits) = limits_with_or_skip(RateLimitConfig {
+    let Some(limits) = limits_with_or_skip(RateLimitsConfig {
         disabled: true,
-        ..RateLimitConfig::default()
+        ..RateLimitsConfig::default()
     })
     .await
     else {
@@ -223,7 +223,7 @@ async fn a_zero_rate_clamps_to_a_real_limit_instead_of_meaning_unlimited() {
 
 #[tokio::test]
 async fn a_burst_product_that_is_an_exact_multiple_of_u32_still_limits() {
-    let Some(limits) = limits_with_or_skip(RateLimitConfig {
+    let Some(limits) = limits_with_or_skip(RateLimitsConfig {
         burst_multiplier: 1 << 31,
         ..limited()
     })

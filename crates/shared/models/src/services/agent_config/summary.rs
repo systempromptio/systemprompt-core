@@ -41,15 +41,6 @@ impl AgentSummary {
 
 impl From<&AgentConfig> for AgentSummary {
     fn from(config: &AgentConfig) -> Self {
-        Self {
-            agent_id: AgentId::new(config.name.clone()),
-            name: config.name.clone(),
-            display_name: config.card.display_name.clone(),
-            port: config.port,
-            enabled: config.enabled,
-            is_primary: config.is_primary,
-            is_default: config.default,
-            tags: config.tags.clone(),
-        }
+        Self::from_config(&config.name, config)
     }
 }

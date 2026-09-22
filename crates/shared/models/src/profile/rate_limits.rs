@@ -102,6 +102,74 @@ pub const fn default_burst() -> u64 {
     3
 }
 
+impl RateLimitsConfig {
+    /// Every per-second budget, paired with the field name an operator would
+    /// have to edit to change it.
+    ///
+    /// Both validators iterate this rather than listing the fields themselves.
+    /// They used to keep their own lists and had already drifted apart: the
+    /// profile-side one checked `gateway_per_second` but neither registry
+    /// budget, the runtime one checked both registries but not the gateway,
+    /// and so a zero in the wrong field passed whichever validator did not
+    /// name it. A list derived from the struct cannot fall out of step with
+    /// the struct.
+    #[must_use]
+    pub const fn per_second_budgets(&self) -> [(&'static str, u64); 13] {
+        [
+            ("oauth_public_per_second", self.oauth_public_per_second),
+            ("oauth_auth_per_second", self.oauth_auth_per_second),
+            ("contexts_per_second", self.contexts_per_second),
+            ("tasks_per_second", self.tasks_per_second),
+            ("artifacts_per_second", self.artifacts_per_second),
+            ("agent_registry_per_second", self.agent_registry_per_second),
+            ("agents_per_second", self.agents_per_second),
+            ("mcp_registry_per_second", self.mcp_registry_per_second),
+            ("mcp_per_second", self.mcp_per_second),
+            ("stream_per_second", self.stream_per_second),
+            ("content_per_second", self.content_per_second),
+            ("gateway_per_second", self.gateway_per_second),
+            ("bridge_auth_per_second", self.bridge_auth_per_second),
+        ]
+    }
+
+    /// The shipped limits. Production runs the defaults.
+    #[must_use]
+    pub fn production() -> Self {
+        Self::default()
+    }
+
+    /// Limits high enough that a test never trips one, while leaving the
+    /// limiter itself in the stack so its wiring is still exercised.
+    #[must_use]
+    pub const fn testing() -> Self {
+        Self {
+            disabled: false,
+            oauth_public_per_second: 10000,
+            oauth_auth_per_second: 10000,
+            contexts_per_second: 10000,
+            tasks_per_second: 10000,
+            artifacts_per_second: 10000,
+            agent_registry_per_second: 10000,
+            agents_per_second: 10000,
+            mcp_registry_per_second: 10000,
+            mcp_per_second: 10000,
+            stream_per_second: 10000,
+            content_per_second: 10000,
+            gateway_per_second: 10000,
+            bridge_auth_per_second: 10000,
+            burst_multiplier: 100,
+        }
+    }
+
+    /// No limiter at all: `with_rate_limit` returns the router untouched.
+    #[must_use]
+    pub const fn disabled() -> Self {
+        let mut config = Self::testing();
+        config.disabled = true;
+        config
+    }
+}
+
 impl Default for RateLimitsConfig {
     fn default() -> Self {
         Self {

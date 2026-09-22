@@ -30,7 +30,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use systemprompt_extension::LoaderError;
 use systemprompt_models::auth::UserType;
-use systemprompt_models::config::RateLimitConfig;
+use systemprompt_models::profile::RateLimitsConfig;
 use systemprompt_models::{Config, RequestContext};
 use systemprompt_runtime::AppContext;
 use systemprompt_users::UserRateLimitBucketRepository;
@@ -39,7 +39,7 @@ const GLOBAL_WINDOW_SECS: i64 = 10;
 
 #[derive(Clone, Debug)]
 pub struct RateLimitState {
-    config: RateLimitConfig,
+    config: RateLimitsConfig,
     trusted_proxies: Arc<Vec<IpNet>>,
     buckets: Arc<UserRateLimitBucketRepository>,
 }
