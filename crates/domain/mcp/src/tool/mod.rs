@@ -29,7 +29,9 @@ use systemprompt_models::RequestContext;
 use systemprompt_models::mcp::{ClientProfile, Correlation, ExecutionSource};
 
 const TOOL_LIST_TTL_MS: u64 = 3_600_000;
-const INTENT_CLAIM_WINDOW_SECONDS: i64 = 120;
+/// How far back an execution may reach for an unclaimed intent. Shared with
+/// the gateway's external-server audit so both correlate over one window.
+pub const INTENT_CLAIM_WINDOW_SECONDS: i64 = 120;
 
 #[must_use]
 pub fn build_tool_list_result(tools: Vec<Tool>) -> ListToolsResult {
@@ -190,7 +192,7 @@ impl McpToolExecutor {
             },
             error_message: response.as_ref().err().map(|e| e.message.to_string()),
             started_at,
-            completed_at,
+            completed_at: Some(completed_at),
         }
     }
 
