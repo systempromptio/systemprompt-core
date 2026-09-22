@@ -129,7 +129,10 @@ pub(super) fn finalize(
         ) {
             FinalizeDecision::Fail(cause) => {
                 let msg = summary.error.as_deref().unwrap_or_else(|| cause.reason());
-                if let Err(e) = audit.fail(msg).await {
+                // Why: the provider bills what it streamed before the break,
+                // so a truncated stream settles with the usage the tap saw.
+                let partial = summary.saw_usage_delta.then_some(summary.usage);
+                if let Err(e) = audit.fail_with_usage(msg, partial).await {
                     tracing::warn!(origin, error = %e, "stream audit fail failed");
                 }
                 log_terminal(&audit, cause.status(), Some(msg));

@@ -75,18 +75,34 @@ pub async fn latest(
     Ok(Json(resolved.manifest))
 }
 
+// Why: every bridge in the fleet reads this feed on a timer, so a resolution
+// that keeps failing is a fleet-wide update outage, not a warning — production
+// answered 577 consecutive 502s over eleven days while the only record was an
+// access-log row carrying the status and not the reason. A 5xx is logged at
+// error so `infra logs view --level error` shows the cause; a 4xx stays a
+// warning because it is a configuration answer, not an outage.
 fn logged_failure(
     endpoint: &'static str,
     platform: &str,
     (status, detail): (StatusCode, String),
 ) -> (StatusCode, String) {
-    tracing::warn!(
-        endpoint,
-        platform,
-        status = status.as_u16(),
-        detail = %detail,
-        "bridge release feed request failed"
-    );
+    if status.is_server_error() {
+        tracing::error!(
+            endpoint,
+            platform,
+            status = status.as_u16(),
+            detail = %detail,
+            "bridge release feed unavailable; every client update check is failing"
+        );
+    } else {
+        tracing::warn!(
+            endpoint,
+            platform,
+            status = status.as_u16(),
+            detail = %detail,
+            "bridge release feed request failed"
+        );
+    }
     (status, detail)
 }
 

@@ -4,7 +4,8 @@
 use serde_json::json;
 use systemprompt_ai::error::RepositoryError;
 use systemprompt_ai::repository::ai_requests::{
-    ORPHANED_REASON, SettleCompletion, SettledToolCall, SettlementOutcome, SettlementUsage,
+    ORPHANED_REASON, SettleCompletion, SettledFailure, SettledToolCall, SettlementOutcome,
+    SettlementUsage,
 };
 use systemprompt_ai::repository::{AiRequestRepository, UpsertPayloadParams};
 use systemprompt_database::DbPool;
@@ -273,7 +274,7 @@ async fn another_owner_cannot_settle_the_request() {
         .settle(
             &id,
             &UserId::new("someone-else"),
-            SettlementOutcome::Failed { error: "boom" },
+            SettlementOutcome::Failed(SettledFailure { error: "boom", ..Default::default() }),
         )
         .await
         .expect_err("owner mismatch");
@@ -296,7 +297,7 @@ async fn a_missing_request_row_is_a_settlement_conflict_not_a_database_error() {
         .settle(
             &AiRequestId::generate(),
             &user(),
-            SettlementOutcome::Failed { error: "boom" },
+            SettlementOutcome::Failed(SettledFailure { error: "boom", ..Default::default() }),
         )
         .await
         .expect_err("no row");
@@ -323,9 +324,10 @@ async fn a_failure_never_overwrites_a_settled_completion() {
     repo.settle(
         &id,
         &uid,
-        SettlementOutcome::Failed {
+        SettlementOutcome::Failed(SettledFailure {
             error: "late abort",
-        },
+            ..Default::default()
+        }),
     )
     .await
     .expect("late failure is accepted and ignored");
@@ -348,9 +350,10 @@ async fn a_failure_marks_the_request_failed_with_its_reason() {
     repo.settle(
         &id,
         &uid,
-        SettlementOutcome::Failed {
+        SettlementOutcome::Failed(SettledFailure {
             error: "upstream stream ended without stop event",
-        },
+            ..Default::default()
+        }),
     )
     .await
     .expect("failure");
@@ -384,9 +387,10 @@ async fn the_orphan_sweep_fails_only_pending_rows_older_than_the_bound() {
     repo.settle(
         &settled,
         &uid,
-        SettlementOutcome::Failed {
+        SettlementOutcome::Failed(SettledFailure {
             error: "upstream refused",
-        },
+            ..Default::default()
+        }),
     )
     .await
     .expect("settle");
@@ -491,9 +495,10 @@ async fn accounting_failure_preserves_paid_completion_across_identical_and_confl
     repo.settle(
         &id,
         &uid,
-        SettlementOutcome::Failed {
+        SettlementOutcome::Failed(SettledFailure {
             error: "late provider failure",
-        },
+            ..Default::default()
+        }),
     )
     .await
     .expect("generic failure retry remains harmless");
