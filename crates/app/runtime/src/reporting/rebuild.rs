@@ -1,7 +1,16 @@
-//! Analytics baseline rebuild in fenced, committed phases: a millisecond
-//! cutoff fence under the source locks, a truncate, one set-based page per
-//! transaction per source, then the flip to `initialized`. Nothing here
-//! holds a source lock or an open transaction for longer than one page.
+//! Analytics baseline rebuild in fenced, committed phases. Phase A mints the
+//! millisecond cutoff and opens the generation under every source lock, so no
+//! writer is mid-flight; phase A2 empties the targets in its own transaction;
+//! phase B snapshots each source as keyset pages, one transaction and one
+//! heartbeat per page, until a page comes back short; phase C flips
+//! `initialized` if this generation is still the live one. Nothing here holds
+//! a source lock or an open transaction for longer than one page.
+//!
+//! `initialize` is synchronous: it returns once the projection is initialized
+//! or another node is known to be building it. `rebuild` is unconditional and
+//! fences any rebuild in flight. A rebuild whose heartbeat is older than
+//! `STALE_HEARTBEAT` is presumed dead and taken over; a page is a bounded
+//! statement, so a live rebuild heartbeats well inside that window.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -21,18 +30,29 @@ use systemprompt_database::resilience::{Outcome, RetryConfig, retry_async};
 use crate::RuntimeResult;
 
 const PAGE_ROWS: i64 = 10_000;
-/// A rebuild whose heartbeat is older than this is presumed dead and taken
-/// over; a page is a bounded statement, so a live one heartbeats well inside.
 const STALE_HEARTBEAT: chrono::Duration = chrono::Duration::seconds(120);
 
-/// Why a non-forced run returned without a fresh baseline being its own.
+// Why: each fence opens a generation that supersedes any in flight, so two
+// forced rebuilds racing will supersede each other for as long as both keep
+// retrying. Bounding the retries turns an unbounded livelock into a typed
+// outcome the caller can act on; the backoff gives the winning run room to
+// finish rather than being superseded again immediately.
+const MAX_SUPERSEDED_RETRIES: u32 = 3;
+const SUPERSEDED_BACKOFF: Duration = Duration::from_millis(250);
+
+/// What a rebuild run actually did, which is not always what was asked for.
+///
+/// `InProgressElsewhere` is the one to handle: a forced rebuild is exclusive,
+/// because every fence mints a generation superseding whatever is in flight,
+/// so concurrent forced rebuilds cannot all win and the losers rebuilt
+/// nothing. A caller that needs a baseline containing rows it has just
+/// written must either act on this outcome or serialise its rebuilds; it
+/// cannot get that guarantee by retrying, which is what made an earlier
+/// unbounded retry a livelock.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RebuildOutcome {
-    /// This run built the baseline.
     Rebuilt,
-    /// The baseline already existed.
     AlreadyInitialized,
-    /// Another node is mid-rebuild and heartbeating; try again later.
     InProgressElsewhere,
 }
 
@@ -47,20 +67,17 @@ struct Plan {
     generation: i64,
 }
 
-/// Builds the baseline when there is none. Synchronous: returns once the
-/// projection is initialized or another node is known to be building it.
 pub async fn initialize(db: &DbPool) -> RuntimeResult<RebuildOutcome> {
     run(db, Mode::IfNeeded).await
 }
 
-/// Rebuilds the baseline unconditionally, fencing any rebuild in flight.
-pub async fn rebuild(db: &DbPool) -> RuntimeResult<()> {
-    run(db, Mode::Force).await?;
-    Ok(())
+pub async fn rebuild(db: &DbPool) -> RuntimeResult<RebuildOutcome> {
+    run(db, Mode::Force).await
 }
 
 async fn run(db: &DbPool, mode: Mode) -> RuntimeResult<RebuildOutcome> {
     let pool = db.write_pool_arc()?;
+    let mut superseded = 0u32;
     loop {
         let Some(plan) = fence(&pool, mode).await? else {
             return Ok(if in_progress_elsewhere(&pool).await? {
@@ -80,10 +97,22 @@ async fn run(db: &DbPool, mode: Mode) -> RuntimeResult<RebuildOutcome> {
                 return Ok(RebuildOutcome::Rebuilt);
             },
             Err(error) if error.is_rebuild_superseded() => {
+                superseded += 1;
+                if superseded > MAX_SUPERSEDED_RETRIES {
+                    tracing::warn!(
+                        generation = plan.generation,
+                        attempts = superseded,
+                        "Analytics baseline rebuild superseded on every attempt; \
+                         another rebuild owns the generation"
+                    );
+                    return Ok(RebuildOutcome::InProgressElsewhere);
+                }
                 tracing::warn!(
                     generation = plan.generation,
+                    attempt = superseded,
                     "Analytics baseline rebuild superseded; starting over"
                 );
+                tokio::time::sleep(SUPERSEDED_BACKOFF * superseded).await;
             },
             Err(error) => return Err(error.into()),
         }
@@ -98,7 +127,7 @@ async fn build(pool: &Arc<PgPool>, plan: Plan) -> Result<(), AnalyticsError> {
     finish(pool, plan).await
 }
 
-fn retry_config() -> RetryConfig {
+const fn retry_config() -> RetryConfig {
     RetryConfig {
         max_attempts: 4,
         base_delay: Duration::from_millis(50),
@@ -116,8 +145,6 @@ fn classify(error: &AnalyticsError) -> Outcome {
     }
 }
 
-/// Phase A. Under every source lock, so no writer is mid-flight: mint the
-/// cutoff and open the generation. Returns `None` when there is nothing to do.
 async fn fence(pool: &Arc<PgPool>, mode: Mode) -> Result<Option<Plan>, AnalyticsError> {
     retry_async(
         &retry_config(),
@@ -155,7 +182,6 @@ async fn in_progress_elsewhere(pool: &Arc<PgPool>) -> Result<bool, AnalyticsErro
     Ok(!state.initialized && heartbeat_is_fresh(&state))
 }
 
-/// Phase A2: empty the targets in their own transaction.
 async fn clear(pool: &Arc<PgPool>, plan: Plan) -> Result<(), AnalyticsError> {
     retry_async(
         &retry_config(),
@@ -172,8 +198,6 @@ async fn clear(pool: &Arc<PgPool>, plan: Plan) -> Result<(), AnalyticsError> {
     .await
 }
 
-/// Phase B for one source: keyset pages, each its own transaction and
-/// heartbeat, until a page comes back short.
 async fn snapshot_source(
     pool: &Arc<PgPool>,
     plan: Plan,
@@ -224,7 +248,6 @@ async fn snapshot_source(
     Ok(())
 }
 
-/// Phase C: flip `initialized` if this generation is still the live one.
 async fn finish(pool: &Arc<PgPool>, plan: Plan) -> Result<(), AnalyticsError> {
     retry_async(
         &retry_config(),

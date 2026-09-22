@@ -60,7 +60,7 @@ async fn sample_requests(
         r#"
         SELECT r.id, r.context_id AS "context_id: ContextId", r.provider AS "provider!", r.model AS "model!",
                r.system_prompt_override, r.latency_ms, r.cost_microdollars,
-               r.created_at, c.tools AS offered_tools, p.prepared_body_sha256
+               r.created_at, c.tools AS "offered_tools?", p.prepared_body_sha256
         FROM ai_requests r
         LEFT JOIN ai_request_payloads p ON p.ai_request_id = r.id
         LEFT JOIN ai_tool_catalogs c ON c.sha256 = p.offered_tools_sha256
