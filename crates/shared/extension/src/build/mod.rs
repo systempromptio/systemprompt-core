@@ -35,6 +35,9 @@
 //! in the migrations directory is not named `NNN_<name>.sql` or
 //! `NNN[-MMM]_<name>.tombstone`, or when two files claim the same version: a
 //! panic is the only way a build script aborts the build.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod discover;
 

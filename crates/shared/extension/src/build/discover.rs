@@ -6,6 +6,9 @@
 //! not named `NNN_<name>.sql` or `NNN[-MMM]_<name>.tombstone`, an orphan
 //! `.down.sql`, a descending range, or a malformed `@supersedes-checksum` or
 //! `@cost` directive panics here.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::path::{Path, PathBuf};
 
