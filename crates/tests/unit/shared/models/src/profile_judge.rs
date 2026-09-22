@@ -19,7 +19,7 @@ fn parse(map: Mapping) -> Result<Profile, serde_yaml::Error> {
 #[test]
 fn absent_block_means_manual_only() {
     let profile = parse(profile_yaml_without_evaluation()).expect("parses without the block");
-    assert!(!profile.evaluation.automatic);
+    assert!(!profile.judge.automatic);
 }
 
 #[test]
@@ -28,7 +28,7 @@ fn automatic_flag_parses() {
     let block: Value = serde_yaml::from_str("automatic: true").unwrap();
     map.insert(Value::String("evaluation".to_owned()), block);
     let profile = parse(map).expect("parses with the block");
-    assert!(profile.evaluation.automatic);
+    assert!(profile.judge.automatic);
 }
 
 #[test]
