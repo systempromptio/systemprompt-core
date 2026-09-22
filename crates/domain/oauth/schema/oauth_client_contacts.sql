@@ -6,5 +6,3 @@ CREATE TABLE IF NOT EXISTS oauth_client_contacts (
     PRIMARY KEY (client_id, contact_email),
     FOREIGN KEY (client_id) REFERENCES oauth_clients(client_id) ON DELETE CASCADE
 );
-CREATE INDEX IF NOT EXISTS idx_oauth_client_contacts_client_id
-    ON oauth_client_contacts(client_id);

@@ -11,6 +11,4 @@ CREATE TABLE IF NOT EXISTS ai_request_messages (
     FOREIGN KEY (request_id) REFERENCES ai_requests(id) ON DELETE CASCADE,
     UNIQUE(request_id, sequence_number)
 );
-CREATE INDEX IF NOT EXISTS idx_ai_request_messages_request_id ON ai_request_messages(request_id);
 CREATE INDEX IF NOT EXISTS idx_ai_request_messages_role ON ai_request_messages(role);
-CREATE INDEX IF NOT EXISTS idx_ai_request_messages_sequence ON ai_request_messages(request_id, sequence_number);

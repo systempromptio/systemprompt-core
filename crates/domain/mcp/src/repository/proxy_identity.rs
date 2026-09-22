@@ -6,6 +6,13 @@
 //! the trust anchor for session-based MCP auth: lookups read the write pool
 //! because a replica-lag miss would downgrade a verified caller to anonymous.
 //!
+//! The row carries the caller's bearer JWT because the proxy replays it to the
+//! upstream MCP server, so it cannot be hashed. It is sealed instead
+//! ([`systemprompt_security::at_rest`], ChaCha20-Poly1305 under
+//! `encryption_master_key`), and a row that does not open is dropped rather
+//! than trusted: a 24-hour identity cache is cheap to rebuild on the next
+//! `initialize`, and a token we cannot authenticate is not one to forward.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -46,6 +53,8 @@ impl McpProxyIdentityRepository {
     ) -> McpDomainResult<()> {
         let permissions = serde_json::to_value(&identity.permissions)?;
         let roles = serde_json::to_value(&identity.roles)?;
+        let auth_token = systemprompt_security::at_rest::seal(identity.auth_token.as_str())
+            .map_err(|e| McpDomainError::Internal(format!("Sealing proxy identity token: {e}")))?;
         sqlx::query!(
             r#"
             INSERT INTO mcp_proxy_identities
@@ -64,7 +73,7 @@ impl McpProxyIdentityRepository {
             identity.user_type.as_str(),
             permissions,
             roles,
-            identity.auth_token.as_str(),
+            auth_token.as_str(),
         )
         .execute(&*self.write_pool)
         .await?;
@@ -89,20 +98,29 @@ impl McpProxyIdentityRepository {
         .fetch_optional(&*self.write_pool)
         .await?;
 
-        row.map(|r| {
-            let user_type = UserType::from_str(&r.user_type)
-                .map_err(|e| McpDomainError::Validation(e.to_string()))?;
-            let permissions: Vec<Permission> = serde_json::from_value(r.permissions)?;
-            let roles: Vec<String> = serde_json::from_value(r.roles)?;
-            Ok(ProxyIdentityRow {
-                user_id: r.user_id,
-                user_type,
-                permissions,
-                roles,
-                auth_token: JwtToken::new(r.auth_token),
-            })
-        })
-        .transpose()
+        let Some(r) = row else {
+            return Ok(None);
+        };
+        let Ok(auth_token) = systemprompt_security::at_rest::open(&r.auth_token) else {
+            tracing::warn!(
+                session = %session_id,
+                "Proxy identity token did not open; dropping the row so the next initialize \
+                 re-establishes the identity"
+            );
+            self.delete(session_id).await?;
+            return Ok(None);
+        };
+        let user_type = UserType::from_str(&r.user_type)
+            .map_err(|e| McpDomainError::Validation(e.to_string()))?;
+        let permissions: Vec<Permission> = serde_json::from_value(r.permissions)?;
+        let roles: Vec<String> = serde_json::from_value(r.roles)?;
+        Ok(Some(ProxyIdentityRow {
+            user_id: r.user_id,
+            user_type,
+            permissions,
+            roles,
+            auth_token: JwtToken::new(auth_token),
+        }))
     }
 
     // Why: the backend opens the `mcp_sessions` row before it knows who is

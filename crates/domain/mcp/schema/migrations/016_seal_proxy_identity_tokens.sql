@@ -1,0 +1,12 @@
+-- `mcp_proxy_identities.auth_token` stored the caller's bearer JWT in clear:
+-- the production analysis of 2026-09-22 found 18 live JWTs readable from a
+-- database backup. The token cannot be hashed, because the proxy replays it
+-- to the upstream MCP server, so it is now sealed with ChaCha20-Poly1305
+-- under `encryption_master_key` before it is written.
+--
+-- Existing rows cannot be sealed in place — this migration has no key — and
+-- they must not be left readable, so they are deleted. That is cheap: the
+-- table is a 24-hour identity cache keyed by `mcp-session-id`, and the next
+-- authenticated `initialize` on each session rewrites its row. A reader that
+-- meets a token it cannot open drops the row for the same reason.
+DELETE FROM mcp_proxy_identities;
