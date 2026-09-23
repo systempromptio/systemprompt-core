@@ -320,7 +320,12 @@ async fn spawned_server_receives_service_environment_and_verified_termination_st
     }
     assert!(
         !fixture_is_running(),
-        "verified graceful termination must leave no live owned fixture child"
+        "verified graceful termination must leave no live owned fixture child; \
+         pid {pid} stat={:?} cmdline={:?} environ_readable={}",
+        std::fs::read_to_string(format!("/proc/{pid}/stat")),
+        std::fs::read(format!("/proc/{pid}/cmdline"))
+            .map(|c| String::from_utf8_lossy(&c).replace('\0', " ")),
+        std::fs::read(format!("/proc/{pid}/environ")).is_ok()
     );
     cleanup.pid = None;
     std::fs::remove_file(binary).ok();
