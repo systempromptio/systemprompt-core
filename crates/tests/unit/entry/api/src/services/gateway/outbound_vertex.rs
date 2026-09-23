@@ -115,7 +115,8 @@ async fn buffered_request_posts_raw_predict_with_bearer_and_body_version() {
 
     let route = route();
     let req = request(false);
-    let call = vertex_call(&server.uri());
+    let call =
+        vertex_call(&server.uri()).with_accepted_betas(Some(vec!["fixture-beta".to_owned()]));
     let forwarded = [
         ("anthropic-version".to_owned(), "2023-06-01".to_owned()),
         ("anthropic-beta".to_owned(), "fixture-beta".to_owned()),
@@ -274,4 +275,39 @@ async fn first_party_anthropic_keeps_messages_path_and_api_key() {
     let body = received_body(&server.received_requests().await.unwrap());
     assert_eq!(body["model"], "claude-sonnet-5");
     assert!(body.get("anthropic_version").is_none());
+}
+
+#[tokio::test]
+async fn an_undeclared_beta_is_not_forwarded_to_vertex() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/models/claude-sonnet-5@fixture:rawPredict"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(message()))
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let route = route();
+    let req = request(false);
+    let call = vertex_call(&server.uri());
+    let forwarded = [("anthropic-beta".to_owned(), "fixture-beta".to_owned())];
+    let ctx = OutboundCtx {
+        route: &route,
+        upstream: &call,
+        request: &req,
+        upstream_model: "claude-sonnet-5@fixture",
+        model_limits: None,
+        automatic_prompt_caching: false,
+        forward_headers: &forwarded,
+        raw_body: None,
+    };
+    let adapter = AnthropicOutbound;
+    let body = adapter.build_body(&ctx).expect("body");
+    adapter.send(ctx, &body).await.expect("vertex answers");
+
+    let sent = server.received_requests().await.expect("recorded");
+    assert!(
+        sent[0].headers.get("anthropic-beta").is_none(),
+        "Vertex rejects a beta it does not support, so none is sent undeclared"
+    );
 }

@@ -78,7 +78,8 @@ Each route maps a model name pattern to one upstream (`crates/shared/models/src/
 | `endpoint` | yes | The provider base URL. Validated against the outbound-URL guard. |
 | `api_key_secret` | yes | The key name in the secrets document holding this upstream's API key. |
 | `upstream_model` | no | Send a different model name upstream than the client requested. |
-| `extra_headers` | no | Additional headers added to the upstream request. |
+| `extra_headers` | no | Additional headers added to the upstream request. The credential, content framing and protocol-version headers are reserved. |
+| `accepted_betas` | no | The `anthropic-beta` values forwarded from a client request. Unset, first-party Anthropic forwards every beta and Vertex AI forwards none. |
 | `pricing` | no | Per-token pricing used for usage accounting. |
 | `id` | no | Stable route id; synthesised from pattern/provider/endpoint if omitted. |
 | `fallback_provider` | no | A second provider the request is re-sent to when this one exhausts its transient-failure retries, returns a 5xx, or cannot be reached. Pair with `fallback_upstream_model` when the fallback names the model differently. |

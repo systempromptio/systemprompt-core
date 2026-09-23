@@ -8,10 +8,17 @@
 
 ### Fixed
 
+- **Scheduler:** a job absent from this build is forgotten only after seven days without an update, so mixed versions during a canary or rollback keep each other's rows.
+- **Gateway / AI:** a forwarded `anthropic-beta` header is narrowed to the provider's `accepted_betas`; a Vertex AI provider forwards none unless it declares them, since Vertex rejects a beta it does not support.
 - **Gateway / AI:** a provider's `extra_headers` may not name a header the upstream seam sends (credential, content framing, protocol version); the registry refuses it at boot.
 - **Gateway / AI:** a Vertex-hosted provider on any wire but Gemini with an API-key secret is withheld at boot; Vertex accepts only a service-account bearer there.
 - **Scheduler:** forgetting retired `scheduled_jobs` rows is skipped when the job inventory is empty.
 - **Loader:** a process whose environment is unreadable with `EACCES` is judged foreign at once, without the retry that blocked an async worker.
+
+### Changed
+
+- **Analytics:** the `report_*` views are replaced in place instead of dropped and recreated on every boot.
+
 
 ## [0.60.0] - 2026-09-23
 

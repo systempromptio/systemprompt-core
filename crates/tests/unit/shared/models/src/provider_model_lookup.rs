@@ -27,6 +27,7 @@ fn entry() -> ProviderEntry {
         api_key_secret: SecretName::new("vertex_api_key"),
         governance: Default::default(),
         extra_headers: std::collections::HashMap::new(),
+        accepted_betas: None,
         models: vec![ProviderModel {
             id: ModelId::new(CATALOG_ID),
             aliases: vec![ModelId::new(ALIAS)],

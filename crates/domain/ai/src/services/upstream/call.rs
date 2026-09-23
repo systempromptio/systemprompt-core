@@ -9,6 +9,8 @@ use systemprompt_models::services::{Hosting, WireProtocol};
 use systemprompt_models::wire::upstream::UpstreamDialect;
 use systemprompt_security::credential::{AuthHeader, AuthScheme};
 
+const ANTHROPIC_BETA: &str = "anthropic-beta";
+
 /// The filled endpoint, the minted auth header and the hosting of one upstream,
 /// valid for the request it was minted for.
 ///
@@ -21,6 +23,7 @@ pub struct UpstreamCall {
     endpoint: String,
     auth: AuthHeader,
     extra_headers: Vec<(String, String)>,
+    accepted_betas: Option<Vec<String>>,
 }
 
 impl UpstreamCall {
@@ -36,7 +39,14 @@ impl UpstreamCall {
             endpoint,
             auth,
             extra_headers,
+            accepted_betas: None,
         }
+    }
+
+    #[must_use]
+    pub fn with_accepted_betas(mut self, accepted_betas: Option<Vec<String>>) -> Self {
+        self.accepted_betas = accepted_betas;
+        self
     }
 
     #[must_use]
@@ -135,10 +145,31 @@ impl UpstreamCall {
             forward
                 .iter()
                 .filter(|(name, _)| !dialect.drops_forwarded_header(name))
-                .cloned(),
+                .filter_map(|(name, value)| {
+                    if wire == WireProtocol::Anthropic && name.eq_ignore_ascii_case(ANTHROPIC_BETA)
+                    {
+                        self.forwardable_betas(value)
+                            .map(|kept| (name.clone(), kept))
+                    } else {
+                        Some((name.clone(), value.clone()))
+                    }
+                }),
         );
         headers.extend(self.extra_headers.iter().cloned());
         headers
+    }
+
+    fn forwardable_betas(&self, value: &str) -> Option<String> {
+        let kept: Vec<&str> = match (&self.accepted_betas, self.hosting) {
+            (None, Hosting::FirstParty) => return Some(value.to_owned()),
+            (None, Hosting::Vertex) => return None,
+            (Some(accepted), _) => value
+                .split(',')
+                .map(str::trim)
+                .filter(|beta| accepted.iter().any(|a| a == beta))
+                .collect(),
+        };
+        (!kept.is_empty()).then(|| kept.join(","))
     }
 
     pub fn finish_body(&self, wire: WireProtocol, body: &mut Map<String, Value>) {

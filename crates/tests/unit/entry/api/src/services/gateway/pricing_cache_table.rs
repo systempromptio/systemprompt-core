@@ -120,6 +120,7 @@ fn registry() -> ProviderRegistry {
                 api_key_secret: SecretName::new(row.provider),
                 governance: Default::default(),
                 extra_headers: Default::default(),
+                accepted_betas: None,
                 models: vec![ProviderModel {
                     id: ModelId::new(row.model),
                     aliases: Vec::new(),

@@ -25,6 +25,7 @@ pub struct UpstreamTarget {
     credential: ProviderCredential,
     cache_key: String,
     extra_headers: Vec<(String, String)>,
+    accepted_betas: Option<Vec<String>>,
 }
 
 impl UpstreamTarget {
@@ -65,6 +66,7 @@ impl UpstreamTarget {
             credential,
             cache_key: secret_name.to_owned(),
             extra_headers,
+            accepted_betas: entry.accepted_betas.clone(),
         })
     }
 
@@ -98,6 +100,7 @@ impl UpstreamTarget {
             endpoint,
             credential: ProviderCredential::api_key(key),
             extra_headers: Vec::new(),
+            accepted_betas: None,
         }
     }
 
@@ -115,7 +118,8 @@ impl UpstreamTarget {
             self.endpoint.clone(),
             auth,
             self.extra_headers.clone(),
-        ))
+        )
+        .with_accepted_betas(self.accepted_betas.clone()))
     }
 
     #[must_use]

@@ -15,6 +15,7 @@ fn registry_with(model: systemprompt_models::services::VertexRateCardEntry) -> P
         endpoint: "https://example.invalid".to_owned(),
         api_key_secret: SecretName::new("vertex_key"),
         extra_headers: Default::default(),
+        accepted_betas: None,
         models: vec![model.to_provider_model()],
         governance: Default::default(),
     };

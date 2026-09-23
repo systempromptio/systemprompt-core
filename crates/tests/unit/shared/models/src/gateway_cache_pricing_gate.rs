@@ -44,6 +44,7 @@ fn registry(cache_read: Option<f64>) -> ProviderRegistry {
             api_key_secret: SecretName::new("gemini"),
             governance: Default::default(),
             extra_headers: HashMap::new(),
+            accepted_betas: None,
             models: vec![ProviderModel {
                 id: ModelId::new("gemini-2.5-pro"),
                 aliases: Vec::new(),

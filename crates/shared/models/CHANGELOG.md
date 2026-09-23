@@ -4,6 +4,7 @@
 
 ### Added
 
+- `ProviderEntry::accepted_betas`: the `anthropic-beta` values a provider forwards from a client request; unset, first-party hosting forwards every beta and Vertex AI forwards none.
 - `ProviderRegistryError::ReservedExtraHeader`: a provider whose `extra_headers` names `authorization`, `x-api-key`, `x-goog-api-key`, `anthropic-version`, `content-type`, `content-length` or `host` is refused at registry validation, since the upstream seam sends those itself and the request builder appends rather than replaces.
 
 ## [0.60.0] - 2026-09-23

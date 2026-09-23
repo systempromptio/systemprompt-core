@@ -46,6 +46,7 @@ fn provider(
         api_key_secret: SecretName::new(name),
         governance: Default::default(),
         extra_headers: Default::default(),
+        accepted_betas: None,
         models,
     }
 }

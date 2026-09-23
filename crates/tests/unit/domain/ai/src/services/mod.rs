@@ -10,3 +10,4 @@ mod structured_output;
 mod tooled;
 mod tools;
 mod upstream;
+mod upstream_betas;

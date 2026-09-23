@@ -138,6 +138,9 @@ pub struct ProviderEntry {
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub extra_headers: HashMap<String, String>,
 
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub accepted_betas: Option<Vec<String>>,
+
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub models: Vec<ProviderModel>,
 

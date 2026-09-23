@@ -8,7 +8,13 @@
 
 ### Added
 
+- `UpstreamCall::with_accepted_betas`.
 - `UpstreamTargetError::ApiKeyOnVertex`: a Vertex-hosted provider on any wire but Gemini whose secret is an API key is refused at resolve, so it is withheld at boot instead of failing every request with 401.
+
+### Changed
+
+- A forwarded `anthropic-beta` header is narrowed to the provider's `accepted_betas`, and dropped on Vertex AI when none are declared, since Vertex rejects a beta it does not support.
+
 
 ## [0.60.0] - 2026-09-23
 

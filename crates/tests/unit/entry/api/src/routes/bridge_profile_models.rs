@@ -79,6 +79,7 @@ fn provider_with_surface(
         api_key_secret: SecretName::new(secret),
         governance: Default::default(),
         extra_headers: Default::default(),
+        accepted_betas: None,
         models,
     }
 }

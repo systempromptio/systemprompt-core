@@ -24,6 +24,7 @@ fn anthropic_with(headers: &[(&str, &str)]) -> ProviderRegistry {
                 .iter()
                 .map(|(k, v)| ((*k).to_owned(), (*v).to_owned()))
                 .collect::<HashMap<_, _>>(),
+            accepted_betas: None,
             models: Vec::new(),
         }],
     }

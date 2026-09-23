@@ -77,6 +77,7 @@ fn registry_pricing_used_when_no_route_override() {
             api_key_secret: SecretName::new("anthropic"),
             governance: Default::default(),
             extra_headers: Default::default(),
+            accepted_betas: None,
             models: vec![ProviderModel {
                 id: ModelId::new("claude-sonnet-4-rare"),
                 aliases: Vec::new(),
@@ -113,6 +114,7 @@ fn resolve_falls_back_to_configured_model_when_served_alias_unknown() {
             api_key_secret: SecretName::new("openai"),
             governance: Default::default(),
             extra_headers: Default::default(),
+            accepted_betas: None,
             models: vec![ProviderModel {
                 id: ModelId::new("gpt-5-mini"),
                 aliases: Vec::new(),
