@@ -1,8 +1,9 @@
 //! The one way this crate and the gateway address an upstream provider.
 //!
-//! A catalog [`ProviderEntry`] names an endpoint template and the secret that
+//! A catalog [`ProviderEntry`](systemprompt_models::services::providers::ProviderEntry) names an endpoint template and the secret that
 //! authenticates it. [`UpstreamTarget::resolve`] turns the pair into something
-//! a request can be sent to: the secret parsed into a [`ProviderCredential`],
+//! a request can be sent to: the secret parsed into a
+//! [`ProviderCredential`](systemprompt_security::credential::ProviderCredential),
 //! the endpoint filled from the credential's scope (`{project}` from a Google
 //! service account), and the hosting read off the endpoint host. Per request,
 //! [`UpstreamTarget::call`] mints the auth header — a verbatim API key, or a

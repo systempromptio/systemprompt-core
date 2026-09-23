@@ -36,7 +36,9 @@ use crate::services::ai::{ModelCapabilities, ModelGovernance, ModelLimits, Model
 
 pub use discovery_report::DiscoveryReport;
 pub use error::{ProviderRegistryError, ProviderRegistryResult};
-pub use hosting::{Hosting, is_vertex_host};
+pub use hosting::{
+    Hosting, PROJECT_PLACEHOLDER, REGION_PLACEHOLDER, is_vertex_host, names_a_project_literally,
+};
 pub use protocol::WireProtocol;
 pub use rate_card::{
     DocumentedLaunchStage, RETIREMENT_NOTICE_DAYS, VertexRateCard, VertexRateCardEntry,
@@ -279,39 +281,4 @@ impl ProviderRegistry {
         }
         Ok(())
     }
-}
-
-pub const PROJECT_PLACEHOLDER: &str = "{project}";
-
-// Why: the placeholder names live here, beside the registry that validates
-// endpoints, so that the credential layer that fills them and the validator
-// that polices them can never disagree about their spelling. `{region}` has
-// no filler today — no shipped credential type carries a region — and an
-// endpoint using it is refused until one does, which is the intended shape:
-// a coordinate is served by the credential or not at all.
-pub const REGION_PLACEHOLDER: &str = "{region}";
-
-// Why: a Google Cloud project id is a tenant identifier, and Vertex reports it
-// verbatim in every IAM error it returns, which the gateway relays to the
-// caller. A catalog that names one literally therefore ships that id to every
-// installation of the image and every client that trips a 403. The id lives in
-// exactly one place, the service-account key, and the endpoint says
-// `{project}` instead.
-#[must_use]
-pub fn names_a_project_literally(endpoint: &str) -> bool {
-    let Ok(url) = url::Url::parse(endpoint) else {
-        return false;
-    };
-    if !url.host_str().is_some_and(is_vertex_host) {
-        return false;
-    }
-    let mut segments = url.path_segments().into_iter().flatten();
-    while let Some(segment) = segments.next() {
-        if segment == "projects" {
-            return segments
-                .next()
-                .is_some_and(|id| id != "%7Bproject%7D" && id != PROJECT_PLACEHOLDER);
-        }
-    }
-    false
 }
