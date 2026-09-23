@@ -12,6 +12,9 @@
 
 ### Removed
 
+- Migration `016_drop_retired_report_tables` drops `analytics_report_logs` and `analytics_report_ai_request_messages`, which only the tombstoned 013 dropped. A database that had stopped at 011 or 012 otherwise kept them.
+- The `report_*` views name their columns instead of `SELECT src.*`. A source table's physical column order differs between fresh and upgraded databases wherever a migration appended a column (`ai_requests.message_count`), so the same view had two definitions.
+- Migrations 008–013 are tombstoned (`008-013_reporting_projection.tombstone`). They reshaped only what 015 drops, and 008/010/012/013 ALTERed `analytics_projection_state` and `analytics_report_*` tables that only the deleted `reporting_privacy.sql` declarative schema created. Any database that had not applied them (0.52 or older) therefore failed its upgrade at 008 with `relation "analytics_projection_state" does not exist`, or earlier with `CrossExtensionAlterUndeclared`. Databases that applied them keep their tracking rows.
 - Migration `015_retire_feedback_and_reporting_projection` drops the `analytics_fact_*`, `analytics_normalized_facts`, `analytics_ingestion_producers`, `analytics_snapshot_*` and `analytics_feedback_snapshots` tables (views first), every `analytics_report_*` table and view, `analytics_projection_state`/`_revisions`, the reporting privacy routines, and the `funnels`/`funnel_steps`/`funnel_progress`/`anomaly_thresholds` tables. Every statement is a `DROP … IF EXISTS`, so it also runs on a fresh install.
 
 ## [0.59.0] - 2026-09-22
