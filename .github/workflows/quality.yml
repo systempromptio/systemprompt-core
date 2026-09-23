@@ -9,6 +9,8 @@ on:
         required: false
   pull_request:
     branches: [main, next]
+  push:
+    branches: [next]
 
 concurrency:
   group: quality-${{ inputs.ref || github.ref }}
@@ -30,7 +32,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.ref }}
+          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
@@ -48,7 +50,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.ref }}
+          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
       # `just lint` covers bin/bridge, whose keyring backend pulls
       # libdbus-sys through pkg-config; ubuntu-latest no longer ships
       # libdbus-1-dev.
@@ -96,7 +98,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.ref }}
+          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
       - run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
       - run: python3 scripts/ci-strip-cargo-config.py
       - run: rustup show
@@ -126,7 +128,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.ref }}
+          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
       - run: rustup show
       - uses: Swatinem/rust-cache@v2
         with:
@@ -153,7 +155,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.ref }}
+          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
       # bin/bridge's linux keyring backend pulls libdbus-sys via pkg-config.
       - run: |
           # A mirror hiccup is infrastructure, not a code failure; three
@@ -181,7 +183,7 @@ jobs:
       # is what keeps it green for the right reason.
       - uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.ref }}
+          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
       # bridge-bindings-check compiles the bridge to run the ts-rs export, so
       # this job needs the keyring backend's libdbus-sys like every other job
@@ -337,7 +339,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.ref }}
+          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
       # bin/bridge's linux keyring backend pulls libdbus-sys via pkg-config.
       - run: |
           # A mirror hiccup is infrastructure, not a code failure; three
@@ -371,7 +373,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.ref }}
+          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
       - uses: extractions/setup-just@v4
       - run: just file-size
 

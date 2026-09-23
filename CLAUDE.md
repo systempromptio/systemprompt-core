@@ -60,14 +60,15 @@ and `Supply Chain passed` (the aggregate jobs of each gate workflow) alone.
 
 Releasing is three deliberate steps:
 
-1. `just gate [REF]` — confirms the gate workflows (CI, Quality, Supply
-   Chain) are green on that exact SHA, defaulting to the tip of `next`. A green
-   push run counts: the recipe dispatches only what is missing or red
-   (`just gate SHA --force` re-dispatches everything). With a green push run
-   this is a read and you promote straight away.
-2. `just promote [SHA]` — freezes that commit on the `promote` ref and **opens**
-   the release pull request onto `main`. It does not merge; the gates re-run on
-   the PR, and you merge it.
+1. `just gate [REF]` — read-only. Confirms the push runs of CI, Quality and
+   Supply Chain on that exact SHA (default: the tip of `next`) are complete and
+   green, then reads the promotion PR's proof if one is open. It never
+   dispatches: a missing run means the SHA was never pushed to `next`, a red one
+   is fixed on `next` with a new push, and a proven flake is re-run in place
+   (`gh run rerun <id> --failed`) only after its cause is understood.
+2. `just promote [SHA]` — refuses unless that SHA's push runs are green, then
+   freezes it on the `promote` ref and **opens** the release pull request onto
+   `main`. It does not merge; the gates re-run on the PR, and you merge it.
 3. Tag `main` once merged. Tags are not covered by the ruleset.
 
 The full release cycle — publishing to crates.io, the bridge, and landing all
@@ -82,8 +83,11 @@ hypothetical: it happened once and put an ungated commit on `main`.
 
 So the ordinary obligations still hold — your commit should compile and its own
 tests should pass, and the coding standards below are not optional — but
-*proving* it across the whole workspace is release work, not something to do on
-every change.
+*proving* it across the whole workspace is the push run's job, not your
+machine's. Do not run the shard set, all-targets clippy or rustdoc locally to
+land work. **A red push run on `next` is the next thing to fix**, before new
+work lands on top of it: an unread red `next` is how a release turns into a
+day of serial 40-minute promotion rounds.
 
 ## Repository Hygiene
 
@@ -114,7 +118,7 @@ No new folders or process docs enter git without explicit user approval. Before 
 - **Naming**: `*Service` default, `*Handler` for HTTP/RPC handlers, `*Orchestrator` for cross-domain workflows. Avoid `*Manager`.
 - **Schema DDL & migrations**: DDL in `{crate}/schema/*.sql` embedded via `include_str!()` in `extension.rs`; migrations in `{crate}/schema/migrations/NNN_<name>.sql`, discovered by `build.rs` (`systemprompt_extension::build::emit_migrations()`) and returned via `extension_migrations!()`. Never inline SQL constants or hand-written migration lists. Gate: `just lint-extensions`. **A migration file pushed to `next` is immutable** — a preview deploy may already have applied it and the runner refuses a checksum change; a correction is a new, later migration.
 
-After changes, check what you touched — typically `cargo clippy -p <crate> --all-targets --keep-going` and the crate's tests. Do **not** run the full gate cycle to land work — that is release work (see Branching & Release Flow), run deliberately with `just gate`. When you do need the whole cycle locally — preparing a release, or chasing a failed gate — it is `just format-check && cargo clippy --workspace --all-targets --all-features -- -D warnings && just doc-check && just file-size`, and `just doc-check` covers **both** workspaces (a bare `cargo doc --workspace` misses `crates/tests/`).
+After changes, check what you touched — typically `cargo clippy -p <crate> --all-targets --keep-going` and the crate's tests. Do **not** run the full gate cycle locally — the push run on `next` is the proof, for landing work and for releases alike (see Branching & Release Flow). Read a failed job's log first; only when a failure cannot be understood from it, reproduce that one job locally. The whole cycle, for that rare case, is `just format-check && cargo clippy --workspace --all-targets --all-features -- -D warnings && just doc-check && just file-size`, and `just doc-check` covers **both** workspaces (a bare `cargo doc --workspace` misses `crates/tests/`).
 
 ## Bridge correctness
 

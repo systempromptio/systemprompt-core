@@ -9,6 +9,8 @@ on:
         required: false
   pull_request:
     branches: [main, next]
+  push:
+    branches: [next]
 
 concurrency:
   group: ci-${{ inputs.ref || github.ref }}
@@ -39,7 +41,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.ref }}
+          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
       - run: rustup show
       - uses: extractions/setup-just@v4
       # `just format-check` covers all three workspaces (root, crates/tests,
@@ -52,7 +54,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.ref }}
+          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
       - run: rustup show
       - uses: mozilla-actions/sccache-action@v0.0.9
       - run: cargo build --workspace --locked
@@ -74,7 +76,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.ref }}
+          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
       - name: Install system dependencies
         run: |
           n=0
@@ -111,7 +113,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.ref }}
+          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
       - run: rustup show
       - uses: mozilla-actions/sccache-action@v0.0.9
       - name: Verify offline sqlx cache is current
@@ -168,7 +170,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.ref }}
+          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
 
       - name: Runner resources
         run: |

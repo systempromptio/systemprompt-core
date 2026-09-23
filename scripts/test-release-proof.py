@@ -14,6 +14,7 @@ REPO = "systempromptio/systemprompt-core"
 DATE = "2026-09-19T00:00:00Z"
 RUN = dict(id=1, head_sha=SHA, event="pull_request", head_branch="promote", head_repository={"full_name": REPO},
            pull_requests=[{"number": 42}], created_at=DATE, status="completed", conclusion="success", run_attempt=1)
+PUSH = dict(RUN, event="push", head_branch="next", pull_requests=[])
 PR = dict(number=42, head={"sha": SHA, "ref": "promote", "repo": {"full_name": REPO}},
           base={"ref": "main", "sha": "b" * 40}, merge_commit_sha="c" * 40, created_at=DATE)
 
@@ -91,6 +92,35 @@ class ProofTests(unittest.TestCase):
             return {"jobs": []} if path.startswith("actions/runs/") else self.response(path)
         with patch.object(proof, "api", side_effect=response), self.assertRaises(RuntimeError):
             proof.verify_pr(REPO, PR, SHA)
+
+    def push_response(self, runs, jobs=None):
+        def response(repo, path):
+            if path.startswith("actions/workflows/"):
+                self.assertIn("event=push", path)
+                return {"workflow_runs": runs}
+            if path.startswith("actions/runs/"):
+                return {"jobs": jobs if jobs is not None
+                        else [{"name": name, "conclusion": "success"} for name in proof.WORKFLOWS.values()]}
+            self.fail(path)
+        return response
+
+    def test_green_push_run_proves_the_candidate(self):
+        with patch.object(proof, "api", side_effect=self.push_response([PUSH])):
+            proof.verify_push(REPO, SHA)
+
+    def test_push_run_that_is_missing_pending_red_or_elsewhere_refuses(self):
+        for runs in [[], [dict(PUSH, status="in_progress", conclusion=None)], [dict(PUSH, conclusion="failure")],
+                     [dict(PUSH, conclusion="cancelled")], [dict(PUSH, head_branch="main")],
+                     [dict(PUSH, event="pull_request")], [dict(PUSH, head_sha="d" * 40)],
+                     [dict(PUSH, head_repository={"full_name": "other/repo"})],
+                     [PUSH, dict(PUSH, id=2, conclusion="failure")]]:
+            with self.subTest(runs=runs), patch.object(proof, "api", side_effect=self.push_response(runs)), \
+                    self.assertRaises(RuntimeError):
+                proof.verify_push(REPO, SHA)
+
+    def test_push_run_without_its_aggregate_refuses(self):
+        with patch.object(proof, "api", side_effect=self.push_response([PUSH], jobs=[])), self.assertRaises(RuntimeError):
+            proof.verify_push(REPO, SHA)
 
 
 if __name__ == "__main__":
