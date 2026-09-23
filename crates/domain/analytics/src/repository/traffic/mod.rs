@@ -64,7 +64,7 @@ impl TrafficAnalyticsRepository {
                 SELECT
                     COALESCE(referrer_source, 'direct') as "source",
                     COUNT(*)::bigint as "count!"
-                FROM analytics_report_v_engaged_traffic
+                FROM report_engaged_traffic
                 WHERE started_at >= $1 AND started_at < $2
                 GROUP BY referrer_source
                 ORDER BY COUNT(*) DESC
@@ -84,7 +84,7 @@ impl TrafficAnalyticsRepository {
                 SELECT
                     COALESCE(referrer_source, 'direct') as "source",
                     COUNT(*)::bigint as "count!"
-                FROM analytics_report_v_clean_traffic
+                FROM report_clean_traffic
                 WHERE started_at >= $1 AND started_at < $2
                 GROUP BY referrer_source
                 ORDER BY COUNT(*) DESC

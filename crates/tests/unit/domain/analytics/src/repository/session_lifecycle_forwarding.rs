@@ -136,7 +136,6 @@ async fn activity_usage_scanner_and_conversion_mutations_persist_together() {
             .unwrap()
             .get("last_activity_at");
 
-    repo.update_activity(&sid).await.unwrap();
     repo.increment_request_count(&sid).await.unwrap();
     repo.increment_task_count(&sid).await.unwrap();
     repo.increment_task_count(&sid).await.unwrap();

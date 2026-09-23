@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Removed
+
+- Migration `014_retire_reporting_capture` drops the reporting capture triggers and `reporting_source_*` views on `agent_tasks`, `task_messages` and `user_contexts` (with `lock_agent_reporting_sources` and `reporting_task_is_retained`); `reporting_capture.sql` and `reporting_privacy.sql` leave the declarative schema.
+
 ## [0.59.0] - 2026-09-22
 
 ### Removed

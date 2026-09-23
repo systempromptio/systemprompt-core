@@ -20,7 +20,7 @@ use assert_cmd::Command;
 use predicates::str::contains;
 use systemprompt_identifiers::SessionId;
 use systemprompt_test_fixtures::{
-    drain_reporting, fixture_db_pool, seed_user_row, seed_user_session, unique_user_id,
+    fixture_db_pool, seed_user_row, seed_user_session, unique_user_id,
 };
 
 fn systemprompt_bin() -> std::path::PathBuf {
@@ -63,9 +63,8 @@ fn sp_db_or_skip() -> Option<Command> {
     Some(c)
 }
 
-// Reports read analytics-owned projection tables, so seeded conversation and
-// session evidence must be drained through the projector before the binary
-// runs; the seed commits first so the source triggers capture it.
+// Reports read the source tables, so seeded conversation and session
+// evidence only has to commit before the binary runs.
 fn seed_reporting_evidence() {
     let Some(url) = database_url_or_skip() else {
         return;
@@ -91,7 +90,6 @@ fn seed_reporting_evidence() {
             .execute(db.pool_arc().expect("pool").as_ref())
             .await
             .expect("seed context");
-            drain_reporting(&db).await.expect("drain reporting");
         });
 }
 

@@ -270,10 +270,6 @@ impl JobExecutionService {
             .await
         {
             tracing::warn!(job = %report.job_name, error = %e, "failed to record manual job execution");
-            return;
-        }
-        if let Err(e) = repo.increment_run_count(&report.job_name).await {
-            tracing::warn!(job = %report.job_name, error = %e, "failed to increment job run count");
         }
     }
 }

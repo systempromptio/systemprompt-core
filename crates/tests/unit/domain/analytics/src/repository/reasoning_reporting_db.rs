@@ -61,9 +61,6 @@ async fn summary_and_stats_report_reasoning_and_keep_tokens_used_intact() {
     let start = created_at - Duration::seconds(1);
     let end = created_at + Duration::seconds(1);
 
-    systemprompt_test_fixtures::refresh_reporting(&db)
-        .await
-        .expect("reporting snapshot");
     let costs = CostAnalyticsRepository::new(&db).expect("cost repository");
     let summary = costs
         .get_summary_for_user(&user_id, start, end)

@@ -1,7 +1,7 @@
 use systemprompt_identifiers::MarketplaceId;
 use systemprompt_marketplace::{MarketplaceError, MarketplaceService};
 
-use crate::helpers::{config_with, include, marketplace};
+use crate::helpers::{config_with, marketplace};
 
 #[test]
 fn resolve_default_uses_explicit_id() {
@@ -97,30 +97,5 @@ fn resolve_default_fails_when_many_and_none_is_named() {
     assert!(
         MarketplaceService::new(&config).resolve_default().is_err(),
         "the rendered marketplace.json still needs one named marketplace",
-    );
-}
-
-#[test]
-fn validate_referential_integrity_passes_for_consistent_config() {
-    let config = config_with(vec![marketplace("solo")]);
-    let service = MarketplaceService::new(&config);
-    service
-        .validate_referential_integrity()
-        .expect("a self-consistent services config validates");
-}
-
-#[test]
-fn validate_referential_integrity_flags_dangling_reference() {
-    let mut mp = marketplace("market");
-    mp.plugins = include(&["never-defined-plugin"]);
-    let config = config_with(vec![mp]);
-    let service = MarketplaceService::new(&config);
-
-    assert!(
-        matches!(
-            service.validate_referential_integrity(),
-            Err(MarketplaceError::Validation(_))
-        ),
-        "a marketplace referencing an undefined plugin fails referential-integrity validation",
     );
 }

@@ -30,11 +30,6 @@ pub use capture::{
 
 const IMPORTER_VERSION: &str = "managed-git-v1";
 
-mod verification;
-pub use verification::{
-    GitContentVerification, GitSourceBinding, GitTreeRead, GitTreeReader, GitVerificationService,
-    NativeGitTreeReader,
-};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -121,15 +116,6 @@ impl ManagedRepository {
             ));
         }
         Ok(())
-    }
-
-    pub async fn sync_git_source(
-        &self,
-        owner: &UserId,
-        request: &GitSyncRequest,
-    ) -> Result<GitSyncResult> {
-        self.sync_git_source_with_credential(owner, request, None)
-            .await
     }
 
     pub async fn sync_git_source_with_credential(

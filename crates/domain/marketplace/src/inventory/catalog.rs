@@ -1,10 +1,19 @@
 //! Enumerates configured entries independently of enabled manifest projections.
 //!
+//! [`configured_inventory_fingerprint`] covers everything a
+//! configured-inventory refresh observes: the loaded services configuration,
+//! the resolved services root, and the path, modification time and size of
+//! every file under the scanned catalog directories. Equal fingerprints mean a
+//! refresh would reconcile the same configured inventory, so a caller may skip
+//! it.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use super::ConfiguredInventoryEntry;
+use crate::catalog::fingerprint::{canonical_json, hash_dir_metadata};
 use crate::managed::{ManagedError, Result};
+use sha2::{Digest, Sha256};
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use systemprompt_models::feedback::inventory::InventoryAvailability;
@@ -27,6 +36,35 @@ pub(crate) fn resolve_services_root(root: &Path) -> Result<PathBuf> {
     Ok(resolved)
 }
 
+const CATALOG_DIRECTORIES: [(&str, &str); 6] = [
+    ("skills", "skill"),
+    ("plugins", "plugin"),
+    ("marketplaces", "marketplace"),
+    ("rules", "rule"),
+    ("hooks", "hook"),
+    ("artifacts", "artifact"),
+];
+
+pub fn configured_inventory_fingerprint(
+    root: &Path,
+    services: &ServicesConfig,
+) -> Result<[u8; 32]> {
+    let resolved = resolve_services_root(root)?;
+    let config = canonical_json(services)
+        .map_err(|error| invalid(&format!("Services configuration unserializable: {error}")))?;
+    let mut hasher = Sha256::new();
+    hasher.update((config.len() as u64).to_le_bytes());
+    hasher.update(&config);
+    hasher.update(resolved.as_os_str().as_encoded_bytes());
+    hasher.update(b"\0");
+    for (directory, _) in CATALOG_DIRECTORIES {
+        hasher.update(directory.as_bytes());
+        hasher.update(b"\0");
+        hash_dir_metadata(&mut hasher, &resolved.join(directory));
+    }
+    Ok(hasher.finalize().into())
+}
+
 pub fn scan_configured_inventory(
     root: &Path,
     services: &ServicesConfig,
@@ -34,14 +72,7 @@ pub fn scan_configured_inventory(
     let resolved = resolve_services_root(root)?;
     let root = resolved.as_path();
     let mut entries = Vec::new();
-    for (directory, kind) in [
-        ("skills", "skill"),
-        ("plugins", "plugin"),
-        ("marketplaces", "marketplace"),
-        ("rules", "rule"),
-        ("hooks", "hook"),
-        ("artifacts", "artifact"),
-    ] {
+    for (directory, kind) in CATALOG_DIRECTORIES {
         scan_catalog_directory(root, directory, kind, &mut entries)?;
     }
     for (key, agent) in &services.agents {

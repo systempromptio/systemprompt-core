@@ -63,10 +63,6 @@ impl SchedulerRepository {
         self.jobs.update_job_execution(job_name, record).await
     }
 
-    pub async fn increment_run_count(&self, job_name: &str) -> SchedulerResult<()> {
-        self.jobs.increment_run_count(job_name).await
-    }
-
     pub async fn cleanup_empty_contexts(&self, hours_old: i64) -> SchedulerResult<u64> {
         self.analytics.cleanup_empty_contexts(hours_old).await
     }

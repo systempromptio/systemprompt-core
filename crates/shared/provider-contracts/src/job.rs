@@ -4,6 +4,14 @@
 //! Jobs are dispatched as `&'static dyn Job` from the inventory, so the trait
 //! uses `#[async_trait]`; native `async fn` in traits is not `dyn`-compatible.
 //!
+//! [`JobResult::is_idle`] is a successful run that found nothing to do: zero
+//! items processed, none failed, and no message. The scheduler does not record
+//! such a tick, so a job opts in by returning `with_stats(0, 0)`; a job that
+//! reports no stats at all is always recorded. [`Job::configured`] answers
+//! whether this deployment has what the job needs (an exporter with no
+//! destination answers `false`); an unconfigured job is never put on the cron
+//! schedule, so it costs no ticks, but it can still be run by name.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -54,6 +62,14 @@ impl JobResult {
     pub const fn with_duration(mut self, duration_ms: u64) -> Self {
         self.duration_ms = duration_ms;
         self
+    }
+
+    #[must_use]
+    pub const fn is_idle(&self) -> bool {
+        self.success
+            && matches!(self.items_processed, Some(0))
+            && matches!(self.items_failed, None | Some(0))
+            && self.message.is_none()
     }
 
     #[must_use]
@@ -220,6 +236,10 @@ pub trait Job: Send + Sync + 'static {
     async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult>;
 
     fn enabled(&self) -> bool {
+        true
+    }
+
+    fn configured(&self) -> bool {
         true
     }
 

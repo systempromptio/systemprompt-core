@@ -23,8 +23,6 @@ impl Extension for EventsExtension {
 
     fn schemas(&self) -> Vec<SchemaDefinition> {
         vec![
-            SchemaDefinition::sql_only(include_str!("../schema/reporting_privacy.sql")),
-            SchemaDefinition::sql_only(include_str!("../schema/reporting_capture.sql")),
             SchemaDefinition::new("event_outbox", include_str!("../schema/event_outbox.sql"))
                 .with_required_columns(vec![
                     "id".into(),

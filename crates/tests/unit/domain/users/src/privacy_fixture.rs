@@ -1,4 +1,4 @@
-//! Privacy mutations use an owned database and the real reporting worker.
+//! Privacy mutations use an owned, disposable database.
 
 pub(crate) struct PrivacyFixture {
     pub pool: systemprompt_database::DbPool,
@@ -20,12 +20,6 @@ impl PrivacyFixture {
             .expect("installed private user fixture");
         let pool = database.pool().await.expect("private pool");
         Some(Self { pool, database })
-    }
-
-    pub async fn drain(&self) {
-        systemprompt_test_fixtures::drain_reporting(&self.pool)
-            .await
-            .expect("drain committed reporting evidence before privacy mutation");
     }
 
     pub async fn finish(self) {

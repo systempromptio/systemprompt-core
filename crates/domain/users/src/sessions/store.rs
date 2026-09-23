@@ -54,11 +54,6 @@ impl systemprompt_traits::SessionStore for SessionRepository {
             .await
             .map_err(|e| AnalyticsProviderError::Internal(e.to_string()))
     }
-    async fn update_activity(&self, session_id: &SessionId) -> AnalyticsResult<()> {
-        Self::update_activity(self, session_id)
-            .await
-            .map_err(|e| AnalyticsProviderError::Internal(e.to_string()))
-    }
     async fn increment_request_count(&self, session_id: &SessionId) -> AnalyticsResult<()> {
         Self::increment_request_count(self, session_id)
             .await

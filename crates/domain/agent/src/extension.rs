@@ -19,10 +19,7 @@ impl Extension for AgentExtension {
     }
 
     fn schemas(&self) -> Vec<SchemaDefinition> {
-        let mut schemas = vec![SchemaDefinition::sql_only(include_str!(
-            "../schema/reporting_capture.sql"
-        ))];
-        schemas.extend(conversation_schemas());
+        let mut schemas = conversation_schemas();
         schemas.extend(artifact_schemas());
         schemas.extend(context_schemas());
         schemas.extend(task_tracking_schemas());
@@ -44,7 +41,6 @@ impl Extension for AgentExtension {
 
 fn conversation_schemas() -> Vec<SchemaDefinition> {
     vec![
-        SchemaDefinition::sql_only(include_str!("../schema/reporting_privacy.sql")),
         SchemaDefinition::new("user_contexts", include_str!("../schema/user_contexts.sql"))
             .with_required_columns(vec![
                 "context_id".into(),

@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+
+### Breaking
+
+- **Breaking:** the `reporting` module is removed (`spawn`, `process_pending`, `initialize`, `rebuild`, `status`, `RebuildOutcome`, `ReportingStatus`, `SnapshotWakeup`), and with it `AppContext::{feedback_facts_repository, feedback_snapshots_repository, snapshot_wakeup}` and the matching `DataPlane`/`Subsystems` fields. There is no reporting worker and no baseline rebuild at boot.
+- **Breaking:** `managed::capture_authoring_input`, `managed::inventory::prepare_baselines` and `GitSourceOrchestrator::verify` are removed; they had no caller once the managed HTTP admin routes went. `GitSourceOrchestrator::synchronize` and `OrchestrationError` stay; `OrchestrationError::Source` now reads "Source operation failed".
+
 ## [0.59.1] - 2026-09-23
 
 ### Fixed

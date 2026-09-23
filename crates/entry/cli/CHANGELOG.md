@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Breaking
+
+- **Breaking:** `systemprompt analytics projection {status,sync,rebuild}` is removed, and the other `analytics` commands no longer refuse to run before a reporting baseline exists: they read views over the source tables and are current as of each query.
+
 ## [0.59.0] - 2026-09-22
 
 ### Added

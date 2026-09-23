@@ -61,46 +61,10 @@ fn migrations_come_from_the_schema_migrations_directory() {
             "reporting_privacy",
             "user_privacy_delivery",
             "drop_duplicate_actor_id_check",
-            "restore_actor_id_nonempty"
+            "restore_actor_id_nonempty",
+            "retire_reporting_capture"
         ],
         "every file in schema/migrations must be discovered by the build script, \
          in order, under its on-disk stem"
     );
-}
-
-#[test]
-fn owner_capture_and_privacy_contracts_are_registered() {
-    let schemas = EventsExtension.schemas();
-    let capture: Vec<_> = schemas
-        .iter()
-        .filter(|schema| {
-            schema.table.is_none()
-                && schema
-                    .sql
-                    .contains("CREATE OR REPLACE FUNCTION sp_capture_reporting_change()")
-        })
-        .collect();
-    assert_eq!(
-        capture.len(),
-        1,
-        "outbox capture function must be installed before owner triggers"
-    );
-    assert!(capture[0].sql.contains("event_outbox_reporting_revision"));
-    let privacy: Vec<_> = schemas
-        .iter()
-        .filter(|schema| {
-            schema.table.is_none()
-                && schema
-                    .sql
-                    .contains("CREATE OR REPLACE FUNCTION public.begin_reporting_outbox_privacy")
-        })
-        .collect();
-    assert_eq!(
-        privacy.len(),
-        1,
-        "owner privacy SQL must survive capture registration"
-    );
-    assert!(privacy[0].sql.contains("reporting_privacy_changes"));
-    assert!(privacy[0].sql.contains("acknowledge_reporting_privacy"));
-    assert!(privacy[0].sql.contains("finish_reporting_outbox_privacy"));
 }

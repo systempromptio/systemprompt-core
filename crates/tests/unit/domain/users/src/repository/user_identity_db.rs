@@ -167,7 +167,6 @@ async fn merge_users_moves_audit_rows_and_removes_the_source() {
     .await
     .expect("seed log");
 
-    ctx.fixture.drain().await;
     let result = ctx
         .service
         .merge_users(&source.id, &target.id)
@@ -244,7 +243,6 @@ async fn promote_anonymous_refuses_a_non_anonymous_source() {
         .await
         .expect("create target");
 
-    ctx.fixture.drain().await;
     let err = ctx
         .service
         .promote_anonymous(&source.id, &target.id)
@@ -285,7 +283,6 @@ async fn promote_anonymous_refuses_a_self_merge() {
         .await
         .expect("create user");
 
-    ctx.fixture.drain().await;
     let err = ctx
         .service
         .promote_anonymous(&user.id, &user.id)

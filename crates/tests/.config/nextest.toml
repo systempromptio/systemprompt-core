@@ -79,7 +79,6 @@
 # that test's own boundary sweep runs, and its `>= 1` reads zero. Serialise the
 # two suites that call the reaper.
 [test-groups]
-feedback-retention-db = { max-threads = 1 }
 services-reaper-db = { max-threads = 1 }
 gateway-policy-db = { max-threads = 1 }
 logs-cleanup-db = { max-threads = 1 }
@@ -508,15 +507,3 @@ test-group = 'scheduler-services-db'
 [[profile.coverage.overrides]]
 filter = 'package(systemprompt-api-tests) and test(coverage_agent_reconciliation)'
 test-group = 'scheduler-services-db'
-
-[[profile.default.overrides]]
-filter = 'package(systemprompt-analytics-tests) and test(feedback_facts::snapshots::retention::)'
-test-group = 'feedback-retention-db'
-
-[[profile.ci.overrides]]
-filter = 'package(systemprompt-analytics-tests) and test(feedback_facts::snapshots::retention::)'
-test-group = 'feedback-retention-db'
-
-[[profile.coverage.overrides]]
-filter = 'package(systemprompt-analytics-tests) and test(feedback_facts::snapshots::retention::)'
-test-group = 'feedback-retention-db'

@@ -1,5 +1,5 @@
 //! Smoke integration tests covering the remaining repositories:
-//! cli_sessions, content_analytics, core_stats, agents, tools, funnel,
+//! cli_sessions, content_analytics, agents, tools,
 //! and per-user / platform cost paths not exercised by `costs.rs`.
 
 use anyhow::Result;
@@ -7,12 +7,11 @@ use chrono::{Duration, TimeZone, Utc};
 use sqlx::PgPool;
 use systemprompt_analytics::{
     AgentAnalyticsRepository, CliSessionAnalyticsRepository, ContentAnalyticsRepository,
-    CoreStatsRepository, CostAnalyticsRepository, FunnelRepository, ToolAnalyticsRepository,
-    ToolListParams,
+    CostAnalyticsRepository, ToolAnalyticsRepository, ToolListParams,
 };
 use systemprompt_database::DbPool;
 use systemprompt_models::UserId;
-use systemprompt_test_fixtures::{drain_reporting, fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
 use tokio::sync::{Mutex, MutexGuard, OnceCell};
 use uuid::Uuid;
 
@@ -41,11 +40,7 @@ struct Fixture {
 
 impl Fixture {
     async fn new() -> Result<Self> {
-        // The in-process guard below orders tests inside one process; under
-        // nextest that is a single test. The projection is shared across
-        // processes and a rebuild truncates it, so the cross-process lock is
-        // what actually keeps another test's rebuild out of these reads.
-        systemprompt_test_fixtures::hold_reporting_lock()?;
+        // The in-process guard orders tests inside one process.
         let guard = acquire_serial().await;
         let url = fixture_database_url()?;
         let db = fixture_db_pool(&url).await?;
@@ -178,11 +173,6 @@ impl Fixture {
         Ok(())
     }
 
-    async fn drain(&self) -> Result<()> {
-        drain_reporting(&self.db).await?;
-        Ok(())
-    }
-
     async fn cleanup(&self) -> Result<()> {
         let _ = sqlx::query("DELETE FROM mcp_tool_executions WHERE user_id = $1")
             .bind(&self.user_id)
@@ -217,8 +207,6 @@ async fn cli_session_repository_smoke() -> Result<()> {
     let fx = Fixture::new().await?;
     fx.insert_session(&format!("cli_s_{}_1", fx.tag)).await?;
     fx.insert_session(&format!("cli_s_{}_2", fx.tag)).await?;
-
-    fx.drain().await?;
     let repo = CliSessionAnalyticsRepository::new(&fx.db)?;
     let stats = repo.get_stats(fx.window_start, fx.window_end).await?;
     assert!(stats.total_sessions >= 2);
@@ -236,10 +224,6 @@ async fn cli_session_repository_smoke() -> Result<()> {
         .get_sessions_for_trends(fx.window_start, fx.window_end)
         .await?;
     assert!(trends.len() >= 2);
-    let active_since2 = repo.get_active_count_since(fx.window_start).await?;
-    assert!(active_since2 >= 0);
-    let total = repo.get_total_count(fx.window_start, fx.window_end).await?;
-    assert!(total >= 2);
 
     fx.cleanup().await?;
     Ok(())
@@ -253,8 +237,6 @@ async fn agent_repository_smoke() -> Result<()> {
     let task_b = fx.insert_task(&agent).await?;
     fx.insert_ai_request_for_task(&task_a, 500).await?;
     fx.insert_ai_request_for_task(&task_b, 750).await?;
-
-    fx.drain().await?;
     let repo = AgentAnalyticsRepository::new(&fx.db)?;
 
     for order in ["", "success_rate", "cost", "last_active", "task_count"] {
@@ -304,8 +286,6 @@ async fn tool_repository_smoke() -> Result<()> {
     let tool = format!("tool-{}", fx.tag);
     fx.insert_tool_execution(&tool, "success").await?;
     fx.insert_tool_execution(&tool, "failed").await?;
-
-    fx.drain().await?;
     let repo = ToolAnalyticsRepository::new(&fx.db)?;
 
     for order in ["call_count", "success_rate", "p95_latency", "unknown_sort"] {
@@ -368,35 +348,11 @@ async fn tool_repository_smoke() -> Result<()> {
 }
 
 #[tokio::test]
-async fn core_stats_repository_smoke() -> Result<()> {
-    let fx = Fixture::new().await?;
-    fx.insert_session(&format!("cs_s_{}", fx.tag)).await?;
-    fx.insert_ai_request_for_task(&fx.insert_task("agent-a").await?, 500)
-        .await?;
-
-    fx.drain().await?;
-    let repo = CoreStatsRepository::new(&fx.db)?;
-    let _browsers = repo.get_browser_breakdown(10).await?;
-    let _devices = repo.get_device_breakdown(10).await?;
-    let _geo = repo.get_geographic_breakdown(10).await?;
-    let _bots = repo.get_bot_traffic_stats().await?;
-    let _top_users = repo.get_top_users(10).await?;
-    let _top_agents = repo.get_top_agents(10).await?;
-    let _top_tools = repo.get_top_tools(10).await?;
-    let _trend = repo.get_activity_trend(7).await?;
-
-    fx.cleanup().await?;
-    Ok(())
-}
-
-#[tokio::test]
 async fn cost_repository_per_user_paths() -> Result<()> {
     let fx = Fixture::new().await?;
     let task_a = fx.insert_task("agent-a").await?;
     fx.insert_ai_request_for_task(&task_a, 1_000).await?;
     fx.insert_ai_request_for_task(&task_a, 2_000).await?;
-
-    fx.drain().await?;
     let repo = CostAnalyticsRepository::new(&fx.db)?;
     let summary = repo
         .get_summary_for_user(&fx.user_typed, fx.window_start, fx.window_end)
@@ -436,8 +392,6 @@ async fn cost_breakdowns_skip_requests_rejected_before_routing() -> Result<()> {
     let task = fx.insert_task("agent-a").await?;
     fx.insert_ai_request_for_task(&task, 1_000).await?;
     fx.insert_rejected_ai_request().await?;
-
-    fx.drain().await?;
     let repo = CostAnalyticsRepository::new(&fx.db)?;
 
     let by_model = repo
@@ -476,22 +430,6 @@ async fn content_analytics_repository_smoke() -> Result<()> {
     let _trend = repo
         .get_content_for_trends(fx.window_start, fx.window_end)
         .await?;
-
-    fx.cleanup().await?;
-    Ok(())
-}
-
-#[tokio::test]
-async fn funnel_repository_finder_smoke() -> Result<()> {
-    let fx = Fixture::new().await?;
-    let repo = FunnelRepository::new(&fx.db)?;
-    // Empty-state queries: just exercise the SELECT paths
-    let _active = repo.list_active().await?;
-    let _all = repo.list_all().await?;
-    let missing = repo
-        .find_by_name(&format!("does-not-exist-{}", fx.tag))
-        .await?;
-    assert!(missing.is_none());
 
     fx.cleanup().await?;
     Ok(())

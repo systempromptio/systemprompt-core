@@ -29,27 +29,6 @@ fn symlink_catalog_entry_is_explicitly_unavailable() {
     );
 }
 
-#[tokio::test]
-async fn empty_observed_inventory_is_distinct_from_unknown_historical_membership() {
-    let f = Fixture::new().await;
-    let before = chrono::Utc::now();
-    assert!(
-        !f.repository
-            .inventory_coverage_at(&f.owner, before)
-            .await
-            .expect("coverage")
-            .observation_available
-    );
-    f.refresh().await;
-    let coverage = f
-        .repository
-        .inventory_coverage_at(&f.owner, chrono::Utc::now())
-        .await
-        .expect("observed empty");
-    assert!(coverage.observation_available);
-    assert_eq!(coverage.known_total, 0);
-}
-
 #[test]
 fn configured_marketplace_is_included_without_inventing_historical_plugin_membership() {
     let root = tempfile::tempdir().expect("root");

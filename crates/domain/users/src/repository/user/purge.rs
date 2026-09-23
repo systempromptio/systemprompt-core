@@ -5,7 +5,7 @@
 //! and the identifiers a session column means differ table to table. Each
 //! owning crate therefore declares its tables in the
 //! [`systemprompt_extension::purge`] registry and the delete runs them here,
-//! inside the privacy transaction that already guards `users` itself. Content
+//! inside the same transaction that deletes the `users` row. Content
 //! the user's rows referenced but did not own — an artifact body shared by
 //! digest — is declared as an orphan sweep and cleared once the user-keyed
 //! tables are gone, in the same transaction. The same lists, counted instead
@@ -30,9 +30,6 @@ use crate::repository::UserRepository;
 // entry per owning crate's table. `ai_requests` cascades to its children;
 // `user_sessions` is deleted by the caller first because `ai_requests` and
 // `user_contexts` point at it with SET NULL and must go before the session.
-// The reporting channel of `event_outbox` holds the deletion facts this very
-// transaction's capture triggers write, which the privacy consumers still
-// have to deliver.
 user_purge_tables!(
     "systemprompt-core",
     [
@@ -46,7 +43,7 @@ user_purge_tables!(
         ("agent_tasks", "user_id"),
         ("task_messages", "user_id"),
         ("files", "user_id"),
-        ("event_outbox", "user_id", "channel <> 'reporting'"),
+        ("event_outbox", "user_id"),
         ("logs", "user_id"),
         ("user_rate_limit_buckets", "user_id"),
         ("oauth_jti_revocations", "user_id"),

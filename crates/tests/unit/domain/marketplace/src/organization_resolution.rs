@@ -224,15 +224,6 @@ async fn catalog_includes_published_skill_without_grant() {
     let consumer = fixture().await.expect("consumer fixture");
     publish(&f).await;
     let resolver = OrganizationSkillResolver::new(f.repository.clone(), f.owner.clone());
-    let ManagedSkillResolution::Published(received) = resolver
-        .resolve_skill_for_catalog(&consumer.owner, &f.key)
-        .await
-        .expect("catalog resolution")
-    else {
-        panic!("published skill reaches the catalogue without a grant");
-    };
-    assert_eq!(received.resource_id, f.resource);
-    assert_eq!(received.revision_id, f.revision);
     let (_dir, disk) = disk_catalog_with(&f.key);
     let catalog = disk
         .with_organization_skills(f.repository.clone(), &f.owner, &consumer.owner)
@@ -269,9 +260,6 @@ async fn explicit_revocation_withholds_from_catalog() {
         .set_consumer_grant(&f.owner, &f.resource, &consumer.owner, false)
         .await
         .expect("revoke");
-    assert!(
-        matches!(resolver.resolve_skill_for_catalog(&consumer.owner, &f.key).await.expect("revoked"), ManagedSkillResolution::Withheld(reason) if *reason == WithheldReason::NotGranted)
-    );
     let (_dir, disk) = disk_catalog_with(&f.key);
     let denied = disk
         .clone()
@@ -284,16 +272,13 @@ async fn explicit_revocation_withholds_from_catalog() {
         .retain_consumer_catalog_grant(&f.owner, &f.resource, &consumer.owner)
         .await
         .expect("retention cannot regrant");
-    assert!(
-        matches!(resolver.resolve_skill_for_catalog(&consumer.owner, &f.key).await.expect("still revoked"), ManagedSkillResolution::Withheld(reason) if *reason == WithheldReason::NotGranted)
-    );
     let still_denied = disk
         .with_organization_skills(f.repository.clone(), &f.owner, &consumer.owner)
         .await
         .expect("catalog");
     assert!(still_denied.as_content().skills.is_empty());
     let ManagedSkillResolution::Published(owner) = resolver
-        .resolve_skill_for_catalog(&f.owner, &f.key)
+        .resolve_skill(&f.owner, &f.key)
         .await
         .expect("owner")
     else {

@@ -11,6 +11,24 @@ use systemprompt_marketplace::managed::{
 };
 use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_db_pool, seed_user_row};
 
+/// The provenance retained for a snapshot, read straight from its row.
+pub(super) async fn stored_provenance(
+    db: &systemprompt_database::DbPool,
+    owner: &UserId,
+    snapshot: &systemprompt_identifiers::SourceSnapshotId,
+) -> systemprompt_marketplace::managed::SnapshotProvenance {
+    let pool = db.pool_arc().expect("read pool");
+    let value: serde_json::Value = sqlx::query_scalar(
+        "SELECT provenance FROM managed_source_snapshots WHERE owner_id=$1 AND id=$2",
+    )
+    .bind(owner.as_str())
+    .bind(snapshot.as_str())
+    .fetch_one(pool.as_ref())
+    .await
+    .expect("retained snapshot");
+    serde_json::from_value(value).expect("snapshot provenance")
+}
+
 pub(super) struct Capture {
     pub output: Mutex<(String, RevisionFiles)>,
     pub calls: AtomicUsize,

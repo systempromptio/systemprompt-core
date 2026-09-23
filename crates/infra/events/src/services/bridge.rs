@@ -181,9 +181,6 @@ impl PostgresEventBridge {
             error!(channel = %row.channel, row_id, "event bridge: unknown outbox channel");
             return;
         };
-        if channel == OutboxChannel::Reporting {
-            return;
-        }
         if !row.deliver_to_origin && &row.origin_instance_id == self.outbox.instance_id() {
             debug!(
                 row_id,
@@ -227,7 +224,6 @@ impl PostgresEventBridge {
                 },
                 Err(e) => error!(error = %e, "event bridge: failed to decode analytics event"),
             },
-            OutboxChannel::Reporting => {},
         }
     }
 

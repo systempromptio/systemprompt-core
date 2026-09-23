@@ -20,11 +20,7 @@ async fn setup_or_skip() -> Option<Ctx> {
 }
 
 async fn delete_user(ctx: &Ctx, id: &UserId) {
-    ctx.fixture.drain().await;
-    ctx.service
-        .delete(id)
-        .await
-        .expect("cleanup user after reporting drain");
+    ctx.service.delete(id).await.expect("cleanup user");
 }
 
 fn unique(prefix: &str) -> (String, String) {
@@ -123,7 +119,6 @@ async fn update_fields_persist() {
         .expect("update_email_verified");
     assert_eq!(verified.email_verified, Some(true));
 
-    ctx.fixture.drain().await;
     let suspended = ctx
         .service
         .update_status(&created.id, UserStatus::Suspended)
@@ -151,7 +146,6 @@ async fn update_all_fields_replaces_state() {
         .expect("create");
 
     let new_email = format!("all-{}@svc.invalid", Uuid::new_v4().simple());
-    ctx.fixture.drain().await;
     let updated = ctx
         .service
         .update_all_fields(
@@ -209,7 +203,6 @@ async fn delete_removes_user() {
         .await
         .expect("create");
 
-    ctx.fixture.drain().await;
     ctx.service.delete(&created.id).await.expect("delete");
     assert!(
         ctx.service

@@ -36,7 +36,7 @@ impl ToolAnalyticsRepository {
                     COUNT(*) FILTER (WHERE status = 'timeout')::bigint as "timeout!",
                     COALESCE(AVG(execution_time_ms)::float8, 0) as "avg_time!",
                     COALESCE(PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY execution_time_ms)::float8, 0) as "p95_time!"
-                FROM analytics_report_mcp_tool_executions
+                FROM report_mcp_tool_executions
                 WHERE created_at >= $1 AND created_at < $2 AND tool_name ILIKE $3
                 "#,
                 start, end, pattern
@@ -56,7 +56,7 @@ impl ToolAnalyticsRepository {
                     COUNT(*) FILTER (WHERE status = 'timeout')::bigint as "timeout!",
                     COALESCE(AVG(execution_time_ms)::float8, 0) as "avg_time!",
                     COALESCE(PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY execution_time_ms)::float8, 0) as "p95_time!"
-                FROM analytics_report_mcp_tool_executions
+                FROM report_mcp_tool_executions
                 WHERE created_at >= $1 AND created_at < $2
                 "#,
                 start, end
@@ -75,7 +75,7 @@ impl ToolAnalyticsRepository {
     ) -> Result<i64> {
         let pattern = format!("%{}%", tool_name);
         let count = sqlx::query_scalar!(
-            r#"SELECT COUNT(*)::bigint as "count!" FROM analytics_report_mcp_tool_executions WHERE tool_name ILIKE $1 AND created_at >= $2 AND created_at < $3"#,
+            r#"SELECT COUNT(*)::bigint as "count!" FROM report_mcp_tool_executions WHERE tool_name ILIKE $1 AND created_at >= $2 AND created_at < $3"#,
             pattern,
             start,
             end
@@ -102,7 +102,7 @@ impl ToolAnalyticsRepository {
                 COUNT(*) FILTER (WHERE status = 'timeout')::bigint as "timeout!",
                 COALESCE(AVG(execution_time_ms)::float8, 0) as "avg_time!",
                 COALESCE(PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY execution_time_ms)::float8, 0) as "p95_time!"
-            FROM analytics_report_mcp_tool_executions
+            FROM report_mcp_tool_executions
             WHERE tool_name ILIKE $1 AND created_at >= $2 AND created_at < $3
             "#,
             pattern, start, end
@@ -123,7 +123,7 @@ impl ToolAnalyticsRepository {
             ToolStatusBreakdownRow,
             r#"
             SELECT status as "status!", COUNT(*)::bigint as "status_count!"
-            FROM analytics_report_mcp_tool_executions
+            FROM report_mcp_tool_executions
             WHERE tool_name ILIKE $1 AND created_at >= $2 AND created_at < $3
             GROUP BY status
             ORDER BY 2 DESC
@@ -150,7 +150,7 @@ impl ToolAnalyticsRepository {
             SELECT
                 COALESCE(SUBSTRING(error_message FROM 1 FOR 100), 'Unknown error') as "error_msg",
                 COUNT(*)::bigint as "error_count!"
-            FROM analytics_report_mcp_tool_executions
+            FROM report_mcp_tool_executions
             WHERE tool_name ILIKE $1 AND created_at >= $2 AND created_at < $3 AND status = 'failed'
             GROUP BY SUBSTRING(error_message FROM 1 FOR 100)
             ORDER BY 2 DESC
@@ -178,8 +178,8 @@ impl ToolAnalyticsRepository {
             SELECT
                 COALESCE(at.agent_name, CASE WHEN mte.task_id IS NULL THEN 'Direct Call' ELSE 'Unlinked Task' END) as "agent_name",
                 COUNT(*)::bigint as "usage_count!"
-            FROM analytics_report_mcp_tool_executions mte
-            LEFT JOIN analytics_report_agent_tasks at ON at.task_id = mte.task_id
+            FROM report_mcp_tool_executions mte
+            LEFT JOIN report_agent_tasks at ON at.task_id = mte.task_id
             WHERE mte.tool_name ILIKE $1 AND mte.created_at >= $2 AND mte.created_at < $3
             GROUP BY COALESCE(at.agent_name, CASE WHEN mte.task_id IS NULL THEN 'Direct Call' ELSE 'Unlinked Task' END)
             ORDER BY 2 DESC
@@ -207,7 +207,7 @@ impl ToolAnalyticsRepository {
                     created_at as "created_at!",
                     status,
                     execution_time_ms
-                FROM analytics_report_mcp_tool_executions
+                FROM report_mcp_tool_executions
                 WHERE created_at >= $1 AND created_at < $2 AND tool_name ILIKE $3
                 ORDER BY created_at
                 "#,
@@ -226,7 +226,7 @@ impl ToolAnalyticsRepository {
                     created_at as "created_at!",
                     status,
                     execution_time_ms
-                FROM analytics_report_mcp_tool_executions
+                FROM report_mcp_tool_executions
                 WHERE created_at >= $1 AND created_at < $2
                 ORDER BY created_at
                 "#,

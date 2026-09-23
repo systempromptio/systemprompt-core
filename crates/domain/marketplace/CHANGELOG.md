@@ -1,5 +1,25 @@
 # Changelog
 
+## [Unreleased]
+
+### Breaking
+
+- Removed with the managed HTTP admin surface and the never-called invocation paths: `ManagedRepository::{attribute_invocation, record_consumer_invocation, consumer_invocation_status, consumer_session_status, consumer_receipt_status, issue_api_consumer_credential, installation_coverage_status}`; the types `InvocationAttribution`, `InvocationAttributionRequest`, `AttributionStatus`, `TrafficClass`, `ConsumerInvocationRequest`, `ConsumerAttribution`, `CredentialIssueStatus` and `InstallationCoverageStatus`. Binding a session no longer re-attributes invocation evidence.
+- `managed_invocation_attributions` is no longer created by core. It was never written; core does not drop it either, because a consumer view may still join it — such a consumer redefines its view and drops the table in its own migration.
+- `refresh_installation_coverage` returns how many resources' coverage changed. It writes the coverage state only on a change and sends no `pg_notify('feedback_snapshots', …)`.
+- `OrganizationSkillResolver::resolve_skill_for_catalog`, `MarketplaceCache::resolved_len` and `MarketplaceService::validate_referential_integrity` are removed; only tests called them. Catalogue inclusion goes through `with_organization_skills`, and services validation through `ServicesConfig::validate`.
+
+### Fixed
+
+- The catalog memo fingerprint serialized the services configuration's `HashMap`s in iteration order, which differs between two loads of the same files, so every configuration reload missed the memo and rebuilt the catalog. It now serializes with sorted keys, through the same helper as the inventory fingerprint.
+
+### Added
+
+- `inventory::configured_inventory_fingerprint` hashes what a configured-inventory refresh observes, with the services configuration serialized in sorted key order so two loads of the same files agree.
+- The managed orchestration left without a caller when the HTTP admin surface went is removed: the `managed::operations` module (`ApiOperation`, `ApiOperationClaim`, `begin_api_operation`, `api_operation`, `checkpoint_api_input`, `api_input`, `finish_api_operation`, `fail_api_operation`, `import_api_capture`); Git dependency verification (`GitVerificationService`, `GitTreeReader`, `NativeGitTreeReader`, `GitTreeRead`, `GitContentVerification`, `GitSourceBinding`, `verify_git_dependencies`, `verify_git_content`, `bind_git_verification_source`, `git_verification`, `verified_git_manifest`, `require_verified_git_content`); baseline preparation (`InventoryService::prepare_baselines`, `BaselinePreparation`, `BaselineCapture`, `inventory_capture`); the unread inventory readers `inventory_membership`, `inventory_coverage_at`, `inventory_git_binding` with `ObservedMembership`, `InventoryCoverage`, `InventoryGitBinding`; `reconcile_inventory_operation`; `sync_git_source` (use `sync_git_source_with_credential`); `snapshot_provenance`; `publication_history_page` (use `list_publication_history`).
+- Configured inventory capture handles skills only, the one kind `publish_latest` captures; the inline agent and MCP capture branches are gone.
+- `managed_api_operations`, `managed_consumer_invocation_evidence`, `managed_consumer_attribution_projection` and `managed_consumer_attribution_history` are no longer created by core and are not dropped by it; a consumer that reads them drops them after redefining its views. Migration `016` drops the never-read `managed_git_verifications`, `managed_dependency_verifications`, `managed_resource_git_bindings` and `managed_inventory_captures`.
+
 ## [0.59.0] - 2026-09-22
 
 ### Fixed

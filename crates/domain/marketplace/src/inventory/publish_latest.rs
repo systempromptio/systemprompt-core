@@ -105,7 +105,7 @@ impl InventoryService {
             return Ok(outcome(entry, status));
         }
         let canonical = std::fs::canonicalize(scope.root)?;
-        let tree = match configured_files(&canonical, entry, scope.services) {
+        let tree = match configured_files(&canonical, entry) {
             Ok(files) => AssetDigest::of(&serde_jcs::to_vec(&files)?),
             Err(error) => return Ok(blocked(entry, &error)),
         };

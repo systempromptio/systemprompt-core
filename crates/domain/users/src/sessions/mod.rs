@@ -56,9 +56,6 @@ impl SessionRepository {
     pub async fn list_active_by_user(&self, user_id: &UserId) -> Result<Vec<AnalyticsSession>> {
         queries::list_active_by_user(&self.pool, user_id).await
     }
-    pub async fn update_activity(&self, session_id: &SessionId) -> Result<()> {
-        mutations::update_activity(&self.write_pool, session_id).await
-    }
     pub async fn increment_request_count(&self, session_id: &SessionId) -> Result<()> {
         mutations::increment_request_count(&self.write_pool, session_id).await
     }

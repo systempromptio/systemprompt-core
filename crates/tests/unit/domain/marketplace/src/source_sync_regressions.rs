@@ -23,11 +23,8 @@ async fn source_sync_preserves_published_revision_and_candidate_with_three_way_i
     };
     assert!(reconciliation_id.is_none());
     assert_eq!(commit, "a".repeat(40));
-    let provenance = f
-        .repo
-        .snapshot_provenance(&f.owner, &snapshot_id)
-        .await
-        .unwrap();
+    let provenance =
+        crate::source_sync_fixture::stored_provenance(&f.db, &f.owner, &snapshot_id).await;
     assert_eq!(provenance.source_kind, "git");
     assert_eq!(provenance.commit.as_deref(), Some(commit.as_str()));
     assert_eq!(provenance.importer_version, "managed-git-v1");

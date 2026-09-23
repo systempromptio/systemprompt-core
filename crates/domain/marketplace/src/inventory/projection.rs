@@ -20,26 +20,10 @@ impl ManagedRepository {
         owner: &UserId,
         configured: &[ConfiguredInventoryEntry],
     ) -> Result<InventoryStatus> {
-        self.reconcile_inventory_operation(owner, configured, None)
-            .await
-    }
-
-    pub async fn reconcile_inventory_operation(
-        &self,
-        owner: &UserId,
-        configured: &[ConfiguredInventoryEntry],
-        operation: Option<&crate::managed::operations::ApiOperation>,
-    ) -> Result<InventoryStatus> {
         if configured.len() > 10_000 {
             return Err(invalid("Inventory exceeds 10000 configured entries"));
         }
         let mut tx = self.pool.begin().await?;
-        if let Some(operation) = operation
-            && let Some(completed) = Self::inventory_lease(&mut tx, owner, operation).await?
-        {
-            return Ok(completed);
-        }
-
         sqlx::query!(
             "INSERT INTO managed_inventory_state(owner_id) VALUES($1) ON CONFLICT DO NOTHING",
             owner.as_str()
@@ -86,32 +70,8 @@ impl ManagedRepository {
             entries: count,
             last_error: None,
         };
-        if let Some(operation) = operation {
-            sqlx::query!("UPDATE managed_api_operations SET state='completed',result=$3,input_checkpoint=NULL,updated_at=clock_timestamp() WHERE owner_id=$1 AND id=$2",owner.as_str(),operation.id.as_str(),sqlx::types::Json(&result) as _).execute(&mut *tx).await?;
-        }
         tx.commit().await?;
         Ok(result)
-    }
-}
-
-impl ManagedRepository {
-    async fn inventory_lease(
-        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
-        owner: &UserId,
-        operation: &crate::managed::operations::ApiOperation,
-    ) -> Result<Option<InventoryStatus>> {
-        let current=sqlx::query!("SELECT fence,state,result FROM managed_api_operations WHERE owner_id=$1 AND id=$2 FOR UPDATE",owner.as_str(),operation.id.as_str()).fetch_one(&mut **tx).await?;
-        if current.state == "completed" {
-            return Ok(Some(serde_json::from_value(
-                current
-                    .result
-                    .ok_or_else(|| invalid("Operation result unavailable"))?,
-            )?));
-        }
-        if current.fence != operation.fence || current.state != "pending" {
-            return Err(invalid("Operation lease was superseded"));
-        }
-        Ok(None)
     }
 }
 

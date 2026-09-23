@@ -25,6 +25,7 @@ async fn acknowledged_installation_coverage_is_independent_of_unknown_usage() {
         .refresh_installation_coverage(&f.owner)
         .await
         .unwrap();
+    assert!(first > 0, "a new receipt changes the resource's coverage");
     let current = f
         .repo
         .installation_coverage(&f.owner, &f.request.resource_id)
@@ -39,7 +40,7 @@ async fn acknowledged_installation_coverage_is_independent_of_unknown_usage() {
         .refresh_installation_coverage(&f.owner)
         .await
         .unwrap();
-    assert_eq!(first.generation, same.generation);
+    assert_eq!(same, 0, "an unchanged pass writes nothing");
     f.repo
         .set_consumer_grant(&f.owner, &f.request.resource_id, &f.consumer, false)
         .await

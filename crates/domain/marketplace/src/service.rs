@@ -74,10 +74,4 @@ impl<'a> MarketplaceService<'a> {
             .get_key_value(id)
             .filter(|(_, config)| config.enabled)
     }
-
-    pub fn validate_referential_integrity(&self) -> Result<(), MarketplaceError> {
-        self.services
-            .validate()
-            .map_err(|e| MarketplaceError::Validation(e.to_string()))
-    }
 }

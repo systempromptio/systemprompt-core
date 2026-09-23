@@ -29,7 +29,6 @@ mod database_context;
 mod error;
 pub mod managed;
 mod registry;
-pub mod reporting;
 pub mod services_reconcile;
 mod startup_validation;
 pub mod trace;

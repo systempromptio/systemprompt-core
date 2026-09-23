@@ -11,7 +11,7 @@ Provides structured tracing, PostgreSQL log persistence and typed audit queries.
 
 ## What it does
 
-A `tracing` layer batches structured events into PostgreSQL asynchronously, propagating context (`user_id`, `session_id`, `task_id`, `trace_id`) onto every row so the audit trail reconstructs who did what. A cron scheduler applies per-level retention. On top of the stored trail sits a typed query surface over traces, AI requests, and MCP tool executions. The `cli` feature adds console formatting for the CLI.
+A `tracing` layer batches structured events into PostgreSQL asynchronously, propagating context (`user_id`, `session_id`, `task_id`, `trace_id`) onto every row so the audit trail reconstructs who did what. Age-based cleanup of `logs` goes through `LoggingMaintenanceService`, which the CLI cleanup commands drive. On top of the stored trail sits a typed query surface over traces, AI requests, and MCP tool executions. The `cli` feature adds console formatting for the CLI.
 
 ## Modules
 
@@ -20,7 +20,7 @@ A `tracing` layer batches structured events into PostgreSQL asynchronously, prop
 | `layer` | `DatabaseLayer` (async batch persistence) and `ProxyDatabaseLayer` (late-bound sink swap-in), plus field/span visitors. |
 | `models` | `LogEntry`, `LogLevel`, `LogFilter`, `LogActor`, the `LoggingError` type, and the `LogRow` SQLx mapping. |
 | `repository` | `LoggingRepository` (log CRUD) and `AnalyticsRepository` / `AnalyticsEvent`. |
-| `services` | `DatabaseLogService`, `LoggingMaintenanceService`, retention scheduling, request/system spans, startup-mode and log-publisher control, and the `cli/` display helpers (feature-gated). |
+| `services` | `DatabaseLogService`, `LoggingMaintenanceService`, request/system spans, startup-mode and log-publisher control, and the `cli/` display helpers (feature-gated). |
 | `trace` | `TraceQueryService` and `AiTraceService` with the typed rows for traces, AI requests, and MCP tool executions. |
 | `attribution` | Installs the process-wide system-actor attribution used to stamp platform-originated log rows (`install_log_attribution`, `platform_attribution`). |
 | `sanitize` | Internal helpers that scrub sensitive fields before rows are persisted. |
@@ -83,11 +83,6 @@ async fn recent_errors(pool: &DbPool) -> Result<(), LoggingError> {
 - `SystemSpan` - For internal/background operations
 - `RequestSpanBuilder` - Fluent builder for request spans
 
-### Retention
-- `RetentionConfig` - Per-level retention configuration
-- `RetentionPolicy` - Individual retention policy
-- `RetentionScheduler` - Cron-based cleanup scheduler
-
 ### Trace Services
 - `TraceQueryService` - Generic trace querying
 - `AiTraceService` - AI/MCP operation tracing
@@ -123,7 +118,6 @@ async fn recent_errors(pool: &DbPool) -> Result<(), LoggingError> {
 - `serde`, `serde_json`, `serde_yaml` - Serialisation
 - `chrono` - Timestamp handling
 - `uuid` - Log entry identifiers
-- `tokio-cron-scheduler` - Retention job scheduling
 - `async-trait`, `thiserror`, `inventory` - Trait, error, and registration utilities
 - `console`, `indicatif` - CLI utilities (`cli` feature)
 

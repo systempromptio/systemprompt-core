@@ -23,7 +23,6 @@ impl Extension for UsersExtension {
 
     fn schemas(&self) -> Vec<SchemaDefinition> {
         vec![
-            SchemaDefinition::sql_only(include_str!("../schema/reporting_capture.sql")),
             SchemaDefinition::new("users", include_str!("../schema/users.sql"))
                 .with_required_columns(vec![
                     "id".into(),

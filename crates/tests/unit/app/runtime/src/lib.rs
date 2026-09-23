@@ -71,10 +71,6 @@ mod validation_report_extended;
 #[cfg(test)]
 mod wellknown;
 
-#[cfg(test)]
-mod reporting;
-#[cfg(test)]
-mod snapshot_wakeup;
 
 #[cfg(test)]
 mod git_credentials;

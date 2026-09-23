@@ -22,38 +22,29 @@ async fn configured_unused_disabled_and_imported_unpublished_entries_are_include
                 && entry.latest_revision_id.as_ref() == Some(&revision)
                 && entry.published_revision_id.is_none())
     );
-    let results = f.baselines().await;
-    assert_eq!(
+    let results = f.publish().await;
+    assert_eq!(results.len(), 2, "only configured skills are published");
+    assert!(
         results
             .iter()
-            .filter(|entry| entry.status == "ready")
-            .count(),
-        2
+            .any(|outcome| outcome.resource_key == "unused"
+                && outcome.status == LatestPublicationStatus::Published)
     );
-    assert_eq!(
+    assert!(
         results
             .iter()
-            .filter(|entry| entry.status == "blocked")
-            .count(),
-        1
+            .any(|outcome| outcome.resource_key == "disabled"
+                && outcome.status == LatestPublicationStatus::Blocked)
     );
 }
 
 #[tokio::test]
-async fn naming_conflicts_require_explicit_binding_and_history_before_observation_is_unknown() {
+async fn naming_conflicts_require_explicit_binding() {
     let f = Fixture::new().await;
     f.skill("same", true);
     let (resource, _) = f.imported("same").await;
-    let before = chrono::Utc::now();
     f.refresh().await;
     let id = configured_identity(&f.owner, "skill", "same");
-    assert!(matches!(
-        f.repository
-            .inventory_membership(&f.owner, &id, before)
-            .await
-            .expect("membership"),
-        ObservedMembership::Unknown
-    ));
     let entries = f
         .repository
         .inventory(&f.owner, None, 100)
@@ -78,45 +69,17 @@ async fn naming_conflicts_require_explicit_binding_and_history_before_observatio
         .expect("bound entry");
     assert_eq!(entry.resource_id, Some(resource));
     assert_eq!(entry.availability, InventoryAvailability::Available);
-    let coverage = f
-        .repository
-        .inventory_coverage_at(&f.owner, chrono::Utc::now())
-        .await
-        .expect("coverage");
-    assert_eq!(coverage.known_available, 1);
 }
 
 #[tokio::test]
-async fn upstream_removal_retains_publication_and_records_effective_membership() {
+async fn upstream_removal_retains_publication() {
     let f = Fixture::new().await;
     f.skill("local", true);
     f.refresh().await;
-    let capture = f.baselines().await.remove(0);
+    let published = f.publish().await.remove(0);
+    assert_eq!(published.status, LatestPublicationStatus::Published);
     let id = configured_identity(&f.owner, "skill", "local");
-    let entry = f
-        .repository
-        .inventory_entry(&f.owner, &id)
-        .await
-        .expect("entry");
-    f.repository
-        .review_and_publish(
-            &f.owner,
-            &f.owner,
-            &PublicationRequest {
-                resource_id: entry.resource_id.expect("resource"),
-                revision_id: capture.revision_id.clone(),
-                action: PublicationAction::InitialAdoption,
-                expected_generation: 0,
-                operation_key: "adopt-local".to_owned(),
-                comparison_evidence: systemprompt_marketplace::managed::ComparisonEvidence::default(
-                ),
-                limitations: String::new(),
-            },
-        )
-        .await
-        .expect("approve");
     f.refresh().await;
-    let prior = chrono::Utc::now();
     std::fs::remove_dir_all(f.root.path().join("skills/local")).expect("remove source");
     f.refresh().await;
     let entry = f
@@ -125,16 +88,7 @@ async fn upstream_removal_retains_publication_and_records_effective_membership()
         .await
         .expect("withdrawn inventory");
     assert_eq!(entry.availability, InventoryAvailability::Withdrawn);
-    assert_eq!(entry.published_revision_id, capture.revision_id);
-    let ObservedMembership::Known { entry, .. } = f
-        .repository
-        .inventory_membership(&f.owner, &id, prior)
-        .await
-        .expect("prior membership")
-    else {
-        panic!("known membership")
-    };
-    assert_eq!(entry.availability, InventoryAvailability::Available);
+    assert_eq!(entry.published_revision_id, published.revision_id);
 }
 
 #[tokio::test]
@@ -142,7 +96,7 @@ async fn changed_authoring_reuses_three_way_reconciliation_without_replacing_can
     let f = Fixture::new().await;
     f.skill("local", true);
     f.refresh().await;
-    let baseline = f.baselines().await.remove(0).revision_id.expect("baseline");
+    let baseline = f.publish().await.remove(0).revision_id.expect("baseline");
     let manifest = f
         .repository
         .get_revision(&f.owner, &baseline)
@@ -180,10 +134,11 @@ async fn changed_authoring_reuses_three_way_reconciliation_without_replacing_can
     )
     .expect("source edit");
     f.refresh().await;
-    let result = f.baselines().await.remove(0);
-    assert_eq!(result.status, "reconciliation_required");
-    assert!(result.reconciliation_id.is_some());
-    assert_ne!(result.revision_id.as_ref(), Some(&candidate));
+    let result = f.publish().await.remove(0);
+    assert_eq!(
+        result.status,
+        LatestPublicationStatus::ReconciliationRequired
+    );
     assert!(
         f.repository
             .get_revision(&f.owner, &candidate)

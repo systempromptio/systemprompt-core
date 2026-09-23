@@ -2,7 +2,7 @@
 //!
 //! Tracing and audit infrastructure for systemprompt.io. Owns the
 //! structured-event pipeline, the database-backed `tracing` layer,
-//! log/analytics repositories, retention scheduling, and the CLI display
+//! log/analytics repositories, and the CLI display
 //! sinks. The trace-assembly queries over agent, AI and MCP tables live in
 //! `systemprompt_runtime::trace`.
 //!
@@ -10,7 +10,7 @@
 //!
 //! | Feature   | Description                                                               |
 //! |-----------|---------------------------------------------------------------------------|
-//! | (default) | Database layer, repositories, retention scheduler                         |
+//! | (default) | Database layer, repositories                                              |
 //! | `cli`     | CLI display helpers (`CliService`, tables, banners) — pulls in `console`, `indicatif` |
 //!
 //! ## Top-level entry points

@@ -12,7 +12,7 @@
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::InstanceId;
 use systemprompt_traits::{Job as JobTrait, JobScope};
-use tracing::{debug, error, info};
+use tracing::{debug, error};
 
 use super::lock::{JobLockGuard, try_acquire_job_lock};
 use crate::models::{JobConfig, SchedulerConfig};
@@ -123,10 +123,10 @@ pub(super) async fn acquire_cluster_claim(
 }
 
 fn skipped_by_lock(job_name: &str) {
-    debug!(job_name = %job_name, "job already claimed for this tick by another replica, skipping");
-    info!(
+    debug!(
         monotonic_counter.scheduler_job_skipped_by_lock = 1u64,
         job_name = %job_name,
         event = "scheduler.job.skipped_by_lock",
+        "job already claimed for this tick by another replica, skipping"
     );
 }

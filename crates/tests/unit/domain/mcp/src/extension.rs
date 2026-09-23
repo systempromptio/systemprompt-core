@@ -45,40 +45,12 @@ fn test_schemas_table_names_match_expected() {
 }
 
 #[test]
-fn owner_capture_and_privacy_contracts_are_registered() {
-    let schemas = McpExtension.schemas();
-    let capture: Vec<_> = schemas
-        .iter()
-        .filter(|schema| {
-            schema.table.is_none()
-                && schema
-                    .sql
-                    .contains("EXECUTE FUNCTION sp_capture_reporting_change")
-        })
-        .collect();
-    assert_eq!(
-        capture.len(),
-        1,
-        "owner capture SQL must be registered exactly once"
-    );
-    for view in ["reporting_source_mcp_tool_executions"] {
-        assert!(
-            capture[0].sql.contains(view),
-            "missing reporting view: {view}"
-        );
-    }
-    let privacy: Vec<_> = schemas
-        .iter()
-        .filter(|schema| {
-            schema.table.is_none()
-                && schema
-                    .sql
-                    .contains("CREATE OR REPLACE FUNCTION public.lock_mcp_reporting_sources")
-        })
-        .collect();
-    assert_eq!(
-        privacy.len(),
-        1,
-        "owner privacy SQL must survive capture registration"
+fn no_reporting_capture_or_privacy_sql_is_registered() {
+    assert!(
+        McpExtension
+            .schemas()
+            .iter()
+            .all(|schema| !schema.sql.contains("reporting")),
+        "the reporting projection is retired"
     );
 }

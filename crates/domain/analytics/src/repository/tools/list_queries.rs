@@ -70,7 +70,7 @@ impl ToolAnalyticsRepository {
                 COUNT(*) FILTER (WHERE status = 'success')::bigint as "success_count!",
                 COALESCE(AVG(execution_time_ms)::float8, 0) as "avg_time!",
                 MAX(created_at) as "last_used!"
-            FROM analytics_report_mcp_tool_executions
+            FROM report_mcp_tool_executions
             WHERE created_at >= $1 AND created_at < $2 AND server_name ILIKE $3
               AND server_name NOT IN ('in_process', 'proxy', 'gateway', 'hook_claude_code', 'hook_opencode')
             GROUP BY tool_name, server_name
@@ -106,7 +106,7 @@ impl ToolAnalyticsRepository {
                 COUNT(*) FILTER (WHERE status = 'success')::bigint as "success_count!",
                 COALESCE(AVG(execution_time_ms)::float8, 0) as "avg_time!",
                 MAX(created_at) as "last_used!"
-            FROM analytics_report_mcp_tool_executions
+            FROM report_mcp_tool_executions
             WHERE created_at >= $1 AND created_at < $2 AND server_name ILIKE $3
               AND server_name NOT IN ('in_process', 'proxy', 'gateway', 'hook_claude_code', 'hook_opencode')
             GROUP BY tool_name, server_name
@@ -140,7 +140,7 @@ impl ToolAnalyticsRepository {
                 COUNT(*) FILTER (WHERE status = 'success')::bigint as "success_count!",
                 COALESCE(AVG(execution_time_ms)::float8, 0) as "avg_time!",
                 MAX(created_at) as "last_used!"
-            FROM analytics_report_mcp_tool_executions
+            FROM report_mcp_tool_executions
             WHERE created_at >= $1 AND created_at < $2 AND server_name ILIKE $3
               AND server_name NOT IN ('in_process', 'proxy', 'gateway', 'hook_claude_code', 'hook_opencode')
             GROUP BY tool_name, server_name
@@ -188,7 +188,7 @@ impl ToolAnalyticsRepository {
                 COUNT(*) FILTER (WHERE status = 'success')::bigint as "success_count!",
                 COALESCE(AVG(execution_time_ms)::float8, 0) as "avg_time!",
                 MAX(created_at) as "last_used!"
-            FROM analytics_report_mcp_tool_executions
+            FROM report_mcp_tool_executions
             WHERE created_at >= $1 AND created_at < $2
               AND server_name NOT IN ('in_process', 'proxy', 'gateway', 'hook_claude_code', 'hook_opencode')
             GROUP BY tool_name, server_name
@@ -222,7 +222,7 @@ impl ToolAnalyticsRepository {
                 COUNT(*) FILTER (WHERE status = 'success')::bigint as "success_count!",
                 COALESCE(AVG(execution_time_ms)::float8, 0) as "avg_time!",
                 MAX(created_at) as "last_used!"
-            FROM analytics_report_mcp_tool_executions
+            FROM report_mcp_tool_executions
             WHERE created_at >= $1 AND created_at < $2
               AND server_name NOT IN ('in_process', 'proxy', 'gateway', 'hook_claude_code', 'hook_opencode')
             GROUP BY tool_name, server_name
@@ -254,7 +254,7 @@ impl ToolAnalyticsRepository {
                 COUNT(*) FILTER (WHERE status = 'success')::bigint as "success_count!",
                 COALESCE(AVG(execution_time_ms)::float8, 0) as "avg_time!",
                 MAX(created_at) as "last_used!"
-            FROM analytics_report_mcp_tool_executions
+            FROM report_mcp_tool_executions
             WHERE created_at >= $1 AND created_at < $2
               AND server_name NOT IN ('in_process', 'proxy', 'gateway', 'hook_claude_code', 'hook_opencode')
             GROUP BY tool_name, server_name

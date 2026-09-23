@@ -114,9 +114,6 @@ async fn list_tools_filtered_covers_all_sort_orders() {
     let prefix = format!("tool-{}", Uuid::new_v4());
     let server = format!("srv-{}", Uuid::new_v4());
     seed_two_tools(&pool, &prefix, &server).await;
-    systemprompt_test_fixtures::refresh_reporting(&pool)
-        .await
-        .expect("reporting snapshot");
     let (start, end) = window();
 
     for sort_order in ["count", "success_rate", "avg_time"] {
@@ -175,9 +172,6 @@ async fn list_tools_unfiltered_covers_all_sort_orders() {
     let prefix = format!("tool-{}", Uuid::new_v4());
     let server = format!("srv-{}", Uuid::new_v4());
     seed_two_tools(&pool, &prefix, &server).await;
-    systemprompt_test_fixtures::refresh_reporting(&pool)
-        .await
-        .expect("reporting snapshot");
     let (start, end) = window();
 
     for sort_order in ["count", "success_rate", "avg_time"] {
@@ -213,9 +207,6 @@ async fn get_stats_and_summary_report_seeded_executions() {
     let prefix = format!("tool-{}", Uuid::new_v4());
     let server = format!("srv-{}", Uuid::new_v4());
     seed_two_tools(&pool, &prefix, &server).await;
-    systemprompt_test_fixtures::refresh_reporting(&pool)
-        .await
-        .expect("reporting snapshot");
     let (start, end) = window();
 
     let filtered = repo
@@ -264,9 +255,6 @@ async fn detail_queries_break_down_status_errors_and_agents() {
     let prefix = format!("tool-{}", Uuid::new_v4());
     let server = format!("srv-{}", Uuid::new_v4());
     seed_two_tools(&pool, &prefix, &server).await;
-    systemprompt_test_fixtures::refresh_reporting(&pool)
-        .await
-        .expect("reporting snapshot");
     let (start, end) = window();
 
     let breakdown = repo

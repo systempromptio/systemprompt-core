@@ -1,5 +1,19 @@
 # Changelog
 
+## [Unreleased]
+
+### Breaking
+
+- **Breaking:** the feedback fact/snapshot engine is removed: the `feedback` and `snapshots` modules (`FeedbackFactsRepository`, `FactsProcessingService`, `FeedbackSnapshotsRepository` and every type they exported, including `compact_in`/`compact_all_in` and `submit_in`). Nothing read the snapshots after their last consumer was deleted, and the ingestion they drained cost the request path a whole-session re-enqueue per write.
+- **Breaking:** the reporting projection is removed: the `projection` module (`ReportingProjector`, `ReportingRow`, `SOURCE_DEFINITIONS`, `REPORTING_CONSUMER`, `ProjectionStatus`) and `AnalyticsError::RebuildSuperseded`. Every analytics repository now reads `report_*` views (`schema/report_views.sql`), one per source table (`report_ai_requests` over `ai_requests`, `report_clean_traffic` over `v_clean_traffic`, …): nothing is copied, and the views hide every row of a user whose `status` is `deleted`. Retention bounds how far back the sources reach.
+- **Breaking:** dead analytics surface is removed: `CoreStatsRepository`, `FunnelRepository` and the funnel models, `AnalyticsQueryRepository`/`ProviderUsage`, `AnomalyDetectionService` and its types, `AnalyticsError::AnomalyDetectionFailed`, the dashboard DTOs only `CoreStatsRepository` returned (`PlatformOverview`, `CostOverview`, `TopUser`, `TopAgent`, `TopTool`, `ActivityTrend`, `ErrorSummary`, …), `StoredAnalyticsEvent`, `SessionEngagementSummary`, and repository methods with no caller (`FingerprintRepository::{get_by_hash, get_high_risk_fingerprints, update_velocity_metrics, update_active_session_count, clear_flag, adjust_reputation_score}`, `AnalyticsEventsRepository::{count_events_by_type, find_by_session, find_by_content}`, `EngagementRepository::{list_by_session, get_session_engagement_summary}`, `CliSessionAnalyticsRepository::{get_active_count_since, get_total_count}`).
+- **Breaking:** `AnalyticsEventsRepository::new(event_sink)` takes only the event store; it no longer holds a pool.
+- **Breaking:** `SessionRepository::update_activity` is removed; `increment_request_count` stamps the same activity columns.
+
+### Removed
+
+- Migration `015_retire_feedback_and_reporting_projection` drops the `analytics_fact_*`, `analytics_normalized_facts`, `analytics_ingestion_producers`, `analytics_snapshot_*` and `analytics_feedback_snapshots` tables (views first), every `analytics_report_*` table and view, `analytics_projection_state`/`_revisions`, the reporting privacy routines, and the `funnels`/`funnel_steps`/`funnel_progress`/`anomaly_thresholds` tables. Every statement is a `DROP … IF EXISTS`, so it also runs on a fresh install.
+
 ## [0.59.0] - 2026-09-22
 
 ### Breaking

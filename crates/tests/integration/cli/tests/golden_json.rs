@@ -35,28 +35,10 @@ fn systemprompt_bin() -> std::path::PathBuf {
     panic!("systemprompt binary not found; set SYSTEMPROMPT_BIN or run via `just coverage`");
 }
 
-// Analytics reports refuse to run until the reporting projection baseline
-// exists, so the fixture initialises and drains it before the binary runs.
-fn ensure_reporting_initialized(url: &str) {
-    tokio::runtime::Runtime::new()
-        .expect("tokio runtime")
-        .block_on(async {
-            let db = systemprompt_test_fixtures::fixture_db_pool(url)
-                .await
-                .expect("fixture pool");
-            systemprompt_test_fixtures::drain_reporting(&db)
-                .await
-                .expect("drain reporting");
-        });
-}
-
 fn golden_json_or_skip(args: &[&str]) -> Option<Value> {
     let url = std::env::var("DATABASE_URL")
         .ok()
         .filter(|u| !u.is_empty())?;
-    if args.first() == Some(&"analytics") {
-        ensure_reporting_initialized(&url);
-    }
     let mut cmd = Command::new(systemprompt_bin());
     cmd.env("SYSTEMPROMPT_PROFILE", "__nonexistent__");
     cmd.env_remove("RUST_LOG");

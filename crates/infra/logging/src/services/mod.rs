@@ -1,10 +1,9 @@
-//! Logging services: the `tracing` write path, retention, and span helpers.
+//! Logging services: the `tracing` write path and span helpers.
 //!
 //! [`DatabaseLogService`] persists structured log entries; [`output`] holds the
-//! global publish path used during startup and steady state; [`retention`]
-//! enforces age-based cleanup on a schedule; [`spans`] provides the request and
-//! system span builders. The CLI display sink ([`CliService`]) is gated behind
-//! the `cli` feature.
+//! global publish path used during startup and steady state; [`spans`] provides
+//! the request and system span builders. The CLI display sink ([`CliService`])
+//! is gated behind the `cli` feature.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -15,7 +14,6 @@ mod database_log;
 mod format;
 mod maintenance;
 pub mod output;
-pub mod retention;
 pub mod spans;
 mod throttle;
 
@@ -29,6 +27,5 @@ pub use output::{
     mark_structured_emitted, reset_structured_emitted, set_startup_mode, set_structured_output,
     structured_was_emitted,
 };
-pub use retention::{RetentionConfig, RetentionPolicy, RetentionScheduler};
 pub use spans::SystemSpan;
 pub use throttle::LogThrottle;

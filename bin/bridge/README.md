@@ -231,10 +231,10 @@ Part of [systemprompt.io](https://systemprompt.io), self-hosted AI governance in
 
 ## Installation receipts and native sessions
 
-An administrator provisions a device-scoped credential through
-`POST /api/v1/consumer-devices/{enrolled_certificate_id}/credential`. Transfer that
-secret to the intended device in a protected file, then run
-`systemprompt-bridge device-enroll --token-file <file>`. Enrollment verifies the
+The bridge self-enrolls its device through the gateway (`POST /v1/bridge/device`),
+which returns a device-scoped credential. A credential held in a protected file can
+also be installed with `systemprompt-bridge device-enroll --token-file <file>`.
+Enrollment verifies the
 credential against `/api/v1/consumer-devices/enrollment` before atomically storing
 it with the authenticated consumer, enrolled device, and gateway identity.
 The existing per-user bridge token and a supplied certificate fingerprint cannot

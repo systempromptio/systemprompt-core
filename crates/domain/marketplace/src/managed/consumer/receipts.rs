@@ -168,21 +168,3 @@ impl ManagedRepository {
         ))
     }
 }
-
-impl ManagedRepository {
-    pub async fn consumer_receipt_status(
-        &self,
-        credential: &str,
-        receipt: &InstallationReceiptId,
-    ) -> Result<ConsumerReceiptResponse> {
-        let identity = self.authenticate_consumer_device(credential).await?;
-        let row = sqlx::query!("SELECT id,verified_at,(fully_verified AND jsonb_array_length(COALESCE(consumer_evidence->'runtime_files','[]'::jsonb))>0) AS fully_verified FROM managed_installation_receipts WHERE id=$1 AND consumer_id=$2 AND device_id=$3", receipt.as_str(), identity.consumer_id.as_str(), identity.device_id.as_str())
-            .fetch_optional(&self.pool).await?.ok_or(ManagedError::Unavailable)?;
-        Ok(ConsumerReceiptResponse {
-            receipt_id: InstallationReceiptId::new(row.id),
-            acknowledgement: ReceiptAcknowledgement::IdenticalRetry,
-            acknowledged_at: row.verified_at,
-            fully_verified: row.fully_verified.unwrap_or(false),
-        })
-    }
-}

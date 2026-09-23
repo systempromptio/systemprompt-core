@@ -75,38 +75,12 @@ fn test_component_renderers_one_renderer() {
 }
 
 #[test]
-fn owner_capture_and_privacy_contracts_are_registered() {
-    let schemas = ContentExtension.schemas();
-    let capture: Vec<_> = schemas
-        .iter()
-        .filter(|schema| {
-            schema.table.is_none()
-                && schema
-                    .sql
-                    .contains("EXECUTE FUNCTION sp_capture_reporting_change")
-        })
-        .collect();
-    assert_eq!(
-        capture.len(),
-        1,
-        "owner capture SQL must be registered exactly once"
-    );
+fn no_reporting_capture_or_privacy_sql_is_registered() {
     assert!(
-        capture[0].sql.contains("reporting_source_markdown_content"),
-        "missing reporting view: reporting_source_markdown_content"
-    );
-    let privacy: Vec<_> = schemas
-        .iter()
-        .filter(|schema| {
-            schema.table.is_none()
-                && schema
-                    .sql
-                    .contains("CREATE OR REPLACE FUNCTION public.lock_content_reporting_sources")
-        })
-        .collect();
-    assert_eq!(
-        privacy.len(),
-        1,
-        "owner privacy SQL must survive capture registration"
+        ContentExtension
+            .schemas()
+            .iter()
+            .all(|schema| !schema.sql.contains("reporting")),
+        "the reporting projection is retired"
     );
 }

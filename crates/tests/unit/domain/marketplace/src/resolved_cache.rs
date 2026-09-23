@@ -82,7 +82,6 @@ fn users_keep_their_own_entries_and_a_user_keeps_only_one() {
             .len(),
         2
     );
-    assert_eq!(cache.resolved_len(), 2);
 
     cache.store_resolved(key("ada", "s2", 1), resolved(3));
     assert!(
@@ -98,7 +97,6 @@ fn users_keep_their_own_entries_and_a_user_keeps_only_one() {
             .len(),
         3
     );
-    assert_eq!(cache.resolved_len(), 2);
 }
 
 #[test]
@@ -127,7 +125,9 @@ fn the_oldest_user_is_evicted_past_capacity() {
     for n in 0..=RESOLVED_CAPACITY {
         cache.store_resolved(key(&format!("user-{n}"), "s", 1), resolved(1));
     }
-    assert_eq!(cache.resolved_len(), RESOLVED_CAPACITY);
+    for n in 1..=RESOLVED_CAPACITY {
+        assert!(cache.resolved(&key(&format!("user-{n}"), "s", 1)).is_some());
+    }
     assert!(cache.resolved(&key("user-0", "s", 1)).is_none());
     assert!(
         cache

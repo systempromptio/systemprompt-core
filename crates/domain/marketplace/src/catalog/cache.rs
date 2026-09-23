@@ -164,13 +164,6 @@ impl MarketplaceCache {
         drop(guard);
     }
 
-    pub fn resolved_len(&self) -> usize {
-        self.resolved
-            .read()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .len()
-    }
-
     pub fn bundles(
         &self,
         services: &ServicesConfig,

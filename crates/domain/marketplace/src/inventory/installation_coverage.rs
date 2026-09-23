@@ -1,17 +1,23 @@
 //! Installation acknowledgment coverage is cached separately from invocation
 //! attribution.
 //!
+//! The cache is recomputed by the `managed_inventory_refresh` job, which reads
+//! back how many resources' coverage changed. A pass that
+//! finds every resource's coverage unchanged writes nothing: the generation
+//! and `observed_at` on `managed_installation_coverage_state` move only when
+//! at least one resource's body changed.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::managed::{ManagedRepository, Result};
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{ManagedResourceId, UserId};
 
 /// Current eligible enrolled-device coverage and retained authenticated
 /// installation evidence.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, schemars::JsonSchema)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct InstallationCoverage {
     pub eligible_devices: i64,
     pub current_acknowledged_devices: i64,
@@ -20,17 +26,9 @@ pub struct InstallationCoverage {
     pub unverifiable_installations: i64,
     pub legacy_receipts: i64,
 }
-/// Durable generation and last completed installation-coverage observation.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, schemars::JsonSchema)]
-pub struct InstallationCoverageStatus {
-    pub generation: i64,
-    pub observed_at: Option<DateTime<Utc>>,
-}
+
 impl ManagedRepository {
-    pub async fn refresh_installation_coverage(
-        &self,
-        owner: &UserId,
-    ) -> Result<InstallationCoverageStatus> {
+    pub async fn refresh_installation_coverage(&self, owner: &UserId) -> Result<u64> {
         let mut tx = self.pool.begin().await?;
         sqlx::query!("INSERT INTO managed_installation_coverage_state(owner_id) VALUES($1) ON CONFLICT DO NOTHING",owner.as_str()).execute(&mut *tx).await?;
         let previous=sqlx::query_scalar!("SELECT generation FROM managed_installation_coverage_state WHERE owner_id=$1 FOR UPDATE",owner.as_str()).fetch_one(&mut *tx).await?;
@@ -50,22 +48,11 @@ impl ManagedRepository {
     'legacy_receipts',(SELECT COUNT(*) FROM managed_installation_receipts l WHERE l.owner_id=$1 AND l.resource_id=r.id AND l.consumer_id IS NULL)), $2
    FROM managed_resources r WHERE r.owner_id=$1
    ON CONFLICT(owner_id,resource_id) DO UPDATE SET body=EXCLUDED.body,generation=EXCLUDED.generation WHERE managed_installation_coverage.body IS DISTINCT FROM EXCLUDED.body"#,owner.as_str(),generation).execute(&mut *tx).await?.rows_affected();
-        let generation = if changed == 0 { previous } else { generation };
-        let observed = Utc::now();
-        sqlx::query!("UPDATE managed_installation_coverage_state SET generation=$2,observed_at=$3 WHERE owner_id=$1",owner.as_str(),generation,observed).execute(&mut *tx).await?;
         if changed > 0 {
-            sqlx::query!(
-                "SELECT pg_notify('feedback_snapshots',$1)",
-                format!("{owner}:installations:{generation}")
-            )
-            .execute(&mut *tx)
-            .await?;
+            sqlx::query!("UPDATE managed_installation_coverage_state SET generation=$2,observed_at=$3 WHERE owner_id=$1",owner.as_str(),generation,Utc::now()).execute(&mut *tx).await?;
         }
         tx.commit().await?;
-        Ok(InstallationCoverageStatus {
-            generation,
-            observed_at: Some(observed),
-        })
+        Ok(changed)
     }
     pub async fn installation_coverage(
         &self,
@@ -82,21 +69,5 @@ impl ManagedRepository {
         row.map(serde_json::from_value)
             .transpose()
             .map_err(Into::into)
-    }
-    pub async fn installation_coverage_status(
-        &self,
-        owner: &UserId,
-    ) -> Result<InstallationCoverageStatus> {
-        let row=sqlx::query!("SELECT generation,observed_at FROM managed_installation_coverage_state WHERE owner_id=$1",owner.as_str()).fetch_optional(&self.pool).await?;
-        Ok(row.map_or(
-            InstallationCoverageStatus {
-                generation: 0,
-                observed_at: None,
-            },
-            |row| InstallationCoverageStatus {
-                generation: row.generation,
-                observed_at: row.observed_at,
-            },
-        ))
     }
 }

@@ -20,7 +20,7 @@ impl AgentAnalyticsRepository {
     ) -> Result<i64> {
         let pattern = format!("%{}%", agent_name);
         let count = sqlx::query_scalar!(
-            r#"SELECT COUNT(*)::bigint as "count!" FROM analytics_report_agent_tasks WHERE agent_name ILIKE $1 AND started_at >= $2 AND started_at < $3"#,
+            r#"SELECT COUNT(*)::bigint as "count!" FROM report_agent_tasks WHERE agent_name ILIKE $1 AND started_at >= $2 AND started_at < $3"#,
             pattern,
             start,
             end
@@ -45,7 +45,7 @@ impl AgentAnalyticsRepository {
                 COUNT(*) FILTER (WHERE status = 'TASK_STATE_COMPLETED')::bigint as "completed!",
                 COUNT(*) FILTER (WHERE status = 'TASK_STATE_FAILED')::bigint as "failed!",
                 COALESCE(AVG(execution_time_ms)::float8, 0) as "avg_time!"
-            FROM analytics_report_agent_tasks
+            FROM report_agent_tasks
             WHERE agent_name ILIKE $1
               AND started_at >= $2 AND started_at < $3
             "#,
@@ -69,7 +69,7 @@ impl AgentAnalyticsRepository {
             AgentStatusBreakdownRow,
             r#"
             SELECT status as "status!", COUNT(*)::bigint as "status_count!"
-            FROM analytics_report_agent_tasks
+            FROM report_agent_tasks
             WHERE agent_name ILIKE $1
               AND started_at >= $2 AND started_at < $3
             GROUP BY status
@@ -97,7 +97,7 @@ impl AgentAnalyticsRepository {
             SELECT
                 COALESCE(SUBSTRING(error_message FROM 1 FOR 100), 'Unknown error') as "error_type",
                 COUNT(*)::bigint as "error_count!"
-            FROM analytics_report_agent_tasks
+            FROM report_agent_tasks
             WHERE agent_name ILIKE $1
               AND started_at >= $2 AND started_at < $3
               AND status = 'TASK_STATE_FAILED'
@@ -127,7 +127,7 @@ impl AgentAnalyticsRepository {
             SELECT
                 EXTRACT(HOUR FROM started_at)::INTEGER as "task_hour!",
                 COUNT(*)::bigint as "task_count!"
-            FROM analytics_report_agent_tasks
+            FROM report_agent_tasks
             WHERE agent_name ILIKE $1
               AND started_at >= $2 AND started_at < $3
             GROUP BY EXTRACT(HOUR FROM started_at)

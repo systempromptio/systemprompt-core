@@ -2,12 +2,9 @@
 
 Command reference for analytics. Use the installed command’s `--help` output for its complete arguments and defaults.
 
-Reports read asynchronously maintained analytics projections. Use `analytics projection status`
-to inspect generation, backlog and any rebuild in progress, `analytics projection sync
---limit 10000` to process a bounded backlog without a server, and `analytics projection
-rebuild` to rebuild from source-owner snapshots. Rebuild requires schema-owner privileges;
-it blocks source writes only for its millisecond cutoff fence, then writes the baseline in
-committed pages. A failed rebuild leaves the projection uninitialized until it is retried.
+Reports read the analytics `report_*` views over the source tables, so every figure is
+current as of the query. Rows belonging to deleted users are invisible to every report;
+retention bounds how far back the source tables reach.
 
 ---
 
@@ -1120,8 +1117,8 @@ sp analytics costs breakdown --by user --since 7d -n 50
 `--by user` names each row `<user_id> (<display name>)` — the id is what
 `infra logs request list --user` takes — and adds a `conversations` column
 (distinct contexts), which separates a user working through tasks from one
-sending many one-line requests. Emails never appear: the reporting projection
-does not carry them.
+sending many one-line requests. Emails never appear: the report selects the
+display name only.
 
 **Output Structure:**
 ```json

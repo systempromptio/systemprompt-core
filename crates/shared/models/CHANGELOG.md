@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+
+### Breaking
+
+- **Breaking:** `feedback::analytics` (the normalized fact and change contracts of the retired feedback engine) is removed.
+- **Breaking:** `feedback::verification` (`DependencyVerificationInput`, `DependencyVerificationRequest`, `DependencyVerificationManifest`, `VerifiedRevisionManifest`) and `FeedbackContractError::DependencyCycle` are removed with Git dependency verification.
+
 ## [0.59.0] - 2026-09-22
 
 ### Breaking

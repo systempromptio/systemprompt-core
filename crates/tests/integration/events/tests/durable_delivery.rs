@@ -7,5 +7,3 @@ pub use systemprompt_events_integration_tests::{
 
 #[path = "../src/durable.rs"]
 mod durable;
-#[path = "../src/reporting.rs"]
-mod reporting;

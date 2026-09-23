@@ -106,6 +106,16 @@ impl Job for OtlpExportJob {
         "*/15 * * * * *"
     }
 
+    // Why: without an `observability.otlp` block every tick would be a no-op,
+    // so the job is not scheduled at all; the profile is fixed for the life
+    // of the process.
+    fn configured(&self) -> bool {
+        ProfileBootstrap::get()
+            .ok()
+            .and_then(|profile| profile.observability.otlp())
+            .is_some()
+    }
+
     async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
         let start = std::time::Instant::now();
         let Some(config) = ProfileBootstrap::get()

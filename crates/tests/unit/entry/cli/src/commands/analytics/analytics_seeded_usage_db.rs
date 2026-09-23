@@ -139,9 +139,6 @@ async fn seed_engagement(pool: &DbPool) {
 async fn tools_list_scoped_to_a_server_renders_every_sort_order() {
     let pool = pool().await;
     let server = seed_tool_server(&pool).await;
-    systemprompt_test_fixtures::refresh_reporting(&pool)
-        .await
-        .unwrap();
     let ctx = ctx(&pool);
 
     for sort in ["execution-count", "success-rate", "avg-time"] {
@@ -158,9 +155,6 @@ async fn tools_list_scoped_to_a_server_renders_every_sort_order() {
 async fn tools_list_export_contains_only_the_seeded_server_rows() {
     let pool = pool().await;
     let server = seed_tool_server(&pool).await;
-    systemprompt_test_fixtures::refresh_reporting(&pool)
-        .await
-        .unwrap();
     let ctx = ctx(&pool);
 
     let dir = tempfile::tempdir().unwrap();
@@ -190,9 +184,6 @@ async fn tools_list_export_contains_only_the_seeded_server_rows() {
 async fn tools_list_limit_is_applied_server_side() {
     let pool = pool().await;
     let server = seed_tool_server(&pool).await;
-    systemprompt_test_fixtures::refresh_reporting(&pool)
-        .await
-        .unwrap();
     let ctx = ctx(&pool);
 
     let dir = tempfile::tempdir().unwrap();
@@ -221,9 +212,6 @@ async fn tools_list_limit_is_applied_server_side() {
 #[tokio::test]
 async fn tools_list_for_an_unseeded_server_reports_nothing() {
     let pool = pool().await;
-    systemprompt_test_fixtures::refresh_reporting(&pool)
-        .await
-        .unwrap();
     let ctx = ctx(&pool);
 
     let dir = tempfile::tempdir().unwrap();
@@ -250,9 +238,6 @@ async fn tools_list_for_an_unseeded_server_reports_nothing() {
 async fn requests_views_render_with_seeded_ai_requests() {
     let pool = pool().await;
     let model = seed_ai_requests(&pool).await;
-    systemprompt_test_fixtures::refresh_reporting(&pool)
-        .await
-        .unwrap();
     let ctx = ctx(&pool);
 
     let dir = tempfile::tempdir().unwrap();
@@ -291,9 +276,6 @@ async fn requests_views_render_with_seeded_ai_requests() {
 async fn content_views_render_with_seeded_engagement_events() {
     let pool = pool().await;
     seed_engagement(&pool).await;
-    systemprompt_test_fixtures::refresh_reporting(&pool)
-        .await
-        .unwrap();
     let ctx = ctx(&pool);
 
     let dir = tempfile::tempdir().unwrap();
@@ -358,9 +340,6 @@ async fn costs_summary_csv(ctx: &CommandContext, extra: &[&str]) -> String {
 async fn costs_summary_widens_past_an_empty_default_window() {
     let pool = pool().await;
     seed_aged_ai_request(&pool, 3, 4_000).await;
-    systemprompt_test_fixtures::refresh_reporting(&pool)
-        .await
-        .unwrap();
     let ctx = ctx(&pool);
 
     let widened = costs_summary_csv(&ctx, &[]).await;

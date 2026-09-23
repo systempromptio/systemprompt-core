@@ -1,5 +1,15 @@
 # Changelog
 
+## [Unreleased]
+
+### Breaking
+
+- **Breaking:** `services::retention` (`RetentionScheduler`, `RetentionPolicy`, `RetentionConfig`) is removed — it was never constructed and duplicated the scheduler's `database_cleanup` — along with `LoggingError::Scheduler` and the `tokio-cron-scheduler` dependency.
+
+### Removed
+
+- Migration `009_retire_reporting_capture` drops the reporting capture triggers and `reporting_source_analytics_events` view on `analytics_events`, and `lock_logging_reporting_sources`.
+
 ## [0.59.0] - 2026-09-22
 
 ### Changed

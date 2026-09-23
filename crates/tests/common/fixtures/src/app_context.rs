@@ -49,141 +49,6 @@ pub fn fixture_fingerprint_repository(db: &DbPool) -> Result<FingerprintReposito
     )?)
 }
 
-// A forced rebuild of the one projection singleton is exclusive for the whole
-// database, and not only for the duration of the rebuild: `begin_rebuild`
-// clears `initialized` and `clear_targets` truncates every projection table,
-// so a rebuild one test starts erases the baseline another test is already
-// querying. Serialising the rebuilds alone is therefore not enough -- the
-// exclusion has to outlive the reads that follow the rebuild. Nextest runs one
-// test per process, so the fixture takes a Postgres session advisory lock on a
-// connection owned by a parked thread and never unlocks it: the process owns
-// the projection for the rest of its life and gives it up by exiting.
-const REBUILD_LOCK_KEY: i64 = 0x5350_5250_524A_4C44;
-// With the lock held across the reads, a superseded outcome is a surprise
-// rather than the norm, so the retry is only a backstop for a rebuild the
-// *production* scheduler started. It stays bounded and its exhaustion is an
-// error: a fixture that quietly retried forever is what made this look like a
-// hang.
-const REBUILD_ATTEMPTS: u32 = 5;
-
-static REBUILD_LOCK: OnceLock<Result<(), String>> = OnceLock::new();
-
-// A rebuild truncates every projection target, so a process that only *reads*
-// the projection is exposed to one that rebuilds it: the reader's rows vanish
-// mid-query. Holding the same lock is what makes a read safe, so every fixture
-// that touches the projection takes it, not only the ones that rebuild.
-pub fn hold_reporting_lock() -> Result<()> {
-    let url = crate::fixture_database_url()?;
-    REBUILD_LOCK
-        .get_or_init(|| acquire_rebuild_lock(&url))
-        .clone()
-        .map_err(|error| anyhow::anyhow!("Reporting rebuild lock unavailable: {error}"))
-}
-
-pub async fn refresh_reporting(db: &DbPool) -> Result<()> {
-    hold_reporting_lock()?;
-    rebuild_while_locked(db).await
-}
-
-fn acquire_rebuild_lock(database_url: &str) -> Result<(), String> {
-    let (acquired, wait) = std::sync::mpsc::channel();
-    let url = database_url.to_string();
-    std::thread::Builder::new()
-        .name("fixture-reporting-lock".to_string())
-        .spawn(move || {
-            let runtime = match tokio::runtime::Builder::new_current_thread()
-                .enable_all()
-                .build()
-            {
-                Ok(runtime) => runtime,
-                Err(error) => {
-                    let _ = acquired.send(Err(error.to_string()));
-                    return;
-                },
-            };
-            runtime.block_on(async move {
-                let held = async {
-                    let mut connection =
-                        <sqlx::PgConnection as sqlx::Connection>::connect(&url).await?;
-                    sqlx::query("SELECT pg_advisory_lock($1)")
-                        .bind(REBUILD_LOCK_KEY)
-                        .execute(&mut connection)
-                        .await?;
-                    Ok::<_, sqlx::Error>(connection)
-                }
-                .await;
-                match held {
-                    Ok(connection) => {
-                        let _ = acquired.send(Ok(()));
-                        // Why: a session advisory lock lives in its connection's
-                        // session, so the connection has to outlive every test in
-                        // this process. Postgres releases it when the process exits
-                        // and the socket closes.
-                        std::future::pending::<()>().await;
-                        drop(connection);
-                    },
-                    Err(error) => {
-                        let _ = acquired.send(Err(error.to_string()));
-                    },
-                }
-            });
-        })
-        .map_err(|error| error.to_string())?;
-    wait.recv().map_err(|error| error.to_string())?
-}
-
-async fn await_baseline(db: &DbPool) -> Result<()> {
-    use systemprompt_runtime::reporting::RebuildOutcome;
-    for attempt in 1..=REBUILD_ATTEMPTS {
-        match systemprompt_runtime::reporting::initialize(db).await? {
-            RebuildOutcome::Rebuilt | RebuildOutcome::AlreadyInitialized => return Ok(()),
-            RebuildOutcome::InProgressElsewhere => {},
-        }
-        tokio::time::sleep(std::time::Duration::from_millis(100 * u64::from(attempt))).await;
-    }
-    anyhow::bail!(
-        "Reporting baseline was still being rebuilt elsewhere after {REBUILD_ATTEMPTS} \
-         attempts. Draining now would apply this fixture's facts to an uninitialized \
-         projection, which the projector refuses one fact at a time."
-    )
-}
-
-async fn rebuild_while_locked(db: &DbPool) -> Result<()> {
-    for attempt in 1..=REBUILD_ATTEMPTS {
-        if systemprompt_runtime::reporting::rebuild(db).await?
-            == systemprompt_runtime::reporting::RebuildOutcome::Rebuilt
-        {
-            return Ok(());
-        }
-        tokio::time::sleep(std::time::Duration::from_millis(100 * u64::from(attempt))).await;
-    }
-    anyhow::bail!(
-        "Reporting baseline was not rebuilt by this call within {REBUILD_ATTEMPTS} attempts, \
-         even holding the fixture's rebuild lock: every attempt was superseded by a rebuild \
-         this fixture did not start and returned InProgressElsewhere. Returning here would let \
-         the caller assert against a projection that predates the rows it seeded."
-    )
-}
-
-/// Deliver captured reporting evidence through the production projector.
-/// Call only for an owned fixture database, with its source writers quiescent.
-pub async fn drain_reporting(db: &DbPool) -> Result<usize> {
-    await_baseline(db).await?;
-    let mut total = 0;
-    for _ in 0..100 {
-        let processed = systemprompt_runtime::reporting::process_pending(db, 100).await?;
-        total += processed;
-        if systemprompt_runtime::reporting::status(db)
-            .await?
-            .pending_count
-            == 0
-        {
-            return Ok(total);
-        }
-    }
-    anyhow::bail!("Reporting fixture evidence did not drain within 100 bounded batches")
-}
-
 pub fn fixture_config(database_url: &str) -> Config {
     Config {
         instance_id: "fixture".to_string(),
@@ -383,7 +248,6 @@ fn fixture_app_context_assembled(
         systemprompt_models::profile::StorageBackend::Local,
         app_paths.storage().root(),
     );
-    let sqlx_pool = pool.pool_arc()?.as_ref().clone();
     let ctx = AppContext::from_parts(
         DataPlane {
             database: Arc::clone(pool),
@@ -418,17 +282,6 @@ fn fixture_app_context_assembled(
             mcp_session_repository: Arc::new(
                 systemprompt_mcp::repository::McpSessionRepository::new(pool)?,
             ),
-            feedback_snapshots_repository: Arc::new(
-                systemprompt_analytics::snapshots::FeedbackSnapshotsRepository::new(
-                    sqlx_pool.clone(),
-                    systemprompt_analytics::feedback::FeedbackFactsRepository::new(
-                        sqlx_pool.clone(),
-                    ),
-                ),
-            ),
-            feedback_facts_repository: Arc::new(
-                systemprompt_analytics::feedback::FeedbackFactsRepository::new(sqlx_pool.clone()),
-            ),
             managed_repository: Arc::new(
                 systemprompt_marketplace::managed::ManagedRepository::new(pool)?,
             ),
@@ -460,7 +313,6 @@ fn fixture_app_context_assembled(
             publish_guard: Arc::new(tokio::sync::Mutex::new(
                 systemprompt_marketplace::inventory::PublishGuard::default(),
             )),
-            snapshot_wakeup: Arc::new(systemprompt_runtime::reporting::SnapshotWakeup::default()),
         },
     );
 

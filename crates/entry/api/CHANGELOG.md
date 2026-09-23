@@ -1,5 +1,17 @@
 # Changelog
 
+## [Unreleased]
+
+### Breaking
+
+- `routes::managed` serves only the device-credential consumer surface: `POST /api/v1/consumer-devices/enrollment`, `GET /api/v1/consumer/resources/{resource}/publications/{publication}/bundle`, `POST /api/v1/consumer/receipts` and `POST /api/v1/consumer/session-bindings`. The managed admin router (`routes::managed::router`, `ManagedState`), its `OpenAPI` document (`GET /api/v1/openapi.json`, `contract::openapi`) and every admin route under it (sources, source verifications, verification bindings, captures, revision bundles, inventory, installation status and coverage, operations, publications, analytics snapshots, jobs and live stream, consumer-device credential and revocation, consumer grants) are removed, as are `POST /api/v1/consumer/invocations` and the receipt, session-binding and invocation status `GET`s. A receipt response no longer carries a `Location` header.
+
+### Changed
+
+- The registry heartbeat reaps `services` rows whose heartbeat is older than 90 s on every fourth beat (once a minute), replacing the `service_registry_gc` job.
+- The server no longer spawns the 1 s analytics projection worker, and shutdown no longer drains a snapshot wakeup listener.
+- Session tracking writes one `UPDATE user_sessions` per request instead of two: `increment_request_count` already stamps `last_activity_at` and `duration_seconds`.
+
 ## [0.59.0] - 2026-09-22
 
 ### Breaking

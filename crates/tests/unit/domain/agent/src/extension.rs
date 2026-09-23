@@ -65,45 +65,12 @@ fn default_construction() {
 }
 
 #[test]
-fn owner_capture_and_privacy_contracts_are_registered() {
-    let schemas = AgentExtension.schemas();
-    let capture: Vec<_> = schemas
-        .iter()
-        .filter(|schema| {
-            schema.table.is_none()
-                && schema
-                    .sql
-                    .contains("EXECUTE FUNCTION sp_capture_reporting_change")
-        })
-        .collect();
-    assert_eq!(
-        capture.len(),
-        1,
-        "owner capture SQL must be registered exactly once"
+fn no_reporting_capture_or_privacy_sql_is_registered() {
+    assert!(
+        AgentExtension
+            .schemas()
+            .iter()
+            .all(|schema| !schema.sql.contains("reporting")),
+        "the reporting projection is retired"
     );
-    for view in [
-        "reporting_source_agent_tasks",
-        "reporting_source_task_messages",
-        "reporting_source_user_contexts",
-    ] {
-        assert!(
-            capture[0].sql.contains(view),
-            "missing reporting view: {view}"
-        );
-    }
-    let privacy: Vec<_> = schemas
-        .iter()
-        .filter(|schema| {
-            schema.table.is_none()
-                && schema
-                    .sql
-                    .contains("CREATE OR REPLACE FUNCTION public.lock_agent_reporting_sources")
-        })
-        .collect();
-    assert_eq!(
-        privacy.len(),
-        1,
-        "owner privacy SQL must survive capture registration"
-    );
-    assert!(privacy[0].sql.contains("reporting_task_is_retained"));
 }

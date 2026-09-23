@@ -1,6 +1,5 @@
 //! DB-backed tests for `EngagementRepository`: event creation with default
-//! and populated optional metrics, lookups by id/session/user, and the
-//! per-session engagement summary aggregate.
+//! and populated optional metrics, and lookups by id and user.
 
 use systemprompt_analytics::{
     CreateEngagementEventInput, EngagementOptionalMetrics, EngagementRepository,
@@ -35,7 +34,7 @@ async fn cleanup(pool: &DbPool, session_id: &SessionId) {
 }
 
 #[tokio::test]
-async fn create_then_lookup_by_id_session_and_user() {
+async fn create_then_lookup_by_id_and_user() {
     let Ok(url) = fixture_database_url() else {
         return;
     };
@@ -69,53 +68,9 @@ async fn create_then_lookup_by_id_session_and_user() {
     let missing = EngagementEventId::generate();
     assert!(repo.find_by_id(&missing).await.expect("miss").is_none());
 
-    let by_session = repo
-        .list_by_session(&session_id)
-        .await
-        .expect("list_by_session");
-    assert_eq!(by_session.len(), 1);
-
     let by_user = repo.list_by_user(&user_id, 10).await.expect("list_by_user");
     assert_eq!(by_user.len(), 1);
     assert_eq!(by_user[0].id, id);
-
-    cleanup(&pool, &session_id).await;
-}
-
-#[tokio::test]
-async fn session_engagement_summary_aggregates_pages() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
-    ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
-    let repo = EngagementRepository::new(&pool).expect("repo");
-
-    let session_id = SessionId::new(format!("sess-{}", Uuid::new_v4()));
-    let user_id = UserId::new(format!("user-{}", Uuid::new_v4()));
-
-    let empty = repo
-        .get_session_engagement_summary(&session_id)
-        .await
-        .expect("summary empty");
-    assert!(empty.is_none());
-
-    repo.create_engagement(&session_id, &user_id, None, &sample_input("/a"))
-        .await
-        .expect("create a");
-    repo.create_engagement(&session_id, &user_id, None, &sample_input("/b"))
-        .await
-        .expect("create b");
-
-    let summary = repo
-        .get_session_engagement_summary(&session_id)
-        .await
-        .expect("summary")
-        .expect("present");
-    assert_eq!(summary.page_count, Some(2));
-    assert_eq!(summary.total_time_on_page_ms, Some(3000));
-    assert_eq!(summary.total_clicks, Some(6));
-    assert_eq!(summary.rage_click_pages, Some(2));
 
     cleanup(&pool, &session_id).await;
 }

@@ -40,7 +40,7 @@ impl ContentAnalyticsRepository {
                     COUNT(DISTINCT ee.session_id)::bigint as unique_visitors,
                     (AVG(LEAST(ee.time_on_page_ms, 1800000)) / 1000.0)::float8 as avg_time_on_page_seconds
                 FROM engagement_events ee
-                INNER JOIN analytics_report_v_clean_traffic us ON ee.session_id = us.session_id
+                INNER JOIN report_clean_traffic us ON ee.session_id = us.session_id
                 WHERE ee.created_at >= $1 AND ee.created_at < $2
                     AND ee.content_id IS NOT NULL                GROUP BY ee.content_id
             )
@@ -54,7 +54,7 @@ impl ContentAnalyticsRepository {
                 cs.avg_time_on_page_seconds::float8 as "avg_time_on_page_seconds",
                 NULL::text as "trend_direction"
             FROM content_stats cs
-            LEFT JOIN analytics_report_markdown_content mc ON cs.content_id = mc.id
+            LEFT JOIN report_markdown_content mc ON cs.content_id = mc.id
             ORDER BY cs.total_views DESC
             LIMIT $3
             "#,
@@ -82,7 +82,7 @@ impl ContentAnalyticsRepository {
                 COALESCE(AVG(ee.max_scroll_depth), 0)::float8 as "avg_scroll_depth",
                 COALESCE(SUM(ee.click_count), 0)::bigint as "total_clicks!"
             FROM engagement_events ee
-            INNER JOIN analytics_report_v_clean_traffic us ON ee.session_id = us.session_id
+            INNER JOIN report_clean_traffic us ON ee.session_id = us.session_id
             WHERE ee.created_at >= $1 AND ee.created_at < $2            "#,
             start,
             end
@@ -113,7 +113,7 @@ impl ContentAnalyticsRepository {
                     COUNT(*)::bigint as views,
                     COUNT(DISTINCT ee.session_id)::bigint as unique_visitors
                 FROM engagement_events ee
-                INNER JOIN analytics_report_v_clean_traffic us ON ee.session_id = us.session_id
+                INNER JOIN report_clean_traffic us ON ee.session_id = us.session_id
                 WHERE ee.created_at >= $1 AND ee.created_at < $2                GROUP BY date_trunc('day', ee.created_at)
             )
             SELECT

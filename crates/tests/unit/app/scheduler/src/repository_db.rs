@@ -175,7 +175,7 @@ mod scheduler_repository {
     }
 
     #[tokio::test]
-    async fn increment_run_count_accumulates() {
+    async fn each_recorded_run_advances_run_count() {
         let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
         let repo = SchedulerRepository::new(&pool).expect("repo");
         let name = unique_job_name("sched_runcount");
@@ -183,9 +183,20 @@ mod scheduler_repository {
         repo.upsert_job(&name, "0 0 * * * *", true)
             .await
             .expect("upsert");
-        repo.increment_run_count(&name).await.expect("inc 1");
-        repo.increment_run_count(&name).await.expect("inc 2");
-        repo.increment_run_count(&name).await.expect("inc 3");
+        for _ in 0..3 {
+            repo.update_job_execution(
+                &name,
+                JobRunRecord {
+                    status: JobStatus::Success,
+                    error: None,
+                    message: None,
+                    next_run: None,
+                    instance_id: &InstanceId::new("test-node"),
+                },
+            )
+            .await
+            .expect("record run");
+        }
 
         let job = repo
             .find_job(&name)

@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+
+### Breaking
+
+- **Breaking:** `AnalyticsChangeId`, `AnalyticsFactId`, `AnalyticsSnapshotJobId`, `AnalyticsWorkerId`, `FunnelId` and `FunnelProgressId` are removed with the feedback engine and funnels; `EngagementEventId` moves to the `engagement` module (the public path is unchanged).
+- **Breaking:** `InvocationAttributionId` and `DependencyVerificationId` are removed with the consumer invocation attribution and Git dependency verification they identified.
+
 ## [0.54.0] - 2026-09-16
 
 ### Removed

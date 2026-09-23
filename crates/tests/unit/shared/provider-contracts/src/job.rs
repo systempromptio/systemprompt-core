@@ -105,6 +105,41 @@ mod job_result_tests {
         assert_eq!(result.items_failed, Some(2));
         assert_eq!(result.duration_ms, 500);
     }
+
+    #[test]
+    fn zero_stats_without_message_is_idle() {
+        assert!(JobResult::success().with_stats(0, 0).is_idle());
+    }
+
+    #[test]
+    fn unreported_stats_are_not_idle() {
+        assert!(!JobResult::success().is_idle());
+    }
+
+    #[test]
+    fn processed_items_are_not_idle() {
+        assert!(!JobResult::success().with_stats(1, 0).is_idle());
+    }
+
+    #[test]
+    fn failed_items_are_not_idle() {
+        assert!(!JobResult::success().with_stats(0, 1).is_idle());
+    }
+
+    #[test]
+    fn a_message_is_not_idle() {
+        assert!(
+            !JobResult::success()
+                .with_stats(0, 0)
+                .with_message("pruned nothing")
+                .is_idle()
+        );
+    }
+
+    #[test]
+    fn failure_is_not_idle() {
+        assert!(!JobResult::failure("boom").with_stats(0, 0).is_idle());
+    }
 }
 
 mod job_context_tests {

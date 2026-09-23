@@ -1,6 +1,17 @@
 //! Job dispatch and bookkeeping — runs a single inventory-registered job
-//! within a panic-isolating wrapper, records its result, and updates the
+//! within a panic-isolating wrapper and records the run on its
 //! `scheduled_jobs` row.
+//!
+//! A tick writes nothing until the job returns. A run is then recorded with
+//! one UPDATE — `last_run`, `last_status`, `last_error`, `last_message`,
+//! `last_instance_id` and `run_count` together — only when it failed or did
+//! something: a successful run that reports itself idle
+//! ([`JobResult::is_idle`]) leaves the row untouched and logs at TRACE. So
+//! `last_run` is the last time the job did work or failed, not the last time
+//! it was polled, and `run_count` counts those recorded runs. The tick
+//! de-duplication in [`super::claim`] reads the same `last_run`; a second
+//! replica may therefore repeat an idle tick, which by definition had
+//! nothing to do.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -12,7 +23,7 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::{Actor, InstanceId};
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{Job as JobTrait, JobResult};
-use tracing::{debug, error, warn};
+use tracing::{debug, error, trace, warn};
 
 use super::claim::{Claim, acquire_cluster_claim, acquire_node_claim};
 use super::{RunningJobs, make_job_context};
@@ -73,27 +84,7 @@ pub(super) async fn execute_job(dispatch: JobDispatch) {
         Claim::Free => None,
     };
 
-    debug!(job_name = %job_name, "Starting job");
-
-    if let Err(e) = repository
-        .update_job_execution(
-            &job_name,
-            JobRunRecord {
-                status: JobStatus::Running,
-                error: None,
-                message: None,
-                next_run: None,
-                instance_id: &instance_id,
-            },
-        )
-        .await
-    {
-        error!(job_name = %job_name, error = %e, "Failed to set job status to running");
-    }
-
-    if let Err(e) = repository.increment_run_count(&job_name).await {
-        error!(job_name = %job_name, error = %e, "Failed to increment run count");
-    }
+    trace!(job_name = %job_name, "Starting job");
 
     let ctx = make_job_context(actor, db_pool, app_context)
         .with_enforce(enforce)
@@ -153,6 +144,9 @@ async fn handle_job_result(
     instance_id: &InstanceId,
 ) {
     match result {
+        Ok(job_result) if job_result.is_idle() => {
+            trace!(job_name = %job_name, duration_ms = job_result.duration_ms, "Job idle");
+        },
         Ok(job_result) if job_result.success => {
             record_success(job_name, &job_result, repository, instance_id).await;
         },

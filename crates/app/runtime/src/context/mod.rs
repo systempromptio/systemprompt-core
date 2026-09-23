@@ -62,9 +62,6 @@ pub struct DataPlane {
     pub service_repository: Arc<ServiceRepository>,
     pub ai_repositories: Arc<AiRepositories>,
     pub analytics_repositories: Arc<AnalyticsRepositories>,
-    pub feedback_snapshots_repository:
-        Arc<systemprompt_analytics::snapshots::FeedbackSnapshotsRepository>,
-    pub feedback_facts_repository: Arc<systemprompt_analytics::feedback::FeedbackFactsRepository>,
     pub file_repository: Arc<FileRepository>,
     pub mcp_session_repository: Arc<McpSessionRepository>,
     pub managed_repository: Arc<ManagedRepository>,
@@ -100,7 +97,6 @@ pub struct Subsystems {
     pub file_storage: Arc<dyn FileStorage>,
     pub shutdown: ShutdownRequest,
     pub publish_guard: Arc<tokio::sync::Mutex<PublishGuard>>,
-    pub snapshot_wakeup: Arc<crate::reporting::SnapshotWakeup>,
 }
 
 /// Application-wide runtime container shared across the HTTP server, the
@@ -248,10 +244,6 @@ impl AppContext {
     // tree the other already published.
     pub const fn publish_guard(&self) -> &Arc<tokio::sync::Mutex<PublishGuard>> {
         &self.subsystems.publish_guard
-    }
-
-    pub const fn snapshot_wakeup(&self) -> &Arc<crate::reporting::SnapshotWakeup> {
-        &self.subsystems.snapshot_wakeup
     }
 
     pub fn system_admin(&self) -> &SystemAdmin {

@@ -56,9 +56,9 @@ mod connection;
 mod content;
 mod context;
 mod email;
+mod engagement;
 mod events;
 mod execution;
-mod funnel;
 mod gateway_boot;
 mod gateway_conversation;
 mod hook;
@@ -106,9 +106,9 @@ pub use connection::ConnectionId;
 pub use content::{CategoryId, ContentId, FileId, SkillId, SourceId, TagId};
 pub use context::ContextId;
 pub use email::Email;
+pub use engagement::EngagementEventId;
 pub use events::EventOutboxId;
 pub use execution::{ArtifactId, ExecutionStepId, LogId, TokenId};
-pub use funnel::{EngagementEventId, FunnelId, FunnelProgressId};
 pub use gateway_boot::{DepartmentId, DepartmentName, ModelId, ProviderId, RouteId, SecretName};
 pub use gateway_conversation::GatewayConversationId;
 pub use hook::HookId;
@@ -117,11 +117,9 @@ pub use jobs::{JobName, ScheduledJobId};
 pub use links::{CampaignId, LinkClickId, LinkId};
 pub use locale::LocaleCode;
 pub use managed::{
-    AnalyticsChangeId, AnalyticsFactId, AnalyticsSnapshotJobId, AnalyticsWorkerId,
-    ConsumerInstallationId, DependencyVerificationId, DistributionId, InstallationReceiptId,
-    InstallationSessionBindingId, InventoryEntryId, InvocationAttributionId,
-    ManagedReconciliationId, ManagedResourceId, ManagedSourceId, NativeSessionId, PublicationId,
-    PublicationReviewId, ResourceRevisionId, SourceSnapshotId, WithdrawalProposalId,
+    ConsumerInstallationId, DistributionId, InstallationReceiptId, InstallationSessionBindingId,
+    InventoryEntryId, ManagedReconciliationId, ManagedResourceId, ManagedSourceId, NativeSessionId,
+    PublicationId, PublicationReviewId, ResourceRevisionId, SourceSnapshotId, WithdrawalProposalId,
 };
 pub use marketplace::MarketplaceId;
 pub use mcp::{AiToolCallId, McpExecutionId, McpServerId, McpToolName};

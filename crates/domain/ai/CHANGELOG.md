@@ -1,5 +1,15 @@
 # Changelog
 
+## [Unreleased]
+
+### Removed
+
+- Migration `037_retire_reporting_capture` drops the reporting capture triggers and `reporting_source_*` views on `ai_requests` (with `lock_ai_reporting_sources` and `reporting_request_is_retained`); `reporting_capture.sql` and `reporting_privacy.sql` leave the declarative schema.
+
+### Changed
+
+- The `message_count` statement triggers on `ai_request_messages` (`sp_ai_request_message_count`) move to their own schema file, `ai_request_message_count.sql`; `ai_requests.message_count` is maintained exactly as before.
+
 ## [0.59.0] - 2026-09-22
 
 ### Breaking

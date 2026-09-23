@@ -44,18 +44,6 @@ impl AppContext {
         &self.data.ai_repositories
     }
 
-    pub const fn feedback_snapshots_repository(
-        &self,
-    ) -> &Arc<systemprompt_analytics::snapshots::FeedbackSnapshotsRepository> {
-        &self.data.feedback_snapshots_repository
-    }
-
-    pub const fn feedback_facts_repository(
-        &self,
-    ) -> &Arc<systemprompt_analytics::feedback::FeedbackFactsRepository> {
-        &self.data.feedback_facts_repository
-    }
-
     pub const fn analytics_repositories(&self) -> &Arc<AnalyticsRepositories> {
         &self.data.analytics_repositories
     }

@@ -1,12 +1,12 @@
 //! Coverage for identifier types lacking dedicated test modules: cloud,
 //! oauth, marketplace, tenant, webhook, hook, plugin, policy, section,
-//! funnel, events, connection, and gateway-boot IDs.
+//! engagement, events, connection, and gateway-boot IDs.
 
 use systemprompt_identifiers::{
     AccessTokenId, AuthorizationCode, ChallengeId, ConnectionId, DbValue, DepartmentName,
-    EngagementEventId, EventOutboxId, FunnelId, FunnelProgressId, HookId, MarketplaceId, ModelId,
-    PluginId, PolicyId, PolicyVersion, PriceId, ProviderId, RefreshTokenId, RouteId, SecretName,
-    SecretPatternId, SectionId, TenantId, ToDbValue, WebhookEndpointId,
+    EngagementEventId, EventOutboxId, HookId, MarketplaceId, ModelId, PluginId, PolicyId,
+    PolicyVersion, PriceId, ProviderId, RefreshTokenId, RouteId, SecretName, SecretPatternId,
+    SectionId, TenantId, ToDbValue, WebhookEndpointId,
 };
 
 macro_rules! basic_id_tests {
@@ -72,8 +72,6 @@ basic_id_tests!(policy_version, PolicyVersion, "v1");
 basic_id_tests!(policy_id, PolicyId, "pol_admin");
 basic_id_tests!(section_id, SectionId, "sec_intro");
 basic_id_tests!(engagement_event_id, EngagementEventId, "eng_1");
-basic_id_tests!(funnel_id, FunnelId, "fun_1");
-basic_id_tests!(funnel_progress_id, FunnelProgressId, "fp_1");
 basic_id_tests!(event_outbox_id, EventOutboxId, "evt_1");
 basic_id_tests!(connection_id, ConnectionId, "conn_1");
 basic_id_tests!(provider_id, ProviderId, "anthropic");
@@ -105,8 +103,6 @@ macro_rules! generate_uniqueness {
 generate_uniqueness!(webhook_generate, WebhookEndpointId);
 generate_uniqueness!(hook_generate, HookId);
 generate_uniqueness!(engagement_generate, EngagementEventId);
-generate_uniqueness!(funnel_generate, FunnelId);
-generate_uniqueness!(funnel_progress_generate, FunnelProgressId);
 generate_uniqueness!(event_outbox_generate, EventOutboxId);
 generate_uniqueness!(connection_generate, ConnectionId);
 

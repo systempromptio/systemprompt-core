@@ -1,21 +1,16 @@
-//! Device credential consumer routes, distinct from administrative
-//! authorization.
+//! Device credential consumer routes: enrollment, installation plans,
+//! receipts and session bindings.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-pub(crate) mod admin;
-pub use systemprompt_marketplace::managed::operations::CredentialIssueStatus;
 mod authorization;
 mod error;
 
-pub(crate) use admin::router as admin_router;
 use axum::extract::{DefaultBodyLimit, Path, State};
-use axum::http::{HeaderMap, StatusCode};
+use axum::http::HeaderMap;
 use axum::routing::{get, post};
 use axum::{Json, Router};
-use systemprompt_identifiers::InstallationReceiptId;
-use systemprompt_marketplace::managed::consumer::ConsumerInvocationRequest;
 use systemprompt_models::feedback::receipts::{ConsumerReceiptRequest, SessionBindingRequest};
 use systemprompt_runtime::AppContext;
 
@@ -29,11 +24,7 @@ pub fn router() -> Router<AppContext> {
         )
         .route("/consumer-devices/enrollment", post(enroll))
         .route("/consumer/receipts", post(receipt))
-        .route("/consumer/receipts/{id}", get(receipt_status))
         .route("/consumer/session-bindings", post(bind_session))
-        .route("/consumer/session-bindings/{id}", get(session_status))
-        .route("/consumer/invocations", post(invocation))
-        .route("/consumer/invocations/{id}", get(invocation_status))
         .layer(DefaultBodyLimit::max(1024 * 1024))
 }
 
@@ -50,31 +41,11 @@ async fn receipt(
         input.host,
     ))
     .await?;
-    let result = ctx
-        .managed_repository()
-        .record_consumer_receipt(credential, &input)
-        .await?;
-    Ok((
-        StatusCode::OK,
-        [(
-            "location",
-            format!("/api/v1/consumer/receipts/{}", result.receipt_id),
-        )],
-        Json(result),
+    Ok(Json(
+        ctx.managed_repository()
+            .record_consumer_receipt(credential, &input)
+            .await?,
     ))
-}
-
-async fn receipt_status(
-    State(ctx): State<AppContext>,
-    headers: HeaderMap,
-    Path(id): Path<InstallationReceiptId>,
-) -> Result<impl axum::response::IntoResponse, ConsumerHttpError> {
-    let credential = authorization::credential(&headers)?;
-    let result = ctx
-        .managed_repository()
-        .consumer_receipt_status(credential, &id)
-        .await?;
-    Ok(Json(result))
 }
 
 async fn bind_session(
@@ -98,28 +69,8 @@ async fn bind_session(
     ))
 }
 
-async fn invocation(
-    State(ctx): State<AppContext>,
-    headers: HeaderMap,
-    Json(input): Json<ConsumerInvocationRequest>,
-) -> Result<impl axum::response::IntoResponse, ConsumerHttpError> {
-    let credential = authorization::credential(&headers)?;
-    Box::pin(authorization::resource(
-        &ctx,
-        credential,
-        &input.resource_id,
-        input.host,
-    ))
-    .await?;
-    Ok(Json(
-        ctx.managed_repository()
-            .record_consumer_invocation(credential, &input)
-            .await?,
-    ))
-}
-
-#[derive(serde::Serialize, schemars::JsonSchema)]
-pub(crate) struct Enrollment {
+#[derive(serde::Serialize)]
+struct Enrollment {
     device_id: systemprompt_identifiers::DeviceId,
     consumer_id: systemprompt_identifiers::UserId,
 }
@@ -136,9 +87,9 @@ async fn enroll(
     }))
 }
 
-#[derive(serde::Deserialize, schemars::JsonSchema)]
+#[derive(serde::Deserialize)]
 #[serde(deny_unknown_fields)]
-pub(crate) struct BundleQuery {
+struct BundleQuery {
     host: systemprompt_models::feedback::EvaluatorClient,
 }
 
@@ -159,34 +110,6 @@ async fn bundle(
     Ok(Json(
         ctx.managed_repository()
             .consumer_installation_plan(credential, &resource, &publication, query.host)
-            .await?,
-    ))
-}
-
-async fn session_status(
-    State(ctx): State<AppContext>,
-    headers: HeaderMap,
-    Path(id): Path<systemprompt_identifiers::InstallationSessionBindingId>,
-) -> Result<
-    Json<systemprompt_marketplace::managed::consumer::ConsumerSessionBinding>,
-    ConsumerHttpError,
-> {
-    Ok(Json(
-        ctx.managed_repository()
-            .consumer_session_status(authorization::credential(&headers)?, &id)
-            .await?,
-    ))
-}
-async fn invocation_status(
-    State(ctx): State<AppContext>,
-    headers: HeaderMap,
-    Path(id): Path<systemprompt_identifiers::ResourceInvocationId>,
-    axum::extract::Query(query): axum::extract::Query<BundleQuery>,
-) -> Result<Json<systemprompt_marketplace::managed::consumer::ConsumerAttribution>, ConsumerHttpError>
-{
-    Ok(Json(
-        ctx.managed_repository()
-            .consumer_invocation_status(authorization::credential(&headers)?, &id, query.host)
             .await?,
     ))
 }

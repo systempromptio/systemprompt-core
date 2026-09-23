@@ -1,5 +1,5 @@
-//! Cookie-authenticated mutations require a matching origin; bearer-only
-//! machine clients use the existing authenticated admin transport.
+//! Cookie-authenticated mutations require a matching origin; the bridge
+//! authenticates with a device bearer credential and sends no cookie.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

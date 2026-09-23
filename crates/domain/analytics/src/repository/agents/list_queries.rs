@@ -41,8 +41,8 @@ impl AgentAnalyticsRepository {
                 COALESCE(AVG(t.execution_time_ms), 0)::bigint as "avg_execution_time_ms!",
                 COALESCE(SUM(r.cost_microdollars), 0)::bigint as "total_cost_microdollars!",
                 MAX(t.started_at) as "last_active!"
-            FROM analytics_report_agent_tasks t
-            LEFT JOIN analytics_report_ai_requests r ON r.task_id = t.task_id
+            FROM report_agent_tasks t
+            LEFT JOIN report_ai_requests r ON r.task_id = t.task_id
             WHERE t.started_at >= $1 AND t.started_at < $2
               AND t.agent_name IS NOT NULL
             GROUP BY t.agent_name
@@ -76,8 +76,8 @@ impl AgentAnalyticsRepository {
                 COALESCE(AVG(t.execution_time_ms), 0)::bigint as "avg_execution_time_ms!",
                 COALESCE(SUM(r.cost_microdollars), 0)::bigint as "total_cost_microdollars!",
                 MAX(t.started_at) as "last_active!"
-            FROM analytics_report_agent_tasks t
-            LEFT JOIN analytics_report_ai_requests r ON r.task_id = t.task_id
+            FROM report_agent_tasks t
+            LEFT JOIN report_ai_requests r ON r.task_id = t.task_id
             WHERE t.started_at >= $1 AND t.started_at < $2
               AND t.agent_name IS NOT NULL
             GROUP BY t.agent_name
@@ -109,8 +109,8 @@ impl AgentAnalyticsRepository {
                 COALESCE(AVG(t.execution_time_ms), 0)::bigint as "avg_execution_time_ms!",
                 COALESCE(SUM(r.cost_microdollars), 0)::bigint as "total_cost_microdollars!",
                 MAX(t.started_at) as "last_active!"
-            FROM analytics_report_agent_tasks t
-            LEFT JOIN analytics_report_ai_requests r ON r.task_id = t.task_id
+            FROM report_agent_tasks t
+            LEFT JOIN report_ai_requests r ON r.task_id = t.task_id
             WHERE t.started_at >= $1 AND t.started_at < $2
               AND t.agent_name IS NOT NULL
             GROUP BY t.agent_name
@@ -142,8 +142,8 @@ impl AgentAnalyticsRepository {
                 COALESCE(AVG(t.execution_time_ms), 0)::bigint as "avg_execution_time_ms!",
                 COALESCE(SUM(r.cost_microdollars), 0)::bigint as "total_cost_microdollars!",
                 MAX(t.started_at) as "last_active!"
-            FROM analytics_report_agent_tasks t
-            LEFT JOIN analytics_report_ai_requests r ON r.task_id = t.task_id
+            FROM report_agent_tasks t
+            LEFT JOIN report_ai_requests r ON r.task_id = t.task_id
             WHERE t.started_at >= $1 AND t.started_at < $2
               AND t.agent_name IS NOT NULL
             GROUP BY t.agent_name

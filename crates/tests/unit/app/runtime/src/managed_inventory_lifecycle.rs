@@ -1,5 +1,5 @@
-use systemprompt_identifiers::{TaskId, UserId};
-use systemprompt_marketplace::inventory::{BaselinePreparation, LatestPublicationStatus};
+use systemprompt_identifiers::UserId;
+use systemprompt_marketplace::inventory::LatestPublicationStatus;
 use systemprompt_models::profile::PathsConfig;
 use systemprompt_runtime::managed::inventory;
 use systemprompt_test_fixtures::{
@@ -46,20 +46,6 @@ async fn runtime_inventory_retains_last_good_membership_across_scan_failure_and_
     let first = inventory::refresh(&ctx, &owner).await.unwrap();
     assert_eq!(first.entries, 1);
     assert!(first.last_error.is_none());
-    let captures = inventory::prepare_baselines(
-        &ctx,
-        &owner,
-        &owner,
-        &BaselinePreparation {
-            operation_id: TaskId::generate(),
-            after: None,
-            limit: 100,
-        },
-    )
-    .await
-    .unwrap();
-    assert_eq!(captures.len(), 1);
-    assert_eq!(captures[0].status, "ready");
     let published = inventory::publish_latest(&ctx, &owner, &owner)
         .await
         .unwrap();

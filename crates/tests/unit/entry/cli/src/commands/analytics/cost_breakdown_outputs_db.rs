@@ -156,9 +156,6 @@ async fn seed(pool: &DbPool) -> Seed {
         true,
     )
     .await;
-    systemprompt_test_fixtures::refresh_reporting(pool)
-        .await
-        .unwrap();
     seed
 }
 

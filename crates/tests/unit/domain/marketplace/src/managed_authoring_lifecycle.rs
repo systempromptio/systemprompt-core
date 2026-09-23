@@ -417,43 +417,7 @@ async fn withdrawal_and_rollback_keep_bounded_review_history_and_generation_pinn
         all.iter()
             .all(|r| !r.distributed && !r.installation_verified)
     );
-    let first = f
-        .repository
-        .publication_history_page(&f.owner, &f.resource, None, 1)
-        .await
-        .unwrap();
-    assert_eq!(first[0].decision, restored);
-    let rest = f
-        .repository
-        .publication_history_page(&f.owner, &f.resource, Some(3), 100)
-        .await
-        .unwrap();
-    assert_eq!(rest.len(), 2);
-    assert_eq!(rest[0].decision.action, PublicationAction::Withdraw);
-    assert_eq!(rest[1].decision, initial);
-    assert!(
-        f.repository
-            .publication_history_page(&f.owner, &f.resource, Some(1), 1)
-            .await
-            .unwrap()
-            .is_empty()
-    );
-    for limit in [0, 101] {
-        assert!(
-            f.repository
-                .publication_history_page(&f.owner, &f.resource, None, limit)
-                .await
-                .is_err()
-        );
-    }
     let stranger = UserId::new("foreign-history-owner");
-    assert!(
-        f.repository
-            .publication_history_page(&stranger, &f.resource, None, 100)
-            .await
-            .unwrap()
-            .is_empty()
-    );
     assert!(
         f.repository
             .list_publication_history(&stranger, &f.resource)

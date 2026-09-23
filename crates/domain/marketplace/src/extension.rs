@@ -109,28 +109,10 @@ fn publication_schemas() -> Vec<SchemaDefinition> {
 }
 
 fn attestation_schemas() -> Vec<SchemaDefinition> {
-    vec![
-        SchemaDefinition::new(
-            "managed_installation_receipts",
-            include_str!("../schema/managed_installation_receipts.sql"),
-        ),
-        SchemaDefinition::new(
-            "managed_invocation_attributions",
-            include_str!("../schema/managed_invocation_attributions.sql"),
-        ),
-        SchemaDefinition::new(
-            "managed_git_verifications",
-            include_str!("../schema/managed_git_verifications.sql"),
-        ),
-        SchemaDefinition::new(
-            "managed_dependency_verifications",
-            include_str!("../schema/managed_dependency_verifications.sql"),
-        ),
-        SchemaDefinition::new(
-            "managed_resource_git_bindings",
-            include_str!("../schema/managed_resource_git_bindings.sql"),
-        ),
-    ]
+    vec![SchemaDefinition::new(
+        "managed_installation_receipts",
+        include_str!("../schema/managed_installation_receipts.sql"),
+    )]
 }
 
 fn consumer_schemas() -> Vec<SchemaDefinition> {
@@ -146,18 +128,6 @@ fn consumer_schemas() -> Vec<SchemaDefinition> {
         SchemaDefinition::new(
             "managed_consumer_session_bindings",
             include_str!("../schema/managed_consumer_session_bindings.sql"),
-        ),
-        SchemaDefinition::new(
-            "managed_consumer_invocation_evidence",
-            include_str!("../schema/managed_consumer_invocation_evidence.sql"),
-        ),
-        SchemaDefinition::new(
-            "managed_consumer_attribution_projection",
-            include_str!("../schema/managed_consumer_attribution_projection.sql"),
-        ),
-        SchemaDefinition::new(
-            "managed_consumer_attribution_history",
-            include_str!("../schema/managed_consumer_attribution_history.sql"),
         ),
     ]
 }
@@ -181,10 +151,6 @@ fn inventory_schemas() -> Vec<SchemaDefinition> {
             include_str!("../schema/managed_inventory_bindings.sql"),
         ),
         SchemaDefinition::new(
-            "managed_inventory_captures",
-            include_str!("../schema/managed_inventory_captures.sql"),
-        ),
-        SchemaDefinition::new(
             "managed_inventory_authoring_heads",
             include_str!("../schema/managed_inventory_authoring_heads.sql"),
         ),
@@ -204,10 +170,6 @@ fn operation_schemas() -> Vec<SchemaDefinition> {
         SchemaDefinition::new(
             "managed_installation_coverage",
             include_str!("../schema/managed_installation_coverage.sql"),
-        ),
-        SchemaDefinition::new(
-            "managed_api_operations",
-            include_str!("../schema/managed_api_operations.sql"),
         ),
     ]
 }

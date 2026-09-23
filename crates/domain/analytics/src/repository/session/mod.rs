@@ -97,12 +97,6 @@ impl SessionRepository {
             .map_err(crate::AnalyticsError::from)
     }
 
-    pub async fn update_activity(&self, session_id: &SessionId) -> Result<()> {
-        systemprompt_traits::SessionStore::update_activity(&*self.owner, session_id)
-            .await
-            .map_err(crate::AnalyticsError::from)
-    }
-
     pub async fn increment_request_count(&self, session_id: &SessionId) -> Result<()> {
         systemprompt_traits::SessionStore::increment_request_count(&*self.owner, session_id)
             .await

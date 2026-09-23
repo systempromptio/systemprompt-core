@@ -103,51 +103,27 @@ mod ai_extension_tests {
 }
 
 #[test]
-fn owner_capture_and_privacy_contracts_are_registered() {
+fn no_reporting_capture_or_privacy_sql_is_registered() {
+    assert!(
+        AiExtension
+            .schemas()
+            .iter()
+            .all(|schema| !schema.sql.contains("reporting")),
+        "the reporting projection is retired"
+    );
+}
+
+#[test]
+fn message_count_is_maintained_by_a_statement_trigger() {
     let schemas = AiExtension.schemas();
-    let capture: Vec<_> = schemas
+    let counter: Vec<_> = schemas
         .iter()
         .filter(|schema| {
             schema.table.is_none()
                 && schema
                     .sql
-                    .contains("EXECUTE FUNCTION sp_capture_reporting_change")
+                    .contains("EXECUTE FUNCTION sp_ai_request_message_count")
         })
         .collect();
-    assert_eq!(
-        capture.len(),
-        1,
-        "owner capture SQL must be registered exactly once"
-    );
-    assert!(
-        capture[0].sql.contains("reporting_source_ai_requests"),
-        "missing reporting view: reporting_source_ai_requests"
-    );
-    assert!(
-        !capture[0]
-            .sql
-            .contains("reporting_source_ai_request_messages"),
-        "stored messages are counted on ai_requests, not projected"
-    );
-    assert!(
-        capture[0]
-            .sql
-            .contains("EXECUTE FUNCTION sp_ai_request_message_count"),
-        "message_count must be maintained by the statement trigger"
-    );
-    let privacy: Vec<_> = schemas
-        .iter()
-        .filter(|schema| {
-            schema.table.is_none()
-                && schema
-                    .sql
-                    .contains("CREATE OR REPLACE FUNCTION public.lock_ai_reporting_sources")
-        })
-        .collect();
-    assert_eq!(
-        privacy.len(),
-        1,
-        "owner privacy SQL must survive capture registration"
-    );
-    assert!(privacy[0].sql.contains("reporting_request_is_retained"));
+    assert_eq!(counter.len(), 1, "message_count trigger registered once");
 }

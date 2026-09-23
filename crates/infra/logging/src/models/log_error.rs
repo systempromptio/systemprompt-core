@@ -62,9 +62,6 @@ pub enum LoggingError {
     #[error("Database pool unavailable: {0}")]
     PoolUnavailable(String),
 
-    #[error("Retention scheduler error")]
-    Scheduler(#[from] tokio_cron_scheduler::JobSchedulerError),
-
     #[error("No task found matching: {partial_id}")]
     TaskNotFound { partial_id: String },
 }

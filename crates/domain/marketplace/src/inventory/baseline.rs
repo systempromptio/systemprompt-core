@@ -55,7 +55,7 @@ impl InventoryService {
                 "Configured source binding does not match the active services root",
             ));
         }
-        let files = configured_files(&canonical, entry, scope.services)?;
+        let files = configured_files(&canonical, entry)?;
         let previous = self
             .repository
             .inventory_authoring_head(owner, &entry.entry_id)

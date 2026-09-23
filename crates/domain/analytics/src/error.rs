@@ -27,17 +27,11 @@ domain_error! {
         #[error("Invalid argument: {0}")]
         InvalidArgument(String),
 
-        #[error("Reporting baseline rebuild superseded by a newer generation")]
-        RebuildSuperseded,
-
         #[error("Session expired")]
         SessionExpired,
 
         #[error("Behavioral bot detected: {0}")]
         BehavioralBotDetected(String),
-
-        #[error("Anomaly detection failed: {0}")]
-        AnomalyDetectionFailed(String),
     }
 }
 
@@ -54,14 +48,6 @@ impl AnalyticsError {
 
     pub fn invalid_argument<T: Into<String>>(message: T) -> Self {
         Self::InvalidArgument(message.into())
-    }
-
-    pub const fn rebuild_superseded() -> Self {
-        Self::RebuildSuperseded
-    }
-
-    pub const fn is_rebuild_superseded(&self) -> bool {
-        matches!(self, Self::RebuildSuperseded)
     }
 }
 

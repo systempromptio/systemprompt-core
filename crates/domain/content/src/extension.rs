@@ -26,8 +26,6 @@ impl Extension for ContentExtension {
 
     fn schemas(&self) -> Vec<SchemaDefinition> {
         vec![
-            SchemaDefinition::sql_only(include_str!("../schema/reporting_privacy.sql")),
-            SchemaDefinition::sql_only(include_str!("../schema/reporting_capture.sql")),
             SchemaDefinition::new(
                 "markdown_categories",
                 include_str!("../schema/markdown_categories.sql"),

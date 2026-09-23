@@ -114,7 +114,6 @@ async fn purge_removes_the_users_own_payload_and_keeps_one_shared_with_another_u
         "only the payload nothing but this user's artifacts reference is previewed"
     );
 
-    ctx.fixture.drain().await;
     let removed = ctx.service.delete(&victim).await.expect("delete");
     let swept = removed
         .iter()
@@ -130,7 +129,6 @@ async fn purge_removes_the_users_own_payload_and_keeps_one_shared_with_another_u
         "a body another user's artifact still references stays"
     );
 
-    ctx.fixture.drain().await;
     ctx.service.delete(&other).await.expect("cleanup other");
     assert!(
         !payload_exists(&ctx, &shared).await,
@@ -140,7 +138,7 @@ async fn purge_removes_the_users_own_payload_and_keeps_one_shared_with_another_u
 }
 
 #[tokio::test]
-async fn purge_counts_only_the_users_non_reporting_outbox_rows() {
+async fn purge_removes_the_users_outbox_rows() {
     let Some(ctx) = setup_or_skip().await else {
         return;
     };
@@ -158,23 +156,17 @@ async fn purge_counts_only_the_users_non_reporting_outbox_rows() {
     .await
     .expect("seed outbox event");
 
-    ctx.fixture.drain().await;
     let removed = ctx.service.delete(&victim).await.expect("delete");
     let outbox = removed
         .iter()
         .find(|c| c.table == "event_outbox")
         .expect("delete reports the outbox purge");
-    assert_eq!(
-        outbox.rows, 1,
-        "the deletion facts the capture triggers wrote in this transaction are not counted as purged"
-    );
-    let remaining: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM event_outbox WHERE user_id = $1 AND channel <> 'reporting'",
-    )
-    .bind(victim.as_str())
-    .fetch_one(ctx.raw.as_ref())
-    .await
-    .expect("count");
+    assert_eq!(outbox.rows, 1, "the one seeded outbox row is purged");
+    let remaining: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM event_outbox WHERE user_id = $1")
+        .bind(victim.as_str())
+        .fetch_one(ctx.raw.as_ref())
+        .await
+        .expect("count");
     assert_eq!(remaining, 0);
     ctx.fixture.finish().await;
 }

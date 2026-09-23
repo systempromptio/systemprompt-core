@@ -91,7 +91,6 @@ async fn find_by_role_and_first_user_and_first_admin() {
             .is_some()
     );
 
-    ctx.fixture.drain().await;
     ctx.service.delete(&user.id).await.expect("cleanup");
     ctx.fixture.finish().await;
 }
@@ -111,7 +110,6 @@ async fn find_authenticated_user_requires_active_status() {
             .is_some()
     );
 
-    ctx.fixture.drain().await;
     ctx.service
         .update_status(&user.id, UserStatus::Suspended)
         .await
@@ -124,7 +122,6 @@ async fn find_authenticated_user_requires_active_status() {
             .is_none()
     );
 
-    ctx.fixture.drain().await;
     ctx.service.delete(&user.id).await.expect("cleanup");
     ctx.fixture.finish().await;
 }
@@ -164,7 +161,6 @@ async fn find_with_sessions_and_activity_count_open_sessions() {
     assert!(listed.iter().any(|u| u.id == user.id));
 
     ctx.service.end_all_sessions(&user.id).await.expect("end");
-    ctx.fixture.drain().await;
     ctx.service.delete(&user.id).await.expect("cleanup");
     ctx.fixture.finish().await;
 }
@@ -196,7 +192,6 @@ async fn list_search_and_count_reflect_created_users() {
     let total = ctx.service.count().await.expect("count");
     assert!(total >= 1);
 
-    ctx.fixture.drain().await;
     ctx.service.delete(&user.id).await.expect("cleanup");
     ctx.fixture.finish().await;
 }
@@ -207,7 +202,6 @@ async fn list_by_filter_applies_status_role_and_age() {
         return;
     };
     let user = create_user(&ctx, "filter").await;
-    ctx.fixture.drain().await;
     ctx.service
         .update_status(&user.id, UserStatus::Suspended)
         .await
@@ -235,7 +229,6 @@ async fn list_by_filter_applies_status_role_and_age() {
         .expect("role filter");
     assert!(!wrong_role.iter().any(|u| u.id == user.id));
 
-    ctx.fixture.drain().await;
     ctx.service.delete(&user.id).await.expect("cleanup");
     ctx.fixture.finish().await;
 }
@@ -249,7 +242,6 @@ async fn bulk_update_status_and_bulk_delete() {
     let b = create_user(&ctx, "bulk-b").await;
     let ids = vec![a.id.clone(), b.id.clone()];
 
-    ctx.fixture.drain().await;
     let updated = ctx
         .service
         .bulk_update_status(&ids, "suspended")
@@ -264,7 +256,6 @@ async fn bulk_update_status_and_bulk_delete() {
         .expect("row");
     assert_eq!(refreshed.status.as_deref(), Some("suspended"));
 
-    ctx.fixture.drain().await;
     let deleted = ctx.service.bulk_delete(&ids).await.expect("bulk delete");
     assert_eq!(deleted, 2);
     assert!(
@@ -296,7 +287,6 @@ async fn update_display_name_persists() {
         .await
         .expect("update");
     assert_eq!(updated.display_name.as_deref(), Some("New Display"));
-    ctx.fixture.drain().await;
     ctx.service.delete(&user.id).await.expect("cleanup");
     ctx.fixture.finish().await;
 }
@@ -316,7 +306,6 @@ async fn missing_user_yields_not_found_across_mutations() {
         ctx.service.update_full_name(&ghost, "Ghost").await,
         Err(UserError::NotFound(_))
     ));
-    ctx.fixture.drain().await;
     assert!(matches!(
         ctx.service.update_status(&ghost, UserStatus::Active).await,
         Err(UserError::NotFound(_))
@@ -333,7 +322,6 @@ async fn missing_user_yields_not_found_across_mutations() {
         ctx.service.assign_roles(&ghost, &["user".to_owned()]).await,
         Err(UserError::NotFound(_))
     ));
-    ctx.fixture.drain().await;
     assert!(matches!(
         ctx.service.delete(&ghost).await,
         Err(UserError::NotFound(_))
@@ -358,7 +346,6 @@ async fn merge_users_transfers_sessions_and_removes_source() {
         .await
         .expect("session");
 
-    ctx.fixture.drain().await;
     let result = ctx
         .service
         .merge_users(&source.id, &target.id)
@@ -382,7 +369,6 @@ async fn merge_users_transfers_sessions_and_removes_source() {
     assert!(sessions.iter().any(|s| s.session_id == sid));
 
     ctx.service.end_all_sessions(&target.id).await.expect("end");
-    ctx.fixture.drain().await;
     ctx.service.delete(&target.id).await.expect("cleanup");
     ctx.fixture.finish().await;
 }
@@ -411,7 +397,6 @@ async fn merge_users_appends_a_governance_record_instead_of_rewriting_history() 
     .await
     .expect("seed a historical decision for the source user");
 
-    ctx.fixture.drain().await;
     ctx.service
         .merge_users(&source.id, &target.id)
         .await
@@ -450,7 +435,6 @@ async fn merge_users_appends_a_governance_record_instead_of_rewriting_history() 
         .execute(pg.as_ref())
         .await
         .expect("cleanup");
-    ctx.fixture.drain().await;
     ctx.service.delete(&target.id).await.expect("cleanup");
     ctx.fixture.finish().await;
 }
@@ -486,7 +470,6 @@ async fn cleanup_old_anonymous_spares_users_with_open_sessions() {
         .await
         .expect("session");
 
-    ctx.fixture.drain().await;
     let removed = ctx
         .service
         .cleanup_old_anonymous(30)
@@ -509,7 +492,6 @@ async fn cleanup_old_anonymous_spares_users_with_open_sessions() {
     );
 
     ctx.service.end_all_sessions(&kept.id).await.expect("end");
-    ctx.fixture.drain().await;
     ctx.service.delete(&kept.id).await.expect("cleanup kept");
     ctx.fixture.finish().await;
 }
@@ -533,7 +515,6 @@ async fn create_anonymous_reuses_existing_fingerprint_row() {
     assert_eq!(first.id, second.id);
     assert!(first.roles.iter().any(|r| r == "anonymous"));
 
-    ctx.fixture.drain().await;
     ctx.service.delete(&first.id).await.expect("cleanup");
     ctx.fixture.finish().await;
 }
@@ -559,7 +540,6 @@ async fn stats_and_breakdowns_reflect_active_user_population() {
     assert!(*breakdown.by_status.get("active").unwrap_or(&0) >= 1);
     assert!(*breakdown.by_role.get("user").unwrap_or(&0) >= 1);
 
-    ctx.fixture.drain().await;
     ctx.service.delete(&user.id).await.expect("cleanup");
     ctx.fixture.finish().await;
 }
@@ -596,7 +576,6 @@ async fn create_if_absent_yields_the_row_once_and_none_to_every_later_caller() {
         .expect("the row a losing caller re-reads");
     assert_eq!(by_email.id, user.id);
 
-    ctx.fixture.drain().await;
     ctx.service.delete(&user.id).await.expect("cleanup");
     ctx.fixture.finish().await;
 }
@@ -635,7 +614,6 @@ async fn concurrent_create_if_absent_on_one_identity_elects_a_single_winner() {
     }
 
     assert_eq!(inserted.len(), 1, "exactly one caller inserts the identity");
-    ctx.fixture.drain().await;
     ctx.service.delete(&inserted[0].id).await.expect("cleanup");
     ctx.fixture.finish().await;
 }

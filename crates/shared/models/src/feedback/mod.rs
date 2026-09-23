@@ -4,10 +4,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-pub mod analytics;
 pub mod inventory;
 pub mod receipts;
-pub mod verification;
 
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -82,8 +80,6 @@ pub enum FeedbackContractError {
     InvalidPath,
     #[error("Verification manifest is incomplete or inconsistent")]
     IncompleteManifest,
-    #[error("Dependency verification contains a cycle")]
-    DependencyCycle,
     #[error("Input exceeds contract bounds")]
     Bounds,
 }

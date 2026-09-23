@@ -44,7 +44,6 @@ async fn plane_debug_impls_flag_optional_members() {
     ));
     let session_usage: systemprompt_traits::DynSessionUsageCounters =
         analytics_service.session_repo().owner();
-    let sqlx_pool = pool.pool_arc().expect("SQLx pool").as_ref().clone();
     let data = DataPlane {
         database: Arc::clone(&pool),
         analytics_service,
@@ -95,15 +94,6 @@ async fn plane_debug_impls_flag_optional_members() {
         mcp_session_repository: Arc::new(
             systemprompt_mcp::repository::McpSessionRepository::new(&pool)
                 .expect("mcp session repository"),
-        ),
-        feedback_snapshots_repository: Arc::new(
-            systemprompt_analytics::snapshots::FeedbackSnapshotsRepository::new(
-                sqlx_pool.clone(),
-                systemprompt_analytics::feedback::FeedbackFactsRepository::new(sqlx_pool.clone()),
-            ),
-        ),
-        feedback_facts_repository: Arc::new(
-            systemprompt_analytics::feedback::FeedbackFactsRepository::new(sqlx_pool.clone()),
         ),
         managed_repository: Arc::new(
             systemprompt_marketplace::managed::ManagedRepository::new(&pool)
@@ -163,7 +153,6 @@ async fn plane_debug_impls_flag_optional_members() {
         publish_guard: Arc::new(tokio::sync::Mutex::new(
             systemprompt_marketplace::inventory::PublishGuard::default(),
         )),
-        snapshot_wakeup: Arc::new(systemprompt_runtime::reporting::SnapshotWakeup::default()),
     };
     let dbg = format!("{subsystems:?}");
     assert!(dbg.contains("Subsystems"), "got: {dbg}");

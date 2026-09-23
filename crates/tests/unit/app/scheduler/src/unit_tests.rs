@@ -20,14 +20,12 @@ use systemprompt_scheduler::{
 fn test_job_status_as_str() {
     assert_eq!(JobStatus::Success.as_str(), "success");
     assert_eq!(JobStatus::Failed.as_str(), "failed");
-    assert_eq!(JobStatus::Running.as_str(), "running");
 }
 
 #[test]
 fn test_job_status_display() {
     assert_eq!(format!("{}", JobStatus::Success), "success");
     assert_eq!(format!("{}", JobStatus::Failed), "failed");
-    assert_eq!(format!("{}", JobStatus::Running), "running");
 }
 
 #[test]

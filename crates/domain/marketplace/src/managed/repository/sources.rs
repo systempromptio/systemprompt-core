@@ -12,25 +12,6 @@ use crate::managed::{AssetDigest, ManagedError, Result, SnapshotProvenance, Sour
 use systemprompt_models::managed::validate_key;
 
 impl ManagedRepository {
-    pub async fn snapshot_provenance(
-        &self,
-        owner: &UserId,
-        id: &SourceSnapshotId,
-    ) -> Result<SnapshotProvenance> {
-        let row = sqlx::query!(
-            "SELECT provenance,digest FROM managed_source_snapshots WHERE owner_id=$1 AND id=$2",
-            owner.as_str(),
-            id.as_str()
-        )
-        .fetch_optional(&self.pool)
-        .await?
-        .ok_or(ManagedError::Unavailable)?;
-        let provenance: SnapshotProvenance = serde_json::from_value(row.provenance)?;
-        if AssetDigest::of(&serde_jcs::to_vec(&provenance)?).as_str() != row.digest {
-            return Err(ManagedError::Integrity);
-        }
-        Ok(provenance)
-    }
     pub async fn register_source(
         &self,
         owner: &UserId,
