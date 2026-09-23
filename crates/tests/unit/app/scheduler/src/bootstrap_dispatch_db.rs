@@ -8,10 +8,11 @@
 //! observable outcomes: the registered-job count, the recorded run state, and
 //! the loud failure on an unknown bootstrap name.
 //!
-//! The built-in bootstrap jobs (`database_cleanup`,
-//! `cleanup_inactive_sessions`) touch shared tables, so these tests join the
-//! serialized `scheduler-jobs-db` nextest group. Tests skip when `DATABASE_URL`
-//! is unset locally, and fail under `CI`.
+//! A successful run is recorded only when it did work, so the recording
+//! tests drive the inventory-registered `WORKING_JOB`; the built-in cleanup
+//! jobs used for claim and owner tests touch shared tables, so these tests join
+//! the serialized `scheduler-jobs-db` nextest group. Tests skip when
+//! `DATABASE_URL` is unset locally, and fail under `CI`.
 
 use std::sync::Arc;
 
@@ -61,10 +62,10 @@ mod bootstrap_dispatch_db {
         let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
         let app_ctx = fixture_app_context(&pool, &url).expect("fixture AppContext");
 
-        // `cleanup_inactive_sessions` is an inventory-registered cleanup job
-        // that runs cleanly against an empty/migrated DB. Disable the
-        // distributed lock so the single-replica test path is deterministic.
-        let job_name = "cleanup_inactive_sessions";
+        // The working test job reports one item processed, so its run is
+        // recorded. Disable the distributed lock so the single-replica test
+        // path is deterministic.
+        let job_name = crate::test_jobs::WORKING_JOB;
         let config = config_with_bootstrap(vec![job_name.to_owned()], false);
         let svc = SchedulerService::new(config, Arc::clone(&pool), app_ctx)
             .expect("SchedulerService::new");
@@ -94,7 +95,7 @@ mod bootstrap_dispatch_db {
         assert_eq!(
             row.last_status.as_deref(),
             Some(JobStatus::Success.as_str()),
-            "a clean cleanup_inactive_sessions bootstrap run must record Success, got {:?}",
+            "a clean working bootstrap run must record Success, got {:?}",
             row.last_status
         );
         assert!(
@@ -132,10 +133,15 @@ mod bootstrap_dispatch_db {
 
         // Same as the success case but with distributed_lock enabled, driving
         // the lock-acquisition branch of dispatch.rs.
-        let job_name = "cleanup_inactive_sessions";
+        let job_name = crate::test_jobs::WORKING_JOB;
         let config = config_with_bootstrap(vec![job_name.to_owned()], true);
         let svc = SchedulerService::new(config, Arc::clone(&pool), app_ctx)
             .expect("SchedulerService::new");
+        SchedulerRepository::new(&pool)
+            .expect("repo")
+            .upsert_job(job_name, "0 0 * * * *", true)
+            .await
+            .expect("seed scheduled_jobs row");
 
         svc.run_bootstrap_jobs(None)
             .await
@@ -149,12 +155,43 @@ mod bootstrap_dispatch_db {
             .expect("bootstrap job row must exist after a locked dispatch");
 
         // The lock path either runs the job (Success) or skips a duplicate tick;
-        // either way the row exists and carries a terminal status, never the
-        // transient Running left dangling.
+        // either way the row exists and carries a terminal status.
         assert!(
             row.last_status.is_some(),
             "a dispatched job under distributed_lock must have a recorded status"
         );
+    }
+
+    #[tokio::test]
+    async fn idle_run_leaves_the_job_row_untouched() {
+        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
+        let app_ctx = fixture_app_context(&pool, &url).expect("fixture AppContext");
+        let job_name = crate::test_jobs::IDLE_JOB;
+        let repo = SchedulerRepository::new(&pool).expect("repo");
+        repo.upsert_job(job_name, "0 0 * * * *", true)
+            .await
+            .expect("seed scheduled_jobs row");
+        let before = repo
+            .find_job(job_name)
+            .await
+            .expect("find_job")
+            .expect("seeded row");
+
+        let config = config_with_bootstrap(vec![job_name.to_owned()], false);
+        SchedulerService::new(config, Arc::clone(&pool), app_ctx)
+            .expect("SchedulerService::new")
+            .run_bootstrap_jobs(None)
+            .await
+            .expect("an idle bootstrap run must succeed");
+
+        let after = repo
+            .find_job(job_name)
+            .await
+            .expect("find_job")
+            .expect("row still present");
+        assert_eq!(after.run_count, before.run_count);
+        assert_eq!(after.last_run, before.last_run);
+        assert_eq!(after.last_status, before.last_status);
     }
 }
 
@@ -496,7 +533,7 @@ mod bootstrap_owner_arms {
         .await
         .expect("seed active owner user");
 
-        let job_name = "cleanup_empty_contexts";
+        let job_name = crate::test_jobs::WORKING_JOB;
         let repo = SchedulerRepository::new(&pool).expect("repo");
         repo.upsert_job(job_name, "0 0 * * * *", true)
             .await

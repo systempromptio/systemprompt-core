@@ -92,9 +92,6 @@ async fn seed_agent_tasks(pool: &DbPool) -> String {
 async fn agents_list_renders_seeded_rows_across_sort_orders() {
     let pool = pool().await;
     let _agent = seed_agent_tasks(&pool).await;
-    systemprompt_test_fixtures::refresh_reporting(&pool)
-        .await
-        .unwrap();
     let ctx = ctx(&pool);
 
     for sort in ["task-count", "success-rate", "cost", "last-active"] {
@@ -108,9 +105,6 @@ async fn agents_list_renders_seeded_rows_across_sort_orders() {
 async fn agents_list_exports_csv() {
     let pool = pool().await;
     seed_agent_tasks(&pool).await;
-    systemprompt_test_fixtures::refresh_reporting(&pool)
-        .await
-        .unwrap();
     let ctx = ctx(&pool);
 
     let dir = tempfile::tempdir().unwrap();
@@ -130,9 +124,6 @@ async fn agents_list_exports_csv() {
 async fn sessions_live_no_refresh_lists_active_sessions() {
     let pool = pool().await;
     seed_agent_tasks(&pool).await;
-    systemprompt_test_fixtures::refresh_reporting(&pool)
-        .await
-        .unwrap();
     let ctx = ctx(&pool);
 
     analytics::execute(parse(&["sessions", "live", "--no-refresh"]), &ctx)
@@ -144,9 +135,6 @@ async fn sessions_live_no_refresh_lists_active_sessions() {
 async fn sessions_live_exports_csv() {
     let pool = pool().await;
     seed_agent_tasks(&pool).await;
-    systemprompt_test_fixtures::refresh_reporting(&pool)
-        .await
-        .unwrap();
     let ctx = ctx(&pool);
 
     let dir = tempfile::tempdir().unwrap();
@@ -165,9 +153,6 @@ async fn sessions_live_exports_csv() {
 async fn agents_trends_renders_with_seeded_tasks() {
     let pool = pool().await;
     seed_agent_tasks(&pool).await;
-    systemprompt_test_fixtures::refresh_reporting(&pool)
-        .await
-        .unwrap();
     let ctx = ctx(&pool);
 
     analytics::execute(parse(&["agents", "trends"]), &ctx)

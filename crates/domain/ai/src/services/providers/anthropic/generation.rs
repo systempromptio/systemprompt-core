@@ -42,8 +42,12 @@ pub(super) async fn generate(
     .with_sampling(params.sampling)
     .into_request();
 
-    let body = anthropic::build_request_body(&canonical, params.model, None);
-    let value: Value = post_body(provider, &body).await?.json().await?;
+    let upstream = provider.upstream_model(params.model);
+    let body = anthropic::build_request_body(&canonical, upstream, None);
+    let value: Value = post_body(provider, body, upstream, false)
+        .await?
+        .json()
+        .await?;
     let parsed = anthropic::parse_response(&value, params.model)?;
     Ok(canonical_bridge::to_ai_response(
         "anthropic",
@@ -70,8 +74,12 @@ pub(super) async fn generate_with_tools(
     .with_tools(tools_to_canonical(params.tools))
     .into_request();
 
-    let body = anthropic::build_request_body(&canonical, params.base.model, None);
-    let value: Value = post_body(provider, &body).await?.json().await?;
+    let upstream = provider.upstream_model(params.base.model);
+    let body = anthropic::build_request_body(&canonical, upstream, None);
+    let value: Value = post_body(provider, body, upstream, false)
+        .await?
+        .json()
+        .await?;
     let parsed = anthropic::parse_response(&value, params.base.model)?;
     let tool_calls = canonical_bridge::tool_calls(&parsed);
     let ai_response = canonical_bridge::to_ai_response(
@@ -105,8 +113,12 @@ pub(super) async fn generate_with_schema(
     .with_response_format(Some(response_format))
     .into_request();
 
-    let body = anthropic::build_request_body(&canonical, params.base.model, None);
-    let value: Value = post_body(provider, &body).await?.json().await?;
+    let upstream = provider.upstream_model(params.base.model);
+    let body = anthropic::build_request_body(&canonical, upstream, None);
+    let value: Value = post_body(provider, body, upstream, false)
+        .await?
+        .json()
+        .await?;
     let parsed = anthropic::parse_response(&value, params.base.model)?;
 
     let mut ai_response = canonical_bridge::to_ai_response(

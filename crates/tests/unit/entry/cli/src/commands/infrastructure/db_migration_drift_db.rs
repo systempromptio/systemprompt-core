@@ -11,7 +11,7 @@ use clap::Parser;
 use systemprompt_cli::infrastructure::db::{self, DbCommands};
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat, VerbosityLevel};
 use systemprompt_runtime::DatabaseContext;
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::DisposableDb;
 
 #[derive(Debug, Parser)]
 struct Harness {
@@ -26,31 +26,15 @@ fn parse(args: &[&str]) -> DbCommands {
 }
 
 struct Disposable {
-    admin: sqlx::PgPool,
-    name: String,
+    db: DisposableDb,
     url: String,
 }
 
 impl Disposable {
     async fn create() -> Self {
-        let base_url = fixture_database_url().unwrap();
-        let admin = fixture_db_pool(&base_url)
-            .await
-            .unwrap()
-            .pool_arc()
-            .unwrap()
-            .as_ref()
-            .clone();
-
-        let name = format!("cov_cli_drift_{}", uuid::Uuid::new_v4().simple());
-        sqlx::query(sqlx::AssertSqlSafe(format!("CREATE DATABASE \"{name}\"")))
-            .execute(&admin)
-            .await
-            .unwrap();
-
-        let (prefix, _old) = base_url.rsplit_once('/').unwrap();
-        let url = format!("{prefix}/{name}");
-        Self { admin, name, url }
+        let db = DisposableDb::create("cov_cli_drift").await.unwrap();
+        let url = db.url().to_owned();
+        Self { db, url }
     }
 
     async fn conn(&self) -> sqlx::PgPool {
@@ -121,12 +105,7 @@ impl Disposable {
     }
 
     async fn drop(self) {
-        let _ = sqlx::query(sqlx::AssertSqlSafe(format!(
-            "DROP DATABASE IF EXISTS \"{}\" WITH (FORCE)",
-            self.name
-        )))
-        .execute(&self.admin)
-        .await;
+        self.db.drop_now().await;
     }
 }
 

@@ -16,22 +16,6 @@ use systemprompt_identifiers::{SessionId, UserId};
 pub(super) use super::geo::count_sessions_missing_geo;
 use systemprompt_traits::session_store::CreateSessionParams;
 
-pub(super) async fn update_activity(pool: &PgPool, session_id: &SessionId) -> Result<()> {
-    let id = session_id.as_str();
-    sqlx::query!(
-        r#"
-        UPDATE user_sessions
-        SET last_activity_at = CURRENT_TIMESTAMP,
-            duration_seconds = EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - started_at))::INTEGER
-        WHERE session_id = $1
-        "#,
-        id
-    )
-    .execute(pool)
-    .await?;
-    Ok(())
-}
-
 pub(super) async fn increment_request_count(pool: &PgPool, session_id: &SessionId) -> Result<()> {
     let id = session_id.as_str();
     sqlx::query!(

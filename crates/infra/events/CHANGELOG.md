@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.60.0] - 2026-09-23
+
+### Removed
+
+- Migration `009_retire_reporting_capture` deletes every `event_outbox` row of the retired `analytics_reporting` consumer and drops `sp_capture_reporting_change` (CASCADE, taking any `reporting_capture*` trigger still bound to a source table), `sp_reporting_fact`, `sp_reporting_project`, the `event_outbox_reporting_revision` sequence and the outbox privacy routines. `reporting_capture.sql` and `reporting_privacy.sql` are no longer part of the declarative schema.
+
+### Breaking
+
+- **Breaking:** `OutboxChannel::Reporting` is removed. Nothing produces or consumes the `reporting` channel since the projection was retired, and migration `009_retire_reporting_capture` deletes its queued rows.
+
 ## [0.59.1] - 2026-09-23
 
 ### Fixed

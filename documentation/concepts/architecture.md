@@ -59,12 +59,9 @@ Cross-domain orchestration that would otherwise create a domain-to-domain edge i
 Analytics follows the same ownership rule for database access. Users owns session
 persistence, logging owns analytics-event persistence, and content provides
 authoritative catalog counts through shared traits. Behavioral decisions use
-those primary owner interfaces. Reports read analytics-owned projections, fed
-by owner reporting contracts through the existing PostgreSQL outbox. The
-reporting channel is excluded from SSE broadcasts. Runtime installs capture,
-initializes the baseline and runs the durable consumer; see
-[analytics ownership and reporting](analytics-migration.md) for consistency and
-rebuild requirements.
+those primary owner interfaces. Reports read analytics-owned `report_*` views
+over the owners' source tables; see
+[analytics ownership and reporting](analytics-migration.md).
 
 This is why the extension framework matters to the layering (see [extensions.md](extensions.md)): capabilities are discovered at link time through the `inventory` crate rather than wired through compile-time dependency edges, so a domain never needs to name another domain to reach it.
 

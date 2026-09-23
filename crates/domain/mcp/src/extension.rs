@@ -81,15 +81,13 @@ impl Extension for McpExtension {
     }
 
     fn schemas(&self) -> Vec<SchemaDefinition> {
-        let mut schemas = vec![
-            SchemaDefinition::sql_only(include_str!("../schema/reporting_privacy.sql")),
-            SchemaDefinition::sql_only(include_str!("../schema/reporting_capture.sql")),
-        ];
-        schemas.extend(TABLES.iter().map(|(name, sql, columns)| {
-            SchemaDefinition::new(*name, *sql)
-                .with_required_columns(columns.iter().map(|c| (*c).to_owned()).collect())
-        }));
-        schemas
+        TABLES
+            .iter()
+            .map(|(name, sql, columns)| {
+                SchemaDefinition::new(*name, *sql)
+                    .with_required_columns(columns.iter().map(|c| (*c).to_owned()).collect())
+            })
+            .collect()
     }
     fn dependencies(&self) -> Vec<&'static str> {
         vec!["users"]

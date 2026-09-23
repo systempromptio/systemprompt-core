@@ -126,7 +126,6 @@ pub trait SessionStore: SessionProvider + SessionUsageCounters {
         user_id: &UserId,
     ) -> AnalyticsResult<Option<SessionSnapshot>>;
     async fn list_active_by_user(&self, user_id: &UserId) -> AnalyticsResult<Vec<SessionSnapshot>>;
-    async fn update_activity(&self, session_id: &SessionId) -> AnalyticsResult<()>;
     async fn increment_request_count(&self, session_id: &SessionId) -> AnalyticsResult<()>;
     async fn end_session(&self, session_id: &SessionId) -> AnalyticsResult<()>;
     async fn mark_as_scanner(&self, session_id: &SessionId) -> AnalyticsResult<()>;

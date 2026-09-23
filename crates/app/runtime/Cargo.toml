@@ -26,7 +26,6 @@ geolocation = ["dep:maxminddb", "systemprompt-analytics/geolocation"]
 [dependencies]
 tokio = { workspace = true }
 chrono = { workspace = true }
-metrics = { workspace = true }
 sqlx = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }

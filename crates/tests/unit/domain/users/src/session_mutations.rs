@@ -109,7 +109,7 @@ async fn increment_ai_usage_accumulates_tokens_and_cost() {
 }
 
 #[tokio::test]
-async fn update_activity_and_end_session() {
+async fn end_session_marks_session_ended() {
     let Ok(url) = fixture_database_url() else {
         return;
     };
@@ -120,7 +120,6 @@ async fn update_activity_and_end_session() {
     let sid = unique_session_id();
     seed_session(&repo, &sid, &format!("fp-{}", Uuid::new_v4())).await;
 
-    repo.update_activity(&sid).await.expect("activity");
     repo.end_session(&sid).await.expect("end");
 
     let s = repo.find_by_id(&sid).await.expect("find").expect("present");

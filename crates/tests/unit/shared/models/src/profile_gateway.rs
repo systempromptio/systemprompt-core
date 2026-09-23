@@ -1538,3 +1538,100 @@ fn yaml_route_parses_fallback_fields() {
         "absent fallback is not serialized: {back}"
     );
 }
+
+fn same_model_two_hosts() -> ProviderRegistry {
+    let mut direct = model("anthropic-claude-sonnet-5");
+    direct.upstream_model = Some("claude-sonnet-5".to_owned());
+    ProviderRegistry {
+        providers: vec![
+            provider_entry(
+                "vertex-anthropic",
+                "https://aiplatform.googleapis.com/v1/projects/{project}/locations/global/publishers/anthropic",
+                vec![model("claude-sonnet-5")],
+            ),
+            provider_entry("anthropic", "https://api.anthropic.com/v1", vec![direct]),
+        ],
+    }
+}
+
+fn failover_config() -> GatewayConfig {
+    let mut claude = route_to("claude-*", "vertex-anthropic");
+    claude.fallback_provider = Some(ProviderId::new("anthropic"));
+    GatewayConfig {
+        enabled: true,
+        routes: vec![claude],
+        ..GatewayConfig::default()
+    }
+}
+
+#[test]
+fn a_fallback_serves_the_requested_model_under_its_own_catalog_id() {
+    let registry = same_model_two_hosts();
+    let direct = registry.find_provider("anthropic").unwrap();
+    assert_eq!(
+        direct
+            .find_served_model("claude-sonnet-5[1m]")
+            .map(|m| m.id.as_str()),
+        Some("anthropic-claude-sonnet-5"),
+        "the fallback finds the same vendor model through the upstream name"
+    );
+    assert_eq!(
+        direct.upstream_model_for(None, "claude-sonnet-5"),
+        "claude-sonnet-5"
+    );
+    assert!(direct.find_model("claude-sonnet-5").is_none());
+    failover_config()
+        .validate(&registry)
+        .expect("a fallback reaching the requested models by upstream name validates");
+}
+
+#[test]
+fn a_primary_route_is_still_reached_by_catalog_id_only() {
+    let registry = same_model_two_hosts();
+    let config = GatewayConfig {
+        enabled: true,
+        routes: vec![route_to("claude-*", "anthropic")],
+        ..GatewayConfig::default()
+    };
+    assert!(
+        matches!(
+            config.validate(&registry),
+            Err(GatewayProfileError::RouteReachesNoPricedModel { .. })
+        ),
+        "an upstream-name match must not make a primary route look reachable"
+    );
+}
+
+#[test]
+fn a_fallback_reached_by_upstream_name_answers_with_its_own_governance() {
+    let mut registry = same_model_two_hosts();
+    for provider in &mut registry.providers {
+        provider.governance = ModelGovernance {
+            european: false,
+            no_retain: true,
+        };
+    }
+    registry.providers[1].models[0].governance = Some(ModelGovernance {
+        european: false,
+        no_retain: false,
+    });
+    let direct = registry.find_provider("anthropic").unwrap();
+    assert!(
+        !direct.effective_governance("claude-sonnet-5").no_retain,
+        "the served model's override wins over the provider default"
+    );
+
+    let mut config = failover_config();
+    config.routes[0].requires = Some(requires_no_retain());
+    match config.validate(&registry) {
+        Err(GatewayProfileError::RouteGovernanceUnsatisfied {
+            model,
+            requirements,
+            ..
+        }) => {
+            assert_eq!(model, "anthropic-claude-sonnet-5");
+            assert_eq!(requirements, "no_retain");
+        },
+        other => panic!("expected the fallback's model override to fail the route, got {other:?}"),
+    }
+}

@@ -16,11 +16,6 @@ mod job_status_tests {
     }
 
     #[test]
-    fn running_as_str_returns_lowercase() {
-        assert_eq!(JobStatus::Running.as_str(), "running");
-    }
-
-    #[test]
     fn display_matches_as_str_for_success() {
         assert_eq!(format!("{}", JobStatus::Success), "success");
     }
@@ -28,11 +23,6 @@ mod job_status_tests {
     #[test]
     fn display_matches_as_str_for_failed() {
         assert_eq!(format!("{}", JobStatus::Failed), "failed");
-    }
-
-    #[test]
-    fn display_matches_as_str_for_running() {
-        assert_eq!(format!("{}", JobStatus::Running), "running");
     }
 
     #[test]
@@ -48,21 +38,8 @@ mod job_status_tests {
     }
 
     #[test]
-    fn running_serializes_to_lowercase() {
-        let json = serde_json::to_string(&JobStatus::Running).unwrap();
-        assert_eq!(json, "\"running\"");
-    }
-
-
-    #[test]
-    fn running_deserializes_from_lowercase() {
-        let status: JobStatus = serde_json::from_str("\"running\"").unwrap();
-        assert_eq!(status, JobStatus::Running);
-    }
-
-    #[test]
     fn all_variants_round_trip_through_serde() {
-        for variant in [JobStatus::Success, JobStatus::Failed, JobStatus::Running] {
+        for variant in [JobStatus::Success, JobStatus::Failed] {
             let json = serde_json::to_string(&variant).unwrap();
             let back: JobStatus = serde_json::from_str(&json).unwrap();
             assert_eq!(variant, back);
@@ -71,7 +48,7 @@ mod job_status_tests {
 
     #[test]
     fn as_str_round_trips_via_deserialize() {
-        for variant in [JobStatus::Success, JobStatus::Failed, JobStatus::Running] {
+        for variant in [JobStatus::Success, JobStatus::Failed] {
             let quoted = format!("\"{}\"", variant.as_str());
             let back: JobStatus = serde_json::from_str(&quoted).unwrap();
             assert_eq!(variant, back);

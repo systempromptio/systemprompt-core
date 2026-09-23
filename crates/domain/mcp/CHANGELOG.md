@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.60.0] - 2026-09-23
+
+### Removed
+
+- Migration `017_retire_reporting_capture` drops the reporting capture triggers and `reporting_source_*` views on `mcp_tool_executions` (with `lock_mcp_reporting_sources`); `reporting_capture.sql` and `reporting_privacy.sql` leave the declarative schema.
+
 ## [0.59.1] - 2026-09-23
 
 ### Fixed

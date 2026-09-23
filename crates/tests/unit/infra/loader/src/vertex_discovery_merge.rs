@@ -193,3 +193,28 @@ fn an_explicit_declaration_of_a_retiring_model_is_kept_but_reported_as_retiring(
     assert!(report.explicit_wins.is_empty());
     assert!(provider.find_model("openai.gpt-oss-20b").is_some());
 }
+
+// Why: removing a retired declaration empties the route that reached it, and
+// a route reaching no priced model fails boot; the date passing must not stop
+// the instance. The model stays priced and leaves every listing instead.
+#[test]
+fn an_explicit_declaration_past_its_retirement_date_is_hidden_not_removed() {
+    let card = card();
+    let mut provider = provider();
+    let mut report = DiscoveryReport::default();
+    let after_retirement = NaiveDate::from_ymd_opt(2026, 10, 22).expect("a valid date");
+
+    merge::publish(
+        &mut provider,
+        &entry(&card, "openai/gpt-oss-20b-maas"),
+        after_retirement,
+        &mut report,
+    );
+
+    let model = provider
+        .find_model("openai.gpt-oss-20b")
+        .expect("a retired declaration stays in the catalog");
+    assert!(model.hidden, "a retired declaration leaves every listing");
+    assert!(model.pricing.is_billable());
+    assert_eq!(report.retiring, vec!["openai.gpt-oss-20b".to_string()]);
+}

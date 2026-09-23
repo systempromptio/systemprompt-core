@@ -1,6 +1,5 @@
 //! DB-backed tests for `FingerprintRepository`: reputation upsert semantics,
-//! velocity/session-count updates, abuse flagging and clearing, bounded
-//! reputation-score adjustment, and the read queries over
+//! abuse flagging, the request counter, and the read queries over
 //! `fingerprint_reputation` and `user_sessions`.
 
 use systemprompt_analytics::FlagReason;
@@ -65,25 +64,11 @@ async fn upsert_fingerprint_inserts_then_accumulates() {
     assert_eq!(third.associated_user_ids.len(), 1);
     assert_eq!(third.last_ip_address.as_deref(), Some("10.0.0.2"));
 
-    let fetched = repo
-        .get_by_hash(&fp)
-        .await
-        .expect("get_by_hash")
-        .expect("present");
-    assert_eq!(fetched.total_session_count, 3);
-
-    assert!(
-        repo.get_by_hash("no-such-fp")
-            .await
-            .expect("miss")
-            .is_none()
-    );
-
     cleanup(&pool, &fp).await;
 }
 
 #[tokio::test]
-async fn flag_clear_and_score_adjustment_round_trip() {
+async fn flag_and_request_counter_persist() {
     let Ok(url) = fixture_database_url() else {
         return;
     };
@@ -99,59 +84,25 @@ async fn flag_clear_and_score_adjustment_round_trip() {
     repo.flag_fingerprint(&fp, FlagReason::HighRequestCount, 10)
         .await
         .expect("flag");
-    let flagged = repo.get_by_hash(&fp).await.expect("get").expect("present");
-    assert!(flagged.is_flagged);
-    assert_eq!(
-        flagged.flag_reason.as_deref(),
-        Some("request_count_exceeded_100")
-    );
-    assert!(flagged.flagged_at.is_some());
-    assert_eq!(flagged.reputation_score, 10);
-
-    repo.clear_flag(&fp).await.expect("clear");
-    let cleared = repo.get_by_hash(&fp).await.expect("get").expect("present");
-    assert!(!cleared.is_flagged);
-    assert!(cleared.flag_reason.is_none());
-
-    let raised = repo.adjust_reputation_score(&fp, 500).await.expect("raise");
-    assert_eq!(raised, 100);
-    let floored = repo
-        .adjust_reputation_score(&fp, -500)
-        .await
-        .expect("floor");
-    assert_eq!(floored, 0);
-
-    cleanup(&pool, &fp).await;
-}
-
-#[tokio::test]
-async fn velocity_and_request_counters_update() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
-    ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
-    let repo = systemprompt_test_fixtures::fixture_fingerprint_repository(&pool).expect("repo");
-
-    let fp = unique_fingerprint();
-    repo.upsert_fingerprint(&fp, None, None, None)
-        .await
-        .expect("insert");
-
-    repo.update_velocity_metrics(&fp, 42, 7.5, 3)
-        .await
-        .expect("velocity");
     repo.increment_request_count(&fp).await.expect("request");
-    repo.update_active_session_count(&fp, 4)
-        .await
-        .expect("active count");
 
-    let row = repo.get_by_hash(&fp).await.expect("get").expect("present");
-    assert_eq!(row.requests_last_hour, 42);
-    assert!((row.peak_requests_per_minute - 7.5).abs() < f32::EPSILON);
-    assert_eq!(row.sustained_high_velocity_minutes, 3);
-    assert_eq!(row.total_request_count, 2);
-    assert_eq!(row.active_session_count, 4);
+    let (is_flagged, flag_reason, reputation_score, total_request_count): (
+        bool,
+        Option<String>,
+        i32,
+        i64,
+    ) = sqlx::query_as(
+        "SELECT is_flagged, flag_reason, reputation_score, total_request_count \
+         FROM fingerprint_reputation WHERE fingerprint_hash = $1",
+    )
+    .bind(&fp)
+    .fetch_one(pool.pool_arc().expect("pool").as_ref())
+    .await
+    .expect("row");
+    assert!(is_flagged);
+    assert_eq!(flag_reason.as_deref(), Some("request_count_exceeded_100"));
+    assert_eq!(reputation_score, 10);
+    assert_eq!(total_request_count, 1);
 
     cleanup(&pool, &fp).await;
 }

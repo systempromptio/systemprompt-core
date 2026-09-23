@@ -2,7 +2,6 @@
 //! demands an attested experiment, and the sync path only moves forward.
 
 use super::*;
-use systemprompt_marketplace::inventory::PublishGuard;
 use systemprompt_marketplace::managed::{ManagedError, ManagedResolution, PublicationAdmission};
 
 async fn adopted(f: &Fixture) -> (ManagedResourceId, ResourceRevisionId) {
@@ -36,13 +35,43 @@ async fn adopted(f: &Fixture) -> (ManagedResourceId, ResourceRevisionId) {
 }
 
 async fn edited_revision(f: &Fixture) -> ResourceRevisionId {
-    std::fs::write(f.root.path().join("skills/local/SKILL.md"), "# edited\n").expect("edit");
-    f.refresh().await;
-    f.baselines()
+    let ManagedResolution::Published {
+        resource_id,
+        revision_id,
+        ..
+    } = f
+        .repository
+        .resolve_managed(&f.owner, ResourceKind::Skill, "local")
         .await
-        .remove(0)
-        .revision_id
-        .expect("captured revision")
+        .expect("resolution")
+    else {
+        panic!("adopted")
+    };
+    let manifest = f
+        .repository
+        .get_revision(&f.owner, &revision_id)
+        .await
+        .expect("manifest");
+    let mut files = f
+        .repository
+        .get_revision_files(&f.owner, &revision_id)
+        .await
+        .expect("files");
+    files.0.get_mut("SKILL.md").expect("skill").bytes = b"# edited\n".to_vec();
+    f.repository
+        .create_revision(
+            &f.owner,
+            &NewRevision {
+                resource_id,
+                snapshot_id: manifest.snapshot_id,
+                parent_id: Some(revision_id),
+                files,
+                dependencies: manifest.dependencies,
+                rationale: "edited candidate".to_owned(),
+            },
+        )
+        .await
+        .expect("edited revision")
 }
 
 fn request(

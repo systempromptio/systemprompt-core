@@ -54,6 +54,9 @@ pub enum AiError {
     #[error("No configured provider supports model {model}")]
     NoProviderForModel { model: String },
 
+    #[error("Upstream provider could not be resolved: {0}")]
+    Upstream(#[from] crate::services::upstream::UpstreamTargetError),
+
     #[error("Serialization failed: {0}")]
     SerializationError(#[from] serde_json::Error),
 
@@ -178,7 +181,8 @@ impl From<AiError> for systemprompt_models::errors::AiInferenceError {
             AiError::UnknownModel { .. }
             | AiError::AuthenticationRequired { .. }
             | AiError::ConfigurationError { .. }
-            | AiError::Secrets(_) => Self::Configuration(err.to_string()),
+            | AiError::Secrets(_)
+            | AiError::Upstream(_) => Self::Configuration(err.to_string()),
             AiError::DatabaseError { .. } | AiError::StorageError { .. } => {
                 Self::Storage(err.to_string())
             },

@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.60.0] - 2026-09-23
+
+### Breaking
+
+- **Breaking:** `feedback::analytics` (the normalized fact and change contracts of the retired feedback engine) is removed.
+- **Breaking:** `feedback::verification` (`DependencyVerificationInput`, `DependencyVerificationRequest`, `DependencyVerificationManifest`, `VerifiedRevisionManifest`) and `FeedbackContractError::DependencyCycle` are removed with Git dependency verification.
+- `wire::anthropic::auth_headers` is removed; headers for a (wire, hosting) pair come from `wire::upstream::UpstreamDialect`.
+
+### Added
+
+- `services::providers::Hosting` (`FirstParty`, `Vertex`) and `is_vertex_host`: hosting is read from the endpoint host, the one place that decision is made; the registry validator, Vertex discovery and the Gemini adapter use it.
+- `wire::upstream::UpstreamDialect` and `VERTEX_ANTHROPIC_VERSION`: URL path, API-key header, required headers and body envelope per (wire, hosting). Claude on Vertex posts to `/models/{model}:rawPredict` / `:streamRawPredict`, carries `anthropic_version: vertex-2023-10-16` in the body, and drops `model` and a forwarded `anthropic-version` header.
+- `ProviderEntry::find_served_model` (catalog id, else the upstream name) and `ProviderEntry::hosting`; `providers::upstream_model_in`.
+- `wire::anthropic::{SseFrameDecoder, sse_to_canonical_events}`: Anthropic SSE framing shared by the gateway and the AI service.
+
+### Changed
+
+- Gateway validation prices and checks the governance of a route's fallback against models reached by catalog id or by upstream name, matching what a failover serves.
+
+### Fixed
+
+- The Vertex rate card records Google's 2026-10-21 retirement of `qwen.qwen3-coder-480b` and `zai.glm-5` (models/deprecations/open-models); discovery withholds them from 2026-09-21 and hides a declaration of either after the date.
+- `ProviderEntry::effective_governance` resolves the served model by catalog id or upstream name, so a model-level governance override applies when the model is reached by its upstream name (a failover, or a route `upstream_model`). It fell back to the provider default, which could pass a route requirement the served model does not meet.
+
 ## [0.59.0] - 2026-09-22
 
 ### Breaking

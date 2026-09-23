@@ -89,22 +89,12 @@ fn outbox_channel_partial_eq() {
 }
 
 #[test]
-fn reporting_round_trips_the_trigger_channel_literal() {
-    assert_eq!(OutboxChannel::Reporting.as_str(), "reporting");
-    assert_eq!(
-        OutboxChannel::parse("reporting"),
-        Some(OutboxChannel::Reporting)
-    );
-}
-
-#[test]
 fn every_channel_round_trips_through_parse() {
     for channel in [
         OutboxChannel::AgUi,
         OutboxChannel::A2A,
         OutboxChannel::System,
         OutboxChannel::Analytics,
-        OutboxChannel::Reporting,
     ] {
         assert_eq!(OutboxChannel::parse(channel.as_str()), Some(channel));
     }

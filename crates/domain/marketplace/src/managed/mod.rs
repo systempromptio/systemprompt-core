@@ -26,9 +26,8 @@ mod tree;
 pub use error::{ManagedError, Result};
 pub use import::ImportedSkills;
 pub use installation::{
-    AttributionStatus, ClientEvidence, DistributionClaim, DistributionState, DistributionStatus,
-    InstallationReceipt, InstallationReceiptRequest, InstalledFile, InvocationAttribution,
-    InvocationAttributionRequest, TrafficClass,
+    ClientEvidence, DistributionClaim, DistributionState, DistributionStatus, InstallationReceipt,
+    InstallationReceiptRequest, InstalledFile,
 };
 pub use provenance::{SnapshotProvenance, SourceSpec};
 pub use publication::{
@@ -48,11 +47,7 @@ pub(crate) use resolver::managed_skill_from_bundle;
 pub use resolver::{
     ManagedResourceResolver, ManagedSkill, ManagedSkillResolution, ResolvedManagedResource,
 };
-pub use source_sync::{
-    GitContentVerification, GitSourceBinding, GitSyncRequest, GitSyncResult, GitTreeRead,
-    GitTreeReader, GitVerificationService, NativeGitTreeReader, WithdrawalProposal,
-    WithdrawalStatus,
-};
+pub use source_sync::{GitSyncRequest, GitSyncResult, WithdrawalProposal, WithdrawalStatus};
 pub use systemprompt_models::managed::{
     ASSEMBLER_VERSION, AssetDigest, AssetFile, DependencyRef, FileEntry, RevisionBundle,
     RevisionBundleError, RevisionFiles, RevisionManifest,
@@ -63,7 +58,6 @@ pub use tree::{CapturedSkills, capture_skills};
 pub(crate) use systemprompt_models::managed::validate_path as validate_inventory_path;
 pub(crate) use tree::capture_inventory_files;
 
-pub mod operations;
 
 mod organization_resolver;
 pub use organization_resolver::OrganizationSkillResolver;

@@ -267,7 +267,7 @@ impl CatalogSource for MixedPolicyCatalog {
         Ok(CatalogListing {
             models: vec![
                 DiscoveredModel {
-                    upstream: "qwen/qwen3-coder-480b-a35b-instruct-maas".to_owned(),
+                    upstream: "openai/gpt-oss-120b-maas".to_owned(),
                     launch_stage: LaunchStage::GenerallyAvailable,
                     serverless: true,
                 },
@@ -351,7 +351,7 @@ async fn discovery_filters_the_mixed_listing_and_isolates_a_malformed_provider_c
     )
     .await;
 
-    assert_eq!(report.discovered_priced, vec!["qwen.qwen3-coder-480b"]);
+    assert_eq!(report.discovered_priced, vec!["openai.gpt-oss-120b"]);
     assert_eq!(
         report.discovered_unpriced,
         vec!["qwen/unpriced-fixture-maas"]
@@ -369,7 +369,7 @@ async fn discovery_filters_the_mixed_listing_and_isolates_a_malformed_provider_c
         .collect::<std::collections::BTreeSet<_>>();
     assert_eq!(
         resulting_ids,
-        std::collections::BTreeSet::from(["configured.vertex", "qwen.qwen3-coder-480b"])
+        std::collections::BTreeSet::from(["configured.vertex", "openai.gpt-oss-120b"])
     );
     assert_eq!(
         serde_json::to_value(&providers.providers[0].models[0])

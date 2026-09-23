@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.60.0] - 2026-09-23
+
+### Added
+
+- `JobResult::is_idle`: a successful run with `with_stats(0, 0)` and no message, which the scheduler does not record.
+- `Job::configured` (default `true`): a job that answers `false` is not cron-scheduled.
+
 ## [0.53.0] - 2026-09-15
 
 ### Breaking

@@ -17,8 +17,8 @@ use systemprompt_database::DbPool;
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::JobRepository;
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_app_context, fixture_database_url, fixture_db_pool,
-    install_test_signing_key,
+    DisposableDb, ensure_test_bootstrap, fixture_app_context, fixture_database_url,
+    fixture_db_pool, install_test_signing_key,
 };
 
 const KNOWN_JOB: &str = "content_prerender";
@@ -199,21 +199,8 @@ async fn logs_delete_clears_every_entry() {
     ensure_test_bootstrap();
     install_test_signing_key();
 
-    let base_url = fixture_database_url().unwrap();
-    let admin = fixture_db_pool(&base_url)
-        .await
-        .unwrap()
-        .pool_arc()
-        .unwrap()
-        .as_ref()
-        .clone();
-    let name = format!("cov_cli_logsdel_{}", uuid::Uuid::new_v4().simple());
-    sqlx::query(sqlx::AssertSqlSafe(format!("CREATE DATABASE \"{name}\"")))
-        .execute(&admin)
-        .await
-        .unwrap();
-    let (prefix, _) = base_url.rsplit_once('/').unwrap();
-    let url = format!("{prefix}/{name}");
+    let database = DisposableDb::create("cov_cli_logsdel").await.unwrap();
+    let url = database.url().to_owned();
 
     {
         let pool = fixture_db_pool(&url).await.unwrap();
@@ -263,9 +250,5 @@ async fn logs_delete_clears_every_entry() {
         assert_eq!(after, 0, "`logs delete` must empty the table");
     }
 
-    let _ = sqlx::query(sqlx::AssertSqlSafe(format!(
-        "DROP DATABASE IF EXISTS \"{name}\" WITH (FORCE)"
-    )))
-    .execute(&admin)
-    .await;
+    database.drop_now().await;
 }

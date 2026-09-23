@@ -58,7 +58,6 @@ async fn setup_api_server_assembles_full_router() -> anyhow::Result<()> {
                 Arc::new(AnalyticsService::new(None, None, &analytics_repositories));
             let session_usage: systemprompt_traits::DynSessionUsageCounters =
                 analytics_service.session_repo().owner();
-            let sqlx_pool = pool.pool_arc()?.as_ref().clone();
             DataPlane {
                 database: Arc::clone(&pool),
                 analytics_service,
@@ -96,19 +95,6 @@ async fn setup_api_server_assembles_full_router() -> anyhow::Result<()> {
                 mcp_session_repository: Arc::new(
                     systemprompt_mcp::repository::McpSessionRepository::new(&pool)?,
                 ),
-                feedback_snapshots_repository: Arc::new(
-                    systemprompt_analytics::snapshots::FeedbackSnapshotsRepository::new(
-                        sqlx_pool.clone(),
-                        systemprompt_analytics::feedback::FeedbackFactsRepository::new(
-                            sqlx_pool.clone(),
-                        ),
-                    ),
-                ),
-                feedback_facts_repository: Arc::new(
-                    systemprompt_analytics::feedback::FeedbackFactsRepository::new(
-                        sqlx_pool.clone(),
-                    ),
-                ),
                 managed_repository: Arc::new(
                     systemprompt_marketplace::managed::ManagedRepository::new(&pool)?,
                 ),
@@ -144,7 +130,6 @@ async fn setup_api_server_assembles_full_router() -> anyhow::Result<()> {
             publish_guard: Arc::new(tokio::sync::Mutex::new(
                 systemprompt_marketplace::inventory::PublishGuard::default(),
             )),
-            snapshot_wakeup: Arc::new(systemprompt_runtime::reporting::SnapshotWakeup::default()),
         },
     ));
 

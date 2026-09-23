@@ -18,7 +18,6 @@ systemprompt-logging = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-models = { workspace = true }
-systemprompt-extension = { workspace = true }
 tokio = { workspace = true }
 chrono = { workspace = true }
 serde_json = { workspace = true }

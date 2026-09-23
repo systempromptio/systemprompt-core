@@ -52,7 +52,7 @@ impl RequestAnalyticsRepository {
                     SUM(cost_microdollars)::bigint as "cost",
                     AVG(latency_ms)::float8 as "avg_latency",
                     COUNT(*) FILTER (WHERE cache_hit = true)::bigint as "cache_hits!"
-                FROM analytics_report_ai_requests
+                FROM report_ai_requests
                 WHERE created_at >= $1 AND created_at < $2
                   AND model ILIKE $3
                 "#,
@@ -78,7 +78,7 @@ impl RequestAnalyticsRepository {
                     SUM(cost_microdollars)::bigint as "cost",
                     AVG(latency_ms)::float8 as "avg_latency",
                     COUNT(*) FILTER (WHERE cache_hit = true)::bigint as "cache_hits!"
-                FROM analytics_report_ai_requests
+                FROM report_ai_requests
                 WHERE created_at >= $1 AND created_at < $2
                 "#,
                 start,
@@ -106,7 +106,7 @@ impl RequestAnalyticsRepository {
                 SUM(tokens_used)::bigint as "total_tokens",
                 SUM(cost_microdollars)::bigint as "total_cost",
                 AVG(latency_ms)::float8 as "avg_latency"
-            FROM analytics_report_ai_requests
+            FROM report_ai_requests
             WHERE created_at >= $1 AND created_at < $2
               AND provider IS NOT NULL AND model IS NOT NULL
             GROUP BY provider, model
@@ -135,7 +135,7 @@ impl RequestAnalyticsRepository {
                 tokens_used,
                 cost_microdollars,
                 latency_ms
-            FROM analytics_report_ai_requests
+            FROM report_ai_requests
             WHERE created_at >= $1 AND created_at < $2
             ORDER BY created_at
             "#,
@@ -171,7 +171,7 @@ impl RequestAnalyticsRepository {
                 status as "status!",
                 error_message,
                 user_id as "user_id!: UserId"
-            FROM analytics_report_ai_requests
+            FROM report_ai_requests
             WHERE created_at >= $1 AND created_at < $2
               AND ($3::text IS NULL OR model ILIKE $3)
               AND ($4::text IS NULL OR user_id = $4)

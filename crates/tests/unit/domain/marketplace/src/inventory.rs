@@ -1,8 +1,8 @@
 use std::collections::BTreeMap;
-use systemprompt_identifiers::{ManagedResourceId, ResourceRevisionId, TaskId, UserId};
+use systemprompt_identifiers::{ManagedResourceId, ResourceRevisionId, UserId};
 use systemprompt_marketplace::inventory::{
-    BaselinePreparation, BaselineScope, InventoryService, ObservedMembership, configured_identity,
-    scan_configured_inventory,
+    BaselineScope, InventoryService, LatestPublication, LatestPublicationStatus, PublishGuard,
+    configured_identity, scan_configured_inventory,
 };
 use systemprompt_marketplace::managed::{
     AssetDigest, AssetFile, ManagedRepository, NewResource, NewRevision, PublicationAction,
@@ -117,23 +117,19 @@ impl Fixture {
             .expect("revision");
         (resource, revision)
     }
-    async fn baselines(&self) -> Vec<systemprompt_marketplace::inventory::BaselineCapture> {
+    async fn publish(&self) -> Vec<LatestPublication> {
         InventoryService::new(self.repository.clone())
-            .prepare_baselines(
+            .publish_latest(
                 &BaselineScope {
                     owner: &self.owner,
                     actor: &self.owner,
                     root: self.root.path(),
                     services: &ServicesConfig::default(),
                 },
-                &BaselinePreparation {
-                    operation_id: TaskId::generate(),
-                    after: None,
-                    limit: 100,
-                },
+                &mut PublishGuard::default(),
             )
             .await
-            .expect("baselines")
+            .expect("publish latest")
     }
 }
 

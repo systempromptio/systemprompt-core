@@ -37,10 +37,6 @@ impl UserRepository {
     pub async fn merge_users(&self, source_id: &UserId, target_id: &UserId) -> Result<MergeResult> {
         let mut conn = self.write_pool.acquire().await?;
         let mut tx = conn.begin().await?;
-        sqlx::query!("SELECT public.begin_user_privacy() AS prepared")
-            .fetch_one(&mut *tx)
-            .await?;
-
         let source = source_id.as_str();
         let target = target_id.as_str();
 
@@ -71,9 +67,6 @@ impl UserRepository {
             .execute(&mut *tx)
             .await?;
 
-        sqlx::query!("SELECT public.finish_user_privacy() AS finished")
-            .fetch_one(&mut *tx)
-            .await?;
         tx.commit().await?;
         Ok(MergeResult {
             sessions,

@@ -108,7 +108,7 @@ async fn update_job_execution_records_status_and_error() {
 }
 
 #[tokio::test]
-async fn increment_run_count_advances_counter() {
+async fn recorded_runs_advance_run_count() {
     let Some(pool) = try_db_or_skip().await else {
         return;
     };
@@ -123,8 +123,20 @@ async fn increment_run_count_advances_counter() {
         .expect("find")
         .expect("row")
         .run_count;
-    repo.increment_run_count(&name).await.expect("increment");
-    repo.increment_run_count(&name).await.expect("increment 2");
+    for _ in 0..2 {
+        repo.update_job_execution(
+            &name,
+            JobRunRecord {
+                status: JobStatus::Success,
+                error: None,
+                message: None,
+                next_run: None,
+                instance_id: &InstanceId::new("test-node"),
+            },
+        )
+        .await
+        .expect("record run");
+    }
     let after = repo
         .find_job(&name)
         .await

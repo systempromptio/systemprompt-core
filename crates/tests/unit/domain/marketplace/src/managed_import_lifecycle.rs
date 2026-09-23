@@ -49,10 +49,8 @@ async fn importing_captured_skills_retains_one_snapshot_and_immutable_files_per_
             .collect::<Vec<_>>(),
         ["alpha", "beta"]
     );
-    let provenance = repository
-        .snapshot_provenance(&owner, &imported.snapshot_id)
-        .await
-        .unwrap();
+    let provenance =
+        crate::source_sync_fixture::stored_provenance(&db, &owner, &imported.snapshot_id).await;
     assert_eq!(provenance.source_kind, "managed");
     assert_eq!(provenance.commit, None);
     assert_eq!(provenance.tree_digest, captured.tree_digest().clone());

@@ -1,3 +1,4 @@
+use systemprompt_ai::UpstreamTarget;
 use systemprompt_ai::services::providers::{AiProvider, ProviderClientParams, ProviderFactory};
 use systemprompt_models::services::{
     ProviderModel, ProviderRegistry, ResilienceSettings, WireProtocol,
@@ -22,9 +23,7 @@ fn create(
     let resilience = ResilienceSettings::default();
     let params = ProviderClientParams {
         name,
-        wire,
-        endpoint,
-        api_key: "test-key".to_owned(),
+        target: UpstreamTarget::api_key(name, wire, endpoint, "test-key"),
         google_search_enabled,
         resilience: &resilience,
         models: &models,

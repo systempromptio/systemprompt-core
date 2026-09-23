@@ -1,12 +1,8 @@
 use chrono::Utc;
 use sqlx::PgPool;
 use std::collections::BTreeMap;
-use systemprompt_identifiers::{
-    ConsumerInstallationId, DeviceCertId, NativeSessionId, ResourceInvocationId, UserId,
-};
-use systemprompt_marketplace::managed::consumer::{
-    ConsumerInvocationRequest, IssuedConsumerCredential,
-};
+use systemprompt_identifiers::{ConsumerInstallationId, DeviceCertId, NativeSessionId, UserId};
+use systemprompt_marketplace::managed::consumer::IssuedConsumerCredential;
 use systemprompt_marketplace::managed::{
     AssetDigest, AssetFile, ManagedRepository, NewResource, NewRevision, PublicationAction,
     PublicationRequest, ResourceKind, RevisionFiles, SnapshotProvenance, SourceSpec,
@@ -210,20 +206,6 @@ pub async fn fixture_with_metadata(metadata: Option<(&str, &str)>) -> Fixture {
 }
 
 impl Fixture {
-    pub fn invocation(&self) -> ConsumerInvocationRequest {
-        ConsumerInvocationRequest {
-            invocation_id: ResourceInvocationId::new("invocation"),
-            host: self.request.host,
-            session_id: NativeSessionId::new("session"),
-            resource_id: self.request.resource_id.clone(),
-            installation_id: Some(self.request.installation_id.clone()),
-            revision_id: Some(self.request.revision_id.clone()),
-            generation: Some(self.request.generation),
-            occurred_at: Utc::now(),
-            evidence: serde_json::json!({"source":"authenticated-bridge"}),
-        }
-    }
-
     pub async fn receipt_binding(&self) -> SessionBindingRequest {
         let receipt = self
             .repo

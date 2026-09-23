@@ -8,8 +8,6 @@ mod display_smoke;
 mod format;
 mod maintenance;
 mod output;
-mod retention;
-mod retention_scheduler;
 mod spans;
 mod startup_banners;
 mod structured_output;

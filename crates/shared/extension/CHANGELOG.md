@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.60.0] - 2026-09-23
+
+### Changed
+
+- `purge` module docs no longer refer to the retired reporting privacy transaction; no API change.
+
 ## [0.59.0] - 2026-09-22
 
 ### Added

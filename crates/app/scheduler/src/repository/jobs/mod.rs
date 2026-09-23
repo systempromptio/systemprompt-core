@@ -55,6 +55,16 @@ impl JobRepository {
         Ok(())
     }
 
+    pub async fn delete_jobs_not_in(&self, known: &[String]) -> SchedulerResult<u64> {
+        let result = sqlx::query!(
+            "DELETE FROM scheduled_jobs WHERE NOT (job_name = ANY($1))",
+            known
+        )
+        .execute(&*self.write_pool)
+        .await?;
+        Ok(result.rows_affected())
+    }
+
     pub async fn find_job(&self, job_name: &str) -> SchedulerResult<Option<ScheduledJob>> {
         sqlx::query_as!(
             ScheduledJob,
@@ -111,7 +121,8 @@ impl JobRepository {
                 next_run = $4,
                 last_instance_id = $5,
                 updated_at = $6,
-                last_message = COALESCE($8, last_message)
+                last_message = COALESCE($8, last_message),
+                run_count = run_count + 1
             WHERE job_name = $7
             "#,
             now,
@@ -126,16 +137,6 @@ impl JobRepository {
         .execute(&*self.write_pool)
         .await?;
 
-        Ok(())
-    }
-
-    pub async fn increment_run_count(&self, job_name: &str) -> SchedulerResult<()> {
-        sqlx::query!(
-            "UPDATE scheduled_jobs SET run_count = run_count + 1 WHERE job_name = $1",
-            job_name
-        )
-        .execute(&*self.write_pool)
-        .await?;
         Ok(())
     }
 

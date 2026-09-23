@@ -69,42 +69,12 @@ fn migrations_returns_vec() {
 }
 
 #[test]
-fn owner_capture_and_privacy_contracts_are_registered() {
-    let schemas = LoggingExtension.schemas();
-    let capture: Vec<_> = schemas
-        .iter()
-        .filter(|schema| {
-            schema.table.is_none()
-                && schema
-                    .sql
-                    .contains("EXECUTE FUNCTION sp_capture_reporting_change")
-        })
-        .collect();
-    assert_eq!(
-        capture.len(),
-        1,
-        "owner capture SQL must be registered exactly once"
-    );
+fn no_reporting_capture_or_privacy_sql_is_registered() {
     assert!(
-        capture[0].sql.contains("reporting_source_analytics_events"),
-        "missing reporting view: reporting_source_analytics_events"
-    );
-    assert!(
-        !capture[0].sql.contains("reporting_source_logs"),
-        "logs is no longer a reporting source"
-    );
-    let privacy: Vec<_> = schemas
-        .iter()
-        .filter(|schema| {
-            schema.table.is_none()
-                && schema
-                    .sql
-                    .contains("CREATE OR REPLACE FUNCTION public.lock_logging_reporting_sources")
-        })
-        .collect();
-    assert_eq!(
-        privacy.len(),
-        1,
-        "owner privacy SQL must survive capture registration"
+        LoggingExtension
+            .schemas()
+            .iter()
+            .all(|schema| !schema.sql.contains("reporting")),
+        "the reporting projection is retired"
     );
 }

@@ -11,6 +11,7 @@ pub mod keys;
 pub mod messaging;
 pub mod net;
 pub mod oauth;
+pub mod orphans;
 pub mod paths;
 pub mod secrets;
 pub mod service_row;
@@ -25,11 +26,10 @@ pub use agent::{
     NotManagedSkills, ScriptedSkills, ToolExecutionLedger,
 };
 pub use app_context::{
-    default_governance_engine, drain_reporting, fixture_analytics_repositories,
-    fixture_app_context, fixture_app_context_with, fixture_app_context_with_config,
-    fixture_app_context_with_hook, fixture_app_context_with_user_repository,
-    fixture_artifact_ingest, fixture_config, fixture_fingerprint_repository, hold_reporting_lock,
-    refresh_reporting,
+    default_governance_engine, fixture_analytics_repositories, fixture_app_context,
+    fixture_app_context_with, fixture_app_context_with_config, fixture_app_context_with_hook,
+    fixture_app_context_with_user_repository, fixture_artifact_ingest, fixture_config,
+    fixture_fingerprint_repository,
 };
 pub use bootstrap::{
     ensure_messaging_bootstrap, ensure_test_bootstrap, init_isolated_bootstrap,

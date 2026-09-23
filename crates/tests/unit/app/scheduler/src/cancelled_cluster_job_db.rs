@@ -86,10 +86,10 @@ async fn cancelling_a_cluster_job_releases_its_session_lock_for_a_later_dispatch
         .unwrap()
         .unwrap();
     assert_eq!(
-        cancelled.last_status.as_deref(),
-        Some(JobStatus::Running.as_str())
+        cancelled.last_status, None,
+        "a run is recorded only when it completes"
     );
-    assert_eq!(cancelled.run_count, 1);
+    assert_eq!(cancelled.run_count, 0);
     let events: Vec<serde_json::Value> =
         String::from_utf8(diagnostics.0.lock().expect("capture").clone())
             .unwrap()
@@ -129,8 +129,8 @@ async fn cancelling_a_cluster_job_releases_its_session_lock_for_a_later_dispatch
         Some(JobStatus::Success.as_str())
     );
     assert_eq!(
-        recovered.run_count, 2,
-        "lock-skipped retries must not count as runs"
+        recovered.run_count, 1,
+        "neither the cancelled run nor lock-skipped retries count as runs"
     );
 
     pool.write_pool_arc().unwrap().close().await;

@@ -20,7 +20,7 @@ use systemprompt_models::bridge::manifest::{
 use systemprompt_models::services::ServicesConfig;
 
 use crate::bundle::BundleContent;
-use crate::catalog::fingerprint::hash_dir_metadata;
+use crate::catalog::fingerprint::{canonical_json, hash_dir_metadata};
 use crate::catalog::{
     disabled_mcp_server_names, load_agents, load_artifacts, load_managed_mcp_servers,
     validate_artifact_tools,
@@ -121,8 +121,7 @@ pub(super) fn catalog_fingerprint(
     api_external_url: &str,
 ) -> Result<[u8; 32], MarketplaceError> {
     let mut hasher = Sha256::new();
-    let config =
-        serde_json::to_vec(services).map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
+    let config = canonical_json(services).map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
     hasher.update((config.len() as u64).to_le_bytes());
     hasher.update(&config);
     hasher.update(services_root.as_os_str().as_encoded_bytes());

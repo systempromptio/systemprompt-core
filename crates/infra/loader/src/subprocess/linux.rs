@@ -5,6 +5,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::process::Command;
+use std::time::Duration;
 
 #[expect(
     unsafe_code,
@@ -35,19 +36,38 @@ pub(super) fn arm_parent_death_signal(cmd: &mut Command) {
     }
 }
 
+const IDENTITY_ATTEMPTS: u32 = 20;
+const IDENTITY_RETRY: Duration = Duration::from_millis(5);
+
 #[must_use]
 pub fn live_pid_is_subprocess(pid: u32, name_key: &str, service_name: &str) -> bool {
-    match std::fs::read(format!("/proc/{pid}/environ")) {
-        Ok(environ) => systemprompt_models::subprocess::environ_identifies_child(
-            &environ,
-            name_key,
-            service_name,
-        ),
-        Err(e) => {
-            tracing::warn!(pid, error = %e, "Could not read process environ to verify child identity");
-            false
-        },
+    // Why: inside execve a process's `/proc/<pid>/environ` is briefly empty or
+    // unreadable. Reading that as "not ours" made callers skip the signal and
+    // report a stop they never made, so a live process whose environment is
+    // not yet readable is re-read, bounded, before it is judged.
+    for attempt in 1..=IDENTITY_ATTEMPTS {
+        let settling = attempt < IDENTITY_ATTEMPTS && process_present(pid) && !is_zombie(pid);
+        match std::fs::read(format!("/proc/{pid}/environ")) {
+            Ok(environ) if !environ.is_empty() => {
+                return systemprompt_models::subprocess::environ_identifies_child(
+                    &environ,
+                    name_key,
+                    service_name,
+                );
+            },
+            Ok(_) | Err(_) if settling => std::thread::sleep(IDENTITY_RETRY),
+            Ok(_) => return false,
+            Err(e) => {
+                tracing::warn!(pid, error = %e, "Could not read process environ to verify child identity");
+                return false;
+            },
+        }
     }
+    false
+}
+
+fn process_present(pid: u32) -> bool {
+    std::path::Path::new(&format!("/proc/{pid}")).exists()
 }
 
 #[must_use]

@@ -21,21 +21,36 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::Instant;
 use systemprompt_models::net::IMAGE_GEN_OPENAI_TIMEOUT;
-use systemprompt_models::services::ModelDefinition;
+use systemprompt_models::services::{ModelDefinition, WireProtocol};
+
+use crate::services::upstream::UpstreamTarget;
 
 const DEFAULT_IMAGE_CENTS: f32 = 4.0;
+const DEFAULT_ENDPOINT: &str = "https://api.openai.com/v1";
 
 #[derive(Debug)]
 pub struct OpenAiImageProvider {
     client: Client,
-    api_key: String,
-    endpoint: String,
+    target: UpstreamTarget,
     default_model: String,
     model_definitions: HashMap<String, ModelDefinition>,
 }
 
 impl OpenAiImageProvider {
     pub fn new(api_key: String) -> Self {
+        Self::with_endpoint(api_key, DEFAULT_ENDPOINT.to_owned())
+    }
+
+    pub fn with_endpoint(api_key: String, endpoint: String) -> Self {
+        Self::with_target(UpstreamTarget::api_key(
+            "openai",
+            WireProtocol::OpenAiChat,
+            endpoint,
+            api_key,
+        ))
+    }
+
+    pub fn with_target(target: UpstreamTarget) -> Self {
         let client = Client::builder()
             .timeout(IMAGE_GEN_OPENAI_TIMEOUT)
             .build()
@@ -46,17 +61,10 @@ impl OpenAiImageProvider {
 
         Self {
             client,
-            api_key,
-            endpoint: "https://api.openai.com/v1".to_owned(),
+            target,
             default_model: "gpt-image-1".to_owned(),
             model_definitions: HashMap::new(),
         }
-    }
-
-    pub fn with_endpoint(api_key: String, endpoint: String) -> Self {
-        let mut provider = Self::new(api_key);
-        provider.endpoint = endpoint;
-        provider
     }
 
     pub fn with_default_model(mut self, model: String) -> Self {
@@ -110,13 +118,16 @@ impl OpenAiImageProvider {
     }
 
     async fn request_image(&self, dalle_request: &DalleRequest) -> Result<String> {
-        let url = format!("{}/images/generations", self.endpoint);
-
-        let response = self
-            .client
-            .post(&url)
-            .header("Authorization", format!("Bearer {}", self.api_key))
-            .header("Content-Type", "application/json")
+        let call = self.target.call().await?;
+        let url = format!(
+            "{}/images/generations",
+            call.endpoint().trim_end_matches('/')
+        );
+        let mut request = self.client.post(&url);
+        for (name, value) in call.headers(WireProtocol::OpenAiChat) {
+            request = request.header(name, value);
+        }
+        let response = request
             .json(dalle_request)
             .send()
             .await

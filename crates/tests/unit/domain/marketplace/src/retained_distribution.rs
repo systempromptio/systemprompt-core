@@ -1,8 +1,8 @@
 use crate::consumer_fixture::{Fixture, fixture};
-use systemprompt_identifiers::{ConsumerInstallationId, ResourceInvocationId, SessionId};
+use systemprompt_identifiers::{ConsumerInstallationId, SessionId};
 use systemprompt_marketplace::managed::{
-    AssetDigest, AttributionStatus, ClientEvidence, DistributionState, InstallationReceiptRequest,
-    InstalledFile, InvocationAttributionRequest, ManagedError, TrafficClass,
+    AssetDigest, ClientEvidence, DistributionState, InstallationReceiptRequest, InstalledFile,
+    ManagedError,
 };
 
 fn evidence(f: &Fixture, session: &str) -> ClientEvidence {
@@ -277,85 +277,5 @@ async fn historical_evidence_rejects_forged_owner_missing_session_and_oversize_p
             .await
             .unwrap()
             .is_empty()
-    );
-}
-
-#[tokio::test]
-async fn historical_attribution_matches_exact_session_and_preserves_unknown_immutable_history() {
-    let f = fixture().await;
-    deliver(&f).await;
-    let receipt = receipt(&f);
-    f.repo
-        .record_installation(&f.owner, &receipt)
-        .await
-        .unwrap();
-    let request = InvocationAttributionRequest {
-        invocation_id: ResourceInvocationId::new("historical-invocation"),
-        installation_id: Some(receipt.installation_id.clone()),
-        resource_key: Some("skill".to_owned()),
-        resource_revision_id: Some(f.request.revision_id.clone()),
-        publication_generation: Some(1),
-        traffic_class: TrafficClass::Production,
-        authenticated_evidence: receipt.client_evidence.clone(),
-    };
-    let verified = f
-        .repo
-        .attribute_invocation(&f.owner, &request)
-        .await
-        .unwrap();
-    assert_eq!(verified.status, AttributionStatus::Verified);
-    assert_eq!(verified.resource_id.as_ref(), Some(&f.request.resource_id));
-    assert_eq!(
-        f.repo
-            .attribute_invocation(&f.owner, &request)
-            .await
-            .unwrap()
-            .id,
-        verified.id
-    );
-    let mut changed = request.clone();
-    changed.traffic_class = TrafficClass::Fixture;
-    assert!(matches!(
-        f.repo.attribute_invocation(&f.owner, &changed).await,
-        Err(ManagedError::Conflict(_))
-    ));
-    for mismatch in 0..4 {
-        let mut unknown = request.clone();
-        unknown.invocation_id = ResourceInvocationId::new(format!("unknown-{mismatch}"));
-        match mismatch {
-            0 => unknown.authenticated_evidence.session_id = SessionId::new("other-session"),
-            1 => unknown.publication_generation = Some(2),
-            2 => unknown.resource_revision_id = None,
-            _ => unknown.installation_id = None,
-        }
-        let retained = f
-            .repo
-            .attribute_invocation(&f.owner, &unknown)
-            .await
-            .unwrap();
-        assert_eq!(retained.status, AttributionStatus::RevisionUnknown);
-        assert!(retained.resource_id.is_none());
-        assert!(retained.revision_id.is_none());
-        let retry = f
-            .repo
-            .attribute_invocation(&f.owner, &unknown)
-            .await
-            .unwrap();
-        assert_eq!(retained.id, retry.id);
-    }
-    let mut forged = request.clone();
-    forged.authenticated_evidence.owner_id = f.consumer.clone();
-    assert!(
-        f.repo
-            .attribute_invocation(&f.owner, &forged)
-            .await
-            .is_err()
-    );
-    forged.authenticated_evidence = evidence(&f, "");
-    assert!(
-        f.repo
-            .attribute_invocation(&f.owner, &forged)
-            .await
-            .is_err()
     );
 }

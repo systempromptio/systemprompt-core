@@ -55,10 +55,6 @@ impl UserRepository {
     }
 
     pub async fn update_status(&self, id: &UserId, status: UserStatus) -> Result<User> {
-        let mut tx = self.write_pool.begin().await?;
-        sqlx::query!("SELECT public.begin_user_privacy() AS prepared")
-            .fetch_one(&mut *tx)
-            .await?;
         let row = sqlx::query_as!(
             User,
             r#"
@@ -72,15 +68,9 @@ impl UserRepository {
             Utc::now(),
             id.as_str()
         )
-        .fetch_optional(&mut *tx)
+        .fetch_optional(&*self.write_pool)
         .await?
         .ok_or_else(|| UserError::NotFound(id.clone()))?;
-
-        sqlx::query!("SELECT public.finish_user_privacy() AS finished")
-            .fetch_one(&mut *tx)
-            .await?;
-        tx.commit().await?;
-
         Ok(row)
     }
 
@@ -131,10 +121,6 @@ impl UserRepository {
         id: &UserId,
         params: UpdateUserParams<'_>,
     ) -> Result<User> {
-        let mut tx = self.write_pool.begin().await?;
-        sqlx::query!("SELECT public.begin_user_privacy() AS prepared")
-            .fetch_one(&mut *tx)
-            .await?;
         let row = sqlx::query_as!(
             User,
             r#"
@@ -151,15 +137,9 @@ impl UserRepository {
             Utc::now(),
             id.as_str()
         )
-        .fetch_optional(&mut *tx)
+        .fetch_optional(&*self.write_pool)
         .await?
         .ok_or_else(|| UserError::NotFound(id.clone()))?;
-
-        sqlx::query!("SELECT public.finish_user_privacy() AS finished")
-            .fetch_one(&mut *tx)
-            .await?;
-        tx.commit().await?;
-
         Ok(row)
     }
 
@@ -186,9 +166,6 @@ impl UserRepository {
 
     pub async fn delete(&self, id: &UserId) -> Result<Vec<super::PurgeCount>> {
         let mut tx = self.write_pool.begin().await?;
-        sqlx::query!("SELECT public.begin_user_privacy() AS prepared")
-            .fetch_one(&mut *tx)
-            .await?;
         let sessions = sqlx::query!("DELETE FROM user_sessions WHERE user_id = $1", id.as_str())
             .execute(&mut *tx)
             .await?;
@@ -209,9 +186,6 @@ impl UserRepository {
             return Err(UserError::NotFound(id.clone()));
         }
 
-        sqlx::query!("SELECT public.finish_user_privacy() AS finished")
-            .fetch_one(&mut *tx)
-            .await?;
         tx.commit().await?;
 
         Ok(removed)
@@ -219,9 +193,6 @@ impl UserRepository {
 
     pub async fn cleanup_old_anonymous(&self, days: i32) -> Result<u64> {
         let mut tx = self.write_pool.begin().await?;
-        sqlx::query!("SELECT public.begin_user_privacy() AS prepared")
-            .fetch_one(&mut *tx)
-            .await?;
         let cutoff = Utc::now() - Duration::days(i64::from(days));
         let anonymous_role = UserRole::Anonymous.as_str();
         sqlx::query!("DELETE FROM user_sessions WHERE user_id IN (SELECT u.id FROM users u WHERE $1 = ANY(u.roles) AND u.created_at < $2 AND NOT EXISTS (SELECT 1 FROM user_sessions s WHERE s.user_id = u.id AND s.ended_at IS NULL))", anonymous_role, cutoff)
@@ -245,9 +216,6 @@ impl UserRepository {
         .execute(&mut *tx)
         .await?;
 
-        sqlx::query!("SELECT public.finish_user_privacy() AS finished")
-            .fetch_one(&mut *tx)
-            .await?;
         tx.commit().await?;
 
         Ok(result.rows_affected())

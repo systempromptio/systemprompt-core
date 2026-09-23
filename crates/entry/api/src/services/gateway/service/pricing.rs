@@ -38,7 +38,7 @@ pub(super) fn failover_pricing(
     candidates
         .into_iter()
         .flatten()
-        .find_map(|model| upstream.provider.find_model(model))
+        .find_map(|model| upstream.provider.find_served_model(model))
         .map(|model| model.pricing)
         .ok_or_else(|| model_pricing::MissingPricing {
             provider: upstream.provider.name.as_str().to_owned(),

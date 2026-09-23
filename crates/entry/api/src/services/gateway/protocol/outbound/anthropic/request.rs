@@ -7,6 +7,7 @@
 // codec.
 use bytes::Bytes;
 use serde_json::{Map, Value};
+use systemprompt_models::services::WireProtocol;
 use systemprompt_models::services::ai::ModelLimits;
 use systemprompt_models::wire::anthropic;
 
@@ -39,6 +40,7 @@ pub(super) fn normalize_raw_body(raw: &Bytes, ctx: &OutboundCtx<'_>) -> Option<B
             ),
         );
     }
+    ctx.upstream.finish_body(WireProtocol::Anthropic, &mut obj);
     match serde_json::to_vec(&Value::Object(obj)) {
         Ok(bytes) => Some(Bytes::from(bytes)),
         Err(e) => {

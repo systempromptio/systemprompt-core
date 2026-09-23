@@ -125,9 +125,6 @@ fn export_lines(csv: &str) -> usize {
 async fn device_breakdown_renders_and_exports_seeded_sessions() {
     let pool = pool().await;
     seed_traffic(&pool).await;
-    systemprompt_test_fixtures::refresh_reporting(&pool)
-        .await
-        .unwrap();
     let ctx = ctx(&pool);
 
     let dir = tempfile::tempdir().unwrap();
@@ -155,9 +152,6 @@ async fn device_breakdown_renders_and_exports_seeded_sessions() {
 async fn including_bots_never_shrinks_the_device_breakdown() {
     let pool = pool().await;
     seed_traffic(&pool).await;
-    systemprompt_test_fixtures::refresh_reporting(&pool)
-        .await
-        .unwrap();
     let ctx = ctx(&pool);
     let dir = tempfile::tempdir().unwrap();
 
@@ -201,9 +195,6 @@ async fn including_bots_never_shrinks_the_device_breakdown() {
 async fn geo_and_source_breakdowns_render_seeded_sessions() {
     let pool = pool().await;
     seed_traffic(&pool).await;
-    systemprompt_test_fixtures::refresh_reporting(&pool)
-        .await
-        .unwrap();
     let ctx = ctx(&pool);
     let dir = tempfile::tempdir().unwrap();
 
@@ -227,9 +218,6 @@ async fn geo_and_source_breakdowns_render_seeded_sessions() {
 async fn bot_traffic_view_renders_with_a_seeded_bot_session() {
     let pool = pool().await;
     seed_traffic(&pool).await;
-    systemprompt_test_fixtures::refresh_reporting(&pool)
-        .await
-        .unwrap();
     let ctx = ctx(&pool);
 
     analytics::execute(parse(&["traffic", "bots"]), &ctx)

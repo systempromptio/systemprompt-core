@@ -165,8 +165,9 @@ fn init_bootstrap_inner_expecting(
     // rejects anything outside alphanumerics, `-` and `_`. A default tempdir is
     // named `.tmpXXXXXX`, whose leading dot fails that check — every command
     // that resolves a session then dies before reaching its own body.
+    crate::orphans::sweep_tempdirs();
     let tmp = tempfile::Builder::new()
-        .prefix("sptest")
+        .prefix(&crate::orphans::tempdir_prefix())
         .tempdir()
         .expect("create bootstrap tempdir");
     let tmp_path = tmp.path().to_path_buf();

@@ -1,14 +1,13 @@
 //! Service layer.
 //!
 //! Orchestrators on top of the repository layer. Hosts the
-//! [`AnalyticsService`], anomaly/behavioural detectors, request extractors,
+//! [`AnalyticsService`], behavioural detectors, request extractors,
 //! and provider integrations consumed by the API and CLI.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod ai_crawler_keywords;
-mod anomaly_detection;
 mod behavioral_detector;
 pub mod bot_keywords;
 pub mod detection;
@@ -18,9 +17,6 @@ mod providers;
 mod service;
 mod user_agent;
 
-pub use anomaly_detection::{
-    AnomalyCheckResult, AnomalyDetectionService, AnomalyEvent, AnomalyLevel, AnomalyThresholdConfig,
-};
 pub use behavioral_detector::{
     BEHAVIORAL_BOT_THRESHOLD, BehavioralAnalysisInput, BehavioralAnalysisResult,
     BehavioralBotDetector, BehavioralSignal, SignalType,

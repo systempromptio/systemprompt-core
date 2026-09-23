@@ -161,9 +161,6 @@ async fn get_pages_groups_by_landing_page_and_referrer_with_filters() {
     )
     .await;
 
-    systemprompt_test_fixtures::refresh_reporting(&pool)
-        .await
-        .expect("reporting snapshot");
     let (start, end) = window();
     let rows = repo
         .get_pages(PageQuery {
@@ -252,9 +249,6 @@ async fn get_pages_engaged_only_excludes_zero_request_sessions() {
     )
     .await;
 
-    systemprompt_test_fixtures::refresh_reporting(&pool)
-        .await
-        .expect("reporting snapshot");
     let (start, end) = window();
     let engaged = repo
         .get_pages(PageQuery {
@@ -326,13 +320,9 @@ async fn get_navigation_groups_internal_link_clicks_by_transition() {
     ensure_test_bootstrap();
     let pool = fixture_db_pool(&url).await.expect("pool");
     let repo = TrafficAnalyticsRepository::new(&pool).expect("repo");
-    let events = AnalyticsEventsRepository::new(
-        &pool,
-        std::sync::Arc::new(
-            systemprompt_logging::AnalyticsRepository::new(&pool).expect("logging store"),
-        ),
-    )
-    .expect("events repo");
+    let events = AnalyticsEventsRepository::new(std::sync::Arc::new(
+        systemprompt_logging::AnalyticsRepository::new(&pool).expect("logging store"),
+    ));
 
     let prefix = format!("/tn-{}", Uuid::new_v4());
     let sid = seed_session(
@@ -356,9 +346,6 @@ async fn get_navigation_groups_internal_link_clicks_by_transition() {
     seed_link_click(&events, &sid, &guide, &other, false).await;
     seed_link_click(&events, &sid, &guide, "https://example.com/ext", true).await;
 
-    systemprompt_test_fixtures::refresh_reporting(&pool)
-        .await
-        .expect("reporting snapshot");
     let (start, end) = window();
     let rows = repo
         .get_navigation(NavigationQuery {
@@ -401,13 +388,9 @@ async fn get_navigation_include_external_returns_external_clicks() {
     ensure_test_bootstrap();
     let pool = fixture_db_pool(&url).await.expect("pool");
     let repo = TrafficAnalyticsRepository::new(&pool).expect("repo");
-    let events = AnalyticsEventsRepository::new(
-        &pool,
-        std::sync::Arc::new(
-            systemprompt_logging::AnalyticsRepository::new(&pool).expect("logging store"),
-        ),
-    )
-    .expect("events repo");
+    let events = AnalyticsEventsRepository::new(std::sync::Arc::new(
+        systemprompt_logging::AnalyticsRepository::new(&pool).expect("logging store"),
+    ));
 
     let prefix = format!("/tn-{}", Uuid::new_v4());
     let sid = seed_session(
@@ -426,9 +409,6 @@ async fn get_navigation_include_external_returns_external_clicks() {
     let external = format!("https:{prefix}/off-site");
     seed_link_click(&events, &sid, &guide, &external, true).await;
 
-    systemprompt_test_fixtures::refresh_reporting(&pool)
-        .await
-        .expect("reporting snapshot");
     let (start, end) = window();
     let internal = repo
         .get_navigation(NavigationQuery {

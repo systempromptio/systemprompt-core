@@ -158,9 +158,6 @@ async fn tools_show_renders_seeded_activity() {
     let pool = pool().await;
     let ctx = ctx(&pool);
     let tool = seed_tool_fixture(&pool).await;
-    systemprompt_test_fixtures::refresh_reporting(&pool)
-        .await
-        .unwrap();
 
     analytics::execute(parse(&["tools", "show", &tool]), &ctx)
         .await
@@ -175,9 +172,6 @@ async fn tools_show_exports_csv() {
     let pool = pool().await;
     let ctx = ctx(&pool);
     let tool = seed_tool_fixture(&pool).await;
-    systemprompt_test_fixtures::refresh_reporting(&pool)
-        .await
-        .unwrap();
     let dir = tempfile::tempdir().unwrap();
     let export = dir.path().join("tools.csv");
 
@@ -196,13 +190,6 @@ async fn tools_show_exports_csv() {
 #[tokio::test]
 async fn tools_show_unknown_tool_errors() {
     let pool = pool().await;
-    // The "not found" arm is only reachable over an initialized baseline: without
-    // one the lookup fails earlier, on the uninitialized projection, and the
-    // fixture's rebuild lock is what keeps a concurrent rebuild from clearing it
-    // out from under this read.
-    systemprompt_test_fixtures::refresh_reporting(&pool)
-        .await
-        .unwrap();
     let err = analytics::execute(parse(&["tools", "show", "no-such-cov-tool"]), &ctx(&pool))
         .await
         .unwrap_err();
@@ -214,9 +201,6 @@ async fn agents_show_renders_seeded_activity() {
     let pool = pool().await;
     let ctx = ctx(&pool);
     let agent = seed_agent_fixture(&pool).await;
-    systemprompt_test_fixtures::refresh_reporting(&pool)
-        .await
-        .unwrap();
 
     analytics::execute(parse(&["agents", "show", &agent]), &ctx)
         .await
@@ -228,9 +212,6 @@ async fn agents_show_exports_csv() {
     let pool = pool().await;
     let ctx = ctx(&pool);
     let agent = seed_agent_fixture(&pool).await;
-    systemprompt_test_fixtures::refresh_reporting(&pool)
-        .await
-        .unwrap();
     let dir = tempfile::tempdir().unwrap();
     let export = dir.path().join("agents.csv");
 

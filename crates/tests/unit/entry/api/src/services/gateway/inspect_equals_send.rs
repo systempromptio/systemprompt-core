@@ -14,6 +14,7 @@
 //! it reaches the accessor blocking scanners read.
 
 use std::collections::HashMap;
+use systemprompt_ai::UpstreamCall;
 
 use serde_json::{Value, json};
 use systemprompt_api::services::gateway::protocol::canonical::{
@@ -77,6 +78,9 @@ fn raw_body_hiding_a_secret() -> bytes::Bytes {
     )
 }
 
+static UNUSED_UPSTREAM: std::sync::LazyLock<UpstreamCall> =
+    std::sync::LazyLock::new(|| UpstreamCall::api_key("http://unused.invalid", "k"));
+
 fn ctx<'a>(
     route: &'a GatewayRoute,
     request: &'a CanonicalRequest,
@@ -85,9 +89,7 @@ fn ctx<'a>(
 ) -> OutboundCtx<'a> {
     OutboundCtx {
         route,
-        endpoint: "http://unused.invalid",
-        api_key: "k",
-        api_key_is_bearer: false,
+        upstream: &UNUSED_UPSTREAM,
         request,
         upstream_model: "upstream-1",
         model_limits: limits,

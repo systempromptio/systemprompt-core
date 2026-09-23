@@ -20,6 +20,8 @@ pub const NODE_JOB: &str = "sp_test_node_job";
 pub const STAMP_FAIL_JOB: &str = "sp_test_stamp_fail_job";
 pub const STAMP_PANIC_JOB: &str = "sp_test_stamp_panic_job";
 pub const CANCELLABLE_CLUSTER_JOB: &str = "sp_test_cancellable_cluster_job";
+pub const WORKING_JOB: &str = "sp_test_working_job";
+pub const IDLE_JOB: &str = "sp_test_idle_job";
 
 pub static SLOW_JOB_STARTS: AtomicU64 = AtomicU64::new(0);
 pub static NODE_JOB_RUNS: AtomicU64 = AtomicU64::new(0);
@@ -54,6 +56,54 @@ impl Job for CancellableClusterJob {
             std::future::pending::<()>().await;
         }
         Ok(JobResult::success())
+    }
+}
+
+struct WorkingJob;
+
+#[async_trait]
+impl Job for WorkingJob {
+    fn name(&self) -> &'static str {
+        WORKING_JOB
+    }
+
+    fn schedule(&self) -> &'static str {
+        ""
+    }
+
+    fn enabled(&self) -> bool {
+        false
+    }
+
+    async fn execute(
+        &self,
+        _ctx: &JobContext,
+    ) -> systemprompt_provider_contracts::ProviderResult<JobResult> {
+        Ok(JobResult::success().with_stats(1, 0))
+    }
+}
+
+struct IdleJob;
+
+#[async_trait]
+impl Job for IdleJob {
+    fn name(&self) -> &'static str {
+        IDLE_JOB
+    }
+
+    fn schedule(&self) -> &'static str {
+        ""
+    }
+
+    fn enabled(&self) -> bool {
+        false
+    }
+
+    async fn execute(
+        &self,
+        _ctx: &JobContext,
+    ) -> systemprompt_provider_contracts::ProviderResult<JobResult> {
+        Ok(JobResult::success().with_stats(0, 0))
     }
 }
 
@@ -241,3 +291,5 @@ systemprompt_provider_contracts::submit_job!(&FailingJob);
 systemprompt_provider_contracts::submit_job!(&SlowJob);
 systemprompt_provider_contracts::submit_job!(&EmptyScheduleJob);
 systemprompt_provider_contracts::submit_job!(&CancellableClusterJob);
+systemprompt_provider_contracts::submit_job!(&WorkingJob);
+systemprompt_provider_contracts::submit_job!(&IdleJob);

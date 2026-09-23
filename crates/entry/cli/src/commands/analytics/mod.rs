@@ -14,14 +14,13 @@ pub mod content;
 pub mod conversations;
 pub mod costs;
 pub mod overview;
-pub mod projection;
 pub mod requests;
 pub mod sessions;
 pub mod shared;
 pub mod tools;
 pub mod traffic;
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use clap::Subcommand;
 
 use crate::context::CommandContext;
@@ -29,8 +28,6 @@ use crate::shared::render_result;
 
 #[derive(Debug, Subcommand)]
 pub enum AnalyticsCommands {
-    #[command(subcommand, about = "Reporting projection status and recovery")]
-    Projection(projection::ProjectionCommands),
     #[command(about = "Dashboard overview of all analytics")]
     Overview(overview::OverviewArgs),
 
@@ -60,28 +57,7 @@ pub enum AnalyticsCommands {
 }
 
 pub async fn execute(command: AnalyticsCommands, ctx: &CommandContext) -> Result<()> {
-    if !matches!(&command, AnalyticsCommands::Projection(_)) {
-        let database = ctx.database().await?;
-        let status = systemprompt_runtime::reporting::status(database.db_pool())
-            .await
-            .context("Reporting schema unavailable; apply database migrations first")?;
-        if !status.initialized {
-            match status.rebuild_source.as_deref() {
-                Some(source) => anyhow::bail!(
-                    "Reporting baseline rebuild in progress: {source} ({} rows written, last heartbeat {}); retry shortly",
-                    status.rebuild_rows,
-                    status
-                        .rebuild_heartbeat_at
-                        .map_or_else(|| "never".to_owned(), |at| at.to_rfc3339())
-                ),
-                None => anyhow::bail!(
-                    "Reporting baseline is not initialized; the server builds it at startup, or run analytics projection rebuild"
-                ),
-            }
-        }
-    }
     match command {
-        AnalyticsCommands::Projection(command) => projection::execute(command, ctx).await,
         AnalyticsCommands::Overview(args) => {
             let result =
                 overview::execute_with_pool(args, &ctx.database().await?, &ctx.cli).await?;

@@ -92,9 +92,6 @@ async fn seed_conversation(pool: &DbPool) -> String {
 async fn the_conversation_listing_projects_seeded_contexts() {
     let pool = pool().await;
     seed_conversation(&pool).await;
-    systemprompt_test_fixtures::refresh_reporting(&pool)
-        .await
-        .unwrap();
     let ctx = ctx(&pool);
 
     let dir = tempfile::tempdir().unwrap();
@@ -122,9 +119,6 @@ async fn the_conversation_listing_projects_seeded_contexts() {
 async fn conversation_stats_and_trends_render_with_seeded_tasks() {
     let pool = pool().await;
     seed_conversation(&pool).await;
-    systemprompt_test_fixtures::refresh_reporting(&pool)
-        .await
-        .unwrap();
     let ctx = ctx(&pool);
 
     analytics::execute(parse(&["conversations", "stats"]), &ctx)
@@ -139,9 +133,6 @@ async fn conversation_stats_and_trends_render_with_seeded_tasks() {
 async fn a_limit_of_one_still_renders_a_row() {
     let pool = pool().await;
     seed_conversation(&pool).await;
-    systemprompt_test_fixtures::refresh_reporting(&pool)
-        .await
-        .unwrap();
     let ctx = ctx(&pool);
 
     let dir = tempfile::tempdir().unwrap();
@@ -172,9 +163,6 @@ async fn a_limit_of_one_still_renders_a_row() {
 async fn the_conversation_listing_accepts_source_and_user_filters() {
     let pool = pool().await;
     seed_conversation(&pool).await;
-    systemprompt_test_fixtures::refresh_reporting(&pool)
-        .await
-        .unwrap();
     let ctx = ctx(&pool);
 
     for source in ["agent", "gateway", "all"] {
@@ -275,9 +263,6 @@ async fn gateway_conversations_project_exact_owners_counts_and_global_order() {
             .expect("seed gateway request message");
         }
     }
-    systemprompt_test_fixtures::refresh_reporting(&pool)
-        .await
-        .expect("refresh gateway reporting projection");
     let context = CommandContext::with_database(
         CliConfig::new()
             .with_interactive(false)

@@ -1,7 +1,7 @@
 use chrono::{Duration, Utc};
 use systemprompt_analytics::CostAnalyticsRepository;
 use systemprompt_identifiers::{ContextId, UserId};
-use systemprompt_test_fixtures::{DisposableDb, refresh_reporting, seed_user_row};
+use systemprompt_test_fixtures::{DisposableDb, seed_user_row};
 use uuid::Uuid;
 
 #[tokio::test]
@@ -103,9 +103,6 @@ async fn per_user_cost_context_queries_exclude_other_users_and_synthetic_request
         .expect("insert reporting request");
     }
 
-    refresh_reporting(&pool)
-        .await
-        .expect("refresh analytics reporting projection");
     let repository = CostAnalyticsRepository::new(&pool).expect("cost repository");
     let start = base - Duration::seconds(1);
 

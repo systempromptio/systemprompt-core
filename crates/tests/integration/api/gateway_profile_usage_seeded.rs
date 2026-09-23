@@ -18,7 +18,7 @@ use systemprompt_api::routes::gateway::gateway_router;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{AiRequestId, ContextId, UserId};
 use systemprompt_test_fixtures::{
-    AuthedFixture, drain_reporting, ensure_test_bootstrap, fixture_app_context, fixture_db_pool,
+    AuthedFixture, ensure_test_bootstrap, fixture_app_context, fixture_db_pool,
     install_test_signing_key, seed_admin_credential,
 };
 use tower::ServiceExt;
@@ -78,7 +78,6 @@ async fn seed_history(pool: &DbPool, email: &str) -> Result<Seeded> {
     seed_request(pool, &cred.user_id, &context, "claude-usage-a", 1_000, 500).await?;
     seed_request(pool, &cred.user_id, &context, "claude-usage-a", 500, 250).await?;
     seed_request(pool, &cred.user_id, &context, "claude-usage-b", 500, 125).await?;
-    drain_reporting(pool).await?;
     Ok(Seeded { cred, context })
 }
 
@@ -241,7 +240,6 @@ async fn zero_token_models_keep_finite_zero_shares_and_preserve_usage_rows() -> 
     let context = ContextId::generate();
     seed_request(&pool, &cred.user_id, &context, "zero-model-a", 0, 11).await?;
     seed_request(&pool, &cred.user_id, &context, "zero-model-b", 0, 13).await?;
-    drain_reporting(&pool).await?;
 
     let report = usage(app, &cred).await?;
     let models = report["top_models"].as_array().expect("top models");

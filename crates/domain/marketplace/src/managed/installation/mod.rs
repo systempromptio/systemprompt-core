@@ -1,5 +1,4 @@
-//! Idempotent distribution, exact installation receipts, and verified
-//! attribution.
+//! Idempotent distribution and exact installation receipts.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -10,8 +9,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{
     ConsumerInstallationId, DeviceId, DistributionId, EventOutboxId, InstallationReceiptId,
-    InvocationAttributionId, ManagedResourceId, PublicationId, ResourceInvocationId,
-    ResourceRevisionId, SessionId, UserId,
+    ManagedResourceId, PublicationId, ResourceRevisionId, SessionId, UserId,
 };
 use systemprompt_models::feedback::receipts::ConsumerReceiptRequest;
 
@@ -114,65 +112,4 @@ pub struct InstallationReceipt {
     pub consumer_evidence: Option<ConsumerReceiptRequest>,
     pub fully_verified: bool,
     pub verified_at: DateTime<Utc>,
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum TrafficClass {
-    Production,
-    Fixture,
-}
-
-impl TrafficClass {
-    const fn as_str(self) -> &'static str {
-        match self {
-            Self::Production => "production",
-            Self::Fixture => "fixture",
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, sqlx::Type)]
-#[serde(rename_all = "snake_case")]
-#[sqlx(type_name = "TEXT", rename_all = "snake_case")]
-pub enum AttributionStatus {
-    Verified,
-    RevisionUnknown,
-    Unsupported,
-    Historical,
-}
-
-impl AttributionStatus {
-    const fn as_str(self) -> &'static str {
-        match self {
-            Self::Verified => "verified",
-            Self::RevisionUnknown => "revision_unknown",
-            Self::Unsupported => "unsupported",
-            Self::Historical => "historical",
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct InvocationAttribution {
-    pub id: InvocationAttributionId,
-    pub invocation_id: ResourceInvocationId,
-    pub installation_id: Option<ConsumerInstallationId>,
-    pub resource_id: Option<ManagedResourceId>,
-    pub revision_id: Option<ResourceRevisionId>,
-    pub publication_generation: Option<i64>,
-    pub traffic_class: TrafficClass,
-    pub status: AttributionStatus,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct InvocationAttributionRequest {
-    pub invocation_id: ResourceInvocationId,
-    pub installation_id: Option<ConsumerInstallationId>,
-    pub resource_key: Option<String>,
-    pub resource_revision_id: Option<ResourceRevisionId>,
-    pub publication_generation: Option<i64>,
-    pub traffic_class: TrafficClass,
-    pub authenticated_evidence: ClientEvidence,
 }

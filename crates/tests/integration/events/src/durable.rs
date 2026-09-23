@@ -272,7 +272,6 @@ async fn transactional_delivery_preserves_sse_and_recovers_processing() {
     delivery.acknowledge().await.unwrap();
 
     drop(listener);
-    crate::reporting::verify_capture(&pool, &consumer).await;
     verify_all_channels(&pool, &outbox).await;
     bridge.shutdown().await;
     ANALYTICS_BROADCASTER.unregister(&user, &connection).await;

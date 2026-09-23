@@ -26,7 +26,7 @@ Distinct ID types never mix at a call site. Passing a `UserId` where an `AgentId
 | `oauth`, `client`, `session`, `connection` | Auth-flow and session identity (`AccessTokenId`, `ClientId`, `SessionId`, `ConnectionId`) |
 | `content`, `execution`, `task`, `hook`, `section` | Content, task, and execution-step identifiers |
 | `cloud`, `tenant`, `teams`, `marketplace`, `plugin` | Cloud, tenancy, and distribution identifiers |
-| `funnel`, `links`, `events`, `slack` | Analytics, link, and integration identifiers |
+| `engagement`, `links`, `events`, `slack` | Analytics, link, and integration identifiers |
 | `trace`, `context`, `gateway_conversation`, `gateway_boot`, `provider_request` | Request-tracing and gateway correlation identifiers |
 | `user`, `actor`, `roles`, `policy` | Principal and authorization identifiers |
 | `email`, `profile`, `url`, `path`, `locale` | Validated value types (`Email`, `ProfileName`, `ValidatedUrl`, `ValidatedFilePath`, `LocaleCode`) |
@@ -38,7 +38,7 @@ Per-type detail lives on [docs.rs](https://docs.rs/systemprompt-identifiers).
 
 ```toml
 [dependencies]
-systemprompt-identifiers = "0.59"
+systemprompt-identifiers = "0.60"
 ```
 
 ```rust

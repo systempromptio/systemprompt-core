@@ -2,7 +2,9 @@
 //!
 //! [`AnthropicOutbound`] builds a Messages request from the canonical model,
 //! sends it upstream, and returns either a buffered `CanonicalResponse` or a
-//! stream of canonical events translated from the Anthropic SSE format.
+//! stream of canonical events translated from the Anthropic SSE format. The
+//! same adapter serves `api.anthropic.com` and Claude on Vertex AI: the
+//! upstream call's dialect decides the path, auth and body envelope.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -10,6 +12,7 @@
 use anyhow::{Result, anyhow};
 use async_trait::async_trait;
 use serde_json::Value;
+use systemprompt_models::services::WireProtocol;
 use systemprompt_models::wire::anthropic;
 
 use super::{OutboundAdapter, OutboundCtx, OutboundOutcome, PreparedBody};
@@ -36,6 +39,8 @@ impl OutboundAdapter for AnthropicOutbound {
         let mut body =
             request::build_request_body(ctx.request, ctx.upstream_model, ctx.model_limits);
         request::enable_automatic_prompt_caching(&mut body, ctx);
+        ctx.upstream
+            .finish_value(WireProtocol::Anthropic, &mut body);
         Ok(PreparedBody {
             bytes: bytes::Bytes::from(
                 serde_json::to_vec(&body).map_err(|e| anyhow!("render Anthropic request: {e}"))?,
@@ -46,7 +51,11 @@ impl OutboundAdapter for AnthropicOutbound {
 
     async fn send(&self, ctx: OutboundCtx<'_>, body: &PreparedBody) -> Result<OutboundOutcome> {
         let passthrough = body.raw_lane;
-        let url = format!("{}/messages", ctx.endpoint.trim_end_matches('/'));
+        let url = ctx.upstream.url(
+            WireProtocol::Anthropic,
+            ctx.upstream_model,
+            ctx.request.stream,
+        );
 
         let mut req = super::http_client().post(&url).body(body.bytes.clone());
         for (name, value) in request_headers(&ctx) {
@@ -104,21 +113,9 @@ impl OutboundAdapter for AnthropicOutbound {
 }
 
 fn request_headers(ctx: &OutboundCtx<'_>) -> Vec<(String, String)> {
-    let mut headers = vec![
-        ("x-api-key".to_owned(), ctx.api_key.to_owned()),
-        ("content-type".to_owned(), "application/json".to_owned()),
-    ];
-    let client_sent_version = ctx
-        .forward_headers
-        .iter()
-        .any(|(name, _)| name.eq_ignore_ascii_case("anthropic-version"));
-    if !client_sent_version {
-        headers.push((
-            "anthropic-version".to_owned(),
-            anthropic::ANTHROPIC_VERSION.to_owned(),
-        ));
-    }
-    headers.extend(ctx.forward_headers.iter().cloned());
+    let mut headers = ctx
+        .upstream
+        .headers_forwarding(WireProtocol::Anthropic, ctx.forward_headers);
     headers.extend(
         ctx.route
             .extra_headers

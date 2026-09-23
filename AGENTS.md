@@ -33,10 +33,10 @@ Facade (1)     systemprompt (re-exports with feature gates)
 ```toml
 # Full installation
 [dependencies]
-systemprompt = { version = "0.59", features = ["full"] }
+systemprompt = { version = "0.60", features = ["full"] }
 
 # Selective (pick what you need)
-systemprompt = { version = "0.59", features = ["core", "database", "mcp"] }
+systemprompt = { version = "0.60", features = ["core", "database", "mcp"] }
 ```
 
 Requires PostgreSQL 18+ at runtime.
@@ -131,15 +131,18 @@ and Rustdoc placement; assess necessity and accuracy during code review.
 
 If you are an agent working in this repository:
 
-- **All work lands on `next`** — the default branch. Pushes to `next` run candidate ancestry checks. Pull requests run the configured
-  CI, Quality and Supply Chain workflows.
+- **All work lands on `next`** — the default branch. Every push to `next` runs
+  CI, Quality and Supply Chain on the pushed commit, plus the candidate
+  ancestry check. A red push run is fixed before more work lands on it.
 - **`main` is protected and release-only.** A ruleset requires a pull request
   and grants no bypass to anyone; a direct `git push origin main` is refused
   for agents and admins alike. Never target `main`.
-- Releases are deliberate: `just gate` reads candidate readiness or existing PR
-  proof without dispatching workflows; `just promote` freezes the candidate
-  on `promote` and opens the release PR onto `main`. The PR runs the complete
-  matrix once and requires `CI passed`, `Quality passed` and `Supply Chain passed`.
+- Releases are deliberate: `just gate` reads the candidate's push runs (and any
+  open promotion PR's proof) without dispatching workflows; `just promote`
+  refuses unless those push runs are green, then freezes the candidate on
+  `promote` and opens the release PR onto `main`. The PR re-runs the matrix on
+  the frozen commit and requires `CI passed`, `Quality passed` and
+  `Supply Chain passed`.
   After merge, `main` is tagged (`vX.Y.Z`) and the workspace is published to
   crates.io.
 - Downstream repos (`systemprompt-template`, `systemprompt-demo`, and private
@@ -147,7 +150,7 @@ If you are an agent working in this repository:
   core release.
 
 Your commit should compile and its own tests should pass, but the full
-workspace gate cycle is release work — do not run it per change.
+workspace gate cycle runs in the cloud on every push — do not run it locally.
 
 ## Licensing
 

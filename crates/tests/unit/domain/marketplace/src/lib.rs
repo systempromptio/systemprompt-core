@@ -183,9 +183,6 @@ mod git_execution;
 mod git_https;
 
 #[cfg(test)]
-mod git_verification;
-
-#[cfg(test)]
 mod inventory;
 
 #[cfg(test)]
@@ -193,12 +190,6 @@ mod consumer_plan;
 
 #[cfg(test)]
 mod installation_coverage;
-
-#[cfg(test)]
-mod api_operations;
-
-#[cfg(test)]
-mod api_consumer_status;
 
 #[cfg(test)]
 mod organization_resolution;

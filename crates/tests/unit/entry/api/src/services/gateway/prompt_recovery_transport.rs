@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use serde_json::{Value, json};
+use systemprompt_ai::UpstreamCall;
 use systemprompt_api::services::gateway::protocol::outbound::anthropic::AnthropicOutbound;
 use systemprompt_api::services::gateway::protocol::outbound::gemini::GeminiOutbound;
 use systemprompt_api::services::gateway::protocol::outbound::openai_chat::OpenAiChatOutbound;
@@ -88,9 +89,7 @@ async fn recovery_sends_only_sanitized_bytes_for_every_adapter_and_transport_mod
                 request.stream = streaming;
                 let initial = OutboundCtx {
                     route: &route,
-                    endpoint: &endpoint,
-                    api_key: "unused",
-                    api_key_is_bearer: false,
+                    upstream: &UpstreamCall::api_key(&endpoint, "unused"),
                     request: &request,
                     upstream_model: "upstream-1",
                     model_limits: None,
@@ -115,9 +114,7 @@ async fn recovery_sends_only_sanitized_bytes_for_every_adapter_and_transport_mod
                     .send(
                         OutboundCtx {
                             route: &route,
-                            endpoint: &endpoint,
-                            api_key: "unused",
-                            api_key_is_bearer: false,
+                            upstream: &UpstreamCall::api_key(&endpoint, "unused"),
                             request: &request,
                             upstream_model: "upstream-1",
                             model_limits: None,

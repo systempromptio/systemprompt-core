@@ -29,7 +29,6 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }
 chrono = { workspace = true }
-tokio-cron-scheduler = { workspace = true }
 
 # Database
 sqlx = { workspace = true }

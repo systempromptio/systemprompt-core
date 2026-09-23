@@ -47,6 +47,10 @@ impl SchedulerRepository {
         self.jobs.upsert_job(job_name, schedule, enabled).await
     }
 
+    pub async fn delete_jobs_not_in(&self, known: &[String]) -> SchedulerResult<u64> {
+        self.jobs.delete_jobs_not_in(known).await
+    }
+
     pub async fn find_job(&self, job_name: &str) -> SchedulerResult<Option<ScheduledJob>> {
         self.jobs.find_job(job_name).await
     }
@@ -61,10 +65,6 @@ impl SchedulerRepository {
         record: JobRunRecord<'_>,
     ) -> SchedulerResult<()> {
         self.jobs.update_job_execution(job_name, record).await
-    }
-
-    pub async fn increment_run_count(&self, job_name: &str) -> SchedulerResult<()> {
-        self.jobs.increment_run_count(job_name).await
     }
 
     pub async fn cleanup_empty_contexts(&self, hours_old: i64) -> SchedulerResult<u64> {

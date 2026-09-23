@@ -1,11 +1,12 @@
 //! The credential the gateway presents to an upstream provider.
 //!
-//! This module is a thin view over [`systemprompt_security::credential`]: it
-//! looks the secret up in the store, hands it to
-//! [`ProviderCredential::parse`], and asks the result for the header to send
-//! and the endpoint to send it to. It decides nothing about credential types
-//! itself, which is the point — a new credential kind is a new variant in the
-//! security crate and no change here at all.
+//! This module is a thin view over [`UpstreamTarget`], the seam the gateway
+//! shares with the in-process AI service: the target looks the secret up,
+//! parses it into a credential, fills the endpoint from the credential's
+//! scope and mints the auth header. It decides nothing about credential types
+//! or hosting itself, which is the point — a new credential kind is a new
+//! variant in the security crate, a new platform a new arm in the dialect,
+//! and no change here at all.
 //!
 //! For almost every provider the stored secret *is* the credential and is sent
 //! verbatim. Google Vertex AI is the exception that forced the model to exist:
@@ -20,21 +21,11 @@
 pub mod google;
 
 use anyhow::anyhow;
+use systemprompt_ai::{UpstreamCall, UpstreamTarget, UpstreamTargetError};
 use systemprompt_models::services::ProviderEntry;
-use systemprompt_security::credential::{
-    CredentialError, CredentialScope, ProviderCredential, fill_endpoint,
-};
+use systemprompt_security::credential::{CredentialError, CredentialScope, fill_endpoint};
 
 use super::DispatchError;
-
-// Why: Google API keys use x-goog-api-key; OAuth tokens use Authorization:
-// Bearer. The adapters need that one bit, not the credential itself.
-#[derive(Debug, Clone)]
-pub(super) struct Credential {
-    pub(super) value: String,
-    pub(super) is_bearer: bool,
-    pub(super) scope: CredentialScope,
-}
 
 pub fn fill_project(endpoint: &str, project: Option<&str>) -> Result<String, CredentialError> {
     let scope = CredentialScope {
@@ -44,33 +35,11 @@ pub fn fill_project(endpoint: &str, project: Option<&str>) -> Result<String, Cre
     fill_endpoint(endpoint, &scope)
 }
 
-pub(super) async fn resolve(provider: &ProviderEntry) -> Result<Credential, DispatchError> {
-    let secrets = systemprompt_config::SecretsBootstrap::get()
-        .map_err(|e| DispatchError::PreAudit(anyhow!("Secrets not available: {e}")))?;
+pub(super) async fn resolve(provider: &ProviderEntry) -> Result<UpstreamCall, DispatchError> {
+    let target = UpstreamTarget::from_secrets(provider).map_err(pre_audit)?;
+    target.call().await.map_err(pre_audit)
+}
 
-    let secret_name = provider.api_key_secret.as_str();
-    let secret = secrets.get(secret_name).ok_or_else(|| {
-        DispatchError::PreAudit(anyhow!(
-            "Gateway API key secret '{secret_name}' not configured"
-        ))
-    })?;
-
-    let credential = ProviderCredential::parse(secret).map_err(|e| {
-        DispatchError::PreAudit(anyhow!(
-            "secret '{secret_name}' declares a Google service account but is malformed: {e}"
-        ))
-    })?;
-
-    let header = credential.bearer(secret_name).await.map_err(|e| {
-        DispatchError::PreAudit(anyhow!(
-            "could not mint a Google access token from secret '{secret_name}': {e}"
-        ))
-    })?;
-
-    let is_bearer = header.is_bearer();
-    Ok(Credential {
-        value: header.value,
-        is_bearer,
-        scope: credential.scope(),
-    })
+fn pre_audit(error: UpstreamTargetError) -> DispatchError {
+    DispatchError::PreAudit(anyhow!(error))
 }

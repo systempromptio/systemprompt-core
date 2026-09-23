@@ -1,18 +1,13 @@
-//! Application-owned credential resolution for Git import, sync and
-//! verification.
+//! Application-owned credential resolution for Git source synchronization.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use super::OrchestrationError;
-use std::collections::BTreeMap;
 use systemprompt_config::SecretsBootstrap;
 use systemprompt_identifiers::{ManagedSourceId, UserId};
 use systemprompt_marketplace::managed::{
     GitSyncRequest, GitSyncResult, ManagedRepository, SourceSpec,
-};
-use systemprompt_models::feedback::verification::{
-    DependencyVerificationManifest, DependencyVerificationRequest,
 };
 
 #[derive(Debug, Clone)]
@@ -34,28 +29,6 @@ impl GitSourceOrchestrator {
         Ok(self
             .managed
             .sync_git_source_with_credential(owner, request, credential.as_deref())
-            .await?)
-    }
-
-    pub async fn verify(
-        &self,
-        owner: &UserId,
-        request: &DependencyVerificationRequest,
-    ) -> Result<DependencyVerificationManifest, OrchestrationError> {
-        request.validate().map_err(|error| {
-            OrchestrationError::Source(format!("Invalid dependency verification request: {error}"))
-        })?;
-        let mut credentials = BTreeMap::new();
-        for revision in &request.revisions {
-            if !credentials.contains_key(&revision.source_id)
-                && let Some(credential) = self.credential(owner, &revision.source_id).await?
-            {
-                credentials.insert(revision.source_id.clone(), credential);
-            }
-        }
-        Ok(self
-            .managed
-            .verify_git_dependencies(owner, request, &credentials)
             .await?)
     }
 

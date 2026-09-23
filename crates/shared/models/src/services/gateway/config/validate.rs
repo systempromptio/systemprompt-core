@@ -7,7 +7,7 @@ use crate::services::ai::ModelPricing;
 use crate::services::gateway::config::GatewayConfig;
 use crate::services::gateway::error::{GatewayProfileError, GatewayResult};
 use crate::services::gateway::route::GatewayRoute;
-use crate::services::providers::ProviderRegistry;
+use crate::services::providers::{ProviderModel, ProviderRegistry};
 
 impl GatewayConfig {
     #[must_use]
@@ -51,8 +51,8 @@ impl GatewayConfig {
             if let Some(when) = route.when.as_ref() {
                 when.validate()?;
             }
-            self.validate_route_pricing(registry, route)?;
-            validate_route_governance(registry, route)?;
+            self.validate_route_pricing(registry, route, ModelMatch::Id)?;
+            validate_route_governance(registry, route, ModelMatch::Id)?;
             self.validate_route_fallback(registry, route)?;
         }
         for rule in &self.system_prompt_overrides {
@@ -97,14 +97,15 @@ impl GatewayConfig {
                 provider: view.provider.as_str().to_owned(),
             });
         }
-        self.validate_route_pricing(registry, &view)?;
-        validate_route_governance(registry, &view)
+        self.validate_route_pricing(registry, &view, ModelMatch::IdOrUpstream)?;
+        validate_route_governance(registry, &view, ModelMatch::IdOrUpstream)
     }
 
     fn validate_route_pricing(
         &self,
         registry: &ProviderRegistry,
         route: &GatewayRoute,
+        by: ModelMatch,
     ) -> GatewayResult<()> {
         if !self.enabled {
             return Ok(());
@@ -140,7 +141,7 @@ impl GatewayConfig {
             };
         }
         let mut reached = 0usize;
-        for model in entry.models.iter().filter(|m| route.matches(m.id.as_str())) {
+        for model in entry.models.iter().filter(|m| by.reaches(route, m)) {
             reached += 1;
             if !model.pricing.is_billable() {
                 return Err(GatewayProfileError::RouteModelUnpriced {
@@ -158,6 +159,26 @@ impl GatewayConfig {
             });
         }
         Ok(())
+    }
+}
+
+// Why: a fallback serves the id the client asked the primary for, which the
+// fallback provider may carry under a different catalog id with the same
+// upstream name (`find_served_model`); a primary is reached by id alone.
+#[derive(Debug, Clone, Copy)]
+enum ModelMatch {
+    Id,
+    IdOrUpstream,
+}
+
+impl ModelMatch {
+    fn reaches(self, route: &GatewayRoute, model: &ProviderModel) -> bool {
+        route.matches(model.id.as_str())
+            || matches!(self, Self::IdOrUpstream)
+                && model
+                    .upstream_model
+                    .as_deref()
+                    .is_some_and(|upstream| route.matches(upstream))
     }
 }
 
@@ -184,6 +205,7 @@ fn check_cache_rate(
 fn validate_route_governance(
     registry: &ProviderRegistry,
     route: &GatewayRoute,
+    by: ModelMatch,
 ) -> GatewayResult<()> {
     let Some(requires) = route.requires.as_ref() else {
         return Ok(());
@@ -209,7 +231,7 @@ fn validate_route_governance(
     if let Some(upstream) = route.upstream_model.as_deref() {
         return check(upstream);
     }
-    for model in entry.models.iter().filter(|m| route.matches(m.id.as_str())) {
+    for model in entry.models.iter().filter(|m| by.reaches(route, m)) {
         check(model.id.as_str())?;
     }
     Ok(())

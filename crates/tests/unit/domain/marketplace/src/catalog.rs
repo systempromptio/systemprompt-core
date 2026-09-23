@@ -1068,3 +1068,47 @@ fn load_managed_mcp_servers_withholds_a_server_without_tool_policy() {
     assert_eq!(servers.len(), 1);
     assert_eq!(servers[0].name.as_str(), "a");
 }
+
+// Two `ServicesConfig`s holding the same agents in maps built in opposite
+// insertion orders iterate differently; both fingerprints must still agree,
+// or every configuration reload would miss the catalog memo and force a
+// reconcile.
+fn same_agents_in_opposite_order() -> (ServicesConfig, ServicesConfig) {
+    let names: Vec<String> = (0..32).map(|i| format!("agent-{i:02}")).collect();
+    let mut forward = ServicesConfig::default();
+    for name in &names {
+        forward.agents.insert(name.clone(), make_agent_config(name));
+    }
+    let mut backward = ServicesConfig::default();
+    for name in names.iter().rev() {
+        backward
+            .agents
+            .insert(name.clone(), make_agent_config(name));
+    }
+    (forward, backward)
+}
+
+#[test]
+fn catalog_fingerprint_ignores_map_iteration_order() {
+    let (forward, backward) = same_agents_in_opposite_order();
+    let root = tempfile::tempdir().unwrap();
+    let cache = systemprompt_marketplace::MarketplaceCache::default();
+    let (first, _) = cache
+        .catalog_with_fingerprint(&forward, root.path(), "https://api.example.com")
+        .unwrap();
+    let (second, _) = cache
+        .catalog_with_fingerprint(&backward, root.path(), "https://api.example.com")
+        .unwrap();
+    assert_eq!(first, second);
+}
+
+#[test]
+fn configured_inventory_fingerprint_ignores_map_iteration_order() {
+    let (forward, backward) = same_agents_in_opposite_order();
+    let root = tempfile::tempdir().unwrap();
+    let fingerprint = |services| {
+        systemprompt_marketplace::inventory::configured_inventory_fingerprint(root.path(), services)
+            .unwrap()
+    };
+    assert_eq!(fingerprint(&forward), fingerprint(&backward));
+}

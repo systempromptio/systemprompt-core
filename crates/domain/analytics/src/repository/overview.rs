@@ -35,7 +35,7 @@ impl OverviewAnalyticsRepository {
         end: DateTime<Utc>,
     ) -> Result<i64> {
         let count = sqlx::query_scalar!(
-            r#"SELECT COUNT(*)::bigint as "count!" FROM analytics_report_user_contexts WHERE created_at >= $1 AND created_at < $2 AND kind = $3"#,
+            r#"SELECT COUNT(*)::bigint as "count!" FROM report_user_contexts WHERE created_at >= $1 AND created_at < $2 AND kind = $3"#,
             start,
             end,
             ContextKind::User.as_str()
@@ -57,7 +57,7 @@ impl OverviewAnalyticsRepository {
                 COUNT(DISTINCT agent_name)::bigint as "active_agents!",
                 COUNT(*)::bigint as "total_tasks!",
                 COUNT(*) FILTER (WHERE status = 'TASK_STATE_COMPLETED')::bigint as "completed_tasks!"
-            FROM analytics_report_agent_tasks
+            FROM report_agent_tasks
             WHERE started_at >= $1 AND started_at < $2
             "#,
             start,
@@ -80,7 +80,7 @@ impl OverviewAnalyticsRepository {
                 COUNT(*)::bigint as "total!",
                 SUM(tokens_used)::bigint as "total_tokens",
                 AVG(latency_ms)::float8 as "avg_latency"
-            FROM analytics_report_ai_requests
+            FROM report_ai_requests
             WHERE created_at >= $1 AND created_at < $2
             "#,
             start,
@@ -102,7 +102,7 @@ impl OverviewAnalyticsRepository {
             SELECT
                 COUNT(*)::bigint as "total!",
                 COUNT(*) FILTER (WHERE status = 'success')::bigint as "successful!"
-            FROM analytics_report_mcp_tool_executions
+            FROM report_mcp_tool_executions
             WHERE created_at >= $1 AND created_at < $2
               AND server_name NOT IN ('in_process', 'proxy', 'gateway', 'hook_claude_code', 'hook_opencode')
             "#,
@@ -118,7 +118,7 @@ impl OverviewAnalyticsRepository {
         let count = sqlx::query_scalar!(
             r#"
             SELECT COUNT(*)::bigint as "count!"
-            FROM analytics_report_v_clean_traffic
+            FROM report_clean_traffic
             WHERE ended_at IS NULL
               AND last_activity_at >= $1            "#,
             since
@@ -134,7 +134,7 @@ impl OverviewAnalyticsRepository {
         end: DateTime<Utc>,
     ) -> Result<i64> {
         let count = sqlx::query_scalar!(
-            r#"SELECT COUNT(*)::bigint as "count!" FROM analytics_report_v_clean_traffic WHERE started_at >= $1 AND started_at < $2"#,
+            r#"SELECT COUNT(*)::bigint as "count!" FROM report_clean_traffic WHERE started_at >= $1 AND started_at < $2"#,
             start,
             end
         )
@@ -152,7 +152,7 @@ impl OverviewAnalyticsRepository {
             OverviewCostRow,
             r#"
             SELECT SUM(cost_microdollars)::bigint as "cost"
-            FROM analytics_report_ai_requests
+            FROM report_ai_requests
             WHERE created_at >= $1 AND created_at < $2
             "#,
             start,

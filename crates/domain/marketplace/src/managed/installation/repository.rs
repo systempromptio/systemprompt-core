@@ -1,14 +1,13 @@
-//! Distribution, installation receipt, and invocation attribution persistence.
+//! Distribution and installation receipt persistence.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use super::{
-    AssetDigest, AttributionStatus, BTreeMap, ConsumerInstallationId, DeviceId, DistributionClaim,
-    DistributionId, DistributionState, DistributionStatus, EventOutboxId, InstallationReceipt,
-    InstallationReceiptId, InstallationReceiptRequest, InvocationAttribution,
-    InvocationAttributionId, InvocationAttributionRequest, ManagedError, ManagedRepository,
-    ManagedResourceId, PublicationId, ResourceRevisionId, Result, UserId,
+    AssetDigest, BTreeMap, ConsumerInstallationId, DeviceId, DistributionClaim, DistributionId,
+    DistributionState, DistributionStatus, EventOutboxId, InstallationReceipt,
+    InstallationReceiptId, InstallationReceiptRequest, ManagedError, ManagedRepository,
+    ManagedResourceId, PublicationId, Result, UserId,
 };
 
 impl ManagedRepository {
@@ -219,78 +218,6 @@ impl ManagedRepository {
             consumer_evidence: None,
             fully_verified: false,
             verified_at: row.verified_at,
-        })
-    }
-
-    pub async fn attribute_invocation(
-        &self,
-        owner: &UserId,
-        request: &InvocationAttributionRequest,
-    ) -> Result<InvocationAttribution> {
-        let authenticated_evidence = serde_json::to_value(&request.authenticated_evidence)?;
-        let session = request.authenticated_evidence.session_id.as_str();
-        if request.invocation_id.as_str().trim().is_empty()
-            || request.invocation_id.as_str().len() > 200
-            || session.is_empty()
-            || request.authenticated_evidence.owner_id != *owner
-            || serde_jcs::to_vec(&authenticated_evidence)?.len() > 65_536
-        {
-            return Err(super::super::error::invalid(
-                "Invalid authenticated invocation attribution",
-            ));
-        }
-        let verified = if let (Some(installation), Some(key), Some(revision), Some(generation)) = (
-            request
-                .installation_id
-                .as_ref()
-                .map(ConsumerInstallationId::as_str),
-            request.resource_key.as_deref(),
-            request.resource_revision_id.as_ref(),
-            request.publication_generation,
-        ) {
-            sqlx::query!("SELECT r.id AS receipt_id,r.resource_id,r.generation,p.revision_id FROM managed_installation_receipts r JOIN managed_resources m ON m.id=r.resource_id AND m.owner_id=r.owner_id JOIN managed_publications p ON p.id=r.publication_id AND p.owner_id=r.owner_id WHERE r.owner_id=$1 AND r.installation_id=$2 AND m.resource_key=$3 AND r.client_evidence->>'session_id'=$4 AND r.generation=$5 AND p.revision_id=$6 ORDER BY r.verified_at DESC LIMIT 1",
-                owner.as_str(), installation, key, session, generation, revision.as_str()).fetch_optional(&self.pool).await?
-        } else {
-            None
-        };
-        let id = InvocationAttributionId::generate();
-        let (status, receipt_id, resource_id, revision_id, generation) = if let Some(row) = verified
-        {
-            (
-                AttributionStatus::Verified,
-                Some(row.receipt_id),
-                Some(row.resource_id),
-                row.revision_id,
-                Some(row.generation),
-            )
-        } else {
-            (AttributionStatus::RevisionUnknown, None, None, None, None)
-        };
-        sqlx::query!("INSERT INTO managed_invocation_attributions(id,owner_id,invocation_id,installation_id,resource_id,revision_id,publication_generation,traffic_class,status,receipt_id,authenticated_evidence) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) ON CONFLICT(owner_id,invocation_id) DO NOTHING",
-            id.as_str(), owner.as_str(), request.invocation_id.as_str(), request.installation_id.as_ref().map(ConsumerInstallationId::as_str), resource_id.as_deref(), revision_id.as_deref(), generation, request.traffic_class.as_str(), status.as_str(), receipt_id.as_deref(), &authenticated_evidence).execute(&self.pool).await?;
-        let stored = sqlx::query!(r#"SELECT id,installation_id AS "installation_id?: ConsumerInstallationId",resource_id,revision_id,publication_generation,traffic_class,status AS "status: AttributionStatus",authenticated_evidence FROM managed_invocation_attributions WHERE owner_id=$1 AND invocation_id=$2"#,
-            owner.as_str(), request.invocation_id.as_str()).fetch_one(&self.pool).await?;
-        if stored.installation_id != request.installation_id
-            || stored.resource_id != resource_id
-            || stored.revision_id != revision_id
-            || stored.publication_generation != generation
-            || stored.traffic_class != request.traffic_class.as_str()
-            || stored.status != status
-            || stored.authenticated_evidence != authenticated_evidence
-        {
-            return Err(ManagedError::Conflict(
-                "Invocation attribution replay conflicts with immutable evidence".to_owned(),
-            ));
-        }
-        Ok(InvocationAttribution {
-            id: InvocationAttributionId::new(stored.id),
-            invocation_id: request.invocation_id.clone(),
-            installation_id: stored.installation_id,
-            resource_id: stored.resource_id.map(ManagedResourceId::new),
-            revision_id: stored.revision_id.map(ResourceRevisionId::new),
-            publication_generation: stored.publication_generation,
-            traffic_class: request.traffic_class,
-            status: stored.status,
         })
     }
 }

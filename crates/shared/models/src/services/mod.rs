@@ -70,7 +70,7 @@ pub use plugin::{
     PluginVariableDef,
 };
 pub use providers::{
-    ApiSurface, DiscoveryReport, DocumentedLaunchStage, ProviderEntry, ProviderModel,
+    ApiSurface, DiscoveryReport, DocumentedLaunchStage, Hosting, ProviderEntry, ProviderModel,
     ProviderRegistry, ProviderRegistryError, ProviderRegistryResult, RETIREMENT_NOTICE_DAYS,
     VertexRateCard, VertexRateCardEntry, WireProtocol,
 };

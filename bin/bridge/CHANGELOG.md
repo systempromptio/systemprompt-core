@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.60.0] - 2026-09-23
+
+No bridge code changes; released with core 0.60.0. The README describes device self-enrollment through `POST /v1/bridge/device`, replacing the removed admin credential route.
+
 ## [0.59.1] - 2026-09-23
 
 No bridge changes; released with core 0.59.1.

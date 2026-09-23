@@ -1,4 +1,4 @@
-//! Device-authenticated consumer evidence and correctable attribution.
+//! Binding a verified installation receipt to a native host session.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -8,10 +8,13 @@ use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{InstallationSessionBindingId, ManagedResourceId, UserId};
 use systemprompt_models::feedback::receipts::SessionBindingRequest;
 
-use super::{attribution, credentials, host_key};
+use sqlx::{Postgres, Transaction};
+use systemprompt_models::feedback::receipts::AuthenticatedConsumerDevice;
+
+use super::{credentials, host_key};
 use crate::managed::{ManagedError, ManagedRepository, Result};
 
-#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConsumerSessionBinding {
     pub id: InstallationSessionBindingId,
     pub bound_at: DateTime<Utc>,
@@ -38,10 +41,9 @@ impl ManagedRepository {
             &identity.consumer_id,
         )
         .await?;
-        attribution::lock_session(&mut tx, &identity, host, request.session_id.as_str()).await?;
+        lock_session(&mut tx, &identity, host, request.session_id.as_str()).await?;
         if let Some(row) = sqlx::query!("SELECT id,bound_at FROM managed_consumer_session_bindings WHERE receipt_id=$1 AND consumer_id=$2 AND device_id=$3 AND host=$4 AND native_session_id=$5", request.receipt_id.as_str(), identity.consumer_id.as_str(), identity.device_id.as_str(), host, request.session_id.as_str())
             .fetch_optional(&mut *tx).await? {
-            attribution::correct_session(&mut tx, &identity, host, request.session_id.as_str()).await?;
             tx.commit().await?;
             return Ok(ConsumerSessionBinding {
                 id: InstallationSessionBindingId::new(row.id),
@@ -63,11 +65,33 @@ impl ManagedRepository {
             .execute(&mut *tx).await?;
         let row = sqlx::query!("SELECT id,bound_at FROM managed_consumer_session_bindings WHERE receipt_id=$1 AND consumer_id=$2 AND device_id=$3 AND host=$4 AND native_session_id=$5", request.receipt_id.as_str(), identity.consumer_id.as_str(), identity.device_id.as_str(), host, request.session_id.as_str())
             .fetch_one(&mut *tx).await?;
-        attribution::correct_session(&mut tx, &identity, host, request.session_id.as_str()).await?;
         tx.commit().await?;
         Ok(ConsumerSessionBinding {
             id: InstallationSessionBindingId::new(row.id),
             bound_at: row.bound_at,
         })
     }
+}
+
+// Why: two bindings of one native session race the conflict check below; the
+// transaction-scoped lock serializes them per device, host and session.
+async fn lock_session(
+    tx: &mut Transaction<'_, Postgres>,
+    identity: &AuthenticatedConsumerDevice,
+    host: &str,
+    session: &str,
+) -> Result<()> {
+    let key = serde_json::to_string(&(
+        identity.consumer_id.as_str(),
+        identity.device_id.as_str(),
+        host,
+        session,
+    ))?;
+    sqlx::query!(
+        "SELECT pg_advisory_xact_lock(hashtextextended($1, 771239)) IS NULL AS locked",
+        key
+    )
+    .fetch_one(&mut **tx)
+    .await?;
+    Ok(())
 }

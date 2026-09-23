@@ -1,14 +1,12 @@
-//! Retained baseline outcomes and compare-and-set authoring observation heads.
+//! Compare-and-set authoring observation heads and incoming reconciliations.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::BaselineCapture;
 use super::catalog::invalid;
 use crate::managed::{ManagedRepository, Result};
 use systemprompt_identifiers::{
-    InventoryEntryId, ManagedReconciliationId, ManagedResourceId, ManagedSourceId,
-    ResourceRevisionId, TaskId, UserId,
+    InventoryEntryId, ManagedReconciliationId, ManagedResourceId, ResourceRevisionId, UserId,
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -51,32 +49,6 @@ impl ManagedRepository {
             )
             .await?;
         Ok(Some(reconciliation.id))
-    }
-
-    pub async fn inventory_capture(
-        &self,
-        owner: &UserId,
-        entry: &InventoryEntryId,
-        operation: &TaskId,
-    ) -> Result<Option<BaselineCapture>> {
-        let row=sqlx::query!("SELECT status,revision_id,reconciliation_id,diagnostic FROM managed_inventory_captures WHERE owner_id=$1 AND entry_id=$2 AND operation_id=$3",owner.as_str(),entry.as_str(),operation.as_str()).fetch_optional(&self.pool).await?;
-        Ok(row.map(|row| BaselineCapture {
-            entry_id: entry.clone(),
-            operation_id: operation.clone(),
-            status: row.status,
-            revision_id: row.revision_id.map(ResourceRevisionId::new),
-            reconciliation_id: row.reconciliation_id.map(ManagedReconciliationId::new),
-            diagnostic: row.diagnostic,
-        }))
-    }
-
-    pub(super) async fn record_inventory_capture(
-        &self,
-        owner: &UserId,
-        capture: &BaselineCapture,
-    ) -> Result<()> {
-        sqlx::query!("INSERT INTO managed_inventory_captures(owner_id,entry_id,operation_id,status,revision_id,reconciliation_id,diagnostic) VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT DO NOTHING",owner.as_str(),capture.entry_id.as_str(),capture.operation_id.as_str(),&capture.status,capture.revision_id.as_ref().map(ResourceRevisionId::as_str),capture.reconciliation_id.as_ref().map(ManagedReconciliationId::as_str),capture.diagnostic.as_deref()).execute(&self.pool).await?;
-        Ok(())
     }
 
     pub(super) async fn inventory_authoring_head(
@@ -133,20 +105,5 @@ impl ManagedRepository {
                 resolved_revision_id: row.resolved_revision_id.map(ResourceRevisionId::new),
             })
             .collect())
-    }
-
-    pub async fn inventory_git_binding(
-        &self,
-        owner: &UserId,
-        entry: &InventoryEntryId,
-    ) -> Result<Option<super::InventoryGitBinding>> {
-        let resource = self.inventory_entry(owner, entry).await?.resource_id;
-        let resource = resource.as_ref().map(ManagedResourceId::as_str);
-        let row=sqlx::query!("SELECT source_id,relative_root,bound_by FROM managed_resource_git_bindings WHERE owner_id=$1 AND resource_id=$2",owner.as_str(),resource).fetch_optional(&self.pool).await?;
-        Ok(row.map(|row| super::InventoryGitBinding {
-            source_id: ManagedSourceId::new(row.source_id),
-            relative_root: row.relative_root,
-            bound_by: UserId::new(row.bound_by),
-        }))
     }
 }

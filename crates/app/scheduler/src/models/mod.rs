@@ -32,7 +32,6 @@ pub struct SkippedJob {
 pub enum JobStatus {
     Success,
     Failed,
-    Running,
 }
 
 impl JobStatus {
@@ -40,7 +39,6 @@ impl JobStatus {
         match self {
             Self::Success => "success",
             Self::Failed => "failed",
-            Self::Running => "running",
         }
     }
 }
@@ -51,8 +49,8 @@ impl std::fmt::Display for JobStatus {
     }
 }
 
-/// One completed (or started) run of a scheduled job, as written to its
-/// `scheduled_jobs` row.
+/// One recorded run of a scheduled job, as written to its `scheduled_jobs`
+/// row. Recording a run also advances `run_count`.
 ///
 /// `message` is what a successful run reports about itself
 /// (`JobResult::message`), kept across later runs that say nothing.

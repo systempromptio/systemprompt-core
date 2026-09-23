@@ -185,7 +185,7 @@ pub(super) async fn prune_processed(
 #[derive(Debug)]
 struct FactRow {
     id: EventOutboxId,
-    // JSON: versioned reporting facts are decoded by the registered consumer.
+    // JSON: versioned facts are decoded by the registered consumer.
     fact: serde_json::Value,
 }
 

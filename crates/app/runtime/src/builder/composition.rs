@@ -24,8 +24,6 @@ pub(super) fn build_data_plane(
         service_repository: repositories.services,
         ai_repositories: repositories.ai,
         analytics_repositories: repositories.analytics,
-        feedback_facts_repository: repositories.feedback_facts,
-        feedback_snapshots_repository: repositories.feedback_snapshots,
         file_repository: repositories.files,
         mcp_session_repository: repositories.mcp_sessions,
         managed_repository: repositories.managed,
@@ -52,8 +50,6 @@ pub(super) struct RepositoryBundles {
     services: Arc<systemprompt_database::ServiceRepository>,
     pub(super) ai: Arc<systemprompt_ai::repository::AiRepositories>,
     analytics: Arc<systemprompt_analytics::repository::AnalyticsRepositories>,
-    feedback_snapshots: Arc<systemprompt_analytics::snapshots::FeedbackSnapshotsRepository>,
-    feedback_facts: Arc<systemprompt_analytics::feedback::FeedbackFactsRepository>,
     files: Arc<systemprompt_files::FileRepository>,
     mcp_sessions: Arc<systemprompt_mcp::repository::McpSessionRepository>,
     managed: Arc<systemprompt_marketplace::managed::ManagedRepository>,
@@ -89,11 +85,6 @@ pub(super) fn build_repositories(
         database,
     )?);
     let ai = Arc::new(systemprompt_ai::repository::AiRepositories::new(database)?);
-    let feedback_facts = Arc::new(
-        systemprompt_analytics::feedback::FeedbackFactsRepository::new(
-            database.write_pool_arc()?.as_ref().clone(),
-        ),
-    );
     let tool_executions: systemprompt_traits::DynToolExecutionLookup = Arc::new(
         systemprompt_mcp::repository::ToolUsageRepository::new(database)?,
     );
@@ -123,13 +114,6 @@ pub(super) fn build_repositories(
         )?),
         ai,
         analytics,
-        feedback_snapshots: Arc::new(
-            systemprompt_analytics::snapshots::FeedbackSnapshotsRepository::new(
-                database.write_pool_arc()?.as_ref().clone(),
-                (*feedback_facts).clone(),
-            ),
-        ),
-        feedback_facts,
         files: Arc::new(systemprompt_files::FileRepository::new(database)?),
         mcp_sessions: Arc::new(systemprompt_mcp::repository::McpSessionRepository::new(
             database,

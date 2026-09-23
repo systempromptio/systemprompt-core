@@ -122,6 +122,11 @@ impl SchedulerService {
             return Ok(Registered::NotInInventory);
         };
 
+        if !registered_job.configured() {
+            debug!(job = %job_config.name, "Job is not configured in this deployment; not scheduled");
+            return Ok(Registered::No);
+        }
+
         let Some(owner_id) = ctx.owners.get(&job_config.name).cloned() else {
             warn!(job = %job_config.name, "no resolved owner for job, skipping");
             return Ok(Registered::No);

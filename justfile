@@ -1807,7 +1807,8 @@ webauthn-admin EMAIL="admin@localhost":
 
     $CLI admin users webauthn generate-setup-token --email "{{EMAIL}}"
 
-# Read candidate readiness or the existing promotion PR proof; never dispatch.
+# Read the candidate's green push run on next, then the promotion PR proof if one
+# is open. Read-only; never dispatches.
 gate REF="origin/next":
     python3 scripts/release-proof.py gate "{{REF}}"
 
@@ -1816,7 +1817,8 @@ gate REF="origin/next":
 # `main` refuses direct pushes, so a PR is the only way in. The commit is frozen
 # on the `promote` ref first: a PR headed at `next` would merge whatever `next`
 # points at when you merge it, so anything pushed meanwhile would ride along
-# ungated. This only OPENS the PR — you review and merge it.
+# ungated. Refuses a SHA whose push run on next is missing, pending or red.
+# This only OPENS the PR — you review and merge it.
 promote SHA="":
     #!/usr/bin/env bash
     set -euo pipefail
@@ -1827,7 +1829,7 @@ promote SHA="":
     if git merge-base --is-ancestor "$SHA" origin/main; then
         echo "main already contains ${SHA:0:9} — nothing to promote."; exit 0
     fi
-    python3 scripts/release-proof.py candidate "$SHA"
+    python3 scripts/release-proof.py pushed "$SHA"
     echo "Release PR will carry ${SHA:0:9} onto main:"
     git log --oneline origin/main.."$SHA" | sed 's/^/    /'
     git push --force origin "$SHA:refs/heads/promote"

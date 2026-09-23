@@ -12,7 +12,7 @@ use sqlx::Row;
 use sqlx::postgres::PgPool;
 
 use crate::admin::SafeIdentifier;
-use crate::error::DatabaseResult;
+use crate::error::{DatabaseResult, is_undefined_table};
 use crate::models::{ColumnInfo, DatabaseInfo, TableInfo};
 
 pub(super) async fn get_database_info(pool: &PgPool) -> DatabaseResult<DatabaseInfo> {
@@ -90,10 +90,4 @@ pub(super) async fn get_database_info(pool: &PgPool) -> DatabaseResult<DatabaseI
         version,
         tables,
     })
-}
-
-fn is_undefined_table(e: &sqlx::Error) -> bool {
-    e.as_database_error()
-        .and_then(sqlx::error::DatabaseError::code)
-        .is_some_and(|code| code == "42P01")
 }

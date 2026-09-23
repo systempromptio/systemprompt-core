@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.60.0] - 2026-09-23
+
+### Breaking
+
+- **Breaking (SQL):** `public.expire_reporting_sessions(timestamptz)` is replaced by `public.expire_user_sessions(timestamptz)`, the same session expiry without the projection locks. `begin_user_privacy`, `finish_user_privacy`, `lock_user_deletion_for_retention`, `lock_users_reporting_sources`, `reporting_user_is_retained` and `reporting_session_is_retained` are dropped (migration `020_retire_reporting_privacy`), and user mutations no longer call them.
+- **Breaking:** `SessionRepository::update_activity` is removed along with the `SessionStore` trait method; use `increment_request_count`, which stamps the same columns.
+
+### Changed
+
+- User deletion purges every `event_outbox` row of the user; the `channel <> 'reporting'` exclusion guarded facts no consumer reads any more.
+
 ## [0.59.0] - 2026-09-22
 
 ### Breaking

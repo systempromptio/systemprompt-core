@@ -183,11 +183,8 @@ async fn panicked_capture_is_atomic_and_a_later_capture_recovers() {
             .same_content(&files("recovered trusted capture"))
     );
     assert_eq!(
-        fixture
-            .repo
-            .snapshot_provenance(&fixture.owner, &snapshot_id)
+        crate::source_sync_fixture::stored_provenance(&fixture.db, &fixture.owner, &snapshot_id)
             .await
-            .expect("recovered provenance")
             .commit
             .as_deref(),
         Some(commit.as_str())

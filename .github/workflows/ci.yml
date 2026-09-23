@@ -9,6 +9,8 @@ on:
         required: false
   pull_request:
     branches: [main, next]
+  push:
+    branches: [next]
 
 concurrency:
   group: ci-${{ inputs.ref || github.ref }}
@@ -39,7 +41,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.ref }}
+          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
       - run: rustup show
       - uses: extractions/setup-just@v4
       # `just format-check` covers all three workspaces (root, crates/tests,
@@ -52,7 +54,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.ref }}
+          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
       - run: rustup show
       - uses: mozilla-actions/sccache-action@v0.0.9
       - run: cargo build --workspace --locked
@@ -74,7 +76,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.ref }}
+          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
       - name: Install system dependencies
         run: |
           n=0
@@ -111,7 +113,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.ref }}
+          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
       - run: rustup show
       - uses: mozilla-actions/sccache-action@v0.0.9
       - name: Verify offline sqlx cache is current
@@ -168,7 +170,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.ref }}
+          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
 
       - name: Runner resources
         run: |
@@ -223,13 +225,22 @@ jobs:
       - run: sccache --show-stats
         if: ${{ !cancelled() }}
 
+  # A database left by each of the two newest releases, upgraded by this tree,
+  # must match a fresh install. Only this sees a migration that misbehaves on
+  # an established database (0.59.0's events 007 passed everything else).
+  schema-ladder:
+    name: Schema ladder
+    uses: ./.github/workflows/schema-ladder.yml
+    with:
+      ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
+
   # One stable context for the `main` ruleset: it fails unless every gate
   # above succeeded, so a skipped or cancelled matrix job can never pass as
   # "not failed". Required checks name this job, never the matrix entries.
   ci-passed:
     name: CI passed
     runs-on: ubuntu-latest
-    needs: [fmt, build, test-tools, sqlx-check, test]
+    needs: [fmt, build, test-tools, sqlx-check, test, schema-ladder]
     if: always()
     steps:
       - run: |

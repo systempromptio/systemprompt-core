@@ -5,7 +5,7 @@
 //! three different things across the schema — so the database cannot cascade
 //! a user delete. This registry is the substitute: every crate that owns a
 //! user-keyed table declares it once, and `UserRepository::delete` runs the
-//! whole set inside the privacy transaction, in registration order, before
+//! whole set inside one transaction, in registration order, before
 //! the `users` row goes. An extension declares its own tables with
 //! `user_purge_tables!`; nothing else needs to know the list exists:
 //!

@@ -9,7 +9,9 @@
 //!
 //! [`DisposableDb::create`] hands back an empty database; [`DisposableDb::
 //! installed`] hands back one with every registered extension's schema
-//! applied. Both are dropped by [`DisposableDb::drop_now`].
+//! applied. Both are dropped by [`DisposableDb::drop_now`], and any a test
+//! never dropped is removed by a later run once its owner has exited
+//! ([`crate::orphans`]).
 
 use anyhow::{Context, Result};
 use systemprompt_database::DbPool;
@@ -24,8 +26,10 @@ pub struct DisposableDb {
 }
 
 impl DisposableDb {
-    // Why: the name carries the caller's prefix so a leaked database says
-    // which suite leaked it, and a uuid so parallel tests never collide.
+    // Why: the name carries the caller's prefix so a database says which
+    // suite made it, its owner's PID so a later run can drop it once that
+    // process is gone (a panicking test never reaches `drop_now`), and a
+    // random suffix so parallel tests never collide.
     pub async fn create(prefix: &str) -> Result<Self> {
         let base_url = fixture_database_url()?;
         let admin = fixture_db_pool(&base_url)
@@ -35,7 +39,8 @@ impl DisposableDb {
             .as_ref()
             .clone();
 
-        let name = format!("{prefix}_{}", uuid::Uuid::new_v4().simple());
+        crate::orphans::sweep_databases(&admin).await;
+        let name = crate::orphans::database_name(prefix);
         sqlx::query(sqlx::AssertSqlSafe(format!("CREATE DATABASE \"{name}\"")))
             .execute(&admin)
             .await

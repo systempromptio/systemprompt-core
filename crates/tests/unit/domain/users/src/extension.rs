@@ -223,32 +223,16 @@ mod extension_trait_tests {
 }
 
 #[test]
-fn owner_capture_and_privacy_contracts_are_registered() {
+fn session_expiry_is_declared_without_reporting_privacy() {
     let schemas = UsersExtension.schemas();
-    let capture: Vec<_> = schemas
-        .iter()
-        .filter(|schema| {
-            schema.table.is_none()
-                && schema
-                    .sql
-                    .contains("EXECUTE FUNCTION sp_capture_reporting_change")
-        })
-        .collect();
-    assert_eq!(
-        capture.len(),
-        1,
-        "owner capture SQL must be registered exactly once"
+    assert!(
+        schemas
+            .iter()
+            .all(|schema| !schema.sql.contains("reporting"))
     );
-    for view in ["reporting_source_users", "reporting_source_user_sessions"] {
-        assert!(
-            capture[0].sql.contains(view),
-            "missing reporting view: {view}"
-        );
-    }
     let users = schemas
         .iter()
         .find(|schema| schema.table.as_deref() == Some("users"))
         .unwrap();
-    assert!(users.sql.contains("lock_user_deletion_for_retention"));
-    assert!(users.sql.contains("reporting_user_is_retained"));
+    assert!(users.sql.contains("expire_user_sessions"));
 }

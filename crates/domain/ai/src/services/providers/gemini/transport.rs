@@ -1,16 +1,18 @@
 //! Gemini HTTP transport: client construction and the POST round trip.
 //!
-//! Auth uses the official `x-goog-api-key` header and the path is built by the
-//! shared codec's [`gemini::upstream_path`] (which appends `?alt=sse` for the
-//! streaming method). Request-body rendering and reply parsing live in the
-//! shared `systemprompt_models::wire::gemini` codec.
+//! URL and auth come from the provider's upstream target: an API key rides
+//! `x-goog-api-key` on the public endpoint, and a service account on Vertex AI
+//! mints an OAuth bearer with `{project}` filled from its key. The path is the
+//! shared dialect's (`?alt=sse` for the streaming method). Request-body
+//! rendering and reply parsing live in the shared
+//! `systemprompt_models::wire::gemini` codec.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use reqwest::{Client, Response};
 use serde_json::Value;
-use systemprompt_models::wire::gemini;
+use systemprompt_models::services::WireProtocol;
 
 use super::constants::timeout;
 use super::provider::GeminiProvider;
@@ -30,18 +32,15 @@ pub(super) async fn post(
     model: &str,
     stream: bool,
 ) -> Result<Response> {
-    let url = format!(
-        "{}{}",
-        provider.endpoint,
-        gemini::upstream_path(model, stream)
-    );
-    let response = provider
+    let call = provider.target.call().await?;
+    let upstream = provider.upstream_model(model);
+    let mut request = provider
         .client
-        .post(&url)
-        .header(gemini::API_KEY_HEADER, &provider.api_key)
-        .json(body)
-        .send()
-        .await?;
+        .post(call.url(WireProtocol::Gemini, upstream, stream));
+    for (name, value) in call.headers(WireProtocol::Gemini) {
+        request = request.header(name, value);
+    }
+    let response = request.json(body).send().await?;
     if !response.status().is_success() {
         return Err(crate::error::AiError::from_error_response("gemini", response).await);
     }

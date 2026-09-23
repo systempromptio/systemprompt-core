@@ -49,7 +49,6 @@ ALLOWED_FILES=(
   # AppContext to take the repository from.
   crates/infra/security/src/authz/reconcile.rs
   crates/infra/logging/src/services/maintenance.rs
-  crates/infra/logging/src/services/retention/scheduler.rs
   # scheduler-owned repos (SchedulerRepository, JobRepository,
   # LoggingRepository) have exactly one consuming crate; an AppContext
   # accessor for them is not warranted.

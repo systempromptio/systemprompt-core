@@ -5,7 +5,10 @@
 //! of canonical events. Adapters register themselves via
 //! [`OutboundAdapterRegistration`] (collected by `inventory`) so the upstream
 //! registry can resolve one by provider tag. Implementations cover Anthropic,
-//! `OpenAI` Chat Completions, and `OpenAI` Responses.
+//! Gemini, `OpenAI` Chat Completions, and `OpenAI` Responses. Where a request
+//! goes and how it authenticates is the resolved [`UpstreamCall`] — the same
+//! seam the in-process AI service sends through — so an adapter renders its
+//! wire and never decides a URL, an auth header or a hosting variant itself.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -21,6 +24,7 @@ use std::sync::Arc;
 use anyhow::Result;
 use async_trait::async_trait;
 use futures_util::stream::BoxStream;
+use systemprompt_ai::UpstreamCall;
 use systemprompt_models::services::GatewayRoute;
 use systemprompt_models::services::ai::ModelLimits;
 use thiserror::Error;
@@ -101,9 +105,7 @@ pub fn extract_upstream_message(body: &str) -> String {
 #[derive(Debug)]
 pub struct OutboundCtx<'a> {
     pub route: &'a GatewayRoute,
-    pub endpoint: &'a str,
-    pub api_key: &'a str,
-    pub api_key_is_bearer: bool,
+    pub upstream: &'a UpstreamCall,
     pub request: &'a CanonicalRequest,
     pub upstream_model: &'a str,
     pub model_limits: Option<ModelLimits>,

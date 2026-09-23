@@ -75,10 +75,6 @@ async fn trait_object_session_lifecycle_persists_usage_behavior_and_terminal_sta
         .await
         .expect("increment AI usage");
     store
-        .update_activity(&session_id)
-        .await
-        .expect("update activity");
-    store
         .update_behavioral_detection(&session_id, 87, true, Some("automated navigation"))
         .await
         .expect("persist behavioral verdict");

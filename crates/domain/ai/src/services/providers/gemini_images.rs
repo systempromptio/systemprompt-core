@@ -22,24 +22,39 @@ use reqwest::Client;
 use std::collections::HashMap;
 use std::time::Instant;
 use systemprompt_models::net::{HTTP_STREAM_CONNECT_TIMEOUT, IMAGE_GEN_LONG_POLL_TIMEOUT};
-use systemprompt_models::services::ModelDefinition;
+use systemprompt_models::services::{ModelDefinition, WireProtocol};
 use tracing::error;
+
+use crate::services::upstream::UpstreamTarget;
 
 use super::gemini_image_mapping::{build_image_request, extract_image_from_response};
 
 const DEFAULT_IMAGE_CENTS: f32 = 4.0;
+const DEFAULT_ENDPOINT: &str = "https://generativelanguage.googleapis.com/v1beta";
 
 #[derive(Debug)]
 pub struct GeminiImageProvider {
     client: Client,
-    api_key: String,
-    endpoint: String,
+    target: UpstreamTarget,
     default_model: String,
     model_definitions: HashMap<String, ModelDefinition>,
 }
 
 impl GeminiImageProvider {
     pub fn new(api_key: String) -> Self {
+        Self::with_endpoint(api_key, DEFAULT_ENDPOINT.to_owned())
+    }
+
+    pub fn with_endpoint(api_key: String, endpoint: String) -> Self {
+        Self::with_target(UpstreamTarget::api_key(
+            "gemini",
+            WireProtocol::Gemini,
+            endpoint,
+            api_key,
+        ))
+    }
+
+    pub fn with_target(target: UpstreamTarget) -> Self {
         let client = Client::builder()
             .timeout(IMAGE_GEN_LONG_POLL_TIMEOUT)
             .connect_timeout(HTTP_STREAM_CONNECT_TIMEOUT)
@@ -48,20 +63,12 @@ impl GeminiImageProvider {
                 error!(error = %e, "Failed to build HTTP client for GeminiImageProvider, using default");
                 Client::new()
             });
-
         Self {
             client,
-            api_key,
-            endpoint: "https://generativelanguage.googleapis.com/v1beta".to_owned(),
+            target,
             default_model: "gemini-2.5-flash-image".to_owned(),
             model_definitions: HashMap::new(),
         }
-    }
-
-    pub fn with_endpoint(api_key: String, endpoint: String) -> Self {
-        let mut provider = Self::new(api_key);
-        provider.endpoint = endpoint;
-        provider
     }
 
     pub fn with_default_model(mut self, model: String) -> Self {
@@ -107,16 +114,14 @@ impl GeminiImageProvider {
     }
 
     async fn fetch_response(&self, model: &str, body: &GeminiRequest) -> Result<GeminiResponse> {
-        let url = format!("{}/models/{}:generateContent", self.endpoint, model);
-
-        let response = self
+        let call = self.target.call().await?;
+        let mut request = self
             .client
-            .post(&url)
-            .header("x-goog-api-key", &self.api_key)
-            .json(body)
-            .send()
-            .await
-            .map_err(AiError::Http)?;
+            .post(call.url(WireProtocol::Gemini, model, false));
+        for (name, value) in call.headers(WireProtocol::Gemini) {
+            request = request.header(name, value);
+        }
+        let response = request.json(body).send().await.map_err(AiError::Http)?;
 
         if !response.status().is_success() {
             let status = response.status();

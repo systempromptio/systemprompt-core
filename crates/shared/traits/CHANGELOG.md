@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.60.0] - 2026-09-23
+
+### Breaking
+
+- **Breaking:** `SessionStore::update_activity` is removed. `increment_request_count` already stamps `last_activity_at` and `duration_seconds`, and the request middleware, its only production caller, now makes just that one call.
+
 ## [0.55.0] - 2026-09-17
 
 ### Breaking

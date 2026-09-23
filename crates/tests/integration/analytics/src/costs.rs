@@ -3,7 +3,7 @@ use chrono::{Duration, TimeZone, Utc};
 use systemprompt_analytics::CostAnalyticsRepository;
 use systemprompt_database::DbPool;
 use systemprompt_models::UserId;
-use systemprompt_test_fixtures::{drain_reporting, fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
 use tokio::sync::{Mutex, MutexGuard, OnceCell};
 use uuid::Uuid;
 
@@ -34,11 +34,7 @@ struct Fixture {
 
 impl Fixture {
     async fn new() -> Result<Self> {
-        // The in-process guard below orders tests inside one process; under
-        // nextest that is a single test. The projection is shared across
-        // processes and a rebuild truncates it, so the cross-process lock is
-        // what actually keeps another test's rebuild out of these reads.
-        systemprompt_test_fixtures::hold_reporting_lock()?;
+        // The in-process guard orders tests inside one process.
         let guard = acquire_serial().await;
         let url = fixture_database_url()
             .context("DATABASE_URL must be set for cost reconciliation tests")?;
@@ -125,7 +121,6 @@ impl Fixture {
     }
 
     async fn repo(&self) -> Result<CostAnalyticsRepository> {
-        drain_reporting(&self.db).await?;
         Ok(CostAnalyticsRepository::new(&self.db)?)
     }
 
@@ -346,7 +341,7 @@ async fn breakdown_by_user_ranks_users_and_counts_their_conversations() -> Resul
     assert_eq!(mine.conversations, 1, "both requests share one context");
     assert!(
         mine.name.is_some(),
-        "the reporting projection carries the display name"
+        "the breakdown carries the display name"
     );
 
     let theirs = rows

@@ -1,6 +1,6 @@
 //! Analytics domain crate for systemprompt.io.
 //!
-//! Provides session, fingerprint, funnel, engagement, conversation, content,
+//! Provides session, fingerprint, engagement, conversation, content,
 //! tool, agent, and cost analytics on top of the `systemprompt-database`
 //! abstraction. Public surface is a typed [`AnalyticsError`] boundary plus a
 //! family of repositories and services consumed by `systemprompt-api`,
@@ -18,9 +18,7 @@
 
 pub mod error;
 pub mod extension;
-pub mod feedback;
 pub mod models;
-pub mod projection;
 pub mod repository;
 pub mod resource_metrics;
 pub mod services;
@@ -30,35 +28,26 @@ pub use extension::AnalyticsExtension;
 pub use error::{AnalyticsError, Result, Result as AnalyticsResult};
 
 pub use models::{
-    ActivityTrend, AnalyticsEvent, AnalyticsEventBatchResponse, AnalyticsEventCreated,
-    AnalyticsEventType, AnalyticsSession, BotTrafficStats, BrowserBreakdown, ContentStat,
-    ContextGroupRow, ContextSummaryRow, ConversationByAgent, ConversationSummary,
-    ConversationTrend, ConversionEventData, CostOverview, CreateAnalyticsEventBatchInput,
-    CreateAnalyticsEventInput, CreateEngagementEventInput, CreateFunnelInput,
-    CreateFunnelStepInput, DeviceBreakdown, EngagementEvent, EngagementEventData,
-    EngagementOptionalMetrics, ErrorSummary, FingerprintAnalysisResult, FingerprintReputation,
-    FlagReason, Funnel, FunnelMatchType, FunnelProgress, FunnelStats, FunnelStep, FunnelStepStats,
-    FunnelWithSteps, GeographicBreakdown, LinkClickEventData, PlatformOverview, RecentContextRow,
-    RecentConversation, ScrollEventData, TopAgent, TopTool, TopUser, TrafficSource, TrafficSummary,
-    UserMetricsWithTrends,
+    AnalyticsEventBatchResponse, AnalyticsEventCreated, AnalyticsEventType, AnalyticsSession,
+    ContextGroupRow, ContextSummaryRow, ConversionEventData, CreateAnalyticsEventBatchInput,
+    CreateAnalyticsEventInput, CreateEngagementEventInput, EngagementEvent, EngagementEventData,
+    EngagementOptionalMetrics, FingerprintAnalysisResult, FingerprintReputation, FlagReason,
+    LinkClickEventData, RecentContextRow, ScrollEventData,
 };
 pub use repository::{
     ABUSE_THRESHOLD_FOR_BAN, AgentAnalyticsRepository, AnalyticsEventsRepository,
-    AnalyticsQueryRepository, CliSessionAnalyticsRepository, ContentAnalyticsRepository,
-    ConversationAnalyticsRepository, CoreStatsRepository, CostAnalyticsRepository,
-    CreateSessionParams, EngagementRepository, FingerprintRepository, FunnelRepository,
+    CliSessionAnalyticsRepository, ContentAnalyticsRepository, ConversationAnalyticsRepository,
+    CostAnalyticsRepository, CreateSessionParams, EngagementRepository, FingerprintRepository,
     HIGH_REQUEST_THRESHOLD, HIGH_VELOCITY_RPM, MAX_SESSIONS_PER_FINGERPRINT, NavigationQuery,
-    OverviewAnalyticsRepository, PageQuery, ProviderUsage, RequestAnalyticsRepository,
-    SUSTAINED_VELOCITY_MINUTES, SessionBehavioralData, SessionEngagementSummary,
-    SessionMigrationResult, SessionRecord, SessionRepository, StoredAnalyticsEvent,
+    OverviewAnalyticsRepository, PageQuery, RequestAnalyticsRepository, SUSTAINED_VELOCITY_MINUTES,
+    SessionBehavioralData, SessionMigrationResult, SessionRecord, SessionRepository,
     ToolAnalyticsRepository, ToolListParams, TrafficAnalyticsRepository,
 };
 pub use services::bot_keywords::matches_bot_pattern;
 pub use services::{
-    AnalyticsService, AnomalyCheckResult, AnomalyDetectionService, AnomalyEvent, AnomalyLevel,
-    AnomalyThresholdConfig, BEHAVIORAL_BOT_THRESHOLD, BehavioralAnalysisInput,
-    BehavioralAnalysisResult, BehavioralBotDetector, BehavioralSignal, ProfileUsageService,
-    SessionAnalytics, SessionAnalyticsBuilder, SignalType, detection,
+    AnalyticsService, BEHAVIORAL_BOT_THRESHOLD, BehavioralAnalysisInput, BehavioralAnalysisResult,
+    BehavioralBotDetector, BehavioralSignal, ProfileUsageService, SessionAnalytics,
+    SessionAnalyticsBuilder, SignalType, detection,
 };
 
 #[cfg(feature = "geolocation")]
@@ -66,5 +55,3 @@ pub type GeoIpReader = std::sync::Arc<maxminddb::Reader<Vec<u8>>>;
 
 #[cfg(not(feature = "geolocation"))]
 pub type GeoIpReader = std::sync::Arc<()>;
-
-pub mod snapshots;

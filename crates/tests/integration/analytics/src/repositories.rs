@@ -46,11 +46,7 @@ struct Fixture {
 
 impl Fixture {
     async fn new() -> Result<Self> {
-        // The in-process guard below orders tests inside one process; under
-        // nextest that is a single test. The projection is shared across
-        // processes and a rebuild truncates it, so the cross-process lock is
-        // what actually keeps another test's rebuild out of these reads.
-        systemprompt_test_fixtures::hold_reporting_lock()?;
+        // The in-process guard orders tests inside one process.
         let guard = acquire_serial().await;
         let url = fixture_database_url()?;
         let db = fixture_db_pool(&url).await?;
@@ -216,7 +212,6 @@ async fn traffic_repository_smoke() -> Result<()> {
     )
     .await?;
 
-    systemprompt_test_fixtures::refresh_reporting(&fx.db).await?;
     let repo = TrafficAnalyticsRepository::new(&fx.db)?;
     let sources = repo
         .get_sources(fx.window_start, fx.window_end, 50, false)
@@ -280,7 +275,6 @@ async fn overview_repository_smoke() -> Result<()> {
     )
     .await?;
 
-    systemprompt_test_fixtures::refresh_reporting(&fx.db).await?;
     let repo = OverviewAnalyticsRepository::new(&fx.db)?;
     let conv_count = repo
         .get_conversation_count(fx.window_start, fx.window_end)
@@ -338,14 +332,8 @@ async fn engagement_repository_lifecycle() -> Result<()> {
         .await?;
     let by_id = repo.find_by_id(&event_id).await?;
     assert!(by_id.is_some());
-    let by_session = repo.list_by_session(&session_id).await?;
-    assert_eq!(by_session.len(), 1);
     let by_user = repo.list_by_user(&fx.user_typed, 10).await?;
     assert!(!by_user.is_empty());
-    let summary = repo.get_session_engagement_summary(&session_id).await?;
-    assert!(summary.is_some());
-    let summary = summary.unwrap();
-    assert_eq!(summary.page_count, Some(1));
 
     fx.cleanup().await?;
     Ok(())
@@ -367,22 +355,14 @@ async fn fingerprint_repository_lifecycle() -> Result<()> {
         .await?;
     assert!(rep2.total_session_count >= 2);
 
-    repo.update_velocity_metrics(&fp_hash, 10, 2.5, 4).await?;
-    repo.update_active_session_count(&fp_hash, 3).await?;
     repo.increment_request_count(&fp_hash).await?;
-    let score_after = repo.adjust_reputation_score(&fp_hash, -10).await?;
-    assert!(score_after <= 100);
-    repo.flag_fingerprint(&fp_hash, FlagReason::HighRequestCount, score_after)
+    repo.flag_fingerprint(&fp_hash, FlagReason::HighRequestCount, 40)
         .await?;
-    repo.clear_flag(&fp_hash).await?;
 
-    let by_hash = repo.get_by_hash(&fp_hash).await?;
-    assert!(by_hash.is_some());
     let _active = repo.count_active_sessions(&fp_hash).await?;
     let _reuse = repo.find_reusable_session(&fp_hash).await?;
-    let _analysis = repo.get_fingerprints_for_analysis().await?;
-    let high = repo.get_high_risk_fingerprints(50).await?;
-    assert!(high.iter().all(|r| !r.fingerprint_hash.is_empty()));
+    let analysis = repo.get_fingerprints_for_analysis().await?;
+    assert!(analysis.iter().all(|r| !r.fingerprint_hash.is_empty()));
 
     let _ = sqlx::query("DELETE FROM fingerprint_reputation WHERE fingerprint_hash = $1")
         .bind(&fp_hash)
@@ -398,7 +378,6 @@ async fn request_analytics_repository_smoke() -> Result<()> {
     fx.insert_ai_request("m1", 100, 10).await?;
     fx.insert_ai_request("m2", 200, 20).await?;
 
-    systemprompt_test_fixtures::refresh_reporting(&fx.db).await?;
     let repo = RequestAnalyticsRepository::new(&fx.db)?;
     let stats = repo.get_stats(fx.window_start, fx.window_end, None).await?;
     assert!(stats.total >= 2);
@@ -459,7 +438,6 @@ async fn rejected_requests_are_excluded_from_model_mix_but_listed() -> Result<()
     fx.insert_ai_request("m1", 100, 10).await?;
     fx.insert_rejected_ai_request().await?;
 
-    systemprompt_test_fixtures::refresh_reporting(&fx.db).await?;
     let repo = RequestAnalyticsRepository::new(&fx.db)?;
 
     let models = repo.list_models(fx.window_start, fx.window_end, 10).await?;
@@ -485,7 +463,6 @@ async fn rejected_requests_are_excluded_from_model_mix_but_listed() -> Result<()
 #[tokio::test]
 async fn conversation_repository_smoke() -> Result<()> {
     let fx = Fixture::new().await?;
-    systemprompt_test_fixtures::refresh_reporting(&fx.db).await?;
     let repo = ConversationAnalyticsRepository::new(&fx.db)?;
     let _agent = repo
         .list_agent_contexts(fx.window_start, fx.window_end, 50, None)
@@ -508,7 +485,6 @@ async fn conversation_repository_smoke() -> Result<()> {
     .bind(fx.window_start + Duration::minutes(1))
     .execute(&fx.pool)
     .await?;
-    systemprompt_test_fixtures::refresh_reporting(&fx.db).await?;
     let ctx_ct_after = repo
         .get_context_count(fx.window_start, fx.window_end)
         .await?;
@@ -548,10 +524,9 @@ async fn conversation_repository_smoke() -> Result<()> {
 #[tokio::test]
 async fn events_repository_smoke() -> Result<()> {
     let fx = Fixture::new().await?;
-    let repo = AnalyticsEventsRepository::new(
-        &fx.db,
-        std::sync::Arc::new(systemprompt_logging::AnalyticsRepository::new(&fx.db)?),
-    )?;
+    let repo = AnalyticsEventsRepository::new(std::sync::Arc::new(
+        systemprompt_logging::AnalyticsRepository::new(&fx.db)?,
+    ));
 
     let session_id = SessionId::new(format!("ev_s_{}", fx.tag));
     sqlx::query(
@@ -605,14 +580,12 @@ async fn events_repository_smoke() -> Result<()> {
         .await?;
     assert!(empty_batch.is_empty());
 
-    systemprompt_test_fixtures::refresh_reporting(&fx.db).await?;
-    let count = repo
-        .count_events_by_type(&session_id, &AnalyticsEventType::PageView)
-        .await?;
-    assert!(count >= 1);
-
-    let by_session = repo.find_by_session(&session_id, 10).await?;
-    assert!(!by_session.is_empty());
+    let stored: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM analytics_events WHERE session_id = $1")
+            .bind(session_id.as_str())
+            .fetch_one(&fx.pool)
+            .await?;
+    assert!(stored >= 3);
 
     fx.cleanup().await?;
     Ok(())

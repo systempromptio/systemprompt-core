@@ -32,6 +32,7 @@ pub mod openai_chat;
 pub mod openai_responses;
 pub mod origin;
 pub mod sse;
+pub mod upstream;
 
 #[must_use]
 pub fn clamp_output_tokens(requested: u32, max_output_tokens: Option<u32>) -> u32 {

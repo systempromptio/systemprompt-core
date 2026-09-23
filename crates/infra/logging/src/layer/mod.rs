@@ -174,9 +174,8 @@ impl DatabaseLayer {
         tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
         entries: &[LogEntry],
     ) -> Result<(), crate::models::LoggingError> {
-        // Why: one INSERT per flush. The logs table carries a statement-level
-        // reporting capture trigger, so a hundred rows cost one outbox write
-        // here and a hundred with a row-per-INSERT loop.
+        // Why: one INSERT per flush — a hundred rows cost one round trip
+        // and one statement instead of a hundred.
         let columns = LogColumns::gather(entries)?;
         // Why: sqlx infers `&[String]` for a text[] bind; the nullable
         // columns need their element type stated once, without a cast.

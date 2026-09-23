@@ -28,7 +28,6 @@ default = []
 geolocation = ["dep:maxminddb"]
 
 [dependencies]
-schemars = { workspace = true }
 # Core runtime
 tokio = { workspace = true }
 thiserror = { workspace = true }

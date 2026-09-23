@@ -52,7 +52,10 @@ impl ScannedDispatch {
             .provider
             .upstream_model_for(upstream.route.upstream_model.as_deref(), &requested)
             .to_owned();
-        let model_limits = upstream.provider.find_model(&requested).map(|m| m.limits);
+        let model_limits = upstream
+            .provider
+            .find_served_model(&requested)
+            .map(|m| m.limits);
         if upstream.provider.wire == WireProtocol::Gemini {
             inline_url_images(&mut prepared.request, &ImageFetchPolicy::default()).await?;
         }

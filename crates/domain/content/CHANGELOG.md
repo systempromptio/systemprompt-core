@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.60.0] - 2026-09-23
+
+### Removed
+
+- Migration `005_retire_reporting_capture` drops the reporting capture triggers and `reporting_source_*` views on `markdown_content` (with `lock_content_reporting_sources`); `reporting_capture.sql` and `reporting_privacy.sql` leave the declarative schema.
+
 ## [0.59.0] - 2026-09-22
 
 ### Changed

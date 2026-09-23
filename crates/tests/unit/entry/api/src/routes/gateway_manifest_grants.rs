@@ -603,7 +603,7 @@ async fn consumer_bundle_enforces_host_scope_without_changing_the_catalog_grant(
 }
 
 #[tokio::test]
-async fn consumer_http_flow_binds_receipts_and_hides_them_from_another_device() {
+async fn consumer_http_flow_binds_receipts_and_refuses_another_device() {
     let harness = harness(Arc::new(AllowAllFilter)).await;
     let owner = harness.ctx.system_admin().id().clone();
     let repository = harness.ctx.managed_repository();
@@ -712,62 +712,15 @@ async fn consumer_http_flow_binds_receipts_and_hides_them_from_another_device() 
         .refresh_installation_coverage(&owner)
         .await
         .expect("installation coverage refresh");
-    let inventory_entry = repository
-        .inventory(&owner, None, 100)
+    let coverage = repository
+        .installation_coverage(&owner, &resource)
         .await
-        .expect("managed inventory")
-        .into_iter()
-        .find(|entry| entry.resource_id.as_ref() == Some(&resource))
-        .expect("published resource inventory entry");
-    let administrative = systemprompt_api::routes::managed::router()
-        .with_state(systemprompt_api::routes::managed::state::ManagedState::new(
-            harness.ctx.clone(),
-        ))
-        .layer(axum::middleware::from_fn(
-            systemprompt_api::routes::managed::contract::normalize,
-        ));
-    let coverage_status = administrative
-        .clone()
-        .oneshot(
-            Request::builder()
-                .uri("/inventory/installations/status")
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-    assert_eq!(coverage_status.status(), StatusCode::OK);
-    let coverage_status: serde_json::Value = serde_json::from_slice(
-        &to_bytes(coverage_status.into_body(), 1_000_000)
-            .await
-            .unwrap(),
-    )
-    .unwrap();
-    assert!(
-        coverage_status["generation"]
-            .as_i64()
-            .is_some_and(|value| value >= 1)
-    );
-    assert!(coverage_status["observed_at"].is_string());
-    let coverage = administrative
-        .oneshot(
-            Request::builder()
-                .uri(format!(
-                    "/inventory/{}/installation-coverage",
-                    inventory_entry.entry_id
-                ))
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-    assert_eq!(coverage.status(), StatusCode::OK);
-    let coverage: serde_json::Value =
-        serde_json::from_slice(&to_bytes(coverage.into_body(), 1_000_000).await.unwrap()).unwrap();
-    assert_eq!(coverage["eligible_devices"], 1);
-    assert_eq!(coverage["current_acknowledged_devices"], 1);
-    assert_eq!(coverage["current_verified_devices"], 1);
-    assert_eq!(coverage["acknowledged_installations"], 1);
+        .expect("installation coverage")
+        .expect("coverage row for the published resource");
+    assert_eq!(coverage.eligible_devices, 1);
+    assert_eq!(coverage.current_acknowledged_devices, 1);
+    assert_eq!(coverage.current_verified_devices, 1);
+    assert_eq!(coverage.acknowledged_installations, 1);
     let binding_request = SessionBindingRequest {
         receipt_id: recorded.receipt_id.clone(),
         host: EvaluatorClient::Codex,
@@ -789,151 +742,7 @@ async fn consumer_http_flow_binds_receipts_and_hides_them_from_another_device() 
     assert_eq!(bound.status(), StatusCode::OK);
     let binding: systemprompt_marketplace::managed::consumer::ConsumerSessionBinding =
         serde_json::from_slice(&to_bytes(bound.into_body(), 1_000_000).await.unwrap()).unwrap();
-    let invocation = systemprompt_marketplace::managed::consumer::ConsumerInvocationRequest {
-        invocation_id: systemprompt_identifiers::ResourceInvocationId::new(
-            "consumer-http-invocation",
-        ),
-        host: EvaluatorClient::Codex,
-        session_id: binding_request.session_id.clone(),
-        resource_id: resource.clone(),
-        installation_id: Some(receipt.installation_id.clone()),
-        revision_id: Some(receipt.revision_id.clone()),
-        generation: Some(receipt.generation),
-        occurred_at: chrono::Utc::now(),
-        evidence: serde_json::json!({"source":"consumer-http"}),
-    };
-    let invoked = router
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/consumer/invocations")
-                .header("authorization", format!("Bearer {}", credential.credential))
-                .header("content-type", "application/json")
-                .body(Body::from(serde_json::to_vec(&invocation).unwrap()))
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-    assert_eq!(invoked.status(), StatusCode::OK);
-    let attributed: systemprompt_marketplace::managed::consumer::ConsumerAttribution =
-        serde_json::from_slice(&to_bytes(invoked.into_body(), 1_000_000).await.unwrap()).unwrap();
-    assert_eq!(attributed.receipt_id, Some(recorded.receipt_id.clone()));
-    assert!(
-        attributed.version >= 1,
-        "the correction projection is durable"
-    );
-
-    let receipt_status = router
-        .clone()
-        .oneshot(
-            Request::builder()
-                .uri(format!("/consumer/receipts/{}", recorded.receipt_id))
-                .header("authorization", format!("Bearer {}", credential.credential))
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-    assert_eq!(receipt_status.status(), StatusCode::OK);
-    let receipt_status: systemprompt_models::feedback::receipts::ConsumerReceiptResponse =
-        serde_json::from_slice(
-            &to_bytes(receipt_status.into_body(), 1_000_000)
-                .await
-                .unwrap(),
-        )
-        .unwrap();
-    assert_eq!(receipt_status.receipt_id, recorded.receipt_id);
-    assert!(receipt_status.fully_verified);
-
-    let binding_status = router
-        .clone()
-        .oneshot(
-            Request::builder()
-                .uri(format!("/consumer/session-bindings/{}", binding.id))
-                .header("authorization", format!("Bearer {}", credential.credential))
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-    assert_eq!(binding_status.status(), StatusCode::OK);
-    let binding_status: systemprompt_marketplace::managed::consumer::ConsumerSessionBinding =
-        serde_json::from_slice(
-            &to_bytes(binding_status.into_body(), 1_000_000)
-                .await
-                .unwrap(),
-        )
-        .unwrap();
-    assert_eq!(binding_status.id, binding.id);
-    assert!(binding_status.bound_at <= chrono::Utc::now());
-
-    let invocation_status = router
-        .clone()
-        .oneshot(
-            Request::builder()
-                .uri(format!(
-                    "/consumer/invocations/{}?host=codex",
-                    invocation.invocation_id
-                ))
-                .header("authorization", format!("Bearer {}", credential.credential))
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-    assert_eq!(invocation_status.status(), StatusCode::OK);
-    let invocation_status: systemprompt_marketplace::managed::consumer::ConsumerAttribution =
-        serde_json::from_slice(
-            &to_bytes(invocation_status.into_body(), 1_000_000)
-                .await
-                .unwrap(),
-        )
-        .unwrap();
-    assert_eq!(
-        invocation_status.receipt_id,
-        Some(recorded.receipt_id.clone())
-    );
-    assert_eq!(invocation_status.version, attributed.version);
-
-    let replay = router
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/consumer/invocations")
-                .header("authorization", format!("Bearer {}", credential.credential))
-                .header("content-type", "application/json")
-                .body(Body::from(serde_json::to_vec(&invocation).unwrap()))
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-    assert_eq!(replay.status(), StatusCode::OK);
-    let replay: systemprompt_marketplace::managed::consumer::ConsumerAttribution =
-        serde_json::from_slice(&to_bytes(replay.into_body(), 1_000_000).await.unwrap()).unwrap();
-    assert_eq!(replay.receipt_id, attributed.receipt_id);
-    assert_eq!(
-        replay.version, attributed.version,
-        "identical evidence is replay-safe"
-    );
-
-    let mut conflicting = invocation.clone();
-    conflicting.evidence = serde_json::json!({"source":"changed-after-recording"});
-    let conflict = router
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/consumer/invocations")
-                .header("authorization", format!("Bearer {}", credential.credential))
-                .header("content-type", "application/json")
-                .body(Body::from(serde_json::to_vec(&conflicting).unwrap()))
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-    assert_eq!(conflict.status(), StatusCode::CONFLICT);
+    assert!(binding.bound_at <= chrono::Utc::now());
     let foreign = seed_bridge_credential(&harness.pool, "consumer-http-foreign@example.invalid")
         .await
         .expect("foreign");
@@ -944,15 +753,16 @@ async fn consumer_http_flow_binds_receipts_and_hides_them_from_another_device() 
         .await
         .expect("foreign credential");
     let hidden = router
-        .clone()
         .oneshot(
             Request::builder()
-                .uri(format!("/consumer/receipts/{}", recorded.receipt_id))
+                .method("POST")
+                .uri("/consumer/session-bindings")
                 .header(
                     "authorization",
                     format!("Bearer {}", foreign_token.credential),
                 )
-                .body(Body::empty())
+                .header("content-type", "application/json")
+                .body(Body::from(serde_json::to_vec(&binding_request).unwrap()))
                 .unwrap(),
         )
         .await
@@ -964,39 +774,6 @@ async fn consumer_http_flow_binds_receipts_and_hides_them_from_another_device() 
     assert!(!rendered.contains(recorded.receipt_id.as_str()));
     assert!(!rendered.contains(resource.as_str()));
     assert!(!rendered.contains(binding.id.as_str()));
-    assert!(!rendered.contains(invocation.invocation_id.as_str()));
-    let hidden_binding = router
-        .clone()
-        .oneshot(
-            Request::builder()
-                .uri(format!("/consumer/session-bindings/{}", binding.id))
-                .header(
-                    "authorization",
-                    format!("Bearer {}", foreign_token.credential),
-                )
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-    assert_eq!(hidden_binding.status(), StatusCode::FORBIDDEN);
-    let hidden_invocation = router
-        .oneshot(
-            Request::builder()
-                .uri(format!(
-                    "/consumer/invocations/{}?host=codex",
-                    invocation.invocation_id
-                ))
-                .header(
-                    "authorization",
-                    format!("Bearer {}", foreign_token.credential),
-                )
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-    assert_eq!(hidden_invocation.status(), StatusCode::FORBIDDEN);
 }
 struct PrivateConsumer {
     database: systemprompt_test_fixtures::DisposableDb,
@@ -1175,91 +952,6 @@ async fn receipt_storage_failure_leaves_no_partial_evidence_and_retry_commits_on
 }
 
 #[tokio::test]
-async fn invocation_evidence_storage_failure_leaves_no_evidence_and_retry_attributes_the_receipt() {
-    let f = private_consumer("invocation_write_recovery").await;
-    let db = f.harness.pool.pool_arc().unwrap();
-    let receipt = post_json(
-        consumer_router(&f),
-        "/consumer/receipts",
-        &f.token,
-        &f.request,
-    )
-    .await;
-    let recorded: systemprompt_models::feedback::receipts::ConsumerReceiptResponse =
-        serde_json::from_slice(&to_bytes(receipt.into_body(), 1_000_000).await.unwrap()).unwrap();
-    let binding = SessionBindingRequest {
-        receipt_id: recorded.receipt_id.clone(),
-        host: EvaluatorClient::Codex,
-        session_id: systemprompt_identifiers::NativeSessionId::new("write-recovery-session"),
-    };
-    assert_eq!(
-        post_json(
-            consumer_router(&f),
-            "/consumer/session-bindings",
-            &f.token,
-            &binding
-        )
-        .await
-        .status(),
-        StatusCode::OK
-    );
-    let invocation = systemprompt_marketplace::managed::consumer::ConsumerInvocationRequest {
-        invocation_id: systemprompt_identifiers::ResourceInvocationId::new(
-            "write-recovery-invocation",
-        ),
-        host: EvaluatorClient::Codex,
-        session_id: binding.session_id,
-        resource_id: f.request.resource_id.clone(),
-        installation_id: Some(f.request.installation_id.clone()),
-        revision_id: Some(f.request.revision_id.clone()),
-        generation: Some(f.request.generation),
-        occurred_at: chrono::Utc::now(),
-        evidence: serde_json::json!({"owned":"failure-retry"}),
-    };
-    sqlx::query("CREATE FUNCTION reject_invocation() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'owned write failure'; END $$").execute(db.as_ref()).await.unwrap();
-    sqlx::query("CREATE TRIGGER reject_invocation BEFORE INSERT ON managed_consumer_invocation_evidence FOR EACH ROW EXECUTE FUNCTION reject_invocation()").execute(db.as_ref()).await.unwrap();
-    assert_eq!(
-        post_json(
-            consumer_router(&f),
-            "/consumer/invocations",
-            &f.token,
-            &invocation
-        )
-        .await
-        .status(),
-        StatusCode::INTERNAL_SERVER_ERROR
-    );
-    let count: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM managed_consumer_invocation_evidence WHERE invocation_id=$1",
-    )
-    .bind(invocation.invocation_id.as_str())
-    .fetch_one(db.as_ref())
-    .await
-    .unwrap();
-    assert_eq!(count, 0);
-    sqlx::query("DROP TRIGGER reject_invocation ON managed_consumer_invocation_evidence")
-        .execute(db.as_ref())
-        .await
-        .unwrap();
-    sqlx::query("DROP FUNCTION reject_invocation()")
-        .execute(db.as_ref())
-        .await
-        .unwrap();
-    let response = post_json(
-        consumer_router(&f),
-        "/consumer/invocations",
-        &f.token,
-        &invocation,
-    )
-    .await;
-    assert_eq!(response.status(), StatusCode::OK);
-    let attribution: systemprompt_marketplace::managed::consumer::ConsumerAttribution =
-        serde_json::from_slice(&to_bytes(response.into_body(), 1_000_000).await.unwrap()).unwrap();
-    assert_eq!(attribution.receipt_id, Some(recorded.receipt_id));
-    f.database.drop_now().await;
-}
-
-#[tokio::test]
 async fn invalid_runtime_readback_is_rejected_without_receipt_and_corrected_retry_succeeds() {
     let f = private_consumer("receipt_readback_recovery").await;
     let db = f.harness.pool.pool_arc().unwrap();
@@ -1372,93 +1064,5 @@ async fn session_binding_storage_failure_leaves_no_binding_and_retry_is_durable(
     .unwrap();
     assert_eq!(row.0, binding.receipt_id.as_str());
     assert_eq!(row.1, binding.session_id.as_str());
-    f.database.drop_now().await;
-}
-
-#[tokio::test]
-async fn projection_storage_failure_rolls_back_invocation_evidence_and_retry_recovers() {
-    let f = private_consumer("projection_write_recovery").await;
-    let db = f.harness.pool.pool_arc().unwrap();
-    let receipt = post_json(
-        consumer_router(&f),
-        "/consumer/receipts",
-        &f.token,
-        &f.request,
-    )
-    .await;
-    let recorded: systemprompt_models::feedback::receipts::ConsumerReceiptResponse =
-        serde_json::from_slice(&to_bytes(receipt.into_body(), 1_000_000).await.unwrap()).unwrap();
-    let binding = SessionBindingRequest {
-        receipt_id: recorded.receipt_id.clone(),
-        host: EvaluatorClient::Codex,
-        session_id: systemprompt_identifiers::NativeSessionId::new("projection-write-recovery"),
-    };
-    assert_eq!(
-        post_json(
-            consumer_router(&f),
-            "/consumer/session-bindings",
-            &f.token,
-            &binding
-        )
-        .await
-        .status(),
-        StatusCode::OK
-    );
-    let invocation = systemprompt_marketplace::managed::consumer::ConsumerInvocationRequest {
-        invocation_id: systemprompt_identifiers::ResourceInvocationId::new(
-            "projection-write-recovery",
-        ),
-        host: EvaluatorClient::Codex,
-        session_id: binding.session_id,
-        resource_id: f.request.resource_id.clone(),
-        installation_id: Some(f.request.installation_id.clone()),
-        revision_id: Some(f.request.revision_id.clone()),
-        generation: Some(f.request.generation),
-        occurred_at: chrono::Utc::now(),
-        evidence: serde_json::json!({"owned":"projection-failure"}),
-    };
-    sqlx::query("CREATE FUNCTION reject_projection() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'owned write failure'; END $$").execute(db.as_ref()).await.unwrap();
-    sqlx::query("CREATE TRIGGER reject_projection BEFORE INSERT ON managed_consumer_attribution_projection FOR EACH ROW EXECUTE FUNCTION reject_projection()").execute(db.as_ref()).await.unwrap();
-    assert_eq!(
-        post_json(
-            consumer_router(&f),
-            "/consumer/invocations",
-            &f.token,
-            &invocation
-        )
-        .await
-        .status(),
-        StatusCode::INTERNAL_SERVER_ERROR
-    );
-    let count: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM managed_consumer_invocation_evidence WHERE invocation_id=$1",
-    )
-    .bind(invocation.invocation_id.as_str())
-    .fetch_one(db.as_ref())
-    .await
-    .unwrap();
-    assert_eq!(
-        count, 0,
-        "the evidence insert shares the failed projection transaction"
-    );
-    sqlx::query("DROP TRIGGER reject_projection ON managed_consumer_attribution_projection")
-        .execute(db.as_ref())
-        .await
-        .unwrap();
-    sqlx::query("DROP FUNCTION reject_projection()")
-        .execute(db.as_ref())
-        .await
-        .unwrap();
-    let response = post_json(
-        consumer_router(&f),
-        "/consumer/invocations",
-        &f.token,
-        &invocation,
-    )
-    .await;
-    assert_eq!(response.status(), StatusCode::OK);
-    let attribution: systemprompt_marketplace::managed::consumer::ConsumerAttribution =
-        serde_json::from_slice(&to_bytes(response.into_body(), 1_000_000).await.unwrap()).unwrap();
-    assert_eq!(attribution.receipt_id, Some(recorded.receipt_id));
     f.database.drop_now().await;
 }

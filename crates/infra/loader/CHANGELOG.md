@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.60.0] - 2026-09-23
+
+### Fixed
+
+- A declared Vertex model past its retirement date is marked `hidden` instead of being removed from its provider. Removal left a route whose only models had retired reaching no priced model, and gateway validation — which runs after discovery — then failed the boot. The model leaves every listing, stays priced, and is still logged at error so the operator deletes it.
+- `subprocess::live_pid_is_subprocess` (Linux) re-reads `/proc/<pid>/environ`, up to 20 times 5 ms apart, while the process exists, is not a zombie and its environment is empty or unreadable. A process inside `execve` was judged "not ours", so callers skipped the signal and reported a stop they never made.
+
+### Changed
+
+- `vertex_discovery::vertex_host` uses the catalog's `is_vertex_host`; behaviour is unchanged.
+
 ## [0.59.0] - 2026-09-22
 
 ### Changed

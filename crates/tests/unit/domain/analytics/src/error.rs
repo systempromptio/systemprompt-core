@@ -39,13 +39,4 @@ mod analytics_error_tests {
         assert!(display.contains("Behavioral bot detected"));
         assert!(display.contains("high_request_count"));
     }
-
-    #[test]
-    fn anomaly_detection_failed_displays_reason() {
-        let err = AnalyticsError::AnomalyDetectionFailed("Threshold exceeded".to_string());
-        let display = format!("{}", err);
-
-        assert!(display.contains("Anomaly detection failed"));
-        assert!(display.contains("Threshold exceeded"));
-    }
 }

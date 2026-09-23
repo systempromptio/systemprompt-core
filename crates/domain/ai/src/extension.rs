@@ -20,8 +20,7 @@ impl Extension for AiExtension {
 
     fn schemas(&self) -> Vec<SchemaDefinition> {
         vec![
-            SchemaDefinition::sql_only(include_str!("../schema/reporting_privacy.sql")),
-            SchemaDefinition::sql_only(include_str!("../schema/reporting_capture.sql")),
+            SchemaDefinition::sql_only(include_str!("../schema/ai_request_message_count.sql")),
             SchemaDefinition::new("ai_requests", include_str!("../schema/ai_requests.sql"))
                 .with_required_columns(columns(&[
                     "id",

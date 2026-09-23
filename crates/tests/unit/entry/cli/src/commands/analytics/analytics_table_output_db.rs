@@ -95,9 +95,6 @@ async fn seed(pool: &DbPool) {
 async fn run_all(args: &[Vec<&str>]) {
     let pool = pool().await;
     seed(&pool).await;
-    systemprompt_test_fixtures::refresh_reporting(&pool)
-        .await
-        .unwrap();
     let ctx = table_ctx(&pool);
 
     for argv in args {

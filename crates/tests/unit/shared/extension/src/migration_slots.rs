@@ -48,8 +48,14 @@ fn slots(dir: &Path) -> BTreeMap<u32, String> {
         let Some((prefix, _)) = name.split_once('_') else {
             continue;
         };
-        if let Ok(number) = prefix.parse::<u32>() {
-            found.insert(number, name);
+        let (start, end) = match prefix.split_once('-') {
+            Some((start, end)) if name.ends_with(".tombstone") => (start, end),
+            _ => (prefix, prefix),
+        };
+        if let (Ok(start), Ok(end)) = (start.parse::<u32>(), end.parse::<u32>()) {
+            for number in start..=end {
+                found.insert(number, name.clone());
+            }
         }
     }
     found
@@ -82,7 +88,8 @@ fn every_migration_slot_is_used_or_tombstoned() {
     assert!(
         gaps.is_empty(),
         "migration slots with neither a .sql nor a .tombstone file:\n{}\n\nA deleted migration \
-         must leave a `NNN_<name>.tombstone` behind so the slot cannot be re-used.",
+         must leave a `NNN_<name>.tombstone` (or `NNN-MMM_<name>.tombstone` for a run) behind so \
+         the slot cannot be re-used.",
         gaps.join("\n")
     );
 }

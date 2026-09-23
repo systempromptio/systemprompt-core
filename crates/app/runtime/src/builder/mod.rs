@@ -172,7 +172,6 @@ impl AppContextBuilder {
             file_storage,
             shutdown,
             publish_guard: Arc::default(),
-            snapshot_wakeup: Arc::default(),
         };
 
         Ok(AppContext::from_parts(

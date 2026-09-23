@@ -1,9 +1,8 @@
-//! Uniform request bounds, problem details and generated `OpenAPI` contracts.
+//! Uniform request bounds and problem details for the consumer surface.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 mod bounds;
-pub mod openapi;
 use axum::Json;
 use axum::extract::Request;
 use axum::http::{StatusCode, header};
@@ -12,7 +11,7 @@ use axum::response::{IntoResponse, Response};
 use serde::Serialize;
 
 /// Problem details shared by authentication, extraction and domain failures.
-#[derive(Debug, Clone, Serialize, schemars::JsonSchema)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Problem {
     #[serde(rename = "type")]
     pub kind: String,

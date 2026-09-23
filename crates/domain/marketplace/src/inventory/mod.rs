@@ -17,10 +17,10 @@ mod service;
 mod sources;
 mod types;
 pub(crate) use captures::IncomingRevision;
-pub use catalog::scan_configured_inventory;
+pub use catalog::{configured_inventory_fingerprint, scan_configured_inventory};
 pub use publish_latest::{LatestPublication, LatestPublicationStatus, PublishGuard};
 pub use service::InventoryService;
 pub use types::*;
 
 mod installation_coverage;
-pub use installation_coverage::{InstallationCoverage, InstallationCoverageStatus};
+pub use installation_coverage::InstallationCoverage;

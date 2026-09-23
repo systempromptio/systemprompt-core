@@ -170,13 +170,11 @@ impl AnalyticsMiddleware {
     fn spawn_session_tracking_task(&self, session_id: SessionId) {
         let session_repo = Arc::clone(&self.session_repo);
 
+        // Why: one UPDATE per request — the increment also stamps
+        // last_activity_at and duration_seconds.
         tokio::spawn(async move {
-            if let Err(e) = session_repo.update_activity(&session_id).await {
-                tracing::error!(error = %e, "Failed to update session activity");
-            }
-
             if let Err(e) = session_repo.increment_request_count(&session_id).await {
-                tracing::error!(error = %e, "Failed to increment request count");
+                tracing::error!(error = %e, "Failed to record session request");
             }
         });
     }

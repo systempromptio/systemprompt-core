@@ -1,0 +1,22 @@
+Slots 008-013 are spent, not free.
+
+008_reporting_privacy, 009_reporting_privacy_initialization,
+010_user_privacy_delivery, 011_artifact_fact_kind,
+012_projection_rebuild_progress and 013_drop_logs_and_messages_projections
+reshaped the reporting projection and the feedback fact engine. Every object
+they touched is dropped by 015_retire_feedback_and_reporting_projection.
+
+008, 010, 012 and 013 ALTERed or wrote analytics_projection_state and the
+analytics_report_* tables, which only the since-deleted declarative schema
+(reporting_privacy.sql) created, just before migrations ran. With that schema
+gone, a database that had not yet applied them (anything from 0.52 or
+earlier) failed its upgrade at 008 with "relation analytics_projection_state
+does not exist". Replaying them would only reshape what 015 drops.
+
+005-007 stay: they create their own tables, and a consumer's migrations
+between them and 015 (astound web 059) still write to those tables on the
+upgrade path.
+
+Deployments that applied 008-013 keep their tracking rows; 015 removes what
+they built. Numbering continues at the highest slot ever used, never at the
+first gap.

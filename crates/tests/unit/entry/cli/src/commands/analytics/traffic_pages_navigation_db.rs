@@ -154,9 +154,6 @@ async fn pages_counts_sessions_per_landing_page() {
         ],
     )
     .await;
-    systemprompt_test_fixtures::refresh_reporting(&pool)
-        .await
-        .unwrap();
     let ctx = ctx(&pool);
 
     let csv = pages_csv(&ctx, &["--path-prefix", &prefix]).await;
@@ -203,9 +200,6 @@ async fn pages_excludes_ghost_and_bot_sessions_unless_include_all() {
         ],
     )
     .await;
-    systemprompt_test_fixtures::refresh_reporting(&pool)
-        .await
-        .unwrap();
     let ctx = ctx(&pool);
 
     let engaged = export_rows(&pages_csv(&ctx, &["--path-prefix", &prefix]).await, &prefix);
@@ -247,9 +241,6 @@ async fn pages_filters_by_referrer_and_path_prefix() {
         ],
     )
     .await;
-    systemprompt_test_fixtures::refresh_reporting(&pool)
-        .await
-        .unwrap();
     let ctx = ctx(&pool);
 
     let by_referrer = export_rows(
@@ -280,9 +271,6 @@ async fn pages_renders_without_export() {
         }],
     )
     .await;
-    systemprompt_test_fixtures::refresh_reporting(&pool)
-        .await
-        .unwrap();
     let ctx = ctx(&pool);
 
     analytics::execute(parse(&["traffic", "pages", "--limit", "5"]), &ctx)
@@ -303,9 +291,6 @@ async fn navigation_csv(ctx: &CommandContext, args: &[&str]) -> String {
 async fn navigation_counts_internal_transitions() {
     let pool = pool().await;
     let prefix = seed_link_clicks(&pool).await;
-    systemprompt_test_fixtures::refresh_reporting(&pool)
-        .await
-        .unwrap();
     let ctx = ctx(&pool);
 
     let rows = export_rows(
@@ -322,9 +307,6 @@ async fn navigation_counts_internal_transitions() {
 async fn navigation_include_external_adds_outbound_clicks() {
     let pool = pool().await;
     let prefix = seed_link_clicks(&pool).await;
-    systemprompt_test_fixtures::refresh_reporting(&pool)
-        .await
-        .unwrap();
     let ctx = ctx(&pool);
 
     let rows = export_rows(
@@ -340,9 +322,6 @@ async fn navigation_include_external_adds_outbound_clicks() {
 async fn navigation_filters_by_path_prefix() {
     let pool = pool().await;
     let prefix = seed_link_clicks(&pool).await;
-    systemprompt_test_fixtures::refresh_reporting(&pool)
-        .await
-        .unwrap();
     let ctx = ctx(&pool);
 
     let rows = export_rows(
@@ -358,9 +337,6 @@ async fn navigation_filters_by_path_prefix() {
 async fn navigation_renders_without_export() {
     let pool = pool().await;
     seed_link_clicks(&pool).await;
-    systemprompt_test_fixtures::refresh_reporting(&pool)
-        .await
-        .unwrap();
     let ctx = ctx(&pool);
 
     analytics::execute(parse(&["traffic", "navigation", "--limit", "5"]), &ctx)

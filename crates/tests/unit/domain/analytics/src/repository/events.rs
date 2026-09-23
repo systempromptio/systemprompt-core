@@ -1,6 +1,5 @@
 //! DB-backed tests for `AnalyticsEventsRepository`: single-event writes that
-//! fold `content_id` / `slug` / `referrer` into `event_data`, and the
-//! `find_by_content` reader that pivots on the JSON `content_id`.
+//! fold `content_id` / `slug` / `referrer` into `event_data`.
 
 use systemprompt_analytics::AnalyticsEventsRepository;
 use systemprompt_database::DbPool;
@@ -59,19 +58,15 @@ async fn cleanup(pool: &DbPool, session_id: &SessionId) {
 }
 
 #[tokio::test]
-async fn create_event_folds_content_metadata_and_find_by_content_reads_it() {
+async fn create_event_folds_content_metadata_into_event_data() {
     let Ok(url) = fixture_database_url() else {
         return;
     };
     ensure_test_bootstrap();
     let pool = fixture_db_pool(&url).await.expect("pool");
-    let repo = AnalyticsEventsRepository::new(
-        &pool,
-        std::sync::Arc::new(
-            systemprompt_logging::AnalyticsRepository::new(&pool).expect("logging store"),
-        ),
-    )
-    .expect("repo");
+    let repo = AnalyticsEventsRepository::new(std::sync::Arc::new(
+        systemprompt_logging::AnalyticsRepository::new(&pool).expect("logging store"),
+    ));
 
     let sid = SessionId::new(format!("sess-evt-{}", Uuid::new_v4()));
     seed_session(&pool, &sid).await;
@@ -99,48 +94,17 @@ async fn create_event_folds_content_metadata_and_find_by_content_reads_it() {
         .expect("create event");
     assert_eq!(created.event_type, "page_view");
 
-    systemprompt_test_fixtures::refresh_reporting(&pool)
-        .await
-        .expect("reporting snapshot");
-    let events = repo
-        .find_by_content(&content, 10)
-        .await
-        .expect("by content");
-    assert_eq!(events.len(), 1);
-    let stored = &events[0];
-    assert_eq!(stored.id, created.id);
-    assert_eq!(
-        stored.session_id.as_ref().map(SessionId::as_str),
-        Some(sid.as_str())
-    );
-    let data = stored.event_data.as_ref().expect("event_data");
+    let (session_id, data): (Option<String>, Option<serde_json::Value>) =
+        sqlx::query_as("SELECT session_id, event_data FROM analytics_events WHERE id = $1")
+            .bind(&created.id)
+            .fetch_one(pool.pool_arc().expect("pool").as_ref())
+            .await
+            .expect("stored event");
+    assert_eq!(session_id.as_deref(), Some(sid.as_str()));
+    let data = data.expect("event_data");
     assert_eq!(data["content_id"], serde_json::json!(content.as_str()));
     assert_eq!(data["slug"], serde_json::json!("guide-x"));
     assert_eq!(data["referrer"], serde_json::json!("https://ref.example"));
 
     cleanup(&pool, &sid).await;
-}
-
-#[tokio::test]
-async fn find_by_content_is_empty_for_unknown_content() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
-    ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
-    let repo = AnalyticsEventsRepository::new(
-        &pool,
-        std::sync::Arc::new(
-            systemprompt_logging::AnalyticsRepository::new(&pool).expect("logging store"),
-        ),
-    )
-    .expect("repo");
-
-    let unknown = ContentId::new(format!("content-{}", Uuid::new_v4()));
-    assert!(
-        repo.find_by_content(&unknown, 10)
-            .await
-            .expect("by content")
-            .is_empty()
-    );
 }

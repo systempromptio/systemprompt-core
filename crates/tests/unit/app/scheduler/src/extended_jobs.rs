@@ -223,7 +223,6 @@ mod all_jobs_inventory {
             "ghost_session_cleanup",
             "malicious_ip_blacklist",
             "no_js_cleanup",
-            "service_registry_gc",
             "thought_signature_cleanup",
             "vertex_discovery",
         ];

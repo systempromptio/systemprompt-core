@@ -1,5 +1,34 @@
 # Changelog
 
+## [0.60.0] - 2026-09-23
+
+### Removed
+
+- Migration `037_retire_reporting_capture` drops the reporting capture triggers and `reporting_source_*` views on `ai_requests` (with `lock_ai_reporting_sources` and `reporting_request_is_retained`); `reporting_capture.sql` and `reporting_privacy.sql` leave the declarative schema.
+
+### Changed
+
+- The `message_count` statement triggers on `ai_request_messages` (`sp_ai_request_message_count`) move to their own schema file, `ai_request_message_count.sql`; `ai_requests.message_count` is maintained exactly as before.
+
+### Breaking
+
+- `ProviderClientParams` replaces `wire`, `endpoint` and `api_key` with `target: UpstreamTarget`; `ImageProviderParams.api_key` is `target`. Build one with `UpstreamTarget::from_secrets(entry)`.
+
+### Added
+
+- `services::upstream` (`UpstreamTarget`, `UpstreamCall`, `UpstreamTargetError`, re-exported from the crate root): a catalog `ProviderEntry` and its secret resolved into a parsed credential, an endpoint filled from the credential's scope and the hosting; `UpstreamTarget::call` mints the auth header per request from the shared token cache. The gateway's outbound adapters send through the same type.
+- `AnthropicProvider`, `OpenAiProvider`, `GeminiProvider`, `GeminiImageProvider` and `OpenAiImageProvider` gain `with_target`.
+- `AiError::Upstream`, mapped to `AiInferenceError::Configuration`.
+
+### Fixed
+
+- A provider whose secret is a Google service account authenticates with an OAuth bearer and has `{project}` filled; it was sent the raw secret as `x-goog-api-key` against the unfilled endpoint, so no Vertex provider (Gemini, Model-as-a-Service, Claude) was reachable in-process.
+- A provider whose credential cannot be resolved (missing secret, malformed service account, unfillable endpoint) is withheld at boot and reported in `missing_env_vars`.
+- Requests send the catalog `upstream_model` (with `[1m]` stripped) instead of the requested alias.
+- An `openai-responses` provider is posted a Responses body on `/responses`; it was posted a Chat Completions body on `/chat/completions`.
+- A provider's `extra_headers` are sent.
+- Anthropic streaming uses the shared `wire::anthropic::sse_to_canonical_events` framing.
+
 ## [0.59.0] - 2026-09-22
 
 ### Breaking

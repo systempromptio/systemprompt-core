@@ -1,8 +1,7 @@
 //! Fingerprint-reputation state changes for `FingerprintRepository`.
 //!
-//! Upserts a fingerprint on each session, updates velocity and session-count
-//! metrics, raises and clears abuse flags, and adjusts the reputation score.
-//! All writes go to the write pool.
+//! Upserts a fingerprint on each session, counts its requests and raises
+//! abuse flags. All writes go to the write pool.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -102,55 +101,6 @@ impl FingerprintRepository {
         Ok(())
     }
 
-    pub async fn update_velocity_metrics(
-        &self,
-        fingerprint_hash: &str,
-        requests_last_hour: i32,
-        peak_requests_per_minute: f32,
-        sustained_high_velocity_minutes: i32,
-    ) -> Result<()> {
-        sqlx::query!(
-            r#"
-            UPDATE fingerprint_reputation
-            SET requests_last_hour = $2,
-                peak_requests_per_minute = $3,
-                sustained_high_velocity_minutes = $4,
-                total_request_count = total_request_count + 1,
-                updated_at = CURRENT_TIMESTAMP
-            WHERE fingerprint_hash = $1
-            "#,
-            fingerprint_hash,
-            requests_last_hour,
-            peak_requests_per_minute,
-            sustained_high_velocity_minutes,
-        )
-        .execute(&*self.write_pool)
-        .await?;
-
-        Ok(())
-    }
-
-    pub async fn update_active_session_count(
-        &self,
-        fingerprint_hash: &str,
-        active_count: i32,
-    ) -> Result<()> {
-        sqlx::query!(
-            r#"
-            UPDATE fingerprint_reputation
-            SET active_session_count = $2,
-                updated_at = CURRENT_TIMESTAMP
-            WHERE fingerprint_hash = $1
-            "#,
-            fingerprint_hash,
-            active_count,
-        )
-        .execute(&*self.write_pool)
-        .await?;
-
-        Ok(())
-    }
-
     pub async fn increment_request_count(&self, fingerprint_hash: &str) -> Result<()> {
         sqlx::query!(
             r#"
@@ -165,41 +115,5 @@ impl FingerprintRepository {
         .await?;
 
         Ok(())
-    }
-
-    pub async fn clear_flag(&self, fingerprint_hash: &str) -> Result<()> {
-        sqlx::query!(
-            r#"
-            UPDATE fingerprint_reputation
-            SET is_flagged = FALSE,
-                flag_reason = NULL,
-                flagged_at = NULL,
-                updated_at = CURRENT_TIMESTAMP
-            WHERE fingerprint_hash = $1
-            "#,
-            fingerprint_hash,
-        )
-        .execute(&*self.write_pool)
-        .await?;
-
-        Ok(())
-    }
-
-    pub async fn adjust_reputation_score(&self, fingerprint_hash: &str, delta: i32) -> Result<i32> {
-        let row = sqlx::query_scalar!(
-            r#"
-            UPDATE fingerprint_reputation
-            SET reputation_score = GREATEST(0, LEAST(100, reputation_score + $2)),
-                updated_at = CURRENT_TIMESTAMP
-            WHERE fingerprint_hash = $1
-            RETURNING reputation_score as "reputation_score!"
-            "#,
-            fingerprint_hash,
-            delta,
-        )
-        .fetch_one(&*self.write_pool)
-        .await?;
-
-        Ok(row)
     }
 }

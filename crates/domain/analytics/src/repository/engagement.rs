@@ -1,9 +1,8 @@
 //! Persistence for page-level engagement telemetry.
 //!
 //! [`EngagementRepository`] records [`EngagementEvent`]s (scroll, click,
-//! focus, and reading-pattern metrics) and reads them back per session or
-//! user, plus the aggregated [`SessionEngagementSummary`]. Writes go to the
-//! write pool; reads to the read pool.
+//! focus, and reading-pattern metrics) and reads them back by id or per
+//! user. Writes go to the write pool; reads to the read pool.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -116,36 +115,6 @@ impl EngagementRepository {
         Ok(event)
     }
 
-    pub async fn list_by_session(&self, session_id: &SessionId) -> Result<Vec<EngagementEvent>> {
-        let events = sqlx::query_as!(
-            EngagementEvent,
-            r#"
-            SELECT
-                id as "id: EngagementEventId", session_id, user_id, page_url,
-                content_id as "content_id: ContentId",
-                event_type,
-                time_on_page_ms as "time_on_page_ms!", time_to_first_interaction_ms, time_to_first_scroll_ms,
-                max_scroll_depth as "max_scroll_depth!", scroll_velocity_avg, scroll_direction_changes,
-                click_count as "click_count!", mouse_move_distance_px, keyboard_events, copy_events,
-                focus_time_ms as "focus_time_ms!",
-                blur_count as "blur_count!",
-                tab_switches as "tab_switches!",
-                visible_time_ms as "visible_time_ms!",
-                hidden_time_ms as "hidden_time_ms!",
-                is_rage_click, is_dead_click, reading_pattern,
-                created_at, updated_at
-            FROM engagement_events
-            WHERE session_id = $1
-            ORDER BY created_at ASC
-            "#,
-            session_id.as_str()
-        )
-        .fetch_all(&*self.pool)
-        .await?;
-
-        Ok(events)
-    }
-
     pub async fn list_by_user(&self, user_id: &UserId, limit: i64) -> Result<Vec<EngagementEvent>> {
         let events = sqlx::query_as!(
             EngagementEvent,
@@ -177,46 +146,4 @@ impl EngagementRepository {
 
         Ok(events)
     }
-
-    pub async fn get_session_engagement_summary(
-        &self,
-        session_id: &SessionId,
-    ) -> Result<Option<SessionEngagementSummary>> {
-        let summary = sqlx::query_as!(
-            SessionEngagementSummary,
-            r#"
-            SELECT
-                session_id,
-                COUNT(*)::BIGINT as page_count,
-                SUM(time_on_page_ms)::BIGINT as total_time_on_page_ms,
-                AVG(max_scroll_depth)::REAL as avg_scroll_depth,
-                MAX(max_scroll_depth) as max_scroll_depth,
-                SUM(click_count)::BIGINT as total_clicks,
-                COUNT(*) FILTER (WHERE is_rage_click = true)::BIGINT as rage_click_pages,
-                MIN(created_at) as first_engagement,
-                MAX(created_at) as last_engagement
-            FROM engagement_events
-            WHERE session_id = $1
-            GROUP BY session_id
-            "#,
-            session_id.as_str()
-        )
-        .fetch_optional(&*self.pool)
-        .await?;
-
-        Ok(summary)
-    }
-}
-
-#[derive(Debug, Clone, sqlx::FromRow)]
-pub struct SessionEngagementSummary {
-    pub session_id: SessionId,
-    pub page_count: Option<i64>,
-    pub total_time_on_page_ms: Option<i64>,
-    pub avg_scroll_depth: Option<f32>,
-    pub max_scroll_depth: Option<i32>,
-    pub total_clicks: Option<i64>,
-    pub rage_click_pages: Option<i64>,
-    pub first_engagement: Option<chrono::DateTime<chrono::Utc>>,
-    pub last_engagement: Option<chrono::DateTime<chrono::Utc>>,
 }

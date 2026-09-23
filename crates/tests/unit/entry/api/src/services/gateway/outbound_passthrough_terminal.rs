@@ -8,6 +8,7 @@
 //! in the one token that is wrong, and a consistent body is byte-identical.
 
 use std::collections::HashMap;
+use systemprompt_ai::UpstreamCall;
 
 use bytes::Bytes;
 use futures_util::StreamExt;
@@ -137,9 +138,7 @@ async fn relay_buffered(upstream: &Value) -> Bytes {
     let raw = raw_request(false);
     let ctx = OutboundCtx {
         route: &route,
-        endpoint: &server.uri(),
-        api_key: "k",
-        api_key_is_bearer: false,
+        upstream: &UpstreamCall::api_key(&server.uri(), "k"),
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
@@ -170,9 +169,7 @@ async fn relay_streaming(sse: &str) -> String {
     let raw = raw_request(true);
     let ctx = OutboundCtx {
         route: &route,
-        endpoint: &server.uri(),
-        api_key: "k",
-        api_key_is_bearer: false,
+        upstream: &UpstreamCall::api_key(&server.uri(), "k"),
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,

@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.60.0] - 2026-09-23
+
+### Breaking
+
+- The `feedback_facts_processing` (`FeedbackFactsJob`), `feedback_snapshot_processing` (`FeedbackSnapshotsJob`) and `service_registry_gc` (`ServiceRegistryGcJob`) jobs are removed; a configuration that names them is rejected as naming unknown jobs. Registry GC runs in the API server's heartbeat.
+- Dispatch records a run with one `scheduled_jobs` UPDATE when the job returns, and only when it failed or was not idle (`JobResult::is_idle`). The per-tick `running` write and run-count increment are gone: `JobStatus::Running` and `SchedulerRepository::increment_run_count` are removed and `update_job_execution` advances `run_count`. `last_run` is the last run that did work or failed; a second replica may repeat an idle tick, which had nothing to do.
+
+### Changed
+
+- Jobs whose `Job::configured()` is `false` are not put on the cron schedule. `otlp_export` answers `false` without `observability.otlp`.
+- `managed_inventory_refresh` skips the reconcile and `publish_latest` while the configured-inventory fingerprint is unchanged, forcing a pass hourly, and recomputes installation coverage every tick (this used to ride on the snapshot job).
+- A tick skipped because another replica holds the lock logs at DEBUG.
+- At start the scheduler deletes `scheduled_jobs` rows for jobs this build does not have, so a retired job no longer lingers in `jobs list` with its last run.
+
 ## [0.59.0] - 2026-09-22
 
 ### Added

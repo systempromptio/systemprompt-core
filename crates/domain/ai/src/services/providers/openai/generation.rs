@@ -10,8 +10,7 @@
 use std::time::Instant;
 
 use serde_json::Value;
-use systemprompt_models::wire::canonical::ResponseFormat;
-use systemprompt_models::wire::openai_chat;
+use systemprompt_models::wire::canonical::{CanonicalRequest, CanonicalResponse, ResponseFormat};
 use uuid::Uuid;
 
 use crate::error::Result;
@@ -28,18 +27,19 @@ use super::provider::OpenAiProvider;
 
 const STRUCTURED_OUTPUT_TOOL: &str = "structured_output";
 
-async fn post_chat(provider: &OpenAiProvider, body: &Value) -> Result<Value> {
-    let response = provider
-        .client
-        .post(format!("{}/chat/completions", provider.endpoint))
-        .bearer_auth(&provider.api_key)
-        .json(body)
-        .send()
+async fn post_generate(
+    provider: &OpenAiProvider,
+    canonical: &CanonicalRequest,
+    model: &str,
+) -> Result<CanonicalResponse> {
+    let upstream = provider.upstream_model(model);
+    let body = provider.render(canonical, upstream);
+    let value: Value = provider
+        .post(provider.target.wire(), body, upstream, false)
+        .await?
+        .json()
         .await?;
-    if !response.status().is_success() {
-        return Err(crate::error::AiError::from_error_response("openai", response).await);
-    }
-    Ok(response.json().await?)
+    provider.parse(&value, model)
 }
 
 pub(super) async fn generate(
@@ -57,9 +57,7 @@ pub(super) async fn generate(
     .with_sampling(params.sampling)
     .into_request();
 
-    let body = openai_chat::build_request_body(&canonical, params.model, None);
-    let value = post_chat(provider, &body).await?;
-    let parsed = openai_chat::parse_response(&value, params.model)?;
+    let parsed = post_generate(provider, &canonical, params.model).await?;
     Ok(canonical_bridge::to_ai_response(
         "openai",
         params.model,
@@ -85,9 +83,7 @@ pub(super) async fn generate_with_tools(
     .with_tools(tools_to_canonical(params.tools))
     .into_request();
 
-    let body = openai_chat::build_request_body(&canonical, params.base.model, None);
-    let value = post_chat(provider, &body).await?;
-    let parsed = openai_chat::parse_response(&value, params.base.model)?;
+    let parsed = post_generate(provider, &canonical, params.base.model).await?;
     let tool_calls = canonical_bridge::tool_calls(&parsed);
     let ai_response =
         canonical_bridge::to_ai_response("openai", params.base.model, request_id, start, &parsed);
@@ -110,9 +106,7 @@ pub(super) async fn generate_structured(
     .with_response_format(agent_response_format(params.response_format))
     .into_request();
 
-    let body = openai_chat::build_request_body(&canonical, params.base.model, None);
-    let value = post_chat(provider, &body).await?;
-    let parsed = openai_chat::parse_response(&value, params.base.model)?;
+    let parsed = post_generate(provider, &canonical, params.base.model).await?;
     Ok(canonical_bridge::to_ai_response(
         "openai",
         params.base.model,
@@ -143,9 +137,7 @@ pub(super) async fn generate_with_schema(
     .with_response_format(Some(response_format))
     .into_request();
 
-    let body = openai_chat::build_request_body(&canonical, params.base.model, None);
-    let value = post_chat(provider, &body).await?;
-    let parsed = openai_chat::parse_response(&value, params.base.model)?;
+    let parsed = post_generate(provider, &canonical, params.base.model).await?;
     Ok(canonical_bridge::to_ai_response(
         "openai",
         params.base.model,

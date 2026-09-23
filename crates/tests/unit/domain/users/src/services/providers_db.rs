@@ -72,7 +72,6 @@ async fn user_provider_creates_and_finds_auth_users() {
         .expect("get_roles");
     assert!(roles.contains(&"admin".to_owned()));
 
-    fixture.drain().await;
     service.delete(&created.id).await.expect("cleanup");
     fixture.finish().await;
 }
@@ -107,9 +106,7 @@ async fn user_provider_creates_anonymous_and_federated_identities() {
     assert!(fed_user.name.starts_with("fedprov"));
     assert_eq!(fed_user.roles, vec!["operator".to_owned()]);
 
-    fixture.drain().await;
     service.delete(&anon.id).await.expect("cleanup anon");
-    fixture.drain().await;
     service.delete(&fed_id).await.expect("cleanup fed");
     fixture.finish().await;
 }
@@ -143,7 +140,6 @@ async fn role_provider_assign_and_revoke_are_idempotent() {
         .expect("roles after");
     assert!(!after.contains(&"auditor".to_owned()));
 
-    fixture.drain().await;
     service.delete(&created.id).await.expect("cleanup");
     fixture.finish().await;
 }
@@ -171,7 +167,6 @@ async fn role_provider_lists_by_role_and_ignores_unknown_roles() {
         .expect("unknown role");
     assert!(unknown.is_empty());
 
-    fixture.drain().await;
     service.delete(&created.id).await.expect("cleanup");
     fixture.finish().await;
 }

@@ -14,7 +14,7 @@ mod agents;
 mod artifacts;
 mod cache;
 mod content;
-mod fingerprint;
+pub(crate) mod fingerprint;
 mod hooks;
 mod mcp;
 mod plugins;

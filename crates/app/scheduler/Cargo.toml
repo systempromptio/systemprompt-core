@@ -49,6 +49,7 @@ systemprompt-database = { workspace = true }
 systemprompt-extension = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-logging = { workspace = true }
+systemprompt-marketplace = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-provider-contracts = { workspace = true }
 systemprompt-runtime = { workspace = true }
