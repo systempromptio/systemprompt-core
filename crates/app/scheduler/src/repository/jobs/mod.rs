@@ -11,6 +11,8 @@ use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::ScheduledJobId;
 
+const RETIRED_JOB_GRACE_DAYS: i32 = 7;
+
 #[derive(Debug, Clone)]
 pub struct JobRepository {
     pool: Arc<PgPool>,
@@ -60,8 +62,10 @@ impl JobRepository {
             return Ok(0);
         }
         let result = sqlx::query!(
-            "DELETE FROM scheduled_jobs WHERE NOT (job_name = ANY($1))",
-            known
+            "DELETE FROM scheduled_jobs WHERE NOT (job_name = ANY($1)) AND updated_at < NOW() - \
+             make_interval(days => $2)",
+            known,
+            RETIRED_JOB_GRACE_DAYS
         )
         .execute(&*self.write_pool)
         .await?;

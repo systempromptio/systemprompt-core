@@ -828,4 +828,23 @@ mod forget_retired_jobs {
             "the job row survives"
         );
     }
+
+    #[tokio::test]
+    async fn a_job_another_version_still_runs_is_kept() {
+        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
+        let repo = SchedulerRepository::new(&pool).expect("repo");
+        let other_version = unique_job_name("sched_other_version");
+        repo.upsert_job(&other_version, "0 0 * * * *", true)
+            .await
+            .expect("upsert");
+
+        repo.delete_jobs_not_in(&[unique_job_name("sched_this_build")])
+            .await
+            .expect("delete retired jobs");
+
+        assert!(
+            repo.find_job(&other_version).await.expect("find").is_some(),
+            "a row touched inside the grace window belongs to a live version"
+        );
+    }
 }
