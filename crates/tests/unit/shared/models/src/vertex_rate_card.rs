@@ -194,6 +194,8 @@ fn deprecated_maas_models_are_unsupported_inside_their_notice_window() {
         "moonshotai.kimi-k2-thinking",
         "deepseek.v3.2",
         "openai.gpt-oss-20b",
+        "qwen.qwen3-coder-480b",
+        "zai.glm-5",
     ] {
         let entry = card
             .lookup_id(id)
@@ -202,11 +204,11 @@ fn deprecated_maas_models_are_unsupported_inside_their_notice_window() {
         assert!(entry.is_supported(day("2026-09-11")), "{id} on 2026-09-11");
         assert!(!entry.is_supported(day("2026-09-25")), "{id} on 2026-09-25");
     }
-    let coder = card
-        .lookup_id("qwen.qwen3-coder-480b")
-        .expect("qwen3-coder is priced");
-    assert!(coder.retires_on.is_none());
-    assert!(coder.is_supported(day("2026-12-31")));
+    let oss = card
+        .lookup_id("openai.gpt-oss-120b")
+        .expect("gpt-oss-120b is priced");
+    assert!(oss.retires_on.is_none());
+    assert!(oss.is_supported(day("2026-12-31")));
 }
 
 // Why: a preview model is served only by explicit opt-in, whatever the date.

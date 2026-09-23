@@ -289,6 +289,10 @@ entries:
     max_output_tokens: 65536
     max_thinking_budget: 24576
 # -- provider `vertex-maas` (wire: openai-chat) -------------------------------
+# Why the 2026-10-21 dates: Google deprecated every Qwen, GLM 4.7/5, Kimi,
+# DeepSeek and MiniMax MaaS endpoint and gpt-oss-20b on 2026-07-21 and turns
+# them off on 2026-10-21 (models/deprecations/open-models, read 2026-09-23).
+# gpt-oss-120b and the preview glm-5.2 are the only open models not retiring.
 # Why: cache rates are what each model page publishes; a page with no cache
 # tier gets an explicit 0.0 -- declared free, not forgotten.
 #
@@ -301,6 +305,7 @@ entries:
   upstream_model: qwen/qwen3-coder-480b-a35b-instruct-maas
   launch_stage: ga
   released: 2025-08-13
+  retires_on: 2026-10-21
   docs: https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/maas/qwen/qwen3-coder
   pricing:
     input_per_million: 0.22
@@ -326,6 +331,7 @@ entries:
   allow_preview: true
   launch_stage: ga
   released: 2026-02-10
+  retires_on: 2026-10-21
   docs: https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/maas/zaiorg/glm-5
   pricing:
     input_per_million: 1.0

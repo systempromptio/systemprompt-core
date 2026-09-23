@@ -21,6 +21,7 @@
 
 ### Fixed
 
+- The Vertex rate card records Google's 2026-10-21 retirement of `qwen.qwen3-coder-480b` and `zai.glm-5` (models/deprecations/open-models); discovery withholds them from 2026-09-21 and hides a declaration of either after the date.
 - `ProviderEntry::effective_governance` resolves the served model by catalog id or upstream name, so a model-level governance override applies when the model is reached by its upstream name (a failover, or a route `upstream_model`). It fell back to the provider default, which could pass a route requirement the served model does not meet.
 
 ## [0.59.0] - 2026-09-22
