@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.59.1] - 2026-09-23
+
+No bridge changes; released with core 0.59.1.
+
 ## [0.59.0] - 2026-09-22
 
 ### Fixed
