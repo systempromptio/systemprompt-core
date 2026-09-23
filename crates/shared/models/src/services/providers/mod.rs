@@ -22,6 +22,7 @@
 
 mod discovery_report;
 mod error;
+mod headers;
 mod hosting;
 mod protocol;
 mod rate_card;
@@ -252,6 +253,12 @@ impl ProviderRegistry {
                     reason: e.to_string(),
                 },
             )?;
+            if let Some(header) = headers::reserved_name(provider.extra_headers.keys()) {
+                return Err(ProviderRegistryError::ReservedExtraHeader {
+                    provider: provider.name.as_str().to_owned(),
+                    header: header.to_owned(),
+                });
+            }
             if names_a_project_literally(&provider.endpoint) {
                 return Err(ProviderRegistryError::LiteralProjectInEndpoint {
                     provider: provider.name.as_str().to_owned(),

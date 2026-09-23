@@ -1,8 +1,9 @@
 //! Failure modes of
 //! [`ProviderRegistry::validate`](super::ProviderRegistry::validate): duplicate
-//! provider names, empty or SSRF-blocked endpoints, and duplicate or
-//! empty model ids/aliases. Connectivity is the registry's authority, so these
-//! are the only errors emitted while checking it.
+//! provider names, empty or SSRF-blocked endpoints, reserved `extra_headers`
+//! names, and duplicate or empty model ids/aliases. Connectivity is the
+//! registry's authority, so these are the only errors emitted while checking
+//! it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -31,6 +32,12 @@ pub enum ProviderRegistryError {
          the project is derived from the service account in its secret — write `projects/{{project}}`"
     )]
     LiteralProjectInEndpoint { provider: String, endpoint: String },
+
+    #[error(
+        "provider registry entry '{provider}' sets reserved header '{header}' in extra_headers; \
+         the credential, content framing and protocol version are sent by the gateway"
+    )]
+    ReservedExtraHeader { provider: String, header: String },
 
     #[error("provider registry model id or alias '{id}' is declared more than once")]
     DuplicateModel { id: String },
