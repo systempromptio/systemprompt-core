@@ -141,7 +141,7 @@ pub async fn terminate_gracefully_verified(pid: u32, service_name: &str) -> McpD
     }
 
     terminate_gracefully(pid)?;
-    if wait_until_gone(pid, service_name, GRACEFUL_EXIT_WAIT).await {
+    if wait_until_gone(pid, GRACEFUL_EXIT_WAIT).await {
         return Ok(());
     }
     force_kill(pid)?;
@@ -149,7 +149,7 @@ pub async fn terminate_gracefully_verified(pid: u32, service_name: &str) -> McpD
     // and returns, so without this wait the function reports a termination it
     // has not observed, and a caller that restarts the service on the same
     // port races the child it believes it stopped.
-    if wait_until_gone(pid, service_name, FORCED_EXIT_WAIT).await {
+    if wait_until_gone(pid, FORCED_EXIT_WAIT).await {
         return Ok(());
     }
     Err(crate::error::McpDomainError::Internal(format!(
@@ -157,17 +157,16 @@ pub async fn terminate_gracefully_verified(pid: u32, service_name: &str) -> McpD
     )))
 }
 
-async fn wait_until_gone(pid: u32, service_name: &str, budget: Duration) -> bool {
-    // Why: a killed child that its parent has not reaped stays visible to
-    // `process_exists`, so waiting on that would never return. A zombie has no
-    // readable environment, which is what this predicate reads.
+async fn wait_until_gone(pid: u32, budget: Duration) -> bool {
+    // Why: a killed child that its parent has not reaped keeps its PID
+    // signalable, so `process_exists` alone would never return; a zombie is
+    // gone for every purpose this waits on. Process identity is not re-checked
+    // here — `/proc/<pid>/environ` is unreadable for a moment during exec and
+    // for a zombie, and reading that as "terminated" is what let this report a
+    // death it had not observed.
     let deadline = tokio::time::Instant::now() + budget;
     loop {
-        if !systemprompt_loader::subprocess::live_pid_is_subprocess(
-            pid,
-            systemprompt_models::subprocess::MCP_SERVICE_ID_ENV,
-            service_name,
-        ) {
+        if !process_exists(pid) || systemprompt_loader::subprocess::is_zombie(pid) {
             return true;
         }
         if tokio::time::Instant::now() >= deadline {

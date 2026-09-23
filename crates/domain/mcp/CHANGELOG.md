@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.59.1] - 2026-09-23
+
+### Fixed
+
+- `terminate_gracefully_verified` waited on `live_pid_is_subprocess`, which
+  returns `false` for any `/proc/<pid>/environ` read error, so a still-live
+  child read as terminated and the function reported a death it had not
+  observed. The wait is now `!process_exists(pid) || is_zombie(pid)`; identity
+  is established before the signal is sent and does not need re-checking.
+
 ## [0.59.0] - 2026-09-22
 
 ### Breaking

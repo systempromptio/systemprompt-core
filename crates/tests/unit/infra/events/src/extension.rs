@@ -60,7 +60,8 @@ fn migrations_come_from_the_schema_migrations_directory() {
             "durable_consumption",
             "reporting_privacy",
             "user_privacy_delivery",
-            "drop_duplicate_actor_id_check"
+            "drop_duplicate_actor_id_check",
+            "restore_actor_id_nonempty"
         ],
         "every file in schema/migrations must be discovered by the build script, \
          in order, under its on-disk stem"

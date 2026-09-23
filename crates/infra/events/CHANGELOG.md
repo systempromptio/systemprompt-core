@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.59.1] - 2026-09-23
+
+### Fixed
+
+- Migration 008 restores `event_outbox_actor_id_nonempty`. Migration 007 dropped
+  the auto-named `event_outbox_actor_id_check` on the premise that 001's named
+  constraint stood beside it; restoring a release snapshot stamps that 001-era
+  `ALTER` rather than executing it, so the auto-named check was the only one and
+  007 left `event_outbox.actor_id` unguarded on every upgrading instance.
+
 ## [0.59.0] - 2026-09-22
 
 ### Changed

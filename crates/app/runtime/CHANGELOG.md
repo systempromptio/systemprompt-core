@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.59.1] - 2026-09-23
+
+### Fixed
+
+- The reporting drain names the cause of a poisoned fact. It logged the error
+  and returned only a count and an outbox id, so in a context without a tracing
+  subscriber the failure read as `1 reporting fact(s) left pending` and nothing
+  more. The first poisoned fact's cause is now part of the returned error.
+
 ## [0.59.0] - 2026-09-22
 
 ### Breaking

@@ -109,6 +109,7 @@ async fn drain(pool: &PgPool, limit: usize) -> Result<usize, AnalyticsError> {
     let mut processed = 0;
     let mut batch_size = BATCH_SIZE;
     let mut poisoned: Vec<EventOutboxId> = Vec::new();
+    let mut first_cause: Option<String> = None;
     while processed < limit {
         let want = batch_size.min(limit - processed);
         let Some(batch) = outbox
@@ -146,6 +147,7 @@ async fn drain(pool: &PgPool, limit: usize) -> Result<usize, AnalyticsError> {
                         "Reporting fact cannot be applied; left pending and skipped"
                     );
                     poisoned.push(id);
+                    first_cause.get_or_insert_with(|| error.to_string());
                 } else {
                     tracing::error!(
                         error = %error,
@@ -158,8 +160,10 @@ async fn drain(pool: &PgPool, limit: usize) -> Result<usize, AnalyticsError> {
     }
     if let Some(first) = poisoned.first() {
         return Err(AnalyticsError::invalid_argument(format!(
-            "{} reporting fact(s) left pending; first outbox id {first} (applied {processed} others)",
-            poisoned.len()
+            "{} reporting fact(s) left pending; first outbox id {first} (applied {processed} \
+             others): {cause}",
+            poisoned.len(),
+            cause = first_cause.as_deref().unwrap_or("no cause recorded")
         )));
     }
     Ok(processed)

@@ -132,6 +132,22 @@ fn acquire_rebuild_lock(database_url: &str) -> Result<(), String> {
     wait.recv().map_err(|error| error.to_string())?
 }
 
+async fn await_baseline(db: &DbPool) -> Result<()> {
+    use systemprompt_runtime::reporting::RebuildOutcome;
+    for attempt in 1..=REBUILD_ATTEMPTS {
+        match systemprompt_runtime::reporting::initialize(db).await? {
+            RebuildOutcome::Rebuilt | RebuildOutcome::AlreadyInitialized => return Ok(()),
+            RebuildOutcome::InProgressElsewhere => {},
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(100 * u64::from(attempt))).await;
+    }
+    anyhow::bail!(
+        "Reporting baseline was still being rebuilt elsewhere after {REBUILD_ATTEMPTS} \
+         attempts. Draining now would apply this fixture's facts to an uninitialized \
+         projection, which the projector refuses one fact at a time."
+    )
+}
+
 async fn rebuild_while_locked(db: &DbPool) -> Result<()> {
     for attempt in 1..=REBUILD_ATTEMPTS {
         if systemprompt_runtime::reporting::rebuild(db).await?
@@ -152,7 +168,7 @@ async fn rebuild_while_locked(db: &DbPool) -> Result<()> {
 /// Deliver captured reporting evidence through the production projector.
 /// Call only for an owned fixture database, with its source writers quiescent.
 pub async fn drain_reporting(db: &DbPool) -> Result<usize> {
-    systemprompt_runtime::reporting::initialize(db).await?;
+    await_baseline(db).await?;
     let mut total = 0;
     for _ in 0..100 {
         let processed = systemprompt_runtime::reporting::process_pending(db, 100).await?;
