@@ -2,6 +2,9 @@
 //! discovers inventory-registered jobs, and dispatches them under a typed
 //! error boundary.
 //!
+//! At start it forgets `scheduled_jobs` rows whose job this build no longer
+//! has, so a retired job leaves neither a row nor a line in `jobs list`.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -159,6 +162,7 @@ impl SchedulerService {
             "Discovered jobs via inventory"
         );
         self.warn_unscheduled_jobs(&registered_jobs);
+        self.forget_retired_jobs(&registered_jobs).await;
 
         let running_jobs: RunningJobs = Arc::new(Mutex::new(HashSet::new()));
 
@@ -187,6 +191,24 @@ impl SchedulerService {
             degraded,
             scheduled: outcome.registered,
         })
+    }
+
+    async fn forget_retired_jobs(
+        &self,
+        registered_jobs: &HashMap<&'static str, &'static dyn JobTrait>,
+    ) {
+        let known: Vec<String> = registered_jobs
+            .keys()
+            .map(|&name| name.to_owned())
+            .collect();
+        match self.repository.delete_jobs_not_in(&known).await {
+            Ok(0) => {},
+            Ok(removed) => info!(
+                removed,
+                "forgot scheduled_jobs rows for jobs this build no longer has"
+            ),
+            Err(error) => warn!(error = %error, "could not forget retired scheduled_jobs rows"),
+        }
     }
 
     fn discover_jobs() -> HashMap<&'static str, &'static dyn JobTrait> {

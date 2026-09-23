@@ -55,6 +55,16 @@ impl JobRepository {
         Ok(())
     }
 
+    pub async fn delete_jobs_not_in(&self, known: &[String]) -> SchedulerResult<u64> {
+        let result = sqlx::query!(
+            "DELETE FROM scheduled_jobs WHERE NOT (job_name = ANY($1))",
+            known
+        )
+        .execute(&*self.write_pool)
+        .await?;
+        Ok(result.rows_affected())
+    }
+
     pub async fn find_job(&self, job_name: &str) -> SchedulerResult<Option<ScheduledJob>> {
         sqlx::query_as!(
             ScheduledJob,

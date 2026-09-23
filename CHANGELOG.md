@@ -22,6 +22,7 @@
 - `managed_inventory_refresh` reconciles and publishes only when the fingerprint of the services configuration and catalog files changed, or an hour has passed since its last pass; it now also recomputes installation coverage, writing only what changed.
 - `otlp_export` is not scheduled when `observability.otlp` is absent (`Job::configured`).
 - A tick skipped because another replica holds the job lock logs at DEBUG instead of INFO.
+- **Scheduler:** at start, `scheduled_jobs` rows for jobs this build does not have are deleted, so retired jobs stop appearing in `jobs list`.
 
 ## [0.59.1] - 2026-09-23
 
