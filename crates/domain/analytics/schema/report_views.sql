@@ -11,23 +11,13 @@
 -- schema places earlier (ai_requests.message_count), so the same view would
 -- have two definitions. A column added to a source table is added here too.
 --
--- Dropped and recreated rather than replaced: CREATE OR REPLACE cannot drop or
--- reorder a column. Views are stateless, so dropping loses nothing.
+-- Replaced in place, so a boot takes no drop and a consumer view built on a
+-- report survives it. CREATE OR REPLACE can append a column but cannot drop,
+-- rename or reorder one: a change that does ships a migration that runs
+-- `DROP VIEW IF EXISTS report_<name>;` first, and the dependent phase, which
+-- runs after migrations, lays the new definition down.
 
-DROP VIEW IF EXISTS report_analytics_events;
-DROP VIEW IF EXISTS report_markdown_content;
-DROP VIEW IF EXISTS report_mcp_tool_executions;
-DROP VIEW IF EXISTS report_user_contexts;
-DROP VIEW IF EXISTS report_task_messages;
-DROP VIEW IF EXISTS report_agent_tasks;
-DROP VIEW IF EXISTS report_ai_requests;
-DROP VIEW IF EXISTS report_bot_sessions;
-DROP VIEW IF EXISTS report_engaged_traffic;
-DROP VIEW IF EXISTS report_clean_traffic;
-DROP VIEW IF EXISTS report_user_sessions;
-DROP VIEW IF EXISTS report_users;
-
-CREATE VIEW report_users AS
+CREATE OR REPLACE VIEW report_users AS
 SELECT
     src.id, src.name, src.email, src.full_name, src.display_name,
     src.status, src.email_verified, src.roles, src.is_bot, src.is_scanner,
@@ -35,7 +25,7 @@ SELECT
 FROM users src
 WHERE src.status <> 'deleted';
 
-CREATE VIEW report_user_sessions AS
+CREATE OR REPLACE VIEW report_user_sessions AS
 SELECT
     src.session_id, src.user_id, src.started_at, src.last_activity_at,
     src.ended_at, src.duration_seconds, src.user_type, src.converted_at,
@@ -56,7 +46,7 @@ WHERE NOT EXISTS (
     SELECT 1 FROM users d WHERE d.id = src.user_id AND d.status = 'deleted'
 );
 
-CREATE VIEW report_clean_traffic AS
+CREATE OR REPLACE VIEW report_clean_traffic AS
 SELECT
     src.session_id, src.user_id, src.started_at, src.last_activity_at,
     src.ended_at, src.duration_seconds, src.user_type, src.converted_at,
@@ -77,7 +67,7 @@ WHERE NOT EXISTS (
     SELECT 1 FROM users d WHERE d.id = src.user_id AND d.status = 'deleted'
 );
 
-CREATE VIEW report_engaged_traffic AS
+CREATE OR REPLACE VIEW report_engaged_traffic AS
 SELECT
     src.session_id, src.user_id, src.started_at, src.last_activity_at,
     src.ended_at, src.duration_seconds, src.user_type, src.converted_at,
@@ -98,7 +88,7 @@ WHERE NOT EXISTS (
     SELECT 1 FROM users d WHERE d.id = src.user_id AND d.status = 'deleted'
 );
 
-CREATE VIEW report_bot_sessions AS
+CREATE OR REPLACE VIEW report_bot_sessions AS
 SELECT
     src.session_id, src.user_id, src.started_at, src.last_activity_at,
     src.ended_at, src.duration_seconds, src.user_type, src.converted_at,
@@ -119,7 +109,7 @@ WHERE NOT EXISTS (
     SELECT 1 FROM users d WHERE d.id = src.user_id AND d.status = 'deleted'
 );
 
-CREATE VIEW report_ai_requests AS
+CREATE OR REPLACE VIEW report_ai_requests AS
 SELECT
     src.id, src.request_id, src.user_id, src.session_id, src.task_id,
     src.context_id, src.gateway_conversation_id, src.client_session_id,
@@ -140,7 +130,7 @@ WHERE NOT EXISTS (
     SELECT 1 FROM users d WHERE d.id = src.user_id AND d.status = 'deleted'
 );
 
-CREATE VIEW report_agent_tasks AS
+CREATE OR REPLACE VIEW report_agent_tasks AS
 SELECT
     src.task_id, src.context_id, src.status, src.status_timestamp,
     src.user_id, src.session_id, src.trace_id, src.agent_name,
@@ -152,7 +142,7 @@ WHERE NOT EXISTS (
     SELECT 1 FROM users d WHERE d.id = src.user_id AND d.status = 'deleted'
 );
 
-CREATE VIEW report_task_messages AS
+CREATE OR REPLACE VIEW report_task_messages AS
 SELECT
     src.id, src.task_id, src.message_id, src.client_message_id, src.role,
     src.context_id, src.user_id, src.session_id, src.trace_id,
@@ -163,7 +153,7 @@ WHERE NOT EXISTS (
     SELECT 1 FROM users d WHERE d.id = src.user_id AND d.status = 'deleted'
 );
 
-CREATE VIEW report_user_contexts AS
+CREATE OR REPLACE VIEW report_user_contexts AS
 SELECT
     src.context_id, src.user_id, src.session_id, src.name, src.kind,
     src.created_at, src.updated_at
@@ -172,7 +162,7 @@ WHERE NOT EXISTS (
     SELECT 1 FROM users d WHERE d.id = src.user_id AND d.status = 'deleted'
 );
 
-CREATE VIEW report_mcp_tool_executions AS
+CREATE OR REPLACE VIEW report_mcp_tool_executions AS
 SELECT
     src.mcp_execution_id, src.tool_name, src.server_name, src.started_at,
     src.completed_at, src.execution_time_ms, src.input, src.output,
@@ -186,7 +176,7 @@ WHERE NOT EXISTS (
     SELECT 1 FROM users d WHERE d.id = src.user_id AND d.status = 'deleted'
 );
 
-CREATE VIEW report_markdown_content AS
+CREATE OR REPLACE VIEW report_markdown_content AS
 SELECT
     src.id, src.slug, src.locale, src.title, src.description, src.body,
     src.author, src.published_at, src.keywords, src.kind, src.image,
@@ -194,7 +184,7 @@ SELECT
     src.updated_at
 FROM markdown_content src;
 
-CREATE VIEW report_analytics_events AS
+CREATE OR REPLACE VIEW report_analytics_events AS
 SELECT
     src.id, src.user_id, src.session_id, src.context_id,
     src.gateway_conversation_id, src.provider_request_id, src.event_type,
