@@ -1,0 +1,127 @@
+name: Schema ladder
+
+# A database left by each recent release, upgraded by the tree under test, must
+# end with the schema a fresh install has. Fresh-install gates cannot see a
+# migration that only misbehaves on an established database; 0.59.0's
+# `infra/events` 007 dropped the only `actor_id` check on every upgrading
+# instance and passed all of them. Called by CI (and so part of `CI passed`);
+# dispatch it directly to run one ref against chosen rungs.
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        type: string
+        required: false
+        default: ""
+      rungs:
+        type: string
+        required: false
+        default: ""
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Commit or tag whose migrations are under test. Defaults to the triggering ref."
+        type: string
+        required: false
+      rungs:
+        description: 'JSON list of release tags to upgrade from, e.g. ["v0.58.0"]. Defaults to the two newest release tags before the ref.'
+        type: string
+        required: false
+
+permissions:
+  contents: read
+
+env:
+  RUSTUP_MAX_RETRIES: "10"
+  CARGO_NET_RETRY: "10"
+  CARGO_TERM_COLOR: always
+  SQLX_OFFLINE: "true"
+  # Why: identical to CI's `test-tools` job so the migrator build hits the
+  # sccache objects that job already wrote.
+  RUSTFLAGS: ""
+  CARGO_PROFILE_DEV_DEBUG: "0"
+  SCCACHE_GHA_ENABLED: "true"
+  RUSTC_WRAPPER: sccache
+  CARGO_INCREMENTAL: "0"
+
+jobs:
+  rungs:
+    name: Choose rungs
+    runs-on: ubuntu-latest
+    outputs:
+      rungs: ${{ steps.pick.outputs.rungs }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - id: pick
+        env:
+          CHOSEN: ${{ inputs.rungs }}
+        run: |
+          if [ -n "$CHOSEN" ]; then
+              rungs=$(jq -c . <<<"$CHOSEN")
+          else
+              head=$(git rev-parse HEAD)
+              rungs=$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname --merged HEAD \
+                  | while read -r tag; do
+                        [ "$(git rev-parse "$tag^{commit}")" = "$head" ] || echo "$tag"
+                    done \
+                  | head -2 | jq -Rsc 'split("\n") | map(select(length > 0))')
+          fi
+          [ "$rungs" != "[]" ] || { echo "::error::no release tag to upgrade from"; exit 1; }
+          echo "rungs=$rungs" >> "$GITHUB_OUTPUT"
+          echo "Rungs: $rungs"
+
+  ladder:
+    name: Upgrade from ${{ matrix.rung }}
+    needs: rungs
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        rung: ${{ fromJSON(needs.rungs.outputs.rungs) }}
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: test
+          POSTGRES_USER: test
+          POSTGRES_DB: test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U test -d test"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      # Why: the ladder scripts come from this workflow's own commit, so a
+      # dispatched run can test an old ref that predates them.
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          path: ladder-tools
+          sparse-checkout: scripts
+      - name: Strip [unstable] and [profile.dev] from cargo configs
+        run: python3 ladder-tools/scripts/ci-strip-cargo-config.py
+      - run: rustup show
+      - uses: mozilla-actions/sccache-action@v0.0.9
+      - name: Build the current migrator
+        run: |
+          cargo build --manifest-path crates/tests/Cargo.toml -p systemprompt-test-migrate \
+              --target-dir target-ladder
+      - name: Upgrade a ${{ matrix.rung }} database and compare with a fresh install
+        env:
+          DATABASE_URL: postgres://test:test@localhost:5432/test
+          PGPASSWORD: test
+        run: |
+          bash ladder-tools/scripts/schema-ladder.sh "${{ matrix.rung }}" \
+              target-ladder/debug/systemprompt-test-migrate
+      - run: sccache --show-stats
+        if: ${{ !cancelled() }}
