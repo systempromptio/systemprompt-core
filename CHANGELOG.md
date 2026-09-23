@@ -4,6 +4,14 @@
 
 ### Fixed
 
+- `terminate_gracefully_verified` no longer reports a death it did not observe.
+  It waited on `live_pid_is_subprocess`, which returns `false` for *any*
+  `/proc/<pid>/environ` read error — including the moment a process is exec'ing
+  and any transient denial — so a still-live child read as terminated and a
+  caller restarting the service raced the process it believed it had stopped.
+  The wait is now `!process_exists(pid) || is_zombie(pid)`, which is
+  authoritative; identity is already established before the signal is sent.
+
 - `event_outbox.actor_id` keeps its non-empty constraint through an upgrade.
   0.59.0's `infra/events` migration 007 dropped the auto-named
   `event_outbox_actor_id_check` on the premise that migration 001's
