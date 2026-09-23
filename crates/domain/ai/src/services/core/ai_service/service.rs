@@ -14,6 +14,7 @@ use crate::services::config::ConfigValidator;
 use crate::services::providers::{AiProvider, ProviderClientParams, ProviderFactory};
 use crate::services::tooled::{ResponseSynthesizer, TooledExecutor};
 use crate::services::tools::ToolDiscovery;
+use crate::services::upstream::UpstreamTarget;
 
 use super::super::request_storage::{RequestStorage, StoreParams};
 
@@ -135,7 +136,7 @@ impl AiService {
         db_pool: &DbPool,
         missing_env_vars: &mut Vec<String>,
     ) -> Result<HashMap<String, Arc<dyn AiProvider>>> {
-        let secrets = SecretsBootstrap::get()?;
+        SecretsBootstrap::get()?;
         let mut providers: HashMap<String, Arc<dyn AiProvider>> = HashMap::new();
 
         for (name, policy) in &ai_config.providers {
@@ -151,23 +152,23 @@ impl AiService {
                 continue;
             };
 
-            // Why: a provider without its credential cannot serve a request;
-            // registering it with an empty key would fail every call at the
-            // wire instead of at boot, so it is withheld and reported.
-            let secret_name = entry.api_key_secret.as_str();
-            let Some(api_key) = secrets.get(secret_name).cloned() else {
-                tracing::warn!(
-                    provider = %name,
-                    secret = %secret_name,
-                    "api_key secret not found — provider withheld from the registry"
-                );
-                missing_env_vars.push(format!(
-                    "Provider '{name}': secret '{secret_name}' not found"
-                ));
-                continue;
+            // Why: a provider without a usable credential cannot serve a
+            // request; registering it would fail every call at the wire
+            // instead of at boot, so it is withheld and reported.
+            let target = match UpstreamTarget::from_secrets(entry) {
+                Ok(target) => target,
+                Err(e) => {
+                    tracing::warn!(
+                        provider = %name,
+                        error = %e,
+                        "upstream credential unusable — provider withheld from the registry"
+                    );
+                    missing_env_vars.push(format!("Provider '{name}': {e}"));
+                    continue;
+                },
             };
 
-            let provider = Self::build_one(entry, policy, api_key, db_pool)?;
+            let provider = Self::build_one(entry, policy, target, db_pool)?;
             providers.insert(name.clone(), provider);
         }
 
@@ -177,14 +178,12 @@ impl AiService {
     fn build_one(
         entry: &ProviderEntry,
         policy: &AiProviderConfig,
-        api_key: String,
+        target: UpstreamTarget,
         db_pool: &DbPool,
     ) -> Result<Arc<dyn AiProvider>> {
         let params = ProviderClientParams {
             name: entry.name.as_str(),
-            wire: entry.wire,
-            endpoint: &entry.endpoint,
-            api_key,
+            target,
             google_search_enabled: policy.google_search_enabled,
             resilience: &policy.resilience,
             models: &entry.models,

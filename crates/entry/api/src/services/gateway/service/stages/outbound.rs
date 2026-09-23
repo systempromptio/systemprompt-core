@@ -31,9 +31,7 @@ pub(super) fn outbound_ctx<'a>(
 ) -> OutboundCtx<'a> {
     OutboundCtx {
         route: upstream.route.as_ref(),
-        endpoint: &upstream.endpoint,
-        api_key: &upstream.api_key,
-        api_key_is_bearer: upstream.api_key_is_bearer,
+        upstream: &upstream.call,
         request,
         upstream_model: parts.upstream_model,
         model_limits: parts.model_limits,

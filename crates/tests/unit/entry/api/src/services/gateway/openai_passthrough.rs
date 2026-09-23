@@ -10,6 +10,7 @@
 use bytes::Bytes;
 use serde_json::{Value, json};
 use std::collections::HashMap;
+use systemprompt_ai::UpstreamCall;
 use systemprompt_api::services::gateway::protocol::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, Role,
 };
@@ -60,9 +61,7 @@ fn normalize_for(upstream_model: &str, body: &Value, limits: Option<ModelLimits>
     let request = canonical();
     let ctx = OutboundCtx {
         route: &route,
-        endpoint: "https://upstream.invalid/v1/chat/completions",
-        api_key: "sk-test",
-        api_key_is_bearer: false,
+        upstream: &UpstreamCall::api_key("https://upstream.invalid/v1/chat/completions", "sk-test"),
         request: &request,
         upstream_model,
         model_limits: limits,
@@ -227,9 +226,7 @@ fn a_body_that_is_not_a_json_object_declines_the_passthrough() {
     let request = canonical();
     let ctx = OutboundCtx {
         route: &route,
-        endpoint: "https://upstream.invalid/v1/chat/completions",
-        api_key: "sk-test",
-        api_key_is_bearer: false,
+        upstream: &UpstreamCall::api_key("https://upstream.invalid/v1/chat/completions", "sk-test"),
         request: &request,
         upstream_model: "upstream-1",
         model_limits: None,

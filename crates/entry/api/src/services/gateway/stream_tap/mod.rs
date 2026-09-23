@@ -25,7 +25,7 @@ use super::audit::GatewayAudit;
 use super::policy::GatewayPolicySpec;
 use super::protocol::canonical_response::CanonicalEvent;
 use super::protocol::inbound::InboundAdapter;
-use super::protocol::outbound::anthropic::streaming::SseDecoder;
+use systemprompt_models::wire::anthropic::SseFrameDecoder as SseDecoder;
 
 pub(super) use self::finalize::log_terminal;
 pub use self::finalize::{ClientConnection, FailCause, FinalizeDecision, classify};

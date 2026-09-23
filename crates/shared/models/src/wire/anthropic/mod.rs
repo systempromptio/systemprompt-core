@@ -1,14 +1,15 @@
 //! Anthropic Messages wire codec.
 //!
 //! Pure, transport-free translation between the canonical model and the
-//! Anthropic Messages dialect. HTTP transport and SSE framing live in the
-//! gateway adapter; everything here operates on already-decoded values so it
-//! is shared by both the outbound adapter and the inbound renderer.
+//! Anthropic Messages dialect, shared by the gateway adapters, the inbound
+//! renderer and the in-process AI service. HTTP transport lives with the
+//! callers; SSE byte framing is here so every reader decodes frames alike.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 mod blocks;
+mod framing;
 mod headers;
 mod parse;
 mod sse;
@@ -17,10 +18,10 @@ mod strict;
 pub use blocks::{
     cache_control_from_anthropic, cache_control_to_anthropic, content_to_anthropic_block,
 };
+pub use framing::{SseFrameDecoder, sse_to_canonical_events};
 pub use headers::{
-    ANTHROPIC_VERSION, REDACTED, auth_headers, is_credential_request_header,
-    is_forwardable_request_header, is_identity_request_header, recordable_header_value,
-    strip_user_id,
+    ANTHROPIC_VERSION, REDACTED, is_credential_request_header, is_forwardable_request_header,
+    is_identity_request_header, recordable_header_value, strip_user_id,
 };
 pub use parse::{buffered_defect, parse_response};
 pub use sse::AnthropicStreamState;

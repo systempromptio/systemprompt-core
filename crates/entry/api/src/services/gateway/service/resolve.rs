@@ -11,7 +11,7 @@ use std::borrow::Cow;
 use std::sync::Arc;
 
 use anyhow::anyhow;
-use systemprompt_ai::RouteSelectorEngine;
+use systemprompt_ai::{RouteSelectorEngine, UpstreamCall};
 use systemprompt_identifiers::AiRequestId;
 use systemprompt_models::services::{GatewayConfig, GatewayRoute, ProviderEntry, ProviderRegistry};
 
@@ -23,9 +23,7 @@ use super::{DispatchError, PolicyDenied};
 pub(super) struct ResolvedUpstream<'a> {
     pub(super) route: Cow<'a, GatewayRoute>,
     pub(super) provider: &'a ProviderEntry,
-    pub(super) endpoint: String,
-    pub(super) api_key: String,
-    pub(super) api_key_is_bearer: bool,
+    pub(super) call: UpstreamCall,
     pub(super) adapter: &'static Arc<dyn OutboundAdapter>,
     pub(super) route_match_descriptor: Option<String>,
 }
@@ -129,10 +127,7 @@ async fn bind_route<'a>(
 
     enforce_route_requirements(&route, provider, requested_model, ai_request_id)?;
 
-    let credential = super::credentials::resolve(provider).await?;
-    let endpoint =
-        systemprompt_security::credential::fill_endpoint(&provider.endpoint, &credential.scope)
-            .map_err(|e| DispatchError::PreAudit(anyhow::Error::new(e)))?;
+    let call = super::credentials::resolve(provider).await?;
 
     let adapter = GatewayUpstreamRegistry::global()
         .get(provider.wire.as_tag())
@@ -146,9 +141,7 @@ async fn bind_route<'a>(
     Ok(ResolvedUpstream {
         route,
         provider,
-        endpoint,
-        api_key: credential.value,
-        api_key_is_bearer: credential.is_bearer,
+        call,
         adapter,
         route_match_descriptor,
     })

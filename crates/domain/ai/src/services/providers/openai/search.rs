@@ -8,6 +8,7 @@
 use std::time::Instant;
 
 use serde_json::Value;
+use systemprompt_models::services::WireProtocol;
 use systemprompt_models::wire::canonical::SearchConfig;
 use systemprompt_models::wire::openai_responses;
 
@@ -63,18 +64,13 @@ pub async fn generate_with_web_search(
     .with_search(Some(search))
     .into_request();
 
-    let body = openai_responses::build_request_body(&canonical, params.model, None);
-    let response = provider
-        .client
-        .post(format!("{}/responses", provider.endpoint))
-        .bearer_auth(&provider.api_key)
-        .json(&body)
-        .send()
+    let upstream = provider.upstream_model(params.model);
+    let body = openai_responses::build_request_body(&canonical, upstream, None);
+    let value: Value = provider
+        .post(WireProtocol::OpenAiResponses, body, upstream, false)
+        .await?
+        .json()
         .await?;
-    if !response.status().is_success() {
-        return Err(crate::error::AiError::from_error_response("openai", response).await);
-    }
-    let value: Value = response.json().await?;
     let parsed = openai_responses::parse_response_object(&value, params.model)?;
     Ok(canonical_bridge::to_search_grounded(start, &parsed))
 }

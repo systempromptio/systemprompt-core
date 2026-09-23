@@ -24,6 +24,7 @@ mod outbound_deep;
 mod outbound_passthrough;
 mod outbound_passthrough_terminal;
 mod outbound_retry;
+mod outbound_vertex;
 mod parse;
 mod pricing;
 mod pricing_cache_table;

@@ -7,6 +7,7 @@
 
 use std::collections::HashMap;
 use std::time::Duration;
+use systemprompt_ai::UpstreamCall;
 
 use serde_json::json;
 use systemprompt_api::services::gateway::protocol::canonical::{
@@ -91,9 +92,7 @@ async fn send_once(endpoint: &str) -> anyhow::Result<OutboundOutcome> {
     let req = request();
     let ctx = OutboundCtx {
         route: &route,
-        endpoint,
-        api_key: "k",
-        api_key_is_bearer: false,
+        upstream: &UpstreamCall::api_key(endpoint, "k"),
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,

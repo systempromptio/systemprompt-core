@@ -22,6 +22,7 @@
 
 mod discovery_report;
 mod error;
+mod hosting;
 mod protocol;
 mod rate_card;
 mod surface;
@@ -35,6 +36,7 @@ use crate::services::ai::{ModelCapabilities, ModelGovernance, ModelLimits, Model
 
 pub use discovery_report::DiscoveryReport;
 pub use error::{ProviderRegistryError, ProviderRegistryResult};
+pub use hosting::{Hosting, is_vertex_host};
 pub use protocol::WireProtocol;
 pub use rate_card::{
     DocumentedLaunchStage, RETIREMENT_NOTICE_DAYS, VertexRateCard, VertexRateCardEntry,
@@ -103,6 +105,14 @@ pub fn without_context_variant(requested: &str) -> &str {
         .unwrap_or(requested)
 }
 
+#[must_use]
+pub fn upstream_model_in<'a>(models: &'a [ProviderModel], requested: &'a str) -> &'a str {
+    models.iter().find(|m| m.matches(requested)).map_or_else(
+        || without_context_variant(requested),
+        |model| model.effective_upstream_model(requested),
+    )
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ProviderEntry {
@@ -138,17 +148,32 @@ impl ProviderEntry {
         self.models.iter().find(|m| m.matches(requested))
     }
 
+    // Why: a failover re-sends the requested model to another host of the
+    // same vendor model (Claude on Vertex AI to Anthropic's API), where the
+    // catalog id must differ because ids are unique across the registry. The
+    // upstream name is what the two entries share.
+    #[must_use]
+    pub fn find_served_model(&self, requested: &str) -> Option<&ProviderModel> {
+        self.find_model(requested).or_else(|| {
+            let bare = without_context_variant(requested);
+            self.models
+                .iter()
+                .find(|m| m.upstream_model.as_deref() == Some(bare))
+        })
+    }
+
     #[must_use]
     pub fn upstream_model_for<'a>(
         &'a self,
         route_override: Option<&'a str>,
         requested: &'a str,
     ) -> &'a str {
-        let name = route_override.unwrap_or(requested);
-        self.find_model(name).map_or_else(
-            || without_context_variant(name),
-            |model| model.effective_upstream_model(name),
-        )
+        upstream_model_in(&self.models, route_override.unwrap_or(requested))
+    }
+
+    #[must_use]
+    pub fn hosting(&self) -> Hosting {
+        Hosting::of(&self.endpoint)
     }
 
     #[must_use]
@@ -277,13 +302,7 @@ pub fn names_a_project_literally(endpoint: &str) -> bool {
     let Ok(url) = url::Url::parse(endpoint) else {
         return false;
     };
-    let on_vertex = url.host_str().is_some_and(|host| {
-        host.eq_ignore_ascii_case("aiplatform.googleapis.com")
-            || host
-                .to_ascii_lowercase()
-                .ends_with("-aiplatform.googleapis.com")
-    });
-    if !on_vertex {
+    if !url.host_str().is_some_and(is_vertex_host) {
         return false;
     }
     let mut segments = url.path_segments().into_iter().flatten();

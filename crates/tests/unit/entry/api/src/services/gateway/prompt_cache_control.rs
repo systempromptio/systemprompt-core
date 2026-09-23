@@ -8,6 +8,7 @@
 
 use bytes::Bytes;
 use serde_json::{Value, json};
+use systemprompt_ai::UpstreamCall;
 use systemprompt_api::services::gateway::audit::payload::digest_hex;
 use systemprompt_api::services::gateway::protocol::canonical::{
     CacheControl, CacheTtl, CanonicalContent, CanonicalRequest,
@@ -126,9 +127,7 @@ fn automatic_caching_marks_an_unmarked_rebuilt_request() {
     let route = route();
     let ctx = OutboundCtx {
         route: &route,
-        endpoint: "http://unused.invalid",
-        api_key: "k",
-        api_key_is_bearer: false,
+        upstream: &UpstreamCall::api_key("http://unused.invalid", "k"),
         request: &req,
         upstream_model: "claude-x",
         model_limits: None,
@@ -169,9 +168,7 @@ fn passthrough_prepared_body_digest_equals_request_body_digest() {
     let route = route();
     let ctx = OutboundCtx {
         route: &route,
-        endpoint: "http://unused.invalid",
-        api_key: "k",
-        api_key_is_bearer: false,
+        upstream: &UpstreamCall::api_key("http://unused.invalid", "k"),
         request: &req,
         upstream_model: "claude-x",
         model_limits: None,

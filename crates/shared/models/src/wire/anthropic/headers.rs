@@ -8,15 +8,6 @@ use serde_json::{Map, Value};
 
 pub const ANTHROPIC_VERSION: &str = "2023-06-01";
 
-#[must_use]
-pub fn auth_headers(api_key: &str) -> [(&'static str, String); 3] {
-    [
-        ("x-api-key", api_key.to_owned()),
-        ("anthropic-version", ANTHROPIC_VERSION.to_owned()),
-        ("content-type", "application/json".to_owned()),
-    ]
-}
-
 // Why: Anthropic beta body fields require their corresponding `anthropic-beta`
 // headers.
 const FORWARD_PREFIXES: &[&str] = &["anthropic-"];

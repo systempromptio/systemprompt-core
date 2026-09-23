@@ -3,8 +3,9 @@
 //! [`GeminiOutbound`] renders the canonical model to a Gemini `generateContent`
 //! request via [`systemprompt_models::wire::gemini`], sends it upstream, and
 //! returns either a buffered [`CanonicalResponse`] or a stream of canonical
-//! events translated from the Gemini `?alt=sse` byte stream. Auth rides the
-//! `x-goog-api-key` header.
+//! events translated from the Gemini `?alt=sse` byte stream. Auth is the
+//! upstream call's: `x-goog-api-key` for an API key, a bearer for a Vertex
+//! service account.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -12,6 +13,7 @@
 use anyhow::{Result, anyhow};
 use async_trait::async_trait;
 use serde_json::Value;
+use systemprompt_models::services::WireProtocol;
 use systemprompt_models::wire::gemini;
 
 use super::super::canonical_response::CanonicalResponse;
@@ -33,18 +35,13 @@ impl OutboundAdapter for GeminiOutbound {
     }
 
     async fn send(&self, ctx: OutboundCtx<'_>, body: &PreparedBody) -> Result<OutboundOutcome> {
-        let path = gemini::upstream_path(ctx.upstream_model, ctx.request.stream);
-        let url = format!("{}{path}", ctx.endpoint.trim_end_matches('/'));
-
-        let base = super::http_client().post(&url);
-        let base = if ctx.api_key_is_bearer {
-            base.header("authorization", format!("Bearer {}", ctx.api_key))
-        } else {
-            base.header(gemini::API_KEY_HEADER, ctx.api_key)
-        };
-        let mut req = base
-            .header("content-type", "application/json")
-            .body(body.bytes.clone());
+        let url = ctx
+            .upstream
+            .url(WireProtocol::Gemini, ctx.upstream_model, ctx.request.stream);
+        let mut req = super::http_client().post(&url).body(body.bytes.clone());
+        for (name, value) in ctx.upstream.headers(WireProtocol::Gemini) {
+            req = req.header(name, value);
+        }
         for (name, value) in &ctx.route.extra_headers {
             req = req.header(name.as_str(), value.as_str());
         }

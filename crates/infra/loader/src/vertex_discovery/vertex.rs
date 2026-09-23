@@ -1,11 +1,11 @@
 //! Vertex AI as a [`CatalogSource`].
 //!
-//! Everything Google-specific about discovery is here: the host suffix that
-//! identifies a Vertex endpoint (every Vertex host ends in
-//! `aiplatform.googleapis.com`; an endpoint that does not is some other
-//! provider using a Google-shaped credential and is left alone — `vertex_host`
-//! returns its origin, or `None`), the rule that only a Google service-account
-//! key can list one, and the Model Garden listing call itself. The rate card
+//! Everything Google-specific about discovery is here: the origin of a Vertex
+//! endpoint (the host test is the catalog's one `is_vertex_host`; an endpoint
+//! that fails it is some other provider using a Google-shaped credential and
+//! is left alone — `vertex_host` returns its origin, or `None`), the rule
+//! that only a Google service-account key can list one, and the Model Garden
+//! listing call itself. The rate card
 //! is held because it decides which publishers are worth asking about at all —
 //! a provider the card prices nothing for has nothing to discover.
 //!
@@ -13,6 +13,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use async_trait::async_trait;
+use systemprompt_models::services::providers::is_vertex_host;
 use systemprompt_models::services::{ProviderEntry, VertexRateCard};
 use systemprompt_security::credential::{
     AuthHeader, CredentialKind, CredentialScope, ProviderCredential,
@@ -20,8 +21,6 @@ use systemprompt_security::credential::{
 
 use super::client;
 use super::source::{CatalogListing, CatalogSource, DiscoveryError};
-
-const VERTEX_HOST_SUFFIX: &str = "aiplatform.googleapis.com";
 
 #[derive(Debug)]
 pub struct VertexCatalog {
@@ -43,7 +42,7 @@ impl VertexCatalog {
 pub fn vertex_host(endpoint: &str) -> Option<String> {
     let url = url::Url::parse(endpoint).ok()?;
     let host = url.host_str()?.to_ascii_lowercase();
-    if host != VERTEX_HOST_SUFFIX && !host.ends_with(&format!("-{VERTEX_HOST_SUFFIX}")) {
+    if !is_vertex_host(&host) {
         return None;
     }
     Some(format!("{}://{host}", url.scheme()))

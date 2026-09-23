@@ -87,6 +87,11 @@ pub enum ProviderCredential {
 }
 
 impl ProviderCredential {
+    #[must_use]
+    pub fn api_key(key: impl Into<String>) -> Self {
+        Self::ApiKey(ApiKeySecret(key.into()))
+    }
+
     pub fn parse(secret: &str) -> Result<Self, CredentialError> {
         let Ok(value) = serde_json::from_str::<serde_json::Value>(secret) else {
             return Ok(Self::ApiKey(ApiKeySecret(secret.to_owned())));

@@ -18,6 +18,7 @@ mod gemini;
 mod openai_chat;
 mod openai_responses;
 mod unparsable_body;
+mod upstream_dialect;
 
 fn tool_with_unsupported_keywords() -> CanonicalTool {
     CanonicalTool {

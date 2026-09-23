@@ -1,9 +1,10 @@
 //! Image-provider factory, keyed on registry [`WireProtocol`].
 //!
-//! Connectivity (endpoint, resolved key, model catalog) comes from a profile
-//! `providers` registry [`ProviderEntry`]; the per-provider AI policy supplies
-//! the image-model default. Only the `gemini` and `openai-chat`/`-responses`
-//! protocols generate images; other protocols fall back to one that can.
+//! Connectivity comes from the registry [`ProviderEntry`] resolved into an
+//! [`UpstreamTarget`] (endpoint, credential, model catalog); the per-provider
+//! AI policy supplies the image-model default. Only the `gemini` and
+//! `openai-chat`/`-responses` protocols generate images; other protocols fall
+//! back to one that can.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -16,6 +17,7 @@ use systemprompt_models::services::{
 };
 
 use crate::error::Result;
+use crate::services::upstream::UpstreamTarget;
 
 use super::{BoxedImageProvider, GeminiImageProvider, OpenAiImageProvider};
 
@@ -23,7 +25,7 @@ use super::{BoxedImageProvider, GeminiImageProvider, OpenAiImageProvider};
 pub struct ImageProviderParams<'a> {
     pub entry: &'a ProviderEntry,
     pub policy: &'a AiProviderConfig,
-    pub api_key: String,
+    pub target: UpstreamTarget,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -59,11 +61,8 @@ impl ImageProviderFactory {
     }
 
     fn create_gemini(params: &ImageProviderParams<'_>) -> BoxedImageProvider {
-        let base = GeminiImageProvider::with_endpoint(
-            params.api_key.clone(),
-            params.entry.endpoint.clone(),
-        )
-        .with_model_definitions(Self::model_definitions(params.entry));
+        let base = GeminiImageProvider::with_target(params.target.clone())
+            .with_model_definitions(Self::model_definitions(params.entry));
 
         let provider = match params.policy.default_image_model.as_str() {
             "" => base,
@@ -74,11 +73,8 @@ impl ImageProviderFactory {
     }
 
     fn create_openai(params: &ImageProviderParams<'_>) -> BoxedImageProvider {
-        let base = OpenAiImageProvider::with_endpoint(
-            params.api_key.clone(),
-            params.entry.endpoint.clone(),
-        )
-        .with_model_definitions(Self::model_definitions(params.entry));
+        let base = OpenAiImageProvider::with_target(params.target.clone())
+            .with_model_definitions(Self::model_definitions(params.entry));
 
         let provider = match params.policy.default_image_model.as_str() {
             "" => base,

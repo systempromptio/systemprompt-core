@@ -1,6 +1,6 @@
-//! Anthropic streaming: builds a canonical streaming request, posts it, frames
-//! the SSE byte stream, and maps each decoded frame through the shared codec's
-//! [`anthropic::events_from_sse`] into agent [`StreamChunk`]s.
+//! Anthropic streaming: builds a canonical streaming request, posts it, and
+//! maps the shared codec's canonical events into agent [`StreamChunk`]s. SSE
+//! framing is the shared [`anthropic::sse_to_canonical_events`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -8,11 +8,10 @@
 use std::pin::Pin;
 
 use futures::{Stream, StreamExt};
-use serde_json::Value;
 use systemprompt_models::wire::anthropic;
 use systemprompt_models::wire::canonical::CanonicalTool;
 
-use crate::error::Result;
+use crate::error::{AiError, Result};
 use crate::models::ai::StreamChunk;
 use crate::services::providers::GenerationParams;
 use crate::services::providers::canonical_bridge::{self, BridgeProvider, CanonicalBuild};
@@ -37,53 +36,18 @@ impl AnthropicProvider {
         .with_stream(true)
         .into_request();
 
-        let body = anthropic::build_request_body(&canonical, params.model, None);
-        let response = post_body(self, &body).await?;
+        let upstream = self.upstream_model(params.model);
+        let body = anthropic::build_request_body(&canonical, upstream, None);
+        let response = post_body(self, body, upstream, true).await?;
 
-        let stream = response
-            .bytes_stream()
-            .scan(SseState::default(), |state, item| {
-                let out = match item {
-                    Ok(bytes) => state.drain(&bytes),
-                    Err(e) => vec![Err(crate::error::AiError::Internal(format!(
-                        "Stream error: {e}"
-                    )))],
-                };
-                futures::future::ready(Some(out))
-            })
-            .flat_map(futures::stream::iter);
+        let stream =
+            anthropic::sse_to_canonical_events(response.bytes_stream()).filter_map(|event| {
+                futures::future::ready(match event {
+                    Ok(event) => canonical_bridge::event_to_chunk(event).map(Ok),
+                    Err(e) => Some(Err(AiError::Internal(format!("Stream error: {e}")))),
+                })
+            });
 
         Ok(Box::pin(stream))
-    }
-}
-
-#[derive(Default)]
-struct SseState {
-    buf: Vec<u8>,
-    codec: anthropic::AnthropicStreamState,
-}
-
-impl SseState {
-    fn drain(&mut self, bytes: &[u8]) -> Vec<Result<StreamChunk>> {
-        self.buf.extend_from_slice(bytes);
-        let mut chunks = Vec::new();
-        while let Some(end) = systemprompt_models::wire::sse::frame_end(&self.buf) {
-            let frame: Vec<u8> = self.buf.drain(..end).collect();
-            let frame_str = String::from_utf8_lossy(&frame);
-            for line in frame_str.lines() {
-                let Some(data) = line.strip_prefix("data: ") else {
-                    continue;
-                };
-                let Ok(value) = serde_json::from_str::<Value>(data) else {
-                    continue;
-                };
-                for event in self.codec.events_from_sse(&value) {
-                    if let Some(chunk) = canonical_bridge::event_to_chunk(event) {
-                        chunks.push(Ok(chunk));
-                    }
-                }
-            }
-        }
-        chunks
     }
 }

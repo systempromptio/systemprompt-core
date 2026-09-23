@@ -1,13 +1,14 @@
-//! Decodes Anthropic SSE frames into canonical events.
+//! Anthropic SSE on the gateway side.
+//!
+//! Canonical events for the translated path, raw bytes for passthrough. Frame
+//! decoding is the shared [`anthropic::SseFrameDecoder`], which the in-process
+//! AI service reads too.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use futures_util::StreamExt;
-// JSON: protocol boundary — event shapes are owned by the models::wire
-// Anthropic codec.
-use serde_json::Value;
-use systemprompt_models::wire::anthropic::AnthropicStreamState;
+use systemprompt_models::wire::anthropic;
 
 use super::super::super::canonical_response::CanonicalEvent;
 
@@ -17,25 +18,7 @@ pub fn sse_to_canonical_events<S>(
 where
     S: futures_util::Stream<Item = Result<bytes::Bytes, reqwest::Error>> + Send + 'static,
 {
-    use futures_util::stream;
-    let s = stream
-        .map(|chunk| chunk.map_err(|e| e.to_string()))
-        .scan(
-            (Vec::<u8>::new(), AnthropicStreamState::default()),
-            |state, item| {
-                let (buf, codec) = state;
-                let res = match item {
-                    Ok(bytes) => {
-                        buf.extend_from_slice(&bytes);
-                        Some(drain_frames(buf, codec))
-                    },
-                    Err(e) => Some(vec![Err(e)]),
-                };
-                futures_util::future::ready(res)
-            },
-        )
-        .flat_map(stream::iter);
-    s.boxed()
+    anthropic::sse_to_canonical_events(stream)
 }
 
 pub(in crate::services::gateway) fn raw_sse_stream<S>(
@@ -45,42 +28,4 @@ where
     S: futures_util::Stream<Item = Result<bytes::Bytes, reqwest::Error>> + Send + 'static,
 {
     stream.map(|chunk| chunk.map_err(|e| e.to_string())).boxed()
-}
-
-#[derive(Debug, Default)]
-pub(in crate::services::gateway) struct SseDecoder {
-    buf: Vec<u8>,
-    codec: AnthropicStreamState,
-}
-
-impl SseDecoder {
-    pub(in crate::services::gateway) fn push(&mut self, chunk: &[u8]) -> Vec<CanonicalEvent> {
-        self.buf.extend_from_slice(chunk);
-        drain_frames(&mut self.buf, &mut self.codec)
-            .into_iter()
-            .flatten()
-            .collect()
-    }
-}
-
-fn drain_frames(
-    buf: &mut Vec<u8>,
-    codec: &mut AnthropicStreamState,
-) -> Vec<Result<CanonicalEvent, String>> {
-    let mut events: Vec<Result<CanonicalEvent, String>> = Vec::new();
-    while let Some(end) = systemprompt_models::wire::sse::frame_end(buf) {
-        let frame: Vec<u8> = buf.drain(..end).collect();
-        let frame_str = String::from_utf8_lossy(&frame);
-        for line in frame_str.lines() {
-            if let Some(data) = line.strip_prefix("data: ") {
-                if data.trim() == "[DONE]" {
-                    continue;
-                }
-                if let Ok(value) = serde_json::from_str::<Value>(data) {
-                    events.extend(codec.events_from_sse(&value).into_iter().map(Ok));
-                }
-            }
-        }
-    }
-    events
 }

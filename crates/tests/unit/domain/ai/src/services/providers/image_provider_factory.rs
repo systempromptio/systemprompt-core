@@ -1,3 +1,4 @@
+use systemprompt_ai::UpstreamTarget;
 use systemprompt_ai::services::providers::{ImageProviderFactory, ImageProviderParams};
 use systemprompt_models::services::{
     AiProviderConfig, ProviderEntry, ProviderRegistry, WireProtocol,
@@ -21,7 +22,7 @@ mod create_tests {
         let provider = ImageProviderFactory::create(&ImageProviderParams {
             entry: &e,
             policy: &policy,
-            api_key: "test-key".to_owned(),
+            target: UpstreamTarget::resolve(&e, "test-key").expect("api key resolves"),
         })
         .expect("should succeed");
         assert_eq!(provider.name(), "gemini-image");
@@ -35,7 +36,7 @@ mod create_tests {
         let provider = ImageProviderFactory::create(&ImageProviderParams {
             entry: &e,
             policy: &policy,
-            api_key: "test-key".to_owned(),
+            target: UpstreamTarget::resolve(&e, "test-key").expect("api key resolves"),
         })
         .expect("should succeed");
         assert_eq!(provider.name(), "openai-image");
@@ -52,7 +53,7 @@ mod create_tests {
         let error = ImageProviderFactory::create(&ImageProviderParams {
             entry: &e,
             policy: &policy,
-            api_key: "test-key".to_owned(),
+            target: UpstreamTarget::resolve(&e, "test-key").expect("api key resolves"),
         })
         .err()
         .expect("should be an error");
@@ -66,7 +67,7 @@ mod create_tests {
         let error = ImageProviderFactory::create(&ImageProviderParams {
             entry: &e,
             policy: &policy,
-            api_key: "test-key".to_owned(),
+            target: UpstreamTarget::resolve(&e, "test-key").expect("api key resolves"),
         })
         .err()
         .expect("should be an error");
@@ -87,7 +88,7 @@ mod create_tests {
         let provider = ImageProviderFactory::create(&ImageProviderParams {
             entry: &e,
             policy: &policy,
-            api_key: "test-key".to_owned(),
+            target: UpstreamTarget::resolve(&e, "test-key").expect("api key resolves"),
         })
         .expect("should succeed");
         assert_eq!(provider.default_model(), "gemini-3-pro-image-preview");

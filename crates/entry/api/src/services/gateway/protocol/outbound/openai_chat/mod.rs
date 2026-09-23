@@ -12,6 +12,7 @@
 use anyhow::{Result, anyhow};
 use async_trait::async_trait;
 use serde_json::Value;
+use systemprompt_models::services::WireProtocol;
 use systemprompt_models::wire::openai_chat as codec;
 
 use super::{OutboundAdapter, OutboundCtx, OutboundOutcome, PreparedBody};
@@ -46,13 +47,15 @@ impl OutboundAdapter for OpenAiChatOutbound {
     }
 
     async fn send(&self, ctx: OutboundCtx<'_>, body: &PreparedBody) -> Result<OutboundOutcome> {
-        let url = format!("{}/chat/completions", ctx.endpoint.trim_end_matches('/'));
-
-        let mut req = super::http_client()
-            .post(&url)
-            .header("authorization", format!("Bearer {}", ctx.api_key))
-            .header("content-type", "application/json")
-            .body(body.bytes.clone());
+        let url = ctx.upstream.url(
+            WireProtocol::OpenAiChat,
+            ctx.upstream_model,
+            ctx.request.stream,
+        );
+        let mut req = super::http_client().post(&url).body(body.bytes.clone());
+        for (name, value) in ctx.upstream.headers(WireProtocol::OpenAiChat) {
+            req = req.header(name, value);
+        }
         for (name, value) in &ctx.route.extra_headers {
             req = req.header(name.as_str(), value.as_str());
         }

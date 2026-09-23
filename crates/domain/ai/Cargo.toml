@@ -50,5 +50,6 @@ systemprompt-extension = { workspace = true }
 systemprompt-identifiers = { workspace = true, features = ["sqlx"] }
 systemprompt-models = { workspace = true }
 systemprompt-config = { workspace = true }
+systemprompt-security = { workspace = true }
 systemprompt-traits = { workspace = true }
 
