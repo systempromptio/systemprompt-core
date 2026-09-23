@@ -11,6 +11,8 @@ use std::collections::HashMap;
 use futures_util::StreamExt;
 use serde_json::{Value, json};
 use systemprompt_ai::UpstreamCall;
+
+use super::support;
 use systemprompt_api::services::gateway::protocol::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, Role,
 };
@@ -258,7 +260,7 @@ async fn first_party_anthropic_keeps_messages_path_and_api_key() {
 
     let route = route();
     let req = request(false);
-    let call = UpstreamCall::api_key(server.uri(), "sk-fixture");
+    let call = support::api_key_call(&server.uri(), "sk-fixture");
     let ctx = OutboundCtx {
         route: &route,
         upstream: &call,

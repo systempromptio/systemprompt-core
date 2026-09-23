@@ -36,6 +36,7 @@ mod safety;
 mod signature_cache;
 mod stream_tap;
 mod stream_tap_accumulator;
+mod support;
 mod upstream_error;
 
 mod prompt_recovery;

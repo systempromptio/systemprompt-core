@@ -9,10 +9,16 @@ use systemprompt_ai::services::providers::{
     StructuredGenerationParams, ToolGenerationParams,
 };
 use systemprompt_identifiers::McpServerId;
+use systemprompt_models::services::WireProtocol;
 
 fn provider(endpoint: String) -> OpenAiProvider {
-    OpenAiProvider::with_endpoint("test-key".to_owned(), endpoint)
-        .with_models(mock_http::seed_models("openai"))
+    OpenAiProvider::with_target(mock_http::api_key_target(
+        "openai",
+        WireProtocol::OpenAiChat,
+        &endpoint,
+        "test-key",
+    ))
+    .with_models(mock_http::seed_models("openai"))
 }
 
 fn msgs() -> Vec<AiMessage> {

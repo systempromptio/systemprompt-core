@@ -13,7 +13,7 @@ use systemprompt_ai::services::providers::anthropic::AnthropicProvider;
 use systemprompt_ai::services::providers::openai::OpenAiProvider;
 use systemprompt_ai::services::providers::provider_trait::{AiProvider, GenerationParams};
 use systemprompt_ai::{UpstreamTarget, UpstreamTargetError};
-use systemprompt_identifiers::{ProviderId, SecretName};
+use systemprompt_identifiers::SecretName;
 use systemprompt_models::services::{Hosting, ProviderEntry, ProviderRegistry, WireProtocol};
 use systemprompt_test_fixtures::keys::test_key;
 use wiremock::matchers::{body_partial_json, method, path};
@@ -159,10 +159,10 @@ async fn the_anthropic_driver_sends_the_catalog_upstream_id() {
     let mut models = mock_http::seed_models("anthropic");
     let requested = models[0].id.as_str().to_owned();
     models[0].upstream_model = Some("claude-upstream-fixture".to_owned());
-    let provider = AnthropicProvider::with_target(UpstreamTarget::api_key(
-        ProviderId::new("anthropic"),
+    let provider = AnthropicProvider::with_target(mock_http::api_key_target(
+        "anthropic",
         WireProtocol::Anthropic,
-        server.uri(),
+        &server.uri(),
         "sk-fixture",
     ))
     .with_models(models);
@@ -191,10 +191,10 @@ async fn an_openai_responses_provider_posts_to_responses() {
     }))
     .await;
 
-    let provider = OpenAiProvider::with_target(UpstreamTarget::api_key(
-        ProviderId::new("openai-responses"),
+    let provider = OpenAiProvider::with_target(mock_http::api_key_target(
+        "openai-responses",
         WireProtocol::OpenAiResponses,
-        server.uri(),
+        &server.uri(),
         "k",
     ))
     .with_models(mock_http::seed_models("openai"));

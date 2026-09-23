@@ -16,6 +16,8 @@
 use std::collections::HashMap;
 use systemprompt_ai::UpstreamCall;
 
+use super::support;
+
 use serde_json::{Value, json};
 use systemprompt_api::services::gateway::protocol::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, Role,
@@ -79,7 +81,7 @@ fn raw_body_hiding_a_secret() -> bytes::Bytes {
 }
 
 static UNUSED_UPSTREAM: std::sync::LazyLock<UpstreamCall> =
-    std::sync::LazyLock::new(|| UpstreamCall::api_key("http://unused.invalid", "k"));
+    std::sync::LazyLock::new(|| support::api_key_call("http://unused.invalid", "k"));
 
 fn ctx<'a>(
     route: &'a GatewayRoute,

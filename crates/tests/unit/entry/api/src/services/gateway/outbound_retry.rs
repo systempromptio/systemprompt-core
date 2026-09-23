@@ -5,9 +5,9 @@
 //! inside `send_checked` — rather than through a private hook. The zero-delay
 //! policy is scoped per test so a four-attempt budget costs milliseconds.
 
+use super::support;
 use std::collections::HashMap;
 use std::time::Duration;
-use systemprompt_ai::UpstreamCall;
 
 use serde_json::json;
 use systemprompt_api::services::gateway::protocol::canonical::{
@@ -92,7 +92,7 @@ async fn send_once(endpoint: &str) -> anyhow::Result<OutboundOutcome> {
     let req = request();
     let ctx = OutboundCtx {
         route: &route,
-        upstream: &UpstreamCall::api_key(endpoint, "k"),
+        upstream: &support::api_key_call(endpoint, "k"),
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,

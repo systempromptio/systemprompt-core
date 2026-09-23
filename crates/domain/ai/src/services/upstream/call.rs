@@ -50,34 +50,6 @@ impl UpstreamCall {
     }
 
     #[must_use]
-    pub fn api_key(endpoint: impl Into<String>, key: impl Into<String>) -> Self {
-        let endpoint = endpoint.into();
-        Self::new(
-            Hosting::of(&endpoint),
-            endpoint,
-            AuthHeader {
-                scheme: AuthScheme::ApiKey,
-                value: key.into(),
-            },
-            Vec::new(),
-        )
-    }
-
-    #[must_use]
-    pub fn bearer(endpoint: impl Into<String>, token: impl Into<String>) -> Self {
-        let endpoint = endpoint.into();
-        Self::new(
-            Hosting::of(&endpoint),
-            endpoint,
-            AuthHeader {
-                scheme: AuthScheme::Bearer,
-                value: token.into(),
-            },
-            Vec::new(),
-        )
-    }
-
-    #[must_use]
     pub const fn hosting(&self) -> Hosting {
         self.hosting
     }

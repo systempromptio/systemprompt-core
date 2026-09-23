@@ -21,7 +21,6 @@ use async_trait::async_trait;
 use reqwest::Client;
 use std::collections::HashMap;
 use std::time::Instant;
-use systemprompt_identifiers::ProviderId;
 use systemprompt_models::net::{HTTP_STREAM_CONNECT_TIMEOUT, IMAGE_GEN_LONG_POLL_TIMEOUT};
 use systemprompt_models::services::{ModelDefinition, WireProtocol};
 use tracing::error;
@@ -31,8 +30,6 @@ use crate::services::upstream::UpstreamTarget;
 use super::gemini_image_mapping::{build_image_request, extract_image_from_response};
 
 const DEFAULT_IMAGE_CENTS: f32 = 4.0;
-const DEFAULT_ENDPOINT: &str = "https://generativelanguage.googleapis.com/v1beta";
-
 #[derive(Debug)]
 pub struct GeminiImageProvider {
     client: Client,
@@ -42,19 +39,6 @@ pub struct GeminiImageProvider {
 }
 
 impl GeminiImageProvider {
-    pub fn new(api_key: String) -> Self {
-        Self::with_endpoint(api_key, DEFAULT_ENDPOINT.to_owned())
-    }
-
-    pub fn with_endpoint(api_key: String, endpoint: String) -> Self {
-        Self::with_target(UpstreamTarget::api_key(
-            ProviderId::new("gemini"),
-            WireProtocol::Gemini,
-            endpoint,
-            api_key,
-        ))
-    }
-
     pub fn with_target(target: UpstreamTarget) -> Self {
         let client = Client::builder()
             .timeout(IMAGE_GEN_LONG_POLL_TIMEOUT)

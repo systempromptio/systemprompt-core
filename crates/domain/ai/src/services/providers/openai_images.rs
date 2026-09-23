@@ -20,15 +20,12 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::Instant;
-use systemprompt_identifiers::ProviderId;
 use systemprompt_models::net::IMAGE_GEN_OPENAI_TIMEOUT;
 use systemprompt_models::services::{ModelDefinition, WireProtocol};
 
 use crate::services::upstream::UpstreamTarget;
 
 const DEFAULT_IMAGE_CENTS: f32 = 4.0;
-const DEFAULT_ENDPOINT: &str = "https://api.openai.com/v1";
-
 #[derive(Debug)]
 pub struct OpenAiImageProvider {
     client: Client,
@@ -38,19 +35,6 @@ pub struct OpenAiImageProvider {
 }
 
 impl OpenAiImageProvider {
-    pub fn new(api_key: String) -> Self {
-        Self::with_endpoint(api_key, DEFAULT_ENDPOINT.to_owned())
-    }
-
-    pub fn with_endpoint(api_key: String, endpoint: String) -> Self {
-        Self::with_target(UpstreamTarget::api_key(
-            ProviderId::new("openai"),
-            WireProtocol::OpenAiChat,
-            endpoint,
-            api_key,
-        ))
-    }
-
     pub fn with_target(target: UpstreamTarget) -> Self {
         let client = Client::builder()
             .timeout(IMAGE_GEN_OPENAI_TIMEOUT)

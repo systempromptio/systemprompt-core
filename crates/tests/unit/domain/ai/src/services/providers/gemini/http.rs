@@ -6,11 +6,17 @@ use systemprompt_ai::services::providers::gemini::GeminiProvider;
 use systemprompt_ai::services::providers::{
     AiProvider, GenerationParams, SchemaGenerationParams, SearchGenerationParams,
 };
+use systemprompt_models::services::WireProtocol;
 
 fn provider(endpoint: String) -> GeminiProvider {
-    GeminiProvider::with_endpoint("test-key".to_owned(), endpoint)
-        .expect("provider")
-        .with_models(mock_http::seed_models("gemini"))
+    GeminiProvider::with_target(mock_http::api_key_target(
+        "gemini",
+        WireProtocol::Gemini,
+        &endpoint,
+        "test-key",
+    ))
+    .expect("provider")
+    .with_models(mock_http::seed_models("gemini"))
 }
 
 fn msgs() -> Vec<AiMessage> {

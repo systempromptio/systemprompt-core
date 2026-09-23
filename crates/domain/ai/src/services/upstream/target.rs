@@ -84,26 +84,6 @@ impl UpstreamTarget {
         Self::resolve(entry, secret)
     }
 
-    #[must_use]
-    pub fn api_key(
-        provider: ProviderId,
-        wire: WireProtocol,
-        endpoint: impl Into<String>,
-        key: impl Into<String>,
-    ) -> Self {
-        let endpoint = endpoint.into();
-        Self {
-            hosting: Hosting::of(&endpoint),
-            cache_key: provider.as_str().to_owned(),
-            provider,
-            wire,
-            endpoint,
-            credential: ProviderCredential::api_key(key),
-            extra_headers: Vec::new(),
-            accepted_betas: None,
-        }
-    }
-
     pub async fn call(&self) -> Result<UpstreamCall, UpstreamTargetError> {
         let auth = self
             .credential

@@ -155,37 +155,34 @@ mod gemini_image_provider_tests {
     use systemprompt_ai::GeminiImageProvider;
     use systemprompt_ai::services::providers::ImageProvider;
 
-    #[test]
-    fn new_creates_provider() {
-        let provider = GeminiImageProvider::new("test-key".to_string());
-        assert_eq!(provider.name(), "gemini-image");
-    }
+    use crate::services::providers::mock_http;
 
     #[test]
-    fn with_endpoint_creates_provider() {
-        let provider = GeminiImageProvider::with_endpoint(
-            "test-key".to_string(),
-            "https://custom.endpoint.com".to_string(),
-        );
+    fn new_creates_provider() {
+        let provider =
+            GeminiImageProvider::with_target(mock_http::seed_target("gemini", "test-key"));
         assert_eq!(provider.name(), "gemini-image");
     }
 
     #[test]
     fn default_model_is_set() {
-        let provider = GeminiImageProvider::new("test-key".to_string());
+        let provider =
+            GeminiImageProvider::with_target(mock_http::seed_target("gemini", "test-key"));
         assert_eq!(provider.default_model(), "gemini-2.5-flash-image");
     }
 
     #[test]
     fn with_default_model_changes_model() {
-        let provider = GeminiImageProvider::new("test-key".to_string())
-            .with_default_model("custom-model".to_string());
+        let provider =
+            GeminiImageProvider::with_target(mock_http::seed_target("gemini", "test-key"))
+                .with_default_model("custom-model".to_string());
         assert_eq!(provider.default_model(), "custom-model");
     }
 
     #[test]
     fn capabilities_returns_valid_caps() {
-        let provider = GeminiImageProvider::new("test-key".to_string());
+        let provider =
+            GeminiImageProvider::with_target(mock_http::seed_target("gemini", "test-key"));
         let caps = provider.capabilities();
 
         assert_eq!(caps.supported_resolutions.len(), 3);
@@ -195,7 +192,8 @@ mod gemini_image_provider_tests {
 
     #[test]
     fn supported_models_returns_list() {
-        let provider = GeminiImageProvider::new("test-key".to_string());
+        let provider =
+            GeminiImageProvider::with_target(mock_http::seed_target("gemini", "test-key"));
         let models = provider.supported_models();
 
         assert_eq!(models, vec!["gemini-2.5-flash-image".to_string()]);
@@ -203,7 +201,8 @@ mod gemini_image_provider_tests {
 
     #[test]
     fn supports_model_returns_true_for_known_model() {
-        let provider = GeminiImageProvider::new("test-key".to_string());
+        let provider =
+            GeminiImageProvider::with_target(mock_http::seed_target("gemini", "test-key"));
         let models = provider.supported_models();
 
         if let Some(model) = models.first() {
@@ -213,13 +212,15 @@ mod gemini_image_provider_tests {
 
     #[test]
     fn supports_model_returns_false_for_unknown_model() {
-        let provider = GeminiImageProvider::new("test-key".to_string());
+        let provider =
+            GeminiImageProvider::with_target(mock_http::seed_target("gemini", "test-key"));
         assert!(!provider.supports_model("unknown-model-xyz"));
     }
 
     #[test]
     fn supports_resolution_checks_capabilities() {
-        let provider = GeminiImageProvider::new("test-key".to_string());
+        let provider =
+            GeminiImageProvider::with_target(mock_http::seed_target("gemini", "test-key"));
         let caps = provider.capabilities();
 
         for resolution in &caps.supported_resolutions {
@@ -229,7 +230,8 @@ mod gemini_image_provider_tests {
 
     #[test]
     fn supports_aspect_ratio_checks_capabilities() {
-        let provider = GeminiImageProvider::new("test-key".to_string());
+        let provider =
+            GeminiImageProvider::with_target(mock_http::seed_target("gemini", "test-key"));
         let caps = provider.capabilities();
 
         for ratio in &caps.supported_aspect_ratios {

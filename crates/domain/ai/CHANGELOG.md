@@ -4,7 +4,8 @@
 
 ### Breaking
 
-- **Breaking:** `UpstreamTarget::api_key` takes `provider: ProviderId` instead of `impl Into<String>`, and `UpstreamTarget::provider` returns `&ProviderId`. Migrate by passing `ProviderId::new(name)`.
+- **Breaking:** `UpstreamTarget::provider` returns `&ProviderId` instead of `&str`. Migrate by calling `as_str()` where a string is needed.
+- **Breaking:** `UpstreamTarget::api_key`, `UpstreamCall::api_key`, `UpstreamCall::bearer` and the provider clients' `new(api_key)` and `with_endpoint(api_key, endpoint)` are removed, so an upstream is built only from a catalog `ProviderEntry`. Migrate by resolving the entry with `UpstreamTarget::resolve` or `UpstreamTarget::from_secrets` and passing the target to `with_target`.
 
 ### Added
 

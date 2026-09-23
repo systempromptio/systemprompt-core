@@ -4,7 +4,8 @@
 
 ### Breaking
 
-- **AI Rust API:** `UpstreamTarget::api_key` takes a `ProviderId`, and `UpstreamTarget::provider` returns `&ProviderId`.
+- **AI Rust API:** `UpstreamTarget::provider` returns `&ProviderId`.
+- **AI Rust API:** an upstream is built only from a catalog entry: `UpstreamTarget::api_key`, `UpstreamCall::{api_key, bearer}`, `ProviderCredential::api_key` and the provider clients' `new`/`with_endpoint` are removed; resolve the `ProviderEntry` with `UpstreamTarget::resolve` and pass it to `with_target`.
 
 ### Fixed
 

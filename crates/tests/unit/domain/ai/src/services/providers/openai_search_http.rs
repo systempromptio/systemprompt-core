@@ -8,6 +8,7 @@ use systemprompt_ai::services::providers::openai::OpenAiProvider;
 use systemprompt_ai::services::providers::provider_trait::{
     AiProvider, GenerationParams, SearchGenerationParams,
 };
+use systemprompt_models::services::WireProtocol;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -48,8 +49,13 @@ fn grounded_body(text: &str) -> serde_json::Value {
 }
 
 fn provider(endpoint: String) -> OpenAiProvider {
-    OpenAiProvider::with_endpoint("k".to_owned(), endpoint)
-        .with_models(mock_http::seed_models("openai"))
+    OpenAiProvider::with_target(mock_http::api_key_target(
+        "openai",
+        WireProtocol::OpenAiChat,
+        &endpoint,
+        "k",
+    ))
+    .with_models(mock_http::seed_models("openai"))
 }
 
 #[tokio::test]

@@ -19,10 +19,19 @@ use systemprompt_ai::services::providers::{
 };
 use systemprompt_ai::services::schema::ProviderCapabilities;
 use systemprompt_identifiers::McpServerId;
-use systemprompt_models::services::ResilienceSettings;
+use systemprompt_models::services::{ResilienceSettings, WireProtocol};
 
 fn settings() -> ResilienceSettings {
     ResilienceSettings::default()
+}
+
+fn anthropic(endpoint: &str) -> AnthropicProvider {
+    AnthropicProvider::with_target(mock_http::api_key_target(
+        "anthropic",
+        WireProtocol::Anthropic,
+        endpoint,
+        "k",
+    ))
 }
 
 #[tokio::test]
@@ -30,8 +39,7 @@ async fn delegates_generate_to_inner() {
     let server =
         mock_http::anthropic_messages_success(mock_http::anthropic_response_body("ok via guard"))
             .await;
-    let inner = AnthropicProvider::with_endpoint("k".to_owned(), server.uri())
-        .with_models(mock_http::seed_models("anthropic"));
+    let inner = anthropic(&server.uri()).with_models(mock_http::seed_models("anthropic"));
     let s = settings();
     let resilient: Arc<dyn AiProvider> =
         Arc::new(ResilientProvider::new("anthropic", Arc::new(inner), &s));
@@ -46,8 +54,7 @@ async fn delegates_generate_to_inner() {
 async fn delegates_metadata() {
     let server =
         mock_http::anthropic_messages_success(mock_http::anthropic_response_body("x")).await;
-    let inner = AnthropicProvider::with_endpoint("k".to_owned(), server.uri())
-        .with_models(mock_http::seed_models("anthropic"));
+    let inner = anthropic(&server.uri()).with_models(mock_http::seed_models("anthropic"));
     let s = settings();
     let r = ResilientProvider::new("anthropic", Arc::new(inner), &s);
     assert_eq!(r.name(), "anthropic");
@@ -69,8 +76,7 @@ async fn maps_inner_error() {
     let server =
         mock_http::anthropic_messages_error(500, serde_json::json!({"error":{"message":"boom"}}))
             .await;
-    let inner = AnthropicProvider::with_endpoint("k".to_owned(), server.uri())
-        .with_models(mock_http::seed_models("anthropic"));
+    let inner = anthropic(&server.uri()).with_models(mock_http::seed_models("anthropic"));
     let s = settings();
     let r = ResilientProvider::new("anthropic", Arc::new(inner), &s);
     let messages = vec![AiMessage::user("hi")];
@@ -86,8 +92,7 @@ async fn delegates_generate_with_tools() {
         serde_json::json!({}),
     ))
     .await;
-    let inner = AnthropicProvider::with_endpoint("k".to_owned(), server.uri())
-        .with_models(mock_http::seed_models("anthropic"));
+    let inner = anthropic(&server.uri()).with_models(mock_http::seed_models("anthropic"));
     let s = settings();
     let r = ResilientProvider::new("anthropic", Arc::new(inner), &s);
     let messages = vec![AiMessage::user("hi")];
@@ -110,8 +115,7 @@ async fn delegates_generate_with_schema() {
         serde_json::json!({"answer": 42}),
     ))
     .await;
-    let inner = AnthropicProvider::with_endpoint("k".to_owned(), server.uri())
-        .with_models(mock_http::seed_models("anthropic"));
+    let inner = anthropic(&server.uri()).with_models(mock_http::seed_models("anthropic"));
     let s = settings();
     let r = ResilientProvider::new("anthropic", Arc::new(inner), &s);
     let messages = vec![AiMessage::user("hi")];
@@ -128,8 +132,7 @@ async fn delegates_generate_with_schema() {
 async fn delegates_generate_structured() {
     let server =
         mock_http::anthropic_messages_success(mock_http::anthropic_response_body("plain")).await;
-    let inner = AnthropicProvider::with_endpoint("k".to_owned(), server.uri())
-        .with_models(mock_http::seed_models("anthropic"));
+    let inner = anthropic(&server.uri()).with_models(mock_http::seed_models("anthropic"));
     let s = settings();
     let r = ResilientProvider::new("anthropic", Arc::new(inner), &s);
     let messages = vec![AiMessage::user("hi")];
@@ -145,8 +148,7 @@ async fn delegates_generate_with_tool_results() {
     let server =
         mock_http::anthropic_messages_success(mock_http::anthropic_response_body("after-tool"))
             .await;
-    let inner = AnthropicProvider::with_endpoint("k".to_owned(), server.uri())
-        .with_models(mock_http::seed_models("anthropic"));
+    let inner = anthropic(&server.uri()).with_models(mock_http::seed_models("anthropic"));
     let s = settings();
     let r = ResilientProvider::new("anthropic", Arc::new(inner), &s);
     let messages = vec![AiMessage::user("hi")];
@@ -163,8 +165,7 @@ async fn delegates_generate_with_tools_stream() {
     let sse = "data: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"\
                text_delta\",\"text\":\"hi\"}}\n\n";
     let server = mock_http::anthropic_messages_stream(sse).await;
-    let inner = AnthropicProvider::with_endpoint("k".to_owned(), server.uri())
-        .with_models(mock_http::seed_models("anthropic"));
+    let inner = anthropic(&server.uri()).with_models(mock_http::seed_models("anthropic"));
     let s = settings();
     let r = ResilientProvider::new("anthropic", Arc::new(inner), &s);
     let messages = vec![AiMessage::user("hi")];
@@ -186,8 +187,7 @@ async fn stream_open_failure_releases_permit() {
     let server =
         mock_http::anthropic_messages_error(500, serde_json::json!({"error":{"message":"boom"}}))
             .await;
-    let inner = AnthropicProvider::with_endpoint("k".to_owned(), server.uri())
-        .with_models(mock_http::seed_models("anthropic"));
+    let inner = anthropic(&server.uri()).with_models(mock_http::seed_models("anthropic"));
     let s = settings();
     let r = ResilientProvider::new("anthropic", Arc::new(inner), &s);
     let messages = vec![AiMessage::user("hi")];
@@ -201,8 +201,7 @@ async fn stream_call_guards_path() {
     let sse = "data: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"\
                text_delta\",\"text\":\"hi\"}}\n\n";
     let server = mock_http::anthropic_messages_stream(sse).await;
-    let inner = AnthropicProvider::with_endpoint("k".to_owned(), server.uri())
-        .with_models(mock_http::seed_models("anthropic"));
+    let inner = anthropic(&server.uri()).with_models(mock_http::seed_models("anthropic"));
     let s = settings();
     let r = ResilientProvider::new("anthropic", Arc::new(inner), &s);
     let messages = vec![AiMessage::user("hi")];
@@ -215,8 +214,7 @@ async fn a_tripped_breaker_reports_circuit_open_instead_of_the_inner_error() {
     let server =
         mock_http::anthropic_messages_error(500, serde_json::json!({"error":{"message":"boom"}}))
             .await;
-    let inner = AnthropicProvider::with_endpoint("k".to_owned(), server.uri())
-        .with_models(mock_http::seed_models("anthropic"));
+    let inner = anthropic(&server.uri()).with_models(mock_http::seed_models("anthropic"));
     let s = ResilienceSettings {
         retry_attempts: 1,
         breaker_failure_threshold: 1,
@@ -255,8 +253,7 @@ async fn an_open_breaker_also_short_circuits_the_streaming_path() {
     let server =
         mock_http::anthropic_messages_error(500, serde_json::json!({"error":{"message":"boom"}}))
             .await;
-    let inner = AnthropicProvider::with_endpoint("k".to_owned(), server.uri())
-        .with_models(mock_http::seed_models("anthropic"));
+    let inner = anthropic(&server.uri()).with_models(mock_http::seed_models("anthropic"));
     let s = ResilienceSettings {
         retry_attempts: 1,
         breaker_failure_threshold: 1,
@@ -289,8 +286,13 @@ async fn an_open_breaker_also_short_circuits_the_streaming_path() {
 async fn the_debug_rendering_names_the_provider_without_leaking_the_inner_client() {
     let server =
         mock_http::anthropic_messages_success(mock_http::anthropic_response_body("x")).await;
-    let inner = AnthropicProvider::with_endpoint("secret-api-key".to_owned(), server.uri())
-        .with_models(mock_http::seed_models("anthropic"));
+    let inner = AnthropicProvider::with_target(mock_http::api_key_target(
+        "anthropic",
+        WireProtocol::Anthropic,
+        &server.uri(),
+        "secret-api-key",
+    ))
+    .with_models(mock_http::seed_models("anthropic"));
     let s = settings();
     let rendered = format!(
         "{:?}",

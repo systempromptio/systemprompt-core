@@ -1,4 +1,4 @@
-//! Gemini API endpoint and model constants.
+//! Gemini API timeout and token constants.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -13,8 +13,4 @@ pub(super) mod timeout {
 
 pub(super) mod tokens {
     pub(in super::super) const THINKING_BUDGET: u32 = 8192;
-}
-
-pub(super) mod defaults {
-    pub(in super::super) const ENDPOINT: &str = "https://generativelanguage.googleapis.com/v1beta";
 }

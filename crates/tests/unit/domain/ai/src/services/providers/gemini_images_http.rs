@@ -1,10 +1,11 @@
+use crate::services::providers::mock_http;
 use serde_json::json;
 use systemprompt_ai::models::image_generation::{
     AspectRatio, ImageGenerationRequest, ImageResolution,
 };
 use systemprompt_ai::services::providers::gemini_images::GeminiImageProvider;
 use systemprompt_ai::services::providers::image_provider_trait::ImageProvider;
-use systemprompt_models::services::{ModelCapabilities, ModelDefinition};
+use systemprompt_models::services::{ModelCapabilities, ModelDefinition, WireProtocol};
 use systemprompt_test_fixtures::fixture_user_id;
 use wiremock::matchers::{method, path_regex};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -22,6 +23,15 @@ fn make_request(prompt: &str) -> ImageGenerationRequest {
         trace_id: None,
         mcp_execution_id: None,
     }
+}
+
+fn provider(endpoint: &str) -> GeminiImageProvider {
+    GeminiImageProvider::with_target(mock_http::api_key_target(
+        "gemini",
+        WireProtocol::Gemini,
+        endpoint,
+        "k",
+    ))
 }
 
 #[tokio::test]
@@ -44,7 +54,7 @@ async fn generate_image_returns_inline_data() {
         })))
         .mount(&server)
         .await;
-    let p = GeminiImageProvider::with_endpoint("k".to_owned(), server.uri());
+    let p = provider(&server.uri());
     let resp = p.generate_image(&make_request("hi")).await.expect("ok");
     assert_eq!(resp.image_data, "CCCC");
     assert_eq!(resp.mime_type, "image/png");
@@ -52,7 +62,7 @@ async fn generate_image_returns_inline_data() {
 
 #[tokio::test]
 async fn generate_image_rejects_long_prompt() {
-    let p = GeminiImageProvider::with_endpoint("k".to_owned(), "http://127.0.0.1:1".to_owned());
+    let p = provider("http://127.0.0.1:1");
     let huge = "x".repeat(9000);
     let err = p
         .generate_image(&make_request(&huge))
@@ -63,7 +73,7 @@ async fn generate_image_rejects_long_prompt() {
 
 #[tokio::test]
 async fn generate_image_rejects_unsupported_model() {
-    let p = GeminiImageProvider::with_endpoint("k".to_owned(), "http://127.0.0.1:1".to_owned());
+    let p = provider("http://127.0.0.1:1");
     let mut req = make_request("ok");
     req.model = Some("nope".to_owned());
     let err = p.generate_image(&req).await.expect_err("bad model");
@@ -78,7 +88,7 @@ async fn generate_image_handles_http_error() {
         .respond_with(ResponseTemplate::new(429).set_body_string("limit"))
         .mount(&server)
         .await;
-    let p = GeminiImageProvider::with_endpoint("k".to_owned(), server.uri());
+    let p = provider(&server.uri());
     let err = p
         .generate_image(&make_request("ok"))
         .await
@@ -103,7 +113,7 @@ async fn batch_aggregates_responses() {
         })))
         .mount(&server)
         .await;
-    let p = GeminiImageProvider::with_endpoint("k".to_owned(), server.uri());
+    let p = provider(&server.uri());
     let resp = p
         .generate_batch(&[make_request("a"), make_request("b")])
         .await
@@ -121,7 +131,7 @@ async fn generate_image_rejects_empty_candidates() {
         })))
         .mount(&server)
         .await;
-    let p = GeminiImageProvider::with_endpoint("k".to_owned(), server.uri());
+    let p = provider(&server.uri());
     let err = p
         .generate_image(&make_request("hi"))
         .await
@@ -139,7 +149,7 @@ async fn generate_image_rejects_missing_content() {
         })))
         .mount(&server)
         .await;
-    let p = GeminiImageProvider::with_endpoint("k".to_owned(), server.uri());
+    let p = provider(&server.uri());
     let err = p
         .generate_image(&make_request("hi"))
         .await
@@ -161,7 +171,7 @@ async fn generate_image_rejects_no_inline_data_part() {
         })))
         .mount(&server)
         .await;
-    let p = GeminiImageProvider::with_endpoint("k".to_owned(), server.uri());
+    let p = provider(&server.uri());
     let err = p
         .generate_image(&make_request("hi"))
         .await
@@ -177,7 +187,7 @@ async fn generate_image_rejects_malformed_json() {
         .respond_with(ResponseTemplate::new(200).set_body_string("not json"))
         .mount(&server)
         .await;
-    let p = GeminiImageProvider::with_endpoint("k".to_owned(), server.uri());
+    let p = provider(&server.uri());
     let err = p
         .generate_image(&make_request("hi"))
         .await
@@ -201,7 +211,7 @@ async fn generate_image_uses_reference_images_and_grounding() {
         })))
         .mount(&server)
         .await;
-    let p = GeminiImageProvider::with_endpoint("k".to_owned(), server.uri());
+    let p = provider(&server.uri());
     let mut req = make_request("with refs");
     req.enable_search_grounding = true;
     req.reference_images = vec![
@@ -222,7 +232,7 @@ async fn generate_image_uses_reference_images_and_grounding() {
 
 #[tokio::test]
 async fn provider_metadata_is_consistent() {
-    let p = GeminiImageProvider::new("k".to_owned())
+    let p = GeminiImageProvider::with_target(mock_http::seed_target("gemini", "k"))
         .with_default_model("gemini-2.5-flash-image".to_owned())
         .with_model_definitions(std::collections::HashMap::new());
     assert_eq!(p.name(), "gemini-image");
@@ -273,8 +283,7 @@ async fn generate_at(resolution: ImageResolution) -> String {
         .await;
 
     let model = "gemini-2.5-flash-image";
-    let provider = GeminiImageProvider::with_endpoint("k".to_owned(), server.uri())
-        .with_model_definitions(resolution_capable_models(model));
+    let provider = provider(&server.uri()).with_model_definitions(resolution_capable_models(model));
 
     let mut request = make_request("a picture");
     request.resolution = resolution;
@@ -324,7 +333,7 @@ async fn a_model_that_does_not_declare_resolution_support_omits_the_size_block()
 
     // No model definitions at all: the provider must not invent a capability
     // the upstream model does not have.
-    let provider = GeminiImageProvider::with_endpoint("k".to_owned(), server.uri());
+    let provider = provider(&server.uri());
     let mut request = make_request("a picture");
     request.resolution = ImageResolution::FourK;
     provider

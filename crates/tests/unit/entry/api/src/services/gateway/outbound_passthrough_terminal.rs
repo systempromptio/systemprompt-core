@@ -7,8 +7,8 @@
 //! is never run. These tests pin both halves -- the contradiction is corrected
 //! in the one token that is wrong, and a consistent body is byte-identical.
 
+use super::support;
 use std::collections::HashMap;
-use systemprompt_ai::UpstreamCall;
 
 use bytes::Bytes;
 use futures_util::StreamExt;
@@ -138,7 +138,7 @@ async fn relay_buffered(upstream: &Value) -> Bytes {
     let raw = raw_request(false);
     let ctx = OutboundCtx {
         route: &route,
-        upstream: &UpstreamCall::api_key(&server.uri(), "k"),
+        upstream: &support::api_key_call(&server.uri(), "k"),
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
@@ -169,7 +169,7 @@ async fn relay_streaming(sse: &str) -> String {
     let raw = raw_request(true);
     let ctx = OutboundCtx {
         route: &route,
-        upstream: &UpstreamCall::api_key(&server.uri(), "k"),
+        upstream: &support::api_key_call(&server.uri(), "k"),
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,

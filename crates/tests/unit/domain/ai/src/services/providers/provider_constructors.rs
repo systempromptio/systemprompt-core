@@ -1,7 +1,8 @@
-//! The production constructors of the HTTP providers — the ones that point at
-//! the real vendor endpoints, as opposed to the `with_endpoint` forms every
-//! other suite uses against a mock server.
+//! The HTTP providers as the factory builds them from the default catalog —
+//! pointed at the real vendor endpoints, as opposed to the mock-server
+//! entries every other suite resolves.
 
+use crate::services::providers::mock_http;
 use systemprompt_ai::services::providers::anthropic::AnthropicProvider;
 use systemprompt_ai::services::providers::gemini::GeminiProvider;
 use systemprompt_ai::services::providers::gemini_images::GeminiImageProvider;
@@ -10,8 +11,8 @@ use systemprompt_ai::services::providers::openai::OpenAiProvider;
 use systemprompt_ai::services::providers::provider_trait::AiProvider;
 
 #[test]
-fn the_anthropic_default_constructor_targets_the_vendor_api_with_no_seeded_models() {
-    let provider = AnthropicProvider::new("test-key".to_owned());
+fn the_anthropic_catalog_provider_targets_the_vendor_api_with_no_seeded_models() {
+    let provider = AnthropicProvider::with_target(mock_http::seed_target("anthropic", "test-key"));
 
     assert_eq!(provider.name(), "anthropic");
     assert!(
@@ -25,8 +26,8 @@ fn the_anthropic_default_constructor_targets_the_vendor_api_with_no_seeded_model
 }
 
 #[test]
-fn the_openai_default_constructor_targets_the_vendor_api_with_no_seeded_models() {
-    let provider = OpenAiProvider::new("test-key".to_owned());
+fn the_openai_catalog_provider_targets_the_vendor_api_with_no_seeded_models() {
+    let provider = OpenAiProvider::with_target(mock_http::seed_target("openai", "test-key"));
 
     assert_eq!(provider.name(), "openai");
     assert!(
@@ -36,8 +37,8 @@ fn the_openai_default_constructor_targets_the_vendor_api_with_no_seeded_models()
 }
 
 #[test]
-fn the_gemini_default_constructor_builds_a_client_and_leaves_search_disabled() {
-    let provider = GeminiProvider::new("test-key".to_owned())
+fn the_gemini_catalog_provider_builds_a_client_and_leaves_search_disabled() {
+    let provider = GeminiProvider::with_target(mock_http::seed_target("gemini", "test-key"))
         .expect("the default Gemini constructor must build its HTTP client");
 
     assert_eq!(provider.name(), "gemini");
@@ -53,7 +54,8 @@ fn the_gemini_default_constructor_builds_a_client_and_leaves_search_disabled() {
 
 #[test]
 fn the_gemini_trait_accessors_report_its_capabilities() {
-    let provider = GeminiProvider::new("test-key".to_owned()).expect("client builds");
+    let provider = GeminiProvider::with_target(mock_http::seed_target("gemini", "test-key"))
+        .expect("client builds");
 
     assert!(provider.supports_streaming());
     assert!(
@@ -82,14 +84,14 @@ fn the_gemini_trait_accessors_report_its_capabilities() {
 
 #[test]
 fn the_gemini_image_default_model_is_overridable_after_construction() {
-    let provider = GeminiImageProvider::new("test-key".to_owned());
+    let provider = GeminiImageProvider::with_target(mock_http::seed_target("gemini", "test-key"));
     let stock = provider.capabilities();
     assert!(
         stock.max_prompt_length > 0,
         "the image provider must advertise a prompt budget"
     );
 
-    let overridden = GeminiImageProvider::new("test-key".to_owned())
+    let overridden = GeminiImageProvider::with_target(mock_http::seed_target("gemini", "test-key"))
         .with_default_model("custom-model".to_owned());
     assert_eq!(overridden.name(), "gemini-image");
     assert!(
@@ -100,7 +102,7 @@ fn the_gemini_image_default_model_is_overridable_after_construction() {
 
 #[test]
 fn the_openai_trait_accessors_report_its_capabilities_without_a_network_call() {
-    let provider = OpenAiProvider::new("test-key".to_owned());
+    let provider = OpenAiProvider::with_target(mock_http::seed_target("openai", "test-key"));
 
     assert!(
         provider.supports_streaming(),
@@ -130,7 +132,7 @@ fn the_openai_trait_accessors_report_its_capabilities_without_a_network_call() {
 
 #[test]
 fn the_anthropic_trait_accessors_report_its_capabilities() {
-    let provider = AnthropicProvider::new("test-key".to_owned());
+    let provider = AnthropicProvider::with_target(mock_http::seed_target("anthropic", "test-key"));
 
     assert!(provider.supports_streaming());
     assert!(
