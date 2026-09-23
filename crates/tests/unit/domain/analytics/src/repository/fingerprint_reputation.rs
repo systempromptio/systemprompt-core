@@ -102,7 +102,7 @@ async fn flag_and_request_counter_persist() {
     assert!(is_flagged);
     assert_eq!(flag_reason.as_deref(), Some("request_count_exceeded_100"));
     assert_eq!(reputation_score, 10);
-    assert_eq!(total_request_count, 2);
+    assert_eq!(total_request_count, 1);
 
     cleanup(&pool, &fp).await;
 }

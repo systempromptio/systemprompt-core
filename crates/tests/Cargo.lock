@@ -6840,7 +6840,6 @@ dependencies = [
  "sqlx",
  "systemprompt-analytics",
  "systemprompt-database",
- "systemprompt-extension",
  "systemprompt-identifiers",
  "systemprompt-logging",
  "systemprompt-models",
@@ -8376,7 +8375,6 @@ dependencies = [
  "thiserror 2.0.19",
  "tokio",
  "tracing",
- "uuid",
 ]
 
 [[package]]
@@ -8860,7 +8858,6 @@ dependencies = [
  "serde_json",
  "sqlx",
  "systemprompt-ai",
- "systemprompt-analytics",
  "systemprompt-database",
  "systemprompt-extension",
  "systemprompt-identifiers",
