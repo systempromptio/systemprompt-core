@@ -801,3 +801,31 @@ mod empty_context_audit_guards {
         seed.cleanup().await;
     }
 }
+
+mod forget_retired_jobs {
+    use super::*;
+
+    #[tokio::test]
+    async fn an_empty_inventory_forgets_nothing() {
+        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
+        let repo = SchedulerRepository::new(&pool).expect("repo");
+        let name = unique_job_name("sched_empty_inventory");
+        repo.upsert_job(&name, "0 0 * * * *", true)
+            .await
+            .expect("upsert");
+
+        let removed = repo
+            .delete_jobs_not_in(&[])
+            .await
+            .expect("delete with an empty inventory");
+
+        assert_eq!(
+            removed, 0,
+            "an empty inventory is not a list of retired jobs"
+        );
+        assert!(
+            repo.find_job(&name).await.expect("find").is_some(),
+            "the job row survives"
+        );
+    }
+}

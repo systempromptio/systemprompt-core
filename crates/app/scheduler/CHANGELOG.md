@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.61.0] - 2026-09-23
+
+### Fixed
+
+- `delete_jobs_not_in` deletes nothing when given an empty job list; an empty inventory is not a list of retired jobs.
+
 ## [0.60.0] - 2026-09-23
 
 ### Breaking
