@@ -44,7 +44,9 @@ pub fn live_pid_is_subprocess(pid: u32, name_key: &str, service_name: &str) -> b
     // Why: inside execve a process's `/proc/<pid>/environ` is briefly empty or
     // unreadable. Reading that as "not ours" made callers skip the signal and
     // report a stop they never made, so a live process whose environment is
-    // not yet readable is re-read, bounded, before it is judged.
+    // not yet readable is re-read, bounded, before it is judged. EACCES is not
+    // transient: the process belongs to another user, so it is not a child of
+    // this supervisor and is judged at once rather than slept on.
     for attempt in 1..=IDENTITY_ATTEMPTS {
         let settling = attempt < IDENTITY_ATTEMPTS && process_present(pid) && !is_zombie(pid);
         match std::fs::read(format!("/proc/{pid}/environ")) {
@@ -55,6 +57,7 @@ pub fn live_pid_is_subprocess(pid: u32, name_key: &str, service_name: &str) -> b
                     service_name,
                 );
             },
+            Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => return false,
             Ok(_) | Err(_) if settling => std::thread::sleep(IDENTITY_RETRY),
             Ok(_) => return false,
             Err(e) => {

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.61.0] - 2026-09-23
+
+### Fixed
+
+- `subprocess::live_pid_is_subprocess` (Linux) judges a process whose environment is unreadable with `EACCES` at once instead of retrying; another user's process is never this supervisor's child, and the retries blocked an async worker for about 100 ms.
+
 ## [0.60.0] - 2026-09-23
 
 ### Fixed
