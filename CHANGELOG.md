@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.59.1] - 2026-09-23
+
+### Fixed
+
+- `event_outbox.actor_id` keeps its non-empty constraint through an upgrade.
+  0.59.0's `infra/events` migration 007 dropped the auto-named
+  `event_outbox_actor_id_check` on the premise that migration 001's
+  `event_outbox_actor_id_nonempty` stood beside it. On a database restored from
+  a release snapshot the 001-era `ALTER` was stamped rather than executed, so
+  the auto-named check was the only one and 007 left the column unguarded.
+  Migration 008 adds the named constraint wherever it is missing.
+
 ## [0.59.0] - 2026-09-22
 
 ### Breaking
