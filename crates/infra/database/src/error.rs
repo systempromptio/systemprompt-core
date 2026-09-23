@@ -121,3 +121,9 @@ impl From<RepositoryError> for systemprompt_traits::RepositoryError {
         Self::database(err)
     }
 }
+
+pub(crate) fn is_undefined_table(e: &sqlx::Error) -> bool {
+    e.as_database_error()
+        .and_then(sqlx::error::DatabaseError::code)
+        .is_some_and(|code| code == "42P01")
+}

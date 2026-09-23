@@ -24,6 +24,10 @@
 - A tick skipped because another replica holds the job lock logs at DEBUG instead of INFO.
 - **Scheduler:** at start, `scheduled_jobs` rows for jobs this build does not have are deleted, so retired jobs stop appearing in `jobs list`.
 
+### Fixed
+
+- **Database:** `infra db size` and `infra db tables` no longer fail with `relation … does not exist` while an instance is booting; the per-relation size and count tolerate a view that boot is re-creating.
+
 ## [0.59.1] - 2026-09-23
 
 ### Fixed

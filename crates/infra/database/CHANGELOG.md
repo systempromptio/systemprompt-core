@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- `DatabaseAdminService::list_tables` and `list_tables_counted` tolerate a relation dropped between the catalog read and its size or row count. Every boot re-creates the analytics `report_*` views, so `infra db size` and `infra db tables` failed with `relation … does not exist` whenever they ran beside a starting instance; the size now resolves through `to_regclass` and the count skips SQLSTATE 42P01, as `Database::get_info` already did.
+
 ## [0.59.0] - 2026-09-22
 
 ### Added

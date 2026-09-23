@@ -13,7 +13,7 @@ use sqlx::Row;
 use sqlx::postgres::PgPool;
 
 use crate::admin::identifier::SafeIdentifier;
-use crate::error::{DatabaseResult, RepositoryError};
+use crate::error::{DatabaseResult, RepositoryError, is_undefined_table};
 use crate::models::{ColumnInfo, DatabaseInfo, IndexInfo, TableInfo};
 
 #[derive(Debug)]
@@ -32,7 +32,7 @@ impl DatabaseAdminService {
             SELECT
                 t.table_name as name,
                 COALESCE(s.n_live_tup, 0) as row_count,
-                COALESCE(pg_total_relation_size(quote_ident(t.table_name)::regclass), 0) as size_bytes
+                COALESCE(pg_total_relation_size(to_regclass(quote_ident(t.table_name))), 0) as size_bytes
             FROM information_schema.tables t
             LEFT JOIN pg_stat_user_tables s ON t.table_name = s.relname
             WHERE t.table_schema = 'public'
@@ -162,14 +162,23 @@ impl DatabaseAdminService {
     }
 
     pub async fn list_tables_counted(&self) -> DatabaseResult<Vec<TableInfo>> {
-        let mut tables = self.list_tables().await?;
-        for table in &mut tables {
+        let mut counted = Vec::new();
+        for mut table in self.list_tables().await? {
             let ident = SafeIdentifier::parse(&table.name).map_err(|e| {
                 RepositoryError::internal(format!("table name {}: {e}", table.name))
             })?;
-            table.row_count = self.count_rows(&ident).await?;
+            let count_query = format!("SELECT COUNT(*) as count FROM {}", ident.quoted());
+            match sqlx::query_scalar::<_, i64>(sqlx::AssertSqlSafe(count_query))
+                .fetch_one(&*self.pool)
+                .await
+            {
+                Ok(row_count) => table.row_count = row_count,
+                Err(e) if is_undefined_table(&e) => continue,
+                Err(e) => return Err(e.into()),
+            }
+            counted.push(table);
         }
-        Ok(tables)
+        Ok(counted)
     }
 
     pub async fn count_rows(&self, table_name: &SafeIdentifier) -> DatabaseResult<i64> {
