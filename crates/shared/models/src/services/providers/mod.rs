@@ -180,7 +180,7 @@ impl ProviderEntry {
 
     #[must_use]
     pub fn effective_governance(&self, requested: &str) -> ModelGovernance {
-        self.find_model(requested)
+        self.find_served_model(requested)
             .and_then(|m| m.governance)
             .unwrap_or(self.governance)
     }

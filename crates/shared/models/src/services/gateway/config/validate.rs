@@ -52,7 +52,7 @@ impl GatewayConfig {
                 when.validate()?;
             }
             self.validate_route_pricing(registry, route, ModelMatch::Id)?;
-            validate_route_governance(registry, route)?;
+            validate_route_governance(registry, route, ModelMatch::Id)?;
             self.validate_route_fallback(registry, route)?;
         }
         for rule in &self.system_prompt_overrides {
@@ -98,7 +98,7 @@ impl GatewayConfig {
             });
         }
         self.validate_route_pricing(registry, &view, ModelMatch::IdOrUpstream)?;
-        validate_route_governance(registry, &view)
+        validate_route_governance(registry, &view, ModelMatch::IdOrUpstream)
     }
 
     fn validate_route_pricing(
@@ -205,6 +205,7 @@ fn check_cache_rate(
 fn validate_route_governance(
     registry: &ProviderRegistry,
     route: &GatewayRoute,
+    by: ModelMatch,
 ) -> GatewayResult<()> {
     let Some(requires) = route.requires.as_ref() else {
         return Ok(());
@@ -230,7 +231,7 @@ fn validate_route_governance(
     if let Some(upstream) = route.upstream_model.as_deref() {
         return check(upstream);
     }
-    for model in entry.models.iter().filter(|m| route.matches(m.id.as_str())) {
+    for model in entry.models.iter().filter(|m| by.reaches(route, m)) {
         check(model.id.as_str())?;
     }
     Ok(())

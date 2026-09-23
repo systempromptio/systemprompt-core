@@ -1601,3 +1601,37 @@ fn a_primary_route_is_still_reached_by_catalog_id_only() {
         "an upstream-name match must not make a primary route look reachable"
     );
 }
+
+#[test]
+fn a_fallback_reached_by_upstream_name_answers_with_its_own_governance() {
+    let mut registry = same_model_two_hosts();
+    for provider in &mut registry.providers {
+        provider.governance = ModelGovernance {
+            european: false,
+            no_retain: true,
+        };
+    }
+    registry.providers[1].models[0].governance = Some(ModelGovernance {
+        european: false,
+        no_retain: false,
+    });
+    let direct = registry.find_provider("anthropic").unwrap();
+    assert!(
+        !direct.effective_governance("claude-sonnet-5").no_retain,
+        "the served model's override wins over the provider default"
+    );
+
+    let mut config = failover_config();
+    config.routes[0].requires = Some(requires_no_retain());
+    match config.validate(&registry) {
+        Err(GatewayProfileError::RouteGovernanceUnsatisfied {
+            model,
+            requirements,
+            ..
+        }) => {
+            assert_eq!(model, "anthropic-claude-sonnet-5");
+            assert_eq!(requirements, "no_retain");
+        },
+        other => panic!("expected the fallback's model override to fail the route, got {other:?}"),
+    }
+}
