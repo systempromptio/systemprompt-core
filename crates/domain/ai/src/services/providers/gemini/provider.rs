@@ -7,6 +7,7 @@ use crate::error::Result;
 use crate::services::upstream::UpstreamTarget;
 use reqwest::Client;
 use systemprompt_database::DbPool;
+use systemprompt_identifiers::ProviderId;
 use systemprompt_models::services::providers::upstream_model_in;
 use systemprompt_models::services::{ProviderModel, WireProtocol};
 
@@ -31,7 +32,7 @@ impl GeminiProvider {
 
     pub fn with_endpoint(api_key: String, endpoint: String) -> Result<Self> {
         Self::with_target(UpstreamTarget::api_key(
-            "gemini",
+            ProviderId::new("gemini"),
             WireProtocol::Gemini,
             endpoint,
             api_key,

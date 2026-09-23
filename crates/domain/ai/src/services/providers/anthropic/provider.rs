@@ -4,6 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use reqwest::Client;
+use systemprompt_identifiers::ProviderId;
 use systemprompt_models::net::{AI_PROVIDER_REQUEST_TIMEOUT, HTTP_CONNECT_TIMEOUT};
 use systemprompt_models::services::providers::upstream_model_in;
 use systemprompt_models::services::{ProviderModel, WireProtocol};
@@ -29,7 +30,7 @@ impl AnthropicProvider {
 
     pub fn with_endpoint(api_key: String, endpoint: String) -> Self {
         Self::with_target(UpstreamTarget::api_key(
-            "anthropic",
+            ProviderId::new("anthropic"),
             WireProtocol::Anthropic,
             endpoint,
             api_key,

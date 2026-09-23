@@ -20,6 +20,7 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::Instant;
+use systemprompt_identifiers::ProviderId;
 use systemprompt_models::net::IMAGE_GEN_OPENAI_TIMEOUT;
 use systemprompt_models::services::{ModelDefinition, WireProtocol};
 
@@ -43,7 +44,7 @@ impl OpenAiImageProvider {
 
     pub fn with_endpoint(api_key: String, endpoint: String) -> Self {
         Self::with_target(UpstreamTarget::api_key(
-            "openai",
+            ProviderId::new("openai"),
             WireProtocol::OpenAiChat,
             endpoint,
             api_key,

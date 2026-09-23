@@ -21,6 +21,7 @@ use async_trait::async_trait;
 use reqwest::Client;
 use std::collections::HashMap;
 use std::time::Instant;
+use systemprompt_identifiers::ProviderId;
 use systemprompt_models::net::{HTTP_STREAM_CONNECT_TIMEOUT, IMAGE_GEN_LONG_POLL_TIMEOUT};
 use systemprompt_models::services::{ModelDefinition, WireProtocol};
 use tracing::error;
@@ -47,7 +48,7 @@ impl GeminiImageProvider {
 
     pub fn with_endpoint(api_key: String, endpoint: String) -> Self {
         Self::with_target(UpstreamTarget::api_key(
-            "gemini",
+            ProviderId::new("gemini"),
             WireProtocol::Gemini,
             endpoint,
             api_key,

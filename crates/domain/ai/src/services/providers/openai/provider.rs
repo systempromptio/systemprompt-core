@@ -4,6 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use reqwest::{Client, Response};
+use systemprompt_identifiers::ProviderId;
 // JSON: protocol boundary — the rendered wire body is dynamic JSON.
 use serde_json::Value;
 use systemprompt_models::net::{AI_PROVIDER_REQUEST_TIMEOUT, HTTP_CONNECT_TIMEOUT};
@@ -34,7 +35,7 @@ impl OpenAiProvider {
 
     pub fn with_endpoint(api_key: String, endpoint: String) -> Self {
         Self::with_target(UpstreamTarget::api_key(
-            "openai",
+            ProviderId::new("openai"),
             WireProtocol::OpenAiChat,
             endpoint,
             api_key,
