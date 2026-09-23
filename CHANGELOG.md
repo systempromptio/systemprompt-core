@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.60.0] - 2026-09-23
 
 ### Breaking
 
@@ -23,6 +23,7 @@
 
 ### Fixed
 
+- **Analytics upgrade:** a database from 0.52 or older upgrades past the reporting retirement. Analytics migrations 008–013 are tombstoned (they ALTERed tables only the deleted `reporting_privacy.sql` created), `analytics/016` drops the two report tables only 013 dropped, and the `report_*` views name their columns so fresh and upgraded databases define them identically.
 - The in-process AI service reached only what an API key reaches. It passed the raw secret to every client and used the catalog endpoint verbatim, so a Google service account was sent as `x-goog-api-key` and `{project}` was never filled; every Vertex provider (Gemini, Model-as-a-Service, now Claude) failed there while working through the gateway. Clients now resolve an `UpstreamTarget` (parsed credential, filled endpoint, per-request token from the shared cache), the same one the gateway uses.
 - The in-process AI service sends the catalog's `upstream_model` (and strips `[1m]`) rather than the requested alias, as the gateway already did.
 - An `openai-responses` provider is spoken to on `/responses` by the in-process AI service; it was posted a Chat Completions body on `/chat/completions`.

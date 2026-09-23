@@ -2,7 +2,7 @@
 
 Upstream API, protocol, and runtime versions supported by each systemprompt.io release.
 
-## Current — 0.59.x
+## Current — 0.60.x
 
 ### AI Provider APIs
 
@@ -18,7 +18,7 @@ supports, so a Vertex deployment tracks Google's catalogue without an operator e
 
 | Provider | API surface | Notes |
 |----------|-------------|-------|
-| Anthropic | Messages API (`/v1/messages`) | Streaming, tool use, extended thinking, prompt caching |
+| Anthropic | Messages API (`/v1/messages`); Claude on Vertex AI (`:rawPredict` / `:streamRawPredict`) with a service-account key | Streaming, tool use, extended thinking, prompt caching. A route can fail over between the two hosts of the same model |
 | OpenAI | Chat Completions and Responses API | Streaming, tool calling, JSON mode. Uses `max_completion_tokens` |
 | Google | Gemini `generateContent`; Vertex AI (`aiplatform.googleapis.com`) with a service-account key | Streaming, tool calling; Vertex models discovered at boot from Model Garden and priced by the embedded rate card |
 | Self-hosted | Any OpenAI-compatible endpoint | vLLM, TGI, Ollama, llama.cpp — configurable `base_url` |
@@ -87,9 +87,9 @@ rather than as pre-built binaries. Other targets are buildable from source.
 
 | systemprompt version | Status |
 |----------------------|--------|
-| 0.59.x | Current supported line. |
-| 0.58.x | Prior line; Critical and High fixes only. | <!-- version-ok: historical support line -->
-| < 0.58 | No longer supported. | <!-- version-ok: historical support line -->
+| 0.60.x | Current supported line. |
+| 0.59.x | Prior line; Critical and High fixes only. | <!-- version-ok: historical support line -->
+| < 0.59 | No longer supported. | <!-- version-ok: historical support line -->
 
 Per-release detail is in `CHANGELOG.md`.
 
