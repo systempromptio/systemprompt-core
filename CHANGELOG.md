@@ -12,6 +12,12 @@
   the auto-named check was the only one and 007 left the column unguarded.
   Migration 008 adds the named constraint wherever it is missing.
 
+- The reporting projector says *why* a fact was left pending. `drain` logged the
+  underlying error and returned only a count and an outbox id, so a failure
+  surfaced as `1 reporting fact(s) left pending` with no cause in any context
+  that does not install a tracing subscriber — a test, or a CLI run. The cause
+  of the first poisoned fact is now carried in the returned error.
+
 ## [0.59.0] - 2026-09-22
 
 ### Breaking
