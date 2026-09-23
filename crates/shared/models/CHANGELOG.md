@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.61.0] - 2026-09-23
+
+### Added
+
+- `ProviderRegistryError::ReservedExtraHeader`: a provider whose `extra_headers` names `authorization`, `x-api-key`, `x-goog-api-key`, `anthropic-version`, `content-type`, `content-length` or `host` is refused at registry validation, since the upstream seam sends those itself and the request builder appends rather than replaces.
+
 ## [0.60.0] - 2026-09-23
 
 ### Breaking

@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.61.0] - 2026-09-23
+
+### Breaking
+
+- **Breaking:** `UpstreamTarget::api_key` takes `provider: ProviderId` instead of `impl Into<String>`, and `UpstreamTarget::provider` returns `&ProviderId`. Migrate by passing `ProviderId::new(name)`.
+
+### Added
+
+- `UpstreamTargetError::ApiKeyOnVertex`: a Vertex-hosted provider on any wire but Gemini whose secret is an API key is refused at resolve, so it is withheld at boot instead of failing every request with 401.
+
 ## [0.60.0] - 2026-09-23
 
 ### Removed
