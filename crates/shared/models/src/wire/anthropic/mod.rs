@@ -8,6 +8,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod beta;
 mod blocks;
 mod framing;
 mod headers;
@@ -15,6 +16,7 @@ mod parse;
 mod sse;
 mod strict;
 
+pub use beta::{ANTHROPIC_BETA_HEADER, AnthropicBeta, BetaHeader, BetaPolicy};
 pub use blocks::{
     cache_control_from_anthropic, cache_control_to_anthropic, content_to_anthropic_block,
 };

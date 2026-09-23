@@ -4,7 +4,8 @@
 
 ### Added
 
-- `ProviderEntry::accepted_betas`: the `anthropic-beta` values a provider forwards from a client request; unset, first-party hosting forwards every beta and Vertex AI forwards none.
+- `ProviderEntry::accepted_betas` (`Option<BTreeSet<AnthropicBeta>>`): the `anthropic-beta` flags a provider forwards from a client request; unset, first-party hosting forwards every flag and Vertex AI forwards none.
+- `wire::anthropic::{AnthropicBeta, BetaHeader, BetaPolicy}` and `UpstreamDialect::beta_policy`: a forwarded `anthropic-beta` header is parsed into typed flags, narrowed by the policy the (wire, hosting) pair resolves, and rendered back or omitted.
 - `ProviderRegistryError::ReservedExtraHeader`: a provider whose `extra_headers` names `authorization`, `x-api-key`, `x-goog-api-key`, `anthropic-version`, `content-type`, `content-length` or `host` is refused at registry validation, since the upstream seam sends those itself and the request builder appends rather than replaces.
 
 ## [0.60.0] - 2026-09-23

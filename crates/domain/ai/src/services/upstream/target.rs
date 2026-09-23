@@ -3,8 +3,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::collections::BTreeSet;
+
 use systemprompt_identifiers::ProviderId;
 use systemprompt_models::services::{Hosting, ProviderEntry, WireProtocol};
+use systemprompt_models::wire::anthropic::AnthropicBeta;
 use systemprompt_models::wire::upstream::UpstreamDialect;
 use systemprompt_security::credential::{CredentialKind, ProviderCredential, fill_endpoint};
 
@@ -25,7 +28,7 @@ pub struct UpstreamTarget {
     credential: ProviderCredential,
     cache_key: String,
     extra_headers: Vec<(String, String)>,
-    accepted_betas: Option<Vec<String>>,
+    accepted_betas: Option<BTreeSet<AnthropicBeta>>,
 }
 
 impl UpstreamTarget {

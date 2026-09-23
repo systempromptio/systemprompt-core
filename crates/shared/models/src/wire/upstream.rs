@@ -20,6 +20,9 @@
 // dynamic JSON by definition.
 use serde_json::{Map, Value};
 
+use std::collections::BTreeSet;
+
+use super::anthropic::{AnthropicBeta, BetaPolicy};
 use super::{anthropic, gemini};
 use crate::services::providers::{Hosting, WireProtocol};
 
@@ -88,6 +91,20 @@ impl UpstreamDialect {
                 vec![("anthropic-version", anthropic::ANTHROPIC_VERSION)]
             },
             _ => Vec::new(),
+        }
+    }
+
+    // Why: Vertex AI rejects an `anthropic-beta` flag it does not serve, and a
+    // client forwards the flags it would send Anthropic's own API. With no
+    // provider list, Vertex is therefore sent none. The 1M context window is
+    // not one of them: Vertex serves Opus 4.6+ and Sonnet 4.6+ at 1,000,000
+    // input tokens natively.
+    #[must_use]
+    pub fn beta_policy(self, accepted: Option<&BTreeSet<AnthropicBeta>>) -> BetaPolicy {
+        match (accepted, self.hosting) {
+            (Some(accepted), _) => BetaPolicy::Only(accepted.clone()),
+            (None, Hosting::FirstParty) => BetaPolicy::ForwardAll,
+            (None, Hosting::Vertex) => BetaPolicy::Only(BTreeSet::new()),
         }
     }
 

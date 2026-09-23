@@ -6,7 +6,7 @@
 //! of `x-api-key`, `anthropic_version` in the body in place of the header, and
 //! no `model` field — for the translated and the passthrough lanes alike.
 
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 
 use futures_util::StreamExt;
 use serde_json::{Value, json};
@@ -22,6 +22,7 @@ use systemprompt_api::services::gateway::protocol::outbound::{
 };
 use systemprompt_identifiers::{ModelId, ProviderId, RouteId};
 use systemprompt_models::services::{GatewayRoute, Hosting};
+use systemprompt_models::wire::anthropic::AnthropicBeta;
 use systemprompt_models::wire::upstream::VERTEX_ANTHROPIC_VERSION;
 use systemprompt_security::credential::{AuthHeader, AuthScheme};
 use wiremock::matchers::{header, method, path};
@@ -117,8 +118,8 @@ async fn buffered_request_posts_raw_predict_with_bearer_and_body_version() {
 
     let route = route();
     let req = request(false);
-    let call =
-        vertex_call(&server.uri()).with_accepted_betas(Some(vec!["fixture-beta".to_owned()]));
+    let call = vertex_call(&server.uri())
+        .with_accepted_betas(Some(BTreeSet::from([AnthropicBeta::new("fixture-beta")])));
     let forwarded = [
         ("anthropic-version".to_owned(), "2023-06-01".to_owned()),
         ("anthropic-beta".to_owned(), "fixture-beta".to_owned()),

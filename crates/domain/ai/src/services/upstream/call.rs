@@ -3,13 +3,14 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::collections::BTreeSet;
+
 // JSON: protocol boundary — the envelope edits apply to a dynamic wire body.
 use serde_json::{Map, Value};
 use systemprompt_models::services::{Hosting, WireProtocol};
+use systemprompt_models::wire::anthropic::{ANTHROPIC_BETA_HEADER, AnthropicBeta, BetaHeader};
 use systemprompt_models::wire::upstream::UpstreamDialect;
 use systemprompt_security::credential::{AuthHeader, AuthScheme};
-
-const ANTHROPIC_BETA: &str = "anthropic-beta";
 
 /// The filled endpoint, the minted auth header and the hosting of one upstream,
 /// valid for the request it was minted for.
@@ -23,7 +24,7 @@ pub struct UpstreamCall {
     endpoint: String,
     auth: AuthHeader,
     extra_headers: Vec<(String, String)>,
-    accepted_betas: Option<Vec<String>>,
+    accepted_betas: Option<BTreeSet<AnthropicBeta>>,
 }
 
 impl UpstreamCall {
@@ -44,7 +45,7 @@ impl UpstreamCall {
     }
 
     #[must_use]
-    pub fn with_accepted_betas(mut self, accepted_betas: Option<Vec<String>>) -> Self {
+    pub fn with_accepted_betas(mut self, accepted_betas: Option<BTreeSet<AnthropicBeta>>) -> Self {
         self.accepted_betas = accepted_betas;
         self
     }
@@ -118,9 +119,13 @@ impl UpstreamCall {
                 .iter()
                 .filter(|(name, _)| !dialect.drops_forwarded_header(name))
                 .filter_map(|(name, value)| {
-                    if wire == WireProtocol::Anthropic && name.eq_ignore_ascii_case(ANTHROPIC_BETA)
+                    if wire == WireProtocol::Anthropic
+                        && name.eq_ignore_ascii_case(ANTHROPIC_BETA_HEADER)
                     {
-                        self.forwardable_betas(value)
+                        let policy = dialect.beta_policy(self.accepted_betas.as_ref());
+                        BetaHeader::parse(value)
+                            .admitted_by(&policy)
+                            .render()
                             .map(|kept| (name.clone(), kept))
                     } else {
                         Some((name.clone(), value.clone()))
@@ -129,19 +134,6 @@ impl UpstreamCall {
         );
         headers.extend(self.extra_headers.iter().cloned());
         headers
-    }
-
-    fn forwardable_betas(&self, value: &str) -> Option<String> {
-        let kept: Vec<&str> = match (&self.accepted_betas, self.hosting) {
-            (None, Hosting::FirstParty) => return Some(value.to_owned()),
-            (None, Hosting::Vertex) => return None,
-            (Some(accepted), _) => value
-                .split(',')
-                .map(str::trim)
-                .filter(|beta| accepted.iter().any(|a| a == beta))
-                .collect(),
-        };
-        (!kept.is_empty()).then(|| kept.join(","))
     }
 
     pub fn finish_body(&self, wire: WireProtocol, body: &mut Map<String, Value>) {

@@ -28,12 +28,13 @@ mod protocol;
 mod rate_card;
 mod surface;
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{ModelId, ProviderId, SecretName};
 
 use crate::services::ai::{ModelCapabilities, ModelGovernance, ModelLimits, ModelPricing};
+use crate::wire::anthropic::AnthropicBeta;
 
 pub use discovery_report::DiscoveryReport;
 pub use error::{ProviderRegistryError, ProviderRegistryResult};
@@ -139,7 +140,7 @@ pub struct ProviderEntry {
     pub extra_headers: HashMap<String, String>,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub accepted_betas: Option<Vec<String>>,
+    pub accepted_betas: Option<BTreeSet<AnthropicBeta>>,
 
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub models: Vec<ProviderModel>,

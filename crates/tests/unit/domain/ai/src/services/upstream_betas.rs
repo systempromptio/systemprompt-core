@@ -1,13 +1,18 @@
 //! Which `anthropic-beta` values a forwarded request carries upstream.
 //!
 //! First-party Anthropic forwards every beta a client sends. Vertex AI rejects
-//! a beta it does not support, so with no `accepted_betas` a Vertex provider
+//! a beta it does not serve, so with no `accepted_betas` a Vertex provider
 //! forwards none; a declared list forwards only its members, on either host.
+//! The 1M context window needs no beta on either: it is native to every
+//! current 1M model.
+
+use std::collections::BTreeSet;
 
 use serde_json::json;
 use systemprompt_ai::UpstreamTarget;
 use systemprompt_identifiers::SecretName;
 use systemprompt_models::services::{ProviderEntry, ProviderRegistry, WireProtocol};
+use systemprompt_models::wire::anthropic::AnthropicBeta;
 use systemprompt_test_fixtures::keys::test_key;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -22,7 +27,11 @@ fn first_party(accepted: Option<&[&str]>) -> ProviderEntry {
         .find_provider("anthropic")
         .expect("anthropic in default catalog")
         .clone();
-    entry.accepted_betas = accepted.map(|list| list.iter().map(|b| (*b).to_owned()).collect());
+    entry.accepted_betas = accepted.map(|list| {
+        list.iter()
+            .map(|b| AnthropicBeta::new(*b))
+            .collect::<BTreeSet<_>>()
+    });
     entry
 }
 
@@ -75,7 +84,8 @@ async fn first_party_forwards_every_beta_by_default() {
         forwarded_beta(&first_party(None), "sk-fixture")
             .await
             .as_deref(),
-        Some(REQUESTED)
+        Some("context-1m-2025-08-07,interleaved-thinking-2025-05-14"),
+        "every flag the client sent, rendered in canonical form"
     );
 }
 
