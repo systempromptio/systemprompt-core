@@ -8,7 +8,7 @@
 use std::sync::Arc;
 
 use systemprompt_database::{Database, DatabaseAdminService, RepositoryError, SafeIdentifier};
-use systemprompt_test_fixtures::fixture_database_url;
+use systemprompt_test_fixtures::DisposableDb;
 
 use crate::services::db_helper::pool_or_skip;
 
@@ -148,35 +148,13 @@ async fn count_rows_counts_seeded_rows() {
     assert_eq!(count, 7);
 }
 
-fn swap_db_name(url: &str, new_db: &str) -> String {
-    let (base, _old) = url.rsplit_once('/').expect("url has a database segment");
-    format!("{base}/{new_db}")
-}
-
 #[tokio::test]
 async fn database_info_lists_tables_with_rows_and_sizes_in_isolated_db() {
-    let Some(admin_url) = fixture_database_url().ok() else {
+    let Ok(database) = DisposableDb::create("admin_info").await else {
         return;
     };
-    let Ok(admin) = Database::new_postgres(&admin_url).await else {
-        return;
-    };
-    let admin_pool = admin.write_pool_arc().expect("admin pool");
-
-    let iso_db = format!("admin_info_{}", uuid::Uuid::new_v4().simple());
-    sqlx::query(sqlx::AssertSqlSafe(format!("CREATE DATABASE \"{iso_db}\"")))
-        .execute(&*admin_pool)
-        .await
-        .expect("create isolated database");
-
-    let iso_url = swap_db_name(&admin_url, &iso_db);
-    let result = run_info_assertions(&iso_url).await;
-
-    let _ = sqlx::query(sqlx::AssertSqlSafe(format!(
-        "DROP DATABASE IF EXISTS \"{iso_db}\" WITH (FORCE)"
-    )))
-    .execute(&*admin_pool)
-    .await;
+    let result = run_info_assertions(database.url()).await;
+    database.drop_now().await;
 
     result.expect("database info assertions");
 }

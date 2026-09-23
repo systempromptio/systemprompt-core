@@ -11,6 +11,7 @@ pub mod keys;
 pub mod messaging;
 pub mod net;
 pub mod oauth;
+pub mod orphans;
 pub mod paths;
 pub mod secrets;
 pub mod service_row;
