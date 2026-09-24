@@ -16,8 +16,6 @@ use crate::error::Result;
 use crate::services::providers::http_client::build_client;
 use crate::services::upstream::UpstreamTarget;
 
-const DEFAULT_ENDPOINT: &str = "https://api.openai.com/v1";
-
 #[derive(Debug)]
 pub struct OpenAiProvider {
     pub(crate) client: Client,
@@ -28,19 +26,6 @@ pub struct OpenAiProvider {
 }
 
 impl OpenAiProvider {
-    pub fn new(api_key: String) -> Self {
-        Self::with_endpoint(api_key, DEFAULT_ENDPOINT.to_owned())
-    }
-
-    pub fn with_endpoint(api_key: String, endpoint: String) -> Self {
-        Self::with_target(UpstreamTarget::api_key(
-            "openai",
-            WireProtocol::OpenAiChat,
-            endpoint,
-            api_key,
-        ))
-    }
-
     pub fn with_target(target: UpstreamTarget) -> Self {
         Self {
             client: build_client(AI_PROVIDER_REQUEST_TIMEOUT, HTTP_CONNECT_TIMEOUT),

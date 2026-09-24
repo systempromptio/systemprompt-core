@@ -22,17 +22,19 @@
 
 mod discovery_report;
 mod error;
+mod headers;
 mod hosting;
 mod protocol;
 mod rate_card;
 mod surface;
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{ModelId, ProviderId, SecretName};
 
 use crate::services::ai::{ModelCapabilities, ModelGovernance, ModelLimits, ModelPricing};
+use crate::wire::anthropic::AnthropicBeta;
 
 pub use discovery_report::DiscoveryReport;
 pub use error::{ProviderRegistryError, ProviderRegistryResult};
@@ -136,6 +138,9 @@ pub struct ProviderEntry {
 
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub extra_headers: HashMap<String, String>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub accepted_betas: Option<BTreeSet<AnthropicBeta>>,
 
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub models: Vec<ProviderModel>,
@@ -252,6 +257,12 @@ impl ProviderRegistry {
                     reason: e.to_string(),
                 },
             )?;
+            if let Some(header) = headers::reserved_name(provider.extra_headers.keys()) {
+                return Err(ProviderRegistryError::ReservedExtraHeader {
+                    provider: provider.name.as_str().to_owned(),
+                    header: header.to_owned(),
+                });
+            }
             if names_a_project_literally(&provider.endpoint) {
                 return Err(ProviderRegistryError::LiteralProjectInEndpoint {
                     provider: provider.name.as_str().to_owned(),

@@ -23,6 +23,7 @@ fn vertex(endpoint: &str) -> ProviderEntry {
         api_key_secret: SecretName::new("vertex"),
         governance: Default::default(),
         extra_headers: Default::default(),
+        accepted_betas: None,
         models: Vec::new(),
     }
 }

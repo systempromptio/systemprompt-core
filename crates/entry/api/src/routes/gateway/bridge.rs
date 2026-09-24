@@ -226,6 +226,7 @@ pub async fn profile() -> Result<Json<BridgeProfileResponse>, (StatusCode, Strin
             organization_uuid,
             default_model: gateway.default_model.clone(),
             registry: &services.providers,
+            gateway: Some(gateway),
         },
         |name| secrets.get(name).is_some_and(|k| !k.is_empty()),
     );

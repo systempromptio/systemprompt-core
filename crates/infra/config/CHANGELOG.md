@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.61.0] - 2026-09-24
+
+### Changed
+
+- A provider entry built from a catalogue spec carries `accepted_betas: None` (no declared `anthropic-beta` allowlist).
+
 ## [0.59.0] - 2026-09-22
 
 ### Added

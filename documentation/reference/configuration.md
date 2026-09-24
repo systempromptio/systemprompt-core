@@ -329,7 +329,8 @@ result against the merged registry, and never touch the profile.
 | `model_pattern` | string | yes | — | Match pattern. `*` matches all; `prefix*` and `*suffix` are supported; otherwise exact. |
 | `provider` | string | yes | — | Provider name; must be declared in `providers`. The route carries no endpoint or credential of its own. |
 | `upstream_model` | string | no | requested model | Override model name sent upstream. |
-| `extra_headers` | map<string,string> | no | `{}` | Additional upstream request headers. |
+| `extra_headers` | map<string,string> | no | `{}` | Additional upstream request headers. May not name `authorization`, `x-api-key`, `x-goog-api-key`, `anthropic-version`, `content-type`, `content-length` or `host`. |
+| `accepted_betas` | list<string> | no | all on first-party; none on Vertex AI | The `anthropic-beta` values forwarded from a client request. Vertex AI rejects a beta it does not serve, so a Vertex provider forwards only the betas listed here. The 1M context window needs no beta on either host. |
 | `pricing` | object | no | absent | Route-level pricing override; otherwise the matching `providers[].models[].pricing` applies. |
 | `when` | object | no | absent | Request-type match (`RouteMatch`). |
 | `requires` | object | no | absent | Governance requirements the resolved model must satisfy (`RouteRequirements`). |

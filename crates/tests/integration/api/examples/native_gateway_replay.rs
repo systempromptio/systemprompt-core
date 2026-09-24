@@ -111,6 +111,7 @@ fn registry(
             api_key_secret: SecretName::new("anthropic"),
             governance: Default::default(),
             extra_headers: HashMap::new(),
+            accepted_betas: None,
             models: if priced {
                 vec![ProviderModel {
                     id: ModelId::new(model),

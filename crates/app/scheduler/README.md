@@ -58,7 +58,7 @@ Each job implements the `Job` trait from `systemprompt-traits` and is registered
 
 ```toml
 [dependencies]
-systemprompt-scheduler = "0.60"
+systemprompt-scheduler = "0.61"
 ```
 
 ### Job Discovery

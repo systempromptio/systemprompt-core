@@ -51,6 +51,7 @@ fn registry(endpoint: &str, limits: ModelLimits) -> ProviderRegistry {
             api_key_secret: SecretName::new(PROVIDER),
             governance: Default::default(),
             extra_headers: HashMap::new(),
+            accepted_betas: None,
             models: vec![ProviderModel {
                 id: ModelId::new(CATALOG_ID),
                 aliases: Vec::new(),

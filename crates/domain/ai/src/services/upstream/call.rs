@@ -3,9 +3,12 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::collections::BTreeSet;
+
 // JSON: protocol boundary — the envelope edits apply to a dynamic wire body.
 use serde_json::{Map, Value};
 use systemprompt_models::services::{Hosting, WireProtocol};
+use systemprompt_models::wire::anthropic::{ANTHROPIC_BETA_HEADER, AnthropicBeta, BetaHeader};
 use systemprompt_models::wire::upstream::UpstreamDialect;
 use systemprompt_security::credential::{AuthHeader, AuthScheme};
 
@@ -21,6 +24,7 @@ pub struct UpstreamCall {
     endpoint: String,
     auth: AuthHeader,
     extra_headers: Vec<(String, String)>,
+    accepted_betas: Option<BTreeSet<AnthropicBeta>>,
 }
 
 impl UpstreamCall {
@@ -36,35 +40,14 @@ impl UpstreamCall {
             endpoint,
             auth,
             extra_headers,
+            accepted_betas: None,
         }
     }
 
     #[must_use]
-    pub fn api_key(endpoint: impl Into<String>, key: impl Into<String>) -> Self {
-        let endpoint = endpoint.into();
-        Self::new(
-            Hosting::of(&endpoint),
-            endpoint,
-            AuthHeader {
-                scheme: AuthScheme::ApiKey,
-                value: key.into(),
-            },
-            Vec::new(),
-        )
-    }
-
-    #[must_use]
-    pub fn bearer(endpoint: impl Into<String>, token: impl Into<String>) -> Self {
-        let endpoint = endpoint.into();
-        Self::new(
-            Hosting::of(&endpoint),
-            endpoint,
-            AuthHeader {
-                scheme: AuthScheme::Bearer,
-                value: token.into(),
-            },
-            Vec::new(),
-        )
+    pub fn with_accepted_betas(mut self, accepted_betas: Option<BTreeSet<AnthropicBeta>>) -> Self {
+        self.accepted_betas = accepted_betas;
+        self
     }
 
     #[must_use]
@@ -135,7 +118,19 @@ impl UpstreamCall {
             forward
                 .iter()
                 .filter(|(name, _)| !dialect.drops_forwarded_header(name))
-                .cloned(),
+                .filter_map(|(name, value)| {
+                    if wire == WireProtocol::Anthropic
+                        && name.eq_ignore_ascii_case(ANTHROPIC_BETA_HEADER)
+                    {
+                        let policy = dialect.beta_policy(self.accepted_betas.as_ref());
+                        BetaHeader::parse(value)
+                            .admitted_by(&policy)
+                            .render()
+                            .map(|kept| (name.clone(), kept))
+                    } else {
+                        Some((name.clone(), value.clone()))
+                    }
+                }),
         );
         headers.extend(self.extra_headers.iter().cloned());
         headers

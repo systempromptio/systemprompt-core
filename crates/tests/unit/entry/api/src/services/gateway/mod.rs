@@ -23,6 +23,7 @@ mod outbound;
 mod outbound_deep;
 mod outbound_passthrough;
 mod outbound_passthrough_terminal;
+mod outbound_refused_betas;
 mod outbound_retry;
 mod outbound_vertex;
 mod parse;
@@ -36,6 +37,7 @@ mod safety;
 mod signature_cache;
 mod stream_tap;
 mod stream_tap_accumulator;
+mod support;
 mod upstream_error;
 
 mod prompt_recovery;

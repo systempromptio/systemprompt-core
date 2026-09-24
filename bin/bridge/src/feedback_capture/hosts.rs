@@ -4,13 +4,14 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::{FeedbackError, Result};
+use crate::feedback::ReadbackFault;
 use crate::gateway::manifest::SkillEntry;
 use crate::host_sync::HostSyncCtx;
 use std::path::PathBuf;
 
 pub(super) fn roots(host: &str, ctx: &HostSyncCtx<'_>, skill: &SkillEntry) -> Result<Vec<PathBuf>> {
     if !crate::hash::safe_id_segment(skill.id.as_str()) {
-        return Err(FeedbackError::Readback);
+        return Err(FeedbackError::Readback(ReadbackFault::UnsafeSkillId));
     }
     let roots = match host {
         "hermes" => vec![crate::integration::hermes::feedback_skill_root().join(skill.id.as_str())],
@@ -44,7 +45,7 @@ pub(super) fn roots(host: &str, ctx: &HostSyncCtx<'_>, skill: &SkillEntry) -> Re
         _ => return Err(FeedbackError::Scope),
     };
     if roots.iter().any(|root| !root.join("SKILL.md").is_file()) {
-        return Err(FeedbackError::Readback);
+        return Err(FeedbackError::Readback(ReadbackFault::SkillMissing));
     }
     Ok(roots)
 }

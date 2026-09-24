@@ -6,7 +6,9 @@
 //! bridge-owned `provider.systemprompt` block and default `model` are written
 //! there rather than somewhere a personal config casually overrides. That is
 //! tier preference, not enforcement: the file is mode 0644, Linux falls back to
-//! the user tier when `/etc` is unwritable, and nothing stops a user adding
+//! the user tier when `/etc` is unwritable, every platform writes the user tier
+//! when an existing admin file is read-only to this process (so its stale
+//! catalogue is at least extended), and nothing stops a user adding
 //! another provider. Governance is enforced at the gateway. The API
 //! key lives in the user's `auth.json`, and MCP connectors and skills — which
 //! unattended sync must be able to rewrite without a prompt — stay in the
@@ -38,6 +40,12 @@ use crate::integration::host_app::{
     HostKind, HostProcesses, ProbeEnv, ProfileGenInputs, ProfileInstalled, ProfileProbe,
     ProfileRemoval, ProfileState,
 };
+use crate::integration::reapply::Attendance;
+
+#[must_use]
+pub fn admin_tier_models() -> Option<(std::path::PathBuf, Vec<String>)> {
+    install::admin_tier_models()
+}
 
 #[derive(Clone, Copy, Debug)]
 pub struct OpenCodeHost;
@@ -104,7 +112,11 @@ impl HostApp for OpenCodeHost {
     }
 
     fn install_profile(&self, path: &str) -> std::io::Result<ProfileInstalled> {
-        install::install_profile(path).map(|()| ProfileInstalled::ok())
+        install::install_profile(path, Attendance::Attended)
+    }
+
+    fn install_profile_unattended(&self, path: &str) -> std::io::Result<ProfileInstalled> {
+        install::install_profile(path, Attendance::Unattended)
     }
 
     fn remove_profile(&self) -> std::io::Result<ProfileRemoval> {

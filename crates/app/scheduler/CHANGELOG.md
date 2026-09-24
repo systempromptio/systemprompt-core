@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.61.0] - 2026-09-23
+
+### Fixed
+
+- `delete_jobs_not_in` deletes nothing when given an empty job list; an empty inventory is not a list of retired jobs.
+
+### Changed
+
+- `delete_jobs_not_in` forgets a job absent from the inventory only once its row has gone seven days without an update, so a canary or rolled-back instance no longer deletes the rows of jobs only the other version has.
+
+
 ## [0.60.0] - 2026-09-23
 
 ### Breaking

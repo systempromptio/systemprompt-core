@@ -97,6 +97,15 @@ pub(super) fn user_config_path() -> PathBuf {
     user_dir().join(CONFIG_FILE)
 }
 
+// Why: OpenCode deep-merges the user's global config beneath the managed
+// tier, so a provider block written here adds the live models to an admin
+// file this process cannot rewrite; the admin file's own entries and default
+// `model` still win until it is refreshed with elevation.
+pub(super) fn user_tier_path(managed: &std::path::Path) -> Option<PathBuf> {
+    let path = user_config_path();
+    (path != managed).then_some(path)
+}
+
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
 pub(super) fn fallback_config_path(managed: &std::path::Path) -> Option<PathBuf> {
     let path = user_config_path();

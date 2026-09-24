@@ -1,15 +1,17 @@
 //! Schema installation for compile-time-registered
 //! [`systemprompt_extension::Extension`] instances.
 //!
-//! Installation runs globally in five phases — structural DDL, then the
-//! declarative routines, then migrations, then dependent DDL, then the
+//! Installation runs globally in six phases — retirements, structural DDL, then
+//! the declarative routines, then migrations, then dependent DDL, then the
 //! foreign keys deferred out of the structural `CREATE TABLE`s — so a legacy
 //! database reaches its target shape before any `CREATE INDEX`/`VIEW`
 //! references a migration-added column, and before any foreign key needs a
 //! unique index a migration introduces. Routines go first so a migration can
 //! reference a function only the declarative schema defines; a migration
 //! that names a declarative-only trigger or view is refused before any
-//! statement runs (`migration_refs`).
+//! statement runs (`migration_refs`). Retirements run first of all, so a
+//! trigger one extension retires is gone before another extension's
+//! migration can drop what it writes or fire it (`retire`).
 //! A fresh database (no migration history, no owned tables) skips migration
 //! execution entirely: the declarative schema is the baseline, and every
 //! defined migration is stamped as applied without running — in the same
@@ -25,6 +27,7 @@ mod cost_warning;
 mod foreign_keys;
 pub(crate) mod lock;
 mod phase;
+mod retire;
 mod routine_prepass;
 mod validation;
 
@@ -35,11 +38,13 @@ use self::cost_warning::warn_unmeasured_migrations;
 use self::foreign_keys::apply_foreign_keys;
 use self::lock::BootstrapLockGuard;
 use self::phase::execute_phase;
+use self::retire::{apply_retirements, check_retirements};
 use self::routine_prepass::apply_routine_prepass;
 use self::validation::{validate_extension_columns, validate_table_ownership};
 use super::migration_refs::check_migration_references;
 use super::prepare::{PreparedSchema, prepare_extension_schema};
 use super::report::SchemaInstallReport;
+use super::routine_refs::check_trigger_routines;
 use super::seeds::apply_seeds;
 use super::undeclared::audit_schema_residue;
 use crate::lifecycle::migrations::{MigrationConfig, MigrationService};
@@ -116,6 +121,25 @@ pub async fn install_extension_schemas_full(
     Ok(report)
 }
 
+async fn fresh_extension_ids(
+    migration_service: &MigrationService<'_>,
+    schema_extensions: &[std::sync::Arc<dyn Extension>],
+    prepared: &[PreparedSchema],
+) -> Result<std::collections::HashSet<String>, LoaderError> {
+    let mut fresh = std::collections::HashSet::new();
+    for (ext, p) in schema_extensions.iter().zip(prepared) {
+        if ext.has_migrations()
+            && migration_service
+                .assess_freshness(&p.extension_id, &p.owned_tables)
+                .await?
+                .is_fresh()
+        {
+            fresh.insert(p.extension_id.clone());
+        }
+    }
+    Ok(fresh)
+}
+
 async fn run_install(
     db: &dyn DatabaseProvider,
     schema_extensions: &[std::sync::Arc<dyn Extension>],
@@ -130,19 +154,13 @@ async fn run_install(
 
     validate_table_ownership(&prepared, schema_extensions)?;
     check_migration_references(schema_extensions)?;
+    check_retirements(schema_extensions)?;
     warn_unmeasured_migrations(db, &migration_service, schema_extensions).await;
 
-    let mut fresh_extensions: std::collections::HashSet<String> = std::collections::HashSet::new();
-    for (ext, p) in schema_extensions.iter().zip(&prepared) {
-        if ext.has_migrations()
-            && migration_service
-                .assess_freshness(&p.extension_id, &p.owned_tables)
-                .await?
-                .is_fresh()
-        {
-            fresh_extensions.insert(p.extension_id.clone());
-        }
-    }
+    apply_retirements(db, schema_extensions).await?;
+
+    let fresh_extensions =
+        fresh_extension_ids(&migration_service, schema_extensions, &prepared).await?;
 
     for (ext, p) in schema_extensions.iter().zip(&prepared) {
         let stamp = if fresh_extensions.contains(&p.extension_id) {
@@ -197,6 +215,11 @@ async fn run_install(
         let drift = apply_foreign_keys(db, &p.foreign_keys, &p.extension_id, !established).await?;
         report.foreign_key_drift.extend(drift);
     }
+
+    // Why: after every phase, so the schema checked is the one the server
+    // will write to; a trigger left writing a dropped table fails every
+    // request that touches its table.
+    check_trigger_routines(db).await?;
 
     for ext in schema_extensions {
         apply_seeds(ext.as_ref(), db).await?;

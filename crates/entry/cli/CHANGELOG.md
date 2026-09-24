@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.61.0] - 2026-09-24
+
+### Added
+
+- `infra db migrate --repair-drift` re-applies drifted migrations and retries once when the install fails on checksum drift, and only then; it conflicts with `--allow-checksum-drift`.
+
+### Changed
+
+- `infra db migrate` failures carry a classified hint: checksum drift, dangling trigger routine, statement timeout or lock timeout.
+
 ## [0.60.0] - 2026-09-23
 
 ### Breaking

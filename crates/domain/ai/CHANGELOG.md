@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.61.0] - 2026-09-23
+
+### Breaking
+
+- **Breaking:** `UpstreamTarget::provider` returns `&ProviderId` instead of `&str`. Migrate by calling `as_str()` where a string is needed.
+- **Breaking:** `UpstreamTarget::api_key`, `UpstreamCall::api_key`, `UpstreamCall::bearer` and the provider clients' `new(api_key)` and `with_endpoint(api_key, endpoint)` are removed, so an upstream is built only from a catalog `ProviderEntry`. Migrate by resolving the entry with `UpstreamTarget::resolve` or `UpstreamTarget::from_secrets` and passing the target to `with_target`.
+
+### Added
+
+- `UpstreamCall::with_accepted_betas`.
+- `UpstreamTargetError::ApiKeyOnVertex`: a Vertex-hosted provider on any wire but Gemini whose secret is an API key is refused at resolve, so it is withheld at boot instead of failing every request with 401.
+
+### Changed
+
+- A forwarded `anthropic-beta` header is narrowed to the provider's `accepted_betas`, and dropped on Vertex AI when none are declared, since Vertex rejects a beta it does not support.
+
+
 ## [0.60.0] - 2026-09-23
 
 ### Removed

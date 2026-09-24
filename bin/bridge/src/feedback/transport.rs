@@ -4,7 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::credentials::Enrollment;
-use super::{FeedbackError, Result};
+use super::{FeedbackError, ReadbackFault, Result};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{DeviceId, UserId};
@@ -92,7 +92,7 @@ pub async fn plan(
         || plan.generation != publication.generation
         || plan.bundle_digest.as_str() != publication.bundle_digest.as_str()
     {
-        return Err(FeedbackError::Readback);
+        return Err(FeedbackError::Readback(ReadbackFault::PlanMismatch));
     }
     Ok(plan)
 }

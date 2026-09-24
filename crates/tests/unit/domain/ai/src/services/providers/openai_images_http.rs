@@ -1,9 +1,11 @@
+use crate::services::providers::mock_http;
 use serde_json::json;
 use systemprompt_ai::models::image_generation::{
     AspectRatio, ImageGenerationRequest, ImageResolution,
 };
 use systemprompt_ai::services::providers::image_provider_trait::ImageProvider;
 use systemprompt_ai::services::providers::openai_images::OpenAiImageProvider;
+use systemprompt_models::services::WireProtocol;
 use systemprompt_test_fixtures::fixture_user_id;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -23,6 +25,15 @@ fn make_request(prompt: &str) -> ImageGenerationRequest {
     }
 }
 
+fn provider(endpoint: &str) -> OpenAiImageProvider {
+    OpenAiImageProvider::with_target(mock_http::api_key_target(
+        "openai",
+        WireProtocol::OpenAiChat,
+        endpoint,
+        "k",
+    ))
+}
+
 #[tokio::test]
 async fn generate_image_returns_b64() {
     let server = MockServer::start().await;
@@ -33,7 +44,7 @@ async fn generate_image_returns_b64() {
         })))
         .mount(&server)
         .await;
-    let p = OpenAiImageProvider::with_endpoint("k".to_owned(), server.uri());
+    let p = provider(&server.uri());
     let resp = p.generate_image(&make_request("ok")).await.expect("ok");
     assert_eq!(resp.image_data, "AAAA");
     assert_eq!(resp.mime_type, "image/png");
@@ -42,7 +53,7 @@ async fn generate_image_returns_b64() {
 #[tokio::test]
 async fn generate_image_rejects_long_prompt() {
     let server = MockServer::start().await;
-    let p = OpenAiImageProvider::with_endpoint("k".to_owned(), server.uri());
+    let p = provider(&server.uri());
     let huge = "x".repeat(5000);
     let err = p
         .generate_image(&make_request(&huge))
@@ -54,7 +65,7 @@ async fn generate_image_rejects_long_prompt() {
 #[tokio::test]
 async fn generate_image_rejects_unsupported_resolution() {
     let server = MockServer::start().await;
-    let p = OpenAiImageProvider::with_endpoint("k".to_owned(), server.uri());
+    let p = provider(&server.uri());
     let mut req = make_request("ok");
     req.resolution = ImageResolution::FourK;
     let err = p.generate_image(&req).await.expect_err("bad res");
@@ -64,7 +75,7 @@ async fn generate_image_rejects_unsupported_resolution() {
 #[tokio::test]
 async fn generate_image_rejects_unsupported_aspect() {
     let server = MockServer::start().await;
-    let p = OpenAiImageProvider::with_endpoint("k".to_owned(), server.uri());
+    let p = provider(&server.uri());
     let mut req = make_request("ok");
     req.aspect_ratio = AspectRatio::UltraWide;
     let err = p.generate_image(&req).await.expect_err("bad asp");
@@ -74,7 +85,7 @@ async fn generate_image_rejects_unsupported_aspect() {
 #[tokio::test]
 async fn generate_image_rejects_unsupported_model() {
     let server = MockServer::start().await;
-    let p = OpenAiImageProvider::with_endpoint("k".to_owned(), server.uri());
+    let p = provider(&server.uri());
     let mut req = make_request("ok");
     req.model = Some("unknown-model".to_owned());
     let err = p.generate_image(&req).await.expect_err("bad model");
@@ -89,7 +100,7 @@ async fn generate_image_handles_http_error() {
         .respond_with(ResponseTemplate::new(500).set_body_string("boom"))
         .mount(&server)
         .await;
-    let p = OpenAiImageProvider::with_endpoint("k".to_owned(), server.uri());
+    let p = provider(&server.uri());
     let err = p
         .generate_image(&make_request("ok"))
         .await
@@ -105,7 +116,7 @@ async fn generate_image_handles_missing_data() {
         .respond_with(ResponseTemplate::new(200).set_body_json(json!({ "data": [] })))
         .mount(&server)
         .await;
-    let p = OpenAiImageProvider::with_endpoint("k".to_owned(), server.uri());
+    let p = provider(&server.uri());
     let err = p
         .generate_image(&make_request("ok"))
         .await
@@ -123,7 +134,7 @@ async fn batch_iterates_over_requests() {
         })))
         .mount(&server)
         .await;
-    let p = OpenAiImageProvider::with_endpoint("k".to_owned(), server.uri());
+    let p = provider(&server.uri());
     let resp = p
         .generate_batch(&[make_request("a"), make_request("b")])
         .await
@@ -141,7 +152,7 @@ async fn generate_image_handles_b64_none_entry() {
         })))
         .mount(&server)
         .await;
-    let p = OpenAiImageProvider::with_endpoint("k".to_owned(), server.uri());
+    let p = provider(&server.uri());
     let err = p
         .generate_image(&make_request("ok"))
         .await
@@ -157,7 +168,7 @@ async fn generate_image_handles_malformed_json() {
         .respond_with(ResponseTemplate::new(200).set_body_string("not json"))
         .mount(&server)
         .await;
-    let p = OpenAiImageProvider::with_endpoint("k".to_owned(), server.uri());
+    let p = provider(&server.uri());
     let err = p
         .generate_image(&make_request("ok"))
         .await
@@ -167,7 +178,7 @@ async fn generate_image_handles_malformed_json() {
 
 #[tokio::test]
 async fn generate_image_handles_connection_refused() {
-    let p = OpenAiImageProvider::with_endpoint("k".to_owned(), "http://127.0.0.1:1".to_owned());
+    let p = provider("http://127.0.0.1:1");
     let err = p
         .generate_image(&make_request("ok"))
         .await
@@ -185,7 +196,7 @@ async fn generate_image_maps_size_for_portrait() {
         })))
         .mount(&server)
         .await;
-    let p = OpenAiImageProvider::with_endpoint("k".to_owned(), server.uri());
+    let p = provider(&server.uri());
     let mut req = make_request("ok");
     req.aspect_ratio = AspectRatio::Portrait916;
     let resp = p.generate_image(&req).await.expect("ok");
@@ -202,7 +213,7 @@ async fn generate_image_maps_size_for_landscape() {
         })))
         .mount(&server)
         .await;
-    let p = OpenAiImageProvider::with_endpoint("k".to_owned(), server.uri());
+    let p = provider(&server.uri());
     let mut req = make_request("ok");
     req.aspect_ratio = AspectRatio::Landscape169;
     let resp = p.generate_image(&req).await.expect("ok");
@@ -211,7 +222,8 @@ async fn generate_image_maps_size_for_landscape() {
 
 #[tokio::test]
 async fn provider_metadata_is_consistent() {
-    let p = OpenAiImageProvider::new("k".to_owned()).with_default_model("dall-e-3".to_owned());
+    let p = OpenAiImageProvider::with_target(mock_http::seed_target("openai", "k"))
+        .with_default_model("dall-e-3".to_owned());
     assert_eq!(p.name(), "openai-image");
     assert_eq!(p.default_model(), "dall-e-3");
     let caps = p.capabilities();

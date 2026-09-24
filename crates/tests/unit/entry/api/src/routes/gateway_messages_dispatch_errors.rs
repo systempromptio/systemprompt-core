@@ -8,9 +8,11 @@
 //! arm is pinned here.
 
 use axum::http::StatusCode;
+use systemprompt_ai::UpstreamTargetError;
 use systemprompt_api::routes::gateway::messages::dispatch::errors::{
     classify_dispatch_error, map_dispatch_error,
 };
+use systemprompt_api::services::gateway::pricing::MissingPricing;
 use systemprompt_api::services::gateway::protocol::outbound::UpstreamError;
 use systemprompt_api::services::gateway::service::{
     DispatchError, GovernanceDenied, GuardForbidden, PolicyDenied, QuotaExceeded, SafetyBlocked,
@@ -71,6 +73,55 @@ fn an_unrecognised_error_collapses_to_502() {
 
     assert_eq!(status, StatusCode::BAD_GATEWAY);
     assert_eq!(message, "connection reset");
+}
+
+#[test]
+fn an_unconfigured_provider_secret_is_a_non_retryable_404() {
+    let (status, message) =
+        classify_dispatch_error(&anyhow::Error::new(UpstreamTargetError::MissingSecret {
+            provider: "vertex-maas".to_owned(),
+            secret: "vertex_maas".to_owned(),
+        }));
+
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    assert!(!status.is_server_error());
+    assert_eq!(
+        message,
+        "provider 'vertex-maas' secret 'vertex_maas' is not configured"
+    );
+}
+
+#[test]
+fn a_model_without_pricing_is_a_non_retryable_404() {
+    let (status, message) = classify_dispatch_error(&anyhow::Error::new(MissingPricing {
+        provider: "gemini".to_owned(),
+        models: vec!["gemini-2.5-flash".to_owned()],
+    }));
+
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    assert!(message.contains("No configured pricing for provider gemini"));
+}
+
+#[test]
+fn a_secrets_store_outage_stays_a_502() {
+    let (status, _) = classify_dispatch_error(&anyhow::Error::new(
+        UpstreamTargetError::SecretsUnavailable("store offline".to_owned()),
+    ));
+
+    assert_eq!(status, StatusCode::BAD_GATEWAY);
+}
+
+#[test]
+fn an_unservable_model_is_still_persisted_for_audit() {
+    let (status, _, persist) = rejection(DispatchError::PreAudit(anyhow::Error::new(
+        UpstreamTargetError::MissingSecret {
+            provider: "vertex-maas".to_owned(),
+            secret: "vertex_maas".to_owned(),
+        },
+    )));
+
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    assert!(persist);
 }
 
 #[test]

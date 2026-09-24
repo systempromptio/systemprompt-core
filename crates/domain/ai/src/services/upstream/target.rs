@@ -3,9 +3,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::collections::BTreeSet;
+
+use systemprompt_identifiers::ProviderId;
 use systemprompt_models::services::{Hosting, ProviderEntry, WireProtocol};
+use systemprompt_models::wire::anthropic::AnthropicBeta;
 use systemprompt_models::wire::upstream::UpstreamDialect;
-use systemprompt_security::credential::{ProviderCredential, fill_endpoint};
+use systemprompt_security::credential::{CredentialKind, ProviderCredential, fill_endpoint};
 
 use super::call::UpstreamCall;
 use super::error::UpstreamTargetError;
@@ -17,13 +21,14 @@ use super::error::UpstreamTargetError;
 /// token cache, never frozen at construction.
 #[derive(Debug, Clone)]
 pub struct UpstreamTarget {
-    provider: String,
+    provider: ProviderId,
     wire: WireProtocol,
     hosting: Hosting,
     endpoint: String,
     credential: ProviderCredential,
     cache_key: String,
     extra_headers: Vec<(String, String)>,
+    accepted_betas: Option<BTreeSet<AnthropicBeta>>,
 }
 
 impl UpstreamTarget {
@@ -35,6 +40,15 @@ impl UpstreamTarget {
                 source,
             }
         })?;
+        if entry.hosting() == Hosting::Vertex
+            && entry.wire != WireProtocol::Gemini
+            && credential.kind() == CredentialKind::ApiKey
+        {
+            return Err(UpstreamTargetError::ApiKeyOnVertex {
+                provider: entry.name.as_str().to_owned(),
+                secret: secret_name.to_owned(),
+            });
+        }
         let endpoint = fill_endpoint(&entry.endpoint, &credential.scope()).map_err(|source| {
             UpstreamTargetError::Endpoint {
                 provider: entry.name.as_str().to_owned(),
@@ -48,13 +62,14 @@ impl UpstreamTarget {
             .collect();
         extra_headers.sort();
         Ok(Self {
-            provider: entry.name.as_str().to_owned(),
+            provider: entry.name.clone(),
             wire: entry.wire,
             hosting: entry.hosting(),
             endpoint,
             credential,
             cache_key: secret_name.to_owned(),
             extra_headers,
+            accepted_betas: entry.accepted_betas.clone(),
         })
     }
 
@@ -72,26 +87,6 @@ impl UpstreamTarget {
         Self::resolve(entry, secret)
     }
 
-    #[must_use]
-    pub fn api_key(
-        provider: impl Into<String>,
-        wire: WireProtocol,
-        endpoint: impl Into<String>,
-        key: impl Into<String>,
-    ) -> Self {
-        let endpoint = endpoint.into();
-        let provider = provider.into();
-        Self {
-            hosting: Hosting::of(&endpoint),
-            cache_key: provider.clone(),
-            provider,
-            wire,
-            endpoint,
-            credential: ProviderCredential::api_key(key),
-            extra_headers: Vec::new(),
-        }
-    }
-
     pub async fn call(&self) -> Result<UpstreamCall, UpstreamTargetError> {
         let auth = self
             .credential
@@ -106,11 +101,12 @@ impl UpstreamTarget {
             self.endpoint.clone(),
             auth,
             self.extra_headers.clone(),
-        ))
+        )
+        .with_accepted_betas(self.accepted_betas.clone()))
     }
 
     #[must_use]
-    pub fn provider(&self) -> &str {
+    pub const fn provider(&self) -> &ProviderId {
         &self.provider
     }
 

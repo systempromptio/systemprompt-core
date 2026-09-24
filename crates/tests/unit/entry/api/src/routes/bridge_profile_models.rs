@@ -7,16 +7,19 @@
 //! the bridge from `providers`, and `surfaces_from_header` still validates the
 //! advisory `x-inference-protocol` header.
 
+use std::collections::HashMap;
+
 use axum::http::{HeaderMap, StatusCode};
 use systemprompt_api::routes::gateway::bridge::{canonicalize_org_uuid, provider_health};
 use systemprompt_api::routes::gateway::models::{model_entries, surfaces_from_header};
 use systemprompt_identifiers::headers::INFERENCE_PROTOCOL;
-use systemprompt_identifiers::{ModelId, ProviderId, SecretName, TenantId};
+use systemprompt_identifiers::{ModelId, ProviderId, RouteId, SecretName, TenantId};
 use systemprompt_models::bridge::profile::{
     BridgeProfileParams, BridgeProfileResponse, build as profile_build,
 };
 use systemprompt_models::services::{
-    ApiSurface, ProviderEntry, ProviderModel, ProviderRegistry, WireProtocol,
+    ApiSurface, GatewayConfig, GatewayRoute, ProviderEntry, ProviderModel, ProviderRegistry,
+    WireProtocol,
 };
 
 fn build_profile(registry: &ProviderRegistry) -> BridgeProfileResponse {
@@ -27,6 +30,7 @@ fn build_profile(registry: &ProviderRegistry) -> BridgeProfileResponse {
             organization_uuid: None,
             default_model: None,
             registry,
+            gateway: None,
         },
         |_| true,
     )
@@ -79,6 +83,7 @@ fn provider_with_surface(
         api_key_secret: SecretName::new(secret),
         governance: Default::default(),
         extra_headers: Default::default(),
+        accepted_betas: None,
         models,
     }
 }
@@ -238,7 +243,7 @@ fn model_entries_returns_the_whole_catalog() {
         ],
     };
 
-    let entries = model_entries(&registry, &[]);
+    let entries = model_entries(&registry, &[], None, |_| true);
 
     let ids: Vec<&str> = entries.iter().map(|e| e.id.as_str()).collect();
     assert_eq!(
@@ -265,7 +270,7 @@ fn model_entries_still_honours_an_explicit_surface_slice() {
         ],
     };
 
-    let ids: Vec<String> = model_entries(&registry, &[ApiSurface::Anthropic])
+    let ids: Vec<String> = model_entries(&registry, &[ApiSurface::Anthropic], None, |_| true)
         .into_iter()
         .map(|e| e.id)
         .collect();
@@ -436,4 +441,117 @@ fn canonicalize_org_uuid_derives_stable_v5_for_non_uuid_tenant() {
         canonicalize_org_uuid(&TenantId::new("local_other-corp")),
         "distinct tenants must not collide"
     );
+}
+
+fn two_provider_registry() -> ProviderRegistry {
+    ProviderRegistry {
+        providers: vec![
+            provider_with_secret(
+                "anthropic",
+                WireProtocol::Anthropic,
+                "anthropic_key",
+                vec![model("claude-sonnet-4-6", &[])],
+            ),
+            provider_with_secret(
+                "vertex-maas",
+                WireProtocol::OpenAiChat,
+                "vertex_maas",
+                vec![model("qwen3-coder", &[])],
+            ),
+        ],
+    }
+}
+
+fn routed(pattern: &str, provider: &str) -> GatewayConfig {
+    let mut route = GatewayRoute {
+        id: RouteId::new(""),
+        name: None,
+        description: None,
+        model_pattern: pattern.to_owned(),
+        provider: ProviderId::new(provider),
+        upstream_model: None,
+        extra_headers: HashMap::new(),
+        pricing: None,
+        when: None,
+        requires: None,
+        fallback_provider: None,
+        fallback_upstream_model: None,
+    };
+    route.ensure_id();
+    GatewayConfig {
+        enabled: true,
+        routes: vec![route],
+        ..GatewayConfig::default()
+    }
+}
+
+#[test]
+fn models_of_an_unconfigured_provider_are_not_advertised() {
+    let registry = two_provider_registry();
+
+    let ids: Vec<String> = model_entries(&registry, &[], None, |name| name == "anthropic_key")
+        .into_iter()
+        .map(|e| e.id)
+        .collect();
+
+    assert_eq!(ids, vec!["claude-sonnet-4-6".to_owned()]);
+}
+
+#[test]
+fn the_profile_drops_unservable_models_but_still_reports_their_provider() {
+    let registry = two_provider_registry();
+
+    let response = profile_build(
+        BridgeProfileParams {
+            inference_gateway_base_url: "https://gw.invalid/v1".to_owned(),
+            auth_scheme: "bearer".to_owned(),
+            organization_uuid: None,
+            default_model: None,
+            registry: &registry,
+            gateway: None,
+        },
+        |name| name == "anthropic_key",
+    );
+
+    assert_eq!(response.models, vec!["claude-sonnet-4-6".to_owned()]);
+    assert!(!response.model_limits.contains_key("qwen3-coder"));
+    let maas = response
+        .providers
+        .iter()
+        .find(|p| p.name == "vertex-maas")
+        .expect("an unconfigured provider stays visible to admins");
+    assert!(!maas.configured);
+}
+
+#[test]
+fn a_model_routed_to_a_configured_provider_is_advertised() {
+    let registry = two_provider_registry();
+    let gateway = routed("qwen3-*", "anthropic");
+
+    let ids: Vec<String> = model_entries(&registry, &[], Some(&gateway), |name| {
+        name == "anthropic_key"
+    })
+    .into_iter()
+    .map(|e| e.id)
+    .collect();
+
+    assert_eq!(
+        ids,
+        vec!["claude-sonnet-4-6".to_owned(), "qwen3-coder".to_owned()]
+    );
+}
+
+#[test]
+fn a_model_routed_to_an_unconfigured_provider_is_withheld() {
+    let registry = two_provider_registry();
+    let gateway = routed("claude-*", "vertex-maas");
+
+    let ids: Vec<String> = model_entries(&registry, &[], Some(&gateway), |name| {
+        name == "anthropic_key"
+    })
+    .into_iter()
+    .map(|e| e.id)
+    .collect();
+
+    assert!(ids.is_empty(), "{ids:?}");
 }

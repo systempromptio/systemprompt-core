@@ -1,10 +1,17 @@
 //! Wiremock-driven HTTP harness shared by the anthropic/openai/gemini
 //! provider drivers. Each helper spins up a fresh `MockServer`, registers a
-//! canned response, and yields the base endpoint so the provider can be
-//! constructed via `with_endpoint`.
+//! canned response, and yields the base endpoint; `api_key_target` resolves
+//! a catalog entry pointed at it, the same way the factory resolves one, so
+//! the provider is constructed via `with_target`.
+
+use std::collections::HashMap;
 
 use serde_json::json;
-use systemprompt_models::services::{ProviderModel, ProviderRegistry};
+use systemprompt_ai::UpstreamTarget;
+use systemprompt_identifiers::{ProviderId, SecretName};
+use systemprompt_models::services::{
+    ModelGovernance, ProviderEntry, ProviderModel, ProviderRegistry, WireProtocol,
+};
 use wiremock::matchers::{method, path, path_regex};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -15,6 +22,31 @@ pub fn seed_models(provider: &str) -> Vec<ProviderModel> {
         .unwrap_or_else(|| panic!("provider '{provider}' present in default catalog"))
         .models
         .clone()
+}
+
+pub fn api_key_target(name: &str, wire: WireProtocol, endpoint: &str, key: &str) -> UpstreamTarget {
+    let entry = ProviderEntry {
+        name: ProviderId::new(name),
+        display_name: None,
+        description: None,
+        wire,
+        surface: wire.surface(),
+        endpoint: endpoint.to_owned(),
+        api_key_secret: SecretName::new(name),
+        extra_headers: HashMap::new(),
+        accepted_betas: None,
+        models: Vec::new(),
+        governance: ModelGovernance::default(),
+    };
+    UpstreamTarget::resolve(&entry, key).expect("an API key resolves against a plain endpoint")
+}
+
+pub fn seed_target(provider: &str, key: &str) -> UpstreamTarget {
+    let registry = ProviderRegistry::default_seed().expect("embedded default catalog parses");
+    let entry = registry
+        .find_provider(provider)
+        .unwrap_or_else(|| panic!("provider '{provider}' present in default catalog"));
+    UpstreamTarget::resolve(entry, key).expect("an API key resolves against the catalog endpoint")
 }
 
 pub async fn anthropic_messages_success(body: serde_json::Value) -> MockServer {

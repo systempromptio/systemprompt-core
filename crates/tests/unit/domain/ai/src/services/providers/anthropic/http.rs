@@ -11,10 +11,16 @@ use systemprompt_ai::services::providers::{
     ToolGenerationParams,
 };
 use systemprompt_identifiers::McpServerId;
+use systemprompt_models::services::WireProtocol;
 
 fn provider(endpoint: String) -> AnthropicProvider {
-    AnthropicProvider::with_endpoint("test-key".to_owned(), endpoint)
-        .with_models(mock_http::seed_models("anthropic"))
+    AnthropicProvider::with_target(mock_http::api_key_target(
+        "anthropic",
+        WireProtocol::Anthropic,
+        &endpoint,
+        "test-key",
+    ))
+    .with_models(mock_http::seed_models("anthropic"))
 }
 
 fn msgs() -> Vec<AiMessage> {

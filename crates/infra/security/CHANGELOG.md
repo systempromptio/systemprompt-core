@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.61.0] - 2026-09-23
+
+### Removed
+
+- `credential::ProviderCredential::api_key` is removed; a credential is parsed from its secret with `ProviderCredential::parse`.
+
 ## [0.60.0] - 2026-09-23
 
 ### Added

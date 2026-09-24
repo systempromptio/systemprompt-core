@@ -6,9 +6,9 @@
 //! cross-wire translation) goes through the canonical model and must put every
 //! breakpoint back exactly where the client set it.
 
+use super::support;
 use bytes::Bytes;
 use serde_json::{Value, json};
-use systemprompt_ai::UpstreamCall;
 use systemprompt_api::services::gateway::audit::payload::digest_hex;
 use systemprompt_api::services::gateway::protocol::canonical::{
     CacheControl, CacheTtl, CanonicalContent, CanonicalRequest,
@@ -127,7 +127,7 @@ fn automatic_caching_marks_an_unmarked_rebuilt_request() {
     let route = route();
     let ctx = OutboundCtx {
         route: &route,
-        upstream: &UpstreamCall::api_key("http://unused.invalid", "k"),
+        upstream: &support::api_key_call("http://unused.invalid", "k"),
         request: &req,
         upstream_model: "claude-x",
         model_limits: None,
@@ -168,7 +168,7 @@ fn passthrough_prepared_body_digest_equals_request_body_digest() {
     let route = route();
     let ctx = OutboundCtx {
         route: &route,
-        upstream: &UpstreamCall::api_key("http://unused.invalid", "k"),
+        upstream: &support::api_key_call("http://unused.invalid", "k"),
         request: &req,
         upstream_model: "claude-x",
         model_limits: None,

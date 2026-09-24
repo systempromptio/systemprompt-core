@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.61.0] - 2026-09-24
+
+### Fixed
+
+- **Bridge:** installation evidence no longer fails every sync after the gateway refuses a receipt. The outbox kept a receipt the gateway had never accepted (pending, 409-conflicted or rejected) as immutable, so any later readback of the same publication failed with "installation readback mismatch or unsafe path" and every login reported "N agent(s) did not update". Such a receipt is now replaced by the fresh readback; only an acknowledged receipt stays immutable.
+- **Bridge:** a readback failure names its check (missing `SKILL.md`, plan/manifest mismatch, content or mode mismatch with the path, link or reparse point, conflict with acknowledged evidence) instead of one shared message, recovery logs the failing resource, and the diagnostics bundle carries the feedback outbox (never `device.json`).
+- **Bridge:** an admin-tier OpenCode config (`%ProgramData%\opencode\opencode.json`, `/etc/opencode/opencode.json`) written by an elevated install no longer freezes the model catalogue. When that file exists and this process cannot write it — an unattended sync, or an attended install whose elevation was refused — the provider block and default model go to the user's `~/.config/opencode/opencode.json` instead and the install reports a warning. OpenCode ranks the admin tier above the user tier and deep-merges them, so new models appear at once while retired ones and the admin default remain until the admin file is refreshed with elevation. Uninstall now cleans that user-tier block on every platform.
+- **Bridge:** `doctor` names the "Claude Code asks for a login" cases. It judges routing over the files Claude Code actually reads (the machine `managed-settings.json`, then `$CLAUDE_CONFIG_DIR/settings.json` or `~/.claude/settings.json`) and fails when none sets both `ANTHROPIC_BASE_URL` and `apiKeyHelper`, pointing at `install --host claude-code` or `claude --settings <standalone file>`; it warns when `CLAUDE_CONFIG_DIR` relocates the user settings enrolment writes, and when `ANTHROPIC_API_KEY` or `ANTHROPIC_AUTH_TOKEN` in the environment outranks the helper.
+
+### Added
+
+- **Bridge:** Claude Desktop's `inferenceModels` lists `<id>[1m]` after every Claude model the gateway serves at a 1M context window. Desktop sizes a gateway model from its id and budgets 200k without the suffix, while a Cowork session's first turn is already ~198k tokens; with it, the picker offers "1M context window" and the gateway strips the suffix before routing.
+- **Bridge:** `doctor` reports an OpenCode admin-tier file whose `provider.systemprompt.models` differs from the gateway's current catalogue, naming the models no longer served and the ones not listed.
+
 ## [0.60.0] - 2026-09-23
 
 No bridge code changes; released with core 0.60.0. The README describes device self-enrollment through `POST /v1/bridge/device`, replacing the removed admin credential route.

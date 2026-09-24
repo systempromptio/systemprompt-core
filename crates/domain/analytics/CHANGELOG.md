@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.61.0] - 2026-09-23
+
+### Changed
+
+- The `report_*` views are replaced in place (`CREATE OR REPLACE VIEW`) instead of dropped on every boot, so a boot takes no drop and a consumer view built on a report survives it; migration `017_report_views_replace_in_place` drops them once so every established database takes the new definitions.
+
+
 ## [0.60.0] - 2026-09-23
 
 ### Breaking

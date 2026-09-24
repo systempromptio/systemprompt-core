@@ -66,6 +66,7 @@ impl ProviderCatalogService {
             endpoint: spec.endpoint,
             api_key_secret: spec.api_key_secret,
             extra_headers: spec.extra_headers,
+            accepted_betas: None,
             models,
             governance,
         });

@@ -16,6 +16,7 @@ mod repair;
 mod run;
 mod stamp;
 mod status;
+mod triggers;
 mod verify;
 
 pub use mark_applied::MarkAppliedOutcome;

@@ -21,6 +21,12 @@ pub enum UpstreamTargetError {
         source: CredentialError,
     },
 
+    #[error(
+        "provider '{provider}' is hosted on Vertex AI, which accepts only a Google service-account \
+         key for this wire; secret '{secret}' holds an API key"
+    )]
+    ApiKeyOnVertex { provider: String, secret: String },
+
     #[error("provider '{provider}' endpoint cannot be resolved: {source}")]
     Endpoint {
         provider: String,

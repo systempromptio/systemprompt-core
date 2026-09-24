@@ -35,7 +35,7 @@ Schema DDL lives in `schema/` (`functions.sql`, `extension_migrations.sql`).
 
 ```toml
 [dependencies]
-systemprompt-database = "0.60"
+systemprompt-database = "0.61"
 ```
 
 ```rust

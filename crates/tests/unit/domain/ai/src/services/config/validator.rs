@@ -1,7 +1,9 @@
 //! Tests for ConfigValidator.
 
+use crate::services::providers::mock_http;
 use std::collections::HashMap;
 use std::sync::Arc;
+use systemprompt_models::services::WireProtocol;
 
 use systemprompt_ai::services::config::ConfigValidator;
 use systemprompt_ai::services::providers::AiProvider;
@@ -43,10 +45,13 @@ fn built_providers(names: &[&str]) -> HashMap<String, Arc<dyn AiProvider>> {
     names
         .iter()
         .map(|name| {
-            let provider: Arc<dyn AiProvider> = Arc::new(AnthropicProvider::with_endpoint(
-                "k".to_string(),
-                "http://localhost".to_string(),
-            ));
+            let provider: Arc<dyn AiProvider> =
+                Arc::new(AnthropicProvider::with_target(mock_http::api_key_target(
+                    "anthropic",
+                    WireProtocol::Anthropic,
+                    "http://localhost",
+                    "k",
+                )));
             ((*name).to_string(), provider)
         })
         .collect()

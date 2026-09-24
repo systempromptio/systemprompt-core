@@ -7,8 +7,8 @@
 //! that records what actually arrived, so a regression shows up as a failed
 //! assertion rather than as a silently disabled capability in the field.
 
+use super::support;
 use std::collections::HashMap;
-use systemprompt_ai::UpstreamCall;
 
 use futures_util::{FutureExt, StreamExt};
 use serde_json::{Value, json};
@@ -142,7 +142,7 @@ async fn passthrough_forwards_unmodelled_body_fields_verbatim() {
         &AnthropicOutbound,
         OutboundCtx {
             route: &route,
-            upstream: &UpstreamCall::api_key(&server.uri(), "k"),
+            upstream: &support::api_key_call(&server.uri(), "k"),
             request: &req,
             upstream_model: "upstream-1",
             model_limits: None,
@@ -185,7 +185,7 @@ async fn passthrough_forwards_anthropic_beta_header_verbatim() {
         &AnthropicOutbound,
         OutboundCtx {
             route: &route,
-            upstream: &UpstreamCall::api_key(&server.uri(), "k"),
+            upstream: &support::api_key_call(&server.uri(), "k"),
             request: &req,
             upstream_model: "upstream-1",
             model_limits: None,
@@ -219,7 +219,7 @@ async fn client_anthropic_version_is_not_overridden() {
         &AnthropicOutbound,
         OutboundCtx {
             route: &route,
-            upstream: &UpstreamCall::api_key(&server.uri(), "k"),
+            upstream: &support::api_key_call(&server.uri(), "k"),
             request: &req,
             upstream_model: "upstream-1",
             model_limits: None,
@@ -252,7 +252,7 @@ async fn absent_client_version_falls_back_to_the_pinned_default() {
         &AnthropicOutbound,
         OutboundCtx {
             route: &route,
-            upstream: &UpstreamCall::api_key(&server.uri(), "k"),
+            upstream: &support::api_key_call(&server.uri(), "k"),
             request: &req,
             upstream_model: "upstream-1",
             model_limits: None,
@@ -293,7 +293,7 @@ async fn upstream_error_body_and_retry_after_are_preserved() {
         &AnthropicOutbound,
         OutboundCtx {
             route: &route,
-            upstream: &UpstreamCall::api_key(&server.uri(), "k"),
+            upstream: &support::api_key_call(&server.uri(), "k"),
             request: &req,
             upstream_model: "upstream-1",
             model_limits: None,
@@ -359,7 +359,7 @@ async fn passthrough_streaming_relays_frames_unchanged() {
         &AnthropicOutbound,
         OutboundCtx {
             route: &route,
-            upstream: &UpstreamCall::api_key(&server.uri(), "k"),
+            upstream: &support::api_key_call(&server.uri(), "k"),
             request: &req,
             upstream_model: "upstream-1",
             model_limits: None,
@@ -398,7 +398,7 @@ async fn passthrough_rewrites_only_the_model_when_the_route_remaps_it() {
         &AnthropicOutbound,
         OutboundCtx {
             route: &route,
-            upstream: &UpstreamCall::api_key(&server.uri(), "k"),
+            upstream: &support::api_key_call(&server.uri(), "k"),
             request: &req,
             upstream_model: "remapped-model",
             model_limits: None,

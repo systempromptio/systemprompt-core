@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.61.0] - 2026-09-24
+
+### Fixed
+
+- The gateway drops `anthropic-beta` values an Anthropic upstream refuses with a 400, re-sends the request once, and remembers the refused values for the rest of the process.
+- A model the deployment cannot serve (missing or unusable provider secret, no configured pricing) answers 404 `not_found_error` on every inbound wire instead of 502 `api_error`; the rejection is still audited.
+- `/v1/models` and the bridge profile's `models` and `model_limits` omit a model whose serving provider has no credential; `providers` still lists that provider with `configured: false`.
+- Runtime-state directories are created and write-probed before routes and extensions initialise; failures are reported together with the OS error, directory owner and process uid, and the gateway journal error names its OS error. The probe file is unique per call, so concurrent boots on one directory no longer fail with `ENOENT`.
+
 ## [0.60.0] - 2026-09-23
 
 ### Breaking

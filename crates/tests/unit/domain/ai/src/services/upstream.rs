@@ -116,9 +116,23 @@ fn a_malformed_service_account_is_refused_at_resolve() {
 
 #[test]
 fn a_vertex_template_without_a_project_is_refused_at_resolve() {
-    let err =
-        UpstreamTarget::resolve(&vertex_entry("upstream-seam-no-project"), "sk-plain").unwrap_err();
+    let mut entry = vertex_entry("upstream-seam-no-project");
+    entry.wire = WireProtocol::Gemini;
+    let err = UpstreamTarget::resolve(&entry, "sk-plain").unwrap_err();
     assert!(matches!(err, UpstreamTargetError::Endpoint { .. }));
+}
+
+#[test]
+fn an_api_key_is_refused_for_claude_on_vertex() {
+    let err =
+        UpstreamTarget::resolve(&vertex_entry("upstream-seam-api-key"), "sk-plain").unwrap_err();
+    match err {
+        UpstreamTargetError::ApiKeyOnVertex { provider, secret } => {
+            assert_eq!(provider, "anthropic");
+            assert_eq!(secret, "upstream-seam-api-key");
+        },
+        other => panic!("expected ApiKeyOnVertex, got {other:?}"),
+    }
 }
 
 #[tokio::test]
@@ -145,10 +159,10 @@ async fn the_anthropic_driver_sends_the_catalog_upstream_id() {
     let mut models = mock_http::seed_models("anthropic");
     let requested = models[0].id.as_str().to_owned();
     models[0].upstream_model = Some("claude-upstream-fixture".to_owned());
-    let provider = AnthropicProvider::with_target(UpstreamTarget::api_key(
+    let provider = AnthropicProvider::with_target(mock_http::api_key_target(
         "anthropic",
         WireProtocol::Anthropic,
-        server.uri(),
+        &server.uri(),
         "sk-fixture",
     ))
     .with_models(models);
@@ -177,10 +191,10 @@ async fn an_openai_responses_provider_posts_to_responses() {
     }))
     .await;
 
-    let provider = OpenAiProvider::with_target(UpstreamTarget::api_key(
+    let provider = OpenAiProvider::with_target(mock_http::api_key_target(
         "openai-responses",
         WireProtocol::OpenAiResponses,
-        server.uri(),
+        &server.uri(),
         "k",
     ))
     .with_models(mock_http::seed_models("openai"));

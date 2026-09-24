@@ -12,9 +12,12 @@
 //! flat `models` front door. The flat `models` list is the *whole* advertised
 //! set, not one family's projection: the gateway transcodes every inbound wire
 //! to every provider wire, so every advertised model is reachable from every
-//! host. `providers` carries the per-provider split the bridge uses to build
-//! the narrower per-host views (Claude Desktop being the only host that
-//! narrows).
+//! host, provided it is servable ([`is_model_servable`]): a model whose
+//! serving provider has no credential is left out of `models` and
+//! `model_limits`, though its provider still appears in `providers` flagged
+//! `configured = false`. `providers` carries the per-provider split the bridge
+//! uses to build the narrower per-host views (Claude Desktop being the only
+//! host that narrows).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -23,7 +26,7 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::services::{ApiSurface, ProviderRegistry};
+use crate::services::{ApiSurface, GatewayConfig, ProviderRegistry};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BridgeProfileResponse {
@@ -50,11 +53,15 @@ pub struct AdvertisedLimits {
     pub max_output_tokens: u32,
 }
 
-fn advertised_limits(registry: &ProviderRegistry) -> BTreeMap<String, AdvertisedLimits> {
+fn advertised_limits(
+    registry: &ProviderRegistry,
+    servable: impl Fn(&str) -> bool,
+) -> BTreeMap<String, AdvertisedLimits> {
     registry
         .advertised_providers()
         .flat_map(|entry| entry.models.iter())
         .filter(|model| !model.hidden && model.limits.context_window > 0)
+        .filter(|model| servable(model.id.as_str()))
         .map(|model| {
             (
                 model.id.as_str().to_owned(),
@@ -114,6 +121,36 @@ pub fn provider_health(
         .collect()
 }
 
+pub fn is_model_servable(
+    registry: &ProviderRegistry,
+    gateway: Option<&GatewayConfig>,
+    model: &str,
+    secret_present: &impl Fn(&str) -> bool,
+) -> bool {
+    let configured = |provider: &str| {
+        registry
+            .find_provider(provider)
+            .is_some_and(|entry| secret_present(entry.api_key_secret.as_str()))
+    };
+    if let Some(gw) = gateway {
+        if let Some(route) = gw.find_route(model) {
+            return configured(route.provider.as_str())
+                || route
+                    .fallback_provider
+                    .as_ref()
+                    .is_some_and(|fallback| configured(fallback.as_str()));
+        }
+        if let Some(default) = gw.default_provider.as_ref() {
+            return configured(default.as_str());
+        }
+    }
+    registry
+        .providers
+        .iter()
+        .filter(|entry| entry.find_model(model).is_some())
+        .any(|entry| secret_present(entry.api_key_secret.as_str()))
+}
+
 #[derive(Debug, Clone)]
 pub struct BridgeProfileParams<'a> {
     pub inference_gateway_base_url: String,
@@ -121,6 +158,7 @@ pub struct BridgeProfileParams<'a> {
     pub organization_uuid: Option<String>,
     pub default_model: Option<String>,
     pub registry: &'a ProviderRegistry,
+    pub gateway: Option<&'a GatewayConfig>,
 }
 
 #[must_use]
@@ -134,14 +172,20 @@ pub fn build(
         organization_uuid,
         default_model,
         registry,
+        gateway,
     } = params;
+    let servable = |model: &str| is_model_servable(registry, gateway, model, &secret_present);
     BridgeProfileResponse {
         inference_gateway_base_url,
         auth_scheme,
-        models: registry.advertised_model_ids(&[]),
+        models: registry
+            .advertised_model_ids(&[])
+            .into_iter()
+            .filter(|model| servable(model))
+            .collect(),
         default_model,
         organization_uuid,
-        providers: provider_health(registry, secret_present),
-        model_limits: advertised_limits(registry),
+        model_limits: advertised_limits(registry, servable),
+        providers: provider_health(registry, &secret_present),
     }
 }

@@ -17,6 +17,7 @@ use systemprompt_models::wire::anthropic;
 
 use super::{OutboundAdapter, OutboundCtx, OutboundOutcome, PreparedBody};
 
+pub mod rejected_betas;
 pub mod request;
 pub mod response;
 pub mod streaming;
@@ -57,11 +58,31 @@ impl OutboundAdapter for AnthropicOutbound {
             ctx.request.stream,
         );
 
-        let mut req = super::http_client().post(&url).body(body.bytes.clone());
-        for (name, value) in request_headers(&ctx) {
-            req = req.header(name, value);
-        }
-        let upstream_response = super::send_checked(ctx.route.provider.as_str(), req).await?;
+        let provider = ctx.route.provider.as_str();
+        let headers =
+            rejected_betas::without(request_headers(&ctx), &rejected_betas::learned(provider));
+        let upstream_response = match send_once(provider, &url, &headers, &body.bytes).await {
+            Err(e) => {
+                let refused = refused_betas(&e);
+                if !rejected_betas::carries_any(&headers, &refused) {
+                    return Err(e);
+                }
+                rejected_betas::learn(provider, &refused);
+                tracing::warn!(
+                    provider,
+                    refused = ?refused,
+                    "upstream refused anthropic-beta values; dropped for this provider and re-sent"
+                );
+                send_once(
+                    provider,
+                    &url,
+                    &rejected_betas::without(headers, &refused),
+                    &body.bytes,
+                )
+                .await?
+            },
+            Ok(response) => response,
+        };
 
         let content_type = upstream_response
             .headers()
@@ -109,6 +130,30 @@ impl OutboundAdapter for AnthropicOutbound {
             });
         }
         Ok(OutboundOutcome::Buffered(canonical))
+    }
+}
+
+async fn send_once(
+    provider: &str,
+    url: &str,
+    headers: &[(String, String)],
+    body: &bytes::Bytes,
+) -> Result<reqwest::Response> {
+    let mut req = super::http_client().post(url).body(body.clone());
+    for (name, value) in headers {
+        req = req.header(name, value);
+    }
+    super::send_checked(provider, req).await
+}
+
+fn refused_betas(error: &anyhow::Error) -> std::collections::BTreeSet<String> {
+    match error.downcast_ref::<super::UpstreamError>() {
+        Some(super::UpstreamError::Status {
+            status: 400,
+            message,
+            ..
+        }) => rejected_betas::refused_in(message),
+        _ => std::collections::BTreeSet::new(),
     }
 }
 

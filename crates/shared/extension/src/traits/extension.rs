@@ -118,6 +118,10 @@ pub trait Extension: Send + Sync + 'static {
         Vec::new()
     }
 
+    fn retirements(&self) -> Vec<SchemaDefinition> {
+        Vec::new()
+    }
+
     fn cross_extension_tables(&self) -> Vec<&'static str> {
         Vec::new()
     }

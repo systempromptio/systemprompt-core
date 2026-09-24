@@ -140,6 +140,7 @@ pub(super) fn provider_registry(
             api_key_secret: SecretName::new(API_KEY_SECRET),
             governance: Default::default(),
             extra_headers: HashMap::new(),
+            accepted_betas: None,
             models: vec![ProviderModel {
                 id: ModelId::new(MODEL),
                 aliases: Vec::new(),

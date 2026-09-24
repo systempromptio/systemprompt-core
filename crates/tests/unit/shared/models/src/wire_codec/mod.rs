@@ -12,6 +12,7 @@ use systemprompt_models::wire::canonical::{
 };
 
 mod anthropic;
+mod anthropic_beta;
 mod canonical_usage;
 mod empty_body;
 mod gemini;

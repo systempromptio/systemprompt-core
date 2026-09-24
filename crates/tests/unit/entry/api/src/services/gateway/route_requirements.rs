@@ -44,6 +44,7 @@ fn provider(governance: ModelGovernance, models: Vec<ProviderModel>) -> Provider
         endpoint: "https://acme.invalid".to_owned(),
         api_key_secret: SecretName::new("acme_api_key"),
         extra_headers: Default::default(),
+        accepted_betas: None,
         models,
         governance,
     }

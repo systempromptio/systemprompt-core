@@ -10,6 +10,7 @@ mod migration_cost;
 mod migration_refs;
 mod prepare;
 mod report;
+mod routine_refs;
 mod seeds;
 mod undeclared;
 
@@ -25,6 +26,7 @@ pub use migration_cost::{
 };
 pub use migration_refs::check_migration_references;
 pub use report::{ForeignKeyDrift, SchemaInstallReport};
+pub use routine_refs::check_trigger_routines;
 pub use undeclared::{OrphanMigrationLedger, SchemaResidue, UndeclaredTable, audit_schema_residue};
 
 pub use extension::lock::{BOOTSTRAP_ADVISORY_LOCK_KEY, BootstrapLockGuard};

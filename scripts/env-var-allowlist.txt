@@ -36,6 +36,7 @@ bin/bridge/src/auth/mod.rs  # <PREFIX>_PAT inline PAT presence probe for the cre
 bin/bridge/src/auth/providers/pat.rs  # <PREFIX>_PAT inline PAT
 bin/bridge/src/basedirs.rs  # HOME and XDG_CONFIG_HOME / XDG_CACHE_HOME / XDG_DATA_HOME / XDG_STATE_HOME base-directory probes
 bin/bridge/src/cli/args.rs  # __CFBundleIdentifier LaunchServices app-bundle launch probe (macOS GUI-by-default)
+bin/bridge/src/cli/doctor/claude_code.rs  # CLAUDE_CONFIG_DIR and ANTHROPIC_API_KEY / ANTHROPIC_AUTH_TOKEN presence probes: the doctor reports what the shell's Claude Code will read
 bin/bridge/src/config/mod.rs  # <PREFIX>_CONFIG config-file path
 bin/bridge/src/sysproc.rs  # PATH lookup for host tool binaries
 bin/bridge/src/config/paths/dirs.rs  # LOCALAPPDATA / USERPROFILE Windows folder probes

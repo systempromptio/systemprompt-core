@@ -1,5 +1,6 @@
 //! Static check: a migration may not name a trigger or view only a
-//! declarative schema creates. Pure — no database.
+//! declarative schema creates, and may not toggle any trigger by name. Pure —
+//! no database.
 
 use std::sync::Arc;
 
@@ -83,10 +84,38 @@ fn assert_refusal(err: &LoaderError, kind: &str, object: &str) {
     }
 }
 
+fn assert_toggle_refusal(err: &LoaderError, table: &str, trigger: &str) {
+    match err {
+        LoaderError::MigrationTogglesTriggerByName {
+            extension,
+            migration,
+            table: t,
+            trigger: g,
+        } => {
+            assert_eq!(extension, "refs");
+            assert_eq!(migration, "001_probe");
+            assert_eq!(t, table);
+            assert_eq!(g, trigger);
+        },
+        other => panic!("expected MigrationTogglesTriggerByName, got {other:?}"),
+    }
+}
+
 #[test]
-fn disabling_a_declarative_only_trigger_is_refused() {
+fn disabling_a_trigger_by_name_is_refused() {
     let err = refused("ALTER TABLE refs_t DISABLE TRIGGER refs_trg;");
-    assert_refusal(&err, "trigger", "refs_trg");
+    assert_toggle_refusal(&err, "refs_t", "refs_trg");
+}
+
+#[test]
+fn enabling_a_trigger_by_name_is_refused() {
+    let err = refused("ALTER TABLE refs_t ENABLE TRIGGER refs_trg;");
+    assert_toggle_refusal(&err, "refs_t", "refs_trg");
+}
+
+#[test]
+fn toggling_user_or_all_triggers_is_accepted() {
+    accepted("ALTER TABLE refs_t DISABLE TRIGGER USER;\nALTER TABLE refs_t ENABLE TRIGGER ALL;");
 }
 
 #[test]
@@ -115,7 +144,7 @@ fn a_view_the_same_migration_creates_is_accepted() {
 }
 
 #[test]
-fn a_trigger_some_migration_creates_is_accepted() {
+fn toggling_a_trigger_some_migration_creates_is_still_refused() {
     let creator = ext(
         "creator",
         "CREATE TABLE IF NOT EXISTS other_t (id BIGINT PRIMARY KEY);",
@@ -135,7 +164,9 @@ fn a_trigger_some_migration_creates_is_accepted() {
             "ALTER TABLE refs_t DISABLE TRIGGER refs_trg;",
         )],
     );
-    check_migration_references(&[creator, user]).expect("a migration-created trigger is fair game");
+    let err = check_migration_references(&[creator, user])
+        .expect_err("a migration-created trigger can be retired before this runs too");
+    assert_toggle_refusal(&err, "refs_t", "refs_trg");
 }
 
 #[test]

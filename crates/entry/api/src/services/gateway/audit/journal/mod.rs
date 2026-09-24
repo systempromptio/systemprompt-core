@@ -58,8 +58,8 @@ impl GatewayJournal {
             anyhow::anyhow!("encryption_master_key is not a 32-byte key: {error}")
         })?;
         let root = state_dir.join("gateway-journal");
-        std::fs::create_dir_all(&root)
-            .with_context(|| format!("Cannot create gateway journal at {}", root.display()))?;
+        crate::services::server::state_dirs::create_state_dir(&root)
+            .map_err(|e| anyhow::anyhow!("Cannot create gateway journal at {e}"))?;
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;

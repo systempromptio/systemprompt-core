@@ -10,6 +10,7 @@ use systemprompt_identifiers::ToDbValue;
 use tracing::info;
 
 use super::exec::{TrackingWrite, check_cross_extension_alters, execute_statements_transactional};
+use super::triggers::{self, Target};
 use super::{MigrationService, RECORD_MIGRATION_SQL, budget};
 use crate::services::SqlExecutor;
 
@@ -41,17 +42,36 @@ impl MigrationService<'_> {
             // connection and reset after — `SET LOCAL` would be a silent
             // no-op here, leaving this path the only unbounded one.
             self.apply_timeouts(ext_id, migration).await?;
+            let failed = |message: String| LoaderError::MigrationFailed {
+                extension: ext_id.to_owned(),
+                message,
+            };
+            let suspended = triggers::suspend(&mut Target::Pool(self.db), migration)
+                .await
+                .map_err(failed)?;
+            if !suspended.is_empty() {
+                info!(
+                    extension = %ext_id,
+                    version = migration.version,
+                    name = %migration.name,
+                    triggers = %suspended.describe(),
+                    "Row triggers suspended for migration",
+                );
+            }
             let outcome = SqlExecutor::execute_statements_parsed(self.db, migration.sql)
                 .await
-                .map_err(|e| LoaderError::MigrationFailed {
-                    extension: ext_id.to_owned(),
-                    message: format!(
+                .map_err(|e| {
+                    failed(format!(
                         "Failed to execute migration {} ({}): {e}",
                         migration.version, migration.name
-                    ),
+                    ))
                 });
+            // Why: nothing rolls a no-transaction migration back, so the
+            // restore runs whether it failed or not.
+            let restored = suspended.restore(&mut Target::Pool(self.db)).await;
             self.clear_timeouts(ext_id).await?;
             outcome?;
+            restored.map_err(failed)?;
             self.db
                 .execute(&RECORD_MIGRATION_SQL, &record_params)
                 .await

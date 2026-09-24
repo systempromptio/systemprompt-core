@@ -95,6 +95,8 @@ mod provider_model_lookup;
 mod vertex_rate_card;
 
 #[cfg(test)]
+mod provider_extra_headers;
+#[cfg(test)]
 mod provider_project_placeholder;
 #[cfg(test)]
 mod provider_protocol_filter;

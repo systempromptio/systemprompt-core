@@ -46,6 +46,8 @@ mod opencode_fallback;
 mod opencode_host;
 #[cfg(test)]
 mod opencode_merge;
+#[cfg(all(test, unix))]
+mod opencode_read_only_admin_tier;
 #[cfg(test)]
 mod plugin_oauth;
 #[cfg(test)]

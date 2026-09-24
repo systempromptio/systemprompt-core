@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.61.0] - 2026-09-24
+
+### Added
+
+- A retire phase runs every extension's `retirements()` before any extension migrates.
+
+### Fixed
+
+- Migrations suspend every enabled row trigger on the tables they write and restore exactly those, on both transactional and `@no-transaction` paths; `@cost … triggers=live` opts out.
+- Boot refuses an enabled PL/pgSQL trigger whose routine uses a relation that no longer exists (`DanglingTriggerRoutine`), and a migration that toggles a trigger by bare name (`MigrationTogglesTriggerByName`).
+- Checksum drift surfaces as `LoaderError::MigrationChecksumDrift`.
+- Security migration 020 no longer toggles its triggers by name (`@supersedes-checksum`).
+
 ## [0.60.0] - 2026-09-23
 
 ### Fixed

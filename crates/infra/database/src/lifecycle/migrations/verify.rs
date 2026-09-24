@@ -71,19 +71,12 @@ impl MigrationService<'_> {
             );
             return Ok(());
         }
-        Err(LoaderError::MigrationFailed {
+        Err(LoaderError::MigrationChecksumDrift {
             extension: ext_id.to_owned(),
-            message: format!(
-                "Migration {ver} ('{name}') has been edited since it was applied (stored checksum \
-                 {stored_checksum}, current {current_checksum}). Refusing to proceed. If the \
-                 database schema already matches the edited file, run `systemprompt infra db \
-                 migrate-repair --reconcile-only --apply` to rewrite the stored checksum without \
-                 executing any SQL. To re-execute the edited migration, run `systemprompt infra \
-                 db migrate-repair --apply`. Passing --allow-checksum-drift bypasses the check \
-                 without fixing it.",
-                ver = migration.version,
-                name = migration.name,
-            ),
+            version: migration.version,
+            name: migration.name.clone(),
+            stored_checksum: stored_checksum.to_owned(),
+            current_checksum,
         })
     }
 }

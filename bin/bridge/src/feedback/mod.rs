@@ -32,8 +32,8 @@ pub enum FeedbackError {
     Full,
     #[error("host installation is unavailable for readback")]
     HostUnavailable,
-    #[error("installation readback mismatch or unsafe path")]
-    Readback,
+    #[error("installation readback failed: {0}")]
+    Readback(ReadbackFault),
     #[error("feedback transport is unavailable")]
     Transport,
     #[error("feedback transport failed: {0}")]
@@ -52,6 +52,34 @@ pub enum FeedbackError {
     Rejected(u16),
     #[error("device enrolment failed: {0}")]
     Gateway(#[from] crate::gateway::errors::GatewayError),
+}
+
+/// Which readback check refused an installation. Every variant used to share
+/// one message, which left a failing sync undiagnosable from its bundle.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum ReadbackFault {
+    #[error("skill id is not a safe path segment")]
+    UnsafeSkillId,
+    #[error("installed skill has no SKILL.md")]
+    SkillMissing,
+    #[error("installation plan is malformed")]
+    PlanInvalid,
+    #[error("installation plan does not match the manifest publication")]
+    PlanMismatch,
+    #[error("runtime sidecar is oversized")]
+    SidecarOversized,
+    #[error("path {0} is a link or reparse point")]
+    UnsafePath(String),
+    #[error("{0} differs from the plan")]
+    ContentMismatch(String),
+    #[error("{0} has the wrong file mode")]
+    ModeMismatch(String),
+    #[error("canonical file {0} was not read back")]
+    CanonicalMissing(String),
+    #[error("no installed root to read back")]
+    NoRoots,
+    #[error("receipt differs from evidence the gateway already acknowledged")]
+    AcknowledgedConflict,
 }
 
 #[derive(Debug, thiserror::Error)]

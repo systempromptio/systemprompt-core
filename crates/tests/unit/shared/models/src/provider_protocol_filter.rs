@@ -46,6 +46,7 @@ fn provider(
         api_key_secret: SecretName::new(name),
         governance: Default::default(),
         extra_headers: Default::default(),
+        accepted_betas: None,
         models,
     }
 }
@@ -243,6 +244,7 @@ fn bridge_profile_build_excludes_backend_provider() {
             organization_uuid: None,
             default_model: None,
             registry: &registry,
+            gateway: None,
         },
         |_| true,
     );

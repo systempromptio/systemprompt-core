@@ -3,13 +3,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::fs;
-use std::io::{self, Write};
-use std::path::{Path, PathBuf};
+use std::{fs, io};
 
 use serde_json::json;
-use zip::ZipWriter;
-use zip::write::SimpleFileOptions;
 
 use std::sync::Arc;
 
@@ -57,7 +53,7 @@ pub(crate) fn on_open_log_directory(app: &GuiApp, reply_to: ReplyId) {
 
 #[tracing::instrument(level = "info", skip(app))]
 pub(crate) fn on_export_diagnostic_bundle(app: &GuiApp, reply_to: ReplyId) {
-    let result = build_bundle(&app.ctx).map_err(|e| {
+    let result = super::diagnostics_bundle::build_bundle(&app.ctx).map_err(|e| {
         let msg = format!("export diagnostic bundle failed: {e}");
         app.append_log_error(&msg);
         BridgeError::new(ErrorScope::Internal, ErrorCode::Internal, msg)
@@ -160,99 +156,6 @@ fn repair_config_dir() -> io::Result<String> {
         io::ErrorKind::Unsupported,
         "the configuration directory carries no Windows access control list to repair",
     ))
-}
-
-fn build_bundle(ctx: &crate::context::BridgeContext) -> io::Result<PathBuf> {
-    let log_dir = crate::obs::log_dir()
-        .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "log dir unavailable"))?;
-    let dest_dir = crate::basedirs::desktop_dir()
-        .or_else(crate::basedirs::home_dir)
-        .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "no home dir"))?;
-    let ts = chrono::Utc::now().format("%Y%m%dT%H%M%SZ");
-    let zip_path = dest_dir.join(format!(
-        "{}-diagnostics-{ts}.zip",
-        crate::brand::brand().binary_name
-    ));
-
-    let file = fs::File::create(&zip_path)?;
-    let mut zip = ZipWriter::new(file);
-    let opts: SimpleFileOptions =
-        SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
-
-    if let Ok(entries) = fs::read_dir(&log_dir) {
-        for entry in entries.flatten() {
-            let path = entry.path();
-            let Some(name) = path.file_name().and_then(|s| s.to_str()) else {
-                continue;
-            };
-            let include = name.starts_with("bridge.")
-                || name.starts_with("bridge-crash-")
-                || name == "activity.jsonl"
-                || name == "activity.jsonl.1";
-            if !include {
-                continue;
-            }
-            if path.is_file() {
-                add_file(&mut zip, &path, name, opts)?;
-            }
-        }
-    }
-
-    zip.start_file("diagnostics.txt", opts)?;
-    zip.write_all(crate::buildinfo::render().as_bytes())?;
-
-    zip.start_file("state.txt", opts)?;
-    zip.write_all(crate::diagnostics_state::render(ctx).as_bytes())?;
-
-    zip.start_file("registry.txt", opts)?;
-    zip.write_all(crate::diagnostics_state::registry::render().as_bytes())?;
-
-    for (name, path) in state_files() {
-        if let Ok(bytes) = fs::read(&path) {
-            zip.start_file(name, opts)?;
-            zip.write_all(&bytes)?;
-        }
-    }
-
-    if let Some(yaml) = crate::config::redaction::redacted_config() {
-        zip.start_file("config.redacted.toml", opts)?;
-        zip.write_all(yaml.as_bytes())?;
-    }
-
-    zip.finish()?;
-    Ok(zip_path)
-}
-
-// Why: these hold no secret, and a bundle that carries them verbatim lets the
-// port record, install identity and sync checkpoint be compared across
-// bundles without asking the user for another export.
-fn state_files() -> Vec<(&'static str, PathBuf)> {
-    let mut files = Vec::new();
-    if let Some(path) = crate::proxy::portfile::portfile_path() {
-        files.push(("bridge-proxy.json", path));
-    }
-    if let Some(path) = crate::proxy::identity::install_id_path() {
-        files.push(("bridge-install.id", path));
-    }
-    if let Some(meta) = crate::config::paths::bridge_metadata_dir() {
-        files.push((
-            "last-sync.json",
-            meta.join(crate::config::paths::LAST_SYNC_SENTINEL),
-        ));
-    }
-    files
-}
-
-fn add_file(
-    zip: &mut ZipWriter<fs::File>,
-    path: &Path,
-    name: &str,
-    opts: SimpleFileOptions,
-) -> io::Result<()> {
-    zip.start_file(name, opts)?;
-    let buf = fs::read(path)?;
-    zip.write_all(&buf)?;
-    Ok(())
 }
 
 fn finish(app: &GuiApp, result: Result<serde_json::Value, BridgeError>, reply_to: ReplyId) {
