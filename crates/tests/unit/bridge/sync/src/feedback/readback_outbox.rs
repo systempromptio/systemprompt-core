@@ -57,7 +57,7 @@ fn executable_tamper_symlink_and_partial_files_never_pass() {
 }
 
 #[test]
-fn pending_outbox_survives_restart_and_only_identical_retries_acknowledge() {
+fn pending_outbox_survives_restart_and_fresh_readback_replaces_unacknowledged() {
     let (dir, receipt) = prepared(EvaluatorClient::Codex);
     let path = dir.path().join("outbox.json");
     let outbox = Outbox::new(path.clone(), scope("device"));
@@ -70,12 +70,13 @@ fn pending_outbox_survives_restart_and_only_identical_retries_acknowledge() {
     let mut retry = receipt.clone();
     retry.observed_at = Utc::now();
     assert_eq!(recovered.enqueue(retry).unwrap(), key);
-    let mut conflict = receipt;
-    conflict.runtime_files[0].digest = ContentDigest::of(b"different");
-    assert!(matches!(
-        recovered.enqueue(conflict),
-        Err(FeedbackError::Readback)
-    ));
+    let mut fresh = receipt.clone();
+    fresh.runtime_files[0].digest = ContentDigest::of(b"different");
+    assert_eq!(recovered.enqueue(fresh.clone()).unwrap(), key);
+    assert_eq!(
+        recovered.entries().unwrap()[0].1.request.runtime_files[0].digest,
+        fresh.runtime_files[0].digest
+    );
     recovered
         .delivery(
             &key,
@@ -91,6 +92,26 @@ fn pending_outbox_survives_restart_and_only_identical_retries_acknowledge() {
         recovered.entries().unwrap()[0].1.delivery,
         Delivery::Acknowledged(_)
     ));
+    assert!(matches!(
+        recovered.enqueue(receipt),
+        Err(FeedbackError::Readback(
+            ReadbackFault::AcknowledgedConflict
+        ))
+    ));
+}
+
+#[test]
+fn conflicted_receipt_is_replaced_by_a_fresh_readback() {
+    let (dir, receipt) = prepared(EvaluatorClient::Codex);
+    let outbox = Outbox::new(dir.path().join("outbox.json"), scope("device"));
+    let key = outbox.enqueue(receipt.clone()).unwrap();
+    outbox.delivery(&key, Err(409)).unwrap();
+    let mut fresh = receipt;
+    fresh.runtime_files[0].digest = ContentDigest::of(b"reinstalled");
+    assert_eq!(outbox.enqueue(fresh).unwrap(), key);
+    let entry = &outbox.entries().unwrap()[0].1;
+    assert!(matches!(entry.delivery, Delivery::Unacknowledged));
+    assert_eq!(entry.attempts, 0);
 }
 
 #[test]

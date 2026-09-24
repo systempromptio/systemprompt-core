@@ -130,11 +130,26 @@ impl Outbox {
         request.runtime_files.sort_by(|a, b| a.path.cmp(&b.path));
         let key = key(&request)?;
         self.mutate(|state| {
-            if let Some(existing) = state.entries.get(&key) {
+            if let Some(existing) = state.entries.get_mut(&key) {
+                let observed_at = request.observed_at;
                 request.observed_at = existing.request.observed_at;
-                if existing.request != request {
-                    return Err(FeedbackError::Readback);
+                if existing.request == request {
+                    return Ok(key);
                 }
+                // Why: only acknowledged evidence is immutable. An entry the
+                // gateway never accepted (pending, conflicted, rejected) is a
+                // stale observation, and pinning it made every later readback
+                // of the same publication fail on every sync, forever.
+                if matches!(existing.delivery, Delivery::Acknowledged(_)) {
+                    return Err(FeedbackError::Readback(
+                        super::ReadbackFault::AcknowledgedConflict,
+                    ));
+                }
+                request.observed_at = observed_at;
+                existing.request = request;
+                existing.delivery = Delivery::Unacknowledged;
+                existing.attempts = 0;
+                existing.next_attempt = Utc::now();
                 return Ok(key);
             }
             if state.entries.len() >= MAX_ENTRIES {

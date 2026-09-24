@@ -59,7 +59,7 @@ pub(super) async fn capture(
                 );
                 if matches!(
                     error,
-                    crate::feedback::FeedbackError::Readback
+                    crate::feedback::FeedbackError::Readback(_)
                         | crate::feedback::FeedbackError::Contract(_)
                 ) {
                     report.host_failures.push(HostFailure {

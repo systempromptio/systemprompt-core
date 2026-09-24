@@ -214,6 +214,10 @@ fn build_bundle(ctx: &crate::context::BridgeContext) -> io::Result<PathBuf> {
         }
     }
 
+    for (index, path) in feedback_outboxes().iter().enumerate() {
+        add_file(&mut zip, path, &format!("feedback-outbox-{index}.json"), opts)?;
+    }
+
     if let Some(yaml) = crate::config::redaction::redacted_config() {
         zip.start_file("config.redacted.toml", opts)?;
         zip.write_all(yaml.as_bytes())?;
@@ -241,6 +245,28 @@ fn state_files() -> Vec<(&'static str, PathBuf)> {
         ));
     }
     files
+}
+
+// Why: an evidence failure is decided by what the outbox already holds, so a
+// bundle without it cannot explain one. `device.json` is the credential and
+// stays out; outboxes carry digests and paths, never file bytes or tokens.
+fn feedback_outboxes() -> Vec<PathBuf> {
+    let Ok(root) = crate::feedback::metadata_root() else {
+        return Vec::new();
+    };
+    let Ok(dir) = fs::read_dir(root) else {
+        return Vec::new();
+    };
+    let mut paths: Vec<PathBuf> = dir
+        .filter_map(|entry| entry.ok().map(|entry| entry.path()))
+        .filter(|path| {
+            path.is_file()
+                && path.extension().is_some_and(|ext| ext == "json")
+                && path.file_name().is_some_and(|name| name != "device.json")
+        })
+        .collect();
+    paths.sort();
+    paths
 }
 
 fn add_file(

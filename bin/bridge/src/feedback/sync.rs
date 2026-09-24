@@ -5,7 +5,7 @@
 
 use super::credentials::Enrollment;
 use super::outbox::{Delivery, Outbox};
-use super::{FeedbackError, Result};
+use super::{FeedbackError, ReadbackFault, Result};
 use systemprompt_identifiers::NativeSessionId;
 use systemprompt_models::feedback::receipts::SessionBindingRequest;
 
@@ -103,7 +103,7 @@ async fn recover_installation(
             enrollment.installation_id.clone(),
         )?);
     }
-    outbox.enqueue(receipt.ok_or(FeedbackError::Readback)?)?;
+    outbox.enqueue(receipt.ok_or(FeedbackError::Readback(ReadbackFault::NoRoots))?)?;
     Ok(())
 }
 
@@ -154,6 +154,13 @@ pub async fn recover_pending(
                 progress.recovered += 1;
             },
             Ok(Err(error)) => {
+                tracing::warn!(
+                    target: "bridge::feedback",
+                    host = ?host,
+                    resource_id = %pending.publication.resource_id,
+                    error = %error,
+                    "installation evidence not recovered"
+                );
                 progress.remaining += 1;
                 failure = Some(error);
             },

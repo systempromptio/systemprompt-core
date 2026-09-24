@@ -142,7 +142,7 @@ async fn plan_for_different_host_is_rejected_even_when_publication_and_digest_ma
             EvaluatorClient::Codex
         )
         .await,
-        Err(FeedbackError::Readback)
+        Err(FeedbackError::Readback(ReadbackFault::PlanMismatch))
     ));
     server.join().unwrap();
 }

@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use super::super::ReadbackFault;
 use super::{FeedbackError, MAX_ENTRIES, Outbox, Result};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -36,7 +37,7 @@ impl PendingInstallation {
 impl Outbox {
     pub fn reserve_installation(&self, pending: PendingInstallation) -> Result<String> {
         if pending.roots.is_empty() || pending.roots.len() > 256 {
-            return Err(FeedbackError::Readback);
+            return Err(FeedbackError::Readback(ReadbackFault::NoRoots));
         }
         let key = crate::hash::sha256_hex(&serde_json::to_vec(&(
             &pending.publication.resource_id,

@@ -3,7 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::{FeedbackError, Result};
+use super::{FeedbackError, ReadbackFault, Result};
 use chrono::Utc;
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
@@ -16,12 +16,12 @@ use systemprompt_models::feedback::{ContentDigest, validate_relative_path};
 pub fn materialize(root: &Path, plan: &ConsumerInstallationPlan) -> Result<()> {
     validate_plan(plan)?;
     if !root.join("SKILL.md").is_file() {
-        return Err(FeedbackError::Readback);
+        return Err(FeedbackError::Readback(ReadbackFault::SkillMissing));
     }
     let sidecar = root.join(".systemprompt-runtime.json");
     let previous: Vec<String> = if sidecar.exists() {
         if std::fs::metadata(&sidecar)?.len() > 1024 * 1024 {
-            return Err(FeedbackError::Readback);
+            return Err(FeedbackError::Readback(ReadbackFault::SidecarOversized));
         }
         serde_json::from_slice(&std::fs::read(&sidecar)?)?
     } else {
@@ -67,15 +67,17 @@ pub fn verify(
     for expected in &plan.runtime_files {
         let path = safe_target(root, &expected.path)?;
         let metadata = std::fs::symlink_metadata(&path)?;
-        if !metadata.is_file() || metadata.len() != expected.bytes.len() as u64 {
-            return Err(FeedbackError::Readback);
+        if !metadata.is_file()
+            || metadata.len() != expected.bytes.len() as u64
+            || std::fs::read(&path)? != expected.bytes
+        {
+            return Err(FeedbackError::Readback(ReadbackFault::ContentMismatch(
+                expected.path.clone(),
+            )));
         }
-        let bytes = std::fs::read(&path)?;
-        if bytes != expected.bytes {
-            return Err(FeedbackError::Readback);
-        }
+        let bytes = expected.bytes.clone();
         #[cfg(unix)]
-        let mode_check = verify_mode(&metadata, expected.executable)?;
+        let mode_check = verify_mode(&metadata, expected.executable, &expected.path)?;
         // Why: no mode bits to read here; a plain file has nothing to verify
         // and an executable cannot be confirmed.
         #[cfg(not(unix))]
@@ -102,12 +104,14 @@ pub fn verify(
         let actual = runtime_files
             .iter()
             .find(|file| file.path == path)
-            .ok_or(FeedbackError::Readback)?;
+            .ok_or_else(|| {
+                FeedbackError::Readback(ReadbackFault::CanonicalMissing(path.clone()))
+            })?;
         if actual.digest != canonical.digest
             || actual.bytes != canonical.bytes
             || actual.executable != canonical.executable
         {
-            return Err(FeedbackError::Readback);
+            return Err(FeedbackError::Readback(ReadbackFault::ContentMismatch(path)));
         }
         canonical.content_check = actual.content_check;
         canonical.mode_check = actual.mode_check;
@@ -131,7 +135,7 @@ fn validate_plan(plan: &ConsumerInstallationPlan) -> Result<()> {
         || plan.runtime_files.len() > 8192
         || plan.canonical_files.len() > 4096
     {
-        return Err(FeedbackError::Readback);
+        return Err(FeedbackError::Readback(ReadbackFault::PlanInvalid));
     }
     let mut seen = BTreeSet::new();
     let mut bytes = 0usize;
@@ -139,11 +143,11 @@ fn validate_plan(plan: &ConsumerInstallationPlan) -> Result<()> {
         validate_relative_path(&file.path)?;
         bytes = bytes.saturating_add(file.bytes.len());
         if !seen.insert(&file.path) || bytes > 24 * 1024 * 1024 {
-            return Err(FeedbackError::Readback);
+            return Err(FeedbackError::Readback(ReadbackFault::PlanInvalid));
         }
     }
     if !seen.contains(&"SKILL.md".to_owned()) {
-        return Err(FeedbackError::Readback);
+        return Err(FeedbackError::Readback(ReadbackFault::PlanInvalid));
     }
     Ok(())
 }
@@ -163,13 +167,13 @@ fn reject_link(path: &Path) -> Result<()> {
     match std::fs::symlink_metadata(path) {
         Ok(metadata) => {
             if metadata.is_symlink() {
-                return Err(FeedbackError::Readback);
+                return Err(unsafe_path(path));
             }
             #[cfg(windows)]
             {
                 use std::os::windows::fs::MetadataExt;
                 if metadata.file_attributes() & 0x400 != 0 {
-                    return Err(FeedbackError::Readback);
+                    return Err(unsafe_path(path));
                 }
             }
             Ok(())
@@ -179,11 +183,19 @@ fn reject_link(path: &Path) -> Result<()> {
     }
 }
 
+fn unsafe_path(path: &Path) -> FeedbackError {
+    FeedbackError::Readback(ReadbackFault::UnsafePath(path.display().to_string()))
+}
+
 #[cfg(unix)]
-fn verify_mode(metadata: &std::fs::Metadata, expected: bool) -> Result<ReadbackStatus> {
+fn verify_mode(
+    metadata: &std::fs::Metadata,
+    expected: bool,
+    path: &str,
+) -> Result<ReadbackStatus> {
     use std::os::unix::fs::PermissionsExt;
     if (metadata.permissions().mode() & 0o7777) != if expected { 0o755 } else { 0o644 } {
-        return Err(FeedbackError::Readback);
+        return Err(FeedbackError::Readback(ReadbackFault::ModeMismatch(path.to_owned())));
     }
     Ok(ReadbackStatus::Verified)
 }

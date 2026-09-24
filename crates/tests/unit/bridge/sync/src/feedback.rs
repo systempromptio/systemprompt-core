@@ -2,7 +2,7 @@ use chrono::Utc;
 use systemprompt_bridge::feedback::credentials::{Enrollment, GatewayOrigin};
 use systemprompt_bridge::feedback::outbox::{Delivery, Outbox, OutboxScope};
 use systemprompt_bridge::feedback::sessions::native_session;
-use systemprompt_bridge::feedback::{FeedbackError, readback};
+use systemprompt_bridge::feedback::{FeedbackError, ReadbackFault, readback};
 use systemprompt_identifiers::{
     ConsumerInstallationId, DeviceId, InstallationReceiptId, ManagedResourceId, PublicationId,
     ResourceRevisionId, UserId,
