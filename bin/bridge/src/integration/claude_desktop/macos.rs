@@ -186,7 +186,7 @@ fn render_profile(
     let models = if inputs.models.is_empty() {
         super::shared::default_models()
     } else {
-        inputs.models.clone()
+        super::reg_profile::with_context_variants(&inputs.models, &inputs.model_limits)
     };
     let models_json = serde_json::to_string(&models)
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;

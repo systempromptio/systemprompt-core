@@ -9,6 +9,7 @@
 
 ### Added
 
+- **Bridge:** Claude Desktop's `inferenceModels` lists `<id>[1m]` after every Claude model the gateway serves at a 1M context window. Desktop sizes a gateway model from its id and budgets 200k without the suffix, while a Cowork session's first turn is already ~198k tokens; with it, the picker offers "1M context window" and the gateway strips the suffix before routing.
 - **Bridge:** `doctor` reports an OpenCode admin-tier file whose `provider.systemprompt.models` differs from the gateway's current catalogue, naming the models no longer served and the ones not listed.
 
 ## [0.60.0] - 2026-09-23

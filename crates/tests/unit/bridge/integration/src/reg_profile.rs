@@ -3,7 +3,10 @@ use systemprompt_bridge::install::mdm::policy::{
     McpServerEntry, PolicyInputs, claude_desktop_policy, reg_values,
 };
 use systemprompt_bridge::install::reg_values::{parse_reg_entries, render_reg_values};
-use systemprompt_bridge::integration::claude_desktop::reg_profile::{profile_entries, render_reg};
+use systemprompt_bridge::integration::claude_desktop::reg_profile::{
+    profile_entries, render_reg, with_context_variants,
+};
+use systemprompt_models::bridge::profile::AdvertisedLimits;
 use systemprompt_bridge::integration::host_app::ProfileGenInputs;
 
 const ORG_UUID: &str = "6f1d2c3a-4b5e-4f60-8a71-9b0c1d2e3f40";
@@ -285,4 +288,56 @@ fn parser_rejects_a_malformed_value_line_and_names_it() {
     .expect_err("a malformed line is an error");
     assert_eq!(err.line, 4);
     assert_eq!(err.text, "garbage line");
+}
+
+fn limit(context_window: u32) -> AdvertisedLimits {
+    AdvertisedLimits {
+        context_window,
+        max_output_tokens: 64_000,
+    }
+}
+
+#[test]
+fn million_context_models_gain_a_1m_variant_after_the_bare_id() {
+    let models = vec!["claude-sonnet-5".to_string(), "claude-haiku-4-5".to_string()];
+    let limits = [
+        ("claude-sonnet-5".to_string(), limit(1_000_000)),
+        ("claude-haiku-4-5".to_string(), limit(200_000)),
+    ]
+    .into_iter()
+    .collect();
+    assert_eq!(
+        with_context_variants(&models, &limits),
+        vec!["claude-sonnet-5", "claude-sonnet-5[1m]", "claude-haiku-4-5"],
+    );
+}
+
+#[test]
+fn an_existing_1m_variant_is_not_doubled() {
+    let models = vec!["claude-sonnet-5".to_string(), "claude-sonnet-5[1m]".to_string()];
+    let limits = [("claude-sonnet-5".to_string(), limit(1_000_000))]
+        .into_iter()
+        .collect();
+    assert_eq!(
+        with_context_variants(&models, &limits),
+        vec!["claude-sonnet-5", "claude-sonnet-5[1m]"],
+    );
+}
+
+#[test]
+fn the_registry_profile_lists_the_1m_variant() {
+    let mut probe = inputs();
+    probe.models = vec!["claude-opus-5-5".to_string()];
+    probe.model_limits = [("claude-opus-5-5".to_string(), limit(1_000_000))]
+        .into_iter()
+        .collect();
+    let owned: Vec<(String, String)> = profile_entries(&probe)
+        .expect("profile renders")
+        .into_iter()
+        .map(|(k, v)| (k.to_string(), v))
+        .collect();
+    assert_eq!(
+        value_of(&owned, "inferenceModels"),
+        "[\"claude-opus-5-5\",\"claude-opus-5-5[1m]\"]"
+    );
 }
