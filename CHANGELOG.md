@@ -10,6 +10,7 @@
 
 ### Fixed
 
+- **Gateway:** an `anthropic-beta` value an upstream refuses no longer fails the request. A 400 "Unexpected value(s) `…` for the `anthropic-beta` header" drops the named values, re-sends once, and the provider remembers them for the rest of the process, so a client beta that ships ahead of an upstream (Claude Code's `advisor-tool-2026-03-01` on first-party Anthropic after a Vertex failover) costs one extra round trip instead of every request.
 - **Gateway:** a model the deployment cannot serve — its provider's secret is missing or unusable, or it has no configured pricing — answers 404 `not_found_error` on every inbound wire instead of 502 `api_error`, so SDK clients stop retrying it; the rejection is still audited.
 - **Gateway / Bridge:** `/v1/models` and the bridge profile's `models` and `model_limits` omit a model whose serving provider (its gateway route's provider or fallback, else the default provider, else the declaring provider) has no credential; `providers` still lists that provider with `configured: false`.
 - **Scheduler:** a job absent from this build is forgotten only after seven days without an update, so mixed versions during a canary or rollback keep each other's rows.
