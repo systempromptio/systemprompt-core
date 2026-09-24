@@ -106,9 +106,9 @@ async fn run_install(
                 }
                 install_extension_schemas_full(registry, write_provider, &[], migration_config)
                     .await
-                    .map_err(failure)?
+                    .map_err(|e| failure(&e))?
             },
-            Err(e) => return Err(failure(e)),
+            Err(e) => return Err(failure(&e)),
         };
     if !report.is_clean() {
         let drift: Vec<String> = report
@@ -153,9 +153,9 @@ async fn run_install(
 // Why: the error alone says which statement failed; the hint says what kind
 // of failure it is and what fixes it, so an operator does not reach for
 // checksum repair (the old entrypoint retry) on a failure it cannot fix.
-fn failure(error: LoaderError) -> anyhow::Error {
+fn failure(error: &LoaderError) -> anyhow::Error {
     let text = error.to_string();
-    let hint = match &error {
+    let hint = match error {
         LoaderError::MigrationChecksumDrift { .. } => Some(
             "checksum drift: `infra db migrate --repair-drift` re-applies the edited migrations",
         ),
@@ -175,10 +175,10 @@ fn failure(error: LoaderError) -> anyhow::Error {
         ),
         _ => None,
     };
-    match hint {
-        Some(hint) => anyhow!("Schema installation failed: {text}\nHint: {hint}"),
-        None => anyhow!("Schema installation failed: {text}"),
-    }
+    hint.map_or_else(
+        || anyhow!("Schema installation failed: {text}"),
+        |hint| anyhow!("Schema installation failed: {text}\nHint: {hint}"),
+    )
 }
 
 pub(super) fn select_extensions(

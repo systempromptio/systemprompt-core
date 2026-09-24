@@ -243,7 +243,7 @@ fn trigger_schema(table: &str, function: &str, trigger: &str) -> String {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn migration_naming_a_declarative_only_trigger_is_refused_before_any_statement_runs() {
+async fn migration_toggling_a_declarative_trigger_by_name_is_refused_before_any_statement_runs() {
     let fx = connect().await;
     let s = &fx.suffix;
     let table: &'static str = leak_str(format!("refs_refused_{s}"));
@@ -274,19 +274,18 @@ async fn migration_naming_a_declarative_only_trigger_is_refused_before_any_state
         .expect_err("a bare reference to a declarative-only trigger must be refused");
 
     match &err {
-        LoaderError::MigrationReferencesDeclarativeObject {
+        LoaderError::MigrationTogglesTriggerByName {
             extension,
             migration,
-            kind,
-            object,
-            ..
+            table: toggled,
+            trigger: named,
         } => {
             assert_eq!(extension, ext_id);
             assert_eq!(migration, "001_canary");
-            assert_eq!(kind, "trigger");
-            assert_eq!(object, trigger);
+            assert_eq!(toggled, table);
+            assert_eq!(named, trigger);
         },
-        other => panic!("expected MigrationReferencesDeclarativeObject, got {other:?}"),
+        other => panic!("expected MigrationTogglesTriggerByName, got {other:?}"),
     }
     assert!(
         !table_exists(&fx.pool, table).await,
