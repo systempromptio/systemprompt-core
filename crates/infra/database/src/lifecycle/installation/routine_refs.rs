@@ -66,9 +66,6 @@ fn collect_queries(value: &serde_json::Value, out: &mut Vec<String>) {
     }
 }
 
-/// The relations a PL/pgSQL function definition reads or writes, minus the
-/// ones it creates itself. `None` when the body cannot be parsed, which is
-/// reported and skipped rather than guessed at.
 fn referenced_relations(definition: &str) -> Option<BTreeSet<String>> {
     let parsed = pg_query::parse_plpgsql(definition).ok()?;
     let mut queries = Vec::new();

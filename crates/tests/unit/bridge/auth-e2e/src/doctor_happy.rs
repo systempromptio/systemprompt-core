@@ -78,6 +78,20 @@ fn write_config(root: &Path, gateway: &str, pat_file: &Path) {
     fs::write(dir.join("bridge-loopback.key"), "loopback-secret-value").unwrap();
 }
 
+fn write_claude_code_settings(root: &Path, origin: &str) {
+    let dir = root.join(".claude");
+    fs::create_dir_all(&dir).unwrap();
+    fs::write(
+        dir.join("settings.json"),
+        serde_json::to_vec(&serde_json::json!({
+            "env": { "ANTHROPIC_BASE_URL": origin },
+            "apiKeyHelper": "systemprompt-bridge credential-helper"
+        }))
+        .unwrap(),
+    )
+    .unwrap();
+}
+
 fn write_cowork_state(root: &Path) {
     let org = root
         .join(".config")
@@ -182,7 +196,9 @@ fn fully_provisioned_sandbox_yields_no_failing_checks() {
         })
         .unwrap();
 
-        let (checks, _) = block_on(doctor::run_checks(&bridge()));
+        let bridge = bridge();
+        write_claude_code_settings(&root, &bridge.proxy.loopback().origin());
+        let (checks, _) = block_on(doctor::run_checks(&bridge));
 
         for check in &checks {
             // Why: the proxy checks describe the developer's machine, not this

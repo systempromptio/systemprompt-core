@@ -7,6 +7,7 @@ pub mod agents;
 pub mod auth;
 pub mod cancel;
 pub mod diagnostics;
+mod diagnostics_bundle;
 pub mod gateway_probe;
 pub mod mcp_auth_probe;
 pub mod profile;

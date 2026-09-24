@@ -121,6 +121,25 @@ pub async fn install_extension_schemas_full(
     Ok(report)
 }
 
+async fn fresh_extension_ids(
+    migration_service: &MigrationService<'_>,
+    schema_extensions: &[std::sync::Arc<dyn Extension>],
+    prepared: &[PreparedSchema],
+) -> Result<std::collections::HashSet<String>, LoaderError> {
+    let mut fresh = std::collections::HashSet::new();
+    for (ext, p) in schema_extensions.iter().zip(prepared) {
+        if ext.has_migrations()
+            && migration_service
+                .assess_freshness(&p.extension_id, &p.owned_tables)
+                .await?
+                .is_fresh()
+        {
+            fresh.insert(p.extension_id.clone());
+        }
+    }
+    Ok(fresh)
+}
+
 async fn run_install(
     db: &dyn DatabaseProvider,
     schema_extensions: &[std::sync::Arc<dyn Extension>],
@@ -140,17 +159,8 @@ async fn run_install(
 
     apply_retirements(db, schema_extensions).await?;
 
-    let mut fresh_extensions: std::collections::HashSet<String> = std::collections::HashSet::new();
-    for (ext, p) in schema_extensions.iter().zip(&prepared) {
-        if ext.has_migrations()
-            && migration_service
-                .assess_freshness(&p.extension_id, &p.owned_tables)
-                .await?
-                .is_fresh()
-        {
-            fresh_extensions.insert(p.extension_id.clone());
-        }
-    }
+    let fresh_extensions =
+        fresh_extension_ids(&migration_service, schema_extensions, &prepared).await?;
 
     for (ext, p) in schema_extensions.iter().zip(&prepared) {
         let stamp = if fresh_extensions.contains(&p.extension_id) {

@@ -42,8 +42,6 @@ use crate::integration::host_app::{
 };
 use crate::integration::reapply::Attendance;
 
-/// The admin-tier `opencode.json` path and the model ids it declares for the
-/// bridge's provider, when that block exists.
 #[must_use]
 pub fn admin_tier_models() -> Option<(std::path::PathBuf, Vec<String>)> {
     install::admin_tier_models()

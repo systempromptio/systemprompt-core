@@ -11,11 +11,18 @@ use tower::ServiceExt;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
+enum Outcome {
+    Success,
+    UpstreamFailure,
+    Unservable,
+}
+
 async fn dispatch(
     secret: String,
     token_server: &MockServer,
-    expected_success: bool,
+    outcome: Outcome,
 ) -> anyhow::Result<()> {
+    let expected_success = matches!(outcome, Outcome::Success);
     // SAFETY: nextest starts each test in its own process; initialize the
     // secret before constructing the one-shot bootstrap.
     unsafe {
@@ -74,7 +81,15 @@ gateway:
             assert_eq!(status, http::StatusCode::OK, "{body}");
             assert!(body.contains("credential exchange worked"), "{body}");
         } else {
-            assert!(status.is_server_error(), "{status}: {body}");
+            if matches!(outcome, Outcome::Unservable) {
+                assert_eq!(status, http::StatusCode::NOT_FOUND, "{body}");
+                assert!(
+                    body.contains("declares a Google service account but is malformed"),
+                    "{body}"
+                );
+            } else {
+                assert!(status.is_server_error(), "{status}: {body}");
+            }
             assert!(
                 !body.contains("PRIVATE KEY"),
                 "private key must not enter the error body"
@@ -110,7 +125,7 @@ async fn coverage_google_gateway_mints_once_and_forwards_bearer_authentication()
         .expect(1)
         .mount(&server)
         .await;
-    dispatch(account(&server).to_string(), &server, true).await
+    dispatch(account(&server).to_string(), &server, Outcome::Success).await
 }
 
 #[tokio::test]
@@ -123,7 +138,12 @@ async fn coverage_google_gateway_stops_before_inference_when_exchange_fails() ->
         .expect(1)
         .mount(&server)
         .await;
-    dispatch(account(&server).to_string(), &server, false).await
+    dispatch(
+        account(&server).to_string(),
+        &server,
+        Outcome::UpstreamFailure,
+    )
+    .await
 }
 
 #[tokio::test]
@@ -133,7 +153,7 @@ async fn coverage_google_gateway_rejects_malformed_declared_service_accounts() -
     dispatch(
         json!({"type":"service_account","client_email":"no-key@example.invalid"}).to_string(),
         &server,
-        false,
+        Outcome::Unservable,
     )
     .await?;
     assert!(server.received_requests().await.unwrap().is_empty());

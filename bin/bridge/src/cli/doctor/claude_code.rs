@@ -31,14 +31,11 @@ pub fn check_settings(origin: &str) -> Vec<Check> {
     }
     let config_dir = std::env::var_os(CONFIG_DIR_VAR).map(PathBuf::from);
     checks.push(check_effective_routing(&read_paths(config_dir.as_deref())));
-    checks.extend(check_config_dir_override(config_dir.as_deref()));
+    checks.extend(config_dir.as_deref().map(check_config_dir_override));
     checks.extend(check_env_credentials(|key| std::env::var_os(key).is_some()));
     checks
 }
 
-/// The settings files Claude Code itself reads for routing, highest
-/// precedence first: the machine policy file, then the user settings under
-/// `CLAUDE_CONFIG_DIR` when set, else under `~/.claude`.
 pub fn read_paths(config_dir: Option<&Path>) -> Vec<PathBuf> {
     let policy = crate::config::paths::claude_code_policy_dir().join("managed-settings.json");
     let user = config_dir.map_or_else(crate::config::paths::claude_cli_settings_path, |dir| {
@@ -87,17 +84,15 @@ pub fn check_effective_routing(paths: &[PathBuf]) -> Check {
     )
 }
 
-pub fn check_config_dir_override(config_dir: Option<&Path>) -> Option<Check> {
-    config_dir.map(|dir| {
-        Check::warn(
-            "claude code config dir",
-            format!(
-                "{CONFIG_DIR_VAR}={} moves Claude Code's user settings; enrolment writes \
-                 ~/.claude/settings.json, which this shell's Claude Code does not read",
-                dir.display()
-            ),
-        )
-    })
+pub fn check_config_dir_override(dir: &Path) -> Check {
+    Check::warn(
+        "claude code config dir",
+        format!(
+            "{CONFIG_DIR_VAR}={} moves Claude Code's user settings; enrolment writes \
+             ~/.claude/settings.json, which this shell's Claude Code does not read",
+            dir.display()
+        ),
+    )
 }
 
 // Why: Claude Code prefers an API key or auth token in its environment over

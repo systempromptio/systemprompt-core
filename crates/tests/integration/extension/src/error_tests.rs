@@ -182,6 +182,25 @@ fn test_loader_error_variant_matching() {
             object: "current_items".to_string(),
             how: "FROM reference".to_string(),
         },
+        LoaderError::MigrationTogglesTriggerByName {
+            extension: "l".to_string(),
+            migration: "020_toggle.sql".to_string(),
+            table: "events".to_string(),
+            trigger: "events_audit".to_string(),
+        },
+        LoaderError::DanglingTriggerRoutine {
+            trigger: "events_audit".to_string(),
+            table: "events".to_string(),
+            function: "audit_event".to_string(),
+            relation: "retired_table".to_string(),
+        },
+        LoaderError::MigrationChecksumDrift {
+            extension: "m".to_string(),
+            version: 7,
+            name: "007_edited".to_string(),
+            stored_checksum: "aaaa".to_string(),
+            current_checksum: "bbbb".to_string(),
+        },
     ];
 
     for err in errors {
@@ -299,6 +318,37 @@ fn test_loader_error_variant_matching() {
                 assert!(!stored_name.is_empty());
                 assert!(!current_name.is_empty());
                 assert_ne!(stored_name, current_name);
+            },
+            LoaderError::MigrationTogglesTriggerByName {
+                extension,
+                migration,
+                table,
+                trigger,
+            } => {
+                assert!(!extension.is_empty());
+                assert!(!migration.is_empty());
+                assert!(!table.is_empty());
+                assert!(!trigger.is_empty());
+            },
+            LoaderError::DanglingTriggerRoutine {
+                trigger,
+                table,
+                function,
+                relation,
+            } => {
+                assert!(!trigger.is_empty());
+                assert!(!table.is_empty());
+                assert!(!function.is_empty());
+                assert!(!relation.is_empty());
+            },
+            LoaderError::MigrationChecksumDrift {
+                extension,
+                stored_checksum,
+                current_checksum,
+                ..
+            } => {
+                assert!(!extension.is_empty());
+                assert_ne!(stored_checksum, current_checksum);
             },
         }
     }

@@ -118,15 +118,6 @@ pub trait Extension: Send + Sync + 'static {
         Vec::new()
     }
 
-    /// Triggers, functions and views this extension has retired, dropped in
-    /// the retire phase: before any extension's migrations run, on every
-    /// boot. Only `DROP TRIGGER|FUNCTION|PROCEDURE|VIEW … IF EXISTS` is
-    /// accepted, so the phase is idempotent.
-    ///
-    /// A retirement split across extensions otherwise has no ordering: core
-    /// migrates first, so a table core drops can outlive the trigger another
-    /// extension retires in a later migration, and every write between the
-    /// two fails (0.58 → 0.60: web 093 against astound's `feedback_capture`).
     fn retirements(&self) -> Vec<SchemaDefinition> {
         Vec::new()
     }

@@ -83,8 +83,7 @@ fn claude_config_dir_redirects_the_user_settings_file() {
 
 #[test]
 fn claude_config_dir_is_warned_about() {
-    assert!(check_config_dir_override(None).is_none());
-    let check = check_config_dir_override(Some(Path::new("/tmp/elsewhere"))).expect("warned");
+    let check = check_config_dir_override(Path::new("/tmp/elsewhere"));
     assert_eq!(check.status, Status::Warn);
     assert!(
         check.detail.contains("CLAUDE_CONFIG_DIR"),

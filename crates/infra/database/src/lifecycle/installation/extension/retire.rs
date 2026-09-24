@@ -33,7 +33,7 @@ struct Retirement {
     statements: Vec<String>,
 }
 
-fn refused(extension: &str, message: String) -> LoaderError {
+fn refused(extension: &str, message: &str) -> LoaderError {
     LoaderError::SchemaInstallationFailed {
         extension: extension.to_owned(),
         message: format!("retirement: {message}"),
@@ -42,13 +42,13 @@ fn refused(extension: &str, message: String) -> LoaderError {
 
 fn check_statement(extension: &str, statement: &str) -> Result<(), LoaderError> {
     let parsed = pg_query::parse(statement)
-        .map_err(|e| refused(extension, format!("SQL parse failed: {e}")))?;
+        .map_err(|e| refused(extension, &format!("SQL parse failed: {e}")))?;
     for raw in &parsed.protobuf.stmts {
         let node = raw.stmt.as_ref().and_then(|s| s.node.as_ref());
         let Some(NodeEnum::DropStmt(drop)) = node else {
             return Err(refused(
                 extension,
-                format!(
+                &format!(
                     "only DROP … IF EXISTS is allowed, got `{}`",
                     statement.trim()
                 ),
@@ -64,7 +64,7 @@ fn check_statement(extension: &str, statement: &str) -> Result<(), LoaderError> 
         if !allowed {
             return Err(refused(
                 extension,
-                format!(
+                &format!(
                     "only triggers, functions, procedures and views can be retired, got `{}`",
                     statement.trim()
                 ),
@@ -73,7 +73,7 @@ fn check_statement(extension: &str, statement: &str) -> Result<(), LoaderError> 
         if !drop.missing_ok {
             return Err(refused(
                 extension,
-                format!("a retirement must say IF EXISTS: `{}`", statement.trim()),
+                &format!("a retirement must say IF EXISTS: `{}`", statement.trim()),
             ));
         }
     }
@@ -87,7 +87,7 @@ fn prepare(extensions: &[Arc<dyn Extension>]) -> Result<Vec<Retirement>, LoaderE
         let mut statements = Vec::new();
         for retirement in ext.retirements() {
             let parsed = SqlExecutor::parse_sql_statements(&retirement.sql)
-                .map_err(|e| refused(&extension, format!("SQL split failed: {e}")))?;
+                .map_err(|e| refused(&extension, &format!("SQL split failed: {e}")))?;
             for statement in parsed {
                 check_statement(&extension, &statement)?;
                 statements.push(statement);
@@ -103,8 +103,6 @@ fn prepare(extensions: &[Arc<dyn Extension>]) -> Result<Vec<Retirement>, LoaderE
     Ok(out)
 }
 
-/// Checks every extension's retirements without touching the database, so a
-/// malformed one refuses the boot before the first write.
 pub(super) fn check_retirements(extensions: &[Arc<dyn Extension>]) -> Result<(), LoaderError> {
     prepare(extensions).map(|_| ())
 }

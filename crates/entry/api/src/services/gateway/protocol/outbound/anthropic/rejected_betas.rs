@@ -23,8 +23,6 @@ fn learned_sets() -> &'static RwLock<HashMap<String, BTreeSet<String>>> {
     SETS.get_or_init(|| RwLock::new(HashMap::new()))
 }
 
-/// The beta values an upstream error message names as refused; empty when the
-/// message is not a beta refusal.
 #[must_use]
 pub fn refused_in(message: &str) -> BTreeSet<String> {
     let Some(end) = message.find(REJECTION_MARKER) else {
@@ -57,8 +55,6 @@ pub fn learn(provider: &str, refused: &BTreeSet<String>) {
     }
 }
 
-/// `headers` with every value in `drop` removed from `anthropic-beta`; the
-/// header itself goes when nothing is left.
 #[must_use]
 pub fn without(headers: Vec<(String, String)>, drop: &BTreeSet<String>) -> Vec<(String, String)> {
     if drop.is_empty() {

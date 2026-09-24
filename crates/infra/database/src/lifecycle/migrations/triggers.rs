@@ -155,7 +155,7 @@ pub(super) async fn suspend(
 }
 
 impl Suspended {
-    pub(super) fn is_empty(&self) -> bool {
+    pub(super) const fn is_empty(&self) -> bool {
         self.triggers.is_empty()
     }
 

@@ -74,7 +74,7 @@ impl MigrationService<'_> {
         Err(LoaderError::MigrationChecksumDrift {
             extension: ext_id.to_owned(),
             version: migration.version,
-            name: migration.name.to_owned(),
+            name: migration.name.clone(),
             stored_checksum: stored_checksum.to_owned(),
             current_checksum,
         })

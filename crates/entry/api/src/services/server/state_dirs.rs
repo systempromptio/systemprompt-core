@@ -13,23 +13,26 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::path::Path;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use anyhow::{Result, anyhow};
 
 const PROBE: &str = ".systemprompt-write-probe";
 
-/// Creates `dir` (and its parents) and proves it writable, or explains why
-/// not, including who owns it and who the process runs as.
+static PROBE_SEQ: AtomicU64 = AtomicU64::new(0);
+
 pub(crate) fn create_state_dir(dir: &Path) -> Result<()> {
-    let probe = dir.join(PROBE);
+    let probe = dir.join(format!(
+        "{PROBE}-{}-{}",
+        std::process::id(),
+        PROBE_SEQ.fetch_add(1, Ordering::Relaxed)
+    ));
     let outcome = std::fs::create_dir_all(dir)
         .and_then(|()| std::fs::write(&probe, b""))
         .and_then(|()| std::fs::remove_file(&probe));
     outcome.map_err(|error| anyhow!("{}: {error}{}", dir.display(), ownership(dir)))
 }
 
-/// Checks every runtime-state directory and fails once, listing each that
-/// cannot be written, so an operator fixes all mounts in one pass.
 pub(crate) fn ensure_writable(dirs: &[&Path]) -> Result<()> {
     let failures: Vec<String> = dirs
         .iter()

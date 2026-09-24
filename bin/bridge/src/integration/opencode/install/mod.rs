@@ -107,13 +107,11 @@ fn install_user_tier(
     tracing::warn!(
         managed = %managed.display(),
         user = %user.display(),
-        "opencode install: {warning}"
+        "opencode install: admin config read-only, live model list written to the user config"
     );
     Ok(ProfileInstalled::with_warning(warning))
 }
 
-/// The models the admin-tier `opencode.json` declares for the bridge's
-/// provider, or `None` when that file or its provider block is absent.
 pub(super) fn admin_tier_models() -> Option<(PathBuf, Vec<String>)> {
     let managed = config::managed_config_path().ok()?;
     let root = read_object(&managed).ok()?;

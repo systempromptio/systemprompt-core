@@ -4,8 +4,10 @@
 //! routes short-circuits on `GatewayState::resolved()` and answers 404 "Gateway
 //! not enabled" — leaving `/v1/models`, the request-extraction chain and the
 //! dispatch rejection arms unreachable. This suite boots an isolated profile
-//! with the gateway on, two providers and three routes, which puts the model
-//! catalogue and the pre-dispatch denial paths on their real branches.
+//! with the gateway on, three providers and three routes, which puts the model
+//! catalogue and the pre-dispatch denial paths on their real branches. Two
+//! providers carry a resolvable key; the third declares a secret that is never
+//! set, so its model is unservable: unlisted, and answered with a 404.
 //!
 //! The `limit` query parameter is deliberately not covered for the
 //! unparseable-value case: `ListQuery`'s own documentation states an
@@ -34,7 +36,7 @@ providers:
     wire: anthropic
     surface: anthropic
     endpoint: http://127.0.0.1:1
-    api_key_secret: anthropic_api_key
+    api_key_secret: enabled_routes_anthropic_key
     models:
       - id: claude-fixture-1
         pricing:
@@ -50,12 +52,23 @@ providers:
     wire: openai_chat
     surface: openai
     endpoint: http://127.0.0.1:1
-    api_key_secret: openai_api_key
+    api_key_secret: enabled_routes_openai_key
     models:
       - id: gpt-fixture-1
         pricing:
           input_per_million: 2.5
           output_per_million: 10.0
+          cache_read_per_million: 0.0
+  - name: unkeyed
+    wire: openai_chat
+    surface: openai
+    endpoint: http://127.0.0.1:1
+    api_key_secret: enabled_routes_unset_key
+    models:
+      - id: unkeyed-fixture-1
+        pricing:
+          input_per_million: 1.0
+          output_per_million: 1.0
           cache_read_per_million: 0.0
 gateway:
   enabled: true
@@ -67,12 +80,27 @@ gateway:
     - id: gpt
       model_pattern: "gpt-*"
       provider: openai
+    - id: unkeyed
+      model_pattern: "unkeyed-*"
+      provider: unkeyed
 "#;
 
 static BOOT: OnceLock<TestBootstrap> = OnceLock::new();
 
 fn boot() -> &'static TestBootstrap {
-    BOOT.get_or_init(|| init_services_bootstrap(GATEWAY_YAML))
+    BOOT.get_or_init(|| {
+        // SAFETY: set before the bootstrap initialises the secrets singleton;
+        // nextest runs each test in its own process.
+        unsafe {
+            std::env::set_var(
+                "SYSTEMPROMPT_CUSTOM_SECRETS",
+                "enabled_routes_anthropic_key,enabled_routes_openai_key",
+            );
+            std::env::set_var("enabled_routes_anthropic_key", "test-anthropic-key");
+            std::env::set_var("enabled_routes_openai_key", "test-openai-key");
+        }
+        init_services_bootstrap(GATEWAY_YAML)
+    })
 }
 #[tokio::test]
 async fn openai_catalog_shape_keeps_the_same_complete_model_set() -> anyhow::Result<()> {
@@ -206,6 +234,10 @@ async fn the_model_catalogue_lists_every_declared_provider_model() -> anyhow::Re
 
     assert!(ids.iter().any(|id| id == "claude-fixture-1"), "{body}");
     assert!(ids.iter().any(|id| id == "gpt-fixture-1"), "{body}");
+    assert!(
+        !ids.iter().any(|id| id == "unkeyed-fixture-1"),
+        "a model whose provider has no key cannot be served, so it is not listed: {body}"
+    );
     Ok(())
 }
 
@@ -396,22 +428,23 @@ async fn a_routed_model_with_no_provider_key_fails_closed() -> anyhow::Result<()
             .oneshot(messages_post(
                 cred.jwt.as_str(),
                 &[(SESSION_ID, cred.session_id.as_str())],
-                message_body("claude-fixture-1"),
+                message_body("unkeyed-fixture-1"),
             ))
             .await?,
     )
     .await?;
 
-    // The configured endpoint is a closed port, so a request that clears
-    // extraction and authorization must surface as an upstream failure — not as
-    // a 404 or a 200 with an invented body.
-    // This profile configures no provider secret, so the request clears
+    // The unkeyed provider's secret is never set, so the request clears
     // extraction and route resolution and then fails closed at credential
-    // resolution — the upstream must never be dialled unauthenticated.
-    assert!(
-        status.is_server_error(),
-        "a provider with no configured key must fail, got {status}: {body}"
+    // resolution. A 5xx would make SDK clients retry a request that can never
+    // succeed; 404 not_found_error is what upstream providers answer for a
+    // model they do not serve.
+    assert_eq!(
+        status.as_u16(),
+        404,
+        "a provider with no configured key must fail as unservable: {body}"
     );
+    assert!(body.contains("not_found_error"), "{body}");
     assert!(
         !body.contains("Gateway not enabled"),
         "the request must have got past the gateway gate: {body}"
@@ -535,16 +568,40 @@ async fn the_bridge_profile_reports_which_providers_have_a_usable_key() -> anyho
         body_to_string(app().await?.oneshot(get("/bridge/profile")).await?).await?;
     assert_eq!(status.as_u16(), 200, "{body}");
 
-    // No provider secret is configured in the fixture, so every declared
-    // provider must be reported as unusable — announcing one as ready would
-    // send the bridge at an endpoint that cannot authenticate.
+    let profile: serde_json::Value = serde_json::from_str(&body)?;
+    let models: Vec<&str> = profile["models"]
+        .as_array()
+        .expect("the bridge profile lists its models")
+        .iter()
+        .filter_map(serde_json::Value::as_str)
+        .collect();
+    assert_eq!(
+        models,
+        ["claude-fixture-1", "claude-fixture-2", "gpt-fixture-1"],
+        "announcing an unkeyed model would send the bridge at an endpoint that \
+         cannot authenticate: {body}"
+    );
+    let unkeyed = profile["providers"]
+        .as_array()
+        .expect("provider health is reported")
+        .iter()
+        .find(|p| p["name"] == "unkeyed")
+        .expect("an unconfigured provider is still reported");
+    assert_eq!(unkeyed["configured"], false, "{body}");
     assert!(
-        body.contains("anthropic") || body.contains("openai"),
-        "the declared providers must appear in the bridge profile: {body}"
+        unkeyed["config_issue"]
+            .as_str()
+            .is_some_and(|issue| issue.contains("enabled_routes_unset_key")),
+        "the issue names the missing secret: {body}"
     );
     assert!(
-        !body.contains("\"has_key\":true"),
-        "no secret is configured, so nothing may claim a key: {body}"
+        profile["providers"]
+            .as_array()
+            .expect("provider health is reported")
+            .iter()
+            .filter(|p| p["name"] != "unkeyed")
+            .all(|p| p["configured"] == true),
+        "keyed providers are usable: {body}"
     );
     Ok(())
 }

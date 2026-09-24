@@ -121,13 +121,6 @@ pub fn provider_health(
         .collect()
 }
 
-/// Whether the gateway can dispatch `model` to a provider whose credential is
-/// present.
-///
-/// Why: model ids are unique to one catalog provider, but a gateway route may
-/// send that id elsewhere (Claude ids routed to Vertex AI), so the route's
-/// provider, or its fallback, decides; with no matching route the
-/// `default_provider` does, and without a gateway the declaring provider.
 pub fn is_model_servable(
     registry: &ProviderRegistry,
     gateway: Option<&GatewayConfig>,
