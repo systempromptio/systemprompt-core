@@ -22,7 +22,10 @@ pub async fn check_admin_tier_models(bridge: &BridgeContext) -> Option<Check> {
         Err(e) => {
             return Some(Check::warn(
                 NAME,
-                format!("{}: cannot compare with the gateway catalogue: {e}", path.display()),
+                format!(
+                    "{}: cannot compare with the gateway catalogue: {e}",
+                    path.display()
+                ),
             ));
         },
     };
@@ -35,7 +38,10 @@ pub fn check_model_drift(path: &Path, installed: &[String], expected: &[String])
     let retired: Vec<&str> = installed.difference(&expected).copied().collect();
     let missing: Vec<&str> = expected.difference(&installed).copied().collect();
     if retired.is_empty() && missing.is_empty() {
-        return Check::ok(NAME, format!("{}: matches the gateway catalogue", path.display()));
+        return Check::ok(
+            NAME,
+            format!("{}: matches the gateway catalogue", path.display()),
+        );
     }
     let mut parts = Vec::new();
     if !retired.is_empty() {

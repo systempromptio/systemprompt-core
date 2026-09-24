@@ -59,7 +59,8 @@ impl OutboundAdapter for AnthropicOutbound {
         );
 
         let provider = ctx.route.provider.as_str();
-        let headers = rejected_betas::without(request_headers(&ctx), &rejected_betas::learned(provider));
+        let headers =
+            rejected_betas::without(request_headers(&ctx), &rejected_betas::learned(provider));
         let upstream_response = match send_once(provider, &url, &headers, &body.bytes).await {
             Err(e) => {
                 let refused = refused_betas(&e);

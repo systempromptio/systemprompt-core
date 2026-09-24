@@ -147,7 +147,10 @@ async fn a_refused_beta_is_dropped_and_the_request_resent_once() {
 
     let outcome = send(&server.uri(), "refusing-upstream-a").await;
 
-    assert!(matches!(outcome.expect("recovered"), OutboundOutcome::Buffered(_)));
+    assert!(matches!(
+        outcome.expect("recovered"),
+        OutboundOutcome::Buffered(_)
+    ));
     let sent = betas_sent(&server.received_requests().await.expect("log"));
     assert_eq!(sent, vec![format!("{REFUSED},{KEPT}"), KEPT.to_owned()]);
 }
@@ -161,12 +164,20 @@ async fn the_provider_remembers_the_refusal_for_its_next_request() {
         .mount(&server)
         .await;
 
-    send(&server.uri(), "refusing-upstream-b").await.expect("first");
-    send(&server.uri(), "refusing-upstream-b").await.expect("second");
+    send(&server.uri(), "refusing-upstream-b")
+        .await
+        .expect("first");
+    send(&server.uri(), "refusing-upstream-b")
+        .await
+        .expect("second");
 
     assert!(learned("refusing-upstream-b").contains(REFUSED));
     let sent = betas_sent(&server.received_requests().await.expect("log"));
-    assert_eq!(sent.len(), 3, "the second request goes out without the refused beta");
+    assert_eq!(
+        sent.len(),
+        3,
+        "the second request goes out without the refused beta"
+    );
     assert_eq!(sent[2], KEPT);
 }
 
@@ -174,8 +185,12 @@ async fn the_provider_remembers_the_refusal_for_its_next_request() {
 fn refusal_messages_name_every_value() {
     let one = refused_in("Unexpected value(s) `a-2026` for the `anthropic-beta` header.");
     assert_eq!(one, BTreeSet::from(["a-2026".to_owned()]));
-    let many = refused_in("Unexpected value(s) `a-2026`, `b-2026` for the `anthropic-beta` header.");
-    assert_eq!(many, BTreeSet::from(["a-2026".to_owned(), "b-2026".to_owned()]));
+    let many =
+        refused_in("Unexpected value(s) `a-2026`, `b-2026` for the `anthropic-beta` header.");
+    assert_eq!(
+        many,
+        BTreeSet::from(["a-2026".to_owned(), "b-2026".to_owned()])
+    );
     assert!(refused_in("max_tokens: must be positive").is_empty());
 }
 

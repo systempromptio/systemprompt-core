@@ -18,7 +18,8 @@ use systemprompt_models::bridge::profile::{
     BridgeProfileParams, BridgeProfileResponse, build as profile_build,
 };
 use systemprompt_models::services::{
-    ApiSurface, GatewayConfig, GatewayRoute, ProviderEntry, ProviderModel, ProviderRegistry, WireProtocol,
+    ApiSurface, GatewayConfig, GatewayRoute, ProviderEntry, ProviderModel, ProviderRegistry,
+    WireProtocol,
 };
 
 fn build_profile(registry: &ProviderRegistry) -> BridgeProfileResponse {

@@ -15,9 +15,9 @@
 //! host, provided it is servable ([`is_model_servable`]): a model whose
 //! serving provider has no credential is left out of `models` and
 //! `model_limits`, though its provider still appears in `providers` flagged
-//! `configured = false`. `providers` carries the per-provider split the bridge uses to build
-//! the narrower per-host views (Claude Desktop being the only host that
-//! narrows).
+//! `configured = false`. `providers` carries the per-provider split the bridge
+//! uses to build the narrower per-host views (Claude Desktop being the only
+//! host that narrows).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

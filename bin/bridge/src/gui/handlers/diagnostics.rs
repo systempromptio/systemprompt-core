@@ -215,7 +215,12 @@ fn build_bundle(ctx: &crate::context::BridgeContext) -> io::Result<PathBuf> {
     }
 
     for (index, path) in feedback_outboxes().iter().enumerate() {
-        add_file(&mut zip, path, &format!("feedback-outbox-{index}.json"), opts)?;
+        add_file(
+            &mut zip,
+            path,
+            &format!("feedback-outbox-{index}.json"),
+            opts,
+        )?;
     }
 
     if let Some(yaml) = crate::config::redaction::redacted_config() {

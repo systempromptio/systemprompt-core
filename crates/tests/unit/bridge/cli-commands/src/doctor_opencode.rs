@@ -29,7 +29,19 @@ fn a_drifted_admin_tier_names_retired_and_missing_models() {
         &ids(&["claude-opus-5-5", "claude-sonnet-5"]),
     );
     assert_eq!(check.status, Status::Warn);
-    assert!(check.detail.contains("no longer served: claude-sonnet-4-5"), "{}", check.detail);
-    assert!(check.detail.contains("not listed: claude-sonnet-5"), "{}", check.detail);
-    assert!(check.detail.contains("as administrator"), "{}", check.detail);
+    assert!(
+        check.detail.contains("no longer served: claude-sonnet-4-5"),
+        "{}",
+        check.detail
+    );
+    assert!(
+        check.detail.contains("not listed: claude-sonnet-5"),
+        "{}",
+        check.detail
+    );
+    assert!(
+        check.detail.contains("as administrator"),
+        "{}",
+        check.detail
+    );
 }

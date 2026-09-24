@@ -38,9 +38,7 @@ fn completed_sessions_release_both_capacity_bounds_without_changing_receipt() {
     conflict.runtime_files[0].digest = ContentDigest::of(b"tampered");
     assert!(matches!(
         outbox.enqueue(conflict),
-        Err(FeedbackError::Readback(
-            ReadbackFault::AcknowledgedConflict
-        ))
+        Err(FeedbackError::Readback(ReadbackFault::AcknowledgedConflict))
     ));
 }
 

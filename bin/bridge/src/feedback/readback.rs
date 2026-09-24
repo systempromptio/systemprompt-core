@@ -111,7 +111,9 @@ pub fn verify(
             || actual.bytes != canonical.bytes
             || actual.executable != canonical.executable
         {
-            return Err(FeedbackError::Readback(ReadbackFault::ContentMismatch(path)));
+            return Err(FeedbackError::Readback(ReadbackFault::ContentMismatch(
+                path,
+            )));
         }
         canonical.content_check = actual.content_check;
         canonical.mode_check = actual.mode_check;
@@ -188,14 +190,12 @@ fn unsafe_path(path: &Path) -> FeedbackError {
 }
 
 #[cfg(unix)]
-fn verify_mode(
-    metadata: &std::fs::Metadata,
-    expected: bool,
-    path: &str,
-) -> Result<ReadbackStatus> {
+fn verify_mode(metadata: &std::fs::Metadata, expected: bool, path: &str) -> Result<ReadbackStatus> {
     use std::os::unix::fs::PermissionsExt;
     if (metadata.permissions().mode() & 0o7777) != if expected { 0o755 } else { 0o644 } {
-        return Err(FeedbackError::Readback(ReadbackFault::ModeMismatch(path.to_owned())));
+        return Err(FeedbackError::Readback(ReadbackFault::ModeMismatch(
+            path.to_owned(),
+        )));
     }
     Ok(ReadbackStatus::Verified)
 }

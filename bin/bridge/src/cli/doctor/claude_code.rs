@@ -41,10 +41,9 @@ pub fn check_settings(origin: &str) -> Vec<Check> {
 /// `CLAUDE_CONFIG_DIR` when set, else under `~/.claude`.
 pub fn read_paths(config_dir: Option<&Path>) -> Vec<PathBuf> {
     let policy = crate::config::paths::claude_code_policy_dir().join("managed-settings.json");
-    let user = config_dir.map_or_else(
-        crate::config::paths::claude_cli_settings_path,
-        |dir| Some(dir.join("settings.json")),
-    );
+    let user = config_dir.map_or_else(crate::config::paths::claude_cli_settings_path, |dir| {
+        Some(dir.join("settings.json"))
+    });
     std::iter::once(policy).chain(user).collect()
 }
 

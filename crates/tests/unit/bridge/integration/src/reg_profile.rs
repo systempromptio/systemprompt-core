@@ -6,8 +6,8 @@ use systemprompt_bridge::install::reg_values::{parse_reg_entries, render_reg_val
 use systemprompt_bridge::integration::claude_desktop::reg_profile::{
     profile_entries, render_reg, with_context_variants,
 };
-use systemprompt_models::bridge::profile::AdvertisedLimits;
 use systemprompt_bridge::integration::host_app::ProfileGenInputs;
+use systemprompt_models::bridge::profile::AdvertisedLimits;
 
 const ORG_UUID: &str = "6f1d2c3a-4b5e-4f60-8a71-9b0c1d2e3f40";
 
@@ -299,7 +299,10 @@ fn limit(context_window: u32) -> AdvertisedLimits {
 
 #[test]
 fn million_context_models_gain_a_1m_variant_after_the_bare_id() {
-    let models = vec!["claude-sonnet-5".to_string(), "claude-haiku-4-5".to_string()];
+    let models = vec![
+        "claude-sonnet-5".to_string(),
+        "claude-haiku-4-5".to_string(),
+    ];
     let limits = [
         ("claude-sonnet-5".to_string(), limit(1_000_000)),
         ("claude-haiku-4-5".to_string(), limit(200_000)),
@@ -314,7 +317,10 @@ fn million_context_models_gain_a_1m_variant_after_the_bare_id() {
 
 #[test]
 fn an_existing_1m_variant_is_not_doubled() {
-    let models = vec!["claude-sonnet-5".to_string(), "claude-sonnet-5[1m]".to_string()];
+    let models = vec![
+        "claude-sonnet-5".to_string(),
+        "claude-sonnet-5[1m]".to_string(),
+    ];
     let limits = [("claude-sonnet-5".to_string(), limit(1_000_000))]
         .into_iter()
         .collect();

@@ -51,7 +51,11 @@ fn sandbox<R>(f: impl FnOnce(&Paths) -> R) -> Option<R> {
     std::fs::set_permissions(&managed_dir, std::fs::Permissions::from_mode(0o555))
         .expect("read-only admin dir");
     // Root ignores the mode bits, so the scenario cannot be staged.
-    if std::fs::OpenOptions::new().write(true).open(&paths.managed).is_ok() {
+    if std::fs::OpenOptions::new()
+        .write(true)
+        .open(&paths.managed)
+        .is_ok()
+    {
         std::fs::set_permissions(&managed_dir, std::fs::Permissions::from_mode(0o755))
             .expect("restore admin dir for cleanup");
         return None;
@@ -59,7 +63,10 @@ fn sandbox<R>(f: impl FnOnce(&Paths) -> R) -> Option<R> {
     let vars: Vec<(&str, Option<String>)> = vec![
         ("HOME", Some(root.path().display().to_string())),
         ("XDG_CONFIG_HOME", Some(config_home.display().to_string())),
-        ("XDG_DATA_HOME", Some(root.path().join("data").display().to_string())),
+        (
+            "XDG_DATA_HOME",
+            Some(root.path().join("data").display().to_string()),
+        ),
         ("SP_BRIDGE_CONFIG", None),
     ];
     let out = temp_env::with_vars(vars, || f(&paths));

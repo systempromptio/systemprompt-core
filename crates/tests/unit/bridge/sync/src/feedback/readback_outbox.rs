@@ -94,9 +94,7 @@ fn pending_outbox_survives_restart_and_fresh_readback_replaces_unacknowledged() 
     ));
     assert!(matches!(
         recovered.enqueue(receipt),
-        Err(FeedbackError::Readback(
-            ReadbackFault::AcknowledgedConflict
-        ))
+        Err(FeedbackError::Readback(ReadbackFault::AcknowledgedConflict))
     ));
 }
 

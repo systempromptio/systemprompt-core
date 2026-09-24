@@ -19,14 +19,22 @@ fn write(dir: &Path, name: &str, body: &str) -> PathBuf {
 #[test]
 fn routing_fails_when_no_read_file_carries_base_url_and_helper() {
     let dir = TempDir::new().expect("dir");
-    let user = write(dir.path(), "settings.json", r#"{"model": "claude-sonnet-5"}"#);
+    let user = write(
+        dir.path(),
+        "settings.json",
+        r#"{"model": "claude-sonnet-5"}"#,
+    );
     let missing = dir.path().join("managed-settings.json");
 
     let check = check_effective_routing(&[missing, user]);
 
     assert_eq!(check.status, Status::Fail);
     assert!(check.detail.contains("ask for a login"), "{}", check.detail);
-    assert!(check.detail.contains("install --host claude-code"), "{}", check.detail);
+    assert!(
+        check.detail.contains("install --host claude-code"),
+        "{}",
+        check.detail
+    );
     assert!(check.detail.contains("--settings"), "{}", check.detail);
 }
 
@@ -50,12 +58,19 @@ fn routing_passes_when_policy_and_user_files_together_route() {
         "managed-settings.json",
         r#"{"env": {"ANTHROPIC_BASE_URL": "http://127.0.0.1:48217"}}"#,
     );
-    let user = write(dir.path(), "settings.json", r#"{"apiKeyHelper": "/bin/helper"}"#);
+    let user = write(
+        dir.path(),
+        "settings.json",
+        r#"{"apiKeyHelper": "/bin/helper"}"#,
+    );
 
     let check = check_effective_routing(&[policy, user]);
 
     assert_eq!(check.status, Status::Ok, "{}", check.detail);
-    assert!(!check.detail.contains("/bin/helper"), "the helper command is never echoed");
+    assert!(
+        !check.detail.contains("/bin/helper"),
+        "the helper command is never echoed"
+    );
 }
 
 #[test]
@@ -71,7 +86,11 @@ fn claude_config_dir_is_warned_about() {
     assert!(check_config_dir_override(None).is_none());
     let check = check_config_dir_override(Some(Path::new("/tmp/elsewhere"))).expect("warned");
     assert_eq!(check.status, Status::Warn);
-    assert!(check.detail.contains("CLAUDE_CONFIG_DIR"), "{}", check.detail);
+    assert!(
+        check.detail.contains("CLAUDE_CONFIG_DIR"),
+        "{}",
+        check.detail
+    );
 }
 
 #[test]
@@ -79,6 +98,14 @@ fn environment_credentials_that_outrank_the_helper_are_warned_about() {
     assert!(check_env_credentials(|_| false).is_none());
     let check = check_env_credentials(|key| key == "ANTHROPIC_AUTH_TOKEN").expect("warned");
     assert_eq!(check.status, Status::Warn);
-    assert!(check.detail.contains("ANTHROPIC_AUTH_TOKEN"), "{}", check.detail);
-    assert!(!check.detail.contains("ANTHROPIC_API_KEY"), "{}", check.detail);
+    assert!(
+        check.detail.contains("ANTHROPIC_AUTH_TOKEN"),
+        "{}",
+        check.detail
+    );
+    assert!(
+        !check.detail.contains("ANTHROPIC_API_KEY"),
+        "{}",
+        check.detail
+    );
 }
