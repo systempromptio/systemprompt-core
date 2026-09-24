@@ -215,7 +215,7 @@ dirs = "7"
 open = "5"
 
 # Process management (for services)
-nix = { version = "0.31", features = ["fs", "process", "signal"] }
+nix = { version = "0.31", features = ["fs", "process", "signal", "user"] }
 libc = "0.2"
 ctrlc = "3.5"
 

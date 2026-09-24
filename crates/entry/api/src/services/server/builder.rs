@@ -26,6 +26,8 @@ pub use super::discovery::*;
 pub use super::health::handle_health;
 
 pub fn setup_api_server(ctx: &AppContext, events: Option<&StartupEventSender>) -> Result<Router> {
+    super::state_dirs::ensure_writable(&[ctx.app_paths().storage().data()])?;
+
     let rate_config = &ctx.config().rate_limits;
 
     if rate_config.disabled

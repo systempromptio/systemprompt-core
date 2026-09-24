@@ -93,6 +93,48 @@ pub enum LoaderError {
     },
 
     #[error(
+        "Extension '{extension}' migration {migration} toggles trigger '{trigger}' on '{table}' \
+         by name; that statement fails on any database where the trigger has since been retired. \
+         The runner already suspends every row trigger on the tables a migration writes, so \
+         delete the toggle, or guard it in a DO $$ block that tests pg_trigger first"
+    )]
+    MigrationTogglesTriggerByName {
+        extension: String,
+        migration: String,
+        table: String,
+        trigger: String,
+    },
+
+    #[error(
+        "Trigger '{trigger}' on '{table}' runs {function}, which uses '{relation}', and \
+         '{relation}' no longer exists: every write to '{table}' would fail. Retire the trigger in \
+         its extension's `retirements()` (it runs before any migration), or restore the relation"
+    )]
+    DanglingTriggerRoutine {
+        trigger: String,
+        table: String,
+        function: String,
+        relation: String,
+    },
+
+    #[error(
+        "Extension '{extension}' migration {version} ('{name}') has been edited since it was \
+         applied (stored checksum {stored_checksum}, current {current_checksum}). Refusing to \
+         proceed. If the database schema already matches the edited file, run `systemprompt \
+         infra db migrate-repair --reconcile-only --apply` to rewrite the stored checksum \
+         without executing any SQL. To re-execute the edited migration, run `systemprompt infra \
+         db migrate-repair --apply`. Passing --allow-checksum-drift bypasses the check without \
+         fixing it."
+    )]
+    MigrationChecksumDrift {
+        extension: String,
+        version: u32,
+        name: String,
+        stored_checksum: String,
+        current_checksum: String,
+    },
+
+    #[error(
         "Table '{table}' is created by both extension '{extension_a}' and '{extension_b}'; every \
          table must be declared by exactly one extension"
     )]

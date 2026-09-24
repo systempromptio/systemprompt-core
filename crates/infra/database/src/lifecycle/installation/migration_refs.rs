@@ -10,6 +10,11 @@
 //! parser, which makes a catalog-guarded reference inside one the sanctioned
 //! way for a migration to touch a declarative object.
 //!
+//! It also refuses any bare `ALTER TABLE … ENABLE/DISABLE TRIGGER <name>`,
+//! declarative or not: the named trigger may be retired before the migration
+//! runs on a database that skips releases, and the runner already suspends
+//! every row trigger on the tables a migration writes.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -67,6 +72,7 @@ struct ParsedMigration {
     migration: String,
     creates: Objects,
     references: Vec<Reference>,
+    toggles: Vec<(String, String)>,
 }
 
 pub fn check_migration_references(extensions: &[Arc<dyn Extension>]) -> Result<(), LoaderError> {
@@ -95,12 +101,26 @@ pub fn check_migration_references(extensions: &[Arc<dyn Extension>]) -> Result<(
                 migration: label,
                 creates,
                 references: references_of(&parsed),
+                toggles: named_trigger_toggles(&parsed),
             });
         }
     }
 
     let mut first: Option<LoaderError> = None;
     for m in &migrations {
+        for (table, trigger) in &m.toggles {
+            let err = LoaderError::MigrationTogglesTriggerByName {
+                extension: m.extension.clone(),
+                migration: m.migration.clone(),
+                table: table.clone(),
+                trigger: trigger.clone(),
+            };
+            if first.is_some() {
+                warn!(error = %err, "Further named trigger toggle in a migration");
+            } else {
+                first = Some(err);
+            }
+        }
         for r in &m.references {
             if !declared.contains(r.kind, &r.name)
                 || migrated.contains(r.kind, &r.name)
@@ -205,6 +225,40 @@ fn references_of(parsed: &pg_query::ParseResult) -> Vec<Reference> {
         }
     }
     refs
+}
+
+// Why: `DISABLE TRIGGER <name>` fails once the trigger is retired, which on
+// a multi-release upgrade can happen before the migration runs (0.58 → 0.60:
+// web 102 against a dropped `feedback_capture`). `USER` and `ALL` name no
+// trigger and stay allowed; a guarded toggle inside `DO $$ … $$` is opaque
+// to the parser and is the sanctioned form.
+fn named_trigger_toggles(parsed: &pg_query::ParseResult) -> Vec<(String, String)> {
+    let mut toggles = Vec::new();
+    for node in top_level(parsed) {
+        let NodeEnum::AlterTableStmt(alter) = node else {
+            continue;
+        };
+        let table = alter
+            .relation
+            .as_ref()
+            .map(|r| r.relname.to_lowercase())
+            .unwrap_or_default();
+        for cmd in &alter.cmds {
+            let Some(NodeEnum::AlterTableCmd(cmd)) = &cmd.node else {
+                continue;
+            };
+            if matches!(
+                AlterTableType::try_from(cmd.subtype),
+                Ok(AlterTableType::AtEnableTrig
+                    | AlterTableType::AtEnableAlwaysTrig
+                    | AlterTableType::AtEnableReplicaTrig
+                    | AlterTableType::AtDisableTrig)
+            ) {
+                toggles.push((table.clone(), cmd.name.to_lowercase()));
+            }
+        }
+    }
+    toggles
 }
 
 // Why: a dropped object is a List of name parts (schema, table, trigger) or

@@ -12,7 +12,7 @@ use systemprompt_extension::{Extension, LoaderError, Migration};
 use systemprompt_identifiers::ToDbValue;
 use tracing::{info, warn};
 
-use super::budget;
+use super::{budget, triggers};
 
 const SLOW_STATEMENT: std::time::Duration = std::time::Duration::from_secs(5);
 
@@ -114,6 +114,17 @@ async fn apply_in_transaction(
         }
     }
 
+    let suspended = triggers::suspend(&mut triggers::Target::Tx(&mut *tx), migration).await?;
+    if !suspended.is_empty() {
+        info!(
+            extension = ext_id,
+            version = migration.version,
+            name = migration.name,
+            triggers = %suspended.describe(),
+            "Row triggers suspended for migration",
+        );
+    }
+
     let total = statements.len();
     for (idx, statement) in statements.iter().enumerate() {
         let sql_str: &str = statement.as_str();
@@ -139,6 +150,10 @@ async fn apply_in_transaction(
             );
         }
     }
+
+    suspended
+        .restore(&mut triggers::Target::Tx(&mut *tx))
+        .await?;
 
     if let Some(write) = tracking
         && let Err(e) = tx.execute(&write.sql, write.params).await

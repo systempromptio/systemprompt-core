@@ -44,6 +44,14 @@ pub enum DbCommands {
                     erroring (use with caution)"
         )]
         allow_checksum_drift: bool,
+        #[arg(
+            long,
+            conflicts_with = "allow_checksum_drift",
+            help = "If the install fails on checksum drift, and only then, re-apply the drifted \
+                    migrations (as `migrate-repair --apply`) and retry once. Any other failure \
+                    is reported as-is: repair cannot fix it"
+        )]
+        repair_drift: bool,
     },
     #[command(about = "Revert the most recently applied migrations for an extension")]
     MigrateDown {

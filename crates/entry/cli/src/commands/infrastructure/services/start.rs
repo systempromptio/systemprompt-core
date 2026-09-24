@@ -130,6 +130,7 @@ async fn run_startup(
         super::super::db::execute(
             super::super::db::DbCommands::Migrate {
                 allow_checksum_drift: false,
+                repair_drift: false,
             },
             ctx,
         )
