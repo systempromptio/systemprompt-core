@@ -7,8 +7,10 @@
 use axum::body::Body;
 use axum::http::{HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
+use systemprompt_ai::UpstreamTargetError;
 
 use crate::services::gateway::image_fetch::ImageFetchFailed;
+use crate::services::gateway::pricing::MissingPricing;
 use crate::services::gateway::protocol::outbound::UpstreamError;
 use crate::services::gateway::service::{
     DispatchError, GovernanceDenied, GuardForbidden, GuardUnavailable, PolicyDenied,
@@ -142,7 +144,29 @@ pub fn classify_dispatch_error(e: &anyhow::Error) -> (StatusCode, String) {
     if let Some(upstream) = e.downcast_ref::<UpstreamError>() {
         return map_upstream_error(upstream);
     }
+    if is_unservable_model(e) {
+        return (StatusCode::NOT_FOUND, e.to_string());
+    }
     (StatusCode::BAD_GATEWAY, e.to_string())
+}
+
+// Why: a missing credential or price is a deployment that cannot serve this
+// model, not an outage. Any 5xx makes the Anthropic and OpenAI SDKs retry a
+// request that can never succeed; 404 is what both providers answer for a
+// model they do not serve, so clients surface it once instead of looping.
+fn is_unservable_model(e: &anyhow::Error) -> bool {
+    if e.downcast_ref::<MissingPricing>().is_some() {
+        return true;
+    }
+    matches!(
+        e.downcast_ref::<UpstreamTargetError>(),
+        Some(
+            UpstreamTargetError::MissingSecret { .. }
+                | UpstreamTargetError::ApiKeyOnVertex { .. }
+                | UpstreamTargetError::MalformedCredential { .. }
+                | UpstreamTargetError::Endpoint { .. }
+        )
+    )
 }
 
 fn build_upstream_passthrough(e: &UpstreamError) -> Option<Response<Body>> {

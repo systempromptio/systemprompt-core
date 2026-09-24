@@ -5,10 +5,13 @@
 ### Breaking
 
 - **AI Rust API:** `UpstreamTarget::provider` returns `&ProviderId`.
+- **Models Rust API:** `bridge::profile::BridgeProfileParams` gains `gateway: Option<&GatewayConfig>`, and `routes::gateway::models::model_entries` takes the gateway config and a secret-present predicate.
 - **AI Rust API:** an upstream is built only from a catalog entry: `UpstreamTarget::api_key`, `UpstreamCall::{api_key, bearer}`, `ProviderCredential::api_key` and the provider clients' `new`/`with_endpoint` are removed; resolve the `ProviderEntry` with `UpstreamTarget::resolve` and pass it to `with_target`.
 
 ### Fixed
 
+- **Gateway:** a model the deployment cannot serve — its provider's secret is missing or unusable, or it has no configured pricing — answers 404 `not_found_error` on every inbound wire instead of 502 `api_error`, so SDK clients stop retrying it; the rejection is still audited.
+- **Gateway / Bridge:** `/v1/models` and the bridge profile's `models` and `model_limits` omit a model whose serving provider (its gateway route's provider or fallback, else the default provider, else the declaring provider) has no credential; `providers` still lists that provider with `configured: false`.
 - **Scheduler:** a job absent from this build is forgotten only after seven days without an update, so mixed versions during a canary or rollback keep each other's rows.
 - **Gateway / AI:** a forwarded `anthropic-beta` header is narrowed to the provider's `accepted_betas`; a Vertex AI provider forwards none unless it declares them, since Vertex rejects a beta it does not support.
 - **Gateway / AI:** a provider's `extra_headers` may not name a header the upstream seam sends (credential, content framing, protocol version); the registry refuses it at boot.

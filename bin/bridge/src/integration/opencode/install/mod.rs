@@ -16,13 +16,16 @@
 mod merge;
 mod render;
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use serde_json::{Map, Value};
 
 use super::config;
 use crate::integration::generated_profile;
-use crate::integration::host_app::{GeneratedProfile, ProfileGenInputs, ProfileRemoval};
+use crate::integration::host_app::{
+    GeneratedProfile, ProfileGenInputs, ProfileInstalled, ProfileRemoval,
+};
+use crate::integration::reapply::Attendance;
 
 pub(super) fn write_profile(inputs: &ProfileGenInputs) -> std::io::Result<GeneratedProfile> {
     let uuids = generated_profile::profile_uuids();
@@ -36,7 +39,10 @@ pub(super) fn write_profile(inputs: &ProfileGenInputs) -> std::io::Result<Genera
     })
 }
 
-pub(super) fn install_profile(generated_path: &str) -> std::io::Result<()> {
+pub(super) fn install_profile(
+    generated_path: &str,
+    attendance: Attendance,
+) -> std::io::Result<ProfileInstalled> {
     let source_text = std::fs::read_to_string(generated_path)?;
     let mut source = parse_object(&source_text, generated_path)?;
 
@@ -46,9 +52,19 @@ pub(super) fn install_profile(generated_path: &str) -> std::io::Result<()> {
 
     let managed = config::managed_config_path().map_err(std::io::Error::other)?;
     generated_profile::consume(generated_path)?;
+    // Why: an admin-tier file written by an elevated install is read-only to
+    // the tray, and an unattended sync may not raise the prompt that would
+    // refresh it — without this the file keeps the catalogue it was written
+    // with forever.
+    if attendance == Attendance::Unattended && is_read_only(&managed) {
+        return install_user_tier(&source, &managed);
+    }
     match merge::install(&source, &managed) {
-        Ok(_) => Ok(()),
+        Ok(_) => Ok(ProfileInstalled::ok()),
         Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => {
+            if managed.is_file() {
+                return install_user_tier(&source, &managed);
+            }
             let Some(fallback) = config::fallback_config_path(&managed) else {
                 return Err(e);
             };
@@ -59,16 +75,63 @@ pub(super) fn install_profile(generated_path: &str) -> std::io::Result<()> {
                 "opencode install: managed tier not writable; writing the provider block to the \
                  user tier instead (weaker: the user can edit it)"
             );
-            merge::install(&source, &fallback).map(|_| ())
+            merge::install(&source, &fallback).map(|_| ProfileInstalled::ok())
         },
         Err(e) => Err(e),
     }
 }
 
+fn is_read_only(path: &Path) -> bool {
+    path.is_file() && std::fs::OpenOptions::new().write(true).open(path).is_err()
+}
+
+fn install_user_tier(
+    source: &Map<String, Value>,
+    managed: &Path,
+) -> std::io::Result<ProfileInstalled> {
+    let user = config::user_tier_path(managed).ok_or_else(|| {
+        std::io::Error::new(
+            std::io::ErrorKind::PermissionDenied,
+            format!("{} is not writable by this process", managed.display()),
+        )
+    })?;
+    merge::install(source, &user)?;
+    let warning = format!(
+        "{} is read-only to this process, so the live model list was written to {} instead; \
+         OpenCode ranks the admin file higher, so models it lists that the gateway no longer \
+         serves, and its default model, remain until `install --host opencode` is re-run as \
+         administrator",
+        managed.display(),
+        user.display()
+    );
+    tracing::warn!(
+        managed = %managed.display(),
+        user = %user.display(),
+        "opencode install: {warning}"
+    );
+    Ok(ProfileInstalled::with_warning(warning))
+}
+
+/// The models the admin-tier `opencode.json` declares for the bridge's
+/// provider, or `None` when that file or its provider block is absent.
+pub(super) fn admin_tier_models() -> Option<(PathBuf, Vec<String>)> {
+    let managed = config::managed_config_path().ok()?;
+    let root = read_object(&managed).ok()?;
+    let models = root
+        .get("provider")?
+        .get(config::PROVIDER_ID)?
+        .get("models")?
+        .as_object()?
+        .keys()
+        .cloned()
+        .collect();
+    Some((managed, models))
+}
+
 pub(super) fn remove_profile() -> std::io::Result<ProfileRemoval> {
     let target = config::managed_config_path().map_err(std::io::Error::other)?;
     let removed_config = merge::uninstall(&target)?;
-    let removed_fallback = match config::fallback_config_path(&target) {
+    let removed_fallback = match config::user_tier_path(&target) {
         Some(path) => merge::uninstall(&path)?,
         None => false,
     };

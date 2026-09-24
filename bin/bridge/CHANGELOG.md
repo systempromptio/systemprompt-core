@@ -1,5 +1,16 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- **Bridge:** an admin-tier OpenCode config (`%ProgramData%\opencode\opencode.json`, `/etc/opencode/opencode.json`) written by an elevated install no longer freezes the model catalogue. When that file exists and this process cannot write it — an unattended sync, or an attended install whose elevation was refused — the provider block and default model go to the user's `~/.config/opencode/opencode.json` instead and the install reports a warning. OpenCode ranks the admin tier above the user tier and deep-merges them, so new models appear at once while retired ones and the admin default remain until the admin file is refreshed with elevation. Uninstall now cleans that user-tier block on every platform.
+- **Bridge:** `doctor` names the "Claude Code asks for a login" cases. It judges routing over the files Claude Code actually reads (the machine `managed-settings.json`, then `$CLAUDE_CONFIG_DIR/settings.json` or `~/.claude/settings.json`) and fails when none sets both `ANTHROPIC_BASE_URL` and `apiKeyHelper`, pointing at `install --host claude-code` or `claude --settings <standalone file>`; it warns when `CLAUDE_CONFIG_DIR` relocates the user settings enrolment writes, and when `ANTHROPIC_API_KEY` or `ANTHROPIC_AUTH_TOKEN` in the environment outranks the helper.
+
+### Added
+
+- **Bridge:** `doctor` reports an OpenCode admin-tier file whose `provider.systemprompt.models` differs from the gateway's current catalogue, naming the models no longer served and the ones not listed.
+
 ## [0.60.0] - 2026-09-23
 
 No bridge code changes; released with core 0.60.0. The README describes device self-enrollment through `POST /v1/bridge/device`, replacing the removed admin credential route.

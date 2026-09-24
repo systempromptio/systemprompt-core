@@ -244,6 +244,7 @@ fn bridge_profile_build_excludes_backend_provider() {
             organization_uuid: None,
             default_model: None,
             registry: &registry,
+            gateway: None,
         },
         |_| true,
     );

@@ -9,7 +9,8 @@ use serde::Serialize;
 use std::collections::BTreeMap;
 use systemprompt_identifiers::headers::INFERENCE_PROTOCOL;
 use systemprompt_loader::ServicesBootstrap;
-use systemprompt_models::services::{ApiSurface, ProviderRegistry};
+use systemprompt_models::bridge::profile::is_model_servable;
+use systemprompt_models::services::{ApiSurface, GatewayConfig, ProviderRegistry};
 
 #[derive(Debug, Serialize)]
 pub struct RootResponse {
@@ -94,10 +95,16 @@ pub async fn list(
         )
     })?;
 
-    services
+    let gateway = services
         .gateway_config()
         .filter(|g| g.enabled)
         .ok_or_else(|| (StatusCode::NOT_FOUND, "Gateway not enabled".to_owned()))?;
+    let secrets = systemprompt_config::SecretsBootstrap::get().map_err(|e| {
+        (
+            StatusCode::SERVICE_UNAVAILABLE,
+            format!("Secrets not ready: {e}"),
+        )
+    })?;
 
     // Why: the `x-inference-protocol` header is advisory, not a filter. The
     // gateway transcodes every inbound wire to every provider wire, so a client
@@ -106,7 +113,9 @@ pub async fn list(
     // The header is still parsed and validated so an unknown tag (or `backend`)
     // is rejected rather than silently accepted.
     let _surfaces = surfaces_from_header(&headers)?;
-    let mut entries = model_entries(&services.providers, &[]);
+    let mut entries = model_entries(&services.providers, &[], Some(gateway), |name| {
+        secrets.get(name).is_some_and(|k| !k.is_empty())
+    });
     let total = entries.len();
     let has_more = match query.limit {
         Some(limit) if limit < total => {
@@ -169,9 +178,20 @@ pub fn surfaces_from_header(headers: &HeaderMap) -> Result<Vec<ApiSurface>, (Sta
     Ok(surfaces)
 }
 
-pub fn model_entries(registry: &ProviderRegistry, surfaces: &[ApiSurface]) -> Vec<ModelEntry> {
+// Why: a model whose serving provider has no credential answers every request
+// with an error, so listing it only puts a dead entry in the client's picker.
+pub fn model_entries(
+    registry: &ProviderRegistry,
+    surfaces: &[ApiSurface],
+    gateway: Option<&GatewayConfig>,
+    secret_present: impl Fn(&str) -> bool,
+) -> Vec<ModelEntry> {
     let mut by_id: BTreeMap<String, ModelEntry> = BTreeMap::new();
-    for id in registry.advertised_model_ids(surfaces) {
+    for id in registry
+        .advertised_model_ids(surfaces)
+        .into_iter()
+        .filter(|id| is_model_servable(registry, gateway, id, &secret_present))
+    {
         let limits = registry
             .providers
             .iter()
