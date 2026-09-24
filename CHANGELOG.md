@@ -1,9 +1,10 @@
 # Changelog
 
-## [0.61.0] - 2026-09-23
+## [0.61.0] - 2026-09-24
 
 ### Breaking
 
+- **Extension Rust API:** `LoaderError` gains `MigrationTogglesTriggerByName`, `DanglingTriggerRoutine` and `MigrationChecksumDrift`; an exhaustive `match` must cover them.
 - **AI Rust API:** `UpstreamTarget::provider` returns `&ProviderId`.
 - **Models Rust API:** `bridge::profile::BridgeProfileParams` gains `gateway: Option<&GatewayConfig>`, and `routes::gateway::models::model_entries` takes the gateway config and a secret-present predicate.
 - **AI Rust API:** an upstream is built only from a catalog entry: `UpstreamTarget::api_key`, `UpstreamCall::{api_key, bearer}`, `ProviderCredential::api_key` and the provider clients' `new`/`with_endpoint` are removed; resolve the `ProviderEntry` with `UpstreamTarget::resolve` and pass it to `with_target`.
@@ -19,6 +20,16 @@
 - **Gateway / AI:** a Vertex-hosted provider on any wire but Gemini with an API-key secret is withheld at boot; Vertex accepts only a service-account bearer there.
 - **Scheduler:** forgetting retired `scheduled_jobs` rows is skipped when the job inventory is empty.
 - **Loader:** a process whose environment is unreadable with `EACCES` is judged foreign at once, without the retry that blocked an async worker.
+- **Database:** an upgrade across several releases no longer fails on triggers the previous release left behind. A migration suspends every enabled row trigger on the tables it writes and restores exactly those afterwards, on both the transactional and `@no-transaction` paths; `@cost … triggers=live` opts a migration out.
+- **Database:** boot refuses a dangling trigger routine (`LoaderError::DanglingTriggerRoutine`): an enabled PL/pgSQL trigger whose body uses a relation that no longer exists, which would otherwise fail every write to its table.
+- **Database:** a migration that enables or disables a trigger by bare name (`ALTER TABLE … ENABLE|DISABLE TRIGGER <name>`) is refused before any statement runs (`LoaderError::MigrationTogglesTriggerByName`), since it fails on any database where that trigger was since retired. Security migration 020 drops its pair of toggles under `@supersedes-checksum`.
+- **API:** runtime-state directories (the gateway journal's `{paths.storage}/data` among them) are created and write-probed before any route or extension initialises, and every unwritable one is reported in one error naming the OS error, the directory owner and the process uid. The probe file is unique per call, so concurrent boots probing the same directory no longer delete each other's probe and fail with `ENOENT`.
+- **CLI:** `infra db migrate` failures carry a classified hint (checksum drift, dangling trigger routine, statement timeout, lock timeout), and checksum drift is its own `LoaderError::MigrationChecksumDrift`.
+
+### Added
+
+- **Extension Rust API:** `Extension::retirements()` returns `DROP TRIGGER|FUNCTION|PROCEDURE|VIEW … IF EXISTS` statements, applied in a retire phase before any extension migrates, so a trigger one extension retires is gone before another drops the table it writes.
+- **CLI:** `infra db migrate --repair-drift` re-applies drifted migrations and retries once when, and only when, the install fails on checksum drift.
 
 ### Changed
 

@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.61.0] - 2026-09-24
+
+### Breaking
+
+- `LoaderError` gains `MigrationTogglesTriggerByName`, `DanglingTriggerRoutine` and `MigrationChecksumDrift`; an exhaustive `match` must cover them.
+
+### Added
+
+- `Extension::retirements()`: `DROP TRIGGER|FUNCTION|PROCEDURE|VIEW … IF EXISTS` statements applied before any extension migrates. Defaults to none.
+
 ## [0.60.0] - 2026-09-23
 
 ### Changed
