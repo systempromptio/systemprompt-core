@@ -215,7 +215,9 @@ async fn env_source_collects_custom_secrets_from_listed_keys() {
     let fx = fixture::write_tree(fixture::ENV_SECRETS, None);
     ProfileBootstrap::init_from_path(&fx.profile_path).unwrap();
     set_base_env();
-    fixture::set_env("SYSTEMPROMPT_CUSTOM_SECRETS", "COV_ONE, COV_TWO,COV_ABSENT,ENCRYPTION_MASTER_KEY",
+    fixture::set_env(
+        "SYSTEMPROMPT_CUSTOM_SECRETS",
+        "COV_ONE, COV_TWO,COV_ABSENT,ENCRYPTION_MASTER_KEY",
     );
     fixture::set_env("COV_ONE", "one-value");
     fixture::set_env("COV_TWO", "two-value");
