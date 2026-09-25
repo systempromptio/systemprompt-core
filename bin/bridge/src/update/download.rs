@@ -45,10 +45,10 @@ pub async fn download_verified(
     manifest: &ReleaseManifest,
     on_progress: &(dyn Fn(DownloadProgress) + Send + Sync),
 ) -> Result<PathBuf, UpdateError> {
-    let staging = crate::config::paths::bridge_staging_dir().ok_or(UpdateError::NoStagingDir)?;
-    std::fs::create_dir_all(&staging).map_err(|e| UpdateError::io(&staging, e))?;
+    let updates = crate::config::paths::bridge_update_dir().ok_or(UpdateError::NoStagingDir)?;
+    std::fs::create_dir_all(&updates).map_err(|e| UpdateError::io(&updates, e))?;
 
-    let dest = staging.join(format!("update-{}-{}", manifest.version, platform));
+    let dest = updates.join(format!("update-{}-{}", manifest.version, platform));
     let tmp = crate::fsutil::temp_path_for(&dest);
 
     let url = client.url(&format!("/v1/bridge/download/{platform}"));

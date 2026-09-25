@@ -88,6 +88,7 @@ pub(super) fn append_working_dirs(out: &mut Vec<String>) {
     out.push("working dirs:".to_owned());
     let dirs = [
         ("staging", paths::bridge_staging_dir()),
+        ("updates", paths::bridge_update_dir()),
         ("metadata", paths::bridge_metadata_dir()),
     ];
     for (label, dir) in dirs {
