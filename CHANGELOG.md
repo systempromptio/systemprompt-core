@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.62.0] - 2026-09-25
+
+### Breaking
+
+- **Secrets:** `SecretsBootstrap::init` refuses a secrets file without a valid `encryption_master_key` (64 hex characters) before migrations run, with `EncryptionMasterKeyRequired` / `EncryptionMasterKeyInvalid`. Every gateway-enabled boot has needed the key since 0.52.0 and previously died later, in extension init. Generate one with `openssl rand -hex 32`; with `secrets.source: env` it must also be listed in `SYSTEMPROMPT_CUSTOM_SECRETS`.
+
+### Added
+
+- **Config:** `systemprompt_config::{generate_master_key, decode_master_key}` are the one generator and decoder for the master key, used by at-rest sealing and the gateway journal.
+- **CLI:** `admin setup`, `admin identity generate` and cloud profile templates mint `encryption_master_key`.
+
+### Fixed
+
+- **Bridge:** Claude Desktop's `inferenceModels` lists a Claude model the gateway serves at 1M only as `<id>[1m]`, no longer beside its bare id, so Cowork sessions no longer compact at 200k while Code runs at 1M.
+
 ## [0.61.0] - 2026-09-24
 
 ### Breaking

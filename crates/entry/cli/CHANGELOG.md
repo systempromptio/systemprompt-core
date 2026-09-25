@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.62.0] - 2026-09-25
+
+### Added
+
+- `admin setup`, `admin identity generate` and cloud profile templates mint `encryption_master_key`; `admin setup` validates it.
+
 ## [0.61.0] - 2026-09-24
 
 ### Added

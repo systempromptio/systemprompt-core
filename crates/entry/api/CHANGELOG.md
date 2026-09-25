@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.62.0] - 2026-09-25
+
+### Changed
+
+- The gateway journal decodes `encryption_master_key` through `systemprompt_config::decode_master_key`.
+
 ## [0.61.0] - 2026-09-24
 
 ### Fixed
