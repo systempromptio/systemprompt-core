@@ -43,6 +43,7 @@ use systemprompt_models::profile::resolve_with_home;
 use systemprompt_models::secrets::Secrets;
 
 use super::manifest::{MANIFEST_SIGNING_SEED_BYTES, decode_seed, generate_seed, persist_seed};
+use super::master_key::decode_master_key;
 use super::profile::ProfileBootstrap;
 use crate::error::{ConfigError, ConfigResult};
 
@@ -124,6 +125,20 @@ pub enum SecretsBootstrapError {
     #[error("manifest_signing_secret_seed is invalid: {message}")]
     ManifestSeedInvalid { message: String },
 
+    #[error(
+        "encryption_master_key is required: it seals at-rest secrets and the gateway accounting \
+         journal. Add 64 hex characters (`openssl rand -hex 32`) as 'encryption_master_key' in \
+         secrets.json, or take the value from `systemprompt admin identity generate`. With \
+         `secrets.source: env`, also list it in SYSTEMPROMPT_CUSTOM_SECRETS."
+    )]
+    EncryptionMasterKeyRequired,
+
+    #[error(
+        "encryption_master_key is invalid ({message}): it must be 32 bytes as 64 hex characters \
+         (`openssl rand -hex 32`)"
+    )]
+    EncryptionMasterKeyInvalid { message: String },
+
     #[error("signing_key_pem secret is invalid: {message}")]
     SigningKeyPemInvalid { message: String },
 }
@@ -190,6 +205,11 @@ impl SecretsBootstrap {
             .as_deref()
             .ok_or(SecretsBootstrapError::ManifestSeedRequired)?;
         decode_seed(encoded)?;
+
+        let master_key = secrets
+            .get("encryption_master_key")
+            .ok_or(SecretsBootstrapError::EncryptionMasterKeyRequired)?;
+        decode_master_key(master_key)?;
 
         let is_deployment_host =
             systemprompt_models::subprocess::is_deployment_host(|name| std::env::var(name).ok());

@@ -37,12 +37,13 @@ pub fn collect_non_interactive(
     let identity = generate_identity()?;
     if !config.is_json_output() {
         CliService::success(
-            "Generated OAuth at-rest pepper, manifest signing seed and signing key",
+            "Generated OAuth at-rest pepper, encryption master key, manifest signing seed and signing key",
         );
     }
 
     let secrets = SecretsData {
         oauth_at_rest_pepper: identity.oauth_at_rest_pepper,
+        encryption_master_key: identity.encryption_master_key,
         manifest_signing_secret_seed: Some(identity.manifest_signing_secret_seed),
         signing_key_pem: Some(identity.signing_key_pem),
         database_url: None,
@@ -73,10 +74,13 @@ pub fn collect_interactive(
     CliService::info("At least one AI provider API key is required.");
 
     let identity = generate_identity()?;
-    CliService::success("Generated OAuth at-rest pepper, manifest signing seed and signing key");
+    CliService::success(
+        "Generated OAuth at-rest pepper, encryption master key, manifest signing seed and signing key",
+    );
 
     let mut secrets = SecretsData {
         oauth_at_rest_pepper: identity.oauth_at_rest_pepper,
+        encryption_master_key: identity.encryption_master_key,
         manifest_signing_secret_seed: Some(identity.manifest_signing_secret_seed),
         signing_key_pem: Some(identity.signing_key_pem),
         ..Default::default()
@@ -105,6 +109,7 @@ fn validate_secrets(secrets: &SecretsData) -> Result<()> {
     if secrets.oauth_at_rest_pepper.len() < 32 {
         anyhow::bail!("OAuth at-rest pepper must be at least 32 characters");
     }
+    systemprompt_config::decode_master_key(&secrets.encryption_master_key)?;
 
     if !secrets.has_ai_provider() {
         anyhow::bail!(

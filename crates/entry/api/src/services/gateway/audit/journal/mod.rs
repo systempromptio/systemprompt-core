@@ -53,10 +53,8 @@ impl GatewayJournal {
              as 64 hex characters); with `secrets.source: env` it must also be listed in \
              SYSTEMPROMPT_CUSTOM_SECRETS",
         )?;
-        let decoded = hex::decode(key).context("encryption_master_key is not hex")?;
-        let cipher = ChaCha20Poly1305::new_from_slice(&decoded).map_err(|error| {
-            anyhow::anyhow!("encryption_master_key is not a 32-byte key: {error}")
-        })?;
+        let decoded = systemprompt_config::decode_master_key(key)?;
+        let cipher = ChaCha20Poly1305::new(&decoded.into());
         let root = state_dir.join("gateway-journal");
         crate::services::server::state_dirs::create_state_dir(&root)
             .map_err(|e| anyhow::anyhow!("Cannot create gateway journal at {e}"))?;

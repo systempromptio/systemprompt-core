@@ -58,8 +58,9 @@ fn cipher() -> Result<ChaCha20Poly1305, AtRestCipherError> {
     let key = secrets
         .get("encryption_master_key")
         .ok_or(AtRestCipherError::KeyUnavailable)?;
-    let decoded = hex::decode(key).map_err(|_e| AtRestCipherError::KeyInvalid)?;
-    ChaCha20Poly1305::new_from_slice(&decoded).map_err(|_e| AtRestCipherError::KeyInvalid)
+    let decoded =
+        systemprompt_config::decode_master_key(key).map_err(|_e| AtRestCipherError::KeyInvalid)?;
+    Ok(ChaCha20Poly1305::new(&decoded.into()))
 }
 
 pub fn seal(plaintext: &str) -> Result<String, AtRestCipherError> {

@@ -9,6 +9,7 @@ use tempfile::TempDir;
 pub const PEPPER: &str = "test_oauth_at_rest_pepper_for_config_fixture";
 pub const SEED: &str = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
 pub const SIGNING_KEY_PEM: &str = "LS0tLS1CRUdJTiBQUklWQVRFIEtFWS0tLS0tCnRlc3QtY29uZmlnLWZpeHR1cmUKLS0tLS1FTkQgUFJJVkFURSBLRVktLS0tLQo=";
+pub const MASTER_KEY: &str = "0000000000000000000000000000000000000000000000000000000000000000";
 pub const DB_URL: &str = "postgresql://user:pass@localhost:5432/config_fixture";
 
 pub struct Fixture {
@@ -18,12 +19,19 @@ pub struct Fixture {
 }
 
 pub fn secrets_json(seed: Option<&str>) -> String {
+    secrets_json_with_master_key(seed, Some(MASTER_KEY))
+}
+
+pub fn secrets_json_with_master_key(seed: Option<&str>, master_key: Option<&str>) -> String {
     let seed_line = seed.map_or(String::new(), |s| {
         format!(",\n  \"manifest_signing_secret_seed\": \"{s}\"")
     });
+    let key_line = master_key.map_or(String::new(), |k| {
+        format!(",\n  \"encryption_master_key\": \"{k}\"")
+    });
     format!(
         "{{\n  \"oauth_at_rest_pepper\": \"{PEPPER}\",\n  \"database_url\": \
-         \"{DB_URL}\"{seed_line}\n}}\n"
+         \"{DB_URL}\"{seed_line}{key_line}\n}}\n"
     )
 }
 

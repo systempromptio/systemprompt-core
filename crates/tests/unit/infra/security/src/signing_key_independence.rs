@@ -23,6 +23,10 @@ fn ensure_bootstrap() {
             );
             std::env::set_var("MANIFEST_SIGNING_SECRET_SEED", SEED_B64);
         }
+        systemprompt_test_fixtures::secrets::install_named_secret(
+            "encryption_master_key",
+            &"44".repeat(32),
+        );
         let _ = systemprompt_test_fixtures::secrets::block_on_secrets_init();
     });
 }

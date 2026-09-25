@@ -12,6 +12,7 @@ use std::path::Path;
 
 use systemprompt_cli::cloud::profile::api_keys::ApiKeys;
 use systemprompt_cli::cloud::profile::templates::{DatabaseUrls, save_secrets};
+use systemprompt_config::decode_master_key;
 
 fn keys() -> ApiKeys {
     ApiKeys {
@@ -93,6 +94,21 @@ fn each_profile_gets_a_fresh_at_rest_pepper() {
         "a short pepper is a guessable one: {} chars",
         pepper_a.len()
     );
+}
+
+#[test]
+fn each_profile_gets_a_fresh_decodable_encryption_master_key() {
+    let first = tempfile::tempdir().expect("tempdir");
+    let second = tempfile::tempdir().expect("tempdir");
+
+    let a = write(first.path(), None);
+    let b = write(second.path(), None);
+
+    let key_a = a["encryption_master_key"].as_str().expect("master key");
+    let key_b = b["encryption_master_key"].as_str().expect("master key");
+
+    assert_ne!(key_a, key_b, "two profiles must not share a master key");
+    decode_master_key(key_a).expect("a 32-byte hex key");
 }
 
 #[test]

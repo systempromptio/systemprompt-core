@@ -438,7 +438,7 @@ Secret values are never stored in `profile.yaml`. They live in a separate JSON d
 | `github` | `github` | string | no | GitHub token. |
 | `moonshot` | `moonshot` | string | no | Moonshot/Kimi key. |
 | `qwen` | `qwen` | string | no | Qwen/DashScope key. |
-| `encryption_master_key` | `encryption_master_key` | string | yes when the gateway is enabled, and for the MCP proxy | 32 random bytes as 64 hex characters. Encrypts the gateway's per-request accounting receipts (and extensions' stored grants), and seals the bearer token the MCP proxy caches per session in `mcp_proxy_identities`. Validated when the gateway router is built; the server refuses to start without it. The proxy path is mounted whether or not the gateway is enabled, and refuses to cache an identity it cannot seal, so a deployment that proxies external MCP servers needs this key even with `gateway.enabled: false`. Preserve it across restarts and replicas. |
+| `encryption_master_key` | `encryption_master_key` | string | yes | 32 random bytes as 64 hex characters (`openssl rand -hex 32`); `admin setup` and `admin identity generate` mint it. Encrypts the gateway's per-request accounting receipts (and extensions' stored grants), and seals the bearer token the MCP proxy caches per session in `mcp_proxy_identities`. Validated at secrets bootstrap: a missing or malformed key is refused before migrations run, whether or not the gateway is enabled. Preserve it across restarts and replicas. |
 | (custom) | any other key | string | no | Extra keys flatten into a `custom` map and are addressable by name. |
 
 `null` values are stripped before deserialization (`secrets.rs:62`).
@@ -462,7 +462,7 @@ When `secrets.source` is `env` (or a Fly.io container is detected via `FLY_APP_N
 | `github` | `GITHUB_TOKEN` |
 | `moonshot` | `MOONSHOT_API_KEY` or `KIMI_API_KEY` |
 | `qwen` | `QWEN_API_KEY` or `DASHSCOPE_API_KEY` |
-| `encryption_master_key` | `ENCRYPTION_MASTER_KEY`, listed in `SYSTEMPROMPT_CUSTOM_SECRETS` (required when the gateway is enabled, and by the MCP proxy) |
+| `encryption_master_key` | `ENCRYPTION_MASTER_KEY`, listed in `SYSTEMPROMPT_CUSTOM_SECRETS` (required) |
 | (custom) | names listed in `SYSTEMPROMPT_CUSTOM_SECRETS` (comma-separated) |
 
 ## Bootstrap order
@@ -516,7 +516,9 @@ The matching secrets file:
 ```json
 {
   "oauth_at_rest_pepper": "a-string-of-at-least-thirty-two-chars",
-  "database_url": "postgresql://user:pass@localhost:5432/db"
+  "database_url": "postgresql://user:pass@localhost:5432/db",
+  "manifest_signing_secret_seed": "<base64-encoded 32-byte seed>",
+  "encryption_master_key": "<64 hex characters>"
 }
 ```
 

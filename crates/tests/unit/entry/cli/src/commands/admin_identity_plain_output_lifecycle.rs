@@ -6,7 +6,7 @@ use base64::Engine;
 use clap::Parser;
 use systemprompt_cli::admin::identity::{self, IdentityCommands};
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
-use systemprompt_config::decode_seed;
+use systemprompt_config::{decode_master_key, decode_seed};
 use systemprompt_security::keys::RsaSigningKey;
 
 const HELPER: &str = "commands::admin_identity_plain_output_lifecycle::plain_identity_helper";
@@ -59,11 +59,13 @@ fn plain_output_is_a_complete_cryptographically_consistent_bundle() {
     };
     let pepper = value("oauth_at_rest_pepper=");
     let seed_encoded = value("manifest_signing_secret_seed=");
+    let master_key = value("encryption_master_key=");
     let pem_encoded = value("signing_key_pem=");
     let kid = value("kid: ");
     assert_eq!(pepper.len(), 64);
     assert!(pepper.bytes().all(|byte| byte.is_ascii_alphanumeric()));
     assert_eq!(decode_seed(&seed_encoded).expect("decode seed").len(), 32);
+    decode_master_key(&master_key).expect("decode encryption master key");
     let pem = String::from_utf8(
         base64::engine::general_purpose::STANDARD
             .decode(&pem_encoded)

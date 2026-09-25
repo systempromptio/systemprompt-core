@@ -11,6 +11,7 @@ use systemprompt_cli::CliConfig;
 use systemprompt_cli::admin::setup::SetupArgs;
 use systemprompt_cli::admin::setup::secrets::{collect_interactive, collect_non_interactive};
 use systemprompt_cli::interactive::ScriptedPrompter;
+use systemprompt_config::decode_master_key;
 
 fn args() -> SetupArgs {
     SetupArgs {
@@ -65,6 +66,8 @@ fn keys_passed_as_flags_are_taken_without_prompting_and_name_the_primary() {
             && secrets.manifest_signing_secret_seed.is_some(),
         "an identity is minted even when the keys came from flags"
     );
+    decode_master_key(&secrets.encryption_master_key)
+        .expect("the interactive collector mints a decodable encryption master key");
 }
 
 #[test]
@@ -112,6 +115,8 @@ fn the_non_interactive_collector_refuses_the_same_way_and_accepts_a_flag() {
     let (secrets, primary) =
         collect_non_interactive(&args, &config()).expect("a supplied key is enough");
     assert_eq!(secrets.openai.as_deref(), Some("sk-openai-fixture"));
+    decode_master_key(&secrets.encryption_master_key)
+        .expect("the non-interactive collector mints a decodable encryption master key");
     assert_eq!(
         primary.map(|p| p.as_str().to_owned()).as_deref(),
         Some("openai")
