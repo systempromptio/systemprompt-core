@@ -294,3 +294,73 @@ fn downloading_the_same_release_twice_replaces_the_staged_artifact_in_place() {
         });
     });
 }
+
+#[test]
+fn a_newer_release_removes_the_superseded_artifact() {
+    let rt = runtime();
+    sandbox(|| {
+        rt.block_on(async {
+            let server = MockServer::start().await;
+            serve(&server, ResponseTemplate::new(200).set_body_bytes(BODY)).await;
+            let older = ReleaseManifest {
+                version: "9.9.8".to_owned(),
+                ..manifest(digest_of(BODY), BODY.len() as u64)
+            };
+
+            let first = download_verified(
+                &client(&server),
+                &BearerToken::new("bearer-token"),
+                PLATFORM,
+                &older,
+                &|_| {},
+            )
+            .await
+            .expect("older download");
+            let second = download_verified(
+                &client(&server),
+                &BearerToken::new("bearer-token"),
+                PLATFORM,
+                &manifest(digest_of(BODY), BODY.len() as u64),
+                &|_| {},
+            )
+            .await
+            .expect("newer download");
+
+            assert!(!first.exists(), "the superseded artifact is removed");
+            let dir = second.parent().expect("update dir");
+            let remaining: Vec<_> = std::fs::read_dir(dir)
+                .expect("list update dir")
+                .map(|entry| entry.expect("entry").path())
+                .collect();
+            assert_eq!(remaining, vec![second]);
+        });
+    });
+}
+
+#[test]
+fn a_sync_wiping_staging_leaves_the_downloaded_artifact_in_place() {
+    let rt = runtime();
+    sandbox(|| {
+        rt.block_on(async {
+            let server = MockServer::start().await;
+            serve(&server, ResponseTemplate::new(200).set_body_bytes(BODY)).await;
+
+            let artifact = download_verified(
+                &client(&server),
+                &BearerToken::new("bearer-token"),
+                PLATFORM,
+                &manifest(digest_of(BODY), BODY.len() as u64),
+                &|_| {},
+            )
+            .await
+            .expect("download");
+
+            let staging =
+                systemprompt_bridge::config::paths::bridge_staging_dir().expect("staging resolves");
+            assert!(!artifact.starts_with(&staging));
+            std::fs::create_dir_all(&staging).expect("create staging");
+            std::fs::remove_dir_all(&staging).expect("wipe staging as sync does");
+            assert_eq!(std::fs::read(&artifact).expect("artifact survives"), BODY);
+        });
+    });
+}

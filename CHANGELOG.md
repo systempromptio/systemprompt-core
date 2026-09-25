@@ -13,6 +13,7 @@
 
 ### Fixed
 
+- **Bridge:** a self-update no longer fails with `os error 3`: the download shared `staging/` with sync, which deletes and recreates it on every apply, so a sync starting at launch removed the half-written artifact. Downloads go to their own `updates/` directory, keep only the newest artifact, and are removed on uninstall.
 - **Bridge:** Claude Desktop's `inferenceModels` lists a Claude model the gateway serves at 1M only as `<id>[1m]`, no longer beside its bare id, so Cowork sessions no longer compact at 200k while Code runs at 1M.
 
 ## [0.61.0] - 2026-09-24

@@ -26,7 +26,11 @@ pub fn check_bridge_working_dir() -> Check {
             "could not resolve LOCALAPPDATA / state dir for metadata",
         );
     };
-    for (label, dir) in [("staging", &staging), ("updates", &updates), ("metadata", &meta)] {
+    for (label, dir) in [
+        ("staging", &staging),
+        ("updates", &updates),
+        ("metadata", &meta),
+    ] {
         if let Err(e) = std::fs::create_dir_all(dir) {
             return Check::fail(
                 "bridge working dir",

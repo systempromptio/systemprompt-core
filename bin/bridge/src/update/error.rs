@@ -30,7 +30,7 @@ pub enum UpdateError {
     #[error("checksum mismatch: expected {expected}, got {actual}")]
     ChecksumMismatch { expected: String, actual: String },
     #[error("could not resolve the update download directory")]
-    NoStagingDir,
+    NoUpdateDir,
     #[error("{path} is not writable; {hint}")]
     NotWritable { path: PathBuf, hint: String },
     #[error("could not locate the running {what}: {detail}")]
