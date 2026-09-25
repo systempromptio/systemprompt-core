@@ -18,10 +18,7 @@ async fn cleanup_agent(pool: &sqlx::PgPool, name: &str) {
 #[tokio::test]
 async fn register_and_get_agent_status_running() -> Result<()> {
     let fx = Fixture::new().await?;
-    let repo = AgentServiceRepository::new(
-        &fx.db,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    )?;
+    let repo = AgentServiceRepository::new(&fx.db, crate::common::unique_instance())?;
     let name = unique_agent_name("reg");
 
     repo.register_agent(&name, 12345, 9001).await?;
@@ -39,10 +36,7 @@ async fn register_and_get_agent_status_running() -> Result<()> {
 #[tokio::test]
 async fn register_agent_starting_status() -> Result<()> {
     let fx = Fixture::new().await?;
-    let repo = AgentServiceRepository::new(
-        &fx.db,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    )?;
+    let repo = AgentServiceRepository::new(&fx.db, crate::common::unique_instance())?;
     let name = unique_agent_name("start");
 
     repo.register_agent_starting(&name, 22222, 9002).await?;
@@ -57,10 +51,7 @@ async fn register_agent_starting_status() -> Result<()> {
 #[tokio::test]
 async fn mark_running_transitions_status() -> Result<()> {
     let fx = Fixture::new().await?;
-    let repo = AgentServiceRepository::new(
-        &fx.db,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    )?;
+    let repo = AgentServiceRepository::new(&fx.db, crate::common::unique_instance())?;
     let name = unique_agent_name("mark");
     repo.register_agent_starting(&name, 11, 9003).await?;
     repo.mark_running(&name).await?;
@@ -74,10 +65,7 @@ async fn mark_running_transitions_status() -> Result<()> {
 #[tokio::test]
 async fn mark_stopped_clears_pid() -> Result<()> {
     let fx = Fixture::new().await?;
-    let repo = AgentServiceRepository::new(
-        &fx.db,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    )?;
+    let repo = AgentServiceRepository::new(&fx.db, crate::common::unique_instance())?;
     let name = unique_agent_name("stop");
     repo.register_agent(&name, 44, 9005).await?;
     repo.mark_stopped(&name).await?;
@@ -92,10 +80,7 @@ async fn mark_stopped_clears_pid() -> Result<()> {
 #[tokio::test]
 async fn mark_error_sets_error_status() -> Result<()> {
     let fx = Fixture::new().await?;
-    let repo = AgentServiceRepository::new(
-        &fx.db,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    )?;
+    let repo = AgentServiceRepository::new(&fx.db, crate::common::unique_instance())?;
     let name = unique_agent_name("err");
     repo.register_agent(&name, 55, 9006).await?;
     repo.mark_error(&name).await?;
@@ -109,10 +94,7 @@ async fn mark_error_sets_error_status() -> Result<()> {
 #[tokio::test]
 async fn get_agent_status_unknown_returns_none() -> Result<()> {
     let fx = Fixture::new().await?;
-    let repo = AgentServiceRepository::new(
-        &fx.db,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    )?;
+    let repo = AgentServiceRepository::new(&fx.db, crate::common::unique_instance())?;
     let row = repo.get_agent_status("__no_such_agent_xyzzz").await?;
     assert!(row.is_none());
     fx.cleanup().await?;
@@ -122,10 +104,7 @@ async fn get_agent_status_unknown_returns_none() -> Result<()> {
 #[tokio::test]
 async fn list_running_agents_includes_registered() -> Result<()> {
     let fx = Fixture::new().await?;
-    let repo = AgentServiceRepository::new(
-        &fx.db,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    )?;
+    let repo = AgentServiceRepository::new(&fx.db, crate::common::unique_instance())?;
     let name = unique_agent_name("listrun");
     repo.register_agent(&name, 66, 9007).await?;
     let list = repo.list_running_agents().await?;
@@ -138,10 +117,7 @@ async fn list_running_agents_includes_registered() -> Result<()> {
 #[tokio::test]
 async fn list_running_agent_pids_includes_registered_with_pid() -> Result<()> {
     let fx = Fixture::new().await?;
-    let repo = AgentServiceRepository::new(
-        &fx.db,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    )?;
+    let repo = AgentServiceRepository::new(&fx.db, crate::common::unique_instance())?;
     let name = unique_agent_name("listpid");
     repo.register_agent(&name, 7777, 9008).await?;
     let list = repo.list_running_agent_pids().await?;
@@ -155,10 +131,7 @@ async fn list_running_agent_pids_includes_registered_with_pid() -> Result<()> {
 #[tokio::test]
 async fn remove_agent_service_removes_entry() -> Result<()> {
     let fx = Fixture::new().await?;
-    let repo = AgentServiceRepository::new(
-        &fx.db,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    )?;
+    let repo = AgentServiceRepository::new(&fx.db, crate::common::unique_instance())?;
     let name = unique_agent_name("rm");
     repo.register_agent(&name, 11, 9009).await?;
     repo.remove_agent_service(&name).await?;
@@ -171,10 +144,7 @@ async fn remove_agent_service_removes_entry() -> Result<()> {
 #[tokio::test]
 async fn update_health_status_changes_status() -> Result<()> {
     let fx = Fixture::new().await?;
-    let repo = AgentServiceRepository::new(
-        &fx.db,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    )?;
+    let repo = AgentServiceRepository::new(&fx.db, crate::common::unique_instance())?;
     let name = unique_agent_name("hth");
     repo.register_agent(&name, 11, 9010).await?;
     repo.update_health_status(&name, "degraded").await?;
@@ -188,10 +158,7 @@ async fn update_health_status_changes_status() -> Result<()> {
 #[tokio::test]
 async fn register_agent_overwrites_existing_via_upsert() -> Result<()> {
     let fx = Fixture::new().await?;
-    let repo = AgentServiceRepository::new(
-        &fx.db,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    )?;
+    let repo = AgentServiceRepository::new(&fx.db, crate::common::unique_instance())?;
     let name = unique_agent_name("upsert");
     repo.register_agent(&name, 100, 9011).await?;
     repo.register_agent(&name, 200, 9012).await?;
