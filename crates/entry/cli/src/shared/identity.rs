@@ -1,4 +1,4 @@
-//! Replica identity secrets: the three values every node must share.
+//! Replica identity secrets: the values every node must share.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -6,7 +6,7 @@
 use anyhow::{Context, Result};
 use base64::Engine;
 use serde::Serialize;
-use systemprompt_config::generate_seed;
+use systemprompt_config::{generate_master_key, generate_seed};
 use systemprompt_security::keys::RsaSigningKey;
 
 use super::profile::generate_oauth_at_rest_pepper;
@@ -17,6 +17,7 @@ pub struct IdentityBundle {
     pub manifest_signing_secret_seed: String,
     pub signing_key_pem: String,
     pub signing_kid: String,
+    pub encryption_master_key: String,
 }
 
 pub fn generate_identity() -> Result<IdentityBundle> {
@@ -28,5 +29,6 @@ pub fn generate_identity() -> Result<IdentityBundle> {
         manifest_signing_secret_seed: standard.encode(generate_seed()),
         signing_key_pem: standard.encode(pem.as_bytes()),
         signing_kid: key.kid().to_owned(),
+        encryption_master_key: generate_master_key(),
     })
 }

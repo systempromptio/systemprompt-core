@@ -8,7 +8,7 @@ A profile is the single source of truth for one deployment. There are no environ
 
 - A running PostgreSQL 18+ instance and a connection URL for it.
 - A directory the service account can read: `.systemprompt/profiles/<name>/`.
-- A secrets file (JSON) the service account can read, holding at minimum `oauth_at_rest_pepper` and `database_url`.
+- A secrets file (JSON) the service account can read, holding at minimum `oauth_at_rest_pepper`, `database_url`, `manifest_signing_secret_seed` and `encryption_master_key`.
 
 ## 1. Choose a profile name and environment
 
@@ -95,12 +95,13 @@ The minimum secrets document:
   "oauth_at_rest_pepper": "<>= 32-character random string>",
   "database_url": "postgresql://systemprompt:<pw>@db.internal:5432/systemprompt",
   "manifest_signing_secret_seed": "<base64-encoded 32-byte seed>",
+  "encryption_master_key": "<64 hex characters: openssl rand -hex 32>",
   "anthropic": "sk-ant-...",
   "openai": "sk-..."
 }
 ```
 
-`oauth_at_rest_pepper` must be at least 32 characters (`crates/shared/models/src/secrets.rs:13`). `manifest_signing_secret_seed` is a base64-encoded 32-byte Ed25519 seed; if absent and the secrets path is writable, `systemprompt admin bridge rotate-signing-key` generates one. Provider keys (`anthropic`, `openai`, `gemini`, `github`, `moonshot`, `qwen`) are optional; add only those you use. Any additional key/value pairs are accepted and exposed as custom secrets.
+`oauth_at_rest_pepper` must be at least 32 characters (`crates/shared/models/src/secrets.rs:13`). `manifest_signing_secret_seed` is a base64-encoded 32-byte Ed25519 seed; if absent and the secrets path is writable, `systemprompt admin bridge rotate-signing-key` generates one. `encryption_master_key` is 32 random bytes as 64 hex characters; it seals at-rest secrets and the gateway accounting journal. `systemprompt admin setup` and `systemprompt admin identity generate` mint it alongside the pepper and seed. Provider keys (`anthropic`, `openai`, `gemini`, `github`, `moonshot`, `qwen`) are optional; add only those you use. Any additional key/value pairs are accepted and exposed as custom secrets.
 
 Set `0600` permissions on a plain JSON secrets file and own it with the service account. Never commit it to git.
 
@@ -163,7 +164,7 @@ Never use `unrestricted` in production.
 
 ## 8. Validate the profile
 
-Bootstrap runs in a fixed order: ProfileBootstrap → SecretsBootstrap → CredentialsBootstrap → Config → AppContext (`crates/infra/config/src/bootstrap/`). Each stage validates its inputs and fails fast. Starting the server (`systemprompt infra services serve`) or running `systemprompt infra db status` exercises the profile and secrets load; a missing `database_url` or `oauth_at_rest_pepper` fails with an explicit error.
+Bootstrap runs in a fixed order: ProfileBootstrap → SecretsBootstrap → CredentialsBootstrap → Config → AppContext (`crates/infra/config/src/bootstrap/`). Each stage validates its inputs and fails fast. Starting the server (`systemprompt infra services serve`) or running `systemprompt infra db status` exercises the profile and secrets load; a missing `database_url`, `oauth_at_rest_pepper`, `manifest_signing_secret_seed` or `encryption_master_key` fails at secrets bootstrap, before any migration, with an explicit error.
 
 ## Next steps
 

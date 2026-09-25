@@ -19,6 +19,7 @@ fn document() -> serde_json::Value {
         "oauth_at_rest_pepper": fixture::PEPPER,
         "database_url": fixture::DB_URL,
         "manifest_signing_secret_seed": fixture::SEED,
+        "encryption_master_key": fixture::MASTER_KEY,
     })
 }
 

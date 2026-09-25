@@ -18,6 +18,8 @@ use assert_cmd::Command;
 use tempfile::TempDir;
 
 pub const TEST_OAUTH_AT_REST_PEPPER: &str = "test_oauth_at_rest_pepper_for_bootstrap_fixture_zzz";
+pub const TEST_ENCRYPTION_MASTER_KEY: &str =
+    "2222222222222222222222222222222222222222222222222222222222222222";
 pub const TEST_MANIFEST_SIGNING_SEED: &str = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
 const UNRESTRICTED_ACKNOWLEDGEMENT: &str = "I understand this disables all authorization";
 
@@ -93,6 +95,8 @@ pub fn command_bare_or_skip() -> Option<Command> {
     c.env_remove("SYSTEMPROMPT_PROFILE");
     c.env("OAUTH_AT_REST_PEPPER", TEST_OAUTH_AT_REST_PEPPER);
     c.env("MANIFEST_SIGNING_SECRET_SEED", TEST_MANIFEST_SIGNING_SEED);
+    c.env("SYSTEMPROMPT_CUSTOM_SECRETS", "encryption_master_key");
+    c.env("encryption_master_key", TEST_ENCRYPTION_MASTER_KEY);
     c.env("SYSTEMPROMPT_SUBPROCESS", "1");
     c.arg("--non-interactive");
     c.arg("--no-color");
@@ -107,6 +111,8 @@ pub fn command_or_skip() -> Option<Command> {
     c.env_remove("SYSTEMPROMPT_PROFILE");
     c.env("OAUTH_AT_REST_PEPPER", TEST_OAUTH_AT_REST_PEPPER);
     c.env("MANIFEST_SIGNING_SECRET_SEED", TEST_MANIFEST_SIGNING_SEED);
+    c.env("SYSTEMPROMPT_CUSTOM_SECRETS", "encryption_master_key");
+    c.env("encryption_master_key", TEST_ENCRYPTION_MASTER_KEY);
     c.env("SYSTEMPROMPT_SUBPROCESS", "1");
     c.arg("--non-interactive");
     c.arg("--no-color");
@@ -230,6 +236,8 @@ fn bootstrap_system_admin(fixture: &FullBootstrap) {
     c.env_remove("SYSTEMPROMPT_PROFILE");
     c.env("OAUTH_AT_REST_PEPPER", TEST_OAUTH_AT_REST_PEPPER);
     c.env("MANIFEST_SIGNING_SECRET_SEED", TEST_MANIFEST_SIGNING_SEED);
+    c.env("SYSTEMPROMPT_CUSTOM_SECRETS", "encryption_master_key");
+    c.env("encryption_master_key", TEST_ENCRYPTION_MASTER_KEY);
     c.env("SYSTEMPROMPT_SUBPROCESS", "1");
     c.arg("--non-interactive");
     c.arg("--no-color");

@@ -46,7 +46,8 @@ async fn signing_rotation_helper() {
         serde_json::json!({
             "oauth_at_rest_pepper": "test-pepper-0123456789-abcdefghijkl",
             "database_url": "postgresql://unused.invalid/test",
-            "manifest_signing_secret_seed": ORIGINAL_SEED
+            "manifest_signing_secret_seed": ORIGINAL_SEED,
+            "encryption_master_key": "33".repeat(32)
         })
         .to_string(),
     )

@@ -11,18 +11,9 @@ async fn agent_monitor_monitor_all_agents_with_none_returns_empty_report() -> Re
     ensure_test_bootstrap();
     let fx = Fixture::new().await?;
     let monitor = AgentMonitor::new(
-        AgentServiceRepository::new(
-            &fx.db,
-            systemprompt_identifiers::InstanceId::new("test-instance"),
-        )
-        .expect("repo"),
+        AgentServiceRepository::new(&fx.db, crate::common::unique_instance()).expect("repo"),
     )
     .expect("monitor");
-
-    // Clean up all services first
-    let _ = sqlx::query("DELETE FROM services WHERE module_name = 'agent'")
-        .execute(&fx.pool)
-        .await;
 
     let report = monitor.monitor_all_agents().await?;
     assert_eq!(report.total_agents(), 0);
@@ -35,17 +26,12 @@ async fn agent_monitor_cleanup_unresponsive_agents_returns_count() -> Result<()>
     ensure_test_bootstrap();
     let fx = Fixture::new().await?;
     let monitor = AgentMonitor::new(
-        AgentServiceRepository::new(
-            &fx.db,
-            systemprompt_identifiers::InstanceId::new("test-instance"),
-        )
-        .expect("repo"),
+        AgentServiceRepository::new(&fx.db, crate::common::unique_instance()).expect("repo"),
     )
     .expect("monitor");
 
     let count = monitor.cleanup_unresponsive_agents().await?;
-    // Just verify it returns a value, value depends on db state
-    let _ = count;
+    assert_eq!(count, 0);
     fx.cleanup().await?;
     Ok(())
 }

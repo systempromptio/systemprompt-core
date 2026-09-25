@@ -1,6 +1,6 @@
 //! Tests for `admin identity generate` and the identity bundle it emits.
 //!
-//! The three values must decode in the encodings the secrets loader expects
+//! The values must decode in the encodings the secrets loader expects
 //! and must differ between calls, so two nodes never share a bundle by
 //! accident of the generator.
 
@@ -13,7 +13,7 @@ use clap::Parser;
 use systemprompt_cli::admin::identity::{IdentityCommands, execute};
 use systemprompt_cli::shared::generate_identity;
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
-use systemprompt_config::decode_seed;
+use systemprompt_config::{decode_master_key, decode_seed};
 use systemprompt_logging::{
     reset_structured_emitted, set_structured_output, structured_was_emitted,
 };
@@ -49,6 +49,7 @@ fn bundle_decodes_in_the_loader_encodings() {
     assert_eq!(bundle.oauth_at_rest_pepper.len(), 64);
     let seed = decode_seed(&bundle.manifest_signing_secret_seed).unwrap();
     assert_eq!(seed.len(), 32);
+    decode_master_key(&bundle.encryption_master_key).unwrap();
     let pem_bytes = base64::engine::general_purpose::STANDARD
         .decode(&bundle.signing_key_pem)
         .unwrap();
@@ -67,6 +68,7 @@ fn every_bundle_is_distinct() {
         b.manifest_signing_secret_seed
     );
     assert_ne!(a.signing_key_pem, b.signing_key_pem);
+    assert_ne!(a.encryption_master_key, b.encryption_master_key);
 }
 
 #[test]

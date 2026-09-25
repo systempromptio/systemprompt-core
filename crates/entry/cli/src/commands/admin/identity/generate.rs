@@ -21,6 +21,7 @@ pub(super) fn execute(args: GenerateArgs, ctx: &CommandContext) -> Result<()> {
     if args.json || ctx.cli.is_json_output() {
         let fragment = serde_json::json!({
             "oauth_at_rest_pepper": bundle.oauth_at_rest_pepper,
+            "encryption_master_key": bundle.encryption_master_key,
             "manifest_signing_secret_seed": bundle.manifest_signing_secret_seed,
             "signing_key_pem": bundle.signing_key_pem,
         });
@@ -40,6 +41,10 @@ pub(super) fn execute(args: GenerateArgs, ctx: &CommandContext) -> Result<()> {
     CliService::output(&format!(
         "manifest_signing_secret_seed={}",
         bundle.manifest_signing_secret_seed
+    ));
+    CliService::output(&format!(
+        "encryption_master_key={}",
+        bundle.encryption_master_key
     ));
     CliService::output(&format!("signing_key_pem={}", bundle.signing_key_pem));
     CliService::output(&format!("kid: {}", bundle.signing_kid));

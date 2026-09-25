@@ -298,7 +298,7 @@ fn limit(context_window: u32) -> AdvertisedLimits {
 }
 
 #[test]
-fn million_context_models_gain_a_1m_variant_after_the_bare_id() {
+fn million_context_models_are_listed_only_as_the_1m_variant() {
     let models = vec![
         "claude-sonnet-5".to_string(),
         "claude-haiku-4-5".to_string(),
@@ -311,12 +311,12 @@ fn million_context_models_gain_a_1m_variant_after_the_bare_id() {
     .collect();
     assert_eq!(
         with_context_variants(&models, &limits),
-        vec!["claude-sonnet-5", "claude-sonnet-5[1m]", "claude-haiku-4-5"],
+        vec!["claude-sonnet-5[1m]", "claude-haiku-4-5"],
     );
 }
 
 #[test]
-fn an_existing_1m_variant_is_not_doubled() {
+fn an_existing_1m_variant_absorbs_the_bare_id() {
     let models = vec![
         "claude-sonnet-5".to_string(),
         "claude-sonnet-5[1m]".to_string(),
@@ -326,7 +326,7 @@ fn an_existing_1m_variant_is_not_doubled() {
         .collect();
     assert_eq!(
         with_context_variants(&models, &limits),
-        vec!["claude-sonnet-5", "claude-sonnet-5[1m]"],
+        vec!["claude-sonnet-5[1m]"],
     );
 }
 
@@ -344,6 +344,6 @@ fn the_registry_profile_lists_the_1m_variant() {
         .collect();
     assert_eq!(
         value_of(&owned, "inferenceModels"),
-        "[\"claude-opus-5-5\",\"claude-opus-5-5[1m]\"]"
+        "[\"claude-opus-5-5[1m]\"]"
     );
 }

@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.62.0] - 2026-09-25
+
+### Added
+
+- `generate_master_key` and `decode_master_key`: the single generator and decoder for `encryption_master_key`.
+
+### Changed
+
+- `SecretsBootstrap::init` refuses a missing or malformed `encryption_master_key` before migrations (`EncryptionMasterKeyRequired`, `EncryptionMasterKeyInvalid`).
+
 ## [0.61.0] - 2026-09-24
 
 ### Changed

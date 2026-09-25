@@ -10,6 +10,7 @@ use systemprompt_config::ProfileBootstrap;
 use systemprompt_models::profile::UNRESTRICTED_ACKNOWLEDGEMENT;
 use tempfile::TempDir;
 
+pub const MASTER_KEY: &str = "0000000000000000000000000000000000000000000000000000000000000000";
 pub const PEPPER: &str = "test_oauth_at_rest_pepper_for_runtime_boot_fixture";
 pub const SEED: &str = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
 
@@ -112,6 +113,7 @@ pub fn boot(opts: &BootOptions) -> Option<BootFixture> {
         format!(
             "{{\n  \"oauth_at_rest_pepper\": \"{PEPPER}\",\n  \
              \"manifest_signing_secret_seed\": \"{SEED}\",\n  \
+             \"encryption_master_key\": \"{MASTER_KEY}\",\n  \
              \"database_url\": \"{database_url}\"{write_url_json}\n}}\n"
         ),
     )

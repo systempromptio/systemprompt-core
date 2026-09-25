@@ -59,10 +59,10 @@ fn locate_install_names_what_was_missing() {
 }
 
 #[test]
-fn no_staging_dir_and_unpack_and_signature_render() {
+fn no_update_dir_and_unpack_and_signature_render() {
     assert_eq!(
-        UpdateError::NoStagingDir.to_string(),
-        "could not resolve the staging directory"
+        UpdateError::NoUpdateDir.to_string(),
+        "could not resolve the update download directory"
     );
     assert_eq!(
         UpdateError::Unpack("tar failed".to_owned()).to_string(),

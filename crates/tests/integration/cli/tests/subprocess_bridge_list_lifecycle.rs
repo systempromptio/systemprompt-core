@@ -3,7 +3,8 @@ use std::time::Duration;
 use assert_cmd::Command;
 use serde_json::Value;
 use systemprompt_cli_integration_tests::full_bootstrap::{
-    TEST_MANIFEST_SIGNING_SEED, TEST_OAUTH_AT_REST_PEPPER, isolated_fixture, systemprompt_bin,
+    TEST_ENCRYPTION_MASTER_KEY, TEST_MANIFEST_SIGNING_SEED, TEST_OAUTH_AT_REST_PEPPER,
+    isolated_fixture, systemprompt_bin,
 };
 use systemprompt_identifiers::{SessionId, UserId};
 use systemprompt_oauth::repository::{BridgeSessionRepository, UpsertBridgeSession};
@@ -44,6 +45,8 @@ fn bridge_json(database_url: &str, profile: &std::path::Path, args: &[&str]) -> 
         .env("DATABASE_URL", database_url)
         .env("OAUTH_AT_REST_PEPPER", TEST_OAUTH_AT_REST_PEPPER)
         .env("MANIFEST_SIGNING_SECRET_SEED", TEST_MANIFEST_SIGNING_SEED)
+        .env("SYSTEMPROMPT_CUSTOM_SECRETS", "encryption_master_key")
+        .env("encryption_master_key", TEST_ENCRYPTION_MASTER_KEY)
         .env("SYSTEMPROMPT_SUBPROCESS", "1")
         .args(["--non-interactive", "--no-color", "--json", "--profile"])
         .arg(profile)

@@ -8,6 +8,8 @@ fn set_base_env() {
     fixture::set_env("OAUTH_AT_REST_PEPPER", fixture::PEPPER);
     fixture::set_env("DATABASE_URL", ENV_DB_URL);
     fixture::set_env("MANIFEST_SIGNING_SECRET_SEED", fixture::SEED);
+    fixture::set_env("ENCRYPTION_MASTER_KEY", fixture::MASTER_KEY);
+    fixture::set_env("SYSTEMPROMPT_CUSTOM_SECRETS", "ENCRYPTION_MASTER_KEY");
 }
 
 #[tokio::test]
@@ -213,14 +215,17 @@ async fn env_source_collects_custom_secrets_from_listed_keys() {
     let fx = fixture::write_tree(fixture::ENV_SECRETS, None);
     ProfileBootstrap::init_from_path(&fx.profile_path).unwrap();
     set_base_env();
-    fixture::set_env("SYSTEMPROMPT_CUSTOM_SECRETS", "COV_ONE, COV_TWO,COV_ABSENT");
+    fixture::set_env(
+        "SYSTEMPROMPT_CUSTOM_SECRETS",
+        "COV_ONE, COV_TWO,COV_ABSENT,ENCRYPTION_MASTER_KEY",
+    );
     fixture::set_env("COV_ONE", "one-value");
     fixture::set_env("COV_TWO", "two-value");
     fixture::remove_env("COV_ABSENT");
 
     let secrets = SecretsBootstrap::init().await.unwrap();
 
-    assert_eq!(secrets.custom.len(), 2);
+    assert_eq!(secrets.custom.len(), 3);
     assert_eq!(
         secrets.custom.get("COV_ONE").map(String::as_str),
         Some("one-value")

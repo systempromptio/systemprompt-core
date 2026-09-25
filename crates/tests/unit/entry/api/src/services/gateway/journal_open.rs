@@ -47,7 +47,7 @@ fn a_non_hex_key_is_rejected() {
     let dir = tempfile::tempdir().expect("tempdir");
     let error = GatewayJournal::open(dir.path(), &secrets_with_key(&"zz".repeat(32)))
         .expect_err("non-hex key");
-    assert!(error.to_string().contains("not hex"), "{error}");
+    assert!(error.to_string().contains("hex decode failed"), "{error}");
 }
 
 #[test]

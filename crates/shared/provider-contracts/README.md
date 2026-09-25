@@ -36,7 +36,7 @@ The contracts are here, in the shared layer. The implementations live in domain 
 
 ```toml
 [dependencies]
-systemprompt-provider-contracts = "0.61"
+systemprompt-provider-contracts = "0.62"
 ```
 
 ```rust

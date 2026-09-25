@@ -2,7 +2,8 @@ use std::time::Duration;
 
 use assert_cmd::Command;
 use systemprompt_cli_integration_tests::full_bootstrap::{
-    TEST_MANIFEST_SIGNING_SEED, TEST_OAUTH_AT_REST_PEPPER, isolated_fixture, systemprompt_bin,
+    TEST_ENCRYPTION_MASTER_KEY, TEST_MANIFEST_SIGNING_SEED, TEST_OAUTH_AT_REST_PEPPER,
+    isolated_fixture, systemprompt_bin,
 };
 use systemprompt_test_fixtures::DisposableDb;
 
@@ -13,6 +14,8 @@ fn doctor(profile: &std::path::Path, database_url: &str) -> std::process::Output
     command.env("DATABASE_URL", database_url);
     command.env("OAUTH_AT_REST_PEPPER", TEST_OAUTH_AT_REST_PEPPER);
     command.env("MANIFEST_SIGNING_SECRET_SEED", TEST_MANIFEST_SIGNING_SEED);
+    command.env("SYSTEMPROMPT_CUSTOM_SECRETS", "encryption_master_key");
+    command.env("encryption_master_key", TEST_ENCRYPTION_MASTER_KEY);
     command.env("SYSTEMPROMPT_SUBPROCESS", "1");
     let profile_dir = profile.parent().expect("profile directory");
     let project_root = profile_dir.parent().expect("owned project root");
@@ -77,6 +80,7 @@ async fn cloud_doctor_reports_missing_secrets_then_accepts_repaired_owned_profil
         serde_json::to_vec_pretty(&serde_json::json!({
             "database_url": database.url(),
             "oauth_at_rest_pepper": TEST_OAUTH_AT_REST_PEPPER,
+            "encryption_master_key": TEST_ENCRYPTION_MASTER_KEY,
             "anthropic": "synthetic-doctor-provider-secret",
             "openai": "synthetic-doctor-openai-secret",
             "signing_key_pem": signing_key

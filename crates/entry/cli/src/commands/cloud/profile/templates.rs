@@ -173,6 +173,7 @@ pub fn save_secrets(
     let identity = crate::shared::generate_identity()?;
     let mut secrets = json!({
         "oauth_at_rest_pepper": identity.oauth_at_rest_pepper,
+        "encryption_master_key": identity.encryption_master_key,
         "manifest_signing_secret_seed": identity.manifest_signing_secret_seed,
         "signing_key_pem": identity.signing_key_pem,
         "database_url": db_urls.external,

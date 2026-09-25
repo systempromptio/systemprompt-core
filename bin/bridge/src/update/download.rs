@@ -45,10 +45,10 @@ pub async fn download_verified(
     manifest: &ReleaseManifest,
     on_progress: &(dyn Fn(DownloadProgress) + Send + Sync),
 ) -> Result<PathBuf, UpdateError> {
-    let staging = crate::config::paths::bridge_staging_dir().ok_or(UpdateError::NoStagingDir)?;
-    std::fs::create_dir_all(&staging).map_err(|e| UpdateError::io(&staging, e))?;
+    let updates = crate::config::paths::bridge_update_dir().ok_or(UpdateError::NoUpdateDir)?;
+    std::fs::create_dir_all(&updates).map_err(|e| UpdateError::io(&updates, e))?;
 
-    let dest = staging.join(format!("update-{}-{}", manifest.version, platform));
+    let dest = updates.join(format!("update-{}-{}", manifest.version, platform));
     let tmp = crate::fsutil::temp_path_for(&dest);
 
     let url = client.url(&format!("/v1/bridge/download/{platform}"));
@@ -79,12 +79,31 @@ pub async fn download_verified(
     }
 
     std::fs::rename(&tmp, &dest).map_err(|e| UpdateError::io(&dest, e))?;
+    prune_superseded(&updates, &dest);
     tracing::info!(
         version = %manifest.version,
         path = %dest.display(),
         "update: artifact downloaded and verified"
     );
     Ok(dest)
+}
+
+fn prune_superseded(updates: &std::path::Path, keep: &std::path::Path) {
+    let entries = match std::fs::read_dir(updates) {
+        Ok(entries) => entries,
+        Err(e) => {
+            tracing::warn!(error = %e, path = %updates.display(), "update: could not list superseded downloads");
+            return;
+        },
+    };
+    for path in entries.filter_map(|entry| entry.ok().map(|entry| entry.path())) {
+        if path == keep || !path.is_file() {
+            continue;
+        }
+        if let Err(e) = std::fs::remove_file(&path) {
+            tracing::warn!(error = %e, path = %path.display(), "update: could not remove superseded download");
+        }
+    }
 }
 
 async fn stream_to_file(

@@ -1,7 +1,7 @@
 use base64::Engine;
 use systemprompt_config::{
     ConfigError, MANIFEST_SIGNING_SEED_BYTES, ProfileBootstrap, SecretsBootstrap,
-    SecretsBootstrapError, decode_seed,
+    SecretsBootstrapError, decode_master_key, decode_seed, generate_master_key,
 };
 
 use crate::fixture;
@@ -245,10 +245,12 @@ async fn signing_key_pem_round_trips_and_rejects_bad_encodings() {
     let encoded = base64::engine::general_purpose::STANDARD.encode(pem);
     let body = format!(
         "{{\"oauth_at_rest_pepper\": \"{}\", \"database_url\": \"{}\", \
-         \"manifest_signing_secret_seed\": \"{}\", \"signing_key_pem\": \"{encoded}\"}}",
+         \"manifest_signing_secret_seed\": \"{}\", \"encryption_master_key\": \"{}\", \
+         \"signing_key_pem\": \"{encoded}\"}}",
         fixture::PEPPER,
         fixture::DB_URL,
-        fixture::SEED
+        fixture::SEED,
+        fixture::MASTER_KEY
     );
     let fx = fixture::write_tree(fixture::FILE_SECRETS, Some(&body));
     init_profile(&fx);
@@ -264,10 +266,12 @@ async fn signing_key_pem_round_trips_and_rejects_bad_encodings() {
 async fn signing_key_pem_invalid_base64_errors() {
     let body = format!(
         "{{\"oauth_at_rest_pepper\": \"{}\", \"database_url\": \"{}\", \
-         \"manifest_signing_secret_seed\": \"{}\", \"signing_key_pem\": \"%%%not-b64\"}}",
+         \"manifest_signing_secret_seed\": \"{}\", \"encryption_master_key\": \"{}\", \
+         \"signing_key_pem\": \"%%%not-b64\"}}",
         fixture::PEPPER,
         fixture::DB_URL,
-        fixture::SEED
+        fixture::SEED,
+        fixture::MASTER_KEY
     );
     let fx = fixture::write_tree(fixture::FILE_SECRETS, Some(&body));
     init_profile(&fx);
@@ -285,10 +289,12 @@ async fn signing_key_pem_invalid_utf8_errors() {
     let encoded = base64::engine::general_purpose::STANDARD.encode([0xff, 0xfe, 0x00, 0x9f]);
     let body = format!(
         "{{\"oauth_at_rest_pepper\": \"{}\", \"database_url\": \"{}\", \
-         \"manifest_signing_secret_seed\": \"{}\", \"signing_key_pem\": \"{encoded}\"}}",
+         \"manifest_signing_secret_seed\": \"{}\", \"encryption_master_key\": \"{}\", \
+         \"signing_key_pem\": \"{encoded}\"}}",
         fixture::PEPPER,
         fixture::DB_URL,
-        fixture::SEED
+        fixture::SEED,
+        fixture::MASTER_KEY
     );
     let fx = fixture::write_tree(fixture::FILE_SECRETS, Some(&body));
     init_profile(&fx);
@@ -366,4 +372,79 @@ async fn rotate_manifest_signing_seed_persists_new_seed() {
         on_disk["oauth_at_rest_pepper"].as_str(),
         Some(fixture::PEPPER)
     );
+}
+
+#[tokio::test]
+async fn init_errors_when_encryption_master_key_missing() {
+    let fx = fixture::write_tree(
+        fixture::FILE_SECRETS,
+        Some(&fixture::secrets_json_with_master_key(
+            Some(fixture::SEED),
+            None,
+        )),
+    );
+    init_profile(&fx);
+
+    let err = SecretsBootstrap::init().await.unwrap_err();
+
+    assert!(matches!(
+        err,
+        ConfigError::Secrets(SecretsBootstrapError::EncryptionMasterKeyRequired)
+    ));
+    assert!(err.to_string().contains("openssl rand -hex 32"), "{err}");
+    assert!(!SecretsBootstrap::is_initialized());
+}
+
+#[tokio::test]
+async fn init_errors_when_encryption_master_key_not_hex() {
+    let fx = fixture::write_tree(
+        fixture::FILE_SECRETS,
+        Some(&fixture::secrets_json_with_master_key(
+            Some(fixture::SEED),
+            Some("zz-not-hex"),
+        )),
+    );
+    init_profile(&fx);
+
+    let err = SecretsBootstrap::init().await.unwrap_err();
+
+    match err {
+        ConfigError::Secrets(SecretsBootstrapError::EncryptionMasterKeyInvalid { message }) => {
+            assert!(message.contains("hex decode failed"), "{message}");
+        },
+        other => panic!("expected EncryptionMasterKeyInvalid, got: {other:?}"),
+    }
+}
+
+#[tokio::test]
+async fn init_errors_when_encryption_master_key_wrong_length() {
+    let fx = fixture::write_tree(
+        fixture::FILE_SECRETS,
+        Some(&fixture::secrets_json_with_master_key(
+            Some(fixture::SEED),
+            Some("abcd"),
+        )),
+    );
+    init_profile(&fx);
+
+    let err = SecretsBootstrap::init().await.unwrap_err();
+
+    match err {
+        ConfigError::Secrets(SecretsBootstrapError::EncryptionMasterKeyInvalid { message }) => {
+            assert!(message.contains("got 2"), "{message}");
+        },
+        other => panic!("expected EncryptionMasterKeyInvalid, got: {other:?}"),
+    }
+}
+
+#[test]
+fn generated_master_key_round_trips_through_decoder() {
+    let first = generate_master_key();
+    let second = generate_master_key();
+
+    assert_eq!(first.len(), 64);
+    assert_ne!(first, second);
+    assert!(first.chars().all(|c| c.is_ascii_hexdigit()), "{first}");
+    assert_ne!(decode_master_key(&first).unwrap(), [0u8; 32]);
+    assert_eq!(decode_master_key(fixture::MASTER_KEY).unwrap(), [0u8; 32]);
 }

@@ -1,8 +1,9 @@
 //! Secrets data model and default-provider resolution.
 //!
-//! [`SecretsData`] holds the generated OAuth at-rest pepper, database URL, and
-//! AI-provider keys. [`resolve_primary`] picks the default provider from an
-//! explicit flag or the first present key by [`PROVIDER_PRIORITY`].
+//! [`SecretsData`] holds the generated OAuth at-rest pepper, encryption master
+//! key, database URL, and AI-provider keys. [`resolve_primary`] picks the
+//! default provider from an explicit flag or the first present key by
+//! [`PROVIDER_PRIORITY`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -20,6 +21,8 @@ const PROVIDER_PRIORITY: [&str; 3] = ["anthropic", "openai", "gemini"];
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct SecretsData {
     pub oauth_at_rest_pepper: String,
+
+    pub encryption_master_key: String,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub manifest_signing_secret_seed: Option<String>,

@@ -14,13 +14,23 @@ pub fn check_bridge_working_dir() -> Check {
             "could not resolve LOCALAPPDATA / state dir — bridge_working_dir() returned None",
         );
     };
+    let Some(updates) = paths::bridge_update_dir() else {
+        return Check::fail(
+            "bridge working dir",
+            "could not resolve LOCALAPPDATA / state dir for updates",
+        );
+    };
     let Some(meta) = paths::bridge_metadata_dir() else {
         return Check::fail(
             "bridge working dir",
             "could not resolve LOCALAPPDATA / state dir for metadata",
         );
     };
-    for (label, dir) in [("staging", &staging), ("metadata", &meta)] {
+    for (label, dir) in [
+        ("staging", &staging),
+        ("updates", &updates),
+        ("metadata", &meta),
+    ] {
         if let Err(e) = std::fs::create_dir_all(dir) {
             return Check::fail(
                 "bridge working dir",

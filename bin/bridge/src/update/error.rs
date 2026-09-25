@@ -29,8 +29,8 @@ pub enum UpdateError {
     DownloadStatus { status: reqwest::StatusCode },
     #[error("checksum mismatch: expected {expected}, got {actual}")]
     ChecksumMismatch { expected: String, actual: String },
-    #[error("could not resolve the staging directory")]
-    NoStagingDir,
+    #[error("could not resolve the update download directory")]
+    NoUpdateDir,
     #[error("{path} is not writable; {hint}")]
     NotWritable { path: PathBuf, hint: String },
     #[error("could not locate the running {what}: {detail}")]

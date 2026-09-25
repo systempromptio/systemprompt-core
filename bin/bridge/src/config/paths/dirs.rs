@@ -125,6 +125,11 @@ pub fn bridge_staging_dir() -> Option<PathBuf> {
 }
 
 #[must_use]
+pub fn bridge_update_dir() -> Option<PathBuf> {
+    bridge_working_dir().map(|p| p.join("updates"))
+}
+
+#[must_use]
 pub fn bridge_metadata_dir() -> Option<PathBuf> {
     bridge_working_dir().map(|p| p.join("metadata"))
 }

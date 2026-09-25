@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.62.0] - 2026-09-25
+
+### Changed
+
+- At-rest sealing decodes `encryption_master_key` through `systemprompt_config::decode_master_key`.
+
 ## [0.61.0] - 2026-09-23
 
 ### Removed

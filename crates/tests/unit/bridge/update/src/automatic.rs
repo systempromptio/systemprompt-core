@@ -205,8 +205,8 @@ fn a_staged_policy_rejects_a_bad_artifact_without_staging_or_relaunching() {
     seed_last_sync(&state, &gateway, "staged");
     let executable = std::env::current_exe().expect("running executable");
     let before = file_digest(&executable);
-    let staging = in_sandbox(&state, || {
-        systemprompt_bridge::config::paths::bridge_staging_dir().expect("owned staging resolves")
+    let updates = in_sandbox(&state, || {
+        systemprompt_bridge::config::paths::bridge_update_dir().expect("owned update dir resolves")
     });
 
     in_sandbox(&state, || {
@@ -228,9 +228,9 @@ fn a_staged_policy_rejects_a_bad_artifact_without_staging_or_relaunching() {
         "a failed digest never replaces or launches over the running binary"
     );
     assert!(
-        !staging.exists()
-            || std::fs::read_dir(&staging)
-                .expect("owned staging")
+        !updates.exists()
+            || std::fs::read_dir(&updates)
+                .expect("owned update dir")
                 .next()
                 .is_none(),
         "a mismatched artifact leaves no staged executable"

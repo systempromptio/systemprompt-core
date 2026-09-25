@@ -9,8 +9,8 @@ use std::time::Duration;
 use assert_cmd::Command;
 use serde_json::Value;
 use systemprompt_cli_integration_tests::full_bootstrap::{
-    FullBootstrap, TEST_MANIFEST_SIGNING_SEED, TEST_OAUTH_AT_REST_PEPPER, isolated_fixture, run,
-    run_with_formats, systemprompt_bin,
+    FullBootstrap, TEST_ENCRYPTION_MASTER_KEY, TEST_MANIFEST_SIGNING_SEED,
+    TEST_OAUTH_AT_REST_PEPPER, isolated_fixture, run, run_with_formats, systemprompt_bin,
 };
 use systemprompt_identifiers::UserId;
 use systemprompt_test_fixtures::{DisposableDb, seed_user_row_with_roles};
@@ -74,6 +74,8 @@ fn profiled_command(database_url: &str, fixture: &FullBootstrap) -> Command {
     command.env("DATABASE_URL", database_url);
     command.env("OAUTH_AT_REST_PEPPER", TEST_OAUTH_AT_REST_PEPPER);
     command.env("MANIFEST_SIGNING_SECRET_SEED", TEST_MANIFEST_SIGNING_SEED);
+    command.env("SYSTEMPROMPT_CUSTOM_SECRETS", "encryption_master_key");
+    command.env("encryption_master_key", TEST_ENCRYPTION_MASTER_KEY);
     command.env("SYSTEMPROMPT_SUBPROCESS", "1");
     command.args(["--non-interactive", "--no-color", "--json", "--profile"]);
     command.arg(&fixture.profile_path);

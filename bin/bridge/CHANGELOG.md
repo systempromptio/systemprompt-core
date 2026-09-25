@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.62.0] - 2026-09-25
+
+### Fixed
+
+- **Bridge:** a self-update no longer fails with `update: io error at …\staging\update-<version>-<platform>… (os error 3)`. The download shared the `staging` directory with sync, which deletes and recreates it at the start of every apply, so a sync starting during the download (both run at launch) removed the half-written artifact and the update never landed. Downloads now go to their own `updates` directory, which keeps only the newest verified artifact and is removed on uninstall; `doctor` and the diagnostics bundle list it.
+- **Bridge:** Claude Desktop's `inferenceModels` lists a Claude model the gateway serves at 1M only as `<id>[1m]`, no longer beside its bare id. Cowork's picker folds the two into one row that could resolve to the bare id, which Desktop budgets at 200k, so Cowork sessions compacted at 200k while Code ran at 1M. The gateway already strips the suffix before routing.
+
 ## [0.61.0] - 2026-09-24
 
 ### Fixed

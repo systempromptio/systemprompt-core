@@ -182,16 +182,14 @@ pub fn uninstall(
         (None, Some(metadata))
     };
 
-    if let Some(staging) = paths::bridge_staging_dir() {
-        match fs::remove_dir_all(&staging) {
+    for dir in [paths::bridge_staging_dir(), paths::bridge_update_dir()]
+        .into_iter()
+        .flatten()
+    {
+        match fs::remove_dir_all(&dir) {
             Ok(()) => {},
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {},
-            Err(source) => {
-                return Err(InstallError::Remove {
-                    path: staging,
-                    source,
-                });
-            },
+            Err(source) => return Err(InstallError::Remove { path: dir, source }),
         }
     }
     let foreign_plugins = purge_plugin_dirs(&location.path, &owned_plugins)?;

@@ -10,10 +10,12 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod manifest;
+mod master_key;
 mod profile;
 mod secrets;
 
 pub use manifest::{MANIFEST_SIGNING_SEED_BYTES, decode_seed, generate_seed, persist_seed};
+pub use master_key::{ENCRYPTION_MASTER_KEY_BYTES, decode_master_key, generate_master_key};
 pub use profile::{ProfileBootstrap, ProfileBootstrapError};
 pub use secrets::{
     ResolvedSource, SecretsBootstrap, SecretsBootstrapError, SecretsDocument, SecretsProvider,
