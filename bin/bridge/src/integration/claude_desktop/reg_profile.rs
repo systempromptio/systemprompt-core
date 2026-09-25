@@ -22,26 +22,27 @@ const ONE_MILLION: u32 = 1_000_000;
 
 // Why: Claude Desktop sizes a gateway model's context from its id, not from
 // the gateway's advertised limits: it budgets 200k unless the id carries the
-// `[1m]` suffix, which its picker labels "1M context window". Cowork's first
-// turn alone is ~198k tokens, so every Claude model the gateway serves at 1M
-// is also listed as `<id>[1m]`, right after its bare id. The gateway strips
-// the suffix before routing.
+// `[1m]` suffix. Cowork's first turn alone is ~198k tokens, and its picker
+// folds `<id>` and `<id>[1m]` into one row that may resolve to either, so a
+// Claude model the gateway serves at 1M is listed only as `<id>[1m]`. The
+// gateway strips the suffix before routing.
 #[must_use]
 pub fn with_context_variants(
     models: &[String],
     limits: &BTreeMap<String, AdvertisedLimits>,
 ) -> Vec<String> {
-    let mut out = Vec::with_capacity(models.len() * 2);
+    let mut out = Vec::with_capacity(models.len());
     for id in models {
-        if !out.contains(id) {
-            out.push(id.clone());
-        }
-        let variant = format!("{id}[1m]");
         let is_million = limits
             .get(id)
             .is_some_and(|limit| limit.context_window >= ONE_MILLION);
-        if is_million && !id.ends_with("[1m]") && !models.contains(&variant) {
-            out.push(variant);
+        let listed = if is_million && !id.ends_with("[1m]") {
+            format!("{id}[1m]")
+        } else {
+            id.clone()
+        };
+        if !out.contains(&listed) {
+            out.push(listed);
         }
     }
     out

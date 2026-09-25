@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- **Bridge:** Claude Desktop's `inferenceModels` lists a Claude model the gateway serves at 1M only as `<id>[1m]`, no longer beside its bare id. Cowork's picker folds the two into one row that could resolve to the bare id, which Desktop budgets at 200k, so Cowork sessions compacted at 200k while Code ran at 1M. The gateway already strips the suffix before routing.
+
 ## [0.61.0] - 2026-09-24
 
 ### Fixed
