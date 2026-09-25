@@ -206,7 +206,7 @@ fn a_staged_policy_rejects_a_bad_artifact_without_staging_or_relaunching() {
     let executable = std::env::current_exe().expect("running executable");
     let before = file_digest(&executable);
     let staging = in_sandbox(&state, || {
-        systemprompt_bridge::config::paths::bridge_staging_dir().expect("owned staging resolves")
+        systemprompt_bridge::config::paths::bridge_update_dir().expect("owned update dir resolves")
     });
 
     in_sandbox(&state, || {
