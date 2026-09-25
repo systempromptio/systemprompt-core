@@ -47,6 +47,17 @@ fn profile_yaml() -> String {
     std::fs::read_to_string(profile_path()).unwrap()
 }
 
+fn rate_limit(key: &str) -> Option<String> {
+    let yaml = profile_yaml();
+    let mut lines = yaml.lines().skip_while(|l| l.trim() != "rate_limits:");
+    let header = lines.next()?;
+    let indent = header.len() - header.trim_start().len();
+    lines
+        .take_while(|l| l.trim().is_empty() || l.len() - l.trim_start().len() > indent)
+        .find_map(|l| l.trim().strip_prefix(&format!("{key}:")))
+        .map(|v| v.trim().to_owned())
+}
+
 #[test]
 fn read_only_arms_render_the_active_configuration() {
     profile_path();
@@ -76,7 +87,12 @@ fn set_writes_an_endpoint_rate_into_the_profile() {
     profile_path();
 
     run(&["set", "--endpoint", "tasks", "--rate", "77"]).unwrap();
-    assert!(profile_yaml().contains("77"), "{}", profile_yaml());
+    assert_eq!(
+        rate_limit("tasks_per_second").as_deref(),
+        Some("77"),
+        "{}",
+        profile_yaml()
+    );
 }
 
 #[test]
@@ -84,15 +100,17 @@ fn disable_then_enable_round_trips_the_flag_in_the_profile() {
     profile_path();
 
     run(&["disable"]).unwrap();
-    assert!(
-        profile_yaml().contains("disabled: true"),
+    assert_eq!(
+        rate_limit("disabled").as_deref(),
+        Some("true"),
         "{}",
         profile_yaml()
     );
 
     run(&["enable"]).unwrap();
-    assert!(
-        profile_yaml().contains("disabled: false"),
+    assert_eq!(
+        rate_limit("disabled").as_deref(),
+        Some("false"),
         "{}",
         profile_yaml()
     );
@@ -114,7 +132,12 @@ fn export_writes_a_file_that_import_reads_back() {
     std::fs::write(&out, &edited).unwrap();
 
     run(&["import", "-f", out.to_str().unwrap(), "--yes"]).unwrap();
-    assert!(profile_yaml().contains("137"), "{}", profile_yaml());
+    assert_eq!(
+        rate_limit("tasks_per_second").as_deref(),
+        Some("137"),
+        "{}",
+        profile_yaml()
+    );
 }
 
 #[test]
@@ -138,10 +161,15 @@ fn reset_restores_a_single_endpoint_to_its_default() {
     profile_path();
 
     run(&["set", "--endpoint", "tasks", "--rate", "654"]).unwrap();
-    assert!(profile_yaml().contains("654"));
+    assert_eq!(rate_limit("tasks_per_second").as_deref(), Some("654"));
 
     run(&["reset", "--endpoint", "tasks", "--yes"]).unwrap();
-    assert!(!profile_yaml().contains("654"), "{}", profile_yaml());
+    assert_ne!(
+        rate_limit("tasks_per_second").as_deref(),
+        Some("654"),
+        "{}",
+        profile_yaml()
+    );
 }
 
 #[test]
@@ -150,7 +178,12 @@ fn reset_dry_run_leaves_the_profile_untouched() {
 
     run(&["set", "--endpoint", "tasks", "--rate", "888"]).unwrap();
     run(&["reset", "--dry-run", "--yes"]).unwrap();
-    assert!(profile_yaml().contains("888"), "{}", profile_yaml());
+    assert_eq!(
+        rate_limit("tasks_per_second").as_deref(),
+        Some("888"),
+        "{}",
+        profile_yaml()
+    );
 }
 
 #[test]

@@ -1,8 +1,6 @@
 //! Plain identity generation emits one internally consistent operator bundle.
 
-use std::io::{Read, Seek, SeekFrom};
-use std::process::{Command, Output, Stdio};
-use std::time::{Duration, Instant};
+use std::process::{Command, Stdio};
 
 use base64::Engine;
 use clap::Parser;
@@ -34,44 +32,19 @@ fn plain_identity_helper() {
     identity::execute(command, &context).expect("plain identity generation");
 }
 
-fn bounded_output(mut command: Command) -> Output {
-    let mut stdout = tempfile::NamedTempFile::new().expect("stdout");
-    let mut stderr = tempfile::NamedTempFile::new().expect("stderr");
-    command
-        .stdin(Stdio::null())
-        .stdout(Stdio::from(stdout.reopen().expect("stdout writer")))
-        .stderr(Stdio::from(stderr.reopen().expect("stderr writer")));
-    let mut child = command.spawn().expect("spawn helper");
-    let deadline = Instant::now() + Duration::from_secs(15);
-    let status = loop {
-        if let Some(s) = child.try_wait().expect("poll helper") {
-            break s;
-        }
-        if Instant::now() >= deadline {
-            let _ = child.kill();
-            break child.wait().expect("reap helper");
-        }
-        std::thread::sleep(Duration::from_millis(25));
-    };
-    let read = |f: &mut tempfile::NamedTempFile| {
-        f.seek(SeekFrom::Start(0)).expect("rewind");
-        let mut b = Vec::new();
-        f.read_to_end(&mut b).expect("read");
-        b
-    };
-    Output {
-        status,
-        stdout: read(&mut stdout),
-        stderr: read(&mut stderr),
-    }
-}
-
 #[test]
 fn plain_output_is_a_complete_cryptographically_consistent_bundle() {
     let mut command = Command::new(std::env::current_exe().expect("unit binary"));
-    command.args(["--exact", HELPER, "--ignored", "--nocapture"]);
-    let output = bounded_output(command);
-    assert!(output.status.success(), "identity helper failed");
+    command
+        .args(["--exact", HELPER, "--ignored", "--nocapture"])
+        .stdin(Stdio::null());
+    let output = command.output().expect("run identity helper");
+    assert!(
+        output.status.success(),
+        "identity helper failed ({}): {}",
+        output.status,
+        String::from_utf8_lossy(&output.stderr)
+    );
     let combined = format!(
         "{}\n{}",
         String::from_utf8(output.stdout).expect("UTF-8 stdout"),
