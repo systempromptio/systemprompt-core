@@ -124,6 +124,20 @@ gateway-reconcile-db = { max-threads = 1 }
 # tampered checksum is outstanding, so the two must not overlap.
 cli-migration-ledger-db = { max-threads = 1 }
 
+# Why: every schema install ends in `check_trigger_routines`, a database-wide
+# scan of live PL/pgSQL triggers. `a_trigger_writing_a_dropped_relation_refuses_the_boot`
+# deliberately leaves a dangling trigger for a moment, so any install in the
+# database lifecycle suite that overlaps it fails with DanglingTriggerRoutine.
+database-lifecycle-db = { max-threads = 1 }
+
+[[profile.default.overrides]]
+filter = 'package(systemprompt-database-tests) and test(/lifecycle::/)'
+test-group = 'database-lifecycle-db'
+
+[[profile.ci.overrides]]
+filter = 'package(systemprompt-database-tests) and test(/lifecycle::/)'
+test-group = 'database-lifecycle-db'
+
 [[profile.default.overrides]]
 filter = 'package(systemprompt-mcp-tests) and test(/repository::proxy_identity(_db|_corrupt_db)?::/)'
 test-group = 'mcp-proxy-identity-db'
