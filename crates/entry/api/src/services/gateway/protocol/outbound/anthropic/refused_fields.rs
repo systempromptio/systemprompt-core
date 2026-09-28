@@ -1,7 +1,7 @@
 //! Request body fields an upstream has refused, learned per provider.
 //!
 //! An upstream that does not know a top-level body field refuses the request
-//! with a 400 naming it: "context_management: Extra inputs are not permitted"
+//! with a 400 naming it: "`context_management`: Extra inputs are not permitted"
 //! (Vertex AI, and Anthropic's own validator). That is the failure a client
 //! beta gets when the gateway forwards the field but not the flag that gates
 //! it — or when the upstream serves neither. The known pairs are removed

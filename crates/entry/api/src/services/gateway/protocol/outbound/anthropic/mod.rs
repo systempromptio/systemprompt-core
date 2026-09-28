@@ -60,45 +60,8 @@ impl OutboundAdapter for AnthropicOutbound {
             ctx.request.stream,
         );
 
-        let provider = ctx.route.provider.as_str();
-        let headers =
-            rejected_betas::without(request_headers(&ctx), &rejected_betas::learned(provider));
-        let upstream_response = match send_once(provider, &url, &headers, &body.bytes).await {
-            Err(e) => {
-                let refused = refused_betas(&e);
-                let refused_fields = if passthrough {
-                    refused_fields(&e)
-                } else {
-                    std::collections::BTreeSet::new()
-                };
-                let header_carries = rejected_betas::carries_any(&headers, &refused);
-                let body_carries = request::carries_any_field(&body.bytes, &refused_fields);
-                if !header_carries && !body_carries {
-                    return Err(e);
-                }
-                rejected_betas::learn(provider, &refused);
-                refused_fields::learn(provider, &refused_fields);
-                tracing::warn!(
-                    provider,
-                    refused_betas = ?refused,
-                    refused_fields = ?refused_fields,
-                    "upstream refused anthropic-beta values or body fields; dropped for this provider and re-sent"
-                );
-                let dropped = anthropic::BetaHeader::parse(
-                    &refused.iter().cloned().collect::<Vec<_>>().join(","),
-                );
-                let bytes =
-                    request::without_refused(&body.bytes, provider, &dropped, &refused_fields);
-                send_once(
-                    provider,
-                    &url,
-                    &rejected_betas::without(headers, &refused),
-                    &bytes,
-                )
-                .await?
-            },
-            Ok(response) => response,
-        };
+        let upstream_response =
+            send_learning_refusals(ctx.route.provider.as_str(), &url, &ctx, body).await?;
 
         let content_type = upstream_response
             .headers()
@@ -147,6 +110,50 @@ impl OutboundAdapter for AnthropicOutbound {
         }
         Ok(OutboundOutcome::Buffered(canonical))
     }
+}
+
+// Sends once; on a 400 that names a beta or a body field this request
+// carries, learns it for the provider, drops it and re-sends once.
+async fn send_learning_refusals(
+    provider: &str,
+    url: &str,
+    ctx: &OutboundCtx<'_>,
+    body: &PreparedBody,
+) -> Result<reqwest::Response> {
+    let headers = rejected_betas::without(request_headers(ctx), &rejected_betas::learned(provider));
+    let error = match send_once(provider, url, &headers, &body.bytes).await {
+        Ok(response) => return Ok(response),
+        Err(e) => e,
+    };
+    let refused = refused_betas(&error);
+    let refused_fields = if body.raw_lane {
+        refused_fields(&error)
+    } else {
+        std::collections::BTreeSet::new()
+    };
+    let header_carries = rejected_betas::carries_any(&headers, &refused);
+    let body_carries = request::carries_any_field(&body.bytes, &refused_fields);
+    if !header_carries && !body_carries {
+        return Err(error);
+    }
+    rejected_betas::learn(provider, &refused);
+    refused_fields::learn(provider, &refused_fields);
+    tracing::warn!(
+        provider,
+        refused_betas = ?refused,
+        refused_fields = ?refused_fields,
+        "upstream refused anthropic-beta values or body fields; dropped for this provider and re-sent"
+    );
+    let dropped =
+        anthropic::BetaHeader::parse(&refused.iter().cloned().collect::<Vec<_>>().join(","));
+    let bytes = request::without_refused(&body.bytes, provider, &dropped, &refused_fields);
+    send_once(
+        provider,
+        url,
+        &rejected_betas::without(headers, &refused),
+        &bytes,
+    )
+    .await
 }
 
 async fn send_once(
