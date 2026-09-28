@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- **Security Rust API:** `RuleType::extension_static` mints an extension rule type from a literal slug in a `const`, rejecting a malformed slug at compile time instead of returning a `Result`.
+
 ### Fixed
 
 - **Gateway / AI:** a beta the gateway does not forward now takes its body field with it. Claude Code 2.1.283 sends `anthropic-beta: context-management-2025-06-27` together with a `context_management` body field; on a Vertex AI provider the header was narrowed to `accepted_betas` while the passthrough body went upstream unchanged, and Vertex refused every request with `context_management: Extra inputs are not permitted`. `wire::anthropic::BETA_GATED_FIELDS` pairs each such field with the beta prefix that admits it, and the raw lane removes a field whose flag the provider's policy (or an earlier refusal) dropped. A field a client sends with no flag is left alone.

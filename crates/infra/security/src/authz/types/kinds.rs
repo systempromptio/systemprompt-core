@@ -18,7 +18,8 @@ use crate::authz::error::AuthzError;
 /// concern, minted with [`RuleType::extension`] and taught to the resolver via
 /// a [`SubjectDimension`][sd] registered by
 /// [`register_subject_attribute_provider!`][macro]. Core never interprets an
-/// extension slug.
+/// extension slug. [`RuleType::extension_static`] mints a literal slug in a
+/// `const`, so a malformed one fails the build instead of a runtime check.
 ///
 /// This mirrors [`AuthzContext`][ctx]: the column is an open vocabulary
 /// validated at the Rust boundary rather than by a SQL `CHECK`, so an
@@ -37,22 +38,57 @@ impl RuleType {
 
     pub fn extension(slug: impl Into<Cow<'static, str>>) -> Result<Self, AuthzError> {
         let slug = slug.into();
-        let well_formed = !slug.is_empty()
-            && !slug.starts_with('_')
-            && !slug.ends_with('_')
-            && slug
-                .chars()
-                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_');
-        if !well_formed || slug == Self::USER.as_str() || slug == Self::ROLE.as_str() {
+        if !is_extension_slug(slug.as_bytes()) {
             return Err(AuthzError::InvalidRuleType(slug.into_owned()));
         }
         Ok(Self(slug))
     }
 
     #[must_use]
+    pub const fn extension_static(slug: &'static str) -> Self {
+        assert!(
+            is_extension_slug(slug.as_bytes()),
+            "extension rule type must be [a-z0-9_], not edged by `_`, and not `user` or `role`"
+        );
+        Self(Cow::Borrowed(slug))
+    }
+
+    #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
     }
+}
+
+const fn is_extension_slug(slug: &[u8]) -> bool {
+    if matches!(slug, [] | [b'_', ..] | [.., b'_'])
+        || bytes_eq(slug, b"user")
+        || bytes_eq(slug, b"role")
+    {
+        return false;
+    }
+    let mut rest = slug;
+    while let [byte, tail @ ..] = rest {
+        if !(byte.is_ascii_lowercase() || byte.is_ascii_digit() || *byte == b'_') {
+            return false;
+        }
+        rest = tail;
+    }
+    true
+}
+
+const fn bytes_eq(left: &[u8], right: &[u8]) -> bool {
+    if left.len() != right.len() {
+        return false;
+    }
+    let (mut left, mut right) = (left, right);
+    while let ([a, left_tail @ ..], [b, right_tail @ ..]) = (left, right) {
+        if *a != *b {
+            return false;
+        }
+        left = left_tail;
+        right = right_tail;
+    }
+    true
 }
 
 impl fmt::Display for RuleType {

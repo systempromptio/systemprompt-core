@@ -14,6 +14,10 @@ use systemprompt_models::services::QuotaFaultMode;
 const ERROR_DIMENSION: &str = "quota_fault_error";
 const EMPTY_DIMENSION: &str = "quota_fault_empty";
 const ERROR_USER_PREFIX: &str = "quota-fault-error-";
+const ERROR_RULE_TYPE: systemprompt_security::authz::RuleType =
+    systemprompt_security::authz::RuleType::extension_static(ERROR_DIMENSION);
+const EMPTY_RULE_TYPE: systemprompt_security::authz::RuleType =
+    systemprompt_security::authz::RuleType::extension_static(EMPTY_DIMENSION);
 
 #[derive(Debug)]
 struct ErroringSubjectProvider;
@@ -22,8 +26,7 @@ struct ErroringSubjectProvider;
 impl systemprompt_security::authz::SubjectAttributeProvider for ErroringSubjectProvider {
     fn dimension(&self) -> systemprompt_security::authz::SubjectDimension {
         systemprompt_security::authz::SubjectDimension {
-            rule_type: systemprompt_security::authz::RuleType::extension(ERROR_DIMENSION)
-                .expect("well-formed slug"),
+            rule_type: ERROR_RULE_TYPE,
             label: "Quota fault (error)",
             precedence: 900,
         }
@@ -49,8 +52,7 @@ struct EmptySubjectProvider;
 impl systemprompt_security::authz::SubjectAttributeProvider for EmptySubjectProvider {
     fn dimension(&self) -> systemprompt_security::authz::SubjectDimension {
         systemprompt_security::authz::SubjectDimension {
-            rule_type: systemprompt_security::authz::RuleType::extension(EMPTY_DIMENSION)
-                .expect("well-formed slug"),
+            rule_type: EMPTY_RULE_TYPE,
             label: "Quota fault (empty)",
             precedence: 901,
         }

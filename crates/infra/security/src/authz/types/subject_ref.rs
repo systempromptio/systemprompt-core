@@ -10,6 +10,8 @@ use systemprompt_identifiers::{DepartmentId, RoleId, UserId};
 
 use super::kinds::RuleType;
 
+const DEPARTMENT_RULE_TYPE: RuleType = RuleType::extension_static("department");
+
 /// Tagged-union reference to a rule subject.
 ///
 /// Bundles the dimension discriminator and the typed id so they can never
@@ -29,7 +31,7 @@ impl SubjectRef {
     pub fn rule_type(&self) -> RuleType {
         match self {
             Self::User(_) => RuleType::USER,
-            Self::Department(_) => RuleType::from("department"),
+            Self::Department(_) => DEPARTMENT_RULE_TYPE,
             Self::Role(_) => RuleType::ROLE,
         }
     }
