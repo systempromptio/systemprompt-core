@@ -112,8 +112,6 @@ impl OutboundAdapter for AnthropicOutbound {
     }
 }
 
-// Sends once; on a 400 that names a beta or a body field this request
-// carries, learns it for the provider, drops it and re-sends once.
 async fn send_learning_refusals(
     provider: &str,
     url: &str,
