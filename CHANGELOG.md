@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- **Gateway / AI:** a beta the gateway does not forward now takes its body field with it. Claude Code 2.1.283 sends `anthropic-beta: context-management-2025-06-27` together with a `context_management` body field; on a Vertex AI provider the header was narrowed to `accepted_betas` while the passthrough body went upstream unchanged, and Vertex refused every request with `context_management: Extra inputs are not permitted`. `wire::anthropic::BETA_GATED_FIELDS` pairs each such field with the beta prefix that admits it, and the raw lane removes a field whose flag the provider's policy (or an earlier refusal) dropped. A field a client sends with no flag is left alone.
+- **Gateway:** a body field an upstream refuses (`<field>: Extra inputs are not permitted`) is learned per provider, dropped and the request re-sent once, the way a refused `anthropic-beta` value already is; a field the Messages API requires is never dropped. `UpstreamCall::{beta_policy, dropped_betas}` expose the one policy both the header and the body apply; `BetaHeader::{refused_by, extend, contains, opens}` are new.
+
 ## [0.62.0] - 2026-09-25
 
 ### Breaking

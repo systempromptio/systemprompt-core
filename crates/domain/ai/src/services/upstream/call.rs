@@ -8,7 +8,9 @@ use std::collections::BTreeSet;
 // JSON: protocol boundary — the envelope edits apply to a dynamic wire body.
 use serde_json::{Map, Value};
 use systemprompt_models::services::{Hosting, WireProtocol};
-use systemprompt_models::wire::anthropic::{ANTHROPIC_BETA_HEADER, AnthropicBeta, BetaHeader};
+use systemprompt_models::wire::anthropic::{
+    ANTHROPIC_BETA_HEADER, AnthropicBeta, BetaHeader, BetaPolicy,
+};
 use systemprompt_models::wire::upstream::UpstreamDialect;
 use systemprompt_security::credential::{AuthHeader, AuthScheme};
 
@@ -119,12 +121,9 @@ impl UpstreamCall {
                 .iter()
                 .filter(|(name, _)| !dialect.drops_forwarded_header(name))
                 .filter_map(|(name, value)| {
-                    if wire == WireProtocol::Anthropic
-                        && name.eq_ignore_ascii_case(ANTHROPIC_BETA_HEADER)
-                    {
-                        let policy = dialect.beta_policy(self.accepted_betas.as_ref());
+                    if is_beta_header(wire, name) {
                         BetaHeader::parse(value)
-                            .admitted_by(&policy)
+                            .admitted_by(&self.beta_policy(wire))
                             .render()
                             .map(|kept| (name.clone(), kept))
                     } else {
@@ -136,6 +135,26 @@ impl UpstreamCall {
         headers
     }
 
+    /// The one policy [`Self::headers_forwarding`] and [`Self::dropped_betas`]
+    /// both apply, so the header and the body it gates can never disagree.
+    #[must_use]
+    pub fn beta_policy(&self, wire: WireProtocol) -> BetaPolicy {
+        self.dialect(wire).beta_policy(self.accepted_betas.as_ref())
+    }
+
+    /// The `anthropic-beta` flags in `forward` that this upstream is not sent.
+    /// A body field one of them gates must go with it.
+    #[must_use]
+    pub fn dropped_betas(&self, wire: WireProtocol, forward: &[(String, String)]) -> BetaHeader {
+        let mut sent = BetaHeader::default();
+        for (name, value) in forward {
+            if is_beta_header(wire, name) {
+                sent.extend(BetaHeader::parse(value));
+            }
+        }
+        sent.refused_by(&self.beta_policy(wire))
+    }
+
     pub fn finish_body(&self, wire: WireProtocol, body: &mut Map<String, Value>) {
         self.dialect(wire).finish_body(body);
     }
@@ -143,4 +162,8 @@ impl UpstreamCall {
     pub fn finish_value(&self, wire: WireProtocol, body: &mut Value) {
         self.dialect(wire).finish_value(body);
     }
+}
+
+fn is_beta_header(wire: WireProtocol, name: &str) -> bool {
+    wire == WireProtocol::Anthropic && name.eq_ignore_ascii_case(ANTHROPIC_BETA_HEADER)
 }

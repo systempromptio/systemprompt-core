@@ -11,17 +11,15 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::collections::{BTreeSet, HashMap};
-use std::sync::{OnceLock, RwLock};
+use std::collections::BTreeSet;
 
 use systemprompt_models::wire::anthropic::ANTHROPIC_BETA_HEADER;
 
+use super::learned::Learned;
+
 const REJECTION_MARKER: &str = "for the `anthropic-beta` header";
 
-fn learned_sets() -> &'static RwLock<HashMap<String, BTreeSet<String>>> {
-    static SETS: OnceLock<RwLock<HashMap<String, BTreeSet<String>>>> = OnceLock::new();
-    SETS.get_or_init(|| RwLock::new(HashMap::new()))
-}
+static LEARNED: Learned = Learned::new();
 
 #[must_use]
 pub fn refused_in(message: &str) -> BTreeSet<String> {
@@ -41,18 +39,11 @@ pub fn refused_in(message: &str) -> BTreeSet<String> {
 
 #[must_use]
 pub fn learned(provider: &str) -> BTreeSet<String> {
-    learned_sets()
-        .read()
-        .map(|sets| sets.get(provider).cloned().unwrap_or_default())
-        .unwrap_or_default()
+    LEARNED.for_provider(provider)
 }
 
 pub fn learn(provider: &str, refused: &BTreeSet<String>) {
-    if let Ok(mut sets) = learned_sets().write() {
-        sets.entry(provider.to_owned())
-            .or_default()
-            .extend(refused.iter().cloned());
-    }
+    LEARNED.learn(provider, refused);
 }
 
 #[must_use]

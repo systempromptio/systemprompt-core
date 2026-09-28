@@ -24,6 +24,7 @@ mod outbound_deep;
 mod outbound_passthrough;
 mod outbound_passthrough_terminal;
 mod outbound_refused_betas;
+mod outbound_refused_fields;
 mod outbound_retry;
 mod outbound_vertex;
 mod parse;

@@ -314,3 +314,96 @@ async fn an_undeclared_beta_is_not_forwarded_to_vertex() {
         "Vertex rejects a beta it does not support, so none is sent undeclared"
     );
 }
+
+/// What Claude Code 2.1.283 sends: the context-management flag and the body
+/// field it gates, together.
+fn raw_with_context_management() -> bytes::Bytes {
+    bytes::Bytes::from(
+        serde_json::to_vec(&json!({
+            "model": "claude-sonnet-5",
+            "max_tokens": 64,
+            "messages": [{ "role": "user", "content": "hi" }],
+            "context_management": { "edits": [{ "type": "clear_thinking_20251015", "keep": "all" }] },
+            "output_config": { "effort": "medium" }
+        }))
+        .expect("serialize"),
+    )
+}
+
+const CONTEXT_MANAGEMENT: &str = "context-management-2025-06-27";
+
+async fn send_context_management(
+    accepted: Option<BTreeSet<AnthropicBeta>>,
+) -> Vec<wiremock::Request> {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/models/claude-sonnet-5:rawPredict"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(message()))
+        .expect(1)
+        .mount(&server)
+        .await;
+    let call = vertex_call(&server.uri()).with_accepted_betas(accepted);
+    let route = route();
+    let req = request(false);
+    let raw = raw_with_context_management();
+    let forwarded = [(
+        "anthropic-beta".to_owned(),
+        format!("{CONTEXT_MANAGEMENT},advisor-tool-2026-03-01"),
+    )];
+    let ctx = OutboundCtx {
+        route: &route,
+        upstream: &call,
+        request: &req,
+        upstream_model: "claude-sonnet-5",
+        model_limits: None,
+        automatic_prompt_caching: false,
+        forward_headers: &forwarded,
+        raw_body: Some(&raw),
+    };
+    let adapter = AnthropicOutbound;
+    let body = adapter.build_body(&ctx).expect("body");
+    assert!(body.raw_lane, "a matching wire takes the passthrough lane");
+    adapter.send(ctx, &body).await.expect("vertex answers");
+    server.received_requests().await.expect("recorded")
+}
+
+#[tokio::test]
+async fn an_undeclared_beta_takes_its_body_field_with_it() {
+    let sent = send_context_management(None).await;
+    assert!(
+        sent[0].headers.get("anthropic-beta").is_none(),
+        "no beta is declared, so none is forwarded"
+    );
+    let body = received_body(&sent);
+    assert!(
+        body.get("context_management").is_none(),
+        "the field the dropped flag gates goes with it; Vertex refuses it alone \
+         with `context_management: Extra inputs are not permitted`"
+    );
+    assert_eq!(
+        body["output_config"]["effort"], "medium",
+        "a field no beta gates is untouched"
+    );
+    assert_eq!(body["anthropic_version"], VERTEX_ANTHROPIC_VERSION);
+}
+
+#[tokio::test]
+async fn a_declared_beta_keeps_header_and_field_together() {
+    let sent = send_context_management(Some(BTreeSet::from([AnthropicBeta::new(
+        CONTEXT_MANAGEMENT,
+    )])))
+    .await;
+    assert_eq!(
+        sent[0]
+            .headers
+            .get("anthropic-beta")
+            .map(|v| v.to_str().unwrap()),
+        Some(CONTEXT_MANAGEMENT),
+        "only the declared flag is forwarded"
+    );
+    let body = received_body(&sent);
+    assert_eq!(
+        body["context_management"]["edits"][0]["type"],
+        "clear_thinking_20251015"
+    );
+}

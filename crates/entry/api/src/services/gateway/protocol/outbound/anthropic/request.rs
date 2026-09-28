@@ -9,7 +9,7 @@ use bytes::Bytes;
 use serde_json::{Map, Value};
 use systemprompt_models::services::WireProtocol;
 use systemprompt_models::services::ai::ModelLimits;
-use systemprompt_models::wire::anthropic;
+use systemprompt_models::wire::anthropic::{self, BetaHeader};
 
 use super::super::super::canonical::CanonicalRequest;
 use super::super::OutboundCtx;
@@ -22,6 +22,19 @@ pub fn build_request_body(
     anthropic::build_request_body(request, upstream_model, limits)
 }
 
+/// The betas the client sent that this request will not carry upstream: the
+/// ones the provider's policy refuses and the ones it has refused before.
+pub(super) fn dropped_betas(ctx: &OutboundCtx<'_>) -> BetaHeader {
+    let mut dropped = ctx
+        .upstream
+        .dropped_betas(WireProtocol::Anthropic, ctx.forward_headers);
+    let learned = super::rejected_betas::learned(ctx.route.provider.as_str());
+    dropped.extend(BetaHeader::parse(
+        &learned.iter().cloned().collect::<Vec<_>>().join(","),
+    ));
+    dropped
+}
+
 pub(super) fn normalize_raw_body(raw: &Bytes, ctx: &OutboundCtx<'_>) -> Option<Bytes> {
     let Ok(Value::Object(mut obj)) = serde_json::from_slice::<Value>(raw) else {
         return None;
@@ -32,6 +45,13 @@ pub(super) fn normalize_raw_body(raw: &Bytes, ctx: &OutboundCtx<'_>) -> Option<B
     );
     clamp_max_tokens(&mut obj, ctx.model_limits);
     anthropic::strip_user_id(&mut obj);
+    let provider = ctx.route.provider.as_str();
+    drop_refused(
+        &mut obj,
+        provider,
+        &dropped_betas(ctx),
+        &super::refused_fields::learned(provider),
+    );
     if ctx.automatic_prompt_caching && !ctx.request.has_cache_control() {
         obj.insert(
             "cache_control".to_owned(),
@@ -77,4 +97,61 @@ fn clamp_max_tokens(obj: &mut Map<String, Value>, limits: Option<ModelLimits>) {
     if clamped != requested {
         obj.insert("max_tokens".to_owned(), Value::from(clamped));
     }
+}
+
+/// Removes what this provider will not accept: the fields gated by a beta that
+/// is not forwarded, and the fields it has refused before.
+fn drop_refused(
+    obj: &mut Map<String, Value>,
+    provider: &str,
+    dropped_betas: &BetaHeader,
+    refused_fields: &std::collections::BTreeSet<String>,
+) {
+    let mut removed: Vec<String> = anthropic::strip_fields_gated_by(obj, dropped_betas)
+        .into_iter()
+        .map(str::to_owned)
+        .collect();
+    removed.extend(
+        refused_fields
+            .iter()
+            .filter(|field| obj.remove(field.as_str()).is_some())
+            .cloned(),
+    );
+    if !removed.is_empty() {
+        tracing::info!(
+            provider,
+            fields = ?removed,
+            dropped_betas = ?dropped_betas.render(),
+            "body fields the upstream is not sent"
+        );
+    }
+}
+
+/// Whether the raw body carries any of `fields` at the top level.
+pub(super) fn carries_any_field(body: &Bytes, fields: &std::collections::BTreeSet<String>) -> bool {
+    if fields.is_empty() {
+        return false;
+    }
+    serde_json::from_slice::<Value>(body)
+        .ok()
+        .and_then(|v| {
+            v.as_object()
+                .map(|o| fields.iter().any(|f| o.contains_key(f)))
+        })
+        .unwrap_or(false)
+}
+
+/// The raw body with `fields` and every field gated by `dropped_betas`
+/// removed; the input unchanged when it is not a JSON object.
+pub(super) fn without_refused(
+    body: &Bytes,
+    provider: &str,
+    dropped_betas: &BetaHeader,
+    fields: &std::collections::BTreeSet<String>,
+) -> Bytes {
+    let Ok(Value::Object(mut obj)) = serde_json::from_slice::<Value>(body) else {
+        return body.clone();
+    };
+    drop_refused(&mut obj, provider, dropped_betas, fields);
+    serde_json::to_vec(&Value::Object(obj)).map_or_else(|_| body.clone(), Bytes::from)
 }

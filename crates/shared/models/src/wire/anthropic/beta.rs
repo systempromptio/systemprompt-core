@@ -7,6 +7,14 @@
 //! through [`BetaPolicy`] before it leaves the gateway rather than relayed
 //! verbatim.
 //!
+//! Some betas gate a top-level body field as well as the header
+//! ([`BETA_GATED_FIELDS`]): `context-management-*` admits `context_management`.
+//! An upstream that is sent the field without the flag refuses the whole
+//! request ("`context_management`: Extra inputs are not permitted"), so a flag
+//! the gateway drops takes its field with it ([`strip_fields_gated_by`]). A
+//! field a client sends with no flag at all is left alone: that is the
+//! client's own contract with the upstream, not a seam the gateway opened.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -14,6 +22,8 @@ use std::collections::BTreeSet;
 use std::fmt;
 
 use serde::{Deserialize, Serialize};
+// JSON: protocol boundary — the gated fields live in a dynamic wire body.
+use serde_json::{Map, Value};
 
 pub const ANTHROPIC_BETA_HEADER: &str = "anthropic-beta";
 
@@ -63,6 +73,34 @@ impl BetaHeader {
         Self(self.0.into_iter().filter(|b| policy.admits(b)).collect())
     }
 
+    /// The flags the policy refuses: the complement of [`Self::admitted_by`].
+    #[must_use]
+    pub fn refused_by(self, policy: &BetaPolicy) -> Self {
+        Self(self.0.into_iter().filter(|b| !policy.admits(b)).collect())
+    }
+
+    /// Adds every flag of `other` this header does not already carry.
+    pub fn extend(&mut self, other: Self) {
+        for beta in other.0 {
+            if !self.0.iter().any(|b| b == &beta) {
+                self.0.push(beta);
+            }
+        }
+    }
+
+    #[must_use]
+    pub fn contains(&self, flag: &str) -> bool {
+        self.0.iter().any(|b| b.as_str() == flag)
+    }
+
+    /// Whether any flag here is a version of the beta `gate` names.
+    #[must_use]
+    pub fn opens(&self, gate: &BetaGatedField) -> bool {
+        self.0
+            .iter()
+            .any(|b| b.as_str().starts_with(gate.beta_prefix))
+    }
+
     #[must_use]
     pub const fn is_empty(&self) -> bool {
         self.0.is_empty()
@@ -100,4 +138,45 @@ impl BetaPolicy {
             Self::Only(accepted) => accepted.contains(beta),
         }
     }
+}
+
+/// A top-level Messages body field that exists only under an `anthropic-beta`
+/// flag. `beta_prefix` is the flag without its date suffix, so every version
+/// of the beta opens the same field.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct BetaGatedField {
+    pub field: &'static str,
+    pub beta_prefix: &'static str,
+}
+
+/// The beta-gated top-level fields the gateway knows. Extend this when
+/// Anthropic ships a new flag that admits a new body field; a field not listed
+/// here is still covered by the learned refusal of the body field itself.
+pub const BETA_GATED_FIELDS: &[BetaGatedField] = &[
+    BetaGatedField {
+        field: "context_management",
+        beta_prefix: "context-management-",
+    },
+    BetaGatedField {
+        field: "mcp_servers",
+        beta_prefix: "mcp-client-",
+    },
+    BetaGatedField {
+        field: "container",
+        beta_prefix: "code-execution-",
+    },
+];
+
+/// Removes from `body` every gated field whose flag is among `dropped`, the
+/// betas the client sent that will not reach the upstream. Returns the names
+/// removed, for the caller to log.
+pub fn strip_fields_gated_by(
+    body: &mut Map<String, Value>,
+    dropped: &BetaHeader,
+) -> Vec<&'static str> {
+    BETA_GATED_FIELDS
+        .iter()
+        .filter(|gate| dropped.opens(gate) && body.remove(gate.field).is_some())
+        .map(|gate| gate.field)
+        .collect()
 }

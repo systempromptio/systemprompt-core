@@ -16,7 +16,10 @@ mod parse;
 mod sse;
 mod strict;
 
-pub use beta::{ANTHROPIC_BETA_HEADER, AnthropicBeta, BetaHeader, BetaPolicy};
+pub use beta::{
+    ANTHROPIC_BETA_HEADER, AnthropicBeta, BETA_GATED_FIELDS, BetaGatedField, BetaHeader,
+    BetaPolicy, strip_fields_gated_by,
+};
 pub use blocks::{
     cache_control_from_anthropic, cache_control_to_anthropic, content_to_anthropic_block,
 };

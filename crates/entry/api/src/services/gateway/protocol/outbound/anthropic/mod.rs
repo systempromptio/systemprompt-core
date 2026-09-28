@@ -17,6 +17,8 @@ use systemprompt_models::wire::anthropic;
 
 use super::{OutboundAdapter, OutboundCtx, OutboundOutcome, PreparedBody};
 
+mod learned;
+pub mod refused_fields;
 pub mod rejected_betas;
 pub mod request;
 pub mod response;
@@ -37,6 +39,8 @@ impl OutboundAdapter for AnthropicOutbound {
                 raw_lane: true,
             });
         }
+        // The canonical model carries no beta-gated top-level field, so only
+        // the raw lane above has anything to strip.
         let mut body =
             request::build_request_body(ctx.request, ctx.upstream_model, ctx.model_limits);
         request::enable_automatic_prompt_caching(&mut body, ctx);
@@ -64,20 +68,34 @@ impl OutboundAdapter for AnthropicOutbound {
         let upstream_response = match send_once(provider, &url, &headers, &body.bytes).await {
             Err(e) => {
                 let refused = refused_betas(&e);
-                if !rejected_betas::carries_any(&headers, &refused) {
+                let refused_fields = if passthrough {
+                    refused_fields(&e)
+                } else {
+                    std::collections::BTreeSet::new()
+                };
+                let header_carries = rejected_betas::carries_any(&headers, &refused);
+                let body_carries = request::carries_any_field(&body.bytes, &refused_fields);
+                if !header_carries && !body_carries {
                     return Err(e);
                 }
                 rejected_betas::learn(provider, &refused);
+                refused_fields::learn(provider, &refused_fields);
                 tracing::warn!(
                     provider,
-                    refused = ?refused,
-                    "upstream refused anthropic-beta values; dropped for this provider and re-sent"
+                    refused_betas = ?refused,
+                    refused_fields = ?refused_fields,
+                    "upstream refused anthropic-beta values or body fields; dropped for this provider and re-sent"
                 );
+                let dropped = anthropic::BetaHeader::parse(
+                    &refused.iter().cloned().collect::<Vec<_>>().join(","),
+                );
+                let bytes =
+                    request::without_refused(&body.bytes, provider, &dropped, &refused_fields);
                 send_once(
                     provider,
                     &url,
                     &rejected_betas::without(headers, &refused),
-                    &body.bytes,
+                    &bytes,
                 )
                 .await?
             },
@@ -146,15 +164,23 @@ async fn send_once(
     super::send_checked(provider, req).await
 }
 
-fn refused_betas(error: &anyhow::Error) -> std::collections::BTreeSet<String> {
+fn bad_request_message(error: &anyhow::Error) -> Option<&str> {
     match error.downcast_ref::<super::UpstreamError>() {
         Some(super::UpstreamError::Status {
             status: 400,
             message,
             ..
-        }) => rejected_betas::refused_in(message),
-        _ => std::collections::BTreeSet::new(),
+        }) => Some(message),
+        _ => None,
     }
+}
+
+fn refused_betas(error: &anyhow::Error) -> std::collections::BTreeSet<String> {
+    bad_request_message(error).map_or_else(Default::default, rejected_betas::refused_in)
+}
+
+fn refused_fields(error: &anyhow::Error) -> std::collections::BTreeSet<String> {
+    bad_request_message(error).map_or_else(Default::default, refused_fields::refused_in)
 }
 
 fn request_headers(ctx: &OutboundCtx<'_>) -> Vec<(String, String)> {
