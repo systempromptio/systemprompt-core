@@ -11,11 +11,11 @@ use std::sync::{OnceLock, RwLock};
 type Sets = RwLock<HashMap<String, BTreeSet<String>>>;
 
 #[derive(Debug, Default)]
-pub struct Learned(OnceLock<Sets>);
+pub(super) struct Learned(OnceLock<Sets>);
 
 impl Learned {
     #[must_use]
-    pub const fn new() -> Self {
+    pub(super) const fn new() -> Self {
         Self(OnceLock::new())
     }
 
@@ -24,14 +24,14 @@ impl Learned {
     }
 
     #[must_use]
-    pub fn for_provider(&self, provider: &str) -> BTreeSet<String> {
+    pub(super) fn for_provider(&self, provider: &str) -> BTreeSet<String> {
         self.sets()
             .read()
             .map(|sets| sets.get(provider).cloned().unwrap_or_default())
             .unwrap_or_default()
     }
 
-    pub fn learn(&self, provider: &str, refused: &BTreeSet<String>) {
+    pub(super) fn learn(&self, provider: &str, refused: &BTreeSet<String>) {
         if refused.is_empty() {
             return;
         }
