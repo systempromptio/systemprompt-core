@@ -135,15 +135,11 @@ impl UpstreamCall {
         headers
     }
 
-    /// The one policy [`Self::headers_forwarding`] and [`Self::dropped_betas`]
-    /// both apply, so the header and the body it gates can never disagree.
     #[must_use]
     pub fn beta_policy(&self, wire: WireProtocol) -> BetaPolicy {
         self.dialect(wire).beta_policy(self.accepted_betas.as_ref())
     }
 
-    /// The `anthropic-beta` flags in `forward` that this upstream is not sent.
-    /// A body field one of them gates must go with it.
     #[must_use]
     pub fn dropped_betas(&self, wire: WireProtocol, forward: &[(String, String)]) -> BetaHeader {
         let mut sent = BetaHeader::default();

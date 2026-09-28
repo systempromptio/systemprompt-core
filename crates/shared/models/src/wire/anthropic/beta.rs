@@ -27,7 +27,6 @@ use serde_json::{Map, Value};
 
 pub const ANTHROPIC_BETA_HEADER: &str = "anthropic-beta";
 
-/// One `anthropic-beta` flag, for example `interleaved-thinking-2025-05-14`.
 #[derive(
     Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, schemars::JsonSchema,
 )]
@@ -73,13 +72,11 @@ impl BetaHeader {
         Self(self.0.into_iter().filter(|b| policy.admits(b)).collect())
     }
 
-    /// The flags the policy refuses: the complement of [`Self::admitted_by`].
     #[must_use]
     pub fn refused_by(self, policy: &BetaPolicy) -> Self {
         Self(self.0.into_iter().filter(|b| !policy.admits(b)).collect())
     }
 
-    /// Adds every flag of `other` this header does not already carry.
     pub fn extend(&mut self, other: Self) {
         for beta in other.0 {
             if !self.0.iter().any(|b| b == &beta) {
@@ -93,7 +90,6 @@ impl BetaHeader {
         self.0.iter().any(|b| b.as_str() == flag)
     }
 
-    /// Whether any flag here is a version of the beta `gate` names.
     #[must_use]
     pub fn opens(&self, gate: &BetaGatedField) -> bool {
         self.0
@@ -149,9 +145,6 @@ pub struct BetaGatedField {
     pub beta_prefix: &'static str,
 }
 
-/// The beta-gated top-level fields the gateway knows. Extend this when
-/// Anthropic ships a new flag that admits a new body field; a field not listed
-/// here is still covered by the learned refusal of the body field itself.
 pub const BETA_GATED_FIELDS: &[BetaGatedField] = &[
     BetaGatedField {
         field: "context_management",
@@ -167,9 +160,6 @@ pub const BETA_GATED_FIELDS: &[BetaGatedField] = &[
     },
 ];
 
-/// Removes from `body` every gated field whose flag is among `dropped`, the
-/// betas the client sent that will not reach the upstream. Returns the names
-/// removed, for the caller to log.
 pub fn strip_fields_gated_by(
     body: &mut Map<String, Value>,
     dropped: &BetaHeader,

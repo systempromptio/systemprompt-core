@@ -39,11 +39,9 @@ const NEVER_DROPPED: &[&str] = &[
 
 static LEARNED: Learned = Learned::new();
 
-/// The top-level body fields a 400 message says the upstream does not accept.
 #[must_use]
 pub fn refused_in(message: &str) -> BTreeSet<String> {
     let mut chunks: Vec<&str> = message.split(REFUSAL_MARKER).collect();
-    // The text after the last marker names nothing.
     chunks.pop();
     chunks
         .into_iter()
@@ -52,8 +50,8 @@ pub fn refused_in(message: &str) -> BTreeSet<String> {
         .collect()
 }
 
-// The text before a marker ends in "<path>:"; the path is dotted for a nested
-// field, and only its first segment is a body key.
+// Why: pydantic phrases a refusal as "<path>: Extra inputs are not permitted",
+// with a dotted path for a nested field; only its first segment is a body key.
 fn top_level_field_named_by(before: &str) -> Option<String> {
     let path = before.trim_end().strip_suffix(':')?.trim_end();
     let path = path

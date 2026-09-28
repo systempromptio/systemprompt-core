@@ -22,8 +22,6 @@ pub fn build_request_body(
     anthropic::build_request_body(request, upstream_model, limits)
 }
 
-/// The betas the client sent that this request will not carry upstream: the
-/// ones the provider's policy refuses and the ones it has refused before.
 pub(super) fn dropped_betas(ctx: &OutboundCtx<'_>) -> BetaHeader {
     let mut dropped = ctx
         .upstream
@@ -99,8 +97,6 @@ fn clamp_max_tokens(obj: &mut Map<String, Value>, limits: Option<ModelLimits>) {
     }
 }
 
-/// Removes what this provider will not accept: the fields gated by a beta that
-/// is not forwarded, and the fields it has refused before.
 fn drop_refused(
     obj: &mut Map<String, Value>,
     provider: &str,
@@ -127,7 +123,6 @@ fn drop_refused(
     }
 }
 
-/// Whether the raw body carries any of `fields` at the top level.
 pub(super) fn carries_any_field(body: &Bytes, fields: &std::collections::BTreeSet<String>) -> bool {
     if fields.is_empty() {
         return false;
@@ -141,8 +136,6 @@ pub(super) fn carries_any_field(body: &Bytes, fields: &std::collections::BTreeSe
         .unwrap_or(false)
 }
 
-/// The raw body with `fields` and every field gated by `dropped_betas`
-/// removed; the input unchanged when it is not a JSON object.
 pub(super) fn without_refused(
     body: &Bytes,
     provider: &str,

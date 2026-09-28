@@ -39,8 +39,6 @@ impl OutboundAdapter for AnthropicOutbound {
                 raw_lane: true,
             });
         }
-        // The canonical model carries no beta-gated top-level field, so only
-        // the raw lane above has anything to strip.
         let mut body =
             request::build_request_body(ctx.request, ctx.upstream_model, ctx.model_limits);
         request::enable_automatic_prompt_caching(&mut body, ctx);
