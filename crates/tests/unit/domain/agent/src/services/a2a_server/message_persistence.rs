@@ -38,9 +38,8 @@ fn publishing(
     ArtifactPublishingService::new(repositories, skills)
 }
 
-use crate::repository::{
-    make_task, repos, seed_context_and_task, seed_user_and_session, try_pool_or_skip,
-};
+use crate::repository::{make_task, repos, seed_context_and_task, seed_user_and_session};
+use systemprompt_test_fixtures::test_db_pool;
 
 fn message(role: MessageRole, ctx: &ContextId, task_id: &TaskId, text: &str) -> Message {
     Message {
@@ -86,9 +85,7 @@ fn artifact(ctx: &ContextId, task_id: &TaskId) -> Artifact {
 // task that will never change.
 #[tokio::test]
 async fn a_completed_turn_persists_the_task_and_both_messages() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     ensure_test_bootstrap();
     let repositories = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
@@ -136,9 +133,7 @@ async fn a_completed_turn_persists_the_task_and_both_messages() {
 // user two copies of every artifact in every streamed turn.
 #[tokio::test]
 async fn artifacts_already_published_are_not_published_a_second_time() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     ensure_test_bootstrap();
     let repositories = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
@@ -179,9 +174,7 @@ async fn artifacts_already_published_are_not_published_a_second_time() {
 // failure would report success while the task row still says in-flight.
 #[tokio::test]
 async fn a_task_that_does_not_exist_fails_loudly_rather_than_reporting_success() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     ensure_test_bootstrap();
     let repositories = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
@@ -213,9 +206,7 @@ async fn a_task_that_does_not_exist_fails_loudly_rather_than_reporting_success()
 }
 
 async fn persist_artifacts(broadcast_ok: bool) {
-    let pool = try_pool_or_skip()
-        .await
-        .expect("persistence coverage requires PostgreSQL");
+    let pool = test_db_pool().await;
     ensure_test_bootstrap();
     let rec: Arc<RecordingWebhookBroadcaster> = if broadcast_ok {
         Arc::new(RecordingWebhookBroadcaster::new())

@@ -12,7 +12,8 @@ use systemprompt_agent::services::a2a_server::handlers::request::helpers::handle
 use systemprompt_identifiers::{ContextId, MessageId, TaskId};
 
 use super::a2a_helpers::{StubAiProvider, make_handler_state, request_context};
-use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try_pool_or_skip};
+use crate::repository::{repos, seed_context_and_task, seed_user_and_session};
+use systemprompt_test_fixtures::test_db_pool;
 
 fn send_params(ctx: &ContextId) -> MessageSendParams {
     MessageSendParams {
@@ -48,9 +49,7 @@ async fn sse_json(response: axum::response::Response) -> serde_json::Value {
 
 #[tokio::test]
 async fn streaming_path_with_no_permits_returns_service_unavailable() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let repos = repos(&pool);
     let (user, session) = seed_user_and_session(&pool).await;
     let (ctx, _task_id) = seed_context_and_task(&repos, &user, &session).await;
@@ -77,9 +76,7 @@ async fn streaming_path_with_no_permits_returns_service_unavailable() {
 
 #[tokio::test]
 async fn streaming_path_unknown_context_streams_validation_error() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let (user, session) = seed_user_and_session(&pool).await;
     let ctx = ContextId::generate();
 
@@ -110,9 +107,7 @@ async fn streaming_path_unknown_context_streams_validation_error() {
 
 #[tokio::test]
 async fn streaming_path_rejects_a_non_streaming_method_on_the_wire() {
-    let pool = try_pool_or_skip()
-        .await
-        .expect("agent request dispatch fixture database");
+    let pool = test_db_pool().await;
     let repos = repos(&pool);
     let (user, session) = seed_user_and_session(&pool).await;
     let (ctx, task_id) = seed_context_and_task(&repos, &user, &session).await;

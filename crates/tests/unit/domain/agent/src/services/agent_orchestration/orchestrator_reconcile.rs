@@ -19,7 +19,7 @@ use systemprompt_traits::{Phase, StartupEvent, startup_channel};
 use uuid::Uuid;
 
 use super::super::a2a_server::a2a_helpers::{agent_config, make_agent_state};
-use crate::repository::try_pool_or_skip;
+use systemprompt_test_fixtures::test_db_pool;
 
 // Why: `services.pid` is an `INTEGER` column, so a dead pid must fit i32 while
 // still lying far above any pid_max a kernel will hand out.
@@ -70,9 +70,7 @@ async fn make_orchestrator(
 
 #[tokio::test]
 async fn reconcile_reports_the_agent_phase_and_the_registry_totals() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let a = unique_name("recon_a");
     let b = unique_name("recon_b");
@@ -119,9 +117,7 @@ async fn reconcile_reports_the_agent_phase_and_the_registry_totals() {
 
 #[tokio::test]
 async fn detailed_status_falls_back_when_the_registry_key_differs_from_the_name() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let key = unique_name("recon_key");
     let declared = unique_name("recon_declared");
@@ -143,9 +139,7 @@ async fn detailed_status_falls_back_when_the_registry_key_differs_from_the_name(
 
 #[tokio::test]
 async fn disable_all_leaves_every_registry_agent_failed() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let a = unique_name("recon_dis_a");
     let b = unique_name("recon_dis_b");
@@ -172,9 +166,7 @@ async fn disable_all_leaves_every_registry_agent_failed() {
 
 #[tokio::test]
 async fn health_check_reports_a_dead_pid_as_not_running() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let name = unique_name("recon_health");
     let orchestrator = make_orchestrator(&pool, &[(&name, &name, 39475)]).await;
@@ -204,9 +196,7 @@ async fn health_check_reports_a_dead_pid_as_not_running() {
 
 #[tokio::test]
 async fn enable_agent_for_an_unregistered_name_is_rejected() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let orchestrator = make_orchestrator(&pool, &[]).await;
 

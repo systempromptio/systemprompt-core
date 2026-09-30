@@ -18,11 +18,11 @@ use super::a2a_helpers::{StubAiProvider, ai_messages, request_context, runtime_i
 
 // SkillService reads the profile for its disk catalogue and needs a step
 // repository, so the synthesis tests run under the bootstrap fixture against
-// the test database and skip when none is configured.
-async fn skill_service_or_skip() -> Option<Arc<SkillService>> {
-    let pool = crate::repository::try_pool_or_skip().await?;
+// the test database.
+async fn skill_service_fixture() -> Arc<SkillService> {
+    let pool = systemprompt_test_fixtures::test_db_pool().await;
     systemprompt_test_fixtures::ensure_test_bootstrap();
-    Some(Arc::new(super::a2a_helpers::skill_service(&pool)))
+    Arc::new(super::a2a_helpers::skill_service(&pool))
 }
 
 fn ctx() -> systemprompt_models::execution::context::RequestContext {
@@ -95,9 +95,7 @@ async fn process_without_tools_stream_failure_is_err_and_leaves_the_terminal_eve
 
 #[tokio::test]
 async fn synthesize_tool_results_returns_text_and_emits_event() {
-    let Some(skill_service) = skill_service_or_skip().await else {
-        return;
-    };
+    let skill_service = skill_service_fixture().await;
     let provider = Arc::new(StubAiProvider::new().with_generate("Done summarizing."));
     let runtime = runtime_info("exec-agent");
     let (tx, mut rx) = mpsc::channel(8);
@@ -220,11 +218,11 @@ async fn synthesize(
     calls: &[systemprompt_models::ToolCall],
     results: &[rmcp::model::CallToolResult],
     artifacts: &[systemprompt_models::a2a::Artifact],
-) -> Option<(
+) -> (
     Result<String, systemprompt_agent::services::shared::AgentServiceError>,
     Vec<StreamEvent>,
-)> {
-    let skill_service = skill_service_or_skip().await?;
+) {
+    let skill_service = skill_service_fixture().await;
     let provider = Arc::new(StubAiProvider::new().with_generate("Summary."));
     let runtime = runtime_info("exec-agent");
     let (tx, mut rx) = mpsc::channel(16);
@@ -247,16 +245,13 @@ async fn synthesize(
     while let Ok(ev) = rx.try_recv() {
         events.push(ev);
     }
-    Some((out, events))
+    (out, events)
 }
 
 #[tokio::test]
 async fn synthesize_with_tool_results_returns_the_model_summary() {
-    let Some((out, events)) =
-        synthesize(&[tool_call("search")], &[tool_result("three matches")], &[]).await
-    else {
-        return;
-    };
+    let (out, events) =
+        synthesize(&[tool_call("search")], &[tool_result("three matches")], &[]).await;
 
     assert_eq!(out.expect("synthesis should succeed"), "Summary.");
     assert!(
@@ -267,15 +262,12 @@ async fn synthesize_with_tool_results_returns_the_model_summary() {
 
 #[tokio::test]
 async fn synthesize_with_artifacts_still_returns_the_summary() {
-    let Some((out, events)) = synthesize(
+    let (out, events) = synthesize(
         &[tool_call("chart")],
         &[tool_result("rendered")],
         &[artifact("Q3 revenue")],
     )
-    .await
-    else {
-        return;
-    };
+    .await;
 
     assert_eq!(out.expect("synthesis should succeed"), "Summary.");
     assert!(events.iter().any(|e| matches!(e, StreamEvent::Text(_))));
@@ -283,24 +275,19 @@ async fn synthesize_with_artifacts_still_returns_the_summary() {
 
 #[tokio::test]
 async fn synthesize_handles_several_tool_calls_and_results() {
-    let Some((out, _events)) = synthesize(
+    let (out, _events) = synthesize(
         &[tool_call("search"), tool_call("fetch")],
         &[tool_result("first"), tool_result("second")],
         &[artifact("one"), artifact("two")],
     )
-    .await
-    else {
-        return;
-    };
+    .await;
 
     assert_eq!(out.expect("synthesis should succeed"), "Summary.");
 }
 
 #[tokio::test]
 async fn synthesize_propagates_a_provider_failure() {
-    let Some(skill_service) = skill_service_or_skip().await else {
-        return;
-    };
+    let skill_service = skill_service_fixture().await;
     let provider = Arc::new(StubAiProvider::new().failing_generate());
     let runtime = runtime_info("exec-agent");
     let (tx, _rx) = mpsc::channel(8);

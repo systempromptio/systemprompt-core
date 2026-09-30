@@ -17,7 +17,7 @@ use systemprompt_models::ServicesConfig;
 use uuid::Uuid;
 
 use super::super::a2a_server::a2a_helpers::agent_config;
-use crate::repository::try_pool_or_skip;
+use systemprompt_test_fixtures::test_db_pool;
 
 const DEAD_PID: u32 = 2_000_000_001;
 
@@ -50,9 +50,7 @@ fn db_service_with(
 
 #[tokio::test]
 async fn reconcile_repairs_dead_pid_row_via_status_lookup() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let name = unique_name("rec_dead");
     let svc = db_service_with(&pool, &[(&name, 9410)]);
     svc.register_agent(&name, DEAD_PID, 9410)
@@ -74,9 +72,7 @@ async fn reconcile_repairs_dead_pid_row_via_status_lookup() {
 
 #[tokio::test]
 async fn consistency_check_buckets_live_and_dead_agents() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let dead = unique_name("rec_bucket_d");
     let live = unique_name("rec_bucket_l");
     let svc = db_service_with(&pool, &[(&dead, 9413), (&live, 9414)]);
@@ -105,9 +101,7 @@ async fn consistency_check_buckets_live_and_dead_agents() {
 
 #[tokio::test]
 async fn fix_inconsistencies_marks_reported_agents_failed() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let stale = unique_name("rec_fix_a");
     let orphan = unique_name("rec_fix_b");
     let svc = db_service_with(&pool, &[(&stale, 9415), (&orphan, 9416)]);

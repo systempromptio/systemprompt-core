@@ -15,12 +15,13 @@ use systemprompt_identifiers::AgentName;
 use tokio::sync::mpsc;
 
 use super::a2a_helpers::{StubAiProvider, request_context, runtime_info};
-use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try_pool_or_skip};
+use crate::repository::{repos, seed_context_and_task, seed_user_and_session};
+use systemprompt_test_fixtures::test_db_pool;
 
 const AGENT: &str = "ctx_tool_exec_agent";
 
-async fn executor_or_skip(provider: StubAiProvider) -> Option<ContextToolExecutor> {
-    let pool = try_pool_or_skip().await?;
+async fn executor(provider: StubAiProvider) -> ContextToolExecutor {
+    let pool = test_db_pool().await;
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let repos_handle = repos(&pool);
     let (user, session) = seed_user_and_session(&pool).await;
@@ -32,7 +33,7 @@ async fn executor_or_skip(provider: StubAiProvider) -> Option<ContextToolExecuto
     std::mem::forget(rx);
     let request_ctx = request_context(&ctx, &session, &user, AGENT);
 
-    Some(ContextToolExecutor {
+    ContextToolExecutor {
         context: ExecutionContext {
             ai_service: Arc::new(provider),
             skill_service: Arc::new(super::a2a_helpers::skill_service(&pool)),
@@ -44,7 +45,7 @@ async fn executor_or_skip(provider: StubAiProvider) -> Option<ContextToolExecuto
             request_ctx,
             execution_step_repo: Arc::new(ExecutionStepRepository::new(&pool).expect("exec repo")),
         },
-    })
+    }
 }
 
 fn success_with_structured(payload: serde_json::Value) -> CallToolResult {
@@ -59,9 +60,7 @@ async fn a_successful_tool_call_returns_its_structured_content() {
         "lookup",
         success_with_structured(serde_json::json!({"rows": 3})),
     );
-    let Some(executor) = executor_or_skip(provider).await else {
-        return;
-    };
+    let executor = executor(provider).await;
     let ctx = executor.context.request_ctx.clone();
 
     let value = executor
@@ -78,9 +77,7 @@ async fn a_successful_tool_call_returns_its_structured_content() {
 
 #[tokio::test]
 async fn a_tool_that_returns_no_result_is_an_error_naming_the_tool() {
-    let Some(executor) = executor_or_skip(StubAiProvider::new()).await else {
-        return;
-    };
+    let executor = executor(StubAiProvider::new()).await;
     let ctx = executor.context.request_ctx.clone();
 
     let err = executor
@@ -101,11 +98,7 @@ async fn a_tool_reporting_an_error_surfaces_its_message() {
     )]);
     failing.is_error = Some(true);
 
-    let Some(executor) =
-        executor_or_skip(StubAiProvider::new().with_tool_result("broken", failing)).await
-    else {
-        return;
-    };
+    let executor = executor(StubAiProvider::new().with_tool_result("broken", failing)).await;
     let ctx = executor.context.request_ctx.clone();
 
     let err = executor
@@ -126,11 +119,7 @@ async fn a_tool_error_without_text_content_falls_back_to_unknown() {
     let mut failing = CallToolResult::error(vec![]);
     failing.is_error = Some(true);
 
-    let Some(executor) =
-        executor_or_skip(StubAiProvider::new().with_tool_result("silent", failing)).await
-    else {
-        return;
-    };
+    let executor = executor(StubAiProvider::new().with_tool_result("silent", failing)).await;
     let ctx = executor.context.request_ctx.clone();
 
     let err = executor
@@ -148,11 +137,7 @@ async fn a_tool_error_without_text_content_falls_back_to_unknown() {
 async fn a_successful_tool_without_structured_content_is_rejected() {
     let bare = CallToolResult::success(vec![ContentBlock::text("prose only".to_owned())]);
 
-    let Some(executor) =
-        executor_or_skip(StubAiProvider::new().with_tool_result("prose", bare)).await
-    else {
-        return;
-    };
+    let executor = executor(StubAiProvider::new().with_tool_result("prose", bare)).await;
     let ctx = executor.context.request_ctx.clone();
 
     let err = executor

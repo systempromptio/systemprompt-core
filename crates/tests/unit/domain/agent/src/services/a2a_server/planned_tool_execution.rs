@@ -18,7 +18,8 @@ use systemprompt_models::ai::{PlannedToolCall, PlanningResult};
 use tokio::sync::mpsc;
 
 use super::a2a_helpers::{StubAiProvider, request_context, runtime_info};
-use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try_pool_or_skip};
+use crate::repository::{repos, seed_context_and_task, seed_user_and_session};
+use systemprompt_test_fixtures::test_db_pool;
 
 const AGENT: &str = "planned_exec_agent";
 
@@ -27,8 +28,8 @@ struct Harness {
     rx: mpsc::Receiver<StreamEvent>,
 }
 
-async fn harness_or_skip(provider: StubAiProvider) -> Option<Harness> {
-    let pool = try_pool_or_skip().await?;
+async fn harness(provider: StubAiProvider) -> Harness {
+    let pool = test_db_pool().await;
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let repos_handle = repos(&pool);
     let (user, session) = seed_user_and_session(&pool).await;
@@ -47,7 +48,7 @@ async fn harness_or_skip(provider: StubAiProvider) -> Option<Harness> {
         request_ctx,
         execution_step_repo: Arc::new(ExecutionStepRepository::new(&pool).expect("exec repo")),
     };
-    Some(Harness { context, rx })
+    Harness { context, rx }
 }
 
 fn success_result(payload: serde_json::Value) -> CallToolResult {
@@ -77,9 +78,7 @@ async fn successful_tool_run_synthesizes_and_emits_response() {
         ))
         .with_tool_result("alpha", success_result(json!({"answer": 42})))
         .with_response("final answer");
-    let Some(Harness { context, mut rx }) = harness_or_skip(provider).await else {
-        return;
-    };
+    let Harness { context, mut rx } = harness(provider).await;
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
 
     let result = PlannedAgenticStrategy::new()
@@ -112,9 +111,7 @@ async fn successful_tool_run_synthesizes_and_emits_response() {
 async fn direct_response_plan_streams_text_without_tool_calls() {
     let provider =
         StubAiProvider::new().with_plan(PlanningResult::direct_response("no tools required"));
-    let Some(Harness { context, mut rx }) = harness_or_skip(provider).await else {
-        return;
-    };
+    let Harness { context, mut rx } = harness(provider).await;
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
 
     let result = PlannedAgenticStrategy::new()
@@ -153,9 +150,7 @@ async fn template_referencing_unplanned_tool_returns_validation_explanation() {
             )],
         ))
         .with_response("that plan is invalid");
-    let Some(Harness { context, mut rx }) = harness_or_skip(provider).await else {
-        return;
-    };
+    let Harness { context, mut rx } = harness(provider).await;
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
 
     let result = PlannedAgenticStrategy::new()
@@ -185,9 +180,7 @@ async fn failing_tool_with_working_synthesis_still_responds() {
         ))
         .with_tool_result("broken", error_result("boom"))
         .with_response("recovered gracefully");
-    let Some(Harness { context, rx }) = harness_or_skip(provider).await else {
-        return;
-    };
+    let Harness { context, rx } = harness(provider).await;
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
 
     let result = PlannedAgenticStrategy::new()
@@ -209,9 +202,7 @@ async fn failing_tool_and_failing_synthesis_surface_tool_errors() {
         ))
         .with_tool_result("broken", error_result("boom"))
         .with_failing_response();
-    let Some(Harness { context, rx: _rx }) = harness_or_skip(provider).await else {
-        return;
-    };
+    let Harness { context, rx: _rx } = harness(provider).await;
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
 
     let error = PlannedAgenticStrategy::new()
@@ -240,9 +231,7 @@ async fn multiple_successful_tools_persist_one_completed_batch_summary_and_strea
         .with_tool_result("alpha", success_result(json!({"answer": "a"})))
         .with_tool_result("beta", success_result(json!({"answer": "b"})))
         .with_response("combined answer");
-    let Harness { context, mut rx } = harness_or_skip(provider)
-        .await
-        .expect("planned strategy database fixture");
+    let Harness { context, mut rx } = harness(provider).await;
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let task_id = context.task_id.clone();
     let steps = Arc::clone(&context.execution_step_repo);
@@ -329,9 +318,7 @@ async fn successful_then_failed_tool_persists_failed_batch_with_exact_diagnosis(
         .with_tool_result("broken", error_result("upstream unavailable"))
         .with_tool_result("never-run", success_result(json!({"unexpected": true})))
         .with_response("partial answer with failure guidance");
-    let Harness { context, mut rx } = harness_or_skip(provider)
-        .await
-        .expect("planned strategy database fixture");
+    let Harness { context, mut rx } = harness(provider).await;
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let task_id = context.task_id.clone();
     let steps = Arc::clone(&context.execution_step_repo);

@@ -57,10 +57,9 @@ fn prepare_agent_log_file_appends_to_an_existing_log_rather_than_truncating() {
 #[test]
 fn build_agent_command_forwards_the_trust_allowlist_when_the_parent_carries_one() {
     systemprompt_test_fixtures::ensure_test_bootstrap();
-    let Ok(url) = systemprompt_test_fixtures::fixture_database_url() else {
-        return;
-    };
-    let config = systemprompt_test_fixtures::fixture_config(&url);
+    let config = systemprompt_test_fixtures::fixture_config(
+        &systemprompt_test_fixtures::test_database_url(),
+    );
     let tmp = tempfile::tempdir().expect("tmp");
     let binary = PathBuf::from("/bin/true");
     let creds = secrets();
@@ -111,10 +110,9 @@ fn build_agent_command_forwards_the_trust_allowlist_when_the_parent_carries_one(
 #[test]
 fn build_agent_command_omits_the_optional_env_vars_when_the_parent_lacks_them() {
     systemprompt_test_fixtures::ensure_test_bootstrap();
-    let Ok(url) = systemprompt_test_fixtures::fixture_database_url() else {
-        return;
-    };
-    let config = systemprompt_test_fixtures::fixture_config(&url);
+    let config = systemprompt_test_fixtures::fixture_config(
+        &systemprompt_test_fixtures::test_database_url(),
+    );
     let tmp = tempfile::tempdir().expect("tmp");
     let binary = PathBuf::from("/bin/true");
     let creds = secrets();

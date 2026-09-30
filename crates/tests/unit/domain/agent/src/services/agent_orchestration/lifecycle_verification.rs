@@ -13,7 +13,7 @@ use systemprompt_config::paths::AppPaths;
 use tokio::net::TcpListener;
 use uuid::Uuid;
 
-use crate::repository::try_pool_or_skip;
+use systemprompt_test_fixtures::test_db_pool;
 
 // Why: `services.pid` is an `INTEGER` column, so a dead pid must fit i32 while
 // still lying far above any pid_max a kernel will hand out.
@@ -57,9 +57,7 @@ async fn ephemeral_listener() -> (TcpListener, u16) {
 
 #[tokio::test]
 async fn validate_prerequisites_free_port_is_ok() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let lc = lifecycle(&pool);
 
@@ -71,9 +69,7 @@ async fn validate_prerequisites_free_port_is_ok() {
 
 #[tokio::test]
 async fn validate_prerequisites_port_held_by_non_agent_fails() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let lc = lifecycle(&pool);
 
@@ -89,9 +85,7 @@ async fn validate_prerequisites_port_held_by_non_agent_fails() {
 
 #[tokio::test]
 async fn verify_startup_succeeds_against_live_listener() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let lc = lifecycle(&pool);
 
@@ -110,9 +104,7 @@ async fn verify_startup_succeeds_against_live_listener() {
 
 #[tokio::test]
 async fn verify_startup_times_out_and_marks_error() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let lc = lifecycle(&pool);
     let db = db_service(&pool);
@@ -136,9 +128,7 @@ async fn verify_startup_times_out_and_marks_error() {
 
 #[tokio::test]
 async fn log_startup_failure_covers_stored_statuses() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let lc = lifecycle(&pool);
     let db = db_service(&pool);

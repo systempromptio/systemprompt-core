@@ -15,7 +15,8 @@ use systemprompt_identifiers::{ContextId, MessageId, TaskId};
 use systemprompt_test_mocks::recording_webhooks;
 
 use super::a2a_helpers::{StubAiProvider, request_context, runtime_info};
-use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try_pool_or_skip};
+use crate::repository::{repos, seed_context_and_task, seed_user_and_session};
+use systemprompt_test_fixtures::test_db_pool;
 
 fn user_message(ctx: &ContextId, task_id: Option<TaskId>, text: &str) -> Message {
     Message {
@@ -34,9 +35,7 @@ fn user_message(ctx: &ContextId, task_id: Option<TaskId>, text: &str) -> Message
 
 #[tokio::test]
 async fn handle_message_with_runtime_completes_task_end_to_end() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let repos = repos(&pool);
@@ -91,9 +90,7 @@ async fn handle_message_with_runtime_completes_task_end_to_end() {
 
 #[tokio::test]
 async fn handle_message_with_runtime_reuses_inbound_task_id() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let repos = repos(&pool);
@@ -125,9 +122,7 @@ async fn handle_message_with_runtime_reuses_inbound_task_id() {
 
 #[tokio::test]
 async fn handle_message_with_runtime_surfaces_model_stream_failure() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let repos = repos(&pool);
@@ -175,9 +170,7 @@ async fn handle_message_with_runtime_surfaces_model_stream_failure() {
 
 #[tokio::test]
 async fn cancellation_marks_nonstream_task_canceled_without_agent_response() {
-    let pool = try_pool_or_skip()
-        .await
-        .expect("agent cancellation fixture database");
+    let pool = test_db_pool().await;
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let repos = repos(&pool);
@@ -238,9 +231,7 @@ async fn cancellation_marks_nonstream_task_canceled_without_agent_response() {
 
 #[tokio::test]
 async fn handle_message_with_runtime_rejects_unowned_context() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let (user, session) = seed_user_and_session(&pool).await;
@@ -271,10 +262,8 @@ async fn handle_message_with_runtime_rejects_unowned_context() {
 async fn completed_message_write_failure_marks_task_failed_without_partial_history() {
     use systemprompt_test_fixtures::DisposableDb;
 
-    let database = DisposableDb::installed("agent_message_persist_failure")
-        .await
-        .expect("isolated agent database");
-    let pool = database.pool().await.expect("agent database pool");
+    let database = DisposableDb::with_schema("agent_message_persist_failure").await;
+    let pool = database.test_pool().await;
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let repositories = repos(&pool);
@@ -366,10 +355,8 @@ async fn completed_message_write_failure_marks_task_failed_without_partial_histo
 async fn working_transition_failure_leaves_submitted_task_without_starting_history() {
     use systemprompt_test_fixtures::DisposableDb;
 
-    let database = DisposableDb::installed("agent_working_transition_failure")
-        .await
-        .expect("isolated agent database");
-    let pool = database.pool().await.expect("agent database pool");
+    let database = DisposableDb::with_schema("agent_working_transition_failure").await;
+    let pool = database.test_pool().await;
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let repositories = repos(&pool);
@@ -451,10 +438,8 @@ async fn working_transition_failure_leaves_submitted_task_without_starting_histo
 async fn context_read_failure_prevents_task_creation_and_provider_dispatch() {
     use systemprompt_test_fixtures::DisposableDb;
 
-    let database = DisposableDb::installed("agent_context_read_failure")
-        .await
-        .expect("isolated agent database");
-    let pool = database.pool().await.expect("agent database pool");
+    let database = DisposableDb::with_schema("agent_context_read_failure").await;
+    let pool = database.test_pool().await;
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let repositories = repos(&pool);

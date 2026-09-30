@@ -15,7 +15,7 @@ use systemprompt_agent::services::a2a_server::streaming::{
 use systemprompt_identifiers::{ContextId, MessageId, SessionId, UserId};
 
 use super::a2a_helpers::{StubAiProvider, make_handler_state, request_context};
-use crate::repository::try_pool_or_skip;
+use systemprompt_test_fixtures::test_db_pool;
 
 fn message(ctx: &ContextId) -> Message {
     Message {
@@ -34,9 +34,7 @@ fn message(ctx: &ContextId) -> Message {
 
 #[tokio::test]
 async fn create_sse_stream_returns_stream_when_permit_available() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let provider = Arc::new(StubAiProvider::new());
     let state = make_handler_state(&pool, provider, 4);
 
@@ -62,9 +60,7 @@ async fn create_sse_stream_returns_stream_when_permit_available() {
 
 #[tokio::test]
 async fn create_sse_stream_rejected_when_cap_exhausted() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let provider = Arc::new(StubAiProvider::new());
     // Zero permits: every stream request is rejected.
     let state = make_handler_state(&pool, provider, 0);
@@ -88,9 +84,7 @@ async fn create_sse_stream_rejected_when_cap_exhausted() {
 
 #[tokio::test]
 async fn handler_state_debug_and_clone() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let provider = Arc::new(StubAiProvider::new());
     let state = make_handler_state(&pool, provider, 2);
 
@@ -111,9 +105,7 @@ async fn handler_state_debug_and_clone() {
 
 #[tokio::test]
 async fn server_new_requires_an_agent_name() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let state = super::a2a_helpers::make_agent_state(&pool);
 
@@ -134,9 +126,7 @@ async fn server_new_requires_an_agent_name() {
 
 #[tokio::test]
 async fn server_new_rejects_an_agent_absent_from_the_registry() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let _skills_fixture_read = crate::SKILLS_FIXTURE_LOCK.read().await;
     let state = super::a2a_helpers::make_agent_state(&pool);

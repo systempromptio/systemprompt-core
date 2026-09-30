@@ -15,7 +15,7 @@ use systemprompt_agent::services::a2a_server::Server;
 use systemprompt_database::DbPool;
 use systemprompt_models::ai::AiProvider;
 use systemprompt_test_fixtures::{
-    TestBootstrap, fixture_config, fixture_db_pool, init_services_bootstrap,
+    TestBootstrap, fixture_config, init_services_bootstrap, test_db_pool,
 };
 use systemprompt_test_mocks::MockAiProvider;
 use systemprompt_traits::{
@@ -76,9 +76,7 @@ fn boot() -> &'static TestBootstrap {
 
 async fn state() -> (Arc<AgentState>, DbPool) {
     let b = boot();
-    let pool = fixture_db_pool(&b.database_url)
-        .await
-        .expect("the a2a server tests need a reachable test database");
+    let pool = test_db_pool().await;
     let config = Arc::new(fixture_config(&b.database_url));
     let repos = systemprompt_test_fixtures::a2a_repositories(&pool);
     let state = AgentState::new(

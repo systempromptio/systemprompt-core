@@ -12,7 +12,7 @@ use systemprompt_agent::services::agent_orchestration::lifecycle::AgentLifecycle
 use systemprompt_config::paths::AppPaths;
 use uuid::Uuid;
 
-use crate::repository::try_pool_or_skip;
+use systemprompt_test_fixtures::test_db_pool;
 
 // Why: `services.pid` is an `INTEGER` column, so a dead pid must fit i32 while
 // still lying far above any pid_max a kernel will hand out.
@@ -50,9 +50,7 @@ fn db_service(pool: &systemprompt_database::DbPool) -> AgentDatabaseService {
 
 #[tokio::test]
 async fn start_agent_unknown_agent_fails_before_spawn() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let lifecycle = lifecycle(&pool);
 
@@ -63,9 +61,7 @@ async fn start_agent_unknown_agent_fails_before_spawn() {
 
 #[tokio::test]
 async fn start_agent_unknown_agent_emits_request_without_creating_service_state() {
-    let pool = try_pool_or_skip()
-        .await
-        .expect("agent lifecycle fixture database");
+    let pool = test_db_pool().await;
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let bus = Arc::new(
         systemprompt_agent::services::agent_orchestration::event_bus::AgentEventBus::new(8),
@@ -96,9 +92,7 @@ async fn start_agent_unknown_agent_emits_request_without_creating_service_state(
 
 #[tokio::test]
 async fn enable_agent_delegates_to_start() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let lifecycle = lifecycle(&pool);
 
@@ -109,9 +103,7 @@ async fn enable_agent_delegates_to_start() {
 
 #[tokio::test]
 async fn restart_agent_with_dead_pid_row_fails_on_missing_config() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let lifecycle = lifecycle(&pool);
     let db = db_service(&pool);
@@ -132,9 +124,7 @@ async fn restart_agent_with_dead_pid_row_fails_on_missing_config() {
 
 #[tokio::test]
 async fn disable_agent_with_dead_pid_removes_service_row() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let lifecycle = lifecycle(&pool);
     let db = db_service(&pool);
@@ -152,9 +142,7 @@ async fn disable_agent_with_dead_pid_removes_service_row() {
 
 #[tokio::test]
 async fn cleanup_crashed_agent_without_record_is_noop() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let lifecycle = lifecycle(&pool);
 
@@ -167,9 +155,7 @@ async fn cleanup_crashed_agent_without_record_is_noop() {
 
 #[tokio::test]
 async fn cleanup_crashed_agent_transitions_dead_running_record_to_failed() {
-    let pool = try_pool_or_skip()
-        .await
-        .expect("agent lifecycle fixture database");
+    let pool = test_db_pool().await;
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let lifecycle = lifecycle(&pool);
     let db = db_service(&pool);
@@ -205,9 +191,7 @@ async fn cleanup_crashed_agent_transitions_dead_running_record_to_failed() {
 
 #[tokio::test]
 async fn disable_with_event_bus_publishes_agent_disabled() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let bus = Arc::new(
         systemprompt_agent::services::agent_orchestration::event_bus::AgentEventBus::new(16),
@@ -234,9 +218,7 @@ async fn disable_with_event_bus_publishes_agent_disabled() {
 
 #[tokio::test]
 async fn restart_with_event_bus_publishes_restart_requested_before_failing() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let bus = Arc::new(
         systemprompt_agent::services::agent_orchestration::event_bus::AgentEventBus::new(16),
@@ -263,9 +245,7 @@ async fn restart_with_event_bus_publishes_restart_requested_before_failing() {
 
 #[tokio::test]
 async fn free_function_verbs_cover_missing_agent_paths() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     use systemprompt_agent::services::agent_orchestration::lifecycle as verbs;
 

@@ -1,4 +1,5 @@
-use super::{repos, try_pool_or_skip};
+use super::repos;
+use systemprompt_test_fixtures::test_db_pool;
 use uuid::Uuid;
 
 fn unique_name(prefix: &str) -> String {
@@ -7,9 +8,7 @@ fn unique_name(prefix: &str) -> String {
 
 #[tokio::test]
 async fn register_and_get_status_running() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let r = repos(&pool);
     let name = unique_name("svc-running");
 
@@ -37,9 +36,7 @@ async fn register_and_get_status_running() {
 
 #[tokio::test]
 async fn register_starting_then_mark_running() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let r = repos(&pool);
     let name = unique_name("svc-starting");
 
@@ -72,9 +69,7 @@ async fn register_starting_then_mark_running() {
 
 #[tokio::test]
 async fn mark_crashed_clears_pid() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let r = repos(&pool);
     let name = unique_name("svc-crash");
     r.agent_services
@@ -97,9 +92,7 @@ async fn mark_crashed_clears_pid() {
 
 #[tokio::test]
 async fn mark_stopped_and_error_clear_pid() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let r = repos(&pool);
 
     let stopped = unique_name("svc-stop");
@@ -137,9 +130,7 @@ async fn mark_stopped_and_error_clear_pid() {
 
 #[tokio::test]
 async fn update_health_status_sets_arbitrary_status() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let r = repos(&pool);
     let name = unique_name("svc-health");
     r.agent_services
@@ -164,9 +155,7 @@ async fn update_health_status_sets_arbitrary_status() {
 
 #[tokio::test]
 async fn list_running_agents_and_pids_include_registered() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let r = repos(&pool);
     let name = unique_name("svc-list");
     r.agent_services
@@ -193,9 +182,7 @@ async fn list_running_agents_and_pids_include_registered() {
 
 #[tokio::test]
 async fn get_status_unknown_returns_none() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let r = repos(&pool);
     let result = r
         .agent_services
@@ -207,9 +194,7 @@ async fn get_status_unknown_returns_none() {
 
 #[tokio::test]
 async fn register_twice_upserts() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let r = repos(&pool);
     let name = unique_name("svc-upsert");
     r.agent_services
@@ -234,9 +219,7 @@ async fn register_twice_upserts() {
 
 #[tokio::test]
 async fn remove_unknown_is_ok() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let r = repos(&pool);
     r.agent_services
         .remove_agent_service(&unique_name("ghost"))

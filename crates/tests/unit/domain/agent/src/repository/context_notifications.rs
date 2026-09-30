@@ -6,13 +6,12 @@ use serde_json::json;
 use systemprompt_agent::repository::context::ContextNotificationRepository;
 use systemprompt_identifiers::{AgentId, ContextId};
 
-use super::{repos, seed_context_and_task, seed_user_and_session, try_pool_or_skip};
+use super::{repos, seed_context_and_task, seed_user_and_session};
+use systemprompt_test_fixtures::test_db_pool;
 
 #[tokio::test]
 async fn insert_persists_row_and_mark_broadcasted_flips_flag() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let r = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let (context_id, _task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
@@ -53,9 +52,7 @@ async fn insert_persists_row_and_mark_broadcasted_flips_flag() {
 
 #[tokio::test]
 async fn insert_rejects_unknown_notification_type() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let repo = ContextNotificationRepository::new(&pool).expect("repository");
 
     let err = repo
@@ -75,9 +72,7 @@ async fn insert_rejects_unknown_notification_type() {
 
 #[tokio::test]
 async fn mark_broadcasted_on_unknown_id_is_a_no_op() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let repo = ContextNotificationRepository::new(&pool).expect("repository");
     repo.mark_broadcasted(i32::MIN)
         .await

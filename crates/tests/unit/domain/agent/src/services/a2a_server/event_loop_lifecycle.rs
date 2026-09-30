@@ -19,7 +19,8 @@ use systemprompt_test_mocks::{
 };
 use tokio::sync::mpsc;
 
-use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try_pool_or_skip};
+use crate::repository::{repos, seed_context_and_task, seed_user_and_session};
+use systemprompt_test_fixtures::test_db_pool;
 
 fn agui_for(rec: &RecordingWebhookBroadcaster, task_id: &TaskId) -> Vec<String> {
     rec.records()
@@ -46,9 +47,7 @@ fn a2a_for(rec: &RecordingWebhookBroadcaster, task_id: &TaskId) -> Vec<String> {
 #[tokio::test]
 async fn emit_run_started_moves_task_to_working_and_emits_status_frame() {
     let (broadcaster, rec) = arc_recording_broadcaster();
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let r = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let (context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
@@ -90,9 +89,7 @@ async fn emit_run_started_moves_task_to_working_and_emits_status_frame() {
 #[tokio::test]
 async fn emit_run_started_still_updates_task_when_sse_channel_closed() {
     let (broadcaster, _rec) = arc_recording_broadcaster();
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let r = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let (context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
@@ -123,9 +120,7 @@ async fn emit_run_started_still_updates_task_when_sse_channel_closed() {
 #[tokio::test]
 async fn stream_creation_error_marks_task_failed_and_broadcasts_run_error() {
     let (broadcaster, rec) = arc_recording_broadcaster();
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let r = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let (context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;

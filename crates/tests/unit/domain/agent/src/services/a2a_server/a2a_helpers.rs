@@ -1,8 +1,5 @@
 // Shared construction helpers for the A2A-server runtime tests: a pooled
 // `AgentHandlerState`, a stubbed `AiProvider`, and request/runtime builders.
-//
-// Every entry point early-returns at the call site when no test database is
-// configured (via `try_pool`); these helpers assume a live pool was obtained.
 
 use std::collections::HashMap;
 use std::pin::Pin;
@@ -337,7 +334,7 @@ pub(crate) fn skill_service(pool: &DbPool) -> systemprompt_agent::services::Skil
 
 pub(crate) fn make_agent_state(pool: &DbPool) -> Arc<AgentState> {
     systemprompt_test_fixtures::ensure_test_bootstrap();
-    let url = systemprompt_test_fixtures::fixture_database_url().expect("url");
+    let url = systemprompt_test_fixtures::test_database_url();
     let config = Arc::new(systemprompt_test_fixtures::fixture_config(&url));
     let repos = crate::repository::repos(pool);
     Arc::new(AgentState::new(

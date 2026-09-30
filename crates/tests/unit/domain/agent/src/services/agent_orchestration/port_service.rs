@@ -59,6 +59,7 @@ fn spawn_fake_agent(port: u16) -> Option<(Child, u32)> {
 #[tokio::test(flavor = "multi_thread")]
 async fn kill_process_on_port_reclaims_a_port_held_by_an_orphaned_agent() {
     let port = reserve_port();
+    // skip-ok: the stand-in agent needs python3 and lsof on this host
     let Some((mut child, pid)) = spawn_fake_agent(port) else {
         return;
     };
@@ -82,6 +83,7 @@ async fn kill_process_on_port_reclaims_a_port_held_by_an_orphaned_agent() {
 #[tokio::test(flavor = "multi_thread")]
 async fn cleanup_port_if_needed_kills_an_orphaned_agent_and_returns_ok() {
     let port = reserve_port();
+    // skip-ok: the stand-in agent needs python3 and lsof on this host
     let Some((mut child, _pid)) = spawn_fake_agent(port) else {
         return;
     };
@@ -96,6 +98,7 @@ async fn cleanup_port_if_needed_kills_an_orphaned_agent_and_returns_ok() {
 #[tokio::test(flavor = "multi_thread")]
 async fn cleanup_agent_ports_counts_each_port_it_reclaims() {
     let port = reserve_port();
+    // skip-ok: the stand-in agent needs python3 and lsof on this host
     let Some((mut child, _pid)) = spawn_fake_agent(port) else {
         return;
     };

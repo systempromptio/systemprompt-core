@@ -16,7 +16,7 @@ use systemprompt_config::paths::AppPaths;
 use uuid::Uuid;
 
 use super::super::a2a_server::a2a_helpers::make_agent_state;
-use crate::repository::try_pool_or_skip;
+use systemprompt_test_fixtures::test_db_pool;
 
 // Why: `services.pid` is an `INTEGER` column, so a dead pid must fit i32 while
 // still lying far above any pid_max a kernel will hand out.
@@ -49,9 +49,7 @@ async fn make_orchestrator(pool: &systemprompt_database::DbPool) -> AgentOrchest
 
 #[tokio::test]
 async fn new_runs_startup_reconciliation() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let orchestrator = make_orchestrator(&pool).await;
     // Subscribing returns a live receiver; the event bus was wired.
@@ -60,9 +58,7 @@ async fn new_runs_startup_reconciliation() {
 
 #[tokio::test]
 async fn get_status_reflects_registered_dead_pid() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let orchestrator = make_orchestrator(&pool).await;
 
@@ -80,9 +76,7 @@ async fn get_status_reflects_registered_dead_pid() {
 
 #[tokio::test]
 async fn list_agents_includes_registered() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let orchestrator = make_orchestrator(&pool).await;
 
@@ -106,9 +100,7 @@ async fn list_agents_includes_registered() {
 
 #[tokio::test]
 async fn cleanup_crashed_agents_reaps_dead_pid() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let orchestrator = make_orchestrator(&pool).await;
 
@@ -129,9 +121,7 @@ async fn cleanup_crashed_agents_reaps_dead_pid() {
 
 #[tokio::test]
 async fn delete_agent_removes_service_row() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let orchestrator = make_orchestrator(&pool).await;
 
@@ -155,9 +145,7 @@ async fn delete_agent_removes_service_row() {
 
 #[tokio::test]
 async fn disable_agent_for_dead_pid_removes_row() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let orchestrator = make_orchestrator(&pool).await;
 
@@ -175,9 +163,7 @@ async fn disable_agent_for_dead_pid_removes_row() {
 
 #[tokio::test]
 async fn update_running_then_stopped_transitions() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let orchestrator = make_orchestrator(&pool).await;
 

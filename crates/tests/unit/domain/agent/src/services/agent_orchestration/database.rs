@@ -13,7 +13,7 @@ use systemprompt_agent::services::agent_orchestration::database::AgentDatabaseSe
 use systemprompt_test_fixtures::ensure_test_bootstrap;
 use uuid::Uuid;
 
-use crate::repository::try_pool_or_skip;
+use systemprompt_test_fixtures::test_db_pool;
 
 // A PID that can never name a live, signalable process (> i32::MAX).
 // Why: `services.pid` is an `INTEGER` column, so a dead pid must fit i32 while
@@ -37,9 +37,7 @@ async fn service(pool: &systemprompt_database::DbPool) -> AgentDatabaseService {
 
 #[tokio::test]
 async fn register_then_status_reconciles_dead_pid_to_failed() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let svc = service(&pool).await;
     let name = unique_name("orch-dead");
 
@@ -62,9 +60,7 @@ async fn register_then_status_reconciles_dead_pid_to_failed() {
 
 #[tokio::test]
 async fn status_no_record_is_failed() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let svc = service(&pool).await;
     let status = svc
         .get_status(&unique_name("orch-missing"))
@@ -78,9 +74,7 @@ async fn status_no_record_is_failed() {
 
 #[tokio::test]
 async fn status_starting_is_failed_with_starting_reason() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let svc = service(&pool).await;
     let name = unique_name("orch-starting");
     svc.register_agent_starting(&name, DEAD_PID, 9301)
@@ -98,9 +92,7 @@ async fn status_starting_is_failed_with_starting_reason() {
 
 #[tokio::test]
 async fn status_stopped_is_failed() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let svc = service(&pool).await;
     let name = unique_name("orch-stopped");
     svc.register_agent(&name, DEAD_PID, 9302)
@@ -116,9 +108,7 @@ async fn status_stopped_is_failed() {
 
 #[tokio::test]
 async fn mark_failed_and_error_message() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let svc = service(&pool).await;
     let name = unique_name("orch-markfail");
     svc.register_agent(&name, DEAD_PID, 9303)
@@ -134,9 +124,7 @@ async fn mark_failed_and_error_message() {
 
 #[tokio::test]
 async fn error_message_no_record() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let svc = service(&pool).await;
     let msg = svc
         .get_error_message(&unique_name("orch-noerr"))
@@ -147,9 +135,7 @@ async fn error_message_no_record() {
 
 #[tokio::test]
 async fn list_running_agents_includes_registered() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let svc = service(&pool).await;
     let name = unique_name("orch-listrun");
     svc.register_agent(&name, DEAD_PID, 9304)
@@ -164,9 +150,7 @@ async fn list_running_agents_includes_registered() {
 
 #[tokio::test]
 async fn cleanup_orphaned_services_marks_dead_pids() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let svc = service(&pool).await;
     let name = unique_name("orch-orphan");
     svc.register_agent(&name, DEAD_PID, 9305)
@@ -185,9 +169,7 @@ async fn cleanup_orphaned_services_marks_dead_pids() {
 
 #[tokio::test]
 async fn lifecycle_register_starting_mark_running_then_stopped() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let svc = service(&pool).await;
     let name = unique_name("orch-lifecycle");
 
@@ -212,9 +194,7 @@ async fn lifecycle_register_starting_mark_running_then_stopped() {
 
 #[tokio::test]
 async fn mark_failed_writes_the_error_state_once() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let svc = service(&pool).await;
     let name = unique_name("orch-crash");
     svc.register_agent(&name, DEAD_PID, 9308)
@@ -230,9 +210,7 @@ async fn mark_failed_writes_the_error_state_once() {
 
 #[tokio::test]
 async fn agent_exists_false_for_unconfigured() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let svc = service(&pool).await;
     let exists = svc
         .agent_exists("__no_such_configured_agent")
@@ -243,9 +221,7 @@ async fn agent_exists_false_for_unconfigured() {
 
 #[tokio::test]
 async fn get_agent_config_unknown_errors() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let svc = service(&pool).await;
     let err = svc
         .get_agent_config("__no_such_agent_cfg")
@@ -256,9 +232,7 @@ async fn get_agent_config_unknown_errors() {
 
 #[tokio::test]
 async fn list_all_agents_empty_default_config() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let svc = service(&pool).await;
     // Default test config has no agents configured.
     let all = svc.list_all_agents().await.expect("list all");
@@ -267,9 +241,7 @@ async fn list_all_agents_empty_default_config() {
 
 #[tokio::test]
 async fn remove_unknown_service_is_ok() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let svc = service(&pool).await;
     svc.remove_agent_service(&unique_name("orch-ghost"))
         .await
@@ -278,9 +250,7 @@ async fn remove_unknown_service_is_ok() {
 
 #[tokio::test]
 async fn status_rejects_corrupt_persisted_process_identifiers_without_rewriting_the_row() {
-    let pool = try_pool_or_skip()
-        .await
-        .expect("agent database fixture must be configured");
+    let pool = test_db_pool().await;
     let svc = service(&pool).await;
     let raw = pool.pool_arc().expect("raw database pool");
     let name = unique_name("orch-corrupt-process");

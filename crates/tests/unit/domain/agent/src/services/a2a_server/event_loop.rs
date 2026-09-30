@@ -25,7 +25,8 @@ use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 
 use super::a2a_helpers::{StubAiProvider, request_context};
-use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try_pool_or_skip};
+use crate::repository::{repos, seed_context_and_task, seed_user_and_session};
+use systemprompt_test_fixtures::test_db_pool;
 
 async fn persisted_task_error(pool: &systemprompt_database::DbPool, task_id: &TaskId) -> String {
     sqlx::query_scalar::<_, Option<String>>(
@@ -79,12 +80,12 @@ impl Default for LoopSpec<'_> {
     }
 }
 
-async fn spawn_loop_or_skip() -> Option<Loop> {
-    spawn_loop_with_or_skip(LoopSpec::default()).await
+async fn spawn_loop() -> Loop {
+    spawn_loop_with(LoopSpec::default()).await
 }
 
-async fn spawn_loop_with_or_skip(spec: LoopSpec<'_>) -> Option<Loop> {
-    let pool = try_pool_or_skip().await?;
+async fn spawn_loop_with(spec: LoopSpec<'_>) -> Loop {
+    let pool = test_db_pool().await;
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let repos = repos(&pool);
@@ -131,14 +132,14 @@ async fn spawn_loop_with_or_skip(spec: LoopSpec<'_>) -> Option<Loop> {
 
     let handle = tokio::spawn(process_events(params));
 
-    Some(Loop {
+    Loop {
         event_tx,
         sse_rx,
         handle,
         task_id,
         pool,
         rec,
-    })
+    }
 }
 
 fn a2a_for(rec: &RecordingWebhookBroadcaster, task_id: &TaskId) -> Vec<String> {
@@ -179,9 +180,7 @@ fn final_frames(frames: &[String]) -> Vec<&String> {
 
 #[tokio::test]
 async fn process_events_completion_path_persists_and_broadcasts() {
-    let Some(mut ctx) = spawn_loop_or_skip().await else {
-        return;
-    };
+    let mut ctx = spawn_loop().await;
 
     ctx.event_tx
         .send(StreamEvent::Text("partial ".to_owned()))
@@ -232,9 +231,7 @@ async fn process_events_completion_path_persists_and_broadcasts() {
 
 #[tokio::test]
 async fn process_events_error_path_fails_task_and_broadcasts() {
-    let Some(mut ctx) = spawn_loop_or_skip().await else {
-        return;
-    };
+    let mut ctx = spawn_loop().await;
 
     ctx.event_tx
         .send(StreamEvent::Error("model exploded".to_owned()))
@@ -273,9 +270,7 @@ async fn process_events_error_path_fails_task_and_broadcasts() {
 
 #[tokio::test]
 async fn process_events_cancelled_path_marks_task_canceled_with_one_final_frame() {
-    let Some(mut ctx) = spawn_loop_or_skip().await else {
-        return;
-    };
+    let mut ctx = spawn_loop().await;
 
     ctx.event_tx
         .send(StreamEvent::Text("part".to_owned()))
@@ -311,9 +306,7 @@ async fn process_events_cancelled_path_marks_task_canceled_with_one_final_frame(
 
 #[tokio::test]
 async fn process_events_broadcasts_tool_and_step_events() {
-    let Some(ctx) = spawn_loop_or_skip().await else {
-        return;
-    };
+    let ctx = spawn_loop().await;
 
     let call_id = AiToolCallId::generate();
     ctx.event_tx
@@ -369,14 +362,11 @@ async fn process_events_broadcasts_tool_and_step_events() {
 
 #[tokio::test]
 async fn completion_with_an_empty_agent_name_fails_the_task_before_persistence() {
-    let Some(mut ctx) = spawn_loop_with_or_skip(LoopSpec {
+    let mut ctx = spawn_loop_with(LoopSpec {
         agent_name: "",
         ..LoopSpec::default()
     })
-    .await
-    else {
-        return;
-    };
+    .await;
 
     ctx.event_tx
         .send(StreamEvent::Complete {
@@ -423,14 +413,11 @@ async fn completion_with_an_empty_agent_name_fails_the_task_before_persistence()
 
 #[tokio::test]
 async fn completion_of_an_unpersisted_task_reports_a_persistence_error() {
-    let Some(mut ctx) = spawn_loop_with_or_skip(LoopSpec {
+    let mut ctx = spawn_loop_with(LoopSpec {
         persist_task_row: false,
         ..LoopSpec::default()
     })
-    .await
-    else {
-        return;
-    };
+    .await;
 
     ctx.event_tx
         .send(StreamEvent::Complete {

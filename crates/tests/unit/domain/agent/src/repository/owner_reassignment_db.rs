@@ -58,10 +58,8 @@ async fn counts(pool: &sqlx::PgPool, owner: &UserId) -> (i64, i64, i64) {
 
 #[tokio::test]
 async fn late_message_failure_rolls_back_agent_graph_transfer_then_retry_moves_every_row() {
-    let database = DisposableDb::installed("agent_owner_reassignment")
-        .await
-        .expect("isolated database");
-    let db = database.pool().await.expect("database pool");
+    let database = DisposableDb::with_schema("agent_owner_reassignment").await;
+    let db = database.test_pool().await;
     let raw = db.write_pool_arc().expect("write pool");
     let source = UserId::new(format!("agent-source-{}", uuid::Uuid::new_v4()));
     let target = UserId::new(format!("agent-target-{}", uuid::Uuid::new_v4()));

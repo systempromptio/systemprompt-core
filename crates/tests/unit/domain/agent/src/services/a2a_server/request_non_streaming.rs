@@ -17,7 +17,8 @@ use systemprompt_identifiers::{ContextId, MessageId, SessionId, UserId};
 use systemprompt_models::RequestContext;
 
 use super::a2a_helpers::{StubAiProvider, make_handler_state, request_context};
-use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try_pool_or_skip};
+use crate::repository::{repos, seed_context_and_task, seed_user_and_session};
+use systemprompt_test_fixtures::test_db_pool;
 
 async fn call(
     state: Arc<AgentHandlerState>,
@@ -75,9 +76,7 @@ async fn fixture(pool: &systemprompt_database::DbPool) -> Fixture {
 
 #[tokio::test]
 async fn send_message_dispatch_returns_a_task_for_the_seeded_context() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let f = fixture(&pool).await;
     let state = make_handler_state(&pool, Arc::new(StubAiProvider::new()), 1);
@@ -109,9 +108,7 @@ async fn send_message_dispatch_returns_a_task_for_the_seeded_context() {
 
 #[tokio::test]
 async fn send_message_for_an_unknown_context_is_rejected_by_validation() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let f = fixture(&pool).await;
     let unknown = ContextId::generate();
@@ -137,9 +134,7 @@ async fn send_message_for_an_unknown_context_is_rejected_by_validation() {
 
 #[tokio::test]
 async fn cancel_task_returns_a_canceled_task_bound_to_its_context() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let repos = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let (context_id, task_id) = seed_context_and_task(&repos, &user_id, &session_id).await;
@@ -179,9 +174,7 @@ async fn cancel_task_returns_a_canceled_task_bound_to_its_context() {
 
 #[tokio::test]
 async fn cancel_task_owned_by_another_user_reads_as_not_found() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let repos = repos(&pool);
     let (owner, owner_session) = seed_user_and_session(&pool).await;
     let (_, task_id) = seed_context_and_task(&repos, &owner, &owner_session).await;
@@ -217,9 +210,7 @@ async fn cancel_task_owned_by_another_user_reads_as_not_found() {
 
 #[tokio::test]
 async fn cancel_task_on_a_terminal_task_is_refused() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let repos = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let (context_id, task_id) = seed_context_and_task(&repos, &user_id, &session_id).await;
@@ -247,9 +238,7 @@ async fn cancel_task_on_a_terminal_task_is_refused() {
 
 #[tokio::test]
 async fn cancel_task_for_an_unknown_id_is_a_jsonrpc_error() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let f = fixture(&pool).await;
     let state = make_handler_state(&pool, Arc::new(StubAiProvider::new()), 1);
     let ctx = request_context(&f.context_id, &f.session_id, &f.user_id, "test_agent");
@@ -270,9 +259,7 @@ async fn cancel_task_for_an_unknown_id_is_a_jsonrpc_error() {
 
 #[tokio::test]
 async fn an_extended_card_request_falls_through_to_unsupported() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let f = fixture(&pool).await;
     let state = make_handler_state(&pool, Arc::new(StubAiProvider::new()), 1);
     let ctx = request_context(&f.context_id, &f.session_id, &f.user_id, "test_agent");

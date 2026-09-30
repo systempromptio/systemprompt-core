@@ -17,7 +17,8 @@ use systemprompt_test_mocks::recording_webhooks;
 use tokio_util::sync::CancellationToken;
 
 use super::a2a_helpers::{StubAiProvider, request_context, runtime_info};
-use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try_pool_or_skip};
+use crate::repository::{repos, seed_context_and_task, seed_user_and_session};
+use systemprompt_test_fixtures::test_db_pool;
 
 fn user_message(ctx: &ContextId, task_id: &TaskId, text: &str) -> Message {
     Message {
@@ -36,9 +37,7 @@ fn user_message(ctx: &ContextId, task_id: &TaskId, text: &str) -> Message {
 
 #[tokio::test]
 async fn new_constructs_against_pool() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let provider = Arc::new(StubAiProvider::new());
@@ -52,9 +51,7 @@ async fn new_constructs_against_pool() {
 
 #[tokio::test]
 async fn process_message_stream_emits_text_and_complete() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let repos = repos(&pool);
@@ -105,9 +102,7 @@ async fn process_message_stream_emits_text_and_complete() {
 
 #[tokio::test]
 async fn persist_completed_task_updates_existing_row() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let repos = repos(&pool);
@@ -153,9 +148,7 @@ async fn persist_completed_task_updates_existing_row() {
 
 #[tokio::test]
 async fn cancelling_a_running_stream_emits_exactly_one_cancelled_event() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let repos = repos(&pool);
@@ -208,9 +201,7 @@ async fn cancelling_a_running_stream_emits_exactly_one_cancelled_event() {
 
 #[tokio::test]
 async fn process_message_stream_provider_failure_emits_error() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let repos = repos(&pool);
@@ -261,9 +252,7 @@ async fn process_message_stream_provider_failure_emits_error() {
 async fn configured_skills_are_injected_and_missing_optional_skills_do_not_abort_streaming() {
     use systemprompt_config::ProfileBootstrap;
 
-    let pool = try_pool_or_skip()
-        .await
-        .expect("agent database fixture must be configured");
+    let pool = test_db_pool().await;
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let _lock = crate::SKILLS_FIXTURE_LOCK.write().await;
     let skills_root = std::path::PathBuf::from(
@@ -354,9 +343,7 @@ async fn configured_skills_are_injected_and_missing_optional_skills_do_not_abort
 
 #[tokio::test]
 async fn partial_provider_stream_preserves_text_then_emits_one_error_without_completion() {
-    let pool = try_pool_or_skip()
-        .await
-        .expect("agent database fixture must be configured");
+    let pool = test_db_pool().await;
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let repositories = repos(&pool);
@@ -429,9 +416,7 @@ async fn planned_stream_synthesizes_tool_results_before_completing_with_the_fina
     use serde_json::json;
     use systemprompt_models::ai::{PlannedToolCall, PlanningResult};
 
-    let pool = try_pool_or_skip()
-        .await
-        .expect("agent database fixture must be configured");
+    let pool = test_db_pool().await;
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let repositories = repos(&pool);
@@ -508,9 +493,7 @@ async fn planned_stream_reports_final_resynthesis_failure_without_completing() {
     use serde_json::json;
     use systemprompt_models::ai::{PlannedToolCall, PlanningResult};
 
-    let pool = try_pool_or_skip()
-        .await
-        .expect("agent database fixture must be configured");
+    let pool = test_db_pool().await;
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let repositories = repos(&pool);

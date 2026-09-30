@@ -15,7 +15,8 @@ use systemprompt_agent::services::a2a_server::handlers::request::validation::{
 use systemprompt_identifiers::{ContextId, MessageId, TaskId, UserId};
 
 use super::a2a_helpers::{StubAiProvider, make_handler_state};
-use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try_pool_or_skip};
+use crate::repository::{repos, seed_context_and_task, seed_user_and_session};
+use systemprompt_test_fixtures::test_db_pool;
 
 fn rpc(method: &str, params: serde_json::Value) -> A2aJsonRpcRequest {
     A2aJsonRpcRequest {
@@ -124,9 +125,7 @@ fn user_message(ctx: &ContextId) -> systemprompt_agent::models::a2a::Message {
 
 #[tokio::test]
 async fn validate_message_context_rejects_an_empty_user_id() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let ctx = ContextId::generate();
     let anonymous = UserId::new("");
     let err = validate_message_context(&user_message(&ctx), &anonymous, &repos(&pool).contexts)
@@ -140,9 +139,7 @@ async fn validate_message_context_rejects_an_empty_user_id() {
 
 #[tokio::test]
 async fn validate_message_context_rejects_foreign_context() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let stranger = UserId::new("u-stranger");
     let ctx = ContextId::generate();
     let err = validate_message_context(&user_message(&ctx), &stranger, &repos(&pool).contexts)
@@ -160,9 +157,7 @@ async fn validate_message_context_rejects_foreign_context() {
 
 #[tokio::test]
 async fn validate_task_owner_answers_not_found_for_another_users_task() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let repos = repos(&pool);
     let (owner, session) = seed_user_and_session(&pool).await;
     let (_, task_id) = seed_context_and_task(&repos, &owner, &session).await;
@@ -191,9 +186,7 @@ async fn validate_task_owner_answers_not_found_for_another_users_task() {
 
 #[tokio::test]
 async fn validate_message_context_accepts_owned_context() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let repos = repos(&pool);
     let (user, session) = seed_user_and_session(&pool).await;
     let (ctx, _) = seed_context_and_task(&repos, &user, &session).await;
@@ -205,9 +198,7 @@ async fn validate_message_context_accepts_owned_context() {
 
 #[tokio::test]
 async fn should_require_oauth_reflects_handler_config() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let state = make_handler_state(&pool, Arc::new(StubAiProvider::new()), 1);
     let required = should_require_oauth(&state).await;
     assert!(!required, "test agent config does not require oauth");

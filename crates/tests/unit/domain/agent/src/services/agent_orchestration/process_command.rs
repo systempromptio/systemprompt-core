@@ -59,7 +59,7 @@ fn prepare_agent_log_file_creates_directory_and_file() {
 #[test]
 fn build_agent_command_sets_args_and_scoped_env() {
     let bootstrap = systemprompt_test_fixtures::ensure_test_bootstrap();
-    let url = systemprompt_test_fixtures::fixture_database_url().expect("url");
+    let url = systemprompt_test_fixtures::test_database_url();
     let config = systemprompt_test_fixtures::fixture_config(&url);
 
     let dir = tempfile::tempdir().expect("tempdir");

@@ -23,7 +23,8 @@ use systemprompt_test_fixtures::{
 };
 use systemprompt_test_mocks::recording_webhooks;
 
-use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try_pool_or_skip};
+use crate::repository::{repos, seed_context_and_task, seed_user_and_session};
+use systemprompt_test_fixtures::test_db_pool;
 
 async fn publishing_service(pool: &systemprompt_database::DbPool) -> ArtifactPublishingService {
     service_with_ledger(pool, ToolExecutionLedger::Absent).await
@@ -80,9 +81,7 @@ fn request_context(ctx: &ContextId, session: &SessionId, user: &UserId) -> Reque
 
 #[tokio::test]
 async fn publish_from_a2a_persists_artifact() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let svc = publishing_service(&pool).await;
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let r = repos(&pool);
@@ -107,9 +106,7 @@ async fn publish_from_a2a_persists_artifact() {
 
 #[tokio::test]
 async fn publish_from_a2a_nulls_unknown_execution_id() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let svc = publishing_service(&pool).await;
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let r = repos(&pool);
@@ -135,9 +132,7 @@ async fn publish_from_a2a_nulls_unknown_execution_id() {
 
 #[tokio::test]
 async fn publish_from_a2a_keeps_a_known_execution_id() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let svc = service_with_ledger(&pool, ToolExecutionLedger::Exists).await;
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let r = repos(&pool);
@@ -177,9 +172,7 @@ async fn publish_from_a2a_keeps_a_known_execution_id() {
 
 #[tokio::test]
 async fn an_unreachable_execution_ledger_fails_the_publish_and_keeps_the_id() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let svc = service_with_ledger(&pool, ToolExecutionLedger::Unavailable).await;
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let r = repos(&pool);
@@ -204,9 +197,7 @@ async fn an_unreachable_execution_ledger_fails_the_publish_and_keeps_the_id() {
 
 #[tokio::test]
 async fn publish_from_mcp_agentic_skips_messages() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let svc = publishing_service(&pool).await;
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let r = repos(&pool);
@@ -237,9 +228,7 @@ async fn publish_from_mcp_agentic_skips_messages() {
 
 #[tokio::test]
 async fn publish_from_mcp_direct_creates_messages() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let svc = publishing_service(&pool).await;
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let r = repos(&pool);

@@ -17,7 +17,7 @@ use systemprompt_models::ServicesConfig;
 use uuid::Uuid;
 
 use super::super::a2a_server::a2a_helpers::{agent_config, make_agent_state};
-use crate::repository::try_pool_or_skip;
+use systemprompt_test_fixtures::test_db_pool;
 
 // Why: `services.pid` is an `INTEGER` column, so a dead pid must fit i32 while
 // still lying far above any pid_max a kernel will hand out.
@@ -68,9 +68,7 @@ async fn make_orchestrator(
 
 #[tokio::test]
 async fn detailed_status_reports_configured_agents() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let name = unique_name("orchreg_status");
     let orchestrator = make_orchestrator(&pool, &[(&name, 9450)]).await;
@@ -96,9 +94,7 @@ async fn detailed_status_reports_configured_agents() {
 
 #[tokio::test]
 async fn validate_agent_reports_missing_and_failed() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let name = unique_name("orchreg_validate");
     let orchestrator = make_orchestrator(&pool, &[(&name, 9451)]).await;
@@ -133,9 +129,7 @@ async fn validate_agent_reports_missing_and_failed() {
 
 #[tokio::test]
 async fn validate_agent_running_agent_reaches_health_check() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let name = unique_name("orchreg_health");
     let orchestrator = make_orchestrator(&pool, &[(&name, 9452)]).await;
@@ -160,9 +154,7 @@ async fn validate_agent_running_agent_reaches_health_check() {
 
 #[tokio::test]
 async fn delete_agent_with_live_pid_removes_service_row() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let name = unique_name("orchreg_delete");
     let orchestrator = make_orchestrator(&pool, &[(&name, 9453)]).await;
@@ -180,9 +172,7 @@ async fn delete_agent_with_live_pid_removes_service_row() {
 
 #[tokio::test]
 async fn delete_all_agents_deletes_configured_agents() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let a = unique_name("orchreg_bulk_a");
     let b = unique_name("orchreg_bulk_b");
@@ -198,9 +188,7 @@ async fn delete_all_agents_deletes_configured_agents() {
 
 #[tokio::test]
 async fn delete_all_agents_empty_registry_is_zero() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let orchestrator = make_orchestrator(&pool, &[]).await;
     let deleted = orchestrator.delete_all_agents().await.expect("delete all");
@@ -209,9 +197,7 @@ async fn delete_all_agents_empty_registry_is_zero() {
 
 #[tokio::test]
 async fn start_agent_already_running_is_rejected() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let name = unique_name("orchreg_running");
     let orchestrator = make_orchestrator(&pool, &[(&name, 9457)]).await;
@@ -232,9 +218,7 @@ async fn start_agent_already_running_is_rejected() {
 
 #[tokio::test]
 async fn start_agent_missing_binary_fails_after_prerequisites() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let name = unique_name("orchreg_spawnfail");
     let orchestrator = make_orchestrator(&pool, &[(&name, 39457)]).await;
@@ -247,9 +231,7 @@ async fn start_agent_missing_binary_fails_after_prerequisites() {
 
 #[tokio::test]
 async fn restart_agent_dead_pid_row_reaches_start_path() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let name = unique_name("orchreg_restart");
     let orchestrator = make_orchestrator(&pool, &[(&name, 39458)]).await;

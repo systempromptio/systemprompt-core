@@ -16,7 +16,8 @@ use systemprompt_agent::services::a2a_server::streaming::{
 use systemprompt_identifiers::{ContextId, MessageId, TaskId};
 
 use super::a2a_helpers::{StubAiProvider, make_handler_state, request_context};
-use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try_pool_or_skip};
+use crate::repository::{repos, seed_context_and_task, seed_user_and_session};
+use systemprompt_test_fixtures::test_db_pool;
 
 fn message(ctx: &ContextId, task_id: Option<TaskId>) -> Message {
     Message {
@@ -49,9 +50,7 @@ async fn collect_events(
 
 #[tokio::test]
 async fn setup_with_valid_context_persists_task_and_reports_missing_agent() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let repos_handle = repos(&pool);
@@ -90,9 +89,7 @@ async fn setup_with_valid_context_persists_task_and_reports_missing_agent() {
 
 #[tokio::test]
 async fn setup_without_task_id_mints_one_and_validates_context() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let repos_handle = repos(&pool);
@@ -122,9 +119,7 @@ async fn setup_without_task_id_mints_one_and_validates_context() {
 
 #[tokio::test]
 async fn setup_with_unknown_context_emits_validation_error_and_persists_nothing() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let repos_handle = repos(&pool);
@@ -163,9 +158,7 @@ async fn setup_with_unknown_context_emits_validation_error_and_persists_nothing(
 
 #[tokio::test]
 async fn invalid_service_agent_name_emits_invalid_params_before_task_persistence_or_dispatch() {
-    let pool = try_pool_or_skip()
-        .await
-        .expect("agent streaming setup database fixture");
+    let pool = test_db_pool().await;
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let repos_handle = repos(&pool);
     let (user, session) = seed_user_and_session(&pool).await;
@@ -227,12 +220,11 @@ async fn invalid_service_agent_name_emits_invalid_params_before_task_persistence
 #[tokio::test]
 async fn task_insert_failure_streams_internal_error_without_dispatch_or_partial_task() {
     systemprompt_test_fixtures::ensure_test_bootstrap();
-    let database = systemprompt_test_fixtures::DisposableDb::installed(
+    let database = systemprompt_test_fixtures::DisposableDb::with_schema(
         "agent_stream_initial_task_insert_failure",
     )
-    .await
-    .expect("private agent database");
-    let pool = database.pool().await.expect("private agent pool");
+    .await;
+    let pool = database.test_pool().await;
     let repos_handle = repos(&pool);
     let (user, session) = seed_user_and_session(&pool).await;
     let (ctx, _existing_task) = seed_context_and_task(&repos_handle, &user, &session).await;

@@ -20,7 +20,8 @@ use systemprompt_identifiers::{ContextId, MessageId, TaskId};
 use systemprompt_models::ServicesConfig;
 
 use super::a2a_helpers::{StubAiProvider, agent_config, make_handler_state, request_context};
-use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try_pool_or_skip};
+use crate::repository::{repos, seed_context_and_task, seed_user_and_session};
+use systemprompt_test_fixtures::test_db_pool;
 
 async fn persisted_task_error(pool: &systemprompt_database::DbPool, task_id: &TaskId) -> String {
     sqlx::query_scalar::<_, Option<String>>(
@@ -89,9 +90,7 @@ async fn wait_for_state(
 
 #[tokio::test]
 async fn run_stream_with_injected_registry_streams_text_and_completes_task() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let repos_handle = repos(&pool);
@@ -156,9 +155,7 @@ async fn run_stream_with_injected_registry_streams_text_and_completes_task() {
 
 #[tokio::test]
 async fn run_stream_with_injected_registry_failure_fails_task_and_emits_error() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let repos_handle = repos(&pool);
@@ -215,9 +212,7 @@ async fn run_stream_with_injected_registry_failure_fails_task_and_emits_error() 
 
 #[tokio::test]
 async fn run_stream_with_failing_model_stream_fails_task() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let repos_handle = repos(&pool);
