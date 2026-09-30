@@ -235,6 +235,11 @@ fn require_analytics(ctx: &AppContext) -> Result<Arc<dyn AnalyticsProvider>, Api
         .ok_or_else(|| ApiHttpError::internal_error("analytics provider unavailable"))
 }
 
+#[expect(
+    clippy::result_large_err,
+    reason = "ApiError carries response context that is intentionally large; boxing here would \
+              propagate to every caller for negligible gain"
+)]
 fn require_user_provider(ctx: &AppContext) -> Result<Arc<dyn UserProvider>, ApiHttpError> {
     ctx.user_provider()
         .ok_or_else(|| ApiHttpError::internal_error("User provider unavailable"))
