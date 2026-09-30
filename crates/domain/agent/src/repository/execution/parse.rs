@@ -12,6 +12,7 @@ pub(super) struct ParseStepParams {
     pub step_id: String,
     pub task_id: TaskId,
     pub status: String,
+    // JSON: JSONB `content` column — decoded into `StepContent` here.
     pub content: serde_json::Value,
     pub started_at: DateTime<Utc>,
     pub completed_at: Option<DateTime<Utc>>,

@@ -13,7 +13,7 @@ use serde_json::json;
 use systemprompt_identifiers::TaskId;
 use systemprompt_models::RequestContext;
 
-use crate::models::a2a::jsonrpc::NumberOrString;
+use crate::models::a2a::jsonrpc::{JsonRpcResponse, NumberOrString};
 use crate::models::a2a::{A2aRequestParams, Task, TaskState};
 use crate::repository::task::TaskRepository;
 use crate::services::a2a_server::errors::JsonRpcErrorBuilder;
@@ -35,30 +35,30 @@ pub(super) enum RequestFailure {
 }
 
 impl RequestFailure {
-    pub(super) fn into_jsonrpc(self, request_id: &NumberOrString) -> serde_json::Value {
+    pub(super) fn into_jsonrpc(self, request_id: &NumberOrString) -> JsonRpcResponse<Task> {
         match self {
             Self::InvalidParams(message) => JsonRpcErrorBuilder::invalid_params()
                 .with_data(json!(message))
                 .log_warn("A2A request rejected: invalid params")
-                .build(request_id),
+                .build_as(request_id),
             Self::TaskNotFound(task_id) => JsonRpcErrorBuilder::new(-32001, "Task not found")
                 .with_data(json!(task_id.as_str()))
                 .log_warn(format!("A2A task not found: {task_id}"))
-                .build(request_id),
+                .build_as(request_id),
             Self::TaskNotCancelable(task_id) => {
                 JsonRpcErrorBuilder::new(-32002, "Task cannot be canceled")
                     .with_data(json!(task_id.as_str()))
                     .log_warn(format!("A2A task not cancelable: {task_id}"))
-                    .build(request_id)
+                    .build_as(request_id)
             },
             Self::Unsupported => JsonRpcErrorBuilder::method_not_found()
                 .with_data(json!("Unsupported request type"))
                 .log_warn("Unsupported A2A request type")
-                .build(request_id),
+                .build_as(request_id),
             Self::Internal(message) => JsonRpcErrorBuilder::internal_error()
                 .with_data(json!(format!("Request handling failed: {message}")))
                 .log_error(format!("A2A request handling failed: {message}"))
-                .build(request_id),
+                .build_as(request_id),
         }
     }
 }

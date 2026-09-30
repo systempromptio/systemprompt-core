@@ -40,6 +40,7 @@ pub struct JsonRpcResponse<T> {
 pub struct JsonRpcError {
     pub code: i32,
     pub message: String,
+    // JSON: JSON-RPC 2.0 error `data` — the spec allows any value.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub data: Option<Value>,
 }
@@ -53,6 +54,7 @@ impl JsonRpcError {
         }
     }
 
+    // JSON: JSON-RPC 2.0 error `data` — the spec allows any value.
     pub fn with_data(code: i32, message: impl Into<String>, data: Value) -> Self {
         Self {
             code,

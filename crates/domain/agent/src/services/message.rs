@@ -27,6 +27,7 @@ pub struct CreateToolExecutionMessageParams<'a> {
     pub task_id: &'a TaskId,
     pub context_id: &'a ContextId,
     pub tool_name: &'a str,
+    // JSON: MCP-protocol boundary — schema-less tool arguments mandated by the spec.
     pub tool_args: &'a serde_json::Value,
     pub request_context: &'a RequestContext,
 }

@@ -40,6 +40,7 @@ impl ArtifactBuilder {
         }
     }
 
+    // JSON: MCP tool output schema — arbitrary JSON Schema.
     fn get_output_schema(&self, tool_name: &str) -> Option<&serde_json::Value> {
         self.tools
             .iter()

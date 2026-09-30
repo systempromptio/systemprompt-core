@@ -24,6 +24,8 @@ pub type CallToolResult = rmcp::model::CallToolResult;
 /// executor as `&dyn ToolExecutorTrait`, so the trait must be `dyn`-compatible.
 #[async_trait]
 pub trait ToolExecutorTrait: Send + Sync {
+    // JSON: MCP-protocol boundary — schema-less tool arguments mandated by the
+    // spec.
     async fn execute_tool(
         &self,
         tool_name: &str,
@@ -37,7 +39,9 @@ pub trait ToolExecutorTrait: Send + Sync {
 /// artifact transformer needs to identify the stored artifact.
 #[derive(Debug, Clone)]
 pub struct ToolOutcome {
+    // JSON: MCP tool result — structured content is schema-less per the spec.
     pub output: Value,
+    // JSON: MCP result `_meta` — the spec types it as an open object.
     pub meta: Option<Value>,
 }
 
@@ -98,6 +102,8 @@ pub async fn execute_tools(
     Ok(state)
 }
 
+// JSON: MCP-protocol boundary — schema-less tool arguments mandated by the
+// spec.
 fn resolve_call_arguments(call: &PlannedToolCall, state: &ExecutionState) -> Value {
     let resolved_arguments = TemplateResolver::resolve_arguments(&call.arguments, &state.results);
 
@@ -113,6 +119,8 @@ fn resolve_call_arguments(call: &PlannedToolCall, state: &ExecutionState) -> Val
     resolved_arguments
 }
 
+// JSON: MCP-protocol boundary — schema-less tool arguments mandated by the
+// spec.
 fn finish_tool_call(
     tool_name: &str,
     arguments: Value,

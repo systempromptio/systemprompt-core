@@ -18,6 +18,7 @@ use systemprompt_models::{ArtifactMetadata, ContextId, TaskId};
 #[derive(Debug)]
 pub struct BuildMetadataParams<'a> {
     pub artifact_type: &'a ArtifactType,
+    // JSON: MCP tool output schema — arbitrary JSON Schema.
     pub schema: Option<&'a JsonValue>,
     pub mcp_execution_id: Option<String>,
     pub context_id: &'a str,
@@ -67,6 +68,8 @@ pub fn build_metadata(params: BuildMetadataParams<'_>) -> Result<ArtifactMetadat
     Ok(metadata)
 }
 
+// JSON: JSON Schema walk — hints come from `x-table-hints` or the tool output
+// schema.
 fn extract_table_hints(schema: Option<&JsonValue>) -> JsonValue {
     if let Some(schema) = schema
         && let Some(hints) = schema.get("x-table-hints")
@@ -91,6 +94,8 @@ fn extract_table_hints(schema: Option<&JsonValue>) -> JsonValue {
     json!({})
 }
 
+// JSON: JSON Schema walk — hints come from `x-form-hints` or the tool output
+// schema.
 fn extract_form_hints(schema: Option<&JsonValue>) -> JsonValue {
     if let Some(schema) = schema
         && let Some(hints) = schema.get("x-form-hints")
@@ -110,6 +115,7 @@ fn extract_form_hints(schema: Option<&JsonValue>) -> JsonValue {
     json!({})
 }
 
+// JSON: JSON Schema walk — hints come from `x-presentation-hints` or a default.
 fn extract_presentation_hints(schema: Option<&JsonValue>) -> JsonValue {
     if let Some(schema) = schema
         && let Some(hints) = schema.get("x-presentation-hints")
@@ -121,6 +127,7 @@ fn extract_presentation_hints(schema: Option<&JsonValue>) -> JsonValue {
     })
 }
 
+// JSON: JSON Schema walk — `properties` of an arbitrary tool output schema.
 fn schema_properties_to_form_fields(properties: &JsonValue) -> Vec<JsonValue> {
     let mut fields = Vec::new();
 
@@ -152,6 +159,8 @@ fn schema_properties_to_form_fields(properties: &JsonValue) -> Vec<JsonValue> {
     fields
 }
 
+// JSON: JSON Schema walk — one property schema of an arbitrary tool output
+// schema.
 fn schema_type_to_form_type(prop_schema: &JsonValue) -> &str {
     if let Some(format) = prop_schema.get("format").and_then(|f| f.as_str()) {
         return match format {

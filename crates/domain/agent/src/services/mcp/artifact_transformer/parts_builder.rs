@@ -7,6 +7,7 @@ use crate::error::ArtifactError;
 use crate::models::a2a::{DataPart, Part};
 use serde_json::Value as JsonValue;
 
+// JSON: MCP tool result — structured content is schema-less per the spec.
 pub fn build_parts(artifact: &JsonValue) -> Result<Vec<Part>, ArtifactError> {
     if let Some(obj) = artifact.as_object() {
         return Ok(vec![Part::Data(DataPart { data: obj.clone() })]);

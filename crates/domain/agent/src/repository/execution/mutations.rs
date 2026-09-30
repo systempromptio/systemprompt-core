@@ -43,6 +43,7 @@ impl ExecutionStepRepository {
         Ok(())
     }
 
+    // JSON: MCP tool result — schema-less output persisted as JSONB.
     pub async fn complete_step(
         &self,
         step_id: &StepId,

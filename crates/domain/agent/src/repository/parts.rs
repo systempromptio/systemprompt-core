@@ -20,6 +20,7 @@ pub(crate) trait PartColumns {
     fn file_mime_type(&self) -> Option<&str>;
     fn file_uri(&self) -> Option<&str>;
     fn file_bytes(&self) -> Option<&str>;
+    // JSON: JSONB `data_content` column — an A2A DataPart holds any JSON object.
     fn data_content(&self) -> Option<&serde_json::Value>;
 }
 
@@ -44,6 +45,7 @@ macro_rules! impl_part_columns {
             fn file_bytes(&self) -> Option<&str> {
                 self.file_bytes.as_deref()
             }
+            // JSON: JSONB `data_content` column — an A2A DataPart holds any JSON object.
             fn data_content(&self) -> Option<&serde_json::Value> {
                 self.data_content.as_ref()
             }

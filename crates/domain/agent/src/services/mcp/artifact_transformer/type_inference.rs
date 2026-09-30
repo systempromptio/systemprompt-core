@@ -8,6 +8,7 @@ use serde_json::{Value as JsonValue, json};
 use systemprompt_models::artifacts::CliArtifact;
 use systemprompt_models::artifacts::types::ArtifactType;
 
+// JSON: MCP tool result and output schema — both schema-less per the spec.
 pub fn infer_type(
     artifact: &JsonValue,
     schema: Option<&JsonValue>,
@@ -65,6 +66,7 @@ fn parse_artifact_type(type_str: &str) -> ArtifactType {
     }
 }
 
+// JSON: MCP tool result — structured content is schema-less per the spec.
 fn extract_artifact_type_from_data(data: &JsonValue) -> Option<String> {
     if let Some(t) = data.get("x-artifact-type").and_then(|v| v.as_str()) {
         return Some(t.to_owned());
@@ -89,6 +91,7 @@ fn extract_artifact_type_from_data(data: &JsonValue) -> Option<String> {
     None
 }
 
+// JSON: JSON Schema walk — arbitrary MCP tool output schema.
 fn extract_artifact_type_from_schema(schema: &JsonValue) -> Option<String> {
     if let Some(t) = schema.get("x-artifact-type").and_then(|v| v.as_str()) {
         return Some(t.to_owned());
@@ -102,11 +105,13 @@ fn extract_artifact_type_from_schema(schema: &JsonValue) -> Option<String> {
         .map(String::from)
 }
 
+// JSON: JSON Schema walk — arbitrary MCP tool output schema.
 fn is_tabular_schema(schema: &JsonValue) -> bool {
     schema.get("type") == Some(&json!("array"))
         && schema.get("items").and_then(|i| i.get("type")) == Some(&json!("object"))
 }
 
+// JSON: JSON Schema walk — arbitrary MCP tool output schema.
 fn is_form_schema(schema: &JsonValue) -> bool {
     if let Some(props) = schema.get("properties")
         && let Some(fields) = props.get("fields")
@@ -116,6 +121,7 @@ fn is_form_schema(schema: &JsonValue) -> bool {
     false
 }
 
+// JSON: JSON Schema walk — arbitrary MCP tool output schema.
 fn is_chart_schema(schema: &JsonValue) -> bool {
     if let Some(props) = schema.get("properties") {
         let has_labels = props.get("labels").is_some();
@@ -125,6 +131,7 @@ fn is_chart_schema(schema: &JsonValue) -> bool {
     false
 }
 
+// JSON: MCP tool result — structured content is schema-less per the spec.
 fn is_tabular_data(data: &JsonValue) -> bool {
     if let Some(arr) = data.as_array()
         && let Some(first) = arr.first()

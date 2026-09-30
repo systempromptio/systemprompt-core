@@ -127,8 +127,8 @@ async fn validate_oauth_admin_bypasses_scope_check() {
     let result =
         validate_oauth_for_request(&headers, &id, &[Permission::User], Some(&provider)).await;
     let value = result.expect("ok").expect("Some");
-    assert_eq!(value.get("is_admin"), Some(&serde_json::json!(true)));
-    assert_eq!(value.get("username"), Some(&serde_json::json!("admin")));
+    assert!(value.is_admin);
+    assert_eq!(value.username, "admin");
 }
 
 #[tokio::test]
@@ -153,7 +153,7 @@ async fn validate_oauth_user_with_matching_permission_succeeds() {
     let result =
         validate_oauth_for_request(&headers, &id, &[Permission::User], Some(&provider)).await;
     let value = result.expect("ok").expect("Some");
-    assert_eq!(value.get("username"), Some(&serde_json::json!("alice")));
+    assert_eq!(value.username, "alice");
 }
 
 #[tokio::test]
@@ -174,5 +174,5 @@ async fn validate_oauth_string_id_compatible() {
     let provider = StubJwtProvider::ok(claims_admin());
     let result = validate_oauth_for_request(&headers, &id, &[], Some(&provider)).await;
     let value = result.expect("ok").expect("Some");
-    assert_eq!(value.get("username"), Some(&serde_json::json!("admin")));
+    assert_eq!(value.username, "admin");
 }

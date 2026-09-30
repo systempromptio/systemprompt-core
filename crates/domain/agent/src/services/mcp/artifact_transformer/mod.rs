@@ -40,6 +40,7 @@ pub struct ParsedMetadata {
 pub struct ParsedToolResponse {
     pub artifact_id: ArtifactId,
     pub mcp_execution_id: McpExecutionId,
+    // JSON: MCP tool result — structured content is schema-less per the spec.
     pub artifact: JsonValue,
     #[serde(rename = "_metadata")]
     pub metadata: ParsedMetadata,
@@ -98,6 +99,8 @@ pub fn parse_wire_result(
 
 // Why: the fingerprint is persisted and compared across processes and
 // releases, so it must come from a stable digest, never `DefaultHasher`.
+// JSON: MCP-protocol boundary — schema-less tool arguments mandated by the
+// spec.
 pub fn calculate_fingerprint(tool_name: &str, tool_arguments: Option<&JsonValue>) -> String {
     use sha2::{Digest, Sha256};
 
@@ -114,6 +117,7 @@ struct TransformParsedParams<'a> {
     output_schema: Option<&'a JsonValue>,
     context_id: &'a str,
     task_id: &'a str,
+    // JSON: MCP-protocol boundary — schema-less tool arguments mandated by the spec.
     tool_arguments: Option<&'a JsonValue>,
 }
 
@@ -166,6 +170,7 @@ pub struct TransformParams<'a> {
     pub output_schema: Option<&'a JsonValue>,
     pub context_id: &'a str,
     pub task_id: &'a str,
+    // JSON: MCP-protocol boundary — schema-less tool arguments mandated by the spec.
     pub tool_arguments: Option<&'a JsonValue>,
 }
 

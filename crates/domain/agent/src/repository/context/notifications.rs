@@ -27,6 +27,7 @@ impl ContextNotificationRepository {
         Ok(Self { write_pool })
     }
 
+    // JSON: JSONB `notification_data` column — A2A push-notification payload.
     pub async fn insert(
         &self,
         context_id: &ContextId,

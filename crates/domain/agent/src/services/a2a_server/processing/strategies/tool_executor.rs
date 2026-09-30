@@ -19,6 +19,8 @@ pub struct ContextToolExecutor {
 
 #[async_trait]
 impl ToolExecutorTrait for ContextToolExecutor {
+    // JSON: MCP-protocol boundary — schema-less tool arguments mandated by the
+    // spec.
     async fn execute_tool(
         &self,
         tool_name: &str,
