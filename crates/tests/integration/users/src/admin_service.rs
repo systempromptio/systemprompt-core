@@ -7,22 +7,14 @@
 
 use anyhow::Result;
 use std::sync::Arc;
-use systemprompt_database::DbPool;
+use systemprompt_test_fixtures::test_db_pool;
 use systemprompt_users::{
     DemoteResult, PromoteResult, UserAdminService, UserRepository, UserService,
 };
 
-async fn get_db() -> Option<DbPool> {
-    let url = systemprompt_test_fixtures::fixture_database_url().ok()?;
-    systemprompt_test_fixtures::fixture_db_pool(&url).await.ok()
-}
-
 #[tokio::test]
 async fn admin_find_user_by_email() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
     let user_service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
@@ -48,10 +40,7 @@ async fn admin_find_user_by_email() -> Result<()> {
 
 #[tokio::test]
 async fn admin_find_user_by_name() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
     let user_service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
@@ -77,10 +66,7 @@ async fn admin_find_user_by_name() -> Result<()> {
 
 #[tokio::test]
 async fn admin_find_user_by_uuid() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
     let user_service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
@@ -106,10 +92,7 @@ async fn admin_find_user_by_uuid() -> Result<()> {
 
 #[tokio::test]
 async fn admin_find_user_returns_none_for_nonexistent() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
     let user_service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
@@ -125,10 +108,7 @@ async fn admin_find_user_returns_none_for_nonexistent() -> Result<()> {
 
 #[tokio::test]
 async fn admin_promote_user_to_admin() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
     let user_service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
@@ -160,10 +140,7 @@ async fn admin_promote_user_to_admin() -> Result<()> {
 
 #[tokio::test]
 async fn admin_promote_already_admin_returns_already_admin() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
     let user_service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
@@ -197,10 +174,7 @@ async fn admin_promote_already_admin_returns_already_admin() -> Result<()> {
 
 #[tokio::test]
 async fn admin_promote_nonexistent_returns_not_found() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
     let user_service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
@@ -217,10 +191,7 @@ async fn admin_promote_nonexistent_returns_not_found() -> Result<()> {
 
 #[tokio::test]
 async fn admin_demote_user_from_admin() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
     let user_service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
@@ -256,10 +227,7 @@ async fn admin_demote_user_from_admin() -> Result<()> {
 
 #[tokio::test]
 async fn admin_demote_non_admin_returns_not_admin() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
     let user_service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
@@ -289,10 +257,7 @@ async fn admin_demote_non_admin_returns_not_admin() -> Result<()> {
 
 #[tokio::test]
 async fn admin_demote_nonexistent_returns_not_found() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
     let user_service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));

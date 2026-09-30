@@ -7,20 +7,12 @@
 
 use anyhow::Result;
 use std::sync::Arc;
-use systemprompt_database::DbPool;
+use systemprompt_test_fixtures::test_db_pool;
 use systemprompt_users::{UserRepository, UserRole, UserService, UserStatus};
-
-async fn get_db() -> Option<DbPool> {
-    let url = systemprompt_test_fixtures::fixture_database_url().ok()?;
-    systemprompt_test_fixtures::fixture_db_pool(&url).await.ok()
-}
 
 #[tokio::test]
 async fn service_create_and_find_user() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
     let service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
@@ -62,10 +54,7 @@ async fn service_create_and_find_user() -> Result<()> {
 
 #[tokio::test]
 async fn service_create_anonymous_user() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
     let service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
@@ -90,10 +79,7 @@ async fn service_create_anonymous_user() -> Result<()> {
 
 #[tokio::test]
 async fn service_list_users() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
     let service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
@@ -106,10 +92,7 @@ async fn service_list_users() -> Result<()> {
 
 #[tokio::test]
 async fn service_search_users() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
     let service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
@@ -137,10 +120,7 @@ async fn service_search_users() -> Result<()> {
 
 #[tokio::test]
 async fn service_count_users() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
     let service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
@@ -152,10 +132,7 @@ async fn service_count_users() -> Result<()> {
 
 #[tokio::test]
 async fn service_find_by_role() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
     let service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
@@ -170,10 +147,7 @@ async fn service_find_by_role() -> Result<()> {
 
 #[tokio::test]
 async fn service_update_email() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
     let service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
@@ -199,10 +173,7 @@ async fn service_update_email() -> Result<()> {
 
 #[tokio::test]
 async fn service_update_status() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
     let service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
@@ -228,10 +199,7 @@ async fn service_update_status() -> Result<()> {
 
 #[tokio::test]
 async fn service_assign_roles() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
     let service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
@@ -257,10 +225,7 @@ async fn service_assign_roles() -> Result<()> {
 
 #[tokio::test]
 async fn service_delete_user() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
     let service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
@@ -285,10 +250,7 @@ async fn service_delete_user() -> Result<()> {
 
 #[tokio::test]
 async fn service_delete_anonymous_user() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
     let service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
@@ -306,10 +268,7 @@ async fn service_delete_anonymous_user() -> Result<()> {
 
 #[tokio::test]
 async fn service_cleanup_old_anonymous() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
     let service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
@@ -321,10 +280,7 @@ async fn service_cleanup_old_anonymous() -> Result<()> {
 
 #[tokio::test]
 async fn service_find_first_admin() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
     let service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
@@ -339,10 +295,7 @@ async fn service_find_first_admin() -> Result<()> {
 
 #[tokio::test]
 async fn service_get_authenticated_user() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
     let service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
@@ -367,10 +320,7 @@ async fn service_get_authenticated_user() -> Result<()> {
 
 #[tokio::test]
 async fn service_is_temporary_anonymous() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
     let service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
@@ -390,10 +340,7 @@ async fn service_is_temporary_anonymous() -> Result<()> {
 
 #[tokio::test]
 async fn service_list_sessions() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
     let service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
@@ -416,10 +363,7 @@ async fn service_list_sessions() -> Result<()> {
 
 #[tokio::test]
 async fn service_list_active_sessions() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
     let service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
@@ -442,10 +386,7 @@ async fn service_list_active_sessions() -> Result<()> {
 
 #[tokio::test]
 async fn service_list_recent_sessions() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
     let service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
@@ -468,10 +409,7 @@ async fn service_list_recent_sessions() -> Result<()> {
 
 #[tokio::test]
 async fn service_list_non_anonymous_with_sessions() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
     let service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
@@ -486,10 +424,7 @@ async fn service_list_non_anonymous_with_sessions() -> Result<()> {
 
 #[tokio::test]
 async fn service_get_with_sessions() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
     let service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
@@ -515,10 +450,7 @@ async fn service_get_with_sessions() -> Result<()> {
 
 #[tokio::test]
 async fn service_get_activity() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
     let service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
@@ -541,10 +473,7 @@ async fn service_get_activity() -> Result<()> {
 
 #[tokio::test]
 async fn service_get_stats() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
     let service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
@@ -556,10 +485,7 @@ async fn service_get_stats() -> Result<()> {
 
 #[tokio::test]
 async fn service_count_with_breakdown() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
     let service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
@@ -571,10 +497,7 @@ async fn service_count_with_breakdown() -> Result<()> {
 
 #[tokio::test]
 async fn service_update_full_name() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
     let service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
@@ -599,10 +522,7 @@ async fn service_update_full_name() -> Result<()> {
 
 #[tokio::test]
 async fn service_update_display_name() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
     let service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
@@ -627,10 +547,7 @@ async fn service_update_display_name() -> Result<()> {
 
 #[tokio::test]
 async fn service_update_email_verified() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
     let service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
@@ -653,10 +570,7 @@ async fn service_update_email_verified() -> Result<()> {
 
 #[tokio::test]
 async fn service_bulk_update_status() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
     let service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
@@ -696,10 +610,7 @@ async fn service_bulk_update_status() -> Result<()> {
 
 #[tokio::test]
 async fn service_bulk_delete() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
     let service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
@@ -732,10 +643,7 @@ async fn service_bulk_delete() -> Result<()> {
 
 #[tokio::test]
 async fn service_list_by_filter_with_status() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
     let service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
@@ -760,10 +668,7 @@ async fn service_list_by_filter_with_status() -> Result<()> {
 
 #[tokio::test]
 async fn service_list_by_filter_with_role() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
     let service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
@@ -788,10 +693,7 @@ async fn service_list_by_filter_with_role() -> Result<()> {
 
 #[tokio::test]
 async fn service_merge_users() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let service = systemprompt_test_fixtures::merging_user_service(&db)?;
 

@@ -9,21 +9,13 @@
 //! - Anonymous user cleanup
 
 use anyhow::Result;
-use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
+use systemprompt_test_fixtures::test_db_pool;
 use systemprompt_users::{UpdateUserParams, UserRepository, UserRole, UserStatus};
-
-async fn get_db() -> Option<DbPool> {
-    let url = systemprompt_test_fixtures::fixture_database_url().ok()?;
-    systemprompt_test_fixtures::fixture_db_pool(&url).await.ok()
-}
 
 #[tokio::test]
 async fn create_user_with_all_fields() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
     let repo = UserRepository::new(&db_pool)?;
@@ -56,10 +48,7 @@ async fn create_user_with_all_fields() -> Result<()> {
 
 #[tokio::test]
 async fn create_user_without_display_name_uses_full_name() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
     let repo = UserRepository::new(&db_pool)?;
@@ -83,10 +72,7 @@ async fn create_user_without_display_name_uses_full_name() -> Result<()> {
 
 #[tokio::test]
 async fn create_anonymous_user() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
     let repo = UserRepository::new(&db_pool)?;
@@ -108,10 +94,7 @@ async fn create_anonymous_user() -> Result<()> {
 
 #[tokio::test]
 async fn find_by_id_returns_user() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
     let repo = UserRepository::new(&db_pool)?;
@@ -136,10 +119,7 @@ async fn find_by_id_returns_user() -> Result<()> {
 
 #[tokio::test]
 async fn find_by_id_returns_none_for_nonexistent() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
     let repo = UserRepository::new(&db_pool)?;
@@ -153,10 +133,7 @@ async fn find_by_id_returns_none_for_nonexistent() -> Result<()> {
 
 #[tokio::test]
 async fn find_by_email_returns_user() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
     let repo = UserRepository::new(&db_pool)?;
@@ -180,10 +157,7 @@ async fn find_by_email_returns_user() -> Result<()> {
 
 #[tokio::test]
 async fn find_by_email_returns_none_for_nonexistent() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
     let repo = UserRepository::new(&db_pool)?;
@@ -196,10 +170,7 @@ async fn find_by_email_returns_none_for_nonexistent() -> Result<()> {
 
 #[tokio::test]
 async fn find_by_name_returns_user() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
     let repo = UserRepository::new(&db_pool)?;
@@ -223,10 +194,7 @@ async fn find_by_name_returns_user() -> Result<()> {
 
 #[tokio::test]
 async fn find_by_role_returns_users_with_role() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
     let repo = UserRepository::new(&db_pool)?;
@@ -253,10 +221,7 @@ async fn find_by_role_returns_users_with_role() -> Result<()> {
 
 #[tokio::test]
 async fn find_first_admin_returns_admin_user() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
     let repo = UserRepository::new(&db_pool)?;
@@ -271,10 +236,7 @@ async fn find_first_admin_returns_admin_user() -> Result<()> {
 
 #[tokio::test]
 async fn update_email_changes_email() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
     let repo = UserRepository::new(&db_pool)?;
@@ -299,10 +261,7 @@ async fn update_email_changes_email() -> Result<()> {
 
 #[tokio::test]
 async fn update_full_name_changes_name() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
     let repo = UserRepository::new(&db_pool)?;
@@ -325,10 +284,7 @@ async fn update_full_name_changes_name() -> Result<()> {
 
 #[tokio::test]
 async fn update_status_changes_status() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
     let repo = UserRepository::new(&db_pool)?;
@@ -353,10 +309,7 @@ async fn update_status_changes_status() -> Result<()> {
 
 #[tokio::test]
 async fn update_email_verified_sets_flag() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
     let repo = UserRepository::new(&db_pool)?;
@@ -379,10 +332,7 @@ async fn update_email_verified_sets_flag() -> Result<()> {
 
 #[tokio::test]
 async fn update_all_fields_updates_everything() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
     let repo = UserRepository::new(&db_pool)?;
@@ -416,10 +366,7 @@ async fn update_all_fields_updates_everything() -> Result<()> {
 
 #[tokio::test]
 async fn assign_roles_updates_roles() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
     let repo = UserRepository::new(&db_pool)?;
@@ -444,10 +391,7 @@ async fn assign_roles_updates_roles() -> Result<()> {
 
 #[tokio::test]
 async fn delete_removes_user() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
     let repo = UserRepository::new(&db_pool)?;
@@ -466,10 +410,7 @@ async fn delete_removes_user() -> Result<()> {
 
 #[tokio::test]
 async fn delete_returns_error_for_nonexistent() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
     let repo = UserRepository::new(&db_pool)?;
@@ -487,10 +428,7 @@ async fn delete_returns_error_for_nonexistent() -> Result<()> {
 
 #[tokio::test]
 async fn cleanup_old_anonymous_runs_without_error() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
     let repo = UserRepository::new(&db_pool)?;
@@ -502,10 +440,7 @@ async fn cleanup_old_anonymous_runs_without_error() -> Result<()> {
 
 #[tokio::test]
 async fn find_authenticated_user_returns_active_user() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
     let repo = UserRepository::new(&db_pool)?;
@@ -530,10 +465,7 @@ async fn find_authenticated_user_returns_active_user() -> Result<()> {
 
 #[tokio::test]
 async fn find_authenticated_user_returns_none_for_inactive() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
     let repo = UserRepository::new(&db_pool)?;
