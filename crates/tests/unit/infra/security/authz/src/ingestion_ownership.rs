@@ -13,13 +13,8 @@ use systemprompt_security::authz::{
     DASHBOARD_SOURCE, EntityKind, IngestOptions, IngestScope, RegisteredEntities, RuleType,
     UpsertRuleParams, YAML_SOURCE,
 };
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::test_db_pool;
 use uuid::Uuid;
-
-async fn pool_or_skip() -> Option<DbPool> {
-    let url = fixture_database_url().ok()?;
-    fixture_db_pool(&url).await.ok()
-}
 
 fn unique_id(prefix: &str) -> String {
     format!("{prefix}-{}", Uuid::new_v4().simple())
@@ -72,9 +67,7 @@ async fn rule_sources(db: &DbPool, entity_id: &str) -> Vec<(String, String, Stri
 
 #[tokio::test]
 async fn dashboard_rule_survives_an_overriding_ingest() {
-    let Some(db) = pool_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
     let svc = AccessControlIngestionService::new(&db).expect("ingestion service");
     let repo = AccessControlRepository::new(&db).expect("repository");
     let id = unique_id("own-dash");
@@ -129,9 +122,7 @@ async fn dashboard_rule_survives_an_overriding_ingest() {
 
 #[tokio::test]
 async fn prune_takes_only_its_own_source_inside_its_own_scope() {
-    let Some(db) = pool_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
     let svc = AccessControlIngestionService::new(&db).expect("ingestion service");
     let repo = AccessControlRepository::new(&db).expect("repository");
     let mine = unique_id("own-mine");
@@ -210,9 +201,7 @@ async fn prune_takes_only_its_own_source_inside_its_own_scope() {
 
 #[tokio::test]
 async fn prune_skips_an_entity_outside_the_ownership_scope() {
-    let Some(db) = pool_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
     let svc = AccessControlIngestionService::new(&db).expect("ingestion service");
     let id = unique_id("own-unowned");
 
@@ -249,9 +238,7 @@ async fn prune_skips_an_entity_outside_the_ownership_scope() {
 
 #[tokio::test]
 async fn a_role_nobody_holds_is_reported_and_a_held_one_is_not() {
-    let Some(db) = pool_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
     let svc = AccessControlIngestionService::new(&db).expect("ingestion service");
     let id = unique_id("own-subject");
     let held = unique_id("role-held").replace('-', "_");
@@ -317,9 +304,7 @@ async fn a_role_nobody_holds_is_reported_and_a_held_one_is_not() {
 
 #[tokio::test]
 async fn marketplace_prune_is_scoped_to_the_ingesting_source() {
-    let Some(db) = pool_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
     let svc = AccessControlIngestionService::new(&db).expect("ingestion service");
     let id = unique_id("own-mkt");
 

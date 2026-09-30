@@ -6,13 +6,8 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::MarketplaceId;
 use systemprompt_models::services::{MarketplaceConfig, ServicesConfig};
 use systemprompt_security::authz::{IngestScope, reconcile_services_authz};
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::test_db_pool;
 use uuid::Uuid;
-
-async fn pool_or_skip() -> Option<DbPool> {
-    let url = fixture_database_url().ok()?;
-    fixture_db_pool(&url).await.ok()
-}
 
 fn unique_id(prefix: &str) -> String {
     format!("{prefix}-{}", Uuid::new_v4().simple())
@@ -36,9 +31,7 @@ async fn cleanup(db: &DbPool, entity_type: &str, entity_id: &str) {
 
 #[tokio::test]
 async fn reconcile_projects_roles_yaml_and_marketplace_access() {
-    let Some(db) = pool_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
     let route = unique_id("rec-route");
     let market = unique_id("rec-mkt");
 

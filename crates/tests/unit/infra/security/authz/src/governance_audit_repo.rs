@@ -10,9 +10,7 @@ use systemprompt_security::authz::{
     DecisionTag, GovernanceDecisionRecord, GovernanceDecisionRepository,
     list_trace_ids_with_decision,
 };
-use systemprompt_test_fixtures::{
-    DisposableDb, closed_db_pool, fixture_database_url, fixture_db_pool, seed_user_row,
-};
+use systemprompt_test_fixtures::{DisposableDb, closed_db_pool, seed_user_row, test_db_pool};
 use uuid::Uuid;
 
 fn record<'a>(
@@ -78,13 +76,7 @@ async fn insert_through_closed_pool_propagates_sqlx_error() {
 
 #[tokio::test]
 async fn insert_persists_a_decision_row() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
-    let Ok(db) = fixture_db_pool(&url).await else {
-        return;
-    };
-    let pool = db.write_pool_arc().expect("write pool");
+    let pool = test_db_pool().await.write_pool();
     let repo = GovernanceDecisionRepository::from_pool(pool.clone());
 
     // pool() exposes the same handle the repository writes through.

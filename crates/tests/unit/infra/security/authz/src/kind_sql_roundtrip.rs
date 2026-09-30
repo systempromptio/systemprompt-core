@@ -8,20 +8,11 @@
 use std::str::FromStr;
 
 use systemprompt_security::authz::{EntityKind, RuleType};
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
-
-async fn pool_or_skip() -> Option<sqlx::PgPool> {
-    let url = fixture_database_url().ok()?;
-    let db = fixture_db_pool(&url).await.ok()?;
-    let pg = db.write_pool_arc().ok()?;
-    Some((*pg).clone())
-}
+use systemprompt_test_fixtures::test_pg_pool;
 
 #[tokio::test]
 async fn the_core_rule_types_survive_a_database_round_trip_unchanged() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = test_pg_pool().await;
 
     for expected in [RuleType::USER, RuleType::ROLE] {
         let decoded: RuleType = sqlx::query_scalar("SELECT $1::text")
@@ -39,9 +30,7 @@ async fn the_core_rule_types_survive_a_database_round_trip_unchanged() {
 
 #[tokio::test]
 async fn an_extension_minted_rule_type_round_trips_without_core_interpreting_it() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = test_pg_pool().await;
     let minted = RuleType::extension("cost_centre").expect("a well-formed extension slug");
 
     let decoded: RuleType = sqlx::query_scalar("SELECT $1::text")
@@ -56,9 +45,7 @@ async fn an_extension_minted_rule_type_round_trips_without_core_interpreting_it(
 
 #[tokio::test]
 async fn a_rule_type_core_does_not_recognise_decodes_as_data_rather_than_failing() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = test_pg_pool().await;
 
     let decoded: RuleType = sqlx::query_scalar("SELECT 'clearance_level'::text")
         .fetch_one(&pool)
@@ -72,9 +59,7 @@ async fn a_rule_type_core_does_not_recognise_decodes_as_data_rather_than_failing
 
 #[tokio::test]
 async fn every_entity_kind_round_trips_through_its_stored_text() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = test_pg_pool().await;
 
     for expected in EntityKind::ALL.iter().copied() {
         let decoded: EntityKind = sqlx::query_scalar("SELECT $1::text")
@@ -89,9 +74,7 @@ async fn every_entity_kind_round_trips_through_its_stored_text() {
 
 #[tokio::test]
 async fn an_entity_kind_outside_the_closed_vocabulary_fails_to_decode() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = test_pg_pool().await;
 
     let error = sqlx::query_scalar::<_, EntityKind>("SELECT 'wormhole'::text")
         .fetch_one(&pool)

@@ -6,7 +6,7 @@ use systemprompt_security::authz::{
     AuthzAuditSink, AuthzContext, AuthzDecision, AuthzRequest, AuthzSource, DbAuditSink, EntityRef,
     GovernanceDecisionRepository,
 };
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::test_db_pool;
 
 fn mcp_request(user: &str, server: &str, chain: Vec<Actor>) -> AuthzRequest {
     AuthzRequest {
@@ -51,13 +51,7 @@ async fn cleanup(pool: &sqlx::PgPool, trace_id: &str) {
 
 #[tokio::test]
 async fn sink_records_the_mcp_surface_and_the_client() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
-    let Ok(db) = fixture_db_pool(&url).await else {
-        return;
-    };
-    let pool = db.write_pool_arc().expect("write pool");
+    let pool = test_db_pool().await.write_pool();
     let sink = DbAuditSink::new(GovernanceDecisionRepository::from_pool(pool.clone()));
 
     let req = mcp_request(
@@ -87,13 +81,7 @@ async fn sink_records_the_mcp_surface_and_the_client() {
 
 #[tokio::test]
 async fn sink_records_a_verified_agent_delegate() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
-    let Ok(db) = fixture_db_pool(&url).await else {
-        return;
-    };
-    let pool = db.write_pool_arc().expect("write pool");
+    let pool = test_db_pool().await.write_pool();
     let sink = DbAuditSink::new(GovernanceDecisionRepository::from_pool(pool.clone()));
 
     let req = mcp_request(

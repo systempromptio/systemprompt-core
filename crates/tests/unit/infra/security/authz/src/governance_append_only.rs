@@ -10,7 +10,7 @@ use systemprompt_identifiers::{Actor, UserId};
 use systemprompt_security::authz::{
     DecisionTag, GovernanceDecisionRecord, GovernanceDecisionRepository,
 };
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::test_db_pool;
 use uuid::Uuid;
 
 fn record<'a>(
@@ -41,13 +41,7 @@ fn record<'a>(
 
 #[tokio::test]
 async fn a_recorded_decision_cannot_be_rewritten() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
-    let Ok(db) = fixture_db_pool(&url).await else {
-        return;
-    };
-    let pool = db.write_pool_arc().expect("write pool");
+    let pool = test_db_pool().await.write_pool();
     let repo = GovernanceDecisionRepository::from_pool(pool.clone());
 
     let id = Uuid::new_v4().to_string();
