@@ -8,7 +8,7 @@ use systemprompt_identifiers::{Actor, ContextId, McpServerId, SessionId, TraceId
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_mcp::services::tool_provider::McpToolProvider;
 use systemprompt_models::services::ResilienceSettings;
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool, fixture_user_id};
+use systemprompt_test_fixtures::{fixture_user_id, test_db_pool};
 use systemprompt_traits::{ToolCallRequest, ToolContext, ToolProvider};
 use wiremock::matchers::{body_partial_json, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -44,13 +44,12 @@ fn call_request(id: &str) -> ToolCallRequest {
     }
 }
 
-async fn provider_for_endpoint_or_skip(
+async fn provider_for_endpoint(
     agent: &str,
     endpoint: &str,
     resilience: &ResilienceSettings,
-) -> Option<(McpToolProvider, McpServerId)> {
-    let url = fixture_database_url().ok()?;
-    let db = fixture_db_pool(&url).await.ok()?;
+) -> (McpToolProvider, McpServerId) {
+    let db = test_db_pool().await;
 
     let server_name = format!("res_{}", uuid::Uuid::new_v4().simple());
     let yaml = format!(
@@ -66,10 +65,10 @@ async fn provider_for_endpoint_or_skip(
     let _bootstrap = bootstrap_with_services(&yaml);
 
     let provider = McpToolProvider::new(db, RegistryService::new(fixture_user_id()), resilience);
-    Some((
+    (
         provider,
         McpServerId::try_new(&server_name).expect("valid McpServerId"),
-    ))
+    )
 }
 
 async fn mount_delayed_tool_call(mock: &MockServer, delay: Duration) {
@@ -105,15 +104,12 @@ async fn call_tool_maps_per_attempt_timeout() {
         "request_timeout_ms": 500,
         "retry_attempts": 1
     }));
-    let Some((provider, server)) = provider_for_endpoint_or_skip(
+    let (provider, server) = provider_for_endpoint(
         "res_agent_timeout",
         &format!("{}/mcp", mock.uri()),
         &resilience,
     )
-    .await
-    else {
-        return;
-    };
+    .await;
 
     let err = provider
         .call_tool(&call_request("call-timeout"), &server, &tool_context())
@@ -131,12 +127,8 @@ async fn call_tool_maps_inner_error_then_circuit_open() {
         "breaker_failure_threshold": 1,
         "breaker_open_cooldown_ms": 60_000
     }));
-    let Some((provider, server)) =
-        provider_for_endpoint_or_skip("res_agent_circuit", "http://127.0.0.1:1/mcp", &resilience)
-            .await
-    else {
-        return;
-    };
+    let (provider, server) =
+        provider_for_endpoint("res_agent_circuit", "http://127.0.0.1:1/mcp", &resilience).await;
 
     let inner = provider
         .call_tool(&call_request("call-inner"), &server, &tool_context())
@@ -167,15 +159,12 @@ async fn call_tool_maps_bulkhead_full_under_concurrency() {
         "retry_attempts": 1,
         "max_concurrent": 1
     }));
-    let Some((provider, server)) = provider_for_endpoint_or_skip(
+    let (provider, server) = provider_for_endpoint(
         "res_agent_bulkhead",
         &format!("{}/mcp", mock.uri()),
         &resilience,
     )
-    .await
-    else {
-        return;
-    };
+    .await;
 
     let slow_provider = provider.clone();
     let slow_server = server.clone();

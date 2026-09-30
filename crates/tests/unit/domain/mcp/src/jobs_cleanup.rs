@@ -4,9 +4,7 @@
 use std::sync::Arc;
 use systemprompt_identifiers::Actor;
 use systemprompt_provider_contracts::{Job, JobContext};
-use systemprompt_test_fixtures::{
-    closed_db_pool, fixture_database_url, fixture_db_pool, fixture_user_id,
-};
+use systemprompt_test_fixtures::{closed_db_pool, fixture_user_id, test_db_pool};
 
 fn cleanup_job() -> &'static dyn Job {
     inventory::iter::<&'static dyn Job>()
@@ -34,12 +32,7 @@ fn job_metadata_names_the_schedule() {
 
 #[tokio::test]
 async fn execute_succeeds_against_live_pool() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
-    let Ok(db) = fixture_db_pool(&url).await else {
-        return;
-    };
+    let db = test_db_pool().await;
     let result = cleanup_job()
         .execute(&context_with(Arc::new(db)))
         .await

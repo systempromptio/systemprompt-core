@@ -9,7 +9,7 @@ use systemprompt_identifiers::{
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_mcp::services::tool_provider::McpToolProvider;
 use systemprompt_models::services::ResilienceSettings;
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool, fixture_user_id};
+use systemprompt_test_fixtures::{fixture_user_id, test_db_pool};
 use systemprompt_traits::{ToolCallRequest, ToolContext, ToolProvider};
 use wiremock::MockServer;
 
@@ -36,9 +36,8 @@ fn tool_context() -> ToolContext {
     context
 }
 
-async fn setup_or_skip(agent: &str) -> Option<(McpToolProvider, McpServerId, MockServer)> {
-    let url = fixture_database_url().ok()?;
-    let db = fixture_db_pool(&url).await.ok()?;
+async fn setup(agent: &str) -> (McpToolProvider, McpServerId, MockServer) {
+    let db = test_db_pool().await;
 
     let mock = MockServer::start().await;
     mount_mcp_endpoint(&mock, default_tools_json()).await;
@@ -57,18 +56,16 @@ async fn setup_or_skip(agent: &str) -> Option<(McpToolProvider, McpServerId, Moc
     let _bootstrap = bootstrap_with_services(&yaml);
 
     let provider = McpToolProvider::new(db, RegistryService::new(fixture_user_id()), &resilience());
-    Some((
+    (
         provider,
         McpServerId::try_new(&server_name).expect("valid McpServerId"),
         mock,
-    ))
+    )
 }
 
 #[tokio::test]
 async fn list_tools_resolves_agent_servers() {
-    let Some((provider, _server, _mock)) = setup_or_skip("tp_agent_list").await else {
-        return;
-    };
+    let (provider, _server, _mock) = setup("tp_agent_list").await;
 
     let tools = provider
         .list_tools(
@@ -85,9 +82,7 @@ async fn list_tools_resolves_agent_servers() {
 
 #[tokio::test]
 async fn list_tools_unknown_agent_is_configuration_error() {
-    let Some((provider, _server, _mock)) = setup_or_skip("tp_agent_missing").await else {
-        return;
-    };
+    let (provider, _server, _mock) = setup("tp_agent_missing").await;
 
     let err = provider
         .list_tools(
@@ -101,9 +96,7 @@ async fn list_tools_unknown_agent_is_configuration_error() {
 
 #[tokio::test]
 async fn call_tool_executes_through_resilience_guard() {
-    let Some((provider, server, _mock)) = setup_or_skip("tp_agent_call").await else {
-        return;
-    };
+    let (provider, server, _mock) = setup("tp_agent_call").await;
 
     let request = ToolCallRequest {
         tool_call_id: "call-1".to_owned(),
@@ -126,9 +119,7 @@ async fn call_tool_executes_through_resilience_guard() {
 
 #[tokio::test]
 async fn call_tool_unknown_server_is_configuration_error() {
-    let Some((provider, _server, _mock)) = setup_or_skip("tp_agent_badsrv").await else {
-        return;
-    };
+    let (provider, _server, _mock) = setup("tp_agent_badsrv").await;
 
     let request = ToolCallRequest {
         tool_call_id: "call-2".to_owned(),
@@ -149,9 +140,7 @@ async fn call_tool_unknown_server_is_configuration_error() {
 
 #[tokio::test]
 async fn call_tool_requires_context_headers() {
-    let Some((provider, server, _mock)) = setup_or_skip("tp_agent_hdrs").await else {
-        return;
-    };
+    let (provider, server, _mock) = setup("tp_agent_hdrs").await;
 
     let request = ToolCallRequest {
         tool_call_id: "call-3".to_owned(),
@@ -179,9 +168,7 @@ async fn call_tool_requires_context_headers() {
 
 #[tokio::test]
 async fn refresh_connections_validates_reachable_server() {
-    let Some((provider, _server, _mock)) = setup_or_skip("tp_agent_refresh").await else {
-        return;
-    };
+    let (provider, _server, _mock) = setup("tp_agent_refresh").await;
 
     provider
         .refresh_connections(&AgentName::try_new("tp_agent_refresh").expect("valid AgentName"))
@@ -191,9 +178,7 @@ async fn refresh_connections_validates_reachable_server() {
 
 #[tokio::test]
 async fn health_check_reports_no_managed_servers() {
-    let Some((provider, _server, _mock)) = setup_or_skip("tp_agent_health").await else {
-        return;
-    };
+    let (provider, _server, _mock) = setup("tp_agent_health").await;
 
     let statuses = provider.health_check().await.expect("health check runs");
     assert!(statuses.is_empty());
@@ -201,12 +186,7 @@ async fn health_check_reports_no_managed_servers() {
 
 #[tokio::test]
 async fn list_tools_tolerates_unreachable_server() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
-    let Ok(db) = fixture_db_pool(&url).await else {
-        return;
-    };
+    let db = test_db_pool().await;
 
     let server_name = format!("tp_down_{}", uuid::Uuid::new_v4().simple());
     let yaml = format!(
@@ -239,10 +219,7 @@ async fn list_tools_tolerates_unreachable_server() {
 
 #[tokio::test]
 async fn list_tools_keeps_healthy_server_inventory_when_another_assigned_server_is_unreachable() {
-    let url = fixture_database_url().expect("MCP tool-provider database URL");
-    let db = fixture_db_pool(&url)
-        .await
-        .expect("MCP tool-provider database");
+    let db = test_db_pool().await;
     let mock = MockServer::start().await;
     mount_mcp_endpoint(&mock, default_tools_json()).await;
     let healthy = format!("tp_up_{}", uuid::Uuid::new_v4().simple());

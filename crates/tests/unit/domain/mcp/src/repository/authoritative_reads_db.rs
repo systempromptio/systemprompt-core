@@ -7,22 +7,20 @@ use std::sync::Arc;
 use systemprompt_database::{Database, DbPool};
 use systemprompt_identifiers::SessionId;
 use systemprompt_mcp::repository::McpSessionRepository;
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::test_db_pool;
 
-async fn split_pool_or_skip() -> Option<DbPool> {
-    let url = fixture_database_url().ok()?;
-    let live = fixture_db_pool(&url).await.ok()?;
-    let write = live.write_pool_arc().ok()?;
-    let dead = sqlx::PgPool::connect_lazy("postgres://closed:closed@127.0.0.1:1/closed").ok()?;
+async fn split_pool() -> DbPool {
+    let live = test_db_pool().await;
+    let write = live.write_pool_arc().expect("write pool");
+    let dead = sqlx::PgPool::connect_lazy("postgres://closed:closed@127.0.0.1:1/closed")
+        .expect("lazy pool");
     dead.close().await;
-    Some(Arc::new(Database::from_pools(Arc::new(dead), Some(write))))
+    Arc::new(Database::from_pools(Arc::new(dead), Some(write)))
 }
 
 #[tokio::test]
 async fn session_lookups_read_the_primary() {
-    let Some(db) = split_pool_or_skip().await else {
-        return;
-    };
+    let db = split_pool().await;
     let repo = McpSessionRepository::new(&db).expect("repo");
     let id = SessionId::new(format!("sess-{}", uuid::Uuid::new_v4().simple()));
 

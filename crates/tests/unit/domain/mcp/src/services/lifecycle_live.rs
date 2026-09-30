@@ -16,15 +16,13 @@ use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::mcp::deployment::{McpServerType, OAuthRequirement};
 use systemprompt_models::mcp::server::McpServerConfig;
 use systemprompt_models::profile::PathsConfig;
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool, fixture_user_id};
+use systemprompt_test_fixtures::{fixture_user_id, test_db_pool};
 use wiremock::MockServer;
 
 use crate::harness::{default_tools_json, mount_mcp_endpoint};
 
-async fn make_lifecycle_or_skip() -> Option<(LifecycleOrchestrator, systemprompt_database::DbPool)>
-{
-    let url = fixture_database_url().ok()?;
-    let db = fixture_db_pool(&url).await.ok()?;
+async fn make_lifecycle() -> (LifecycleOrchestrator, systemprompt_database::DbPool) {
+    let db = test_db_pool().await;
     let paths = PathsConfig {
         system: "/tmp".to_string(),
         services: "/tmp".to_string(),
@@ -39,7 +37,7 @@ async fn make_lifecycle_or_skip() -> Option<(LifecycleOrchestrator, systemprompt
             systemprompt_models::PathResolution::Canonicalize,
             None,
         )
-        .ok()?,
+        .expect("app paths"),
     );
     let registry = RegistryService::new(fixture_user_id());
     let database = DatabaseService::new(
@@ -51,7 +49,7 @@ async fn make_lifecycle_or_skip() -> Option<(LifecycleOrchestrator, systemprompt
         Arc::clone(&app_paths),
         registry,
     );
-    Some((
+    (
         LifecycleOrchestrator::new(
             ProcessService::new(),
             NetworkService::new(),
@@ -60,7 +58,7 @@ async fn make_lifecycle_or_skip() -> Option<(LifecycleOrchestrator, systemprompt
             app_paths,
         ),
         db,
-    ))
+    )
 }
 
 fn make_config(name: &str, port: u16) -> McpServerConfig {
@@ -121,9 +119,7 @@ async fn seed_service(
 
 #[tokio::test]
 async fn health_check_live_mcp_endpoint_reports_healthy() {
-    let Some((life, db)) = make_lifecycle_or_skip().await else {
-        return;
-    };
+    let (life, db) = make_lifecycle().await;
     let mock = MockServer::start().await;
     mount_mcp_endpoint(&mock, default_tools_json()).await;
     let port = mock.address().port();
@@ -147,9 +143,7 @@ async fn health_check_live_mcp_endpoint_reports_healthy() {
 
 #[tokio::test]
 async fn health_check_non_mcp_listener_marks_service_error() {
-    let Some((life, db)) = make_lifecycle_or_skip().await else {
-        return;
-    };
+    let (life, db) = make_lifecycle().await;
     let mock = MockServer::start().await;
     let port = mock.address().port();
 
@@ -181,9 +175,7 @@ fn marker_helper() {
 
 #[tokio::test]
 async fn stop_server_terminates_registered_live_child_and_finalizes_row() {
-    let Some((life, db)) = make_lifecycle_or_skip().await else {
-        return;
-    };
+    let (life, db) = make_lifecycle().await;
 
     let name = format!("stop-live-{}", uuid::Uuid::new_v4().simple());
     let port = 65401;
@@ -206,9 +198,7 @@ async fn stop_server_terminates_registered_live_child_and_finalizes_row() {
 
 #[tokio::test]
 async fn restart_server_sweeps_stale_running_row_then_fails_on_missing_binary() {
-    let Some((life, db)) = make_lifecycle_or_skip().await else {
-        return;
-    };
+    let (life, db) = make_lifecycle().await;
 
     let name = format!("restart-{}", uuid::Uuid::new_v4().simple());
     let port = 65402;

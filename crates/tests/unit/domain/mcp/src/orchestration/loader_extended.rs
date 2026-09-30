@@ -8,12 +8,7 @@ use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId, UserId}
 use systemprompt_mcp::orchestration::McpToolLoader;
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::RequestContext;
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool, fixture_user_id};
-
-async fn db_or_skip() -> Option<systemprompt_database::DbPool> {
-    let url = fixture_database_url().ok()?;
-    fixture_db_pool(&url).await.ok()
-}
+use systemprompt_test_fixtures::{fixture_user_id, test_db_pool};
 
 fn ctx() -> RequestContext {
     RequestContext::new(
@@ -29,7 +24,7 @@ fn ctx() -> RequestContext {
 
 #[tokio::test]
 async fn create_mcp_extensions_empty_returns_empty_vec() {
-    let Some(db) = db_or_skip().await else { return };
+    let db = test_db_pool().await;
     let registry = RegistryService::new(fixture_user_id());
     let loader = McpToolLoader::new(
         systemprompt_database::ServiceRepository::new(
@@ -51,7 +46,7 @@ async fn create_mcp_extensions_empty_returns_empty_vec() {
 #[tokio::test]
 async fn load_server_tools_missing_service_errors_after_retries() {
     let _bootstrap = crate::harness::bootstrap_with_services("{}\n");
-    let Some(db) = db_or_skip().await else { return };
+    let db = test_db_pool().await;
     let registry = RegistryService::new(fixture_user_id());
     let loader = McpToolLoader::new(
         systemprompt_database::ServiceRepository::new(
@@ -78,7 +73,7 @@ async fn load_server_tools_missing_service_errors_after_retries() {
 
 #[tokio::test]
 async fn service_manager_accessor_returns_reference() {
-    let Some(db) = db_or_skip().await else { return };
+    let db = test_db_pool().await;
     let registry = RegistryService::new(fixture_user_id());
     let loader = McpToolLoader::new(
         systemprompt_database::ServiceRepository::new(

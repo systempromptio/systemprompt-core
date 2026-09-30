@@ -39,10 +39,7 @@ fn request(result: CallToolResult, session: &str) -> IngestRequest {
 }
 
 async fn ingest() -> ArtifactIngest {
-    let url = systemprompt_test_fixtures::fixture_database_url().expect("MCP fixture database URL");
-    let db = systemprompt_test_fixtures::fixture_db_pool(&url)
-        .await
-        .expect("MCP fixture pool");
+    let db = systemprompt_test_fixtures::test_db_pool().await;
     ArtifactIngest::from_db(&db, None).expect("artifact ingest")
 }
 

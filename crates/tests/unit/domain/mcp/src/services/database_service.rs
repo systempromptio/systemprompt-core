@@ -7,11 +7,10 @@ use systemprompt_mcp::services::ServiceLifecycleStatus;
 use systemprompt_mcp::services::database::DatabaseService;
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::profile::PathsConfig;
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool, fixture_user_id};
+use systemprompt_test_fixtures::{fixture_user_id, test_db_pool};
 
-async fn make_db_service_or_skip() -> Option<(DatabaseService, systemprompt_database::DbPool)> {
-    let url = fixture_database_url().ok()?;
-    let db = fixture_db_pool(&url).await.ok()?;
+async fn make_db_service() -> (DatabaseService, systemprompt_database::DbPool) {
+    let db = test_db_pool().await;
     let paths = PathsConfig {
         system: "/tmp".to_string(),
         services: "/tmp".to_string(),
@@ -26,7 +25,7 @@ async fn make_db_service_or_skip() -> Option<(DatabaseService, systemprompt_data
             systemprompt_models::PathResolution::Canonicalize,
             None,
         )
-        .ok()?,
+        .expect("app paths"),
     );
     let registry = RegistryService::new(fixture_user_id());
     let svc = DatabaseService::new(
@@ -38,14 +37,12 @@ async fn make_db_service_or_skip() -> Option<(DatabaseService, systemprompt_data
         app_paths,
         registry,
     );
-    Some((svc, db))
+    (svc, db)
 }
 
 #[tokio::test]
 async fn get_service_by_name_missing_returns_none() {
-    let Some((svc, _db)) = make_db_service_or_skip().await else {
-        return;
-    };
+    let (svc, _db) = make_db_service().await;
     let r = svc
         .get_service_by_name(&format!("missing-{}", uuid::Uuid::new_v4().simple()))
         .await
@@ -55,25 +52,19 @@ async fn get_service_by_name_missing_returns_none() {
 
 #[tokio::test]
 async fn cleanup_stale_services_runs() {
-    let Some((svc, _db)) = make_db_service_or_skip().await else {
-        return;
-    };
+    let (svc, _db) = make_db_service().await;
     svc.cleanup_stale_services().await.unwrap();
 }
 
 #[tokio::test]
 async fn delete_crashed_services_runs() {
-    let Some((svc, _db)) = make_db_service_or_skip().await else {
-        return;
-    };
+    let (svc, _db) = make_db_service().await;
     svc.delete_crashed_services().await.unwrap();
 }
 
 #[tokio::test]
 async fn sync_state_empty_runs() {
-    let Some((svc, _db)) = make_db_service_or_skip().await else {
-        return;
-    };
+    let (svc, _db) = make_db_service().await;
     svc.sync_state(&[]).await.unwrap();
 }
 
@@ -82,9 +73,7 @@ async fn delete_disabled_services_removes_only_the_disabled_service() {
     use crate::harness::internal_mcp_config;
     use systemprompt_database::{CreateServiceInput, ServiceRepository};
 
-    let Some((svc, _db)) = make_db_service_or_skip().await else {
-        return;
-    };
+    let (svc, _db) = make_db_service().await;
     let repo = ServiceRepository::new(
         &_db,
         systemprompt_identifiers::InstanceId::new("test-instance"),
@@ -124,18 +113,14 @@ async fn delete_disabled_services_removes_only_the_disabled_service() {
 
 #[tokio::test]
 async fn get_running_servers_errors_when_registry_not_validated() {
-    let Some((svc, _db)) = make_db_service_or_skip().await else {
-        return;
-    };
+    let (svc, _db) = make_db_service().await;
     let r = svc.get_running_servers().await;
     let _ = r;
 }
 
 #[tokio::test]
 async fn update_service_status_missing_no_panic() {
-    let Some((svc, _db)) = make_db_service_or_skip().await else {
-        return;
-    };
+    let (svc, _db) = make_db_service().await;
     svc.update_service_status(
         &format!("missing-{}", uuid::Uuid::new_v4().simple()),
         ServiceLifecycleStatus::Stopped,
@@ -146,9 +131,7 @@ async fn update_service_status_missing_no_panic() {
 
 #[tokio::test]
 async fn clear_service_pid_missing_no_panic() {
-    let Some((svc, _db)) = make_db_service_or_skip().await else {
-        return;
-    };
+    let (svc, _db) = make_db_service().await;
     svc.clear_service_pid(&format!("missing-{}", uuid::Uuid::new_v4().simple()))
         .await
         .unwrap();
@@ -156,9 +139,7 @@ async fn clear_service_pid_missing_no_panic() {
 
 #[tokio::test]
 async fn unregister_missing_no_panic() {
-    let Some((svc, _db)) = make_db_service_or_skip().await else {
-        return;
-    };
+    let (svc, _db) = make_db_service().await;
     svc.unregister_service(&format!("missing-{}", uuid::Uuid::new_v4().simple()))
         .await
         .unwrap();
@@ -166,9 +147,7 @@ async fn unregister_missing_no_panic() {
 
 #[tokio::test]
 async fn accessors() {
-    let Some((svc, _db)) = make_db_service_or_skip().await else {
-        return;
-    };
+    let (svc, _db) = make_db_service().await;
     let _ = svc.app_paths();
     let _ = svc.clone();
     let _ = format!("{svc:?}");
@@ -176,9 +155,7 @@ async fn accessors() {
 
 #[tokio::test]
 async fn register_existing_process_creates_running_row_with_pid() {
-    let Some((svc, _db)) = make_db_service_or_skip().await else {
-        return;
-    };
+    let (svc, _db) = make_db_service().await;
     let name = format!("adopt-{}", uuid::Uuid::new_v4().simple());
     let config = crate::harness::internal_mcp_config(&name, 65410);
 

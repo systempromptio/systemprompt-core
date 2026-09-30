@@ -10,12 +10,7 @@ use systemprompt_models::RequestContext;
 use systemprompt_models::artifacts::{
     CardSection, CliArtifact, Column, ColumnType, PresentationCardArtifact, TableArtifact,
 };
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
-
-async fn db_or_skip() -> Option<systemprompt_database::DbPool> {
-    let url = fixture_database_url().ok()?;
-    fixture_db_pool(&url).await.ok()
-}
+use systemprompt_test_fixtures::test_db_pool;
 
 fn ui_client() -> ClientProfile {
     ClientProfile {
@@ -73,7 +68,7 @@ fn ui_resource(result: &CallToolResult) -> (String, String) {
 
 #[tokio::test]
 async fn table_tool_result_embeds_rendered_table_html() {
-    let Some(db) = db_or_skip().await else { return };
+    let db = test_db_pool().await;
     let repo = ArtifactIngest::from_db(&db, None).expect("artifact ingest");
 
     let table = TableArtifact::new(vec![Column::new("email", ColumnType::String)])
@@ -100,7 +95,7 @@ async fn table_tool_result_embeds_rendered_table_html() {
 
 #[tokio::test]
 async fn presentation_card_tool_result_embeds_rendered_card_html() {
-    let Some(db) = db_or_skip().await else { return };
+    let db = test_db_pool().await;
     let repo = ArtifactIngest::from_db(&db, None).expect("artifact ingest");
 
     let card = PresentationCardArtifact::new("Platform Overview")
@@ -117,7 +112,7 @@ async fn presentation_card_tool_result_embeds_rendered_card_html() {
 // MCP Apps sends dimensions as {width, height}; height alone is not the shape.
 #[tokio::test]
 async fn rendered_artifact_reports_both_dimensions_to_the_host() {
-    let Some(db) = db_or_skip().await else { return };
+    let db = test_db_pool().await;
     let repo = ArtifactIngest::from_db(&db, None).expect("artifact ingest");
 
     let table = TableArtifact::new(vec![Column::new("id", ColumnType::String)]);
@@ -132,7 +127,7 @@ async fn rendered_artifact_reports_both_dimensions_to_the_host() {
 // not forward embedded content blocks.
 #[tokio::test]
 async fn result_meta_names_the_ui_resource_uri() {
-    let Some(db) = db_or_skip().await else { return };
+    let db = test_db_pool().await;
     let repo = ArtifactIngest::from_db(&db, None).expect("artifact ingest");
 
     let table = TableArtifact::new(vec![Column::new("id", ColumnType::String)]);
@@ -150,7 +145,7 @@ async fn result_meta_names_the_ui_resource_uri() {
 
 #[tokio::test]
 async fn structured_content_still_accompanies_the_rendered_resource() {
-    let Some(db) = db_or_skip().await else { return };
+    let db = test_db_pool().await;
     let repo = ArtifactIngest::from_db(&db, None).expect("artifact ingest");
 
     let table = TableArtifact::new(vec![Column::new("id", ColumnType::String)]);
@@ -167,10 +162,9 @@ async fn structured_content_still_accompanies_the_rendered_resource() {
 }
 #[tokio::test]
 async fn response_build_failure_leaves_no_artifact_and_same_database_recovers() {
-    let database = systemprompt_test_fixtures::DisposableDb::installed("mcp_response_recovery")
-        .await
-        .expect("private response database");
-    let failed_db = database.pool().await.expect("failure pool");
+    let database =
+        systemprompt_test_fixtures::DisposableDb::with_schema("mcp_response_recovery").await;
+    let failed_db = database.test_pool().await;
     let failed_repo = ArtifactIngest::from_db(&failed_db, None).expect("artifact ingest");
     failed_db
         .write_pool_arc()
@@ -208,7 +202,7 @@ async fn response_build_failure_leaves_no_artifact_and_same_database_recovers() 
     drop(failed_repo);
     drop(failed_db);
 
-    let recovered_db = database.pool().await.expect("reconnected pool");
+    let recovered_db = database.test_pool().await;
     let recovered_repo = ArtifactIngest::from_db(&recovered_db, None).expect("recovered ingest");
     assert!(
         recovered_repo

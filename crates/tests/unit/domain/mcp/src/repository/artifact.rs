@@ -15,12 +15,7 @@ use systemprompt_mcp::repository::{
 };
 use systemprompt_models::RequestContext;
 use systemprompt_models::mcp::ExecutionSource;
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
-
-async fn db_or_skip() -> Option<systemprompt_database::DbPool> {
-    let url = fixture_database_url().ok()?;
-    fixture_db_pool(&url).await.ok()
-}
+use systemprompt_test_fixtures::test_db_pool;
 
 fn unique(prefix: &str) -> String {
     format!("{prefix}-{}", uuid::Uuid::new_v4().simple())
@@ -90,13 +85,13 @@ async fn full_artifact(
 
 #[tokio::test]
 async fn repository_new_succeeds() {
-    let Some(db) = db_or_skip().await else { return };
+    let db = test_db_pool().await;
     drop(McpArtifactRepository::new(&db).expect("ctor"));
 }
 
 #[tokio::test]
 async fn find_by_id_random_returns_none() {
-    let Some(db) = db_or_skip().await else { return };
+    let db = test_db_pool().await;
     let repo = McpArtifactRepository::new(&db).unwrap();
     let id = ArtifactId::new(unique("art"));
     assert!(repo.find_by_id(&id).await.unwrap().is_none());
@@ -104,7 +99,7 @@ async fn find_by_id_random_returns_none() {
 
 #[tokio::test]
 async fn list_by_server_returns_vec() {
-    let Some(db) = db_or_skip().await else { return };
+    let db = test_db_pool().await;
     let repo = McpArtifactRepository::new(&db).unwrap();
     let r = repo.list_by_server(&unique("none"), 10).await.unwrap();
     assert!(r.is_empty());
@@ -112,7 +107,7 @@ async fn list_by_server_returns_vec() {
 
 #[tokio::test]
 async fn delete_random_returns_false() {
-    let Some(db) = db_or_skip().await else { return };
+    let db = test_db_pool().await;
     let repo = McpArtifactRepository::new(&db).unwrap();
     assert!(!repo.delete(&ArtifactId::new(unique("art"))).await.unwrap());
 }
@@ -121,7 +116,7 @@ async fn delete_random_returns_false() {
 async fn cleanup_expired_reaps_a_past_due_artifact() {
     use chrono::Duration;
 
-    let Some(db) = db_or_skip().await else { return };
+    let db = test_db_pool().await;
     let repo = McpArtifactRepository::new(&db).unwrap();
     let id = ArtifactId::new(unique("art"));
     let mut create = full_artifact(&db, &id, "art-cleanup").await;
@@ -138,7 +133,7 @@ async fn cleanup_expired_reaps_a_past_due_artifact() {
 
 #[tokio::test]
 async fn save_then_find_round_trips_all_fields() {
-    let Some(db) = db_or_skip().await else { return };
+    let db = test_db_pool().await;
     let repo = McpArtifactRepository::new(&db).unwrap();
     let id = ArtifactId::new(unique("art"));
     let server = unique("srv");
@@ -164,7 +159,7 @@ async fn save_then_find_round_trips_all_fields() {
 
 #[tokio::test]
 async fn save_on_conflict_updates_mutable_fields() {
-    let Some(db) = db_or_skip().await else { return };
+    let db = test_db_pool().await;
     let repo = McpArtifactRepository::new(&db).unwrap();
     let id = ArtifactId::new(unique("art"));
     let server = unique("srv");
@@ -185,7 +180,7 @@ async fn save_on_conflict_updates_mutable_fields() {
 
 #[tokio::test]
 async fn one_artifact_per_execution_is_enforced() {
-    let Some(db) = db_or_skip().await else { return };
+    let db = test_db_pool().await;
     let repo = McpArtifactRepository::new(&db).unwrap();
     let server = unique("srv");
     let first = full_artifact(&db, &ArtifactId::new(unique("art")), &server).await;
@@ -201,7 +196,7 @@ async fn one_artifact_per_execution_is_enforced() {
 
 #[tokio::test]
 async fn find_by_execution_and_ai_tool_call_id() {
-    let Some(db) = db_or_skip().await else { return };
+    let db = test_db_pool().await;
     let repo = McpArtifactRepository::new(&db).unwrap();
     let id = ArtifactId::new(unique("art"));
     let call = AiToolCallId::new(unique("toolu"));
@@ -225,7 +220,7 @@ async fn find_by_execution_and_ai_tool_call_id() {
 
 #[tokio::test]
 async fn enrich_correlation_fills_only_missing_keys() {
-    let Some(db) = db_or_skip().await else { return };
+    let db = test_db_pool().await;
     let repo = McpArtifactRepository::new(&db).unwrap();
     let id = ArtifactId::new(unique("art"));
     let mut create = full_artifact(&db, &id, &unique("srv")).await;
@@ -261,7 +256,7 @@ async fn enrich_correlation_fills_only_missing_keys() {
 
 #[tokio::test]
 async fn list_by_server_returns_saved_rows() {
-    let Some(db) = db_or_skip().await else { return };
+    let db = test_db_pool().await;
     let repo = McpArtifactRepository::new(&db).unwrap();
     let server = unique("srv");
     let id_a = ArtifactId::new(unique("art"));
@@ -282,7 +277,7 @@ async fn list_by_server_returns_saved_rows() {
 
 #[tokio::test]
 async fn delete_returns_true_for_existing_artifact() {
-    let Some(db) = db_or_skip().await else { return };
+    let db = test_db_pool().await;
     let repo = McpArtifactRepository::new(&db).unwrap();
     let id = ArtifactId::new(unique("art"));
     repo.save(&full_artifact(&db, &id, &unique("srv")).await)
@@ -297,7 +292,7 @@ async fn delete_returns_true_for_existing_artifact() {
 async fn find_by_id_hides_expired_artifact() {
     use chrono::Duration;
 
-    let Some(db) = db_or_skip().await else { return };
+    let db = test_db_pool().await;
     let repo = McpArtifactRepository::new(&db).unwrap();
     let id = ArtifactId::new(unique("art"));
     let mut create = full_artifact(&db, &id, &unique("srv")).await;

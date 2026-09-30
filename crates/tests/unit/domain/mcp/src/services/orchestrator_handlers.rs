@@ -12,12 +12,10 @@ use systemprompt_mcp::services::orchestrator::{
 use systemprompt_mcp::services::process::ProcessService;
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::profile::PathsConfig;
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool, fixture_user_id};
+use systemprompt_test_fixtures::{fixture_user_id, test_db_pool};
 
-async fn make_dependencies_or_skip()
--> Option<(LifecycleOrchestrator, DatabaseService, RegistryService)> {
-    let url = fixture_database_url().ok()?;
-    let db = fixture_db_pool(&url).await.ok()?;
+async fn make_dependencies() -> (LifecycleOrchestrator, DatabaseService, RegistryService) {
+    let db = test_db_pool().await;
     let paths = PathsConfig {
         system: "/tmp".to_string(),
         services: "/tmp".to_string(),
@@ -32,7 +30,7 @@ async fn make_dependencies_or_skip()
             systemprompt_models::PathResolution::Canonicalize,
             None,
         )
-        .ok()?,
+        .expect("app paths"),
     );
     let registry = RegistryService::new(fixture_user_id());
     let database = DatabaseService::new(
@@ -51,7 +49,7 @@ async fn make_dependencies_or_skip()
         MonitoringService::new(),
         app_paths,
     );
-    Some((lifecycle, database, registry))
+    (lifecycle, database, registry)
 }
 
 #[tokio::test]
@@ -75,9 +73,7 @@ fn health_check_handler_new_and_with_restart_sender() {
 
 #[tokio::test]
 async fn database_sync_handler_construction() {
-    let Some((_lifecycle, database, _registry)) = make_dependencies_or_skip().await else {
-        return;
-    };
+    let (_lifecycle, database, _registry) = make_dependencies().await;
     let h = DatabaseSyncHandler::new(database);
     let _ = format!("{h:?}");
 }

@@ -23,12 +23,10 @@ use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::mcp::deployment::{McpServerType, OAuthRequirement};
 use systemprompt_models::mcp::server::McpServerConfig;
 use systemprompt_models::profile::PathsConfig;
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool, fixture_user_id};
+use systemprompt_test_fixtures::{fixture_user_id, test_db_pool};
 
-async fn make_lifecycle_or_skip() -> Option<(LifecycleOrchestrator, systemprompt_database::DbPool)>
-{
-    let url = fixture_database_url().ok()?;
-    let db = fixture_db_pool(&url).await.ok()?;
+async fn make_lifecycle() -> (LifecycleOrchestrator, systemprompt_database::DbPool) {
+    let db = test_db_pool().await;
     let paths = PathsConfig {
         system: "/tmp".to_string(),
         services: "/tmp".to_string(),
@@ -43,7 +41,7 @@ async fn make_lifecycle_or_skip() -> Option<(LifecycleOrchestrator, systemprompt
             systemprompt_models::PathResolution::Canonicalize,
             None,
         )
-        .ok()?,
+        .expect("app paths"),
     );
     let registry = RegistryService::new(fixture_user_id());
     let database = DatabaseService::new(
@@ -62,7 +60,7 @@ async fn make_lifecycle_or_skip() -> Option<(LifecycleOrchestrator, systemprompt
         MonitoringService::new(),
         app_paths,
     );
-    Some((lifecycle, db))
+    (lifecycle, db)
 }
 
 fn make_config(name: &str, port: u16) -> McpServerConfig {
@@ -101,9 +99,7 @@ fn make_config(name: &str, port: u16) -> McpServerConfig {
 
 #[tokio::test]
 async fn stop_server_cleans_up_stale_db_row() {
-    let Some((life, db)) = make_lifecycle_or_skip().await else {
-        return;
-    };
+    let (life, db) = make_lifecycle().await;
     let name = format!("stop-stale-{}", uuid::Uuid::new_v4().simple());
     let port = 65528;
     let repo = ServiceRepository::new(
@@ -129,9 +125,7 @@ async fn stop_server_cleans_up_stale_db_row() {
 
 #[tokio::test]
 async fn health_check_dead_port_returns_false_and_updates_status() {
-    let Some((life, db)) = make_lifecycle_or_skip().await else {
-        return;
-    };
+    let (life, db) = make_lifecycle().await;
     let name = format!("health-dead-{}", uuid::Uuid::new_v4().simple());
     let port = 65527;
     let repo = ServiceRepository::new(
@@ -158,9 +152,7 @@ async fn health_check_dead_port_returns_false_and_updates_status() {
 
 #[tokio::test]
 async fn cleanup_stale_services_marks_dead_port_rows_stopped() {
-    let Some((_, db)) = make_lifecycle_or_skip().await else {
-        return;
-    };
+    let (_, db) = make_lifecycle().await;
     let name = format!("clean-stale-{}", uuid::Uuid::new_v4().simple());
     let port = 65526;
     let repo = ServiceRepository::new(
@@ -184,9 +176,7 @@ async fn cleanup_stale_services_marks_dead_port_rows_stopped() {
 
 #[tokio::test]
 async fn sync_database_state_marks_unhealthy_crashed() {
-    let Some((_, db)) = make_lifecycle_or_skip().await else {
-        return;
-    };
+    let (_, db) = make_lifecycle().await;
     let name = format!("sync-crash-{}", uuid::Uuid::new_v4().simple());
     let port = 65525;
     let repo = ServiceRepository::new(
@@ -211,9 +201,7 @@ async fn sync_database_state_marks_unhealthy_crashed() {
 
 #[tokio::test]
 async fn reconcile_running_processes_reports_dead_ports() {
-    let Some((_, db)) = make_lifecycle_or_skip().await else {
-        return;
-    };
+    let (_, db) = make_lifecycle().await;
     let name = format!("rec-{}", uuid::Uuid::new_v4().simple());
     let port = 65524;
     let repo = ServiceRepository::new(
@@ -241,9 +229,7 @@ async fn reconcile_running_processes_reports_dead_ports() {
 
 #[tokio::test]
 async fn repair_inconsistencies_marks_pidless_running_as_stopped() {
-    let Some((_, db)) = make_lifecycle_or_skip().await else {
-        return;
-    };
+    let (_, db) = make_lifecycle().await;
     let name = format!("repair-{}", uuid::Uuid::new_v4().simple());
     let port = 65523;
     let repo = ServiceRepository::new(
@@ -266,9 +252,7 @@ async fn repair_inconsistencies_marks_pidless_running_as_stopped() {
 
 #[tokio::test]
 async fn delete_crashed_services_runs() {
-    let Some((_, db)) = make_lifecycle_or_skip().await else {
-        return;
-    };
+    let (_, db) = make_lifecycle().await;
     let name = format!("crash-{}", uuid::Uuid::new_v4().simple());
     let port = 65522;
     let repo = ServiceRepository::new(
@@ -290,9 +274,7 @@ async fn delete_crashed_services_runs() {
 
 #[tokio::test]
 async fn health_check_with_stale_pid_marks_stopped() {
-    let Some((life, db)) = make_lifecycle_or_skip().await else {
-        return;
-    };
+    let (life, db) = make_lifecycle().await;
     let name = format!("health-pid-{}", uuid::Uuid::new_v4().simple());
     let port = 65521;
     let repo = ServiceRepository::new(
@@ -320,9 +302,7 @@ async fn health_check_with_stale_pid_marks_stopped() {
 
 #[tokio::test]
 async fn stop_server_with_stale_db_pid_goes_through_stale_cleanup() {
-    let Some((life, db)) = make_lifecycle_or_skip().await else {
-        return;
-    };
+    let (life, db) = make_lifecycle().await;
     let name = format!("stop-pid-{}", uuid::Uuid::new_v4().simple());
     let port = 65520;
     let repo = ServiceRepository::new(

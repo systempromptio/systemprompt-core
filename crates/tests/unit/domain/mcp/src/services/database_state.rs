@@ -5,12 +5,7 @@ use systemprompt_database::ServiceRepository;
 use systemprompt_mcp::services::database::state::{
     get_binary_mtime, get_service_by_name, unregister_service,
 };
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
-
-async fn db_or_skip() -> Option<systemprompt_database::DbPool> {
-    let url = fixture_database_url().ok()?;
-    fixture_db_pool(&url).await.ok()
-}
+use systemprompt_test_fixtures::test_db_pool;
 
 #[test]
 fn get_binary_mtime_missing_file_returns_none() {
@@ -26,7 +21,7 @@ fn get_binary_mtime_existing_file_returns_some() {
 
 #[tokio::test]
 async fn get_service_by_name_missing_returns_none() {
-    let Some(db) = db_or_skip().await else { return };
+    let db = test_db_pool().await;
     let svc_repo = ServiceRepository::new(
         &db,
         systemprompt_identifiers::InstanceId::new("test-instance"),
@@ -40,7 +35,7 @@ async fn get_service_by_name_missing_returns_none() {
 
 #[tokio::test]
 async fn unregister_service_missing_no_panic() {
-    let Some(db) = db_or_skip().await else { return };
+    let db = test_db_pool().await;
     let svc_repo = ServiceRepository::new(
         &db,
         systemprompt_identifiers::InstanceId::new("test-instance"),

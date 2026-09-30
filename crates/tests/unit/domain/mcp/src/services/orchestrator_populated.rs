@@ -10,9 +10,7 @@ use systemprompt_database::{CreateServiceInput, ServiceRepository};
 use systemprompt_mcp::services::orchestrator::{McpEvent, McpOrchestrator};
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::profile::PathsConfig;
-use systemprompt_test_fixtures::{
-    TestBootstrap, fixture_database_url, fixture_db_pool, fixture_user_id,
-};
+use systemprompt_test_fixtures::{TestBootstrap, fixture_user_id, test_db_pool};
 use wiremock::MockServer;
 
 use crate::harness::{
@@ -34,8 +32,7 @@ fn profile_paths(bootstrap: &TestBootstrap) -> PathsConfig {
 
 async fn orchestrator_with_config(blocks: &[String], internal: &[&str]) -> McpOrchestrator {
     let bootstrap = bootstrap_with_services(&config_with_servers(blocks));
-    let url = fixture_database_url().expect("fixture database URL");
-    let db = fixture_db_pool(&url).await.expect("fixture database pool");
+    let db = test_db_pool().await;
     for name in internal {
         register_internal_extension(bootstrap, name);
     }
@@ -171,8 +168,7 @@ async fn validate_internal_running_server_probes_local_port() {
     mount_mcp_endpoint(&mock, default_tools_json()).await;
     let name = unique("valrun");
     let o = orchestrator_with_config(&[internal_server_block(&name, port)], &[&name]).await;
-    let url = fixture_database_url().expect("fixture database URL");
-    let db = fixture_db_pool(&url).await.expect("pool");
+    let db = test_db_pool().await;
     let repo = ServiceRepository::new(
         &db,
         systemprompt_identifiers::InstanceId::new("test-instance"),
@@ -292,8 +288,7 @@ async fn restart_services_sync_missing_binary_fails_after_clean_stop() {
         "restart of 'all' over the DB running set is empty and succeeds"
     );
 
-    let url = fixture_database_url().expect("fixture database URL");
-    let db = fixture_db_pool(&url).await.expect("pool");
+    let db = test_db_pool().await;
     let repo = ServiceRepository::new(
         &db,
         systemprompt_identifiers::InstanceId::new("test-instance"),
@@ -324,8 +319,7 @@ async fn restart_services_publishes_restart_requested_event() {
     let name = unique("restartreq");
     let o = orchestrator_with_config(&[internal_server_block(&name, port)], &[&name]).await;
     install_stub_binary(installed_bootstrap(), &name);
-    let url = fixture_database_url().expect("fixture database URL");
-    let db = fixture_db_pool(&url).await.expect("pool");
+    let db = test_db_pool().await;
     let repo = ServiceRepository::new(
         &db,
         systemprompt_identifiers::InstanceId::new("test-instance"),
@@ -447,8 +441,7 @@ async fn reconcile_with_events_kills_running_row_and_reports_cleanup() {
     let port = free_port();
     let name = unique("reckill");
     let o = orchestrator_with_config(&[internal_server_block(&name, port)], &[&name]).await;
-    let url = fixture_database_url().expect("fixture database URL");
-    let db = fixture_db_pool(&url).await.expect("pool");
+    let db = test_db_pool().await;
     let repo = ServiceRepository::new(
         &db,
         systemprompt_identifiers::InstanceId::new("test-instance"),

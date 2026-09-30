@@ -77,10 +77,8 @@ async fn owner_count(pool: &sqlx::PgPool, table: &str, owner: &UserId) -> i64 {
 
 #[tokio::test]
 async fn late_session_failure_rolls_back_mcp_owner_transfer_then_retry_moves_and_revokes() {
-    let database = DisposableDb::installed("mcp_owner_reassignment")
-        .await
-        .expect("isolated database");
-    let db = database.pool().await.expect("database pool");
+    let database = DisposableDb::with_schema("mcp_owner_reassignment").await;
+    let db = database.test_pool().await;
     let raw = db.write_pool_arc().expect("write pool");
     let source = UserId::new(format!("mcp-source-{}", uuid::Uuid::new_v4()));
     let target = UserId::new(format!("mcp-target-{}", uuid::Uuid::new_v4()));

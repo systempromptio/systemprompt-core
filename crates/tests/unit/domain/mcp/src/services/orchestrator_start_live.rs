@@ -11,9 +11,7 @@ use systemprompt_database::ServiceRepository;
 use systemprompt_mcp::services::orchestrator::{McpEvent, McpOrchestrator};
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::profile::PathsConfig;
-use systemprompt_test_fixtures::{
-    TestBootstrap, fixture_database_url, fixture_db_pool, fixture_user_id,
-};
+use systemprompt_test_fixtures::{TestBootstrap, fixture_user_id, test_db_pool};
 
 use crate::harness::{
     bootstrap_with_services, config_with_servers, install_stub_binary, internal_server_block,
@@ -58,10 +56,9 @@ impl LiveServer {
     }
 }
 
-async fn live_server_or_skip(prefix: &str) -> Option<LiveServer> {
+async fn live_server(prefix: &str) -> LiveServer {
     let name = unique(prefix);
-    let url = fixture_database_url().ok()?;
-    let db = fixture_db_pool(&url).await.ok()?;
+    let db = test_db_pool().await;
     let bootstrap = bootstrap_with_services(&config_with_servers(&[internal_server_block(
         &name,
         free_port(),
@@ -75,32 +72,30 @@ async fn live_server_or_skip(prefix: &str) -> Option<LiveServer> {
             systemprompt_models::PathResolution::Canonicalize,
             None,
         )
-        .ok()?,
+        .expect("app paths"),
     );
     let repo = ServiceRepository::new(
         &db,
         systemprompt_identifiers::InstanceId::new("test-instance"),
     )
-    .ok()?;
+    .expect("service repository");
     let orchestrator = McpOrchestrator::new(
         repo.clone(),
         app_paths,
         RegistryService::new(fixture_user_id()),
     )
-    .ok()?;
+    .expect("orchestrator");
 
-    Some(LiveServer {
+    LiveServer {
         orchestrator,
         name,
         repo,
-    })
+    }
 }
 
 #[tokio::test]
 async fn start_services_registers_a_listening_server_and_publishes_started() {
-    let Some(live) = live_server_or_skip("startlive").await else {
-        return;
-    };
+    let live = live_server("startlive").await;
     let mut rx = live.orchestrator.subscribe_events();
 
     let result = live
@@ -139,9 +134,7 @@ async fn start_services_registers_a_listening_server_and_publishes_started() {
 
 #[tokio::test]
 async fn reconcile_starts_a_listening_server_and_reports_completion() {
-    let Some(live) = live_server_or_skip("reclive").await else {
-        return;
-    };
+    let live = live_server("reclive").await;
     let mut rx = live.orchestrator.subscribe_events();
 
     let (tx, mut startup_rx) = systemprompt_traits::startup_channel();
@@ -187,9 +180,7 @@ async fn reconcile_starts_a_listening_server_and_reports_completion() {
 
 #[tokio::test]
 async fn a_second_reconcile_kills_the_previous_process_and_starts_a_fresh_one() {
-    let Some(live) = live_server_or_skip("recidem").await else {
-        return;
-    };
+    let live = live_server("recidem").await;
 
     let first = live.orchestrator.reconcile().await;
     let first_pid = live
@@ -223,9 +214,7 @@ async fn a_second_reconcile_kills_the_previous_process_and_starts_a_fresh_one() 
 
 #[tokio::test]
 async fn stop_services_terminates_a_running_server_and_publishes_stopped() {
-    let Some(live) = live_server_or_skip("stoplive").await else {
-        return;
-    };
+    let live = live_server("stoplive").await;
 
     live.orchestrator
         .start_services(Some(live.name.clone()))

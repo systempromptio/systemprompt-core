@@ -12,14 +12,11 @@ use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::SessionId;
 use systemprompt_mcp::repository::McpProxyIdentityRepository;
-use systemprompt_test_fixtures::{
-    ensure_test_secrets_bootstrap, fixture_database_url, fixture_db_pool,
-};
+use systemprompt_test_fixtures::{ensure_test_secrets_bootstrap, test_db_pool};
 
 async fn pool() -> (DbPool, Arc<PgPool>) {
     ensure_test_secrets_bootstrap();
-    let url = fixture_database_url().expect("DATABASE_URL must be set");
-    let db = fixture_db_pool(&url).await.expect("pool");
+    let db = test_db_pool().await;
     let write = db.write_pool_arc().expect("write pool");
     (db, write)
 }

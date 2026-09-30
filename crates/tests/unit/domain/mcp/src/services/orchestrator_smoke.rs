@@ -12,11 +12,10 @@ use systemprompt_database::ServiceRepository;
 use systemprompt_mcp::services::orchestrator::McpOrchestrator;
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::profile::PathsConfig;
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool, fixture_user_id};
+use systemprompt_test_fixtures::{fixture_user_id, test_db_pool};
 
-async fn make_orchestrator_or_skip() -> Option<McpOrchestrator> {
-    let url = fixture_database_url().ok()?;
-    let db = fixture_db_pool(&url).await.ok()?;
+async fn make_orchestrator() -> McpOrchestrator {
+    let db = test_db_pool().await;
     let paths = PathsConfig {
         system: "/tmp".to_string(),
         services: "/tmp".to_string(),
@@ -31,36 +30,27 @@ async fn make_orchestrator_or_skip() -> Option<McpOrchestrator> {
             systemprompt_models::PathResolution::Canonicalize,
             None,
         )
-        .ok()?,
+        .expect("app paths"),
     );
     let registry = RegistryService::new(fixture_user_id());
     let service_repo = ServiceRepository::new(
         &db,
         systemprompt_identifiers::InstanceId::new("test-instance"),
     )
-    .ok()?;
-    McpOrchestrator::new(service_repo, app_paths, registry).ok()
+    .expect("service repository");
+    McpOrchestrator::new(service_repo, app_paths, registry).expect("orchestrator")
 }
 
 #[tokio::test]
 async fn orchestrator_new_succeeds() {
-    let Some(_o) = make_orchestrator_or_skip().await else {
-        return;
-    };
+    let _o = make_orchestrator().await;
 }
 
 #[tokio::test]
 async fn orchestrator_get_running_servers_excludes_rows_absent_from_registry() {
     use systemprompt_database::{CreateServiceInput, ServiceRepository};
-    let Some(o) = make_orchestrator_or_skip().await else {
-        return;
-    };
-    let Some(url) = fixture_database_url().ok() else {
-        return;
-    };
-    let Some(db) = fixture_db_pool(&url).await.ok() else {
-        return;
-    };
+    let o = make_orchestrator().await;
+    let db = test_db_pool().await;
     let repo = ServiceRepository::new(
         &db,
         systemprompt_identifiers::InstanceId::new("test-instance"),
@@ -87,9 +77,7 @@ async fn orchestrator_get_running_servers_excludes_rows_absent_from_registry() {
 
 #[tokio::test]
 async fn orchestrator_get_service_info_missing_returns_none() {
-    let Some(o) = make_orchestrator_or_skip().await else {
-        return;
-    };
+    let o = make_orchestrator().await;
     let r = o
         .get_service_info(&format!("missing-{}", uuid::Uuid::new_v4().simple()))
         .await
@@ -99,16 +87,12 @@ async fn orchestrator_get_service_info_missing_returns_none() {
 
 #[tokio::test]
 async fn orchestrator_subscribe_events_returns_receiver() {
-    let Some(o) = make_orchestrator_or_skip().await else {
-        return;
-    };
+    let o = make_orchestrator().await;
     let _rx = o.subscribe_events();
 }
 
 #[tokio::test]
 async fn orchestrator_registry_accessor() {
-    let Some(o) = make_orchestrator_or_skip().await else {
-        return;
-    };
+    let o = make_orchestrator().await;
     let _ = o.registry();
 }

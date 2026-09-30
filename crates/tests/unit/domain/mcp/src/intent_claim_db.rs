@@ -17,14 +17,7 @@ use systemprompt_mcp::models::ToolExecutionRequest;
 use systemprompt_mcp::repository::ToolUsageRepository;
 use systemprompt_models::RequestContext;
 use systemprompt_models::mcp::{Correlation, ExecutionSource};
-use systemprompt_test_fixtures::{
-    fixture_database_url, fixture_db_pool, seed_user_row, seed_user_session,
-};
-
-async fn db_or_skip() -> Option<systemprompt_database::DbPool> {
-    let url = fixture_database_url().ok()?;
-    fixture_db_pool(&url).await.ok()
-}
+use systemprompt_test_fixtures::{seed_user_row, seed_user_session, test_db_pool};
 
 fn unique(prefix: &str) -> String {
     format!("{prefix}-{}", uuid::Uuid::new_v4().simple())
@@ -120,7 +113,7 @@ async fn seed_intents(
 
 #[tokio::test]
 async fn two_executions_of_one_tool_claim_two_different_intents_and_a_third_gets_none() {
-    let Some(db) = db_or_skip().await else { return };
+    let db = test_db_pool().await;
     let repo = Arc::new(ToolUsageRepository::new(&db).unwrap());
     let claims = claims(&db, &repo);
     let session = unique("sess");
@@ -171,7 +164,7 @@ async fn two_executions_of_one_tool_claim_two_different_intents_and_a_third_gets
 
 #[tokio::test]
 async fn a_tool_name_with_an_underscore_does_not_match_another_tool_by_wildcard() {
-    let Some(db) = db_or_skip().await else { return };
+    let db = test_db_pool().await;
     let repo = Arc::new(ToolUsageRepository::new(&db).unwrap());
     let claims = claims(&db, &repo);
     let session = unique("sess");
@@ -204,7 +197,7 @@ async fn a_tool_name_with_an_underscore_does_not_match_another_tool_by_wildcard(
 
 #[tokio::test]
 async fn an_explicit_intent_claim_is_first_writer_wins() {
-    let Some(db) = db_or_skip().await else { return };
+    let db = test_db_pool().await;
     let repo = Arc::new(ToolUsageRepository::new(&db).expect("repository"));
     let claims = claims(&db, &repo);
     let session = unique("explicit-claim");
@@ -248,7 +241,7 @@ async fn an_explicit_intent_claim_is_first_writer_wins() {
 
 #[tokio::test]
 async fn an_intent_an_execution_already_carries_is_handed_to_it_and_the_next_is_claimed() {
-    let Some(db) = db_or_skip().await else { return };
+    let db = test_db_pool().await;
     let repo = Arc::new(ToolUsageRepository::new(&db).expect("repository"));
     let claims = claims(&db, &repo);
     let session = unique("reconcile");

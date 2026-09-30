@@ -18,16 +18,11 @@ use systemprompt_models::artifacts::TextArtifact;
 use systemprompt_models::auth::UserType;
 use systemprompt_models::mcp::ExecutionSource;
 use systemprompt_security::policy::secrets::{REDACTION_MARKER, SecretScanner};
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::test_db_pool;
 
 const PATTERNS: &str =
     "patterns:\n  - id: recovery-key\n    name: Recovery Key\n    regex: 'XRECOVERY-[0-9]+'\n";
 const KEY: &str = "XRECOVERY-1234567890";
-
-async fn db_or_skip() -> Option<systemprompt_database::DbPool> {
-    let url = fixture_database_url().ok()?;
-    fixture_db_pool(&url).await.ok()
-}
 
 fn scanner() -> Arc<SecretScanner> {
     let yaml: serde_yaml::Value = serde_yaml::from_str(PATTERNS).unwrap();
@@ -50,7 +45,7 @@ fn ctx() -> RequestContext {
 
 #[tokio::test]
 async fn a_redacted_result_reaches_the_wire_without_the_secret() {
-    let Some(db) = db_or_skip().await else { return };
+    let db = test_db_pool().await;
     let ingest = ArtifactIngest::from_db(&db, Some(scanner())).expect("ingest");
     let context = ctx();
     let exec_id = McpExecutionId::generate();
@@ -86,7 +81,7 @@ async fn a_redacted_result_reaches_the_wire_without_the_secret() {
 
 #[tokio::test]
 async fn the_ingest_outcome_carries_the_redacted_body_so_no_read_back_is_needed() {
-    let Some(db) = db_or_skip().await else { return };
+    let db = test_db_pool().await;
     let ingest = ArtifactIngest::from_db(&db, Some(scanner())).expect("ingest");
 
     let outcome = ingest
@@ -128,7 +123,7 @@ async fn the_ingest_outcome_carries_the_redacted_body_so_no_read_back_is_needed(
 
 #[tokio::test]
 async fn an_oversized_body_is_scanned_before_only_its_header_is_stored() {
-    let Some(db) = db_or_skip().await else { return };
+    let db = test_db_pool().await;
     let ingest = ArtifactIngest::from_db(&db, Some(scanner())).expect("ingest");
     let filler = "x".repeat(MAX_PAYLOAD_BYTES + 1024);
 

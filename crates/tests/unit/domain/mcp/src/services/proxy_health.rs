@@ -1,16 +1,11 @@
 //! DB-backed tests for [`ProxyHealthCheck`].
 
 use systemprompt_mcp::services::monitoring::proxy_health::{ProxyHealthCheck, RoutableService};
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
-
-async fn db_or_skip() -> Option<systemprompt_database::DbPool> {
-    let url = fixture_database_url().ok()?;
-    fixture_db_pool(&url).await.ok()
-}
+use systemprompt_test_fixtures::test_db_pool;
 
 #[tokio::test]
 async fn can_route_traffic_missing_service_returns_false() {
-    let Some(db) = db_or_skip().await else { return };
+    let db = test_db_pool().await;
     let p = ProxyHealthCheck::new(
         systemprompt_database::ServiceRepository::new(
             &db,
@@ -28,7 +23,7 @@ async fn can_route_traffic_missing_service_returns_false() {
 #[tokio::test]
 async fn list_routable_services_excludes_service_with_unresponsive_port() {
     use systemprompt_database::{CreateServiceInput, ServiceRepository};
-    let Some(db) = db_or_skip().await else { return };
+    let db = test_db_pool().await;
     let p = ProxyHealthCheck::new(
         systemprompt_database::ServiceRepository::new(
             &db,
@@ -69,7 +64,7 @@ async fn list_routable_services_excludes_service_with_unresponsive_port() {
 #[tokio::test]
 async fn can_route_traffic_running_service_unreachable_port_returns_false() {
     use systemprompt_database::{CreateServiceInput, ServiceRepository};
-    let Some(db) = db_or_skip().await else { return };
+    let db = test_db_pool().await;
     let p = ProxyHealthCheck::new(
         systemprompt_database::ServiceRepository::new(
             &db,
@@ -101,7 +96,7 @@ async fn can_route_traffic_running_service_unreachable_port_returns_false() {
 #[tokio::test]
 async fn can_route_traffic_stopped_service_returns_false() {
     use systemprompt_database::{CreateServiceInput, ServiceRepository};
-    let Some(db) = db_or_skip().await else { return };
+    let db = test_db_pool().await;
     let p = ProxyHealthCheck::new(
         systemprompt_database::ServiceRepository::new(
             &db,

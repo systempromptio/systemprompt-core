@@ -7,23 +7,18 @@
 use systemprompt_identifiers::{AiToolCallId, ContextId, McpExecutionId};
 use systemprompt_mcp::repository::ToolUsageRepository;
 use systemprompt_models::mcp::ExecutionSource;
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::test_db_pool;
 use systemprompt_traits::ToolExecutionLookup;
-
-async fn db_or_skip() -> Option<systemprompt_database::DbPool> {
-    let url = fixture_database_url().ok()?;
-    fixture_db_pool(&url).await.ok()
-}
 
 #[tokio::test]
 async fn repository_new_succeeds() {
-    let Some(db) = db_or_skip().await else { return };
+    let db = test_db_pool().await;
     drop(ToolUsageRepository::new(&db).expect("ctor"));
 }
 
 #[tokio::test]
 async fn find_by_id_random_returns_none() {
-    let Some(db) = db_or_skip().await else { return };
+    let db = test_db_pool().await;
     let repo = ToolUsageRepository::new(&db).unwrap();
     let id = McpExecutionId::new(format!("none-{}", uuid::Uuid::new_v4().simple()));
     let r = repo.find_by_id(&id).await.unwrap();
@@ -32,7 +27,7 @@ async fn find_by_id_random_returns_none() {
 
 #[tokio::test]
 async fn find_by_ai_call_id_random_returns_none() {
-    let Some(db) = db_or_skip().await else { return };
+    let db = test_db_pool().await;
     let repo = ToolUsageRepository::new(&db).unwrap();
     let id = AiToolCallId::new(format!("none-{}", uuid::Uuid::new_v4().simple()));
     let r = repo.find_by_ai_call_id(&id).await.unwrap();
@@ -47,7 +42,7 @@ async fn execution_exists_answers_through_the_shared_lookup_seam() {
     use systemprompt_mcp::models::{ExecutionStatus, ToolExecutionRequest, ToolExecutionResult};
     use systemprompt_models::RequestContext;
 
-    let Some(db) = db_or_skip().await else { return };
+    let db = test_db_pool().await;
     let repo = ToolUsageRepository::new(&db).unwrap();
 
     let tool_name = format!("stats-tool-{}", uuid::Uuid::new_v4().simple());
@@ -101,7 +96,7 @@ async fn start_and_complete_execution_roundtrip() {
     use systemprompt_mcp::models::{ExecutionStatus, ToolExecutionRequest, ToolExecutionResult};
     use systemprompt_models::RequestContext;
 
-    let Some(db) = db_or_skip().await else { return };
+    let db = test_db_pool().await;
     let repo = ToolUsageRepository::new(&db).unwrap();
     let ctx = RequestContext::new(
         SessionId::new("s1"),
@@ -184,7 +179,7 @@ async fn log_execution_sync_writes_row() {
     use systemprompt_mcp::models::{ExecutionStatus, ToolExecutionRequest, ToolExecutionResult};
     use systemprompt_models::RequestContext;
 
-    let Some(db) = db_or_skip().await else { return };
+    let db = test_db_pool().await;
     let repo = ToolUsageRepository::new(&db).unwrap();
     let ctx = RequestContext::new(
         SessionId::new("s2"),

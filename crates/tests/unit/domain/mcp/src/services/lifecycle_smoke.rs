@@ -14,11 +14,10 @@ use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::mcp::deployment::{McpServerType, OAuthRequirement};
 use systemprompt_models::mcp::server::McpServerConfig;
 use systemprompt_models::profile::PathsConfig;
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool, fixture_user_id};
+use systemprompt_test_fixtures::{fixture_user_id, test_db_pool};
 
-async fn make_orchestrator_or_skip() -> Option<(LifecycleOrchestrator, McpServerConfig)> {
-    let url = fixture_database_url().ok()?;
-    let db = fixture_db_pool(&url).await.ok()?;
+async fn make_orchestrator() -> (LifecycleOrchestrator, McpServerConfig) {
+    let db = test_db_pool().await;
     let paths = PathsConfig {
         system: "/tmp".to_string(),
         services: "/tmp".to_string(),
@@ -33,7 +32,7 @@ async fn make_orchestrator_or_skip() -> Option<(LifecycleOrchestrator, McpServer
             systemprompt_models::PathResolution::Canonicalize,
             None,
         )
-        .ok()?,
+        .expect("app paths"),
     );
     let registry = RegistryService::new(fixture_user_id());
     let database = DatabaseService::new(
@@ -85,14 +84,12 @@ async fn make_orchestrator_or_skip() -> Option<(LifecycleOrchestrator, McpServer
         headers: Default::default(),
     };
 
-    Some((lifecycle, config))
+    (lifecycle, config)
 }
 
 #[tokio::test]
 async fn accessor_methods_return_inner_services() {
-    let Some((life, _)) = make_orchestrator_or_skip().await else {
-        return;
-    };
+    let (life, _) = make_orchestrator().await;
     let _ = life.process();
     let _ = life.network();
     let _ = life.database();
@@ -102,35 +99,27 @@ async fn accessor_methods_return_inner_services() {
 
 #[tokio::test]
 async fn stop_server_on_missing_service_is_noop() {
-    let Some((life, config)) = make_orchestrator_or_skip().await else {
-        return;
-    };
+    let (life, config) = make_orchestrator().await;
     life.stop_server(&config).await.unwrap();
 }
 
 #[tokio::test]
 async fn health_check_on_missing_service_returns_false() {
-    let Some((life, config)) = make_orchestrator_or_skip().await else {
-        return;
-    };
+    let (life, config) = make_orchestrator().await;
     let r = life.health_check(&config).await.unwrap();
     assert!(!r);
 }
 
 #[tokio::test]
 async fn start_server_with_nonexistent_binary_returns_err() {
-    let Some((life, config)) = make_orchestrator_or_skip().await else {
-        return;
-    };
+    let (life, config) = make_orchestrator().await;
     let r = life.start_server(&config).await;
     assert!(r.is_err());
 }
 
 #[tokio::test]
 async fn start_server_rejects_external_without_spawning() {
-    let Some((life, mut config)) = make_orchestrator_or_skip().await else {
-        return;
-    };
+    let (life, mut config) = make_orchestrator().await;
     config.server_type = McpServerType::External;
     config.binary = None;
     config.port = None;

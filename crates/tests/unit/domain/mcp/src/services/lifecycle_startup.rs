@@ -8,9 +8,7 @@ use std::time::Duration;
 use systemprompt_mcp::services::LifecycleOrchestrator;
 use systemprompt_mcp::services::lifecycle::startup::{check_health_status, wait_for_startup};
 use systemprompt_models::mcp::McpServerConfig;
-use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_database_url, fixture_db_pool, fixture_user_id,
-};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_user_id, test_db_pool};
 use systemprompt_traits::startup_channel;
 use wiremock::matchers::{body_partial_json, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -132,12 +130,7 @@ async fn check_health_status_accepts_degraded_near_exhaustion() {
 #[tokio::test]
 async fn start_server_rejects_external_servers() {
     let _ = ensure_test_bootstrap();
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
-    let Ok(db) = fixture_db_pool(&url).await else {
-        return;
-    };
+    let db = test_db_pool().await;
     let bootstrap = ensure_test_bootstrap();
     let registry = systemprompt_mcp::services::registry::RegistryService::new(fixture_user_id());
     let database = systemprompt_mcp::services::database::DatabaseService::new(

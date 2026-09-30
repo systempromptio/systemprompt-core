@@ -11,7 +11,7 @@ use systemprompt_mcp::{
     UI_RESOURCE_URI_META_KEY,
 };
 use systemprompt_models::RequestContext;
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::test_db_pool;
 
 #[derive(Serialize, JsonSchema)]
 struct UnrenderableArtifact {
@@ -46,12 +46,7 @@ fn test_ctx() -> RequestContext {
 
 #[tokio::test]
 async fn an_artifact_with_no_renderer_still_produces_a_successful_result() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
-    let Ok(db) = fixture_db_pool(&url).await else {
-        return;
-    };
+    let db = test_db_pool().await;
     let repo = ArtifactIngest::from_db(&db, None).expect("artifact ingest");
     let ctx = test_ctx();
     let exec_id = McpExecutionId::generate();
@@ -97,12 +92,7 @@ async fn an_artifact_with_no_renderer_still_produces_a_successful_result() {
 
 #[tokio::test]
 async fn the_result_meta_names_the_ui_resource_even_when_rendering_failed() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
-    let Ok(db) = fixture_db_pool(&url).await else {
-        return;
-    };
+    let db = test_db_pool().await;
     let repo = ArtifactIngest::from_db(&db, None).expect("artifact ingest");
     let ctx = test_ctx();
     let exec_id = McpExecutionId::generate();

@@ -6,7 +6,7 @@
 use systemprompt_identifiers::UserId;
 use systemprompt_mcp::orchestration::McpToolLoader;
 use systemprompt_mcp::services::registry::RegistryService;
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool, fixture_user_id};
+use systemprompt_test_fixtures::{fixture_user_id, test_db_pool};
 use wiremock::MockServer;
 
 use crate::harness::{
@@ -47,16 +47,12 @@ fn register_internal_server_extension(
     .expect("internal extension manifest");
 }
 
-async fn live_setup_or_skip(oauth_required: bool) -> Option<(Live, MockServer)> {
-    live_setup_scoped_or_skip(oauth_required, "").await
+async fn live_setup(oauth_required: bool) -> (Live, MockServer) {
+    live_setup_scoped(oauth_required, "").await
 }
 
-async fn live_setup_scoped_or_skip(
-    oauth_required: bool,
-    scopes: &str,
-) -> Option<(Live, MockServer)> {
-    let url = fixture_database_url().ok()?;
-    let db = fixture_db_pool(&url).await.ok()?;
+async fn live_setup_scoped(oauth_required: bool, scopes: &str) -> (Live, MockServer) {
+    let db = test_db_pool().await;
 
     let mock = MockServer::start().await;
     mount_mcp_endpoint(&mock, default_tools_json()).await;
@@ -81,20 +77,18 @@ async fn live_setup_scoped_or_skip(
         registry,
     );
 
-    Some((
+    (
         Live {
             loader,
             server_name,
         },
         mock,
-    ))
+    )
 }
 
 #[tokio::test]
 async fn external_server_loads_tools_without_a_service_row() {
-    let Some((live, _mock)) = live_setup_or_skip(false).await else {
-        return;
-    };
+    let (live, _mock) = live_setup(false).await;
 
     let tools_by_server = live
         .loader
@@ -113,9 +107,7 @@ async fn external_server_loads_tools_without_a_service_row() {
 
 #[tokio::test]
 async fn stopped_internal_server_has_no_row_to_load_from() {
-    let Some((live, _mock)) = live_setup_or_skip(false).await else {
-        return;
-    };
+    let (live, _mock) = live_setup(false).await;
     let internal = format!("ldr_int_{}", uuid::Uuid::new_v4().simple());
 
     let err = live
@@ -128,9 +120,7 @@ async fn stopped_internal_server_has_no_row_to_load_from() {
 
 #[tokio::test]
 async fn scoped_server_is_skipped_for_anonymous_caller() {
-    let Some((live, _mock)) = live_setup_scoped_or_skip(true, "admin").await else {
-        return;
-    };
+    let (live, _mock) = live_setup_scoped(true, "admin").await;
 
     let tools_by_server = live
         .loader
@@ -145,9 +135,7 @@ async fn scoped_server_is_skipped_for_anonymous_caller() {
 
 #[tokio::test]
 async fn invalid_jwt_fails_permission_extraction() {
-    let Some((live, _mock)) = live_setup_or_skip(false).await else {
-        return;
-    };
+    let (live, _mock) = live_setup(false).await;
 
     let context = request_context("ldr-jwt").with_auth_token("not-a-jwt".to_owned());
     let err = live
@@ -160,9 +148,7 @@ async fn invalid_jwt_fails_permission_extraction() {
 
 #[tokio::test]
 async fn create_mcp_extensions_reports_status_and_unknown_servers() {
-    let Some((live, _mock)) = live_setup_or_skip(false).await else {
-        return;
-    };
+    let (live, _mock) = live_setup(false).await;
 
     let unknown = format!("ghost_{}", uuid::Uuid::new_v4().simple());
     let servers = vec![live.server_name.clone(), unknown.clone()];
@@ -191,12 +177,7 @@ async fn create_mcp_extensions_reports_status_and_unknown_servers() {
 #[tokio::test]
 async fn create_mcp_extensions_empty_input_short_circuits() {
     let _bootstrap = bootstrap_with_services("{}\n");
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
-    let Ok(db) = fixture_db_pool(&url).await else {
-        return;
-    };
+    let db = test_db_pool().await;
     let loader = McpToolLoader::new(
         systemprompt_database::ServiceRepository::new(
             &db,
@@ -216,9 +197,7 @@ async fn create_mcp_extensions_empty_input_short_circuits() {
 
 #[tokio::test]
 async fn scoped_server_metadata_advertises_first_scope_without_tools() {
-    let Some((live, _mock)) = live_setup_scoped_or_skip(true, "admin, user").await else {
-        return;
-    };
+    let (live, _mock) = live_setup_scoped(true, "admin, user").await;
 
     let infos = live
         .loader
@@ -247,8 +226,7 @@ async fn configured_internal_server_with_stopped_row_is_rejected_without_transpo
     let yaml = config_with_servers(&[internal_server_block(&server_name, port)]);
     let bootstrap = bootstrap_with_services(&yaml);
     register_internal_server_extension(bootstrap, &server_name);
-    let url = fixture_database_url().expect("fixture database URL");
-    let db = fixture_db_pool(&url).await.expect("fixture pool");
+    let db = test_db_pool().await;
     let repo = ServiceRepository::new(
         &db,
         systemprompt_identifiers::InstanceId::new("loader-stopped-instance"),

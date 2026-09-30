@@ -8,7 +8,7 @@ use rmcp::model::ClientJsonRpcMessage;
 use rmcp::transport::streamable_http_server::session::{SessionId, SessionManager};
 use rmcp::{ServerHandler, ServiceExt};
 use systemprompt_mcp::middleware::DatabaseSessionHandler;
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::test_db_pool;
 
 #[derive(Clone)]
 struct Quiet;
@@ -34,12 +34,7 @@ fn initialize_message() -> ClientJsonRpcMessage {
 
 #[tokio::test]
 async fn session_manager_drives_full_streamable_http_lifecycle() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
-    let Ok(db) = fixture_db_pool(&url).await else {
-        return;
-    };
+    let db = test_db_pool().await;
 
     let handler = DatabaseSessionHandler::new(std::sync::Arc::new(
         systemprompt_mcp::repository::McpSessionRepository::new(&db)
@@ -134,10 +129,8 @@ async fn database_only_session_requires_reconnect_and_is_closed_durably() {
     use systemprompt_mcp::middleware::session_handler::DatabaseSessionManagerError;
     use systemprompt_test_fixtures::DisposableDb;
 
-    let database = DisposableDb::installed("mcp_session_reconnect")
-        .await
-        .expect("isolated MCP session database");
-    let db = database.pool().await.expect("isolated MCP session pool");
+    let database = DisposableDb::with_schema("mcp_session_reconnect").await;
+    let db = database.test_pool().await;
     let repository = std::sync::Arc::new(
         systemprompt_mcp::repository::McpSessionRepository::new(&db)
             .expect("MCP session repository"),
