@@ -4796,6 +4796,7 @@ dependencies = [
 name = "systemprompt-events"
 version = "0.62.0"
 dependencies = [
+ "async-trait",
  "axum",
  "chrono",
  "inventory",
@@ -4805,6 +4806,7 @@ dependencies = [
  "systemprompt-extension",
  "systemprompt-identifiers",
  "systemprompt-models",
+ "systemprompt-traits",
  "thiserror 2.0.19",
  "tokio",
  "tokio-util",
@@ -5333,6 +5335,7 @@ dependencies = [
  "inventory",
  "rand 0.10.2",
  "serde",
+ "serde_json",
  "sha2 0.11.0",
  "sqlx",
  "subtle",

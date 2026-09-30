@@ -38,7 +38,9 @@ pub use extension::LoggingExtension;
 
 pub use layer::{DatabaseLayer, enqueue_background};
 pub use models::{LogActor, LogEntry, LogFilter, LogLevel};
-pub use repository::{AnalyticsEvent, AnalyticsRepository, LoggingRepository};
+pub use repository::{
+    AnalyticsEvent, AnalyticsRepository, LoggingOwnerReassignment, LoggingRepository,
+};
 #[cfg(feature = "cli")]
 pub use services::CliService;
 pub use services::{

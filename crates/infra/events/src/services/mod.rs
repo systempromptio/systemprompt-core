@@ -8,11 +8,13 @@ mod bridge;
 mod bridge_handle;
 mod broadcaster;
 pub mod durable;
+mod ownership;
 mod repository;
 mod routing;
 
 pub use bridge::PostgresEventBridge;
 pub use bridge_handle::{EventBridgeHandle, RelayStatus};
+pub use ownership::EventsOwnerReassignment;
 pub use broadcaster::{
     A2ABroadcaster, AgUiBroadcaster, AnalyticsBroadcaster, ConnectionGuard, ContextBroadcaster,
     GenericBroadcaster, HEARTBEAT_INTERVAL, HEARTBEAT_JSON, standard_keep_alive,

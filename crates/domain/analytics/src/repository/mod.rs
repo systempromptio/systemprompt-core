@@ -17,6 +17,7 @@ mod engagement;
 mod events;
 mod fingerprint;
 mod overview;
+mod ownership;
 mod requests;
 mod session;
 mod tools;
@@ -34,6 +35,7 @@ pub use fingerprint::{
     MAX_SESSIONS_PER_FINGERPRINT, SUSTAINED_VELOCITY_MINUTES,
 };
 pub use overview::OverviewAnalyticsRepository;
+pub use ownership::AnalyticsOwnerReassignment;
 pub use requests::RequestAnalyticsRepository;
 pub use session::{
     CreateSessionParams, SessionBehavioralData, SessionMigrationResult, SessionRecord,

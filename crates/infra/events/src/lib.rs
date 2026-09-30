@@ -80,6 +80,6 @@ pub use extension::EventsExtension;
 pub use services::{
     A2A_BROADCASTER, A2ABroadcaster, AGUI_BROADCASTER, ANALYTICS_BROADCASTER, AgUiBroadcaster,
     AnalyticsBroadcaster, CONTEXT_BROADCASTER, ConnectionGuard, ContextBroadcaster,
-    EventBridgeHandle, EventRouter, GenericBroadcaster, HEARTBEAT_INTERVAL, HEARTBEAT_JSON,
+    EventBridgeHandle, EventRouter, EventsOwnerReassignment, GenericBroadcaster, HEARTBEAT_INTERVAL, HEARTBEAT_JSON,
     OUTBOX_CHANNEL, OutboxChannel, PostgresEventBridge, RelayStatus, standard_keep_alive,
 };
