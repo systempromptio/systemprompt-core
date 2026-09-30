@@ -15,6 +15,7 @@ systemprompt-database = { workspace = true }
 systemprompt-extension = { workspace = true }
 anyhow = { workspace = true }
 sqlx = { workspace = true }
+systemprompt-test-fixtures = { workspace = true }
 
 [dev-dependencies]
 async-trait = { workspace = true }
@@ -24,4 +25,10 @@ uuid = { workspace = true }
 
 [package.metadata.cargo-machete]
 # Used by test modules included via #[path="../*.rs"] outside src/, which cargo-machete's scan doesn't follow.
-ignored = ["anyhow", "sqlx", "systemprompt-database", "systemprompt-extension"]
+ignored = [
+    "anyhow",
+    "sqlx",
+    "systemprompt-database",
+    "systemprompt-extension",
+    "systemprompt-test-fixtures",
+]

@@ -18,22 +18,15 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use sqlx::{Connection, PgConnection, PgPool};
+use systemprompt_test_fixtures::test_database_url;
 use uuid::Uuid;
-
-const DEFAULT_DATABASE_URL: &str = "postgres://systemprompt_admin:\
-                                    3e00fcdac26b5b731829e8737515db8f@localhost:5432/\
-                                    systemprompt-web";
-
-fn database_url() -> String {
-    std::env::var("DATABASE_URL").unwrap_or_else(|_| DEFAULT_DATABASE_URL.to_string())
-}
 
 fn unique_job_name(prefix: &str) -> String {
     format!("test_{}_{}", prefix, Uuid::new_v4().simple())
 }
 
 async fn connect_pool() -> PgPool {
-    PgPool::connect(&database_url())
+    PgPool::connect(&test_database_url())
         .await
         .expect("connect to test database")
 }
@@ -90,7 +83,7 @@ async fn stale_lock_holder_releases_on_connection_drop() {
     let job = unique_job_name("zombie");
     let key = key_for(&pool, &job).await;
 
-    let mut holder = PgConnection::connect(&database_url())
+    let mut holder = PgConnection::connect(&test_database_url())
         .await
         .expect("standalone holder connection");
     let acquired = try_acquire(&mut holder, key).await;

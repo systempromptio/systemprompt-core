@@ -2,7 +2,6 @@
 //! `MigrationService::status`. Exercises the dry-run plan path (no DB
 //! writes) and the introspectable status path (applied / pending / drift).
 
-use std::env;
 use std::sync::Arc;
 
 use sqlx::{PgPool, query};
@@ -10,15 +9,8 @@ use systemprompt_database::{Database, MigrationService, install_extension_schema
 use systemprompt_extension::{
     Extension, ExtensionMetadata, ExtensionRegistry, Migration, SchemaDefinition,
 };
+use systemprompt_test_fixtures::test_database_url;
 use uuid::Uuid;
-
-const DEFAULT_DATABASE_URL: &str = "postgres://systemprompt_admin:\
-                                    3e00fcdac26b5b731829e8737515db8f@localhost:5432/\
-                                    systemprompt-web";
-
-fn database_url() -> String {
-    env::var("DATABASE_URL").unwrap_or_else(|_| DEFAULT_DATABASE_URL.to_string())
-}
 
 fn leak_str(s: String) -> &'static str {
     Box::leak(s.into_boxed_str())
@@ -94,7 +86,7 @@ impl Extension for TwoMigrationExt {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn plan_pending_lists_all_then_none_after_apply() {
-    let url = database_url();
+    let url = test_database_url();
     let db = Database::new_postgres(&url)
         .await
         .expect("connect to test postgres");
@@ -170,7 +162,7 @@ async fn plan_pending_lists_all_then_none_after_apply() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn status_reports_applied_pending_and_drift() {
-    let url = database_url();
+    let url = test_database_url();
     let db = Database::new_postgres(&url)
         .await
         .expect("connect to test postgres");
@@ -258,7 +250,7 @@ async fn status_reports_applied_pending_and_drift() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn repair_drift_reconciles_tampered_checksum() {
-    let url = database_url();
+    let url = test_database_url();
     let db = Database::new_postgres(&url)
         .await
         .expect("connect to test postgres");
@@ -399,7 +391,7 @@ async fn install_tampered_insert_ext(
         }))
         .expect("register");
 
-    let db = Database::new_postgres(&database_url())
+    let db = Database::new_postgres(&test_database_url())
         .await
         .expect("connect to test postgres");
     let db_arc = Arc::new(db);
@@ -428,7 +420,7 @@ async fn install_tampered_insert_ext(
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn failed_reapply_keeps_tracking_row() {
-    let url = database_url();
+    let url = test_database_url();
     let db = Database::new_postgres(&url)
         .await
         .expect("connect to test postgres");
@@ -464,7 +456,7 @@ async fn failed_reapply_keeps_tracking_row() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn reconcile_drift_rewrites_checksum_without_executing_sql() {
-    let url = database_url();
+    let url = test_database_url();
     let db = Database::new_postgres(&url)
         .await
         .expect("connect to test postgres");

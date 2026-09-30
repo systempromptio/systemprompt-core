@@ -10,6 +10,7 @@ use systemprompt_database::scope::{
 use systemprompt_database::{
     RequestScope, register_scope_provider, with_scoped_transaction, with_transaction,
 };
+use systemprompt_test_fixtures::test_database_url;
 
 struct OrgScopeProvider;
 
@@ -25,13 +26,12 @@ impl ConnectionScopeProvider for OrgScopeProvider {
 
 register_scope_provider!(|| Arc::new(OrgScopeProvider) as SharedScopeProvider);
 
-async fn test_pool_or_skip() -> Option<sqlx::PgPool> {
-    let url = std::env::var("DATABASE_URL").ok()?;
+async fn small_test_pool() -> sqlx::PgPool {
     sqlx::postgres::PgPoolOptions::new()
         .max_connections(2)
-        .connect(&url)
+        .connect(&test_database_url())
         .await
-        .ok()
+        .expect("connect to the test database")
 }
 
 async fn current_org(executor: impl sqlx::PgExecutor<'_>) -> Option<String> {
@@ -51,9 +51,7 @@ fn org_scope(org: &str) -> RequestScope {
 
 #[tokio::test]
 async fn a_scoped_transaction_sees_its_guc_and_the_pool_is_clean_afterwards() {
-    let Some(pool) = test_pool_or_skip().await else {
-        return;
-    };
+    let pool = small_test_pool().await;
 
     let seen =
         with_scoped_transaction::<_, _, anyhow::Error>(&pool, &org_scope("org_alpha"), |tx| {
@@ -70,9 +68,7 @@ async fn a_scoped_transaction_sees_its_guc_and_the_pool_is_clean_afterwards() {
 
 #[tokio::test]
 async fn concurrent_scopes_stay_isolated_on_a_shared_pool() {
-    let Some(pool) = test_pool_or_skip().await else {
-        return;
-    };
+    let pool = small_test_pool().await;
 
     // More tasks than pool connections (2), so connections are provably
     // reused across differently-scoped transactions.
@@ -97,9 +93,7 @@ async fn concurrent_scopes_stay_isolated_on_a_shared_pool() {
 
 #[tokio::test]
 async fn a_rolled_back_scoped_transaction_leaves_no_guc_behind() {
-    let Some(pool) = test_pool_or_skip().await else {
-        return;
-    };
+    let pool = small_test_pool().await;
 
     let result =
         with_scoped_transaction::<_, (), anyhow::Error>(&pool, &org_scope("org_rollback"), |tx| {
@@ -120,9 +114,7 @@ async fn a_rolled_back_scoped_transaction_leaves_no_guc_behind() {
 
 #[tokio::test]
 async fn plain_transactions_ignore_registered_providers() {
-    let Some(pool) = test_pool_or_skip().await else {
-        return;
-    };
+    let pool = small_test_pool().await;
 
     // A provider IS registered in this binary; the unscoped API must not
     // consult it.
@@ -136,9 +128,7 @@ async fn plain_transactions_ignore_registered_providers() {
 
 #[tokio::test]
 async fn an_empty_scope_applies_nothing() {
-    let Some(pool) = test_pool_or_skip().await else {
-        return;
-    };
+    let pool = small_test_pool().await;
 
     let seen = with_scoped_transaction::<_, _, anyhow::Error>(&pool, &RequestScope::new(), |tx| {
         Box::pin(async move { Ok(current_org(&mut **tx).await) })
