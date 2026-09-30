@@ -6,7 +6,8 @@
 //! updates, bulk operations and statistics.
 //!
 //! Account merging spans every domain that keys rows on a user. The service
-//! runs each injected [`OwnerReassignment`](systemprompt_traits::OwnerReassignment)
+//! runs each injected
+//! [`OwnerReassignment`](systemprompt_traits::OwnerReassignment)
 //! — one per owning crate, each in its own transaction and re-runnable — and
 //! only then the users-owned step that moves sessions, records the merge and
 //! deletes the source. A failed reassignment stops the merge with the source
@@ -17,25 +18,23 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod bulk;
+mod merge;
 mod provider;
 
-use std::collections::HashMap;
 use std::fmt;
 use std::sync::Arc;
 use systemprompt_identifiers::{SessionId, UserId};
 use systemprompt_traits::DynOwnerReassignment;
 
-use crate::error::{Result, UserError};
-use crate::models::{
-    User, UserActivity, UserCountBreakdown, UserRole, UserSession, UserStats, UserStatus,
-    UserWithSessions,
-};
-use crate::repository::{MergeResult, PurgeCount, UpdateUserParams, UserRepository};
+use crate::error::Result;
+use crate::models::{User, UserActivity, UserRole, UserSession, UserStatus, UserWithSessions};
+use crate::repository::{PurgeCount, UpdateUserParams, UserRepository};
 
 #[derive(Clone)]
 pub struct UserService {
-    repository: Arc<UserRepository>,
-    owner_reassignments: Arc<[DynOwnerReassignment]>,
+    pub(super) repository: Arc<UserRepository>,
+    pub(super) owner_reassignments: Arc<[DynOwnerReassignment]>,
 }
 
 impl fmt::Debug for UserService {
@@ -260,112 +259,5 @@ impl UserService {
 
     pub async fn count_old_anonymous(&self, days: i32) -> Result<i64> {
         self.repository.count_old_anonymous(days).await
-    }
-
-    pub async fn count_with_breakdown(&self) -> Result<UserCountBreakdown> {
-        let total = self.repository.count().await?;
-        let by_status_vec = self.repository.count_by_status().await?;
-        let by_role_vec = self.repository.count_by_role().await?;
-
-        let by_status: HashMap<String, i64> = by_status_vec.into_iter().collect();
-        let by_role: HashMap<String, i64> = by_role_vec.into_iter().collect();
-
-        Ok(UserCountBreakdown {
-            total,
-            by_status,
-            by_role,
-        })
-    }
-
-    pub async fn get_stats(&self) -> Result<UserStats> {
-        self.repository.get_stats().await
-    }
-
-    pub async fn list_by_filter(
-        &self,
-        status: Option<&str>,
-        role: Option<&str>,
-        older_than_days: Option<i64>,
-        limit: i64,
-    ) -> Result<Vec<User>> {
-        self.repository
-            .list_by_filter(status, role, older_than_days, limit)
-            .await
-    }
-
-    pub async fn bulk_update_status(&self, user_ids: &[UserId], new_status: &str) -> Result<u64> {
-        self.repository
-            .bulk_update_status(user_ids, new_status)
-            .await
-    }
-
-    pub async fn bulk_delete(&self, user_ids: &[UserId]) -> Result<u64> {
-        self.repository.bulk_delete(user_ids).await
-    }
-
-    pub async fn merge_users(&self, source_id: &UserId, target_id: &UserId) -> Result<MergeResult> {
-        if self.owner_reassignments.is_empty() {
-            return Err(UserError::MergeUnavailable);
-        }
-        if source_id == target_id {
-            return Err(UserError::Validation(
-                "cannot merge a user into itself".to_owned(),
-            ));
-        }
-        for id in [source_id, target_id] {
-            if self.repository.find_by_id(id).await?.is_none() {
-                return Err(UserError::NotFound(id.clone()));
-            }
-        }
-
-        let mut tasks = 0;
-        let mut total_rows = 0;
-        for reassignment in self.owner_reassignments.iter() {
-            let moved = reassignment
-                .reassign_owner(source_id, target_id)
-                .await
-                .map_err(|source| UserError::OwnerReassignment {
-                    domain: reassignment.domain(),
-                    source,
-                })?;
-            tasks += moved
-                .tables
-                .iter()
-                .filter(|(table, _)| *table == "agent_tasks")
-                .map(|(_, rows)| rows)
-                .sum::<u64>();
-            total_rows += moved.total();
-        }
-
-        let sessions = self.repository.complete_merge(source_id, target_id).await?;
-        Ok(MergeResult {
-            sessions,
-            tasks,
-            total_rows: total_rows + sessions,
-        })
-    }
-
-    pub async fn promote_anonymous(
-        &self,
-        source_id: &UserId,
-        target_id: &UserId,
-    ) -> Result<MergeResult> {
-        if source_id == target_id {
-            return Err(UserError::Validation(
-                "cannot promote a user onto itself".to_owned(),
-            ));
-        }
-        let source = self
-            .repository
-            .find_by_id(source_id)
-            .await?
-            .ok_or_else(|| UserError::NotFound(source_id.clone()))?;
-        if !source.has_role(UserRole::Anonymous) {
-            return Err(UserError::Validation(format!(
-                "user {} is not anonymous; use an explicit admin merge instead",
-                source_id
-            )));
-        }
-        self.merge_users(source_id, target_id).await
     }
 }
