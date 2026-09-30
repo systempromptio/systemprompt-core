@@ -21,14 +21,17 @@ pub trait SecretsProvider {
 }
 
 #[derive(Debug, Clone, Default)]
+// JSON: `secrets.json` document; keys are operator-defined until parsed.
 pub struct SecretsDocument(serde_json::Map<String, serde_json::Value>);
 
 impl SecretsDocument {
     #[must_use]
+    // JSON: `secrets.json` document; keys are operator-defined until parsed.
     pub const fn new(fields: serde_json::Map<String, serde_json::Value>) -> Self {
         Self(fields)
     }
 
+    // JSON: `secrets.json` document; keys are operator-defined until parsed.
     pub fn merge_field(&mut self, key: impl Into<String>, value: serde_json::Value) {
         self.0.insert(key.into(), value);
     }

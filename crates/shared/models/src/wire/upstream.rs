@@ -116,6 +116,7 @@ impl UpstreamDialect {
         ) && name.eq_ignore_ascii_case("anthropic-version")
     }
 
+    // JSON: provider request body — upstream wire format finished per dialect.
     pub fn finish_body(self, body: &mut Map<String, Value>) {
         if (self.wire, self.hosting) == (WireProtocol::Anthropic, Hosting::Vertex) {
             body.remove("model");
@@ -126,6 +127,7 @@ impl UpstreamDialect {
         }
     }
 
+    // JSON: provider request body — upstream wire format finished per dialect.
     pub fn finish_value(self, body: &mut Value) {
         if let Some(obj) = body.as_object_mut() {
             self.finish_body(obj);

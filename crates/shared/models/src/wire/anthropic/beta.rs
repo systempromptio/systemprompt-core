@@ -160,6 +160,7 @@ pub const BETA_GATED_FIELDS: &[BetaGatedField] = &[
     },
 ];
 
+// JSON: Anthropic Messages request body; beta-gated fields are stripped by key.
 pub fn strip_fields_gated_by(
     body: &mut Map<String, Value>,
     dropped: &BetaHeader,

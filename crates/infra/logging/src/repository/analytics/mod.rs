@@ -122,5 +122,6 @@ pub struct AnalyticsEvent {
     pub agent_id: Option<AgentId>,
     pub task_id: Option<TaskId>,
     pub message: Option<String>,
+    // JSON: analytics event `metadata` — open per-event detail, stored as JSONB.
     pub metadata: Value,
 }

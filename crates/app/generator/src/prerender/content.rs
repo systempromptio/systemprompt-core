@@ -24,6 +24,7 @@ struct SourceRenderJob<'a> {
     sitemap_config: &'a SitemapConfig,
     locale: &'a LocaleCode,
     locale_prefix: &'a str,
+    // JSON: Handlebars page context item; the page data model is dynamic.
     items: &'a [serde_json::Value],
     popular_ids: &'a [String],
 }

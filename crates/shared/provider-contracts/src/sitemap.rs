@@ -68,7 +68,7 @@ pub trait SitemapProvider: Send + Sync {
     async fn resolve_placeholders(
         &self,
         ctx: &SitemapContext<'_>,
-        // JSON: Tera template context item; the page data model is dynamic.
+        // JSON: Handlebars template context item; the page data model is dynamic.
         content: &serde_json::Value,
         placeholders: &[PlaceholderMapping],
     ) -> ProviderResult<HashMap<String, String>>;

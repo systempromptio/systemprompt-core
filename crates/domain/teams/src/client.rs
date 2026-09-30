@@ -71,6 +71,7 @@ impl TeamsClient {
         }
     }
 
+    // JSON: Bot Framework `attachments` — Adaptive Card JSON is the vendor schema.
     pub async fn reply(
         &self,
         service_url: &str,

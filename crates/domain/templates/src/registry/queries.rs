@@ -13,6 +13,7 @@ use super::TemplateRegistry;
 use crate::TemplateError;
 
 impl TemplateRegistry {
+    // JSON: Handlebars template variables; the page data model is dynamic.
     pub fn render(&self, template_name: &str, data: &Value) -> Result<String, TemplateError> {
         self.handlebars
             .render(template_name, data)
@@ -22,6 +23,7 @@ impl TemplateRegistry {
             })
     }
 
+    // JSON: Handlebars template variables; the page data model is dynamic.
     pub fn render_partial(
         &self,
         partial_name: &str,

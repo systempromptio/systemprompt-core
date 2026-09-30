@@ -64,6 +64,7 @@ pub(super) fn edit_api_keys(prompter: &dyn Prompter, profile_dir: &Path) -> Resu
     Ok(())
 }
 
+// JSON: operator-authored `secrets.json`; unknown fields survive the edit.
 fn edit_gemini_key(prompter: &dyn Prompter, secrets: &mut serde_json::Value) -> Result<()> {
     let current = secrets.get("gemini").and_then(|v| v.as_str()).unwrap_or("");
     let masked = if current.is_empty() {
@@ -81,6 +82,7 @@ fn edit_gemini_key(prompter: &dyn Prompter, secrets: &mut serde_json::Value) -> 
     Ok(())
 }
 
+// JSON: operator-authored `secrets.json`; unknown fields survive the edit.
 fn edit_anthropic_key(prompter: &dyn Prompter, secrets: &mut serde_json::Value) -> Result<()> {
     let current = secrets
         .get("anthropic")
@@ -101,6 +103,7 @@ fn edit_anthropic_key(prompter: &dyn Prompter, secrets: &mut serde_json::Value) 
     Ok(())
 }
 
+// JSON: operator-authored `secrets.json`; unknown fields survive the edit.
 fn edit_openai_key(prompter: &dyn Prompter, secrets: &mut serde_json::Value) -> Result<()> {
     let current = secrets.get("openai").and_then(|v| v.as_str()).unwrap_or("");
     let masked = if current.is_empty() {
@@ -118,6 +121,7 @@ fn edit_openai_key(prompter: &dyn Prompter, secrets: &mut serde_json::Value) -> 
     Ok(())
 }
 
+// JSON: operator-authored `secrets.json`; unknown fields survive the edit.
 fn edit_database_url(prompter: &dyn Prompter, secrets: &mut serde_json::Value) -> Result<()> {
     let current = secrets
         .get("database_url")

@@ -25,6 +25,7 @@ pub struct ToolCallParams<'a> {
     pub server_name: &'a str,
     pub url: &'a str,
     pub tool_name: &'a str,
+    // JSON: MCP tool-call arguments are the tool's own JSON object.
     pub arguments: Option<serde_json::Value>,
     pub session_ctx: &'a CliSessionContext,
     pub timeout_secs: u64,

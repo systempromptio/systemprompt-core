@@ -27,5 +27,6 @@ pub struct ArtifactPartOutput {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub text: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    // JSON: A2A `DataPart.data` is spec-defined as a free-form object.
     pub data: Option<JsonValue>,
 }

@@ -16,6 +16,7 @@ const TEXT_BLOCK_LIMIT: usize = 3000;
 const ADAPTIVE_CARD_CONTENT_TYPE: &str = "application/vnd.microsoft.card.adaptive";
 
 #[must_use]
+// JSON: Bot Framework `attachments` — Adaptive Card JSON is the vendor schema.
 pub fn render_card(text: &str) -> Value {
     let body: Vec<Value> = chunk_text(text, TEXT_BLOCK_LIMIT)
         .into_iter()

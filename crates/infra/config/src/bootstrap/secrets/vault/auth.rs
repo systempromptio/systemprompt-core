@@ -113,6 +113,7 @@ fn require_env(name: &str, lookup_env: &EnvLookup) -> Result<Zeroizing<String>, 
         })
 }
 
+// JSON: Vault auth `login` request body — fields differ per auth method.
 async fn post_login(
     http: &VaultHttp,
     mount: &str,

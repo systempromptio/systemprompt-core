@@ -67,6 +67,7 @@ impl SlackClient {
         self
     }
 
+    // JSON: Slack Block Kit `blocks` array — vendor layout JSON.
     pub async fn post_message(&self, channel: &str, blocks: Value) -> SlackResult<()> {
         validate_outbound_url(&self.post_message_url)
             .map_err(|e| SlackError::OutboundUrl(e.to_string()))?;
@@ -81,6 +82,7 @@ impl SlackClient {
         Self::check_ok(resp).await
     }
 
+    // JSON: Slack Block Kit `blocks` array — vendor layout JSON.
     pub async fn respond(
         &self,
         response_url: &str,
@@ -131,6 +133,7 @@ impl SlackClient {
     }
 
     // Why: Slack reports logical failures with HTTP 200 and `ok: false` in JSON.
+    // JSON: Slack Web API response — method-specific; only `ok`/`error` shared.
     async fn parse_ok(resp: reqwest::Response) -> SlackResult<Value> {
         let status = resp.status();
         let payload: Value = resp

@@ -29,6 +29,7 @@ pub struct JwtUserContext {
     pub user_type: UserType,
     pub client_id: Option<ClientId>,
     pub act_chain: Vec<Actor>,
+    // JSON: ABAC attribute bag — JWT claim values are policy-defined and schema-less.
     pub attributes: BTreeMap<String, serde_json::Value>,
     pub jti: String,
     pub exp: i64,

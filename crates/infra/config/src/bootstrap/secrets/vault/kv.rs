@@ -17,6 +17,7 @@ struct KvReadResponse {
 
 #[derive(Deserialize)]
 struct KvReadData {
+    // JSON: Vault KV v2 `data` — operator-defined secret keys.
     data: serde_json::Map<String, serde_json::Value>,
 
     #[serde(default)]
@@ -30,6 +31,7 @@ struct KvMetadata {
 }
 
 pub(super) struct KvEntry {
+    // JSON: Vault KV v2 `data` — operator-defined secret keys.
     pub(super) fields: serde_json::Map<String, serde_json::Value>,
     pub(super) version: u64,
 }

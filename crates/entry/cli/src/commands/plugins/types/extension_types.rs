@@ -94,6 +94,7 @@ pub struct ExtensionDetailOutput {
 pub struct ExtensionConfigOutput {
     pub extension_id: PluginId,
     pub config_prefix: Option<String>,
+    // JSON: JSON Schema document for the extension's config block.
     pub config_schema: Option<serde_json::Value>,
     pub has_config: bool,
 }

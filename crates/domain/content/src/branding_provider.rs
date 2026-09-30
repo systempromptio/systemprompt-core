@@ -28,6 +28,7 @@ impl PageDataProvider for DefaultBrandingProvider {
         "default-branding"
     }
 
+    // JSON: Handlebars template variables; the page data model is dynamic.
     async fn provide_page_data(&self, ctx: &PageContext<'_>) -> ProviderResult<Value> {
         let content_config = resolve_content_raw(ctx)?;
 

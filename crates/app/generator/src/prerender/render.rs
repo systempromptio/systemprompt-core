@@ -27,7 +27,9 @@ pub(super) struct RenderSingleItemParams<'a> {
     pub source_name: &'a str,
     pub sitemap_config: &'a SitemapConfig,
     pub locale_prefix: &'a str,
+    // JSON: Handlebars page context item; the page data model is dynamic.
     pub item: &'a serde_json::Value,
+    // JSON: Handlebars page context item; the page data model is dynamic.
     pub all_items: &'a [serde_json::Value],
     pub popular_ids: &'a [String],
     pub config_value: &'a serde_yaml::Value,
@@ -110,6 +112,7 @@ struct BuildTemplateDataParams<'a> {
     toc_html: &'a str,
 }
 
+// JSON: Handlebars template variables; the page data model is dynamic.
 async fn build_template_data(
     args: &BuildTemplateDataParams<'_>,
 ) -> GeneratorResult<serde_json::Value> {

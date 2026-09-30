@@ -7,6 +7,7 @@ use super::SchemaSanitizer;
 use serde_json::Value;
 
 impl SchemaSanitizer {
+    // JSON: JSON Schema `enum`/`const` values — any JSON per the spec.
     pub(super) fn common_json_type(values: &[Value]) -> Option<&'static str> {
         let mut kinds = values.iter().filter(|v| !v.is_null()).map(|v| match v {
             Value::String(_) => "string",

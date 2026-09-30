@@ -114,5 +114,6 @@ pub struct TaskArtifact {
     pub tool_name: Option<String>,
     pub part_kind: Option<String>,
     pub text_content: Option<String>,
+    // JSON: JSONB `data_content` column — an A2A DataPart holds any JSON object.
     pub data_content: Option<Value>,
 }

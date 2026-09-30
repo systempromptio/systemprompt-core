@@ -34,6 +34,7 @@ struct LogShowOutput {
     pub module: String,
     pub message: String,
     #[serde(skip_serializing_if = "Option::is_none")]
+    // JSON: JSONB log `metadata` column — structured tracing fields, open-shaped.
     pub metadata: Option<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub user_id: Option<UserId>,

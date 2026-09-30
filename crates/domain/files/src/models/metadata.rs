@@ -24,6 +24,7 @@ pub struct FileMetadata {
     pub type_specific: Option<TypeSpecificMetadata>,
 
     #[serde(flatten)]
+    // JSON: JSONB `metadata` column — unknown keys kept verbatim through `#[serde(flatten)]`.
     pub extra: serde_json::Map<String, serde_json::Value>,
 }
 

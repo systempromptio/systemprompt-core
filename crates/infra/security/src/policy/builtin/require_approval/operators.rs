@@ -48,6 +48,7 @@ impl Op {
         matches!(self, Self::Gt | Self::Gte | Self::Lt | Self::Lte)
     }
 
+    // JSON: MCP tool-call argument value — the tool's own JSON.
     pub(super) fn test(
         self,
         value: &serde_json::Value,

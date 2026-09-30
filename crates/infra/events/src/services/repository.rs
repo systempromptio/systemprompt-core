@@ -40,6 +40,7 @@ impl EventOutboxRepository {
         &self.instance_id
     }
 
+    // JSON: JSONB outbox `payload` — event body, serialised per channel.
     pub(super) async fn insert(
         &self,
         id: &EventOutboxId,

@@ -66,6 +66,7 @@ async fn fetch_with_retries(
     )
 }
 
+// JSON: Handlebars page context items, enriched by content-data providers.
 pub(super) async fn contents_to_json(
     contents: &[Content],
     source_name: &str,

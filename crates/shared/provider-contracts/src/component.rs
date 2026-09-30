@@ -48,9 +48,9 @@ impl PartialTemplate {
 #[derive(Debug)]
 pub struct ComponentContext<'a> {
     pub web_config: &'a WebConfig,
-    // JSON: Tera template context item; the page data model is dynamic.
+    // JSON: Handlebars template context item; the page data model is dynamic.
     pub item: Option<&'a Value>,
-    // JSON: Tera template context item; the page data model is dynamic.
+    // JSON: Handlebars template context item; the page data model is dynamic.
     pub all_items: Option<&'a [Value]>,
     pub popular_ids: Option<&'a [String]>,
 }
@@ -67,6 +67,7 @@ impl<'a> ComponentContext<'a> {
     }
 
     #[must_use]
+    // JSON: Handlebars page context item; the page data model is dynamic.
     pub const fn for_content(
         web_config: &'a WebConfig,
         item: &'a Value,
@@ -82,6 +83,7 @@ impl<'a> ComponentContext<'a> {
     }
 
     #[must_use]
+    // JSON: Handlebars page context item; the page data model is dynamic.
     pub const fn for_list(web_config: &'a WebConfig, all_items: &'a [Value]) -> Self {
         Self {
             web_config,

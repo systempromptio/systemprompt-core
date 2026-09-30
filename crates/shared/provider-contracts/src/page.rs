@@ -22,9 +22,9 @@ pub struct PageContext<'a> {
     pub locale: &'a LocaleCode,
     content_config: &'a (dyn Any + Send + Sync),
     db_pool: &'a (dyn Any + Send + Sync),
-    // JSON: Tera template context item; the page data model is dynamic.
+    // JSON: Handlebars template context item; the page data model is dynamic.
     content_item: Option<&'a Value>,
-    // JSON: Tera template context item; the page data model is dynamic.
+    // JSON: Handlebars template context item; the page data model is dynamic.
     all_items: Option<&'a [Value]>,
 }
 
@@ -67,12 +67,14 @@ impl<'a> PageContext<'a> {
     }
 
     #[must_use]
+    // JSON: Handlebars page context item; the page data model is dynamic.
     pub const fn with_content_item(mut self, item: &'a Value) -> Self {
         self.content_item = Some(item);
         self
     }
 
     #[must_use]
+    // JSON: Handlebars page context item; the page data model is dynamic.
     pub const fn with_all_items(mut self, items: &'a [Value]) -> Self {
         self.all_items = Some(items);
         self
@@ -89,13 +91,13 @@ impl<'a> PageContext<'a> {
     }
 
     #[must_use]
-    // JSON: Tera template context item; the page data model is dynamic.
+    // JSON: Handlebars template context item; the page data model is dynamic.
     pub const fn content_item(&self) -> Option<&Value> {
         self.content_item
     }
 
     #[must_use]
-    // JSON: Tera template context item; the page data model is dynamic.
+    // JSON: Handlebars template context item; the page data model is dynamic.
     pub const fn all_items(&self) -> Option<&[Value]> {
         self.all_items
     }
@@ -109,6 +111,7 @@ pub trait PageDataProvider: Send + Sync {
         vec![]
     }
 
+    // JSON: Handlebars template variables; the page data model is dynamic.
     async fn provide_page_data(&self, ctx: &PageContext<'_>) -> ProviderResult<Value>;
 
     fn priority(&self) -> u32 {

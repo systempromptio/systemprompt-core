@@ -44,6 +44,7 @@ const LIVE_PLPGSQL_TRIGGERS: &str = "SELECT t.tgname::text AS trigger, t.tgrelid
 
 const RELATION_EXISTS: &str = "SELECT to_regclass($1) IS NOT NULL AS present";
 
+// JSON: libpg_query PL/pgSQL parse tree — walked for embedded SQL statements.
 fn collect_queries(value: &serde_json::Value, out: &mut Vec<String>) {
     match value {
         serde_json::Value::Object(map) => {

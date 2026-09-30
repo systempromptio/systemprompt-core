@@ -29,6 +29,7 @@ pub fn payload_digest(body: &JsonValue) -> PayloadDigest {
 
 // JSON: recursive key-ordering of an open-shaped value.
 fn canonical_json(value: &JsonValue) -> String {
+    // JSON: recursive key-ordering of an open-shaped value.
     fn sort(value: &JsonValue) -> JsonValue {
         match value {
             JsonValue::Object(map) => {

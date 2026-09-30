@@ -132,6 +132,7 @@ pub(super) fn load_yaml_config<T: serde::de::DeserializeOwned>(path: &Path) -> R
     serde_yaml::from_str(&content).map_err(|e| format!("Cannot parse {}: {}", path.display(), e))
 }
 
+// JSON: Extension config block from the profile YAML; the extension owns it.
 pub(super) fn load_extension_config(path: &Path) -> Result<serde_json::Value, String> {
     let content = std::fs::read_to_string(path)
         .map_err(|e| format!("Cannot read {}: {}", path.display(), e))?;

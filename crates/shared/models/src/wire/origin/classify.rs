@@ -196,6 +196,7 @@ pub fn native_marker(body: &[u8]) -> Option<NativeMarker> {
 // Why: Claude Code puts the billing header in the first system block on a
 // third-party gateway; a Cowork session runs the same runtime as the CLI and
 // this prefix is the one place the body says which of the two it is.
+// JSON: Anthropic Messages request — probed for Claude Code markers.
 fn claude_entrypoint(value: &serde_json::Value) -> Option<NativeMarker> {
     let system = value.get("system")?;
     let text = match system {
@@ -218,6 +219,7 @@ fn claude_entrypoint(value: &serde_json::Value) -> Option<NativeMarker> {
     }
 }
 
+// JSON: Anthropic Messages request — probed for Claude Code markers.
 fn claude_metadata_user_id(value: &serde_json::Value) -> Option<NativeMarker> {
     let user_id = value.pointer("/metadata/user_id")?.as_str()?.trim();
     if user_id.starts_with('{') {

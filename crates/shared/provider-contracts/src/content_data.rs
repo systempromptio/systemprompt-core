@@ -71,7 +71,7 @@ pub trait ContentDataProvider: Send + Sync {
     async fn enrich_content(
         &self,
         ctx: &ContentDataContext<'_>,
-        // JSON: Tera template context item; the page data model is dynamic.
+        // JSON: Handlebars template context item; the page data model is dynamic.
         item: &mut Value,
     ) -> ProviderResult<()>;
 

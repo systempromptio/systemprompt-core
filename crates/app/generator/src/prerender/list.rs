@@ -18,6 +18,7 @@ use crate::error::{GeneratorResult, PublishError};
 use crate::prerender::utils::{merge_json_data, render_components};
 
 pub(super) struct RenderListParams<'a> {
+    // JSON: Handlebars page context item; the page data model is dynamic.
     pub items: &'a [serde_json::Value],
     pub config: &'a ContentConfigRaw,
     pub web_config: &'a WebConfig,
@@ -27,6 +28,7 @@ pub(super) struct RenderListParams<'a> {
     pub locale_prefix: &'a str,
     pub template_registry: &'a TemplateRegistry,
     pub dist_dir: &'a Path,
+    // JSON: Handlebars page context item; the page data model is dynamic.
     pub index_content: Option<&'a serde_json::Value>,
     pub db_pool: &'a DbPool,
 }

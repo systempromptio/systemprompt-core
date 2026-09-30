@@ -27,6 +27,7 @@ impl PageDataProvider for DefaultListBrandingProvider {
         "default-list-branding"
     }
 
+    // JSON: Handlebars template variables; the page data model is dynamic.
     async fn provide_page_data(&self, ctx: &PageContext<'_>) -> ProviderResult<Value> {
         let Some(source_name) = ctx.page_type.strip_suffix("-list") else {
             return Ok(serde_json::json!({}));

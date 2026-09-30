@@ -68,7 +68,7 @@ impl<'a> PagePrepareContext<'a> {
 #[derive(Debug, Clone)]
 pub struct PageRenderSpec {
     pub template_name: String,
-    // JSON: Tera template base context; the page data model is dynamic.
+    // JSON: Handlebars template base context; the page data model is dynamic.
     pub base_data: Value,
     pub output_path: PathBuf,
 }
@@ -77,7 +77,7 @@ impl PageRenderSpec {
     #[must_use]
     pub fn new(
         template_name: impl Into<String>,
-        // JSON: Tera template base context; the page data model is dynamic.
+        // JSON: Handlebars template base context; the page data model is dynamic.
         base_data: Value,
         output_path: impl Into<PathBuf>,
     ) -> Self {

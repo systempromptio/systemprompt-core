@@ -81,6 +81,7 @@ pub async fn audit_schema_residue(
 
 // Why: a bigint reaches the JSON row as a number or, past 2^53, as a
 // string; both spellings are a count.
+// JSON: `DatabaseProvider` runtime row cell — catalog queries return JSON rows.
 fn as_count(value: &serde_json::Value) -> i64 {
     value
         .as_i64()

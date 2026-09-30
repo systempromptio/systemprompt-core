@@ -71,6 +71,7 @@ pub struct NewApprovalRequest<'a> {
     pub call_id: &'a CallId,
     pub tool_name: &'a str,
     pub server_name: &'a str,
+    // JSON: MCP tool-call arguments are the tool's own JSON object.
     pub arguments: &'a serde_json::Value,
     pub requested_by: &'a UserId,
     pub session_id: Option<&'a SessionId>,
@@ -92,6 +93,7 @@ pub struct ApprovalVerdict<'a> {
 }
 
 #[must_use]
+// JSON: MCP tool-call arguments, canonicalised and hashed to bind an approval.
 pub fn args_digest(arguments: &serde_json::Value) -> String {
     let canonical = canonicalize(arguments);
     let mut hasher = Sha256::new();
@@ -111,6 +113,7 @@ fn hex(bytes: &[u8]) -> String {
     out
 }
 
+// JSON: MCP tool-call arguments, recursively key-ordered for the digest.
 fn canonicalize(value: &serde_json::Value) -> String {
     match value {
         serde_json::Value::Object(map) => {

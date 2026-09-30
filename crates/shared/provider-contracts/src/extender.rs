@@ -17,7 +17,9 @@ use crate::error::ProviderResult;
 use crate::web_config::WebConfig;
 
 pub struct ExtenderContext<'a> {
+    // JSON: Handlebars page context item; the page data model is dynamic.
     pub item: &'a Value,
+    // JSON: Handlebars page context item; the page data model is dynamic.
     pub all_items: &'a [Value],
     // JSON: Extension config block from the profile YAML, owned by the extension.
     pub config: &'a serde_yaml::Value,
@@ -45,7 +47,9 @@ impl std::fmt::Debug for ExtenderContext<'_> {
 }
 
 pub struct ExtenderContextBuilder<'a> {
+    // JSON: Handlebars page context item; the page data model is dynamic.
     item: &'a Value,
+    // JSON: Handlebars page context item; the page data model is dynamic.
     all_items: &'a [Value],
     // JSON: Extension config block from the profile YAML, owned by the extension.
     config: &'a serde_yaml::Value,
@@ -74,6 +78,7 @@ impl std::fmt::Debug for ExtenderContextBuilder<'_> {
 
 impl<'a> ExtenderContextBuilder<'a> {
     #[must_use]
+    // JSON: Handlebars page context item; the page data model is dynamic.
     pub fn new(
         item: &'a Value,
         all_items: &'a [Value],
@@ -129,6 +134,7 @@ impl<'a> ExtenderContextBuilder<'a> {
 
 impl<'a> ExtenderContext<'a> {
     #[must_use]
+    // JSON: Handlebars page context item; the page data model is dynamic.
     pub fn builder(
         item: &'a Value,
         all_items: &'a [Value],
@@ -148,14 +154,14 @@ impl<'a> ExtenderContext<'a> {
 
 #[derive(Debug)]
 pub struct ExtendedData {
-    // JSON: Tera template variables; the page data model is dynamic.
+    // JSON: Handlebars template variables; the page data model is dynamic.
     pub variables: Value,
     pub priority: u32,
 }
 
 impl ExtendedData {
     #[must_use]
-    // JSON: Tera template variables; the page data model is dynamic.
+    // JSON: Handlebars template variables; the page data model is dynamic.
     pub const fn new(variables: Value) -> Self {
         Self {
             variables,
@@ -164,7 +170,7 @@ impl ExtendedData {
     }
 
     #[must_use]
-    // JSON: Tera template variables; the page data model is dynamic.
+    // JSON: Handlebars template variables; the page data model is dynamic.
     pub const fn with_priority(variables: Value, priority: u32) -> Self {
         Self {
             variables,
@@ -181,7 +187,7 @@ pub trait TemplateDataExtender: Send + Sync {
         vec![]
     }
 
-    // JSON: Tera template variables; the page data model is dynamic.
+    // JSON: Handlebars template variables; the page data model is dynamic.
     async fn extend(&self, ctx: &ExtenderContext<'_>, data: &mut Value) -> ProviderResult<()>;
 
     fn priority(&self) -> u32 {

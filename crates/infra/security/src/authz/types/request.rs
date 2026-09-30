@@ -33,6 +33,7 @@ use crate::policy::types::AccessScope;
 pub struct AuthzContext {
     pub kind: Cow<'static, str>,
     #[serde(default, skip_serializing_if = "serde_json::Value::is_null")]
+    // JSON: extension authz context; the registering extension owns its shape.
     pub payload: serde_json::Value,
 }
 
@@ -72,6 +73,7 @@ impl AuthzContext {
     }
 
     #[must_use]
+    // JSON: extension authz context; the registering extension owns its shape.
     pub fn extension(kind: impl Into<Cow<'static, str>>, payload: serde_json::Value) -> Self {
         Self {
             kind: kind.into(),
@@ -109,6 +111,7 @@ impl AuthzContext {
     pub const MARKETPLACE_FLOOR_KEY: &'static str = "marketplace.attribute_floor";
 
     #[must_use]
+    // JSON: ABAC attribute values, declared per deployment in authz policy YAML.
     pub fn with_marketplace_floor(&self, floor: &BTreeMap<String, serde_json::Value>) -> Self {
         let mut payload = match self.payload.clone() {
             serde_json::Value::Object(map) => map,
@@ -129,6 +132,7 @@ impl AuthzContext {
     }
 
     #[must_use]
+    // JSON: ABAC attribute values, declared per deployment in authz policy YAML.
     pub fn marketplace_floor(&self) -> Option<BTreeMap<String, serde_json::Value>> {
         let obj = self.payload.get(Self::MARKETPLACE_FLOOR_KEY)?.as_object()?;
         Some(
@@ -163,6 +167,7 @@ pub struct AuthzRequest {
     #[serde(default)]
     pub roles: Vec<String>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    // JSON: ABAC attribute values, declared per deployment in authz policy YAML.
     pub attributes: BTreeMap<String, serde_json::Value>,
     pub trace_id: TraceId,
     #[serde(default, skip_serializing_if = "Option::is_none")]

@@ -59,6 +59,7 @@ pub struct PublisherModel {
     pub launch_stage: String,
 
     #[serde(default)]
+    // JSON: Vertex AI `supportedActions` — undocumented action map, only probed for keys.
     pub supported_actions: Option<serde_json::Value>,
 
     #[serde(default)]

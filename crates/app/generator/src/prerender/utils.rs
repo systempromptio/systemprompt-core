@@ -9,6 +9,7 @@ use std::collections::HashSet;
 use systemprompt_template_provider::{ComponentContext, RenderedComponent};
 use systemprompt_templates::TemplateRegistry;
 
+// JSON: Handlebars template variables — provider JSON deep-merged in.
 pub fn merge_json_data(base: &mut serde_json::Value, extension: &serde_json::Value) {
     match (base, extension) {
         (serde_json::Value::Object(base_obj), serde_json::Value::Object(ext_obj)) => {
@@ -27,6 +28,7 @@ pub fn merge_json_data(base: &mut serde_json::Value, extension: &serde_json::Val
     }
 }
 
+// JSON: Handlebars template variables; components are inserted by name.
 pub(super) async fn render_components(
     template_registry: &TemplateRegistry,
     target_type: &str,

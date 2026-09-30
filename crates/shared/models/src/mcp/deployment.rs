@@ -69,6 +69,7 @@ pub struct ToolMetadata {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ui: Option<ToolUiConfig>,
     #[serde(default, skip_serializing_if = "serde_json::Map::is_empty")]
+    // JSON: MCP tool-call arguments pinned in deployment config; the tool owns their shape.
     pub arguments: serde_json::Map<String, serde_json::Value>,
 }
 

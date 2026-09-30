@@ -26,10 +26,12 @@ impl Extension for TeamsExtension {
         Some("teams")
     }
 
+    // JSON: JSON Schema document for the extension's config block.
     fn config_schema(&self) -> Option<JsonValue> {
         serde_json::to_value(schemars::schema_for!(BTreeMap<String, TeamsAppConfig>)).ok()
     }
 
+    // JSON: Extension config block from the profile YAML; the extension owns it.
     fn validate_config(&self, config: &JsonValue) -> Result<(), ExtensionConfigError> {
         let apps: BTreeMap<String, TeamsAppConfig> = serde_json::from_value(config.clone())
             .map_err(|e| ExtensionConfigError::ParseError {

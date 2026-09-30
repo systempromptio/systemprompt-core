@@ -52,6 +52,7 @@ pub struct CreateEngagementEventInput {
     #[serde(default)]
     pub click_count: i32,
     #[serde(default)]
+    // JSON: client engagement `event_data` — free-form per page, stored as JSONB.
     pub event_data: Option<serde_json::Value>,
     #[serde(flatten)]
     pub optional_metrics: EngagementOptionalMetrics,

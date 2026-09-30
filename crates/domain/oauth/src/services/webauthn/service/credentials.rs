@@ -18,9 +18,8 @@ use systemprompt_identifiers::UserId;
 use uuid::Uuid;
 use webauthn_rs::prelude::*;
 
+// JSON: webauthn-rs `Passkey` serialisation — opaque; stored rows depend on it.
 fn extract_stored_transports(passkey_json: &serde_json::Value) -> Vec<String> {
-    // JSON: opaque webauthn_rs Passkey serialization — a typed struct here would
-    // break stored credentials.
     passkey_json
         .get("cred")
         .and_then(|cred| cred.get("transports"))
@@ -35,6 +34,7 @@ fn extract_stored_transports(passkey_json: &serde_json::Value) -> Vec<String> {
         )
 }
 
+// JSON: webauthn-rs `Passkey` serialisation — opaque; stored rows depend on it.
 pub fn normalize_transport_casing(
     passkey_json: &mut serde_json::Value,
     stored_transports: &[String],

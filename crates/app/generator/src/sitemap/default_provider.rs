@@ -101,6 +101,7 @@ impl SitemapProvider for DefaultSitemapProvider {
             .collect()
     }
 
+    // JSON: Handlebars page context item; placeholders read fields by name.
     async fn resolve_placeholders(
         &self,
         _ctx: &SitemapContext<'_>,

@@ -184,6 +184,7 @@ struct TraceRow {
 }
 
 #[must_use]
+// JSON: trace event `metadata` value — open-shaped JSONB, formatted per key.
 pub fn format_metadata_value(key: &str, value: &serde_json::Value) -> String {
     let raw = || format!("{value}").trim_matches('"').to_owned();
     match key {

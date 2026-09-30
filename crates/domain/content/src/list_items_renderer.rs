@@ -67,6 +67,7 @@ fn extract_url_prefix(ctx: &ComponentContext<'_>) -> String {
         })
 }
 
+// JSON: Handlebars page context item; the page data model is dynamic.
 fn render_card_html(item: &Value, url_prefix: &str) -> Option<String> {
     let title = item.get("title")?.as_str()?;
     let slug = item.get("slug")?.as_str()?;
@@ -95,6 +96,7 @@ fn render_card_html(item: &Value, url_prefix: &str) -> Option<String> {
     ))
 }
 
+// JSON: Handlebars page context item; the page data model is dynamic.
 fn format_published_date(item: &Value) -> String {
     item.get("published_at")
         .and_then(Value::as_str)

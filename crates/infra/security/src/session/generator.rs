@@ -23,6 +23,7 @@ pub struct SessionParams<'a> {
     pub user_type: UserType,
     pub permissions: Vec<Permission>,
     pub roles: Vec<String>,
+    // JSON: ABAC attribute bag — JWT claim values are policy-defined and schema-less.
     pub attributes: BTreeMap<String, serde_json::Value>,
     pub rate_limit_tier: RateLimitTier,
 }

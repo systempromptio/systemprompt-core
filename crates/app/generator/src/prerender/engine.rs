@@ -181,6 +181,7 @@ async fn render_prerenderer_page(
     }))
 }
 
+// JSON: Handlebars page base context; page-data providers merge into it.
 async fn collect_page_data(
     ctx: &PrerenderContext,
     page_type: &str,

@@ -42,6 +42,7 @@ pub struct StoreChallengeParams<'a> {
     pub challenge: &'a str,
     pub kind: WebAuthnChallengeKind,
     pub user_id: Option<&'a UserId>,
+    // JSON: webauthn-rs ceremony state — opaque, serialised by the library.
     pub state: &'a serde_json::Value,
     pub oauth_state: Option<&'a str>,
     pub ttl: Duration,
@@ -50,6 +51,7 @@ pub struct StoreChallengeParams<'a> {
 #[derive(Debug, Clone)]
 pub struct ConsumedChallenge {
     pub user_id: Option<UserId>,
+    // JSON: webauthn-rs ceremony state — opaque, serialised by the library.
     pub state: serde_json::Value,
     pub oauth_state: Option<String>,
 }
@@ -65,6 +67,7 @@ pub struct ReserveLinkChallengeParams<'a> {
 #[derive(Debug, Clone)]
 pub struct LinkChallengeReservation {
     pub challenge_id: String,
+    // JSON: webauthn-rs ceremony state — opaque, serialised by the library.
     pub state: serde_json::Value,
     pub reused: bool,
 }
@@ -96,6 +99,7 @@ impl crate::repository::OAuthRepository {
         Ok(())
     }
 
+    // JSON: webauthn-rs ceremony state — opaque, serialised by the library.
     pub async fn reserve_link_challenge<F>(
         &self,
         params: ReserveLinkChallengeParams<'_>,

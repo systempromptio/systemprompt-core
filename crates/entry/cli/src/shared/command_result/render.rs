@@ -155,6 +155,7 @@ fn render_chart(artifact: &ChartArtifact) {
     CliService::table(&headers, &rows);
 }
 
+// JSON: table cell — one field of a caller's row object, any JSON value.
 fn cell_display(value: &serde_json::Value) -> String {
     match value {
         serde_json::Value::String(s) => s.clone(),
@@ -163,6 +164,7 @@ fn cell_display(value: &serde_json::Value) -> String {
     }
 }
 
+// JSON: table cell — one field of a caller's row object, any JSON value.
 fn cell_display_within(value: &serde_json::Value, width: Option<usize>) -> String {
     let rendered = cell_display(value);
     match width {
