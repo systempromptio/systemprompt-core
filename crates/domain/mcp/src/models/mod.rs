@@ -85,6 +85,7 @@ impl std::fmt::Display for ValidationResultType {
 pub struct ToolExecutionRequest {
     pub tool_name: String,
     pub server_name: String,
+    // JSON: MCP-protocol boundary — schema-less tool arguments mandated by the spec.
     pub input: serde_json::Value,
     pub started_at: DateTime<Utc>,
     pub context: systemprompt_models::RequestContext,
@@ -98,6 +99,7 @@ pub struct ToolExecutionRequest {
 /// vantage point measured the call's end.
 #[derive(Debug, Clone)]
 pub struct ToolExecutionResult {
+    // JSON: MCP tool result — structured content is schema-less per the spec.
     pub output: Option<serde_json::Value>,
     pub output_schema: Option<serde_json::Value>,
     pub status: String,

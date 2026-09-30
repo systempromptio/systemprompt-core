@@ -100,6 +100,8 @@ pub struct CreateMcpArtifact {
 }
 
 impl CreateMcpArtifact {
+    // JSON: JSONB artifact `data` column — MCP structured content, schema-less per
+    // the spec.
     #[must_use]
     pub fn new(
         artifact_id: ArtifactId,

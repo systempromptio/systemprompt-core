@@ -14,6 +14,8 @@ use systemprompt_models::net::{HTTP_STREAM_CONNECT_TIMEOUT, MCP_TOOL_EXECUTION_T
 use tokio::time::timeout;
 
 
+// JSON: MCP-protocol boundary — schema-less tool arguments mandated by the
+// spec.
 pub async fn execute_tool_call(
     transport: StreamableHttpClientTransport<HttpClientWithContext>,
     server: &str,

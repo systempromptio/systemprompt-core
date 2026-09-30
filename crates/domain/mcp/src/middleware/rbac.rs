@@ -199,6 +199,8 @@ fn extract_act_chain(claims: &JwtClaims) -> Vec<Actor> {
         .unwrap_or_default()
 }
 
+// JSON: marketplace policy floor — open attribute map passed to the authz
+// context.
 #[must_use]
 pub fn build_mcp_authz_request(
     server_id: &McpServerId,

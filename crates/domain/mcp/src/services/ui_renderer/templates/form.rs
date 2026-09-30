@@ -3,10 +3,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::form_field::FormField;
+use super::form_field::{FormField, FormFieldSpec};
 use super::html::{
     HtmlBuilder, base_styles, html_escape, json_to_js_literal, mcp_app_bridge_script,
 };
+use super::typed::lenient_vec;
 use crate::error::McpDomainResult;
 use crate::services::ui_renderer::{CspPolicy, UiRenderer, UiResource};
 use serde_json::Value as JsonValue;
@@ -25,23 +26,23 @@ impl FormRenderer {
         let mut fields = Vec::new();
 
         if let Some(hints) = &artifact.metadata.rendering_hints
-            && let Some(field_defs) = hints.get("fields").and_then(JsonValue::as_array)
+            && let Some(field_defs) = hints.get("fields")
         {
-            for def in field_defs {
-                if let Some(field) = FormField::from_json(def) {
-                    fields.push(field);
-                }
-            }
+            fields.extend(
+                lenient_vec::<_, FormFieldSpec>(field_defs)
+                    .unwrap_or_default()
+                    .into_iter()
+                    .filter_map(FormField::from_spec),
+            );
         }
 
         for part in &artifact.parts {
             if let Some(data) = part.as_data()
-                && let Some(form_fields) = data.get("fields").and_then(JsonValue::as_array)
+                && let Some(form_fields) = data.get("fields")
             {
-                for def in form_fields {
-                    if let Some(field) = FormField::from_json(def)
-                        && !fields.iter().any(|f| f.name == field.name)
-                    {
+                let decoded = lenient_vec::<_, FormFieldSpec>(form_fields).unwrap_or_default();
+                for field in decoded.into_iter().filter_map(FormField::from_spec) {
+                    if !fields.iter().any(|f| f.name == field.name) {
                         fields.push(field);
                     }
                 }

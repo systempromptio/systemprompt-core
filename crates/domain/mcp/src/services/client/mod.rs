@@ -114,6 +114,8 @@ impl McpClient {
         Ok(tools)
     }
 
+    // JSON: MCP-protocol boundary — schema-less tool arguments mandated by the
+    // spec.
     pub async fn call_tool(
         server_config: &systemprompt_models::mcp::McpServerConfig,
         name: String,
@@ -123,6 +125,8 @@ impl McpClient {
         Self::call_tool_with_elicitation(server_config, name, arguments, context, None).await
     }
 
+    // JSON: MCP-protocol boundary — schema-less tool arguments mandated by the
+    // spec.
     pub async fn call_tool_with_elicitation(
         server_config: &systemprompt_models::mcp::McpServerConfig,
         name: String,

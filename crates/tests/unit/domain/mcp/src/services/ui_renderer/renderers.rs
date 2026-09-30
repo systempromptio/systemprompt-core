@@ -131,14 +131,14 @@ fn ui_metadata_model_only() {
 #[test]
 fn ui_metadata_to_json_contains_resource_uri() {
     let meta = UiMetadata::for_static_template("s");
-    let json = meta.to_json();
+    let json = serde_json::to_value(meta.tool_ui_meta()).expect("serialize ui meta");
     assert_eq!(json["resourceUri"], "ui://s/artifact-viewer");
 }
 
 #[test]
 fn ui_metadata_to_json_includes_csp_when_set() {
     let meta = UiMetadata::for_static_template("s").with_csp(CspPolicy::strict());
-    let json = meta.to_json();
+    let json = serde_json::to_value(meta.tool_ui_meta()).expect("serialize ui meta");
     let csp = json.get("csp").expect("csp present when set");
     assert_eq!(
         csp.as_str(),
@@ -153,7 +153,7 @@ fn ui_metadata_to_json_includes_csp_when_set() {
 #[test]
 fn ui_metadata_to_json_no_csp_when_unset() {
     let meta = UiMetadata::for_static_template("s");
-    let json = meta.to_json();
+    let json = serde_json::to_value(meta.tool_ui_meta()).expect("serialize ui meta");
     assert!(json.get("csp").is_none());
 }
 

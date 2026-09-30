@@ -139,6 +139,7 @@ fn render_section_content(section: &CardSection) -> String {
     }
 }
 
+// JSON: presentation card pair value — producer-supplied, any JSON type.
 fn scalar_text(value: &JsonValue) -> String {
     match value {
         JsonValue::String(s) => s.clone(),

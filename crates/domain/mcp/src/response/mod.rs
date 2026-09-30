@@ -204,6 +204,8 @@ fn wire_output(
     }
 }
 
+// JSON: MCP `structuredContent` — schema-less per the spec, tagged with its
+// artifact type.
 fn typed_structured(output: &JsonValue, artifact_type: &str) -> JsonValue {
     let mut value = output.clone();
     if let Some(map) = value.as_object_mut()

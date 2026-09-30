@@ -146,6 +146,8 @@ impl McpSessionRepository {
         Ok(())
     }
 
+    // JSON: JSONB MCP `initialize` params — stored verbatim as the client sent
+    // them.
     pub async fn store_initialize_params(
         &self,
         session_id: &SessionId,
@@ -167,6 +169,8 @@ impl McpSessionRepository {
         Ok(())
     }
 
+    // JSON: JSONB MCP `initialize` params — stored verbatim as the client sent
+    // them.
     pub async fn find_initialize_params(
         &self,
         session_id: &SessionId,

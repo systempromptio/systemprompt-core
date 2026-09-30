@@ -112,6 +112,8 @@ fn execution_meta(result: &CallToolResult) -> (Option<ArtifactId>, Option<McpExe
     (artifact_id, execution_id)
 }
 
+// JSON: MCP `structuredContent` ingest — schema-less body keyed by
+// `x-artifact-type`.
 fn typed_body(structured: Option<&JsonValue>) -> Option<(String, JsonValue, Option<String>)> {
     let value = structured?;
     let declared = value.get("x-artifact-type")?.as_str()?;

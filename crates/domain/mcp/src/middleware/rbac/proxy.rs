@@ -106,6 +106,8 @@ pub fn try_proxy_verified_auth(
     Ok(Some(AuthenticatedRequestContext::new(context, token)))
 }
 
+// JSON: marketplace policy floor — open attribute map passed to the authz
+// context.
 #[must_use]
 pub(super) fn build_proxy_authz_request(
     server_id: &McpServerId,

@@ -119,7 +119,7 @@ pub fn unsafe_url_error(field: &str, candidate: &str) -> crate::error::McpDomain
     ))
 }
 
-pub fn json_to_js_literal(value: &serde_json::Value) -> String {
+pub fn json_to_js_literal<T: serde::Serialize + ?Sized>(value: &T) -> String {
     serde_json::to_string(value)
         .unwrap_or_else(|_| "null".to_owned())
         .replace("</", "<\\/")

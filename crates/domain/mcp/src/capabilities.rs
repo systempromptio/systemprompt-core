@@ -8,6 +8,8 @@ use systemprompt_models::mcp::{
     McpAppsUiConfig, McpExtensionId, McpUiToolMeta, ToolVisibility, UI_META_KEY,
 };
 
+// JSON: MCP capability `extensions` entry — the spec types each as an open
+// object.
 pub fn mcp_apps_ui_extension() -> (String, serde_json::Map<String, serde_json::Value>) {
     let config = McpAppsUiConfig::new();
     let key = McpExtensionId::McpAppsUi.as_str().to_owned();
@@ -16,6 +18,7 @@ pub fn mcp_apps_ui_extension() -> (String, serde_json::Map<String, serde_json::V
     (key, value)
 }
 
+// JSON: MCP capability `extensions` — the spec types each as an open object.
 pub fn build_extension_capabilities() -> BTreeMap<String, serde_json::Map<String, serde_json::Value>>
 {
     let mut map = BTreeMap::new();
@@ -36,10 +39,13 @@ pub fn model_only_visibility() -> Vec<ToolVisibility> {
     vec![ToolVisibility::Model]
 }
 
+// JSON: MCP Apps tool `_meta.ui.visibility` — emitted into the open `_meta`
+// object.
 pub fn visibility_to_json(visibility: &[ToolVisibility]) -> serde_json::Value {
     serde_json::json!(visibility)
 }
 
+// JSON: MCP tool `_meta` — the spec types it as an open object.
 pub fn tool_ui_meta(
     server_name: &str,
     visibility: &[ToolVisibility],

@@ -11,8 +11,10 @@
 use super::html::{
     HtmlBuilder, base_styles, html_escape, json_to_js_literal, mcp_app_bridge_script,
 };
+use super::typed::{lenient, lenient_vec};
 use crate::error::McpDomainResult;
 use crate::services::ui_renderer::{CspPolicy, UiRenderer, UiResource};
+use serde::Deserialize;
 use serde_json::Value as JsonValue;
 use systemprompt_models::a2a::Artifact;
 use systemprompt_models::artifacts::ArtifactType;
@@ -38,36 +40,46 @@ impl TableColumn {
         }
     }
 
-    fn from_json(value: &JsonValue) -> Option<Self> {
-        if let Some(name) = value.as_str() {
-            return Some(Self::from_key(name));
-        }
+    fn from_spec(spec: ColumnSpec) -> Option<Self> {
+        let spec = match spec {
+            ColumnSpec::Key(name) => return Some(Self::from_key(name)),
+            ColumnSpec::Fields(spec) => spec,
+        };
 
-        let key = value.get("name").and_then(JsonValue::as_str)?;
-        let header = value
-            .get("label")
-            .or_else(|| value.get("header"))
-            .and_then(JsonValue::as_str)
-            .map_or_else(|| humanize(key), ToOwned::to_owned);
-        let kind = value
-            .get("column_type")
-            .or_else(|| value.get("type"))
-            .and_then(JsonValue::as_str)
-            .unwrap_or("string")
-            .to_owned();
-
-        let align = value
-            .get("align")
-            .and_then(JsonValue::as_str)
-            .map(ToOwned::to_owned);
-
+        let key = spec.name?;
         Some(Self {
-            key: key.to_owned(),
-            header,
-            kind,
-            align,
+            header: spec.label.or(spec.header).unwrap_or_else(|| humanize(&key)),
+            key,
+            kind: spec
+                .column_type
+                .or(spec.kind)
+                .unwrap_or_else(|| "string".to_owned()),
+            align: spec.align,
         })
     }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+enum ColumnSpec {
+    Key(String),
+    Fields(Box<ColumnFields>),
+}
+
+#[derive(Debug, Deserialize)]
+struct ColumnFields {
+    #[serde(default, deserialize_with = "lenient")]
+    name: Option<String>,
+    #[serde(default, deserialize_with = "lenient")]
+    label: Option<String>,
+    #[serde(default, deserialize_with = "lenient")]
+    header: Option<String>,
+    #[serde(default, deserialize_with = "lenient")]
+    column_type: Option<String>,
+    #[serde(default, rename = "type", deserialize_with = "lenient")]
+    kind: Option<String>,
+    #[serde(default, deserialize_with = "lenient")]
+    align: Option<String>,
 }
 
 fn humanize(key: &str) -> String {
@@ -97,6 +109,7 @@ impl TableRenderer {
         Self
     }
 
+    // JSON: table artifact cells — producer rows hold values of any JSON type.
     fn extract_table_data(artifact: &Artifact) -> (Vec<TableColumn>, Vec<Vec<JsonValue>>) {
         let mut columns: Vec<TableColumn> = Vec::new();
         let mut rows = Vec::new();
@@ -110,8 +123,12 @@ impl TableRenderer {
                     .or_else(|| obj.get("rows"))
                     .and_then(JsonValue::as_array)
             {
-                if let Some(cols) = obj.get("columns").and_then(JsonValue::as_array) {
-                    columns = cols.iter().filter_map(TableColumn::from_json).collect();
+                if let Some(cols) = obj.get("columns").filter(|c| c.is_array()) {
+                    columns = lenient_vec::<_, ColumnSpec>(cols)
+                        .unwrap_or_default()
+                        .into_iter()
+                        .filter_map(TableColumn::from_spec)
+                        .collect();
                 }
 
                 if columns.is_empty()

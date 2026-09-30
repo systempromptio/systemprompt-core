@@ -26,6 +26,8 @@ pub fn client_profile_from_peer(context: &RequestContext<RoleServer>) -> ClientP
     }
 }
 
+// JSON: JSONB MCP `initialize` params — decoded into `InitializeRequestParams`
+// here.
 pub fn client_profile_from_stored(initialize_params: &JsonValue) -> ClientProfile {
     match serde_json::from_value::<InitializeRequestParams>(initialize_params.clone()) {
         Ok(params) => ClientProfile::from_initialize_params(&params),

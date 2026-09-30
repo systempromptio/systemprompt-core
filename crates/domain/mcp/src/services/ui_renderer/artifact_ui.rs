@@ -21,6 +21,7 @@ use systemprompt_models::a2a::{Artifact, ArtifactMetadata, DataPart, Part};
 pub struct RenderTarget<'a> {
     pub artifact_id: &'a ArtifactId,
     pub artifact_type: &'a str,
+    // JSON: stored artifact payload — MCP structured content, schema-less per the spec.
     pub payload: &'a JsonValue,
     pub context_id: ContextId,
     pub title: Option<String>,

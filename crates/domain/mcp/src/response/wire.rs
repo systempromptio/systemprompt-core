@@ -29,6 +29,7 @@ pub(super) struct WireShape<'a> {
     pub(super) client: &'a ClientProfile,
     pub(super) summary: String,
     pub(super) text_body: Option<String>,
+    // JSON: MCP `structuredContent` — schema-less per the spec.
     pub(super) structured_output: JsonValue,
     pub(super) metadata: &'a ExecutionMetadata,
 }

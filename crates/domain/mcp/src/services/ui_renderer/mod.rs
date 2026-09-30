@@ -27,6 +27,7 @@ pub use registry::{UiRendererRegistration, UiRendererRegistry};
 pub use theme::{ArtifactTheme, ArtifactThemeRegistration, active_theme};
 
 use crate::error::McpDomainResult;
+use serde::Serialize;
 use systemprompt_models::a2a::Artifact;
 use systemprompt_models::artifacts::ArtifactType;
 use systemprompt_models::mcp::{McpResourceUiMeta, ToolVisibility};
@@ -55,6 +56,16 @@ impl UiResource {
     pub const fn mime_type() -> &'static str {
         MCP_APP_MIME_TYPE
     }
+}
+
+/// The MCP Apps `ui` entry of a tool's `_meta`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ToolUiMeta {
+    pub resource_uri: String,
+    pub visibility: Vec<ToolVisibility>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub csp: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -99,22 +110,18 @@ impl UiMetadata {
         self
     }
 
-    pub fn to_json(&self) -> serde_json::Value {
-        let mut meta = serde_json::json!({
-            "resourceUri": self.resource_uri,
-            "visibility": self.visibility
-        });
-
-        if let Some(csp) = &self.csp {
-            meta["csp"] = serde_json::json!(csp.to_header_value());
+    pub fn tool_ui_meta(&self) -> ToolUiMeta {
+        ToolUiMeta {
+            resource_uri: self.resource_uri.clone(),
+            visibility: self.visibility.clone(),
+            csp: self.csp.as_ref().map(CspPolicy::to_header_value),
         }
-
-        meta
     }
 
+    // JSON: MCP tool `_meta` — the spec types it as an open object.
     pub fn to_tool_meta(&self) -> serde_json::Map<String, serde_json::Value> {
         let mut meta = serde_json::Map::new();
-        meta.insert("ui".to_owned(), self.to_json());
+        meta.insert("ui".to_owned(), serde_json::json!(self.tool_ui_meta()));
         meta
     }
 

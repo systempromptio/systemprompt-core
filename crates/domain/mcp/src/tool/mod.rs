@@ -209,6 +209,7 @@ impl McpToolExecutor {
         }
     }
 
+    // JSON: MCP tool result — structured content is schema-less per the spec.
     fn build_execution_result(
         response: &Result<CallToolResult, McpError>,
         output_value: Option<JsonValue>,

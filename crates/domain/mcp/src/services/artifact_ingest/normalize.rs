@@ -58,6 +58,7 @@ pub fn from_hook_failure(error: &str) -> CallToolResult {
     CallToolResult::error(vec![ContentBlock::text(error.to_owned())])
 }
 
+// JSON: MCP `structuredContent` and `_meta` — both schema-less per the spec.
 #[must_use]
 pub fn from_canonical_tool_result(
     content: &[CanonicalContent],

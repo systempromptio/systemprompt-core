@@ -46,6 +46,8 @@ pub struct ScanOutcome {
 }
 
 impl ScanOutcome {
+    // JSON: artifact ingest payload — truncated MCP structured content,
+    // schema-less.
     #[must_use]
     pub fn truncate(self, header: JsonValue, digest: &PayloadDigest) -> (Self, Option<JsonValue>) {
         tracing::warn!(
@@ -67,6 +69,7 @@ impl ScanOutcome {
     }
 }
 
+// JSON: artifact ingest payload — MCP structured content scanned for secrets.
 pub(super) async fn scan_body(
     ingest: &ArtifactIngest,
     request: &IngestRequest,
@@ -105,6 +108,7 @@ pub(super) async fn scan_body(
     })
 }
 
+// JSON: artifact ingest payload — MCP structured content scanned for secrets.
 fn redact_secrets(
     scanner: &SecretScanner,
     body: &mut JsonValue,
@@ -154,6 +158,7 @@ fn redact_secrets(
     redacted
 }
 
+// JSON: artifact ingest payload — MCP structured content scanned for secrets.
 fn surfaces(body: &JsonValue) -> Vec<(String, String)> {
     let mut out = Vec::new();
     collect_surfaces(body, "body", &mut out);

@@ -27,6 +27,7 @@ pub trait McpToolHandler: Send + Sync {
         ""
     }
 
+    // JSON: MCP tool `inputSchema` — arbitrary JSON Schema.
     fn input_schema(&self) -> JsonValue {
         let schema = schemars::schema_for!(Self::Input);
         match serde_json::to_value(&schema) {
@@ -38,6 +39,7 @@ pub trait McpToolHandler: Send + Sync {
         }
     }
 
+    // JSON: MCP tool `outputSchema` — arbitrary JSON Schema.
     fn output_schema(&self) -> JsonValue {
         Self::Output::validated_schema()
     }
@@ -84,6 +86,7 @@ pub trait McpToolHandler: Send + Sync {
 // schemars renders an internally tagged enum as a bare `oneOf` with no root
 // `type`, which is exactly that failure; the root gets `type: object` here so
 // no handler can ship it by accident.
+// JSON: MCP tool `inputSchema` — arbitrary JSON Schema; rmcp takes it as a map.
 #[must_use]
 pub fn object_input_schema(schema: &JsonValue) -> serde_json::Map<String, JsonValue> {
     let mut obj = schema.as_object().cloned().unwrap_or_default();

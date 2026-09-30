@@ -256,6 +256,7 @@ impl IngestOutcome {
         }
     }
 
+    // JSON: artifact ingest payload — redacted MCP structured content, schema-less.
     fn created(
         resolved: resolve::ResolvedExecution,
         artifact_id: ArtifactId,
