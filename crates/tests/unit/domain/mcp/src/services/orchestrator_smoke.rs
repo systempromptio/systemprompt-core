@@ -12,9 +12,10 @@ use systemprompt_database::ServiceRepository;
 use systemprompt_mcp::services::orchestrator::McpOrchestrator;
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::profile::PathsConfig;
-use systemprompt_test_fixtures::{fixture_user_id, test_db_pool};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_user_id, test_db_pool};
 
 async fn make_orchestrator() -> McpOrchestrator {
+    let _ = ensure_test_bootstrap();
     let db = test_db_pool().await;
     let paths = PathsConfig {
         system: "/tmp".to_string(),
