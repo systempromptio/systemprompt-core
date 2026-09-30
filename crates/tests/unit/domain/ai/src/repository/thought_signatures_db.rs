@@ -7,7 +7,7 @@ use systemprompt_ai::repository::thought_signatures::ThoughtSignatureWrite;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{GatewayConversationId, UserId};
 
-use super::pool_or_skip;
+use super::bootstrapped_pool;
 
 const TTL: Duration = Duration::from_secs(3600);
 
@@ -34,9 +34,7 @@ async fn expire(pool: &DbPool, conversation: &GatewayConversationId, tool_use_id
 
 #[tokio::test]
 async fn upsert_then_find_returns_the_signature() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let user_id = UserId::new(uuid::Uuid::new_v4().to_string());
     sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2)")
         .bind(user_id.as_str())
@@ -68,9 +66,7 @@ async fn upsert_then_find_returns_the_signature() {
 
 #[tokio::test]
 async fn upsert_overwrites_an_existing_signature() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let user_id = UserId::new(uuid::Uuid::new_v4().to_string());
     sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2)")
         .bind(user_id.as_str())
@@ -111,9 +107,7 @@ async fn upsert_overwrites_an_existing_signature() {
 
 #[tokio::test]
 async fn find_is_scoped_to_the_conversation() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let user_id = UserId::new(uuid::Uuid::new_v4().to_string());
     sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2)")
         .bind(user_id.as_str())
@@ -145,9 +139,7 @@ async fn find_is_scoped_to_the_conversation() {
 
 #[tokio::test]
 async fn expired_signature_is_not_found() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let user_id = UserId::new(uuid::Uuid::new_v4().to_string());
     sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2)")
         .bind(user_id.as_str())
@@ -179,9 +171,7 @@ async fn expired_signature_is_not_found() {
 
 #[tokio::test]
 async fn find_extends_the_expiry() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let user_id = UserId::new(uuid::Uuid::new_v4().to_string());
     sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2)")
         .bind(user_id.as_str())
@@ -226,9 +216,7 @@ async fn find_extends_the_expiry() {
 
 #[tokio::test]
 async fn cleanup_expired_removes_only_expired_rows() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let user_id = UserId::new(uuid::Uuid::new_v4().to_string());
     sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2)")
         .bind(user_id.as_str())

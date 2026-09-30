@@ -9,11 +9,11 @@ use systemprompt_identifiers::{GatewayConversationId, UserId};
 use systemprompt_traits::OwnerReassignment;
 use uuid::Uuid;
 
-use super::{completed_record, pool_or_skip, user};
+use super::{bootstrapped_pool, completed_record, user};
 
 #[tokio::test]
 async fn reassigning_an_owner_moves_requests_and_signatures_but_discards_source_quota() {
-    let pool = pool_or_skip().await.expect("AI ownership fixture database");
+    let pool = bootstrapped_pool().await;
     let source = user();
     let target = user();
     for owner in [&source, &target] {
@@ -98,10 +98,9 @@ async fn reassigning_an_owner_moves_requests_and_signatures_but_discards_source_
 #[tokio::test]
 async fn signature_update_fault_rolls_back_owner_reassignment_across_all_ai_tables() {
     systemprompt_test_fixtures::ensure_test_bootstrap();
-    let database = systemprompt_test_fixtures::DisposableDb::installed("ai_owner_signature_fault")
-        .await
-        .expect("private AI database");
-    let pool = database.pool().await.expect("private AI pool");
+    let database =
+        systemprompt_test_fixtures::DisposableDb::with_schema("ai_owner_signature_fault").await;
+    let pool = database.test_pool().await;
     let source = user();
     let target = user();
     for owner in [&source, &target] {

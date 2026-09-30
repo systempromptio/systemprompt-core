@@ -10,13 +10,11 @@ use systemprompt_ai::repository::{
 };
 use systemprompt_identifiers::AiRequestId;
 
-use super::{pool_or_skip, seed_request, user};
+use super::{bootstrapped_pool, seed_request, user};
 
 #[tokio::test]
 async fn upsert_request_then_response_coexist() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let uid = user();
     let request_id = seed_request(&pool, &uid).await;
     let repo = AiRequestPayloadRepository::new(&pool).expect("repo");
@@ -83,9 +81,7 @@ async fn upsert_request_then_response_coexist() {
 
 #[tokio::test]
 async fn upsert_request_twice_updates_in_place() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let uid = user();
     let request_id = seed_request(&pool, &uid).await;
     let repo = AiRequestPayloadRepository::new(&pool).expect("repo");
@@ -136,9 +132,7 @@ async fn upsert_request_twice_updates_in_place() {
 
 #[tokio::test]
 async fn upsert_prepared_does_not_clobber_request_payload() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let uid = user();
     let request_id = seed_request(&pool, &uid).await;
     let repo = AiRequestPayloadRepository::new(&pool).expect("repo");
@@ -192,9 +186,7 @@ async fn upsert_prepared_does_not_clobber_request_payload() {
 
 #[tokio::test]
 async fn identical_tool_lists_share_one_catalog_row() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let uid = user();
     let first = seed_request(&pool, &uid).await;
     let second = seed_request(&pool, &uid).await;
@@ -248,9 +240,7 @@ async fn identical_tool_lists_share_one_catalog_row() {
 
 #[tokio::test]
 async fn upsert_prepared_without_tools_clears_a_stale_slice() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let uid = user();
     let request_id = seed_request(&pool, &uid).await;
     let repo = AiRequestPayloadRepository::new(&pool).expect("repo");
@@ -277,9 +267,7 @@ async fn upsert_prepared_without_tools_clears_a_stale_slice() {
 
 #[tokio::test]
 async fn find_prepared_is_none_for_an_unknown_request() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let repo = AiRequestPayloadRepository::new(&pool).expect("repo");
     let missing = AiRequestId::generate();
     assert!(repo.find_prepared(&missing).await.expect("query").is_none());

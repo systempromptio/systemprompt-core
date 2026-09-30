@@ -6,7 +6,7 @@
 // `AiFilePersistenceProvider`. We use an in-memory file provider so we can
 // assert the persisted rows are queryable through `find_generated_image`,
 // `list_user_images`, and `delete_image`. The success path needs the real DB
-// (for the audit FK), so each test skips cleanly when DATABASE_URL is unset.
+// (for the audit FK).
 
 use async_trait::async_trait;
 use std::collections::HashMap;
@@ -22,7 +22,7 @@ use systemprompt_ai::{ImageService, ImageServiceParts, StorageConfig};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{FileId, UserId};
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_database_url, fixture_db_pool, seed_user_row, unique_user_id,
+    ensure_test_bootstrap, seed_user_row, test_db_pool, unique_user_id,
 };
 use systemprompt_traits::{
     AiFilePersistenceProvider, AiGeneratedFile, AiProviderError, AiProviderResult,
@@ -31,11 +31,9 @@ use systemprompt_traits::{
 
 const ONE_PIXEL_PNG_BASE64: &str = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
 
-async fn image_pool_or_skip() -> Option<DbPool> {
-    let url = fixture_database_url().ok()?;
+async fn image_pool() -> DbPool {
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
-    Some(pool)
+    test_db_pool().await
 }
 
 // In-memory file-record store standing in for the database-backed persistence
@@ -249,9 +247,7 @@ async fn seed_user(pool: &DbPool) -> UserId {
 
 #[tokio::test]
 async fn generate_image_persists_file_and_audit_row() {
-    let Some(pool) = image_pool_or_skip().await else {
-        return;
-    };
+    let pool = image_pool().await;
     let user_id = seed_user(&pool).await;
     let file_provider = Arc::new(InMemoryFileProvider::default());
     let provider: BoxedImageProvider = Arc::new(StubImageProvider::ok("stub", "stub-image-1"));
@@ -292,9 +288,7 @@ async fn generate_image_persists_file_and_audit_row() {
 
 #[tokio::test]
 async fn generate_image_propagates_provider_error_and_persists_nothing() {
-    let Some(pool) = image_pool_or_skip().await else {
-        return;
-    };
+    let pool = image_pool().await;
     let user_id = seed_user(&pool).await;
     let file_provider = Arc::new(InMemoryFileProvider::default());
     let provider: BoxedImageProvider = Arc::new(StubImageProvider::failing("stub", "stub-image-1"));
@@ -315,9 +309,7 @@ async fn generate_image_propagates_provider_error_and_persists_nothing() {
 
 #[tokio::test]
 async fn generate_image_without_model_or_default_errors() {
-    let Some(pool) = image_pool_or_skip().await else {
-        return;
-    };
+    let pool = image_pool().await;
     let user_id = seed_user(&pool).await;
     let file_provider = Arc::new(InMemoryFileProvider::default());
     let provider: BoxedImageProvider = Arc::new(StubImageProvider::ok("stub", "stub-image-1"));
@@ -337,9 +329,7 @@ async fn generate_image_without_model_or_default_errors() {
 
 #[tokio::test]
 async fn generate_image_unknown_model_errors() {
-    let Some(pool) = image_pool_or_skip().await else {
-        return;
-    };
+    let pool = image_pool().await;
     let user_id = seed_user(&pool).await;
     let file_provider = Arc::new(InMemoryFileProvider::default());
     let provider: BoxedImageProvider = Arc::new(StubImageProvider::ok("stub", "stub-image-1"));
@@ -363,9 +353,7 @@ async fn generate_image_unknown_model_errors() {
 
 #[tokio::test]
 async fn generate_image_routes_by_model_name() {
-    let Some(pool) = image_pool_or_skip().await else {
-        return;
-    };
+    let pool = image_pool().await;
     let user_id = seed_user(&pool).await;
     let file_provider = Arc::new(InMemoryFileProvider::default());
     let provider: BoxedImageProvider = Arc::new(StubImageProvider::ok("stub", "stub-image-1"));
@@ -385,9 +373,7 @@ async fn generate_image_routes_by_model_name() {
 
 #[tokio::test]
 async fn list_and_delete_user_images_round_trip() {
-    let Some(pool) = image_pool_or_skip().await else {
-        return;
-    };
+    let pool = image_pool().await;
     let user_id = seed_user(&pool).await;
     let file_provider = Arc::new(InMemoryFileProvider::default());
     let provider: BoxedImageProvider = Arc::new(StubImageProvider::ok("stub", "stub-image-1"));
@@ -434,9 +420,7 @@ async fn list_and_delete_user_images_round_trip() {
 
 #[tokio::test]
 async fn generate_batch_returns_all_responses() {
-    let Some(pool) = image_pool_or_skip().await else {
-        return;
-    };
+    let pool = image_pool().await;
     let user_id = seed_user(&pool).await;
     let file_provider = Arc::new(InMemoryFileProvider::default());
     let provider: BoxedImageProvider = Arc::new(StubImageProvider::ok("stub", "stub-image-1"));
@@ -456,9 +440,7 @@ async fn generate_batch_returns_all_responses() {
 
 #[tokio::test]
 async fn generate_batch_stops_on_first_error() {
-    let Some(pool) = image_pool_or_skip().await else {
-        return;
-    };
+    let pool = image_pool().await;
     let user_id = seed_user(&pool).await;
     let file_provider = Arc::new(InMemoryFileProvider::default());
     let provider: BoxedImageProvider = Arc::new(StubImageProvider::failing("stub", "stub-image-1"));
@@ -478,9 +460,7 @@ async fn generate_batch_stops_on_first_error() {
 
 #[tokio::test]
 async fn provider_registry_accessors_report_state() {
-    let Some(pool) = image_pool_or_skip().await else {
-        return;
-    };
+    let pool = image_pool().await;
     let file_provider = Arc::new(InMemoryFileProvider::default());
     let provider: BoxedImageProvider = Arc::new(StubImageProvider::ok("stub", "stub-image-1"));
     let (dir, config) = storage_config();
@@ -586,9 +566,7 @@ fn build_failing_service(pool: &DbPool) -> (tempfile::TempDir, ImageService) {
 
 #[tokio::test]
 async fn a_failing_file_record_write_surfaces_as_a_database_error() {
-    let Some(pool) = image_pool_or_skip().await else {
-        return;
-    };
+    let pool = image_pool().await;
     let user_id = seed_user(&pool).await;
     let (_dir, service) = build_failing_service(&pool);
 
@@ -604,9 +582,7 @@ async fn a_failing_file_record_write_surfaces_as_a_database_error() {
 
 #[tokio::test]
 async fn a_failing_lookup_is_reported_rather_than_read_as_absent() {
-    let Some(pool) = image_pool_or_skip().await else {
-        return;
-    };
+    let pool = image_pool().await;
     let (_dir, service) = build_failing_service(&pool);
 
     let err = service
@@ -621,9 +597,7 @@ async fn a_failing_lookup_is_reported_rather_than_read_as_absent() {
 
 #[tokio::test]
 async fn a_failing_listing_is_reported_rather_than_read_as_empty() {
-    let Some(pool) = image_pool_or_skip().await else {
-        return;
-    };
+    let pool = image_pool().await;
     let user_id = seed_user(&pool).await;
     let (_dir, service) = build_failing_service(&pool);
 
@@ -643,9 +617,7 @@ async fn a_failing_listing_is_reported_rather_than_read_as_empty() {
 
 #[tokio::test]
 async fn deleting_an_image_the_store_cannot_look_up_is_an_error() {
-    let Some(pool) = image_pool_or_skip().await else {
-        return;
-    };
+    let pool = image_pool().await;
     let (_dir, service) = build_failing_service(&pool);
 
     let err = service
@@ -660,9 +632,7 @@ async fn deleting_an_image_the_store_cannot_look_up_is_an_error() {
 
 #[tokio::test]
 async fn deleting_an_absent_image_through_a_working_store_is_a_no_op() {
-    let Some(pool) = image_pool_or_skip().await else {
-        return;
-    };
+    let pool = image_pool().await;
     let file_provider = Arc::new(InMemoryFileProvider::default());
     let provider: BoxedImageProvider = Arc::new(StubImageProvider::ok("stub", "stub-image-1"));
     let (_dir, service) = build_service(

@@ -11,7 +11,7 @@ use systemprompt_ai::repository::{AiRequestRepository, UpsertPayloadParams};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{AiRequestId, AiToolCallId, UserId};
 
-use super::{pool_or_skip, seed_request, user};
+use super::{bootstrapped_pool, seed_request, user};
 
 fn completion<'a>(
     body: &'a serde_json::Value,
@@ -47,10 +47,8 @@ fn completion<'a>(
 async fn payload_write_fault_rolls_back_the_entire_completion_settlement() {
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let database =
-        systemprompt_test_fixtures::DisposableDb::installed("ai_settlement_payload_fault")
-            .await
-            .expect("private AI database");
-    let pool = database.pool().await.expect("private AI pool");
+        systemprompt_test_fixtures::DisposableDb::with_schema("ai_settlement_payload_fault").await;
+    let pool = database.test_pool().await;
     let owner = user();
     let request_id = seed_request(&pool, &owner).await;
     let repo = AiRequestRepository::new(&pool).expect("AI request repository");
@@ -182,9 +180,7 @@ async fn turn_counts(pool: &DbPool, id: &AiRequestId) -> (i64, i64) {
 
 #[tokio::test]
 async fn a_completion_settles_usage_payload_and_turn_in_one_transaction() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let uid = user();
     let id = seed_request(&pool, &uid).await;
     let repo = AiRequestRepository::new(&pool).expect("repo");
@@ -214,9 +210,7 @@ async fn a_completion_settles_usage_payload_and_turn_in_one_transaction() {
 
 #[tokio::test]
 async fn replaying_the_same_completion_does_not_duplicate_the_turn() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let uid = user();
     let id = seed_request(&pool, &uid).await;
     let repo = AiRequestRepository::new(&pool).expect("repo");
@@ -239,9 +233,7 @@ async fn replaying_the_same_completion_does_not_duplicate_the_turn() {
 
 #[tokio::test]
 async fn a_different_terminal_response_is_rejected() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let uid = user();
     let id = seed_request(&pool, &uid).await;
     let repo = AiRequestRepository::new(&pool).expect("repo");
@@ -263,9 +255,7 @@ async fn a_different_terminal_response_is_rejected() {
 
 #[tokio::test]
 async fn another_owner_cannot_settle_the_request() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let uid = user();
     let id = seed_request(&pool, &uid).await;
     let repo = AiRequestRepository::new(&pool).expect("repo");
@@ -291,9 +281,7 @@ async fn another_owner_cannot_settle_the_request() {
 
 #[tokio::test]
 async fn a_missing_request_row_is_a_settlement_conflict_not_a_database_error() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let repo = AiRequestRepository::new(&pool).expect("repo");
 
     let err = repo
@@ -316,9 +304,7 @@ async fn a_missing_request_row_is_a_settlement_conflict_not_a_database_error() {
 
 #[tokio::test]
 async fn a_failure_never_overwrites_a_settled_completion() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let uid = user();
     let id = seed_request(&pool, &uid).await;
     let repo = AiRequestRepository::new(&pool).expect("repo");
@@ -346,9 +332,7 @@ async fn a_failure_never_overwrites_a_settled_completion() {
 
 #[tokio::test]
 async fn a_failure_marks_the_request_failed_with_its_reason() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let uid = user();
     let id = seed_request(&pool, &uid).await;
     let repo = AiRequestRepository::new(&pool).expect("repo");
@@ -374,9 +358,7 @@ async fn a_failure_marks_the_request_failed_with_its_reason() {
 
 #[tokio::test]
 async fn the_orphan_sweep_fails_only_pending_rows_older_than_the_bound() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let uid = user();
     let stale = seed_request(&pool, &uid).await;
     let fresh = seed_request(&pool, &uid).await;
@@ -447,9 +429,7 @@ fn native_priced_completion<'a>(
 
 #[tokio::test]
 async fn accounting_failure_preserves_paid_completion_across_identical_and_conflicting_retries() {
-    let pool = pool_or_skip()
-        .await
-        .expect("accounting regression requires fixture database");
+    let pool = bootstrapped_pool().await;
     let uid = user();
     let id = seed_request(&pool, &uid).await;
     let repo = AiRequestRepository::new(&pool).expect("repo");

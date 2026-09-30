@@ -19,8 +19,8 @@ use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, 
 use systemprompt_models::RequestContext;
 use systemprompt_models::services::{AiConfig, AiProviderConfig, ProviderRegistry};
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, ensure_test_secrets_bootstrap, fixture_database_url, fixture_db_pool,
-    seed_user_row, seed_user_session, unique_user_id,
+    ensure_test_bootstrap, ensure_test_secrets_bootstrap, seed_user_row, seed_user_session,
+    test_db_pool, unique_user_id,
 };
 use systemprompt_traits::{
     AiProviderResult, AiSessionProvider, CreateAiSessionParams, DynAiSessionProvider,
@@ -89,12 +89,10 @@ pub(crate) fn ai_config(provider: &str) -> AiConfig {
     }
 }
 
-pub(crate) async fn pool_or_skip() -> Option<DbPool> {
-    let url = fixture_database_url().ok()?;
+pub(crate) async fn bootstrapped_pool() -> DbPool {
     ensure_test_bootstrap();
     ensure_test_secrets_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
-    Some(pool)
+    test_db_pool().await
 }
 
 // Build an AiService whose `provider` upstream points at `endpoint`, backed by

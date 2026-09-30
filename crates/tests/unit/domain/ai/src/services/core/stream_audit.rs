@@ -13,7 +13,7 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
 use systemprompt_models::ai::StreamChunk;
 
-use super::{pool_or_skip, seeded_context, service};
+use super::{bootstrapped_pool, seeded_context, service};
 use crate::services::providers::mock_http;
 
 const ANTHROPIC: &str = "anthropic";
@@ -164,9 +164,7 @@ async fn wait_for_audit(pool: &DbPool, user_id: &UserId, status: &str) -> i64 {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_completed_stream_audits_once_with_the_accumulated_text_and_usage() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let server = mock_http::anthropic_messages_stream(COMPLETE_SSE).await;
     let svc = service(&pool, ANTHROPIC, server.uri());
     let (user, context) = seeded_context(&pool).await;
@@ -213,9 +211,7 @@ async fn a_completed_stream_audits_once_with_the_accumulated_text_and_usage() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_truncated_stream_surfaces_the_error_and_persists_failed_zero_cost_usage() {
-    let pool = pool_or_skip()
-        .await
-        .expect("AI stream audit database fixture");
+    let pool = bootstrapped_pool().await;
     let (endpoint, mut provider) = truncated_sse_server().await;
     let svc = service(&pool, ANTHROPIC, endpoint);
     let (user, context) = seeded_context(&pool).await;
@@ -298,9 +294,7 @@ async fn a_truncated_stream_surfaces_the_error_and_persists_failed_zero_cost_usa
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn the_tooled_stream_wrapper_audits_on_the_same_terms() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let server = mock_http::anthropic_messages_stream(COMPLETE_SSE).await;
     let svc = service(&pool, ANTHROPIC, server.uri());
     let (user, context) = seeded_context(&pool).await;
@@ -326,9 +320,7 @@ async fn the_tooled_stream_wrapper_audits_on_the_same_terms() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_stream_dropped_before_completion_does_not_audit_a_completion() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let server = mock_http::anthropic_messages_stream(COMPLETE_SSE).await;
     let svc = service(&pool, ANTHROPIC, server.uri());
     let (user, context) = seeded_context(&pool).await;
@@ -366,9 +358,7 @@ const NOISY_SSE: &str = ": keepalive\n\nevent: message_start\ndata: {\"type\":\"
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn sse_framing_noise_is_skipped_without_breaking_the_stream() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let server = mock_http::anthropic_messages_stream(NOISY_SSE).await;
     let svc = service(&pool, ANTHROPIC, server.uri());
     let (user, context) = seeded_context(&pool).await;

@@ -7,19 +7,17 @@ use systemprompt_ai::repository::{AiRequestRepository, InsertToolCallParams};
 use systemprompt_identifiers::{AiRequestId, AiToolCallId, ContextId};
 use uuid::Uuid;
 
-use super::{completed_record, pool_or_skip, seed_request, user};
+use super::{bootstrapped_pool, completed_record, seed_request, user};
 
-async fn repo_or_skip() -> Option<(AiRequestRepository, systemprompt_database::DbPool)> {
-    let pool = pool_or_skip().await?;
+async fn test_repo() -> (AiRequestRepository, systemprompt_database::DbPool) {
+    let pool = bootstrapped_pool().await;
     let repo = AiRequestRepository::new(&pool).expect("repo");
-    Some((repo, pool))
+    (repo, pool)
 }
 
 #[tokio::test]
 async fn insert_then_get_by_id_round_trips() {
-    let Some((repo, pool)) = repo_or_skip().await else {
-        return;
-    };
+    let (repo, pool) = test_repo().await;
     let uid = user();
     let email = format!("{}@ai.invalid", uid.as_str());
     systemprompt_test_fixtures::seed_user_row(&pool, &uid, &email)
@@ -43,9 +41,7 @@ async fn insert_then_get_by_id_round_trips() {
 
 #[tokio::test]
 async fn rejection_without_a_resolved_provider_still_persists_a_row() {
-    let Some((repo, pool)) = repo_or_skip().await else {
-        return;
-    };
+    let (repo, pool) = test_repo().await;
     let uid = user();
     let email = format!("{}@ai.invalid", uid.as_str());
     systemprompt_test_fixtures::seed_user_row(&pool, &uid, &email)
@@ -70,9 +66,7 @@ async fn rejection_without_a_resolved_provider_still_persists_a_row() {
 
 #[tokio::test]
 async fn completed_request_without_a_provider_is_refused_by_the_database() {
-    let Some((repo, pool)) = repo_or_skip().await else {
-        return;
-    };
+    let (repo, pool) = test_repo().await;
     let uid = user();
     let email = format!("{}@ai.invalid", uid.as_str());
     systemprompt_test_fixtures::seed_user_row(&pool, &uid, &email)
@@ -100,18 +94,14 @@ async fn completed_request_without_a_provider_is_refused_by_the_database() {
 
 #[tokio::test]
 async fn get_by_id_missing_returns_none() {
-    let Some((repo, _pool)) = repo_or_skip().await else {
-        return;
-    };
+    let (repo, _pool) = test_repo().await;
     let missing = AiRequestId::generate();
     assert!(repo.get_by_id(&missing).await.expect("get").is_none());
 }
 
 #[tokio::test]
 async fn insert_with_id_uses_supplied_id() {
-    let Some((repo, pool)) = repo_or_skip().await else {
-        return;
-    };
+    let (repo, pool) = test_repo().await;
     let uid = user();
     let email = format!("{}@ai.invalid", uid.as_str());
     systemprompt_test_fixtures::seed_user_row(&pool, &uid, &email)
@@ -129,9 +119,7 @@ async fn insert_with_id_uses_supplied_id() {
 // else's request. A duplicate id is a typed conflict.
 #[tokio::test]
 async fn insert_with_id_reports_a_duplicate_id_instead_of_claiming_success() {
-    let Some((repo, pool)) = repo_or_skip().await else {
-        return;
-    };
+    let (repo, pool) = test_repo().await;
     let uid = user();
     let email = format!("{}@ai.invalid", uid.as_str());
     systemprompt_test_fixtures::seed_user_row(&pool, &uid, &email)
@@ -155,9 +143,7 @@ async fn insert_with_id_reports_a_duplicate_id_instead_of_claiming_success() {
 // Why: a user with no requests has zero usage, not a missing row.
 #[tokio::test]
 async fn get_user_usage_for_a_user_with_no_requests_is_zero() {
-    let Some((repo, _pool)) = repo_or_skip().await else {
-        return;
-    };
+    let (repo, _pool) = test_repo().await;
     let uid = user();
 
     let usage = repo
@@ -172,9 +158,7 @@ async fn get_user_usage_for_a_user_with_no_requests_is_zero() {
 
 #[tokio::test]
 async fn insert_persists_the_reasoning_share_of_output_tokens() {
-    let Some((repo, pool)) = repo_or_skip().await else {
-        return;
-    };
+    let (repo, pool) = test_repo().await;
     let uid = user();
     let email = format!("{}@ai.invalid", uid.as_str());
     systemprompt_test_fixtures::seed_user_row(&pool, &uid, &email)
@@ -200,9 +184,7 @@ async fn insert_persists_the_reasoning_share_of_output_tokens() {
 
 #[tokio::test]
 async fn update_error_sets_failed_status_and_message() {
-    let Some((repo, pool)) = repo_or_skip().await else {
-        return;
-    };
+    let (repo, pool) = test_repo().await;
     let uid = user();
     let id = seed_request(&pool, &uid).await;
 
@@ -217,9 +199,7 @@ async fn update_error_sets_failed_status_and_message() {
 
 #[tokio::test]
 async fn update_error_can_stamp_a_pre_routing_rejection() {
-    let Some((repo, pool)) = repo_or_skip().await else {
-        return;
-    };
+    let (repo, pool) = test_repo().await;
     let uid = user();
     let id = seed_request(&pool, &uid).await;
 
@@ -232,9 +212,7 @@ async fn update_error_can_stamp_a_pre_routing_rejection() {
 
 #[tokio::test]
 async fn update_model_changes_model() {
-    let Some((repo, pool)) = repo_or_skip().await else {
-        return;
-    };
+    let (repo, pool) = test_repo().await;
     let uid = user();
     let id = seed_request(&pool, &uid).await;
     repo.update_model(&id, "claude-3-5-sonnet")
@@ -246,9 +224,7 @@ async fn update_model_changes_model() {
 
 #[tokio::test]
 async fn get_user_usage_aggregates_requests() {
-    let Some((repo, pool)) = repo_or_skip().await else {
-        return;
-    };
+    let (repo, pool) = test_repo().await;
     let uid = user();
     let email = format!("{}@ai.invalid", uid.as_str());
     systemprompt_test_fixtures::seed_user_row(&pool, &uid, &email)
@@ -271,9 +247,7 @@ async fn get_user_usage_aggregates_requests() {
 
 #[tokio::test]
 async fn get_provider_usage_groups_by_provider_model() {
-    let Some((repo, pool)) = repo_or_skip().await else {
-        return;
-    };
+    let (repo, pool) = test_repo().await;
     let uid = user();
     let email = format!("{}@ai.invalid", uid.as_str());
     systemprompt_test_fixtures::seed_user_row(&pool, &uid, &email)
@@ -292,9 +266,7 @@ async fn get_provider_usage_groups_by_provider_model() {
 
 #[tokio::test]
 async fn insert_and_get_messages_in_sequence_order() {
-    let Some((repo, pool)) = repo_or_skip().await else {
-        return;
-    };
+    let (repo, pool) = test_repo().await;
     let uid = user();
     let id = seed_request(&pool, &uid).await;
 
@@ -318,9 +290,7 @@ async fn insert_and_get_messages_in_sequence_order() {
 
 #[tokio::test]
 async fn insert_and_get_tool_calls() {
-    let Some((repo, pool)) = repo_or_skip().await else {
-        return;
-    };
+    let (repo, pool) = test_repo().await;
     let uid = user();
     let id = seed_request(&pool, &uid).await;
     let call_id = AiToolCallId::new(Uuid::new_v4().to_string());

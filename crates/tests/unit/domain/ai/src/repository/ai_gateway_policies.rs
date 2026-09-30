@@ -4,11 +4,11 @@ use serde_json::json;
 use systemprompt_ai::repository::AiGatewayPolicyRepository;
 use uuid::Uuid;
 
-use super::pool_or_skip;
+use super::bootstrapped_pool;
 
-async fn repo_or_skip() -> Option<AiGatewayPolicyRepository> {
-    let pool = pool_or_skip().await?;
-    Some(AiGatewayPolicyRepository::new(&pool).expect("repo"))
+async fn test_repo() -> AiGatewayPolicyRepository {
+    let pool = bootstrapped_pool().await;
+    AiGatewayPolicyRepository::new(&pool).expect("repo")
 }
 
 fn unique_name() -> String {
@@ -17,9 +17,7 @@ fn unique_name() -> String {
 
 #[tokio::test]
 async fn upsert_inserts_then_updates_same_name() {
-    let Some(repo) = repo_or_skip().await else {
-        return;
-    };
+    let repo = test_repo().await;
     let name = unique_name();
     let spec = json!({"block_categories": ["pii"]});
     let id1 = repo.upsert(&name, &spec, true, 0).await.expect("insert");
@@ -32,9 +30,7 @@ async fn upsert_inserts_then_updates_same_name() {
 
 #[tokio::test]
 async fn find_for_global_returns_only_enabled() {
-    let Some(repo) = repo_or_skip().await else {
-        return;
-    };
+    let repo = test_repo().await;
     let enabled = unique_name();
     let disabled = unique_name();
     repo.upsert(&enabled, &json!({}), true, 0)
@@ -51,9 +47,7 @@ async fn find_for_global_returns_only_enabled() {
 
 #[tokio::test]
 async fn list_all_names_includes_disabled() {
-    let Some(repo) = repo_or_skip().await else {
-        return;
-    };
+    let repo = test_repo().await;
     let name = unique_name();
     repo.upsert(&name, &json!({}), false, 0)
         .await
@@ -64,9 +58,7 @@ async fn list_all_names_includes_disabled() {
 
 #[tokio::test]
 async fn delete_by_name_removes_policy() {
-    let Some(repo) = repo_or_skip().await else {
-        return;
-    };
+    let repo = test_repo().await;
     let name = unique_name();
     repo.upsert(&name, &json!({}), true, 0)
         .await
@@ -78,9 +70,7 @@ async fn delete_by_name_removes_policy() {
 
 #[tokio::test]
 async fn upsert_persists_priority_and_orders_ascending() {
-    let Some(repo) = repo_or_skip().await else {
-        return;
-    };
+    let repo = test_repo().await;
     let low = unique_name();
     let high = unique_name();
     repo.upsert(&low, &json!({}), true, 10).await.expect("low");
@@ -98,9 +88,7 @@ async fn upsert_persists_priority_and_orders_ascending() {
 
 #[tokio::test]
 async fn upsert_updates_priority_on_conflict() {
-    let Some(repo) = repo_or_skip().await else {
-        return;
-    };
+    let repo = test_repo().await;
     let name = unique_name();
     repo.upsert(&name, &json!({}), true, 5)
         .await

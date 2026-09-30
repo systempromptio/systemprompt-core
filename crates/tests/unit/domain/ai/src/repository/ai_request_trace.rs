@@ -6,13 +6,11 @@ use systemprompt_ai::repository::{AiRequestPayloadRepository, AiRequestRepositor
 use systemprompt_identifiers::ContextId;
 use systemprompt_traits::{AiRequestTrace, TraceRequestStatus, TraceSampleFilter, TraceSampleMode};
 
-use super::{completed_record, pool_or_skip, seed_request, user};
+use super::{bootstrapped_pool, completed_record, seed_request, user};
 
 #[tokio::test]
 async fn usage_reads_are_scoped_to_the_owner() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let repo = AiRequestRepository::new(&pool).expect("repo");
     let owner = user();
     let stranger = user();
@@ -52,9 +50,7 @@ async fn usage_reads_are_scoped_to_the_owner() {
 
 #[tokio::test]
 async fn sample_by_id_hydrates_turns_and_splits_the_response() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let repo = AiRequestRepository::new(&pool).expect("repo");
     let owner = user();
     let email = format!("{}@ai.invalid", owner.as_str());
@@ -87,7 +83,7 @@ async fn sample_by_id_hydrates_turns_and_splits_the_response() {
 
 #[tokio::test]
 async fn conversation_sampling_selects_the_latest_turn_and_keeps_its_wire_evidence() {
-    let pool = pool_or_skip().await.expect("AI trace fixture database");
+    let pool = bootstrapped_pool().await;
     let repo = AiRequestRepository::new(&pool).unwrap();
     let owner = user();
     systemprompt_test_fixtures::seed_user_row(&pool, &owner, &format!("{owner}@ai.invalid"))

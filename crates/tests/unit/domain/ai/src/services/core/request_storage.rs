@@ -12,7 +12,7 @@ use systemprompt_identifiers::{SessionId, UserId};
 use systemprompt_traits::{AiProviderResult, AiSessionProvider, CreateAiSessionParams};
 use uuid::Uuid;
 
-use super::{pool_or_skip, seeded_context};
+use super::{bootstrapped_pool, seeded_context};
 
 #[derive(Default)]
 struct RecordingSessionProvider {
@@ -100,9 +100,7 @@ async fn store(storage: &RequestStorage, request: &AiRequest, response: &AiRespo
 
 #[tokio::test]
 async fn session_is_touched_then_usage_incremented() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let (_user, ctx) = seeded_context(&pool).await;
     let session_id = ctx.session_id().as_str().to_owned();
     let provider = Arc::new(RecordingSessionProvider::default());
@@ -124,9 +122,7 @@ async fn session_is_touched_then_usage_incremented() {
 
 #[tokio::test]
 async fn system_user_skips_usage_accounting_but_touches_session() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let system_user = UserId::new("system");
     systemprompt_test_fixtures::seed_user_row(&pool, &system_user, "system@ai-storage.invalid")
         .await
@@ -147,9 +143,7 @@ async fn system_user_skips_usage_accounting_but_touches_session() {
 
 #[tokio::test]
 async fn stored_request_persists_messages_and_assistant_reply() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let (_user, ctx) = seeded_context(&pool).await;
     let storage = storage(&pool, Arc::new(RecordingSessionProvider::default()));
     let request_id = Uuid::new_v4();
@@ -207,9 +201,7 @@ impl AiSessionProvider for FailingSessionProvider {
 
 #[tokio::test]
 async fn a_session_provider_that_fails_does_not_lose_the_audit_row() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let (user, ctx) = seeded_context(&pool).await;
     let storage = RequestStorage::new(
         AiRequestRepository::new(&pool).expect("repo"),
@@ -250,9 +242,7 @@ async fn a_session_provider_that_fails_does_not_lose_the_audit_row() {
 
 #[tokio::test]
 async fn a_fully_attributed_context_records_every_identifier_on_the_audit_row() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let (user, ctx) = seeded_context(&pool).await;
     let raw = pool.pool_arc().expect("read pool").as_ref().clone();
 
@@ -334,9 +324,7 @@ async fn a_fully_attributed_context_records_every_identifier_on_the_audit_row() 
 
 #[tokio::test]
 async fn a_failed_status_records_the_error_text_and_a_rejected_one_does_not() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let (user, ctx) = seeded_context(&pool).await;
     let provider = Arc::new(RecordingSessionProvider::default());
     let storage = storage(&pool, provider);
@@ -372,9 +360,7 @@ async fn a_failed_status_records_the_error_text_and_a_rejected_one_does_not() {
 
 #[tokio::test]
 async fn a_failed_status_with_no_message_falls_back_to_a_placeholder() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let (user, ctx) = seeded_context(&pool).await;
     let provider = Arc::new(RecordingSessionProvider::default());
     let storage = storage(&pool, provider);
@@ -434,9 +420,7 @@ impl systemprompt_traits::ContextMaterializer for FailingContextMaterializer {
 
 #[tokio::test]
 async fn failed_derived_context_materialization_preserves_the_audit_and_messages() {
-    let pool = pool_or_skip()
-        .await
-        .expect("AI request storage database fixture");
+    let pool = bootstrapped_pool().await;
     let (user, ctx) = seeded_context(&pool).await;
     let expected = (
         ctx.context_id().as_str().to_owned(),
