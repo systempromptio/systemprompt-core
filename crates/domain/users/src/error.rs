@@ -27,6 +27,16 @@ domain_error! {
 
         #[error("pool error: {0}")]
         Pool(String),
+
+        #[error("account merge is unavailable: no owner reassignments are configured")]
+        MergeUnavailable,
+
+        #[error("owner reassignment failed in the {domain} domain: {source}")]
+        OwnerReassignment {
+            domain: &'static str,
+            #[source]
+            source: systemprompt_traits::RepositoryError,
+        },
     }
 }
 

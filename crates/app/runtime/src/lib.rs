@@ -35,7 +35,7 @@ pub mod trace;
 mod validation;
 mod wellknown;
 
-pub use builder::{AppContextBuilder, discover_models};
+pub use builder::{AppContextBuilder, discover_models, owner_reassignments};
 pub use context::{AppContext, ConfigPlane, DataPlane, Plugins, ShutdownRequest, Subsystems};
 pub use database_context::DatabaseContext;
 pub use error::{RuntimeError, RuntimeResult};

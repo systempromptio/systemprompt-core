@@ -84,7 +84,9 @@ impl From<UserError> for ApiHttpError {
             | UserError::InvalidStatus(_)
             | UserError::InvalidRole(_)
             | UserError::InvalidRoles(_) => ApiError::bad_request(message),
-            UserError::Pool(_) => ApiError::internal_error(message),
+            UserError::Pool(_)
+            | UserError::MergeUnavailable
+            | UserError::OwnerReassignment { .. } => ApiError::internal_error(message),
         };
         Self(api)
     }

@@ -793,8 +793,7 @@ async fn service_merge_users() -> Result<()> {
         return Ok(());
     };
 
-    let db_pool = &db;
-    let service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
+    let service = systemprompt_test_fixtures::merging_user_service(&db)?;
 
     let source_email = format!("svc_merge_src_{}@example.com", uuid::Uuid::new_v4());
     let source_name = format!("svcmergesrc_{}", &uuid::Uuid::new_v4().to_string()[..8]);

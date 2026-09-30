@@ -1,10 +1,9 @@
 //! DB-backed tests for email canonicalisation, anonymous promotion, the
 //! transactional user merge, and federated sign-in account linking.
 
-use std::sync::Arc;
 use systemprompt_identifiers::UserId;
 use systemprompt_traits::FederatedIdentityClaims;
-use systemprompt_users::{UserError, UserRepository, UserService};
+use systemprompt_users::{UserError, UserService};
 use uuid::Uuid;
 
 struct Ctx {
@@ -16,9 +15,7 @@ struct Ctx {
 async fn setup_or_skip() -> Option<Ctx> {
     let fixture = crate::privacy_fixture::PrivacyFixture::new().await?;
     let pool = fixture.pool.clone();
-    let service = UserService::new(Arc::new(
-        UserRepository::new(&pool).expect("user repository"),
-    ));
+    let service = systemprompt_test_fixtures::merging_user_service(&pool).expect("user service");
     Some(Ctx {
         service,
         pool,

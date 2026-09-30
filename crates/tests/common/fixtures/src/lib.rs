@@ -71,5 +71,7 @@ pub use subprocess::{
     announce_helper_ready, helper, spawn_marked_child, Helper, MarkedChild, HELPER_READY_ENV,
 };
 pub use usage::{usage, usage_update, UsageBuilder};
-pub use user::{fixture_actor, fixture_system_admin, fixture_user_id, unique_user_id};
+pub use user::{
+    fixture_actor, fixture_system_admin, fixture_user_id, merging_user_service, unique_user_id,
+};
 pub use web_config::{web_config, WEB_CONFIG_YAML};

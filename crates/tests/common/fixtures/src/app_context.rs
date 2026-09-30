@@ -262,7 +262,10 @@ fn fixture_app_context_assembled(
             database: Arc::clone(pool),
             analytics_service,
             fingerprint_repo: Some(Arc::new(fixture_fingerprint_repository(pool)?)),
-            user_service: Some(Arc::new(UserService::new(Arc::clone(&user_repository)))),
+            user_service: Some(Arc::new(
+                UserService::new(Arc::clone(&user_repository))
+                    .with_owner_reassignments(systemprompt_runtime::owner_reassignments(pool)?),
+            )),
             a2a_repositories: Arc::new(systemprompt_agent::repository::A2ARepositories::new(
                 pool,
                 systemprompt_agent::repository::A2aDependencies {

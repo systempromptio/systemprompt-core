@@ -121,3 +121,23 @@ pub(super) fn build_repositories(
         managed,
     })
 }
+
+pub fn owner_reassignments(
+    database: &systemprompt_database::DbPool,
+) -> RuntimeResult<Vec<systemprompt_traits::DynOwnerReassignment>> {
+    let logging = systemprompt_logging::LoggingOwnerReassignment::new(database)
+        .map_err(|e| crate::error::RuntimeError::Internal(format!("logging owner reassignment: {e}")))?;
+    let events = systemprompt_events::EventsOwnerReassignment::new(
+        database.write_pool_arc()?.as_ref().clone(),
+    );
+    Ok(vec![
+        Arc::new(systemprompt_agent::repository::AgentOwnerReassignment::new(database)?),
+        Arc::new(systemprompt_mcp::repository::McpOwnerReassignment::new(database)?),
+        Arc::new(systemprompt_ai::repository::AiOwnerReassignment::new(database)?),
+        Arc::new(systemprompt_analytics::repository::AnalyticsOwnerReassignment::new(database)?),
+        Arc::new(systemprompt_files::FilesOwnerReassignment::new(database)?),
+        Arc::new(systemprompt_content::repository::ContentOwnerReassignment::new(database)?),
+        Arc::new(logging),
+        Arc::new(events),
+    ])
+}

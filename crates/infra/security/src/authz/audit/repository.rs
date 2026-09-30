@@ -4,12 +4,14 @@
 //! `POST /govern/authz` handler (for resolved decisions) and core's
 //! [`DbAuditSink`](super::DbAuditSink) (for webhook-fault, default-deny, and
 //! unrestricted-allow decisions) call this repository so there is exactly one
-//! SQL statement that knows the column layout.
+//! SQL statement that knows the column layout. [`insert_governance_decision`]
+//! takes any executor, so a caller whose decision must commit or roll back
+//! with its own writes (the account merge) records it inside its transaction.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use sqlx::PgPool;
+use sqlx::{PgExecutor, PgPool};
 use systemprompt_database::RepositoryError;
 use systemprompt_identifiers::{Actor, UserId};
 
@@ -59,14 +61,17 @@ impl GovernanceDecisionRepository {
         &self,
         record: &GovernanceDecisionRecord<'_>,
     ) -> Result<(), RepositoryError> {
-        insert_governance_decision(&self.pool, record).await
+        insert_governance_decision(self.pool.as_ref(), record).await
     }
 }
 
-pub async fn insert_governance_decision(
-    pool: &PgPool,
+pub async fn insert_governance_decision<'e, E>(
+    executor: E,
     record: &GovernanceDecisionRecord<'_>,
-) -> Result<(), RepositoryError> {
+) -> Result<(), RepositoryError>
+where
+    E: PgExecutor<'e>,
+{
     let actor_kind = record.actor.kind.tag();
     let actor_id = record.actor.kind.actor_id(&record.actor.user_id);
     let act_chain =
@@ -96,7 +101,7 @@ pub async fn insert_governance_decision(
         record.client_id,
         record.tool_use_id,
     )
-    .execute(pool)
+    .execute(executor)
     .await;
     if let Err(error) = &result {
         tracing::error!(

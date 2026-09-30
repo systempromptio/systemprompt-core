@@ -3,7 +3,16 @@
 //! [`UserService`] is the primary entry point for the users domain, delegating
 //! to [`UserRepository`] for lookups, listing and search, session management,
 //! account creation (including anonymous and federated identities), field
-//! updates, bulk operations, statistics, and account merging.
+//! updates, bulk operations and statistics.
+//!
+//! Account merging spans every domain that keys rows on a user. The service
+//! runs each injected [`OwnerReassignment`](systemprompt_traits::OwnerReassignment)
+//! — one per owning crate, each in its own transaction and re-runnable — and
+//! only then the users-owned step that moves sessions, records the merge and
+//! deletes the source. A failed reassignment stops the merge with the source
+//! still present, so a rerun completes it. A service built without
+//! reassignments refuses to merge rather than delete a user whose rows it
+//! cannot move.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -11,8 +20,10 @@
 mod provider;
 
 use std::collections::HashMap;
+use std::fmt;
 use std::sync::Arc;
 use systemprompt_identifiers::{SessionId, UserId};
+use systemprompt_traits::DynOwnerReassignment;
 
 use crate::error::{Result, UserError};
 use crate::models::{
@@ -21,14 +32,38 @@ use crate::models::{
 };
 use crate::repository::{MergeResult, PurgeCount, UpdateUserParams, UserRepository};
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct UserService {
     repository: Arc<UserRepository>,
+    owner_reassignments: Arc<[DynOwnerReassignment]>,
+}
+
+impl fmt::Debug for UserService {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let domains: Vec<&str> = self
+            .owner_reassignments
+            .iter()
+            .map(|reassignment| reassignment.domain())
+            .collect();
+        f.debug_struct("UserService")
+            .field("repository", &self.repository)
+            .field("owner_reassignments", &domains)
+            .finish()
+    }
 }
 
 impl UserService {
-    pub const fn new(repository: Arc<UserRepository>) -> Self {
-        Self { repository }
+    pub fn new(repository: Arc<UserRepository>) -> Self {
+        Self {
+            repository,
+            owner_reassignments: Arc::from([]),
+        }
+    }
+
+    #[must_use]
+    pub fn with_owner_reassignments(mut self, reassignments: Vec<DynOwnerReassignment>) -> Self {
+        self.owner_reassignments = Arc::from(reassignments);
+        self
     }
 
     pub async fn find_by_id(&self, id: &UserId) -> Result<Option<User>> {
@@ -269,7 +304,45 @@ impl UserService {
     }
 
     pub async fn merge_users(&self, source_id: &UserId, target_id: &UserId) -> Result<MergeResult> {
-        self.repository.merge_users(source_id, target_id).await
+        if self.owner_reassignments.is_empty() {
+            return Err(UserError::MergeUnavailable);
+        }
+        if source_id == target_id {
+            return Err(UserError::Validation(
+                "cannot merge a user into itself".to_owned(),
+            ));
+        }
+        for id in [source_id, target_id] {
+            if self.repository.find_by_id(id).await?.is_none() {
+                return Err(UserError::NotFound(id.clone()));
+            }
+        }
+
+        let mut tasks = 0;
+        let mut total_rows = 0;
+        for reassignment in self.owner_reassignments.iter() {
+            let moved = reassignment
+                .reassign_owner(source_id, target_id)
+                .await
+                .map_err(|source| UserError::OwnerReassignment {
+                    domain: reassignment.domain(),
+                    source,
+                })?;
+            tasks += moved
+                .tables
+                .iter()
+                .filter(|(table, _)| *table == "agent_tasks")
+                .map(|(_, rows)| rows)
+                .sum::<u64>();
+            total_rows += moved.total();
+        }
+
+        let sessions = self.repository.complete_merge(source_id, target_id).await?;
+        Ok(MergeResult {
+            sessions,
+            tasks,
+            total_rows: total_rows + sessions,
+        })
     }
 
     pub async fn promote_anonymous(
@@ -293,6 +366,6 @@ impl UserService {
                 source_id
             )));
         }
-        self.repository.merge_users(source_id, target_id).await
+        self.merge_users(source_id, target_id).await
     }
 }

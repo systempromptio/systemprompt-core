@@ -13,6 +13,7 @@ mod assembly;
 mod composition;
 mod core_layer;
 
+pub use composition::owner_reassignments;
 use composition::{build_data_plane, build_repositories, ensure_legacy_context};
 
 use std::sync::{Arc, OnceLock};
@@ -229,7 +230,10 @@ async fn build_domain_layer(
         analytics_repositories,
         systemprompt_identifiers::InstanceId::new(&config.instance_id),
     )?;
-    let user_service = Arc::new(UserService::new(Arc::clone(&repositories.users)));
+    let user_service = Arc::new(
+        UserService::new(Arc::clone(&repositories.users))
+            .with_owner_reassignments(owner_reassignments(database)?),
+    );
     let system_admin = assembly::resolve_and_install_system_admin(config, &user_service).await?;
     repositories.install_organization_resolver(system_admin.id());
     let mcp_registry = RegistryService::new(system_admin.id().clone());

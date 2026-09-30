@@ -18,9 +18,7 @@ struct Ctx {
 async fn setup_or_skip() -> Option<Ctx> {
     let fixture = crate::privacy_fixture::PrivacyFixture::new().await?;
     let pool = fixture.pool.clone();
-    let service = UserService::new(Arc::new(
-        UserRepository::new(&pool).expect("user repository"),
-    ));
+    let service = systemprompt_test_fixtures::merging_user_service(&pool).expect("user service");
     Some(Ctx {
         service,
         pool,
