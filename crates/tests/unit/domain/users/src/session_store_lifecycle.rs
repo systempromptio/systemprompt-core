@@ -42,10 +42,8 @@ async fn isolated(
     systemprompt_database::DbPool,
     SessionRepository,
 ) {
-    let database = DisposableDb::installed(prefix)
-        .await
-        .expect("installed disposable DB");
-    let pool = database.pool().await.expect("disposable pool");
+    let database = DisposableDb::with_schema(prefix).await;
+    let pool = database.test_pool().await;
     let repository = SessionRepository::new(&pool).expect("session repository");
     (database, pool, repository)
 }

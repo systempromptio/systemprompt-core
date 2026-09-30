@@ -15,15 +15,15 @@ struct Ctx {
     pool: systemprompt_database::DbPool,
 }
 
-async fn setup_or_skip() -> Option<Ctx> {
-    let fixture = crate::privacy_fixture::PrivacyFixture::new().await?;
+async fn setup() -> Ctx {
+    let fixture = crate::privacy_fixture::PrivacyFixture::new().await;
     let pool = fixture.pool.clone();
     let service = systemprompt_test_fixtures::merging_user_service(&pool).expect("user service");
-    Some(Ctx {
+    Ctx {
         service,
         pool,
         fixture,
-    })
+    }
 }
 
 fn unique(prefix: &str) -> (String, String) {
@@ -56,9 +56,7 @@ async fn backdate_created_at(ctx: &Ctx, id: &UserId, days: i64) {
 
 #[tokio::test]
 async fn find_by_role_and_first_user_and_first_admin() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let user = create_user(&ctx, "role").await;
     let admin_roles = vec![
         UserRole::Admin.as_str().to_owned(),
@@ -97,9 +95,7 @@ async fn find_by_role_and_first_user_and_first_admin() {
 
 #[tokio::test]
 async fn find_authenticated_user_requires_active_status() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let user = create_user(&ctx, "authd").await;
 
     assert!(
@@ -128,9 +124,7 @@ async fn find_authenticated_user_requires_active_status() {
 
 #[tokio::test]
 async fn find_with_sessions_and_activity_count_open_sessions() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let user = create_user(&ctx, "withsess").await;
     let pool = ctx.pool.clone();
     let s1 = SessionId::generate();
@@ -188,9 +182,7 @@ async fn find_with_sessions_and_activity_count_open_sessions() {
 
 #[tokio::test]
 async fn list_search_and_count_reflect_created_users() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let user = create_user(&ctx, "listable").await;
 
     let listed = ctx.service.list(10_000, 0).await.expect("list");
@@ -219,9 +211,7 @@ async fn list_search_and_count_reflect_created_users() {
 
 #[tokio::test]
 async fn list_by_filter_applies_status_role_and_age() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let user = create_user(&ctx, "filter").await;
     ctx.service
         .update_status(&user.id, UserStatus::Suspended)
@@ -256,9 +246,7 @@ async fn list_by_filter_applies_status_role_and_age() {
 
 #[tokio::test]
 async fn bulk_update_status_and_bulk_delete() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let a = create_user(&ctx, "bulk-a").await;
     let b = create_user(&ctx, "bulk-b").await;
     let ids = vec![a.id.clone(), b.id.clone()];
@@ -298,9 +286,7 @@ async fn bulk_update_status_and_bulk_delete() {
 
 #[tokio::test]
 async fn update_display_name_persists() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let user = create_user(&ctx, "disp").await;
     let updated = ctx
         .service
@@ -314,9 +300,7 @@ async fn update_display_name_persists() {
 
 #[tokio::test]
 async fn missing_user_yields_not_found_across_mutations() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let ghost = UserId::new(Uuid::new_v4().to_string());
 
     assert!(matches!(
@@ -356,9 +340,7 @@ async fn missing_user_yields_not_found_across_mutations() {
 
 #[tokio::test]
 async fn merge_users_transfers_sessions_and_removes_source() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let source = create_user(&ctx, "merge-src").await;
     let target = create_user(&ctx, "merge-dst").await;
     let pool = ctx.pool.clone();
@@ -396,9 +378,7 @@ async fn merge_users_transfers_sessions_and_removes_source() {
 
 #[tokio::test]
 async fn merge_users_appends_a_governance_record_instead_of_rewriting_history() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let pool = ctx.pool.clone();
     let pg = pool.write_pool_arc().expect("write pool");
     let source = create_user(&ctx, "merge-audit-src").await;
@@ -462,9 +442,7 @@ async fn merge_users_appends_a_governance_record_instead_of_rewriting_history() 
 
 #[tokio::test]
 async fn cleanup_old_anonymous_spares_users_with_open_sessions() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let stale = ctx
         .service
         .create_anonymous(&format!("stale-{}", Uuid::new_v4().simple()))
@@ -519,9 +497,7 @@ async fn cleanup_old_anonymous_spares_users_with_open_sessions() {
 
 #[tokio::test]
 async fn create_anonymous_reuses_existing_fingerprint_row() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let fingerprint = format!("fp-{}", Uuid::new_v4().simple());
     let first = ctx
         .service
@@ -542,9 +518,7 @@ async fn create_anonymous_reuses_existing_fingerprint_row() {
 
 #[tokio::test]
 async fn stats_and_breakdowns_reflect_active_user_population() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let user = create_user(&ctx, "stats").await;
 
     let stats = ctx.service.get_stats().await.expect("stats");
@@ -567,9 +541,7 @@ async fn stats_and_breakdowns_reflect_active_user_population() {
 
 #[tokio::test]
 async fn create_if_absent_yields_the_row_once_and_none_to_every_later_caller() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let (name, email) = unique("absent");
 
     let first = ctx
@@ -606,9 +578,7 @@ async fn create_if_absent_yields_the_row_once_and_none_to_every_later_caller() {
 // The plain `create` path fails every loser with a unique violation.
 #[tokio::test]
 async fn concurrent_create_if_absent_on_one_identity_elects_a_single_winner() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let (name, email) = unique("racer");
 
     // A service apiece, as the racing CLI processes each have their own.

@@ -3,9 +3,7 @@
 use chrono::{Duration, Utc};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{SessionId, SessionSource, UserId};
-use systemprompt_test_fixtures::{
-    closed_db_pool, ensure_test_bootstrap, fixture_database_url, fixture_db_pool,
-};
+use systemprompt_test_fixtures::{closed_db_pool, ensure_test_bootstrap, test_db_pool};
 use systemprompt_traits::session_store::CreateSessionParams;
 use systemprompt_traits::{
     AnalyticsProviderError, CreateSessionInput, SessionAnalytics as TraitSessionAnalytics,
@@ -77,10 +75,9 @@ mod analytics_provider {
     #[tokio::test]
     async fn authenticated_mcp_session_preserves_classification_and_analytics() {
         let database =
-            systemprompt_test_fixtures::DisposableDb::installed("classified_session_roundtrip")
-                .await
-                .expect("private users database");
-        let pool = database.pool().await.expect("users pool");
+            systemprompt_test_fixtures::DisposableDb::with_schema("classified_session_roundtrip")
+                .await;
+        let pool = database.test_pool().await;
         let raw = pool.write_pool_arc().expect("write pool");
         let owner = UserId::new(format!("owner-{}", Uuid::new_v4().simple()));
         systemprompt_test_fixtures::seed_user_row(
@@ -186,11 +183,8 @@ mod analytics_provider {
 
     #[tokio::test]
     async fn create_and_find_session_by_id_translates_row() {
-        let Ok(url) = fixture_database_url() else {
-            return;
-        };
         ensure_test_bootstrap();
-        let pool = fixture_db_pool(&url).await.expect("pool");
+        let pool = test_db_pool().await;
         let service = SessionRepository::new(&pool).expect("sessions");
 
         let sid = unique_session_id();
@@ -234,11 +228,8 @@ mod analytics_provider {
 
     #[tokio::test]
     async fn find_recent_by_fingerprint_returns_created_session() {
-        let Ok(url) = fixture_database_url() else {
-            return;
-        };
         ensure_test_bootstrap();
-        let pool = fixture_db_pool(&url).await.expect("pool");
+        let pool = test_db_pool().await;
         let service = SessionRepository::new(&pool).expect("sessions");
 
         let sid = unique_session_id();
@@ -257,11 +248,8 @@ mod analytics_provider {
 
     #[tokio::test]
     async fn revoke_convert_and_user_scoped_ops_succeed() {
-        let Ok(url) = fixture_database_url() else {
-            return;
-        };
         ensure_test_bootstrap();
-        let pool = fixture_db_pool(&url).await.expect("pool");
+        let pool = test_db_pool().await;
         let service = SessionRepository::new(&pool).expect("sessions");
 
         let sid = unique_session_id();

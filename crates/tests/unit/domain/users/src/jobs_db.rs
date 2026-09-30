@@ -8,7 +8,7 @@ use std::sync::Arc;
 use chrono::{Duration, Utc};
 
 use systemprompt_identifiers::{Actor, UserId};
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
 use systemprompt_traits::{Job, JobContext};
 use systemprompt_users::UserRateLimitBucketRepository;
 use systemprompt_users::jobs::{CleanupAnonymousUsersJob, UserRateLimitPruneJob};
@@ -23,11 +23,8 @@ fn ctx_with_pool(db_pool_any: Arc<dyn Any + Send + Sync>) -> JobContext {
 
 #[tokio::test]
 async fn execute_succeeds_with_real_pool() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
 
     let ctx = ctx_with_pool(Arc::new(pool));
     let result = CleanupAnonymousUsersJob
@@ -60,11 +57,8 @@ async fn execute_fails_with_closed_pool() {
 
 #[tokio::test]
 async fn rate_limit_prune_drops_windows_older_than_retain_secs_and_keeps_the_rest() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let repo = UserRateLimitBucketRepository::new(&pool).expect("repo");
     let user = UserId::new(format!("rl-prune-job-{}", Uuid::new_v4().simple()));
     let stale = Utc::now() - Duration::days(400);
@@ -109,11 +103,8 @@ async fn rate_limit_prune_drops_windows_older_than_retain_secs_and_keeps_the_res
 
 #[tokio::test]
 async fn rate_limit_prune_rejects_an_unparseable_retain_secs() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let ctx = ctx_with_pool(Arc::new(pool)).with_parameters(HashMap::from([(
         "retain_secs".to_owned(),
         "soon".to_owned(),

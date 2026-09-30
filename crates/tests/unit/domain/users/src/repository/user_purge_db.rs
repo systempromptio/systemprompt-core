@@ -13,17 +13,17 @@ struct Ctx {
     raw: Arc<sqlx::PgPool>,
 }
 
-async fn setup_or_skip() -> Option<Ctx> {
-    let fixture = crate::privacy_fixture::PrivacyFixture::new().await?;
+async fn setup() -> Ctx {
+    let fixture = crate::privacy_fixture::PrivacyFixture::new().await;
     let raw = fixture.pool.pool_arc().expect("raw pool");
     let service = UserService::new(Arc::new(
         UserRepository::new(&fixture.pool).expect("user repository"),
     ));
-    Some(Ctx {
+    Ctx {
         fixture,
         service,
         raw,
-    })
+    }
 }
 
 async fn create_user(ctx: &Ctx, prefix: &str) -> UserId {
@@ -90,9 +90,7 @@ fn digest(tag: &str) -> String {
 
 #[tokio::test]
 async fn purge_removes_the_users_own_payload_and_keeps_one_shared_with_another_user() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let victim = create_user(&ctx, "purge-own").await;
     let other = create_user(&ctx, "purge-other").await;
     let own = digest("a");
@@ -139,9 +137,7 @@ async fn purge_removes_the_users_own_payload_and_keeps_one_shared_with_another_u
 
 #[tokio::test]
 async fn purge_removes_the_users_outbox_rows() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let victim = create_user(&ctx, "purge-outbox").await;
     let sha256 = digest("c");
     seed_payload(&ctx, &sha256).await;

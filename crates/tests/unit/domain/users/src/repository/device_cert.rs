@@ -3,7 +3,7 @@
 
 use systemprompt_identifiers::{DeviceCertId, UserId};
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_database_url, fixture_db_pool, seed_user_row, unique_user_id,
+    ensure_test_bootstrap, seed_user_row, test_db_pool, unique_user_id,
 };
 use systemprompt_users::{EnrollDeviceCertParams, UserRepository};
 use uuid::Uuid;
@@ -13,16 +13,15 @@ struct Ctx {
     user_id: UserId,
 }
 
-async fn setup_or_skip(prefix: &str) -> Option<Ctx> {
-    let url = fixture_database_url().ok()?;
+async fn setup(prefix: &str) -> Ctx {
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let repo = UserRepository::new(&pool).expect("repo");
     let user_id = unique_user_id(prefix);
     seed_user_row(&pool, &user_id, &format!("{}@dc.invalid", user_id.as_str()))
         .await
         .expect("seed user");
-    Some(Ctx { repo, user_id })
+    Ctx { repo, user_id }
 }
 
 async fn cleanup(ctx: &Ctx) {
@@ -36,9 +35,7 @@ fn fp() -> String {
 
 #[tokio::test]
 async fn enroll_then_find_active_and_list() {
-    let Some(ctx) = setup_or_skip("dc1").await else {
-        return;
-    };
+    let ctx = setup("dc1").await;
     let id = DeviceCertId::generate();
     let fingerprint = fp();
 
@@ -78,9 +75,7 @@ async fn enroll_then_find_active_and_list() {
 
 #[tokio::test]
 async fn revoke_hides_from_active_lookup() {
-    let Some(ctx) = setup_or_skip("dc2").await else {
-        return;
-    };
+    let ctx = setup("dc2").await;
     let id = DeviceCertId::generate();
     let fingerprint = fp();
 
@@ -132,9 +127,7 @@ async fn revoke_hides_from_active_lookup() {
 
 #[tokio::test]
 async fn revoke_unknown_cert_returns_false() {
-    let Some(ctx) = setup_or_skip("dc3").await else {
-        return;
-    };
+    let ctx = setup("dc3").await;
     let unknown = DeviceCertId::generate();
     let revoked = ctx
         .repo
@@ -148,9 +141,7 @@ async fn revoke_unknown_cert_returns_false() {
 
 #[tokio::test]
 async fn find_active_unknown_fingerprint_returns_none() {
-    let Some(ctx) = setup_or_skip("dc4").await else {
-        return;
-    };
+    let ctx = setup("dc4").await;
     let found = ctx
         .repo
         .find_active_device_cert_by_fingerprint(&fp())

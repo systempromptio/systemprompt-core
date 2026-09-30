@@ -5,25 +5,23 @@ use std::sync::Arc;
 
 use systemprompt_database::{Database, DbPool};
 use systemprompt_identifiers::{SessionId, UserId};
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
 use systemprompt_users::SessionRepository;
 use uuid::Uuid;
 
-async fn split_pool_or_skip() -> Option<DbPool> {
-    let url = fixture_database_url().ok()?;
+async fn split_pool() -> DbPool {
     ensure_test_bootstrap();
-    let live = fixture_db_pool(&url).await.ok()?;
-    let write = live.write_pool_arc().ok()?;
-    let dead = sqlx::PgPool::connect_lazy("postgres://closed:closed@127.0.0.1:1/closed").ok()?;
+    let live = test_db_pool().await;
+    let write = live.write_pool_arc().expect("write pool");
+    let dead = sqlx::PgPool::connect_lazy("postgres://closed:closed@127.0.0.1:1/closed")
+        .expect("lazy closed pool");
     dead.close().await;
-    Some(Arc::new(Database::from_pools(Arc::new(dead), Some(write))))
+    Arc::new(Database::from_pools(Arc::new(dead), Some(write)))
 }
 
 #[tokio::test]
 async fn attestation_lookup_reads_the_primary_but_listing_does_not() {
-    let Some(db) = split_pool_or_skip().await else {
-        return;
-    };
+    let db = split_pool().await;
     let repo = SessionRepository::new(&db).expect("repo");
     let nonce = Uuid::new_v4().simple().to_string();
     let session_id = SessionId::new(format!("sess-{nonce}"));

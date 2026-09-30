@@ -5,7 +5,7 @@
 
 use chrono::{Duration, Utc};
 use systemprompt_identifiers::UserId;
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
 use systemprompt_users::SessionRepository;
 use uuid::Uuid;
 
@@ -13,11 +13,8 @@ use super::session_support::{base_params, delete_session, seed_session, unique_s
 
 #[tokio::test]
 async fn create_session_then_find_by_id_round_trip() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let repo = SessionRepository::new(&pool).expect("repo");
 
     let sid = unique_session_id();
@@ -35,11 +32,8 @@ async fn create_session_then_find_by_id_round_trip() {
 
 #[tokio::test]
 async fn create_session_is_upsert_on_conflict() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let repo = SessionRepository::new(&pool).expect("repo");
 
     let sid = unique_session_id();
@@ -56,11 +50,8 @@ async fn create_session_is_upsert_on_conflict() {
 
 #[tokio::test]
 async fn increment_counters_accumulate() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let repo = SessionRepository::new(&pool).expect("repo");
 
     let sid = unique_session_id();
@@ -81,11 +72,8 @@ async fn increment_counters_accumulate() {
 
 #[tokio::test]
 async fn increment_ai_usage_accumulates_tokens_and_cost() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let repo = SessionRepository::new(&pool).expect("repo");
 
     let sid = unique_session_id();
@@ -110,11 +98,8 @@ async fn increment_ai_usage_accumulates_tokens_and_cost() {
 
 #[tokio::test]
 async fn end_session_marks_session_ended() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let repo = SessionRepository::new(&pool).expect("repo");
 
     let sid = unique_session_id();
@@ -130,11 +115,8 @@ async fn end_session_marks_session_ended() {
 
 #[tokio::test]
 async fn mark_scanner_and_converted() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let repo = SessionRepository::new(&pool).expect("repo");
 
     let sid = unique_session_id();
@@ -153,11 +135,8 @@ async fn mark_scanner_and_converted() {
 
 #[tokio::test]
 async fn revoke_session_and_active_lookup() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let repo = SessionRepository::new(&pool).expect("repo");
 
     let sid = unique_session_id();
@@ -186,11 +165,8 @@ async fn revoke_session_and_active_lookup() {
 
 #[tokio::test]
 async fn cleanup_inactive_ends_stale_sessions() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let repo = SessionRepository::new(&pool).expect("repo");
 
     let sid = unique_session_id();
@@ -221,11 +197,8 @@ async fn cleanup_inactive_ends_stale_sessions() {
 
 #[tokio::test]
 async fn migrate_user_sessions_moves_rows() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let repo = SessionRepository::new(&pool).expect("repo");
 
     // Two anon user ids that don't exist in `users` -> bypass FK by leaving
@@ -243,11 +216,8 @@ async fn migrate_user_sessions_moves_rows() {
 
 #[tokio::test]
 async fn revoke_all_for_user_with_no_rows_returns_zero() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let repo = SessionRepository::new(&pool).expect("repo");
 
     let uid = UserId::new(format!("ghost-{}", Uuid::new_v4()));

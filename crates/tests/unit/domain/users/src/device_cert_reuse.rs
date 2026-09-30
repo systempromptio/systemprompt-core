@@ -5,7 +5,7 @@
 use std::sync::Arc;
 use systemprompt_identifiers::UserId;
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_database_url, fixture_db_pool, seed_user_row, unique_user_id,
+    ensure_test_bootstrap, seed_user_row, test_db_pool, unique_user_id,
 };
 use systemprompt_users::{
     DEVICE_FINGERPRINT_FOREIGN_USER, DeviceCertService, EnrollDeviceCertServiceParams, UserError,
@@ -19,10 +19,9 @@ struct Ctx {
     other: UserId,
 }
 
-async fn setup_or_skip(prefix: &str) -> Option<Ctx> {
-    let url = fixture_database_url().ok()?;
+async fn setup(prefix: &str) -> Ctx {
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let repo = UserRepository::new(&pool).expect("repo");
     let service = DeviceCertService::new(Arc::new(
         UserRepository::new(&pool).expect("user repository"),
@@ -34,12 +33,12 @@ async fn setup_or_skip(prefix: &str) -> Option<Ctx> {
             .await
             .expect("seed user");
     }
-    Some(Ctx {
+    Ctx {
         service,
         repo,
         owner,
         other,
-    })
+    }
 }
 
 async fn cleanup(ctx: &Ctx) {
@@ -60,9 +59,7 @@ fn unique_fingerprint() -> String {
 
 #[tokio::test]
 async fn same_user_and_fingerprint_returns_the_existing_cert() {
-    let Some(ctx) = setup_or_skip("dcr1").await else {
-        return;
-    };
+    let ctx = setup("dcr1").await;
     let fingerprint = unique_fingerprint();
     let first = ctx
         .service
@@ -98,9 +95,7 @@ async fn same_user_and_fingerprint_returns_the_existing_cert() {
 
 #[tokio::test]
 async fn another_user_presenting_the_fingerprint_is_refused() {
-    let Some(ctx) = setup_or_skip("dcr2").await else {
-        return;
-    };
+    let ctx = setup("dcr2").await;
     let fingerprint = unique_fingerprint();
     ctx.service
         .enroll_or_reuse(EnrollDeviceCertServiceParams {

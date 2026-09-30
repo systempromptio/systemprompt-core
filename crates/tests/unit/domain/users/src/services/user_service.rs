@@ -10,13 +10,13 @@ struct Ctx {
     service: UserService,
 }
 
-async fn setup_or_skip() -> Option<Ctx> {
-    let fixture = crate::privacy_fixture::PrivacyFixture::new().await?;
+async fn setup() -> Ctx {
+    let fixture = crate::privacy_fixture::PrivacyFixture::new().await;
     let pool = fixture.pool.clone();
     let service = UserService::new(Arc::new(
         UserRepository::new(&pool).expect("user repository"),
     ));
-    Some(Ctx { service, fixture })
+    Ctx { service, fixture }
 }
 
 async fn delete_user(ctx: &Ctx, id: &UserId) {
@@ -32,9 +32,7 @@ fn unique(prefix: &str) -> (String, String) {
 
 #[tokio::test]
 async fn create_then_find_by_id_email_name() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let (name, email) = unique("usvc");
 
     let created = ctx
@@ -76,9 +74,7 @@ async fn create_then_find_by_id_email_name() {
 
 #[tokio::test]
 async fn find_by_id_unknown_returns_none() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let missing = UserId::new(format!("missing-{}", Uuid::new_v4()));
     let found = ctx.service.find_by_id(&missing).await.expect("find_by_id");
     assert!(found.is_none());
@@ -87,9 +83,7 @@ async fn find_by_id_unknown_returns_none() {
 
 #[tokio::test]
 async fn update_fields_persist() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let (name, email) = unique("uupd");
     let created = ctx
         .service
@@ -135,9 +129,7 @@ async fn update_fields_persist() {
 
 #[tokio::test]
 async fn update_all_fields_replaces_state() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let (name, email) = unique("uall");
     let created = ctx
         .service
@@ -169,9 +161,7 @@ async fn update_all_fields_replaces_state() {
 
 #[tokio::test]
 async fn assign_roles_persists() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let (name, email) = unique("urole");
     let created = ctx
         .service
@@ -193,9 +183,7 @@ async fn assign_roles_persists() {
 
 #[tokio::test]
 async fn delete_removes_user() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let (name, email) = unique("udel");
     let created = ctx
         .service
@@ -216,9 +204,7 @@ async fn delete_removes_user() {
 
 #[tokio::test]
 async fn create_anonymous_then_flagged_temporary() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let fingerprint = format!("fp-{}", Uuid::new_v4());
     let anon = ctx
         .service

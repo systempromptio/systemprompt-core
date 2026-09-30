@@ -4,7 +4,7 @@
 use std::sync::Arc;
 use systemprompt_identifiers::{DeviceCertId, UserId};
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_database_url, fixture_db_pool, seed_user_row, unique_user_id,
+    ensure_test_bootstrap, seed_user_row, test_db_pool, unique_user_id,
 };
 use systemprompt_users::{
     DeviceCertService, EnrollDeviceCertServiceParams, UserError, UserRepository,
@@ -16,10 +16,9 @@ struct Ctx {
     user_id: UserId,
 }
 
-async fn setup_or_skip(prefix: &str) -> Option<Ctx> {
-    let url = fixture_database_url().ok()?;
+async fn setup(prefix: &str) -> Ctx {
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let service = DeviceCertService::new(Arc::new(
         UserRepository::new(&pool).expect("user repository"),
     ));
@@ -32,11 +31,11 @@ async fn setup_or_skip(prefix: &str) -> Option<Ctx> {
     )
     .await
     .expect("seed user");
-    Some(Ctx {
+    Ctx {
         service,
         repo,
         user_id,
-    })
+    }
 }
 
 async fn cleanup(ctx: &Ctx) {
@@ -50,9 +49,7 @@ fn valid_fingerprint(seed: char) -> String {
 
 #[tokio::test]
 async fn enroll_normalizes_and_verify_roundtrips() {
-    let Some(ctx) = setup_or_skip("dcs1").await else {
-        return;
-    };
+    let ctx = setup("dcs1").await;
     // Upper-case + surrounding whitespace must normalize to lower-case.
     let raw = format!("  {}  ", valid_fingerprint('A'));
 
@@ -98,9 +95,7 @@ async fn enroll_normalizes_and_verify_roundtrips() {
 
 #[tokio::test]
 async fn enroll_rejects_empty_label() {
-    let Some(ctx) = setup_or_skip("dcs2").await else {
-        return;
-    };
+    let ctx = setup("dcs2").await;
     let err = ctx
         .service
         .enroll(EnrollDeviceCertServiceParams {
@@ -117,9 +112,7 @@ async fn enroll_rejects_empty_label() {
 
 #[tokio::test]
 async fn enroll_rejects_bad_length_fingerprint() {
-    let Some(ctx) = setup_or_skip("dcs3").await else {
-        return;
-    };
+    let ctx = setup("dcs3").await;
     let err = ctx
         .service
         .enroll(EnrollDeviceCertServiceParams {
@@ -136,9 +129,7 @@ async fn enroll_rejects_bad_length_fingerprint() {
 
 #[tokio::test]
 async fn enroll_rejects_non_hex_fingerprint() {
-    let Some(ctx) = setup_or_skip("dcs4").await else {
-        return;
-    };
+    let ctx = setup("dcs4").await;
     let non_hex: String = std::iter::repeat_n('z', 64).collect();
     let err = ctx
         .service
@@ -156,9 +147,7 @@ async fn enroll_rejects_non_hex_fingerprint() {
 
 #[tokio::test]
 async fn verify_rejects_invalid_fingerprint() {
-    let Some(ctx) = setup_or_skip("dcs5").await else {
-        return;
-    };
+    let ctx = setup("dcs5").await;
     let err = ctx
         .service
         .verify("not-a-valid-fingerprint")
@@ -171,9 +160,7 @@ async fn verify_rejects_invalid_fingerprint() {
 
 #[tokio::test]
 async fn revoke_unknown_returns_false() {
-    let Some(ctx) = setup_or_skip("dcs6").await else {
-        return;
-    };
+    let ctx = setup("dcs6").await;
     let revoked = ctx
         .service
         .revoke(&DeviceCertId::generate(), &ctx.user_id)

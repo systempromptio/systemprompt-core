@@ -1,13 +1,10 @@
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
 use systemprompt_users::MERGE_EXCLUDED_SECURITY_TABLES;
 
 #[tokio::test]
 async fn excluded_security_tables_cascade_from_users() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let pg = pool.pool_arc().expect("pg pool");
 
     for table in MERGE_EXCLUDED_SECURITY_TABLES {

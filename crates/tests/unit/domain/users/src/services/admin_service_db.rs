@@ -12,17 +12,17 @@ struct Ctx {
     users: UserService,
 }
 
-async fn setup_or_skip() -> Option<Ctx> {
-    let fixture = crate::privacy_fixture::PrivacyFixture::new().await?;
+async fn setup() -> Ctx {
+    let fixture = crate::privacy_fixture::PrivacyFixture::new().await;
     let pool = fixture.pool.clone();
     let users = UserService::new(Arc::new(
         UserRepository::new(&pool).expect("user repository"),
     ));
-    Some(Ctx {
+    Ctx {
         fixture,
         admin: UserAdminService::new(users.clone()),
         users,
-    })
+    }
 }
 
 fn unique(prefix: &str) -> (String, String) {
@@ -35,9 +35,7 @@ fn unique(prefix: &str) -> (String, String) {
 
 #[tokio::test]
 async fn find_user_resolves_id_email_and_name() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let (name, email) = unique("lookup");
     let created = ctx
         .users
@@ -83,9 +81,7 @@ async fn find_user_resolves_id_email_and_name() {
 
 #[tokio::test]
 async fn promote_grants_admin_then_reports_already_admin() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let (name, email) = unique("promote");
     let created = ctx
         .users
@@ -117,9 +113,7 @@ async fn promote_grants_admin_then_reports_already_admin() {
 
 #[tokio::test]
 async fn demote_removes_admin_and_keeps_user_role() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let (name, email) = unique("demote");
     let created = ctx
         .users
@@ -147,9 +141,7 @@ async fn demote_removes_admin_and_keeps_user_role() {
 
 #[tokio::test]
 async fn promote_and_demote_report_missing_users() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let ghost = format!("ghost-{}@adm.invalid", Uuid::new_v4().simple());
     assert!(matches!(
         ctx.admin.promote_to_admin(&ghost).await.expect("promote"),

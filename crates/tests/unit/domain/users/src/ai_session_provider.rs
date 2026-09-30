@@ -5,9 +5,7 @@
 
 use chrono::{Duration, Utc};
 use systemprompt_identifiers::{SessionId, SessionSource};
-use systemprompt_test_fixtures::{
-    closed_db_pool, ensure_test_bootstrap, fixture_database_url, fixture_db_pool,
-};
+use systemprompt_test_fixtures::{closed_db_pool, ensure_test_bootstrap, test_db_pool};
 use systemprompt_traits::{AiProviderError, AiSessionProvider, CreateAiSessionParams};
 use systemprompt_users::{SessionRepository, UsersAiSessionProvider};
 use uuid::Uuid;
@@ -27,11 +25,8 @@ async fn cleanup(pool: &systemprompt_database::DbPool, session_id: &SessionId) {
 
 #[tokio::test]
 async fn create_session_then_increment_usage_round_trip() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let provider = UsersAiSessionProvider::from_repository(
         SessionRepository::new(&pool).expect("session repository"),
     );
@@ -65,11 +60,8 @@ async fn create_session_then_increment_usage_round_trip() {
 
 #[tokio::test]
 async fn from_repository_shares_the_backing_repo() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let repo = SessionRepository::new(&pool).expect("repo");
     let provider = UsersAiSessionProvider::from_repository(repo);
 
@@ -131,11 +123,8 @@ async fn increment_ai_usage_maps_pool_failure_to_internal() {
 
 #[tokio::test]
 async fn find_live_session_reports_only_a_live_session() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let repo = SessionRepository::new(&pool).expect("session repository");
     let provider = UsersAiSessionProvider::from_repository(
         SessionRepository::new(&pool).expect("session repository"),

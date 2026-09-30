@@ -4,16 +4,15 @@
 use chrono::{Duration, Utc};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
 use systemprompt_users::UserRateLimitBucketRepository;
 use uuid::Uuid;
 
-async fn repo_or_skip() -> Option<(UserRateLimitBucketRepository, DbPool)> {
-    let url = fixture_database_url().ok()?;
+async fn repo() -> (UserRateLimitBucketRepository, DbPool) {
     ensure_test_bootstrap();
-    let db = fixture_db_pool(&url).await.expect("pool");
+    let db = test_db_pool().await;
     let repo = UserRateLimitBucketRepository::new(&db).expect("repo");
-    Some((repo, db))
+    (repo, db)
 }
 
 // `prune` is global by window, so a cutoff at or after "now" would wipe the
@@ -34,9 +33,7 @@ fn user() -> UserId {
 
 #[tokio::test]
 async fn thirty_two_concurrent_hits_on_one_key_sum_to_exactly_thirty_two() {
-    let Some((repo, db)) = repo_or_skip().await else {
-        return;
-    };
+    let (repo, db) = repo().await;
     let user = user();
     let window = Utc::now();
 
@@ -67,9 +64,7 @@ async fn thirty_two_concurrent_hits_on_one_key_sum_to_exactly_thirty_two() {
 
 #[tokio::test]
 async fn scopes_and_windows_count_independently() {
-    let Some((repo, db)) = repo_or_skip().await else {
-        return;
-    };
+    let (repo, db) = repo().await;
     let user = user();
     let window = Utc::now();
     let later = window + Duration::seconds(10);
@@ -87,9 +82,7 @@ async fn scopes_and_windows_count_independently() {
 
 #[tokio::test]
 async fn prune_removes_only_windows_before_the_cutoff() {
-    let Some((repo, db)) = repo_or_skip().await else {
-        return;
-    };
+    let (repo, db) = repo().await;
     let user = user();
     let old = Utc::now() - Duration::days(400);
     let recent = Utc::now();
