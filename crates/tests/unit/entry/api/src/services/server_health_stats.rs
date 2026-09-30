@@ -42,30 +42,30 @@ fn database_stats_shapes_summary() {
     let count_row = row(&[("count", json!(42))]);
 
     let stats = database_stats(&size_row, &tables, &count_row);
-    assert_eq!(stats["name"], json!("systemprompt"));
-    assert_eq!(stats["total_size"], json!("2.0 KB"));
-    assert_eq!(stats["total_size_bytes"], json!(2_048));
-    assert_eq!(stats["table_count"], json!(42));
-    assert_eq!(stats["top_tables"][0]["table_name"], json!("users"));
-    assert_eq!(stats["top_tables"][0]["row_estimate"], json!(7));
+    assert_eq!(stats.name, "systemprompt");
+    assert_eq!(stats.total_size, "2.0 KB");
+    assert_eq!(stats.total_size_bytes, 2_048);
+    assert_eq!(stats.table_count, 42);
+    assert_eq!(stats.top_tables[0].table_name, "users");
+    assert_eq!(stats.top_tables[0].row_estimate, 7);
 }
 
 #[test]
 fn database_stats_defaults_missing_fields() {
     let empty = JsonRow::new();
     let stats = database_stats(&empty, &[], &empty);
-    assert_eq!(stats["name"], json!("unknown"));
-    assert_eq!(stats["total_size_bytes"], json!(0));
-    assert_eq!(stats["table_count"], json!(0));
-    assert_eq!(stats["top_tables"], json!([]));
+    assert_eq!(stats.name, "unknown");
+    assert_eq!(stats.total_size_bytes, 0);
+    assert_eq!(stats.table_count, 0);
+    assert!(stats.top_tables.is_empty());
 }
 
 #[test]
 fn table_stats_defaults_missing_fields() {
     let stats = table_stats(&JsonRow::new());
-    assert_eq!(stats["table_name"], json!("?"));
-    assert_eq!(stats["total_size"], json!("0.0 B"));
-    assert_eq!(stats["row_estimate"], json!(0));
+    assert_eq!(stats.table_name, "?");
+    assert_eq!(stats.total_size, "0.0 B");
+    assert_eq!(stats.row_estimate, 0);
 }
 
 #[test]
@@ -76,11 +76,11 @@ fn audit_log_stats_shapes_summary() {
         ("oldest", json!("2026-01-01T00:00:00Z")),
         ("newest", json!("2026-06-01T00:00:00Z")),
     ]));
-    assert_eq!(stats["audit_rows"], json!(5));
-    assert_eq!(stats["audit_size"], json!("4.0 KB"));
-    assert_eq!(stats["audit_size_bytes"], json!(4_096));
-    assert_eq!(stats["oldest"], json!("2026-01-01T00:00:00Z"));
-    assert_eq!(stats["newest"], json!("2026-06-01T00:00:00Z"));
+    assert_eq!(stats.audit_rows, 5);
+    assert_eq!(stats.audit_size, "4.0 KB");
+    assert_eq!(stats.audit_size_bytes, 4_096);
+    assert_eq!(stats.oldest, Some(json!("2026-01-01T00:00:00Z")));
+    assert_eq!(stats.newest, Some(json!("2026-06-01T00:00:00Z")));
 }
 
 #[cfg(target_os = "linux")]

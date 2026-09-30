@@ -208,10 +208,17 @@ fn get_javascript_section(client_id: &str, scope: &str, state: &str) -> String {
     )
 }
 
-fn process_consent_decision(decision: &ConsentRequest) -> serde_json::Value {
-    serde_json::json!({
-        "status": "processed",
-        "decision": decision.decision,
-        "client_id": decision.client_id
-    })
+#[derive(Debug, Serialize)]
+struct ConsentDecisionResponse<'a> {
+    status: &'static str,
+    decision: &'a str,
+    client_id: &'a ClientId,
+}
+
+fn process_consent_decision(decision: &ConsentRequest) -> ConsentDecisionResponse<'_> {
+    ConsentDecisionResponse {
+        status: "processed",
+        decision: &decision.decision,
+        client_id: &decision.client_id,
+    }
 }
