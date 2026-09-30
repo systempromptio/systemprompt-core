@@ -112,10 +112,12 @@ impl crate::repository::OAuthRepository {
 
         let mut tx = self.write_pool_ref().begin().await?;
 
-        sqlx::query!("SELECT id FROM users WHERE id = $1 FOR UPDATE", user_id)
-            .fetch_optional(&mut *tx)
-            .await?
-            .ok_or_else(|| OauthError::Internal("Link target user not found".to_owned()))?;
+        sqlx::query!(
+            "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
+            user_id
+        )
+        .execute(&mut *tx)
+        .await?;
 
         let live = sqlx::query!(
             "SELECT challenge, session_state FROM webauthn_challenges

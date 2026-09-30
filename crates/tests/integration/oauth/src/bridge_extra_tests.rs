@@ -19,6 +19,12 @@ fn oauth_repo(db: &systemprompt_database::DbPool) -> systemprompt_oauth::OAuthRe
     systemprompt_oauth::OAuthRepository::new(db).expect("oauth repo")
 }
 
+fn user_provider(db: &systemprompt_database::DbPool) -> systemprompt_users::UserService {
+    systemprompt_users::UserService::new(std::sync::Arc::new(
+        systemprompt_users::UserRepository::new(db).expect("user repo"),
+    ))
+}
+
 static AUTHORITY: Once = Once::new();
 
 fn ensure_runtime() {
@@ -103,6 +109,7 @@ async fn exchange_code_issued_and_consumed_once() {
         &oauth_repo(&db),
         &analytics,
         &*analytics.session_repo().owner(),
+        &user_provider(&db),
         BridgeExchangeRequest {
             request_headers: &headers,
             caller_ip: None,
@@ -120,6 +127,7 @@ async fn exchange_code_issued_and_consumed_once() {
         &oauth_repo(&db),
         &analytics,
         &*analytics.session_repo().owner(),
+        &user_provider(&db),
         BridgeExchangeRequest {
             request_headers: &headers,
             caller_ip: None,
@@ -145,6 +153,7 @@ async fn exchange_unknown_code_returns_none() {
         &oauth_repo(&db),
         &analytics,
         &*analytics.session_repo().owner(),
+        &user_provider(&db),
         BridgeExchangeRequest {
             request_headers: &headers,
             caller_ip: None,

@@ -37,6 +37,7 @@ pub struct WebAuthnService {
     pub(super) config: WebAuthnConfig,
     pub(super) oauth_repo: OAuthRepository,
     pub(super) user_creation_service: UserCreationService,
+    pub(super) user_provider: Arc<dyn UserProvider>,
 }
 
 impl std::fmt::Debug for WebAuthnService {
@@ -64,13 +65,14 @@ impl WebAuthnService {
             .allow_subdomains(config.allow_subdomains)
             .build()?;
 
-        let user_creation_service = UserCreationService::new(user_provider);
+        let user_creation_service = UserCreationService::new(Arc::clone(&user_provider));
 
         Ok(Self {
             webauthn,
             config,
             oauth_repo,
             user_creation_service,
+            user_provider,
         })
     }
 

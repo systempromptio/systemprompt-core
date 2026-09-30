@@ -8,6 +8,7 @@ use chrono::{Duration, Utc};
 use clap::Args as ClapArgs;
 use systemprompt_oauth::repository::{CreateSetupTokenParams, OAuthRepository, SetupTokenPurpose};
 use systemprompt_oauth::services::webauthn::generate_setup_token;
+use systemprompt_traits::AppContext as _;
 
 use crate::commands::admin::users::types::WebauthnSetupTokenOutput;
 use crate::context::CommandContext;
@@ -26,8 +27,11 @@ pub(super) async fn execute(args: Args, ctx: &CommandContext) -> Result<CommandO
     let app = ctx.app_context().await?;
     let oauth_repo = OAuthRepository::new(app.db_pool())?;
 
-    let user = oauth_repo
-        .find_user_by_email(&args.email)
+    let users = app
+        .user_provider()
+        .ok_or_else(|| anyhow::anyhow!("User provider unavailable"))?;
+    let user = users
+        .find_by_email(&args.email)
         .await?
         .ok_or_else(|| anyhow::anyhow!("User not found: {}", args.email))?;
 

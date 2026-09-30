@@ -11,18 +11,16 @@ use axum::extract::{Query, State};
 use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Redirect, Response};
 use serde::Deserialize;
-use std::str::FromStr;
 use std::sync::Arc;
-use systemprompt_identifiers::{
-    AuthorizationCode, ClientId, RefreshTokenId, SessionSource, UserId,
-};
+use systemprompt_identifiers::{AuthorizationCode, ClientId, RefreshTokenId, SessionSource};
 use systemprompt_models::Config;
-use systemprompt_models::auth::{AuthenticatedUser, Permission, parse_permissions};
+use systemprompt_models::auth::parse_permissions;
 
 use crate::routes::oauth::extractors::OAuthRepo;
 use crate::services::middleware::client_addr::ClientIp;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::{OAuthRepository, RefreshTokenParams};
+use systemprompt_oauth::services::load_authenticated_user;
 use systemprompt_traits::ExtractSignals;
 
 #[derive(Debug, Deserialize)]
@@ -177,7 +175,8 @@ async fn exchange_code_for_token(
         )
         .await?;
 
-    let user = load_authenticated_user(&validation_result.user_id, state.user_provider()).await?;
+    let user =
+        load_authenticated_user(state.user_provider().as_ref(), &validation_result.user_id).await?;
 
     let permissions = parse_permissions(&validation_result.scope)?;
 
@@ -233,46 +232,6 @@ async fn exchange_code_for_token(
     }
 
     Ok(TokenResponse { access_token })
-}
-
-async fn load_authenticated_user(
-    user_id: &UserId,
-    user_provider: &Arc<dyn systemprompt_traits::UserProvider>,
-) -> anyhow::Result<AuthenticatedUser> {
-    let user = user_provider
-        .find_by_id(user_id)
-        .await
-        .map_err(|e| anyhow::anyhow!("{}", e))?
-        .ok_or_else(|| anyhow::anyhow!("User not found: {user_id}"))?;
-
-    let permissions: Vec<Permission> = user
-        .roles
-        .iter()
-        .filter_map(|s| {
-            Permission::from_str(s)
-                .map_err(|e| {
-                    tracing::warn!(
-                        user_id = %user.id,
-                        role = %s,
-                        error = %e,
-                        "Invalid role in user record"
-                    );
-                    e
-                })
-                .ok()
-        })
-        .collect();
-
-    let user_uuid = uuid::Uuid::parse_str(user.id.as_str())
-        .map_err(|_e| anyhow::anyhow!("Invalid user UUID: {}", user.id))?;
-
-    Ok(AuthenticatedUser::new_with_roles(
-        user_uuid,
-        user.name,
-        user.email,
-        permissions,
-        user.roles,
-    ))
 }
 
 #[derive(Debug)]

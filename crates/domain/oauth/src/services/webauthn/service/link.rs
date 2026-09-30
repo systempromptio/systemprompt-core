@@ -6,6 +6,7 @@
 use super::WebAuthnService;
 use crate::error::{OauthError, OauthResult as Result};
 use crate::repository::{ReserveLinkChallengeParams, TokenValidationResult, WebAuthnChallengeKind};
+use crate::services::load_authenticated_user;
 use crate::services::webauthn::token::hash_token;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
@@ -55,10 +56,8 @@ impl WebAuthnService {
             },
         };
 
-        let user = self
-            .oauth_repo
-            .get_authenticated_user(&token_record.user_id)
-            .await?;
+        let user =
+            load_authenticated_user(self.user_provider.as_ref(), &token_record.user_id).await?;
 
         let existing_creds = self.get_user_credentials(&token_record.user_id).await?;
         let exclude_credentials: Vec<CredentialID> =

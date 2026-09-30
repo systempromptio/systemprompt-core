@@ -24,7 +24,7 @@ use systemprompt_oauth::services::{
     provision_bridge_oauth_client,
 };
 use systemprompt_runtime::AppContext;
-use systemprompt_traits::{AnalyticsProvider, AppContext as _};
+use systemprompt_traits::{AnalyticsProvider, AppContext as _, UserProvider};
 use systemprompt_users::{ApiKeyService, IssueApiKeyParams};
 
 use crate::error::ApiHttpError;
@@ -89,12 +89,13 @@ pub async fn pat(ctx: AppContext, request: Request) -> Result<Json<AuthResponse>
 
     let analytics = require_analytics(&ctx)?;
     let caller_ip = client_ip_from_request(&request);
+    let users = require_user_provider(&ctx)?;
     let result = issue_bridge_access(
-        &ctx.oauth_repositories().oauth,
         analytics.as_ref(),
         ctx.session_provider()
             .ok_or_else(|| ApiHttpError::internal_error("Session provider unavailable"))?
             .as_ref(),
+        users.as_ref(),
         BridgeAccessRequest::bridge(request.headers(), caller_ip, &record.user_id),
     )
     .await?;
@@ -113,12 +114,14 @@ pub async fn session(
     }
 
     let analytics = require_analytics(&ctx)?;
+    let users = require_user_provider(&ctx)?;
     let result = exchange_bridge_session_code(
         &ctx.oauth_repositories().oauth,
         analytics.as_ref(),
         ctx.session_provider()
             .ok_or_else(|| ApiHttpError::internal_error("Session provider unavailable"))?
             .as_ref(),
+        users.as_ref(),
         BridgeExchangeRequest {
             request_headers: &headers,
             caller_ip,
@@ -230,4 +233,9 @@ fn extract_bearer(hdrs: &HeaderMap) -> Option<String> {
 fn require_analytics(ctx: &AppContext) -> Result<Arc<dyn AnalyticsProvider>, ApiHttpError> {
     ctx.analytics_provider()
         .ok_or_else(|| ApiHttpError::internal_error("analytics provider unavailable"))
+}
+
+fn require_user_provider(ctx: &AppContext) -> Result<Arc<dyn UserProvider>, ApiHttpError> {
+    ctx.user_provider()
+        .ok_or_else(|| ApiHttpError::internal_error("User provider unavailable"))
 }

@@ -5,6 +5,7 @@
 ### Breaking
 
 - **Content / Generator Rust API:** `ContentRepository::get_popular_content_ids` is removed; the ranking reads analytics events and users, so it is `ContentAnalyticsRepository::popular_content_ids` over the analytics report views. `prerender_content` takes the `ContentAnalyticsRepository` after the `ContentRepository`, and `PublishError` gains `Analytics`.
+- **OAuth Rust API:** `OAuthRepository::{find_user_by_email, get_authenticated_user}` and `OAuthUser` are removed; users are read through `UserProvider`, and `systemprompt_oauth::services::load_authenticated_user(&dyn UserProvider, &UserId)` is the one resolver from a user id to an `AuthenticatedUser`. `issue_bridge_access` no longer takes an `OAuthRepository` and, like `exchange_bridge_session_code`, takes a `&dyn UserProvider` after the session provider. The API crate's `token::generation::load_authenticated_user` is removed.
 
 ### Added
 

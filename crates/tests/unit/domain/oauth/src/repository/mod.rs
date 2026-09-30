@@ -22,6 +22,5 @@ mod refresh_token;
 mod scopes;
 mod setup_token;
 mod state_binding;
-mod user;
 mod webauthn;
 mod webauthn_corrupt_db;

@@ -38,7 +38,9 @@ use systemprompt_models::Config;
 use systemprompt_models::auth::{AuthenticatedUser, Permission, parse_permissions};
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::{OAuthRepository, RefreshTokenParams};
-use systemprompt_oauth::services::{JwtConfig, JwtSigningParams, generate_jwt};
+use systemprompt_oauth::services::{
+    JwtConfig, JwtSigningParams, generate_jwt, load_authenticated_user,
+};
 use systemprompt_traits::ExtractSignals;
 
 #[derive(Debug, Clone, Copy)]
@@ -75,7 +77,7 @@ pub async fn generate_tokens_by_user_id(
         .scope
         .ok_or_else(|| anyhow::anyhow!("Scope is required for token generation"))?;
 
-    let user = load_authenticated_user(repo, params.user_id).await?;
+    let user = load_authenticated_user(state.user_provider().as_ref(), params.user_id).await?;
 
     let requested_permissions = parse_permissions(scope_str)?;
     let user_perms = user.permissions().to_vec();
@@ -117,15 +119,6 @@ pub async fn generate_tokens_by_user_id(
         },
         refresh_token_id: jwt_and_refresh.refresh_token_id,
     })
-}
-
-pub async fn load_authenticated_user(
-    repo: &OAuthRepository,
-    user_id: &UserId,
-) -> Result<AuthenticatedUser> {
-    repo.get_authenticated_user(user_id)
-        .await
-        .map_err(Into::into)
 }
 
 struct JwtAndRefreshToken {

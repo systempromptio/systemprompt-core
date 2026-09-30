@@ -12,7 +12,6 @@ mod jti_revocation;
 mod refresh_token;
 mod scopes;
 mod state_binding;
-mod user;
 
 pub use auth_code::{AuthCodeParams, AuthCodeValidationResult, MintAuthCodeParams};
 pub use jti_revocation::JtiRevocationCache;

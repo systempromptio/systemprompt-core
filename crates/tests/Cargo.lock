@@ -8641,6 +8641,7 @@ dependencies = [
  "systemprompt-security",
  "systemprompt-test-fixtures",
  "systemprompt-traits",
+ "systemprompt-users",
  "tokio",
  "url",
  "uuid",

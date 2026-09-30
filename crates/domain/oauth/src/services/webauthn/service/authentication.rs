@@ -20,9 +20,10 @@ impl WebAuthnService {
         oauth_state: Option<String>,
     ) -> Result<(RequestChallengeResponse, String)> {
         let user = self
-            .oauth_repo
-            .find_user_by_email(email)
-            .await?
+            .user_provider
+            .find_by_email(email)
+            .await
+            .map_err(|e| OauthError::User(e.to_string()))?
             .ok_or_else(|| OauthError::UserNotFound(email.to_owned()))?;
 
         let user_credentials = self.get_user_credentials(&user.id).await?;

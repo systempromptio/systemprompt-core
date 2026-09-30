@@ -20,9 +20,12 @@ use systemprompt_identifiers::{
 };
 use systemprompt_models::Config;
 use systemprompt_models::auth::{AuthenticatedUser, JwtAudience};
-use systemprompt_traits::{AnalyticsProvider, CreateSessionInput, ExtractSignals, SessionProvider};
+use systemprompt_traits::{
+    AnalyticsProvider, CreateSessionInput, ExtractSignals, SessionProvider, UserProvider,
+};
 
 use crate::repository::{CreateExchangeCodeParams, OAuthRepository};
+use crate::services::authenticated_user::load_authenticated_user;
 use crate::services::generation::{
     JwtConfig, JwtSigningParams, generate_access_token_jti, generate_jwt,
 };
@@ -98,9 +101,9 @@ async fn adopt_or_mint_session(
 }
 
 pub async fn issue_bridge_access(
-    repo: &OAuthRepository,
     analytics: &dyn AnalyticsProvider,
     sessions: &dyn SessionProvider,
+    users: &dyn UserProvider,
     request: BridgeAccessRequest<'_>,
 ) -> Result<BridgeAuthResult> {
     let BridgeAccessRequest {
@@ -112,7 +115,7 @@ pub async fn issue_bridge_access(
         ttl_seconds,
     } = request;
 
-    let auth_user = repo.get_authenticated_user(user_id).await?;
+    let auth_user = load_authenticated_user(users, user_id).await?;
 
     let global_config = Config::get()?;
 
@@ -246,6 +249,7 @@ pub async fn exchange_bridge_session_code(
     repo: &OAuthRepository,
     analytics: &dyn AnalyticsProvider,
     sessions: &dyn SessionProvider,
+    users: &dyn UserProvider,
     exchange: BridgeExchangeRequest<'_>,
 ) -> Result<Option<BridgeAuthResult>> {
     let BridgeExchangeRequest {
@@ -258,9 +262,9 @@ pub async fn exchange_bridge_session_code(
         return Ok(None);
     };
     let result = issue_bridge_access(
-        repo,
         analytics,
         sessions,
+        users,
         BridgeAccessRequest::bridge(request_headers, caller_ip, &user_id),
     )
     .await?;

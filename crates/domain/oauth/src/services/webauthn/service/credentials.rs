@@ -12,7 +12,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::WebAuthnService;
-use crate::error::OauthResult as Result;
+use crate::error::{OauthError, OauthResult as Result};
 use crate::repository::WebAuthnCredentialParams;
 use systemprompt_identifiers::UserId;
 use uuid::Uuid;
@@ -97,7 +97,12 @@ impl WebAuthnService {
     }
 
     pub(super) async fn get_user_credentials_by_email(&self, email: &str) -> Result<Vec<Passkey>> {
-        if let Some(user) = self.oauth_repo.find_user_by_email(email).await? {
+        let user = self
+            .user_provider
+            .find_by_email(email)
+            .await
+            .map_err(|e| OauthError::User(e.to_string()))?;
+        if let Some(user) = user {
             self.get_user_credentials(&user.id).await
         } else {
             Ok(Vec::new())

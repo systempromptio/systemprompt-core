@@ -11,18 +11,21 @@ use systemprompt_test_fixtures::{
     ensure_test_bootstrap, fixture_database_url, fixture_db_pool, seed_user_row, unique_user_id,
 };
 use systemprompt_traits::{AuthResult, AuthUser, UserProvider};
+use systemprompt_users::{UserRepository, UserService};
 use url::Url;
 use uuid::Uuid;
 
-struct NoopUserProvider;
+struct SeededUserProvider {
+    users: UserService,
+}
 
 #[async_trait]
-impl UserProvider for NoopUserProvider {
-    async fn find_by_id(&self, _id: &UserId) -> AuthResult<Option<AuthUser>> {
-        Ok(None)
+impl UserProvider for SeededUserProvider {
+    async fn find_by_id(&self, id: &UserId) -> AuthResult<Option<AuthUser>> {
+        UserProvider::find_by_id(&self.users, id).await
     }
-    async fn find_by_email(&self, _email: &str) -> AuthResult<Option<AuthUser>> {
-        Ok(None)
+    async fn find_by_email(&self, email: &str) -> AuthResult<Option<AuthUser>> {
+        UserProvider::find_by_email(&self.users, email).await
     }
     async fn find_by_name(&self, _name: &str) -> AuthResult<Option<AuthUser>> {
         Ok(None)
@@ -94,8 +97,11 @@ async fn setup_or_skip() -> Option<Ctx> {
     seed_user_row(&pool, &user_id, &email)
         .await
         .expect("seed user");
+    let provider = SeededUserProvider {
+        users: UserService::new(Arc::new(UserRepository::new(&pool).expect("user repo"))),
+    };
     let service =
-        WebAuthnService::with_config(test_config(), repo, Arc::new(NoopUserProvider)).expect("svc");
+        WebAuthnService::with_config(test_config(), repo, Arc::new(provider)).expect("svc");
     Some(Ctx {
         service,
         user_id,

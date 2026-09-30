@@ -16,8 +16,10 @@ use systemprompt_models::profile::RateLimitsConfig;
 use systemprompt_oauth::services::{BridgeAccessRequest, issue_bridge_access};
 use systemprompt_security::keys::authority;
 
-fn oauth_repo(db: &systemprompt_database::DbPool) -> systemprompt_oauth::OAuthRepository {
-    systemprompt_oauth::OAuthRepository::new(db).expect("oauth repo")
+fn user_provider(db: &systemprompt_database::DbPool) -> systemprompt_users::UserService {
+    systemprompt_users::UserService::new(std::sync::Arc::new(
+        systemprompt_users::UserRepository::new(db).expect("user repo"),
+    ))
 }
 
 static AUTHORITY: Once = Once::new();
@@ -113,9 +115,9 @@ async fn fresh_bridge_jwt_has_active_session_for_profile_discovery() {
     );
 
     let result = issue_bridge_access(
-        &oauth_repo(&db),
         &analytics,
         &*analytics.session_repo().owner(),
+        &user_provider(&db),
         BridgeAccessRequest::bridge(&exchange_request_headers(), None, &user_id),
     )
     .await
@@ -155,9 +157,9 @@ async fn bridge_session_captures_request_analytics() {
 
     let caller_ip = "203.0.113.7".parse().ok();
     let result = issue_bridge_access(
-        &oauth_repo(&db),
         &analytics,
         &*analytics.session_repo().owner(),
+        &user_provider(&db),
         BridgeAccessRequest::bridge(&exchange_request_headers(), caller_ip, &user_id),
     )
     .await
@@ -202,9 +204,9 @@ async fn bridge_jwt_binds_supplied_session_id() {
 
     let supplied = SessionId::generate();
     let result = issue_bridge_access(
-        &oauth_repo(&db),
         &analytics,
         &*analytics.session_repo().owner(),
+        &user_provider(&db),
         BridgeAccessRequest::bridge(&exchange_headers_with_session(&supplied), None, &user_id),
     )
     .await
@@ -248,17 +250,17 @@ async fn repeated_mint_with_same_session_id_is_idempotent() {
     // The bridge re-mints hourly with its stable session id; both mints must
     // succeed (idempotent upsert), not fail on the existing primary key.
     issue_bridge_access(
-        &oauth_repo(&db),
         &analytics,
         &*analytics.session_repo().owner(),
+        &user_provider(&db),
         BridgeAccessRequest::bridge(&headers, None, &user_id),
     )
     .await
     .expect("first mint");
     issue_bridge_access(
-        &oauth_repo(&db),
         &analytics,
         &*analytics.session_repo().owner(),
+        &user_provider(&db),
         BridgeAccessRequest::bridge(&headers, None, &user_id),
     )
     .await

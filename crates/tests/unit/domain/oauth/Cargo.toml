@@ -18,6 +18,7 @@ systemprompt-models = { workspace = true }
 systemprompt-traits = { workspace = true }
 systemprompt-extension = { workspace = true }
 systemprompt-config = { workspace = true }
+systemprompt-users = { workspace = true }
 
 [dev-dependencies]
 systemprompt-database = { workspace = true }

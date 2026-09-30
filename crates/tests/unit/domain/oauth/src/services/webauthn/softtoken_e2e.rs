@@ -17,6 +17,7 @@ use systemprompt_test_fixtures::{
     ensure_test_bootstrap, fixture_database_url, fixture_db_pool, seed_user_row,
 };
 use systemprompt_traits::{AuthResult, AuthUser, UserProvider};
+use systemprompt_users::{UserRepository, UserService};
 use url::Url;
 use uuid::Uuid;
 use webauthn_authenticator_rs::WebauthnAuthenticator;
@@ -24,15 +25,16 @@ use webauthn_authenticator_rs::softtoken::SoftToken;
 
 struct SeedingUserProvider {
     pool: DbPool,
+    users: UserService,
 }
 
 #[async_trait]
 impl UserProvider for SeedingUserProvider {
-    async fn find_by_id(&self, _id: &UserId) -> AuthResult<Option<AuthUser>> {
-        Ok(None)
+    async fn find_by_id(&self, id: &UserId) -> AuthResult<Option<AuthUser>> {
+        UserProvider::find_by_id(&self.users, id).await
     }
-    async fn find_by_email(&self, _email: &str) -> AuthResult<Option<AuthUser>> {
-        Ok(None)
+    async fn find_by_email(&self, email: &str) -> AuthResult<Option<AuthUser>> {
+        UserProvider::find_by_email(&self.users, email).await
     }
     async fn find_by_name(&self, _name: &str) -> AuthResult<Option<AuthUser>> {
         Ok(None)
@@ -107,7 +109,10 @@ async fn setup_or_skip() -> Option<Ctx> {
     ensure_test_bootstrap();
     let pool = fixture_db_pool(&url).await.expect("pool");
     let repo = OAuthRepository::new(&pool).expect("repo");
-    let provider = Arc::new(SeedingUserProvider { pool: pool.clone() });
+    let provider = Arc::new(SeedingUserProvider {
+        pool: pool.clone(),
+        users: UserService::new(Arc::new(UserRepository::new(&pool).expect("user repo"))),
+    });
     let service = WebAuthnService::with_config(test_config(), repo.clone(), provider).expect("svc");
     Some(Ctx {
         pool,
