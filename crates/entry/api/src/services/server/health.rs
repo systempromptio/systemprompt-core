@@ -11,7 +11,6 @@
 use std::time::Duration;
 
 use axum::Json;
-use serde::Serialize;
 use serde_json::json;
 use systemprompt_database::{DatabaseQuery, JsonRow};
 use systemprompt_runtime::AppContext;
@@ -35,58 +34,9 @@ const AUDIT_LOG_QUERY: DatabaseQuery = DatabaseQuery::new(
      MIN(created_at) as oldest, MAX(created_at) as newest FROM audit_log",
 );
 
-#[derive(Debug, Clone, Copy, Serialize)]
-pub struct ProcessMemory {
-    #[serde(rename = "rss_mb")]
-    pub rss: Option<u64>,
-    #[serde(rename = "virtual_mb")]
-    pub virtual_size: Option<u64>,
-    #[serde(rename = "peak_mb")]
-    pub peak: Option<u64>,
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct DiskUsage {
-    pub total: String,
-    pub used: String,
-    pub available: String,
-    pub usage_percent: f64,
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct SystemStats {
-    pub database: Option<DatabaseStats>,
-    pub disk: Option<DiskUsage>,
-    pub logs: Option<AuditLogStats>,
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct DatabaseStats {
-    pub name: String,
-    pub total_size: String,
-    pub total_size_bytes: i64,
-    pub table_count: i64,
-    pub top_tables: Vec<TableStats>,
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct TableStats {
-    pub table_name: String,
-    pub total_size: String,
-    pub total_size_bytes: i64,
-    pub row_estimate: i64,
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct AuditLogStats {
-    pub audit_rows: i64,
-    pub audit_size: String,
-    pub audit_size_bytes: i64,
-    // JSON: runtime `JsonRow` cell — `MIN(created_at)` as the database driver rendered it.
-    pub oldest: Option<serde_json::Value>,
-    // JSON: runtime `JsonRow` cell — `MAX(created_at)` as the database driver rendered it.
-    pub newest: Option<serde_json::Value>,
-}
+pub use super::health_stats::{
+    AuditLogStats, DatabaseStats, DiskUsage, ProcessMemory, SystemStats, TableStats,
+};
 
 #[cfg(target_os = "linux")]
 pub fn parse_proc_status_kb(content: &str, key: &str) -> Option<u64> {

@@ -14,6 +14,7 @@
 pub mod builder;
 mod discovery;
 pub mod health;
+mod health_stats;
 
 pub mod health_detail;
 pub mod lifecycle;

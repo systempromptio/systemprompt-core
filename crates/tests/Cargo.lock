@@ -9300,7 +9300,6 @@ dependencies = [
  "anyhow",
  "chrono",
  "sqlx",
- "systemprompt-database",
  "systemprompt-identifiers",
  "systemprompt-test-fixtures",
  "systemprompt-users",
