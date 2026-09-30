@@ -16,6 +16,8 @@ use super::super::super::InboundParseError;
 const TOOL_CHOICE_EXPECTED: &str =
     "expected \"none\", \"auto\", \"required\", or an object with type function";
 
+// JSON: OpenAI Chat Completions request — inbound wire JSON, parsed leniently
+// into canonical form.
 pub(super) fn parse_tool(value: &Value) -> Option<CanonicalTool> {
     if value
         .get("type")
@@ -43,6 +45,8 @@ pub(super) fn parse_tool(value: &Value) -> Option<CanonicalTool> {
     })
 }
 
+// JSON: OpenAI Chat Completions request — inbound wire JSON, parsed leniently
+// into canonical form.
 pub(super) fn parse_tool_choice(
     request: &Value,
 ) -> Result<Option<CanonicalToolChoice>, InboundParseError> {
@@ -52,6 +56,8 @@ pub(super) fn parse_tool_choice(
         .transpose()
 }
 
+// JSON: OpenAI Chat Completions request — inbound wire JSON, parsed leniently
+// into canonical form.
 fn parse_present_tool_choice(value: &Value) -> Result<CanonicalToolChoice, InboundParseError> {
     let unsupported = || InboundParseError::Unsupported {
         field: "tool_choice",
@@ -88,6 +94,8 @@ pub(super) fn parse_reasoning_effort(s: &str) -> Option<ReasoningEffort> {
     }
 }
 
+// JSON: OpenAI Chat Completions request — inbound wire JSON, parsed leniently
+// into canonical form.
 pub(super) fn parse_response_format(value: &Value) -> Option<ResponseFormat> {
     match value.get("type").and_then(Value::as_str)? {
         "json_object" => Some(ResponseFormat::JsonObject),

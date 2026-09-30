@@ -26,6 +26,8 @@ pub struct StartAuthQuery {
 
 #[derive(Debug, Serialize)]
 pub struct StartAuthResponse {
+    // JSON: WebAuthn `PublicKeyCredentialRequestOptions` — passed to `navigator.credentials.get`
+    // as-is.
     #[serde(rename = "publicKey")]
     pub public_key: serde_json::Value,
     pub challenge_id: ChallengeId,

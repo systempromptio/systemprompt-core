@@ -12,6 +12,8 @@ use super::super::super::super::canonical::{
     CanonicalContent, CanonicalMessage, ImageDetail, ImageSource, Role,
 };
 
+// JSON: OpenAI Chat Completions request — inbound wire JSON, parsed leniently
+// into canonical form.
 pub(super) fn parse_user_content(value: Option<&Value>) -> Vec<CanonicalContent> {
     match value {
         Some(Value::String(s)) => vec![CanonicalContent::text(s.clone())],
@@ -20,6 +22,8 @@ pub(super) fn parse_user_content(value: Option<&Value>) -> Vec<CanonicalContent>
     }
 }
 
+// JSON: OpenAI Chat Completions request — inbound wire JSON, parsed leniently
+// into canonical form.
 fn parse_user_part(part: &Value) -> Option<CanonicalContent> {
     match part.get("type").and_then(Value::as_str)? {
         "text" => part
@@ -61,6 +65,8 @@ fn parse_image_detail(s: &str) -> Option<ImageDetail> {
     }
 }
 
+// JSON: OpenAI Chat Completions request — inbound wire JSON, parsed leniently
+// into canonical form.
 pub(super) fn parse_assistant_message(msg: &Value) -> CanonicalMessage {
     let mut content: Vec<CanonicalContent> = Vec::new();
     let text = flatten_content_text(msg.get("content"));
@@ -103,6 +109,8 @@ pub(super) fn parse_assistant_message(msg: &Value) -> CanonicalMessage {
     }
 }
 
+// JSON: OpenAI Chat Completions request — inbound wire JSON, parsed leniently
+// into canonical form.
 pub(super) fn flatten_content_text(value: Option<&Value>) -> String {
     match value {
         Some(Value::String(s)) => s.clone(),

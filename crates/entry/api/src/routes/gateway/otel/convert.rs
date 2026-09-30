@@ -43,6 +43,7 @@ pub fn any_value_to_string(
     }
 }
 
+// JSON: OTLP `AnyValue` attributes — rendered to JSON for span storage.
 pub fn attrs_to_json(attrs: &[opentelemetry_proto::tonic::common::v1::KeyValue]) -> Value {
     let mut map = serde_json::Map::new();
     for kv in attrs {
@@ -51,6 +52,7 @@ pub fn attrs_to_json(attrs: &[opentelemetry_proto::tonic::common::v1::KeyValue])
     Value::Object(map)
 }
 
+// JSON: OTLP `AnyValue` attributes — rendered to JSON for span storage.
 fn any_value_to_json(value: Option<&opentelemetry_proto::tonic::common::v1::AnyValue>) -> Value {
     use opentelemetry_proto::tonic::common::v1::any_value::Value as AV;
     let Some(av) = value.and_then(|v| v.value.as_ref()) else {

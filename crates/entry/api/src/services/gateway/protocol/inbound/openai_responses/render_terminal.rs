@@ -109,6 +109,7 @@ const fn item_status(stop_reason: Option<CanonicalStopReason>) -> &'static str {
     }
 }
 
+// JSON: OpenAI Responses SSE event — rendered from the canonical response.
 fn output_item_value(index: u32, block: &CanonicalContent, status: &str) -> Option<Value> {
     match block {
         CanonicalContent::Text { text, .. } => Some(json!({
@@ -146,6 +147,7 @@ fn output_item_value(index: u32, block: &CanonicalContent, status: &str) -> Opti
     }
 }
 
+// JSON: OpenAI Responses SSE event — rendered from the canonical response.
 fn push_frame(buf: &mut String, event_name: &str, payload: &Value) {
     buf.push_str("event: ");
     buf.push_str(event_name);

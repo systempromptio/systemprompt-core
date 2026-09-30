@@ -97,6 +97,7 @@ impl Location {
 }
 
 struct Frame<'a> {
+    // JSON: gateway recovery — walks the provider-bound wire body to redact located secrets.
     value: &'a Value,
     path: String,
     pointer: String,
@@ -104,6 +105,8 @@ struct Frame<'a> {
     json_string: bool,
 }
 
+// JSON: gateway recovery — walks the provider-bound wire body to redact located
+// secrets.
 fn locations(root: &Value) -> Option<HashMap<String, Location>> {
     let mut out = HashMap::new();
     let mut stack = vec![Frame {
@@ -162,12 +165,16 @@ fn record(out: &mut HashMap<String, Location>, path: String, location: Location)
     out.insert(path, location).is_none().then_some(())
 }
 
+// JSON: gateway recovery — walks the provider-bound wire body to redact located
+// secrets.
 fn is_json_string(value: &Value) -> bool {
     value
         .as_str()
         .is_some_and(|s| serde_json::from_str::<Value>(s).is_ok())
 }
 
+// JSON: gateway recovery — walks the provider-bound wire body to redact located
+// secrets.
 fn is_signed_block(map: &Map<String, Value>) -> bool {
     let reasoning = matches!(
         map.get("type").and_then(Value::as_str),

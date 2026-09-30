@@ -22,6 +22,8 @@ use super::super::super::canonical_response::{
 
 pub(super) const STREAM_CHUNK_ID: &str = "chatcmpl-systemprompt-stream";
 
+// JSON: OpenAI Chat Completions response/chunk — rendered from the canonical
+// response.
 pub fn render_response_object(response: &CanonicalResponse) -> Value {
     let mut text = String::new();
     let mut tool_calls: Vec<Value> = Vec::new();
@@ -79,6 +81,8 @@ pub(super) fn finish_reason(stop_reason: Option<CanonicalStopReason>) -> &'stati
     stop_reason.map_or("stop", CanonicalStopReason::openai_str)
 }
 
+// JSON: OpenAI Chat Completions response/chunk — rendered from the canonical
+// response.
 pub(super) fn usage_object(usage: &CanonicalUsage) -> Value {
     json!({
         "prompt_tokens": usage.input_tokens,
@@ -132,6 +136,8 @@ pub fn render_event_frame(event: &CanonicalEvent, model: &str) -> Option<Bytes> 
     Some(render_chunk(model, &delta, None, None))
 }
 
+// JSON: OpenAI Chat Completions response/chunk — rendered from the canonical
+// response.
 pub(super) fn render_chunk(
     model: &str,
     delta: &Value,

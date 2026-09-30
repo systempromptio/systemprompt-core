@@ -14,6 +14,8 @@ use systemprompt_models::wire::anthropic::{self, BetaHeader};
 use super::super::super::canonical::CanonicalRequest;
 use super::super::OutboundCtx;
 
+// JSON: Anthropic Messages upstream body — passthrough keeps unknown client
+// fields.
 pub fn build_request_body(
     request: &CanonicalRequest,
     upstream_model: &str,
@@ -68,6 +70,8 @@ pub(super) fn normalize_raw_body(raw: &Bytes, ctx: &OutboundCtx<'_>) -> Option<B
     }
 }
 
+// JSON: Anthropic Messages upstream body — passthrough keeps unknown client
+// fields.
 pub(super) fn enable_automatic_prompt_caching(body: &mut Value, ctx: &OutboundCtx<'_>) {
     if !ctx.automatic_prompt_caching || ctx.request.has_cache_control() {
         return;
@@ -83,6 +87,8 @@ pub(super) fn enable_automatic_prompt_caching(body: &mut Value, ctx: &OutboundCt
     );
 }
 
+// JSON: Anthropic Messages upstream body — passthrough keeps unknown client
+// fields.
 fn clamp_max_tokens(obj: &mut Map<String, Value>, limits: Option<ModelLimits>) {
     let Some(requested) = obj.get("max_tokens").and_then(Value::as_u64) else {
         return;
@@ -97,6 +103,8 @@ fn clamp_max_tokens(obj: &mut Map<String, Value>, limits: Option<ModelLimits>) {
     }
 }
 
+// JSON: Anthropic Messages upstream body — passthrough keeps unknown client
+// fields.
 fn drop_refused(
     obj: &mut Map<String, Value>,
     provider: &str,

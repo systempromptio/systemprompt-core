@@ -27,7 +27,9 @@ pub struct ToolExecutionResponse {
     pub tool_name: String,
     pub server_name: String,
     pub server_endpoint: String,
+    // JSON: MCP `tools/call` arguments — schema-less per tool.
     pub input: serde_json::Value,
+    // JSON: MCP `tools/call` result — schema-less per tool.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub output: Option<serde_json::Value>,
     pub status: String,

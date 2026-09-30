@@ -15,6 +15,8 @@ use crate::services::gateway::protocol::inbound::InboundParseError;
 
 const TOOL_CHOICE_EXPECTED: &str = "expected an object with type auto|any|tool";
 
+// JSON: Anthropic Messages request — inbound wire JSON, parsed leniently into
+// canonical form.
 pub(super) fn parse_tool(value: &Value) -> CanonicalTool {
     CanonicalTool {
         name: value
@@ -36,6 +38,8 @@ pub(super) fn parse_tool(value: &Value) -> CanonicalTool {
     }
 }
 
+// JSON: Anthropic Messages request — inbound wire JSON, parsed leniently into
+// canonical form.
 pub(super) fn parse_tool_choice(
     request: &Value,
 ) -> Result<Option<CanonicalToolChoice>, InboundParseError> {
@@ -45,6 +49,8 @@ pub(super) fn parse_tool_choice(
         .transpose()
 }
 
+// JSON: Anthropic Messages request — inbound wire JSON, parsed leniently into
+// canonical form.
 fn parse_present_tool_choice(value: &Value) -> Result<CanonicalToolChoice, InboundParseError> {
     let unsupported = || InboundParseError::Unsupported {
         field: "tool_choice",
@@ -71,6 +77,8 @@ fn parse_present_tool_choice(value: &Value) -> Result<CanonicalToolChoice, Inbou
     }
 }
 
+// JSON: Anthropic Messages request — inbound wire JSON, parsed leniently into
+// canonical form.
 pub(super) fn parse_thinking(value: &Value) -> ThinkingConfig {
     let kind = value.get("type").and_then(Value::as_str).unwrap_or("");
     // Why: `adaptive` is thinking on with the budget left to the model; Claude

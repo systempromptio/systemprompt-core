@@ -29,6 +29,7 @@ pub struct JwtPrincipal {
     pub user_id: UserId,
     pub trace_id: TraceId,
     pub roles: Vec<String>,
+    // JSON: ABAC attribute bag — JWT claim values are policy-defined and schema-less.
     pub attributes: BTreeMap<String, serde_json::Value>,
     pub act_chain: Vec<Actor>,
     pub attested_session: SessionId,
@@ -71,6 +72,8 @@ impl AuthedPrincipal {
         }
     }
 
+    // JSON: ABAC attribute bag — JWT claim values are policy-defined and
+    // schema-less.
     pub fn authz_attributes(
         &self,
     ) -> (Vec<String>, BTreeMap<String, serde_json::Value>, Vec<Actor>) {

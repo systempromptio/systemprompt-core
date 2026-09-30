@@ -103,6 +103,8 @@ fn principal(request: &RequestContext, scope: AccessScope) -> PrincipalSnapshot 
     }
 }
 
+// JSON: MCP JSON-RPC request frame — forwarded verbatim to the external MCP
+// server.
 fn tool_call(service: &str, body: &[u8]) -> Result<Option<serde_json::Value>, ProxyError> {
     let denied = || ProxyError::Forbidden {
         service: service.to_owned(),

@@ -14,6 +14,8 @@ use crate::services::gateway::protocol::inbound::InboundParseError;
 
 // Why: each system block keeps its own `cache_control`, so a rebuilt body
 // puts the cache breakpoints back exactly where the client set them.
+// JSON: Anthropic Messages request — inbound wire JSON, parsed leniently into
+// canonical form.
 pub(super) fn parse_system(value: &Value) -> Result<Vec<SystemBlock>, InboundParseError> {
     match value {
         Value::Null => Ok(Vec::new()),
@@ -36,12 +38,16 @@ pub(super) fn parse_system(value: &Value) -> Result<Vec<SystemBlock>, InboundPar
     }
 }
 
+// JSON: Anthropic Messages request — inbound wire JSON, parsed leniently into
+// canonical form.
 fn parse_cache_control(block: &Value) -> Option<CacheControl> {
     block
         .get("cache_control")
         .and_then(cache_control_from_anthropic)
 }
 
+// JSON: Anthropic Messages request — inbound wire JSON, parsed leniently into
+// canonical form.
 pub(super) fn parse_message(value: &Value) -> Result<CanonicalMessage, InboundParseError> {
     let role_str = value
         .get("role")
@@ -66,6 +72,8 @@ pub(super) fn parse_message(value: &Value) -> Result<CanonicalMessage, InboundPa
     Ok(CanonicalMessage { role, content })
 }
 
+// JSON: Anthropic Messages request — inbound wire JSON, parsed leniently into
+// canonical form.
 fn parse_content(value: &Value) -> Result<Vec<CanonicalContent>, InboundParseError> {
     match value {
         Value::String(s) => Ok(vec![CanonicalContent::text(s.clone())]),
@@ -85,6 +93,8 @@ fn parse_content(value: &Value) -> Result<Vec<CanonicalContent>, InboundParseErr
     }
 }
 
+// JSON: Anthropic Messages request — inbound wire JSON, parsed leniently into
+// canonical form.
 fn parse_content_block(value: &Value) -> Result<Option<CanonicalContent>, InboundParseError> {
     let kind = value.get("type").and_then(Value::as_str).unwrap_or("text");
     match kind {
@@ -158,6 +168,8 @@ fn parse_content_block(value: &Value) -> Result<Option<CanonicalContent>, Inboun
     }
 }
 
+// JSON: Anthropic Messages request — inbound wire JSON, parsed leniently into
+// canonical form.
 fn parse_tool_result_content(value: &Value) -> Vec<CanonicalContent> {
     match value {
         Value::String(s) => vec![CanonicalContent::text(s.clone())],
@@ -169,6 +181,8 @@ fn parse_tool_result_content(value: &Value) -> Vec<CanonicalContent> {
     }
 }
 
+// JSON: Anthropic Messages request — inbound wire JSON, parsed leniently into
+// canonical form.
 fn parse_image(value: &Value) -> Result<CanonicalContent, InboundParseError> {
     let source = value
         .get("source")

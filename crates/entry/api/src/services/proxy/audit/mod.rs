@@ -201,6 +201,8 @@ async fn claim_inferred(
     }
 }
 
+// JSON: MCP `tools/call` result — open-shaped per the MCP spec, ingested as
+// artifacts.
 async fn ingest_proxied_result(
     ingest: &ArtifactIngest,
     request: &ToolExecutionRequest,

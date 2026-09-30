@@ -22,6 +22,7 @@ const EXCERPT_BYTES: usize = 8 * 1024;
 /// capped capture still proves which body was sent.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PayloadCapture {
+    // JSON: audited request/response body — captured verbatim from the provider wire.
     pub json: Option<Value>,
     pub excerpt: Option<String>,
     pub truncated: bool,
@@ -34,6 +35,8 @@ pub fn digest_hex(bytes: &[u8]) -> String {
     hex::encode(Sha256::digest(bytes))
 }
 
+// JSON: provider wire `tools` array — audited verbatim in the client's protocol
+// shape.
 #[must_use]
 pub fn tools_array(body: &[u8]) -> Option<Value> {
     let mut parsed = serde_json::from_slice::<Value>(body).ok()?;
@@ -41,6 +44,8 @@ pub fn tools_array(body: &[u8]) -> Option<Value> {
     tools.is_array().then_some(tools)
 }
 
+// JSON: provider wire `tools` array — audited verbatim in the upstream protocol
+// shape.
 #[must_use]
 pub fn prepared_tools(body: &[u8]) -> Option<Value> {
     tools_array(body)

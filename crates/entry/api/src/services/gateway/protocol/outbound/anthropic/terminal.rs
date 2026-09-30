@@ -61,6 +61,7 @@ fn find(haystack: &[u8], needle: &[u8], from: usize) -> Option<usize> {
         .map(|p| p + from)
 }
 
+// JSON: Anthropic Messages upstream SSE frame — inspected for terminal events.
 fn has_tool_use_block(value: &Value) -> bool {
     value["content"]
         .as_array()
@@ -122,6 +123,7 @@ impl StreamState {
     }
 }
 
+// JSON: Anthropic Messages upstream SSE frame — inspected for terminal events.
 fn frame_json(frame: &[u8]) -> Option<Value> {
     let text = String::from_utf8_lossy(frame);
     text.lines()

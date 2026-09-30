@@ -12,6 +12,8 @@ use super::super::super::canonical_response::{
     CanonicalEvent, CanonicalResponse, CanonicalStopReason, ContentBlockKind,
 };
 
+// JSON: OpenAI Responses response/SSE event — rendered from the canonical
+// response.
 pub fn render_response_object(response: &CanonicalResponse) -> Value {
     let mut output: Vec<Value> = Vec::new();
     let mut text_parts: Vec<Value> = Vec::new();
@@ -156,6 +158,8 @@ pub fn render_event_frame(event: &CanonicalEvent, model: &str) -> Option<Bytes> 
     )))
 }
 
+// JSON: OpenAI Responses response/SSE event — rendered from the canonical
+// response.
 fn render_block_start(index: u32, block: &ContentBlockKind) -> Value {
     match block {
         ContentBlockKind::Text => json!({
@@ -193,6 +197,8 @@ fn render_block_start(index: u32, block: &ContentBlockKind) -> Value {
     }
 }
 
+// JSON: OpenAI Responses response/SSE event — rendered from the canonical
+// response.
 pub(super) fn reasoning_output_item(
     id: Option<&str>,
     fallback_id: &str,

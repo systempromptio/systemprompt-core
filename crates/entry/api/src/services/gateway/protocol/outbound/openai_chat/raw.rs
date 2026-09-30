@@ -45,6 +45,8 @@ pub fn normalize_raw_body(raw: &Bytes, ctx: &OutboundCtx<'_>) -> Option<Bytes> {
 
 // Why: OpenAI reasoning models charge thinking and visible output against the
 // same completion budget.
+// JSON: OpenAI Chat Completions passthrough body — unknown provider parameters
+// must survive.
 fn apply_output_limit(
     obj: &mut Map<String, Value>,
     upstream_model: &str,
@@ -66,6 +68,8 @@ fn apply_output_limit(
     }
 }
 
+// JSON: OpenAI Chat Completions passthrough body — unknown provider parameters
+// must survive.
 fn force_include_usage(obj: &mut Map<String, Value>) {
     match obj.get_mut("stream_options") {
         Some(Value::Object(opts)) => {

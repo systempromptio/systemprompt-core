@@ -22,6 +22,8 @@ use super::super::InboundParseError;
 
 const DEFAULT_MAX_TOKENS: u32 = 4096;
 
+// JSON: OpenAI Chat Completions request — inbound wire JSON, parsed leniently
+// into canonical form.
 pub fn parse(value: &Value) -> Result<CanonicalRequest, InboundParseError> {
     let model = value
         .get("model")
@@ -100,6 +102,8 @@ pub fn parse(value: &Value) -> Result<CanonicalRequest, InboundParseError> {
     })
 }
 
+// JSON: OpenAI Chat Completions request — inbound wire JSON, parsed leniently
+// into canonical form.
 fn parse_stream(value: &Value) -> bool {
     value
         .get("stream")
@@ -107,6 +111,8 @@ fn parse_stream(value: &Value) -> bool {
         .unwrap_or(false)
 }
 
+// JSON: OpenAI Chat Completions request — inbound wire JSON, parsed leniently
+// into canonical form.
 fn parse_messages(
     value: Option<&Value>,
 ) -> Result<(Vec<SystemBlock>, Vec<CanonicalMessage>), InboundParseError> {

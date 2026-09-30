@@ -30,6 +30,7 @@ use handlers::{
 pub struct A2aNotification {
     pub jsonrpc: String,
     pub method: String,
+    // JSON: A2A JSON-RPC notification `params` — shape varies by `method`.
     pub params: serde_json::Value,
 }
 

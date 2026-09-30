@@ -13,6 +13,8 @@ use super::super::super::canonical_response::{
     ContentBlockKind,
 };
 
+// JSON: Anthropic Messages response/SSE event — rendered from the canonical
+// response.
 pub fn render_response_value(response: &CanonicalResponse) -> Value {
     let content: Vec<Value> = response
         .content
@@ -95,6 +97,8 @@ pub fn render_event_frame(event: &CanonicalEvent, model: &str) -> Option<Bytes> 
     )))
 }
 
+// JSON: Anthropic Messages response/SSE event — rendered from the canonical
+// response.
 fn render_message_start(
     id: &str,
     event_model: &str,
@@ -119,6 +123,8 @@ fn render_message_start(
     })
 }
 
+// JSON: Anthropic Messages response/SSE event — rendered from the canonical
+// response.
 fn render_content_block_start(index: u32, block: &ContentBlockKind) -> Value {
     let block_value = match block {
         ContentBlockKind::Text => json!({ "type": "text", "text": "" }),
@@ -138,6 +144,8 @@ fn render_content_block_start(index: u32, block: &ContentBlockKind) -> Value {
     })
 }
 
+// JSON: Anthropic Messages response/SSE event — rendered from the canonical
+// response.
 fn render_thinking_block_start(signature: Option<&str>) -> Value {
     let mut obj = Map::new();
     obj.insert("type".into(), Value::String("thinking".into()));
@@ -148,6 +156,8 @@ fn render_thinking_block_start(signature: Option<&str>) -> Value {
     Value::Object(obj)
 }
 
+// JSON: Anthropic Messages response/SSE event — rendered from the canonical
+// response.
 fn render_tool_use_block_start(id: &str, name: &str, signature: Option<&str>) -> Value {
     let mut obj = Map::new();
     obj.insert("type".into(), Value::String("tool_use".into()));
@@ -160,6 +170,8 @@ fn render_tool_use_block_start(id: &str, name: &str, signature: Option<&str>) ->
     Value::Object(obj)
 }
 
+// JSON: Anthropic Messages response/SSE event — rendered from the canonical
+// response.
 fn render_usage(usage: &CanonicalUsageUpdate) -> Map<String, Value> {
     let mut out = Map::new();
     let mut put = |key: &str, v: Option<u32>| {

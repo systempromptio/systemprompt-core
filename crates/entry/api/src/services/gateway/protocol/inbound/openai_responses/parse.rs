@@ -32,6 +32,8 @@ const HOSTED_TOOL_TYPES: &[&str] = &[
     "web_search_preview_2025_03_11",
 ];
 
+// JSON: OpenAI Responses request — inbound wire JSON, parsed leniently into
+// canonical form.
 pub fn parse(value: &Value) -> Result<CanonicalRequest, InboundParseError> {
     let model = value
         .get("model")
@@ -111,6 +113,8 @@ pub fn parse(value: &Value) -> Result<CanonicalRequest, InboundParseError> {
     })
 }
 
+// JSON: OpenAI Responses request — inbound wire JSON, parsed leniently into
+// canonical form.
 fn parse_tool(value: &Value) -> Option<CanonicalTool> {
     let kind = value
         .get("type")
@@ -136,6 +140,8 @@ fn parse_tool(value: &Value) -> Option<CanonicalTool> {
     })
 }
 
+// JSON: OpenAI Responses request — inbound wire JSON, parsed leniently into
+// canonical form.
 fn parse_tool_choice(request: &Value) -> Result<Option<CanonicalToolChoice>, InboundParseError> {
     Ok(request
         .get("tool_choice")
@@ -144,6 +150,8 @@ fn parse_tool_choice(request: &Value) -> Result<Option<CanonicalToolChoice>, Inb
         .flatten())
 }
 
+// JSON: OpenAI Responses request — inbound wire JSON, parsed leniently into
+// canonical form.
 fn parse_present_tool_choice(
     value: &Value,
 ) -> Result<Option<CanonicalToolChoice>, InboundParseError> {
@@ -179,6 +187,8 @@ fn parse_present_tool_choice(
         })
 }
 
+// JSON: OpenAI Responses request — inbound wire JSON, parsed leniently into
+// canonical form.
 fn parse_reasoning(value: &Value) -> ThinkingConfig {
     let effort = value.get("effort").and_then(Value::as_str).unwrap_or("");
     let enabled = !effort.is_empty();

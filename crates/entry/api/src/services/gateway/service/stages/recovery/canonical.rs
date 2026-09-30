@@ -14,6 +14,8 @@ fn replace_text(text: &mut String, replacements: &[(String, String)]) {
     }
 }
 
+// JSON: gateway recovery — canonical tool arguments carry provider-defined
+// JSON.
 fn replace_json(value: &mut Value, replacements: &[(String, String)]) {
     match value {
         Value::String(text) => replace_text(text, replacements),

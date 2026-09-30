@@ -38,6 +38,7 @@ pub struct AnonymousTokenRequest {
     pub client_id: ClientId,
     #[serde(default)]
     pub redirect_uri: Option<String>,
+    // JSON: client-supplied opaque metadata — accepted for wire compatibility, not interpreted.
     #[serde(default)]
     pub metadata: Option<serde_json::Value>,
 }

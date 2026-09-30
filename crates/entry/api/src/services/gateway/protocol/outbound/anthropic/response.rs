@@ -11,6 +11,8 @@ use systemprompt_models::wire::error::WireParseError;
 
 use super::super::super::canonical_response::CanonicalResponse;
 
+// JSON: Anthropic Messages upstream response — decoded by the shared wire
+// parser.
 pub fn parse_response(
     value: &Value,
     fallback_model: &str,

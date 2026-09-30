@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+// JSON: webhook payload — arbitrary caller JSON, size-capped before relay.
 pub fn validate_json_serializable(value: &serde_json::Value) -> Result<(), String> {
     const MAX_PAYLOAD_SIZE: usize = 1_000_000;
     const MAX_TEXT_FIELD_SIZE: usize = 100_000;
@@ -26,6 +27,7 @@ pub fn validate_json_serializable(value: &serde_json::Value) -> Result<(), Strin
     Ok(())
 }
 
+// JSON: webhook payload — arbitrary caller JSON, size-capped before relay.
 pub fn sanitize_payload(value: &serde_json::Value, max_text_size: usize) -> serde_json::Value {
     match value {
         serde_json::Value::String(s) => {

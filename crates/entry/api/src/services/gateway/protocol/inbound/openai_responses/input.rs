@@ -9,6 +9,8 @@ use serde_json::Value;
 use super::super::super::canonical::{CanonicalContent, CanonicalMessage, ImageSource, Role};
 use super::super::InboundParseError;
 
+// JSON: OpenAI Responses `input` items — inbound wire JSON, parsed leniently
+// into canonical form.
 pub(super) fn parse_input(value: &Value) -> Result<Vec<CanonicalMessage>, InboundParseError> {
     let arr = match value {
         Value::String(s) => {
@@ -52,6 +54,8 @@ pub(super) fn parse_input(value: &Value) -> Result<Vec<CanonicalMessage>, Inboun
     Ok(messages)
 }
 
+// JSON: OpenAI Responses `input` items — inbound wire JSON, parsed leniently
+// into canonical form.
 fn parse_function_call(item: &Value) -> CanonicalMessage {
     let id = item
         .get("call_id")
@@ -81,6 +85,8 @@ fn parse_function_call(item: &Value) -> CanonicalMessage {
     }
 }
 
+// JSON: OpenAI Responses `input` items — inbound wire JSON, parsed leniently
+// into canonical form.
 fn parse_function_call_output(item: &Value) -> CanonicalMessage {
     let tool_use_id = item
         .get("call_id")
@@ -105,6 +111,8 @@ fn parse_function_call_output(item: &Value) -> CanonicalMessage {
     }
 }
 
+// JSON: OpenAI Responses `input` items — inbound wire JSON, parsed leniently
+// into canonical form.
 fn parse_reasoning_item(item: &Value) -> Option<CanonicalMessage> {
     let text = item
         .get("summary")
@@ -134,6 +142,8 @@ fn parse_reasoning_item(item: &Value) -> Option<CanonicalMessage> {
     })
 }
 
+// JSON: OpenAI Responses `input` items — inbound wire JSON, parsed leniently
+// into canonical form.
 fn parse_message_item(value: &Value) -> Result<CanonicalMessage, InboundParseError> {
     let role_str = value.get("role").and_then(Value::as_str).unwrap_or("user");
     let role = match role_str {
@@ -162,6 +172,8 @@ fn parse_message_item(value: &Value) -> Result<CanonicalMessage, InboundParseErr
     Ok(CanonicalMessage { role, content })
 }
 
+// JSON: OpenAI Responses `input` items — inbound wire JSON, parsed leniently
+// into canonical form.
 fn parse_content_part(value: &Value) -> Option<CanonicalContent> {
     let kind = value.get("type").and_then(Value::as_str).unwrap_or("");
     match kind {

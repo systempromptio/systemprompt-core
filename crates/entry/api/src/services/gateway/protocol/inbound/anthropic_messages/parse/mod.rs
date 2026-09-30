@@ -20,6 +20,8 @@ use super::super::InboundParseError;
 use content::{parse_message, parse_system};
 use tools::{parse_thinking, parse_tool, parse_tool_choice};
 
+// JSON: Anthropic Messages request — inbound wire JSON, parsed leniently into
+// canonical form.
 pub fn parse(value: &Value) -> Result<CanonicalRequest, InboundParseError> {
     let model = value
         .get("model")

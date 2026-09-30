@@ -79,6 +79,7 @@ pub async fn record(
 
 struct SseAccumulator {
     buf: Vec<u8>,
+    // JSON: MCP JSON-RPC `id` — string or number per JSON-RPC 2.0.
     request_id: Value,
     mcp_execution_id: String,
     outcome: Option<ToolCallOutcome>,

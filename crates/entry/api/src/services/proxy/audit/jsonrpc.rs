@@ -20,6 +20,7 @@ const TOOLS_CALL_METHOD: &str = "tools/call";
 
 #[derive(Deserialize)]
 struct RequestFrame {
+    // JSON: MCP JSON-RPC `id` — string or number per JSON-RPC 2.0.
     #[serde(default)]
     id: Option<Value>,
     method: String,
@@ -30,14 +31,17 @@ struct RequestFrame {
 #[derive(Deserialize)]
 struct ToolCallParams {
     name: String,
+    // JSON: MCP JSON-RPC — open-shaped `tools/call` payload per the MCP spec.
     #[serde(default)]
     arguments: Option<Value>,
 }
 
 #[derive(Debug)]
 pub struct ToolCallInvocation {
+    // JSON: MCP JSON-RPC `id` — string or number per JSON-RPC 2.0.
     pub id: Value,
     pub tool_name: String,
+    // JSON: MCP JSON-RPC — open-shaped `tools/call` payload per the MCP spec.
     pub arguments: Value,
 }
 
@@ -58,6 +62,7 @@ pub fn parse_tool_call(body: &[u8]) -> Option<ToolCallInvocation> {
 struct ResponseFrame {
     #[serde(default)]
     result: Option<ToolCallResult>,
+    // JSON: MCP JSON-RPC `error` object — `data` is server-defined.
     #[serde(default)]
     error: Option<Value>,
 }
@@ -68,17 +73,21 @@ struct ToolCallResult {
     is_error: bool,
     #[serde(default, rename = "structuredContent")]
     structured_content: Option<Value>,
+    // JSON: MCP JSON-RPC — open-shaped `tools/call` payload per the MCP spec.
     #[serde(default)]
     content: Option<Value>,
 }
 
 #[derive(Debug)]
 pub struct ToolCallOutcome {
+    // JSON: MCP JSON-RPC — open-shaped `tools/call` payload per the MCP spec.
     pub output: Option<Value>,
     pub error_message: Option<String>,
+    // JSON: MCP JSON-RPC — open-shaped `tools/call` payload per the MCP spec.
     pub result: Option<Value>,
 }
 
+// JSON: MCP JSON-RPC `id` — string or number per JSON-RPC 2.0.
 pub fn parse_response_frame(data: &str, request_id: &Value) -> Option<ToolCallOutcome> {
     let frame: Value = serde_json::from_str(data).ok()?;
     if frame.get("id") != Some(request_id) {
@@ -104,6 +113,7 @@ pub fn parse_response_frame(data: &str, request_id: &Value) -> Option<ToolCallOu
     })
 }
 
+// JSON: MCP JSON-RPC `id` — string or number per JSON-RPC 2.0.
 pub fn frame_matches(data: &str, request_id: &Value) -> bool {
     serde_json::from_str::<Value>(data)
         .ok()
