@@ -15,10 +15,12 @@ use serde_json::Value as JsonValue;
 pub struct SchemaValidator;
 
 impl SchemaValidator {
+    // JSON: JSON Schema validation — arbitrary LLM output against a caller schema.
     pub fn validate(value: &JsonValue, schema: &JsonValue, strict: bool) -> Result<()> {
         Self::validate_value(value, schema, strict, "root")
     }
 
+    // JSON: JSON Schema validation — arbitrary LLM output against a caller schema.
     fn validate_value(
         value: &JsonValue,
         schema: &JsonValue,
@@ -50,6 +52,7 @@ impl SchemaValidator {
         Ok(())
     }
 
+    // JSON: JSON Schema validation — arbitrary LLM output against a caller schema.
     fn validate_type(value: &JsonValue, type_schema: &JsonValue, path: &str) -> Result<()> {
         let valid_type = match type_schema {
             JsonValue::String(type_str) => Self::check_single_type(value, type_str, path)?,
@@ -78,6 +81,7 @@ impl SchemaValidator {
         Ok(())
     }
 
+    // JSON: JSON Schema validation — arbitrary LLM output against a caller schema.
     fn check_single_type(value: &JsonValue, type_str: &str, path: &str) -> Result<bool> {
         Ok(match type_str {
             "null" => value.is_null(),
@@ -91,6 +95,7 @@ impl SchemaValidator {
         })
     }
 
+    // JSON: JSON Schema validation — arbitrary LLM output against a caller schema.
     fn validate_object(
         value: &JsonValue,
         schema: &JsonValue,
@@ -137,6 +142,7 @@ impl SchemaValidator {
         Ok(())
     }
 
+    // JSON: JSON Schema validation — arbitrary LLM output against a caller schema.
     fn validate_array(
         value: &JsonValue,
         schema: &JsonValue,
@@ -173,6 +179,7 @@ impl SchemaValidator {
         Ok(())
     }
 
+    // JSON: JSON Schema validation — arbitrary LLM output against a caller schema.
     fn validate_string(value: &JsonValue, schema: &JsonValue, path: &str) -> Result<()> {
         let str_val = value.as_str().ok_or_else(|| {
             crate::error::AiError::InvalidInput(format!("{path} must be a string"))
@@ -205,6 +212,7 @@ impl SchemaValidator {
         Ok(())
     }
 
+    // JSON: JSON Schema validation — arbitrary LLM output against a caller schema.
     fn validate_number(value: &JsonValue, schema: &JsonValue, path: &str) -> Result<()> {
         let num_val = value.as_f64().ok_or_else(|| {
             crate::error::AiError::InvalidInput(format!("{path} must be a number"))
@@ -229,6 +237,7 @@ impl SchemaValidator {
         Ok(())
     }
 
+    // JSON: JSON Schema validation — arbitrary LLM output against a caller schema.
     fn validate_boolean(value: &JsonValue, path: &str) -> Result<()> {
         if !value.is_boolean() {
             return Err(crate::error::AiError::InvalidInput(format!(
@@ -238,6 +247,7 @@ impl SchemaValidator {
         Ok(())
     }
 
+    // JSON: JSON Schema validation — arbitrary LLM output against a caller schema.
     fn validate_null(value: &JsonValue, path: &str) -> Result<()> {
         if !value.is_null() {
             return Err(crate::error::AiError::InvalidInput(format!(
@@ -259,6 +269,7 @@ impl SchemaValidator {
     }
 }
 
+// JSON: JSON Schema `type` keyword — a string or an array of strings.
 fn unsupported_type(type_keyword: &JsonValue, path: &str) -> crate::error::AiError {
     crate::error::AiError::InvalidInput(format!("Unsupported schema type {type_keyword} at {path}"))
 }

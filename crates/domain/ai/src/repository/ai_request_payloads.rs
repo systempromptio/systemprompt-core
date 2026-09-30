@@ -25,7 +25,9 @@ pub struct AiRequestPayloadRepository {
 #[derive(Debug, Clone)]
 pub struct AiRequestPayload {
     pub ai_request_id: AiRequestId,
+    // JSON: raw provider request body JSONB — verbatim upstream wire payload.
     pub request_body: Option<Value>,
+    // JSON: raw provider response body JSONB — verbatim upstream wire payload.
     pub response_body: Option<Value>,
     pub request_excerpt: Option<String>,
     pub response_excerpt: Option<String>,
@@ -35,6 +37,7 @@ pub struct AiRequestPayload {
     pub response_bytes: Option<i32>,
     pub request_body_sha256: Option<String>,
     pub prepared_body_sha256: Option<String>,
+    // JSON: JSONB `prepared_tools` — tool definitions in the upstream provider's wire shape.
     pub prepared_tools: Option<Value>,
     pub response_body_sha256: Option<String>,
 }
@@ -44,6 +47,7 @@ pub struct AiRequestPayload {
 #[derive(Debug, Clone)]
 pub struct PreparedPayload {
     pub prepared_body_sha256: Option<String>,
+    // JSON: JSONB `prepared_tools` — tool definitions in the upstream provider's wire shape.
     pub prepared_tools: Option<Value>,
 }
 
@@ -91,6 +95,7 @@ impl AiRequestPayloadRepository {
         Ok(())
     }
 
+    // JSON: JSONB `offered_tools` — tool definitions as the client offered them.
     pub async fn upsert_offered_tools(
         &self,
         ai_request_id: &AiRequestId,
@@ -120,6 +125,8 @@ impl AiRequestPayloadRepository {
         Ok(())
     }
 
+    // JSON: JSONB `prepared_tools` — tool definitions in the upstream provider's
+    // wire shape.
     pub async fn upsert_prepared(
         &self,
         ai_request_id: &AiRequestId,
@@ -175,6 +182,7 @@ impl AiRequestPayloadRepository {
 
 #[derive(Debug, Clone, Copy)]
 pub struct UpsertPayloadParams<'a> {
+    // JSON: raw provider request/response body JSONB — verbatim upstream wire payload.
     pub body: Option<&'a Value>,
     pub excerpt: Option<&'a str>,
     pub truncated: bool,

@@ -15,6 +15,7 @@ use serde_json::Value as JsonValue;
 pub struct JsonParser;
 
 impl JsonParser {
+    // JSON: arbitrary LLM output — JSON extracted from free text.
     pub fn extract_json(content: &str, custom_pattern: Option<&str>) -> Result<JsonValue> {
         if let Ok(json) = serde_json::from_str::<JsonValue>(content) {
             return Ok(json);
@@ -48,6 +49,7 @@ impl JsonParser {
         ))
     }
 
+    // JSON: arbitrary LLM output — JSON extracted from free text.
     fn extract_with_pattern(content: &str, pattern: &str) -> Result<Option<JsonValue>> {
         let re = Regex::new(pattern)?;
 
@@ -67,6 +69,7 @@ impl JsonParser {
         })
     }
 
+    // JSON: arbitrary LLM output — JSON extracted from free text.
     fn extract_json_heuristic(content: &str) -> Option<JsonValue> {
         let trimmed = content.trim();
 

@@ -57,6 +57,8 @@ impl OpenAiProvider {
         upstream_model_in(&self.models, requested)
     }
 
+    // JSON: OpenAI Chat Completions / Responses request body — upstream wire
+    // format.
     pub(crate) fn render(&self, canonical: &CanonicalRequest, upstream_model: &str) -> Value {
         match self.target.wire() {
             WireProtocol::OpenAiResponses => {
@@ -66,6 +68,8 @@ impl OpenAiProvider {
         }
     }
 
+    // JSON: OpenAI Chat Completions / Responses response body — upstream wire
+    // format.
     pub(crate) fn parse(&self, value: &Value, model: &str) -> Result<CanonicalResponse> {
         Ok(match self.target.wire() {
             WireProtocol::OpenAiResponses => openai_responses::parse_response_object(value, model)?,
@@ -73,6 +77,8 @@ impl OpenAiProvider {
         })
     }
 
+    // JSON: OpenAI Chat Completions / Responses request body — upstream wire
+    // format.
     pub(crate) async fn post(
         &self,
         wire: WireProtocol,

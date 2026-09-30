@@ -15,6 +15,7 @@ use serde_json::Value as JsonValue;
 pub struct StructuredOutputProcessor;
 
 impl StructuredOutputProcessor {
+    // JSON: structured LLM output — shape is set by the caller's JSON Schema.
     pub fn process_response(
         content: &str,
         format: &ResponseFormat,
@@ -68,6 +69,7 @@ impl StructuredOutputProcessor {
         }
     }
 
+    // JSON: structured LLM output — shape is set by the caller's JSON Schema.
     pub async fn generate_with_retry<F, Fut>(
         mut generator: F,
         format: &ResponseFormat,

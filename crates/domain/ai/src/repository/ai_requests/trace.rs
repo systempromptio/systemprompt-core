@@ -25,6 +25,7 @@ struct SampledRow {
     latency_ms: Option<i32>,
     cost_microdollars: i64,
     created_at: DateTime<Utc>,
+    // JSON: JSONB `offered_tools` — tool definitions as the client offered them.
     offered_tools: Option<serde_json::Value>,
     prepared_body_sha256: Option<String>,
 }

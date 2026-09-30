@@ -48,6 +48,8 @@ impl ToolNameMapper {
             .push(transformed.name.clone());
     }
 
+    // JSON: MCP-protocol boundary — schema-less tool arguments mandated by the
+    // spec.
     pub fn resolve_tool_call(&self, variant_name: &str, mut params: Value) -> (String, Value) {
         match self.forward_map.get(variant_name) {
             Some((original_name, Some(discriminator_value), discriminator_field)) => {

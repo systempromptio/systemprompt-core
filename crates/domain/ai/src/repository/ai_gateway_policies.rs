@@ -21,6 +21,7 @@ pub struct AiGatewayPolicyRepository {
 pub struct GatewayPolicyRow {
     pub id: AiGatewayPolicyId,
     pub name: String,
+    // JSON: JSONB `spec` column — decoded into the policy spec by the gateway service.
     pub spec: Value,
     pub enabled: bool,
     pub priority: i32,
@@ -61,6 +62,7 @@ impl AiGatewayPolicyRepository {
             .collect())
     }
 
+    // JSON: JSONB `spec` column — the serialised policy spec, stored as written.
     pub async fn upsert(
         &self,
         name: &str,

@@ -151,10 +151,12 @@ impl UpstreamCall {
         sent.refused_by(&self.beta_policy(wire))
     }
 
+    // JSON: provider request body — upstream wire format finished per dialect.
     pub fn finish_body(&self, wire: WireProtocol, body: &mut Map<String, Value>) {
         self.dialect(wire).finish_body(body);
     }
 
+    // JSON: provider request body — upstream wire format finished per dialect.
     pub fn finish_value(&self, wire: WireProtocol, body: &mut Value) {
         self.dialect(wire).finish_value(body);
     }

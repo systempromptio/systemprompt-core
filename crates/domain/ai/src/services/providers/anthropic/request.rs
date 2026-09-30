@@ -16,6 +16,7 @@ use systemprompt_models::services::WireProtocol;
 use super::provider::AnthropicProvider;
 use crate::error::Result;
 
+// JSON: Anthropic Messages API request body — upstream wire format.
 pub(super) async fn post_body(
     provider: &AnthropicProvider,
     mut body: Value,

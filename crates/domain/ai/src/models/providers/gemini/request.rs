@@ -55,6 +55,7 @@ pub struct GeminiGenerationConfig {
     pub stop_sequences: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub response_mime_type: Option<String>,
+    // JSON: Gemini `generationConfig.responseSchema` — caller-supplied OpenAPI schema.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub response_schema: Option<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]

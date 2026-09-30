@@ -113,6 +113,7 @@ pub struct SchemaGenerationParams<'a> {
 }
 
 impl<'a> SchemaGenerationParams<'a> {
+    // JSON: JSON Schema for structured output — caller-supplied, arbitrary.
     pub const fn new(base: GenerationParams<'a>, response_schema: serde_json::Value) -> Self {
         Self {
             base,
@@ -158,6 +159,7 @@ impl<'a> SearchGenerationParams<'a> {
         self
     }
 
+    // JSON: JSON Schema for structured output — caller-supplied, arbitrary.
     pub fn with_response_schema(mut self, schema: serde_json::Value) -> Self {
         self.response_schema = Some(schema);
         self

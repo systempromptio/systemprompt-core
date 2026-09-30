@@ -15,6 +15,7 @@ use crate::error::Result;
 use crate::models::tools::McpTool;
 use serde_json::{Map, Value, json};
 
+// JSON: JSON Schema walk — `properties` of an arbitrary tool input schema.
 fn merge_properties_into(
     target: &mut Map<String, Value>,
     source: &Value,
@@ -32,6 +33,7 @@ fn merge_properties_into(
     }
 }
 
+// JSON: JSON Schema walk — `required` of an arbitrary tool input schema.
 fn collect_required_fields(base: &Value, variant: &Value, discriminator_field: &str) -> Vec<Value> {
     let mut all_required = Vec::new();
 
@@ -201,6 +203,7 @@ impl SchemaTransformer {
         Ok(transformed_tools)
     }
 
+    // JSON: JSON Schema walk — an arbitrary tool input schema variant.
     fn build_variant_schema(
         &self,
         union: &DiscriminatedUnion,

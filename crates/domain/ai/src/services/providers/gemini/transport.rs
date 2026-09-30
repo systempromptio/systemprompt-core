@@ -26,6 +26,7 @@ pub(super) fn build_client() -> Result<Client> {
         .map_err(|e| crate::error::AiError::Internal(format!("Failed to create HTTP client: {e}")))
 }
 
+// JSON: Gemini generateContent request body — upstream wire format.
 pub(super) async fn post(
     provider: &GeminiProvider,
     body: &Value,

@@ -149,6 +149,7 @@ fn tool_result_content(result: &CallToolResult) -> Vec<CanonicalContent> {
         .collect()
 }
 
+// JSON: MCP result `_meta` — the spec types it as an open object.
 fn tool_result_meta(result: &CallToolResult) -> Option<Value> {
     result
         .meta
