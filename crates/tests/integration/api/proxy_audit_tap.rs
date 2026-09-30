@@ -3,11 +3,16 @@
 //! forwarded verbatim for both JSON and SSE upstreams and that an
 //! `mcp_tool_executions` row is finalized with the matched outcome.
 
+use std::sync::Arc;
+
 use axum::body::to_bytes;
+use systemprompt_ai::repository::AiRequestRepository;
 use systemprompt_api::repository::tool_usage;
 use systemprompt_api::services::proxy::audit::jsonrpc::parse_tool_call;
 use systemprompt_api::services::proxy::audit::{McpAudit, tap};
 use systemprompt_database::DbPool;
+use systemprompt_mcp::IntentClaimService;
+use systemprompt_traits::DynToolCallIntentClaims;
 use uuid::Uuid;
 use wiremock::matchers::method;
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -24,7 +29,10 @@ async fn record_tool_call(
     let invocation = parse_tool_call(request_body)
         .ok_or_else(|| "request body is not a tools/call".to_owned())?;
     let repo = tool_usage(pool).map_err(|e| e.to_string())?;
-    let audit = McpAudit::new(repo, None, context, server_name.to_owned(), invocation);
+    let intents: DynToolCallIntentClaims =
+        Arc::new(AiRequestRepository::new(pool).map_err(|e| e.to_string())?);
+    let claims = IntentClaimService::new(intents, repo);
+    let audit = McpAudit::new(claims, None, context, server_name.to_owned(), invocation);
     tap::record(response, audit).await
 }
 

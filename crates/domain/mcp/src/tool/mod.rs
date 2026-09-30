@@ -30,6 +30,7 @@ use crate::repository::ToolUsageRepository;
 use crate::response::{McpResponseBuilder, ToolIdentity};
 use crate::schema::McpOutputSchema;
 use crate::services::artifact_ingest::ArtifactIngest;
+use crate::services::intent_claim::IntentClaimService;
 use chrono::Utc;
 use rmcp::ErrorData as McpError;
 use rmcp::model::{CacheScope, CallToolRequestParams, CallToolResult, ListToolsResult, Tool};
@@ -39,6 +40,7 @@ use std::sync::Arc;
 use systemprompt_identifiers::McpExecutionId;
 use systemprompt_models::RequestContext;
 use systemprompt_models::mcp::{ClientProfile, Correlation, ExecutionSource};
+use systemprompt_traits::DynToolCallIntentClaims;
 
 const TOOL_LIST_TTL_MS: u64 = 3_600_000;
 pub const INTENT_CLAIM_WINDOW_SECONDS: i64 = 120;
@@ -53,6 +55,7 @@ pub fn build_tool_list_result(tools: Vec<Tool>) -> ListToolsResult {
 #[derive(Clone, Debug)]
 pub struct McpToolExecutor {
     tool_usage_repo: Arc<ToolUsageRepository>,
+    intent_claims: IntentClaimService,
     ingest: Arc<ArtifactIngest>,
     server_name: String,
 }
@@ -60,10 +63,12 @@ pub struct McpToolExecutor {
 impl McpToolExecutor {
     pub fn new(
         tool_usage_repo: Arc<ToolUsageRepository>,
+        intents: DynToolCallIntentClaims,
         ingest: Arc<ArtifactIngest>,
         server_name: impl Into<String>,
     ) -> Self {
         Self {
+            intent_claims: IntentClaimService::new(intents, Arc::clone(&tool_usage_repo)),
             tool_usage_repo,
             ingest,
             server_name: server_name.into(),
@@ -162,14 +167,14 @@ impl McpToolExecutor {
         exec_id: &McpExecutionId,
     ) -> RequestContext {
         if let Some(call_id) = ctx.ai_tool_call_id() {
-            if let Err(e) = self.tool_usage_repo.claim_intent(call_id, exec_id).await {
+            if let Err(e) = self.intent_claims.claim_exact(call_id, exec_id).await {
                 tracing::warn!(tool = tool_name, %exec_id, error = %e, "Intent not claimed");
             }
             return ctx.clone();
         }
         match self
-            .tool_usage_repo
-            .claim_unclaimed_intent(
+            .intent_claims
+            .claim_inferred(
                 ctx.session_id(),
                 tool_name,
                 exec_id,

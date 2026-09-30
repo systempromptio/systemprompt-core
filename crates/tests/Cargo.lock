@@ -8477,6 +8477,7 @@ dependencies = [
  "serde_json",
  "serde_yaml_ng",
  "sqlx",
+ "systemprompt-ai",
  "systemprompt-config",
  "systemprompt-database",
  "systemprompt-extension",

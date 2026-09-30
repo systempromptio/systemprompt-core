@@ -15,9 +15,8 @@ use axum::body::Body;
 use axum::extract::Request;
 use axum::http::{HeaderMap, HeaderName, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
-use systemprompt_mcp::repository::ToolUsageRepository;
 use systemprompt_mcp::services::client::McpClient;
-use systemprompt_mcp::{McpDomainError, McpServerConfig};
+use systemprompt_mcp::{IntentClaimService, McpDomainError, McpServerConfig};
 use systemprompt_models::RequestContext;
 use systemprompt_runtime::AppContext;
 
@@ -100,7 +99,7 @@ impl ProxyEngine {
 
         super::external_governance::enforce(&ctx, &req_ctx, service_name, &body).await?;
         let audit = build_audit(
-            self.tool_usage_repo.as_ref(),
+            self.intent_claims.as_ref(),
             self.artifact_ingest.as_ref(),
             &req_ctx,
             service_name,
@@ -155,19 +154,19 @@ pub fn outbound_headers<S: std::hash::BuildHasher>(
 }
 
 fn build_audit(
-    repo: Option<&std::sync::Arc<ToolUsageRepository>>,
+    intent_claims: Option<&IntentClaimService>,
     ingest: Option<&std::sync::Arc<systemprompt_mcp::ArtifactIngest>>,
     req_ctx: &RequestContext,
     service_name: &str,
     body: &[u8],
 ) -> Option<McpAudit> {
     let invocation = parse_tool_call(body)?;
-    let Some(repo) = repo else {
+    let Some(intent_claims) = intent_claims else {
         tracing::warn!(service = %service_name, "Tool-usage repository unavailable; external MCP call not audited");
         return None;
     };
     Some(McpAudit::new(
-        std::sync::Arc::clone(repo),
+        intent_claims.clone(),
         ingest.map(std::sync::Arc::clone),
         req_ctx.clone(),
         service_name.to_owned(),

@@ -80,6 +80,7 @@ pub use services::artifact_ingest::{
     MAX_PAYLOAD_BYTES, ScanOutcome, from_canonical_tool_result, from_hook_failure,
     from_hook_response, from_wire_value,
 };
+pub use services::intent_claim::IntentClaimService;
 pub use services::ui_renderer::templates::html::artifact_shell_template;
 pub use services::ui_renderer::{artifact_resource_uri, parse_artifact_resource_uri};
 pub use systemprompt_models::mcp::ClientProfile;

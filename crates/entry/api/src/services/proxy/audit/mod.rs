@@ -9,11 +9,13 @@
 //! the tap over the upstream body; the tap owns an [`McpAudit`] and finalizes
 //! it (once) on stream EOF or drop.
 //!
-//! The newest unclaimed intent for the tool in the calling session is claimed
-//! to pair the execution, mirroring [`systemprompt_mcp::McpToolExecutor`]. A
-//! claim makes the pairing inferred, never exact; failing to claim leaves the
-//! execution unpaired rather than failing the call, which has already returned
-//! to the client.
+//! The execution row is written first, then paired with the model's intent
+//! through [`IntentClaimService`], mirroring
+//! [`systemprompt_mcp::McpToolExecutor`]: a client-supplied tool-call id is
+//! claimed as an exact pairing, otherwise the newest unclaimed intent for the
+//! tool in the calling session is claimed as an inferred one. Failing to claim
+//! leaves the execution unpaired rather than failing the call, which has
+//! already returned to the client.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -25,11 +27,10 @@ use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
 use serde_json::Value;
-use systemprompt_identifiers::McpExecutionId;
+use systemprompt_identifiers::{AiToolCallId, McpExecutionId};
 use systemprompt_mcp::models::{ExecutionStatus, ToolExecutionRequest, ToolExecutionResult};
-use systemprompt_mcp::repository::ToolUsageRepository;
 use systemprompt_mcp::{
-    ArtifactIngest, INTENT_CLAIM_WINDOW_SECONDS, IngestRequest, from_wire_value,
+    ArtifactIngest, INTENT_CLAIM_WINDOW_SECONDS, IngestRequest, IntentClaimService, from_wire_value,
 };
 use systemprompt_models::RequestContext;
 use systemprompt_models::mcp::{Correlation, ExecutionSource};
@@ -41,7 +42,7 @@ use jsonrpc::{ToolCallInvocation, ToolCallOutcome};
 
 #[derive(Debug)]
 pub struct McpAudit {
-    repo: Arc<ToolUsageRepository>,
+    intent_claims: IntentClaimService,
     ingest: Option<Arc<ArtifactIngest>>,
     context: RequestContext,
     server_name: String,
@@ -52,14 +53,14 @@ pub struct McpAudit {
 
 impl McpAudit {
     pub fn new(
-        repo: Arc<ToolUsageRepository>,
+        intent_claims: IntentClaimService,
         ingest: Option<Arc<ArtifactIngest>>,
         context: RequestContext,
         server_name: String,
         invocation: ToolCallInvocation,
     ) -> Self {
         Self {
-            repo,
+            intent_claims,
             ingest,
             context,
             server_name,
@@ -107,24 +108,20 @@ impl McpAudit {
             completed_at: Some(Utc::now()),
         };
 
-        let repo = self.repo;
+        let intent_claims = self.intent_claims;
         let ingest = self.ingest;
         let mcp_execution_id = self.mcp_execution_id;
         tokio::spawn(async move {
             let mut request = request;
             request.ai_tool_call_id = request.context.ai_tool_call_id().cloned();
-            // Why: no client sends `x-ai-tool-call-id`, so an external-server
-            // execution arrives with nothing to join it to the inference turn
-            // that asked for it. The in-process executor claims the newest
-            // unclaimed intent for the tool in this session; without the same
-            // claim here, every proxied call stayed unpaired — and eight of
-            // nine configured servers are external.
-            let correlation = if request.ai_tool_call_id.is_some() {
+            let exact = request.ai_tool_call_id.clone();
+            let correlation = if exact.is_some() {
                 Correlation::Exact
             } else {
-                claim_intent(&repo, &mut request, &mcp_execution_id).await
+                Correlation::Inferred
             };
-            if let Err(e) = repo
+            if let Err(e) = intent_claims
+                .executions()
                 .log_execution_sync_with_id(&mcp_execution_id, &request, &result_row, correlation)
                 .await
             {
@@ -136,6 +133,21 @@ impl McpAudit {
                 );
                 return;
             }
+            // Why: no client sends `x-ai-tool-call-id`, so an external-server
+            // execution arrives with nothing to join it to the inference turn
+            // that asked for it. The in-process executor claims the newest
+            // unclaimed intent for the tool in this session; without the same
+            // claim here, every proxied call stayed unpaired — and eight of
+            // nine configured servers are external.
+            match exact {
+                Some(call_id) => {
+                    claim_exact(&intent_claims, &request, &call_id, &mcp_execution_id).await;
+                },
+                None => {
+                    request.ai_tool_call_id =
+                        claim_inferred(&intent_claims, &request, &mcp_execution_id).await;
+                },
+            }
             if let Some(ingest) = ingest {
                 ingest_proxied_result(&ingest, &request, result, mcp_execution_id).await;
             }
@@ -143,13 +155,31 @@ impl McpAudit {
     }
 }
 
-async fn claim_intent(
-    repo: &ToolUsageRepository,
-    request: &mut ToolExecutionRequest,
+async fn claim_exact(
+    intent_claims: &IntentClaimService,
+    request: &ToolExecutionRequest,
+    call_id: &AiToolCallId,
     mcp_execution_id: &McpExecutionId,
-) -> Correlation {
-    match repo
-        .claim_unclaimed_intent(
+) {
+    if let Err(e) = intent_claims.claim_exact(call_id, mcp_execution_id).await {
+        tracing::warn!(
+            tool = %request.tool_name,
+            server = %request.server_name,
+            %mcp_execution_id,
+            %call_id,
+            error = %e,
+            "Proxy exact intent claim failed"
+        );
+    }
+}
+
+async fn claim_inferred(
+    intent_claims: &IntentClaimService,
+    request: &ToolExecutionRequest,
+    mcp_execution_id: &McpExecutionId,
+) -> Option<AiToolCallId> {
+    match intent_claims
+        .claim_inferred(
             request.context.session_id(),
             &request.tool_name,
             mcp_execution_id,
@@ -157,11 +187,7 @@ async fn claim_intent(
         )
         .await
     {
-        Ok(Some(call_id)) => {
-            request.ai_tool_call_id = Some(call_id);
-            Correlation::Inferred
-        },
-        Ok(None) => Correlation::Inferred,
+        Ok(claimed) => claimed,
         Err(e) => {
             tracing::warn!(
                 tool = %request.tool_name,
@@ -170,7 +196,7 @@ async fn claim_intent(
                 error = %e,
                 "Proxy intent claim failed"
             );
-            Correlation::Inferred
+            None
         },
     }
 }

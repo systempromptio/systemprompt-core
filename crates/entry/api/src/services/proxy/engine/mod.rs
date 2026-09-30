@@ -51,7 +51,7 @@ pub struct ProxyTarget<'a> {
 pub struct ProxyEngine {
     client_pool: ClientPool,
     identities: Arc<McpProxyIdentityRepository>,
-    tool_usage_repo: Option<Arc<systemprompt_mcp::repository::ToolUsageRepository>>,
+    intent_claims: Option<systemprompt_mcp::IntentClaimService>,
     artifact_ingest: Option<Arc<systemprompt_mcp::ArtifactIngest>>,
 }
 
@@ -60,7 +60,7 @@ impl ProxyEngine {
         Self {
             client_pool: ClientPool::new(),
             identities,
-            tool_usage_repo: None,
+            intent_claims: None,
             artifact_ingest: None,
         }
     }
@@ -69,8 +69,9 @@ impl ProxyEngine {
     pub fn with_tool_usage_repo(
         mut self,
         repo: Arc<systemprompt_mcp::repository::ToolUsageRepository>,
+        intents: systemprompt_traits::DynToolCallIntentClaims,
     ) -> Self {
-        self.tool_usage_repo = Some(repo);
+        self.intent_claims = Some(systemprompt_mcp::IntentClaimService::new(intents, repo));
         self
     }
 

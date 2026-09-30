@@ -77,7 +77,9 @@ pub use systemprompt_identifiers::{
 pub use repository::RepositoryError;
 
 pub use ownership::{DynOwnerReassignment, OwnerReassignment, ReassignedRows};
-pub use tool_executions::{DynToolExecutionLookup, ToolExecutionLookup};
+pub use tool_executions::{
+    DynToolCallIntentClaims, DynToolExecutionLookup, ToolCallIntentClaims, ToolExecutionLookup,
+};
 
 pub use log_service::LogService;
 

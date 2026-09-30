@@ -8,11 +8,14 @@
 //! [`InsertToolCallParams`] and [`SettlementOutcome`] are the grouped
 //! argument types for the wider write methods. The repository also implements
 //! `systemprompt_traits::AiRequestTrace`, the read seam other domains use
-//! instead of querying these tables.
+//! instead of querying these tables, and
+//! `systemprompt_traits::ToolCallIntentClaims`, through which an MCP
+//! execution claims the tool-call intent it fulfils.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod intent_claims;
 mod message_operations;
 mod mutations;
 mod orphans;

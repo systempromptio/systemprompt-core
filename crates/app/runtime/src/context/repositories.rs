@@ -44,6 +44,11 @@ impl AppContext {
         &self.data.ai_repositories
     }
 
+    #[must_use]
+    pub fn tool_call_intents(&self) -> systemprompt_traits::DynToolCallIntentClaims {
+        Arc::new(self.data.ai_repositories.requests.clone())
+    }
+
     pub const fn analytics_repositories(&self) -> &Arc<AnalyticsRepositories> {
         &self.data.analytics_repositories
     }

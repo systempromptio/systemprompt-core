@@ -7,6 +7,7 @@
 use crate::error::McpDomainResult;
 mod intent;
 mod queries;
+pub use intent::IntentStamp;
 pub use queries::ProximityProbe;
 
 use chrono::Utc;

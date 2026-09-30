@@ -97,6 +97,9 @@ domain_error! {
         #[error("MCP service error: {message}")]
         ServiceError { message: String },
 
+        #[error("tool-call intent store: {0}")]
+        IntentStore(#[from] systemprompt_traits::RepositoryError),
+
         #[error("Task join error: {0}")]
         TaskJoin(#[from] tokio::task::JoinError),
 
