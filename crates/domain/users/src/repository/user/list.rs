@@ -40,12 +40,11 @@ impl UserRepository {
             SELECT
                 u.id as user_id,
                 MAX(s.last_activity_at) as last_active,
-                COUNT(DISTINCT s.session_id) as "session_count!",
-                COUNT(DISTINCT t.task_id) as "task_count!",
-                0::bigint as "message_count!"
+                COUNT(s.session_id) as "session_count!",
+                COALESCE(SUM(s.task_count), 0)::bigint as "task_count!",
+                COALESCE(SUM(s.message_count), 0)::bigint as "message_count!"
             FROM users u
             LEFT JOIN user_sessions s ON s.user_id = u.id
-            LEFT JOIN agent_tasks t ON t.user_id = u.id
             WHERE u.id = $1
             GROUP BY u.id
             "#,

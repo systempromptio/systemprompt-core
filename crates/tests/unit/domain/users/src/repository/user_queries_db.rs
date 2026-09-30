@@ -4,7 +4,9 @@
 use std::sync::Arc;
 use systemprompt_identifiers::{SessionId, UserId};
 use systemprompt_test_fixtures::seed_user_session;
-use systemprompt_users::{UserError, UserRepository, UserRole, UserService, UserStatus};
+use systemprompt_users::{
+    SessionRepository, UserError, UserRepository, UserRole, UserService, UserStatus,
+};
 use uuid::Uuid;
 
 struct Ctx {
@@ -152,6 +154,27 @@ async fn find_with_sessions_and_activity_count_open_sessions() {
     assert_eq!(activity.session_count, 2);
     assert_eq!(activity.task_count, 0);
     assert_eq!(activity.message_count, 0);
+
+    let sessions = SessionRepository::new(&pool).expect("session repository");
+    sessions.increment_task_count(&s1).await.expect("task s1");
+    sessions.increment_task_count(&s2).await.expect("task s2");
+    sessions
+        .increment_message_count(&s1)
+        .await
+        .expect("message s1");
+    sessions
+        .increment_message_count(&s1)
+        .await
+        .expect("message s1");
+    sessions
+        .increment_message_count(&s2)
+        .await
+        .expect("message s2");
+
+    let activity = ctx.service.get_activity(&user.id).await.expect("activity");
+    assert_eq!(activity.session_count, 2);
+    assert_eq!(activity.task_count, 2);
+    assert_eq!(activity.message_count, 3);
 
     let listed = ctx
         .service
