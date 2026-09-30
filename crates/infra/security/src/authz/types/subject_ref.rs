@@ -28,7 +28,7 @@ pub enum SubjectRef {
 
 impl SubjectRef {
     #[must_use]
-    pub fn rule_type(&self) -> RuleType {
+    pub const fn rule_type(&self) -> RuleType {
         match self {
             Self::User(_) => RuleType::USER,
             Self::Department(_) => DEPARTMENT_RULE_TYPE,
