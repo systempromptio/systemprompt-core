@@ -70,7 +70,6 @@ while IFS= read -r file; do
             return 0
         }
         function is_sig(text,    rest, off, s, e) {
-            if (text !~ /(:[[:space:]]*&?(mut[[:space:]]+)?|->[[:space:]]*&?)((Option|Vec|Result|Box|Arc|HashMap|BTreeMap|Map|IndexMap|Cow)<[^>]*)?(serde_json::Value|JsonValue|Value)([^:A-Za-z0-9_]|$)/) return 0
             rest = text; off = 0
             while (match(rest, /(serde_json::)?(Json)?Value/)) {
                 s = off + RSTART; e = s + RLENGTH
