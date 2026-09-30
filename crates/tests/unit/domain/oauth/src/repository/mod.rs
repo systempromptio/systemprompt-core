@@ -1,8 +1,8 @@
 //! DB-backed tests for the OAuth persistence layer.
 //!
-//! Each test guards on `fixture_database_url()` and returns early when no
-//! `DATABASE_URL` is configured, so the suite is a no-op without a database.
-//! The gateway runs these against a fresh, freshly-migrated Postgres instance.
+//! Each test takes its database from `test_db_pool()` and fails when no
+//! `DATABASE_URL` is configured. The gateway runs these against a fresh,
+//! freshly-migrated Postgres instance.
 
 mod auth_code;
 mod authoritative_reads_db;

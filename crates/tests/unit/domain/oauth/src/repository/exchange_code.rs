@@ -4,7 +4,7 @@ use chrono::{Duration, Utc};
 use systemprompt_identifiers::UserId;
 use systemprompt_oauth::repository::{CreateExchangeCodeParams, OAuthRepository};
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_database_url, fixture_db_pool, seed_user_row, unique_user_id,
+    ensure_test_bootstrap, seed_user_row, test_db_pool, unique_user_id,
 };
 use uuid::Uuid;
 
@@ -13,23 +13,20 @@ struct Ctx {
     user_id: UserId,
 }
 
-async fn setup_or_skip() -> Option<Ctx> {
-    let url = fixture_database_url().ok()?;
+async fn setup() -> Ctx {
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let repo = OAuthRepository::new(&pool).expect("repo");
     let user_id = unique_user_id("xc");
     seed_user_row(&pool, &user_id, &format!("{}@xc.invalid", user_id.as_str()))
         .await
         .expect("seed user");
-    Some(Ctx { repo, user_id })
+    Ctx { repo, user_id }
 }
 
 #[tokio::test]
 async fn create_then_consume_once() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let hash = format!("xc-{}", Uuid::new_v4());
     ctx.repo
         .create_bridge_exchange_code(CreateExchangeCodeParams {
@@ -60,9 +57,7 @@ async fn create_then_consume_once() {
 
 #[tokio::test]
 async fn consume_unknown_returns_none() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     assert!(
         ctx.repo
             .consume_bridge_exchange_code(&format!("nope-{}", Uuid::new_v4()))
@@ -74,9 +69,7 @@ async fn consume_unknown_returns_none() {
 
 #[tokio::test]
 async fn expired_code_cannot_be_consumed() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let hash = format!("xc-{}", Uuid::new_v4());
     ctx.repo
         .create_bridge_exchange_code(CreateExchangeCodeParams {

@@ -5,10 +5,8 @@ use uuid::Uuid;
 
 #[tokio::test]
 async fn failed_contact_replacement_rolls_back_all_client_relations_then_retry_commits() {
-    let database = DisposableDb::installed("oauth_contact_update_atomicity")
-        .await
-        .expect("isolated OAuth database");
-    let pool = database.pool().await.expect("OAuth database pool");
+    let database = DisposableDb::with_schema("oauth_contact_update_atomicity").await;
+    let pool = database.test_pool().await;
     let owner = UserId::new(format!("oauth-owner-{}", Uuid::new_v4().simple()));
     seed_user_row(&pool, &owner, &format!("{}@oauth.invalid", owner.as_str()))
         .await

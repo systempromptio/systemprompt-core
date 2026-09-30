@@ -5,8 +5,8 @@ use chrono::{Duration, Utc};
 use systemprompt_identifiers::{ClientId, RefreshTokenId, UserId};
 use systemprompt_oauth::repository::{OAuthRepository, RefreshTokenParams};
 use systemprompt_test_fixtures::{
-    OAuthClientFixture, ensure_test_bootstrap, fixture_database_url, fixture_db_pool,
-    seed_oauth_client, seed_user_row, unique_user_id,
+    OAuthClientFixture, ensure_test_bootstrap, seed_oauth_client, seed_user_row, test_db_pool,
+    unique_user_id,
 };
 use uuid::Uuid;
 
@@ -16,10 +16,9 @@ struct Ctx {
     user_id: UserId,
 }
 
-async fn setup_or_skip() -> Option<Ctx> {
-    let url = fixture_database_url().ok()?;
+async fn setup() -> Ctx {
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let repo = OAuthRepository::new(&pool).expect("repo");
     let user_id = unique_user_id("rt");
     seed_user_row(&pool, &user_id, &format!("{}@rt.invalid", user_id.as_str()))
@@ -28,11 +27,11 @@ async fn setup_or_skip() -> Option<Ctx> {
     let OAuthClientFixture { client_id, .. } = seed_oauth_client(&pool, &user_id)
         .await
         .expect("seed client");
-    Some(Ctx {
+    Ctx {
         repo,
         client_id,
         user_id,
-    })
+    }
 }
 
 fn future_exp() -> i64 {
@@ -55,9 +54,7 @@ async fn store(ctx: &Ctx, token: &RefreshTokenId, exp: i64) {
 
 #[tokio::test]
 async fn store_then_validate() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let token = RefreshTokenId::new(format!("rt-{}", Uuid::new_v4()));
     store(&ctx, &token, future_exp()).await;
 
@@ -88,9 +85,7 @@ async fn store_then_validate() {
 
 #[tokio::test]
 async fn validate_unknown_token_errors() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let token = RefreshTokenId::new(format!("rt-{}", Uuid::new_v4()));
     assert!(
         ctx.repo
@@ -109,9 +104,7 @@ async fn validate_unknown_token_errors() {
 
 #[tokio::test]
 async fn validate_expired_token_errors() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let token = RefreshTokenId::new(format!("rt-{}", Uuid::new_v4()));
     let past = (Utc::now() - Duration::hours(1)).timestamp();
     store(&ctx, &token, past).await;
@@ -125,9 +118,7 @@ async fn validate_expired_token_errors() {
 
 #[tokio::test]
 async fn consume_then_replay_revokes_family() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let exp = future_exp();
     let parent = RefreshTokenId::new(format!("rt-{}", Uuid::new_v4()));
     store(&ctx, &parent, exp).await;
@@ -181,9 +172,7 @@ async fn consume_then_replay_revokes_family() {
 
 #[tokio::test]
 async fn consume_unknown_token_errors() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let token = RefreshTokenId::new(format!("rt-{}", Uuid::new_v4()));
     assert!(
         ctx.repo
@@ -195,9 +184,7 @@ async fn consume_unknown_token_errors() {
 
 #[tokio::test]
 async fn revoke_refresh_token_deletes() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let token = RefreshTokenId::new(format!("rt-{}", Uuid::new_v4()));
     store(&ctx, &token, future_exp()).await;
 
@@ -218,9 +205,7 @@ async fn revoke_refresh_token_deletes() {
 
 #[tokio::test]
 async fn revoke_refresh_token_family_removes_all() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let exp = future_exp();
     let a = RefreshTokenId::new(format!("rt-{}", Uuid::new_v4()));
     store(&ctx, &a, exp).await;
@@ -253,9 +238,7 @@ async fn revoke_refresh_token_family_removes_all() {
 
 #[tokio::test]
 async fn consume_expired_unconsumed_token_reports_expired() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let token = RefreshTokenId::new(format!("rt-{}", Uuid::new_v4()));
     let past = (Utc::now() - Duration::hours(2)).timestamp();
     store(&ctx, &token, past).await;
@@ -273,9 +256,7 @@ async fn consume_expired_unconsumed_token_reports_expired() {
 
 #[tokio::test]
 async fn cleanup_expired_refresh_tokens_removes_past() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let token = RefreshTokenId::new(format!("rt-{}", Uuid::new_v4()));
     let past = (Utc::now() - Duration::hours(2)).timestamp();
     store(&ctx, &token, past).await;

@@ -4,8 +4,8 @@
 use systemprompt_identifiers::{AuthorizationCode, ClientId, UserId};
 use systemprompt_oauth::repository::{AuthCodeParams, OAuthRepository};
 use systemprompt_test_fixtures::{
-    OAuthClientFixture, PkcePair, ensure_test_bootstrap, fixture_database_url, fixture_db_pool,
-    pkce_pair, seed_oauth_client, seed_user_row, unique_user_id,
+    OAuthClientFixture, PkcePair, ensure_test_bootstrap, pkce_pair, seed_oauth_client,
+    seed_user_row, test_db_pool, unique_user_id,
 };
 use uuid::Uuid;
 
@@ -16,10 +16,9 @@ struct Ctx {
     redirect_uri: String,
 }
 
-async fn setup_or_skip() -> Option<Ctx> {
-    let url = fixture_database_url().ok()?;
+async fn setup() -> Ctx {
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let repo = OAuthRepository::new(&pool).expect("repo");
     let user_id = unique_user_id("ac");
     seed_user_row(&pool, &user_id, &format!("{}@ac.invalid", user_id.as_str()))
@@ -32,19 +31,17 @@ async fn setup_or_skip() -> Option<Ctx> {
     } = seed_oauth_client(&pool, &user_id)
         .await
         .expect("seed client");
-    Some(Ctx {
+    Ctx {
         repo,
         client_id,
         user_id,
         redirect_uri,
-    })
+    }
 }
 
 #[tokio::test]
 async fn store_then_validate_without_pkce() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let code = AuthorizationCode::new(format!("code-{}", Uuid::new_v4()));
     ctx.repo
         .store_authorization_code(AuthCodeParams {
@@ -80,9 +77,7 @@ async fn store_then_validate_without_pkce() {
 
 #[tokio::test]
 async fn validate_is_single_use() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let code = AuthorizationCode::new(format!("code-{}", Uuid::new_v4()));
     ctx.repo
         .store_authorization_code(AuthCodeParams {
@@ -114,9 +109,7 @@ async fn validate_is_single_use() {
 
 #[tokio::test]
 async fn validate_unknown_code_errors() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let code = AuthorizationCode::new(format!("never-{}", Uuid::new_v4()));
     assert!(
         ctx.repo
@@ -135,9 +128,7 @@ async fn validate_unknown_code_errors() {
 
 #[tokio::test]
 async fn validate_redirect_uri_mismatch_errors() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let code = AuthorizationCode::new(format!("code-{}", Uuid::new_v4()));
     ctx.repo
         .store_authorization_code(AuthCodeParams {
@@ -168,9 +159,7 @@ async fn validate_redirect_uri_mismatch_errors() {
 
 #[tokio::test]
 async fn validate_rejects_mismatched_client_id() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let code = AuthorizationCode::new(format!("code-{}", Uuid::new_v4()));
     ctx.repo
         .store_authorization_code(AuthCodeParams {
@@ -207,9 +196,7 @@ async fn validate_rejects_mismatched_client_id() {
 
 #[tokio::test]
 async fn validate_pkce_s256_success_and_failure() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let PkcePair {
         verifier,
         challenge,
@@ -263,9 +250,7 @@ async fn validate_pkce_s256_success_and_failure() {
 
 #[tokio::test]
 async fn validate_pkce_missing_verifier_errors() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let PkcePair { challenge, .. } = pkce_pair();
     let code = AuthorizationCode::new(format!("code-{}", Uuid::new_v4()));
     ctx.repo
@@ -291,9 +276,7 @@ async fn validate_pkce_missing_verifier_errors() {
 
 #[tokio::test]
 async fn replayed_code_with_linked_refresh_token_revokes_the_family() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let code = AuthorizationCode::new(format!("code-{}", Uuid::new_v4()));
     ctx.repo
         .store_authorization_code(AuthCodeParams {
@@ -351,9 +334,7 @@ async fn replayed_code_with_linked_refresh_token_revokes_the_family() {
 
 #[tokio::test]
 async fn validate_pkce_rejects_unsupported_challenge_method() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let code = AuthorizationCode::new(format!("code-{}", Uuid::new_v4()));
     ctx.repo
         .store_authorization_code(AuthCodeParams {
@@ -400,9 +381,7 @@ fn auth_code_params_builder_sets_pkce_and_resource() {
 
 #[tokio::test]
 async fn link_auth_code_to_dangling_refresh_token_errors() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let code = AuthorizationCode::new(format!("code-{}", Uuid::new_v4()));
     ctx.repo
         .store_authorization_code(AuthCodeParams {

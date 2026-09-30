@@ -6,7 +6,7 @@ use std::time::Duration;
 use systemprompt_identifiers::{SessionId, UserId};
 use systemprompt_oauth::repository::{BridgeSessionRepository, UpsertBridgeSession};
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_database_url, fixture_db_pool, seed_user_row, unique_user_id,
+    ensure_test_bootstrap, seed_user_row, test_db_pool, unique_user_id,
 };
 
 struct Ctx {
@@ -14,16 +14,15 @@ struct Ctx {
     user_id: UserId,
 }
 
-async fn setup_or_skip() -> Option<Ctx> {
-    let url = fixture_database_url().ok()?;
+async fn setup() -> Ctx {
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let repo = BridgeSessionRepository::new(&pool).expect("repo");
     let user_id = unique_user_id("bs");
     seed_user_row(&pool, &user_id, &format!("{}@bs.invalid", user_id.as_str()))
         .await
         .expect("seed user");
-    Some(Ctx { repo, user_id })
+    Ctx { repo, user_id }
 }
 
 fn upsert_params(session_id: &SessionId, user_id: &UserId) -> UpsertBridgeSession {
@@ -42,9 +41,7 @@ fn upsert_params(session_id: &SessionId, user_id: &UserId) -> UpsertBridgeSessio
 
 #[tokio::test]
 async fn upsert_then_list_active() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let session_id = SessionId::generate();
     ctx.repo
         .upsert(upsert_params(&session_id, &ctx.user_id))
@@ -69,9 +66,7 @@ async fn upsert_then_list_active() {
 
 #[tokio::test]
 async fn upsert_updates_existing_row() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let session_id = SessionId::generate();
     ctx.repo
         .upsert(upsert_params(&session_id, &ctx.user_id))
@@ -98,9 +93,7 @@ async fn upsert_updates_existing_row() {
 
 #[tokio::test]
 async fn list_active_excludes_old_heartbeats() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let session_id = SessionId::generate();
     ctx.repo
         .upsert(upsert_params(&session_id, &ctx.user_id))
@@ -118,9 +111,7 @@ async fn list_active_excludes_old_heartbeats() {
 
 #[tokio::test]
 async fn delete_stale_removes_recent_with_zero_window() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let session_id = SessionId::generate();
     ctx.repo
         .upsert(upsert_params(&session_id, &ctx.user_id))

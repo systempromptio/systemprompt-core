@@ -3,13 +3,15 @@
 
 use chrono::{Duration, Utc};
 use systemprompt_oauth::repository::OauthCleanupRepository;
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::test_db_pool;
 
-async fn repo_and_pool_or_skip() -> Option<(OauthCleanupRepository, sqlx::PgPool)> {
-    let url = fixture_database_url().ok()?;
-    let db = fixture_db_pool(&url).await.ok()?;
+async fn repo_and_pool() -> (OauthCleanupRepository, sqlx::PgPool) {
+    let db = test_db_pool().await;
     let pg = db.write_pool();
-    Some((OauthCleanupRepository::new(&db).ok()?, (*pg).clone()))
+    (
+        OauthCleanupRepository::new(&db).expect("cleanup repository"),
+        (*pg).clone(),
+    )
 }
 
 fn unique(prefix: &str) -> String {
@@ -49,9 +51,7 @@ async fn remove_user_and_client(pool: &sqlx::PgPool, user_id: &str, client_id: &
 
 #[tokio::test]
 async fn delete_expired_oauth_tokens_removes_expired_and_keeps_live() {
-    let Some((repo, pg)) = repo_and_pool_or_skip().await else {
-        return;
-    };
+    let (repo, pg) = repo_and_pool().await;
     let (user_id, client_id) = seed_user_and_client(&pg).await;
     let expired = unique("expired_token");
     let live = unique("live_token");
@@ -89,9 +89,7 @@ async fn delete_expired_oauth_tokens_removes_expired_and_keeps_live() {
 
 #[tokio::test]
 async fn delete_expired_oauth_codes_removes_used_and_expired_codes() {
-    let Some((repo, pg)) = repo_and_pool_or_skip().await else {
-        return;
-    };
+    let (repo, pg) = repo_and_pool().await;
     let (user_id, client_id) = seed_user_and_client(&pg).await;
     let used = unique("used_code");
     let fresh = unique("fresh_code");
@@ -130,9 +128,7 @@ async fn delete_expired_oauth_codes_removes_used_and_expired_codes() {
 
 #[tokio::test]
 async fn delete_expired_oauth_state_bindings_removes_expired_rows() {
-    let Some((repo, pg)) = repo_and_pool_or_skip().await else {
-        return;
-    };
+    let (repo, pg) = repo_and_pool().await;
     let hash = unique("state_hash");
     sqlx::query(
         "INSERT INTO oauth_state_bindings (state_token_hash, return_to, client_id, redirect_uri, \
@@ -162,9 +158,7 @@ async fn delete_expired_oauth_state_bindings_removes_expired_rows() {
 
 #[tokio::test]
 async fn delete_expired_oauth_jti_revocations_removes_expired_rows() {
-    let Some((repo, pg)) = repo_and_pool_or_skip().await else {
-        return;
-    };
+    let (repo, pg) = repo_and_pool().await;
     let jti = unique("jti");
     sqlx::query(
         "INSERT INTO oauth_jti_revocations (jti, user_id, exp) VALUES ($1, $2, NOW() - INTERVAL \
@@ -194,9 +188,7 @@ async fn delete_expired_oauth_jti_revocations_removes_expired_rows() {
 
 #[tokio::test]
 async fn delete_expired_id_jag_replays_removes_expired_rows() {
-    let Some((repo, pg)) = repo_and_pool_or_skip().await else {
-        return;
-    };
+    let (repo, pg) = repo_and_pool().await;
     let jti = unique("replay_jti");
     sqlx::query(
         "INSERT INTO id_jag_replay (jti, expires_at) VALUES ($1, NOW() - INTERVAL '1 hour')",
@@ -223,9 +215,7 @@ async fn delete_expired_id_jag_replays_removes_expired_rows() {
 
 #[tokio::test]
 async fn delete_expired_sweeps_every_table_and_totals_the_counts() {
-    let Some((repo, pg)) = repo_and_pool_or_skip().await else {
-        return;
-    };
+    let (repo, pg) = repo_and_pool().await;
     let jti = unique("sweep_replay");
     sqlx::query(
         "INSERT INTO id_jag_replay (jti, expires_at) VALUES ($1, NOW() - INTERVAL '1 hour')",
@@ -242,9 +232,7 @@ async fn delete_expired_sweeps_every_table_and_totals_the_counts() {
 
 #[tokio::test]
 async fn bridge_exchange_codes_are_swept_once_spent_or_expired() {
-    let Some((repo, pg)) = repo_and_pool_or_skip().await else {
-        return;
-    };
+    let (repo, pg) = repo_and_pool().await;
     let (user_id, client_id) = seed_user_and_client(&pg).await;
     let live = unique("code_live");
     let consumed = unique("code_consumed");

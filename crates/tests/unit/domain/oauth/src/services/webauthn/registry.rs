@@ -7,7 +7,7 @@ use systemprompt_identifiers::UserId;
 use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_oauth::services::WebAuthnService;
 use systemprompt_oauth::services::webauthn::WebAuthnRegistry;
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
 use systemprompt_traits::{AuthResult, AuthUser, UserProvider};
 
 struct NoopUsers;
@@ -65,11 +65,8 @@ impl UserProvider for NoopUsers {
 
 #[tokio::test]
 async fn registry_surfaces_invalid_relying_party_configuration() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let repo = OAuthRepository::new(&pool).expect("repo");
 
     let err = WebAuthnRegistry::get_or_create_service(repo, Arc::new(NoopUsers))
@@ -83,11 +80,8 @@ async fn registry_surfaces_invalid_relying_party_configuration() {
 
 #[tokio::test]
 async fn service_new_rejects_ip_address_relying_party() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let repo = OAuthRepository::new(&pool).expect("repo");
 
     let err = WebAuthnService::new(repo, Arc::new(NoopUsers))

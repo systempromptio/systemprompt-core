@@ -9,24 +9,21 @@ use systemprompt_oauth::repository::{ClientRepository, CreateClientParams, OAuth
 use systemprompt_oauth::services::cimd::{CimdFetcher, ClientValidator};
 use systemprompt_oauth::services::hash_client_secret;
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_database_url, fixture_db_pool, seed_user_row, unique_user_id,
+    ensure_test_bootstrap, seed_user_row, test_db_pool, unique_user_id,
 };
 use uuid::Uuid;
 
-async fn setup_or_skip() -> Option<(systemprompt_database::DbPool, ClientValidator)> {
-    let url = fixture_database_url().ok()?;
+async fn setup() -> (systemprompt_database::DbPool, ClientValidator) {
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let validator =
         ClientValidator::new(OAuthRepository::new(&pool).expect("oauth repo")).expect("validator");
-    Some((pool, validator))
+    (pool, validator)
 }
 
 #[tokio::test]
 async fn first_party_and_system_clients_validate_without_io() {
-    let Some((_pool, validator)) = setup_or_skip().await else {
-        return;
-    };
+    let (_pool, validator) = setup().await;
 
     let sp = ClientId::new("sp_first_party_client");
     let validation = validator.validate_client(&sp, None).await.expect("sp");
@@ -45,9 +42,7 @@ async fn first_party_and_system_clients_validate_without_io() {
 
 #[tokio::test]
 async fn unknown_client_id_shape_is_rejected() {
-    let Some((_pool, validator)) = setup_or_skip().await else {
-        return;
-    };
+    let (_pool, validator) = setup().await;
 
     let bogus = ClientId::new("totally-unrecognised-shape");
     let err = validator
@@ -60,9 +55,7 @@ async fn unknown_client_id_shape_is_rejected() {
 
 #[tokio::test]
 async fn dcr_client_resolves_when_registered_and_errors_when_absent() {
-    let Some((pool, validator)) = setup_or_skip().await else {
-        return;
-    };
+    let (pool, validator) = setup().await;
     let owner = unique_user_id("cimdval");
     seed_user_row(
         &pool,
@@ -122,9 +115,7 @@ async fn seed_unknown_user(pool: &systemprompt_database::DbPool) -> UserId {
 
 #[tokio::test]
 async fn cimd_client_fetch_failure_propagates() {
-    let Some((pool, validator)) = setup_or_skip().await else {
-        return;
-    };
+    let (pool, validator) = setup().await;
     let _ = seed_unknown_user(&pool).await;
 
     let unreachable = ClientId::new(format!(

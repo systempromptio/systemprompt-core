@@ -3,7 +3,7 @@
 use systemprompt_identifiers::{ClientId, UserId};
 use systemprompt_oauth::repository::{CreateClientParams, OAuthRepository};
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_database_url, fixture_db_pool, seed_user_row, unique_user_id,
+    ensure_test_bootstrap, seed_user_row, test_db_pool, unique_user_id,
 };
 use uuid::Uuid;
 
@@ -12,16 +12,15 @@ struct Ctx {
     owner: UserId,
 }
 
-async fn setup_or_skip() -> Option<Ctx> {
-    let url = fixture_database_url().ok()?;
+async fn setup() -> Ctx {
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let repo = OAuthRepository::new(&pool).expect("repo");
     let owner = unique_user_id("cl-owner");
     seed_user_row(&pool, &owner, &format!("{}@cl.invalid", owner.as_str()))
         .await
         .expect("seed owner");
-    Some(Ctx { repo, owner })
+    Ctx { repo, owner }
 }
 
 async fn make_client(ctx: &Ctx) -> ClientId {
@@ -50,9 +49,7 @@ async fn make_client(ctx: &Ctx) -> ClientId {
 
 #[tokio::test]
 async fn cleanup_unused_clients_executes() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let client_id = make_client(&ctx).await;
     assert!(
         ctx.repo
@@ -69,9 +66,7 @@ async fn cleanup_unused_clients_executes() {
 
 #[tokio::test]
 async fn list_unused_and_old_clients() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let client_id = make_client(&ctx).await;
 
     let _ = client_id;
@@ -81,9 +76,7 @@ async fn list_unused_and_old_clients() {
 
 #[tokio::test]
 async fn stale_clients_after_mark_used() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let client_id = make_client(&ctx).await;
     ctx.repo
         .update_client_last_used(&client_id)
@@ -99,9 +92,7 @@ async fn stale_clients_after_mark_used() {
 
 #[tokio::test]
 async fn inactive_clients_lifecycle() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let client_id = make_client(&ctx).await;
     // Deactivate via update path is unavailable on the façade; use delete_client
     // is not deactivation. Instead exercise list/cleanup of inactive which are
@@ -128,9 +119,7 @@ async fn inactive_clients_lifecycle() {
 
 #[tokio::test]
 async fn cleanup_and_deactivate_old_test_clients_run() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     // These target `test_%`-prefixed client ids; our ids are `c-...`, so the
     // calls are no-ops but still exercise the delegation path.
     let _ = ctx

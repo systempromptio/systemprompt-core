@@ -2,17 +2,14 @@
 
 use systemprompt_oauth::repository::BridgeHostPrefsRepository;
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_database_url, fixture_db_pool, seed_user_row, unique_user_id,
+    ensure_test_bootstrap, seed_user_row, test_db_pool, unique_user_id,
 };
 use uuid::Uuid;
 
 #[tokio::test]
 async fn upsert_then_list_enabled() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let repo = BridgeHostPrefsRepository::new(&pool).expect("repo");
     let user_id = unique_user_id("bhp");
     seed_user_row(
@@ -40,11 +37,8 @@ async fn upsert_then_list_enabled() {
 
 #[tokio::test]
 async fn upsert_toggles_enabled_flag() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let repo = BridgeHostPrefsRepository::new(&pool).expect("repo");
     let user_id = unique_user_id("bhp");
     seed_user_row(
@@ -76,11 +70,8 @@ async fn upsert_toggles_enabled_flag() {
 
 #[tokio::test]
 async fn list_enabled_empty_for_unknown_user() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let repo = BridgeHostPrefsRepository::new(&pool).expect("repo");
     let user_id = unique_user_id("bhp-unknown");
     let enabled = repo.list_enabled(&user_id).await.expect("list");
@@ -89,11 +80,8 @@ async fn list_enabled_empty_for_unknown_user() {
 
 #[tokio::test]
 async fn model_protocols_set_load_and_clear() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let repo = BridgeHostPrefsRepository::new(&pool).expect("repo");
     let user_id = unique_user_id("bhp-mp");
     seed_user_row(
@@ -143,11 +131,8 @@ async fn model_protocols_set_load_and_clear() {
 
 #[tokio::test]
 async fn model_protocols_do_not_perturb_enabled_state() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let repo = BridgeHostPrefsRepository::new(&pool).expect("repo");
     let user_id = unique_user_id("bhp-iso");
     seed_user_row(

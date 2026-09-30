@@ -11,7 +11,7 @@ use systemprompt_oauth::repository::{
     OAuthRepository, StoreChallengeParams, WebAuthnChallengeKind, WebAuthnCredentialParams,
 };
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_database_url, fixture_db_pool, seed_user_row, unique_user_id,
+    ensure_test_bootstrap, seed_user_row, test_db_pool, unique_user_id,
 };
 use uuid::Uuid;
 
@@ -22,9 +22,8 @@ struct Ctx {
 }
 
 async fn setup(prefix: &str) -> Ctx {
-    let url = fixture_database_url().expect("DATABASE_URL must be set");
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let repo = OAuthRepository::new(&pool).expect("repo");
     let write = pool.write_pool_arc().expect("write pool");
     let user_id = unique_user_id(prefix);

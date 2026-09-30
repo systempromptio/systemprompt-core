@@ -4,14 +4,13 @@
 use chrono::{Duration, Utc};
 use systemprompt_identifiers::ClientId;
 use systemprompt_oauth::repository::{OAuthRepository, StateBindingParams};
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
 use uuid::Uuid;
 
-async fn repo_or_skip() -> Option<OAuthRepository> {
-    let url = fixture_database_url().ok()?;
+async fn repo() -> OAuthRepository {
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
-    Some(OAuthRepository::new(&pool).expect("repo"))
+    let pool = test_db_pool().await;
+    OAuthRepository::new(&pool).expect("repo")
 }
 
 #[test]
@@ -41,9 +40,7 @@ fn builder_overrides_fields() {
 
 #[tokio::test]
 async fn store_then_consume_once() {
-    let Some(repo) = repo_or_skip().await else {
-        return;
-    };
+    let repo = repo().await;
     let token = format!("state-{}", Uuid::new_v4());
     let client_id = ClientId::new("cid-x");
     repo.store_state_binding(
@@ -76,9 +73,7 @@ async fn store_then_consume_once() {
 
 #[tokio::test]
 async fn consume_unknown_returns_none() {
-    let Some(repo) = repo_or_skip().await else {
-        return;
-    };
+    let repo = repo().await;
     assert!(
         repo.consume_state_binding(&format!("nope-{}", Uuid::new_v4()))
             .await
@@ -89,9 +84,7 @@ async fn consume_unknown_returns_none() {
 
 #[tokio::test]
 async fn expired_binding_cannot_be_consumed() {
-    let Some(repo) = repo_or_skip().await else {
-        return;
-    };
+    let repo = repo().await;
     let token = format!("state-{}", Uuid::new_v4());
     repo.store_state_binding(
         StateBindingParams::builder(&token)
@@ -110,9 +103,7 @@ async fn expired_binding_cannot_be_consumed() {
 
 #[tokio::test]
 async fn cleanup_expired_state_bindings_removes_past() {
-    let Some(repo) = repo_or_skip().await else {
-        return;
-    };
+    let repo = repo().await;
     let token = format!("state-{}", Uuid::new_v4());
     repo.store_state_binding(
         StateBindingParams::builder(&token)

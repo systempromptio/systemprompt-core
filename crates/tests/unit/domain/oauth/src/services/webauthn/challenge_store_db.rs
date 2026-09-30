@@ -16,7 +16,7 @@ use systemprompt_oauth::repository::{
 use systemprompt_oauth::services::webauthn::hash_token;
 use systemprompt_oauth::services::{WebAuthnConfig, WebAuthnService};
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_database_url, fixture_db_pool, seed_user_row, unique_user_id,
+    ensure_test_bootstrap, seed_user_row, test_db_pool, unique_user_id,
 };
 use systemprompt_traits::{AuthResult, AuthUser, UserProvider};
 use url::Url;
@@ -96,10 +96,9 @@ struct Ctx {
     email: String,
 }
 
-async fn setup_or_skip() -> Option<Ctx> {
-    let url = fixture_database_url().ok()?;
+async fn setup() -> Ctx {
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let repo = OAuthRepository::new(&pool).expect("repo");
     let user_id = unique_user_id("wa-store");
     let email = format!("{}@wastore.invalid", user_id.as_str());
@@ -114,21 +113,19 @@ async fn setup_or_skip() -> Option<Ctx> {
         )
         .expect("svc")
     };
-    Some(Ctx {
+    Ctx {
         pool: pool.clone(),
         repo,
         replica_a: build(),
         replica_b: build(),
         user_id,
         email,
-    })
+    }
 }
 
 #[tokio::test]
 async fn registration_challenge_started_on_replica_a_is_consumable_on_replica_b() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let (_, challenge_id) = ctx
         .replica_a
         .start_registration("cross-replica", &ctx.email, None)
@@ -148,9 +145,7 @@ async fn registration_challenge_started_on_replica_a_is_consumable_on_replica_b(
 
 #[tokio::test]
 async fn challenge_consumes_exactly_once() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let challenge = format!("once-{}", Uuid::new_v4().simple());
     let state = serde_json::json!({"k": "v"});
     ctx.repo
@@ -188,9 +183,7 @@ async fn challenge_consumes_exactly_once() {
 
 #[tokio::test]
 async fn challenge_kind_mismatch_does_not_consume() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let challenge = format!("kind-{}", Uuid::new_v4().simple());
     ctx.repo
         .store_webauthn_challenge(StoreChallengeParams {
@@ -220,9 +213,7 @@ async fn challenge_kind_mismatch_does_not_consume() {
 
 #[tokio::test]
 async fn expired_challenge_is_not_consumable_and_is_purged_by_cleanup() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let challenge = format!("ttl0-{}", Uuid::new_v4().simple());
     ctx.repo
         .store_webauthn_challenge(StoreChallengeParams {
@@ -257,9 +248,7 @@ async fn expired_challenge_is_not_consumable_and_is_purged_by_cleanup() {
 
 #[tokio::test]
 async fn verified_token_stored_on_replica_a_is_consumed_on_replica_b() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let token = format!("vtok-{}", Uuid::new_v4().simple());
     ctx.replica_a
         .store_verified_authentication(token.clone(), ctx.user_id.clone())
@@ -283,9 +272,7 @@ async fn verified_token_stored_on_replica_a_is_consumed_on_replica_b() {
 
 #[tokio::test]
 async fn registration_state_expired_when_challenge_unknown() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let missing = ctx
         .repo
         .consume_webauthn_challenge("never-stored", WebAuthnChallengeKind::Registration)
@@ -312,9 +299,7 @@ async fn store_link_token(repo: &OAuthRepository, user_id: &UserId) -> String {
 async fn non_uuid_link_user_fails_before_reservation_without_consuming_token() {
     use systemprompt_oauth::repository::TokenValidationResult;
 
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let user_id = UserId::new(format!("legacy-user-{}", Uuid::new_v4().simple()));
     let email = format!("{}@wastore.invalid", user_id.as_str());
     seed_user_row(&ctx.pool, &user_id, &email)
@@ -349,14 +334,10 @@ async fn non_uuid_link_user_fails_before_reservation_without_consuming_token() {
 
 #[tokio::test]
 async fn link_started_on_replica_a_finishes_on_replica_b() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     // The link ceremony needs a UUID user id: it becomes the passkey's
     // user handle.
-    let pool = fixture_db_pool(&fixture_database_url().expect("url"))
-        .await
-        .expect("pool");
+    let pool = test_db_pool().await;
     let user_id = UserId::new(Uuid::new_v4().to_string());
     let email = format!("{}@wastore.invalid", user_id.as_str());
     seed_user_row(&pool, &user_id, &email)
@@ -440,7 +421,7 @@ async fn reserve(
 
 #[tokio::test]
 async fn reserve_link_challenge_returns_the_live_challenge_for_the_same_token() {
-    let ctx = setup_or_skip().await.expect("DATABASE_URL must be set");
+    let ctx = setup().await;
     let token = TokenId::generate();
 
     let first = reserve(&ctx.repo, &ctx.user_id, &token, Duration::from_secs(300), 1).await;
@@ -462,7 +443,7 @@ async fn reserve_link_challenge_returns_the_live_challenge_for_the_same_token() 
 
 #[tokio::test]
 async fn reserve_link_challenge_replaces_a_challenge_issued_for_another_token() {
-    let ctx = setup_or_skip().await.expect("DATABASE_URL must be set");
+    let ctx = setup().await;
     let token_a = TokenId::generate();
     let token_b = TokenId::generate();
 
@@ -496,7 +477,7 @@ async fn reserve_link_challenge_replaces_a_challenge_issued_for_another_token() 
 
 #[tokio::test]
 async fn reserve_link_challenge_replaces_a_near_expiry_challenge() {
-    let ctx = setup_or_skip().await.expect("DATABASE_URL must be set");
+    let ctx = setup().await;
     let token = TokenId::generate();
 
     let first = reserve(&ctx.repo, &ctx.user_id, &token, Duration::from_secs(30), 1).await;
@@ -512,7 +493,7 @@ async fn reserve_link_challenge_replaces_a_near_expiry_challenge() {
 
 #[tokio::test]
 async fn reserve_link_challenge_ignores_other_kinds_and_other_users() {
-    let ctx = setup_or_skip().await.expect("DATABASE_URL must be set");
+    let ctx = setup().await;
     let other = unique_user_id("wa-other");
     seed_user_row(
         &ctx.pool,
@@ -579,7 +560,7 @@ async fn reserve_link_challenge_ignores_other_kinds_and_other_users() {
 
 #[tokio::test]
 async fn concurrent_reservations_converge_on_one_challenge() {
-    let ctx = setup_or_skip().await.expect("DATABASE_URL must be set");
+    let ctx = setup().await;
     let token = TokenId::generate();
     let mints = Arc::new(AtomicUsize::new(0));
 

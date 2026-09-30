@@ -2,7 +2,7 @@
 
 use chrono::{Duration, Utc};
 use systemprompt_oauth::repository::{JtiRevocationCache, OAuthRepository};
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
 use uuid::Uuid;
 
 #[test]
@@ -37,11 +37,8 @@ fn cache_capacity_zero_clamps_to_one() {
 
 #[tokio::test]
 async fn revoke_jti_then_is_revoked() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let repo = OAuthRepository::new(&pool).expect("repo");
 
     let uid = Uuid::new_v4();
@@ -55,11 +52,8 @@ async fn revoke_jti_then_is_revoked() {
 
 #[tokio::test]
 async fn revoke_jti_is_idempotent_on_conflict() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let repo = OAuthRepository::new(&pool).expect("repo");
 
     let uid = Uuid::new_v4();
@@ -72,11 +66,8 @@ async fn revoke_jti_is_idempotent_on_conflict() {
 
 #[tokio::test]
 async fn expired_jti_not_revoked() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let repo = OAuthRepository::new(&pool).expect("repo");
 
     let uid = Uuid::new_v4();
@@ -89,11 +80,8 @@ async fn expired_jti_not_revoked() {
 
 #[tokio::test]
 async fn revoke_jtis_for_user_batch() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let repo = OAuthRepository::new(&pool).expect("repo");
 
     let uid = Uuid::new_v4();
@@ -115,11 +103,8 @@ async fn revoke_jtis_for_user_batch() {
 
 #[tokio::test]
 async fn cleanup_expired_jti_revocations_removes_past_rows() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let repo = OAuthRepository::new(&pool).expect("repo");
 
     let uid = Uuid::new_v4();

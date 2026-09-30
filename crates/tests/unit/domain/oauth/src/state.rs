@@ -7,7 +7,7 @@ use http::HeaderMap;
 use systemprompt_identifiers::{SessionId, UserId};
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::OAuthRepository;
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
 use systemprompt_traits::{
     AnalyticsProvider, AnalyticsResult, AnalyticsSession, AuthResult, AuthUser, CreateSessionInput,
     ExtractSignals, FingerprintProvider, McpRegistryProvider, SessionAnalytics, SessionProvider,
@@ -164,24 +164,21 @@ impl McpRegistryProvider for NullRegistry {
     }
 }
 
-async fn base_state_or_skip() -> Option<OAuthState> {
-    let url = fixture_database_url().ok()?;
+async fn base_state() -> OAuthState {
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let repo = OAuthRepository::new(&pool).expect("oauth repo");
-    Some(OAuthState::new(
+    OAuthState::new(
         repo,
         Arc::new(NullAnalytics),
         Arc::new(NullAnalytics),
         Arc::new(NullUsers),
-    ))
+    )
 }
 
 #[tokio::test]
 async fn new_state_has_no_optional_providers() {
-    let Some(state) = base_state_or_skip().await else {
-        return;
-    };
+    let state = base_state().await;
 
     assert!(state.fingerprint_provider().is_none());
     assert!(state.mcp_registry().is_none());
@@ -193,9 +190,7 @@ async fn new_state_has_no_optional_providers() {
 
 #[tokio::test]
 async fn builder_methods_attach_optional_providers() {
-    let Some(state) = base_state_or_skip().await else {
-        return;
-    };
+    let state = base_state().await;
 
     let state = state
         .with_fingerprint_provider(Arc::new(NullFingerprints))
