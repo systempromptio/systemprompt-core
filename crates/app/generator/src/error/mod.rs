@@ -103,6 +103,13 @@ pub enum PublishError {
         source: systemprompt_content::ContentError,
     },
 
+    #[error("{context}: {source}")]
+    Analytics {
+        context: String,
+        #[source]
+        source: systemprompt_analytics::AnalyticsError,
+    },
+
     #[error("Template registry error: {0}")]
     Template(#[from] systemprompt_templates::TemplateError),
 
@@ -204,6 +211,16 @@ impl PublishError {
         Self::Content {
             context: context.into(),
             source: source.into(),
+        }
+    }
+
+    pub fn analytics(
+        context: impl Into<String>,
+        source: systemprompt_analytics::AnalyticsError,
+    ) -> Self {
+        Self::Analytics {
+            context: context.into(),
+            source,
         }
     }
 

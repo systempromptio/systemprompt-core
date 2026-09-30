@@ -249,7 +249,13 @@ async fn prerender_excludes_non_public_rows() {
     // Rendering the public row needs an extension template registry that this
     // harness does not install, so the render itself may error; the public/
     // private partition and the private-slug cleanup run regardless.
-    let _ = prerender_content(db.clone(), content_repo(&db), &boot.app_paths).await;
+    let _ = prerender_content(
+        db.clone(),
+        content_repo(&db),
+        content_analytics(&db),
+        &boot.app_paths,
+    )
+    .await;
 
     clean_source(&repo, &source_id).await;
 
@@ -310,7 +316,13 @@ async fn prerender_removes_now_private_slug() {
     .await
     .expect("flip row to private");
 
-    let _ = prerender_content(db.clone(), content_repo(&db), &boot.app_paths).await;
+    let _ = prerender_content(
+        db.clone(),
+        content_repo(&db),
+        content_analytics(&db),
+        &boot.app_paths,
+    )
+    .await;
 
     clean_source(&repo, &source_id).await;
 
@@ -322,4 +334,11 @@ async fn prerender_removes_now_private_slug() {
 
 fn content_repo(pool: &systemprompt_database::DbPool) -> systemprompt_content::ContentRepository {
     systemprompt_content::ContentRepository::new(pool).expect("content repository")
+}
+
+fn content_analytics(
+    pool: &systemprompt_database::DbPool,
+) -> systemprompt_analytics::ContentAnalyticsRepository {
+    systemprompt_analytics::ContentAnalyticsRepository::new(pool)
+        .expect("content analytics repository")
 }

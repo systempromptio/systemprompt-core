@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Breaking
+
+- **Content / Generator Rust API:** `ContentRepository::get_popular_content_ids` is removed; the ranking reads analytics events and users, so it is `ContentAnalyticsRepository::popular_content_ids` over the analytics report views. `prerender_content` takes the `ContentAnalyticsRepository` after the `ContentRepository`, and `PublishError` gains `Analytics`.
+
 ### Added
 
 - **Marketplace import:** a plugin entry may name a Claude Code git source (`github`, `url` or `git-subdir`) to re-list a plugin published elsewhere. `core marketplace import` fetches the commit named by the entry's `sha` through the sandboxed managed-source git capture and imports that subtree like a local plugin, so the services tree and every bundle packed from it carry the upstream files and boot fetches nothing. An entry without a `sha` raises `ImportWarning::RemotePluginUnpinned`, a strict error; `npm`/`pip` sources are still skipped as `RemotePluginSource`. `strict: false` entries supply the manifest when the upstream has no `.claude-plugin/plugin.json`, and a `skills` path override (a string or a list, `["./"]` for skill folders at the plugin root) is honoured. The import report gains an `upstream` row naming each vendored plugin with its commit. `import_anthropic_tree_with` takes the `GitSourceCapture` to fetch with; `NativeGitSourceCapture` is now public.

@@ -10,6 +10,7 @@ use systemprompt_analytics::{
     CostAnalyticsRepository, ToolAnalyticsRepository, ToolListParams,
 };
 use systemprompt_database::DbPool;
+use systemprompt_identifiers::SourceId;
 use systemprompt_models::UserId;
 use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
 use tokio::sync::{Mutex, MutexGuard, OnceCell};
@@ -430,6 +431,10 @@ async fn content_analytics_repository_smoke() -> Result<()> {
     let _trend = repo
         .get_content_for_trends(fx.window_start, fx.window_end)
         .await?;
+    let popular = repo
+        .popular_content_ids(&SourceId::new(format!("src-{}", Uuid::new_v4())), 30, 5)
+        .await?;
+    assert!(popular.is_empty());
 
     fx.cleanup().await?;
     Ok(())

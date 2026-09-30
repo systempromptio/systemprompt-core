@@ -221,7 +221,13 @@ async fn prerender_content_with_empty_templates_dir_runs_engine() {
     let Some(db) = maybe_db_or_skip().await else {
         return;
     };
-    let _ = prerender_content(db.clone(), content_repo(&db), &paths).await;
+    let _ = prerender_content(
+        db.clone(),
+        content_repo(&db),
+        content_analytics(&db),
+        &paths,
+    )
+    .await;
 }
 
 #[tokio::test]
@@ -356,4 +362,11 @@ async fn rss_provider_fetch_items_for_blog_source_runs_repo() {
 
 fn content_repo(pool: &systemprompt_database::DbPool) -> systemprompt_content::ContentRepository {
     systemprompt_content::ContentRepository::new(pool).expect("content repository")
+}
+
+fn content_analytics(
+    pool: &systemprompt_database::DbPool,
+) -> systemprompt_analytics::ContentAnalyticsRepository {
+    systemprompt_analytics::ContentAnalyticsRepository::new(pool)
+        .expect("content analytics repository")
 }

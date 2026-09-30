@@ -9,6 +9,7 @@
 use std::collections::HashSet;
 use std::path::PathBuf;
 
+use systemprompt_analytics::ContentAnalyticsRepository;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_content::ContentRepository;
 use systemprompt_database::DbPool;
@@ -26,10 +27,11 @@ use crate::prerender::utils::{merge_json_data, render_components};
 pub async fn prerender_content(
     db_pool: DbPool,
     content_repo: ContentRepository,
+    content_analytics: ContentAnalyticsRepository,
     paths: &AppPaths,
 ) -> Result<()> {
     let ctx = load_prerender_context(db_pool, content_repo, paths).await?;
-    let total_rendered = process_all_sources(&ctx).await?;
+    let total_rendered = process_all_sources(&ctx, &content_analytics).await?;
     tracing::debug!(items_rendered = total_rendered, "Prerendering completed");
     Ok(())
 }

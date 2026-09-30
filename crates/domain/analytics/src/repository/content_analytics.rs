@@ -67,6 +67,40 @@ impl ContentAnalyticsRepository {
         .map_err(Into::into)
     }
 
+    pub async fn popular_content_ids(
+        &self,
+        source_id: &SourceId,
+        days: i32,
+        limit: i64,
+    ) -> Result<Vec<ContentId>> {
+        let rows: Vec<String> = sqlx::query_scalar!(
+            r#"
+            SELECT mc.id as "id!"
+            FROM report_markdown_content mc
+            LEFT JOIN report_analytics_events ae ON
+                ae.event_type = 'page_view'
+                AND ae.event_category = 'content'
+                AND ae.endpoint = 'GET /' || mc.source_id || '/' || mc.slug
+                AND ae.timestamp >= CURRENT_TIMESTAMP - ($2 || ' days')::INTERVAL
+            LEFT JOIN report_users u ON ae.user_id = u.id
+            WHERE mc.source_id = $1
+            GROUP BY mc.id, mc.published_at
+            ORDER BY COUNT(DISTINCT CASE
+                WHEN u.id IS NOT NULL AND u.is_bot = FALSE AND u.is_scanner = FALSE
+                THEN ae.user_id
+            END) DESC, mc.published_at DESC
+            LIMIT $3
+            "#,
+            source_id.as_str(),
+            days.to_string(),
+            limit
+        )
+        .fetch_all(&*self.pool)
+        .await?;
+
+        Ok(rows.into_iter().map(ContentId::new).collect())
+    }
+
     pub async fn get_stats(
         &self,
         start: DateTime<Utc>,

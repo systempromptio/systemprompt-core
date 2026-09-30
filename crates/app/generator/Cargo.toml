@@ -29,6 +29,7 @@ systemprompt-database = { workspace = true }
 
 # Domain layer (read-only access for content types)
 systemprompt-content = { workspace = true }
+systemprompt-analytics = { workspace = true }
 systemprompt-templates = { workspace = true }
 
 # Template provider traits

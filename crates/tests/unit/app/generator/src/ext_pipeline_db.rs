@@ -168,9 +168,14 @@ async fn prerender_runs_fixture_components_extenders_and_enrichment() {
     )
     .expect("write template");
 
-    prerender_content(db.clone(), content_repo(&db), &boot.app_paths)
-        .await
-        .expect("prerender_content");
+    prerender_content(
+        db.clone(),
+        content_repo(&db),
+        content_analytics(&db),
+        &boot.app_paths,
+    )
+    .await
+    .expect("prerender_content");
 
     let _ = repo.delete_by_source(&source_id).await;
     let _ = fs::remove_file(tmpl_dir.join("article-post.html"));
@@ -254,9 +259,14 @@ async fn prerender_empty_source_retries_then_renders_nothing() {
     let _ = repo.delete_by_source(&source_id).await;
 
     install_config(boot, "extpipeempty");
-    prerender_content(db.clone(), content_repo(&db), &boot.app_paths)
-        .await
-        .expect("empty source must complete without error");
+    prerender_content(
+        db.clone(),
+        content_repo(&db),
+        content_analytics(&db),
+        &boot.app_paths,
+    )
+    .await
+    .expect("empty source must complete without error");
     assert!(
         !boot.app_paths.web().dist().join("blog/index.html").exists()
             || fs::read_dir(boot.app_paths.web().dist().join("blog")).is_ok(),
@@ -366,4 +376,11 @@ async fn validate_build_skips_unparseable_sitemap_urls() {
 
 fn content_repo(pool: &systemprompt_database::DbPool) -> systemprompt_content::ContentRepository {
     systemprompt_content::ContentRepository::new(pool).expect("content repository")
+}
+
+fn content_analytics(
+    pool: &systemprompt_database::DbPool,
+) -> systemprompt_analytics::ContentAnalyticsRepository {
+    systemprompt_analytics::ContentAnalyticsRepository::new(pool)
+        .expect("content analytics repository")
 }

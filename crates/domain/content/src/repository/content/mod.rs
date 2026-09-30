@@ -111,13 +111,4 @@ impl ContentRepository {
     pub async fn list_all(&self, limit: i64, offset: i64) -> Result<Vec<Content>, sqlx::Error> {
         queries::list_all(&self.pool, limit, offset).await
     }
-
-    pub async fn get_popular_content_ids(
-        &self,
-        source_id: &SourceId,
-        days: i32,
-        limit: i64,
-    ) -> Result<Vec<ContentId>, sqlx::Error> {
-        queries::get_popular_content_ids(&self.pool, source_id, days, limit).await
-    }
 }

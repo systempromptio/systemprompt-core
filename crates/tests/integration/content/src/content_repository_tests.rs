@@ -314,17 +314,3 @@ async fn list_slugs_with_locales_by_source_lists_inserted() {
 
     repo.delete_by_source(&source).await.ok();
 }
-
-#[tokio::test]
-async fn get_popular_content_ids_runs_without_error_when_no_metrics() {
-    let Some(db) = try_db_or_skip().await else {
-        return;
-    };
-    let repo = ContentRepository::new(&db).expect("repo");
-    let source = unique_source_id();
-    let ids = repo
-        .get_popular_content_ids(&source, 30, 5)
-        .await
-        .expect("popular");
-    assert!(ids.is_empty());
-}

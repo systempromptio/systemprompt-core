@@ -210,40 +210,6 @@ pub(super) async fn category_exists(
     Ok(result)
 }
 
-pub(super) async fn get_popular_content_ids(
-    pool: &Arc<PgPool>,
-    source_id: &SourceId,
-    days: i32,
-    limit: i64,
-) -> Result<Vec<ContentId>, sqlx::Error> {
-    let rows: Vec<String> = sqlx::query_scalar!(
-        r#"
-        SELECT mc.id as "id!"
-        FROM markdown_content mc
-        LEFT JOIN analytics_events ae ON
-            ae.event_type = 'page_view'
-            AND ae.event_category = 'content'
-            AND ae.endpoint = 'GET /' || mc.source_id || '/' || mc.slug
-            AND ae.timestamp >= CURRENT_TIMESTAMP - ($2 || ' days')::INTERVAL
-        LEFT JOIN users u ON ae.user_id = u.id
-        WHERE mc.source_id = $1
-        GROUP BY mc.id, mc.published_at
-        ORDER BY COUNT(DISTINCT CASE
-            WHEN u.id IS NOT NULL AND u.is_bot = FALSE AND u.is_scanner = FALSE
-            THEN ae.user_id
-        END) DESC, mc.published_at DESC
-        LIMIT $3
-        "#,
-        source_id.as_str(),
-        days.to_string(),
-        limit
-    )
-    .fetch_all(&**pool)
-    .await?;
-
-    Ok(rows.into_iter().map(ContentId::new).collect())
-}
-
 pub(super) async fn find_sources_by_slug(
     pool: &Arc<PgPool>,
     slug: &str,
