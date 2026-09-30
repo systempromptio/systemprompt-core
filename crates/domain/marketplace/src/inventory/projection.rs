@@ -42,15 +42,10 @@ impl ManagedRepository {
             merge_resource(owner, &mut entries, resource);
         }
         let previous = Self::retire_missing_inventory(&mut tx, owner, &mut entries).await?;
-        let records = inventory_records(&entries)?;
-        let generation = next_generation(state.generation, &records, &previous)?;
+        let generation = next_generation(state.generation, &entries, &previous)?;
         for (id, entry) in &entries {
-            let record = records
-                .get(id)
-                .ok_or_else(|| invalid("Inventory record lost"))?;
             let stored = super::repository::StoredInventoryEntry {
                 entry,
-                record,
                 previous: previous.get(id),
                 generation,
                 observed,
@@ -81,8 +76,8 @@ impl ManagedRepository {
 // records covers set changes as well as edits.
 fn next_generation(
     current: i64,
-    records: &BTreeMap<InventoryEntryId, serde_json::Value>,
-    previous: &BTreeMap<InventoryEntryId, serde_json::Value>,
+    records: &BTreeMap<InventoryEntryId, InventoryEntry>,
+    previous: &BTreeMap<InventoryEntryId, InventoryEntry>,
 ) -> Result<i64> {
     if records
         .iter()
@@ -93,15 +88,6 @@ fn next_generation(
     current
         .checked_add(1)
         .ok_or_else(|| invalid("Inventory generation overflow"))
-}
-
-fn inventory_records(
-    entries: &BTreeMap<InventoryEntryId, InventoryEntry>,
-) -> Result<BTreeMap<InventoryEntryId, serde_json::Value>> {
-    entries
-        .iter()
-        .map(|(id, entry)| Ok((id.clone(), serde_json::to_value(entry)?)))
-        .collect()
 }
 
 fn configured_entries(
