@@ -5,7 +5,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::error::ContentError;
-use crate::models::{Content, ContentLinkMetadata, ContentMetadata};
+use crate::models::{Content, ContentMetadata};
 use sha2::{Digest, Sha256};
 use systemprompt_identifiers::{CategoryId, ContentId, LocaleCode, SourceId};
 
@@ -31,16 +31,6 @@ pub(super) fn create_content_from_metadata(
         .single()
         .ok_or_else(|| ContentError::Parse("Ambiguous timezone conversion".to_owned()))?;
 
-    let links_vec: Vec<ContentLinkMetadata> = metadata
-        .links
-        .iter()
-        .map(|link| ContentLinkMetadata {
-            title: link.title.clone(),
-            url: link.url.clone(),
-        })
-        .collect();
-
-    let links = serde_json::to_value(&links_vec)?;
 
     Ok(Content {
         id,
@@ -58,7 +48,7 @@ pub(super) fn create_content_from_metadata(
         source_id,
         version_hash: String::new(),
         public: metadata.public.unwrap_or(true),
-        links,
+        links: sqlx::types::Json(metadata.links.clone()),
         updated_at: chrono::Utc::now(),
     })
 }

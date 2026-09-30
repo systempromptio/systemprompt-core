@@ -5,7 +5,7 @@
 //! - UpdateContentParams builder
 
 use chrono::{TimeZone, Utc};
-use systemprompt_content::models::{CreateContentParams, UpdateContentParams};
+use systemprompt_content::models::{ContentLinkMetadata, CreateContentParams, UpdateContentParams};
 use systemprompt_identifiers::{CategoryId, ContentId, SourceId};
 
 #[test]
@@ -173,10 +173,16 @@ fn test_create_content_params_default_public_is_true() {
 
 #[test]
 fn test_create_content_params_with_links() {
-    let links = serde_json::json!([
-        {"title": "Link 1", "url": "https://example.com/1"},
-        {"title": "Link 2", "url": "https://example.com/2"}
-    ]);
+    let links = vec![
+        ContentLinkMetadata {
+            title: "Link 1".to_string(),
+            url: "https://example.com/1".to_string(),
+        },
+        ContentLinkMetadata {
+            title: "Link 2".to_string(),
+            url: "https://example.com/2".to_string(),
+        },
+    ];
 
     let params = CreateContentParams::new(
         "slug".to_string(),

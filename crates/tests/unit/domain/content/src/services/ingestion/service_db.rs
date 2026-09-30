@@ -175,8 +175,9 @@ async fn links_frontmatter_is_persisted_on_the_content_row() {
         .await
         .expect("query")
         .expect("row");
-    let links = stored.links.to_string();
-    assert!(links.contains("https://example.com"), "links: {links}");
+    assert_eq!(stored.links.len(), 1, "links: {:?}", stored.links);
+    assert_eq!(stored.links[0].title, "Home");
+    assert_eq!(stored.links[0].url, "https://example.com");
 
     ctx.cleanup().await;
 }

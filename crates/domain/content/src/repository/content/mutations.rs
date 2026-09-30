@@ -4,9 +4,12 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::models::builders::content::CategoryIdUpdate;
-use crate::models::{Content, ContentKind, CreateContentParams, UpdateContentParams};
+use crate::models::{
+    Content, ContentKind, ContentLinkMetadata, CreateContentParams, UpdateContentParams,
+};
 use chrono::Utc;
 use sqlx::PgPool;
+use sqlx::types::Json;
 use std::sync::Arc;
 use systemprompt_identifiers::{CategoryId, ContentId, LocaleCode, SourceId};
 
@@ -48,7 +51,7 @@ pub(super) async fn create(
                   published_at, keywords, kind, image,
                   category_id as "category_id: CategoryId",
                   source_id as "source_id: SourceId",
-                  version_hash, public, COALESCE(links, '[]'::jsonb) as "links!",
+                  version_hash, public, COALESCE(links, '[]'::jsonb) as "links!: Json<Vec<ContentLinkMetadata>>",
                   updated_at
         "#,
         id.as_str(),
@@ -65,7 +68,7 @@ pub(super) async fn create(
         params.category_id.as_ref().map(CategoryId::as_str),
         params.source_id.as_str(),
         params.version_hash,
-        params.links,
+        Json(&params.links) as _,
         now,
         params.public
     )
@@ -97,7 +100,7 @@ pub(super) async fn update(
                   published_at, keywords, kind, image,
                   category_id as "category_id: CategoryId",
                   source_id as "source_id: SourceId",
-                  version_hash, public, COALESCE(links, '[]'::jsonb) as "links!",
+                  version_hash, public, COALESCE(links, '[]'::jsonb) as "links!: Json<Vec<ContentLinkMetadata>>",
                   updated_at
         "#,
         params.title,
@@ -112,7 +115,7 @@ pub(super) async fn update(
         resolved.public,
         resolved.author,
         resolved.published_at,
-        resolved.links,
+        Json(&resolved.links) as _,
         params.id.as_str()
     )
     .fetch_one(&**pool)
@@ -125,7 +128,7 @@ struct ResolvedUpdate {
     public: bool,
     author: String,
     published_at: chrono::DateTime<Utc>,
-    links: serde_json::Value,
+    links: Vec<ContentLinkMetadata>,
 }
 
 impl ResolvedUpdate {
@@ -158,9 +161,10 @@ impl ResolvedUpdate {
             .published_at
             .unwrap_or_else(|| current.map_or_else(Utc::now, |c| c.published_at));
 
-        let links = params.links.clone().unwrap_or_else(|| {
-            current.map_or_else(|| serde_json::Value::Array(vec![]), |c| c.links.clone())
-        });
+        let links = params
+            .links
+            .clone()
+            .unwrap_or_else(|| current.map_or_else(Vec::new, |c| c.links.0.clone()));
 
         Self {
             category_id,

@@ -12,6 +12,8 @@
 use chrono::{DateTime, Utc};
 use systemprompt_identifiers::{CategoryId, ContentId, LocaleCode, SourceId};
 
+use crate::models::ContentLinkMetadata;
+
 #[derive(Debug, Clone)]
 pub enum CategoryIdUpdate {
     Unchanged,
@@ -44,7 +46,7 @@ pub struct CreateContentParams {
     pub category_id: Option<CategoryId>,
     pub source_id: SourceId,
     pub version_hash: String,
-    pub links: serde_json::Value,
+    pub links: Vec<ContentLinkMetadata>,
     pub public: bool,
 }
 
@@ -70,7 +72,7 @@ impl CreateContentParams {
             category_id: None,
             source_id,
             version_hash: String::new(),
-            links: serde_json::Value::Array(vec![]),
+            links: Vec::new(),
             public: true,
         }
     }
@@ -115,7 +117,7 @@ impl CreateContentParams {
         self
     }
 
-    pub fn with_links(mut self, links: serde_json::Value) -> Self {
+    pub fn with_links(mut self, links: Vec<ContentLinkMetadata>) -> Self {
         self.links = links;
         self
     }
@@ -140,7 +142,7 @@ pub struct UpdateContentParams {
     pub kind: Option<String>,
     pub author: Option<String>,
     pub published_at: Option<DateTime<Utc>>,
-    pub links: Option<serde_json::Value>,
+    pub links: Option<Vec<ContentLinkMetadata>>,
 }
 
 impl UpdateContentParams {
@@ -202,7 +204,7 @@ impl UpdateContentParams {
         self
     }
 
-    pub fn with_links(mut self, links: Option<serde_json::Value>) -> Self {
+    pub fn with_links(mut self, links: Option<Vec<ContentLinkMetadata>>) -> Self {
         self.links = links;
         self
     }

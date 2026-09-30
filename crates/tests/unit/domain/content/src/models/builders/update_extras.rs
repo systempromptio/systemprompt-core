@@ -1,5 +1,5 @@
 use chrono::{TimeZone, Utc};
-use systemprompt_content::models::{CategoryIdUpdate, UpdateContentParams};
+use systemprompt_content::models::{CategoryIdUpdate, ContentLinkMetadata, UpdateContentParams};
 use systemprompt_identifiers::{CategoryId, ContentId};
 
 #[test]
@@ -95,8 +95,11 @@ fn with_published_at_sets_date() {
 }
 
 #[test]
-fn with_links_sets_json() {
-    let links = serde_json::json!([{"title": "Link", "url": "https://example.com"}]);
+fn with_links_sets_links() {
+    let links = vec![ContentLinkMetadata {
+        title: "Link".to_string(),
+        url: "https://example.com".to_string(),
+    }];
     let params = UpdateContentParams::new(
         ContentId::new("id"),
         "Title".to_string(),
@@ -137,8 +140,6 @@ fn with_category_id_clear() {
 #[test]
 fn full_builder_chain_all_optional_fields() {
     let date = Utc.with_ymd_and_hms(2025, 3, 1, 0, 0, 0).unwrap();
-    let links = serde_json::json!([]);
-
     let params = UpdateContentParams::new(
         ContentId::new("full-id"),
         "Full Title".to_string(),
@@ -153,7 +154,7 @@ fn full_builder_chain_all_optional_fields() {
     .with_kind(Some("tutorial".to_string()))
     .with_author(Some("Author".to_string()))
     .with_published_at(Some(date))
-    .with_links(Some(links));
+    .with_links(Some(Vec::new()));
 
     assert_eq!(params.id.as_str(), "full-id");
     assert_eq!(params.keywords, "kw1, kw2");
@@ -163,5 +164,5 @@ fn full_builder_chain_all_optional_fields() {
     assert_eq!(params.kind, Some("tutorial".to_string()));
     assert_eq!(params.author, Some("Author".to_string()));
     assert_eq!(params.published_at, Some(date));
-    assert_eq!(params.links, Some(serde_json::json!([])));
+    assert_eq!(params.links, Some(Vec::new()));
 }

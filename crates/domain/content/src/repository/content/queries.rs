@@ -3,8 +3,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::models::Content;
+use crate::models::{Content, ContentLinkMetadata};
 use sqlx::PgPool;
+use sqlx::types::Json;
 use std::sync::Arc;
 use systemprompt_identifiers::{CategoryId, ContentId, LocaleCode, SourceId};
 
@@ -21,7 +22,7 @@ pub(super) async fn get_by_id(
                published_at, keywords, kind, image,
                category_id as "category_id: CategoryId",
                source_id as "source_id: SourceId",
-               version_hash, public, COALESCE(links, '[]'::jsonb) as "links!",
+               version_hash, public, COALESCE(links, '[]'::jsonb) as "links!: Json<Vec<ContentLinkMetadata>>",
                updated_at
         FROM markdown_content
         WHERE id = $1
@@ -46,7 +47,7 @@ pub(super) async fn get_by_slug(
                published_at, keywords, kind, image,
                category_id as "category_id: CategoryId",
                source_id as "source_id: SourceId",
-               version_hash, public, COALESCE(links, '[]'::jsonb) as "links!",
+               version_hash, public, COALESCE(links, '[]'::jsonb) as "links!: Json<Vec<ContentLinkMetadata>>",
                updated_at
         FROM markdown_content
         WHERE slug = $1 AND locale = $2
@@ -73,7 +74,7 @@ pub(super) async fn get_by_source_and_slug(
                published_at, keywords, kind, image,
                category_id as "category_id: CategoryId",
                source_id as "source_id: SourceId",
-               version_hash, public, COALESCE(links, '[]'::jsonb) as "links!",
+               version_hash, public, COALESCE(links, '[]'::jsonb) as "links!: Json<Vec<ContentLinkMetadata>>",
                updated_at
         FROM markdown_content
         WHERE source_id = $1 AND slug = $2 AND locale = $3
@@ -100,7 +101,7 @@ pub(super) async fn list(
                published_at, keywords, kind, image,
                category_id as "category_id: CategoryId",
                source_id as "source_id: SourceId",
-               version_hash, public, COALESCE(links, '[]'::jsonb) as "links!",
+               version_hash, public, COALESCE(links, '[]'::jsonb) as "links!: Json<Vec<ContentLinkMetadata>>",
                updated_at
         FROM markdown_content
         ORDER BY published_at DESC
@@ -127,7 +128,7 @@ pub(super) async fn list_by_source(
                published_at, keywords, kind, image,
                category_id as "category_id: CategoryId",
                source_id as "source_id: SourceId",
-               version_hash, public, COALESCE(links, '[]'::jsonb) as "links!",
+               version_hash, public, COALESCE(links, '[]'::jsonb) as "links!: Json<Vec<ContentLinkMetadata>>",
                updated_at
         FROM markdown_content
         WHERE source_id = $1 AND locale = $2
@@ -155,7 +156,7 @@ pub(super) async fn list_by_source_limited(
                published_at, keywords, kind, image,
                category_id as "category_id: CategoryId",
                source_id as "source_id: SourceId",
-               version_hash, public, COALESCE(links, '[]'::jsonb) as "links!",
+               version_hash, public, COALESCE(links, '[]'::jsonb) as "links!: Json<Vec<ContentLinkMetadata>>",
                updated_at
         FROM markdown_content
         WHERE source_id = $1 AND locale = $2
@@ -184,7 +185,7 @@ pub(super) async fn list_all(
                published_at, keywords, kind, image,
                category_id as "category_id: CategoryId",
                source_id as "source_id: SourceId",
-               version_hash, public, COALESCE(links, '[]'::jsonb) as "links!",
+               version_hash, public, COALESCE(links, '[]'::jsonb) as "links!: Json<Vec<ContentLinkMetadata>>",
                updated_at
         FROM markdown_content
         ORDER BY published_at DESC

@@ -153,7 +153,7 @@ async fn list_links_by_source_content_filters_correctly() {
         category_id: None,
         source_id: source_id.clone(),
         version_hash: "h".to_owned(),
-        links: serde_json::json!([]),
+        links: Vec::new(),
         public: true,
     };
     let content = content_repo

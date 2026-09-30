@@ -173,7 +173,7 @@ impl IngestionService {
         .with_image(new_content.image.clone())
         .with_category_id(new_content.category_id.clone())
         .with_version_hash(new_hash)
-        .with_links(new_content.links.clone())
+        .with_links(new_content.links.0.clone())
         .with_public(new_content.public);
 
         let created_content = self.content_repo.create(&params).await?;
@@ -231,7 +231,7 @@ impl IngestionService {
         .with_kind(Some(new_content.kind.clone()))
         .with_author(Some(new_content.author.clone()))
         .with_published_at(Some(new_content.published_at))
-        .with_links(Some(new_content.links.clone()))
+        .with_links(Some(new_content.links.0.clone()))
         .with_public(parsed.metadata.public);
         self.content_repo.update(&update_params).await?;
 

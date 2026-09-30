@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        UPDATE markdown_content\n        SET title = $1, description = $2, body = $3, keywords = $4,\n            image = $5, version_hash = $6, updated_at = $7,\n            category_id = $8, kind = $9, public = $10,\n            author = $11, published_at = $12, links = $13\n        WHERE id = $14\n        RETURNING id as \"id: ContentId\", slug,\n                  locale as \"locale: LocaleCode\",\n                  title, description, body, author,\n                  published_at, keywords, kind, image,\n                  category_id as \"category_id: CategoryId\",\n                  source_id as \"source_id: SourceId\",\n                  version_hash, public, COALESCE(links, '[]'::jsonb) as \"links!\",\n                  updated_at\n        ",
+  "query": "\n        SELECT id as \"id: ContentId\", slug,\n               locale as \"locale: LocaleCode\",\n               title, description, body, author,\n               published_at, keywords, kind, image,\n               category_id as \"category_id: CategoryId\",\n               source_id as \"source_id: SourceId\",\n               version_hash, public, COALESCE(links, '[]'::jsonb) as \"links!: Json<Vec<ContentLinkMetadata>>\",\n               updated_at\n        FROM markdown_content\n        WHERE source_id = $1 AND slug = $2 AND locale = $3\n        ",
   "describe": {
     "columns": [
       {
@@ -170,7 +170,7 @@
       },
       {
         "ordinal": 15,
-        "name": "links!",
+        "name": "links!: Json<Vec<ContentLinkMetadata>>",
         "type_info": "Jsonb",
         "origin": "Expression"
       },
@@ -190,17 +190,6 @@
       "Left": [
         "Text",
         "Text",
-        "Text",
-        "Text",
-        "Text",
-        "Text",
-        "Timestamptz",
-        "Text",
-        "Text",
-        "Bool",
-        "Text",
-        "Timestamptz",
-        "Jsonb",
         "Text"
       ]
     },
@@ -224,5 +213,5 @@
       false
     ]
   },
-  "hash": "b7aeb80314fd18d840993fc43cc781b842f7f2a534b2013d8d1db266c580e2ee"
+  "hash": "ef685f9e4c27b563b876deb087dd8c815a897977f2e6a691362cc5962405ae4d"
 }

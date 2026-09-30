@@ -410,7 +410,7 @@ async fn link_analytics_reads_report_database_outage_and_recover_without_false_e
                 Uuid::new_v4().simple()
             )),
             version_hash: format!("outage-hash-{}", Uuid::new_v4().simple()),
-            links: serde_json::json!([]),
+            links: Vec::new(),
             public: true,
         })
         .await?

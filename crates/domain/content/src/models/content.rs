@@ -10,8 +10,8 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use serde_json::Value as JsonValue;
 use sqlx::FromRow;
+use sqlx::types::Json;
 use systemprompt_identifiers::{CategoryId, ContentId, LocaleCode, SourceId, TagId};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -57,14 +57,8 @@ pub struct Content {
     pub version_hash: String,
     pub public: bool,
     #[serde(default)]
-    pub links: JsonValue,
+    pub links: Json<Vec<ContentLinkMetadata>>,
     pub updated_at: DateTime<Utc>,
-}
-
-impl Content {
-    pub fn links_metadata(&self) -> Result<Vec<ContentLinkMetadata>, serde_json::Error> {
-        serde_json::from_value(self.links.clone())
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -102,7 +96,7 @@ pub struct ContentMetadata {
     pub public: Option<bool>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ContentLinkMetadata {
     pub title: String,
     pub url: String,

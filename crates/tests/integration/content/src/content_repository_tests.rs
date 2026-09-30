@@ -37,7 +37,7 @@ fn sample_params(source_id: SourceId, slug: String) -> CreateContentParams {
         category_id: None,
         source_id,
         version_hash: "deadbeef".to_owned(),
-        links: serde_json::json!([]),
+        links: Vec::new(),
         public: true,
     }
 }

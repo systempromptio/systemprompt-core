@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT id as \"id: ContentId\", slug,\n               locale as \"locale: LocaleCode\",\n               title, description, body, author,\n               published_at, keywords, kind, image,\n               category_id as \"category_id: CategoryId\",\n               source_id as \"source_id: SourceId\",\n               version_hash, public, COALESCE(links, '[]'::jsonb) as \"links!\",\n               updated_at\n        FROM markdown_content\n        WHERE source_id = $1 AND locale = $2\n        ORDER BY published_at DESC\n        LIMIT $3\n        ",
+  "query": "\n        SELECT id as \"id: ContentId\", slug,\n               locale as \"locale: LocaleCode\",\n               title, description, body, author,\n               published_at, keywords, kind, image,\n               category_id as \"category_id: CategoryId\",\n               source_id as \"source_id: SourceId\",\n               version_hash, public, COALESCE(links, '[]'::jsonb) as \"links!: Json<Vec<ContentLinkMetadata>>\",\n               updated_at\n        FROM markdown_content\n        WHERE id = $1\n        ",
   "describe": {
     "columns": [
       {
@@ -170,7 +170,7 @@
       },
       {
         "ordinal": 15,
-        "name": "links!",
+        "name": "links!: Json<Vec<ContentLinkMetadata>>",
         "type_info": "Jsonb",
         "origin": "Expression"
       },
@@ -188,9 +188,7 @@
     ],
     "parameters": {
       "Left": [
-        "Text",
-        "Text",
-        "Int8"
+        "Text"
       ]
     },
     "nullable": [
@@ -213,5 +211,5 @@
       false
     ]
   },
-  "hash": "2e5378f712c6f086a7a50d148174a88d316d48965cb243ad9195a69f313c7baa"
+  "hash": "cf872e2f7bc2d579b73a9a013390197c821a0f2392808e28257248b8b06a471f"
 }
