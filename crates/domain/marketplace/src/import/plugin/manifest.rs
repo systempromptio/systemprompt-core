@@ -3,7 +3,9 @@
 //! A plugin normally carries `.claude-plugin/plugin.json`. Claude Code's
 //! `strict: false` makes the marketplace entry the whole definition instead,
 //! which is how an upstream folder with no Claude manifest is re-listed; that
-//! entry then supplies the manifest's name and its `skills` override.
+//! entry then supplies the manifest's name and its `skills` override: a path
+//! or list of paths inside the plugin, refused rather than ignored when one
+//! would leave it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -43,9 +45,6 @@ pub(super) fn resolve_manifest(
     Ok(manifest)
 }
 
-/// The directories a manifest's `skills` override names, resolved inside the
-/// plugin. Claude Code accepts a string or an array of strings; a path that
-/// would leave the plugin is refused rather than ignored.
 pub(super) fn skill_paths(
     manifest: &PluginManifest,
     dir: &Path,

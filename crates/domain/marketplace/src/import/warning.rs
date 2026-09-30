@@ -77,8 +77,8 @@ impl fmt::Display for ImportWarning {
             ),
             Self::RemotePluginSource { plugin } => write!(
                 f,
-                "plugin '{plugin}' names a source the importer cannot vendor; only a path inside \
-                 the tree or a github, url or git-subdir source can be imported"
+                "plugin '{plugin}' names a non-local source the importer cannot vendor; only a path \
+                 inside the tree or a github, url or git-subdir source can be imported"
             ),
             Self::RemotePluginUnpinned { plugin } => write!(
                 f,

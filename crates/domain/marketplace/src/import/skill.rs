@@ -13,6 +13,10 @@
 //! mapping `-` to `_` inverts that projection exactly and a bundle generated
 //! from a services tree imports back to the ids it started with.
 //!
+//! A plugin's skills are its `skills/` folders plus each path its manifest
+//! names under Claude Code's `skills` override; a named path is a skill itself
+//! or a folder of them, so `"./"` reads skill folders at the plugin root.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -67,10 +71,6 @@ struct SkillFrontmatter {
     hosts: Vec<String>,
 }
 
-/// Every skill a plugin ships: the conventional `skills/` directory plus each
-/// path its manifest names under Claude Code's `skills` override. A named path
-/// is either a skill itself (it holds `SKILL.md`) or a directory of them, so
-/// `"./"` reads skill folders placed at the plugin root.
 pub(super) fn discover_skill_dirs(plugin_dir: &Path, extra: &[PathBuf]) -> Vec<(String, PathBuf)> {
     let mut out: Vec<(String, PathBuf)> = Vec::new();
     let roots = std::iter::once(plugin_dir.join("skills")).chain(extra.iter().cloned());

@@ -93,7 +93,6 @@ fn write_file(path: &Path, bytes: &[u8], executable: bool) -> std::io::Result<()
     Ok(())
 }
 
-/// A directory removed when the import of its plugin is done.
 pub(super) struct TempTree(PathBuf);
 
 impl TempTree {

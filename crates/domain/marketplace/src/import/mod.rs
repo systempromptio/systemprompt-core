@@ -20,7 +20,7 @@
 //!
 //! A marketplace entry may name a `github`, `url` or `git-subdir` source, as
 //! Claude Code allows, to re-list a plugin published elsewhere. The importer
-//! fetches that commit and imports it like a local plugin ([`remote`]), so the
+//! fetches that commit and imports it like a local plugin (`remote`), so the
 //! services tree, and the bundle packed from it, carries the upstream files
 //! and needs no network at boot. An entry without a `sha` is imported from
 //! whatever its ref points at and flagged, which `strict` refuses.
@@ -79,7 +79,6 @@ pub struct ImportReport {
     pub rules: Vec<String>,
     pub hooks: Vec<String>,
     pub copied_base_dirs: Vec<String>,
-    /// `<plugin> <repository>[/<path>]@<commit>` for every vendored plugin.
     pub upstream: Vec<String>,
     pub warnings: Vec<ImportWarning>,
 }
@@ -92,8 +91,6 @@ pub fn import_anthropic_tree(
     import_anthropic_tree_with(from, into, opts, &NativeGitSourceCapture)
 }
 
-/// [`import_anthropic_tree`] with the capture that fetches remote plugin
-/// sources supplied by the caller.
 pub fn import_anthropic_tree_with(
     from: &Path,
     into: &Path,

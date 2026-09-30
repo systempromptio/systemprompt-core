@@ -7,7 +7,10 @@
 //! tree. `source` is kept as an opaque value because Anthropic permits both a
 //! relative path string and a git/object form;
 //! [`MarketplacePluginEntry::plugin_source`] reads it into a
-//! [`PluginSource`], and [`super::remote`] fetches the remote kinds.
+//! [`PluginSource`]: a string is a path inside the tree; an object whose
+//! `source` is `github`, `url` or `git-subdir` is remote and fetched at import;
+//! `npm` and `pip` cannot be vendored. Any other object keeps the older
+//! reading of its `path` or `source` string as a local path.
 //!
 //! [`HooksFile`] is the `hooks/hooks.json` a plugin ships, whose body is the
 //! same `HookEventsConfig` core already models.
@@ -119,11 +122,6 @@ impl MarketplacePluginEntry {
         )
     }
 
-    /// Reads `source` as Claude Code defines it. A string is a path inside the
-    /// tree; an object whose `source` names a kind Claude Code fetches
-    /// (`github`, `url`, `git-subdir`) is remote, and `npm`/`pip` are kinds
-    /// the importer cannot vendor. Any other object keeps the older reading of
-    /// its `path` or `source` string as a local path.
     pub fn plugin_source(&self) -> Result<PluginSource<'_>, String> {
         let Some(value) = self.source.as_ref() else {
             return Ok(PluginSource::Default);

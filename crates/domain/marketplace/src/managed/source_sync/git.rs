@@ -239,11 +239,7 @@ fn list_tree(
             "--full-tree",
             commit,
             "--",
-            if prefix_text.is_empty() {
-                "."
-            } else {
-                prefix_text
-            },
+            Some(prefix_text).filter(|p| !p.is_empty()).unwrap_or("."),
         ]),
         None,
         deadline,
