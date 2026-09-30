@@ -19,17 +19,20 @@ use systemprompt_test_fixtures::{
     ensure_test_bootstrap, seed_user_row, test_db_pool, unique_user_id,
 };
 use systemprompt_traits::{AuthResult, AuthUser, UserProvider};
+use systemprompt_users::{UserRepository, UserService};
 use url::Url;
 use uuid::Uuid;
 use webauthn_authenticator_rs::WebauthnAuthenticator;
 use webauthn_authenticator_rs::softtoken::SoftToken;
 
-struct NoopUserProvider;
+struct SeededUserProvider {
+    users: UserService,
+}
 
 #[async_trait]
-impl UserProvider for NoopUserProvider {
-    async fn find_by_id(&self, _id: &UserId) -> AuthResult<Option<AuthUser>> {
-        Ok(None)
+impl UserProvider for SeededUserProvider {
+    async fn find_by_id(&self, id: &UserId) -> AuthResult<Option<AuthUser>> {
+        UserProvider::find_by_id(&self.users, id).await
     }
     async fn find_by_email(&self, _email: &str) -> AuthResult<Option<AuthUser>> {
         Ok(None)
@@ -109,7 +112,9 @@ async fn setup() -> Ctx {
         WebAuthnService::with_config(
             test_config(),
             OAuthRepository::new(&pool).expect("repo"),
-            Arc::new(NoopUserProvider),
+            Arc::new(SeededUserProvider {
+                users: UserService::new(Arc::new(UserRepository::new(&pool).expect("user repo"))),
+            }),
         )
         .expect("svc")
     };
