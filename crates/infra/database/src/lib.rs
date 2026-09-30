@@ -90,7 +90,9 @@ pub use lifecycle::{
     replica_status, split_create_table_foreign_keys, validate_column_exists,
     validate_database_connection, validate_table_exists, validate_write_pool_is_primary,
 };
-pub use repository::{CreateServiceInput, PgDbPool, ServiceConfig, ServiceRepository};
+pub use repository::{
+    CreateServiceInput, PgDbPool, ServiceConfig, ServiceRepository, UpsertServiceProcessInput,
+};
 
 pub use admin::{
     AdminSql, AdminSqlError, DEFAULT_READONLY_ROW_LIMIT, DatabaseAdminService, IdentifierError,

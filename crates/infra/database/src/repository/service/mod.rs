@@ -2,7 +2,7 @@
 //!
 //! Split into:
 //! - `model` — row type ([`ServiceConfig`]) and write-input
-//!   ([`CreateServiceInput`]).
+//!   ([`CreateServiceInput`], [`UpsertServiceProcessInput`]).
 //! - `repo` — [`ServiceRepository`] async methods.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -11,5 +11,5 @@
 mod model;
 mod repo;
 
-pub use model::{CreateServiceInput, ServiceConfig};
+pub use model::{CreateServiceInput, ServiceConfig, UpsertServiceProcessInput};
 pub use repo::ServiceRepository;

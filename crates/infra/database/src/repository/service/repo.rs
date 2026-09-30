@@ -14,7 +14,7 @@ use std::sync::Arc;
 use sqlx::PgPool;
 use systemprompt_identifiers::InstanceId;
 
-use super::model::{CreateServiceInput, ServiceConfig};
+use super::model::{CreateServiceInput, ServiceConfig, UpsertServiceProcessInput};
 use crate::DbPool;
 use crate::error::DatabaseResult;
 
@@ -92,6 +92,34 @@ impl ServiceRepository {
             input.status,
             port_i32,
             input.binary_mtime
+        )
+        .execute(&*self.write_pool)
+        .await?;
+        Ok(())
+    }
+
+    pub async fn upsert_service_process(
+        &self,
+        input: UpsertServiceProcessInput<'_>,
+    ) -> DatabaseResult<()> {
+        let port_i32 = i32::from(input.port);
+        sqlx::query!(
+            r#"
+            INSERT INTO services (instance_id, name, module_name, pid, port, status, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)
+            ON CONFLICT (instance_id, name) DO UPDATE SET
+              pid = EXCLUDED.pid,
+              port = EXCLUDED.port,
+              status = EXCLUDED.status,
+              heartbeat_at = CURRENT_TIMESTAMP,
+              updated_at = CURRENT_TIMESTAMP
+            "#,
+            self.instance_id.as_str(),
+            input.name,
+            input.module_name,
+            input.pid,
+            port_i32,
+            input.status
         )
         .execute(&*self.write_pool)
         .await?;

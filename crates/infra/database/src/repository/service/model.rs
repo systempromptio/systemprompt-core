@@ -29,3 +29,12 @@ pub struct CreateServiceInput<'a> {
     pub port: u16,
     pub binary_mtime: Option<i64>,
 }
+
+#[derive(Debug)]
+pub struct UpsertServiceProcessInput<'a> {
+    pub name: &'a str,
+    pub module_name: &'a str,
+    pub pid: i32,
+    pub port: u16,
+    pub status: &'a str,
+}
