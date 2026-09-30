@@ -155,9 +155,11 @@ pub enum PluginSource<'a> {
     Unsupported(String),
 }
 
-/// A plugin Claude Code would fetch from git: the repository as an `https`
-/// URL, the subtree the plugin lives in, and the pin. `commit` is the
-/// entry's `sha`, the only reference a reproducible bundle can use.
+/// A plugin Claude Code would fetch from git.
+///
+/// Carries the repository as an `https` URL, the subtree the plugin lives in,
+/// and the pin. `commit` is the entry's `sha`, the only reference a
+/// reproducible bundle can use.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RemotePluginSource {
     pub repository: String,
