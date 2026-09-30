@@ -4,6 +4,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod manifest;
 mod metadata;
 
 use std::collections::BTreeSet;
@@ -79,7 +80,8 @@ pub(super) fn import_plugin(
     sink: &Sink,
 ) -> Result<PluginImport, MarketplaceError> {
     let manifest_path = dir.join(PLUGIN_MANIFEST_RELPATH);
-    let manifest = read_manifest(&manifest_path)?;
+    let manifest = manifest::resolve_manifest(entry, dir)?;
+    let extra_skill_dirs = manifest::skill_paths(&manifest, dir)?;
     let sidecar = load_plugin_sidecar(&dir.join(SIDECAR_RELPATH))?;
 
     let id = PluginId::new(manifest.name.trim());
@@ -88,7 +90,7 @@ pub(super) fn import_plugin(
 
     let category = resolve_category(id.as_str(), &sidecar, entry, &mut warnings);
 
-    let skills = import_skills(dir, &category, scope, sink)?;
+    let skills = import_skills(dir, &extra_skill_dirs, &category, scope, sink)?;
     if skills.is_empty() {
         warnings.push(ImportWarning::NoSkills {
             plugin: id.as_str().to_owned(),
@@ -164,12 +166,13 @@ pub(super) fn import_plugin(
 
 fn import_skills(
     dir: &Path,
+    extra: &[PathBuf],
     category: &str,
     scope: &mut PluginScope<'_>,
     sink: &Sink,
 ) -> Result<Vec<String>, MarketplaceError> {
     let mut skills = Vec::new();
-    for (skill_id, skill_dir) in discover_skill_dirs(dir) {
+    for (skill_id, skill_dir) in discover_skill_dirs(dir, extra) {
         if !scope.seen_skills.insert(skill_id.clone()) {
             return Err(MarketplaceError::Import {
                 path: skill_dir.display().to_string(),
@@ -204,17 +207,6 @@ fn rules_ref(sidecar: &PluginSidecar, imported: &[String]) -> PluginComponentRef
         }
     }
     out
-}
-
-fn read_manifest(path: &Path) -> Result<PluginManifest, MarketplaceError> {
-    let text = std::fs::read_to_string(path).map_err(|e| MarketplaceError::Import {
-        path: path.display().to_string(),
-        message: e.to_string(),
-    })?;
-    serde_json::from_str(&text).map_err(|e| MarketplaceError::Import {
-        path: path.display().to_string(),
-        message: format!("plugin.json is not valid: {e}"),
-    })
 }
 
 fn collect_manifest_warnings(

@@ -4,10 +4,13 @@
 
 ### Added
 
+- **Marketplace import:** a plugin entry may name a Claude Code git source (`github`, `url` or `git-subdir`) to re-list a plugin published elsewhere. `core marketplace import` fetches the commit named by the entry's `sha` through the sandboxed managed-source git capture and imports that subtree like a local plugin, so the services tree and every bundle packed from it carry the upstream files and boot fetches nothing. An entry without a `sha` raises `ImportWarning::RemotePluginUnpinned`, a strict error; `npm`/`pip` sources are still skipped as `RemotePluginSource`. `strict: false` entries supply the manifest when the upstream has no `.claude-plugin/plugin.json`, and a `skills` path override (a string or a list, `["./"]` for skill folders at the plugin root) is honoured. The import report gains an `upstream` row naming each vendored plugin with its commit. `import_anthropic_tree_with` takes the `GitSourceCapture` to fetch with; `NativeGitSourceCapture` is now public.
+
 - **Security Rust API:** `RuleType::extension_static` mints an extension rule type from a literal slug in a `const`, rejecting a malformed slug at compile time instead of returning a `Result`.
 
 ### Fixed
 
+- **Marketplace import:** `MarketplacePluginEntry::local_path` read the `path` key of any object `source`, so a Claude Code `git-subdir` entry was treated as a folder inside the kit and the import failed with `No such file or directory` instead of reporting the remote source. `plugin_source` now reads `source` into `PluginSource::{Default, Local, Remote, Unsupported}`; an object whose `source` is not a Claude Code kind keeps the older local reading.
 - **Gateway / AI:** a beta the gateway does not forward now takes its body field with it. Claude Code 2.1.283 sends `anthropic-beta: context-management-2025-06-27` together with a `context_management` body field; on a Vertex AI provider the header was narrowed to `accepted_betas` while the passthrough body went upstream unchanged, and Vertex refused every request with `context_management: Extra inputs are not permitted`. `wire::anthropic::BETA_GATED_FIELDS` pairs each such field with the beta prefix that admits it, and the raw lane removes a field whose flag the provider's policy (or an earlier refusal) dropped. A field a client sends with no flag is left alone.
 - **Gateway:** a body field an upstream refuses (`<field>: Extra inputs are not permitted`) is learned per provider, dropped and the request re-sent once, the way a refused `anthropic-beta` value already is; a field the Messages API requires is never dropped. `UpstreamCall::{beta_policy, dropped_betas}` expose the one policy both the header and the body apply; `BetaHeader::{refused_by, extend, contains, opens}` are new.
 

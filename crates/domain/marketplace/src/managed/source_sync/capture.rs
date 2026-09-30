@@ -74,8 +74,9 @@ impl GitSynchronizationService {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-pub(super) struct NativeGitSourceCapture;
+/// Captures over the network with the sandboxed `git` subprocess.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct NativeGitSourceCapture;
 
 impl GitSourceCapture for NativeGitSourceCapture {
     fn capture(&self, request: &GitCaptureRequest<'_>) -> Result<CapturedGitSource> {

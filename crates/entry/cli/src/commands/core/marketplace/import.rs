@@ -75,6 +75,7 @@ fn report_rows(report: &ImportReport) -> Vec<ImportRow> {
         row("rules", &report.rules),
         row("hooks", &report.hooks),
         row("base_dirs", &report.copied_base_dirs),
+        row("upstream", &report.upstream),
         row("warnings", &warnings),
     ]
 }

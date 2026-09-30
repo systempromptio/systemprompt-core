@@ -80,7 +80,34 @@ Only `name` is required. It becomes the marketplace id, so it must be 3 to 50 ch
 }
 ```
 
-A plugin entry may also carry `author`, `license`, `homepage`, `repository`, `tags` and `strict`. `source` must be a relative path inside the repository; a git or object source names something the importer cannot read and is refused. When `source` is absent the plugin is looked for under `metadata.pluginRoot`, defaulting to `./plugins/<name>`.
+A plugin entry may also carry `author`, `license`, `homepage`, `repository`, `tags`, `skills` and `strict`. When `source` is absent the plugin is looked for under `metadata.pluginRoot`, defaulting to `./plugins/<name>`; a string `source` is a relative path inside the repository.
+
+### Re-listing an upstream plugin
+
+`source` may also be one of Claude Code's git forms, to re-list a plugin published in another repository:
+
+```json
+{
+  "name": "b2c",
+  "source": {
+    "source": "git-subdir",
+    "url": "SalesforceCommerceCloud/b2c-developer-tooling",
+    "path": "skills/b2c",
+    "ref": "b2c-agent-plugins@1.10.0",
+    "sha": "efc7d4633dfb8fd05baeb8d96fa17f4bb26de498"
+  },
+  "strict": false,
+  "category": "development"
+}
+```
+
+`github` (`repo`), `url` (`url`) and `git-subdir` (`url` + `path`) are accepted; `url` is `owner/repository` on GitHub or a public `https` URL. The importer fetches the commit named by `sha` at import time and imports that subtree exactly like a local plugin, so the services tree and every bundle packed from it carry the upstream files: boot never fetches a plugin, and the instance serves upstream skills under the same access rules, hooks and analytics as its own. The import report's `upstream` row names each plugin with the commit it was taken from.
+
+- Pin with `sha`. An entry with only a `ref` is imported from whatever that ref points at today and raises a warning, which `--strict` refuses; a publishing pipeline should always pin.
+- The fetch is https-only, runs git with hooks disabled, refuses submodules, and is bounded at 256 files and 8 MiB per plugin.
+- `strict: false` makes the marketplace entry the plugin's whole manifest, which is what an upstream folder without `.claude-plugin/plugin.json` needs.
+- `skills` names where the skills live when not under `skills/`: a path or a list of paths inside the plugin, each either a skill folder or a folder of them (`["./"]` for skill folders at the plugin root).
+- `npm` and `pip` sources cannot be vendored; the plugin is skipped with a warning.
 
 `license` defaults to `proprietary` when neither the plugin manifest nor the marketplace entry states one. `metadata.version` defaults to `0.1.0`.
 
@@ -232,7 +259,8 @@ Add `--strict` to refuse a tree that only half-translates:
 | Inline `mcpServers` in `plugin.json`, or a `.mcp.json` | warning | error |
 | A `commands/` directory | warning | error |
 | No category on the sidecar or the marketplace entry | warning, `general` applied | error |
-| A plugin `source` that is not a local path | warning, plugin skipped | error |
+| A plugin `source` the importer cannot vendor (`npm`, `pip`, unrecognised) | warning, plugin skipped | error |
+| A git plugin `source` without a `sha` | warning, imported from its ref | error |
 | Root-level rules belonging to no plugin | warning | error |
 | An `agents/` directory | warning | warning |
 | A non-command hook action | warning | warning |

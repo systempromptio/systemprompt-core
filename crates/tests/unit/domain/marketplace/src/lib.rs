@@ -21,6 +21,8 @@ mod import_edges;
 #[cfg(test)]
 mod import_manifest_shapes;
 #[cfg(test)]
+mod import_remote;
+#[cfg(test)]
 mod import_round_trip;
 #[cfg(test)]
 mod import_strict;

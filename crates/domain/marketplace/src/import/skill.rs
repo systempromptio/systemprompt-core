@@ -67,22 +67,38 @@ struct SkillFrontmatter {
     hosts: Vec<String>,
 }
 
-pub(super) fn discover_skill_dirs(plugin_dir: &Path) -> Vec<(String, PathBuf)> {
-    let skills_dir = plugin_dir.join("skills");
-    let Ok(read) = std::fs::read_dir(&skills_dir) else {
-        return Vec::new();
-    };
-    let mut out: Vec<(String, PathBuf)> = read
-        .filter_map(Result::ok)
-        .map(|e| e.path())
-        .filter(|p| p.is_dir() && p.join(SKILL_FILE).is_file())
-        .filter_map(|p| {
-            let name = p.file_name()?.to_str()?.replace('-', "_");
-            Some((name, p))
-        })
-        .collect();
+/// Every skill a plugin ships: the conventional `skills/` directory plus each
+/// path its manifest names under Claude Code's `skills` override. A named path
+/// is either a skill itself (it holds `SKILL.md`) or a directory of them, so
+/// `"./"` reads skill folders placed at the plugin root.
+pub(super) fn discover_skill_dirs(plugin_dir: &Path, extra: &[PathBuf]) -> Vec<(String, PathBuf)> {
+    let mut out: Vec<(String, PathBuf)> = Vec::new();
+    let roots = std::iter::once(plugin_dir.join("skills")).chain(extra.iter().cloned());
+    for root in roots {
+        if root != plugin_dir && root.join(SKILL_FILE).is_file() {
+            push_skill(&mut out, root);
+            continue;
+        }
+        let Ok(read) = std::fs::read_dir(&root) else {
+            continue;
+        };
+        for path in read.filter_map(Result::ok).map(|e| e.path()) {
+            if path.is_dir() && path.join(SKILL_FILE).is_file() {
+                push_skill(&mut out, path);
+            }
+        }
+    }
     out.sort_by(|a, b| a.0.cmp(&b.0));
     out
+}
+
+fn push_skill(out: &mut Vec<(String, PathBuf)>, dir: PathBuf) {
+    if out.iter().any(|(_, seen)| *seen == dir) {
+        return;
+    }
+    if let Some(name) = dir.file_name().and_then(|n| n.to_str()) {
+        out.push((name.replace('-', "_"), dir));
+    }
 }
 
 pub(super) fn import_skill(

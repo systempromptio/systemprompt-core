@@ -82,7 +82,9 @@ pub use catalog::{
 pub use error::{MarketplaceError, MarketplaceFilterError};
 pub use extension::ManagedResourcesExtension;
 pub use filter::{AllowAllFilter, MarketplaceFilter};
-pub use import::{ImportOptions, ImportReport, ImportWarning, import_anthropic_tree};
+pub use import::{
+    ImportOptions, ImportReport, ImportWarning, import_anthropic_tree, import_anthropic_tree_with,
+};
 pub use keep::{KeepSetsSubject, keep_sets};
 pub use managed::{ManagedRepository, ManagedResourceResolver, ManagedSkillResolution};
 pub use manifest::{AssembleRequest, ManifestService};

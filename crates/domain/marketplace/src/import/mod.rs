@@ -16,6 +16,15 @@
 //! [`sidecar`]. The two sets are disjoint and the sidecar rejects any key that
 //! would restate a derived fact, so no field ever has two authors.
 //!
+//! ## Upstream plugins
+//!
+//! A marketplace entry may name a `github`, `url` or `git-subdir` source, as
+//! Claude Code allows, to re-list a plugin published elsewhere. The importer
+//! fetches that commit and imports it like a local plugin ([`remote`]), so the
+//! services tree, and the bundle packed from it, carries the upstream files
+//! and needs no network at boot. An entry without a `sha` is imported from
+//! whatever its ref points at and flagged, which `strict` refuses.
+//!
 //! ## Destination
 //!
 //! `into` must not exist or must be empty. The importer composes a whole tree
@@ -34,6 +43,7 @@ mod disk;
 mod hooks;
 mod marketplace;
 mod plugin;
+mod remote;
 mod rules;
 mod scripts;
 pub mod sidecar;
@@ -47,8 +57,9 @@ use std::path::Path;
 use systemprompt_identifiers::{MarketplaceId, PluginId};
 
 use crate::error::MarketplaceError;
+use crate::managed::{GitSourceCapture, NativeGitSourceCapture};
 
-pub use anthropic::{MarketplaceJson, MarketplacePluginEntry};
+pub use anthropic::{MarketplaceJson, MarketplacePluginEntry, PluginSource, RemotePluginSource};
 pub use sidecar::{MarketplaceSidecar, PluginSidecar, SIDECAR_RELPATH};
 pub use warning::ImportWarning;
 
@@ -68,6 +79,8 @@ pub struct ImportReport {
     pub rules: Vec<String>,
     pub hooks: Vec<String>,
     pub copied_base_dirs: Vec<String>,
+    /// `<plugin> <repository>[/<path>]@<commit>` for every vendored plugin.
+    pub upstream: Vec<String>,
     pub warnings: Vec<ImportWarning>,
 }
 
@@ -75,6 +88,17 @@ pub fn import_anthropic_tree(
     from: &Path,
     into: &Path,
     opts: &ImportOptions,
+) -> Result<ImportReport, MarketplaceError> {
+    import_anthropic_tree_with(from, into, opts, &NativeGitSourceCapture)
+}
+
+/// [`import_anthropic_tree`] with the capture that fetches remote plugin
+/// sources supplied by the caller.
+pub fn import_anthropic_tree_with(
+    from: &Path,
+    into: &Path,
+    opts: &ImportOptions,
+    capture: &dyn GitSourceCapture,
 ) -> Result<ImportReport, MarketplaceError> {
     if !from.is_dir() {
         return Err(MarketplaceError::Import {
@@ -94,7 +118,7 @@ pub fn import_anthropic_tree(
 
     let manifest_path = from.join(MARKETPLACE_MANIFEST_RELPATH);
     if manifest_path.is_file() {
-        import_marketplace_tree(from, &manifest_path, &sink, &mut report)?;
+        import_marketplace_tree(from, &manifest_path, &sink, capture, &mut report)?;
     } else {
         report.warnings.push(ImportWarning::NoMarketplaceManifest);
     }
@@ -127,6 +151,7 @@ fn import_marketplace_tree(
     from: &Path,
     manifest_path: &Path,
     sink: &writer::Sink,
+    capture: &dyn GitSourceCapture,
     report: &mut ImportReport,
 ) -> Result<(), MarketplaceError> {
     let text = std::fs::read_to_string(manifest_path).map_err(|e| MarketplaceError::Import {
@@ -148,13 +173,44 @@ fn import_marketplace_tree(
     let plugin_root = manifest.metadata.plugin_root.as_deref();
 
     for entry in &manifest.plugins {
-        if entry.source_is_remote() {
-            report.warnings.push(ImportWarning::RemotePluginSource {
-                plugin: entry.name.clone(),
-            });
-            continue;
-        }
-        let dir = plugin::plugin_dir(from, entry, plugin_root)?;
+        let source = entry
+            .plugin_source()
+            .map_err(|message| MarketplaceError::Import {
+                path: manifest_path.display().to_string(),
+                message: format!("plugin '{}' source: {message}", entry.name),
+            })?;
+        let fetched = match source {
+            PluginSource::Unsupported(_) => {
+                report.warnings.push(ImportWarning::RemotePluginSource {
+                    plugin: entry.name.clone(),
+                });
+                continue;
+            },
+            PluginSource::Remote(remote) => {
+                if remote.commit.is_none() {
+                    report.warnings.push(ImportWarning::RemotePluginUnpinned {
+                        plugin: entry.name.clone(),
+                    });
+                }
+                let fetched = remote::fetch_plugin(capture, &entry.name, &remote)?;
+                report.upstream.push(format!(
+                    "{} {}{}@{}",
+                    entry.name,
+                    remote.repository,
+                    remote
+                        .subdirectory
+                        .as_deref()
+                        .map_or_else(String::new, |path| format!("/{path}")),
+                    fetched.commit
+                ));
+                Some(fetched)
+            },
+            PluginSource::Default | PluginSource::Local(_) => None,
+        };
+        let dir = match &fetched {
+            Some(fetched) => fetched.dir.path().to_path_buf(),
+            None => plugin::plugin_dir(from, entry, plugin_root)?,
+        };
         let mut scope = plugin::PluginScope {
             seen_skills: &mut seen_skills,
             seen_rules: &mut seen_rules,

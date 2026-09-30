@@ -23,9 +23,9 @@ mod git;
 use git::{GitCheckout, import_tree, resolve_ref};
 
 mod capture;
-use capture::NativeGitSourceCapture;
 pub use capture::{
     CapturedGitSource, GitCaptureRequest, GitSourceCapture, GitSynchronizationService,
+    NativeGitSourceCapture,
 };
 
 const IMPORTER_VERSION: &str = "managed-git-v1";

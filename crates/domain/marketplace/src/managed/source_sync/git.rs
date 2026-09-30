@@ -239,7 +239,11 @@ fn list_tree(
             "--full-tree",
             commit,
             "--",
-            prefix_text,
+            if prefix_text.is_empty() {
+                "."
+            } else {
+                prefix_text
+            },
         ]),
         None,
         deadline,
@@ -274,10 +278,13 @@ fn parse_tree_entry<'a>(entry: &'a [u8], prefix_text: &str) -> Result<(&'a str, 
             "Nested Git metadata is not permitted",
         ));
     }
-    let relative = path
-        .strip_prefix(prefix_text)
-        .and_then(|value| value.strip_prefix('/'))
-        .ok_or(ManagedError::Integrity)?;
+    let relative = if prefix_text.is_empty() {
+        path
+    } else {
+        path.strip_prefix(prefix_text)
+            .and_then(|value| value.strip_prefix('/'))
+            .ok_or(ManagedError::Integrity)?
+    };
     systemprompt_models::managed::validate_path(relative)?;
     Ok((relative, mode, path))
 }

@@ -21,6 +21,7 @@ pub enum ImportWarning {
     MissingCategory { plugin: String, applied: String },
     UnsupportedHookAction { plugin: String, event: String },
     RemotePluginSource { plugin: String },
+    RemotePluginUnpinned { plugin: String },
     NoSkills { plugin: String },
     UnattachedRootRules { rules: Vec<String> },
     NodePackageWithoutLockfile { plugin: String },
@@ -36,6 +37,7 @@ impl ImportWarning {
                 | Self::CommandsDirectory { .. }
                 | Self::MissingCategory { .. }
                 | Self::RemotePluginSource { .. }
+                | Self::RemotePluginUnpinned { .. }
                 | Self::UnattachedRootRules { .. }
         )
     }
@@ -75,8 +77,13 @@ impl fmt::Display for ImportWarning {
             ),
             Self::RemotePluginSource { plugin } => write!(
                 f,
-                "plugin '{plugin}' names a non-local source; only a relative path inside the tree \
-                 can be imported"
+                "plugin '{plugin}' names a source the importer cannot vendor; only a path inside \
+                 the tree or a github, url or git-subdir source can be imported"
+            ),
+            Self::RemotePluginUnpinned { plugin } => write!(
+                f,
+                "plugin '{plugin}' names a git source without a `sha`; it was imported from the \
+                 commit its ref points at today, so the next import may differ"
             ),
             Self::NoSkills { plugin } => {
                 write!(f, "plugin '{plugin}' ships no skills")
