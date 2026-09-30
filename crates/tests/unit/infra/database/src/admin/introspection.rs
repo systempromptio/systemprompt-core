@@ -10,15 +10,15 @@ use std::sync::Arc;
 use systemprompt_database::{Database, DatabaseAdminService, RepositoryError, SafeIdentifier};
 use systemprompt_test_fixtures::DisposableDb;
 
-use crate::services::db_helper::pool_or_skip;
+use crate::services::db_helper::test_pool;
 
 fn unique_table() -> String {
     format!("admin_introspect_{}", uuid::Uuid::new_v4().simple())
 }
 
-async fn write_pool_or_skip() -> Option<Arc<sqlx::PgPool>> {
-    let db = pool_or_skip().await?;
-    db.write_pool_arc().ok()
+async fn shared_write_pool() -> Arc<sqlx::PgPool> {
+    let db = test_pool().await;
+    db.write_pool_arc().expect("write pool")
 }
 
 async fn create_fixture_table(pool: &sqlx::PgPool, table: &str) {
@@ -39,9 +39,7 @@ async fn drop_fixture_table(pool: &sqlx::PgPool, table: &str) {
 
 #[tokio::test]
 async fn describe_table_reports_columns_pk_nullability_and_row_count() {
-    let Some(pg) = write_pool_or_skip().await else {
-        return;
-    };
+    let pg = shared_write_pool().await;
     let table = unique_table();
     create_fixture_table(&pg, &table).await;
     let insert = format!("INSERT INTO \"{table}\" (id, note) VALUES (1, NULL), (2, 'b')");
@@ -82,9 +80,7 @@ async fn describe_table_reports_columns_pk_nullability_and_row_count() {
 
 #[tokio::test]
 async fn describe_table_missing_table_is_not_found() {
-    let Some(pg) = write_pool_or_skip().await else {
-        return;
-    };
+    let pg = shared_write_pool().await;
     let service = DatabaseAdminService::new(pg);
     let ident = SafeIdentifier::parse("no_such_table_zzz").expect("valid identifier");
 
@@ -95,9 +91,7 @@ async fn describe_table_missing_table_is_not_found() {
 
 #[tokio::test]
 async fn list_table_indexes_reports_pk_and_unique_index() {
-    let Some(pg) = write_pool_or_skip().await else {
-        return;
-    };
+    let pg = shared_write_pool().await;
     let table = unique_table();
     create_fixture_table(&pg, &table).await;
     let idx = format!("{table}_label_key");
@@ -128,9 +122,7 @@ async fn list_table_indexes_reports_pk_and_unique_index() {
 
 #[tokio::test]
 async fn count_rows_counts_seeded_rows() {
-    let Some(pg) = write_pool_or_skip().await else {
-        return;
-    };
+    let pg = shared_write_pool().await;
     let table = unique_table();
     create_fixture_table(&pg, &table).await;
     let insert = format!("INSERT INTO \"{table}\" (id) SELECT generate_series(1, 7)");
@@ -150,9 +142,7 @@ async fn count_rows_counts_seeded_rows() {
 
 #[tokio::test]
 async fn database_info_lists_tables_with_rows_and_sizes_in_isolated_db() {
-    let Ok(database) = DisposableDb::create("admin_info").await else {
-        return;
-    };
+    let database = DisposableDb::empty("admin_info").await;
     let result = run_info_assertions(database.url()).await;
     database.drop_now().await;
 

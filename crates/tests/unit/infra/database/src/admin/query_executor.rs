@@ -4,19 +4,17 @@ use std::sync::Arc;
 
 use systemprompt_database::{QueryExecutor, QueryExecutorError};
 
-use crate::services::db_helper::pool_or_skip;
+use crate::services::db_helper::test_pool;
 
-async fn executor_or_skip() -> Option<QueryExecutor> {
-    let db = pool_or_skip().await?;
-    let pg = db.write_pool_arc().ok()?;
-    Some(QueryExecutor::new(Arc::clone(&pg)))
+async fn test_executor() -> QueryExecutor {
+    let db = test_pool().await;
+    let pg = db.write_pool_arc().expect("write pool");
+    QueryExecutor::new(Arc::clone(&pg))
 }
 
 #[tokio::test]
 async fn execute_readonly_extracts_typed_columns_as_json() {
-    let Some(exec) = executor_or_skip().await else {
-        return;
-    };
+    let exec = test_executor().await;
 
     let result = exec
         .execute_readonly(
@@ -48,9 +46,7 @@ async fn execute_readonly_extracts_typed_columns_as_json() {
 
 #[tokio::test]
 async fn execute_readonly_caps_rows_but_reports_total_count() {
-    let Some(exec) = executor_or_skip().await else {
-        return;
-    };
+    let exec = test_executor().await;
 
     let result = exec
         .execute_readonly("SELECT generate_series(1, 5) AS n", Some(2))
@@ -63,9 +59,7 @@ async fn execute_readonly_caps_rows_but_reports_total_count() {
 
 #[tokio::test]
 async fn execute_readonly_rejects_write_statements() {
-    let Some(exec) = executor_or_skip().await else {
-        return;
-    };
+    let exec = test_executor().await;
 
     let err = exec
         .execute_readonly("DELETE FROM users", None)
@@ -76,9 +70,7 @@ async fn execute_readonly_rejects_write_statements() {
 
 #[tokio::test]
 async fn execute_write_runs_ddl_and_dml() {
-    let Some(exec) = executor_or_skip().await else {
-        return;
-    };
+    let exec = test_executor().await;
     let table = format!("qexec_{}", uuid::Uuid::new_v4().simple());
 
     exec.execute_write(&format!("CREATE TABLE \"{table}\" (id BIGINT PRIMARY KEY)"))
@@ -99,9 +91,7 @@ async fn execute_write_runs_ddl_and_dml() {
 
 #[tokio::test]
 async fn execute_write_rejects_multiple_statements() {
-    let Some(exec) = executor_or_skip().await else {
-        return;
-    };
+    let exec = test_executor().await;
 
     let err = exec
         .execute_write("SELECT 1; SELECT 2")
@@ -112,9 +102,7 @@ async fn execute_write_rejects_multiple_statements() {
 
 #[tokio::test]
 async fn execute_readonly_maps_bad_sql_to_execution_failure() {
-    let Some(exec) = executor_or_skip().await else {
-        return;
-    };
+    let exec = test_executor().await;
 
     let err = exec
         .execute_readonly("SELECT * FROM table_that_does_not_exist_qq", None)
@@ -126,9 +114,7 @@ async fn execute_readonly_maps_bad_sql_to_execution_failure() {
 
 #[tokio::test]
 async fn execute_readonly_decodes_uuid_numeric_and_bytea_columns() {
-    let Some(exec) = executor_or_skip().await else {
-        return;
-    };
+    let exec = test_executor().await;
 
     let result = exec
         .execute_readonly(
@@ -158,9 +144,7 @@ async fn execute_readonly_decodes_uuid_numeric_and_bytea_columns() {
 
 #[tokio::test]
 async fn execute_readonly_refuses_a_write_hidden_in_a_volatile_function() {
-    let Some(exec) = executor_or_skip().await else {
-        return;
-    };
+    let exec = test_executor().await;
     let table = format!("ro_probe_{}", uuid::Uuid::new_v4().simple());
     exec.execute_write(&format!("CREATE TABLE \"{table}\" (id INT)"))
         .await

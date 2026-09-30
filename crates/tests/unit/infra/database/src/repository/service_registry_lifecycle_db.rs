@@ -7,14 +7,14 @@ use std::time::Duration;
 
 use systemprompt_database::{CreateServiceInput, Database, DbPool, PoolConfig, ServiceRepository};
 use systemprompt_identifiers::InstanceId;
-use systemprompt_test_fixtures::fixture_database_url;
+use systemprompt_test_fixtures::test_database_url;
 
 fn unique(prefix: &str) -> String {
     format!("{prefix}_{}", uuid::Uuid::new_v4().simple())
 }
 
 async fn db_pool() -> DbPool {
-    let url = fixture_database_url().expect("DATABASE_URL must be set");
+    let url = test_database_url();
     let cfg = PoolConfig {
         max_connections: 4,
         min_connections: 0,

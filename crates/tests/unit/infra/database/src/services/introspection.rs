@@ -13,9 +13,7 @@ use systemprompt_test_fixtures::DisposableDb;
 
 #[tokio::test]
 async fn get_info_reports_version_and_introspected_table() {
-    let Ok(database) = DisposableDb::create("introspect").await else {
-        return;
-    };
+    let database = DisposableDb::empty("introspect").await;
     let result = run_introspection(database.url()).await;
     database.drop_now().await;
 

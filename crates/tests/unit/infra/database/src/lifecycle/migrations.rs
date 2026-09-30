@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
 
-use crate::services::db_helper::{lazy_pool, pool_or_skip};
+use crate::services::db_helper::{lazy_pool, test_pool};
 use systemprompt_database::{
     AppliedMigration, ChecksumDrift, DatabaseInfo, DatabaseProvider, DatabaseResult,
     DatabaseTransaction, ExtensionMigrationStatus, JsonRow, MarkAppliedOutcome, MigrationResult,
@@ -743,13 +743,13 @@ async fn transactional_migration_with_unparseable_sql_fails_before_execution() {
 
 mod checksum_drift_db {
     use super::{Migration, MigrationService, StubExtension};
-    use crate::services::db_helper::pool_or_skip;
+    use crate::services::db_helper::test_pool;
     use systemprompt_database::{MigrationConfig, PostgresProvider};
 
-    async fn provider_or_skip() -> Option<PostgresProvider> {
-        let db = pool_or_skip().await?;
-        let pg = db.write_pool_arc().ok()?;
-        Some(PostgresProvider::from_pool(pg))
+    async fn test_provider() -> PostgresProvider {
+        let db = test_pool().await;
+        let pg = db.write_pool_arc().expect("write pool");
+        PostgresProvider::from_pool(pg)
     }
 
     fn ext(id: &'static str, sql: &'static str) -> StubExtension {
@@ -761,9 +761,7 @@ mod checksum_drift_db {
 
     #[tokio::test]
     async fn edited_applied_migration_is_refused_unless_drift_allowed() {
-        let Some(provider) = provider_or_skip().await else {
-            return;
-        };
+        let provider = test_provider().await;
         let service = MigrationService::new(&provider);
 
         use systemprompt_database::DatabaseProvider as _;
@@ -1166,10 +1164,8 @@ async fn run_down_migrations_rejects_unparseable_down_sql_before_deleting_the_re
 
 #[tokio::test]
 async fn run_down_migrations_rejects_a_corrupt_ledger_version_without_writing() {
-    let database = DisposableDb::installed("down_corrupt_version")
-        .await
-        .expect("private database");
-    let db = database.pool().await.expect("private pool");
+    let database = DisposableDb::with_schema("down_corrupt_version").await;
+    let db = database.test_pool().await;
     let raw = db.write_pool();
     let extension_id = "down_corrupt_version_ext";
     sqlx::query(
@@ -1220,10 +1216,8 @@ async fn run_down_migrations_rejects_a_corrupt_ledger_version_without_writing() 
 
 #[tokio::test]
 async fn run_down_migrations_refuses_an_applied_tombstone_without_writing() {
-    let database = DisposableDb::installed("down_tombstone")
-        .await
-        .expect("private database");
-    let db = database.pool().await.expect("private pool");
+    let database = DisposableDb::with_schema("down_tombstone").await;
+    let db = database.test_pool().await;
     let raw = db.write_pool();
     let extension_id = "down_tombstone_ext";
     sqlx::query(
@@ -1879,9 +1873,7 @@ async fn reconcile_drift_refuses_a_reused_slot() {
 async fn repair_drift_reapplies_when_the_name_matches() {
     // Why: repair takes the bootstrap advisory lock on a live session before
     // touching the faked rows, so the fake borrows the fixture pool for it.
-    let Some(db) = pool_or_skip().await else {
-        return;
-    };
+    let db = test_pool().await;
     let log = Arc::new(CallLog::default());
     let provider = drifted_provider(&log, "034_knowledge_bank", "034_knowledge_bank", db.pool());
     let service = MigrationService::new(&provider);
@@ -1902,9 +1894,7 @@ async fn repair_drift_reapplies_when_the_name_matches() {
 
 #[tokio::test]
 async fn reconcile_drift_rewrites_bookkeeping_without_executing_sql() {
-    let Some(db) = pool_or_skip().await else {
-        return;
-    };
+    let db = test_pool().await;
     let log = Arc::new(CallLog::default());
     let provider = drifted_provider(&log, "034_knowledge_bank", "034_knowledge_bank", db.pool());
     let service = MigrationService::new(&provider);
@@ -2047,9 +2037,7 @@ async fn persisted_users001_checksum_matches_exact_historical_release_bytes() {
 
 #[tokio::test]
 async fn repair_drift_rejects_unparseable_replacement_without_changing_trusted_checksum() {
-    let db = pool_or_skip()
-        .await
-        .expect("migration repair database fixture must be configured");
+    let db = test_pool().await;
     let log = Arc::new(CallLog::default());
     let broken_sql = "THIS IS NOT SQL";
     let broken = StubExtension {

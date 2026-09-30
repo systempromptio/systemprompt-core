@@ -6,19 +6,17 @@ use systemprompt_database::{
     validate_write_pool_is_primary,
 };
 
-use crate::services::db_helper::pool_or_skip;
+use crate::services::db_helper::test_pool;
 
-async fn provider_or_skip() -> Option<PostgresProvider> {
-    let db = pool_or_skip().await?;
-    let pg = db.write_pool_arc().ok()?;
-    Some(PostgresProvider::from_pool(pg))
+async fn test_provider() -> PostgresProvider {
+    let db = test_pool().await;
+    let pg = db.write_pool_arc().expect("write pool");
+    PostgresProvider::from_pool(pg)
 }
 
 #[tokio::test]
 async fn a_live_pool_passes_the_connection_check() {
-    let Some(provider) = provider_or_skip().await else {
-        return;
-    };
+    let provider = test_provider().await;
 
     validate_database_connection(&provider)
         .await
@@ -27,9 +25,7 @@ async fn a_live_pool_passes_the_connection_check() {
 
 #[tokio::test]
 async fn a_writable_primary_passes_the_standby_check() {
-    let Some(db) = pool_or_skip().await else {
-        return;
-    };
+    let db = test_pool().await;
 
     validate_write_pool_is_primary(&db)
         .await
@@ -38,9 +34,7 @@ async fn a_writable_primary_passes_the_standby_check() {
 
 #[tokio::test]
 async fn table_presence_distinguishes_a_migrated_table_from_an_absent_one() {
-    let Some(provider) = provider_or_skip().await else {
-        return;
-    };
+    let provider = test_provider().await;
 
     assert!(
         validate_table_exists(&provider, "extension_migrations")
@@ -59,9 +53,7 @@ async fn table_presence_distinguishes_a_migrated_table_from_an_absent_one() {
 
 #[tokio::test]
 async fn column_presence_is_checked_within_the_named_table_only() {
-    let Some(provider) = provider_or_skip().await else {
-        return;
-    };
+    let provider = test_provider().await;
 
     assert!(
         validate_column_exists(&provider, "extension_migrations", "checksum")
@@ -89,9 +81,7 @@ async fn column_presence_is_checked_within_the_named_table_only() {
 
 #[tokio::test]
 async fn probing_a_column_on_an_absent_table_reports_absent() {
-    let Some(provider) = provider_or_skip().await else {
-        return;
-    };
+    let provider = test_provider().await;
 
     assert!(
         !validate_column_exists(&provider, "table_that_was_never_created", "id")
@@ -103,9 +93,7 @@ async fn probing_a_column_on_an_absent_table_reports_absent() {
 
 #[tokio::test]
 async fn replica_status_reports_a_primary_with_no_lag() {
-    let Some(provider) = provider_or_skip().await else {
-        return;
-    };
+    let provider = test_provider().await;
 
     let status = systemprompt_database::replica_status(&provider)
         .await

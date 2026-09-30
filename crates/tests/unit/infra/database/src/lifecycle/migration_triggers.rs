@@ -3,7 +3,7 @@
 //! `triggers=live`), and restores exactly the ones it suspended; a boot
 //! refuses a trigger whose routine writes a relation that is gone.
 
-use crate::services::db_helper::pool_or_skip;
+use crate::services::db_helper::test_pool;
 use systemprompt_database::{
     DatabaseProvider, MigrationService, PostgresProvider, check_trigger_routines,
 };
@@ -28,10 +28,10 @@ impl Extension for StubExtension {
     }
 }
 
-async fn provider_or_skip() -> Option<PostgresProvider> {
-    let db = pool_or_skip().await?;
-    let pg = db.write_pool_arc().ok()?;
-    Some(PostgresProvider::from_pool(pg))
+async fn test_provider() -> PostgresProvider {
+    let db = test_pool().await;
+    let pg = db.write_pool_arc().expect("write pool");
+    PostgresProvider::from_pool(pg)
 }
 
 // Why: the "foreign" trigger stands in for another extension's stale one —
@@ -80,9 +80,7 @@ async fn trigger_state(provider: &PostgresProvider, table: &str) -> Vec<(String,
 
 #[tokio::test]
 async fn a_backfill_does_not_fire_row_triggers_and_restores_them() {
-    let Some(provider) = provider_or_skip().await else {
-        return;
-    };
+    let provider = test_provider().await;
     reset(&provider, "trg_suspend", "trg_suspend_t").await;
     let ext = StubExtension {
         id: "trg_suspend",
@@ -110,9 +108,7 @@ async fn a_backfill_does_not_fire_row_triggers_and_restores_them() {
 
 #[tokio::test]
 async fn a_no_transaction_backfill_suspends_and_restores_too() {
-    let Some(provider) = provider_or_skip().await else {
-        return;
-    };
+    let provider = test_provider().await;
     reset(&provider, "trg_notx", "trg_notx_t").await;
     let ext = StubExtension {
         id: "trg_notx",
@@ -132,9 +128,7 @@ async fn a_no_transaction_backfill_suspends_and_restores_too() {
 
 #[tokio::test]
 async fn a_migration_declaring_live_triggers_fires_them() {
-    let Some(provider) = provider_or_skip().await else {
-        return;
-    };
+    let provider = test_provider().await;
     reset(&provider, "trg_live", "trg_live_t").await;
     let ext = StubExtension {
         id: "trg_live",
@@ -153,9 +147,7 @@ async fn a_migration_declaring_live_triggers_fires_them() {
 
 #[tokio::test]
 async fn a_trigger_writing_a_dropped_relation_refuses_the_boot() {
-    let Some(provider) = provider_or_skip().await else {
-        return;
-    };
+    let provider = test_provider().await;
     provider
         .execute_batch(
             "DROP TABLE IF EXISTS trg_dangling_t CASCADE;

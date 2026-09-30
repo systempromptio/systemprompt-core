@@ -7,18 +7,18 @@
 use systemprompt_database::{CreateServiceInput, ServiceRepository};
 use systemprompt_identifiers::InstanceId;
 
-use crate::services::db_helper::pool_or_skip;
+use crate::services::db_helper::test_pool;
 
 fn unique(prefix: &str) -> String {
     format!("{prefix}_{}", uuid::Uuid::new_v4().simple())
 }
 
-async fn two_repos_or_skip() -> Option<(ServiceRepository, ServiceRepository, sqlx::PgPool)> {
-    let db = pool_or_skip().await?;
-    let pg = (*db.write_pool_arc().ok()?).clone();
-    let a = ServiceRepository::new(&db, InstanceId::new(unique("node_a"))).ok()?;
-    let b = ServiceRepository::new(&db, InstanceId::new(unique("node_b"))).ok()?;
-    Some((a, b, pg))
+async fn two_repos() -> (ServiceRepository, ServiceRepository, sqlx::PgPool) {
+    let db = test_pool().await;
+    let pg = (*db.write_pool_arc().expect("write pool")).clone();
+    let a = ServiceRepository::new(&db, InstanceId::new(unique("node_a"))).expect("repo a");
+    let b = ServiceRepository::new(&db, InstanceId::new(unique("node_b"))).expect("repo b");
+    (a, b, pg)
 }
 
 async fn register(repo: &ServiceRepository, name: &str, pid: i32) {
@@ -48,9 +48,7 @@ async fn age_heartbeat(pg: &sqlx::PgPool, instance_id: &InstanceId, secs: i64) {
 
 #[tokio::test]
 async fn same_name_on_two_instances_is_two_rows() {
-    let Some((a, b, _pg)) = two_repos_or_skip().await else {
-        return;
-    };
+    let (a, b, _pg) = two_repos().await;
     let name = unique("svc");
     register(&a, &name, 111).await;
     register(&b, &name, 222).await;
@@ -73,9 +71,7 @@ async fn same_name_on_two_instances_is_two_rows() {
 
 #[tokio::test]
 async fn delete_and_stale_cleanup_never_touch_other_instances() {
-    let Some((a, b, _pg)) = two_repos_or_skip().await else {
-        return;
-    };
+    let (a, b, _pg) = two_repos().await;
     let name = unique("svc");
     register(&a, &name, 111).await;
     register(&b, &name, 222).await;
@@ -97,9 +93,7 @@ async fn delete_and_stale_cleanup_never_touch_other_instances() {
 
 #[tokio::test]
 async fn status_and_count_are_per_instance() {
-    let Some((a, b, _pg)) = two_repos_or_skip().await else {
-        return;
-    };
+    let (a, b, _pg) = two_repos().await;
     let name = unique("svc");
     register(&a, &name, 111).await;
     register(&b, &name, 222).await;
@@ -115,9 +109,7 @@ async fn status_and_count_are_per_instance() {
 
 #[tokio::test]
 async fn heartbeat_touches_own_rows_and_reaper_crosses_instances() {
-    let Some((a, b, pg)) = two_repos_or_skip().await else {
-        return;
-    };
+    let (a, b, pg) = two_repos().await;
     let name = unique("svc");
     register(&a, &name, 111).await;
     register(&b, &name, 222).await;

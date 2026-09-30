@@ -16,10 +16,9 @@ async fn bootstrap_lock_acquisition_reports_closed_pool_without_holding_a_sessio
 #[tokio::test]
 async fn bootstrap_lock_release_discards_a_terminated_session_and_a_fresh_guard_recovers() {
     let database =
-        systemprompt_test_fixtures::DisposableDb::installed("bootstrap_lock_terminated_session")
-            .await
-            .expect("private bootstrap-lock database");
-    let db = database.pool().await.expect("private database pool");
+        systemprompt_test_fixtures::DisposableDb::with_schema("bootstrap_lock_terminated_session")
+            .await;
+    let db = database.test_pool().await;
     let provider = PostgresProvider::from_pool(db.write_pool());
     let guard = BootstrapLockGuard::acquire(&provider)
         .await

@@ -7,8 +7,7 @@ use systemprompt_database::install_extension_schemas_with_config;
 use systemprompt_extension::{Migration, SchemaDefinition};
 
 use super::installation::{
-    StubExtension, drop_table, leak, provider_and_db_or_skip, registry_with, table_exists,
-    unique_id,
+    StubExtension, drop_table, leak, provider_and_db, registry_with, table_exists, unique_id,
 };
 
 async fn foreign_key_count(db: &systemprompt_database::DbPool, table: &str) -> i64 {
@@ -55,9 +54,7 @@ async fn forget_migrations(db: &systemprompt_database::DbPool, ext_id: &str) {
 // structural phase and only a key deferred past 001 can succeed.
 #[tokio::test]
 async fn legacy_table_without_referenced_unique_gets_fk_after_migration_adds_index() {
-    let Some((provider, db)) = provider_and_db_or_skip().await else {
-        return;
-    };
+    let (provider, db) = provider_and_db().await;
     let parent = unique_id("fk_legacy_parent");
     let child = unique_id("fk_legacy_child");
     let ext_id = unique_id("fk_legacy_ext");
@@ -100,9 +97,7 @@ async fn legacy_table_without_referenced_unique_gets_fk_after_migration_adds_ind
 
 #[tokio::test]
 async fn installing_twice_adds_exactly_one_foreign_key() {
-    let Some((provider, db)) = provider_and_db_or_skip().await else {
-        return;
-    };
+    let (provider, db) = provider_and_db().await;
     let parent = unique_id("fk_twice_parent");
     let child = unique_id("fk_twice_child");
     let ext_id = unique_id("fk_twice_ext");
@@ -131,9 +126,7 @@ async fn installing_twice_adds_exactly_one_foreign_key() {
 
 #[tokio::test]
 async fn a_migration_authored_key_under_another_name_is_not_duplicated() {
-    let Some((provider, db)) = provider_and_db_or_skip().await else {
-        return;
-    };
+    let (provider, db) = provider_and_db().await;
     let parent = unique_id("fk_named_parent");
     let child = unique_id("fk_named_child");
     let ext_id = unique_id("fk_named_ext");
@@ -171,9 +164,7 @@ async fn a_migration_authored_key_under_another_name_is_not_duplicated() {
 
 #[tokio::test]
 async fn orphan_rows_leave_the_key_not_valid_and_install_succeeds() {
-    let Some((provider, db)) = provider_and_db_or_skip().await else {
-        return;
-    };
+    let (provider, db) = provider_and_db().await;
     let parent = unique_id("fk_orphan_parent");
     let child = unique_id("fk_orphan_child");
     let ext_id = unique_id("fk_orphan_ext");
@@ -219,9 +210,7 @@ async fn orphan_rows_leave_the_key_not_valid_and_install_succeeds() {
 
 #[tokio::test]
 async fn a_deferred_foreign_key_that_cannot_be_satisfied_names_the_source_table() {
-    let Some((provider, db)) = provider_and_db_or_skip().await else {
-        return;
-    };
+    let (provider, db) = provider_and_db().await;
     let parent = unique_id("fk_unsat_parent");
     let child = unique_id("fk_unsat_child");
     let ext_id = unique_id("fk_unsat_ext");
@@ -266,9 +255,7 @@ async fn a_deferred_foreign_key_that_cannot_be_satisfied_names_the_source_table(
 
 #[tokio::test]
 async fn an_established_extension_reports_an_uncreatable_key_as_typed_drift() {
-    let Some((provider, db)) = provider_and_db_or_skip().await else {
-        return;
-    };
+    let (provider, db) = provider_and_db().await;
     let parent = unique_id("fk_drift_parent");
     let child = unique_id("fk_drift_child");
     let ext_id = unique_id("fk_drift_ext");
@@ -317,9 +304,7 @@ async fn an_established_extension_reports_an_uncreatable_key_as_typed_drift() {
 
 #[tokio::test]
 async fn a_failing_catalog_probe_fails_the_install_on_an_established_database() {
-    let Some((provider, db)) = provider_and_db_or_skip().await else {
-        return;
-    };
+    let (provider, db) = provider_and_db().await;
     let parent = unique_id("fk_probe_parent");
     let child = unique_id("fk_probe_child");
     let ext_id = unique_id("fk_probe_ext");

@@ -7,7 +7,7 @@ use systemprompt_database::{
     Database, PoolConfig, validate_column_exists, validate_database_connection,
     validate_table_exists,
 };
-use systemprompt_test_fixtures::fixture_database_url;
+use systemprompt_test_fixtures::test_database_url;
 
 fn pool_config() -> PoolConfig {
     PoolConfig {
@@ -19,9 +19,11 @@ fn pool_config() -> PoolConfig {
     }
 }
 
-async fn database_or_skip() -> Option<Database> {
-    let url = fixture_database_url().ok()?;
-    Database::connect(&url, None, &pool_config()).await.ok()
+async fn test_database() -> Database {
+    let url = test_database_url();
+    Database::connect(&url, None, &pool_config())
+        .await
+        .expect("connect to the test database")
 }
 
 fn unique_table() -> String {
@@ -30,9 +32,7 @@ fn unique_table() -> String {
 
 #[tokio::test]
 async fn connect_builds_distinct_write_provider() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
+    let url = test_database_url();
     let db = Database::connect(&url, Some(&url), &pool_config())
         .await
         .expect("connects");
@@ -47,9 +47,7 @@ async fn connect_builds_distinct_write_provider() {
 
 #[tokio::test]
 async fn debug_and_info_report_postgres_backend() {
-    let Some(db) = database_or_skip().await else {
-        return;
-    };
+    let db = test_database().await;
     assert!(format!("{db:?}").contains("PostgreSQL"));
 
     let info = db.get_info().await.expect("info");
@@ -58,9 +56,7 @@ async fn debug_and_info_report_postgres_backend() {
 
 #[tokio::test]
 async fn provider_impl_delegates_reads_and_writes() {
-    let Some(db) = database_or_skip().await else {
-        return;
-    };
+    let db = test_database().await;
     let table = unique_table();
     db.execute_batch(&format!(
         "CREATE TABLE \"{table}\" (id BIGINT PRIMARY KEY, name TEXT NOT NULL); INSERT INTO \
@@ -131,9 +127,7 @@ async fn provider_impl_delegates_reads_and_writes() {
 
 #[tokio::test]
 async fn validation_helpers_detect_tables_and_columns() {
-    let Some(db) = database_or_skip().await else {
-        return;
-    };
+    let db = test_database().await;
 
     validate_database_connection(&db)
         .await

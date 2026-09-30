@@ -6,7 +6,7 @@
 
 use std::sync::atomic::{AtomicU32, Ordering};
 
-use super::db_helper::pool_or_skip;
+use super::db_helper::test_pool;
 use systemprompt_database::{
     DbPool, PgDbPool, RepositoryError, with_transaction, with_transaction_retry,
 };
@@ -42,9 +42,7 @@ async fn row_count(pool: &sqlx::PgPool, table: &str) -> i64 {
 
 #[tokio::test]
 async fn with_transaction_commits_inserted_rows() {
-    let Some(db) = pool_or_skip().await else {
-        return;
-    };
+    let db = test_pool().await;
     let pool = pg(&db);
     let table = unique_table();
     create_table(&pool, &table).await;
@@ -70,9 +68,7 @@ async fn with_transaction_commits_inserted_rows() {
 
 #[tokio::test]
 async fn with_transaction_rolls_back_on_closure_error() {
-    let Some(db) = pool_or_skip().await else {
-        return;
-    };
+    let db = test_pool().await;
     let pool = pg(&db);
     let table = unique_table();
     create_table(&pool, &table).await;
@@ -106,9 +102,7 @@ async fn with_transaction_rolls_back_on_closure_error() {
 
 #[tokio::test]
 async fn with_transaction_commits_against_a_borrowed_pgpool() {
-    let Some(db) = pool_or_skip().await else {
-        return;
-    };
+    let db = test_pool().await;
     let pool = pg(&db);
     let table = unique_table();
     create_table(&pool, &table).await;
@@ -134,9 +128,7 @@ async fn with_transaction_commits_against_a_borrowed_pgpool() {
 
 #[tokio::test]
 async fn with_transaction_retry_commits_on_first_success() {
-    let Some(db) = pool_or_skip().await else {
-        return;
-    };
+    let db = test_pool().await;
     let pool = pg(&db);
     let table = unique_table();
     create_table(&pool, &table).await;
@@ -166,9 +158,7 @@ async fn with_transaction_retry_commits_on_first_success() {
 
 #[tokio::test]
 async fn with_transaction_retry_does_not_retry_permanent_error() {
-    let Some(db) = pool_or_skip().await else {
-        return;
-    };
+    let db = test_pool().await;
     let pool = pg(&db);
     let table = unique_table();
     create_table(&pool, &table).await;
@@ -203,9 +193,7 @@ async fn with_transaction_retry_does_not_retry_permanent_error() {
 
 #[tokio::test]
 async fn a_real_deadlock_classifies_as_a_serialization_failure() {
-    let Some(db) = pool_or_skip().await else {
-        return;
-    };
+    let db = test_pool().await;
     let pool = pg(&db);
     let key_a = i64::from(uuid::Uuid::new_v4().as_u128() as u32) + 1;
     let key_b = key_a + 1;
