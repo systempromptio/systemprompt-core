@@ -435,17 +435,20 @@ marketplaces:
     .unwrap();
 
     let marketplace_cfg = services.marketplaces.values().next().unwrap();
-    let json = marketplace::render_marketplace("main", marketplace_cfg, &services);
-    assert_eq!(json["name"], "main");
+    let rendered = marketplace::render_marketplace("main", marketplace_cfg, &services);
+    assert_eq!(rendered.name, "main");
+    assert_eq!(rendered.owner.name, "Owner");
+    assert_eq!(rendered.metadata.version, "2.0.0");
+    assert_eq!(rendered.plugins.len(), 2);
+    let demo = rendered.plugins.iter().find(|p| p.name == "demo").unwrap();
+    assert_eq!(demo.source, "./storage/files/plugins/demo");
+    assert_eq!(demo.version, "1.0.0");
+    let ghost = rendered.plugins.iter().find(|p| p.name == "ghost").unwrap();
+    assert_eq!(ghost.version, "");
+
+    let json = serde_json::to_value(&rendered).unwrap();
     assert_eq!(json["owner"]["name"], "Owner");
-    assert_eq!(json["metadata"]["version"], "2.0.0");
-    let plugins = json["plugins"].as_array().unwrap();
-    assert_eq!(plugins.len(), 2);
-    let demo = plugins.iter().find(|p| p["name"] == "demo").unwrap();
-    assert_eq!(demo["source"], "./storage/files/plugins/demo");
-    assert_eq!(demo["version"], "1.0.0");
-    let ghost = plugins.iter().find(|p| p["name"] == "ghost").unwrap();
-    assert_eq!(ghost["version"], "");
+    assert_eq!(json["plugins"][0]["source"], "./storage/files/plugins/demo");
 }
 
 #[test]
