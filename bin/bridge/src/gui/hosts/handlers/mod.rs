@@ -23,6 +23,8 @@ use crate::gui::events::ReplyId;
 use crate::gui::{GuiApp, emit};
 use crate::wire::ipc::{BridgeError, IpcReplyPayload};
 
+// JSON: webview IPC reply — each command's typed result serialized at the call
+// site.
 pub(crate) fn finish(
     app: &GuiApp,
     result: Result<serde_json::Value, BridgeError>,

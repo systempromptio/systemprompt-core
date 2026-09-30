@@ -1,9 +1,7 @@
 use systemprompt_bridge::gui::server_marketplace::source::{
     MarketplaceCategory, MarketplaceSource, MarketplaceSourceCtx, MarketplaceSourceRegistration,
 };
-use systemprompt_bridge::gui::server_marketplace::{
-    MarketplaceItem, build_listing, listing_to_value,
-};
+use systemprompt_bridge::gui::server_marketplace::{MarketplaceItem, build_listing};
 use systemprompt_bridge::register_marketplace_source;
 
 struct TestSkillsSource;
@@ -84,7 +82,7 @@ register_marketplace_source!(ShadowLow, priority = 5);
 #[test]
 fn higher_priority_source_shadows_same_id_item() {
     let listing = build_listing(&[]);
-    let value = listing_to_value(&listing).expect("serialize listing");
+    let value = serde_json::to_value(&listing).expect("serialize listing");
     let skills = value["skills"].as_array().expect("skills array");
 
     let dups: Vec<&serde_json::Value> = skills

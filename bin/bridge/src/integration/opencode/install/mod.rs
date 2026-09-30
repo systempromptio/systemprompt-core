@@ -85,6 +85,8 @@ fn is_read_only(path: &Path) -> bool {
     path.is_file() && std::fs::OpenOptions::new().write(true).open(path).is_err()
 }
 
+// JSON: OpenCode `opencode.json` — foreign config, unknown keys must be
+// preserved.
 fn install_user_tier(
     source: &Map<String, Value>,
     managed: &Path,
@@ -151,6 +153,8 @@ pub(super) fn elevation_prompt() -> String {
     )
 }
 
+// JSON: OpenCode `opencode.json` — foreign config, unknown keys must be
+// preserved.
 pub(super) fn parse_object(text: &str, source: &str) -> std::io::Result<Map<String, Value>> {
     let text = text.strip_prefix('\u{feff}').unwrap_or(text);
     if text.trim().is_empty() {
@@ -169,6 +173,8 @@ pub(super) fn parse_object(text: &str, source: &str) -> std::io::Result<Map<Stri
     }
 }
 
+// JSON: OpenCode `opencode.json` — foreign config, unknown keys must be
+// preserved.
 pub(super) fn read_object(path: &Path) -> std::io::Result<Map<String, Value>> {
     crate::fsutil::read_optional(path)?.map_or_else(
         || Ok(Map::new()),
@@ -176,6 +182,8 @@ pub(super) fn read_object(path: &Path) -> std::io::Result<Map<String, Value>> {
     )
 }
 
+// JSON: OpenCode `opencode.json` — foreign config, unknown keys must be
+// preserved.
 pub(super) fn pretty(map: &Map<String, Value>) -> std::io::Result<Vec<u8>> {
     let mut bytes = serde_json::to_vec_pretty(&Value::Object(map.clone()))
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;

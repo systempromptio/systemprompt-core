@@ -111,6 +111,8 @@ pub fn collect(
     refs
 }
 
+// JSON: Claude Code user `settings.json` — foreign config, unknown keys must be
+// preserved.
 pub fn apply_settings(
     root: &mut Map<String, Value>,
     path: &Path,

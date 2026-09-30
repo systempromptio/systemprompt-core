@@ -233,6 +233,8 @@ pub(crate) fn on_sync_finished(
     }
 }
 
+// JSON: webview IPC reply — each command's typed result serialized at the call
+// site.
 fn finish_value(app: &GuiApp, result: Result<serde_json::Value, BridgeError>, reply_to: ReplyId) {
     let Some(id) = reply_to else {
         if let Err(err) = result {

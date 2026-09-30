@@ -20,6 +20,8 @@ pub(super) fn managed_json_text(inputs: &ProfileGenInputs) -> std::io::Result<St
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))
 }
 
+// JSON: OpenCode `opencode.json` — foreign config, unknown keys must be
+// preserved.
 pub(super) fn managed_json(inputs: &ProfileGenInputs) -> Map<String, Value> {
     let gateway = inputs.gateway_base_url.trim_end_matches('/');
 

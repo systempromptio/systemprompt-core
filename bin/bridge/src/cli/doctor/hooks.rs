@@ -106,6 +106,8 @@ pub fn stale_ports(urls: &[String], actual: u16) -> BTreeSet<u16> {
         .collect()
 }
 
+// JSON: Claude Code hooks config — foreign JSON walked for hook URLs at any
+// depth.
 fn collect_urls(value: &serde_json::Value, out: &mut Vec<String>) {
     match value {
         serde_json::Value::Object(map) => {

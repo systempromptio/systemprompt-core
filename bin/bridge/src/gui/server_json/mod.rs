@@ -3,50 +3,44 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use serde_json::{Value, json};
+use serde::Serialize;
 
 mod payloads;
 
 use payloads::{
-    ProxyStatsPayload, UpdatePayload, ValidationPayload, cached_token_payload,
-    gateway_status_payload, mcp_servers_payload, verified_identity_payload,
+    McpServerAuthPayload, ProxyStatsPayload, UpdatePayload, ValidationPayload,
+    VerifiedIdentityPayload, cached_token_payload, gateway_status_payload, mcp_servers_payload,
+    verified_identity_payload,
 };
 
+use crate::gui::hosts::serde::ProxyPayload;
 use crate::gui::state::AppStateSnapshot;
+use crate::verdict::Tone;
 use crate::wire::StatePayload;
 
-pub fn snapshot_value(snap: &AppStateSnapshot, proxy: &crate::proxy::ProxyHandle) -> Value {
-    serde_json::to_value(state_payload(snap, proxy)).unwrap_or(Value::Null)
+#[derive(Debug, Serialize)]
+pub struct McpAuthPayload<'a> {
+    pub servers: Vec<McpServerAuthPayload<'a>>,
+    pub probing: bool,
+    pub tone: Tone,
 }
 
-pub fn identity_value(snap: &AppStateSnapshot) -> Value {
-    snap.verified_identity.as_ref().map_or(Value::Null, |v| {
-        serde_json::to_value(verified_identity_payload(v)).unwrap_or(Value::Null)
-    })
+pub fn identity_payload(snap: &AppStateSnapshot) -> Option<VerifiedIdentityPayload<'_>> {
+    snap.verified_identity
+        .as_ref()
+        .map(verified_identity_payload)
 }
 
-pub fn single_host_value(snap: &AppStateSnapshot, host_id: &str) -> Value {
-    let payload = crate::gui::hosts::serde::single_host_payload(snap, host_id);
-    serde_json::to_value(payload).unwrap_or(Value::Null)
+pub fn local_proxy_payload(snap: &AppStateSnapshot) -> ProxyPayload<'_> {
+    ProxyPayload::from(&snap.hosts.local_proxy)
 }
 
-pub fn local_proxy_value(snap: &AppStateSnapshot) -> Value {
-    serde_json::to_value(crate::gui::hosts::serde::ProxyPayload::from(
-        &snap.hosts.local_proxy,
-    ))
-    .unwrap_or(Value::Null)
-}
-
-pub fn mcp_auth_value(snap: &AppStateSnapshot) -> Value {
-    json!({
-        "servers": mcp_servers_payload(snap),
-        "probing": snap.mcp_auth_probe_in_flight,
-        "tone": snap.mcp_auth_tone(),
-    })
-}
-
-pub fn proxy_stats_value(proxy: &crate::proxy::ProxyHandle) -> Value {
-    serde_json::to_value(ProxyStatsPayload::current(proxy)).unwrap_or(Value::Null)
+pub fn mcp_auth_payload(snap: &AppStateSnapshot) -> McpAuthPayload<'_> {
+    McpAuthPayload {
+        servers: mcp_servers_payload(snap),
+        probing: snap.mcp_auth_probe_in_flight,
+        tone: snap.mcp_auth_tone(),
+    }
 }
 
 pub fn state_payload<'a>(

@@ -128,6 +128,7 @@ fn candidates(domain: &str) -> Vec<PathBuf> {
     out
 }
 
+// JSON: Claude Desktop plist — native preferences read back as JSON.
 fn read_plist_as_json(path: &Path) -> Option<serde_json::Value> {
     let output = Command::new("/usr/bin/plutil")
         .arg("-convert")
@@ -143,6 +144,7 @@ fn read_plist_as_json(path: &Path) -> Option<serde_json::Value> {
     serde_json::from_slice(&output.stdout).ok()
 }
 
+// JSON: Claude Desktop plist — native preferences read back as JSON.
 fn read_key_raw(plist_json: &serde_json::Value, _domain: &str, key: &str) -> Option<String> {
     if let Some(val) = plist_json.get(key) {
         return Some(format_plist_value(val));
@@ -162,6 +164,7 @@ fn read_key_raw(plist_json: &serde_json::Value, _domain: &str, key: &str) -> Opt
 // Why: an array of objects (`allowedWorkspaceFolders`, `managedMcpServers`)
 // rendered through a strings-only join printed as empty, which hid a plist
 // whose entries Claude Desktop was dropping as malformed.
+// JSON: Claude Desktop plist — native preferences read back as JSON.
 fn format_plist_value(value: &serde_json::Value) -> String {
     match value {
         serde_json::Value::String(s) => s.clone(),

@@ -60,6 +60,8 @@ pub(super) fn write_mcp_blocks(
     write_json(&path, &Value::Object(value))
 }
 
+// JSON: OpenCode `opencode.json` — foreign config, unknown keys must be
+// preserved.
 fn strip_bridge_servers(recorded: &[String], root: &mut Map<String, Value>) {
     let Some(Value::Object(table)) = root.get_mut(MCP_TABLE) else {
         return;

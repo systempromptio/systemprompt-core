@@ -20,6 +20,7 @@ pub const CLAUDE_DESKTOP_HOST_ID: &str = "claude-desktop";
 pub enum PolicyValue {
     Str(String),
     Bool(bool),
+    // JSON: Claude Desktop managed policy — `object[]` keys hold schema-checked JSON.
     Json(serde_json::Value),
 }
 
@@ -131,6 +132,8 @@ fn workspace_entry() -> PolicyEntry {
     )
 }
 
+// JSON: Claude Desktop managed policy — `object[]` keys hold schema-checked
+// JSON.
 #[must_use]
 pub fn workspace_folders() -> serde_json::Value {
     let workspace = crate::brand::brand().workspace_dir_name;
@@ -165,6 +168,8 @@ fn mcp_value(servers: &[McpServerEntry], host_token: &HostToken) -> PolicyValue 
     ))
 }
 
+// JSON: Claude Desktop managed policy — `object[]` keys hold schema-checked
+// JSON.
 pub(super) fn json_of<T: serde::Serialize>(value: &T) -> serde_json::Value {
     serde_json::to_value(value).unwrap_or(serde_json::Value::Null)
 }
@@ -212,6 +217,8 @@ fn plist_value(value: &PolicyValue, indent: &str) -> String {
 // field typed boolean (`allowedWorkspaceFolders[].isDefaultSelected`) written
 // as a string is a malformed entry, the entry is dropped, and an empty
 // resulting list blocks the Code tab from adding any folder.
+// JSON: Claude Desktop managed policy — JSON rendered to the equivalent native
+// plist.
 fn plist_json(value: &serde_json::Value, indent: &str) -> String {
     let inner = format!("{indent}  ");
     match value {

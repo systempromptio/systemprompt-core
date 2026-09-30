@@ -43,6 +43,7 @@ pub(super) fn upsert_installed_plugins(
     write_json(&path, &Value::Object(root))
 }
 
+// JSON: Claude Code `installed_plugins.json` entry — foreign file format.
 #[must_use]
 pub fn installed_entry(cache: &Path, version: &str, issued_at: &str) -> Value {
     json!([{

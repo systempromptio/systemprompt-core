@@ -1,16 +1,17 @@
 use serde_json::json;
-use systemprompt_bridge::gui::server_json::{identity_value, mcp_auth_value};
+use systemprompt_bridge::gui::server_json::{identity_payload, mcp_auth_payload};
 use systemprompt_bridge::gui::state::{AppStateSnapshot, VerifiedIdentity};
 use systemprompt_identifiers::{TenantId, UserId};
 
 #[test]
-fn identity_value_is_null_without_identity() {
+fn identity_payload_is_null_without_identity() {
     let snap = AppStateSnapshot::default();
-    assert_eq!(identity_value(&snap), serde_json::Value::Null);
+    let value = serde_json::to_value(identity_payload(&snap)).expect("serialize identity");
+    assert_eq!(value, serde_json::Value::Null);
 }
 
 #[test]
-fn identity_value_serializes_present_identity() {
+fn identity_payload_serializes_present_identity() {
     let mut snap = AppStateSnapshot::default();
     snap.verified_identity = Some(VerifiedIdentity {
         email: Some("a@b.com".to_owned()),
@@ -20,7 +21,7 @@ fn identity_value_serializes_present_identity() {
         verified_at_unix: 1_700_000_000,
     });
 
-    let value = identity_value(&snap);
+    let value = serde_json::to_value(identity_payload(&snap)).expect("serialize identity");
     assert_eq!(value["email"], json!("a@b.com"));
     assert_eq!(value["user_id"], json!("user_1"));
     assert_eq!(value["tenant_id"], json!("tenant_1"));
@@ -29,11 +30,11 @@ fn identity_value_serializes_present_identity() {
 }
 
 #[test]
-fn mcp_auth_value_reflects_snapshot_flags() {
+fn mcp_auth_payload_reflects_snapshot_flags() {
     let mut snap = AppStateSnapshot::default();
     snap.mcp_auth_probe_in_flight = true;
 
-    let value = mcp_auth_value(&snap);
+    let value = serde_json::to_value(mcp_auth_payload(&snap)).expect("serialize mcp auth");
     assert_eq!(value["probing"], json!(true));
     assert_eq!(value["servers"], json!([]));
 }

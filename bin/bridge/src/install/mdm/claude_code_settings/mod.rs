@@ -75,6 +75,8 @@ pub fn standalone_settings_path() -> Option<PathBuf> {
     )
 }
 
+// JSON: Claude Code `settings.json` — foreign config, unknown keys must be
+// preserved.
 pub(super) fn bridge_env(gateway: &str) -> serde_json::Map<String, serde_json::Value> {
     let mut env = serde_json::Map::new();
     env.insert(
@@ -94,6 +96,8 @@ pub(super) fn bridge_env(gateway: &str) -> serde_json::Map<String, serde_json::V
     env
 }
 
+// JSON: Claude Code `settings.json` — foreign config, unknown keys must be
+// preserved.
 fn render(
     root: serde_json::Map<String, serde_json::Value>,
     path: &Path,
@@ -186,6 +190,8 @@ pub(crate) fn apply_managed_settings(gateway: &str) -> Result<MdmApplication, Md
     })
 }
 
+// JSON: Claude Code `settings.json` — foreign config, unknown keys must be
+// preserved.
 fn read_settings(path: &Path) -> Result<serde_json::Map<String, serde_json::Value>, MdmError> {
     let existing = read_or_empty(path)?;
     if existing.trim().is_empty() {

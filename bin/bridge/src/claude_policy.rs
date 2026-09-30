@@ -19,6 +19,8 @@ const BRIDGE_KEYS: [&str; 3] = [
     "allowAllClaudeAiMcps",
 ];
 
+// JSON: Claude Code managed `settings.json` — foreign config, unknown keys must
+// be preserved.
 fn read_settings(path: &Path) -> Result<Option<Map<String, Value>>, std::io::Error> {
     let bytes = match fs::read(path) {
         Ok(b) => b,

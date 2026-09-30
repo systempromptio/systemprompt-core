@@ -122,7 +122,7 @@ pub(crate) fn on_probe_finished(app: &mut GuiApp, result: &ProbeResult<'_>, repl
         super::repair_stale_unattended(app, host_id, snapshot);
     }
     let snap = app.state.snapshot();
-    let value = crate::gui::server_json::single_host_value(&snap, host_id.as_str());
+    let value = crate::gui::hosts::serde::single_host_payload(&snap, host_id.as_str());
     if app.state.first_run_active() {
         crate::gui::first_run::handlers::on_probe_result(app, host_id, snapshot);
     }
@@ -249,7 +249,7 @@ pub(crate) fn on_proxy_probe_finished(app: &mut GuiApp, health: ProxyHealth, rep
     app.refresh_ui();
     emit::emit_proxy_changed(app);
     let snap = app.state.snapshot();
-    let value = crate::gui::server_json::local_proxy_value(&snap);
+    let value = crate::gui::server_json::local_proxy_payload(&snap);
     finish(app, Ok(json!({ "health": value })), reply_to);
 }
 

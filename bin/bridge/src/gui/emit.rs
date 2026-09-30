@@ -26,7 +26,7 @@ pub(crate) fn deliver(app: &GuiApp, script: &str) -> bool {
     }
 }
 
-pub(crate) fn send_emit(app: &GuiApp, channel: &str, payload: &Value) {
+pub(crate) fn send_emit<T: Serialize + ?Sized>(app: &GuiApp, channel: &str, payload: &T) {
     deliver(app, &ipc::emit_script(channel, payload));
 }
 
@@ -68,7 +68,7 @@ pub(crate) fn finish<T: Serialize>(
 }
 
 pub(crate) fn emit_proxy_stats(app: &GuiApp) {
-    let value = crate::gui::server_json::proxy_stats_value(&app.ctx.proxy);
+    let value = crate::wire::payloads::ProxyStatsPayload::current(&app.ctx.proxy);
     send_emit(app, "proxy.stats", &value);
 }
 
@@ -76,8 +76,8 @@ pub(crate) fn emit_gateway_changed(app: &GuiApp) {
     let snap = app.state.snapshot();
     let value = json!({
         "state": snap.gateway_status.code(),
-        "identity": crate::gui::server_json::identity_value(&snap),
-        "verified_identity": crate::gui::server_json::identity_value(&snap),
+        "identity": crate::gui::server_json::identity_payload(&snap),
+        "verified_identity": crate::gui::server_json::identity_payload(&snap),
         "lastProbeAtUnix": snap.last_probe_at_unix,
         "signedIn": snap.signed_in(),
     });
@@ -86,20 +86,20 @@ pub(crate) fn emit_gateway_changed(app: &GuiApp) {
 
 pub(crate) fn emit_host_changed(app: &mut GuiApp, host_id: &crate::ids::HostId) {
     let snap = app.state.snapshot();
-    let value = crate::gui::server_json::single_host_value(&snap, host_id.as_str());
+    let value = crate::gui::hosts::serde::single_host_payload(&snap, host_id.as_str());
     send_emit(app, "host.changed", &value);
     emit_state(app);
 }
 
 pub(crate) fn emit_proxy_changed(app: &GuiApp) {
     let snap = app.state.snapshot();
-    let value = crate::gui::server_json::local_proxy_value(&snap);
+    let value = crate::gui::server_json::local_proxy_payload(&snap);
     send_emit(app, "proxy.changed", &value);
 }
 
 pub(crate) fn emit_mcp_changed(app: &GuiApp) {
     let snap = app.state.snapshot();
-    let value = crate::gui::server_json::mcp_auth_value(&snap);
+    let value = crate::gui::server_json::mcp_auth_payload(&snap);
     send_emit(app, "mcp.changed", &value);
 }
 

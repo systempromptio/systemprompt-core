@@ -103,6 +103,8 @@ fn write_sidecar(ids: &[String]) -> Result<(), MdmError> {
     write_atomic(&path, &format!("{body}\n"))
 }
 
+// JSON: Claude Code `settings.json` — foreign config, unknown keys must be
+// preserved.
 fn read_json_object(
     path: &Path,
 ) -> Result<Option<serde_json::Map<String, serde_json::Value>>, MdmError> {
@@ -118,6 +120,8 @@ fn read_json_object(
         })
 }
 
+// JSON: Claude Code `settings.json` — foreign config, unknown keys must be
+// preserved.
 fn splice_rows(
     root: &mut serde_json::Map<String, serde_json::Value>,
     previously_ours: &[String],
@@ -159,6 +163,8 @@ pub(crate) fn apply_model_picker(rows: &[PickerRow]) -> Result<Vec<String>, MdmE
     Ok(lines)
 }
 
+// JSON: Claude Code `settings.json` — foreign config, unknown keys must be
+// preserved.
 pub(super) fn strip_owned_rows(
     root: &mut serde_json::Map<String, serde_json::Value>,
 ) -> Result<(), MdmError> {

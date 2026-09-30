@@ -8,6 +8,8 @@ use serde_json::{Value, json};
 
 use super::PickerRow;
 
+// JSON: Claude Code `settings.json` — foreign config, unknown keys must be
+// preserved.
 #[must_use]
 pub fn merged_picker(
     existing: Option<&Value>,

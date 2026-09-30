@@ -180,12 +180,6 @@ fn merge_external(
     merged
 }
 
-pub fn listing_to_value(
-    listing: &MarketplaceListing,
-) -> Result<serde_json::Value, serde_json::Error> {
-    serde_json::to_value(listing)
-}
-
 fn read_dir_optional(path: &std::path::Path) -> std::io::Result<Vec<std::fs::DirEntry>> {
     match std::fs::read_dir(path) {
         Ok(entries) => entries.collect(),

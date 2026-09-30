@@ -2,7 +2,7 @@ use std::fs;
 use std::path::Path;
 
 use systemprompt_bridge::config::paths::LAST_SYNC_SENTINEL;
-use systemprompt_bridge::gui::server_marketplace::{build_listing, listing_to_value};
+use systemprompt_bridge::gui::server_marketplace::build_listing;
 use systemprompt_bridge::mcp_registry;
 use systemprompt_bridge::proxy::LoopbackEndpoint;
 
@@ -86,7 +86,7 @@ fn listing_json() -> serde_json::Value {
     let loopback = LoopbackEndpoint::new(9999, None);
     let registry = mcp_registry::snapshot(&mcp_registry::empty_slot());
     let listing = build_listing(&loopback, &registry, &[]).expect("the listing builds");
-    listing_to_value(&listing).expect("the listing serialises")
+    serde_json::to_value(&listing).expect("the listing serialises")
 }
 
 fn item<'a>(items: &'a serde_json::Value, id: &str) -> &'a serde_json::Value {

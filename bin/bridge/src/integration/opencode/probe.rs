@@ -94,6 +94,8 @@ fn parse_into_keys(text: &str, source: &str) -> DomainRead {
     )
 }
 
+// JSON: OpenCode `opencode.json` — foreign config, unknown keys must be
+// preserved.
 fn lookup_dotted(root: &Value, dotted: &str) -> Option<String> {
     let mut cur = root;
     for segment in dotted.split('.') {
@@ -102,6 +104,8 @@ fn lookup_dotted(root: &Value, dotted: &str) -> Option<String> {
     Some(stringify(cur))
 }
 
+// JSON: OpenCode `opencode.json` — foreign config, unknown keys must be
+// preserved.
 fn stringify(v: &Value) -> String {
     match v {
         Value::String(s) => s.clone(),

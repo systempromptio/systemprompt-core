@@ -8,6 +8,8 @@ use serde_json::Value;
 use super::StatePayload;
 
 impl StatePayload<'_> {
+    // JSON: webview IPC state — compared structurally to suppress no-op
+    // `state.changed` emits.
     pub fn semantic_value(mut self) -> Result<Value, serde_json::Error> {
         self.last_probe_at_unix = None;
         self.last_validation_at_unix = None;

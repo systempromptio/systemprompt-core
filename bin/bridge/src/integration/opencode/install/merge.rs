@@ -15,6 +15,8 @@ use super::super::config::{DEFAULT_MODEL, PROVIDER_ID};
 use super::{elevation_prompt, pretty, read_object};
 use crate::install::managed_file::{ManagedWrite, remove_managed_file, write_managed_file};
 
+// JSON: OpenCode `opencode.json` — foreign config, unknown keys must be
+// preserved.
 pub(super) fn install(source: &Map<String, Value>, target: &Path) -> std::io::Result<ManagedWrite> {
     let mut merged = read_object(target)?;
     strip_owned(&mut merged);
@@ -39,6 +41,8 @@ pub(super) fn uninstall(target: &Path) -> std::io::Result<bool> {
     Ok(true)
 }
 
+// JSON: OpenCode `opencode.json` — foreign config, unknown keys must be
+// preserved.
 pub(crate) fn strip_owned(root: &mut Map<String, Value>) {
     if let Some(Value::Object(providers)) = root.get_mut("provider") {
         providers.remove(PROVIDER_ID);
@@ -55,6 +59,8 @@ pub(crate) fn strip_owned(root: &mut Map<String, Value>) {
     }
 }
 
+// JSON: OpenCode `opencode.json` — foreign config, unknown keys must be
+// preserved.
 fn deep_merge(target: &mut Map<String, Value>, source: &Map<String, Value>) {
     for (k, v) in source {
         match (target.get_mut(k), v) {

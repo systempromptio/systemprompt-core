@@ -158,6 +158,8 @@ fn repair_config_dir() -> io::Result<String> {
     ))
 }
 
+// JSON: webview IPC reply — each command's typed result serialized at the call
+// site.
 fn finish(app: &GuiApp, result: Result<serde_json::Value, BridgeError>, reply_to: ReplyId) {
     let Some(id) = reply_to else {
         if let Err(err) = result {

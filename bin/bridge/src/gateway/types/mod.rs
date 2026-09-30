@@ -44,6 +44,7 @@ pub struct WhoamiResponse {
     pub provider: Option<String>,
     #[serde(default)]
     pub roles: Vec<String>,
+    // JSON: gateway identity response — unknown claims kept via `flatten`.
     #[serde(flatten)]
     pub extra: BTreeMap<String, serde_json::Value>,
 }

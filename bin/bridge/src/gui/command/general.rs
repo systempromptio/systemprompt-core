@@ -19,6 +19,7 @@ use super::{CommandOutcome, parse, send};
 const DEFAULT_RECENT_LIMIT: usize = 500;
 const MAX_RECENT_LIMIT: usize = 2000;
 
+// JSON: webview IPC args — decoded per command with `parse::<T>`.
 fn recent_limit(args: &Value) -> usize {
     parse::<RecentArgs>(args.clone())
         .ok()
@@ -27,6 +28,7 @@ fn recent_limit(args: &Value) -> usize {
         .min(MAX_RECENT_LIMIT)
 }
 
+// JSON: webview IPC args — decoded per command with `parse::<T>`.
 pub(super) fn meta_dispatch(
     app: &GuiApp,
     cmd: &str,
@@ -34,11 +36,12 @@ pub(super) fn meta_dispatch(
     _reply_id: ReplyId,
 ) -> Option<CommandOutcome> {
     Some(match cmd {
-        "state.snapshot" => CommandOutcome::Sync(Ok(server_json::snapshot_value(
-            &app.state.snapshot(),
-            &app.ctx.proxy,
-        ))),
-        "marketplace.list" => CommandOutcome::Sync(marketplace_listing(app)),
+        "state.snapshot" => CommandOutcome::Sync(state_snapshot(app)),
+        "marketplace.list" => CommandOutcome::Sync(marketplace_listing(app).and_then(|listing| {
+            serde_json::to_value(listing).map_err(|e| {
+                BridgeError::new(ErrorScope::Marketplace, ErrorCode::Internal, e.to_string())
+            })
+        })),
         "activity.recent" => CommandOutcome::Sync(Ok(json!({
             "entries": app.ctx.activity.snapshot_recent(recent_limit(args)),
         }))),
@@ -64,6 +67,7 @@ pub(super) fn meta_dispatch(
     })
 }
 
+// JSON: webview IPC args — decoded per command with `parse::<T>`.
 pub(super) fn gateway_dispatch(
     app: &GuiApp,
     cmd: &str,
@@ -112,6 +116,7 @@ pub(super) fn gateway_dispatch(
     })
 }
 
+// JSON: webview IPC args — decoded per command with `parse::<T>`.
 pub(super) fn auth_dispatch(
     app: &GuiApp,
     cmd: &str,
@@ -175,6 +180,7 @@ pub(super) fn auth_dispatch(
     })
 }
 
+// JSON: webview IPC args — decoded per command with `parse::<T>`.
 pub(super) fn sync_dispatch(
     app: &GuiApp,
     cmd: &str,
@@ -240,6 +246,7 @@ fn cancel_scope(label: Option<&str>) -> Result<Option<CancelScope>, BridgeError>
     })
 }
 
+// JSON: webview IPC args — decoded per command with `parse::<T>`.
 fn open_external_url(args: Value) -> CommandOutcome {
     match parse::<OpenExternalUrlArgs>(args) {
         Ok(a) => match crate::wire::external_url::ExternalUrl::parse(&a.url) {
@@ -259,14 +266,22 @@ fn open_external_url(args: Value) -> CommandOutcome {
     }
 }
 
-fn marketplace_listing(app: &GuiApp) -> Result<Value, BridgeError> {
+// JSON: webview IPC reply — each command's typed result serialized at the call
+// site.
+fn state_snapshot(app: &GuiApp) -> Result<Value, BridgeError> {
     let snap = app.state.snapshot();
-    let listing = crate::gui::server_marketplace::build_listing(
+    serde_json::to_value(server_json::state_payload(&snap, &app.ctx.proxy))
+        .map_err(|e| BridgeError::internal(format!("state encode failed: {e}")))
+}
+
+fn marketplace_listing(
+    app: &GuiApp,
+) -> Result<crate::gui::server_marketplace::MarketplaceListing, BridgeError> {
+    let snap = app.state.snapshot();
+    crate::gui::server_marketplace::build_listing(
         app.ctx.proxy.loopback(),
         &app.ctx.mcp_registry(),
         &snap.mcp_auth,
     )
-    .map_err(|e| BridgeError::new(ErrorScope::Marketplace, ErrorCode::Internal, e.to_string()))?;
-    crate::gui::server_marketplace::listing_to_value(&listing)
-        .map_err(|e| BridgeError::new(ErrorScope::Marketplace, ErrorCode::Internal, e.to_string()))
+    .map_err(|e| BridgeError::new(ErrorScope::Marketplace, ErrorCode::Internal, e.to_string()))
 }

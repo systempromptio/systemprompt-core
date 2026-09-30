@@ -106,6 +106,8 @@ pub(super) fn write_marketplace_json(
 // Why: Claude Code requires an object owner and a manifest name matching the
 // marketplace key, and refuses a cross-marketplace dependency unless this
 // root marketplace allowlists the target here.
+// JSON: Claude Code `marketplace.json` — foreign file format, unknown keys must
+// be preserved.
 #[must_use]
 pub fn marketplace_value(
     marketplace: &str,
@@ -224,6 +226,8 @@ pub(super) fn set_enabled(
     write_json(&path, &Value::Object(root))
 }
 
+// JSON: Claude Code `marketplace.json` — foreign file format, unknown keys must
+// be preserved.
 pub(super) fn strip_marketplace_keys(
     map: &mut serde_json::Map<String, Value>,
     marketplace: &MarketplaceId,

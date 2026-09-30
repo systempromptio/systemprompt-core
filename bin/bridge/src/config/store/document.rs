@@ -83,6 +83,7 @@ impl PolicyDocumentValue {
 pub type PolicyDocument = BTreeMap<String, PolicyDocumentValue>;
 
 impl PolicyDocumentValue {
+    // JSON: managed-preferences document — native store values surfaced as JSON.
     #[must_use]
     pub fn from_json(v: &serde_json::Value) -> Option<Self> {
         match v {

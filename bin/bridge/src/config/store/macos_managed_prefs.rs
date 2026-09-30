@@ -152,6 +152,7 @@ fn copy_app_string(key: &str) -> Result<Option<String>, ConfigStoreError> {
     }))
 }
 
+// JSON: macOS CFPreferences value — native plist types mapped to JSON.
 fn cf_to_json(value: &CFType) -> Option<serde_json::Value> {
     if let Some(s) = value.downcast::<CFString>() {
         return Some(serde_json::Value::String(s.to_string()));
