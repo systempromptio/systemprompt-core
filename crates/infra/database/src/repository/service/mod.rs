@@ -4,10 +4,12 @@
 //! - `model` — row type ([`ServiceConfig`]) and write-input
 //!   ([`CreateServiceInput`], [`UpsertServiceProcessInput`]).
 //! - `repo` — [`ServiceRepository`] async methods.
+//! - `maintenance` — heartbeat, stale-row cleanup and dead-instance reaping.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod maintenance;
 mod model;
 mod repo;
 

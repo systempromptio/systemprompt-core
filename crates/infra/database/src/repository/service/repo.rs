@@ -2,7 +2,7 @@
 //!
 //! Rows are keyed by `(instance_id, name)`: every replica registers, judges
 //! and reaps only the processes it spawned itself. The single cross-instance
-//! statement is [`ServiceRepository::delete_dead_instances`], which reaps rows
+//! statement is `delete_dead_instances` (in `maintenance`), which reaps rows
 //! whose heartbeat stopped, so a replica that vanished without cleanup is
 //! garbage-collected by the scheduler rather than by the next node to boot.
 //!
@@ -20,9 +20,9 @@ use crate::error::DatabaseResult;
 
 #[derive(Debug, Clone)]
 pub struct ServiceRepository {
-    pool: Arc<PgPool>,
-    write_pool: Arc<PgPool>,
-    instance_id: InstanceId,
+    pub(super) pool: Arc<PgPool>,
+    pub(super) write_pool: Arc<PgPool>,
+    pub(super) instance_id: InstanceId,
 }
 
 impl ServiceRepository {
@@ -271,43 +271,5 @@ impl ServiceRepository {
         .fetch_all(&*self.pool)
         .await?;
         Ok(rows)
-    }
-
-    pub async fn cleanup_stale_entries(&self) -> DatabaseResult<u64> {
-        let result = sqlx::query!(
-            r#"
-            DELETE FROM services
-            WHERE instance_id = $1
-              AND (status IN ('error', 'crashed')
-                   OR (status = 'running' AND pid IS NULL))
-            "#,
-            self.instance_id.as_str()
-        )
-        .execute(&*self.write_pool)
-        .await?;
-        Ok(result.rows_affected())
-    }
-
-    pub async fn touch_heartbeat(&self) -> DatabaseResult<u64> {
-        let result = sqlx::query!(
-            r#"UPDATE services SET heartbeat_at = CURRENT_TIMESTAMP WHERE instance_id = $1"#,
-            self.instance_id.as_str()
-        )
-        .execute(&*self.write_pool)
-        .await?;
-        Ok(result.rows_affected())
-    }
-
-    pub async fn delete_dead_instances(&self, older_than_secs: i64) -> DatabaseResult<u64> {
-        let result = sqlx::query!(
-            r#"
-            DELETE FROM services
-            WHERE heartbeat_at < CURRENT_TIMESTAMP - make_interval(secs => $1::double precision)
-            "#,
-            older_than_secs as f64
-        )
-        .execute(&*self.write_pool)
-        .await?;
-        Ok(result.rows_affected())
     }
 }
