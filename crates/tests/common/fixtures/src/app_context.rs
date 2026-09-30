@@ -5,6 +5,10 @@
 //! bootstrap (profile / config / logging / system-admin resolution) and
 //! assembles a context directly via `AppContext::from_parts`. The fixture wires
 //! in an [`AllowAllHook`] so route handlers behave like permissive auth.
+//!
+//! [`test_app_context`] is the panicking form of [`fixture_app_context`]: a
+//! test whose context cannot be assembled fails rather than skips (see
+//! [`crate::db`]).
 
 use std::sync::{Arc, OnceLock};
 
@@ -104,6 +108,11 @@ pub fn fixture_config(database_url: &str) -> Config {
 
 pub fn fixture_app_context(pool: &DbPool, database_url: &str) -> Result<Arc<AppContext>> {
     fixture_app_context_with_filter(pool, database_url, Arc::new(AllowAllFilter))
+}
+
+pub fn test_app_context(pool: &DbPool, database_url: &str) -> Arc<AppContext> {
+    fixture_app_context(pool, database_url)
+        .unwrap_or_else(|e| panic!("fixture AppContext over the test database: {e:#}"))
 }
 
 fn tmp_paths() -> PathsConfig {

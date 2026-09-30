@@ -1,4 +1,11 @@
 //! Shared test fixtures for systemprompt-core test crates.
+//!
+//! A test that needs a database or a DB-backed fixture takes it from the
+//! panicking helpers — [`test_database_url`], [`test_db_pool`],
+//! [`test_pg_pool`], [`DisposableDb::empty`], [`DisposableDb::with_schema`],
+//! [`test_app_context`]. A missing prerequisite fails the test instead of
+//! skipping it, because a skipped test reports the same green as one that ran
+//! and CI and `just test-shard` always provide `DATABASE_URL`.
 
 pub mod agent;
 pub mod app_context;
@@ -29,7 +36,7 @@ pub use app_context::{
     default_governance_engine, fixture_analytics_repositories, fixture_app_context,
     fixture_app_context_with, fixture_app_context_with_config, fixture_app_context_with_hook,
     fixture_app_context_with_user_repository, fixture_artifact_ingest, fixture_config,
-    fixture_fingerprint_repository,
+    fixture_fingerprint_repository, test_app_context,
 };
 pub use bootstrap::{
     ensure_messaging_bootstrap, ensure_test_bootstrap, init_isolated_bootstrap,
@@ -45,6 +52,7 @@ pub use credential::{
 };
 pub use db::{
     closed_db_pool, fixture_database_url, fixture_database_url_opt, fixture_db_pool, lazy_pg_pool,
+    test_database_url, test_db_pool, test_pg_pool,
 };
 pub use disposable_db::DisposableDb;
 pub use jwt::{install_test_signing_key, mint_admin_jwt, mint_bridge_jwt};

@@ -7,11 +7,15 @@
 //! established path, and the test fails on a database nothing is visibly
 //! wrong with. A database created for the test cannot carry that history.
 //!
-//! [`DisposableDb::create`] hands back an empty database; [`DisposableDb::
-//! installed`] hands back one with every registered extension's schema
-//! applied. Both are dropped by [`DisposableDb::drop_now`], and any a test
-//! never dropped is removed by a later run once its owner has exited
-//! ([`crate::orphans`]).
+//! [`DisposableDb::empty`] hands back an empty database; [`DisposableDb::
+//! with_schema`] hands back one with every registered extension's schema
+//! applied; [`DisposableDb::test_pool`] connects to it. All three panic on
+//! failure: a test that cannot get its database fails rather than skips (see
+//! [`crate::db`]). [`DisposableDb::create`], [`DisposableDb::installed`] and
+//! [`DisposableDb::pool`] are the `Result`-returning forms for tests that
+//! propagate with `?`. Each database is dropped by [`DisposableDb::drop_now`],
+//! and any a test never dropped is removed by a later run once its owner has
+//! exited ([`crate::orphans`]).
 
 use anyhow::{Context, Result};
 use systemprompt_database::DbPool;
@@ -66,6 +70,24 @@ impl DisposableDb {
         .await
         .context("failed to install the extension schemas into the disposable database")?;
         Ok(db)
+    }
+
+    pub async fn empty(prefix: &str) -> Self {
+        Self::create(prefix)
+            .await
+            .unwrap_or_else(|e| panic!("disposable database `{prefix}`: {e:#}"))
+    }
+
+    pub async fn with_schema(prefix: &str) -> Self {
+        Self::installed(prefix)
+            .await
+            .unwrap_or_else(|e| panic!("installed disposable database `{prefix}`: {e:#}"))
+    }
+
+    pub async fn test_pool(&self) -> DbPool {
+        self.pool()
+            .await
+            .unwrap_or_else(|e| panic!("disposable database `{}`: {e:#}", self.name))
     }
 
     #[must_use]

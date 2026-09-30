@@ -1,19 +1,46 @@
 //! Integration-test database helpers.
 //!
-//! Tests that need a real Postgres connection use [`fixture_db_pool`] against
-//! the URL exposed via `DATABASE_URL`. The caller is responsible for ensuring
-//! the database itself exists and has been migrated (the
-//! `systemprompt-test-migrate` binary handles the latter).
+//! A DB-backed test gets its database from [`test_database_url`],
+//! [`test_db_pool`] or [`test_pg_pool`]. All three panic when `DATABASE_URL`
+//! is unset or the server refuses the connection: a test whose database is
+//! missing fails, it does not skip. A skipped test reports the same green as
+//! one that ran, so an unprovisioned run would be indistinguishable from a
+//! passing one. Every supported entry point provides the database: CI sets
+//! `DATABASE_URL` for each shard and `just test-shard <group>` does the same
+//! locally. The caller is responsible for the database having been migrated
+//! (the `systemprompt-test-migrate` binary handles that).
 //!
-//! [`fixture_database_url`] is the tier's prerequisite gate: under `CI` a
-//! missing `DATABASE_URL` panics rather than returning an error, so a run with
-//! no Postgres cannot report the same green as a run that exercised one.
+//! [`fixture_database_url`] and [`db_pool_or_skip!`](crate::db_pool_or_skip)
+//! are the older skip-on-missing API, kept only until their call sites move to
+//! the panicking helpers above.
 
 use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::{Context, Result};
 use systemprompt_database::{Database, DbPool, PoolConfig};
+
+const MISSING_DATABASE_URL: &str =
+    "DATABASE_URL is not set — run DB tests through `just test-shard <group>`";
+
+pub fn test_database_url() -> String {
+    dotenvy::dotenv().ok();
+    std::env::var("DATABASE_URL")
+        .ok()
+        .filter(|u| !u.trim().is_empty())
+        .expect(MISSING_DATABASE_URL)
+}
+
+pub async fn test_db_pool() -> DbPool {
+    let url = test_database_url();
+    fixture_db_pool(&url)
+        .await
+        .unwrap_or_else(|e| panic!("DATABASE_URL is set but unusable: {e:#}"))
+}
+
+pub async fn test_pg_pool() -> sqlx::PgPool {
+    test_db_pool().await.write_pool().as_ref().clone()
+}
 
 pub fn fixture_database_url() -> Result<String> {
     dotenvy::dotenv().ok();
