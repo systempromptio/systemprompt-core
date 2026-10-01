@@ -8,8 +8,7 @@ use systemprompt_database::{Database, DbPool};
 use systemprompt_files::{FileIngestionJob, FileRepository, FilesConfig};
 use systemprompt_identifiers::{Actor, UserId};
 use systemprompt_test_fixtures::{
-    TestBootstrap, closed_db_pool, ensure_test_bootstrap, test_database_url, test_db_pool,
-    test_pg_pool,
+    closed_db_pool, ensure_test_bootstrap, test_database_url, test_db_pool, test_pg_pool,
 };
 use systemprompt_traits::{Job, JobContext};
 

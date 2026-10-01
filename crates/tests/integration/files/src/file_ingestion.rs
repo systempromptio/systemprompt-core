@@ -5,7 +5,6 @@
 
 use std::sync::Arc;
 
-use systemprompt_database::DbPool;
 use systemprompt_files::FileIngestionJob;
 use systemprompt_identifiers::{Actor, UserId};
 use systemprompt_traits::{Job, JobContext};

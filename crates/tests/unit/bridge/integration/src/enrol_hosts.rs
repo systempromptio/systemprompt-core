@@ -2,13 +2,16 @@
 //! reachable — so every local host takes the failure arm and the
 //! classification arms above it are what is under test.
 
+#[cfg(not(target_os = "macos"))]
 use std::fs;
 
 use systemprompt_bridge::context::{BridgeContext, ProxyMode};
 use systemprompt_bridge::integration::enrol::{Outcome, Selection, enrol_hosts};
 use systemprompt_bridge::integration::reapply::ModelProtocolOverrides;
 use tempfile::TempDir;
+#[cfg(not(target_os = "macos"))]
 use wiremock::matchers::{method, path};
+#[cfg(not(target_os = "macos"))]
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 fn in_sandbox<R>(f: impl FnOnce() -> R) -> R {

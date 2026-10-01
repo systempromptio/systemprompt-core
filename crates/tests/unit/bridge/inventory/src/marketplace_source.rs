@@ -2,7 +2,8 @@ use systemprompt_bridge::gui::server_marketplace::source::{
     MarketplaceCategory, MarketplaceSource, MarketplaceSourceCtx, MarketplaceSourceRegistration,
 };
 use systemprompt_bridge::gui::server_marketplace::{MarketplaceItem, build_listing};
-use systemprompt_bridge::register_marketplace_source;
+use systemprompt_bridge::proxy::LoopbackEndpoint;
+use systemprompt_bridge::{mcp_registry, register_marketplace_source};
 
 struct TestSkillsSource;
 
@@ -11,13 +12,11 @@ impl MarketplaceSource for TestSkillsSource {
         MarketplaceCategory::Skills
     }
     fn items(&self, _ctx: &MarketplaceSourceCtx<'_>) -> Vec<MarketplaceItem> {
-        vec![MarketplaceItem::new(
-            "test-skill",
-            "Test Skill",
-            None,
-            String::new(),
-            "test",
-        )]
+        vec![
+            MarketplaceItem::builder("test-skill", String::new())
+                .name("Test Skill")
+                .build(),
+        ]
     }
 }
 
@@ -51,13 +50,11 @@ impl MarketplaceSource for ShadowHigh {
         MarketplaceCategory::Skills
     }
     fn items(&self, _ctx: &MarketplaceSourceCtx<'_>) -> Vec<MarketplaceItem> {
-        vec![MarketplaceItem::new(
-            "dup-skill",
-            "High",
-            None,
-            String::new(),
-            "high",
-        )]
+        vec![
+            MarketplaceItem::builder("dup-skill", String::new())
+                .name("High")
+                .build(),
+        ]
     }
 }
 
@@ -66,13 +63,11 @@ impl MarketplaceSource for ShadowLow {
         MarketplaceCategory::Skills
     }
     fn items(&self, _ctx: &MarketplaceSourceCtx<'_>) -> Vec<MarketplaceItem> {
-        vec![MarketplaceItem::new(
-            "dup-skill",
-            "Low",
-            None,
-            String::new(),
-            "low",
-        )]
+        vec![
+            MarketplaceItem::builder("dup-skill", String::new())
+                .name("Low")
+                .build(),
+        ]
     }
 }
 
@@ -81,7 +76,38 @@ register_marketplace_source!(ShadowLow, priority = 5);
 
 #[test]
 fn higher_priority_source_shadows_same_id_item() {
-    let listing = build_listing(&[]);
+    let sandbox = tempfile::TempDir::new().expect("sandbox tempdir");
+    let root = sandbox.path();
+    let listing = temp_env::with_vars(
+        [
+            ("HOME", Some(root.display().to_string())),
+            (
+                "SP_BRIDGE_ORG_PLUGINS_SYSTEM",
+                Some(root.join("org-plugins").display().to_string()),
+            ),
+            (
+                "XDG_CONFIG_HOME",
+                Some(root.join("config").display().to_string()),
+            ),
+            (
+                "XDG_DATA_HOME",
+                Some(root.join("data").display().to_string()),
+            ),
+            (
+                "XDG_STATE_HOME",
+                Some(root.join("state").display().to_string()),
+            ),
+            (
+                "XDG_CACHE_HOME",
+                Some(root.join("cache").display().to_string()),
+            ),
+        ],
+        || {
+            let loopback = LoopbackEndpoint::new(9999, None);
+            let registry = mcp_registry::snapshot(&mcp_registry::empty_slot());
+            build_listing(&loopback, &registry, &[]).expect("the listing builds")
+        },
+    );
     let value = serde_json::to_value(&listing).expect("serialize listing");
     let skills = value["skills"].as_array().expect("skills array");
 

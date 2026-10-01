@@ -4,21 +4,27 @@ use std::path::{Path, PathBuf};
 
 use systemprompt_bridge::ids::HostToken;
 use systemprompt_bridge::integration::codex_cli::CODEX_CLI_HOST;
-use systemprompt_bridge::integration::host_app::{HostApp, ProfileGenInputs, ProfileRemoval};
+#[cfg(not(target_os = "macos"))]
+use systemprompt_bridge::integration::host_app::ProfileRemoval;
+use systemprompt_bridge::integration::host_app::{HostApp, ProfileGenInputs};
 
 struct Paths {
     managed: PathBuf,
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     blocking_file: PathBuf,
 }
 
+#[cfg(not(target_os = "macos"))]
 struct GeneratedProfileGuard(PathBuf);
 
+#[cfg(not(target_os = "macos"))]
 impl GeneratedProfileGuard {
     fn retain(path: &str) -> Self {
         Self(PathBuf::from(path))
     }
 }
 
+#[cfg(not(target_os = "macos"))]
 impl Drop for GeneratedProfileGuard {
     fn drop(&mut self) {
         let _ = fs::remove_file(&self.0);
@@ -32,6 +38,7 @@ fn with_managed_path<R>(managed: impl Fn(&Path) -> PathBuf, body: impl FnOnce(&P
     fs::write(&blocking_file, "i am a file").expect("seed blocking file");
     let paths = Paths {
         managed: managed(base),
+        #[cfg(not(any(target_os = "macos", target_os = "windows")))]
         blocking_file,
     };
     let vars: Vec<(&str, Option<String>)> = vec![

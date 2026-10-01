@@ -7322,6 +7322,8 @@ dependencies = [
  "systemprompt-bridge",
  "systemprompt-identifiers",
  "systemprompt-models",
+ "temp-env",
+ "tempfile",
 ]
 
 [[package]]

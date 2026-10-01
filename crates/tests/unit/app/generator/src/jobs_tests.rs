@@ -5,7 +5,6 @@
 use std::fs;
 use std::sync::{Arc, Mutex};
 
-use systemprompt_database::DbPool;
 use systemprompt_generator::{ContentPrerenderJob, PagePrerenderJob};
 use systemprompt_provider_contracts::{Job, JobContext, JobScope, ProviderError};
 use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_actor, test_db_pool};

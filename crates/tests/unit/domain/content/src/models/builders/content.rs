@@ -213,7 +213,7 @@ fn test_create_content_params_builder_chain() {
     .with_image(Some("/img/guide.png".to_string()))
     .with_category_id(Some(CategoryId::new("guides")))
     .with_version_hash("fullhash123".to_string())
-    .with_links(serde_json::json!([]));
+    .with_links(Vec::new());
 
     assert_eq!(params.slug, "complete-article");
     assert_eq!(params.author, "Jane Smith");
