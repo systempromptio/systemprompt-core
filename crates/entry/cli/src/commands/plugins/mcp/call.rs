@@ -8,6 +8,7 @@ use std::sync::Arc;
 use crate::commands::shared::mcp_tools::direct_url;
 use anyhow::{Context, Result, anyhow};
 use clap::Args;
+use systemprompt_identifiers::{McpServerId, McpToolName};
 use systemprompt_loader::ConfigLoader;
 use systemprompt_mcp::services::McpOrchestrator;
 use systemprompt_models::ai::tools::CallToolResult;
@@ -28,11 +29,17 @@ use crate::shared::{CommandOutput, render_result};
                   <server> <tool> -a '{\"key\":\"value\"}'"
 )]
 pub struct CallArgs {
-    #[arg(help = "MCP server name (required in non-interactive mode)")]
-    pub server: Option<String>,
+    #[arg(
+        help = "MCP server name (required in non-interactive mode)",
+        value_parser = crate::shared::parse_mcp_server_id
+    )]
+    pub server: Option<McpServerId>,
 
-    #[arg(help = "Tool name to execute (required in non-interactive mode)")]
-    pub tool: Option<String>,
+    #[arg(
+        help = "Tool name to execute (required in non-interactive mode)",
+        value_parser = crate::shared::parse_mcp_tool_name
+    )]
+    pub tool: Option<McpToolName>,
 
     #[arg(short = 'a', long, help = "Tool arguments as JSON string")]
     pub args: Option<String>,
@@ -57,7 +64,7 @@ pub(super) async fn execute(args: CallArgs, ctx: &CommandContext) -> Result<Comm
 
     let _server_config = services_config
         .mcp_servers
-        .get(&server_name)
+        .get(server_name.as_str())
         .ok_or_else(|| anyhow!("MCP server '{}' not found in configuration", server_name))?;
 
     let url = resolve_running_url(&server_name, ctx).await?;
@@ -104,7 +111,7 @@ pub(super) async fn execute(args: CallArgs, ctx: &CommandContext) -> Result<Comm
     Ok(card)
 }
 
-async fn resolve_running_url(server_name: &str, ctx: &CommandContext) -> Result<String> {
+async fn resolve_running_url(server_name: &McpServerId, ctx: &CommandContext) -> Result<String> {
     let app = ctx
         .app_context()
         .await
@@ -123,15 +130,15 @@ async fn resolve_running_url(server_name: &str, ctx: &CommandContext) -> Result<
 
     let server = running_servers
         .iter()
-        .find(|s| s.name == server_name)
+        .find(|s| s.name == server_name.as_str())
         .ok_or_else(|| anyhow!("MCP server '{}' is not running", server_name))?;
     direct_url(server)
 }
 
 fn success_outcome(
     tool_result: &CallToolResult,
-    server_name: &str,
-    tool_name: &str,
+    server_name: &McpServerId,
+    tool_name: &McpToolName,
     execution_time_ms: u64,
 ) -> (McpCallOutput, Option<String>) {
     let content: Vec<McpToolContent> = tool_result.content.iter().map(convert_content).collect();
@@ -157,8 +164,8 @@ fn success_outcome(
 
     (
         McpCallOutput {
-            server: server_name.to_owned(),
-            tool: tool_name.to_owned(),
+            server: server_name.clone(),
+            tool: tool_name.clone(),
             success: !is_error,
             content,
             execution_time_ms,
@@ -170,14 +177,14 @@ fn success_outcome(
 
 fn failure_outcome(
     message: String,
-    server_name: &str,
-    tool_name: &str,
+    server_name: &McpServerId,
+    tool_name: &McpToolName,
     execution_time_ms: u64,
 ) -> (McpCallOutput, Option<String>) {
     (
         McpCallOutput {
-            server: server_name.to_owned(),
-            tool: tool_name.to_owned(),
+            server: server_name.clone(),
+            tool: tool_name.clone(),
             success: false,
             content: vec![],
             execution_time_ms,
@@ -190,7 +197,7 @@ fn failure_outcome(
 pub fn prompt_server_selection(
     prompter: &dyn Prompter,
     config: &systemprompt_models::ServicesConfig,
-) -> Result<String> {
+) -> Result<McpServerId> {
     let mut servers: Vec<String> = config.mcp_servers.keys().cloned().collect();
     servers.sort();
 
@@ -199,16 +206,16 @@ pub fn prompt_server_selection(
     }
 
     let selection = prompter.select("Select MCP server", &servers)?;
-    Ok(servers[selection].clone())
+    Ok(McpServerId::new(servers[selection].clone()))
 }
 
 fn prompt_tool_selection(
     prompter: &dyn Prompter,
-    server_name: &str,
+    server_name: &McpServerId,
     url: &str,
     session_ctx: &CliSessionContext,
     timeout_secs: u64,
-) -> Result<String> {
+) -> Result<McpToolName> {
     let rt = tokio::runtime::Handle::current();
     let tools = rt.block_on(async {
         list_available_tools(server_name, url, session_ctx, timeout_secs).await
@@ -219,5 +226,6 @@ fn prompt_tool_selection(
     }
 
     let selection = prompter.select("Select tool to execute", &tools)?;
-    Ok(tools[selection].clone())
+    McpToolName::try_new(tools[selection].clone())
+        .context("MCP server advertised an invalid tool name")
 }

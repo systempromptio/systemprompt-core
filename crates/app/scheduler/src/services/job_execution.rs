@@ -15,7 +15,7 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use systemprompt_extension::ExtensionRegistry;
-use systemprompt_identifiers::Actor;
+use systemprompt_identifiers::{Actor, JobName};
 use systemprompt_models::SchedulerConfig;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::Job;
@@ -29,12 +29,12 @@ use crate::repository::JobRepository;
 pub enum JobSelection {
     All,
     Tag(String),
-    Names(Vec<String>),
+    Names(Vec<JobName>),
 }
 
 #[derive(Debug, Clone)]
 pub struct JobRunReport {
-    pub job_name: String,
+    pub job_name: JobName,
     pub success: bool,
     pub duration_ms: u64,
     pub message: Option<String>,
@@ -105,19 +105,19 @@ impl JobExecutionService {
         }
     }
 
-    pub fn resolve_job_names(&self, selection: &JobSelection) -> SchedulerResult<Vec<String>> {
+    pub fn resolve_job_names(&self, selection: &JobSelection) -> SchedulerResult<Vec<JobName>> {
         match selection {
             JobSelection::All => {
-                let mut names: Vec<String> = self
+                let mut names: Vec<JobName> = self
                     .registry
                     .all_jobs()
                     .into_iter()
                     .filter(|job| job.enabled())
-                    .map(|job| job.name().to_owned())
+                    .map(|job| JobName::new(job.name()))
                     .collect();
                 for job in inventory::iter::<&'static dyn Job> {
                     if job.enabled() && !names.iter().any(|name| name == job.name()) {
-                        names.push(job.name().to_owned());
+                        names.push(JobName::new(job.name()));
                     }
                 }
                 names.sort_unstable();
@@ -131,7 +131,7 @@ impl JobExecutionService {
                 Ok(jobs
                     .into_iter()
                     .filter(|job| job.enabled())
-                    .map(|job| job.name().to_owned())
+                    .map(|job| JobName::new(job.name()))
                     .collect())
             },
             JobSelection::Names(names) => {
@@ -166,7 +166,7 @@ impl JobExecutionService {
 
     pub async fn run_job(
         &self,
-        job_name: &str,
+        job_name: &JobName,
         parameters: &HashMap<String, String>,
     ) -> JobRunReport {
         let start = Instant::now();
@@ -187,8 +187,8 @@ impl JobExecutionService {
         report
     }
 
-    fn find_runnable(&self, job_name: &str) -> Option<RunnableJob> {
-        if let Some(job) = self.registry.job_by_name(job_name) {
+    fn find_runnable(&self, job_name: &JobName) -> Option<RunnableJob> {
+        if let Some(job) = self.registry.job_by_name(job_name.as_str()) {
             return Some(RunnableJob::Manifest(job));
         }
         inventory::iter::<&'static dyn Job>
@@ -200,18 +200,18 @@ impl JobExecutionService {
 
     async fn execute_runnable(
         &self,
-        job_name: &str,
+        job_name: &JobName,
         runnable: &RunnableJob,
         parameters: &HashMap<String, String>,
         start: Instant,
     ) -> JobRunReport {
         let admin_id = self.ctx.system_admin().id().clone();
-        let actor = Actor::job(admin_id, job_name.to_owned());
+        let actor = Actor::job(admin_id, job_name.as_str());
         let config_entry = self
             .scheduler_config
             .jobs
             .iter()
-            .find(|job| job.name == job_name);
+            .find(|job| &job.name == job_name);
         let enforce = config_entry.is_some_and(|job| job.enforce);
         let mut merged = config_entry
             .map(|job| job.parameters.clone())
@@ -224,7 +224,7 @@ impl JobExecutionService {
 
         match runnable.as_job().execute(&job_ctx).await {
             Ok(result) => JobRunReport {
-                job_name: job_name.to_owned(),
+                job_name: job_name.clone(),
                 success: result.success,
                 duration_ms: elapsed_ms(start),
                 message: result.message,
@@ -274,9 +274,9 @@ impl JobExecutionService {
     }
 }
 
-fn failed_report(job_name: &str, start: Instant, message: Option<String>) -> JobRunReport {
+fn failed_report(job_name: &JobName, start: Instant, message: Option<String>) -> JobRunReport {
     JobRunReport {
-        job_name: job_name.to_owned(),
+        job_name: job_name.clone(),
         success: false,
         duration_ms: elapsed_ms(start),
         message,

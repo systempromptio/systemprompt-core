@@ -4,7 +4,10 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use clap::{Args, Subcommand, ValueEnum};
+use systemprompt_identifiers::{ProfileName, TenantId};
 use systemprompt_models::none_if_blank;
+
+use crate::shared::{parse_profile_name, parse_tenant_id};
 
 #[derive(Debug, Subcommand)]
 pub enum ProfileCommands {
@@ -49,13 +52,15 @@ pub struct DeleteArgs {
 
 #[derive(Debug, Args)]
 pub struct CreateArgs {
-    pub name: String,
+    #[arg(value_parser = parse_profile_name)]
+    pub name: ProfileName,
 
     #[arg(
         long = "tenant-id",
+        value_parser = parse_tenant_id,
         help = "Tenant ID (required in non-interactive mode)"
     )]
-    pub tenant: Option<String>,
+    pub tenant: Option<TenantId>,
 
     #[arg(long, value_enum, default_value = "local", help = "Tenant type")]
     pub tenant_type: TenantTypeArg,

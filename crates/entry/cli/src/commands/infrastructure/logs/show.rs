@@ -10,9 +10,10 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use systemprompt_identifiers::{ContextId, LogId, SessionId, TaskId, TraceId, UserId};
-use systemprompt_logging::{CliService, LogEntry};
+use systemprompt_logging::{CliService, LogEntry, LogLevel};
 use systemprompt_runtime::TraceQueryService;
 
+use super::shared::print_level_line;
 use crate::CliConfig;
 use crate::shared::{CommandOutput, render_result};
 
@@ -30,7 +31,8 @@ struct LogShowOutput {
     pub id: LogId,
     pub trace_id: TraceId,
     pub timestamp: String,
-    pub level: String,
+    #[schemars(with = "String")]
+    pub level: LogLevel,
     pub module: String,
     pub message: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -62,17 +64,19 @@ async fn execute_with_pool_inner(
 ) -> Result<()> {
     let service = TraceQueryService::new(Arc::clone(pool));
 
-    if let Some(log) = service.find_log_by_id(&args.id).await? {
+    if let Ok(log_id) = LogId::try_new(args.id.as_str())
+        && let Some(log) = service.find_log_by_id(&log_id).await?
+    {
         display_single_log(&log, config, args.json);
         return Ok(());
     }
 
-    let logs = service
-        .find_logs_by_trace_id(&TraceId::new(args.id.as_str()))
-        .await?;
-    if !logs.is_empty() {
-        display_trace_logs(&logs, config, args.json);
-        return Ok(());
+    if let Ok(trace_id) = TraceId::try_new(args.id.as_str()) {
+        let logs = service.find_logs_by_trace_id(&trace_id).await?;
+        if !logs.is_empty() {
+            display_trace_logs(&logs, config, args.json);
+            return Ok(());
+        }
     }
 
     if let Some(log) = service.find_log_by_partial_id(&args.id).await? {
@@ -91,7 +95,7 @@ fn entry_to_output(entry: &LogEntry) -> LogShowOutput {
         id: entry.id.clone(),
         trace_id: entry.trace_id.clone(),
         timestamp: entry.timestamp.format("%Y-%m-%d %H:%M:%S%.3f").to_string(),
-        level: entry.level.to_string().to_uppercase(),
+        level: entry.level,
         module: entry.module.clone(),
         message: entry.message.clone(),
         metadata: entry.metadata.clone(),
@@ -115,7 +119,7 @@ fn display_single_log(log: &LogEntry, config: &CliConfig, json: bool) {
     CliService::key_value("ID", output.id.as_str());
     CliService::key_value("Trace ID", output.trace_id.as_str());
     CliService::key_value("Timestamp", &output.timestamp);
-    CliService::key_value("Level", &output.level);
+    CliService::key_value("Level", output.level.as_str());
     CliService::key_value("Module", &output.module);
     CliService::key_value("Message", &output.message);
 
@@ -180,17 +184,11 @@ fn display_trace_logs(logs: &[LogEntry], config: &CliConfig, json: bool) {
 
     for log in logs {
         let time_part = log.timestamp.format("%H:%M:%S%.3f").to_string();
-        let level_str = log.level.to_string().to_uppercase();
         let line = format!(
             "{} {} [{}] {}",
-            time_part, level_str, log.module, log.message
+            time_part, log.level, log.module, log.message
         );
-
-        match level_str.as_str() {
-            "ERROR" => CliService::error(&line),
-            "WARN" => CliService::warning(&line),
-            _ => CliService::info(&line),
-        }
+        print_level_line(log.level, &line);
     }
 
     CliService::info("");

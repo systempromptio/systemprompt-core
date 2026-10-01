@@ -62,7 +62,7 @@ fn row_to_entry(r: LogRow) -> LogEntry {
     }
 }
 
-pub(super) async fn find_log_by_id(pool: &Arc<PgPool>, id: &str) -> Result<Option<LogEntry>> {
+pub(super) async fn find_log_by_id(pool: &Arc<PgPool>, id: &LogId) -> Result<Option<LogEntry>> {
     let row = sqlx::query_as!(
         LogRow,
         r#"
@@ -78,7 +78,7 @@ pub(super) async fn find_log_by_id(pool: &Arc<PgPool>, id: &str) -> Result<Optio
             instance_id as "instance_id: InstanceId"
         FROM logs WHERE id = $1
         "#,
-        id
+        id.as_str()
     )
     .fetch_optional(&**pool)
     .await?;
@@ -177,7 +177,7 @@ pub(super) async fn find_logs_by_trace_id(
 pub(super) async fn list_logs_filtered(
     pool: &Arc<PgPool>,
     since: Option<DateTime<Utc>>,
-    level: Option<&str>,
+    level: Option<LogLevel>,
     limit: i64,
 ) -> Result<Vec<LogEntry>> {
     let rows = sqlx::query_as!(
@@ -200,7 +200,7 @@ pub(super) async fn list_logs_filtered(
         LIMIT $3
         "#,
         since,
-        level,
+        level.map(LogLevel::as_str),
         limit
     )
     .fetch_all(&**pool)

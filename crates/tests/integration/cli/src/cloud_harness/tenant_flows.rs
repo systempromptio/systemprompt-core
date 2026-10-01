@@ -20,7 +20,7 @@ async fn tenant_edit_requires_interactive() {
     let _env = enter().await;
     let err = cloud::execute(
         tenant_cmd(TenantCommands::Edit {
-            id: Some(OTHER_TENANT_ID.to_owned()),
+            id: Some(systemprompt_identifiers::TenantId::new(OTHER_TENANT_ID)),
         }),
         &json_ctx(),
     )
@@ -35,7 +35,7 @@ async fn tenant_edit_local_renames_and_edits_database() {
     let ctx = interactive_ctx(["renamed-local", "y", "postgres://u:p@edited:5432/db"]);
     cloud::execute(
         tenant_cmd(TenantCommands::Edit {
-            id: Some(OTHER_TENANT_ID.to_owned()),
+            id: Some(systemprompt_identifiers::TenantId::new(OTHER_TENANT_ID)),
         }),
         &ctx,
     )
@@ -60,7 +60,7 @@ async fn tenant_edit_local_declines_database_edit() {
     let ctx = interactive_ctx(["kept-name", "n"]);
     cloud::execute(
         tenant_cmd(TenantCommands::Edit {
-            id: Some(OTHER_TENANT_ID.to_owned()),
+            id: Some(systemprompt_identifiers::TenantId::new(OTHER_TENANT_ID)),
         }),
         &ctx,
     )
@@ -74,7 +74,7 @@ async fn tenant_edit_cloud_shows_readonly_fields() {
     let ctx = interactive_ctx(["Harness Prod Renamed"]);
     cloud::execute(
         tenant_cmd(TenantCommands::Edit {
-            id: Some(TENANT_ID.to_owned()),
+            id: Some(systemprompt_identifiers::TenantId::new(TENANT_ID)),
         }),
         &ctx,
     )
@@ -88,7 +88,7 @@ async fn tenant_edit_unknown_id_errors() {
     let ctx = interactive_ctx(Vec::<String>::new());
     let err = cloud::execute(
         tenant_cmd(TenantCommands::Edit {
-            id: Some("nope".to_owned()),
+            id: Some(systemprompt_identifiers::TenantId::new("nope")),
         }),
         &ctx,
     )
@@ -320,7 +320,7 @@ async fn tenant_delete_removes_a_managed_container_tenant() {
 
     cloud::execute(
         tenant_cmd(TenantCommands::Delete(TenantDeleteArgs {
-            id: Some("t-managed".to_owned()),
+            id: Some(systemprompt_identifiers::TenantId::new("t-managed")),
             yes: true,
         })),
         &json_ctx(),

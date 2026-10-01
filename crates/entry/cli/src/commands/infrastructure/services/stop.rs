@@ -8,6 +8,7 @@ use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 use anyhow::Result;
 use std::sync::Arc;
+use systemprompt_identifiers::{McpServerId, ServiceName};
 use systemprompt_logging::CliService;
 use systemprompt_models::services::ServiceModule;
 use systemprompt_runtime::AppContext;
@@ -173,7 +174,7 @@ pub(super) async fn execute_individual_agent(
 
     let output = StopIndividualOutput {
         service_type: "agent".to_owned(),
-        service_name: agent.to_owned(),
+        service_name: ServiceName::new(name),
         stopped: true,
         message,
     };
@@ -183,7 +184,7 @@ pub(super) async fn execute_individual_agent(
 
 pub(super) async fn execute_individual_mcp(
     ctx: &Arc<AppContext>,
-    server_name: &str,
+    server_name: &McpServerId,
     _force: bool,
     config: &CliConfig,
 ) -> Result<CommandOutput> {
@@ -192,7 +193,9 @@ pub(super) async fn execute_individual_mcp(
     }
 
     let manager = lifecycle::mcp_orchestrator(ctx)?;
-    manager.stop_services(Some(server_name.to_owned())).await?;
+    manager
+        .stop_services(Some(String::from(server_name)))
+        .await?;
 
     let message = format!("MCP server {} stopped successfully", server_name);
     if !config.is_json_output() {
@@ -201,7 +204,7 @@ pub(super) async fn execute_individual_mcp(
 
     let output = StopIndividualOutput {
         service_type: "mcp".to_owned(),
-        service_name: server_name.to_owned(),
+        service_name: ServiceName::new(server_name.as_str()),
         stopped: true,
         message,
     };

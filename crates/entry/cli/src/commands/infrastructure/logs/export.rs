@@ -8,6 +8,7 @@ use clap::{Args, ValueEnum};
 use std::io::Write;
 use std::path::PathBuf;
 use std::sync::Arc;
+use systemprompt_logging::LogLevel;
 use systemprompt_runtime::TraceQueryService;
 
 use super::duration::parse_since;
@@ -37,7 +38,7 @@ pub struct ExportArgs {
     pub output: Option<PathBuf>,
 
     #[arg(long, help = "Filter by log level")]
-    pub level: Option<String>,
+    pub level: Option<LogLevel>,
 
     #[arg(long, help = "Filter by module name")]
     pub module: Option<String>,
@@ -63,11 +64,10 @@ async fn execute_with_pool_inner(
     pool: &Arc<sqlx::PgPool>,
 ) -> Result<CommandOutput> {
     let since_timestamp = parse_since(args.since.as_ref())?;
-    let level_filter = args.level.as_deref().map(str::to_uppercase);
 
     let service = TraceQueryService::new(Arc::clone(pool));
     let entries = service
-        .list_logs_filtered(since_timestamp, level_filter.as_deref(), args.limit)
+        .list_logs_filtered(since_timestamp, args.level, args.limit)
         .await?;
 
     let logs: Vec<LogEntryRow> = entries
@@ -81,7 +81,7 @@ async fn execute_with_pool_inner(
             id: e.id.clone(),
             trace_id: e.trace_id.clone(),
             timestamp: e.timestamp.format("%Y-%m-%d %H:%M:%S%.3f").to_string(),
-            level: e.level.to_string().to_uppercase(),
+            level: e.level,
             module: e.module,
             message: e.message,
             metadata: e.metadata,

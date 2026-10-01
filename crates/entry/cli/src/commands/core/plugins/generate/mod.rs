@@ -19,6 +19,7 @@ use std::path::{Path, PathBuf};
 
 use crate::CliConfig;
 use crate::shared::CommandOutput;
+use systemprompt_identifiers::PluginId;
 use systemprompt_loader::ServicesRootBootstrap;
 use systemprompt_models::PluginConfigFile;
 
@@ -28,8 +29,12 @@ const DEFAULT_AGENT_TOOLS: &str = "Read, Grep, Glob, Bash, Write, Edit, WebFetch
 
 #[derive(Debug, Clone, Args)]
 pub struct GenerateArgs {
-    #[arg(long, help = "Plugin ID to generate (generates all if omitted)")]
-    pub id: Option<String>,
+    #[arg(
+        long,
+        help = "Plugin ID to generate (generates all if omitted)",
+        value_parser = crate::shared::parse_plugin_id
+    )]
+    pub id: Option<PluginId>,
 
     #[arg(long, help = "Output directory (defaults to plugin directory)")]
     pub output_dir: Option<String>,
@@ -51,7 +56,7 @@ pub(super) fn execute(args: &GenerateArgs, _config: &CliConfig) -> Result<Comman
 
     let plugin_ids = match &args.id {
         Some(id) => {
-            let plugin_dir = plugins_path.join(id);
+            let plugin_dir = plugins_path.join(id.as_str());
             if !plugin_dir.exists() {
                 return Err(anyhow!("Plugin '{}' not found", id));
             }
@@ -94,7 +99,7 @@ pub(super) fn execute(args: &GenerateArgs, _config: &CliConfig) -> Result<Comman
     ))
 }
 
-pub fn collect_plugin_ids(plugins_path: &Path) -> Result<Vec<String>> {
+pub fn collect_plugin_ids(plugins_path: &Path) -> Result<Vec<PluginId>> {
     if !plugins_path.exists() {
         return Ok(Vec::new());
     }
@@ -106,7 +111,7 @@ pub fn collect_plugin_ids(plugins_path: &Path) -> Result<Vec<String>> {
             && entry.path().join("config.yaml").exists()
             && let Some(name) = entry.file_name().to_str()
         {
-            ids.push(name.to_owned());
+            ids.push(PluginId::new(name));
         }
     }
     ids.sort();
@@ -114,10 +119,13 @@ pub fn collect_plugin_ids(plugins_path: &Path) -> Result<Vec<String>> {
 }
 
 pub fn generate_plugin(
-    plugin_id: &str,
+    plugin_id: &PluginId,
     ctx: &PluginGenerateContext<'_>,
 ) -> Result<PluginGenerateOutput> {
-    let config_path = ctx.plugins_path.join(plugin_id).join("config.yaml");
+    let config_path = ctx
+        .plugins_path
+        .join(plugin_id.as_str())
+        .join("config.yaml");
     let content = std::fs::read_to_string(&config_path)
         .with_context(|| format!("Failed to read {}", config_path.display()))?;
     let plugin_file: PluginConfigFile = serde_yaml::from_str(&content)
@@ -131,7 +139,7 @@ pub fn generate_plugin(
                 .join("storage")
                 .join("files")
                 .join("plugins")
-                .join(plugin_id)
+                .join(plugin_id.as_str())
         },
         PathBuf::from,
     );
@@ -151,7 +159,7 @@ pub fn generate_plugin(
     marketplace::generate_plugin_json(plugin, &output_dir, &mut files_generated)?;
 
     Ok(PluginGenerateOutput {
-        plugin_id: systemprompt_identifiers::PluginId::new(plugin_id),
+        plugin_id: plugin_id.clone(),
         files_generated,
         marketplace_path: output_dir.to_string_lossy().to_string(),
     })

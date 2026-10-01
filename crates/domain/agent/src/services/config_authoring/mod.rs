@@ -17,7 +17,7 @@ mod set_value;
 use std::fs;
 use std::path::PathBuf;
 
-use systemprompt_identifiers::AgentId;
+use systemprompt_identifiers::{AgentId, AgentName};
 use systemprompt_loader::{ConfigWriteError, ConfigWriter};
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_models::services::{
@@ -173,7 +173,7 @@ impl AgentConfigAuthoringService {
         )?)
     }
 
-    pub fn delete(&self, name: &str) -> Result<(), ConfigAuthoringError> {
+    pub fn delete(&self, name: &AgentName) -> Result<(), ConfigAuthoringError> {
         Ok(ConfigWriter::delete_agent(name, &self.services_dir)?)
     }
 }

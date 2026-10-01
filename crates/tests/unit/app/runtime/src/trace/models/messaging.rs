@@ -3,6 +3,8 @@
 
 use chrono::Utc;
 use serde_json::json;
+use systemprompt_identifiers::McpToolName;
+use systemprompt_logging::LogLevel;
 use systemprompt_runtime::{ConversationMessage, TaskArtifact, ToolLogEntry};
 
 #[test]
@@ -61,12 +63,12 @@ fn test_conversation_message_serialize() {
 fn test_tool_log_entry_creation() {
     let entry = ToolLogEntry {
         timestamp: Utc::now(),
-        level: "info".to_string(),
+        level: LogLevel::Info,
         module: "mcp::tool".to_string(),
         message: "Tool executed successfully".to_string(),
     };
 
-    assert_eq!(entry.level, "info");
+    assert_eq!(entry.level, LogLevel::Info);
     assert_eq!(entry.module, "mcp::tool");
     assert!(entry.message.contains("successfully"));
 }
@@ -75,12 +77,12 @@ fn test_tool_log_entry_creation() {
 fn test_tool_log_entry_error_level() {
     let entry = ToolLogEntry {
         timestamp: Utc::now(),
-        level: "error".to_string(),
+        level: LogLevel::Error,
         module: "mcp::server".to_string(),
         message: "Server connection failed".to_string(),
     };
 
-    assert_eq!(entry.level, "error");
+    assert_eq!(entry.level, LogLevel::Error);
 }
 
 
@@ -88,7 +90,7 @@ fn test_tool_log_entry_error_level() {
 fn test_tool_log_entry_serialize() {
     let entry = ToolLogEntry {
         timestamp: Utc::now(),
-        level: "info".to_string(),
+        level: LogLevel::Info,
         module: "test".to_string(),
         message: "Serialize test".to_string(),
     };
@@ -106,7 +108,7 @@ fn test_task_artifact_creation() {
         artifact_type: "file".to_string(),
         name: Some("output.txt".to_string()),
         source: Some("tool_execution".to_string()),
-        tool_name: Some("file_writer".to_string()),
+        tool_name: Some(McpToolName::new("file_writer")),
         part_kind: Some("text".to_string()),
         text_content: Some("File contents".to_string()),
         data_content: None,
@@ -202,7 +204,7 @@ fn test_conversation_message_roundtrip() {
 fn test_tool_log_entry_roundtrip() {
     let entry = ToolLogEntry {
         timestamp: Utc::now(),
-        level: "warn".to_string(),
+        level: LogLevel::Warn,
         module: "roundtrip::test".to_string(),
         message: "Roundtrip entry".to_string(),
     };
@@ -210,7 +212,7 @@ fn test_tool_log_entry_roundtrip() {
     let json = serde_json::to_string(&entry).unwrap();
     let parsed: ToolLogEntry = serde_json::from_str(&json).unwrap();
 
-    assert_eq!(parsed.level, "warn");
+    assert_eq!(parsed.level, LogLevel::Warn);
     assert_eq!(parsed.module, "roundtrip::test");
     assert_eq!(parsed.message, "Roundtrip entry");
     assert_eq!(parsed.timestamp, entry.timestamp);
@@ -223,7 +225,7 @@ fn test_task_artifact_roundtrip_with_data() {
         artifact_type: "json".to_string(),
         name: Some("data.json".to_string()),
         source: Some("test".to_string()),
-        tool_name: Some("tool".to_string()),
+        tool_name: Some(McpToolName::new("tool")),
         part_kind: Some("data".to_string()),
         text_content: None,
         data_content: Some(json!({"nested": {"key": "value"}})),

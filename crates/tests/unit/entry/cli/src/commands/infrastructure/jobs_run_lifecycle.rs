@@ -8,6 +8,7 @@ use clap::Parser;
 use serde_json::Value;
 use systemprompt_cli::infrastructure::jobs::{self, JobsCommands};
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_identifiers::JobName;
 use systemprompt_scheduler::JobRepository;
 use systemprompt_test_fixtures::{
     DisposableDb, ensure_test_bootstrap, install_test_signing_key, test_app_context,
@@ -43,7 +44,7 @@ async fn mixed_job_run_helper() {
     let repository = JobRepository::new(&pool);
     for name in [SUCCESS_JOB, MISSING_JOB] {
         repository
-            .upsert_job(name, "0 0 * * * *", true)
+            .upsert_job(&JobName::new(name), "0 0 * * * *", true)
             .await
             .expect("seed scheduled job row");
     }

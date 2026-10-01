@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::TenantId;
+use systemprompt_identifiers::{ProfileName, TenantId};
 
 use super::{CliSession, LOCAL_SESSION_KEY, SessionKey};
 use crate::error::{CloudError, CloudResult};
@@ -30,7 +30,7 @@ pub struct SessionStore {
     #[serde(default)]
     pub active_key: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub active_profile_name: Option<String>,
+    pub active_profile_name: Option<ProfileName>,
     #[serde(default = "Utc::now")]
     pub updated_at: DateTime<Utc>,
 }
@@ -124,20 +124,20 @@ impl SessionStore {
         self.updated_at = Utc::now();
     }
 
-    pub fn set_active_with_profile(&mut self, key: &SessionKey, profile_name: &str) {
+    pub fn set_active_with_profile(&mut self, key: &SessionKey, profile_name: &ProfileName) {
         self.active_key = Some(key.as_storage_key());
-        self.active_profile_name = Some(profile_name.to_owned());
+        self.active_profile_name = Some(profile_name.clone());
         self.updated_at = Utc::now();
     }
 
     pub fn set_active_with_profile_path(
         &mut self,
         key: &SessionKey,
-        profile_name: &str,
+        profile_name: &ProfileName,
         profile_path: PathBuf,
     ) {
         self.active_key = Some(key.as_storage_key());
-        self.active_profile_name = Some(profile_name.to_owned());
+        self.active_profile_name = Some(profile_name.clone());
 
         if let Some(session) = self.sessions.get_mut(&key.as_storage_key()) {
             session.update_profile_path(profile_path);

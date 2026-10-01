@@ -5,7 +5,7 @@
 //! on these without overriding them, so the defaults are public contract.
 
 use std::collections::HashMap;
-use systemprompt_identifiers::{AgentName, McpServerId};
+use systemprompt_identifiers::{AgentName, McpServerId, McpToolName};
 
 use async_trait::async_trait;
 use serde_json::Value;
@@ -113,7 +113,7 @@ impl ToolProvider for TwoToolProvider {
                 McpServerId::try_new("svc").expect("valid McpServerId"),
             ),
             ToolDefinition::new(
-                "beta",
+                &McpToolName::new("beta"),
                 McpServerId::try_new("svc").expect("valid McpServerId"),
             ),
         ]))
@@ -150,7 +150,7 @@ async fn default_find_tool_selects_by_name_from_list_tools() {
     let found = TwoToolProvider
         .find_tool(
             &AgentName::try_new("agent").expect("valid AgentName"),
-            "beta",
+            &McpToolName::new("beta"),
             &ctx,
         )
         .await
@@ -160,7 +160,7 @@ async fn default_find_tool_selects_by_name_from_list_tools() {
     let missing = TwoToolProvider
         .find_tool(
             &AgentName::try_new("agent").expect("valid AgentName"),
-            "gamma",
+            &McpToolName::new("gamma"),
             &ctx,
         )
         .await

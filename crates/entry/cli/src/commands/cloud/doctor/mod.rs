@@ -26,6 +26,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Result, anyhow, bail};
 use systemprompt_cloud::{ProfilePath, ProjectContext};
+use systemprompt_identifiers::ProfileName;
 use systemprompt_loader::ConfigLoader;
 use systemprompt_logging::CliService;
 use systemprompt_models::Profile;
@@ -159,12 +160,12 @@ pub(in crate::commands::cloud) async fn run(
 }
 
 pub(in crate::commands::cloud) async fn execute(
-    profile_name: Option<String>,
+    profile_name: Option<ProfileName>,
     distributed: bool,
     prompter: &dyn Prompter,
     config: &CliConfig,
 ) -> Result<()> {
-    let (profile, profile_path) = resolve_profile(prompter, profile_name.as_deref(), config)?;
+    let (profile, profile_path) = resolve_profile(prompter, profile_name.as_ref(), config)?;
     let profile_dir = profile_path
         .parent()
         .ok_or_else(|| anyhow!("Invalid profile path"))?;

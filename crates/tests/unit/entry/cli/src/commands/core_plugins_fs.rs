@@ -12,6 +12,7 @@ use systemprompt_cli::core::plugins::generate::{
     PluginGenerateContext, generate_plugin, marketplace,
 };
 use systemprompt_cli::core::plugins::{generate, validate};
+use systemprompt_identifiers::PluginId;
 use systemprompt_models::services::ServicesConfig;
 use systemprompt_models::{PluginConfig, PluginConfigFile};
 
@@ -59,14 +60,14 @@ fn collect_plugin_ids_handles_missing_and_mixed_dirs() {
     fs::write(tmp.path().join("stray.txt"), "x").unwrap();
 
     let ids = validate::collect_plugin_ids(tmp.path()).unwrap();
-    assert_eq!(ids, vec!["alpha".to_owned(), "zeta".to_owned()]);
+    assert_eq!(ids, vec![PluginId::new("alpha"), PluginId::new("zeta")]);
     assert_eq!(generate::collect_plugin_ids(tmp.path()).unwrap(), ids);
 }
 
 #[test]
 fn validate_plugin_reports_missing_config() {
     let tmp = tempfile::tempdir().unwrap();
-    let out = validate::validate_plugin("ghost", tmp.path(), tmp.path());
+    let out = validate::validate_plugin(&PluginId::new("ghost"), tmp.path(), tmp.path());
     assert!(!out.valid);
     assert!(out.errors[0].contains("Failed to read config.yaml"));
 }
@@ -75,7 +76,7 @@ fn validate_plugin_reports_missing_config() {
 fn validate_plugin_reports_parse_error() {
     let tmp = tempfile::tempdir().unwrap();
     write_plugin_dir(tmp.path(), "bad", "plugin: [not, a, mapping");
-    let out = validate::validate_plugin("bad", tmp.path(), tmp.path());
+    let out = validate::validate_plugin(&PluginId::new("bad"), tmp.path(), tmp.path());
     assert!(!out.valid);
     assert!(out.errors[0].contains("Failed to parse config.yaml"));
 }
@@ -87,7 +88,7 @@ fn validate_plugin_flags_id_mismatch_and_missing_refs() {
     write_plugin_dir(tmp.path(), "demo", &yaml);
     let skills = tempfile::tempdir().unwrap();
 
-    let out = validate::validate_plugin("demo", tmp.path(), skills.path());
+    let out = validate::validate_plugin(&PluginId::new("demo"), tmp.path(), skills.path());
     assert!(!out.valid);
     assert!(
         out.errors
@@ -116,7 +117,7 @@ fn validate_plugin_checks_scripts_and_passes_when_complete() {
     )
     .unwrap();
 
-    let out = validate::validate_plugin("demo", tmp.path(), skills.path());
+    let out = validate::validate_plugin(&PluginId::new("demo"), tmp.path(), skills.path());
     assert!(!out.valid);
     assert!(
         out.errors
@@ -126,7 +127,7 @@ fn validate_plugin_checks_scripts_and_passes_when_complete() {
 
     fs::create_dir_all(tmp.path().join("demo/scripts")).unwrap();
     fs::write(tmp.path().join("demo/scripts/run.sh"), "#!/bin/sh\n").unwrap();
-    let out = validate::validate_plugin("demo", tmp.path(), skills.path());
+    let out = validate::validate_plugin(&PluginId::new("demo"), tmp.path(), skills.path());
     assert!(out.valid, "errors: {:?}", out.errors);
 }
 
@@ -379,7 +380,7 @@ fn copy_scripts_copies_existing_sources_only() {
     marketplace::copy_scripts(
         &parse_plugin(&yaml),
         plugins.path(),
-        "demo",
+        &PluginId::new("demo"),
         out.path(),
         &mut files,
     )
@@ -398,7 +399,7 @@ fn copy_scripts_noop_without_scripts() {
     marketplace::copy_scripts(
         &parse_plugin(PLUGIN_YAML),
         plugins.path(),
-        "demo",
+        &PluginId::new("demo"),
         out.path(),
         &mut files,
     )
@@ -467,7 +468,7 @@ fn generate_plugin_materialises_full_output() {
         services_path: services.path(),
         output_dir_override: Some(&out_str),
     };
-    let result = generate_plugin("demo", &ctx).unwrap();
+    let result = generate_plugin(&PluginId::new("demo"), &ctx).unwrap();
 
     assert_eq!(result.plugin_id.as_str(), "demo");
     assert!(result.files_generated.len() >= 3);
@@ -487,7 +488,7 @@ fn generate_plugin_errors_on_missing_config() {
         services_path: services.path(),
         output_dir_override: None,
     };
-    let err = generate_plugin("ghost", &ctx).unwrap_err();
+    let err = generate_plugin(&PluginId::new("ghost"), &ctx).unwrap_err();
     assert!(err.to_string().contains("Failed to read"));
 }
 
@@ -526,7 +527,7 @@ fn generate_plugin_without_an_override_writes_under_the_storage_path() {
         services_path: &services,
         output_dir_override: None,
     };
-    let result = generate_plugin("demo", &ctx).unwrap();
+    let result = generate_plugin(&PluginId::new("demo"), &ctx).unwrap();
 
     let expected = root.path().join("storage/files/plugins/demo");
     assert!(expected.join(".claude-plugin/plugin.json").exists());
@@ -546,7 +547,7 @@ fn validate_plugin_resolves_declared_skill_id_not_directory_name() {
     )
     .unwrap();
 
-    let out = validate::validate_plugin("demo", tmp.path(), skills.path());
+    let out = validate::validate_plugin(&PluginId::new("demo"), tmp.path(), skills.path());
     assert!(
         !out.errors.iter().any(|e| e.contains("alpha_skill")),
         "the declared id resolves even though the directory is named differently: {:?}",
@@ -562,7 +563,7 @@ fn validate_plugin_resolves_declared_skill_id_not_directory_name() {
     .unwrap();
     let yaml = PLUGIN_YAML.replace("[alpha_skill]", "[beta_skill]");
     write_plugin_dir(tmp.path(), "demo2", &yaml.replace("id: demo", "id: demo2"));
-    let out = validate::validate_plugin("demo2", tmp.path(), skills.path());
+    let out = validate::validate_plugin(&PluginId::new("demo2"), tmp.path(), skills.path());
     assert!(
         out.warnings
             .iter()

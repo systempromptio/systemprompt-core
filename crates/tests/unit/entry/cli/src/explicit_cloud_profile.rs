@@ -69,7 +69,7 @@ fn descriptor(args: &[&str]) -> CommandDescriptor {
 fn store_with_active_local(dir: &TempDir) -> SessionStore {
     let mut store = SessionStore::load_or_create(dir.path()).expect("fresh store");
     store.upsert_session(&SessionKey::Local, session("local"));
-    store.set_active_with_profile(&SessionKey::Local, "local");
+    store.set_active_with_profile(&SessionKey::Local, &pname("local"));
     store
 }
 
@@ -120,7 +120,7 @@ fn an_explicit_profile_override_stores_the_session_but_leaves_the_active_key_alo
             &mut store,
             &tenant_key,
             &session("production"),
-            "production",
+            &pname("production"),
             source,
         );
 
@@ -133,7 +133,7 @@ fn an_explicit_profile_override_stores_the_session_but_leaves_the_active_key_alo
             Some("local"),
             "{source:?}: a one-shot profile must not become the active session"
         );
-        assert_eq!(store.active_profile_name.as_deref(), Some("local"));
+        assert_eq!(store.active_profile_name, Some(pname("local")));
     }
 }
 
@@ -147,12 +147,12 @@ fn a_session_selected_profile_still_becomes_active() {
         &mut store,
         &tenant_key,
         &session("production"),
-        "production",
+        &pname("production"),
         ProfileSource::Session,
     );
 
     assert_eq!(store.active_key.as_deref(), Some("tenant_tenant_prod"));
-    assert_eq!(store.active_profile_name.as_deref(), Some("production"));
+    assert_eq!(store.active_profile_name, Some(pname("production")));
 }
 
 #[test]
@@ -276,4 +276,8 @@ fn a_cloud_profile_without_a_tenant_is_still_a_cloud_target() {
 
     require_explicit_cloud_profile(&profile, ProfileSource::Session, &migrate)
         .expect_err("target: cloud alone is enough to demand --profile");
+}
+
+fn pname(name: &str) -> systemprompt_identifiers::ProfileName {
+    systemprompt_identifiers::ProfileName::try_new(name).expect("valid ProfileName")
 }

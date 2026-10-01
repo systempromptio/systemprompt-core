@@ -9,6 +9,7 @@ use clap::Args;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use systemprompt_logging::LogLevel;
 use systemprompt_runtime::TraceQueryService;
 
 use super::duration::parse_since;
@@ -133,13 +134,12 @@ fn build_level_counts(rows: &[systemprompt_runtime::LevelCount]) -> LevelCounts 
     };
 
     for row in rows {
-        match row.level.to_lowercase().as_str() {
-            "error" => counts.error = row.count,
-            "warn" | "warning" => counts.warn = row.count,
-            "info" => counts.info = row.count,
-            "debug" => counts.debug = row.count,
-            "trace" => counts.trace = row.count,
-            _ => {},
+        match row.level {
+            LogLevel::Error => counts.error = row.count,
+            LogLevel::Warn => counts.warn = row.count,
+            LogLevel::Info => counts.info = row.count,
+            LogLevel::Debug => counts.debug = row.count,
+            LogLevel::Trace => counts.trace = row.count,
         }
     }
 

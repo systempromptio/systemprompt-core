@@ -10,9 +10,12 @@ use opentelemetry_proto::tonic::logs::v1::{LogRecord, ResourceLogs, ScopeLogs, S
 
 use super::attrs::{Attrs, resource, scope};
 use super::ids::{span_id_bytes, trace_id_bytes, unix_nanos};
+use super::records::LogRow;
 use super::spans::REQUEST_SPAN;
-use super::tail::LogRow;
-use systemprompt_identifiers::{ClientId, ContextId, SessionId, TraceId, UserId};
+use systemprompt_identifiers::{
+    ClientId, ContextId, GatewayConversationId, InstanceId, ProviderRequestId, SessionId, TraceId,
+    UserId,
+};
 
 // Why: OTLP `SeverityNumber` buckets (opentelemetry/proto/logs/v1/logs.proto)
 // mapped from the five levels `log.sql` permits.
@@ -31,7 +34,7 @@ pub fn severity_number(level: &str) -> SeverityNumber {
 #[must_use]
 pub(super) fn to_export_request(
     rows: &[LogRow],
-    instance_id: Option<&str>,
+    instance_id: Option<&InstanceId>,
 ) -> ExportLogsServiceRequest {
     ExportLogsServiceRequest {
         resource_logs: vec![ResourceLogs {
@@ -66,14 +69,21 @@ pub fn to_log_record(row: &LogRow) -> LogRecord {
             "systemprompt.client.id",
             row.client_id.as_ref().map(ClientId::as_str),
         )
-        .opt_str("systemprompt.instance.id", row.instance_id.as_deref())
+        .opt_str(
+            "systemprompt.instance.id",
+            row.instance_id.as_ref().map(InstanceId::as_str),
+        )
         .opt_str(
             "systemprompt.provider_request.id",
-            row.provider_request_id.as_deref(),
+            row.provider_request_id
+                .as_ref()
+                .map(ProviderRequestId::as_str),
         )
         .opt_str(
             "systemprompt.gateway_conversation.id",
-            row.gateway_conversation_id.as_deref(),
+            row.gateway_conversation_id
+                .as_ref()
+                .map(GatewayConversationId::as_str),
         )
         .opt_str("systemprompt.log.metadata", row.metadata.as_deref());
     let at = unix_nanos(row.timestamp);
@@ -88,7 +98,8 @@ pub fn to_log_record(row: &LogRow) -> LogRecord {
         .unwrap_or_default();
     let span_id = row
         .provider_request_id
-        .as_deref()
+        .as_ref()
+        .map(ProviderRequestId::as_str)
         .filter(|_| !trace_id.is_empty())
         .map(|id| span_id_bytes(REQUEST_SPAN, id))
         .unwrap_or_default();

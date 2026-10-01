@@ -7,6 +7,7 @@ use std::path::PathBuf;
 
 use anyhow::{Context, Result, bail};
 use systemprompt_cloud::{CloudPath, ProfilePath, ProjectContext, TenantStore, get_cloud_paths};
+use systemprompt_identifiers::ProfileName;
 use systemprompt_loader::ProfileLoader;
 use systemprompt_logging::CliService;
 use systemprompt_models::Profile;
@@ -76,7 +77,7 @@ fn select_profile_interactive(
 
 pub fn resolve_profile(
     prompter: &dyn Prompter,
-    profile_name: Option<&str>,
+    profile_name: Option<&ProfileName>,
     config: &CliConfig,
 ) -> Result<(Profile, PathBuf)> {
     if let Some(name) = profile_name {
@@ -90,9 +91,9 @@ pub fn resolve_profile(
     resolve_profile_interactive(prompter)
 }
 
-fn resolve_profile_by_name(name: &str) -> Result<(Profile, PathBuf)> {
+fn resolve_profile_by_name(name: &ProfileName) -> Result<(Profile, PathBuf)> {
     let ctx = ProjectContext::discover();
-    let profile_path = ctx.profile_path(name, ProfilePath::Config);
+    let profile_path = ctx.profile_path(name.as_str(), ProfilePath::Config);
 
     if !profile_path.exists() {
         bail!("Profile '{}' not found at {}", name, profile_path.display());

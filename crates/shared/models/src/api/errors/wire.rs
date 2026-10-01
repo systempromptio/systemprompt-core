@@ -23,7 +23,7 @@ struct WireApiError<'a> {
     validation_errors: &'a [ValidationError],
     timestamp: DateTime<Utc>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    trace_id: Option<&'a str>,
+    trace_id: Option<&'a TraceId>,
 }
 
 const fn no_validation_errors(errors: &&[ValidationError]) -> bool {
@@ -56,7 +56,7 @@ impl Serialize for ApiError {
             path: self.path.as_deref(),
             validation_errors,
             timestamp: self.timestamp,
-            trace_id: self.trace_id.as_ref().map(TraceId::as_str),
+            trace_id: self.trace_id.as_ref(),
         }
         .serialize(serializer)
     }

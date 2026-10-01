@@ -14,7 +14,7 @@ fn test_agent_extension_mcp_tools() {
 
 #[test]
 fn test_agent_extension_agent_identity() {
-    let ext = AgentExtension::agent_identity("my-agent");
+    let ext = AgentExtension::agent_identity(&systemprompt_identifiers::AgentName::new("my-agent"));
 
     assert_eq!(ext.uri, "systemprompt:agent-identity");
     assert_eq!(ext.required, Some(true));

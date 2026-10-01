@@ -127,7 +127,7 @@ fn seed_session(boot: &TestBootstrap) {
     let sessions_dir = ResolvedPaths::discover().sessions_dir();
     let mut store = SessionStore::load_or_create(&sessions_dir).expect("session store");
     store.upsert_session(&SessionKey::Local, session);
-    store.set_active_with_profile(&SessionKey::Local, profile_name_text);
+    store.set_active_with_profile(&SessionKey::Local, &pname(profile_name_text));
     store.save(&sessions_dir).expect("persist fixture session");
 }
 
@@ -355,4 +355,8 @@ fn healthy_tools_survive_a_stopped_configured_server() {
         }),
         "{artifact}"
     );
+}
+
+fn pname(name: &str) -> systemprompt_identifiers::ProfileName {
+    systemprompt_identifiers::ProfileName::try_new(name).expect("valid ProfileName")
 }

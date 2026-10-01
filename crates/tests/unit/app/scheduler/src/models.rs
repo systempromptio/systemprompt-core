@@ -1,5 +1,6 @@
 //! Tests for scheduler models
 
+use systemprompt_identifiers::JobName;
 use systemprompt_provider_contracts::ProviderError;
 use systemprompt_scheduler::{JobStatus, SchedulerError};
 
@@ -62,7 +63,7 @@ mod scheduler_error_tests {
 
     #[test]
     fn job_not_found_contains_job_name() {
-        let error = SchedulerError::job_not_found("test_job");
+        let error = SchedulerError::job_not_found(JobName::new("test_job"));
         let message = error.to_string();
         assert!(message.contains("test_job"));
         assert!(message.contains("not found"));
@@ -79,7 +80,7 @@ mod scheduler_error_tests {
     #[test]
     fn job_execution_failed_contains_job_name_and_error() {
         let error = SchedulerError::job_execution_failed(
-            "my_job",
+            JobName::new("my_job"),
             ProviderError::InvalidInput("timeout".to_owned()),
         );
         let message = error.to_string();
@@ -96,7 +97,7 @@ mod scheduler_error_tests {
 
     #[test]
     fn job_not_found_accepts_string() {
-        let error = SchedulerError::job_not_found(String::from("dynamic_job"));
+        let error = SchedulerError::job_not_found(JobName::new("dynamic_job"));
         assert!(error.to_string().contains("dynamic_job"));
     }
 
@@ -109,7 +110,7 @@ mod scheduler_error_tests {
     #[test]
     fn job_execution_failed_accepts_strings() {
         let error = SchedulerError::job_execution_failed(
-            String::from("job1"),
+            JobName::new("job1"),
             ProviderError::InvalidInput(String::from("error msg")),
         );
         let message = error.to_string();
@@ -125,7 +126,8 @@ mod scheduler_error_tests {
 
     #[test]
     fn errors_implement_std_error() {
-        let error: Box<dyn std::error::Error> = Box::new(SchedulerError::job_not_found("test"));
+        let error: Box<dyn std::error::Error> =
+            Box::new(SchedulerError::job_not_found(JobName::new("test")));
         assert!(error.to_string().contains("test"));
     }
 }

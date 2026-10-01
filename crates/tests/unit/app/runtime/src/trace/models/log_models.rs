@@ -2,6 +2,8 @@
 //! LogTimeRange, LogSearchItem, and the audit/tool linkage rows.
 
 use chrono::Utc;
+use systemprompt_identifiers::{McpServerId, McpToolName};
+use systemprompt_logging::LogLevel;
 use systemprompt_runtime::trace::{
     AuditLookupResult, AuditToolCallRow, LevelCount, LinkedMcpCall, LogSearchItem, LogTimeRange,
     ModuleCount, ToolExecutionItem,
@@ -10,17 +12,17 @@ use systemprompt_runtime::trace::{
 #[test]
 fn level_count_construction() {
     let lc = LevelCount {
-        level: "ERROR".to_owned(),
+        level: LogLevel::Error,
         count: 42,
     };
-    assert_eq!(lc.level, "ERROR");
+    assert_eq!(lc.level, LogLevel::Error);
     assert_eq!(lc.count, 42);
 }
 
 #[test]
 fn level_count_clone_and_debug() {
     let lc = LevelCount {
-        level: "WARN".to_owned(),
+        level: LogLevel::Warn,
         count: 10,
     };
     let cloned = lc.clone();
@@ -31,12 +33,12 @@ fn level_count_clone_and_debug() {
 #[test]
 fn level_count_serialize_roundtrip() {
     let lc = LevelCount {
-        level: "INFO".to_owned(),
+        level: LogLevel::Info,
         count: 100,
     };
     let json = serde_json::to_string(&lc).unwrap();
     let back: LevelCount = serde_json::from_str(&json).unwrap();
-    assert_eq!(back.level, "INFO");
+    assert_eq!(back.level, LogLevel::Info);
     assert_eq!(back.count, 100);
 }
 
@@ -114,12 +116,12 @@ fn log_search_item_construction() {
         id: systemprompt_identifiers::LogId::generate(),
         trace_id: systemprompt_identifiers::TraceId::new("trace-abc"),
         timestamp: Utc::now(),
-        level: "ERROR".to_owned(),
+        level: LogLevel::Error,
         module: "auth".to_owned(),
         message: "login failed".to_owned(),
         metadata: Some(r#"{"ip":"1.2.3.4"}"#.to_owned()),
     };
-    assert_eq!(item.level, "ERROR");
+    assert_eq!(item.level, LogLevel::Error);
     assert_eq!(item.module, "auth");
     assert_eq!(item.metadata.as_deref(), Some(r#"{"ip":"1.2.3.4"}"#));
 }
@@ -130,7 +132,7 @@ fn log_search_item_no_metadata() {
         id: systemprompt_identifiers::LogId::generate(),
         trace_id: systemprompt_identifiers::TraceId::new("trace-xyz"),
         timestamp: Utc::now(),
-        level: "INFO".to_owned(),
+        level: LogLevel::Info,
         module: "db".to_owned(),
         message: "connected".to_owned(),
         metadata: None,
@@ -144,7 +146,7 @@ fn log_search_item_clone_and_serialize() {
         id: systemprompt_identifiers::LogId::generate(),
         trace_id: systemprompt_identifiers::TraceId::new("t"),
         timestamp: Utc::now(),
-        level: "WARN".to_owned(),
+        level: LogLevel::Warn,
         module: "m".to_owned(),
         message: "msg".to_owned(),
         metadata: None,
@@ -238,7 +240,7 @@ fn audit_lookup_result_serialize() {
 #[test]
 fn audit_tool_call_row_construction() {
     let row = AuditToolCallRow {
-        tool_name: "read_file".to_owned(),
+        tool_name: McpToolName::new("read_file"),
         tool_input: r#"{"path":"/tmp/x"}"#.to_owned(),
         sequence_number: 1,
     };
@@ -249,7 +251,7 @@ fn audit_tool_call_row_construction() {
 #[test]
 fn audit_tool_call_row_clone_and_serialize() {
     let row = AuditToolCallRow {
-        tool_name: "write_file".to_owned(),
+        tool_name: McpToolName::new("write_file"),
         tool_input: "{}".to_owned(),
         sequence_number: 2,
     };
@@ -262,8 +264,8 @@ fn audit_tool_call_row_clone_and_serialize() {
 #[test]
 fn linked_mcp_call_construction() {
     let call = LinkedMcpCall {
-        tool_name: "search".to_owned(),
-        server_name: "brave-search".to_owned(),
+        tool_name: McpToolName::new("search"),
+        server_name: McpServerId::new("brave-search"),
         status: "success".to_owned(),
         execution_time_ms: Some(120),
     };
@@ -275,8 +277,8 @@ fn linked_mcp_call_construction() {
 #[test]
 fn linked_mcp_call_no_execution_time() {
     let call = LinkedMcpCall {
-        tool_name: "tool".to_owned(),
-        server_name: "srv".to_owned(),
+        tool_name: McpToolName::new("tool"),
+        server_name: McpServerId::new("srv"),
         status: "pending".to_owned(),
         execution_time_ms: None,
     };
@@ -286,8 +288,8 @@ fn linked_mcp_call_no_execution_time() {
 #[test]
 fn linked_mcp_call_clone_and_serialize() {
     let call = LinkedMcpCall {
-        tool_name: "t".to_owned(),
-        server_name: "s".to_owned(),
+        tool_name: McpToolName::new("t"),
+        server_name: McpServerId::new("s"),
         status: "ok".to_owned(),
         execution_time_ms: Some(50),
     };
@@ -302,14 +304,17 @@ fn tool_execution_item_construction() {
     let item = ToolExecutionItem {
         timestamp: Utc::now(),
         trace_id: systemprompt_identifiers::TraceId::new("t-trace"),
-        tool_name: "bash".to_owned(),
-        server_name: Some("docker-mcp".to_owned()),
+        tool_name: McpToolName::new("bash"),
+        server_name: Some(McpServerId::new("docker-mcp")),
         status: "success".to_owned(),
         execution_time_ms: Some(500),
     };
     assert_eq!(item.tool_name, "bash");
     assert_eq!(item.status, "success");
-    assert_eq!(item.server_name.as_deref(), Some("docker-mcp"));
+    assert_eq!(
+        item.server_name.as_ref().map(McpServerId::as_str),
+        Some("docker-mcp")
+    );
 }
 
 #[test]
@@ -317,7 +322,7 @@ fn tool_execution_item_no_server() {
     let item = ToolExecutionItem {
         timestamp: Utc::now(),
         trace_id: systemprompt_identifiers::TraceId::new("t2"),
-        tool_name: "read".to_owned(),
+        tool_name: McpToolName::new("read"),
         server_name: None,
         status: "pending".to_owned(),
         execution_time_ms: None,
@@ -331,7 +336,7 @@ fn tool_execution_item_clone_and_serialize() {
     let item = ToolExecutionItem {
         timestamp: Utc::now(),
         trace_id: systemprompt_identifiers::TraceId::new("t3"),
-        tool_name: "list".to_owned(),
+        tool_name: McpToolName::new("list"),
         server_name: None,
         status: "done".to_owned(),
         execution_time_ms: Some(10),

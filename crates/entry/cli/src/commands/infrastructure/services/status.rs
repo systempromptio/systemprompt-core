@@ -52,7 +52,7 @@ pub struct StatusSummary {
 impl From<&VerifiedServiceState> for ServiceStatusRow {
     fn from(state: &VerifiedServiceState) -> Self {
         Self {
-            name: state.name.clone(),
+            name: state.name.to_string(),
             service_type: state.service_type.to_string(),
             status: state.status_display().to_owned(),
             pid: state.pid,
@@ -133,7 +133,7 @@ pub fn managed_health_label<S: BuildHasher>(
 ) -> String {
     if state.service_type == ServiceType::Mcp {
         return mcp_health
-            .get(&state.name)
+            .get(state.name.as_str())
             .map_or_else(|| "DEGRADED".to_owned(), |h| health_label(*h));
     }
     if state.is_healthy() {
@@ -248,7 +248,7 @@ fn output_detailed(
     include_health: bool,
 ) {
     for state in states {
-        CliService::section(&state.name);
+        CliService::section(state.name.as_str());
         CliService::key_value("Type", &state.service_type.to_string());
         CliService::key_value("Status", state.status_display());
         CliService::key_value("Port", &state.port.to_string());

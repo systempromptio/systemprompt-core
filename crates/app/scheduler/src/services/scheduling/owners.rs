@@ -10,7 +10,7 @@
 
 use std::collections::HashMap;
 
-use systemprompt_identifiers::{SessionId, TraceId, UserId};
+use systemprompt_identifiers::{JobName, SessionId, TraceId, UserId};
 use systemprompt_logging::{LogActor, LogEntry, LogLevel};
 use systemprompt_models::auth::UserStatus;
 use tracing::{debug, warn};
@@ -20,17 +20,17 @@ use crate::error::SchedulerResult;
 use crate::models::SkippedJob;
 
 pub(super) struct ResolvedOwners {
-    map: HashMap<String, UserId>,
+    map: HashMap<JobName, UserId>,
     skipped: Vec<SkippedJob>,
 }
 
 impl ResolvedOwners {
-    pub(super) const fn owner_map(&self) -> &HashMap<String, UserId> {
+    pub(super) const fn owner_map(&self) -> &HashMap<JobName, UserId> {
         &self.map
     }
 
-    pub(super) fn skipped_names(&self) -> impl Iterator<Item = &str> {
-        self.skipped.iter().map(|job| job.job_name.as_str())
+    pub(super) fn skipped_names(&self) -> impl Iterator<Item = &JobName> {
+        self.skipped.iter().map(|job| &job.job_name)
     }
 
     pub(super) fn into_degraded(self) -> Vec<SkippedJob> {

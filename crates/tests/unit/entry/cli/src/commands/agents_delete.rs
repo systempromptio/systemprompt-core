@@ -6,14 +6,15 @@
 use systemprompt_cli::admin::agents::delete::{
     delete_confirm_message, delete_success_message, validate_delete_targets,
 };
+use systemprompt_identifiers::AgentName;
 
-fn names(list: &[&str]) -> Vec<String> {
-    list.iter().map(|s| (*s).to_owned()).collect()
+fn names(list: &[&str]) -> Vec<AgentName> {
+    list.iter().map(|s| AgentName::new(*s)).collect()
 }
 
 #[test]
 fn named_target_must_exist() {
-    let err = validate_delete_targets(Some("ghost".to_owned()), &names(&["a", "b"]))
+    let err = validate_delete_targets(Some(AgentName::new("ghost")), &names(&["a", "b"]))
         .unwrap_err()
         .to_string();
     assert!(err.contains("'ghost' not found"));
@@ -21,7 +22,7 @@ fn named_target_must_exist() {
 
 #[test]
 fn named_target_resolves_to_single_agent() {
-    let targets = validate_delete_targets(Some("a".to_owned()), &names(&["a", "b"])).unwrap();
+    let targets = validate_delete_targets(Some(AgentName::new("a")), &names(&["a", "b"])).unwrap();
     assert_eq!(targets, vec!["a"]);
 }
 

@@ -10,6 +10,7 @@ use systemprompt_cli::infrastructure::services::start::{
 use systemprompt_cli::infrastructure::services::{self, ServicesCommands, cleanup};
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_database::{DbPool, ServiceConfig, ServiceModule, ServiceStatus};
+use systemprompt_identifiers::ServiceName;
 use systemprompt_runtime::DatabaseContext;
 use systemprompt_scheduler::{OrphanCleanupReport, OrphanDisposition, OrphanOutcome};
 use systemprompt_test_fixtures::{test_database_url, test_db_pool};
@@ -83,13 +84,13 @@ fn cleanup_helpers_render_reports_and_messages() {
     let report = OrphanCleanupReport {
         outcomes: vec![
             OrphanOutcome {
-                name: "svc-a".to_owned(),
+                name: ServiceName::new("svc-a"),
                 pid: 123,
                 port: 5001,
                 disposition: OrphanDisposition::StaleEntry,
             },
             OrphanOutcome {
-                name: "svc-b".to_owned(),
+                name: ServiceName::new("svc-b"),
                 pid: 456,
                 port: 5002,
                 disposition: OrphanDisposition::Stopped,

@@ -8,7 +8,9 @@ pub(super) type Result<T> = std::result::Result<T, TraceError>;
 use sqlx::PgPool;
 use std::sync::Arc;
 
-use systemprompt_identifiers::{AiRequestId, ArtifactId, ContextId, McpExecutionId, TaskId};
+use systemprompt_identifiers::{
+    AiRequestId, ArtifactId, ContextId, McpExecutionId, McpServerId, McpToolName, TaskId,
+};
 
 use super::models::{AiRequestInfo, McpToolExecution, TaskArtifact, ToolLogEntry};
 
@@ -33,8 +35,8 @@ pub(super) async fn fetch_mcp_executions(
         .into_iter()
         .map(|r| McpToolExecution {
             mcp_execution_id: McpExecutionId::new(r.mcp_execution_id),
-            tool_name: r.tool_name,
-            server_name: r.server_name,
+            tool_name: McpToolName::new(r.tool_name),
+            server_name: McpServerId::new(r.server_name),
             status: r.status,
             execution_time_ms: r.execution_time_ms,
             error_message: r.error_message,
@@ -96,15 +98,16 @@ pub(super) async fn fetch_tool_logs(
     .fetch_all(&**pool)
     .await?;
 
-    Ok(rows
-        .into_iter()
-        .map(|r| ToolLogEntry {
-            timestamp: r.timestamp,
-            level: r.level,
-            module: r.module,
-            message: r.message,
+    rows.into_iter()
+        .map(|r| -> Result<ToolLogEntry> {
+            Ok(ToolLogEntry {
+                timestamp: r.timestamp,
+                level: r.level.parse()?,
+                module: r.module,
+                message: r.message,
+            })
         })
-        .collect())
+        .collect()
 }
 
 pub(super) async fn fetch_task_artifacts(
@@ -133,7 +136,7 @@ pub(super) async fn fetch_task_artifacts(
             artifact_type: r.artifact_type,
             name: r.name,
             source: r.source,
-            tool_name: r.tool_name,
+            tool_name: r.tool_name.map(McpToolName::new),
             part_kind: r.part_kind,
             text_content: r.text_content,
             data_content: r.data_content,

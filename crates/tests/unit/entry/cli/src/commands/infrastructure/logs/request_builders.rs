@@ -5,12 +5,12 @@ use systemprompt_cli::infrastructure::logs::request::{
     build_request_stats, request_show_not_found,
 };
 use systemprompt_cli::infrastructure::logs::{MessageRow, ToolCallRow};
-use systemprompt_identifiers::UserId;
+use systemprompt_identifiers::{AiRequestId, McpServerId, McpToolName, UserId};
 use systemprompt_models::artifacts::CliArtifact;
 
 fn sample_row() -> RequestListRow {
     RequestListRow {
-        request_id: "req_abc123".to_owned(),
+        request_id: AiRequestId::new("req_abc123"),
         timestamp: "2026-06-03 10:00:00".to_owned(),
         cursor: "2026-06-03T10:00:00.000000Z@req_abc123".to_owned(),
         user_id: UserId::new("user_abc123"),
@@ -60,7 +60,7 @@ fn request_list_empty_returns_message() {
 #[test]
 fn request_show_returns_card() {
     let detail = RequestShowOutput {
-        request_id: "req_abc123".to_owned(),
+        request_id: AiRequestId::new("req_abc123"),
         user_id: UserId::new("user_abc123"),
         actor_kind: "user".to_owned(),
         actor_id: "user_abc123".to_owned(),
@@ -80,8 +80,8 @@ fn request_show_returns_card() {
             content: "hello".to_owned(),
         }],
         linked_mcp_calls: vec![ToolCallRow {
-            tool_name: "systemprompt".to_owned(),
-            server: "systemprompt".to_owned(),
+            tool_name: McpToolName::new("systemprompt"),
+            server: McpServerId::new("systemprompt"),
             status: "success".to_owned(),
             duration_ms: Some(5),
         }],

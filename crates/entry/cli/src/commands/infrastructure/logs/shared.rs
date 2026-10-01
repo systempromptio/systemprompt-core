@@ -1,13 +1,14 @@
 //! Formatting helpers shared across the `infra logs` subcommands.
 //!
 //! Re-exports the timestamp/duration formatters from `systemprompt_models` and
-//! provides [`display_log_row`] and [`cost_microdollars_to_dollars`] used by
-//! the view, search, and trace renderers.
+//! provides [`display_log_row`], [`print_level_line`] and
+//! [`cost_microdollars_to_dollars`] used by the view, search, and trace
+//! renderers.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_logging::CliService;
+use systemprompt_logging::{CliService, LogLevel};
 use systemprompt_models::text::truncate_with_ellipsis;
 
 use super::LogEntryRow;
@@ -32,9 +33,13 @@ pub fn display_log_row(log: &LogEntryRow) {
         time_part, log.level, log.module, log.message, trace_short
     );
 
-    match log.level.as_str() {
-        "ERROR" => CliService::error(&line),
-        "WARN" => CliService::warning(&line),
-        _ => CliService::info(&line),
+    print_level_line(log.level, &line);
+}
+
+pub fn print_level_line(level: LogLevel, line: &str) {
+    match level {
+        LogLevel::Error => CliService::error(line),
+        LogLevel::Warn => CliService::warning(line),
+        LogLevel::Info | LogLevel::Debug | LogLevel::Trace => CliService::info(line),
     }
 }

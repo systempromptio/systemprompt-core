@@ -29,6 +29,7 @@ mod chain;
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
+use systemprompt_identifiers::PolicyId;
 use thiserror::Error;
 
 use super::audit::ChainEntryOutcome;
@@ -53,10 +54,10 @@ pub enum GovernanceEngineError {
     #[error(
         "governance config names policy `{id}`, but no implementation is linked into this binary"
     )]
-    UnknownPolicyId { id: String },
+    UnknownPolicyId { id: PolicyId },
     #[error("governance policy `{id}` has invalid configuration: {source}")]
     InvalidPolicyConfiguration {
-        id: String,
+        id: PolicyId,
         #[source]
         source: PolicyConfigurationError,
     },
@@ -141,14 +142,14 @@ impl GovernanceEngine {
         let mentioned: HashSet<&str> = config.policies.iter().map(|p| p.id.as_str()).collect();
         for r in inventory::iter::<PolicyRegistration>().filter(|r| !mentioned.contains(r.id)) {
             let config = PolicyConfig {
-                id: r.id.to_owned(),
+                id: PolicyId::new(r.id),
                 enabled: false,
                 mode: PolicyMode::Enforce,
                 params: serde_yaml::Value::Null,
             };
             let instance = (r.factory)(&config.params).map_err(|source| {
                 GovernanceEngineError::InvalidPolicyConfiguration {
-                    id: r.id.to_owned(),
+                    id: config.id.clone(),
                     source,
                 }
             })?;

@@ -11,103 +11,27 @@
 
 use std::time::Duration;
 
-use chrono::{DateTime, Utc};
 use sqlx::PgPool;
-use systemprompt_identifiers::{ClientId, ContextId, SessionId, TraceId, UserId};
+use systemprompt_identifiers::error::IdValidationError;
+use systemprompt_identifiers::{
+    AiToolCallId, ClientId, ContextId, GatewayConversationId, InstanceId, McpExecutionId,
+    McpServerId, McpToolName, PluginId, ProviderRequestId, SessionId, TraceId, UserId,
+};
+use systemprompt_traits::RepositoryError;
 
+use super::records::{GovernanceRow, LedgerRow, LogRow, RequestRow};
 use super::state::Watermark;
-use crate::error::SchedulerResult;
+use crate::error::{SchedulerError, SchedulerResult};
 
 pub const SETTLE: Duration = Duration::from_secs(5);
 
 pub const BATCH_ROWS: i64 = 500;
 
-#[derive(Debug, Clone)]
-pub struct RequestRow {
-    pub id: String,
-    pub request_id: String,
-    pub user_id: UserId,
-    pub session_id: Option<SessionId>,
-    pub context_id: ContextId,
-    pub trace_id: Option<TraceId>,
-    pub provider: Option<String>,
-    pub served_provider: Option<String>,
-    pub model: Option<String>,
-    pub requested_model: Option<String>,
-    pub route_match: Option<String>,
-    pub input_tokens: Option<i32>,
-    pub output_tokens: Option<i32>,
-    pub cache_read_tokens: Option<i32>,
-    pub cache_creation_tokens: Option<i32>,
-    pub cost_microdollars: i64,
-    pub latency_ms: Option<i32>,
-    pub upstream_latency_ms: Option<i32>,
-    pub finish_reason: Option<String>,
-    pub status: String,
-    pub error_message: Option<String>,
-    pub client_kind: String,
-    pub wire_protocol: String,
-    pub request_kind: String,
-    pub actor_kind: String,
-    pub actor_id: String,
-    pub instance_id: Option<String>,
-    pub created_at: DateTime<Utc>,
-    pub completed_at: DateTime<Utc>,
-}
-
-#[derive(Debug, Clone)]
-pub struct LedgerRow {
-    pub ai_tool_call_id: Option<String>,
-    pub request_id: Option<String>,
-    pub mcp_execution_id: Option<String>,
-    pub tool_name: Option<String>,
-    pub server_name: Option<String>,
-    pub intended_at: Option<DateTime<Utc>>,
-    pub executed_at: Option<DateTime<Utc>>,
-    pub completed_at: Option<DateTime<Utc>>,
-    pub execution_time_ms: Option<i32>,
-    pub execution_status: Option<String>,
-    pub error_message: Option<String>,
-    pub source: Option<String>,
-    pub state: Option<String>,
-    pub is_error: Option<bool>,
-    pub artifact_type: Option<String>,
-    pub payload_bytes: Option<i32>,
-    pub secret_redactions: Option<i32>,
-    pub occurred_at: Option<DateTime<Utc>>,
-}
-
-#[derive(Debug, Clone)]
-pub struct GovernanceRow {
-    pub id: String,
-    pub trace_id: Option<TraceId>,
-    pub tool_name: String,
-    pub decision: String,
-    pub policy: String,
-    pub reason: String,
-    pub plugin_id: Option<String>,
-    pub actor_kind: String,
-    pub actor_id: String,
-    pub tool_use_id: Option<String>,
-    pub created_at: DateTime<Utc>,
-}
-
-#[derive(Debug, Clone)]
-pub struct LogRow {
-    pub id: String,
-    pub timestamp: DateTime<Utc>,
-    pub level: String,
-    pub module: String,
-    pub message: String,
-    pub metadata: Option<String>,
-    pub user_id: Option<UserId>,
-    pub session_id: Option<SessionId>,
-    pub trace_id: Option<TraceId>,
-    pub context_id: Option<ContextId>,
-    pub client_id: Option<ClientId>,
-    pub instance_id: Option<String>,
-    pub provider_request_id: Option<String>,
-    pub gateway_conversation_id: Option<String>,
+fn decode_error(context: &str, source: IdValidationError) -> SchedulerError {
+    SchedulerError::Repository(RepositoryError::Decode {
+        context: context.to_owned(),
+        source: Box::new(source),
+    })
 }
 
 pub(super) async fn list_requests_after(
@@ -115,8 +39,7 @@ pub(super) async fn list_requests_after(
     after: &Watermark,
     limit: i64,
 ) -> SchedulerResult<Vec<RequestRow>> {
-    let rows = sqlx::query_as!(
-        RequestRow,
+    let rows = sqlx::query!(
         r#"
         SELECT id, request_id, user_id AS "user_id: UserId", session_id AS "session_id: SessionId",
                context_id AS "context_id: ContextId", trace_id AS "trace_id: TraceId", provider,
@@ -139,15 +62,47 @@ pub(super) async fn list_requests_after(
     )
     .fetch_all(pool)
     .await?;
-    Ok(rows)
+    Ok(rows
+        .into_iter()
+        .map(|row| RequestRow {
+            id: row.id,
+            request_id: row.request_id,
+            user_id: row.user_id,
+            session_id: row.session_id,
+            context_id: row.context_id,
+            trace_id: row.trace_id,
+            provider: row.provider,
+            served_provider: row.served_provider,
+            model: row.model,
+            requested_model: row.requested_model,
+            route_match: row.route_match,
+            input_tokens: row.input_tokens,
+            output_tokens: row.output_tokens,
+            cache_read_tokens: row.cache_read_tokens,
+            cache_creation_tokens: row.cache_creation_tokens,
+            cost_microdollars: row.cost_microdollars,
+            latency_ms: row.latency_ms,
+            upstream_latency_ms: row.upstream_latency_ms,
+            finish_reason: row.finish_reason,
+            status: row.status,
+            error_message: row.error_message,
+            client_kind: row.client_kind,
+            wire_protocol: row.wire_protocol,
+            request_kind: row.request_kind,
+            actor_kind: row.actor_kind,
+            actor_id: row.actor_id,
+            instance_id: row.instance_id.map(InstanceId::new),
+            created_at: row.created_at,
+            completed_at: row.completed_at,
+        })
+        .collect())
 }
 
 pub(super) async fn list_ledger_for_requests(
     pool: &PgPool,
     request_ids: &[String],
 ) -> SchedulerResult<Vec<LedgerRow>> {
-    let rows = sqlx::query_as!(
-        LedgerRow,
+    let rows = sqlx::query!(
         r#"
         SELECT ai_tool_call_id, request_id, mcp_execution_id, tool_name, server_name,
                intended_at, executed_at, completed_at, execution_time_ms, execution_status,
@@ -161,15 +116,36 @@ pub(super) async fn list_ledger_for_requests(
     )
     .fetch_all(pool)
     .await?;
-    Ok(rows)
+    Ok(rows
+        .into_iter()
+        .map(|row| LedgerRow {
+            ai_tool_call_id: row.ai_tool_call_id.map(AiToolCallId::new),
+            request_id: row.request_id,
+            mcp_execution_id: row.mcp_execution_id.map(McpExecutionId::new),
+            tool_name: row.tool_name.map(McpToolName::new),
+            server_name: row.server_name.map(McpServerId::new),
+            intended_at: row.intended_at,
+            executed_at: row.executed_at,
+            completed_at: row.completed_at,
+            execution_time_ms: row.execution_time_ms,
+            execution_status: row.execution_status,
+            error_message: row.error_message,
+            source: row.source,
+            state: row.state,
+            is_error: row.is_error,
+            artifact_type: row.artifact_type,
+            payload_bytes: row.payload_bytes,
+            secret_redactions: row.secret_redactions,
+            occurred_at: row.occurred_at,
+        })
+        .collect())
 }
 
 pub(super) async fn list_governance_for_traces(
     pool: &PgPool,
     trace_ids: &[String],
 ) -> SchedulerResult<Vec<GovernanceRow>> {
-    let rows = sqlx::query_as!(
-        GovernanceRow,
+    let rows = sqlx::query!(
         r#"
         SELECT id, trace_id AS "trace_id: TraceId", tool_name, decision, policy, reason, plugin_id, actor_kind,
                actor_id, tool_use_id, created_at
@@ -181,7 +157,22 @@ pub(super) async fn list_governance_for_traces(
     )
     .fetch_all(pool)
     .await?;
-    Ok(rows)
+    Ok(rows
+        .into_iter()
+        .map(|row| GovernanceRow {
+            id: row.id,
+            trace_id: row.trace_id,
+            tool_name: row.tool_name,
+            decision: row.decision,
+            policy: row.policy,
+            reason: row.reason,
+            plugin_id: row.plugin_id.map(PluginId::new),
+            actor_kind: row.actor_kind,
+            actor_id: row.actor_id,
+            tool_use_id: row.tool_use_id,
+            created_at: row.created_at,
+        })
+        .collect())
 }
 
 pub(super) async fn list_logs_after(
@@ -189,8 +180,7 @@ pub(super) async fn list_logs_after(
     after: &Watermark,
     limit: i64,
 ) -> SchedulerResult<Vec<LogRow>> {
-    let rows = sqlx::query_as!(
-        LogRow,
+    let rows = sqlx::query!(
         r#"
         SELECT id, timestamp, level, module, message, metadata, user_id AS "user_id: UserId",
                session_id AS "session_id: SessionId", trace_id AS "trace_id: TraceId",
@@ -209,5 +199,32 @@ pub(super) async fn list_logs_after(
     )
     .fetch_all(pool)
     .await?;
-    Ok(rows)
+    rows.into_iter()
+        .map(|row| {
+            Ok(LogRow {
+                provider_request_id: row
+                    .provider_request_id
+                    .map(ProviderRequestId::try_new)
+                    .transpose()
+                    .map_err(|e| decode_error("logs.provider_request_id", e))?,
+                gateway_conversation_id: row
+                    .gateway_conversation_id
+                    .map(GatewayConversationId::try_new)
+                    .transpose()
+                    .map_err(|e| decode_error("logs.gateway_conversation_id", e))?,
+                id: row.id,
+                timestamp: row.timestamp,
+                level: row.level,
+                module: row.module,
+                message: row.message,
+                metadata: row.metadata,
+                user_id: row.user_id,
+                session_id: row.session_id,
+                trace_id: row.trace_id,
+                context_id: row.context_id,
+                client_id: row.client_id,
+                instance_id: row.instance_id.map(InstanceId::new),
+            })
+        })
+        .collect()
 }

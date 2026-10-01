@@ -10,7 +10,7 @@
 use async_trait::async_trait;
 use std::collections::HashMap;
 
-use systemprompt_identifiers::{AgentName, McpServerId};
+use systemprompt_identifiers::{AgentName, McpServerId, McpToolName};
 
 use super::call::{ToolCallRequest, ToolCallResult};
 use super::context::ToolContext;
@@ -40,10 +40,13 @@ pub trait ToolProvider: Send + Sync {
     async fn find_tool(
         &self,
         agent_name: &AgentName,
-        tool_name: &str,
+        tool_name: &McpToolName,
         context: &ToolContext,
     ) -> ToolProviderResult<Option<ToolDefinition>> {
         let inventory = self.list_tools(agent_name, context).await?;
-        Ok(inventory.tools.into_iter().find(|t| t.name == tool_name))
+        Ok(inventory
+            .tools
+            .into_iter()
+            .find(|t| t.name == tool_name.as_str()))
     }
 }

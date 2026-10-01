@@ -5,6 +5,7 @@
 
 use anyhow::{Result, anyhow, bail};
 use systemprompt_cloud::{CloudPath, StoredTenant, TenantStore, TenantType, get_cloud_paths};
+use systemprompt_identifiers::TenantId;
 use systemprompt_logging::CliService;
 
 use super::select::select_tenant;
@@ -14,7 +15,7 @@ use crate::interactive::Prompter;
 use crate::shared::CommandOutput;
 
 pub fn edit_tenant(
-    id: Option<String>,
+    id: Option<TenantId>,
     prompter: &dyn Prompter,
     config: &CliConfig,
 ) -> Result<CommandOutput> {
@@ -32,13 +33,14 @@ pub fn edit_tenant(
         TenantStore::default()
     });
 
-    let tenant_id = if let Some(id) = id {
-        systemprompt_identifiers::TenantId::new(id)
-    } else {
-        if store.tenants.is_empty() {
-            bail!("No tenants configured.");
-        }
-        select_tenant(prompter, &store.tenants)?.id.clone()
+    let tenant_id = match id {
+        Some(id) => id,
+        None => {
+            if store.tenants.is_empty() {
+                bail!("No tenants configured.");
+            }
+            select_tenant(prompter, &store.tenants)?.id.clone()
+        },
     };
 
     let tenant = store
@@ -65,7 +67,7 @@ pub fn edit_tenant(
     }
 
     let output = TenantDetailOutput {
-        id: tenant.id.as_str().to_owned(),
+        id: tenant.id.clone(),
         name: tenant.name.clone(),
         tenant_type: format!("{:?}", tenant.tenant_type).to_lowercase(),
         app_id: tenant.app_id.clone(),

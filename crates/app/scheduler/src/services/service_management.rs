@@ -35,7 +35,7 @@ pub enum OrphanDisposition {
 
 #[derive(Debug, Clone)]
 pub struct OrphanOutcome {
-    pub name: String,
+    pub name: ServiceName,
     pub pid: i32,
     pub port: i32,
     pub disposition: OrphanDisposition,
@@ -82,9 +82,9 @@ impl ServiceManagementService {
             .map_err(SchedulerError::from)
     }
 
-    pub async fn mark_service_stopped(&self, service_name: &str) -> SchedulerResult<()> {
+    pub async fn mark_service_stopped(&self, service_name: &ServiceName) -> SchedulerResult<()> {
         self.service_repo
-            .update_service_stopped(&ServiceName::new(service_name))
+            .update_service_stopped(service_name)
             .await
             .map_err(SchedulerError::from)
     }
@@ -109,7 +109,7 @@ impl ServiceManagementService {
             ProcessCleanup::kill_port(service.port as u16, pid);
         }
 
-        if let Err(e) = self.mark_service_stopped(service.name.as_str()).await {
+        if let Err(e) = self.mark_service_stopped(&service.name).await {
             warn!(service = %service.name, error = %e, "Failed to mark service stopped");
         }
         Ok(())
@@ -121,7 +121,7 @@ impl ServiceManagementService {
         };
 
         if !ProcessCleanup::process_exists(pid) {
-            if let Err(e) = self.mark_service_stopped(service.name.as_str()).await {
+            if let Err(e) = self.mark_service_stopped(&service.name).await {
                 warn!(service = %service.name, error = %e, "Failed to mark orphaned service stopped");
             }
             return Ok(true);
@@ -131,7 +131,7 @@ impl ServiceManagementService {
             ProcessCleanup::terminate_gracefully(pid, STOP_GRACE_MS).await;
             ProcessCleanup::kill_port(service.port as u16, pid);
         }
-        if let Err(e) = self.mark_service_stopped(service.name.as_str()).await {
+        if let Err(e) = self.mark_service_stopped(&service.name).await {
             warn!(service = %service.name, error = %e, "Failed to mark terminated service stopped");
         }
         Ok(true)
@@ -163,13 +163,13 @@ impl ServiceManagementService {
                 self.cleanup_orphaned_service(service).await?;
                 OrphanDisposition::Stopped
             } else {
-                if let Err(e) = self.mark_service_stopped(service.name.as_str()).await {
+                if let Err(e) = self.mark_service_stopped(&service.name).await {
                     warn!(service = %service.name, error = %e, "mark_service_stopped failed");
                 }
                 OrphanDisposition::StaleEntry
             };
             outcomes.push(OrphanOutcome {
-                name: service.name.as_str().to_owned(),
+                name: service.name.clone(),
                 pid,
                 port: service.port,
                 disposition,

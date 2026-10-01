@@ -6,6 +6,7 @@
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::JobName;
 pub use systemprompt_provider_contracts::JobScope;
 
 /// One scheduled job. `owner` is the *username* of the user the job runs as
@@ -16,7 +17,7 @@ pub use systemprompt_provider_contracts::JobScope;
 pub struct JobConfig {
     #[serde(default)]
     pub extension: Option<String>,
-    pub name: String,
+    pub name: JobName,
     #[serde(default)]
     pub owner: Option<String>,
     #[serde(default = "default_true")]
@@ -37,10 +38,10 @@ const fn default_true() -> bool {
 
 impl JobConfig {
     #[must_use]
-    pub fn new(name: impl Into<String>) -> Self {
+    pub fn new(name: JobName) -> Self {
         Self {
             extension: None,
-            name: name.into(),
+            name,
             owner: None,
             enabled: true,
             schedule: None,
@@ -100,13 +101,13 @@ pub struct SchedulerConfig {
     #[serde(default)]
     pub jobs: Vec<JobConfig>,
     #[serde(default = "default_bootstrap_jobs")]
-    pub bootstrap_jobs: Vec<String>,
+    pub bootstrap_jobs: Vec<JobName>,
     #[serde(default = "default_true")]
     pub distributed_lock: bool,
 }
 
-fn default_bootstrap_jobs() -> Vec<String> {
-    vec!["cleanup_inactive_sessions".to_owned()]
+fn default_bootstrap_jobs() -> Vec<JobName> {
+    vec![JobName::new("cleanup_inactive_sessions")]
 }
 
 impl SchedulerConfig {
@@ -115,18 +116,18 @@ impl SchedulerConfig {
         Self {
             enabled: true,
             jobs: vec![
-                JobConfig::new("cleanup_anonymous_users")
+                JobConfig::new(JobName::new("cleanup_anonymous_users"))
                     .with_extension("core")
                     .with_schedule("0 0 3 * * *")
                     .with_enforce(),
-                JobConfig::new("cleanup_empty_contexts")
+                JobConfig::new(JobName::new("cleanup_empty_contexts"))
                     .with_extension("core")
                     .with_schedule("0 0 * * * *")
                     .with_enforce(),
-                JobConfig::new("cleanup_inactive_sessions")
+                JobConfig::new(JobName::new("cleanup_inactive_sessions"))
                     .with_extension("core")
                     .with_schedule("0 0 * * * *"),
-                JobConfig::new("database_cleanup")
+                JobConfig::new(JobName::new("database_cleanup"))
                     .with_extension("core")
                     .with_schedule("0 0 4 * * *")
                     .with_enforce(),

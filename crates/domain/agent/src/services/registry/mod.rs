@@ -10,6 +10,7 @@ pub mod skills;
 
 use std::sync::Arc;
 use systemprompt_config::ProfileBootstrap;
+use systemprompt_identifiers::AgentName;
 use systemprompt_loader::{ConfigLoader, ServicesRootBootstrap};
 use systemprompt_models::{AgentConfig, ServicesConfig};
 
@@ -197,7 +198,7 @@ fn build_extensions(
     runtime_status: Option<&(String, Option<u16>, Option<u32>)>,
     mcp_extensions: Vec<AgentExtension>,
 ) -> Vec<AgentExtension> {
-    let mut extensions = vec![AgentExtension::agent_identity(&agent.name)];
+    let mut extensions = vec![AgentExtension::agent_identity(&AgentName::new(&agent.name))];
 
     if let Some(prompt) = &agent.metadata.system_prompt {
         extensions.push(AgentExtension::system_instructions(prompt));

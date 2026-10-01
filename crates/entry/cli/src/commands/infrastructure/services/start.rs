@@ -11,6 +11,7 @@ use std::sync::Arc;
 use std::time::Instant;
 use systemprompt_cloud::CredentialsBootstrap;
 use systemprompt_config::ProfileBootstrap;
+use systemprompt_identifiers::McpServerId;
 use systemprompt_logging::CliService;
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::{StartupPlan, StartupRequest};
@@ -196,13 +197,15 @@ pub(super) async fn execute_individual_agent(
 
 pub(super) async fn execute_individual_mcp(
     ctx: &Arc<AppContext>,
-    server_name: &str,
+    server_name: &McpServerId,
     _config: &CliConfig,
 ) -> Result<()> {
     CliService::section(&format!("Starting MCP Server: {}", server_name));
 
     let manager = lifecycle::mcp_orchestrator(ctx)?;
-    manager.start_services(Some(server_name.to_owned())).await?;
+    manager
+        .start_services(Some(String::from(server_name)))
+        .await?;
 
     CliService::success(&format!("MCP server {} started successfully", server_name));
 

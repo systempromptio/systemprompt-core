@@ -20,6 +20,7 @@ mod types;
 
 use clap::Subcommand;
 use systemprompt_config::ProfileBootstrap;
+use systemprompt_identifiers::McpServerId;
 
 pub use dispatch::{execute, load_service_configs};
 
@@ -39,7 +40,10 @@ pub enum StartTarget {
     #[command(about = "Start a single agent by name")]
     Agent { agent: String },
     #[command(about = "Start a single MCP server by name")]
-    Mcp { server_name: String },
+    Mcp {
+        #[arg(value_parser = crate::shared::parse_mcp_server_id)]
+        server_name: McpServerId,
+    },
 }
 
 #[derive(Debug, Clone, Subcommand)]
@@ -52,7 +56,8 @@ pub enum StopTarget {
     },
     #[command(about = "Stop a single MCP server by name")]
     Mcp {
-        server_name: String,
+        #[arg(value_parser = crate::shared::parse_mcp_server_id)]
+        server_name: McpServerId,
         #[arg(long, help = "Force stop (SIGKILL)")]
         force: bool,
     },
@@ -172,7 +177,8 @@ pub enum RestartTarget {
     Agent { agent: String },
     #[command(about = "Restart a single MCP server by name")]
     Mcp {
-        server_name: String,
+        #[arg(value_parser = crate::shared::parse_mcp_server_id)]
+        server_name: McpServerId,
         #[arg(long, help = "Rebuild the binary before restarting")]
         build: bool,
     },

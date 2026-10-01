@@ -22,7 +22,7 @@ pub(in crate::commands::cloud) use select::resolve_profile;
 
 use anyhow::{Context, Result, anyhow, bail};
 use systemprompt_cloud::{CloudPath, ProfilePath, TenantStore, get_cloud_paths};
-use systemprompt_identifiers::TenantId;
+use systemprompt_identifiers::{ProfileName, TenantId};
 use systemprompt_logging::CliService;
 
 use pipeline::{DeployOptions, DeployOrchestrator, DeployRequest, DeploySecretsSource};
@@ -34,7 +34,7 @@ use crate::shared::project::ProjectRoot;
 
 pub(super) struct DeployArgs {
     pub skip_push: bool,
-    pub profile_name: Option<String>,
+    pub profile_name: Option<ProfileName>,
     pub check: bool,
 }
 
@@ -45,7 +45,7 @@ pub(super) async fn execute(
 ) -> Result<()> {
     CliService::section("systemprompt.io Cloud Deploy");
 
-    let (profile, profile_path) = resolve_profile(prompter, args.profile_name.as_deref(), config)?;
+    let (profile, profile_path) = resolve_profile(prompter, args.profile_name.as_ref(), config)?;
 
     if profile.target != systemprompt_models::ProfileType::Cloud {
         bail!(
@@ -68,12 +68,18 @@ pub(super) async fn execute(
     }
 
     let target = resolve_deploy_target(&profile)?;
+    let profile_name = ProfileName::try_new(profile.name.as_str()).with_context(|| {
+        format!(
+            "Profile name '{}' is not a valid profile name",
+            profile.name
+        )
+    })?;
     let project = ProjectRoot::discover().map_err(|e| anyhow!("{}", e))?;
 
     let request = DeployRequest {
         tenant_id: target.tenant_id,
         tenant_name: target.tenant_name,
-        profile_name: profile.name.clone(),
+        profile_name,
         project_root: project.as_path().to_path_buf(),
         credentials: target.creds,
         secrets: DeploySecretsSource::from_profile(

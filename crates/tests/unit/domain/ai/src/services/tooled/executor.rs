@@ -175,7 +175,7 @@ mod tooled_executor_tests {
         async fn find_tool(
             &self,
             _agent_name: &AgentName,
-            _tool_name: &str,
+            _tool_name: &systemprompt_identifiers::McpToolName,
             _context: &ToolContext,
         ) -> ToolProviderResult<Option<ToolDefinition>> {
             Ok(None)

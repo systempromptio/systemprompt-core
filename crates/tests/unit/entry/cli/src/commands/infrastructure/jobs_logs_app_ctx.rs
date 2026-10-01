@@ -8,6 +8,7 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use std::sync::Arc;
+use systemprompt_identifiers::JobName;
 
 use clap::Parser;
 use systemprompt_cli::infrastructure::jobs::{self, JobsCommands};
@@ -70,7 +71,7 @@ async fn disabling_then_enabling_a_registered_job_persists_the_flag_both_ways() 
     let repo = JobRepository::new(&pool);
     // `set_enabled` is a bare UPDATE, so the schedule row has to exist before
     // the CLI toggle has anything to flip.
-    repo.upsert_job(KNOWN_JOB, "0 0 * * * *", true)
+    repo.upsert_job(&JobName::new(KNOWN_JOB), "0 0 * * * *", true)
         .await
         .expect("seed the schedule row");
 
@@ -78,7 +79,7 @@ async fn disabling_then_enabling_a_registered_job_persists_the_flag_both_ways() 
         .await
         .expect("disable a registered job");
     let disabled = repo
-        .find_job(KNOWN_JOB)
+        .find_job(&JobName::new(KNOWN_JOB))
         .await
         .unwrap()
         .expect("the toggle must materialise a schedule row");
@@ -91,7 +92,7 @@ async fn disabling_then_enabling_a_registered_job_persists_the_flag_both_ways() 
         .await
         .expect("enable a registered job");
     let enabled = repo
-        .find_job(KNOWN_JOB)
+        .find_job(&JobName::new(KNOWN_JOB))
         .await
         .unwrap()
         .expect("the row must survive the second toggle");

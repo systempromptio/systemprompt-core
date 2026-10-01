@@ -7,6 +7,7 @@
 
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
+use systemprompt_identifiers::AgentName;
 
 use systemprompt_loader::{ConfigLoader, ConfigWriter, ExtensionLoader, ProfileLoader};
 use tempfile::TempDir;
@@ -237,12 +238,13 @@ fn find_agent_file_scans_for_mismatched_filenames() {
     )
     .expect("write agent file");
 
-    let found = ConfigWriter::find_agent_file("hidden-agent", temp.path())
+    let found = ConfigWriter::find_agent_file(&AgentName::new("hidden-agent"), temp.path())
         .expect("scan succeeds")
         .expect("agent located despite filename mismatch");
     assert!(found.ends_with("agents/renamed-file.yaml"));
 
-    let missing = ConfigWriter::find_agent_file("absent-agent", temp.path()).expect("scan");
+    let missing =
+        ConfigWriter::find_agent_file(&AgentName::new("absent-agent"), temp.path()).expect("scan");
     assert!(missing.is_none());
 }
 
@@ -260,7 +262,7 @@ fn find_agent_file_unreadable_candidate_is_io_error() {
         return;
     }
 
-    let err = ConfigWriter::find_agent_file("locked", temp.path())
+    let err = ConfigWriter::find_agent_file(&AgentName::new("locked"), temp.path())
         .expect_err("unreadable candidate must surface Io");
     chmod(&file, 0o644);
     assert!(format!("{err:#}").contains("locked"), "got {err:#}");

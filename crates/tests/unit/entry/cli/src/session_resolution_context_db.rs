@@ -53,7 +53,7 @@ async fn revalidate_context_keeps_a_context_owned_by_the_user() {
         .unwrap();
 
     let mut session = session_for(&user_id, session_id, context_id.clone());
-    let refreshed = revalidate_context(&pool, &mut session, "ctxdb").await;
+    let refreshed = revalidate_context(&pool, &mut session, &pname("ctxdb")).await;
 
     assert!(refreshed.is_none());
     assert_eq!(session.context_id, context_id);
@@ -66,7 +66,7 @@ async fn revalidate_context_recovers_a_stale_context() {
 
     let stale = ContextId::generate();
     let mut session = session_for(&user_id, session_id, stale.clone());
-    let refreshed = revalidate_context(&pool, &mut session, "ctxdb")
+    let refreshed = revalidate_context(&pool, &mut session, &pname("ctxdb"))
         .await
         .expect("stale context should be recovered");
 
@@ -90,9 +90,13 @@ async fn revalidate_context_adopts_the_existing_cli_context_by_name() {
         .unwrap();
 
     let mut session = session_for(&user_id, session_id, ContextId::generate());
-    revalidate_context(&pool, &mut session, "ctxdb")
+    revalidate_context(&pool, &mut session, &pname("ctxdb"))
         .await
         .expect("stale context should be recovered");
 
     assert_eq!(session.context_id, existing);
+}
+
+fn pname(name: &str) -> systemprompt_identifiers::ProfileName {
+    systemprompt_identifiers::ProfileName::try_new(name).expect("valid ProfileName")
 }

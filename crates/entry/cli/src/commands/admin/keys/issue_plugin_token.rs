@@ -12,6 +12,7 @@ use serde::{Deserialize, Serialize};
 use systemprompt_cloud::CredentialsBootstrap;
 use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
 use systemprompt_database::{Database, DbPool};
+use systemprompt_identifiers::{AccessTokenId, PluginId};
 use systemprompt_oauth::services::plugin_token::{PluginTokenService, PluginTokenSubject};
 use systemprompt_users::{UserRepository, UserService};
 
@@ -28,9 +29,10 @@ pub struct IssuePluginTokenArgs {
     #[arg(
         long,
         default_value = "cowork-bundle",
+        value_parser = crate::shared::parse_plugin_id,
         help = "Plugin identifier to embed in the token's `plugin_id` claim."
     )]
-    pub plugin_id: String,
+    pub plugin_id: PluginId,
 
     #[arg(
         long,
@@ -45,10 +47,10 @@ pub struct IssuePluginTokenArgs {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(super) struct IssuePluginTokenOutput {
-    pub plugin_id: String,
+    pub plugin_id: PluginId,
     pub email: String,
     pub expires_in_days: u32,
-    pub jti: String,
+    pub jti: AccessTokenId,
     pub token: String,
 }
 
@@ -101,7 +103,7 @@ pub(super) async fn execute(args: IssuePluginTokenArgs) -> Result<CommandOutput>
     let issued = PluginTokenService::issue(
         subject,
         &profile.security.issuer,
-        args.plugin_id.clone(),
+        String::from(&args.plugin_id),
         args.duration_days,
         &session_id,
     )
@@ -111,7 +113,7 @@ pub(super) async fn execute(args: IssuePluginTokenArgs) -> Result<CommandOutput>
         plugin_id: args.plugin_id,
         email,
         expires_in_days: args.duration_days,
-        jti: issued.jti,
+        jti: AccessTokenId::new(issued.jti),
         token: issued.token.clone(),
     };
 

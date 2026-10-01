@@ -11,6 +11,7 @@
 
 mod command_result;
 mod disk_logs;
+mod id_parsers;
 mod output_type_builders;
 mod parsers;
 mod profile;

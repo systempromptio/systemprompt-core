@@ -3,8 +3,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use systemprompt_config::ProfileBootstrap;
+use systemprompt_identifiers::ProfileName;
 
 use super::types::{
     ConfigOverviewOutput, PathsOverview, RateLimitsSummary, RuntimeOverview, SecurityOverview,
@@ -16,9 +17,15 @@ use crate::shared::CommandOutput;
 pub fn execute(_config: &CliConfig) -> Result<CommandOutput> {
     let profile = ProfileBootstrap::get()?;
     let profile_path = ProfileBootstrap::get_path()?;
+    let profile_name = ProfileName::try_new(profile.name.as_str()).with_context(|| {
+        format!(
+            "Profile name '{}' is not a valid profile name",
+            profile.name
+        )
+    })?;
 
     let output = ConfigOverviewOutput {
-        profile_name: profile.name.clone(),
+        profile_name,
         profile_path: profile_path.to_owned(),
         server: ServerOverview {
             host: profile.server.host.clone(),

@@ -8,7 +8,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use anyhow::{Result, anyhow};
+use anyhow::{Context, Result, anyhow};
 use chrono::{DateTime, Utc};
 use clap::{Args, Subcommand};
 use serde::Serialize;
@@ -34,7 +34,7 @@ pub enum ApiKeyCommands {
 #[derive(Debug, Args)]
 pub struct IssueArgs {
     #[arg(long)]
-    pub user: String,
+    pub user: UserId,
 
     #[arg(long)]
     pub name: String,
@@ -46,13 +46,13 @@ pub struct IssueArgs {
 #[derive(Debug, Args)]
 pub struct ListArgs {
     #[arg(long)]
-    pub user: String,
+    pub user: UserId,
 }
 
 #[derive(Debug, Args)]
 pub struct RevokeArgs {
     #[arg(long)]
-    pub user: String,
+    pub user: UserId,
 
     #[arg(long)]
     pub id: String,
@@ -103,10 +103,9 @@ async fn issue(service: &ApiKeyService, args: IssueArgs) -> Result<CommandOutput
     if args.name.trim().is_empty() {
         return Err(anyhow!("Key name cannot be empty"));
     }
-    let user_id = UserId::new(args.user);
     let issued = service
         .issue(IssueApiKeyParams {
-            user_id: &user_id,
+            user_id: &args.user,
             name: &args.name,
             expires_at: args.expires,
         })
@@ -123,9 +122,8 @@ async fn issue(service: &ApiKeyService, args: IssueArgs) -> Result<CommandOutput
 }
 
 async fn list(service: &ApiKeyService, args: &ListArgs) -> Result<CommandOutput> {
-    let user_id = UserId::new(args.user.clone());
     let rows: Vec<KeyRow> = service
-        .list_for_user(&user_id)
+        .list_for_user(&args.user)
         .await?
         .into_iter()
         .map(|k| KeyRow {
@@ -142,9 +140,8 @@ async fn list(service: &ApiKeyService, args: &ListArgs) -> Result<CommandOutput>
 }
 
 async fn revoke(service: &ApiKeyService, args: &RevokeArgs) -> Result<CommandOutput> {
-    let user_id = UserId::new(args.user.clone());
-    let key_id = ApiKeyId::new(args.id.clone());
-    let revoked = service.revoke(&key_id, &user_id).await?;
+    let key_id = ApiKeyId::try_new(args.id.clone()).context("Invalid --id")?;
+    let revoked = service.revoke(&key_id, &args.user).await?;
     if revoked {
         #[derive(Debug, Serialize)]
         struct RevokedOutput {

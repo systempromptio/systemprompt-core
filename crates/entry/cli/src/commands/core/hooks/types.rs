@@ -5,6 +5,7 @@
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::HookId;
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct HookListOutput {
@@ -13,7 +14,8 @@ pub struct HookListOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct HookEntry {
-    pub plugin_id: String,
+    #[serde(rename = "plugin_id")]
+    pub hook_id: HookId,
     pub event: String,
     pub matcher: String,
     pub hook_type: String,
@@ -27,7 +29,8 @@ pub struct HookValidateOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct HookValidateEntry {
-    pub plugin_id: String,
+    #[serde(rename = "plugin_id")]
+    pub hook_id: HookId,
     pub valid: bool,
     pub errors: Vec<String>,
 }

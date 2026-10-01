@@ -6,6 +6,7 @@
 use opentelemetry_proto::tonic::common::v1::any_value::Value;
 use opentelemetry_proto::tonic::common::v1::{AnyValue, InstrumentationScope, KeyValue};
 use opentelemetry_proto::tonic::resource::v1::Resource;
+use systemprompt_identifiers::InstanceId;
 
 pub(super) const SERVICE_NAME: &str = "systemprompt";
 pub(super) const SCOPE_NAME: &str = "systemprompt.gateway";
@@ -68,12 +69,12 @@ impl Attrs {
 }
 
 #[must_use]
-pub(super) fn resource(instance_id: Option<&str>) -> Resource {
+pub(super) fn resource(instance_id: Option<&InstanceId>) -> Resource {
     let mut attrs = Attrs::new();
     attrs
         .text("service.name", SERVICE_NAME)
         .text("service.version", env!("CARGO_PKG_VERSION"))
-        .opt_str("service.instance.id", instance_id);
+        .opt_str("service.instance.id", instance_id.map(InstanceId::as_str));
     Resource {
         attributes: attrs.finish(),
         dropped_attributes_count: 0,

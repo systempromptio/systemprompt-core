@@ -6,6 +6,7 @@
 use anyhow::Result;
 use serde::Serialize;
 use std::path::Path;
+use systemprompt_identifiers::PluginId;
 use systemprompt_loader::ConfigLoader;
 use systemprompt_models::bridge::plugin_bundle::{ManifestAuthor, PluginManifest};
 use systemprompt_models::services::ServicesConfig;
@@ -149,7 +150,7 @@ pub fn generate_plugin_json(
 pub fn copy_scripts(
     plugin: &PluginConfig,
     plugins_path: &Path,
-    plugin_id: &str,
+    plugin_id: &PluginId,
     output_dir: &Path,
     files_generated: &mut Vec<String>,
 ) -> Result<()> {
@@ -161,7 +162,7 @@ pub fn copy_scripts(
     std::fs::create_dir_all(&scripts_dir)?;
 
     for script in &plugin.scripts {
-        let source_path = plugins_path.join(plugin_id).join(&script.source);
+        let source_path = plugins_path.join(plugin_id.as_str()).join(&script.source);
         let dest_path = scripts_dir.join(&script.name);
 
         if source_path.exists() {

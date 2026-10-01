@@ -55,14 +55,14 @@ pub fn select_tenant<'a>(
     Ok(&tenants[selection])
 }
 
-pub fn resolve_tenant_id(tenant: Option<String>) -> Result<TenantId> {
+pub fn resolve_tenant_id(tenant: Option<TenantId>) -> Result<TenantId> {
     if let Some(id) = tenant {
-        return Ok(TenantId::new(id));
+        return Ok(id);
     }
 
     ProfileBootstrap::get()
         .ok()
-        .and_then(|p| p.cloud.as_ref()?.tenant_id.as_ref().map(TenantId::new))
+        .and_then(|p| p.cloud.as_ref()?.tenant_id.clone())
         .ok_or_else(|| {
             anyhow!("No tenant specified. Use --tenant or configure a tenant in your profile.")
         })

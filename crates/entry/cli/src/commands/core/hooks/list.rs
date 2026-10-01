@@ -9,6 +9,7 @@ use std::path::Path;
 
 use crate::CliConfig;
 use crate::shared::CommandOutput;
+use systemprompt_identifiers::HookId;
 use systemprompt_loader::ServicesRootBootstrap;
 use systemprompt_models::{DiskHookConfig, HOOK_CONFIG_FILENAME};
 
@@ -74,14 +75,14 @@ fn scan_hooks(hooks_path: &Path) -> Result<Vec<HookEntry>> {
             .and_then(|n| n.to_str())
             .unwrap_or("")
             .to_owned();
-        let id_str = if config.id.as_str().is_empty() {
-            dir_name
+        let hook_id = if config.id.as_str().is_empty() {
+            HookId::new(dir_name)
         } else {
-            config.id.as_str().to_owned()
+            config.id.clone()
         };
 
         entries.push(HookEntry {
-            plugin_id: id_str,
+            hook_id,
             event: config.event.as_str().to_owned(),
             matcher: config.matcher.clone(),
             hook_type: "command".to_owned(),

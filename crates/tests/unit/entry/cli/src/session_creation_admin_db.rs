@@ -305,7 +305,7 @@ mod tenant_fallback {
 // worth asserting — keyed too loosely, one operator's CLI history surfaces in
 // another's.
 mod cli_context {
-    use super::{seed, test_db_pool};
+    use super::{pname, seed, test_db_pool};
     use systemprompt_cli::session::creation::helpers::{create_cli_context, get_or_create_admin};
     use systemprompt_database::DbPool;
     use systemprompt_identifiers::{SessionId, UserId};
@@ -331,10 +331,10 @@ mod cli_context {
 
         let one = session_for(&pool, &user.id).await;
         let two = session_for(&pool, &user.id).await;
-        let first = create_cli_context(pool.clone(), &user, &one, "prof-a")
+        let first = create_cli_context(pool.clone(), &user, &one, &pname("prof-a"))
             .await
             .expect("first context");
-        let second = create_cli_context(pool.clone(), &user, &two, "prof-a")
+        let second = create_cli_context(pool.clone(), &user, &two, &pname("prof-a"))
             .await
             .expect("second context");
 
@@ -356,10 +356,10 @@ mod cli_context {
             .expect("resolve admin");
         let session = session_for(&pool, &user.id).await;
 
-        let a = create_cli_context(pool.clone(), &user, &session, "prof-a")
+        let a = create_cli_context(pool.clone(), &user, &session, &pname("prof-a"))
             .await
             .expect("context a");
-        let b = create_cli_context(pool.clone(), &user, &session, "prof-b")
+        let b = create_cli_context(pool.clone(), &user, &session, &pname("prof-b"))
             .await
             .expect("context b");
 
@@ -382,10 +382,10 @@ mod cli_context {
 
         let session_one = session_for(&pool, &one.id).await;
         let session_two = session_for(&pool, &two.id).await;
-        let context_one = create_cli_context(pool.clone(), &one, &session_one, "shared")
+        let context_one = create_cli_context(pool.clone(), &one, &session_one, &pname("shared"))
             .await
             .expect("context for the first user");
-        let context_two = create_cli_context(pool.clone(), &two, &session_two, "shared")
+        let context_two = create_cli_context(pool.clone(), &two, &session_two, &pname("shared"))
             .await
             .expect("context for the second user");
 
@@ -486,4 +486,8 @@ async fn a_hintless_lookup_that_fails_is_reported_without_a_fallback() {
         format!("{err:#}").contains("Failed to query user by email"),
         "the lookup failure must be reported as-is, got: {err:#}"
     );
+}
+
+fn pname(name: &str) -> systemprompt_identifiers::ProfileName {
+    systemprompt_identifiers::ProfileName::try_new(name).expect("valid ProfileName")
 }

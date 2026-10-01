@@ -11,6 +11,7 @@ use systemprompt_analytics::ToolAnalyticsRepository;
 use systemprompt_analytics::models::reporting::{
     ToolAgentUsageRow, ToolErrorRow, ToolStatusBreakdownRow, ToolSummaryRow,
 };
+use systemprompt_identifiers::{AgentName, McpToolName};
 use systemprompt_logging::CliService;
 use systemprompt_runtime::DatabaseContext;
 
@@ -19,12 +20,12 @@ use crate::CliConfig;
 use crate::commands::analytics::shared::{
     export_single_to_csv, parse_time_range, resolve_export_path,
 };
-use crate::shared::CommandOutput;
+use crate::shared::{CommandOutput, parse_mcp_tool_name};
 
 #[derive(Debug, Args)]
 pub struct ShowArgs {
-    #[arg(help = "Tool name to analyze")]
-    pub tool: String,
+    #[arg(help = "Tool name to analyze", value_parser = parse_mcp_tool_name)]
+    pub tool: McpToolName,
 
     #[arg(
         long,
@@ -53,7 +54,8 @@ pub(super) async fn execute_with_pool(
 async fn execute_internal(args: ShowArgs, repo: &ToolAnalyticsRepository) -> Result<CommandOutput> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
 
-    let count = repo.tool_exists(&args.tool, start, end).await?;
+    let tool = args.tool.as_str();
+    let count = repo.tool_exists(tool, start, end).await?;
     if count == 0 {
         return Err(anyhow!(
             "Tool '{}' not found in the specified time range",
@@ -61,10 +63,10 @@ async fn execute_internal(args: ShowArgs, repo: &ToolAnalyticsRepository) -> Res
         ));
     }
 
-    let summary_row = repo.get_tool_summary(&args.tool, start, end).await?;
-    let status_breakdown_rows = repo.get_status_breakdown(&args.tool, start, end).await?;
-    let top_errors_rows = repo.get_top_errors(&args.tool, start, end).await?;
-    let usage_by_agent_rows = repo.get_usage_by_agent(&args.tool, start, end).await?;
+    let summary_row = repo.get_tool_summary(tool, start, end).await?;
+    let status_breakdown_rows = repo.get_status_breakdown(tool, start, end).await?;
+    let top_errors_rows = repo.get_top_errors(tool, start, end).await?;
+    let usage_by_agent_rows = repo.get_usage_by_agent(tool, start, end).await?;
 
     let period = format_period(start, end);
     let output = ToolShowOutput {
@@ -135,7 +137,7 @@ fn build_usage_by_agent(rows: Vec<ToolAgentUsageRow>) -> Vec<AgentUsageItem> {
     let agent_total: i64 = rows.iter().map(|r| r.usage_count).sum();
     rows.into_iter()
         .map(|row| AgentUsageItem {
-            agent_name: row.agent_name.unwrap_or_else(|| "Direct Call".to_owned()),
+            agent_name: row.agent_name.map(AgentName::new),
             count: row.usage_count,
             percentage: if agent_total > 0 {
                 (row.usage_count as f64 / agent_total as f64) * 100.0

@@ -4,6 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_cloud::{ProfilePath, ProjectContext, SessionKey, SessionStore};
+use systemprompt_identifiers::ProfileName;
 use systemprompt_loader::ProfileLoader;
 use systemprompt_models::Profile;
 
@@ -106,7 +107,7 @@ fn build_profile_info(info: &DiscoveredProfile, store: Option<&SessionStore>) ->
     let session_key = SessionKey::from_tenant_id(info.tenant.as_ref());
 
     let is_active = store.is_some_and(|s| {
-        s.active_profile_name.as_deref() == Some(info.name.as_str())
+        s.active_profile_name.as_ref().map(ProfileName::as_str) == Some(info.name.as_str())
             || (s.active_profile_name.is_none()
                 && s.active_key.as_ref() == Some(&session_key.as_storage_key()))
     });

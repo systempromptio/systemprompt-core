@@ -16,11 +16,24 @@ fn scheduled_job_id_generate_unique() {
 
 #[test]
 fn scheduled_job_id_serde_transparent() {
-    let id = ScheduledJobId::new("job-1");
+    let id = ScheduledJobId::new("6f1c2a52-6b7e-4d3a-9c1e-2f4b8a9d0e11");
     let json = serde_json::to_string(&id).unwrap();
-    assert_eq!(json, "\"job-1\"");
+    assert_eq!(json, "\"6f1c2a52-6b7e-4d3a-9c1e-2f4b8a9d0e11\"");
     let deserialized: ScheduledJobId = serde_json::from_str(&json).unwrap();
     assert_eq!(deserialized, id);
+}
+
+#[test]
+fn scheduled_job_id_rejects_non_uuid() {
+    ScheduledJobId::try_new("job-1").unwrap_err();
+    serde_json::from_str::<ScheduledJobId>("\"job-1\"").unwrap_err();
+}
+
+#[test]
+fn scheduled_job_id_round_trips_through_uuid() {
+    let id = ScheduledJobId::generate();
+    let uuid = id.to_uuid().unwrap();
+    assert_eq!(ScheduledJobId::from_uuid(uuid), id);
 }
 
 #[test]
@@ -52,10 +65,16 @@ fn job_name_serde_transparent() {
 }
 
 #[test]
-fn job_name_from_str_and_string_equal() {
-    let a: JobName = "x".into();
-    let b: JobName = String::from("x").into();
+fn job_name_try_new_and_parse_equal() {
+    let a = JobName::try_new("x").unwrap();
+    let b: JobName = "x".parse().unwrap();
     assert_eq!(a, b);
+}
+
+#[test]
+fn job_name_rejects_empty() {
+    JobName::try_new("").unwrap_err();
+    serde_json::from_str::<JobName>("\"\"").unwrap_err();
 }
 
 #[test]

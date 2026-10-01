@@ -1,3 +1,4 @@
+use systemprompt_identifiers::JobName;
 use systemprompt_models::services::scheduler::JobScope;
 use systemprompt_scheduler::{JobConfig, SchedulerConfig};
 
@@ -6,7 +7,7 @@ mod job_config_tests {
 
     #[test]
     fn new_defaults_owner_to_none() {
-        let cfg = JobConfig::new("my_job");
+        let cfg = JobConfig::new(JobName::new("my_job"));
         assert_eq!(cfg.name, "my_job");
         assert!(cfg.owner.is_none());
     }
@@ -14,55 +15,55 @@ mod job_config_tests {
     #[test]
     fn with_owner_sets_explicit_owner() {
         let owner = "user-123".to_owned();
-        let cfg = JobConfig::new("my_job").with_owner(owner.clone());
+        let cfg = JobConfig::new(JobName::new("my_job")).with_owner(owner.clone());
         assert_eq!(cfg.owner, Some(owner));
     }
 
     #[test]
     fn new_is_enabled_by_default() {
-        let cfg = JobConfig::new("job");
+        let cfg = JobConfig::new(JobName::new("job"));
         assert!(cfg.enabled);
     }
 
     #[test]
     fn new_has_no_schedule_by_default() {
-        let cfg = JobConfig::new("job");
+        let cfg = JobConfig::new(JobName::new("job"));
         assert!(cfg.schedule.is_none());
     }
 
     #[test]
     fn new_has_no_extension_by_default() {
-        let cfg = JobConfig::new("job");
+        let cfg = JobConfig::new(JobName::new("job"));
         assert!(cfg.extension.is_none());
     }
 
     #[test]
     fn with_schedule_sets_schedule() {
-        let cfg = JobConfig::new("job").with_schedule("0 0 * * * *");
+        let cfg = JobConfig::new(JobName::new("job")).with_schedule("0 0 * * * *");
         assert_eq!(cfg.schedule, Some("0 0 * * * *".to_string()));
     }
 
     #[test]
     fn with_extension_sets_extension() {
-        let cfg = JobConfig::new("job").with_extension("core");
+        let cfg = JobConfig::new(JobName::new("job")).with_extension("core");
         assert_eq!(cfg.extension, Some("core".to_string()));
     }
 
     #[test]
     fn disabled_sets_enabled_false() {
-        let cfg = JobConfig::new("job").disabled();
+        let cfg = JobConfig::new(JobName::new("job")).disabled();
         assert!(!cfg.enabled);
     }
 
     #[test]
     fn new_defaults_enforce_to_false() {
-        let cfg = JobConfig::new("job");
+        let cfg = JobConfig::new(JobName::new("job"));
         assert!(!cfg.enforce);
     }
 
     #[test]
     fn with_enforce_opts_in() {
-        let cfg = JobConfig::new("job").with_enforce();
+        let cfg = JobConfig::new(JobName::new("job")).with_enforce();
         assert!(cfg.enforce);
     }
 
@@ -85,7 +86,7 @@ mod job_config_tests {
     #[test]
     fn builder_chain_works() {
         let owner = "user-1".to_owned();
-        let cfg = JobConfig::new("complex_job")
+        let cfg = JobConfig::new(JobName::new("complex_job"))
             .with_owner(owner.clone())
             .with_extension("scheduler")
             .with_schedule("0 */5 * * * *")
@@ -100,7 +101,7 @@ mod job_config_tests {
 
     #[test]
     fn serializes_to_json() {
-        let cfg = JobConfig::new("serde_job");
+        let cfg = JobConfig::new(JobName::new("serde_job"));
         let json = serde_json::to_string(&cfg).expect("JobConfig should serialize");
         assert!(json.contains("serde_job"));
     }
@@ -108,14 +109,14 @@ mod job_config_tests {
     #[test]
     fn name_accepts_long_string() {
         let long_name = "a".repeat(200);
-        let cfg = JobConfig::new(long_name.clone());
-        assert_eq!(cfg.name.len(), 200);
+        let cfg = JobConfig::new(JobName::new(long_name.clone()));
+        assert_eq!(cfg.name.as_str().len(), 200);
     }
 
     #[test]
     fn with_schedule_accepts_string_type() {
         let schedule = String::from("0 0 1 * * *");
-        let cfg = JobConfig::new("job").with_schedule(schedule.clone());
+        let cfg = JobConfig::new(JobName::new("job")).with_schedule(schedule.clone());
         assert_eq!(cfg.schedule, Some(schedule));
     }
 }
@@ -125,12 +126,12 @@ mod job_scope_tests {
 
     #[test]
     fn new_defaults_scope_to_none() {
-        assert_eq!(JobConfig::new("job").scope, None);
+        assert_eq!(JobConfig::new(JobName::new("job")).scope, None);
     }
 
     #[test]
     fn with_scope_sets_explicit_scope() {
-        let cfg = JobConfig::new("job").with_scope(JobScope::Node);
+        let cfg = JobConfig::new(JobName::new("job")).with_scope(JobScope::Node);
         assert_eq!(cfg.scope, Some(JobScope::Node));
     }
 
@@ -291,12 +292,9 @@ mod scheduler_config_tests {
     #[test]
     fn bootstrap_jobs_default_excludes_database_cleanup() {
         let cfg = SchedulerConfig::with_system_admin();
-        assert_eq!(
-            cfg.bootstrap_jobs,
-            vec!["cleanup_inactive_sessions".to_string()]
-        );
+        assert_eq!(cfg.bootstrap_jobs, vec!["cleanup_inactive_sessions"]);
         assert!(
-            !cfg.bootstrap_jobs.contains(&"database_cleanup".to_string()),
+            !cfg.bootstrap_jobs.iter().any(|j| j == "database_cleanup"),
             "an irreversible deleter must not run on every process start"
         );
     }
@@ -306,7 +304,8 @@ mod scheduler_config_tests {
         let cfg = SchedulerConfig::with_system_admin();
         assert!(
             cfg.bootstrap_jobs
-                .contains(&"cleanup_inactive_sessions".to_string()),
+                .iter()
+                .any(|j| j == "cleanup_inactive_sessions"),
             "bootstrap_jobs should include cleanup_inactive_sessions"
         );
     }

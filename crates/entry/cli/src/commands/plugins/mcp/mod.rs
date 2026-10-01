@@ -15,6 +15,7 @@ mod tools;
 mod tools_schema;
 pub mod types;
 pub mod validate;
+mod validate_output;
 
 use anyhow::{Context, Result, bail};
 use clap::Subcommand;

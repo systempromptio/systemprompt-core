@@ -8,6 +8,7 @@
 //! - Include management (add/remove)
 
 use std::collections::HashMap;
+use systemprompt_identifiers::AgentName;
 use systemprompt_loader::ConfigWriter;
 use systemprompt_models::services::{
     AgentCardConfig, AgentConfig, AgentMetadataConfig, CapabilitiesConfig, OAuthConfig,
@@ -151,7 +152,7 @@ fn test_find_agent_file_exists() {
     std::fs::write(&agent_file, create_agent_yaml_content("my_agent"))
         .expect("Failed to write agent file");
 
-    let result = ConfigWriter::find_agent_file("my_agent", temp_dir.path());
+    let result = ConfigWriter::find_agent_file(&AgentName::new("my_agent"), temp_dir.path());
     result.as_ref().expect("result should succeed");
     result
         .expect("Should find agent")
@@ -164,7 +165,7 @@ fn test_find_agent_file_not_exists() {
     let agents_dir = temp_dir.path().join("agents");
     std::fs::create_dir_all(&agents_dir).expect("Failed to create agents dir");
 
-    let result = ConfigWriter::find_agent_file("nonexistent", temp_dir.path());
+    let result = ConfigWriter::find_agent_file(&AgentName::new("nonexistent"), temp_dir.path());
     result.as_ref().expect("result should succeed");
     assert!(result.expect("Should return None").is_none());
 }
@@ -173,7 +174,7 @@ fn test_find_agent_file_not_exists() {
 fn test_find_agent_file_no_agents_dir() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
-    let result = ConfigWriter::find_agent_file("any_agent", temp_dir.path());
+    let result = ConfigWriter::find_agent_file(&AgentName::new("any_agent"), temp_dir.path());
     result.as_ref().expect("result should succeed");
     assert!(result.expect("Should return None").is_none());
 }
@@ -211,7 +212,7 @@ fn test_find_agent_file_in_different_filename() {
     let agent_file = agents_dir.join("other-file.yaml");
     std::fs::write(&agent_file, agent_content).expect("Failed to write agent file");
 
-    let result = ConfigWriter::find_agent_file("hidden_agent", temp_dir.path());
+    let result = ConfigWriter::find_agent_file(&AgentName::new("hidden_agent"), temp_dir.path());
     result.as_ref().expect("result should succeed");
     let found = result.expect("Should find agent");
     found.as_ref().expect("found should be present");
@@ -236,7 +237,11 @@ fn test_update_agent_success() {
     let mut updated_agent = create_test_agent("update_agent");
     updated_agent.card.description = "Updated description".to_string();
 
-    let result = ConfigWriter::update_agent("update_agent", &updated_agent, temp_dir.path());
+    let result = ConfigWriter::update_agent(
+        &AgentName::new("update_agent"),
+        &updated_agent,
+        temp_dir.path(),
+    );
     result.expect("result should succeed");
 
     let content = std::fs::read_to_string(&agent_file).expect("Failed to read updated file");
@@ -250,7 +255,8 @@ fn test_update_agent_not_found() {
     std::fs::create_dir_all(&agents_dir).expect("Failed to create agents dir");
 
     let agent = create_test_agent("nonexistent");
-    let result = ConfigWriter::update_agent("nonexistent", &agent, temp_dir.path());
+    let result =
+        ConfigWriter::update_agent(&AgentName::new("nonexistent"), &agent, temp_dir.path());
 
     result.as_ref().expect_err("result should fail");
     assert!(result.unwrap_err().to_string().contains("not found"));
@@ -273,7 +279,7 @@ fn test_delete_agent_success() {
 
     assert!(agent_file.exists());
 
-    let result = ConfigWriter::delete_agent("delete_me", temp_dir.path());
+    let result = ConfigWriter::delete_agent(&AgentName::new("delete_me"), temp_dir.path());
     result.expect("result should succeed");
     assert!(!agent_file.exists());
 }
@@ -284,7 +290,7 @@ fn test_delete_agent_not_found() {
     let agents_dir = temp_dir.path().join("agents");
     std::fs::create_dir_all(&agents_dir).expect("Failed to create agents dir");
 
-    let result = ConfigWriter::delete_agent("nonexistent", temp_dir.path());
+    let result = ConfigWriter::delete_agent(&AgentName::new("nonexistent"), temp_dir.path());
     result.as_ref().expect_err("result should fail");
     assert!(result.unwrap_err().to_string().contains("not found"));
 }

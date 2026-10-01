@@ -23,6 +23,7 @@ mod show;
 pub mod show_display;
 pub mod show_types;
 pub mod templates;
+pub mod tenant_credentials;
 
 pub use api_keys::{ApiKeys, collect_api_keys};
 pub use args::{CreateArgs, DeleteArgs, EditArgs, ProfileCommands, ShowFilter, TenantTypeArg};

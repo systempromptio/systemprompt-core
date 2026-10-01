@@ -10,7 +10,9 @@ use systemprompt_cli::plugins::mcp::call_client::{
 };
 use systemprompt_cli::session::CliSessionContext;
 use systemprompt_cloud::{CliSession, SessionBinding, SessionIdentity};
-use systemprompt_identifiers::{ContextId, Email, ProfileName, SessionId, SessionToken, UserId};
+use systemprompt_identifiers::{
+    ContextId, Email, McpServerId, McpToolName, ProfileName, SessionId, SessionToken, UserId,
+};
 use systemprompt_models::auth::UserType;
 use systemprompt_models::services::SystemAdminConfig;
 use systemprompt_models::{
@@ -161,9 +163,9 @@ fn convert_content_wraps_embedded_resources_as_debug_text() {
 async fn execute_tool_call_fails_fast_against_closed_port() {
     let ctx = session_ctx();
     let err = execute_tool_call(ToolCallParams {
-        server_name: "svc",
+        server_name: &McpServerId::new("svc"),
         url: &format!("http://127.0.0.1:{}/mcp", free_port()),
-        tool_name: "echo",
+        tool_name: &McpToolName::new("echo"),
         arguments: Some(serde_json::json!({"x": 1})),
         session_ctx: &ctx,
         timeout_secs: 5,
@@ -178,7 +180,7 @@ async fn execute_tool_call_fails_fast_against_closed_port() {
 async fn list_available_tools_fails_fast_against_closed_port() {
     let ctx = session_ctx();
     let err = list_available_tools(
-        "svc",
+        &McpServerId::new("svc"),
         &format!("http://127.0.0.1:{}/mcp", free_port()),
         &ctx,
         5,
@@ -353,7 +355,7 @@ async fn list_available_tools_sends_non_null_object_params_and_preserves_names()
     let tools_result = tokio::time::timeout(
         std::time::Duration::from_secs(10),
         list_available_tools(
-            "strict",
+            &McpServerId::new("strict"),
             &format!("{}/mcp", server.uri()),
             &session_ctx(),
             5,
@@ -420,9 +422,9 @@ async fn execute_tool_call_sends_arguments_and_surfaces_jsonrpc_rejection() {
     let result = tokio::time::timeout(
         std::time::Duration::from_secs(10),
         execute_tool_call(ToolCallParams {
-            server_name: "strict",
+            server_name: &McpServerId::new("strict"),
             url: &format!("{}/mcp", success.uri()),
-            tool_name: "echo",
+            tool_name: &McpToolName::new("echo"),
             arguments: Some(serde_json::json!({"message": "owned-value"})),
             session_ctx: &success_ctx,
             timeout_secs: 5,
@@ -465,9 +467,9 @@ async fn execute_tool_call_sends_arguments_and_surfaces_jsonrpc_rejection() {
     let error = tokio::time::timeout(
         std::time::Duration::from_secs(10),
         execute_tool_call(ToolCallParams {
-            server_name: "strict",
+            server_name: &McpServerId::new("strict"),
             url: &format!("{}/mcp", rejected.uri()),
-            tool_name: "denied",
+            tool_name: &McpToolName::new("denied"),
             arguments: None,
             session_ctx: &ctx,
             timeout_secs: 5,

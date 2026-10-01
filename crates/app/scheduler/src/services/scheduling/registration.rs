@@ -131,7 +131,7 @@ impl SchedulerService {
             warn!(job = %job_config.name, "no resolved owner for job, skipping");
             return Ok(Registered::No);
         };
-        let actor = Actor::job(owner_id, job_config.name.clone());
+        let actor = Actor::job(owner_id, job_config.name.as_str());
 
         let schedule = job_config
             .schedule
@@ -166,7 +166,7 @@ impl SchedulerService {
         let registered_job: &dyn JobTrait = *ctx
             .registered_jobs
             .get(job_config.name.as_str())
-            .ok_or_else(|| SchedulerError::job_not_found(&job_config.name))?;
+            .ok_or_else(|| SchedulerError::job_not_found(job_config.name.clone()))?;
         let running_jobs = ctx.running_jobs;
         let enforce = job_config.enforce;
         let parameters = job_config.parameters.clone();

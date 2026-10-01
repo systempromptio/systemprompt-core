@@ -20,6 +20,7 @@ pub use jobs::JobRepository;
 pub use security::{IpSessionRecord, SecurityRepository};
 
 use systemprompt_database::DbPool;
+use systemprompt_identifiers::JobName;
 
 use crate::error::SchedulerResult;
 use crate::models::{JobRunRecord, ScheduledJob};
@@ -40,18 +41,18 @@ impl SchedulerRepository {
 
     pub async fn upsert_job(
         &self,
-        job_name: &str,
+        job_name: &JobName,
         schedule: &str,
         enabled: bool,
     ) -> SchedulerResult<()> {
         self.jobs.upsert_job(job_name, schedule, enabled).await
     }
 
-    pub async fn delete_jobs_not_in(&self, known: &[String]) -> SchedulerResult<u64> {
+    pub async fn delete_jobs_not_in(&self, known: &[JobName]) -> SchedulerResult<u64> {
         self.jobs.delete_jobs_not_in(known).await
     }
 
-    pub async fn find_job(&self, job_name: &str) -> SchedulerResult<Option<ScheduledJob>> {
+    pub async fn find_job(&self, job_name: &JobName) -> SchedulerResult<Option<ScheduledJob>> {
         self.jobs.find_job(job_name).await
     }
 
@@ -61,7 +62,7 @@ impl SchedulerRepository {
 
     pub async fn update_job_execution(
         &self,
-        job_name: &str,
+        job_name: &JobName,
         record: JobRunRecord<'_>,
     ) -> SchedulerResult<()> {
         self.jobs.update_job_execution(job_name, record).await

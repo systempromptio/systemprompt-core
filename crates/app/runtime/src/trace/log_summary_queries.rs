@@ -43,13 +43,14 @@ pub(super) async fn count_logs_by_level(
     .fetch_all(&**pool)
     .await?;
 
-    Ok(rows
-        .into_iter()
-        .map(|r| LevelCount {
-            level: r.level,
-            count: r.count.unwrap_or(0),
+    rows.into_iter()
+        .map(|r| -> Result<LevelCount> {
+            Ok(LevelCount {
+                level: r.level.parse()?,
+                count: r.count.unwrap_or(0),
+            })
         })
-        .collect())
+        .collect()
 }
 
 pub(super) async fn top_modules(

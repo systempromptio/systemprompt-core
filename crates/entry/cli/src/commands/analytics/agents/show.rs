@@ -11,6 +11,7 @@ use systemprompt_analytics::AgentAnalyticsRepository;
 use systemprompt_analytics::models::reporting::{
     AgentErrorRow, AgentHourlyRow, AgentStatusBreakdownRow, AgentSummaryRow,
 };
+use systemprompt_identifiers::AgentName;
 use systemprompt_logging::CliService;
 use systemprompt_models::artifacts::NoticeLine;
 use systemprompt_runtime::DatabaseContext;
@@ -23,12 +24,12 @@ use crate::CliConfig;
 use crate::commands::analytics::shared::{
     export_single_to_csv, parse_time_range, resolve_export_path,
 };
-use crate::shared::CommandOutput;
+use crate::shared::{CommandOutput, parse_agent_name};
 
 #[derive(Debug, Args)]
 pub struct ShowArgs {
-    #[arg(help = "Agent name to analyze")]
-    pub agent: String,
+    #[arg(help = "Agent name to analyze", value_parser = parse_agent_name)]
+    pub agent: AgentName,
 
     #[arg(
         long,
@@ -60,17 +61,16 @@ async fn execute_internal(
 ) -> Result<CommandOutput> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
 
-    let count = repo.agent_exists(&args.agent, start, end).await?;
+    let agent = args.agent.as_str();
+    let count = repo.agent_exists(agent, start, end).await?;
     if count == 0 {
         return Ok(no_activity_output(&args.agent));
     }
 
-    let summary_row = repo.get_agent_summary(&args.agent, start, end).await?;
-    let status_breakdown_rows = repo.get_status_breakdown(&args.agent, start, end).await?;
-    let top_errors_rows = repo.get_top_errors(&args.agent, start, end).await?;
-    let hourly_rows = repo
-        .get_hourly_distribution(&args.agent, start, end)
-        .await?;
+    let summary_row = repo.get_agent_summary(agent, start, end).await?;
+    let status_breakdown_rows = repo.get_status_breakdown(agent, start, end).await?;
+    let top_errors_rows = repo.get_top_errors(agent, start, end).await?;
+    let hourly_rows = repo.get_hourly_distribution(agent, start, end).await?;
 
     let period = format_period(start, end);
     let output = AgentShowOutput {
@@ -85,7 +85,7 @@ async fn execute_internal(
     render_output(args.export.as_deref(), &output)
 }
 
-fn no_activity_output(agent: &str) -> CommandOutput {
+fn no_activity_output(agent: &AgentName) -> CommandOutput {
     CommandOutput::message(vec![
         NoticeLine::new(
             "warning",

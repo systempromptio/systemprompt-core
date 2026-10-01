@@ -1,7 +1,7 @@
 //! Tests for TaskInfo, ExecutionStep, AiRequestInfo, McpToolExecution
 
 use chrono::Utc;
-use systemprompt_identifiers::ContextId;
+use systemprompt_identifiers::{AgentName, ContextId, McpServerId, McpToolName};
 use systemprompt_runtime::{AiRequestInfo, ExecutionStep, McpToolExecution, TaskInfo};
 
 const TEST_CTX: &str = "00000000-0000-4000-8000-000000000001";
@@ -11,7 +11,7 @@ fn test_task_info_creation() {
     let task = TaskInfo {
         task_id: "task-123".to_string().into(),
         context_id: ContextId::try_new(TEST_CTX).expect("valid ContextId"),
-        agent_name: Some("test-agent".to_string()),
+        agent_name: Some(AgentName::new("test-agent")),
         status: "completed".to_string(),
         created_at: Utc::now(),
         started_at: Some(Utc::now()),
@@ -22,7 +22,7 @@ fn test_task_info_creation() {
 
     assert_eq!(task.task_id, "task-123");
     assert_eq!(task.context_id.as_str(), TEST_CTX);
-    assert_eq!(task.agent_name, Some("test-agent".to_string()));
+    assert_eq!(task.agent_name, Some(AgentName::new("test-agent")));
     assert_eq!(task.status, "completed");
     task.execution_time_ms
         .expect("task.execution_time_ms should be present");
@@ -52,7 +52,7 @@ fn test_task_info_with_error() {
     let task = TaskInfo {
         task_id: "task-err".to_string().into(),
         context_id: ContextId::try_new(TEST_CTX).expect("valid ContextId"),
-        agent_name: Some("error-agent".to_string()),
+        agent_name: Some(AgentName::new("error-agent")),
         status: "failed".to_string(),
         created_at: Utc::now(),
         started_at: Some(Utc::now()),
@@ -213,8 +213,8 @@ fn test_ai_request_info_serialize() {
 fn test_mcp_tool_execution_creation() {
     let exec = McpToolExecution {
         mcp_execution_id: "exec-123".to_string().into(),
-        tool_name: "file_reader".to_string(),
-        server_name: "filesystem".to_string(),
+        tool_name: McpToolName::new("file_reader"),
+        server_name: McpServerId::new("filesystem"),
         status: "success".to_string(),
         execution_time_ms: Some(250),
         error_message: None,
@@ -233,8 +233,8 @@ fn test_mcp_tool_execution_creation() {
 fn test_mcp_tool_execution_with_error() {
     let exec = McpToolExecution {
         mcp_execution_id: "exec-err".to_string().into(),
-        tool_name: "database_query".to_string(),
-        server_name: "postgres".to_string(),
+        tool_name: McpToolName::new("database_query"),
+        server_name: McpServerId::new("postgres"),
         status: "error".to_string(),
         execution_time_ms: Some(100),
         error_message: Some("Connection refused".to_string()),
@@ -252,8 +252,8 @@ fn test_mcp_tool_execution_with_error() {
 fn test_mcp_tool_execution_serialize() {
     let exec = McpToolExecution {
         mcp_execution_id: "ser".to_string().into(),
-        tool_name: "tool".to_string(),
-        server_name: "server".to_string(),
+        tool_name: McpToolName::new("tool"),
+        server_name: McpServerId::new("server"),
         status: "pending".to_string(),
         execution_time_ms: None,
         error_message: None,

@@ -15,7 +15,7 @@
 
 use std::collections::HashMap;
 
-use systemprompt_identifiers::{ProviderId, RouteId};
+use systemprompt_identifiers::ProviderId;
 use systemprompt_models::services::{GatewayRoute, ProviderRegistry};
 
 use super::secrets::SecretsData;
@@ -60,7 +60,7 @@ pub fn build_routes(secrets: &SecretsData) -> Vec<GatewayRoute> {
         .iter()
         .map(|d| {
             let mut route = GatewayRoute {
-                id: RouteId::new(""),
+                id: None,
                 name: None,
                 description: None,
                 model_pattern: d.route_pattern.to_owned(),

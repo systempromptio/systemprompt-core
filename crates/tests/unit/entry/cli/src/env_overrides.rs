@@ -6,6 +6,7 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use systemprompt_cli::env_overrides::EnvOverrides;
+use systemprompt_identifiers::SessionToken;
 
 #[test]
 fn empty_iter_yields_all_unset() {
@@ -83,7 +84,22 @@ fn from_vars_maps_session_fields() {
         env.session.context_id.as_ref().map(|v| v.as_str()),
         Some("550e8400-e29b-41d4-a716-446655440000")
     );
-    assert_eq!(env.session.auth_token.as_deref(), Some("token-1"));
+    assert_eq!(
+        env.session.auth_token.as_ref().map(SessionToken::as_str),
+        Some("token-1")
+    );
+}
+
+#[test]
+fn from_vars_ignores_malformed_user_id() {
+    let env = EnvOverrides::from_vars([("SYSTEMPROMPT_USER_ID", "unset")]);
+    assert_eq!(env.session.user_id, None);
+}
+
+#[test]
+fn from_vars_ignores_empty_session_id() {
+    let env = EnvOverrides::from_vars([("SYSTEMPROMPT_SESSION_ID", "")]);
+    assert_eq!(env.session.session_id, None);
 }
 
 #[test]

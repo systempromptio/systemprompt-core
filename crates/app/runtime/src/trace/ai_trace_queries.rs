@@ -13,7 +13,7 @@ pub(super) type Result<T> = std::result::Result<T, TraceError>;
 use sqlx::PgPool;
 use std::sync::Arc;
 
-use systemprompt_identifiers::{AiRequestId, ContextId, ExecutionStepId, TaskId};
+use systemprompt_identifiers::{AgentName, AiRequestId, ContextId, ExecutionStepId, TaskId};
 
 use super::models::{AiRequestInfo, ConversationMessage, ExecutionStep, TaskInfo};
 
@@ -49,7 +49,7 @@ pub(super) async fn fetch_task_info(pool: &Arc<PgPool>, task_id: &TaskId) -> Res
     Ok(TaskInfo {
         task_id: TaskId::new(row.task_id),
         context_id: ContextId::try_new(&row.context_id)?,
-        agent_name: row.agent_name,
+        agent_name: row.agent_name.map(AgentName::new),
         status: row.status,
         created_at: row.created_at,
         started_at: row.started_at,

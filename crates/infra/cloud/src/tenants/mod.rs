@@ -141,7 +141,7 @@ impl StoredTenant {
     #[must_use]
     pub fn from_tenant_info(info: &CloudTenantInfo) -> Self {
         Self {
-            id: TenantId::new(info.id.clone()),
+            id: info.id.clone(),
             name: info.name.clone(),
             app_id: info.app_id.clone(),
             hostname: info.hostname.clone(),

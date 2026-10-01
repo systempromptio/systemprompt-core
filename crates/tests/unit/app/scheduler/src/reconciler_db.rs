@@ -6,6 +6,7 @@
 //! afterwards.
 
 use std::sync::Arc;
+use systemprompt_identifiers::ServiceName;
 
 use systemprompt_models::ServiceType;
 use systemprompt_scheduler::{
@@ -41,7 +42,7 @@ mod reconciler_db {
         );
 
         let result = reconciler
-            .reconcile(&[], |_name: String, _port: u16| async { Ok(()) })
+            .reconcile(&[], |_name: ServiceName, _port: u16| async { Ok(()) })
             .await
             .expect("reconcile must succeed with an empty config slice");
 
@@ -71,14 +72,14 @@ mod reconciler_db {
         );
 
         let configs = [ServiceConfig {
-            name: "test-absent-disabled".to_string(),
+            name: ServiceName::new("test-absent-disabled"),
             service_type: ServiceType::Mcp,
             port: 19001,
             enabled: false,
         }];
 
         let result = reconciler
-            .reconcile(&configs, |_name: String, _port: u16| async { Ok(()) })
+            .reconcile(&configs, |_name: ServiceName, _port: u16| async { Ok(()) })
             .await
             .expect("reconcile must succeed when the service is absent from DB and disabled");
 
@@ -97,7 +98,7 @@ mod reconciler_db {
         );
 
         let configs = [ServiceConfig {
-            name: "test-enabled-no-db-row".to_string(),
+            name: ServiceName::new("test-enabled-no-db-row"),
             service_type: ServiceType::Mcp,
             port: 19002,
             enabled: true,
@@ -107,7 +108,7 @@ mod reconciler_db {
         let flag = Arc::clone(&start_called);
 
         let result = reconciler
-            .reconcile(&configs, move |_name: String, _port: u16| {
+            .reconcile(&configs, move |_name: ServiceName, _port: u16| {
                 flag.store(true, std::sync::atomic::Ordering::Relaxed);
                 async { Ok(()) }
             })
@@ -147,13 +148,13 @@ mod reconciler_db {
 
         let configs = vec![
             ServiceConfig {
-                name: "multi-disabled-a".to_string(),
+                name: ServiceName::new("multi-disabled-a"),
                 service_type: ServiceType::Mcp,
                 port: 19010,
                 enabled: false,
             },
             ServiceConfig {
-                name: "multi-disabled-b".to_string(),
+                name: ServiceName::new("multi-disabled-b"),
                 service_type: ServiceType::Agent,
                 port: 19011,
                 enabled: false,
@@ -161,7 +162,7 @@ mod reconciler_db {
         ];
 
         let result = reconciler
-            .reconcile(&configs, |_name: String, _port: u16| async { Ok(()) })
+            .reconcile(&configs, |_name: ServiceName, _port: u16| async { Ok(()) })
             .await
             .expect("reconcile must succeed for all-disabled configs");
 
@@ -180,14 +181,14 @@ mod reconciler_db {
         );
 
         let configs = [ServiceConfig {
-            name: "test-start-fail".to_string(),
+            name: ServiceName::new("test-start-fail"),
             service_type: ServiceType::Mcp,
             port: 19003,
             enabled: true,
         }];
 
         let result = reconciler
-            .reconcile(&configs, |_name: String, _port: u16| async {
+            .reconcile(&configs, |_name: ServiceName, _port: u16| async {
                 Err(Box::new(std::io::Error::other("simulated start failure"))
                     as Box<dyn std::error::Error + Send + Sync>)
             })
@@ -240,7 +241,7 @@ mod state_verifier_db {
         );
 
         let configs = [ServiceConfig {
-            name: "sv-disabled-absent".to_string(),
+            name: ServiceName::new("sv-disabled-absent"),
             service_type: ServiceType::Mcp,
             port: 19020,
             enabled: false,
@@ -285,7 +286,7 @@ mod state_verifier_db {
         );
 
         let configs = [ServiceConfig {
-            name: "sv-enabled-absent".to_string(),
+            name: ServiceName::new("sv-enabled-absent"),
             service_type: ServiceType::Agent,
             port: 19021,
             enabled: true,
@@ -322,13 +323,13 @@ mod state_verifier_db {
 
         let configs = [
             ServiceConfig {
-                name: "sv-action-enabled".to_string(),
+                name: ServiceName::new("sv-action-enabled"),
                 service_type: ServiceType::Mcp,
                 port: 19030,
                 enabled: true,
             },
             ServiceConfig {
-                name: "sv-action-disabled".to_string(),
+                name: ServiceName::new("sv-action-disabled"),
                 service_type: ServiceType::Mcp,
                 port: 19031,
                 enabled: false,
@@ -357,7 +358,7 @@ mod state_verifier_db {
         );
 
         let configs = [ServiceConfig {
-            name: "sv-not-running".to_string(),
+            name: ServiceName::new("sv-not-running"),
             service_type: ServiceType::Mcp,
             port: 19040,
             enabled: true,
@@ -387,7 +388,7 @@ mod state_verifier_db {
         );
 
         let configs = [ServiceConfig {
-            name: "sv-not-crashed".to_string(),
+            name: ServiceName::new("sv-not-crashed"),
             service_type: ServiceType::Agent,
             port: 19041,
             enabled: true,
@@ -418,19 +419,19 @@ mod state_verifier_db {
 
         let configs = vec![
             ServiceConfig {
-                name: "sv-multi-a".to_string(),
+                name: ServiceName::new("sv-multi-a"),
                 service_type: ServiceType::Mcp,
                 port: 19050,
                 enabled: true,
             },
             ServiceConfig {
-                name: "sv-multi-b".to_string(),
+                name: ServiceName::new("sv-multi-b"),
                 service_type: ServiceType::Agent,
                 port: 19051,
                 enabled: false,
             },
             ServiceConfig {
-                name: "sv-multi-c".to_string(),
+                name: ServiceName::new("sv-multi-c"),
                 service_type: ServiceType::Mcp,
                 port: 19052,
                 enabled: true,
@@ -553,18 +554,18 @@ mod reconciler_action_arms {
         insert_service(&pg, &name, "running", Some(i32::MAX), 27401).await;
 
         let configs = [ServiceConfig {
-            name: name.clone(),
+            name: ServiceName::new(name.as_str()),
             service_type: ServiceType::Mcp,
             port: 27401,
             enabled: true,
         }];
         let result = reconciler
-            .reconcile(&configs, |_n: String, _p: u16| async { Ok(()) })
+            .reconcile(&configs, |_n: ServiceName, _p: u16| async { Ok(()) })
             .await
             .expect("reconcile");
 
         assert!(
-            result.restarted.contains(&name),
+            result.restarted.iter().any(|n| n == name.as_str()),
             "Enabled + Crashed must be restarted, got {result:?}"
         );
         let (status, pid) = fetch_row(&pg, &name).await.expect("row present");
@@ -593,13 +594,13 @@ mod reconciler_action_arms {
         insert_service(&pg, &name, "running", Some(i32::MAX), 27402).await;
 
         let configs = [ServiceConfig {
-            name: name.clone(),
+            name: ServiceName::new(name.as_str()),
             service_type: ServiceType::Mcp,
             port: 27402,
             enabled: true,
         }];
         let result = reconciler
-            .reconcile(&configs, |_n: String, _p: u16| async {
+            .reconcile(&configs, |_n: ServiceName, _p: u16| async {
                 Err(Box::new(std::io::Error::other("boot refused"))
                     as Box<dyn std::error::Error + Send + Sync>)
             })
@@ -639,12 +640,12 @@ mod reconciler_action_arms {
         insert_service(&pg, &name, "stopped", None, 27403).await;
 
         let result = reconciler
-            .reconcile(&[], |_n: String, _p: u16| async { Ok(()) })
+            .reconcile(&[], |_n: ServiceName, _p: u16| async { Ok(()) })
             .await
             .expect("reconcile");
 
         assert!(
-            result.cleaned_up.contains(&name),
+            result.cleaned_up.iter().any(|n| n == name.as_str()),
             "a stopped row absent from the config must be swept, got {result:?}"
         );
         assert!(
@@ -677,10 +678,13 @@ mod reconciler_action_arms {
         .expect("seed the other instance's row");
 
         let result = reconciler
-            .reconcile(&[], |_n: String, _p: u16| async { Ok(()) })
+            .reconcile(&[], |_n: ServiceName, _p: u16| async { Ok(()) })
             .await
             .expect("reconcile");
-        assert!(result.cleaned_up.contains(&name), "{result:?}");
+        assert!(
+            result.cleaned_up.iter().any(|n| n == name.as_str()),
+            "{result:?}"
+        );
 
         let other: Option<String> = sqlx::query_scalar(
             "SELECT status FROM services WHERE instance_id = 'other-instance' AND name = $1",
@@ -719,12 +723,12 @@ mod reconciler_action_arms {
         insert_service(&pg, &name, "stopped", None, i32::from(port)).await;
 
         let result = reconciler
-            .reconcile(&[], |_n: String, _p: u16| async { Ok(()) })
+            .reconcile(&[], |_n: ServiceName, _p: u16| async { Ok(()) })
             .await
             .expect("reconcile");
 
         assert!(
-            result.cleaned_up.contains(&name),
+            result.cleaned_up.iter().any(|n| n == name.as_str()),
             "an orphan with a live port holder must be cleaned up, got {result:?}"
         );
         assert!(
@@ -758,18 +762,18 @@ mod reconciler_action_arms {
         .await;
 
         let configs = [ServiceConfig {
-            name: name.clone(),
+            name: ServiceName::new(name.as_str()),
             service_type: ServiceType::Mcp,
             port,
             enabled: false,
         }];
         let result = reconciler
-            .reconcile(&configs, |_n: String, _p: u16| async { Ok(()) })
+            .reconcile(&configs, |_n: ServiceName, _p: u16| async { Ok(()) })
             .await
             .expect("reconcile");
 
         assert!(
-            result.stopped.contains(&name),
+            result.stopped.iter().any(|n| n == name.as_str()),
             "Disabled + Running must be stopped, got {result:?}"
         );
         let (status, _) = fetch_row(&pg, &name).await.expect("row present");
@@ -834,22 +838,22 @@ mod reconciler_noop_arm {
         .expect("seed services row");
 
         let configs = [ServiceConfig {
-            name: name.clone(),
+            name: ServiceName::new(name.as_str()),
             service_type: ServiceType::Mcp,
             port,
             enabled: true,
         }];
         let result = reconciler
-            .reconcile(&configs, |_n: String, _p: u16| async { Ok(()) })
+            .reconcile(&configs, |_n: ServiceName, _p: u16| async { Ok(()) })
             .await
             .expect("reconcile");
 
         assert!(result.is_success());
         assert!(
-            !result.started.contains(&name)
-                && !result.stopped.contains(&name)
-                && !result.restarted.contains(&name)
-                && !result.cleaned_up.contains(&name),
+            !result.started.iter().any(|n| n == name.as_str())
+                && !result.stopped.iter().any(|n| n == name.as_str())
+                && !result.restarted.iter().any(|n| n == name.as_str())
+                && !result.cleaned_up.iter().any(|n| n == name.as_str()),
             "Enabled + Running must take no action, got {result:?}"
         );
 

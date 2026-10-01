@@ -12,6 +12,7 @@ use anyhow::Result;
 use clap::Args;
 use std::sync::Arc;
 use systemprompt_extension::ExtensionRegistry;
+use systemprompt_identifiers::JobName;
 use systemprompt_scheduler::{
     JobExecutionService, JobRunReport, JobSelection, parse_job_parameters,
 };
@@ -22,8 +23,12 @@ use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct RunArgs {
-    #[arg(help = "Job name(s) to run", num_args = 1..)]
-    pub job_names: Vec<String>,
+    #[arg(
+        value_parser = crate::shared::parse_job_name,
+        help = "Job name(s) to run",
+        num_args = 1..
+    )]
+    pub job_names: Vec<JobName>,
 
     #[arg(long, help = "Run all enabled jobs")]
     pub all: bool,

@@ -4,18 +4,18 @@
 
 use chrono::Utc;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::InstanceId;
+use systemprompt_identifiers::{InstanceId, JobName};
 use systemprompt_scheduler::{JobRunRecord, JobStatus, SchedulerRepository};
 use systemprompt_test_fixtures::test_db_pool;
 
-fn unique_job_name() -> String {
-    format!("test_job_{}", uuid::Uuid::new_v4().simple())
+fn unique_job_name() -> JobName {
+    JobName::new(format!("test_job_{}", uuid::Uuid::new_v4().simple()))
 }
 
-async fn cleanup_job(pool: &DbPool, job_name: &str) {
+async fn cleanup_job(pool: &DbPool, job_name: &JobName) {
     let write = pool.write_pool();
     let _ = sqlx::query("DELETE FROM scheduled_jobs WHERE job_name = $1")
-        .bind(job_name)
+        .bind(job_name.as_str())
         .execute(&*write)
         .await;
 }
@@ -51,7 +51,7 @@ async fn upsert_job_inserts_then_updates_in_place() {
 async fn find_job_returns_none_for_unknown_name() {
     let pool = test_db_pool().await;
     let repo = SchedulerRepository::new(&pool);
-    let nope = format!("no_such_job_{}", uuid::Uuid::new_v4().simple());
+    let nope = JobName::new(format!("no_such_job_{}", uuid::Uuid::new_v4().simple()));
     let result = repo.find_job(&nope).await.expect("query");
     assert!(result.is_none());
 }

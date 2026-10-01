@@ -15,8 +15,8 @@ use systemprompt_identifiers::LinkId;
 
 #[derive(Debug, Args)]
 pub struct ClicksArgs {
-    #[arg(help = "Link ID")]
-    pub link_id: String,
+    #[arg(help = "Link ID", value_parser = crate::shared::parse_link_id)]
+    pub link_id: LinkId,
 
     #[arg(long, default_value = "20")]
     pub limit: i64,
@@ -37,7 +37,7 @@ pub async fn execute_with_pool(
     let repositories = ContentRepositories::new(pool);
     let service = LinkAnalyticsService::new(repositories.link, repositories.link_analytics);
 
-    let link_id = LinkId::new(args.link_id.clone());
+    let link_id = args.link_id;
     let clicks = service
         .get_link_clicks(&link_id, Some(args.limit), Some(args.offset))
         .await?;
@@ -47,7 +47,7 @@ pub async fn execute_with_pool(
         .into_iter()
         .filter_map(|click| {
             Some(ClickRow {
-                click_id: click.id.to_string(),
+                click_id: click.id,
                 session_id: click.session_id,
                 user_id: click.user_id,
                 clicked_at: click.clicked_at?,

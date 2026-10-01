@@ -15,7 +15,7 @@ use crate::interactive::Prompter;
 use crate::shared::CommandOutput;
 
 pub async fn rotate_credentials(
-    id: Option<String>,
+    id: Option<TenantId>,
     skip_confirm: bool,
     prompter: &dyn Prompter,
     config: &CliConfig,
@@ -34,8 +34,8 @@ pub async fn rotate_credentials(
     let tenant = store
         .tenants
         .iter()
-        .find(|t| t.id == tenant_id.as_str())
-        .ok_or_else(|| anyhow!("Tenant not found: {}", tenant_id.as_str()))?;
+        .find(|t| t.id == tenant_id)
+        .ok_or_else(|| anyhow!("Tenant not found: {}", tenant_id))?;
 
     if tenant.tenant_type != TenantType::Cloud {
         bail!("Credential rotation is only available for cloud tenants");
@@ -60,7 +60,7 @@ pub async fn rotate_credentials(
     let tenant = store
         .tenants
         .iter_mut()
-        .find(|t| t.id == tenant_id.as_str())
+        .find(|t| t.id == tenant_id)
         .ok_or_else(|| anyhow!("Tenant not found after rotation"))?;
 
     tenant.internal_database_url = Some(response.internal_database_url.clone());
@@ -71,7 +71,7 @@ pub async fn rotate_credentials(
     store.save_to_path(&tenants_path)?;
 
     let output = RotateCredentialsOutput {
-        tenant: tenant_id.as_str().to_owned(),
+        tenant: tenant_id.clone(),
         status: response.status.clone(),
         internal_database_url: response.internal_database_url.clone(),
         external_database_url: response.external_database_url,
@@ -85,13 +85,13 @@ pub async fn rotate_credentials(
 }
 
 fn resolve_rotation_target(
-    id: Option<String>,
+    id: Option<TenantId>,
     prompter: &dyn Prompter,
     store: &TenantStore,
     skip_confirm: bool,
 ) -> Result<TenantId> {
     if let Some(id) = id {
-        return Ok(TenantId::new(id));
+        return Ok(id);
     }
     if store.tenants.is_empty() {
         bail!("No tenants configured.");
@@ -99,9 +99,7 @@ fn resolve_rotation_target(
     if skip_confirm {
         bail!("Tenant ID required in non-interactive mode");
     }
-    Ok(TenantId::new(
-        select_tenant(prompter, &store.tenants)?.id.clone(),
-    ))
+    Ok(select_tenant(prompter, &store.tenants)?.id.clone())
 }
 
 fn confirm_rotation(prompter: &dyn Prompter, tenant_name: &str) -> Result<bool> {
@@ -119,7 +117,7 @@ fn cancelled_output(tenant_id: &TenantId, config: &CliConfig) -> CommandOutput {
         CliService::info("Cancelled");
     }
     let output = RotateCredentialsOutput {
-        tenant: tenant_id.as_str().to_owned(),
+        tenant: tenant_id.clone(),
         status: "cancelled".to_owned(),
         internal_database_url: String::new(),
         external_database_url: String::new(),

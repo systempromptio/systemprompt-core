@@ -10,7 +10,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::InstanceId;
+use systemprompt_identifiers::{InstanceId, JobName};
 use systemprompt_traits::{Job as JobTrait, JobScope};
 use tracing::{debug, error};
 
@@ -54,14 +54,14 @@ pub(super) enum Claim {
 const TICK_DEDUPE_WINDOW_MS: i64 = 900;
 
 async fn ran_within_dedupe_window(
-    job_name: &str,
+    job_name: &JobName,
     repository: &SchedulerRepository,
     same_instance: Option<&InstanceId>,
 ) -> bool {
     match repository.find_job(job_name).await {
         Ok(Some(job)) => {
             let instance_matches =
-                same_instance.is_none_or(|id| job.last_instance_id.as_deref() == Some(id.as_str()));
+                same_instance.is_none_or(|id| job.last_instance_id.as_ref() == Some(id));
             job.last_run.is_some_and(|last_run| {
                 instance_matches
                     && chrono::Utc::now().signed_duration_since(last_run)
@@ -77,7 +77,7 @@ async fn ran_within_dedupe_window(
 }
 
 pub(super) async fn acquire_node_claim(
-    job_name: &str,
+    job_name: &JobName,
     instance_id: &InstanceId,
     repository: &SchedulerRepository,
 ) -> Claim {
@@ -89,7 +89,7 @@ pub(super) async fn acquire_node_claim(
 }
 
 pub(super) async fn acquire_cluster_claim(
-    job_name: &str,
+    job_name: &JobName,
     db_pool: &DbPool,
     repository: &SchedulerRepository,
 ) -> Claim {
@@ -116,7 +116,7 @@ pub(super) async fn acquire_cluster_claim(
     Claim::Held(guard)
 }
 
-fn skipped_by_lock(job_name: &str) {
+fn skipped_by_lock(job_name: &JobName) {
     debug!(
         monotonic_counter.scheduler_job_skipped_by_lock = 1u64,
         job_name = %job_name,

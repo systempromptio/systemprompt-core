@@ -15,12 +15,16 @@ use crate::CliConfig;
 use crate::shared::CommandOutput;
 
 use super::types::{PluginValidateAllOutput, PluginValidateOutput};
+use systemprompt_identifiers::PluginId;
 use systemprompt_loader::ServicesRootBootstrap;
 
 #[derive(Debug, Clone, Args)]
 pub struct ValidateArgs {
-    #[arg(help = "Plugin ID to validate (validates all if omitted)")]
-    pub id: Option<String>,
+    #[arg(
+        help = "Plugin ID to validate (validates all if omitted)",
+        value_parser = crate::shared::parse_plugin_id
+    )]
+    pub id: Option<PluginId>,
 }
 
 pub(super) fn execute(args: ValidateArgs, _config: &CliConfig) -> Result<(CommandOutput, bool)> {
@@ -30,7 +34,7 @@ pub(super) fn execute(args: ValidateArgs, _config: &CliConfig) -> Result<(Comman
 
     let plugin_ids = match args.id {
         Some(id) => {
-            let plugin_dir = plugins_path.join(&id);
+            let plugin_dir = plugins_path.join(id.as_str());
             if !plugin_dir.exists() {
                 return Err(anyhow!("Plugin '{}' not found", id));
             }
@@ -59,7 +63,7 @@ pub(super) fn execute(args: ValidateArgs, _config: &CliConfig) -> Result<(Comman
     ))
 }
 
-pub fn collect_plugin_ids(plugins_path: &Path) -> Result<Vec<String>> {
+pub fn collect_plugin_ids(plugins_path: &Path) -> Result<Vec<PluginId>> {
     if !plugins_path.exists() {
         return Ok(Vec::new());
     }
@@ -71,7 +75,7 @@ pub fn collect_plugin_ids(plugins_path: &Path) -> Result<Vec<String>> {
             && entry.path().join("config.yaml").exists()
             && let Some(name) = entry.file_name().to_str()
         {
-            ids.push(name.to_owned());
+            ids.push(PluginId::new(name));
         }
     }
     ids.sort();
@@ -79,20 +83,20 @@ pub fn collect_plugin_ids(plugins_path: &Path) -> Result<Vec<String>> {
 }
 
 pub fn validate_plugin(
-    plugin_id: &str,
+    plugin_id: &PluginId,
     plugins_path: &Path,
     skills_path: &Path,
 ) -> PluginValidateOutput {
     let mut errors = Vec::new();
     let mut warnings = Vec::new();
 
-    let config_path = plugins_path.join(plugin_id).join("config.yaml");
+    let config_path = plugins_path.join(plugin_id.as_str()).join("config.yaml");
     let content = match std::fs::read_to_string(&config_path) {
         Ok(c) => c,
         Err(e) => {
             errors.push(format!("Failed to read config.yaml: {}", e));
             return PluginValidateOutput {
-                plugin_id: systemprompt_identifiers::PluginId::new(plugin_id),
+                plugin_id: plugin_id.clone(),
                 valid: false,
                 errors,
                 warnings,
@@ -105,7 +109,7 @@ pub fn validate_plugin(
         Err(e) => {
             errors.push(format!("Failed to parse config.yaml: {}", e));
             return PluginValidateOutput {
-                plugin_id: systemprompt_identifiers::PluginId::new(plugin_id),
+                plugin_id: plugin_id.clone(),
                 valid: false,
                 errors,
                 warnings,
@@ -115,11 +119,11 @@ pub fn validate_plugin(
 
     let plugin = &plugin_file.plugin;
 
-    if let Err(e) = plugin.validate(plugin_id) {
+    if let Err(e) = plugin.validate(plugin_id.as_str()) {
         errors.push(format!("{}", e));
     }
 
-    if plugin.id != plugin_id {
+    if plugin.id != *plugin_id {
         warnings.push(format!(
             "Plugin id '{}' does not match directory name '{}'",
             plugin.id, plugin_id
@@ -130,7 +134,7 @@ pub fn validate_plugin(
     validate_scripts(plugin, plugins_path, plugin_id, &mut errors);
 
     PluginValidateOutput {
-        plugin_id: systemprompt_identifiers::PluginId::new(plugin_id),
+        plugin_id: plugin_id.clone(),
         valid: errors.is_empty(),
         errors,
         warnings,
@@ -197,11 +201,11 @@ fn declared_skills(skills_path: &Path) -> std::collections::HashMap<String, bool
 fn validate_scripts(
     plugin: &systemprompt_models::PluginConfig,
     plugins_path: &Path,
-    plugin_id: &str,
+    plugin_id: &PluginId,
     errors: &mut Vec<String>,
 ) {
     for script in &plugin.scripts {
-        let script_path = plugins_path.join(plugin_id).join(&script.source);
+        let script_path = plugins_path.join(plugin_id.as_str()).join(&script.source);
         if !script_path.exists() {
             errors.push(format!(
                 "Script '{}' not found at {}",

@@ -6,6 +6,7 @@
 
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
+use systemprompt_identifiers::JobName;
 
 use systemprompt_database::DbPool;
 use systemprompt_models::services::scheduler::JobScope;
@@ -37,7 +38,7 @@ fn context_for_instance(pool: &DbPool, url: &str, instance_id: &str) -> Arc<AppC
 
 async fn seed_row(pool: &DbPool, job_name: &str) -> SchedulerRepository {
     let repo = SchedulerRepository::new(pool);
-    repo.upsert_job(job_name, "", true)
+    repo.upsert_job(&JobName::new(job_name), "", true)
         .await
         .expect("seed scheduled_jobs row");
     let pg = pool.write_pool();
@@ -64,7 +65,7 @@ async fn dispatch(
     let config = SchedulerConfig {
         enabled: true,
         jobs,
-        bootstrap_jobs: vec![job_name.to_owned()],
+        bootstrap_jobs: vec![JobName::new(job_name)],
         distributed_lock,
     };
     let svc = SchedulerService::new(config, Arc::clone(pool), app_ctx);
@@ -90,7 +91,7 @@ async fn failing_job_records_the_error_and_stamps_this_replica() {
     .await;
 
     let row = repo
-        .find_job(STAMP_FAIL_JOB)
+        .find_job(&JobName::new(STAMP_FAIL_JOB))
         .await
         .expect("find_job")
         .expect("seeded row");
@@ -100,7 +101,7 @@ async fn failing_job_records_the_error_and_stamps_this_replica() {
         Some("stamp job failed on purpose")
     );
     assert_eq!(
-        row.last_instance_id.as_deref(),
+        row.last_instance_id.as_ref().map(|id| id.as_str()),
         Some("stamp-node-fail"),
         "a failed run must still record which replica ran it"
     );
@@ -123,7 +124,7 @@ async fn panicking_job_stamps_this_replica() {
     .await;
 
     let row = repo
-        .find_job(STAMP_PANIC_JOB)
+        .find_job(&JobName::new(STAMP_PANIC_JOB))
         .await
         .expect("find_job")
         .expect("seeded row");
@@ -136,7 +137,7 @@ async fn panicking_job_stamps_this_replica() {
         row.last_error
     );
     assert_eq!(
-        row.last_instance_id.as_deref(),
+        row.last_instance_id.as_ref().map(|id| id.as_str()),
         Some("stamp-node-panic"),
         "a panicked run must still record which replica ran it"
     );
@@ -166,7 +167,7 @@ async fn config_scope_node_overrides_a_cluster_default_job_under_a_peer_lock() {
     );
 
     let before = STAMP_FAIL_JOB_RUNS.load(Ordering::SeqCst);
-    let jobs = vec![JobConfig::new(STAMP_FAIL_JOB).with_scope(JobScope::Node)];
+    let jobs = vec![JobConfig::new(JobName::new(STAMP_FAIL_JOB)).with_scope(JobScope::Node)];
     dispatch(&pool, &url, "stamp-node-x", STAMP_FAIL_JOB, jobs, true).await;
 
     sqlx::query_scalar!("SELECT pg_advisory_unlock($1)", key)

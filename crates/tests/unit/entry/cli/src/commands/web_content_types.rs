@@ -54,13 +54,13 @@ fn edit_args() -> EditArgs {
 #[test]
 fn ensure_category_exists_accepts_known_category() {
     let config = config_with_categories(&["blog", "docs"]);
-    assert!(ensure_category_exists(&config, "blog").is_ok());
+    assert!(ensure_category_exists(&config, &CategoryId::new("blog")).is_ok());
 }
 
 #[test]
 fn ensure_category_exists_rejects_unknown_and_lists_available() {
     let config = config_with_categories(&["blog"]);
-    let err = ensure_category_exists(&config, "news")
+    let err = ensure_category_exists(&config, &CategoryId::new("news"))
         .unwrap_err()
         .to_string();
     assert!(err.contains("news"));

@@ -5,13 +5,14 @@
 
 use crate::shared::CommandOutput;
 use serde_json::Value;
+use systemprompt_identifiers::TraceId;
 use systemprompt_runtime::{
     AiRequestSummary, ExecutionStepSummary, McpExecutionSummary, TraceEvent,
 };
 
 pub(super) fn build_json(
     events: &[TraceEvent],
-    trace_id: &str,
+    trace_id: &TraceId,
     ai_summary: &AiRequestSummary,
     mcp_summary: &McpExecutionSummary,
     step_summary: &ExecutionStepSummary,

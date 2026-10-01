@@ -8,6 +8,7 @@ use crate::interactive::Prompter;
 use crate::shared::CommandOutput;
 use anyhow::Result;
 use std::sync::Arc;
+use systemprompt_identifiers::{McpServerId, ServiceName};
 use systemprompt_logging::CliService;
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::ProcessCleanup;
@@ -96,7 +97,7 @@ pub async fn execute_agent(
 
     let output = RestartOutput {
         service_type: "agent".to_owned(),
-        service_name: Some(agent.to_owned()),
+        service_name: Some(ServiceName::new(name)),
         restarted_count: 1,
         failed_count: 0,
         message,
@@ -107,7 +108,7 @@ pub async fn execute_agent(
 
 pub async fn execute_mcp(
     ctx: &Arc<AppContext>,
-    server_name: &str,
+    server_name: &McpServerId,
     build: bool,
     config: &CliConfig,
 ) -> Result<CommandOutput> {
@@ -126,14 +127,14 @@ pub async fn execute_mcp(
 
     if build {
         let restarted = manager
-            .build_and_restart_services(Some(server_name.to_owned()))
+            .build_and_restart_services(Some(String::from(server_name)))
             .await?;
         if restarted == 0 {
             anyhow::bail!("{server_name} is not a managed MCP server");
         }
     } else {
         let outcomes = manager
-            .restart_services(Some(server_name.to_owned()))
+            .restart_services(Some(String::from(server_name)))
             .await?;
         if outcomes.is_empty() {
             anyhow::bail!("{server_name} is not a managed MCP server");
@@ -150,7 +151,7 @@ pub async fn execute_mcp(
 
     let output = RestartOutput {
         service_type: "mcp".to_owned(),
-        service_name: Some(server_name.to_owned()),
+        service_name: Some(ServiceName::new(server_name.as_str())),
         restarted_count: 1,
         failed_count: 0,
         message,

@@ -5,6 +5,7 @@
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::{McpServerId, McpToolName};
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct MessageRow {
@@ -15,8 +16,8 @@ pub struct MessageRow {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ToolCallRow {
-    pub tool_name: String,
-    pub server: String,
+    pub tool_name: McpToolName,
+    pub server: McpServerId,
     pub status: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub duration_ms: Option<i64>,

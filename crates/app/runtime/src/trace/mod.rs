@@ -47,4 +47,7 @@ pub enum TraceError {
 
     #[error("Stored identifier is malformed")]
     MalformedId(#[from] systemprompt_identifiers::error::IdValidationError),
+
+    #[error("Stored log level is malformed")]
+    MalformedLevel(#[from] systemprompt_logging::models::LoggingError),
 }

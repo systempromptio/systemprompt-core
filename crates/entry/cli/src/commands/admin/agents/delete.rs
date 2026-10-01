@@ -19,6 +19,7 @@ use systemprompt_agent::services::a2a_server::streaming::webhook_client::HttpWeb
 use systemprompt_agent::services::agent_orchestration::{AgentOrchestrator, AgentStatus};
 use systemprompt_agent::services::config_authoring::AgentConfigAuthoringService;
 use systemprompt_config::ProfileBootstrap;
+use systemprompt_identifiers::AgentName;
 use systemprompt_loader::ConfigLoader;
 use systemprompt_logging::CliService;
 use systemprompt_oauth::JwtValidationProviderImpl;
@@ -26,8 +27,11 @@ use systemprompt_scheduler::ProcessCleanup;
 
 #[derive(Debug, Args)]
 pub struct DeleteArgs {
-    #[arg(help = "Agent name (required in non-interactive mode)")]
-    pub name: Option<String>,
+    #[arg(
+        help = "Agent name (required in non-interactive mode)",
+        value_parser = crate::shared::parse_agent_name
+    )]
+    pub name: Option<AgentName>,
 
     #[arg(long, help = "Delete all agents")]
     pub all: bool,
@@ -64,7 +68,10 @@ pub(super) async fn execute(args: DeleteArgs, ctx: &CommandContext) -> Result<Co
     let mut errors = Vec::new();
 
     for agent_name in &agents_to_delete {
-        let agent_port = services_config.agents.get(agent_name).map(|c| c.port);
+        let agent_port = services_config
+            .agents
+            .get(agent_name.as_str())
+            .map(|c| c.port);
         let process_stopped = stop_agent_process(agent_name, agent_port, &orchestrator).await;
         match delete_single_agent(agent_name, process_stopped, &authoring, args.force) {
             Ok(()) => deleted.push(agent_name.clone()),
@@ -97,8 +104,8 @@ fn resolve_targets(
     prompter: &dyn Prompter,
     services_config: &systemprompt_models::ServicesConfig,
     config: &CliConfig,
-) -> Result<Vec<String>> {
-    let available: Vec<String> = services_config.agents.keys().cloned().collect();
+) -> Result<Vec<AgentName>> {
+    let available: Vec<AgentName> = services_config.agents.keys().map(AgentName::new).collect();
     let requested = if args.all {
         None
     } else {
@@ -108,15 +115,16 @@ fn resolve_targets(
                 "Select agent to delete",
                 services_config,
             )
+            .map(AgentName::new)
         })?)
     };
     validate_delete_targets(requested, &available)
 }
 
 pub fn validate_delete_targets(
-    requested: Option<String>,
-    available: &[String],
-) -> Result<Vec<String>> {
+    requested: Option<AgentName>,
+    available: &[AgentName],
+) -> Result<Vec<AgentName>> {
     let agents = match requested {
         Some(name) => {
             if !available.contains(&name) {
@@ -135,7 +143,7 @@ pub fn validate_delete_targets(
 }
 
 #[must_use]
-pub fn delete_confirm_message(all: bool, targets: &[String]) -> String {
+pub fn delete_confirm_message(all: bool, targets: &[AgentName]) -> String {
     if all {
         format!("Delete ALL {} agents?", targets.len())
     } else {
@@ -144,7 +152,7 @@ pub fn delete_confirm_message(all: bool, targets: &[String]) -> String {
 }
 
 #[must_use]
-pub fn delete_success_message(deleted: &[String]) -> String {
+pub fn delete_success_message(deleted: &[AgentName]) -> String {
     if deleted.len() == 1 {
         format!("Agent '{}' deleted successfully", deleted[0])
     } else {
@@ -174,7 +182,7 @@ async fn build_orchestrator(ctx: &CommandContext) -> Result<AgentOrchestrator> {
 }
 
 pub fn delete_single_agent(
-    agent_name: &str,
+    agent_name: &AgentName,
     process_stopped: bool,
     authoring: &AgentConfigAuthoringService,
     force: bool,
@@ -210,11 +218,11 @@ pub fn delete_single_agent(
 }
 
 pub async fn stop_agent_process(
-    agent_name: &str,
+    agent_name: &AgentName,
     agent_port: Option<u16>,
     orchestrator: &AgentOrchestrator,
 ) -> bool {
-    let recorded_pid = match orchestrator.get_status(agent_name).await {
+    let recorded_pid = match orchestrator.get_status(agent_name.as_str()).await {
         Ok(AgentStatus::Running { pid, .. }) => Some(pid),
         Ok(AgentStatus::Failed { .. }) => None,
         Err(e) => {
@@ -227,7 +235,7 @@ pub async fn stop_agent_process(
         },
     };
 
-    match orchestrator.delete_agent(agent_name).await {
+    match orchestrator.delete_agent(agent_name.as_str()).await {
         Ok(()) => {
             tracing::debug!(agent = %agent_name, "Agent stopped via orchestrator");
             true
@@ -244,7 +252,7 @@ pub async fn stop_agent_process(
 }
 
 pub fn stop_verified_port_holder(
-    agent_name: &str,
+    agent_name: &AgentName,
     agent_port: Option<u16>,
     recorded_pid: Option<u32>,
 ) -> bool {

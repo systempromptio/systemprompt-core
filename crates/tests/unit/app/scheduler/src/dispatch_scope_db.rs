@@ -5,6 +5,7 @@
 
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
+use systemprompt_identifiers::JobName;
 
 use systemprompt_database::DbPool;
 use systemprompt_models::services::scheduler::JobScope;
@@ -30,7 +31,7 @@ fn bootstrap_config(jobs: Vec<JobConfig>) -> SchedulerConfig {
     SchedulerConfig {
         enabled: true,
         jobs,
-        bootstrap_jobs: vec![NODE_JOB.to_owned()],
+        bootstrap_jobs: vec![JobName::new(NODE_JOB)],
         distributed_lock: true,
     }
 }
@@ -45,7 +46,7 @@ async fn dispatch_on(pool: &DbPool, url: &str, instance_id: &str, jobs: Vec<JobC
 
 async fn seed_row(pool: &DbPool) -> SchedulerRepository {
     let repo = SchedulerRepository::new(pool);
-    repo.upsert_job(NODE_JOB, "", true)
+    repo.upsert_job(&JobName::new(NODE_JOB), "", true)
         .await
         .expect("seed scheduled_jobs row");
     let pg = pool.write_pool();
@@ -79,11 +80,14 @@ mod node_scope {
             "a node-scoped job must run on both replicas even within the dedupe window"
         );
         let row = repo
-            .find_job(NODE_JOB)
+            .find_job(&JobName::new(NODE_JOB))
             .await
             .expect("find_job")
             .expect("seeded row");
-        assert_eq!(row.last_instance_id.as_deref(), Some("node-b"));
+        assert_eq!(
+            row.last_instance_id.as_ref().map(|id| id.as_str()),
+            Some("node-b")
+        );
     }
 
     #[tokio::test]
@@ -133,7 +137,7 @@ mod cluster_scope {
         );
 
         let before = NODE_JOB_RUNS.load(Ordering::SeqCst);
-        let jobs = vec![JobConfig::new(NODE_JOB).with_scope(JobScope::Cluster)];
+        let jobs = vec![JobConfig::new(JobName::new(NODE_JOB)).with_scope(JobScope::Cluster)];
         dispatch_on(&pool, &url, "node-c", jobs).await;
 
         sqlx::query_scalar!("SELECT pg_advisory_unlock($1)", key)
@@ -147,7 +151,7 @@ mod cluster_scope {
             "a cluster-scoped job must skip while a peer holds the advisory lock"
         );
         let row = repo
-            .find_job(NODE_JOB)
+            .find_job(&JobName::new(NODE_JOB))
             .await
             .expect("find_job")
             .expect("seeded row");

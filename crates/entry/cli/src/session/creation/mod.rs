@@ -39,7 +39,7 @@ pub(super) async fn create_local_session(
 
     if config.is_interactive() {
         CliService::info("Creating local CLI session...");
-        CliService::key_value("Profile", profile_ctx.name);
+        CliService::key_value("Profile", profile_ctx.name.as_str());
     }
 
     let db_pool = connect_database(&secrets).await?;
@@ -116,7 +116,7 @@ pub(super) async fn create_session_for_tenant(
 
     if config.is_interactive() {
         CliService::info("Creating CLI session...");
-        CliService::key_value("Profile", profile_ctx.name);
+        CliService::key_value("Profile", profile_ctx.name.as_str());
         CliService::key_value("User", user_email);
     }
 

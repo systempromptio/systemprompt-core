@@ -30,7 +30,7 @@ pub async fn list_tenants(prompter: &dyn Prompter, config: &CliConfig) -> Result
         .tenants
         .iter()
         .map(|t| TenantSummary {
-            id: t.id.as_str().to_owned(),
+            id: t.id.clone(),
             name: t.name.clone(),
             tenant_type: format!("{:?}", t.tenant_type).to_lowercase(),
             has_database: t.has_database_url(),

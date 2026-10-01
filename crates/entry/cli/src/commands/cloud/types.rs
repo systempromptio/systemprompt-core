@@ -10,6 +10,7 @@
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::TenantId;
 
 pub use systemprompt_models::profile::ProfileInfo;
 
@@ -23,7 +24,7 @@ pub struct CredentialsInfo {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct TenantStatusInfo {
-    pub id: String,
+    pub id: TenantId,
     pub name: String,
     pub status: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -50,7 +51,7 @@ pub struct TenantPlanInfo {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct LoginTenantInfo {
-    pub id: String,
+    pub id: TenantId,
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub subscription_status: Option<String>,
@@ -104,7 +105,7 @@ pub struct LogoutOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct TenantSummary {
-    pub id: String,
+    pub id: TenantId,
     pub name: String,
     pub tenant_type: String,
     pub has_database: bool,
@@ -118,7 +119,7 @@ pub struct TenantListOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct TenantDetailOutput {
-    pub id: String,
+    pub id: TenantId,
     pub name: String,
     pub tenant_type: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -133,7 +134,7 @@ pub struct TenantDetailOutput {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct RotateCredentialsOutput {
     #[serde(rename = "tenant_id")]
-    pub tenant: String,
+    pub tenant: TenantId,
     pub status: String,
     pub internal_database_url: String,
     pub external_database_url: String,
@@ -176,7 +177,7 @@ pub struct DockerfileOutput {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct CancelSubscriptionOutput {
     #[serde(rename = "tenant_id")]
-    pub tenant: String,
+    pub tenant: TenantId,
     pub tenant_name: String,
     pub message: String,
 }

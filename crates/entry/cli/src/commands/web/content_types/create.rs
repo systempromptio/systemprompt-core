@@ -30,8 +30,8 @@ pub struct CreateArgs {
     #[arg(long = "source-id", help = "Source ID")]
     pub source: Option<String>,
 
-    #[arg(long, help = "Category ID")]
-    pub category_id: Option<String>,
+    #[arg(long, help = "Category ID", value_parser = crate::shared::parse_category_id)]
+    pub category_id: Option<CategoryId>,
 
     #[arg(long, help = "Description")]
     pub description: Option<String>,
@@ -123,8 +123,8 @@ pub(super) fn execute(
 
     let source_config = build_source_config(SourceSpec {
         path,
-        source_id: SourceId::new(&source_id),
-        category_id: CategoryId::new(&category_id),
+        source_id: SourceId::try_new(source_id).context("Invalid source id")?,
+        category_id,
         enabled: args.enabled,
         description,
         sitemap,
@@ -183,16 +183,17 @@ pub fn prompt_source_id(prompter: &dyn Prompter, name: &str) -> Result<String> {
 pub fn prompt_category_id(
     prompter: &dyn Prompter,
     content_config: &ContentConfigRaw,
-) -> Result<String> {
+) -> Result<CategoryId> {
     let mut categories: Vec<String> = content_config.categories.keys().cloned().collect();
     categories.sort();
 
     if categories.is_empty() {
-        return prompter.input_with_default("Category ID", "blog");
+        let input = prompter.input_with_default("Category ID", "blog")?;
+        return CategoryId::try_new(input).context("Invalid category id");
     }
 
     let selection = prompter.select("Select category", &categories)?;
-    Ok(categories[selection].clone())
+    Ok(CategoryId::new(categories[selection].clone()))
 }
 
 pub fn prompt_description(prompter: &dyn Prompter) -> Result<String> {

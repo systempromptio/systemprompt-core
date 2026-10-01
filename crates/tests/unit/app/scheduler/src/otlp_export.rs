@@ -6,7 +6,10 @@ use opentelemetry_proto::tonic::common::v1::any_value::Value;
 use opentelemetry_proto::tonic::trace::v1::Span;
 use prost::Message;
 use std::sync::{Arc, Mutex};
-use systemprompt_identifiers::{ContextId, SessionId, TraceId, UserId};
+use systemprompt_identifiers::{
+    AiToolCallId, ContextId, InstanceId, McpExecutionId, McpServerId, McpToolName, PluginId,
+    ProviderRequestId, SessionId, TraceId, UserId,
+};
 use systemprompt_models::profile::{OtlpExportConfig, OtlpProtocol, OtlpSignal};
 use systemprompt_scheduler::jobs::otlp_export::{
     GOVERNANCE_SPAN, GovernanceRow, LedgerRow, LogRow, OtlpExportJob, REQUEST_SPAN, RETRY_DELAYS,
@@ -92,7 +95,7 @@ fn request(id: &str, trace_id: Option<&str>, status: &str) -> RequestRow {
         request_kind: "turn".to_owned(),
         actor_kind: "user".to_owned(),
         actor_id: "user-1".to_owned(),
-        instance_id: Some("node-a".to_owned()),
+        instance_id: Some(InstanceId::new("node-a")),
         created_at: at(0),
         completed_at: at(1),
     }
@@ -100,11 +103,11 @@ fn request(id: &str, trace_id: Option<&str>, status: &str) -> RequestRow {
 
 fn ledger(request_id: &str, call_id: &str, failed: bool) -> LedgerRow {
     LedgerRow {
-        ai_tool_call_id: Some(call_id.to_owned()),
+        ai_tool_call_id: Some(AiToolCallId::new(call_id)),
         request_id: Some(request_id.to_owned()),
-        mcp_execution_id: Some(format!("exec-{call_id}")),
-        tool_name: Some("read_file".to_owned()),
-        server_name: Some("fs".to_owned()),
+        mcp_execution_id: Some(McpExecutionId::new(format!("exec-{call_id}"))),
+        tool_name: Some(McpToolName::new("read_file")),
+        server_name: Some(McpServerId::new("fs")),
         intended_at: Some(at(0)),
         executed_at: Some(at(0)),
         completed_at: None,
@@ -129,7 +132,7 @@ fn decision(id: &str, trace_id: &str, verdict: &str) -> GovernanceRow {
         decision: verdict.to_owned(),
         policy: "scope".to_owned(),
         reason: "out of scope".to_owned(),
-        plugin_id: Some("astound-commons".to_owned()),
+        plugin_id: Some(PluginId::new("astound-commons")),
         actor_kind: "user".to_owned(),
         actor_id: "user-1".to_owned(),
         tool_use_id: Some("call-1".to_owned()),
@@ -688,8 +691,10 @@ fn log_records_carry_level_body_and_trace_correlation() {
         trace_id: Some(TraceId::new("trace-1")),
         context_id: None,
         client_id: None,
-        instance_id: Some("node-a".to_owned()),
-        provider_request_id: Some("r1".to_owned()),
+        instance_id: Some(InstanceId::new("node-a")),
+        provider_request_id: Some(
+            ProviderRequestId::try_new("r1").expect("valid provider request id"),
+        ),
         gateway_conversation_id: None,
     };
     let record = to_log_record(&row);

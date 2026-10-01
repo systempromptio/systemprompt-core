@@ -26,7 +26,7 @@ use systemprompt_security::authz::list_governance_warnings;
 
 use crate::CliConfig;
 use crate::commands::infrastructure::logs::duration::parse_since;
-use crate::shared::{CommandOutput, render_result};
+use crate::shared::{CommandOutput, render_result, truncate_with_ellipsis};
 
 /// Which dimension of the warn rollup to collapse onto.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize, JsonSchema)]
@@ -148,7 +148,7 @@ async fn gather(args: &ReportArgs, pool: &Arc<sqlx::PgPool>) -> Result<Governanc
             last_seen: acc
                 .last_seen
                 .map_or_else(String::new, |t| t.format("%Y-%m-%d %H:%M:%S").to_string()),
-            example_reason: truncate(&acc.example_reason, 120),
+            example_reason: truncate_with_ellipsis(&acc.example_reason, 120),
         })
         .collect();
     warnings.sort_by(|a, b| {
@@ -251,14 +251,6 @@ const fn group_label(group_by: GroupBy) -> &'static str {
         GroupBy::Tool => "tool",
         GroupBy::User => "user",
     }
-}
-
-fn truncate(text: &str, max: usize) -> String {
-    if text.chars().count() <= max {
-        return text.to_owned();
-    }
-    let head: String = text.chars().take(max.saturating_sub(1)).collect();
-    format!("{head}…")
 }
 
 fn format_csv(output: &GovernanceReportOutput) -> String {

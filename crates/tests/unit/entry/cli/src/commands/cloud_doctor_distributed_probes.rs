@@ -246,7 +246,7 @@ async fn run_reports_every_distributed_check_exactly_once() {
     let url = test_database_url();
     let mut profile = fixture_profile();
     profile.server.api_internal_url = server.uri();
-    profile.server.instance_id = Some("node-a".to_owned());
+    profile.server.instance_id = Some(systemprompt_identifiers::InstanceId::new("node-a"));
     profile.server.trusted_proxies = vec!["fc00::/7".parse().expect("cidr")];
 
     let results = run(

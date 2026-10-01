@@ -113,7 +113,7 @@ async fn execute_with_pool_inner(
             .to_string();
 
             RequestListRow {
-                request_id: r.id.as_str().to_owned(),
+                request_id: r.id,
                 timestamp: r.created_at.format("%Y-%m-%d %H:%M:%S").to_string(),
                 cursor,
                 user_id: r.user_id,
