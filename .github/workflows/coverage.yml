@@ -95,15 +95,8 @@ jobs:
           df -h / /mnt
 
       - name: Install libdbus (bridge test bins link keyring -> dbus)
-        run: |
-          # A mirror hiccup is infrastructure, not a code failure; three
-          # bounded attempts, then the step still fails.
-          n=0
-          until sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config; do
-              n=$((n + 1))
-              [ "$n" -lt 3 ] || exit 1
-              sleep 15
-          done
+        timeout-minutes: 12
+        run: bash scripts/ci-install-system-deps.sh libdbus-1-dev pkg-config
 
       - name: Strip [unstable] and [profile.dev] from cargo configs
         run: |

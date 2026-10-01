@@ -127,6 +127,8 @@ scripts/*
 !scripts/test-collect-fallback-profraw.py
 # ...and the cargo-config surgery every compiling CI job applies before sccache.
 !scripts/ci-strip-cargo-config.py
+# ...and the bounded apt install every CI job that links system libraries runs.
+!scripts/ci-install-system-deps.sh
 # ...and the source-gate linters run by CI (.github/workflows/quality.yml) via
 # the `just lint-*` recipes.
 !scripts/lint-schema.sh
