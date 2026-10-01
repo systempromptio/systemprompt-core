@@ -7985,6 +7985,7 @@ dependencies = [
 name = "systemprompt-events-integration-tests"
 version = "0.0.11"
 dependencies = [
+ "axum",
  "chrono",
  "serde_json",
  "sqlx",

@@ -291,21 +291,13 @@ async fn handle_health_reports_healthy_with_a_listening_relay() -> anyhow::Resul
         instance_id,
     )
     .start();
+    let listening = tokio::time::timeout(Duration::from_secs(10), handle.listening())
+        .await
+        .expect("the relay starts listening within 10s");
+    assert!(listening, "the relay stopped before it was listening");
     ctx.event_bridge()
         .set(handle)
         .expect("a fresh fixture context has no relay");
-    let deadline = tokio::time::Instant::now() + Duration::from_secs(10);
-    while !ctx
-        .event_bridge()
-        .get()
-        .is_some_and(|handle| handle.status().is_listening())
-    {
-        assert!(
-            tokio::time::Instant::now() < deadline,
-            "the relay did not start listening"
-        );
-        tokio::time::sleep(Duration::from_millis(25)).await;
-    }
     let app = Router::new()
         .route("/health", get(handle_health))
         .with_state((*ctx).clone());

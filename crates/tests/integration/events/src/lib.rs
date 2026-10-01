@@ -24,21 +24,3 @@ pub async fn setup_test_pool() -> Arc<PgPool> {
 
     Arc::new(pool)
 }
-
-pub async fn ensure_event_outbox(pool: &PgPool) {
-    sqlx::query(
-        "CREATE TABLE IF NOT EXISTS event_outbox (id TEXT PRIMARY KEY, channel TEXT NOT NULL, \
-         user_id TEXT NOT NULL, payload JSONB NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT \
-         now())",
-    )
-    .execute(pool)
-    .await
-    .expect("failed to ensure event_outbox table");
-
-    sqlx::query(
-        "CREATE INDEX IF NOT EXISTS idx_event_outbox_created_at ON event_outbox(created_at)",
-    )
-    .execute(pool)
-    .await
-    .expect("failed to ensure event_outbox index");
-}

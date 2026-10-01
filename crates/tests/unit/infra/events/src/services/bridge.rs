@@ -13,7 +13,7 @@ use std::time::Duration;
 use systemprompt_database::DbPool;
 use systemprompt_events::{
     A2A_BROADCASTER, AGUI_BROADCASTER, ANALYTICS_BROADCASTER, Broadcaster, CONTEXT_BROADCASTER,
-    EventRouter, OUTBOX_CHANNEL, PostgresEventBridge, RelayStatus,
+    EventBridgeHandle, EventRouter, OUTBOX_CHANNEL, PostgresEventBridge, RelayStatus,
 };
 use systemprompt_identifiers::{
     ConnectionId, ContextId, EventOutboxId, InstanceId, TaskId, UserId,
@@ -70,17 +70,31 @@ fn analytics_event() -> AnalyticsEvent {
     AnalyticsEventBuilder::heartbeat()
 }
 
-// Spin the relay until the subscriber receives an event or the budget is
-// exhausted. Re-routing on each attempt covers the race where the bridge's
-// `LISTEN` is not yet established when the first `NOTIFY` fires.
+async fn await_listening(handle: &EventBridgeHandle) {
+    let listening = tokio::time::timeout(Duration::from_secs(10), handle.listening())
+        .await
+        .expect("the bridge establishes its LISTEN within 10s");
+    assert!(listening, "the bridge stopped before it was listening");
+}
+
+// Every `route_*` broadcasts in-process before it relays, so the subscriber's
+// channel holds one local copy per route; only a delivery beyond that count
+// came through the bridge. Re-routing covers a notification lost while the
+// listener's connection is being re-established after a termination.
 async fn relay_until_delivered<F>(route: F, rx: &mut tokio::sync::mpsc::Receiver<R>) -> bool
 where
     F: Fn() -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send>>,
 {
+    let mut routed = 0_usize;
+    let mut received = 0_usize;
     for _ in 0..20 {
         route().await;
-        if let Ok(Some(_)) = tokio::time::timeout(Duration::from_millis(500), rx.recv()).await {
-            return true;
+        routed += 1;
+        while let Ok(Some(_)) = tokio::time::timeout(Duration::from_millis(500), rx.recv()).await {
+            received += 1;
+            if received > routed {
+                return true;
+            }
         }
     }
     false
@@ -97,6 +111,7 @@ async fn agui_event_relays_through_bridge_to_local_subscriber() {
 
     EventRouter::install_relay(pool.clone(), InstanceId::new("origin"));
     let handle = PostgresEventBridge::new(pool.clone(), InstanceId::new("peer")).start();
+    await_listening(&handle).await;
     let (tx, mut rx) = tokio::sync::mpsc::channel::<R>(systemprompt_events::SSE_BUFFER);
     AGUI_BROADCASTER.register(&user, &conn, tx).await;
 
@@ -139,6 +154,7 @@ async fn a2a_event_relays_through_bridge_to_local_subscriber() {
 
     EventRouter::install_relay(pool.clone(), InstanceId::new("origin"));
     let handle = PostgresEventBridge::new(pool.clone(), InstanceId::new("peer")).start();
+    await_listening(&handle).await;
     let (tx, mut rx) = tokio::sync::mpsc::channel::<R>(systemprompt_events::SSE_BUFFER);
     A2A_BROADCASTER.register(&user, &conn, tx).await;
 
@@ -175,6 +191,7 @@ async fn system_event_relays_through_bridge_to_context_subscriber() {
 
     EventRouter::install_relay(pool.clone(), InstanceId::new("origin"));
     let handle = PostgresEventBridge::new(pool.clone(), InstanceId::new("peer")).start();
+    await_listening(&handle).await;
     let (tx, mut rx) = tokio::sync::mpsc::channel::<R>(systemprompt_events::SSE_BUFFER);
     CONTEXT_BROADCASTER.register(&user, &conn, tx).await;
 
@@ -211,6 +228,7 @@ async fn analytics_event_relays_through_bridge_to_local_subscriber() {
 
     EventRouter::install_relay(pool.clone(), InstanceId::new("origin"));
     let handle = PostgresEventBridge::new(pool.clone(), InstanceId::new("peer")).start();
+    await_listening(&handle).await;
     let (tx, mut rx) = tokio::sync::mpsc::channel::<R>(systemprompt_events::SSE_BUFFER);
     ANALYTICS_BROADCASTER.register(&user, &conn, tx).await;
 
@@ -317,9 +335,9 @@ async fn notify_outbox(pool: &sqlx::PgPool, id: &str) {
 
 // Repeatedly fire a "poison" notification (an outbox id the bridge cannot
 // deliver) alongside a valid analytics route, asserting the bridge survives
-// the poison branch and still delivers the good event. The valid delivery is
-// the deterministic signal; the poison exercises `deliver`/`fan_in` error
-// arms.
+// the poison branch and still relays the good event. A delivery beyond the
+// in-process copy of each route is the deterministic signal; the poison
+// exercises `deliver`/`fan_in` error arms.
 async fn relay_survives_poison<Fp>(
     poison: Fp,
     user: &UserId,
@@ -328,13 +346,19 @@ async fn relay_survives_poison<Fp>(
 where
     Fp: Fn() -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send>>,
 {
+    let mut routed = 0_usize;
+    let mut received = 0_usize;
     for _ in 0..20 {
         poison().await;
         EventRouter::route_analytics(user, analytics_event())
             .await
             .into_local_logged();
-        if let Ok(Some(_)) = tokio::time::timeout(Duration::from_millis(500), rx.recv()).await {
-            return true;
+        routed += 1;
+        while let Ok(Some(_)) = tokio::time::timeout(Duration::from_millis(500), rx.recv()).await {
+            received += 1;
+            if received > routed {
+                return true;
+            }
         }
     }
     false
@@ -349,6 +373,7 @@ async fn bridge_survives_missing_outbox_row_notification() {
 
     EventRouter::install_relay(pool.clone(), InstanceId::new("origin"));
     let handle = PostgresEventBridge::new(pool.clone(), InstanceId::new("peer")).start();
+    await_listening(&handle).await;
     let (tx, mut rx) = tokio::sync::mpsc::channel::<R>(systemprompt_events::SSE_BUFFER);
     ANALYTICS_BROADCASTER.register(&user, &conn, tx).await;
 
@@ -387,6 +412,7 @@ async fn bridge_survives_unknown_channel_row() {
 
     EventRouter::install_relay(pool.clone(), InstanceId::new("origin"));
     let handle = PostgresEventBridge::new(pool.clone(), InstanceId::new("peer")).start();
+    await_listening(&handle).await;
     let (tx, mut rx) = tokio::sync::mpsc::channel::<R>(systemprompt_events::SSE_BUFFER);
     ANALYTICS_BROADCASTER.register(&user, &conn, tx).await;
 
@@ -427,6 +453,7 @@ async fn bridge_survives_undecodable_payload() {
 
     EventRouter::install_relay(pool.clone(), InstanceId::new("origin"));
     let handle = PostgresEventBridge::new(pool.clone(), InstanceId::new("peer")).start();
+    await_listening(&handle).await;
     let (tx, mut rx) = tokio::sync::mpsc::channel::<R>(systemprompt_events::SSE_BUFFER);
     ANALYTICS_BROADCASTER.register(&user, &conn, tx).await;
 
@@ -471,6 +498,7 @@ async fn bridge_survives_undecodable_payloads_on_every_channel() {
 
     EventRouter::install_relay(pool.clone(), InstanceId::new("origin"));
     let handle = PostgresEventBridge::new(pool.clone(), InstanceId::new("peer")).start();
+    await_listening(&handle).await;
     let (tx, mut rx) = tokio::sync::mpsc::channel::<R>(systemprompt_events::SSE_BUFFER);
     ANALYTICS_BROADCASTER.register(&user, &conn, tx).await;
 
@@ -502,24 +530,42 @@ async fn bridge_survives_undecodable_payloads_on_every_channel() {
     );
 }
 
-async fn terminate_outbox_listeners(pool: &sqlx::PgPool) {
-    let _ = sqlx::query(
-        "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE pid != \
-         pg_backend_pid() AND query ILIKE '%LISTEN \"event_outbox%'",
+async fn named_pool(application_name: &str) -> sqlx::PgPool {
+    let options: sqlx::postgres::PgConnectOptions = systemprompt_test_fixtures::test_database_url()
+        .parse()
+        .expect("test database url parses");
+    sqlx::postgres::PgPoolOptions::new()
+        .max_connections(4)
+        .connect_with(options.application_name(application_name))
+        .await
+        .expect("named test pool connects")
+}
+
+// Only this test's own listener is terminated: other test processes share the
+// database, and their bridges must not lose notifications to this one.
+async fn terminate_outbox_listeners(pool: &sqlx::PgPool, application_name: &str) -> usize {
+    let terminated: Vec<(bool,)> = sqlx::query_as(
+        "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE pid != pg_backend_pid() \
+         AND application_name = $1 AND query ILIKE 'LISTEN %'",
     )
-    .execute(pool)
-    .await;
+    .bind(application_name)
+    .fetch_all(pool)
+    .await
+    .expect("terminating the bridge listener");
+    terminated.iter().filter(|(ok,)| *ok).count()
 }
 
 #[tokio::test]
 async fn bridge_reconnects_after_listener_connection_is_terminated() {
-    let pool = fixture_pool().await;
+    let application_name = format!("bridge-reconnect-{}", ConnectionId::generate());
+    let pool = named_pool(&application_name).await;
     let _guard = BRIDGE_LOCK.lock().await;
     let user = unique_user_id("bridge-reconnect");
     let conn = ConnectionId::new("bridge-reconnect-conn");
 
     EventRouter::install_relay(pool.clone(), InstanceId::new("origin"));
     let handle = PostgresEventBridge::new(pool.clone(), InstanceId::new("peer")).start();
+    await_listening(&handle).await;
     let (tx, mut rx) = tokio::sync::mpsc::channel::<R>(systemprompt_events::SSE_BUFFER);
     ANALYTICS_BROADCASTER.register(&user, &conn, tx).await;
 
@@ -538,7 +584,11 @@ async fn bridge_reconnects_after_listener_connection_is_terminated() {
     .await;
     assert!(delivered_before, "bridge must deliver before the kill");
 
-    terminate_outbox_listeners(&pool).await;
+    assert_eq!(
+        terminate_outbox_listeners(&pool, &application_name).await,
+        1,
+        "the bridge's own LISTEN session must be the one terminated"
+    );
     while rx.try_recv().is_ok() {}
 
     let user_for_route = user.clone();
@@ -636,6 +686,7 @@ async fn bridge_prune_deletes_expired_rows_and_keeps_fresh_ones() {
 
     EventRouter::install_relay(pool.clone(), InstanceId::new("origin"));
     let handle = PostgresEventBridge::new(pool.clone(), InstanceId::new("peer")).start();
+    await_listening(&handle).await;
 
     let mut old_pruned = false;
     for _ in 0..40 {
@@ -690,6 +741,7 @@ async fn bridge_skips_rows_it_originated_and_delivers_peer_rows() {
 
     EventRouter::install_relay(pool.clone(), InstanceId::new("origin"));
     let handle = PostgresEventBridge::new(pool.clone(), InstanceId::new("self-node")).start();
+    await_listening(&handle).await;
     let (tx, mut rx) = tokio::sync::mpsc::channel::<R>(systemprompt_events::SSE_BUFFER);
     ANALYTICS_BROADCASTER.register(&user, &conn, tx).await;
 
