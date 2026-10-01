@@ -10,12 +10,12 @@ use systemprompt_identifiers::{ContextId, SessionId, TraceId, UserId};
 
 use super::file::FileRepository;
 use crate::error::FilesResult;
-use crate::models::{File, FileMetadata};
+use crate::models::{File, FileMetadata, FileRow};
 
 impl FileRepository {
     pub async fn list_ai_images(&self, limit: i64, offset: i64) -> FilesResult<Vec<File>> {
         let result = sqlx::query_as!(
-            File,
+            FileRow,
             r#"
             SELECT id, path, public_url, mime_type, size_bytes, ai_content, metadata as "metadata: sqlx::types::Json<FileMetadata>", user_id as "user_id: UserId", session_id as "session_id: SessionId", trace_id as "trace_id: TraceId", context_id as "context_id: ContextId", created_at, updated_at, deleted_at
             FROM files
@@ -29,7 +29,7 @@ impl FileRepository {
         .fetch_all(self.pool.as_ref())
         .await?;
 
-        Ok(result)
+        Ok(result.into_iter().map(File::from).collect())
     }
 
     pub async fn list_ai_images_by_user(
@@ -40,7 +40,7 @@ impl FileRepository {
     ) -> FilesResult<Vec<File>> {
         let user_id_str = user_id.as_str();
         let result = sqlx::query_as!(
-            File,
+            FileRow,
             r#"
             SELECT id, path, public_url, mime_type, size_bytes, ai_content, metadata as "metadata: sqlx::types::Json<FileMetadata>", user_id as "user_id: UserId", session_id as "session_id: SessionId", trace_id as "trace_id: TraceId", context_id as "context_id: ContextId", created_at, updated_at, deleted_at
             FROM files
@@ -55,7 +55,7 @@ impl FileRepository {
         .fetch_all(self.pool.as_ref())
         .await?;
 
-        Ok(result)
+        Ok(result.into_iter().map(File::from).collect())
     }
 
     pub async fn count_ai_images_by_user(&self, user_id: &UserId) -> FilesResult<i64> {

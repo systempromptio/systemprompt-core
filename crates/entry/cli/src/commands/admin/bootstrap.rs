@@ -66,7 +66,7 @@ pub async fn execute(args: BootstrapArgs, _config: &CliConfig) -> Result<Command
             "Bootstrap user '{}' exists but has status '{}'; expected '{}'. Re-activate it before \
              running the platform.",
             user.name,
-            user.status.as_deref().unwrap_or("(none)"),
+            user.status.as_str(),
             UserStatus::Active.as_str(),
         ));
     }

@@ -12,6 +12,7 @@ use serde::{Deserialize, Serialize};
 use systemprompt_cloud::CredentialsBootstrap;
 use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
 use systemprompt_database::{Database, DbPool};
+use systemprompt_identifiers::{AccessTokenId, PluginId};
 use systemprompt_oauth::services::plugin_token::{PluginTokenService, PluginTokenSubject};
 use systemprompt_users::{UserRepository, UserService};
 
@@ -45,10 +46,10 @@ pub struct IssuePluginTokenArgs {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(super) struct IssuePluginTokenOutput {
-    pub plugin_id: String,
+    pub plugin_id: PluginId,
     pub email: String,
     pub expires_in_days: u32,
-    pub jti: String,
+    pub jti: AccessTokenId,
     pub token: String,
 }
 
@@ -62,6 +63,9 @@ pub(super) async fn execute(args: IssuePluginTokenArgs) -> Result<CommandOutput>
             args.duration_days
         );
     }
+
+    let plugin_id =
+        PluginId::try_new(args.plugin_id.clone()).context("--plugin-id must not be empty")?;
 
     let email = match args.email.clone() {
         Some(e) => e,
@@ -101,14 +105,14 @@ pub(super) async fn execute(args: IssuePluginTokenArgs) -> Result<CommandOutput>
     let issued = PluginTokenService::issue(
         subject,
         &profile.security.issuer,
-        args.plugin_id.clone(),
+        plugin_id.clone(),
         args.duration_days,
         &session_id,
     )
     .context("Failed to mint plugin-scope JWT")?;
 
     let output = IssuePluginTokenOutput {
-        plugin_id: args.plugin_id,
+        plugin_id,
         email,
         expires_in_days: args.duration_days,
         jti: issued.jti,

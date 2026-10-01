@@ -13,9 +13,9 @@ pub struct UserSummary {
     pub id: UserId,
     pub name: String,
     pub email: String,
-    pub status: Option<String>,
+    pub status: String,
     pub roles: Vec<String>,
-    pub created_at: Option<DateTime<Utc>>,
+    pub created_at: DateTime<Utc>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

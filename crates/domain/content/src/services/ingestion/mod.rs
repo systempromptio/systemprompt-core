@@ -16,6 +16,7 @@ use crate::repository::ContentRepository;
 use std::path::Path;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
+use systemprompt_identifiers::CategoryId;
 
 #[derive(Debug)]
 enum IngestFileResult {
@@ -95,11 +96,10 @@ impl IngestionService {
         let markdown_text = std::fs::read_to_string(path)?;
         let parsed = scanner::parse_frontmatter(&markdown_text)?;
 
-        let resolved_category_id = parsed
-            .metadata
-            .category
-            .clone()
-            .unwrap_or_else(|| source.category_id.to_string());
+        let resolved_category_id = match parsed.metadata.category.clone() {
+            Some(category) => CategoryId::try_new(category)?,
+            None => source.category_id.clone(),
+        };
 
         let new_content = builder::create_content_from_metadata(
             &parsed.metadata,

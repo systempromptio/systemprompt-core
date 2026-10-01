@@ -3,7 +3,7 @@
 use chrono::Utc;
 use std::collections::HashMap;
 use systemprompt_test_fixtures::fixture_user_id;
-use systemprompt_users::{User, UserCountBreakdown, UserExport, UserStats};
+use systemprompt_users::{User, UserCountBreakdown, UserExport, UserStats, UserStatus};
 
 #[test]
 fn user_stats_creation() {
@@ -161,13 +161,13 @@ fn create_test_user_export() -> UserExport {
         email: "export@example.com".to_string(),
         full_name: Some("Export User".to_string()),
         display_name: Some("Export".to_string()),
-        status: Some("active".to_string()),
-        email_verified: Some(true),
+        status: UserStatus::Active,
+        email_verified: true,
         roles: vec!["user".to_string()],
         is_bot: false,
         is_scanner: false,
-        created_at: Some(Utc::now()),
-        updated_at: Some(Utc::now()),
+        created_at: Utc::now(),
+        updated_at: Utc::now(),
     }
 }
 
@@ -191,14 +191,14 @@ fn user_export_from_user_conversion() {
         email: "test@example.com".to_string(),
         full_name: Some("Test User".to_string()),
         display_name: Some("Test".to_string()),
-        status: Some("active".to_string()),
-        email_verified: Some(true),
+        status: UserStatus::Active,
+        email_verified: true,
         roles: vec!["user".to_string(), "admin".to_string()],
         avatar_url: Some("https://example.com/avatar.png".to_string()),
         is_bot: false,
         is_scanner: true,
-        created_at: Some(Utc::now()),
-        updated_at: Some(Utc::now()),
+        created_at: Utc::now(),
+        updated_at: Utc::now(),
     };
     let export: UserExport = user.clone().into();
     assert_eq!(export.id, user.id);
@@ -214,29 +214,27 @@ fn user_export_from_user_conversion() {
 }
 
 #[test]
-fn user_export_from_user_with_none_fields() {
+fn user_export_from_minimal_user() {
     let user = User {
         id: fixture_user_id(),
         name: "minimal".to_string(),
         email: "minimal@example.com".to_string(),
         full_name: None,
         display_name: None,
-        status: None,
-        email_verified: None,
+        status: UserStatus::Pending,
+        email_verified: false,
         roles: vec![],
         avatar_url: None,
         is_bot: true,
         is_scanner: false,
-        created_at: None,
-        updated_at: None,
+        created_at: Utc::now(),
+        updated_at: Utc::now(),
     };
     let export: UserExport = user.into();
     assert!(export.full_name.is_none());
     assert!(export.display_name.is_none());
-    assert!(export.status.is_none());
-    assert!(export.email_verified.is_none());
-    assert!(export.created_at.is_none());
-    assert!(export.updated_at.is_none());
+    assert_eq!(export.status, UserStatus::Pending);
+    assert!(!export.email_verified);
     assert!(export.is_bot);
 }
 
@@ -248,13 +246,13 @@ fn user_export_with_empty_roles() {
         email: "empty@example.com".to_string(),
         full_name: None,
         display_name: None,
-        status: None,
-        email_verified: None,
+        status: UserStatus::Pending,
+        email_verified: false,
         roles: vec![],
         is_bot: false,
         is_scanner: false,
-        created_at: None,
-        updated_at: None,
+        created_at: Utc::now(),
+        updated_at: Utc::now(),
     };
     assert!(export.roles.is_empty());
 }

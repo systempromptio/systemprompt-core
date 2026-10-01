@@ -20,8 +20,15 @@ use std::sync::Arc;
 use sqlx::PgPool;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
+use systemprompt_models::bridge::host::HostKind;
+use systemprompt_traits::RepositoryError;
 
-use crate::error::OauthResult;
+use crate::error::{OauthError, OauthResult};
+
+fn decode_host(column: &'static str, raw: &str) -> OauthResult<HostKind> {
+    raw.parse::<HostKind>()
+        .map_err(|source| OauthError::Repository(RepositoryError::decode(column, source)))
+}
 
 #[derive(Clone, Debug)]
 pub struct BridgeHostPrefsRepository {
@@ -37,7 +44,7 @@ impl BridgeHostPrefsRepository {
         }
     }
 
-    pub async fn list_enabled(&self, user_id: &UserId) -> OauthResult<Vec<String>> {
+    pub async fn list_enabled(&self, user_id: &UserId) -> OauthResult<Vec<HostKind>> {
         let rows = sqlx::query!(
             r#"
             SELECT host_id FROM bridge_user_host_prefs
@@ -48,10 +55,12 @@ impl BridgeHostPrefsRepository {
         )
         .fetch_all(self.pool.as_ref())
         .await?;
-        Ok(rows.into_iter().map(|r| r.host_id).collect())
+        rows.iter()
+            .map(|r| decode_host("bridge_user_host_prefs.host_id", &r.host_id))
+            .collect()
     }
 
-    pub async fn upsert(&self, user_id: &UserId, host_id: &str, enabled: bool) -> OauthResult<()> {
+    pub async fn upsert(&self, user_id: &UserId, host: HostKind, enabled: bool) -> OauthResult<()> {
         sqlx::query!(
             r#"
             INSERT INTO bridge_user_host_prefs (user_id, host_id, enabled, updated_at)
@@ -60,7 +69,7 @@ impl BridgeHostPrefsRepository {
             DO UPDATE SET enabled = EXCLUDED.enabled, updated_at = CURRENT_TIMESTAMP
             "#,
             user_id.as_str(),
-            host_id,
+            host.as_str(),
             enabled,
         )
         .execute(self.write_pool.as_ref())
@@ -71,7 +80,7 @@ impl BridgeHostPrefsRepository {
     pub async fn load_model_protocols(
         &self,
         user_id: &UserId,
-    ) -> OauthResult<Vec<(String, Vec<String>)>> {
+    ) -> OauthResult<Vec<(HostKind, Vec<String>)>> {
         let rows = sqlx::query!(
             r#"
             SELECT host_id, model_protocols FROM bridge_user_host_model_prefs
@@ -82,16 +91,18 @@ impl BridgeHostPrefsRepository {
         )
         .fetch_all(self.pool.as_ref())
         .await?;
-        Ok(rows
-            .into_iter()
-            .map(|r| (r.host_id, r.model_protocols))
-            .collect())
+        rows.into_iter()
+            .map(|r| {
+                let host = decode_host("bridge_user_host_model_prefs.host_id", &r.host_id)?;
+                Ok((host, r.model_protocols))
+            })
+            .collect()
     }
 
     pub async fn set_model_protocols(
         &self,
         user_id: &UserId,
-        host_id: &str,
+        host: HostKind,
         protocols: Option<&[String]>,
     ) -> OauthResult<()> {
         match protocols {
@@ -106,7 +117,7 @@ impl BridgeHostPrefsRepository {
                                   updated_at = CURRENT_TIMESTAMP
                     "#,
                     user_id.as_str(),
-                    host_id,
+                    host.as_str(),
                     list,
                 )
                 .execute(self.write_pool.as_ref())
@@ -119,7 +130,7 @@ impl BridgeHostPrefsRepository {
                     WHERE user_id = $1 AND host_id = $2
                     "#,
                     user_id.as_str(),
-                    host_id,
+                    host.as_str(),
                 )
                 .execute(self.write_pool.as_ref())
                 .await?;

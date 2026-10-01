@@ -101,8 +101,8 @@ impl ManagedRepository {
             SelectionRow {
                 generation: selection.generation,
                 state: selection.state,
-                publication_id: selection.publication_id,
-                revision_id: selection.revision_id,
+                publication_id: PublicationId::new(selection.publication_id),
+                revision_id: selection.revision_id.map(ResourceRevisionId::new),
                 bundle_digest: selection.bundle_digest,
             },
         )
@@ -165,11 +165,11 @@ async fn existing_decision(
     decision_from_row(
         &request.resource_id,
         PublicationRow {
-            id: existing.id,
-            review_id: existing.review_id,
+            id: PublicationId::new(existing.id),
+            review_id: PublicationReviewId::new(existing.review_id),
             generation: existing.generation,
             action: existing.action,
-            revision_id: existing.revision_id,
+            revision_id: existing.revision_id.map(ResourceRevisionId::new),
             bundle_digest: existing.bundle_digest,
         },
     )

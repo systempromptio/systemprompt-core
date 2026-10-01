@@ -26,9 +26,9 @@ fn build_created_client(
         application_type: params.application_type,
         client_uri: params.client_uri,
         logo_uri: params.logo_uri,
-        is_active: Some(true),
-        created_at: Some(now),
-        updated_at: Some(now),
+        is_active: true,
+        created_at: now,
+        updated_at: now,
         last_used_at: None,
         owner_user_id: UserId::new(params.owner_user_id.as_str()),
     };

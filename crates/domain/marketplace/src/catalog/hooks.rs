@@ -72,11 +72,9 @@ fn build_hook_entry(
         return Ok(None);
     }
 
-    let id = if config.id.as_str().is_empty() {
-        HookId::new(dir_name.replace('-', "_"))
-    } else {
-        HookId::new(config.id.as_str())
-    };
+    let id = config
+        .id
+        .unwrap_or_else(|| HookId::new(dir_name.replace('-', "_")));
     let name = if config.name.is_empty() {
         dir_name.replace('_', " ")
     } else {

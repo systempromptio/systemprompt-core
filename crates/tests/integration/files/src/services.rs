@@ -8,7 +8,7 @@ use systemprompt_identifiers::{ContentId, FileId, UserId};
 use systemprompt_test_fixtures::test_db_pool;
 
 fn create_test_file_request(suffix: &str) -> InsertFileRequest {
-    let file_id = FileId::new(uuid::Uuid::new_v4().to_string());
+    let file_id = FileId::generate();
     InsertFileRequest::new(
         file_id,
         format!("/storage/test/svc_image_{}.png", suffix),

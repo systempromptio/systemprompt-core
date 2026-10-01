@@ -2,7 +2,7 @@
 
 use chrono::Utc;
 use systemprompt_test_fixtures::fixture_user_id;
-use systemprompt_users::{UserActivity, UserWithSessions};
+use systemprompt_users::{UserActivity, UserStatus, UserWithSessions};
 
 #[test]
 fn user_activity_creation() {
@@ -49,9 +49,9 @@ fn user_with_sessions_creation() {
         name: "testuser".to_string(),
         email: "test@example.com".to_string(),
         full_name: Some("Test User".to_string()),
-        status: Some("active".to_string()),
+        status: UserStatus::Active,
         roles: vec!["user".to_string()],
-        created_at: Some(Utc::now()),
+        created_at: Utc::now(),
         active_sessions: 3,
         last_session_at: Some(Utc::now()),
     };
@@ -66,9 +66,9 @@ fn user_with_sessions_debug() {
         name: "testuser".to_string(),
         email: "test@example.com".to_string(),
         full_name: None,
-        status: None,
+        status: UserStatus::Inactive,
         roles: vec![],
-        created_at: None,
+        created_at: Utc::now(),
         active_sessions: 0,
         last_session_at: None,
     };
@@ -82,9 +82,9 @@ fn user_with_sessions_no_active_sessions() {
         name: "testuser".to_string(),
         email: "test@example.com".to_string(),
         full_name: None,
-        status: None,
+        status: UserStatus::Inactive,
         roles: vec![],
-        created_at: None,
+        created_at: Utc::now(),
         active_sessions: 0,
         last_session_at: None,
     };

@@ -9,7 +9,7 @@ use systemprompt_identifiers::UserId;
 
 use super::UserService;
 use crate::error::Result;
-use crate::models::{User, UserCountBreakdown, UserStats};
+use crate::models::{User, UserCountBreakdown, UserStats, UserStatus};
 
 impl UserService {
     pub async fn count_with_breakdown(&self) -> Result<UserCountBreakdown> {
@@ -33,7 +33,7 @@ impl UserService {
 
     pub async fn list_by_filter(
         &self,
-        status: Option<&str>,
+        status: Option<UserStatus>,
         role: Option<&str>,
         older_than_days: Option<i64>,
         limit: i64,
@@ -43,7 +43,11 @@ impl UserService {
             .await
     }
 
-    pub async fn bulk_update_status(&self, user_ids: &[UserId], new_status: &str) -> Result<u64> {
+    pub async fn bulk_update_status(
+        &self,
+        user_ids: &[UserId],
+        new_status: UserStatus,
+    ) -> Result<u64> {
         self.repository
             .bulk_update_status(user_ids, new_status)
             .await

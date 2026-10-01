@@ -12,6 +12,7 @@ use chrono::Utc;
 use std::path::Path;
 use systemprompt_cloud::constants::storage;
 use systemprompt_database::DbPool;
+use systemprompt_identifiers::FileId;
 use systemprompt_provider_contracts::ProviderError;
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
 use walkdir::WalkDir;
@@ -219,7 +220,7 @@ fn build_file_record(file_path: &str, public_url: &str, extension: &str, path: &
     let now = Utc::now();
 
     File {
-        id: uuid::Uuid::new_v4(),
+        id: FileId::generate(),
         path: file_path.to_owned(),
         public_url: public_url.to_owned(),
         mime_type: systemprompt_models::mime::from_extension(extension)

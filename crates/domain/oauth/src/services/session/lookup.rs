@@ -9,7 +9,7 @@
 
 use super::{AnonymousSessionInfo, MAX_SESSION_AGE_SECONDS, SessionCreationService};
 use crate::services::generation::{JwtSigningParams, generate_anonymous_jwt};
-use systemprompt_identifiers::{ClientId, SessionId, UserId};
+use systemprompt_identifiers::{ClientId, JwtToken, SessionId, UserId};
 use systemprompt_models::auth::UserRole;
 
 const SESSION_LOOKUP_TIMEOUT_MS: u64 = 500;
@@ -69,7 +69,7 @@ impl SessionCreationService {
             session_id,
             user_id,
             is_new: false,
-            jwt_token: token,
+            jwt_token: JwtToken::new(token),
             fingerprint_hash: fingerprint.to_owned(),
         })
     }

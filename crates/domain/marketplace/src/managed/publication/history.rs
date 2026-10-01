@@ -4,8 +4,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::{
-    ManagedRepository, ManagedResourceId, PublicationHistoryEntry, PublicationRow, Result, UserId,
-    decision_from_row,
+    ManagedRepository, ManagedResourceId, PublicationHistoryEntry, PublicationId,
+    PublicationReviewId, PublicationRow, ResourceRevisionId, Result, UserId, decision_from_row,
 };
 
 impl ManagedRepository {
@@ -27,11 +27,11 @@ impl ManagedRepository {
                     decision: decision_from_row(
                         resource_id,
                         PublicationRow {
-                            id: row.id,
-                            review_id: row.review_id,
+                            id: PublicationId::new(row.id),
+                            review_id: PublicationReviewId::new(row.review_id),
                             generation: row.generation,
                             action: row.action,
-                            revision_id: row.revision_id,
+                            revision_id: row.revision_id.map(ResourceRevisionId::new),
                             bundle_digest: row.bundle_digest,
                         },
                     )?,

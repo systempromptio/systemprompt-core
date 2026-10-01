@@ -7,7 +7,7 @@ use async_trait::async_trait;
 use std::sync::Arc;
 use std::time::Duration;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::UserId;
+use systemprompt_identifiers::{ChallengeId, UserId};
 use systemprompt_oauth::error::OauthError;
 use systemprompt_oauth::repository::{
     CreateSetupTokenParams, OAuthRepository, OauthCleanupRepository, SetupTokenPurpose,
@@ -217,12 +217,12 @@ async fn finish_registration_unknown_challenge_is_state_expired() {
         .await
         .expect("start_registration");
     let cred = auth.do_registration(origin(), ccr).expect("registration");
+    let unknown = ChallengeId::new("no-such-challenge");
 
     let err = ctx
         .service
         .finish_registration(
-            FinishRegistrationParams::builder("no-such-challenge", "uc-user", &email, &cred)
-                .build(),
+            FinishRegistrationParams::builder(&unknown, "uc-user", &email, &cred).build(),
         )
         .await
         .expect_err("unknown challenge must fail");
@@ -274,7 +274,7 @@ async fn finish_authentication_unknown_challenge_errors() {
 
     let err = ctx
         .service
-        .finish_authentication("missing-challenge", &assertion)
+        .finish_authentication(&ChallengeId::new("missing-challenge"), &assertion)
         .await
         .expect_err("unknown auth challenge must fail");
     assert!(matches!(err, OauthError::ChallengeExpired));
@@ -525,7 +525,7 @@ async fn start_link_rejects_unknown_expired_and_used_tokens() {
 }
 
 #[tokio::test]
-async fn start_link_rejects_non_uuid_user_id() {
+async fn link_flow_accepts_non_uuid_user_id() {
     let ctx = setup().await;
     let email = unique_email("nonuuid");
     let user_id = UserId::new(format!("not-a-uuid-{}", Uuid::new_v4().simple()));
@@ -533,14 +533,22 @@ async fn start_link_rejects_non_uuid_user_id() {
         .await
         .expect("seed");
     let raw_token = store_link_token(&ctx.repo, &user_id, 600).await;
+    let mut auth = authenticator();
 
-    let err = ctx
+    let (ccr, challenge_id, user_info) = ctx
         .service
         .start_registration_with_token(&raw_token)
         .await
-        .expect_err("non-uuid user id must fail");
-    let msg = err.to_string();
-    assert!(msg.contains("is not a valid UUID"), "got: {msg}");
+        .expect("an opaque user id can start a link");
+    assert_eq!(user_info.id, user_id);
+
+    let cred = auth.do_registration(origin(), ccr).expect("registration");
+    let linked = ctx
+        .service
+        .finish_registration_with_token(&challenge_id, &raw_token, &cred)
+        .await
+        .expect("an opaque user id can finish a link");
+    assert_eq!(linked, user_id);
 }
 
 #[tokio::test]
@@ -557,10 +565,11 @@ async fn finish_link_rejects_missing_session_and_invalid_token() {
         .await
         .expect("start link");
     let cred = auth.do_registration(origin(), ccr).expect("registration");
+    let missing = ChallengeId::new("missing-session");
 
     let err = ctx
         .service
-        .finish_registration_with_token("missing-session", &raw_token, &cred)
+        .finish_registration_with_token(&missing, &raw_token, &cred)
         .await
         .expect_err("missing session must fail");
     assert!(
@@ -570,7 +579,7 @@ async fn finish_link_rejects_missing_session_and_invalid_token() {
 
     let err = ctx
         .service
-        .finish_registration_with_token("missing-session", "never-issued", &cred)
+        .finish_registration_with_token(&missing, "never-issued", &cred)
         .await
         .expect_err("invalid token must fail");
     assert!(err.to_string().contains("Invalid or expired setup token"));

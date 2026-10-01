@@ -14,8 +14,7 @@
 use crate::error::{OauthError, OauthResult as Result};
 use chrono::Utc;
 use std::time::Duration;
-use systemprompt_identifiers::{TokenId, UserId};
-use uuid::Uuid;
+use systemprompt_identifiers::{ChallengeId, TokenId, UserId};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum WebAuthnChallengeKind {
@@ -66,7 +65,7 @@ pub struct ReserveLinkChallengeParams<'a> {
 
 #[derive(Debug, Clone)]
 pub struct LinkChallengeReservation {
-    pub challenge_id: String,
+    pub challenge_id: ChallengeId,
     // JSON: webauthn-rs ceremony state — opaque, serialised by the library.
     pub state: serde_json::Value,
     pub reused: bool,
@@ -105,7 +104,7 @@ impl crate::repository::OAuthRepository {
         mint: F,
     ) -> Result<LinkChallengeReservation>
     where
-        F: FnOnce(&str) -> Result<serde_json::Value>,
+        F: FnOnce(&ChallengeId) -> Result<serde_json::Value>,
     {
         let now = Utc::now();
         let usable_until = now + to_chrono(params.min_remaining)?;
@@ -137,7 +136,7 @@ impl crate::repository::OAuthRepository {
         if let Some(row) = live {
             tx.commit().await?;
             return Ok(LinkChallengeReservation {
-                challenge_id: row.challenge,
+                challenge_id: ChallengeId::new(row.challenge),
                 state: row.session_state.unwrap_or(serde_json::Value::Null),
                 reused: true,
             });
@@ -151,14 +150,14 @@ impl crate::repository::OAuthRepository {
         .execute(&mut *tx)
         .await?;
 
-        let challenge_id = Uuid::new_v4().to_string();
+        let challenge_id = ChallengeId::generate();
         let state = mint(&challenge_id)?;
 
         sqlx::query!(
             "INSERT INTO webauthn_challenges
              (challenge, user_id, challenge_type, session_state, expires_at)
              VALUES ($1, $2, $3, $4, $5)",
-            challenge_id,
+            challenge_id.as_str(),
             user_id,
             kind,
             state,

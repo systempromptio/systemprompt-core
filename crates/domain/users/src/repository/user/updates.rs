@@ -27,8 +27,9 @@ impl UserRepository {
             id.as_str()
         )
         .fetch_optional(&*self.write_pool)
-        .await
-        .map(|row| row.map(User::from))?
+        .await?
+        .map(User::try_from)
+        .transpose()?
         .ok_or_else(|| UserError::NotFound(id.clone()))?;
 
         Ok(row)
@@ -49,8 +50,9 @@ impl UserRepository {
             id.as_str()
         )
         .fetch_optional(&*self.write_pool)
-        .await
-        .map(|row| row.map(User::from))?
+        .await?
+        .map(User::try_from)
+        .transpose()?
         .ok_or_else(|| UserError::NotFound(id.clone()))?;
 
         Ok(row)
@@ -71,8 +73,9 @@ impl UserRepository {
             id.as_str()
         )
         .fetch_optional(&*self.write_pool)
-        .await
-        .map(|row| row.map(User::from))?
+        .await?
+        .map(User::try_from)
+        .transpose()?
         .ok_or_else(|| UserError::NotFound(id.clone()))?;
         Ok(row)
     }
@@ -92,8 +95,9 @@ impl UserRepository {
             id.as_str()
         )
         .fetch_optional(&*self.write_pool)
-        .await
-        .map(|row| row.map(User::from))?
+        .await?
+        .map(User::try_from)
+        .transpose()?
         .ok_or_else(|| UserError::NotFound(id.clone()))?;
 
         Ok(row)
@@ -114,8 +118,9 @@ impl UserRepository {
             id.as_str()
         )
         .fetch_optional(&*self.write_pool)
-        .await
-        .map(|row| row.map(User::from))?
+        .await?
+        .map(User::try_from)
+        .transpose()?
         .ok_or_else(|| UserError::NotFound(id.clone()))?;
 
         Ok(row)
@@ -143,8 +148,9 @@ impl UserRepository {
             id.as_str()
         )
         .fetch_optional(&*self.write_pool)
-        .await
-        .map(|row| row.map(User::from))?
+        .await?
+        .map(User::try_from)
+        .transpose()?
         .ok_or_else(|| UserError::NotFound(id.clone()))?;
         Ok(row)
     }
@@ -164,8 +170,9 @@ impl UserRepository {
             id.as_str()
         )
         .fetch_optional(&*self.write_pool)
-        .await
-        .map(|row| row.map(User::from))?
+        .await?
+        .map(User::try_from)
+        .transpose()?
         .ok_or_else(|| UserError::NotFound(id.clone()))?;
 
         Ok(row)

@@ -52,7 +52,7 @@ impl SchedulerService {
             let active = users
                 .find_by_name(owner.as_str())
                 .await?
-                .filter(|u| u.status.as_deref() == Some(UserStatus::Active.as_str()));
+                .filter(|u| u.status == UserStatus::Active);
             if let Some(user) = active {
                 debug!(job_name = %job.name, owner = %user.id, "resolved job owner");
                 map.insert(job.name.clone(), user.id);

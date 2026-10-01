@@ -99,8 +99,8 @@ fn predicate(entry: &UserPurgeTable) -> Result<String> {
 fn purge_where(entry: &UserPurgeTable) -> Result<String> {
     let table = identifier("table", entry.table)?;
     let column = identifier("column", entry.column)?;
-    // Why: `$1::text` comparison — one purge table keys on a uuid column and
-    // a text bind would not coerce.
+    // Why: `::text` comparison — purge tables key on TEXT and VARCHAR
+    // columns, and the cast keeps one text bind valid for every one of them.
     Ok(format!(
         "FROM {} WHERE {}::text = $1{}",
         table.quoted(),

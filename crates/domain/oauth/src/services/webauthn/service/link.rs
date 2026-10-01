@@ -10,13 +10,21 @@ use crate::services::load_authenticated_user;
 use crate::services::webauthn::token::hash_token;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
-use systemprompt_identifiers::{TokenId, UserId};
+use systemprompt_identifiers::{ChallengeId, TokenId, UserId};
 use tracing::instrument;
 use uuid::Uuid;
 use webauthn_rs::prelude::*;
 
 const LINK_CHALLENGE_TTL: Duration = Duration::from_secs(300);
 const LINK_CHALLENGE_MIN_REMAINING: Duration = Duration::from_secs(60);
+// Why: webauthn-rs 0.5 takes the passkey user handle as a `Uuid`, while user
+// ids are opaque text, so the handle is a name-based UUID of the user id.
+const PASSKEY_USER_HANDLE_NAMESPACE: Uuid =
+    Uuid::from_u128(0x5e0c_6b7a_2f1d_4c3e_9a8b_7d6c_5b4a_3f2e);
+
+fn passkey_user_handle(user_id: &UserId) -> Uuid {
+    Uuid::new_v5(&PASSKEY_USER_HANDLE_NAMESPACE, user_id.as_str().as_bytes())
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 struct LinkRegistrationState {
@@ -37,7 +45,7 @@ impl WebAuthnService {
     pub async fn start_registration_with_token(
         &self,
         setup_token: &str,
-    ) -> Result<(CreationChallengeResponse, String, LinkUserInfo)> {
+    ) -> Result<(CreationChallengeResponse, ChallengeId, LinkUserInfo)> {
         let token_hash = hash_token(setup_token);
         let validation = self.oauth_repo.validate_setup_token(&token_hash).await?;
 
@@ -63,12 +71,7 @@ impl WebAuthnService {
         let exclude_credentials: Vec<CredentialID> =
             existing_creds.iter().map(|c| c.cred_id().clone()).collect();
 
-        let user_unique_id = Uuid::parse_str(token_record.user_id.as_str()).map_err(|source| {
-            OauthError::InvalidUserId {
-                user_id: token_record.user_id.clone(),
-                source,
-            }
-        })?;
+        let user_unique_id = passkey_user_handle(&token_record.user_id);
 
         let reservation = self
             .oauth_repo
@@ -120,7 +123,7 @@ impl WebAuthnService {
     #[instrument(skip(self, setup_token, credential))]
     pub async fn finish_registration_with_token(
         &self,
-        challenge_id: &str,
+        challenge_id: &ChallengeId,
         setup_token: &str,
         credential: &RegisterPublicKeyCredential,
     ) -> Result<UserId> {
@@ -135,7 +138,7 @@ impl WebAuthnService {
 
         let consumed = self
             .oauth_repo
-            .consume_webauthn_challenge(challenge_id, WebAuthnChallengeKind::Link)
+            .consume_webauthn_challenge(challenge_id.as_str(), WebAuthnChallengeKind::Link)
             .await?
             .ok_or(OauthError::RegistrationStateExpired)?;
         let user_id = consumed

@@ -98,7 +98,7 @@ async fn user_provider_creates_anonymous_and_federated_identities() {
         .expect("find fed")
         .expect("row");
     assert!(fed_user.name.starts_with("fedprov"));
-    assert_eq!(fed_user.roles, vec!["operator".to_owned()]);
+    assert_eq!(fed_user.roles, vec!["user".to_owned()]);
 
     service.delete(&anon.id).await.expect("cleanup anon");
     service.delete(&fed_id).await.expect("cleanup fed");

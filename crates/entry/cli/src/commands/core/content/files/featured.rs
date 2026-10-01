@@ -3,7 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use clap::Args;
 use systemprompt_database::DbPool;
 use systemprompt_files::FileRepository;
@@ -38,7 +38,8 @@ pub async fn execute_with_pool(
     let content_id = ContentId::new(args.content.clone());
 
     if let Some(file_id_str) = args.set {
-        let file_id = FileId::new(file_id_str);
+        let file_id = FileId::try_new(&file_id_str)
+            .map_err(|e| anyhow!("Invalid file ID '{}': {}", file_id_str, e))?;
         service.set_featured(&file_id, &content_id).await?;
 
         let output = FeaturedImageOutput {
@@ -53,7 +54,7 @@ pub async fn execute_with_pool(
     let file = service.find_featured_image(&content_id).await?;
 
     let file_summary = file.map(|f| FileSummary {
-        id: FileId::new(f.id.to_string()),
+        id: f.id,
         path: f.path,
         public_url: f.public_url,
         mime_type: f.mime_type,

@@ -8,13 +8,14 @@
 //! return `UNAUTHORIZED` without touching `Config`.
 
 use http::{HeaderMap, StatusCode};
+use systemprompt_identifiers::ServiceName;
 use systemprompt_oauth::services::jwt::AuthorizationService;
 
 #[test]
 fn authorize_service_access_returns_unauthorized_without_token() {
     let headers = HeaderMap::new();
 
-    let err = AuthorizationService::authorize_service_access(&headers, "mcp")
+    let err = AuthorizationService::authorize_service_access(&headers, &ServiceName::new("mcp"))
         .expect_err("absent token must reject");
 
     assert_eq!(err, StatusCode::UNAUTHORIZED);
@@ -28,7 +29,7 @@ fn authorize_service_access_returns_unauthorized_for_basic_auth() {
         "Basic Zm9vOmJhcg==".parse().expect("parse header"),
     );
 
-    let err = AuthorizationService::authorize_service_access(&headers, "api")
+    let err = AuthorizationService::authorize_service_access(&headers, &ServiceName::new("api"))
         .expect_err("basic auth must reject");
 
     assert_eq!(err, StatusCode::UNAUTHORIZED);

@@ -29,13 +29,13 @@ pub struct UserDetailOutput {
     pub email: String,
     pub full_name: Option<String>,
     pub display_name: Option<String>,
-    pub status: Option<String>,
-    pub email_verified: Option<bool>,
+    pub status: String,
+    pub email_verified: bool,
     pub roles: Vec<String>,
     pub is_bot: bool,
     pub is_scanner: bool,
-    pub created_at: Option<DateTime<Utc>>,
-    pub updated_at: Option<DateTime<Utc>>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sessions: Option<Vec<SessionSummary>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -188,13 +188,13 @@ pub struct UserExportItem {
     pub email: String,
     pub full_name: Option<String>,
     pub display_name: Option<String>,
-    pub status: Option<String>,
-    pub email_verified: Option<bool>,
+    pub status: String,
+    pub email_verified: bool,
     pub roles: Vec<String>,
     pub is_bot: bool,
     pub is_scanner: bool,
-    pub created_at: Option<DateTime<Utc>>,
-    pub updated_at: Option<DateTime<Utc>>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

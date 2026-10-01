@@ -21,6 +21,8 @@ pub use events::{
 };
 pub use fingerprint::{FingerprintAnalysisResult, FingerprintReputation, FlagReason};
 pub use reporting::*;
-pub(crate) use rows::EngagementEventRow;
+pub(crate) use rows::{
+    AgentListDbRow, EngagementEventRow, RecentContextDbRow, ToolAgentUsageDbRow, ToolListDbRow,
+};
 
 pub use systemprompt_traits::session_store::SessionSnapshot as AnalyticsSession;

@@ -2,14 +2,38 @@
 //! column with `From<inferred type>`, which the validating identifier types
 //! deliberately do not implement, so rows decode into plain strings here and
 //! become typed ids through the trusted `new` constructor (a row is trusted).
+//! Columns the schema declares `NOT NULL` or constrains to an enum are
+//! checked on conversion: a missing value or an unknown status is a
+//! [`RepositoryError::Decode`], never a default.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use chrono::{DateTime, Utc};
 use systemprompt_identifiers::{ApiKeyId, DeviceCertId, UserId};
+use systemprompt_traits::RepositoryError;
 
-use super::{User, UserActivity, UserApiKey, UserDeviceCert, UserWithSessions};
+use super::{User, UserActivity, UserApiKey, UserDeviceCert, UserStatus, UserWithSessions};
+use crate::error::UserError;
+
+#[derive(Debug, thiserror::Error)]
+#[error("users.{0} is NULL")]
+struct MissingColumn(&'static str);
+
+fn required<T>(value: Option<T>, column: &'static str) -> Result<T, UserError> {
+    value.ok_or_else(|| {
+        UserError::Repository(RepositoryError::decode(
+            format!("users.{column}"),
+            MissingColumn(column),
+        ))
+    })
+}
+
+fn decode_status(status: Option<String>) -> Result<UserStatus, UserError> {
+    required(status, "status")?
+        .parse::<UserStatus>()
+        .map_err(|source| UserError::Repository(RepositoryError::decode("users.status", source)))
+}
 
 #[derive(Debug)]
 pub(crate) struct UserRow {
@@ -28,23 +52,25 @@ pub(crate) struct UserRow {
     pub updated_at: Option<DateTime<Utc>>,
 }
 
-impl From<UserRow> for User {
-    fn from(row: UserRow) -> Self {
-        Self {
+impl TryFrom<UserRow> for User {
+    type Error = UserError;
+
+    fn try_from(row: UserRow) -> Result<Self, Self::Error> {
+        Ok(Self {
             id: UserId::new(row.id),
             name: row.name,
             email: row.email,
             full_name: row.full_name,
             display_name: row.display_name,
-            status: row.status,
-            email_verified: row.email_verified,
+            status: decode_status(row.status)?,
+            email_verified: required(row.email_verified, "email_verified")?,
             roles: row.roles,
             avatar_url: row.avatar_url,
             is_bot: row.is_bot,
             is_scanner: row.is_scanner,
-            created_at: row.created_at,
-            updated_at: row.updated_at,
-        }
+            created_at: required(row.created_at, "created_at")?,
+            updated_at: required(row.updated_at, "updated_at")?,
+        })
     }
 }
 
@@ -82,19 +108,21 @@ pub(crate) struct UserWithSessionsRow {
     pub last_session_at: Option<DateTime<Utc>>,
 }
 
-impl From<UserWithSessionsRow> for UserWithSessions {
-    fn from(row: UserWithSessionsRow) -> Self {
-        Self {
+impl TryFrom<UserWithSessionsRow> for UserWithSessions {
+    type Error = UserError;
+
+    fn try_from(row: UserWithSessionsRow) -> Result<Self, Self::Error> {
+        Ok(Self {
             id: UserId::new(row.id),
             name: row.name,
             email: row.email,
             full_name: row.full_name,
-            status: row.status,
+            status: decode_status(row.status)?,
             roles: row.roles,
-            created_at: row.created_at,
+            created_at: required(row.created_at, "created_at")?,
             active_sessions: row.active_sessions,
             last_session_at: row.last_session_at,
-        }
+        })
     }
 }
 

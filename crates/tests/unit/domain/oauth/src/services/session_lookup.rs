@@ -250,7 +250,7 @@ async fn fingerprint_limit_reuses_session_and_user_from_one_row() {
     );
     assert_eq!(info.user_id.as_str(), "user_existing");
     assert_eq!(
-        info.jwt_token.split('.').count(),
+        info.jwt_token.as_str().split('.').count(),
         3,
         "jwt is header.payload.signature"
     );
@@ -375,7 +375,7 @@ async fn recent_session_without_user_falls_through_to_fresh_creation() {
     assert_eq!(info.user_id.as_str(), "user_anon_fresh");
     assert!(info.session_id.as_str().starts_with("sess_"));
     assert_eq!(
-        info.jwt_token.split('.').count(),
+        info.jwt_token.as_str().split('.').count(),
         3,
         "jwt is header.payload.signature"
     );

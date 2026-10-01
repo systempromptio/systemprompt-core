@@ -98,10 +98,11 @@ impl Activity {
             .or_else(|| self.channel_data.and_then(|c| c.tenant).map(|t| t.id))
             .ok_or_else(|| TeamsError::MalformedActivity("missing tenant id".to_owned()))?;
 
-        let teams_user_id = self
-            .from
-            .aad_object_id
-            .unwrap_or_else(|| TeamsUserId::new(self.from.id));
+        let teams_user_id = match self.from.aad_object_id {
+            Some(id) => id,
+            None => TeamsUserId::try_new(self.from.id)
+                .map_err(|_| TeamsError::MalformedActivity("missing sender id".to_owned()))?,
+        };
         let text = self.text.unwrap_or_default();
         let routing_key = command_token(&text).map_or_else(
             || self.conversation.id.as_str().to_owned(),

@@ -10,7 +10,12 @@ use crate::models::UserStatus;
 use crate::repository::UserRepository;
 
 impl UserRepository {
-    pub async fn bulk_update_status(&self, user_ids: &[UserId], new_status: &str) -> Result<u64> {
+    pub async fn bulk_update_status(
+        &self,
+        user_ids: &[UserId],
+        new_status: UserStatus,
+    ) -> Result<u64> {
+        let new_status = new_status.as_str();
         let ids: Vec<String> = user_ids.iter().map(ToString::to_string).collect();
         let result = sqlx::query!(
             r#"

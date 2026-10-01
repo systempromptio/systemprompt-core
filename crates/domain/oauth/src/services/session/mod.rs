@@ -12,7 +12,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
-use systemprompt_identifiers::{ClientId, SessionId, SessionSource, UserId};
+use systemprompt_identifiers::{ClientId, JwtToken, SessionId, SessionSource, UserId};
 use systemprompt_models::Config;
 use systemprompt_traits::{
     BoxedSource, CreateSessionInput, FingerprintProvider, SessionAnalytics, SessionProvider,
@@ -42,7 +42,7 @@ pub struct AnonymousSessionInfo {
     pub session_id: SessionId,
     pub user_id: UserId,
     pub is_new: bool,
-    pub jwt_token: String,
+    pub jwt_token: JwtToken,
     pub fingerprint_hash: String,
 }
 

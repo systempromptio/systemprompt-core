@@ -50,7 +50,7 @@ async fn closed_pool_maps_every_method_to_internal() {
     let provider = FilesAiPersistenceProvider::from_repository(
         systemprompt_files::FileRepository::new(&closed_db_pool().await),
     );
-    let file_id = FileId::new(uuid::Uuid::new_v4().to_string());
+    let file_id = FileId::generate();
     let user = UserId::new("ai-closed-pool-user");
 
     let insert_err = provider

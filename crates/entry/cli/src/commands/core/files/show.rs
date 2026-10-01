@@ -39,7 +39,7 @@ pub(super) async fn execute_with_pool(
     let metadata_output = convert_metadata(&file);
 
     let output = FileDetailOutput {
-        id: file.id(),
+        id: file.id,
         path: file.path,
         public_url: file.public_url,
         mime_type: file.mime_type,
@@ -67,7 +67,8 @@ async fn find_file(service: &FileRepository, identifier: &str) -> Result<File> {
             .await?
             .ok_or_else(|| anyhow!("File not found with path: {}", identifier))
     } else {
-        let file_id = FileId::new(identifier.to_owned());
+        let file_id = FileId::try_new(identifier)
+            .map_err(|e| anyhow!("Invalid file ID '{}': {}", identifier, e))?;
         service
             .find_by_id(&file_id)
             .await?

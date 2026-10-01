@@ -6,11 +6,12 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
+use systemprompt_identifiers::{AgentName, McpServerId, McpToolName};
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct ToolListRow {
-    pub tool_name: String,
-    pub server_name: String,
+    pub tool_name: McpToolName,
+    pub server_name: McpServerId,
     pub execution_count: i64,
     pub success_count: i64,
     pub avg_time: f64,
@@ -50,9 +51,42 @@ pub struct ToolErrorRow {
     pub error_count: i64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(into = "String")]
+pub enum ToolCaller {
+    Agent(AgentName),
+    DirectCall,
+    UnlinkedTask,
+}
+
+impl ToolCaller {
+    pub const DIRECT_CALL_LABEL: &'static str = "Direct Call";
+    pub const UNLINKED_TASK_LABEL: &'static str = "Unlinked Task";
+
+    pub fn as_str(&self) -> &str {
+        match self {
+            Self::Agent(name) => name.as_str(),
+            Self::DirectCall => Self::DIRECT_CALL_LABEL,
+            Self::UnlinkedTask => Self::UNLINKED_TASK_LABEL,
+        }
+    }
+}
+
+impl std::fmt::Display for ToolCaller {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl From<ToolCaller> for String {
+    fn from(caller: ToolCaller) -> Self {
+        caller.as_str().to_owned()
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub struct ToolAgentUsageRow {
-    pub agent_name: Option<String>,
+    pub caller: ToolCaller,
     pub usage_count: i64,
 }
 

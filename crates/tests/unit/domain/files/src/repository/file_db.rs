@@ -9,7 +9,7 @@ use systemprompt_test_fixtures::test_db_pool;
 fn ai_file(id: uuid::Uuid, user: &UserId) -> File {
     let now = Utc::now();
     File {
-        id,
+        id: FileId::from_uuid(id),
         path: format!("/storage/ai-count/{id}.png"),
         public_url: format!("/files/ai-count/{id}.png"),
         mime_type: "image/png".to_owned(),

@@ -7,7 +7,7 @@ use crate::models::JwtClaims;
 use crate::services::validation::{audience, jwt as jwt_validation};
 use http::{HeaderMap, StatusCode};
 use std::str::FromStr;
-use systemprompt_identifiers::UserId;
+use systemprompt_identifiers::{ServiceName, UserId};
 use systemprompt_models::auth::{AuthenticatedUser, JwtAudience};
 use systemprompt_security::TokenExtractor;
 
@@ -17,7 +17,7 @@ pub struct AuthorizationService;
 impl AuthorizationService {
     pub fn authorize_service_access(
         headers: &HeaderMap,
-        service_name: &str,
+        service_name: &ServiceName,
     ) -> Result<AuthenticatedUser, StatusCode> {
         let Ok(token) = TokenExtractor::standard().extract(headers) else {
             tracing::warn!(

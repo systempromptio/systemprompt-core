@@ -83,11 +83,10 @@ pub fn validate_all_hooks(hooks_path: &Path) -> Result<Vec<HookValidateEntry>> {
         };
 
         let mut errors = Vec::new();
-        let id_str = if config.id.as_str().is_empty() {
-            dir_name.clone()
-        } else {
-            config.id.as_str().to_owned()
-        };
+        let id_str = config
+            .id
+            .as_ref()
+            .map_or_else(|| dir_name.clone(), ToString::to_string);
 
         if config.command.is_empty() {
             errors.push("command must not be empty".to_owned());

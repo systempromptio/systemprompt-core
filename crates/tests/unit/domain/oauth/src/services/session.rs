@@ -5,7 +5,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use http::HeaderMap;
 
-use systemprompt_identifiers::{SessionId, UserId};
+use systemprompt_identifiers::{JwtToken, SessionId, UserId};
 use systemprompt_oauth::services::session::AuthenticatedSessionInfo;
 use systemprompt_oauth::services::{
     generate_client_secret, hash_client_secret, verify_client_secret,
@@ -174,7 +174,7 @@ fn create_test_anonymous_session_info() -> AnonymousSessionInfo {
         session_id: SessionId::new(TEST_SESSION_ID.to_string()),
         user_id: UserId::new(TEST_USER_ID.to_string()),
         is_new: true,
-        jwt_token: TEST_JWT_TOKEN.to_string(),
+        jwt_token: JwtToken::new(TEST_JWT_TOKEN),
         fingerprint_hash: TEST_FINGERPRINT_HASH.to_string(),
     }
 }
@@ -186,7 +186,7 @@ fn test_anonymous_session_info_fields() {
     assert_eq!(info.session_id.as_str(), TEST_SESSION_ID);
     assert_eq!(info.user_id.as_str(), TEST_USER_ID);
     assert!(info.is_new);
-    assert_eq!(info.jwt_token, TEST_JWT_TOKEN);
+    assert_eq!(info.jwt_token.as_str(), TEST_JWT_TOKEN);
     assert_eq!(info.fingerprint_hash, TEST_FINGERPRINT_HASH);
 }
 

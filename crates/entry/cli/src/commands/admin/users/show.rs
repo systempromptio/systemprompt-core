@@ -84,7 +84,7 @@ pub(super) async fn execute_with_pool(
         email: user.email.clone(),
         full_name: user.full_name.clone(),
         display_name: user.display_name.clone(),
-        status: user.status.clone(),
+        status: user.status.to_string(),
         email_verified: user.email_verified,
         roles: user.roles.clone(),
         is_bot: user.is_bot,

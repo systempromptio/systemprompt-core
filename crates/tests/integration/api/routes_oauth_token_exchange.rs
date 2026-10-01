@@ -194,7 +194,7 @@ fn mint_self_issued_subject(scopes: Vec<Permission>) -> String {
     generate_jwt(
         &user,
         config,
-        Uuid::new_v4().to_string(),
+        systemprompt_identifiers::AccessTokenId::generate(),
         &SessionId::generate(),
         &signing,
     )

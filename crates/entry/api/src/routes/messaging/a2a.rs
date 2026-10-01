@@ -71,7 +71,7 @@ pub(super) fn mint_a2a_token(
     generate_jwt(
         authed,
         config,
-        uuid::Uuid::new_v4().to_string(),
+        systemprompt_identifiers::AccessTokenId::generate(),
         session_id,
         &signing,
     )

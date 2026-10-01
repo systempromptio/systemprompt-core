@@ -30,9 +30,9 @@ pub struct OAuthClientRow {
     pub application_type: String,
     pub client_uri: Option<String>,
     pub logo_uri: Option<String>,
-    pub is_active: Option<bool>,
-    pub created_at: Option<DateTime<Utc>>,
-    pub updated_at: Option<DateTime<Utc>>,
+    pub is_active: bool,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
     pub last_used_at: Option<DateTime<Utc>>,
     pub owner_user_id: UserId,
 }
@@ -76,9 +76,9 @@ impl OAuthClient {
             client_uri: row.client_uri,
             logo_uri: row.logo_uri,
             contacts: relations.contacts,
-            is_active: row.is_active.unwrap_or(false),
-            created_at: row.created_at.unwrap_or_else(Utc::now),
-            updated_at: row.updated_at.unwrap_or_else(Utc::now),
+            is_active: row.is_active,
+            created_at: row.created_at,
+            updated_at: row.updated_at,
             owner_user_id: row.owner_user_id,
         }
     }

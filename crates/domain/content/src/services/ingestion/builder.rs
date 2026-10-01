@@ -13,9 +13,9 @@ pub(super) fn create_content_from_metadata(
     metadata: &ContentMetadata,
     content_text: &str,
     source_id: SourceId,
-    category_id: String,
+    category_id: CategoryId,
 ) -> Result<Content, ContentError> {
-    let id = ContentId::new(uuid::Uuid::new_v4().to_string());
+    let id = ContentId::generate();
     let slug = metadata.slug.clone();
 
     let published_at = chrono::NaiveDate::parse_from_str(&metadata.published_at, "%Y-%m-%d")
@@ -42,7 +42,7 @@ pub(super) fn create_content_from_metadata(
         keywords: metadata.keywords.clone(),
         kind: metadata.kind.clone(),
         image: metadata.image.clone(),
-        category_id: Some(CategoryId::new(category_id)),
+        category_id: Some(category_id),
         source_id,
         version_hash: String::new(),
         public: metadata.public.unwrap_or(true),

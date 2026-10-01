@@ -6,7 +6,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
-use systemprompt_identifiers::{AiRequestId, ContextId, UserId};
+use systemprompt_identifiers::{AgentName, AiRequestId, ContextId, UserId};
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, FromRow)]
 pub struct RequestStatsRow {
@@ -150,7 +150,7 @@ pub struct RecentContextRow {
     pub last_activity: DateTime<Utc>,
     pub ai_requests: i64,
     pub model: Option<String>,
-    pub agent_name: Option<String>,
+    pub agent_name: Option<AgentName>,
     pub context_name: Option<String>,
 }
 

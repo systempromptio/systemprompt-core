@@ -12,10 +12,10 @@ use axum::extract::Extension;
 use axum::http::{HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use chrono::{DateTime, Utc};
+use systemprompt_identifiers::{AccessTokenId, UserId};
 use systemprompt_models::RequestContext;
 use systemprompt_oauth::repository::OAuthRepository;
 use tracing::instrument;
-use uuid::Uuid;
 
 use crate::routes::oauth::extractors::OAuthRepo;
 use crate::routes::oauth::{OAuthHttpError, internal};
@@ -34,10 +34,7 @@ pub async fn handle_logout(
         .and_then(|exp_unix| DateTime::<Utc>::from_timestamp(exp_unix, 0))
         .ok_or_else(|| OAuthHttpError::invalid_request("Invalid token expiry"))?;
 
-    let user_uuid = Uuid::parse_str(req_ctx.user_id().as_str())
-        .map_err(|_e| OAuthHttpError::invalid_request("Invalid user id"))?;
-
-    revoke_jti(&repo, jti.as_str(), user_uuid, exp_dt).await?;
+    revoke_jti(&repo, jti, req_ctx.user_id(), exp_dt).await?;
 
     let cookie = HeaderValue::from_str(
         "access_token=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Strict",
@@ -50,8 +47,8 @@ pub async fn handle_logout(
 
 async fn revoke_jti(
     repo: &OAuthRepository,
-    jti: &str,
-    user_id: Uuid,
+    jti: &AccessTokenId,
+    user_id: &UserId,
     exp: DateTime<Utc>,
 ) -> Result<(), OAuthHttpError> {
     repo.revoke_jti(jti, user_id, exp)

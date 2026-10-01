@@ -20,11 +20,10 @@ impl UserAdminService {
     }
 
     pub async fn find_user(&self, identifier: &str) -> Result<Option<User>> {
-        if uuid::Uuid::parse_str(identifier).is_ok() {
-            let user_id = UserId::new(identifier);
-            if let Some(user) = self.user_service.find_by_id(&user_id).await? {
-                return Ok(Some(user));
-            }
+        if let Ok(user_id) = UserId::try_new(identifier)
+            && let Some(user) = self.user_service.find_by_id(&user_id).await?
+        {
+            return Ok(Some(user));
         }
 
         if identifier.contains('@') {

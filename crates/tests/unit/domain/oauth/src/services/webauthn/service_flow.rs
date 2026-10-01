@@ -119,7 +119,7 @@ async fn start_registration_with_no_existing_credentials_succeeds() {
         .start_registration(ctx.user_id.as_str(), &ctx.email, Some("Full Name"))
         .await
         .expect("start_registration");
-    assert!(!challenge_id.is_empty());
+    assert!(!challenge_id.as_str().is_empty());
     drop(ccr);
 }
 
@@ -134,7 +134,7 @@ async fn start_registration_unknown_email_treats_credentials_as_empty() {
         .start_registration("ghost", &unknown, None)
         .await
         .expect("start_registration");
-    assert!(!challenge_id.is_empty());
+    assert!(!challenge_id.as_str().is_empty());
 }
 
 #[tokio::test]

@@ -221,14 +221,14 @@ async fn list_by_filter_applies_status_role_and_age() {
 
     let matched = ctx
         .service
-        .list_by_filter(Some("suspended"), Some("user"), Some(5), 10_000)
+        .list_by_filter(Some(UserStatus::Suspended), Some("user"), Some(5), 10_000)
         .await
         .expect("filter");
     assert!(matched.iter().any(|u| u.id == user.id));
 
     let too_old_cutoff = ctx
         .service
-        .list_by_filter(Some("suspended"), None, Some(30), 10_000)
+        .list_by_filter(Some(UserStatus::Suspended), None, Some(30), 10_000)
         .await
         .expect("age filter");
     assert!(!too_old_cutoff.iter().any(|u| u.id == user.id));
@@ -253,7 +253,7 @@ async fn bulk_update_status_and_bulk_delete() {
 
     let updated = ctx
         .service
-        .bulk_update_status(&ids, "suspended")
+        .bulk_update_status(&ids, UserStatus::Suspended)
         .await
         .expect("bulk status");
     assert_eq!(updated, 2);
@@ -263,7 +263,7 @@ async fn bulk_update_status_and_bulk_delete() {
         .await
         .expect("find")
         .expect("row");
-    assert_eq!(refreshed.status.as_deref(), Some("suspended"));
+    assert_eq!(refreshed.status, UserStatus::Suspended);
 
     let deleted = ctx.service.bulk_delete(&ids).await.expect("bulk delete");
     assert_eq!(deleted, 2);

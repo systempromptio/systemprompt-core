@@ -174,10 +174,26 @@ fn disk_hook_config_yaml_round_trip_with_defaults() {
 event: SessionStart
 ";
     let cfg: systemprompt_models::services::DiskHookConfig = serde_yaml::from_str(yaml).unwrap();
+    assert!(cfg.id.is_none());
     assert_eq!(cfg.name, "");
     assert_eq!(cfg.version, "1.0.0");
     assert!(cfg.enabled);
     assert_eq!(cfg.matcher, "*");
     assert!(matches!(cfg.category, HookCategory::Custom));
     assert!(cfg.tags.is_empty());
+}
+
+#[test]
+fn disk_hook_config_keeps_an_explicit_id() {
+    let yaml = "id: audit_hook\nevent: SessionStart\n";
+    let cfg: systemprompt_models::services::DiskHookConfig = serde_yaml::from_str(yaml).unwrap();
+    assert_eq!(cfg.id.as_ref().map(|id| id.as_str()), Some("audit_hook"));
+}
+
+#[test]
+fn disk_hook_config_rejects_an_empty_id() {
+    let yaml = "id: \"\"\nevent: SessionStart\n";
+    let parsed: Result<systemprompt_models::services::DiskHookConfig, _> =
+        serde_yaml::from_str(yaml);
+    assert!(parsed.is_err());
 }

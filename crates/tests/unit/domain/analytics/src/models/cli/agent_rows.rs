@@ -5,7 +5,7 @@ use systemprompt_analytics::models::{
     AgentAiStatsRow, AgentErrorRow, AgentHourlyRow, AgentListRow, AgentStatsRow,
     AgentStatusBreakdownRow, AgentSummaryRow, AgentTaskRow, ConversationListRow, TimestampRow,
 };
-use systemprompt_identifiers::{ContextId, UserId};
+use systemprompt_identifiers::{AgentName, ContextId, UserId};
 
 const TEST_CONTEXT_ID_A: &str = "00000000-0000-4000-8000-000000000001";
 
@@ -16,7 +16,7 @@ mod agent_row_tests {
     fn agent_list_row_stores_values() {
         let now = Utc::now();
         let row = AgentListRow {
-            agent_name: "research-assistant".to_string(),
+            agent_name: AgentName::new("research-assistant"),
             task_count: 1000,
             completed_count: 950,
             avg_execution_time_ms: 2500,

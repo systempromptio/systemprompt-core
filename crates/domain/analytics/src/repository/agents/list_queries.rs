@@ -7,6 +7,7 @@ use crate::Result;
 use chrono::{DateTime, Utc};
 
 use super::AgentAnalyticsRepository;
+use crate::models::AgentListDbRow;
 use crate::models::reporting::AgentListRow;
 
 impl AgentAnalyticsRepository {
@@ -17,12 +18,13 @@ impl AgentAnalyticsRepository {
         limit: i64,
         sort_order: &str,
     ) -> Result<Vec<AgentListRow>> {
-        match sort_order {
+        let rows = match sort_order {
             "success_rate" => self.list_by_success_rate(start, end, limit).await,
             "cost" => self.list_by_cost(start, end, limit).await,
             "last_active" => self.list_by_last_active(start, end, limit).await,
             _ => self.list_by_task_count(start, end, limit).await,
-        }
+        }?;
+        Ok(rows.into_iter().map(AgentListRow::from).collect())
     }
 
     async fn list_by_success_rate(
@@ -30,9 +32,9 @@ impl AgentAnalyticsRepository {
         start: DateTime<Utc>,
         end: DateTime<Utc>,
         limit: i64,
-    ) -> Result<Vec<AgentListRow>> {
+    ) -> Result<Vec<AgentListDbRow>> {
         sqlx::query_as!(
-            AgentListRow,
+            AgentListDbRow,
             r#"
             SELECT
                 t.agent_name as "agent_name!",
@@ -65,9 +67,9 @@ impl AgentAnalyticsRepository {
         start: DateTime<Utc>,
         end: DateTime<Utc>,
         limit: i64,
-    ) -> Result<Vec<AgentListRow>> {
+    ) -> Result<Vec<AgentListDbRow>> {
         sqlx::query_as!(
-            AgentListRow,
+            AgentListDbRow,
             r#"
             SELECT
                 t.agent_name as "agent_name!",
@@ -98,9 +100,9 @@ impl AgentAnalyticsRepository {
         start: DateTime<Utc>,
         end: DateTime<Utc>,
         limit: i64,
-    ) -> Result<Vec<AgentListRow>> {
+    ) -> Result<Vec<AgentListDbRow>> {
         sqlx::query_as!(
-            AgentListRow,
+            AgentListDbRow,
             r#"
             SELECT
                 t.agent_name as "agent_name!",
@@ -131,9 +133,9 @@ impl AgentAnalyticsRepository {
         start: DateTime<Utc>,
         end: DateTime<Utc>,
         limit: i64,
-    ) -> Result<Vec<AgentListRow>> {
+    ) -> Result<Vec<AgentListDbRow>> {
         sqlx::query_as!(
-            AgentListRow,
+            AgentListDbRow,
             r#"
             SELECT
                 t.agent_name as "agent_name!",

@@ -11,7 +11,7 @@ use systemprompt_identifiers::{ContentId, ContextId, FileId, SessionId, TraceId,
 
 use super::file::FileRepository;
 use crate::error::{FilesError, FilesResult, parse_file_uuid};
-use crate::models::{ContentFile, File, FileMetadata, FileRole};
+use crate::models::{ContentFile, ContentFileRow, File, FileMetadata, FileRole, FileRow};
 
 impl FileRepository {
     pub async fn link_to_content(
@@ -26,7 +26,7 @@ impl FileRepository {
         let content_id_str = content_id.as_str();
 
         let result = sqlx::query_as!(
-            ContentFile,
+            ContentFileRow,
             r#"
             INSERT INTO content_files (content_id, file_id, role, display_order, created_at)
             VALUES ($1, $2, $3, $4, $5)
@@ -43,7 +43,7 @@ impl FileRepository {
         .fetch_one(self.pool.as_ref())
         .await?;
 
-        Ok(result)
+        Ok(ContentFile::from(result))
     }
 
     pub async fn unlink_from_content(
@@ -93,7 +93,7 @@ impl FileRepository {
             .into_iter()
             .map(|row| {
                 let file = File {
-                    id: row.id,
+                    id: FileId::from_uuid(row.id),
                     path: row.path,
                     public_url: row.public_url,
                     mime_type: row.mime_type,
@@ -118,7 +118,7 @@ impl FileRepository {
                 let content_file = ContentFile {
                     id: row.cf_id,
                     content_id: ContentId::new(row.content_id),
-                    file_id: row.cf_file_id,
+                    file_id: FileId::from_uuid(row.cf_file_id),
                     role: row.role,
                     display_order: row.display_order,
                     created_at: row.cf_created_at,
@@ -133,7 +133,7 @@ impl FileRepository {
         let content_id_str = content_id.as_str();
         let featured_role = FileRole::Featured.as_str();
         let result = sqlx::query_as!(
-            File,
+            FileRow,
             r#"
             SELECT f.id, f.path, f.public_url, f.mime_type, f.size_bytes, f.ai_content,
                    f.metadata as "metadata: sqlx::types::Json<FileMetadata>", f.user_id as "user_id: UserId", f.session_id as "session_id: SessionId", f.trace_id as "trace_id: TraceId", f.context_id as "context_id: ContextId", f.created_at, f.updated_at, f.deleted_at
@@ -150,7 +150,7 @@ impl FileRepository {
         .fetch_optional(self.pool.as_ref())
         .await?;
 
-        Ok(result)
+        Ok(result.map(File::from))
     }
 
     pub async fn set_featured(&self, file_id: &FileId, content_id: &ContentId) -> FilesResult<()> {
@@ -201,7 +201,7 @@ impl FileRepository {
         let file_id_uuid = parse_file_uuid(file_id)?;
 
         let result = sqlx::query_as!(
-            ContentFile,
+            ContentFileRow,
             r#"
             SELECT id, content_id as "content_id: ContentId", file_id, role as "role: FileRole", display_order, created_at
             FROM content_files
@@ -213,6 +213,6 @@ impl FileRepository {
         .fetch_all(self.pool.as_ref())
         .await?;
 
-        Ok(result)
+        Ok(result.into_iter().map(ContentFile::from).collect())
     }
 }

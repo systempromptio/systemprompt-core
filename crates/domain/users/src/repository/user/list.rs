@@ -31,8 +31,9 @@ impl UserRepository {
             deleted_status
         )
         .fetch_optional(&*self.pool)
-        .await
-        .map(|row| row.map(UserWithSessions::from))?;
+        .await?
+        .map(UserWithSessions::try_from)
+        .transpose()?;
 
         Ok(row)
     }
@@ -96,8 +97,10 @@ impl UserRepository {
             anonymous_role
         )
         .fetch_all(&*self.pool)
-        .await
-        .map(|rows| rows.into_iter().map(User::from).collect::<Vec<_>>())?;
+        .await?
+        .into_iter()
+        .map(User::try_from)
+        .collect::<Result<Vec<_>>>()?;
 
         Ok(rows)
     }
@@ -119,8 +122,10 @@ impl UserRepository {
             anonymous_role
         )
         .fetch_all(&*self.pool)
-        .await
-        .map(|rows| rows.into_iter().map(User::from).collect::<Vec<_>>())?;
+        .await?
+        .into_iter()
+        .map(User::try_from)
+        .collect::<Result<Vec<_>>>()?;
 
         Ok(rows)
     }
@@ -164,8 +169,10 @@ impl UserRepository {
             anonymous_role
         )
         .fetch_all(&*self.pool)
-        .await
-        .map(|rows| rows.into_iter().map(User::from).collect::<Vec<_>>())?;
+        .await?
+        .into_iter()
+        .map(User::try_from)
+        .collect::<Result<Vec<_>>>()?;
 
         Ok(rows)
     }
@@ -197,13 +204,14 @@ impl UserRepository {
 
     pub async fn list_by_filter(
         &self,
-        status: Option<&str>,
+        status: Option<UserStatus>,
         role: Option<&str>,
         older_than_days: Option<i64>,
         limit: i64,
     ) -> Result<Vec<User>> {
         let safe_limit = limit.min(MAX_PAGE_SIZE);
         let deleted_status = UserStatus::Deleted.as_str();
+        let status = status.as_ref().map(UserStatus::as_str);
 
         let rows = sqlx::query_as!(
             UserRow,
@@ -225,8 +233,10 @@ impl UserRepository {
             safe_limit
         )
         .fetch_all(&*self.pool)
-        .await
-        .map(|rows| rows.into_iter().map(User::from).collect::<Vec<_>>())?;
+        .await?
+        .into_iter()
+        .map(User::try_from)
+        .collect::<Result<Vec<_>>>()?;
 
         Ok(rows)
     }
@@ -275,12 +285,10 @@ impl UserRepository {
             safe_limit
         )
         .fetch_all(&*self.pool)
-        .await
-        .map(|rows| {
-            rows.into_iter()
-                .map(UserWithSessions::from)
-                .collect::<Vec<_>>()
-        })?;
+        .await?
+        .into_iter()
+        .map(UserWithSessions::try_from)
+        .collect::<Result<Vec<_>>>()?;
 
         Ok(rows)
     }

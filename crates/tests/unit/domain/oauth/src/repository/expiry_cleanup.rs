@@ -156,13 +156,14 @@ async fn delete_expired_oauth_state_bindings_removes_expired_rows() {
 #[tokio::test]
 async fn delete_expired_oauth_jti_revocations_removes_expired_rows() {
     let (repo, pg) = repo_and_pool().await;
+    let (user_id, _) = seed_user_and_client(&pg).await;
     let jti = unique("jti");
     sqlx::query(
         "INSERT INTO oauth_jti_revocations (jti, user_id, exp) VALUES ($1, $2, NOW() - INTERVAL \
          '1 hour')",
     )
     .bind(&jti)
-    .bind(uuid::Uuid::new_v4())
+    .bind(&user_id)
     .execute(&pg)
     .await
     .expect("insert revocation fixture");
@@ -254,7 +255,7 @@ async fn delete_expired_sweeps_every_table_and_totals_the_counts() {
     sqlx::query(
         "INSERT INTO oauth_jti_revocations (jti, user_id, exp) VALUES ('sweep_jti', $1, $2)",
     )
-    .bind(uuid::Uuid::new_v4())
+    .bind(&user_id)
     .bind(expired)
     .execute(&*pg)
     .await

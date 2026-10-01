@@ -1,7 +1,7 @@
 // DB-backed authorization-code persistence tests (HMAC-at-rest store/consume,
 // single-use, mandatory redirect-uri and PKCE S256 checks).
 
-use systemprompt_identifiers::{AuthorizationCode, ClientId, UserId};
+use systemprompt_identifiers::{AuthorizationCode, ClientId, RefreshTokenId, UserId};
 use systemprompt_oauth::repository::{AuthCodeParams, MintAuthCodeParams, OAuthRepository};
 use systemprompt_test_fixtures::{
     OAuthClientFixture, PkcePair, ensure_test_bootstrap, pkce_pair, seed_oauth_client,
@@ -290,7 +290,7 @@ async fn replayed_code_with_linked_refresh_token_revokes_the_family() {
         .await
         .expect("store refresh token");
     ctx.repo
-        .link_auth_code_to_refresh_token(&code, rt.as_str())
+        .link_auth_code_to_refresh_token(&code, &rt)
         .await
         .expect("link");
 
@@ -334,7 +334,7 @@ async fn link_auth_code_to_dangling_refresh_token_errors() {
 
     assert!(
         ctx.repo
-            .link_auth_code_to_refresh_token(&code, "rt-id-value")
+            .link_auth_code_to_refresh_token(&code, &RefreshTokenId::new("rt-id-value"))
             .await
             .is_err(),
         "refresh_token_id is a foreign key, so a dangling id is rejected"

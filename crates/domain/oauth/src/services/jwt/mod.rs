@@ -8,6 +8,7 @@ pub mod authorization;
 
 use std::future::Future;
 
+use systemprompt_identifiers::ServiceName;
 use systemprompt_models::auth::{AuthError, AuthenticatedUser};
 
 pub use authentication::AuthenticationService;
@@ -66,7 +67,7 @@ impl AuthService {
 
     pub fn authorize_service_access(
         headers: &http::HeaderMap,
-        service_name: &str,
+        service_name: &ServiceName,
     ) -> Result<AuthenticatedUser, http::StatusCode> {
         AuthorizationService::authorize_service_access(headers, service_name)
     }

@@ -114,7 +114,7 @@ async fn find_by_id_missing_returns_none() {
     let db = test_db_pool().await;
     let provider =
         FilesAiPersistenceProvider::from_repository(systemprompt_files::FileRepository::new(&db));
-    let missing = FileId::new(uuid::Uuid::new_v4().to_string());
+    let missing = FileId::generate();
     let r = provider.find_by_id(&missing).await.expect("find");
     assert!(r.is_none());
 }

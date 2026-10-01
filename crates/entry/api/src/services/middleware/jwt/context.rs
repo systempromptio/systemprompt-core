@@ -92,7 +92,7 @@ impl JwtContextExtractor {
         .await?;
         validate_session_exists(&self.session_provider, jwt_context, route_context).await?;
         if let Some(jti) = &jwt_context.jti {
-            self.jti_revocation.ensure_not_revoked(jti.as_str()).await?;
+            self.jti_revocation.ensure_not_revoked(jti).await?;
         }
         Ok(validated.user)
     }

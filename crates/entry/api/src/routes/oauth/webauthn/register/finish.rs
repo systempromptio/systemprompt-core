@@ -78,7 +78,7 @@ pub async fn finish_register(
     let webauthn_service = state.webauthn()?;
 
     let mut builder = FinishRegistrationParams::builder(
-        request.challenge_id.as_str(),
+        &request.challenge_id,
         &request.username,
         &request.email,
         &request.credential,

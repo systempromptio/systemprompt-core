@@ -7,6 +7,12 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-crate::define_id!(TeamsTenantId);
-crate::define_id!(TeamsConversationId);
-crate::define_id!(TeamsUserId);
+crate::define_id!(TeamsTenantId, checked, |value| {
+    crate::macros::validate_non_empty("TeamsTenantId", value)
+});
+crate::define_id!(TeamsConversationId, checked, |value| {
+    crate::macros::validate_non_empty("TeamsConversationId", value)
+});
+crate::define_id!(TeamsUserId, checked, |value| {
+    crate::macros::validate_non_empty("TeamsUserId", value)
+});

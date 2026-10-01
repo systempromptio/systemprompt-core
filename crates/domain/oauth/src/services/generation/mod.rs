@@ -9,7 +9,7 @@ use jsonwebtoken::{Algorithm, Header, encode};
 use serde::{Deserialize, Serialize};
 
 use crate::models::JwtClaims;
-use systemprompt_identifiers::{ClientId, PluginId, SessionId, UserId};
+use systemprompt_identifiers::{AccessTokenId, ClientId, PluginId, SessionId, UserId};
 use systemprompt_models::Config;
 use systemprompt_models::auth::{
     ActClaim, AuthenticatedUser, JwtAudience, Permission, RateLimitTier, TokenType, UserType,
@@ -21,8 +21,7 @@ mod secret;
 
 pub use id_jag::{IdJagGrant, mint_id_jag};
 pub use secret::{
-    generate_access_token_jti, generate_client_secret, generate_secure_token, hash_client_secret,
-    verify_client_secret,
+    generate_client_secret, generate_secure_token, hash_client_secret, verify_client_secret,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -34,7 +33,7 @@ pub struct JwtConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub resource: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub plugin_id: Option<String>,
+    pub plugin_id: Option<PluginId>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub client_id: Option<ClientId>,
 }
@@ -94,7 +93,7 @@ impl Default for JwtConfig {
 pub fn generate_jwt_with_act(
     user: &AuthenticatedUser,
     config: JwtConfig,
-    jti: String,
+    jti: AccessTokenId,
     session_id: &SessionId,
     signing: &JwtSigningParams<'_>,
     act: ActClaim,
@@ -107,7 +106,7 @@ pub fn generate_jwt_with_act(
 fn build_claims(
     user: &AuthenticatedUser,
     config: JwtConfig,
-    jti: String,
+    jti: AccessTokenId,
     session_id: &SessionId,
     signing: &JwtSigningParams<'_>,
 ) -> Result<JwtClaims> {
@@ -131,7 +130,7 @@ fn build_claims(
         nbf: Some(now),
         iss: signing.issuer.to_owned(),
         aud: audience,
-        jti,
+        jti: String::from(jti),
         scope: config.permissions,
         username: user.username.clone(),
         email: user.email.clone(),
@@ -143,7 +142,7 @@ fn build_claims(
         auth_time: now,
         session_id: Some(session_id.clone()),
         rate_limit_tier: Some(user_type.rate_tier()),
-        plugin_id: config.plugin_id.map(PluginId::new),
+        plugin_id: config.plugin_id,
         act: None,
     })
 }
@@ -176,7 +175,7 @@ fn encode_id_jag_with_authority(
 pub fn generate_jwt(
     user: &AuthenticatedUser,
     config: JwtConfig,
-    jti: String,
+    jti: AccessTokenId,
     session_id: &SessionId,
     signing: &JwtSigningParams<'_>,
 ) -> Result<String> {
@@ -218,7 +217,7 @@ pub fn generate_anonymous_jwt_with_expiry(
         nbf: Some(now),
         iss: signing.issuer.to_owned(),
         aud: JwtAudience::standard(),
-        jti: uuid::Uuid::new_v4().to_string(),
+        jti: String::from(AccessTokenId::generate()),
         scope: vec![Permission::Anonymous],
         username: user_id.to_string(),
         email: user_id.to_string(),

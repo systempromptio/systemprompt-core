@@ -9,6 +9,7 @@
 
 use super::CostAnalyticsRepository;
 use crate::Result;
+use crate::models::RecentContextDbRow;
 use chrono::{DateTime, Utc};
 use systemprompt_identifiers::{ContextId, UserId};
 
@@ -204,8 +205,8 @@ impl CostAnalyticsRepository {
         end: DateTime<Utc>,
         limit: i64,
     ) -> Result<Vec<RecentContextRow>> {
-        sqlx::query_as!(
-            RecentContextRow,
+        let rows = sqlx::query_as!(
+            RecentContextDbRow,
             r#"
             SELECT
                 ctx.context_id as "context_id!: ContextId",
@@ -243,7 +244,7 @@ impl CostAnalyticsRepository {
             limit
         )
         .fetch_all(&*self.pool)
-        .await
-        .map_err(Into::into)
+        .await?;
+        Ok(rows.into_iter().map(RecentContextRow::from).collect())
     }
 }

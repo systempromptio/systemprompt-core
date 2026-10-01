@@ -7,18 +7,19 @@
 use super::OAuthRepository;
 use crate::error::OauthResult;
 use chrono::{DateTime, Utc};
+use systemprompt_identifiers::AccessTokenId;
 
 impl OAuthRepository {
     pub async fn consume_id_jag_jti(
         &self,
-        jti: &str,
+        jti: &AccessTokenId,
         expires_at: DateTime<Utc>,
     ) -> OauthResult<bool> {
         let result = sqlx::query!(
             "INSERT INTO id_jag_replay (jti, expires_at)
              VALUES ($1, $2)
              ON CONFLICT (jti) DO NOTHING",
-            jti,
+            jti.as_str(),
             expires_at,
         )
         .execute(self.write_pool_ref())

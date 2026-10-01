@@ -12,7 +12,7 @@ fi
 # Field names whose typed ID exists in systemprompt_identifiers. The second
 # block is every such name with no raw site left; a name joins the list when
 # its last raw `String` site is converted (instance_id, plugin_id, trace_id,
-# mcp_execution_id, challenge_id, … still have raw sites).
+# mcp_execution_id, … still have raw sites).
 BANNED_NAMES=(
     user_id agent_id task_id tenant_id context_id session_id file_id skill_id
     client_id artifact_id message_id role_id hook_id execution_step_id
@@ -28,7 +28,7 @@ BANNED_NAMES=(
     rule_id scheduled_job_id secret_pattern_id section_id slack_channel_id
     slack_user_id slack_workspace_id source_snapshot_id tag_id
     teams_conversation_id teams_tenant_id teams_user_id token_id
-    webhook_endpoint_id withdrawal_proposal_id
+    webhook_endpoint_id withdrawal_proposal_id challenge_id refresh_token_id
 )
 BANNED="($(IFS='|'; echo "${BANNED_NAMES[*]}"))"
 

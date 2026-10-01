@@ -27,7 +27,7 @@ enum FileMetadataError {
 }
 
 fn to_ai_generated(f: File) -> AiProviderResult<AiGeneratedFile> {
-    let id = FileId::new(f.id.to_string());
+    let id = f.id;
     let metadata = serde_json::to_value(&f.metadata.0).map_err(|source| {
         AiProviderError::Internal(Box::new(FileMetadataError::Serialise {
             file_id: id.clone(),
@@ -66,12 +66,11 @@ impl FilesAiPersistenceProvider {
 #[async_trait]
 impl AiFilePersistenceProvider for FilesAiPersistenceProvider {
     async fn insert_file(&self, params: InsertAiFileParams) -> AiProviderResult<()> {
-        let file_id = FileId::new(params.id.to_string());
         let metadata: FileMetadata = serde_json::from_value(params.metadata).map_err(|source| {
             AiProviderError::Internal(Box::new(FileMetadataError::Deserialise(source)))
         })?;
         let mut request =
-            InsertFileRequest::new(file_id, params.path, params.public_url, params.mime_type)
+            InsertFileRequest::new(params.id, params.path, params.public_url, params.mime_type)
                 .with_ai_content(true)
                 .with_metadata(metadata);
 

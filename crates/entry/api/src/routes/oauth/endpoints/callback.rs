@@ -12,7 +12,9 @@ use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Redirect, Response};
 use serde::Deserialize;
 use std::sync::Arc;
-use systemprompt_identifiers::{AuthorizationCode, ClientId, RefreshTokenId, SessionSource};
+use systemprompt_identifiers::{
+    AccessTokenId, AuthorizationCode, ClientId, RefreshTokenId, SessionSource,
+};
 use systemprompt_models::Config;
 use systemprompt_models::auth::parse_permissions;
 
@@ -137,7 +139,7 @@ async fn exchange_code_for_token(
     state: &OAuthState,
 ) -> anyhow::Result<TokenResponse> {
     use systemprompt_oauth::services::{
-        JwtConfig, JwtSigningParams, generate_access_token_jti, generate_jwt, generate_secure_token,
+        JwtConfig, JwtSigningParams, generate_jwt, generate_secure_token,
     };
 
     let validation_result = repo
@@ -164,7 +166,7 @@ async fn exchange_code_for_token(
         .create_authenticated_session(&validation_result.user_id, &analytics, SessionSource::Oauth)
         .await?;
 
-    let access_token_jti = generate_access_token_jti();
+    let access_token_jti = AccessTokenId::generate();
     let global_config = Config::get()?;
     let config = JwtConfig {
         permissions: permissions.clone(),
@@ -194,7 +196,7 @@ async fn exchange_code_for_token(
     repo.store_refresh_token(refresh_params).await?;
 
     if let Err(e) = repo
-        .link_auth_code_to_refresh_token(params.code, refresh_token_id.as_str())
+        .link_auth_code_to_refresh_token(params.code, &refresh_token_id)
         .await
     {
         tracing::warn!(error = %e, "Failed to link auth code to refresh token");
