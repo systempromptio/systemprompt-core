@@ -75,6 +75,7 @@ for name in "${order[@]}"; do
         continue
     fi
     documented=$(awk -v start="$line" '
+        BEGIN { word_dyn = "(^|[^A-Za-z0-9_])dyn([^A-Za-z0-9_]|$)" }
         NR < start && /^[[:space:]]*\/\/\// { if (!in_doc) doc = ""; in_doc = 1; doc = doc $0 "\n"; next }
         NR < start && /^[[:space:]]*\/\/!/ { head = head $0 "\n"; next }
         NR < start && /^[[:space:]]*#\[/ { next }
@@ -82,7 +83,7 @@ for name in "${order[@]}"; do
         NR < start { in_doc = 0 }
         NR == start {
             block = in_doc ? doc : ""
-            if (block ~ /\<dyn\>/ || (block == "" && head ~ /\<dyn\>/)) print "yes"; else print "no"
+            if (block ~ word_dyn || (block == "" && head ~ word_dyn)) print "yes"; else print "no"
             exit
         }
     ' "$file")
