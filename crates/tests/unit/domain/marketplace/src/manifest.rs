@@ -23,23 +23,18 @@ static INIT_SECRETS: Once = Once::new();
 
 fn ensure_bootstrap() {
     INIT_SECRETS.call_once(|| {
-        unsafe {
-            std::env::set_var("SYSTEMPROMPT_SUBPROCESS", "1");
-            std::env::set_var(
-                "JWT_SECRET",
-                "marketplace-manifest-test-secret-must-be-32-bytes-or-longer",
-            );
-            std::env::set_var(
-                "DATABASE_URL",
-                "postgres://placeholder:placeholder@localhost/placeholder",
-            );
-            std::env::set_var(
-                "MANIFEST_SIGNING_SECRET_SEED",
-                "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
-            );
+        if std::env::var("DATABASE_URL").is_err() {
+            // SAFETY: runs once, before the secrets singleton reads the
+            // environment.
+            unsafe {
+                std::env::set_var(
+                    "DATABASE_URL",
+                    "postgres://placeholder:placeholder@localhost/placeholder",
+                );
+            }
         }
-        let _ = systemprompt_test_fixtures::secrets::block_on_secrets_init();
     });
+    systemprompt_test_fixtures::secrets::ensure_test_secrets_bootstrap();
 }
 
 #[tokio::test]
