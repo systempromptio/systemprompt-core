@@ -32,11 +32,11 @@ fn user_id_by_name(name: &str) -> Option<String> {
     cmd.args(["--json", "admin", "users", "search", name]);
     let output = cmd.assert().success();
     let raw = String::from_utf8_lossy(&output.get_output().stdout).into_owned();
-    let value: serde_json::Value = serde_json::from_str(raw.trim()).ok()?;
-    let rows = value
-        .get("data")
-        .and_then(|d| d.as_array().cloned())
-        .or_else(|| value.as_array().cloned())?;
+    let value: serde_json::Value =
+        serde_json::from_str(raw.trim()).expect("`admin users search --json` emits JSON");
+    let rows = value["items"]
+        .as_array()
+        .expect("`admin users search --json` emits a table with `items`");
     rows.iter()
         .find(|r| r.get("name").and_then(|n| n.as_str()) == Some(name))
         .and_then(|r| r.get("id").and_then(|i| i.as_str()).map(str::to_owned))
@@ -116,7 +116,7 @@ fn user_merge_flow() {
     ]);
     let src = user_id_by_name(&src_name).expect("the source user is found by name");
     let dst = user_id_by_name(&dst_name).expect("the target user is found by name");
-    run_any(&[
+    run_ok(&[
         "admin", "users", "merge", "--source", &src, "--target", &dst, "-y",
     ]);
     run_err(&[
