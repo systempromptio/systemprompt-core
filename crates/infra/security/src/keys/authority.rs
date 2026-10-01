@@ -50,7 +50,10 @@ pub enum TokenAuthorityError {
     Pkcs1Encode(#[source] rsa::pkcs1::Error),
 
     #[error("signing key {requested} conflicts with the installed key {installed}")]
-    ConflictingKey { installed: String, requested: String },
+    ConflictingKey {
+        installed: String,
+        requested: String,
+    },
 }
 
 pub type TokenAuthorityResult<T> = Result<T, TokenAuthorityError>;

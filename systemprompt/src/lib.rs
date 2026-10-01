@@ -35,9 +35,9 @@
 //! `systemprompt::agent`, …) gated on its feature, with three exceptions:
 //! `systemprompt-runtime` is `systemprompt::system`, `systemprompt::cli`
 //! re-exports only the CLI entry points, and `systemprompt-templates` is not
-//! re-exported. The curated [`prelude`] is opt-in — `use systemprompt::prelude::*`
-//! — and is not re-exported at the crate root, so the root namespace stays the
-//! module map.
+//! re-exported. The curated [`prelude`] is opt-in — `use
+//! systemprompt::prelude::*` — and is not re-exported at the crate root, so the
+//! root namespace stays the module map.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

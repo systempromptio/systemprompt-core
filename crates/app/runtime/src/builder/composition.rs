@@ -127,9 +127,8 @@ pub fn owner_reassignments(
     database: &systemprompt_database::DbPool,
 ) -> Vec<systemprompt_traits::DynOwnerReassignment> {
     let logging = systemprompt_logging::LoggingOwnerReassignment::new(database);
-    let events = systemprompt_events::EventsOwnerReassignment::new(
-        database.write_pool().as_ref().clone(),
-    );
+    let events =
+        systemprompt_events::EventsOwnerReassignment::new(database.write_pool().as_ref().clone());
     vec![
         Arc::new(systemprompt_agent::repository::AgentOwnerReassignment::new(
             database,

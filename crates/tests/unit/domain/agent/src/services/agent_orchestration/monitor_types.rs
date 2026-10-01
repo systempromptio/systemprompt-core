@@ -37,4 +37,3 @@ fn test_health_check_result_debug() {
     assert!(debug_str.contains("HealthCheckResult"));
     assert!(debug_str.contains("debug-test"));
 }
-

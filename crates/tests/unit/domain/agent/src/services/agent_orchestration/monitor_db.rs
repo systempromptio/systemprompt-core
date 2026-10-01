@@ -112,4 +112,3 @@ async fn health_check_fails_for_live_process_with_closed_port() {
 
     svc.remove_agent_service(&name).await.ok();
 }
-

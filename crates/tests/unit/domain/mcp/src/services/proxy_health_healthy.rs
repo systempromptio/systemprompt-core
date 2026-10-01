@@ -31,12 +31,10 @@ async fn can_route_traffic_true_for_running_service_with_live_mcp_endpoint() {
     .await
     .unwrap();
 
-    let p = ProxyHealthCheck::new(
-        systemprompt_database::ServiceRepository::new(
-            &db,
-            systemprompt_identifiers::InstanceId::new("test-instance"),
-        ),
-    );
+    let p = ProxyHealthCheck::new(systemprompt_database::ServiceRepository::new(
+        &db,
+        systemprompt_identifiers::InstanceId::new("test-instance"),
+    ));
     let routable = p.can_route_traffic(&name, port).await.unwrap();
     let status = repo
         .find_service_by_name(&name)
@@ -71,12 +69,10 @@ async fn can_route_traffic_responsive_non_mcp_port_marks_service_error() {
     .await
     .unwrap();
 
-    let p = ProxyHealthCheck::new(
-        systemprompt_database::ServiceRepository::new(
-            &db,
-            systemprompt_identifiers::InstanceId::new("test-instance"),
-        ),
-    );
+    let p = ProxyHealthCheck::new(systemprompt_database::ServiceRepository::new(
+        &db,
+        systemprompt_identifiers::InstanceId::new("test-instance"),
+    ));
     let routable = p.can_route_traffic(&name, port).await.unwrap();
     let status = repo
         .find_service_by_name(&name)
@@ -115,12 +111,10 @@ async fn list_routable_services_includes_service_with_responsive_port() {
     .await
     .unwrap();
 
-    let p = ProxyHealthCheck::new(
-        systemprompt_database::ServiceRepository::new(
-            &db,
-            systemprompt_identifiers::InstanceId::new("test-instance"),
-        ),
-    );
+    let p = ProxyHealthCheck::new(systemprompt_database::ServiceRepository::new(
+        &db,
+        systemprompt_identifiers::InstanceId::new("test-instance"),
+    ));
     let routable = p.list_routable_services().await.unwrap();
     repo.delete_service(&name).await.unwrap();
 

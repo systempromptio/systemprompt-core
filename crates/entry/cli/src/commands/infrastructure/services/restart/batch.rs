@@ -187,7 +187,10 @@ async fn restart_mcp_target(
     let results: Vec<(String, Result<(), String>)> =
         match orchestrator.restart_services(Some(target.id.clone())).await {
             Ok(outcomes) if outcomes.is_empty() => {
-                vec![(target.name.clone(), Err("not a managed MCP server".to_owned()))]
+                vec![(
+                    target.name.clone(),
+                    Err("not a managed MCP server".to_owned()),
+                )]
             },
             Ok(outcomes) => outcomes
                 .into_iter()

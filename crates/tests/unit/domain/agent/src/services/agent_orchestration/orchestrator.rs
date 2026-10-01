@@ -51,7 +51,10 @@ async fn new_runs_startup_reconciliation() {
     let pool = test_db_pool().await;
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let orchestrator = make_orchestrator(&pool).await;
-    orchestrator.list_all().await.expect("reconciled orchestrator lists agents");
+    orchestrator
+        .list_all()
+        .await
+        .expect("reconciled orchestrator lists agents");
 }
 
 #[tokio::test]

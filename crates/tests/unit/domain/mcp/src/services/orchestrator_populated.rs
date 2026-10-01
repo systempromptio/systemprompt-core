@@ -307,7 +307,10 @@ async fn restart_services_missing_binary_reports_a_failed_outcome() {
     assert_eq!(outcomes.len(), 1);
     let outcome = &outcomes[0];
     assert_eq!(outcome.service_name, name);
-    assert!(!outcome.is_restarted(), "a missing binary is not reported as restarted");
+    assert!(
+        !outcome.is_restarted(),
+        "a missing binary is not reported as restarted"
+    );
     let err = outcome.result.as_ref().expect_err("start phase fails");
     assert!(
         err.to_string().contains("Binary not found") || err.to_string().contains(&name),

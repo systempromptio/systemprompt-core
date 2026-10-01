@@ -116,4 +116,3 @@ async fn agent_database_service_get_agent_config_unknown_errors() -> Result<()> 
     fx.cleanup().await?;
     Ok(())
 }
-

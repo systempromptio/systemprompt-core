@@ -168,5 +168,7 @@ async fn start_accounting_recovery(ctx: &AppContext) -> Result<tokio::task::Join
     if settled > 0 {
         tracing::info!(settled, "Gateway accounting receipts recovered at startup");
     }
-    Ok(crate::services::gateway::audit::journal::spawn_recovery(settlement))
+    Ok(crate::services::gateway::audit::journal::spawn_recovery(
+        settlement,
+    ))
 }

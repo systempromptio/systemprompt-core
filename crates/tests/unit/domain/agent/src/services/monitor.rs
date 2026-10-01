@@ -22,4 +22,3 @@ fn health_check_result_unhealthy() {
     assert!(!result.healthy);
     assert!(result.message.contains("refused"));
 }
-

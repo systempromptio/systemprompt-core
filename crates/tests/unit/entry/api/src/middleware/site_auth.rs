@@ -44,7 +44,7 @@ mod gate {
     use systemprompt_extension::SiteAuthConfig;
     use systemprompt_identifiers::UserId;
     use systemprompt_test_fixtures::{
-        fixture_config, install_test_signing_key, mint_admin_jwt, FIXTURE_JWT_ISSUER,
+        FIXTURE_JWT_ISSUER, fixture_config, install_test_signing_key, mint_admin_jwt,
     };
     use tower::ServiceExt;
 

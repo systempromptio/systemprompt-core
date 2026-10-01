@@ -6,9 +6,9 @@
 use std::path::PathBuf;
 
 use anyhow::{Context, Result};
-use systemprompt_config::write_private_atomic;
 use clap::Args;
 use serde::Serialize;
+use systemprompt_config::write_private_atomic;
 
 use super::signing::BundleSigningKey;
 use crate::shared::CommandOutput;

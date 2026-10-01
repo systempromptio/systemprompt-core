@@ -61,7 +61,3 @@ mod cascade_delete;
 #[cfg(test)]
 #[path = "../batch_atomicity.rs"]
 mod batch_atomicity;
-
-#[cfg(test)]
-#[path = "../scoped_transaction.rs"]
-mod scoped_transaction;

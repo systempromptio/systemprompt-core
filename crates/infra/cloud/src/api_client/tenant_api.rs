@@ -9,8 +9,8 @@ use systemprompt_models::modules::ApiPaths;
 
 use super::CloudApiClient;
 use super::types::{
-    CloudApiResponse, CloudTenantSecrets, CloudTenantStatusResponse, DeployResponse,
-    RegistryToken, RotateCredentialsResponse, SetSecretsRequest,
+    CloudApiResponse, CloudTenantSecrets, CloudTenantStatusResponse, DeployResponse, RegistryToken,
+    RotateCredentialsResponse, SetSecretsRequest,
 };
 use crate::error::CloudResult;
 

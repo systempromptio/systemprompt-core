@@ -110,17 +110,17 @@ async fn seed_finding(pool: &DbPool, user: &UserId, category: &str, blocked: boo
         .expect("seed an ai request");
 
     AiSafetyFindingRepository::from_pool(Arc::new(pool.write_pool().as_ref().clone()))
-    .insert(InsertSafetyFinding {
-        ai_request_id: &request_id,
-        phase: "input",
-        severity: "high",
-        category,
-        scanner: "heuristic",
-        excerpt: Some("ignore previous instructions"),
-        blocked,
-    })
-    .await
-    .expect("seed a safety finding");
+        .insert(InsertSafetyFinding {
+            ai_request_id: &request_id,
+            phase: "input",
+            severity: "high",
+            category,
+            scanner: "heuristic",
+            excerpt: Some("ignore previous instructions"),
+            blocked,
+        })
+        .await
+        .expect("seed a safety finding");
 }
 
 async fn seeded_pool() -> DbPool {

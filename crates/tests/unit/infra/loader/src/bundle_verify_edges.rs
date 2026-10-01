@@ -148,7 +148,8 @@ fn an_empty_verification_spec_is_refused() {
         .expect_err("a spec that pins nothing must not verify anything");
 
     assert!(
-        err.to_string().contains("pins neither a sha256 digest nor an ed25519 key"),
+        err.to_string()
+            .contains("pins neither a sha256 digest nor an ed25519 key"),
         "the refusal names the missing pin: {err}"
     );
 }

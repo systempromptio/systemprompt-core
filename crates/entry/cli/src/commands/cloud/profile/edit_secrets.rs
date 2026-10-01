@@ -4,9 +4,9 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Context, Result};
-use systemprompt_config::write_private_atomic;
 use std::path::Path;
 use systemprompt_cloud::ProfilePath;
+use systemprompt_config::write_private_atomic;
 use systemprompt_logging::CliService;
 use systemprompt_models::Profile;
 

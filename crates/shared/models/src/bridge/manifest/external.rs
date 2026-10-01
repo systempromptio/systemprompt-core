@@ -137,9 +137,10 @@ impl From<ExternalPluginSource> for ManifestExternalPluginSource {
     }
 }
 
-// Why: lint-ok: field-copy-from — `source` changes representation (the validated,
-// tagged `ExternalPluginSource` becomes the flat tolerant wire object), and the
-// kit type is `deny_unknown_fields` while this mirror must accept unknown keys.
+// Why: lint-ok: field-copy-from — `source` changes representation (the
+// validated, tagged `ExternalPluginSource` becomes the flat tolerant wire
+// object), and the kit type is `deny_unknown_fields` while this mirror must
+// accept unknown keys.
 impl From<ExternalPluginEntry> for ManifestExternalPlugin {
     fn from(entry: ExternalPluginEntry) -> Self {
         Self {

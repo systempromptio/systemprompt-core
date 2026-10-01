@@ -28,12 +28,10 @@ async fn get_services_by_type_surfaces_seeded_service() {
     .await
     .expect("seed service");
 
-    let svc = ServiceManagementService::new(
-        systemprompt_database::ServiceRepository::new(
-            &pool,
-            systemprompt_identifiers::InstanceId::new("test-instance"),
-        ),
-    );
+    let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
+        &pool,
+        systemprompt_identifiers::InstanceId::new("test-instance"),
+    ));
     let services = svc.get_services_by_type("mcp").await.expect("query");
     assert!(
         services.iter().any(|s| s.name == name),
@@ -50,12 +48,10 @@ async fn get_services_by_type_surfaces_seeded_service() {
 #[tokio::test]
 async fn get_running_services_with_pid_returns_only_running() {
     let pool = test_db_pool().await;
-    let svc = ServiceManagementService::new(
-        systemprompt_database::ServiceRepository::new(
-            &pool,
-            systemprompt_identifiers::InstanceId::new("test-instance"),
-        ),
-    );
+    let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
+        &pool,
+        systemprompt_identifiers::InstanceId::new("test-instance"),
+    ));
     let services = svc.get_running_services_with_pid().await.expect("query");
     assert!(
         services.iter().all(|s| s.status == "running"),
@@ -66,12 +62,10 @@ async fn get_running_services_with_pid_returns_only_running() {
 #[tokio::test]
 async fn cleanup_stale_entries_runs() {
     let pool = test_db_pool().await;
-    let svc = ServiceManagementService::new(
-        systemprompt_database::ServiceRepository::new(
-            &pool,
-            systemprompt_identifiers::InstanceId::new("test-instance"),
-        ),
-    );
+    let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
+        &pool,
+        systemprompt_identifiers::InstanceId::new("test-instance"),
+    ));
     let cleaned = svc.cleanup_stale_entries().await.expect("cleanup");
     let _ = cleaned;
 }
@@ -79,12 +73,10 @@ async fn cleanup_stale_entries_runs() {
 #[tokio::test]
 async fn mark_service_stopped_for_unknown_succeeds() {
     let pool = test_db_pool().await;
-    let svc = ServiceManagementService::new(
-        systemprompt_database::ServiceRepository::new(
-            &pool,
-            systemprompt_identifiers::InstanceId::new("test-instance"),
-        ),
-    );
+    let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
+        &pool,
+        systemprompt_identifiers::InstanceId::new("test-instance"),
+    ));
     let result = svc
         .mark_service_stopped("nonexistent-service-name-zzz")
         .await;

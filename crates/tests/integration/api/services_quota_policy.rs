@@ -455,9 +455,9 @@ fn unreadable_policy_resolver() -> PolicyResolver {
             std::sync::Arc::new(dead.clone()),
             Some(std::sync::Arc::new(dead)),
         ));
-    PolicyResolver::from_repository(
-        systemprompt_ai::repository::AiGatewayPolicyRepository::new(&db),
-    )
+    PolicyResolver::from_repository(systemprompt_ai::repository::AiGatewayPolicyRepository::new(
+        &db,
+    ))
 }
 
 fn policy_row(name: &str, spec: serde_json::Value) -> systemprompt_ai::GatewayPolicyRow {

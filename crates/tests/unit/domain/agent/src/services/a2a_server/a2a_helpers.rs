@@ -320,9 +320,8 @@ impl AiProvider for StubAiProvider {
 }
 
 pub(crate) fn skill_service(pool: &DbPool) -> systemprompt_agent::services::SkillService {
-    let steps = Arc::new(
-        systemprompt_agent::repository::execution::ExecutionStepRepository::new(pool),
-    );
+    let steps =
+        Arc::new(systemprompt_agent::repository::execution::ExecutionStepRepository::new(pool));
     systemprompt_agent::services::SkillService::new(
         systemprompt_test_fixtures::not_managed_skills(),
         steps,

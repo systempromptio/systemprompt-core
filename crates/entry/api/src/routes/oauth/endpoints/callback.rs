@@ -51,7 +51,10 @@ pub async fn handle_callback(
         Ok(client) => client,
         Err(e) => {
             tracing::error!(error = %e, "OAuth callback could not resolve the browser client");
-            return (StatusCode::INTERNAL_SERVER_ERROR, "Failed to find OAuth client")
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Failed to find OAuth client",
+            )
                 .into_response();
         },
     };

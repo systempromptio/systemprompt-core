@@ -106,9 +106,9 @@ pub(super) async fn handle_non_streaming_request(
             tracing::info!(task_id = %params.id, "Handling CancelTask request");
             cancel_task(&params.id, state, context).await
         },
-        A2aRequestParams::GetAuthenticatedExtendedCard(_) => {
-            Err(RequestFailure::Unsupported(methods::GET_EXTENDED_AGENT_CARD))
-        },
+        A2aRequestParams::GetAuthenticatedExtendedCard(_) => Err(RequestFailure::Unsupported(
+            methods::GET_EXTENDED_AGENT_CARD,
+        )),
         A2aRequestParams::TaskResubscription(_) => {
             Err(RequestFailure::Unsupported(methods::SUBSCRIBE_TO_TASK))
         },

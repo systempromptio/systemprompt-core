@@ -10,4 +10,6 @@ pub mod step;
 
 pub use context::{CallSource, ContextExtractionError, ContextIdSource, RequestContext};
 pub use shared_context::SharedRequestContext;
-pub use step::{ExecutionStep, PlannedTool, StepContent, StepId, StepStatus, StepType, TrackedStep};
+pub use step::{
+    ExecutionStep, PlannedTool, StepContent, StepId, StepStatus, StepType, TrackedStep,
+};

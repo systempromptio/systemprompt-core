@@ -272,7 +272,10 @@ fn enrolling_all_hosts_respects_an_instance_that_does_not_enable_claude_code() {
             .find(|r| r.host_id == "claude-code")
             .expect("an installed Claude Code CLI is part of `all`");
         assert!(matches!(claude.outcome, Outcome::NotEnabled), "{claude:?}");
-        assert!(!dirs.settings().exists(), "nothing is written when not enabled");
+        assert!(
+            !dirs.settings().exists(),
+            "nothing is written when not enabled"
+        );
 
         let named = enroll_claude_code(&bridge);
         assert!(

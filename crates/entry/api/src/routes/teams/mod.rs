@@ -38,7 +38,9 @@ use systemprompt_security::authz::EntityRef;
 use systemprompt_teams::activities::Activity;
 use systemprompt_teams::client::TeamsClient;
 
-use crate::routes::messaging::{DispatchOutcome, MessagingInbound, ReplyTarget, dispatch_messaging};
+use crate::routes::messaging::{
+    DispatchOutcome, MessagingInbound, ReplyTarget, dispatch_messaging,
+};
 
 const ISSUER: &str = "https://api.botframework.com";
 

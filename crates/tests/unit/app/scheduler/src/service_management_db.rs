@@ -14,12 +14,10 @@ mod service_management_db {
     #[tokio::test]
     async fn get_services_by_type_mcp_returns_vec() {
         let pool = test_db_pool().await;
-        let svc = ServiceManagementService::new(
-            systemprompt_database::ServiceRepository::new(
-                &pool,
-                systemprompt_identifiers::InstanceId::new("test-instance"),
-            ),
-        );
+        let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
+            &pool,
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        ));
 
         let rows = svc
             .get_services_by_type("mcp")
@@ -33,12 +31,10 @@ mod service_management_db {
     #[tokio::test]
     async fn get_services_by_type_agent_returns_vec() {
         let pool = test_db_pool().await;
-        let svc = ServiceManagementService::new(
-            systemprompt_database::ServiceRepository::new(
-                &pool,
-                systemprompt_identifiers::InstanceId::new("test-instance"),
-            ),
-        );
+        let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
+            &pool,
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        ));
 
         let rows = svc
             .get_services_by_type("agent")
@@ -51,12 +47,10 @@ mod service_management_db {
     #[tokio::test]
     async fn get_running_services_with_pid_returns_vec() {
         let pool = test_db_pool().await;
-        let svc = ServiceManagementService::new(
-            systemprompt_database::ServiceRepository::new(
-                &pool,
-                systemprompt_identifiers::InstanceId::new("test-instance"),
-            ),
-        );
+        let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
+            &pool,
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        ));
 
         let rows = svc
             .get_running_services_with_pid()
@@ -77,12 +71,10 @@ mod service_management_db {
     #[tokio::test]
     async fn cleanup_stale_entries_returns_count() {
         let pool = test_db_pool().await;
-        let svc = ServiceManagementService::new(
-            systemprompt_database::ServiceRepository::new(
-                &pool,
-                systemprompt_identifiers::InstanceId::new("test-instance"),
-            ),
-        );
+        let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
+            &pool,
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        ));
 
         let affected = svc
             .cleanup_stale_entries()
@@ -96,12 +88,10 @@ mod service_management_db {
     #[tokio::test]
     async fn mark_service_stopped_noop_on_unknown_service() {
         let pool = test_db_pool().await;
-        let svc = ServiceManagementService::new(
-            systemprompt_database::ServiceRepository::new(
-                &pool,
-                systemprompt_identifiers::InstanceId::new("test-instance"),
-            ),
-        );
+        let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
+            &pool,
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        ));
 
         // An UPDATE that matches zero rows is still a successful query; the
         // service must not error when the name is not in the table.
@@ -113,12 +103,10 @@ mod service_management_db {
     #[tokio::test]
     async fn cleanup_stale_entries_is_idempotent() {
         let pool = test_db_pool().await;
-        let svc = ServiceManagementService::new(
-            systemprompt_database::ServiceRepository::new(
-                &pool,
-                systemprompt_identifiers::InstanceId::new("test-instance"),
-            ),
-        );
+        let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
+            &pool,
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        ));
 
         let first = svc
             .cleanup_stale_entries()

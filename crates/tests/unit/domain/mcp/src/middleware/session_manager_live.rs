@@ -130,9 +130,8 @@ async fn database_only_session_requires_reconnect_and_is_closed_durably() {
 
     let database = DisposableDb::with_schema("mcp_session_reconnect").await;
     let db = database.test_pool().await;
-    let repository = std::sync::Arc::new(
-        systemprompt_mcp::repository::McpSessionRepository::new(&db),
-    );
+    let repository =
+        std::sync::Arc::new(systemprompt_mcp::repository::McpSessionRepository::new(&db));
     let original = DatabaseSessionHandler::new(std::sync::Arc::clone(&repository));
     let (id, transport) = original.create_session().await.expect("session created");
     drop(transport);

@@ -206,8 +206,8 @@ async fn record_jti_revocation(
             return Ok(());
         },
     };
-    let exp = chrono::DateTime::<chrono::Utc>::from_timestamp(exp, 0)
-        .unwrap_or_else(chrono::Utc::now);
+    let exp =
+        chrono::DateTime::<chrono::Utc>::from_timestamp(exp, 0).unwrap_or_else(chrono::Utc::now);
     repo.revoke_jti(jti, user_uuid, exp).await?;
     Ok(())
 }

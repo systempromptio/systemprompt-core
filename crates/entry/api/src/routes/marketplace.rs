@@ -51,8 +51,7 @@ fn marketplaces_path(ctx: &AppContext) -> PathBuf {
               would propagate to every caller for negligible gain"
 )]
 fn load_services_config() -> Result<ServicesConfig, ApiHttpError> {
-    ConfigLoader::load()
-        .map_err(|e| ApiHttpError::internal("Failed to load services config", &e))
+    ConfigLoader::load().map_err(|e| ApiHttpError::internal("Failed to load services config", &e))
 }
 
 async fn serve_default_marketplace_json(
@@ -161,8 +160,8 @@ async fn serve_plugin_file(
     AxumPath((plugin_id, file_path)): AxumPath<(String, String)>,
 ) -> Result<impl IntoResponse, ApiHttpError> {
     let services = load_services_config()?;
-    let profile = ProfileBootstrap::get()
-        .map_err(|e| ApiHttpError::internal("Profile not ready", &e))?;
+    let profile =
+        ProfileBootstrap::get().map_err(|e| ApiHttpError::internal("Profile not ready", &e))?;
     let api_external_url = &profile.server.api_external_url;
     let services_root = ctx.app_paths().system().services();
 

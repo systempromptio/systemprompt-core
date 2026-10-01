@@ -275,7 +275,11 @@ async fn an_extended_card_request_is_refused_as_an_unsupported_operation() {
 
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["error"]["code"], json!(-32004), "{body}");
-    assert_eq!(body["error"]["data"], json!("GetExtendedAgentCard"), "{body}");
+    assert_eq!(
+        body["error"]["data"],
+        json!("GetExtendedAgentCard"),
+        "{body}"
+    );
 }
 
 #[tokio::test]
@@ -297,5 +301,8 @@ async fn a_task_subscription_is_refused_as_an_unsupported_operation() {
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["error"]["code"], json!(-32004), "{body}");
     assert_eq!(body["error"]["data"], json!("SubscribeToTask"), "{body}");
-    assert!(body["result"].is_null(), "an unsupported call is never accepted, got {body}");
+    assert!(
+        body["result"].is_null(),
+        "an unsupported call is never accepted, got {body}"
+    );
 }

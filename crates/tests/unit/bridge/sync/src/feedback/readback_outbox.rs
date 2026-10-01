@@ -43,7 +43,10 @@ fn every_host_has_actual_entrypoint_and_supporting_file_readback() {
 #[test]
 fn the_rendered_skill_md_with_authored_frontmatter_is_written_verbatim() {
     let (dir, receipt) = prepared(EvaluatorClient::ClaudeCode);
-    assert_eq!(std::fs::read(dir.path().join("SKILL.md")).unwrap(), SKILL_MD);
+    assert_eq!(
+        std::fs::read(dir.path().join("SKILL.md")).unwrap(),
+        SKILL_MD
+    );
     assert!(
         receipt
             .runtime_files

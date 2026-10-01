@@ -20,6 +20,11 @@ pub async fn install_extension_schemas_with_config(
     db: &dyn DatabaseProvider,
     disabled_extensions: &[String],
 ) -> Result<SchemaInstallReport, LoaderError> {
-    install_extension_schemas_full(registry, db, disabled_extensions, MigrationConfig::default())
-        .await
+    install_extension_schemas_full(
+        registry,
+        db,
+        disabled_extensions,
+        MigrationConfig::default(),
+    )
+    .await
 }

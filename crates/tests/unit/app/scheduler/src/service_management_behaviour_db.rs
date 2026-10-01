@@ -123,12 +123,10 @@ mod service_management_behaviour_db {
     #[tokio::test]
     async fn stop_service_without_pid_marks_row_stopped() {
         let pool = test_db_pool().await;
-        let svc = ServiceManagementService::new(
-            systemprompt_database::ServiceRepository::new(
-                &pool,
-                systemprompt_identifiers::InstanceId::new("test-instance"),
-            ),
-        );
+        let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
+            &pool,
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        ));
         let repo = ServiceRepository::new(
             &pool,
             systemprompt_identifiers::InstanceId::new("test-instance"),
@@ -158,12 +156,10 @@ mod service_management_behaviour_db {
     #[tokio::test]
     async fn stop_service_with_dead_pid_marks_row_stopped() {
         let pool = test_db_pool().await;
-        let svc = ServiceManagementService::new(
-            systemprompt_database::ServiceRepository::new(
-                &pool,
-                systemprompt_identifiers::InstanceId::new("test-instance"),
-            ),
-        );
+        let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
+            &pool,
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        ));
         let repo = ServiceRepository::new(
             &pool,
             systemprompt_identifiers::InstanceId::new("test-instance"),
@@ -192,12 +188,10 @@ mod service_management_behaviour_db {
     #[tokio::test]
     async fn stop_service_unknown_module_does_not_signal_and_marks_stopped() {
         let pool = test_db_pool().await;
-        let svc = ServiceManagementService::new(
-            systemprompt_database::ServiceRepository::new(
-                &pool,
-                systemprompt_identifiers::InstanceId::new("test-instance"),
-            ),
-        );
+        let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
+            &pool,
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        ));
         let repo = ServiceRepository::new(
             &pool,
             systemprompt_identifiers::InstanceId::new("test-instance"),
@@ -229,12 +223,10 @@ mod service_management_behaviour_db {
     #[tokio::test]
     async fn cleanup_orphaned_service_without_pid_returns_false() {
         let pool = test_db_pool().await;
-        let svc = ServiceManagementService::new(
-            systemprompt_database::ServiceRepository::new(
-                &pool,
-                systemprompt_identifiers::InstanceId::new("test-instance"),
-            ),
-        );
+        let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
+            &pool,
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        ));
 
         let config = config_with_pid("orphan-no-pid-never-seeded", "mcp", 0, None);
         let cleaned = svc
@@ -251,12 +243,10 @@ mod service_management_behaviour_db {
     #[tokio::test]
     async fn cleanup_orphaned_service_with_dead_pid_marks_stopped_and_returns_true() {
         let pool = test_db_pool().await;
-        let svc = ServiceManagementService::new(
-            systemprompt_database::ServiceRepository::new(
-                &pool,
-                systemprompt_identifiers::InstanceId::new("test-instance"),
-            ),
-        );
+        let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
+            &pool,
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        ));
         let repo = ServiceRepository::new(
             &pool,
             systemprompt_identifiers::InstanceId::new("test-instance"),
@@ -292,12 +282,10 @@ mod service_management_behaviour_db {
         let database =
             systemprompt_test_fixtures::DisposableDb::with_schema("scheduler_orphans_stale").await;
         let pool = database.test_pool().await;
-        let svc = ServiceManagementService::new(
-            systemprompt_database::ServiceRepository::new(
-                &pool,
-                systemprompt_identifiers::InstanceId::new("test-instance"),
-            ),
-        );
+        let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
+            &pool,
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        ));
         let repo = ServiceRepository::new(
             &pool,
             systemprompt_identifiers::InstanceId::new("test-instance"),
@@ -414,12 +402,10 @@ mod live_child_stop_paths {
     #[tokio::test]
     async fn stop_service_gracefully_terminates_a_marked_live_child() {
         let pool = test_db_pool().await;
-        let svc = ServiceManagementService::new(
-            systemprompt_database::ServiceRepository::new(
-                &pool,
-                systemprompt_identifiers::InstanceId::new("test-instance"),
-            ),
-        );
+        let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
+            &pool,
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        ));
         let repo = ServiceRepository::new(
             &pool,
             systemprompt_identifiers::InstanceId::new("test-instance"),
@@ -449,12 +435,10 @@ mod live_child_stop_paths {
     #[tokio::test]
     async fn stop_service_force_kills_a_marked_live_child() {
         let pool = test_db_pool().await;
-        let svc = ServiceManagementService::new(
-            systemprompt_database::ServiceRepository::new(
-                &pool,
-                systemprompt_identifiers::InstanceId::new("test-instance"),
-            ),
-        );
+        let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
+            &pool,
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        ));
         let repo = ServiceRepository::new(
             &pool,
             systemprompt_identifiers::InstanceId::new("test-instance"),
@@ -484,12 +468,10 @@ mod live_child_stop_paths {
     #[tokio::test]
     async fn stop_service_refuses_to_signal_a_live_pid_without_spawn_markers() {
         let pool = test_db_pool().await;
-        let svc = ServiceManagementService::new(
-            systemprompt_database::ServiceRepository::new(
-                &pool,
-                systemprompt_identifiers::InstanceId::new("test-instance"),
-            ),
-        );
+        let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
+            &pool,
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        ));
         let repo = ServiceRepository::new(
             &pool,
             systemprompt_identifiers::InstanceId::new("test-instance"),
@@ -523,12 +505,10 @@ mod live_child_stop_paths {
     #[tokio::test]
     async fn cleanup_orphaned_service_terminates_a_marked_live_child() {
         let pool = test_db_pool().await;
-        let svc = ServiceManagementService::new(
-            systemprompt_database::ServiceRepository::new(
-                &pool,
-                systemprompt_identifiers::InstanceId::new("test-instance"),
-            ),
-        );
+        let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
+            &pool,
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        ));
         let repo = ServiceRepository::new(
             &pool,
             systemprompt_identifiers::InstanceId::new("test-instance"),
@@ -563,12 +543,10 @@ mod live_child_stop_paths {
         let database =
             systemprompt_test_fixtures::DisposableDb::with_schema("scheduler_orphans_live").await;
         let pool = database.test_pool().await;
-        let svc = ServiceManagementService::new(
-            systemprompt_database::ServiceRepository::new(
-                &pool,
-                systemprompt_identifiers::InstanceId::new("test-instance"),
-            ),
-        );
+        let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
+            &pool,
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        ));
         let repo = ServiceRepository::new(
             &pool,
             systemprompt_identifiers::InstanceId::new("test-instance"),
@@ -666,12 +644,10 @@ mod dead_pool_degradation {
     #[tokio::test]
     async fn stop_service_still_succeeds_when_the_row_update_fails() {
         let closed = closed_db_pool().await;
-        let svc = ServiceManagementService::new(
-            systemprompt_database::ServiceRepository::new(
-                &closed,
-                systemprompt_identifiers::InstanceId::new("test-instance"),
-            ),
-        );
+        let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
+            &closed,
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        ));
 
         svc.stop_service(
             &config_with_pid("smb-dead-pool-stop", "agent", 27301, None),
@@ -684,12 +660,10 @@ mod dead_pool_degradation {
     #[tokio::test]
     async fn cleanup_orphaned_service_reports_action_when_the_row_update_fails() {
         let closed = closed_db_pool().await;
-        let svc = ServiceManagementService::new(
-            systemprompt_database::ServiceRepository::new(
-                &closed,
-                systemprompt_identifiers::InstanceId::new("test-instance"),
-            ),
-        );
+        let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
+            &closed,
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        ));
 
         let acted = svc
             .cleanup_orphaned_service(&config_with_pid(

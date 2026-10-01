@@ -17,10 +17,7 @@ use super::common::setup_ctx;
 async fn router_and_pool() -> anyhow::Result<(Router, DbPool)> {
     let (pool, ctx) = setup_ctx().await?;
     install_test_signing_key();
-    Ok((
-        gateway_router(&ctx).expect("gateway router builds"),
-        pool,
-    ))
+    Ok((gateway_router(&ctx).expect("gateway router builds"), pool))
 }
 
 fn authed_get(uri: &str, token: &str) -> Request<Body> {
@@ -143,10 +140,7 @@ pub(crate) async fn bundle_router_and_pool() -> anyhow::Result<(Router, DbPool)>
         std::sync::Arc::new(systemprompt_marketplace::AllowAllFilter),
     )?;
     install_test_signing_key();
-    Ok((
-        gateway_router(&ctx).expect("gateway router builds"),
-        pool,
-    ))
+    Ok((gateway_router(&ctx).expect("gateway router builds"), pool))
 }
 
 #[tokio::test]

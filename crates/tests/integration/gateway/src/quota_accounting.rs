@@ -220,9 +220,8 @@ async fn accounting_failure_recovers_durably_before_and_after_provider_completio
         }
         let dead = dead_pool();
         let mut unavailable = repos.clone();
-        unavailable.requests = std::sync::Arc::new(
-            systemprompt_ai::repository::AiRequestRepository::new(&dead),
-        );
+        unavailable.requests =
+            std::sync::Arc::new(systemprompt_ai::repository::AiRequestRepository::new(&dead));
         let faulted = GatewayAudit::new(&unavailable, context);
         assert!(
             faulted

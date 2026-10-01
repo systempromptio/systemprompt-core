@@ -117,7 +117,10 @@ fn the_doctor_check_and_the_gui_verdict_agree_on_routing() {
     let dir = TempDir::new().expect("dir");
     for (body, routed) in [
         (r#"{"model": "claude-sonnet-5"}"#, false),
-        (r#"{"env": {"ANTHROPIC_BASE_URL": "http://127.0.0.1:48217"}}"#, false),
+        (
+            r#"{"env": {"ANTHROPIC_BASE_URL": "http://127.0.0.1:48217"}}"#,
+            false,
+        ),
         (r#"{"apiKeyHelper": "/bin/helper"}"#, false),
         (
             r#"{"env": {"ANTHROPIC_BASE_URL": "http://127.0.0.1:48217"}, "apiKeyHelper": "/bin/h"}"#,

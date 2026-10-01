@@ -187,7 +187,11 @@ fn permission_serde_rejects_unseparated_hook_scope() {
 
 #[test]
 fn serialized_permissions_reparse_with_parse_permissions() {
-    let permissions = vec![Permission::HookGovern, Permission::HookTrack, Permission::Admin];
+    let permissions = vec![
+        Permission::HookGovern,
+        Permission::HookTrack,
+        Permission::Admin,
+    ];
     let json: Vec<String> =
         serde_json::from_value(serde_json::to_value(&permissions).unwrap()).unwrap();
     assert_eq!(parse_permissions(&json.join(" ")).unwrap(), permissions);

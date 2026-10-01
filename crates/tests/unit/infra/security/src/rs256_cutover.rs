@@ -144,7 +144,10 @@ fn active_decoding_key_verifies_locally_minted_token() {
 fn install_accepts_the_installed_key_again() {
     let key = ensure_authority();
     authority::install(key.clone()).expect("reinstalling the same key is accepted");
-    assert_eq!(authority::signing_key().expect("installed").kid(), key.kid());
+    assert_eq!(
+        authority::signing_key().expect("installed").kid(),
+        key.kid()
+    );
 }
 
 #[test]

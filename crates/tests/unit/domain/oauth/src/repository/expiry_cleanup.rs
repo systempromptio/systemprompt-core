@@ -8,10 +8,7 @@ use systemprompt_test_fixtures::{DisposableDb, test_db_pool};
 async fn repo_and_pool() -> (OauthCleanupRepository, sqlx::PgPool) {
     let db = test_db_pool().await;
     let pg = db.write_pool();
-    (
-        OauthCleanupRepository::new(&db),
-        (*pg).clone(),
-    )
+    (OauthCleanupRepository::new(&db), (*pg).clone())
 }
 
 fn unique(prefix: &str) -> String {

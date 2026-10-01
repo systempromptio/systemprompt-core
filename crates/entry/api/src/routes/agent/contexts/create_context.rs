@@ -72,8 +72,7 @@ pub async fn create_context(
         Err(e) => {
             tracing::error!(error = %e, "Failed to create context");
             api_error_response(
-                ApiError::internal_error("Failed to create context")
-                    .with_request_context(&req_ctx),
+                ApiError::internal_error("Failed to create context").with_request_context(&req_ctx),
             )
         },
     }

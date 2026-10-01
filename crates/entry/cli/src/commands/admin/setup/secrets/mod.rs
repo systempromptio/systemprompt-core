@@ -12,8 +12,8 @@ mod data;
 pub mod prompts;
 
 use anyhow::{Context, Result};
-use systemprompt_config::write_private_atomic;
 use std::path::Path;
+use systemprompt_config::write_private_atomic;
 use systemprompt_identifiers::ProviderId;
 use systemprompt_logging::CliService;
 

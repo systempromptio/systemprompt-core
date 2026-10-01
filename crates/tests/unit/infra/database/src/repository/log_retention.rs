@@ -16,10 +16,7 @@ use systemprompt_test_fixtures::test_db_pool;
 async fn repo_and_pool() -> (LoggingRepository, sqlx::PgPool) {
     let db = test_db_pool().await;
     let pg = db.write_pool();
-    (
-        LoggingRepository::new(&db),
-        (*pg).clone(),
-    )
+    (LoggingRepository::new(&db), (*pg).clone())
 }
 
 fn unique(prefix: &str) -> String {

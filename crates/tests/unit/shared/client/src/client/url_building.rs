@@ -1,9 +1,9 @@
 //! Tests for URL building, query-string construction, and path formatting.
 //!
 //! These tests exercise `limited_url` (via list_all_artifacts),
-//! context/task/artifact URL composition, agent card paths, and the send_message JSON-RPC envelope — all
-//! without requiring a live server or touching any network by inspecting
-//! wiremock request paths and query strings.
+//! context/task/artifact URL composition, agent card paths, and the
+//! send_message JSON-RPC envelope — all without requiring a live server or
+//! touching any network by inspecting wiremock request paths and query strings.
 
 use systemprompt_client::SystempromptClient;
 use systemprompt_identifiers::{AgentName, ContextId, JwtToken, MessageId, TaskId};

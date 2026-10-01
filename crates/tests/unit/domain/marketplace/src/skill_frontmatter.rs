@@ -1,8 +1,7 @@
 //! Authored `SKILL.md` frontmatter survives kit import, the catalog and the
 //! rendered client `SKILL.md`; the platform-owned keys never reach it twice.
 
-use std::collections::BTreeMap;
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 use sha2::{Digest, Sha256};
@@ -10,8 +9,7 @@ use systemprompt_marketplace::bundle::{BundleContent, build_plugin_bundle};
 use systemprompt_marketplace::catalog::load_skills;
 use systemprompt_marketplace::{ImportOptions, import_anthropic_tree};
 use systemprompt_models::bridge::manifest::SkillEntry;
-use systemprompt_models::services::PluginComponentRef;
-use systemprompt_models::services::split_frontmatter;
+use systemprompt_models::services::{PluginComponentRef, split_frontmatter};
 use tempfile::TempDir;
 
 use crate::bundle::{explicit, plugin_config};
@@ -104,7 +102,10 @@ fn hex_sha256(bytes: &[u8]) -> String {
 }
 
 fn keys(mapping: &serde_yaml::Mapping) -> Vec<&str> {
-    mapping.keys().filter_map(serde_yaml::Value::as_str).collect()
+    mapping
+        .keys()
+        .filter_map(serde_yaml::Value::as_str)
+        .collect()
 }
 
 #[test]
@@ -115,8 +116,14 @@ fn authored_keys_reach_config_catalog_and_client_skill_md() {
             .expect("config written"),
     )
     .expect("config yaml");
-    let recorded = config["frontmatter"].as_mapping().expect("frontmatter kept");
-    assert_eq!(keys(recorded), PASS_THROUGH, "authored order, owned keys removed");
+    let recorded = config["frontmatter"]
+        .as_mapping()
+        .expect("frontmatter kept");
+    assert_eq!(
+        keys(recorded),
+        PASS_THROUGH,
+        "authored order, owned keys removed"
+    );
     assert_eq!(config["name"], "Field Notes");
     assert_eq!(config["tags"][1], "field");
 
@@ -136,14 +143,20 @@ fn authored_keys_reach_config_catalog_and_client_skill_md() {
     let front = split_frontmatter(&md).expect("frontmatter");
     let parsed: serde_yaml::Value = serde_yaml::from_str(front.yaml).expect("valid yaml");
     assert_eq!(parsed["name"], "field-notes");
-    assert_eq!(parsed["description"], "Turn engagement notes into a report.");
+    assert_eq!(
+        parsed["description"],
+        "Turn engagement notes into a report."
+    );
     assert_eq!(parsed["argument-hint"], "[account] [quarter]");
     assert_eq!(parsed["allowed-tools"][1], "Bash(git log *)");
     assert_eq!(parsed["disable-model-invocation"], true);
     assert_eq!(parsed["hooks"]["PreToolUse"][0]["hooks"][0]["timeout"], 30);
     assert_eq!(parsed["metadata"]["owner"], "field-team");
     for owned in ["title", "tags", "category", "display_category", "hosts"] {
-        assert!(parsed.get(owned).is_none(), "{owned} is platform-owned: {md}");
+        assert!(
+            parsed.get(owned).is_none(),
+            "{owned} is platform-owned: {md}"
+        );
     }
     assert_eq!(front.yaml.matches("\nname:").count(), 0);
     assert!(front.yaml.starts_with("name: field-notes\n"));
@@ -194,5 +207,9 @@ fn the_manifest_json_round_trips_the_frontmatter() {
                 \"instructions\":\"i\"}";
     let old: SkillEntry = serde_json::from_str(bare).expect("a manifest without the field parses");
     assert!(old.frontmatter.is_none());
-    assert!(!serde_json::to_string(&old).expect("serialise").contains("frontmatter"));
+    assert!(
+        !serde_json::to_string(&old)
+            .expect("serialise")
+            .contains("frontmatter")
+    );
 }

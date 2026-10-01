@@ -241,8 +241,8 @@ async fn revoking_another_users_access_token_records_nothing() -> anyhow::Result
 }
 
 #[tokio::test]
-async fn revoking_an_unsigned_token_with_the_callers_subject_records_nothing()
--> anyhow::Result<()> {
+async fn revoking_an_unsigned_token_with_the_callers_subject_records_nothing() -> anyhow::Result<()>
+{
     let (user, _client) = seeded_client().await?;
     let mut claims = base_claims();
     claims["sub"] = serde_json::Value::String(user.as_str().to_owned());

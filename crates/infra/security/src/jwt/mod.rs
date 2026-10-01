@@ -6,11 +6,11 @@
 //! - [`mint`] — issues administrator-scoped RS256 tokens via
 //!   [`JwtService::generate_admin_token`]. Session-scoped tokens are minted by
 //!   [`crate::session::SessionGenerator`] instead.
-//! - [`decode`] — turns a raw `Bearer …` string into a typed
-//!   [`JwtUserContext`] through [`validate::decode_session_claims`]: kid +
-//!   RS256, the deployment issuer, a first-party `aud`, the act-chain depth
-//!   limit, and `user_type` re-derived from `scope` (defence-in-depth against a
-//!   forged claim), surfacing every failure as an [`crate::AuthError`] variant.
+//! - [`decode`] — turns a raw `Bearer …` string into a typed [`JwtUserContext`]
+//!   through [`validate::decode_session_claims`]: kid + RS256, the deployment
+//!   issuer, a first-party `aud`, the act-chain depth limit, and `user_type`
+//!   re-derived from `scope` (defence-in-depth against a forged claim),
+//!   surfacing every failure as an [`crate::AuthError`] variant.
 //!
 //! [`crate::AuthValidationService`] (A2A) runs the same session-claim checks;
 //! [`decode::extract_user_context`] serves request-context middleware that

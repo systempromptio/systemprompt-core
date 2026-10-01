@@ -6,12 +6,10 @@ use systemprompt_test_fixtures::test_db_pool;
 #[tokio::test]
 async fn can_route_traffic_missing_service_returns_false() {
     let db = test_db_pool().await;
-    let p = ProxyHealthCheck::new(
-        systemprompt_database::ServiceRepository::new(
-            &db,
-            systemprompt_identifiers::InstanceId::new("test-instance"),
-        ),
-    );
+    let p = ProxyHealthCheck::new(systemprompt_database::ServiceRepository::new(
+        &db,
+        systemprompt_identifiers::InstanceId::new("test-instance"),
+    ));
     let r = p
         .can_route_traffic(&format!("missing-{}", uuid::Uuid::new_v4().simple()), 65530)
         .await
@@ -23,12 +21,10 @@ async fn can_route_traffic_missing_service_returns_false() {
 async fn list_routable_services_excludes_service_with_unresponsive_port() {
     use systemprompt_database::{CreateServiceInput, ServiceRepository};
     let db = test_db_pool().await;
-    let p = ProxyHealthCheck::new(
-        systemprompt_database::ServiceRepository::new(
-            &db,
-            systemprompt_identifiers::InstanceId::new("test-instance"),
-        ),
-    );
+    let p = ProxyHealthCheck::new(systemprompt_database::ServiceRepository::new(
+        &db,
+        systemprompt_identifiers::InstanceId::new("test-instance"),
+    ));
     let repo = ServiceRepository::new(
         &db,
         systemprompt_identifiers::InstanceId::new("test-instance"),
@@ -62,12 +58,10 @@ async fn list_routable_services_excludes_service_with_unresponsive_port() {
 async fn can_route_traffic_running_service_unreachable_port_returns_false() {
     use systemprompt_database::{CreateServiceInput, ServiceRepository};
     let db = test_db_pool().await;
-    let p = ProxyHealthCheck::new(
-        systemprompt_database::ServiceRepository::new(
-            &db,
-            systemprompt_identifiers::InstanceId::new("test-instance"),
-        ),
-    );
+    let p = ProxyHealthCheck::new(systemprompt_database::ServiceRepository::new(
+        &db,
+        systemprompt_identifiers::InstanceId::new("test-instance"),
+    ));
     let repo = ServiceRepository::new(
         &db,
         systemprompt_identifiers::InstanceId::new("test-instance"),
@@ -92,12 +86,10 @@ async fn can_route_traffic_running_service_unreachable_port_returns_false() {
 async fn can_route_traffic_stopped_service_returns_false() {
     use systemprompt_database::{CreateServiceInput, ServiceRepository};
     let db = test_db_pool().await;
-    let p = ProxyHealthCheck::new(
-        systemprompt_database::ServiceRepository::new(
-            &db,
-            systemprompt_identifiers::InstanceId::new("test-instance"),
-        ),
-    );
+    let p = ProxyHealthCheck::new(systemprompt_database::ServiceRepository::new(
+        &db,
+        systemprompt_identifiers::InstanceId::new("test-instance"),
+    ));
     let repo = ServiceRepository::new(
         &db,
         systemprompt_identifiers::InstanceId::new("test-instance"),

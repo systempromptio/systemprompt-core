@@ -117,10 +117,7 @@ async fn app() -> Result<(Router, DbPool)> {
     install_test_signing_key();
     let pool = test_db_pool().await;
     let ctx = test_app_context(&pool, &h.boot.database_url);
-    Ok((
-        gateway_router(&ctx).expect("gateway router builds"),
-        pool,
-    ))
+    Ok((gateway_router(&ctx).expect("gateway router builds"), pool))
 }
 
 async fn credential(pool: &DbPool) -> Result<AuthedFixture> {
@@ -381,10 +378,7 @@ mod streaming {
         install_test_signing_key();
         let pool = test_db_pool().await;
         let ctx = test_app_context(&pool, &h.boot.database_url);
-        Ok((
-            gateway_router(&ctx).expect("gateway router builds"),
-            pool,
-        ))
+        Ok((gateway_router(&ctx).expect("gateway router builds"), pool))
     }
 
     fn streaming_post(cred: &AuthedFixture) -> Request<Body> {

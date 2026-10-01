@@ -33,7 +33,11 @@ pub async fn revoke_all_mine(
         Ok(count) => (StatusCode::OK, Json(RevokeAllResponse { revoked: count })).into_response(),
         Err(e) => {
             tracing::error!(error = %e, user_id = %user_id, "revoke_all_sessions failed");
-            (StatusCode::INTERNAL_SERVER_ERROR, "Failed to revoke sessions").into_response()
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Failed to revoke sessions",
+            )
+                .into_response()
         },
     }
 }

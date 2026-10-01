@@ -335,7 +335,12 @@ fn jwt_extractor(
     ));
     let jti = JtiRevocationChecker::from_repository(ctx.oauth_repositories().oauth.clone());
     let issuer = ctx.config().jwt_issuer.clone();
-    Ok(JwtContextExtractor::new(analytics, user_provider, jti, issuer))
+    Ok(JwtContextExtractor::new(
+        analytics,
+        user_provider,
+        jti,
+        issuer,
+    ))
 }
 
 #[tokio::test]

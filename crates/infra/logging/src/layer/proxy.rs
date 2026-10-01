@@ -19,8 +19,8 @@ use tracing_subscriber::Layer;
 use tracing_subscriber::layer::Context;
 use tracing_subscriber::registry::LookupSpan;
 
-use super::{DatabaseLayer, LogWriterHandle};
 use super::visitor::{FieldVisitor, SpanContext, SpanFields, SpanVisitor, extract_span_context};
+use super::{DatabaseLayer, LogWriterHandle};
 use crate::models::{LogEntry, LogLevel};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ClientId, ContextId, LogId, SessionId, TaskId, TraceId, UserId};

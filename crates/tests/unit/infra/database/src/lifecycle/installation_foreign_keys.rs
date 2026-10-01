@@ -3,8 +3,8 @@
 //! `CREATE TABLE` is applied after migrations, once per database, and never
 //! turns pre-existing rows into a boot failure.
 
-use systemprompt_test_fixtures::install_extension_schemas_with_config;
 use systemprompt_extension::{Migration, SchemaDefinition};
+use systemprompt_test_fixtures::install_extension_schemas_with_config;
 
 use super::installation::{
     StubExtension, drop_table, leak, provider_and_db, registry_with, table_exists, unique_id,

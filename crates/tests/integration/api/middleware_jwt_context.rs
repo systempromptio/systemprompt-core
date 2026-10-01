@@ -29,7 +29,10 @@ async fn extractor() -> Result<(systemprompt_database::DbPool, JwtContextExtract
         Arc::new(UserService::new(Arc::clone(ctx.user_repository())));
     let jti = JtiRevocationChecker::from_repository(ctx.oauth_repositories().oauth.clone());
     let issuer = ctx.config().jwt_issuer.clone();
-    Ok((db, JwtContextExtractor::new(analytics, user_provider, jti, issuer)))
+    Ok((
+        db,
+        JwtContextExtractor::new(analytics, user_provider, jti, issuer),
+    ))
 }
 
 fn bearer(headers: &mut HeaderMap, token: &str) {

@@ -299,10 +299,9 @@ async fn activities_through_one_router_fetch_the_signing_keys_once() -> anyhow::
         assert_eq!(resp.status(), StatusCode::SERVICE_UNAVAILABLE);
     }
 
-    let openid_fetches = connector
-        .received_requests()
-        .await
-        .map_or(0, |reqs| reqs.iter().filter(|r| r.url.path() == "/openid").count());
+    let openid_fetches = connector.received_requests().await.map_or(0, |reqs| {
+        reqs.iter().filter(|r| r.url.path() == "/openid").count()
+    });
     assert_eq!(
         openid_fetches, 1,
         "the verifier and its key cache must outlive a single activity"

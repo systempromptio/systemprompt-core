@@ -54,9 +54,13 @@ pub(super) fn message_from_row(row: TaskMessage, parts: Vec<Part>) -> Message {
 }
 
 pub(super) fn construct_metadata(row: &TaskRow) -> Result<TaskMetadata, RepositoryError> {
-    let agent_name = row.agent_name.as_ref().map(ToString::to_string).ok_or_else(|| {
-        RepositoryError::InvalidData(format!("task {} has no agent_name", row.task_id))
-    })?;
+    let agent_name = row
+        .agent_name
+        .as_ref()
+        .map(ToString::to_string)
+        .ok_or_else(|| {
+            RepositoryError::InvalidData(format!("task {} has no agent_name", row.task_id))
+        })?;
 
     let mut metadata = match row.metadata.as_ref() {
         None => TaskMetadata::new_agent_message(agent_name.clone()),

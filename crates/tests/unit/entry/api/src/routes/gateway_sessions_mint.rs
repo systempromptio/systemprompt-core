@@ -50,14 +50,14 @@ fn request_with(headers: &[(header::HeaderName, &str)]) -> Request {
 
 async fn mint_key(pool: &DbPool, user_id: &UserId) -> String {
     ApiKeyService::new(Arc::new(UserRepository::new(pool)))
-    .issue(IssueApiKeyParams {
-        user_id,
-        name: "gateway-mint",
-        expires_at: None,
-    })
-    .await
-    .expect("issue")
-    .secret
+        .issue(IssueApiKeyParams {
+            user_id,
+            name: "gateway-mint",
+            expires_at: None,
+        })
+        .await
+        .expect("issue")
+        .secret
 }
 
 #[tokio::test]

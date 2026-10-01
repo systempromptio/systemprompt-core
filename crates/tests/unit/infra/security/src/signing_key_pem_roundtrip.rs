@@ -88,9 +88,16 @@ fn write_pem_file_creates_the_private_key_owner_only() {
     let path = temp_path("mode");
     key.write_pem_file(&path).expect("write pem to disk");
 
-    let mode = std::fs::metadata(&path).expect("stat pem").permissions().mode() & 0o777;
+    let mode = std::fs::metadata(&path)
+        .expect("stat pem")
+        .permissions()
+        .mode()
+        & 0o777;
     std::fs::remove_file(&path).ok();
-    assert_eq!(mode, 0o600, "the private key must never be readable by others");
+    assert_eq!(
+        mode, 0o600,
+        "the private key must never be readable by others"
+    );
 }
 
 #[test]

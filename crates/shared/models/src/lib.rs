@@ -122,9 +122,9 @@ pub use ai::{
 };
 pub use api::{
     AcceptedResponse, ApiError, ApiErrorExt, ApiResponse, CollectionResponse, ContextKind,
-    CreateContextRequest, CreatedResponse, ErrorCode, PaginationInfo, PaginationParams, SearchQuery,
-    SingleResponse, SortOrder, SortParams, SuccessResponse, UpdateContextRequest, UserContext,
-    UserContextWithStats, ValidationError,
+    CreateContextRequest, CreatedResponse, ErrorCode, PaginationInfo, PaginationParams,
+    SearchQuery, SingleResponse, SortOrder, SortParams, SuccessResponse, UpdateContextRequest,
+    UserContext, UserContextWithStats, ValidationError,
 };
 pub use artifacts::{
     Alignment, ArtifactType, AxisType, ChartType, CliArtifact, ColumnType, TableArtifact,

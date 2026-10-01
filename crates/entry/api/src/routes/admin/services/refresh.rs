@@ -114,10 +114,10 @@ async fn run_refresh(
     actor: &UserId,
     restart: bool,
 ) -> Result<ServicesRefreshResponse, ApiHttpError> {
-    let profile = ProfileBootstrap::get()
-        .map_err(|e| ApiHttpError::internal("Profile not ready", &e))?;
-    let secrets = SecretsBootstrap::get()
-        .map_err(|e| ApiHttpError::internal("Secrets not ready", &e))?;
+    let profile =
+        ProfileBootstrap::get().map_err(|e| ApiHttpError::internal("Profile not ready", &e))?;
+    let secrets =
+        SecretsBootstrap::get().map_err(|e| ApiHttpError::internal("Secrets not ready", &e))?;
 
     // Why: the boot-time root is a static; after an in-place import the cache
     // state names the composition actually being served, so "changed" is

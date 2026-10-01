@@ -122,7 +122,13 @@ async fn a_failing_extension_scanner_reports_failure_instead_of_an_empty_clean_l
         .expect("extension scanner is collected via inventory");
     let request_outcome = scanner.scan_request(&req_with("anything")).await;
     assert!(
-        matches!(request_outcome, Err(ScanError::Failed { scanner: "stub_broken", .. })),
+        matches!(
+            request_outcome,
+            Err(ScanError::Failed {
+                scanner: "stub_broken",
+                ..
+            })
+        ),
         "a scanner that cannot reach a verdict must say so: {request_outcome:?}"
     );
     let response_outcome = scanner.scan_response_final(&resp_with("anything")).await;
