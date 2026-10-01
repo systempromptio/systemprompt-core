@@ -12,6 +12,7 @@ mod dev_web;
 pub mod diagnostics;
 pub mod doctor;
 mod feedback;
+pub mod flags;
 mod gui;
 mod install;
 mod install_claude_policy;
@@ -88,6 +89,14 @@ pub fn run_launch(args: &[String], launch: Launch) -> ExitCode {
             return ExitCode::SUCCESS;
         },
         _ => {},
+    }
+
+    if let Some(flags) = flags::command_flags(command)
+        && let Err(e) = args::check_flags(args, &flags)
+    {
+        diag(&format!("{}: {e}", command.unwrap_or_default()));
+        stdio::eprint_str(&crate::help());
+        return ExitCode::from(64);
     }
 
     let default_gui = args.len() == 1 && launch.gui_by_default;

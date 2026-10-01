@@ -210,3 +210,25 @@ fn unknown_and_informational_commands_do_not_touch_state() {
         "informational commands are side-effect free"
     );
 }
+
+#[test]
+fn a_malformed_command_line_exits_sixty_four_before_touching_state() {
+    let sb = Sandbox::new();
+    let exits = sb.run(|| {
+        [
+            run_with_args(&argv(&["install", "--pubkey", "--apply"])),
+            run_with_args(&argv(&["sync", "--allow-unsigend"])),
+            run_with_args(&argv(&["install", "--print-mdm", "beos"])),
+        ]
+    });
+    for exit in exits {
+        assert_eq!(
+            format!("{exit:?}"),
+            format!("{:?}", std::process::ExitCode::from(64))
+        );
+    }
+    assert!(
+        !config_file(&sb).exists() && !sb.org_plugins().is_dir(),
+        "a usage error runs nothing"
+    );
+}
