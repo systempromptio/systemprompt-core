@@ -7,7 +7,7 @@
 use std::time::Duration;
 
 use systemprompt_logging::DatabaseLayer;
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::test_db_pool;
 use tracing::{info, info_span};
 use tracing_subscriber::Layer;
 use tracing_subscriber::filter::LevelFilter;
@@ -53,12 +53,7 @@ async fn wait_for_rows(pool: &sqlx::PgPool, trace_id: &str, want: i64) -> i64 {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn the_visitor_preserves_scalar_field_types_and_strips_ansi_from_messages() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
-    let Ok(db) = fixture_db_pool(&url).await else {
-        return;
-    };
+    let db = test_db_pool().await;
     let raw = db.pool_arc().unwrap().as_ref().clone();
     let trace_id = format!("visitor-scalars-{}", uuid::Uuid::new_v4().simple());
 
@@ -130,12 +125,7 @@ async fn the_visitor_preserves_scalar_field_types_and_strips_ansi_from_messages(
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn redaction_applies_to_debug_rendered_fields_and_never_to_scalars() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
-    let Ok(db) = fixture_db_pool(&url).await else {
-        return;
-    };
+    let db = test_db_pool().await;
     let raw = db.pool_arc().unwrap().as_ref().clone();
     let trace_id = format!("visitor-redact-{}", uuid::Uuid::new_v4().simple());
 
@@ -198,12 +188,7 @@ async fn redaction_applies_to_debug_rendered_fields_and_never_to_scalars() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn span_attribution_fields_are_captured_when_recorded_via_debug() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
-    let Ok(db) = fixture_db_pool(&url).await else {
-        return;
-    };
+    let db = test_db_pool().await;
     let raw = db.pool_arc().unwrap().as_ref().clone();
     let trace_id = format!("visitor-span-debug-{}", uuid::Uuid::new_v4().simple());
 

@@ -129,7 +129,7 @@ mod database_layer {
     use systemprompt_identifiers::{SessionId, TraceId, UserId};
     use systemprompt_logging::layer::ProxyDatabaseLayer;
     use systemprompt_logging::{DatabaseLayer, LogActor, LogEntry, LogLevel, enqueue_background};
-    use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+    use systemprompt_test_fixtures::test_db_pool;
     use tracing::{error, info, info_span};
     use tracing_subscriber::Layer;
     use tracing_subscriber::filter::LevelFilter;
@@ -145,12 +145,7 @@ mod database_layer {
 
     #[tokio::test]
     async fn database_layer_persists_attributed_events() {
-        let Ok(url) = fixture_database_url() else {
-            return;
-        };
-        let Ok(db) = fixture_db_pool(&url).await else {
-            return;
-        };
+        let db = test_db_pool().await;
         let raw = db.pool_arc().unwrap().as_ref().clone();
 
         let trace_id = format!("layer-trace-{}", uuid::Uuid::new_v4().simple());
@@ -221,12 +216,7 @@ mod database_layer {
 
     #[tokio::test]
     async fn enqueue_background_persists_error_entry() {
-        let Ok(url) = fixture_database_url() else {
-            return;
-        };
-        let Ok(db) = fixture_db_pool(&url).await else {
-            return;
-        };
+        let db = test_db_pool().await;
         let raw = db.pool_arc().unwrap().as_ref().clone();
 
         // Constructing a layer installs the process-global background sender
@@ -270,12 +260,7 @@ mod database_layer {
 
     #[tokio::test]
     async fn attached_proxy_delegates_spans_records_and_events() {
-        let Ok(url) = fixture_database_url() else {
-            return;
-        };
-        let Ok(db) = fixture_db_pool(&url).await else {
-            return;
-        };
+        let db = test_db_pool().await;
         let raw = db.pool_arc().unwrap().as_ref().clone();
 
         let trace_id = format!("proxy-attached-{}", uuid::Uuid::new_v4().simple());
@@ -392,12 +377,7 @@ mod database_layer {
 
     #[tokio::test]
     async fn database_layer_flushes_on_size_threshold_and_debug_formats() {
-        let Ok(url) = fixture_database_url() else {
-            return;
-        };
-        let Ok(db) = fixture_db_pool(&url).await else {
-            return;
-        };
+        let db = test_db_pool().await;
         let raw = db.pool_arc().unwrap().as_ref().clone();
 
         let trace_id = format!("bulk-trace-{}", uuid::Uuid::new_v4().simple());

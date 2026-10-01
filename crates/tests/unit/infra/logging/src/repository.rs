@@ -8,12 +8,7 @@ use serde_json::json;
 use systemprompt_identifiers::{LogId, SessionId, TraceId, UserId};
 use systemprompt_logging::models::{LogEntry, LogFilter, LogLevel};
 use systemprompt_logging::{AnalyticsRepository, DatabaseLogService, LoggingRepository};
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
-
-async fn pool_or_skip() -> Option<systemprompt_database::DbPool> {
-    let url = fixture_database_url().ok()?;
-    fixture_db_pool(&url).await.ok()
-}
+use systemprompt_test_fixtures::test_db_pool;
 
 fn unique_id(prefix: &str) -> String {
     format!("{prefix}-{}", uuid::Uuid::new_v4().simple())
@@ -23,9 +18,7 @@ fn unique_id(prefix: &str) -> String {
 async fn analytics_ingestion_preserves_payloads_and_rejects_batches_atomically() {
     use systemprompt_traits::analytics_events::{AnalyticsEventRecord, AnalyticsEventStore};
 
-    let Some(db) = pool_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
     let pool = db.write_pool_arc().unwrap();
     let session_id = SessionId::new(unique_id("event-store"));
     sqlx::query("INSERT INTO user_sessions (session_id, session_source) VALUES ($1, 'web')")
@@ -155,17 +148,13 @@ fn make_entry(module: &str, msg: &str, actor: &(UserId, SessionId, TraceId)) -> 
 
 #[tokio::test]
 async fn repository_new_succeeds() {
-    let Some(db) = pool_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
     drop(LoggingRepository::new(&db).expect("repo new"));
 }
 
 #[tokio::test]
 async fn log_with_database_persists_then_fetch_by_id() {
-    let Some(db) = pool_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
     let repo = LoggingRepository::new(&db).unwrap();
     let actor = make_actor("persist");
     let entry = make_entry("repo-test", "persisted row", &actor);
@@ -184,9 +173,7 @@ async fn log_with_database_persists_then_fetch_by_id() {
 
 #[tokio::test]
 async fn log_rejects_invalid_entry() {
-    let Some(db) = pool_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
     let repo = LoggingRepository::new(&db).unwrap();
     let actor = make_actor("invalid");
     let mut bad = make_entry("ok-mod", "ok-msg", &actor);
@@ -197,9 +184,7 @@ async fn log_rejects_invalid_entry() {
 
 #[tokio::test]
 async fn get_recent_logs_returns_inserted_rows() {
-    let Some(db) = pool_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
     let repo = LoggingRepository::new(&db).unwrap();
 
     let actor = make_actor("recent");
@@ -220,9 +205,7 @@ async fn get_recent_logs_returns_inserted_rows() {
 
 #[tokio::test]
 async fn get_logs_paginated_with_filter() {
-    let Some(db) = pool_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
     let repo = LoggingRepository::new(&db).unwrap();
 
     let actor = make_actor("paginated");
@@ -251,9 +234,7 @@ async fn get_logs_paginated_with_filter() {
 
 #[tokio::test]
 async fn get_logs_by_module_patterns() {
-    let Some(db) = pool_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
     let repo = LoggingRepository::new(&db).unwrap();
 
     let actor = make_actor("by-mod");
@@ -272,9 +253,7 @@ async fn get_logs_by_module_patterns() {
 
 #[tokio::test]
 async fn update_log_entry_updates_message() {
-    let Some(db) = pool_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
     let repo = LoggingRepository::new(&db).unwrap();
 
     let actor = make_actor("update");
@@ -293,9 +272,7 @@ async fn update_log_entry_updates_message() {
 
 #[tokio::test]
 async fn cleanup_old_logs_removes_old_rows() {
-    let Some(db) = pool_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
     let repo = LoggingRepository::new(&db).unwrap();
 
     let actor = make_actor("cleanup");
@@ -315,17 +292,13 @@ async fn cleanup_old_logs_removes_old_rows() {
 
 #[tokio::test]
 async fn database_log_service_construction() {
-    let Some(db) = pool_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
     let svc = DatabaseLogService::new(&db).expect("ctor");
     let _r = svc.repository();
 }
 
 #[tokio::test]
 async fn analytics_repository_constructs() {
-    let Some(db) = pool_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
     let _repo = AnalyticsRepository::new(&db).expect("repo");
 }
