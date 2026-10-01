@@ -33,7 +33,7 @@ fn native_session_binding_does_not_invent_proxy_sessions_and_detects_conflicting
     let hermes = http::HeaderMap::new();
     assert_eq!(
         native_session(
-            Some(&host("hermes")),
+            Some(HostKind::Hermes),
             &hermes,
             br#"{"session_id":"hermes-session"}"#
         )

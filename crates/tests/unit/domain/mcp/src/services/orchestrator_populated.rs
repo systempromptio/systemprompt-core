@@ -379,7 +379,7 @@ async fn service_statuses_reports_external_endpoint_and_internal_port() {
     let statuses = o.service_statuses().await.expect("statuses");
     let ext = statuses
         .iter()
-        .find(|s| s.name == ext_name)
+        .find(|s| s.name.as_str() == ext_name)
         .expect("external listed");
     assert_eq!(ext.port, None);
     assert_eq!(
@@ -390,7 +390,7 @@ async fn service_statuses_reports_external_endpoint_and_internal_port() {
 
     let int = statuses
         .iter()
-        .find(|s| s.name == int_name)
+        .find(|s| s.name.as_str() == int_name)
         .expect("internal listed");
     assert_eq!(int.port, Some(port));
     assert!(int.endpoint.is_none());

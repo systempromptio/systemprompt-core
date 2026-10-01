@@ -248,7 +248,7 @@ fn the_service_manifest_loads_from_the_bootstrap_profile() {
 
     let configs = load_service_configs().expect("the bootstrap profile has a readable manifest");
     assert!(
-        configs.iter().all(|c| !c.name.is_empty()),
+        configs.iter().all(|c| !c.name.as_str().is_empty()),
         "every manifest entry must carry a service name"
     );
 }

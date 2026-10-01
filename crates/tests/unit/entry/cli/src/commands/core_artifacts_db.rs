@@ -65,7 +65,7 @@ async fn seed_task(pool: &DbPool) -> (UserId, ContextId, TaskId) {
             user_id: &user_id,
             session_id: &session_id,
             trace_id: &TraceId::generate(),
-            agent_name: "cli-test-agent",
+            agent_name: &systemprompt_identifiers::AgentName::new("cli-test-agent"),
         })
         .await
         .unwrap();

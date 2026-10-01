@@ -14,7 +14,7 @@ use systemprompt_api::error::ApiHttpError;
 use systemprompt_api::routes::gateway::bridge::{canonicalize_org_uuid, provider_health};
 use systemprompt_api::routes::gateway::models::{model_entries, surfaces_from_header};
 use systemprompt_identifiers::headers::INFERENCE_PROTOCOL;
-use systemprompt_identifiers::{ModelId, ProviderId, RouteId, SecretName, TenantId};
+use systemprompt_identifiers::{ModelId, ProviderId, SecretName, TenantId};
 use systemprompt_models::api::ErrorCode;
 use systemprompt_models::bridge::profile::{
     BridgeProfileParams, BridgeProfileResponse, build as profile_build,

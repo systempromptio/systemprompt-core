@@ -42,7 +42,8 @@ fn req(model: &str) -> CanonicalRequest {
 
 fn route(pattern: &str) -> GatewayRoute {
     GatewayRoute {
-        id: Noneme: None,
+        id: None,
+        name: None,
         description: None,
         model_pattern: pattern.to_owned(),
         provider: ProviderId::new("test"),
@@ -400,7 +401,8 @@ fn two_provider_config(default_provider: Option<&str>) -> GatewayConfig {
 
 fn route_to(pattern: &str, provider: &str) -> GatewayRoute {
     let mut r = GatewayRoute {
-        id: Noneme: None,
+        id: None,
+        name: None,
         description: None,
         model_pattern: pattern.to_owned(),
         provider: ProviderId::new(provider),

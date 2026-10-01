@@ -111,7 +111,11 @@ async fn restarting_failed_agent_reports_failure_and_preserves_failed_state() {
     .unwrap();
     let services = &app.a2a_repositories().agent_services;
     services
-        .register_agent("covlister", 2_000_000_000, port)
+        .register_agent(
+            &systemprompt_identifiers::AgentName::new("covlister"),
+            2_000_000_000,
+            port,
+        )
         .await
         .expect("register an agent with a dead process id");
 
@@ -135,7 +139,7 @@ async fn restarting_failed_agent_reports_failure_and_preserves_failed_state() {
     assert_eq!(count("restarted_count"), 0, "{value}");
     assert_eq!(count("failed_count"), 1, "{value}");
     let row = services
-        .get_agent_status("covlister")
+        .get_agent_status(&systemprompt_identifiers::AgentName::new("covlister"))
         .await
         .unwrap()
         .expect("failed restart retains its service record");
@@ -434,7 +438,7 @@ async fn coverage_restart_populated_registry_reports_failed_starts_and_skips_dis
     assert!(
         app.a2a_repositories()
             .agent_services
-            .get_agent_status("covdormant")
+            .get_agent_status(&systemprompt_identifiers::AgentName::new("covdormant"))
             .await
             .unwrap()
             .is_none()

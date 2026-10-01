@@ -11,7 +11,7 @@ use systemprompt_agent::models::a2a::{
 use systemprompt_agent::services::a2a_server::processing::message::message_handler::{
     new_submitted_task, resolve_agent_message, resolve_task_id,
 };
-use systemprompt_identifiers::{ContextId, MessageId, TaskId};
+use systemprompt_identifiers::{AgentName, ContextId, MessageId, TaskId};
 
 fn message_with(task_id: Option<TaskId>, metadata: Option<serde_json::Value>) -> Message {
     Message {

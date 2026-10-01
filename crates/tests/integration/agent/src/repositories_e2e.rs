@@ -136,7 +136,7 @@ async fn a2a_repositories_construct_and_share_pool() -> Result<()> {
     let repos = systemprompt_test_fixtures::a2a_repositories(&fx.db);
     // Pool sanity: agent_services repo can query an empty result.
     let running = repos.agent_services.list_running_agents().await?;
-    assert!(running.iter().all(|r| !r.name.is_empty()));
+    assert!(running.iter().all(|r| !r.name.as_str().is_empty()));
     fx.cleanup().await?;
     Ok(())
 }

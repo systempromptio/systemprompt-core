@@ -6666,7 +6666,6 @@ dependencies = [
  "tokio-util",
  "tower-http 0.7.0",
  "tracing",
- "uuid",
 ]
 
 [[package]]
@@ -7846,7 +7845,6 @@ dependencies = [
  "systemprompt-traits",
  "thiserror 2.0.19",
  "tracing",
- "uuid",
  "walkdir",
 ]
 

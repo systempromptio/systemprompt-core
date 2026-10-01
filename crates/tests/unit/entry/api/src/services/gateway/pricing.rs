@@ -8,7 +8,7 @@ use systemprompt_test_fixtures::usage;
 
 fn route(pattern: &str, provider: &str, pricing: Option<ModelPricing>) -> GatewayRoute {
     GatewayRoute {
-        id: Some(RouteId::new(format!("{pattern}-{provider}")))r}"))),
+        id: Some(RouteId::new(format!("{pattern}-{provider}"))),
         name: None,
         description: None,
         model_pattern: pattern.to_owned(),

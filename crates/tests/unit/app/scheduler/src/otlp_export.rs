@@ -331,7 +331,7 @@ async fn export_now_posts_a_decodable_log_batch_and_advances_the_durable_waterma
     let report = systemprompt_scheduler::otlp_export_now(
         &raw,
         &export_config(collector.uri()),
-        Some("scheduler-test"),
+        Some(&InstanceId::new("scheduler-test")),
     )
     .await
     .unwrap();

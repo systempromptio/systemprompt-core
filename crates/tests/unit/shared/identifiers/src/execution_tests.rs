@@ -103,10 +103,10 @@ fn all_execution_ids_into_string() {
 }
 
 #[test]
-fn all_execution_ids_from_str_and_string_equal() {
-    let a: ExecutionStepId = "x".into();
-    let b: ExecutionStepId = String::from("x").into();
-    assert_eq!(a, b);
+fn execution_step_id_is_a_uuid_id() {
+    let generated = ExecutionStepId::generate();
+    assert!(ExecutionStepId::try_new(generated.as_str()).is_ok());
+    assert!(ExecutionStepId::try_new("x").is_err());
 }
 
 #[test]

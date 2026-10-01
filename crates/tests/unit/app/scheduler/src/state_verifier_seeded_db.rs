@@ -443,12 +443,12 @@ mod reconciler_seeded {
         }];
 
         let result = reconciler
-            .reconcile(&configs, |_n: String, _p: u16| async { Ok(()) })
+            .reconcile(&configs, |_n: ServiceName, _p: u16| async { Ok(()) })
             .await
             .expect("reconcile must succeed");
 
         assert!(
-            result.cleaned_up.contains(&name) || result.failed.iter().any(|(n, _)| n == &name),
+            result.cleaned_up.contains(&ServiceName::new(name.as_str())) || result.failed.iter().any(|(n, _)| n.as_str() == name),
             "a Disabled+Stopped DB row must be cleaned up or recorded as failed"
         );
     }
@@ -479,7 +479,7 @@ mod reconciler_seeded {
         let flag = Arc::clone(&start_called);
 
         let _result = reconciler
-            .reconcile(&configs, move |_n: String, _p: u16| {
+            .reconcile(&configs, move |_n: ServiceName, _p: u16| {
                 flag.store(true, std::sync::atomic::Ordering::Relaxed);
                 async { Ok(()) }
             })
@@ -517,11 +517,11 @@ mod reconciler_seeded {
         }];
 
         let result = reconciler
-            .reconcile(&configs, |_n: String, _p: u16| async { Ok(()) })
+            .reconcile(&configs, |_n: ServiceName, _p: u16| async { Ok(()) })
             .await
             .expect("reconcile must succeed");
 
-        if result.cleaned_up.contains(&name) {
+        if result.cleaned_up.contains(&ServiceName::new(name.as_str())) {
             let row_count: i64 =
                 sqlx::query_scalar!("SELECT COUNT(*) FROM services WHERE name = $1", name)
                     .fetch_one(&*pg)
@@ -569,7 +569,7 @@ mod reconciler_seeded {
         ];
 
         let result = reconciler
-            .reconcile(&configs, |_n: String, _p: u16| async { Ok(()) })
+            .reconcile(&configs, |_n: ServiceName, _p: u16| async { Ok(()) })
             .await
             .expect("reconcile must succeed");
 
@@ -602,12 +602,12 @@ mod reconciler_seeded {
         }];
 
         let result = reconciler
-            .reconcile(&configs, |_n: String, _p: u16| async { Ok(()) })
+            .reconcile(&configs, |_n: ServiceName, _p: u16| async { Ok(()) })
             .await
             .expect("reconcile must succeed");
 
         assert!(
-            result.started.contains(&name) || result.failed.iter().any(|(n, _)| n == &name),
+            result.started.contains(&ServiceName::new(name.as_str())) || result.failed.iter().any(|(n, _)| n.as_str() == name),
             "a newly enabled service absent from DB must be started or recorded as failed"
         );
     }
@@ -632,7 +632,7 @@ mod reconciler_seeded {
         }];
 
         let result = reconciler
-            .reconcile(&configs, |_n: String, _p: u16| async { Ok(()) })
+            .reconcile(&configs, |_n: ServiceName, _p: u16| async { Ok(()) })
             .await
             .expect("reconcile must succeed");
 
@@ -641,7 +641,7 @@ mod reconciler_seeded {
             "absent+disabled service must not cause failures"
         );
         assert!(
-            !result.started.contains(&name),
+            !result.started.contains(&ServiceName::new(name.as_str())),
             "absent+disabled service must not be started"
         );
     }

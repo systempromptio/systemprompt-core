@@ -11,7 +11,7 @@ use systemprompt_agent::services::a2a_server::processing::message::StreamEvent;
 use systemprompt_agent::services::a2a_server::processing::strategies::{
     ContextToolExecutor, ExecutionContext, ToolExecutorTrait,
 };
-use systemprompt_identifiers::AgentName;
+use systemprompt_identifiers::{AgentName, McpToolName};
 use tokio::sync::mpsc;
 
 use super::a2a_helpers::{StubAiProvider, request_context, runtime_info};
@@ -64,7 +64,7 @@ async fn a_successful_tool_call_returns_its_structured_content() {
     let ctx = executor.context.request_ctx.clone();
 
     let value = executor
-        .execute_tool("lookup", serde_json::json!({"q": "x"}), &[], &ctx)
+        .execute_tool(&McpToolName::new("lookup"), serde_json::json!({"q": "x"}), &[], &ctx)
         .await
         .expect("the tool succeeded");
 
@@ -81,7 +81,7 @@ async fn a_tool_that_returns_no_result_is_an_error_naming_the_tool() {
     let ctx = executor.context.request_ctx.clone();
 
     let err = executor
-        .execute_tool("absent", serde_json::json!({}), &[], &ctx)
+        .execute_tool(&McpToolName::new("absent"), serde_json::json!({}), &[], &ctx)
         .await
         .expect_err("no result came back");
 
@@ -102,7 +102,7 @@ async fn a_tool_reporting_an_error_surfaces_its_message() {
     let ctx = executor.context.request_ctx.clone();
 
     let err = executor
-        .execute_tool("broken", serde_json::json!({}), &[], &ctx)
+        .execute_tool(&McpToolName::new("broken"), serde_json::json!({}), &[], &ctx)
         .await
         .expect_err("the tool reported failure");
 
@@ -123,7 +123,7 @@ async fn a_tool_error_without_text_content_falls_back_to_unknown() {
     let ctx = executor.context.request_ctx.clone();
 
     let err = executor
-        .execute_tool("silent", serde_json::json!({}), &[], &ctx)
+        .execute_tool(&McpToolName::new("silent"), serde_json::json!({}), &[], &ctx)
         .await
         .expect_err("the tool reported failure");
 
@@ -141,7 +141,7 @@ async fn a_successful_tool_without_structured_content_is_rejected() {
     let ctx = executor.context.request_ctx.clone();
 
     let err = executor
-        .execute_tool("prose", serde_json::json!({}), &[], &ctx)
+        .execute_tool(&McpToolName::new("prose"), serde_json::json!({}), &[], &ctx)
         .await
         .expect_err("a planned step needs machine-readable output");
 

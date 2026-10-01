@@ -197,7 +197,7 @@ fn test_mcp_event_start_completed_success() {
 #[test]
 fn test_mcp_event_start_completed_failure() {
     let event = McpEvent::start_completed_failure(
-        "test-service".to_string(),
+        ServiceName::new("test-service"),
         "Connection failed".to_string(),
         200,
     );

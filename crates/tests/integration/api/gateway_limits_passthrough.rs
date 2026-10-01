@@ -20,7 +20,7 @@ use serde_json::{Value, json};
 use systemprompt_api::services::gateway::protocol::InboundAdapter;
 use systemprompt_api::services::gateway::protocol::inbound::openai_chat::OpenAiChatInbound;
 use systemprompt_api::services::gateway::service::GatewayService;
-use systemprompt_identifiers::{ModelId, ProviderId, RouteId, SecretName};
+use systemprompt_identifiers::{ModelId, ProviderId, SecretName};
 use systemprompt_models::services::ai::ModelLimits;
 use systemprompt_models::services::{
     ApiSurface, GatewayConfig, GatewayRoute, ProviderEntry, ProviderModel, ProviderRegistry,

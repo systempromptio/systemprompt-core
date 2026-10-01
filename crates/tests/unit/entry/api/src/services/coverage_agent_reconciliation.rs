@@ -1,3 +1,4 @@
+use systemprompt_identifiers::AgentName;
 use systemprompt_api::services::server::lifecycle::agents::reconcile_agents;
 use systemprompt_test_fixtures::{
     init_services_bootstrap, install_test_signing_key, test_app_context, test_db_pool,
@@ -183,7 +184,7 @@ async fn reconciliation_terminates_an_owned_running_agent_before_retrying_failed
 
     ctx.a2a_repositories()
         .agent_services
-        .register_agent(&name, owned.pid(), port)
+        .register_agent(&AgentName::new(name.as_str()), owned.pid(), port)
         .await
         .expect("seed the owned agent as running");
 
@@ -203,7 +204,7 @@ async fn reconciliation_terminates_an_owned_running_agent_before_retrying_failed
     let row = ctx
         .a2a_repositories()
         .agent_services
-        .get_agent_status(&name)
+        .get_agent_status(&AgentName::new(name.as_str()))
         .await
         .expect("read terminal agent service row")
         .expect("terminal agent service row persists");

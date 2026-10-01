@@ -610,9 +610,9 @@ mod reconciler_action_arms {
         let (failed_name, failed_err) = result
             .failed
             .iter()
-            .find(|(n, _)| n == &name)
+            .find(|(n, _)| n.as_str() == name)
             .expect("the failed restart must be recorded");
-        assert_eq!(failed_name, &name);
+        assert_eq!(failed_name.as_str(), name);
         assert!(
             failed_err.contains("boot refused"),
             "the callback error must be captured, got: {failed_err}"

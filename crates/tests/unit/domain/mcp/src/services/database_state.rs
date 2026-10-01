@@ -26,7 +26,10 @@ async fn get_service_by_name_missing_returns_none() {
         &db,
         systemprompt_identifiers::InstanceId::new("test-instance"),
     );
-    let r = get_service_by_name(&svc_repo, &format!("svc-{}", uuid::Uuid::new_v4().simple()))
+    let r = get_service_by_name(
+        &svc_repo,
+        &systemprompt_identifiers::ServiceName::new(format!("svc-{}", uuid::Uuid::new_v4().simple())),
+    )
         .await
         .unwrap();
     assert!(r.is_none());
@@ -39,7 +42,10 @@ async fn unregister_service_missing_no_panic() {
         &db,
         systemprompt_identifiers::InstanceId::new("test-instance"),
     );
-    unregister_service(&svc_repo, &format!("svc-{}", uuid::Uuid::new_v4().simple()))
+    unregister_service(
+        &svc_repo,
+        &systemprompt_identifiers::ServiceName::new(format!("svc-{}", uuid::Uuid::new_v4().simple())),
+    )
         .await
         .unwrap();
 }

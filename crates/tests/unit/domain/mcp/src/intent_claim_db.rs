@@ -121,9 +121,10 @@ async fn two_executions_of_one_tool_claim_two_different_intents_and_a_third_gets
     let first_exec = started_execution(&repo, session_id.as_str()).await;
     let second_exec = started_execution(&repo, session_id.as_str()).await;
     let third_exec = started_execution(&repo, session_id.as_str()).await;
+    let read = McpToolName::new("Read");
     let (first, second) = tokio::join!(
-        claims.claim_inferred(&session_id, &McpToolName::new("Read"), &first_exec, 120),
-        claims.claim_inferred(&session_id, &McpToolName::new("Read"), &second_exec, 120),
+        claims.claim_inferred(&session_id, &read, &first_exec, 120),
+        claims.claim_inferred(&session_id, &read, &second_exec, 120),
     );
     let first = first.unwrap().expect("first claim");
     let second = second.unwrap().expect("second claim");

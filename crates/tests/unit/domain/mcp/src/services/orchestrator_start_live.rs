@@ -43,7 +43,6 @@ fn profile_paths(bootstrap: &TestBootstrap) -> PathsConfig {
 
 struct LiveServer {
     orchestrator: McpOrchestrator,
-    name: String,
     id: ServiceName,
     repo: ServiceRepository,
 }
@@ -87,7 +86,6 @@ async fn live_server(prefix: &str) -> LiveServer {
     LiveServer {
         orchestrator,
         id: ServiceName::new(name.as_str()),
-        name,
         repo,
     }
 }

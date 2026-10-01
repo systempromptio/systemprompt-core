@@ -38,7 +38,7 @@ async fn send_via<A: OutboundAdapter>(
 
 fn route() -> GatewayRoute {
     GatewayRoute {
-        id: Some(RouteId::new("r1"))"r1")),
+        id: Some(RouteId::new("r1")),
         name: None,
         description: None,
         model_pattern: "*".into(),

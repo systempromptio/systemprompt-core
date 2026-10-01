@@ -27,7 +27,7 @@ fn config_with_bootstrap(bootstrap: Vec<String>, distributed_lock: bool) -> Sche
     SchedulerConfig {
         enabled: true,
         jobs: Vec::new(),
-        bootstrap_jobs: bootstrap,
+        bootstrap_jobs: bootstrap.into_iter().map(systemprompt_identifiers::JobName::new).collect(),
         distributed_lock,
     }
 }

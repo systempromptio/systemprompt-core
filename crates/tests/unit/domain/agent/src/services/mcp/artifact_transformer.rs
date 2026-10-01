@@ -56,7 +56,10 @@ fn parse_wire_result_valid_complete() {
         parsed.metadata.skill_id.as_ref().map(|s| s.as_str()),
         Some("skill-1")
     );
-    assert_eq!(parsed.metadata.skill_name, Some("test-skill".to_string()));
+    assert_eq!(
+        parsed.metadata.skill_name.as_ref().map(|s| s.as_str()),
+        Some("test-skill")
+    );
     assert_eq!(
         parsed.metadata.execution_id.as_ref().map(|id| id.as_str()),
         Some("exec-ref")

@@ -1,7 +1,7 @@
 //! Tests for TaskInfo, ExecutionStep, AiRequestInfo, McpToolExecution
 
 use chrono::Utc;
-use systemprompt_identifiers::{AgentName, ContextId, McpServerId, McpToolName};
+use systemprompt_identifiers::{AgentName, ContextId, McpServerId, McpToolName, ExecutionStepId};
 use systemprompt_runtime::{AiRequestInfo, ExecutionStep, McpToolExecution, TaskInfo};
 
 const TEST_CTX: &str = "00000000-0000-4000-8000-000000000001";
@@ -90,7 +90,7 @@ fn test_task_info_serialize() {
 #[test]
 fn test_execution_step_creation() {
     let step = ExecutionStep {
-        step_id: "step-123".to_string().into(),
+        step_id: ExecutionStepId::new("step-123"),
         step_type: Some("analysis".to_string()),
         title: Some("Analyze input".to_string()),
         status: "completed".to_string(),
@@ -98,7 +98,7 @@ fn test_execution_step_creation() {
         error_message: None,
     };
 
-    assert_eq!(step.step_id, "step-123");
+    assert_eq!(step.step_id.as_str(), "step-123");
     assert_eq!(step.step_type, Some("analysis".to_string()));
     assert_eq!(step.title, Some("Analyze input".to_string()));
     assert_eq!(step.status, "completed");
@@ -108,7 +108,7 @@ fn test_execution_step_creation() {
 #[test]
 fn test_execution_step_minimal() {
     let step = ExecutionStep {
-        step_id: "step-min".to_string().into(),
+        step_id: ExecutionStepId::new("step-min"),
         step_type: None,
         title: None,
         status: "pending".to_string(),
@@ -124,7 +124,7 @@ fn test_execution_step_minimal() {
 #[test]
 fn test_execution_step_with_error() {
     let step = ExecutionStep {
-        step_id: "step-err".to_string().into(),
+        step_id: ExecutionStepId::new("step-err"),
         step_type: Some("processing".to_string()),
         title: Some("Process data".to_string()),
         status: "failed".to_string(),
@@ -140,7 +140,7 @@ fn test_execution_step_with_error() {
 #[test]
 fn test_execution_step_serialize() {
     let step = ExecutionStep {
-        step_id: "ser".to_string().into(),
+        step_id: ExecutionStepId::new("ser"),
         step_type: None,
         title: None,
         status: "pending".to_string(),

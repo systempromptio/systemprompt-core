@@ -69,6 +69,7 @@ use systemprompt_identifiers::UserId;
 use systemprompt_marketplace::{
     AllowAllFilter, MarketplaceCandidate, MarketplaceFilter, MarketplaceFilterError,
 };
+#[cfg(test)]
 use systemprompt_models::bridge::ids::Sha256Digest;
 #[cfg(test)]
 use systemprompt_models::bridge::manifest::PluginEntry;
