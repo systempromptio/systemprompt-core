@@ -15,7 +15,7 @@ use systemprompt_models::services::{
     MarketplaceVisibility, PluginAuthor, PluginComponentRef,
 };
 use systemprompt_security::authz::{AccessControlIngestionService, IngestOptions};
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::test_db_pool;
 use uuid::Uuid;
 
 struct Fixture {
@@ -25,8 +25,7 @@ struct Fixture {
 }
 
 async fn setup() -> Fixture {
-    let url = fixture_database_url().expect("DATABASE_URL");
-    let db = fixture_db_pool(&url).await.expect("connect test database");
+    let db = test_db_pool().await;
     let pg = db.pool_arc().expect("read pool");
     let id = MarketplaceId::new(format!("mp-test-{}", Uuid::new_v4()));
     cleanup(&pg, &id).await;

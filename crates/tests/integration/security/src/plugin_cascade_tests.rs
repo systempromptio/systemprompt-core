@@ -14,7 +14,7 @@ use systemprompt_security::authz::{
     AccessControlRepository, BulkKeepQuery, ChainSources, EntityKind, MarketplaceSource,
     NO_SUBJECT_ATTRIBUTES, ParentChainIndex, allowed_ids,
 };
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool, fixture_user_id};
+use systemprompt_test_fixtures::{fixture_user_id, test_db_pool};
 use uuid::Uuid;
 
 struct Fixture {
@@ -88,8 +88,7 @@ impl Fixture {
 }
 
 async fn setup() -> Fixture {
-    let url = fixture_database_url().expect("DATABASE_URL");
-    let db = fixture_db_pool(&url).await.expect("connect test database");
+    let db = test_db_pool().await;
     let pg = db.pool_arc().expect("read pool");
     let tag = Uuid::new_v4();
     let fixture = Fixture {
