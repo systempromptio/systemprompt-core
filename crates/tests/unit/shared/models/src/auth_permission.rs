@@ -169,9 +169,26 @@ fn parse_permissions_returns_error_on_unknown_token() {
 }
 
 #[test]
-fn permission_serde_lowercase() {
-    let json = serde_json::to_string(&Permission::HookGovern).unwrap();
-    assert_eq!(json, "\"hookgovern\"");
-    let parsed: Permission = serde_json::from_str("\"admin\"").unwrap();
-    assert_eq!(parsed, Permission::Admin);
+fn permission_serde_matches_string_form_for_every_variant() {
+    for name in Permission::ALL_VARIANTS {
+        let permission = Permission::from_str(name).unwrap();
+        let json = serde_json::to_string(&permission).unwrap();
+        assert_eq!(json, format!("\"{name}\""));
+        let parsed: Permission = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed, permission);
+    }
+}
+
+#[test]
+fn permission_serde_rejects_unseparated_hook_scope() {
+    assert!(serde_json::from_str::<Permission>("\"hookgovern\"").is_err());
+    assert!(serde_json::from_str::<Permission>("\"hooktrack\"").is_err());
+}
+
+#[test]
+fn serialized_permissions_reparse_with_parse_permissions() {
+    let permissions = vec![Permission::HookGovern, Permission::HookTrack, Permission::Admin];
+    let json: Vec<String> =
+        serde_json::from_value(serde_json::to_value(&permissions).unwrap()).unwrap();
+    assert_eq!(parse_permissions(&json.join(" ")).unwrap(), permissions);
 }
