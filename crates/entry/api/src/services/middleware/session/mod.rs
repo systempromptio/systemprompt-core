@@ -65,7 +65,7 @@ const DEGRADED_WARN_INTERVAL_SECS: u64 = 60;
 impl SessionMiddleware {
     pub fn new(ctx: &AppContext) -> Self {
         let user_service = UserService::new(Arc::clone(ctx.user_repository()));
-        let concrete = ctx.analytics_repositories().sessions.owner();
+        let concrete = Arc::clone(&ctx.analytics_repositories().session_store);
         let analytics: Arc<dyn SessionProvider> = concrete;
         let session_creation_service = Arc::new(SessionCreationService::new(
             analytics,

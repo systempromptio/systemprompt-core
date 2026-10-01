@@ -330,7 +330,7 @@ fn jwt_extractor(
 ) -> Result<systemprompt_api::services::middleware::JwtContextExtractor> {
     use systemprompt_api::services::middleware::{JtiRevocationChecker, JwtContextExtractor};
     use systemprompt_traits::UserProvider;
-    let analytics = ctx.analytics_repositories().sessions.owner();
+    let analytics = Arc::clone(&ctx.analytics_repositories().session_store);
     let user_provider: Arc<dyn UserProvider> = Arc::new(systemprompt_users::UserService::new(
         Arc::clone(ctx.user_repository()),
     ));

@@ -28,7 +28,7 @@ mod analytics_service_instance_tests {
         // geoip_reader is rendered as its presence flag, not the reader itself.
         assert!(debug.contains("geoip_reader: false"));
         assert!(debug.contains("content_routing: false"));
-        assert!(debug.contains("SessionRepository"));
+        assert!(debug.contains("session_store"));
     }
 
     #[tokio::test]

@@ -108,7 +108,7 @@ async fn exchange_code_issued_and_consumed_once() {
     let result = exchange_bridge_session_code(
         &oauth_repo(&db),
         &analytics,
-        &*analytics.session_repo().owner(),
+        &**analytics.session_store(),
         &user_provider(&db),
         BridgeExchangeRequest {
             request_headers: &headers,
@@ -126,7 +126,7 @@ async fn exchange_code_issued_and_consumed_once() {
     let replay = exchange_bridge_session_code(
         &oauth_repo(&db),
         &analytics,
-        &*analytics.session_repo().owner(),
+        &**analytics.session_store(),
         &user_provider(&db),
         BridgeExchangeRequest {
             request_headers: &headers,
@@ -152,7 +152,7 @@ async fn exchange_unknown_code_returns_none() {
     let result = exchange_bridge_session_code(
         &oauth_repo(&db),
         &analytics,
-        &*analytics.session_repo().owner(),
+        &**analytics.session_store(),
         &user_provider(&db),
         BridgeExchangeRequest {
             request_headers: &headers,

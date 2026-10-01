@@ -43,8 +43,8 @@ async fn plane_debug_impls_flag_optional_members() {
         None,
         &systemprompt_test_fixtures::fixture_analytics_repositories(&pool).expect("repositories"),
     ));
-    let session_usage: systemprompt_traits::DynSessionUsageCounters =
-        analytics_service.session_repo().owner();
+    let session_store = Arc::clone(analytics_service.session_store());
+    let session_usage: systemprompt_traits::DynSessionUsageCounters = session_store;
     let data = DataPlane {
         database: Arc::clone(&pool),
         analytics_service,

@@ -47,7 +47,7 @@ impl Job for BackfillSessionGeoJob {
             .get_parameter_parsed::<i64>("batch_size")?
             .unwrap_or(DEFAULT_BATCH_SIZE);
 
-        let repository = &app_context.analytics_repositories().sessions;
+        let repository = &app_context.analytics_repositories().session_signals;
         let updated = if ctx.enforce() {
             repository
                 .backfill_session_geo(app_context.geoip_reader(), batch_size)

@@ -46,7 +46,7 @@ pub async fn ensure_session(
     }
 
     let user_service = UserService::new(Arc::clone(ctx.user_repository()));
-    let concrete = ctx.analytics_repositories().sessions.owner();
+    let concrete = Arc::clone(&ctx.analytics_repositories().session_store);
     let analytics: Arc<dyn systemprompt_traits::SessionProvider> = concrete;
     let session_service = SessionCreationService::new(analytics, Arc::new(user_service));
 

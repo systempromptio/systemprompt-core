@@ -35,7 +35,7 @@ impl AppContextTrait for AppContext {
     }
 
     fn session_provider(&self) -> Option<Arc<dyn systemprompt_traits::SessionProvider>> {
-        Some(self.data.analytics_repositories.sessions.owner())
+        Some(self.session_store())
     }
 
     fn analytics_provider(&self) -> Option<Arc<dyn AnalyticsProvider>> {

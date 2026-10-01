@@ -11,7 +11,7 @@
 set -uo pipefail
 
 SENSITIVE_FILES=(
-    crates/domain/analytics/src/repository/session/mod.rs
+    crates/domain/analytics/src/repository/session_signals/mod.rs
     crates/domain/users/src/sessions/mod.rs
     crates/infra/logging/src/repository/analytics/ingestion.rs
     crates/domain/content/src/repository/content/stats.rs

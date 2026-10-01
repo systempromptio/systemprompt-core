@@ -116,7 +116,7 @@ async fn fresh_bridge_jwt_has_active_session_for_profile_discovery() {
 
     let result = issue_bridge_access(
         &analytics,
-        &*analytics.session_repo().owner(),
+        &**analytics.session_store(),
         &user_provider(&db),
         BridgeAccessRequest::bridge(&exchange_request_headers(), None, &user_id),
     )
@@ -131,7 +131,7 @@ async fn fresh_bridge_jwt_has_active_session_for_profile_discovery() {
     );
 
     let session = analytics
-        .session_repo()
+        .session_store()
         .find_active_by_id(&session_id)
         .await
         .expect("session lookup ok")
@@ -158,7 +158,7 @@ async fn bridge_session_captures_request_analytics() {
     let caller_ip = "203.0.113.7".parse().ok();
     let result = issue_bridge_access(
         &analytics,
-        &*analytics.session_repo().owner(),
+        &**analytics.session_store(),
         &user_provider(&db),
         BridgeAccessRequest::bridge(&exchange_request_headers(), caller_ip, &user_id),
     )
@@ -205,7 +205,7 @@ async fn bridge_jwt_binds_supplied_session_id() {
     let supplied = SessionId::generate();
     let result = issue_bridge_access(
         &analytics,
-        &*analytics.session_repo().owner(),
+        &**analytics.session_store(),
         &user_provider(&db),
         BridgeAccessRequest::bridge(&exchange_headers_with_session(&supplied), None, &user_id),
     )
@@ -222,7 +222,7 @@ async fn bridge_jwt_binds_supplied_session_id() {
     );
 
     let session = analytics
-        .session_repo()
+        .session_store()
         .find_active_by_id(&supplied)
         .await
         .expect("session lookup ok")
@@ -251,7 +251,7 @@ async fn repeated_mint_with_same_session_id_is_idempotent() {
     // succeed (idempotent upsert), not fail on the existing primary key.
     issue_bridge_access(
         &analytics,
-        &*analytics.session_repo().owner(),
+        &**analytics.session_store(),
         &user_provider(&db),
         BridgeAccessRequest::bridge(&headers, None, &user_id),
     )
@@ -259,7 +259,7 @@ async fn repeated_mint_with_same_session_id_is_idempotent() {
     .expect("first mint");
     issue_bridge_access(
         &analytics,
-        &*analytics.session_repo().owner(),
+        &**analytics.session_store(),
         &user_provider(&db),
         BridgeAccessRequest::bridge(&headers, None, &user_id),
     )

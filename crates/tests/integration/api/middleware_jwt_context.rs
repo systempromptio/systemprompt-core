@@ -24,7 +24,7 @@ use super::common::setup_ctx;
 async fn extractor() -> Result<(systemprompt_database::DbPool, JwtContextExtractor)> {
     let (db, ctx) = setup_ctx().await?;
     install_test_signing_key();
-    let analytics = ctx.analytics_repositories().sessions.owner();
+    let analytics = Arc::clone(&ctx.analytics_repositories().session_store);
     let user_provider: Arc<dyn UserProvider> =
         Arc::new(UserService::new(Arc::clone(ctx.user_repository())));
     let jti = JtiRevocationChecker::from_repository(ctx.oauth_repositories().oauth.clone());

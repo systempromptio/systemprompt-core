@@ -10,12 +10,13 @@ use axum::response::IntoResponse;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
-use systemprompt_analytics::{CreateEngagementEventInput, EngagementRepository, SessionRepository};
+use systemprompt_analytics::{CreateEngagementEventInput, EngagementRepository};
 use systemprompt_content::ContentRepository;
 use systemprompt_identifiers::{ContentId, LocaleCode, SessionId};
 use systemprompt_models::ContentRouting;
 use systemprompt_models::api::ApiError;
 use systemprompt_models::execution::context::RequestContext;
+use systemprompt_traits::{DynSessionStore, SessionStore};
 
 const CONVERSION_EVENT_TYPES: &[&str] = &[
     "github_click",
@@ -38,20 +39,20 @@ pub struct BatchResponse {
 #[derive(Clone)]
 pub struct EngagementState {
     pub repo: Arc<EngagementRepository>,
-    pub session_repo: Arc<SessionRepository>,
+    pub sessions: DynSessionStore,
     pub content_repo: Arc<ContentRepository>,
     pub content_routing: Option<Arc<dyn ContentRouting>>,
 }
 
 async fn mark_converted_if_applicable(
-    session_repo: &SessionRepository,
+    sessions: &dyn SessionStore,
     session_id: &SessionId,
     event_type: &str,
 ) {
     if !CONVERSION_EVENT_TYPES.contains(&event_type) {
         return;
     }
-    if let Err(e) = session_repo.mark_converted(session_id).await {
+    if let Err(e) = sessions.mark_converted(session_id).await {
         tracing::warn!(error = %e, session_id = %session_id.as_str(), "Failed to mark session converted");
     }
 }
@@ -109,8 +110,7 @@ pub(super) async fn record_engagement(
             ApiError::internal_error("Failed to record engagement")
         })?;
 
-    mark_converted_if_applicable(&state.session_repo, req_ctx.session_id(), &input.event_type)
-        .await;
+    mark_converted_if_applicable(&*state.sessions, req_ctx.session_id(), &input.event_type).await;
 
     Ok(StatusCode::CREATED)
 }
@@ -139,8 +139,7 @@ pub(super) async fn record_engagement_batch(
         {
             Ok(_) => {
                 success_count += 1;
-                mark_converted_if_applicable(&state.session_repo, session_id, &event.event_type)
-                    .await;
+                mark_converted_if_applicable(&*state.sessions, session_id, &event.event_type).await;
             },
             Err(e) => {
                 tracing::warn!(error = %e, page_url = %event.page_url, "Failed to record batch engagement event");

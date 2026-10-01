@@ -135,11 +135,7 @@ impl Fixture {
 }
 
 pub fn session_usage(db: &DbPool) -> Result<DynSessionUsageCounters> {
-    Ok(
-        systemprompt_test_fixtures::fixture_analytics_repositories(db)?
-            .sessions
-            .owner(),
-    )
+    Ok(systemprompt_test_fixtures::fixture_analytics_repositories(db)?.session_store)
 }
 
 pub fn unique_instance() -> InstanceId {
