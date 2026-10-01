@@ -7,6 +7,7 @@
 //! here.
 
 use axum::http::{HeaderName, HeaderValue};
+use axum::response::IntoResponse;
 use systemprompt_api::services::proxy::engine::external::{map_resolve_error, outbound_headers};
 use systemprompt_api::services::proxy::resolver::ServiceResolver;
 use systemprompt_database::{CreateServiceInput, ServiceRepository};
@@ -115,4 +116,24 @@ fn map_resolve_error_classifies_domain_errors() {
     )
     .to_string();
     assert!(unavailable.contains("not running") || unavailable.contains("vault down"));
+}
+
+#[test]
+fn an_unconnected_provider_account_is_a_409_the_user_can_fix() {
+    let err = map_resolve_error(
+        "github",
+        McpDomainError::ExternalAccountNotConnected {
+            server: "github".to_owned(),
+        },
+    );
+    assert!(
+        matches!(err, systemprompt_api::services::proxy::ProxyError::ProviderNotConnected { ref service } if service == "github"),
+        "{err:?}"
+    );
+    assert_eq!(err.to_status_code(), axum::http::StatusCode::CONFLICT);
+    assert_eq!(err.error_key(), "provider_not_connected");
+    assert_eq!(
+        err.into_response().status(),
+        axum::http::StatusCode::CONFLICT
+    );
 }

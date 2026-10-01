@@ -11,6 +11,7 @@
 use systemprompt_identifiers::{ClientId, SessionId, SessionSource, UserId};
 use systemprompt_models::Config;
 use systemprompt_models::auth::{AuthenticatedUser, JwtAudience, Permission, parse_permissions};
+use systemprompt_models::errors::ParseEnumError;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_oauth::services::{JwtConfig, JwtSigningParams, generate_jwt};
@@ -46,12 +47,20 @@ pub enum ClientCredentialsError {
     OwnerNotFound,
     #[error("Client owner is not active")]
     OwnerInactive,
-    #[error("Client owner has a non-uuid id ({0})")]
-    OwnerIdMalformed(String),
+    #[error("Client owner has a non-uuid id")]
+    OwnerIdMalformed(#[source] uuid::Error),
     #[error("Invalid scope: {0}")]
     InvalidScope(String),
+    #[error("Requested scope is not a list of known permissions")]
+    UnparseableScope(#[source] ParseEnumError),
     #[error("Invalid audience: {0}")]
     InvalidAudience(String),
+    #[error("Audience '{audience}' is not a known audience")]
+    UnknownAudience {
+        audience: String,
+        #[source]
+        source: ParseEnumError,
+    },
     #[error("Hook scopes require audience=hook on the token request")]
     HookScopeRequiresHookAudience,
     #[error("Failed to load client owner: {0}")]
@@ -140,8 +149,9 @@ pub async fn generate_client_tokens(
         .ok_or(ClientCredentialsError::ClientNotFound)?;
 
     let requested_permissions = match options.scope {
-        Some(scope_str) => parse_permissions(scope_str)
-            .map_err(|e| ClientCredentialsError::InvalidScope(e.to_string()))?,
+        Some(scope_str) => {
+            parse_permissions(scope_str).map_err(ClientCredentialsError::UnparseableScope)?
+        },
         None => scope_permissions(&client.scopes),
     };
 
@@ -159,7 +169,7 @@ pub async fn generate_client_tokens(
     }
 
     let owner_uuid = uuid::Uuid::parse_str(client.owner_user_id.as_str())
-        .map_err(|e| ClientCredentialsError::OwnerIdMalformed(e.to_string()))?;
+        .map_err(ClientCredentialsError::OwnerIdMalformed)?;
     let authenticated =
         AuthenticatedUser::new(owner_uuid, owner.name, owner.email, permissions.clone());
 

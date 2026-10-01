@@ -13,7 +13,7 @@ use systemprompt_oauth::OAuthState;
 use tracing::instrument;
 use webauthn_rs::prelude::RegisterPublicKeyCredential;
 
-use crate::routes::oauth::OAuthHttpError;
+use crate::routes::oauth::{OAuthHttpError, internal};
 
 #[derive(Debug, Deserialize)]
 pub struct FinishLinkRequest {
@@ -43,7 +43,7 @@ pub async fn finish_link(
             &request.credential,
         )
         .await
-        .map_err(|e| OAuthHttpError::link_failed(e.to_string()))?;
+        .map_err(|e| internal::reclassify(e, OAuthHttpError::link_failed))?;
 
     tracing::info!(user_id = %user_id, "Credential linked successfully");
     Ok((

@@ -12,8 +12,8 @@ use super::super::super::audit::GatewayAudit;
 use super::super::super::image_fetch::{ImageFetchPolicy, inline_url_images};
 use super::super::super::protocol::canonical::CanonicalRequest;
 use super::super::super::protocol::outbound::{OutboundCtx, OutboundOutcome, PreparedBody};
-use super::super::DispatchError;
 use super::super::resolve::ResolvedUpstream;
+use super::super::{DispatchError, GatewayError};
 
 #[derive(Clone, Copy)]
 pub(super) struct CtxParts<'a> {
@@ -58,7 +58,7 @@ pub(in crate::services::gateway::service) async fn audit_upstream_failure(
     audit: &GatewayAudit,
     provider: &str,
     model: &str,
-    error: &anyhow::Error,
+    error: &GatewayError,
 ) {
     tracing::warn!(
         provider = %provider,
@@ -93,7 +93,7 @@ pub(super) async fn resolve_url_images(
             if let Err(e) = audit.fail(&failure.to_string()).await {
                 tracing::warn!(error = %e, "image-fetch audit fail failed");
             }
-            Err(DispatchError::Recorded(failure.into()))
+            Err(DispatchError::recorded(failure))
         },
     }
 }
@@ -107,7 +107,7 @@ pub(super) async fn send_attempt(
     ctx: OutboundCtx<'_>,
     body: &PreparedBody,
     audit: &GatewayAudit,
-) -> anyhow::Result<OutboundOutcome> {
+) -> Result<OutboundOutcome, GatewayError> {
     audit.mark_upstream_start();
     let outcome = upstream.adapter.send(ctx, body).await?;
     if matches!(

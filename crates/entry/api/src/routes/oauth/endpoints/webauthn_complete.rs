@@ -16,8 +16,8 @@ use axum::http::HeaderMap;
 use axum::response::{IntoResponse, Redirect, Response};
 use serde::{Deserialize, Serialize};
 
-use crate::routes::oauth::OAuthHttpError;
 use crate::routes::oauth::extractors::OAuthRepo;
+use crate::routes::oauth::{OAuthHttpError, internal};
 use crate::services::request_base_url::RequestBaseUrl;
 use systemprompt_identifiers::{ClientId, UserId};
 use systemprompt_models::oauth::OAuthServerConfig;
@@ -51,9 +51,7 @@ async fn verify_completion(
         .as_deref()
         .ok_or_else(|| OAuthHttpError::invalid_request("Missing auth_token parameter"))?;
 
-    let webauthn_service = state
-        .webauthn()
-        .map_err(|e| OAuthHttpError::server_error(format!("WebAuthn service unavailable: {e}")))?;
+    let webauthn_service = state.webauthn()?;
 
     let verified_user_id = webauthn_service
         .consume_verified_authentication(auth_token)
@@ -83,7 +81,7 @@ async fn verify_completion(
         .and_then(|_valid| {
             OAuthRepository::validate_scopes_for_client(&client.scopes, &requested_scopes)
         })
-        .map_err(|e| OAuthHttpError::invalid_scope(e.to_string()))?;
+        .map_err(|e| internal::classify_validation(e, OAuthHttpError::invalid_scope))?;
 
     let has_challenge = params
         .code_challenge

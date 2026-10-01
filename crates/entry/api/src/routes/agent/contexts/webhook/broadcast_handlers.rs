@@ -10,15 +10,23 @@ use axum::{Extension, Json};
 use serde_json::json;
 use systemprompt_events::EventRouter;
 use systemprompt_identifiers::UserId;
+use systemprompt_models::api::ApiError;
 use systemprompt_runtime::AppContext;
 
 use super::types::{A2ABroadcastRequest, AgUiBroadcastRequest};
+use crate::error::ApiHttpError;
+
+fn user_mismatch() -> ApiHttpError {
+    ApiError::forbidden("Authenticated user does not match the request user_id")
+        .with_error_key("user_id_mismatch")
+        .into()
+}
 
 pub async fn broadcast_a2a_event(
     Extension(req_ctx): Extension<systemprompt_models::RequestContext>,
     State(_app_context): State<AppContext>,
     Json(request): Json<A2ABroadcastRequest>,
-) -> Response {
+) -> Result<Response, ApiHttpError> {
     let authenticated_user_id = &req_ctx.auth.actor.user_id;
     let request_user_id = UserId::new(&request.user_id);
     let event_type = request.event.event_type();
@@ -27,14 +35,7 @@ pub async fn broadcast_a2a_event(
 
     if authenticated_user_id != &request_user_id {
         tracing::warn!(auth_user_id = %authenticated_user_id, request_user_id = %request_user_id, "User ID mismatch");
-        return (
-            StatusCode::FORBIDDEN,
-            Json(json!({
-                "error": "User ID mismatch",
-                "message": "Authenticated user does not match the request user_id"
-            })),
-        )
-            .into_response();
+        return Err(user_mismatch());
     }
 
     let (a2a_count, context_count) = EventRouter::route_a2a(&request_user_id, request.event)
@@ -44,21 +45,21 @@ pub async fn broadcast_a2a_event(
 
     tracing::debug!(event_type = ?event_type, count = %count, user_id = %request.user_id, "Event broadcasted to connections");
 
-    (
+    Ok((
         StatusCode::OK,
         Json(json!({
             "status": "broadcasted",
             "connection_count": count
         })),
     )
-        .into_response()
+        .into_response())
 }
 
 pub async fn broadcast_agui_event(
     Extension(req_ctx): Extension<systemprompt_models::RequestContext>,
     State(_app_context): State<AppContext>,
     Json(request): Json<AgUiBroadcastRequest>,
-) -> Response {
+) -> Result<Response, ApiHttpError> {
     let authenticated_user_id = &req_ctx.auth.actor.user_id;
     let request_user_id = UserId::new(&request.user_id);
     let event_type = request.event.event_type();
@@ -67,14 +68,7 @@ pub async fn broadcast_agui_event(
 
     if authenticated_user_id != &request_user_id {
         tracing::warn!(auth_user_id = %authenticated_user_id, request_user_id = %request_user_id, "User ID mismatch");
-        return (
-            StatusCode::FORBIDDEN,
-            Json(json!({
-                "error": "User ID mismatch",
-                "message": "Authenticated user does not match the request user_id"
-            })),
-        )
-            .into_response();
+        return Err(user_mismatch());
     }
 
     let (agui_count, context_count) = EventRouter::route_agui(&request_user_id, request.event)
@@ -84,12 +78,12 @@ pub async fn broadcast_agui_event(
 
     tracing::debug!(event_type = ?event_type, count = %count, user_id = %request.user_id, "Event broadcasted to connections");
 
-    (
+    Ok((
         StatusCode::OK,
         Json(json!({
             "status": "broadcasted",
             "connection_count": count
         })),
     )
-        .into_response()
+        .into_response())
 }

@@ -135,9 +135,9 @@ pub(super) async fn validate_session_exists(
     )
     .await
     .map_err(|e| match e {
-        SessionAttestationError::Lookup(message) => ContextExtractionError::DatabaseError {
+        SessionAttestationError::Lookup(source) => ContextExtractionError::DatabaseError {
             context: "Failed to check session".to_owned(),
-            source: message.into(),
+            source: Box::new(source),
         },
         other => ContextExtractionError::InvalidToken(other.into()),
     })

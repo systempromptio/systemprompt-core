@@ -200,7 +200,9 @@ pub async fn handle_authorize_get(
     let self_origins = resolve_self_origins(&base)?;
 
     if let Err(validation_error) = validate_oauth_parameters(&params, &self_origins) {
-        return Err(attach(OAuthHttpError::invalid_request(validation_error)));
+        return Err(attach(OAuthHttpError::invalid_request(
+            validation_error.to_string(),
+        )));
     }
 
     match validate_authorize_request(&state, &params, &repo).await {
@@ -227,7 +229,7 @@ pub async fn handle_authorize_get(
                 redirect_uri = ?params.redirect_uri,
                 "Authorization request denied"
             );
-            Err(attach(OAuthHttpError::invalid_request(error.to_string())))
+            Err(attach(OAuthHttpError::from(error)))
         },
     }
 }
@@ -254,7 +256,7 @@ pub async fn handle_authorize_post(
     let attach = |err| RegisteredRedirect::attach_if_registered(redirect.as_ref(), err);
 
     if let Err(error) = validate_authorize_request(&state, &query, &repo).await {
-        return Err(attach(OAuthHttpError::invalid_request(error.to_string())));
+        return Err(attach(OAuthHttpError::from(error)));
     }
 
     if !is_user_consent_granted(&form) {

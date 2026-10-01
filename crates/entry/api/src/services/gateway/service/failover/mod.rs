@@ -30,10 +30,10 @@ use systemprompt_identifiers::AiRequestId;
 use systemprompt_models::services::ProviderRegistry;
 
 use self::breakers::{acquire, breaker_settings, settle};
-use super::DispatchError;
 use super::pricing::failover_pricing;
 use super::resolve::{ResolvedUpstream, resolve_fallback_upstream};
 use super::stages::{ScannedDispatch, audit_upstream_failure};
+use super::{DispatchError, GatewayError};
 use crate::services::gateway::audit::GatewayAudit;
 use crate::services::gateway::protocol::outbound::OutboundOutcome;
 use crate::services::gateway::protocol::outbound::retry::{current_policy, with_policy};
@@ -110,7 +110,10 @@ struct Attempt<'a, 'r> {
 }
 
 impl<'r> Attempt<'_, 'r> {
-    async fn send_primary(&self, scanned: &ScannedDispatch) -> anyhow::Result<OutboundOutcome> {
+    async fn send_primary(
+        &self,
+        scanned: &ScannedDispatch,
+    ) -> Result<OutboundOutcome, GatewayError> {
         with_policy(
             current_policy(),
             scanned.send_attempt(self.primary, self.forward_headers, self.audit),
@@ -118,7 +121,7 @@ impl<'r> Attempt<'_, 'r> {
         .await
     }
 
-    async fn failed(&self, provider: &str, error: anyhow::Error) -> DispatchError {
+    async fn failed(&self, provider: &str, error: GatewayError) -> DispatchError {
         self.audit.mark_upstream_end();
         audit_upstream_failure(self.audit, provider, &self.request_model, &error).await;
         DispatchError::Recorded(error)
@@ -198,7 +201,7 @@ impl<'r> Attempt<'_, 'r> {
         scanned: &mut ScannedDispatch,
         probe: Option<Probe<'_>>,
         reason: FailoverReason,
-    ) -> Option<anyhow::Result<OutboundOutcome>> {
+    ) -> Option<Result<OutboundOutcome, GatewayError>> {
         let upstream = self.bind_fallback(scanned).await?;
         tracing::warn!(
             ai_request_id = %self.ai_request_id,

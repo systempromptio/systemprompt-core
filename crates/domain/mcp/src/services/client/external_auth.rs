@@ -119,9 +119,8 @@ pub async fn fetch_external_bearer(
             }
             Ok(body.access_token)
         },
-        reqwest::StatusCode::NOT_FOUND => Err(McpDomainError::ExternalAuthUnavailable {
+        reqwest::StatusCode::NOT_FOUND => Err(McpDomainError::ExternalAccountNotConnected {
             server: server.to_owned(),
-            message: "no token banked for this user; connect the provider account first".to_owned(),
         }),
         status => {
             let reason = response

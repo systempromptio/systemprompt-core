@@ -5,14 +5,15 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use systemprompt_api::services::gateway::protocol::outbound::UpstreamError;
+use systemprompt_api::services::gateway::service::GatewayError;
 use systemprompt_api::services::gateway::service::failover::{
     AttemptPlan, FailoverReason, ProviderBreakers, failover_reason, is_failover_status,
     plan_attempts,
 };
 use systemprompt_models::services::ResilienceSettings;
 
-fn status_error(status: u16) -> anyhow::Error {
-    anyhow::Error::new(UpstreamError::Status {
+fn status_error(status: u16) -> GatewayError {
+    GatewayError::Upstream(UpstreamError::Status {
         provider: "anthropic".to_owned(),
         status,
         message: "upstream said no".to_owned(),
@@ -47,7 +48,10 @@ fn failover_reason_reads_the_upstream_status() {
 
 #[test]
 fn failover_reason_ignores_errors_that_are_not_upstream_failures() {
-    let error = anyhow::anyhow!("adapter could not build the body");
+    let error = GatewayError::internal(
+        "outbound request failed",
+        std::io::Error::other("adapter could not build the body"),
+    );
     assert_eq!(failover_reason(&error), None);
 }
 
@@ -61,7 +65,7 @@ async fn a_transport_failure_fails_over() {
         .send()
         .await
         .expect_err("nothing listens on port 1");
-    let error = anyhow::Error::new(UpstreamError::Transport {
+    let error = GatewayError::Upstream(UpstreamError::Transport {
         provider: "anthropic".to_owned(),
         source,
     });

@@ -100,7 +100,7 @@ async fn start_enabled_agents(
     orchestrator: &AgentOrchestrator,
     enabled_agents: &[AgentConfig],
     events: Option<&StartupEventSender>,
-) -> (usize, Vec<(String, String)>) {
+) -> (usize, Vec<(String, anyhow::Error)>) {
     let start_futures: Vec<_> = enabled_agents
         .iter()
         .map(|agent_config| {
@@ -110,7 +110,7 @@ async fn start_enabled_agents(
                 enforce_clean_agent_state(orchestrator, &name, port, events)
                     .await
                     .map(|_| name.clone())
-                    .map_err(|e| (name.clone(), e.to_string()))
+                    .map_err(|e| (name.clone(), e))
             }
         })
         .collect();
@@ -118,14 +118,15 @@ async fn start_enabled_agents(
     let results = join_all(start_futures).await;
 
     let (succeeded, failed): (Vec<_>, Vec<_>) = results.into_iter().partition(Result::is_ok);
-    let failed_agents: Vec<(String, String)> = failed.into_iter().filter_map(Result::err).collect();
+    let failed_agents: Vec<(String, anyhow::Error)> =
+        failed.into_iter().filter_map(Result::err).collect();
 
     (succeeded.len(), failed_agents)
 }
 
 async fn handle_failed_agents(
     mut started: usize,
-    failed_agents: &[(String, String)],
+    failed_agents: &[(String, anyhow::Error)],
     agent_registry: &AgentRegistry,
     orchestrator: &AgentOrchestrator,
     events: Option<&StartupEventSender>,
@@ -140,7 +141,8 @@ async fn handle_failed_agents(
 
     let mut retry_failed: Vec<(String, String)> = Vec::new();
 
-    for (agent_name, _original_error) in failed_agents {
+    for (agent_name, first_error) in failed_agents {
+        tracing::warn!(agent = %agent_name, error = ?first_error, "Agent failed on first start attempt");
         let agent_config = match agent_registry.get_agent(agent_name).await {
             Ok(config) => config,
             Err(e) => {

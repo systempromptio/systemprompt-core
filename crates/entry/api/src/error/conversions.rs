@@ -9,21 +9,51 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_agent::{AgentError, ProtocolError};
-use systemprompt_loader::BundleError;
+use systemprompt_config::{ProfileBootstrapError, SecretsBootstrapError};
+use systemprompt_content::ContentError;
+use systemprompt_loader::{BundleError, ConfigLoadError};
 use systemprompt_marketplace::MarketplaceError;
 use systemprompt_marketplace::managed::ManagedError;
 use systemprompt_models::api::ApiError;
+use systemprompt_models::errors::ConfigError;
 use systemprompt_models::execution::ContextExtractionError;
 use systemprompt_oauth::OauthError;
 use systemprompt_oauth::services::SessionCreationError;
 use systemprompt_traits::RepositoryError;
 use systemprompt_users::UserError;
 
-use super::{ApiHttpError, internal_api_error};
+use super::ApiHttpError;
 
 impl From<RepositoryError> for ApiHttpError {
     fn from(err: RepositoryError) -> Self {
         Self(ApiError::from(err))
+    }
+}
+
+impl From<ConfigLoadError> for ApiHttpError {
+    fn from(err: ConfigLoadError) -> Self {
+        Self(ApiError::internal(
+            "Services configuration unavailable",
+            err,
+        ))
+    }
+}
+
+impl From<ProfileBootstrapError> for ApiHttpError {
+    fn from(err: ProfileBootstrapError) -> Self {
+        Self(ApiError::internal("Profile not ready", err))
+    }
+}
+
+impl From<SecretsBootstrapError> for ApiHttpError {
+    fn from(err: SecretsBootstrapError) -> Self {
+        Self(ApiError::internal("Secrets not ready", err))
+    }
+}
+
+impl From<ConfigError> for ApiHttpError {
+    fn from(err: ConfigError) -> Self {
+        Self(ApiError::internal("Configuration not ready", err))
     }
 }
 
@@ -35,7 +65,24 @@ impl From<AgentError> for ApiHttpError {
             | AgentError::Protocol(ProtocolError::ValidationFailed(msg)) => {
                 ApiError::bad_request(msg)
             },
-            other => internal_api_error("Agent operation failed", &other),
+            AgentError::Repository(inner) => ApiError::from(inner),
+            other => ApiError::internal("Agent operation failed", other),
+        };
+        Self(api)
+    }
+}
+
+impl From<ContentError> for ApiHttpError {
+    fn from(err: ContentError) -> Self {
+        let api = match err {
+            ContentError::Repository(inner) => ApiError::from(inner),
+            e @ (ContentError::ContentNotFound(_) | ContentError::LinkNotFound(_)) => {
+                ApiError::not_found(e.to_string())
+            },
+            e @ (ContentError::InvalidRequest(_) | ContentError::Validation(_)) => {
+                ApiError::bad_request(e.to_string())
+            },
+            other => ApiError::internal("Content operation failed", other),
         };
         Self(api)
     }
@@ -43,26 +90,20 @@ impl From<AgentError> for ApiHttpError {
 
 impl From<MarketplaceError> for ApiHttpError {
     fn from(err: MarketplaceError) -> Self {
-        let api = match &err {
-            MarketplaceError::NotFound(_)
+        let api = match err {
+            e @ (MarketplaceError::NotFound(_)
             | MarketplaceError::NoDefault
-            | MarketplaceError::Managed(ManagedError::Unavailable) => {
-                ApiError::not_found(err.to_string())
+            | MarketplaceError::Managed(ManagedError::Unavailable)) => {
+                ApiError::not_found(e.to_string())
             },
-            MarketplaceError::Validation(_)
-            | MarketplaceError::Managed(ManagedError::Invalid(_)) => {
-                ApiError::bad_request(err.to_string())
+            e @ (MarketplaceError::Validation(_)
+            | MarketplaceError::Managed(ManagedError::Invalid(_))) => {
+                ApiError::bad_request(e.to_string())
             },
-            MarketplaceError::Managed(ManagedError::Conflict(_)) => {
-                ApiError::conflict(err.to_string())
+            e @ MarketplaceError::Managed(ManagedError::Conflict(_)) => {
+                ApiError::conflict(e.to_string())
             },
-            MarketplaceError::Catalog(_)
-            | MarketplaceError::Managed(_)
-            | MarketplaceError::Import { .. }
-            | MarketplaceError::Signing(_)
-            | MarketplaceError::Filter(_) => {
-                internal_api_error("Marketplace operation failed", &err)
-            },
+            other => ApiError::internal("Marketplace operation failed", other),
         };
         Self(api)
     }
@@ -70,20 +111,15 @@ impl From<MarketplaceError> for ApiHttpError {
 
 impl From<UserError> for ApiHttpError {
     fn from(err: UserError) -> Self {
-        let message = err.to_string();
         let api = match err {
             UserError::Repository(inner) => ApiError::from(inner),
-            UserError::NotFound(_) => ApiError::not_found(message),
-            UserError::EmailAlreadyExists(_) => ApiError::conflict(message),
-            UserError::Validation(_)
+            e @ UserError::NotFound(_) => ApiError::not_found(e.to_string()),
+            e @ UserError::EmailAlreadyExists(_) => ApiError::conflict(e.to_string()),
+            e @ (UserError::Validation(_)
             | UserError::InvalidStatus(_)
             | UserError::InvalidRole(_)
-            | UserError::InvalidRoles(_) => ApiError::bad_request(message),
-            UserError::Pool(_)
-            | UserError::MergeUnavailable
-            | UserError::OwnerReassignment { .. } => {
-                internal_api_error("User operation failed", &message)
-            },
+            | UserError::InvalidRoles(_)) => ApiError::bad_request(e.to_string()),
+            other => ApiError::internal("User operation failed", other),
         };
         Self(api)
     }
@@ -91,19 +127,18 @@ impl From<UserError> for ApiHttpError {
 
 impl From<OauthError> for ApiHttpError {
     fn from(err: OauthError) -> Self {
-        let message = err.to_string();
         let api = match err {
-            OauthError::CodeNotFound(_)
+            e @ (OauthError::CodeNotFound(_)
             | OauthError::TokenNotFound(_)
             | OauthError::ClientNotFound(_)
-            | OauthError::UserNotFound(_) => ApiError::not_found(message),
-            OauthError::Validation(_) | OauthError::InvalidClientMetadata(_) => {
-                ApiError::bad_request(message)
+            | OauthError::UserNotFound(_)) => ApiError::not_found(e.to_string()),
+            e @ (OauthError::Validation(_) | OauthError::InvalidClientMetadata(_)) => {
+                ApiError::bad_request(e.to_string())
             },
-            OauthError::UsernameTaken(_) | OauthError::EmailRegistered(_) => {
-                ApiError::conflict(message)
+            e @ (OauthError::UsernameTaken(_) | OauthError::EmailRegistered(_)) => {
+                ApiError::conflict(e.to_string())
             },
-            OauthError::Unauthorized(_)
+            e @ (OauthError::Unauthorized(_)
             | OauthError::InvalidGrant(_)
             | OauthError::InvalidClient(_)
             | OauthError::TokenInvalid(_)
@@ -111,22 +146,8 @@ impl From<OauthError> for ApiHttpError {
             | OauthError::TokenMissingKid
             | OauthError::TokenUnknownKid { .. }
             | OauthError::PkceMismatch(_)
-            | OauthError::Expired(_) => ApiError::unauthorized(message),
-            OauthError::Provider(_)
-            | OauthError::Session(_)
-            | OauthError::WebAuthn(_)
-            | OauthError::RegistrationStateExpired
-            | OauthError::WebAuthnVerificationFailed(_)
-            | OauthError::User(_)
-            | OauthError::Repository(_)
-            | OauthError::DatabaseRepository(_)
-            | OauthError::Config(_)
-            | OauthError::Crypto(_)
-            | OauthError::CimdFetch(_)
-            | OauthError::WebAuthnConfig(_)
-            | OauthError::Internal(_) => {
-                internal_api_error("Authorization operation failed", &message)
-            },
+            | OauthError::Expired(_)) => ApiError::unauthorized(e.to_string()),
+            other => ApiError::internal("Authorization operation failed", other),
         };
         Self(api)
     }
@@ -134,33 +155,33 @@ impl From<OauthError> for ApiHttpError {
 
 impl From<SessionCreationError> for ApiHttpError {
     fn from(err: SessionCreationError) -> Self {
-        let message = err.to_string();
         Self(match err {
-            SessionCreationError::UserNotFound { .. } => ApiError::not_found(message),
-            SessionCreationError::Internal(_) => {
-                internal_api_error("Session creation failed", &message)
-            },
+            e @ SessionCreationError::UserNotFound { .. } => ApiError::not_found(e.to_string()),
+            other => ApiError::internal("Session creation failed", other),
         })
     }
 }
 
 impl From<ContextExtractionError> for ApiHttpError {
     fn from(err: ContextExtractionError) -> Self {
-        let message = err.to_string();
         let api = match err {
-            ContextExtractionError::MissingHeader(_)
+            ContextExtractionError::InvalidToken(source) => {
+                ApiError::unauthorized("Invalid or expired token").with_source(source)
+            },
+            e @ (ContextExtractionError::MissingHeader(_)
             | ContextExtractionError::MissingAuthHeader
-            | ContextExtractionError::InvalidToken(_)
             | ContextExtractionError::Revoked
             | ContextExtractionError::MissingSessionId
-            | ContextExtractionError::MissingUserId => ApiError::unauthorized(message),
-            ContextExtractionError::MissingContextId
+            | ContextExtractionError::MissingUserId) => ApiError::unauthorized(e.to_string()),
+            e @ (ContextExtractionError::MissingContextId
             | ContextExtractionError::InvalidHeaderValue { .. }
-            | ContextExtractionError::InvalidUserId(_) => ApiError::bad_request(message),
-            ContextExtractionError::ForbiddenHeader { .. } => ApiError::forbidden(message),
-            ContextExtractionError::UserNotFound(_) => ApiError::not_found(message),
-            ContextExtractionError::DatabaseError { .. } => {
-                internal_api_error("Request context lookup failed", &message)
+            | ContextExtractionError::InvalidUserId(_)) => ApiError::bad_request(e.to_string()),
+            e @ ContextExtractionError::ForbiddenHeader { .. } => {
+                ApiError::forbidden(e.to_string())
+            },
+            e @ ContextExtractionError::UserNotFound(_) => ApiError::not_found(e.to_string()),
+            e @ ContextExtractionError::DatabaseError { .. } => {
+                ApiError::internal("Request context lookup failed", e)
             },
         };
         Self(api)
@@ -169,16 +190,15 @@ impl From<ContextExtractionError> for ApiHttpError {
 
 impl From<BundleError> for ApiHttpError {
     fn from(err: BundleError) -> Self {
-        let message = err.to_string();
         let api = match err {
-            BundleError::Auth { .. } => ApiError::forbidden(message),
-            BundleError::Verify(_)
+            e @ BundleError::Auth { .. } => ApiError::forbidden(e.to_string()),
+            e @ (BundleError::Verify(_)
             | BundleError::Ownership { .. }
             | BundleError::Policy { .. }
-            | BundleError::TooLarge { .. } => ApiError::bad_request(message),
-            BundleError::SourceMissing { .. } => ApiError::not_found(message),
-            BundleError::Fetch { .. } | BundleError::Extract { .. } | BundleError::Io(_) => {
-                internal_api_error("Services bundle operation failed", &message)
+            | BundleError::TooLarge { .. }) => ApiError::bad_request(e.to_string()),
+            e @ BundleError::SourceMissing { .. } => ApiError::not_found(e.to_string()),
+            e @ (BundleError::Fetch { .. } | BundleError::Extract { .. } | BundleError::Io(_)) => {
+                ApiError::internal("Services bundle operation failed", e)
             },
         };
         Self(api)

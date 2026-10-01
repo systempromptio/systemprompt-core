@@ -13,8 +13,7 @@ use super::{ProvenanceView, ServicesStatusResponse, provenance_view, source_view
 use crate::error::ApiHttpError;
 
 pub(super) async fn status() -> Result<Json<ServicesStatusResponse>, ApiHttpError> {
-    let profile =
-        ProfileBootstrap::get().map_err(|e| ApiHttpError::internal("Profile not ready", &e))?;
+    let profile = ProfileBootstrap::get()?;
     let state = BundleCache::new(cache_root(profile)).read_state();
 
     Ok(Json(build_status(

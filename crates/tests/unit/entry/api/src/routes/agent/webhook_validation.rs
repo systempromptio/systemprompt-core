@@ -2,7 +2,7 @@
 
 use serde_json::json;
 use systemprompt_api::routes::agent::contexts::webhook::validation::{
-    sanitize_payload, validate_json_serializable,
+    PayloadValidationError, sanitize_payload, validate_json_serializable,
 };
 
 #[test]
@@ -17,7 +17,10 @@ fn oversized_payload_is_rejected() {
     let items: Vec<serde_json::Value> = (0..12).map(|_| json!(big.clone())).collect();
     let payload = json!({ "items": items });
     let err = validate_json_serializable(&payload).expect_err("payload should exceed limit");
-    assert!(err.contains("Payload too large"), "unexpected error: {err}");
+    assert!(
+        matches!(err, PayloadValidationError::TooLarge { size, max } if size > max),
+        "unexpected error: {err:?}"
+    );
 }
 
 #[test]

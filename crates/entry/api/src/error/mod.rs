@@ -14,24 +14,16 @@
 //! class.
 //!
 //! A 5xx never carries the underlying error's text: [`ApiError`] serialises the
-//! fixed public message of its code for every 5xx, and
-//! [`ApiHttpError::internal`] / [`internal_api_error`] log the cause with
-//! structured fields.
+//! fixed public message of its code for every 5xx and logs the attached
+//! source chain once, so 5xx paths are built with `ApiError::internal(ctx, e)`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 mod conversions;
 
-use std::fmt::Display;
-
 use axum::response::{IntoResponse, Response};
 use systemprompt_models::api::ApiError;
-
-pub fn internal_api_error(context: &'static str, error: &dyn Display) -> ApiError {
-    tracing::error!(error = %error, context, "Internal error");
-    ApiError::internal_error(context)
-}
 
 #[derive(Debug)]
 pub struct ApiHttpError(ApiError);
@@ -57,8 +49,8 @@ impl ApiHttpError {
         Self(ApiError::internal_error(context))
     }
 
-    pub fn internal(context: &'static str, error: &dyn Display) -> Self {
-        Self(internal_api_error(context, error))
+    pub fn conflict(message: impl Into<String>) -> Self {
+        Self(ApiError::conflict(message))
     }
 
     pub fn into_inner(self) -> ApiError {

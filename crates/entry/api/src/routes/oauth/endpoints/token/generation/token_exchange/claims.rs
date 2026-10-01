@@ -5,19 +5,18 @@
 
 use std::str::FromStr;
 
-use anyhow::{Result, anyhow};
 use systemprompt_identifiers::ClientId;
 use systemprompt_models::Config;
 use systemprompt_models::auth::{ActClaim, JwtAudience, Permission};
 
-use super::super::super::TokenError;
+use super::super::super::{TokenError, TokenResult};
 
 pub fn intersect_scopes(
     requested: &[Permission],
     subject_scope: &[Permission],
     client_scope: &[Permission],
     owner_scope: &[Permission],
-) -> Result<Vec<Permission>> {
+) -> TokenResult<Vec<Permission>> {
     let mut out: Vec<Permission> = requested
         .iter()
         .filter(|p| subject_scope.contains(p))
@@ -28,27 +27,28 @@ pub fn intersect_scopes(
     out.sort_by_key(|p| std::cmp::Reverse(p.hierarchy_level()));
     out.dedup();
     if out.is_empty() {
-        return Err(anyhow!(TokenError::InvalidRequest {
+        return Err(TokenError::InvalidRequest {
             field: "scope".to_owned(),
             message: "no overlap between subject, client, and owner permissions".to_owned(),
-        }));
+        });
     }
     Ok(out)
 }
 
-pub fn resolve_audience(requested: Option<&str>, global: &Config) -> Result<Vec<JwtAudience>> {
+pub fn resolve_audience(requested: Option<&str>, global: &Config) -> TokenResult<Vec<JwtAudience>> {
     if let Some(value) = requested {
         if !global
             .allowed_resource_audiences
             .iter()
             .any(|allowed| allowed == value)
         {
-            return Err(anyhow!(TokenError::InvalidTarget {
+            return Err(TokenError::InvalidTarget {
                 message: format!("audience '{value}' not in allowed_resource_audiences"),
-            }));
+            });
         }
-        let aud =
-            JwtAudience::from_str(value).map_err(|e| anyhow!("Invalid audience '{value}': {e}"))?;
+        let aud = JwtAudience::from_str(value).map_err(|_unknown| TokenError::InvalidTarget {
+            message: format!("audience '{value}' is not a known audience"),
+        })?;
         return Ok(vec![aud]);
     }
     Ok(global.jwt_audiences.clone())

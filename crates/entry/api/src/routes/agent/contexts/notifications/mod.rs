@@ -21,6 +21,7 @@ use systemprompt_identifiers::{ContextId, UserId};
 use systemprompt_runtime::AppContext;
 
 use crate::error::ApiHttpError;
+use crate::routes::agent::parse_context_id;
 use handlers::{
     broadcast_notification, mark_notification_broadcasted, persist_notification,
     process_notification,
@@ -41,24 +42,18 @@ pub async fn handle_context_notification(
 ) -> Result<Response, ApiHttpError> {
     let repos = app_context.a2a_repositories();
     let ctx_repo = &repos.contexts;
-    let context_id = ContextId::try_new(context_id)
-        .map_err(|e| ApiHttpError::bad_request(format!("invalid context id: {e}")))?;
+    let context_id = parse_context_id(&context_id)?;
 
     tracing::debug!(context_id = %context_id, method = %notification.method, "Received notification for context");
 
-    let user_id = match resolve_context_user(ctx_repo, &context_id).await {
-        Ok(uid) => uid,
-        Err(response) => return Ok(response),
-    };
+    let user_id = resolve_context_user(ctx_repo, &context_id).await?;
 
     if notification.jsonrpc != "2.0" {
         tracing::error!(jsonrpc_version = %notification.jsonrpc, "Invalid JSON-RPC version");
 
-        return Ok((
-            StatusCode::BAD_REQUEST,
-            Json(json!({"error": "Invalid JSON-RPC version, must be 2.0"})),
-        )
-            .into_response());
+        return Err(ApiHttpError::bad_request(
+            "Invalid JSON-RPC version, must be 2.0",
+        ));
     }
 
     let agent_id = notification
@@ -101,32 +96,11 @@ pub async fn handle_context_notification(
 async fn resolve_context_user(
     ctx_repo: &ContextRepository,
     context_id: &ContextId,
-) -> Result<UserId, Response> {
-    match ctx_repo.find_user_id_for_context(context_id).await {
-        Ok(Some(uid)) => Ok(uid),
-        Ok(None) => {
-            tracing::error!(context_id = %context_id, "Context not found");
-            Err((
-                StatusCode::NOT_FOUND,
-                Json(json!({
-                    "error": "Context not found",
-                    "context_id": context_id.as_str()
-                })),
-            )
-                .into_response())
-        },
-        Err(e) => {
-            tracing::error!(error = %e, context_id = %context_id, "Context not found");
-            Err((
-                StatusCode::NOT_FOUND,
-                Json(json!({
-                    "error": "Context not found",
-                    "context_id": context_id.as_str()
-                })),
-            )
-                .into_response())
-        },
-    }
+) -> Result<UserId, ApiHttpError> {
+    ctx_repo
+        .find_user_id_for_context(context_id)
+        .await?
+        .ok_or_else(|| ApiHttpError::not_found(format!("Context '{context_id}' not found")))
 }
 
 async fn broadcast_and_mark(

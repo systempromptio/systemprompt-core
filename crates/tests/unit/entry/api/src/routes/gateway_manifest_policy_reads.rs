@@ -4,11 +4,12 @@
 
 use std::sync::{Arc, OnceLock};
 
-use axum::http::{HeaderMap, StatusCode, header};
+use axum::http::{HeaderMap, header};
 use systemprompt_api::routes::gateway::bridge_manifest;
 use systemprompt_api::services::middleware::{JtiRevocationChecker, JwtContextExtractor};
 use systemprompt_database::Database;
 use systemprompt_marketplace::AllowAllFilter;
+use systemprompt_models::api::ErrorCode;
 use systemprompt_models::profile::PathsConfig;
 use systemprompt_test_fixtures::{
     TestBootstrap, fixture_app_context_with, fixture_app_context_with_user_repository,
@@ -93,10 +94,14 @@ async fn manifest_is_not_signed_when_the_revocation_read_fails() {
             .parse()
             .expect("bearer header"),
     );
-    let (status, body) = bridge_manifest::manifest(extractor, (*degraded).clone(), headers)
+    let error = bridge_manifest::manifest(extractor, (*degraded).clone(), headers)
         .await
-        .expect_err("a manifest whose revocation list cannot be read is not served");
+        .expect_err("a manifest whose revocation list cannot be read is not served")
+        .into_inner();
 
-    assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR, "{body}");
-    assert!(body.contains("revocations"), "{body}");
+    assert_eq!(error.code, ErrorCode::InternalError, "{}", error.message);
+    assert_eq!(error.message, "manifest: revocations unavailable");
+    assert!(error.source().is_some(), "the read failure is kept for the log");
+    let wire = serde_json::to_value(&error).expect("serialise the error");
+    assert_eq!(wire["message"], "Internal server error");
 }

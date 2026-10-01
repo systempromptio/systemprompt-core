@@ -13,8 +13,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use super::RouteMountError;
 use axum::{Extension, Router};
-use systemprompt_extension::LoaderError;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{StartupEvent, StartupEventSender};
 
@@ -27,7 +27,7 @@ pub(super) fn mount_extension_routes(
     ctx: &AppContext,
     user_middleware: &UserOnlyContextMiddleware,
     events: Option<&StartupEventSender>,
-) -> Result<Router, LoaderError> {
+) -> Result<Router, RouteMountError> {
     let registry = ctx.extension_registry();
     registry.validate_api_paths(ctx)?;
     let api_extensions = registry.api_routers(ctx);
@@ -36,12 +36,8 @@ pub(super) fn mount_extension_routes(
         return Ok(router);
     }
 
-    let profile = systemprompt_config::ProfileBootstrap::get().map_err(|e| {
-        LoaderError::InitializationFailed {
-            extension: "profile".to_owned(),
-            message: e.to_string(),
-        }
-    })?;
+    let profile = systemprompt_config::ProfileBootstrap::get()
+        .map_err(|source| RouteMountError::initialization("profile", source))?;
 
     let config_json = serde_json::json!({
         "paths": profile.paths,
@@ -52,9 +48,9 @@ pub(super) fn mount_extension_routes(
         let ext_name = ext.metadata().name;
 
         ext.validate_config(&config_json)
-            .map_err(|e| LoaderError::ConfigValidationFailed {
+            .map_err(|source| RouteMountError::ConfigValidation {
                 extension: ext_id.to_owned(),
-                message: e.to_string(),
+                source,
             })?;
 
         let base_path = ext_router_config.base_path;

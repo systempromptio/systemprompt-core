@@ -18,7 +18,6 @@ use super::super::super::generation::{
 };
 use super::super::super::validation::{extract_required_field, validate_client_credentials};
 use super::super::super::{TokenError, TokenRequest, TokenResponse};
-use super::super::map_exchange_error;
 
 pub(in crate::routes::oauth::endpoints::token::handler) async fn handle_token_exchange_grant(
     repo: OAuthRepository,
@@ -49,9 +48,7 @@ pub(in crate::routes::oauth::endpoints::token::handler) async fn handle_token_ex
     };
 
     let origin = RequestOrigin { headers, caller_ip };
-    let response = handle_token_exchange(&repo, &client_id, exchange, origin, state)
-        .await
-        .map_err(|e| map_exchange_error(&e))?;
+    let response = handle_token_exchange(&repo, &client_id, exchange, origin, state).await?;
 
     tracing::info!(
         grant_type = "urn:ietf:params:oauth:grant-type:token-exchange",
@@ -88,9 +85,7 @@ pub(in crate::routes::oauth::endpoints::token::handler) async fn handle_jwt_bear
     };
 
     let origin = RequestOrigin { headers, caller_ip };
-    let response = handle_token_exchange(&repo, &client_id, exchange, origin, state)
-        .await
-        .map_err(|e| map_exchange_error(&e))?;
+    let response = handle_token_exchange(&repo, &client_id, exchange, origin, state).await?;
 
     tracing::info!(
         grant_type = "urn:ietf:params:oauth:grant-type:jwt-bearer",
@@ -156,16 +151,22 @@ fn map_client_credentials_error(client_id: &ClientId, error: ClientCredentialsEr
         | ClientCredentialsError::OwnerNotFound
         | ClientCredentialsError::OwnerInactive => TokenError::InvalidClient,
         ClientCredentialsError::InvalidScope(message) => TokenError::InvalidScope { message },
+        ClientCredentialsError::UnparseableScope(_) => TokenError::InvalidScope {
+            message: "scope contains an unknown permission".to_owned(),
+        },
         ClientCredentialsError::HookScopeRequiresHookAudience => TokenError::InvalidScope {
             message: "hook scopes require audience=hook on the token request".to_owned(),
         },
         ClientCredentialsError::InvalidAudience(message) => TokenError::InvalidTarget { message },
+        ClientCredentialsError::UnknownAudience { audience, .. } => TokenError::InvalidTarget {
+            message: format!("'{audience}' is not a known audience"),
+        },
         err @ (ClientCredentialsError::OwnerIdMalformed(_)
         | ClientCredentialsError::UserProviderUnavailable(_)
         | ClientCredentialsError::SessionCreate(_)
         | ClientCredentialsError::JwtSign(_)
-        | ClientCredentialsError::ConfigUnavailable(_)) => TokenError::ServerError {
-            message: err.to_string(),
+        | ClientCredentialsError::ConfigUnavailable(_)) => {
+            TokenError::server("Client credentials token generation failed", err)
         },
     }
 }

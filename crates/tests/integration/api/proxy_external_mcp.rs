@@ -373,7 +373,7 @@ async fn external_non_tool_call_passes_through_without_audit() -> anyhow::Result
 }
 
 #[tokio::test]
-async fn external_accessor_without_banked_token_is_service_unavailable() -> anyhow::Result<()> {
+async fn external_accessor_without_banked_token_asks_the_user_to_connect() -> anyhow::Result<()> {
     let h = harness().await?;
     Mock::given(method("GET"))
         .and(path("/ext-token"))
@@ -389,13 +389,13 @@ async fn external_accessor_without_banked_token_is_service_unavailable() -> anyh
             Some(caller_context("ext-user-3")),
         ))
         .await?;
-    assert_eq!(resp.status(), StatusCode::SERVICE_UNAVAILABLE);
+    assert_eq!(resp.status(), StatusCode::CONFLICT);
     let bytes = to_bytes(resp.into_body(), 64 * 1024).await?;
     let body = String::from_utf8_lossy(&bytes).into_owned();
-    assert!(body.contains("service_not_running"), "{body}");
+    assert!(body.contains("provider_not_connected"), "{body}");
     assert!(
-        !body.contains("no token banked"),
-        "a 5xx carries a fixed message, not the internal cause: {body}"
+        body.contains(&format!("Connect your account for '{}'", h.ext_name)),
+        "the user is told which account to connect: {body}"
     );
     Ok(())
 }

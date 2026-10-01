@@ -12,7 +12,7 @@ use axum::response::IntoResponse;
 use systemprompt_agent::{AgentError, ProtocolError};
 use systemprompt_api::error::ApiHttpError;
 use systemprompt_api::services::middleware::context::middleware::error::extraction_error_to_api_error;
-use systemprompt_api::services::proxy::ProxyError;
+use systemprompt_api::services::proxy::{ProxyError, ResponseBuildError};
 use systemprompt_api::services::static_content::fallback::{get_api_suggestions, is_api_path};
 use systemprompt_identifiers::UserId;
 use systemprompt_marketplace::MarketplaceError;
@@ -183,6 +183,13 @@ fn extraction_error_to_api_error_covers_all_variants() {
     }
 }
 
+fn invalid_method() -> ProxyError {
+    ProxyError::InvalidMethod {
+        method: "BAD METHOD".to_owned(),
+        source: axum::http::Method::from_bytes(b"BAD METHOD").unwrap_err(),
+    }
+}
+
 #[test]
 fn proxy_error_status_codes() {
     assert_eq!(
@@ -210,7 +217,10 @@ fn proxy_error_status_codes() {
     assert_eq!(
         ProxyError::InvalidResponse {
             service: "s".to_owned(),
-            reason: "r".to_owned()
+            source: ResponseBuildError::Status {
+                status: 1000,
+                source: StatusCode::from_u16(1000).unwrap_err(),
+            },
         }
         .to_status_code(),
         StatusCode::BAD_GATEWAY
@@ -223,13 +233,7 @@ fn proxy_error_status_codes() {
         .to_status_code(),
         StatusCode::INTERNAL_SERVER_ERROR
     );
-    assert_eq!(
-        ProxyError::InvalidMethod {
-            reason: "r".to_owned()
-        }
-        .to_status_code(),
-        StatusCode::BAD_REQUEST
-    );
+    assert_eq!(invalid_method().to_status_code(), StatusCode::BAD_REQUEST);
     assert_eq!(
         ProxyError::AuthenticationRequired {
             service: "s".to_owned()
@@ -279,9 +283,7 @@ fn proxy_error_into_response_maps_status_class() {
         StatusCode::SERVICE_UNAVAILABLE
     );
 
-    let bad_req = ProxyError::InvalidMethod {
-        reason: "nope".to_owned(),
-    };
+    let bad_req = invalid_method();
     assert_eq!(bad_req.into_response().status(), StatusCode::BAD_REQUEST);
 
     let challenge: Response<Body> = (StatusCode::FORBIDDEN, "c").into_response();
@@ -517,12 +519,7 @@ fn the_remaining_proxy_error_variants_classify_and_render() {
             },
             StatusCode::INTERNAL_SERVER_ERROR,
         ),
-        (
-            ProxyError::InvalidMethod {
-                reason: "CONNECT".to_owned(),
-            },
-            StatusCode::BAD_REQUEST,
-        ),
+        (invalid_method(), StatusCode::BAD_REQUEST),
         (
             ProxyError::BodyExtractionFailed {
                 source: axum::Error::new(std::io::Error::other("stream closed")),
@@ -546,6 +543,12 @@ fn the_remaining_proxy_error_variants_classify_and_render() {
                 service: "s".to_owned(),
             },
             StatusCode::FORBIDDEN,
+        ),
+        (
+            ProxyError::ProviderNotConnected {
+                service: "s".to_owned(),
+            },
+            StatusCode::CONFLICT,
         ),
     ];
 

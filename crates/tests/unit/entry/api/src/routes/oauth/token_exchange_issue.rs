@@ -10,6 +10,7 @@
 
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+use systemprompt_api::routes::oauth::endpoints::token::TokenError;
 use systemprompt_api::routes::oauth::endpoints::token::generation::TokenExchangeRequest;
 use systemprompt_api::routes::oauth::endpoints::token::generation::token_exchange::issue::issue_id_jag;
 use systemprompt_api::routes::oauth::endpoints::token::generation::token_exchange::oidc::validate_oidc_subject;
@@ -52,7 +53,7 @@ fn config_with(issuer: TrustedIssuer) -> Config {
     config
 }
 
-fn err(result: anyhow::Result<impl Sized>) -> String {
+fn err(result: Result<impl Sized, TokenError>) -> String {
     result
         .map(|_| ())
         .expect_err("expected rejection")

@@ -11,7 +11,7 @@ use serde::Deserialize;
 use systemprompt_oauth::OAuthState;
 use tracing::instrument;
 
-use crate::routes::oauth::OAuthHttpError;
+use crate::routes::oauth::{OAuthHttpError, internal};
 
 #[derive(Debug, Deserialize)]
 pub struct StartRegisterQuery {
@@ -55,10 +55,10 @@ pub async fn start_register(
     let (challenge, challenge_id) = webauthn_service
         .start_registration(&params.username, &params.email, params.full_name.as_deref())
         .await
-        .map_err(|e| OAuthHttpError::registration_failed(e.to_string()))?;
+        .map_err(|e| internal::reclassify(e, OAuthHttpError::registration_failed))?;
 
     let mut challenge_json = serde_json::to_value(&challenge)
-        .map_err(|e| OAuthHttpError::server_error(format!("Failed to serialize challenge: {e}")))?;
+        .map_err(|e| internal::server_error("Failed to serialize challenge", e))?;
 
     if let Some(public_key) = challenge_json.get_mut("publicKey")
         && let Some(authenticator_selection) = public_key.get_mut("authenticatorSelection")
@@ -68,7 +68,7 @@ pub async fn start_register(
     }
 
     let header_value = HeaderValue::from_str(&challenge_id)
-        .map_err(|e| OAuthHttpError::server_error(format!("Invalid challenge ID format: {e}")))?;
+        .map_err(|e| internal::server_error("Invalid challenge ID format", e))?;
 
     let mut headers = HeaderMap::new();
     headers.insert(HeaderName::from_static("x-challenge-id"), header_value);

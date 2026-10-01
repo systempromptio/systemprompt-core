@@ -107,8 +107,7 @@ impl ProxyEngine {
         );
         let outbound = outbound_headers(&incoming_headers, target.headers);
 
-        let method = RequestBuilder::parse_method(&method_str)
-            .map_err(|reason| ProxyError::InvalidMethod { reason })?;
+        let method = RequestBuilder::parse_method(&method_str)?;
         let client = self.client_pool.get_default_client();
         let response = RequestBuilder::build_request(&client, method, &target.url, &outbound, body)
             .send()
@@ -126,9 +125,9 @@ impl ProxyEngine {
         } else if response.status().is_success() {
             sessions.remember(response.headers()).await?;
         }
-        let to_invalid = |reason| ProxyError::InvalidResponse {
+        let to_invalid = |source| ProxyError::InvalidResponse {
             service: service_name.to_owned(),
-            reason,
+            source,
         };
         match audit {
             Some(audit) => audit::record(response, audit).await.map_err(to_invalid),
@@ -179,13 +178,16 @@ pub fn map_resolve_error(service_name: &str, error: McpDomainError) -> ProxyErro
         McpDomainError::AuthRequired(_) => ProxyError::AuthenticationRequired {
             service: service_name.to_owned(),
         },
+        McpDomainError::ExternalAccountNotConnected { .. } => ProxyError::ProviderNotConnected {
+            service: service_name.to_owned(),
+        },
         McpDomainError::ExternalAuthUnavailable { message, .. } => ProxyError::ServiceNotRunning {
             service: service_name.to_owned(),
             status: message,
         },
-        other => ProxyError::InvalidResponse {
+        other => ProxyError::ExternalResolveFailed {
             service: service_name.to_owned(),
-            reason: other.to_string(),
+            source: other,
         },
     }
 }

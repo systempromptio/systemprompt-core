@@ -8,13 +8,12 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use anyhow::{Result, anyhow};
 use systemprompt_identifiers::ClientId;
 use systemprompt_models::Config;
 use systemprompt_oauth::services::generation::{IdJagGrant, mint_id_jag};
 use systemprompt_oauth::services::validation::id_jag::ID_JAG_TOKEN_TYPE;
 
-use super::super::super::{TokenError, TokenResponse};
+use super::super::super::{TokenError, TokenResponse, TokenResult};
 use super::oidc::validate_oidc_subject;
 use super::{ID_TOKEN_TYPE, JWT_TOKEN_TYPE, TokenExchangeRequest};
 
@@ -22,15 +21,15 @@ pub async fn issue_id_jag(
     client_id: &ClientId,
     request: &TokenExchangeRequest<'_>,
     global: &Config,
-) -> Result<TokenResponse> {
+) -> TokenResult<TokenResponse> {
     if !matches!(request.subject_token_type, ID_TOKEN_TYPE | JWT_TOKEN_TYPE) {
-        return Err(anyhow!(TokenError::InvalidRequest {
+        return Err(TokenError::InvalidRequest {
             field: "subject_token_type".to_owned(),
             message: format!(
                 "ID-JAG issuance requires an id_token/jwt subject, got '{}'",
                 request.subject_token_type
             ),
-        }));
+        });
     }
 
     let subject = validate_oidc_subject(request.subject_token, global).await?;
@@ -40,11 +39,11 @@ pub async fn issue_id_jag(
         Some(a) if a == global.jwt_issuer => a,
         Some(a) if global.allowed_resource_audiences.iter().any(|r| r == a) => a,
         Some(a) => {
-            return Err(anyhow!(TokenError::InvalidTarget {
+            return Err(TokenError::InvalidTarget {
                 message: format!(
                     "audience '{a}' is neither this issuer nor an allowed resource audience"
                 ),
-            }));
+            });
         },
     };
 
@@ -61,11 +60,7 @@ pub async fn issue_id_jag(
         ttl_secs: global.id_jag_ttl_secs,
         issuer: &global.jwt_issuer,
     })
-    .map_err(|e| {
-        anyhow!(TokenError::ServerError {
-            message: format!("ID-JAG minting failed: {e}"),
-        })
-    })?;
+    .map_err(|e| TokenError::server("ID-JAG minting failed", e))?;
 
     Ok(TokenResponse {
         access_token: id_jag,

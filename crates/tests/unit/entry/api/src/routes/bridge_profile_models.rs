@@ -9,11 +9,12 @@
 
 use std::collections::HashMap;
 
-use axum::http::{HeaderMap, StatusCode};
+use axum::http::HeaderMap;
 use systemprompt_api::routes::gateway::bridge::{canonicalize_org_uuid, provider_health};
 use systemprompt_api::routes::gateway::models::{model_entries, surfaces_from_header};
 use systemprompt_identifiers::headers::INFERENCE_PROTOCOL;
 use systemprompt_identifiers::{ModelId, ProviderId, RouteId, SecretName, TenantId};
+use systemprompt_models::api::ErrorCode;
 use systemprompt_models::bridge::profile::{
     BridgeProfileParams, BridgeProfileResponse, build as profile_build,
 };
@@ -294,8 +295,8 @@ fn header_helper_rejects_backend_and_garbage() {
     for bad in ["backend", "not-a-protocol"] {
         let mut headers = HeaderMap::new();
         headers.insert(INFERENCE_PROTOCOL, bad.parse().unwrap());
-        let (status, _) = surfaces_from_header(&headers).unwrap_err();
-        assert_eq!(status, StatusCode::BAD_REQUEST, "{bad}");
+        let err = surfaces_from_header(&headers).unwrap_err();
+        assert_eq!(err.code, ErrorCode::BadRequest, "{bad}");
     }
 }
 

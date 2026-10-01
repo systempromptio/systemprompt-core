@@ -5,12 +5,13 @@
 
 use axum::Json;
 use axum::extract::{Extension, State};
-use axum::http::StatusCode;
-use axum::response::IntoResponse;
 use serde::Serialize;
 use systemprompt_models::RequestContext;
+use systemprompt_models::api::ApiError;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::AppContext as _;
+
+use crate::error::ApiHttpError;
 
 #[derive(Debug, Clone, Copy, Serialize)]
 pub struct RevokeAllResponse {
@@ -20,24 +21,13 @@ pub struct RevokeAllResponse {
 pub async fn revoke_all_mine(
     Extension(req_ctx): Extension<RequestContext>,
     State(ctx): State<AppContext>,
-) -> impl IntoResponse {
+) -> Result<Json<RevokeAllResponse>, ApiHttpError> {
     let user_id = &req_ctx.auth.actor.user_id;
-    let Some(provider) = ctx.session_provider() else {
-        return (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "analytics provider unavailable",
-        )
-            .into_response();
-    };
+    let provider = ctx
+        .session_provider()
+        .ok_or_else(|| ApiHttpError::internal_error("Session provider unavailable"))?;
     match provider.revoke_all_sessions_for_user(user_id).await {
-        Ok(count) => (StatusCode::OK, Json(RevokeAllResponse { revoked: count })).into_response(),
-        Err(e) => {
-            tracing::error!(error = %e, user_id = %user_id, "revoke_all_sessions failed");
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "Failed to revoke sessions",
-            )
-                .into_response()
-        },
+        Ok(count) => Ok(Json(RevokeAllResponse { revoked: count })),
+        Err(e) => Err(ApiError::internal("Failed to revoke sessions", e).into()),
     }
 }

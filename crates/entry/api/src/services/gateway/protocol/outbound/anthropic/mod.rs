@@ -9,13 +9,12 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use anyhow::{Result, anyhow};
 use async_trait::async_trait;
 use serde_json::Value;
 use systemprompt_models::services::WireProtocol;
 use systemprompt_models::wire::anthropic;
 
-use super::{OutboundAdapter, OutboundCtx, OutboundOutcome, PreparedBody};
+use super::{OutboundAdapter, OutboundCtx, OutboundError, OutboundOutcome, PreparedBody};
 
 mod learned;
 pub mod refused_fields;
@@ -30,7 +29,7 @@ pub struct AnthropicOutbound;
 
 #[async_trait]
 impl OutboundAdapter for AnthropicOutbound {
-    fn build_body(&self, ctx: &OutboundCtx<'_>) -> Result<PreparedBody> {
+    fn build_body(&self, ctx: &OutboundCtx<'_>) -> Result<PreparedBody, OutboundError> {
         if let Some(raw) = ctx.raw_body
             && let Some(bytes) = request::normalize_raw_body(raw, ctx)
         {
@@ -45,14 +44,21 @@ impl OutboundAdapter for AnthropicOutbound {
         ctx.upstream
             .finish_value(WireProtocol::Anthropic, &mut body);
         Ok(PreparedBody {
-            bytes: bytes::Bytes::from(
-                serde_json::to_vec(&body).map_err(|e| anyhow!("render Anthropic request: {e}"))?,
-            ),
+            bytes: bytes::Bytes::from(serde_json::to_vec(&body).map_err(|source| {
+                OutboundError::RenderBody {
+                    wire: "anthropic",
+                    source,
+                }
+            })?),
             raw_lane: false,
         })
     }
 
-    async fn send(&self, ctx: OutboundCtx<'_>, body: &PreparedBody) -> Result<OutboundOutcome> {
+    async fn send(
+        &self,
+        ctx: OutboundCtx<'_>,
+        body: &PreparedBody,
+    ) -> Result<OutboundOutcome, OutboundError> {
         let passthrough = body.raw_lane;
         let url = ctx.upstream.url(
             WireProtocol::Anthropic,
@@ -85,9 +91,15 @@ impl OutboundAdapter for AnthropicOutbound {
         let bytes = upstream_response
             .bytes()
             .await
-            .map_err(|e| anyhow!("Failed to read Anthropic response: {e}"))?;
-        let value: Value = serde_json::from_slice(&bytes)
-            .map_err(|e| anyhow!("Anthropic response not valid JSON: {e}"))?;
+            .map_err(|source| OutboundError::ReadBody {
+                wire: "anthropic",
+                source,
+            })?;
+        let value: Value =
+            serde_json::from_slice(&bytes).map_err(|source| OutboundError::DecodeBody {
+                wire: "anthropic",
+                source,
+            })?;
         if let Some(defect) = anthropic::buffered_defect(&value) {
             return Err(super::reject_defective_body(
                 ctx.route.provider.as_str(),
@@ -117,7 +129,7 @@ async fn send_learning_refusals(
     url: &str,
     ctx: &OutboundCtx<'_>,
     body: &PreparedBody,
-) -> Result<reqwest::Response> {
+) -> Result<reqwest::Response, super::UpstreamError> {
     let headers = rejected_betas::without(request_headers(ctx), &rejected_betas::learned(provider));
     let error = match send_once(provider, url, &headers, &body.bytes).await {
         Ok(response) => return Ok(response),
@@ -159,7 +171,7 @@ async fn send_once(
     url: &str,
     headers: &[(String, String)],
     body: &bytes::Bytes,
-) -> Result<reqwest::Response> {
+) -> Result<reqwest::Response, super::UpstreamError> {
     let mut req = super::http_client().post(url).body(body.clone());
     for (name, value) in headers {
         req = req.header(name, value);
@@ -167,22 +179,22 @@ async fn send_once(
     super::send_checked(provider, req).await
 }
 
-fn bad_request_message(error: &anyhow::Error) -> Option<&str> {
-    match error.downcast_ref::<super::UpstreamError>() {
-        Some(super::UpstreamError::Status {
+fn bad_request_message(error: &super::UpstreamError) -> Option<&str> {
+    match error {
+        super::UpstreamError::Status {
             status: 400,
             message,
             ..
-        }) => Some(message),
-        _ => None,
+        } => Some(message),
+        super::UpstreamError::Status { .. } | super::UpstreamError::Transport { .. } => None,
     }
 }
 
-fn refused_betas(error: &anyhow::Error) -> std::collections::BTreeSet<String> {
+fn refused_betas(error: &super::UpstreamError) -> std::collections::BTreeSet<String> {
     bad_request_message(error).map_or_else(Default::default, rejected_betas::refused_in)
 }
 
-fn refused_fields(error: &anyhow::Error) -> std::collections::BTreeSet<String> {
+fn refused_fields(error: &super::UpstreamError) -> std::collections::BTreeSet<String> {
     bad_request_message(error).map_or_else(Default::default, refused_fields::refused_in)
 }
 

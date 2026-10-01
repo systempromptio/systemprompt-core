@@ -46,12 +46,6 @@ pub async fn get_context(
             );
             single_response(context)
         },
-        Err(e) => {
-            tracing::error!(error = %e, "Failed to get context");
-            api_error_response(
-                ApiError::not_found(format!("Context not found: {e}"))
-                    .with_request_context(&req_ctx),
-            )
-        },
+        Err(e) => api_error_response(ApiError::from(e).with_request_context(&req_ctx)),
     }
 }

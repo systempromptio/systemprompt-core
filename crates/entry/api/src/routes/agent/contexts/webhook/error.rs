@@ -4,8 +4,10 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_agent::AgentError;
+use systemprompt_models::api::ApiError;
 use systemprompt_traits::RepositoryError;
 
+use super::validation::PayloadValidationError;
 use crate::error::ApiHttpError;
 
 #[derive(Debug, thiserror::Error)]
@@ -28,6 +30,8 @@ pub enum LoadEventError {
     MissingField(&'static str),
     #[error("Invalid payload: {0}")]
     InvalidPayload(String),
+    #[error(transparent)]
+    Payload(#[from] PayloadValidationError),
 }
 
 impl From<LoadEventError> for ApiHttpError {
@@ -39,7 +43,13 @@ impl From<LoadEventError> for ApiHttpError {
             e @ (LoadEventError::UnknownEventType(_)
             | LoadEventError::Deserialize { .. }
             | LoadEventError::MissingField(_)
-            | LoadEventError::InvalidPayload(_)) => Self::bad_request(e.to_string()),
+            | LoadEventError::InvalidPayload(_)
+            | LoadEventError::Payload(PayloadValidationError::TooLarge { .. })) => {
+                Self::bad_request(e.to_string())
+            },
+            LoadEventError::Payload(e) => {
+                ApiError::internal("Webhook payload is invalid", e).into()
+            },
         }
     }
 }

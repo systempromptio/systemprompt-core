@@ -12,6 +12,7 @@ use axum::response::Response;
 use systemprompt_api::routes::gateway::messages::dispatch::errors::{
     build_error_response, classify_dispatch_error, map_dispatch_error,
 };
+use systemprompt_api::routes::gateway::messages::error::RejectionError;
 use systemprompt_api::services::gateway::protocol::outbound::UpstreamError;
 use systemprompt_api::services::gateway::protocol::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, Role, SystemBlock,
@@ -20,15 +21,19 @@ use systemprompt_api::services::gateway::service::finalize::{
     apply_system_prompt_override, attach_request_id,
 };
 use systemprompt_api::services::gateway::service::{
-    DispatchError, PolicyDenied, QuotaExceeded, REQUEST_ID_HEADER, SafetyBlocked,
+    DispatchError, GatewayError, PolicyDenied, QuotaExceeded, REQUEST_ID_HEADER, SafetyBlocked,
 };
 use systemprompt_identifiers::{AiRequestId, ModelId, ProviderId};
 use systemprompt_models::services::{GatewayConfig, OverrideRuleAction, SystemPromptRule};
 
 #[test]
 fn classify_policy_denied_is_a_bad_request_the_client_will_surface() {
-    let err = anyhow::Error::new(PolicyDenied("model blocked".to_owned()));
-    let (status, msg) = classify_dispatch_error(&err);
+    let err = GatewayError::from(PolicyDenied("model blocked".to_owned()));
+    let RejectionError {
+        status,
+        message: msg,
+        ..
+    } = classify_dispatch_error(err);
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert!(msg.contains("model blocked"), "{msg}");
     assert!(msg.contains("blocked by systemprompt governance"), "{msg}");
@@ -36,18 +41,22 @@ fn classify_policy_denied_is_a_bad_request_the_client_will_surface() {
 
 #[test]
 fn classify_safety_blocked_is_a_bad_request_the_client_will_surface() {
-    let err = anyhow::Error::new(SafetyBlocked {
+    let err = GatewayError::from(SafetyBlocked {
         category: "self-harm".to_owned(),
         message: "blocked by safety scanner".to_owned(),
     });
-    let (status, msg) = classify_dispatch_error(&err);
+    let RejectionError {
+        status,
+        message: msg,
+        ..
+    } = classify_dispatch_error(err);
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert!(msg.contains("blocked by safety scanner"), "{msg}");
 }
 
 #[test]
 fn classify_upstream_status_maps_through() {
-    let err = anyhow::Error::new(UpstreamError::Status {
+    let err = GatewayError::from(UpstreamError::Status {
         provider: "openai".to_owned(),
         status: 429,
         message: "slow down".to_owned(),
@@ -55,21 +64,28 @@ fn classify_upstream_status_maps_through() {
         retry_after: None,
         request_id: None,
     });
-    let (status, _msg) = classify_dispatch_error(&err);
+    let RejectionError { status, .. } = classify_dispatch_error(err);
     assert_eq!(status, StatusCode::TOO_MANY_REQUESTS);
 }
 
 #[test]
-fn classify_unknown_error_is_bad_gateway() {
-    let err = anyhow::anyhow!("something broke deep in the stack");
-    let (status, msg) = classify_dispatch_error(&err);
-    assert_eq!(status, StatusCode::BAD_GATEWAY);
-    assert!(msg.contains("something broke"), "{msg}");
+fn classify_internal_error_is_bad_gateway_with_a_fixed_public_message() {
+    let err = GatewayError::internal(
+        "outbound request failed",
+        std::io::Error::other("something broke deep in the stack"),
+    );
+    let rejection = classify_dispatch_error(err);
+    assert_eq!(rejection.status, StatusCode::BAD_GATEWAY);
+    assert!(
+        !rejection.public_message().contains("something broke"),
+        "{}",
+        rejection.public_message()
+    );
 }
 
 #[test]
 fn map_dispatch_error_quota_returns_retry_after_response() {
-    let err = DispatchError::Recorded(anyhow::Error::new(QuotaExceeded {
+    let err = DispatchError::Recorded(GatewayError::from(QuotaExceeded {
         message: "daily budget exhausted".to_owned(),
         retry_after_seconds: 42,
     }));
@@ -85,7 +101,7 @@ fn map_dispatch_error_quota_returns_retry_after_response() {
 
 #[test]
 fn map_dispatch_error_pre_audit_marks_persist() {
-    let err = DispatchError::PreAudit(anyhow::Error::new(PolicyDenied("nope".to_owned())));
+    let err = DispatchError::PreAudit(GatewayError::from(PolicyDenied("nope".to_owned())));
     let rejection = map_dispatch_error(err).expect_err("policy denial is a rejection");
     assert_eq!(rejection.status, StatusCode::BAD_REQUEST);
     assert!(rejection.persist, "pre-audit rejections must persist");
@@ -93,7 +109,7 @@ fn map_dispatch_error_pre_audit_marks_persist() {
 
 #[test]
 fn map_dispatch_error_recorded_skips_persist() {
-    let err = DispatchError::Recorded(anyhow::Error::new(PolicyDenied("nope".to_owned())));
+    let err = DispatchError::Recorded(GatewayError::from(PolicyDenied("nope".to_owned())));
     let rejection = map_dispatch_error(err).expect_err("policy denial is a rejection");
     assert!(
         !rejection.persist,

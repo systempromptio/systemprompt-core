@@ -3,6 +3,7 @@
 //! covers the external-MCP outbound header filter and resolve-error mapping.
 
 use axum::http::{HeaderMap, HeaderName, HeaderValue};
+use systemprompt_api::services::proxy::ProxyError;
 use systemprompt_api::services::proxy::engine::external::{map_resolve_error, outbound_headers};
 use systemprompt_identifiers::SessionId;
 use systemprompt_mcp::McpDomainError;
@@ -262,6 +263,10 @@ fn resolve_error_mapping_covers_auth_and_availability() {
     .to_string();
     assert!(unavailable.contains("vault down"), "{unavailable}");
 
-    let other = map_resolve_error("ext", McpDomainError::Transport("boom".to_owned())).to_string();
-    assert!(other.contains("Invalid response"), "{other}");
+    let other = map_resolve_error("ext", McpDomainError::Transport("boom".to_owned()));
+    assert!(
+        matches!(other, ProxyError::ExternalResolveFailed { ref service, .. } if service == "ext"),
+        "{other:?}"
+    );
+    assert!(!other.to_string().contains("boom"), "{other}");
 }

@@ -57,7 +57,9 @@ async fn starting_router_returns_503_for_other_paths() {
         .expect("response");
 
     assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
-    assert_eq!(body_json(response).await["error"], "service starting");
+    let body = body_json(response).await;
+    assert_eq!(body["code"], "service_unavailable");
+    assert_eq!(body["error_key"], "service_starting");
 }
 
 #[tokio::test]

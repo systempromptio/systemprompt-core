@@ -17,10 +17,11 @@ impl PayloadSource {
     ) -> Result<ContextIdSource, ContextExtractionError> {
         // JSON: A2A JSON-RPC envelope is an external protocol boundary; the
         // method name drives which typed field is read, so the shape is dynamic.
-        let payload: Value = serde_json::from_slice(body_bytes).map_err(|e| {
+        let payload: Value = serde_json::from_slice(body_bytes).map_err(|error| {
+            tracing::debug!(%error, "request payload is not valid JSON");
             ContextExtractionError::InvalidHeaderValue {
                 header: "payload".to_owned(),
-                reason: format!("Invalid JSON: {e}"),
+                reason: "body is not valid JSON".to_owned(),
             }
         })?;
 
@@ -58,9 +59,12 @@ impl PayloadSource {
 
         let body_bytes = axum::body::to_bytes(body, usize::MAX)
             .await
-            .map_err(|e| ContextExtractionError::InvalidHeaderValue {
-                header: "body".to_owned(),
-                reason: format!("Failed to read body: {e}"),
+            .map_err(|error| {
+                tracing::debug!(%error, "request body could not be read");
+                ContextExtractionError::InvalidHeaderValue {
+                    header: "body".to_owned(),
+                    reason: "request body could not be read".to_owned(),
+                }
             })?
             .to_vec();
 

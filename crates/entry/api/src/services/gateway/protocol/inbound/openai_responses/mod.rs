@@ -30,8 +30,7 @@ impl InboundAdapter for OpenAiResponsesInbound {
     }
 
     fn parse_request(&self, raw: &Bytes) -> Result<CanonicalRequest, InboundParseError> {
-        let value: Value = serde_json::from_slice(raw)
-            .map_err(|e| InboundParseError::InvalidJson(e.to_string()))?;
+        let value: Value = serde_json::from_slice(raw).map_err(InboundParseError::InvalidJson)?;
         parse::parse(&value)
     }
 

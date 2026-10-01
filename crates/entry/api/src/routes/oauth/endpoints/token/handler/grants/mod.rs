@@ -8,8 +8,8 @@
 use axum::http::HeaderMap;
 use std::net::IpAddr;
 use systemprompt_identifiers::{AuthorizationCode, ClientId, RefreshTokenId};
-use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::OAuthRepository;
+use systemprompt_oauth::{OAuthState, OauthError};
 
 use super::super::generation::{TokenGenerationParams, generate_tokens_by_user_id};
 use super::super::validation::{
@@ -17,7 +17,6 @@ use super::super::validation::{
     validate_client_credentials,
 };
 use super::super::{TokenError, TokenRequest, TokenResponse};
-
 
 mod exchange;
 
@@ -39,10 +38,7 @@ pub(super) async fn handle_authorization_code_grant(
         ClientId::new(id)
     } else {
         repo.find_client_id_from_auth_code(&code)
-            .await
-            .map_err(|e| TokenError::ServerError {
-                message: format!("Failed to lookup authorization code: {e}"),
-            })?
+            .await?
             .ok_or_else(|| TokenError::InvalidGrant {
                 reason: "Invalid or expired authorization code".to_owned(),
             })?
@@ -70,10 +66,7 @@ pub(super) async fn handle_authorization_code_grant(
         code_verifier: request.code_verifier.as_deref(),
         request_resource: request.resource.as_deref(),
     })
-    .await
-    .map_err(|e: anyhow::Error| TokenError::InvalidGrant {
-        reason: e.to_string(),
-    })?;
+    .await?;
 
     let generated = generate_tokens_by_user_id(
         &repo,
@@ -89,9 +82,7 @@ pub(super) async fn handle_authorization_code_grant(
         state,
     )
     .await
-    .map_err(|e| TokenError::ServerError {
-        message: e.to_string(),
-    })?;
+    .map_err(|e| TokenError::server("Token generation failed", e))?;
 
     if let Err(e) = repo
         .link_auth_code_to_refresh_token(&code, &generated.refresh_token_id)
@@ -130,10 +121,7 @@ pub(super) async fn handle_refresh_token_grant(
         ClientId::new(id)
     } else {
         repo.find_client_id_from_refresh_token(&refresh_token)
-            .await
-            .map_err(|e| TokenError::ServerError {
-                message: format!("Failed to lookup refresh token: {e}"),
-            })?
+            .await?
             .ok_or_else(|| TokenError::InvalidRefreshToken {
                 reason: "Invalid refresh token".to_owned(),
             })?
@@ -146,9 +134,7 @@ pub(super) async fn handle_refresh_token_grant(
     let consumed = repo
         .consume_refresh_token(&refresh_token, &client_id)
         .await
-        .map_err(|e| TokenError::InvalidRefreshToken {
-            reason: e.to_string(),
-        })?;
+        .map_err(refresh_token_error)?;
     let user_id = consumed.user_id;
     let original_scope = consumed.scope;
     let family_id = consumed.family_id;
@@ -184,9 +170,7 @@ pub(super) async fn handle_refresh_token_grant(
         state,
     )
     .await
-    .map_err(|e| TokenError::ServerError {
-        message: e.to_string(),
-    })?;
+    .map_err(|e| TokenError::server("Token generation failed", e))?;
 
     let token_response = generated.response;
     tracing::info!(
@@ -200,4 +184,13 @@ pub(super) async fn handle_refresh_token_grant(
     );
 
     Ok(token_response)
+}
+
+fn refresh_token_error(error: OauthError) -> TokenError {
+    match error {
+        OauthError::TokenInvalid(reason) | OauthError::Expired(reason) => {
+            TokenError::InvalidRefreshToken { reason }
+        },
+        other => TokenError::Oauth(other),
+    }
 }

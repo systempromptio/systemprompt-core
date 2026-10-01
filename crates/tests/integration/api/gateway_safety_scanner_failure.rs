@@ -9,7 +9,7 @@ use systemprompt_ai::{
 use systemprompt_api::services::gateway::protocol::CanonicalContent;
 use systemprompt_api::services::gateway::protocol::canonical::CanonicalRequest;
 use systemprompt_api::services::gateway::protocol::canonical_response::CanonicalResponse;
-use systemprompt_api::services::gateway::service::{DispatchError, GatewayService, SafetyBlocked};
+use systemprompt_api::services::gateway::service::{DispatchError, GatewayError, GatewayService};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::AiRequestId;
 use systemprompt_models::services::{ApiSurface, WireProtocol};
@@ -130,9 +130,9 @@ async fn a_failing_scanner_blocks_the_request_under_an_enforcing_policy() -> any
 
     match outcome.expect_err("a failed scan must not be treated as clean") {
         DispatchError::Recorded(inner) => {
-            let blocked = inner
-                .downcast_ref::<SafetyBlocked>()
-                .expect("SafetyBlocked error");
+            let GatewayError::Safety(blocked) = &inner else {
+                panic!("expected SafetyBlocked, got {inner:?}");
+            };
             assert_eq!(blocked.category, CATEGORY_SCANNER_FAILURE);
         },
         other => panic!("expected Recorded(SafetyBlocked), got {other:?}"),

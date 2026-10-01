@@ -22,7 +22,7 @@ async fn starting_router_answers_health_and_rejects_everything_else() -> anyhow:
     let other = app.oneshot(super::common::empty_get("/anything")).await?;
     assert_eq!(other.status().as_u16(), 503);
     let (_, body) = super::common::body_to_string(other).await?;
-    assert!(body.contains("service starting"), "{body}");
+    assert!(body.contains("service_starting"), "{body}");
     Ok(())
 }
 

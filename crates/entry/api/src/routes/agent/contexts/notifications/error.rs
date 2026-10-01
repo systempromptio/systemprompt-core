@@ -4,6 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_agent::AgentError;
+use systemprompt_models::api::ApiError;
 use systemprompt_traits::RepositoryError;
 
 use crate::error::ApiHttpError;
@@ -25,7 +26,9 @@ impl From<NotificationError> for ApiHttpError {
         match err {
             NotificationError::Agent(e) => Self::from(e),
             NotificationError::Repository(e) => Self::from(e),
-            NotificationError::Serde(e) => Self::internal("Invalid notification payload", &e),
+            NotificationError::Serde(e) => {
+                ApiError::internal("Invalid notification payload", e).into()
+            },
             e @ NotificationError::MissingField(_) => Self::bad_request(e.to_string()),
         }
     }

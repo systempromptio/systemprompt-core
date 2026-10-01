@@ -7,9 +7,11 @@
 use std::sync::Arc;
 
 use axum::Json;
-use axum::http::{HeaderMap, HeaderValue, StatusCode};
+use axum::http::{HeaderMap, HeaderValue};
+use systemprompt_api::error::ApiHttpError;
 use systemprompt_api::routes::gateway::bridge_device::{SelfEnrollRequest, enroll_self};
 use systemprompt_api::services::middleware::{JtiRevocationChecker, JwtContextExtractor};
+use systemprompt_models::api::ErrorCode;
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
     AuthedFixture, ensure_test_bootstrap, seed_bridge_credential, test_app_context,
@@ -63,7 +65,7 @@ async fn enroll(
     fingerprint: String,
 ) -> Result<
     Json<systemprompt_api::routes::gateway::bridge_device::SelfEnrollResponse>,
-    (StatusCode, String),
+    ApiHttpError,
 > {
     enroll_self(
         Arc::clone(&h.extractor),
@@ -80,19 +82,34 @@ async fn enroll(
 #[tokio::test]
 async fn missing_bearer_is_unauthorized() {
     let h = harness().await;
-    let (status, _) = enroll(&h, HeaderMap::new(), fingerprint('a'))
+    let error = enroll(&h, HeaderMap::new(), fingerprint('a'))
         .await
-        .expect_err("no credential must be refused");
-    assert_eq!(status, StatusCode::UNAUTHORIZED);
+        .expect_err("no credential must be refused")
+        .into_inner();
+    assert_eq!(error.code, ErrorCode::Unauthorized);
+    assert_eq!(error.error_key.as_deref(), Some("missing_credential"));
 }
 
 #[tokio::test]
 async fn malformed_fingerprint_is_a_client_error() {
     let h = harness().await;
-    let (status, message) = enroll(&h, bearer(h.authed.jwt.as_str()), "deadbeef".to_owned())
+    let error = enroll(&h, bearer(h.authed.jwt.as_str()), "deadbeef".to_owned())
         .await
-        .expect_err("short fingerprint must be refused");
-    assert_eq!(status, StatusCode::BAD_REQUEST, "{message}");
+        .expect_err("short fingerprint must be refused")
+        .into_inner();
+    assert_eq!(error.code, ErrorCode::BadRequest, "{}", error.message);
+}
+
+#[tokio::test]
+async fn a_rejected_credential_is_unauthorized_without_the_decoder_cause() {
+    let h = harness().await;
+    let error = enroll(&h, bearer("not-a-jwt"), fingerprint('b'))
+        .await
+        .expect_err("a forged credential must be refused")
+        .into_inner();
+    assert_eq!(error.code, ErrorCode::Unauthorized);
+    assert_eq!(error.error_key.as_deref(), Some("invalid_credential"));
+    assert_eq!(error.message, "Bridge credential rejected");
 }
 
 #[tokio::test]

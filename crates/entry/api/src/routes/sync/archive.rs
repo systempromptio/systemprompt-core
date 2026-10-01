@@ -14,32 +14,31 @@ use std::path::{Path, PathBuf};
 use systemprompt_loader::bundle::pack::{collect_files, create_tarball_bytes, manifest_checksum};
 use systemprompt_runtime::AppContext;
 
-use super::types::FileManifest;
+use super::types::{FileManifest, SyncError};
 
 const ALLOWED_DIRS: &[&str] = &[
     "agents", "skills", "rules", "content", "mcp", "ai", "config", "profiles",
 ];
 
-pub(super) fn get_services_path(ctx: &AppContext) -> Result<PathBuf, String> {
+pub(super) fn get_services_path(ctx: &AppContext) -> Result<PathBuf, SyncError> {
     let services = ctx.app_paths().system().services();
     if services.exists() {
         return Ok(services.to_path_buf());
     }
 
-    Err("Services path not configured".into())
+    Err(SyncError::ServicesPathMissing)
 }
 
 pub(super) fn collect_manifest(
     services_path: &Path,
     directories: &[&str],
-) -> Result<FileManifest, String> {
+) -> Result<FileManifest, SyncError> {
     let requested: Vec<&str> = directories
         .iter()
         .copied()
         .filter(|d| ALLOWED_DIRS.contains(d))
         .collect();
-    let files = collect_files(services_path, &requested)
-        .map_err(|e| format!("Failed to walk services tree: {e}"))?;
+    let files = collect_files(services_path, &requested).map_err(SyncError::Walk)?;
     let (checksum, total_size) = manifest_checksum(&files);
 
     Ok(FileManifest {
@@ -50,6 +49,6 @@ pub(super) fn collect_manifest(
     })
 }
 
-pub(super) fn create_tarball(base: &Path, manifest: &FileManifest) -> Result<Vec<u8>, String> {
-    create_tarball_bytes(base, &manifest.files).map_err(|e| e.to_string())
+pub(super) fn create_tarball(base: &Path, manifest: &FileManifest) -> Result<Vec<u8>, SyncError> {
+    create_tarball_bytes(base, &manifest.files).map_err(SyncError::Pack)
 }

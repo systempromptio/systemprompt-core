@@ -28,9 +28,15 @@ pub use systemprompt_ai::{GatewayPolicySpec, QuotaMode, QuotaWindow, SafetyConfi
 const CACHE_TTL: Duration = Duration::from_secs(60);
 
 #[derive(Debug, thiserror::Error)]
-#[error("gateway policy unavailable: {reason}")]
-pub struct PolicyUnavailable {
-    pub reason: String,
+pub enum PolicyUnavailable {
+    #[error("gateway policy unavailable: the policy store could not be read")]
+    Read(#[source] systemprompt_traits::BoxedSource),
+    #[error("gateway policy unavailable: policy '{name}' is malformed")]
+    Malformed {
+        name: String,
+        #[source]
+        source: MalformedPolicy,
+    },
 }
 
 #[derive(Clone)]
@@ -79,9 +85,7 @@ impl PolicyResolver {
                         fault_mode = fault_mode.as_str(),
                         "Gateway policy read failed; denying the request"
                     );
-                    return Err(PolicyUnavailable {
-                        reason: e.to_string(),
-                    });
+                    return Err(PolicyUnavailable::Read(e.into()));
                 }
                 tracing::warn!(
                     error = %e,
@@ -100,8 +104,9 @@ impl PolicyResolver {
                 error = %malformed.error,
                 "Gateway policy row is malformed; denying the request"
             );
-            PolicyUnavailable {
-                reason: format!("policy '{}' is malformed", malformed.name),
+            PolicyUnavailable::Malformed {
+                name: malformed.name.clone(),
+                source: malformed,
             }
         })?;
         if let Ok(mut cache) = self.cache.write() {

@@ -92,7 +92,7 @@ async fn load_task_completed(
         "executionSteps": if execution_steps.is_empty() { None } else { Some(&execution_steps) },
     });
 
-    validate_json_serializable(&payload).map_err(LoadEventError::InvalidPayload)?;
+    validate_json_serializable(&payload)?;
 
     Ok(AgUiWebhookData {
         event_name: "task_completed".to_owned(),

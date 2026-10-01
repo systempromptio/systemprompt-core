@@ -15,6 +15,7 @@ use systemprompt_models::wire::origin::{
 };
 
 use super::RejectionPartial;
+use crate::routes::gateway::messages::error::RejectionError;
 
 /// Copies of the attribution headers, taken before `read_gateway_body`
 /// consumes the request.
@@ -75,7 +76,7 @@ pub fn classify_client(
     principal_is_bridge: bool,
     body: &[u8],
     partial: &mut RejectionPartial,
-) -> Result<ClientEvidence, (StatusCode, String)> {
+) -> Result<ClientEvidence, RejectionError> {
     let input = ClassificationInput {
         principal_is_bridge,
         declared_client: attribution.declared_client.as_deref(),
@@ -105,7 +106,7 @@ pub fn classify_client(
             partial.origin.client = ClientKind::Other;
             partial.origin.attestation = ClientAttestation::None;
             partial.evidence = Some(rejection.evidence().clone());
-            Err((StatusCode::BAD_REQUEST, rejection.to_string()))
+            Err(RejectionError::invalid(StatusCode::BAD_REQUEST, rejection))
         },
     }
 }

@@ -21,7 +21,7 @@ use systemprompt_models::auth::{AuthenticatedUser, Permission};
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_oauth::services::AuthService;
 use systemprompt_runtime::AppContext;
-use systemprompt_traits::{AgentRegistryProvider, McpRegistryProvider};
+use systemprompt_traits::{AgentRegistryProvider, McpRegistryProvider, RegistryError};
 
 use super::challenge::{AuthValidator, ChallengeRequest, challenge_or_error};
 
@@ -101,18 +101,12 @@ async fn lookup_oauth_requirement(
     ctx: &AppContext,
 ) -> Result<OAuthRequirement, ProxyError> {
     if service.module_name == "agent" {
-        let registry =
-            AgentRegistryProviderService::new().map_err(|e| ProxyError::ServiceNotRunning {
-                service: service_name.to_owned(),
-                status: format!("Failed to load agent registry: {e}"),
-            })?;
-        let info =
-            registry
-                .get_agent(service_name)
-                .await
-                .map_err(|e| ProxyError::ServiceNotFound {
-                    service: format!("Agent '{}' not found in registry: {}", service_name, e),
-                })?;
+        let registry = AgentRegistryProviderService::new()
+            .map_err(|error| registry_lookup_error(service_name, error))?;
+        let info = registry
+            .get_agent(service_name)
+            .await
+            .map_err(|error| registry_lookup_error(service_name, error))?;
         Ok(OAuthRequirement {
             module: "agent".to_owned(),
             required: info.oauth.required,
@@ -138,21 +132,31 @@ pub(crate) async fn mcp_oauth_requirement(
     let registry = ctx.mcp_registry();
     registry
         .validate()
-        .map_err(|e| ProxyError::ServiceNotRunning {
+        .map_err(|source| ProxyError::RegistryUnavailable {
             service: service_name.to_owned(),
-            status: format!("Failed to load MCP registry: {e}"),
+            source,
         })?;
     let info = McpRegistryProvider::get_server(registry, service_name)
         .await
-        .map_err(|e| ProxyError::ServiceNotFound {
-            service: format!("MCP server '{}' not found in registry: {}", service_name, e),
-        })?;
+        .map_err(|error| registry_lookup_error(service_name, error))?;
     Ok(OAuthRequirement {
         module: "mcp".to_owned(),
         required: info.oauth.required,
         scopes: info.oauth.scopes,
         audience: info.oauth.audience,
     })
+}
+
+fn registry_lookup_error(service_name: &str, error: RegistryError) -> ProxyError {
+    match error {
+        RegistryError::NotFound(_) => ProxyError::ServiceNotFound {
+            service: service_name.to_owned(),
+        },
+        source => ProxyError::RegistryLookupFailed {
+            service: service_name.to_owned(),
+            source,
+        },
+    }
 }
 
 fn enforce_required_audience(

@@ -111,8 +111,8 @@ async fn agent_json_rpc_error_surfaces_as_dispatch_error() -> anyhow::Result<()>
         .await
         .expect_err("a JSON-RPC error response is a dispatch failure");
     assert!(
-        matches!(err, MessagingError::Dispatch(_)),
-        "expected Dispatch, got {err:?}"
+        matches!(err, MessagingError::AgentRejected { .. }),
+        "expected AgentRejected, got {err:?}"
     );
     Ok(())
 }

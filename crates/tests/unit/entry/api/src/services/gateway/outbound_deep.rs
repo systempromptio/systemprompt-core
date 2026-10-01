@@ -15,7 +15,7 @@ use systemprompt_api::services::gateway::protocol::outbound::gemini::GeminiOutbo
 use systemprompt_api::services::gateway::protocol::outbound::openai_chat::OpenAiChatOutbound;
 use systemprompt_api::services::gateway::protocol::outbound::openai_responses::OpenAiResponsesOutbound;
 use systemprompt_api::services::gateway::protocol::outbound::{
-    OutboundAdapter, OutboundCtx, OutboundOutcome, UpstreamError,
+    OutboundAdapter, OutboundCtx, OutboundError, OutboundOutcome, UpstreamError,
 };
 use systemprompt_identifiers::{ModelId, ProviderId, RouteId};
 use systemprompt_models::services::GatewayRoute;
@@ -29,14 +29,14 @@ use wiremock::{Mock, MockServer, ResponseTemplate};
 async fn send_via<A: OutboundAdapter>(
     adapter: &A,
     ctx: OutboundCtx<'_>,
-) -> anyhow::Result<OutboundOutcome> {
+) -> Result<OutboundOutcome, OutboundError> {
     let body = adapter.build_body(&ctx)?;
     adapter.send(ctx, &body).await
 }
 
 // `OutboundOutcome` is not `Debug` (it carries a boxed stream), so the failure
 // cases cannot use `expect_err`.
-fn expect_failure(outcome: anyhow::Result<OutboundOutcome>) -> anyhow::Error {
+fn expect_failure(outcome: Result<OutboundOutcome, OutboundError>) -> OutboundError {
     match outcome {
         Ok(_) => panic!("this request must not produce a usable response"),
         Err(e) => e,
@@ -508,7 +508,7 @@ async fn a_gemini_upstream_rejection_is_reported_as_an_upstream_status_error() {
     let err = expect_failure(send_via(&GeminiOutbound, ctx).await);
 
     let upstream = err
-        .downcast_ref::<UpstreamError>()
+        .upstream()
         .expect("the failure must stay an UpstreamError so the gateway can relay it");
     let UpstreamError::Status { status, .. } = upstream else {
         panic!("a rejected request must carry the upstream status");
@@ -534,10 +534,7 @@ async fn an_unreachable_gemini_endpoint_is_a_transport_error() {
     let err = expect_failure(send_via(&GeminiOutbound, ctx).await);
 
     assert!(
-        matches!(
-            err.downcast_ref::<UpstreamError>(),
-            Some(UpstreamError::Transport { .. })
-        ),
+        matches!(err.upstream(), Some(UpstreamError::Transport { .. })),
         "a connection failure must be distinguishable from an upstream rejection: {err}"
     );
 }

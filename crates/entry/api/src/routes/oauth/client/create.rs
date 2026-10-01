@@ -10,22 +10,13 @@ use bcrypt::{DEFAULT_COST, hash};
 use tracing::instrument;
 use uuid::Uuid;
 
-use super::super::OAuthHttpError;
 use super::super::extractors::OAuthRepo;
 use super::super::responses::created_response;
+use super::super::{OAuthHttpError, internal};
 use systemprompt_models::RequestContext;
 use systemprompt_models::modules::ApiPaths;
-use systemprompt_oauth::OauthError;
 use systemprompt_oauth::clients::api::{CreateOAuthClientRequest, OAuthClientResponse};
 use systemprompt_oauth::repository::CreateClientParams;
-
-fn is_unique_violation(err: &OauthError) -> bool {
-    if let OauthError::Repository(sqlx::Error::Database(db_err)) = err {
-        db_err.is_unique_violation()
-    } else {
-        false
-    }
-}
 
 #[instrument(skip(repository, req_ctx, request), fields(client_id = %request.client_id))]
 pub async fn create_client(
@@ -35,7 +26,7 @@ pub async fn create_client(
 ) -> Result<Response, OAuthHttpError> {
     let client_secret = Uuid::new_v4().to_string();
     let client_secret_hash = hash(&client_secret, DEFAULT_COST)
-        .map_err(|e| OAuthHttpError::server_error(format!("Failed to hash client secret: {e}")))?;
+        .map_err(|e| internal::server_error("Failed to hash client secret", e))?;
 
     let params = CreateClientParams {
         client_id: request.client_id.clone(),
@@ -58,11 +49,11 @@ pub async fn create_client(
     };
 
     let client = repository.create_client(params).await.map_err(|e| {
-        if is_unique_violation(&e) {
+        if internal::is_conflict(&e) {
             OAuthHttpError::invalid_client_metadata("Client with this ID already exists")
                 .with_status(StatusCode::CONFLICT)
         } else {
-            OAuthHttpError::invalid_request(format!("Failed to create client: {e}"))
+            OAuthHttpError::from(e)
         }
     })?;
 
@@ -78,7 +69,7 @@ pub async fn create_client(
     let location = ApiPaths::oauth_client_location(&client.client_id);
     let response: OAuthClientResponse = client.into();
     let mut response_json = serde_json::to_value(response)
-        .map_err(|e| OAuthHttpError::server_error(format!("Failed to serialize response: {e}")))?;
+        .map_err(|e| internal::server_error("Failed to serialize client response", e))?;
     response_json["client_secret"] = serde_json::Value::String(client_secret);
     Ok(created_response(response_json, location))
 }

@@ -17,7 +17,7 @@ use systemprompt_api::services::gateway::protocol::outbound::anthropic::Anthropi
 use systemprompt_api::services::gateway::protocol::outbound::openai_chat::OpenAiChatOutbound;
 use systemprompt_api::services::gateway::protocol::outbound::openai_responses::OpenAiResponsesOutbound;
 use systemprompt_api::services::gateway::protocol::outbound::{
-    OutboundAdapter, OutboundCtx, OutboundOutcome, UpstreamError,
+    OutboundAdapter, OutboundCtx, OutboundError, OutboundOutcome, UpstreamError,
 };
 use systemprompt_identifiers::{ModelId, ProviderId, RouteId};
 use systemprompt_models::services::GatewayRoute;
@@ -27,7 +27,7 @@ use wiremock::{Mock, MockServer, ResponseTemplate};
 async fn send_via<A: OutboundAdapter>(
     adapter: &A,
     ctx: OutboundCtx<'_>,
-) -> anyhow::Result<OutboundOutcome> {
+) -> Result<OutboundOutcome, OutboundError> {
     let body = adapter.build_body(&ctx)?;
     adapter.send(ctx, &body).await
 }
@@ -614,9 +614,7 @@ async fn anthropic_outbound_buffered_rejects_a_body_that_does_not_parse() {
         .await
         .map(|_| ())
         .expect_err("unparsable body must fail");
-    let upstream = err
-        .downcast_ref::<UpstreamError>()
-        .expect("failure is an upstream error");
+    let upstream = err.upstream().expect("failure is an upstream error");
     match upstream {
         UpstreamError::Status {
             provider,

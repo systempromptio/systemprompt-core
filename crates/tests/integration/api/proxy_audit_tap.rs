@@ -25,14 +25,14 @@ async fn record_tool_call(
     context: systemprompt_models::RequestContext,
     server_name: &str,
     request_body: &[u8],
-) -> Result<axum::response::Response<axum::body::Body>, String> {
+) -> anyhow::Result<axum::response::Response<axum::body::Body>> {
     let invocation = parse_tool_call(request_body)
-        .ok_or_else(|| "request body is not a tools/call".to_owned())?;
+        .ok_or_else(|| anyhow::anyhow!("request body is not a tools/call"))?;
     let repo = tool_usage(pool);
     let intents: DynToolCallIntentClaims = Arc::new(AiRequestRepository::new(pool));
     let claims = IntentClaimService::new(intents, repo);
     let audit = McpAudit::new(claims, None, context, server_name.to_owned(), invocation);
-    tap::record(response, audit).await
+    Ok(tap::record(response, audit).await?)
 }
 
 fn tool_call_body(tool: &str) -> Vec<u8> {
@@ -95,9 +95,7 @@ async fn json_response_is_forwarded_and_audited_as_success() -> anyhow::Result<(
     .await;
 
     let rc = request_context("tap-user");
-    let out = record_tool_call(response, &pool, rc, "ext-server", &tool_call_body(&tool))
-        .await
-        .map_err(anyhow::Error::msg)?;
+    let out = record_tool_call(response, &pool, rc, "ext-server", &tool_call_body(&tool)).await?;
     assert_eq!(out.status(), axum::http::StatusCode::OK);
     let bytes = to_bytes(out.into_body(), 1024 * 1024).await?;
     assert_forwarded_with_execution_stamp(&bytes, &upstream_body);
@@ -128,9 +126,7 @@ async fn json_error_frame_is_audited_with_error_message() -> anyhow::Result<()> 
     .await;
 
     let rc = request_context("tap-user");
-    record_tool_call(response, &pool, rc, "ext-server", &tool_call_body(&tool))
-        .await
-        .map_err(anyhow::Error::msg)?;
+    record_tool_call(response, &pool, rc, "ext-server", &tool_call_body(&tool)).await?;
 
     let (_status, error) = wait_for_execution_row(&pool, &tool)
         .await
@@ -163,9 +159,7 @@ async fn sse_response_is_forwarded_and_matched_frame_audited() -> anyhow::Result
     .await;
 
     let rc = request_context("tap-user");
-    let out = record_tool_call(response, &pool, rc, "ext-server", &tool_call_body(&tool))
-        .await
-        .map_err(anyhow::Error::msg)?;
+    let out = record_tool_call(response, &pool, rc, "ext-server", &tool_call_body(&tool)).await?;
     assert_eq!(out.status(), axum::http::StatusCode::OK);
     let bytes = to_bytes(out.into_body(), 1024 * 1024).await?;
     let forwarded = String::from_utf8_lossy(&bytes);
@@ -199,9 +193,7 @@ async fn sse_stream_without_matching_frame_finalizes_as_unparseable() -> anyhow:
     .await;
 
     let rc = request_context("tap-user");
-    let out = record_tool_call(response, &pool, rc, "ext-server", &tool_call_body(&tool))
-        .await
-        .map_err(anyhow::Error::msg)?;
+    let out = record_tool_call(response, &pool, rc, "ext-server", &tool_call_body(&tool)).await?;
     to_bytes(out.into_body(), 1024 * 1024).await?;
 
     let (_status, error) = wait_for_execution_row(&pool, &tool)
@@ -228,9 +220,7 @@ async fn non_utf8_json_body_is_forwarded_but_not_parsed() -> anyhow::Result<()> 
     .await;
 
     let rc = request_context("tap-user");
-    let out = record_tool_call(response, &pool, rc, "ext-server", &tool_call_body(&tool))
-        .await
-        .map_err(anyhow::Error::msg)?;
+    let out = record_tool_call(response, &pool, rc, "ext-server", &tool_call_body(&tool)).await?;
     let bytes = to_bytes(out.into_body(), 1024).await?;
     assert_eq!(bytes.as_ref(), &[0xff, 0xfe, 0x00]);
 

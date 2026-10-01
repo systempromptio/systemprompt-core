@@ -14,6 +14,7 @@ use axum::extract::Request;
 use axum::http::{HeaderMap, HeaderValue, StatusCode};
 use std::sync::Arc;
 use systemprompt_api::routes::gateway::messages::dispatch::errors::build_error_response;
+use systemprompt_api::routes::gateway::messages::error::RejectionError;
 use systemprompt_api::routes::gateway::messages::extract::attribution::{
     AttributionHeaders, classify_client, entry_origin,
 };
@@ -101,8 +102,9 @@ fn user_message(text: &str) -> CanonicalMessage {
 
 #[test]
 fn a_missing_session_header_is_a_400_naming_the_header() {
-    let (status, message) =
-        require_session_id(&HeaderMap::new()).expect_err("the session header is mandatory");
+    let RejectionError {
+        status, message, ..
+    } = require_session_id(&HeaderMap::new()).expect_err("the session header is mandatory");
 
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert!(message.contains(SESSION_ID), "{message}");
@@ -111,7 +113,9 @@ fn a_missing_session_header_is_a_400_naming_the_header() {
 
 #[test]
 fn a_blank_session_header_is_rejected_rather_than_treated_as_present() {
-    let (status, message) = require_session_id(&headers_with(SESSION_ID, "   "))
+    let RejectionError {
+        status, message, ..
+    } = require_session_id(&headers_with(SESSION_ID, "   "))
         .expect_err("whitespace is not a session id");
 
     assert_eq!(status, StatusCode::BAD_REQUEST);
@@ -156,9 +160,10 @@ fn a_present_conversation_header_is_trimmed_and_returned() {
 
 #[test]
 fn a_conversation_header_that_is_not_a_ctx_id_is_a_400() {
-    let (status, message) =
-        optional_gateway_conversation_id(&headers_with(GATEWAY_CONVERSATION_ID, "conv-1"))
-            .expect_err("the conversation header is a validated typed id");
+    let RejectionError {
+        status, message, ..
+    } = optional_gateway_conversation_id(&headers_with(GATEWAY_CONVERSATION_ID, "conv-1"))
+        .expect_err("the conversation header is a validated typed id");
 
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert!(message.contains(GATEWAY_CONVERSATION_ID), "{message}");
@@ -168,7 +173,9 @@ fn a_conversation_header_that_is_not_a_ctx_id_is_a_400() {
 async fn an_unparseable_body_is_a_400_and_still_records_the_raw_bytes() {
     let mut partial = test_partial();
 
-    let (status, message) = read_gateway_body(&inbound(), post("not json"), &mut partial)
+    let RejectionError {
+        status, message, ..
+    } = read_gateway_body(&inbound(), post("not json"), &mut partial)
         .await
         .expect_err("a non-JSON body cannot become a canonical request");
 
@@ -338,7 +345,9 @@ fn a_request_without_metadata_keeps_the_prefix_hash_context() {
 fn a_body_with_no_messages_cannot_derive_a_conversation() {
     let mut partial = test_partial();
 
-    let (status, message) = derive_conversation(
+    let RejectionError {
+        status, message, ..
+    } = derive_conversation(
         &systemprompt_identifiers::UserId::new("owner-a"),
         None,
         &canonical(vec![]),
@@ -400,8 +409,9 @@ fn raw_header(name: &'static str, bytes: &[u8]) -> HeaderMap {
 fn a_session_header_that_is_not_utf8_is_a_400_rather_than_a_panic() {
     let headers = raw_header(SESSION_ID, &[0xC3, 0x28]);
 
-    let (status, message) =
-        require_session_id(&headers).expect_err("a non-UTF-8 header value cannot name a session");
+    let RejectionError {
+        status, message, ..
+    } = require_session_id(&headers).expect_err("a non-UTF-8 header value cannot name a session");
 
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert!(message.contains(SESSION_ID), "{message}");
@@ -412,7 +422,9 @@ fn a_session_header_that_is_not_utf8_is_a_400_rather_than_a_panic() {
 fn a_conversation_header_that_is_not_utf8_is_a_400() {
     let headers = raw_header(GATEWAY_CONVERSATION_ID, &[0xFF, 0xFE]);
 
-    let (status, message) = optional_gateway_conversation_id(&headers)
+    let RejectionError {
+        status, message, ..
+    } = optional_gateway_conversation_id(&headers)
         .expect_err("a non-UTF-8 conversation header cannot be decoded");
 
     assert_eq!(status, StatusCode::BAD_REQUEST);
@@ -429,7 +441,9 @@ async fn a_body_over_the_buffer_limit_is_rejected_rather_than_buffered() {
         .expect("test request must build");
     let mut partial = test_partial();
 
-    let (status, message) = read_gateway_body(&inbound(), request, &mut partial)
+    let RejectionError {
+        status, message, ..
+    } = read_gateway_body(&inbound(), request, &mut partial)
         .await
         .expect_err("a body past the buffer limit must not be read into memory");
 
@@ -461,8 +475,9 @@ fn a_malformed_client_declaration_is_a_400_that_keeps_the_value_as_evidence() {
     headers.insert("user-agent", HeaderValue::from_static("claude-cli/2.0"));
     let attribution = AttributionHeaders::capture(&headers);
     let mut partial = test_partial();
-    let (status, message) =
-        classify_client(&attribution, false, b"{}", &mut partial).expect_err("rejected");
+    let RejectionError {
+        status, message, ..
+    } = classify_client(&attribution, false, b"{}", &mut partial).expect_err("rejected");
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert!(message.contains("pi"), "{message}");
     assert_eq!(partial.origin.client, ClientKind::Other);
@@ -478,8 +493,9 @@ fn an_attestation_header_from_a_non_bridge_principal_is_a_400() {
     headers.insert(CLIENT_KIND, HeaderValue::from_static("opencode"));
     let attribution = AttributionHeaders::capture(&headers);
     let mut partial = test_partial();
-    let (status, message) =
-        classify_client(&attribution, false, b"{}", &mut partial).expect_err("rejected");
+    let RejectionError {
+        status, message, ..
+    } = classify_client(&attribution, false, b"{}", &mut partial).expect_err("rejected");
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert!(message.contains("bridge only"), "{message}");
 

@@ -27,6 +27,7 @@ use systemprompt_models::wire::origin::{ClientEvidence, RequestOrigin};
 
 use super::RequestContext;
 use super::auth::{AuthedPrincipal, authenticate};
+use super::error::RejectionError;
 use crate::services::gateway::protocol::canonical::CanonicalRequest;
 use crate::services::gateway::protocol::inbound::InboundAdapter;
 use authz::enforce_authz_pre_dispatch;
@@ -103,12 +104,12 @@ pub(super) async fn extract_request_context(
     inbound: &Arc<dyn InboundAdapter>,
     request: Request<Body>,
     partial: &mut RejectionPartial,
-) -> Result<PreparedRequest, (StatusCode, String)> {
+) -> Result<PreparedRequest, RejectionError> {
     let gateway_config = rc
         .services
         .gateway_config()
         .filter(|g| g.enabled)
-        .ok_or_else(|| (StatusCode::NOT_FOUND, "Gateway not enabled".to_owned()))?;
+        .ok_or_else(|| RejectionError::client(StatusCode::NOT_FOUND, "Gateway not enabled"))?;
 
     let presented = headers::require_credential(request.headers())?;
 
@@ -187,11 +188,11 @@ fn resolve_route<'a>(
     gateway_config: &'a GatewayConfig,
     gateway_request: &CanonicalRequest,
     partial: &mut RejectionPartial,
-) -> Result<Cow<'a, GatewayRoute>, (StatusCode, String)> {
+) -> Result<Cow<'a, GatewayRoute>, RejectionError> {
     let route = gateway_config
         .resolve_route(&rc.services.providers, gateway_request)
         .ok_or_else(|| {
-            (
+            RejectionError::client(
                 StatusCode::NOT_FOUND,
                 format!("No gateway route matches model '{}'", gateway_request.model),
             )
@@ -210,23 +211,22 @@ pub fn derive_conversation(
     header_gateway_conversation: Option<GatewayConversationId>,
     gateway_request: &CanonicalRequest,
     partial: &mut RejectionPartial,
-) -> Result<(GatewayConversationId, ContextId, Option<ClientSessionId>), (StatusCode, String)> {
+) -> Result<(GatewayConversationId, ContextId, Option<ClientSessionId>), RejectionError> {
     let header_supplied = header_gateway_conversation.is_some();
     let gateway_conversation_id = match header_gateway_conversation {
         Some(c) => c,
         None => gateway_request
             .derived_gateway_conversation_id()
             .ok_or_else(|| {
-                (
+                RejectionError::client(
                     StatusCode::BAD_REQUEST,
-                    "request body has no messages; cannot derive gateway conversation id"
-                        .to_owned(),
+                    "request body has no messages; cannot derive gateway conversation id",
                 )
             })?,
     };
     let client_session_id = gateway_request
         .client_session_id()
-        .map_err(|error| (StatusCode::BAD_REQUEST, error.to_string()))?;
+        .map_err(|error| RejectionError::invalid(StatusCode::BAD_REQUEST, error))?;
     let context_id = match (&client_session_id, header_supplied) {
         (Some(session), false) => ContextId::derived_from_client_session(session),
         _ => ContextId::derived_from_gateway_conversation(user_id, &gateway_conversation_id),
@@ -259,7 +259,7 @@ async fn ensure_owned_context(
     user_id: &UserId,
     context_id: &ContextId,
     session_id: &SessionId,
-) -> Result<(), (StatusCode, String)> {
+) -> Result<(), RejectionError> {
     rc.repos
         .context_materializer
         .ensure_context(systemprompt_traits::EnsureContextParams {
@@ -271,10 +271,10 @@ async fn ensure_owned_context(
         })
         .await
         .map_err(|error| {
-            tracing::error!(%error, "Conversation binding unavailable");
-            (
+            RejectionError::server(
                 StatusCode::SERVICE_UNAVAILABLE,
-                "Conversation binding unavailable".to_owned(),
+                "conversation binding unavailable",
             )
+            .with_cause(error)
         })
 }

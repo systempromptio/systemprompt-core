@@ -19,7 +19,7 @@ use systemprompt_models::{ApiError, Config, RequestContext};
 use systemprompt_runtime::AppContext;
 use tracing::error;
 
-use crate::error::internal_api_error;
+use crate::error::ApiHttpError;
 
 pub async fn redirect_handler(
     State(repositories): State<Arc<ContentRepositories>>,
@@ -37,7 +37,7 @@ pub async fn redirect_handler(
         Ok(None) => {
             return ApiError::not_found("Link not found").into_response();
         },
-        Err(e) => return internal_api_error("Link operation failed", &e).into_response(),
+        Err(e) => return ApiHttpError::from(e).into_response(),
     };
 
     let track_params = systemprompt_content::TrackClickParams::new(
@@ -113,9 +113,7 @@ pub async fn generate_link_handler(
         Ok(link) => {
             let base_url = match Config::get() {
                 Ok(c) => c.api_external_url.clone(),
-                Err(e) => {
-                    return internal_api_error("Configuration unavailable", &e).into_response();
-                },
+                Err(e) => return ApiHttpError::from(e).into_response(),
             };
             let redirect_url = LinkGenerationService::build_trackable_url(&link, &base_url);
             let full_url = link.get_full_url();
@@ -128,7 +126,7 @@ pub async fn generate_link_handler(
             })
             .into_response()
         },
-        Err(e) => internal_api_error("Link operation failed", &e).into_response(),
+        Err(e) => ApiHttpError::from(e).into_response(),
     }
 }
 
@@ -147,7 +145,7 @@ pub async fn get_link_performance_handler(
     match analytics_service.get_link_performance(&link_id).await {
         Ok(Some(performance)) => Json(performance).into_response(),
         Ok(None) => ApiError::not_found("Link not found").into_response(),
-        Err(e) => internal_api_error("Link operation failed", &e).into_response(),
+        Err(e) => ApiHttpError::from(e).into_response(),
     }
 }
 
@@ -169,7 +167,7 @@ pub async fn get_campaign_performance_handler(
     {
         Ok(Some(performance)) => Json(performance).into_response(),
         Ok(None) => ApiError::not_found("Campaign not found").into_response(),
-        Err(e) => internal_api_error("Link operation failed", &e).into_response(),
+        Err(e) => ApiHttpError::from(e).into_response(),
     }
 }
 
@@ -189,7 +187,7 @@ pub async fn get_content_journey_handler(
         .await
     {
         Ok(journey) => Json(journey).into_response(),
-        Err(e) => internal_api_error("Link operation failed", &e).into_response(),
+        Err(e) => ApiHttpError::from(e).into_response(),
     }
 }
 
@@ -208,7 +206,7 @@ pub async fn list_links_handler(
         let campaign_id = CampaignId::new(campaign_id);
         match analytics_service.get_links_by_campaign(&campaign_id).await {
             Ok(links) => Json(links).into_response(),
-            Err(e) => internal_api_error("Link operation failed", &e).into_response(),
+            Err(e) => ApiHttpError::from(e).into_response(),
         }
     } else if let Some(source_content_id) = query.source_content_id {
         let source_content_id = ContentId::new(source_content_id);
@@ -217,7 +215,7 @@ pub async fn list_links_handler(
             .await
         {
             Ok(links) => Json(links).into_response(),
-            Err(e) => internal_api_error("Link operation failed", &e).into_response(),
+            Err(e) => ApiHttpError::from(e).into_response(),
         }
     } else {
         ApiError::bad_request("Must provide either campaign_id or source_content_id")
@@ -243,6 +241,6 @@ pub async fn get_link_clicks_handler(
         .await
     {
         Ok(clicks) => Json(clicks).into_response(),
-        Err(e) => internal_api_error("Link operation failed", &e).into_response(),
+        Err(e) => ApiHttpError::from(e).into_response(),
     }
 }

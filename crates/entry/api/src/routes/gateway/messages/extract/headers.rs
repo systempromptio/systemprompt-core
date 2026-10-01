@@ -13,62 +13,57 @@ use systemprompt_identifiers::{GatewayConversationId, SessionId};
 use systemprompt_models::wire::anthropic as wire_anthropic;
 
 use super::RejectionPartial;
+use crate::routes::gateway::messages::error::RejectionError;
 use crate::services::gateway::protocol::canonical::CanonicalRequest;
 use crate::services::gateway::protocol::inbound::InboundAdapter;
 
-pub fn require_session_id(headers: &HeaderMap) -> Result<SessionId, (StatusCode, String)> {
+pub fn require_session_id(headers: &HeaderMap) -> Result<SessionId, RejectionError> {
     require_typed_header(headers, SESSION_ID, SessionId::new)
 }
 
 pub fn optional_gateway_conversation_id(
     headers: &HeaderMap,
-) -> Result<Option<GatewayConversationId>, (StatusCode, String)> {
+) -> Result<Option<GatewayConversationId>, RejectionError> {
     let Some(raw) = headers.get(GATEWAY_CONVERSATION_ID) else {
         return Ok(None);
     };
-    let raw = raw.to_str().map_err(|e| {
-        (
-            StatusCode::BAD_REQUEST,
-            format!("invalid {} header: {e}", GATEWAY_CONVERSATION_ID),
-        )
-    })?;
+    let raw = raw
+        .to_str()
+        .map_err(|e| invalid_header(GATEWAY_CONVERSATION_ID).with_cause(e))?;
     let trimmed = raw.trim();
     if trimmed.is_empty() {
         return Ok(None);
     }
     GatewayConversationId::try_new(trimmed.to_owned())
         .map(Some)
-        .map_err(|e| {
-            (
-                StatusCode::BAD_REQUEST,
-                format!("invalid {} header: {e}", GATEWAY_CONVERSATION_ID),
-            )
-        })
+        .map_err(|e| invalid_header(GATEWAY_CONVERSATION_ID).with_cause(e))
+}
+
+fn invalid_header(name: &str) -> RejectionError {
+    RejectionError::client(StatusCode::BAD_REQUEST, format!("invalid {name} header"))
 }
 
 fn require_typed_header<T>(
     headers: &HeaderMap,
     name: &'static str,
     ctor: fn(String) -> T,
-) -> Result<T, (StatusCode, String)> {
+) -> Result<T, RejectionError> {
     let raw = headers
         .get(name)
         .ok_or_else(|| {
-            (
+            RejectionError::client(
                 StatusCode::BAD_REQUEST,
                 format!("missing required {name} header"),
             )
         })?
         .to_str()
-        .map_err(|e| {
-            (
-                StatusCode::BAD_REQUEST,
-                format!("invalid {name} header: {e}"),
-            )
-        })?;
+        .map_err(|e| invalid_header(name).with_cause(e))?;
     let trimmed = raw.trim();
     if trimmed.is_empty() {
-        return Err((StatusCode::BAD_REQUEST, format!("empty {name} header")));
+        return Err(RejectionError::client(
+            StatusCode::BAD_REQUEST,
+            format!("empty {name} header"),
+        ));
     }
     Ok(ctor(trimmed.to_owned()))
 }
@@ -77,26 +72,20 @@ pub async fn read_gateway_body(
     inbound: &Arc<dyn InboundAdapter>,
     request: Request<Body>,
     partial: &mut RejectionPartial,
-) -> Result<(Bytes, CanonicalRequest), (StatusCode, String)> {
+) -> Result<(Bytes, CanonicalRequest), RejectionError> {
     let body_bytes = axum::body::to_bytes(
         request.into_body(),
         systemprompt_models::wire::BUFFERED_BODY_LIMIT_BYTES,
     )
     .await
     .map_err(|e| {
-        (
-            StatusCode::BAD_REQUEST,
-            format!("failed to read request body: {e}"),
-        )
+        RejectionError::client(StatusCode::BAD_REQUEST, "failed to read request body").with_cause(e)
     })?;
     partial.body = Some(body_bytes.clone());
 
-    let canonical = inbound.parse_request(&body_bytes).map_err(|e| {
-        (
-            StatusCode::BAD_REQUEST,
-            format!("invalid request body: {e}"),
-        )
-    })?;
+    let canonical = inbound
+        .parse_request(&body_bytes)
+        .map_err(|e| RejectionError::invalid(StatusCode::BAD_REQUEST, e))?;
     partial.model = Some(canonical.model.to_string());
     partial.max_tokens = Some(canonical.max_tokens);
     partial.is_streaming = canonical.stream;
@@ -142,11 +131,11 @@ pub fn extract_credential(headers: &HeaderMap) -> Option<String> {
     }
 }
 
-pub(super) fn require_credential(headers: &HeaderMap) -> Result<String, (StatusCode, String)> {
+pub(super) fn require_credential(headers: &HeaderMap) -> Result<String, RejectionError> {
     extract_credential(headers).ok_or_else(|| {
-        (
+        RejectionError::client(
             StatusCode::UNAUTHORIZED,
-            "Missing Authorization or x-api-key credential".to_owned(),
+            "Missing Authorization or x-api-key credential",
         )
     })
 }

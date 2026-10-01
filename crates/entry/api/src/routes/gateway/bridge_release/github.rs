@@ -4,9 +4,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use axum::http::{StatusCode, header};
+use axum::http::header;
 use serde::Deserialize;
 use systemprompt_models::services::BridgeReleasesSpec;
+
+use super::error::ReleaseError;
 
 const RELEASE_PAGE_SIZE: u8 = 30;
 
@@ -34,7 +36,7 @@ pub(super) struct GhAsset {
 pub(super) async fn resolve_release(
     http: &reqwest::Client,
     spec: &BridgeReleasesSpec,
-) -> Result<GhRelease, (StatusCode, String)> {
+) -> Result<GhRelease, ReleaseError> {
     if let Some(pinned) = spec.pinned_version.as_deref() {
         let tag = format!("{}{pinned}", spec.tag_prefix);
         let url = format!(
@@ -54,11 +56,9 @@ pub(super) async fn resolve_release(
     releases
         .into_iter()
         .find(|r| !r.draft && !r.prerelease && r.tag_name.starts_with(&spec.tag_prefix))
-        .ok_or_else(|| {
-            (
-                StatusCode::NOT_FOUND,
-                format!("no {}* release found in {}", spec.tag_prefix, spec.repo),
-            )
+        .ok_or_else(|| ReleaseError::NoRelease {
+            prefix: spec.tag_prefix.clone(),
+            repo: spec.repo.clone(),
         })
 }
 
@@ -75,21 +75,24 @@ pub(super) async fn asset_digest(
     spec: &BridgeReleasesSpec,
     sums_url: &str,
     asset_name: &str,
-) -> Result<String, (StatusCode, String)> {
+) -> Result<String, ReleaseError> {
     let body = github(http, spec, sums_url)?
         .header(header::ACCEPT, "application/octet-stream")
         .send()
         .await
-        .map_err(|e| (StatusCode::BAD_GATEWAY, format!("SHA256SUMS fetch: {e}")))?
+        .map_err(|source| ReleaseError::Request {
+            stage: "SHA256SUMS fetch",
+            source,
+        })?
         .text()
         .await
-        .map_err(|e| (StatusCode::BAD_GATEWAY, format!("SHA256SUMS read: {e}")))?;
+        .map_err(|source| ReleaseError::Request {
+            stage: "SHA256SUMS read",
+            source,
+        })?;
 
-    parse_sha256sums(&body, asset_name).ok_or_else(|| {
-        (
-            StatusCode::BAD_GATEWAY,
-            format!("SHA256SUMS has no entry for {asset_name}"),
-        )
+    parse_sha256sums(&body, asset_name).ok_or_else(|| ReleaseError::ChecksumMissing {
+        asset: asset_name.to_owned(),
     })
 }
 
@@ -105,27 +108,34 @@ async fn fetch_json<T: serde::de::DeserializeOwned>(
     http: &reqwest::Client,
     spec: &BridgeReleasesSpec,
     url: &str,
-) -> Result<T, (StatusCode, String)> {
+) -> Result<T, ReleaseError> {
     let resp = github(http, spec, url)?
         .send()
         .await
-        .map_err(|e| (StatusCode::BAD_GATEWAY, format!("github request: {e}")))?;
+        .map_err(|source| ReleaseError::Request {
+            stage: "github request",
+            source,
+        })?;
     if !resp.status().is_success() {
-        return Err((
-            StatusCode::BAD_GATEWAY,
-            format!("github returned {} for {url}", resp.status()),
-        ));
+        tracing::debug!(url, status = %resp.status(), "github refused the release lookup");
+        return Err(ReleaseError::UpstreamStatus {
+            stage: "github request",
+            status: resp.status(),
+        });
     }
     resp.json::<T>()
         .await
-        .map_err(|e| (StatusCode::BAD_GATEWAY, format!("github decode: {e}")))
+        .map_err(|source| ReleaseError::Request {
+            stage: "github decode",
+            source,
+        })
 }
 
 pub(super) fn github(
     http: &reqwest::Client,
     spec: &BridgeReleasesSpec,
     url: &str,
-) -> Result<reqwest::RequestBuilder, (StatusCode, String)> {
+) -> Result<reqwest::RequestBuilder, ReleaseError> {
     let mut req = http
         .get(url)
         // Why: GitHub rejects requests that send no User-Agent.
@@ -137,17 +147,13 @@ pub(super) fn github(
     Ok(req)
 }
 
-fn release_token(key: &str) -> Result<String, (StatusCode, String)> {
-    let secrets = systemprompt_config::SecretsBootstrap::get().map_err(|e| {
-        (
-            StatusCode::SERVICE_UNAVAILABLE,
-            format!("bridge release token secret unavailable: {e}"),
-        )
-    })?;
-    secrets.get(key).cloned().ok_or_else(|| {
-        (
-            StatusCode::SERVICE_UNAVAILABLE,
-            format!("bridge release token secret {key} is not configured"),
-        )
-    })
+fn release_token(key: &str) -> Result<String, ReleaseError> {
+    let secrets =
+        systemprompt_config::SecretsBootstrap::get().map_err(ReleaseError::SecretsUnavailable)?;
+    secrets
+        .get(key)
+        .cloned()
+        .ok_or_else(|| ReleaseError::TokenNotConfigured {
+            key: key.to_owned(),
+        })
 }

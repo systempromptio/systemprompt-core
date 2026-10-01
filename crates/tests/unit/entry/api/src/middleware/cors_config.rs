@@ -10,11 +10,11 @@ use systemprompt_api::services::middleware::CorsError;
 fn invalid_origin_error_display() {
     let err = CorsError::InvalidOrigin {
         origin: "bad\norigin".to_string(),
-        reason: "invalid characters".to_string(),
+        source: "bad\norigin".parse::<http::HeaderValue>().unwrap_err(),
     };
     let msg = format!("{}", err);
     assert!(msg.contains("bad\norigin"));
-    assert!(msg.contains("invalid characters"));
+    assert!(std::error::Error::source(&err).is_some());
 }
 
 #[test]
@@ -28,7 +28,7 @@ fn empty_origins_error_display() {
 fn invalid_origin_error_contains_origin() {
     let err = CorsError::InvalidOrigin {
         origin: "http://example .com".to_string(),
-        reason: "contains space".to_string(),
+        source: "bad\norigin".parse::<http::HeaderValue>().unwrap_err(),
     };
     let msg = format!("{}", err);
     assert!(msg.contains("http://example .com"));

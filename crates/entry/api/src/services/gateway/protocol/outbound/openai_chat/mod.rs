@@ -9,13 +9,12 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use anyhow::{Result, anyhow};
 use async_trait::async_trait;
 use serde_json::Value;
 use systemprompt_models::services::WireProtocol;
 use systemprompt_models::wire::openai_chat as codec;
 
-use super::{OutboundAdapter, OutboundCtx, OutboundOutcome, PreparedBody};
+use super::{OutboundAdapter, OutboundCtx, OutboundError, OutboundOutcome, PreparedBody};
 
 pub mod raw;
 
@@ -24,7 +23,7 @@ pub struct OpenAiChatOutbound;
 
 #[async_trait]
 impl OutboundAdapter for OpenAiChatOutbound {
-    fn build_body(&self, ctx: &OutboundCtx<'_>) -> Result<PreparedBody> {
+    fn build_body(&self, ctx: &OutboundCtx<'_>) -> Result<PreparedBody, OutboundError> {
         if let Some(raw) = ctx.raw_body
             && let Some(bytes) = raw::normalize_raw_body(raw, ctx)
         {
@@ -40,13 +39,20 @@ impl OutboundAdapter for OpenAiChatOutbound {
                     ctx.upstream_model,
                     ctx.model_limits,
                 ))
-                .map_err(|e| anyhow!("render request body: {e}"))?,
+                .map_err(|source| OutboundError::RenderBody {
+                    wire: "openai-chat",
+                    source,
+                })?,
             ),
             raw_lane: false,
         })
     }
 
-    async fn send(&self, ctx: OutboundCtx<'_>, body: &PreparedBody) -> Result<OutboundOutcome> {
+    async fn send(
+        &self,
+        ctx: OutboundCtx<'_>,
+        body: &PreparedBody,
+    ) -> Result<OutboundOutcome, OutboundError> {
         let url = ctx.upstream.url(
             WireProtocol::OpenAiChat,
             ctx.upstream_model,
@@ -71,9 +77,15 @@ impl OutboundAdapter for OpenAiChatOutbound {
         let bytes = upstream_response
             .bytes()
             .await
-            .map_err(|e| anyhow!("Failed to read OpenAI response: {e}"))?;
-        let value: Value = serde_json::from_slice(&bytes)
-            .map_err(|e| anyhow!("OpenAI response not valid JSON: {e}"))?;
+            .map_err(|source| OutboundError::ReadBody {
+                wire: "openai-chat",
+                source,
+            })?;
+        let value: Value =
+            serde_json::from_slice(&bytes).map_err(|source| OutboundError::DecodeBody {
+                wire: "openai-chat",
+                source,
+            })?;
         if let Some(defect) = codec::buffered_defect(&value) {
             return Err(super::reject_defective_body(
                 ctx.route.provider.as_str(),

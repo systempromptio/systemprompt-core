@@ -8,20 +8,19 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use anyhow::{Result, anyhow};
 use async_trait::async_trait;
 use serde_json::Value;
 use systemprompt_models::services::WireProtocol;
 use systemprompt_models::wire::openai_responses as codec;
 
-use super::{OutboundAdapter, OutboundCtx, OutboundOutcome, PreparedBody};
+use super::{OutboundAdapter, OutboundCtx, OutboundError, OutboundOutcome, PreparedBody};
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct OpenAiResponsesOutbound;
 
 #[async_trait]
 impl OutboundAdapter for OpenAiResponsesOutbound {
-    fn build_body(&self, ctx: &OutboundCtx<'_>) -> Result<PreparedBody> {
+    fn build_body(&self, ctx: &OutboundCtx<'_>) -> Result<PreparedBody, OutboundError> {
         Ok(PreparedBody {
             bytes: bytes::Bytes::from(
                 serde_json::to_vec(&codec::build_request_body(
@@ -29,13 +28,20 @@ impl OutboundAdapter for OpenAiResponsesOutbound {
                     ctx.upstream_model,
                     ctx.model_limits,
                 ))
-                .map_err(|e| anyhow!("render request body: {e}"))?,
+                .map_err(|source| OutboundError::RenderBody {
+                    wire: "openai-responses",
+                    source,
+                })?,
             ),
             raw_lane: false,
         })
     }
 
-    async fn send(&self, ctx: OutboundCtx<'_>, body: &PreparedBody) -> Result<OutboundOutcome> {
+    async fn send(
+        &self,
+        ctx: OutboundCtx<'_>,
+        body: &PreparedBody,
+    ) -> Result<OutboundOutcome, OutboundError> {
         let url = ctx.upstream.url(
             WireProtocol::OpenAiResponses,
             ctx.upstream_model,
@@ -60,9 +66,15 @@ impl OutboundAdapter for OpenAiResponsesOutbound {
         let bytes = upstream_response
             .bytes()
             .await
-            .map_err(|e| anyhow!("Failed to read Responses body: {e}"))?;
-        let value: Value = serde_json::from_slice(&bytes)
-            .map_err(|e| anyhow!("Responses body not valid JSON: {e}"))?;
+            .map_err(|source| OutboundError::ReadBody {
+                wire: "openai-responses",
+                source,
+            })?;
+        let value: Value =
+            serde_json::from_slice(&bytes).map_err(|source| OutboundError::DecodeBody {
+                wire: "openai-responses",
+                source,
+            })?;
         if let Some(defect) = codec::buffered_defect(&value) {
             return Err(super::reject_defective_body(
                 ctx.route.provider.as_str(),

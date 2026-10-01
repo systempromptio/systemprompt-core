@@ -37,14 +37,15 @@ async fn harness() -> Harness {
 
 async fn reject(credential: &str) -> (StatusCode, String) {
     let harness = harness().await;
-    authenticate(
+    let rejection = authenticate(
         credential,
         &SessionId::generate(),
         &harness.extractor,
         &harness.ctx,
     )
     .await
-    .expect_err("an unissued credential must never authenticate")
+    .expect_err("an unissued credential must never authenticate");
+    (rejection.status, rejection.message)
 }
 
 #[tokio::test]
