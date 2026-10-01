@@ -60,13 +60,14 @@ impl ServiceResolver {
                     tracing::error!(service = %service_name, error = ?error, "Failed to restart service");
                 }
                 if restart.is_ok() {
-                    let restarted = service_repo
-                        .find_service_by_name(&name)
-                        .await
-                        .map_err(|e| ProxyError::DatabaseError {
-                            service: service_name.to_owned(),
-                            source: e,
-                        })?;
+                    let restarted =
+                        service_repo
+                            .find_service_by_name(&name)
+                            .await
+                            .map_err(|e| ProxyError::DatabaseError {
+                                service: service_name.to_owned(),
+                                source: e,
+                            })?;
 
                     if let Some(restarted) = restarted
                         && restarted.status == ServiceStatus::Running

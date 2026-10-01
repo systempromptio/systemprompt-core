@@ -90,7 +90,9 @@ async fn stop_agents(
     force: bool,
     quiet: bool,
 ) -> Result<usize> {
-    let agents = service_mgmt.get_services_by_type(ServiceModule::Agent).await?;
+    let agents = service_mgmt
+        .get_services_by_type(ServiceModule::Agent)
+        .await?;
 
     if agents.is_empty() {
         if !quiet {
@@ -119,7 +121,9 @@ async fn stop_mcp_servers(
     force: bool,
     quiet: bool,
 ) -> Result<usize> {
-    let servers = service_mgmt.get_services_by_type(ServiceModule::Mcp).await?;
+    let servers = service_mgmt
+        .get_services_by_type(ServiceModule::Mcp)
+        .await?;
 
     if servers.is_empty() {
         if !quiet {

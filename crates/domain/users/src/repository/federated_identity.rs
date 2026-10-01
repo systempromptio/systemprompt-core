@@ -10,9 +10,8 @@ use systemprompt_identifiers::UserId;
 use systemprompt_traits::FederatedIdentityClaims;
 
 use crate::error::Result;
-use crate::models::{User, UserRole, UserStatus, normalise_email};
+use crate::models::{User, UserRole, UserRow, UserStatus, normalise_email};
 use crate::repository::UserRepository;
-use crate::models::UserRow;
 
 impl UserRepository {
     pub async fn find_federated(&self, issuer: &str, external_sub: &str) -> Result<Option<UserId>> {
@@ -56,7 +55,8 @@ impl UserRepository {
                 existing.user_id
             )
             .fetch_one(&mut *tx)
-            .await.map(User::from)?;
+            .await
+            .map(User::from)?;
             tx.commit().await?;
             return Ok(user);
         }
@@ -92,7 +92,8 @@ impl UserRepository {
             fields.now,
         )
         .fetch_one(&mut *tx)
-        .await.map(User::from)?;
+        .await
+        .map(User::from)?;
 
         sqlx::query!(
             "INSERT INTO federated_identities (issuer, external_sub, user_id) VALUES ($1, $2, $3)",
@@ -134,7 +135,8 @@ async fn link_by_verified_email(
         deleted_status
     )
     .fetch_optional(&mut **tx)
-    .await.map(|row| row.map(User::from))?
+    .await
+    .map(|row| row.map(User::from))?
     else {
         return Ok(None);
     };

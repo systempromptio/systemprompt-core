@@ -7,9 +7,8 @@ use chrono::Utc;
 use systemprompt_identifiers::UserId;
 
 use crate::error::Result;
-use crate::models::{User, UserRole, UserStatus, normalise_email};
+use crate::models::{User, UserRole, UserRow, UserStatus, normalise_email};
 use crate::repository::UserRepository;
-use crate::models::UserRow;
 
 #[derive(Debug)]
 pub struct UpdateUserParams<'a> {
@@ -56,7 +55,8 @@ impl UserRepository {
             now
         )
         .fetch_one(&*self.write_pool)
-        .await.map(User::from)?;
+        .await
+        .map(User::from)?;
 
         Ok(row)
     }
@@ -98,7 +98,8 @@ impl UserRepository {
             now
         )
         .fetch_optional(&*self.write_pool)
-        .await.map(|row| row.map(User::from))?;
+        .await
+        .map(|row| row.map(User::from))?;
 
         Ok(row)
     }
@@ -117,7 +118,8 @@ impl UserRepository {
             email
         )
         .fetch_optional(&*self.pool)
-        .await.map(|row| row.map(User::from))?
+        .await
+        .map(|row| row.map(User::from))?
         {
             return Ok(existing);
         }
@@ -149,7 +151,8 @@ impl UserRepository {
             now
         )
         .fetch_one(&*self.write_pool)
-        .await.map(User::from)?;
+        .await
+        .map(User::from)?;
 
         Ok(row)
     }

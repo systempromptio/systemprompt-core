@@ -1,7 +1,7 @@
-//! Expansion of the `checked` and `uuid` arms of [`define_id!`](crate::define_id):
-//! a trusted `new`, a validating `try_new`, validating `Deserialize`/`FromStr`,
-//! and no `From<String>`. The `uuid` arm adds `generate`, `from_uuid` and
-//! `to_uuid`.
+//! Expansion of the `checked` and `uuid` arms of
+//! [`define_id!`](crate::define_id): a trusted `new`, a validating `try_new`,
+//! validating `Deserialize`/`FromStr`, and no `From<String>`. The `uuid` arm
+//! adds `generate`, `from_uuid` and `to_uuid`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -10,7 +10,17 @@
 #[macro_export]
 macro_rules! __define_id_checked {
     ($name:ident, $validator:expr) => {
-        #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, schemars::JsonSchema)]
+        #[derive(
+            Debug,
+            Clone,
+            PartialEq,
+            Eq,
+            PartialOrd,
+            Ord,
+            Hash,
+            serde::Serialize,
+            schemars::JsonSchema,
+        )]
         #[cfg_attr(feature = "sqlx", derive(sqlx::Type))]
         #[cfg_attr(feature = "sqlx", sqlx(transparent))]
         #[serde(transparent)]
@@ -21,9 +31,12 @@ macro_rules! __define_id_checked {
                 Self(id.into())
             }
 
-            pub fn try_new(value: impl Into<String>) -> Result<Self, $crate::error::IdValidationError> {
+            pub fn try_new(
+                value: impl Into<String>,
+            ) -> Result<Self, $crate::error::IdValidationError> {
                 let value = value.into();
-                let validator: fn(&str) -> Result<(), $crate::error::IdValidationError> = $validator;
+                let validator: fn(&str) -> Result<(), $crate::error::IdValidationError> =
+                    $validator;
                 validator(&value)?;
                 Ok(Self(value))
             }

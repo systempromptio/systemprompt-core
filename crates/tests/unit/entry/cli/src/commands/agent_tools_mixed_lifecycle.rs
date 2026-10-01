@@ -10,7 +10,9 @@ use systemprompt_cli::paths::ResolvedPaths;
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_cloud::{CliSession, SessionBinding, SessionIdentity, SessionKey, SessionStore};
 use systemprompt_database::{CreateServiceInput, ServiceModule, ServiceStatus};
-use systemprompt_identifiers::{ContextId, Email, ProfileName, ServiceName, SessionId, SessionToken};
+use systemprompt_identifiers::{
+    ContextId, Email, ProfileName, ServiceName, SessionId, SessionToken,
+};
 use systemprompt_models::auth::UserType;
 use systemprompt_models::profile::PathsConfig;
 use systemprompt_test_fixtures::{

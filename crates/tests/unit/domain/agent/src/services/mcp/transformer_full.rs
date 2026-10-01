@@ -49,7 +49,11 @@ fn transform_builds_artifact() {
     assert_eq!(artifact.title.as_deref(), Some("writer-tool"));
     assert_eq!(artifact.metadata.artifact_type, "text");
     assert_eq!(
-        artifact.metadata.mcp_execution_id.as_ref().map(|id| id.as_str()),
+        artifact
+            .metadata
+            .mcp_execution_id
+            .as_ref()
+            .map(|id| id.as_str()),
         Some("exec-xform-1")
     );
     assert!(
@@ -154,7 +158,11 @@ fn transform_falls_back_to_meta_execution_id() {
     })
     .expect("transform");
     assert_eq!(
-        artifact.metadata.mcp_execution_id.as_ref().map(|id| id.as_str()),
+        artifact
+            .metadata
+            .mcp_execution_id
+            .as_ref()
+            .map(|id| id.as_str()),
         Some("fallback-exec")
     );
 }

@@ -24,7 +24,8 @@ impl AuthenticationService {
             jwt_validation::validate_jwt_token(&token, &config.jwt_issuer, &config.jwt_audiences)
                 .map_err(|_e| StatusCode::UNAUTHORIZED)?;
 
-        let user_id = UserId::try_new(claims.sub.as_str()).map_err(|_e| StatusCode::UNAUTHORIZED)?;
+        let user_id =
+            UserId::try_new(claims.sub.as_str()).map_err(|_e| StatusCode::UNAUTHORIZED)?;
         let permissions = claims.get_permissions();
         let roles = claims.roles().to_vec();
 

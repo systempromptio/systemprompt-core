@@ -127,7 +127,12 @@ fn service_row_is_stale_across_statuses() {
         "running with no pid is stale"
     );
     assert!(
-        service_row_is_stale(ServiceStatus::Running, Some(dead_pid()), MCP_SERVICE_ID_ENV, "svc"),
+        service_row_is_stale(
+            ServiceStatus::Running,
+            Some(dead_pid()),
+            MCP_SERVICE_ID_ENV,
+            "svc"
+        ),
         "running with a dead pid is stale"
     );
     assert!(
@@ -174,7 +179,8 @@ async fn shutdown_drain_clears_dead_and_recycled_children() -> anyhow::Result<()
         &recycled,
         ServiceStatus::Running,
         Some(std::process::id() as i32),
-    ).await?;
+    )
+    .await?;
 
     shutdown::terminate_children(&ctx).await;
 

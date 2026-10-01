@@ -14,14 +14,24 @@ const NAME: &str = "some-service";
 // There is nothing to check liveness against, so it cannot be trusted.
 #[test]
 fn a_running_row_without_a_pid_is_stale() {
-    assert!(service_row_is_stale(ServiceStatus::Running, None, KEY, NAME));
+    assert!(service_row_is_stale(
+        ServiceStatus::Running,
+        None,
+        KEY,
+        NAME
+    ));
 }
 
 // Why: PIDs are unsigned. A negative value is a corrupt row, not a process —
 // it must be reaped rather than silently converted.
 #[test]
 fn a_running_row_with_a_negative_pid_is_stale() {
-    assert!(service_row_is_stale(ServiceStatus::Running, Some(-1), KEY, NAME));
+    assert!(service_row_is_stale(
+        ServiceStatus::Running,
+        Some(-1),
+        KEY,
+        NAME
+    ));
 }
 
 #[test]

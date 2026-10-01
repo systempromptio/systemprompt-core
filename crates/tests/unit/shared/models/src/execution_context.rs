@@ -60,7 +60,10 @@ fn the_optional_fields_are_omitted_only_when_they_carry_nothing() {
 
     assert!(json.get("act_chain").is_none(), "an empty chain is omitted");
     assert!(json.get("jti").is_none(), "an absent jti is omitted");
-    assert!(json.get("token_exp").is_none(), "an absent expiry is omitted");
+    assert!(
+        json.get("token_exp").is_none(),
+        "an absent expiry is omitted"
+    );
 
     let mut populated = auth_context();
     populated.jti = Some(AccessTokenId::new("jti-1"));

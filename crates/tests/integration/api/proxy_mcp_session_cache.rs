@@ -72,7 +72,10 @@ async fn enrich_with_cached_session_adopts_cached_identity() {
     let rc = request_context("session-hit");
     let enriched = enrich_with_cached_identity(&cache, &headers, rc, "svc").await;
     assert_eq!(enriched.user_id().to_string(), user.to_string());
-    assert_eq!(enriched.auth_token().map(JwtToken::as_str), Some("cached-token"));
+    assert_eq!(
+        enriched.auth_token().map(JwtToken::as_str),
+        Some("cached-token")
+    );
 }
 
 #[tokio::test]

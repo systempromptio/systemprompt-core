@@ -91,7 +91,9 @@ fn a_non_uuid_user_id_header_is_rejected() {
 
 #[test]
 fn authorization_header_carries_bearer_prefix() {
-    let hdrs = base_context().with_auth_token(JwtToken::new("abc")).to_headers();
+    let hdrs = base_context()
+        .with_auth_token(JwtToken::new("abc"))
+        .to_headers();
     assert_eq!(
         hdrs.get(headers::AUTHORIZATION).unwrap().to_str().unwrap(),
         "Bearer abc"

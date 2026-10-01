@@ -15,7 +15,13 @@ fn wire_ids_are_the_bridge_host_ids() {
     let ids: Vec<&str> = HostKind::ALL.map(HostKind::as_str).to_vec();
     assert_eq!(
         ids,
-        ["claude-code", "claude-desktop", "codex-cli", "hermes", "opencode"]
+        [
+            "claude-code",
+            "claude-desktop",
+            "codex-cli",
+            "hermes",
+            "opencode"
+        ]
     );
 }
 

@@ -584,6 +584,9 @@ async fn token_client_credentials_non_uuid_owner_is_issued() -> anyhow::Result<(
         StatusCode::OK,
         "a non-UUID owner id is a valid user id and must be issued a token; got {s} {v}"
     );
-    assert!(v["access_token"].as_str().is_some_and(|t| !t.is_empty()), "{v}");
+    assert!(
+        v["access_token"].as_str().is_some_and(|t| !t.is_empty()),
+        "{v}"
+    );
     Ok(())
 }

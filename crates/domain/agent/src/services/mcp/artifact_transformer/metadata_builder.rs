@@ -12,8 +12,8 @@
 
 use crate::error::ArtifactError;
 use serde_json::{Value as JsonValue, json};
-use systemprompt_models::artifacts::types::ArtifactType;
 use systemprompt_identifiers::McpExecutionId;
+use systemprompt_models::artifacts::types::ArtifactType;
 use systemprompt_models::{ArtifactMetadata, ContextId, TaskId};
 
 #[derive(Debug)]

@@ -84,12 +84,7 @@ fn extract_user_context_success() {
 #[test]
 fn extract_user_context_admin() {
     let sid = SessionId::generate();
-    let token = mint_custom(
-        ADMIN,
-        Some(sid),
-        vec![Permission::Admin],
-        UserType::Admin,
-    );
+    let token = mint_custom(ADMIN, Some(sid), vec![Permission::Admin], UserType::Admin);
 
     let ctx = extract_user_context(&token, ISSUER).expect("extract admin");
     assert_eq!(ctx.user_type, UserType::Admin);

@@ -1,7 +1,7 @@
 //! Tests for WebAuthn service data types: LinkUserInfo
 
-use systemprompt_oauth::services::webauthn::service::LinkUserInfo;
 use systemprompt_identifiers::UserId;
+use systemprompt_oauth::services::webauthn::service::LinkUserInfo;
 
 #[test]
 fn test_link_user_info_construction() {

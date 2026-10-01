@@ -404,7 +404,10 @@ fn build_metadata_table_with_schema_hints() {
     });
     let meta = result.expect("table metadata builds");
     assert_eq!(meta.tool_name.as_deref(), Some("list-users"));
-    assert_eq!(meta.mcp_execution_id.as_ref().map(|id| id.as_str()), Some("exec-1"));
+    assert_eq!(
+        meta.mcp_execution_id.as_ref().map(|id| id.as_str()),
+        Some("exec-1")
+    );
     assert_eq!(
         meta.rendering_hints,
         Some(json!({"columns": ["id", "name"], "sortable_columns": ["id"]}))

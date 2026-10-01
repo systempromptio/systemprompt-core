@@ -12,8 +12,8 @@ mod events;
 mod fingerprint;
 pub mod reporting;
 
-pub use engagement::{CreateEngagementEventInput, EngagementEvent, EngagementOptionalMetrics};
 pub(crate) use engagement::EngagementEventRow;
+pub use engagement::{CreateEngagementEventInput, EngagementEvent, EngagementOptionalMetrics};
 pub use events::{
     AnalyticsEventBatchResponse, AnalyticsEventCreated, AnalyticsEventType, ConversionEventData,
     CreateAnalyticsEventBatchInput, CreateAnalyticsEventInput, EngagementEventData,

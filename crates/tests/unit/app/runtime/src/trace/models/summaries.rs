@@ -2,11 +2,10 @@
 //! ExecutionStepSummary
 
 use chrono::Utc;
-use systemprompt_identifiers::ContextId;
+use systemprompt_identifiers::{ContextId, UserId};
 use systemprompt_runtime::{
     AiRequestSummary, ExecutionStepSummary, McpExecutionSummary, TraceEvent,
 };
-use systemprompt_identifiers::UserId;
 
 const TEST_CTX: &str = "00000000-0000-4000-8000-000000000001";
 

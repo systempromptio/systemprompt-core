@@ -81,7 +81,11 @@ async fn readyz_admits_the_node_once_it_is_ready_and_the_database_answers() {
 
     assert_eq!(status, StatusCode::OK, "{body}");
     assert_eq!(body["status"], "ready");
-    assert_eq!(body["instance"], ctx.config().instance_id.as_str(), "{body}");
+    assert_eq!(
+        body["instance"],
+        ctx.config().instance_id.as_str(),
+        "{body}"
+    );
 }
 
 #[tokio::test]

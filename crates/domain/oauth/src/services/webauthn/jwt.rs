@@ -55,8 +55,8 @@ impl TokenValidator for JwtTokenValidator {
                 }
             })?;
 
-        let user_id =
-            UserId::try_new(claims.sub.as_str()).map_err(|_invalid| AuthError::InvalidTokenFormat)?;
+        let user_id = UserId::try_new(claims.sub.as_str())
+            .map_err(|_invalid| AuthError::InvalidTokenFormat)?;
 
         let permissions = claims.get_permissions();
         let roles = claims.roles().to_vec();

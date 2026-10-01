@@ -83,8 +83,8 @@ pub use providers::{
     ProviderRegistry, ProviderRegistryError, ProviderRegistryResult, RETIREMENT_NOTICE_DAYS,
     VertexRateCard, VertexRateCardEntry, WireProtocol,
 };
-pub use rules::{DEFAULT_RULE_CONTENT_FILE, DiskRuleConfig, RULE_CONFIG_FILENAME};
 pub use registry::{ServiceModule, ServiceStatus, UnknownServiceModule, UnknownServiceStatus};
+pub use rules::{DEFAULT_RULE_CONTENT_FILE, DiskRuleConfig, RULE_CONFIG_FILENAME};
 pub use runtime::{RuntimeStatus, ServiceType};
 pub use scheduler::*;
 pub use settings::*;

@@ -7,9 +7,9 @@ pub mod cimd;
 pub mod clients;
 pub mod oauth;
 
+pub(crate) use clients::OAuthClientDbRow;
 pub use clients::api::{CreateOAuthClientRequest, OAuthClientResponse, UpdateOAuthClientRequest};
 pub use clients::{ClientRelations, OAuthClient, OAuthClientRow};
-pub(crate) use clients::OAuthClientDbRow;
 pub use oauth::api::Pagination;
 pub use oauth::dynamic_registration::{DynamicRegistrationRequest, DynamicRegistrationResponse};
 pub use oauth::{

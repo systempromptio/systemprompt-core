@@ -7,9 +7,8 @@ use chrono::{DateTime, Utc};
 use systemprompt_identifiers::{ApiKeyId, UserId};
 
 use crate::error::Result;
-use crate::models::UserApiKey;
+use crate::models::{UserApiKey, UserApiKeyRow};
 use crate::repository::UserRepository;
-use crate::models::UserApiKeyRow;
 
 pub struct CreateApiKeyParams<'a> {
     pub id: &'a ApiKeyId,
@@ -39,7 +38,8 @@ impl UserRepository {
             params.expires_at,
         )
         .fetch_one(&*self.write_pool)
-        .await.map(UserApiKey::from)?;
+        .await
+        .map(UserApiKey::from)?;
         Ok(row)
     }
 
@@ -59,7 +59,8 @@ impl UserRepository {
             key_prefix,
         )
         .fetch_optional(&*self.write_pool)
-        .await.map(|row| row.map(UserApiKey::from))?;
+        .await
+        .map(|row| row.map(UserApiKey::from))?;
         Ok(row)
     }
 
@@ -76,7 +77,8 @@ impl UserRepository {
             user_id.as_str(),
         )
         .fetch_all(&*self.pool)
-        .await.map(|rows| rows.into_iter().map(UserApiKey::from).collect::<Vec<_>>())?;
+        .await
+        .map(|rows| rows.into_iter().map(UserApiKey::from).collect::<Vec<_>>())?;
         Ok(rows)
     }
 

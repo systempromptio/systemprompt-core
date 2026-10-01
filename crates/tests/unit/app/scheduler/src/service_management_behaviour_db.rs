@@ -397,7 +397,9 @@ mod live_child_stop_paths {
         seed_running_row(&repo, &name, ServiceModule::Agent, 27201, Some(pid)).await;
 
         let config = config_with_pid(&name, ServiceModule::Agent, 27201, Some(pid));
-        svc.stop_service(&config, false).await.expect("stop_service");
+        svc.stop_service(&config, false)
+            .await
+            .expect("stop_service");
 
         wait_until_dead(&mut child).await;
 
@@ -463,7 +465,9 @@ mod live_child_stop_paths {
         seed_running_row(&repo, &name, ServiceModule::Agent, 27203, Some(pid)).await;
 
         let config = config_with_pid(&name, ServiceModule::Agent, 27203, Some(pid));
-        svc.stop_service(&config, false).await.expect("stop_service");
+        svc.stop_service(&config, false)
+            .await
+            .expect("stop_service");
 
         assert!(
             ProcessCleanup::process_exists(pid as u32),

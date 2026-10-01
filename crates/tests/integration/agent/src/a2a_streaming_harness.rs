@@ -20,7 +20,9 @@ use systemprompt_agent::services::a2a_server::handlers::AgentHandlerState;
 use systemprompt_agent::services::a2a_server::streaming::{
     CreateSseStreamParams, StreamRejected, create_sse_stream,
 };
-use systemprompt_identifiers::{Actor, AgentName, ContextId, MessageId, SessionId, TraceId, UserId};
+use systemprompt_identifiers::{
+    Actor, AgentName, ContextId, MessageId, SessionId, TraceId, UserId,
+};
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_models::{
     AgentCardConfig, AgentConfig, AgentMetadataConfig, AgentOAuthConfig as AgentConfigOAuth,

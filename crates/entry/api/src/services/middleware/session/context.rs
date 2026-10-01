@@ -103,18 +103,16 @@ impl SessionMiddleware {
 
         let session_id = SessionId::new(format!("{session_prefix}_{}", Uuid::new_v4()));
         let context_id = ContextId::derived_from_session(&session_id);
-        Ok(
-            RequestContext::new(
-                session_id,
-                trace_id,
-                context_id,
-                AgentName::system(),
-                Actor::anonymous(user_id),
-            )
-            .with_user_type(UserType::Anon)
-            .with_tracked(false)
-            .with_fingerprint_hash(fingerprint),
+        Ok(RequestContext::new(
+            session_id,
+            trace_id,
+            context_id,
+            AgentName::system(),
+            Actor::anonymous(user_id),
         )
+        .with_user_type(UserType::Anon)
+        .with_tracked(false)
+        .with_fingerprint_hash(fingerprint))
     }
 
     async fn tracked_context(

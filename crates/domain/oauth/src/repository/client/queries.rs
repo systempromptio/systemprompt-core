@@ -5,9 +5,8 @@
 
 use super::ClientRepository;
 use crate::error::OauthResult as Result;
-use crate::models::{OAuthClient, OAuthClientRow};
+use crate::models::{OAuthClient, OAuthClientDbRow, OAuthClientRow};
 use systemprompt_identifiers::ClientId;
-use crate::models::OAuthClientDbRow;
 
 impl ClientRepository {
     pub async fn find_by_client_id(&self, client_id: &ClientId) -> Result<Option<OAuthClient>> {
@@ -21,7 +20,8 @@ impl ClientRepository {
             client_id_str
         )
         .fetch_optional(&*self.pool)
-        .await.map(|row| row.map(OAuthClientRow::from))?;
+        .await
+        .map(|row| row.map(OAuthClientRow::from))?;
 
         match row {
             Some(row) => {
@@ -43,7 +43,8 @@ impl ClientRepository {
             client_id_str
         )
         .fetch_optional(&*self.pool)
-        .await.map(|row| row.map(OAuthClientRow::from))?;
+        .await
+        .map(|row| row.map(OAuthClientRow::from))?;
 
         match row {
             Some(row) => {
@@ -63,7 +64,12 @@ impl ClientRepository {
              FROM oauth_clients WHERE is_active = true ORDER BY created_at DESC"
         )
         .fetch_all(&*self.pool)
-        .await.map(|rows| rows.into_iter().map(OAuthClientRow::from).collect::<Vec<_>>())?;
+        .await
+        .map(|rows| {
+            rows.into_iter()
+                .map(OAuthClientRow::from)
+                .collect::<Vec<_>>()
+        })?;
 
         self.load_clients_with_relations_batch(rows).await
     }
@@ -82,7 +88,12 @@ impl ClientRepository {
             offset_i64
         )
         .fetch_all(&*self.pool)
-        .await.map(|rows| rows.into_iter().map(OAuthClientRow::from).collect::<Vec<_>>())?;
+        .await
+        .map(|rows| {
+            rows.into_iter()
+                .map(OAuthClientRow::from)
+                .collect::<Vec<_>>()
+        })?;
 
         self.load_clients_with_relations_batch(rows).await
     }
@@ -108,7 +119,8 @@ impl ClientRepository {
             redirect_uri
         )
         .fetch_optional(&*self.pool)
-        .await.map(|row| row.map(OAuthClientRow::from))?;
+        .await
+        .map(|row| row.map(OAuthClientRow::from))?;
 
         match row {
             Some(row) => {

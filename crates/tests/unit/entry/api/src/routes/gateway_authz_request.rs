@@ -40,6 +40,9 @@ fn forwards_roles_and_attributes_to_authz_request() {
             .as_str(),
         "claude-3"
     );
-    assert_eq!(req.context_id.as_ref(), Some(&ContextId::from_uuid(uuid::Uuid::from_u128(1))));
+    assert_eq!(
+        req.context_id.as_ref(),
+        Some(&ContextId::from_uuid(uuid::Uuid::from_u128(1)))
+    );
     assert!(req.task_id.is_none());
 }

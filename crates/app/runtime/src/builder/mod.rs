@@ -222,11 +222,8 @@ async fn build_domain_layer(
     Arc<systemprompt_models::SystemAdmin>,
     RegistryService,
 )> {
-    let mut repositories = build_repositories(
-        database,
-        analytics_repositories,
-        config.instance_id.clone(),
-    );
+    let mut repositories =
+        build_repositories(database, analytics_repositories, config.instance_id.clone());
     let user_service = Arc::new(
         UserService::new(Arc::clone(&repositories.users))
             .with_owner_reassignments(owner_reassignments(database)),

@@ -68,7 +68,9 @@ pub async fn enrich_with_cached_identity(
         "Enriching session-only request with stored identity"
     );
     req_context
-        .with_actor(systemprompt_identifiers::Actor::user(identity.user_id.clone()))
+        .with_actor(systemprompt_identifiers::Actor::user(
+            identity.user_id.clone(),
+        ))
         .with_user_type(identity.user_type)
         .with_auth_token(identity.auth_token)
         .with_user(AuthenticatedUser::new_with_roles(

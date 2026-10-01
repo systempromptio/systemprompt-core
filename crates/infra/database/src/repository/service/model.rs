@@ -51,13 +51,13 @@ impl ServiceRow {
                 context: "services.module_name".to_owned(),
                 source: Box::new(source),
             })?;
-        let status = self
-            .status
-            .parse::<ServiceStatus>()
-            .map_err(|source| RepositoryError::Decode {
-                context: "services.status".to_owned(),
-                source: Box::new(source),
-            })?;
+        let status =
+            self.status
+                .parse::<ServiceStatus>()
+                .map_err(|source| RepositoryError::Decode {
+                    context: "services.status".to_owned(),
+                    source: Box::new(source),
+                })?;
         Ok(ServiceConfig {
             instance_id: self.instance_id,
             name: ServiceName::new(self.name),

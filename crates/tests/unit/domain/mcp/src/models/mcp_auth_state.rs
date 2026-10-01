@@ -1,7 +1,7 @@
 //! Unit tests for McpAuthState
 
-use systemprompt_mcp::McpAuthState;
 use systemprompt_identifiers::UserId;
+use systemprompt_mcp::McpAuthState;
 use systemprompt_models::auth::{AuthenticatedUser, Permission};
 
 fn create_test_user() -> AuthenticatedUser {

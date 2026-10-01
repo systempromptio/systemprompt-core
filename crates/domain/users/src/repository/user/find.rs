@@ -6,9 +6,8 @@
 use systemprompt_identifiers::UserId;
 
 use crate::error::Result;
-use crate::models::{User, UserRole, UserStatus};
+use crate::models::{User, UserRole, UserRow, UserStatus};
 use crate::repository::UserRepository;
-use crate::models::UserRow;
 
 impl UserRepository {
     pub async fn find_by_id(&self, id: &UserId) -> Result<Option<User>> {
@@ -25,7 +24,8 @@ impl UserRepository {
             deleted_status
         )
         .fetch_optional(&*self.pool)
-        .await.map(|row| row.map(User::from))?;
+        .await
+        .map(|row| row.map(User::from))?;
 
         Ok(row)
     }
@@ -45,7 +45,8 @@ impl UserRepository {
             deleted_status
         )
         .fetch_optional(&*self.pool)
-        .await.map(|row| row.map(User::from))?;
+        .await
+        .map(|row| row.map(User::from))?;
 
         Ok(row)
     }
@@ -66,7 +67,8 @@ impl UserRepository {
             deleted_status
         )
         .fetch_optional(&*self.pool)
-        .await.map(|row| row.map(User::from))?;
+        .await
+        .map(|row| row.map(User::from))?;
 
         Ok(row)
     }
@@ -86,7 +88,8 @@ impl UserRepository {
             deleted_status
         )
         .fetch_all(&*self.pool)
-        .await.map(|rows| rows.into_iter().map(User::from).collect::<Vec<_>>())?;
+        .await
+        .map(|rows| rows.into_iter().map(User::from).collect::<Vec<_>>())?;
 
         Ok(rows)
     }
@@ -106,7 +109,8 @@ impl UserRepository {
             deleted_status
         )
         .fetch_optional(&*self.pool)
-        .await.map(|row| row.map(User::from))?;
+        .await
+        .map(|row| row.map(User::from))?;
 
         Ok(row)
     }
@@ -128,7 +132,8 @@ impl UserRepository {
             deleted_status
         )
         .fetch_optional(&*self.pool)
-        .await.map(|row| row.map(User::from))?;
+        .await
+        .map(|row| row.map(User::from))?;
 
         Ok(row)
     }
@@ -147,7 +152,8 @@ impl UserRepository {
             active_status
         )
         .fetch_optional(&*self.pool)
-        .await.map(|row| row.map(User::from))?;
+        .await
+        .map(|row| row.map(User::from))?;
 
         Ok(row)
     }

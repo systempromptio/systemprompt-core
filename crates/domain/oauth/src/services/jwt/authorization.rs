@@ -113,7 +113,8 @@ impl AuthorizationService {
     fn create_authenticated_user_from_claims(
         claims: JwtClaims,
     ) -> Result<AuthenticatedUser, StatusCode> {
-        let user_id = UserId::try_new(claims.sub.as_str()).map_err(|_e| StatusCode::UNAUTHORIZED)?;
+        let user_id =
+            UserId::try_new(claims.sub.as_str()).map_err(|_e| StatusCode::UNAUTHORIZED)?;
         let permissions = claims.get_permissions();
         let roles = claims.roles().to_vec();
 

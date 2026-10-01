@@ -159,7 +159,10 @@ async fn fetch_manifest_ok() {
         .unwrap();
     assert!(envelope.signature.as_str().is_empty());
     let manifest = decode_payload(&envelope).unwrap();
-    assert_eq!(manifest.user_id.as_str(), "00000000-0000-4000-8000-0000000000ab");
+    assert_eq!(
+        manifest.user_id.as_str(),
+        "00000000-0000-4000-8000-0000000000ab"
+    );
     assert!(manifest.plugins.is_empty());
 }
 

@@ -99,8 +99,14 @@ async fn status_and_count_are_per_instance() {
     register(&b, &name, 222).await;
 
     a.update_service_stopped(&name).await.unwrap();
-    assert_eq!(a.count_running_services(ServiceModule::Mcp).await.unwrap(), 0);
-    assert_eq!(b.count_running_services(ServiceModule::Mcp).await.unwrap(), 1);
+    assert_eq!(
+        a.count_running_services(ServiceModule::Mcp).await.unwrap(),
+        0
+    );
+    assert_eq!(
+        b.count_running_services(ServiceModule::Mcp).await.unwrap(),
+        1
+    );
     assert_eq!(
         b.find_service_by_name(&name).await.unwrap().unwrap().status,
         ServiceStatus::Running

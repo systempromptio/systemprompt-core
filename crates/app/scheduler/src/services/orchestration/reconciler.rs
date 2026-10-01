@@ -189,7 +189,9 @@ impl ServiceReconciler {
     }
 
     async fn cleanup_db_entry(&self, name: &str) -> SchedulerResult<()> {
-        self.services.delete_service(&ServiceName::new(name)).await?;
+        self.services
+            .delete_service(&ServiceName::new(name))
+            .await?;
         Ok(())
     }
 

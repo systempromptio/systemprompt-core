@@ -8,9 +8,8 @@ use systemprompt_identifiers::UserId;
 
 use super::operations::UpdateUserParams;
 use crate::error::{Result, UserError};
-use crate::models::{User, UserRole, UserStatus};
+use crate::models::{User, UserRole, UserRow, UserStatus};
 use crate::repository::UserRepository;
-use crate::models::UserRow;
 
 impl UserRepository {
     pub async fn update_email(&self, id: &UserId, email: &str) -> Result<User> {
@@ -28,7 +27,8 @@ impl UserRepository {
             id.as_str()
         )
         .fetch_optional(&*self.write_pool)
-        .await.map(|row| row.map(User::from))?
+        .await
+        .map(|row| row.map(User::from))?
         .ok_or_else(|| UserError::NotFound(id.clone()))?;
 
         Ok(row)
@@ -49,7 +49,8 @@ impl UserRepository {
             id.as_str()
         )
         .fetch_optional(&*self.write_pool)
-        .await.map(|row| row.map(User::from))?
+        .await
+        .map(|row| row.map(User::from))?
         .ok_or_else(|| UserError::NotFound(id.clone()))?;
 
         Ok(row)
@@ -70,7 +71,8 @@ impl UserRepository {
             id.as_str()
         )
         .fetch_optional(&*self.write_pool)
-        .await.map(|row| row.map(User::from))?
+        .await
+        .map(|row| row.map(User::from))?
         .ok_or_else(|| UserError::NotFound(id.clone()))?;
         Ok(row)
     }
@@ -90,7 +92,8 @@ impl UserRepository {
             id.as_str()
         )
         .fetch_optional(&*self.write_pool)
-        .await.map(|row| row.map(User::from))?
+        .await
+        .map(|row| row.map(User::from))?
         .ok_or_else(|| UserError::NotFound(id.clone()))?;
 
         Ok(row)
@@ -111,7 +114,8 @@ impl UserRepository {
             id.as_str()
         )
         .fetch_optional(&*self.write_pool)
-        .await.map(|row| row.map(User::from))?
+        .await
+        .map(|row| row.map(User::from))?
         .ok_or_else(|| UserError::NotFound(id.clone()))?;
 
         Ok(row)
@@ -139,7 +143,8 @@ impl UserRepository {
             id.as_str()
         )
         .fetch_optional(&*self.write_pool)
-        .await.map(|row| row.map(User::from))?
+        .await
+        .map(|row| row.map(User::from))?
         .ok_or_else(|| UserError::NotFound(id.clone()))?;
         Ok(row)
     }
@@ -159,7 +164,8 @@ impl UserRepository {
             id.as_str()
         )
         .fetch_optional(&*self.write_pool)
-        .await.map(|row| row.map(User::from))?
+        .await
+        .map(|row| row.map(User::from))?
         .ok_or_else(|| UserError::NotFound(id.clone()))?;
 
         Ok(row)

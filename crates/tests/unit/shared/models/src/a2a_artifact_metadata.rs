@@ -39,7 +39,10 @@ fn builders_set_each_optional_field() {
 
     assert_eq!(m.rendering_hints, Some(json!({"a": 1})));
     assert_eq!(m.source.as_deref(), Some("plugin"));
-    assert_eq!(m.mcp_execution_id.as_ref().map(|id| id.as_str()), Some("exec"));
+    assert_eq!(
+        m.mcp_execution_id.as_ref().map(|id| id.as_str()),
+        Some("exec")
+    );
     assert_eq!(m.mcp_schema, Some(json!({"type": "object"})));
     assert_eq!(m.is_internal, Some(true));
     assert_eq!(m.fingerprint.as_deref(), Some("fp"));

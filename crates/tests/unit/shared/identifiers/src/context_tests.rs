@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 use systemprompt_identifiers::{
-    ClientSessionId, ContextId, DbValue, GatewayConversationId, McpServerId, ServiceName, SessionId,
-    TaskId, ToDbValue,
+    ClientSessionId, ContextId, DbValue, GatewayConversationId, McpServerId, ServiceName,
+    SessionId, TaskId, ToDbValue,
 };
 
 #[test]
@@ -184,14 +184,20 @@ fn derived_from_session_is_pinned_to_its_namespace_forever() {
 fn derived_from_cli_probe_is_pinned_and_deterministic() {
     let ctx = ContextId::derived_from_cli_probe(&McpServerId::new("server-a"));
     assert_eq!(ctx.as_str(), "f85364b9-1f5b-527b-935f-22e274e31de7");
-    assert_ne!(ctx, ContextId::derived_from_cli_probe(&McpServerId::new("server-b")));
+    assert_ne!(
+        ctx,
+        ContextId::derived_from_cli_probe(&McpServerId::new("server-b"))
+    );
 }
 
 #[test]
 fn derived_from_mcp_validation_is_pinned_and_deterministic() {
     let ctx = ContextId::derived_from_mcp_validation(&ServiceName::new("svc-a"));
     assert_eq!(ctx.as_str(), "c16920e8-3662-5e00-b45f-373ff2ee14e3");
-    assert_ne!(ctx, ContextId::derived_from_mcp_validation(&ServiceName::new("svc-b")));
+    assert_ne!(
+        ctx,
+        ContextId::derived_from_mcp_validation(&ServiceName::new("svc-b"))
+    );
 }
 
 #[test]

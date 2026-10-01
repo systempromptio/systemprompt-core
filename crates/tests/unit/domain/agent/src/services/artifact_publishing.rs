@@ -164,7 +164,11 @@ async fn publish_from_a2a_keeps_a_known_execution_id() {
         .expect("get")
         .expect("present");
     assert_eq!(
-        fetched.metadata.mcp_execution_id.as_ref().map(|id| id.as_str()),
+        fetched
+            .metadata
+            .mcp_execution_id
+            .as_ref()
+            .map(|id| id.as_str()),
         Some(exec_id.as_str())
     );
 

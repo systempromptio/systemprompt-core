@@ -162,10 +162,8 @@ pub(super) async fn execute(
         return Err(anyhow::anyhow!("Failed to load service configs"));
     };
 
-    let state_manager = ServiceStateVerifier::new(
-        Arc::clone(ctx.db_pool()),
-        ctx.config().instance_id.clone(),
-    );
+    let state_manager =
+        ServiceStateVerifier::new(Arc::clone(ctx.db_pool()), ctx.config().instance_id.clone());
     let states = state_manager.get_verified_states(&configs).await?;
 
     let mcp_statuses = mcp_service_statuses(&ctx).await?;

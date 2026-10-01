@@ -80,7 +80,10 @@ fn build_context_applies_optional_fields() {
         ctx.execution.task_id.as_ref().map(TaskId::as_str),
         Some("task-7")
     );
-    assert_eq!(ctx.auth.auth_token.as_ref().map(JwtToken::as_str), Some("token-abc"));
+    assert_eq!(
+        ctx.auth.auth_token.as_ref().map(JwtToken::as_str),
+        Some("token-abc")
+    );
 }
 
 #[test]

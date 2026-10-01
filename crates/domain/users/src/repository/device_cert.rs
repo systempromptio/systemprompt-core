@@ -6,9 +6,8 @@
 use systemprompt_identifiers::{DeviceCertId, UserId};
 
 use crate::error::Result;
-use crate::models::UserDeviceCert;
+use crate::models::{UserDeviceCert, UserDeviceCertRow};
 use crate::repository::UserRepository;
-use crate::models::UserDeviceCertRow;
 
 pub struct EnrollDeviceCertParams<'a> {
     pub id: &'a DeviceCertId,
@@ -35,7 +34,8 @@ impl UserRepository {
             params.label,
         )
         .fetch_one(&*self.write_pool)
-        .await.map(UserDeviceCert::from)?;
+        .await
+        .map(UserDeviceCert::from)?;
         Ok(row)
     }
 
@@ -53,7 +53,8 @@ impl UserRepository {
             fingerprint,
         )
         .fetch_optional(&*self.write_pool)
-        .await.map(|row| row.map(UserDeviceCert::from))?;
+        .await
+        .map(|row| row.map(UserDeviceCert::from))?;
         Ok(row)
     }
 
@@ -72,7 +73,12 @@ impl UserRepository {
             user_id.as_str(),
         )
         .fetch_all(&*self.write_pool)
-        .await.map(|rows| rows.into_iter().map(UserDeviceCert::from).collect::<Vec<_>>())?;
+        .await
+        .map(|rows| {
+            rows.into_iter()
+                .map(UserDeviceCert::from)
+                .collect::<Vec<_>>()
+        })?;
         Ok(rows)
     }
 

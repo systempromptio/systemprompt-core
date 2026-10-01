@@ -33,7 +33,13 @@ fn deserialize_rejects_empty_and_sentinel() {
 
 #[test]
 fn try_new_accepts_uuid_and_opaque_ids() {
-    for raw in [UUID, "admin", "imported_user-42", "svc:reporting", "user@example.com"] {
+    for raw in [
+        UUID,
+        "admin",
+        "imported_user-42",
+        "svc:reporting",
+        "user@example.com",
+    ] {
         let id = UserId::try_new(raw).unwrap();
         assert_eq!(id.as_str(), raw);
     }
@@ -41,7 +47,17 @@ fn try_new_accepts_uuid_and_opaque_ids() {
 
 #[test]
 fn try_new_rejects_empty_sentinel_whitespace_and_control() {
-    for raw in ["", "unset", "UNSET", " ", "test user", " padded", "tab\tid", "line\nid", "nul\u{0}id"] {
+    for raw in [
+        "",
+        "unset",
+        "UNSET",
+        " ",
+        "test user",
+        " padded",
+        "tab\tid",
+        "line\nid",
+        "nul\u{0}id",
+    ] {
         assert!(UserId::try_new(raw).is_err(), "{raw:?} must be rejected");
     }
 }

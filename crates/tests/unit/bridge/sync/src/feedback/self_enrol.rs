@@ -68,7 +68,11 @@ async fn enrolment_saves_device_json_and_sends_the_fingerprint() {
     let (gateway, server) = mock_server(vec![(
         200,
         String::new(),
-        enrolment_body("device-1", "00000000-0000-4000-8000-00000000c0c0", "sp_device_first"),
+        enrolment_body(
+            "device-1",
+            "00000000-0000-4000-8000-00000000c0c0",
+            "sp_device_first",
+        ),
     )]);
     let client = client_for(&gateway);
     let bearer = BearerToken::new("per-user-bridge-secret");
@@ -109,7 +113,11 @@ async fn existing_enrolment_for_the_user_is_reused_without_a_request() {
     let (gateway, server) = mock_server(vec![(
         200,
         String::new(),
-        enrolment_body("device-1", "00000000-0000-4000-8000-00000000c0c0", "sp_device_first"),
+        enrolment_body(
+            "device-1",
+            "00000000-0000-4000-8000-00000000c0c0",
+            "sp_device_first",
+        ),
     )]);
     let client = client_for(&gateway);
     let bearer = BearerToken::new("per-user-bridge-secret");
@@ -144,12 +152,20 @@ async fn forced_rotation_keeps_the_installation_id_for_the_same_device() {
         (
             200,
             String::new(),
-            enrolment_body("device-1", "00000000-0000-4000-8000-00000000c0c0", "sp_device_first"),
+            enrolment_body(
+                "device-1",
+                "00000000-0000-4000-8000-00000000c0c0",
+                "sp_device_first",
+            ),
         ),
         (
             200,
             String::new(),
-            enrolment_body("device-1", "00000000-0000-4000-8000-00000000c0c0", "sp_device_second"),
+            enrolment_body(
+                "device-1",
+                "00000000-0000-4000-8000-00000000c0c0",
+                "sp_device_second",
+            ),
         ),
     ]);
     let client = client_for(&gateway);
@@ -188,12 +204,20 @@ async fn a_different_user_re_enrols_with_a_fresh_installation_id() {
         (
             200,
             String::new(),
-            enrolment_body("device-1", "00000000-0000-4000-8000-00000000a11c", "sp_device_alice"),
+            enrolment_body(
+                "device-1",
+                "00000000-0000-4000-8000-00000000a11c",
+                "sp_device_alice",
+            ),
         ),
         (
             200,
             String::new(),
-            enrolment_body("device-2", "00000000-0000-4000-8000-000000000b0b", "sp_device_bob"),
+            enrolment_body(
+                "device-2",
+                "00000000-0000-4000-8000-000000000b0b",
+                "sp_device_bob",
+            ),
         ),
     ]);
     let client = client_for(&gateway);
@@ -203,7 +227,11 @@ async fn a_different_user_re_enrols_with_a_fresh_installation_id() {
         dir.path(),
         &client,
         &bearer,
-        &enrolment(&install, &UserId::new("00000000-0000-4000-8000-00000000a11c"), false),
+        &enrolment(
+            &install,
+            &UserId::new("00000000-0000-4000-8000-00000000a11c"),
+            false,
+        ),
     )
     .await
     .expect("alice");
@@ -211,12 +239,19 @@ async fn a_different_user_re_enrols_with_a_fresh_installation_id() {
         dir.path(),
         &client,
         &bearer,
-        &enrolment(&install, &UserId::new("00000000-0000-4000-8000-000000000b0b"), false),
+        &enrolment(
+            &install,
+            &UserId::new("00000000-0000-4000-8000-000000000b0b"),
+            false,
+        ),
     )
     .await
     .expect("bob replaces alice's enrolment");
     assert_ne!(bob.installation_id, alice.installation_id);
-    assert_eq!(bob.consumer_id.as_str(), "00000000-0000-4000-8000-000000000b0b");
+    assert_eq!(
+        bob.consumer_id.as_str(),
+        "00000000-0000-4000-8000-000000000b0b"
+    );
     assert_eq!(server.join().unwrap().len(), 2);
 }
 

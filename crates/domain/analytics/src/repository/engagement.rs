@@ -14,8 +14,7 @@ use sqlx::PgPool;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContentId, EngagementEventId, SessionId, UserId};
 
-use crate::models::{CreateEngagementEventInput, EngagementEvent};
-use crate::models::EngagementEventRow;
+use crate::models::{CreateEngagementEventInput, EngagementEvent, EngagementEventRow};
 
 #[derive(Clone, Debug)]
 pub struct EngagementRepository {
@@ -111,7 +110,8 @@ impl EngagementRepository {
             id.as_str()
         )
         .fetch_optional(&*self.pool)
-        .await.map(|row| row.map(EngagementEvent::from))?;
+        .await
+        .map(|row| row.map(EngagementEvent::from))?;
 
         Ok(event)
     }
