@@ -1,8 +1,7 @@
 //! DB-backed tests for the scheduler persistence layer.
 //!
 //! Each test acquires a real Postgres pool via the fixtures crate and
-//! skips when `DATABASE_URL` is unset locally, failing under `CI`
-//! instead. Every test owns uniquely-named rows
+//! fails when `DATABASE_URL` is unset. Every test owns uniquely-named rows
 //! (`scheduled_jobs.job_name`) so concurrent shards never collide, and asserts
 //! a concrete outcome: row present/absent, field values, or row counts.
 //!
@@ -16,7 +15,7 @@
 use systemprompt_identifiers::InstanceId;
 use systemprompt_scheduler::repository::{AnalyticsRepository, SecurityRepository};
 use systemprompt_scheduler::{JobRepository, JobRunRecord, JobStatus, SchedulerRepository};
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::test_db_pool;
 
 // Returns None (skipping the test) when no integration DB is configured.
 
@@ -40,13 +39,13 @@ mod scheduler_repository {
 
     #[tokio::test]
     async fn new_succeeds_against_migrated_db() {
-        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
+        let pool = test_db_pool().await;
         let _repo = SchedulerRepository::new(&pool).expect("composite repo should construct");
     }
 
     #[tokio::test]
     async fn upsert_then_find_returns_inserted_row() {
-        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
+        let pool = test_db_pool().await;
         let repo = SchedulerRepository::new(&pool).expect("repo");
         let name = unique_job_name("sched_upsert");
 
@@ -66,7 +65,7 @@ mod scheduler_repository {
 
     #[tokio::test]
     async fn find_missing_job_returns_none() {
-        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
+        let pool = test_db_pool().await;
         let repo = SchedulerRepository::new(&pool).expect("repo");
         let missing = unique_job_name("sched_absent");
 
@@ -76,7 +75,7 @@ mod scheduler_repository {
 
     #[tokio::test]
     async fn upsert_conflict_updates_schedule_and_enabled() {
-        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
+        let pool = test_db_pool().await;
         let repo = SchedulerRepository::new(&pool).expect("repo");
         let name = unique_job_name("sched_conflict");
 
@@ -98,7 +97,7 @@ mod scheduler_repository {
 
     #[tokio::test]
     async fn update_job_execution_persists_status_and_error() {
-        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
+        let pool = test_db_pool().await;
         let repo = SchedulerRepository::new(&pool).expect("repo");
         let name = unique_job_name("sched_exec");
 
@@ -130,7 +129,7 @@ mod scheduler_repository {
 
     #[tokio::test]
     async fn update_job_execution_success_clears_error() {
-        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
+        let pool = test_db_pool().await;
         let repo = SchedulerRepository::new(&pool).expect("repo");
         let name = unique_job_name("sched_success");
 
@@ -176,7 +175,7 @@ mod scheduler_repository {
 
     #[tokio::test]
     async fn each_recorded_run_advances_run_count() {
-        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
+        let pool = test_db_pool().await;
         let repo = SchedulerRepository::new(&pool).expect("repo");
         let name = unique_job_name("sched_runcount");
 
@@ -208,7 +207,7 @@ mod scheduler_repository {
 
     #[tokio::test]
     async fn list_enabled_jobs_includes_enabled_excludes_disabled() {
-        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
+        let pool = test_db_pool().await;
         let repo = SchedulerRepository::new(&pool).expect("repo");
         let enabled = unique_job_name("sched_list_on");
         let disabled = unique_job_name("sched_list_off");
@@ -234,7 +233,7 @@ mod scheduler_repository {
 
     #[tokio::test]
     async fn cleanup_empty_contexts_returns_rows_affected_count() {
-        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
+        let pool = test_db_pool().await;
         let repo = SchedulerRepository::new(&pool).expect("repo");
 
         // No seeded contexts; the DELETE simply affects whatever stale empty
@@ -253,13 +252,13 @@ mod job_repository {
 
     #[tokio::test]
     async fn new_succeeds() {
-        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
+        let pool = test_db_pool().await;
         let _repo = JobRepository::new(&pool).expect("job repo should construct");
     }
 
     #[tokio::test]
     async fn set_enabled_toggles_flag() {
-        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
+        let pool = test_db_pool().await;
         let repo = JobRepository::new(&pool).expect("repo");
         let name = unique_job_name("job_set_enabled");
 
@@ -290,7 +289,7 @@ mod job_repository {
 
     #[tokio::test]
     async fn list_recent_runs_includes_executed_job() {
-        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
+        let pool = test_db_pool().await;
         let repo = JobRepository::new(&pool).expect("repo");
         let name = unique_job_name("job_recent");
 
@@ -320,7 +319,7 @@ mod job_repository {
 
     #[tokio::test]
     async fn list_recent_runs_respects_limit() {
-        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
+        let pool = test_db_pool().await;
         let repo = JobRepository::new(&pool).expect("repo");
 
         let rows = repo.list_recent_runs(2).await.expect("list recent");
@@ -333,7 +332,7 @@ mod job_repository {
 
     #[tokio::test]
     async fn list_recent_runs_excludes_never_run_job() {
-        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
+        let pool = test_db_pool().await;
         let repo = JobRepository::new(&pool).expect("repo");
         let name = unique_job_name("job_never_run");
 
@@ -357,13 +356,13 @@ mod analytics_repository {
 
     #[tokio::test]
     async fn new_succeeds() {
-        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
+        let pool = test_db_pool().await;
         let _repo = AnalyticsRepository::new(&pool).expect("analytics repo should construct");
     }
 
     #[tokio::test]
     async fn cleanup_empty_contexts_executes_for_various_windows() {
-        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
+        let pool = test_db_pool().await;
         let repo = AnalyticsRepository::new(&pool).expect("repo");
 
         for hours in [0_i64, 1, 24, 168] {
@@ -375,7 +374,7 @@ mod analytics_repository {
 
     #[tokio::test]
     async fn cleanup_collects_orphaned_cli_contexts_but_spares_session_bound_ones() {
-        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
+        let pool = test_db_pool().await;
         let repo = AnalyticsRepository::new(&pool).expect("repo");
         let raw = pool.pool_arc().expect("raw pool");
 
@@ -447,13 +446,13 @@ mod security_repository {
 
     #[tokio::test]
     async fn new_succeeds() {
-        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
+        let pool = test_db_pool().await;
         let _repo = SecurityRepository::new(&pool).expect("security repo should construct");
     }
 
     #[tokio::test]
     async fn find_high_volume_ips_returns_well_formed_records() {
-        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
+        let pool = test_db_pool().await;
         let repo = SecurityRepository::new(&pool).expect("repo");
 
         // A very high threshold guarantees an empty result on any realistic
@@ -479,7 +478,7 @@ mod security_repository {
 
     #[tokio::test]
     async fn find_scanner_ips_executes() {
-        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
+        let pool = test_db_pool().await;
         let repo = SecurityRepository::new(&pool).expect("repo");
 
         let records = repo
@@ -494,7 +493,7 @@ mod security_repository {
 
     #[tokio::test]
     async fn find_recent_ips_executes() {
-        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
+        let pool = test_db_pool().await;
         let repo = SecurityRepository::new(&pool).expect("repo");
 
         let records = repo
@@ -508,7 +507,7 @@ mod security_repository {
 
     #[tokio::test]
     async fn find_high_risk_country_ips_populates_country() {
-        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
+        let pool = test_db_pool().await;
         let repo = SecurityRepository::new(&pool).expect("repo");
 
         let records = repo
@@ -543,8 +542,7 @@ mod empty_context_audit_guards {
 
     impl Seed {
         async fn new(tag: &str) -> Self {
-            let url = fixture_database_url().expect("caller checked the DB is configured");
-            let pool = fixture_db_pool(&url).await.expect("pool");
+            let pool = test_db_pool().await;
             let user_id = systemprompt_test_fixtures::unique_user_id(tag);
             let session_id = systemprompt_identifiers::SessionId::generate();
             systemprompt_test_fixtures::seed_user_row(
@@ -644,12 +642,6 @@ mod empty_context_audit_guards {
 
     #[tokio::test]
     async fn context_with_tool_execution_survives_cleanup() {
-        let Ok(url) = fixture_database_url() else {
-            return;
-        };
-        if fixture_db_pool(&url).await.is_err() {
-            return;
-        }
         let seed = Seed::new("auditmte").await;
         let repo = AnalyticsRepository::new(&seed.pool).expect("repo");
         // The audit row is written first: a concurrent sweep would otherwise
@@ -670,12 +662,6 @@ mod empty_context_audit_guards {
 
     #[tokio::test]
     async fn context_with_governance_decision_survives_cleanup() {
-        let Ok(url) = fixture_database_url() else {
-            return;
-        };
-        if fixture_db_pool(&url).await.is_err() {
-            return;
-        }
         let seed = Seed::new("auditgd").await;
         let repo = AnalyticsRepository::new(&seed.pool).expect("repo");
         let ctx_id = unique_job_name("auditctx_gd");
@@ -694,12 +680,6 @@ mod empty_context_audit_guards {
 
     #[tokio::test]
     async fn truly_empty_old_context_is_deleted() {
-        let Ok(url) = fixture_database_url() else {
-            return;
-        };
-        if fixture_db_pool(&url).await.is_err() {
-            return;
-        }
         let seed = Seed::new("auditbare").await;
         let repo = AnalyticsRepository::new(&seed.pool).expect("repo");
         let ctx_id = unique_job_name("auditctx_bare");
@@ -716,12 +696,6 @@ mod empty_context_audit_guards {
 
     #[tokio::test]
     async fn count_empty_contexts_counts_what_cleanup_deletes() {
-        let Ok(url) = fixture_database_url() else {
-            return;
-        };
-        if fixture_db_pool(&url).await.is_err() {
-            return;
-        }
         let seed = Seed::new("auditcount").await;
         let repo = AnalyticsRepository::new(&seed.pool).expect("repo");
         let collectable = unique_job_name("auditctx_count_bare");
@@ -753,12 +727,6 @@ mod empty_context_audit_guards {
     // must survive every retention sweep — audit rows outlive their context.
     #[tokio::test]
     async fn orphaned_tool_execution_survives_all_retention_sweeps() {
-        let Ok(url) = fixture_database_url() else {
-            return;
-        };
-        if fixture_db_pool(&url).await.is_err() {
-            return;
-        }
         let seed = Seed::new("auditorphan").await;
         let repo = AnalyticsRepository::new(&seed.pool).expect("repo");
         let exec_id = unique_job_name("auditexec_orphan");
@@ -807,7 +775,7 @@ mod forget_retired_jobs {
 
     #[tokio::test]
     async fn an_empty_inventory_forgets_nothing() {
-        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
+        let pool = test_db_pool().await;
         let repo = SchedulerRepository::new(&pool).expect("repo");
         let name = unique_job_name("sched_empty_inventory");
         repo.upsert_job(&name, "0 0 * * * *", true)
@@ -831,7 +799,7 @@ mod forget_retired_jobs {
 
     #[tokio::test]
     async fn a_job_another_version_still_runs_is_kept() {
-        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
+        let pool = test_db_pool().await;
         let repo = SchedulerRepository::new(&pool).expect("repo");
         let other_version = unique_job_name("sched_other_version");
         repo.upsert_job(&other_version, "0 0 * * * *", true)

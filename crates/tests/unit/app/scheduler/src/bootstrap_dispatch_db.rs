@@ -11,8 +11,8 @@
 //! A successful run is recorded only when it did work, so the recording
 //! tests drive the inventory-registered `WORKING_JOB`; the built-in cleanup
 //! jobs used for claim and owner tests touch shared tables, so these tests join
-//! the serialized `scheduler-jobs-db` nextest group. Tests skip when
-//! `DATABASE_URL` is unset locally, and fail under `CI`.
+//! the serialized `scheduler-jobs-db` nextest group. Tests fail when
+//! `DATABASE_URL` is unset.
 
 use std::sync::Arc;
 
@@ -20,7 +20,7 @@ use systemprompt_identifiers::InstanceId;
 use systemprompt_scheduler::{
     JobRunRecord, JobStatus, SchedulerConfig, SchedulerRepository, SchedulerService,
 };
-use systemprompt_test_fixtures::fixture_app_context;
+use systemprompt_test_fixtures::{test_app_context, test_database_url, test_db_pool};
 
 fn config_with_bootstrap(bootstrap: Vec<String>, distributed_lock: bool) -> SchedulerConfig {
     SchedulerConfig {
@@ -36,8 +36,9 @@ mod bootstrap_dispatch_db {
 
     #[tokio::test]
     async fn run_bootstrap_jobs_returns_registered_job_count() {
-        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
-        let app_ctx = fixture_app_context(&pool, &url).expect("fixture AppContext");
+        let url = test_database_url();
+        let pool = test_db_pool().await;
+        let app_ctx = test_app_context(&pool, &url);
 
         // No bootstrap jobs: nothing dispatched, but the registered-job count
         // (the inventory catalog size) is still returned and must be non-zero
@@ -59,8 +60,9 @@ mod bootstrap_dispatch_db {
 
     #[tokio::test]
     async fn run_bootstrap_jobs_dispatches_and_records_success() {
-        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
-        let app_ctx = fixture_app_context(&pool, &url).expect("fixture AppContext");
+        let url = test_database_url();
+        let pool = test_db_pool().await;
+        let app_ctx = test_app_context(&pool, &url);
 
         // The working test job reports one item processed, so its run is
         // recorded. Disable the distributed lock so the single-replica test
@@ -107,8 +109,9 @@ mod bootstrap_dispatch_db {
 
     #[tokio::test]
     async fn run_bootstrap_jobs_unknown_name_fails_loud() {
-        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
-        let app_ctx = fixture_app_context(&pool, &url).expect("fixture AppContext");
+        let url = test_database_url();
+        let pool = test_db_pool().await;
+        let app_ctx = test_app_context(&pool, &url);
 
         let config = config_with_bootstrap(vec!["totally_unregistered_job_xyz".to_owned()], true);
         let svc = SchedulerService::new(config, Arc::clone(&pool), app_ctx)
@@ -128,8 +131,9 @@ mod bootstrap_dispatch_db {
 
     #[tokio::test]
     async fn run_bootstrap_jobs_with_distributed_lock_records_run() {
-        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
-        let app_ctx = fixture_app_context(&pool, &url).expect("fixture AppContext");
+        let url = test_database_url();
+        let pool = test_db_pool().await;
+        let app_ctx = test_app_context(&pool, &url);
 
         // Same as the success case but with distributed_lock enabled, driving
         // the lock-acquisition branch of dispatch.rs.
@@ -164,8 +168,9 @@ mod bootstrap_dispatch_db {
 
     #[tokio::test]
     async fn idle_run_leaves_the_job_row_untouched() {
-        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
-        let app_ctx = fixture_app_context(&pool, &url).expect("fixture AppContext");
+        let url = test_database_url();
+        let pool = test_db_pool().await;
+        let app_ctx = test_app_context(&pool, &url);
         let job_name = crate::test_jobs::IDLE_JOB;
         let repo = SchedulerRepository::new(&pool).expect("repo");
         repo.upsert_job(job_name, "0 0 * * * *", true)
@@ -201,8 +206,9 @@ mod dispatch_outcome_arms {
 
     #[tokio::test]
     async fn panicking_job_records_failed_status_with_panic_message() {
-        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
-        let app_ctx = fixture_app_context(&pool, &url).expect("fixture AppContext");
+        let url = test_database_url();
+        let pool = test_db_pool().await;
+        let app_ctx = test_app_context(&pool, &url);
 
         let repo = SchedulerRepository::new(&pool).expect("repo");
         repo.upsert_job(PANIC_JOB, "", true)
@@ -237,8 +243,9 @@ mod dispatch_outcome_arms {
 
     #[tokio::test]
     async fn failing_job_records_failed_status_with_its_message() {
-        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
-        let app_ctx = fixture_app_context(&pool, &url).expect("fixture AppContext");
+        let url = test_database_url();
+        let pool = test_db_pool().await;
+        let app_ctx = test_app_context(&pool, &url);
 
         let repo = SchedulerRepository::new(&pool).expect("repo");
         repo.upsert_job(FAILING_JOB, "", true)
@@ -272,8 +279,9 @@ mod dispatch_outcome_arms {
 
     #[tokio::test]
     async fn dispatch_without_scheduled_jobs_row_reports_missing_row() {
-        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
-        let app_ctx = fixture_app_context(&pool, &url).expect("fixture AppContext");
+        let url = test_database_url();
+        let pool = test_db_pool().await;
+        let app_ctx = test_app_context(&pool, &url);
 
         let pg = pool.write_pool_arc().expect("write pool");
         sqlx::query!(
@@ -311,8 +319,9 @@ mod distributed_lock_arms {
 
     #[tokio::test]
     async fn peer_held_advisory_lock_skips_the_dispatch() {
-        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
-        let app_ctx = fixture_app_context(&pool, &url).expect("fixture AppContext");
+        let url = test_database_url();
+        let pool = test_db_pool().await;
+        let app_ctx = test_app_context(&pool, &url);
 
         let job_name = "cleanup_empty_contexts";
         let repo = SchedulerRepository::new(&pool).expect("repo");
@@ -369,8 +378,9 @@ mod distributed_lock_arms {
 
     #[tokio::test]
     async fn fresh_last_run_deduplicates_the_tick() {
-        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
-        let app_ctx = fixture_app_context(&pool, &url).expect("fixture AppContext");
+        let url = test_database_url();
+        let pool = test_db_pool().await;
+        let app_ctx = test_app_context(&pool, &url);
 
         let job_name = "cleanup_empty_contexts";
         let repo = SchedulerRepository::new(&pool).expect("repo");
@@ -426,8 +436,9 @@ mod closed_pool_resilience {
 
     #[tokio::test]
     async fn bootstrap_survives_a_dead_database_without_lock() {
-        let (real_pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
-        let app_ctx = fixture_app_context(&real_pool, &url).expect("fixture AppContext");
+        let url = test_database_url();
+        let real_pool = test_db_pool().await;
+        let app_ctx = test_app_context(&real_pool, &url);
         let closed = closed_db_pool().await;
 
         // Every repository write (Running transition, run-count increment,
@@ -445,8 +456,9 @@ mod closed_pool_resilience {
 
     #[tokio::test]
     async fn bootstrap_survives_a_dead_database_with_lock() {
-        let (real_pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
-        let app_ctx = fixture_app_context(&real_pool, &url).expect("fixture AppContext");
+        let url = test_database_url();
+        let real_pool = test_db_pool().await;
+        let app_ctx = test_app_context(&real_pool, &url);
         let closed = closed_db_pool().await;
 
         // With distributed_lock enabled, the advisory-lock acquisition fails on
@@ -469,8 +481,9 @@ mod bootstrap_owner_arms {
 
     #[tokio::test]
     async fn bootstrap_job_with_unresolved_owner_is_skipped() {
-        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
-        let app_ctx = fixture_app_context(&pool, &url).expect("fixture AppContext");
+        let url = test_database_url();
+        let pool = test_db_pool().await;
+        let app_ctx = test_app_context(&pool, &url);
 
         let job_name = "cleanup_empty_contexts";
         let repo = SchedulerRepository::new(&pool).expect("repo");
@@ -515,8 +528,9 @@ mod bootstrap_owner_arms {
 
     #[tokio::test]
     async fn bootstrap_job_with_active_explicit_owner_runs_as_that_owner() {
-        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
-        let app_ctx = fixture_app_context(&pool, &url).expect("fixture AppContext");
+        let url = test_database_url();
+        let pool = test_db_pool().await;
+        let app_ctx = test_app_context(&pool, &url);
         let pg = pool.write_pool_arc().expect("write pool");
 
         let owner_name = format!("sp_test_owner_{}", std::process::id());

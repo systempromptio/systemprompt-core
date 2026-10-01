@@ -273,8 +273,8 @@ async fn seed_trace_request(pool: &sqlx::PgPool, id: &str, trace: &str) {
 
 #[tokio::test]
 async fn traces_export_keeps_request_and_governance_decision_correlated_in_one_protobuf_batch() {
-    let db = DisposableDb::installed("otlp_export_traces").await.unwrap();
-    let pool = db.pool().await.unwrap();
+    let db = DisposableDb::with_schema("otlp_export_traces").await;
+    let pool = db.test_pool().await;
     let raw = pool.pool_arc().unwrap();
     seed_trace_request(raw.as_ref(), "otlp-trace-row", "trace-otlp-correlation").await;
     let collector = MockServer::start().await;
@@ -313,8 +313,8 @@ async fn traces_export_keeps_request_and_governance_decision_correlated_in_one_p
 
 #[tokio::test]
 async fn export_now_posts_a_decodable_log_batch_and_advances_the_durable_watermark() {
-    let db = DisposableDb::installed("otlp_export_ack").await.unwrap();
-    let pool = db.pool().await.unwrap();
+    let db = DisposableDb::with_schema("otlp_export_ack").await;
+    let pool = db.test_pool().await;
     let raw = pool.pool_arc().unwrap();
     seed_log(raw.as_ref(), "otlp-log-ack").await;
     let collector = MockServer::start().await;
@@ -366,8 +366,8 @@ async fn export_now_posts_a_decodable_log_batch_and_advances_the_durable_waterma
 
 #[tokio::test]
 async fn rejected_collector_keeps_the_cursor_then_a_retry_ships_the_identical_batch() {
-    let db = DisposableDb::installed("otlp_export_retry").await.unwrap();
-    let pool = db.pool().await.unwrap();
+    let db = DisposableDb::with_schema("otlp_export_retry").await;
+    let pool = db.test_pool().await;
     let raw = pool.pool_arc().unwrap();
     seed_log(raw.as_ref(), "otlp-log-retry").await;
     let collector = MockServer::start().await;
@@ -426,10 +426,8 @@ async fn invalid_header_keeps_the_cursor_then_repaired_config_delivers_the_batch
             .with_writer(diagnostics.clone()),
     );
     let _subscriber = tracing::subscriber::set_default(subscriber);
-    let db = DisposableDb::installed("otlp_invalid_header")
-        .await
-        .unwrap();
-    let pool = db.pool().await.unwrap();
+    let db = DisposableDb::with_schema("otlp_invalid_header").await;
+    let pool = db.test_pool().await;
     let raw = pool.pool_arc().unwrap();
     seed_log(raw.as_ref(), "otlp-log-invalid-header").await;
     let collector = MockServer::start().await;
@@ -504,8 +502,8 @@ async fn invalid_header_keeps_the_cursor_then_repaired_config_delivers_the_batch
 
 #[tokio::test]
 async fn a_retryable_503_retries_the_same_protobuf_payload_before_advancing() {
-    let db = DisposableDb::installed("otlp_export_503").await.unwrap();
-    let pool = db.pool().await.unwrap();
+    let db = DisposableDb::with_schema("otlp_export_503").await;
+    let pool = db.test_pool().await;
     let raw = pool.pool_arc().unwrap();
     seed_log(raw.as_ref(), "otlp-log-503").await;
     let collector = MockServer::start().await;
@@ -549,8 +547,8 @@ async fn a_retryable_503_retries_the_same_protobuf_payload_before_advancing() {
 
 #[tokio::test]
 async fn an_empty_signal_marks_the_cursor_caught_up_without_posting_to_the_collector() {
-    let db = DisposableDb::installed("otlp_export_empty").await.unwrap();
-    let pool = db.pool().await.unwrap();
+    let db = DisposableDb::with_schema("otlp_export_empty").await;
+    let pool = db.test_pool().await;
     let raw = pool.pool_arc().unwrap();
     let collector = MockServer::start().await;
 
@@ -731,10 +729,8 @@ fn retry_policy_backs_off_and_only_retries_transient_failures() {
 
 #[tokio::test]
 async fn state_inventory_reports_each_signal_failure_and_acknowledged_progress() {
-    let db = DisposableDb::installed("otlp_state_inventory")
-        .await
-        .unwrap();
-    let pool = db.pool().await.unwrap();
+    let db = DisposableDb::with_schema("otlp_state_inventory").await;
+    let pool = db.test_pool().await;
     let raw = pool.pool_arc().expect("raw pool");
     let repository = systemprompt_scheduler::OtlpExportStateRepository::new(raw.as_ref().clone());
 

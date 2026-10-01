@@ -11,7 +11,7 @@
 
 use systemprompt_database::{CreateServiceInput, ServiceConfig, ServiceRepository};
 use systemprompt_scheduler::{OrphanDisposition, ServiceManagementService};
-use systemprompt_test_fixtures::fixture_database_url;
+use systemprompt_test_fixtures::test_db_pool;
 
 // A PID that is never a live process: kill(2) on i32::MAX fails with ESRCH.
 const DEAD_PID: i32 = i32::MAX;
@@ -122,7 +122,7 @@ mod service_management_behaviour_db {
 
     #[tokio::test]
     async fn stop_service_without_pid_marks_row_stopped() {
-        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
+        let pool = test_db_pool().await;
         let svc = ServiceManagementService::new(
             systemprompt_database::ServiceRepository::new(
                 &pool,
@@ -159,7 +159,7 @@ mod service_management_behaviour_db {
 
     #[tokio::test]
     async fn stop_service_with_dead_pid_marks_row_stopped() {
-        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
+        let pool = test_db_pool().await;
         let svc = ServiceManagementService::new(
             systemprompt_database::ServiceRepository::new(
                 &pool,
@@ -195,7 +195,7 @@ mod service_management_behaviour_db {
 
     #[tokio::test]
     async fn stop_service_unknown_module_does_not_signal_and_marks_stopped() {
-        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
+        let pool = test_db_pool().await;
         let svc = ServiceManagementService::new(
             systemprompt_database::ServiceRepository::new(
                 &pool,
@@ -234,7 +234,7 @@ mod service_management_behaviour_db {
 
     #[tokio::test]
     async fn cleanup_orphaned_service_without_pid_returns_false() {
-        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
+        let pool = test_db_pool().await;
         let svc = ServiceManagementService::new(
             systemprompt_database::ServiceRepository::new(
                 &pool,
@@ -257,7 +257,7 @@ mod service_management_behaviour_db {
 
     #[tokio::test]
     async fn cleanup_orphaned_service_with_dead_pid_marks_stopped_and_returns_true() {
-        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
+        let pool = test_db_pool().await;
         let svc = ServiceManagementService::new(
             systemprompt_database::ServiceRepository::new(
                 &pool,
@@ -299,10 +299,8 @@ mod service_management_behaviour_db {
     async fn cleanup_all_orphans_reports_stale_entry_for_dead_pid_row() {
         let pkill = PkillShim::install();
         let database =
-            systemprompt_test_fixtures::DisposableDb::installed("scheduler_orphans_stale")
-                .await
-                .expect("isolated scheduler database");
-        let pool = database.pool().await.expect("isolated scheduler pool");
+            systemprompt_test_fixtures::DisposableDb::with_schema("scheduler_orphans_stale").await;
+        let pool = database.test_pool().await;
         let svc = ServiceManagementService::new(
             systemprompt_database::ServiceRepository::new(
                 &pool,
@@ -365,7 +363,7 @@ mod service_management_behaviour_db {
 
     #[tokio::test]
     async fn stop_api_by_port_on_free_port_reports_no_listener() {
-        let _pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
+        let _pool = test_db_pool().await;
 
         // Port 1 is privileged and effectively never bound by this test process,
         // so the static stop-by-port helper finds no listener and returns None
@@ -426,7 +424,7 @@ mod live_child_stop_paths {
 
     #[tokio::test]
     async fn stop_service_gracefully_terminates_a_marked_live_child() {
-        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
+        let pool = test_db_pool().await;
         let svc = ServiceManagementService::new(
             systemprompt_database::ServiceRepository::new(
                 &pool,
@@ -463,7 +461,7 @@ mod live_child_stop_paths {
 
     #[tokio::test]
     async fn stop_service_force_kills_a_marked_live_child() {
-        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
+        let pool = test_db_pool().await;
         let svc = ServiceManagementService::new(
             systemprompt_database::ServiceRepository::new(
                 &pool,
@@ -500,7 +498,7 @@ mod live_child_stop_paths {
 
     #[tokio::test]
     async fn stop_service_refuses_to_signal_a_live_pid_without_spawn_markers() {
-        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
+        let pool = test_db_pool().await;
         let svc = ServiceManagementService::new(
             systemprompt_database::ServiceRepository::new(
                 &pool,
@@ -541,7 +539,7 @@ mod live_child_stop_paths {
 
     #[tokio::test]
     async fn cleanup_orphaned_service_terminates_a_marked_live_child() {
-        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
+        let pool = test_db_pool().await;
         let svc = ServiceManagementService::new(
             systemprompt_database::ServiceRepository::new(
                 &pool,
@@ -582,10 +580,8 @@ mod live_child_stop_paths {
     async fn cleanup_all_orphans_stops_a_row_with_a_live_marked_pid() {
         let pkill = PkillShim::install();
         let database =
-            systemprompt_test_fixtures::DisposableDb::installed("scheduler_orphans_live")
-                .await
-                .expect("isolated scheduler database");
-        let pool = database.pool().await.expect("isolated scheduler pool");
+            systemprompt_test_fixtures::DisposableDb::with_schema("scheduler_orphans_live").await;
+        let pool = database.test_pool().await;
         let svc = ServiceManagementService::new(
             systemprompt_database::ServiceRepository::new(
                 &pool,
@@ -653,7 +649,7 @@ mod live_child_stop_paths {
 
     #[tokio::test]
     async fn stop_api_by_port_terminates_the_listener_gracefully() {
-        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
+        let pool = test_db_pool().await;
         let _ = pool;
 
         let (mut child, port) = spawn_port_holder();
@@ -669,7 +665,7 @@ mod live_child_stop_paths {
 
     #[tokio::test]
     async fn stop_api_by_port_force_kills_the_listener() {
-        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
+        let pool = test_db_pool().await;
         let _ = pool;
 
         let (mut child, port) = spawn_port_holder();
@@ -690,9 +686,6 @@ mod dead_pool_degradation {
 
     #[tokio::test]
     async fn stop_service_still_succeeds_when_the_row_update_fails() {
-        let Ok(_url) = fixture_database_url() else {
-            return;
-        };
         let closed = closed_db_pool().await;
         let svc = ServiceManagementService::new(
             systemprompt_database::ServiceRepository::new(
@@ -712,9 +705,6 @@ mod dead_pool_degradation {
 
     #[tokio::test]
     async fn cleanup_orphaned_service_reports_action_when_the_row_update_fails() {
-        let Ok(_url) = fixture_database_url() else {
-            return;
-        };
         let closed = closed_db_pool().await;
         let svc = ServiceManagementService::new(
             systemprompt_database::ServiceRepository::new(

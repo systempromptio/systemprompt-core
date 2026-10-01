@@ -16,10 +16,8 @@ async fn oauth_cleanup_job_requires_pool_and_removes_only_expired_rows() {
         Err(ProviderError::Configuration(message)) if message.contains("DbPool")
     ));
 
-    let database = DisposableDb::installed("oauth_cleanup_job")
-        .await
-        .expect("private database");
-    let db = database.pool().await.expect("private pool");
+    let database = DisposableDb::with_schema("oauth_cleanup_job").await;
+    let db = database.test_pool().await;
     seed_user_row(&db, &owner, &format!("{owner}@cleanup.invalid"))
         .await
         .expect("owner");

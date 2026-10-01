@@ -26,7 +26,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use systemprompt_database::DbPool;
 use systemprompt_scheduler::{JobConfig, SchedulerConfig, SchedulerService};
-use systemprompt_test_fixtures::{fixture_app_context, fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::{test_app_context, test_database_url, test_db_pool};
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
 
 const TEST_JOB_NAME: &str = "test_distributed_lock_probe";
@@ -83,11 +83,11 @@ async fn read_run_count(pool: &DbPool) -> Result<i32> {
 }
 
 async fn run_two_replicas(distributed_lock: bool, window: Duration) -> Result<i32> {
-    let database_url = fixture_database_url()?;
-    let pool = fixture_db_pool(&database_url).await?;
+    let database_url = test_database_url();
+    let pool = test_db_pool().await;
     reset_job_row(&pool).await?;
 
-    let app_context = fixture_app_context(&pool, &database_url)?;
+    let app_context = test_app_context(&pool, &database_url);
 
     // Two independent SchedulerService instances — two "replicas" — sharing
     // one database, exactly as two processes behind a load balancer would.

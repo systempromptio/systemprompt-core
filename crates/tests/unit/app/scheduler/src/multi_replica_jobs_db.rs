@@ -9,14 +9,13 @@ use systemprompt_ai::repository::thought_signatures::ThoughtSignatureWrite;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{Actor, GatewayConversationId, UserId};
 use systemprompt_scheduler::jobs::ThoughtSignatureCleanupJob;
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
 use systemprompt_traits::{Job, JobContext};
 use uuid::Uuid;
 
 async fn pool() -> DbPool {
-    let url = fixture_database_url().expect("DATABASE_URL must be set for the reaper job tests");
     ensure_test_bootstrap();
-    fixture_db_pool(&url).await.expect("fixture pool")
+    test_db_pool().await
 }
 
 fn ctx(db_pool_any: Arc<dyn std::any::Any + Send + Sync>) -> JobContext {

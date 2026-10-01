@@ -4,7 +4,7 @@ use std::time::{Duration, Instant};
 
 use systemprompt_models::SchedulerConfig;
 use systemprompt_scheduler::{JobStatus, SchedulerRepository, SchedulerService};
-use systemprompt_test_fixtures::{DisposableDb, fixture_app_context};
+use systemprompt_test_fixtures::{DisposableDb, test_app_context};
 use tracing_subscriber::layer::SubscriberExt;
 
 use crate::test_jobs::{
@@ -41,11 +41,9 @@ async fn cancelling_a_cluster_job_releases_its_session_lock_for_a_later_dispatch
             .with_writer(diagnostics.clone()),
     );
     let _subscriber = tracing::subscriber::set_default(subscriber);
-    let database = DisposableDb::installed("scheduler_cancelled_cluster_job")
-        .await
-        .unwrap();
-    let pool = database.pool().await.unwrap();
-    let context = fixture_app_context(&pool, database.url()).unwrap();
+    let database = DisposableDb::with_schema("scheduler_cancelled_cluster_job").await;
+    let pool = database.test_pool().await;
+    let context = test_app_context(&pool, database.url());
     let repository = SchedulerRepository::new(&pool).unwrap();
     repository
         .upsert_job(CANCELLABLE_CLUSTER_JOB, "", true)

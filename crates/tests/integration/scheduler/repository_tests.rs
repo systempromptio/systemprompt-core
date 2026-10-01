@@ -6,12 +6,7 @@ use chrono::Utc;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::InstanceId;
 use systemprompt_scheduler::{JobRunRecord, JobStatus, SchedulerRepository};
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
-
-async fn try_db_or_skip() -> Option<DbPool> {
-    let url = fixture_database_url().ok()?;
-    fixture_db_pool(&url).await.ok()
-}
+use systemprompt_test_fixtures::test_db_pool;
 
 fn unique_job_name() -> String {
     format!("test_job_{}", uuid::Uuid::new_v4().simple())
@@ -27,17 +22,13 @@ async fn cleanup_job(pool: &DbPool, job_name: &str) {
 
 #[tokio::test]
 async fn scheduler_repository_new_succeeds_with_real_pool() {
-    let Some(pool) = try_db_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     assert!(SchedulerRepository::new(&pool).is_ok());
 }
 
 #[tokio::test]
 async fn upsert_job_inserts_then_updates_in_place() {
-    let Some(pool) = try_db_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let repo = SchedulerRepository::new(&pool).expect("repo");
     let name = unique_job_name();
 
@@ -64,9 +55,7 @@ async fn upsert_job_inserts_then_updates_in_place() {
 
 #[tokio::test]
 async fn find_job_returns_none_for_unknown_name() {
-    let Some(pool) = try_db_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let repo = SchedulerRepository::new(&pool).expect("repo");
     let nope = format!("no_such_job_{}", uuid::Uuid::new_v4().simple());
     let result = repo.find_job(&nope).await.expect("query");
@@ -75,9 +64,7 @@ async fn find_job_returns_none_for_unknown_name() {
 
 #[tokio::test]
 async fn update_job_execution_records_status_and_error() {
-    let Some(pool) = try_db_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let repo = SchedulerRepository::new(&pool).expect("repo");
     let name = unique_job_name();
     repo.upsert_job(&name, "0 0 * * *", true)
@@ -109,9 +96,7 @@ async fn update_job_execution_records_status_and_error() {
 
 #[tokio::test]
 async fn recorded_runs_advance_run_count() {
-    let Some(pool) = try_db_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let repo = SchedulerRepository::new(&pool).expect("repo");
     let name = unique_job_name();
     repo.upsert_job(&name, "0 0 * * *", true)
@@ -150,9 +135,7 @@ async fn recorded_runs_advance_run_count() {
 
 #[tokio::test]
 async fn list_enabled_jobs_contains_inserted_enabled_job() {
-    let Some(pool) = try_db_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let repo = SchedulerRepository::new(&pool).expect("repo");
     let enabled_name = unique_job_name();
     let disabled_name = unique_job_name();
@@ -173,9 +156,7 @@ async fn list_enabled_jobs_contains_inserted_enabled_job() {
 
 #[tokio::test]
 async fn cleanup_empty_contexts_runs_without_error() {
-    let Some(pool) = try_db_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let repo = SchedulerRepository::new(&pool).expect("repo");
     let deleted = repo.cleanup_empty_contexts(24).await.expect("cleanup runs");
     let _ = deleted;

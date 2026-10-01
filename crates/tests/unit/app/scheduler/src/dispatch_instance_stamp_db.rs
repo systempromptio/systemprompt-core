@@ -14,7 +14,7 @@ use systemprompt_scheduler::{
     JobConfig, JobStatus, SchedulerConfig, SchedulerRepository, SchedulerService,
 };
 use systemprompt_test_fixtures::{
-    fixture_app_context_with_config, fixture_config, fixture_database_url, fixture_db_pool,
+    fixture_app_context_with_config, fixture_config, test_database_url, test_db_pool,
 };
 
 use crate::test_jobs::{STAMP_FAIL_JOB, STAMP_FAIL_JOB_RUNS, STAMP_PANIC_JOB};
@@ -24,8 +24,8 @@ use crate::test_jobs::{STAMP_FAIL_JOB, STAMP_FAIL_JOB_RUNS, STAMP_PANIC_JOB};
 static SERIALIZE: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
 async fn pool_and_url() -> (DbPool, String) {
-    let url = fixture_database_url().expect("DATABASE_URL must be set");
-    let pool = fixture_db_pool(&url).await.expect("db pool");
+    let url = test_database_url();
+    let pool = test_db_pool().await;
     (pool, url)
 }
 

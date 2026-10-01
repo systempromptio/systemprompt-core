@@ -4,23 +4,24 @@
 //! explicit owner does not resolve to an active user is skipped (not fatal) and
 //! recorded as an ERROR in the `logs` table. These tests touch the shared
 //! `scheduled_jobs`/`logs` tables and join the serialized `scheduler-jobs-db`
-//! nextest group. Tests skip when `DATABASE_URL`
-//! is unset locally, and fail under `CI`.
+//! nextest group. Tests fail when `DATABASE_URL`
+//! is unset.
 
 use std::sync::Arc;
 
 use systemprompt_identifiers::UserId;
 use systemprompt_logging::{LogLevel, LoggingRepository};
 use systemprompt_scheduler::{JobConfig, SchedulerConfig, SchedulerService};
-use systemprompt_test_fixtures::fixture_app_context;
+use systemprompt_test_fixtures::{test_app_context, test_database_url, test_db_pool};
 
 mod start_owner_resolution_db {
     use super::*;
 
     #[tokio::test]
     async fn ownerless_job_resolves_to_system_admin_and_starts() {
-        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
-        let app_ctx = fixture_app_context(&pool, &url).expect("fixture AppContext");
+        let url = test_database_url();
+        let pool = test_db_pool().await;
+        let app_ctx = test_app_context(&pool, &url);
 
         let config = SchedulerConfig {
             enabled: true,
@@ -45,8 +46,9 @@ mod start_owner_resolution_db {
 
     #[tokio::test]
     async fn unresolved_explicit_owner_is_skipped_and_logged() {
-        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
-        let app_ctx = fixture_app_context(&pool, &url).expect("fixture AppContext");
+        let url = test_database_url();
+        let pool = test_db_pool().await;
+        let app_ctx = test_app_context(&pool, &url);
 
         let bad_owner = "no-such-active-user-zzz";
         let config = SchedulerConfig {
@@ -106,8 +108,9 @@ mod start_lifecycle_db {
 
     #[tokio::test]
     async fn disabled_scheduler_returns_no_handle() {
-        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
-        let app_ctx = fixture_app_context(&pool, &url).expect("fixture AppContext");
+        let url = test_database_url();
+        let pool = test_db_pool().await;
+        let app_ctx = test_app_context(&pool, &url);
 
         let config = SchedulerConfig {
             enabled: false,
@@ -131,8 +134,9 @@ mod start_lifecycle_db {
 
     #[tokio::test]
     async fn unknown_configured_job_fails_start_loud() {
-        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
-        let app_ctx = fixture_app_context(&pool, &url).expect("fixture AppContext");
+        let url = test_database_url();
+        let pool = test_db_pool().await;
+        let app_ctx = test_app_context(&pool, &url);
 
         let config = SchedulerConfig {
             enabled: true,
@@ -155,8 +159,9 @@ mod start_lifecycle_db {
 
     #[tokio::test]
     async fn disabled_job_config_is_not_registered_or_upserted() {
-        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
-        let app_ctx = fixture_app_context(&pool, &url).expect("fixture AppContext");
+        let url = test_database_url();
+        let pool = test_db_pool().await;
+        let app_ctx = test_app_context(&pool, &url);
         let pg = pool.write_pool_arc().expect("write pool");
 
         let job_name = crate::test_jobs::EMPTY_SCHEDULE_JOB;
@@ -193,8 +198,9 @@ mod start_lifecycle_db {
 
     #[tokio::test]
     async fn empty_schedule_job_is_bootstrap_only_and_not_upserted() {
-        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
-        let app_ctx = fixture_app_context(&pool, &url).expect("fixture AppContext");
+        let url = test_database_url();
+        let pool = test_db_pool().await;
+        let app_ctx = test_app_context(&pool, &url);
         let pg = pool.write_pool_arc().expect("write pool");
 
         let job_name = crate::test_jobs::EMPTY_SCHEDULE_JOB;
@@ -228,8 +234,9 @@ mod start_lifecycle_db {
 
     #[tokio::test]
     async fn overlapping_cron_ticks_skip_while_job_is_running() {
-        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
-        let app_ctx = fixture_app_context(&pool, &url).expect("fixture AppContext");
+        let url = test_database_url();
+        let pool = test_db_pool().await;
+        let app_ctx = test_app_context(&pool, &url);
 
         use std::sync::atomic::Ordering;
         use std::time::{Duration, Instant};

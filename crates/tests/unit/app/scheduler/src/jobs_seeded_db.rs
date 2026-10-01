@@ -7,14 +7,13 @@
 use std::sync::Arc;
 
 use systemprompt_scheduler::{BehavioralAnalysisJob, MaliciousIpBlacklistJob};
-use systemprompt_test_fixtures::fixture_app_context;
+use systemprompt_test_fixtures::{test_app_context, test_database_url, test_db_pool};
 use systemprompt_traits::{Job, JobContext};
 
 fn make_test_ctx(pool: &systemprompt_database::DbPool, url: &str) -> JobContext {
     use systemprompt_identifiers::{Actor, UserId};
 
-    let app_ctx = fixture_app_context(pool, url)
-        .expect("fixture AppContext must build against a migrated DB");
+    let app_ctx = test_app_context(pool, url);
 
     let app_paths_any: Arc<dyn std::any::Any + Send + Sync> =
         Arc::new(Arc::clone(app_ctx.app_paths_arc()));
@@ -57,7 +56,8 @@ mod behavioral_analysis_seeded {
 
     #[tokio::test]
     async fn execute_flags_high_request_count_fingerprint() {
-        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
+        let url = test_database_url();
+        let pool = test_db_pool().await;
         let pg = pool.write_pool_arc().expect("write pool must be available");
 
         let hash = unique_id("fp_hireq");
@@ -103,7 +103,8 @@ mod behavioral_analysis_seeded {
 
     #[tokio::test]
     async fn execute_counts_flagged_as_processed() {
-        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
+        let url = test_database_url();
+        let pool = test_db_pool().await;
         let pg = pool.write_pool_arc().expect("write pool must be available");
 
         let hash = unique_id("fp_counted");
@@ -149,7 +150,8 @@ mod behavioral_analysis_seeded {
 
     #[tokio::test]
     async fn execute_flags_sustained_velocity_fingerprint() {
-        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
+        let url = test_database_url();
+        let pool = test_db_pool().await;
         let pg = pool.write_pool_arc().expect("write pool must be available");
 
         let hash = unique_id("fp_velocity");
@@ -195,7 +197,8 @@ mod behavioral_analysis_seeded {
 
     #[tokio::test]
     async fn execute_flags_excessive_sessions_fingerprint() {
-        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
+        let url = test_database_url();
+        let pool = test_db_pool().await;
         let pg = pool.write_pool_arc().expect("write pool must be available");
 
         let hash = unique_id("fp_sessions");
@@ -241,7 +244,8 @@ mod behavioral_analysis_seeded {
 
     #[tokio::test]
     async fn execute_triggers_ban_path_for_abuse_threshold_crossed() {
-        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
+        let url = test_database_url();
+        let pool = test_db_pool().await;
         let pg = pool.write_pool_arc().expect("write pool must be available");
 
         let hash = unique_id("fp_ban");
@@ -295,7 +299,8 @@ mod behavioral_analysis_seeded {
 
     #[tokio::test]
     async fn execute_handles_reputation_decay_below_threshold() {
-        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
+        let url = test_database_url();
+        let pool = test_db_pool().await;
         let pg = pool.write_pool_arc().expect("write pool must be available");
 
         let hash = unique_id("fp_decay");
@@ -339,7 +344,8 @@ mod behavioral_analysis_seeded {
 
     #[tokio::test]
     async fn execute_skips_ban_when_no_ip_address() {
-        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
+        let url = test_database_url();
+        let pool = test_db_pool().await;
         let pg = pool.write_pool_arc().expect("write pool must be available");
 
         let hash = unique_id("fp_noip");
@@ -386,7 +392,8 @@ mod behavioral_analysis_seeded {
 
     #[tokio::test]
     async fn execute_multiple_fingerprints_all_branches() {
-        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
+        let url = test_database_url();
+        let pool = test_db_pool().await;
         let pg = pool.write_pool_arc().expect("write pool must be available");
 
         let fp_high_req = unique_id("fp_multi_req");
@@ -473,7 +480,8 @@ mod malicious_ip_blacklist_seeded {
 
     #[tokio::test]
     async fn execute_bans_high_volume_ip() {
-        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
+        let url = test_database_url();
+        let pool = test_db_pool().await;
         let pg = pool.write_pool_arc().expect("write pool must be available");
 
         let ip = unique_ip("192.168");
@@ -515,7 +523,8 @@ mod malicious_ip_blacklist_seeded {
 
     #[tokio::test]
     async fn execute_bans_scanner_ip() {
-        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
+        let url = test_database_url();
+        let pool = test_db_pool().await;
         let pg = pool.write_pool_arc().expect("write pool must be available");
 
         let ip = unique_ip("172.16");
@@ -552,7 +561,8 @@ mod malicious_ip_blacklist_seeded {
 
     #[tokio::test]
     async fn execute_bans_datacenter_ip() {
-        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
+        let url = test_database_url();
+        let pool = test_db_pool().await;
         let pg = pool.write_pool_arc().expect("write pool must be available");
 
         let ip = unique_ip("47.79");
@@ -583,7 +593,8 @@ mod malicious_ip_blacklist_seeded {
 
     #[tokio::test]
     async fn execute_bans_high_risk_country_ip() {
-        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
+        let url = test_database_url();
+        let pool = test_db_pool().await;
         let pg = pool.write_pool_arc().expect("write pool must be available");
 
         let ip = unique_ip("10.20");
@@ -620,7 +631,8 @@ mod malicious_ip_blacklist_seeded {
 
     #[tokio::test]
     async fn execute_skips_already_banned_ip() {
-        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
+        let url = test_database_url();
+        let pool = test_db_pool().await;
         let pg = pool.write_pool_arc().expect("write pool must be available");
 
         let ip = unique_ip("192.0");
@@ -669,7 +681,8 @@ mod malicious_ip_blacklist_seeded {
 
     #[tokio::test]
     async fn execute_handles_non_high_risk_country_not_banned() {
-        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
+        let url = test_database_url();
+        let pool = test_db_pool().await;
         let pg = pool.write_pool_arc().expect("write pool must be available");
 
         let ip = unique_ip("10.30");
@@ -706,7 +719,8 @@ mod malicious_ip_blacklist_seeded {
 
     #[tokio::test]
     async fn execute_processes_sessions_without_ip_gracefully() {
-        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
+        let url = test_database_url();
+        let pool = test_db_pool().await;
         let pg = pool.write_pool_arc().expect("write pool must be available");
 
         let mut session_ids = Vec::new();

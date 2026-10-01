@@ -1,8 +1,7 @@
 //! Tests for cluster- versus node-scoped job claims: a node-scoped job runs on
 //! every replica and only de-duplicates against its own instance, while a
 //! cluster-scoped job still yields to a peer-held advisory lock. DB-backed
-//! tests skip when `DATABASE_URL` is
-//! unset locally, and fail under `CI`.
+//! tests fail when `DATABASE_URL` is unset.
 
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
@@ -11,7 +10,9 @@ use systemprompt_database::DbPool;
 use systemprompt_models::services::scheduler::JobScope;
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::{JobConfig, SchedulerConfig, SchedulerRepository, SchedulerService};
-use systemprompt_test_fixtures::{fixture_app_context_with_config, fixture_config};
+use systemprompt_test_fixtures::{
+    fixture_app_context_with_config, fixture_config, test_database_url, test_db_pool,
+};
 
 use crate::test_jobs::{NODE_JOB, NODE_JOB_RUNS};
 
@@ -64,7 +65,8 @@ mod node_scope {
 
     #[tokio::test]
     async fn runs_on_every_replica_back_to_back() {
-        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
+        let url = test_database_url();
+        let pool = test_db_pool().await;
         let _guard = SERIALIZE.lock().await;
         let repo = seed_row(&pool).await;
 
@@ -87,7 +89,8 @@ mod node_scope {
 
     #[tokio::test]
     async fn same_replica_within_dedupe_window_is_skipped() {
-        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
+        let url = test_database_url();
+        let pool = test_db_pool().await;
         let _guard = SERIALIZE.lock().await;
         seed_row(&pool).await;
 
@@ -108,7 +111,8 @@ mod cluster_scope {
 
     #[tokio::test]
     async fn config_override_to_cluster_yields_to_peer_held_lock() {
-        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
+        let url = test_database_url();
+        let pool = test_db_pool().await;
         let _guard = SERIALIZE.lock().await;
         let repo = seed_row(&pool).await;
 

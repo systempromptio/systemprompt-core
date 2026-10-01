@@ -3,23 +3,16 @@
 //! mutate live services (the mutation paths kill processes / bind ports, so
 //! they're not safe to drive from the test runner).
 
-use systemprompt_database::{CreateServiceInput, DbPool, ServiceRepository};
+use systemprompt_database::{CreateServiceInput, ServiceRepository};
 use systemprompt_scheduler::{
     DesiredStatus, RuntimeStatus, ServiceAction, ServiceConfig, ServiceManagementService,
     ServiceStateVerifier, ServiceType,
 };
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
-
-async fn try_pool_or_skip() -> Option<DbPool> {
-    let url = fixture_database_url().ok()?;
-    fixture_db_pool(&url).await.ok()
-}
+use systemprompt_test_fixtures::test_db_pool;
 
 #[tokio::test]
 async fn get_services_by_type_surfaces_seeded_service() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let repo = ServiceRepository::new(
         &pool,
         systemprompt_identifiers::InstanceId::new("test-instance"),
@@ -58,9 +51,7 @@ async fn get_services_by_type_surfaces_seeded_service() {
 
 #[tokio::test]
 async fn get_running_services_with_pid_returns_only_running() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let svc = ServiceManagementService::new(
         systemprompt_database::ServiceRepository::new(
             &pool,
@@ -77,9 +68,7 @@ async fn get_running_services_with_pid_returns_only_running() {
 
 #[tokio::test]
 async fn cleanup_stale_entries_runs() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let svc = ServiceManagementService::new(
         systemprompt_database::ServiceRepository::new(
             &pool,
@@ -93,9 +82,7 @@ async fn cleanup_stale_entries_runs() {
 
 #[tokio::test]
 async fn mark_service_stopped_for_unknown_succeeds() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let svc = ServiceManagementService::new(
         systemprompt_database::ServiceRepository::new(
             &pool,
@@ -111,9 +98,7 @@ async fn mark_service_stopped_for_unknown_succeeds() {
 
 #[tokio::test]
 async fn state_verifier_get_verified_states_handles_unknown_service() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let verifier = ServiceStateVerifier::new(
         pool,
         systemprompt_identifiers::InstanceId::new("test-instance"),
@@ -133,9 +118,7 @@ async fn state_verifier_get_verified_states_handles_unknown_service() {
 
 #[tokio::test]
 async fn state_verifier_get_running_services_filters_correctly() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let verifier = ServiceStateVerifier::new(
         pool,
         systemprompt_identifiers::InstanceId::new("test-instance"),
@@ -159,9 +142,7 @@ async fn state_verifier_get_running_services_filters_correctly() {
 
 #[tokio::test]
 async fn state_verifier_get_services_needing_action_filters() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let verifier = ServiceStateVerifier::new(
         pool,
         systemprompt_identifiers::InstanceId::new("test-instance"),
@@ -193,9 +174,7 @@ async fn state_verifier_get_services_needing_action_filters() {
 
 #[tokio::test]
 async fn state_verifier_get_crashed_services_filters() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let verifier = ServiceStateVerifier::new(
         pool,
         systemprompt_identifiers::InstanceId::new("test-instance"),

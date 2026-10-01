@@ -1,7 +1,7 @@
 //! DB-backed tests for [`ServiceReconciler`] and [`ServiceStateVerifier`].
 //!
-//! Both types require a live Postgres pool. Tests skip when `DATABASE_URL`
-//! is unset locally, and fail under `CI`. The `services` table may be empty on
+//! Both types require a live Postgres pool. Tests fail when `DATABASE_URL`
+//! is unset. The `services` table may be empty on
 //! a freshly-migrated DB; tests seed rows they need and clean them up
 //! afterwards.
 
@@ -12,13 +12,14 @@ use systemprompt_scheduler::{
     DesiredStatus, ReconciliationResult, ServiceAction, ServiceConfig, ServiceReconciler,
     ServiceStateVerifier,
 };
+use systemprompt_test_fixtures::test_db_pool;
 
 mod reconciler_db {
     use super::*;
 
     #[tokio::test]
     async fn new_constructs_against_migrated_db() {
-        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
+        let pool = test_db_pool().await;
         let _reconciler = ServiceReconciler::new(
             Arc::clone(&pool),
             systemprompt_identifiers::InstanceId::new("test-instance"),
@@ -27,7 +28,7 @@ mod reconciler_db {
 
     #[tokio::test]
     async fn reconcile_empty_configs_returns_success() {
-        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
+        let pool = test_db_pool().await;
         let reconciler = ServiceReconciler::new(
             Arc::clone(&pool),
             systemprompt_identifiers::InstanceId::new("test-instance"),
@@ -54,7 +55,7 @@ mod reconciler_db {
 
     #[tokio::test]
     async fn reconcile_disabled_config_absent_from_db_returns_success() {
-        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
+        let pool = test_db_pool().await;
         let reconciler = ServiceReconciler::new(
             Arc::clone(&pool),
             systemprompt_identifiers::InstanceId::new("test-instance"),
@@ -77,7 +78,7 @@ mod reconciler_db {
 
     #[tokio::test]
     async fn reconcile_enabled_config_absent_from_db_attempts_start() {
-        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
+        let pool = test_db_pool().await;
         let reconciler = ServiceReconciler::new(
             Arc::clone(&pool),
             systemprompt_identifiers::InstanceId::new("test-instance"),
@@ -123,7 +124,7 @@ mod reconciler_db {
 
     #[tokio::test]
     async fn reconcile_multiple_disabled_absent_configs() {
-        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
+        let pool = test_db_pool().await;
         let reconciler = ServiceReconciler::new(
             Arc::clone(&pool),
             systemprompt_identifiers::InstanceId::new("test-instance"),
@@ -154,7 +155,7 @@ mod reconciler_db {
 
     #[tokio::test]
     async fn reconcile_start_failure_recorded_in_failed() {
-        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
+        let pool = test_db_pool().await;
         let reconciler = ServiceReconciler::new(
             Arc::clone(&pool),
             systemprompt_identifiers::InstanceId::new("test-instance"),
@@ -187,7 +188,7 @@ mod state_verifier_db {
 
     #[tokio::test]
     async fn new_constructs_against_migrated_db() {
-        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
+        let pool = test_db_pool().await;
         let _verifier = ServiceStateVerifier::new(
             Arc::clone(&pool),
             systemprompt_identifiers::InstanceId::new("test-instance"),
@@ -196,7 +197,7 @@ mod state_verifier_db {
 
     #[tokio::test]
     async fn get_verified_states_empty_configs_returns_empty_or_orphans() {
-        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
+        let pool = test_db_pool().await;
         let verifier = ServiceStateVerifier::new(
             Arc::clone(&pool),
             systemprompt_identifiers::InstanceId::new("test-instance"),
@@ -214,7 +215,7 @@ mod state_verifier_db {
 
     #[tokio::test]
     async fn get_verified_states_disabled_config_maps_to_cleanup_or_none() {
-        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
+        let pool = test_db_pool().await;
         let verifier = ServiceStateVerifier::new(
             Arc::clone(&pool),
             systemprompt_identifiers::InstanceId::new("test-instance"),
@@ -259,7 +260,7 @@ mod state_verifier_db {
 
     #[tokio::test]
     async fn get_verified_states_enabled_config_absent_from_db_needs_start() {
-        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
+        let pool = test_db_pool().await;
         let verifier = ServiceStateVerifier::new(
             Arc::clone(&pool),
             systemprompt_identifiers::InstanceId::new("test-instance"),
@@ -295,7 +296,7 @@ mod state_verifier_db {
 
     #[tokio::test]
     async fn get_services_needing_action_filters_correctly() {
-        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
+        let pool = test_db_pool().await;
         let verifier = ServiceStateVerifier::new(
             Arc::clone(&pool),
             systemprompt_identifiers::InstanceId::new("test-instance"),
@@ -331,7 +332,7 @@ mod state_verifier_db {
 
     #[tokio::test]
     async fn get_running_services_returns_only_running() {
-        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
+        let pool = test_db_pool().await;
         let verifier = ServiceStateVerifier::new(
             Arc::clone(&pool),
             systemprompt_identifiers::InstanceId::new("test-instance"),
@@ -361,7 +362,7 @@ mod state_verifier_db {
 
     #[tokio::test]
     async fn get_crashed_services_returns_only_crashed() {
-        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
+        let pool = test_db_pool().await;
         let verifier = ServiceStateVerifier::new(
             Arc::clone(&pool),
             systemprompt_identifiers::InstanceId::new("test-instance"),
@@ -391,7 +392,7 @@ mod state_verifier_db {
 
     #[tokio::test]
     async fn get_verified_states_multiple_configs_all_appear() {
-        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
+        let pool = test_db_pool().await;
         let verifier = ServiceStateVerifier::new(
             Arc::clone(&pool),
             systemprompt_identifiers::InstanceId::new("test-instance"),
@@ -520,7 +521,7 @@ mod reconciler_action_arms {
 
     #[tokio::test]
     async fn crashed_enabled_service_is_restarted() {
-        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
+        let pool = test_db_pool().await;
         let pg = pool.write_pool_arc().expect("write pool");
         let reconciler = ServiceReconciler::new(
             Arc::clone(&pool),
@@ -557,7 +558,7 @@ mod reconciler_action_arms {
 
     #[tokio::test]
     async fn restart_records_failure_when_start_callback_errors() {
-        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
+        let pool = test_db_pool().await;
         let pg = pool.write_pool_arc().expect("write pool");
         let reconciler = ServiceReconciler::new(
             Arc::clone(&pool),
@@ -600,7 +601,7 @@ mod reconciler_action_arms {
 
     #[tokio::test]
     async fn stopped_orphan_row_is_swept_from_the_db() {
-        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
+        let pool = test_db_pool().await;
         let pg = pool.write_pool_arc().expect("write pool");
         let reconciler = ServiceReconciler::new(
             Arc::clone(&pool),
@@ -627,7 +628,7 @@ mod reconciler_action_arms {
 
     #[tokio::test]
     async fn orphaned_process_is_terminated_and_row_swept() {
-        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
+        let pool = test_db_pool().await;
         let pg = pool.write_pool_arc().expect("write pool");
         let reconciler = ServiceReconciler::new(
             Arc::clone(&pool),
@@ -656,7 +657,7 @@ mod reconciler_action_arms {
 
     #[tokio::test]
     async fn disabled_running_service_is_stopped() {
-        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
+        let pool = test_db_pool().await;
         let pg = pool.write_pool_arc().expect("write pool");
         let reconciler = ServiceReconciler::new(
             Arc::clone(&pool),
@@ -709,7 +710,7 @@ mod reconciler_noop_arm {
 
     #[tokio::test]
     async fn healthy_running_service_needs_no_action() {
-        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
+        let pool = test_db_pool().await;
         let pg = pool.write_pool_arc().expect("write pool");
         let reconciler = ServiceReconciler::new(
             Arc::clone(&pool),
