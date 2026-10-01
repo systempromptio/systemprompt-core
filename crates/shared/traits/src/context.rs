@@ -15,6 +15,7 @@ use std::sync::Arc;
 
 use crate::analytics::{AnalyticsProvider, FingerprintProvider};
 use crate::auth::UserProvider;
+use crate::repository::BoxedSource;
 
 pub trait AppContext: Send + Sync {
     fn config(&self) -> Arc<dyn ConfigProvider>;
@@ -37,8 +38,12 @@ pub enum ContextPropagationError {
     #[error("missing header: {0}")]
     MissingHeader(String),
 
-    #[error("invalid header {name}: {message}")]
-    InvalidHeader { name: String, message: String },
+    #[error("invalid header {name}: {source}")]
+    InvalidHeader {
+        name: String,
+        #[source]
+        source: BoxedSource,
+    },
 
     #[error("invalid context: {0}")]
     Invalid(String),

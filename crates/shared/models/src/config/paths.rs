@@ -3,10 +3,20 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, thiserror::Error)]
+#[error(
+    "Profile Error: Required path not configured\n\n  Field: paths.{path_name}\n{}\n  \
+     To fix:\n  - Run 'systemprompt cloud config' to regenerate profile\n  - Or manually add \
+     paths.{path_name} to your profile",
+    profile_line(.profile_path.as_deref())
+)]
 pub struct PathNotConfiguredError {
     pub path_name: String,
     pub profile_path: Option<String>,
+}
+
+fn profile_line(profile_path: Option<&str>) -> String {
+    profile_path.map_or_else(String::new, |profile| format!("  Profile: {profile}\n"))
 }
 
 impl PathNotConfiguredError {
@@ -22,25 +32,3 @@ impl PathNotConfiguredError {
         self
     }
 }
-
-impl std::fmt::Display for PathNotConfiguredError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "Profile Error: Required path not configured\n")?;
-        writeln!(f, "  Field: paths.{}", self.path_name)?;
-        if let Some(ref profile) = self.profile_path {
-            writeln!(f, "  Profile: {}", profile)?;
-        }
-        writeln!(f, "\n  To fix:")?;
-        writeln!(
-            f,
-            "  - Run 'systemprompt cloud config' to regenerate profile"
-        )?;
-        write!(
-            f,
-            "  - Or manually add paths.{} to your profile",
-            self.path_name
-        )
-    }
-}
-
-impl std::error::Error for PathNotConfiguredError {}

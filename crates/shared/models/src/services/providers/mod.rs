@@ -200,7 +200,7 @@ pub struct ProviderRegistry {
 impl ProviderRegistry {
     pub fn default_seed() -> ProviderRegistryResult<Self> {
         let file: DefaultCatalogFile = serde_yaml::from_str(DEFAULT_CATALOG_YAML)
-            .map_err(|e| ProviderRegistryError::InvalidDefaultCatalog(e.to_string()))?;
+            .map_err(ProviderRegistryError::InvalidDefaultCatalog)?;
         Ok(Self {
             providers: file.providers,
         })
@@ -251,10 +251,10 @@ impl ProviderRegistry {
                 });
             }
             crate::net::validate_outbound_url_with_trust(&provider.endpoint, &trusted).map_err(
-                |e| ProviderRegistryError::BlockedEndpoint {
+                |source| ProviderRegistryError::BlockedEndpoint {
                     provider: provider.name.as_str().to_owned(),
                     endpoint: provider.endpoint.clone(),
-                    reason: e.to_string(),
+                    source,
                 },
             )?;
             if let Some(header) = headers::reserved_name(provider.extra_headers.keys()) {

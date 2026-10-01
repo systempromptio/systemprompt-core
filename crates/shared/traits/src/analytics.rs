@@ -16,6 +16,8 @@ use std::net::IpAddr;
 use std::sync::Arc;
 use systemprompt_identifiers::{SessionId, SessionSource, UserId};
 
+use crate::BoxedSource;
+
 pub type AnalyticsResult<T> = Result<T, AnalyticsProviderError>;
 
 #[derive(Debug, thiserror::Error)]
@@ -28,7 +30,7 @@ pub enum AnalyticsProviderError {
     FingerprintNotFound,
 
     #[error("Internal error: {0}")]
-    Internal(String),
+    Internal(#[source] BoxedSource),
 }
 
 /// A single HTTP request reduced to the signals the session pipeline records.

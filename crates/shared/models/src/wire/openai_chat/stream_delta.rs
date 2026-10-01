@@ -19,6 +19,7 @@ use serde_json::Value;
 use systemprompt_identifiers::MessageId;
 
 use crate::wire::canonical::{CanonicalEvent, ContentBlockKind};
+use crate::wire::error::WireStreamError;
 
 pub(super) struct OpenAiChatStreamState {
     pub(super) buf: Vec<u8>,
@@ -43,7 +44,7 @@ pub(super) fn process_text_delta(
     state: &mut OpenAiChatStreamState,
     // JSON: OpenAI Chat Completions streaming delta; upstream JSON is the contract.
     delta: &Value,
-    events: &mut Vec<Result<CanonicalEvent, String>>,
+    events: &mut Vec<Result<CanonicalEvent, WireStreamError>>,
 ) {
     let Some(text) = delta.get("content").and_then(Value::as_str) else {
         return;
@@ -72,7 +73,7 @@ pub(super) fn process_text_delta(
 
 pub(super) fn close_reasoning(
     state: &mut OpenAiChatStreamState,
-    events: &mut Vec<Result<CanonicalEvent, String>>,
+    events: &mut Vec<Result<CanonicalEvent, WireStreamError>>,
 ) {
     if let Some(index) = state.reasoning_block.take() {
         events.push(Ok(CanonicalEvent::ContentBlockStop { index }));
@@ -85,7 +86,7 @@ pub(super) fn process_reasoning_delta(
     state: &mut OpenAiChatStreamState,
     // JSON: OpenAI Chat Completions streaming delta; upstream JSON is the contract.
     delta: &Value,
-    events: &mut Vec<Result<CanonicalEvent, String>>,
+    events: &mut Vec<Result<CanonicalEvent, WireStreamError>>,
 ) {
     let Some(text) = delta
         .get("reasoning_content")
@@ -122,7 +123,7 @@ pub(super) fn process_tool_calls(
     state: &mut OpenAiChatStreamState,
     // JSON: OpenAI Chat Completions streaming delta; upstream JSON is the contract.
     delta: &Value,
-    events: &mut Vec<Result<CanonicalEvent, String>>,
+    events: &mut Vec<Result<CanonicalEvent, WireStreamError>>,
 ) {
     let Some(tool_calls) = delta.get("tool_calls").and_then(Value::as_array) else {
         return;
@@ -157,7 +158,7 @@ pub(super) fn open_new_tool_call(
     // JSON: OpenAI Chat Completions streaming delta; upstream JSON is the contract.
     tc: &Value,
     provider_index: i64,
-    events: &mut Vec<Result<CanonicalEvent, String>>,
+    events: &mut Vec<Result<CanonicalEvent, WireStreamError>>,
 ) -> u32 {
     let idx = state.next_index;
     state.next_index += 1;

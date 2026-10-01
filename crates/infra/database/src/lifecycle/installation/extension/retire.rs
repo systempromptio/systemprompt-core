@@ -40,9 +40,21 @@ fn refused(extension: &str, message: &str) -> LoaderError {
     }
 }
 
+fn unparseable(
+    extension: &str,
+    context: &str,
+    source: impl std::error::Error + Send + Sync + 'static,
+) -> LoaderError {
+    LoaderError::SchemaInstallationStepFailed {
+        extension: extension.to_owned(),
+        context: format!("retirement: {context}"),
+        source: Box::new(source),
+    }
+}
+
 fn check_statement(extension: &str, statement: &str) -> Result<(), LoaderError> {
-    let parsed = pg_query::parse(statement)
-        .map_err(|e| refused(extension, &format!("SQL parse failed: {e}")))?;
+    let parsed =
+        pg_query::parse(statement).map_err(|e| unparseable(extension, "SQL parse failed", e))?;
     for raw in &parsed.protobuf.stmts {
         let node = raw.stmt.as_ref().and_then(|s| s.node.as_ref());
         let Some(NodeEnum::DropStmt(drop)) = node else {
@@ -87,7 +99,7 @@ fn prepare(extensions: &[Arc<dyn Extension>]) -> Result<Vec<Retirement>, LoaderE
         let mut statements = Vec::new();
         for retirement in ext.retirements() {
             let parsed = SqlExecutor::parse_sql_statements(&retirement.sql)
-                .map_err(|e| refused(&extension, &format!("SQL split failed: {e}")))?;
+                .map_err(|e| unparseable(&extension, "SQL split failed", e))?;
             for statement in parsed {
                 check_statement(&extension, &statement)?;
                 statements.push(statement);

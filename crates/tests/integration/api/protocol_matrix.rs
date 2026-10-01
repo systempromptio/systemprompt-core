@@ -11,6 +11,7 @@ use systemprompt_api::services::gateway::protocol::{
     outbound_anthropic,
 };
 use systemprompt_identifiers::ModelId;
+use systemprompt_models::wire::error::WireStreamError;
 
 // -----------------------------------------------------------------------------
 // Inbound parsers
@@ -238,7 +239,7 @@ fn byte_stream(
 
 async fn collect_events<S>(s: S) -> Vec<CanonicalEvent>
 where
-    S: futures::Stream<Item = Result<CanonicalEvent, String>> + Send + 'static,
+    S: futures::Stream<Item = Result<CanonicalEvent, WireStreamError>> + Send + 'static,
 {
     s.filter_map(|r| async move { r.ok() }).collect().await
 }

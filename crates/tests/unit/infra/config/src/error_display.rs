@@ -37,11 +37,11 @@ fn config_error_unsupported_database_type() {
 
 #[test]
 fn config_error_invalid_database_url() {
-    let e = ConfigError::InvalidDatabaseUrl {
-        message: "missing host".to_owned(),
-    };
+    let e = ConfigError::InvalidDatabaseUrl(
+        systemprompt_models::errors::ConfigError::InvalidPostgresUrl,
+    );
     let msg = format!("{e}");
-    assert!(msg.contains("missing host"), "got: {msg}");
+    assert!(msg.starts_with("Invalid database URL: "), "got: {msg}");
 }
 
 #[test]
@@ -147,9 +147,9 @@ fn secrets_bootstrap_error_file_not_found() {
 
 #[test]
 fn secrets_bootstrap_error_invalid_secrets_file() {
-    let e = SecretsBootstrapError::InvalidSecretsFile {
-        message: "bad JSON".to_owned(),
-    };
+    let e = SecretsBootstrapError::InvalidSecretsFile(
+        systemprompt_models::errors::SecretsError::Invalid("bad JSON".to_owned()),
+    );
     let msg = format!("{e}");
     assert!(msg.contains("bad JSON"), "got: {msg}");
 }
@@ -190,11 +190,14 @@ fn secrets_bootstrap_error_manifest_seed_required() {
 
 #[test]
 fn secrets_bootstrap_error_manifest_seed_invalid() {
-    let e = SecretsBootstrapError::ManifestSeedInvalid {
-        message: "decode failed".to_owned(),
-    };
+    let e = SecretsBootstrapError::ManifestSeedInvalid(
+        systemprompt_config::KeyMaterialError::Length {
+            expected: 32,
+            actual: 3,
+        },
+    );
     let msg = format!("{e}");
-    assert!(msg.contains("decode failed"), "got: {msg}");
+    assert!(msg.contains("got 3"), "got: {msg}");
 }
 
 #[test]

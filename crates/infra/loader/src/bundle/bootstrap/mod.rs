@@ -81,7 +81,7 @@ impl ServicesSourceBootstrap {
             .redirect(reqwest::redirect::Policy::none())
             .timeout(HTTP_TIMEOUT)
             .build()
-            .map_err(|e| BundleError::policy(format!("http client: {e}")))?;
+            .map_err(|e| BundleError::policy_context("http client", e))?;
 
         let previous = cache.read_state();
         let ctx = SourceContext {

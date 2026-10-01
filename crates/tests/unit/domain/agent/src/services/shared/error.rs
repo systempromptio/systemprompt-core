@@ -212,7 +212,7 @@ fn from_agent_error_maps_to_internal() {
 #[test]
 fn from_inference_error_maps_to_internal() {
     let provider_err =
-        systemprompt_models::errors::AiInferenceError::InvalidRequest("bad prompt".to_owned());
+        systemprompt_models::errors::AiInferenceError::InvalidRequest("bad prompt".into());
     let err: AgentServiceError = provider_err.into();
     assert!(matches!(err, AgentServiceError::Internal(_)));
     assert!(err.to_string().contains("bad prompt"));

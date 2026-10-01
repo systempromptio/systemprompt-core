@@ -71,9 +71,7 @@ impl ServicesBootstrap {
         }
         let mut services = ConfigLoader::load()?;
         let report = augment(&mut services.providers).await;
-        services
-            .validate()
-            .map_err(|e| ConfigLoadError::Validation(e.to_string()))?;
+        services.validate()?;
         let installed = Self::install(services)?;
         if DISCOVERY.set(report).is_err() {
             tracing::warn!(

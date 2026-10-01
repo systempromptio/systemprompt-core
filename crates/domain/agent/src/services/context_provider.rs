@@ -37,7 +37,7 @@ impl ContextProvider for ContextProviderService {
             .repo
             .list_contexts_with_stats(user_id)
             .await
-            .map_err(|e| ContextProviderError::Database(e.to_string()))?;
+            .map_err(|e| ContextProviderError::Database(e.into()))?;
 
         Ok(contexts
             .into_iter()
@@ -67,14 +67,14 @@ impl ContextProvider for ContextProviderService {
                 systemprompt_traits::RepositoryError::NotFound(msg) => {
                     ContextProviderError::NotFound(msg)
                 },
-                other => ContextProviderError::Database(other.to_string()),
+                other => ContextProviderError::Database(other.into()),
             })?;
 
         let all_contexts = self
             .repo
             .list_contexts_with_stats(user_id)
             .await
-            .map_err(|e| ContextProviderError::Database(e.to_string()))?;
+            .map_err(|e| ContextProviderError::Database(e.into()))?;
 
         let context_with_stats = all_contexts
             .into_iter()
@@ -104,7 +104,7 @@ impl ContextProvider for ContextProviderService {
         self.repo
             .create_context(user_id, session_id, name, ContextKind::User)
             .await
-            .map_err(|e| ContextProviderError::Database(e.to_string()))
+            .map_err(|e| ContextProviderError::Database(e.into()))
     }
 
     async fn update_context_name(
@@ -120,7 +120,7 @@ impl ContextProvider for ContextProviderService {
                 systemprompt_traits::RepositoryError::NotFound(msg) => {
                     ContextProviderError::NotFound(msg)
                 },
-                other => ContextProviderError::Database(other.to_string()),
+                other => ContextProviderError::Database(other.into()),
             })
     }
 
@@ -136,7 +136,7 @@ impl ContextProvider for ContextProviderService {
                 systemprompt_traits::RepositoryError::NotFound(msg) => {
                     ContextProviderError::NotFound(msg)
                 },
-                other => ContextProviderError::Database(other.to_string()),
+                other => ContextProviderError::Database(other.into()),
             })
     }
 }
@@ -150,11 +150,11 @@ impl ContextMaterializer for ContextProviderService {
         let kind = params
             .kind
             .parse::<ContextKind>()
-            .map_err(|e| ContextProviderError::Internal(e.to_string()))?;
+            .map_err(|e| ContextProviderError::Internal(e.into()))?;
 
         self.repo
             .ensure_context(&params, kind)
             .await
-            .map_err(|e| ContextProviderError::Database(e.to_string()))
+            .map_err(|e| ContextProviderError::Database(e.into()))
     }
 }

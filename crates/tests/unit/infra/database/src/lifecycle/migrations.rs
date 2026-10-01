@@ -471,7 +471,7 @@ async fn execute_migration_rolls_back_and_skips_recording_on_failure() {
         .run_pending_migrations(&extension)
         .await
         .expect_err("migration must fail");
-    assert!(matches!(err, LoaderError::MigrationFailed { .. }));
+    assert!(matches!(err, LoaderError::MigrationStepFailed { .. }));
 
     let events = log.snapshot();
     assert!(events.iter().any(|e| e == "begin"));
@@ -726,14 +726,14 @@ async fn transactional_migration_with_unparseable_sql_fails_before_execution() {
         .await
         .expect_err("unparseable migration must fail");
     match err {
-        LoaderError::MigrationFailed { message, .. } => {
-            assert!(message.contains("parse"), "message: {message}");
+        LoaderError::MigrationStepFailed { context, .. } => {
+            assert!(context.contains("parse"), "context: {context}");
             assert!(
-                message.contains("3"),
-                "message names the version: {message}"
+                context.contains("3"),
+                "context names the version: {context}"
             );
         },
-        other => panic!("expected MigrationFailed, got {other:?}"),
+        other => panic!("expected MigrationStepFailed, got {other:?}"),
     }
     assert!(
         !log.snapshot().iter().any(|e| e == "begin"),

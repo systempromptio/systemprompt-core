@@ -48,9 +48,9 @@ impl ManagedSkillResolver for ScriptedSkills {
         match self {
             Self::Published(skill) => Ok(SkillResolution::Published(skill.clone())),
             Self::Withheld(reason) => Ok(SkillResolution::Withheld(*reason)),
-            Self::Unavailable => Err(ManagedSkillResolverError::Unavailable(format!(
-                "scripted outage resolving {key}"
-            ))),
+            Self::Unavailable => Err(ManagedSkillResolverError::Unavailable(
+                format!("scripted outage resolving {key}").into(),
+            )),
         }
     }
 }

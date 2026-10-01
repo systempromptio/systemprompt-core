@@ -18,8 +18,30 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use serde_yaml::{Mapping, Value};
+use thiserror::Error;
 
 use super::frontmatter::split_frontmatter;
+
+#[derive(Debug, Error)]
+pub enum SkillFrontmatterError {
+    #[error("SKILL.md frontmatter is not valid YAML: {0}")]
+    Yaml(#[source] serde_yaml::Error),
+
+    #[error("SKILL.md frontmatter must be a YAML mapping")]
+    NotMapping,
+
+    #[error("frontmatter key {0:?} is not a string")]
+    NonStringKey(Box<Value>),
+
+    #[error("frontmatter '{0}' is not a finite number")]
+    NonFiniteNumber(String),
+
+    #[error("frontmatter '{0}' has a key that is not a string")]
+    NonStringNestedKey(String),
+
+    #[error("frontmatter '{0}' carries a YAML tag")]
+    Tagged(String),
+}
 
 pub const PLATFORM_OWNED_SKILL_KEYS: [&str; 7] = [
     "name",
@@ -58,16 +80,14 @@ pub fn split_skill_frontmatter(authored: Mapping) -> SplitSkillFrontmatter {
     }
 }
 
-pub fn authored_skill_frontmatter(markdown: &str) -> Result<Mapping, String> {
+pub fn authored_skill_frontmatter(markdown: &str) -> Result<Mapping, SkillFrontmatterError> {
     let Some(front) = split_frontmatter(markdown) else {
         return Ok(Mapping::new());
     };
-    match serde_yaml::from_str::<Value>(front.yaml)
-        .map_err(|e| format!("SKILL.md frontmatter is not valid YAML: {e}"))?
-    {
+    match serde_yaml::from_str::<Value>(front.yaml).map_err(SkillFrontmatterError::Yaml)? {
         Value::Null => Ok(Mapping::new()),
         Value::Mapping(mapping) => Ok(mapping),
-        _ => Err("SKILL.md frontmatter must be a YAML mapping".to_owned()),
+        _ => Err(SkillFrontmatterError::NotMapping),
     }
 }
 
@@ -88,36 +108,32 @@ pub fn render_passthrough_frontmatter(
     serde_yaml::to_string(&kept)
 }
 
-pub fn check_json_compatible(frontmatter: &Mapping) -> Result<(), String> {
+pub fn check_json_compatible(frontmatter: &Mapping) -> Result<(), SkillFrontmatterError> {
     for (key, value) in frontmatter {
-        let Some(key) = key.as_str() else {
-            return Err(format!("frontmatter key {key:?} is not a string"));
+        let Some(key_str) = key.as_str() else {
+            return Err(SkillFrontmatterError::NonStringKey(Box::new(key.clone())));
         };
-        check_value(key, value)?;
+        check_value(key_str, value)?;
     }
     Ok(())
 }
 
-fn check_value(path: &str, value: &Value) -> Result<(), String> {
+fn check_value(path: &str, value: &Value) -> Result<(), SkillFrontmatterError> {
     match value {
         Value::Null | Value::Bool(_) | Value::String(_) => Ok(()),
         Value::Number(number) => {
             if number.as_f64().is_some_and(|n| !n.is_finite()) {
-                return Err(format!("frontmatter '{path}' is not a finite number"));
+                return Err(SkillFrontmatterError::NonFiniteNumber(path.to_owned()));
             }
             Ok(())
         },
         Value::Sequence(items) => items.iter().try_for_each(|item| check_value(path, item)),
         Value::Mapping(map) => map.iter().try_for_each(|(key, item)| {
             key.as_str().map_or_else(
-                || {
-                    Err(format!(
-                        "frontmatter '{path}' has a key that is not a string"
-                    ))
-                },
+                || Err(SkillFrontmatterError::NonStringNestedKey(path.to_owned())),
                 |key| check_value(&format!("{path}.{key}"), item),
             )
         }),
-        Value::Tagged(_) => Err(format!("frontmatter '{path}' carries a YAML tag")),
+        Value::Tagged(_) => Err(SkillFrontmatterError::Tagged(path.to_owned())),
     }
 }

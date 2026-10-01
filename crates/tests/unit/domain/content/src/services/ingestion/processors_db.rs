@@ -49,9 +49,7 @@ impl FrontmatterProcessor for FailingProcessor {
 
     async fn process_frontmatter(&self, ctx: &FrontmatterContext<'_>) -> ProviderResult<()> {
         assert!(!ctx.content_id().is_empty());
-        Err(ProviderError::Internal(
-            "intentional test failure".to_owned(),
-        ))
+        Err(ProviderError::Internal("intentional test failure".into()))
     }
 }
 

@@ -73,7 +73,7 @@ impl Default for MockFileStorage {
 impl FileStorage for MockFileStorage {
     async fn store(&self, path: &Path, content: &[u8]) -> FileStorageResult<StoredFileId> {
         if let Some(ref err) = self.store_error {
-            return Err(FileStorageError::Backend(err.clone()));
+            return Err(FileStorageError::Backend(err.clone().into()));
         }
 
         let id = uuid::Uuid::new_v4().to_string();

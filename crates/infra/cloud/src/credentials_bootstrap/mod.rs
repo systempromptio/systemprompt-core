@@ -19,6 +19,11 @@ use crate::{CloudApiClient, CloudCredentials};
 
 static CREDENTIALS: OnceLock<Option<CloudCredentials>> = OnceLock::new();
 
+const POD_CREDENTIALS_REJECTED: &str = "tenant pod credentials rejected by api.systemprompt.io \
+                                        (token in SYSTEMPROMPT_API_TOKEN). Re-run 'systemprompt \
+                                        cloud deploy' or set \
+                                        SYSTEMPROMPT_ALLOW_UNVALIDATED_CREDS=1 to bypass";
+
 #[derive(Debug, Clone, Copy)]
 pub struct CredentialsBootstrap;
 
@@ -42,12 +47,8 @@ impl CredentialsBootstrap {
                     );
                 } else {
                     return Err(CredentialsBootstrapError::ApiValidationFailed {
-                        message: format!(
-                            "tenant pod credentials rejected by api.systemprompt.io (token in \
-                                 SYSTEMPROMPT_API_TOKEN). Re-run 'systemprompt cloud deploy' or \
-                                 set SYSTEMPROMPT_ALLOW_UNVALIDATED_CREDS=1 to bypass. \
-                                 Underlying: {e}"
-                        ),
+                        message: POD_CREDENTIALS_REJECTED.to_owned(),
+                        source: Box::new(e),
                     }
                     .into());
                 }
@@ -180,13 +181,14 @@ impl CredentialsBootstrap {
 
         let creds = Self::load_credentials_from_path(&credentials_path).map_err(|e| {
             CredentialsBootstrapError::InvalidCredentials {
-                message: e.to_string(),
+                source: Box::new(e),
             }
         })?;
 
         Self::validate_with_api(&creds).await.map_err(|e| {
             CredentialsBootstrapError::ApiValidationFailed {
-                message: e.to_string(),
+                message: "credentials rejected by the cloud API".to_owned(),
+                source: Box::new(e),
             }
         })?;
 
@@ -197,7 +199,7 @@ impl CredentialsBootstrap {
         let creds = CloudCredentials::load_from_path(path).map_err(|e| {
             if path.exists() {
                 CloudError::from(CredentialsBootstrapError::InvalidCredentials {
-                    message: e.to_string(),
+                    source: Box::new(e),
                 })
             } else {
                 CloudError::from(CredentialsBootstrapError::FileNotFound {

@@ -10,6 +10,8 @@
 
 use thiserror::Error;
 
+use crate::net::OutboundUrlError;
+
 #[derive(Debug, Error)]
 pub enum ProviderRegistryError {
     #[error("provider registry declares provider name '{name}' more than once")]
@@ -19,12 +21,13 @@ pub enum ProviderRegistryError {
     EmptyEndpoint { name: String },
 
     #[error(
-        "provider registry entry '{provider}' endpoint '{endpoint}' is not permitted: {reason}"
+        "provider registry entry '{provider}' endpoint '{endpoint}' is not permitted: {source}"
     )]
     BlockedEndpoint {
         provider: String,
         endpoint: String,
-        reason: String,
+        #[source]
+        source: OutboundUrlError,
     },
 
     #[error(
@@ -46,7 +49,10 @@ pub enum ProviderRegistryError {
     EmptyModelId { id: String },
 
     #[error("embedded default provider catalog failed to parse: {0}")]
-    InvalidDefaultCatalog(String),
+    InvalidDefaultCatalog(#[source] serde_yaml::Error),
+
+    #[error("embedded Vertex rate card failed to parse: {0}")]
+    VertexRateCardParse(#[source] serde_yaml::Error),
 
     #[error("embedded Vertex rate card failed to parse: {0}")]
     InvalidVertexRateCard(String),

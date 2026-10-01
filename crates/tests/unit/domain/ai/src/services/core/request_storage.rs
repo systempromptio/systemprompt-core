@@ -413,7 +413,7 @@ impl systemprompt_traits::ContextMaterializer for FailingContextMaterializer {
             params.kind.to_owned(),
         ));
         Err(systemprompt_traits::ContextProviderError::Database(
-            "derived context store unavailable".to_owned(),
+            "derived context store unavailable".into(),
         ))
     }
 }

@@ -14,6 +14,8 @@ use async_trait::async_trait;
 use std::sync::Arc;
 use systemprompt_identifiers::{SkillId, UserId};
 
+use crate::BoxedSource;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ResolvedManagedSkill {
     pub id: SkillId,
@@ -52,7 +54,7 @@ pub enum ManagedSkillResolverError {
     #[error("managed skill `{key}` failed integrity verification")]
     Integrity { key: String },
     #[error("managed skill resolver unavailable: {0}")]
-    Unavailable(String),
+    Unavailable(#[source] BoxedSource),
 }
 
 /// Held as `Arc<dyn ManagedSkillResolver>` so the agent runtime can use

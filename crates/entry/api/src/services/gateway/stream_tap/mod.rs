@@ -18,6 +18,7 @@ use futures_util::stream::{BoxStream, Stream};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::AiRequestId;
 use systemprompt_models::services::QuotaFaultMode;
+use systemprompt_models::wire::error::WireStreamError;
 
 use self::accumulator::{Summary, TapState, accumulate_event, extract_summary, snapshot};
 use self::finalize::finalize;
@@ -55,7 +56,7 @@ pub struct TapRender {
 }
 
 pub fn tap(
-    upstream: BoxStream<'static, Result<CanonicalEvent, String>>,
+    upstream: BoxStream<'static, Result<CanonicalEvent, WireStreamError>>,
     render: TapRender,
     audit: Arc<GatewayAudit>,
     finalize_ctx: TapFinalizeCtx,
@@ -174,7 +175,7 @@ impl Drop for RawTappedStream {
 }
 
 struct TappedStream {
-    inner: BoxStream<'static, Result<CanonicalEvent, String>>,
+    inner: BoxStream<'static, Result<CanonicalEvent, WireStreamError>>,
     state: Arc<Mutex<TapState>>,
     inbound: Arc<dyn InboundAdapter>,
     request_model: String,
@@ -201,7 +202,7 @@ impl Stream for TappedStream {
                 },
                 Poll::Ready(Some(Err(e))) => {
                     if let Ok(mut s) = self.state.lock() {
-                        s.error = Some(e.clone());
+                        s.error = Some(e.to_string());
                     }
                     let err = std::io::Error::new(std::io::ErrorKind::BrokenPipe, e);
                     return Poll::Ready(Some(Err(err)));

@@ -3,6 +3,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::BoxedSource;
+
 pub type AiProviderResult<T> = Result<T, AiProviderError>;
 
 #[derive(Debug, thiserror::Error)]
@@ -21,5 +23,5 @@ pub enum AiProviderError {
     ConfigurationError { message: String },
 
     #[error("Internal error: {0}")]
-    Internal(String),
+    Internal(#[source] BoxedSource),
 }

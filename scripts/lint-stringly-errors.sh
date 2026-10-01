@@ -48,8 +48,8 @@ MAP_ERR = re.compile(
     r"map_err\(\s*(?:"
     r"\|\s*(?P<var>\w+)\s*(?::[^|]*)?\|(?P<body>[^;]{0,400}?(?:"
     r"\b(?P=var)\.to_string\(\)"
-    r"|format!\(\"(?:[^\"\\]|\\.)*\{(?P=var)[:}]"
-    r"|format!\(\"(?:[^\"\\]|\\.)*\"(?:\s*,\s*(?:[^,;()]|\([^()]*\))+)*?\s*,\s*&?(?P=var)\s*\)"
+    r"|format!\(\s*\"(?:[^\"\\]|\\.)*\{(?P=var)[:}]"
+    r"|format!\(\s*\"(?:[^\"\\]|\\.)*\"(?:\s*,\s*(?:[^,;()]|\([^()]*\))+)*?\s*,\s*&?(?P=var)\s*\)"
     r"))"
     r"|(?:std::string::)?ToString::to_string\s*\)"
     r")",
@@ -67,9 +67,9 @@ ERR_IDENT = r"(?:e|err|error|source|cause|inner|\w+_err|\w+_error)"
 BUILT = re.compile(
     r"\b(?P<enum>[A-Z]\w*|Self)::(?P<name>[A-Z]\w*)\s*\(\s*(?:"
     + ERR_IDENT
-    + r"\.to_string\(\)|format!\(\"(?:[^\"\\]|\\.)*\{"
+    + r"\.to_string\(\)|format!\(\s*\"(?:[^\"\\]|\\.)*\{"
     + ERR_IDENT
-    + r"[:}]|format!\(\"(?:[^\"\\]|\\.)*\"[^;]*?,\s*&?"
+    + r"[:}]|format!\(\s*\"(?:[^\"\\]|\\.)*\"[^;]*?,\s*&?"
     + ERR_IDENT
     + r"\s*\))"
 )

@@ -10,10 +10,11 @@ use uuid::Uuid;
 use super::streaming::StreamState;
 use super::wire::GeminiPart;
 use crate::wire::canonical::{CanonicalEvent, ContentBlockKind};
+use crate::wire::error::WireStreamError;
 
 pub(super) fn close_text(
     state: &mut StreamState,
-    events: &mut Vec<Result<CanonicalEvent, String>>,
+    events: &mut Vec<Result<CanonicalEvent, WireStreamError>>,
 ) {
     if let Some(index) = state.text_block.take() {
         events.push(Ok(CanonicalEvent::ContentBlockStop { index }));
@@ -22,7 +23,7 @@ pub(super) fn close_text(
 
 pub(super) fn close_thinking(
     state: &mut StreamState,
-    events: &mut Vec<Result<CanonicalEvent, String>>,
+    events: &mut Vec<Result<CanonicalEvent, WireStreamError>>,
 ) {
     if let Some(index) = state.thinking_block.take() {
         events.push(Ok(CanonicalEvent::ContentBlockStop { index }));
@@ -32,7 +33,7 @@ pub(super) fn close_thinking(
 pub(super) fn emit_part(
     state: &mut StreamState,
     part: &GeminiPart,
-    events: &mut Vec<Result<CanonicalEvent, String>>,
+    events: &mut Vec<Result<CanonicalEvent, WireStreamError>>,
 ) {
     match part {
         GeminiPart::Text {
@@ -66,7 +67,7 @@ pub(super) fn emit_part(
 fn emit_text(
     state: &mut StreamState,
     text: &str,
-    events: &mut Vec<Result<CanonicalEvent, String>>,
+    events: &mut Vec<Result<CanonicalEvent, WireStreamError>>,
 ) {
     close_thinking(state, events);
     let index = if let Some(index) = state.text_block {
@@ -91,7 +92,7 @@ fn emit_thought(
     state: &mut StreamState,
     text: &str,
     signature: Option<String>,
-    events: &mut Vec<Result<CanonicalEvent, String>>,
+    events: &mut Vec<Result<CanonicalEvent, WireStreamError>>,
 ) {
     let index = if let Some(index) = state.thinking_block {
         index
@@ -125,7 +126,7 @@ fn emit_tool_use(
     // JSON: Gemini `functionCall.args` is the tool's own JSON argument object.
     args: &Value,
     signature: Option<String>,
-    events: &mut Vec<Result<CanonicalEvent, String>>,
+    events: &mut Vec<Result<CanonicalEvent, WireStreamError>>,
 ) {
     let index = state.next_index;
     state.next_index += 1;

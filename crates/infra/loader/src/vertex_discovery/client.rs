@@ -8,8 +8,8 @@
 //! the caller's timeout fires.
 //!
 //! `host` is the origin only (`https://us-central1-aiplatform.googleapis.com`).
-//! Errors are human-readable reasons, not typed: every caller puts them
-//! straight into the discovery report. `list_all` collects failures per
+//! A failed listing is a [`ListingError`] whose Display is the reason the
+//! discovery report carries. `list_all` collects failures per
 //! publisher rather than stopping at the first — a publisher we are not
 //! entitled to answers 403, and that must not cost us the publishers we are
 //! entitled to — formatted in exactly the shape
@@ -33,6 +33,30 @@ const PAGE_SIZE: &str = "300";
 
 const MAX_PAGES: usize = 20;
 
+#[derive(Debug, thiserror::Error)]
+pub enum ListingError {
+    #[error("listing request failed: {0}")]
+    Request(#[source] reqwest::Error),
+
+    #[error("listing returned an unreadable body: {0}")]
+    Body(#[source] reqwest::Error),
+
+    #[error("listing returned {status}: {body}")]
+    Status {
+        status: reqwest::StatusCode,
+        body: String,
+    },
+
+    #[error("listing returned an unreadable body: {0}")]
+    Decode(#[from] serde_json::Error),
+
+    #[error(
+        "listing did not terminate after {} pages; {read} models read are discarded",
+        MAX_PAGES
+    )]
+    Unterminated { read: usize },
+}
+
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct ListPage {
@@ -48,7 +72,7 @@ pub async fn list_publisher_models(
     host: &str,
     token: &str,
     publisher: &str,
-) -> Result<Vec<PublisherModel>, String> {
+) -> Result<Vec<PublisherModel>, ListingError> {
     let url = format!(
         "{}/v1beta1/publishers/{publisher}/models",
         host.trim_end_matches('/')
@@ -65,21 +89,17 @@ pub async fn list_publisher_models(
             request = request.query(&[("pageToken", token)]);
         }
 
-        let response = request
-            .send()
-            .await
-            .map_err(|e| format!("listing request failed: {e}"))?;
+        let response = request.send().await.map_err(ListingError::Request)?;
         let status = response.status();
-        let body = response
-            .text()
-            .await
-            .map_err(|e| format!("listing returned an unreadable body: {e}"))?;
+        let body = response.text().await.map_err(ListingError::Body)?;
         if !status.is_success() {
-            return Err(format!("listing returned {status}: {}", body.trim()));
+            return Err(ListingError::Status {
+                status,
+                body: body.trim().to_owned(),
+            });
         }
 
-        let page: ListPage = serde_json::from_str(&body)
-            .map_err(|e| format!("listing returned an unreadable body: {e}"))?;
+        let page: ListPage = serde_json::from_str(&body)?;
         models.extend(page.publisher_models);
 
         match page.next_page_token {
@@ -88,10 +108,8 @@ pub async fn list_publisher_models(
         }
     }
 
-    Err(format!(
-        "listing did not terminate after {MAX_PAGES} pages; {} models read are discarded",
-        models.len()
-    ))
+    let read = models.len();
+    Err(ListingError::Unterminated { read })
 }
 
 pub async fn list_all(

@@ -116,9 +116,10 @@ async fn live_tables(db: &dyn DatabaseProvider) -> Result<Vec<(String, String, i
             &[],
         )
         .await
-        .map_err(|e| LoaderError::SchemaInstallationFailed {
+        .map_err(|e| LoaderError::SchemaInstallationStepFailed {
             extension: "schema-residue".to_owned(),
-            message: format!("could not list live tables: {e}"),
+            context: "could not list live tables".to_owned(),
+            source: Box::new(e),
         })?;
     Ok(result
         .rows
@@ -140,9 +141,10 @@ async fn migration_ledgers(db: &dyn DatabaseProvider) -> Result<Vec<(String, i64
             &[],
         )
         .await
-        .map_err(|e| LoaderError::SchemaInstallationFailed {
+        .map_err(|e| LoaderError::SchemaInstallationStepFailed {
             extension: "schema-residue".to_owned(),
-            message: format!("could not read extension_migrations: {e}"),
+            context: "could not read extension_migrations".to_owned(),
+            source: Box::new(e),
         })?;
     Ok(result
         .rows

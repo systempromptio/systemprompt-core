@@ -95,7 +95,7 @@ pub async fn fetch_token(
     let response = request
         .send()
         .await
-        .map_err(|e| BundleError::fetch(source_name, e))?;
+        .map_err(|e| BundleError::fetch_cause(source_name, e))?;
     if !response.status().is_success() {
         return Err(BundleError::Auth {
             source_name: source_name.to_owned(),
@@ -105,7 +105,7 @@ pub async fn fetch_token(
     let body: TokenResponse = response
         .json()
         .await
-        .map_err(|e| BundleError::fetch(source_name, format!("token response: {e}")))?;
+        .map_err(|e| BundleError::fetch_context(source_name, "token response", e))?;
     body.token
         .or(body.access_token)
         .ok_or_else(|| BundleError::Auth {

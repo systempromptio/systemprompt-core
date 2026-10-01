@@ -16,6 +16,7 @@ mod includable;
 pub mod marketplace;
 pub mod marketplace_claude_code;
 pub mod marketplace_external;
+mod marketplace_external_error;
 pub mod marketplace_external_plugin;
 pub mod mcp;
 pub mod plugin;
@@ -220,13 +221,13 @@ impl ServicesConfig {
     fn validate_providers_and_gateway(&self) -> Result<(), ConfigValidationError> {
         self.providers
             .validate()
-            .map_err(|e| ConfigValidationError::invalid_field(format!("providers: {e}")))?;
+            .map_err(|e| ConfigValidationError::invalid_field_cause("providers", e))?;
         match &self.gateway {
             Some(GatewayState::Resolved(config)) => config.validate(&self.providers),
             Some(GatewayState::Spec(spec)) => spec.clone().resolve().validate(&self.providers),
             None => Ok(()),
         }
-        .map_err(|e| ConfigValidationError::invalid_field(format!("gateway: {e}")))
+        .map_err(|e| ConfigValidationError::invalid_field_cause("gateway", e))
     }
 
     #[must_use]

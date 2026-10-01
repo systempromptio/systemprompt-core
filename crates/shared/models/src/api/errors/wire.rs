@@ -18,38 +18,45 @@ struct WireApiError<'a> {
     error_key: Option<&'a str>,
     #[serde(skip_serializing_if = "Option::is_none")]
     path: Option<&'a str>,
-    #[serde(skip_serializing_if = "<[ValidationError]>::is_empty")]
+    #[serde(skip_serializing_if = "no_validation_errors")]
     validation_errors: &'a [ValidationError],
     timestamp: DateTime<Utc>,
     #[serde(skip_serializing_if = "Option::is_none")]
     trace_id: Option<&'a str>,
 }
 
+fn no_validation_errors(errors: &&[ValidationError]) -> bool {
+    errors.is_empty()
+}
+
 impl Serialize for ApiError {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let server_error = self.code.is_server_error();
-        let wire = WireApiError {
+        let message: &str = if server_error {
+            self.code.public_server_message()
+        } else {
+            self.message.as_str()
+        };
+        let details = if server_error {
+            None
+        } else {
+            self.details.as_deref()
+        };
+        let validation_errors: &[ValidationError] = if server_error {
+            <&[ValidationError]>::default()
+        } else {
+            self.validation_errors.as_slice()
+        };
+        WireApiError {
             code: self.code,
-            message: if server_error {
-                self.code.public_server_message()
-            } else {
-                &self.message
-            },
-            details: if server_error {
-                None
-            } else {
-                self.details.as_deref()
-            },
+            message,
+            details,
             error_key: self.error_key.as_deref(),
             path: self.path.as_deref(),
-            validation_errors: if server_error {
-                &[]
-            } else {
-                &self.validation_errors
-            },
+            validation_errors,
             timestamp: self.timestamp,
             trace_id: self.trace_id.as_deref(),
-        };
-        wire.serialize(serializer)
+        }
+        .serialize(serializer)
     }
 }

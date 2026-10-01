@@ -25,18 +25,25 @@ pub struct SecretPattern {
     pub redact_whole_value: bool,
 }
 
-#[derive(Debug, Error, Clone, PartialEq, Eq)]
+#[derive(Debug, Error)]
 pub enum SecretPatternError {
     #[error("secret_scan.patterns must be a sequence")]
     InvalidList,
-    #[error("secret pattern {index} is invalid: {message}")]
-    InvalidDefinition { index: usize, message: String },
+    #[error("secret pattern {index} is invalid: {source}")]
+    InvalidDefinition {
+        index: usize,
+        #[source]
+        source: serde_yaml::Error,
+    },
+    #[error("secret pattern {index} is invalid: {field} must not be empty")]
+    EmptyField { index: usize, field: &'static str },
     #[error("duplicate secret pattern id `{id}`")]
     DuplicateId { id: SecretPatternId },
-    #[error("secret pattern `{id}` has invalid regex: {message}")]
+    #[error("secret pattern `{id}` has invalid regex: {source}")]
     InvalidRegex {
         id: SecretPatternId,
-        message: String,
+        #[source]
+        source: regex::Error,
     },
     #[error("secret pattern `{id}` regex can match an empty value")]
     EmptyMatch { id: SecretPatternId },
@@ -67,19 +74,15 @@ pub(super) fn compile_patterns(
     let mut ids = HashSet::with_capacity(sequence.len());
     let mut compiled = Vec::with_capacity(sequence.len());
     for (index, value) in sequence.iter().enumerate() {
-        let pattern: SecretPattern = serde_yaml::from_value(value.clone()).map_err(|error| {
-            SecretPatternError::InvalidDefinition {
-                index,
-                message: error.to_string(),
-            }
-        })?;
+        let pattern: SecretPattern = serde_yaml::from_value(value.clone())
+            .map_err(|source| SecretPatternError::InvalidDefinition { index, source })?;
         if !ids.insert(pattern.id.clone()) {
             return Err(SecretPatternError::DuplicateId { id: pattern.id });
         }
         if pattern.name.trim().is_empty() {
-            return Err(SecretPatternError::InvalidDefinition {
+            return Err(SecretPatternError::EmptyField {
                 index,
-                message: "name must not be empty".to_owned(),
+                field: "name",
             });
         }
         if pattern
@@ -87,18 +90,18 @@ pub(super) fn compile_patterns(
             .as_ref()
             .is_some_and(|field| field.trim().is_empty())
         {
-            return Err(SecretPatternError::InvalidDefinition {
+            return Err(SecretPatternError::EmptyField {
                 index,
-                message: "field must not be empty".to_owned(),
+                field: "field",
             });
         }
         if pattern.field.is_some() && !pattern.redact_whole_value {
             return Err(SecretPatternError::UnsafeFieldRecovery { id: pattern.id });
         }
         let regex =
-            Regex::new(&pattern.regex).map_err(|error| SecretPatternError::InvalidRegex {
+            Regex::new(&pattern.regex).map_err(|source| SecretPatternError::InvalidRegex {
                 id: pattern.id.clone(),
-                message: error.to_string(),
+                source,
             })?;
         if regex.is_match("") {
             return Err(SecretPatternError::EmptyMatch { id: pattern.id });

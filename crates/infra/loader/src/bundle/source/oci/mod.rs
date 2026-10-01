@@ -46,7 +46,7 @@ impl RegistryClient {
         client: reqwest::Client,
     ) -> BundleResult<Self> {
         let reference = OciReference::from_str(reference)
-            .map_err(|e| BundleError::policy(format!("source {name}: {e}")))?;
+            .map_err(|e| BundleError::policy_context(format!("source {name}"), e))?;
         Ok(Self {
             client,
             name: name.to_owned(),
@@ -65,7 +65,7 @@ impl RegistryClient {
         let scheme = if plain { "http" } else { "https" };
         let raw = format!("{scheme}://{host}/v2/{}{path}", self.reference.repository);
         validate_outbound_url_with_trust(&raw, &trusted)
-            .map_err(|e| BundleError::fetch(&self.name, e))
+            .map_err(|e| BundleError::fetch_cause(&self.name, e))
     }
 
     #[must_use]
@@ -85,7 +85,7 @@ impl RegistryClient {
         let first = auth::apply_credential(build(&self.client), self.secret.as_deref())
             .send()
             .await
-            .map_err(|e| BundleError::fetch(&self.name, e))?;
+            .map_err(|e| BundleError::fetch_cause(&self.name, e))?;
 
         if first.status() != reqwest::StatusCode::UNAUTHORIZED {
             return Ok(first);
@@ -107,7 +107,7 @@ impl RegistryClient {
             .bearer_auth(token)
             .send()
             .await
-            .map_err(|e| BundleError::fetch(&self.name, e))?;
+            .map_err(|e| BundleError::fetch_cause(&self.name, e))?;
         if retried.status() == reqwest::StatusCode::UNAUTHORIZED
             || retried.status() == reqwest::StatusCode::FORBIDDEN
         {

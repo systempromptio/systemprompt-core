@@ -451,9 +451,7 @@ impl SessionProvider for FailingAnalyticsProvider {
         _fingerprint: &str,
         _max_age_seconds: i64,
     ) -> AnalyticsResult<Option<AnalyticsSession>> {
-        Err(systemprompt_traits::AnalyticsProviderError::Internal(
-            "lookup exploded".to_owned(),
-        ))
+        Err(systemprompt_traits::AnalyticsProviderError::Internal("lookup exploded".into()))
     }
     async fn find_session_by_id(
         &self,
@@ -549,17 +547,13 @@ struct FailingFingerprintProvider;
 #[async_trait]
 impl FingerprintProvider for FailingFingerprintProvider {
     async fn count_active_sessions(&self, _fingerprint: &str) -> AnalyticsResult<i64> {
-        Err(systemprompt_traits::AnalyticsProviderError::Internal(
-            "count exploded".to_owned(),
-        ))
+        Err(systemprompt_traits::AnalyticsProviderError::Internal("count exploded".into()))
     }
     async fn find_reusable_session(
         &self,
         _fingerprint: &str,
     ) -> AnalyticsResult<Option<SessionId>> {
-        Err(systemprompt_traits::AnalyticsProviderError::Internal(
-            "reusable exploded".to_owned(),
-        ))
+        Err(systemprompt_traits::AnalyticsProviderError::Internal("reusable exploded".into()))
     }
     async fn upsert_fingerprint(
         &self,
@@ -583,9 +577,7 @@ impl FingerprintProvider for ReusableLookupFailsProvider {
         &self,
         _fingerprint: &str,
     ) -> AnalyticsResult<Option<SessionId>> {
-        Err(systemprompt_traits::AnalyticsProviderError::Internal(
-            "reusable exploded".to_owned(),
-        ))
+        Err(systemprompt_traits::AnalyticsProviderError::Internal("reusable exploded".into()))
     }
     async fn upsert_fingerprint(
         &self,

@@ -32,11 +32,11 @@ impl UserProvider for FixedUser {
         _email: &str,
         _full_name: Option<&str>,
     ) -> AuthResult<AuthUser> {
-        Err(AuthProviderError::Internal("unused".to_owned()))
+        Err(AuthProviderError::Internal("unused".into()))
     }
 
     async fn create_anonymous(&self, _fingerprint: &str) -> AuthResult<AuthUser> {
-        Err(AuthProviderError::Internal("unused".to_owned()))
+        Err(AuthProviderError::Internal("unused".into()))
     }
 
     async fn assign_roles(&self, _user_id: &UserId, _roles: &[String]) -> AuthResult<()> {
@@ -49,7 +49,7 @@ impl UserProvider for FixedUser {
         _external_sub: &str,
         _claims: &FederatedIdentityClaims,
     ) -> AuthResult<UserId> {
-        Err(AuthProviderError::Internal("unused".to_owned()))
+        Err(AuthProviderError::Internal("unused".into()))
     }
 
     async fn promote_anonymous(&self, _source: &UserId, _target: &UserId) -> AuthResult<u64> {
@@ -62,9 +62,7 @@ struct FailingUsers;
 #[async_trait]
 impl UserProvider for FailingUsers {
     async fn find_by_id(&self, _id: &UserId) -> AuthResult<Option<AuthUser>> {
-        Err(AuthProviderError::Internal(
-            "database unavailable".to_owned(),
-        ))
+        Err(AuthProviderError::Internal("database unavailable".into()))
     }
 
     async fn find_by_email(&self, _email: &str) -> AuthResult<Option<AuthUser>> {
@@ -81,11 +79,11 @@ impl UserProvider for FailingUsers {
         _email: &str,
         _full_name: Option<&str>,
     ) -> AuthResult<AuthUser> {
-        Err(AuthProviderError::Internal("unused".to_owned()))
+        Err(AuthProviderError::Internal("unused".into()))
     }
 
     async fn create_anonymous(&self, _fingerprint: &str) -> AuthResult<AuthUser> {
-        Err(AuthProviderError::Internal("unused".to_owned()))
+        Err(AuthProviderError::Internal("unused".into()))
     }
 
     async fn assign_roles(&self, _user_id: &UserId, _roles: &[String]) -> AuthResult<()> {
@@ -98,7 +96,7 @@ impl UserProvider for FailingUsers {
         _external_sub: &str,
         _claims: &FederatedIdentityClaims,
     ) -> AuthResult<UserId> {
-        Err(AuthProviderError::Internal("unused".to_owned()))
+        Err(AuthProviderError::Internal("unused".into()))
     }
 
     async fn promote_anonymous(&self, _source: &UserId, _target: &UserId) -> AuthResult<u64> {

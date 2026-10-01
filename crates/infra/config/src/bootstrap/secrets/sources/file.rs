@@ -36,10 +36,7 @@ fn load_from_file(path: &Path) -> ConfigResult<Secrets> {
 
     let content = std::fs::read_to_string(path)?;
 
-    let secrets =
-        Secrets::parse(&content).map_err(|e| SecretsBootstrapError::InvalidSecretsFile {
-            message: e.to_string(),
-        })?;
+    let secrets = Secrets::parse(&content).map_err(SecretsBootstrapError::InvalidSecretsFile)?;
 
     tracing::debug!(path = %path.display(), "loaded secrets");
 

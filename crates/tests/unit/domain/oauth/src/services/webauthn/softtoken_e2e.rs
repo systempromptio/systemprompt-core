@@ -48,7 +48,7 @@ impl UserProvider for SeedingUserProvider {
         let id = UserId::new(Uuid::new_v4().to_string());
         seed_user_row(&self.pool, &id, email)
             .await
-            .map_err(|e| systemprompt_traits::AuthProviderError::Internal(e.to_string()))?;
+            .map_err(|e| systemprompt_traits::AuthProviderError::Internal(e.into()))?;
         Ok(AuthUser {
             id,
             name: name.to_owned(),

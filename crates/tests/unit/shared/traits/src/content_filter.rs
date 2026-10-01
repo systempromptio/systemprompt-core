@@ -234,12 +234,12 @@ fn context_provider_access_denied_display() {
 
 #[test]
 fn context_provider_database_display() {
-    let e = ContextProviderError::Database("connection lost".to_owned());
+    let e = ContextProviderError::Database("connection lost".into());
     assert!(format!("{e}").contains("connection lost"));
 }
 
 #[test]
 fn context_provider_internal_display() {
-    let e = ContextProviderError::Internal("panic in handler".to_owned());
+    let e = ContextProviderError::Internal("panic in handler".into());
     assert!(format!("{e}").contains("panic in handler"));
 }

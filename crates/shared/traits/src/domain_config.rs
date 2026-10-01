@@ -19,6 +19,13 @@ pub enum DomainConfigError {
     #[error("Failed to load config: {message}")]
     LoadError { message: String },
 
+    #[error("Failed to load config: {context}: {source}")]
+    Io {
+        context: String,
+        #[source]
+        source: std::io::Error,
+    },
+
     #[error("Config file not found: {0}")]
     NotFound(String),
 

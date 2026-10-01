@@ -191,15 +191,15 @@ impl JobContext {
         key: &str,
     ) -> Result<Option<T>, crate::ProviderError>
     where
-        T::Err: std::fmt::Display,
+        T::Err: std::error::Error + Send + Sync + 'static,
     {
         self.parameters
             .get(key)
             .map(|value| {
-                value.parse().map_err(|e| {
-                    crate::ProviderError::Configuration(format!(
-                        "invalid job parameter {key}={value}: {e}"
-                    ))
+                value.parse().map_err(|e| crate::ProviderError::InvalidParameter {
+                    key: key.to_owned(),
+                    value: value.clone(),
+                    source: Box::new(e),
                 })
             })
             .transpose()

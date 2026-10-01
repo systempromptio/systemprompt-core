@@ -127,7 +127,7 @@ fn config_error_invalid_value_display() {
 #[test]
 fn config_error_parse_error_display() {
     let err = ExtensionConfigError::ParseError {
-        message: "unexpected token at line 5".to_string(),
+        source: "unexpected token at line 5".into(),
     };
     let msg = err.to_string();
     assert!(msg.contains("unexpected token"));
@@ -135,7 +135,7 @@ fn config_error_parse_error_display() {
 
 #[test]
 fn config_error_schema_validation_display() {
-    let err = ExtensionConfigError::SchemaValidation("missing required field 'name'".to_string());
+    let err = ExtensionConfigError::SchemaValidation("missing required field 'name'".into());
     let msg = err.to_string();
     assert!(msg.contains("missing required field"));
 }

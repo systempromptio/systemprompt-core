@@ -19,6 +19,9 @@ pub enum ToolProviderError {
     #[error("Tool execution failed: {0}")]
     ExecutionFailed(String),
 
+    #[error("Tool execution failed: {0}")]
+    Execution(#[source] Box<dyn std::error::Error + Send + Sync + 'static>),
+
     #[error("Authorization failed: {0}")]
     AuthorizationFailed(String),
 
@@ -26,7 +29,7 @@ pub enum ToolProviderError {
     ConfigurationError { message: String },
 
     #[error("Internal error: {0}")]
-    Internal(String),
+    Internal(#[source] Box<dyn std::error::Error + Send + Sync + 'static>),
 }
 
 pub type ToolProviderResult<T> = Result<T, ToolProviderError>;

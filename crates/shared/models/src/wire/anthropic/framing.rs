@@ -16,6 +16,7 @@ use serde_json::Value;
 
 use super::sse::AnthropicStreamState;
 use crate::wire::canonical::CanonicalEvent;
+use crate::wire::error::WireStreamError;
 
 #[derive(Debug, Default)]
 pub struct SseFrameDecoder {
@@ -48,16 +49,16 @@ impl SseFrameDecoder {
 
 pub fn sse_to_canonical_events<S, E>(
     stream: S,
-) -> BoxStream<'static, Result<CanonicalEvent, String>>
+) -> BoxStream<'static, Result<CanonicalEvent, WireStreamError>>
 where
     S: Stream<Item = Result<Bytes, E>> + Send + 'static,
-    E: std::fmt::Display + 'static,
+    E: Into<Box<dyn std::error::Error + Send + Sync>> + 'static,
 {
     stream
         .scan(SseFrameDecoder::default(), |decoder, item| {
-            let out: Vec<Result<CanonicalEvent, String>> = match item {
+            let out: Vec<Result<CanonicalEvent, WireStreamError>> = match item {
                 Ok(bytes) => decoder.push(&bytes).into_iter().map(Ok).collect(),
-                Err(e) => vec![Err(e.to_string())],
+                Err(e) => vec![Err(WireStreamError::transport(e))],
             };
             futures_util::future::ready(Some(out))
         })

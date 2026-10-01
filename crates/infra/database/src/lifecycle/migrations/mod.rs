@@ -16,6 +16,7 @@ mod repair;
 mod run;
 mod stamp;
 mod status;
+mod step_error;
 mod triggers;
 mod verify;
 
@@ -71,9 +72,10 @@ impl<'a> MigrationService<'a> {
         let sql = include_str!("../../../schema/extension_migrations.sql");
         SqlExecutor::execute_statements_parsed(self.db, sql)
             .await
-            .map_err(|e| LoaderError::MigrationFailed {
+            .map_err(|e| LoaderError::MigrationStepFailed {
                 extension: "database".to_owned(),
-                message: format!("Failed to ensure migrations table exists: {e}"),
+                context: "Failed to ensure migrations table exists".to_owned(),
+                source: Box::new(e),
             })
     }
 
@@ -89,9 +91,10 @@ impl<'a> MigrationService<'a> {
                 &[&extension_id],
             )
             .await
-            .map_err(|e| LoaderError::MigrationFailed {
+            .map_err(|e| LoaderError::MigrationStepFailed {
                 extension: extension_id.to_owned(),
-                message: format!("Failed to query applied migrations: {e}"),
+                context: "Failed to query applied migrations".to_owned(),
+                source: Box::new(e),
             })?;
 
         result

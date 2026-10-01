@@ -9,6 +9,8 @@
 use async_trait::async_trait;
 use std::sync::Arc;
 
+use crate::BoxedSource;
+
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum RegistryError {
@@ -16,13 +18,13 @@ pub enum RegistryError {
     NotFound(String),
 
     #[error("Registry unavailable: {0}")]
-    Unavailable(String),
+    Unavailable(#[source] BoxedSource),
 
     #[error("Configuration error: {0}")]
-    Configuration(String),
+    Configuration(#[source] BoxedSource),
 
     #[error("Internal error: {0}")]
-    Internal(String),
+    Internal(#[source] BoxedSource),
 }
 
 #[derive(Debug, Clone)]

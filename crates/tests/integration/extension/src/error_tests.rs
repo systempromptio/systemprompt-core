@@ -118,7 +118,7 @@ fn test_config_error_invalid_value_display() {
 #[test]
 fn test_config_error_parse_error_display() {
     let err = ExtensionConfigError::ParseError {
-        message: "invalid JSON at line 5".to_string(),
+        source: "invalid JSON at line 5".into(),
     };
     let msg = err.to_string();
     assert!(msg.contains("invalid JSON at line 5"));
@@ -127,8 +127,7 @@ fn test_config_error_parse_error_display() {
 
 #[test]
 fn test_config_error_schema_validation_display() {
-    let err =
-        ExtensionConfigError::SchemaValidation("missing required property 'name'".to_string());
+    let err = ExtensionConfigError::SchemaValidation("missing required property 'name'".into());
     let msg = err.to_string();
     assert!(msg.contains("missing required property"));
     assert!(msg.contains("Schema validation"));
@@ -168,6 +167,11 @@ fn test_loader_error_variant_matching() {
         LoaderError::MigrationFailed {
             extension: "i".to_string(),
             message: "migration failed".to_string(),
+        },
+        LoaderError::MigrationStepFailed {
+            extension: "i".to_string(),
+            context: "Failed to record migration".to_string(),
+            source: "connection reset".into(),
         },
         LoaderError::MigrationSlotReused {
             extension: "j".to_string(),
@@ -234,6 +238,19 @@ fn test_loader_error_variant_matching() {
                 assert!(!extension.is_empty());
                 assert!(!message.is_empty());
             },
+            LoaderError::SchemaInstallationStepFailed {
+                extension,
+                context,
+                ..
+            }
+            | LoaderError::MigrationStepFailed {
+                extension,
+                context,
+                ..
+            } => {
+                assert!(!extension.is_empty());
+                assert!(!context.is_empty());
+            },
             LoaderError::MigrationReferencesDeclarativeObject {
                 extension,
                 migration,
@@ -295,11 +312,12 @@ fn test_loader_error_variant_matching() {
             LoaderError::SeedFailed {
                 extension,
                 seed,
-                message,
+                context,
+                ..
             } => {
                 assert!(!extension.is_empty());
                 assert!(!seed.is_empty());
-                assert!(!message.is_empty());
+                assert!(!context.is_empty());
             },
             LoaderError::MigrationNotReversible { extension, .. } => {
                 assert!(!extension.is_empty());
@@ -363,9 +381,9 @@ fn test_config_error_variant_matching() {
             message: "msg".to_string(),
         },
         ExtensionConfigError::ParseError {
-            message: "parse error".to_string(),
+            source: "parse error".into(),
         },
-        ExtensionConfigError::SchemaValidation("schema error".to_string()),
+        ExtensionConfigError::SchemaValidation("schema error".into()),
     ];
 
     for err in errors {
@@ -377,11 +395,11 @@ fn test_config_error_variant_matching() {
                 assert!(!key.is_empty());
                 assert!(!message.is_empty());
             },
-            ExtensionConfigError::ParseError { message: msg } => {
-                assert!(!msg.is_empty());
+            ExtensionConfigError::ParseError { source } => {
+                assert!(!source.to_string().is_empty());
             },
-            ExtensionConfigError::SchemaValidation(msg) => {
-                assert!(!msg.is_empty());
+            ExtensionConfigError::SchemaValidation(source) => {
+                assert!(!source.to_string().is_empty());
             },
         }
     }

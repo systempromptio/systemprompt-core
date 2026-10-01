@@ -5,9 +5,9 @@
 //! providers carry their own typed errors — see [`crate::llm`] and
 //! [`crate::tool`]).
 //!
-//! Downstream provider crates that implement these traits convert any
-//! third-party error at the boundary with
-//! `.map_err(|e| ProviderError::Internal(e.to_string()))`.
+//! Downstream provider crates that implement these traits keep a
+//! third-party error as the variant's source, e.g.
+//! `.map_err(|e| ProviderError::Internal(Box::new(e)))`, rather than its text.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -19,6 +19,21 @@ pub enum ProviderError {
     #[error("Provider configuration error: {0}")]
     Configuration(String),
 
+    #[error("Provider configuration error: {context}: {source}")]
+    ConfigurationLoad {
+        context: String,
+        #[source]
+        source: Box<dyn std::error::Error + Send + Sync + 'static>,
+    },
+
+    #[error("invalid job parameter {key}={value}: {source}")]
+    InvalidParameter {
+        key: String,
+        value: String,
+        #[source]
+        source: Box<dyn std::error::Error + Send + Sync + 'static>,
+    },
+
     #[error("Resource not found: {0}")]
     NotFound(String),
 
@@ -27,6 +42,13 @@ pub enum ProviderError {
 
     #[error("Render failed: {0}")]
     RenderFailed(String),
+
+    #[error("Render failed: {context}: {source}")]
+    Rendering {
+        context: String,
+        #[source]
+        source: Box<dyn std::error::Error + Send + Sync + 'static>,
+    },
 
     #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
@@ -38,7 +60,7 @@ pub enum ProviderError {
     Json(#[from] serde_json::Error),
 
     #[error("Internal provider error: {0}")]
-    Internal(String),
+    Internal(#[source] Box<dyn std::error::Error + Send + Sync + 'static>),
 }
 
 pub type ProviderResult<T> = Result<T, ProviderError>;

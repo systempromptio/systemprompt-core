@@ -129,8 +129,9 @@ pub(super) fn import_skill(
         path: skill_md.display().to_string(),
         message,
     };
-    let SplitSkillFrontmatter { owned, passthrough } =
-        split_skill_frontmatter(authored_skill_frontmatter(&raw).map_err(invalid)?);
+    let SplitSkillFrontmatter { owned, passthrough } = split_skill_frontmatter(
+        authored_skill_frontmatter(&raw).map_err(|e| invalid(e.to_string()))?,
+    );
     if let Some(passthrough) = &passthrough {
         check_json_compatible(passthrough).map_err(|e| invalid(format!("SKILL.md {e}")))?;
     }

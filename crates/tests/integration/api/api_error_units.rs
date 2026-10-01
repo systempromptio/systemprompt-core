@@ -105,7 +105,7 @@ fn context_extraction_error_into_apihttperror_classifies() {
             StatusCode::UNAUTHORIZED,
         ),
         (
-            ContextExtractionError::InvalidToken("x".to_owned()),
+            ContextExtractionError::InvalidToken("x".into()),
             StatusCode::UNAUTHORIZED,
         ),
         (ContextExtractionError::Revoked, StatusCode::UNAUTHORIZED),
@@ -138,7 +138,8 @@ fn context_extraction_error_into_apihttperror_classifies() {
         ),
         (
             ContextExtractionError::DatabaseError {
-                message: "db".to_owned(),
+                context: "db".to_owned(),
+                source: "db".into(),
             },
             StatusCode::INTERNAL_SERVER_ERROR,
         ),
@@ -153,7 +154,7 @@ fn context_extraction_error_into_apihttperror_classifies() {
 fn extraction_error_to_api_error_covers_all_variants() {
     let variants = [
         ContextExtractionError::MissingAuthHeader,
-        ContextExtractionError::InvalidToken("t".to_owned()),
+        ContextExtractionError::InvalidToken("t".into()),
         ContextExtractionError::Revoked,
         ContextExtractionError::UserNotFound("u".to_owned()),
         ContextExtractionError::MissingSessionId,
@@ -166,7 +167,8 @@ fn extraction_error_to_api_error_covers_all_variants() {
         },
         ContextExtractionError::InvalidUserId("bad".to_owned()),
         ContextExtractionError::DatabaseError {
-            message: "db".to_owned(),
+            context: "db".to_owned(),
+            source: "db".into(),
         },
         ContextExtractionError::ForbiddenHeader {
             header: "h".to_owned(),

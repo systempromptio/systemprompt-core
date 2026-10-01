@@ -31,9 +31,10 @@ impl MigrationService<'_> {
                 &[&ext_id, &count],
             )
             .await
-            .map_err(|e| LoaderError::MigrationFailed {
+            .map_err(|e| LoaderError::MigrationStepFailed {
                 extension: ext_id.to_owned(),
-                message: format!("Failed to query applied migrations for revert: {e}"),
+                context: "Failed to query applied migrations for revert".to_owned(),
+                source: Box::new(e),
             })?;
 
         let versions = result
@@ -111,12 +112,13 @@ impl MigrationService<'_> {
         );
 
         let statements = SqlExecutor::parse_sql_statements(down_sql).map_err(|e| {
-            LoaderError::MigrationFailed {
+            LoaderError::MigrationStepFailed {
                 extension: ext_id.to_owned(),
-                message: format!(
-                    "Failed to parse down migration {} ({}): {e}",
+                context: format!(
+                    "Failed to parse down migration {} ({})",
                     migration.version, migration.name
                 ),
+                source: Box::new(e),
             }
         })?;
         let delete_params: [&dyn ToDbValue; 2] = [&ext_id, &version];

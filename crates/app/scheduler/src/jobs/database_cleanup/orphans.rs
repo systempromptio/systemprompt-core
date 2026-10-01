@@ -22,7 +22,7 @@ pub(super) async fn delete_orphaned_logs(db_pool: &DbPool, enforce: bool) -> Pro
     let logs = LoggingRepository::new(db_pool);
     let users = UserRepository::new(db_pool);
     let internal =
-        |e: systemprompt_logging::models::LoggingError| ProviderError::Internal(e.to_string());
+        |e: systemprompt_logging::models::LoggingError| ProviderError::Internal(Box::new(e));
     // Why: `logs` and `users` have different owners, so the orphan set is
     // computed by asking each: the log owners seen, minus the users that
     // still exist.
@@ -30,7 +30,7 @@ pub(super) async fn delete_orphaned_logs(db_pool: &DbPool, enforce: bool) -> Pro
     let orphans = users
         .missing_ids(&seen)
         .await
-        .map_err(|e| ProviderError::Internal(e.to_string()))?;
+        .map_err(|e| ProviderError::Internal(Box::new(e)))?;
     if enforce {
         logs.delete_logs_for_users(&orphans).await.map_err(internal)
     } else {
@@ -55,7 +55,7 @@ pub(super) async fn fail_orphaned_requests(db_pool: &DbPool, enforce: bool) -> P
     let orphans = requests
         .fail_orphaned_pending(ORPHAN_AGE)
         .await
-        .map_err(|e| ProviderError::Internal(e.to_string()))?;
+        .map_err(|e| ProviderError::Internal(Box::new(e)))?;
     for orphan in &orphans {
         warn!(
             ai_request_id = %orphan.id,

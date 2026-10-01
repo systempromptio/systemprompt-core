@@ -50,7 +50,7 @@ impl Job for UserRateLimitPruneJob {
         let pruned = repository
             .prune(before)
             .await
-            .map_err(|e| ProviderError::Configuration(e.to_string()))?;
+            .map_err(|e| ProviderError::Internal(Box::new(e)))?;
 
         let duration_ms = start_time.elapsed().as_millis() as u64;
 

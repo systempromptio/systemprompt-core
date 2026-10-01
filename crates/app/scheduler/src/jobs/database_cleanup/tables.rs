@@ -74,7 +74,7 @@ pub(super) async fn delete_batch(
         },
     };
     Ok(result
-        .map_err(|e| ProviderError::Internal(e.to_string()))?
+        .map_err(|e| ProviderError::Internal(Box::new(e)))?
         .rows_affected())
 }
 
@@ -256,5 +256,5 @@ pub(super) async fn count_before(
             )));
         },
     };
-    count.map_err(|e| ProviderError::Internal(e.to_string()))
+    count.map_err(|e| ProviderError::Internal(Box::new(e)))
 }

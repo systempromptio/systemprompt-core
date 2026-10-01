@@ -6,6 +6,8 @@
 use std::sync::Arc;
 use systemprompt_identifiers::{SessionId, UserId};
 
+use crate::BoxedSource;
+
 pub type JwtResult<T> = Result<T, JwtProviderError>;
 
 #[derive(Debug, thiserror::Error)]
@@ -24,7 +26,7 @@ pub enum JwtProviderError {
     ConfigurationError { message: String },
 
     #[error("Internal error: {0}")]
-    Internal(String),
+    Internal(#[source] BoxedSource),
 }
 
 #[derive(Debug, Clone)]

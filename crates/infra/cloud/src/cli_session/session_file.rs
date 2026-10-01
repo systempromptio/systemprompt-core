@@ -19,7 +19,9 @@ impl CliSession {
         let content = fs::read_to_string(path)?;
 
         let mut session: Self = serde_json::from_str(&content)
-            .map_err(|e| CloudError::CredentialsCorrupted { source: e })?;
+            .map_err(|e| CloudError::CredentialsCorrupted {
+                source: Box::new(e),
+            })?;
 
         if session.version < MIN_SUPPORTED_VERSION || session.version > CURRENT_VERSION {
             return Err(CloudError::SessionVersionMismatch {

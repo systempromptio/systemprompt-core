@@ -146,7 +146,7 @@ impl RepositoryError {
     }
 
     pub fn database(source: impl Into<BoxedSource>) -> Self {
-        let source = source.into();
+        let source: BoxedSource = source.into();
         #[cfg(feature = "sqlx")]
         let source = match source.downcast::<sqlx::Error>() {
             Ok(sqlx_error) => return Self::from(*sqlx_error),

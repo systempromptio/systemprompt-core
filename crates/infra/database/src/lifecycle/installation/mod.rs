@@ -4,6 +4,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod classify;
 mod extension;
 mod fk_deferral;
 mod migration_cost;

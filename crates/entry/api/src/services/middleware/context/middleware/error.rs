@@ -61,9 +61,10 @@ pub(super) fn log_error_response(
     .entered();
 
     match error {
-        ContextExtractionError::DatabaseError { message } => {
+        ContextExtractionError::DatabaseError { context, source } => {
             tracing::error!(
-                error = %message,
+                context = %context,
+                error = %source,
                 error_type = "database",
                 "Context extraction failed due to database error"
             );

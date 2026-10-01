@@ -171,26 +171,26 @@ impl From<AiError> for systemprompt_models::errors::AiInferenceError {
             | AiError::MissingToolField { .. }
             | AiError::EmptyToolDescription { .. }
             | AiError::InvalidInput(_)
-            | AiError::WireParse(_) => Self::InvalidRequest(err.to_string()),
+            | AiError::WireParse(_) => Self::InvalidRequest(Box::new(err)),
             AiError::NoToolCalls
             | AiError::McpServiceNotFound { .. }
             | AiError::McpAuthenticationMissing { .. }
             | AiError::ServiceAuthCheckFailed { .. }
             | AiError::ToolDiscovery(_)
-            | AiError::ToolProvider(_) => Self::Tool(err.to_string()),
+            | AiError::ToolProvider(_) => Self::Tool(Box::new(err)),
             AiError::UnknownModel { .. }
             | AiError::AuthenticationRequired { .. }
             | AiError::ConfigurationError { .. }
             | AiError::Secrets(_)
-            | AiError::Upstream(_) => Self::Configuration(err.to_string()),
+            | AiError::Upstream(_) => Self::Configuration(Box::new(err)),
             AiError::DatabaseError { .. } | AiError::StorageError { .. } => {
-                Self::Storage(err.to_string())
+                Self::Storage(Box::new(err))
             },
             AiError::SerializationError(_)
             | AiError::Http(_)
             | AiError::Io(_)
             | AiError::Regex(_)
-            | AiError::Internal(_) => Self::Internal(err.to_string()),
+            | AiError::Internal(_) => Self::Internal(Box::new(err)),
         }
     }
 }

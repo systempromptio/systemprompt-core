@@ -23,6 +23,10 @@
 
 use std::io;
 
+#[derive(Debug, thiserror::Error)]
+#[error("KERN_ARGMAX is unusable")]
+struct UnusableArgMax(#[source] std::num::TryFromIntError);
+
 #[must_use]
 pub fn live_pid_is_subprocess(pid: u32, name_key: &str, service_name: &str) -> bool {
     let Ok(pid) = i32::try_from(pid) else {
@@ -140,5 +144,5 @@ fn arg_max() -> io::Result<usize> {
         return Err(io::Error::last_os_error());
     }
 
-    usize::try_from(value).map_err(|e| io::Error::other(format!("KERN_ARGMAX is unusable: {e}")))
+    usize::try_from(value).map_err(|e| io::Error::other(UnusableArgMax(e)))
 }

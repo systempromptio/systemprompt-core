@@ -241,7 +241,7 @@ async fn an_empty_token_file_is_reported_rather_than_sent_as_a_blank_token() {
 
     assert!(matches!(
         err,
-        VaultError::CredentialFile { ref message, .. } if message == "file is empty"
+        VaultError::EmptyCredentialFile { ref path } if path == &token_path.display().to_string()
     ));
 }
 
@@ -314,8 +314,8 @@ async fn a_login_response_that_is_not_the_expected_shape_is_malformed() {
 
     let err = vault_error(provider.fetch().await.unwrap_err());
 
-    assert!(matches!(err, VaultError::Malformed { ref message }
-        if message.contains("approle login response")));
+    assert!(matches!(err, VaultError::Malformed { ref context, .. }
+        if context.contains("approle login response")));
 }
 
 #[tokio::test]

@@ -11,6 +11,8 @@ use chrono::{DateTime, Utc};
 use std::sync::Arc;
 use systemprompt_identifiers::{ContextId, SessionId, UserId};
 
+use crate::BoxedSource;
+
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum ContextProviderError {
@@ -21,10 +23,10 @@ pub enum ContextProviderError {
     AccessDenied(String),
 
     #[error("Database error: {0}")]
-    Database(String),
+    Database(#[source] BoxedSource),
 
     #[error("Internal error: {0}")]
-    Internal(String),
+    Internal(#[source] BoxedSource),
 }
 
 #[derive(Debug, Clone)]

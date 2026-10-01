@@ -17,7 +17,7 @@ fn missing_header_display_contains_name() {
 fn invalid_header_display_contains_name_and_message() {
     let e = ContextPropagationError::InvalidHeader {
         name: "x-user-id".to_owned(),
-        message: "not a valid UUID".to_owned(),
+        source: "not a valid UUID".into(),
     };
     let s = format!("{e}");
     assert!(s.contains("x-user-id"));
@@ -36,7 +36,7 @@ fn context_propagation_errors_are_debug() {
         ContextPropagationError::MissingHeader("h".into()),
         ContextPropagationError::InvalidHeader {
             name: "n".into(),
-            message: "m".into(),
+            source: "m".into(),
         },
         ContextPropagationError::Invalid("i".into()),
     ];

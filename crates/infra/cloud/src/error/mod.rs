@@ -33,7 +33,7 @@ pub enum CloudError {
     #[error("Credentials file corrupted.\n\nRun: systemprompt cloud auth login")]
     CredentialsCorrupted {
         #[source]
-        source: serde_json::Error,
+        source: Box<dyn std::error::Error + Send + Sync + 'static>,
     },
 
     #[error("Tenants not synced.\n\nRun: systemprompt cloud auth login")]
@@ -45,8 +45,11 @@ pub enum CloudError {
         source: serde_json::Error,
     },
 
-    #[error("Tenants store invalid: {message}")]
-    TenantsStoreInvalid { message: String },
+    #[error("Tenants store invalid: {source}")]
+    TenantsStoreInvalid {
+        #[source]
+        source: Box<dyn std::error::Error + Send + Sync + 'static>,
+    },
 
     #[error("API error: {message}")]
     ApiError { message: String },
@@ -60,11 +63,18 @@ pub enum CloudError {
     #[error(transparent)]
     Json(#[from] serde_json::Error),
 
-    #[error("Cloud API validation failed: {message}")]
-    ApiValidationFailed { message: String },
+    #[error("Cloud API validation failed: {message}: {source}")]
+    ApiValidationFailed {
+        message: String,
+        #[source]
+        source: Box<Self>,
+    },
 
-    #[error("Cloud credentials file invalid: {message}")]
-    InvalidCredentials { message: String },
+    #[error("Cloud credentials file invalid: {source}")]
+    InvalidCredentials {
+        #[source]
+        source: Box<Self>,
+    },
 
     #[error("Cloud credentials file not found: {path}")]
     CredentialsFileNotFound { path: String },

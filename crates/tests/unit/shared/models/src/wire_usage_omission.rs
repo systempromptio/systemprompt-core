@@ -17,6 +17,7 @@
 use futures::StreamExt;
 use serde_json::json;
 use systemprompt_models::wire::canonical::{CanonicalEvent, CanonicalUsage, CanonicalUsageUpdate};
+use systemprompt_models::wire::error::WireStreamError;
 use systemprompt_models::wire::{anthropic, gemini, openai_chat, openai_responses};
 
 const PROMPT: u32 = 2_000;
@@ -27,7 +28,7 @@ fn frames(sse: String) -> impl futures::Stream<Item = Result<bytes::Bytes, std::
     futures::stream::once(async move { Ok::<_, std::io::Error>(bytes::Bytes::from(sse)) })
 }
 
-fn accumulate(events: Vec<Result<CanonicalEvent, String>>) -> CanonicalUsage {
+fn accumulate(events: Vec<Result<CanonicalEvent, WireStreamError>>) -> CanonicalUsage {
     let mut usage = CanonicalUsage::default();
     for event in events.into_iter().flatten() {
         match event {

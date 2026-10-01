@@ -18,8 +18,8 @@ use crate::error::IdValidationError;
 const SESSION_SEGMENT: &str = "_session_";
 
 fn validate(value: &str) -> Result<(), IdValidationError> {
-    let parsed = uuid::Uuid::parse_str(value)
-        .map_err(|e| IdValidationError::invalid("ClientSessionId", e.to_string()))?;
+    let parsed =
+        uuid::Uuid::parse_str(value).map_err(|e| IdValidationError::uuid("ClientSessionId", e))?;
     if parsed.hyphenated().to_string() != value {
         return Err(IdValidationError::invalid(
             "ClientSessionId",
@@ -36,7 +36,7 @@ impl ClientSessionId {
         let value = value.trim();
         let session = if value.starts_with('{') {
             let metadata: serde_json::Value = serde_json::from_str(value)
-                .map_err(|e| IdValidationError::invalid("ClientSessionId", e.to_string()))?;
+                .map_err(|e| IdValidationError::json("ClientSessionId", e))?;
             Some(
                 metadata
                     .get("session_id")
@@ -57,7 +57,7 @@ impl ClientSessionId {
         session
             .map(|value| {
                 let parsed = uuid::Uuid::parse_str(value.trim())
-                    .map_err(|e| IdValidationError::invalid("ClientSessionId", e.to_string()))?;
+                    .map_err(|e| IdValidationError::uuid("ClientSessionId", e))?;
                 Self::try_new(parsed.hyphenated().to_string())
             })
             .transpose()

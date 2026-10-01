@@ -398,7 +398,10 @@ async fn rss_provider_fetch_items_with_closed_pool_is_render_failed() {
     };
     let err = p.fetch_items(&ctx, 5).await.expect_err("closed pool");
     assert!(
-        matches!(err, ProviderError::RenderFailed(ref m) if m.contains("Failed to fetch content")),
+        matches!(
+            err,
+            ProviderError::Rendering { ref context, .. } if context.contains("Failed to fetch content")
+        ),
         "unexpected error: {err:?}"
     );
 }

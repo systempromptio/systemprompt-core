@@ -125,7 +125,7 @@ async fn download_and_install(
     if let Some(parent) = target.parent() {
         fs::create_dir_all(parent)?;
     }
-    fs::rename(&staged, &target).map_err(|e| BundleError::extract(&target, e))?;
+    fs::rename(&staged, &target).map_err(|e| BundleError::extract_cause(&target, e))?;
 
     tracing::info!(
         source = %source.name,

@@ -49,13 +49,8 @@ impl SecretsDocument {
     }
 
     pub fn into_secrets(self) -> Result<Secrets, SecretsBootstrapError> {
-        let body = serde_json::to_string(&serde_json::Value::Object(self.0)).map_err(|e| {
-            SecretsBootstrapError::InvalidSecretsFile {
-                message: e.to_string(),
-            }
-        })?;
-        Secrets::parse(&body).map_err(|e| SecretsBootstrapError::InvalidSecretsFile {
-            message: e.to_string(),
-        })
+        let body = serde_json::to_string(&serde_json::Value::Object(self.0))
+            .map_err(SecretsBootstrapError::DocumentEncode)?;
+        Secrets::parse(&body).map_err(SecretsBootstrapError::InvalidSecretsFile)
     }
 }

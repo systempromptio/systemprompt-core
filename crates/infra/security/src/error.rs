@@ -52,7 +52,7 @@ pub enum AuthError {
     UnknownKid(String),
 
     #[error("signing key lookup failed: {0}")]
-    KeyLookup(String),
+    KeyLookup(#[source] crate::keys::authority::TokenAuthorityError),
 
     #[error("issuer `{0}` is not trusted")]
     UntrustedIssuer(String),
@@ -94,25 +94,29 @@ pub enum JwtError {
     Encoding(#[from] jsonwebtoken::errors::Error),
 
     #[error("jwt signing key unavailable: {0}")]
-    Signing(String),
+    Signing(#[source] crate::keys::authority::TokenAuthorityError),
 }
 
 #[derive(Debug, Error)]
 pub enum ManifestSigningError {
     #[error("manifest signing seed unavailable: {0}")]
-    SeedUnavailable(String),
+    SeedUnavailable(#[source] systemprompt_config::SecretsBootstrapError),
 
     #[error("jcs canonicalize: {0}")]
-    Canonicalize(String),
+    Canonicalize(#[source] serde_json::Error),
 
     #[error("signing key missing after initialization")]
     KeyMissing,
 
-    #[error("invalid base64 in {field}: {message}")]
+    #[error("invalid base64 in {field}: {source}")]
     InvalidBase64 {
         field: &'static str,
-        message: String,
+        #[source]
+        source: base64::DecodeError,
     },
+
+    #[error("invalid ed25519 public key: {0}")]
+    InvalidPublicKey(#[source] ed25519_dalek::SignatureError),
 
     #[error("{field} decoded to {actual} bytes, expected {expected}")]
     InvalidKeyLength {

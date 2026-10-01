@@ -60,13 +60,15 @@ impl DomainConfig for SkillConfigValidator {
             return Ok(report);
         }
 
-        let entries = std::fs::read_dir(skills_dir).map_err(|e| DomainConfigError::LoadError {
-            message: format!("Cannot read skills directory: {e}"),
+        let entries = std::fs::read_dir(skills_dir).map_err(|source| DomainConfigError::Io {
+            context: "Cannot read skills directory".to_owned(),
+            source,
         })?;
 
         for entry in entries {
-            let entry = entry.map_err(|e| DomainConfigError::LoadError {
-                message: format!("Cannot read directory entry: {e}"),
+            let entry = entry.map_err(|source| DomainConfigError::Io {
+                context: "Cannot read directory entry".to_owned(),
+                source,
             })?;
             validate_skill_entry(&entry, &mut report);
         }

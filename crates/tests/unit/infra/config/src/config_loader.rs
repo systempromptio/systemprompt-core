@@ -103,7 +103,7 @@ fn validate_database_config_rejects_non_postgres_url() {
 
     let err = validate_database_config(&cfg).unwrap_err();
     assert!(
-        matches!(err, ConfigError::InvalidDatabaseUrl { .. }),
+        matches!(err, ConfigError::InvalidDatabaseUrl(_)),
         "expected InvalidDatabaseUrl, got: {err:?}"
     );
 }

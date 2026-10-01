@@ -10,6 +10,8 @@ use async_trait::async_trait;
 use std::sync::Arc;
 use systemprompt_identifiers::UserId;
 
+use crate::BoxedSource;
+
 pub type AuthResult<T> = Result<T, AuthProviderError>;
 
 #[derive(Debug, thiserror::Error)]
@@ -31,7 +33,7 @@ pub enum AuthProviderError {
     InsufficientPermissions,
 
     #[error("Internal error: {0}")]
-    Internal(String),
+    Internal(#[source] BoxedSource),
 }
 
 #[derive(Debug, Clone)]

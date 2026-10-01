@@ -66,7 +66,5 @@ pub fn resolve_source(
 fn configured_path(config: &SecretsConfig) -> Result<&str, SecretsBootstrapError> {
     config
         .secrets_path()
-        .map_err(|e| SecretsBootstrapError::SecretsConfigInvalid {
-            message: e.to_string(),
-        })
+        .map_err(SecretsBootstrapError::SecretsConfigInvalid)
 }

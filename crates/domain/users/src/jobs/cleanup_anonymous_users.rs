@@ -50,12 +50,12 @@ impl Job for CleanupAnonymousUsersJob {
             user_service
                 .cleanup_old_anonymous(retention_days)
                 .await
-                .map_err(|e| ProviderError::Configuration(e.to_string()))?
+                .map_err(|e| ProviderError::Internal(Box::new(e)))?
         } else {
             let would_delete = user_service
                 .count_old_anonymous(retention_days)
                 .await
-                .map_err(|e| ProviderError::Configuration(e.to_string()))?;
+                .map_err(|e| ProviderError::Internal(Box::new(e)))?;
             info!(
                 would_delete_users = would_delete,
                 retention_days = retention_days,

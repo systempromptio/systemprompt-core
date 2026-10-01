@@ -320,8 +320,8 @@ async fn install_rejects_seed_with_unclassified_statement_as_other() {
 async fn install_rejects_unparseable_seed_sql() {
     let err = seed_rejection("THIS IS NOT SQL AT ALL").await;
     match err {
-        LoaderError::SeedFailed { message, .. } => {
-            assert!(message.contains("parse"), "message: {message}");
+        LoaderError::SeedFailed { context, .. } => {
+            assert!(context.contains("parse"), "context: {context}");
         },
         other => panic!("expected SeedFailed(parse), got {other:?}"),
     }
@@ -352,8 +352,8 @@ async fn install_surfaces_seed_execution_failure_and_rolls_back() {
         .await
         .expect_err("seed hitting a missing table must fail");
     match err {
-        LoaderError::SeedFailed { message, .. } => {
-            assert!(message.contains("execute"), "message: {message}");
+        LoaderError::SeedFailed { context, .. } => {
+            assert!(context.contains("execute"), "context: {context}");
         },
         other => panic!("expected SeedFailed(execute), got {other:?}"),
     }
@@ -904,11 +904,10 @@ async fn a_declarative_function_without_or_replace_is_refused() {
     let err = install_extension_schemas_with_config(&registry, &provider, &[])
         .await
         .expect_err("a routine the installer applies twice must be CREATE OR REPLACE");
-    match err {
-        LoaderError::SchemaInstallationFailed { message, .. } => {
-            assert!(message.contains("CREATE OR REPLACE"), "{message}");
-        },
-        other => panic!("expected SchemaInstallationFailed, got {other:?}"),
-    }
+    assert!(
+        matches!(err, LoaderError::SchemaInstallationStepFailed { .. }),
+        "expected SchemaInstallationStepFailed, got {err:?}"
+    );
+    assert!(err.to_string().contains("CREATE OR REPLACE"), "{err}");
     assert!(!table_exists(&db, table).await);
 }

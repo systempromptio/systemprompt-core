@@ -27,6 +27,7 @@ use futures_util::stream::BoxStream;
 use systemprompt_ai::UpstreamCall;
 use systemprompt_models::services::GatewayRoute;
 use systemprompt_models::services::ai::ModelLimits;
+use systemprompt_models::wire::error::WireStreamError;
 use thiserror::Error;
 
 use super::canonical::CanonicalRequest;
@@ -120,7 +121,7 @@ pub struct OutboundCtx<'a> {
 )]
 pub enum OutboundOutcome {
     Buffered(Box<CanonicalResponse>),
-    Streaming(BoxStream<'static, Result<CanonicalEvent, String>>),
+    Streaming(BoxStream<'static, Result<CanonicalEvent, WireStreamError>>),
     RawBuffered {
         body: bytes::Bytes,
         content_type: Option<String>,

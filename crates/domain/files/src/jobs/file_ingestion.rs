@@ -70,8 +70,10 @@ impl Job for FileIngestionJob {
             ProviderError::Configuration("Database pool not available in job context".into())
         })?;
 
-        let files_config =
-            FilesConfig::get().map_err(|e| ProviderError::Configuration(e.to_string()))?;
+        let files_config = FilesConfig::get().map_err(|e| ProviderError::ConfigurationLoad {
+            context: "files config".to_owned(),
+            source: Box::new(e),
+        })?;
         let images_dir = files_config.storage();
 
         if !images_dir.exists() {

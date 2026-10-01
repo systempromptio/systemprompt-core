@@ -178,7 +178,7 @@ pub struct VertexRateCard {
 impl VertexRateCard {
     pub fn embedded() -> ProviderRegistryResult<Self> {
         let card: Self = serde_yaml::from_str(VERTEX_RATE_CARD_YAML)
-            .map_err(|e| ProviderRegistryError::InvalidVertexRateCard(e.to_string()))?;
+            .map_err(ProviderRegistryError::VertexRateCardParse)?;
         card.validate()?;
         Ok(card)
     }

@@ -66,10 +66,7 @@ impl CloudCredentials {
         creds
             .validate()
             .map_err(|e| CloudError::CredentialsCorrupted {
-                source: serde_json::Error::io(std::io::Error::new(
-                    std::io::ErrorKind::InvalidData,
-                    e.to_string(),
-                )),
+                source: Box::new(e),
             })?;
 
         if creds.is_token_expired() {
@@ -112,15 +109,14 @@ impl CloudCredentials {
         let content = fs::read_to_string(path)?;
 
         let creds: Self = serde_json::from_str(&content)
-            .map_err(|e| CloudError::CredentialsCorrupted { source: e })?;
+            .map_err(|e| CloudError::CredentialsCorrupted {
+                source: Box::new(e),
+            })?;
 
         creds
             .validate()
             .map_err(|e| CloudError::CredentialsCorrupted {
-                source: serde_json::Error::io(std::io::Error::new(
-                    std::io::ErrorKind::InvalidData,
-                    e.to_string(),
-                )),
+                source: Box::new(e),
             })?;
 
         Ok(creds)
@@ -129,10 +125,7 @@ impl CloudCredentials {
     pub fn save_to_path(&self, path: &Path) -> CloudResult<()> {
         self.validate()
             .map_err(|e| CloudError::CredentialsCorrupted {
-                source: serde_json::Error::io(std::io::Error::new(
-                    std::io::ErrorKind::InvalidData,
-                    e.to_string(),
-                )),
+                source: Box::new(e),
             })?;
 
         write_private_json(path, self)

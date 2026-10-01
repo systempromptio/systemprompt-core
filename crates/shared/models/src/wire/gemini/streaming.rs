@@ -26,6 +26,7 @@ use super::wire::GeminiResponse;
 use crate::wire::canonical::{
     CanonicalEvent, CanonicalStopReason, CanonicalUsage, CanonicalUsageUpdate,
 };
+use crate::wire::error::WireStreamError;
 
 pub(super) struct StreamState {
     pub(super) buf: Vec<u8>,
@@ -45,10 +46,10 @@ pub(super) struct StreamState {
 pub fn sse_to_canonical_events<S, E>(
     stream: S,
     fallback_model: String,
-) -> BoxStream<'static, Result<CanonicalEvent, String>>
+) -> BoxStream<'static, Result<CanonicalEvent, WireStreamError>>
 where
     S: Stream<Item = Result<Bytes, E>> + Send + 'static,
-    E: std::fmt::Display + 'static,
+    E: Into<Box<dyn std::error::Error + Send + Sync>> + 'static,
 {
     let initial = StreamState {
         buf: Vec::new(),
@@ -64,7 +65,7 @@ where
     };
 
     stream
-        .map(|chunk| Some(chunk.map_err(|e| e.to_string())))
+        .map(|chunk| Some(chunk.map_err(WireStreamError::transport)))
         .chain(stream::once(futures_util::future::ready(None)))
         .scan(initial, |state, item| {
             let res = match item {
@@ -81,7 +82,7 @@ where
 // Why: a body that never carried a frame terminator is not an SSE stream at
 // all; when it is a JSON error object it must surface as the upstream error
 // it is rather than finalising downstream as "empty upstream stream".
-fn drain_tail(state: &mut StreamState) -> Vec<Result<CanonicalEvent, String>> {
+fn drain_tail(state: &mut StreamState) -> Vec<Result<CanonicalEvent, WireStreamError>> {
     if state.stopped {
         return Vec::new();
     }
@@ -104,9 +105,9 @@ fn drain_tail(state: &mut StreamState) -> Vec<Result<CanonicalEvent, String>> {
     events
 }
 
-fn drain_buffer(state: &mut StreamState, bytes: &[u8]) -> Vec<Result<CanonicalEvent, String>> {
+fn drain_buffer(state: &mut StreamState, bytes: &[u8]) -> Vec<Result<CanonicalEvent, WireStreamError>> {
     state.buf.extend_from_slice(bytes);
-    let mut events: Vec<Result<CanonicalEvent, String>> = Vec::new();
+    let mut events: Vec<Result<CanonicalEvent, WireStreamError>> = Vec::new();
     while let Some(end) = crate::wire::sse::frame_end(&state.buf) {
         let frame: Vec<u8> = state.buf.drain(..end).collect();
         let frame_str = String::from_utf8_lossy(&frame);
@@ -116,7 +117,7 @@ fn drain_buffer(state: &mut StreamState, bytes: &[u8]) -> Vec<Result<CanonicalEv
             };
             match serde_json::from_str::<Value>(data.trim()) {
                 Ok(value) => handle_chunk(state, &value, &mut events),
-                Err(e) => events.push(Err(format!("malformed Gemini SSE frame: {e}"))),
+                Err(e) => events.push(Err(WireStreamError::MalformedGeminiFrame(e))),
             }
         }
     }
@@ -127,7 +128,7 @@ fn handle_chunk(
     state: &mut StreamState,
     // JSON: Gemini streaming frame; upstream JSON is the contract.
     value: &Value,
-    events: &mut Vec<Result<CanonicalEvent, String>>,
+    events: &mut Vec<Result<CanonicalEvent, WireStreamError>>,
 ) {
     if let Some(message) = crate::wire::sse::upstream_error_message(value) {
         events.push(Ok(CanonicalEvent::Error(message)));
@@ -193,7 +194,7 @@ fn emit_stop(
     state: &mut StreamState,
     reason: CanonicalStopReason,
     finish: &str,
-    events: &mut Vec<Result<CanonicalEvent, String>>,
+    events: &mut Vec<Result<CanonicalEvent, WireStreamError>>,
 ) {
     close_thinking(state, events);
     close_text(state, events);
@@ -208,7 +209,7 @@ fn emit_stop(
 fn emit_start(
     state: &mut StreamState,
     chunk: &GeminiResponse,
-    events: &mut Vec<Result<CanonicalEvent, String>>,
+    events: &mut Vec<Result<CanonicalEvent, WireStreamError>>,
 ) {
     if let Some(id) = &chunk.response_id {
         state.message_id.clone_from(id);

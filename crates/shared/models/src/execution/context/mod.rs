@@ -9,7 +9,7 @@ mod context_types;
 mod propagation;
 
 pub use call_source::CallSource;
-pub use context_error::{ContextExtractionError, ContextIdSource};
+pub use context_error::{ContextExtractionError, ContextIdSource, RequestContextValidationError};
 pub use context_types::{
     AuthContext, ExecutionContext, ExecutionSettings, RequestMetadata, UserInteractionMode,
 };
@@ -276,19 +276,19 @@ impl RequestContext {
         self.start_time.elapsed()
     }
 
-    pub fn validate_task_execution(&self) -> Result<(), String> {
+    pub const fn validate_task_execution(&self) -> Result<(), RequestContextValidationError> {
         if self.execution.task_id.is_none() {
-            return Err("Missing task_id for task execution".to_owned());
+            return Err(RequestContextValidationError::MissingTaskId);
         }
         Ok(())
     }
 
-    pub fn validate_authenticated(&self) -> Result<(), String> {
+    pub fn validate_authenticated(&self) -> Result<(), RequestContextValidationError> {
         if self.auth.auth_token.as_str().is_empty() {
-            return Err("Missing authentication token".to_owned());
+            return Err(RequestContextValidationError::MissingAuthToken);
         }
         if matches!(self.auth.user_type, UserType::Anon) {
-            return Err("User is not authenticated".to_owned());
+            return Err(RequestContextValidationError::Unauthenticated);
         }
         Ok(())
     }

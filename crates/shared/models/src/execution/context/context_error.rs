@@ -4,6 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_identifiers::TaskId;
+use systemprompt_traits::BoxedSource;
 use thiserror::Error;
 
 #[derive(Debug, Clone)]
@@ -21,7 +22,7 @@ pub enum ContextExtractionError {
     MissingAuthHeader,
 
     #[error("Invalid JWT token: {0}")]
-    InvalidToken(String),
+    InvalidToken(#[source] BoxedSource),
 
     #[error("Token revoked")]
     Revoked,
@@ -44,12 +45,28 @@ pub enum ContextExtractionError {
     #[error("Invalid user_id: {0}")]
     InvalidUserId(String),
 
-    #[error("Database error: {message}")]
-    DatabaseError { message: String },
+    #[error("Database error: {context}: {source}")]
+    DatabaseError {
+        context: String,
+        #[source]
+        source: BoxedSource,
+    },
 
     #[error("User not found: {0}")]
     UserNotFound(String),
 
     #[error("Forbidden header '{header}': {reason}")]
     ForbiddenHeader { header: String, reason: String },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
+pub enum RequestContextValidationError {
+    #[error("Missing task_id for task execution")]
+    MissingTaskId,
+
+    #[error("Missing authentication token")]
+    MissingAuthToken,
+
+    #[error("User is not authenticated")]
+    Unauthenticated,
 }

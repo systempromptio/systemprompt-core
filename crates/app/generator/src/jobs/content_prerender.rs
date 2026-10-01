@@ -53,7 +53,10 @@ impl Job for ContentPrerenderJob {
         let content_analytics = ContentAnalyticsRepository::new(&db_pool);
         prerender_content(db_pool, content_repo, content_analytics, paths)
             .await
-            .map_err(|e| ProviderError::RenderFailed(e.to_string()))?;
+            .map_err(|e| ProviderError::Rendering {
+                context: "content prerender".to_owned(),
+                source: Box::new(e),
+            })?;
         let duration_ms = start_time.elapsed().as_millis() as u64;
         tracing::info!(duration_ms = duration_ms, "Job completed");
 

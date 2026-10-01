@@ -21,7 +21,7 @@ impl From<McpDomainError> for McpRegistryError {
     fn from(err: McpDomainError) -> Self {
         match err {
             McpDomainError::ServerNotFound(name) => Self::NotFound(name),
-            other => Self::Configuration(other.to_string()),
+            other => Self::Configuration(Box::new(other)),
         }
     }
 }
@@ -29,7 +29,7 @@ impl From<McpDomainError> for McpRegistryError {
 fn typed_server_ids(names: impl Iterator<Item = String>) -> McpRegistryResult<Vec<McpServerId>> {
     names
         .map(|name| {
-            McpServerId::try_new(name).map_err(|e| McpRegistryError::Configuration(e.to_string()))
+            McpServerId::try_new(name).map_err(|e| McpRegistryError::Configuration(Box::new(e)))
         })
         .collect()
 }
@@ -39,7 +39,7 @@ impl McpRegistry for RegistryService {
     async fn list_servers(&self) -> McpRegistryResult<Vec<McpServerId>> {
         use systemprompt_loader::ConfigLoader;
         let config =
-            ConfigLoader::load().map_err(|e| McpRegistryError::Configuration(e.to_string()))?;
+            ConfigLoader::load().map_err(|e| McpRegistryError::Configuration(Box::new(e)))?;
         typed_server_ids(config.mcp_servers.keys().cloned())
     }
 
@@ -56,7 +56,7 @@ impl McpRegistry for RegistryService {
     async fn server_exists(&self, name: &McpServerId) -> McpRegistryResult<bool> {
         use systemprompt_loader::ConfigLoader;
         let config =
-            ConfigLoader::load().map_err(|e| McpRegistryError::Configuration(e.to_string()))?;
+            ConfigLoader::load().map_err(|e| McpRegistryError::Configuration(Box::new(e)))?;
         Ok(config.mcp_servers.contains_key(name.as_str()))
     }
 }
@@ -104,7 +104,7 @@ impl McpRegistryProvider for RegistryService {
 
     async fn list_enabled_servers(&self) -> Result<Vec<McpServerInfo>, RegistryError> {
         let servers = Self::get_enabled_servers(self)
-            .map_err(|e| RegistryError::Unavailable(e.to_string()))?;
+            .map_err(|e| RegistryError::Unavailable(e.into()))?;
         Ok(servers.into_iter().map(server_info).collect())
     }
 }

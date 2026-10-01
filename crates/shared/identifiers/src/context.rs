@@ -9,7 +9,7 @@ use crate::{ClientSessionId, GatewayConversationId, SessionId, TaskId, UserId};
 crate::define_id!(ContextId, validated, schema, validate_uuid_v4);
 
 fn validate_uuid_v4(s: &str) -> Result<(), IdValidationError> {
-    uuid::Uuid::parse_str(s).map_err(|e| IdValidationError::invalid("ContextId", e.to_string()))?;
+    uuid::Uuid::parse_str(s).map_err(|e| IdValidationError::uuid("ContextId", e))?;
     Ok(())
 }
 
