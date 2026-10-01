@@ -420,6 +420,58 @@ async fn rejected_collector_keeps_the_cursor_then_a_retry_ships_the_identical_ba
 }
 
 #[tokio::test]
+async fn malformed_log_row_is_skipped_and_counted_while_the_rest_of_the_batch_ships() {
+    let db = DisposableDb::with_schema("otlp_export_skip_malformed").await;
+    let pool = db.test_pool().await;
+    let raw = pool.pool();
+    seed_log(raw.as_ref(), "otlp-log-z-good").await;
+    sqlx::query(
+        "INSERT INTO logs (id, timestamp, level, module, message, provider_request_id) \
+         VALUES ($1, NOW() - INTERVAL '10 seconds', 'INFO', 'otlp-test', 'corrupt id', '')",
+    )
+    .bind("otlp-log-a-bad")
+    .execute(raw.as_ref())
+    .await
+    .unwrap();
+    let collector = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/v1/logs"))
+        .respond_with(ResponseTemplate::new(200))
+        .expect(1)
+        .mount(&collector)
+        .await;
+
+    let report =
+        systemprompt_scheduler::otlp_export_now(&raw, &export_config(collector.uri()), None)
+            .await
+            .unwrap();
+    assert!(report.signals[0].error.is_none());
+    assert_eq!(report.signals[0].rows, 1);
+    assert_eq!(report.signals[0].skipped, 1);
+    let requests = collector.received_requests().await.unwrap();
+    let decoded =
+        opentelemetry_proto::tonic::collector::logs::v1::ExportLogsServiceRequest::decode(
+            requests[0].body.as_slice(),
+        )
+        .unwrap();
+    assert_eq!(decoded.resource_logs[0].scope_logs[0].log_records.len(), 1);
+    let state = systemprompt_scheduler::OtlpExportStateRepository::new(raw.as_ref().clone())
+        .get_or_start(OtlpSignal::Logs)
+        .await
+        .unwrap();
+    assert_eq!(state.failures_total, 0);
+    assert!(
+        state.watermark_id == "otlp-log-z-good" || state.watermark_id == "otlp-log-a-bad",
+        "the cursor moves past the skipped row"
+    );
+    assert_ne!(state.watermark_id, "");
+    raw.close().await;
+    drop(raw);
+    drop(pool);
+    db.drop_now().await;
+}
+
+#[tokio::test]
 async fn invalid_header_keeps_the_cursor_then_repaired_config_delivers_the_batch() {
     let diagnostics = DiagnosticWriter::default();
     let subscriber = tracing_subscriber::registry().with(

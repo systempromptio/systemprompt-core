@@ -6,6 +6,11 @@
 //! late with an earlier timestamp cannot land behind an advanced cursor.
 //! [`BATCH_ROWS`] bounds one batch per signal per tick.
 //!
+//! A `logs` row whose stored identifier fails validation is not exported: it
+//! is counted as skipped and logged, and the page's cursor still covers it, so
+//! one corrupt row neither blocks the rest of the batch nor pins the cursor
+//! behind it.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -17,21 +22,32 @@ use systemprompt_identifiers::{
     AiToolCallId, ClientId, ContextId, GatewayConversationId, InstanceId, McpExecutionId,
     McpServerId, McpToolName, PluginId, ProviderRequestId, SessionId, TraceId, UserId,
 };
-use systemprompt_traits::RepositoryError;
 
 use super::records::{GovernanceRow, LedgerRow, LogRow, RequestRow};
 use super::state::Watermark;
-use crate::error::{SchedulerError, SchedulerResult};
+use crate::error::SchedulerResult;
 
 pub const SETTLE: Duration = Duration::from_secs(5);
 
 pub const BATCH_ROWS: i64 = 500;
 
-fn decode_error(context: &str, source: IdValidationError) -> SchedulerError {
-    SchedulerError::Repository(RepositoryError::Decode {
-        context: context.to_owned(),
-        source: Box::new(source),
-    })
+#[derive(Debug, Default)]
+pub(super) struct LogTail {
+    pub rows: Vec<LogRow>,
+    pub skipped: u64,
+    pub last: Option<Watermark>,
+}
+
+#[derive(Debug, thiserror::Error)]
+#[error("{column}: {source}")]
+struct MalformedColumn {
+    column: &'static str,
+    #[source]
+    source: IdValidationError,
+}
+
+fn malformed(column: &'static str) -> impl FnOnce(IdValidationError) -> MalformedColumn {
+    move |source| MalformedColumn { column, source }
 }
 
 pub(super) async fn list_requests_after(
@@ -179,7 +195,7 @@ pub(super) async fn list_logs_after(
     pool: &PgPool,
     after: &Watermark,
     limit: i64,
-) -> SchedulerResult<Vec<LogRow>> {
+) -> SchedulerResult<LogTail> {
     let rows = sqlx::query!(
         r#"
         SELECT id, timestamp, level, module, message, metadata, user_id AS "user_id: UserId",
@@ -199,19 +215,41 @@ pub(super) async fn list_logs_after(
     )
     .fetch_all(pool)
     .await?;
-    rows.into_iter()
-        .map(|row| {
-            Ok(LogRow {
-                provider_request_id: row
-                    .provider_request_id
-                    .map(ProviderRequestId::try_new)
-                    .transpose()
-                    .map_err(|e| decode_error("logs.provider_request_id", e))?,
-                gateway_conversation_id: row
-                    .gateway_conversation_id
+    let mut tail = LogTail {
+        last: rows
+            .last()
+            .map(|row| Watermark::new(row.timestamp, row.id.clone())),
+        ..LogTail::default()
+    };
+    for row in rows {
+        let ids = row
+            .provider_request_id
+            .map(ProviderRequestId::try_new)
+            .transpose()
+            .map_err(malformed("logs.provider_request_id"))
+            .and_then(|provider_request_id| {
+                row.gateway_conversation_id
                     .map(GatewayConversationId::try_new)
                     .transpose()
-                    .map_err(|e| decode_error("logs.gateway_conversation_id", e))?,
+                    .map_err(malformed("logs.gateway_conversation_id"))
+                    .map(|gateway_conversation_id| (provider_request_id, gateway_conversation_id))
+            });
+        let (provider_request_id, gateway_conversation_id) = match ids {
+            Ok(ids) => ids,
+            Err(e) => {
+                tracing::warn!(
+                    log_id = %row.id,
+                    column = e.column,
+                    error = %e.source,
+                    "OTLP export skipped a log row with a malformed identifier"
+                );
+                tail.skipped += 1;
+                continue;
+            },
+        };
+        tail.rows.push(LogRow {
+                provider_request_id,
+                gateway_conversation_id,
                 id: row.id,
                 timestamp: row.timestamp,
                 level: row.level,
@@ -224,7 +262,7 @@ pub(super) async fn list_logs_after(
                 context_id: row.context_id,
                 client_id: row.client_id,
                 instance_id: row.instance_id.map(InstanceId::new),
-            })
-        })
-        .collect()
+            });
+    }
+    Ok(tail)
 }
