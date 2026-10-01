@@ -18,9 +18,12 @@ const CHILD_ENV: &str = "SYSTEMPROMPT_PROVENANCE_CONFIGURED_CHILD";
 fn configured_bundle_provenance_survives_missing_and_corrupt_manifests_then_recovers() {
     if std::env::var_os(CHILD_ENV).is_some() {
         run_child_assertions();
-        return;
+    } else {
+        run_parent_and_child();
     }
+}
 
+fn run_parent_and_child() {
     let root = tempfile::tempdir().expect("isolated provenance fixture");
     let services = root.path().join("services");
     let cache_root = root.path().join("cache");

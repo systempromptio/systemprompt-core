@@ -46,6 +46,7 @@ fn unreadable_skill_config_surfaces_io_error() {
     let skill_config = skill_dir.join("config.yaml");
     std::fs::write(&skill_config, "id: broken-skill\nname: b\n").expect("write skill");
     chmod(&skill_config, 0o000);
+    // skip-ok: root reads a mode-0o000 path, so the permission error never occurs
     if !perms_are_enforced(&skill_config) {
         chmod(&skill_config, 0o644);
         return;
@@ -68,6 +69,7 @@ fn unreadable_skills_catalog_dir_surfaces_io_error() {
     let skills_dir = temp.path().join("skills");
     std::fs::create_dir_all(&skills_dir).expect("skills dir");
     chmod(&skills_dir, 0o000);
+    // skip-ok: root reads a mode-0o000 path, so the permission error never occurs
     if !perms_are_enforced(&skills_dir) {
         chmod(&skills_dir, 0o755);
         return;
@@ -187,6 +189,7 @@ fn profile_list_unreadable_dir_returns_empty() {
     let profiles_dir = temp.path().join("profiles");
     std::fs::create_dir_all(&profiles_dir).expect("profiles dir");
     chmod(&profiles_dir, 0o000);
+    // skip-ok: root reads a mode-0o000 path, so the permission error never occurs
     if !perms_are_enforced(&profiles_dir) {
         chmod(&profiles_dir, 0o755);
         return;
@@ -251,6 +254,7 @@ fn find_agent_file_unreadable_candidate_is_io_error() {
     let file = agents_dir.join("locked.yaml");
     std::fs::write(&file, "agents: {}\n").expect("write");
     chmod(&file, 0o000);
+    // skip-ok: root reads a mode-0o000 path, so the permission error never occurs
     if !perms_are_enforced(&file) {
         chmod(&file, 0o644);
         return;
