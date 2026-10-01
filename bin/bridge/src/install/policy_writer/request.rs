@@ -6,7 +6,10 @@
 use std::io::{self, Read};
 use std::path::Path;
 
-use super::{MAX_REQUEST_BYTES, PolicyWriteRequest, PolicyWriterError, REQUEST_VERSION};
+use super::{
+    MAX_REQUEST_BYTES, PolicyWriteRequest, PolicyWriterError, REQUEST_VERSION, RequestFacts,
+    entry_value,
+};
 
 pub fn read_request(path: &Path) -> Result<PolicyWriteRequest, PolicyWriterError> {
     let bytes = read_bytes(path).map_err(|source| PolicyWriterError::Io {
@@ -66,4 +69,22 @@ fn read_bytes(path: &Path) -> io::Result<Vec<u8>> {
         return Err(io::Error::other("request exceeds the size limit"));
     }
     Ok(bytes)
+}
+
+pub fn facts_from_entries(
+    entries: &[(String, String)],
+) -> Result<RequestFacts, PolicyWriterError> {
+    let headers = entry_value(entries, "inferenceCustomHeaders")
+        .map(|raw| serde_json::from_str(&raw))
+        .transpose()
+        .map_err(|e| PolicyWriterError::Io {
+            context: "parse inferenceCustomHeaders from the staged profile".to_owned(),
+            source: io::Error::new(io::ErrorKind::InvalidData, e),
+        })?
+        .unwrap_or_default();
+    Ok(RequestFacts {
+        headers,
+        models: entry_value(entries, "inferenceModels"),
+        org_uuid: entry_value(entries, "deploymentOrganizationUuid"),
+    })
 }
