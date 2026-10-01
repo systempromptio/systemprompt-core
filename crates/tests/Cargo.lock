@@ -7863,7 +7863,6 @@ dependencies = [
  "chrono",
  "serde_json",
  "systemprompt-content",
- "systemprompt-database",
  "systemprompt-identifiers",
  "systemprompt-test-fixtures",
  "tempfile",

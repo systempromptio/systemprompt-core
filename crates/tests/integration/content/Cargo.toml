@@ -12,7 +12,6 @@ workspace = true
 
 [dependencies]
 systemprompt-content = { workspace = true }
-systemprompt-database = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-test-fixtures = { workspace = true }
 
