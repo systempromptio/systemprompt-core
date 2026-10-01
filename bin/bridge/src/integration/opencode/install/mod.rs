@@ -216,7 +216,7 @@ fn remove_auth_key(path: &Path) -> std::io::Result<bool> {
         return Ok(false);
     }
     if auth.is_empty() {
-        std::fs::remove_file(path)?;
+        crate::fsutil::remove_verified(path)?;
     } else {
         crate::fsutil::atomic_write_0600(path, &pretty(&auth)?)?;
     }

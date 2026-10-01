@@ -80,7 +80,7 @@ A bare invocation with no subcommand is `run`; the GUI opens by default only whe
 
 ### Loopback credentials
 
-The loopback secret (`<config_dir>/<brand>/bridge-loopback.key`, mode 0600) is the root credential and is only ever written to bridge-owned 0600 files: the OpenCode `auth.json`, the Hermes `.env`, the Codex credential helper, and the Linux `env.sh`. Every surface another local account can read carries a token derived from it with a domain-separated HMAC-SHA256 (`src/proxy/scoped_token.rs`), so a leaked file grants only what that surface needs and a secret reset invalidates every derived token at once:
+The loopback secret (`<config_dir>/<brand>/bridge-loopback.key`, mode 0600) is the root credential. The CLI hosts never receive it: the OpenCode `auth.json`, the Hermes `.env` and `config.yaml`, the Codex credential helper and the Linux `env.sh` carry that host's `host:<id>` token, and the OpenCode and Hermes files are written atomically as 0600 and read back. Every surface another local account can read carries a token derived from it with a domain-separated HMAC-SHA256 (`src/proxy/scoped_token.rs`), so a leaked file grants only what that surface needs and a secret reset invalidates every derived token at once:
 
 | Surface | Credential | Accepted on |
 |---|---|---|
