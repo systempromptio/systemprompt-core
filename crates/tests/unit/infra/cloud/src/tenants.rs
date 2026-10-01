@@ -2,7 +2,7 @@
 
 use chrono::{TimeDelta, Utc};
 use systemprompt_cloud::tenants::NewCloudTenantParams;
-use systemprompt_cloud::{StoredTenant, TenantInfo, TenantStore, TenantType};
+use systemprompt_cloud::{CloudTenantInfo, StoredTenant, TenantStore, TenantType};
 use systemprompt_identifiers::TenantId;
 
 #[test]
@@ -119,7 +119,7 @@ fn test_stored_tenant_new_cloud_minimal() {
 
 #[test]
 fn test_stored_tenant_from_tenant_info() {
-    let info = TenantInfo {
+    let info = CloudTenantInfo {
         id: "info-123".to_string(),
         name: "From Info".to_string(),
         subscription_id: Some("sub-456".to_string()),
@@ -145,7 +145,7 @@ fn test_stored_tenant_from_tenant_info() {
 
 #[test]
 fn test_stored_tenant_from_tenant_info_minimal() {
-    let info = TenantInfo {
+    let info = CloudTenantInfo {
         id: "minimal".to_string(),
         name: "Minimal Info".to_string(),
         subscription_id: None,
@@ -245,7 +245,7 @@ fn test_tenant_store_synced_at() {
 #[test]
 fn test_tenant_store_from_tenant_infos() {
     let infos = vec![
-        TenantInfo {
+        CloudTenantInfo {
             id: "i1".to_string(),
             name: "Info 1".to_string(),
             subscription_id: None,
@@ -258,7 +258,7 @@ fn test_tenant_store_from_tenant_infos() {
             external_db_access: false,
             database_url: "postgres://i1".to_string(),
         },
-        TenantInfo {
+        CloudTenantInfo {
             id: "i2".to_string(),
             name: "Info 2".to_string(),
             subscription_id: None,

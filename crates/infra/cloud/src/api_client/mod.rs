@@ -16,6 +16,7 @@ mod types;
 
 pub use client::CloudApiClient;
 pub use types::{
-    DeployResponse, RegistryToken, RotateCredentialsResponse, StatusResponse, SubscriptionStatus,
-    Tenant, TenantInfo, TenantSecrets, TenantStatus, UserInfo, UserMeResponse,
+    CloudStatusResponse, CloudTenant, CloudTenantInfo, CloudTenantSecrets,
+    CloudTenantStatusResponse, CloudUserInfo, DeployResponse, RegistryToken,
+    RotateCredentialsResponse, SubscriptionStatus, UserMeResponse,
 };

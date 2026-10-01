@@ -92,18 +92,3 @@ pub struct DeployResponse {
 pub struct SetSecretsRequest {
     pub secrets: HashMap<String, String>,
 }
-
-pub type ApiResponse<T> = CloudApiResponse<T>;
-pub type ApiError = CloudApiError;
-pub type ApiErrorDetail = CloudApiErrorDetail;
-pub type UserInfo = CloudUserInfo;
-pub type CustomerInfo = CloudCustomerInfo;
-pub type PlanInfo = CloudPlanInfo;
-pub type Plan = CloudPlan;
-pub type TenantInfo = CloudTenantInfo;
-pub type Tenant = CloudTenant;
-pub type TenantStatus = CloudTenantStatusResponse;
-pub type TenantSecrets = CloudTenantSecrets;
-pub type ListResponse<T> = CloudListResponse<T>;
-pub type StatusResponse = CloudStatusResponse;
-pub type EnterpriseLicenseInfo = CloudEnterpriseLicenseInfo;
