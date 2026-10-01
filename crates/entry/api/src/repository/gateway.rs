@@ -15,6 +15,7 @@ use systemprompt_database::DbPool;
 use systemprompt_models::profile::AuditConfig;
 use systemprompt_traits::DynContextMaterializer;
 
+use crate::services::gateway::GatewayBackgroundTasks;
 use crate::services::gateway::audit::journal::{GatewayJournal, Settlement};
 use crate::services::gateway::signature_cache::{TTL, ThoughtSignatureCache};
 
@@ -32,6 +33,7 @@ pub struct GatewayRepositories {
     pub artifact_ingest: Option<Arc<systemprompt_mcp::ArtifactIngest>>,
     pub sessions: Option<systemprompt_traits::DynSessionStore>,
     pub payload_cap_bytes: usize,
+    pub background: GatewayBackgroundTasks,
 }
 
 impl std::fmt::Debug for GatewayRepositories {
@@ -64,6 +66,7 @@ impl GatewayRepositories {
             artifact_ingest: None,
             sessions: None,
             payload_cap_bytes: AuditConfig::DEFAULT_PAYLOAD_CAP_BYTES,
+            background: GatewayBackgroundTasks::default(),
         }
     }
 

@@ -1,11 +1,10 @@
 //! A safety scanner that fails is never read as clean: an enforcing policy
 //! blocks the request and persists a `scanner_failure` finding.
 
-use std::time::Duration;
-
 use systemprompt_ai::{
     CATEGORY_SCANNER_FAILURE, Finding, SafetyScanner, ScanError, register_safety_scanner,
 };
+use systemprompt_api::services::gateway::GatewayRepositories;
 use systemprompt_api::services::gateway::protocol::CanonicalContent;
 use systemprompt_api::services::gateway::protocol::canonical::CanonicalRequest;
 use systemprompt_api::services::gateway::protocol::canonical_response::CanonicalResponse;
@@ -81,21 +80,19 @@ async fn remove_policy(pool: &DbPool, name: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn poll_categories(pool: &DbPool, id: &AiRequestId) -> Vec<String> {
-    let pg = pool.pool();
-    for _ in 0..100 {
-        let rows: Vec<(String,)> =
-            sqlx::query_as("SELECT category FROM ai_safety_findings WHERE ai_request_id = $1")
-                .bind(id.as_str())
-                .fetch_all(pg.as_ref())
-                .await
-                .expect("query findings");
-        if !rows.is_empty() {
-            return rows.into_iter().map(|(c,)| c).collect();
-        }
-        tokio::time::sleep(Duration::from_millis(50)).await;
-    }
-    Vec::new()
+async fn settled_categories(
+    repos: &GatewayRepositories,
+    pool: &DbPool,
+    id: &AiRequestId,
+) -> Vec<String> {
+    repos.background.drain().await;
+    let rows: Vec<(String,)> =
+        sqlx::query_as("SELECT category FROM ai_safety_findings WHERE ai_request_id = $1")
+            .bind(id.as_str())
+            .fetch_all(pool.pool().as_ref())
+            .await
+            .expect("query findings");
+    rows.into_iter().map(|(c,)| c).collect()
 }
 
 #[tokio::test]
@@ -124,8 +121,9 @@ async fn a_failing_scanner_blocks_the_request_under_an_enforcing_policy() -> any
     let di = inputs(&cred, request, false);
     let request_id = di.ctx.ai_request_id.clone();
 
-    let outcome = GatewayService::dispatch(&config, &registry, &pool, &gw_repos(&pool), di).await;
-    let categories = poll_categories(&pool, &request_id).await;
+    let repos = gw_repos(&pool);
+    let outcome = GatewayService::dispatch(&config, &registry, &pool, &repos, di).await;
+    let categories = settled_categories(&repos, &pool, &request_id).await;
     remove_policy(&pool, &policy_name).await?;
 
     match outcome.expect_err("a failed scan must not be treated as clean") {

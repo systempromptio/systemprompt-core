@@ -19,6 +19,7 @@ schemars = { workspace = true }
 # Core runtime
 tokio = { workspace = true, features = ["fs", "process", "signal"] }
 tokio-stream = { workspace = true }
+tokio-util = { workspace = true }
 anyhow = { workspace = true }
 async-trait = { workspace = true }
 async-stream = { workspace = true }

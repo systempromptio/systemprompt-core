@@ -1,7 +1,6 @@
 //! Replayed gateway tool results become one correlated artifact per call id.
 
 use std::sync::Arc;
-use std::time::Duration;
 
 use axum::body::to_bytes;
 use http::StatusCode;
@@ -128,19 +127,13 @@ async fn replayed_tool_results_are_deduplicated_and_correlated_as_artifacts() ->
     assert_eq!(response.status(), StatusCode::OK);
     to_bytes(response.into_body(), 1024 * 1024).await?;
 
+    repos.background.drain().await;
     let database = pool.pool();
-    let mut artifacts = Vec::new();
-    for _ in 0..80 {
-        artifacts = sqlx::query_as::<_, (String, String, String, String, bool, bool, serde_json::Value)>(
-            "SELECT ai_tool_call_id, tool_name, session_id, trace_id, is_structured, is_error, data FROM mcp_artifacts WHERE user_id=$1 AND ai_tool_call_id IN ($2,$3) ORDER BY ai_tool_call_id",
-        )
-        .bind(credential.user_id.as_str()).bind(&known_id).bind(&unknown_id)
-        .fetch_all(database.as_ref()).await?;
-        if artifacts.len() == 2 {
-            break;
-        }
-        tokio::time::sleep(Duration::from_millis(25)).await;
-    }
+    let artifacts = sqlx::query_as::<_, (String, String, String, String, bool, bool, serde_json::Value)>(
+        "SELECT ai_tool_call_id, tool_name, session_id, trace_id, is_structured, is_error, data FROM mcp_artifacts WHERE user_id=$1 AND ai_tool_call_id IN ($2,$3) ORDER BY ai_tool_call_id",
+    )
+    .bind(credential.user_id.as_str()).bind(&known_id).bind(&unknown_id)
+    .fetch_all(database.as_ref()).await?;
     assert_eq!(
         artifacts.len(),
         2,
@@ -274,22 +267,16 @@ async fn tool_result_artifact_uses_the_live_gateway_safety_policy() -> anyhow::R
     assert_eq!(response.status(), StatusCode::OK);
     to_bytes(response.into_body(), 1024 * 1024).await?;
 
-    let mut findings = Vec::new();
-    for _ in 0..80 {
-        findings = sqlx::query_as::<_, (String, String, String, bool)>(
-            "SELECT f.phase,f.category,f.scanner,f.redacted FROM mcp_artifact_findings f \
-             JOIN mcp_artifacts a ON a.artifact_id=f.artifact_id \
-             WHERE a.user_id=$1 AND a.ai_tool_call_id=$2",
-        )
-        .bind(credential.user_id.as_str())
-        .bind(&call_id)
-        .fetch_all(raw.as_ref())
-        .await?;
-        if !findings.is_empty() {
-            break;
-        }
-        tokio::time::sleep(Duration::from_millis(25)).await;
-    }
+    repositories.background.drain().await;
+    let findings = sqlx::query_as::<_, (String, String, String, bool)>(
+        "SELECT f.phase,f.category,f.scanner,f.redacted FROM mcp_artifact_findings f \
+         JOIN mcp_artifacts a ON a.artifact_id=f.artifact_id \
+         WHERE a.user_id=$1 AND a.ai_tool_call_id=$2",
+    )
+    .bind(credential.user_id.as_str())
+    .bind(&call_id)
+    .fetch_all(raw.as_ref())
+    .await?;
     assert_eq!(
         findings.len(),
         1,

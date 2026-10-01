@@ -6904,6 +6904,7 @@ dependencies = [
  "thiserror 2.0.19",
  "tokio",
  "tokio-stream",
+ "tokio-util",
  "tower",
  "tower-http 0.7.0",
  "tower_governor",
@@ -7985,6 +7986,7 @@ dependencies = [
 name = "systemprompt-events-integration-tests"
 version = "0.0.11"
 dependencies = [
+ "axum",
  "chrono",
  "serde_json",
  "sqlx",

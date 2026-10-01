@@ -89,6 +89,7 @@ pub struct GatewayAudit {
     served_provider: Mutex<Option<String>>,
     started_at: Instant,
     upstream: Mutex<UpstreamClock>,
+    background: super::GatewayBackgroundTasks,
 }
 
 #[derive(Debug, Default)]
@@ -114,7 +115,12 @@ impl GatewayAudit {
             served_provider: Mutex::new(None),
             started_at: Instant::now(),
             upstream: Mutex::new(UpstreamClock::default()),
+            background: repos.background.clone(),
         }
+    }
+
+    pub const fn background(&self) -> &super::GatewayBackgroundTasks {
+        &self.background
     }
 
     pub async fn set_served_model(&self, model: &str) {

@@ -3,7 +3,6 @@
 //! `ai_requests` state for completion, upstream error, and abandoned streams.
 
 use std::sync::Arc;
-use std::time::Duration;
 
 use bytes::Bytes;
 use futures::stream;
@@ -119,24 +118,17 @@ async fn open_audit(db: &DbPool, user_id: UserId) -> (Arc<GatewayAudit>, AiReque
     (Arc::new(audit), ai_request_id)
 }
 
-async fn wait_for_terminal_status(db: &DbPool, id: &AiRequestId) -> (String, Option<String>) {
-    let pool = db.pool();
-    for _ in 0..200 {
-        let row: Option<(String, Option<String>)> =
-            sqlx::query_as("SELECT status, error_message FROM ai_requests WHERE id = $1")
-                .bind(id.as_str())
-                .fetch_optional(pool.as_ref())
-                .await
-                .expect("query ai_requests");
-        if let Some((status, error)) = row
-            && status != "pending"
-            && status != "processing"
-        {
-            return (status, error);
-        }
-        tokio::time::sleep(Duration::from_millis(25)).await;
-    }
-    panic!("ai_requests row never reached a terminal status");
+async fn settled_status(
+    audit: &GatewayAudit,
+    db: &DbPool,
+    id: &AiRequestId,
+) -> (String, Option<String>) {
+    audit.background().drain().await;
+    sqlx::query_as("SELECT status, error_message FROM ai_requests WHERE id = $1")
+        .bind(id.as_str())
+        .fetch_one(db.pool().as_ref())
+        .await
+        .expect("query ai_requests")
 }
 
 fn tap_ctx(db: &DbPool, ai_request_id: &AiRequestId, policy: GatewayPolicySpec) -> TapFinalizeCtx {
@@ -222,7 +214,7 @@ async fn tap_renders_client_bytes_and_completes_audit_on_eof() {
     assert!(wire.contains("Hello from tap"), "{wire}");
     assert!(wire.contains("message_stop"), "{wire}");
 
-    let (status, error) = wait_for_terminal_status(&db, &ai_request_id).await;
+    let (status, error) = settled_status(&audit, &db, &ai_request_id).await;
     assert_eq!(status, "completed", "error: {error:?}");
     assert!(error.is_none(), "{error:?}");
 
@@ -241,16 +233,9 @@ async fn tap_renders_client_bytes_and_completes_audit_on_eof() {
         "served model must be recorded on the audit row"
     );
 
-    let mut bucket = None;
-    for _ in 0..200 {
-        bucket = quota_bucket(&db, &user_id).await;
-        if bucket.is_some() {
-            break;
-        }
-        tokio::time::sleep(Duration::from_millis(25)).await;
-    }
-    let (bucket_input, bucket_output, bucket_cost) =
-        bucket.expect("streaming completion must debit the user's quota bucket");
+    let (bucket_input, bucket_output, bucket_cost) = quota_bucket(&db, &user_id)
+        .await
+        .expect("streaming completion must debit the user's quota bucket");
     assert_eq!(bucket_input, 10);
     assert_eq!(bucket_output, 7);
     let stored_cost: i64 =
@@ -297,7 +282,7 @@ async fn tap_surfaces_upstream_error_to_client_and_fails_audit() {
         "upstream stream error must break the client body"
     );
 
-    let (status, error) = wait_for_terminal_status(&db, &ai_request_id).await;
+    let (status, error) = settled_status(&audit, &db, &ai_request_id).await;
     assert_eq!(status, "failed");
     assert!(
         error
@@ -306,7 +291,6 @@ async fn tap_surfaces_upstream_error_to_client_and_fails_audit() {
         "{error:?}"
     );
 
-    tokio::time::sleep(Duration::from_millis(200)).await;
     assert!(
         quota_bucket(&db, &user_id).await.is_none(),
         "a failed stream must not debit tokens beyond the precheck reservation"
@@ -333,7 +317,7 @@ async fn tap_dropped_before_polling_fails_audit_as_client_disconnected() {
     );
     drop(body);
 
-    let (status, error) = wait_for_terminal_status(&db, &ai_request_id).await;
+    let (status, error) = settled_status(&audit, &db, &ai_request_id).await;
     assert_eq!(status, "failed");
     assert_eq!(
         error.as_deref(),
@@ -387,24 +371,17 @@ async fn tap_completion_runs_response_safety_scan() {
         .await
         .expect("collect tapped body");
 
-    let (status, _) = wait_for_terminal_status(&db, &ai_request_id).await;
+    let (status, _) = settled_status(&audit, &db, &ai_request_id).await;
     assert_eq!(status, "completed");
 
     let pool = db.pool();
-    let mut finding = None;
-    for _ in 0..200 {
-        finding = sqlx::query_as::<_, (String, String)>(
-            "SELECT phase, scanner FROM ai_safety_findings WHERE ai_request_id = $1",
-        )
-        .bind(ai_request_id.as_str())
-        .fetch_optional(pool.as_ref())
-        .await
-        .expect("query ai_safety_findings");
-        if finding.is_some() {
-            break;
-        }
-        tokio::time::sleep(Duration::from_millis(25)).await;
-    }
+    let finding = sqlx::query_as::<_, (String, String)>(
+        "SELECT phase, scanner FROM ai_safety_findings WHERE ai_request_id = $1",
+    )
+    .bind(ai_request_id.as_str())
+    .fetch_optional(pool.as_ref())
+    .await
+    .expect("query ai_safety_findings");
     let (phase, scanner) =
         finding.expect("streaming completion must persist response-phase safety findings");
     assert_eq!(phase, "response");

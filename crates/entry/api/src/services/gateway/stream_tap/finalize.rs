@@ -107,7 +107,8 @@ pub(super) fn finalize(
     origin: &'static str,
 ) {
     audit.mark_upstream_end();
-    tokio::spawn(async move {
+    let background = audit.background().clone();
+    background.spawn(async move {
         capture_signatures(&ctx, &audit, &summary).await;
         if let Some(model) = summary.served_model.as_deref() {
             audit.set_served_model(model).await;

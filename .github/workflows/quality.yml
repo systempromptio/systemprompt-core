@@ -54,15 +54,9 @@ jobs:
       # `just lint` covers bin/bridge, whose keyring backend pulls
       # libdbus-sys through pkg-config; ubuntu-latest no longer ships
       # libdbus-1-dev.
-      - run: |
-          # A mirror hiccup is infrastructure, not a code failure; three
-          # bounded attempts, then the step still fails.
-          n=0
-          until sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config; do
-              n=$((n + 1))
-              [ "$n" -lt 3 ] || exit 1
-              sleep 15
-          done
+      - name: Install system dependencies
+        timeout-minutes: 12
+        run: bash scripts/ci-install-system-deps.sh libdbus-1-dev pkg-config
       - run: rustup show
       - uses: mozilla-actions/sccache-action@v0.0.9
       - uses: extractions/setup-just@v4
@@ -99,7 +93,9 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
-      - run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
+      - name: Install system dependencies
+        timeout-minutes: 12
+        run: bash scripts/ci-install-system-deps.sh libdbus-1-dev pkg-config
       - run: python3 scripts/ci-strip-cargo-config.py
       - run: rustup show
       - uses: mozilla-actions/sccache-action@v0.0.9
@@ -157,15 +153,9 @@ jobs:
         with:
           ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
       # bin/bridge's linux keyring backend pulls libdbus-sys via pkg-config.
-      - run: |
-          # A mirror hiccup is infrastructure, not a code failure; three
-          # bounded attempts, then the step still fails.
-          n=0
-          until sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config; do
-              n=$((n + 1))
-              [ "$n" -lt 3 ] || exit 1
-              sleep 15
-          done
+      - name: Install system dependencies
+        timeout-minutes: 12
+        run: bash scripts/ci-install-system-deps.sh libdbus-1-dev pkg-config
       - run: rustup show
       - uses: mozilla-actions/sccache-action@v0.0.9
       - run: cargo doc --workspace --no-deps --all-features
@@ -189,15 +179,9 @@ jobs:
       # this job needs the keyring backend's libdbus-sys like every other job
       # that builds it -- without it the gate fails on a missing `dbus-1.pc`
       # and says nothing about bindings.
-      - run: |
-          # A mirror hiccup is infrastructure, not a code failure; three
-          # bounded attempts, then the step still fails.
-          n=0
-          until sudo apt-get update && sudo apt-get install -y ripgrep libdbus-1-dev pkg-config; do
-              n=$((n + 1))
-              [ "$n" -lt 3 ] || exit 1
-              sleep 15
-          done
+      - name: Install system dependencies
+        timeout-minutes: 12
+        run: bash scripts/ci-install-system-deps.sh ripgrep libdbus-1-dev pkg-config
       - uses: extractions/setup-just@v4
       - uses: taiki-e/install-action@v2
         with:
@@ -339,15 +323,9 @@ jobs:
         with:
           ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
       # bin/bridge's linux keyring backend pulls libdbus-sys via pkg-config.
-      - run: |
-          # A mirror hiccup is infrastructure, not a code failure; three
-          # bounded attempts, then the step still fails.
-          n=0
-          until sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config; do
-              n=$((n + 1))
-              [ "$n" -lt 3 ] || exit 1
-              sleep 15
-          done
+      - name: Install system dependencies
+        timeout-minutes: 12
+        run: bash scripts/ci-install-system-deps.sh libdbus-1-dev pkg-config
       - uses: dtolnay/rust-toolchain@1.96.0
       - uses: mozilla-actions/sccache-action@v0.0.9
       - name: Assert the toolchain under test really is the MSRV
